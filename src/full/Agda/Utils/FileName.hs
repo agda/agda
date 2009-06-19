@@ -164,9 +164,12 @@ slashes = ['/']
 --
 -- Nonexisting and existing files are not compared.
 --
--- The size test for existing files is included since the first method
--- may not always give correct results. I would want to check the
--- files' sizes instead of their modification times, but
+-- Note that in the case of existing files the returned file names
+-- are canonicalised.
+--
+-- The modification time test for existing files is included since the
+-- first method may not always give correct results. I would want to
+-- check the files' sizes instead of their modification times, but
 -- "System.Directory" does not contain a function for querying the
 -- size of a file.
 --
