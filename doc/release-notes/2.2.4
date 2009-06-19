@@ -4,8 +4,9 @@
 
 Important changes since 2.2.2:
 
-* Change to open import and open module semantics
-  
+* Change to the semantics of "open import" and "open module". The
+  declaration
+
     open import M <using/hiding/renaming>
 
   now translates to
@@ -16,16 +17,18 @@ Important changes since 2.2.2:
   instead of
 
     import A <using/hiding/renaming>
-    open A
+    open A.
 
-  The same translation is used for "open module M = E ..."
+  The same translation is used for "open module M = E …". Declarations
+  involving the keywords as or public are changed in a corresponding
+  way ("as" always goes with import, and "public" always with open).
 
-  This means that import directives does not affect the qualified names when
-  using open import/module. To get the old behaviour simply use the expanded
-  version above.
+  This change means that import directives do not affect the qualified
+  names when open import/module is used. To get the old behaviour you
+  can use the expanded version above.
 
-* Public open in parameterised modules no longer inherit the module
-  parameters. Example:
+* Names opened publicly in parameterised modules no longer inherit the
+  module parameters. Example:
 
     module A where
       postulate X : Set
@@ -33,10 +36,8 @@ Important changes since 2.2.2:
     module B (Y : Set) where
       open A public
 
-    -- Agda-2.2.2   B.X : (Y : Set) -> Set
-    -- Agda-2.2.4   B.X : Set
+  In Agda 2.2.2 B.X has type (Y : Set) → Set, whereas in Agda 2.2.4
+  B.X has type Set.
 
-* Unicode subscript digits are now allowed for higher universes:
-
-    Set₁ is equivalent to Set1
-
+* Unicode subscript digits are now allowed for the hierarchy of
+  universes (Set₀, Set₁, …): Set₁ is equivalent to Set1.
