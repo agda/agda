@@ -39,5 +39,9 @@ Important changes since 2.2.2:
   In Agda 2.2.2 B.X has type (Y : Set) → Set, whereas in Agda 2.2.4
   B.X has type Set.
 
+* Previously it was not possible to export a given constructor name
+  through two different "open public" statements in the same module.
+  This is now possible.
+
 * Unicode subscript digits are now allowed for the hierarchy of
   universes (Set₀, Set₁, …): Set₁ is equivalent to Set1.
