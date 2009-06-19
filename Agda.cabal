@@ -44,7 +44,7 @@ source-repository head
 
 library
   hs-source-dirs:  src/full
-  build-depends:   base >= 3 && < 4,
+  build-depends:   base >= 4.1 && < 4.2,
                    mtl >= 1.1 && < 2,
                    QuickCheck == 2.1.0.1,
                    haskell98 >= 1.0.1 && < 2,
@@ -61,7 +61,8 @@ library
                    process >= 1.0.1.0 && < 2,
                    haskeline >= 0.3 && < 0.7,
                    utf8-string >= 0.3 && < 0.4,
-                   xhtml >= 3000.2 && < 3000.3
+                   xhtml >= 3000.2 && < 3000.3,
+                   syb >= 0.1 && < 0.2
   if impl(ghc >= 6.10)
     build-depends: ghc-prim >= 0.1 && < 1
   build-tools:     happy >= 1.15 && < 2,
@@ -244,7 +245,7 @@ executable agda-mode
   hs-source-dirs:  src/agda-mode
   main-is:         Main.hs
   other-modules:   Paths_Agda
-  build-depends:   base >= 3 && < 4,
+  build-depends:   base >= 4.1 && < 4.2,
                    filepath >= 1.1 && < 2,
                    process >= 1.0.1.0 && < 2,
                    utf8-string >= 0.3 && < 0.4

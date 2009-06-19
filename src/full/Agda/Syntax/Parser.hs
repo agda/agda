@@ -15,7 +15,7 @@ module Agda.Syntax.Parser
     , ParseError(..)
     ) where
 
-import Control.Exception
+import Control.OldException
 import Data.List
 import System.Directory
 

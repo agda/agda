@@ -3,23 +3,12 @@
 ------------------------------------------------------------------------
 
 module Agda.Utils.Either
-  ( rights
-  , isLeft, isRight
+  ( isLeft, isRight
   , tests
   ) where
 
 import Control.Arrow
 import Agda.Utils.TestHelpers
-
--- | Extracts the right elements from the list.
-
-rights :: [Either a b] -> [b]
-rights xs = [ x | Right x <- xs ]
-
--- | Extracts the left elements from the list.
-
-lefts :: [Either a b] -> [a]
-lefts xs = [ x | Left x <- xs ]
 
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
 

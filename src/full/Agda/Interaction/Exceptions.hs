@@ -3,7 +3,7 @@
 -}
 module Agda.Interaction.Exceptions where
 
-import Control.Exception
+import Control.OldException
 import Control.Monad.Trans
 import System.Exit
 import qualified System.IO.UTF8 as UTF8

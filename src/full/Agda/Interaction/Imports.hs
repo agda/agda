@@ -17,7 +17,7 @@ import Data.List
 import Data.Map (Map)
 import System.Directory
 import System.Time
-import Control.Exception
+import Control.OldException
 import qualified System.IO.UTF8 as UTF8
 import System.FilePath (isAbsolute)
 

@@ -6,7 +6,7 @@
 
 module Agda.Utils.Impossible where
 
-import Control.Exception
+import Control.OldException
 import Data.Typeable
 
 -- | \"Impossible\" errors, annotated with a file name and a line

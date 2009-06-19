@@ -179,7 +179,7 @@ main = do
 	liftIO $ UTF8.putStrLn s
 	throwError err
     case r of
-	Right _	-> return ()
+	Right _	-> exitSuccess
 	Left _	-> exitFailure
   `catchImpossible` \e -> do
     UTF8.putStr $ show e

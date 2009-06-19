@@ -14,7 +14,7 @@ description:
   This package provides a command-line program for type-checking and
   compiling Agda programs. The program can also generate hyperlinked,
   highlighted HTML files from Agda sources.
-tested-with:     GHC == 6.8.3 && == 6.10.2
+tested-with:     GHC == 6.10.3
 
 source-repository head
   type:     darcs

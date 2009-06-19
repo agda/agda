@@ -7,7 +7,7 @@ module Agda.TypeChecking.Monad.Base where
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.Exception
+import Control.OldException
 import Control.Applicative
 import Data.Map as Map
 import Data.Set as Set
