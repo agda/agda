@@ -30,7 +30,7 @@ description:
   package includes an Emacs mode for Agda, but you need to set up the
   Emacs mode yourself (for instance by running @agda-mode setup@; see
   the README).
-tested-with:     GHC == 6.8.3 && == 6.10.2
+tested-with:     GHC == 6.10.3
 extra-source-files: src/full/Agda/undefined.h
                     README
 data-dir:           src/data
