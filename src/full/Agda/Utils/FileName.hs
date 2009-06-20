@@ -83,7 +83,7 @@ prop_splitPath =
 -- | Given a path (not including a file) @'dropDirectory' n@ removes
 -- the last @n@ directories in the path (if any).
 --
--- Precondition: @n '>=' 0@.
+-- Precondition: @n '>=' 0@, and the path has to be absolute.
 
 dropDirectory :: Integral i => i -> FilePath -> FilePath
 dropDirectory n =
