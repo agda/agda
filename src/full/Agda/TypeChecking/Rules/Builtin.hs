@@ -132,13 +132,13 @@ bindBuiltinPrimitive _ b _ _ = typeError $ GenericError $ "Builtin " ++ b ++ " m
 
 builtinPrimitives :: [ (String, (String, Term -> TCM ())) ]
 builtinPrimitives =
-    [ "NATPLUS"   |-> ("primNatPlus", verifyPlus)
-    , "NATMINUS"  |-> ("primNatMinus", verifyMinus)
-    , "NATTIMES"  |-> ("primNatTimes", verifyTimes)
-    , "NATDIVSUC" |-> ("primNatDivSuc", verifyDivSuc)
-    , "NATMODSUC" |-> ("primNatModSuc", verifyModSuc)
-    , "NATEQUALS" |-> ("primNatEquality", verifyEquals)
-    , "NATLESS"	  |-> ("primNatLess", verifyLess)
+    [ "NATPLUS"      |-> ("primNatPlus", verifyPlus)
+    , "NATMINUS"     |-> ("primNatMinus", verifyMinus)
+    , "NATTIMES"     |-> ("primNatTimes", verifyTimes)
+    , "NATDIVSUCAUX" |-> ("primNatDivSucAux", verifyDivSucAux)
+    , "NATMODSUCAUX" |-> ("primNatModSucAux", verifyModSucAux)
+    , "NATEQUALS"    |-> ("primNatEquality", verifyEquals)
+    , "NATLESS"      |-> ("primNatLess", verifyLess)
     ]
     where
 	(|->) = (,)
@@ -188,26 +188,29 @@ builtinPrimitives =
 				]
 		    ]
 
-	verifyDivSuc ds =
-	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		minus <- primNatMinus
-		let x - y      = minus @@ x @@ y
-		    divSuc x y = ds @@ x @@ y
-		    m	       = Var 0 []
-		    n	       = Var 1 []
+	verifyDivSucAux dsAux =
+	    verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+		let aux k m n j = dsAux @@ k @@ m @@ n @@ j
+		    k	        = Var 0 []
+		    m	        = Var 1 []
+		    n	        = Var 2 []
+		    j	        = Var 3 []
 
-		divSuc  zero   m == zero
-		divSuc (suc n) m == suc (divSuc (n - m) m)
+                aux k m zero    j       == k
+                aux k m (suc n) zero    == aux (suc k) m n m
+                aux k m (suc n) (suc j) == aux k m n j
 
-	verifyModSuc ms =
-	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		minus <- primNatMinus
-		let x - y      = minus @@ x @@ y
-		    modSuc x y = ms @@ x @@ y
-		    m	       = Var 0 []
-		    n	       = Var 1 []
-		modSuc  zero   m == zero
-		modSuc (suc n) m == modSuc (n - m) m
+	verifyModSucAux dsAux =
+	    verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+		let aux k m n j = dsAux @@ k @@ m @@ n @@ j
+		    k	        = Var 0 []
+		    m	        = Var 1 []
+		    n	        = Var 2 []
+		    j	        = Var 3 []
+
+                aux k m zero    j       == k
+                aux k m (suc n) zero    == aux zero m n m
+                aux k m (suc n) (suc j) == aux (suc k) m n j
 
 	verifyEquals eq =
 	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do

@@ -66,26 +66,26 @@ _≥_ = flip _≤_
 {-# BUILTIN NATEQUALS _==_ #-}
 {-# BUILTIN NATLESS   _<_  #-}
 
-divSuc : Nat -> Nat -> Nat
-divSuc  zero   _ = zero
-divSuc (suc n) m = 1 + divSuc (n - m) m
+divSucAux : Nat -> Nat -> Nat -> Nat -> Nat
+divSucAux k m zero    j       = k
+divSucAux k m (suc n) zero    = divSucAux (suc k) m n m
+divSucAux k m (suc n) (suc j) = divSucAux k m n j
 
-modSuc : Nat -> Nat -> Nat
-modSuc  zero   _ = zero
-modSuc (suc n) m =
-  ! n ≤ m  => suc n
-  ! otherwise modSuc (n - m) m
+modSucAux : Nat -> Nat -> Nat -> Nat -> Nat
+modSucAux k m zero    j       = k
+modSucAux k m (suc n) zero    = modSucAux zero m n m
+modSucAux k m (suc n) (suc j) = modSucAux (suc k) m n j
 
-{-# BUILTIN NATDIVSUC divSuc #-}
--- {-# BUILTIN NATMODSUC modSuc #-}
+{-# BUILTIN NATDIVSUCAUX divSucAux #-}
+{-# BUILTIN NATMODSUCAUX modSucAux #-}
 
 div : Nat -> Nat -> Nat
 div n  zero   = zero
-div n (suc m) = divSuc n m
+div n (suc m) = divSucAux zero m n m
 
 mod : Nat -> Nat -> Nat
 mod n  zero   = zero
-mod n (suc m) = modSuc n m
+mod n (suc m) = modSucAux zero m n m
 
 gcd : Nat -> Nat -> Nat
 gcd a 0 = a

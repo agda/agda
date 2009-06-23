@@ -246,6 +246,35 @@ mkPrimFun2 f = do
 	    (\w' -> [Arg (argHiding v) (fromA x), w']) $ \y ->
 	redReturn $ fromC $ f x y
 
+mkPrimFun4 :: ( MonadTCM tcm
+              , PrimType a, FromTerm a, ToTerm a
+              , PrimType b, FromTerm b, ToTerm b
+              , PrimType c, FromTerm c, ToTerm c
+              , PrimType d, FromTerm d
+              , PrimType e, ToTerm e) =>
+	      (a -> b -> c -> d -> e) -> tcm PrimitiveImpl
+mkPrimFun4 f = do
+    (toA, fromA) <- (,) <$> fromTerm <*> toTerm
+    (toB, fromB) <- (,) <$> fromTerm <*> toTerm
+    (toC, fromC) <- (,) <$> fromTerm <*> toTerm
+    toD          <- fromTerm
+    fromE        <- toTerm
+    t <- primType f
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \[a,b,c,d] -> liftTCM $
+	redBind (toA a)
+	    (\a' -> [a',b,c,d]) $ \x ->
+	redBind (toB b)
+	    (\b' -> [Arg (argHiding a) (fromA x), b', c, d]) $ \y ->
+	redBind (toC c)
+	    (\c' -> [ Arg (argHiding a) (fromA x)
+                    , Arg (argHiding b) (fromB y), c', d]) $ \z ->
+	redBind (toD d)
+	    (\d' -> [ Arg (argHiding a) (fromA x)
+                    , Arg (argHiding b) (fromB y)
+                    , Arg (argHiding c) (fromC z)
+                    , d']) $ \w ->
+	redReturn $ fromE $ f x y z w
+
 -- Abstract primitive functions
 abstractPrim :: (MonadTCM tcm, PrimType a) => a -> tcm PrimitiveImpl
 abstractPrim x = abstractFromType (primType x)
@@ -330,8 +359,12 @@ primitiveFunctions = Map.fromList
     , "primNatPlus"	    |-> mkPrimFun2 ((+)			    :: Op Nat)
     , "primNatMinus"	    |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
     , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
-    , "primNatDivSuc"	    |-> mkPrimFun2 ((\x y -> div x (y + 1)) :: Op Nat)
-    , "primNatModSuc"	    |-> mkPrimFun2 ((\x y -> mod x (y + 1)) :: Op Nat)
+    , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
+    , "primNatModSucAux"    |->
+        let aux :: Nat -> Nat -> Nat -> Nat -> Nat
+            aux k m n j | n > j     = mod (n - j - 1) (m + 1)
+                        | otherwise = k + n
+        in mkPrimFun4 aux
     , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
 
