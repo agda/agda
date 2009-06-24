@@ -810,17 +810,17 @@ text properties."
   "Status of `agda2-buffer', or \"no process\"."
   (agda2-protect (process-status agda2-process) "no process"))
 
-(defun agda2-intersperse (sep xs) (interactive)
+(defun agda2-intersperse (sep xs)
   (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
 
 (defun agda2-goal-Range (o)
-  "Range of goal overlay O." (interactive)
+  "Range of goal overlay O."
   (format "(Range [Interval %s %s])"
           (agda2-mkPos (+ (overlay-start o) 2))
           (agda2-mkPos (- (overlay-end   o) 2))))
 
 (defun agda2-mkPos (&optional p)
-  "Position value of P or point." (interactive)
+  "Position value of P or point."
   (save-excursion
     (if p (goto-char p))
     (format "(Pn \"%s\" %d %d %d)" (buffer-file-name)
