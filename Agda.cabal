@@ -1,6 +1,6 @@
 name:            Agda
 version:         2.2.3
-cabal-version:   >= 1.6 && < 2
+cabal-version:   >= 1.6.0.3 && < 2
 build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
