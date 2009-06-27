@@ -520,7 +520,7 @@ order for the change to take effect."
                                                ⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮
                                                ⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⎕"))
 
-  ;; Shorter forms of many greek letters.
+  ;; Shorter forms of many greek letters plus ƛ.
 
   ("Ga"  . ("α"))  ("GA"  . ("Α"))
   ("Gb"  . ("β"))  ("GB"  . ("Β"))
@@ -532,7 +532,7 @@ order for the change to take effect."
   ("Gth" . ("θ"))  ("GTH" . ("θ"))
   ("Gi"  . ("ι"))  ("GI"  . ("Ι"))
   ("Gk"  . ("κ"))  ("GK"  . ("Κ"))
-  ("Gl"  . ("λ"))  ("GL"  . ("Λ"))
+  ("Gl"  . ("λ"))  ("GL"  . ("Λ"))  ("Gl-" . ("ƛ"))
   ("Gm"  . ("μ"))  ("GM"  . ("Μ"))
   ("Gn"  . ("ν"))  ("GN"  . ("Ν"))
   ("Gx"  . ("ξ"))  ("GX"  . ("Ξ"))
