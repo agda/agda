@@ -71,12 +71,11 @@ inject {i = zero}  ()
 inject {i = suc i} zero    = zero
 inject {i = suc i} (suc j) = suc (inject j)
 
--- A stronger version of the above
-inject' : {n : ℕ} -> {i : Fin (suc n)} -> Fin′ i -> Fin n
-inject' {n = zero} {i = suc ()} l
-inject' {i = zero} ()
-inject' {n = suc _} {i = suc _} zero = zero
-inject' {n = suc _} {i = suc _} (suc i) = suc (inject' i)
+inject! : ∀ {n} {i : Fin (suc n)} → Fin′ i → Fin n
+inject! {n = zero}  {i = suc ()} _
+inject!             {i = zero}   ()
+inject! {n = suc _} {i = suc _}  zero    = zero
+inject! {n = suc _} {i = suc _}  (suc j) = suc (inject! j)
 
 inject+ : ∀ {m} n → Fin m → Fin (m N+ n)
 inject+ n zero    = zero
