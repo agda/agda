@@ -163,20 +163,22 @@ _<_ = _N<_ on₁ toℕ
 data _≺_ : ℕ → ℕ → Set where
   _≻toℕ_ : ∀ n (i : Fin n) → toℕ i ≺ n
 
+-- An ordering view.
 
--- Compare two values. The relation is made explicit by giving: (least : Fin′ greatest)
-data Ordering {i : ℕ} : Fin i -> Fin i -> Set where
-  less    : (greatest : Fin i) -> (least : Fin′ greatest) -> Ordering (inject least) greatest
-  equal   : (m : Fin i) -> Ordering m m
-  greater : (greatest : Fin i) -> (least : Fin′ greatest) -> Ordering greatest (inject least)
+data Ordering {n : ℕ} : Fin n → Fin n → Set where
+  less    : ∀ greatest (least : Fin′ greatest) →
+            Ordering (inject least) greatest
+  equal   : ∀ i → Ordering i i
+  greater : ∀ greatest (least : Fin′ greatest) →
+            Ordering greatest (inject least)
 
-
-compare : ∀ {i} m n → Ordering {i} m n
-compare zero zero = equal zero
-compare zero (suc n) = less (suc n) zero
-compare (suc m) zero = greater (suc m) zero
-compare (suc m)               (suc n)             with compare m n 
-compare (suc .(inject least)) (suc .greatest)       | less    greatest least = less    (suc greatest) (suc least)
-compare (suc .greatest)       (suc .(inject least)) | greater greatest least = greater (suc greatest) (suc least) 
-compare (suc .m)              (suc .m)              | equal m = equal (suc m)
-
+compare : ∀ {n} (i j : Fin n) → Ordering i j
+compare zero    zero    = equal   zero
+compare zero    (suc j) = less    (suc j) zero
+compare (suc i) zero    = greater (suc i) zero
+compare (suc i) (suc j) with compare i j
+compare (suc .(inject least)) (suc .greatest) | less    greatest least =
+                                                  less    (suc greatest) (suc least)
+compare (suc .greatest) (suc .(inject least)) | greater greatest least =
+                                                  greater (suc greatest) (suc least)
+compare (suc .i)        (suc .i)              | equal i = equal (suc i)
