@@ -45,6 +45,9 @@ drop (suc n) (x ∷ xs) = drop n (♭ xs)
 repeat : forall {A} -> A -> Stream A
 repeat x = x ∷ ♯ repeat x
 
+iterate : ∀ {A} → (A → A) → A → Stream A
+iterate f x = x ∷ ♯ iterate f (f x)
+
 -- Interleaves the two streams.
 
 infixr 5 _⋎_
