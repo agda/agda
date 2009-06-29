@@ -81,7 +81,7 @@ preorder T = record
 
 module StarReasoning {I : Set} (T : Rel I) where
   open PreR (preorder T) public
-    renaming (_∼⟨_⟩_ to _⟶⋆⟨_⟩_)
+    renaming (_∼⟨_⟩_ to _⟶⋆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 
   infixr 2 _⟶⟨_⟩_
 
