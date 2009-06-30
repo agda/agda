@@ -11,7 +11,8 @@ import Data.Char
 isUnicodeId :: Char -> Bool
 isUnicodeId c = isPrint c && not (isAscii c)
 
--- | Converts all Unicode line endings into '\n'.
+-- | Converts many character sequences which may be interpreted as
+-- line or paragraph separators into '\n'.
 
 convertLineEndings :: String -> String
 convertLineEndings ('\x000D' : '\x000A' : s) = '\n' : convertLineEndings s
