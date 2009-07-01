@@ -14,7 +14,9 @@ Table of contents:
 Installing Agda
 ------------------------------------------------------------------------
 
-There are several ways to install Agda.
+There are several ways to install Agda. (Note that this README only
+discusses installation of Agda, not its standard library. See the Agda
+Wiki for information about the library.)
 
 * Using a binary package, prepared for your platform.
 
