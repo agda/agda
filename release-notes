@@ -1,4 +1,19 @@
 ------------------------------------------------------------------------
+Version 0.2
+------------------------------------------------------------------------
+
+Version 0.2 of the "standard" library has now been released, see
+http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
+
+The library has been tested using Agda version 2.2.4.
+
+Note that no guarantees are made about backwards or forwards
+compatibility, the library is still at an experimental stage.
+
+Note also that the library sources are now located in the
+sub-directory lib-<version>/src of the installation tarball.
+
+------------------------------------------------------------------------
 Version 0.1
 ------------------------------------------------------------------------
 
