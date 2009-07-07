@@ -21,7 +21,8 @@ followed:
       location: http://code.haskell.org/Agda/
       tag:      <version>
 
-* Tag and build source distributions.
+* Tag and build source distributions. (Do not forget to record the
+  changes above first.)
 
     VERSION=<version>
     darcs tag $VERSION
