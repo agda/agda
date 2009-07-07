@@ -30,6 +30,10 @@ description:
   package includes an Emacs mode for Agda, but you need to set up the
   Emacs mode yourself (for instance by running @agda-mode setup@; see
   the README).
+  .
+  Note also that this library does not follow the package versioning
+  policy, because the library is only intended to be used by the Emacs
+  mode and the Agda-executable package.
 tested-with:     GHC == 6.10.3
 extra-source-files: src/full/Agda/undefined.h
                     README
