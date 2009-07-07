@@ -1,0 +1,11 @@
+------------------------------------------------------------------------
+Version 0.1
+------------------------------------------------------------------------
+
+Version 0.1 of the "standard" library has now been released, see
+http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Libraries.StandardLibrary.
+
+The library has been tested using Agda version 2.2.2.
+
+Note that no guarantees are made about backwards or forwards
+compatibility, the library is still at an experimental stage.
