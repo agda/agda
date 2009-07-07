@@ -12,11 +12,11 @@ category:        Dependent types
 synopsis:        A dependently typed functional programming language and proof assistant
 description:
   Agda is a dependently typed functional programming language: It has
-  inductive families, which are like Haskell's GADTs, but they can be
-  indexed by values and not just types. It also has parameterised
-  modules, mixfix operators, Unicode characters, and an interactive
-  Emacs interface (the type checker can assist in the development of
-  your code).
+  inductive families, which are similar to Haskell's GADTs, but they
+  can be indexed by values and not just types. It also has
+  parameterised modules, mixfix operators, Unicode characters, and an
+  interactive Emacs interface (the type checker can assist in the
+  development of your code).
   .
   Agda is also a proof assistant: It is an interactive system for
   writing and checking proofs. Agda is based on intuitionistic type
