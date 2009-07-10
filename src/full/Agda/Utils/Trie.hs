@@ -1,130 +1,82 @@
------------------------------------------------------------------------------
--- |
--- Module      :  Unstable.Org.Lochan.Trie
--- Copyright   :  (c) Keith Wansbrough 2005
--- License     :  BSD-style
---
--- Maintainer  :  keith.hlib at lochan.org
---             :  modified and extended by Ulf Norell
--- Stability   :  experimental
--- Portability :  portable
---
---  This module provides a very basic implementation of the Trie data type,
---  with no great concern for efficiency, or for completeness of API.
---
------------------------------------------------------------------------------
 
 module Agda.Utils.Trie
-    (
-    -- * Data type
-    Trie,
-    -- * Constructors
-    empty, singleton, union, unionWith,
-    insert, insertWith,
-    -- * Primitive accessors and mutators
-    value, children, value_u, children_u,
-    lookup, lookupPath,
-    -- * Basic operations
-    preOrder, upwards, downwards,
-    -- * Derived operations
-    takeWhile, takeWhile_V, fringe,
-    ) where
+  ( Trie
+  , empty, singleton, insert, lookupPath, union
+  ) where
 
-
-import Prelude hiding (takeWhile, lookup)
+import Control.Applicative hiding (empty)
+import Control.Monad (mplus)
+import Data.Function
+import Data.List (nubBy, sortBy, isPrefixOf)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe
-import Control.Monad
+import Test.QuickCheck
 
--- |A Trie with key elements of type @k@ (keys of type @[k]@) and values of type @v@.
-data Trie k v = Trie { value    :: Maybe v
-                     , children :: Map k (Trie k v)
-                     }
+data Trie k v = Trie (Maybe v) (Map k (Trie k v))
   deriving Show
 
--- |Modify the 'children' field of a trie.
-value_u :: (Maybe v -> Maybe v) -> Trie k v -> Trie k v
-value_u f p = p { value = f (value p) }
-
--- |Modify the 'children' field of a trie.
-children_u :: (Map k (Trie k v) -> Map k (Trie k v)) -> Trie k v -> Trie k v
-children_u f p = p { children = f (children p) }
-
--- |The empty trie.
 empty :: Trie k v
-empty = Trie { value = Nothing, children = Map.empty }
+empty = Trie Nothing Map.empty
 
--- |The singleton trie.
-singleton :: Ord k => [k] -> v -> Trie k v
-singleton [] x     = Trie { value = Just x, children = Map.empty }
-singleton (k:ks) x = Trie { value = Nothing, children = Map.singleton k (singleton ks x) }
+singleton :: [k] -> v -> Trie k v
+singleton []     v = Trie (Just v) Map.empty
+singleton (x:xs) v = Trie Nothing $ Map.singleton x (singleton xs v)
 
--- |Combining two tries.  The first shadows the second.
+-- | Left biased union.
 union :: Ord k => Trie k v -> Trie k v -> Trie k v
-union p1 p2 =
-    Trie {
-          value    = mplus (value p1) (value p2),
-          children = Map.unionWith union (children p1) (children p2)
-         }
+union (Trie v ss) (Trie w ts) =
+  Trie (v `mplus` w) (Map.unionWith union ss ts)
 
--- |Combining two tries.  If the two define the same key, the
--- specified combining function is used.
-unionWith :: Ord k => (v -> v -> v) -> Trie k v -> Trie k v -> Trie k v
-unionWith f p1 p2 =
-    Trie { value    = lift f (value p1) (value p2)
-         , children = Map.unionWith (unionWith f) (children p1) (children p2)
-         }
-    where lift _ Nothing y = y
-          lift _ x Nothing = x
-          lift _ (Just x) (Just y) = Just (f x y)
-
-
--- |Insertion.
 insert :: Ord k => [k] -> v -> Trie k v -> Trie k v
 insert k v t = union (singleton k v) t
 
-insertWith :: Ord k => (v -> v -> v) -> [k] -> v -> Trie k v -> Trie k v
-insertWith f k v t = unionWith f (singleton k v) t
-
--- |Lookup an element.
-lookup :: Ord k => [k] -> Trie k v -> Maybe v
-lookup []       t = value t
-lookup (k : ks) t = lookup ks =<< Map.lookup k (children t)
-
--- |Lookup and return all values on the path.
 lookupPath :: Ord k => [k] -> Trie k v -> [v]
-lookupPath ks t = case ks of
-  []     -> list $ value t
-  k : ks -> concat $ list (value t) : list (fmap (lookupPath ks) (Map.lookup k $ children t))
+lookupPath xs (Trie v cs) = case xs of
+    []     -> val v
+    x : xs -> val v ++ maybe [] (lookupPath xs) (Map.lookup x cs)
   where
-    list = maybe [] (:[])
+    val = maybe [] (:[])
 
--- |Enumerate all (key,value) pairs, in preorder.
-preOrder :: Ord k => [k] -> Trie k v -> [([k],v)]
-preOrder ks p = getNode p
-                ++ concatMap (\(k,p') -> preOrder (ks++[k]) p')
-                             (Map.toList (children p))
-    where getNode p = maybe [] (\ v -> [(ks,v)]) (value p)
+-- Tests ------------------------------------------------------------------
 
--- |An upwards accumulation on the trie.
-upwards :: Ord k => (Trie k v -> Trie k v) -> Trie k v -> Trie k v
-upwards f = f . children_u (Map.map (upwards f))
+newtype Key = Key Int
+  deriving (Eq, Ord)
 
--- |A downwards accumulation on the trie.
-downwards :: Ord k => (Trie k v -> Trie k v) -> Trie k v -> Trie k v
-downwards f = children_u (Map.map (downwards f)) . f
+newtype Val = Val Int
+  deriving (Eq)
 
--- |Return the prefix of the trie satisfying @f@.
-takeWhile :: Ord k => (Trie k v -> Bool) -> Trie k v -> Trie k v
-takeWhile f = downwards (children_u (Map.filter f))
+newtype Model = Model [([Key], Val)]
+  deriving (Eq, Show)
 
--- |Return the prefix of the trie satisfying @f@ on all values present.
-takeWhile_V :: Ord k => (v -> Bool) -> Trie k v -> Trie k v
-takeWhile_V f = takeWhile (maybe True f . value)
+instance Show Key where
+  show (Key x) = show x
 
--- |Return the fringe of the trie (the trie composed of only the leaf nodes).
-fringe :: Ord k => Trie k v -> Trie k v
-fringe = upwards (\ p -> if Map.null (children p) then p else value_u (const Nothing) p)
+instance Show Val where
+  show (Val x) = show x
 
+instance Arbitrary Key where
+  arbitrary = elements $ map Key [1..2]
+  shrink (Key x) = Key <$> shrink x
+
+instance Arbitrary Val where
+  arbitrary = elements $ map Val [1..3]
+  shrink (Val x) = Val <$> shrink x
+
+instance Arbitrary Model where
+  arbitrary = Model <$> arbitrary
+  shrink (Model xs) = Model <$> shrink xs
+
+modelToTrie :: Model -> Trie Key Val
+modelToTrie (Model xs) = foldr (uncurry insert) empty xs
+
+modelPath :: [Key] -> Model -> [Val]
+modelPath ks (Model xs) =
+  map snd
+  $ sortBy (compare `on` length . fst)
+  $ nubBy ((==) `on` fst)
+  $ filter (flip isPrefixOf ks . fst) xs
+
+prop_path ks m =
+  collect (length $ modelPath ks m) $
+  lookupPath ks (modelToTrie m) == modelPath ks m
 
