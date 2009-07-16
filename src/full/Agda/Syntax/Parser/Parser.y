@@ -593,7 +593,7 @@ WhereClause
     Different kinds of declarations
  --------------------------------------------------------------------------}
 
--- Top-level defintions.
+-- Top-level definitions.
 Declaration :: { [Declaration] }
 Declaration
     : TypeSig	    { [$1] }
