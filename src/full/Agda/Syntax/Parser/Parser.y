@@ -269,6 +269,12 @@ Int : literal	{% case $1 of {
 Id :: { Name }
 Id : id	    {% mkName $1 }
 
+-- Space separated list of one or more identifiers.
+SpaceIds :: { [Name] }
+SpaceIds
+    : Id SpaceIds { $1 : $2 }
+    | Id	  { [$1] }
+
 -- Qualified operators are treated as identifiers, i.e. they have to be back
 -- quoted to appear infix.
 QId :: { QName }
@@ -623,6 +629,10 @@ Declaration
 TypeSig :: { Declaration }
 TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 
+-- Type signatures of the form "n1 n2 n3 ... : Type", with at least
+-- one bound name.
+TypeSigs :: { [Declaration] }
+TypeSigs : SpaceIds ':' Expr { map (flip TypeSig $3) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -808,7 +818,8 @@ LinePragma
     Sequences of declarations
  --------------------------------------------------------------------------}
 
--- Non-empty list of type signatures. Used in postulates.
+-- Non-empty list of type signatures, with several identifiers allowed
+-- for every signature.
 TypeSignatures :: { [TypeSignature] }
 TypeSignatures
     : TeX vopen TypeSignatures1 TeX close   { reverse $3 }
@@ -816,8 +827,8 @@ TypeSignatures
 -- Inside the layout block.
 TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
-    : TypeSignatures1 semi TeX TypeSig  { $4 : $1 }
-    | TeX TypeSig			{ [$2] }
+    : TypeSignatures1 semi TeX TypeSigs { $4 ++ $1 }
+    | TeX TypeSigs			{ $2 }
 
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
