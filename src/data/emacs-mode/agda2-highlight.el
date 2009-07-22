@@ -40,6 +40,27 @@ If the face does not exist, then it is created first."
                       :font           'unspecified)
   (eval `(set-face-attribute face nil ,@attrs)))
 
+(defvar agda2-face-attributes-list
+  '(:family :width :height :weight :slant :foreground :background 
+	    :inverse-video :stipple :underline :overline :strike-through 
+	    :inherit :box :font)
+  "A list of face attributes.")
+
+(defun agda2-highlight-face-attributes (face)
+  "Returns a list of the names and values of all attributes 
+   in face, as a flat list."
+  (agda2-highlight-flatten (mapcar (lambda (attr) 
+		     (let ((val (face-attribute face attr)))
+		       (if (eq val 'unspecified) '() 
+			 (list attr (if (symbolp val) `',val val))))) 
+		   agda2-highlight-face-attributes-list)))
+
+(defun agda2-highlight-flatten (lst) 
+  "Flattens a nested list."
+  (let (value '())
+    (dolist (elt (reverse lst) value)
+      (setq value (append elt value)))))
+
 (defun agda2-highlight-set-faces (variable group)
   "Set all Agda faces according to the value of GROUP.
 Also sets the default value of VARIABLE to GROUP."
@@ -88,7 +109,62 @@ Also sets the default value of VARIABLE to GROUP."
              :background "red")
             (agda2-highlight-incomplete-pattern-face
              :foreground "black"
-             :background "purple"))))))
+             :background "purple")))
+	 ((equal group 'default-faces)
+          (list (cons 'agda2-highlight-keyword-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-keyword-face))
+		(cons 'agda2-highlight-string-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-string-face))
+		(cons 'agda2-highlight-number-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-constant-face))
+		(cons 'agda2-highlight-symbol-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-keyword-face))
+		(cons 'agda2-highlight-primitive-type-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-keyword-face))
+		(cons 'agda2-highlight-bound-variable-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-variable-name-face))
+		(cons 'agda2-highlight-inductive-constructor-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-type-face))
+		(cons 'agda2-highlight-coinductive-constructor-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-type-face))
+		(cons 'agda2-highlight-datatype-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-type-face))
+		(cons 'agda2-highlight-field-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-variable-name-face))
+		(cons 'agda2-highlight-function-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-function-name-face))
+		(cons 'agda2-highlight-module-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-type-face))
+		(cons 'agda2-highlight-postulate-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-type-face))
+		(cons 'agda2-highlight-primitive-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-constant-face))
+		(cons 'agda2-highlight-record-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-variable-name-face))
+		(cons 'agda2-highlight-dotted-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-variable-name-face))
+		(cons 'agda2-highlight-operator-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-function-name-face))
+		(cons 'agda2-highlight-error-face
+		      (agda2-highlight-face-attributes 
+		       font-lock-warning-face)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
@@ -101,7 +177,9 @@ restarting Emacs."
   :type '(choice
             (const :tag "Use the settings below." nil)
             (const :tag "Use an approximation of Conor McBride's colour scheme."
-                   conor))
+                   conor)
+	    (const :tag "Use simplified highlighting and default font-lock faces."
+                   default-faces))
   :group 'agda2-highlight
   :set 'agda2-highlight-set-faces)
 
