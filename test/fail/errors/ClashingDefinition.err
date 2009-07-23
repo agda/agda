@@ -1,5 +1,0 @@
-errors/ClashingDefinition.agda:6,3-10
-Multiple definitions of X. Previous definition at
-errors/ClashingDefinition.agda:5,3-4
-when scope checking the declaration
-  X : Set

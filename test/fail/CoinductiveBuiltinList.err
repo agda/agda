@@ -1,0 +1,3 @@
+CoinductiveBuiltinList.agda:7,1-26
+List is not an inductive data type
+when checking the pragma BUILTIN LIST List

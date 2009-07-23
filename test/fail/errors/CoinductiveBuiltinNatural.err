@@ -1,3 +1,0 @@
-errors/CoinductiveBuiltinNatural.agda:7,1-29
-ℕ is not an inductive data type
-when checking the pragma BUILTIN NATURAL ℕ

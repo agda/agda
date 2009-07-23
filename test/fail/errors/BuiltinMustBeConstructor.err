@@ -1,3 +1,0 @@
-errors/BuiltinMustBeConstructor.agda:10,1-24
-suc must be a constructor in the binding to builtin SUC
-when checking the pragma BUILTIN SUC suc

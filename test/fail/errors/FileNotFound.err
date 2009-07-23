@@ -1,7 +1,0 @@
-errors/FileNotFound.agda:3,1-17
-Failed to find source of module WildGoose in any of the following
-locations:
-  ./WildGoose.agda
-  ./WildGoose.lagda
-when scope checking the declaration
-  import WildGoose

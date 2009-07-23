@@ -1,0 +1,4 @@
+TooManyArgumentsInLHS.agda:5,1-10
+Left hand side gives too many arguments to a function of type
+Set → Set
+when checking that the clause F X Y = Y has type Set → Set

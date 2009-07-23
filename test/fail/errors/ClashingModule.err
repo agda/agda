@@ -1,5 +1,0 @@
-errors/ClashingModule.agda:5,1-15
-Duplicate definition of module A. Previous definition at
-errors/ClashingModule.agda:4,8-9
-when scope checking the declaration
-  module A where

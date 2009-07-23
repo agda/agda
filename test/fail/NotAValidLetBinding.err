@@ -1,0 +1,7 @@
+NotAValidLetBinding.agda:8,7-11,24
+Not a valid let-declaration
+when scope checking
+let pred : N → N
+    pred z = z
+    pred (s n) = n
+in pred (s (s z))

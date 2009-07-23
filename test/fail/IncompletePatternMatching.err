@@ -1,0 +1,5 @@
+IncompletePatternMatching.agda:14,1-15,15
+Incomplete pattern matching for _==_. Missing cases:
+  _==_ zero (suc _)
+  _==_ (suc _) zero
+when checking the definition of _==_

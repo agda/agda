@@ -1,3 +1,0 @@
-errors/WrongNumberOfConstructorArguments.agda:9,4-10
-The constructor zero expects 0 arguments, but has been given 1
-when checking that the pattern zero n has type Nat

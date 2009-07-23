@@ -1,3 +1,0 @@
-errors/MetaOccursInItself.agda:14,18-19
-Cannot construct infinite solution of metavariable _20
-when checking that the expression x has type List _20

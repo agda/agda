@@ -1,0 +1,6 @@
+CyclicModuleDependency.agda:3,1-30
+cyclic module dependency:
+  CyclicModuleDependency
+  CyclicModuleDependency
+when scope checking the declaration
+  import CyclicModuleDependency

@@ -1,3 +1,0 @@
-errors/CoinductiveBuiltinNatural2.agda:12,21-24
-ℕ !=< ∞ ℕ of type Set
-when checking that the expression suc has type ℕ → ℕ

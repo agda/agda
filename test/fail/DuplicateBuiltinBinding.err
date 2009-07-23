@@ -1,0 +1,4 @@
+DuplicateBuiltinBinding.agda:6,1-28
+Duplicate binding for built-in thing INTEGER, previous binding to
+Int
+when checking the pragma BUILTIN INTEGER Int

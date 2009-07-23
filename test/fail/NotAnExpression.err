@@ -1,0 +1,3 @@
+NotAnExpression.agda:5,5-10
+x@y is not a valid expression.
+when scope checking x@y

@@ -1,0 +1,5 @@
+NotInScope.agda:9,7-26
+Not in scope:
+  thenn
+  at NotInScope.agda:9,12-17
+when scope checking if x thenn x else x

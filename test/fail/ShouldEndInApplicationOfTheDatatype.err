@@ -1,0 +1,4 @@
+ShouldEndInApplicationOfTheDatatype.agda:15,5-19
+The target of a constructor must be the datatype applied to its
+parameters, Nat isn't
+when checking the constructor fooI0 in the declaration of Foo

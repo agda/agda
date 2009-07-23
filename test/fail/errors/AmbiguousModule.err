@@ -1,5 +1,0 @@
-errors/AmbiguousModule.agda:5,3-17
-Duplicate definition of module A. Previous definition at
-errors/AmbiguousModule.agda:3,8-9
-when scope checking the declaration
-  module A where

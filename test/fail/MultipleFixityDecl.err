@@ -1,0 +1,6 @@
+MultipleFixityDecl.agda:4,11-14
+Multiple fixity declarations for _+_: LeftAssoc
+MultipleFixityDecl.agda:4,1-14
+40 RightAssoc
+MultipleFixityDecl.agda:5,1-14
+60

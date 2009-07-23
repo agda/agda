@@ -1,0 +1,4 @@
+AbsurdPatternRequiresNoRHS.agda:7,1-9
+The right-hand side must be omitted if there is an absurd pattern,
+() or {}, in the left-hand side.
+when checking that the clause f () = _ has type False → True

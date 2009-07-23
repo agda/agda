@@ -1,0 +1,6 @@
+ModuleNameDoesntMatchFileName.agda:4,1-17
+The name of the top level module does not match the file name. The
+module Imports.A should be defined in either
+<top-level>/Imports/A.agda or <top-level>/Imports/A.lagda.
+when scope checking the declaration
+  import Imports.B

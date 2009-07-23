@@ -1,0 +1,3 @@
+NoSuchPrimitiveFunction.agda:7,3-13
+There is no primitive function called fooBar
+when checking that the type of the primitive function fooBar is X

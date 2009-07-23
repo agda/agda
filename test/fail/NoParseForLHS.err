@@ -1,0 +1,4 @@
+NoParseForLHS.agda:12,1-12
+Could not parse the left-hand side wrong (! x)
+when scope checking the left-hand side wrong (! x) in the
+definition of wrong

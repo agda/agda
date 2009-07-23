@@ -1,4 +1,0 @@
-errors/PropMustBeSingleton.agda:6,3-7,7
-Datatypes in Prop must have at most one constructor when proof
-irrelevance is enabled
-when checking the definition of _\/_

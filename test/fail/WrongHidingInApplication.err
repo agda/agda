@@ -1,0 +1,5 @@
+WrongHidingInApplication.agda:8,11-13
+Found an implicit application where an explicit application was
+expected
+when checking that {A} x are valid arguments to a function of type
+(A' : Set) → A' → A'

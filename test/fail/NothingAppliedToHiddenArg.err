@@ -1,0 +1,4 @@
+NothingAppliedToHiddenArg.agda:3,7-10
+{x} cannot appear by itself. It needs to be the argument to a
+function expecting an implicit argument.
+when scope checking {x}

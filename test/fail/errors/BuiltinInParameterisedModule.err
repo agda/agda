@@ -1,4 +1,0 @@
-errors/BuiltinInParameterisedModule.agda:6,3-28
-The BUILTIN pragma cannot appear inside a bound context (for
-instance, in a parameterised module or as a local declaration)
-when checking the pragma BUILTIN INTEGER X

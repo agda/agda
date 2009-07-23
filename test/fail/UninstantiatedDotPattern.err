@@ -1,0 +1,3 @@
+UninstantiatedDotPattern.agda:5,3-5
+Failed to infer the value of dotted pattern
+when checking that the pattern .X has type Set

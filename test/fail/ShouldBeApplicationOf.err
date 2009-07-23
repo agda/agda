@@ -1,0 +1,3 @@
+ShouldBeApplicationOf.agda:8,3-6
+two is not a constructor of the datatype One
+when checking that the pattern two has type One

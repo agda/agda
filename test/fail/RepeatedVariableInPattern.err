@@ -1,0 +1,3 @@
+RepeatedVariableInPattern.agda:5,1-6
+Repeated variables in left hand side: A
+when scope checking the left-hand side K A A in the definition of K

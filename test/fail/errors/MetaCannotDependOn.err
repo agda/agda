@@ -1,4 +1,0 @@
-errors/MetaCannotDependOn.agda:13,21-23
-The metavariable _21 cannot depend on n because it does not depend
-on any variables
-when checking that the expression xs has type Vec n Nat

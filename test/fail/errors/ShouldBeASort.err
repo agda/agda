@@ -1,5 +1,0 @@
-errors/ShouldBeASort.agda:5,7-33
-Not in scope:
-  ShouldBeASort-Never-Occurs
-  at errors/ShouldBeASort.agda:5,7-33
-when scope checking ShouldBeASort-Never-Occurs

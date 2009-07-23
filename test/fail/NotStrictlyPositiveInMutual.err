@@ -1,0 +1,5 @@
+NotStrictlyPositiveInMutual.agda:5,8-13
+Cheat is not strictly positive, because it occurs to the left of an
+arrow in the type of the constructor oops in the definition of
+Oops, which occurs in the type of the constructor cheat in the
+definition of Cheat.

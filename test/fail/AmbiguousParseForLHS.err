@@ -1,0 +1,7 @@
+AmbiguousParseForLHS.agda:10,1-35
+Don't know how to parse bad (if x then if x then x else x). Could
+mean any one of:
+  bad (if x then (if x then x else x))
+  bad (if x then (if x then x) else x)
+when scope checking the left-hand side
+bad (if x then if x then x else x) in the definition of bad

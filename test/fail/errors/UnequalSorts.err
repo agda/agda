@@ -1,3 +1,0 @@
-errors/UnequalSorts.agda:8,7-11
-One' !=< One
-when checking that the expression one' has type One

@@ -1,2 +1,0 @@
-errors/UnknownNameInFixityDecl.agda:5,11-14
-Names out of scope in fixity declarations: _*_ _+_

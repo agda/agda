@@ -1,0 +1,3 @@
+WrongHidingInLHS.agda:5,1-10
+Found an implicit argument where an explicit argument was expected
+when checking that the clause f {x} = x has type Set → Set

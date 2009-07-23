@@ -1,3 +1,0 @@
-errors/ShouldBePi.agda:8,8-15
-One should be a function type, but it isn't
-when checking that the expression λ x → x has type One

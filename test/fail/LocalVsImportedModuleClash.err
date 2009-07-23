@@ -1,0 +1,6 @@
+LocalVsImportedModuleClash.agda:3,5-67
+Not in scope:
+  TODO--This-shouldn't-happen-if-the-scope-checker-does-it's-job
+  at LocalVsImportedModuleClash.agda:3,5-67
+when scope checking
+TODO--This-shouldn't-happen-if-the-scope-checker-does-it's-job
