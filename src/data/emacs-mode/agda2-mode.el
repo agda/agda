@@ -81,7 +81,8 @@ All the elements of XS are included, in their original order."
 (defcustom agda2-include-dirs
   '(".")
   "The directories Agda uses to search for files.
-The directory names should be relative to the root of the current project."
+The directory names should either be absolute or be relative to
+the root of the current project."
   :type '(repeat directory)
   :group 'agda2)
 
