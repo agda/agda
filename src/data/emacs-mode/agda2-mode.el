@@ -360,7 +360,14 @@ Special commands:
  (force-mode-line-update)
  ;; Protect global value of default-input-method from set-input-method.
  (make-local-variable 'default-input-method)
- (set-input-method "Agda"))
+ (set-input-method "Agda")
+ ;; Highlighting is removed when we switch from the Agda mode. Use
+ ;; case: When a file M.lagda with a local variables list including
+ ;; "mode: latex" is loaded chances are that the Agda mode is
+ ;; activated before the LaTeX mode, and the LaTeX mode does not seem
+ ;; to remove the text properties set by the Agda mode.
+ (add-hook (make-local-variable 'change-major-mode-hook)
+           'agda2-remove-annotations))
 
 (defun agda2-restart ()
   "Kill and restart the *ghci* buffer and load `agda2-toplevel-module'."
