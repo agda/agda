@@ -427,7 +427,14 @@ then an error is raised if no responses are received."
     (unless (eq 'run (agda2-process-status))
       (agda2-raise-ghci-error)))
   (save-excursion
-    (haskell-ghci-go (apply 'concat (agda2-intersperse " " args)) nil))
+    ;; By setting local-enable-local-variables to nil the call to
+    ;; hack-local-variables in haskell-ghci-go becomes more or less a
+    ;; no-op. (Note that hack-local-variables can interfere with the
+    ;; setup of a mode, because it can potentially perform the setup
+    ;; of another mode...)
+    (let ((local-enable-local-variables nil))
+      (haskell-ghci-go (apply 'concat (agda2-intersperse " " args))
+                       nil)))
   (let (response)
     (with-current-buffer haskell-ghci-process-buffer
       (haskell-ghci-wait-for-output)
