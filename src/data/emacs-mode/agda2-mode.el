@@ -829,13 +829,13 @@ text properties."
   (let(ys)(while xs (push (pop xs) ys)(push sep ys))(pop ys)(nreverse ys)))
 
 (defun agda2-goal-Range (o)
-  "Range of goal overlay O."
+  "The Haskell Range of goal overlay O."
   (format "(Range [Interval %s %s])"
           (agda2-mkPos (+ (overlay-start o) 2))
           (agda2-mkPos (- (overlay-end   o) 2))))
 
 (defun agda2-mkPos (&optional p)
-  "Position value of P or point."
+  "The Haskell Position corresponding to P or `point'."
   (save-excursion
     (if p (goto-char p))
     (format "(Pn \"%s\" %d %d %d)" (buffer-file-name)
