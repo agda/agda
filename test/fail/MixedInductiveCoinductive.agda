@@ -1,4 +1,4 @@
-module Mixed where
+module MixedInductiveCoinductive where
 
 codata Stream (A : Set) : Set where
   cons : A -> Stream A -> Stream A

@@ -1,5 +1,5 @@
 
-module MissingDefintion where
+module MissingDefinition where
 
 T : Set -> Set
 
