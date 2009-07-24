@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-{-| This modules deals with how to find imported modules and loading their
+{-| This module deals with finding imported modules and loading their
     interface files.
 -}
 module Agda.Interaction.Imports where
