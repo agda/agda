@@ -866,7 +866,7 @@ tokensParser :: Parser [Token]
 exprParser :: Parser Expr
 
 -- | Parse a module.
-moduleParser :: Parser ([Pragma], [Declaration])
+moduleParser :: Parser Module
 
 
 {--------------------------------------------------------------------------

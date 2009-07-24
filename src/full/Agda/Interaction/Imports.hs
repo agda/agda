@@ -19,7 +19,7 @@ import System.Directory
 import System.Time
 import Control.OldException
 import qualified System.IO.UTF8 as UTF8
-import System.FilePath (isAbsolute)
+import System.FilePath hiding (splitPath)
 
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Concrete as C
@@ -98,19 +98,37 @@ addImportedThings isig ibuiltin =
 -- TODO: move
 data FileType = SourceFile | InterfaceFile
 
-findFile :: FileType -> ModuleName -> TCM FilePath
+-- | Finds the source or interface file corresponding to a given
+-- top-level module name. The returned paths are absolute.
+--
+-- Raises an error if the file cannot be found.
+
+findFile :: FileType -> C.TopLevelModuleName -> TCM FilePath
 findFile ft m = do
-    let x = mnameToConcrete m
+  mf <- findFile' ft m
+  case mf of
+    Left files -> typeError $ FileNotFound m files
+    Right f    -> return f
+
+-- | Finds the source or interface file corresponding to a given
+-- top-level module name. The returned paths are absolute.
+--
+-- Returns @'Left' files@ if the file cannot be found, where @files@
+-- is the list of files which the module could have been defined in.
+
+findFile' :: FileType -> C.TopLevelModuleName ->
+             TCM (Either [FilePath] FilePath)
+findFile' ft m = do
     dirs <- getIncludeDirs
     let files = [ dir ++ [slash] ++ file
 		| dir  <- dirs
-		, file <- map (C.moduleNameToFileName x) exts
+		, file <- map (C.moduleNameToFileName m) exts
 		]
     files' <- liftIO $ filterM doesFileExist files
     files' <- liftIO $ nubFiles files'
-    case files' of
-	[]	-> typeError $ FileNotFound m files
-	file:_	-> return file
+    return $ case files' of
+	[]	-> Left files
+	file:_	-> Right file
     where
 	exts = case ft of
 		SourceFile    -> [".agda", ".lagda"]
@@ -144,7 +162,8 @@ alreadyVisited x getIface = do
 
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
 getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
-    file <- findFile SourceFile x	-- requires source to exist
+    file <- findFile SourceFile (toTopLevelModuleName x)
+            -- requires source to exist
 
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
@@ -312,13 +331,15 @@ createInterface
   -> Maybe ModuleName       -- ^ Expected module name.
   -> FilePath               -- ^ The file to type check.
                             --   Must be an absolute path.
-  -> Bool                   -- ^ Should the working directory be
-                            --   changed to the root directory of
-                            --   the \"project\" containing the
-                            --   file?
+  -> Bool                   -- ^ Should relative include paths be
+                            --   interpreted relative to the root
+                            --   directory of the \"project\"
+                            --   containing the file? (If not, then
+                            --   they are interpreted relative to the
+                            --   current working directory.)
   -> TCM (TopLevelInfo, CreateInterfaceResult)
 createInterface opts trace path visited decoded
-                isig ibuiltin mname file changeDir
+                isig ibuiltin mname file relativeToRoot
   | not (isAbsolute file) = __IMPOSSIBLE__
   | otherwise             = withImportPath path $ do
     setDecodedModules decoded
@@ -334,9 +355,25 @@ createInterface opts trace path visited decoded
 
     addImportedThings isig ibuiltin
 
-    (pragmas, top) <- liftIO $ parseFile' moduleParser file
-    when changeDir $
-      liftIO $ setWorkingDirectory file top
+    pt@(pragmas, top) <- liftIO $ parseFile' moduleParser file
+    let topLevelName = C.topLevelModuleName pt
+
+    -- Make all the include directories absolute.
+    if relativeToRoot then
+      makeIncludeDirsAbsolute $ C.projectRoot file topLevelName
+     else
+      makeIncludeDirsAbsolute =<< liftIO getCurrentDirectory
+
+    -- Make sure that the top-level module can be found under one of
+    -- the include directories and is equal to the given file name.
+    file' <- findFile' SourceFile topLevelName
+    file' <- case file' of
+               Left files  -> typeError $
+                                ModuleNameDoesntMatchFileName topLevelName files
+               Right file' -> return file'
+    unless (file' == file) $
+      typeError $ ModuleDefinedInOtherFile topLevelName file file'
+
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
     -- Note that pragmas can affect scope checking.
@@ -344,8 +381,6 @@ createInterface opts trace path visited decoded
     topLevel <- concreteToAbstract_ (TopLevel top)
 
     termErrs <- catchError (do
-      checkModuleName mname file topLevel
-
       -- Type checking.
       checkDecls (topLevelDecls topLevel)
 
@@ -439,53 +474,6 @@ buildInterface m syntaxInfo = do
 			}
     reportSLn "import.iface" 7 "  interface complete"
     return i
-
--- | Set the current working directory based on the file name of the
--- current module and its module name, so that when the module is
--- imported qualified it will be found.
---
--- The given list of declarations should correspond to a module, i.e.
--- it should be non-empty and the last declaration should be
--- 'C.Module' something.
-
-setWorkingDirectory :: FilePath -> [C.Declaration] -> IO ()
-setWorkingDirectory _    [] = __IMPOSSIBLE__
-setWorkingDirectory file xs = case last xs of
-  C.Module _ n _ _ -> do
-    -- canonicalizePath seems to return absolute paths.
-    absolute <- canonicalizePath file
-    let (path, _, _)  = splitFilePath absolute
-    setCurrentDirectory (dropDirectory (countDots n) path)
-  _                -> __IMPOSSIBLE__
-  where
-  countDots (C.QName _)  = 0
-  countDots (C.Qual _ n) = 1 + countDots n
-
--- | Move somewhere else.
-matchFileName :: ModuleName -> FilePath -> Bool
-matchFileName mname file = expected `isSuffixOf` given || literate `isSuffixOf` given
-  where
-    given    = splitPath file
-    expected = splitPath $ C.moduleNameToFileName (mnameToConcrete mname) ".agda"
-    literate = splitPath $ C.moduleNameToFileName (mnameToConcrete mname) ".lagda"
-
--- | Checks that the top-level module name, the file name and what we
--- expect are consistent.
-
-checkModuleName
-  :: Maybe ModuleName  -- ^ The module should have this name (might be
-                       --   unknown).
-  -> FilePath          -- ^ The module is defined in this file, whose
-                       --   file name is known to be consistent with the
-                       --   previous argument.
-  -> TopLevelInfo      -- ^ The module.
-  -> TCM ()
-checkModuleName mname file topLevel = case mname of
-    Nothing -> unless (matchFileName actualName file) err
-    Just expectedName -> unless (actualName == expectedName) err
-  where
-  actualName = topLevelModuleName topLevel
-  err = typeError $ ModuleNameDoesntMatchFileName actualName
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.

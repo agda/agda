@@ -130,6 +130,15 @@ mnameToConcrete (MName xs) = foldr C.Qual (C.QName $ last cs) $ init cs
   where
     cs = map nameConcrete xs
 
+-- | Computes the 'TopLevelModuleName' corresponding to the given
+-- module name, which is assumed to represent a top-level module name.
+--
+-- Precondition: The module name must be well-formed.
+
+toTopLevelModuleName :: ModuleName -> C.TopLevelModuleName
+toTopLevelModuleName (MName []) = __IMPOSSIBLE__
+toTopLevelModuleName (MName ms) = C.TopLevelModuleName (map show ms)
+
 qualifyM :: ModuleName -> ModuleName -> ModuleName
 qualifyM m1 m2 = mnameFromList $ mnameToList m1 ++ mnameToList m2
 

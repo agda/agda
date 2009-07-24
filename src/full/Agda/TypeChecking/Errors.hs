@@ -113,8 +113,9 @@ errorString err = case err of
     MetaCannotDependOn _ _ _		       -> "MetaCannotDependOn"
     MetaOccursInItself _		       -> "MetaOccursInItself"
     ModuleArityMismatch _ _ _                  -> "ModuleArityMismatch"
+    ModuleDefinedInOtherFile {}                -> "ModuleDefinedInOtherFile"
     ModuleDoesntExport _ _		       -> "ModuleDoesntExport"
-    ModuleNameDoesntMatchFileName _	       -> "ModuleNameDoesntMatchFileName"
+    ModuleNameDoesntMatchFileName {}	       -> "ModuleNameDoesntMatchFileName"
     NoBindingForBuiltin _		       -> "NoBindingForBuiltin"
     NoParseForApplication _		       -> "NoParseForApplication"
     NoParseForLHS _			       -> "NoParseForLHS"
@@ -350,21 +351,22 @@ instance PrettyTCM TypeError where
 		fsep (pwords "cyclic module dependency:")
 		$$ nest 2 (vcat $ map (text . show) ms)
 	    FileNotFound x files ->
-		fsep ( pwords "Failed to find source of module" ++ [text $ show x] ++
+		fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
 		       pwords "in any of the following locations:"
 		     ) $$ nest 2 (vcat $ map text files)
 	    ClashingFileNamesFor x files ->
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
 		       pwords "found:"
 		     ) $$ nest 2 (vcat $ map text files)
-	    ModuleNameDoesntMatchFileName given -> fsep $
-              pwords "The name of the top level module does not match the file name. The module" ++
-              [ text (show given) ] ++ pwords "should be defined in either" ++
-              [ text ("<top-level>" </> mod ".agda")
-              , text "or"
-              , text ("<top-level>" </> mod ".lagda") <> text "."
-              ]
-              where mod = C.moduleNameToFileName (mnameToConcrete given)
+            ModuleDefinedInOtherFile mod file file' -> fsep $
+              pwords "You tried to load" ++ [text file] ++
+              pwords "which defines the module" ++ [pretty mod <> text "."] ++
+              pwords "However, according to the include path this module should" ++
+              pwords "be defined in" ++ [text file' <> text "."]
+	    ModuleNameDoesntMatchFileName given files ->
+              fsep (pwords "The name of the top level module does not match the file name. The module" ++
+                   [ pretty given ] ++ pwords "should be defined in one of the following files:")
+	      $$ nest 2 (vcat $ map text files)
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
 	    NotInScope xs ->

@@ -775,10 +775,13 @@ data TypeError
 	| UnsolvedMetas [Range]
 	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [ModuleName]
-	| FileNotFound ModuleName [FilePath]
+	| FileNotFound C.TopLevelModuleName [FilePath]
+	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
+        | ModuleDefinedInOtherFile C.TopLevelModuleName FilePath FilePath
+          -- ^ Module name, file from which it was loaded, file which
+          -- the include path says contains the module.
     -- Scope errors
-	| ModuleNameDoesntMatchFileName ModuleName -- ^ @NoMatch given@
 	| BothWithAndRHS
 	| NotInScope [C.QName]
 	| NoSuchModule C.QName

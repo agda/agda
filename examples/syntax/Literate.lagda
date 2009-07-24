@@ -8,7 +8,7 @@
 
 \begin{code}
 
-  module syntax.Literate where
+  module Literate where
 
     aDefinition : Set -> Set
     aDefinition A = A

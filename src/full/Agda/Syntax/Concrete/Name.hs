@@ -5,12 +5,16 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Data.List
 import Data.Maybe
 import Data.Generics (Typeable, Data)
+
+import System.FilePath
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Utils.FileName
+import Agda.Utils.Pretty
 import Agda.Utils.TestHelpers
 
 #include "../../undefined.h"
@@ -115,6 +119,41 @@ data QName = Qual  Name QName
            | QName Name
   deriving (Typeable, Data, Eq, Ord)
 
+-- | Top-level module names.
+--
+-- Invariant: The list must not be empty.
+
+newtype TopLevelModuleName = TopLevelModuleName [String]
+
+-- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
+-- name is assumed to represent a top-level module name.
+
+toTopLevelModuleName :: QName -> TopLevelModuleName
+toTopLevelModuleName = TopLevelModuleName . map show . qnameParts
+
+-- | Turns a top-level module name into a file name with the given
+-- suffix.
+
+moduleNameToFileName :: TopLevelModuleName -> String -> FilePath
+moduleNameToFileName (TopLevelModuleName []) ext = __IMPOSSIBLE__
+moduleNameToFileName (TopLevelModuleName ms) ext =
+  joinPath (init ms) </> last ms <.> ext
+
+-- | Finds the current project's \"root\" directory, given a project
+-- file and the corresponding top-level module name.
+--
+-- Example: If the module \"A.B.C\" is located in the file
+-- \"/foo/A/B/C.agda\", then the root is \"/foo/\".
+--
+-- Precondition: The file name has to be an absolute path, and the
+-- module name must be well-formed.
+
+projectRoot :: FilePath -> TopLevelModuleName -> FilePath
+projectRoot file (TopLevelModuleName m)
+  | not (isAbsolute file) = __IMPOSSIBLE__
+  | otherwise             = dropDirectory (length m - 1) $
+                              takeDirectory file
+
 isHole :: NamePart -> Bool
 isHole Hole = True
 isHole _    = False
@@ -124,14 +163,6 @@ isPrefix  x = not (isHole (head xs)) &&      isHole (last xs)  where xs = namePa
 isPostfix x =      isHole (head xs)  && not (isHole (last xs)) where xs = nameParts x
 isInfix   x =      isHole (head xs)  &&      isHole (last xs)  where xs = nameParts x
 isNonfix  x = not (isHole (head xs)) && not (isHole (last xs)) where xs = nameParts x
-
-type Suffix = String
-
--- | Turns a module name into a file name with the given suffix.
-
-moduleNameToFileName :: QName -> Suffix -> FilePath
-moduleNameToFileName (QName  x) ext = show x ++ ext
-moduleNameToFileName (Qual m x) ext = show m ++ [slash] ++ moduleNameToFileName x ext
 
 instance Show Name where
     show (Name _ xs)  = concatMap show xs
@@ -144,6 +175,9 @@ instance Show NamePart where
 instance Show QName where
     show (Qual m x) = show m ++ "." ++ show x
     show (QName x)  = show x
+
+instance Pretty TopLevelModuleName where
+  pretty (TopLevelModuleName ms) = text $ intercalate "." ms
 
 instance HasRange Name where
     getRange (Name r ps)  = r

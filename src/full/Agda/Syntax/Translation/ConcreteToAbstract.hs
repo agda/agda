@@ -30,7 +30,7 @@ import Data.Traversable (mapM)
 import Data.List ((\\), nub)
 import qualified Data.Map as Map
 
-import Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
 import Agda.Syntax.Common

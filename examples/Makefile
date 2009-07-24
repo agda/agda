@@ -14,8 +14,7 @@ test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
 			 SimpleTypes.agda Monad.agda Miller/Pat.agda \
-       syntax/Literate.lagda StreamEating.agda \
-       $(shell find Introduction -name '*.agda')
+       syntax/Literate.lagda StreamEating.agda
 tests	   = $(patsubst %,%.test,$(test_files))
 
 echo = $(shell which echo)
@@ -25,17 +24,17 @@ endif
 
 term1 : Termination/Mutual.agda
 	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) $<
+	@$(echo) :q | $(run_agda) -iTermination $<
 	@$(echo) "ok"
 
 term2 : Termination/StructuralOrder.agda
 	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) $<
+	@$(echo) :q | $(run_agda) -iTermination $<
 	@$(echo) "ok"
 
 term3 : Termination/Tuple.agda
 	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) $<
+	@$(echo) :q | $(run_agda) -iTermination $<
 	@$(echo) "ok"
 
 polydep : AIM5/PolyDep/Main.agda
@@ -85,7 +84,7 @@ real : lib/Data/Real/CReal.agda
 
 view : vfl/Typechecker.agda
 	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) $<
+	@$(echo) :q | $(run_agda) -ivfl $<
 	@$(echo) "ok"
 
 simplelib : simple-lib/TestLib.agda
@@ -100,7 +99,12 @@ lib : lib/Test.agda
 
 divmod : arith/DivMod.agda
 	@$(echo) "Testing $<... "
-	@$(echo) :q | $(run_agda) -isimple-lib $<
+	@$(echo) :q | $(run_agda) -iarith -isimple-lib $<
+	@$(echo) "ok"
+
+intro : Introduction/All.agda
+	@$(echo) "Testing $<... "
+	@$(echo) :q | $(run_agda) $<
 	@$(echo) "ok"
 
 highlighting : syntax/highlighting/Test*agda
@@ -133,6 +137,6 @@ test : $(tests)
 
 $(tests) : %.test : %
 	@$(echo) -n "Testing $<... "
-	@$(echo) :q | $(run_agda) $<
+	@$(echo) :q | $(run_agda) -i$(dir $<) $<
 	@$(echo) "ok"
 

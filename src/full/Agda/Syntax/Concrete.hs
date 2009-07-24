@@ -28,6 +28,8 @@ module Agda.Syntax.Concrete
     , LHS(..), Pattern(..)
     , RHS(..), WhereClause(..)
     , Pragma(..)
+    , Module
+    , topLevelModuleName
     )
     where
 
@@ -39,6 +41,9 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
+
+import Agda.Utils.Impossible
+#include "../undefined.h"
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
@@ -234,6 +239,22 @@ data Pragma = OptionsPragma     !Range [String]
             | CompiledPragma    !Range QName String
             | ImportPragma      !Range String
     deriving (Eq, Typeable, Data)
+
+---------------------------------------------------------------------------
+
+-- | Modules: Top-level pragmas plus other top-level declarations.
+
+type Module = ([Pragma], [Declaration])
+
+-- | Computes the top-level module name.
+--
+-- Precondition: The 'Module' has to be well-formed.
+
+topLevelModuleName :: Module -> TopLevelModuleName
+topLevelModuleName (_, []) = __IMPOSSIBLE__
+topLevelModuleName (_, ds) = case last ds of
+  Module _ n _ _ -> toTopLevelModuleName n
+  _              -> __IMPOSSIBLE__
 
 {--------------------------------------------------------------------------
     Views

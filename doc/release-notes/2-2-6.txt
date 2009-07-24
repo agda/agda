@@ -19,5 +19,17 @@ Language
 Tools
 -----
 
+* If a file F is loaded, and this file defines the module M, it is now
+  an error if F is not the file which defines M according to the
+  include path.
+
+  Note that the command-line tool and the Emacs mode define the
+  meaning of relative include paths differently: the command-line tool
+  interprets them relative to the current working directory, whereas
+  the Emacs mode interprets them relative to the root directory of the
+  current project. (As an example, if the module A.B.C is loaded from
+  the file <some-path>/A/B/C.agda, then the root directory is
+  <some-path>.)
+
 * Emacs mode: C-c C-x C-d no longer resets the type checking state.
   C-c C-x C-r can be used for a more complete reset.

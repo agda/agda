@@ -1,5 +1,1 @@
-
-module ModuleNameDoesntMatchFileName where
-
-import Imports.B
-
+module Mmmmmmmmmmmmmmmmmmmmm where

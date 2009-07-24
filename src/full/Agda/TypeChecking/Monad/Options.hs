@@ -8,6 +8,7 @@ import Data.Maybe
 import Text.PrettyPrint
 import qualified System.IO.UTF8 as UTF8
 import System.Directory
+import System.FilePath
 
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
@@ -72,11 +73,28 @@ dontReifyInteractionPoints =
 shouldReifyInteractionPoints :: MonadTCM tcm => tcm Bool
 shouldReifyInteractionPoints = asks envReifyInteractionPoints
 
+-- | Gets the include directories.
+
 getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
 getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions
     where
 	addDot [] = ["."]   -- if there are no include dirs we use .
 	addDot is = is
+
+-- | Sets the include directories.
+
+setIncludeDirs :: MonadTCM tcm => [FilePath] -> tcm ()
+setIncludeDirs includes = do
+  opts <- commandLineOptions
+  setCommandLineOptions $ opts { optIncludeDirs = includes }
+
+-- | Makes relative include directories absolute with respect to the
+-- given path.
+
+makeIncludeDirsAbsolute :: FilePath -> TCM ()
+makeIncludeDirsAbsolute root = do
+  absolute <- map (root </>) <$> getIncludeDirs
+  setIncludeDirs absolute
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =

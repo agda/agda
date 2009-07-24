@@ -82,7 +82,7 @@ parseFile' p file =
 
 -- | Parses a module.
 
-moduleParser :: Parser ([Pragma], [Declaration])
+moduleParser :: Parser Module
 moduleParser = Parser { parser = P.moduleParser
                       , parseFlags = withoutComments }
 

@@ -55,7 +55,7 @@ compile ict = do
   where
   decl mn ds imp = HsModule dummy mn Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
-  ifile    = findFile InterfaceFile =<< curMName
+  ifile    = findFile InterfaceFile . toTopLevelModuleName =<< curMName
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show <$> curMName, ifile, outFile] :: TCM ()
