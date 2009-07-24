@@ -4,6 +4,9 @@
 
 Important changes since 2.2.4:
 
+Language
+--------
+
 * Multiple constructors, record fields, postulates or primitives can
   now be declared using a single type signature:
 
@@ -12,3 +15,9 @@ Important changes since 2.2.4:
 
     postulate
       A B : Set
+
+Tools
+-----
+
+* Emacs mode: C-c C-x C-d no longer resets the type checking state.
+  C-c C-x C-r can be used for a more complete reset.

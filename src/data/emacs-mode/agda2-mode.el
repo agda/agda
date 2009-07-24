@@ -227,7 +227,7 @@ constituents.")
     (agda2-load                              "\C-c\C-l"         (global)       "Load")
     (agda2-load                              "\C-c\C-x\C-l")
     (agda2-compile                           "\C-c\C-x\C-c"     (global)       "Compile")
-    (agda2-text-state                        "\C-c\C-x\C-d"     (global)       "Deactivate Agda")
+    (agda2-remove-annotations                "\C-c\C-x\C-d"     (global)       "Remove goals and highlighting (\"deactivate\")")
     (agda2-quit                              "\C-c\C-x\C-q"     (global)       "Quit")
     (agda2-restart                           "\C-c\C-x\C-r"     (global)       "Restart")
     (agda2-display-implicit-arguments        "\C-c\C-x\C-h"     (global)       "Toggle display of hidden arguments")
@@ -394,7 +394,7 @@ Special commands:
                     (rename-buffer agda2-bufname)))
   (apply 'agda2-go nil ":set" agda2-ghci-options)
   (agda2-go nil ":mod +" agda2-toplevel-module)
-  (agda2-text-state))
+  (agda2-remove-annotations))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda
@@ -577,11 +577,11 @@ in the buffer's mode line."
   "Show constraints." (interactive)
   (agda2-go t "cmd_constraints"))
 
-(defun agda2-text-state ()
-  "UNDER CONSTRUCTION" (interactive)
+(defun agda2-remove-annotations ()
+  "Removes buffer annotations (overlays and text properties)."
+  (interactive)
   (dolist (o (overlays-in (point-min) (point-max)))
     (delete-overlay o))
-  (agda2-go nil "cmd_reset")
   (let ((inhibit-read-only t))
     (annotation-preserve-mod-p-and-undo
      (set-text-properties (point-min) (point-max) '()))
