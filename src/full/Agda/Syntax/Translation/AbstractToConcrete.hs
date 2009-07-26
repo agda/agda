@@ -44,7 +44,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Base  (MonadTCM)
 
 import Agda.Utils.Maybe
-import Agda.Utils.Monad
+import Agda.Utils.Monad hiding (bracket)
 import Agda.Utils.Tuple
 import Agda.Utils.Suffix
 

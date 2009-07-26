@@ -92,6 +92,28 @@ zipWithM' f (x : xs) (y : ys) = liftM2 (:) (f x y) (zipWithM' f xs ys)
 zipWithM' f []	     (_ : _)  = {- ' -} __IMPOSSIBLE__
 zipWithM' f (_ : _)  []	      = {- ' -} __IMPOSSIBLE__
 
+-- | Finally for the 'Error' class. Errors in the finally part take
+-- precedence over prior errors.
+
+finally :: (Error e, MonadError e m) => m a -> m b -> m a
+first `finally` after = do
+  r <- catchError (liftM Right first) (return . Left)
+  after
+  case r of
+    Left e  -> throwError e
+    Right r -> return r
+
+-- | Bracket for the 'Error' class.
+
+bracket :: (Error e, MonadError e m)
+        => m a         -- ^ Acquires resource. Run first.
+        -> (a -> m c)  -- ^ Releases resource. Run last.
+        -> (a -> m b)  -- ^ Computes result. Run in-between.
+        -> m b
+bracket acquire release compute = do
+  resource <- acquire
+  compute resource `finally` release resource
+
 -- Maybe ------------------------------------------------------------------
 
 mapMaybeM :: Applicative m => (a -> m b) -> Maybe a -> m (Maybe b)
