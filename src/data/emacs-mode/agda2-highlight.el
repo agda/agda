@@ -361,6 +361,7 @@ raised."
   (let* ((dir (file-name-directory buffer-file-name))
          (name (file-name-nondirectory buffer-file-name))
          (file (concat dir "." name ".el"))
+         (coding-system-for-read 'utf-8)
          (inhibit-read-only t))
          ;; Ignore read-only status, otherwise this function may fail.
     (condition-case err
