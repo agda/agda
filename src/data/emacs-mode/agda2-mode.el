@@ -329,15 +329,17 @@ menus.")
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
 ;;;###autoload
 (define-derived-mode agda2-mode nil "Agda"
- "Major mode for agda files.
+ "Major mode for Agda files.
 
-Note that when this mode is activated the default font of the
-current frame is changed to the fontset `agda2-fontset-name'.
-The reason is that Agda programs often use mathematical symbols
-and other Unicode characters, so we try to provide a suitable
-default font setting, which can display many of the characters
-encountered.  If you prefer to use your own settings, set
-`agda2-fontset-name' to nil.
+The following paragraph does not apply to Emacs 23.
+
+  Note that when this mode is activated the default font of the
+  current frame is changed to the fontset `agda2-fontset-name'.
+  The reason is that Agda programs often use mathematical symbols
+  and other Unicode characters, so we try to provide a suitable
+  default font setting, which can display many of the characters
+  encountered. If you prefer to use your own settings, set
+  `agda2-fontset-name' to nil.
 
 Special commands:
 \\{agda2-mode-map}"
