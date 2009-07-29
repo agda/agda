@@ -250,7 +250,7 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
                                                  _             -> "'no-paren"
 
 cmd_refine :: GoalCommand
-cmd_refine = give_gen B.refine $ \s -> emacsStr . show
+cmd_refine = give_gen B.refine $ \s -> quote . show
 
 give_gen give_ref mk_newtxt ii rng s = do
     ioTCM $ do
@@ -439,7 +439,7 @@ cmd_solveAll = ioTCM $ do
         mi <- getMetaInfo <$> lookupMeta m
         e <- withMetaInfo mi $ lowerMeta <$> abstractToConcrete_ e
         return (i, e)
-  prn (ii,e)= [showNumIId ii, A $ emacsStr $ show e]
+  prn (ii,e)= [showNumIId ii, A $ quote $ show e]
 
 class LowerMeta a where lowerMeta :: a -> a
 instance LowerMeta SC.Expr where
@@ -581,16 +581,6 @@ cmd_compute_toplevel ignore =
   parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c else c)
                        "*Normal Form*"
   where c = B.evalInCurrent
-
--- change "\<decimal>" to a single character
--- TODO: This seems to be the wrong solution to the problem. Attack
--- the source instead.
-emacsStr s = go (show s) where
-  go ('\\':ns@(n:_))
-     | isDigit n = toEnum (read digits :: Int) : go rest
-     where (digits, rest) = span isDigit ns
-  go (c:s) = c : go s
-  go []    = []
 
 ------------------------------------------------------------------------
 -- Syntax highlighting
