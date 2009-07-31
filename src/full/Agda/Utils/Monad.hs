@@ -11,6 +11,7 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
+import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable
@@ -31,6 +32,10 @@ instance Monad m => Applicative (ReaderT env m) where
   (<*>) = ap
 
 instance Monad m => Applicative (StateT s m) where
+  pure  = return
+  (<*>) = ap
+
+instance Monad m => Applicative (SS.StateT s m) where
   pure  = return
   (<*>) = ap
 
