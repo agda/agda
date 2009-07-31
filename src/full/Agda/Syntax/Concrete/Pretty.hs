@@ -13,6 +13,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
 import Agda.Utils.Pretty
+import Agda.Utils.String
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -104,7 +105,7 @@ instance Pretty Expr where
 		    ]
 	    Set _   -> text "Set"
 	    Prop _  -> text "Prop"
-	    SetN _ n	-> text "Set" <> text (show n)
+	    SetN _ n	-> text "Set" <> text (showIndex n)
 	    Let _ ds e	->
 		sep [ text "let" <+> vcat (map pretty ds)
 		    , text "in" <+> pretty e

@@ -1,3 +1,3 @@
 PositivityCheckNeedsLinearityCheck.agda:17,13-16
-Set1 !=< Set2
-when checking that the expression Set has type Set2
+Set₁ !=< Set₂
+when checking that the expression Set has type Set₂

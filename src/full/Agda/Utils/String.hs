@@ -1,10 +1,12 @@
 module Agda.Utils.String
   ( quote
+  , showIndex
   , addFinalNewLine
   , indent
   ) where
 
 import Data.List
+import Numeric
 
 -- | 'quote' adds double quotes around the string, and escapes double
 -- quotes and backslashes within the string. This is different from
@@ -24,6 +26,13 @@ quote s = "\"" ++ concatMap escape s ++ "\""
            | otherwise            = [c]
 
   escapeChars = "\"\\"
+
+-- | Shows a non-negative integer using the characters ₀-₉ instead of
+-- 0-9.
+
+showIndex :: Integral i => i -> String
+showIndex n =
+  showIntAtBase 10 (\i -> toEnum (i + fromEnum '\x2080')) n ""
 
 -- | Adds a final newline if there is not already one.
 
