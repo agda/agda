@@ -51,7 +51,7 @@ data TCState =
 	 , stImportedModules   :: Set ModuleName
 	 , stVisitedModules    :: VisitedModules
 	 , stDecodedModules    :: DecodedModules
-         , stCurrentModule     :: Maybe (ModuleName, Interface)
+         , stCurrentModule     :: Maybe ModuleName
            -- ^ The current module is available after it has been type
            -- checked.
 	 , stScope	       :: ScopeInfo
@@ -141,13 +141,14 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 -- ** Interface
 ---------------------------------------------------------------------------
 
-type VisitedModules = Map ModuleName (Interface, ClockTime)
-type DecodedModules = Map ModuleName (Interface, ClockTime)
+type VisitedModules = Map C.TopLevelModuleName (Interface, ClockTime)
+type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 
 data Interface = Interface
 	{ iImportedModules :: [ModuleName]
         , iModuleName      :: ModuleName
 	, iScope	   :: Map A.ModuleName Scope
+        , iInsideScope     :: ScopeInfo
 	, iSignature	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
         , iHaskellImports  :: [String]
@@ -607,7 +608,7 @@ data TCEnv =
 	  , envLetBindings         :: LetBindings
 	  , envCurrentModule       :: ModuleName
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
-	  , envImportPath          :: [ModuleName]   -- ^ to detect import cycles
+	  , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
 	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
@@ -774,7 +775,7 @@ data TypeError
 	| LocalVsImportedModuleClash ModuleName
 	| UnsolvedMetas [Range]
 	| UnsolvedConstraints Constraints
-	| CyclicModuleDependency [ModuleName]
+	| CyclicModuleDependency [C.TopLevelModuleName]
 	| FileNotFound C.TopLevelModuleName [FilePath]
 	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]

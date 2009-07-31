@@ -26,6 +26,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
@@ -40,28 +41,23 @@ mnameFromFileName typecheck = (sigMName <$>) .
   (maybe (typecheck>> getSignature) (return . iSignature) =<<) .
   liftIO . readInterface . setExtension ".agdai"
 
--- the known module name used to find the current interface
-mazCurrentMod = "MazCurrentModule"
-
-setInterface :: (Interface, ClockTime) -> TCM ()
-setInterface (i,t) = do modify $ \s -> s{ stImportedModules = S.empty
-                                        , stHaskellImports  = iHaskellImports i
-                                        }
-                        (`uncurry` (i,t)) . visitModule =<< mazCurMName
-
-mazCurMName :: TCM ModuleName
-mazCurMName = maybe firstTime return .  L.lookup mazCurrentMod .
-              L.map (\m -> (show m, m)) . keys =<< getVisitedModules
-  where firstTime = concreteToAbstract_ . NewModuleQName . C.QName $
-                    C.Name noRange [C.Id mazCurrentMod]
+setInterface :: Interface -> TCM ()
+setInterface i = modify $ \s -> s
+  { stImportedModules = S.empty
+  , stHaskellImports  = iHaskellImports i
+  , stCurrentModule   = Just $ iModuleName i
+  }
 
 curIF :: TCM Interface
 curIF = do
-  m  <- mazCurMName
-  mi <- M.lookup m <$> getVisitedModules
-  case mi of
-    Just (i, _) -> return i
-    Nothing     -> fail $ "No such module: " ++ show m
+  mName <- stCurrentModule <$> get
+  case mName of
+    Nothing   -> __IMPOSSIBLE__
+    Just name -> do
+      mm <- getVisitedModule (toTopLevelModuleName name)
+      case mm of
+        Nothing     -> __IMPOSSIBLE__
+        Just (i, _) -> return i
 
 curSig :: TCM Signature
 curSig = iSignature <$> curIF
@@ -100,7 +96,7 @@ tlmname :: ModuleName -> TCM ModuleName
 tlmname m = do
   ms <- sortBy (compare `on` (length . mnameToList)) .
         L.filter (flip (isPrefixOf `on` mnameToList) m) <$>
-        ((:) <$> curMName <*> (keys <$> getVisitedModules))
+        L.map (iModuleName . fst) . M.elems <$> getVisitedModules
   return $ case ms of (m' : _) -> m'; _ -> mazerror$ "tlmodOf: "++show m
 
 -- qualify HsName n by the module of QName q, if necessary;

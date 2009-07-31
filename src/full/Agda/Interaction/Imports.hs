@@ -49,6 +49,7 @@ import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.IO
+import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
@@ -140,30 +141,118 @@ findFile' ft m = do
 scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
 scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
-    visited <- Map.keys <$> getVisitedModules
-    reportSLn "import.scope" 10 $ "  visited: " ++ show visited
+    verboseS "import.scope" 10 $ do
+      visited <- Map.keys <$> getVisitedModules
+      liftIO $ UTF8.putStrLn $
+        "  visited: " ++ intercalate ", " (map (render . pretty) visited)
     (i,t)   <- getInterface x
     addImport x
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
 
-alreadyVisited :: ModuleName -> TCM (Interface, ClockTime) -> TCM (Interface, ClockTime)
+-- | If the module has already been visited, then its interface is
+-- returned directly. Otherwise the computation is used to find the
+-- interface and the computed interface is stored for potential later
+-- use.
+
+alreadyVisited :: C.TopLevelModuleName ->
+                  TCM (Interface, Either Warnings ClockTime) ->
+                  TCM (Interface, Either Warnings ClockTime)
 alreadyVisited x getIface = do
     mm <- getVisitedModule x
     case mm of
-	Just it	-> do
-            reportSLn "import.visit" 10 $ "  Already visited " ++ show x
-            return it
+	Just (i, t) -> do
+            reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
+            return (i, Right t)
 	Nothing	-> do
-	    reportSLn "import.visit" 5 $ "  Getting interface for " ++ show x
-	    (i, t) <- getIface
-	    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ show x
-	    visitModule x i t
-	    return (i, t)
+	    reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
+	    r@(i, wt) <- getIface
+	    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
+            case wt of
+              Left w  -> visitModule i =<< liftIO getClockTime
+              Right t -> visitModule i t
+	    return r
+
+-- | Which directory should form the base of relative include paths?
+
+data RelativeTo
+  = ProjectRoot
+    -- ^ The root directory of the \"project\" containing the current
+    -- file.
+  | CurrentDir
+    -- ^ The current working directory.
+
+-- | Warnings.
+--
+-- Invariant: The fields are never empty at the same time.
+
+data Warnings = Warnings
+  { terminationProblems   :: [([QName], [R.Range])]
+    -- ^ Termination checking problems are not reported if
+    -- 'optTerminationCheck' is 'False'.
+  , unsolvedMetaVariables :: [Range]
+    -- ^ Meta-variable problems are reported as type errors unless
+    -- 'optAllowUnsolved' is 'True'.
+  }
+
+-- | Turns warnings into an error. Even if several errors are possible
+-- only one is raised.
+
+warningsToError :: Warnings -> TypeError
+warningsToError (Warnings [] [])     = __IMPOSSIBLE__
+warningsToError (Warnings _ w@(_:_)) = UnsolvedMetas w
+warningsToError (Warnings w@(_:_) _) = TerminationCheckFailed w
+
+-- | Type checks the given file (if necessary), after making relative
+-- include directories absolute.
+
+-- Note that the given file may be parsed twice: once to find the
+-- module name, and once again if the module needs to be type checked.
+
+typeCheck :: FilePath
+          -- ^ The file name is interpreted relative to the current
+          -- working directory (unless it is absolute).
+          -> RelativeTo
+          -> TCM (Interface, Either Warnings ClockTime)
+typeCheck file relativeTo = do
+  -- canonicalizePath seems to return absolute paths.
+  file <- liftIO $ canonicalizePath file
+
+  m <- liftIO $ parseFile' moduleParser file
+  let topLevelName = C.topLevelModuleName m
+
+  -- Make all the include directories absolute.
+  makeIncludeDirsAbsolute =<< case relativeTo of
+    CurrentDir  -> liftIO getCurrentDirectory
+    ProjectRoot -> return $ C.projectRoot file topLevelName
+
+  checkModuleName topLevelName file
+
+  getInterface' topLevelName True
+
+-- | Tries to return the interface associated to the given module. The
+-- time stamp of the relevant interface file is also returned. May
+-- type check the module. An error is raised if a warning is
+-- encountered.
 
 getInterface :: ModuleName -> TCM (Interface, ClockTime)
-getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
-    file <- findFile SourceFile (toTopLevelModuleName x)
-            -- requires source to exist
+getInterface x = do
+  (i, wt) <- getInterface' (toTopLevelModuleName x) False
+  case wt of
+    Left  w -> typeError $ warningsToError w
+    Right t -> return (i, t)
+
+-- | A more precise variant of 'getInterface'. If warnings are
+-- encountered then they are returned instead of being turned into
+-- errors.
+
+getInterface' :: C.TopLevelModuleName
+              -> Bool  -- ^ If type checking is necessary, should all
+                       -- state changes inflicted by 'createInterface'
+                       -- be preserved?
+              -> TCM (Interface, Either Warnings ClockTime)
+getInterface' x includeStateChanges =
+  alreadyVisited x $ addImportCycleCheck x $ do
+    file <- findFile SourceFile x  -- requires source to exist
 
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
@@ -172,19 +261,30 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 		    (return False)
 		    (liftIO $ toIFile file `isNewerThan` file)
 
-    reportSLn "import.iface" 5 $ "  " ++ show x ++ " is " ++ (if uptodate then "" else "not ") ++ "up-to-date."
+    reportSLn "import.iface" 5 $
+      "  " ++ render (pretty x) ++ " is " ++
+      (if uptodate then "" else "not ") ++ "up-to-date."
 
-    (i,t) <- if uptodate
-	then skip x file
-	else typeCheck file
+    r@(i, wt) <- if uptodate
+	         then skip x file
+	         else typeCheck file
 
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
-			         else "  New module. Let's check it out."
-    unless visited $ mergeInterface i
+                                 else "  New module. Let's check it out."
+    unless (visited || includeStateChanges) $ mergeInterface i
 
-    storeDecodedModule x i t
-    return (i,t)
+    modify (\s -> s { stCurrentModule = Just $ iModuleName i })
+
+    -- Write out syntax highlighting information for Emacs.
+    whenM (optGenerateEmacsFile <$> commandLineOptions) $
+      writeEmacsFile $ iHighlighting i
+
+    case wt of
+      Left  w -> storeDecodedModule i =<< liftIO getClockTime
+      Right t -> storeDecodedModule i t
+
+    return r
 
     where
 	skip x file = do
@@ -223,41 +323,47 @@ getInterface x = alreadyVisited x $ addImportCycleCheck x $ do
 			    -- liftIO close	-- Close the interface file. See above.
 			    typeCheck file
 			else do
-			    reportSLn "" 1 $ "Skipping " ++ show x ++ " (" ++ ifile ++ ")."
-			    return (i, t)
+			    reportSLn "" 1 $ "Skipping " ++ render (pretty x) ++ " (" ++ ifile ++ ")."
+			    return (i, Right t)
 
 	typeCheck file = do
-	    -- Do the type checking
-	    ms       <- getImportPath
-	    vs       <- getVisitedModules
-	    ds       <- getDecodedModules
-	    opts     <- commandLineOptions
-	    trace    <- getTrace
-            isig     <- getImportedSignature
-            ibuiltin <- gets stImportedBuiltins
-	    r <- liftIO $ runTCM $ -- Every interface should be
-	                           -- treated in isolation.
-                   createInterface opts trace ms vs ds
-                                   isig ibuiltin (Just x) file False
+	    -- Do the type checking.
+            reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ file ++ ")."
+            if includeStateChanges then
+              createInterface file x
+             else do
+              ms       <- getImportPath
+              vs       <- getVisitedModules
+              ds       <- getDecodedModules
+              opts     <- commandLineOptions
+              trace    <- getTrace
+              isig     <- getImportedSignature
+              ibuiltin <- gets stImportedBuiltins
+              -- Every interface is treated in isolation.
+              r <- liftIO $ runTCM $
+                     withImportPath ms $ do
+                       setDecodedModules ds
+                       setTrace trace
+                       setCommandLineOptions opts
+                       setVisitedModules vs
+                       addImportedThings isig ibuiltin
 
-	    case r of
-		Left err -> throwError err
-                Right (_, Warnings termErrs@(_:_) []) -> do
-                  typeError $ TerminationCheckFailed termErrs
-                Right (_, Warnings _ _) -> __IMPOSSIBLE__
-		Right (_, Success vs ds i isig ibuiltin)  -> do
-                  -- writeInterface (used by createInterface) may
-                  -- remove ifile.
-                  let ifile = toIFile file
-                  t <- liftIO $ ifM (doesFileExist ifile)
-                         (getModificationTime ifile)
-                         getClockTime
-                  setVisitedModules vs
-                  setDecodedModules ds
-                  -- We need to add things imported when checking
-                  -- the imported modules.
-                  addImportedThings isig ibuiltin
-                  return (i, t)
+                       r <- createInterface file x
+
+                       vs       <- getVisitedModules
+                       ds       <- getDecodedModules
+                       isig     <- getImportedSignature
+                       ibuiltin <- gets stImportedBuiltins
+                       return $ (r, do
+                         setVisitedModules vs
+                         setDecodedModules ds
+                         addImportedThings isig ibuiltin)
+
+              case r of
+                  Left err               -> throwError err
+                  Right (result, update) -> do
+                    update
+                    return result
 
 readInterface :: FilePath -> IO (Maybe Interface)
 readInterface file = do
@@ -286,93 +392,49 @@ readInterface file = do
           return Nothing   -- work-around for file locking bug
       _		    -> throwIO e
 
-writeInterface :: FilePath -> Interface -> IO ()
-writeInterface file i = do
+-- | Writes the given interface to the given file. Returns the file's
+-- new modification time stamp, or 'Nothing' if the write failed.
+
+writeInterface :: FilePath -> Interface -> TCM ClockTime
+writeInterface file i =
+  liftIO (do
     encodeFile file i
-  `catch` \e -> do
-    UTF8.putStrLn $ "failed to write interface " ++ file ++ " : " ++ show e
-    removeFile file
-    return ()
+    getModificationTime file)
+  `catchError` \e -> do
+    reportSLn "" 1 $
+      "Failed to write interface " ++ file ++ "."
+    liftIO $ removeFile file
+    throwError e
 
--- | Return type used by 'createInterface'.
-
-data CreateInterfaceResult
-  = Success { cirVisited   :: VisitedModules
-            , cirDecoded   :: DecodedModules
-            , cirInterface :: Interface
-            , cirSignature :: Signature
-            , cirBuiltin   :: BuiltinThings PrimFun
-            }
-    -- ^ Everything completed successfully, and an interface file was
-    -- written.
-  | Warnings { terminationProblems   :: [([QName], [R.Range])]
-             , unsolvedMetaVariables :: [Range]
-             }
-    -- ^ Type checking was successful, except for some termination
-    -- checking problems or unsolved meta-variables.
-    --
-    -- Meta-variable problems are reported as type errors unless we
-    -- are type checking a top-level module and the flag to allow
-    -- unsolved meta-variables has been selected.
-
--- | Tries to type check a module and write out its interface.
+-- | Tries to type check a module and write out its interface. The
+-- function only writes out an interface file if it does not encounter
+-- any warnings.
 --
 -- If appropriate this function writes out syntax highlighting
 -- information.
 
 createInterface
-  :: CommandLineOptions
-  -> CallTrace
-  -> [ModuleName]
-  -> VisitedModules
-  -> DecodedModules
-  -> Signature
-  -> BuiltinThings PrimFun
-  -> Maybe ModuleName       -- ^ Expected module name.
-  -> FilePath               -- ^ The file to type check.
-                            --   Must be an absolute path.
-  -> Bool                   -- ^ Should relative include paths be
-                            --   interpreted relative to the root
-                            --   directory of the \"project\"
-                            --   containing the file? (If not, then
-                            --   they are interpreted relative to the
-                            --   current working directory.)
-  -> TCM (TopLevelInfo, CreateInterfaceResult)
-createInterface opts trace path visited decoded
-                isig ibuiltin mname file relativeToRoot
+  :: FilePath              -- ^ The file to type check. Must be an absolute path.
+  -> C.TopLevelModuleName  -- ^ The expected module name.
+  -> TCM (Interface, Either Warnings ClockTime)
+createInterface file mname
   | not (isAbsolute file) = __IMPOSSIBLE__
-  | otherwise             = withImportPath path $ do
-    setDecodedModules decoded
-    setTrace trace
-    setCommandLineOptions opts
-    setVisitedModules visited
+  | otherwise             = do
+    reportSLn "import.iface.create" 5  $
+      "Creating interface for " ++ render (pretty mname) ++ "."
+    verboseS "import.iface.create" 10 $ do
+      visited <- Map.keys <$> getVisitedModules
+      liftIO $ UTF8.putStrLn $
+        "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
-    reportSLn "" 1 $ "Checking " ++ (case mname of
-                        Nothing -> file
-                        Just m  -> show m ++ " (" ++ file ++ ")") ++ "."
-    reportSLn "import.iface.create" 5  $ "Creating interface for " ++ show mname
-    reportSLn "import.iface.create" 10 $ "  visited: " ++ show (Map.keys visited)
+    m@(pragmas, top) <- liftIO $ parseFile' moduleParser file
+    let topLevelName = C.topLevelModuleName m
 
-    addImportedThings isig ibuiltin
-
-    pt@(pragmas, top) <- liftIO $ parseFile' moduleParser file
-    let topLevelName = C.topLevelModuleName pt
-
-    -- Make all the include directories absolute.
-    if relativeToRoot then
-      makeIncludeDirsAbsolute $ C.projectRoot file topLevelName
-     else
-      makeIncludeDirsAbsolute =<< liftIO getCurrentDirectory
-
-    -- Make sure that the top-level module can be found under one of
-    -- the include directories and is equal to the given file name.
-    file' <- findFile' SourceFile topLevelName
-    file' <- case file' of
-               Left files  -> typeError $
-                                ModuleNameDoesntMatchFileName topLevelName files
-               Right file' -> return file'
-    unless (file' == file) $
-      typeError $ ModuleDefinedInOtherFile topLevelName file file'
+    -- Make sure that the given module name matches the one in the
+    -- file.
+    unless (topLevelName == mname) $ do
+      checkModuleName topLevelName file
+      __IMPOSSIBLE__
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
@@ -403,13 +465,10 @@ createInterface opts trace path visited decoded
 
         throwError e)
 
-    -- Generate syntax highlighting info.
+    -- Generate syntax highlighting info. (Emacs highlighting info is
+    -- written out in getInterface'.)
     syntaxInfo <- generateSyntaxInfo file TypeCheckingDone
                                      topLevel termErrs
-
-    -- Write Emacs file.
-    whenM (optGenerateEmacsFile <$> commandLineOptions) $
-      writeEmacsFile syntaxInfo
 
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
@@ -421,39 +480,32 @@ createInterface opts trace path visited decoded
 	[]  -> return ()
 	_   -> do
           unsolvedOK <- optAllowUnsolved <$> commandLineOptions
-          unless (unsolvedOK && path == []) $ do
+          unless unsolvedOK $
             typeError $ UnsolvedMetas unsolvedMetas
 
     setScope $ outsideScope topLevel
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
-    -- True if the file was successfully and completely
-    -- type-checked.
-    let ok = null termErrs && null unsolvedMetas
+    i <- buildInterface topLevel syntaxInfo
 
-    (,) topLevel <$> if ok then do
-      i        <- buildInterface (topLevelModuleName topLevel) syntaxInfo
-      isig     <- getImportedSignature
-      vs       <- getVisitedModules
-      ds       <- getDecodedModules
-      ibuiltin <- gets stImportedBuiltins
-      liftIO $ writeInterface (toIFile file) i
-      modify (\s -> s { stCurrentModule =
-                          Just (topLevelModuleName topLevel, i) })
-      return (Success vs ds i isig ibuiltin)
+    if null termErrs && null unsolvedMetas then do
+      -- The file was successfully and completely type-checked, so the
+      -- interface should be written out.
+      t <- writeInterface (toIFile file) i
+      return (i, Right t)
      else
-      return (Warnings termErrs unsolvedMetas)
+      return (i, Left $ Warnings termErrs unsolvedMetas)
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.
 
-buildInterface :: ModuleName
-                  -- ^ The name of the current module.
+buildInterface :: TopLevelInfo
+                  -- ^ 'TopLevelInfo' for the current module.
                -> HighlightingInfo
                   -- ^ Syntax highlighting info for the module.
                -> TCM Interface
-buildInterface m syntaxInfo = do
+buildInterface topLevel syntaxInfo = do
     reportSLn "import.iface" 5 "Building interface..."
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
@@ -467,6 +519,7 @@ buildInterface m syntaxInfo = do
 			{ iImportedModules = Set.toList ms
                         , iModuleName      = m
 			, iScope	   = publicModules scope
+                        , iInsideScope     = insideScope topLevel
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
                         , iHaskellImports  = hsImps
@@ -474,6 +527,7 @@ buildInterface m syntaxInfo = do
 			}
     reportSLn "import.iface" 7 "  interface complete"
     return i
+  where m = topLevelModuleName topLevel
 
 -- | True if the first file is newer than the second file. If a file doesn't
 -- exist it is considered to be infinitely old.
@@ -487,3 +541,23 @@ isNewerThan new old = do
 	    newT <- getModificationTime new
 	    oldT <- getModificationTime old
 	    return $ newT >= oldT
+
+-- | Ensures that the module name matches the file name. The file
+-- corresponding to the module name (according to the include path)
+-- has to be the same as the given file name.
+
+checkModuleName :: C.TopLevelModuleName
+                   -- ^ The name of the module.
+                -> FilePath
+                   -- ^ The file from which it was loaded.
+                -> TCM ()
+checkModuleName name file = do
+  moduleShouldBeIn <- findFile' SourceFile name
+  case moduleShouldBeIn of
+    Left files  -> typeError $
+                     ModuleNameDoesntMatchFileName name files
+    Right file' -> if file' == file then
+                     return ()
+                    else
+                     typeError $
+                       ModuleDefinedInOtherFile name file file'

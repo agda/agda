@@ -349,7 +349,7 @@ instance PrettyTCM TypeError where
 		$$ nest 2 (vcat $ map prettyTCM cs)
 	    CyclicModuleDependency ms ->
 		fsep (pwords "cyclic module dependency:")
-		$$ nest 2 (vcat $ map (text . show) ms)
+		$$ nest 2 (vcat $ map pretty ms)
 	    FileNotFound x files ->
 		fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
 		       pwords "in any of the following locations:"

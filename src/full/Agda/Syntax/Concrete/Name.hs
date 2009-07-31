@@ -123,7 +123,9 @@ data QName = Qual  Name QName
 --
 -- Invariant: The list must not be empty.
 
-newtype TopLevelModuleName = TopLevelModuleName [String]
+newtype TopLevelModuleName
+  = TopLevelModuleName { moduleNameParts :: [String] }
+  deriving (Eq, Ord, Typeable, Data)
 
 -- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
 -- name is assumed to represent a top-level module name.

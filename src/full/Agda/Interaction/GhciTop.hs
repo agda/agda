@@ -48,6 +48,7 @@ import Data.List as List
 import qualified Data.Map as Map
 import System.Exit
 import qualified System.Mem as System
+import System.Time
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad as TM
@@ -95,9 +96,6 @@ import Agda.Utils.Impossible
 data State = State
   { theTCState           :: TCState
   , theUndoStack         :: [TCState]
-  , theTopLevel          :: Maybe TopLevelInfo
-    -- ^ Invariant: The 'TopLevelInfo' corresponds to a type-correct
-    --   module.
   , theInteractionPoints :: [InteractionId]
     -- ^ The interaction points of the buffer, in the order in which
     --   they appear in the buffer. The interaction points are
@@ -110,7 +108,6 @@ initState :: State
 initState = State
   { theTCState           = TM.initState
   , theUndoStack         = []
-  , theTopLevel          = Nothing
   , theInteractionPoints = []
   }
 
@@ -151,18 +148,17 @@ cmd_load m includes =
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
--- second component of the result of 'Imp.createInterface'.
+-- result of 'Imp.typeCheck'.
 --
 -- The command @cmd2@ is executed as the final step of @cmd_load'@,
 -- unless an exception is encountered.
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
-          -> (Imp.CreateInterfaceResult -> TCM ()) -> IO ()
+          -> ((Interface, Either Imp.Warnings ClockTime) -> TCM ())
+          -> IO ()
           -> IO ()
 cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
-    -- canonicalizePath seems to return absolute paths.
-    file <- liftIO $ canonicalizePath file
     clearSyntaxInfo file
     ioTCM $ do
             clearUndoHistory
@@ -173,21 +169,18 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
             -- All options are reset when a file is reloaded,
             -- including the choice of whether or not to display
             -- implicit arguments.
-            (topLevel, ok) <- Imp.createInterface
-              (defaultOptions { optGenerateEmacsFile = True
-                              , optAllowUnsolved     = unsolvedOK
-                              , optIncludeDirs       = includes })
-              noTrace [] Map.empty
-              decodedModules emptySignature
-              Map.empty Nothing file True
+            setCommandLineOptions $
+              defaultOptions { optGenerateEmacsFile = True
+                             , optAllowUnsolved     = unsolvedOK
+                             , optIncludeDirs       = includes
+                             }
+            ok <- Imp.typeCheck file Imp.ProjectRoot
 
-            -- The module type checked, so let us store the abstract
-            -- syntax information and the interaction points.
+            -- The module type checked, so let us store the
+            -- interaction points.
             is <- sortInteractionPoints =<< getInteractionPoints
             liftIO $ modifyIORef theState $ \s ->
-              s { theTopLevel          = Just topLevel
-                , theInteractionPoints = is
-                }
+              s { theInteractionPoints = is }
             cmd ok
 
             liftIO tellEmacsToReloadSyntaxInfo
@@ -200,13 +193,13 @@ cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
 
 cmd_compile :: FilePath -> [FilePath] -> IO ()
 cmd_compile file includes =
-  cmd_load' file includes False (\r ->
-    case r of
-      Imp.Success { Imp.cirInterface = i } -> do
-        MAlonzo.compilerMain (return i)
+  cmd_load' file includes False (\(i, wt) ->
+    case wt of
+      Right t -> do
+        MAlonzo.compilerMain i
         display_info "*Compilation result*"
                    "The module was successfully compiled."
-      Imp.Warnings {} ->
+      Left w ->
         display_info errorTitle $ unlines
           [ "You can only compile modules without unsolved metavariables"
           , "or termination checking problems."
@@ -540,7 +533,7 @@ cmd_compute ignore ii rng s = ioTCM $ do
          prettyA v
   display_info "*Normal Form*" (show d)
 
--- | Parses and scope checks an expression (using insideScope topLevel
+-- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
 
@@ -554,13 +547,18 @@ parseAndDoAtToplevel
   -> IO ()
 parseAndDoAtToplevel cmd title s = infoOnException $ do
   e <- parse exprParser s
-  mTopLevel <- theTopLevel <$> readIORef theState
-  ioTCM $ display_info title =<<
-    case mTopLevel of
-      Nothing       -> return "Error: First load the file."
-      Just topLevel -> do
-        setScope $ insideScope topLevel
-        showA =<< cmd =<< concreteToAbstract_ e
+  ioTCM $ display_info title =<< do
+    mCurrent <- stCurrentModule <$> get
+    case mCurrent of
+      Nothing      -> return "Error: First load the file."
+      Just current -> do
+        r <- getVisitedModule (SA.toTopLevelModuleName current)
+        case r of
+          Nothing     -> __IMPOSSIBLE__
+          Just (i, t) -> do
+            setScope     $ iInsideScope i
+            setSignature $ iSignature   i
+            showA =<< cmd =<< concreteToAbstract_ e
 
 -- | Parse the given expression (as if it were defined at the
 -- top-level of the current module) and infer its type.

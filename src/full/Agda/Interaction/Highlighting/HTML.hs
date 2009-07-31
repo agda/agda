@@ -28,10 +28,12 @@ import qualified Agda.Interaction.Imports as Imp
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Monad as Scope
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
+import Agda.Utils.Pretty
 
 -- | The name of the default CSS file.
 
@@ -65,8 +67,8 @@ generateHTML mod = do
       -- Pull highlighting info from the state and generate all the
       -- web pages.
       mapM_ (\(m, h) -> generatePage dir m h) =<<
-        map (id *** TCM.iHighlighting) . Map.toList <$>
-          TCM.getAllModules
+        map (id *** TCM.iHighlighting . fst) . Map.toList <$>
+          TCM.getVisitedModules
 
 -- | Converts module names to the corresponding HTML file names.
 
@@ -77,29 +79,30 @@ modToFile m = List.intercalate "." m <.> "html"
 -- the given module.
 
 generatePage
-  :: FilePath         -- ^ Directory in which to create files.
-  -> A.ModuleName     -- ^ Module to be highlighted.
-  -> HighlightingInfo -- ^ Syntax highlighting info for the module.
+  :: FilePath              -- ^ Directory in which to create files.
+  -> C.TopLevelModuleName  -- ^ Module to be highlighted.
+  -> HighlightingInfo      -- ^ Syntax highlighting info for the module.
   -> TCM ()
 generatePage dir mod highlighting = do
   contents <- liftIO $ UTF8.readTextFile (source highlighting)
   css      <- maybe defaultCSSFile id . optCSSFile <$>
                 TCM.commandLineOptions
   let html = page css mod contents (info highlighting)
-  TCM.reportSLn "html" 1 $ "Generating HTML for " ++ show mod ++
+  TCM.reportSLn "html" 1 $ "Generating HTML for " ++
+                           render (pretty mod) ++
                            " (" ++ target ++ ")."
   liftIO $ UTF8.writeFile target (renderHtml html)
-  where target = dir </> modToFile (map show $ A.mnameToList mod)
+  where target = dir </> modToFile (C.moduleNameParts mod)
 
 -- | Constructs the web page, including headers.
 
-page :: FilePath       -- ^ URL to the CSS file.
-     -> A.ModuleName   -- ^ Module to be highlighted.
-     -> String         -- ^ The contents of the module.
-     -> CompressedFile -- ^ Highlighting information.
+page :: FilePath              -- ^ URL to the CSS file.
+     -> C.TopLevelModuleName  -- ^ Module to be highlighted.
+     -> String                -- ^ The contents of the module.
+     -> CompressedFile        -- ^ Highlighting information.
      -> Html
 page css modName contents info =
-  header (thetitle << show modName
+  header (thetitle << render (pretty modName)
             +++
           meta ! [ httpequiv "Content-Type"
                  , content "text/html; charset=UTF-8"

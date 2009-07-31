@@ -31,5 +31,8 @@ Tools
   the file <some-path>/A/B/C.agda, then the root directory is
   <some-path>.)
 
+* Type-checking is no longer done when an up-to-date interface exists.
+  (Previously the initial module was always type-checked.)
+
 * Emacs mode: C-c C-x C-d no longer resets the type checking state.
   C-c C-x C-r can be used for a more complete reset.

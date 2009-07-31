@@ -17,6 +17,7 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import qualified System.IO.UTF8 as UTF8
+import System.Time
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
@@ -89,50 +90,34 @@ runAgda =
 		alonzo  <- optCompileAlonzo <$> liftTCM commandLineOptions
                 malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
 		when i $ liftIO $ UTF8.putStr splashScreen
-		let failIfError (_, Right _)  = return ()
-                    failIfError (_, Left err) = typeError err
-
-                    failIfNoInt (_, Right (Just i)) = return i
+		let failIfNoInt (Just i) = return i
                     -- The allowed combinations of command-line
-                    -- options should rule out Right Nothing here.
-                    failIfNoInt (_, Right Nothing)  = __IMPOSSIBLE__
-                    failIfNoInt (_, Left err)       = typeError err
+                    -- options should rule out Nothing here.
+                    failIfNoInt Nothing  = __IMPOSSIBLE__
 
-                    interaction
-                      :: TCM (ScopeInfo, Either TypeError (Maybe Interface))
-                      -> TCM ()
-                    interaction | i	  = runIM . interactionLoop
-				| compile = Agate.compilerMain   . (failIfError =<<)
-				| alonzo  = Alonzo.compilerMain  . (failIfError =<<)
-                                | malonzo = MAlonzo.compilerMain . (failIfNoInt =<<)
-				| otherwise = (failIfError =<<)
+                    interaction :: TCM (Maybe Interface) -> TCM ()
+                    interaction | i	  = runIM . interactionLoop    . (failIfNoInt =<<)
+				| compile = Agate.compilerMain         . (() <$)
+				| alonzo  = Alonzo.compilerMain        . (() <$)
+                                | malonzo = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
+				| otherwise = (() <$)
 		interaction $
 		    do	hasFile <- hasInputFile
 			resetState
 			if hasFile then
-			    do	file    <- getInputFile
-                                options <- commandLineOptions
+			    do	file <- getInputFile
+                                (i, wt) <- Imp.typeCheck file Imp.CurrentDir
 
-                                (topLevel, ok) <- Imp.createInterface options
-                                  noTrace [] Map.empty
-                                  Map.empty emptySignature
-                                  Map.empty Nothing file False
-
-                                -- The value of options from above
-                                -- cannot be reused here, because then
-                                -- options set in pragmas would have
-                                -- no effect.
                                 unsolvedOK <- optAllowUnsolved <$> commandLineOptions
 
-                                let result = case ok of
-                                      Imp.Warnings []             [] -> __IMPOSSIBLE__
-                                      Imp.Warnings _  unsolved@(_:_)
-                                        | unsolvedOK -> Right Nothing
-                                        | otherwise  -> Left $ UnsolvedMetas unsolved
-                                      Imp.Warnings termErrs@(_:_) _  ->
-                                        Left (TerminationCheckFailed termErrs)
-                                      Imp.Success { Imp.cirInterface = i } ->
-                                        Right (Just i)
+                                result <- case wt of
+                                      Left (Imp.Warnings []             []) -> __IMPOSSIBLE__
+                                      Left (Imp.Warnings _  unsolved@(_:_))
+                                        | unsolvedOK -> return Nothing
+                                        | otherwise  -> typeError $ UnsolvedMetas unsolved
+                                      Left (Imp.Warnings termErrs@(_:_) _) ->
+                                        typeError $ TerminationCheckFailed termErrs
+                                      Right t -> return $ Just i
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
@@ -145,13 +130,13 @@ runAgda =
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
                                 whenM (optGenerateHTML <$> commandLineOptions) $ do
-                                  case ok of
-                                    Imp.Success {} -> generateHTML $ topLevelModuleName topLevel
-                                    _ -> return ()
-                                         -- The error will be handled by interaction.
+                                  case wt of
+                                    Right _ -> generateHTML $ iModuleName i
+                                    Left  _ -> reportSLn "" 1
+                                      "HTML is not generated (unsolved meta-variables)."
 
-				return (insideScope topLevel, result)
-			  else return (emptyScopeInfo, Right Nothing)
+				return result
+			  else return Nothing
 
 -- | Print usage information.
 printUsage :: IO ()

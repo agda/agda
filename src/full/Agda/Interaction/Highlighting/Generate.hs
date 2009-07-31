@@ -475,8 +475,8 @@ sourceToModule
 sourceToModule file mod =
   Map.fromList .
   (:) (file, mod) .
-  map (\(m, (i, _)) -> (source $ M.iHighlighting i, m)) .
-  Map.toList <$>
+  map (\(i, _) -> (source $ M.iHighlighting i, M.iModuleName i)) .
+  Map.elems <$>
   M.getVisitedModules
 
 -- | Like 'everything', but modified so that it does not descend into

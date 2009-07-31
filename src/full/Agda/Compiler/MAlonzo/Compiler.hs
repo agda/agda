@@ -38,18 +38,17 @@ import Agda.Utils.Impossible
 
 #include "../../undefined.h"
 
-compilerMain :: TCM Interface -> TCM ()
-compilerMain typecheck = do
-  i <- typecheck
-  ignoreAbstractMode $ do
-    t <- liftIO getClockTime
-    let mainICT = (i, t)
-    mapM_ compile =<< ((mainICT :) . M.elems <$> getVisitedModules)
-    callGHC mainICT
+compilerMain :: Interface -> TCM ()
+compilerMain mainI =
+  -- Preserve the state (the compiler modifies the state).
+  bracket get put $ \_ -> do
+    ignoreAbstractMode $ do
+      mapM_ (compile . fst) =<< (M.elems <$> getVisitedModules)
+      callGHC mainI
 
-compile :: (Interface, ClockTime) -> TCM ()
-compile ict = do
-  setInterface ict
+compile :: Interface -> TCM ()
+compile i = do
+  setInterface i
   ifM uptodate noComp $ (yesComp >>) $ do
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
@@ -281,9 +280,9 @@ outFile' = do
 outFile :: TCM FilePath
 outFile = snd <$> outFile'
 
-callGHC :: (Interface, ClockTime) -> TCM ()
-callGHC mainICT = do
-  setInterface mainICT
+callGHC :: Interface -> TCM ()
+callGHC i = do
+  setInterface i
   mdir          <- optMAlonzoDir <$> commandLineOptions
   hsmod         <- prettyPrint <$> curHsMod
   MName agdaMod <- curMName

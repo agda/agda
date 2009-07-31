@@ -67,7 +67,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090421 * 10 + 2
+currentInterfaceVersion = 20090726 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -594,10 +594,40 @@ instance EmbPrj HP.HighlightingInfo where
     valu [a, b] = valu2 HP.HighlightingInfo a b
     valu _      = __IMPOSSIBLE__
 
+instance EmbPrj Precedence where
+  icode TopCtx                 = icode0 0
+  icode FunctionSpaceDomainCtx = icode0 1
+  icode (LeftOperandCtx a)     = icode1 2 a
+  icode (RightOperandCtx a)    = icode1 3 a
+  icode FunctionCtx            = icode0 4
+  icode ArgumentCtx            = icode0 5
+  icode InsideOperandCtx       = icode0 6
+  icode WithFunCtx             = icode0 7
+  icode WithArgCtx             = icode0 8
+  icode DotPatternCtx          = icode0 9
+  value = vcase valu
+    where
+    valu [0]    = valu0 TopCtx
+    valu [1]    = valu0 FunctionSpaceDomainCtx
+    valu [2, a] = valu1 LeftOperandCtx a
+    valu [3, a] = valu1 RightOperandCtx a
+    valu [4]    = valu0 FunctionCtx
+    valu [5]    = valu0 ArgumentCtx
+    valu [6]    = valu0 InsideOperandCtx
+    valu [7]    = valu0 WithFunCtx
+    valu [8]    = valu0 WithArgCtx
+    valu [9]    = valu0 DotPatternCtx
+    valu _      = __IMPOSSIBLE__
+
+instance EmbPrj ScopeInfo where
+  icode (ScopeInfo a b c d) = icode4' a b c d
+  value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
+                           valu _            = __IMPOSSIBLE__
+
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g) = icode7' a b c d e f g
-  value = vcase valu where valu [a, b, c, d, e, f, g] = valu7 Interface a b c d e f g
-                           valu _                     = __IMPOSSIBLE__
+  icode (Interface a b c d e f g h) = icode8' a b c d e f g h
+  value = vcase valu where valu [a, b, c, d, e, f, g, h] = valu8 Interface a b c d e f g h
+                           valu _                        = __IMPOSSIBLE__
 
 
 

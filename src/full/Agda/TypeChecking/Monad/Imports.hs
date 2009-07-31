@@ -14,6 +14,7 @@ import qualified Data.Set as Set
 import System.Time
 
 import Agda.Syntax.Abstract.Name
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Monad
 
@@ -21,7 +22,7 @@ addImport :: ModuleName -> TCM ()
 addImport m =
     modify $ \s -> s { stImportedModules = Set.insert m $ stImportedModules s }
 
-addImportCycleCheck :: ModuleName -> TCM a -> TCM a
+addImportCycleCheck :: C.TopLevelModuleName -> TCM a -> TCM a
 addImportCycleCheck m =
     local $ \e -> e { envImportPath = m : envImportPath e }
 
@@ -31,11 +32,14 @@ getImports = gets stImportedModules
 isImported :: ModuleName -> TCM Bool
 isImported m = Set.member m <$> getImports
 
-getImportPath :: TCM [ModuleName]
+getImportPath :: TCM [C.TopLevelModuleName]
 getImportPath = asks envImportPath
 
-visitModule :: ModuleName -> Interface -> ClockTime -> TCM ()
-visitModule x i t = modify $ \s -> s { stVisitedModules = Map.insert x (i,t) $ stVisitedModules s }
+visitModule :: Interface -> ClockTime -> TCM ()
+visitModule i t = modify $ \s ->
+  s { stVisitedModules =
+        Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
+          stVisitedModules s }
 
 setVisitedModules :: VisitedModules -> TCM ()
 setVisitedModules ms = modify $ \s -> s { stVisitedModules = ms }
@@ -43,22 +47,12 @@ setVisitedModules ms = modify $ \s -> s { stVisitedModules = ms }
 getVisitedModules :: TCM VisitedModules
 getVisitedModules = gets stVisitedModules
 
-isVisited :: ModuleName -> TCM Bool
+isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = gets $ Map.member x . stVisitedModules
 
-getVisitedModule :: ModuleName -> TCM (Maybe (Interface, ClockTime))
+getVisitedModule :: C.TopLevelModuleName
+                 -> TCM (Maybe (Interface, ClockTime))
 getVisitedModule x = gets $ Map.lookup x . stVisitedModules
-
--- | This map includes the current module, if it has been type
--- checked, along with the visited modules.
-
-getAllModules :: TCM (Map ModuleName Interface)
-getAllModules = do
-  visited <- Map.map fst <$> getVisitedModules
-  current <- stCurrentModule <$> get
-  case current of
-    Nothing      -> return visited
-    Just (m, i)  -> return (Map.insert m i visited)
 
 getDecodedModules :: TCM DecodedModules
 getDecodedModules = gets stDecodedModules
@@ -72,16 +66,19 @@ preserveDecodedModules tcm = do ms <- getDecodedModules
                                 setDecodedModules ms
                                 return a
 
-getDecodedModule :: ModuleName -> TCM (Maybe (Interface, ClockTime))
+getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe (Interface, ClockTime))
 getDecodedModule x = gets $ Map.lookup x . stDecodedModules
 
-storeDecodedModule :: ModuleName -> Interface -> ClockTime -> TCM ()
-storeDecodedModule x i t = modify $ \s -> s { stDecodedModules = Map.insert x (i,t) $ stDecodedModules s }
+storeDecodedModule :: Interface -> ClockTime -> TCM ()
+storeDecodedModule i t = modify $ \s ->
+  s { stDecodedModules =
+        Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
+          stDecodedModules s }
 
-dropDecodedModule :: ModuleName -> TCM ()
+dropDecodedModule :: C.TopLevelModuleName -> TCM ()
 dropDecodedModule x = modify $ \s -> s { stDecodedModules = Map.delete x $ stDecodedModules s }
 
-withImportPath :: [ModuleName] -> TCM a -> TCM a
+withImportPath :: [C.TopLevelModuleName] -> TCM a -> TCM a
 withImportPath path = local $ \e -> e { envImportPath = path }
 
 -- | Assumes that the first module in the import path is the module we are

@@ -83,15 +83,15 @@ interaction prompt cmds eval = loop
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: TCM (ScopeInfo, a) -> IM ()
+interactionLoop :: TCM Interface -> IM ()
 interactionLoop typeCheck =
     do  liftTCM reload
 	interaction "Main> " commands evalTerm
     where
 	reload = do
 	    setUndo
-	    (scope, a) <- typeCheck
-	    setScope scope
+	    i <- typeCheck
+	    setScope $ iInsideScope i
 	  `catchError` \e -> do
 	    s <- prettyError e
 	    liftIO $ UTF8.putStrLn s

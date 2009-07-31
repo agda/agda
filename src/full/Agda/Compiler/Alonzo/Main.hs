@@ -49,6 +49,7 @@ import Agda.TypeChecking.Reduce
 
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 
 import System.IO
 -- import Data.List(nub)
@@ -70,7 +71,7 @@ compilerMain typeCheck = ignoreAbstractMode $ do
         let names = List.map fst defs
         hsdefs <- mapM processDefWithDebug defs
         -- We get more than we need here
-        allImps <- map show . Map.keys <$> getVisitedModules
+        allImps <- map (render . pretty) . Map.keys <$> getVisitedModules
         verboseS "comp.alonzo.import" 20 $ liftIO $ mapM_ (\m -> putStrLn $ "import " ++ m) allImps
         hImps <- getHaskellImports
         let mainNum = (numOfMainS names)
@@ -98,7 +99,8 @@ flattenSubmodules q = do
   ifM (fromCurrentModule q)
       (return q)
   $ do
-    topModules <- Map.keys <$> getVisitedModules
+    topModules <- map (iModuleName . fst) . Map.elems <$>
+                    getVisitedModules
     case filter (isInModule q) topModules of
       [top]     -> return $ q { qnameModule = top }
       []        -> error $ "flattenSubmodules: " ++ show q ++ " </- " ++ show topModules
