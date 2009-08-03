@@ -315,12 +315,12 @@ instance Occurs a => Occurs [a] where
 abortAssign :: MonadTCM tcm => tcm a
 abortAssign =
     do	s <- get
-	liftTCM $ throwError $ AbortAssign s
+	liftTCM $ throwError $ TCErr Nothing $ AbortAssign s
 
 handleAbort :: MonadTCM tcm => TCM a -> TCM a -> tcm a
 handleAbort h m = liftTCM $
     m `catchError` \e ->
-	case e of
+	case errError e of
 	    AbortAssign s -> do put s; h
 	    _		  -> throwError e
 

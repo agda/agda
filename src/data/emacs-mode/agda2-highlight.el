@@ -351,38 +351,18 @@ table). The face `font-lock-comment-face' is used for comments.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
 
-(defun agda2-highlight-reload nil
-  "Reload current buffer's syntax information from the syntax file.
-If an error is encountered when the syntax file is loaded an
-error message is displayed (indicating that the problem may be an
-outdated syntax highlighting information file), but no error is
-raised."
-  (interactive)
-  (let* ((dir (file-name-directory buffer-file-name))
-         (name (file-name-nondirectory buffer-file-name))
-         (file (concat dir "." name ".el"))
-         (coding-system-for-read 'utf-8)
-         (inhibit-read-only t))
-         ;; Ignore read-only status, otherwise this function may fail.
-    (condition-case err
-        (annotation-load-file
-         file
-         ;; Do not remove the old annotations if all the new ones
-         ;; correspond to errors, or if there are no new ones.
-         (lambda (anns) (not (member anns '((error) nil))))
-         "Click mouse-2 to jump to definition")
-      (error (with-output-to-temp-buffer "*Agda highlighting error*"
-               (princ (format
-                        (concat "Encountered an error\n\n"
-                                "The syntax highlighting information"
-                                " may be malformed or\nout of date."
-                                " You could try to reload.\n\n"
-                                "Error message:\n\n%S") err)))))))
-
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
   (font-lock-mode 0)
   (setq annotation-bindings agda2-highlight-faces))
+
+(defun agda2-highlight-load (file)
+  "Load syntax highlighting information from FILE."
+  (let ((coding-system-for-read 'utf-8)
+        ;; Ignore read-only status, otherwise this function may fail.
+        (inhibit-read-only t))
+    (annotation-load-file file (lambda (anns) t)
+                          "Click mouse-2 to jump to definition")))
 
 (defun agda2-highlight-clear nil
   "Remove all syntax highlighting added by `agda2-highlight-reload'."
@@ -390,13 +370,6 @@ raised."
   (let ((inhibit-read-only t))
        ; Ignore read-only status, otherwise this function may fail.
     (annotation-remove-annotations)))
-
-(defun agda2-highlight-reload-or-clear (&optional arg)
-  "Reload syntax highlighting information.
-With prefix argument ARG: Remove syntax highlighting."
-  (interactive "P")
-  (if arg (agda2-highlight-clear)
-    (agda2-highlight-reload)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Administrative details

@@ -42,7 +42,8 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Strict
 
-import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError, TCErr(..))
+import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
+                                     TCErr(..), TCErr'(..))
 import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
@@ -548,7 +549,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
 
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
 niceDecls ds = case runNice $ niceDeclarations ds of
-  Left e   -> throwError $ Exception (getRange e) (show e)
+  Left e   -> throwError $ TCErr Nothing $ Exception (getRange e) (show e)
   Right ds -> return ds
 
 instance ToAbstract [C.Declaration] [A.Declaration] where

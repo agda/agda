@@ -3,8 +3,7 @@
 -- | Generates data used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Generate
-  ( TypeCheckingState(..)
-  , generateSyntaxInfo
+  ( generateSyntaxInfo
   , generateErrorInfo
   , Agda.Interaction.Highlighting.Generate.tests
   )
@@ -12,6 +11,7 @@ module Agda.Interaction.Highlighting.Generate
 
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
+import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
@@ -50,46 +50,74 @@ import Agda.Utils.Impossible
 #include "../../undefined.h"
 
 -- | Generates syntax highlighting information for an error,
--- represented as a range and a string. The range is first completed
--- so that there are no gaps in it.
+-- represented as a range and an optional string. The error range is
+-- completed so that there are no gaps in it.
+--
+-- Nothing is generated unless the file name component of the range is
+-- defined and non-empty.
 
-generateErrorInfo :: P.Range -> String -> File
+generateErrorInfo :: P.Range -> Maybe String -> Maybe HighlightingInfo
 generateErrorInfo r s =
+  case P.rStart r of
+    Nothing                                     -> Nothing
+    Just (P.Pn { P.srcFile = "" })              -> Nothing
+    Just (P.Pn { P.srcFile = f, P.posPos = p }) -> Just $
+      HighlightingInfo
+        { source = f
+        , info   = compress $ generateErrorFile r s
+        }
+
+-- | Generates syntax highlighting information for an error,
+-- represented as a range and an optional string. The error range is
+-- completed so that there are no gaps in it.
+
+generateErrorFile :: P.Range -> Maybe String -> File
+generateErrorFile r s =
   several (rToR $ P.continuousPerLine r)
-          (mempty { otherAspects = [Error], note = Just s })
-
--- | Has typechecking been done yet?
-
-data TypeCheckingState = TypeCheckingDone | TypeCheckingNotDone
-  deriving (Show, Eq)
+          (mempty { otherAspects = [Error]
+                  , note         = s
+                  })
 
 -- | Generates syntax highlighting information.
 
 generateSyntaxInfo
   :: FilePath               -- ^ The module to highlight.
-  -> TypeCheckingState      -- ^ Has it been type checked?
+  -> Maybe TCErr            -- ^ 'Nothing' if the module has been
+                            --   successfully type checked (perhaps
+                            --   with warnings), otherwise the
+                            --   offending error.
+                            --
+                            --   Precondition: The range of the error
+                            --   must match the file name given in the
+                            --   previous argument.
   -> CA.TopLevelInfo        -- ^ The abstract syntax of the module.
   -> [([A.QName], [Range])] -- ^ Functions which failed to termination
                             --   check (grouped if they are mutual),
                             --   along with ranges for problematic
                             --   call sites.
   -> TCM HighlightingInfo
-generateSyntaxInfo file tcs top termErrs =
+generateSyntaxInfo file mErr top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
     modMap <- sourceToModule file (CA.topLevelModuleName top)
     tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
-    kinds  <- nameKinds tcs decls
+    kinds  <- nameKinds mErr decls
     let nameInfo = mconcat $ map (generate modMap file kinds)
                                  (Fold.toList names)
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
-    constructorInfo <-
-      if tcs == TypeCheckingNotDone
-         then return mempty
-         else generateConstructorInfo modMap file kinds decls
-    metaInfo <- if tcs == TypeCheckingNotDone
-                   then return mempty
-                   else computeUnsolvedMetaWarnings
+    constructorInfo <- case mErr of
+      Nothing -> generateConstructorInfo modMap file kinds decls
+      Just _  -> return mempty
+    metaInfo <- case mErr of
+      Nothing -> computeUnsolvedMetaWarnings
+      Just _  -> return mempty
+    errorInfo <- case mErr of
+      Nothing -> return mempty
+      Just e  -> let r = P.getRange e in
+        case P.rStart r of
+          Just p | P.srcFile p == file ->
+            generateErrorFile r . Just <$> E.prettyError e
+          _ -> __IMPOSSIBLE__
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
     -- to be placed before nameInfo since, when typechecking is done,
@@ -99,7 +127,8 @@ generateSyntaxInfo file tcs top termErrs =
     return $ HighlightingInfo
                { source = file
                , info   = compress $
-                            mconcat [ constructorInfo
+                            mconcat [ errorInfo
+                                    , constructorInfo
                                     , theRest modMap
                                     , nameInfo
                                     , metaInfo
@@ -234,14 +263,15 @@ type NameKinds = A.QName -> Maybe NameKind
 
 -- | Builds a 'NameKinds' function.
 
-nameKinds :: TypeCheckingState
+nameKinds :: Maybe TCErr  -- ^ 'Nothing' if type checking completed
+                          --   successfully.
           -> [A.Declaration]
           -> TCM NameKinds
-nameKinds tcs decls = do
+nameKinds mErr decls = do
   imported <- fix . stImports <$> get
-  local    <- case tcs of
-    TypeCheckingDone    -> fix . stSignature <$> get
-    TypeCheckingNotDone -> return $
+  local    <- case mErr of
+    Nothing -> fix . stSignature <$> get
+    Just _  -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
       everything' union (Map.empty `mkQ` getDef `extQ` getDecl) decls

@@ -115,7 +115,7 @@ computeSizeConstraint cl = liftTCM $
     (a, n) <- sizeExpr u
     (b, m) <- sizeExpr v
     return $ Just $ Leq a (m - n) b
-  `catchError` \err -> case err of
+  `catchError` \err -> case errError err of
     PatternErr _ -> return Nothing
     _            -> throwError err
 

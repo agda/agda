@@ -1,9 +1,7 @@
 -- | Functions which give precise syntax highlighting info to Emacs.
 
 module Agda.Interaction.Highlighting.Emacs
-  ( clearSyntaxInfo
-  , writeEmacsFile
-  , appendErrorToEmacsFile
+  ( showHighlightingInfo
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
@@ -53,86 +51,25 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
 
 showMetaInfo :: (Range, MetaInfo) -> String
 showMetaInfo (r, m) =
-     "(annotation-annotate "
+     "("
   ++ show (from r)
   ++ " "
   ++ show (to r)
-  ++ " '("
+  ++ " ("
   ++ concat (intersperse " " (toAtoms m))
   ++ ")"
   ++ (maybe " nil" ((" " ++) . quote) $ note m)
   ++ (maybe ""
-            (\(_, f, p) -> " '(" ++ quote f ++ " . " ++ show p ++ ")")
+            (\(_, f, p) -> " (" ++ quote f ++ " . " ++ show p ++ ")")
         $ definitionSite m)
   ++ ")"
 
--- | Shows a file in an Emacsy fashion.
+-- | Shows syntax highlighting information in an Emacsy fashion.
 
-showFile :: CompressedFile -> String
-showFile = unlines . map showMetaInfo
-
-------------------------------------------------------------------------
--- IO
-
--- | Gives the syntax highlighting information file name associated
--- with the given Agda file.
-
-infoFileName :: FilePath -> String
-infoFileName path | null dir  = base
-                  | otherwise = dir ++ slash : base
-  where
-  (dir, name, ext) = splitFilePath path
-  base = '.' : name ++ ext ++ ".el"
-
--- | Clears a syntax highlighting information file.
---
--- The output file name is constructed from the given file name by
--- prepending \".\" and appending \".el\".
-
-clearSyntaxInfo
-  :: FilePath
-     -- ^ The path to the file which should be highlighted
-     -- (not the file which should be cleared).
-  -> IO ()
-clearSyntaxInfo path = UTF8.writeFile (infoFileName path) ""
-
--- | Appends to a file with syntax highlighting information.
-
-appendSyntaxInfo :: HighlightingInfo -> IO ()
-appendSyntaxInfo highlighting =
-  UTF8.appendFile (infoFileName $ source highlighting)
-                  (showFile $ info highlighting)
-
-------------------------------------------------------------------------
--- Driver which uses the code in
--- Agda.Interaction.Highlighting.Generate to create syntax
--- highlighting files
-
--- | Outputs syntax highlighting information after clearing existing
--- highlighting info.
-
-writeEmacsFile :: HighlightingInfo -> TCM ()
-writeEmacsFile highlighting = do
-  liftIO $ clearSyntaxInfo (source highlighting)
-  liftIO $ appendSyntaxInfo highlighting
-
--- | Appends information about an error to the highlighting file
--- relevant for the error.
-
-appendErrorToEmacsFile :: TCErr -> TCM ()
-appendErrorToEmacsFile err = do
-  let r = P.getRange err
-  s <- prettyError err
-  case P.rStart r of
-    Nothing                                         -> return ()
-    -- Errors for expressions entered using the command line sometimes
-    -- have an empty file name component. This should be fixed.
-    Just     (P.Pn { P.srcFile = "" })              -> return ()
-    Just pos@(P.Pn { P.srcFile = f, P.posPos = p }) -> do
-      liftIO $ appendSyntaxInfo $
-        HighlightingInfo { source = f
-                         , info   = compress $ generateErrorInfo r s
-                         }
+showHighlightingInfo :: Maybe HighlightingInfo -> String
+showHighlightingInfo Nothing  = ""
+showHighlightingInfo (Just h) =
+  "(" ++ unlines (map showMetaInfo $ info h) ++ ")"
 
 ------------------------------------------------------------------------
 -- All tests

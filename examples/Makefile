@@ -8,7 +8,7 @@ default : test polydep hello path regexp-talk aim4-bag ac effects minmax real vi
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) --vim --emacs $(AGDA_TEST_FLAGS)
+run_agda = $(agda) --vim $(AGDA_TEST_FLAGS)
 
 test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \
@@ -109,8 +109,8 @@ intro : Introduction/All.agda
 
 highlighting : syntax/highlighting/Test*agda
 	@$(echo) "Testing $^... "
-	@$(echo) :q | $(run_agda) --emacs --vim -isyntax/highlighting syntax/highlighting/Test2.agda
-	@$(echo) :q | $(run_agda) --emacs --vim -isyntax/highlighting syntax/highlighting/Test3.lagda
+	@$(echo) :q | $(run_agda) --vim -isyntax/highlighting syntax/highlighting/Test2.agda
+	@$(echo) :q | $(run_agda) --vim -isyntax/highlighting syntax/highlighting/Test3.lagda
 	@$(echo) "ok"
 
 compiler : MAlonzo/main.agda

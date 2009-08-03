@@ -323,7 +323,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
-	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case err of
+	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case errError err of
                   TypeError _ _ -> typeError $ UnequalTypes cmp ty1 ty2
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2

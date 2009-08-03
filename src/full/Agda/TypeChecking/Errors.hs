@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)
+    , tcErrString
     ) where
 
 import Control.Applicative ( (<$>) )
@@ -69,7 +70,7 @@ nameWithBinding q =
     r = nameBindingSite $ qnameName q
 
 tcErrString :: TCErr -> String
-tcErrString err = show (getRange err) ++ " " ++ case err of
+tcErrString err = show (getRange err) ++ " " ++ case errError err of
     TypeError _ cl -> errorString $ clValue cl
     Exception r s  -> show r ++ " " ++ s
     PatternErr _   -> "PatternErr"
@@ -168,7 +169,7 @@ errorString err = case err of
     WrongNumberOfConstructorArguments _ _ _    -> "WrongNumberOfConstructorArguments"
 
 instance PrettyTCM TCErr where
-    prettyTCM err = case err of
+    prettyTCM err = case errError err of
 	TypeError s e -> do
 	    s0 <- get
 	    put s

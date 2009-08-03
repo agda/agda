@@ -102,6 +102,7 @@ data State = State
     --   recorded in 'theTCState', but when new interaction points are
     --   added by give or refine Agda does not ensure that the ranges
     --   of later interaction points are updated.
+  , theCurrentFile       :: Maybe FilePath
   }
 
 initState :: State
@@ -109,39 +110,106 @@ initState = State
   { theTCState           = TM.initState
   , theUndoStack         = []
   , theInteractionPoints = []
+  , theCurrentFile       = Nothing
   }
 
 {-# NOINLINE theState #-}
 theState :: IORef State
 theState = unsafePerformIO $ newIORef initState
 
-ioTCM :: TCM a -> IO a
-ioTCM cmd = infoOnException $ do
-  State { theTCState   = st
-        , theUndoStack = us
+-- | An interactive computation.
+
+data Interaction = Interaction
+  { isIndependent :: Bool
+    -- ^ Can the command run even if the relevant file has not been
+    -- loaded into the state?
+  , command :: TCM (Maybe ModuleName)
+    -- ^ If a module name is returned, then syntax highlighting
+    -- information will be written for the given module (by 'ioTCM').
+  }
+
+-- | Runs a 'TCM' computation. All calls from the Emacs mode should be
+-- wrapped in this function.
+
+ioTCM :: FilePath
+         -- ^ The current file. If this file does not match
+         -- 'theCurrentFile', and the 'Interaction' is not
+         -- \"independent\", then an error is raised.
+      -> Maybe FilePath
+         -- ^ Syntax highlighting information will be written to this
+         -- file, if any.
+      -> Interaction
+      -> IO ()
+ioTCM current highlightingFile cmd = infoOnException $ do
+  -- canonicalizePath seems to return absolute paths.
+  current <- canonicalizePath current
+
+  -- Read the state.
+  State { theTCState     = st
+        , theUndoStack   = us
+        , theCurrentFile = f
         } <- readIORef theState
-  r <- runTCM $ do
-      putUndoStack us
-      put st
-      x <- withEnv initEnv cmd
-      st <- get
-      us <- getUndoStack
-      return (x,st,us)
+
+  -- Run the computation.
+  r <- if not (isIndependent cmd) && Just current /= f then
+         let s = "Error: First load the file." in
+         return $ Right $ Left (s, TCErr Nothing $ Exception noRange s)
+        else
+         runTCM $ catchError (do
+             putUndoStack us
+             put st
+             x  <- withEnv initEnv $ command cmd
+             st <- get
+             us <- getUndoStack
+             return (Right (x, st, us))
+           ) (\e -> do
+             s <- prettyError e
+             return (Left (s, e))
+           )
+
+  -- Update the state.
   case r of
-    Right (a,st',ss') -> do
+    Right (Right (m, st', us')) ->
       modifyIORef theState $ \s ->
-        s { theTCState = st'
-          , theUndoStack = ss'
+        s { theTCState   = st'
+          , theUndoStack = us'
           }
-      return a
-    Left err -> displayErrorAndExit (Left err)
+    _ | isIndependent cmd ->
+      modifyIORef theState $ \s ->
+        s { theCurrentFile = Nothing }
+    _ -> return ()
+
+  -- Write out syntax highlighting info.
+  case highlightingFile of
+    Nothing -> return ()
+    Just f  -> do
+      let errHi e s = errHighlighting e
+                        `mplus`
+                      generateErrorInfo (getRange e) s
+      UTF8.writeFile f $ showHighlightingInfo $
+        case r of
+          Right (Right (mm, st', _)) -> do
+            m      <- mm
+            (i, _) <- Map.lookup (SA.toTopLevelModuleName m)
+                                 (stVisitedModules st')
+            return $ iHighlighting i
+          Right (Left (s, e)) -> errHi e (Just s)
+          Left e              -> errHi e Nothing
+
+  -- If an error was encountered, display an error message and exit
+  -- with an error code.
+  case r of
+    Right (Right _)     -> return ()
+    Right (Left (s, e)) -> displayErrorAndExit (getRange e) s
+    Left e              -> displayErrorAndExit (getRange e) $
+                             tcErrString e
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
 
-cmd_load :: FilePath -> [FilePath] -> IO ()
+cmd_load :: FilePath -> [FilePath] -> Interaction
 cmd_load m includes =
-  cmd_load' m includes True (\_ -> return ()) cmd_metas
+  cmd_load' m includes True (\_ -> command cmd_metas >> return ())
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.
@@ -156,42 +224,42 @@ cmd_load m includes =
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Either Imp.Warnings ClockTime) -> TCM ())
-          -> IO ()
-          -> IO ()
-cmd_load' file includes unsolvedOK cmd cmd2 = infoOnException $ do
-    clearSyntaxInfo file
-    ioTCM $ do
-            clearUndoHistory
-	    preserveDecodedModules resetState
-            decodedModules <- stDecodedModules <$> get
-            setUndo
+          -> Interaction
+cmd_load' file includes unsolvedOK cmd = Interaction True $ do
+  -- canonicalizePath seems to return absolute paths.
+  file <- liftIO $ canonicalizePath file
 
-            -- All options are reset when a file is reloaded,
-            -- including the choice of whether or not to display
-            -- implicit arguments.
-            setCommandLineOptions $
-              defaultOptions { optGenerateEmacsFile = True
-                             , optAllowUnsolved     = unsolvedOK
-                             , optIncludeDirs       = includes
-                             }
-            ok <- Imp.typeCheck file Imp.ProjectRoot
+  clearUndoHistory
+  preserveDecodedModules resetState
+  decodedModules <- stDecodedModules <$> get
+  setUndo
 
-            -- The module type checked, so let us store the
-            -- interaction points.
-            is <- sortInteractionPoints =<< getInteractionPoints
-            liftIO $ modifyIORef theState $ \s ->
-              s { theInteractionPoints = is }
-            cmd ok
+  -- All options are reset when a file is reloaded,
+  -- including the choice of whether or not to display
+  -- implicit arguments.
+  setCommandLineOptions $
+    defaultOptions { optAllowUnsolved = unsolvedOK
+                   , optIncludeDirs   = includes
+                   }
+  ok <- Imp.typeCheck file Imp.ProjectRoot
 
-            liftIO tellEmacsToReloadSyntaxInfo
+  -- The module type checked, so let us store the
+  -- interaction points and update the \"current file\".
+  is <- sortInteractionPoints =<< getInteractionPoints
+  liftIO $ modifyIORef theState $ \s ->
+    s { theInteractionPoints = is
+      , theCurrentFile       = Just file
+      }
+  cmd ok
 
-    cmd2
-    System.performGC
+  liftIO System.performGC
+
+  return $ Just $ iModuleName (fst ok)
 
 -- | @cmd_compile m includes@ compiles the module in file @m@, using
 -- @includes@ as the include directories.
 
-cmd_compile :: FilePath -> [FilePath] -> IO ()
+cmd_compile :: FilePath -> [FilePath] -> Interaction
 cmd_compile file includes =
   cmd_load' file includes False (\(i, wt) ->
     case wt of
@@ -204,21 +272,21 @@ cmd_compile file includes =
           [ "You can only compile modules without unsolved metavariables"
           , "or termination checking problems."
           ])
-    (return ())
 
-cmd_constraints :: IO ()
-cmd_constraints = ioTCM $ do
+cmd_constraints :: Interaction
+cmd_constraints = Interaction False $ do
     cs <- map show <$> B.getConstraints
     display_info "*Constraints*" (unlines cs)
+    return Nothing
 
-
-cmd_metas :: IO ()
-cmd_metas = ioTCM $ do -- CL.showMetas []
+cmd_metas :: Interaction
+cmd_metas = Interaction False $ do -- CL.showMetas []
   ims <- fst <$> B.typeOfMetas B.AsIs
   hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
   di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
   dh <- mapM showA' hms
   display_info "*All Goals*" $ unlines $ di ++ dh
+  return Nothing
   where
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
@@ -230,13 +298,18 @@ cmd_metas = ioTCM $ do -- CL.showMetas []
       d <- B.withMetaId (B.outputFormId m) (showA m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
-cmd_undo :: IO ()
-cmd_undo = ioTCM undo
+cmd_undo :: Interaction
+cmd_undo = Interaction False $ do
+  undo
+  return Nothing
 
-cmd_reset :: IO ()
-cmd_reset = ioTCM $ do putUndoStack []; preserveDecodedModules resetState
+cmd_reset :: Interaction
+cmd_reset = Interaction True $ do
+  putUndoStack []
+  preserveDecodedModules resetState
+  return Nothing
 
-type GoalCommand = InteractionId -> Range -> String -> IO()
+type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 cmd_give :: GoalCommand
 cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
@@ -245,19 +318,18 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> quote . show
 
-give_gen give_ref mk_newtxt ii rng s = do
-    ioTCM $ do
-      scope     <- getInteractionScope ii
-      (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
-      let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
-      iis       <- sortInteractionPoints iis
-      liftIO $ modifyIORef theState $ \s ->
-                 s { theInteractionPoints =
-                       replace ii iis (theInteractionPoints s) }
-      liftIO $ UTF8.putStrLn $ response $
-                 L [A "agda2-give-action", showNumIId ii, newtxt]
-      liftIO tellEmacsToUpdateGoals
-    cmd_metas
+give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
+  scope     <- getInteractionScope ii
+  (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
+  let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
+  iis       <- sortInteractionPoints iis
+  liftIO $ modifyIORef theState $ \s ->
+             s { theInteractionPoints =
+                   replace ii iis (theInteractionPoints s) }
+  liftIO $ UTF8.putStrLn $ response $
+             L [A "agda2-give-action", showNumIId ii, newtxt]
+  command cmd_metas
+  return Nothing
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
@@ -299,47 +371,49 @@ prettyContext norm ii = B.withInteractionId ii $ do
 longNameLength = 10
 
 cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = ioTCM $
+cmd_context norm ii _ _ = Interaction False $ do
   display_infoD "*Context*" =<< prettyContext norm ii
+  return Nothing
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = ioTCM $
+cmd_infer norm ii rng s = Interaction False $ do
   display_infoD "*Inferred Type*"
     =<< B.withInteractionId ii
           (prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
+  return Nothing
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = ioTCM $ do
-    s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
-    display_infoD "*Current Goal*" s
+cmd_goal_type norm ii _ _ = Interaction False $ do
+  s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
+  display_infoD "*Current Goal*" s
+  return Nothing
 
 -- | Displays the current goal and context plus the given document.
 
-cmd_goal_type_context_and :: Doc -> B.Rewrite -> GoalCommand
-cmd_goal_type_context_and s norm ii _ _ = ioTCM $ do
-    goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
-    ctx  <- prettyContext norm ii
-    display_infoD "*Goal type etc.*"
-                  (ctx $+$
-                   text (replicate 60 '\x2014') $+$
-                   text "Goal:" <+> goal $+$
-                   s)
+cmd_goal_type_context_and doc norm ii _ _ = do
+  goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
+  ctx  <- prettyContext norm ii
+  display_infoD "*Goal type etc.*"
+                (ctx $+$
+                 text (replicate 60 '\x2014') $+$
+                 text "Goal:" <+> goal $+$
+                 doc)
+  return Nothing
 
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context = cmd_goal_type_context_and P.empty
+cmd_goal_type_context norm ii rng s = Interaction False $
+  cmd_goal_type_context_and P.empty norm ii rng s
 
 -- | Displays the current goal and context /and/ infers the type of an
 -- expression.
 
 cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_context_infer norm ii rng s = ioTCM $ do
-    typ <- B.withInteractionId ii $
-             prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-    liftIO $ cmd_goal_type_context_and
-               (text "Have:" <+> typ)
-               norm ii rng s
+cmd_goal_type_context_infer norm ii rng s = Interaction False $ do
+  typ <- B.withInteractionId ii $
+           prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
 -- | Sets the command line options and updates the status information.
 
@@ -358,26 +432,45 @@ displayStatus = do
   liftIO $ UTF8.putStrLn $ response $
     L [A "agda2-status-action", A (quote statusString)]
 
--- | @display_info header content@ displays @content@ (with header
--- @header@) in some suitable way, and also displays some status
--- information (see 'displayStatus').
+-- | @display_info' header content@ displays @content@ (with header
+-- @header@) in some suitable way.
 
-display_info :: String -> String -> TCM ()
-display_info bufname content = do
-  displayStatus
-  liftIO $ UTF8.putStrLn $ response $
+display_info' :: String -> String -> IO ()
+display_info' bufname content =
+  UTF8.putStrLn $ response $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
       ]
+
+-- | @display_info@ does what @display_info'@ does, but additionally
+-- displays some status information (see 'displayStatus').
+
+display_info :: String -> String -> TCM ()
+display_info bufname content = do
+  displayStatus
+  liftIO $ display_info' bufname content
 
 -- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
 
 display_infoD :: String -> Doc -> TCM ()
 display_infoD bufname content = display_info bufname (render content)
 
+-- | Formats a response command.
+
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
+
+-- | Formats a response string.
+
+responseString :: Lisp String -> String
+responseString s = response $
+  L [A "setq", A "agda2-response", s]
+
+-- | Responds to a query.
+
+respond :: Lisp String -> IO ()
+respond = UTF8.putStrLn . responseString
 
 data Lisp a = A a | L [Lisp a] | Q (Lisp a)
 
@@ -411,7 +504,7 @@ refreshStr taken s = go nameModifiers where
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = ioTCM $ do
+cmd_make_case ii rng s = Interaction False $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
@@ -419,12 +512,14 @@ cmd_make_case ii rng s = ioTCM $ do
       L [ A "agda2-make-case-action",
           Q $ L $ List.map (A . quote . show) pcs
         ]
+  return Nothing
 
-cmd_solveAll :: IO ()
-cmd_solveAll = ioTCM $ do
-    out <- getInsts
-    liftIO $ UTF8.putStrLn $ response $
-      L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
+cmd_solveAll :: Interaction
+cmd_solveAll = Interaction False $ do
+  out <- getInsts
+  liftIO $ UTF8.putStrLn $ response $
+    L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
+  return Nothing
   where
   getInsts = mapM lowr =<< B.getSolvedInteractionPoints
     where
@@ -525,13 +620,14 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
-cmd_compute ignore ii rng s = ioTCM $ do
+cmd_compute ignore ii rng s = Interaction False $ do
   e <- B.parseExprIn ii rng s
   d <- B.withInteractionId ii $ do
          let c = B.evalInCurrent e
          v <- if ignore then ignoreAbstractMode c else c
          prettyA v
   display_info "*Normal Form*" (show d)
+  return Nothing
 
 -- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
@@ -544,10 +640,10 @@ parseAndDoAtToplevel
      -- ^ The name to used for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
-  -> IO ()
-parseAndDoAtToplevel cmd title s = infoOnException $ do
-  e <- parse exprParser s
-  ioTCM $ display_info title =<< do
+  -> Interaction
+parseAndDoAtToplevel cmd title s = Interaction False $ do
+  e <- liftIO $ parse exprParser s
+  display_info title =<< do
     mCurrent <- stCurrentModule <$> get
     case mCurrent of
       Nothing      -> return "Error: First load the file."
@@ -559,6 +655,7 @@ parseAndDoAtToplevel cmd title s = infoOnException $ do
             setScope     $ iInsideScope i
             setSignature $ iSignature   i
             showA =<< cmd =<< concreteToAbstract_ e
+  return Nothing
 
 -- | Parse the given expression (as if it were defined at the
 -- top-level of the current module) and infer its type.
@@ -566,7 +663,7 @@ parseAndDoAtToplevel cmd title s = infoOnException $ do
 cmd_infer_toplevel
   :: B.Rewrite  -- ^ Normalise the type?
   -> String
-  -> IO ()
+  -> Interaction
 cmd_infer_toplevel norm =
   parseAndDoAtToplevel (B.typeInCurrent norm) "*Inferred Type*"
 
@@ -574,7 +671,7 @@ cmd_infer_toplevel norm =
 -- at the top-level of the current module) and normalise it.
 
 cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
-                     -> String -> IO ()
+                     -> String -> Interaction
 cmd_compute_toplevel ignore =
   parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c else c)
                        "*Normal Form*"
@@ -583,27 +680,60 @@ cmd_compute_toplevel ignore =
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | Tell the Emacs mode to rescan the buffer for goals.
+-- | @cmd_write_highlighting_info source target@ writes syntax
+-- highlighting information for the module in @source@ into @target@.
+-- If the module does not exist, or its module name is malformed or
+-- cannot be determined, or the module has not already been visited,
+-- or the cached info is out of date, then the representation of \"no
+-- highlighting information available\" is instead written to
+-- @target@.
 
-tellEmacsToUpdateGoals :: IO ()
-tellEmacsToUpdateGoals = do
-  is <- theInteractionPoints <$> readIORef theState
-  UTF8.putStrLn $ response $ L [A "agda2-annotate", format is]
-  where format = Q . L . List.map showNumIId
+cmd_write_highlighting_info :: FilePath -> FilePath -> Interaction
+cmd_write_highlighting_info source target = Interaction True $ do
+  liftIO . UTF8.writeFile target . showHighlightingInfo =<< do
+    ex <- liftIO $ doesFileExist source
+    case ex of
+      False -> return Nothing
+      True  -> do
+        mit <- (getVisitedModule =<<
+                  Imp.moduleName source Imp.ProjectRoot)
+                 `catchError`
+               \_ -> return Nothing
+        case mit of
+          Nothing     -> return Nothing
+          Just (i, t) -> do
+            sourceT <- liftIO $ getModificationTime source
+            return $ if sourceT <= t then Just (iHighlighting i)
+                                     else Nothing
+  return Nothing
 
--- | Tell the Emacs mode to reload the highlighting information. This
--- includes rescanning the buffer for goals.
+-- | Returns the interaction ids for all goals in the current module,
+-- in the order in which they appear in the module. If there is no
+-- current module, then an empty list of goals is returned.
 
-tellEmacsToReloadSyntaxInfo :: IO ()
-tellEmacsToReloadSyntaxInfo = do
-  -- agda2-highlight-reload should run before agda2-annotate, because
-  -- the latter command can change the contents of the buffer, and
-  -- this can invalidate the ranges of the syntax-info.
-  UTF8.putStrLn $ response $ L [A "agda2-highlight-reload"]
-  tellEmacsToUpdateGoals
+cmd_goals :: FilePath
+             -- ^ If the module name in this file does not match that
+             -- of the current module (or the module name cannot be
+             -- determined), then an empty list of goals is returned.
+          -> Interaction
+cmd_goals f = Interaction True $ do
+  is <- do
+    ex <- liftIO $ doesFileExist f
+    case ex of
+      False -> return []
+      True  -> do
+        mm       <- (Just <$> Imp.moduleName f Imp.ProjectRoot)
+                      `catchError`
+                    \_ -> return Nothing
+        mCurrent <- stCurrentModule <$> get
+        if mm == (SA.toTopLevelModuleName <$> mCurrent) then
+          theInteractionPoints <$> liftIO (readIORef theState)
+         else
+          return []
+  liftIO $ respond $ Q $ L $ List.map showNumIId is
+  return Nothing
 
--- | Tells the Emacs mode to reload the highlighting information and
--- go to the first error position (if any).
+-- | Tells the Emacs mode to go to the first error position (if any).
 
 tellEmacsToJumpToError :: Range -> IO ()
 tellEmacsToJumpToError r = do
@@ -615,7 +745,6 @@ tellEmacsToJumpToError r = do
     Just (Pn { srcFile = f,  posPos = p }) ->
       UTF8.putStrLn $ response $
         L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
-  tellEmacsToReloadSyntaxInfo
 
 ------------------------------------------------------------------------
 -- Implicit arguments
@@ -623,18 +752,20 @@ tellEmacsToJumpToError r = do
 -- | Tells Agda whether or not to show implicit arguments.
 
 showImplicitArgs :: Bool -- ^ Show them?
-                 -> IO ()
-showImplicitArgs showImpl = ioTCM $ do
+                 -> Interaction
+showImplicitArgs showImpl = Interaction False $ do
   opts <- commandLineOptions
   setCommandLineOptions (opts { optShowImplicit = showImpl })
+  return Nothing
 
 -- | Toggle display of implicit arguments.
 
-toggleImplicitArgs :: IO ()
-toggleImplicitArgs = ioTCM $ do
+toggleImplicitArgs :: Interaction
+toggleImplicitArgs = Interaction False $ do
   opts <- commandLineOptions
   setCommandLineOptions (opts { optShowImplicit =
                                   not $ optShowImplicit opts })
+  return Nothing
 
 ------------------------------------------------------------------------
 -- Error handling
@@ -645,35 +776,17 @@ toggleImplicitArgs = ioTCM $ do
 errorTitle :: String
 errorTitle = "*Error*"
 
--- | Displays an error (represented either as a 'TCErr' or as a
--- 'Range' and a message) and terminates the program.
+-- | Displays an error, instructs Emacs to jump to the site of the
+-- error, and terminates the program.
 
-displayErrorAndExit :: Either TCErr (Range, String) -> IO a
-displayErrorAndExit err = do
-  runTCM $ do
-    appendErrorToEmacsFile err'
-    display_info errorTitle =<< msg
-  tellEmacsToJumpToError rng
+displayErrorAndExit :: Range -> String -> IO a
+displayErrorAndExit r s = do
+  display_info' errorTitle s
+  tellEmacsToJumpToError r
   exitWith (ExitFailure 1)
-  where
-  err' = case err of
-    Left e           -> e
-    Right (rng, msg) -> Exception rng msg
 
-  msg = case err of
-    Left e             -> prettyError e
-    Right (rng, msg)
-      | rng == noRange -> return msg
-      | otherwise      -> return (show rng ++ "\n" ++ msg)
-
-  rng = case err of
-    Left  e          -> getRange e
-    Right (rng, msg) -> rng
-
--- | Outermost error handler. Should wrap all functions called from
--- Emacs (directly or indirectly).
+-- | Outermost error handler.
 
 infoOnException m =
-  failOnException inform m `catchImpossible` \e ->
-    inform noRange (show e)
-  where inform rng msg = displayErrorAndExit (Right (rng, msg))
+  failOnException displayErrorAndExit m `catchImpossible` \e ->
+    displayErrorAndExit noRange (show e)

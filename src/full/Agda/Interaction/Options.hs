@@ -56,7 +56,6 @@ data CommandLineOptions =
 	    , optRunTests	   :: Bool
 	    , optCompile	   :: Bool
 	    , optGenerateVimFile   :: Bool
-	    , optGenerateEmacsFile :: Bool
 	    , optGenerateHTML      :: Bool
 	    , optHTMLDir           :: FilePath
 	    , optCSSFile           :: Maybe FilePath
@@ -94,7 +93,6 @@ defaultOptions =
 	    , optRunTests	   = False
 	    , optCompile	   = False
 	    , optGenerateVimFile   = False
-	    , optGenerateEmacsFile = False
 	    , optGenerateHTML      = False
 	    , optHTMLDir           = defaultHTMLDir
 	    , optCSSFile           = Nothing
@@ -166,7 +164,6 @@ allowUnsolvedFlag         o = checkOpts $ o { optAllowUnsolved     = True }
 showImplicitFlag          o = checkOpts $ o { optShowImplicit      = True }
 runTestsFlag              o = checkOpts $ o { optRunTests	       = True }
 vimFlag                   o = checkOpts $ o { optGenerateVimFile   = True }
-emacsFlag                 o = checkOpts $ o { optGenerateEmacsFile = True }
 noPositivityFlag          o = checkOpts $ o { optDisablePositivity = True }
 dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck  = False }
 dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck = False }
@@ -228,8 +225,6 @@ standardOptions =
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
 		    "generate Vim highlighting files"
-    , Option []	    ["emacs"] (NoArg emacsFlag)
-		    "generate Emacs highlighting files"
     , Option []	    ["html"] (NoArg htmlFlag)
 		    "generate HTML files with highlighted source code"
     , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")

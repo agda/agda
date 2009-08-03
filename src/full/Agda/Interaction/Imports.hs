@@ -42,7 +42,6 @@ import Agda.TypeChecker
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Vim
 import qualified Agda.Interaction.Highlighting.Range as R
 
@@ -217,17 +216,32 @@ typeCheck file relativeTo = do
   -- canonicalizePath seems to return absolute paths.
   file <- liftIO $ canonicalizePath file
 
-  m <- liftIO $ parseFile' moduleParser file
-  let topLevelName = C.topLevelModuleName m
+  topLevelName <- moduleName file relativeTo
+
+  getInterface' topLevelName True
+
+-- | Computes the module name of the top-level module in the given
+-- file. An error is raised if the file name does not match the module
+-- name.
+--
+-- The function also makes relative include directories absolute.
+
+moduleName :: FilePath
+           -- ^ The file name is interpreted relative to the current
+           -- working directory (unless it is absolute).
+           -> RelativeTo
+           -> TCM C.TopLevelModuleName
+moduleName file relativeTo = do
+  m <- C.topLevelModuleName <$> liftIO (parseFile' moduleParser file)
 
   -- Make all the include directories absolute.
   makeIncludeDirsAbsolute =<< case relativeTo of
     CurrentDir  -> liftIO getCurrentDirectory
-    ProjectRoot -> return $ C.projectRoot file topLevelName
+    ProjectRoot -> return $ C.projectRoot file m
 
-  checkModuleName topLevelName file
+  checkModuleName m file
 
-  getInterface' topLevelName True
+  return m
 
 -- | Tries to return the interface associated to the given module. The
 -- time stamp of the relevant interface file is also returned. May
@@ -275,10 +289,6 @@ getInterface' x includeStateChanges =
     unless (visited || includeStateChanges) $ mergeInterface i
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
-
-    -- Write out syntax highlighting information for Emacs.
-    whenM (optGenerateEmacsFile <$> commandLineOptions) $
-      writeEmacsFile $ iHighlighting i
 
     case wt of
       Left  w -> storeDecodedModule i =<< liftIO getClockTime
@@ -457,18 +467,20 @@ createInterface file mname
       return termErrs
       ) (\e -> do
         -- If there is an error syntax highlighting info can still be
-        -- generated. Since there is no Vim highlighting for errors no
-        -- Vim highlighting is generated, though.
-        whenM (optGenerateEmacsFile <$> commandLineOptions) $ do
-          writeEmacsFile =<<
-            generateSyntaxInfo file TypeCheckingNotDone topLevel []
+        -- generated.
+        case rStart $ getRange e of
+          Just (Pn { srcFile = f }) | f == file -> do
+            syntaxInfo <- generateSyntaxInfo file (Just e) topLevel []
+            -- The highlighting info is included with the error.
+            case errHighlighting e of
+              Just _  -> __IMPOSSIBLE__
+              Nothing ->
+                throwError $ e { errHighlighting = Just syntaxInfo }
+          _ -> throwError e
+      )
 
-        throwError e)
-
-    -- Generate syntax highlighting info. (Emacs highlighting info is
-    -- written out in getInterface'.)
-    syntaxInfo <- generateSyntaxInfo file TypeCheckingDone
-                                     topLevel termErrs
+    -- Generate syntax highlighting info.
+    syntaxInfo <- generateSyntaxInfo file Nothing topLevel termErrs
 
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $

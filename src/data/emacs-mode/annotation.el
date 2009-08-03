@@ -144,15 +144,20 @@ Note: This function may fail if there is read-only text in the buffer."
 
 (defun annotation-load-file (file removep &optional goto-help)
   "Apply the annotations in FILE.
+If FILE is empty, then this function does nothing; otherwise the
+following comments apply.
+
 If (`funcall' REMOVEP anns) is non-nil, then all existing text
 properties set by `annotation-annotate' in the current buffer are
 first removed. Here anns is a list containing all the
 annotations (third argument to `annotation-annotate') to be
 applied (in some order, with duplicates removed).
 
-FILE should contain calls to `annotation-annotate'. The arguments
-to `annotation-annotate' should be in normal form, they are not
-evaluated.
+FILE, if non-empty, should contain a list of lists (start end
+anns &optional info goto). Text between start and end will be
+annotated with the annotations in the list anns (using
+`annotation-annotate'). If info and/or goto are present they will
+be used as the corresponding arguments to `annotation-annotate'.
 
 If INFO is nil in a call to `annotation-annotate', and the GOTO
 argument is a cons-cell, then the INFO argument is set to
@@ -165,24 +170,23 @@ current buffer and does not modify the undo list.
 Note: This function may fail if there is read-only text in the buffer."
   (annotation-preserve-mod-p-and-undo
    (when (file-readable-p file)
-     (let* ((cmds (with-temp-buffer
-                    (insert "(\n)") (forward-char -2)
+     (let ((cmds (with-temp-buffer
                     (insert-file-contents file)
-                    (goto-char (point-min))
-                    (read (current-buffer))))
-            (anns (delete-dups
-                   (apply 'append (mapcar (lambda (x) (nth 1 (nth 3 x)))
-                                          cmds)))))
-       (if (funcall removep anns)
-         (annotation-remove-annotations))
-       (dolist (cmd cmds)
-         (destructuring-bind (f start end anns &optional info goto) cmd
-           (assert (eq f 'annotation-annotate))
-           (setq anns (cadr anns))      ;Strip the `quote'.
-           (setq goto (cadr goto))      ;Strip the `quote'.
-           (if (and (not info) (consp goto))
-               (annotation-annotate start end anns goto-help goto)
-           (annotation-annotate start end anns info goto))))))))
+                    (if (eq (point-min) (point-max))
+                        'empty-file
+                      (goto-char (point-min))
+                      (read (current-buffer))))))
+       (when (listp cmds)
+         (let ((anns (delete-dups
+                      (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds)))))
+           (if (funcall removep anns)
+               (annotation-remove-annotations))
+           (dolist (cmd cmds)
+             (destructuring-bind (start end anns &optional info goto) cmd
+               (let ((info (if (and (not info) (consp goto))
+                               goto-help
+                             info)))
+                 (annotation-annotate start end anns info goto))))))))))
 
 (provide 'annotation)
 ;;; annotation.el ends here

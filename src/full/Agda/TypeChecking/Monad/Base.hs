@@ -147,7 +147,7 @@ type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 data Interface = Interface
 	{ iImportedModules :: [ModuleName]
         , iModuleName      :: ModuleName
-	, iScope	   :: Map A.ModuleName Scope
+	, iScope	   :: Map ModuleName Scope
         , iInsideScope     :: ScopeInfo
 	, iSignature	   :: Signature
 	, iBuiltin	   :: BuiltinThings String
@@ -812,15 +812,26 @@ data TypeError
     -- Usage errors
           deriving (Typeable)
 
-data TCErr = TypeError TCState (Closure TypeError)
-	   | Exception Range String
-	   | PatternErr  TCState -- ^ for pattern violations
-	   | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
+-- | Type-checking errors.
+
+data TCErr' = TypeError TCState (Closure TypeError)
+	    | Exception Range String
+	    | PatternErr  TCState -- ^ for pattern violations
+	    | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
+  deriving (Typeable)
+
+-- | Type-checking errors, potentially paired with relevant syntax
+-- highlighting information.
+
+data TCErr =
+  TCErr { errHighlighting :: Maybe HighlightingInfo
+        , errError        :: TCErr'
+        }
   deriving (Typeable)
 
 instance Error TCErr where
     noMsg  = strMsg ""
-    strMsg = Exception noRange . strMsg
+    strMsg = TCErr Nothing . Exception noRange . strMsg
 
 {-
 instance Show TCErr where
@@ -830,11 +841,14 @@ instance Show TCErr where
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 -}
 
-instance HasRange TCErr where
+instance HasRange TCErr' where
     getRange (TypeError _ cl) = getRange $ clTrace cl
     getRange (Exception r _)  = r
     getRange (PatternErr s)   = getRange $ stTrace s
     getRange (AbortAssign s)  = getRange $ stTrace s
+
+instance HasRange TCErr where
+    getRange = getRange . errError
 
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
@@ -888,17 +902,19 @@ instance MonadIO m => MonadIO (TCMT m) where
                       lift $ lift $ lift $ ErrorT $ liftIO $
                         handle (handleIOException $ getRange tr)
                         (failOnException
-                         (\r -> return . throwError . Exception r)
-                         (return <$> m) )
+                         (\r -> return . throwError .
+                                  TCErr Nothing . Exception r)
+                         (return <$> m))
     where
       handleIOException r e = case e of
-        IOException _ -> return . throwError . Exception r . show $ e
+        IOException _ -> return . throwError .
+                           TCErr Nothing . Exception r . show $ e
         _             -> throwIO e
 
 patternViolation :: MonadTCM tcm => tcm a
 patternViolation = liftTCM $ do
     s <- get
-    throwError $ PatternErr s
+    throwError $ TCErr Nothing $ PatternErr s
 
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s
@@ -907,7 +923,7 @@ typeError :: MonadTCM tcm => TypeError -> tcm a
 typeError err = liftTCM $ do
     cl <- buildClosure err
     s  <- get
-    throwError $ TypeError s cl
+    throwError $ TCErr Nothing $ TypeError s cl
 
 handleTypeErrorException :: MonadTCM tcm => IO a -> tcm a
 handleTypeErrorException m = do

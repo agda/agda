@@ -19,6 +19,9 @@ Language
 Tools
 -----
 
+* Syntax highlighting files for Emacs (.agda.el) are no longer used.
+  The --emacs flag has been removed.
+
 * If a file F is loaded, and this file defines the module M, it is now
   an error if F is not the file which defines M according to the
   include path.
@@ -35,4 +38,6 @@ Tools
   (Previously the initial module was always type-checked.)
 
 * Emacs mode: C-c C-x C-d no longer resets the type checking state.
-  C-c C-x C-r can be used for a more complete reset.
+  C-c C-x C-r can be used for a more complete reset. C-c C-x C-s
+  (which used to reload the syntax highlighting information) has been
+  removed. C-c C-l can be used instead.

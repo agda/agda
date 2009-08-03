@@ -186,7 +186,7 @@ useInjectivity cmp a u v = do
           case h of
             Just h  -> compareTerm cmp a u v
             Nothing -> patternViolation
-        `catchError` \err -> case err of
+        `catchError` \err -> case errError err of
           TypeError _ _ -> throwError err
           Exception _ _ -> throwError err
           PatternErr _  -> fallBack
