@@ -6,9 +6,9 @@ data X : Set where
 
 right : X -> X
 right (x !) = x
-right z	    = z !
+right z     = z !
 
 wrong : X -> X
 wrong (! x) = x
-wrong z	    = z !
+wrong z     = z !
 

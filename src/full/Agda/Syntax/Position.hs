@@ -214,12 +214,10 @@ noRange :: Range
 noRange = Range []
 
 -- | Advance the position by one character.
---   A tab character (@'\t'@) will move the position to the next
---   tabstop (tab size is 8). A newline character (@'\n'@) moves
---   the position to the first character in the next line. Any
---   other character moves the position to the next column.
+--   A newline character (@'\n'@) moves the position to the first
+--   character in the next line. Any other character moves the
+--   position to the next column.
 movePos :: Position -> Char -> Position
-movePos (Pn f p l c) '\t' = Pn f (p + 1) l (div (c + 7) 8 * 8 + 1)
 movePos (Pn f p l c) '\n' = Pn f (p + 1) (l + 1) 1
 movePos (Pn f p l c) _	  = Pn f (p + 1) l (c + 1)
 
@@ -231,7 +229,7 @@ movePosByString = foldl' movePos
 
 -- | Backup the position by one character.
 --
--- Precondition: The character must not be @'\t'@ or @'\n'@.
+-- Precondition: The character must not be @'\n'@.
 backupPos :: Position -> Position
 backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
 

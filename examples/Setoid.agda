@@ -24,11 +24,11 @@ module Setoid where
 
   data Setoid : Set1 where
     setoid : (A     : Set)
-	  -> (_==_  : A -> A -> Prop)
-	  -> (refl  : (x : A) -> x == x)
-	  -> (sym   : (x y : A) -> x == y -> y == x)
-	  -> (trans : (x y z : A) -> x == y -> y == z -> x == z)
-	  -> Setoid
+          -> (_==_  : A -> A -> Prop)
+          -> (refl  : (x : A) -> x == x)
+          -> (sym   : (x y : A) -> x == y -> y == x)
+          -> (trans : (x y z : A) -> x == y -> y == z -> x == z)
+          -> Setoid
 
   El : Setoid -> Set
   El (setoid A _ _ _ _) = A
@@ -95,54 +95,54 @@ module Fun where
   data _=>_ (A B : Setoid) : Set where
     lam : (f : El A -> El B)
        -> ({x y : El A} -> eq A x y
-			 -> eq B (f x) (f y)
-	  )
+                         -> eq B (f x) (f y)
+          )
        -> A => B
 
   app : {A B : Setoid} -> (A => B) -> El A -> El B
   app (lam f _) = f
 
   cong : {A B : Setoid} -> (f : A => B) -> {x y : El A} ->
-	 eq A x y -> eq B (app f x) (app f y)
+         eq A x y -> eq B (app f x) (app f y)
   cong (lam _ resp) = resp
 
   data EqFun {A B : Setoid}(f g : A => B) : Prop where
     eqFunI : ({x y : El A} -> eq A x y -> eq B (app f x) (app g y)) ->
-	     EqFun f g
+             EqFun f g
 
   eqFunE : {A B : Setoid} -> {f g : A => B} -> {x y : El A} ->
-	   EqFun f g -> eq A x y -> eq B (app f x) (app g y)
+           EqFun f g -> eq A x y -> eq B (app f x) (app g y)
   eqFunE (eqFunI h) = h
 
   _==>_ : Setoid -> Setoid -> Setoid
   A ==> B = setoid (A => B) EqFun r s t
     where
       module Proof where
-	open module EqChainB = EqChain B
-	module EqA = Equality A
-	open module EqB = Equality B
+        open module EqChainB = EqChain B
+        module EqA = Equality A
+        open module EqB = Equality B
 
-	-- either abstract or --proof-irrelevance needed
-	-- (we don't want to compare the proofs for equality)
-	-- abstract
-	r : (f : A => B) -> EqFun f f
-	r f = eqFunI (\xy -> cong f xy)
+        -- either abstract or --proof-irrelevance needed
+        -- (we don't want to compare the proofs for equality)
+        -- abstract
+        r : (f : A => B) -> EqFun f f
+        r f = eqFunI (\xy -> cong f xy)
 
-	s : (f g : A => B) -> EqFun f g -> EqFun g f
-	s f g fg =
-	  eqFunI (\{x}{y} xy ->
-	    app g x =-= app g y  since  cong g xy
-		    === app f x  since  sym (eqFunE fg xy)
-		    === app f y  since  cong f xy
-	  )
+        s : (f g : A => B) -> EqFun f g -> EqFun g f
+        s f g fg =
+          eqFunI (\{x}{y} xy ->
+            app g x =-= app g y  since  cong g xy
+                    === app f x  since  sym (eqFunE fg xy)
+                    === app f y  since  cong f xy
+          )
 
-	t : (f g h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
-	t f g h fg gh =
-	  eqFunI (\{x}{y} xy ->
-	    app f x =-= app g y  since  eqFunE fg xy
-		    === app g x  since  cong g (EqA.sym xy)
-		    === app h y  since  eqFunE gh xy
-	  )
+        t : (f g h : A => B) -> EqFun f g -> EqFun g h -> EqFun f h
+        t f g h fg gh =
+          eqFunI (\{x}{y} xy ->
+            app f x =-= app g y  since  eqFunE fg xy
+                    === app g x  since  cong g (EqA.sym xy)
+                    === app h y  since  eqFunE gh xy
+          )
       open Proof
 
   infixl 100 _$_
@@ -150,31 +150,31 @@ module Fun where
   _$_ = app
 
   lam2 : {A B C : Setoid} ->
-	 (f : El A -> El B -> El C) ->
-	 ({x x' : El A} -> eq A x x' ->
-	  {y y' : El B} -> eq B y y' -> eq C (f x y) (f x' y')
-	 ) -> El (A ==> B ==> C)
+         (f : El A -> El B -> El C) ->
+         ({x x' : El A} -> eq A x x' ->
+          {y y' : El B} -> eq B y y' -> eq C (f x y) (f x' y')
+         ) -> El (A ==> B ==> C)
   lam2 {A} f h = lam (\x -> lam (\y -> f x y)
-				(\y -> h EqA.refl y))
-		     (\x -> eqFunI (\y -> h x y))
+                                (\y -> h EqA.refl y))
+                     (\x -> eqFunI (\y -> h x y))
     where
       module EqA = Equality A
 
   lam3 : {A B C D : Setoid} ->
-	 (f : El A -> El B -> El C -> El D) ->
-	 ({x x' : El A} -> eq A x x' ->
-	  {y y' : El B} -> eq B y y' ->
-	  {z z' : El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
-	 ) -> El (A ==> B ==> C ==> D)
+         (f : El A -> El B -> El C -> El D) ->
+         ({x x' : El A} -> eq A x x' ->
+          {y y' : El B} -> eq B y y' ->
+          {z z' : El C} -> eq C z z' -> eq D (f x y z) (f x' y' z')
+         ) -> El (A ==> B ==> C ==> D)
   lam3 {A} f h =
     lam (\x -> lam2 (\y z -> f x y z)
-		    (\y z -> h EqA.refl y z))
-	(\x -> eqFunI (\y -> eqFunI (\z -> h x y z)))
+                    (\y z -> h EqA.refl y z))
+        (\x -> eqFunI (\y -> eqFunI (\z -> h x y z)))
     where
       module EqA = Equality A
 
   eta : {A B : Setoid} -> (f : El (A ==> B)) ->
-	eq (A ==> B) f (lam (\x -> f $ x) (\xy -> cong f xy))
+        eq (A ==> B) f (lam (\x -> f $ x) (\xy -> cong f xy))
   eta f = eqFunI (\xy -> cong f xy)
 
   id : {A : Setoid} -> El (A ==> A)
@@ -190,7 +190,7 @@ module Fun where
   compose : {A B C : Setoid} -> El ((B ==> C) ==> (A ==> B) ==> (A ==> C))
   compose =
     lam3 (\f g x -> f $ (g $ x))
-	 (\f g x -> eqFunE f (eqFunE g x))
+         (\f g x -> eqFunE f (eqFunE g x))
 
   _∘_ : {A B C : Setoid} -> El (B ==> C) -> El (A ==> B) -> El (A ==> C)
   f ∘ g = compose $ f $ g
@@ -264,9 +264,9 @@ module Nat where
       eqPlus : {n n' : Nat} -> n == n' -> {m m' : Nat} -> m == m' -> n + m == n' + m'
       eqPlus {zero}  {zero}    _  mm = mm
       eqPlus {suc n} {suc n'}  (eqnat nn) {m}{m'} (eqnat mm) =
-	eqnat (uneqnat (eqPlus{n}{n'} (eqnat nn)
-			      {m}{m'} (eqnat mm)
-	      )	       )
+        eqnat (uneqnat (eqPlus{n}{n'} (eqnat nn)
+                              {m}{m'} (eqnat mm)
+              )        )
       eqPlus {zero}  {suc _}  (eqnat ())  _
       eqPlus {suc _} {zero}   (eqnat ())  _
 
@@ -286,17 +286,17 @@ module List where
       open EqA
 
       eqList : List (El A) -> List (El A) -> Prop
-      eqList nil        nil	 = True
+      eqList nil        nil      = True
       eqList nil       (_ :: _)  = False
-      eqList (_ :: _)   nil	 = False
+      eqList (_ :: _)   nil      = False
       eqList (x :: xs) (y :: ys) = x == y /\ eqList xs ys
 
       r : (x : List (El A)) -> eqList x x
-      r  nil	  = tt
+      r  nil      = tt
       r (x :: xs) = andI refl (r xs)
 
       s : (x y : List (El A)) -> eqList x y -> eqList y x
-      s  nil       nil       h		  = h
+      s  nil       nil       h            = h
       s (x :: xs) (y :: ys) (andI xy xys) = andI (sym xy) (s xs ys xys)
       s  nil      (_ :: _)  ()
       s (_ :: _)   nil      ()

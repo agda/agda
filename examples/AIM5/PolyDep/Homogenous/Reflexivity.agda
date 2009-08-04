@@ -1,7 +1,7 @@
 module Homogenous.Reflexivity where
 import Homogenous.Base
 import Homogenous.Equality
-open Homogenous.Base	 using(Arity; Sig; Fa; Fa1; F; F1; T; It; FIHa; FIH; R)
+open Homogenous.Base     using(Arity; Sig; Fa; Fa1; F; F1; T; It; FIHa; FIH; R)
 open Homogenous.Equality using(equal; eq_step; eq_step'; eq_step_ar)
 
 import PolyDepPrelude

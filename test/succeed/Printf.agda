@@ -20,7 +20,7 @@ data List (A : Set) : Set where
 module Primitive where
 
   postulate
-    Int	   : Set
+    Int    : Set
     String : Set
     Float  : Set
     Char   : Set
@@ -32,14 +32,14 @@ module Primitive where
 
   private
     primitive
-      primStringAppend	 : String -> String -> String
-      primStringToList	 : String -> List Char
+      primStringAppend   : String -> String -> String
+      primStringToList   : String -> List Char
       primStringFromList : List Char -> String
-      primShowChar	 : Char -> String
-      primShowInteger	 : Int -> String
-      primShowFloat	 : Float -> String
+      primShowChar       : Char -> String
+      primShowInteger    : Int -> String
+      primShowFloat      : Float -> String
 
-  _++_	       = primStringAppend
+  _++_         = primStringAppend
   showChar     = primShowChar
   showInt      = primShowInteger
   showFloat    = primShowFloat
@@ -77,8 +77,8 @@ format = format' ∘ stringToList
     format' ('%' :: 'c' :: fmt) = charArg     :: format' fmt
     format' ('%' :: '%' :: fmt) = litChar '%' :: format' fmt
     format' ('%' ::  c  :: fmt) = badFormat c :: format' fmt
-    format' (c		:: fmt) = litChar c   :: format' fmt
-    format'  nil		= nil
+    format' (c          :: fmt) = litChar c   :: format' fmt
+    format'  nil                = nil
 
 Printf' : List Format -> Set
 Printf' (stringArg   :: fmt) = String  × Printf' fmt
@@ -87,7 +87,7 @@ Printf' (floatArg    :: fmt) = Float   × Printf' fmt
 Printf' (charArg     :: fmt) = Char    × Printf' fmt
 Printf' (badFormat c :: fmt) = BadFormat c
 Printf' (litChar _   :: fmt) = Printf' fmt
-Printf'  nil		     = Unit
+Printf'  nil                 = Unit
 
 Printf : String -> Set
 Printf fmt = Printf' (format fmt)
@@ -96,11 +96,11 @@ printf : (fmt : String) -> Printf fmt -> String
 printf = printf' ∘ format
   where
     printf' : (fmt : List Format) -> Printf' fmt -> String
-    printf' (stringArg   :: fmt) (s ◅ args) = s			 ++ printf' fmt args
-    printf' (intArg      :: fmt) (n ◅ args) = showInt n		 ++ printf' fmt args
-    printf' (floatArg    :: fmt) (x ◅ args) = showFloat x	 ++ printf' fmt args
-    printf' (charArg     :: fmt) (c ◅ args) = showChar c	 ++ printf' fmt args
-    printf' (litChar c   :: fmt) args	    = listToString [ c ] ++ printf' fmt args
+    printf' (stringArg   :: fmt) (s ◅ args) = s                  ++ printf' fmt args
+    printf' (intArg      :: fmt) (n ◅ args) = showInt n          ++ printf' fmt args
+    printf' (floatArg    :: fmt) (x ◅ args) = showFloat x        ++ printf' fmt args
+    printf' (charArg     :: fmt) (c ◅ args) = showChar c         ++ printf' fmt args
+    printf' (litChar c   :: fmt) args       = listToString [ c ] ++ printf' fmt args
     printf' (badFormat _ :: fmt) ()
-    printf'  nil		 unit	    = ""
+    printf'  nil                 unit       = ""
 

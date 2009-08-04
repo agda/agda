@@ -18,8 +18,8 @@ postulate
   refl  : forall {x}     -> x == x
   sym   : forall {x y}   -> x == y -> y == x
   trans : forall {x y z} -> x == y -> y == z -> x == z
-  idL	: forall {x}     -> |0| + x == x
-  idR	: forall {x}     -> x + |0| == x
+  idL   : forall {x}     -> |0| + x == x
+  idR   : forall {x}     -> x + |0| == x
   comm  : forall {x y}   -> x + y == y + x
   assoc : forall {x y z} -> x + (y + z) == (x + y) + z
   congL : forall {x y z} -> y == z -> x + y == x + z

@@ -64,9 +64,13 @@ lexToken =
         flags <- getParseFlags
 	case alexScanUser (lss, flags) (foolAlex inp) ls of
 	    AlexEOF			-> returnEOF inp
-	    AlexError _			-> parseError "Lexical error"
 	    AlexSkip inp' len		-> skipTo (newInput inp inp' len)
 	    AlexToken inp' len action	-> fmap postToken $ action inp (newInput inp inp' len) len
+	    AlexError i			-> parseError $ "Lexical error" ++
+              (case lexInput i of
+                 '\t' : _ -> " (you may want to replace tabs with spaces)"
+                 _        -> "") ++
+              ":"
 
 postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r

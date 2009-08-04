@@ -21,11 +21,11 @@ infix 20 _○_
 infix 10 _≡_
 
 ForAll : {A : Set}(n : Nat) -> (Vec n A -> Set) -> Set
-ForAll	    zero   F = F ε
+ForAll      zero   F = F ε
 ForAll {A} (suc n) F = (x : A) -> ForAll _ \xs -> F (x ∷ xs)
 
 apply : {n : Nat}{A : Set}(F : Vec n A -> Set) -> ForAll n F -> (xs : Vec n A) -> F xs
-apply {zero}  F t (vec vnil)	     = t
+apply {zero}  F t (vec vnil)         = t
 apply {suc n} F f (vec (vcons x xs)) = apply _ (f x) xs
 
 lambda : {n : Nat}{A : Set}(F : Vec n A -> Set) -> ((xs : Vec n A) -> F xs) -> ForAll n F
@@ -51,11 +51,11 @@ module Provable where
   infix 12 _⊕_
 
   _⊕_ : {n : Nat} -> NF n -> NF n -> NF n
-  []	  ⊕ ys	      = ys
-  x :: xs ⊕ []	      = x :: xs
+  []      ⊕ ys              = ys
+  x :: xs ⊕ []              = x :: xs
   x :: xs ⊕ y :: ys = if   x < y
-		      then x :: (xs ⊕ y :: ys)
-		      else y :: (x :: xs ⊕ ys)
+                      then x :: (xs ⊕ y :: ys)
+                      else y :: (x :: xs ⊕ ys)
 
   normalise : {n : Nat} -> Expr n -> NF n
   normalise  zro    = []
@@ -66,7 +66,7 @@ module Provable where
 
   _↓ : {n : Nat} -> NF n -> Expr n
   (i :: is) ↓ = var i ○ is ↓
-  []	    ↓ = zro
+  []        ↓ = zro
 
   infix 10 _=Expr=_ _=NF=_
 
@@ -85,15 +85,15 @@ module Provable where
   provable (a ≡ b) = a =Expr= b
 
 module Semantics
-  {A	 : Set}
+  {A     : Set}
   (_==_  : A -> A -> Set)
-  (_*_	 : A -> A -> A)
-  (one	 : A)
+  (_*_   : A -> A -> A)
+  (one   : A)
   (refl  : {x : A} -> x == x)
   (sym   : {x y : A} -> x == y -> y == x)
   (trans : {x y z : A} -> x == y -> y == z -> x == z)
-  (idL	 : {x : A} -> (one * x) == x)
-  (idR	 : {x : A} -> (x * one) == x)
+  (idL   : {x : A} -> (one * x) == x)
+  (idR   : {x : A} -> (x * one) == x)
   (comm  : {x y : A} -> (x * y) == (y * x))
   (assoc : {x y z : A} -> (x * (y * z)) == ((x * y) * z))
   (congL : {x y z : A} -> y == z -> (x * y) == (x * z))
@@ -124,9 +124,9 @@ module Semantics
   Proof thm = Prf thm (provable thm)
 
   lem0 : {n : Nat} -> (xs ys : NF n) -> (ρ : Vec n A) ->
-	 eq[ xs ↓ ○ ys ↓ ≡ (xs ⊕ ys) ↓ ] ρ
-  lem0 []	 ys	   ρ = idL
-  lem0 (x :: xs) []	   ρ = idR
+         eq[ xs ↓ ○ ys ↓ ≡ (xs ⊕ ys) ↓ ] ρ
+  lem0 []        ys        ρ = idL
+  lem0 (x :: xs) []        ρ = idR
   lem0 (x :: xs) (y :: ys) ρ = if' x < y then less else more
     where
       lhs     = (var x ○ xs ↓) ○ (var y ○ ys ↓)
@@ -137,25 +137,25 @@ module Semantics
 
       less : IsTrue (x < y) -> _
       less x<y = BoolEq.subst {true}{x < y} P x<y
-		  (spine (lem0 xs (y :: ys) ρ))
-	where
+                  (spine (lem0 xs (y :: ys) ρ))
+        where
           spine : forall {x' xs' y' ys' zs} h -> _
-	  spine {x'}{xs'}{y'}{ys'}{zs} h =
-	    eqProof> (x' * xs') * (y' * ys')
-		 === x' * (xs' * (y' * ys'))  by  sym assoc
-		 === x' * zs		  by  congL h
+          spine {x'}{xs'}{y'}{ys'}{zs} h =
+            eqProof> (x' * xs') * (y' * ys')
+                 === x' * (xs' * (y' * ys'))  by  sym assoc
+                 === x' * zs              by  congL h
 
       more : IsFalse (x < y) -> _
       more x>=y = BoolEq.subst {false}{x < y} P x>=y
-		    (spine (lem0 (x :: xs) ys ρ))
-	where
+                    (spine (lem0 (x :: xs) ys ρ))
+        where
           spine : forall {x' xs' y' ys' zs} h -> _
-	  spine {x'}{xs'}{y'}{ys'}{zs} h =
-	    eqProof> (x' * xs') * (y' * ys')
-		 === (y' * ys') * (x' * xs')  by  comm
-		 === y' * (ys' * (x' * xs'))  by  sym assoc
-		 === y' * ((x' * xs') * ys')  by  congL comm
-		 === y' * zs		  by  congL h
+          spine {x'}{xs'}{y'}{ys'}{zs} h =
+            eqProof> (x' * xs') * (y' * ys')
+                 === (y' * ys') * (x' * xs')  by  comm
+                 === y' * (ys' * (x' * xs'))  by  sym assoc
+                 === y' * ((x' * xs') * ys')  by  congL comm
+                 === y' * zs              by  congL h
 
   lem1 : {n : Nat} -> (e : Expr n) -> (ρ : Vec n A) -> eq[ e ≡ normalise e ↓ ] ρ
   lem1  zro    ρ = refl
@@ -178,16 +178,16 @@ module Semantics
   prove thm = proof (provable thm) thm (\h -> h)
     where
       proof : {n : Nat}(valid : Bool)(thm : Theorem n) -> (IsTrue valid -> IsTrue (provable thm)) -> Prf thm valid
-      proof false  _	  _	  = no-proof
+      proof false  _      _       = no-proof
       proof true  (a ≡ b) isValid = lambda eq[ a ≡ b ] \ρ ->
-	  trans (step-a ρ) (trans (step-ab ρ) (step-b ρ))
-	where
-	  step-a : forall ρ -> eq[ a ≡ normalise a ↓ ] ρ
-	  step-a ρ = lem1 a ρ
+          trans (step-a ρ) (trans (step-ab ρ) (step-b ρ))
+        where
+          step-a : forall ρ -> eq[ a ≡ normalise a ↓ ] ρ
+          step-a ρ = lem1 a ρ
 
-	  step-b : forall ρ -> eq[ normalise b ↓ ≡ b ] ρ
-	  step-b ρ = sym (lem1 b ρ)
+          step-b : forall ρ -> eq[ normalise b ↓ ≡ b ] ρ
+          step-b ρ = sym (lem1 b ρ)
 
-	  step-ab : forall ρ -> eq[ normalise a ↓ ≡ normalise b ↓ ] ρ
-	  step-ab ρ = lem2 (normalise a) (normalise b) ρ (isValid tt)
+          step-ab : forall ρ -> eq[ normalise a ↓ ≡ normalise b ↓ ] ρ
+          step-ab ρ = lem2 (normalise a) (normalise b) ρ (isValid tt)
 

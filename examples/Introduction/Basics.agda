@@ -33,7 +33,7 @@ postulate
 
 data Bool : Set where
   false : Bool
-  true	: Bool
+  true  : Bool
 
 data Nat : Set where
   zero : Nat
@@ -64,11 +64,11 @@ mutual
 -- polymorphism is simulated by having functions take type arguments. For
 -- instance, the polymorphic identity function can be represented as follows : 
 
-id : (A : Set) -> A -> A	-- the dependent function space is written (x : A) -> B
+id : (A : Set) -> A -> A        -- the dependent function space is written (x : A) -> B
 id A x = x
 
 one : Nat
-one = id Nat (suc zero)	-- a silly use of the identity function
+one = id Nat (suc zero) -- a silly use of the identity function
 
 -- To faithfully simulate a polymorphic function we would like to omit the type
 -- argument when using the function. See 'Introduction.Implicit' for
@@ -81,13 +81,13 @@ one = id Nat (suc zero)	-- a silly use of the identity function
 -- First we introduce datatypes for truth (a singleton type) and falsity (an
 -- empty type).
 
-data True : Set where	-- Here it would make sense to declare True to be a
-  tt : True		-- Prop (the universe of propositions) rather than a
-			-- Set. See 'Introduction.Universes' for more
-			-- information.
+data True : Set where   -- Here it would make sense to declare True to be a
+  tt : True             -- Prop (the universe of propositions) rather than a
+                        -- Set. See 'Introduction.Universes' for more
+                        -- information.
 
-data False : Set where	-- see 'Introduction.Data.Empty' for more information
-			-- on empty types.
+data False : Set where  -- see 'Introduction.Data.Empty' for more information
+                        -- on empty types.
 
 -- Second, we define what it means for two natural numbers to be equal. Infix
 -- operators are declared by enclosing the operator in _. See
@@ -103,8 +103,8 @@ suc n == suc m = n == m
 -- (i.e. recursion) on 'n'.
 
 thmPlusZero : (n : Nat) -> plus n zero == n   -- A function from a number n to
-					    -- P n can be seen as the
-					    -- proposition ∀ n. P n.
+                                            -- P n can be seen as the
+                                            -- proposition ∀ n. P n.
 thmPlusZero  zero   = tt
 thmPlusZero (suc n) = thmPlusZero n
 
@@ -112,7 +112,7 @@ thmPlusZero (suc n) = thmPlusZero n
    case the goal is
 
     plus zero zero == zero    which reduces to
-    zero == zero	      and
+    zero == zero              and
     True
 
   In the second case we have

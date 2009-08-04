@@ -6,7 +6,6 @@ data N : Set where
   s : N -> N
 
 bad = let pred : N -> N
-	  pred z = z
-	  pred (s n) = n
+          pred z     = z
+          pred (s n) = n
       in pred (s (s z))
-

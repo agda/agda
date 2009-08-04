@@ -6,6 +6,6 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 f : Nat -> Nat -> Nat
-f zero	    = \x -> x
+f zero      = \x -> x
 f (suc n) m = f n (suc m)
 

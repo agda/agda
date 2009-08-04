@@ -21,6 +21,6 @@ suc n + m = suc (n + m)
 assoc : (n : Nat) -> (\m p -> n + (m + p)) == (\m p -> (n + m) + p)
 assoc zero    = refl
 assoc (suc n) = subst (\ ∙ -> f ∙ == f (\m p -> ((n + m) + p)))
-		      (assoc n) refl
+                      (assoc n) refl
   where
     f = \(g : Nat -> Nat -> Nat)(m p : Nat) -> suc (g m p)

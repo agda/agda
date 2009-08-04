@@ -14,7 +14,7 @@ suc n + m = suc (n + m)
 
 {-# BUILTIN NATURAL Nat  #-}
 {-# BUILTIN ZERO    zero #-}
-{-# BUILTIN SUC	    suc  #-}
+{-# BUILTIN SUC     suc  #-}
 {-# BUILTIN NATPLUS _+_  #-}
 
 data Bool : Set where
@@ -38,16 +38,16 @@ module Syntax where
     _,_ : Context -> Type -> Context
 
   data Var : Context -> Type -> Set where
-    vz : {Γ : Context}{τ : Type}	      -> Var (Γ , τ) τ
+    vz : {Γ : Context}{τ : Type}            -> Var (Γ , τ) τ
     vs : {Γ : Context}{σ τ : Type} -> Var Γ τ -> Var (Γ , σ) τ
 
   data Expr (Γ : Context) : Type -> Set where
-    var	  : {τ : Type} -> Var Γ τ -> Expr Γ τ
+    var   : {τ : Type} -> Var Γ τ -> Expr Γ τ
     litNat  : Nat -> Expr Γ nat
     litBool : Bool -> Expr Γ bool
     plus    : Expr Γ (nat ─→ nat ─→ nat)
-    if	    : {τ : Type} -> Expr Γ (bool ─→ τ ─→ τ ─→ τ)
-    _∙_	    : {σ τ : Type} -> Expr Γ (σ ─→ τ) -> Expr Γ σ -> Expr Γ τ
+    if      : {τ : Type} -> Expr Γ (bool ─→ τ ─→ τ ─→ τ)
+    _∙_           : {σ τ : Type} -> Expr Γ (σ ─→ τ) -> Expr Γ σ -> Expr Γ τ
     _WHERE_ : {σ τ ρ : Type} -> Expr (Γ , σ ─→ τ) ρ -> Expr (Γ , σ) τ -> Expr Γ ρ
     _PP_    : {σ τ ρ : Type} -> Expr (Γ , σ ─→ τ) ρ -> Expr (Γ , σ) ρ -> Expr Γ ρ
 
@@ -93,22 +93,22 @@ module Semantics (R : Set) where
       _||_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type' -> ⟦ Γ , τ ⟧ctx
 
     _!_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> Var Γ τ -> ⟦ τ ⟧type'
-    ★	     ! ()
+    ★      ! ()
     (ρ || v) ! vz   = v
     (ρ || v) ! vs x = ρ ! x
 
     ⟦_⟧ : {Γ : Context}{τ : Type} -> Expr Γ τ -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type
-    ⟦ var x	⟧ ρ = return (ρ ! x)
-    ⟦ litNat n	⟧ ρ = return n
-    ⟦ litBool b	⟧ ρ = return b
-    ⟦ plus	⟧ ρ = return \n -> return \m -> return (n + m)
-    ⟦ f ∙ e	⟧ ρ = ⟦ e ⟧ ρ >>= \v ->
-		      ⟦ f ⟧ ρ >>= \w ->
-		      w v
+    ⟦ var x   ⟧ ρ = return (ρ ! x)
+    ⟦ litNat n        ⟧ ρ = return n
+    ⟦ litBool b       ⟧ ρ = return b
+    ⟦ plus    ⟧ ρ = return \n -> return \m -> return (n + m)
+    ⟦ f ∙ e ⟧ ρ = ⟦ e ⟧ ρ >>= \v ->
+                      ⟦ f ⟧ ρ >>= \w ->
+                      w v
     ⟦ e WHERE f ⟧ ρ = ⟦ e ⟧ (ρ || (\x -> ⟦ f ⟧ (ρ || x)))
-    ⟦ e PP f	⟧ ρ = callcc \k ->
-		      let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
-		      in  ⟦ e ⟧ (ρ || throw)
+    ⟦ e PP f  ⟧ ρ = callcc \k ->
+                      let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
+                      in  ⟦ e ⟧ (ρ || throw)
     ⟦ if        ⟧ ρ = return \x -> return \y -> return \z -> return (iff x y z)
       where
         iff : {A : Set} -> Bool -> A -> A -> A

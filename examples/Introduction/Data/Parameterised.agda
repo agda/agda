@@ -11,7 +11,7 @@ data Nat : Set where
 
 data Bool : Set where
   false : Bool
-  true	: Bool
+  true  : Bool
 
 -- A datatype can be parameterised over a telescope, (A : Set) in the case of
 -- lists. The parameters are bound in the types of the constructors.
@@ -35,7 +35,7 @@ nilNat = nil {Nat}  -- the type of this will be List Nat
 -- element type of the list. So you can say
 
 null : {A : Set} -> List A -> Bool
-null  nil	= true
+null  nil       = true
 null (cons _ _) = false
 
 -- but not

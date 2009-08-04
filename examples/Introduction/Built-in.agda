@@ -22,7 +22,7 @@ module Introduction.Built-in where
 postulate
   Int    : Set
   Float  : Set
-  Char	 : Set
+  Char   : Set
   String : Set
 
 -- We can then bind the built-in types to these new sets using the BUILTIN
@@ -66,8 +66,8 @@ fortyTwo = 42
 -- we might allow a primitive function to be introduced with any name.
 
 module FloatPlus where  -- We put it in a module to prevent it from clashing with
-		      -- the plus function in the complete list of primitive
-		      -- functions below.
+                      -- the plus function in the complete list of primitive
+                      -- functions below.
   primitive
     primFloatPlus : Float -> Float -> Float
 
@@ -125,34 +125,34 @@ primitive
 
     -- Floating point functions
   primIntegerToFloat : Int -> Float
-  primFloatPlus	     : Float -> Float -> Float
+  primFloatPlus      : Float -> Float -> Float
   primFloatMinus     : Float -> Float -> Float
   primFloatTimes     : Float -> Float -> Float
-  primFloatDiv	     : Float -> Float -> Float
-  primFloatLess	     : Float -> Float -> Bool
-  primRound	     : Float -> Int
-  primFloor	     : Float -> Int
-  primCeiling	     : Float -> Int
-  primExp	     : Float -> Float
-  primLog	     : Float -> Float	  -- partial
-  primSin	     : Float -> Float
-  primShowFloat	     : Float -> String
+  primFloatDiv       : Float -> Float -> Float
+  primFloatLess      : Float -> Float -> Bool
+  primRound          : Float -> Int
+  primFloor          : Float -> Int
+  primCeiling        : Float -> Int
+  primExp            : Float -> Float
+  primLog            : Float -> Float     -- partial
+  primSin            : Float -> Float
+  primShowFloat      : Float -> String
 
     -- Character functions
   primCharEquality : Char -> Char -> Bool
-  primIsLower	   : Char -> Bool
-  primIsDigit	   : Char -> Bool
-  primIsAlpha	   : Char -> Bool
-  primIsSpace	   : Char -> Bool
-  primIsAscii	   : Char -> Bool
-  primIsLatin1	   : Char -> Bool
-  primIsPrint	   : Char -> Bool
+  primIsLower      : Char -> Bool
+  primIsDigit      : Char -> Bool
+  primIsAlpha      : Char -> Bool
+  primIsSpace      : Char -> Bool
+  primIsAscii      : Char -> Bool
+  primIsLatin1     : Char -> Bool
+  primIsPrint      : Char -> Bool
   primIsHexDigit   : Char -> Bool
-  primToUpper	   : Char -> Char
-  primToLower	   : Char -> Char
+  primToUpper      : Char -> Char
+  primToLower      : Char -> Char
   primCharToNat    : Char -> Nat
   primNatToChar    : Nat  -> Char -- partial
-  primShowChar	   : Char -> String
+  primShowChar     : Char -> String
 
     -- String functions
   primStringToList   : String -> List Char

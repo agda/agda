@@ -43,7 +43,7 @@ two = id' _ (suc one)
 -- This can be achieved by declaring the first argument as an implicit
 -- argument.
 
-id : {A : Set} -> A -> A	-- implicit arguments are enclosed in curly braces
+id : {A : Set} -> A -> A        -- implicit arguments are enclosed in curly braces
 id x = x  -- now we don't have to mention A in the left-hand side
 
 three : Nat
@@ -65,14 +65,14 @@ id0 : (A : Set) -> A -> A
 id0 A x = x
 
 id1 : (A : Set) -> A -> A
-id1 _ x = x	-- in left-hand sides _ means "don't care"
+id1 _ x = x     -- in left-hand sides _ means "don't care"
 
 id2 : (A : Set) -> A -> A
 id2 = \A x -> x
 
 id3 = \(A : Set)(x : A) -> x  -- the type signature can be omitted for definitions
-			  -- of the form x = e if the type of e can be
-			  -- inferred.
+                          -- of the form x = e if the type of e can be
+                          -- inferred.
 
 id4 : {A : Set} -> A -> A
 id4 x = x
@@ -86,21 +86,21 @@ id6 = \x -> x
 id7 = \{A : Set}(x : A) -> x
 
 -- id8 : {A : Set} -> A -> A
--- id8 = \{A} x -> x	    -- this doesn't work since the type checker assumes
-			    -- that the implicit A has been has been omitted in
-			    -- the left-hand side (as in id6).
+-- id8 = \{A} x -> x        -- this doesn't work since the type checker assumes
+                            -- that the implicit A has been has been omitted in
+                            -- the left-hand side (as in id6).
 
 -- Various uses of the identity function.
 zero0 = id0 Nat zero
-zero1 = id0 _	zero  -- in right-hand sides _ means "go figure"
+zero1 = id0 _   zero  -- in right-hand sides _ means "go figure"
 
-zero2 = id4	  zero
+zero2 = id4       zero
 zero3 = id4 {Nat} zero
-zero4 = id4 {_}	  zero	-- This is equivalent to zero2, but it can be useful if
-			-- a function has two implicit arguments and you need
-			-- to provide the second one (when you provide an
-			-- implicit argument explicitly it is assumed to be the
-			-- left-most one).
+zero4 = id4 {_}   zero  -- This is equivalent to zero2, but it can be useful if
+                        -- a function has two implicit arguments and you need
+                        -- to provide the second one (when you provide an
+                        -- implicit argument explicitly it is assumed to be the
+                        -- left-most one).
 
 -- In this module we have looked at implicit arguments as a substitute for
 -- polymorphism. The implicit argument mechanism is more general than that and

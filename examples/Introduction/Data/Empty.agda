@@ -30,7 +30,7 @@ data Nat : Set where
 
 -- For some empty types finite unfolding is not enough.
 ConstZero : Nat -> Set
-ConstZero  zero	  = Zero
+ConstZero  zero   = Zero
 ConstZero (suc n) = ConstZero n
 
 -- We can still define the elimination function but we have to do it

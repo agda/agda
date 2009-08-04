@@ -3,10 +3,9 @@ module AmbiguousParseForLHS where
 
 data X : Set where
   if_then_else_ : X -> X -> X -> X
-  if_then_	: X -> X -> X
-  x		: X
+  if_then_      : X -> X -> X
+  x             : X
 
 bad : X -> X
 bad (if x then if x then x else x) = x
-bad _				   = if x then x
-
+bad _                              = if x then x

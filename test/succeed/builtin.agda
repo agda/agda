@@ -29,12 +29,12 @@ data Nat : Set where
 {-# BUILTIN ZERO    zero #-}
 
 postulate
-  Int	 : Set
+  Int    : Set
   String : Set
   Float  : Set
-  Char	 : Set
+  Char   : Set
 
-{-# BUILTIN INTEGER Int	   #-}
+{-# BUILTIN INTEGER Int    #-}
 {-# BUILTIN STRING  String #-}
 {-# BUILTIN FLOAT   Float  #-}
 {-# BUILTIN CHAR    Char   #-}
@@ -63,34 +63,34 @@ primitive
 
     -- Floating point functions
   primIntegerToFloat : Int -> Float
-  primFloatPlus	     : Float -> Float -> Float
+  primFloatPlus      : Float -> Float -> Float
   primFloatMinus     : Float -> Float -> Float
   primFloatTimes     : Float -> Float -> Float
-  primFloatDiv	     : Float -> Float -> Float
-  primFloatLess	     : Float -> Float -> Bool
-  primRound	     : Float -> Int
-  primFloor	     : Float -> Int
-  primCeiling	     : Float -> Int
-  primExp	     : Float -> Float
-  primLog	     : Float -> Float
-  primSin	     : Float -> Float
-  primShowFloat	     : Float -> String
+  primFloatDiv       : Float -> Float -> Float
+  primFloatLess      : Float -> Float -> Bool
+  primRound          : Float -> Int
+  primFloor          : Float -> Int
+  primCeiling        : Float -> Int
+  primExp            : Float -> Float
+  primLog            : Float -> Float
+  primSin            : Float -> Float
+  primShowFloat      : Float -> String
 
     -- Character functions
   primCharEquality   : Char -> Char -> Bool
-  primIsLower	     : Char -> Bool
-  primIsDigit	     : Char -> Bool
-  primIsAlpha	     : Char -> Bool
-  primIsSpace	     : Char -> Bool
-  primIsAscii	     : Char -> Bool
-  primIsLatin1	     : Char -> Bool
-  primIsPrint	     : Char -> Bool
+  primIsLower        : Char -> Bool
+  primIsDigit        : Char -> Bool
+  primIsAlpha        : Char -> Bool
+  primIsSpace        : Char -> Bool
+  primIsAscii        : Char -> Bool
+  primIsLatin1       : Char -> Bool
+  primIsPrint        : Char -> Bool
   primIsHexDigit     : Char -> Bool
-  primToUpper	     : Char -> Char
-  primToLower	     : Char -> Char
+  primToUpper        : Char -> Char
+  primToLower        : Char -> Char
   primCharToNat      : Char -> Nat
   primNatToChar      : Nat  -> Char -- partial
-  primShowChar	     : Char -> String
+  primShowChar       : Char -> String
 
     -- String functions
   primStringToList   : String -> List Char
@@ -137,7 +137,7 @@ reverse : {A : Set} -> List A -> List A
 reverse xs = rev xs nil
   where
     rev : {A : Set} -> List A -> List A -> List A
-    rev nil	  ys = ys
+    rev nil       ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
 infixr 20 _∘_
@@ -145,7 +145,7 @@ _∘_ : {A B C : Set} -> (B -> C) -> (A -> B) -> A -> C
 f ∘ g = \x -> f (g x)
 
 map : {A B : Set} -> (A -> B) -> List A -> List B
-map f  nil	= nil
+map f  nil      = nil
 map f (x :: xs) = f x :: map f xs
 
 stringAsList : (List Char -> List Char) -> String -> String

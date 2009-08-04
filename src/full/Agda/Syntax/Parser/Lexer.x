@@ -37,8 +37,8 @@ $idchar	     = [ $idstart ' \\ ]
 $endcomment  = ~ [ $idchar ]
 $nonalpha    = $idchar # $alpha
 $nonalphanum = $nonalpha # $digit
-
-$white_nonl  = $white # \n
+$white_notab = $white # \t
+$white_nonl  = $white_notab # \n
 
 @number	     = $digit+ | "0x" $hexdigit+
 @exponent    = [eE] [\-\+]? @number
@@ -67,7 +67,7 @@ tokens :-
 <0,code,bol_,layout_,empty_layout_,imp_dir_>
     $white_nonl+    ;
 
-<pragma_> $white ;
+<pragma_> $white_notab ;
 
 -- Pragmas
 <0,code>    "{-#"		{ begin pragma }

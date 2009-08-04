@@ -18,9 +18,9 @@ module Prelude where
 module Base where
 
   data Monad (M : Set -> Set) : Set1 where
-    monad : (return : {A : Set} -> A -> M A)		     ->
-	    (bind   : {A B : Set} -> M A -> (A -> M B) -> M B) ->
-	    Monad M
+    monad : (return : {A : Set} -> A -> M A)                 ->
+            (bind   : {A B : Set} -> M A -> (A -> M B) -> M B) ->
+            Monad M
 
   monadReturn : {M : Set -> Set} -> Monad M -> {A : Set} -> A -> M A
   monadReturn (monad ret bind) = ret
@@ -60,15 +60,15 @@ module List where
   -- Some list operations ---------------------------------------------------
 
   foldr : {A B : Set} -> (A -> B -> B) -> B -> List A -> B
-  foldr f e nil	    = e
+  foldr f e nil     = e
   foldr f e (x :: xs) = f x (foldr f e xs)
 
   map : {A B : Set} -> (A -> B) -> List A -> List B
-  map f nil	= nil
+  map f nil     = nil
   map f (x :: xs) = f x :: map f xs
 
   _++_ : {A : Set} -> List A -> List A -> List A
-  nil	    ++ ys = ys
+  nil       ++ ys = ys
   (x :: xs) ++ ys = x :: (xs ++ ys)
 
   concat : {A : Set} -> List (List A) -> List A

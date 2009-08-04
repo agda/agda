@@ -8,6 +8,6 @@ module List (A : Set) where
     _::_ : A -> List -> List
 
   _++_ : List -> List -> List
-  nil	    ++ ys = ys
+  nil       ++ ys = ys
   (x :: xs) ++ ys = x :: (xs ++ ys)
 

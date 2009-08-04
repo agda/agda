@@ -11,7 +11,7 @@ module Berry where
   maj T T T = T
   maj T F x = x
   maj F x T = x
-  maj x T F = x	  -- doesn't hold definitionally
+  maj x T F = x   -- doesn't hold definitionally
   maj F F F = F
 
   postulate

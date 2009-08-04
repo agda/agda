@@ -26,11 +26,11 @@ cong2 {A}{B} f refl refl = refl
 
 Equiv : {A : Set} -> Equivalence A
 Equiv = record
-	{ _==_  = _≡_
-	; refl  = \x -> refl
-	; sym   = \x y -> sym
-	; trans = \x y z -> trans
-	}
+        { _==_  = _≡_
+        ; refl  = \x -> refl
+        ; sym   = \x y -> sym
+        ; trans = \x y z -> trans
+        }
 
 _≢_ : {A : Set} -> A -> A -> Set
 x ≢ y = ¬ (x ≡ y)

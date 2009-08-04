@@ -25,20 +25,20 @@ module Prelude where
   ¬ false = true
 
   data List (A : Set) : Set where
-    nil	   : List A
+    nil    : List A
     _::_ : A -> List A -> List A
 
   _++_ : {A : Set} -> List A -> List A -> List A
-  nil	   ++ ys = ys
+  nil      ++ ys = ys
   (x :: xs) ++ ys = x :: xs ++ ys
 
   filter : {A : Set} -> (A -> Bool) -> List A -> List A
-  filter p  nil	     = nil
+  filter p  nil      = nil
   filter p (x :: xs) = if p x then x :: filter p xs else filter p xs
 
   postulate
     String : Set
-    Int	   : Set
+    Int    : Set
     Char   : Set
 
   {-# BUILTIN BOOL    Bool   #-}
@@ -81,7 +81,7 @@ infix 15 _∈_
 
 _∈_ : Name -> List Name -> Bool
 x ∈ y :: ys = x == y ∨ x ∈ ys
-x ∈ nil	   = false
+x ∈ nil    = false
 
 -- Free variables
 FV : Exp -> List Name
@@ -98,13 +98,13 @@ fresh x e = fresh' (FV e)
 
 -- Substitution
 _[_/_] : Exp -> Exp -> Name -> Exp
-var x	  [ r / z ] = if x == z then r else var x
-(s $ t)	  [ r / z ] = s [ r / z ] $ t [ r / z ]
+var x     [ r / z ] = if x == z then r else var x
+(s $ t)   [ r / z ] = s [ r / z ] $ t [ r / z ]
 (ƛ x ⟶ t) [ r / z ] =
        if x == z   then ƛ x ⟶ t
   else if x ∈ FV r then ( let y : Name
-			      y = fresh x r
-			  in  ƛ y ⟶ t [ var y / x ] [ r / z ]
-			)
-  else			ƛ x ⟶ t [ r / z ]
+                              y = fresh x r
+                          in  ƛ y ⟶ t [ var y / x ] [ r / z ]
+                        )
+  else                  ƛ x ⟶ t [ r / z ]
 

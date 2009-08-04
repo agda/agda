@@ -55,9 +55,9 @@ infix 10 if_then_else_
 module BadIdea where
 
   _f_ : Nat -> Nat -> Nat
-  zero	f zero	= zero
-  zero	f suc n = suc n
-  suc n f zero	= suc n
+  zero  f zero  = zero
+  zero  f suc n = suc n
+  suc n f zero  = suc n
   suc n f suc m = suc (n f m)
 
   + : Nat -> Nat

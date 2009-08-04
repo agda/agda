@@ -60,6 +60,6 @@ module qsort where
   --
 
   qsort : {a : Set} -> (a -> a -> Bool) -> List a -> List a
-  qsort f nil	    = nil
+  qsort f nil       = nil
   qsort f (x :: xs) = (qsort f (filter (not o (f x)) xs)) ++
                     (x :: (qsort f (filter (f x) xs)))

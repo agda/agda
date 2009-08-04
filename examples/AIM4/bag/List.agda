@@ -12,7 +12,7 @@ module List where
   open Nat
 
   data List (a : Set) : Set where
-    nil	 : List a
+    nil  : List a
     _::_ : a -> List a -> List a
 
   map : {a b : Set} -> (a -> b) -> List a -> List b

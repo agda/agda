@@ -18,8 +18,8 @@ module LostConstraint where
   data _=>_ (A,B : Setoid) : Set where
     lam : (f : El A -> El B)
        -> ((x : El A) -> eq A x x
-		      -> eq B (f x) (f x)
-	  )
+                      -> eq B (f x) (f x)
+          )
        -> A => B
 
 
@@ -29,10 +29,10 @@ module LostConstraint where
   postulate EqFun : {A,B : Setoid}(f, g : A => B) -> Set
 
   lam2 : {A,B,C : Setoid} ->
-	 (f : El A -> El B -> El C) ->
-	 (x : El A) -> B => C
+         (f : El A -> El B -> El C) ->
+         (x : El A) -> B => C
   lam2 {A}{B}{C} f x = lam (f x) (lem _)
     where
       postulate
-	lem : (x : El A)(y : El B) -> eq B y y -> eq C (f x y) (f x y)
+        lem : (x : El A)(y : El B) -> eq B y y -> eq C (f x y) (f x y)
 

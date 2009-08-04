@@ -9,7 +9,7 @@ module RTP where
 
 
   postulate
-    Int	   : Set
+    Int    : Set
     String : Set
     Float  : Set
     Char   : Set

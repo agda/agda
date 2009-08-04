@@ -15,7 +15,7 @@ reverse : {A : Set} -> List A -> List A
 reverse {A} xs = rev xs nil
   where
     rev : List A -> List A -> List A
-    rev  nil	  ys = ys
+    rev  nil      ys = ys
     rev (x :: xs) ys = rev xs (x :: ys)
 
 postulate

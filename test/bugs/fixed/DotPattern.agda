@@ -19,8 +19,8 @@ data _==_ : {x₁ x₂ : A} -> B x₁ -> B x₂ -> Set where
 bad : {x : A}{y : B x} -> y == y -> A
 bad eqb = ?
 -- bad .{h x} .{b x} (eqb {x}) = ?    -- works
--- bad .{y = _} eqb	       = ?    -- works
--- bad (eqb {_})	       = ?    -- works
+-- bad .{y = _} eqb            = ?    -- works
+-- bad (eqb {_})               = ?    -- works
 
 -- The above example is solved by checking syntactic equality on blocked terms.
 -- This doesn't work below:

@@ -22,11 +22,11 @@ module List (A : Set) where
   infixr 15 _::_ _++_
 
   data List : Set where
-    nil	 : List
+    nil  : List
     _::_ : A -> List -> List
 
   _++_ : List -> List -> List
-  nil	    ++ ys = ys
+  nil       ++ ys = ys
   (x :: xs) ++ ys = x :: (xs ++ ys)
 
 module TestList where
@@ -51,8 +51,8 @@ module Monad where
 
   data Monad (m : Set -> Set) : Set1 where
     monad : ({a : Set} -> a -> m a) ->
-	    ({a b : Set} -> m a -> (a -> m b) -> m b) ->
-	    Monad m
+            ({a b : Set} -> m a -> (a -> m b) -> m b) ->
+            Monad m
 
   return : {m : Set -> Set} -> {a : Set} -> Monad m -> a -> m a
   return (monad ret _) x = ret x
@@ -101,7 +101,7 @@ module TestIdentity where
   test2 = idH fa
   test3 = id0 _ fa
   test4 = idH {! foo bar !}
-  -- test5 = id id	-- we can't do this (on purpose)!
+  -- test5 = id id      -- we can't do this (on purpose)!
 
   id = \{A : Set}(x : A) -> x
   test = id a
@@ -110,9 +110,9 @@ module prop where
 
   postulate
     _\/_  : Prop -> Prop -> Prop
-    inl	  : {P Q : Prop} -> P -> P \/ Q
-    inr	  : {P Q : Prop} -> Q -> P \/ Q
-    orE	  : {P Q R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
+    inl   : {P Q : Prop} -> P -> P \/ Q
+    inr   : {P Q : Prop} -> Q -> P \/ Q
+    orE   : {P Q R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
     False : Prop
     _==>_ : Prop -> Prop -> Prop
     impI  : {P Q : Prop} -> (P -> Q) -> P ==> Q
@@ -122,14 +122,14 @@ module prop where
 
   notnotEM = \(P : Prop) ->
     impI (\ (nEM : Not (P \/ Not P)) ->
-	    impE nEM (
-		inr (
-		  impI (\ p ->
-		    impE nEM (inl p)
-		  )
-		)
-	      )
-	    )
+            impE nEM (
+                inr (
+                  impI (\ p ->
+                    impE nEM (inl p)
+                  )
+                )
+              )
+            )
 
 module Tests where
 

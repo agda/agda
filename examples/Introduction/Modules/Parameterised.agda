@@ -7,14 +7,14 @@ module Introduction.Modules.Parameterised where
 
 data Bool : Set where
   false : Bool
-  true	: Bool
+  true  : Bool
 
 data List (A : Set) : Set where
   nil  : List A
   _::_ : A -> List A -> List A
 
-infixr 15 _::_	  -- see 'Introduction.Operators' for information on infix
-		  -- declarations
+infixr 15 _::_    -- see 'Introduction.Operators' for information on infix
+                  -- declarations
 
 -- Agda supports parameterised modules. A parameterised module is declared by
 -- giving the parameters after the module name.
@@ -22,15 +22,15 @@ infixr 15 _::_	  -- see 'Introduction.Operators' for information on infix
 module Sorting {A : Set}(_<_ : A -> A -> Bool) where
 
   insert : A -> List A -> List A
-  insert x  nil	     = x :: nil
+  insert x  nil      = x :: nil
   insert x (y :: ys) = ins (x < y)
     where
-      ins : Bool -> List A	-- local functions can do pattern matching and
-      ins true  = x :: y :: ys	-- be recursive
+      ins : Bool -> List A      -- local functions can do pattern matching and
+      ins true  = x :: y :: ys  -- be recursive
       ins false = y :: insert x ys
 
   sort : List A -> List A
-  sort  nil	 = nil
+  sort  nil      = nil
   sort (x :: xs) = insert x (sort xs)
 
 -- Before a parameterised module can be used it has to be instantiated. So, we

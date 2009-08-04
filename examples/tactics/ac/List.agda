@@ -15,13 +15,13 @@ module Eq {A : Set}(_=A=_ : A -> A -> Bool) where
   infix 10 _==_
 
   _==_ : List A -> List A -> Bool
-  []	  == []	     = true
+  []      == []      = true
   x :: xs == y :: ys = (x =A= y) && xs == ys
-  []	  == _ :: _  = false
-  _ :: _  == []	     = false
+  []      == _ :: _  = false
+  _ :: _  == []      = false
 
 module Subst {A : Set}(_=A=_ : A -> A -> Bool)
-	     (substA : {x y : A} -> (P : A -> Set) -> IsTrue (x =A= y) -> P x -> P y)
+             (substA : {x y : A} -> (P : A -> Set) -> IsTrue (x =A= y) -> P x -> P y)
     where
 
   module EqA = Eq _=A=_
@@ -30,7 +30,7 @@ module Subst {A : Set}(_=A=_ : A -> A -> Bool)
   subst : {xs ys : List A} -> (P : List A -> Set) -> IsTrue (xs == ys) -> P xs -> P ys
   subst {[]     } {_ :: _ } _ () _
   subst {_ :: _ } {[]     } _ () _
-  subst {[]	} {[]	  } P eq pxs = pxs
+  subst {[]     } {[]     } P eq pxs = pxs
   subst {x :: xs} {y :: ys} P eq pxs =
     substA (\z -> P (z :: ys)) x==y (
       subst (\zs -> P (x :: zs)) xs==ys pxs

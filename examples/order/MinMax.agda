@@ -65,8 +65,8 @@ Dual Ord = record
     ; refl    = refl
     ; antisym = \x y xy yx   → antisym _ _ yx xy
     ; trans   = \x y z xy yz → trans _ _ _ yz xy
-    ; total   = \x y	     → total _ _
-    ; decide  = \x y	     → decide _ _
+    ; total   = \x y         → total _ _
+    ; decide  = \x y         → decide _ _
     }
   where
     open DecidableOrder Ord

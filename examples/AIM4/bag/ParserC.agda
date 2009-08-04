@@ -76,9 +76,9 @@ module ParserC where
 
 
   (>>=) : {s, a, b : Datoid}
-	-> Parsing s a -> (El a -> Parsing s b) -> Parsing s b
+        -> Parsing s a -> (El a -> Parsing s b) -> Parsing s b
   (>>=) {s} {a} {b} (P p) k
-	= P (\s -> concatMap (\y -> unP (k (fst y)) (snd y)) (p s))
+        = P (\s -> concatMap (\y -> unP (k (fst y)) (snd y)) (p s))
 
 {-
   parserDatoid : (a, s : Datoid) -> Datoid

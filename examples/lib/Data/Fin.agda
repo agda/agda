@@ -36,11 +36,11 @@ fzero  < fsuc j = true
 fsuc i < fsuc j = i < j
 
 fromNat : (n : Nat) -> Fin (suc n)
-fromNat  zero	= fzero
+fromNat  zero   = fzero
 fromNat (suc n) = fsuc (fromNat n)
 
 liftSuc : {n : Nat} -> Fin n -> Fin (suc n)
-liftSuc  fzero	 = fzero
+liftSuc  fzero   = fzero
 liftSuc (fsuc i) = fsuc (liftSuc i)
 
 lift+ : {n : Nat}(m : Nat) -> Fin n -> Fin (m + n)
@@ -48,14 +48,14 @@ lift+  zero   i = i
 lift+ (suc m) i = liftSuc (lift+ m i)
 
 thin : {n : Nat} -> Fin (suc n) -> Fin n -> Fin (suc n)
-thin  fzero i	       = fsuc i
+thin  fzero i          = fsuc i
 thin (fsuc j) fzero    = fzero
 thin (fsuc j) (fsuc i) = fsuc (thin j i)
 
 -- Two elements of Fin n are either the same or one is the thinning of
 -- something with respect to the other.
 data ThinView : {n : Nat}(i j : Fin n) -> Set where
-  same : {n : Nat}{i : Fin n}		       -> ThinView i i
+  same : {n : Nat}{i : Fin n}                  -> ThinView i i
   diff : {n : Nat}{i : Fin (suc n)}(j : Fin n) -> ThinView i (thin i j)
 
 thinView : {n : Nat}(i j : Fin n) -> ThinView i j
@@ -66,11 +66,11 @@ thinView {suc (suc _)} (fsuc i)  fzero    = diff fzero
 thinView               (fsuc i)  (fsuc j) = aux i j (thinView i j)
   where
     aux : {n : Nat}(i j : Fin n) -> ThinView i j -> ThinView (fsuc i) (fsuc j)
-    aux i .i	       same    = same
+    aux i .i           same    = same
     aux i .(thin i j) (diff j) = diff (fsuc j)
 
 thin-ij≠i : {n : Nat}(i : Fin (suc n))(j : Fin n) -> thin i j ≢ i
-thin-ij≠i  fzero    j	    ()
+thin-ij≠i  fzero    j     ()
 thin-ij≠i (fsuc i)  fzero   ()
 thin-ij≠i (fsuc i) (fsuc j) eq = thin-ij≠i i j (fsuc-inj eq)
 
@@ -80,14 +80,14 @@ thin-ij≠i (fsuc i) (fsuc j) eq = thin-ij≠i i j (fsuc-inj eq)
 thick : {n : Nat}(i j : Fin (suc n)) -> i ≢ j -> Fin n
 thick i j i≠j = thick' i j i≠j (thinView i j) where
   thick' : {n : Nat}(i j : Fin (suc n)) -> i ≢ j -> ThinView i j -> Fin n
-  thick' i .i	       i≠i same	   = elim-False (i≠i refl)
+  thick' i .i          i≠i same          = elim-False (i≠i refl)
   thick' i .(thin i j) _  (diff j) = j
 
 -- thin∘thick=id : {n : Nat}(i j : Fin (suc n))(p : i ≢ j) ->
--- 		thin i (thick i j p) ≡ j
+--              thin i (thick i j p) ≡ j
 -- thin∘thick=id i j p = ?
 --
 -- thick∘thin=id : {n : Nat}(i : Fin (suc n))(j : Fin n) ->
--- 		thick i (thin i j) (sym≢ (thin-ij≠i i j)) ≡ j
+--              thick i (thin i j) (sym≢ (thin-ij≠i i j)) ≡ j
 -- thick∘thin=id i j = ?
 --

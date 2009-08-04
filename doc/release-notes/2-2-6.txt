@@ -7,6 +7,9 @@ Important changes since 2.2.4:
 Language
 --------
 
+* The horizontal tab character (U+0009) is no longer treated as white
+  space.
+
 * Multiple constructors, record fields, postulates or primitives can
   now be declared using a single type signature:
 
