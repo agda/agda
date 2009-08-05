@@ -881,6 +881,9 @@ mapTCMT f = TCM . mapUndoT (mapStateT (mapReaderT (mapErrorT f))) . unTCM
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 
+instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
+  liftTCM = lift . liftTCM
+
 instance MonadTrans TCMT where
     lift = TCM . lift . lift . lift . lift
 

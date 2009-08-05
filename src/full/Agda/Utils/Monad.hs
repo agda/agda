@@ -27,6 +27,10 @@ instance Applicative (Reader env) where
   pure  = return
   (<*>) = ap
 
+instance (Error e, Monad m) => Applicative (ErrorT e m) where
+  pure  = return
+  (<*>) = ap
+
 instance Monad m => Applicative (ReaderT env m) where
   pure  = return
   (<*>) = ap

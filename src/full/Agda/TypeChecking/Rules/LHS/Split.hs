@@ -31,13 +31,6 @@ import Agda.Utils.Tuple
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
 
-instance (Monad m, Error err) => Applicative (ErrorT err m) where
-  pure	= return
-  (<*>) = ap
-
-instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
-  liftTCM = lift . liftTCM
-
 -- | TODO: move to Agda.Syntax.Abstract.View
 asView :: A.Pattern -> ([Name], A.Pattern)
 asView (A.AsP _ x p) = (x :) -*- id $ asView p
