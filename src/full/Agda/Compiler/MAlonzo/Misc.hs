@@ -35,12 +35,6 @@ import Agda.Utils.Impossible
 -- Setting up Interface before compile
 --------------------------------------------------
 
--- find the abstract module name from the given file name
-mnameFromFileName :: TCM () -> FilePath -> TCM ModuleName
-mnameFromFileName typecheck = (sigMName <$>) .
-  (maybe (typecheck>> getSignature) (return . iSignature) =<<) .
-  liftIO . readInterface . setExtension ".agdai"
-
 setInterface :: Interface -> TCM ()
 setInterface i = modify $ \s -> s
   { stImportedModules = S.empty
@@ -56,8 +50,8 @@ curIF = do
     Just name -> do
       mm <- getVisitedModule (toTopLevelModuleName name)
       case mm of
-        Nothing     -> __IMPOSSIBLE__
-        Just (i, _) -> return i
+        Nothing -> __IMPOSSIBLE__
+        Just mi -> return $ miInterface mi
 
 curSig :: TCM Signature
 curSig = iSignature <$> curIF
@@ -96,7 +90,8 @@ tlmname :: ModuleName -> TCM ModuleName
 tlmname m = do
   ms <- sortBy (compare `on` (length . mnameToList)) .
         L.filter (flip (isPrefixOf `on` mnameToList) m) <$>
-        L.map (iModuleName . fst) . M.elems <$> getVisitedModules
+        L.map (iModuleName . miInterface) . M.elems <$>
+        getVisitedModules
   return $ case ms of (m' : _) -> m'; _ -> mazerror$ "tlmodOf: "++show m
 
 -- qualify HsName n by the module of QName q, if necessary;

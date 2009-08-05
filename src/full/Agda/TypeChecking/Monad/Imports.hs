@@ -35,10 +35,11 @@ isImported m = Set.member m <$> getImports
 getImportPath :: TCM [C.TopLevelModuleName]
 getImportPath = asks envImportPath
 
-visitModule :: Interface -> ClockTime -> TCM ()
-visitModule i t = modify $ \s ->
+visitModule :: ModuleInfo -> TCM ()
+visitModule mi = modify $ \s ->
   s { stVisitedModules =
-        Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
+        Map.insert (toTopLevelModuleName $ iModuleName $ miInterface mi)
+                   mi $
           stVisitedModules s }
 
 setVisitedModules :: VisitedModules -> TCM ()
@@ -51,7 +52,7 @@ isVisited :: C.TopLevelModuleName -> TCM Bool
 isVisited x = gets $ Map.member x . stVisitedModules
 
 getVisitedModule :: C.TopLevelModuleName
-                 -> TCM (Maybe (Interface, ClockTime))
+                 -> TCM (Maybe ModuleInfo)
 getVisitedModule x = gets $ Map.lookup x . stVisitedModules
 
 getDecodedModules :: TCM DecodedModules

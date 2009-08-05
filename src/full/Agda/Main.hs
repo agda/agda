@@ -105,19 +105,19 @@ runAgda =
 		    do	hasFile <- hasInputFile
 			resetState
 			if hasFile then
-			    do	file <- getInputFile
-                                (i, wt) <- Imp.typeCheck file Imp.CurrentDir
+			    do	file    <- getInputFile
+                                (i, mw) <- Imp.typeCheck file Imp.CurrentDir Nothing
 
                                 unsolvedOK <- optAllowUnsolved <$> commandLineOptions
 
-                                result <- case wt of
-                                      Left (Imp.Warnings []             []) -> __IMPOSSIBLE__
-                                      Left (Imp.Warnings _  unsolved@(_:_))
+                                result <- case mw of
+                                      Just (Imp.Warnings []             []) -> __IMPOSSIBLE__
+                                      Just (Imp.Warnings _  unsolved@(_:_))
                                         | unsolvedOK -> return Nothing
                                         | otherwise  -> typeError $ UnsolvedMetas unsolved
-                                      Left (Imp.Warnings termErrs@(_:_) _) ->
+                                      Just (Imp.Warnings termErrs@(_:_) _) ->
                                         typeError $ TerminationCheckFailed termErrs
-                                      Right t -> return $ Just i
+                                      Nothing -> return $ Just i
 
 				-- Print stats
 				stats <- Map.toList <$> getStatistics
@@ -130,9 +130,9 @@ runAgda =
 					    sortBy (\x y -> compare (snd x) (snd y)) stats
 
                                 whenM (optGenerateHTML <$> commandLineOptions) $ do
-                                  case wt of
-                                    Right _ -> generateHTML $ iModuleName i
-                                    Left  _ -> reportSLn "" 1
+                                  case mw of
+                                    Nothing -> generateHTML $ iModuleName i
+                                    Just _  -> reportSLn "" 1
                                       "HTML is not generated (unsolved meta-variables)."
 
 				return result

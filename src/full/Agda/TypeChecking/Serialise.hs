@@ -13,9 +13,6 @@
 -- version number should be bumped _in the same patch_.
 -- -!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-!-
 
--- TODO: It should be easy to produce a decent QuickCheck test suite
--- for this file.
-
 module Agda.TypeChecking.Serialise
   ( encode
   , encodeFile
@@ -26,8 +23,9 @@ module Agda.TypeChecking.Serialise
   where
 
 import Control.Monad
-import Control.Monad.State.Strict
 import Control.Monad.Reader
+import Control.Monad.State.Strict
+import Control.Monad.Error
 import Data.Array.IArray
 import Data.Bits (shiftR)
 import Data.ByteString.Lazy as L
@@ -58,8 +56,10 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
+import Agda.Interaction.FindFile
 
 import Agda.TypeChecking.Monad
+import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 
@@ -67,7 +67,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090726 * 10 + 0
+currentInterfaceVersion = 20090804 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -79,57 +79,106 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int)
                 , stringC   :: !(IORef Int)
                 , integerC  :: !(IORef Int)
                 , doubleC   :: !(IORef Int)
+                , fileMod   :: !SourceToModule
                 }
 
 data U    = forall a . Data a => U !a
 type Memo = HashTable (Int, Int) U    -- (node index, type rep key)
 
-data Env  = Env { nodeE     :: !(Array Int Node)
-                , stringE   :: !(Array Int String)
-                , integerE  :: !(Array Int Integer)
-                , doubleE   :: !(Array Int Double)
-                , nodeMemo  :: !Memo
-                }
+data St = St
+  { nodeE     :: !(Array Int Node)
+  , stringE   :: !(Array Int String)
+  , integerE  :: !(Array Int Integer)
+  , doubleE   :: !(Array Int Double)
+  , nodeMemo  :: !Memo
+  , modFile   :: !ModuleToSource
+    -- ^ Maps module names to file names. This is the only component
+    -- of the state which is updated by the decoder.
+  , includes  :: [FilePath]
+    -- ^ The include directories (absolute paths).
+  }
+
+-- | Monad used by the encoder.
 
 type S a = ReaderT Dict IO a
-type R a = ReaderT Env  IO a
+
+-- | Monad used by the decoder.
+--
+-- 'TCM' is not used because the associated overheads would make
+-- decoding slower.
+
+type R a = ErrorT TypeError (StateT St IO) a
 
 class Data a => EmbPrj a where
   icode :: a -> S Int
   value :: Int -> R a
 
+-- | Encodes something. To ensure relocatability file paths in
+-- positions are replaced with module names.
 
-encode :: EmbPrj a => a -> IO ByteString
+encode :: EmbPrj a => a -> TCM ByteString
 encode a = do
-    newD@(Dict nD sD iD dD _ _ _ _) <- emptyDict
-    root <- runReaderT (icode a) newD
-    nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
-    return $ B.encode currentInterfaceVersion `L.append`
-             G.compress (B.encode (root, nL, sL, iL, dL))
+    fileMod <- sourceToModule
+    liftIO $ do
+      newD@(Dict nD sD iD dD _ _ _ _ _) <- emptyDict fileMod
+      root <- runReaderT (icode a) newD
+      nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
+      return $ B.encode currentInterfaceVersion `L.append`
+               G.compress (B.encode (root, nL, sL, iL, dL))
   where l = fmap (List.map fst . List.sortBy (compare `on` snd)) . H.toList
 
-decode :: EmbPrj a => ByteString -> IO a
-decode s | ver /= currentInterfaceVersion = error "Wrong interface version"
-         | otherwise = runReaderT (value r) . env =<< H.new (==) hashInt2
+-- | Decodes something. The result depends on the include path.
+--
+-- Returns 'Nothing' if the input does not start with the right magic
+-- number or some other decoding error is encountered. Note that
+-- corrupt interface files can trigger @__IMPOSSIBLE__@ errors,
+-- though.
+
+decode :: EmbPrj a => ByteString -> TCM (Maybe a)
+decode s | ver /= currentInterfaceVersion = return Nothing
+         | otherwise                      = do
+  (r, st') <- liftIO . runStateT (runErrorT (value r)) =<< st
+  modify $ \s -> s { stModuleToSource = modFile st' }
+  return $ case r of
+    Left  _ -> Nothing
+    Right x -> Just x
   where (ver                , s1, _) = B.runGetState B.get s                 0
         ((r, nL, sL, iL, dL), s2, _) = B.runGetState B.get (G.decompress s1) 0
         ar l = listArray (0, List.length l - 1) l
-        env  = Env (ar nL) (ar sL) (ar iL) (ar dL)
+        st   = St (ar nL) (ar sL) (ar iL) (ar dL)
+                 <$> liftIO (H.new (==) hashInt2)
+                 <*> (stModuleToSource <$> get)
+                 <*> getIncludeDirs
 
-encodeFile :: EmbPrj a => FilePath -> a -> IO ()
-encodeFile f x = L.writeFile f =<< encode x
+-- | Encodes something. To ensure relocatability file paths in
+-- positions are replaced with module names.
 
-decodeFile :: EmbPrj a => FilePath -> IO a
-decodeFile f = decode =<< L.readFile f
+encodeFile :: EmbPrj a
+           => FilePath
+              -- ^ The encoded data is written to this file.
+           -> a
+              -- ^ Something.
+           -> TCM ()
+encodeFile f x = liftIO . L.writeFile f =<< encode x
+
+-- | Decodes something. The result depends on the include path.
+--
+-- Returns 'Nothing' if the file does not start with the right magic
+-- number or some other decoding error is encountered. Note that
+-- corrupt interface files can trigger @__IMPOSSIBLE__@ errors,
+-- though.
+
+decodeFile :: EmbPrj a => FilePath -> TCM (Maybe a)
+decodeFile f = decode =<< liftIO (L.readFile f)
 
 
 instance EmbPrj String where
   icode   = icodeX stringD stringC
-  value i = (! i) `fmap` asks stringE
+  value i = (! i) `fmap` gets stringE
 
 instance EmbPrj Integer where
   icode   = icodeX integerD integerC
-  value i = (! i) `fmap` asks integerE
+  value i = (! i) `fmap` gets integerE
 
 instance EmbPrj Int where
   icode i = return i
@@ -141,7 +190,7 @@ instance EmbPrj Char where
 
 instance EmbPrj Double where
   icode   = icodeX doubleD doubleC
-  value i = (! i) `fmap` asks doubleE
+  value i = (! i) `fmap` gets doubleE
 
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icode (a, b) = icode2' a b
@@ -168,9 +217,31 @@ instance EmbPrj Bool where
                            valu _   = __IMPOSSIBLE__
 
 instance EmbPrj Position where
-  icode (P.Pn file pos line col) = icode4' file pos line col
-  value = vcase valu where valu [f, p, l, c] = valu4 P.Pn f p l c
-                           valu _            = __IMPOSSIBLE__
+  icode (P.Pn file pos line col) = do
+    mm <- M.lookup file . fileMod <$> ask
+    case mm of
+      Just m  -> icode4' m pos line col
+      Nothing -> __IMPOSSIBLE__
+  value = vcase valu
+    where
+    valu [m, p, l, c] = P.Pn <$> value' m <*> value p
+                             <*> value  l <*> value c
+    valu _            = __IMPOSSIBLE__
+
+    value' m = do
+      m       <- value m
+      mf      <- modFile  <$> get
+      incs    <- includes <$> get
+      (r, mf) <- liftIO $ findFile'' incs m mf
+      modify $ \s -> s { modFile = mf }
+      case r of
+        Left files -> throwError $ FileNotFound m files
+        Right f    -> return f
+
+instance EmbPrj TopLevelModuleName where
+  icode (TopLevelModuleName a) = icode1' a
+  value = vcase valu where valu [a] = valu1 TopLevelModuleName a
+                           valu _   = __IMPOSSIBLE__
 
 instance EmbPrj a => EmbPrj [a] where
   icode xs = icodeN =<< mapM icode xs
@@ -587,13 +658,6 @@ instance EmbPrj HP.MetaInfo where
     valu [a, b, c, d] = valu4 HP.MetaInfo a b c d
     valu _            = __IMPOSSIBLE__
 
-instance EmbPrj HP.HighlightingInfo where
-  icode (HP.HighlightingInfo a b) = icode2' a b
-
-  value = vcase valu where
-    valu [a, b] = valu2 HP.HighlightingInfo a b
-    valu _      = __IMPOSSIBLE__
-
 instance EmbPrj Precedence where
   icode TopCtx                 = icode0 0
   icode FunctionSpaceDomainCtx = icode0 1
@@ -648,14 +712,16 @@ icodeN = icodeX nodeD nodeC
 
 vcase :: forall a . EmbPrj a => ([Int] -> R a) -> Int -> R a
 vcase valu ix = do
-    aTyp <- lift $ typeRepKey $ typeOf (undefined :: a)
-    memo <- asks nodeMemo
-    maybeU <- lift $ H.lookup memo (ix, aTyp)
+    memo <- gets nodeMemo
+    (aTyp, maybeU) <- liftIO $ do
+      aTyp   <- typeRepKey $ typeOf (undefined :: a)
+      maybeU <- H.lookup memo (ix, aTyp)
+      return (aTyp, maybeU)
     case maybeU of
       Just (U u) -> maybe (__IMPOSSIBLE__) return (cast u)
       Nothing    -> do
-          v <- valu . (! ix) =<< asks nodeE
-          lift $ H.insert memo (ix, aTyp) (U v)
+          v <- valu . (! ix) =<< gets nodeE
+          liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
 
 icode0  tag                     = icodeN [tag]
@@ -694,19 +760,23 @@ valu8  z a b c d e f g h     = valu7 z a b c d e f g     `ap` value h
 valu9  z a b c d e f g h i   = valu8 z a b c d e f g h   `ap` value i
 valu10 z a b c d e f g h i j = valu9 z a b c d e f g h i `ap` value j
 
-test :: EmbPrj a => a -> IO a
-test x = decode =<< encode x
+-- | Creates an empty dictionary.
 
-emptyDict :: IO Dict
-emptyDict = liftM5 Dict
-            (H.new (==) hashNode)
-            (H.new (==) H.hashString)
-            (H.new (==) (H.hashInt . fromIntegral))
-            (H.new (==) (H.hashInt . floor))
-            (newIORef 0)
-            `ap` (newIORef 0)
-            `ap` (newIORef 0)
-            `ap` (newIORef 0)
+emptyDict :: SourceToModule
+             -- ^ Maps file names to the corresponding module names.
+             -- Must contain a mapping for every file name that is
+             -- later encountered.
+          -> IO Dict
+emptyDict fileMod = Dict
+  <$> H.new (==) hashNode
+  <*> H.new (==) H.hashString
+  <*> H.new (==) (H.hashInt . fromIntegral)
+  <*> H.new (==) (H.hashInt . floor)
+  <*> newIORef 0
+  <*> newIORef 0
+  <*> newIORef 0
+  <*> newIORef 0
+  <*> return fileMod
 
 hashNode :: [ Int ] -> Int32
 hashNode is = List.foldl' f golden is

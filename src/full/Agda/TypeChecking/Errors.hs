@@ -71,10 +71,11 @@ nameWithBinding q =
 
 tcErrString :: TCErr -> String
 tcErrString err = show (getRange err) ++ " " ++ case errError err of
-    TypeError _ cl -> errorString $ clValue cl
-    Exception r s  -> show r ++ " " ++ s
-    PatternErr _   -> "PatternErr"
-    AbortAssign _  -> "AbortAssign"
+    TypeError _ cl  -> errorString $ clValue cl
+    Exception r s   -> show r ++ " " ++ s
+    IOException r e -> show r ++ " " ++ show e
+    PatternErr _    -> "PatternErr"
+    AbortAssign _   -> "AbortAssign"
 
 errorString :: TypeError -> String
 errorString err = case err of
@@ -176,9 +177,10 @@ instance PrettyTCM TCErr where
 	    d <- sayWhen (clTrace e) $ prettyTCM e
 	    put s0
 	    return d
-	Exception r s -> sayWhere r $ fwords s
-	PatternErr _  -> sayWhere err $ panic "uncaught pattern violation"
-	AbortAssign _ -> sayWhere err $ panic "uncaught aborted assignment"
+	Exception r s   -> sayWhere r $ fwords s
+	IOException r e -> sayWhere r $ fwords $ show e
+	PatternErr _    -> sayWhere err $ panic "uncaught pattern violation"
+	AbortAssign _   -> sayWhere err $ panic "uncaught aborted assignment"
 
 instance PrettyTCM TypeError where
     prettyTCM err = do

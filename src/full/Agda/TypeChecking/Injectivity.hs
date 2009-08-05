@@ -187,10 +187,11 @@ useInjectivity cmp a u v = do
             Just h  -> compareTerm cmp a u v
             Nothing -> patternViolation
         `catchError` \err -> case errError err of
-          TypeError _ _ -> throwError err
-          Exception _ _ -> throwError err
-          PatternErr _  -> fallBack
-          AbortAssign _ -> fallBack
+          TypeError   {} -> throwError err
+          Exception   {} -> throwError err
+          IOException {} -> throwError err
+          PatternErr  {} -> fallBack
+          AbortAssign {} -> fallBack
 
     nextMeta = do
       m : ms <- get

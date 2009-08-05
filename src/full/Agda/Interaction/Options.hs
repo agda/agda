@@ -234,13 +234,13 @@ standardOptions =
 		    "the CSS file used by the HTML files (can be relative)"
     , Option []	    ["ignore-interfaces"] (NoArg ignoreInterfacesFlag)
 		    "ignore interface files (re-type check everything)"
+    , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
+		    "look for imports in DIR"
     ] ++ pragmaOptions
 
 pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
 pragmaOptions =
-    [ Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
-		    "look for imports in DIR"
-    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+    [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"

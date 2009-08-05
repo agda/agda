@@ -1,5 +1,3 @@
-{-# OPTIONS -i ../lib #-}
-
 module DecidableOrder where
 
 open import Logic.Relations

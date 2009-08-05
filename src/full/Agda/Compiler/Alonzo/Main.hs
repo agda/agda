@@ -99,7 +99,7 @@ flattenSubmodules q = do
   ifM (fromCurrentModule q)
       (return q)
   $ do
-    topModules <- map (iModuleName . fst) . Map.elems <$>
+    topModules <- map (iModuleName . miInterface) . Map.elems <$>
                     getVisitedModules
     case filter (isInModule q) topModules of
       [top]     -> return $ q { qnameModule = top }

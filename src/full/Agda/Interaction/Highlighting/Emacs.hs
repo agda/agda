@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Functions which give precise syntax highlighting info to Emacs.
 
 module Agda.Interaction.Highlighting.Emacs
@@ -5,10 +7,10 @@ module Agda.Interaction.Highlighting.Emacs
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
+import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
 import Agda.Interaction.Highlighting.Generate
-import Agda.TypeChecking.Monad (TCM, TCErr)
 import Agda.Syntax.Abstract (QName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
@@ -18,8 +20,12 @@ import Agda.Utils.FileName
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
 
+import Agda.Utils.Impossible
+#include "../../undefined.h"
+
 import Control.Monad.Trans
 import Data.List
+import qualified Data.Map as Map
 import Data.Char
 import Data.Maybe
 import qualified System.IO.UTF8 as UTF8
@@ -49,8 +55,11 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
 -- | Shows meta information in such a way that it can easily be read
 -- by Emacs.
 
-showMetaInfo :: (Range, MetaInfo) -> String
-showMetaInfo (r, m) =
+showMetaInfo :: ModuleToSource
+                -- ^ Must contain a mapping for the definition site's
+                -- module, if any.
+             -> (Range, MetaInfo) -> String
+showMetaInfo modFile (r, m) =
      "("
   ++ show (from r)
   ++ " "
@@ -59,17 +68,25 @@ showMetaInfo (r, m) =
   ++ concat (intersperse " " (toAtoms m))
   ++ ")"
   ++ (maybe " nil" ((" " ++) . quote) $ note m)
-  ++ (maybe ""
-            (\(_, f, p) -> " (" ++ quote f ++ " . " ++ show p ++ ")")
-        $ definitionSite m)
+  ++ defSite
   ++ ")"
+  where
+  defSite = case definitionSite m of
+    Nothing     -> ""
+    Just (m, p) -> case Map.lookup m modFile of
+      Nothing -> __IMPOSSIBLE__
+      Just f  -> " (" ++ quote f ++ " . " ++ show p ++ ")"
 
 -- | Shows syntax highlighting information in an Emacsy fashion.
 
-showHighlightingInfo :: Maybe HighlightingInfo -> String
-showHighlightingInfo Nothing  = ""
-showHighlightingInfo (Just h) =
-  "(" ++ unlines (map showMetaInfo $ info h) ++ ")"
+showHighlightingInfo
+  :: Maybe (HighlightingInfo, ModuleToSource)
+     -- ^ The 'ModuleToSource' must contain a mapping for every
+     -- definition site's module.
+  -> String
+showHighlightingInfo Nothing             = ""
+showHighlightingInfo (Just (h, modFile)) =
+  "(" ++ unlines (map (showMetaInfo modFile) h) ++ ")"
 
 ------------------------------------------------------------------------
 -- All tests

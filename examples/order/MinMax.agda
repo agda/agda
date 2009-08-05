@@ -1,5 +1,3 @@
-{-# OPTIONS -i ../lib #-}
-
 module MinMax where
 
 open import Prelude

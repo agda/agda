@@ -4,7 +4,7 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler term1 term2 term3 html1 html2
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler relocatable-interfaces term1 term2 term3 html1 html2
 
 agda = $(AGDA_BIN)
 
@@ -118,6 +118,20 @@ compiler : MAlonzo/main.agda
 	@$(echo) :q | $(run_agda) --compile --malonzo-dir=MAlonzo -iMAlonzo $<
 	@./MAlonzo/main
 	@$(echo) "ok"
+
+relocatable-interfaces : relocatable/originals/*.agda
+	-@rm -rf relocatable/copies
+	@$(echo) "Testing that interface files are relocatable"
+	@$(agda) --ignore-interfaces -irelocatable/originals relocatable/originals/C.agda
+	@cp -a relocatable/originals relocatable/copies
+	@touch -d '+ 1 seconds' relocatable/copies/B.agda
+	@sleep 2
+        # Type checking succeeds...
+	@$(agda) -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
+	@cat relocatable/copies/output
+        # ...and skips one of the modules (A).
+	@[ `grep ^Skipping relocatable/copies/output | wc -l` = 1 ]
+	@rm -rf relocatable/copies
 
 html1 : AIM6/RegExp/talk/Everything.agda
 	@$(echo) "Testing HTML generation in the default directory"

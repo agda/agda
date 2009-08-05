@@ -7,7 +7,7 @@ module Agda.TypeChecking.Monad.Base where
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
-import Control.OldException
+import qualified Control.OldException as E
 import Control.Applicative
 import Data.Map as Map
 import Data.Set as Set
@@ -25,6 +25,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.Exceptions
+import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
@@ -49,6 +50,7 @@ data TCState =
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
+         , stModuleToSource    :: ModuleToSource
 	 , stVisitedModules    :: VisitedModules
 	 , stDecodedModules    :: DecodedModules
          , stCurrentModule     :: Maybe ModuleName
@@ -86,6 +88,7 @@ initState =
 	 , stSignature	       = emptySignature
 	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty
+         , stModuleToSource    = Map.empty
 	 , stVisitedModules    = Map.empty
 	 , stDecodedModules    = Map.empty
          , stCurrentModule     = Nothing
@@ -141,7 +144,20 @@ instance HasFresh i FreshThings => HasFresh i TCState where
 -- ** Interface
 ---------------------------------------------------------------------------
 
-type VisitedModules = Map C.TopLevelModuleName (Interface, ClockTime)
+data ModuleInfo = ModuleInfo
+  { miInterface  :: Interface
+  , miWarnings   :: Bool
+    -- ^ 'True' if warnings were encountered when the module was type
+    -- checked.
+  , miTimeStamp  :: ClockTime
+    -- ^ The modification time stamp of the interface file when the
+    -- interface was read or written. Alternatively, if warnings were
+    -- encountered (in which case there may not be any up-to-date
+    -- interface file), the time at which the interface was produced
+    -- (approximately).
+  }
+
+type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 
 data Interface = Interface
@@ -812,10 +828,15 @@ data TypeError
     -- Usage errors
           deriving (Typeable)
 
+instance Error TypeError where
+    noMsg  = strMsg ""
+    strMsg = GenericError
+
 -- | Type-checking errors.
 
 data TCErr' = TypeError TCState (Closure TypeError)
 	    | Exception Range String
+            | IOException Range E.IOException
 	    | PatternErr  TCState -- ^ for pattern violations
 	    | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
   deriving (Typeable)
@@ -824,7 +845,9 @@ data TCErr' = TypeError TCState (Closure TypeError)
 -- highlighting information.
 
 data TCErr =
-  TCErr { errHighlighting :: Maybe HighlightingInfo
+  TCErr { errHighlighting :: Maybe (HighlightingInfo, ModuleToSource)
+          -- ^ The 'ModuleToSource' can be used to map the module
+          -- names in the 'HighlightingInfo' to file names.
         , errError        :: TCErr'
         }
   deriving (Typeable)
@@ -842,10 +865,11 @@ instance Show TCErr where
 -}
 
 instance HasRange TCErr' where
-    getRange (TypeError _ cl) = getRange $ clTrace cl
-    getRange (Exception r _)  = r
-    getRange (PatternErr s)   = getRange $ stTrace s
-    getRange (AbortAssign s)  = getRange $ stTrace s
+    getRange (TypeError _ cl)  = getRange $ clTrace cl
+    getRange (Exception r _)   = r
+    getRange (IOException r _) = r
+    getRange (PatternErr s)    = getRange $ stTrace s
+    getRange (AbortAssign s)   = getRange $ stTrace s
 
 instance HasRange TCErr where
     getRange = getRange . errError
@@ -903,16 +927,16 @@ instance MonadIO m => Applicative (TCMT m) where
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ do tr <- gets stTrace
                       lift $ lift $ lift $ ErrorT $ liftIO $
-                        handle (handleIOException $ getRange tr)
+                        E.handle (handleIOException $ getRange tr)
                         (failOnException
                          (\r -> return . throwError .
                                   TCErr Nothing . Exception r)
                          (return <$> m))
     where
       handleIOException r e = case e of
-        IOException _ -> return . throwError .
-                           TCErr Nothing . Exception r . show $ e
-        _             -> throwIO e
+        E.IOException e -> return $ throwError $
+                             TCErr Nothing $ IOException r e
+        _               -> E.throwIO e
 
 patternViolation :: MonadTCM tcm => tcm a
 patternViolation = liftTCM $ do
@@ -930,7 +954,7 @@ typeError err = liftTCM $ do
 
 handleTypeErrorException :: MonadTCM tcm => IO a -> tcm a
 handleTypeErrorException m = do
-    r <- liftIO $ liftM Right m `catchDyn` (return . Left)
+    r <- liftIO $ liftM Right m `E.catchDyn` (return . Left)
     either typeError return r
 
 -- | Running the type checking monad

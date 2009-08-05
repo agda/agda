@@ -233,7 +233,6 @@ data OpenShortHand = DoOpen | DontOpen
 
 data Pragma = OptionsPragma     !Range [String]
 	    | BuiltinPragma     !Range String Expr
-	    | LinePragma        !Range Int String
             | CompiledDataPragma !Range QName String [String]
             | CompiledTypePragma !Range QName String
             | CompiledPragma    !Range QName String
@@ -356,7 +355,6 @@ instance HasRange RHS where
 instance HasRange Pragma where
     getRange (OptionsPragma r _)          = r
     getRange (BuiltinPragma r _ _)        = r
-    getRange (LinePragma r _ _)           = r
     getRange (CompiledDataPragma r _ _ _) = r
     getRange (CompiledTypePragma r _ _)   = r
     getRange (CompiledPragma r _ _)       = r

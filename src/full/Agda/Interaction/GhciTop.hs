@@ -78,6 +78,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Abstract.Name
 
 import Agda.Interaction.Exceptions
+import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.MakeCase
 import qualified Agda.Interaction.BasicOps as B
@@ -185,16 +186,20 @@ ioTCM current highlightingFile cmd = infoOnException $ do
     Just f  -> do
       let errHi e s = errHighlighting e
                         `mplus`
-                      generateErrorInfo (getRange e) s
-      UTF8.writeFile f $ showHighlightingInfo $
-        case r of
-          Right (Right (mm, st', _)) -> do
-            m      <- mm
-            (i, _) <- Map.lookup (SA.toTopLevelModuleName m)
-                                 (stVisitedModules st')
-            return $ iHighlighting i
-          Right (Left (s, e)) -> errHi e (Just s)
-          Left e              -> errHi e Nothing
+                      ((\h -> (h, Map.empty)) <$>
+                           generateErrorInfo (getRange e) s)
+      UTF8.writeFile f $
+        showHighlightingInfo $
+          case r of
+            Right (Right (mm, st', _)) -> do
+              m  <- mm
+              mi <- Map.lookup (SA.toTopLevelModuleName m)
+                               (stVisitedModules st')
+              return ( iHighlighting $ miInterface mi
+                     , stModuleToSource st'
+                     )
+            Right (Left (s, e)) -> errHi e (Just s)
+            Left e              -> errHi e Nothing
 
   -- If an error was encountered, display an error message and exit
   -- with an error code.
@@ -220,33 +225,38 @@ cmd_load m includes =
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
-          -> ((Interface, Either Imp.Warnings ClockTime) -> TCM ())
+          -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
 cmd_load' file includes unsolvedOK cmd = Interaction True $ do
+  clearUndoHistory
+
   -- canonicalizePath seems to return absolute paths.
   file <- liftIO $ canonicalizePath file
 
-  clearUndoHistory
-  preserveDecodedModules resetState
-  decodedModules <- stDecodedModules <$> get
-  setUndo
-
-  -- All options are reset when a file is reloaded,
-  -- including the choice of whether or not to display
-  -- implicit arguments.
+  -- All options are reset when a file is reloaded, including the
+  -- choice of whether or not to display implicit arguments.
+  oldIncs <- getIncludeDirs
   setCommandLineOptions $
     defaultOptions { optAllowUnsolved = unsolvedOK
                    , optIncludeDirs   = includes
                    }
-  ok <- Imp.typeCheck file Imp.ProjectRoot
 
-  -- The module type checked, so let us store the
-  -- interaction points and update the \"current file\".
+  -- Reset the state, preserving options and decoded modules. Note
+  -- that Imp.typeCheck resets the decoded modules if the include
+  -- directories have changed.
+  preserveDecodedModules resetState
+  setUndo
+
+  ok <- Imp.typeCheck file Imp.ProjectRoot (Just oldIncs)
+
+  -- The module type checked, so let us store the interaction points
+  -- and update the \"current file\".
   is <- sortInteractionPoints =<< getInteractionPoints
   liftIO $ modifyIORef theState $ \s ->
     s { theInteractionPoints = is
       , theCurrentFile       = Just file
       }
+
   cmd ok
 
   liftIO System.performGC
@@ -258,13 +268,13 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
 
 cmd_compile :: FilePath -> [FilePath] -> Interaction
 cmd_compile file includes =
-  cmd_load' file includes False (\(i, wt) ->
-    case wt of
-      Right t -> do
+  cmd_load' file includes False (\(i, mw) ->
+    case mw of
+      Nothing -> do
         MAlonzo.compilerMain i
         display_info "*Compilation result*"
                    "The module was successfully compiled."
-      Left w ->
+      Just w ->
         display_info errorTitle $ unlines
           [ "You can only compile modules without unsolved metavariables"
           , "or termination checking problems."
@@ -648,9 +658,9 @@ parseAndDoAtToplevel cmd title s = Interaction False $ do
         r <- getVisitedModule (SA.toTopLevelModuleName current)
         case r of
           Nothing     -> __IMPOSSIBLE__
-          Just (i, t) -> do
-            setScope     $ iInsideScope i
-            setSignature $ iSignature   i
+          Just mi -> do
+            setScope     $ iInsideScope $ miInterface mi
+            setSignature $ iSignature   $ miInterface mi
             showA =<< cmd =<< concreteToAbstract_ e
   return Nothing
 
@@ -692,16 +702,19 @@ cmd_write_highlighting_info source target = Interaction True $ do
     case ex of
       False -> return Nothing
       True  -> do
-        mit <- (getVisitedModule =<<
-                  Imp.moduleName source Imp.ProjectRoot)
+        mmi <- (getVisitedModule =<< Imp.moduleName source)
                  `catchError`
                \_ -> return Nothing
-        case mit of
+        case mmi of
           Nothing     -> return Nothing
-          Just (i, t) -> do
+          Just mi -> do
             sourceT <- liftIO $ getModificationTime source
-            return $ if sourceT <= t then Just (iHighlighting i)
-                                     else Nothing
+            if sourceT <= miTimeStamp mi
+             then do
+              modFile <- stModuleToSource <$> get
+              return $ Just (iHighlighting $ miInterface mi, modFile)
+             else
+              return Nothing
   return Nothing
 
 -- | Returns the interaction ids for all goals in the current module,
@@ -719,7 +732,7 @@ cmd_goals f = Interaction True $ do
     case ex of
       False -> return []
       True  -> do
-        mm       <- (Just <$> Imp.moduleName f Imp.ProjectRoot)
+        mm       <- (Just <$> Imp.moduleName f)
                       `catchError`
                     \_ -> return Nothing
         mCurrent <- stCurrentModule <$> get

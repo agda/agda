@@ -17,7 +17,6 @@ import Data.List
 import Data.Map (Map)
 import System.Directory
 import System.Time
-import Control.OldException
 import qualified System.IO.UTF8 as UTF8
 import System.FilePath hiding (splitPath)
 
@@ -39,6 +38,7 @@ import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
+import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
@@ -53,11 +53,33 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
--- | Converts an Agda file name to the corresponding interface file
--- name.
+-- | Which directory should form the base of relative include paths?
 
-toIFile :: FilePath -> FilePath
-toIFile = setExtension ".agdai"
+data RelativeTo
+  = ProjectRoot
+    -- ^ The root directory of the \"project\" containing the current
+    -- file.
+  | CurrentDir
+    -- ^ The current working directory.
+
+-- | A variant of 'moduleName'' which raises an error if the file name
+-- does not match the module name.
+
+moduleName :: FilePath -> TCM C.TopLevelModuleName
+moduleName file = do
+  m <- moduleName' file
+  checkModuleName m file
+  return m
+
+-- | Computes the module name of the top-level module in the given
+-- file.
+--
+-- The file name is interpreted relative to the current working
+-- directory (unless it is absolute).
+
+moduleName' :: FilePath -> TCM C.TopLevelModuleName
+moduleName' file =
+  C.topLevelModuleName <$> liftIO (parseFile' moduleParser file)
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -95,45 +117,6 @@ addImportedThings isig ibuiltin =
     , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
     }
 
--- TODO: move
-data FileType = SourceFile | InterfaceFile
-
--- | Finds the source or interface file corresponding to a given
--- top-level module name. The returned paths are absolute.
---
--- Raises an error if the file cannot be found.
-
-findFile :: FileType -> C.TopLevelModuleName -> TCM FilePath
-findFile ft m = do
-  mf <- findFile' ft m
-  case mf of
-    Left files -> typeError $ FileNotFound m files
-    Right f    -> return f
-
--- | Finds the source or interface file corresponding to a given
--- top-level module name. The returned paths are absolute.
---
--- Returns @'Left' files@ if the file cannot be found, where @files@
--- is the list of files which the module could have been defined in.
-
-findFile' :: FileType -> C.TopLevelModuleName ->
-             TCM (Either [FilePath] FilePath)
-findFile' ft m = do
-    dirs <- getIncludeDirs
-    let files = [ dir ++ [slash] ++ file
-		| dir  <- dirs
-		, file <- map (C.moduleNameToFileName m) exts
-		]
-    files' <- liftIO $ filterM doesFileExist files
-    files' <- liftIO $ nubFiles files'
-    return $ case files' of
-	[]	-> Left files
-	file:_	-> Right file
-    where
-	exts = case ft of
-		SourceFile    -> [".agda", ".lagda"]
-		InterfaceFile -> [".agdai"]
-
 -- | Scope checks the given module. A proper version of the module
 -- name (with correct definition sites) is returned.
 
@@ -144,14 +127,14 @@ scopeCheckImport x = do
       visited <- Map.keys <$> getVisitedModules
       liftIO $ UTF8.putStrLn $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
-    (i,t)   <- getInterface x
+    i <- fst <$> getInterface x
     addImport x
     return (iModuleName i `withRangesOfQ` mnameToConcrete x, iScope i)
 
--- | If the module has already been visited, then its interface is
--- returned directly. Otherwise the computation is used to find the
--- interface and the computed interface is stored for potential later
--- use.
+-- | If the module has already been visited (without warnings), then
+-- its interface is returned directly. Otherwise the computation is
+-- used to find the interface and the computed interface is stored for
+-- potential later use.
 
 alreadyVisited :: C.TopLevelModuleName ->
                   TCM (Interface, Either Warnings ClockTime) ->
@@ -159,26 +142,30 @@ alreadyVisited :: C.TopLevelModuleName ->
 alreadyVisited x getIface = do
     mm <- getVisitedModule x
     case mm of
-	Just (i, t) -> do
-            reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
-            return (i, Right t)
-	Nothing	-> do
-	    reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
-	    r@(i, wt) <- getIface
-	    reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
-            case wt of
-              Left w  -> visitModule i =<< liftIO getClockTime
-              Right t -> visitModule i t
-	    return r
-
--- | Which directory should form the base of relative include paths?
-
-data RelativeTo
-  = ProjectRoot
-    -- ^ The root directory of the \"project\" containing the current
-    -- file.
-  | CurrentDir
-    -- ^ The current working directory.
+        -- A module with warnings should never be allowed to be
+        -- imported from another module.
+	Just mi | not (miWarnings mi) -> do
+          reportSLn "import.visit" 10 $ "  Already visited " ++ render (pretty x)
+          return (miInterface mi, Right $ miTimeStamp mi)
+	_ -> do
+          reportSLn "import.visit" 5 $ "  Getting interface for " ++ render (pretty x)
+          r@(i, wt) <- getIface
+          reportSLn "import.visit" 5 $ "  Now we've looked at " ++ render (pretty x)
+          case wt of
+            Left _ -> do
+              t <- liftIO getClockTime
+              visitModule $ ModuleInfo
+                { miInterface  = i
+                , miWarnings   = True
+                , miTimeStamp  = t
+                }
+            Right t ->
+              visitModule $ ModuleInfo
+                { miInterface  = i
+                , miWarnings   = False
+                , miTimeStamp  = t
+                }
+          return r
 
 -- | Warnings.
 --
@@ -201,47 +188,42 @@ warningsToError (Warnings [] [])     = __IMPOSSIBLE__
 warningsToError (Warnings _ w@(_:_)) = UnsolvedMetas w
 warningsToError (Warnings w@(_:_) _) = TerminationCheckFailed w
 
--- | Type checks the given file (if necessary), after making relative
--- include directories absolute.
-
--- Note that the given file may be parsed twice: once to find the
--- module name, and once again if the module needs to be type checked.
+-- | Type checks the given module (if necessary).
+--
+-- The function also makes relative directories absolute, based on the
+-- 'RelativeTo' argument. If this argument is 'ProjectRoot', then the
+-- \"current file\" is taken to be the one given as the first
+-- argument.
 
 typeCheck :: FilePath
           -- ^ The file name is interpreted relative to the current
           -- working directory (unless it is absolute).
           -> RelativeTo
-          -> TCM (Interface, Either Warnings ClockTime)
-typeCheck file relativeTo = do
-  -- canonicalizePath seems to return absolute paths.
-  file <- liftIO $ canonicalizePath file
+          -> Maybe [FilePath]
+          -- ^ If this argument is given, and it does not coincide
+          -- with the new value of the include directories (after
+          -- making them absolute), the state is reset (but the
+          -- command-line options are preserved).
+          -> TCM (Interface, Maybe Warnings)
+typeCheck f relativeTo oldIncs = do
+  m <- moduleName' f
 
-  topLevelName <- moduleName file relativeTo
-
-  getInterface' topLevelName True
-
--- | Computes the module name of the top-level module in the given
--- file. An error is raised if the file name does not match the module
--- name.
---
--- The function also makes relative include directories absolute.
-
-moduleName :: FilePath
-           -- ^ The file name is interpreted relative to the current
-           -- working directory (unless it is absolute).
-           -> RelativeTo
-           -> TCM C.TopLevelModuleName
-moduleName file relativeTo = do
-  m <- C.topLevelModuleName <$> liftIO (parseFile' moduleParser file)
-
-  -- Make all the include directories absolute.
   makeIncludeDirsAbsolute =<< case relativeTo of
     CurrentDir  -> liftIO getCurrentDirectory
-    ProjectRoot -> return $ C.projectRoot file m
+    ProjectRoot -> return $ C.projectRoot f m
 
-  checkModuleName m file
+  -- If the include directories have changed the state is reset.
+  incs <- getIncludeDirs
+  case oldIncs of
+    Just incs' | incs' /= incs -> resetState
+    _                          -> return ()
 
-  return m
+  checkModuleName m f
+
+  (i, wt) <- getInterface' m True
+  return (i, case wt of
+    Left w  -> Just w
+    Right _ -> Nothing)
 
 -- | Tries to return the interface associated to the given module. The
 -- time stamp of the relevant interface file is also returned. May
@@ -266,7 +248,7 @@ getInterface' :: C.TopLevelModuleName
               -> TCM (Interface, Either Warnings ClockTime)
 getInterface' x includeStateChanges =
   alreadyVisited x $ addImportCycleCheck x $ do
-    file <- findFile SourceFile x  -- requires source to exist
+    file <- findFile x  -- requires source to exist
 
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
@@ -279,9 +261,9 @@ getInterface' x includeStateChanges =
       "  " ++ render (pretty x) ++ " is " ++
       (if uptodate then "" else "not ") ++ "up-to-date."
 
-    r@(i, wt) <- if uptodate
-	         then skip x file
-	         else typeCheck file
+    (i, wt) <- if uptodate
+	       then skip x file
+	       else typeCheck file
 
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
@@ -290,11 +272,12 @@ getInterface' x includeStateChanges =
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
 
+    -- Interfaces are only stored if no warnings were encountered.
     case wt of
-      Left  w -> storeDecodedModule i =<< liftIO getClockTime
+      Left  w -> return ()
       Right t -> storeDecodedModule i t
 
-    return r
+    return (i, wt)
 
     where
 	skip x file = do
@@ -305,16 +288,16 @@ getInterface' x includeStateChanges =
 	    t  <- liftIO $ getModificationTime ifile
 	    mm <- getDecodedModule x
 	    mi <- case mm of
-		      Just (im, tm) ->
-			 if tm < t
+		      Just (mi, mt) ->
+			 if mt < t
 			 then do dropDecodedModule x
 				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-				 liftIO $ readInterface ifile
+				 readInterface ifile
 			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
-				 return (Just im)
+				 return (Just mi)
 		      Nothing ->
 			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-			    liftIO $ readInterface ifile
+			    readInterface ifile
 
 	    -- Check that it's the right version
 	    case mi of
@@ -343,6 +326,7 @@ getInterface' x includeStateChanges =
               createInterface file x
              else do
               ms       <- getImportPath
+              mf       <- stModuleToSource <$> get
               vs       <- getVisitedModules
               ds       <- getDecodedModules
               opts     <- commandLineOptions
@@ -355,16 +339,19 @@ getInterface' x includeStateChanges =
                        setDecodedModules ds
                        setTrace trace
                        setCommandLineOptions opts
+                       modify $ \s -> s { stModuleToSource = mf }
                        setVisitedModules vs
                        addImportedThings isig ibuiltin
 
                        r <- createInterface file x
 
+                       mf       <- stModuleToSource <$> get
                        vs       <- getVisitedModules
                        ds       <- getDecodedModules
                        isig     <- getImportedSignature
                        ibuiltin <- gets stImportedBuiltins
                        return $ (r, do
+                         modify $ \s -> s { stModuleToSource = mf }
                          setVisitedModules vs
                          setDecodedModules ds
                          addImportedThings isig ibuiltin)
@@ -375,41 +362,40 @@ getInterface' x includeStateChanges =
                     update
                     return result
 
-readInterface :: FilePath -> IO (Maybe Interface)
+readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
-    (s, close) <- readBinaryFile' file
+    (s, close) <- liftIO $ readBinaryFile' file
     do  i <- decode s
 
         -- Force the entire string, to allow the file to be closed.
         let n = BS.length s
         () <- when (n == n) $ return ()
 
-        -- Close the file
-        close
+        -- Close the file.
+        liftIO close
 
-	-- Force the interface to make sure the interface version is looked at
-        i `seq` return $ Just i
+	-- Force the interface to make sure the interface version is
+	-- looked at.
+        liftIO $ return $! i
       -- Catch exceptions and close
-      `catch` \e -> close >> handler e
+      `catchError` \e -> liftIO close >> handler e
   -- Catch exceptions
-  `catch` handler
+  `catchError` handler
   where
-    handler e = case e of
-      ErrorCall _   -> return Nothing
-      IOException e -> do
-          UTF8.putStrLn $ "IO exception: " ++ show e
-          return Nothing   -- work-around for file locking bug
-      _		    -> throwIO e
+    handler e = case errError e of
+      IOException _ e -> do
+        liftIO $ UTF8.putStrLn $ "IO exception: " ++ show e
+        return Nothing   -- work-around for file locking bug
+      _               -> throwError e
 
 -- | Writes the given interface to the given file. Returns the file's
 -- new modification time stamp, or 'Nothing' if the write failed.
 
 writeInterface :: FilePath -> Interface -> TCM ClockTime
-writeInterface file i =
-  liftIO (do
+writeInterface file i = do
     encodeFile file i
-    getModificationTime file)
+    liftIO $ getModificationTime file
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ file ++ "."
@@ -471,11 +457,13 @@ createInterface file mname
         case rStart $ getRange e of
           Just (Pn { srcFile = f }) | f == file -> do
             syntaxInfo <- generateSyntaxInfo file (Just e) topLevel []
+            modFile    <- stModuleToSource <$> get
             -- The highlighting info is included with the error.
             case errHighlighting e of
               Just _  -> __IMPOSSIBLE__
               Nothing ->
-                throwError $ e { errHighlighting = Just syntaxInfo }
+                throwError $ e { errHighlighting =
+                                   Just (syntaxInfo, modFile) }
           _ -> throwError e
       )
 
@@ -502,8 +490,8 @@ createInterface file mname
     i <- buildInterface topLevel syntaxInfo
 
     if null termErrs && null unsolvedMetas then do
-      -- The file was successfully and completely type-checked, so the
-      -- interface should be written out.
+      -- The file was successfully type-checked (and no warnings were
+      -- encountered), so the interface should be written out.
       t <- writeInterface (toIFile file) i
       return (i, Right t)
      else
@@ -553,23 +541,3 @@ isNewerThan new old = do
 	    newT <- getModificationTime new
 	    oldT <- getModificationTime old
 	    return $ newT >= oldT
-
--- | Ensures that the module name matches the file name. The file
--- corresponding to the module name (according to the include path)
--- has to be the same as the given file name.
-
-checkModuleName :: C.TopLevelModuleName
-                   -- ^ The name of the module.
-                -> FilePath
-                   -- ^ The file from which it was loaded.
-                -> TCM ()
-checkModuleName name file = do
-  moduleShouldBeIn <- findFile' SourceFile name
-  case moduleShouldBeIn of
-    Left files  -> typeError $
-                     ModuleNameDoesntMatchFileName name files
-    Right file' -> if file' == file then
-                     return ()
-                    else
-                     typeError $
-                       ModuleDefinedInOtherFile name file file'

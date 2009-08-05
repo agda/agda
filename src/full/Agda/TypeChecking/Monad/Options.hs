@@ -21,8 +21,11 @@ import qualified Agda.Utils.Trie as Trie
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
--- | Sets the command line options. Ensures that the 'optInputFile'
--- field contains an absolute path.
+-- | Sets the command line options.
+--
+-- Ensures that the 'optInputFile' field contains an absolute path.
+--
+-- An empty list of include directories is interpreted as @["."]@.
 
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
@@ -35,7 +38,12 @@ setCommandLineOptions opts =
           -- canonicalizePath seems to return absolute paths.
           f <- liftIO $ canonicalizePath f
           return (opts { optInputFile = Just f })
-      liftTCM $ modify $ \s -> s { stOptions = opts }
+      liftTCM $ modify $ \s -> s { stOptions =
+          opts { optIncludeDirs = case optIncludeDirs opts of
+            [] -> ["."]
+            is -> is
+          }
+        }
 
 commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
 commandLineOptions = liftTCM $ gets stOptions
@@ -76,25 +84,19 @@ shouldReifyInteractionPoints = asks envReifyInteractionPoints
 -- | Gets the include directories.
 
 getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
-getIncludeDirs = addDot . optIncludeDirs <$> commandLineOptions
-    where
-	addDot [] = ["."]   -- if there are no include dirs we use .
-	addDot is = is
+getIncludeDirs = optIncludeDirs <$> commandLineOptions
 
--- | Sets the include directories.
+-- | Makes the include directories absolute.
+--
+-- Relative directories are made absolute with respect to the given
+-- path.
 
-setIncludeDirs :: MonadTCM tcm => [FilePath] -> tcm ()
-setIncludeDirs includes = do
-  opts <- commandLineOptions
-  setCommandLineOptions $ opts { optIncludeDirs = includes }
-
--- | Makes relative include directories absolute with respect to the
--- given path.
-
-makeIncludeDirsAbsolute :: FilePath -> TCM ()
+makeIncludeDirsAbsolute :: MonadTCM tcm => FilePath -> tcm ()
 makeIncludeDirsAbsolute root = do
-  absolute <- map (root </>) <$> getIncludeDirs
-  setIncludeDirs absolute
+  opts <- commandLineOptions
+  setCommandLineOptions $ opts { optIncludeDirs =
+      map (root </>) $ optIncludeDirs opts
+    }
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =

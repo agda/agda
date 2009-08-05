@@ -5,11 +5,15 @@
 -}
 module Agda.Syntax.Concrete.Name where
 
+import Control.Applicative
+
 import Data.List
 import Data.Maybe
 import Data.Generics (Typeable, Data)
 
 import System.FilePath
+
+import Test.QuickCheck
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -125,7 +129,7 @@ data QName = Qual  Name QName
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Typeable, Data)
 
 -- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
 -- name is assumed to represent a top-level module name.
@@ -180,6 +184,12 @@ instance Show QName where
 
 instance Pretty TopLevelModuleName where
   pretty (TopLevelModuleName ms) = text $ intercalate "." ms
+
+instance Arbitrary TopLevelModuleName where
+  arbitrary = TopLevelModuleName <$> listOf1 (listOf1 $ elements "AB")
+
+instance CoArbitrary TopLevelModuleName where
+  coarbitrary (TopLevelModuleName m) = coarbitrary m
 
 instance HasRange Name where
     getRange (Name r ps)  = r

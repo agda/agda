@@ -629,7 +629,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.BuiltinPragma _ b e) = do
         e <- toAbstract e
         return [ A.BuiltinPragma b e ]
-    toAbstract (C.LinePragma _ _ _) = return []
     toAbstract (C.ImportPragma _ i) = do
       addHaskellImport i
       return []

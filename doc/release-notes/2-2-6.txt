@@ -19,6 +19,10 @@ Language
     postulate
       A B : Set
 
+* Line pragmas are no longer supported.
+
+* The --include-path flag can no longer be used as a pragma.
+
 Tools
 -----
 
@@ -36,6 +40,12 @@ Tools
   current project. (As an example, if the module A.B.C is loaded from
   the file <some-path>/A/B/C.agda, then the root directory is
   <some-path>.)
+
+* Interface files are now relocatable. You can move around source
+  trees as long as the include path is updated in a corresponding way.
+  Note that a module M may be re-typechecked if its time stamp is
+  strictly newer than that of the corresponding interface file
+  (M.agdai).
 
 * Type-checking is no longer done when an up-to-date interface exists.
   (Previously the initial module was always type-checked.)

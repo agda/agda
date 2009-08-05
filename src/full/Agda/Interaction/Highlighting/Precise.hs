@@ -8,7 +8,7 @@ module Agda.Interaction.Highlighting.Precise
   , OtherAspect(..)
   , MetaInfo(..)
   , File
-  , HighlightingInfo(..)
+  , HighlightingInfo
   , singleton
   , several
   , smallestPos
@@ -33,6 +33,7 @@ import Data.Generics
 
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Common as C
+import qualified Agda.Syntax.Concrete as SC
 
 import Agda.Interaction.Highlighting.Range
 
@@ -88,11 +89,9 @@ data MetaInfo = MetaInfo
     -- something like that. It should contain useful information about
     -- the range (like the module containing a certain identifier, or
     -- the fixity of an operator).
-  , definitionSite :: Maybe ([String], FilePath, Integer)
+  , definitionSite :: Maybe (SC.TopLevelModuleName, Integer)
     -- ^ The definition site of the annotated thing, if applicable and
-    --   known. File positions are counted from 1. The list of strings
-    --   is the name of the /top-level/ module in which the thing is
-    --   defined.
+    --   known. File positions are counted from 1.
   }
   deriving (Eq, Show, Typeable, Data)
 
@@ -110,13 +109,7 @@ smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
 
 -- | Syntax highlighting information for a given source file.
 
-data HighlightingInfo =
-  HighlightingInfo { source :: FilePath
-                     -- ^ The source file.
-                   , info :: CompressedFile
-                     -- ^ Highlighting info.
-                   }
-  deriving (Typeable, Data)
+type HighlightingInfo = CompressedFile
 
 ------------------------------------------------------------------------
 -- Creation
@@ -275,10 +268,10 @@ instance CoArbitrary OtherAspect where
 
 instance Arbitrary MetaInfo where
   arbitrary = do
-    aspect  <- maybeGen arbitrary
+    aspect  <- arbitrary
     other   <- arbitrary
     note    <- maybeGen string
-    defSite <- maybeGen (liftM3 (,,) (listOf string) string arbitrary)
+    defSite <- arbitrary
     return (MetaInfo { aspect = aspect, otherAspects = other
                      , note = note, definitionSite = defSite })
     where string = listOfElements "abcdefABCDEF/\\.\"'@()åäö\n"

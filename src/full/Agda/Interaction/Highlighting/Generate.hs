@@ -9,6 +9,7 @@ module Agda.Interaction.Highlighting.Generate
   )
   where
 
+import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
 import qualified Agda.TypeChecking.Errors as E
@@ -61,11 +62,8 @@ generateErrorInfo r s =
   case P.rStart r of
     Nothing                                     -> Nothing
     Just (P.Pn { P.srcFile = "" })              -> Nothing
-    Just (P.Pn { P.srcFile = f, P.posPos = p }) -> Just $
-      HighlightingInfo
-        { source = f
-        , info   = compress $ generateErrorFile r s
-        }
+    Just (P.Pn { P.srcFile = f, P.posPos = p }) ->
+      Just $ compress $ generateErrorFile r s
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and an optional string. The error range is
@@ -98,7 +96,7 @@ generateSyntaxInfo
   -> TCM HighlightingInfo
 generateSyntaxInfo file mErr top termErrs =
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
-    modMap <- sourceToModule file (CA.topLevelModuleName top)
+    modMap <- sourceToModule
     tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
     kinds  <- nameKinds mErr decls
     let nameInfo = mconcat $ map (generate modMap file kinds)
@@ -124,18 +122,15 @@ generateSyntaxInfo file mErr top termErrs =
     -- constructors are included in both lists. Finally tokInfo is
     -- placed last since token highlighting is more crude than the
     -- others.
-    return $ HighlightingInfo
-               { source = file
-               , info   = compress $
-                            mconcat [ errorInfo
-                                    , constructorInfo
-                                    , theRest modMap
-                                    , nameInfo
-                                    , metaInfo
-                                    , termInfo
-                                    , tokInfo tokens
-                                    ]
-               }
+    return $ compress $ mconcat
+      [ errorInfo
+      , constructorInfo
+      , theRest modMap
+      , nameInfo
+      , metaInfo
+      , termInfo
+      , tokInfo tokens
+      ]
   where
     decls = CA.topLevelDecls top
 
@@ -463,7 +458,7 @@ nameToFile modMap file xs x m mR =
     r <- mR
     P.Pn { P.srcFile = f, P.posPos = p } <- P.rStart r
     mod <- Map.lookup f modMap
-    return (toStrings mod, f, toInteger p)
+    return (mod, toInteger p)
 
 -- | A variant of 'nameToFile' for qualified abstract names.
 
@@ -491,23 +486,6 @@ nameToFileA modMap file x include m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
-toStrings         = map show . A.mnameToList
-
--- | Maps source file names to the corresponding top-level module
--- names.
-
-type SourceToModule = Map FilePath A.ModuleName
-
-sourceToModule
-  :: FilePath            -- ^ The current source file.
-  -> A.ModuleName        -- ^ The current top-level module name.
-  -> TCM SourceToModule
-sourceToModule file mod =
-  Map.fromList .
-  (:) (file, mod) .
-  map (\(i, _) -> (source $ M.iHighlighting i, M.iModuleName i)) .
-  Map.elems <$>
-  M.getVisitedModules
 
 -- | Like 'everything', but modified so that it does not descend into
 -- everything.

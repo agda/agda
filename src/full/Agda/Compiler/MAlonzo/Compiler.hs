@@ -22,6 +22,7 @@ import System.FilePath ((</>))
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
+import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
 import Agda.Interaction.Monad
 import Agda.Interaction.Options
@@ -43,7 +44,7 @@ compilerMain mainI =
   -- Preserve the state (the compiler modifies the state).
   bracket get put $ \_ -> do
     ignoreAbstractMode $ do
-      mapM_ (compile . fst) =<< (M.elems <$> getVisitedModules)
+      mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
       callGHC mainI
 
 compile :: Interface -> TCM ()
@@ -54,7 +55,8 @@ compile i = do
   where
   decl mn ds imp = HsModule dummy mn Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
-  ifile    = findFile InterfaceFile . toTopLevelModuleName =<< curMName
+  ifile    = maybe __IMPOSSIBLE__ id <$>
+               (findInterfaceFile . toTopLevelModuleName =<< curMName)
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
              sequence [show <$> curMName, ifile, outFile] :: TCM ()

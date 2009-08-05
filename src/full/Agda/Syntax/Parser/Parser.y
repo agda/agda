@@ -77,7 +77,6 @@ import Agda.Utils.Monad
     'COMPILED'	{ TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
-    'LINE'	{ TokKeyword KwLINE $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -162,7 +161,6 @@ Token
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
-    | 'LINE'	    { TokKeyword KwLINE $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -749,12 +747,10 @@ Pragma : DeclarationPragma  { Pragma $1 }
 TopLevelPragma :: { Pragma }
 TopLevelPragma
   : OptionsPragma { $1 }
-  | LinePragma	  { $1 }
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
   : BuiltinPragma      { $1 }
-  | LinePragma	       { $1 }
   | CompiledPragma     { $1 }
   | CompiledDataPragma { $1 }
   | CompiledTypePragma { $1 }
@@ -787,32 +783,6 @@ ImportPragma :: { Pragma }
 ImportPragma
   : '{-#' 'IMPORT' PragmaStrings '#-}'
     { ImportPragma (fuseRange $1 $4) (unwords $3) }
-
--- TODO: When a line pragma is encountered the line and column numbers
--- are updated, but the linear position is preserved. Is this what we
--- want?
-
-LinePragma :: { Pragma }
-LinePragma
-    : '{-#' 'LINE' string string '#-}' {% do
-      let r = fuseRange $1 $5
-	  parseFile (i, f)
-	    | head f == '"' && last f == '"'  = return $ init (tail f)
-	    | otherwise	= parseErrorAt (iStart i) $ "Expected \"filename\", found " ++ f
-	  parseLine (i, l)
-	    | all isDigit l = return $ read l
-	    | otherwise	    = parseErrorAt (iStart i) $ "Expected line number, found " ++ l
-      line <- parseLine $3
-      file <- parseFile $4
-      currentPos <- fmap parsePos get
-      setParsePos $ Pn
-	{ srcFile = file
-	, posPos  = posPos currentPos
-	, posLine = line
-	, posCol  = 1
-	}
-      return $ LinePragma r line file
-    }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

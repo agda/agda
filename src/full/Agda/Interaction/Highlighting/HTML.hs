@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Function for generating highlighted, hyperlinked HTML from Agda
 -- sources.
 
@@ -8,6 +10,7 @@ module Agda.Interaction.Highlighting.HTML
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
+import Control.Monad.State.Class
 import Control.Arrow ((***))
 import System.FilePath
 import System.Directory
@@ -21,10 +24,10 @@ import qualified Agda.Utils.IO as UTF8
 
 import Paths_Agda
 
+import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
-import qualified Agda.Interaction.Imports as Imp
 import Agda.TypeChecking.Monad (TCM)
 import qualified Agda.TypeChecking.Monad as TCM
 import qualified Agda.Syntax.Abstract as A
@@ -34,6 +37,9 @@ import qualified Agda.Syntax.Scope.Monad as Scope
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
 import Agda.Utils.Pretty
+
+import Agda.Utils.Impossible
+#include "../../undefined.h"
 
 -- | The name of the default CSS file.
 
@@ -67,13 +73,13 @@ generateHTML mod = do
       -- Pull highlighting info from the state and generate all the
       -- web pages.
       mapM_ (\(m, h) -> generatePage dir m h) =<<
-        map (id *** TCM.iHighlighting . fst) . Map.toList <$>
-          TCM.getVisitedModules
+        map (id *** TCM.iHighlighting . TCM.miInterface) .
+          Map.toList <$> TCM.getVisitedModules
 
 -- | Converts module names to the corresponding HTML file names.
 
-modToFile :: [String] -> FilePath
-modToFile m = List.intercalate "." m <.> "html"
+modToFile :: C.TopLevelModuleName -> FilePath
+modToFile m = render (pretty m) <.> "html"
 
 -- | Generates an HTML file with a highlighted, hyperlinked version of
 -- the given module.
@@ -84,15 +90,19 @@ generatePage
   -> HighlightingInfo      -- ^ Syntax highlighting info for the module.
   -> TCM ()
 generatePage dir mod highlighting = do
-  contents <- liftIO $ UTF8.readTextFile (source highlighting)
-  css      <- maybe defaultCSSFile id . optCSSFile <$>
-                TCM.commandLineOptions
-  let html = page css mod contents (info highlighting)
-  TCM.reportSLn "html" 1 $ "Generating HTML for " ++
-                           render (pretty mod) ++
-                           " (" ++ target ++ ")."
-  liftIO $ UTF8.writeFile target (renderHtml html)
-  where target = dir </> modToFile (C.moduleNameParts mod)
+  mf <- Map.lookup mod . TCM.stModuleToSource <$> get
+  case mf of
+    Nothing -> __IMPOSSIBLE__
+    Just f  -> do
+      contents <- liftIO $ UTF8.readTextFile f
+      css      <- maybe defaultCSSFile id . optCSSFile <$>
+                    TCM.commandLineOptions
+      let html = page css mod contents highlighting
+      TCM.reportSLn "html" 1 $ "Generating HTML for " ++
+                               render (pretty mod) ++
+                               " (" ++ target ++ ")."
+      liftIO $ UTF8.writeFile target (renderHtml html)
+  where target = dir </> modToFile mod
 
 -- | Constructs the web page, including headers.
 
@@ -166,4 +176,4 @@ code contents info =
     -- Notes are not included.
     noteClasses s = []
 
-    link (m, f, pos) = [href $ modToFile m ++ "#" ++ show pos]
+    link (m, pos) = [href $ modToFile m ++ "#" ++ show pos]
