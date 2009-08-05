@@ -217,9 +217,6 @@ cmd_load m includes =
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
 -- result of 'Imp.typeCheck'.
---
--- The command @cmd2@ is executed as the final step of @cmd_load'@,
--- unless an exception is encountered.
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
