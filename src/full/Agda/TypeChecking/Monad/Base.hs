@@ -157,6 +157,10 @@ data ModuleInfo = ModuleInfo
     -- (approximately).
   }
 
+-- Note that the use of 'C.TopLevelModuleName' here is a potential
+-- performance problem, because these names do not contain unique
+-- identifiers.
+
 type VisitedModules = Map C.TopLevelModuleName ModuleInfo
 type DecodedModules = Map C.TopLevelModuleName (Interface, ClockTime)
 
