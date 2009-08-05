@@ -426,7 +426,7 @@ cmd_goal_type_context_infer norm ii rng s = Interaction False $ do
 
 setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts = do
-  TM.setCommandLineOptions opts
+  TM.setCommandLineOptions PersistentOptions opts
   displayStatus
 
 -- | Displays\/updates some status information (currently just

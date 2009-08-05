@@ -271,7 +271,7 @@ writeModule m =
                        ]
 
 outFile' = do
-  mdir <- gets (optMAlonzoDir . stOptions)
+  mdir <- optMAlonzoDir <$> commandLineOptions
   (fdir, fn, _) <- splitFilePath . repldot slash . prettyPrint <$> curHsMod
   let (dir, fp) = (addSlash mdir ++ fdir, addSlash dir ++ fn ++ ".hs")
   liftIO $ createDirectoryIfMissing True dir
@@ -292,7 +292,7 @@ callGHC i = do
         [] -> __IMPOSSIBLE__
         ms -> last ms
   (mdir, fp) <- outFile'
-  opts       <- gets (optGhcFlags . stOptions)
+  opts       <- optGhcFlags <$> commandLineOptions
   let overridableArgs =
         [ "-O"
         , "-o", mdir </> show outputName

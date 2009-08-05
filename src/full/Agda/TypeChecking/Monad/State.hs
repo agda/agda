@@ -14,14 +14,14 @@ import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
 
--- | Resets the type checking state. The command line options are
--- preserved.
+-- | Resets the type checking state. The persistent command line
+-- options are preserved.
 
 resetState :: MonadTCM tcm => tcm ()
 resetState = liftTCM $ do
-    opts <- commandLineOptions
+    opts <- stPersistentOptions <$> get
     put initState
-    setCommandLineOptions opts
+    setCommandLineOptions PersistentOptions opts
 
 -- | Set the current scope.
 setScope :: MonadTCM tcm => ScopeInfo -> tcm ()

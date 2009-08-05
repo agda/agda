@@ -57,7 +57,11 @@ data TCState =
            -- ^ The current module is available after it has been type
            -- checked.
 	 , stScope	       :: ScopeInfo
-	 , stOptions	       :: CommandLineOptions
+	 , stPersistentOptions :: CommandLineOptions
+           -- ^ Options which apply to all files, unless overridden.
+	 , stPragmaOptions     :: CommandLineOptions
+           -- ^ Options applying to the current file. @OPTIONS@
+           -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
 	 , stTrace	       :: CallTrace
 	     -- ^ record what is happening (for error msgs)
@@ -93,7 +97,8 @@ initState =
 	 , stDecodedModules    = Map.empty
          , stCurrentModule     = Nothing
 	 , stScope	       = emptyScopeInfo
-	 , stOptions	       = defaultOptions
+	 , stPersistentOptions = defaultOptions
+	 , stPragmaOptions     = defaultOptions
 	 , stStatistics	       = Map.empty
 	 , stTrace	       = noTrace
 	 , stMutualBlocks      = Map.empty

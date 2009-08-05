@@ -1,3 +1,4 @@
+{-# OPTIONS --no-termination-check #-}
 
 module Data.Bits where
 

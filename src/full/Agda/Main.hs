@@ -80,8 +80,9 @@ runAgda =
 		| isNothing (optInputFile opts)
 		    && not (optInteractive opts)
 					-> liftIO printUsage
-		| otherwise		-> do setCommandLineOptions opts
-					      checkFile
+		| otherwise		-> do
+                    setCommandLineOptions PersistentOptions opts
+		    checkFile
     where
 	checkFile :: TCM ()
 	checkFile =

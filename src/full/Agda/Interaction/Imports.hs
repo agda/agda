@@ -247,7 +247,14 @@ getInterface' :: C.TopLevelModuleName
                        -- be preserved?
               -> TCM (Interface, Either Warnings ClockTime)
 getInterface' x includeStateChanges =
-  alreadyVisited x $ addImportCycleCheck x $ do
+  -- Preserve the pragma options unless includeStateChanges is True.
+  bracket (stPragmaOptions <$> get)
+          (unless includeStateChanges .
+             setCommandLineOptions PragmaOptions) $ \_ -> do
+   -- Forget the pragma options (locally).
+   setCommandLineOptions PersistentOptions . stPersistentOptions =<< get
+
+   alreadyVisited x $ addImportCycleCheck x $ do
     file <- findFile x  -- requires source to exist
 
     reportSLn "import.iface" 10 $ "  Check for cycle"
@@ -329,7 +336,7 @@ getInterface' x includeStateChanges =
               mf       <- stModuleToSource <$> get
               vs       <- getVisitedModules
               ds       <- getDecodedModules
-              opts     <- commandLineOptions
+              opts     <- stPersistentOptions <$> get
               trace    <- getTrace
               isig     <- getImportedSignature
               ibuiltin <- gets stImportedBuiltins
@@ -338,7 +345,7 @@ getInterface' x includeStateChanges =
                      withImportPath ms $ do
                        setDecodedModules ds
                        setTrace trace
-                       setCommandLineOptions opts
+                       setCommandLineOptions PersistentOptions opts
                        modify $ \s -> s { stModuleToSource = mf }
                        setVisitedModules vs
                        addImportedThings isig ibuiltin
@@ -434,7 +441,6 @@ createInterface file mname
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
-    -- Note that pragmas can affect scope checking.
     setOptionsFromPragmas pragmas
     topLevel <- concreteToAbstract_ (TopLevel top)
 

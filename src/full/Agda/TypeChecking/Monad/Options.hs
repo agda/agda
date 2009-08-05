@@ -21,14 +21,24 @@ import qualified Agda.Utils.Trie as Trie
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Does the operation apply to the persistent options or only to the
+-- pragma options? In the former case the pragma options are also
+-- updated.
+
+data Target = PersistentOptions | PragmaOptions
+
 -- | Sets the command line options.
 --
 -- Ensures that the 'optInputFile' field contains an absolute path.
 --
 -- An empty list of include directories is interpreted as @["."]@.
 
-setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
-setCommandLineOptions opts =
+setCommandLineOptions
+  :: MonadTCM tcm
+  => Target
+  -> CommandLineOptions
+  -> tcm ()
+setCommandLineOptions target opts =
   case checkOpts opts of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -38,22 +48,29 @@ setCommandLineOptions opts =
           -- canonicalizePath seems to return absolute paths.
           f <- liftIO $ canonicalizePath f
           return (opts { optInputFile = Just f })
-      liftTCM $ modify $ \s -> s { stOptions =
-          opts { optIncludeDirs = case optIncludeDirs opts of
-            [] -> ["."]
-            is -> is
-          }
-        }
+      let newOpts = opts { optIncludeDirs =
+              case optIncludeDirs opts of
+                [] -> ["."]
+                is -> is
+            }
+      case target of
+        PersistentOptions ->
+          modify $ \s -> s { stPersistentOptions = newOpts
+                           , stPragmaOptions     = newOpts
+                           }
+        PragmaOptions ->
+          modify $ \s -> s { stPragmaOptions     = newOpts
+                           }
 
 commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
-commandLineOptions = liftTCM $ gets stOptions
+commandLineOptions = liftTCM $ gets stPragmaOptions
 
 setOptionsFromPragma :: MonadTCM tcm => Pragma -> tcm ()
 setOptionsFromPragma (OptionsPragma xs) = do
     opts <- commandLineOptions
     case parsePragmaOptions xs opts of
 	Left err    -> typeError $ GenericError err
-	Right opts' -> setCommandLineOptions opts'
+	Right opts' -> setCommandLineOptions PragmaOptions opts'
 setOptionsFromPragma _ = return ()
 
 setOptionsFromPragmas :: MonadTCM tcm => [Pragma] -> tcm ()
@@ -94,14 +111,14 @@ getIncludeDirs = optIncludeDirs <$> commandLineOptions
 makeIncludeDirsAbsolute :: MonadTCM tcm => FilePath -> tcm ()
 makeIncludeDirsAbsolute root = do
   opts <- commandLineOptions
-  setCommandLineOptions $ opts { optIncludeDirs =
-      map (root </>) $ optIncludeDirs opts
-    }
+  setCommandLineOptions PersistentOptions $
+    opts { optIncludeDirs = map (root </>) $ optIncludeDirs opts }
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =
     do	opts <- commandLineOptions
-	setCommandLineOptions $ opts { optInputFile = Just file }
+	setCommandLineOptions PersistentOptions $
+          opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
 getInputFile :: MonadTCM tcm => tcm FilePath
@@ -124,10 +141,12 @@ setShowImplicitArguments :: MonadTCM tcm => Bool -> tcm a -> tcm a
 setShowImplicitArguments showImp ret = do
   opts <- commandLineOptions
   let imp = optShowImplicit opts
-  setCommandLineOptions $ opts { optShowImplicit = showImp }
+  setCommandLineOptions PersistentOptions $
+    opts { optShowImplicit = showImp }
   x <- ret
   opts <- commandLineOptions
-  setCommandLineOptions $ opts { optShowImplicit = imp }
+  setCommandLineOptions PersistentOptions $
+    opts { optShowImplicit = imp }
   return x
 
 ignoreInterfaces :: MonadTCM tcm => tcm Bool
