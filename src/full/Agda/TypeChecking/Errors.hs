@@ -83,6 +83,7 @@ errorString err = case err of
     AmbiguousName _ _			       -> "AmbiguousName"
     AmbiguousParseForApplication _ _	       -> "AmbiguousParseForApplication"
     AmbiguousParseForLHS _ _		       -> "AmbiguousParseForLHS"
+    AmbiguousTopLevelModuleName {}	       -> "AmbiguousTopLevelModuleName"
     BothWithAndRHS                             -> "BothWithAndRHS"
     BuiltinInParameterisedModule _	       -> "BuiltinInParameterisedModule"
     BuiltinMustBeConstructor _ _               -> "BuiltinMustBeConstructor"
@@ -356,6 +357,11 @@ instance PrettyTCM TypeError where
 	    FileNotFound x files ->
 		fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
 		       pwords "in any of the following locations:"
+		     ) $$ nest 2 (vcat $ map text files)
+	    AmbiguousTopLevelModuleName x files ->
+		fsep ( pwords "Ambiguous module name. The module name" ++
+                       [pretty x] ++
+		       pwords "could refer to any of the following files:"
 		     ) $$ nest 2 (vcat $ map text files)
 	    ClashingFileNamesFor x files ->
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++

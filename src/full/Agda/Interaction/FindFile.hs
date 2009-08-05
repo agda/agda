@@ -8,6 +8,7 @@
 
 module Agda.Interaction.FindFile
   ( toIFile
+  , FindError(..), findErrorToTypeError
   , findFile, findFile', findFile''
   , findInterfaceFile
   , checkModuleName
@@ -34,6 +35,28 @@ import Agda.Utils.FileName
 toIFile :: FilePath -> FilePath
 toIFile f = replaceExtension f ".agdai"
 
+-- | Errors which can arise when trying to find a source file.
+--
+-- Invariant: All paths are absolute.
+
+data FindError
+  = NotFound [FilePath]
+    -- ^ The file was not found. It should have had one of the given
+    -- file names.
+  | Ambiguous [FilePath]
+    -- ^ Several matching files were found.
+    --
+    -- Invariant: The list of matching files has at least two
+    -- elements.
+
+-- | Given the module name which the error applies to this function
+-- converts a 'FindError' to a 'TypeError'.
+
+findErrorToTypeError :: TopLevelModuleName -> FindError -> TypeError
+findErrorToTypeError m (NotFound  files) = FileNotFound m files
+findErrorToTypeError m (Ambiguous files) =
+  AmbiguousTopLevelModuleName m files
+
 -- | Finds the source file corresponding to a given top-level module
 -- name. The returned paths are absolute.
 --
@@ -43,16 +66,13 @@ findFile :: TopLevelModuleName -> TCM FilePath
 findFile m = do
   mf <- findFile' m
   case mf of
-    Left files -> typeError $ FileNotFound m files
-    Right f    -> return f
+    Left err -> typeError $ findErrorToTypeError m err
+    Right f  -> return f
 
--- | Finds the source file corresponding to a given top-level module
--- name. The returned paths are absolute.
---
--- Returns @'Left' files@ if the file cannot be found, where @files@
--- is the list of files which the module could have been defined in.
+-- | Tries to find the source file corresponding to a given top-level
+-- module name. The returned paths are absolute.
 
-findFile' :: TopLevelModuleName -> TCM (Either [FilePath] FilePath)
+findFile' :: TopLevelModuleName -> TCM (Either FindError FilePath)
 findFile' m = do
     dirs         <- getIncludeDirs
     modFile      <- stModuleToSource <$> get
@@ -68,15 +88,16 @@ findFile''
   -> TopLevelModuleName
   -> ModuleToSource
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
-  -> IO (Either [FilePath] FilePath, ModuleToSource)
+  -> IO (Either FindError FilePath, ModuleToSource)
 findFile'' dirs m modFile =
     case Map.lookup m modFile of
       Just f  -> return (Right f, modFile)
       Nothing -> do
         files' <- liftIO $ nubFiles =<< filterM doesFileExist files
-        case files' of
-          []       -> return (Left files, modFile)
-          file : _ -> return (Right file, Map.insert m file modFile)
+        return $ case files' of
+          []     -> (Left (NotFound files), modFile)
+          [file] -> (Right file, Map.insert m file modFile)
+          files  -> (Left (Ambiguous files), modFile)
     where
     files = [ dir </> file
             | dir  <- dirs
@@ -108,8 +129,10 @@ checkModuleName :: TopLevelModuleName
 checkModuleName name file = do
   moduleShouldBeIn <- findFile' name
   case moduleShouldBeIn of
-    Left files  -> typeError $
-                     ModuleNameDoesntMatchFileName name files
+    Left (NotFound files)  -> typeError $
+                                ModuleNameDoesntMatchFileName name files
+    Left (Ambiguous files) -> typeError $
+                                AmbiguousTopLevelModuleName name files
     Right file' -> if file' == file then
                      return ()
                     else

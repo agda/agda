@@ -41,6 +41,9 @@ Tools
   the file <some-path>/A/B/C.agda, then the root directory is
   <some-path>.)
 
+* It is now an error if there are several files on the include path
+  which match a given module name.
+
 * Interface files are now relocatable. You can move around source
   trees as long as the include path is updated in a corresponding way.
   Note that a module M may be re-typechecked if its time stamp is

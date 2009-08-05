@@ -797,6 +797,7 @@ data TypeError
 	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [C.TopLevelModuleName]
 	| FileNotFound C.TopLevelModuleName [FilePath]
+        | AmbiguousTopLevelModuleName C.TopLevelModuleName [FilePath]
 	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [FilePath]
 	| ClashingFileNamesFor ModuleName [FilePath]
         | ModuleDefinedInOtherFile C.TopLevelModuleName FilePath FilePath

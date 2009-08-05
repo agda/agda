@@ -235,8 +235,8 @@ instance EmbPrj Position where
       (r, mf) <- liftIO $ findFile'' incs m mf
       modify $ \s -> s { modFile = mf }
       case r of
-        Left files -> throwError $ FileNotFound m files
-        Right f    -> return f
+        Left err -> throwError $ findErrorToTypeError m err
+        Right f  -> return f
 
 instance EmbPrj TopLevelModuleName where
   icode (TopLevelModuleName a) = icode1' a
