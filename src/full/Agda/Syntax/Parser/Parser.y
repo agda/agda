@@ -327,7 +327,7 @@ PragmaName : string {% fmap QName (mkName $1) }
 
 {-  Expressions. You might expect lambdas and lets to appear in the first
     expression category (lowest precedence). The reason they don't is that we
-    wan't to parse things like
+    want to parse things like
 
 	m >>= \x -> k x
 
