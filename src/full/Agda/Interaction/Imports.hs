@@ -406,7 +406,8 @@ writeInterface file i = do
   `catchError` \e -> do
     reportSLn "" 1 $
       "Failed to write interface " ++ file ++ "."
-    liftIO $ removeFile file
+    liftIO $
+      whenM (doesFileExist file) $ removeFile file
     throwError e
 
 -- | Tries to type check a module and write out its interface. The
