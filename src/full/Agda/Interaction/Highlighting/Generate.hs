@@ -373,13 +373,15 @@ generateConstructorInfo modMap file kinds decls = do
     def <- getConstInfo c
     case defDelayed def of
       NotDelayed -> return Seq.empty  -- not a coconstructor
-      Delayed -> case defClauses def of
-        [I.Clause{ I.clauseBody = body}] -> case getRHS body of
-          Just (I.Con c args) -> do
-            s <- everything' (liftM2 (><)) query args
-            return $ Seq.singleton c >< s
-          _                   -> return Seq.empty
-        _ -> return Seq.empty
+      Delayed -> do
+        clauses <- R.instantiateFull $ defClauses def
+        case clauses of
+          [I.Clause{ I.clauseBody = body }] -> case getRHS body of
+            Just (I.Con c args) -> do
+              s <- everything' (liftM2 (><)) query args
+              return $ Seq.singleton c >< s
+            _                   -> __IMPOSSIBLE__
+          _ -> __IMPOSSIBLE__
     where
       getRHS (I.Body v)   = Just v
       getRHS I.NoBody     = Nothing
