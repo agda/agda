@@ -57,3 +57,6 @@ Tools
   C-c C-x C-r can be used for a more complete reset. C-c C-x C-s
   (which used to reload the syntax highlighting information) has been
   removed. C-c C-l can be used instead.
+
+* The Emacs mode now displays "Checked" in the mode line if the
+  current file type checked successfully without any warnings.

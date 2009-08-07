@@ -27,6 +27,7 @@ module Agda.Interaction.GhciTop
 import System.Directory
 import System.IO.Unsafe
 import Data.Char
+import Data.Maybe
 import Data.IORef
 import Data.Function
 import Control.Applicative
@@ -103,7 +104,11 @@ data State = State
     --   recorded in 'theTCState', but when new interaction points are
     --   added by give or refine Agda does not ensure that the ranges
     --   of later interaction points are updated.
-  , theCurrentFile       :: Maybe FilePath
+  , theCurrentFile       :: Maybe (FilePath, ClockTime)
+    -- ^ The file which the state applies to. Only stored if the
+    -- module was successfully type checked (potentially with
+    -- warnings). The 'ClockTime' is the modification time stamp of
+    -- the file when it was last loaded.
   }
 
 initState :: State
@@ -152,7 +157,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
         } <- readIORef theState
 
   -- Run the computation.
-  r <- if not (isIndependent cmd) && Just current /= f then
+  r <- if not (isIndependent cmd) && Just current /= (fst <$> f) then
          let s = "Error: First load the file." in
          return $ Right $ Left (s, TCErr Nothing $ Exception noRange s)
         else
@@ -232,6 +237,7 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
 
   -- canonicalizePath seems to return absolute paths.
   file <- liftIO $ canonicalizePath file
+  t    <- liftIO $ getModificationTime file
 
   -- All options are reset when a file is reloaded, including the
   -- choice of whether or not to display implicit arguments.
@@ -249,13 +255,21 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
 
   ok <- Imp.typeCheck file Imp.ProjectRoot (Just oldIncs)
 
-  -- The module type checked, so let us store the interaction points
-  -- and update the \"current file\".
-  is <- sortInteractionPoints =<< getInteractionPoints
-  liftIO $ modifyIORef theState $ \s ->
-    s { theInteractionPoints = is
-      , theCurrentFile       = Just file
-      }
+  -- The module type checked. If the file was not changed while the
+  -- type checker was running then the interaction points and the
+  -- "current file" are stored.
+  t' <- liftIO $ getModificationTime file
+  if t == t' then do
+    is <- sortInteractionPoints =<< getInteractionPoints
+    liftIO $ modifyIORef theState $ \s ->
+      s { theInteractionPoints = is
+        , theCurrentFile       = Just (file, t)
+        }
+   else
+    liftIO $ modifyIORef theState $ \s ->
+      s { theInteractionPoints = []
+        , theCurrentFile       = Nothing
+        }
 
   cmd ok
 
@@ -434,8 +448,29 @@ setCommandLineOptions opts = do
 
 displayStatus :: TCM ()
 displayStatus = do
-  showImpl <- showImplicitArguments
-  let statusString = if showImpl then "ShowImplicit" else ""
+  showImpl <- ifM showImplicitArguments
+                  (return $ Just "ShowImplicit")
+                  (return Nothing)
+
+  -- Check if the file was successfully type checked, and has not
+  -- changed since. Note: This code does not check if any dependencies
+  -- have changed, and uses a time stamp to check for changes.
+  cur      <- theCurrentFile <$> liftIO (readIORef theState)
+  checked  <- case cur of
+    Nothing     -> return Nothing
+    Just (f, t) -> do
+      t' <- liftIO $ getModificationTime f
+      case t == t' of
+        False -> return Nothing
+        True  -> do
+          w <- miWarnings . maybe __IMPOSSIBLE__ id <$>
+                 (getVisitedModule =<<
+                    maybe __IMPOSSIBLE__ id .
+                      Map.lookup f <$> sourceToModule)
+          return $ if w then Nothing else Just "Checked"
+
+  let statusString = intercalate "," $ catMaybes [checked, showImpl]
+
   liftIO $ UTF8.putStrLn $ response $
     L [A "agda2-status-action", A (quote statusString)]
 
