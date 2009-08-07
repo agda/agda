@@ -235,6 +235,12 @@ cmd_load' :: FilePath -> [FilePath]
 cmd_load' file includes unsolvedOK cmd = Interaction True $ do
   clearUndoHistory
 
+  -- Forget the previous "current file" and interaction points.
+  liftIO $ modifyIORef theState $ \s ->
+    s { theInteractionPoints = []
+      , theCurrentFile       = Nothing
+      }
+
   -- canonicalizePath seems to return absolute paths.
   file <- liftIO $ canonicalizePath file
   t    <- liftIO $ getModificationTime file
@@ -259,16 +265,11 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
   -- type checker was running then the interaction points and the
   -- "current file" are stored.
   t' <- liftIO $ getModificationTime file
-  if t == t' then do
+  when (t == t') $ do
     is <- sortInteractionPoints =<< getInteractionPoints
     liftIO $ modifyIORef theState $ \s ->
       s { theInteractionPoints = is
         , theCurrentFile       = Just (file, t)
-        }
-   else
-    liftIO $ modifyIORef theState $ \s ->
-      s { theInteractionPoints = []
-        , theCurrentFile       = Nothing
         }
 
   cmd ok
