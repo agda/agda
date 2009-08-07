@@ -4,7 +4,7 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler relocatable-interfaces term1 term2 term3 html1 html2
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2
 
 agda = $(AGDA_BIN)
 
@@ -132,6 +132,15 @@ relocatable-interfaces : relocatable/originals/*.agda
         # ...and skips one of the modules (A).
 	@[ `grep ^Skipping relocatable/copies/output | wc -l` = 1 ]
 	@rm -rf relocatable/copies
+
+malformed-interfaces : malformed/Empty.agda
+	@$(echo) "Testing that Agda can handle at least some malformed interface files."
+	@echo > malformed/Empty.agdai
+	@$(agda) -imalformed malformed/Empty.agda
+	-@openssl rand -out malformed/Empty.agdai 1024 2> /dev/null
+	@$(agda) -imalformed malformed/Empty.agda
+	@echo apa >> malformed/Empty.agdai
+	@$(agda) -imalformed malformed/Empty.agda
 
 html1 : AIM6/RegExp/talk/Everything.agda
 	@$(echo) "Testing HTML generation in the default directory"

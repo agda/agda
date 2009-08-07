@@ -8,6 +8,7 @@ import Prelude hiding (catch)
 
 import Control.Monad.Error
 import Control.Monad.State
+import qualified Control.OldException as E
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
@@ -373,18 +374,16 @@ readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
     (s, close) <- liftIO $ readBinaryFile' file
-    do  i <- decode s
+    do  i <- liftIO . E.evaluate =<< decode s
 
-        -- Force the entire string, to allow the file to be closed.
-        let n = BS.length s
-        () <- when (n == n) $ return ()
-
-        -- Close the file.
+        -- Close the file. Note
+        -- ⑴ that evaluate ensures that i is evaluated to WHNF (before
+        --   the next IO operation is executed), and
+        -- ⑵ that decode returns Nothing if an error is encountered,
+        -- so it is safe to close the file here.
         liftIO close
 
-	-- Force the interface to make sure the interface version is
-	-- looked at.
-        liftIO $ return $! i
+        return i
       -- Catch exceptions and close
       `catchError` \e -> liftIO close >> handler e
   -- Catch exceptions
@@ -393,7 +392,9 @@ readInterface file = do
     handler e = case errError e of
       IOException _ e -> do
         liftIO $ UTF8.putStrLn $ "IO exception: " ++ show e
-        return Nothing   -- work-around for file locking bug
+        return Nothing   -- Work-around for file locking bug.
+                         -- TODO: What does this refer to? Please
+                         -- document.
       _               -> throwError e
 
 -- | Writes the given interface to the given file. Returns the file's

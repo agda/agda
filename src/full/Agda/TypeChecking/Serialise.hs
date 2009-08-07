@@ -22,12 +22,14 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import qualified Control.OldException as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
 import Control.Monad.Error
 import Data.Array.IArray
 import Data.Bits (shiftR)
+import Data.Word
 import Data.ByteString.Lazy as L
 import Data.Char (ord, chr)
 import Data.HashTable (HashTable)
@@ -66,8 +68,12 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-currentInterfaceVersion :: Int
-currentInterfaceVersion = 20090804 * 10 + 0
+-- Note that the Binary instance for Int writes 64 bits, but throws
+-- away the 32 high bits when reading (at the time of writing, on
+-- 32-bit machines). Word64 does not have these problems.
+
+currentInterfaceVersion :: Word64
+currentInterfaceVersion = 20090807 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -109,6 +115,12 @@ type S a = ReaderT Dict IO a
 
 type R a = ErrorT TypeError (StateT St IO) a
 
+-- | Throws an error which is suitable when the data stream is
+-- malformed.
+
+malformed :: R a
+malformed = throwError $ GenericError "Malformed input."
+
 class Data a => EmbPrj a where
   icode :: a -> S Int
   value :: Int -> R a
@@ -130,25 +142,53 @@ encode a = do
 -- | Decodes something. The result depends on the include path.
 --
 -- Returns 'Nothing' if the input does not start with the right magic
--- number or some other decoding error is encountered. Note that
--- corrupt interface files can trigger @__IMPOSSIBLE__@ errors,
--- though.
+-- number or some other decoding error is encountered.
 
 decode :: EmbPrj a => ByteString -> TCM (Maybe a)
-decode s | ver /= currentInterfaceVersion = return Nothing
-         | otherwise                      = do
-  (r, st') <- liftIO . runStateT (runErrorT (value r)) =<< st
-  modify $ \s -> s { stModuleToSource = modFile st' }
-  return $ case r of
-    Left  _ -> Nothing
-    Right x -> Just x
-  where (ver                , s1, _) = B.runGetState B.get s                 0
-        ((r, nL, sL, iL, dL), s2, _) = B.runGetState B.get (G.decompress s1) 0
-        ar l = listArray (0, List.length l - 1) l
-        st   = St (ar nL) (ar sL) (ar iL) (ar dL)
-                 <$> liftIO (H.new (==) hashInt2)
-                 <*> (stModuleToSource <$> get)
-                 <*> getIncludeDirs
+decode s = do
+  mf   <- stModuleToSource <$> get
+  incs <- getIncludeDirs
+
+  -- Note that B.runGetState and G.decompress can raise errors if the
+  -- input is malformed. The decoder is (intended to be) strict enough
+  -- to ensure that all such errors can be caught by the handler here.
+
+  (mf, x) <- liftIO $ E.handle handler $ do
+
+    (ver, s, _) <- return $ B.runGetState B.get s 0
+    if ver /= currentInterfaceVersion
+     then noResult
+     else do
+
+      ((r, nL, sL, iL, dL), s, _) <-
+        return $ B.runGetState B.get (G.decompress s) 0
+      if s /= L.empty
+         -- G.decompress seems to throw away garbage at the end, so
+         -- the then branch is possibly dead code.
+       then noResult
+       else do
+
+        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
+                <$> liftIO (H.new (==) hashInt2)
+                <*> return mf <*> return incs
+        (r, st) <- runStateT (runErrorT (value r)) st
+        return (Just (modFile st), case r of
+          Left  _ -> Nothing
+          Right x -> Just x)
+
+  case mf of
+    Nothing -> return ()
+    Just mf -> modify $ \s -> s { stModuleToSource = mf }
+
+  return x
+
+  where
+  ar l = listArray (0, List.length l - 1) l
+
+  noResult = return (Nothing, Nothing)
+
+  handler (E.ErrorCall {}) = noResult
+  handler e                = E.throwIO e
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -164,9 +204,7 @@ encodeFile f x = liftIO . L.writeFile f =<< encode x
 -- | Decodes something. The result depends on the include path.
 --
 -- Returns 'Nothing' if the file does not start with the right magic
--- number or some other decoding error is encountered. Note that
--- corrupt interface files can trigger @__IMPOSSIBLE__@ errors,
--- though.
+-- number or some other decoding error is encountered.
 
 decodeFile :: EmbPrj a => FilePath -> TCM (Maybe a)
 decodeFile f = decode =<< liftIO (L.readFile f)
@@ -195,26 +233,26 @@ instance EmbPrj Double where
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icode (a, b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 (,) a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance (EmbPrj a, EmbPrj b, EmbPrj c) => EmbPrj (a, b, c) where
   icode (a, b, c) = icode3' a b c
   value = vcase valu where valu [a, b, c] = valu3 (,,) a b c
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Maybe a) where
   icode Nothing  = icode0'
   icode (Just x) = icode1' x
   value = vcase valu where valu []  = valu0 Nothing
                            valu [x] = valu1 Just x
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj Bool where
   icode True  = icode0 0
   icode False = icode0 1
   value = vcase valu where valu [0] = valu0 True
                            valu [1] = valu0 False
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj Position where
   icode (P.Pn file pos line col) = do
@@ -226,7 +264,7 @@ instance EmbPrj Position where
     where
     valu [m, p, l, c] = P.Pn <$> value' m <*> value p
                              <*> value  l <*> value c
-    valu _            = __IMPOSSIBLE__
+    valu _            = malformed
 
     value' m = do
       m       <- value m
@@ -241,7 +279,7 @@ instance EmbPrj Position where
 instance EmbPrj TopLevelModuleName where
   icode (TopLevelModuleName a) = icode1' a
   value = vcase valu where valu [a] = valu1 TopLevelModuleName a
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj a => EmbPrj [a] where
   icode xs = icodeN =<< mapM icode xs
@@ -250,7 +288,7 @@ instance EmbPrj a => EmbPrj [a] where
 --   icode (x : xs) = icode2' x xs
 --   value = vcase valu where valu []      = valu0 []
 --                            valu [x, xs] = valu2 (:) x xs
---                            valu _       = __IMPOSSIBLE__
+--                            valu _       = malformed
 
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icode m = icode (M.toList m)
@@ -259,60 +297,60 @@ instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
 instance EmbPrj P.Interval where
   icode (P.Interval p q) = icode2' p q
   value = vcase valu where valu [p, q] = valu2 P.Interval p q
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Range where
   icode (P.Range is) = icode1' is
   value = vcase valu where valu [is] = valu1 P.Range is
-                           valu _    = __IMPOSSIBLE__
+                           valu _    = malformed
 
 instance EmbPrj HR.Range where
   icode (HR.Range a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 HR.Range a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj C.Name where
   icode (C.NoName a b) = icode2 0 a b
   icode (C.Name r xs)  = icode2 1 r xs
   value = vcase valu where valu [0, a, b]  = valu2 C.NoName a b
                            valu [1, r, xs] = valu2 C.Name   r xs
-                           valu _          = __IMPOSSIBLE__
+                           valu _          = malformed
 
 instance EmbPrj NamePart where
   icode Hole   = icode0'
   icode (Id a) = icode1' a
   value = vcase valu where valu []  = valu0 Hole
                            valu [a] = valu1 Id a
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj C.QName where
   icode (Qual    a b) = icode2' a b
   icode (C.QName a  ) = icode1' a
   value = vcase valu where valu [a, b] = valu2 Qual    a b
                            valu [a]    = valu1 C.QName a
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Scope where
   icode (Scope a b c d e f) = icode6' a b c d e f
   value = vcase valu where valu [a, b, c, d, e, f] = valu6 Scope a b c d e f
-                           valu _                  = __IMPOSSIBLE__
+                           valu _                  = malformed
 
 instance EmbPrj Access where
   icode PrivateAccess = icode0 0
   icode PublicAccess  = icode0 1
   value = vcase valu where valu [0] = valu0 PrivateAccess
                            valu [1] = valu0 PublicAccess
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj NameSpace where
   icode (NameSpace a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 NameSpace a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj AbstractName where
   icode (AbsName a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 AbsName a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj AbstractModule where
   icode (AbsModule a) = icode a
@@ -323,7 +361,7 @@ instance EmbPrj KindOfName where
   icode ConName = icode0 1
   value = vcase valu where valu [0] = valu0 DefName
                            valu [1] = valu0 ConName
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
   icode (LeftAssoc  a b) = icode2 0 a b
@@ -332,12 +370,12 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity where
   value = vcase valu where valu [0, a, b] = valu2 LeftAssoc  a b
                            valu [1, a, b] = valu2 RightAssoc a b
                            valu [2, a, b] = valu2 NonAssoc   a b
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj A.QName where
   icode (A.QName a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 A.QName a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj A.ModuleName where
   icode (A.MName a) = icode a
@@ -346,58 +384,58 @@ instance EmbPrj A.ModuleName where
 instance EmbPrj A.Name where
   icode (A.Name a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
-                           valu _            = __IMPOSSIBLE__
+                           valu _            = malformed
 
 instance EmbPrj NameId where
   icode (NameId a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 NameId a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Signature where
   icode (Sig a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Sig a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Section where
   icode (Section a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Section a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Telescope where
   icode EmptyTel        = icode0'
   icode (ExtendTel a b) = icode2' a b
   value = vcase valu where valu []     = valu0 EmptyTel
                            valu [a, b] = valu2 ExtendTel a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Permutation where
   icode (Perm a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Perm a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Arg a) where
   icode (Arg a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Arg a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Common.Induction where
   icode Inductive   = icode0 0
   icode CoInductive = icode0 1
   value = vcase valu where valu [0] = valu0 Inductive
                            valu [1] = valu0 CoInductive
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Common.Hiding where
   icode Hidden    = icode0 0
   icode NotHidden = icode0 1
   value = vcase valu where valu [0] = valu0 Hidden
                            valu [1] = valu0 NotHidden
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj I.Type where
   icode (El a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 El a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj I.MetaId where
   icode (MetaId a) = icode a
@@ -406,7 +444,7 @@ instance EmbPrj I.MetaId where
 instance (EmbPrj a) => EmbPrj (I.Abs a) where
   icode (Abs a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Abs a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj I.Term where
   icode (Var      a b) = icode2 0 a b
@@ -427,7 +465,7 @@ instance EmbPrj I.Term where
                            valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
                            valu [8, a, b] = valu2 MetaV a b
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj I.Sort where
   icode (Type  a  ) = icode1 0 a
@@ -440,7 +478,7 @@ instance EmbPrj I.Sort where
                            valu [2, a, b] = valu2 Lub   a b
                            valu [3, a]    = valu1 Suc   a
                            valu [4, a]    = valu1 MetaS a
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
   icode (LitInt    a b) = icode2 0 a b
@@ -451,17 +489,17 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
                            valu [1, a, b] = valu2 LitFloat  a b
                            valu [2, a, b] = valu2 LitString a b
                            valu [3, a, b] = valu2 LitChar   a b
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj DisplayForm where
   icode (Display a b c) = icode3' a b c
   value = vcase valu where valu [a, b, c] = valu3 Display a b c
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Open a) where
   icode (OpenThing a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 OpenThing a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj CtxId where
   icode (CtxId a) = icode a
@@ -472,7 +510,7 @@ instance EmbPrj DisplayTerm where
   icode (DWithApp a b) = icode2' a b
   value = vcase valu where valu [a]    = valu1 DTerm a
                            valu [a, b] = valu2 DWithApp a b
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj MutualId where
   icode (MutId a) = icode a
@@ -481,7 +519,7 @@ instance EmbPrj MutualId where
 instance EmbPrj Definition where
   icode (Defn a b c d e) = icode5' a b c d e
   value = vcase valu where valu [a, b, c, d, e] = valu5 Defn a b c d e
-                           valu _               = __IMPOSSIBLE__
+                           valu _               = malformed
 
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1 0 a
@@ -490,7 +528,7 @@ instance EmbPrj HaskellRepresentation where
   value = vcase valu where
     valu [0, a]    = valu1 HsType a
     valu [1, a, b] = valu2 HsDefn a b
-    valu _         = __IMPOSSIBLE__
+    valu _         = malformed
 
 instance EmbPrj Polarity where
   icode Covariant     = icode0 0
@@ -501,7 +539,7 @@ instance EmbPrj Polarity where
     valu [0] = valu0 Covariant
     valu [1] = valu0 Contravariant
     valu [2] = valu0 Invariant
-    valu _   = __IMPOSSIBLE__
+    valu _   = malformed
 
 instance EmbPrj Occurrence where
   icode Positive = icode0 0
@@ -512,7 +550,7 @@ instance EmbPrj Occurrence where
     valu [0] = valu0 Positive
     valu [1] = valu0 Negative
     valu [2] = valu0 Unused
-    valu _   = __IMPOSSIBLE__
+    valu _   = malformed
 
 instance EmbPrj Defn where
   icode (Axiom       a)                   = icode1 0 a
@@ -528,14 +566,14 @@ instance EmbPrj Defn where
     valu [3, a, b, c, d, e, f, g, h]       = valu8 Record      a b c d e f g h
     valu [4, a, b, c, d, e, f]             = valu6 Constructor a b c d e f
     valu [5, a, b, c]                      = valu3 Primitive   a b c
-    valu _                                 = __IMPOSSIBLE__
+    valu _                                 = malformed
 
 instance EmbPrj FunctionInverse where
   icode NotInjective = icode0'
   icode (Inverse a)  = icode1' a
   value = vcase valu where valu []  = valu0 NotInjective
                            valu [a] = valu1 Inverse a
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj TermHead where
   icode SortHead    = icode0 0
@@ -544,19 +582,19 @@ instance EmbPrj TermHead where
   value = vcase valu where valu [0]    = return SortHead
                            valu [1]    = return PiHead
                            valu [2, a] = valu1 ConHead a
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Common.IsAbstract where
   icode AbstractDef = icode0 0
   icode ConcreteDef = icode0 1
   value = vcase valu where valu [0] = valu0 AbstractDef
                            valu [1] = valu0 ConcreteDef
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj I.Clause where
   icode (Clause a b c d e) = icode5' a b c d e
   value = vcase valu where valu [a, b, c, d, e] = valu5 Clause a b c d e
-                           valu _               = __IMPOSSIBLE__
+                           valu _               = malformed
 
 instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a
@@ -567,14 +605,14 @@ instance EmbPrj I.ClauseBody where
                            valu [1, a] = valu1 Bind   a
                            valu [2, a] = valu1 NoBind a
                            valu []     = valu0 NoBody
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj Delayed where
   icode Delayed    = icode0 0
   icode NotDelayed = icode0 1
   value = vcase valu where valu [0] = valu0 Delayed
                            valu [1] = valu0 NotDelayed
-                           valu _   = __IMPOSSIBLE__
+                           valu _   = malformed
 
 instance EmbPrj I.Pattern where
   icode (VarP a  ) = icode1 0 a
@@ -585,14 +623,14 @@ instance EmbPrj I.Pattern where
                            valu [1, a, b] = valu2 ConP a b
                            valu [2, a]    = valu1 LitP a
                            valu [3, a]    = valu1 DotP a
-                           valu _         = __IMPOSSIBLE__
+                           valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where
   icode (Prim    a) = icode1 0 a
   icode (Builtin a) = icode1 1 a
   value = vcase valu where valu [0, a] = valu1 Prim    a
                            valu [1, a] = valu1 Builtin a
-                           valu _      = __IMPOSSIBLE__
+                           valu _      = malformed
 
 instance EmbPrj HP.NameKind where
   icode HP.Bound           = icode0 0
@@ -615,7 +653,7 @@ instance EmbPrj HP.NameKind where
     valu [6]     = valu0 HP.Postulate
     valu [7]     = valu0 HP.Primitive
     valu [8]     = valu0 HP.Record
-    valu _       = __IMPOSSIBLE__
+    valu _       = malformed
 
 instance EmbPrj HP.Aspect where
   icode HP.Comment       = icode0 0
@@ -634,7 +672,7 @@ instance EmbPrj HP.Aspect where
     valu [4]        = valu0 HP.Symbol
     valu [5]        = valu0 HP.PrimitiveType
     valu [6, mk, b] = valu2 HP.Name mk b
-    valu _          = __IMPOSSIBLE__
+    valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
   icode HP.Error              = icode0 0
@@ -649,14 +687,14 @@ instance EmbPrj HP.OtherAspect where
     valu [2] = valu0 HP.UnsolvedMeta
     valu [3] = valu0 HP.TerminationProblem
     valu [4] = valu0 HP.IncompletePattern
-    valu _   = __IMPOSSIBLE__
+    valu _   = malformed
 
 instance EmbPrj HP.MetaInfo where
   icode (HP.MetaInfo a b c d) = icode4' a b c d
 
   value = vcase valu where
     valu [a, b, c, d] = valu4 HP.MetaInfo a b c d
-    valu _            = __IMPOSSIBLE__
+    valu _            = malformed
 
 instance EmbPrj Precedence where
   icode TopCtx                 = icode0 0
@@ -681,17 +719,17 @@ instance EmbPrj Precedence where
     valu [7]    = valu0 WithFunCtx
     valu [8]    = valu0 WithArgCtx
     valu [9]    = valu0 DotPatternCtx
-    valu _      = __IMPOSSIBLE__
+    valu _      = malformed
 
 instance EmbPrj ScopeInfo where
   icode (ScopeInfo a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
-                           valu _            = __IMPOSSIBLE__
+                           valu _            = malformed
 
 instance EmbPrj Interface where
   icode (Interface a b c d e f g h) = icode8' a b c d e f g h
   value = vcase valu where valu [a, b, c, d, e, f, g, h] = valu8 Interface a b c d e f g h
-                           valu _                        = __IMPOSSIBLE__
+                           valu _                        = malformed
 
 
 
@@ -718,7 +756,7 @@ vcase valu ix = do
       maybeU <- H.lookup memo (ix, aTyp)
       return (aTyp, maybeU)
     case maybeU of
-      Just (U u) -> maybe (__IMPOSSIBLE__) return (cast u)
+      Just (U u) -> maybe malformed return (cast u)
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
           liftIO $ H.insert memo (ix, aTyp) (U v)
