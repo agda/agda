@@ -230,8 +230,8 @@ unifyIndices flex a us vs = liftTCM $ do
 	(u, Var j []) | flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
-              -- The type is a datatype or a record.
-              Def d args <- reduce $ unEl a
+              -- The telescope ends with a datatype or a record.
+              TelV _ (El _ (Def d args)) <- telView <$> reduce a
               -- Get the number of parameters.
               def <- theDef <$> getConstInfo d
               a'  <- case def of
