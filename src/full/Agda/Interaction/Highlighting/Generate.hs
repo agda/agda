@@ -372,7 +372,9 @@ generateConstructorInfo modMap file kinds decls = do
   retrieveCoconstructor c = do
     def <- getConstInfo c
     case defDelayed def of
-      NotDelayed -> return Seq.empty  -- not a coconstructor
+      -- Not a coconstructor.
+      NotDelayed -> return Seq.empty
+
       Delayed -> do
         clauses <- R.instantiateFull $ defClauses def
         case clauses of
@@ -380,7 +382,12 @@ generateConstructorInfo modMap file kinds decls = do
             Just (I.Con c args) -> do
               s <- everything' (liftM2 (><)) query args
               return $ Seq.singleton c >< s
+
+            -- The meta variable could not be instantiated.
+            Just (I.MetaV {})   -> return Seq.empty
+
             _                   -> __IMPOSSIBLE__
+
           _ -> __IMPOSSIBLE__
     where
       getRHS (I.Body v)   = Just v
