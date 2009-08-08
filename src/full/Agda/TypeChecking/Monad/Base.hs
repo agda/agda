@@ -179,7 +179,7 @@ data Interface = Interface
         , iHaskellImports  :: [String]
         , iHighlighting    :: HighlightingInfo
 	}
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 ---------------------------------------------------------------------------
 -- ** Closure
@@ -230,7 +230,7 @@ type Constraints = [ConstraintClosure]
 
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing [CtxId] a
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 ---------------------------------------------------------------------------
 -- * Judgements
@@ -340,7 +340,7 @@ data Signature = Sig
       { sigSections    :: Sections
       , sigDefinitions :: Definitions
       }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 type Sections	 = Map ModuleName Section
 type Definitions = Map QName Definition
@@ -354,7 +354,7 @@ data Section = Section
 				    --	 section to when translating from
 				    --	 abstract to internal syntax.
       }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty Map.empty
@@ -383,7 +383,7 @@ data Definition = Defn { defName     :: QName
 		       , defMutual   :: MutualId
 		       , theDef	     :: Defn
 		       }
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 type HaskellCode = String
 type HaskellType = String
@@ -448,7 +448,7 @@ data Defn = Axiom
             , primName  :: String
             , primClauses :: [Clause]
             }
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Data)
@@ -495,7 +495,7 @@ defAbstract d = case theDef d of
 
 data FunctionInverse = NotInjective
                      | Inverse (Map TermHead Clause)
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data TermHead = SortHead
               | PiHead
@@ -610,7 +610,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 instance Functor Builtin where
     fmap f (Builtin t) = Builtin t
