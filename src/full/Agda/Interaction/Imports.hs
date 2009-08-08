@@ -293,19 +293,19 @@ getInterface' x includeStateChanges =
 	    -- stored version (in stDecodedModules), or if there is no stored version,
 	    -- read and decode it. Otherwise use the stored version.
             let ifile = toIFile file
-	    t  <- liftIO $ getModificationTime ifile
-	    mm <- getDecodedModule x
-	    mi <- case mm of
+	    t            <- liftIO $ getModificationTime ifile
+	    mm           <- getDecodedModule x
+	    (cached, mi) <- case mm of
 		      Just (mi, mt) ->
 			 if mt < t
 			 then do dropDecodedModule x
 				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-				 readInterface ifile
+				 (,) False <$> readInterface ifile
 			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
-				 return (Just mi)
+				 return (True, Just mi)
 		      Nothing ->
 			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-			    readInterface ifile
+			    (,) False <$> readInterface ifile
 
 	    -- Check that it's the right version
 	    case mi of
@@ -324,7 +324,9 @@ getInterface' x includeStateChanges =
 			    -- liftIO close	-- Close the interface file. See above.
 			    typeCheck file
 			else do
-			    reportSLn "" 1 $ "Skipping " ++ render (pretty x) ++ " (" ++ ifile ++ ")."
+			    reportSLn "" 1 $
+                              "Skipping " ++ render (pretty x) ++
+                                " (" ++ (if cached then "cached" else ifile) ++ ")."
 			    return (i, Right t)
 
 	typeCheck file = do
