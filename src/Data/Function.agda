@@ -7,7 +7,7 @@ module Data.Function where
 infixr 9 _∘_ _∘′_ _∘₀_ _∘₁_
 infixl 1 _on_ _on₁_
 infixl 1 _⟨_⟩_ _⟨_⟩₁_
-infixr 0 _-[_]₁-_ _-[_]-_ _$_
+infixr 0 _-[_]₁-_ _-[_]-_ _$_ _$₁_
 infix  0 _∶_ _∶₁_
 
 ------------------------------------------------------------------------
@@ -69,8 +69,11 @@ flip₁ f = λ x y → f y x
 -- Category.Functor._<$>_, available from
 -- Category.Monad.Identity.IdentityMonad.
 
-_$_ : {a : Set} {b : a → Set} → ((x : a) → b x) → ((x : a) → b x)
+_$_ : {A : Set} {B : A → Set} → ((x : A) → B x) → ((x : A) → B x)
 f $ x = f x
+
+_$₁_ : {A : Set₁} {B : A → Set₁} → ((x : A) → B x) → ((x : A) → B x)
+f $₁ x = f x
 
 _⟨_⟩_ : {a b c : Set} → a → (a → b → c) → b → c
 x ⟨ f ⟩ y = f x y
