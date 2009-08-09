@@ -99,6 +99,27 @@ reverse = lift (,_ ∘′ Vec.reverse)
 _∷ʳ_ : ∀ {A} → List⁺ A → A → List⁺ A
 xs ∷ʳ x = foldr _∷_ (λ y → y ∷ [ x ]) xs
 
+-- A snoc-view of non-empty lists.
+
+infixl 5 _∷ʳ′_
+
+data SnocView {A} : List⁺ A → Set where
+  [_]   : (x : A)                → SnocView [ x ]
+  _∷ʳ′_ : (xs : List⁺ A) (x : A) → SnocView (xs ∷ʳ x)
+
+snocView : ∀ {A} (xs : List⁺ A) → SnocView xs
+snocView [ x ]            = [ x ]
+snocView (x ∷ xs)         with snocView xs
+snocView (x ∷ .([ y ]))   | [ y ]    = [ x ] ∷ʳ′ y
+snocView (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ′ y = (x ∷ ys) ∷ʳ′ y
+
+-- The last element in the list.
+
+last : ∀ {A} → List⁺ A → A
+last xs with snocView xs
+last .([ y ])   | [ y ]    = y
+last .(ys ∷ʳ y) | ys ∷ʳ′ y = y
+
 ------------------------------------------------------------------------
 -- Examples
 
