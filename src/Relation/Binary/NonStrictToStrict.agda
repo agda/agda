@@ -45,6 +45,10 @@ trans po = λ x<y y<z →
   lemma x≤y y≤z x≈z =
     PO.antisym x≤y $ PO.trans y≤z (PO.reflexive $ PO.Eq.sym x≈z)
 
+antisym⟶asym : Antisymmetric _≈_ _≤_ → Asymmetric _<_
+antisym⟶asym antisym (x≤y , ¬x≈y) (y≤x , ¬y≈x) = 
+  ¬x≈y (antisym x≤y y≤x)
+
 <-resp-≈ : IsEquivalence _≈_ → _≤_ Respects₂ _≈_ → _<_ Respects₂ _≈_
 <-resp-≈ eq ≤-resp-≈ =
   (λ {x y' y} y'≈y x<y' →
@@ -74,3 +78,34 @@ decidable ≈-dec ≤-dec x y with ≈-dec x y | ≤-dec x y
 ... | yes x≈y | _       = no (flip proj₂ x≈y)
 ... | no  x≉y | yes x≤y = yes (x≤y , x≉y)
 ... | no  x≉y | no  x≰y = no (x≰y ∘ proj₁)
+
+isPartialOrder⟶isStrictPartialOrder : 
+  IsPartialOrder _≈_ _≤_ → IsStrictPartialOrder _≈_ _<_
+isPartialOrder⟶isStrictPartialOrder po = record
+  { isEquivalence = isEquivalence
+  ; irrefl = irrefl
+  ; trans = trans po
+  ; <-resp-≈ = <-resp-≈ isEquivalence ∼-resp-≈
+  } 
+  where pre = IsPartialOrder.isPreorder po
+        open IsPreorder pre hiding (trans)
+
+isTotalOrder⟶isStrictTotalOrder : 
+  Decidable _≈_ → IsTotalOrder _≈_ _≤_ → IsStrictTotalOrder _≈_ _<_
+isTotalOrder⟶isStrictTotalOrder dec-≈ tot = record
+  { isEquivalence = isEquivalence
+  ; trans = trans po
+  ; compare = trichotomous (IsEquivalence.sym isEquivalence) 
+                dec-≈ 
+                (IsPartialOrder.antisym po) 
+                (IsTotalOrder.total tot)
+  ; <-resp-≈ = <-resp-≈ isEquivalence ∼-resp-≈
+  }
+  where po = IsTotalOrder.isPartialOrder tot
+        open IsPreorder (IsPartialOrder.isPreorder po) hiding (trans) 
+
+isDecTotalOrder⟶isStrictTotalOrder :
+  IsDecTotalOrder _≈_ _≤_ → IsStrictTotalOrder _≈_ _<_
+isDecTotalOrder⟶isStrictTotalOrder dtot =
+  isTotalOrder⟶isStrictTotalOrder _≟_ isTotalOrder 
+ where open IsDecTotalOrder dtot
