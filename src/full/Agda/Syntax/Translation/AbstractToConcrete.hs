@@ -700,7 +700,9 @@ recoverOpApp bracket opApp view e mdefault = case view e of
     , Hole <- last xs = do
         let a1     = head as
             an     = last as
-            as'    = init $ tail as
+            as'    = case as of
+                       as@(_:_:_) -> init $ tail as
+                       _          -> __IMPOSSIBLE__
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
@@ -711,7 +713,9 @@ recoverOpApp bracket opApp view e mdefault = case view e of
   doCName fixity cn@(C.Name _ xs) as
     | Hole <- last xs = do
         let an  = last as
-            as' = init as
+            as' = case as of
+                    as@(_:_) -> init as
+                    _        -> __IMPOSSIBLE__
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
