@@ -460,15 +460,18 @@ Sends the list of strings ARGS to GHCi, waits for output and
 executes the responses, if any. An error is raised if no
 responses are received (unless REQUIRE-RESPONSE is nil), and
 otherwise the syntax highlighting information is reloaded (unless
-HIGHLIGHT is nil) and the goals updated (unless UPDATE-GOALS is
-nil)."
-  (let ((highlighting (if highlight (make-temp-file "agda2-mode"))))
+HIGHLIGHT is nil; if HIGHLIGHT is a string, then highlighting
+info is read from the corresponding file) and the goals
+updated (unless UPDATE-GOALS is nil)."
+  (let* ((highlighting-temp (and highlight (not (stringp highlight))))
+         (highlighting (cond ((stringp highlight) highlight)
+                             (highlighting-temp (make-temp-file "agda2-mode")))))
         (unwind-protect
             (let ((no-responses
                    (apply 'agda2-call-ghci
                           "ioTCM"
                           (agda2-string-quote (buffer-file-name))
-                          (if highlight
+                          (if highlighting-temp
                               (concat "(Just "
                                       (agda2-string-quote highlighting)
                                       ")")
@@ -478,7 +481,7 @@ nil)."
                 (when (and require-response (>= 0 no-responses))
                   (agda2-raise-ghci-error))
                 (if highlight (agda2-highlight-load highlighting)))
-          (if highlight (delete-file highlighting))))
+          (if highlighting-temp (delete-file highlighting))))
   (if update-goals (agda2-annotate)))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
@@ -773,11 +776,10 @@ If there is any to load."
   (let ((highlighting (make-temp-file "agda2-mode")))
     (unwind-protect
         (progn
-          (agda2-go nil nil t
+          (agda2-go highlighting nil t
                     "cmd_write_highlighting_info"
                     (agda2-string-quote (buffer-file-name))
-                    (agda2-string-quote highlighting))
-          (agda2-highlight-load highlighting))
+                    (agda2-string-quote highlighting)))
       (delete-file highlighting))))
 
 (defun agda2-annotate ()

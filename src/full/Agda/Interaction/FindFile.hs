@@ -124,9 +124,11 @@ findInterfaceFile m = do
 checkModuleName :: TopLevelModuleName
                    -- ^ The name of the module.
                 -> FilePath
-                   -- ^ The file from which it was loaded.
+                   -- ^ The file from which it was loaded (can be a
+                   -- relative path).
                 -> TCM ()
 checkModuleName name file = do
+  file <- liftIO $ canonicalizePath file
   moduleShouldBeIn <- findFile' name
   case moduleShouldBeIn of
     Left (NotFound files)  -> typeError $
