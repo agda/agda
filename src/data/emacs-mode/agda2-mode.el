@@ -546,10 +546,6 @@ sexp is executed. The number of executed responses is returned."
             (agda2-list-quote agda2-include-dirs)
             ))
 
-(defun agda2-load-action (gs)
-  "Annotate new goals GS in current buffer."
-  (agda2-annotate gs))
-
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
   (agda2-goal-cmd "cmd_give" "expression to give"))
