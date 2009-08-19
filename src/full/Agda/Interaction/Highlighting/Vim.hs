@@ -6,6 +6,7 @@ import Control.Monad.Trans
 import Data.Char
 import Data.Set ( Set )
 import Data.Map ( Map )
+import System.FilePath
 import qualified System.IO.UTF8 as UTF8
 
 import qualified Data.List as List
@@ -17,7 +18,6 @@ import Agda.Syntax.Concrete.Name as CName
 
 import Agda.TypeChecking.Monad
 
-import Agda.Utils.FileName
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"
@@ -27,8 +27,8 @@ on f g x y = f (g x) (g y)
 
 vimFile :: FilePath -> FilePath
 vimFile file =
-    case splitFilePath file of
-	(path,name,ext)	-> path ++ "." ++ name ++ ext ++ ".vim"
+    case splitFileName file of
+	(path, name) -> path </> "" <.> name <.> "vim"
 
 escape :: String -> String
 escape = concatMap esc

@@ -17,7 +17,7 @@ import System.IO
 import qualified System.IO.UTF8 as UTF8
 import System.Time
 import System.Process
-import System.FilePath ((</>))
+import System.FilePath hiding (normalise, (<.>))
 
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
@@ -272,8 +272,9 @@ writeModule m =
 
 outFile' = do
   mdir <- optMAlonzoDir <$> commandLineOptions
-  (fdir, fn, _) <- splitFilePath . repldot slash . prettyPrint <$> curHsMod
-  let (dir, fp) = (addSlash mdir ++ fdir, addSlash dir ++ fn ++ ".hs")
+  (fdir, fn) <- splitFileName . repldot pathSeparator .
+                prettyPrint <$> curHsMod
+  let (dir, fp) = (mdir </> fdir, dir </> replaceExtension fn "hs")
   liftIO $ createDirectoryIfMissing True dir
   return (mdir, fp)
   where

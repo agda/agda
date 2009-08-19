@@ -23,7 +23,6 @@ import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.Monad		( readM )
-import Agda.Utils.FileName		( slash )
 import Agda.Utils.List               ( wordsBy )
 import Agda.Utils.Trie               ( Trie )
 import qualified Agda.Utils.Trie as Trie
