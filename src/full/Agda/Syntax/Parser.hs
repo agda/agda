@@ -28,6 +28,8 @@ import Agda.Syntax.Strict
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser.Tokens
 
+import Agda.Utils.FileName
+
 ------------------------------------------------------------------------
 -- Wrapping parse results
 
@@ -55,14 +57,14 @@ data Parser a = Parser
 parse :: Strict a => Parser a -> String -> IO a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
-parseFile :: Strict a => Parser a -> FilePath -> IO a
+parseFile :: Strict a => Parser a -> AbsolutePath -> IO a
 parseFile p = wrapM . M.parseFile (parseFlags p) [normal] (parser p)
 
 parseLiterate :: Strict a => Parser a -> String -> IO a
 parseLiterate p =
   wrapM . return . M.parse (parseFlags p) [literate, code] (parser p)
 
-parseLiterateFile :: Strict a => Parser a -> FilePath -> IO a
+parseLiterateFile :: Strict a => Parser a -> AbsolutePath -> IO a
 parseLiterateFile p =
   wrapM . M.parseFile (parseFlags p) [literate, code] (parser p)
 
@@ -70,9 +72,9 @@ parsePosString :: Strict a => Parser a -> Position -> String -> IO a
 parsePosString p pos =
   wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
-parseFile' :: Strict a => Parser a -> FilePath -> IO a
+parseFile' :: Strict a => Parser a -> AbsolutePath -> IO a
 parseFile' p file =
-  if "lagda" `isSuffixOf` file then
+  if "lagda" `isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseLiterateFile p file
    else
     Agda.Syntax.Parser.parseFile p file

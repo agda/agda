@@ -30,6 +30,7 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 
+import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
 import Agda.Utils.Monad.Undo
@@ -801,11 +802,11 @@ data TypeError
 	| UnsolvedMetas [Range]
 	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [C.TopLevelModuleName]
-	| FileNotFound C.TopLevelModuleName [FilePath]
-        | AmbiguousTopLevelModuleName C.TopLevelModuleName [FilePath]
-	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [FilePath]
-	| ClashingFileNamesFor ModuleName [FilePath]
-        | ModuleDefinedInOtherFile C.TopLevelModuleName FilePath FilePath
+	| FileNotFound C.TopLevelModuleName [AbsolutePath]
+        | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
+	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
+	| ClashingFileNamesFor ModuleName [AbsolutePath]
+        | ModuleDefinedInOtherFile C.TopLevelModuleName AbsolutePath AbsolutePath
           -- ^ Module name, file from which it was loaded, file which
           -- the include path says contains the module.
     -- Scope errors

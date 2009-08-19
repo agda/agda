@@ -36,6 +36,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Scope.Monad as Scope
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
+import Agda.Utils.FileName (filePath)
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -94,7 +95,7 @@ generatePage dir mod highlighting = do
   case mf of
     Nothing -> __IMPOSSIBLE__
     Just f  -> do
-      contents <- liftIO $ UTF8.readTextFile f
+      contents <- liftIO $ UTF8.readTextFile $ filePath f
       css      <- maybe defaultCSSFile id . optCSSFile <$>
                     TCM.commandLineOptions
       let html = page css mod contents highlighting

@@ -49,6 +49,7 @@ import qualified Data.Set as Set
 import Agda.Utils.QuickCheck
 import Control.Applicative
 import Control.Monad
+import Agda.Utils.FileName hiding (tests)
 import Agda.Utils.TestHelpers
 
 #include "../undefined.h"
@@ -68,7 +69,7 @@ import Agda.Utils.Impossible
 -- messages for the user.
 --
 -- Note the invariant which positions have to satisfy: 'positionInvariant'.
-data Position = Pn { srcFile :: FilePath
+data Position = Pn { srcFile :: Maybe AbsolutePath
                    , posPos  :: !Int
 		   , posLine :: !Int
 		   , posCol  :: !Int
@@ -177,8 +178,8 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
  --------------------------------------------------------------------------}
 
 instance Show Position where
-    show (Pn "" _ l c)	= show l ++ "," ++ show c
-    show (Pn f  _ l c)	= f ++ ":" ++ show l ++ "," ++ show c
+    show (Pn Nothing  _ l c) = show l ++ "," ++ show c
+    show (Pn (Just f) _ l c) = filePath f ++ ":" ++ show l ++ "," ++ show c
 
 instance Show Interval where
     show (Interval s e) = file ++ start ++ "-" ++ end
@@ -188,9 +189,9 @@ instance Show Interval where
 	    el	= posLine e
 	    sc	= posCol s
 	    ec	= posCol e
-	    file
-		| null f    = ""
-		| otherwise = f ++ ":"
+	    file = case f of
+                     Nothing -> ""
+                     Just f  -> filePath f ++ ":"
 	    start = show sl ++ "," ++ show sc
 	    end
 		| sl == el  = show ec
@@ -206,7 +207,7 @@ instance Show Range where
  --------------------------------------------------------------------------}
 
 -- | The first position in a file: position 1, line 1, column 1.
-startPos :: FilePath -> Position
+startPos :: Maybe AbsolutePath -> Position
 startPos f = Pn { srcFile = f, posPos = 1, posLine = 1, posCol = 1 }
 
 -- | Ranges between two unknown positions
@@ -368,11 +369,12 @@ prop_continuous r =
   rPositions cr == makeInterval (rPositions r)
   where cr = continuous r
 
-prop_fuseIntervals i1 i2 =
-  intervalInvariant i &&
-  iPositions i ==
-    makeInterval (Set.union (iPositions i1) (iPositions i2))
-  where i = fuseIntervals i1 i2
+prop_fuseIntervals i1 =
+  forAll (intervalInSameFileAs i1) $ \i2 ->
+    let i = fuseIntervals i1 i2 in
+    intervalInvariant i &&
+    iPositions i ==
+      makeInterval (Set.union (iPositions i1) (iPositions i2))
 
 prop_fuseRanges :: Range -> Range -> Bool
 prop_fuseRanges r1 r2 =
@@ -384,26 +386,46 @@ prop_beginningOf r = rangeInvariant (beginningOf r)
 
 instance Arbitrary Position where
   arbitrary = do
+    srcFile                    <- arbitrary
     NonZero (NonNegative pos') <- arbitrary
     let pos  = fromInteger pos'
         line = pred pos `div` 10 + 1
         col  = pred pos `mod` 10 + 1
-    return (Pn {srcFile = "file name", posPos = pos,
+    return (Pn {srcFile = srcFile, posPos = pos,
                 posLine = line, posCol = col })
+
+-- | Sets the 'srcFile' components of the interval.
+
+setFile :: Maybe AbsolutePath -> Interval -> Interval
+setFile f (Interval p1 p2) =
+  Interval (p1 { srcFile = f }) (p2 { srcFile = f })
+
+-- | Generates an interval located in the same file as the given
+-- interval.
+
+intervalInSameFileAs i = setFile (srcFile $ iStart i) <$> arbitrary
+
+prop_intervalInSameFileAs i =
+  forAll (intervalInSameFileAs i) $ \i' ->
+    intervalInvariant i' &&
+    srcFile (iStart i) == srcFile (iStart i')
 
 instance Arbitrary Interval where
   arbitrary = do
     (p1, p2) <- liftM2 (,) arbitrary arbitrary
-    let [p1', p2'] = sort [p1, p2]
+    let [p1', p2'] = sort [p1, p2 { srcFile = srcFile p1 }]
     return (Interval p1' p2')
 
 instance Arbitrary Range where
-  arbitrary = Range . fixUp . sort <$> arbitrary
+  arbitrary = Range . fuse . sort . fixFiles <$> arbitrary
     where
-    fixUp (i1 : i2 : is)
-      | iEnd i1 >= iStart i2 = fixUp (fuseIntervals i1 i2 : is)
-      | otherwise            = i1 : fixUp (i2 : is)
-    fixUp is = is
+    fixFiles []       = []
+    fixFiles (i : is) = i : map (setFile $ srcFile $ iStart i) is
+
+    fuse (i1 : i2 : is)
+      | iEnd i1 >= iStart i2 = fuse (fuseIntervals i1 i2 : is)
+      | otherwise            = i1 : fuse (i2 : is)
+    fuse is = is
 
 -- | Test suite.
 tests :: IO Bool
@@ -420,4 +442,5 @@ tests = runTests "Agda.Syntax.Position"
   , quickCheck' prop_fuseIntervals
   , quickCheck' prop_fuseRanges
   , quickCheck' prop_beginningOf
+  , quickCheck' prop_intervalInSameFileAs
   ]

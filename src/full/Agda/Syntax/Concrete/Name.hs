@@ -19,7 +19,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Utils.FileName
 import Agda.Utils.Pretty
-import Agda.Utils.TestHelpers
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -151,14 +150,14 @@ moduleNameToFileName (TopLevelModuleName ms) ext =
 -- Example: If the module \"A.B.C\" is located in the file
 -- \"/foo/A/B/C.agda\", then the root is \"/foo/\".
 --
--- Precondition: The file name has to be an absolute path, and the
--- module name must be well-formed.
+-- Precondition: The module name must be well-formed.
 
-projectRoot :: FilePath -> TopLevelModuleName -> FilePath
-projectRoot file (TopLevelModuleName m)
-  | not (isAbsolute file) = __IMPOSSIBLE__
-  | otherwise             = dropDirectory (length m - 1) $
-                              takeDirectory file
+projectRoot :: AbsolutePath -> TopLevelModuleName -> AbsolutePath
+projectRoot file (TopLevelModuleName m) =
+  mkAbsolute $
+  dropDirectory (length m - 1) $
+  takeDirectory $
+  filePath file
 
 isHole :: NamePart -> Bool
 isHole Hole = True
@@ -210,4 +209,3 @@ instance KillRange QName where
 instance KillRange Name where
   killRange (Name r ps)  = Name (killRange r) ps
   killRange (NoName r i) = NoName (killRange r) i
-

@@ -61,6 +61,7 @@ import qualified Agda.Interaction.Highlighting.Precise as HP
 import Agda.Interaction.FindFile
 
 import Agda.TypeChecking.Monad
+import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
@@ -73,7 +74,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20090807 * 10 + 0
+currentInterfaceVersion = 20090817 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -100,8 +101,8 @@ data St = St
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. This is the only component
     -- of the state which is updated by the decoder.
-  , includes  :: [FilePath]
-    -- ^ The include directories (absolute paths).
+  , includes  :: [AbsolutePath]
+    -- ^ The include directories.
   }
 
 -- | Monad used by the encoder.
@@ -254,27 +255,28 @@ instance EmbPrj Bool where
                            valu [1] = valu0 False
                            valu _   = malformed
 
-instance EmbPrj Position where
-  icode (P.Pn file pos line col) = do
+instance EmbPrj AbsolutePath where
+  icode file = do
     mm <- M.lookup file . fileMod <$> ask
     case mm of
-      Just m  -> icode4' m pos line col
+      Just m  -> icode m
       Nothing -> __IMPOSSIBLE__
+  value m = do
+    m       <- value m
+    mf      <- modFile  <$> get
+    incs    <- includes <$> get
+    (r, mf) <- liftIO $ findFile'' incs m mf
+    modify $ \s -> s { modFile = mf }
+    case r of
+      Left err -> throwError $ findErrorToTypeError m err
+      Right f  -> return f
+
+instance EmbPrj Position where
+  icode (P.Pn file pos line col) = icode4' file pos line col
   value = vcase valu
     where
-    valu [m, p, l, c] = P.Pn <$> value' m <*> value p
-                             <*> value  l <*> value c
+    valu [f, p, l, c] = valu4 P.Pn f p l c
     valu _            = malformed
-
-    value' m = do
-      m       <- value m
-      mf      <- modFile  <$> get
-      incs    <- includes <$> get
-      (r, mf) <- liftIO $ findFile'' incs m mf
-      modify $ \s -> s { modFile = mf }
-      case r of
-        Left err -> throwError $ findErrorToTypeError m err
-        Right f  -> return f
 
 instance EmbPrj TopLevelModuleName where
   icode (TopLevelModuleName a) = icode1' a

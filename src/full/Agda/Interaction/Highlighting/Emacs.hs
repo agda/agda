@@ -75,7 +75,7 @@ showMetaInfo modFile (r, m) =
     Nothing     -> ""
     Just (m, p) -> case Map.lookup m modFile of
       Nothing -> __IMPOSSIBLE__
-      Just f  -> " (" ++ quote f ++ " . " ++ show p ++ ")"
+      Just f  -> " (" ++ quote (filePath f) ++ " . " ++ show p ++ ")"
 
 -- | Shows syntax highlighting information in an Emacsy fashion.
 

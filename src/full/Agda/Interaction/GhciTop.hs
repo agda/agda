@@ -21,6 +21,8 @@ module Agda.Interaction.GhciTop
   , module Agda.Syntax.Abstract.Name
 
   , module Agda.Interaction.Exceptions
+
+  , mkAbsolute
   )
   where
 
@@ -104,7 +106,7 @@ data State = State
     --   recorded in 'theTCState', but when new interaction points are
     --   added by give or refine Agda does not ensure that the ranges
     --   of later interaction points are updated.
-  , theCurrentFile       :: Maybe (FilePath, ClockTime)
+  , theCurrentFile       :: Maybe (AbsolutePath, ClockTime)
     -- ^ The file which the state applies to. Only stored if the
     -- module was successfully type checked (potentially with
     -- warnings). The 'ClockTime' is the modification time stamp of
@@ -147,8 +149,7 @@ ioTCM :: FilePath
       -> Interaction
       -> IO ()
 ioTCM current highlightingFile cmd = infoOnException $ do
-  -- canonicalizePath seems to return absolute paths.
-  current <- canonicalizePath current
+  current <- absolute current
 
   -- Read the state.
   State { theTCState     = st
@@ -241,9 +242,8 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
       , theCurrentFile       = Nothing
       }
 
-  -- canonicalizePath seems to return absolute paths.
-  file <- liftIO $ canonicalizePath file
-  t    <- liftIO $ getModificationTime file
+  f <- liftIO $ absolute file
+  t <- liftIO $ getModificationTime file
 
   -- All options are reset when a file is reloaded, including the
   -- choice of whether or not to display implicit arguments.
@@ -269,7 +269,7 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
     is <- sortInteractionPoints =<< getInteractionPoints
     liftIO $ modifyIORef theState $ \s ->
       s { theInteractionPoints = is
-        , theCurrentFile       = Just (file, t)
+        , theCurrentFile       = Just (f, t)
         }
 
   cmd ok
@@ -460,7 +460,7 @@ displayStatus = do
   checked  <- case cur of
     Nothing     -> return Nothing
     Just (f, t) -> do
-      t' <- liftIO $ getModificationTime f
+      t' <- liftIO $ getModificationTime $ filePath f
       case t == t' of
         False -> return Nothing
         True  -> do
@@ -784,13 +784,13 @@ cmd_goals f = Interaction True $ do
 tellEmacsToJumpToError :: Range -> IO ()
 tellEmacsToJumpToError r = do
   case rStart r of
-    Nothing                                -> return ()
-    -- Errors for expressions entered using the command line sometimes
-    -- have an empty file name component. This should be fixed.
-    Just (Pn { srcFile = "" })             -> return ()
-    Just (Pn { srcFile = f,  posPos = p }) ->
+    Nothing                                    -> return ()
+    Just (Pn { srcFile = Nothing })            -> return ()
+    Just (Pn { srcFile = Just f, posPos = p }) ->
       UTF8.putStrLn $ response $
-        L [A "annotation-goto", Q $ L [A (show f), A ".", A (show p)]]
+        L [ A "annotation-goto"
+          , Q $ L [A (quote $ filePath f), A ".", A (show p)]
+          ]
 
 ------------------------------------------------------------------------
 -- Implicit arguments

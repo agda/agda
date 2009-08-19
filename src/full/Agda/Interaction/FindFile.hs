@@ -14,12 +14,14 @@ module Agda.Interaction.FindFile
   , checkModuleName
   , ModuleToSource
   , SourceToModule, sourceToModule
+  , tests
   ) where
 
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State.Class
 import Control.Monad.Trans
+import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import System.FilePath
@@ -28,22 +30,23 @@ import System.Directory
 import Agda.Syntax.Concrete.Name
 import Agda.TypeChecking.Monad
 import Agda.Utils.FileName
+import Agda.Utils.Monad
 
 -- | Converts an Agda file name to the corresponding interface file
 -- name.
 
-toIFile :: FilePath -> FilePath
-toIFile f = replaceExtension f ".agdai"
+toIFile :: AbsolutePath -> AbsolutePath
+toIFile f = mkAbsolute (replaceExtension (filePath f) ".agdai")
 
 -- | Errors which can arise when trying to find a source file.
 --
 -- Invariant: All paths are absolute.
 
 data FindError
-  = NotFound [FilePath]
+  = NotFound [AbsolutePath]
     -- ^ The file was not found. It should have had one of the given
     -- file names.
-  | Ambiguous [FilePath]
+  | Ambiguous [AbsolutePath]
     -- ^ Several matching files were found.
     --
     -- Invariant: The list of matching files has at least two
@@ -62,7 +65,7 @@ findErrorToTypeError m (Ambiguous files) =
 --
 -- Raises an error if the file cannot be found.
 
-findFile :: TopLevelModuleName -> TCM FilePath
+findFile :: TopLevelModuleName -> TCM AbsolutePath
 findFile m = do
   mf <- findFile' m
   case mf of
@@ -72,7 +75,7 @@ findFile m = do
 -- | Tries to find the source file corresponding to a given top-level
 -- module name. The returned paths are absolute.
 
-findFile' :: TopLevelModuleName -> TCM (Either FindError FilePath)
+findFile' :: TopLevelModuleName -> TCM (Either FindError AbsolutePath)
 findFile' m = do
     dirs         <- getIncludeDirs
     modFile      <- stModuleToSource <$> get
@@ -83,23 +86,24 @@ findFile' m = do
 -- | A variant of 'findFile'' which does not require 'TCM'.
 
 findFile''
-  :: [FilePath]
+  :: [AbsolutePath]
   -- ^ Include paths.
   -> TopLevelModuleName
   -> ModuleToSource
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
-  -> IO (Either FindError FilePath, ModuleToSource)
+  -> IO (Either FindError AbsolutePath, ModuleToSource)
 findFile'' dirs m modFile =
     case Map.lookup m modFile of
       Just f  -> return (Right f, modFile)
       Nothing -> do
-        files' <- liftIO $ nubFiles =<< filterM doesFileExist files
-        return $ case files' of
+        existingFiles <-
+          liftIO $ filterM (doesFileExist . filePath) files
+        return $ case nub existingFiles of
           []     -> (Left (NotFound files), modFile)
           [file] -> (Right file, Map.insert m file modFile)
           files  -> (Left (Ambiguous files), modFile)
     where
-    files = [ dir </> file
+    files = [ mkAbsolute (filePath dir </> file)
             | dir  <- dirs
             , file <- map (moduleNameToFileName m) [".agda", ".lagda"]
             ]
@@ -111,10 +115,10 @@ findFile'' dirs m modFile =
 -- 'Nothing' if the source file can be found but not the interface
 -- file.
 
-findInterfaceFile :: TopLevelModuleName -> TCM (Maybe FilePath)
+findInterfaceFile :: TopLevelModuleName -> TCM (Maybe AbsolutePath)
 findInterfaceFile m = do
   f  <- toIFile <$> findFile m
-  ex <- liftIO $ doesFileExist f
+  ex <- liftIO $ doesFileExist $ filePath f
   return $ if ex then Just f else Nothing
 
 -- | Ensures that the module name matches the file name. The file
@@ -123,33 +127,30 @@ findInterfaceFile m = do
 
 checkModuleName :: TopLevelModuleName
                    -- ^ The name of the module.
-                -> FilePath
-                   -- ^ The file from which it was loaded (can be a
-                   -- relative path).
+                -> AbsolutePath
+                   -- ^ The file from which it was loaded.
                 -> TCM ()
 checkModuleName name file = do
-  file <- liftIO $ canonicalizePath file
   moduleShouldBeIn <- findFile' name
   case moduleShouldBeIn of
     Left (NotFound files)  -> typeError $
                                 ModuleNameDoesntMatchFileName name files
     Left (Ambiguous files) -> typeError $
                                 AmbiguousTopLevelModuleName name files
-    Right file' -> if file' == file then
-                     return ()
-                    else
-                     typeError $
-                       ModuleDefinedInOtherFile name file file'
+    Right file' ->
+      ifM (liftIO $ filePath file === filePath file')
+          (return ())
+          (typeError $ ModuleDefinedInOtherFile name file file')
 
 -- | Maps top-level module names to the corresponding source file
 -- names.
 
-type ModuleToSource = Map TopLevelModuleName FilePath
+type ModuleToSource = Map TopLevelModuleName AbsolutePath
 
 -- | Maps source file names to the corresponding top-level module
 -- names.
 
-type SourceToModule = Map FilePath TopLevelModuleName
+type SourceToModule = Map AbsolutePath TopLevelModuleName
 
 -- | Creates a 'SourceToModule' map based on 'stModuleToSource'.
 

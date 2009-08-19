@@ -1,13 +1,92 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-| Operations on file names. -}
-module Agda.Utils.FileName where
+module Agda.Utils.FileName
+  ( AbsolutePath
+  , filePath
+  , mkAbsolute
+  , absolute
+  , (===)
+  , splitFilePath
+  , splitExt
+  , setExtension
+  , splitPath
+  , unsplitPath
+  , dropDirectory
+  , addSlash
+  , slash
+  , slashes
+  , nameChar
+  , name
+  , nonEmptyName
+  , path
+  , pathOfLength
+  , tests
+  ) where
 
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
+import Data.Function
+import Data.Generics
 import Data.List
+import Data.Maybe
+import Control.Applicative
 import Control.Monad
 import System.Directory
+import System.FilePath hiding (splitPath)
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
+
+-- | Paths which are known to be absolute.
+--
+-- Note that the 'Eq' and 'Ord' instances do not check if different
+-- paths point to the same files or directories.
+
+newtype AbsolutePath = AbsolutePath { filePath :: FilePath }
+  deriving (Show, Eq, Ord, Typeable, Data)
+
+-- | The paths have to be absolute, valid and normalised, without
+-- trailing path separators.
+
+absolutePathInvariant :: AbsolutePath -> Bool
+absolutePathInvariant (AbsolutePath f) =
+  isAbsolute f &&
+  isValid f &&
+  f == normalise f &&
+  f == dropTrailingPathSeparator f
+
+-- | Constructs 'AbsolutePath's.
+--
+-- Precondition: The path must be absolute.
+
+mkAbsolute :: FilePath -> AbsolutePath
+mkAbsolute f
+  | isAbsolute f =
+      AbsolutePath $ dropTrailingPathSeparator $ normalise f
+  | otherwise    = __IMPOSSIBLE__
+
+prop_mkAbsolute f =
+  absolutePathInvariant $ mkAbsolute (pathSeparator : f)
+
+-- | Makes the path absolute.
+--
+-- This function raises an @__IMPOSSIBLE__@ error if
+-- 'canonicalizePath' does not return an absolute path.
+
+absolute :: FilePath -> IO AbsolutePath
+absolute f = mkAbsolute <$> canonicalizePath f
+
+-- | Tries to establish if the two file paths point to the same file
+-- (or directory).
+
+infix 4 ===
+
+(===) :: FilePath -> FilePath -> IO Bool
+p1 === p2 = do
+  p1 <- canonicalizePath p1
+  p2 <- canonicalizePath p2
+  return $ equalFilePath p1 p2
 
 splitFilePath :: FilePath -> (FilePath, String, String)
 #ifdef mingw32_HOST_OS
@@ -154,47 +233,13 @@ slash = '/'
 slashes = ['/']
 #endif
 
--- | Removes duplicate file names from the list. Nonexisting files are
--- compared by name only. Two existing files are considered to be
--- equal if
---
--- * 'canonicalizePath' returns the same canonical path for them,
---
--- * and they have the same modification time.
---
--- Nonexisting and existing files are not compared.
---
--- Note that in the case of existing files the returned file names
--- are canonicalised.
---
--- The modification time test for existing files is included since the
--- first method may not always give correct results. I would want to
--- check the files' sizes instead of their modification times, but
--- "System.Directory" does not contain a function for querying the
--- size of a file.
---
--- This function is of course prone to errors if files are changed
--- while it is running.
---
--- To summarise: There are no guarantees that this function gives
--- correct results. Do not use it for mission-critical code.
-
-nubFiles :: [FilePath] -> IO [FilePath]
-nubFiles fs = do
-  infos <- mapM getInfo fs
-  return (map (either id fst) . nub $ infos)
-  where
-  getInfo f = do
-    ex <- doesFileExist f
-    if ex then do
-      f' <- canonicalizePath f
-      t  <- getModificationTime f
-      return $ Right (f', t)
-     else
-      return $ Left f
-
 ------------------------------------------------------------------------
 -- Generators
+
+instance Arbitrary AbsolutePath where
+  arbitrary = mk . take 3 . map (take 2) <$>
+                listOf (listOf1 (elements "a1"))
+    where mk ps = AbsolutePath (joinPath $ [pathSeparator] : ps)
 
 -- | Generates a character distinct from 'slash' (it may be @\'.\'@).
 
@@ -239,7 +284,9 @@ prop_pathOfLength =
 -- All tests
 
 tests = runTests "Agda.Utils.FileName"
-  [ quickCheck' prop_splitPath_unsplitPath
+  [ quickCheck' absolutePathInvariant
+  , quickCheck' prop_mkAbsolute
+  , quickCheck' prop_splitPath_unsplitPath
   , quickCheck' prop_splitPath
   , quickCheck' prop_dropDirectory
   , quickCheck' prop_pathOfLength

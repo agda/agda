@@ -897,8 +897,11 @@ text properties."
   "The Haskell Position corresponding to P or `point'."
   (save-excursion
     (if p (goto-char p))
-    (format "(Pn \"%s\" %d %d %d)" (buffer-file-name)
-            (point) (count-lines (point-min) (point)) (1+ (current-column)))))
+    (format "(Pn (Just (mkAbsolute %s)) %d %d %d)"
+            (agda2-string-quote (file-truename (buffer-file-name)))
+            (point)
+            (count-lines (point-min) (point))
+            (1+ (current-column)))))
 
 (defun agda2-char-quote (c)
   "Convert character C to the notation used in Haskell strings.

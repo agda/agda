@@ -55,7 +55,7 @@ compile i = do
   where
   decl mn ds imp = HsModule dummy mn Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
-  ifile    = maybe __IMPOSSIBLE__ id <$>
+  ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<

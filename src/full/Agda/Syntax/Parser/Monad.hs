@@ -39,6 +39,7 @@ import qualified Agda.Utils.IO as UTF8
 
 import Agda.Syntax.Position
 
+import Agda.Utils.FileName
 import Agda.Utils.Monad
 
 {--------------------------------------------------------------------------
@@ -173,7 +174,8 @@ initStatePos pos flags inp st =
 -- | Constructs the initial state of the parser. The string argument
 --   is the input string, the file path is only there because it's part
 --   of a position.
-initState :: FilePath -> ParseFlags -> String -> [LexState] -> ParseState
+initState :: Maybe AbsolutePath -> ParseFlags -> String -> [LexState]
+          -> ParseState
 initState file = initStatePos (startPos file)
 
 -- | The default flags.
@@ -184,7 +186,7 @@ defaultParseFlags = ParseFlags { parseKeepComments = False }
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
 parse :: ParseFlags -> [LexState] -> Parser a -> String -> ParseResult a
-parse flags st p input = unP p (initState "" flags input st)
+parse flags st p input = unP p (initState Nothing flags input st)
 
 -- | The even more general way of parsing a string.
 parsePosString :: Position -> ParseFlags -> [LexState] -> Parser a -> String ->
@@ -194,10 +196,11 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 -- | The most general way of parsing a file. The "Agda.Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
-parseFile :: ParseFlags -> [LexState] -> Parser a -> FilePath -> IO (ParseResult a)
+parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
+          -> IO (ParseResult a)
 parseFile flags st p file =
-    do	input <- liftIO $ UTF8.readTextFile file
-	return $ unP p (initState file flags input st)
+    do	input <- liftIO $ UTF8.readTextFile $ filePath file
+	return $ unP p (initState (Just file) flags input st)
 
 {--------------------------------------------------------------------------
     Manipulating the state

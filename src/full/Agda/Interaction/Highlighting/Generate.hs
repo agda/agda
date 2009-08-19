@@ -55,14 +55,14 @@ import Agda.Utils.Impossible
 -- completed so that there are no gaps in it.
 --
 -- Nothing is generated unless the file name component of the range is
--- defined and non-empty.
+-- defined.
 
 generateErrorInfo :: P.Range -> Maybe String -> Maybe HighlightingInfo
 generateErrorInfo r s =
   case P.rStart r of
-    Nothing                                     -> Nothing
-    Just (P.Pn { P.srcFile = "" })              -> Nothing
-    Just (P.Pn { P.srcFile = f, P.posPos = p }) ->
+    Nothing                                          -> Nothing
+    Just (P.Pn { P.srcFile = Nothing })              -> Nothing
+    Just (P.Pn { P.srcFile = Just f, P.posPos = p }) ->
       Just $ compress $ generateErrorFile r s
 
 -- | Generates syntax highlighting information for an error,
@@ -79,7 +79,7 @@ generateErrorFile r s =
 -- | Generates syntax highlighting information.
 
 generateSyntaxInfo
-  :: FilePath               -- ^ The module to highlight.
+  :: AbsolutePath           -- ^ The module to highlight.
   -> Maybe TCErr            -- ^ 'Nothing' if the module has been
                             --   successfully type checked (perhaps
                             --   with warnings), otherwise the
@@ -113,7 +113,7 @@ generateSyntaxInfo file mErr top termErrs =
       Nothing -> return mempty
       Just e  -> let r = P.getRange e in
         case P.rStart r of
-          Just p | P.srcFile p == file ->
+          Just p | P.srcFile p == Just file ->
             generateErrorFile r . Just <$> E.prettyError e
           _ -> __IMPOSSIBLE__
     -- theRest needs to be placed before nameInfo here since record
@@ -327,7 +327,7 @@ nameKinds mErr decls = do
 
 generateConstructorInfo
   :: SourceToModule  -- ^ Maps source file paths to module names.
-  -> FilePath        -- ^ The module to highlight.
+  -> AbsolutePath    -- ^ The module to highlight.
   -> NameKinds
   -> [A.Declaration]
   -> TCM File
@@ -360,7 +360,7 @@ generateConstructorInfo modMap file kinds decls = do
   getConstructor :: I.Term -> TCM (Seq A.QName)
   getConstructor (I.Con q _) = return $ Seq.singleton q
   getConstructor (I.Def c _)
-    | fmap P.srcFile (P.rStart (P.getRange c)) == Just file
+    | fmap P.srcFile (P.rStart (P.getRange c)) == Just (Just file)
                              = retrieveCoconstructor c
   getConstructor _           = return Seq.empty
 
@@ -416,7 +416,7 @@ computeUnsolvedMetaWarnings = do
 
 generate :: SourceToModule
             -- ^ Maps source file paths to module names.
-         -> FilePath
+         -> AbsolutePath
             -- ^ The module to highlight.
          -> NameKinds
          -> A.AmbiguousQName
@@ -438,7 +438,7 @@ generate modMap file kinds (A.AmbQ qs) =
 
 nameToFile :: SourceToModule
               -- ^ Maps source file paths to module names.
-           -> FilePath
+           -> AbsolutePath
               -- ^ The file name of the current module. Used for
               -- consistency checking.
            -> [C.Name]
@@ -455,7 +455,7 @@ nameToFile :: SourceToModule
            -> File
 nameToFile modMap file xs x m mR =
   -- Make sure that we don't get any funny ranges.
-  if all (== file) $ catMaybes $
+  if all (== Just file) $ catMaybes $
      map (fmap P.srcFile . P.rStart . P.getRange) (x : xs) then
     several rs' ((m isOp) { definitionSite = mFilePos })
    else
@@ -465,7 +465,7 @@ nameToFile modMap file xs x m mR =
   rs'        = rs ++ concatMap (fst . getRanges) xs
   mFilePos   = do
     r <- mR
-    P.Pn { P.srcFile = f, P.posPos = p } <- P.rStart r
+    P.Pn { P.srcFile = Just f, P.posPos = p } <- P.rStart r
     mod <- Map.lookup f modMap
     return (mod, toInteger p)
 
@@ -473,7 +473,7 @@ nameToFile modMap file xs x m mR =
 
 nameToFileA :: SourceToModule
                -- ^ Maps source file paths to module names.
-            -> FilePath
+            -> AbsolutePath
                -- ^ The file name of the current module. Used for
                -- consistency checking.
             -> A.QName

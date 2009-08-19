@@ -27,6 +27,7 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 
+import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Trace
 import Agda.Utils.Size
@@ -357,25 +358,25 @@ instance PrettyTCM TypeError where
 	    FileNotFound x files ->
 		fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
 		       pwords "in any of the following locations:"
-		     ) $$ nest 2 (vcat $ map text files)
+		     ) $$ nest 2 (vcat $ map (text . filePath) files)
 	    AmbiguousTopLevelModuleName x files ->
 		fsep ( pwords "Ambiguous module name. The module name" ++
                        [pretty x] ++
 		       pwords "could refer to any of the following files:"
-		     ) $$ nest 2 (vcat $ map text files)
+		     ) $$ nest 2 (vcat $ map (text . filePath) files)
 	    ClashingFileNamesFor x files ->
 		fsep ( pwords "Multiple possible sources for module" ++ [text $ show x] ++
 		       pwords "found:"
-		     ) $$ nest 2 (vcat $ map text files)
+		     ) $$ nest 2 (vcat $ map (text . filePath) files)
             ModuleDefinedInOtherFile mod file file' -> fsep $
-              pwords "You tried to load" ++ [text file] ++
+              pwords "You tried to load" ++ [text (filePath file)] ++
               pwords "which defines the module" ++ [pretty mod <> text "."] ++
               pwords "However, according to the include path this module should" ++
-              pwords "be defined in" ++ [text file' <> text "."]
+              pwords "be defined in" ++ [text (filePath file') <> text "."]
 	    ModuleNameDoesntMatchFileName given files ->
               fsep (pwords "The name of the top level module does not match the file name. The module" ++
                    [ pretty given ] ++ pwords "should be defined in one of the following files:")
-	      $$ nest 2 (vcat $ map text files)
+	      $$ nest 2 (vcat $ map (text . filePath) files)
             BothWithAndRHS -> fsep $
               pwords "Unexpected right hand side"
 	    NotInScope xs ->

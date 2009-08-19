@@ -65,22 +65,23 @@ data RelativeTo
 
 -- | A variant of 'moduleName'' which raises an error if the file name
 -- does not match the module name.
+--
+-- The file name is interpreted relative to the current working
+-- directory (unless it is absolute).
 
 moduleName :: FilePath -> TCM C.TopLevelModuleName
 moduleName file = do
+  file <- liftIO (absolute file)
   m <- moduleName' file
   checkModuleName m file
   return m
 
 -- | Computes the module name of the top-level module in the given
 -- file.
---
--- The file name is interpreted relative to the current working
--- directory (unless it is absolute).
 
-moduleName' :: FilePath -> TCM C.TopLevelModuleName
-moduleName' file =
-  C.topLevelModuleName <$> liftIO (parseFile' moduleParser file)
+moduleName' :: AbsolutePath -> TCM C.TopLevelModuleName
+moduleName' file = liftIO $ do
+  C.topLevelModuleName <$> parseFile' moduleParser file
 
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
@@ -200,17 +201,18 @@ typeCheck :: FilePath
           -- ^ The file name is interpreted relative to the current
           -- working directory (unless it is absolute).
           -> RelativeTo
-          -> Maybe [FilePath]
+          -> Maybe [AbsolutePath]
           -- ^ If this argument is given, and it does not coincide
           -- with the new value of the include directories (after
           -- making them absolute), the state is reset (but the
           -- command-line options are preserved).
           -> TCM (Interface, Maybe Warnings)
 typeCheck f relativeTo oldIncs = do
+  f <- liftIO (absolute f)
   m <- moduleName' f
 
   makeIncludeDirsAbsolute =<< case relativeTo of
-    CurrentDir  -> liftIO getCurrentDirectory
+    CurrentDir  -> liftIO (absolute =<< getCurrentDirectory)
     ProjectRoot -> return $ C.projectRoot f m
 
   -- If the include directories have changed the state is reset.
@@ -263,7 +265,9 @@ getInterface' x includeStateChanges =
 
     uptodate <- ifM ignoreInterfaces
 		    (return False)
-		    (liftIO $ toIFile file `isNewerThan` file)
+		    (liftIO $ filePath (toIFile file)
+                                `isNewerThan`
+                              filePath file)
 
     reportSLn "import.iface" 5 $
       "  " ++ render (pretty x) ++ " is " ++
@@ -293,19 +297,19 @@ getInterface' x includeStateChanges =
 	    -- stored version (in stDecodedModules), or if there is no stored version,
 	    -- read and decode it. Otherwise use the stored version.
             let ifile = toIFile file
-	    t            <- liftIO $ getModificationTime ifile
+	    t            <- liftIO $ getModificationTime $ filePath ifile
 	    mm           <- getDecodedModule x
 	    (cached, mi) <- case mm of
 		      Just (mi, mt) ->
 			 if mt < t
 			 then do dropDecodedModule x
-				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-				 (,) False <$> readInterface ifile
-			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
+				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ filePath ifile
+				 (,) False <$> readInterface (filePath ifile)
+			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ filePath ifile
 				 return (True, Just mi)
 		      Nothing ->
-			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-			    (,) False <$> readInterface ifile
+			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ filePath ifile
+			    (,) False <$> readInterface (filePath ifile)
 
 	    -- Check that it's the right version
 	    case mi of
@@ -326,12 +330,12 @@ getInterface' x includeStateChanges =
 			else do
 			    reportSLn "" 1 $
                               "Skipping " ++ render (pretty x) ++
-                                " (" ++ (if cached then "cached" else ifile) ++ ")."
+                                " (" ++ (if cached then "cached" else filePath ifile) ++ ")."
 			    return (i, Right t)
 
 	typeCheck file = do
 	    -- Do the type checking.
-            reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ file ++ ")."
+            reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
             if includeStateChanges then
               createInterface file x
              else do
@@ -421,12 +425,10 @@ writeInterface file i = do
 -- information.
 
 createInterface
-  :: FilePath              -- ^ The file to type check. Must be an absolute path.
+  :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> TCM (Interface, Either Warnings ClockTime)
-createInterface file mname
-  | not (isAbsolute file) = __IMPOSSIBLE__
-  | otherwise             = do
+createInterface file mname = do
     reportSLn "import.iface.create" 5  $
       "Creating interface for " ++ render (pretty mname) ++ "."
     verboseS "import.iface.create" 10 $ do
@@ -465,7 +467,7 @@ createInterface file mname
         -- If there is an error syntax highlighting info can still be
         -- generated.
         case rStart $ getRange e of
-          Just (Pn { srcFile = f }) | f == file -> do
+          Just (Pn { srcFile = Just f }) | f == file -> do
             syntaxInfo <- generateSyntaxInfo file (Just e) topLevel []
             modFile    <- stModuleToSource <$> get
             -- The highlighting info is included with the error.
@@ -482,7 +484,7 @@ createInterface file mname
 
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
-	withScope_ (insideScope topLevel) $ generateVimFile file
+	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
     -- Check if there are unsolved meta-variables.
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
@@ -502,7 +504,7 @@ createInterface file mname
     if null termErrs && null unsolvedMetas then do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
-      t <- writeInterface (toIFile file) i
+      t <- writeInterface (filePath $ toIFile file) i
       return (i, Right t)
      else
       return (i, Left $ Warnings termErrs unsolvedMetas)

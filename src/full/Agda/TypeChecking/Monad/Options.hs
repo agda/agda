@@ -13,6 +13,7 @@ import System.FilePath
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
 import Agda.Syntax.Abstract
+import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
 import Agda.Utils.Trie (Trie)
@@ -100,19 +101,21 @@ shouldReifyInteractionPoints = asks envReifyInteractionPoints
 
 -- | Gets the include directories.
 
-getIncludeDirs :: MonadTCM tcm => tcm [FilePath]
-getIncludeDirs = optIncludeDirs <$> commandLineOptions
+getIncludeDirs :: MonadTCM tcm => tcm [AbsolutePath]
+getIncludeDirs =
+  map mkAbsolute . optIncludeDirs <$> commandLineOptions
 
 -- | Makes the include directories absolute.
 --
 -- Relative directories are made absolute with respect to the given
 -- path.
 
-makeIncludeDirsAbsolute :: MonadTCM tcm => FilePath -> tcm ()
+makeIncludeDirsAbsolute :: MonadTCM tcm => AbsolutePath -> tcm ()
 makeIncludeDirsAbsolute root = do
   opts <- commandLineOptions
   setCommandLineOptions PersistentOptions $
-    opts { optIncludeDirs = map (root </>) $ optIncludeDirs opts }
+    opts { optIncludeDirs =
+             map (filePath root </>) $ optIncludeDirs opts }
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =
