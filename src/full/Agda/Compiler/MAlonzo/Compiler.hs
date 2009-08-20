@@ -3,6 +3,7 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
+import qualified Control.Exception as E
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
@@ -316,6 +317,7 @@ callGHC i = do
         ms -> last ms
   (mdir, fp) <- outFile'
   opts       <- optGhcFlags <$> commandLineOptions
+
   let overridableArgs =
         [ "-O"
         , "-o", mdir </> show outputName
@@ -331,8 +333,31 @@ callGHC i = do
         ]
       args     = overridableArgs ++ opts ++ otherArgs
       compiler = "ghc"
+
   reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
-  (exitcode, out, err) <- liftIO $ readProcessWithExitCode compiler args ""
+  (inn, out, err, p) <-
+    liftIO $ runInteractiveProcess compiler args Nothing Nothing
+
+  liftIO $ do
+    hClose inn
+    -- The handles should be in text mode.
+    hSetBinaryMode out False
+    hSetBinaryMode err False
+
+  -- GHC seems to use stderr for progress reports.
+  s <- liftIO $ join <$> hGetContents err <*> hGetContents out
+  reportSLn "" 1 s
+
+  exitcode <- liftIO $ do
+    -- Ensure that the output has been read before waiting for the
+    -- process.
+    E.evaluate (length s)
+    waitForProcess p
   case exitcode of
-    ExitFailure _ -> typeError $ CompilationError $ out ++ "\n" ++ err
+    ExitFailure _ -> typeError (CompilationError s)
     _             -> return ()
+
+  where
+  -- Note that this function returns s1 before inspecting its input.
+  join s1 s2 =
+    s1 ++ (if L.null s1 || last s1 == '\n' then "" else "\n") ++ s2
