@@ -62,7 +62,8 @@ data CommandLineOptions =
 	    , optDisablePositivity :: Bool
 	    , optCompileAlonzo     :: Bool
             , optCompileMAlonzo    :: Bool
-            , optMAlonzoDir        :: FilePath
+            , optMAlonzoDir        :: Maybe FilePath
+              -- ^ In the absence of a path the project root is used.
 	    , optTerminationCheck  :: Bool
 	    , optCompletenessCheck :: Bool
             , optUnreachableCheck  :: Bool
@@ -99,7 +100,7 @@ defaultOptions =
 	    , optDisablePositivity = False
 	    , optCompileAlonzo     = False
 	    , optCompileMAlonzo    = False
-            , optMAlonzoDir        = defaultMAlonzoDir
+            , optMAlonzoDir        = Nothing
             , optTerminationCheck  = True
             , optCompletenessCheck = True
             , optUnreachableCheck  = True
@@ -107,10 +108,6 @@ defaultOptions =
             , optSizedTypes        = False
             , optGhcFlags          = []
 	    }
-
--- | The default output directory for MAlonzo.
-
-defaultMAlonzoDir = "."
 
 -- | The default output directory for HTML.
 
@@ -177,7 +174,7 @@ compileFlag      o = checkOpts $ o { optCompileMAlonzo = True }
 agateFlag        o = checkOpts $ o { optCompile        = True }
 alonzoFlag       o = checkOpts $ o { optCompileAlonzo  = True }
 malonzoFlag      o = checkOpts $ o { optCompileMAlonzo = True }
-malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = f }
+malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = Just f }
 ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
 
 htmlFlag      o = checkOpts $ o { optGenerateHTML = True }
@@ -216,8 +213,7 @@ standardOptions =
     , Option []     ["malonzo"] (NoArg malonzoFlag)
 		    "use the MAlonzo compiler (DEFAULT) (only with --compile)"
     , Option []     ["malonzo-dir"] (ReqArg malonzoDirFlag "DIR")
-		    ("directory for MAlonzo output (default: " ++
-                     defaultMAlonzoDir ++ ")")
+		    ("directory for MAlonzo output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
     , Option []	    ["test"] (NoArg runTestsFlag)

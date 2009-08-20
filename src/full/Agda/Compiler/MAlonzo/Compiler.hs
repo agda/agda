@@ -27,6 +27,7 @@ import Agda.Interaction.Imports
 import Agda.Interaction.Monad
 import Agda.Interaction.Options
 import Agda.Syntax.Common
+import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
@@ -43,6 +44,19 @@ compilerMain :: Interface -> TCM ()
 compilerMain mainI =
   -- Preserve the state (the compiler modifies the state).
   bracket get put $ \_ -> do
+
+    -- Compute the output directory.
+    opts <- commandLineOptions
+    malonzoDir <- case optMAlonzoDir opts of
+      Just dir -> return dir
+      Nothing  -> do
+        -- The default output directory is the project root.
+        let tm = toTopLevelModuleName $ iModuleName mainI
+        f <- findFile tm
+        return $ filePath $ CN.projectRoot f tm
+    setCommandLineOptions PersistentOptions $
+      opts { optMAlonzoDir = Just malonzoDir }
+
     ignoreAbstractMode $ do
       mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
       callGHC mainI
@@ -270,11 +284,19 @@ writeModule m =
                        , "  #-}"
                        ]
 
-outFile' = do
+malonzoDir :: TCM FilePath
+malonzoDir = do
   mdir <- optMAlonzoDir <$> commandLineOptions
+  case mdir of
+    Just dir -> return dir
+    Nothing  -> __IMPOSSIBLE__
+
+outFile' = do
+  mdir <- malonzoDir
   (fdir, fn) <- splitFileName . repldot pathSeparator .
                 prettyPrint <$> curHsMod
-  let (dir, fp) = (mdir </> fdir, dir </> replaceExtension fn "hs")
+  let dir = mdir </> fdir
+      fp  = dir </> replaceExtension fn "hs"
   liftIO $ createDirectoryIfMissing True dir
   return (mdir, fp)
   where
@@ -286,7 +308,7 @@ outFile = snd <$> outFile'
 callGHC :: Interface -> TCM ()
 callGHC i = do
   setInterface i
-  mdir          <- optMAlonzoDir <$> commandLineOptions
+  mdir          <- malonzoDir
   hsmod         <- prettyPrint <$> curHsMod
   MName agdaMod <- curMName
   let outputName = case agdaMod of
