@@ -37,7 +37,7 @@ import Agda.Utils.Impossible
 --   Raises an error if there is no such clause.
 findClause :: MetaId -> TCM (QName, Clause)
 findClause m = do
-  sig <- getSignature
+  sig <- getImportedSignature
   let res = do
         def <- Map.elems $ sigDefinitions sig
         Function{funClauses = cs} <- [theDef def]

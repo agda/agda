@@ -346,10 +346,11 @@ setArgOccurrences d os = liftTCM $
 --   number of parameters if we're currently inside the section and 0 otherwise.
 getSecFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
 getSecFreeVars m = do
-  sig <- sigSections <$> getSignature
+  sig  <- sigSections <$> getSignature
+  isig <- sigSections <$> getImportedSignature
   top <- currentModule
   case top `isSubModuleOf` m || top == m of
-    True  -> return $ maybe 0 secFreeVars $ Map.lookup m sig
+    True  -> return $ maybe 0 secFreeVars $ Map.lookup m (Map.union sig isig)
     False -> return 0
 
 -- | Compute the number of free variables of a module. This is the sum of

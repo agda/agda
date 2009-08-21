@@ -693,10 +693,9 @@ parseAndDoAtToplevel cmd title s = Interaction False $ do
       Just current -> do
         r <- getVisitedModule (SA.toTopLevelModuleName current)
         case r of
-          Nothing     -> __IMPOSSIBLE__
+          Nothing -> __IMPOSSIBLE__
           Just mi -> do
-            setScope     $ iInsideScope $ miInterface mi
-            setSignature $ iSignature   $ miInterface mi
+            setScope $ iInsideScope $ miInterface mi
             showA =<< cmd =<< concreteToAbstract_ e
   return Nothing
 

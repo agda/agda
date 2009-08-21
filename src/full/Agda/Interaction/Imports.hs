@@ -99,9 +99,7 @@ mergeInterface i = do
       []               -> return ()
       (b, Builtin x):_ -> typeError $ DuplicateBuiltinBinding b x x
       (_, Prim{}):_    -> __IMPOSSIBLE__
-    modify $ \st -> st { stImports	    = unionSignatures [stImports st, sig]
-		       , stImportedBuiltins = stImportedBuiltins st `Map.union` bi
-		       }
+    addImportedThings sig bi
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -273,14 +271,13 @@ getInterface' x includeStateChanges =
       "  " ++ render (pretty x) ++ " is " ++
       (if uptodate then "" else "not ") ++ "up-to-date."
 
-    (i, wt) <- if uptodate
-	       then skip x file
-	       else typeCheck file
+    (stateChangesIncluded, (i, wt)) <-
+      if uptodate then skip x file else typeCheck file
 
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                  else "  New module. Let's check it out."
-    unless (visited || includeStateChanges) $ mergeInterface i
+    unless (visited || stateChangesIncluded) $ mergeInterface i
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
 
@@ -331,13 +328,21 @@ getInterface' x includeStateChanges =
 			    reportSLn "" 1 $
                               "Skipping " ++ render (pretty x) ++
                                 " (" ++ (if cached then "cached" else filePath ifile) ++ ")."
-			    return (i, Right t)
+			    return (False, (i, Right t))
 
 	typeCheck file = do
 	    -- Do the type checking.
             reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
-            if includeStateChanges then
-              createInterface file x
+            if includeStateChanges then do
+              r <- createInterface file x
+
+              -- Merge the signature with the signature for imported
+              -- things.
+              sig <- getSignature
+              addImportedThings sig Map.empty
+              setSignature emptySignature
+
+              return (True, r)
              else do
               ms       <- getImportPath
               mf       <- stModuleToSource <$> get
@@ -364,7 +369,7 @@ getInterface' x includeStateChanges =
                        ds       <- getDecodedModules
                        isig     <- getImportedSignature
                        ibuiltin <- gets stImportedBuiltins
-                       return $ (r, do
+                       return (r, do
                          modify $ \s -> s { stModuleToSource = mf }
                          setVisitedModules vs
                          setDecodedModules ds
@@ -374,7 +379,7 @@ getInterface' x includeStateChanges =
                   Left err               -> throwError err
                   Right (result, update) -> do
                     update
-                    return result
+                    return (False, result)
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
