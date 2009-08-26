@@ -209,10 +209,14 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 
   -- If an error was encountered, display an error message and exit
   -- with an error code.
+  let errStatus = Status { sChecked               = False
+                         , sShowImplicitArguments =
+                             optShowImplicit $ stPragmaOptions st
+                         }
   case r of
     Right (Right _)     -> return ()
-    Right (Left (s, e)) -> displayErrorAndExit (getRange e) s
-    Left e              -> displayErrorAndExit (getRange e) $
+    Right (Left (s, e)) -> displayErrorAndExit errStatus (getRange e) s
+    Left e              -> displayErrorAndExit errStatus (getRange e) $
                              tcErrString e
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
@@ -442,38 +446,59 @@ cmd_goal_type_context_infer norm ii rng s = Interaction False $ do
 setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts = do
   TM.setCommandLineOptions PersistentOptions opts
-  displayStatus
+  liftIO . displayStatus =<< status
 
--- | Displays\/updates some status information (currently just
--- indicates whether or not implicit arguments are shown).
+-- | Status information.
 
-displayStatus :: TCM ()
-displayStatus = do
-  showImpl <- ifM showImplicitArguments
-                  (return $ Just "ShowImplicit")
-                  (return Nothing)
+data Status = Status
+  { sShowImplicitArguments :: Bool
+    -- ^ Are implicit arguments displayed?
+  , sChecked               :: Bool
+    -- ^ Has the module been successfully type checked?
+  }
+
+-- | Computes some status information.
+
+status :: TCM Status
+status = do
+  showImpl <- showImplicitArguments
 
   -- Check if the file was successfully type checked, and has not
   -- changed since. Note: This code does not check if any dependencies
   -- have changed, and uses a time stamp to check for changes.
   cur      <- theCurrentFile <$> liftIO (readIORef theState)
   checked  <- case cur of
-    Nothing     -> return Nothing
+    Nothing     -> return False
     Just (f, t) -> do
       t' <- liftIO $ getModificationTime $ filePath f
       case t == t' of
-        False -> return Nothing
-        True  -> do
-          w <- miWarnings . maybe __IMPOSSIBLE__ id <$>
-                 (getVisitedModule =<<
-                    maybe __IMPOSSIBLE__ id .
-                      Map.lookup f <$> sourceToModule)
-          return $ if w then Nothing else Just "Checked"
+        False -> return False
+        True  ->
+          not . miWarnings . maybe __IMPOSSIBLE__ id <$>
+            (getVisitedModule =<<
+               maybe __IMPOSSIBLE__ id .
+                 Map.lookup f <$> sourceToModule)
 
-  let statusString = intercalate "," $ catMaybes [checked, showImpl]
+  return $ Status { sShowImplicitArguments = showImpl
+                  , sChecked               = checked
+                  }
 
-  liftIO $ UTF8.putStrLn $ response $
-    L [A "agda2-status-action", A (quote statusString)]
+-- | Shows status information.
+
+showStatus :: Status -> String
+showStatus s = intercalate "," $ catMaybes [checked, showImpl]
+  where
+  boolToMaybe b x = if b then Just x else Nothing
+
+  checked  = boolToMaybe (sChecked               s) "Checked"
+  showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
+
+-- | Displays\/updates status information.
+
+displayStatus :: Status -> IO ()
+displayStatus s =
+  UTF8.putStrLn $ response $
+    L [A "agda2-status-action", A (quote $ showStatus s)]
 
 -- | @display_info' header content@ displays @content@ (with header
 -- @header@) in some suitable way.
@@ -486,12 +511,13 @@ display_info' bufname content =
       , A (quote content)
       ]
 
--- | @display_info@ does what @display_info'@ does, but additionally
--- displays some status information (see 'displayStatus').
+-- | @display_info@ does what 'display_info'' does, but additionally
+-- displays some status information (see 'status' and
+-- 'displayStatus').
 
 display_info :: String -> String -> TCM ()
 display_info bufname content = do
-  displayStatus
+  liftIO . displayStatus =<< status
   liftIO $ display_info' bufname content
 
 -- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
@@ -822,16 +848,27 @@ errorTitle :: String
 errorTitle = "*Error*"
 
 -- | Displays an error, instructs Emacs to jump to the site of the
--- error, and terminates the program.
+-- error, and terminates the program. Because this function may switch
+-- the focus to another file the status information is also updated.
 
-displayErrorAndExit :: Range -> String -> IO a
-displayErrorAndExit r s = do
+displayErrorAndExit :: Status
+                       -- ^ The new status information.
+                    -> Range -> String -> IO a
+displayErrorAndExit status r s = do
   display_info' errorTitle s
   tellEmacsToJumpToError r
+  displayStatus status
   exitWith (ExitFailure 1)
 
 -- | Outermost error handler.
 
 infoOnException m =
-  failOnException displayErrorAndExit m `catchImpossible` \e ->
-    displayErrorAndExit noRange (show e)
+  failOnException (displayErrorAndExit s) m `catchImpossible` \e ->
+    displayErrorAndExit s noRange (show e)
+  where
+  s = Status { sChecked               = False
+             , sShowImplicitArguments = False
+               -- Educated guess... This field is not important, so it
+               -- does not really matter if it is displayed
+               -- incorrectly when an unexpected error has occurred.
+             }
