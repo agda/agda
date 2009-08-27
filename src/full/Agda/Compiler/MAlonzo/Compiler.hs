@@ -185,12 +185,30 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
   isCon _              = False
 
 argpatts :: [Arg Pattern] -> [HsPat] -> TCM [HsPat]
-argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs where
-  pat (VarP _   ) = do v <- gets head; modify tail; return v
-  pat (DotP _   ) = pat (VarP dummy)
-  pat (ConP q ps) = (HsPParen .).HsPApp <$> lift (conhqn q) <*> mapM pat' ps
-  pat (LitP l   ) = return $ HsPLit $ hslit l
+argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
+  where
+  pat   (VarP _   ) = do v <- gets head; modify tail; return v
+  pat   (DotP _   ) = pat (VarP dummy)
+  pat   (LitP l   ) = return $ HsPLit $ hslit l
+  pat p@(ConP q ps) = do
+    -- Note that irr is applied once for every subpattern, so in the
+    -- worst case it is quadratic in the size of the pattern. I
+    -- suspect that this will not be a problem in practice, though.
+    irrefutable <- lift $ irr p
+    let tilde = if irrefutable then HsPParen . HsPIrrPat else id
+    (tilde . HsPParen) <$>
+      (HsPApp <$> lift (conhqn q) <*> mapM pat' ps)
+
   pat' = pat . unArg
+
+  -- | Is the pattern irrefutable?
+  irr :: Pattern -> TCM Bool
+  irr (VarP {})   = return True
+  irr (DotP {})   = return True
+  irr (LitP {})   = return False
+  irr (ConP q ps) =
+    (&&) <$> singleConstructorType q
+         <*> (and <$> mapM (irr . unArg) ps)
 
 clausebody :: ClauseBody -> TCM HsExp
 clausebody b0 = runReaderT (go b0) 0 where

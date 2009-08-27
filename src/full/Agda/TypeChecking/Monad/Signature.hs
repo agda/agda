@@ -266,6 +266,22 @@ whatInduction c = do
     Constructor{ conInd = i }     -> return i
     _                             -> __IMPOSSIBLE__
 
+-- | Does the given constructor come from a single-constructor type?
+--
+-- Precondition: The name has to refer to a constructor.
+singleConstructorType :: QName -> TCM Bool
+singleConstructorType q = do
+  d <- theDef <$> getConstInfo q
+  case d of
+    Record {}                   -> return True
+    Constructor { conData = d } -> do
+      di <- theDef <$> getConstInfo d
+      return $ case di of
+        Record {}                  -> True
+        Datatype { dataCons = cs } -> length cs == 1
+        _                          -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
