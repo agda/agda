@@ -257,12 +257,22 @@ cdecl q n = HsConDecl dummy (unqhname "C" q)
             [ HsUnBangedTy $ HsTyVar $ ihname "a" i | i <- [0 .. n - 1]]
 
 tvaldecl :: QName -> Nat -> Nat -> [HsConDecl] -> Maybe Clause -> [HsDecl]
-tvaldecl q ntv npar cds cl = let
-    (tn, vn) = (unqhname "T" q, unqhname "d" q)
-    tvs = [          ihname "a" i | i <- [0 .. ntv  - 1]]
-    pvs = [ HsPVar $ ihname "a" i | i <- [0 .. npar - 1]]
-  in HsFunBind [HsMatch dummy vn pvs (HsUnGuardedRhs unit_con) []] :
-     maybe [HsDataDecl dummy [] tn tvs cds []] (const []) cl
+tvaldecl q ntv npar cds cl =
+  HsFunBind [HsMatch dummy vn pvs (HsUnGuardedRhs unit_con) []] :
+  maybe [datatype] (const []) cl
+  where
+  (tn, vn) = (unqhname "T" q, unqhname "d" q)
+  tvs = [          ihname "a" i | i <- [0 .. ntv  - 1]]
+  pvs = [ HsPVar $ ihname "a" i | i <- [0 .. npar - 1]]
+
+  newtyp c = HsNewTypeDecl dummy [] tn tvs c []
+
+  -- Data types consisting of a single constructor with a single
+  -- argument are translated into newtypes.
+  datatype = case cds of
+    [c@(HsConDecl _ _ [_])] -> newtyp c
+    [c@(HsRecDecl _ _ [_])] -> newtyp c
+    _                       -> HsDataDecl dummy [] tn tvs cds []
 
 infodecl :: QName -> HsDecl
 infodecl q = fakeD (unqhname "name" q) $ show (show q)
