@@ -5,10 +5,10 @@
 module Data.Covec where
 
 open import Coinduction
-open import Data.Nat     using (ℕ; zero; suc)
-open import Data.Conat
-open import Data.Cofin   using (Cofin; zero; suc)
-open import Data.Vec     using (Vec; []; _∷_)
+open import Data.Nat using (ℕ; zero; suc)
+open import Data.Conat as Coℕ using (Coℕ; zero; suc; _+_)
+open import Data.Cofin using (Cofin; zero; suc)
+open import Data.Vec using (Vec; []; _∷_)
 open import Data.Colist as Colist using (Colist; []; _∷_)
 open import Data.Product using (_,_)
 open import Relation.Binary
@@ -29,7 +29,7 @@ map : ∀ {A B n} → (A → B) → Covec A n → Covec B n
 map f []       = []
 map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
-fromVec : ∀ {A n} → Vec A n → Covec A (fromℕ n)
+fromVec : ∀ {A n} → Vec A n → Covec A (Coℕ.fromℕ n)
 fromVec []       = []
 fromVec (x ∷ xs) = x ∷ ♯ fromVec xs
 
@@ -41,7 +41,7 @@ take : ∀ {A} m {n} → Covec A (m + n) → Covec A m
 take zero    xs       = []
 take (suc n) (x ∷ xs) = x ∷ ♯ take (♭ n) (♭ xs)
 
-drop : ∀ {A} m {n} → Covec A (fromℕ m + n) → Covec A n
+drop : ∀ {A} m {n} → Covec A (Coℕ.fromℕ m + n) → Covec A n
 drop zero    xs       = xs
 drop (suc n) (x ∷ xs) = drop n (♭ xs)
 

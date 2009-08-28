@@ -8,7 +8,7 @@ open import Coinduction
 open import Data.Bool          using (Bool; true; false)
 open import Data.Maybe         using (Maybe; nothing; just)
 open import Data.Nat           using (ℕ; zero; suc)
-open import Data.Conat
+open import Data.Conat         using (Coℕ; zero; suc)
 open import Data.List          using (List; []; _∷_)
 open import Data.List.NonEmpty using (List⁺; _∷_)
                                renaming ([_] to [_]⁺)
