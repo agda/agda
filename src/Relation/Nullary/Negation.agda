@@ -90,8 +90,8 @@ excluded-middle ¬h = ¬h (no (λ p → ¬h (yes p)))
 -- is call with current continuation in the double-negation monad, or,
 -- if you will, a double-negation translation of Peirce's law.
 --
--- In order to prove ¬ ¬ P one can assume ¬ P and prove ⊥. However, it
--- is sometimes nice to avoid leaving the double-negation monad; in
+-- In order to prove ¬ ¬ P one can assume ¬ P and prove ⊥. However,
+-- sometimes it is nice to avoid leaving the double-negation monad; in
 -- that case this function can be used (with whatever instantiated to
 -- ⊥).
 
