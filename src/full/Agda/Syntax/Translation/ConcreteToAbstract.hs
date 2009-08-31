@@ -319,7 +319,9 @@ instance ToAbstract PatName APatName where
       (DefinedName d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,   C.QName x)                          -> return $ Left x
       (ConstructorName ds, _)                             -> return $ Right ds
-      _                                                   -> fail $ "not a constructor: " ++ show x -- TODO
+      _                                                   ->
+        typeError $ GenericError $
+          "Cannot pattern match on " ++ show x ++ ", because it is not a constructor"
     case z of
       Left x  -> do
         reportSLn "scope.pat" 10 $ "it was a var: " ++ show x
