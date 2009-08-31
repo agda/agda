@@ -195,11 +195,15 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
     irrefutable <- lift $ irr p
-    let tilde = if irrefutable then HsPParen . HsPIrrPat else id
+    let tilde = if   tildesEnabled && irrefutable
+                then HsPParen . HsPIrrPat
+                else id
     (tilde . HsPParen) <$>
       (HsPApp <$> lift (conhqn q) <*> mapM pat' ps)
 
   pat' = pat . unArg
+
+  tildesEnabled = False
 
   -- | Is the pattern irrefutable?
   irr :: Pattern -> TCM Bool
