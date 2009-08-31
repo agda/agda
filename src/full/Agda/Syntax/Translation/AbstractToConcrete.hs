@@ -689,6 +689,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
 
   -- fall-back (wrong number of arguments or no holes)
   doCName _ cn@(C.Name _ xs) es
+    | length xs == 1        = mdefault
     | length es /= numHoles = mdefault
     | List.null es          = mdefault
     where numHoles = length [ () | Hole <- xs ]
