@@ -83,15 +83,23 @@ interaction prompt cmds eval = loop
 		    loop
 
 -- | The interaction loop.
-interactionLoop :: TCM Interface -> IM ()
+interactionLoop :: TCM (Maybe Interface) -> IM ()
 interactionLoop typeCheck =
     do  liftTCM reload
 	interaction "Main> " commands evalTerm
     where
 	reload = do
 	    setUndo
-	    i <- typeCheck
-	    setScope $ iInsideScope i
+	    mi <- typeCheck
+            -- Note that mi is Nothing if (1) there is no input file or
+            -- (2) the file type checked with unsolved metas and
+            -- --allow-unsolved-metas was used. In the latter case the
+            -- behaviour of agda -I may be surprising. If agda -I ever
+            -- becomes properly supported again, then this behaviour
+            -- should perhaps be fixed.
+            setScope $ case mi of
+              Just i  -> iInsideScope i
+              Nothing -> emptyScopeInfo
 	  `catchError` \e -> do
 	    s <- prettyError e
 	    liftIO $ UTF8.putStrLn s

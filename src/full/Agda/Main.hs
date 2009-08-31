@@ -97,7 +97,7 @@ runAgda =
                     failIfNoInt Nothing  = __IMPOSSIBLE__
 
                     interaction :: TCM (Maybe Interface) -> TCM ()
-                    interaction | i	  = runIM . interactionLoop    . (failIfNoInt =<<)
+                    interaction | i	  = runIM . interactionLoop
 				| compile = Agate.compilerMain         . (() <$)
 				| alonzo  = Alonzo.compilerMain        . (() <$)
                                 | malonzo = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
