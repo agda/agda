@@ -110,14 +110,14 @@ definition (Defn q ty _ _ d) = do
     Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Just ty } -> do
       ccs <- concat <$> mapM checkConstructorType cs
       cov <- checkCover q ty np cs
-      return $ tvaldecl q 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
+      return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
     Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Nothing } -> do
       (ars, cds) <- unzip <$> mapM condecl cs
-      return $ tvaldecl q (maximum (np:ars) - np) (np + ni) cds cl
+      return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
     Constructor{} -> return []
     Record{ recClause = cl, recFields = flds } -> do
       ar <- arity <$> normalise ty
-      return $ tvaldecl q (genericLength flds) ar [cdecl q (genericLength flds)] cl
+      return $ tvaldecl q Inductive (genericLength flds) ar [cdecl q (genericLength flds)] cl
     Primitive{ primName = s } -> fb <$> primBody s
   where
   tag _ []       = []
@@ -256,8 +256,11 @@ cdecl :: QName -> Nat -> HsConDecl
 cdecl q n = HsConDecl dummy (unqhname "C" q)
             [ HsUnBangedTy $ HsTyVar $ ihname "a" i | i <- [0 .. n - 1]]
 
-tvaldecl :: QName -> Nat -> Nat -> [HsConDecl] -> Maybe Clause -> [HsDecl]
-tvaldecl q ntv npar cds cl =
+tvaldecl :: QName
+         -> Induction
+            -- ^ Is the type inductive or coinductive?
+         -> Nat -> Nat -> [HsConDecl] -> Maybe Clause -> [HsDecl]
+tvaldecl q ind ntv npar cds cl =
   HsFunBind [HsMatch dummy vn pvs (HsUnGuardedRhs unit_con) []] :
   maybe [datatype] (const []) cl
   where
@@ -265,14 +268,15 @@ tvaldecl q ntv npar cds cl =
   tvs = [          ihname "a" i | i <- [0 .. ntv  - 1]]
   pvs = [ HsPVar $ ihname "a" i | i <- [0 .. npar - 1]]
 
-  newtyp c = HsNewTypeDecl dummy [] tn tvs c []
+  -- Inductive data types consisting of a single constructor with a
+  -- single argument are translated into newtypes.
+  datatype = case (ind, cds) of
+    (Inductive, [c@(HsConDecl _ _ [_])]) -> newtyp c
+    (Inductive, [c@(HsRecDecl _ _ [_])]) -> newtyp c
+    _                                    -> datatyp
 
-  -- Data types consisting of a single constructor with a single
-  -- argument are translated into newtypes.
-  datatype = case cds of
-    [c@(HsConDecl _ _ [_])] -> newtyp c
-    [c@(HsRecDecl _ _ [_])] -> newtyp c
-    _                       -> HsDataDecl dummy [] tn tvs cds []
+  newtyp c = HsNewTypeDecl dummy [] tn tvs c   []
+  datatyp  = HsDataDecl    dummy [] tn tvs cds []
 
 infodecl :: QName -> HsDecl
 infodecl q = fakeD (unqhname "name" q) $ show (show q)
