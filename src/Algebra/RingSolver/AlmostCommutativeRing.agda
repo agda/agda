@@ -9,7 +9,7 @@ open import Relation.Binary
 open import Algebra
 open import Algebra.Structures
 open import Algebra.FunctionProperties
-open import Algebra.Morphism
+import Algebra.Morphism as Morphism
 open import Data.Function
 
 ------------------------------------------------------------------------
@@ -56,8 +56,7 @@ record AlmostCommutativeRing : Set₁ where
 
   rawRing : RawRing
   rawRing = record
-    { _≈_ = _≈_
-    ; _+_ = _+_
+    { _+_ = _+_
     ; _*_ = _*_
     ; -_  = -_
     ; 0#  = 0#
@@ -67,9 +66,20 @@ record AlmostCommutativeRing : Set₁ where
 ------------------------------------------------------------------------
 -- Homomorphisms
 
-_-Raw-AlmostCommutative⟶_ : RawRing → AlmostCommutativeRing → Set
-from -Raw-AlmostCommutative⟶ to = from -RawRing⟶ rawRing to
-  where open AlmostCommutativeRing
+record _-Raw-AlmostCommutative⟶_
+         (From : RawRing)
+         (To : AlmostCommutativeRing) : Set where
+  private
+    module F = RawRing From
+    module T = AlmostCommutativeRing To
+  open Morphism.Definitions F.carrier T.carrier T._≈_
+  field
+    ⟦_⟧    : Morphism
+    +-homo : Homomorphic₂ ⟦_⟧ F._+_ T._+_
+    *-homo : Homomorphic₂ ⟦_⟧ F._*_ T._*_
+    -‿homo : Homomorphic₁ ⟦_⟧ F.-_  T.-_
+    0-homo : Homomorphic₀ ⟦_⟧ F.0#  T.0#
+    1-homo : Homomorphic₀ ⟦_⟧ F.1#  T.1#
 
 -raw-almostCommutative⟶
   : ∀ r →

@@ -27,21 +27,16 @@ module Definitions (From To : Set) (_≈_ : Rel To) where
     ∀ x y → ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
 ------------------------------------------------------------------------
--- Some specific morphisms
+-- An example showing how a morphism type can be defined
 
--- Other morphisms could of course be defined.
-
-record _-RawRing⟶_ (From To : RawRing) : Set where
-  open RawRing
+record _-Ring⟶_ (From To : Ring) : Set where
+  open Ring
   open Definitions (carrier From) (carrier To) (_≈_ To)
   field
-    ⟦_⟧    : Morphism
-    +-homo : Homomorphic₂ ⟦_⟧ (_+_ From) (_+_ To)
-    *-homo : Homomorphic₂ ⟦_⟧ (_*_ From) (_*_ To)
-    -‿homo : Homomorphic₁ ⟦_⟧ (-_  From) (-_  To)
-    0-homo : Homomorphic₀ ⟦_⟧ (0#  From) (0#  To)
-    1-homo : Homomorphic₀ ⟦_⟧ (1#  From) (1#  To)
-
-_-Ring⟶_ : Ring → Ring → Set
-From -Ring⟶ To = rawRing From -RawRing⟶ rawRing To
-  where open Ring
+    ⟦_⟧       : Morphism
+    ⟦⟧-pres-≈ : ⟦_⟧ Preserves (_≈_ From) ⟶ (_≈_ To)
+    +-homo    : Homomorphic₂ ⟦_⟧ (_+_ From) (_+_ To)
+    *-homo    : Homomorphic₂ ⟦_⟧ (_*_ From) (_*_ To)
+    -‿homo    : Homomorphic₁ ⟦_⟧ (-_  From) (-_  To)
+    0-homo    : Homomorphic₀ ⟦_⟧ (0#  From) (0#  To)
+    1-homo    : Homomorphic₀ ⟦_⟧ (1#  From) (1#  To)

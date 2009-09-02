@@ -20,7 +20,7 @@ private module C = RawRing coeff
 open AlmostCommutativeRing r hiding (zero)
 import Algebra.FunctionProperties as P; open P _≈_
 open import Algebra.Morphism
-open _-RawRing⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
+open _-Raw-AlmostCommutative⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
 import Algebra.Operations as Ops; open Ops semiring
 
 open import Relation.Binary

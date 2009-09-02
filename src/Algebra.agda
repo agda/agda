@@ -322,10 +322,8 @@ record RawRing : Set₁ where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
-  infix  4 _≈_
   field
     carrier : Set
-    _≈_     : Rel carrier
     _+_     : Op₂ carrier
     _*_     : Op₂ carrier
     -_      : Op₁ carrier
@@ -366,8 +364,7 @@ record Ring : Set₁ where
 
   rawRing : RawRing
   rawRing = record
-    { _≈_ = _≈_
-    ; _+_ = _+_
+    { _+_ = _+_
     ; _*_ = _*_
     ; -_  = -_
     ; 0#  = 0#

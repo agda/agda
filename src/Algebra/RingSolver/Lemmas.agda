@@ -18,7 +18,7 @@ private
   module C = RawRing coeff
 open AlmostCommutativeRing r
 open import Algebra.Morphism
-open _-RawRing⟶_ morphism
+open _-Raw-AlmostCommutative⟶_ morphism
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Data.Function
 open import Data.Product
