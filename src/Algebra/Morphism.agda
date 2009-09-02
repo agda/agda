@@ -7,7 +7,10 @@ module Algebra.Morphism where
 open import Relation.Binary
 open import Algebra
 open import Algebra.FunctionProperties
+import Algebra.Props.Group as GroupP
 open import Data.Function
+open import Data.Product
+import Relation.Binary.EqReasoning as EqR
 
 ------------------------------------------------------------------------
 -- Basic definitions
@@ -29,14 +32,34 @@ module Definitions (From To : Set) (_≈_ : Rel To) where
 ------------------------------------------------------------------------
 -- An example showing how a morphism type can be defined
 
+-- Ring homomorphisms.
+
 record _-Ring⟶_ (From To : Ring) : Set where
-  open Ring
-  open Definitions (carrier From) (carrier To) (_≈_ To)
+  private
+    module F = Ring From
+    module T = Ring To
+  open Definitions F.carrier T.carrier T._≈_
+
   field
     ⟦_⟧       : Morphism
-    ⟦⟧-pres-≈ : ⟦_⟧ Preserves (_≈_ From) ⟶ (_≈_ To)
-    +-homo    : Homomorphic₂ ⟦_⟧ (_+_ From) (_+_ To)
-    *-homo    : Homomorphic₂ ⟦_⟧ (_*_ From) (_*_ To)
-    -‿homo    : Homomorphic₁ ⟦_⟧ (-_  From) (-_  To)
-    0-homo    : Homomorphic₀ ⟦_⟧ (0#  From) (0#  To)
-    1-homo    : Homomorphic₀ ⟦_⟧ (1#  From) (1#  To)
+    ⟦⟧-pres-≈ : ⟦_⟧ Preserves F._≈_ ⟶ T._≈_
+    +-homo    : Homomorphic₂ ⟦_⟧ F._+_ T._+_
+    *-homo    : Homomorphic₂ ⟦_⟧ F._*_ T._*_
+    1-homo    : Homomorphic₀ ⟦_⟧ F.1#  T.1#
+
+  open EqR T.setoid
+
+  0-homo : Homomorphic₀ ⟦_⟧ F.0# T.0#
+  0-homo =
+    GroupP.left-identity-unique T.+-group ⟦ F.0# ⟧ ⟦ F.0# ⟧ (begin
+      T._+_ ⟦ F.0# ⟧ ⟦ F.0# ⟧ ≈⟨ T.sym (+-homo F.0# F.0#) ⟩
+      ⟦ F._+_ F.0# F.0# ⟧     ≈⟨ ⟦⟧-pres-≈ (proj₁ F.+-identity F.0#) ⟩
+      ⟦ F.0# ⟧                ∎)
+
+  -‿homo : Homomorphic₁ ⟦_⟧ F.-_ T.-_
+  -‿homo x =
+    GroupP.left-inverse-unique T.+-group ⟦ F.-_ x ⟧ ⟦ x ⟧ (begin
+      T._+_ ⟦ F.-_ x ⟧ ⟦ x ⟧ ≈⟨ T.sym (+-homo (F.-_ x) x) ⟩
+      ⟦ F._+_ (F.-_ x) x ⟧   ≈⟨ ⟦⟧-pres-≈ (proj₁ F.-‿inverse x) ⟩
+      ⟦ F.0# ⟧               ≈⟨ 0-homo ⟩
+      T.0#                   ∎)
