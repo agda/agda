@@ -362,6 +362,9 @@ record Ring : Set₁ where
                ; semiringWithoutAnnihilatingZero
                )
 
+  open AbelianGroup +-abelianGroup public
+         using () renaming (group to +-group)
+
   rawRing : RawRing
   rawRing = record
     { _+_ = _+_
@@ -395,7 +398,7 @@ record CommutativeRing : Set₁ where
   commutativeSemiring =
     record { isCommutativeSemiring = isCommutativeSemiring }
 
-  open Ring ring public using (rawRing; +-abelianGroup)
+  open Ring ring public using (rawRing; +-group; +-abelianGroup)
   open CommutativeSemiring commutativeSemiring public
          using ( setoid
                ; +-semigroup; +-rawMonoid; +-monoid; +-commutativeMonoid
