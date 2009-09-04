@@ -7,27 +7,27 @@ module Data.List.Equality where
 open import Data.List
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.List.Pointwise
+import Relation.Binary.List.Pointwise as List
 
 module Equality (S : Setoid) where
 
-  open import Relation.Binary.List.Pointwise public using ([]; _∷_)
+  open List public using ([]; _∷_)
   open Setoid S renaming (_≈_ to _≊_)
 
-  infix  4 _≈_
+  infix 4 _≈_
 
   _≈_ : Rel (List carrier)
-  _≈_ = List-Rel _≊_
+  _≈_ = List.Rel _≊_
 
   setoid : Setoid
-  setoid = List-setoid S
+  setoid = List.setoid S
 
   open Setoid setoid public hiding (_≈_)
 
 module DecidableEquality (D : DecSetoid) where
 
   decSetoid : DecSetoid
-  decSetoid = List-decSetoid D
+  decSetoid = List.decSetoid D
 
   open DecSetoid decSetoid public
 

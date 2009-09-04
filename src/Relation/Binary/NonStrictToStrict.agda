@@ -46,7 +46,7 @@ trans po = λ x<y y<z →
     PO.antisym x≤y $ PO.trans y≤z (PO.reflexive $ PO.Eq.sym x≈z)
 
 antisym⟶asym : Antisymmetric _≈_ _≤_ → Asymmetric _<_
-antisym⟶asym antisym (x≤y , ¬x≈y) (y≤x , ¬y≈x) = 
+antisym⟶asym antisym (x≤y , ¬x≈y) (y≤x , ¬y≈x) =
   ¬x≈y (antisym x≤y y≤x)
 
 <-resp-≈ : IsEquivalence _≈_ → _≤_ Respects₂ _≈_ → _<_ Respects₂ _≈_
@@ -79,33 +79,26 @@ decidable ≈-dec ≤-dec x y with ≈-dec x y | ≤-dec x y
 ... | no  x≉y | yes x≤y = yes (x≤y , x≉y)
 ... | no  x≉y | no  x≰y = no (x≰y ∘ proj₁)
 
-isPartialOrder⟶isStrictPartialOrder : 
+isPartialOrder⟶isStrictPartialOrder :
   IsPartialOrder _≈_ _≤_ → IsStrictPartialOrder _≈_ _<_
 isPartialOrder⟶isStrictPartialOrder po = record
-  { isEquivalence = isEquivalence
-  ; irrefl = irrefl
-  ; trans = trans po
-  ; <-resp-≈ = <-resp-≈ isEquivalence ∼-resp-≈
-  } 
-  where pre = IsPartialOrder.isPreorder po
-        open IsPreorder pre hiding (trans)
+  { isEquivalence = PO.isEquivalence
+  ; irrefl        = irrefl
+  ; trans         = trans po
+  ; <-resp-≈      = <-resp-≈ PO.isEquivalence PO.≤-resp-≈
+  } where module PO = IsPartialOrder po
 
-isTotalOrder⟶isStrictTotalOrder : 
+isTotalOrder⟶isStrictTotalOrder :
   Decidable _≈_ → IsTotalOrder _≈_ _≤_ → IsStrictTotalOrder _≈_ _<_
 isTotalOrder⟶isStrictTotalOrder dec-≈ tot = record
-  { isEquivalence = isEquivalence
-  ; trans = trans po
-  ; compare = trichotomous (IsEquivalence.sym isEquivalence) 
-                dec-≈ 
-                (IsPartialOrder.antisym po) 
-                (IsTotalOrder.total tot)
-  ; <-resp-≈ = <-resp-≈ isEquivalence ∼-resp-≈
-  }
-  where po = IsTotalOrder.isPartialOrder tot
-        open IsPreorder (IsPartialOrder.isPreorder po) hiding (trans) 
+  { isEquivalence = TO.isEquivalence
+  ; trans         = trans TO.isPartialOrder
+  ; compare       = trichotomous TO.Eq.sym dec-≈ TO.antisym TO.total
+  ; <-resp-≈      = <-resp-≈ TO.isEquivalence TO.≤-resp-≈
+  } where module TO = IsTotalOrder tot
 
 isDecTotalOrder⟶isStrictTotalOrder :
   IsDecTotalOrder _≈_ _≤_ → IsStrictTotalOrder _≈_ _<_
 isDecTotalOrder⟶isStrictTotalOrder dtot =
-  isTotalOrder⟶isStrictTotalOrder _≟_ isTotalOrder 
- where open IsDecTotalOrder dtot
+  isTotalOrder⟶isStrictTotalOrder DTO._≟_ DTO.isTotalOrder
+  where module DTO = IsDecTotalOrder dtot
