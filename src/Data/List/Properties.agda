@@ -7,7 +7,9 @@
 
 module Data.List.Properties where
 
-open import Data.List
+open import Algebra
+open import Data.List as List
+private module LM {A} = Monoid (List.monoid A)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
@@ -16,7 +18,6 @@ open import Data.Product as Prod hiding (map)
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
-open import Algebra
 
 ∷-injective : ∀ {A} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
@@ -27,6 +28,19 @@ right-identity-unique : ∀ {A} (xs : List A) {ys} →
 right-identity-unique []       refl = refl
 right-identity-unique (x ∷ xs) eq   =
   right-identity-unique xs (proj₂ (∷-injective eq))
+
+left-identity-unique : ∀ {A xs} (ys : List A) →
+                       xs ≡ ys ++ xs → ys ≡ []
+left-identity-unique               []       _  = refl
+left-identity-unique {xs = []}     (y ∷ ys) ()
+left-identity-unique {xs = x ∷ xs} (y ∷ ys) eq
+  with left-identity-unique (ys ++ [ x ]) (begin
+         xs                  ≡⟨ proj₂ (∷-injective eq) ⟩
+         ys ++ x ∷ xs        ≡⟨ sym (LM.assoc ys [ x ] xs) ⟩
+         (ys ++ [ x ]) ++ xs ∎)
+  where open ≡-Reasoning
+left-identity-unique {xs = x ∷ xs} (y ∷ []   ) eq | ()
+left-identity-unique {xs = x ∷ xs} (y ∷ _ ∷ _) eq | ()
 
 -- Map, sum, and append.
 
