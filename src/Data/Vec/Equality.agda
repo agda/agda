@@ -87,3 +87,7 @@ module HeterogeneousEquality {A : Set} where
   to-≅ []-cong                      = HetEq.refl
   to-≅ (PropEq.refl ∷-cong xs¹≈xs²) with length-equal xs¹≈xs²
   ... | PropEq.refl = HetEq.cong (_∷_ _) $ to-≅ xs¹≈xs²
+
+  from-≅ : ∀ {n m} {xs : Vec A n} {ys : Vec A m} →
+           xs ≅ ys → xs ≈ ys
+  from-≅ HetEq.refl = refl _
