@@ -94,6 +94,8 @@ import Agda.Termination.TermCheck
 
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 
+import qualified Agda.Auto.Auto as Auto
+
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
@@ -344,6 +346,7 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> quote . show
 
+
 give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
   scope     <- getInteractionScope ii
   (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
@@ -356,6 +359,28 @@ give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
              L [A "agda2-give-action", showNumIId ii, newtxt]
   command cmd_metas
   return Nothing
+  where
+  -- Substitutes xs for x in ys.
+  replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
+
+cmd_auto :: GoalCommand
+cmd_auto ii rng s = Interaction False $ do
+  scope     <- getInteractionScope ii
+  res <- Auto.auto ii rng s
+  case res of
+   Left (ae, iis) -> do
+    let newtxt = A . quote . show $ abstractToConcrete (makeEnv scope) ae
+    iis       <- sortInteractionPoints iis
+    liftIO $ modifyIORef theState $ \s ->
+               s { theInteractionPoints =
+                     replace ii iis (theInteractionPoints s) }
+    liftIO $ UTF8.putStrLn $ response $
+               L [A "agda2-give-action", showNumIId ii, newtxt]
+    command cmd_metas
+    return Nothing
+   Right msg -> do
+    display_info "*Auto*" msg
+    return Nothing
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys

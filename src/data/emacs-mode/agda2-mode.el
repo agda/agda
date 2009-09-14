@@ -238,6 +238,7 @@ constituents.")
     (agda2-previous-goal                     "\C-c\C-b"         (global)       "Previous goal") ; Back.
     (agda2-give                              ,(kbd "C-c C-SPC") (local)        "Give")
     (agda2-refine                            "\C-c\C-r"         (local)        "Refine")
+    (agda2-auto                              "\C-c\C-a"         (local)        "Auto")
     (agda2-make-case                         "\C-c\C-c"         (local)        "Case")
     (agda2-goal-type                         "\C-c\C-t"         (local)        "Goal type")
     (agda2-show-context                      "\C-c\C-e"         (local)        "Context (environment)")
@@ -560,6 +561,26 @@ sexp is executed. The number of executed responses is returned."
 (defun agda2-refine ()
   "Refine the goal at point by the expression in it." (interactive)
   (agda2-goal-cmd "cmd_refine" "expression to refine"))
+
+(defun agda2-goal-cmd-auto (cmd &optional want ask &rest args)
+  "When in a goal, send CMD, goal num and range, and strings ARGS to agda2.
+WANT is an optional prompt.  When ASK is non-nil, use minibuffer. This is
+a version of agda2-goal-cmd which does not prompt for an argument when goal is empty"
+  (multiple-value-bind (o g) (agda2-goal-at (point))
+    (unless g (error "For this command, please place the cursor in a goal"))
+    (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
+                                               (- (overlay-end   o) 2))))
+      (if (not want) (setq txt "")
+          (when ask
+            (setq txt (read-string (concat want ": ") txt))))
+      (apply 'agda2-go nil t t cmd
+             (format "%d" g)
+             (agda2-goal-Range o)
+             (agda2-string-quote txt) args))))
+
+(defun agda2-auto ()
+ "Simple proof search" (interactive)
+ (agda2-goal-cmd-auto "cmd_auto" "does not prompt when goal is empty"))
 
 (defun agda2-make-case ()
   "Refine the pattern var given in the goal.
