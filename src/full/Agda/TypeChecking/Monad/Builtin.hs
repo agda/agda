@@ -58,7 +58,8 @@ getPrimitive x = do
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
-    primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf
+    primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
+    primEquality, primRefl
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -84,6 +85,8 @@ primNatLess      = getBuiltin builtinNatLess
 primSize         = getBuiltin builtinSize
 primSizeSuc      = getBuiltin builtinSizeSuc
 primSizeInf      = getBuiltin builtinSizeInf
+primEquality     = getBuiltin builtinEquality
+primRefl         = getBuiltin builtinRefl
 
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
@@ -109,6 +112,8 @@ builtinIO           = "IO"
 builtinSize         = "SIZE"
 builtinSizeSuc      = "SIZESUC"
 builtinSizeInf      = "SIZEINF"
+builtinEquality     = "EQUALITY"
+builtinRefl         = "REFL"
 
 builtinTypes :: [String]
 builtinTypes =

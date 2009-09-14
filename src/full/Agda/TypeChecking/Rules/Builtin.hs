@@ -48,14 +48,14 @@ bindBuiltinType b e = do
 bindBuiltinBool :: String -> A.Expr -> TCM ()
 bindBuiltinBool b e = do
     bool <- primBool
-    t	 <- checkExpr e $ El (Type 0) bool
+    t    <- checkExpr e $ El (Type 0) bool
     bindBuiltinName b t
 
 -- | Bind something of type @Set -> Set@.
 bindBuiltinType1 :: String -> A.Expr -> TCM ()
 bindBuiltinType1 thing e = do
-    let set	 = sort (Type 0)
-	setToSet = El (Type 1) $ Fun (Arg NotHidden set) set
+    let set      = sort (Type 0)
+        setToSet = El (Type 1) $ Fun (Arg NotHidden set) set
     f <- checkExpr e setToSet
     when (thing `elem` [builtinList]) $ do
       ensureInductive f
@@ -70,8 +70,8 @@ bindBuiltinZero e = do
 bindBuiltinSuc :: A.Expr -> TCM ()
 bindBuiltinSuc e = do
     nat  <- primNat
-    let	nat' = El (Type 0) nat
-	natToNat = El (Type 0) $ Fun (Arg NotHidden nat') nat'
+    let nat' = El (Type 0) nat
+        natToNat = El (Type 0) $ Fun (Arg NotHidden nat') nat'
     suc <- checkExpr e natToNat
     bindBuiltinName builtinSuc suc
 
@@ -83,16 +83,16 @@ typeOfSizeInf = do
 typeOfSizeSuc :: TCM Type
 typeOfSizeSuc = do
     sz  <- primSize
-    let	sz' = El (Type 0) sz
+    let sz' = El (Type 0) sz
     return $ El (Type 0) $ Fun (Arg NotHidden sz') sz'
 
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM ()
 bindBuiltinNil e = do
     list' <- primList
-    let set	= sort (Type 0)
-	list a	= El (Type 0) (list' `apply` [Arg NotHidden a])
-	nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
+    let set     = sort (Type 0)
+        list a  = El (Type 0) (list' `apply` [Arg NotHidden a])
+        nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
     nil <- checkExpr e nilType
     bindBuiltinName builtinNil nil
 
@@ -100,13 +100,13 @@ bindBuiltinNil e = do
 bindBuiltinCons :: A.Expr -> TCM ()
 bindBuiltinCons e = do
     list' <- primList
-    let set	  = sort (Type 0)
-	el	  = El (Type 0)
-	a	  = Var 0 []
-	list x	  = el $ list' `apply` [Arg NotHidden x]
-	hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
-	fun a b	  = el $ Fun (Arg NotHidden a) b
-	consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
+    let set       = sort (Type 0)
+        el        = El (Type 0)
+        a         = Var 0 []
+        list x    = el $ list' `apply` [Arg NotHidden x]
+        hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
+        fun a b   = el $ Fun (Arg NotHidden a) b
+        consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
     cons <- checkExpr e consType
     bindBuiltinName builtinCons cons
 
@@ -122,7 +122,7 @@ bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
 
     info <- getConstInfo qx
     let cls = defClauses info
-	a   = defAbstract info
+        a   = defAbstract info
     bindPrimitive name $ pf { primFunName = qx }
     addConstant qx $ info { theDef = Primitive a name cls }
 
@@ -141,113 +141,139 @@ builtinPrimitives =
     , "NATLESS"      |-> ("primNatLess", verifyLess)
     ]
     where
-	(|->) = (,)
+        (|->) = (,)
 
-	verifyPlus plus =
-	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		let m = Var 0 []
-		    n = Var 1 []
-		    x + y = plus @@ x @@ y
+        verifyPlus plus =
+            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+                let m = Var 0 []
+                    n = Var 1 []
+                    x + y = plus @@ x @@ y
 
-		-- We allow recursion on any argument
-		choice
-		    [ do n + zero  == n
-			 n + suc m == suc (n + m)
-		    , do suc n + m == suc (n + m)
-			 zero  + m == m
-		    ]
+                -- We allow recursion on any argument
+                choice
+                    [ do n + zero  == n
+                         n + suc m == suc (n + m)
+                    , do suc n + m == suc (n + m)
+                         zero  + m == m
+                    ]
 
-	verifyMinus minus =
-	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		let m = Var 0 []
-		    n = Var 1 []
-		    x - y = minus @@ x @@ y
+        verifyMinus minus =
+            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+                let m = Var 0 []
+                    n = Var 1 []
+                    x - y = minus @@ x @@ y
 
-		-- We allow recursion on any argument
-		zero  - zero  == zero
-		zero  - suc m == zero
-		suc n - zero  == suc n
-		suc n - suc m == (n - m)
+                -- We allow recursion on any argument
+                zero  - zero  == zero
+                zero  - suc m == zero
+                suc n - zero  == suc n
+                suc n - suc m == (n - m)
 
-	verifyTimes times = do
-	    plus <- primNatPlus
-	    verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-		let m = Var 0 []
-		    n = Var 1 []
-		    x + y = plus  @@ x @@ y
-		    x * y = times @@ x @@ y
+        verifyTimes times = do
+            plus <- primNatPlus
+            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+                let m = Var 0 []
+                    n = Var 1 []
+                    x + y = plus  @@ x @@ y
+                    x * y = times @@ x @@ y
 
-		choice
-		    [ do n * zero == zero
-			 choice [ (n * suc m) == (n + (n * m))
-				, (n * suc m) == ((n * m) + n)
-				]
-		    , do zero * n == zero
-			 choice [ (suc n * m) == (m + (n * m))
-				, (suc n * m) == ((n * m) + m)
-				]
-		    ]
+                choice
+                    [ do n * zero == zero
+                         choice [ (n * suc m) == (n + (n * m))
+                                , (n * suc m) == ((n * m) + n)
+                                ]
+                    , do zero * n == zero
+                         choice [ (suc n * m) == (m + (n * m))
+                                , (suc n * m) == ((n * m) + m)
+                                ]
+                    ]
 
-	verifyDivSucAux dsAux =
-	    verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
-		let aux k m n j = dsAux @@ k @@ m @@ n @@ j
-		    k	        = Var 0 []
-		    m	        = Var 1 []
-		    n	        = Var 2 []
-		    j	        = Var 3 []
+        verifyDivSucAux dsAux =
+            verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+                let aux k m n j = dsAux @@ k @@ m @@ n @@ j
+                    k           = Var 0 []
+                    m           = Var 1 []
+                    n           = Var 2 []
+                    j           = Var 3 []
 
                 aux k m zero    j       == k
                 aux k m (suc n) zero    == aux (suc k) m n m
                 aux k m (suc n) (suc j) == aux k m n j
 
-	verifyModSucAux dsAux =
-	    verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
-		let aux k m n j = dsAux @@ k @@ m @@ n @@ j
-		    k	        = Var 0 []
-		    m	        = Var 1 []
-		    n	        = Var 2 []
-		    j	        = Var 3 []
+        verifyModSucAux dsAux =
+            verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
+                let aux k m n j = dsAux @@ k @@ m @@ n @@ j
+                    k           = Var 0 []
+                    m           = Var 1 []
+                    n           = Var 2 []
+                    j           = Var 3 []
 
                 aux k m zero    j       == k
                 aux k m (suc n) zero    == aux zero m n m
                 aux k m (suc n) (suc j) == aux (suc k) m n j
 
-	verifyEquals eq =
-	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do
-	    true  <- primTrue
-	    false <- primFalse
-	    let x == y = eq @@ x @@ y
-		m      = Var 0 []
-		n      = Var 1 []
-	    (zero  == zero ) === true
-	    (suc n == suc m) === (n == m)
-	    (suc n == zero ) === false
-	    (zero  == suc n) === false
+        verifyEquals eq =
+            verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+            true  <- primTrue
+            false <- primFalse
+            let x == y = eq @@ x @@ y
+                m      = Var 0 []
+                n      = Var 1 []
+            (zero  == zero ) === true
+            (suc n == suc m) === (n == m)
+            (suc n == zero ) === false
+            (zero  == suc n) === false
 
-	verifyLess leq =
-	    verify ["n","m"] $ \(@@) zero suc (===) choice -> do
-	    true  <- primTrue
-	    false <- primFalse
-	    let x < y = leq @@ x @@ y
-		m     = Var 0 []
-		n     = Var 1 []
-	    (n     < zero)  === false
-	    (suc n < suc m) === (n < m)
-	    (zero  < suc m) === true
+        verifyLess leq =
+            verify ["n","m"] $ \(@@) zero suc (===) choice -> do
+            true  <- primTrue
+            false <- primFalse
+            let x < y = leq @@ x @@ y
+                m     = Var 0 []
+                n     = Var 1 []
+            (n     < zero)  === false
+            (suc n < suc m) === (n < m)
+            (zero  < suc m) === true
 
-	verify :: [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
-				(Term -> Term -> TCM ()) ->
-				([TCM ()] -> TCM ()) -> TCM a) -> TCM a
-	verify xs f = do
-	    nat	 <- El (Type 0) <$> primNat
-	    zero <- primZero
-	    s    <- primSuc
-	    let x @@ y = x `apply` [Arg NotHidden y]
-		x == y = noConstraints $ equalTerm nat x y
-		suc n  = s @@ n
-		choice = foldr1 (\x y -> x `catchError` \_ -> y)
-	    xs <- mapM freshName_ xs
-	    addCtxs xs (Arg NotHidden nat) $ f (@@) zero suc (==) choice
+        verify :: [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
+                                (Term -> Term -> TCM ()) ->
+                                ([TCM ()] -> TCM ()) -> TCM a) -> TCM a
+        verify xs f = do
+            nat  <- El (Type 0) <$> primNat
+            zero <- primZero
+            s    <- primSuc
+            let x @@ y = x `apply` [Arg NotHidden y]
+                x == y = noConstraints $ equalTerm nat x y
+                suc n  = s @@ n
+                choice = foldr1 (\x y -> x `catchError` \_ -> y)
+            xs <- mapM freshName_ xs
+            addCtxs xs (Arg NotHidden nat) $ f (@@) zero suc (==) choice
+
+bindBuiltinEquality :: A.Expr -> TCM ()
+bindBuiltinEquality e = do
+  let set       = sort (Type 0)
+      el        = El (Type 0)
+      a         = Var 0 []
+      hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
+      fun a b   = El (Type 1) $ Fun (Arg NotHidden a) b
+      eqType    = hPi "A" set $ el a `fun` (el a `fun` set)
+  eq <- checkExpr e eqType
+  bindBuiltinName builtinEquality eq
+
+
+bindBuiltinRefl :: A.Expr -> TCM ()
+bindBuiltinRefl e = do
+  eq' <- primEquality
+  let set       = sort (Type 0)
+      el        = El (Type 0)
+      v0        = Var 0 []
+      v1        = Var 1 []
+      hPi x a b = telePi (telFromList [Arg Hidden (x, a)]) b
+      fun a b   = el $ Fun (Arg NotHidden a) b
+      eq a b c  = el $ eq' `apply` [Arg Hidden a, Arg NotHidden b, Arg NotHidden c]
+      reflType  = hPi "A" set $ hPi "x" (el v0) $ eq v1 v0 v0
+  refl <- checkExpr e reflType
+  bindBuiltinName builtinRefl refl
 
 -- | Builtin constructors
 builtinConstructors :: [(String, A.Expr -> TCM ())]
@@ -258,6 +284,7 @@ builtinConstructors =
   , (builtinSuc,     bindBuiltinSuc               )
   , (builtinTrue,    bindBuiltinBool builtinTrue  )
   , (builtinFalse,   bindBuiltinBool builtinFalse )
+  , (builtinRefl,    bindBuiltinRefl              )
   ]
 
 -- | Builtin postulates
@@ -303,11 +330,12 @@ bindBuiltin b e = do
     unless top $ typeError $ BuiltinInParameterisedModule b
     bind b e
     where
-	bind b e
-	    | elem b builtinTypes                        = bindBuiltinType b e
-	    | elem b [builtinList]                       = bindBuiltinType1 b e
+        bind b e
+            | elem b builtinTypes                        = bindBuiltinType b e
+            | elem b [builtinList]                       = bindBuiltinType1 b e
+            | b == builtinEquality                       = bindBuiltinEquality e
             | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
-	    | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
+            | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
             | Just typ   <- lookup b builtinPostulates   = bindPostulate b typ e
-	    | otherwise                                  = typeError $ NoSuchBuiltinName b
+            | otherwise                                  = typeError $ NoSuchBuiltinName b
 
