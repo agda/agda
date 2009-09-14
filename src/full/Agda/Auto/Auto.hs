@@ -244,6 +244,6 @@ parseargs s =
       let (hints, timeout, pick, mode) = r ws x
       in  (h : hints, timeout, pick, mode)
      r [] (x,y,z) = ([],x,y,z)
- in  r (words s) (5, 0, MNormal False)
+ in  r (words s) (1, 0, MNormal False)
 
 
