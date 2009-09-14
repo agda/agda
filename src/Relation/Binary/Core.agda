@@ -135,6 +135,9 @@ private
   data _≡_ {a : Set} (x : a) : a → Set where
     refl : x ≡ x
 
+  {-# BUILTIN EQUALITY _≡_ #-}
+  {-# BUILTIN REFL refl #-}
+
   -- Nonequality.
 
   _≢_ : {a : Set} → a → a → Set

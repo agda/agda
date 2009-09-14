@@ -13,6 +13,7 @@ open import Data.Function
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality.TrustMe
 
 ------------------------------------------------------------------------
 -- Types
@@ -65,9 +66,8 @@ _==_ = primStringEquality
 _≟_ : Decidable {String} _≡_
 s₁ ≟ s₂ with s₁ == s₂
 ... | true  = yes trustMe
-  where postulate trustMe : _
-... | false = no trustMe
-  where postulate trustMe : _
+... | false = no whatever
+  where postulate whatever : _
 
 setoid : Setoid
 setoid = PropEq.setoid String
