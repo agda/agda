@@ -7,6 +7,7 @@
 module Agda.TypeChecking.Primitive where
 
 import Control.Monad
+import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
@@ -25,6 +26,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty ()  -- instances only
+import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Constraints
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -219,6 +222,18 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _	    -> Nothing
 
+-- trustMe : {A : Set}{a b : A} -> a ≡ b
+primTrustMe :: MonadTCM tcm => tcm PrimitiveImpl
+primTrustMe = do
+  refl <- primRefl
+  t    <- hPi "A" tset $ hPi "a" (el $ var 0) $ hPi "b" (el $ var 1) $
+          el (primEquality <#> var 2 <@> var 1 <@> var 0)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \[t, a, b] -> liftTCM $ do
+      noConstraints $ equalTerm (El (Type 0) $ unArg t) (unArg a) (unArg b)
+      rf <- return refl <#> return (unArg t) <#> return (unArg a)
+      redReturn rf
+    `catchError` \_ -> return (NoReduction [t, a, b])
+
 -- Tying the knot
 mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
 	      (a -> b) -> tcm PrimitiveImpl
@@ -405,6 +420,9 @@ primitiveFunctions = Map.fromList
     , "primStringAppend"    |-> mkPrimFun2 (\s1 s2 -> Str $ unStr s1 ++ unStr s2)
     , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
     , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
+
+    -- Other stuff
+    , "primTrustMe"         |-> primTrustMe
     ]
     where
 	(|->) = (,)
