@@ -113,7 +113,7 @@ termMutual i ts ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
-     reportSLn "term.top" 20 $ "Termination checking " ++ show names ++ "..."
+     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
 
@@ -126,10 +126,10 @@ termMutual i ts ds = if names == [] then return [] else
      -- first try to termination check ignoring the dot patterns
      let conf = DBPConf { useDotPatterns = False, withSizeSuc = suc }
      calls1 <- collect conf{ useDotPatterns = False }
-     reportS "term.lex" 30 $ unlines
+     reportS "term.lex" 20 $ unlines
        [ "Calls (no dot patterns): " ++ show calls1
        ]
-     reportS "term.behaviours" 30 $ unlines
+     reportS "term.behaviours" 20 $ unlines
        [ "Recursion behaviours (no dot patterns):"
        , indent 2 $ Term.showBehaviour (Term.complete calls1)
        ]
@@ -139,10 +139,10 @@ termMutual i ts ds = if names == [] then return [] else
                Left _  -> do
      -- now try to termination check regarding the dot patterns
                  calls2 <- collect conf{ useDotPatterns = True }
-                 reportS "term.lex" 30 $ unlines
+                 reportS "term.lex" 20 $ unlines
                    [ "Calls    (dot patterns): " ++ show calls2
                    ]
-                 reportS "term.behaviours" 30 $ unlines
+                 reportS "term.behaviours" 20 $ unlines
                    [ "Recursion behaviours (no dot patterns):"
                    , indent 2 $ Term.showBehaviour (Term.complete calls1)
                    , "Recursion behaviours (dot patterns):"
@@ -176,15 +176,17 @@ termMutual i ts ds = if names == [] then return [] else
   concat' = Set.toList . Set.unions
 
 -- | Termination check a module.
-termSection :: ModuleName -> [A.Declaration] -> TCM Result
-termSection x ds = do
-  tel <- lookupSection x
-  reportSDoc "term.section" 10 $
-    sep [ text "termination checking section"
-          , prettyTCM x
-          , prettyTCM tel
-          ]
-  withCurrentModule x $ addCtxTel tel $ termDecls ds
+termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
+termSection i x tel ds =
+  termTelescope tel $ \tel' -> do
+    addSection x (size tel')
+    verboseS "term.section" 10 $ do
+      dx   <- prettyTCM x
+      dtel <- mapM prettyA tel
+      dtel' <- prettyTCM =<< lookupSection x
+      liftIO $ UTF8.putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
+      liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
+    withCurrentModule x $ termDecls ds
 
 
 -- | Termination check a definition by pattern matching.
@@ -194,7 +196,7 @@ termDef use names name = do
         def <- getConstInfo name
         -- returns a TC.Monad.Base.Definition
 
-	reportSDoc "term.def.fun" 10 $
+	reportSDoc "term.def.fun" 5 $
 	  sep [ text "termination checking body of" <+> prettyTCM name
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
@@ -365,7 +367,7 @@ termClause use names name (Clause { clauseTel  = tel
 -- | Extract recursive calls from a term.
 termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm names f pats0 t0 = do
-  reportSDoc "term.check.clause" 11
+  reportSDoc "term.check.clause" 6
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
@@ -394,7 +396,7 @@ termTerm names f pats0 t0 = do
                   calls <- collectCalls (loop pats Unknown) args
 
 
-                  reportSDoc "term.found.call" 10
+                  reportSDoc "term.found.call" 5
                           (sep [ text "found call from" <+> prettyTCM f
                                , nest 2 $ text "to" <+> prettyTCM g
                 	       ])
@@ -409,16 +411,18 @@ termTerm names f pats0 t0 = do
                      Just gInd' -> do
 
                         matrix <- compareArgs suc pats args
-                        let ncols   = genericLength pats + 1
-                            nrows   = genericLength args + 1
-                            matrix' = addGuardedness guarded (ncols - 1) matrix
+                        let (nrows, ncols, matrix') = addGuardedness guarded 
+                               (genericLength args) -- number of rows 
+                               (genericLength pats) -- number of cols
+                               matrix
 
-                        reportSDoc "term.kept.call" 10
+
+                        reportSDoc "term.kept.call" 5
                           (sep [ text "kept call from" <+> prettyTCM f
                                   <+> hsep (map prettyTCM pats)
                                , nest 2 $ text "to" <+> prettyTCM g <+>
                                            hsep (map (parens . prettyTCM) args)
-                               , nest 2 $ text ("call matrix: " ++ show matrix)
+                               , nest 2 $ text ("call matrix (with guardeness): " ++ show matrix')
                 	       ])
 
                         return
@@ -487,10 +491,21 @@ makeCM ncols nrows matrix = Term.CallMatrix $
                             })
                  matrix
 
+{- To turn off guardedness, restore this code.  
+   Guardedness is unsound if you nest a coinductive type inside an inductive type.
+(Andreas, AIM-10)
+-- | 'addGuardedness' does nothing, since guardedness check is unsound
+     in the absense of a recursion/corecursion distinction (Andreas, AIM-10)
+addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
+addGuardedness g nrows ncols m = (nrows, ncols, m)
+-}
+
 -- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
-addGuardedness :: Integral n => Order -> n -> [[Term.Order]] -> [[Term.Order]]
-addGuardedness g ncols m =
-  (g : genericReplicate ncols Unknown) : map (Unknown :) m
+addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
+addGuardedness g nrows ncols m =
+  (nrows + 1, ncols + 1, 
+   (g : genericReplicate ncols Unknown) : map (Unknown :) m)
+
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]

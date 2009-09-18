@@ -27,6 +27,10 @@ split (x :: xs) k = split xs (\ l r -> k (x :: r) l)
 
 module Sort (A : Set) (compare : A -> A -> {B : Set} -> B -> B -> B) where
 
+{- merge is currently rejected by the termination checker
+   it would be nice if it worked
+   see test/succeed/SizedTypesMergeSort.agda
+ -}
   merge : List A -> List A -> List A
   merge [] ys = ys
   merge xs [] = xs
