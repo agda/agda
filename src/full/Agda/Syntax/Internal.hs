@@ -44,11 +44,16 @@ data Term = Var Nat Args
 data Type = El Sort Term
   deriving (Typeable, Data, Eq, Show)
 
-data Sort = Type Nat
+data Sort = Type Term   -- A term of type Nat
 	  | Prop
 	  | Lub Sort Sort
 	  | Suc Sort
-	  | MetaS MetaId
+	  | MetaS MetaId Args
+          | Inf
+          | DLub Sort (Abs Sort)
+            -- ^ if the free variable occurs in the second sort
+            --   the whole thing should reduce to Inf, otherwise
+            --   it's the normal Lub
   deriving (Typeable, Data, Eq, Show)
 
 -- | Something where a meta variable may block reduction.
@@ -261,10 +266,12 @@ ignoreBlocking :: Blocked a -> a
 ignoreBlocking (Blocked _ x) = x
 ignoreBlocking (NotBlocked x) = x
 
-set0   = sort (Type 0)
-set n  = sort (Type n)
+set0   = set 0
+set n  = sort $ mkType n
 prop   = sort Prop
 sort s = El (sSuc s) $ Sort s
+
+mkType n = Type $ Lit $ LitInt noRange n
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
@@ -278,16 +285,25 @@ unEl (El _ t) = t
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
-sSuc Prop	 = Type 1
-sSuc (Type n)	 = Type (n + 1)
-sSuc (Lub s1 s2) = sSuc s1 `sLub` sSuc s2
-sSuc s		 = Suc s
+sSuc Prop                      = mkType 1
+sSuc (Type (Lit (LitInt _ n))) = mkType (n + 1)
+sSuc Inf                       = Inf
+sSuc s                         = Suc s
 
 sLub :: Sort -> Sort -> Sort
-sLub (Type 0) Prop     = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
-sLub (Type n) Prop     = Type n
-sLub Prop (Type n)     = Type n
-sLub (Type n) (Type m) = Type $ max n m
+sLub (Type (Lit (LitInt _ 0))) Prop                      = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
+sLub (Type (Lit (LitInt _ n))) Prop                      = mkType n
+sLub Prop (Type (Lit (LitInt _ n)))                      = mkType n
+sLub (Type (Lit (LitInt _ n))) (Type (Lit (LitInt _ m))) = mkType $ max n m
+sLub (Suc a) (Suc b) = Suc (sLub a b)
+sLub (Type (Lit (LitInt _ n))) (Suc a)
+  | n > 0     = sSuc (mkType (n - 1) `sLub` a)
+  | otherwise = Suc a
+sLub (Suc a) (Type (Lit (LitInt _ n)))
+  | n > 0     = sSuc (a `sLub` mkType (n - 1))
+  | otherwise = Suc a
+sLub Inf _ = Inf
+sLub _ Inf = Inf
 sLub s1 s2
     | s1 == s2	= s1
     | otherwise	= Lub s1 s2

@@ -203,7 +203,7 @@ genArgs conf = unSizedList <$> genC (isntTypeConf conf)
 instance GenC Sort where
   genC conf = frequency $
     (propF, return Prop) :
-    zip setFs (map (return . Type) [0..])
+    zip setFs (map (return . mkType) [0..])
     where
       freq f = f $ tcFrequencies conf
       setFs = freq (setFreqs . sortFreqs)
@@ -414,11 +414,13 @@ instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
 instance ShrinkC Sort Sort where
   shrinkC conf Prop = []
   shrinkC conf s = Prop : case s of
-    Type n    -> Type <$> shrink n
-    Lub s1 s2 -> s1 : s2 : (uncurry Lub <$> shrinkC conf (s1, s2))
-    Suc s     -> s : (Suc <$> shrinkC conf s)
-    MetaS m   -> []
-    Prop      -> __IMPOSSIBLE__
+    Type n     -> Type <$> shrinkC conf n
+    Lub s1 s2  -> s1 : s2 : (uncurry Lub <$> shrinkC conf (s1, s2))
+    Suc s      -> s : (Suc <$> shrinkC conf s)
+    MetaS m _  -> []
+    Prop       -> __IMPOSSIBLE__
+    Inf        -> []
+    DLub s1 s2 -> __IMPOSSIBLE__
   noShrink = id
 
 instance ShrinkC Telescope Telescope where

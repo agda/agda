@@ -1,12 +1,15 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Constraints where
 
+import System.IO
+
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
 import Control.Applicative
 import Data.Map as Map
 import Data.List as List
+import Data.Set as Set
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -18,6 +21,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
+import Agda.TypeChecking.Free
 
 import Agda.Utils.Fresh
 
@@ -48,18 +52,18 @@ noConstraints m = do
 guardConstraint :: MonadTCM tcm => tcm Constraints -> Constraint -> tcm Constraints
 guardConstraint m c = do
     cs <- solveConstraints =<< m
-    case List.partition isSortConstraint cs of   -- sort constraints doesn't block anything
+    case List.partition isNonBlocking cs of
 	(scs, []) -> (scs ++) <$> solveConstraint c
 	(scs, cs) -> (scs ++) <$> buildConstraint (Guarded c cs)
     where
-	isSortConstraint = isSC . clValue
-	isSC SortCmp{}     = True
-	isSC ValueCmp{}    = False
-	isSC TypeCmp{}     = False
-	isSC TelCmp{}      = False
-	isSC (Guarded c _) = isSC c
-	isSC UnBlock{}     = False
-        isSC IsEmpty{}     = False
+	isNonBlocking = isNB . clValue
+	isNB SortCmp{}        = True
+	isNB ValueCmp{}       = False
+	isNB TypeCmp{}        = False
+	isNB TelCmp{}         = False
+	isNB (Guarded c _)    = isNB c
+	isNB UnBlock{}        = False
+        isNB IsEmpty{}        = False
 
 -- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
 --   We probably generate very few constraints.
@@ -70,13 +74,21 @@ wakeupConstraints = do
     addConstraints cs
 
 solveConstraints :: MonadTCM tcm => Constraints -> tcm Constraints
+solveConstraints [] = return []
 solveConstraints cs = do
+    reportSDoc "tc.constr.solve" 60 $
+      sep [ text "{ solving", nest 2 $ prettyTCM cs ]
     n  <- length <$> getInstantiatedMetas
+    cs0 <- return cs
     cs <- concat <$> mapM (withConstraint solveConstraint) cs
     n' <- length <$> getInstantiatedMetas
-    if (n' > n)
+    reportSDoc "tc.constr.solve" 70 $
+      sep [ text "new constraints", nest 2 $ prettyTCM cs ]
+    cs <- if (n' > n)
 	then solveConstraints cs -- Go again if we made progress
 	else return cs
+    reportSLn "tc.constr.solve" 60 $ "solved constraints }"
+    return cs
 
 solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
@@ -87,12 +99,11 @@ solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
 solveConstraint (IsEmpty t)          = isEmptyTypeC t
 solveConstraint (UnBlock m)          = do
     inst <- mvInstantiation <$> lookupMeta m
-    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint:" ++ show inst)
+    reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
       BlockedConst t -> do
-        verboseS "tc.constr.blocked" 15 $ do
-            d <- prettyTCM t
-            debug $ show m ++ " := " ++ show d
+        reportSDoc "tc.constr.blocked" 15 $
+          text ("blocked const " ++ show m ++ " :=") <+> prettyTCM t
         assignTerm m t
         return []
       PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t, unblock) -> do

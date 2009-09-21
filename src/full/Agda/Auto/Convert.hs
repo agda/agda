@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Error
 
+import qualified Agda.Syntax.Literal as I
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Abstract.Name as AN
@@ -337,10 +338,8 @@ tomyExp (I.Pi (C.Arg hid x) (I.Abs name y)) = do
 tomyExp (I.Fun (C.Arg hid x) y) = do
  x' <- tomyType x
  y' <- tomyType y
- return $ NotM $ Fun (cnvh hid) x' y'
-tomyExp (I.Sort (I.Type l)) = return $ NotM $ Sort $ SortLevel $ fromIntegral l
-tomyExp (I.Sort (I.MetaS _)) = throwError $ strMsg "Searching for type place holders is not supported"
-tomyExp t@(I.Sort _) = throwError $ strMsg $ "Meta variable kind not supported: " ++ show t
+ return $ wr $ Fun (cnvh hid) x' y'
+tomyExp (I.Sort (I.Type l)) = return $ wr $ Sort $ SortLevel $ fromIntegral l
 tomyExp (I.MetaV mid _) = do
  mcurmeta <- gets sCurMeta
  case mcurmeta of
@@ -391,7 +390,7 @@ frommy = frommyExp
 
 frommyType e = do
  e' <- frommyExp e
- return $ I.El (I.Type 0) e'  -- 0 is arbitrary, sort no read by Agda when reifying
+ return $ I.El (I.Type 2{-error "Sort not read by Agda when reifying"-}) e'
 
 frommyExp :: MExp O -> IO I.Term
 frommyExp (Meta m) = do
@@ -422,7 +421,7 @@ frommyExp (NotM e) =
    y' <- frommyType y
    return $ I.Fun (C.Arg (icnvh hid) x') y'
   Sort (SortLevel l) ->
-   return $ I.Sort (I.Type (fromIntegral l))
+   return $ I.Sort (I.mkType (fromIntegral l))
   Sort Type -> error "frommyExp: Sort Type encountered"
 
 frommyExps :: Nat -> MArgList O -> IO I.Args

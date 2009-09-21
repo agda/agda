@@ -194,6 +194,9 @@ data Closure a = Closure { clSignature  :: Signature
 			 }
     deriving (Typeable, Data)
 
+instance Show a => Show (Closure a) where
+  show cl = "Closure " ++ show (clValue cl)
+
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
@@ -218,10 +221,10 @@ data Constraint = ValueCmp Comparison Type Term Term
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
                 | IsEmpty Type
-  deriving (Typeable)
+  deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Typeable)
+  deriving (Eq, Typeable, Show)
 
 type Constraints = [ConstraintClosure]
 
@@ -273,7 +276,7 @@ data MetaVariable =
 
 data MetaInstantiation
 	= InstV Term
-	| InstS Sort
+	| InstS Term  -- should be Lam .. Sort s
 	| Open
 	| BlockedConst Term
         | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))

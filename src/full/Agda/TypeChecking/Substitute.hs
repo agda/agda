@@ -7,6 +7,7 @@ import Data.Generics
 import Data.List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -223,7 +224,7 @@ instance Subst Term where
 	    Lit l      -> Lit l
 	    Pi a b     -> uncurry Pi $ substs us (a,b)
 	    Fun a b    -> uncurry Fun $ substs us (a,b)
-	    Sort s     -> Sort s
+	    Sort s     -> Sort $ substs us s
         where
             []     !!! n = error "unbound variable"
             (x:xs) !!! 0 = x
@@ -241,11 +242,32 @@ instance Subst Term where
 	    Lit l      -> Lit l
 	    Pi a b     -> uncurry Pi $ substUnder n u (a,b)
 	    Fun a b    -> uncurry Fun $ substUnder n u (a,b)
-	    Sort s     -> Sort s
+	    Sort s     -> Sort $ substUnder n u s
 
 instance Subst Type where
-    substs us (El s t) = El s $ substs us t
-    substUnder n u (El s t) = El s $ substUnder n u t
+    substs us (El s t) = substs us s `El` substs us t
+    substUnder n u (El s t) = substUnder n u s `El` substUnder n u t
+
+instance Subst Sort where
+    substs us s = case s of
+      Type n     -> Type $ sub n
+      Prop       -> Prop
+      Suc s      -> Suc $ sub s
+      Lub s1 s2  -> Lub (sub s1) (sub s2)
+      MetaS m as -> MetaS m (sub as)
+      Inf        -> Inf
+      DLub s1 s2 -> DLub (sub s1) (sub s2)
+      where sub x = substs us x
+
+    substUnder n u s = case s of
+      Type n     -> Type $ sub n
+      Prop       -> Prop
+      Suc s      -> Suc $ sub s
+      Lub s1 s2  -> Lub (sub s1) (sub s2)
+      MetaS m as -> MetaS m (sub as)
+      Inf        -> Inf
+      DLub s1 s2 -> DLub (sub s1) (sub s2)
+      where sub x = substUnder n u x
 
 instance Subst Pattern where
   substs us p = case p of
@@ -326,12 +348,23 @@ instance Raise Term where
 	    Lit l	    -> Lit l
 	    Pi a b	    -> uncurry Pi $ rf (a,b)
 	    Fun a b	    -> uncurry Fun $ rf (a,b)
-	    Sort s	    -> Sort s
+	    Sort s	    -> Sort $ rf s
 	where
 	    rf x = raiseFrom m k x
 
 instance Raise Type where
-    raiseFrom m k (El s t) = El s $ raiseFrom m k t
+    raiseFrom m k (El s t) = raiseFrom m k s `El` raiseFrom m k t
+
+instance Raise Sort where
+    raiseFrom m k s = case s of
+      Type n     -> Type $ rf n
+      Prop       -> Prop
+      Suc s      -> Suc $ rf s
+      Lub s1 s2  -> Lub (rf s1) (rf s2)
+      MetaS m as -> MetaS m (rf as)
+      Inf        -> Inf
+      DLub s1 s2 -> DLub (rf s1) (rf s2)
+      where rf x = raiseFrom m k x
 
 instance Raise Telescope where
     raiseFrom m k EmptyTel	    = EmptyTel
@@ -383,10 +416,10 @@ telePi :: Telescope -> Type -> Type
 telePi  EmptyTel	 t = t
 telePi (ExtendTel u tel) t = el $ fn u b
   where
-    el = El (sLub s1 s2)
+    el = El (dLub s1 s2)
     b = fmap (flip telePi t) tel
     s1 = getSort $ unArg u
-    s2 = getSort $ absBody b
+    s2 = fmap getSort b
 
     fn a b
       | 0 `freeIn` absBody b = Pi a b
@@ -397,8 +430,19 @@ telePi_ :: Telescope -> Type -> Type
 telePi_  EmptyTel	 t = t
 telePi_ (ExtendTel u tel) t = el $ Pi u b
   where
-    el = El (sLub s1 s2)
-    b = fmap (flip telePi_ t) tel
+    el = El (dLub s1 s2)
+    b  = fmap (flip telePi_ t) tel
     s1 = getSort $ unArg u
-    s2 = getSort $ absBody b
+    s2 = fmap getSort b
+
+dLub :: Sort -> Abs Sort -> Sort
+dLub s1 s2
+  | 0 `Set.member` rv = Inf
+  | 0 `Set.member` fv = DLub s1 s2
+  | otherwise         = sLub s1 (absApp s2 __IMPOSSIBLE__)
+  where
+    vs = freeVars (absBody s2)
+    fv = flexibleVars vs
+    rv = rigidVars vs
+
 

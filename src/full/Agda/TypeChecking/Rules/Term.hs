@@ -10,6 +10,7 @@ import Data.Maybe
 import Data.List hiding (sort)
 import qualified System.IO.UTF8 as UTF8
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
@@ -32,6 +33,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Free
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -138,7 +140,7 @@ litType l = case l of
     LitChar _ _   -> el <$> primChar
     LitString _ _ -> el <$> primString
   where
-    el t = El (Type 0) t
+    el t = El (mkType 0) t
 
 ---------------------------------------------------------------------------
 -- * Terms
@@ -177,6 +179,10 @@ checkExpr e t =
         text "    --> " <+> prettyTCM t
     let scopedExpr (A.ScopedExpr scope e) = setScope scope >> scopedExpr e
 	scopedExpr e			  = return e
+
+        unScope (A.ScopedExpr scope e) = unScope e
+        unScope e                      = e
+
     e <- scopedExpr e
     case e of
 
@@ -240,6 +246,18 @@ checkExpr e t =
             | Application hd args <- appView e -> checkHeadApplication e t hd args
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
+
+        A.App i s (Arg NotHidden l)
+          | A.Set _ 0 <- unScope s ->
+          ifM typeInType (typeError $ GenericError 
+                "--type-in-type is not compatible with universe polymorphism") $ do
+            nat <- primNat
+            suc <- do s <- primSuc
+                      return $ \x -> s `apply` [Arg NotHidden x]
+            n   <- checkExpr (namedThing l) (El (mkType 0) nat)
+            reportSDoc "tc.univ.poly" 10 $
+              text "checking Set " <+> prettyTCM n <+> text "against" <+> prettyTCM t
+            blockTerm t (Sort $ Type n) $ leqType (sort $ Type $ suc n) t
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
@@ -329,8 +347,32 @@ checkExpr e t =
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
 	A.Pi _ tel e -> do
-	    t' <- checkTelescope tel $ \tel -> telePi_ tel <$> isType_ e
-	    blockTerm t (unEl t') $ leqType (sort $ getSort t') t
+	    t' <- checkTelescope tel $ \tel -> do
+                    t   <- instantiateFull =<< isType_ e
+                    tel <- instantiateFull tel
+                    return $ telePi_ tel t
+            s  <- return $ getSort t'
+            when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
+              vcat [ text ("reduced to omega:")
+                   , nest 2 $ text "t   =" <+> prettyTCM t'
+                   , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
+                   ]
+
+--                   do s' <- instantiateFull $ getSort t'
+--                      let fv = rigidVars $ freeVars s'
+--                      n <- genericLength <$> getContext
+--                      if any (>= n) $ Set.toList fv
+--                        then do
+--                          reportSDoc "tc.term.sort" 20 $
+--                           vcat [ text ("reduced to omega[" ++ show n ++ "]:")
+--                                , nest 2 $ text "t   =" <+> prettyTCM t'
+--                                , nest 2 $ text "fv  =" <+> text (show fv)
+--                                , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
+--                                , nest 2 $ prettyTCM s'
+--                                ]
+--                          return Inf
+--                        else return s'
+	    blockTerm t (unEl t') $ leqType (sort s) t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
@@ -338,10 +380,10 @@ checkExpr e t =
 	    blockTerm t (Fun (Arg h a') b') $ leqType (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  blockTerm t (Sort (Type n)) $ leqType (sort $ Type $ n + 1) t
+	  blockTerm t (Sort (mkType n)) $ leqType (sort $ mkType $ n + 1) t
 	A.Prop _     -> do
-          s <- ifM typeInType (return $ Type 0) (return Prop)
-	  blockTerm t (Sort Prop) $ leqType (sort $ Type 1) t
+          s <- ifM typeInType (return $ mkType 0) (return Prop)
+	  blockTerm t (Sort Prop) $ leqType (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
 	  t <- normalise t

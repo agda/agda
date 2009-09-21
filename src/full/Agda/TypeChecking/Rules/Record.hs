@@ -88,9 +88,6 @@ checkRecDef i name ps contel fields =
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $ checkRecordProjections m name tel' (raise 1 ftel) s fields
 
-      -- Check that the fields fit inside the sort
-      telePi ftel t0 `fitsIn` s
-
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = size tel
                                 , recClause         = Nothing
@@ -101,6 +98,11 @@ checkRecDef i name ps contel fields =
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }
+
+      -- Check that the fields fit inside the sort
+      let dummy = Var 0 []  -- We're only interested in the sort here
+      telePi ftel (El s dummy) `fitsIn` s
+
       computePolarity name
 
       return ()

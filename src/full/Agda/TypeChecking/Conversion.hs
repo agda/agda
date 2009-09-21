@@ -10,6 +10,7 @@ import Data.Generics
 import Data.Traversable hiding (mapM)
 import Data.List hiding (sort)
 
+import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
@@ -24,6 +25,8 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Nat
 
 import Agda.Utils.Monad
 
@@ -298,7 +301,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
                               , prettyTCM arg1
                               , text "~~" <+> prettyTCM arg2
                               , text ":" <+> prettyTCM b
-                              , text "-->" <+> prettyTCM cs1
+                              , text "--->" <+> prettyTCM cs1
                               ]
                           ]
                         patternViolation   -- TODO: will duplicate work (all arguments checked so far)
@@ -327,10 +330,11 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                   TypeError _ _ -> typeError $ UnequalTypes cmp ty1 ty2
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2
-        unless (null $ cs1 ++ cs2) $
+        cs  <- solveConstraints $ cs1 ++ cs2
+        unless (null cs) $
           reportSDoc "tc.conv.type" 9 $
-            text "   --> " <+> prettyTCM (cs1 ++ cs2)
-	return $ cs1 ++ cs2
+            text "   --> " <+> prettyTCM cs
+	return cs
 
 leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 leqType = compareType CmpLeq
@@ -341,7 +345,10 @@ leqType = compareType CmpLeq
 
 compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints
 compareSort CmpEq  = equalSort
-compareSort CmpLeq = equalSort -- TODO: change to leqSort when we have better constraint solving
+compareSort CmpLeq = equalSort
+  -- TODO: change to leqSort when we have better constraint solving
+  --       or not? might not be needed if we get universe polymorphism
+  --       leqSort is still used when checking datatype declarations though
 
 -- | Check that the first sort is less or equal to the second.
 leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
@@ -349,9 +356,11 @@ leqSort s1 s2 =
   ifM typeInType (return []) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
--- 	do  d1 <- prettyTCM s1
--- 	    d2 <- prettyTCM s2
--- 	    debug $ "leqSort   " ++ show d1 ++ " <= " ++ show d2
+        reportSDoc "tc.conv.sort" 10 $
+          sep [ text "leqSort"
+              , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
+                              , prettyTCM s2 ]
+              ]
 	case (s1,s2) of
 
 	    (Prop    , Prop    )	     -> return []
@@ -359,20 +368,45 @@ leqSort s1 s2 =
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
 	    (Prop    , Type _  )	     -> return []
-	    (Type n  , Type m  ) | n <= m    -> return []
-				 | otherwise -> notLeq s1 s2
-	    (Suc s   , Type n  ) | 1 <= n    -> leqSort s (Type $ n - 1)
-				 | otherwise -> notLeq s1 s2
+	    (Type (Lit (LitInt _ n)), Type (Lit (LitInt _ m)))
+              | n <= m    -> return []
+	      | otherwise -> notLeq s1 s2
+            (Type a, Type b) -> leqNat a b
+
+	    (Suc s   , Type (Lit (LitInt _ n)))
+              | 1 <= n    -> leqSort s (mkType $ n - 1)
+	    (Suc s   , Type b  ) -> notLeq s1 s2  -- TODO
 	    (_	     , Suc _   )	     -> equalSort s1 s2
 
 	    (Lub a b , _       )	     -> liftM2 (++) (leqSort a s2) (leqSort b s2)
 	    (_	     , Lub _ _ )	     -> equalSort s1 s2
 
-	    (MetaS x , MetaS y ) | x == y    -> return []
-	    (MetaS x , _       )	     -> equalSort s1 s2
-	    (_	     , MetaS x )	     -> equalSort s1 s2
+	    (MetaS{} , _       )	     -> equalSort s1 s2
+	    (_	     , MetaS{} )	     -> equalSort s1 s2
+            (Inf     , Inf     )             -> return []
+            (Inf     , _       )             -> notLeq s1 s2
+            (_       , Inf     )             -> return []
+            (DLub{}  , _       )             -> equalSort s1 s2
+            (_       , DLub{}  )             -> equalSort s1 s2
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
+
+leqNat :: MonadTCM tcm => Term -> Term -> tcm Constraints
+leqNat a b = do
+  nat <- primNat
+  n <- natView a
+  m <- natView b
+  case (n, m) of
+    (ClosedNat n, ClosedNat m)
+      | n <= m -> ok
+    (Plus n a, Plus m b)
+      | n <= m -> equalTerm (El (mkType 0) nat) a b
+    (ClosedNat n, Plus m _)
+      | n <= m -> ok
+    _ -> notok
+  where
+    ok = return []
+    notok = typeError $ NotLeqSort (Type a) (Type b)
 
 -- | Check that the first sort equal to the second.
 equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
@@ -380,39 +414,69 @@ equalSort s1 s2 =
   ifM typeInType (return []) $
     catchConstraint (SortCmp CmpEq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
--- 	do  d1 <- prettyTCM s1
--- 	    d2 <- prettyTCM s2
--- 	    debug $ "equalSort " ++ show d1 ++ " == " ++ show d2
+        reportSDoc "tc.conv.sort" 10 $
+          sep [ text "equalSort"
+              , nest 2 $ fsep [ prettyTCM s1 <+> text "=="
+                              , prettyTCM s2 ]
+              ]
 	case (s1,s2) of
 
-	    (MetaS x , MetaS y ) | x == y    -> return []
-				 | otherwise -> do
+	    (MetaS x us , MetaS y vs) -> do
+              s1 <- normalise s1
+              s2 <- normalise s2
+              if s1 == s2 then return []
+			  else do
 		[p1, p2] <- mapM getMetaPriority [x, y]
-		if p1 >= p2 then assignS x s2
-			    else assignS y s1
-	    (MetaS x , _       )	     -> assignS x s2
-	    (_	     , MetaS x )	     -> equalSort s2 s1
+		if p1 >= p2 then assignS x us s2
+			    else assignS y vs s1
+	    (MetaS x vs, _       ) -> assignS x vs s2
+	    (_	     , MetaS{} ) -> equalSort s2 s1
 
-	    (Prop    , Prop    )	     -> return []
-	    (Type _  , Prop    )	     -> notEq s1 s2
-	    (Prop    , Type _  )	     -> notEq s1 s2
+	    (Prop    , Prop    ) -> return []
+	    (Type _  , Prop    ) -> notEq s1 s2
+	    (Prop    , Type _  ) -> notEq s1 s2
 
-	    (Type n  , Type m  ) | n == m    -> return []
-				 | otherwise -> notEq s1 s2
-	    (Suc s   , Prop    )	     -> notEq s1 s2
-	    (Suc s   , Type 0  )	     -> notEq s1 s2
-	    (Suc s   , Type 1  )	     -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Suc s   , Type n  )	     -> equalSort s (Type $ n - 1)
-	    (Prop    , Suc s   )	     -> notEq s1 s2
-	    (Type 0  , Suc s   )	     -> notEq s1 s2
-	    (Type 1  , Suc s   )	     -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Type n  , Suc s   )	     -> equalSort (Type $ n - 1) s
-	    (_	     , Suc _   )	     -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Suc _   , _       )	     -> buildConstraint (SortCmp CmpEq s1 s2)
+            (Type (Lit n), Type (Lit m))
+              | n == m           -> return []
+              | otherwise        -> notEq s1 s2
+            (Type a  , Type b  ) -> do
+                nat <- primNat
+                equalTerm (El (mkType 0) nat) a b
+	    (Suc s   , Prop    ) -> notEq s1 s2
+	    (Suc s   , Type (Lit (LitInt _ 0))) -> notEq s1 s2
+	    (Suc s   , Type (Lit (LitInt _ 1))) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Suc s   , Type (Lit (LitInt _ n))) -> equalSort s (mkType $ n - 1)
+	    (Prop    , Suc s   ) -> notEq s1 s2
+	    (Type (Lit (LitInt _ 0))  , Suc s   ) -> notEq s1 s2
+	    (Type (Lit (LitInt _ 1))  , Suc s   ) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Type (Lit (LitInt _ n))  , Suc s   ) -> equalSort (mkType $ n - 1) s
+	    (_	     , Suc _   ) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Suc _   , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
 
-	    (Lub _ _ , _       )	     -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (_	     , Lub _ _ )	     -> buildConstraint (SortCmp CmpEq s1 s2)
+            (Inf     , Inf     )             -> return []
+            (Inf     , _       )             -> notEq s1 s2
+            (_       , Inf     )             -> notEq s1 s2
+            (s0@(Type (Lit (LitInt _ 0))), Lub s1 s2) -> do
+              cs1 <- equalSort s0 s1
+              cs2 <- equalSort s0 s2
+              return $ cs1 ++ cs2
+            (Lub s1 s2, s0@(Type (Lit (LitInt _ 0)))) -> do
+              cs1 <- equalSort s1 s0
+              cs2 <- equalSort s2 s0
+              return $ cs1 ++ cs2
+	    (Lub _ _ , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (_	     , Lub _ _ ) -> buildConstraint (SortCmp CmpEq s1 s2)
 
+            (DLub s1 s2, s0@(Type (Lit (LitInt _ 0)))) -> do
+              cs1 <- equalSort s1 s0
+              cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s2 s0
+              return $ cs1 ++ cs2
+            (s0@(Type (Lit (LitInt _ 0))), DLub s1 s2) -> do
+              cs1 <- equalSort s0 s1
+              cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s0 s2
+              return $ cs1 ++ cs2
+            (DLub{}  , _       )             -> buildConstraint (SortCmp CmpEq s1 s2)
+            (_       , DLub{}  )             -> buildConstraint (SortCmp CmpEq s1 s2)
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
 

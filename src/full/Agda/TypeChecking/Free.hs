@@ -63,11 +63,21 @@ instance Free Term where
     Con _ ts   -> freeVars ts
     Pi a b     -> freeVars (a,b)
     Fun a b    -> freeVars (a,b)
-    Sort _     -> empty
+    Sort s     -> freeVars s
     MetaV _ ts -> flexible $ freeVars ts
 
 instance Free Type where
-  freeVars (El _ t) = freeVars t
+  freeVars (El s t) = freeVars (s, t)
+
+instance Free Sort where
+  freeVars s = case s of
+    Type a     -> freeVars a
+    Suc s      -> freeVars s
+    Lub s1 s2  -> freeVars (s1, s2)
+    Prop       -> empty
+    Inf        -> empty
+    MetaS _ ts -> flexible $ freeVars ts
+    DLub s1 s2 -> freeVars (s1, s2)
 
 instance Free a => Free [a] where
   freeVars xs = unions $ map freeVars xs

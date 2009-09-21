@@ -226,10 +226,10 @@ instance Functor (OutputForm a) where
     fmap f (IsEmptyType a)        = IsEmptyType a
 
 instance Reify Constraint (OutputForm Expr Expr) where
-    reify (ValueCmp cmp t u v) = CmpInType cmp <$> reify t <*> reify u <*> reify v
-    reify (TypeCmp cmp t t')   = CmpTypes cmp <$> reify t <*> reify t'
-    reify (TelCmp  cmp t t')   = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
-    reify (SortCmp cmp s s')   = CmpSorts cmp <$> reify s <*> reify s'
+    reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
+    reify (TelCmp  cmp t t')     = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
+    reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c cs) = do
 	o  <- reify c
 	os <- mapM (withConstraint reify) cs
@@ -335,7 +335,7 @@ getSolvedInteractionPoints = do
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m args)
-          InstS{}                        -> sol (Sort $ MetaS m)
+          InstS{}                        -> sol (Sort $ MetaS m args)
           Open{}                         -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol

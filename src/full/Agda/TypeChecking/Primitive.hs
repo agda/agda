@@ -229,7 +229,7 @@ primTrustMe = do
   t    <- hPi "A" tset $ hPi "a" (el $ var 0) $ hPi "b" (el $ var 1) $
           el (primEquality <#> var 2 <@> var 1 <@> var 0)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \[t, a, b] -> liftTCM $ do
-      noConstraints $ equalTerm (El (Type 0) $ unArg t) (unArg a) (unArg b)
+      noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
       rf <- return refl <#> return (unArg t) <#> return (unArg a)
       redReturn rf
     `catchError` \_ -> return (NoReduction [t, a, b])
@@ -341,10 +341,10 @@ io :: MonadTCM tcm => tcm Term -> tcm Term
 io t = primIO <@> t
 
 el :: MonadTCM tcm => tcm Term -> tcm Type
-el t = El (Type 0) <$> t
+el t = El (mkType 0) <$> t
 
 tset :: MonadTCM tcm => tcm Type
-tset = return $ sort (Type 0)
+tset = return $ sort (mkType 0)
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions

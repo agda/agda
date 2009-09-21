@@ -40,7 +40,7 @@ ensureInductive t = do
 
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
-    t <- checkExpr e (sort $ Type 0)
+    t <- checkExpr e (sort $ mkType 0)
     when (b `elem` [builtinBool, builtinNat]) $ do
       ensureInductive t
     bindBuiltinName b t
@@ -48,14 +48,14 @@ bindBuiltinType b e = do
 bindBuiltinBool :: String -> A.Expr -> TCM ()
 bindBuiltinBool b e = do
     bool <- primBool
-    t    <- checkExpr e $ El (Type 0) bool
+    t    <- checkExpr e $ El (mkType 0) bool
     bindBuiltinName b t
 
 -- | Bind something of type @Set -> Set@.
 bindBuiltinType1 :: String -> A.Expr -> TCM ()
 bindBuiltinType1 thing e = do
-    let set      = sort (Type 0)
-        setToSet = El (Type 1) $ Fun (Arg NotHidden set) set
+    let set      = sort (mkType 0)
+        setToSet = El (mkType 1) $ Fun (Arg NotHidden set) set
     f <- checkExpr e setToSet
     when (thing `elem` [builtinList]) $ do
       ensureInductive f
@@ -64,34 +64,34 @@ bindBuiltinType1 thing e = do
 bindBuiltinZero :: A.Expr -> TCM ()
 bindBuiltinZero e = do
     nat  <- primNat
-    zero <- checkExpr e (El (Type 0) nat)
+    zero <- checkExpr e (El (mkType 0) nat)
     bindBuiltinName builtinZero zero
 
 bindBuiltinSuc :: A.Expr -> TCM ()
 bindBuiltinSuc e = do
     nat  <- primNat
-    let nat' = El (Type 0) nat
-        natToNat = El (Type 0) $ Fun (Arg NotHidden nat') nat'
+    let nat' = El (mkType 0) nat
+        natToNat = El (mkType 0) $ Fun (Arg NotHidden nat') nat'
     suc <- checkExpr e natToNat
     bindBuiltinName builtinSuc suc
 
 typeOfSizeInf :: TCM Type
 typeOfSizeInf = do
     sz  <- primSize
-    return $ (El (Type 0) sz)
+    return $ (El (mkType 0) sz)
 
 typeOfSizeSuc :: TCM Type
 typeOfSizeSuc = do
     sz  <- primSize
-    let sz' = El (Type 0) sz
-    return $ El (Type 0) $ Fun (Arg NotHidden sz') sz'
+    let sz' = El (mkType 0) sz
+    return $ El (mkType 0) $ Fun (Arg NotHidden sz') sz'
 
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM ()
 bindBuiltinNil e = do
     list' <- primList
-    let set     = sort (Type 0)
-        list a  = El (Type 0) (list' `apply` [Arg NotHidden a])
+    let set     = sort (mkType 0)
+        list a  = El (mkType 0) (list' `apply` [Arg NotHidden a])
         nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
     nil <- checkExpr e nilType
     bindBuiltinName builtinNil nil
@@ -100,8 +100,8 @@ bindBuiltinNil e = do
 bindBuiltinCons :: A.Expr -> TCM ()
 bindBuiltinCons e = do
     list' <- primList
-    let set       = sort (Type 0)
-        el        = El (Type 0)
+    let set       = sort (mkType 0)
+        el        = El (mkType 0)
         a         = Var 0 []
         list x    = el $ list' `apply` [Arg NotHidden x]
         hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
@@ -239,7 +239,7 @@ builtinPrimitives =
                                 (Term -> Term -> TCM ()) ->
                                 ([TCM ()] -> TCM ()) -> TCM a) -> TCM a
         verify xs f = do
-            nat  <- El (Type 0) <$> primNat
+            nat  <- El (mkType 0) <$> primNat
             zero <- primZero
             s    <- primSuc
             let x @@ y = x `apply` [Arg NotHidden y]
@@ -251,11 +251,11 @@ builtinPrimitives =
 
 bindBuiltinEquality :: A.Expr -> TCM ()
 bindBuiltinEquality e = do
-  let set       = sort (Type 0)
-      el        = El (Type 0)
+  let set       = sort (mkType 0)
+      el        = El (mkType 0)
       a         = Var 0 []
       hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
-      fun a b   = El (Type 1) $ Fun (Arg NotHidden a) b
+      fun a b   = El (mkType 1) $ Fun (Arg NotHidden a) b
       eqType    = hPi "A" set $ el a `fun` (el a `fun` set)
   eq <- checkExpr e eqType
   bindBuiltinName builtinEquality eq
@@ -264,8 +264,8 @@ bindBuiltinEquality e = do
 bindBuiltinRefl :: A.Expr -> TCM ()
 bindBuiltinRefl e = do
   eq' <- primEquality
-  let set       = sort (Type 0)
-      el        = El (Type 0)
+  let set       = sort (mkType 0)
+      el        = El (mkType 0)
       v0        = Var 0 []
       v1        = Var 1 []
       hPi x a b = telePi (telFromList [Arg Hidden (x, a)]) b
@@ -290,9 +290,9 @@ builtinConstructors =
 -- | Builtin postulates
 builtinPostulates :: [(String, TCM Type)]
 builtinPostulates =
-  [ (builtinSize,    return $ sort $ Type 0 )
-  , (builtinSizeSuc, typeOfSizeSuc          )
-  , (builtinSizeInf, typeOfSizeInf          )
+  [ (builtinSize,    return $ sort $ mkType 0 )
+  , (builtinSizeSuc, typeOfSizeSuc            )
+  , (builtinSizeInf, typeOfSizeInf            )
   ]
 
 -- | Bind a builtin constructor. Pre-condition: argument is an element of

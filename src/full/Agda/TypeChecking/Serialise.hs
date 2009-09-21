@@ -74,7 +74,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20090820 * 10 + 0
+currentInterfaceVersion = 20090918 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -474,12 +474,16 @@ instance EmbPrj I.Sort where
   icode Prop        = icode0 1
   icode (Lub   a b) = icode2 2 a b
   icode (Suc   a  ) = icode1 3 a
-  icode (MetaS a )  = icode1 4 a
+  icode (MetaS a b) = icode2 4 a b
+  icode Inf         = icode0 5
+  icode (DLub a b)  = icode2 6 a b
   value = vcase valu where valu [0, a]    = valu1 Type  a
                            valu [1]       = valu0 Prop
                            valu [2, a, b] = valu2 Lub   a b
                            valu [3, a]    = valu1 Suc   a
-                           valu [4, a]    = valu1 MetaS a
+                           valu [4, a, b] = valu2 MetaS a b
+                           valu [5]       = valu0 Inf
+                           valu [6, a, b] = valu2 DLub a b
                            valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where

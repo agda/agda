@@ -52,7 +52,7 @@ findIdx vs v = findIndex (==v) (reverse vs)
 -- | Check whether a meta variable is a place holder for a blocked term.
 isBlockedTerm :: MonadTCM tcm => MetaId -> tcm Bool
 isBlockedTerm x = do
-    reportS "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
+    reportSLn "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
     let r = case i of
 	    BlockedConst{}                 -> True
@@ -60,7 +60,7 @@ isBlockedTerm x = do
 	    InstV{}                        -> False
 	    InstS{}                        -> False
 	    Open{}                         -> False
-    reportSLn "tc.meta.blocked" 12 $ if r then "yes" else "no"
+    reportSLn "tc.meta.blocked" 12 $ if r then "  yes" else "  no"
     return r
 
 class HasMeta t where
@@ -72,18 +72,33 @@ instance HasMeta Term where
     metaVariable = MetaV
 
 instance HasMeta Sort where
-    metaInstance     = return . InstS
-    metaVariable x _ = MetaS x
+    metaInstance = return . InstS . Sort
+    metaVariable = MetaS
+
+-- TODO
+(=:=) :: (MonadTCM tcm) => MetaId -> Term -> tcm ()
+x =:= t = do
+    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
+    store <- getMetaStore
+    modify $ \st -> st { stMetaStore = ins x (InstS t) store }
+    etaExpandListeners x
+    wakeupConstraints
+    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
+  where
+    ins x i store = Map.adjust (inst i) x store
+    inst i mv = mv { mvInstantiation = i }
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadTCM tcm, HasMeta t) => MetaId -> t -> tcm ()
+(=:) :: (MonadTCM tcm, HasMeta t, Show t) => MetaId -> t -> tcm ()
 x =: t = do
+    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
     i <- metaInstance t
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
     etaExpandListeners x
     wakeupConstraints
+    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
   where
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
@@ -91,11 +106,18 @@ x =: t = do
 assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 assignTerm = (=:)
 
+assignSort :: MonadTCM tcm => MetaId -> Sort -> tcm ()
+assignSort = (=:)
+
 newSortMeta :: MonadTCM tcm => tcm Sort
-newSortMeta =
-  ifM typeInType (return $ Type 0) $ do
+newSortMeta = newSortMetaCtx =<< getContextArgs
+
+newSortMetaCtx :: MonadTCM tcm => Args -> tcm Sort
+newSortMetaCtx vs =
+  ifM typeInType (return $ mkType 0) $ do
     i <- createMetaInfo
-    MetaS <$> newMeta i normalMetaPriority (IsSort ())
+    x <- newMeta i normalMetaPriority (IsSort ())
+    return $ MetaS x vs
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
@@ -292,13 +314,15 @@ instance Occurs Sort where
     occurs abort m xs s =
 	do  s' <- reduce s
 	    case s' of
-		MetaS m'  -> do
+		MetaS m' args -> do
 		  when (m == m') $ abort $ MetaOccursInItself m
-		  return s'
-		Lub s1 s2 -> uncurry Lub <$> occurs abort m xs (s1,s2)
-		Suc s	  -> Suc <$> occurs abort m xs s
-		Type _	  -> return s'
-		Prop	  -> return s'
+		  MetaS m' <$> occurs (const patternViolation) m xs args
+		Lub s1 s2  -> uncurry Lub <$> occurs abort m xs (s1,s2)
+                DLub s1 s2 -> uncurry DLub <$> occurs abort m xs (s1, s2)
+		Suc s      -> Suc <$> occurs abort m xs s
+		Type a     -> Type <$> occurs abort m xs a
+		Prop       -> return s'
+		Inf        -> return s'
 
 instance Occurs a => Occurs (Abs a) where
     occurs abort m xs (Abs s x) = Abs s <$> occurs abort m (0 : map (1+) xs) x
@@ -322,7 +346,12 @@ handleAbort h m = liftTCM $
     m `catchError` \e ->
 	case errError e of
 	    AbortAssign s -> do put s; h
-	    _		  -> throwError e
+            PatternErr{}  -> do
+              reportSLn "tc.meta.assign" 50 "Pattern violation!"
+              throwError e
+	    _		  -> do
+              reportSLn "tc.meta.assign" 50 "Some exception"
+              throwError e
 
 -- | Assign to an open metavar.
 --   First check that metavar args are in pattern fragment.
@@ -332,7 +361,7 @@ assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v =
     handleAbort handler $ do
 	reportSDoc "tc.meta.assign" 10 $ do
-	  prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
+	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
@@ -403,12 +432,93 @@ assignV t x args v =
 	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalTerm t (MetaV x args) v
 
-assignS :: MonadTCM tcm => MetaId -> Sort -> tcm Constraints
-assignS x s =
-    handleAbort (equalSort (MetaS x) s) $ do
-	s <- occursCheck x [] s
-	x =: s
+-- TODO: Unify with assignV
+assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
+assignS x args s =
+    handleAbort handler $ do
+	reportSDoc "tc.meta.assign" 10 $ do
+	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
+
+	-- We don't instantiate blocked terms
+	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
+
+	-- Check that the arguments are distinct variables
+        reportSDoc "tc.meta.assign" 20 $
+            let pr (Var n []) = text (show n)
+                pr (Def c []) = prettyTCM c
+                pr _          = text ".."
+            in
+            text "args:" <+> sep (map (pr . unArg) args)
+
+        -- TODO Hack
+        let fv = flexibleVars $ freeVars s
+        when (any (< 0) $ Set.toList fv) $ do
+            reportSLn "tc.meta.assign" 10 "negative variables!"
+            patternViolation
+
+	ids <- checkArgs x args
+
+	reportSDoc "tc.meta.assign" 15 $
+	    text "preparing to instantiate: " <+> prettyTCM s
+
+	-- Check that the x doesn't occur in the right hand side
+	v <- liftTCM $ occursCheck x (map unArg ids) (Sort s)
+
+	verboseS "tc.conv.assign" 30 $ do
+	  let n = size v
+	  when (n > 200) $ do
+	    r <- getMetaRange x
+	    d <- sep [ text "size" <+> text (show n)
+		     , nest 2 $ text "sort" <+> prettyTCM v
+		     ]
+	    liftIO $ UTF8.print d
+
+	reportSLn "tc.meta.assign" 15 "passed occursCheck"
+
+	-- Rename the variables in v to make it suitable for abstraction over ids.
+	v' <- do
+	    -- Basically, if
+	    --   Γ   = a b c d e
+	    --   ids = d b e
+	    -- then
+	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
+	    tel  <- getContextTelescope
+	    args <- map (Arg NotHidden) <$> getContextTerms
+	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
+		v'    = raise (size ids) (abstract tel v) `apply` iargs
+	    return v'
+
+	let extTel (Arg h i) m = do
+	      tel <- m
+	      t	  <- typeOfBV i
+	      x	  <- nameOfBV i
+	      return $ ExtendTel (Arg h t) (Abs (show x) tel)
+	tel' <- foldr extTel (return EmptyTel) ids
+
+	reportSDoc "tc.meta.assign" 15 $
+	  text "final instantiation:" <+> prettyTCM (abstract tel' v')
+
+	-- Perform the assignment (and wake constraints). Metas
+	-- are top-level so we do the assignment at top-level.
+	n <- size <$> getContextTelescope
+	escapeContext n $ x =:= killRange (abstract tel' v')
 	return []
+    where
+	rename ids i arg = case findIndex (==i) ids of
+	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
+	    Nothing -> fmap (const __IMPOSSIBLE__) arg
+              -- we will end up here, but never look at the result
+
+	handler :: MonadTCM tcm => tcm Constraints
+	handler = do
+	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
+	    equalSort (MetaS x args) s
+
+-- assignS x s =
+--     handleAbort (equalSort (MetaS x) s) $ do
+-- 	s <- occursCheck x [] s
+-- 	x =: s
+-- 	return []
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
@@ -454,5 +564,5 @@ updateMeta mI t =
 		  assignV (t `piApply` args) mI args v
 		updV _ _	     = __IMPOSSIBLE__
 
-		updS s = assignS mI s
+		updS s = assignS mI args s
 

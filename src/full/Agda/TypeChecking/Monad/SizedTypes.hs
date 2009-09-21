@@ -24,7 +24,7 @@ isSizeType (El _ v) = liftTCM $
   `catchError` \_ -> return False
 
 sizeType :: MonadTCM tcm => tcm Type
-sizeType = El (Type 0) <$> primSize
+sizeType = El (mkType 0) <$> primSize
 
 sizeSuc :: MonadTCM tcm => tcm (Maybe QName)
 sizeSuc = liftTCM $

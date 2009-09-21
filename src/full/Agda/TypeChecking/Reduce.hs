@@ -5,9 +5,11 @@ module Agda.TypeChecking.Reduce where
 import Prelude hiding (mapM)
 import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Error hiding (mapM)
 import Control.Applicative
 import Data.List as List hiding (sort)
 import Data.Map as Map
+import qualified Data.Set as Set
 import Data.Generics
 import Data.Traversable
 
@@ -21,6 +23,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Free
 
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 
@@ -28,6 +31,20 @@ import Agda.Utils.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+traceFun :: MonadTCM tcm => String -> tcm a -> tcm a
+traceFun s m = do
+  reportSLn "tc.inst" 100 $ "[ " ++ s
+  x <- m
+  reportSLn "tc.inst" 100 $ "]"
+  return x
+
+traceFun' :: (Show a, MonadTCM tcm) => String -> tcm a -> tcm a
+traceFun' s m = do
+  reportSLn "tc.inst" 100 $ "[ " ++ s
+  x <- m
+  reportSLn "tc.inst" 100 $ "  result = " ++ show x ++ "\n]"
+  return x
 
 -- | Instantiate something.
 --   Results in an open meta variable or a non meta.
@@ -59,22 +76,26 @@ instance Instantiate a => Instantiate (Blocked a) where
       InstS _                        -> __IMPOSSIBLE__
 
 instance Instantiate Type where
-    instantiate (El s t) = El s <$> instantiate t
+    instantiate (El s t) = El <$> instantiate s <*> instantiate t
 
 instance Instantiate Sort where
     instantiate s = case s of
-	MetaS x -> do
+	MetaS x as -> do
 	    mi <- mvInstantiation <$> lookupMeta x
 	    case mi of
-		InstS s'                       -> instantiate s'
+		InstS s'                       -> do
+                  v <- instantiate (s' `apply` as)
+                  case v of
+                    Sort s -> return s
+                    _      -> __IMPOSSIBLE__
 		Open                           -> return s
 		InstV{}                        -> __IMPOSSIBLE__
 		BlockedConst{}                 -> __IMPOSSIBLE__
                 PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
-	Type _	  -> return s
-	Prop	  -> return s
-	Suc s	  -> sSuc <$> instantiate s
-	Lub s1 s2 -> sLub <$> instantiate s1 <*> instantiate s2
+        _ -> return s
+
+instance Instantiate t => Instantiate (Abs t) where
+  instantiate = traverse instantiate
 
 instance Instantiate t => Instantiate (Arg t) where
     instantiate = traverse instantiate
@@ -101,12 +122,12 @@ instance Instantiate Constraint where
     instantiate (ValueCmp cmp t u v) =
 	do  (t,u,v) <- instantiate (t,u,v)
 	    return $ ValueCmp cmp t u v
-    instantiate (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> instantiate (a,b)
-    instantiate (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> instantiate (a,b)
-    instantiate (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiate (a,b)
-    instantiate (Guarded c cs)    = uncurry Guarded <$> instantiate (c,cs)
-    instantiate (UnBlock m)       = return $ UnBlock m
-    instantiate (IsEmpty t)       = IsEmpty <$> instantiate t
+    instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
+    instantiate (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> instantiate (a,b)
+    instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
+    instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
+    instantiate (UnBlock m)          = return $ UnBlock m
+    instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -131,15 +152,25 @@ instance Reduce Type where
       return (El s <$> t)
 
 instance Reduce Sort where
-    reduce s =
+    reduce s = liftTCM $
 	{-# SCC "reduce<Sort>" #-}
 	do  s <- instantiate s
+            suc <- do sc <- primSuc
+                      return $ \x -> case x of
+                                      Type n -> Type (sc `apply` [Arg NotHidden n])
+                                      _      -> sSuc x
+              `catchError` \_ -> return sSuc
 	    case s of
-		Suc s'	  -> sSuc <$> reduce s'
-		Lub s1 s2 -> sLub <$> reduce s1 <*> reduce s2
-		Prop	  -> return s
-		Type _	  -> return s
-		MetaS _   -> return s
+		Suc s'     -> suc <$> reduce s'
+		Lub s1 s2  -> sLub <$> reduce s1 <*> reduce s2
+                DLub s1 s2 -> dLub <$> reduce s1 <*> reduce s2
+		Prop       -> return s
+		Type s'    -> Type <$> reduce s'
+		MetaS m as -> MetaS m <$> reduce as
+                Inf        -> return Inf
+
+instance Reduce t => Reduce (Abs t) where
+  reduce b = Abs (absName b) <$> underAbstraction_ b reduce
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
@@ -282,12 +313,12 @@ instance Reduce Constraint where
     reduce (ValueCmp cmp t u v) =
 	do  (t,u,v) <- reduce (t,u,v)
 	    return $ ValueCmp cmp t u v
-    reduce (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> reduce (a,b)
-    reduce (TelCmp  cmp a b) = uncurry (TelCmp cmp)  <$> reduce (a,b)
-    reduce (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> reduce (a,b)
-    reduce (Guarded c cs)    = uncurry Guarded <$> reduce (c,cs)
-    reduce (UnBlock m)       = return $ UnBlock m
-    reduce (IsEmpty t)       = IsEmpty <$> reduce t
+    reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
+    reduce (TelCmp  cmp a b)    = uncurry (TelCmp cmp)  <$> reduce (a,b)
+    reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
+    reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
+    reduce (UnBlock m)          = return $ UnBlock m
+    reduce (IsEmpty t)          = IsEmpty <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -300,7 +331,16 @@ class Normalise t where
     normalise :: MonadTCM tcm => t -> tcm t
 
 instance Normalise Sort where
-    normalise = reduce
+    normalise s = do
+      s <- reduce s
+      case s of
+        Suc s'     -> sSuc <$> normalise s'
+        Lub s1 s2  -> sLub <$> normalise s1 <*> normalise s2
+        DLub s1 s2 -> dLub <$> normalise s1 <*> normalise s2
+        Prop       -> return s
+        Type s'    -> Type <$> normalise s'
+        MetaS m as -> MetaS m <$> normalise as
+        Inf        -> return Inf
 
 instance Normalise Type where
     normalise (El s t) = El <$> normalise s <*> normalise t
@@ -355,12 +395,12 @@ instance Normalise Constraint where
     normalise (ValueCmp cmp t u v) =
 	do  (t,u,v) <- normalise (t,u,v)
 	    return $ ValueCmp cmp t u v
-    normalise (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> normalise (a,b)
-    normalise (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> normalise (a,b)
-    normalise (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> normalise (a,b)
-    normalise (Guarded c cs)    = uncurry Guarded <$> normalise (c,cs)
-    normalise (UnBlock m)       = return $ UnBlock m
-    normalise (IsEmpty t)       = IsEmpty <$> normalise t
+    normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
+    normalise (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> normalise (a,b)
+    normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
+    normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
+    normalise (UnBlock m)          = return $ UnBlock m
+    normalise (IsEmpty t)          = IsEmpty <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -393,28 +433,31 @@ instance InstantiateFull Sort where
     instantiateFull s = do
 	s <- instantiate s
 	case s of
-	    MetaS x   -> return $ MetaS x
-	    Type _    -> return s
-	    Prop      -> return s
-	    Suc s     -> sSuc <$> instantiateFull s
-	    Lub s1 s2 -> sLub <$> instantiateFull s1 <*> instantiateFull s2
+	    MetaS x as -> MetaS x <$> instantiateFull as
+	    Type n     -> Type <$> instantiateFull n
+	    Prop       -> return s
+	    Suc s      -> sSuc <$> instantiateFull s
+	    Lub s1 s2  -> sLub <$> instantiateFull s1 <*> instantiateFull s2
+	    DLub s1 s2 -> dLub <$> instantiateFull s1 <*> instantiateFull s2
+            Inf        -> return s
 
 instance InstantiateFull Type where
-    instantiateFull (El s t) = El <$> instantiateFull s <*> instantiateFull t
+    instantiateFull (El s t) =
+      El <$> instantiateFull s <*> instantiateFull t
 
 instance InstantiateFull Term where
-    instantiateFull v =
-	do  v <- instantiate v
-	    case v of
-		Var n vs   -> Var n <$> instantiateFull vs
-		Con c vs   -> Con c <$> instantiateFull vs
-		Def f vs   -> Def f <$> instantiateFull vs
-		MetaV x vs -> MetaV x <$> instantiateFull vs
-		Lit _	   -> return v
-		Lam h b    -> Lam h <$> instantiateFull b
-		Sort s	   -> Sort <$> instantiateFull s
-		Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
-		Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
+    instantiateFull v = do
+      v <- instantiate v
+      case v of
+          Var n vs   -> Var n <$> instantiateFull vs
+          Con c vs   -> Con c <$> instantiateFull vs
+          Def f vs   -> Def f <$> instantiateFull vs
+          MetaV x vs -> MetaV x <$> instantiateFull vs
+          Lit _	   -> return v
+          Lam h b    -> Lam h <$> instantiateFull b
+          Sort s	   -> Sort <$> instantiateFull s
+          Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
+          Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
 
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t
@@ -445,15 +488,16 @@ instance InstantiateFull a => InstantiateFull (Closure a) where
 	return $ cl { clValue = x }
 
 instance InstantiateFull Constraint where
-    instantiateFull (ValueCmp cmp t u v) =
-	do  (t,u,v) <- instantiateFull (t,u,v)
-	    return $ ValueCmp cmp t u v
-    instantiateFull (TypeCmp cmp a b) = uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
-    instantiateFull (TelCmp cmp a b)  = uncurry (TelCmp cmp)  <$> instantiateFull (a,b)
-    instantiateFull (SortCmp cmp a b) = uncurry (SortCmp cmp) <$> instantiateFull (a,b)
-    instantiateFull (Guarded c cs)    = uncurry Guarded <$> instantiateFull (c,cs)
-    instantiateFull (UnBlock m)       = return $ UnBlock m
-    instantiateFull (IsEmpty t)       = IsEmpty <$> instantiateFull t
+  instantiateFull c = case c of
+    ValueCmp cmp t u v -> do
+      (t,u,v) <- instantiateFull (t,u,v)
+      return $ ValueCmp cmp t u v
+    TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
+    TelCmp cmp a b     -> uncurry (TelCmp cmp)  <$> instantiateFull (a,b)
+    SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
+    Guarded c cs       -> uncurry Guarded <$> instantiateFull (c,cs)
+    UnBlock m          -> return $ UnBlock m
+    IsEmpty t          -> IsEmpty <$> instantiateFull t
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
     instantiateFull = traverse instantiateFull

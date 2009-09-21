@@ -163,17 +163,24 @@ bindParameters _ _ _ = __IMPOSSIBLE__
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
 --   The first argument is the type of the constructor.
 fitsIn :: Type -> Sort -> TCM ()
-fitsIn t s =
-    do	t <- instantiate t
-	case funView $ unEl t of
-	    FunV arg@(Arg h a) _ -> do
-		let s' = getSort a
-                s' `leqSort` s
-		x <- freshName_ (argName t)
-		let v  = Arg h $ Var 0 []
-		    t' = piApply (raise 1 t) [v]
-		addCtx x arg $ fitsIn t' s
-	    _		     -> return ()
+fitsIn t s = do
+  t <- instantiateFull t
+  s' <- instantiateFull (getSort t)
+  reportSDoc "tc.data.fits" 10 $
+    sep [ text "does" <+> prettyTCM t
+        , text "of sort" <+> prettyTCM s'
+        , text "fit in" <+> prettyTCM s <+> text "?"
+        ]
+  noConstraints $ s' `leqSort` s
+--   case funView $ unEl t of
+--     FunV arg@(Arg h a) _ -> do
+--       let s' = getSort a
+--       s' `leqSort` s
+--       x <- freshName_ (argName t)
+--       let v  = Arg h $ Var 0 []
+--           t' = piApply (raise 1 t) [v]
+--       addCtx x arg $ fitsIn t' s
+--     _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype.

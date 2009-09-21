@@ -26,6 +26,7 @@ import Data.Map (Map)
 import Data.List hiding (sort)
 import Data.Traversable
 
+import Agda.Syntax.Literal
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Info as Info
@@ -371,15 +372,25 @@ instance Reify Type Expr where
 
 instance Reify Sort Expr where
     reify s =
-	do  s <- normalise s
+	do  s <- instantiateFull s
 	    case s of
-		I.Type n  -> return $ A.Set exprInfo n
-		I.Prop	  -> return $ A.Prop exprInfo
-		I.MetaS x -> reify x
-		I.Suc s	  ->
+                I.Type (I.Lit (LitInt _ n)) -> return $ A.Set exprInfo n
+                I.Type a -> do
+                  a <- reify a
+                  return $ A.App exprInfo (A.Set exprInfo 0)
+                                          (Arg NotHidden (unnamed a))
+		I.Prop	     -> return $ A.Prop exprInfo
+		I.MetaS x as -> apps =<< reify (x, as)
+		I.Suc s	     ->
 		    do	suc <- freshName_ "suc"	-- TODO: hack
 			e   <- reify s
 			return $ A.App exprInfo (A.Var suc) (Arg NotHidden $ unnamed e)
+                I.Inf       -> A.Var <$> freshName_ "Setω"
+                I.DLub s1 s2 -> do
+                  lub <- freshName_ "dLub" -- TODO: hack
+                  (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
+                  let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
+                  return $ A.Var lub `app` e1 `app` e2
 		I.Lub s1 s2 ->
 		    do	lub <- freshName_ "\\/"	-- TODO: hack
 			(e1,e2) <- reify (s1,s2)
