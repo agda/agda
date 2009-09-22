@@ -23,6 +23,30 @@ Language
 
 * The --include-path flag can no longer be used as a pragma.
 
+* A new primitive, primTrustMe, has been added:
+
+    primTrustMe : {A : Set} {x y : A} → x ≡ y
+
+  The type
+
+    _≡_ : {A : Set} → A → A → Set
+
+  has to be specified using a pragma:
+
+    {-# BUILTIN EQUALITY _≡_ #-}
+
+  If x and y are definitionally equal, then
+  primTrustMe {x = x} {y = y} reduces to refl, where
+
+    refl : {A : Set} {x : A} → x ≡ x
+
+  is specified using another pragma:
+
+    {-# BUILTIN REFL refl #-}
+
+  For an example of the use of primTrustMe, see Data.String in version
+  0.3 of the standard library.
+
 Tools
 -----
 
