@@ -1,6 +1,7 @@
 module Agda.Auto.Print where
 
 import Data.IORef
+import Char
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
@@ -23,24 +24,22 @@ pexp p ctx e = case e of
    par p p' $ elr' ++ args'
   Lam _ (Abs id b) -> do
    b' <- pexp 1 (id : ctx) b
-   let id' = case id of
-              Id s -> s
-              NoId -> "#" ++ show (length ctx)
-   par p 1 $ "\\" ++ id' ++ " -> " ++ b'
+   par p 1 $ "\\" ++ pid ctx id ++ " -> " ++ b'
   Fun _ it ot -> do
    it' <- pexp 3 ctx it
    ot' <- pexp 2 ctx ot
    par p 2 $ it' ++ " -> " ++ ot'
-  Pi _ it (Abs id ot) -> do
+  Pi _ _ it (Abs id ot) -> do
    it' <- pexp 1 ctx it
    ot' <- pexp 2 (id : ctx) ot
-   let id' = case id of
-              Id s -> s
-              NoId -> "#" ++ show (length ctx)
-   par p 2 $ "[" ++ id' ++ ":" ++ it' ++ "] -> " ++ ot'
+   par p 2 $ "[" ++ pid ctx id ++ ":" ++ it' ++ "] -> " ++ ot'
   Sort (SortLevel 0) -> par p 4 "*"
   Sort (SortLevel n) -> par p 4 $ "*" ++ show n
   Sort Type -> par p 4 "Type"
+
+pid :: [MId] -> MId -> String
+pid _ (Id s) = printId s
+pid ctx NoId = "\"#" ++ show (length ctx) ++ "\""
 
 par :: Monad m => Int -> Int -> String -> m String
 par n1 n2 s | n1 > n2 = return $ "(" ++ s ++ ")"
@@ -53,11 +52,11 @@ pelr ctx elr = case elr of
    return $ "@" ++ show (v - length ctx)
   else
    case ctx !! v of
-    Id v -> return v
-    NoId -> return $ "#" ++ show (length ctx - v - 1)
+    Id v -> return $ printId v
+    NoId -> return $ "\"#" ++ show (length ctx - v - 1) ++ "\""
  Const c -> do
   c <- readIORef c
-  return $ cdname c
+  return $ printId (cdname c)
 
 pargs :: [MId] -> MArgList o -> IO String
 pargs ctx args = case args of
@@ -74,31 +73,9 @@ pargs ctx args = case args of
    return $ " " ++ arg' ++ args'
   ALConPar args -> do
    args' <- pargs ctx args
-   return $ " " ++ "_" ++ args'
+   return $ " " ++ "$" ++ args'
 
--- ---------------------------------------------------
-
-phnargs :: [MId] -> HNArgList o -> IO String
-phnargs ctx args = case args of
-  HNALNil -> return ""
-  HNALCons arg args -> do
-   arg' <- pcexp ctx arg
-   args' <- pcargs ctx args
-   return $ " " ++ arg' ++ args'
-  HNALConPar args -> do
-   args' <- pcargs ctx args
-   return $ " " ++ "_" ++ args'
-
-pcexp :: [MId] -> CExp o -> IO String
-pcexp ctx (Clos acts e) = pexp 4 ctx e  -- TODO: print closure
-
-pcargs :: [MId] -> CArgList o -> IO String
-pcargs ctx args = case args of
-  CALNil -> return ""
-  CALConcat (Clos acts arg) args -> do  -- TODO: print closure
-   arg' <- pargs ctx arg
-   args' <- pcargs ctx args
-   return $ arg' ++ args'
+-- -----------------------------------
 
 printConst :: ConstRef o -> IO String
 printConst c = do
@@ -107,26 +84,46 @@ printConst c = do
  case cdcont cdef of
   Def narg cls -> do
    clss <- mapM printClause cls
-   return $ cdname cdef ++ " : " ++ typs ++ " {\n" ++ concatMap (\x -> " " ++ x ++ "\n") clss ++ "}\n"
-  Datatype cons ->
-   return $ "data " ++ cdname cdef ++ " : " ++ typs ++ "\nTODO: dump constructors too\n"  -- TODO
-  Constructor ->
-   return $ "constructor " ++ cdname cdef ++ " : " ++ typs ++ "\nTODO: do not dump constructor\n"  -- TODO
+   return $ printId (cdname cdef) ++ " : " ++ typs ++ " {\n" ++ concatMap (\x -> x ++ "\n") clss ++ "};\n"
+  Datatype cons -> do
+   cons' <- mapM (\c -> do
+             cdef <- readIORef c
+             typs <- printExp [] (cdtype cdef)
+             return $ " " ++ printId (cdname cdef) ++ " : " ++ typs ++ ";\n"
+            ) cons
+   return $ "data " ++ printId (cdname cdef) ++ " : " ++ typs ++ " {\n" ++ concat cons' ++ "};\n"
+  Constructor -> return ""
   Postulate ->
-   return $ "postulate " ++ cdname cdef ++ " : " ++ typs ++ "\n"
+   return $ "postulate " ++ printId (cdname cdef) ++ " : " ++ typs ++ ";\n"
 
 printClause :: Clause o -> IO String
 printClause (pats, e) = do
- patss <- mapM printPat pats
- es <- printExp [] e
- return $ concatMap (++ " ") patss ++ "= " ++ es
+ (nv, patss) <- printPats 0 pats
+ es <- printExp (replicate nv NoId) e
+ return $ patss ++ " = " ++ es ++ ";"
 
-printPat :: Pat o -> IO String
-printPat (PatConApp c pats) = do
+printPats :: Nat -> [Pat o] -> IO (Nat, String)
+printPats nv [] = return (nv, "")
+printPats nv (p:ps) = do
+ (nv', p') <- printPat nv p
+ (nv'', ps') <- printPats nv' ps
+ return (nv'', " " ++ p' ++ ps')
+
+printPat :: Nat -> Pat o -> IO (Nat, String)
+printPat nv (PatConApp c pats) = do
  cd <- readIORef c
- patss <- mapM printPat pats
- return $ "(" ++ cdname cd ++ concatMap (" " ++) patss ++ ")"
-printPat PatVar = return "_"
-printPat PatExp = return "."
+ (nv', patss) <- printPats nv pats
+ return (nv', "(" ++ printId (cdname cd) ++ patss ++ ")")
+printPat nv PatVar = return (nv + 1, printId $ "#" ++ show nv)
+printPat nv PatExp = return (nv, ".*")
 
+-- -------------------------------
+
+printId :: String -> String
+printId "" = "!!empty string id!!"
+printId s@(c : cs) =
+ if (isAlpha c || (c == '_')) && all (\c -> isAlpha c || isDigit c || (c == '_') || (c == '\'')) cs then
+  s
+ else
+  "\"" ++ s ++ "\""
 

@@ -49,7 +49,7 @@ data Sort = SortLevel Nat
 data Exp o = App (Elr o) (MArgList o)
            | Lam FMode (Abs (MExp o))
            | Fun FMode (MExp o) (MExp o)
-           | Pi FMode (MExp o) (Abs (MExp o))
+           | Pi FMode Bool (MExp o) (Abs (MExp o))  -- true if possibly dependent (var not known to not occur)
            | Sort Sort
 
 type MExp o = MM (Exp o) (RefInfo o)
@@ -63,7 +63,7 @@ type MArgList o = MM (ArgList o) (RefInfo o)
 data HNExp o = HNApp (Elr o) (CArgList o)
              | HNLam (Abs (CExp o))
              | HNFun FMode (CExp o) (CExp o)
-             | HNPi FMode (CExp o) (Abs (CExp o))
+             | HNPi FMode Bool (CExp o) (Abs (CExp o))
              | HNSort Sort
 
 data HNArgList o = HNALNil

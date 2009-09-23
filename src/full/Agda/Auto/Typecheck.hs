@@ -7,8 +7,7 @@ import Data.IORef
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
 import Agda.Auto.SearchControl
-
-import Agda.Auto.Print  -- for debugging
+import Agda.Auto.Print
 
 
 closify :: a -> Clos a o
@@ -47,8 +46,8 @@ weakelr _ elr@(Const _) = elr
 
 tcExp :: Bool -> Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcExp isdep ctx typ trm =
- mbpcase prioTypeUnknown (hnn typ) $ \hntyp ->
- mmpcase (True, prioTypecheck isdep, Just (RIMainInfo (length ctx) hntyp)) trm $ \trm -> case trm of
+ mbpcase prioTypeUnknown (hnn typ) (ptcTypeUnknown isdep ctx typ trm) $ \hntyp ->
+ mmpcase (True, prioTypecheck isdep, Just (RIMainInfo (length ctx) hntyp)) trm (ptcTypeCheck isdep ctx hntyp trm) $ \trm -> case trm of
   App elr args -> do
    (ityp, sc) <- case elr of
             Var v ->  -- assuming within scope
@@ -60,7 +59,7 @@ tcExp isdep ctx typ trm =
   Lam hid (Abs id1 b) -> case hntyp of
    HNFun hid' it ot | hid == hid' ->
     tcExp isdep ((id1, it) : ctx) (weak 1 ot) b
-   HNPi hid' it (Abs id2 ot) | hid == hid' ->
+   HNPi hid' _ it (Abs id2 ot) | hid == hid' ->
     tcExp isdep ((pickid id1 id2, it) : ctx) ot b
    _ -> mpret $ Error "tcExp, type of lam should be fun or pi (and same hid)"
   Fun _ it ot -> case hntyp of
@@ -69,7 +68,7 @@ tcExp isdep ctx typ trm =
      (tcExp isdep ctx (closify (NotM $ Sort s)) it)
      (tcExp isdep ctx (closify (NotM $ Sort s)) ot)
    _ -> mpret $ Error "tcExp, type of fun should be set"
-  Pi _ it (Abs id ot) -> case hntyp of
+  Pi _ _ it (Abs id ot) -> case hntyp of
    HNSort s ->
     mpret $ And (Just [Term ctx, Term it])
      (tcExp True ctx (closify (NotM $ Sort s)) it)
@@ -83,17 +82,17 @@ tcExp isdep ctx typ trm =
   Sort Type -> error "tcexp: Sort Type should not occur"
 
 tcargs :: Bool -> Ctx o -> CExp o -> CExp o -> MArgList o -> EE (MyPB o)
-tcargs isdep ctx etyp ityp args = mmpcase (True, prioTypecheckArgList, Nothing) args $ \args -> case args of
+tcargs isdep ctx etyp ityp args = mmpcase (True, prioTypecheckArgList, Nothing) args (ptcTypecheckArgList "" isdep ctx etyp ityp args) $ \args' -> case args' of
  ALNil -> comp' etyp ityp
  ALCons hid a as ->
-  mbpcase prioInferredTypeUnknown (hnn ityp) $ \hnityp -> case hnityp of
+  mbpcase prioInferredTypeUnknown (hnn ityp) (ptcTypecheckArgList "inferred_type_unknown" isdep ctx etyp ityp args) $ \hnityp -> case hnityp of
    HNFun hid' it ot | hid == hid' -> mpret $
     And (Just [Term ctx])
         (tcExp isdep ctx it a)
         (tcargs isdep ctx etyp ot as)
-   HNPi hid' it (Abs _ ot) | hid == hid' -> mpret $
+   HNPi hid' possdep it (Abs _ ot) | hid == hid' -> mpret $
     And (Just [Term ctx, Term a])
-        (tcExp True ctx it a)
+        (tcExp (isdep || possdep) ctx it a)
         (tcargs isdep ctx etyp (sub (closify a) ot) as)
    _ -> mpret $ Error "tcargs, inf type should be fun or pi (and same hid)"
  ALConPar _ -> error "ConPar should not occur here"
@@ -138,12 +137,12 @@ hnc haltmeta = loop
       HNALCons arg cargs' -> loop (sub arg cb) cargs'
       HNALConPar _ -> error "ConPar should not occur here"
     Fun hid it ot -> checkNoArgs cargs $ mbret $ HNDone $ HNFun hid (Clos cl it) (Clos cl ot)
-    Pi hid it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone $ HNPi hid (Clos cl it) (Abs id (Clos (Skip : cl) ot))
+    Pi hid possdep it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone $ HNPi hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot))
     Sort s -> checkNoArgs cargs $ mbret $ HNDone $ HNSort s
   checkNoArgs cargs c =
    mbcase (hnarglist cargs) $ \hncargs -> case hncargs of
     HNALNil -> c
-    HNALCons _ _ -> mbfailed "hnc: there should be not args"
+    HNALCons _ _ -> mbfailed "hnc: there should be no args"
     HNALConPar _ -> error "ConPar should not occur here"
 
 doclos :: [CAction o] -> Nat -> Either Nat (CExp o)
@@ -277,12 +276,21 @@ dopat PatExp a = mbret $ Right (a, [])
 
 noiotastep :: HNExp o -> EE (MyPB o)
 noiotastep hne =
- mbpcase prioNo (iotastep hne) $ \res -> case res of
+ mbpcase prioNo (iotastep hne) (ptcNoIotaStep hne) $ \res -> case res of
   Just _ -> mpret $ Error "iota step possible contrary to assumed"
   Nothing -> mpret OK
 
 noiotastep' :: ConstRef o -> MArgList o -> EE (MyPB o)
-noiotastep' c args = noiotastep $ HNApp (Const c) (CALConcat (Clos [] args) CALNil)
+noiotastep' c args = do
+ cd <- readIORef c
+ let isshorthand =
+      case cdcont cd of
+       Def _ [(pats, _)] -> all (\pat -> case pat of {PatConApp{} -> False; _ -> True}) pats
+       _ -> False
+ if isshorthand then
+   mpret OK
+  else
+   noiotastep $ HNApp (Const c) (CALConcat (Clos [] args) CALNil)
 
 
 comp' :: CExp o -> CExp o -> EE (MyPB o)
@@ -293,7 +301,7 @@ comp :: Bool -> CExp o -> CExp o -> EE (MyPB o)
 comp ineq e1 e2 = f e1 CALNil $ \res1 -> f e2 CALNil $ \res2 -> g res1 res2
  where
   f e as cont =
-   mbpcase prioPreCompare (hnc True e as) $ \res ->
+   mbpcase prioPreCompare (hnc True e as) (ptcCompare "beta" ineq e1 e2) $ \res ->
     case res of
      HNDone hne ->
       mmbpcase (iotastep hne)
@@ -302,8 +310,8 @@ comp ineq e1 e2 = f e1 CALNil $ \res1 -> f e2 CALNil $ \res2 -> g res1 res2
          (noiotastep hne)
          (cont res)
         )
-        (mbpcase prioCompIota (iotastep hne) $ \res -> case res of
-         Nothing -> mpret $ Error "no iota step possibly, contrary to assumed"
+        (mbpcase prioCompIota (iotastep hne) (ptcCompare "iota" ineq e1 e2) $ \res -> case res of
+         Nothing -> mpret $ Error "no iota step possible, contrary to assumed"
          Just (e, as) -> f e as cont
         )
        )
@@ -323,7 +331,7 @@ comp ineq e1 e2 = f e1 CALNil $ \res1 -> f e2 CALNil $ \res2 -> g res1 res2
     loop ce@(Clos cl m) cargs =
      do
       let Meta mm = m
-      mmpcase (False, prioCompare, Just (RIUnifInfo mm cl opphne)) m $ \_ ->
+      mmpcase (False, prioCompare, Just (RIUnifInfo mm cl opphne)) m (ptcCompare "unify" ineq e1 e2) $ \_ ->
        f ce cargs $ \res ->
         case res of
          HNDone hne -> if oppis1 then comphn' ineq opphne hne else comphn' ineq hne opphne
@@ -352,11 +360,11 @@ comphn' ineq hne1 hne2 =
 -}
   (HNFun hid1 it1 ot1, HNFun hid2 it2 ot2) | hid1 == hid2 -> mpret $
    And (Just []) (comp False it1 it2) (comp ineq ot1 ot2)
-  (HNPi hid1 it1 (Abs id1 ot1), HNPi hid2 it2 (Abs id2 ot2)) | hid1 == hid2 -> mpret $
+  (HNPi hid1 _ it1 (Abs id1 ot1), HNPi hid2 _ it2 (Abs id2 ot2)) | hid1 == hid2 -> mpret $
    And (Just []) (comp False it1 it2) (comp ineq ot1 ot2)
-  (HNFun hid1 it1 ot1, HNPi hid2 it2 (Abs id ot2)) | hid1 == hid2 -> mpret $  -- ?? exclude this case
+  (HNFun hid1 it1 ot1, HNPi hid2 _ it2 (Abs id ot2)) | hid1 == hid2 -> mpret $  -- ?? exclude this case
    And (Just []) (comp False it1 it2) (comp ineq (weak 1 ot1) ot2)
-  (HNPi hid1 it1 (Abs id ot1), HNFun hid2 it2 ot2) | hid1 == hid2 -> mpret $  -- ?? exclude this case
+  (HNPi hid1 _ it1 (Abs id ot1), HNFun hid2 it2 ot2) | hid1 == hid2 -> mpret $  -- ?? exclude this case
    And (Just []) (comp False it1 it2) (comp ineq ot1 (weak 1 ot2))
   (HNSort s1, HNSort s2) -> mpret $
    case (s1, s2) of
@@ -367,8 +375,8 @@ comphn' ineq hne1 hne2 =
 
 compargs :: CArgList o -> CArgList o -> EE (MyPB o)
 compargs args1 args2 =
- mbpcase prioCompareArgList (hnarglist args1) $ \hnargs1 ->
- mbpcase prioCompareArgList (hnarglist args2) $ \hnargs2 ->
+ mbpcase prioCompareArgList (hnarglist args1) (ptcCompareArgList "lhs" args1 args2) $ \hnargs1 ->
+ mbpcase prioCompareArgList (hnarglist args2) (ptcCompareArgList "rhs" args1 args2) $ \hnargs2 ->
  case (hnargs1, hnargs2) of
   (HNALNil, HNALNil) -> mpret OK
   (HNALCons arg1 args1', HNALCons arg2 args2') -> mpret $
@@ -386,4 +394,116 @@ pickid _ mid2 = mid2
 
 tcSearch :: Ctx o -> CExp o -> MExp o -> EE (MyPB o)
 tcSearch ctx typ trm = tcExp False ctx typ trm
+
+-- ----------------------------
+
+norm = True
+
+ptcTypeUnknown :: Bool -> Ctx o -> CExp o -> MExp o -> EE String
+ptcTypeUnknown isdep ctx typ trm = do
+ pctx <- printCtx norm ctx
+ ptyp <- printCExp norm (map fst ctx) typ
+ ptrm <- printExp (map fst ctx) trm
+ return $ "tt_unknown " ++ (if isdep then "dep " else "") ++ pctx ++ " | " ++ ptrm ++ " : " ++ ptyp
+
+ptcTypeCheck :: Bool -> Ctx o -> HNExp o -> MExp o -> EE String
+ptcTypeCheck isdep ctx hntyp trm = do
+ pctx <- printCtx norm ctx
+ ptyp <- printHNExp norm (map fst ctx) hntyp
+ ptrm <- printExp (map fst ctx) trm
+ return $ (if isdep then "dep " else "") ++ pctx ++ " | " ++ ptrm ++ " : " ++ ptyp
+
+ptcTypecheckArgList :: String -> Bool -> Ctx o -> CExp o -> CExp o -> MArgList o -> EE String
+ptcTypecheckArgList msg isdep ctx etyp ityp args = do
+ pctx <- printCtx norm ctx
+ petyp <- printCExp norm (map fst ctx) etyp
+ pityp <- printCExp norm (map fst ctx) ityp
+ pargs <- pargs (map fst ctx) args 
+ return $ msg ++ " " ++ (if isdep then "dep " else "") ++ pctx ++ " | " ++ pargs ++ " : " ++ pityp ++ " => " ++ petyp
+
+ptcNoIotaStep :: HNExp o -> EE String
+ptcNoIotaStep hne = do
+ phne <- printHNExp norm [] hne
+ return $ "no_iota " ++ phne
+
+ptcCompare :: String -> Bool -> CExp o -> CExp o -> EE String
+ptcCompare msg ineq e1 e2 = do
+ pe1 <- printCExp norm [] e1
+ pe2 <- printCExp norm [] e2
+ return $ msg ++ " " ++ pe1 ++ (if ineq then " >= " else " == ") ++ pe2
+
+ptcCompareArgList :: String -> CArgList o -> CArgList o -> EE String
+ptcCompareArgList msg args1 args2 = do
+ pargs1 <- pcargs norm [] args1
+ pargs2 <- pcargs norm [] args2
+ return $ msg ++ " " ++ pargs1 ++ " == " ++ pargs2
+
+-- ---------------------------------------------------
+
+phnexp :: Bool -> Int -> [MId] -> HNExp o -> IO String
+phnexp norm p ctx e = case e of  
+ HNApp elr args -> do
+  elr' <- pelr ctx elr
+  args' <- pcargs norm ctx args
+  par p 3 $ elr' ++ args'
+ HNLam (Abs id b) -> do
+  b' <- pcexp norm 1 (id : ctx) b
+  par p 1 $ "\\" ++ pid ctx id ++ " -> " ++ b'
+ HNFun _ it ot -> do
+  it' <- pcexp norm 3 ctx it
+  ot' <- pcexp norm 2 ctx ot
+  par p 2 $ it' ++ " -> " ++ ot'
+ HNPi _ _ it (Abs id ot) -> do
+  it' <- pcexp norm 1 ctx it
+  ot' <- pcexp norm 2 (id : ctx) ot
+  par p 2 $ "[" ++ pid ctx id ++ ":" ++ it' ++ "] -> " ++ ot'
+ HNSort (SortLevel 0) -> return "*"
+ HNSort (SortLevel n) -> return $ "*" ++ show n
+ HNSort Type -> return "Type"
+
+printHNExp norm = phnexp norm 4
+
+phnargs :: Bool -> [MId] -> HNArgList o -> IO String
+phnargs norm ctx args = case args of
+  HNALNil -> return ""
+  HNALCons arg args -> do
+   arg' <- pcexp norm 4 ctx arg
+   args' <- pcargs norm ctx args
+   return $ " " ++ arg' ++ args'
+  HNALConPar args -> do
+   args' <- pcargs norm ctx args
+   return $ " " ++ "$" ++ args'
+
+pcexp :: Bool -> Int -> [MId] -> CExp o -> IO String
+pcexp True p ctx cexp = do
+ res <- hnn cexp
+ case res of
+  NotB hnexp -> phnexp True p ctx hnexp
+  _ -> pcexp False p ctx cexp
+pcexp False p ctx (Clos acts e) = do  -- TODO: handle closure properly
+ pe <- pexp p ctx e
+ return $ "<..>" ++ pe
+
+printCExp norm = pcexp norm 4
+
+pcargs :: Bool -> [MId] -> CArgList o -> IO String
+pcargs True ctx args = do
+ res <- hnarglist args
+ case res of
+  NotB hnargs -> phnargs True ctx hnargs
+  _ -> pcargs False ctx args
+pcargs False ctx args = case args of
+  CALNil -> return ""
+  CALConcat (Clos acts arg) args -> do  -- TODO: handle closure properly
+   arg' <- pargs ctx arg
+   args' <- pcargs False ctx args
+   return $ "<..>" ++ arg' ++ args'
+
+printCtx :: Bool -> Ctx o -> IO String
+printCtx _ [] = return ""
+printCtx norm ((mid, t) : ctx) = do
+ p <- printCExp norm (map fst ctx) t
+ ps <- printCtx norm ctx
+ return $ ps ++ ", " ++ pid (map fst ctx) mid ++ " : " ++ p
+
 

@@ -9,18 +9,15 @@ import Control.Monad.State
 import Data.Char
 
 
--- remove:
--- runProp, forki, import Data.Char, printCTree, dryInstantiate
-
 type Prio = Int
 
-class Traversible a blk | a -> blk where
- traverse :: Monad m => (forall b . Traversible b blk => MM b blk -> m ()) -> a -> m ()
+class Trav a blk | a -> blk where
+ traverse :: Monad m => (forall b . Trav b blk => MM b blk -> m ()) -> a -> m ()
 
-instance Traversible a blk => Traversible (MM a blk) blk where
+instance Trav a blk => Trav (MM a blk) blk where
  traverse f me = f me
 
-data Term blk = forall a . Traversible a blk => Term a
+data Term blk = forall a . Trav a blk => Term a
 
 data Prop blk = OK
 								      | Error String
@@ -31,7 +28,7 @@ runProp :: MetaEnv (PB blk) -> MetaEnv ()
 runProp x = do
  x <- x
  case x of
-  PBlocked _ _ _ -> putStr "<blocked>"
+  PBlocked _ _ _ _ -> putStr "<blocked>"
   PDoubleBlocked _ _ _ -> putStr "<double blocked>"
   NotPB x -> case x of
    OK -> putStr "OK"
@@ -164,15 +161,17 @@ data MM a blk = NotM a
 
 type MetaEnv = IO
 
+type PrintConstr = MetaEnv String
+
 data MB a blk = NotB a
               | forall b . Refinable b blk => Blocked (Metavar b blk) (MetaEnv (MB a blk))
               | Failed String
 
 data PB blk = NotPB (Prop blk)
-            | forall b . Refinable b blk => PBlocked (Metavar b blk) (BlkInfo blk) (MetaEnv (PB blk))
+            | forall b . Refinable b blk => PBlocked (Metavar b blk) (BlkInfo blk) PrintConstr (MetaEnv (PB blk))
             | forall b . Refinable b blk => PDoubleBlocked (Metavar b blk) (Metavar b blk) (MetaEnv (PB blk))
 
-data QPB b blk = QPBlocked (BlkInfo blk) (MetaEnv (PB blk))
+data QPB b blk = QPBlocked (BlkInfo blk) PrintConstr (MetaEnv (PB blk))
                | QPDoubleBlocked (IORef Bool) (MetaEnv (PB blk))  -- flag set True by first observer that continues
 
 mmcase :: Refinable a blk => MM a blk -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
@@ -193,14 +192,14 @@ mmmcase x fm f = case x of
    Just x -> f x
    Nothing -> fm
 
-mmpcase :: Refinable a blk => BlkInfo blk -> MM a blk -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
-mmpcase blkinfo x f = case x of
+mmpcase :: Refinable a blk => BlkInfo blk -> MM a blk -> PrintConstr -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
+mmpcase blkinfo x pr f = case x of
  NotM x -> f x
  x@(Meta m) -> do
   bind <- readIORef $ mbind m
   case bind of
    Just x -> f x
-   Nothing -> return $ PBlocked m blkinfo (mmpcase (error "blkinfo not needed because will be notb next time") x f)
+   Nothing -> return $ PBlocked m blkinfo pr (mmpcase (error "blkinfo not needed because will be notb next time") x pr f)
 
 doubleblock :: Refinable a blk => MM a blk -> MM a blk -> MetaEnv (PB blk) -> MetaEnv (PB blk)
 doubleblock (Meta m1) (Meta m2) cont = return $ PDoubleBlocked m1 m2 cont
@@ -214,12 +213,12 @@ mbcase x f = do
   Blocked m x -> return $ Blocked m (mbcase x f)
   Failed msg -> return $ Failed msg
 
-mbpcase :: Prio -> MetaEnv (MB a blk) -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
-mbpcase prio x f = do
+mbpcase :: Prio -> MetaEnv (MB a blk) -> PrintConstr -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
+mbpcase prio x pr f = do
  x' <- x
  case x' of
   NotB x -> f x
-  Blocked m x -> return $ PBlocked m (False, prio, Nothing) (mbpcase prio x f)
+  Blocked m x -> return $ PBlocked m (False, prio, Nothing) pr (mbpcase prio x pr f)
   Failed msg -> return $ NotPB $ Error msg
 
 mmbpcase :: MetaEnv (MB a blk) -> MetaEnv (PB blk) -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
@@ -321,6 +320,15 @@ topSearch ticks nsol hsol hpartsol inter envinfo p depth depthinterval = do
           printCTree root >> putStrLn ""
           putStrLn $ "depth: " ++ show depth
           hpartsol
+          putStrLn "----------------------------------------------"
+          obs <- readIORef (mobs m)
+          let pqpb (QPBlocked _ pr _) = pr
+              pqpb (QPDoubleBlocked _ _) = return "double blocked"
+          mapM_ (\obs -> do
+            pc <- pqpb $ fst obs
+            putStrLn pc
+           ) obs
+          putStrLn "----------------------------------------------"
           mapM_ (\(desc, (cost, i)) ->
             putStrLn $ (if i == deflt then "*" else " ") ++ show (i + 1) ++ ": " ++ desc ++ " (" ++ show cost ++ ")"
            ) (zip descs (zip (map fst refs) [0..]))
@@ -331,9 +339,6 @@ topSearch ticks nsol hsol hpartsol inter envinfo p depth depthinterval = do
           case c of
            _ | isDigit c ->
             let choice = ord c - ord '1'
-            --res <- refine m (refs !! choice)
-            --e <- readIORef exitinteractive
-            --when (not e) $ loop (choice + 1)
             in  hsres (refine m (snd $ refs !! choice) (depth - fst (refs !! choice))) $ do
              e <- readIORef exitinteractive
              if not e then
@@ -346,9 +351,6 @@ topSearch ticks nsol hsol hpartsol inter envinfo p depth depthinterval = do
            '\n' -> if deflt == length descs then
                     return (Left False)
                    else
-                    --refine m (refs !! deflt)
-                    --e <- readIORef exitinteractive
-                    --when (not e) $ loop (deflt + 1)
                     hsres (refine m (snd $ refs !! deflt) (depth - fst (refs !! deflt))) $ do
                      e <- readIORef exitinteractive
                      if not e then
@@ -448,7 +450,7 @@ extractblkinfos m = do
  return $ f obs
  where
   f [] = []
-  f ((QPBlocked (_,_,mblkinfo) _, _) : cs) =
+  f ((QPBlocked (_,_,mblkinfo) _ _, _) : cs) =
    case mblkinfo of
     Nothing -> f cs
     Just blkinfo -> blkinfo : f cs
@@ -468,7 +470,7 @@ seqc x y = do
 recalc :: (QPB a blk, CTree blk) -> Undo Bool
 recalc (con, node) =
  case con of
-  QPBlocked _ cont -> reccalc cont node
+  QPBlocked _ _ cont -> reccalc cont node
   QPDoubleBlocked flag cont -> do
    fl <- ureadIORef flag
    if fl then
@@ -497,14 +499,14 @@ calc cont node = do
    case bp of
     NotPB p ->
      doprop node p
-    PBlocked m blkinfo cont -> do
-     oldobs <- ureadmodifyIORef (mobs m) ((QPBlocked blkinfo cont, node) :)
+    PBlocked m blkinfo pr cont -> do
+     oldobs <- ureadmodifyIORef (mobs m) ((QPBlocked blkinfo pr cont, node) :)
      let (princ, prio, _) = blkinfo
      if princ then do
        uwriteIORef (mprincipalpresent m) True
        mapM_ (\(qpb, node) -> do
          let priometa = case qpb of
-                      QPBlocked (_, prio, _) _ -> PrioMeta prio m
+                      QPBlocked (_, prio, _) _ _ -> PrioMeta prio m
                       QPDoubleBlocked _ _ -> NoPrio False
          uwriteIORef (ctpriometa node) priometa
          propagatePrio node
@@ -541,7 +543,7 @@ calc cont node = do
       Nothing -> return 1  -- no metas pointing to it so will never decrement to 0
       Just coms ->
        liftM snd $ runStateT (mapM_ (\(Term x) ->
-         let f :: forall b . Traversible b blk => MM b blk -> StateT Int Undo ()
+         let f :: forall b . Trav b blk => MM b blk -> StateT Int Undo ()
              f (NotM x) = traverse f x
              f (Meta m) = do
               mcomptr <- lift $ ureadIORef (mcompoint m)
@@ -598,7 +600,7 @@ data Choice = LeftDisjunct | RightDisjunct
 
 choose :: MM Choice blk -> Prio -> MetaEnv (PB blk) -> MetaEnv (PB blk) -> MetaEnv (PB blk)
 choose c prio p1 p2 =
- mmpcase (True, prio, Nothing) c $ \c -> case c of
+ mmpcase (True, prio, Nothing) c (return "choose") $ \c -> case c of
   LeftDisjunct -> p1
   RightDisjunct -> p2
 

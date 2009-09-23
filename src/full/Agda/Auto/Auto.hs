@@ -11,18 +11,21 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.IORef
 import qualified System.Timeout
+import Data.Maybe (catMaybes)
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Signature
+import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Substitute
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Position
 import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Translation.InternalToAbstract
-import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete, makeEnv)
+import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete, abstractToConcrete_, makeEnv)
 import Agda.Interaction.Monad
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.Utils.Monad.Undo
@@ -34,199 +37,154 @@ import Agda.Auto.Typecheck
 import Agda.Auto.Print
 
 
-getName :: A.Expr -> (Bool, I.QName)
+getName :: A.Expr -> Maybe (Bool, I.QName)
 getName (A.ScopedExpr _ e) = getName e
-getName (A.Def qname) = (False, qname)
-getName (A.Con qname) = (True, head $ I.unAmbQ qname)
-getName _ = error "getName: no match"
+getName (A.Def qname) = Just (False, qname)
+getName (A.Con qname) = Just (True, head $ I.unAmbQ qname)
+getName _ = Nothing
 
-auto :: InteractionId -> Range -> String -> TCM (Either (A.Expr,[InteractionId]) String)
+dispmsg msg = return ([], Just msg)
+
+auto :: InteractionId -> Range -> String -> TCM ([(InteractionId, String)], Maybe String)
 auto ii rng argstr = liftTCM $  
      do  let (hints, timeout, pick, mode) = parseargs argstr
          ahints <- mapM (parseExprIn ii rng) hints
-         let ehints = map getName ahints
-         mi <- lookupInteractionId ii
-
-         (mainm, myhints, tccons, eqcons, cmap) <- tomy mi ehints
-         case mode of
-          MNormal listmode -> do
-           sols <- liftIO $ newIORef []
-           nsol <- liftIO $ newIORef (if listmode then (pick + 10) else (pick + 1))
-           let hsol = if listmode then do
-                       nsol' <- readIORef nsol
-                       when (nsol' <= 10) $ frommy (Meta mainm) >>= \trm' -> modifyIORef sols (trm' :)
-                      else do
-                       nsol' <- readIORef nsol
-                       when (nsol' == 1) $ frommy (Meta mainm) >>= \trm' -> writeIORef sols [trm']
-               hpartsol = error "no hpartsol"
-           ticks <- liftIO $ newIORef 0
-{-
-           liftIO $ putStrLn $ show (length extras) ++ " extras"
-           liftIO $ mapM_ (\(m, ts) ->
-                     do putStrLn (show (length ts))
-                        ts' <- mapM (printExp []) ts
-                        mapM_ putStrLn ts'
-                        putStrLn ""
-                    ) extras
--}
-           depthreached <- liftIO $ System.Timeout.timeout (timeout * 1000000) $
-            let r d =
-                 do
-                  let tc (m, mytype, mylocalVars) isdep = tcExp isdep (map (\x -> (NoId, closify x)) mylocalVars) (closify mytype) (Meta m)
-                      initprop = foldl (\x (ineq, e, i) -> mpret $ And Nothing x (comp ineq (closify e) (closify i)))
-                                  (foldl (\x tcc@(m, _, _) -> mpret $ And Nothing x (tc tcc (not $ hequalMetavar m mainm)))
-                                   (mpret OK)
-                                   tccons
-                                  )
-                                  eqcons
-                  depreached <- topSearch ticks nsol hsol hpartsol False (RIEnv myhints) (initprop) d 1
-                  nsol' <- readIORef nsol
-                  if nsol' /= 0 && depreached then
-                    r (d + 1)
-                   else
-                    return depreached
-            in  r 0
-           mv <- lookupMeta mi
-           withMetaInfo (getMetaInfo mv) $ do
-            if listmode then do
-              rsols <- liftIO $ readIORef sols
-              if null rsols then do
-                nsol' <- liftIO $ readIORef nsol
-                return $ Right $ "Only " ++ show (pick + 10 - nsol') ++ " solutions were found"
-               else do
-                aexprs <- mapM reify $ reverse rsols
-                scope <- getInteractionScope ii
-                let cexprs = map (abstractToConcrete (makeEnv scope)) aexprs
-                return $ Right $ "Listing solutions " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ "\n" ++
-                                  unlines (map (\(x, y) -> show y ++ "  " ++ x) $ zip (map show cexprs) [pick..])
-             else
-              case depthreached of
-               Nothing -> do
-                nsol' <- liftIO $ readIORef nsol
-                return $ Right $ "Timeout (" ++ show (pick + 1 - nsol') ++ " solutions found)"
-               Just depthreached -> do
-                ticks <- liftIO $ readIORef ticks
-                rsols <- liftIO $ readIORef sols
-                case rsols of
-                 [] -> do
-                  nsol' <- liftIO $ readIORef nsol
-                  if nsol' == pick + 1 then
-                    return $ Right "No solution found"
-                   else
-                    return $ Right $ "Only " ++ show (pick + 1 - nsol') ++ " solutions were found"
-                 (term : _) -> do
-                  expr <- reify term
-                  liftM Left $ give ii Nothing expr `catchError` (\_ -> throwError (strMsg $ "Solution is not accepted: " ++ show term))
-          MDumpProblem (Just dumpfile) -> do
-           tcconss <- mapM (\(m, mytype, mylocalVars) -> do
-             let typ = foldl (\x y -> NotM $ Pi Agda.Auto.Syntax.NotHidden y (Abs NoId x)) mytype mylocalVars
-                 trm = foldl (\x _ -> NotM $ Lam Agda.Auto.Syntax.NotHidden (Abs NoId x)) (Meta m) mylocalVars
-             typs <- liftIO $ printExp [] typ
-             trms <- liftIO $ printExp [] trm
-             return $ (if hequalMetavar m mainm then "the_prob : " else "extra_con : ") ++ typs ++ "\n = " ++ trms ++ "\n\n"
-            ) tccons
-           constss <- liftIO $ mapM (\(_, (TMAll, c)) -> printConst c >>= \s -> return $ s ++ "\n") (Map.toList cmap)
-           let probs = concat constss ++ concat tcconss ++ (if null ehints then "" else ("-- hints: " ++ concatMap (\(_, n) -> " " ++ show n) ehints) ++ "\n") ++
-                       show (length eqcons) ++ " eqcons\n"
-           liftIO $ writeFile dumpfile probs
-           return $ Right $ "Dumping problem to " ++ dumpfile
-          MDumpProblem Nothing -> do
-           mv <- lookupMeta mi
-           let HasType _ tt = mvJudgement mv
-               minfo = getMetaInfo mv
-               localVars = map (snd . unArg . ctxEntry) . envContext . clEnv $ minfo
-           withMetaInfo minfo $ do  -- this is needed for rewrite or getContextArgs to get in right context
-            vs <- getContextArgs
-            let targettype = tt `piApply` vs
-            targettype <- rewrite Normalised targettype
-            localVars <- mapM (rewrite Normalised) localVars
-            return $ Right $ "Target type: " ++ show (localVars, targettype)
-         
-{-
-         mv <- lookupMeta mi
-         let HasType _ tt = mvJudgement mv
-             minfo = getMetaInfo mv
-             localVars = map (snd . unArg . ctxEntry) . envContext . clEnv $ minfo
-         withMetaInfo minfo $ do  -- this is needed for rewrite or getContextArgs to get in right context
-          vs <- getContextArgs
-          let targettype = tt `piApply` vs
-          targettype <- rewrite Normalised targettype
-          localVars <- mapM (rewrite Normalised) localVars
-          case mode of
-           MDumpProblem Nothing ->
-            return $ Right $ "Target type: " ++ show targettype
-           _ -> do
-            ((mytype : mylocalVars, myhints), extras, cmap) <- tomy (targettype : localVars, ehints)
-            m <- liftIO $ Agda.Auto.NarrowingSearch.newMeta Nothing
-            let mytrm = Meta m
-            case mode of
-             MNormal listmode -> do
-              sols <- liftIO $ newIORef []
-              nsol <- liftIO $ newIORef (if listmode then (pick + 10) else (pick + 1))
-              let hsol = if listmode then do
-                          nsol' <- readIORef nsol
-                          when (nsol' <= 10) $ frommy mytrm >>= \trm' -> modifyIORef sols (trm' :)
-                         else do
-                          nsol' <- readIORef nsol
-                          when (nsol' == 1) $ frommy mytrm >>= \trm' -> writeIORef sols [trm']
-                  hpartsol = error "no hpartsol"  -- printExp [] mytrm >>= \trms -> putStrLn ("sol: " ++ trms)
-              ticks <- liftIO $ newIORef 0
-              depthreached <- liftIO $ System.Timeout.timeout (timeout * 1000000) $
-               let r d =
-                    do
-                     let initprop = foldl (\x (m, mytype : mylocalVars) -> mpret $ And Nothing x (tcExp True (map (\x -> (NoId, closify x)) mylocalVars) (closify mytype) (Meta m)))
-                                     (tcSearch (map (\x -> (NoId, closify x)) mylocalVars) (closify mytype) mytrm)
-                                     extras
-                     depreached <- topSearch ticks nsol hsol hpartsol False (RIEnv myhints) (initprop) d 1
-                     nsol' <- readIORef nsol
-                     if nsol' /= 0 && depreached then
-                       r (d + 1)
-                      else
-                       return depreached
-               in  r 0
-              if listmode then do
-                rsols <- liftIO $ readIORef sols
-                if null rsols then do
-                  nsol' <- liftIO $ readIORef nsol
-                  return $ Right $ "Only " ++ show (pick + 10 - nsol') ++ " solutions were found"
-                 else do
-                  aexprs <- mapM reify $ reverse rsols
-                  scope <- getInteractionScope ii
-                  let cexprs = map (abstractToConcrete (makeEnv scope)) aexprs
-                  return $ Right $ "Listing solutions " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ "\n" ++
-                                    unlines (map (\(x, y) -> show y ++ "  " ++ x) $ zip (map show cexprs) [pick..])
-               else
-                case depthreached of
-                 Nothing -> do
-                  nsol' <- liftIO $ readIORef nsol
-                  return $ Right $ "Timeout (" ++ show (pick + 1 - nsol') ++ " solutions found)"
-                 Just depthreached -> do
-                  ticks <- liftIO $ readIORef ticks
-                  rsols <- liftIO $ readIORef sols
-                  case rsols of
-                   [] -> do
-                    nsol' <- liftIO $ readIORef nsol
-                    if nsol' == pick + 1 then
-                      return $ Right "No solution found"
+         case mapM getName ahints of
+          Nothing -> dispmsg "Hints must be a list of constant names" 
+          Just ehints -> do
+           mi <- lookupInteractionId ii
+           (myhints, tccons, eqcons, cmap) <- tomy mi ehints
+           let (mainm, _, _, _) = tccons Map.! mi
+           case mode of
+            MNormal listmode -> do
+             sols <- liftIO $ newIORef []
+             nsol <- liftIO $ newIORef (if listmode then (pick + 10) else (pick + 1))
+             let hsol = if listmode then do
+                         nsol' <- readIORef nsol
+                         when (nsol' <= 10) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> modifyIORef sols (trms :)
+                        else do
+                         nsol' <- readIORef nsol
+                         when (nsol' == 1) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> writeIORef sols [trms]
+             ticks <- liftIO $ newIORef 0
+             res <- liftIO $ System.Timeout.timeout (timeout * 1000000) $
+              let r d =
+                   do
+                    let tc (m, mytype, mylocalVars) isdep = tcExp isdep (map (\x -> (NoId, closify x)) mylocalVars) (closify mytype) (Meta m)
+                        initprop = foldl (\x (ineq, e, i) -> mpret $ And Nothing x (comp ineq (closify e) (closify i)))
+                                    (foldl (\x (m, mt, mlv, _) -> mpret $ And Nothing x (tc (m, mt, mlv) (not $ hequalMetavar m mainm)))
+                                     (mpret OK)
+                                     (Map.elems tccons)
+                                    )
+                                    eqcons
+                    depreached <- topSearch ticks nsol hsol undefined False (RIEnv myhints) (initprop) d 1
+                    nsol' <- readIORef nsol
+                    if nsol' /= 0 && depreached then
+                      r (d + 1)
                      else
-                      return $ Right $ "Only " ++ show (pick + 1 - nsol') ++ " solutions were found"
-                   (term : _) -> do
-                    expr <- reify term
-                    liftM Left $ give ii Nothing expr `catchError` (\_ -> throwError (strMsg $ "Solution is not accepted: " ++ show term))
-             MDumpProblem (Just dumpfile) -> do
-              let typ = foldl (\x y -> NotM $ Pi Agda.Auto.Syntax.NotHidden y (Abs NoId x)) mytype mylocalVars
-                  trm = foldl (\x _ -> NotM $ Lam Agda.Auto.Syntax.NotHidden (Abs NoId x)) mytrm mylocalVars
-              typs <- liftIO $ printExp [] typ
-              trms <- liftIO $ printExp [] trm
-              let theprobs = "the_prob : " ++ typs ++ "\n = " ++ trms
-              constss <- liftIO $ mapM (\(_, (TMAll, c)) -> printConst c >>= \s -> return $ s ++ "\n") (Map.toList cmap)
-              let probs = concat constss ++ theprobs ++ (if null ehints then "" else "  -- -h" ++ concatMap (\(_, n) -> " " ++ show n) ehints) ++ "\n"
-              liftIO $ writeFile dumpfile probs
-              return $ Right $ "Dumping problem to " ++ dumpfile
-             _ -> error "happens not"
--}
+                      return depreached
+              in  r 0
+             let getsols sol = do
+                  exprs <- mapM (\(mi, e) -> do
+                             mv <- lookupMeta mi
+                             expr <- withMetaInfo (getMetaInfo mv) $ reify e
+                             return (mi, expr)
+                            ) (zip (Map.keys tccons) sol)
+                  let r :: I.MetaId -> StateT [I.MetaId] TCM [(I.MetaId, A.Expr)]
+                      r midx = do
+                       let (m, _, _, deps) = tccons Map.! midx
+                       asolss <- mapM r deps
+                       dones <- get
+                       asols <- if (midx `notElem` dones) then do
+                         put (midx : dones)
+                         return [(midx, let Just e = lookup midx exprs in e)]
+                        else
+                         return []
+                       return $ concat asolss ++ asols
+                  (asols, _) <- runStateT (r mi) []
+                  return asols
+             iis <- getInteractionPoints
+             riis <- mapM (\ii -> lookupInteractionId ii >>= \mi -> return (mi, ii)) iis
+             if listmode then do
+               rsols <- liftM reverse $ liftIO $ readIORef sols
+               if null rsols then do
+                 nsol' <- liftIO $ readIORef nsol
+                 dispmsg $ insuffsols (pick + 10 - nsol')
+                else do
+                 aexprss <- mapM getsols rsols
+                 cexprss <- mapM (mapM (\(mi, e) -> lookupMeta mi >>= \mv -> withMetaInfo (getMetaInfo mv) $ abstractToConcrete_ e >>= \e' -> return (mi, e'))) aexprss
+                 let disp [(_, cexpr)] = show cexpr
+                     disp cexprs = concat (map (\(mi, cexpr) -> case lookup mi riis of {Nothing -> show mi; Just ii -> show ii} ++ " := " ++ show cexpr ++ " ") cexprs)
+                 dispmsg $ "Listing solution(s) " ++ show pick ++ "-" ++ show (pick + length rsols - 1) ++ "\n" ++
+                                   unlines (map (\(x, y) -> show y ++ "  " ++ disp x) $ zip cexprss [pick..])
+             
+              else
+               case res of
+                Nothing -> do
+                 nsol' <- liftIO $ readIORef nsol
+                 dispmsg $ insuffsols (pick + 1 - nsol') ++ " at time out (" ++ show timeout ++ "s)"
+                Just depthreached -> do
+                 ticks <- liftIO $ readIORef ticks
+                 rsols <- liftIO $ readIORef sols
+                 case rsols of
+                  [] -> do
+                   nsol' <- liftIO $ readIORef nsol
+                   dispmsg $ insuffsols (pick + 1 - nsol')
+                  (term : _) -> do
+                   exprs <- getsols term
+                   giveress <-
+                    mapM (\(mi, expr) ->
+                     case lookup mi riis of
+                      Nothing -> giveExpr mi expr >>= \_ -> return Nothing
+                      Just ii' -> do (ae, []) <- give ii' Nothing expr  -- `catchError` (\_ -> throwError (strMsg $ "Solution is not accepted by Agda: " ++ show term))
+                                     mv <- lookupMeta mi
+                                     let scope = getMetaScope mv
+                                         ce = abstractToConcrete (makeEnv scope) ae
+                                     let cmnt = if ii' == ii then " {- by agsy" ++ (if null argstr then "" else " (" ++ argstr ++ ")") ++ " -}" else ""
+                                     return $ Just (ii', show ce ++ cmnt)
+                                    
+                     ) exprs
+                   let msg = if length exprs == 1 then
+                              Nothing
+                             else
+                              Just $ "Also gave solution(s) for hole(s)" ++
+                                      concatMap (\(mi', _) ->
+                                       if mi' == mi then "" else (" " ++ case lookup mi' riis of {Nothing -> show mi'; Just ii -> show ii})
+                                      ) exprs
+                   return (catMaybes giveress, msg)
+            MDumpProblem (Just dumpfile) -> do
+             tcconss <- mapM (\(m, mytype, mylocalVars, _) -> do
+               let typ = foldl (\x y -> NotM $ Pi Agda.Auto.Syntax.NotHidden undefined y (Abs NoId x)) mytype mylocalVars
+                   trm = foldl (\x _ -> NotM $ Lam Agda.Auto.Syntax.NotHidden (Abs NoId x)) (Meta m) mylocalVars
+               typs <- liftIO $ printExp [] typ
+               trms <- liftIO $ printExp [] trm
+               return $ (if hequalMetavar m mainm then "the_prob : " else "extra_con : ") ++ typs ++ " {\n = " ++ trms ++ ";\n};\n\n"
+              ) (Map.elems tccons)
+             constss <- liftIO $ mapM (\(_, (TMAll, c)) -> printConst c >>= \s -> return $ s ++ "\n") (Map.toList cmap)
+             eqconss <- liftIO $ mapM (\(ineq, e1, e2) -> do
+                         pe1 <- printExp [] e1
+                         pe2 <- printExp [] e2
+                         return $ "-- " ++ pe1 ++ (if ineq then " >= " else " == ") ++ pe2
+                        ) eqcons
+             let probs = concat constss ++ concat tcconss ++ (if null ehints then "" else ("-- hints: " ++ concatMap (\(_, n) -> " " ++ show n) ehints) ++ "\n") ++
+                         "-- " ++ show (length eqcons) ++ " eqcons\n" ++ unlines eqconss
+             liftIO $ writeFile dumpfile probs
+             dispmsg $ "Dumping problem to " ++ dumpfile
+            MDumpProblem Nothing -> do
+             mv <- lookupMeta mi
+             let HasType _ tt = mvJudgement mv
+                 minfo = getMetaInfo mv
+                 localVars = map (snd . unArg . ctxEntry) . envContext . clEnv $ minfo
+             withMetaInfo minfo $ do
+              vs <- getContextArgs
+              let targettype = tt `piApply` vs
+              targettype <- rewrite Normalised targettype
+              localVars <- mapM (rewrite Normalised) localVars
+              dispmsg $ "Target type: " ++ show (localVars, targettype)
 
-data Mode = MNormal Bool  -- is list mode
+insuffsols 0 = "No solution found"
+insuffsols n = "Only " ++ show n ++ " solution(s) were found"
+
+data Mode = MNormal Bool  -- true if list mode
           | MDumpProblem (Maybe String)  -- Just filename to dump as agsy file or Nothing to show the problem in internal agda format
 
 parseargs s =
