@@ -18,6 +18,18 @@ instance Eq Literal where
   LitChar _ c   == LitChar _ d   = c == d
   _             == _             = False
 
+instance Ord Literal where
+  LitInt _ n    `compare` LitInt _ m    = n `compare` m
+  LitFloat _ x  `compare` LitFloat _ y  = x `compare` y
+  LitString _ s `compare` LitString _ t = s `compare` t
+  LitChar _ c   `compare` LitChar _ d   = c `compare` d
+  compare LitInt{}    _ = LT
+  compare _ LitInt{} = GT
+  compare LitFloat{}  _ = LT
+  compare _ LitFloat{} = GT
+  compare LitString{} _ = LT
+  compare _ LitString{} = GT
+
 instance HasRange Literal where
   getRange (LitInt    r _)	= r
   getRange (LitFloat  r _)	= r

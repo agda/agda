@@ -203,7 +203,7 @@ noShadowingOfConstructors c problem =
       Con   {} -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
-checkDotPattern :: DotPatternInst -> TCM ()
+checkDotPattern :: DotPatternInst -> TCM Constraints
 checkDotPattern (DPI e v a) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
@@ -213,7 +213,9 @@ checkDotPattern (DPI e v a) =
         , nest 2 $ text ":" <+> prettyTCM a
         ]
   u <- checkExpr e a
+  -- Should be ok to do noConstraints here
   noConstraints $ equalTerm a u v
+  return []
 
 -- | Bind the variables in a left hand side. Precondition: the patterns should
 --   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
@@ -320,7 +322,11 @@ checkLeftHandSide c ps a ret = do
          ]
   bindLHSVars ps delta $ bindAsPatterns asb $ do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
-    mapM_ checkDotPattern dpi
+
+    -- Check dot patterns
+    cs <- concat <$> mapM checkDotPattern dpi
+    noConstraints $ solveConstraints cs
+
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
         xs  = replicate (fromIntegral n) "h"

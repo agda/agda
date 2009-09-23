@@ -249,8 +249,9 @@ checkExpr e t =
 
         A.App i s (Arg NotHidden l)
           | A.Set _ 0 <- unScope s ->
-          ifM typeInType (typeError $ GenericError 
-                "--type-in-type is not compatible with universe polymorphism") $ do
+          ifM (not <$> hasUniversePolymorphism)
+              (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
+          $ do
             nat <- primNat
             suc <- do s <- primSuc
                       return $ \x -> s `apply` [Arg NotHidden x]
@@ -357,21 +358,6 @@ checkExpr e t =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-
---                   do s' <- instantiateFull $ getSort t'
---                      let fv = rigidVars $ freeVars s'
---                      n <- genericLength <$> getContext
---                      if any (>= n) $ Set.toList fv
---                        then do
---                          reportSDoc "tc.term.sort" 20 $
---                           vcat [ text ("reduced to omega[" ++ show n ++ "]:")
---                                , nest 2 $ text "t   =" <+> prettyTCM t'
---                                , nest 2 $ text "fv  =" <+> text (show fv)
---                                , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
---                                , nest 2 $ prettyTCM s'
---                                ]
---                          return Inf
---                        else return s'
 	    blockTerm t (unEl t') $ leqType (sort s) t
 	A.Fun _ (Arg h a) b -> do
 	    a' <- isType_ a

@@ -382,6 +382,7 @@ primitiveFunctions = Map.fromList
         in mkPrimFun4 aux
     , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
+    , "primNatMax"	    |-> mkPrimFun2 (max			    :: Op Nat)
 
     -- Floating point functions
     , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)

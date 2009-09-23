@@ -54,15 +54,16 @@ class Instantiate t where
     instantiate :: MonadTCM tcm => t -> tcm t
 
 instance Instantiate Term where
-    instantiate t@(MetaV x args) =
-	do  mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstV a                        -> instantiate $ a `apply` args
-		Open                           -> return t
-		BlockedConst _                 -> return t
-                PostponedTypeCheckingProblem _ -> return t
-		InstS _                        -> __IMPOSSIBLE__
-    instantiate t = return t
+  instantiate t@(MetaV x args) = do
+    mi <- mvInstantiation <$> lookupMeta x
+    case mi of
+      InstV a                        -> instantiate $ a `apply` args
+      Open                           -> return t
+      BlockedConst _                 -> return t
+      PostponedTypeCheckingProblem _ -> return t
+      InstS _                        -> __IMPOSSIBLE__
+  instantiate (Sort s) = Sort <$> instantiate s
+  instantiate t = return t
 
 instance Instantiate a => Instantiate (Blocked a) where
   instantiate v@NotBlocked{} = return v
@@ -152,22 +153,35 @@ instance Reduce Type where
       return (El s <$> t)
 
 instance Reduce Sort where
-    reduce s = liftTCM $
-	{-# SCC "reduce<Sort>" #-}
-	do  s <- instantiate s
-            suc <- do sc <- primSuc
-                      return $ \x -> case x of
-                                      Type n -> Type (sc `apply` [Arg NotHidden n])
-                                      _      -> sSuc x
-              `catchError` \_ -> return sSuc
-	    case s of
-		Suc s'     -> suc <$> reduce s'
-		Lub s1 s2  -> sLub <$> reduce s1 <*> reduce s2
-                DLub s1 s2 -> dLub <$> reduce s1 <*> reduce s2
-		Prop       -> return s
-		Type s'    -> Type <$> reduce s'
-		MetaS m as -> MetaS m <$> reduce as
-                Inf        -> return Inf
+    reduce s = {-# SCC "reduce<Sort>" #-}
+      ifM (not <$> hasUniversePolymorphism) (red sSuc sLub s)
+      $ liftTCM $ do
+        suc  <- do sc <- primSuc
+                   return $ \x -> case x of
+                                    Type n -> Type (sc `apply` [Arg NotHidden n])
+                                    _      -> sSuc x
+          `catchError` \_ -> return sSuc
+        lub <- do mx <- primNatMax
+                  return $ \x y -> case (x, y) of
+                    (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden) [n, m])
+                    _                -> sLub x y
+          `catchError` \_ -> return sLub
+        red suc lub s
+      where
+        red suc lub s = do
+          s <- instantiate s
+          case s of
+            Suc s'     -> suc <$> reduce s'
+            Lub s1 s2  -> lub <$> reduce s1 <*> reduce s2
+            DLub s1 s2 -> do
+              s <- dLub <$> reduce s1 <*> reduce s2
+              case s of
+                DLub{}  -> return s
+                _       -> reduce s   -- TODO: not so nice
+            Prop       -> return s
+            Type s'    -> Type <$> reduce s'
+            MetaS m as -> MetaS m <$> reduce as
+            Inf        -> return Inf
 
 instance Reduce t => Reduce (Abs t) where
   reduce b = Abs (absName b) <$> underAbstraction_ b reduce

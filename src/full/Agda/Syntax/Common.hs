@@ -18,17 +18,17 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 data Induction = Inductive | CoInductive
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Data, Show, Eq, Ord)
 
 data Hiding  = Hidden | NotHidden
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Show, Eq, Ord)
 
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 
 -- | A function argument can be hidden.
 data Arg e  = Arg { argHiding :: Hiding, unArg :: e }
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Ord)
 
 instance Functor Arg where
     fmap f (Arg h x) = Arg h $ f x
@@ -56,7 +56,7 @@ data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
 	  }
-    deriving (Eq, Typeable, Data)
+    deriving (Eq, Ord, Typeable, Data)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
@@ -92,15 +92,15 @@ type NamedArg a = Arg (Named String a)
 -- | Functions can be defined in both infix and prefix style. See
 --   'Agda.Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | Access modifier.
 data Access = PrivateAccess | PublicAccess
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Data, Show, Eq, Ord)
 
 type Nat    = Integer
 type Arity  = Nat

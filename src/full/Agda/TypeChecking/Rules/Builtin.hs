@@ -139,6 +139,7 @@ builtinPrimitives =
     , "NATMODSUCAUX" |-> ("primNatModSucAux", verifyModSucAux)
     , "NATEQUALS"    |-> ("primNatEquality", verifyEquals)
     , "NATLESS"      |-> ("primNatLess", verifyLess)
+    , "NATMAX"       |-> ("primNatMax", verifyMax)
     ]
     where
         (|->) = (,)
@@ -234,6 +235,16 @@ builtinPrimitives =
             (n     < zero)  === false
             (suc n < suc m) === (n < m)
             (zero  < suc m) === true
+
+        verifyMax maxV =
+            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+                let m = Var 0 []
+                    n = Var 1 []
+                    max x y = maxV @@ x @@ y
+
+                max zero (suc n)    == suc n
+                max (suc n) zero    == suc n
+                max (suc n) (suc m) == suc (max n m)
 
         verify :: [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
                                 (Term -> Term -> TCM ()) ->

@@ -110,7 +110,12 @@ assignSort :: MonadTCM tcm => MetaId -> Sort -> tcm ()
 assignSort = (=:)
 
 newSortMeta :: MonadTCM tcm => tcm Sort
-newSortMeta = newSortMetaCtx =<< getContextArgs
+newSortMeta =
+  ifM typeInType (return $ mkType 0) $
+  ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
+  $ do i <- createMetaInfo
+       x <- newMeta i normalMetaPriority (IsSort())
+       return $ MetaS x []
 
 newSortMetaCtx :: MonadTCM tcm => Args -> tcm Sort
 newSortMetaCtx vs =
@@ -363,6 +368,11 @@ assignV t x args v =
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
 
+        v <- normalise v
+        case v of
+          Sort Inf  -> typeError $ GenericError "Setω is not a valid type."
+          _         -> return ()
+
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
@@ -435,6 +445,7 @@ assignV t x args v =
 -- TODO: Unify with assignV
 assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
 assignS x args s =
+  ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $
     handleAbort handler $ do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
@@ -514,11 +525,11 @@ assignS x args s =
 	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalSort (MetaS x args) s
 
--- assignS x s =
---     handleAbort (equalSort (MetaS x) s) $ do
--- 	s <- occursCheck x [] s
--- 	x =: s
--- 	return []
+        noPolyAssign x s =
+          handleAbort (equalSort (MetaS x []) s) $ do
+            s <- occursCheck x [] s
+            x =: s
+            return []
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.

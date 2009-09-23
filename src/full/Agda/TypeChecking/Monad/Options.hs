@@ -137,6 +137,9 @@ hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 proofIrrelevance :: MonadTCM tcm => tcm Bool
 proofIrrelevance = optProofIrrelevance <$> commandLineOptions
 
+hasUniversePolymorphism :: MonadTCM tcm => tcm Bool
+hasUniversePolymorphism = optUniversePolymorphism <$> commandLineOptions
+
 showImplicitArguments :: MonadTCM tcm => tcm Bool
 showImplicitArguments = optShowImplicit <$> commandLineOptions
 

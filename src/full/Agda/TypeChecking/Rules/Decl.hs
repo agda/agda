@@ -70,7 +70,7 @@ checkAxiom _ x e = do
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text "checked axiom"
-    , nest 2 $ prettyTCM x <+> text ":" <+> prettyTCM t
+    , nest 2 $ prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
     ]
   addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
   solveSizeConstraints

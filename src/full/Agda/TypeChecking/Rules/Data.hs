@@ -171,16 +171,18 @@ fitsIn t s = do
         , text "of sort" <+> prettyTCM s'
         , text "fit in" <+> prettyTCM s <+> text "?"
         ]
-  noConstraints $ s' `leqSort` s
---   case funView $ unEl t of
---     FunV arg@(Arg h a) _ -> do
---       let s' = getSort a
---       s' `leqSort` s
---       x <- freshName_ (argName t)
---       let v  = Arg h $ Var 0 []
---           t' = piApply (raise 1 t) [v]
---       addCtx x arg $ fitsIn t' s
---     _		     -> return ()
+  -- The line below would be simpler, but doesn't allow datatypes
+  -- to be indexed by the universe level.
+--   noConstraints $ s' `leqSort` s
+  case funView $ unEl t of
+    FunV arg@(Arg h a) _ -> do
+      let s' = getSort a
+      s' `leqSort` s
+      x <- freshName_ (argName t)
+      let v  = Arg h $ Var 0 []
+          t' = piApply (raise 1 t) [v]
+      addCtx x arg $ fitsIn t' s
+    _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype. The first
 --   argument is the number of parameters to the datatype.

@@ -39,10 +39,10 @@ data Term = Var Nat Args
 	  | Fun (Arg Type) Type
 	  | Sort Sort
 	  | MetaV MetaId Args
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Typeable, Data, Eq, Ord, Show)
 
 data Type = El Sort Term
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Typeable, Data, Eq, Ord, Show)
 
 data Sort = Type Term   -- A term of type Nat
 	  | Prop
@@ -54,12 +54,12 @@ data Sort = Type Term   -- A term of type Nat
             -- ^ if the free variable occurs in the second sort
             --   the whole thing should reduce to Inf, otherwise
             --   it's the normal Lub
-  deriving (Typeable, Data, Eq, Show)
+  deriving (Typeable, Data, Eq, Ord, Show)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
                | NotBlocked t
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data, Eq, Ord)
 
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
@@ -114,7 +114,14 @@ instance KillRange Type where
   killRange (El s v) = killRange2 El s v
 
 instance KillRange Sort where
-  killRange = id
+  killRange s = case s of
+    Prop       -> Prop
+    Inf        -> Inf
+    Type a     -> killRange1 Type a
+    Suc s      -> killRange1 Suc s
+    Lub s1 s2  -> killRange2 Lub s1 s2
+    DLub s1 s2 -> killRange2 DLub s1 s2
+    MetaS x as -> killRange1 (MetaS x) as
 
 instance KillRange Telescope where
   killRange EmptyTel = EmptyTel
@@ -134,7 +141,7 @@ type Args = [Arg Term]
 --   and so on.
 data Telescope = EmptyTel
 	       | ExtendTel (Arg Type) (Abs Telescope)
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Data, Show, Eq, Ord)
 
 instance Sized Telescope where
   size  EmptyTel	 = 0
@@ -144,7 +151,7 @@ instance Sized Telescope where
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data, Eq, Ord)
 
 instance Show a => Show (Abs a) where
   showsPrec p (Abs x a) = showParen (p > 0) $

@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.Builtin where
 import Control.Monad.State
 import qualified Data.Map as Map
 
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
@@ -41,7 +42,7 @@ getBuiltin' :: MonadTCM tcm => String -> tcm (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThings
     case Map.lookup x builtin of
-	Just (Builtin t) -> return $ Just t
+	Just (Builtin t) -> return $ Just (killRange t)
 	_		 -> return Nothing
 
 getPrimitive :: MonadTCM tcm => String -> tcm PrimFun
@@ -58,7 +59,7 @@ getPrimitive x = do
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
-    primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
+    primNatEquality, primNatLess, primNatMax, primSize, primSizeSuc, primSizeInf,
     primEquality, primRefl
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
@@ -82,6 +83,7 @@ primNatDivSucAux = getBuiltin builtinNatDivSucAux
 primNatModSucAux = getBuiltin builtinNatModSucAux
 primNatEquality  = getBuiltin builtinNatEquals
 primNatLess      = getBuiltin builtinNatLess
+primNatMax       = getBuiltin builtinNatMax
 primSize         = getBuiltin builtinSize
 primSizeSuc      = getBuiltin builtinSizeSuc
 primSizeInf      = getBuiltin builtinSizeInf
@@ -98,6 +100,7 @@ builtinNatDivSucAux = "NATDIVSUCAUX"
 builtinNatModSucAux = "NATMODSUCAUX"
 builtinNatEquals    = "NATEQUALS"
 builtinNatLess      = "NATLESS"
+builtinNatMax       = "NATMAX"
 builtinInteger      = "INTEGER"
 builtinFloat        = "FLOAT"
 builtinChar         = "CHAR"

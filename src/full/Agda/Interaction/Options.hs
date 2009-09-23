@@ -42,34 +42,35 @@ instance Functor ArgDescr where
     fmap f (OptArg p s) = OptArg (f . p) s
 
 data CommandLineOptions =
-    Options { optProgramName	   :: String
-	    , optInputFile	   :: Maybe FilePath
-	    , optIncludeDirs	   :: [FilePath]
-	    , optShowVersion	   :: Bool
-	    , optShowHelp	   :: Bool
-	    , optInteractive	   :: Bool
-	    , optVerbose	   :: Trie String Int
-	    , optProofIrrelevance  :: Bool
-	    , optAllowUnsolved	   :: Bool
-	    , optShowImplicit	   :: Bool
-	    , optRunTests	   :: Bool
-	    , optCompile	   :: Bool
-	    , optGenerateVimFile   :: Bool
-	    , optGenerateHTML      :: Bool
-	    , optHTMLDir           :: FilePath
-	    , optCSSFile           :: Maybe FilePath
-	    , optIgnoreInterfaces  :: Bool
-	    , optDisablePositivity :: Bool
-	    , optCompileAlonzo     :: Bool
-            , optCompileMAlonzo    :: Bool
-            , optMAlonzoDir        :: Maybe FilePath
+    Options { optProgramName          :: String
+	    , optInputFile            :: Maybe FilePath
+	    , optIncludeDirs          :: [FilePath]
+	    , optShowVersion          :: Bool
+	    , optShowHelp             :: Bool
+	    , optInteractive          :: Bool
+	    , optVerbose              :: Trie String Int
+	    , optProofIrrelevance     :: Bool
+	    , optAllowUnsolved        :: Bool
+	    , optShowImplicit         :: Bool
+	    , optRunTests             :: Bool
+	    , optCompile              :: Bool
+	    , optGenerateVimFile      :: Bool
+	    , optGenerateHTML         :: Bool
+	    , optHTMLDir              :: FilePath
+	    , optCSSFile              :: Maybe FilePath
+	    , optIgnoreInterfaces     :: Bool
+	    , optDisablePositivity    :: Bool
+	    , optCompileAlonzo        :: Bool
+            , optCompileMAlonzo       :: Bool
+            , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
-	    , optTerminationCheck  :: Bool
-	    , optCompletenessCheck :: Bool
-            , optUnreachableCheck  :: Bool
-	    , optUniverseCheck     :: Bool
-            , optSizedTypes        :: Bool
-            , optGhcFlags          :: [String]
+	    , optTerminationCheck     :: Bool
+	    , optCompletenessCheck    :: Bool
+            , optUnreachableCheck     :: Bool
+	    , optUniverseCheck        :: Bool
+            , optSizedTypes           :: Bool
+            , optUniversePolymorphism :: Bool
+            , optGhcFlags             :: [String]
 	    }
     deriving Show
 
@@ -80,33 +81,34 @@ mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
 defaultOptions :: CommandLineOptions
 defaultOptions =
-    Options { optProgramName	   = "agda"
-	    , optInputFile	   = Nothing
-	    , optIncludeDirs	   = []
-	    , optShowVersion	   = False
-	    , optShowHelp	   = False
-	    , optInteractive	   = False
-	    , optVerbose	   = Trie.singleton [] 1
-	    , optProofIrrelevance  = False
-	    , optAllowUnsolved	   = False
-	    , optShowImplicit	   = False
-	    , optRunTests	   = False
-	    , optCompile	   = False
-	    , optGenerateVimFile   = False
-	    , optGenerateHTML      = False
-	    , optHTMLDir           = defaultHTMLDir
-	    , optCSSFile           = Nothing
-	    , optIgnoreInterfaces  = False
-	    , optDisablePositivity = False
-	    , optCompileAlonzo     = False
-	    , optCompileMAlonzo    = False
-            , optMAlonzoDir        = Nothing
-            , optTerminationCheck  = True
-            , optCompletenessCheck = True
-            , optUnreachableCheck  = True
-            , optUniverseCheck     = True
-            , optSizedTypes        = False
-            , optGhcFlags          = []
+    Options { optProgramName          = "agda"
+	    , optInputFile            = Nothing
+	    , optIncludeDirs          = []
+	    , optShowVersion          = False
+	    , optShowHelp             = False
+	    , optInteractive          = False
+	    , optVerbose              = Trie.singleton [] 1
+	    , optProofIrrelevance     = False
+	    , optAllowUnsolved        = False
+	    , optShowImplicit         = False
+	    , optRunTests             = False
+	    , optCompile              = False
+	    , optGenerateVimFile      = False
+	    , optGenerateHTML         = False
+	    , optHTMLDir              = defaultHTMLDir
+	    , optCSSFile              = Nothing
+	    , optIgnoreInterfaces     = False
+	    , optDisablePositivity    = False
+	    , optCompileAlonzo        = False
+	    , optCompileMAlonzo       = False
+            , optMAlonzoDir           = Nothing
+            , optTerminationCheck     = True
+            , optCompletenessCheck    = True
+            , optUnreachableCheck     = True
+            , optUniverseCheck        = True
+            , optSizedTypes           = False
+            , optUniversePolymorphism = False
+            , optGhcFlags             = []
 	    }
 
 -- | The default output directory for HTML.
@@ -129,22 +131,23 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne compilerOpts) =
     Left "At most one compiler may be used.\n"
-  | optAllowUnsolved opts && or compilerOpts = Left
+  | not (atMostOne $ optAllowUnsolved : compilerOpts) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne [or compilerOpts, optInteractive opts]) =
+  | not (atMostOne $ optInteractive : compilerOpts) =
       Left "Choose at most one: compiler or interactive mode.\n"
-  | not (atMostOne [optGenerateHTML opts, optInteractive opts]) =
+  | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
+  | not (atMostOne [optUniversePolymorphism, not . optUniverseCheck]) =
+      Left "Cannot have both universe polymorphism and type in type.\n"
   | otherwise = Right opts
   where
-  atMostOne bs = length (filter id bs) <= 1
+  atMostOne bs = length (filter ($ opts) bs) <= 1
 
   compilerOpts =
-    map ($ opts)
-      [ optCompile
-      , optCompileAlonzo
-      , optCompileMAlonzo
-      ]
+    [ optCompile
+    , optCompileAlonzo
+    , optCompileMAlonzo
+    ]
 
 inputFlag :: FilePath -> CommandLineOptions -> Either String CommandLineOptions
 inputFlag f o	    =
@@ -152,20 +155,21 @@ inputFlag f o	    =
 	Nothing  -> checkOpts $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag               o = checkOpts $ o { optShowVersion       = True }
-helpFlag                  o = checkOpts $ o { optShowHelp	       = True }
-proofIrrelevanceFlag      o = checkOpts $ o { optProofIrrelevance  = True }
-ignoreInterfacesFlag      o = checkOpts $ o { optIgnoreInterfaces  = True }
-allowUnsolvedFlag         o = checkOpts $ o { optAllowUnsolved     = True }
-showImplicitFlag          o = checkOpts $ o { optShowImplicit      = True }
-runTestsFlag              o = checkOpts $ o { optRunTests	       = True }
-vimFlag                   o = checkOpts $ o { optGenerateVimFile   = True }
-noPositivityFlag          o = checkOpts $ o { optDisablePositivity = True }
-dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck  = False }
-dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck = False }
-noUnreachableCheckFlag    o = checkOpts $ o { optUnreachableCheck  = False }
-dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck     = False }
-sizedTypes                o = checkOpts $ o { optSizedTypes        = True }
+versionFlag               o = checkOpts $ o { optShowVersion          = True  }
+helpFlag                  o = checkOpts $ o { optShowHelp             = True  }
+proofIrrelevanceFlag      o = checkOpts $ o { optProofIrrelevance     = True  }
+ignoreInterfacesFlag      o = checkOpts $ o { optIgnoreInterfaces     = True  }
+allowUnsolvedFlag         o = checkOpts $ o { optAllowUnsolved        = True  }
+showImplicitFlag          o = checkOpts $ o { optShowImplicit         = True  }
+runTestsFlag              o = checkOpts $ o { optRunTests             = True  }
+vimFlag                   o = checkOpts $ o { optGenerateVimFile      = True  }
+noPositivityFlag          o = checkOpts $ o { optDisablePositivity    = True  }
+dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck     = False }
+dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck    = False }
+noUnreachableCheckFlag    o = checkOpts $ o { optUnreachableCheck     = False }
+dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck        = False }
+sizedTypes                o = checkOpts $ o { optSizedTypes           = True  }
+universePolymorphismFlag  o = checkOpts $ o { optUniversePolymorphism = True  }
 
 interactiveFlag o = checkOpts $ o { optInteractive   = True
 			          , optAllowUnsolved = True
@@ -255,6 +259,8 @@ pragmaOptions =
 		    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
                     "use sized datatypes"
+    , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
+                    "enable universe polymorphism (experimental feature)"
     ]
 
 -- | Used for printing usage info.
