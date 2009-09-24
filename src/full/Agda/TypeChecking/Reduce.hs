@@ -204,7 +204,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
               return $ notBlocked $ Con (c `withRangeOf` f) args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
-                reducePrimitive x v0 f args pf (defDelayed info) cls
+                reducePrimitive x v0 f args pf (defDelayed info) (maybe [] id cls)
             _  -> reduceNormal v0 f args (defDelayed info) (defClauses info)
   where
     reducePrimitive x v0 f args pf delayed cls

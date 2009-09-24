@@ -124,7 +124,7 @@ bindBuiltinPrimitive name builtin e@(A.Def qx) verify = do
     let cls = defClauses info
         a   = defAbstract info
     bindPrimitive name $ pf { primFunName = qx }
-    addConstant qx $ info { theDef = Primitive a name cls }
+    addConstant qx $ info { theDef = Primitive a name (Just cls) }
 
     -- needed? yes, for checking equations for mul
     bindBuiltinName builtin v

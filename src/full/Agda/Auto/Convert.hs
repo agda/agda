@@ -68,14 +68,17 @@ tomy imi icns = do
          defn = MB.theDef def
      typ <- lift $ norm typ
      typ' <- tomyType typ
+     let clausesToDef clauses = do
+           clauses' <- tomyClauses clauses
+           let narg = case clauses of
+                        []                               -> 0
+                        I.Clause {I.clausePats = xs} : _ -> length xs
+           return $ Def narg clauses'
      cont <- case defn of
       MB.Axiom {} -> return Postulate
-      MB.Function {MB.funClauses = clauses} -> do
-       clauses' <- tomyClauses clauses
-       let narg = case clauses of
-                   [] -> 0
-                   (I.Clause {I.clausePats = xs}:_) -> length xs
-       return $ Def narg clauses'
+      MB.Function  {MB.funClauses  =      clauses} -> clausesToDef clauses
+      MB.Primitive {MB.primClauses = Just clauses} -> clausesToDef clauses
+      MB.Primitive {} -> throwError $ strMsg "Primitive functions are not supported"
       MB.Datatype {MB.dataCons = cons} -> do
        cons' <- mapM (\con -> getConst True con TMAll) cons
        return $ Datatype cons'
@@ -90,7 +93,6 @@ tomy imi icns = do
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
        return $ cdcont cc
       MB.Constructor {} -> return Constructor
-      MB.Primitive {} -> throwError $ strMsg "Primitive functions are not supported"
      lift $ liftIO $ modifyIORef c (\cdef -> cdef {cdtype = typ', cdcont = cont})
      r
     Nothing -> do

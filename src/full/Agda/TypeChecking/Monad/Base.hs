@@ -444,11 +444,14 @@ data Defn = Axiom
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
             }
-	  | Primitive -- PrimFun
+	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String
-            , primClauses :: [Clause]
+            , primClauses :: Maybe [Clause]
+              -- ^ 'Nothing' for primitive functions, @'Just'
+              -- something@ for builtin functions.
             }
+            -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
 
 newtype Fields = Fields [(C.Name, Type)]
@@ -465,11 +468,11 @@ data PrimFun = PrimFun
     deriving (Typeable)
 
 defClauses :: Definition -> [Clause]
-defClauses Defn{theDef = Function{funClauses = cs}}	= cs
-defClauses Defn{theDef = Primitive{primClauses = cs}}	= cs
-defClauses Defn{theDef = Datatype{dataClause = Just c}} = [c]
-defClauses Defn{theDef = Record{recClause = Just c}}    = [c]
-defClauses _					        = []
+defClauses Defn{theDef = Function{funClauses = cs}}        = cs
+defClauses Defn{theDef = Primitive{primClauses = Just cs}} = cs
+defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
+defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
+defClauses _                                               = []
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
