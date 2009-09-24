@@ -138,6 +138,19 @@ data Interaction = Interaction
     -- information will be written for the given module (by 'ioTCM').
   }
 
+-- | Run a TCM computation in the current state. Should only
+--   be used for debugging.
+ioTCM_ :: TCM a -> IO a
+ioTCM_ m = do
+  tcs <- readIORef theState
+  Right (x, s) <- runTCM $ do
+    put $ theTCState tcs
+    x <- withEnv initEnv m
+    s <- get
+    return (x, s)
+  writeIORef theState $ tcs { theTCState = s }
+  return x
+
 -- | Runs a 'TCM' computation. All calls from the Emacs mode should be
 -- wrapped in this function.
 
