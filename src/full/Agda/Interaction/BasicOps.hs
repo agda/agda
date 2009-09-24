@@ -39,7 +39,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract (etaContract)
 
 import Agda.Utils.Monad
-import Agda.Utils.Monad.Undo
 import Agda.Utils.Pretty
 
 #include "../undefined.h"
@@ -77,25 +76,23 @@ giveExpr mi e =
 		 IsSort _ -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
-give ii mr e = liftTCM $
-     do  setUndo
-         mi <- lookupInteractionId ii
-         mis <- getInteractionPoints
-         r <- getInteractionRange ii
-         updateMetaVarRange mi $ maybe r id mr
-         giveExpr mi e
-         removeInteractionPoint ii
-         mis' <- getInteractionPoints
-         return (e, mis' \\ mis)
+give ii mr e = liftTCM $ do
+  mi <- lookupInteractionId ii
+  mis <- getInteractionPoints
+  r <- getInteractionRange ii
+  updateMetaVarRange mi $ maybe r id mr
+  giveExpr mi e
+  removeInteractionPoint ii
+  mis' <- getInteractionPoints
+  return (e, mis' \\ mis)
 
 
 addDecl :: Declaration -> TCM ([InteractionId])
-addDecl d =
-    do   setUndo
-         mis <- getInteractionPoints
-         checkDecl d
-         mis' <- getInteractionPoints
-         return (mis' \\ mis)
+addDecl d = do
+  mis <- getInteractionPoints
+  checkDecl d
+  mis' <- getInteractionPoints
+  return (mis' \\ mis)
 
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
@@ -295,10 +292,6 @@ instance ToConcrete MetaId C.Expr where
 judgToOutputForm :: Judgement a c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
 judgToOutputForm (IsSort s)    = JustSort s
-
-
-mkUndo :: TCM ()
-mkUndo = undo
 
 --- Printing Operations
 getConstraint :: Int -> TCM (OutputForm Expr Expr)

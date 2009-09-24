@@ -219,7 +219,6 @@ library
                    Agda.Utils.List
                    Agda.Utils.Map
                    Agda.Utils.Maybe
-                   Agda.Utils.Monad.Undo
                    Agda.Utils.Monad
                    Agda.Utils.Permutation
                    Agda.Utils.Pointer

@@ -37,7 +37,6 @@ import qualified System.IO.UTF8 as UTF8
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
-import Agda.Utils.Monad.Undo
 import Agda.Utils.Pretty as P
 import Agda.Utils.String
 import Agda.Utils.FileName
@@ -101,7 +100,6 @@ import Agda.Utils.Impossible
 
 data State = State
   { theTCState           :: TCState
-  , theUndoStack         :: [TCState]
   , theInteractionPoints :: [InteractionId]
     -- ^ The interaction points of the buffer, in the order in which
     --   they appear in the buffer. The interaction points are
@@ -118,7 +116,6 @@ data State = State
 initState :: State
 initState = State
   { theTCState           = TM.initState
-  , theUndoStack         = []
   , theInteractionPoints = []
   , theCurrentFile       = Nothing
   }
@@ -168,7 +165,6 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 
   -- Read the state.
   State { theTCState     = st
-        , theUndoStack   = us
         , theCurrentFile = f
         } <- readIORef theState
 
@@ -178,12 +174,10 @@ ioTCM current highlightingFile cmd = infoOnException $ do
          return $ Right $ Left (s, TCErr Nothing $ Exception noRange s)
         else
          runTCM $ catchError (do
-             putUndoStack us
              put st
              x  <- withEnv initEnv $ command cmd
              st <- get
-             us <- getUndoStack
-             return (Right (x, st, us))
+             return (Right (x, st))
            ) (\e -> do
              s <- prettyError e
              return (Left (s, e))
@@ -191,10 +185,9 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 
   -- Update the state.
   case r of
-    Right (Right (m, st', us')) ->
+    Right (Right (m, st')) ->
       modifyIORef theState $ \s ->
         s { theTCState   = st'
-          , theUndoStack = us'
           }
     _ | isIndependent cmd ->
       modifyIORef theState $ \s ->
@@ -212,7 +205,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
       UTF8.writeFile f $
         showHighlightingInfo $
           case r of
-            Right (Right (mm, st', _)) -> do
+            Right (Right (mm, st')) -> do
               m  <- mm
               mi <- Map.lookup (SA.toTopLevelModuleName m)
                                (stVisitedModules st')
@@ -253,8 +246,6 @@ cmd_load' :: FilePath -> [FilePath]
           -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
 cmd_load' file includes unsolvedOK cmd = Interaction True $ do
-  clearUndoHistory
-
   -- Forget the previous "current file" and interaction points.
   liftIO $ modifyIORef theState $ \s ->
     s { theInteractionPoints = []
@@ -276,7 +267,6 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
   -- that Imp.typeCheck resets the decoded modules if the include
   -- directories have changed.
   preserveDecodedModules resetState
-  setUndo
 
   ok <- Imp.typeCheck file Imp.ProjectRoot (Just oldIncs)
 
@@ -339,14 +329,8 @@ cmd_metas = Interaction False $ do -- CL.showMetas []
       d <- B.withMetaId (B.outputFormId m) (showA m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
-cmd_undo :: Interaction
-cmd_undo = Interaction False $ do
-  undo
-  return Nothing
-
 cmd_reset :: Interaction
 cmd_reset = Interaction True $ do
-  putUndoStack []
   preserveDecodedModules resetState
   return Nothing
 

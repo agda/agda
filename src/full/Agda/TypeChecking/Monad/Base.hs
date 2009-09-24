@@ -33,7 +33,6 @@ import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
-import Agda.Utils.Monad.Undo
 import Agda.Utils.Trace
 
 #include "../../undefined.h"
@@ -895,15 +894,13 @@ instance HasRange TCErr where
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
 
-newtype TCMT m a = TCM { unTCM :: UndoT TCState
-			          (StateT TCState
+newtype TCMT m a = TCM { unTCM :: StateT TCState
 			          (ReaderT TCEnv
-			          (ErrorT TCErr m))) a
+			          (ErrorT TCErr m)) a
 		       }
     deriving ( MonadState TCState
              , MonadReader TCEnv
              , MonadError TCErr
-             , MonadUndo TCState
              )
 
 type TCM = TCMT IO
@@ -914,10 +911,8 @@ class ( Applicative tcm, MonadIO tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
-mapTCMT :: (m (Either TCErr ((a, [TCState]), TCState)) ->
-            n (Either TCErr ((b, [TCState]), TCState))
-           ) -> TCMT m a -> TCMT n b
-mapTCMT f = TCM . mapUndoT (mapStateT (mapReaderT (mapErrorT f))) . unTCM
+mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
+mapTCMT f = TCM . mapStateT (mapReaderT (mapErrorT f)) . unTCM
 
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
@@ -926,7 +921,7 @@ instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
 instance MonadTrans TCMT where
-    lift = TCM . lift . lift . lift . lift
+    lift = TCM . lift . lift . lift
 
 -- We want a special monad implementation of fail.
 instance MonadIO m => Monad (TCMT m) where
@@ -943,7 +938,7 @@ instance MonadIO m => Applicative (TCMT m) where
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ do tr <- gets stTrace
-                      lift $ lift $ lift $ ErrorT $ liftIO $
+                      lift $ lift $ ErrorT $ liftIO $
                         E.handle (handleIOException $ getRange tr)
                         (failOnException
                          (\r -> return . throwError .
@@ -979,6 +974,5 @@ runTCM :: Monad m => TCMT m a -> m (Either TCErr a)
 runTCM m = runErrorT
 	 $ flip runReaderT initEnv
 	 $ flip evalStateT initState
-	 $ runUndoT
 	 $ unTCM m
 

@@ -28,7 +28,6 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete, abstractToConcrete_, makeEnv)
 import Agda.Interaction.Monad
 import Agda.Interaction.BasicOps hiding (refine)
-import Agda.Utils.Monad.Undo
 
 import Agda.Auto.Convert
 import Agda.Auto.NarrowingSearch

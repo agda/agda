@@ -39,7 +39,6 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
-import Agda.Utils.Monad.Undo
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -89,7 +88,6 @@ interactionLoop typeCheck =
 	interaction "Main> " commands evalTerm
     where
 	reload = do
-	    setUndo
 	    mi <- typeCheck
             -- Note that mi is Nothing if (1) there is no input file or
             -- (2) the file type checked with unsolved metas and
@@ -115,13 +113,11 @@ interactionLoop typeCheck =
             , "give"	    |> \args -> continueAfter $ giveMeta args
             , "Refine"	    |> \args -> continueAfter $ refineMeta args
 	    , "metas"	    |> \args -> continueAfter $ showMetas args
-            , "undo"	    |> \_ -> continueAfter $ mkUndo
             , "load"	    |> \args -> continueAfter $ loadFile reload args
 	    , "eval"	    |> \args -> continueAfter $ evalIn args
             , "typeOf"      |> \args -> continueAfter $ typeOf args
             , "typeIn"      |> \args -> continueAfter $ typeIn args
 	    , "wakeup"	    |> \_ -> continueAfter $ retryConstraints
-	    , "noundo"	    |> \_ -> continueAfter $ clearUndoHistory
 	    , "scope"	    |> \_ -> continueAfter $ showScope
 	    ]
 	    where
