@@ -527,7 +527,23 @@ compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
+compareTerm' _ t@Con{} (ConDBP _ ps)
+  | any (isSubTerm t) ps = return Lt
 compareTerm' _ _ _ = return Term.Unknown
+
+isSubTerm :: Term -> DeBruijnPat -> Bool
+isSubTerm t p = equal t p || properSubTerm t p
+  where
+    equal (Con c ts) (ConDBP c' ps) =
+      and $ (c == c')
+          : (length ts == length ps)
+          : zipWith equal (map unArg ts) ps
+    equal (Var i []) (VarDBP j) = i == j
+    equal (Lit l) (LitDBP l') = l == l'
+    equal _ _ = False
+
+    properSubTerm t (ConDBP _ ps) = any (isSubTerm t) ps
+    properSubTerm _ _ = False
 
 compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
 compareConArgs suc ts ps =
