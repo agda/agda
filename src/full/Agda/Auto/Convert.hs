@@ -338,8 +338,10 @@ tomyExp (I.Pi (C.Arg hid x) (I.Abs name y)) = do
 tomyExp (I.Fun (C.Arg hid x) y) = do
  x' <- tomyType x
  y' <- tomyType y
- return $ wr $ Fun (cnvh hid) x' y'
-tomyExp (I.Sort (I.Type l)) = return $ wr $ Sort $ SortLevel $ fromIntegral l
+ return $ NotM $ Fun (cnvh hid) x' y'
+tomyExp (I.Sort (I.Type (I.Lit (I.LitInt _ l)))) = return $ NotM $ Sort $ SortLevel $ fromIntegral l
+tomyExp (I.Sort (I.MetaS _ _)) = throwError $ strMsg "Searching for type place holders is not supported"
+tomyExp t@(I.Sort _) = throwError $ strMsg $ "Meta variable kind not supported: " ++ show t
 tomyExp (I.MetaV mid _) = do
  mcurmeta <- gets sCurMeta
  case mcurmeta of
@@ -390,7 +392,7 @@ frommy = frommyExp
 
 frommyType e = do
  e' <- frommyExp e
- return $ I.El (I.Type 2{-error "Sort not read by Agda when reifying"-}) e'
+ return $ I.El (I.mkType 0) e'  -- 0 is arbitrary, sort no read by Agda when reifying
 
 frommyExp :: MExp O -> IO I.Term
 frommyExp (Meta m) = do
