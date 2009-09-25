@@ -70,25 +70,22 @@ Language
 
     primTrustMe : {A : Set} {x y : A} → x ≡ y
 
-  The type
+  The datatype
 
-    _≡_ : {A : Set} → A → A → Set
+    data _≡_ {A : Set}(x : A) : A → Set where
+      refl : x ≡ x
 
-  has to be specified using a pragma:
+  has to be bound using the BUILTIN pragmas:
 
     {-# BUILTIN EQUALITY _≡_ #-}
-
-  If x and y are definitionally equal, then
-  primTrustMe {x = x} {y = y} reduces to refl, where
-
-    refl : {A : Set} {x : A} → x ≡ x
-
-  is specified using another pragma:
-
     {-# BUILTIN REFL refl #-}
 
+  If x and y are definitionally equal, then
+  primTrustMe {x = x} {y = y} reduces to refl.
+
   For an example of the use of primTrustMe, see Data.String in version
-  0.3 of the standard library.
+  0.3 of the standard library, where it is used to implement decidable
+  equality on strings from the primitive boolean equality.
 
 Tools
 -----
