@@ -43,7 +43,7 @@ proj₁ (x , y) = x
 proj₂ : ∀ {A B} → (p : Σ A B) → B (proj₁ p)
 proj₂ (x , y) = y
 
-<_,_> : ∀ {A} {B : A → Set} {C : ∀ {x} → B x → Set}
+<_,_> : {A : Set} {B : A → Set} {C : ∀ {x} → B x → Set}
         (f : (x : A) → B x) → ((x : A) → C (f x)) →
         ((x : A) → Σ (B x) C)
 < f , g > x = (f x , g x)

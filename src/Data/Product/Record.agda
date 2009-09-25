@@ -31,7 +31,7 @@ a × b = Σ a (λ _ → b)
 _,_ : ∀ {a b} → (x : a) → b x → Σ a b
 (x , y) = record {proj₁ = x; proj₂ = y}
 
-<_,_> : ∀ {A} {B : A → Set} {C : ∀ {x} → B x → Set}
+<_,_> : {A : Set} {B : A → Set} {C : ∀ {x} → B x → Set}
         (f : (x : A) → B x) → ((x : A) → C (f x)) →
         ((x : A) → Σ (B x) C)
 < f , g > x = (f x , g x)
