@@ -914,6 +914,9 @@ class ( Applicative tcm, MonadIO tcm
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
 mapTCMT f = TCM . mapStateT (mapReaderT (mapErrorT f)) . unTCM
 
+pureTCM :: Monad m => (TCState -> TCEnv -> a) -> TCMT m a
+pureTCM f = TCM $ StateT $ \s -> ReaderT $ \e -> ErrorT $ return (Right (f s e, s))
+
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 

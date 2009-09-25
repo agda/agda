@@ -285,16 +285,22 @@ singleConstructorType q = do
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
-getConstInfo q = liftTCM $ do
-  ab    <- treatAbstractly q
-  defs  <- sigDefinitions <$> getSignature
-  idefs <- sigDefinitions <$> getImportedSignature
-  let smash = (++) `on` maybe [] (:[])
-  case smash (Map.lookup q defs) (Map.lookup q idefs) of
-      []  -> fail $ show (getRange q) ++ ": no such name " ++ show q
+getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
+  let defs  = sigDefinitions $ stSignature st
+      idefs = sigDefinitions $ stImports st
+      ab    = treatAbstractly' q env
+      smash = (++) `on` maybe [] (:[])
+  in case smash (Map.lookup q defs) (Map.lookup q idefs) of
+      []  -> __IMPOSSIBLE__
       [d] -> mkAbs ab d
-      ds  -> fail $ show (getRange q) ++ ": ambiguous name " ++ show q
+      ds  -> __IMPOSSIBLE__
   where
+{-
+    mkAbs True d = case makeAbstract d of
+      Just d  -> d
+      Nothing -> d  -- TODO: type error
+    mkAbs False d = d
+-}
     mkAbs True d =
       case makeAbstract d of
 	Just d	-> return d
