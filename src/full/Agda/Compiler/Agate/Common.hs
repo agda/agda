@@ -82,12 +82,14 @@ underContext ty k = withFunctionDomain ty return $ \_ _ -> k
 --
 
 showOptimizedLiteral :: Literal -> Doc
+showOptimizedLiteral (LitLevel  _ i) = text $ show i
 showOptimizedLiteral (LitInt    _ i) = text $ show i
 showOptimizedLiteral (LitString _ s) = text $ show s
 showOptimizedLiteral (LitFloat  _ f) = text $ show f
 showOptimizedLiteral (LitChar   _ c) = text $ show c
 
 showUntypedLiteral :: Literal -> Doc
+showUntypedLiteral (LitLevel  _ i) = text "VInt"    <+> text (show i)
 showUntypedLiteral (LitInt    _ i) = text "VInt"    <+> text (show i)
 showUntypedLiteral (LitString _ s) = text "VString" <+> text (show s)
 showUntypedLiteral (LitFloat  _ f) = text "VFloat"  <+> text (show f)

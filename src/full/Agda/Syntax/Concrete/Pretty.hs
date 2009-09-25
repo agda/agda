@@ -41,6 +41,7 @@ instance Pretty QName where
     pretty = text . show
 
 instance Pretty Literal where
+    pretty (LitLevel _ n)   = text $ show n
     pretty (LitInt _ n)	    = text $ show n
     pretty (LitFloat _ x)   = text $ show x
     pretty (LitString _ s)  = text $ showString' s ""

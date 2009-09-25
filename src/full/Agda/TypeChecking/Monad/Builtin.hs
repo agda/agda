@@ -59,8 +59,8 @@ getPrimitive x = do
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
-    primNatEquality, primNatLess, primNatMax, primSize, primSizeSuc, primSizeInf,
-    primEquality, primRefl
+    primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
+    primEquality, primRefl, primLevel, primLevelZero, primLevelSuc, primLevelMax
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -83,12 +83,15 @@ primNatDivSucAux = getBuiltin builtinNatDivSucAux
 primNatModSucAux = getBuiltin builtinNatModSucAux
 primNatEquality  = getBuiltin builtinNatEquals
 primNatLess      = getBuiltin builtinNatLess
-primNatMax       = getBuiltin builtinNatMax
 primSize         = getBuiltin builtinSize
 primSizeSuc      = getBuiltin builtinSizeSuc
 primSizeInf      = getBuiltin builtinSizeInf
 primEquality     = getBuiltin builtinEquality
 primRefl         = getBuiltin builtinRefl
+primLevel        = getBuiltin builtinLevel
+primLevelZero    = getBuiltin builtinLevelZero
+primLevelSuc     = getBuiltin builtinLevelSuc
+primLevelMax     = getBuiltin builtinLevelMax
 
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
@@ -100,7 +103,6 @@ builtinNatDivSucAux = "NATDIVSUCAUX"
 builtinNatModSucAux = "NATMODSUCAUX"
 builtinNatEquals    = "NATEQUALS"
 builtinNatLess      = "NATLESS"
-builtinNatMax       = "NATMAX"
 builtinInteger      = "INTEGER"
 builtinFloat        = "FLOAT"
 builtinChar         = "CHAR"
@@ -117,6 +119,10 @@ builtinSizeSuc      = "SIZESUC"
 builtinSizeInf      = "SIZEINF"
 builtinEquality     = "EQUALITY"
 builtinRefl         = "REFL"
+builtinLevelMax     = "LEVELMAX"
+builtinLevel        = "LEVEL"
+builtinLevelZero    = "LEVELZERO"
+builtinLevelSuc     = "LEVELSUC"
 
 builtinTypes :: [String]
 builtinTypes =
@@ -126,5 +132,6 @@ builtinTypes =
     , builtinString
     , builtinBool
     , builtinNat
+    , builtinLevel
     ]
 

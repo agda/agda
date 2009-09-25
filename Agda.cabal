@@ -158,6 +158,7 @@ library
                    Agda.TypeChecking.Free
                    Agda.TypeChecking.Implicit
                    Agda.TypeChecking.Injectivity
+                   Agda.TypeChecking.Level
                    Agda.TypeChecking.MetaVars
                    Agda.TypeChecking.Monad.Base
                    Agda.TypeChecking.Monad.Builtin
@@ -178,7 +179,6 @@ library
                    Agda.TypeChecking.Monad.Statistics
                    Agda.TypeChecking.Monad.Trace
                    Agda.TypeChecking.Monad
-                   Agda.TypeChecking.Nat
                    Agda.TypeChecking.Patterns.Match
                    Agda.TypeChecking.Polarity
                    Agda.TypeChecking.Positivity

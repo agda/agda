@@ -156,12 +156,12 @@ instance Reduce Sort where
     reduce s = {-# SCC "reduce<Sort>" #-}
       ifM (not <$> hasUniversePolymorphism) (red sSuc sLub s)
       $ liftTCM $ do
-        suc  <- do sc <- primSuc
+        suc  <- do sc <- primLevelSuc
                    return $ \x -> case x of
                                     Type n -> Type (sc `apply` [Arg NotHidden n])
                                     _      -> sSuc x
           `catchError` \_ -> return sSuc
-        lub <- do mx <- primNatMax
+        lub <- do mx <- primLevelMax
                   return $ \x y -> case (x, y) of
                     (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden) [n, m])
                     _                -> sLub x y
@@ -221,19 +221,24 @@ instance Reduce Term where
 		Lam _ _    -> return $ notBlocked v
 	where
 	    reduceNat v@(Con c []) = do
-		mz <- getBuiltin' builtinZero
-		case mz of
-		    Just (Con z []) | c == z -> return $ Lit $ LitInt (getRange c) 0
-		    _			     -> return v
+		mz  <- getBuiltin' builtinZero
+                mlz <- getBuiltin' builtinLevelZero
+		case v of
+                  _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
+                    | Just v == mlz -> return $ Lit $ LitLevel (getRange c) 0
+		  _		    -> return v
 	    reduceNat v@(Con c [Arg NotHidden w]) = do
-		ms <- getBuiltin' builtinSuc
-		case ms of
-		    Just (Con s []) | c == s -> do
-			w <- reduce w
-			case w of
-			    Lit (LitInt r n) -> return $ Lit $ LitInt (fuseRange c r) $ n + 1
-			    _		     -> return $ Con c [Arg NotHidden w]
-		    _	-> return v
+		ms  <- getBuiltin' builtinSuc
+                mls <- getBuiltin' builtinLevelSuc
+		case v of
+                  _ | Just (Con c []) == ms ||
+                      Just (Con c []) == mls -> inc <$> reduce w
+		  _	                     -> return v
+                  where
+                    inc w = case w of
+                      Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
+                      Lit (LitLevel r n) -> Lit (LitLevel (fuseRange c r) $ n + 1)
+                      _                  -> Con c [Arg NotHidden w]
 	    reduceNat v = return v
 
 -- | If the first argument is 'True', then a single delayed clause may

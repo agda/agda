@@ -278,7 +278,7 @@ set n  = sort $ mkType n
 prop   = sort Prop
 sort s = El (sSuc s) $ Sort s
 
-mkType n = Type $ Lit $ LitInt noRange n
+mkType n = Type $ Lit $ LitLevel noRange n
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
@@ -293,20 +293,20 @@ unEl (El _ t) = t
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
 sSuc Prop                      = mkType 1
-sSuc (Type (Lit (LitInt _ n))) = mkType (n + 1)
+sSuc (Type (Lit (LitLevel _ n))) = mkType (n + 1)
 sSuc Inf                       = Inf
 sSuc s                         = Suc s
 
 sLub :: Sort -> Sort -> Sort
-sLub (Type (Lit (LitInt _ 0))) Prop                      = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
-sLub (Type (Lit (LitInt _ n))) Prop                      = mkType n
-sLub Prop (Type (Lit (LitInt _ n)))                      = mkType n
-sLub (Type (Lit (LitInt _ n))) (Type (Lit (LitInt _ m))) = mkType $ max n m
+sLub (Type (Lit (LitLevel _ 0))) Prop                      = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
+sLub (Type (Lit (LitLevel _ n))) Prop                      = mkType n
+sLub Prop (Type (Lit (LitLevel _ n)))                      = mkType n
+sLub (Type (Lit (LitLevel _ n))) (Type (Lit (LitLevel _ m))) = mkType $ max n m
 sLub (Suc a) (Suc b) = Suc (sLub a b)
-sLub (Type (Lit (LitInt _ n))) (Suc a)
+sLub (Type (Lit (LitLevel _ n))) (Suc a)
   | n > 0     = sSuc (mkType (n - 1) `sLub` a)
   | otherwise = Suc a
-sLub (Suc a) (Type (Lit (LitInt _ n)))
+sLub (Suc a) (Type (Lit (LitLevel _ n)))
   | n > 0     = sSuc (a `sLub` mkType (n - 1))
   | otherwise = Suc a
 sLub Inf _ = Inf

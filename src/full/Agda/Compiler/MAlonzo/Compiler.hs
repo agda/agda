@@ -246,6 +246,7 @@ literal l = case l of
 
 hslit :: Literal -> HsLiteral
 hslit l = case l of LitInt    _ x -> HsInt    x
+                    LitLevel  _ x -> HsInt    x
                     LitFloat  _ x -> HsFrac   (toRational x)
                     LitString _ x -> HsString x
                     LitChar   _ x -> HsChar   x

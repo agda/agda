@@ -27,7 +27,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Nat
+import Agda.TypeChecking.Level
 
 import Agda.Utils.Monad
 
@@ -70,12 +70,12 @@ compareTerm cmp a m n =
     proofIrr <- proofIrrelevance
     isSize   <- isSizeType a'
     s        <- reduce $ getSort a'
-    mnat     <- liftTCM $ (Just <$> primNat) `catchError` \_ -> return Nothing
+    mlvl     <- liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
     case s of
       Prop | proofIrr -> return []
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
-        a | Just a == mnat && cmp == CmpEq -> equalNat m n
+        a | Just a == mlvl && cmp == CmpEq -> equalLevel m n
         Pi a _    -> equalFun (a,a') m n
         Fun a _   -> equalFun (a,a') m n
         MetaV x _ -> do
@@ -378,12 +378,12 @@ leqSort s1 s2 =
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
 	    (Prop    , Type _  )	     -> return []
-	    (Type (Lit (LitInt _ n)), Type (Lit (LitInt _ m)))
+	    (Type (Lit (LitLevel _ n)), Type (Lit (LitLevel _ m)))
               | n <= m    -> return []
 	      | otherwise -> notLeq s1 s2
-            (Type a, Type b) -> leqNat a b
+            (Type a, Type b) -> leqLevel a b
 
-	    (Suc s   , Type (Lit (LitInt _ n)))
+	    (Suc s   , Type (Lit (LitLevel _ n)))
               | 1 <= n    -> leqSort s (mkType $ n - 1)
 	    (Suc s   , Type b  ) -> notLeq s1 s2  -- TODO
             (Suc s1  , Suc s2  ) -> leqSort s1 s2 -- TODO: not what we want for Prop(?)
@@ -402,48 +402,49 @@ leqSort s1 s2 =
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
-leqNat :: MonadTCM tcm => Term -> Term -> tcm Constraints
-leqNat a b = liftTCM $ do
+leqLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
+leqLevel a b = liftTCM $ do
   reportSDoc "tc.conv.nat" 10 $
-    text "compareNat" <+>
+    text "compareLevel" <+>
       sep [ prettyTCM a <+> text "=<"
           , prettyTCM b ]
-  nat <- primNat
-  n <- natView a
-  m <- natView b
-  leqView nat n m
+  n <- levelView a
+  m <- levelView b
+  leqView n m
   where
-    leqView nat n@(Max as) m@(Max bs) = do
+    leqView n@(Max as) m@(Max bs) = do
       reportSDoc "tc.conv.nat" 10 $
-        text "compareNatView" <+>
+        text "compareLevelView" <+>
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
       choice
-        [ concat <$> sequence [ leqPlusView nat a b | a <- as ]
+        [ concat <$> sequence [ leqPlusView a b | a <- as ]
         | b <- bs
         ]
       return []
-    leqPlusView nat n m = do
+    leqPlusView n m = do
       reportSDoc "tc.conv.nat" 10 $
         text "comparePlusView" <+>
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
       case (n, m) of
         -- Both closed
-        (ClosedNat n, ClosedNat m)
+        (ClosedLevel n, ClosedLevel m)
           | n <= m -> ok
 
         -- Both neutral
         (Plus n a, Plus m b)
-          | n <= m -> equalTerm (El (mkType 0) nat) (unNatAtom a) (unNatAtom b)
+          | n <= m -> do
+            lvl <- primLevel
+            equalTerm (El (mkType 0) lvl) (unLevelAtom a) (unLevelAtom b)
 
         -- closed ≤ neutral
-        (ClosedNat n, Plus m _)
+        (ClosedLevel n, Plus m _)
           | n <= m -> ok
 
         -- Any blocked
-        (Plus _ BlockedNat{}, _) -> patternViolation
-        (_, Plus _ BlockedNat{}) -> patternViolation
+        (Plus _ BlockedLevel{}, _) -> patternViolation
+        (_, Plus _ BlockedLevel{}) -> patternViolation
 
         _ -> notok
     ok = return []
@@ -452,13 +453,13 @@ leqNat a b = liftTCM $ do
     choice []     = patternViolation
     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
 
-equalNat :: MonadTCM tcm => Term -> Term -> tcm Constraints
-equalNat a b = do
-  nat <- El (mkType 0) <$> primNat
-  Max as <- natView a
-  Max bs <- natView b
+equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
+equalLevel a b = do
+  let getLvl = El (mkType 0) <$> primLevel
+  Max as <- levelView a
+  Max bs <- levelView b
   reportSDoc "tc.conv.nat" 20 $
-    sep [ text "equalNat"
+    sep [ text "equalLevel"
         , nest 2 $ sep [ prettyTCM a <+> text "=="
                        , prettyTCM b
                        ]
@@ -466,39 +467,44 @@ equalNat a b = do
                        , text (show (Max bs))
                        ]
         ]
-  let (===)   = equalAtom nat
-      as =!= bs = do a <- unNatView (Max as)
-                     b <- unNatView (Max bs)
+  let a === b   = do
+        lvl <- getLvl
+        equalAtom lvl a b
+      as =!= bs = do a <- unLevelView (Max as)
+                     b <- unLevelView (Max bs)
                      a === b
   case (as, bs) of
     _ | List.sort as == List.sort bs -> ok
-      | any isBlocked (as ++ bs) ->
-          liftTCM $ useInjectivity CmpEq nat a b
+      | any isBlocked (as ++ bs) -> do
+          lvl <- getLvl
+          liftTCM $ useInjectivity CmpEq lvl a b
 
     -- 0 == any
     ([], _) -> concat <$> sequence [ as =!= [b] | b <- bs ]
     (_, []) -> concat <$> sequence [ [a] =!= bs | a <- as ]
 
     -- closed == closed
-    ([ClosedNat n], [ClosedNat m])
+    ([ClosedLevel n], [ClosedLevel m])
       | n == m    -> ok
       | otherwise -> notok
 
     -- closed == neutral
-    ([ClosedNat{}], [Plus _ NeutralNat{}]) -> notok
-    ([Plus _ NeutralNat{}], [ClosedNat{}]) -> notok
+    ([ClosedLevel{}], [Plus _ NeutralLevel{}]) -> notok
+    ([Plus _ NeutralLevel{}], [ClosedLevel{}]) -> notok
 
     -- meta == any
-    ([Plus n (MetaNat x as)], _)
+    ([Plus n (MetaLevel x as)], _)
       | any (isThisMeta x) bs -> postpone
       | otherwise             -> do
         bs' <- mapM (subtr n) bs
-        assignV nat x as =<< unNatView (Max bs')
-    (_, [Plus n (MetaNat x bs)])
+        lvl <- getLvl
+        assignV lvl x as =<< unLevelView (Max bs')
+    (_, [Plus n (MetaLevel x bs)])
       | any (isThisMeta x) as -> postpone
       | otherwise             -> do
         as' <- mapM (subtr n) as
-        assignV nat x bs =<< unNatView (Max as')
+        lvl <- getLvl
+        assignV lvl x bs =<< unLevelView (Max as')
 
     -- any other metas
     _ | any isMeta (as ++ bs) -> postpone
@@ -514,25 +520,25 @@ equalNat a b = do
     notok    = typeError $ UnequalSorts (Type a) (Type b)
     postpone = patternViolation
 
-    subtr n (ClosedNat m)
-      | m >= n    = return $ ClosedNat (m - n)
+    subtr n (ClosedLevel m)
+      | m >= n    = return $ ClosedLevel (m - n)
       | otherwise = notok
     subtr n (Plus m a)
       | m >= n    = return $ Plus (m - n) a
-    subtr _ (Plus _ BlockedNat{}) = postpone
-    subtr _ (Plus _ MetaNat{})    = postpone
-    subtr _ (Plus _ NeutralNat{}) = notok
+    subtr _ (Plus _ BlockedLevel{}) = postpone
+    subtr _ (Plus _ MetaLevel{})    = postpone
+    subtr _ (Plus _ NeutralLevel{}) = notok
 
-    isNeutral (Plus _ NeutralNat{}) = True
+    isNeutral (Plus _ NeutralLevel{}) = True
     isNeutral _                     = False
 
-    isBlocked (Plus _ BlockedNat{}) = True
+    isBlocked (Plus _ BlockedLevel{}) = True
     isBlocked _                     = False
 
-    isMeta (Plus _ MetaNat{}) = True
+    isMeta (Plus _ MetaLevel{}) = True
     isMeta _                  = False
 
-    isThisMeta x (Plus _ (MetaNat y _)) = x == y
+    isThisMeta x (Plus _ (MetaLevel y _)) = x == y
     isThisMeta _ _                      = False
 
 
@@ -567,15 +573,15 @@ equalSort s1 s2 =
             (Type (Lit n), Type (Lit m))
               | n == m           -> return []
               | otherwise        -> notEq s1 s2
-            (Type a  , Type b  ) -> equalNat a b
+            (Type a  , Type b  ) -> equalLevel a b
 	    (Suc s   , Prop    ) -> notEq s1 s2
-	    (Suc s   , Type (Lit (LitInt _ 0))) -> notEq s1 s2
-	    (Suc s   , Type (Lit (LitInt _ 1))) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Suc s   , Type (Lit (LitInt _ n))) -> equalSort s (mkType $ n - 1)
+	    (Suc s   , Type (Lit (LitLevel _ 0))) -> notEq s1 s2
+	    (Suc s   , Type (Lit (LitLevel _ 1))) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Suc s   , Type (Lit (LitLevel _ n))) -> equalSort s (mkType $ n - 1)
 	    (Prop    , Suc s   ) -> notEq s1 s2
-	    (Type (Lit (LitInt _ 0))  , Suc s   ) -> notEq s1 s2
-	    (Type (Lit (LitInt _ 1))  , Suc s   ) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Type (Lit (LitInt _ n))  , Suc s   ) -> equalSort (mkType $ n - 1) s
+	    (Type (Lit (LitLevel _ 0))  , Suc s   ) -> notEq s1 s2
+	    (Type (Lit (LitLevel _ 1))  , Suc s   ) -> buildConstraint (SortCmp CmpEq s1 s2)
+	    (Type (Lit (LitLevel _ n))  , Suc s   ) -> equalSort (mkType $ n - 1) s
             (Suc s1  , Suc s2  ) -> equalSort s1 s2 -- TODO: not what we want for Prop(?)
 	    (_	     , Suc _   ) -> buildConstraint (SortCmp CmpEq s1 s2)
 	    (Suc _   , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
@@ -583,11 +589,11 @@ equalSort s1 s2 =
             (Inf     , Inf     )             -> return []
             (Inf     , _       )             -> notEq s1 s2
             (_       , Inf     )             -> notEq s1 s2
-            (s0@(Type (Lit (LitInt _ 0))), Lub s1 s2) -> do
+            (s0@(Type (Lit (LitLevel _ 0))), Lub s1 s2) -> do
               cs1 <- equalSort s0 s1
               cs2 <- equalSort s0 s2
               return $ cs1 ++ cs2
-            (Lub s1 s2, s0@(Type (Lit (LitInt _ 0)))) -> do
+            (Lub s1 s2, s0@(Type (Lit (LitLevel _ 0)))) -> do
               cs1 <- equalSort s1 s0
               cs2 <- equalSort s2 s0
               return $ cs1 ++ cs2
@@ -599,11 +605,11 @@ equalSort s1 s2 =
 	    (Lub _ _ , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
 	    (_	     , Lub _ _ ) -> buildConstraint (SortCmp CmpEq s1 s2)
 
-            (DLub s1 s2, s0@(Type (Lit (LitInt _ 0)))) -> do
+            (DLub s1 s2, s0@(Type (Lit (LitLevel _ 0)))) -> do
               cs1 <- equalSort s1 s0
               cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s2 s0
               return $ cs1 ++ cs2
-            (s0@(Type (Lit (LitInt _ 0))), DLub s1 s2) -> do
+            (s0@(Type (Lit (LitLevel _ 0))), DLub s1 s2) -> do
               cs1 <- equalSort s0 s1
               cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s0 s2
               return $ cs1 ++ cs2

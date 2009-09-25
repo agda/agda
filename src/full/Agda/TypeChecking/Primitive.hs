@@ -37,13 +37,17 @@ import Agda.Utils.Impossible
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: MonadTCM tcm => Term -> tcm Term
-constructorForm v@(Lit (LitInt r n))
-    | n == 0	= primZero
-    | n > 0	= do
-	s <- primSuc
-	return $ s `apply` [Arg NotHidden $ Lit $ LitInt r $ n - 1]
-    | otherwise	= return v
-constructorForm v = return v
+constructorForm v = case v of
+    Lit (LitInt r n)   -> cons primZero primSuc (LitInt r) n
+    Lit (LitLevel r n) -> cons primLevelZero primLevelSuc (LitLevel r) n
+    _                  -> return v
+  where
+    cons pZero pSuc lit n
+      | n == 0  = pZero
+      | n > 0   = do
+        s <- pSuc
+        return $ s `apply` [Arg NotHidden $ Lit $ lit $ n - 1]
+      | otherwise	= return v
 
 ---------------------------------------------------------------------------
 -- * Primitive functions
@@ -58,6 +62,12 @@ newtype Str = Str { unStr :: String }
 
 newtype Nat = Nat { unNat :: Integer }
     deriving (Eq, Ord, Num, Integral, Enum, Real)
+
+newtype Lvl = Lvl { unLvl :: Integer }
+  deriving (Eq, Ord)
+
+instance Show Lvl where
+  show = show . unLvl
 
 instance Show Nat where
     show = show . unNat
@@ -78,6 +88,7 @@ instance PrimTerm Char	  where primTerm _ = primChar
 instance PrimTerm Double  where primTerm _ = primFloat
 instance PrimTerm Str	  where primTerm _ = primString
 instance PrimTerm Nat	  where primTerm _ = primNat
+instance PrimTerm Lvl     where primTerm _ = primLevel
 
 instance PrimTerm a => PrimTerm [a] where
     primTerm _ = list (primTerm (undefined :: a))
@@ -92,6 +103,7 @@ class ToTerm a where
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
+instance ToTerm Lvl	where toTerm = return $ Lit . LitLevel noRange . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
@@ -135,6 +147,11 @@ instance FromTerm Nat where
     fromTerm = fromLiteral $ \l -> case l of
 	LitInt _ n -> Just $ Nat n
 	_	   -> Nothing
+
+instance FromTerm Lvl where
+    fromTerm = fromLiteral $ \l -> case l of
+	LitLevel _ n -> Just $ Lvl n
+	_	     -> Nothing
 
 instance FromTerm Double where
     fromTerm = fromLiteral $ \l -> case l of
@@ -382,7 +399,7 @@ primitiveFunctions = Map.fromList
         in mkPrimFun4 aux
     , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
-    , "primNatMax"	    |-> mkPrimFun2 (max			    :: Op Nat)
+    , "primLevelMax"	    |-> mkPrimFun2 (max			    :: Op Lvl)
 
     -- Floating point functions
     , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)

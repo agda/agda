@@ -135,6 +135,7 @@ checkLiteral lit t = do
 
 litType :: Literal -> TCM Type
 litType l = case l of
+    LitLevel _ _  -> el <$> primLevel
     LitInt _ _	  -> el <$> primNat
     LitFloat _ _  -> el <$> primFloat
     LitChar _ _   -> el <$> primChar
@@ -252,10 +253,10 @@ checkExpr e t =
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ do
-            nat <- primNat
-            suc <- do s <- primSuc
+            lvl <- primLevel
+            suc <- do s <- primLevelSuc
                       return $ \x -> s `apply` [Arg NotHidden x]
-            n   <- checkExpr (namedThing l) (El (mkType 0) nat)
+            n   <- checkExpr (namedThing l) (El (mkType 0) lvl)
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+> text "against" <+> prettyTCM t
             blockTerm t (Sort $ Type n) $ leqType (sort $ Type $ suc n) t

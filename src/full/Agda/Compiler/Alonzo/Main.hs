@@ -436,6 +436,7 @@ processTerm (MetaV _ _) =  error "Can't have metavariables"
 -- processTerm t =  return hsUndefined
 
 processLit :: Literal -> HsExp
+processLit (LitLevel r i) = processLit (LitInt r i)
 processLit (LitInt _ i) =  HsApp toNat $ intLit i where
 	intLit i = HsParen $ hsPreludeTypedExp "Integer" $ HsLit $ HsInt i
 	toNat = HsVar $ Qual (Module "RTP") $ HsIdent "_primIntegerToNat"

@@ -382,6 +382,7 @@ instance ShrinkC ConName QName where
 instance ShrinkC Literal Literal where
   shrinkC _ (LitInt _ 0) = []
   shrinkC conf l	 = LitInt noRange 0 : case l of
+      LitLevel  r n -> LitLevel  r <$> shrink n
       LitInt    r n -> LitInt    r <$> shrink n
       LitString r s -> LitString r <$> shrinkC conf s
       LitChar   r c -> LitChar   r <$> shrinkC conf c

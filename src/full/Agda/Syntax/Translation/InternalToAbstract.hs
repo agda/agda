@@ -374,7 +374,7 @@ instance Reify Sort Expr where
     reify s =
 	do  s <- instantiateFull s
 	    case s of
-                I.Type (I.Lit (LitInt _ n)) -> return $ A.Set exprInfo n
+                I.Type (I.Lit (LitLevel _ n)) -> return $ A.Set exprInfo n
                 I.Type a -> do
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0)

@@ -17,6 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Pretty
 
 import Agda.TypeChecking.Rules.Term ( checkExpr )
 
@@ -40,8 +41,10 @@ ensureInductive t = do
 
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
+    let s = sort $ mkType 0
+    reportSDoc "tc.builtin" 20 $ text "checking builtin type" <+> prettyA e <+> text ":" <+> text (show s)
     t <- checkExpr e (sort $ mkType 0)
-    when (b `elem` [builtinBool, builtinNat]) $ do
+    when (b `elem` [builtinBool, builtinNat, builtinLevel]) $ do
       ensureInductive t
     bindBuiltinName b t
 
@@ -61,19 +64,25 @@ bindBuiltinType1 thing e = do
       ensureInductive f
     bindBuiltinName thing f
 
-bindBuiltinZero :: A.Expr -> TCM ()
-bindBuiltinZero e = do
-    nat  <- primNat
+bindBuiltinZero' :: String -> TCM Term -> A.Expr -> TCM ()
+bindBuiltinZero' bZero pNat e = do
+    nat  <- pNat
     zero <- checkExpr e (El (mkType 0) nat)
-    bindBuiltinName builtinZero zero
+    bindBuiltinName bZero zero
 
-bindBuiltinSuc :: A.Expr -> TCM ()
-bindBuiltinSuc e = do
-    nat  <- primNat
+bindBuiltinSuc' :: String -> TCM Term -> A.Expr -> TCM ()
+bindBuiltinSuc' bSuc pNat e = do
+    nat  <- pNat
     let nat' = El (mkType 0) nat
         natToNat = El (mkType 0) $ Fun (Arg NotHidden nat') nat'
     suc <- checkExpr e natToNat
-    bindBuiltinName builtinSuc suc
+    bindBuiltinName bSuc suc
+
+bindBuiltinZero e = bindBuiltinZero' builtinZero primNat e
+bindBuiltinSuc  e = bindBuiltinSuc'  builtinSuc primNat e
+
+bindBuiltinLevelZero e = bindBuiltinZero' builtinLevelZero primLevel e
+bindBuiltinLevelSuc  e = bindBuiltinSuc'  builtinLevelSuc  primLevel e
 
 typeOfSizeInf :: TCM Type
 typeOfSizeInf = do
@@ -132,14 +141,14 @@ bindBuiltinPrimitive _ b _ _ = typeError $ GenericError $ "Builtin " ++ b ++ " m
 
 builtinPrimitives :: [ (String, (String, Term -> TCM ())) ]
 builtinPrimitives =
-    [ "NATPLUS"      |-> ("primNatPlus", verifyPlus)
-    , "NATMINUS"     |-> ("primNatMinus", verifyMinus)
-    , "NATTIMES"     |-> ("primNatTimes", verifyTimes)
-    , "NATDIVSUCAUX" |-> ("primNatDivSucAux", verifyDivSucAux)
-    , "NATMODSUCAUX" |-> ("primNatModSucAux", verifyModSucAux)
-    , "NATEQUALS"    |-> ("primNatEquality", verifyEquals)
-    , "NATLESS"      |-> ("primNatLess", verifyLess)
-    , "NATMAX"       |-> ("primNatMax", verifyMax)
+    [ "NATPLUS"       |-> ("primNatPlus", verifyPlus)
+    , "NATMINUS"      |-> ("primNatMinus", verifyMinus)
+    , "NATTIMES"      |-> ("primNatTimes", verifyTimes)
+    , "NATDIVSUCAUX"  |-> ("primNatDivSucAux", verifyDivSucAux)
+    , "NATMODSUCAUX"  |-> ("primNatModSucAux", verifyModSucAux)
+    , "NATEQUALS"     |-> ("primNatEquality", verifyEquals)
+    , "NATLESS"       |-> ("primNatLess", verifyLess)
+    , builtinLevelMax |-> ("primLevelMax", verifyMax)
     ]
     where
         (|->) = (,)
@@ -237,7 +246,8 @@ builtinPrimitives =
             (zero  < suc m) === true
 
         verifyMax maxV =
-            verify ["n","m"] $ \(@@) zero suc (==) choice -> do
+            verify' primLevel primLevelZero primLevelSuc ["n","m"] $
+              \(@@) zero suc (==) choice -> do
                 let m = Var 0 []
                     n = Var 1 []
                     max x y = maxV @@ x @@ y
@@ -246,13 +256,16 @@ builtinPrimitives =
                 max (suc n) zero    == suc n
                 max (suc n) (suc m) == suc (max n m)
 
-        verify :: [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
+        verify xs = verify' primNat primZero primSuc xs
+
+        verify' ::  TCM Term -> TCM Term -> TCM Term ->
+                    [String] -> ( (Term -> Term -> Term) -> Term -> (Term -> Term) ->
                                 (Term -> Term -> TCM ()) ->
                                 ([TCM ()] -> TCM ()) -> TCM a) -> TCM a
-        verify xs f = do
-            nat  <- El (mkType 0) <$> primNat
-            zero <- primZero
-            s    <- primSuc
+        verify' pNat pZero pSuc xs f = do
+            nat  <- El (mkType 0) <$> pNat
+            zero <- pZero
+            s    <- pSuc
             let x @@ y = x `apply` [Arg NotHidden y]
                 x == y = noConstraints $ equalTerm nat x y
                 suc n  = s @@ n
@@ -289,13 +302,15 @@ bindBuiltinRefl e = do
 -- | Builtin constructors
 builtinConstructors :: [(String, A.Expr -> TCM ())]
 builtinConstructors =
-  [ (builtinNil,     bindBuiltinNil               )
-  , (builtinCons,    bindBuiltinCons              )
-  , (builtinZero,    bindBuiltinZero              )
-  , (builtinSuc,     bindBuiltinSuc               )
-  , (builtinTrue,    bindBuiltinBool builtinTrue  )
-  , (builtinFalse,   bindBuiltinBool builtinFalse )
-  , (builtinRefl,    bindBuiltinRefl              )
+  [ (builtinNil,       bindBuiltinNil               )
+  , (builtinCons,      bindBuiltinCons              )
+  , (builtinZero,      bindBuiltinZero              )
+  , (builtinSuc,       bindBuiltinSuc               )
+  , (builtinTrue,      bindBuiltinBool builtinTrue  )
+  , (builtinFalse,     bindBuiltinBool builtinFalse )
+  , (builtinRefl,      bindBuiltinRefl              )
+  , (builtinLevelZero, bindBuiltinLevelZero         )
+  , (builtinLevelSuc,  bindBuiltinLevelSuc          )
   ]
 
 -- | Builtin postulates
