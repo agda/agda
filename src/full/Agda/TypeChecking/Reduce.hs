@@ -259,7 +259,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
   where
     reducePrimitive x v0 f args pf delayed cls
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
-        | otherwise = do
+        | otherwise = {-# SCC "reducePrimitive" #-} do
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
@@ -271,7 +271,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             ar  = primFunArity pf
             def = primFunImplementation pf
 
-    reduceNormal v0 f args delayed def = do
+    reduceNormal v0 f args delayed def = {-# SCC "reduceNormal" #-} do
         case (delayed, def) of
             (Delayed, _) | not unfoldDelayed -> defaultResult
             (_, []) -> defaultResult -- no definition for head
@@ -288,7 +288,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
     appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
-    appDef v cls args = goCls cls args where
+    appDef v cls args = {-# SCC "appDef" #-} goCls cls args where
 
         goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args
@@ -312,7 +312,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
         hasBody (NoBind b)	 = hasBody b
 
         app []		 (Body v')	     = v'
-        app (arg : args) (Bind (Abs _ body)) = app args $ subst arg body -- CBN
+        app (arg : args) (Bind (Abs _ body)) = {-# SCC "instRHS" #-} app args $ subst arg body -- CBN
         app (_   : args) (NoBind body)	     = app args body
         app  _		  NoBody	     = __IMPOSSIBLE__
         app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
