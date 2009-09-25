@@ -74,7 +74,8 @@ import Agda.Utils.Monad
     'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
     'BUILTIN'	{ TokKeyword KwBUILTIN $$ }
     'IMPORT'	{ TokKeyword KwIMPORT $$ }
-    'COMPILED'	{ TokKeyword KwCOMPILED $$ }
+    'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
+    'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
 
@@ -755,6 +756,7 @@ DeclarationPragma
   | CompiledDataPragma { $1 }
   | CompiledTypePragma { $1 }
   | ImportPragma       { $1 }
+  | ImpossiblePragma   { $1 }
 
 OptionsPragma :: { Pragma }
 OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
@@ -783,6 +785,9 @@ ImportPragma :: { Pragma }
 ImportPragma
   : '{-#' 'IMPORT' PragmaStrings '#-}'
     { ImportPragma (fuseRange $1 $4) (unwords $3) }
+
+ImpossiblePragma :: { Pragma }
+  : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (fuseRange $1 $3) }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

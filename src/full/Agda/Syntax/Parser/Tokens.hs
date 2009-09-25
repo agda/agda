@@ -19,6 +19,7 @@ data Keyword
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
         | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwIMPORT
+        | KwIMPOSSIBLE
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

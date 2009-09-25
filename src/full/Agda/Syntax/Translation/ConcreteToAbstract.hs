@@ -634,6 +634,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImportPragma _ i) = do
       addHaskellImport i
       return []
+    toAbstract (C.ImpossiblePragma _) = __IMPOSSIBLE__
 
 -- Only constructor names are bound by definitions.
 instance ToAbstract NiceDefinition Definition where

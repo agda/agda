@@ -256,6 +256,8 @@ instance Pretty Pragma where
       hsep $ [text "COMPILED_DATA", pretty x] ++ map text (hs : hcs)
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
+    pretty (ImpossiblePragma _) =
+      hsep $ [text "IMPOSSIBLE"]
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)
