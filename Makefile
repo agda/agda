@@ -41,15 +41,24 @@ PREFIX=/usr/local
 
 install : install-lib install-bin install-emacs-mode
 
+prof : install-prof-bin
+
 # Installs the Emacs mode, but does not set it up.
 install-lib :
 	cabal install --prefix="$(PREFIX)"
+
+install-prof-lib :
+	cabal install --prefix="$(PREFIX)" --enable-library-profiling
 
 sudo-install-lib :
 	sudo cabal install --prefix="$(PREFIX)"
 
 install-bin : install-lib
 	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
+
+install-prof-bin : install-prof-lib
+	cd src/main && cabal clean && \
+	cabal install --prefix="$(PREFIX)" --program-suffix=_p --enable-executable-profiling
 
 sudo-install-bin : sudo-install-lib
 	cd src/main && sudo cabal clean && sudo cabal install --prefix="$(PREFIX)"
