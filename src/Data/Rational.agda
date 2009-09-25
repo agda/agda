@@ -20,7 +20,10 @@ open ≡-Reasoning
 ------------------------------------------------------------------------
 -- The definition
 
--- Rational numbers in reduced form.
+-- Rational numbers in reduced form. Note that there is exactly one
+-- representative for every rational number. (This is the reason for
+-- using "True" below. If Agda had proof irrelevance, then it would
+-- suffice to use "isCoprime : Coprime numerator denominator".)
 
 record ℚ : Set where
   field
