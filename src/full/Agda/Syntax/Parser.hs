@@ -15,7 +15,7 @@ module Agda.Syntax.Parser
     , ParseError(..)
     ) where
 
-import Control.OldException
+import Control.Exception
 import Data.List
 import System.Directory
 
@@ -35,14 +35,14 @@ import Agda.Utils.FileName
 
 wrap :: Strict a => ParseResult a -> a
 wrap (ParseOk _ x)	= x
-wrap (ParseFailed err)	= throwDyn err
+wrap (ParseFailed err)	= throw err
 
 wrapM:: (Strict a, Monad m) => m (ParseResult a) -> m a
 wrapM m =
     do	r <- m
 	case r of
 	    ParseOk _ x	    -> return x
-	    ParseFailed err -> throwDyn err
+	    ParseFailed err -> throw err
 
 ------------------------------------------------------------------------
 -- Parse functions

@@ -12,7 +12,6 @@ module Agda.Syntax.Concrete.Definitions
     , notSoNiceDeclarations
     ) where
 
-import Control.Exception
 import Control.Applicative
 
 import Data.Generics (Data, Typeable)

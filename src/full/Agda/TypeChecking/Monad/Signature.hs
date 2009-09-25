@@ -291,16 +291,10 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
       ab    = treatAbstractly' q env
       smash = (++) `on` maybe [] (:[])
   in case smash (Map.lookup q defs) (Map.lookup q idefs) of
-      []  -> __IMPOSSIBLE__
+      []  -> fail $ "Unbound name: " ++ show q
       [d] -> mkAbs ab d
-      ds  -> __IMPOSSIBLE__
+      ds  -> fail $ "Ambiguous name: " ++ show q
   where
-{-
-    mkAbs True d = case makeAbstract d of
-      Just d  -> d
-      Nothing -> d  -- TODO: type error
-    mkAbs False d = d
--}
     mkAbs True d =
       case makeAbstract d of
 	Just d	-> return d

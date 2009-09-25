@@ -28,6 +28,7 @@ module Agda.Syntax.Parser.Monad
     )
     where
 
+import Control.Exception
 import Data.Char
 import Data.Typeable
 
@@ -95,6 +96,8 @@ data ParseError	= ParseError
 						--   of what happened
 		    }
     deriving (Typeable)
+
+instance Exception ParseError
 
 -- | The result of parsing something.
 data ParseResult a  = ParseOk ParseState a

@@ -4,10 +4,10 @@
   #-}
 module Agda.TypeChecking.Monad.Base where
 
+import Control.Exception as E
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
-import qualified Control.OldException as E
 import Control.Applicative
 import Data.Map as Map
 import Data.Set as Set
@@ -844,6 +844,9 @@ data TypeError
     -- Usage errors
           deriving (Typeable)
 
+instance Show TypeError where
+  show _ = "<TypeError>" -- TODO: more info?
+
 instance Error TypeError where
     noMsg  = strMsg ""
     strMsg = GenericError
@@ -872,13 +875,15 @@ instance Error TCErr where
     noMsg  = strMsg ""
     strMsg = TCErr Nothing . Exception noRange . strMsg
 
-{-
 instance Show TCErr where
+  show = show . errError
+
+instance Show TCErr' where
     show (TypeError _ e) = show (getRange $ clTrace e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
+    show (IOException r e) = show r ++ ": " ++ show e
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
--}
 
 instance HasRange TCErr' where
     getRange (TypeError _ cl)  = getRange $ clTrace cl
@@ -890,17 +895,17 @@ instance HasRange TCErr' where
 instance HasRange TCErr where
     getRange = getRange . errError
 
+instance Exception TCErr
+
 ---------------------------------------------------------------------------
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
 
 newtype TCMT m a = TCM { unTCM :: StateT TCState
-			          (ReaderT TCEnv
-			          (ErrorT TCErr m)) a
+			          (ReaderT TCEnv m) a
 		       }
     deriving ( MonadState TCState
              , MonadReader TCEnv
-             , MonadError TCErr
              )
 
 type TCM = TCMT IO
@@ -911,11 +916,17 @@ class ( Applicative tcm, MonadIO tcm
       ) => MonadTCM tcm where
     liftTCM :: TCM a -> tcm a
 
+instance MonadError TCErr (TCMT IO) where
+  throwError = liftIO . throwIO
+  catchError m h = TCM $ StateT $ \s -> ReaderT $ \e ->
+    runReaderT (runStateT (unTCM m) s) e
+    `E.catch` \err -> runReaderT (runStateT (unTCM (h err)) s) e
+
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
-mapTCMT f = TCM . mapStateT (mapReaderT (mapErrorT f)) . unTCM
+mapTCMT f = TCM . mapStateT (mapReaderT f) . unTCM
 
 pureTCM :: Monad m => (TCState -> TCEnv -> a) -> TCMT m a
-pureTCM f = TCM $ StateT $ \s -> ReaderT $ \e -> ErrorT $ return (Right (f s e, s))
+pureTCM f = TCM $ StateT $ \s -> ReaderT $ \e -> return (f s e, s)
 
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
@@ -924,12 +935,15 @@ instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
 instance MonadTrans TCMT where
-    lift = TCM . lift . lift . lift
+    lift = TCM . lift . lift
 
 -- We want a special monad implementation of fail.
 instance MonadIO m => Monad (TCMT m) where
     return  = TCM . return
-    m >>= k = TCM $ unTCM m >>= unTCM . k
+--     m >>= k = TCM $ unTCM m >>= unTCM . k
+    m >>= k = TCM $ StateT $ \s -> ReaderT $ \e -> do
+                (x, s') <- runReaderT (runStateT (unTCM m) s) e
+                runReaderT (runStateT (unTCM (k x)) s') e
     fail    = internalError
 
 instance MonadIO m => Functor (TCMT m) where
@@ -940,18 +954,16 @@ instance MonadIO m => Applicative (TCMT m) where
     (<*>) = ap
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ do tr <- gets stTrace
-                      lift $ lift $ ErrorT $ liftIO $
-                        E.handle (handleIOException $ getRange tr)
-                        (failOnException
-                         (\r -> return . throwError .
-                                  TCErr Nothing . Exception r)
-                         (return <$> m))
+  liftIO m = TCM $ do r <- gets $ getRange . stTrace
+                      liftIO $ wrap r $ do
+                        x <- m
+                        x `seq` return x
     where
-      handleIOException r e = case e of
-        E.IOException e -> return $ throwError $
-                             TCErr Nothing $ IOException r e
-        _               -> E.throwIO e
+      wrap r m = failOnException handleException
+               $ E.catch m (handleIOException r)
+
+      handleIOException r e = throwIO $ TCErr Nothing $ IOException r e
+      handleException   r s = throwIO $ TCErr Nothing $ Exception r s
 
 patternViolation :: MonadTCM tcm => tcm a
 patternViolation = liftTCM $ do
@@ -967,15 +979,12 @@ typeError err = liftTCM $ do
     s  <- get
     throwError $ TCErr Nothing $ TypeError s cl
 
-handleTypeErrorException :: MonadTCM tcm => IO a -> tcm a
-handleTypeErrorException m = do
-    r <- liftIO $ liftM Right m `E.catchDyn` (return . Left)
-    either typeError return r
-
 -- | Running the type checking monad
-runTCM :: Monad m => TCMT m a -> m (Either TCErr a)
-runTCM m = runErrorT
-	 $ flip runReaderT initEnv
-	 $ flip evalStateT initState
-	 $ unTCM m
+runTCM :: TCMT IO a -> IO (Either TCErr a)
+runTCM m = (Right <$> runTCM' m) `E.catch` (return . Left)
+
+runTCM' :: Monad m => TCMT m a -> m a
+runTCM' m = flip runReaderT initEnv
+          $ flip evalStateT initState
+          $ unTCM m
 
