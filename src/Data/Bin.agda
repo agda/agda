@@ -84,7 +84,7 @@ infix 4 _<_
 -- Order relation. Wrapped so that the parameters can be inferred.
 
 data _<_ (b₁ b₂ : Bin) : Set where
-  less : (lt : (Nat._<_ on₁ toℕ) b₁ b₂) → b₁ < b₂
+  less : (lt : (Nat._<_ on toℕ) b₁ b₂) → b₁ < b₂
 
 private
   <-trans : Transitive _<_
@@ -141,7 +141,7 @@ private
   0<+ {[]}     = 0<1
   0<+ {b ∷ bs} = <-trans 0<1 1<2+
 
-  compare⁺ : Trichotomous (_≡_ on₁ _1#) (_<_ on₁ _1#)
+  compare⁺ : Trichotomous (_≡_ on _1#) (_<_ on _1#)
   compare⁺ []         []         = tri≈ irr′ refl irr′
   compare⁺ []         (b ∷ bs)   = tri<       1<2+  (irr 1<2+) (asym 1<2+)
   compare⁺ (b ∷ bs)   []         = tri> (asym 1<2+) (irr 1<2+ ∘ sym) 1<2+

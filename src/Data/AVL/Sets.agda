@@ -20,7 +20,7 @@ open RawFunctor Maybe.functor
 -- The set type. (Note that Set is a reserved word.)
 
 private
-  open module S = AVL OrderedKeySet (const₁ ⊤)
+  open module S = AVL OrderedKeySet (const ⊤)
     public using () renaming (Tree to ⟨Set⟩)
 
 -- Repackaged functions.

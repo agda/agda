@@ -30,7 +30,7 @@ open _⟶_ public
                   (fun : C → (A → B)) →
                   (∀ f → fun f Preserves ∼₁ ⟶ ∼₂) →
                   IsEquivalence ∼₁ → IsEquivalence ∼₂ →
-                  IsEquivalence ((∼₁ ↝ ∼₂) on₁ fun)
+                  IsEquivalence ((∼₁ ↝ ∼₂) on fun)
 ↝-isEquivalence _ pres eq₁ eq₂ = record
   { refl  = λ {f} x∼₁y → pres f x∼₁y
   ; sym   = λ f∼g x∼y → sym eq₂ (f∼g (sym eq₁ x∼y))
@@ -42,7 +42,7 @@ open _⟶_ public
 _⇨_ : Setoid → Setoid → Setoid
 S₁ ⇨ S₂ = record
   { carrier       = S₁ ⟶ S₂
-  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on₁ _⟨$⟩_
+  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
   ; isEquivalence =
       ↝-isEquivalence _⟨$⟩_ pres (isEquivalence S₁) (isEquivalence S₂)
   } where open Setoid; open _⟶_

@@ -126,4 +126,4 @@ _⟨⊎⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A ⊎ B)
 (P ⟨⊎⟩ Q) (inj₂ q) = Q q
 
 _⟨→⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A → B)
-(P ⟨→⟩ Q) f = P ⊆ Q ∘₀ f
+(P ⟨→⟩ Q) f = P ⊆ Q ∘ f

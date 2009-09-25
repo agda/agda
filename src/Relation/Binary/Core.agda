@@ -32,7 +32,7 @@ P ⇒ Q = ∀ {i j} → P i j → Q i j
 -- P".
 
 _=[_]⇒_ : ∀ {a b} → Rel a → (a → b) → Rel b → Set
-P =[ f ]⇒ Q = P ⇒ (Q on₁ f)
+P =[ f ]⇒ Q = P ⇒ (Q on f)
 
 -- A synonym, along with a binary variant.
 
@@ -59,7 +59,7 @@ Irreflexive _≈_ _<_ = ∀ {x y} → x ≈ y → ¬ (x < y)
 -- Generalised symmetry.
 
 Sym : ∀ {a} → Rel a → Rel a → Set
-Sym P Q = P ⇒ flip₁ Q
+Sym P Q = P ⇒ flip Q
 
 Symmetric : {a : Set} → Rel a → Set
 Symmetric _∼_ = Sym _∼_ _∼_
@@ -83,8 +83,8 @@ P Respects _∼_ = ∀ {x y} → x ∼ y → P x → P y
 
 _Respects₂_ : {a : Set} → Rel a → Rel a → Set
 P Respects₂ _∼_ =
-  (∀ {x} → P x       Respects _∼_) ×
-  (∀ {y} → flip₁ P y Respects _∼_)
+  (∀ {x} → P x      Respects _∼_) ×
+  (∀ {y} → flip P y Respects _∼_)
 
 Substitutive : {a : Set} → Rel a → Set₁
 Substitutive _∼_ = ∀ P → P Respects _∼_
@@ -109,7 +109,7 @@ data Tri (A B C : Set) : Set where
 
 Trichotomous : {a : Set} → Rel a → Rel a → Set
 Trichotomous _≈_ _<_ = ∀ x y → Tri (x < y) (x ≈ y) (x > y)
-  where _>_ = flip₁ _<_
+  where _>_ = flip _<_
 
 record NonEmpty {I : Set} (T : Rel I) : Set where
   field

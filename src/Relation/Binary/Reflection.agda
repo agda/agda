@@ -29,7 +29,7 @@ module Relation.Binary.Reflection
          (var : ∀ {n} → Fin n → Expr n)
          (⟦_⟧ ⟦_⇓⟧ : ∀ {n} → Expr n → Vec A n → Setoid.carrier Sem)
          (correct : ∀ {n} (e : Expr n) ρ →
-                    ⟦ e ⇓⟧ ρ ⟨ Setoid._≈_ Sem ⟩₁ ⟦ e ⟧ ρ)
+                    ⟦ e ⇓⟧ ρ ⟨ Setoid._≈_ Sem ⟩ ⟦ e ⟧ ρ)
          where
 
 open import Data.Vec.N-ary

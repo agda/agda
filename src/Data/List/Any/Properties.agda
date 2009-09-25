@@ -28,12 +28,12 @@ open import Relation.Binary.PropositionalEquality as PropEq
 -- Introduction (⁺) and elimination (⁻) rules for map.
 
 map⁺ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-       Any (P ∘₀ f) xs → Any P (map f xs)
+       Any (P ∘ f) xs → Any P (map f xs)
 map⁺ (here p)  = here p
 map⁺ (there p) = there $ map⁺ p
 
 map⁻ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-       Any P (map f xs) → Any (P ∘₀ f) xs
+       Any P (map f xs) → Any (P ∘ f) xs
 map⁻ {xs = []}     ()
 map⁻ {xs = x ∷ xs} (here p)  = here p
 map⁻ {xs = x ∷ xs} (there p) = there $ map⁻ p
@@ -87,17 +87,17 @@ concat⁻ ((x ∷ xs) ∷ xss) (there p)
 -- Introduction and elimination rules for _>>=_.
 
 >>=⁺ : ∀ {A B P xs} {f : A → List B} →
-       Any (Any P ∘₀ f) xs → Any P (xs >>= f)
+       Any (Any P ∘ f) xs → Any P (xs >>= f)
 >>=⁺ = concat⁺ ∘ map⁺
 
 >>=⁻ : ∀ {A B P} xs {f : A → List B} →
-       Any P (xs >>= f) → Any (Any P ∘₀ f) xs
+       Any P (xs >>= f) → Any (Any P ∘ f) xs
 >>=⁻ _ = map⁻ ∘ concat⁻ _
 
 -- Introduction and elimination rules for _⊛_.
 
 ⊛⁺ : ∀ {A B P} {fs : List (A → B)} {xs} →
-     Any (λ f → Any (P ∘₀ f) xs) fs → Any P (fs ⊛ xs)
+     Any (λ f → Any (P ∘ f) xs) fs → Any P (fs ⊛ xs)
 ⊛⁺ = >>=⁺ ∘ Any.map (>>=⁺ ∘ Any.map return⁺)
 
 ⊛⁺′ : ∀ {A B P Q} {fs : List (A → B)} {xs} →
@@ -105,7 +105,7 @@ concat⁻ ((x ∷ xs) ∷ xss) (there p)
 ⊛⁺′ pq p = ⊛⁺ (Any.map (λ pq → Any.map (λ {x} → pq {x}) p) pq)
 
 ⊛⁻ : ∀ {A B P} (fs : List (A → B)) xs →
-     Any P (fs ⊛ xs) → Any (λ f → Any (P ∘₀ f) xs) fs
+     Any P (fs ⊛ xs) → Any (λ f → Any (P ∘ f) xs) fs
 ⊛⁻ fs xs = Any.map (Any.map return⁻ ∘ >>=⁻ xs) ∘ >>=⁻ fs
 
 -- Introduction and elimination rules for _⊗_.
@@ -132,14 +132,14 @@ concat⁻ ((x ∷ xs) ∷ xss) (there p)
 -- Any and any are related via T.
 
 any⁺ : ∀ {A} (p : A → Bool) {xs} →
-       Any (T ∘₀ p) xs → T (any p xs)
+       Any (T ∘ p) xs → T (any p xs)
 any⁺ p (here  px)          = proj₂ T-∨ (inj₁ px)
 any⁺ p (there {x = x} pxs) with p x
 ... | true  = _
 ... | false = any⁺ p pxs
 
 any⁻ : ∀ {A} (p : A → Bool) xs →
-       T (any p xs) → Any (T ∘₀ p) xs
+       T (any p xs) → Any (T ∘ p) xs
 any⁻ p []       ()
 any⁻ p (x ∷ xs) px∷xs with inspect (p x)
 any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (proj₂ T-≡ $
@@ -201,7 +201,7 @@ module Membership₁ (S : Setoid) where
 
   -- any is monotone.
 
-  any-mono : ∀ p → (T ∘₀ p) Respects _≈_ →
+  any-mono : ∀ p → (T ∘ p) Respects _≈_ →
              ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
   any-mono p resp xs⊆ys = any⁺ p ∘ mono resp xs⊆ys ∘ any⁻ p _
 
@@ -373,7 +373,7 @@ module Membership-≡ where
 
   any-mono : ∀ {A} (p : A → Bool) {xs ys} →
              xs ⊆ ys → T (any p xs) → T (any p ys)
-  any-mono p = M₁.any-mono p (PropEq.subst (T ∘₀ p))
+  any-mono p = M₁.any-mono p (PropEq.subst (T ∘ p))
 
   -- Introduction rule for map.
 
@@ -438,11 +438,11 @@ module Membership-≡ where
   private
 
     lemma₁ : ∀ {A B} {p q : A × B} →
-             (p ⟨ _≡_ on₁ proj₁ ⟩₁ q) × (p ⟨ _≡_ on₁ proj₂ ⟩₁ q) → p ≡ q
+             (p ⟨ _≡_ on proj₁ ⟩ q) × (p ⟨ _≡_ on proj₂ ⟩ q) → p ≡ q
     lemma₁ {p = (x , y)} {q = (.x , .y)} (refl , refl) = refl
 
     lemma₂ : ∀ {A B} {p q : A × B} →
-             p ≡ q → (p ⟨ _≡_ on₁ proj₁ ⟩₁ q) × (p ⟨ _≡_ on₁ proj₂ ⟩₁ q)
+             p ≡ q → (p ⟨ _≡_ on proj₁ ⟩ q) × (p ⟨ _≡_ on proj₂ ⟩ q)
     lemma₂ = < PropEq.cong proj₁ , PropEq.cong proj₂ >
 
   ⊗-∈⁺ : ∀ {A B} {xs : List A} {ys : List B} {x y} →

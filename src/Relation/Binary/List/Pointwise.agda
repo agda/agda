@@ -60,7 +60,7 @@ private
     resp¹ (x≈y ∷ xs≈ys) (z∼x ∷ zs∼xs) =
       proj₁ resp x≈y z∼x ∷ resp¹ xs≈ys zs∼xs
 
-    resp² : ∀ {ys} → (flip₁ (Rel ∼) ys) Respects (Rel ≈)
+    resp² : ∀ {ys} → (flip (Rel ∼) ys) Respects (Rel ≈)
     resp² []            []            = []
     resp² (x≈y ∷ xs≈ys) (x∼z ∷ xs∼zs) =
       proj₂ resp x≈y x∼z ∷ resp² xs≈ys xs∼zs

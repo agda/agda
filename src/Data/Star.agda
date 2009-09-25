@@ -67,8 +67,8 @@ TransFlip P Q R = ∀ {i j k} → Q j k → P i j → R i k
 -- A generalised variant of fold.
 
 gfold : ∀ {I J T} (f : I → J) P →
-        Trans     T        (P on₁ f) (P on₁ f) →
-        TransFlip (Star T) (P on₁ f) (P on₁ f)
+        Trans     T        (P on f) (P on f) →
+        TransFlip (Star T) (P on f) (P on f)
 gfold f P _⊕_ ∅ ε        = ∅
 gfold f P _⊕_ ∅ (x ◅ xs) = x ⊕ gfold f P _⊕_ ∅ xs
 
@@ -77,8 +77,8 @@ fold : ∀ {I T} (P : Rel I) →
 fold P _⊕_ ∅ = gfold id P _⊕_ ∅
 
 gfoldl : ∀ {I J T} (f : I → J) P →
-         Trans (P on₁ f) T        (P on₁ f) →
-         Trans (P on₁ f) (Star T) (P on₁ f)
+         Trans (P on f) T        (P on f) →
+         Trans (P on f) (Star T) (P on f)
 gfoldl f P _⊕_ ∅ ε        = ∅
 gfoldl f P _⊕_ ∅ (x ◅ xs) = gfoldl f P _⊕_ (∅ ⊕ x) xs
 

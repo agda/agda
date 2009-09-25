@@ -62,10 +62,10 @@ zip _∙_ _∘_ p₁ p₂ = (proj₁ p₁ ∙ proj₁ p₂ , proj₂ p₁ ∘ pr
 swap : ∀ {A B} → A × B → B × A
 swap = < proj₂ , proj₁ >
 
-_-×-_ : ∀ {A B} → (A → B → Set) → (A → B → Set) → (A → B → Set)
-f -×- g = f -[ _×_ ]₁- g
+_-×-_ : {A B : Set} → (A → B → Set) → (A → B → Set) → (A → B → Set)
+f -×- g = f -[ _×_ ]- g
 
-_-,-_ : ∀ {A B C D} → (A → B → C) → (A → B → D) → (A → B → C × D)
+_-,-_ : {A B C D : Set} → (A → B → C) → (A → B → D) → (A → B → C × D)
 f -,- g = f -[ _,_ ]- g
 
 curry : {A : Set} {B : A → Set} {C : Σ A B → Set} →

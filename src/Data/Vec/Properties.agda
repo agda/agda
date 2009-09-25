@@ -102,7 +102,7 @@ foldl-cong : ∀ {A} {B₁} {f₁ : ∀ {n} → B₁ n → A → B₁ (suc n)} {
              foldl B₁ f₁ e₁ xs ≅ foldl B₂ f₂ e₂ xs
 foldl-cong           _     e₁=e₂ []       = e₁=e₂
 foldl-cong {B₁ = B₁} f₁=f₂ e₁=e₂ (x ∷ xs) =
-  foldl-cong {B₁ = B₁ ∘₀ suc} f₁=f₂ (f₁=f₂ e₁=e₂) xs
+  foldl-cong {B₁ = B₁ ∘ suc} f₁=f₂ (f₁=f₂ e₁=e₂) xs
 
 -- The (uniqueness part of the) universality property for foldr.
 

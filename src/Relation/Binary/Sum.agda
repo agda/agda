@@ -48,17 +48,17 @@ private
 
   ₁≁₂ : ∀ {a₁} {∼₁ : Rel a₁} →
         ∀ {a₂} {∼₂ : Rel a₂} →
-        ∀ {x y} → ¬ (inj₁ x ⟨ ∼₁ ⊎-Rel ∼₂ ⟩₁ inj₂ y)
+        ∀ {x y} → ¬ (inj₁ x ⟨ ∼₁ ⊎-Rel ∼₂ ⟩ inj₂ y)
   ₁≁₂ (₁∼₂ ())
 
   drop-inj₁ : ∀ {a₁} {∼₁ : Rel a₁} →
               ∀ {a₂} {∼₂ : Rel a₂} →
-              ∀ {P x y} → inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩₁ inj₁ y → ∼₁ x y
+              ∀ {P x y} → inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₁ y → ∼₁ x y
   drop-inj₁ (₁∼₁ x∼y) = x∼y
 
   drop-inj₂ : ∀ {a₁} {∼₁ : Rel a₁} →
               ∀ {a₂} {∼₂ : Rel a₂} →
-              ∀ {P x y} → inj₂ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩₁ inj₂ y → ∼₂ x y
+              ∀ {P x y} → inj₂ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₂ y → ∼₂ x y
   drop-inj₂ (₂∼₂ x∼y) = x∼y
 
 ------------------------------------------------------------------------
@@ -149,7 +149,7 @@ _⊎-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
   resp¹ (₁∼₂ ())   _
 
   resp² :  ∀ {y}
-        → (flip₁ (⊎ʳ P ∼₁ ∼₂) y) Respects (≈₁ ⊎-Rel ≈₂)
+        → (flip (⊎ʳ P ∼₁ ∼₂) y) Respects (≈₁ ⊎-Rel ≈₂)
   resp² (₁∼₁ x≈x') (₁∼₁ x∼y) = ₁∼₁ (proj₂ resp₁ x≈x' x∼y)
   resp² (₂∼₂ x≈x') (₂∼₂ x∼y) = ₂∼₂ (proj₂ resp₂ x≈x' x∼y)
   resp² (₁∼₁ x≈x') (₁∼₂ p)   = (₁∼₂ p)
@@ -167,7 +167,7 @@ subst₁ ⊎-substitutive subst₂ = subst
 
 ⊎-decidable : ∀ {a₁} {∼₁ : Rel a₁} → Decidable ∼₁ →
               ∀ {a₂} {∼₂ : Rel a₂} → Decidable ∼₂ →
-              ∀ {P} → (∀ {x y} → Dec (inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩₁ inj₂ y)) →
+              ∀ {P} → (∀ {x y} → Dec (inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₂ y)) →
               Decidable (⊎ʳ P ∼₁ ∼₂)
 ⊎-decidable {∼₁ = ∼₁} dec₁ {∼₂ = ∼₂} dec₂ {P} dec₁₂ = dec
   where

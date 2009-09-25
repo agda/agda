@@ -33,8 +33,8 @@ map f g = [ inj₁ ∘ f , inj₂ ∘ g ]
 
 infixr 1 _-⊎-_
 
-_-⊎-_ : ∀ {a b} → (a → b → Set) → (a → b → Set) → (a → b → Set)
-f -⊎- g = f -[ _⊎_ ]₁- g
+_-⊎-_ : {A B : Set} → (A → B → Set) → (A → B → Set) → (A → B → Set)
+f -⊎- g = f -[ _⊎_ ]- g
 
 isInj₁ : ∀ {A B} → A ⊎ B → Maybe A
 isInj₁ (inj₁ x) = just x

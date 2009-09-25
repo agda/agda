@@ -87,7 +87,7 @@ foldr-fusion h {f} {g} e fuse =
   foldr-universal (h ∘ foldr f e) g (h e) refl
                   (λ x xs → fuse x (foldr f e xs))
 
-idIsFold : ∀ {a} → id {a = List a} ≗ foldr _∷_ []
+idIsFold : ∀ {A} → id {A = List A} ≗ foldr _∷_ []
 idIsFold = foldr-universal id _∷_ [] refl (λ _ _ → refl)
 
 ++IsFold : ∀ {a} (xs ys : List a) →
@@ -131,7 +131,7 @@ concat-map {f = f} =
   ∎
   where open Eq (_ →-setoid _)
 
-map-id : ∀ {A} → map id ≗ id {List A}
+map-id : ∀ {A} → map id ≗ id {A = List A}
 map-id = begin
   map id        ≈⟨ mapIsFold ⟩
   foldr _∷_ []  ≈⟨ sym ∘ idIsFold ⟩

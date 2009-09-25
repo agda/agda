@@ -78,17 +78,17 @@ abstract
              <Set> do₁ → <Set> do₂
 
   prop-map-∈₁ : ∀ {do₁ do₂ f x s} →
-                      x ⟨ _∈_ do₁ ⟩₁       s →
-                fun f x ⟨ _∈_ do₂ ⟩₁ map f s
+                      x ⟨ _∈_ do₁ ⟩       s →
+                fun f x ⟨ _∈_ do₂ ⟩ map f s
   prop-map-∈₂ : ∀ {do₁ do₂ f y s} →
-                y ⟨ _∈_ do₂ ⟩₁ map f s →
-                ∃ λ x → (fun f x ⟨ _≈_ do₂ ⟩₁ y) ×
-                        (      x ⟨ _∈_ do₁ ⟩₁ s)
+                y ⟨ _∈_ do₂ ⟩ map f s →
+                ∃ λ x → (fun f x ⟨ _≈_ do₂ ⟩ y) ×
+                        (      x ⟨ _∈_ do₁ ⟩ s)
 
   prop-mapToSet₁ : ∀ {do₁ do₂ f x s} →
-                     x ⟨ _∈_ do₁ ⟩₁            s →
-                   f x ⟨ _⊆_ do₂ ⟩₁ mapToSet f s
+                     x ⟨ _∈_ do₁ ⟩            s →
+                   f x ⟨ _⊆_ do₂ ⟩ mapToSet f s
   prop-mapToSet₂ : ∀ {do₁ do₂ f y s} →
-                   y ⟨ _∈_ do₂ ⟩₁ mapToSet f s →
-                   ∃ λ x → (y ⟨ _∈_ do₂ ⟩₁ f x) ×
-                           (x ⟨ _∈_ do₁ ⟩₁ s)
+                   y ⟨ _∈_ do₂ ⟩ mapToSet f s →
+                   ∃ λ x → (y ⟨ _∈_ do₂ ⟩ f x) ×
+                           (x ⟨ _∈_ do₁ ⟩ s)

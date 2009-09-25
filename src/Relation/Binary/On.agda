@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Many properties which hold for _∼_ also hold for _∼_ on₁ f
+-- Many properties which hold for _∼_ also hold for _∼_ on f
 ------------------------------------------------------------------------
 
 open import Relation.Binary
@@ -9,46 +9,46 @@ module Relation.Binary.On {A B : Set} (f : B → A) where
 open import Data.Function
 open import Data.Product
 
-implies : ∀ ≈ ∼ → ≈ ⇒ ∼ → (≈ on₁ f) ⇒ (∼ on₁ f)
+implies : ∀ ≈ ∼ → ≈ ⇒ ∼ → (≈ on f) ⇒ (∼ on f)
 implies _ _ impl = impl
 
-reflexive : ∀ ∼ → Reflexive ∼ → Reflexive (∼ on₁ f)
+reflexive : ∀ ∼ → Reflexive ∼ → Reflexive (∼ on f)
 reflexive _ refl = refl
 
-irreflexive : ∀ ≈ ∼ → Irreflexive ≈ ∼ → Irreflexive (≈ on₁ f) (∼ on₁ f)
+irreflexive : ∀ ≈ ∼ → Irreflexive ≈ ∼ → Irreflexive (≈ on f) (∼ on f)
 irreflexive _ _ irrefl = irrefl
 
-symmetric : ∀ ∼ → Symmetric ∼ → Symmetric (∼ on₁ f)
+symmetric : ∀ ∼ → Symmetric ∼ → Symmetric (∼ on f)
 symmetric _ sym = sym
 
-transitive : ∀ ∼ → Transitive ∼ → Transitive (∼ on₁ f)
+transitive : ∀ ∼ → Transitive ∼ → Transitive (∼ on f)
 transitive _ trans = trans
 
 antisymmetric : ∀ ≈ ≤ →
-                Antisymmetric ≈ ≤ → Antisymmetric (≈ on₁ f) (≤ on₁ f)
+                Antisymmetric ≈ ≤ → Antisymmetric (≈ on f) (≤ on f)
 antisymmetric _ _ antisym = antisym
 
-asymmetric : ∀ < → Asymmetric < → Asymmetric (< on₁ f)
+asymmetric : ∀ < → Asymmetric < → Asymmetric (< on f)
 asymmetric _ asym = asym
 
-respects : ∀ ∼ P → P Respects ∼ → (P ∘₀ f) Respects (∼ on₁ f)
+respects : ∀ ∼ P → P Respects ∼ → (P ∘ f) Respects (∼ on f)
 respects _ _ resp = resp
 
-respects₂ : ∀ ∼₁ ∼₂ → ∼₁ Respects₂ ∼₂ → (∼₁ on₁ f) Respects₂ (∼₂ on₁ f)
+respects₂ : ∀ ∼₁ ∼₂ → ∼₁ Respects₂ ∼₂ → (∼₁ on f) Respects₂ (∼₂ on f)
 respects₂ _ _ (resp₁ , resp₂) =
   ((λ {_} {_} {_} → resp₁) , λ {_} {_} {_} → resp₂)
 
-decidable : ∀ ∼ → Decidable ∼ → Decidable (∼ on₁ f)
+decidable : ∀ ∼ → Decidable ∼ → Decidable (∼ on f)
 decidable _ dec = λ x y → dec (f x) (f y)
 
-total : ∀ ∼ → Total ∼ → Total (∼ on₁ f)
+total : ∀ ∼ → Total ∼ → Total (∼ on f)
 total _ tot = λ x y → tot (f x) (f y)
 
 trichotomous : ∀ ≈ < →
-               Trichotomous ≈ < → Trichotomous (≈ on₁ f) (< on₁ f)
+               Trichotomous ≈ < → Trichotomous (≈ on f) (< on f)
 trichotomous _ _ compare = λ x y → compare (f x) (f y)
 
-isEquivalence : ∀ {≈} → IsEquivalence ≈ → IsEquivalence (≈ on₁ f)
+isEquivalence : ∀ {≈} → IsEquivalence ≈ → IsEquivalence (≈ on f)
 isEquivalence {≈} eq = record
   { refl  = reflexive  ≈ Eq.refl
   ; sym   = symmetric  ≈ Eq.sym
@@ -56,7 +56,7 @@ isEquivalence {≈} eq = record
   }
   where module Eq = IsEquivalence eq
 
-isPreorder : ∀ {≈ ∼} → IsPreorder ≈ ∼ → IsPreorder (≈ on₁ f) (∼ on₁ f)
+isPreorder : ∀ {≈ ∼} → IsPreorder ≈ ∼ → IsPreorder (≈ on f) (∼ on f)
 isPreorder {≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
   ; reflexive     = implies ≈ ∼ Pre.reflexive
@@ -66,7 +66,7 @@ isPreorder {≈} {∼} pre = record
   where module Pre = IsPreorder pre
 
 isDecEquivalence : ∀ {≈} →
-                   IsDecEquivalence ≈ → IsDecEquivalence (≈ on₁ f)
+                   IsDecEquivalence ≈ → IsDecEquivalence (≈ on f)
 isDecEquivalence {≈} dec = record
   { isEquivalence = isEquivalence Dec.isEquivalence
   ; _≟_           = decidable ≈ Dec._≟_
@@ -75,7 +75,7 @@ isDecEquivalence {≈} dec = record
 
 isPartialOrder : ∀ {≈ ≤} →
                  IsPartialOrder ≈ ≤ →
-                 IsPartialOrder (≈ on₁ f) (≤ on₁ f)
+                 IsPartialOrder (≈ on f) (≤ on f)
 isPartialOrder {≈} {≤} po = record
   { isPreorder = isPreorder Po.isPreorder
   ; antisym    = antisymmetric ≈ ≤ Po.antisym
@@ -84,7 +84,7 @@ isPartialOrder {≈} {≤} po = record
 
 isStrictPartialOrder : ∀ {≈ <} →
                        IsStrictPartialOrder ≈ < →
-                       IsStrictPartialOrder (≈ on₁ f) (< on₁ f)
+                       IsStrictPartialOrder (≈ on f) (< on f)
 isStrictPartialOrder {≈} {<} spo = record
   { isEquivalence = isEquivalence Spo.isEquivalence
   ; irrefl        = irreflexive ≈ < Spo.irrefl
@@ -95,7 +95,7 @@ isStrictPartialOrder {≈} {<} spo = record
 
 isTotalOrder : ∀ {≈ ≤} →
                IsTotalOrder ≈ ≤ →
-               IsTotalOrder (≈ on₁ f) (≤ on₁ f)
+               IsTotalOrder (≈ on f) (≤ on f)
 isTotalOrder {≈} {≤} to = record
   { isPartialOrder = isPartialOrder To.isPartialOrder
   ; total          = total ≤ To.total
@@ -104,7 +104,7 @@ isTotalOrder {≈} {≤} to = record
 
 isDecTotalOrder : ∀ {≈ ≤} →
                   IsDecTotalOrder ≈ ≤ →
-                  IsDecTotalOrder (≈ on₁ f) (≤ on₁ f)
+                  IsDecTotalOrder (≈ on f) (≤ on f)
 isDecTotalOrder {≈} {≤} dec = record
   { isTotalOrder = isTotalOrder Dec.isTotalOrder
   ; _≟_          = decidable ≈ Dec._≟_
@@ -114,7 +114,7 @@ isDecTotalOrder {≈} {≤} dec = record
 
 isStrictTotalOrder : ∀ {≈ <} →
                      IsStrictTotalOrder ≈ < →
-                       IsStrictTotalOrder (≈ on₁ f) (< on₁ f)
+                       IsStrictTotalOrder (≈ on f) (< on f)
 isStrictTotalOrder {≈} {<} sto = record
   { isEquivalence = isEquivalence Sto.isEquivalence
   ; trans         = transitive < Sto.trans

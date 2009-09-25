@@ -22,7 +22,7 @@ private
  module Dummy {a₁ a₂ : Set} where
 
   ×-Lex : (≈₁ <₁ : Rel a₁) → (≤₂ : Rel a₂) → Rel (a₁ × a₂)
-  ×-Lex ≈₁ <₁ ≤₂ = (<₁ on₁ proj₁) -⊎- (≈₁ on₁ proj₁) -×- (≤₂ on₁ proj₂)
+  ×-Lex ≈₁ <₁ ≤₂ = (<₁ on proj₁) -⊎- (≈₁ on proj₁) -×- (≤₂ on proj₂)
 
   -- Some properties which are preserved by ×-Lex (under certain
   -- assumptions).
@@ -111,7 +111,7 @@ private
       inj₂ ( trans₁ (proj₁ x≈<y) (proj₁ y≈y')
            , proj₁ resp₂ (proj₂ y≈y') (proj₂ x≈<y) )
 
-    resp² : ∀ {y} → (flip₁ < y) Respects (≈₁ ×-Rel ≈₂)
+    resp² : ∀ {y} → (flip < y) Respects (≈₁ ×-Rel ≈₂)
     resp² x≈x' (inj₁ x₁<y₁) = inj₁ (proj₂ resp₁ (proj₁ x≈x') x₁<y₁)
     resp² x≈x' (inj₂ x≈<y)  =
       inj₂ ( trans₁ (sym₁ $ proj₁ x≈x') (proj₁ x≈<y)

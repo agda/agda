@@ -17,12 +17,12 @@ open import Relation.Binary.PropositionalEquality
 infix 4 _∣_
 
 _∣_ : Rel ℤ
-_∣_ = ℕ._∣_ on₁ ∣_∣
+_∣_ = ℕ._∣_ on ∣_∣
 
 -- Coprimality.
 
 Coprime : Rel ℤ
-Coprime = ℕ.Coprime on₁ ∣_∣
+Coprime = ℕ.Coprime on ∣_∣
 
 -- If i divides jk and is coprime to j, then it divides k.
 

@@ -16,7 +16,7 @@ private
   infixr 2 _×-Rel_
 
   _×-Rel_ : Rel a₁ → Rel a₂ → Rel (a₁ × a₂)
-  ∼₁ ×-Rel ∼₂ = (∼₁ on₁ proj₁) -×- (∼₂ on₁ proj₂)
+  ∼₁ ×-Rel ∼₂ = (∼₁ on proj₁) -×- (∼₂ on proj₂)
 
   -- Some properties which are preserved by ×-Rel (under certain
   -- assumptions).
@@ -78,7 +78,7 @@ private
     resp¹ y≈y' x∼y = proj₁ resp₁ (proj₁ y≈y') (proj₁ x∼y) ,
                      proj₁ resp₂ (proj₂ y≈y') (proj₂ x∼y)
 
-    resp² : ∀ {y} → (flip₁ ∼ y) Respects (≈₁ ×-Rel ≈₂)
+    resp² : ∀ {y} → (flip ∼ y) Respects (≈₁ ×-Rel ≈₂)
     resp² x≈x' x∼y = proj₂ resp₁ (proj₁ x≈x') (proj₁ x∼y) ,
                      proj₂ resp₂ (proj₂ x≈x') (proj₂ x∼y)
 

@@ -44,10 +44,10 @@ map f g = < f ∘ proj₁ , g ∘ proj₂ >
 swap : ∀ {a b} → a × b → b × a
 swap = < proj₂ , proj₁ >
 
-_-×-_ : ∀ {a b} → (a → b → Set) → (a → b → Set) → (a → b → Set)
-f -×- g = f -[ _×_ ]₁- g
+_-×-_ : {A B : Set} → (A → B → Set) → (A → B → Set) → (A → B → Set)
+f -×- g = f -[ _×_ ]- g
 
-_-,-_ : ∀ {a b c d} → (a → b → c) → (a → b → d) → (a → b → c × d)
+_-,-_ : {A B C D : Set} → (A → B → C) → (A → B → D) → (A → B → C × D)
 f -,- g = f -[ _,_ ]- g
 
 curry : {a : Set} {b : a → Set} {c : Σ a b → Set} →

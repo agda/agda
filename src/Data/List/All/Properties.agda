@@ -17,30 +17,30 @@ open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
 -- Functions can be shifted between the predicate and the list.
 
 All-map : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-          All (P ∘₀ f) xs → All P (List.map f xs)
+          All (P ∘ f) xs → All P (List.map f xs)
 All-map []       = []
 All-map (p ∷ ps) = p ∷ All-map ps
 
 map-All : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
-          All P (List.map f xs) → All (P ∘₀ f) xs
+          All P (List.map f xs) → All (P ∘ f) xs
 map-All {xs = []}    []       = []
 map-All {xs = _ ∷ _} (p ∷ ps) = p ∷ map-All ps
 
 -- A variant of All.map.
 
 gmap : ∀ {A B} {P : A → Set} {Q : B → Set} {f : A → B} →
-       P ⋐ Q ∘₀ f → All P ⋐ All Q ∘₀ List.map f
+       P ⋐ Q ∘ f → All P ⋐ All Q ∘ List.map f
 gmap g = All-map ∘ All.map g
 
 -- All and all are related via T.
 
 All-all : ∀ {A} (p : A → Bool) {xs} →
-          All (T ∘₀ p) xs → T (all p xs)
+          All (T ∘ p) xs → T (all p xs)
 All-all p []         = _
 All-all p (px ∷ pxs) = proj₂ T-∧ (px , All-all p pxs)
 
 all-All : ∀ {A} (p : A → Bool) xs →
-          T (all p xs) → All (T ∘₀ p) xs
+          T (all p xs) → All (T ∘ p) xs
 all-All p []       _     = []
 all-All p (x ∷ xs) px∷xs with proj₁ (T-∧ {p x}) px∷xs
 all-All p (x ∷ xs) px∷xs | (px , pxs) = px ∷ all-All p xs pxs

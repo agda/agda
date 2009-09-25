@@ -131,7 +131,7 @@ private
       next (Eq.trans z≈x x≈y) (resp¹ xs≈ys zs⊴xs)
       where module Eq = IsEquivalence eq
 
-    resp² : ∀ {ys} → flip₁ (Lex P ≈ <) ys Respects Pointwise.Rel ≈
+    resp² : ∀ {ys} → flip (Lex P ≈ <) ys Respects Pointwise.Rel ≈
     resp² []            []⊴ys            = []⊴ys
     resp² (x≈z ∷ xs≈zs) (this x<y)       = this (proj₂ resp x≈z x<y)
     resp² (x≈z ∷ xs≈zs) (next x≈y xs⊴ys) =

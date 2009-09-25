@@ -14,7 +14,7 @@ module Data.Fin.Substitution where
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Vec
-open import Data.Function as Fun using (flip; flip₁)
+open import Data.Function as Fun using (flip)
 open import Data.Star as Star using (Star; ε; _◅_)
 
 ------------------------------------------------------------------------
@@ -29,7 +29,7 @@ Sub T m n = Vec (T n) m
 -- A /reversed/ sequence of matching substitutions.
 
 Subs : (ℕ → Set) → ℕ → ℕ → Set
-Subs T = flip₁ (Star (flip₁ (Sub T)))
+Subs T = flip (Star (flip (Sub T)))
 
 -- Some simple substitutions.
 
