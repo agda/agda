@@ -57,6 +57,8 @@ module README where
 --     well-founded induction).
 -- • IO
 --     Input/output-related functions.
+-- • Level
+--     Universe levels.
 -- • Relation
 --     Properties of and proofs about relations (mostly homogeneous
 --     binary relations).
