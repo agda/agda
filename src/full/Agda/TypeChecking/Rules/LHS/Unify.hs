@@ -9,7 +9,7 @@ import Control.Monad.Error
 
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.List
+import Data.List hiding (sort)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -278,6 +278,9 @@ unifyIndices flex a us vs = liftTCM $ do
                   else addEquality a u v
 	_  -> addEquality a u v
 
+    -- The contexts are transient when unifying, so we should just instantiate to
+    -- constructor heads and generate fresh metas for the arguments. Beware of
+    -- constructors that aren't fully applied.
     instMeta a m us v = do
       app <- inertApplication a v
       reportSDoc "tc.lhs.unify" 50 $
@@ -287,14 +290,21 @@ unifyIndices flex a us vs = liftTCM $ do
             ]
       case app of
         Nothing -> return False
-        Just (v', b, _) -> do
+        Just (v', b, vs) -> do
             margs <- do
               -- The new metas should have the same dependencies as the original meta
               mi <- getMetaInfo <$> lookupMeta m
+
+              -- Only generate metas for the arguments v' is actually applied to
+              -- (in case of partial application)
+              let b' = telePi tel (sort Prop)
+                    where
+                      TelV tel0 _ = telView b
+                      tel = telFromList $ take (length vs) $ telToList tel0
               withMetaInfo mi $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
-                newArgsMetaCtx b tel us
+                newArgsMetaCtx b' tel us
             noConstraints $ assignV a m us (v' `apply` margs)
             return True
           `catchError` \_ -> return False
@@ -303,7 +313,7 @@ unifyIndices flex a us vs = liftTCM $ do
     inertApplication a v =
       case v of
         Con c vs -> do
-          Def d args <- reduce $ unEl a
+          TelV _ (El _ (Def d args)) <- telView <$> reduce a
           def <- theDef <$> getConstInfo d
           b   <- case def of
             Datatype{dataPars = n} -> do
