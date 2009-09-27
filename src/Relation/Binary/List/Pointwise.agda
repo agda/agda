@@ -9,6 +9,7 @@ open import Data.Product
 open import Data.List
 open import Relation.Nullary
 open import Relation.Binary renaming (Rel to Rel₂)
+open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 private
  module Dummy {A : Set} where
@@ -102,6 +103,16 @@ private
     { isPreorder = isPreorder    PO.isPreorder
     ; antisym    = antisymmetric PO.antisym
     } where module PO = IsPartialOrder po
+
+  -- Rel _≡_ coincides with _≡_.
+
+  Rel≡⇒≡ : Rel _≡_ ⇒ _≡_
+  Rel≡⇒≡ []                    = PropEq.refl
+  Rel≡⇒≡ (PropEq.refl ∷ xs∼ys) with Rel≡⇒≡ xs∼ys
+  Rel≡⇒≡ (PropEq.refl ∷ xs∼ys) | PropEq.refl = PropEq.refl
+
+  ≡⇒Rel≡ : _≡_ ⇒ Rel _≡_
+  ≡⇒Rel≡ PropEq.refl = refl PropEq.refl
 
 open Dummy public
 

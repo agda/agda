@@ -11,13 +11,13 @@ open import Data.Function
 open import Data.List as List
 open RawMonad List.monad
 open import Data.List.Any as Any using (Any; here; there)
-import Data.List.Equality as ListEq
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary.FunctionSetoid
+import Relation.Binary.List.Pointwise as ListEq
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; inspect; _with-≡_)
@@ -156,7 +156,7 @@ module Membership₁ (S : Setoid) where
   open Any.Membership S
   private
     open module S = Setoid S using (_≈_)
-    open module [M] = Any.Membership (ListEq.Equality.setoid S)
+    open module [M] = Any.Membership (ListEq.setoid S)
       using () renaming (_∈_ to _[∈]_; _⊆_ to _[⊆]_)
     open module M≡ = Any.Membership-≡
       using () renaming (_∈_ to _∈≡_; _⊆_ to _⊆≡_)
@@ -246,7 +246,7 @@ module Membership₂ (S₁ S₂ : Setoid) where
   private
     open module S₁ = Setoid S₁ using () renaming (_≈_ to _≈₁_)
     open module S₂ = Setoid S₂ using () renaming (_≈_ to _≈₂_)
-    module L₂      = ListEq.Equality S₂
+    LS₂            = ListEq.setoid S₂
     open module M₁ = Any.Membership S₁
       using () renaming (_∈_ to _∈₁_; _⊆_ to _⊆₁_)
     open module M₂ = Any.Membership S₂
@@ -275,18 +275,18 @@ module Membership₂ (S₁ S₂ : Setoid) where
 
   -- Introduction and elimination rules for _>>=_.
 
-  >>=-∈⁺ : ∀ (f : S₁ ⟶ L₂.setoid) {x y xs} →
+  >>=-∈⁺ : ∀ (f : S₁ ⟶ LS₂) {x y xs} →
            x ∈₁ xs → y ∈₂ f ⟨$⟩ x → y ∈₂ (xs >>= _⟨$⟩_ f)
   >>=-∈⁺ f x∈xs y∈fx =
     >>=⁺ (Any.map (flip M₂.∈-resp-list-≈ y∈fx ∘ pres f) x∈xs)
 
-  >>=-∈⁻ : ∀ (f : S₁ ⟶ L₂.setoid) {y} xs →
+  >>=-∈⁻ : ∀ (f : S₁ ⟶ LS₂) {y} xs →
            y ∈₂ (xs >>= _⟨$⟩_ f) → ∃ λ x → x ∈₁ xs × y ∈₂ f ⟨$⟩ x
   >>=-∈⁻ f xs y∈ = M₁.find (>>=⁻ xs y∈)
 
   -- _>>=_ is monotone.
 
-  >>=-mono : ∀ (f g : S₁ ⟶ L₂.setoid) {xs ys} →
+  >>=-mono : ∀ (f g : S₁ ⟶ LS₂) {xs ys} →
              xs ⊆₁ ys → (∀ {x} → f ⟨$⟩ x ⊆₂ g ⟨$⟩ x) →
              (xs >>= _⟨$⟩_ f) ⊆₂ (ys >>= _⟨$⟩_ g)
   >>=-mono f g {xs} xs⊆ys f⊆g z∈ with >>=-∈⁻ f xs z∈
@@ -336,7 +336,7 @@ module Membership-≡ where
 
   open Any.Membership-≡
   private
-    module P {A} = ListEq.PropositionalEquality {A}
+    module S {A} = Setoid (ListEq.setoid (PropEq.setoid A))
     open module M₁ {A} = Membership₁ (PropEq.setoid A) public
       using (_++-mono_; ++-idempotent;
              map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono)
@@ -353,19 +353,21 @@ module Membership-≡ where
 
   concat-∈⁺ : ∀ {A} {x : A} {xs xss} →
               x ∈ xs → xs ∈ xss → x ∈ concat xss
-  concat-∈⁺ x∈xs = M₁.concat-∈⁺ x∈xs ∘ Any.map P.reflexive
+  concat-∈⁺ x∈xs = M₁.concat-∈⁺ x∈xs ∘ Any.map S.reflexive
 
   concat-∈⁻ : ∀ {A} {x : A} xss →
               x ∈ concat xss → ∃ λ xs → x ∈ xs × xs ∈ xss
   concat-∈⁻ xss x∈ =
-    Prod.map id (Prod.map id (Any.map P.≈⇒≡)) $ M₁.concat-∈⁻ xss x∈
+    Prod.map id (Prod.map id (Any.map ListEq.Rel≡⇒≡)) $
+      M₁.concat-∈⁻ xss x∈
 
   -- concat is monotone.
 
   concat-mono : ∀ {A} {xss yss : List (List A)} →
                 xss ⊆ yss → concat xss ⊆ concat yss
   concat-mono xss⊆yss =
-    M₁.concat-mono (Any.map P.reflexive ∘ xss⊆yss ∘ Any.map P.≈⇒≡)
+    M₁.concat-mono (Any.map S.reflexive ∘ xss⊆yss ∘
+                    Any.map ListEq.Rel≡⇒≡)
 
   -- any is monotone.
 
@@ -391,9 +393,9 @@ module Membership-≡ where
 
     [→-to-⟶] : ∀ {A B} → (A → List B) →
                PropEq.setoid A ⟶
-               ListEq.Equality.setoid (PropEq.setoid B)
+               ListEq.setoid (PropEq.setoid B)
     [→-to-⟶] f =
-      record { _⟨$⟩_ = f; pres = P.reflexive ∘ PropEq.cong f }
+      record { _⟨$⟩_ = f; pres = S.reflexive ∘ PropEq.cong f }
 
   >>=-∈⁺ : ∀ {A B} (f : A → List B) {x y xs} →
            x ∈ xs → y ∈ f x → y ∈ (xs >>= f)

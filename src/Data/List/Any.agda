@@ -8,12 +8,12 @@ open import Data.Empty
 open import Data.Fin
 open import Data.Function
 open import Data.List as List using (List; []; _∷_)
-import Data.List.Equality as ListEq
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
+open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_)
 
@@ -56,9 +56,9 @@ index (there pxs) = suc (index pxs)
 module Membership (S : Setoid) where
 
   private
-    open module S = Setoid S using (_≈_) renaming (carrier to A)
-    open module L = ListEq.Equality S
-      using ([]; _∷_) renaming (_≈_ to _≋_)
+    open module  S = Setoid S using (_≈_) renaming (carrier to A)
+    open module LS = Setoid (ListEq.setoid S)
+      using () renaming (_≈_ to _≋_)
 
   -- If a predicate P respects the underlying equality then Any P
   -- respects the list equality.
@@ -108,12 +108,12 @@ module Membership (S : Setoid) where
     ; _≈_        = _≋_
     ; _∼_        = _⊆_
     ; isPreorder = record
-      { isEquivalence = Setoid.isEquivalence L.setoid
+      { isEquivalence = LS.isEquivalence
       ; reflexive     = reflexive
       ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
       ; ∼-resp-≈      =
           (λ ys₁≋ys₂ xs⊆ys₁ → reflexive ys₁≋ys₂ ∘ xs⊆ys₁)
-        , (λ xs₁≋xs₂ xs₁⊆ys → xs₁⊆ys ∘ reflexive (L.sym xs₁≋xs₂))
+        , (λ xs₁≋xs₂ xs₁⊆ys → xs₁⊆ys ∘ reflexive (LS.sym xs₁≋xs₂))
       }
     }
     where
