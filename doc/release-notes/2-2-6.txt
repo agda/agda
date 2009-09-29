@@ -66,6 +66,9 @@ Language
 
 * The --include-path flag can no longer be used as a pragma.
 
+* The experimental and incomplete support for proof irrelevance has
+  been disabled.
+
 * A new primitive, primTrustMe, has been added:
 
     primTrustMe : {A : Set} {x y : A} → x ≡ y

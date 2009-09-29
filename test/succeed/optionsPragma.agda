@@ -1,14 +1,7 @@
-{-# OPTIONS --proof-irrelevance #-}
+{-# OPTIONS --no-termination-check #-}
 module optionsPragma where
 
-postulate
-  Foo : Prop
-  foo1 : Foo
-  foo2 : Foo
-
-  Bar : Foo -> Set
-
--- Only goes through with proof irrelevance.
-f : Bar foo1 -> Bar foo2
-f x = x
+-- Only goes through with the termination checker turned off.
+Foo : Set
+Foo = Foo
 

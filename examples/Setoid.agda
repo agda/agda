@@ -1,5 +1,3 @@
-{-# OPTIONS --proof-irrelevance #-}
-
 module Setoid where
 
 module Logic where

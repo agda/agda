@@ -243,8 +243,8 @@ pragmaOptions =
 		    "set verbosity level to N"
     , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
-    , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
-		    "enable proof irrelevance (experimental feature)"
+    -- , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
+    --     	    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)
 		    "allow unsolved meta variables (only needed in batch mode)"
     , Option []	    ["no-positivity-check"] (NoArg noPositivityFlag)
