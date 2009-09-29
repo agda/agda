@@ -139,6 +139,7 @@ errorString err = case err of
     NotLeqSort _ _			       -> "NotLeqSort"
     NotStrictlyPositive _ _		       -> "NotStrictlyPositive"
     NothingAppliedToHiddenArg _		       -> "NothingAppliedToHiddenArg"
+    OverlappingProjects {}                     -> "OverlappingProjects"
     PatternShadowsConstructor {}               -> "PatternShadowsConstructor"
     PropMustBeSingleton			       -> "PropMustBeSingleton"
     RepeatedVariablesInPattern _	       -> "RepeatedVariablesInPattern"
@@ -359,6 +360,12 @@ instance PrettyTCM TypeError where
 		fsep ( pwords "Failed to find source of module" ++ [pretty x] ++
 		       pwords "in any of the following locations:"
 		     ) $$ nest 2 (vcat $ map (text . filePath) files)
+            OverlappingProjects f m1 m2 ->
+	        fsep ( pwords "The file" ++ [text (filePath f)] ++
+                       pwords "can be accessed via several project roots. Both" ++
+                       [pretty m1] ++ pwords "and" ++ [pretty m2] ++
+                       pwords "point to this file."
+                     )
 	    AmbiguousTopLevelModuleName x files ->
 		fsep ( pwords "Ambiguous module name. The module name" ++
                        [pretty x] ++

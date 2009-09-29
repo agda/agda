@@ -808,6 +808,7 @@ data TypeError
 	| UnsolvedConstraints Constraints
 	| CyclicModuleDependency [C.TopLevelModuleName]
 	| FileNotFound C.TopLevelModuleName [AbsolutePath]
+        | OverlappingProjects AbsolutePath C.TopLevelModuleName C.TopLevelModuleName
         | AmbiguousTopLevelModuleName C.TopLevelModuleName [AbsolutePath]
 	| ModuleNameDoesntMatchFileName C.TopLevelModuleName [AbsolutePath]
 	| ClashingFileNamesFor ModuleName [AbsolutePath]

@@ -274,6 +274,12 @@ getInterface' x includeStateChanges =
     (stateChangesIncluded, (i, wt)) <-
       if uptodate then skip x file else typeCheck file
 
+    -- Ensure that the given module name matches the one in the file.
+    let topLevelName = toTopLevelModuleName $ iModuleName i
+    unless (topLevelName == x) $ do
+      checkModuleName topLevelName file
+      typeError $ OverlappingProjects file topLevelName x
+
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                  else "  New module. Let's check it out."
@@ -441,14 +447,7 @@ createInterface file mname = do
       liftIO $ UTF8.putStrLn $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
-    m@(pragmas, top) <- liftIO $ parseFile' moduleParser file
-    let topLevelName = C.topLevelModuleName m
-
-    -- Make sure that the given module name matches the one in the
-    -- file.
-    unless (topLevelName == mname) $ do
-      checkModuleName topLevelName file
-      __IMPOSSIBLE__
+    (pragmas, top) <- liftIO $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment

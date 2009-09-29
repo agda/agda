@@ -26,13 +26,13 @@ agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 V = 0
 
 # Getting all agda files
-allagda=$(shell find . -name '*agda' -o -name Imports -prune -a -name '*agda')
+allagda=$(shell find . -name '*.agda' -o \( -name Imports -o -name customised \) -prune -a -name '*agda')
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
 
 .PHONY : $(allstems)
 
-default : all
+default : all customised
 all : $(allstems)
 
 debug : 
@@ -71,6 +71,23 @@ $(allstems) : % : %.err
 			 rm -f $*.tmp; rm -f $*.tmp.2; rm -f $*.tmp.3; \
 			 false; \
 	 fi
+
+# Customised test cases.
+
+.PHONY:
+customised : nestedProjectRoots
+
+.PHONY:
+nestedProjectRoots : customised/NestedProjectRoots.agda
+	-@rm customised/Imports/A.agdai
+	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $<; \
+	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
+	    $(AGDA_BIN) -icustomised -icustomised/Imports $<) \
+	    | sed -e "s/[^ (]*test.fail.//g" \
+	    > customised/NestedProjectRoots.err.tmp
+	@diff -u customised/NestedProjectRoots.err \
+	         customised/NestedProjectRoots.err.tmp
+	-@rm customised/NestedProjectRoots.err.tmp
 
 # Clean
 
