@@ -204,7 +204,7 @@ compareAtom cmp t m n =
 	    _ | f1@(FunV _ _) <- funView m
 	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
 
-	    (Sort s1, Sort s2) -> compareSort cmp s1 s2
+	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
 	    (Lit l1, Lit l2) | l1 == l2 -> return []
 	    (Var i iArgs, Var j jArgs) | i == j -> do
@@ -336,7 +336,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
-	cs1 <- compareSort cmp s1 s2 `catchError` \err -> case errError err of
+	cs1 <- compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
                   TypeError _ _ -> typeError $ UnequalTypes cmp ty1 ty2
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2
@@ -355,7 +355,7 @@ leqType = compareType CmpLeq
 
 compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints
 compareSort CmpEq  = equalSort
-compareSort CmpLeq = equalSort
+compareSort CmpLeq = leqSort
   -- TODO: change to leqSort when we have better constraint solving
   --       or not? might not be needed if we get universe polymorphism
   --       leqSort is still used when checking datatype declarations though
@@ -417,11 +417,14 @@ leqLevel a b = liftTCM $ do
         text "compareLevelView" <+>
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
-      choice
-        [ concat <$> sequence [ leqPlusView a b | a <- as ]
-        | b <- bs
-        ]
-      return []
+      case (as, bs) of
+        (_, [b]) -> concat <$> sequence [ leqPlusView a b | a <- as ]
+        _        -> do
+          choice
+            [ concat <$> sequence [ leqPlusView a b | a <- as ]
+            | b <- bs
+            ]
+          return []
     leqPlusView n m = do
       reportSDoc "tc.conv.nat" 10 $
         text "comparePlusView" <+>
@@ -433,25 +436,31 @@ leqLevel a b = liftTCM $ do
           | n <= m -> ok
 
         -- Both neutral
-        (Plus n a, Plus m b)
+        (Plus n (NeutralLevel a), Plus m (NeutralLevel b))
           | n <= m -> do
             lvl <- primLevel
-            equalTerm (El (mkType 0) lvl) (unLevelAtom a) (unLevelAtom b)
+            equalTerm (El (mkType 0) lvl) a b
 
-        -- closed ≤ neutral
+        -- closed ≤ any
         (ClosedLevel n, Plus m _)
           | n <= m -> ok
 
-        -- Any blocked
-        (Plus _ BlockedLevel{}, _) -> patternViolation
-        (_, Plus _ BlockedLevel{}) -> patternViolation
+        -- Any blocked or meta
+        (Plus _ BlockedLevel{}, _) -> postpone
+        (_, Plus _ BlockedLevel{}) -> postpone
+        (Plus _ MetaLevel{}, _)    -> postpone
+        (_, Plus _ MetaLevel{})    -> postpone
 
         _ -> notok
-    ok = return []
-    notok = typeError $ NotLeqSort (Type a) (Type b)
+    ok       = return []
+    notok    = typeError $ NotLeqSort (Type a) (Type b)
+    postpone = patternViolation
 
     choice []     = patternViolation
     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
+--       case errError e of
+--         PatternErr{} -> choice ms
+--         _            -> throwError e
 
 equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
 equalLevel a b = do
