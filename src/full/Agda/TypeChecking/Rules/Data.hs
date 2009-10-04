@@ -177,11 +177,12 @@ fitsIn t s = do
   case funView $ unEl t of
     FunV arg@(Arg h a) _ -> do
       let s' = getSort a
-      s' `leqSort` s
+      cs <- s' `leqSort` s
+      addConstraints cs
       x <- freshName_ (argName t)
       let v  = Arg h $ Var 0 []
           t' = piApply (raise 1 t) [v]
-      addCtx x arg $ fitsIn t' s
+      addCtx x arg $ fitsIn t' (raise 1 s)
     _		     -> return ()
 
 -- | Check that a type constructs something of the given datatype. The first
@@ -211,7 +212,7 @@ constructs nofPars t q = constrT 0 t
 
 		sameVar v i = do
 		    t <- typeOfBV i
-		    noConstraints $ equalTerm t v (Var i [])
+		    addConstraints =<< equalTerm t v (Var i [])
 
 
 -- | Force a type to be a specific datatype.
