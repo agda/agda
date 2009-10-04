@@ -76,7 +76,7 @@
   ("oi"  "open import "))
   "Abbreviations defined by default in the Agda mode.")
 
-(defcustom agda2-mode-abbrevs-use-defaults t
+(defcustom agda2-mode-abbrevs-use-defaults nil
   "If non-nil include the default Agda mode abbrevs in `agda2-mode-abbrev-table'.
 The abbrevs are designed to be expanded explicitly, so users of `abbrev-mode'
 probably do not want to include them.

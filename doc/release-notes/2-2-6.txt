@@ -130,3 +130,10 @@ Tools
 
 * The Emacs mode now displays "Checked" in the mode line if the
   current file type checked successfully without any warnings.
+
+* The Emacs mode used to define some "abbrevs", unless the user
+  explicitly turned this feature off. Now the default is /not/ to add
+  any abbrevs. The old default can be obtained by customising
+  agda2-mode-abbrevs-use-defaults (a customisation buffer can be
+  obtained by typing M-x customize-group agda2 RET after an Agda file
+  has been loaded).
