@@ -339,7 +339,7 @@ tomyExp (I.Fun (C.Arg hid x) y) = do
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Fun (cnvh hid) x' y'
-tomyExp (I.Sort (I.Type (I.Lit (I.LitInt _ l)))) = return $ NotM $ Sort $ SortLevel $ fromIntegral l
+tomyExp (I.Sort (I.Type (I.Lit (I.LitLevel _ l)))) = return $ NotM $ Sort $ SortLevel $ fromIntegral l
 tomyExp (I.Sort (I.MetaS _ _)) = throwError $ strMsg "Searching for type place holders is not supported"
 tomyExp t@(I.Sort _) = throwError $ strMsg $ "Meta variable kind not supported: " ++ show t
 tomyExp (I.MetaV mid _) = do
