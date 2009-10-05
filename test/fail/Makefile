@@ -75,19 +75,29 @@ $(allstems) : % : %.err
 # Customised test cases.
 
 .PHONY:
-customised : nestedProjectRoots
+customised : customised/NestedProjectRoots
 
 .PHONY:
-nestedProjectRoots : customised/NestedProjectRoots.agda
-	-@rm customised/Imports/A.agdai
-	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $<; \
+customised/NestedProjectRoots : % : %.err
+	@echo $*.agda
+	-@rm -f customised/Imports/A.agdai
+	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
 	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
-	    $(AGDA_BIN) -icustomised -icustomised/Imports $<) \
+	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) \
 	    | sed -e "s/[^ (]*test.fail.//g" \
-	    > customised/NestedProjectRoots.err.tmp
-	@diff -u customised/NestedProjectRoots.err \
-	         customised/NestedProjectRoots.err.tmp
-	-@rm customised/NestedProjectRoots.err.tmp
+	    > $*.err.tmp
+	@echo `cat $*.err.tmp` > $*.err.tmp.2
+	@echo `cat $*.err` > $*.err.tmp.3
+	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
+		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
+				 true; \
+		else echo "== Old error ==="; \
+			 cat $*.err; \
+			 echo "== New error ==="; \
+			 cat $*.err.tmp; \
+			 rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
+			 false; \
+		fi
 
 # Clean
 
