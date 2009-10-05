@@ -162,17 +162,18 @@ instance Pretty WhereClause where
 
 instance Pretty LHS where
   pretty lhs = case lhs of
-    LHS p ps es  -> pr (pretty p) ps es
-    Ellipsis _ ps es -> pr (text "...") ps es
+    LHS p ps eqs es  -> pr (pretty p) ps eqs es
+    Ellipsis _ ps eqs es -> pr (text "...") ps eqs es
     where
-      pr d ps es =
+      pr d ps eqs es =
         sep [ d
             , nest 2 $ fsep $ map ((text "|" <+>) . pretty) ps
-            , nest 2 $ pWith es
+            , nest 2 $ pThing "rewrite" eqs
+            , nest 2 $ pThing "with" es
             ]
-      pWith []	     = empty
-      pWith (e : es) = fsep $ (text "with" <+> pretty e)
-			    : map ((text "|" <+>) . pretty) es
+      pThing thing []       = empty
+      pThing thing (e : es) = fsep $ (text thing <+> pretty e)
+			           : map ((text "|" <+>) . pretty) es
 
 instance Pretty [Declaration] where
   pretty = vcat . map pretty

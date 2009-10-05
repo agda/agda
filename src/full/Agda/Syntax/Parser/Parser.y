@@ -48,6 +48,7 @@ import Agda.Utils.Monad
     'in'	{ TokKeyword KwIn $$ }
     'where'	{ TokKeyword KwWhere $$ }
     'with'	{ TokKeyword KwWith $$ }
+    'rewrite'	{ TokKeyword KwRewrite $$ }
     'postulate' { TokKeyword KwPostulate $$ }
     'primitive' { TokKeyword KwPrimitive $$ }
     'open'	{ TokKeyword KwOpen $$ }
@@ -133,6 +134,7 @@ Token
     | 'in'	    { TokKeyword KwIn $1 }
     | 'where'	    { TokKeyword KwWhere $1 }
     | 'with'	    { TokKeyword KwWith $1 }
+    | 'rewrite'	    { TokKeyword KwRewrite $1 }
     | 'postulate'   { TokKeyword KwPostulate $1 }
     | 'primitive'   { TokKeyword KwPrimitive $1 }
     | 'open'	    { TokKeyword KwOpen $1 }
@@ -571,8 +573,10 @@ CommaImportNames1
 -- A left hand side of a function clause. We parse it as an expression, and
 -- then check that it is a valid left hand side.
 LHS :: { LHS }
-LHS : Expr1 WithExpressions	     {% exprToLHS $1 >>= \p -> return (p $2) }
-    | '...' WithPats WithExpressions { Ellipsis (fuseRange $1 $3) $2 $3 }
+LHS : Expr1 RewriteEquations WithExpressions
+        {% exprToLHS $1 >>= \p -> return (p $2 $3) }
+    | '...' WithPats RewriteEquations WithExpressions
+        { Ellipsis (fuseRange $1 $3) $2 $3 $4 }
 
 WithPats :: { [Pattern] }
 WithPats : {- empty -}	{ [] }
@@ -584,7 +588,14 @@ WithPats : {- empty -}	{ [] }
 WithExpressions :: { [Expr] }
 WithExpressions
   : {- empty -}	{ [] }
-  | 'with' Expr { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+  | 'with' Expr
+      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
+
+RewriteEquations :: { [Expr] }
+RewriteEquations
+  : {- empty -}	{ [] }
+  | 'rewrite' Expr
+      { case $2 of { WithApp _ e es -> e : es; e -> [e] } }
 
 -- Where clauses are optional.
 WhereClause :: { WhereClause }
@@ -930,7 +941,7 @@ verifyImportDirective i =
  --------------------------------------------------------------------------}
 
 -- | Turn an expression into a left hand side.
-exprToLHS :: Expr -> Parser ([Expr] -> LHS)
+exprToLHS :: Expr -> Parser ([Expr] -> [Expr] -> LHS)
 exprToLHS e = case e of
   WithApp r e es -> LHS <$> exprToPattern e <*> mapM exprToPattern es
   _		 -> LHS <$> exprToPattern e <*> return []

@@ -145,6 +145,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
+                A.RewriteRHS eqs rhs -> typeError $ NotImplemented "equational rewriting"
                 A.WithRHS aux es cs -> do
 
                   -- Infer the types of the with expressions

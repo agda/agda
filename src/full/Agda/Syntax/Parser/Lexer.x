@@ -125,6 +125,7 @@ tokens :-
 <0,code> where		{ keyword KwWhere }
 <0,code> field		{ keyword KwField }
 <0,code> with           { keyword KwWith }
+<0,code> rewrite        { keyword KwRewrite }
 <0,code> postulate	{ keyword KwPostulate }
 <0,code> primitive	{ keyword KwPrimitive }
 <0,code> open		{ keyword KwOpen }

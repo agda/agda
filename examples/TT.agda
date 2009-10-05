@@ -45,11 +45,11 @@ module Prelude where
     suc n == suc m = n == m
     _     == _     = False
 
-    rewrite : (C : Nat -> Set){m n : Nat} -> m == n -> C n -> C m
-    rewrite C {zero}  {zero}  _  x = x
-    rewrite C {suc _} {suc _} eq x = rewrite (\z -> C (suc z)) eq x
-    rewrite C {zero}  {suc _} () _
-    rewrite C {suc _} {zero}  () _
+    rewriteEq : (C : Nat -> Set){m n : Nat} -> m == n -> C n -> C m
+    rewriteEq C {zero}  {zero}  _  x = x
+    rewriteEq C {suc _} {suc _} eq x = rewriteEq (\z -> C (suc z)) eq x
+    rewriteEq C {zero}  {suc _} () _
+    rewriteEq C {suc _} {zero}  () _
 
 module Chain {A : Set}(_==_ : A -> A -> Prop)
              (_trans_ : {x y z : A} -> x == y -> y == z -> x == z)
@@ -105,12 +105,12 @@ module Fin where
     _==_ {suc _} (finI (fsuc' i)) (finI (fsuc' j)) = i == j
     _==_          _                _               = False
 
-    rewrite : {n : Nat}(C : Fin n -> Set){i j : Fin n} -> i == j -> C j -> C i
-    rewrite {suc _} C {finI  fzero'  } {finI  fzero'  } eq x = x
-    rewrite {suc _} C {finI (fsuc' i)} {finI (fsuc' j)} eq x = rewrite (\z -> C (fsuc z)) eq x
-    rewrite {suc _} C {finI (fsuc' _)} {finI fzero'   } () _
-    rewrite {suc _} C {finI fzero'   } {finI (fsuc' _)} () _
-    rewrite {zero}  C {finI ()}        {_}              _  _
+    rewriteEq : {n : Nat}(C : Fin n -> Set){i j : Fin n} -> i == j -> C j -> C i
+    rewriteEq {suc _} C {finI  fzero'  } {finI  fzero'  } eq x = x
+    rewriteEq {suc _} C {finI (fsuc' i)} {finI (fsuc' j)} eq x = rewriteEq (\z -> C (fsuc z)) eq x
+    rewriteEq {suc _} C {finI (fsuc' _)} {finI fzero'   } () _
+    rewriteEq {suc _} C {finI fzero'   } {finI (fsuc' _)} () _
+    rewriteEq {zero}  C {finI ()}        {_}              _  _
 
 module Vec where
 
@@ -193,65 +193,65 @@ module Untyped where
     eCon f              == eCon g                = NatEq._==_ f g
     _                   == _                     = False
 
-    rewrite : {n : Nat}(C : Expr n -> Set){r s : Expr n} -> r == s -> C s -> C r
-    rewrite C {eVar i    } {eVar j    } eq x = FinEq.rewrite (\z -> C (eVar z)) eq x
-    rewrite C {eLam e1   } {eLam e2   } eq x = rewrite (\z -> C (eLam z)) eq x
-    rewrite C {eSet      } {eSet      } eq x = x
-    rewrite C {eEl       } {eEl       } eq x = x
-    rewrite C {ePi       } {ePi       } eq x = x
-    rewrite C {eCon f    } {eCon g    } eq x = NatEq.rewrite (\z -> C (eCon z)) eq x
-    rewrite C {eApp e1 e2} {eApp e3 e4} (andI eq13 eq24) x =
-      rewrite (\z -> C (eApp z e2)) eq13 (
-        rewrite (\z -> C (eApp e3 z)) eq24 x
+    rewriteEq : {n : Nat}(C : Expr n -> Set){r s : Expr n} -> r == s -> C s -> C r
+    rewriteEq C {eVar i    } {eVar j    } eq x = FinEq.rewriteEq (\z -> C (eVar z)) eq x
+    rewriteEq C {eLam e1   } {eLam e2   } eq x = rewriteEq (\z -> C (eLam z)) eq x
+    rewriteEq C {eSet      } {eSet      } eq x = x
+    rewriteEq C {eEl       } {eEl       } eq x = x
+    rewriteEq C {ePi       } {ePi       } eq x = x
+    rewriteEq C {eCon f    } {eCon g    } eq x = NatEq.rewriteEq (\z -> C (eCon z)) eq x
+    rewriteEq C {eApp e1 e2} {eApp e3 e4} (andI eq13 eq24) x =
+      rewriteEq (\z -> C (eApp z e2)) eq13 (
+        rewriteEq (\z -> C (eApp e3 z)) eq24 x
       )
-    rewrite C {eVar _} {eLam _  } () _
-    rewrite C {eVar _} {eSet    } () _
-    rewrite C {eVar _} {eEl     } () _
-    rewrite C {eVar _} {eCon _  } () _
-    rewrite C {eVar _} {ePi     } () _
-    rewrite C {eVar _} {eApp _ _} () _
+    rewriteEq C {eVar _} {eLam _  } () _
+    rewriteEq C {eVar _} {eSet    } () _
+    rewriteEq C {eVar _} {eEl     } () _
+    rewriteEq C {eVar _} {eCon _  } () _
+    rewriteEq C {eVar _} {ePi     } () _
+    rewriteEq C {eVar _} {eApp _ _} () _
 
-    rewrite C {eLam _} {eVar _  } () _
-    rewrite C {eLam _} {eSet    } () _
-    rewrite C {eLam _} {eEl     } () _
-    rewrite C {eLam _} {eCon _  } () _
-    rewrite C {eLam _} {ePi     } () _
-    rewrite C {eLam _} {eApp _ _} () _
+    rewriteEq C {eLam _} {eVar _  } () _
+    rewriteEq C {eLam _} {eSet    } () _
+    rewriteEq C {eLam _} {eEl     } () _
+    rewriteEq C {eLam _} {eCon _  } () _
+    rewriteEq C {eLam _} {ePi     } () _
+    rewriteEq C {eLam _} {eApp _ _} () _
 
-    rewrite C {eSet  } {eLam _  } () _
-    rewrite C {eSet  } {eVar _  } () _
-    rewrite C {eSet  } {eEl     } () _
-    rewrite C {eSet  } {eCon _  } () _
-    rewrite C {eSet  } {ePi     } () _
-    rewrite C {eSet  } {eApp _ _} () _
+    rewriteEq C {eSet  } {eLam _  } () _
+    rewriteEq C {eSet  } {eVar _  } () _
+    rewriteEq C {eSet  } {eEl     } () _
+    rewriteEq C {eSet  } {eCon _  } () _
+    rewriteEq C {eSet  } {ePi     } () _
+    rewriteEq C {eSet  } {eApp _ _} () _
 
-    rewrite C {eEl   } {eLam _  } () _
-    rewrite C {eEl   } {eSet    } () _
-    rewrite C {eEl   } {eVar _  } () _
-    rewrite C {eEl   } {eCon _  } () _
-    rewrite C {eEl   } {ePi     } () _
-    rewrite C {eEl   } {eApp _ _} () _
+    rewriteEq C {eEl   } {eLam _  } () _
+    rewriteEq C {eEl   } {eSet    } () _
+    rewriteEq C {eEl   } {eVar _  } () _
+    rewriteEq C {eEl   } {eCon _  } () _
+    rewriteEq C {eEl   } {ePi     } () _
+    rewriteEq C {eEl   } {eApp _ _} () _
 
-    rewrite C {eCon _} {eLam _  } () _
-    rewrite C {eCon _} {eSet    } () _
-    rewrite C {eCon _} {eEl     } () _
-    rewrite C {eCon _} {eVar _  } () _
-    rewrite C {eCon _} {ePi     } () _
-    rewrite C {eCon _} {eApp _ _} () _
+    rewriteEq C {eCon _} {eLam _  } () _
+    rewriteEq C {eCon _} {eSet    } () _
+    rewriteEq C {eCon _} {eEl     } () _
+    rewriteEq C {eCon _} {eVar _  } () _
+    rewriteEq C {eCon _} {ePi     } () _
+    rewriteEq C {eCon _} {eApp _ _} () _
 
-    rewrite C {ePi   } {eLam _  } () _
-    rewrite C {ePi   } {eSet    } () _
-    rewrite C {ePi   } {eEl     } () _
-    rewrite C {ePi   } {eCon _  } () _
-    rewrite C {ePi   } {eVar _  } () _
-    rewrite C {ePi   } {eApp _ _} () _
+    rewriteEq C {ePi   } {eLam _  } () _
+    rewriteEq C {ePi   } {eSet    } () _
+    rewriteEq C {ePi   } {eEl     } () _
+    rewriteEq C {ePi   } {eCon _  } () _
+    rewriteEq C {ePi   } {eVar _  } () _
+    rewriteEq C {ePi   } {eApp _ _} () _
 
-    rewrite C {eApp _ _} {eLam _  } () _
-    rewrite C {eApp _ _} {eSet    } () _
-    rewrite C {eApp _ _} {eEl     } () _
-    rewrite C {eApp _ _} {eCon _  } () _
-    rewrite C {eApp _ _} {ePi     } () _
-    rewrite C {eApp _ _} {eVar _  } () _
+    rewriteEq C {eApp _ _} {eLam _  } () _
+    rewriteEq C {eApp _ _} {eSet    } () _
+    rewriteEq C {eApp _ _} {eEl     } () _
+    rewriteEq C {eApp _ _} {eCon _  } () _
+    rewriteEq C {eApp _ _} {ePi     } () _
+    rewriteEq C {eApp _ _} {eVar _  } () _
 
 module Typed where
 
@@ -353,9 +353,9 @@ module Typed where
               (ρ : Ren Γ Δ)(x : Var Γ A) -> Var Δ (rename ρ A)
     lookupR {zero} _ (varI ())
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
-            (renI (extRen' ρ z)) (varI (vzero_ eq)) = ?
+            (renI (extRen' ρ z)) (varI (vzero_ eq)) = {!!}
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
-            (renI (extRen' ρ z)) (varI (vsuc_ C eq x)) = ?
+            (renI (extRen' ρ z)) (varI (vsuc_ C eq x)) = {!!}
 
     -- Building renamings -----------------------------------------------------
 
@@ -365,16 +365,16 @@ module Typed where
 
     liftR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
             (ρ : Ren Γ Δ) -> Ren (Γ & A) (Δ & rename ρ A)
-    liftR {_}{_}{_}{A} ρ = extRen (upR coR ρ) (varI ?)
+    liftR {_}{_}{_}{A} ρ = extRen (upR coR ρ) (varI {!!})
 
     idR : {n : Nat} {Γ : Context n} -> Ren Γ Γ
-    idR = ?
+    idR = {!!}
 
     _coR_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Ren Δ Θ -> Ren Γ Δ -> Ren Γ Θ
-    _coR_ = ?
+    _coR_ = {!!}
 
     upR : {n : Nat}{Γ : Context n}{A : Type Γ} -> Ren Γ (Γ & A)
-    upR = ?
+    upR = {!!}
 
     -- Substitutions ----------------------------------------------------------
 
@@ -401,15 +401,15 @@ module Typed where
 
     substTerm : {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ} ->
                 (σ : Sub Γ Δ) -> Term Γ A -> Term Δ (subst σ A)
-    substTerm σ (var x)             = ?
-    substTerm σ (app s t eq) = ?
-    substTerm σ (lam t eq)   = ?
+    substTerm σ (var x)             = {!!}
+    substTerm σ (app s t eq) = {!!}
+    substTerm σ (lam t eq)   = {!!}
 
     -- Building substitutions -------------------------------------------------
 
     liftS : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
             (σ : Sub Γ Δ) -> Sub (Γ & A) (Δ & subst σ A)
-    liftS {_}{_}{_}{A} σ = ? -- extSub (upS ∘ σ) (var fzero (substCompose upS σ A))
+    liftS {_}{_}{_}{A} σ = {!!} -- extSub (upS ∘ σ) (var fzero (substCompose upS σ A))
       -- Works with hidden args to substCompose when inlined in subst 
       -- but not here. Weird.
 
@@ -422,7 +422,7 @@ module Typed where
 
     idS : {n : Nat}{Γ : Context n} -> Sub Γ Γ
     idS {zero}  {ctxI nil'}      = topS
-    idS {suc _} {ctxI (ext Γ A)} = ? -- extSub upS (var fzero refl)
+    idS {suc _} {ctxI (ext Γ A)} = {!!} -- extSub upS (var fzero refl)
 
     _∘_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Sub Δ Θ -> Sub Γ Δ -> Sub Γ Θ
     _∘_ {zero} {_}{_} {ctxI nil'}      _  _                 = topS
@@ -430,7 +430,7 @@ module Typed where
       extSub (σ ∘ δ) (convert (substCompose σ δ A) (substTerm σ t))
 
     upS : {n : Nat}{Γ : Context n}{A : Type Γ} -> Sub Γ (Γ & A)
-    upS = ?
+    upS = {!!}
 
     down : {n : Nat}{Γ : Context n}{A : Type Γ} -> Term Γ A -> Sub (Γ & A) Γ
     down t = extSub idS (convert substId t)
@@ -438,43 +438,43 @@ module Typed where
     -- Convertibility ---------------------------------------------------------
 
     _==_ : {n : Nat}{Γ : Context n} -> Type Γ -> Type Γ -> Prop
-    A == B = ?
+    A == B = {!!}
 
     refl : {n : Nat}{Γ : Context n}{A : Type Γ} -> A == A
-    refl = ?
+    refl = {!!}
 
     cong : {n m : Nat}{Γ : Context n}{Δ : Context m}(f : Type Γ -> Type Δ)
            {A B : Type Γ} -> A == B -> f A == f B
-    cong f eq = ?
+    cong f eq = {!!}
 
     _trans_ : {n : Nat}{Γ : Context n}{A B C : Type Γ} -> A == B -> B == C -> A == C
-    ab trans bc = ?
+    ab trans bc = {!!}
 
     convert : {n : Nat}{Γ : Context n}{A B : Type Γ} -> A == B -> Term Γ B -> Term Γ A
-    convert eq t = ?
+    convert eq t = {!!}
 
     -- Properties -------------------------------------------------------------
 
     renameId : {n : Nat}{Γ : Context n}{A : Type Γ} -> rename idR A == A
-    renameId = ?
+    renameId = {!!}
 
     renameCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
                     (σ : Ren Δ Θ)(δ : Ren Γ Δ)(A : Type Γ) -> 
                     rename (σ coR δ) A == rename σ (rename δ A)
-    renameCompose σ δ A = ?
+    renameCompose σ δ A = {!!}
 
     substId : {n : Nat}{Γ : Context n}{A : Type Γ} -> subst idS A == A
-    substId = ?
+    substId = {!!}
 
     substCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
                    (σ : Sub Δ Θ)(δ : Sub Γ Δ)(A : Type Γ) -> 
                    subst (σ ∘ δ) A == subst σ (subst δ A)
-    substCompose σ δ A = ?
+    substCompose σ δ A = {!!}
 
     renameSubstCommute :
       {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ}{B : Type (Γ & A)}
       {ρ : Ren Γ Δ}{t : Term Γ A} ->
       rename ρ (subst (down t) B) == subst (down (renameTerm ρ t)) (rename (liftR ρ) B)
-    renameSubstCommute = ?
+    renameSubstCommute = {!!}
 
 

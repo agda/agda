@@ -172,7 +172,7 @@ niceDeclarations ds = do
 	declaredNames d = case d of
 	  TypeSig x _				       -> [x]
           Field x _                                    -> [x]
-	  FunClause (LHS p [] _) _ _
+	  FunClause (LHS p [] _ _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
 	  Data _ _ x _ _ cs			       -> x : concatMap declaredNames cs
@@ -206,7 +206,7 @@ niceDeclarations ds = do
 			  d <- mkFunDef fixs x (Just t) ds0
                           return $ d : ds1
 
-		cl@(FunClause lhs@(LHS p [] _) _ _)
+		cl@(FunClause lhs@(LHS p [] _ _) _ _)
                   | IdentP (QName x) <- noSingletonRawAppP p
                                   -> do
 		      ds <- nice fixs ds
@@ -312,19 +312,19 @@ niceDeclarations ds = do
 
         expandEllipsis :: [Declaration] -> [Declaration]
         expandEllipsis [] = []
-        expandEllipsis (d@(FunClause (Ellipsis _ _ _) _ _) : ds) =
+        expandEllipsis (d@(FunClause Ellipsis{} _ _) : ds) =
           d : expandEllipsis ds
-        expandEllipsis (d@(FunClause lhs@(LHS p ps _) _ _) : ds) =
+        expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _) : ds) =
           d : expand p ps ds
           where
             expand _ _ [] = []
-            expand p ps (FunClause (Ellipsis _ ps' []) rhs wh : ds) =
-              FunClause (LHS p (ps ++ ps') []) rhs wh : expand p ps ds
-            expand p ps (FunClause (Ellipsis _ ps' es) rhs wh : ds) =
-              FunClause (LHS p (ps ++ ps') es) rhs wh : expand p (ps ++ ps') ds
-            expand p ps (d@(FunClause (LHS _ _ []) _ _) : ds) =
+            expand p ps (FunClause (Ellipsis _ ps' eqs []) rhs wh : ds) =
+              FunClause (LHS p (ps ++ ps') eqs []) rhs wh : expand p ps ds
+            expand p ps (FunClause (Ellipsis _ ps' eqs es) rhs wh : ds) =
+              FunClause (LHS p (ps ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
+            expand p ps (d@(FunClause (LHS _ _ _ []) _ _) : ds) =
               d : expand p ps ds
-            expand _ _ (d@(FunClause (LHS p ps (_ : _)) _ _) : ds) =
+            expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _) : ds) =
               d : expand p ps ds
             expand _ _ (_ : ds) = __IMPOSSIBLE__
         expandEllipsis (_ : ds) = __IMPOSSIBLE__
@@ -333,9 +333,9 @@ niceDeclarations ds = do
         -- Turn function clauses into nice function clauses.
         mkClauses :: Name -> [Declaration] -> Nice [Clause]
         mkClauses _ [] = return []
-        mkClauses x (FunClause lhs@(LHS _ _ []) rhs wh : cs) =
+        mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) =
           (Clause x lhs rhs wh [] :) <$> mkClauses x cs
-        mkClauses x (FunClause lhs@(LHS _ ps es) rhs wh : cs) = do
+        mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) = do
           when (null with) $ throwError $ MissingWithClauses x
           wcs <- mkClauses x with
           (Clause x lhs rhs wh wcs :) <$> mkClauses x cs'
@@ -345,18 +345,19 @@ niceDeclarations ds = do
             -- A clause is a subclause if the number of with-patterns is
             -- greater or equal to the current number of with-patterns plus the
             -- number of with arguments.
-            subClause (FunClause (LHS _ ps' _) _ _)      = length ps' >= length ps + length es
-            subClause (FunClause (Ellipsis _ ps' _) _ _) = True
+            subClause (FunClause (LHS _ ps' _ _) _ _)      =
+              length ps' >= length ps + length es
+            subClause (FunClause (Ellipsis _ ps' _ _) _ _) = True
             subClause _                                  = __IMPOSSIBLE__
-        mkClauses x (FunClause lhs@(Ellipsis _ _ _) rhs wh : cs) =
+        mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) =
           (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
         mkClauses _ _ = __IMPOSSIBLE__
 
 	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
 	noSingletonRawAppP p		   = p
 
-        isFunClauseOf x (FunClause (Ellipsis _ _ _) _ _) = True
-	isFunClauseOf x (FunClause (LHS p _ _) _ _) = case noSingletonRawAppP p of
+        isFunClauseOf x (FunClause Ellipsis{} _ _) = True
+	isFunClauseOf x (FunClause (LHS p _ _ _) _ _) = case noSingletonRawAppP p of
 	    IdentP (QName q)	-> x == q
 	    _			-> True
 		-- more complicated lhss must come with type signatures, so we just assume

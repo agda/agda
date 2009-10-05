@@ -406,8 +406,11 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
 instance ToConcrete LetBinding [C.Declaration] where
     bindToConcrete (LetBind i x t e) ret =
         bindToConcrete x $ \x ->
-        do  (t,(e, [], [])) <- toConcrete (t, A.RHS e)
-            ret [C.TypeSig x t, C.FunClause (C.LHS (C.IdentP $ C.QName x) [] []) e C.NoWhere]
+        do  (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
+            ret [ C.TypeSig x t
+                , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
+                              e C.NoWhere
+                ]
     bindToConcrete (LetApply i x tel y es _ _) ret = do
       x  <- unsafeQNameToName <$> toConcrete x
       y  <- toConcrete y
@@ -428,15 +431,21 @@ instance ToConcrete LetBinding [C.Declaration] where
 instance ToConcrete [A.Declaration] [C.Declaration] where
     toConcrete ds = concat <$> mapM toConcrete ds
 
-instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Declaration]) where
+instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e) = do
       e <- toConcrete e
-      return (C.RHS e, [], [])
-    toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [])
+      return (C.RHS e, [], [], [])
+    toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
     toConcrete (A.WithRHS _ es cs) = do
       es <- toConcrete es
       cs <- toConcrete cs
-      return (C.AbsurdRHS, es, concat cs)
+      return (C.AbsurdRHS, [], es, concat cs)
+    toConcrete (A.RewriteRHS eqs rhs) = do
+      (rhs, eqs', es, whs) <- toConcrete rhs
+      unless (null eqs')
+        __IMPOSSIBLE__
+      eqs <- toConcrete eqs
+      return (rhs, eqs, es, whs)
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
@@ -493,13 +502,13 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 
 instance ToConcrete A.Clause [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
-      bindToConcrete lhs $ \(C.LHS p wps _) -> do
-          (rhs', with, wcs) <- toConcreteCtx TopCtx rhs
+      bindToConcrete lhs $ \(C.LHS p wps _ _) -> do
+          (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
           ds         <- toConcrete wh
           let wh' = case ds of
                 []  -> C.NoWhere
                 _   -> C.AnyWhere ds
-          return $ FunClause (C.LHS p wps with) rhs' wh' : wcs
+          return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
 
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
@@ -600,7 +609,7 @@ instance ToConcrete A.LHS C.LHS where
     bindToConcrete (A.LHS i x args wps) ret = do
       bindToConcreteCtx TopCtx (A.DefP info x args) $ \lhs ->
         bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
-          ret $ C.LHS lhs wps []
+          ret $ C.LHS lhs wps [] []
       where info = PatRange (getRange i)
 
 appBrackets' :: [arg] -> Precedence -> Bool

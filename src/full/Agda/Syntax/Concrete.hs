@@ -133,11 +133,14 @@ type Telescope = [TypedBindings]
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS Pattern [Pattern] [Expr]
-         -- ^ original pattern, with-patterns and with-expressions
-         | Ellipsis Range [Pattern] [Expr]
-         -- ^ new with-patterns and with-expressions
+data LHS = LHS Pattern [Pattern] [RewriteEqn] [WithExpr]
+         -- ^ original pattern, with-patterns, rewrite equations and with-expressions
+         | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
+         -- ^ new with-patterns, rewrite equations and with-expressions
   deriving (Typeable, Data, Eq)
+
+type RewriteEqn = Expr
+type WithExpr   = Expr
 
 data RHS = AbsurdRHS
 	 | RHS Expr
@@ -346,8 +349,8 @@ instance HasRange Declaration where
     getRange (Pragma p)			= getRange p
 
 instance HasRange LHS where
-  getRange (LHS p ps es) = fuseRange p (fuseRange ps es)
-  getRange (Ellipsis r _ _) = r
+  getRange (LHS p ps eqns ws) = fuseRange p (fuseRange ps (eqns ++ ws))
+  getRange (Ellipsis r _ _ _) = r
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange

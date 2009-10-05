@@ -14,7 +14,7 @@ data Keyword
 	= KwLet | KwIn | KwWhere | KwData | KwCoData
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
-	| KwInfix | KwInfixL | KwInfixR | KwWith
+	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
 	| KwSet | KwProp | KwForall | KwRecord | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE

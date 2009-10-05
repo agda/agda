@@ -120,9 +120,9 @@ annotateExpr m = do
   return $ ScopedExpr s e
 
 expandEllipsis :: C.Pattern -> [C.Pattern] -> C.Clause -> C.Clause
-expandEllipsis _ _ c@(C.Clause _ (C.LHS _ _ _) _ _ _) = c
-expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' es) rhs wh wcs) =
-  C.Clause x (C.LHS p (ps ++ ps') es) rhs wh wcs
+expandEllipsis _ _ c@(C.Clause _ C.LHS{} _ _ _) = c
+expandEllipsis p ps (C.Clause x (C.Ellipsis _ ps' eqs es) rhs wh wcs) =
+  C.Clause x (C.LHS p (ps ++ ps') eqs es) rhs wh wcs
 
 -- | Make sure that each variable occurs only once.
 checkPatternLinearity :: [A.Pattern' e] -> ScopeM ()
@@ -591,7 +591,7 @@ instance ToAbstract LetDef [A.LetBinding] where
 
             _   -> notAValidLetBinding d
         where
-            letToAbstract (C.Clause top clhs@(C.LHS p [] []) (C.RHS rhs) NoWhere []) = do
+            letToAbstract (C.Clause top clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
                 p    <- parseLHS (Just top) p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
                     do  rhs <- toAbstract rhs
@@ -819,8 +819,8 @@ instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
     toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
 instance ToAbstract C.Clause A.Clause where
-    toAbstract (C.Clause top (C.Ellipsis _ _ _) _ _ _) = fail "bad '...'" -- TODO: errors message
-    toAbstract (C.Clause top lhs@(C.LHS p wps with) rhs wh wcs) = withLocalVars $ do
+    toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
+    toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
       let wcs' = map (expandEllipsis p wps) wcs
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
@@ -830,7 +830,7 @@ instance ToAbstract C.Clause A.Clause where
             SomeWhere m ds -> (Just m, ds)
       case whds of
         [] -> do
-          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide with wcs' rhs)
+          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs)
           return $ A.Clause lhs' rhs []
         _       -> do
           m <- maybe (nameConcrete <$> freshNoName noRange) return whname
@@ -841,7 +841,7 @@ instance ToAbstract C.Clause A.Clause where
           (scope, ds) <- scopeCheckModule (getRange wh) (C.QName m) am tel whds
           setScope scope
           -- the right hand side is checked inside the module of the local definitions
-          rhs <- toAbstractCtx TopCtx (RightHandSide with wcs' rhs)
+          rhs <- toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs)
           setCurrentModule old
 --        case acc of
 --          PublicAccess  -> popScope PublicAccess
@@ -850,14 +850,16 @@ instance ToAbstract C.Clause A.Clause where
           rhs <- toAbstract rhs
           return $ A.Clause lhs' rhs ds
 
-data RightHandSide = RightHandSide [C.Expr] [C.Clause] C.RHS
+data RightHandSide = RightHandSide [C.Expr] [C.Expr] [C.Clause] C.RHS
 data AbstractRHS = AbsurdRHS'
                  | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
                  | RHS' A.Expr
+                 | RewriteRHS' [A.Expr] AbstractRHS
 
 instance ToAbstract AbstractRHS A.RHS where
-  toAbstract AbsurdRHS'       = return A.AbsurdRHS
-  toAbstract (RHS' e)         = return $ A.RHS e
+  toAbstract AbsurdRHS'            = return A.AbsurdRHS
+  toAbstract (RHS' e)              = return $ A.RHS e
+  toAbstract (RewriteRHS' eqs rhs) = RewriteRHS eqs <$> toAbstract rhs
   toAbstract (WithRHS' es cs) = do
     m   <- getCurrentModule
     -- Hack
@@ -866,10 +868,14 @@ instance ToAbstract AbstractRHS A.RHS where
     A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide [] (_ : _) _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] rhs)           = toAbstract rhs
-  toAbstract (RightHandSide es cs C.AbsurdRHS)   = do
+  toAbstract (RightHandSide eqs@(_:_) es cs rhs) = do
+    eqs <- toAbstractCtx TopCtx eqs
+    rhs <- toAbstract (RightHandSide [] es cs rhs)
+    return $ RewriteRHS' eqs rhs
+  toAbstract (RightHandSide [] [] (_ : _) _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] [] rhs)           = toAbstract rhs
+  toAbstract (RightHandSide [] es cs C.AbsurdRHS)   = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
 

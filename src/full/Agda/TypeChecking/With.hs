@@ -52,9 +52,10 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
 
-    buildRHS rhs@(RHS _)     = return rhs
-    buildRHS rhs@AbsurdRHS   = return rhs
-    buildRHS (WithRHS q es cs) = WithRHS q es <$> mapM buildWithClause cs
+    buildRHS rhs@(RHS _)            = return rhs
+    buildRHS rhs@AbsurdRHS          = return rhs
+    buildRHS (WithRHS q es cs)      = WithRHS q es <$> mapM buildWithClause cs
+    buildRHS (RewriteRHS eqs rhs) = typeError $ NotImplemented "equational rewriting"
 
 {-| @stripWithClausePatterns Γ qs π ps = ps'@
 
@@ -254,6 +255,7 @@ updateWithConstructorRanges ::
 updateWithConstructorRanges tel ps A.RHS{}            = ps
 updateWithConstructorRanges tel ps A.AbsurdRHS{}      = ps
 updateWithConstructorRanges tel ps (A.WithRHS _ _ cs) = ps
+updateWithConstructorRanges tel ps A.RewriteRHS{}     = ps
 
 constructorsInClauses :: ConPos -> [A.Clause] -> [Range]
 constructorsInClauses pos cs = concatMap (constructorsInClause pos) cs
