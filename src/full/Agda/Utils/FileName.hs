@@ -57,7 +57,7 @@ prop_mkAbsolute f =
 
 -- | Makes the path absolute.
 --
--- This function raises an @__IMPOSSIBLE__@ error if
+-- This function raises an @\_\_IMPOSSIBLE\_\_@ error if
 -- 'canonicalizePath' does not return an absolute path.
 
 absolute :: FilePath -> IO AbsolutePath
