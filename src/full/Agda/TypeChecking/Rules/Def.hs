@@ -21,8 +21,10 @@ import qualified Agda.Syntax.Info as Info
 import qualified Agda.Syntax.Abstract.Pretty as A
 import Agda.Syntax.Fixity
 import Agda.Syntax.Translation.InternalToAbstract
-
+import Agda.Syntax.Info
+import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (primRefl, primEquality)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -129,11 +131,12 @@ data WithFunctionProblem
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
+checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
-      (body, with) <- checkWhere (size delta) wh $
+      (body, with) <- checkWhere (size delta) wh $ let
+          handleRHS rhs = 
               case rhs of
                 A.RHS e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->
@@ -145,9 +148,43 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
-                A.RewriteRHS eqs rhs -> typeError $ NotImplemented "equational rewriting"
+                A.RewriteRHS [] rhs -> handleRHS rhs
+                A.RewriteRHS (eq:eqs) rhs -> do
+                     (proof,t) <- inferExpr eq
+                     t' <- instantiateFull t
+                     refl <- primRefl
+                     equality <- primEquality
+                     name <- freshName_ "rewriteInternalFunction"
+                     reflCon <- case refl of
+                         Lam Hidden (Abs _typ (Lam Hidden (Abs _val (Con reflCon [])))) -> return reflCon
+                         _ -> typeError $ InternalError "REFL builtin should be a decent refl."
+                     (rewriteType,rewriteFrom,rewriteTo) <- case t' of
+                         El _Set0 (Def _equality [Arg Hidden rewriteType,
+                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo]) -> return (rewriteType,rewriteFrom,rewriteTo)
+                         _ -> typeError $ InternalError "You can rewrite only using (fully instanciated) equality proofs"
+                         
+                     let qname = (QName (MName []) name)
+                         info = PatRange noRange
+                         metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
+                         underscore = A.Underscore metaInfo
+                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr] <- mapM reify 
+                      [rewriteFrom,   rewriteTo,    rewriteType]
+                     proofExpr <- reify proof
+                     let newRhs = (A.WithRHS qname [rewriteFromExpr, proofExpr] 
+                                   [A.Clause (A.LHS i x aps pats) (A.RewriteRHS eqs rhs) [] {- no declaration -}
+                                    -- FIXME: rhs should be rewitten to add patterns (if it contains With's) (?)
+                                   ])
+                         pats = [A.DotP info rewriteToExpr,
+                                 A.ConP info (AmbQ [reflCon]) []]
+                         pats' = map unnamed pats
+                     reportSDoc "tc.rewrite.top" 25 $ vcat 
+                                         [ text "from = " <+> prettyTCM rewriteFromExpr,
+                                           text "to = " <+> prettyTCM rewriteToExpr,
+                                           text "typ = " <+> prettyTCM rewriteType,
+                                           text "proof = " <+> prettyTCM proofExpr,
+                                           text "equ = " <+> prettyTCM t' ]
+                     handleRHS newRhs
                 A.WithRHS aux es cs -> do
-
                   -- Infer the types of the with expressions
                   vas <- mapM inferExpr es
                   (vs, as) <- instantiateFull $ unzip vas
@@ -196,6 +233,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs wh) =
                     ]
 
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
+          in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
 
       reportSDoc "tc.lhs.top" 10 $ vcat
