@@ -1,17 +1,21 @@
 module Agda.Compiler.MAlonzo.Primitives where
 
+import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
 import Language.Haskell.Syntax
 
+import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (term)
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
 
@@ -106,7 +110,8 @@ xForPrim table = do
 
 -- Definition bodies for primitive functions
 primBody :: String -> TCM HsExp
-primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
+primBody s = maybe unimplemented (either (hsVarUQ . HsIdent) id <$>) $
+             L.lookup s $
   [
   -- Integer functions
     "primIntegerPlus"    |-> binAsis "(+)" "Integer"
@@ -172,9 +177,15 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   , "primStringAppend"   |-> binAsis "(++)" "String"
   , "primStringEquality" |-> rel "(==)" "String"
   , "primShowString"     |-> return "(show :: String -> String)"
+
+  -- Trust me
+  , ("primTrustMe"       , Right <$> do
+       refl <- primRefl
+       flip runReaderT 0 $
+         term $ lam "A" (lam "x" (lam "y" (refl `apply` [var 2, var 1]))))
   ]
   where
-  (|->) = (,)
+  x |-> s = (x, Left <$> s)
   bin blt op ty from to = do
     from' <- bltQual' blt from
     to'   <- bltQual' blt to
@@ -193,6 +204,9 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
               return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"
   opty t = t ++ "->" ++ t ++ "->" ++ t
   unimplemented = typeError $ NotImplemented s
+
+  lam x t = Lam Hidden (Abs x t)
+  var x   = Arg Hidden (Var x [])
 
 ----------------------
 

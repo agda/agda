@@ -86,6 +86,11 @@ Language
   If x and y are definitionally equal, then
   primTrustMe {x = x} {y = y} reduces to refl.
 
+  Note that the compiler replaces all uses of primTrustMe with the
+  REFL builtin, without any check for definitional equality. Incorrect
+  uses of primTrustMe can potentially lead to segfaults or similar
+  problems.
+
   For an example of the use of primTrustMe, see Data.String in version
   0.3 of the standard library, where it is used to implement decidable
   equality on strings from the primitive boolean equality.
