@@ -192,7 +192,7 @@ primBody s = (hsVarUQ . HsIdent <$>) $ maybe unimplemented id $ L.lookup s $
   pred p = do toHB <- bltQual' "BOOL" mazHBoolToBool
               return $ repl [p, toHB] $ "(\\ x -> <<1>> (<<0>> x))"
   opty t = t ++ "->" ++ t ++ "->" ++ t
-  unimplemented = return$ prettyPrint$ rtmError$ "not yet implemented: "++ s
+  unimplemented = typeError $ NotImplemented s
 
 ----------------------
 
