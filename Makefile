@@ -184,7 +184,7 @@ endif
 
 ## Testing ###########################################################
 
-test : succeed examples fail tests library-test
+test : succeed examples fail tests library-test compiler-test
 
 tests :
 	@echo "======================================================================"
@@ -219,6 +219,13 @@ library-test : std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS))
+
+compiler-test : std-lib
+	@echo "======================================================================"
+	@echo "============================== Compiler =============================="
+	@echo "======================================================================"
+	@(cd std-lib && darcs pull -a && make Everything.agda)
+	@(cd test/compiler && time ../../$(AGDA_BIN) --compile -i. -i../../std-lib -i../../std-lib/src Main.agda && ./Main)
 
 benchmark :
 	@$(MAKE) -C benchmark
