@@ -106,7 +106,9 @@ definition (Defn q ty _ _ d) = do
   (infodecl q :) <$> case d of
     Axiom{ axHsDef = Just (HsDefn ty hs) } -> return $ fbWithType ty (fakeExp hs)
     Axiom{}                                -> return $ fb axiomErr
-    Function{ funClauses = cls } -> mkwhere <$> mapM (clause q) (tag 0 cls)
+    Function{ funClauses =        cls } -> function cls
+    Primitive{ primClauses = Just cls } -> function cls
+    Primitive{ primClauses = Nothing, primName = s } -> fb <$> primBody s
     Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Just ty } -> do
       ccs <- concat <$> mapM checkConstructorType cs
       cov <- checkCover q ty np cs
@@ -118,8 +120,8 @@ definition (Defn q ty _ _ d) = do
     Record{ recClause = cl, recFields = flds } -> do
       ar <- arity <$> normalise ty
       return $ tvaldecl q Inductive (genericLength flds) ar [cdecl q (genericLength flds)] cl
-    Primitive{ primName = s } -> fb <$> primBody s
   where
+  function cls = mkwhere <$> mapM (clause q) (tag 0 cls)
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []
   tag i (cl:cls) = (i, False, cl): tag (i + 1) cls
