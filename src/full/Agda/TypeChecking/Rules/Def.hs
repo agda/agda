@@ -115,6 +115,17 @@ checkFunDef delayed i name cs =
     where
         npats = size . clausePats
 
+
+-- | Insert some patterns in the in with-clauses LHS of the given RHS
+insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
+insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
+    where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds) 
+--              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
+              = A.Clause (A.LHS i x aps (pats ++ ps)) (insertPatterns pats rhs) ds
+insertPatterns pats (A.RewriteRHS eqs rhs) = A.RewriteRHS eqs (insertPatterns pats rhs) 
+insertPatterns pats rhs = rhs
+
+
 data WithFunctionProblem
       = NoWithFunction
       | WithFunction QName          -- parent function name
@@ -167,16 +178,13 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          info = PatRange noRange
                          metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
                          underscore = A.Underscore metaInfo
-                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr] <- mapM reify 
-                      [rewriteFrom,   rewriteTo,    rewriteType]
-                     proofExpr <- reify proof
-                     let newRhs = (A.WithRHS qname [rewriteFromExpr, proofExpr] 
-                                   [A.Clause (A.LHS i x aps pats) (A.RewriteRHS eqs rhs) [] {- no declaration -}
-                                    -- FIXME: rhs should be rewitten to add patterns (if it contains With's) (?)
-                                   ])
+                         
+                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <- setShowImplicitArguments True $ reify
+                      [rewriteFrom,   rewriteTo,    rewriteType    , proof]
+                     let newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
+                                  [A.Clause (A.LHS i x aps pats) (A.RewriteRHS eqs (insertPatterns pats rhs)) [{-no "where"-}]]
                          pats = [A.DotP info rewriteToExpr,
                                  A.ConP info (AmbQ [reflCon]) []]
-                         pats' = map unnamed pats
                      reportSDoc "tc.rewrite.top" 25 $ vcat 
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,
                                            text "to = " <+> prettyTCM rewriteToExpr,
