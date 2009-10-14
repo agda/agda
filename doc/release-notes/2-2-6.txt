@@ -50,9 +50,6 @@ Language
 
   This is likely to change at some point.
 
-* The horizontal tab character (U+0009) is no longer treated as white
-  space.
-
 * Multiple constructors, record fields, postulates or primitives can
   now be declared using a single type signature:
 
@@ -62,26 +59,57 @@ Language
     postulate
       A B : Set
 
-* Line pragmas are no longer supported.
-
-* The --include-path flag can no longer be used as a pragma.
-
-* The experimental and incomplete support for proof irrelevance has
-  been disabled.
-
-* A new primitive, primTrustMe, has been added:
-
-    primTrustMe : {A : Set} {x y : A} → x ≡ y
+* BUILTIN hooks for equality
 
   The datatype
 
     data _≡_ {A : Set}(x : A) : A → Set where
       refl : x ≡ x
 
-  has to be bound using the BUILTIN pragmas:
+  can be specified as the builtin equality type using the pragmas
 
     {-# BUILTIN EQUALITY _≡_ #-}
     {-# BUILTIN REFL refl #-}
+
+  The builtin equality is used for the new rewrite construct and
+  the primTrustMe primitive described below.
+
+* New rewrite construct
+
+  If eqn : a ≡ b, where _≡_ is the builtin equality (see above) you can now
+  write
+
+    f ps rewrite eqn = rhs
+
+  for
+
+    f ps with a | eqn
+    ... | ._ | refl = rhs
+
+  The rewrite construct has the effect of rewriting the goal and the
+  context by the given equation (left to right).
+
+  You can rewrite by several equations (in sequence) by separating them
+  by | (bar):
+
+    f ps rewrite eqn₁ | eqn₂ | .. = rhs
+
+  It is also possible to add with clauses after rewriting:
+
+    f ps rewrite eqns with e
+    ... | p = rhs
+
+  Note that pattern matching happens before rewriting--if you want to rewrite
+  and then do pattern matching you can use a with after the rewrite.
+
+  See test/succeed/Rewrite.agda for some example uses.
+
+* A new primitive, primTrustMe, has been added:
+
+    primTrustMe : {A : Set} {x y : A} → x ≡ y
+
+  Where _≡_ is the builtin equality (see BUILTIN hooks for equality,
+  above).
 
   If x and y are definitionally equal, then
   primTrustMe {x = x} {y = y} reduces to refl.
@@ -94,6 +122,16 @@ Language
   For an example of the use of primTrustMe, see Data.String in version
   0.3 of the standard library, where it is used to implement decidable
   equality on strings from the primitive boolean equality.
+
+* The horizontal tab character (U+0009) is no longer treated as white
+  space.
+
+* Line pragmas are no longer supported.
+
+* The --include-path flag can no longer be used as a pragma.
+
+* The experimental and incomplete support for proof irrelevance has
+  been disabled.
 
 Tools
 -----
