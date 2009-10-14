@@ -856,15 +856,20 @@ data AbstractRHS = AbsurdRHS'
                  | RHS' A.Expr
                  | RewriteRHS' [A.Expr] AbstractRHS
 
+withFunctionName :: String -> ScopeM A.QName
+withFunctionName s = do
+  m <- getCurrentModule
+  NameId i _ <- fresh
+  A.qualify m <$> freshName_ (s ++ show i)
+
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
   toAbstract (RHS' e)              = return $ A.RHS e
-  toAbstract (RewriteRHS' eqs rhs) = RewriteRHS eqs <$> toAbstract rhs
+  toAbstract (RewriteRHS' eqs rhs) = do
+    auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
+    RewriteRHS auxs eqs <$> toAbstract rhs
   toAbstract (WithRHS' es cs) = do
-    m   <- getCurrentModule
-    -- Hack
-    NameId i _ <- fresh
-    aux <- A.qualify m <$> freshName_ ("aux" ++ show i)
+    aux <- withFunctionName "with-"
     A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where

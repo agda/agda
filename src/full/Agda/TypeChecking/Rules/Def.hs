@@ -122,7 +122,7 @@ insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause
     where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds) 
 --              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
               = A.Clause (A.LHS i x aps (pats ++ ps)) (insertPatterns pats rhs) ds
-insertPatterns pats (A.RewriteRHS eqs rhs) = A.RewriteRHS eqs (insertPatterns pats rhs) 
+insertPatterns pats (A.RewriteRHS qs eqs rhs) = A.RewriteRHS qs eqs (insertPatterns pats rhs) 
 insertPatterns pats rhs = rhs
 
 
@@ -159,13 +159,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
-                A.RewriteRHS [] rhs -> handleRHS rhs
-                A.RewriteRHS (eq:eqs) rhs -> do
+                A.RewriteRHS [] (_:_) _ -> __IMPOSSIBLE__
+                A.RewriteRHS (_:_) [] _ -> __IMPOSSIBLE__
+                A.RewriteRHS [] [] rhs -> handleRHS rhs
+                A.RewriteRHS (qname:names) (eq:eqs) rhs -> do
                      (proof,t) <- inferExpr eq
                      t' <- instantiateFull t
                      refl <- primRefl
                      equality <- primEquality
-                     name <- freshName_ "rewriteInternalFunction"
                      reflCon <- case refl of
                          Lam Hidden (Abs _typ (Lam Hidden (Abs _val (Con reflCon [])))) -> return reflCon
                          _ -> typeError $ InternalError "REFL builtin should be a decent refl."
@@ -174,15 +175,15 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                                                   Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo]) -> return (rewriteType,rewriteFrom,rewriteTo)
                          _ -> typeError $ InternalError "You can rewrite only using (fully instanciated) equality proofs"
                          
-                     let qname = (QName (MName []) name)
-                         info = PatRange noRange
+                     let info = PatRange noRange
                          metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
                          underscore = A.Underscore metaInfo
                          
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <- setShowImplicitArguments True $ reify
                       [rewriteFrom,   rewriteTo,    rewriteType    , proof]
                      let newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
-                                  [A.Clause (A.LHS i x aps pats) (A.RewriteRHS eqs (insertPatterns pats rhs)) [{-no "where"-}]]
+                                  [A.Clause (A.LHS i x aps pats)
+                                    (A.RewriteRHS names eqs (insertPatterns pats rhs)) [{-no "where"-}]]
                          pats = [A.DotP info rewriteToExpr,
                                  A.ConP info (AmbQ [reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat 

@@ -440,7 +440,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       es <- toConcrete es
       cs <- toConcrete cs
       return (C.AbsurdRHS, [], es, concat cs)
-    toConcrete (A.RewriteRHS eqs rhs) = do
+    toConcrete (A.RewriteRHS _ eqs rhs) = do
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
