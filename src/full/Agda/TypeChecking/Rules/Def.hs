@@ -164,16 +164,21 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                 A.RewriteRHS [] [] rhs -> handleRHS rhs
                 A.RewriteRHS (qname:names) (eq:eqs) rhs -> do
                      (proof,t) <- inferExpr eq
-                     t' <- instantiateFull t
-                     refl <- primRefl
-                     equality <- primEquality
-                     reflCon <- case refl of
-                         Lam Hidden (Abs _typ (Lam Hidden (Abs _val (Con reflCon [])))) -> return reflCon
-                         _ -> typeError $ InternalError "REFL builtin should be a decent refl."
+                     t' <- reduce =<< instantiateFull t
+                     equality <- primEquality >>= \eq -> return $ case eq of
+                        Lam Hidden (Abs _ (Def equality [_])) -> equality
+                        _                                     -> __IMPOSSIBLE__
+                     reflCon <- primRefl >>= \refl -> return $ case refl of
+                         Lam Hidden (Abs _typ (Lam Hidden (Abs _val (Con reflCon [])))) -> reflCon
+                         _ -> __IMPOSSIBLE__
                      (rewriteType,rewriteFrom,rewriteTo) <- case t' of
-                         El _Set0 (Def _equality [Arg Hidden rewriteType,
-                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo]) -> return (rewriteType,rewriteFrom,rewriteTo)
-                         _ -> typeError $ InternalError "You can rewrite only using (fully instanciated) equality proofs"
+                         El _Set0 (Def equality' [Arg Hidden rewriteType,
+                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo])
+                            | equality' == equality ->
+                              return (rewriteType, rewriteFrom, rewriteTo)
+                         _ -> do
+                          err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
+                          typeError $ GenericError $ show err
                          
                      let info = PatRange noRange
                          metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
@@ -184,7 +189,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                      let newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
                                   [A.Clause (A.LHS i x aps pats)
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs)) [{-no "where"-}]]
-                         pats = [A.DotP info rewriteToExpr,
+                         pats = [A.DotP info underscore, -- rewriteToExpr,
                                  A.ConP info (AmbQ [reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat 
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,

@@ -1,0 +1,4 @@
+Rewrite.agda:19,1-36
+Cannot rewrite by equation of type x ≈ y
+when checking that the clause thm P x y px rewrite lem x y = ? has
+type {A : Set} (P : A → Set) (x : A) (y : A) → P x → P y
