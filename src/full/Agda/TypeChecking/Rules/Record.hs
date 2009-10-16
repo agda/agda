@@ -138,8 +138,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 	  , text "t     =" <+> prettyTCM t
 	  ]
 	]
-      let add (x, t) = addCtx x (Arg NotHidden t)
-          n          = size ftel
+      let n = size ftel
 
       t <- isType_ t
 
