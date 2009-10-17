@@ -813,8 +813,8 @@ TypeSignatures
 -- Inside the layout block.
 TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
-    : TypeSignatures1 semi TeX TypeSigs { $4 ++ $1 }
-    | TeX TypeSigs			{ $2 }
+    : TypeSignatures1 semi TeX TypeSigs { reverse $4 ++ $1 }
+    | TeX TypeSigs			{ reverse $2 }
 
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
