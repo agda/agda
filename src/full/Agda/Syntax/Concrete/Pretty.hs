@@ -184,7 +184,9 @@ instance Pretty Declaration where
 	    TypeSig x e	-> sep [ pretty x <+> text ":"
 			       , nest 2 $ pretty e
 			       ]
-            Field x e -> sep [ text "field", nest 2 $ pretty (TypeSig x e) ]
+            Field h x e -> sep [ text "field"
+                               , nest 2 $ pHidden h (TypeSig x e)
+                               ]
 	    FunClause lhs rhs wh ->
 		sep [ pretty lhs
 		    , nest 2 $ pretty rhs

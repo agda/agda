@@ -376,14 +376,14 @@ checkExpr e t =
 	  t <- normalise t
 	  case unEl t of
 	    Def r vs  -> do
-	      xs    <- getRecordFieldNames r
-	      ftel  <- getRecordFieldTypes r
-              scope <- getScope
+	      (hs, xs) <- unzip <$> getRecordFieldNames r
+	      ftel     <- getRecordFieldTypes r
+              scope    <- getScope
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
-			      (map (Arg NotHidden . unnamed) es) tel
+			      (zipWith (\h e -> Arg h (unnamed e)) hs es) tel
 	      blockTerm t (Con (killRange r) args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep

@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Records where
 
 import Control.Applicative
+import Control.Arrow ((***))
 import Control.Monad
 import Data.List
 
@@ -55,8 +56,9 @@ getRecordDef r = do
     _        -> typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
-getRecordFieldNames :: MonadTCM tcm => QName -> tcm [C.Name]
-getRecordFieldNames r = map (nameConcrete . qnameName) . recFields <$> getRecordDef r
+getRecordFieldNames :: MonadTCM tcm => QName -> tcm [(Hiding, C.Name)]
+getRecordFieldNames r =
+  map (id *** nameConcrete . qnameName) . recFields <$> getRecordDef r
 
 -- | Get the field types of a record.
 getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope
@@ -86,8 +88,8 @@ isRecord r = do
 etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args)
 etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
-  let tel'   = apply tel pars
-      proj x = Arg NotHidden $ Def x $ map hide pars ++ [Arg NotHidden u]
+  let tel'        = apply tel pars
+      proj (h, x) = Arg h $ Def x $ map hide pars ++ [Arg NotHidden u]
   reportSDoc "tc.record.eta" 20 $ vcat
     [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
     , nest 2 $ vcat
@@ -103,7 +105,7 @@ etaExpandRecord r pars u = do
 etaContractRecord :: MonadTCM tcm => QName -> Args -> tcm Term
 etaContractRecord r args = do
   Record{ recFields = xs } <- getRecordDef r
-  let check (Arg _ v) x = do
+  let check (Arg _ v) (_, x) = do
         case v of
           Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
           _                         -> return Nothing

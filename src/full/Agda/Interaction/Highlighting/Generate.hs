@@ -239,7 +239,7 @@ generateSyntaxInfo file mErr top termErrs =
       getFieldDecl (A.RecDef _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
-        extractField (A.Field _ x _)     = field (concreteQualifier x)
+        extractField (A.Field _ _ x _)   = field (concreteQualifier x)
                                                  (concreteBase x)
         extractField _                   = mempty
       getFieldDecl _                   = mempty
@@ -309,7 +309,7 @@ nameKinds mErr decls = do
 
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ q _)     = Map.singleton q Postulate
-  getDecl (A.Field _ q _)     = Map.singleton q Field
+  getDecl (A.Field _ _ q _)   = Map.singleton q Field
   getDecl (A.Primitive _ q _) = Map.singleton q Primitive
   getDecl (A.Definition {})   = Map.empty
   getDecl (A.Section {})      = Map.empty

@@ -431,7 +431,7 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat
             , recClause         :: Maybe Clause
-            , recFields         :: [A.QName]
+            , recFields         :: [(Hiding, A.QName)]
             , recTel            :: Telescope
             , recSort           :: Sort
             , recPolarity       :: [Polarity]

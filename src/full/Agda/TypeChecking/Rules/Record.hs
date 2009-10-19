@@ -60,7 +60,7 @@ checkRecDef i name ps contel fields =
           extWithR ret   = underAbstraction (Arg NotHidden rect) (Abs "r" ()) $ \_ -> ret
           ext (Arg h (x, t)) = addCtx x (Arg h t)
 
-      let getName (A.Field _ x _)      = [x]
+      let getName (A.Field _ h x _)    = [(h, x)]
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
@@ -126,7 +126,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
     checkProjs _ _ [] = return ()
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
-    checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field info x t : fs) = do
+    checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field info h x t : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in
       reportSDoc "tc.rec.proj" 5 $ sep
@@ -138,8 +138,6 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
 	  , text "t     =" <+> prettyTCM t
 	  ]
 	]
-      let n = size ftel
-
       t <- isType_ t
 
       -- create the projection functions (instantiate the type with the values
@@ -169,8 +167,9 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
       let ptel   = telFromList $ take (size tel - 1) $ telToList tel
           hps	 = map (fmap $ VarP . fst) $ telToList ptel
 	  conp	 = Arg NotHidden
-		 $ ConP q $ map (Arg NotHidden)
-			    [ VarP "x" | _ <- [1..n] ]
+		 $ ConP q $ zipWith Arg
+                              (map argHiding (telToList ftel))
+			      [ VarP "x" | _ <- [1..size ftel] ]
 	  nobind 0 = id
 	  nobind n = NoBind . nobind (n - 1)
 	  body	 = nobind (size tel - 1)
@@ -196,7 +195,7 @@ checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
                      }
         computePolarity projname
 
-      checkProjs (abstract ftel1 $ ExtendTel (Arg NotHidden t)
+      checkProjs (abstract ftel1 $ ExtendTel (Arg h t)
                                  $ Abs (show $ qnameName projname) EmptyTel
                  ) (absBody ftel2) fs
     checkProjs ftel1 ftel2 (d : fs) = do

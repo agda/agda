@@ -8,6 +8,7 @@ module Agda.Syntax.Parser.Parser (
     , tokensParser
     ) where
 
+import Control.Arrow
 import Control.Monad
 import Control.Monad.State
 import Data.Char  (isDigit)
@@ -275,6 +276,15 @@ SpaceIds :: { [Name] }
 SpaceIds
     : Id SpaceIds { $1 : $2 }
     | Id	  { [$1] }
+
+-- Space separated list of one or more identifiers, some of which may
+-- be surrounded by braces.
+HiddenIds :: { [(Hiding, Name)] }
+HiddenIds
+    : Id HiddenIds               { (NotHidden, $1) : $2 }
+    | Id	                 { [(NotHidden, $1)] }
+    | '{' SpaceIds '}' HiddenIds { map ((,) Hidden) $2 ++ $4 }
+    | '{' SpaceIds '}'           { map ((,) Hidden) $2 }
 
 -- Qualified operators are treated as identifiers, i.e. they have to be back
 -- quoted to appear infix.
@@ -644,6 +654,11 @@ TypeSig : Id ':' Expr   { TypeSig $1 $3 }
 TypeSigs :: { [Declaration] }
 TypeSigs : SpaceIds ':' Expr { map (flip TypeSig $3) $1 }
 
+-- A variant of TypeSigs where any sub-sequence of names can be marked
+-- as hidden using braces: {n1 n2} n3 n4 {n5} {n6} ... : Type.
+HiddenTypeSigs :: { [(Hiding, Declaration)] }
+HiddenTypeSigs : HiddenIds ':' Expr { map (id *** flip TypeSig $3) $1 }
+
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
 FunClause :: { Declaration }
@@ -675,7 +690,8 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
 
 -- Field declarations.
 Fields :: { [Declaration] }
-Fields : 'field' TypeSignatures { let toField (TypeSig x t) = Field x t in map toField $2 }
+Fields : 'field' HiddenTypeSignatures
+            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -696,11 +712,9 @@ Private : 'private' Declarations	{ Private (fuseRange $1 $2) $2 }
 Postulate :: { Declaration }
 Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 
-
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
 Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
-
 
 -- Open
 Open :: { Declaration }
@@ -816,11 +830,23 @@ TypeSignatures1
     : TypeSignatures1 semi TeX TypeSigs { reverse $4 ++ $1 }
     | TeX TypeSigs			{ reverse $2 }
 
+-- A variant of TypeSignatures which uses HiddenTypeSigs instead of
+-- TypeSigs.
+HiddenTypeSignatures :: { [(Hiding, TypeSignature)] }
+HiddenTypeSignatures
+    : TeX vopen HiddenTypeSignatures1 TeX close   { reverse $3 }
+
+-- Inside the layout block.
+HiddenTypeSignatures1 :: { [(Hiding, TypeSignature)] }
+HiddenTypeSignatures1
+    : HiddenTypeSignatures1 semi TeX HiddenTypeSigs { reverse $4 ++ $1 }
+    | TeX HiddenTypeSigs		            { reverse $2 }
+
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
 Constructors
-    : TypeSignatures	  { $1 }
-    | TeX vopen TeX close { [] }
+    : TeX vopen TeX close { [] }
+    | TypeSignatures	  { $1 }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }

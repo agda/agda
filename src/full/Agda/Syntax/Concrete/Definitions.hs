@@ -40,7 +40,7 @@ import Agda.Utils.Impossible
 -}
 data NiceDeclaration
 	= Axiom Range Fixity Access IsAbstract Name Expr
-        | NiceField Range Fixity Access IsAbstract Name Expr
+        | NiceField Range Fixity Access IsAbstract Hiding Name Expr
 	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
@@ -94,7 +94,7 @@ instance HasRange DeclarationException where
 
 instance HasRange NiceDeclaration where
     getRange (Axiom r _ _ _ _ _)	       = r
-    getRange (NiceField r _ _ _ _ _)	       = r
+    getRange (NiceField r _ _ _ _ _ _)	       = r
     getRange (NiceDef r _ _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
     getRange (NiceModuleMacro r _ _ _ _ _ _ _) = r
@@ -131,7 +131,7 @@ instance Show DeclarationException where
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
       decl (Axiom _ _ _ _ _ _)		     = "Postulates"
-      decl (NiceField _ _ _ _ _ _)           = "Fields"
+      decl (NiceField _ _ _ _ _ _ _)         = "Fields"
       decl (NiceDef _ _ _ _)		     = "Record types"
       decl (NiceModule _ _ _ _ _ _)	     = "Modules"
       decl (NiceModuleMacro _ _ _ _ _ _ _ _) = "Modules"
@@ -171,7 +171,7 @@ niceDeclarations ds = do
 	declaredNames :: Declaration -> [Name]
 	declaredNames d = case d of
 	  TypeSig x _				       -> [x]
-          Field x _                                    -> [x]
+          Field _ x _                                  -> [x]
 	  FunClause (LHS p [] _ _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
@@ -217,7 +217,7 @@ niceDeclarations ds = do
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
 			nds = case d of
-                            Field x t               -> return $ niceAxioms fixs [ Field x t ]
+                            Field h x t             -> return $ niceAxioms fixs [ Field h x t ]
 			    Data   r ind x tel t cs -> dataOrRec (flip DataDef ind) niceAx r x tel t cs
 			    Record r x tel t cs     -> dataOrRec RecDef (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
@@ -285,8 +285,8 @@ niceDeclarations ds = do
 		nice (d@(TypeSig x t) : ds) =
 		    Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
 		    : nice ds
-		nice (d@(Field x t) : ds) =
-		    NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
+		nice (d@(Field h x t) : ds) =
+		    NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef h x t
 		    : nice ds
 		nice _ = __IMPOSSIBLE__
 
@@ -389,7 +389,7 @@ niceDeclarations ds = do
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		    -> Axiom r f a AbstractDef x e
-		NiceField r f a _ x e		    -> NiceField r f a AbstractDef x e
+		NiceField r f a _ h x e		    -> NiceField r f a AbstractDef h x e
 		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
@@ -417,7 +417,7 @@ niceDeclarations ds = do
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		    -> Axiom r f PrivateAccess a x e
-		NiceField r f _ a x e		    -> NiceField r f PrivateAccess a x e
+		NiceField r f _ a h x e		    -> NiceField r f PrivateAccess a h x e
 		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
 								    (map mkPrivateDef ds)
@@ -466,7 +466,7 @@ notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
 notSoNiceDeclarations = concatMap notNice
   where
     notNice (Axiom _ _ _ _ x e)                   = [TypeSig x e]
-    notNice (NiceField _ _ _ _ x e)               = [Field x e]
+    notNice (NiceField _ _ _ _ h x e)             = [Field h x e]
     notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig x e]]
     notNice (NiceDef _ ds _ _)                    = ds
     notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]

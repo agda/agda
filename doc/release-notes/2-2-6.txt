@@ -59,6 +59,18 @@ Language
     postulate
       A B : Set
 
+* Record fields can be implicit:
+
+    record R : Set₁ where
+      field
+        {A}         : Set
+        f           : A → A
+        {B C} D {E} : Set
+        g           : B → C → E
+
+  Currently this only affects printing of record values; implicit
+  fields are not printed by default.
+
 * BUILTIN hooks for equality
 
   The datatype

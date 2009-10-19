@@ -616,7 +616,7 @@ instance PrettyTCM Call where
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e
-		D.NiceField _ _ _ _ x e		       -> C.Field x e
+		D.NiceField _ _ _ _ h x e	       -> C.Field h x e
 		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig x e]
 		D.NiceDef r ds _ _		       -> C.Mutual r ds
 		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []

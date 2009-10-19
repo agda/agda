@@ -66,7 +66,7 @@ showTypeDeclaration definitions name = do
 	    let arity = np `div` 2
 	    dparams <- underDatatypeParameters arity ty showTypeParameter stop
 	    dcon <- showAsOptimizedConstructor name
-	    dflds <- mapM (showRecordFieldDeclaration (arity + 1)) flds
+	    dflds <- mapM (showRecordFieldDeclaration (arity + 1)) (map snd flds)
 	    showDatatypeDeclaration dtypename dparams [sep $ dcon : dflds]
      	Function { funClauses = [clause@(Clause{ clausePats = pat })] } -> do
 	    (args,_) <- splitType ty

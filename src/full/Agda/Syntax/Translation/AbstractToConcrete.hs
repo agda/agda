@@ -521,12 +521,12 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteCtx TopCtx t
       return [C.Postulate (getRange i) [C.TypeSig x' t']]
 
-  toConcrete (A.Field i x t) = do
+  toConcrete (A.Field i h x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteCtx TopCtx t
-      return [C.Field x' t']
+      return [C.Field h x' t']
 
   toConcrete (A.Primitive i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x

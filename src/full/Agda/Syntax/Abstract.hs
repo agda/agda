@@ -49,9 +49,9 @@ data Expr
   deriving (Typeable, Data)
 
 data Declaration
-	= Axiom      DefInfo QName Expr				-- ^ postulate
-	| Field      DefInfo QName Expr				-- ^ record field
-	| Primitive  DefInfo QName Expr				-- ^ primitive function
+	= Axiom      DefInfo        QName Expr			-- ^ postulate
+	| Field      DefInfo Hiding QName Expr			-- ^ record field
+	| Primitive  DefInfo        QName Expr			-- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition]	-- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
 	| Apply	     ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
@@ -217,7 +217,7 @@ instance HasRange Expr where
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	       ) = getRange i
-    getRange (Field      i _ _         ) = getRange i
+    getRange (Field      i _ _ _       ) = getRange i
     getRange (Definition i _ _	       ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
     getRange (Apply	 i _ _ _ _ _ _ ) = getRange i
@@ -294,7 +294,7 @@ instance KillRange Expr where
 
 instance KillRange Declaration where
   killRange (Axiom      i a b         ) = killRange3 Axiom      i a b
-  killRange (Field      i a b         ) = killRange3 Field      i a b
+  killRange (Field      i h a b       ) = killRange4 Field      i h a b
   killRange (Definition i a b         ) = killRange3 Definition i a b
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
   killRange (Apply      i a b c d e f ) = killRange5 Apply      i a b c d e f
@@ -347,9 +347,9 @@ instance KillRange LetBinding where
 -- include local modules and where clauses.
 
 allNames :: Declaration -> Seq QName
-allNames (Axiom     _ q _)     = Seq.singleton q
-allNames (Field     _ q _)     = Seq.singleton q
-allNames (Primitive _ q _)     = Seq.singleton q
+allNames (Axiom     _   q _)   = Seq.singleton q
+allNames (Field     _ _ q _)   = Seq.singleton q
+allNames (Primitive _   q _)   = Seq.singleton q
 allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   where
   allNamesD :: Definition -> Seq QName

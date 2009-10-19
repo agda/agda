@@ -16,6 +16,7 @@
 module Agda.Syntax.Translation.InternalToAbstract where
 
 import Prelude hiding (mapM_, mapM)
+import Control.Arrow
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
 
@@ -167,9 +168,11 @@ instance Reify Term Expr where
 		  isR <- isRecord x
 		  case isR of
 		    True -> do
+		      showImp <- showImplicitArguments
+                      let keep ((h, x), v) = showImp || h == NotHidden
 		      xs <- getRecordFieldNames x
 		      vs <- reify $ map unArg vs
-		      return $ A.Rec exprInfo $ zip xs vs
+		      return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
 		    False -> reifyDisplayForm x vs $ do
                       let hide (Arg _ x) = Arg Hidden x
                       Constructor{conPars = np} <- theDef <$> getConstInfo x
