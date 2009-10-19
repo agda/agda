@@ -54,7 +54,7 @@ form (name1 value1 name2 value2...)."
   (apply 'append
          (mapcar (lambda (attr)
                    (let ((val (face-attribute face attr)))
-                     (if (eq val 'unspecified) '()
+                     (if (member val '(unspecified nil)) '()
                        (list attr (if (symbolp val) `',val val)))))
                  agda2-highlight-face-attributes-list)))
 
