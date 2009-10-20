@@ -25,6 +25,7 @@ module GCD where
   -- numbers.
 
   record GCD (m n gcd : ℕ) : Set where
+    constructor is
     field
       -- The gcd is a common divisor.
       commonDivisor : gcd ∣ m × gcd ∣ n
@@ -34,15 +35,6 @@ module GCD where
       greatest : ∀ {d} → d ∣ m × d ∣ n → d ∣ gcd
 
   open GCD public
-
-  is : ∀ {gcd m n} →
-       gcd ∣ m × gcd ∣ n →
-       (∀ {d} → d ∣ m × d ∣ n → d ∣ gcd) →
-       GCD m n gcd
-  is cd div = record
-    { commonDivisor = cd
-    ; greatest      = div
-    }
 
   -- The gcd is unique.
 

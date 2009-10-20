@@ -15,10 +15,11 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-record Σ (a : Set) (b : a → Set) : Set where
+record Σ (A : Set) (B : A → Set) : Set where
+  constructor _,_
   field
-    proj₁ : a
-    proj₂ : b proj₁
+    proj₁ : A
+    proj₂ : B proj₁
 
 open Σ public
 
@@ -27,9 +28,6 @@ a × b = Σ a (λ _ → b)
 
 ------------------------------------------------------------------------
 -- Functions
-
-_,_ : ∀ {a b} → (x : a) → b x → Σ a b
-(x , y) = record {proj₁ = x; proj₂ = y}
 
 <_,_> : {A : Set} {B : A → Set} {C : ∀ {x} → B x → Set}
         (f : (x : A) → B x) → ((x : A) → C (f x)) →

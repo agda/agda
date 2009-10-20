@@ -16,9 +16,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
 -- Note that the name of this type is "\top", not T.
 
 record ⊤ : Set where
-
-tt : ⊤
-tt = record {}
+  constructor tt
 
 record _≤_ (x y : ⊤) : Set where
 

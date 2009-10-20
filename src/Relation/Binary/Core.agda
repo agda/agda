@@ -112,13 +112,10 @@ Trichotomous _≈_ _<_ = ∀ x y → Tri (x < y) (x ≈ y) (x > y)
   where _>_ = flip _<_
 
 record NonEmpty {I : Set} (T : Rel I) : Set where
+  constructor nonEmpty
   field
-    i     : I
-    j     : I
+    {i j} : I
     proof : T i j
-
-nonEmpty : ∀ {I} {T : Rel I} {i j} → T i j → NonEmpty T
-nonEmpty p = record { i = _; j = _; proof = p }
 
 ------------------------------------------------------------------------
 -- Propositional equality

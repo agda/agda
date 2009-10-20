@@ -37,15 +37,12 @@ private
 -- Node contexts
 
 record Context (Node Edge : Set) (n : ℕ) : Set where
+  constructor context
   field
     label      : Node
     successors : List (Edge × Fin n)
 
 open Context public
-
-context : ∀ {Node Edge n} →
-          Node → List (Edge × Fin n) → Context Node Edge n
-context l ss = record { label = l; successors = ss }
 
 -- Map for contexts.
 
