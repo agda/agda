@@ -28,3 +28,4 @@
 
 /* Standard attributes. */
 a { text-decoration: none }
+a[href]:hover { background-color: #B4EEB4 }
