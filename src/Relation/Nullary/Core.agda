@@ -20,6 +20,6 @@ infix 3 ¬_
 
 -- Decidable relations.
 
-data Dec (P : Set) : Set where
+data Dec {p} (P : Set p) : Set p where
   yes : ( p :   P) → Dec P
   no  : (¬p : ¬ P) → Dec P

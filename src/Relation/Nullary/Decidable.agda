@@ -21,7 +21,7 @@ True Q = T (decToBool Q)
 False : ∀ {P} → Dec P → Set
 False Q = T (not (decToBool Q))
 
-witnessToTruth : ∀ {P} {Q : Dec P} → True Q → P
+witnessToTruth : {P : Set} {Q : Dec P} → True Q → P
 witnessToTruth {Q = yes p} _  = p
 witnessToTruth {Q = no  _} ()
 
