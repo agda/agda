@@ -22,7 +22,7 @@ contraposition f ¬q p = contradiction (f p) ¬q
 -- Note also the following use of flip:
 
 private
-  note : ∀ {P Q} → (P → ¬ Q) → Q → ¬ P
+  note : {P Q : Set} → (P → ¬ Q) → Q → ¬ P
   note = flip
 
 ------------------------------------------------------------------------
