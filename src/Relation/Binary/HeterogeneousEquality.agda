@@ -2,42 +2,39 @@
 -- Heterogeneous equality
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.HeterogeneousEquality where
 
+open import Data.Function
+open import Data.Product
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
-open import Data.Function
-open import Data.Product
 
 ------------------------------------------------------------------------
 -- Heterogeneous equality
 
-infix 4 _≅_ _≇_ _≅₁_ _≇₁_
+infix 4 _≅_ _≇_
 
-data _≅_ {a : Set} (x : a) : {b : Set} → b → Set where
+data _≅_ {a} {A : Set a} (x : A) : ∀ {b} {B : Set b} → B → Set where
   refl : x ≅ x
-
-data _≅₁_ {a : Set₁} (x : a) : {b : Set₁} → b → Set where
-  refl : x ≅₁ x
 
 -- Nonequality.
 
-_≇_ : {a : Set} → a → {b : Set} → b → Set
+_≇_ : ∀ {a} {A : Set a} → A → ∀ {b} {B : Set b} → B → Set
 x ≇ y = ¬ x ≅ y
-
-_≇₁_ : {a : Set₁} → a → {b : Set₁} → b → Set
-x ≇₁ y = ¬ x ≅₁ y
 
 ------------------------------------------------------------------------
 -- Conversion
 
-≡-to-≅ : ∀ {a} {x y : a} → x ≡ y → x ≅ y
+≡-to-≅ : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≅ y
 ≡-to-≅ refl = refl
 
-≅-to-≡ : ∀ {a} {x y : a} → x ≅ y → x ≡ y
+≅-to-≡ : ∀ {a} {A : Set a} {x y : A} → x ≅ y → x ≡ y
 ≅-to-≡ refl = refl
 
 ------------------------------------------------------------------------
@@ -46,21 +43,18 @@ x ≇₁ y = ¬ x ≅₁ y
 reflexive : ∀ {a} → _⇒_ {a} _≡_ (λ x y → x ≅ y)
 reflexive refl = refl
 
-sym : ∀ {a b} {x : a} {y : b} → x ≅ y → y ≅ x
+sym : {A B : Set} {x : A} {y : B} → x ≅ y → y ≅ x
 sym refl = refl
 
-trans : ∀ {a b c} {x : a} {y : b} {z : c} → x ≅ y → y ≅ z → x ≅ z
+trans : {A B C : Set} {x : A} {y : B} {z : C} → x ≅ y → y ≅ z → x ≅ z
 trans refl refl = refl
 
 subst : ∀ {a} → Substitutive {a} (λ x y → x ≅ y)
 subst P refl p = p
 
-subst₂ : ∀ {A B} (P : A → B → Set) →
+subst₂ : {A B : Set} (P : A → B → Set) →
          ∀ {x₁ x₂ y₁ y₂} → x₁ ≅ x₂ → y₁ ≅ y₂ → P x₁ y₁ → P x₂ y₂
 subst₂ P refl refl p = p
-
-subst₁ : ∀ {a} (P : a → Set₁) → ∀ {x y} → x ≅ y → P x → P y
-subst₁ P refl p = p
 
 subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≅ y) z →
                   subst P eq z ≅ z
@@ -95,7 +89,7 @@ setoid a = record
   ; isEquivalence = isEquivalence
   }
 
-decSetoid : ∀ {a} → Decidable (λ x y → _≅_ {a} x y) → DecSetoid
+decSetoid : {A : Set} → Decidable (λ x y → _≅_ {A = A} x y) → DecSetoid
 decSetoid dec = record
   { _≈_              = λ x y → x ≅ y
   ; isDecEquivalence = record
@@ -152,7 +146,7 @@ module ≅-Reasoning where
   infixr 2 _≅⟨_⟩_ _≡⟨_⟩_
   infix  1 begin_
 
-  data _IsRelatedTo_ {A} (x : A) {B} (y : B) : Set where
+  data _IsRelatedTo_ {A : Set} (x : A) {B : Set} (y : B) : Set where
     relTo : (x≅y : x ≅ y) → x IsRelatedTo y
 
   begin_ : ∀ {A} {x : A} {B} {y : B} → x IsRelatedTo y → x ≅ y

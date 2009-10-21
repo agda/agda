@@ -2,6 +2,8 @@
 -- Properties of homogeneous binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- This file contains some core definitions which are reexported by
 -- Relation.Binary or Relation.Binary.PropositionalEquality.
 
@@ -10,6 +12,7 @@ module Relation.Binary.Core where
 open import Data.Product
 open import Data.Sum
 open import Data.Function
+open import Level
 open import Relation.Nullary.Core
 
 ------------------------------------------------------------------------
@@ -129,7 +132,7 @@ private
 
   infix 4 _≡_ _≢_
 
-  data _≡_ {a : Set} (x : a) : a → Set where
+  data _≡_ {a} {A : Set a} (x : A) : A → Set where
     refl : x ≡ x
 
   {-# BUILTIN EQUALITY _≡_ #-}
@@ -137,7 +140,7 @@ private
 
   -- Nonequality.
 
-  _≢_ : {a : Set} → a → a → Set
+  _≢_ : ∀ {a} {A : Set a} → A → A → Set
   x ≢ y = ¬ x ≡ y
 
 ------------------------------------------------------------------------

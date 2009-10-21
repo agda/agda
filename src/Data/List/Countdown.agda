@@ -32,7 +32,7 @@ private
 private
 
   drop-suc : ∀ {n} {i j : Fin n} →
-             _≡_ {Fin (suc n)} (suc i) (suc j) → i ≡ j
+             _≡_ {A = Fin (suc n)} (suc i) (suc j) → i ≡ j
   drop-suc refl = refl
 
   drop-inj₂ : ∀ {A B x y} → inj₂ {A} {B} x ≡ inj₂ y → x ≡ y

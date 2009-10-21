@@ -18,12 +18,9 @@ open import Relation.Binary.PropositionalEquality.Core public
 ------------------------------------------------------------------------
 -- Some properties
 
-subst₂ : ∀ {A B} (P : A → B → Set) →
+subst₂ : {A B : Set} (P : A → B → Set) →
          ∀ {x₁ x₂ y₁ y₂} → x₁ ≡ x₂ → y₁ ≡ y₂ → P x₁ y₁ → P x₂ y₂
 subst₂ P refl refl p = p
-
-subst₁ : ∀ {a} (P : a → Set₁) → ∀ {x y} → x ≡ y → P x → P y
-subst₁ P refl p = p
 
 cong : Congruential _≡_
 cong = subst⟶cong refl subst
@@ -38,7 +35,7 @@ setoid a = record
   ; isEquivalence = isEquivalence
   }
 
-decSetoid : ∀ {a} → Decidable (_≡_ {a}) → DecSetoid
+decSetoid : {A : Set} → Decidable (_≡_ {A = A}) → DecSetoid
 decSetoid dec = record
   { _≈_              = _≡_
   ; isDecEquivalence = record

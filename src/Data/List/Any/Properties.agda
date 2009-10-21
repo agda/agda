@@ -437,11 +437,11 @@ module Membership-≡ where
 
   private
 
-    lemma₁ : ∀ {A B} {p q : A × B} →
+    lemma₁ : {A B : Set} {p q : A × B} →
              (p ⟨ _≡_ on proj₁ ⟩ q) × (p ⟨ _≡_ on proj₂ ⟩ q) → p ≡ q
     lemma₁ {p = (x , y)} {q = (.x , .y)} (refl , refl) = refl
 
-    lemma₂ : ∀ {A B} {p q : A × B} →
+    lemma₂ : {A B : Set} {p q : A × B} →
              p ≡ q → (p ⟨ _≡_ on proj₁ ⟩ q) × (p ⟨ _≡_ on proj₂ ⟩ q)
     lemma₂ = < PropEq.cong proj₁ , PropEq.cong proj₂ >
 

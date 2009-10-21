@@ -83,10 +83,10 @@ open import Relation.Binary.PropositionalEquality as PropEq
 drop-just : ∀ {A} {x y : A} → just x ≡ just y → x ≡ y
 drop-just refl = refl
 
-decSetoid : ∀ {A} → Decidable (_≡_ {A}) → DecSetoid
+decSetoid : {A : Set} → Decidable (_≡_ {A = A}) → DecSetoid
 decSetoid {A} _A-≟_ = PropEq.decSetoid _≟_
   where
-  _≟_ : Decidable (_≡_ {Maybe A})
+  _≟_ : Decidable (_≡_ {A = Maybe A})
   just x  ≟ just y  with x A-≟ y
   just x  ≟ just .x | yes refl = yes refl
   just x  ≟ just y  | no  x≢y    = no (x≢y ∘ drop-just)

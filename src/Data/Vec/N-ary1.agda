@@ -8,7 +8,7 @@ module Data.Vec.N-ary1 where
 
 open import Data.Nat
 open import Data.Vec1
-open import Relation.Binary.PropositionalEquality1
+open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- N-ary functions
@@ -41,7 +41,7 @@ Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 -- The two functions are inverses.
 
 left-inverse : ∀ {n A B} (f : Vec₁ A n → B) →
-               ∀ xs → curryⁿ f $ⁿ xs ≡₁ f xs
+               ∀ xs → curryⁿ f $ⁿ xs ≡ f xs
 left-inverse f []       = refl
 left-inverse f (x ∷ xs) = left-inverse (λ xs → f (x ∷ xs)) xs
 
@@ -49,7 +49,7 @@ data Lift {A : Set₁} (R : A → A → Set) x y : Set₁ where
   lift : R x y → Lift R x y
 
 right-inverse : ∀ {A B} n (f : N-ary n A B) →
-                Eq n (Lift _≡₁_) (curryⁿ (_$ⁿ_ {n} f)) f
+                Eq n (Lift _≡_) (curryⁿ (_$ⁿ_ {n} f)) f
 right-inverse zero    f = lift refl
 right-inverse (suc n) f = λ x → right-inverse n (f x)
 
