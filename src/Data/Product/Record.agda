@@ -2,12 +2,15 @@
 -- Products implemented using records
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- It it ever becomes convenient to pattern match on records I might
 -- make this the default implementation of products.
 
 module Data.Product.Record where
 
 open import Data.Function
+open import Level
 
 infixr 4 _,_
 infixr 2 _×_ _-×-_ _-,-_
@@ -15,7 +18,7 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-record Σ (A : Set) (B : A → Set) : Set where
+record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
   constructor _,_
   field
     proj₁ : A
@@ -23,37 +26,40 @@ record Σ (A : Set) (B : A → Set) : Set where
 
 open Σ public
 
-_×_ : (a b : Set) → Set
-a × b = Σ a (λ _ → b)
+_×_ : ∀ {a b} (A : Set a) (B : Set b) → Set (a ⊔ b)
+A × B = Σ A (λ _ → B)
 
 ------------------------------------------------------------------------
 -- Functions
 
-<_,_> : {A : Set} {B : A → Set} {C : ∀ {x} → B x → Set}
+<_,_> : ∀ {a b c} {A : Set a} {B : A → Set b} {C : ∀ {x} → B x → Set c}
         (f : (x : A) → B x) → ((x : A) → C (f x)) →
         ((x : A) → Σ (B x) C)
 < f , g > x = (f x , g x)
 
-map : ∀ {A B P Q} →
+map : ∀ {a b p q}
+        {A : Set a} {B : Set b} {P : A → Set p} {Q : B → Set q} →
       (f : A → B) → (∀ {x} → P x → Q (f x)) →
       Σ A P → Σ B Q
 map f g = < f ∘ proj₁ , g ∘ proj₂ >
 
-swap : ∀ {a b} → a × b → b × a
+swap : ∀ {a b} {A : Set a} {B : Set b} → A × B → B × A
 swap = < proj₂ , proj₁ >
 
-_-×-_ : {A B : Set} → (A → B → Set) → (A → B → Set) → (A → B → Set)
+_-×-_ : ∀ {a b i j} {A : Set a} {B : Set b} →
+        (A → B → Set i) → (A → B → Set j) → (A → B → Set _)
 f -×- g = f -[ _×_ ]- g
 
-_-,-_ : {A B C D : Set} → (A → B → C) → (A → B → D) → (A → B → C × D)
+_-,-_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        (A → B → C) → (A → B → D) → (A → B → C × D)
 f -,- g = f -[ _,_ ]- g
 
-curry : {a : Set} {b : a → Set} {c : Σ a b → Set} →
-        ((p : Σ a b) → c p) →
-        ((x : a) → (y : b x) → c (x , y))
+curry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
+        ((p : Σ A B) → C p) →
+        ((x : A) → (y : B x) → C (x , y))
 curry f x y = f (x , y)
 
-uncurry : {a : Set} {b : a → Set} {c : Σ a b → Set} →
-          ((x : a) → (y : b x) → c (x , y)) →
-          ((p : Σ a b) → c p)
+uncurry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
+          ((x : A) → (y : B x) → C (x , y)) →
+          ((p : Σ A B) → C p)
 uncurry f p = f (proj₁ p) (proj₂ p)

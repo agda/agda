@@ -78,5 +78,5 @@ solve n f hyp =
 
 infix 4 _⊜_
 
-_⊜_ : ∀ {A} → A → A → A × A
+_⊜_ : {A : Set} → A → A → A × A
 _⊜_ = _,_
