@@ -48,7 +48,7 @@ infixl 1 _>>=_
 
 data _⊥-prog : Set → Set₁ where
   now   : ∀ {A} (x : A) → A ⊥-prog
-  later : ∀ {A} (x : ∞₁ (A ⊥-prog)) → A ⊥-prog
+  later : ∀ {A} (x : ∞ (A ⊥-prog)) → A ⊥-prog
   _>>=_ : ∀ {A B} (x : A ⊥-prog) (f : A → B ⊥-prog) → B ⊥-prog
 
 data _⊥-whnf : Set → Set₁ where
@@ -57,7 +57,7 @@ data _⊥-whnf : Set → Set₁ where
 
 whnf : ∀ {A} → A ⊥-prog → A ⊥-whnf
 whnf (now   x) = now x
-whnf (later x) = later (♭₁ x)
+whnf (later x) = later (♭ x)
 whnf (x >>= f) with whnf x
 whnf (x >>= f) | now   x′ = whnf (f x′)
 whnf (x >>= f) | later x′ = later (x′ >>= f)
@@ -82,7 +82,7 @@ module Examples where
 
   f91′ : ℕ → ℕ ⊥-prog
   f91′ n with n ≤? 100
-  ... | yes _ = later (♯₁ (f91′ (11 + n) >>= f91′))
+  ... | yes _ = later (♯ (f91′ (11 + n) >>= f91′))
   ... | no  _ = now (n ∸ 10)
 
   f91 : ℕ → ℕ ⊥

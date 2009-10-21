@@ -2,24 +2,20 @@
 -- Types used to make recursive arguments coinductive
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- See Data.Colist for examples of how this type is used, or
 -- http://article.gmane.org/gmane.comp.lang.agda/633 for a longer
 -- explanation.
 
 module Coinduction where
 
-infix 10 ♯_ ♯₁_
+open import Level
 
-codata ∞ (T : Set) : Set where
+infix 10 ♯_
+
+codata ∞ {ℓ} (T : Set ℓ) : Set ℓ where
   ♯_ : (x : T) → ∞ T
 
-♭ : ∀ {T} → ∞ T → T
+♭ : ∀ {ℓ} {T : Set ℓ} → ∞ T → T
 ♭ (♯ x) = x
-
--- Variant for Set₁.
-
-codata ∞₁ (T : Set₁) : Set₁ where
-  ♯₁_ : (x : T) → ∞₁ T
-
-♭₁ : ∀ {T} → ∞₁ T → T
-♭₁ (♯₁ x) = x

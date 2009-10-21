@@ -28,8 +28,8 @@ infixl 1 _>>=_ _>>_
 data IO : Set → Set₁ where
   lift   : ∀ {A} (m : Prim.IO A) → IO A
   return : ∀ {A} (x : A) → IO A
-  _>>=_  : ∀ {A B} (m : ∞₁ (IO A)) (f : (x : A) → ∞₁ (IO B)) → IO B
-  _>>_   : ∀ {A B} (m₁ : ∞₁ (IO A)) (m₂ : ∞₁ (IO B)) → IO B
+  _>>=_  : ∀ {A B} (m : ∞ (IO A)) (f : (x : A) → ∞ (IO B)) → IO B
+  _>>_   : ∀ {A B} (m₁ : ∞ (IO A)) (m₂ : ∞ (IO B)) → IO B
 
 -- The use of abstract ensures that the run function will not be
 -- unfolded infinitely by the type checker.
@@ -39,8 +39,8 @@ abstract
   run : ∀ {A} → IO A → Prim.IO A
   run (lift m)   = m
   run (return x) = Prim.return x
-  run (m  >>= f) = Prim._>>=_ (run (♭₁ m )) λ x → run (♭₁ (f x))
-  run (m₁ >> m₂) = Prim._>>=_ (run (♭₁ m₁)) λ _ → run (♭₁ m₂)
+  run (m  >>= f) = Prim._>>=_ (run (♭ m )) λ x → run (♭ (f x))
+  run (m₁ >> m₂) = Prim._>>=_ (run (♭ m₁)) λ _ → run (♭ m₂)
 
 ------------------------------------------------------------------------
 -- Utilities
@@ -50,50 +50,50 @@ abstract
 
 mapM : ∀ {A B} → (A → IO B) → Colist A → IO (Colist B)
 mapM f []       = return []
-mapM f (x ∷ xs) = ♯₁ f x               >>= λ y  →
-                  ♯₁ (♯₁ mapM f (♭ xs) >>= λ ys →
-                  ♯₁ return (y ∷ ♯ ys))
+mapM f (x ∷ xs) = ♯ f x              >>= λ y  →
+                  ♯ (♯ mapM f (♭ xs) >>= λ ys →
+                  ♯ return (y ∷ ♯ ys))
 
 -- The reason for not defining mapM′ in terms of mapM is efficiency
 -- (the unused results could cause unnecessary memory use).
 
 mapM′ : ∀ {A B} → (A → IO B) → Colist A → IO ⊤
 mapM′ f []       = return _
-mapM′ f (x ∷ xs) = ♯₁ f x >> ♯₁ mapM′ f (♭ xs)
+mapM′ f (x ∷ xs) = ♯ f x >> ♯ mapM′ f (♭ xs)
 
 ------------------------------------------------------------------------
 -- Simple lazy IO (UTF8-based)
 
 getContents : IO Costring
 getContents =
-  ♯₁ lift Prim.getContents >>= λ s →
-  ♯₁ return (Haskell.toColist s)
+  ♯ lift Prim.getContents >>= λ s →
+  ♯ return (Haskell.toColist s)
 
 readFile : String → IO Costring
 readFile f =
-  ♯₁ lift (Prim.readFile f) >>= λ s →
-  ♯₁ return (Haskell.toColist s)
+  ♯ lift (Prim.readFile f) >>= λ s →
+  ♯ return (Haskell.toColist s)
 
 writeFile∞ : String → Costring → IO ⊤
 writeFile∞ f s =
-  ♯₁ lift (Prim.writeFile f (Haskell.fromColist s)) >>
-  ♯₁ return _
+  ♯ lift (Prim.writeFile f (Haskell.fromColist s)) >>
+  ♯ return _
 
 writeFile : String → String → IO ⊤
 writeFile f s = writeFile∞ f (toCostring s)
 
 putStr∞ : Costring → IO ⊤
 putStr∞ s =
-  ♯₁ lift (Prim.putStr (Haskell.fromColist s)) >>
-  ♯₁ return _
+  ♯ lift (Prim.putStr (Haskell.fromColist s)) >>
+  ♯ return _
 
 putStr : String → IO ⊤
 putStr s = putStr∞ (toCostring s)
 
 putStrLn∞ : Costring → IO ⊤
 putStrLn∞ s =
-  ♯₁ lift (Prim.putStrLn (Haskell.fromColist s)) >>
-  ♯₁ return _
+  ♯ lift (Prim.putStrLn (Haskell.fromColist s)) >>
+  ♯ return _
 
 putStrLn : String → IO ⊤
 putStrLn s = putStrLn∞ (toCostring s)
