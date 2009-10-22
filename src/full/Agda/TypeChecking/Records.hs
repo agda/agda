@@ -11,6 +11,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
@@ -65,10 +66,17 @@ getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the type of the record constructor.
-getRecordConstructorType :: MonadTCM tcm => QName -> [Arg Term] -> tcm Type
-getRecordConstructorType r pars = do
-  Record{ recTel = tel, recSort = s} <- getRecordDef r
-  return $ telePi (apply tel pars) $ El s $ Def r pars
+getRecordConstructorType :: MonadTCM tcm => QName -> tcm Type
+getRecordConstructorType r = recConType <$> getRecordDef r
+
+-- | Returns the given record type's constructor name (with an empty
+-- range).
+getRecordConstructor :: MonadTCM tcm => QName -> tcm QName
+getRecordConstructor r = killRange <$> do
+  c <- recCon <$> getRecordDef r
+  case c of
+    Nothing -> return r
+    Just c  -> return c
 
 -- | Check if a name refers to a record.
 isRecord :: MonadTCM tcm => QName -> tcm Bool
@@ -111,12 +119,10 @@ etaContractRecord r args = do
           _                         -> return Nothing
   unless (length args == length xs) __IMPOSSIBLE__
   cs <- zipWithM check args xs
+  let fallBack = Con <$> getRecordConstructor r <*> return args
   case sequence cs of
     Just (c:cs) -> do
       if all (c ==) cs
         then return c
         else fallBack
     _ -> fallBack
-  where
-    fallBack = return (Con r args)
-

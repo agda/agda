@@ -565,11 +565,11 @@ instance InstantiateFull Defn where
 	s  <- instantiateFull s
 	cl <- instantiateFull cl
 	return $ d { dataSort = s, dataClause = cl }
-      Record{ recSort = s, recClause = cl, recTel = tel } -> do
-        s   <- instantiateFull s
+      Record{ recConType = t, recClause = cl, recTel = tel } -> do
+        t   <- instantiateFull t
         cl  <- instantiateFull cl
         tel <- instantiateFull tel
-        return $ d { recSort = s, recClause = cl, recTel = tel }
+        return $ d { recConType = t, recClause = cl, recTel = tel }
       Constructor{} -> return d
       Primitive{ primClauses = cs } -> do
         cs <- instantiateFull cs

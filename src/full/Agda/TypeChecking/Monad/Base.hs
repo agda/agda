@@ -431,9 +431,10 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat
             , recClause         :: Maybe Clause
+            , recCon            :: Maybe QName          -- ^ Constructor name.
+            , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [(Hiding, A.QName)]
             , recTel            :: Telescope
-            , recSort           :: Sort
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
             , recAbstr          :: IsAbstract
@@ -441,7 +442,7 @@ data Defn = Axiom
 	  | Constructor
             { conPars   :: Nat         -- nof parameters
 	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
-	    , conData   :: QName       -- name of datatype
+	    , conData   :: QName       -- name of datatype or record type
             , conHsCode :: Maybe (HaskellType, HaskellCode) -- used by the compiler
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?

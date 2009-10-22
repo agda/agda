@@ -5,6 +5,7 @@ module Agda.TypeChecking.Rules.Record where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
+import System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -32,8 +33,9 @@ import Agda.Utils.Impossible
 -- * Records
 ---------------------------------------------------------------------------
 
-checkRecDef :: Info.DefInfo -> QName -> [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
-checkRecDef i name ps contel fields =
+checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
+               [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
+checkRecDef i name con ps contel fields =
   noMutualBlock $ -- records can't be recursive anyway
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
@@ -86,18 +88,42 @@ checkRecDef i name ps contel fields =
 
         -- Check the types of the fields
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
-        withCurrentModule m $ checkRecordProjections m name tel' (raise 1 ftel) s fields
+        withCurrentModule m $
+          checkRecordProjections m (maybe name A.axiomName con)
+                                 tel' (raise 1 ftel) s fields
+
+      let conType = telePi ftel (El (raise (size ftel) s) (Def name args))
+            where
+            args = reverse [ Arg h (Var i [])
+                           | (i, Arg h _) <- zip [size ftel..]
+                                                 (reverse $ telToList tel)
+                           ]
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = size tel
                                 , recClause         = Nothing
+                                , recCon            = A.axiomName <$> con
+                                , recConType        = conType
 				, recFields         = concatMap getName fields
                                 , recTel            = ftel
-                                , recSort           = s
 				, recAbstr          = Info.defAbstract i
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }
+      case con of
+        Nothing              -> return ()
+        Just (A.Axiom i c _) -> do
+          addConstant c $
+            Defn c conType (defaultDisplayForm name) 0 $
+                 Constructor { conPars   = 0
+                             , conSrcCon = c
+                             , conData   = name
+                             , conHsCode = Nothing
+                             , conAbstr  = Info.defAbstract i
+                             , conInd    = Inductive
+                             }
+          verboseS "tc.rec.def" 20 $ liftIO . UTF8.print =<< getConstInfo c
+        Just _ -> __IMPOSSIBLE__
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here

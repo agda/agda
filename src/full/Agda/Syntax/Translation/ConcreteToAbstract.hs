@@ -670,7 +670,7 @@ instance ToAbstract NiceDefinition Definition where
           conName _ = __IMPOSSIBLE__
 
     -- Record definitions (mucho interesting)
-      C.RecDef r f p a x pars fields ->
+      C.RecDef r f p a x c pars fields ->
         traceCall (ScopeCheckDefinition d) $
         withLocalVars $ do
           pars   <- toAbstract pars
@@ -689,7 +689,8 @@ instance ToAbstract NiceDefinition Definition where
           -- popScope p
           bindModule p x m
           printScope "rec" 15 "record complete"
-          return $ A.RecDef (mkDefInfo x f p a r) x' pars contel afields
+          c' <- mapM (toAbstract . Constr) c
+          return $ A.RecDef (mkDefInfo x f p a r) x' c' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.

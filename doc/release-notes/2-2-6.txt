@@ -68,8 +68,29 @@ Language
         {B C} D {E} : Set
         g           : B → C → E
 
-  Currently this only affects printing of record values; implicit
-  fields are not printed by default.
+  By default implicit fields are not printed.
+
+* Record constructors can be defined:
+
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field
+        proj₁ : A
+        proj₂ : B proj₁
+
+  In this example _,_ gets the type
+
+     (proj₁ : A) → B proj₁ → Σ A B.
+
+  For implicit fields the corresponding constructor arguments become
+  implicit.
+
+  Note that the constructor is defined in the /outer/ scope, so any
+  fixity declaration has to be given outside the record definition.
+  The constructor is not in scope inside the record module.
+
+  Note also that pattern matching for records has not been implemented
+  yet.
 
 * BUILTIN hooks for equality
 

@@ -1,0 +1,5 @@
+RecordConstructorOutOfScope.agda:7,8-11
+Not in scope:
+  con
+  at RecordConstructorOutOfScope.agda:7,8-11
+when scope checking con

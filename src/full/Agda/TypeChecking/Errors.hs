@@ -603,8 +603,8 @@ instance PrettyTCM Call where
 		[ C.Data r ind d (map bind bs) (C.Underscore noRange Nothing)
 		    $ map simpleDecl cs
 		]
-	      D.RecDef r fx p a d bs cs ->
-		[ C.Record r d (map bind bs) (C.Underscore noRange Nothing)
+	      D.RecDef r fx p a d c bs cs ->
+		[ C.Record r d (name <$> c) (map bind bs) (C.Underscore noRange Nothing)
 		    $ map simpleDecl cs
 		]
 	      where
@@ -612,7 +612,9 @@ instance PrettyTCM Call where
 		bind (C.DomainFull b) = b
 		bind (C.DomainFree h x) = C.TypedBindings r h [C.TBind r [x] (C.Underscore r Nothing)]
 		  where r = getRange x
-		-- bind _		      = __IMPOSSIBLE__
+
+                name (D.Axiom _ _ _ _ n _) = n
+                name _                     = __IMPOSSIBLE__
 
 	    simpleDecl d = case d of
 		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e

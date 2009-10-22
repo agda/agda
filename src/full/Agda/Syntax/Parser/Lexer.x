@@ -134,6 +134,7 @@ tokens :-
 <0,code> data		{ keyword KwData }
 <0,code> codata		{ keyword KwCoData }
 <0,code> record		{ keyword KwRecord }
+<0,code> constructor    { keyword KwConstructor }
 <0,code> infix		{ keyword KwInfix }
 <0,code> infixl		{ keyword KwInfixL }
 <0,code> infixr		{ keyword KwInfixR }

@@ -202,7 +202,7 @@ instance Pretty Declaration where
 			    , text "where"
 			    ]
 		    ] $$ nest 2 (vcat $ map pretty cs)
-	    Record _ x tel e cs ->
+	    Record _ x con tel e cs ->
 		sep [ hsep  [ text "record"
 			    , pretty x
 			    , fcat (map pretty tel)
@@ -212,7 +212,9 @@ instance Pretty Declaration where
 			    , pretty e
 			    , text "where"
 			    ]
-		    ] $$ nest 2 (vcat $ map pretty cs)
+		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
+                                              con ++
+                                        map pretty cs)
 	    Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
 

@@ -29,6 +29,7 @@ import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.List as List
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -477,12 +478,14 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
       mkTel _ _            = __IMPOSSIBLE__
 
-  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ bs _ cs)) =
+  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ c bs _ cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' tel' t' cs' ]
+      c'       <- Trav.mapM (\d -> unsafeQNameToName <$>
+                                     toConcrete (axiomName d)) c
+      return [ C.Record (getRange i) x' c' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel 0 t            = ([], t)

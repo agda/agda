@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad as M
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Common as SC
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Info as SI
 import qualified Agda.Syntax.Internal as I
@@ -236,7 +237,7 @@ generateSyntaxInfo file mErr top termErrs =
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
-      getFieldDecl (A.RecDef _ _ _ _ fs) = Fold.foldMap extractField fs
+      getFieldDecl (A.RecDef _ _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
         extractField (A.Field _ _ x _)   = field (concreteQualifier x)
@@ -299,13 +300,18 @@ nameKinds mErr decls = do
   getAxiomName _               = __IMPOSSIBLE__
 
   getDef :: A.Definition -> Map A.QName NameKind
-  getDef (A.FunDef  _ q _)      = Map.singleton q Function
-  getDef (A.DataDef _ q i _ cs) = Map.singleton q Datatype `union`
-                                  (Map.unions $
-                                   map (\q -> Map.singleton q (Constructor i)) $
-                                   map getAxiomName cs)
-  getDef (A.RecDef  _ q _ _ _)  = Map.singleton q Record
-  getDef (A.ScopedDef {})       = Map.empty
+  getDef (A.FunDef  _ q _)       = Map.singleton q Function
+  getDef (A.DataDef _ q i _ cs)  = Map.singleton q Datatype `union`
+                                   (Map.unions $
+                                    map (\q -> Map.singleton q (Constructor i)) $
+                                    map getAxiomName cs)
+  getDef (A.RecDef  _ q c _ _ _) = Map.singleton q Record `union`
+                                   case c of
+                                     Nothing -> Map.empty
+                                     Just (A.Axiom _ q _) ->
+                                       Map.singleton q (Constructor SC.Inductive)
+                                     Just _ -> __IMPOSSIBLE__
+  getDef (A.ScopedDef {})        = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ q _)     = Map.singleton q Postulate

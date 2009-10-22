@@ -136,6 +136,10 @@ instance (HasRange a, HasRange b) => HasRange (a,b) where
 instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
     getRange (x,y,z) = getRange (x,(y,z))
 
+instance HasRange a => HasRange (Maybe a) where
+    getRange Nothing  = noRange
+    getRange (Just a) = getRange a
+
 -- | If it is also possible to set the range, this is the class.
 --
 --   Instances should satisfy @'getRange' ('setRange' r x) == r@.

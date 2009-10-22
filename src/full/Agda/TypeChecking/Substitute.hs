@@ -158,8 +158,10 @@ instance Abstract Defn where
       d { funClauses = abstract tel cs, funInv = abstract tel inv }
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl }
-    Record{ recPars = np, recClause = cl, recTel = tel' } ->
-      d { recPars = np + size tel, recClause = abstract tel cl, recTel = abstract tel tel' }
+    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->
+      d { recPars = np + size tel, recConType = abstract tel t
+        , recClause = abstract tel cl, recTel = abstract tel tel'
+        }
     Constructor{ conPars = np } ->
       d { conPars = np + size tel }
     Primitive{ primClauses = cs } ->

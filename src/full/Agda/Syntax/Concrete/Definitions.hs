@@ -4,7 +4,6 @@ module Agda.Syntax.Concrete.Definitions
     ( NiceDeclaration(..)
     , NiceDefinition(..)
     , NiceConstructor, NiceTypeSignature
-    , NiceField
     , Clause(..)
     , DeclarationException(..)
     , Nice, runNice
@@ -18,6 +17,8 @@ import Data.Generics (Data, Typeable)
 import qualified Data.Map as Map
 import Control.Monad.Error
 import Data.List
+import Data.Maybe
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common
@@ -57,12 +58,13 @@ data NiceDeclaration
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
 	| DataDef Range Induction Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
-	| RecDef Range Fixity Access IsAbstract Name [LamBinding] [NiceField]
+	| RecDef Range Fixity Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
+          -- ^ The 'NiceConstructor' has a dummy type field (the
+          --   record constructor type has not been computed yet).
     deriving (Typeable, Data)
 
 -- | Only 'Axiom's.
 type NiceConstructor = NiceTypeSignature
-type NiceField = NiceTypeSignature
 
 -- | Only 'Axiom's.
 type NiceTypeSignature	= NiceDeclaration
@@ -106,7 +108,7 @@ instance HasRange NiceDeclaration where
 instance HasRange NiceDefinition where
   getRange (FunDef r _ _ _ _ _ _)    = r
   getRange (DataDef r _ _ _ _ _ _ _) = r
-  getRange (RecDef r _ _ _ _ _ _)    = r
+  getRange (RecDef r _ _ _ _ _ _ _)  = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -176,7 +178,7 @@ niceDeclarations ds = do
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
 	  Data _ _ x _ _ cs			       -> x : concatMap declaredNames cs
-	  Record _ x _ _ _			       -> [x]
+	  Record _ x c _ _ _			       -> x : maybeToList c
 	  Infix _ _				       -> []
 	  Mutual _ ds				       -> concatMap declaredNames ds
 	  Abstract _ ds				       -> concatMap declaredNames ds
@@ -219,7 +221,11 @@ niceDeclarations ds = do
 			nds = case d of
                             Field h x t             -> return $ niceAxioms fixs [ Field h x t ]
 			    Data   r ind x tel t cs -> dataOrRec (flip DataDef ind) niceAx r x tel t cs
-			    Record r x tel t cs     -> dataOrRec RecDef (const niceDeclarations) r x tel t cs
+			    Record r x c tel t cs   -> do
+                              let dummyType = Prop noRange
+                                  c'        = (\c -> niceAxiom fixs (TypeSig c dummyType)) <$> c
+                              dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
+                                        (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
 			      d <- mkMutual r [d] =<< niceFix fixs ds
 			      return [d]
@@ -279,16 +285,14 @@ niceDeclarations ds = do
         niceAx fixs ds = return $ niceAxioms fixs ds
 
 	niceAxioms :: Map.Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
-	niceAxioms fixs ds = nice ds
-	    where
-		nice [] = []
-		nice (d@(TypeSig x t) : ds) =
-		    Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
-		    : nice ds
-		nice (d@(Field h x t) : ds) =
-		    NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef h x t
-		    : nice ds
-		nice _ = __IMPOSSIBLE__
+	niceAxioms fixs ds = map (niceAxiom fixs) ds
+
+        niceAxiom :: Map.Map Name Fixity -> TypeSignature -> NiceDeclaration
+        niceAxiom fixs d@(TypeSig x t) =
+            Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
+        niceAxiom fixs d@(Field h x t) =
+            NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef h x t
+        niceAxiom _ _ = __IMPOSSIBLE__
 
 	toPrim :: NiceDeclaration -> NiceDeclaration
 	toPrim (Axiom r f a c x t) = PrimitiveFunction r f a c x t
@@ -404,7 +408,7 @@ niceDeclarations ds = do
 		FunDef r ds f a _ x cs      -> FunDef r ds f a AbstractDef x
 						  (map mkAbstractClause cs)
 		DataDef r ind f a _ x ps cs -> DataDef r ind f a AbstractDef x ps $ map mkAbstract cs
-		RecDef r f a _ x ps cs      -> RecDef r f a AbstractDef x ps $ map mkAbstract cs
+		RecDef r f a _ x c ps cs    -> RecDef r f a AbstractDef x (mkAbstract <$> c) ps $ map mkAbstract cs
 
 	mkAbstractClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
@@ -432,7 +436,7 @@ niceDeclarations ds = do
 		FunDef r ds f _ a x cs      -> FunDef r ds f PrivateAccess a x
 						  (map mkPrivateClause cs)
 		DataDef r ind f _ a x ps cs -> DataDef r ind f PrivateAccess a x ps (map mkPrivate cs)
-		RecDef r f _ a x ps cs      -> RecDef r f PrivateAccess a x ps cs
+		RecDef r f _ a x c ps cs    -> RecDef r f PrivateAccess a x (mkPrivate <$> c) ps cs
 
 	mkPrivateClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)

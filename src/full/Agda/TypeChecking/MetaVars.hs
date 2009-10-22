@@ -193,7 +193,8 @@ newRecordMetaCtx :: MonadTCM tcm => QName -> Args -> Telescope -> Args -> tcm Te
 newRecordMetaCtx r pars tel ctx = do
   ftel	 <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel ctx
-  return $ Con r fields
+  con    <- getRecordConstructor r
+  return $ Con con fields
 
 newQuestionMark :: MonadTCM tcm => Type -> tcm Term
 newQuestionMark t = do

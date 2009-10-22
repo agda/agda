@@ -227,13 +227,14 @@ checkExpr e t =
                         text "target type: " <+> prettyTCM t1
                       case t1 of
                         NotBlocked (Def d _) -> do
+                          let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
+                                c:_ -> return (Just c)
+                                []  -> typeError $ DoesNotConstructAnElementOf
+                                                     (head cs) (Def d [])
                           defn <- theDef <$> getConstInfo d
                           case defn of
-                            Datatype{} ->
-                              case [ c | (d', c) <- dcs, d == d' ] of
-                                c:_   -> return (Just c)
-                                []    -> typeError $ DoesNotConstructAnElementOf
-                                          (head cs) (Def d [])
+                            Datatype{} -> dataOrRec
+                            Record{}   -> dataOrRec
                             _ -> typeError $ DoesNotConstructAnElementOf (head cs) (ignoreBlocking t1)
                         NotBlocked (MetaV _ _)  -> return Nothing
                         Blocked{} -> return Nothing
@@ -378,13 +379,14 @@ checkExpr e t =
 	    Def r vs  -> do
 	      (hs, xs) <- unzip <$> getRecordFieldNames r
 	      ftel     <- getRecordFieldTypes r
+              con      <- getRecordConstructor r
               scope    <- getScope
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
 			      (zipWith (\h e -> Arg h (unnamed e)) hs es) tel
-	      blockTerm t (Con (killRange r) args) $ return cs
+	      blockTerm t (Con con args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep
                 [ text "Postponing type checking of"

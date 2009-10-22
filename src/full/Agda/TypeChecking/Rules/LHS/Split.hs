@@ -116,6 +116,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 				 (fmap (const $ Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
 		-- TODO: record patterns
+		Record{} -> typeError $ NotImplemented "Pattern matching for records"
 		_ -> keepGoing
 	    _	-> keepGoing
 	p -> keepGoing

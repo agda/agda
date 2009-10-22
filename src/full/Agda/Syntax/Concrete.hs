@@ -215,7 +215,8 @@ data Declaration
         | Field Hiding Name Expr
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
-	| Record      !Range Name [TypedBindings] Expr [Field]
+	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
+          -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
@@ -335,7 +336,7 @@ instance HasRange Declaration where
     getRange (Field _ x t)              = fuseRange x t
     getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
     getRange (Data r _ _ _ _ _)		= r
-    getRange (Record r _ _ _ _)		= r
+    getRange (Record r _ _ _ _ _)	= r
     getRange (Mutual r _)		= r
     getRange (Abstract r _)		= r
     getRange (Open r _ _)		= r

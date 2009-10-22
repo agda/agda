@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, CPP #-}
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
     producing internal syntax ("Agda.Syntax.Internal").
@@ -26,6 +26,9 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
 import Agda.Utils.Tuple
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 data Expr
         = Var  Name			     -- ^ Bound variables
@@ -79,8 +82,9 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName Induction [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName [LamBinding] Expr [Declaration]
-	    -- ^ the 'Expr' gives the constructor type telescope: @(x1 : A1)..(xn : An) -> Prop@
+	| RecDef     DefInfo QName (Maybe Constructor) [LamBinding] Expr [Declaration]
+	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+            --   and the optional name is the constructor's name.
         | ScopedDef ScopeInfo Definition
   deriving (Typeable, Data)
 
@@ -230,7 +234,7 @@ instance HasRange Declaration where
 instance HasRange Definition where
     getRange (FunDef  i _ _    )   = getRange i
     getRange (DataDef i _ _ _ _  ) = getRange i
-    getRange (RecDef  i _ _ _ _)   = getRange i
+    getRange (RecDef  i _ _ _ _ _) = getRange i
     getRange (ScopedDef _ d)       = getRange d
 
 instance HasRange (Pattern' e) where
@@ -305,10 +309,10 @@ instance KillRange Declaration where
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
 
 instance KillRange Definition where
-  killRange (FunDef  i a b    ) = killRange3 FunDef  i a b
-  killRange (DataDef i a b c d) = killRange5 DataDef i a b c d
-  killRange (RecDef  i a b c d) = killRange5 RecDef  i a b c d
-  killRange (ScopedDef s a)     = killRange1 (ScopedDef s) a
+  killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
+  killRange (DataDef i a b c d)   = killRange5 DataDef i a b c d
+  killRange (RecDef  i a b c d e) = killRange6 RecDef  i a b c d e
+  killRange (ScopedDef s a)       = killRange1 (ScopedDef s) a
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)      = killRange1 VarP x
@@ -353,10 +357,11 @@ allNames (Primitive _   q _)   = Seq.singleton q
 allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   where
   allNamesD :: Definition -> Seq QName
-  allNamesD (FunDef _ q cls)        = q <| Fold.foldMap allNamesC cls
-  allNamesD (DataDef _ q _ _ decls) = q <| Fold.foldMap allNames decls
-  allNamesD (RecDef _ q _ _ decls)  = q <| Fold.foldMap allNames decls
-  allNamesD (ScopedDef _ def)       = allNamesD def
+  allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
+  allNamesD (DataDef _ q _ _ decls)  = q <| Fold.foldMap allNames decls
+  allNamesD (ScopedDef _ def)        = allNamesD def
+  allNamesD (RecDef _ q c _ _ decls) =
+    q <| Fold.foldMap allNames c >< Fold.foldMap allNames decls
 
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><
@@ -373,3 +378,11 @@ allNames Import {}             = Seq.empty
 allNames Pragma {}             = Seq.empty
 allNames Open {}               = Seq.empty
 allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls
+
+-- | The name defined by the given axiom.
+--
+-- Precondition: The declaration has to be an 'Axiom'.
+
+axiomName :: Declaration -> QName
+axiomName (Axiom _ q _) = q
+axiomName _             = __IMPOSSIBLE__

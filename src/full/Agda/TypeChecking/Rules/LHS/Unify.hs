@@ -230,16 +230,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	(u, Var j []) | flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
-              -- The telescope ends with a datatype or a record.
-              TelV _ (El _ (Def d args)) <- telView <$> reduce a
-              -- Get the number of parameters.
-              def <- theDef <$> getConstInfo d
-              a'  <- case def of
-                Datatype{dataPars = n} -> do
-                  a <- defType <$> getConstInfo c
-                  return $ piApply a (genericTake n args)
-                Record{recPars = n} -> getRecordConstructorType d (genericTake n args)
-                _		    -> __IMPOSSIBLE__
+              a' <- dataOrRecordType c a
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
@@ -313,14 +304,7 @@ unifyIndices flex a us vs = liftTCM $ do
     inertApplication a v =
       case v of
         Con c vs -> do
-          TelV _ (El _ (Def d args)) <- telView <$> reduce a
-          def <- theDef <$> getConstInfo d
-          b   <- case def of
-            Datatype{dataPars = n} -> do
-              a <- defType <$> getConstInfo c
-              return $ piApply a (genericTake n args)
-            Record{recPars = n} -> getRecordConstructorType d (genericTake n args)
-            _		    -> __IMPOSSIBLE__
+          b <- dataOrRecordType c a
           return $ Just (Con c [], b, vs)
         Def d vs -> do
           def <- getConstInfo d
@@ -332,3 +316,22 @@ unifyIndices flex a us vs = liftTCM $ do
             _          -> Nothing
         _        -> return Nothing
 
+-- | Given the type of a constructor application the corresponding
+-- data or record type, applied to its parameters (extracted from the
+-- given type), is returned.
+--
+-- Precondition: The type has to correspond to an application of the
+-- given constructor.
+
+dataOrRecordType :: MonadTCM tcm
+                 => QName -- ^ Constructor name.
+                 -> Type -> tcm Type
+dataOrRecordType c a = do
+  -- The telescope ends with a datatype or a record.
+  TelV _ (El _ (Def d args)) <- telView <$> reduce a
+  def <- theDef <$> getConstInfo d
+  (n, a')  <- case def of
+    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
+    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
+    _		           -> __IMPOSSIBLE__
+  return (a' `apply` genericTake n args)

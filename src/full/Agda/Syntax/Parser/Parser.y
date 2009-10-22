@@ -45,37 +45,38 @@ import Agda.Utils.Monad
 %nonassoc '->'
 
 %token
-    'let'	{ TokKeyword KwLet $$ }
-    'in'	{ TokKeyword KwIn $$ }
-    'where'	{ TokKeyword KwWhere $$ }
-    'with'	{ TokKeyword KwWith $$ }
-    'rewrite'	{ TokKeyword KwRewrite $$ }
-    'postulate' { TokKeyword KwPostulate $$ }
-    'primitive' { TokKeyword KwPrimitive $$ }
-    'open'	{ TokKeyword KwOpen $$ }
-    'import'	{ TokKeyword KwImport $$ }
-    'using'	{ TokKeyword KwUsing $$ }
-    'hiding'	{ TokKeyword KwHiding $$ }
-    'renaming'	{ TokKeyword KwRenaming $$ }
-    'to'	{ TokKeyword KwTo $$ }
-    'public'	{ TokKeyword KwPublic $$ }
-    'module'	{ TokKeyword KwModule $$ }
-    'data'	{ TokKeyword KwData $$ }
-    'codata'	{ TokKeyword KwCoData $$ }
-    'record'	{ TokKeyword KwRecord $$ }
-    'field'	{ TokKeyword KwField $$ }
-    'infix'	{ TokKeyword KwInfix $$ }
-    'infixl'	{ TokKeyword KwInfixL $$ }
-    'infixr'	{ TokKeyword KwInfixR $$ }
-    'mutual'	{ TokKeyword KwMutual $$ }
-    'abstract'	{ TokKeyword KwAbstract $$ }
-    'private'	{ TokKeyword KwPrivate $$ }
-    'Prop'	{ TokKeyword KwProp $$ }
-    'Set'	{ TokKeyword KwSet $$ }
-    'forall'	{ TokKeyword KwForall $$ }
-    'OPTIONS'	{ TokKeyword KwOPTIONS $$ }
-    'BUILTIN'	{ TokKeyword KwBUILTIN $$ }
-    'IMPORT'	{ TokKeyword KwIMPORT $$ }
+    'let'           { TokKeyword KwLet $$ }
+    'in'            { TokKeyword KwIn $$ }
+    'where'         { TokKeyword KwWhere $$ }
+    'with'          { TokKeyword KwWith $$ }
+    'rewrite'       { TokKeyword KwRewrite $$ }
+    'postulate'     { TokKeyword KwPostulate $$ }
+    'primitive'     { TokKeyword KwPrimitive $$ }
+    'open'          { TokKeyword KwOpen $$ }
+    'import'        { TokKeyword KwImport $$ }
+    'using'         { TokKeyword KwUsing $$ }
+    'hiding'        { TokKeyword KwHiding $$ }
+    'renaming'      { TokKeyword KwRenaming $$ }
+    'to'            { TokKeyword KwTo $$ }
+    'public'        { TokKeyword KwPublic $$ }
+    'module'        { TokKeyword KwModule $$ }
+    'data'          { TokKeyword KwData $$ }
+    'codata'        { TokKeyword KwCoData $$ }
+    'record'        { TokKeyword KwRecord $$ }
+    'constructor'   { TokKeyword KwConstructor $$ }
+    'field'         { TokKeyword KwField $$ }
+    'infix'         { TokKeyword KwInfix $$ }
+    'infixl'        { TokKeyword KwInfixL $$ }
+    'infixr'        { TokKeyword KwInfixR $$ }
+    'mutual'        { TokKeyword KwMutual $$ }
+    'abstract'      { TokKeyword KwAbstract $$ }
+    'private'       { TokKeyword KwPrivate $$ }
+    'Prop'          { TokKeyword KwProp $$ }
+    'Set'           { TokKeyword KwSet $$ }
+    'forall'        { TokKeyword KwForall $$ }
+    'OPTIONS'       { TokKeyword KwOPTIONS $$ }
+    'BUILTIN'       { TokKeyword KwBUILTIN $$ }
+    'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
@@ -149,6 +150,7 @@ Token
     | 'data'	    { TokKeyword KwData $1 }
     | 'codata'	    { TokKeyword KwCoData $1 }
     | 'record'	    { TokKeyword KwRecord $1 }
+    | 'constructor' { TokKeyword KwConstructor $1 }
     | 'field'       { TokKeyword KwField $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
     | 'infixl'	    { TokKeyword KwInfixL $1 }
@@ -679,8 +681,12 @@ Data : 'data' Id LamBindings0 ':' Expr 'where'
 -- Record declarations.
 Record :: { Declaration }
 Record : 'record' Id LamBindings0 ':' Expr 'where'
-	    Declarations0 { Record (getRange ($1, $6, $7)) $2 (map addType $3) $5 $7 }
+	    RecordDeclarations
+         { Record (getRange ($1, $6, $7)) $2 (fst $7) (map addType $3) $5 (snd $7) }
 
+-- Declaration of record constructor name.
+RecordConstructorName :: { Name }
+RecordConstructorName : 'constructor' Id { $2 }
 
 -- Fixity declarations.
 Infix :: { Declaration }
@@ -847,6 +853,14 @@ Constructors :: { [Constructor] }
 Constructors
     : TeX vopen TeX close { [] }
     | TypeSignatures	  { $1 }
+
+-- Record declarations, including an optional record constructor name.
+RecordDeclarations :: { (Maybe Name, [Declaration]) }
+RecordDeclarations
+    : TeX vopen                                              TeX close { (Nothing, []) }
+    | TeX vopen TeX RecordConstructorName                    TeX close { (Just $4, []) }
+    | TeX vopen TeX RecordConstructorName semi Declarations1 TeX close { (Just $4, reverse $6) }
+    | TeX vopen                                Declarations1 TeX close { (Nothing, reverse $3) }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }

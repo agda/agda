@@ -15,7 +15,7 @@ data Keyword
 	| KwPostulate | KwMutual | KwAbstract | KwPrivate
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
-	| KwSet | KwProp | KwForall | KwRecord | KwField
+	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
         | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwIMPORT
