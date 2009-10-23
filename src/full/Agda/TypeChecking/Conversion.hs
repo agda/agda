@@ -418,6 +418,7 @@ leqLevel a b = liftTCM $ do
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
       case (as, bs) of
+        (_, [])  -> concat <$> sequence [ leqPlusView a (ClosedLevel 0) | a <- as ]
         (_, [b]) -> concat <$> sequence [ leqPlusView a b | a <- as ]
         _        -> do
           choice
