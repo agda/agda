@@ -253,6 +253,11 @@ length-map : ∀ {A B} (f : A → B) xs →
 length-map f []       = refl
 length-map f (x ∷ xs) = cong suc (length-map f xs)
 
+length-++ : ∀ {A} (xs : List A) {ys} →
+            length (xs ++ ys) ≡ length xs + length ys
+length-++ []       = refl
+length-++ (x ∷ xs) = cong suc (length-++ xs)
+
 length-gfilter : ∀ {A B} (p : A → Maybe B) xs →
                  length (gfilter p xs) ≤ length xs
 length-gfilter p []       = z≤n
