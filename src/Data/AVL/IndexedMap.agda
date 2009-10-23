@@ -18,7 +18,7 @@ import Data.AVL
 open import Data.Function
 open import Data.Maybe as Maybe
 open import Data.Bool
-open import Data.List
+open import Data.List as List using (List)
 open import Category.Functor
 open RawFunctor Maybe.functor
 
@@ -78,7 +78,7 @@ initLast : Map → Maybe (Map × KV)
 initLast m = Prod.map id toKV <$> AVL.initLast m
 
 fromList : List KV → Map
-fromList = AVL.fromList ∘ map fromKV
+fromList = AVL.fromList ∘ List.map fromKV
 
 toList : Map → List KV
-toList = map toKV ∘ AVL.toList
+toList = List.map toKV ∘ AVL.toList

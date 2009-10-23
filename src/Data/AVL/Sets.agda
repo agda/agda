@@ -13,7 +13,7 @@ open import Data.Function
 open import Data.Product as Prod using (_×_; _,_; proj₁)
 open import Data.Maybe as Maybe
 open import Data.Bool
-open import Data.List
+open import Data.List as List using (List)
 open import Category.Functor
 open RawFunctor Maybe.functor
 
@@ -50,7 +50,7 @@ initLast : ⟨Set⟩ → Maybe (⟨Set⟩ × Key)
 initLast s = Prod.map id proj₁ <$> S.initLast s
 
 fromList : List Key → ⟨Set⟩
-fromList = S.fromList ∘ map (λ k → (k , _))
+fromList = S.fromList ∘ List.map (λ k → (k , _))
 
 toList : ⟨Set⟩ → List Key
-toList = map proj₁ ∘ S.toList
+toList = List.map proj₁ ∘ S.toList

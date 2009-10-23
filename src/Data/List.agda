@@ -39,6 +39,13 @@ _++_ : ∀ {a} → List a → List a → List a
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
+-- Snoc.
+
+infixl 5 _∷ʳ_
+
+_∷ʳ_ : ∀ {A} → List A → A → List A
+xs ∷ʳ x = xs ++ [ x ]
+
 null : ∀ {a} → List a → Bool
 null []       = true
 null (x ∷ xs) = false
@@ -202,6 +209,18 @@ inits (x ∷ xs) = [] ∷ map (_∷_ x) (inits xs)
 tails : ∀ {a} → List a → List (List a)
 tails []       = [] ∷ []
 tails (x ∷ xs) = (x ∷ xs) ∷ tails xs
+
+infixl 5 _∷ʳ'_
+
+data InitLast {A : Set} : List A → Set where
+  []    : InitLast []
+  _∷ʳ'_ : (xs : List A) (x : A) → InitLast (xs ∷ʳ x)
+
+initLast : ∀ {A} (xs : List A) → InitLast xs
+initLast []               = []
+initLast (x ∷ xs)         with initLast xs
+initLast (x ∷ .[])        | []       = [] ∷ʳ' x
+initLast (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
 
 -- * Searching lists
 
