@@ -91,7 +91,7 @@ checkRecDef i name con ps contel fields =
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
           checkRecordProjections m (maybe name A.axiomName con)
-                                 tel' (raise 1 ftel) s fields
+                                 tel' (raise 1 ftel) fields
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
@@ -138,9 +138,9 @@ checkRecDef i name con ps contel fields =
     @fs@: the fields to be checked
 -}
 checkRecordProjections ::
-  ModuleName -> QName -> Telescope -> Telescope -> Sort ->
+  ModuleName -> QName -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
-checkRecordProjections m q tel ftel s fs = checkProjs EmptyTel ftel fs
+checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
   where
     checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
     checkProjs _ _ [] = return ()
