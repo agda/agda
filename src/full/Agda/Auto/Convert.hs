@@ -83,12 +83,8 @@ tomy imi icns = do
       MB.Datatype {MB.dataCons = cons} -> do
        cons' <- mapM (\con -> getConst True con TMAll) cons
        return $ Datatype cons'
-      MB.Record {MB.recFields = fields, MB.recTel = tel} -> do  -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (I.Var n []) : pars (n - 1) typ
-           pars _ (I.El _ _) = []
-           contyp npar I.EmptyTel = I.El undefined (I.Def cn (pars (npar - 1) typ))
-           contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El undefined (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
-       contyp' <- tomyType $ contyp 0 tel
+      MB.Record {MB.recConType = contyp} -> do
+       contyp' <- tomyType contyp
        cc <- lift $ liftIO $ readIORef c
        let Datatype [con] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
