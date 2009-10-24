@@ -94,7 +94,7 @@ checkRecDef i name con ps contel fields =
                                  tel' (raise 1 ftel) s fields
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
-		       $ Record { recPars           = size tel
+		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = A.axiomName <$> con
                                 , recConType        = contype
