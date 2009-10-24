@@ -90,10 +90,11 @@ x =:= t = do
 
 -- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadTCM tcm, HasMeta t, Show t) => MetaId -> t -> tcm ()
+(=:) :: (MonadTCM tcm, HasMeta t, KillRange t, Show t) =>
+        MetaId -> t -> tcm ()
 x =: t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
-    i <- metaInstance t
+    i <- metaInstance (killRange t)
     store <- getMetaStore
     modify $ \st -> st { stMetaStore = ins x i store }
     etaExpandListeners x
