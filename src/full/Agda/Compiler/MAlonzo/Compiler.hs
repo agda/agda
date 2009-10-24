@@ -117,9 +117,13 @@ definition (Defn q ty _ _ d) = do
       (ars, cds) <- unzip <$> mapM condecl cs
       return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
     Constructor{} -> return []
-    Record{ recClause = cl, recFields = flds } -> do
+    Record{ recClause = cl, recCon = c, recFields = flds } -> do
+      let noFields = genericLength flds
       ar <- arity <$> normalise ty
-      return $ tvaldecl q Inductive (genericLength flds) ar [cdecl q (genericLength flds)] cl
+      cd <- case c of
+        Nothing -> return $ cdecl q noFields
+        Just c  -> snd <$> condecl c
+      return $ tvaldecl q Inductive noFields ar [cd] cl
   where
   function cls = mkwhere <$> mapM (clause q) (tag 0 cls)
   tag _ []       = []
