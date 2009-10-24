@@ -72,6 +72,7 @@ checkRecDef i name con ps contel fields =
       -- Check the field telescope
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
       let TelV ftel _ = telView contype
+      let contype = telePi ftel (raise (size ftel) rect)
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
@@ -92,18 +93,11 @@ checkRecDef i name con ps contel fields =
           checkRecordProjections m (maybe name A.axiomName con)
                                  tel' (raise 1 ftel) s fields
 
-      let conType = telePi ftel (El (raise (size ftel) s) (Def name args))
-            where
-            args = reverse [ Arg h (Var i [])
-                           | (i, Arg h _) <- zip [size ftel..]
-                                                 (reverse $ telToList tel)
-                           ]
-
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = size tel
                                 , recClause         = Nothing
                                 , recCon            = A.axiomName <$> con
-                                , recConType        = conType
+                                , recConType        = contype
 				, recFields         = concatMap getName fields
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
@@ -114,7 +108,7 @@ checkRecDef i name con ps contel fields =
         Nothing              -> return ()
         Just (A.Axiom i c _) -> do
           addConstant c $
-            Defn c conType (defaultDisplayForm name) 0 $
+            Defn c contype (defaultDisplayForm name) 0 $
                  Constructor { conPars   = 0
                              , conSrcCon = c
                              , conData   = name

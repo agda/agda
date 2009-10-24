@@ -204,8 +204,10 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { conPars = np - size ts, conData = copyName d }
                 Datatype{ dataPars = np, dataCons = cs } ->
                   oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs }
-                Record{ recPars = np, recTel = tel } ->
-                  oldDef { recPars = np - size ts, recClause = Just cl, recTel = apply tel ts }
+                Record{ recPars = np, recConType = t, recTel = tel } ->
+                  oldDef { recPars = np - size ts, recClause = Just cl
+                         , recConType = apply t ts, recTel = apply tel ts
+                         }
 		_ ->
                   Function { funClauses        = [cl]
                            , funDelayed        = NotDelayed

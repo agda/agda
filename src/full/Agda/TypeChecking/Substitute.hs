@@ -63,8 +63,10 @@ instance Apply Defn where
       d { funClauses = apply cs args, funInv = apply inv args }
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args, dataClause = apply cl args }
-    Record{ recPars = np, recClause = cl, recTel = tel } ->
-      d { recPars = np - size args, recClause = apply cl args, recTel = apply tel args }
+    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel } ->
+      d { recPars = np - size args, recConType = apply t args
+        , recClause = apply cl args, recTel = apply tel args
+        }
     Constructor{ conPars = np } ->
       d { conPars = np - size args }
     Primitive{ primClauses = cs } ->

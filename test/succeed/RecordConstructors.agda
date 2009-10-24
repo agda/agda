@@ -1,4 +1,4 @@
-module RecordConstructors where
+module RecordConstructors (Parameter : Set) where
 
 -- Note that the fixity declaration has to be given outside of the
 -- record definition.
