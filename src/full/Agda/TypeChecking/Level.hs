@@ -32,6 +32,7 @@ data LevelAtom = MetaLevel MetaId Args
 data LevelKit = LevelKit
   { levelSuc   :: Term -> Term
   , levelMax   :: Term -> Term -> Term
+  , levelZero  :: Term
   , sucName  :: QName
   , maxName  :: QName
   , zeroName :: QName
@@ -39,13 +40,14 @@ data LevelKit = LevelKit
 
 builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
-    Con z [] <- primLevelZero
+    zero@(Con z []) <- primLevelZero
     suc@(Con s []) <- primLevelSuc
     max@(Def m []) <- primLevelMax
     let a @@ b = a `apply` [Arg NotHidden b]
     return $ Just $ LevelKit
       { levelSuc = \a -> suc @@ a
       , levelMax = \a b -> max @@ a @@ b
+      , levelZero = zero
       , sucName = s
       , maxName = m
       , zeroName = z

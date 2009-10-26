@@ -42,6 +42,7 @@ import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.DisplayForm
+import Agda.TypeChecking.Level
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -154,6 +155,20 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         termToPat (I.Def _ []) = return $ A.WildP info
         termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
 
+-- Level literals should be expanded.
+
+instance Reify Literal Expr where
+  reify (LitLevel r n) = do
+    Just kit <- builtinLevelKit
+    reify $ fold (levelSuc kit) (levelZero kit) n
+    where
+    fold s z n | n < 0     = __IMPOSSIBLE__
+               | otherwise = foldr (.) id (genericReplicate n s) z
+  reify l@(LitInt    {}) = return (A.Lit l)
+  reify l@(LitFloat  {}) = return (A.Lit l)
+  reify l@(LitString {}) = return (A.Lit l)
+  reify l@(LitChar   {}) = return (A.Lit l)
+
 instance Reify Term Expr where
     reify v =
 	do  v <- instantiate v
@@ -185,7 +200,7 @@ instance Reify Term Expr where
 		I.Lam h b    ->
 		    do	(x,e) <- reify b
 			return $ A.Lam exprInfo (DomainFree h x) e
-		I.Lit l	     -> return $ A.Lit l
+		I.Lit l	     -> reify l
 		I.Pi a b     ->
 		    do	Arg h a <- reify a
 			(x,b)   <- reify b
@@ -349,7 +364,8 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         if Set.member "()" vars
           then return $ A.DotP i $ A.Underscore mi
           else lift $ A.DotP i <$> reify v
-      I.LitP l    -> return $ A.LitP l
+      I.LitP (LitLevel {}) -> __IMPOSSIBLE__
+      I.LitP l             -> return (A.LitP l)
       I.ConP c ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
         i = PatRange noRange
