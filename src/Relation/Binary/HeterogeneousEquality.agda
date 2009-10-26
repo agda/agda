@@ -60,7 +60,7 @@ subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≅ y) z →
                   subst P eq z ≅ z
 subst-removable P refl z = refl
 
-≡-subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≡ y) z →
+≡-subst-removable : ∀ {A : Set} (P : A → Set) {x y} (eq : x ≡ y) z →
                     PropEq.subst P eq z ≅ z
 ≡-subst-removable P refl z = refl
 
