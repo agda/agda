@@ -2,11 +2,14 @@
 -- Operations on nullary relations (like negation and decidability)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Some operations on/properties of nullary relations, i.e. sets.
 
 module Relation.Nullary where
 
 open import Data.Product
+open import Level
 import Relation.Nullary.Core as Core
 open import Relation.Binary
 open import Relation.Binary.FunctionSetoid
@@ -22,7 +25,7 @@ open Core public using (¬_)
 
 infix 3 _⇔_
 
-_⇔_ : Set → Set → Set
+_⇔_ : ∀ {ℓ₁ ℓ₂} → Set ℓ₁ → Set ℓ₂ → Set (ℓ₁ ⊔ ℓ₂)
 P ⇔ Q = (P → Q) × (Q → P)
 
 ------------------------------------------------------------------------
