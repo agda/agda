@@ -499,8 +499,8 @@ equalLevel a b = do
       | otherwise -> notok
 
     -- closed == neutral
-    ([ClosedLevel{}], [Plus _ NeutralLevel{}]) -> notok
-    ([Plus _ NeutralLevel{}], [ClosedLevel{}]) -> notok
+    ([ClosedLevel{}], _) | any isNeutral bs -> notok
+    (_, [ClosedLevel{}]) | any isNeutral as -> notok
 
     -- meta == any
     ([Plus n (MetaLevel x as)], _)
