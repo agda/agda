@@ -68,11 +68,11 @@ private
     where
     antisym : Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ <₁ ≤₂)
     antisym (inj₁ x₁<y₁) (inj₁ y₁<x₁) =
-      ⊥-elim {_ × _} $ asym₁ x₁<y₁ y₁<x₁
+      ⊥-elim {Whatever = _ × _} $ asym₁ x₁<y₁ y₁<x₁
     antisym (inj₁ x₁<y₁) (inj₂ y≈≤x)  =
-      ⊥-elim {_ × _} $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
+      ⊥-elim {Whatever = _ × _} $ irrefl₁ (sym₁ $ proj₁ y≈≤x) x₁<y₁
     antisym (inj₂ x≈≤y)  (inj₁ y₁<x₁) =
-      ⊥-elim {_ × _} $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
+      ⊥-elim {Whatever = _ × _} $ irrefl₁ (sym₁ $ proj₁ x≈≤y) y₁<x₁
     antisym (inj₂ x≈≤y)  (inj₂ y≈≤x)  =
       proj₁ x≈≤y , antisym₂ (proj₂ x≈≤y) (proj₂ y≈≤x)
 

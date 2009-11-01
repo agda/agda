@@ -25,7 +25,7 @@ witnessToTruth : {P : Set} {Q : Dec P} → True Q → P
 witnessToTruth {Q = yes p} _  = p
 witnessToTruth {Q = no  _} ()
 
-map : ∀ {P Q} → P ⇔ Q → Dec P → Dec Q
+map : {P Q : Set} → P ⇔ Q → Dec P → Dec Q
 map eq (yes p) = yes (proj₁ eq p)
 map eq (no ¬p) = no (¬p ∘ proj₂ eq)
 
@@ -34,7 +34,7 @@ fromYes _ (yes p) = p
 fromYes p (no ¬p) = ⊥-elim (¬p p)
 
 fromYes-map-commute :
-  ∀ {P Q p q} (eq : P ⇔ Q) (d : Dec P) →
+  ∀ {P Q : Set} {p q} (eq : P ⇔ Q) (d : Dec P) →
   fromYes q (map eq d) ≡ proj₁ eq (fromYes p d)
 fromYes-map-commute         _ (yes p) = refl
 fromYes-map-commute {p = p} _ (no ¬p) = ⊥-elim (¬p p)
