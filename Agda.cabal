@@ -160,6 +160,7 @@ library
                    Agda.TypeChecking.Injectivity
                    Agda.TypeChecking.Level
                    Agda.TypeChecking.MetaVars
+                   Agda.TypeChecking.MetaVars.Occurs
                    Agda.TypeChecking.Monad.Base
                    Agda.TypeChecking.Monad.Builtin
                    Agda.TypeChecking.Monad.Closure
