@@ -469,7 +469,7 @@ assignS x args s =
 
         noPolyAssign x s =
           handleAbort (equalSort (MetaS x []) s) $ do
-            s <- occursCheck x [] s
+            Sort s <- occursCheck x [] (Sort s)
             x =: s
             return []
 

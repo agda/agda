@@ -3,26 +3,62 @@ module Agda.TypeChecking.MetaVars.Occurs where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Error
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Pretty
+import Agda.Utils.Monad
 
 -- | Extended occurs check.
 class Occurs t where
   occurs :: (TypeError -> TCM ()) -> MetaId -> [Nat] -> t -> TCM t
 
-occursCheck :: (MonadTCM tcm, Occurs a) => MetaId -> [Nat] -> a -> tcm a
-occursCheck m xs = liftTCM . occurs typeError m xs
+occursCheck :: MonadTCM tcm => MetaId -> [Nat] -> Term -> tcm Term
+occursCheck m xs v = liftTCM $ do
+  v <- instantiate v
+  case v of
+    -- Don't fail if trying to instantiate to just itself
+    MetaV m' _        | m == m' -> patternViolation
+    Sort (MetaS m' _) | m == m' -> patternViolation
+    _                           ->
+                              -- Produce nicer error messages
+      occurs typeError m xs v `catchError` \err -> case errError err of
+        TypeError _ cl -> case clValue cl of
+          MetaOccursInItself{} ->
+            typeError . GenericError . show =<<
+              fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
+                   , prettyTCM v
+                   ]
+          MetaCannotDependOn _ _ i ->
+            ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
+            ( typeError . GenericError . show =<<
+              fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+                   , prettyTCM v
+                   , text "since universe polymorphism is not enabled"
+                   , text "(use the --universe-polymorphism flag to enable)"
+                   ]
+            )
+            ( typeError . GenericError . show =<<
+              fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+                   , prettyTCM v
+                   , text "since it contains the variable"
+                   , enterClosure cl $ \_ -> prettyTCM (Var i [])
+                   , text $ "which " ++ show m ++ " cannot depend on"
+                   ]
+            )
+          _ -> throwError err
+        _ -> throwError err
 
 instance Occurs Term where
     occurs abort m xs v = do
 	v <- reduceB v
 	case v of
 	    -- Don't fail on blocked terms or metas
-	    Blocked _ v          -> occurs' (const patternViolation) v
-	    NotBlocked v         -> occurs' abort v
+	    Blocked _ v  -> occurs' (const patternViolation) v
+	    NotBlocked v -> occurs' abort v
 	where
 	    occurs' abort v = case v of
 		Var i vs   -> do

@@ -45,6 +45,13 @@ updateMetaVar m f =
 getMetaPriority :: MonadTCM tcm => MetaId -> tcm MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
 
+isSortMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isSortMeta m = do
+  mv <- lookupMeta m
+  return $ case mvJudgement mv of
+    HasType{} -> False
+    IsSort{}  -> True
+
 createMetaInfo :: MonadTCM tcm => tcm MetaInfo
 createMetaInfo =
     do  r <- getCurrentRange
