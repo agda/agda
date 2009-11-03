@@ -38,6 +38,11 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
+levelSucFunction :: MonadTCM tcm => tcm (Term -> Term)
+levelSucFunction = do
+  suc <- primLevelSuc
+  return $ \a -> suc `apply` [Arg NotHidden a]
+
 builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
     zero@(Con z []) <- primLevelZero

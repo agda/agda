@@ -337,7 +337,13 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 	cs1 <- compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
-                  TypeError _ _ -> typeError $ UnequalTypes cmp ty1 ty2
+                  TypeError _ _ -> do
+                    -- This error will probably be more informative
+                    compareTerm cmp (sort s1) a1 a2
+                    -- Throw the original error if the above doesn't
+                    -- give an error (for instance, due to pending
+                    -- constraints).
+                    throwError err
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2
         cs  <- solveConstraints $ cs1 ++ cs2
@@ -465,91 +471,102 @@ leqLevel a b = liftTCM $ do
 
 equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
 equalLevel a b = do
-  let getLvl = El (mkType 0) <$> primLevel
   Max as <- levelView a
   Max bs <- levelView b
-  reportSDoc "tc.conv.nat" 20 $
-    sep [ text "equalLevel"
-        , nest 2 $ sep [ prettyTCM a <+> text "=="
-                       , prettyTCM b
-                       ]
-        , nest 2 $ sep [ text (show (Max as)) <+> text "=="
-                       , text (show (Max bs))
-                       ]
-        ]
-  let a === b   = do
-        lvl <- getLvl
-        equalAtom lvl a b
-      as =!= bs = do a <- unLevelView (Max as)
-                     b <- unLevelView (Max bs)
-                     a === b
-  case (as, bs) of
-    _ | List.sort as == List.sort bs -> ok
-      | any isBlocked (as ++ bs) -> do
-          lvl <- getLvl
-          liftTCM $ useInjectivity CmpEq lvl a b
-
-    -- 0 == any
-    ([], _) -> concat <$> sequence [ as =!= [b] | b <- bs ]
-    (_, []) -> concat <$> sequence [ [a] =!= bs | a <- as ]
-
-    -- closed == closed
-    ([ClosedLevel n], [ClosedLevel m])
-      | n == m    -> ok
-      | otherwise -> notok
-
-    -- closed == neutral
-    ([ClosedLevel{}], _) | any isNeutral bs -> notok
-    (_, [ClosedLevel{}]) | any isNeutral as -> notok
-
-    -- meta == any
-    ([Plus n (MetaLevel x as)], _)
-      | any (isThisMeta x) bs -> postpone
-      | otherwise             -> do
-        bs' <- mapM (subtr n) bs
-        lvl <- getLvl
-        assignV lvl x as =<< unLevelView (Max bs')
-    (_, [Plus n (MetaLevel x bs)])
-      | any (isThisMeta x) as -> postpone
-      | otherwise             -> do
-        as' <- mapM (subtr n) as
-        lvl <- getLvl
-        assignV lvl x bs =<< unLevelView (Max as')
-
-    -- any other metas
-    _ | any isMeta (as ++ bs) -> postpone
-
-    -- neutral == neutral
-    _ | all isNeutral (as ++ bs) -> as =!= bs
-
-    -- more cases?
-    _ -> postpone
-
+  a <- unLevelView (Max as)
+  b <- unLevelView (Max bs)
+  liftTCM $ check a b as bs
   where
-    ok       = return []
-    notok    = typeError $ UnequalSorts (Type a) (Type b)
-    postpone = patternViolation
+    check a b as bs = do
+      let getLvl = El (mkType 0) <$> primLevel
+      reportSDoc "tc.conv.nat" 20 $
+        sep [ text "equalLevel"
+            , nest 2 $ sep [ prettyTCM a <+> text "=="
+                           , prettyTCM b
+                           ]
+            , nest 2 $ sep [ text (show (Max as)) <+> text "=="
+                           , text (show (Max bs))
+                           ]
+            ]
+      let a === b   = do
+            lvl <- getLvl
+            equalAtom lvl a b
+          as =!= bs = do a <- unLevelView (Max as)
+                         b <- unLevelView (Max bs)
+                         a === b
+      case (as, bs) of
+        _ | List.sort as == List.sort bs -> ok
+          | any isBlocked (as ++ bs) -> do
+              lvl <- getLvl
+              liftTCM $ useInjectivity CmpEq lvl a b
 
-    subtr n (ClosedLevel m)
-      | m >= n    = return $ ClosedLevel (m - n)
-      | otherwise = notok
-    subtr n (Plus m a)
-      | m >= n    = return $ Plus (m - n) a
-    subtr _ (Plus _ BlockedLevel{}) = postpone
-    subtr _ (Plus _ MetaLevel{})    = postpone
-    subtr _ (Plus _ NeutralLevel{}) = notok
+        -- 0 == any
+        ([], _) -> wrap $ concat <$> sequence [ as =!= [b] | b <- bs ]
+        (_, []) -> wrap $ concat <$> sequence [ [a] =!= bs | a <- as ]
 
-    isNeutral (Plus _ NeutralLevel{}) = True
-    isNeutral _                     = False
+        -- closed == closed
+        ([ClosedLevel n], [ClosedLevel m])
+          | n == m    -> ok
+          | otherwise -> notok
 
-    isBlocked (Plus _ BlockedLevel{}) = True
-    isBlocked _                     = False
+        -- closed == neutral
+        ([ClosedLevel{}], _) | any isNeutral bs -> notok
+        (_, [ClosedLevel{}]) | any isNeutral as -> notok
 
-    isMeta (Plus _ MetaLevel{}) = True
-    isMeta _                  = False
+        -- meta == any
+        ([Plus n (MetaLevel x as)], _)
+          | any (isThisMeta x) bs -> postpone
+          | otherwise             -> do
+            bs' <- mapM (subtr n) bs
+            lvl <- getLvl
+            assignV lvl x as =<< unLevelView (Max bs')
+        (_, [Plus n (MetaLevel x bs)])
+          | any (isThisMeta x) as -> postpone
+          | otherwise             -> do
+            as' <- mapM (subtr n) as
+            lvl <- getLvl
+            assignV lvl x bs =<< unLevelView (Max as')
 
-    isThisMeta x (Plus _ (MetaLevel y _)) = x == y
-    isThisMeta _ _                      = False
+        -- any other metas
+        _ | any isMeta (as ++ bs) -> postpone
+
+        -- neutral == neutral
+        _ | all isNeutral (as ++ bs) -> as =!= bs
+
+        -- more cases?
+        _ -> postpone
+
+      where
+        ok       = return []
+        notok    = typeError $ UnequalSorts (Type a) (Type b)
+        postpone = patternViolation
+
+        -- Make sure to give a sensible error message
+        wrap m = m `catchError` \err ->
+          case errError err of
+            TypeError{} -> notok
+            _           -> throwError err
+
+        subtr n (ClosedLevel m)
+          | m >= n    = return $ ClosedLevel (m - n)
+          | otherwise = notok
+        subtr n (Plus m a)
+          | m >= n    = return $ Plus (m - n) a
+        subtr _ (Plus _ BlockedLevel{}) = postpone
+        subtr _ (Plus _ MetaLevel{})    = postpone
+        subtr _ (Plus _ NeutralLevel{}) = notok
+
+        isNeutral (Plus _ NeutralLevel{}) = True
+        isNeutral _                     = False
+
+        isBlocked (Plus _ BlockedLevel{}) = True
+        isBlocked _                     = False
+
+        isMeta (Plus _ MetaLevel{}) = True
+        isMeta _                  = False
+
+        isThisMeta x (Plus _ (MetaLevel y _)) = x == y
+        isThisMeta _ _                      = False
 
 
 -- | Check that the first sort equal to the second.
