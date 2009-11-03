@@ -43,6 +43,7 @@ import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Monad.Builtin
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -159,8 +160,9 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
 
 instance Reify Literal Expr where
   reify (LitLevel r n) = do
-    Just kit <- builtinLevelKit
-    reify $ fold (levelSuc kit) (levelZero kit) n
+    levelZero <- primLevelZero
+    levelSuc  <- levelSucFunction
+    reify $ fold levelSuc levelZero n
     where
     fold s z n | n < 0     = __IMPOSSIBLE__
                | otherwise = foldr (.) id (genericReplicate n s) z
