@@ -99,13 +99,21 @@ checkPragma r p =
           def <- getConstInfo x
           case theDef def of
             Axiom{} -> addHaskellType x hs
-            _       -> typeError $ GenericError "COMPILED_TYPE directive only works on postulates."
+            _       -> typeError $ GenericError
+                        "COMPILED_TYPE directive only works on postulates."
           -- TODO: hack
           when (hs == builtinIO) $
             bindBuiltinType1 builtinIO (A.Def x)
         A.CompiledDataPragma x hs hcs -> do
-          def <- theDef <$> getConstInfo x
-          case def of
+          def <- getConstInfo x
+          -- Check that the pragma appears in the same module
+          -- as the datatype.
+          do m <- currentModule
+             let m' = qnameModule $ defName def
+             unless (m == m') $ typeError $ GenericError $
+              "COMPILED_DATA directives must appear in the same module " ++
+              "as their corresponding datatype definition,"
+          case theDef def of
             Datatype{dataCons = cs}
               | length cs /= length hcs -> do
                   let n_forms_are = case length hcs of
