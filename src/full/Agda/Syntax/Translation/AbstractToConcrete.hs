@@ -682,13 +682,16 @@ recoverOpApp bracket opApp view e mdefault = case view e of
     | all notHidden args  -> do
       let  args' = map (namedThing . unArg) args
       case hd of
-        HdVar n  -> do
+        HdVar n | isNoName n -> mdefault
+                | otherwise  -> do
           x <- toConcrete n
           doCName (nameFixity n) x args'
         HdDef qn -> doQName qn args'
         HdCon qn -> doQName qn args'
     | otherwise -> mdefault
   where
+
+  isNoName x = C.isNoName $ A.nameConcrete x
 
   notHidden (Arg h _) = h == NotHidden
 
