@@ -310,14 +310,23 @@ cmd_constraints = Interaction False $ do
     display_info "*Constraints*" (unlines cs)
     return Nothing
 
+-- Show unsolved metas. If there are no unsolved metas but unsolved constraints
+-- show those instead.
 cmd_metas :: Interaction
 cmd_metas = Interaction False $ do -- CL.showMetas []
   ims <- fst <$> B.typeOfMetas B.AsIs
   hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
-  di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
-  dh <- mapM showA' hms
-  display_info "*All Goals*" $ unlines $ di ++ dh
-  return Nothing
+  if not $ null ims && null hms
+    then do
+      di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
+      dh <- mapM showA' hms
+      display_info "*All Goals*" $ unlines $ di ++ dh
+      return Nothing
+    else do
+      cs <- B.getConstraints
+      if null cs
+        then display_info "*All Goals*" "" >> return Nothing
+        else command cmd_constraints
   where
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
