@@ -52,7 +52,7 @@ reorderTel tel = case topoSort comesBefore tel' of
   Just p  -> p
   where
     tel' = reverse $ zip [0..] $ reverse tel
-    (i, _) `comesBefore` (_, a) = i `freeIn` a
+    (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unArg a) -- a tiny bit unsafe
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
@@ -62,7 +62,7 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
     a'   = substs rho a
-    rho  = replicate (size tel + 1) __IMPOSSIBLE__ ++ map var [0..]
+    rho  = replicate (size tel + 1) __IMPOSSIBLE_TERM__ ++ map var [0..]
       where var i = Var i []
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__

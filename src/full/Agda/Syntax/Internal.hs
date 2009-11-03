@@ -315,3 +315,9 @@ sLub s1 s2
     | s1 == s2	= s1
     | otherwise	= Lub s1 s2
 
+impossibleTerm :: String -> Int -> Term
+impossibleTerm file line = Lit $ LitString noRange $ unlines
+  [ "An internal error has occurred. Please report this as a bug."
+  , "Location of the error: " ++ file ++ ":" ++ show line
+  ]
+
