@@ -1,3 +1,9 @@
+
+================================================================
+NOTE: THIS SOFTWARE IS NO LONGER MAINTAINED AND DOES NOT COMPILE
+      AGAINST THE LATEST VERSION OF AGDA!
+================================================================
+
 = Agda1to2
 
 'Agda1to2' is a translator from a program in Agda 1 to its

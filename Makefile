@@ -29,7 +29,7 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : install-bin core transl tags
+default : install-bin core tags
 else
 default : make_configure
 endif
