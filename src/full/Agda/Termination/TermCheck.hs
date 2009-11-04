@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -74,8 +74,9 @@ termDecl d =
 	A.Axiom {}            -> return []
         A.Field {}            -> return []
 	A.Primitive {}        -> return []
-        A.Definition i _ [A.RecDef _ _ _ _ _ ds]
-                              -> termDecls ds
+        A.Definition i _ ds
+          | [A.RecDef _ _ _ _ _ rds] <- unscopeDefs ds
+                              -> setScopeFromDefs ds >> termDecls rds
 	A.Definition i ts ds  -> termMutual i ts ds
 	A.Section i x tel ds  -> termSection i x tel ds
 	A.Apply {}            -> return []
@@ -84,6 +85,16 @@ termDecl d =
 	A.ScopedDecl scope ds -> setScope scope >> termDecls ds
         A.Open {}             -> return []
 	    -- open is just an artifact from the concrete syntax
+  where
+    setScopeFromDefs = mapM_ setScopeFromDef
+    setScopeFromDef (A.ScopedDef scope d) =
+      setScope scope >> setScopeFromDef d
+    setScopeFromDef _ = return ()
+
+    unscopeDefs = concatMap unscopeDef
+
+    unscopeDef (A.ScopedDef _ d) = unscopeDef d
+    unscopeDef d = [d]
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
 collectCalls f [] = return Term.empty
