@@ -579,11 +579,11 @@ sexp is executed. The number of executed responses is returned."
 (defun agda2-refine ()
   "Refine the goal at point.
 If the goal contains an expression e, and some \"suffix\" of the
-type of e matches the goal type, then the goal is replaced by e
-applied to a suitable number of new goals.
+type of e unifies with the goal type, then the goal is replaced
+by e applied to a suitable number of new goals.
 
-If the goal is empty and there is exactly one constructor which
-has a type with a \"suffix\" matching the goal type, then the the
+If the goal is empty, the goal type is a data type, and there is
+exactly one constructor which unifies with this type, then the
 goal is replaced by the constructor applied to a suitable number
 of new goals."
   (interactive)
