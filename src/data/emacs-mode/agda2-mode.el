@@ -487,8 +487,24 @@ updated (unless UPDATE-GOALS is nil)."
   (if update-goals (agda2-annotate)))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
-  "When in a goal, send CMD, goal num and range, and strings ARGS to agda2.
-WANT is an optional prompt. When ASK is non-nil, use minibuffer.
+  "Reads input from goal or minibuffer and sends command to Agda.
+
+An error is raised if point is not in a goal.
+
+The command sent to Agda is
+
+  CMD <goal number> <goal range> <user input> ARGS.
+
+The user input is computed as follows:
+
+* If WANT is nil, then the user input is the empty string.
+
+* If WANT is non-nil, and either ASK is non-nil or the goal only
+  contains whitespace, then the input is taken from the
+  minibuffer. In this case WANT is used as the prompt string.
+
+* Otherwise the goal contents is used.
+
 An error is raised if no responses are received."
   (multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
@@ -568,25 +584,9 @@ sexp is executed. The number of executed responses is returned."
   (interactive)
   (agda2-goal-cmd "cmd_intro" nil))
 
-(defun agda2-goal-cmd-auto (cmd &optional want ask &rest args)
-  "When in a goal, send CMD, goal num and range, and strings ARGS to agda2.
-WANT is an optional prompt.  When ASK is non-nil, use minibuffer. This is
-a version of agda2-goal-cmd which does not prompt for an argument when goal is empty"
-  (multiple-value-bind (o g) (agda2-goal-at (point))
-    (unless g (error "For this command, please place the cursor in a goal"))
-    (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
-                                               (- (overlay-end   o) 2))))
-      (if (not want) (setq txt "")
-          (when ask
-            (setq txt (read-string (concat want ": ") txt))))
-      (apply 'agda2-go nil t t cmd
-             (format "%d" g)
-             (agda2-goal-Range o)
-             (agda2-string-quote txt) args))))
-
 (defun agda2-auto ()
  "Simple proof search" (interactive)
- (agda2-goal-cmd-auto "cmd_auto" "does not prompt when goal is empty"))
+ (agda2-goal-cmd "cmd_auto"))
 
 (defun agda2-make-case ()
   "Refine the pattern var given in the goal.
@@ -670,13 +670,13 @@ in the buffer's mode line."
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
 
-(defmacro agda2-maybe-normalised (name comment cmd prompt)
+(defmacro agda2-maybe-normalised (name comment cmd want)
   "This macro constructs a function NAME which runs CMD.
 COMMENT is used to build the function's comment. The function
 NAME takes a prefix argument which tells whether it should
 normalise types or not when running CMD (through
-`agda2-goal-cmd'; PROMPT, if non-nil, is used as the goal command
-prompt)."
+`agda2-goal-cmd'; WANT is used as `agda2-goal-cmd's WANT
+argument)."
   (let ((eval (make-symbol "eval")))
   `(defun ,name (&optional not-normalise)
      ,(concat comment ".
@@ -685,7 +685,7 @@ With a prefix argument the result is not explicitly normalised.")
      (interactive "P")
      (let ((,eval (if not-normalise "Instantiated" "Normalised")))
        (agda2-goal-cmd (concat ,cmd " Agda.Interaction.BasicOps." ,eval)
-                       ,prompt)))))
+                       ,want)))))
 
 (defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
   "This macro constructs a function NAME which runs CMD.
