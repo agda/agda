@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, UndecidableInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, UndecidableInstances #-}
 module Agda.TypeChecking.Pretty where
 
 import Control.Applicative hiding (empty)
@@ -15,6 +15,9 @@ import qualified Agda.Syntax.Concrete.Pretty as P
 import Agda.TypeChecking.Monad
 
 import qualified Agda.Utils.Pretty as P
+import Agda.Utils.Impossible
+
+#include "../undefined.h"
 
 ---------------------------------------------------------------------------
 -- * Wrappers for pretty printing combinators
@@ -107,10 +110,22 @@ instance PrettyTCM Constraint where
 		, nest 2 $ brackets $ sep $ punctuate comma $ map prettyTCM cs
 		]
 	UnBlock m   -> do
-	    BlockedConst t <- mvInstantiation <$> lookupMeta m
-	    sep [ text (show m) <+> text ":="
-		, nest 2 $ prettyTCM t
-		]
+	    -- BlockedConst t <- mvInstantiation <$> lookupMeta m
+	    mi <- mvInstantiation <$> lookupMeta m
+            case mi of
+              BlockedConst t ->
+                sep [ text (show m) <+> text ":="
+                    , nest 2 $ prettyTCM t
+                    ]
+              PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) ->
+                sep [ text (show m) <+> text ":="
+                    , nest 2 $ sep [ prettyA e <+> text ":"
+                                   , prettyTCM a
+                                   ]
+                    ]
+              Open{}  -> __IMPOSSIBLE__
+              InstS{} -> __IMPOSSIBLE__
+              InstV{} -> __IMPOSSIBLE__
         IsEmpty t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
 

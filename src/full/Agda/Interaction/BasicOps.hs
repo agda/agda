@@ -188,7 +188,7 @@ data OutputForm a b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputForm a b) [OutputForm a b]
-      | Assign b a
+      | Assign b a | TypedAssign b a a
       | IsEmptyType a
 
 -- | A subset of 'OutputForm'.
@@ -208,6 +208,7 @@ outputFormId o = case o of
   CmpSorts _ i _    -> i
   Guard o _         -> outputFormId o
   Assign i _        -> i
+  TypedAssign i _ _ -> i
   IsEmptyType _     -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
 
 instance Functor (OutputForm a) where
@@ -220,6 +221,7 @@ instance Functor (OutputForm a) where
     fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
     fmap f (Guard o os)           = Guard (fmap f o) (fmap (fmap f) os)
     fmap f (Assign m e)           = Assign (f m) e
+    fmap f (TypedAssign m e a)    = TypedAssign (f m) e a
     fmap f (IsEmptyType a)        = IsEmptyType a
 
 instance Reify Constraint (OutputForm Expr Expr) where
@@ -239,8 +241,9 @@ instance Reify Constraint (OutputForm Expr Expr) where
             m' <- reify (MetaV m [])
             return $ Assign m' e
           PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) -> do
-            a <- reify a
-            return $ OfType e a
+            a  <- reify a
+            m' <- reify (MetaV m [])
+            return $ TypedAssign m' e a
           Open{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
@@ -258,8 +261,9 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
-    show (Guard o os)           = show o ++ "  |  " ++ show os
+    show (Guard o os)           = show o ++ "  if  " ++ show os
     show (Assign m e)           = show m ++ " := " ++ show e
+    show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " : " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
 
 instance (ToConcrete a c, ToConcrete b d) =>
@@ -274,6 +278,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (Guard o os) = Guard <$> toConcrete o <*> toConcrete os
     toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcrete e
+    toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcrete e <*> toConcrete a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcrete a
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm' a b) where
