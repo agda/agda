@@ -435,6 +435,27 @@ cmd_goal_type norm ii _ _ = Interaction False $ do
   display_infoD "*Current Goal*" s
   return Nothing
 
+cmd_intro :: GoalCommand
+cmd_intro ii rng _ = Interaction False $ do
+  cs <- B.introTactic ii
+  B.withInteractionId ii $ case cs of
+    []    -> do
+      display_infoD "*Intro*" $ text "No constructors found."
+      return Nothing
+    [c]   -> do
+      s <- show <$> prettyTCM c
+      command $ cmd_refine ii rng s
+    _:_:_ -> do
+      cs <- mapM prettyTCM cs
+      display_infoD "*Intro*" $
+        sep [ text "Don't know which constructor to introduce of"
+            , let mkOr []     = []
+                  mkOr [x, y] = [x <+> text "or" <+> y]
+                  mkOr (x:xs) = x : mkOr xs
+              in nest 2 $ fsep $ punctuate comma (mkOr cs)
+            ]
+      return Nothing
+
 -- | Displays the current goal and context plus the given document.
 
 cmd_goal_type_context_and doc norm ii _ _ = do

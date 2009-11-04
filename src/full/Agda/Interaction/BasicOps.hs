@@ -19,10 +19,10 @@ import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
-import Agda.Syntax.Abstract hiding (Open)
+import Agda.Syntax.Abstract as A hiding (Open)
 import Agda.Syntax.Common
 import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
-import Agda.Syntax.Internal (MetaId(..),Type(..),Term(..),Sort(..))
+import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
@@ -37,9 +37,11 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract (etaContract)
+import Agda.TypeChecking.Coverage
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
+import Agda.Utils.Permutation
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -419,11 +421,29 @@ withMetaId m ret = do
   info <- lookupMeta m
   withMetaInfo (mvInfo info) ret
 
--------------------------------
------ Help Functions ----------
--------------------------------
+-- The intro tactic
 
-
-
-
+-- Returns the names of the constructors that can be
+-- used to refine the goal. Uses the coverage checker
+-- to find out which constructors are possible.
+introTactic :: InteractionId -> TCM [QName]
+introTactic ii = do
+  mi <- lookupInteractionId ii
+  mv <- lookupMeta mi
+  withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
+    HasType _ t -> do
+        t       <- piApply t <$> getContextArgs
+        let tel  = telFromList [Arg NotHidden ("_", t)]
+            perm = idP 1
+            pat  = [Arg NotHidden (I.VarP "c")]
+        r <- split tel perm pat 0
+        case r of
+          Left err -> return []
+          Right cs -> return $ concatMap (conName . scPats) cs
+      `catchError` \_ -> return []
+    _ -> __IMPOSSIBLE__
+  where
+    conName [Arg _ (I.ConP c _)] = [c]
+    conName [_]                = []
+    conName _                  = __IMPOSSIBLE__
 

@@ -238,6 +238,7 @@ constituents.")
     (agda2-previous-goal                     "\C-c\C-b"         (global)       "Previous goal") ; Back.
     (agda2-give                              ,(kbd "C-c C-SPC") (local)        "Give")
     (agda2-refine                            "\C-c\C-r"         (local)        "Refine")
+    (agda2-intro                             "\C-c\C-i"         (local)        "Intro")
     (agda2-auto                              "\C-c\C-a"         (local)        "Auto")
     (agda2-make-case                         "\C-c\C-c"         (local)        "Case")
     (agda2-goal-type                         "\C-c\C-t"         (local)        "Goal type")
@@ -562,6 +563,11 @@ sexp is executed. The number of executed responses is returned."
   "Refine the goal at point by the expression in it." (interactive)
   (agda2-goal-cmd "cmd_refine" "expression to refine"))
 
+(defun agda2-intro ()
+  "Refine the goal at point with a constructor application if there is a unique one."
+  (interactive)
+  (agda2-goal-cmd "cmd_intro" nil))
+
 (defun agda2-goal-cmd-auto (cmd &optional want ask &rest args)
   "When in a goal, send CMD, goal num and range, and strings ARGS to agda2.
 WANT is an optional prompt.  When ASK is non-nil, use minibuffer. This is
@@ -586,7 +592,7 @@ a version of agda2-goal-cmd which does not prompt for an argument when goal is e
   "Refine the pattern var given in the goal.
 Assumes that <clause> = {!<var>!} is on one line."
   (interactive)
-  (agda2-goal-cmd "cmd_make_case" "partten var to case"))
+  (agda2-goal-cmd "cmd_make_case" "pattern var to case"))
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
