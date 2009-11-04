@@ -71,16 +71,18 @@ termDecls ds = fmap concat $ mapM termDecl ds
 termDecl :: A.Declaration -> TCM Result
 termDecl d =
     case d of
-	A.Axiom {}		 -> return []
-        A.Field {}               -> return []
-	A.Primitive {}  	 -> return []
-	A.Definition i ts ds	 -> termMutual i ts ds
-	A.Section i x tel ds	 -> termSection i x tel ds
-	A.Apply {}               -> return []
-	A.Import {}		 -> return []
-	A.Pragma {}		 -> return []
-	A.ScopedDecl scope ds	 -> setScope scope >> termDecls ds
-        A.Open {}                -> return []
+	A.Axiom {}            -> return []
+        A.Field {}            -> return []
+	A.Primitive {}        -> return []
+        A.Definition i _ [A.RecDef _ _ _ _ _ ds]
+                              -> termDecls ds
+	A.Definition i ts ds  -> termMutual i ts ds
+	A.Section i x tel ds  -> termSection i x tel ds
+	A.Apply {}            -> return []
+	A.Import {}           -> return []
+	A.Pragma {}           -> return []
+	A.ScopedDecl scope ds -> setScope scope >> termDecls ds
+        A.Open {}             -> return []
 	    -- open is just an artifact from the concrete syntax
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
@@ -141,9 +143,15 @@ termMutual i ts ds = if names == [] then return [] else
                      (show (names) ++ " does termination check")
          return []
   where
-  getName (A.FunDef i x cs) = [x]
-  getName (A.ScopedDef _ d) = getName d
-  getName _                 = []
+  getName (A.FunDef i x cs)       = [x]
+  getName (A.ScopedDef _ d)       = getName d
+  getName (A.RecDef _ _ _ _ _ ds) = concatMap getNameD ds
+  getName _                       = []
+
+  getNameD (A.Definition _ _ ds) = concatMap getName ds
+  getNameD (A.Section _ _ _ ds)  = concatMap getNameD ds
+  getNameD (A.ScopedDecl _ ds)   = concatMap getNameD ds
+  getNameD _                     = []
 
   -- the mutual names mentioned in the abstract syntax
   names = concatMap getName ds
