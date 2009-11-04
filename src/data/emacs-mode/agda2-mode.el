@@ -2,7 +2,7 @@
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Dependency
@@ -669,7 +669,7 @@ in the buffer's mode line."
   (interactive)
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
- 
+
 (defmacro agda2-maybe-normalised (name comment cmd prompt)
   "This macro constructs a function NAME which runs CMD.
 COMMENT is used to build the function's comment. The function
