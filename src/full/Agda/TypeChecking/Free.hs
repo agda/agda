@@ -3,9 +3,11 @@
 -- | Computing the free variables of a term.
 module Agda.TypeChecking.Free
     ( FreeVars(..)
-    , Free(..)
+    , Free
+    , freeVars
     , allVars
     , freeIn
+    , freeInIgnoringSorts
     ) where
 
 import qualified Data.Set as Set
@@ -52,55 +54,69 @@ singleton x = FV { rigidVars	= Set.singleton x
 
 -- | Doesn't go inside metas.
 class Free a where
-  freeVars :: a -> FreeVars
+  freeVars' :: FreeConf -> a -> FreeVars
+
+data FreeConf = FreeConf
+  { fcIgnoreSorts :: Bool
+    -- ^ Ignore free variables in sorts.
+  }
+
+freeVars :: Free a => a -> FreeVars
+freeVars = freeVars' FreeConf{ fcIgnoreSorts = False }
 
 instance Free Term where
-  freeVars t = case t of
-    Var n ts   -> singleton n `union` freeVars ts
-    Lam _ t    -> freeVars t
+  freeVars' conf t = case t of
+    Var n ts   -> singleton n `union` freeVars' conf ts
+    Lam _ t    -> freeVars' conf t
     Lit _      -> empty
-    Def _ ts   -> freeVars ts
-    Con _ ts   -> freeVars ts
-    Pi a b     -> freeVars (a,b)
-    Fun a b    -> freeVars (a,b)
-    Sort s     -> freeVars s
-    MetaV _ ts -> flexible $ freeVars ts
+    Def _ ts   -> freeVars' conf ts
+    Con _ ts   -> freeVars' conf ts
+    Pi a b     -> freeVars' conf (a,b)
+    Fun a b    -> freeVars' conf (a,b)
+    Sort s     -> freeVars' conf s
+    MetaV _ ts -> flexible $ freeVars' conf ts
 
 instance Free Type where
-  freeVars (El s t) = freeVars (s, t)
+  freeVars' conf (El s t) = freeVars' conf (s, t)
 
 instance Free Sort where
-  freeVars s = case s of
-    Type a     -> freeVars a
-    Suc s      -> freeVars s
-    Lub s1 s2  -> freeVars (s1, s2)
-    Prop       -> empty
-    Inf        -> empty
-    MetaS _ ts -> flexible $ freeVars ts
-    DLub s1 s2 -> freeVars (s1, s2)
+  freeVars' conf s
+    | fcIgnoreSorts conf = empty
+    | otherwise          = case s of
+      Type a     -> freeVars' conf a
+      Suc s      -> freeVars' conf s
+      Lub s1 s2  -> freeVars' conf (s1, s2)
+      Prop       -> empty
+      Inf        -> empty
+      MetaS _ ts -> flexible $ freeVars' conf ts
+      DLub s1 s2 -> freeVars' conf (s1, s2)
 
 instance Free a => Free [a] where
-  freeVars xs = unions $ map freeVars xs
+  freeVars' conf xs = unions $ map (freeVars' conf) xs
 
 instance (Free a, Free b) => Free (a,b) where
-  freeVars (x,y) = freeVars x `union` freeVars y
+  freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y
 
 instance Free a => Free (Arg a) where
-  freeVars = freeVars . unArg
+  freeVars' conf = freeVars' conf . unArg
 
 instance Free a => Free (Abs a) where
-  freeVars (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars b
+  freeVars' conf (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars' conf b
 
 instance Free Telescope where
-  freeVars EmptyTel	     = empty
-  freeVars (ExtendTel a tel) = freeVars (a, tel)
+  freeVars' conf EmptyTel	     = empty
+  freeVars' conf (ExtendTel a tel) = freeVars' conf (a, tel)
 
 instance Free ClauseBody where
-  freeVars (Body t)   = freeVars t
-  freeVars (Bind b)   = freeVars b
-  freeVars (NoBind b) = freeVars b
-  freeVars  NoBody    = empty
+  freeVars' conf (Body t)   = freeVars' conf t
+  freeVars' conf (Bind b)   = freeVars' conf b
+  freeVars' conf (NoBind b) = freeVars' conf b
+  freeVars' conf  NoBody    = empty
 
 freeIn :: Free a => Nat -> a -> Bool
 freeIn v t = v `Set.member` allVars (freeVars t)
+
+freeInIgnoringSorts :: Free a => Nat -> a -> Bool
+freeInIgnoringSorts v t =
+  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
 

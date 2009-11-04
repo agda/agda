@@ -302,13 +302,13 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
                             Contravariant -> compareTerm CmpLeq b y x
             cs1 <- cmp (unArg arg1) (unArg arg2)
 	    case (cs1, unEl a) of
-		(_:_, Pi _ c) | 0 `freeIn` absBody c
+                                -- We can safely ignore sort annotations here.
+		(_:_, Pi _ c) | 0 `freeInIgnoringSorts` absBody c
 		    -> do
                         reportSDoc "tc.conv.args" 15 $ sep
                           [ text "aborting compareArgs" <+> parens (text $ show pol)
-                          , nest 2 $ sep
-                              [ parens $ text (show pol)
-                              , prettyTCM arg1
+                          , nest 2 $ fsep
+                              [ prettyTCM arg1
                               , text "~~" <+> prettyTCM arg2
                               , text ":" <+> prettyTCM b
                               , text "--->" <+> prettyTCM cs1
