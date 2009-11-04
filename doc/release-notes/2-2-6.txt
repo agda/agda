@@ -169,13 +169,17 @@ Language
 Tools
 -----
 
-* Emacs mode: New introduce constructor command.  When there is a unique
-  constructor that will build something of the goal type (for instance, if
-  the goal type is a pair), use C-c C-i when inside a goal or select
-  "Intro" from the context menu to refine the goal with the unique
-  constructor. This command is not limited to single constructor datatypes,
-  it is enough that there is only one possible constructor. For instance,
-  if the goal type is non-empty vector, then a cons will be introduced.
+* New "introduce constructor" command in the Emacs mode. When there is
+  a unique constructor that will build something of the goal type (for
+  instance, if the goal type is a pair), the goal can be refined with
+  the unique constructor. This command is not limited to single
+  constructor datatypes, it is enough that there is only one possible
+  constructor. For instance, if the goal type is non-empty vector,
+  then a cons will be introduced.
+
+  This command can be invoked by using the refine command (C-c C-r)
+  when the goal is empty. (The old behaviour of the refine command in
+  this situation was to ask for an expression using the minibuffer.)
 
 * Syntax highlighting files for Emacs (.agda.el) are no longer used.
   The --emacs flag has been removed.

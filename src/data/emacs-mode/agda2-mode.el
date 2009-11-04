@@ -238,7 +238,6 @@ constituents.")
     (agda2-previous-goal                     "\C-c\C-b"         (global)       "Previous goal") ; Back.
     (agda2-give                              ,(kbd "C-c C-SPC") (local)        "Give")
     (agda2-refine                            "\C-c\C-r"         (local)        "Refine")
-    (agda2-intro                             "\C-c\C-i"         (local)        "Intro")
     (agda2-auto                              "\C-c\C-a"         (local)        "Auto")
     (agda2-make-case                         "\C-c\C-c"         (local)        "Case")
     (agda2-goal-type                         "\C-c\C-t"         (local)        "Goal type")
@@ -499,20 +498,22 @@ The user input is computed as follows:
 
 * If WANT is nil, then the user input is the empty string.
 
-* If WANT is non-nil, and either ASK is non-nil or the goal only
+* If WANT is a string, and either ASK is non-nil or the goal only
   contains whitespace, then the input is taken from the
   minibuffer. In this case WANT is used as the prompt string.
 
-* Otherwise the goal contents is used.
+* Otherwise (including if WANT is 'goal) the goal contents is
+  used.
 
 An error is raised if no responses are received."
   (multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
     (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
                                                (- (overlay-end   o) 2))))
-      (if (not want) (setq txt "")
-          (when (or ask (string-match "\\`\\s *\\'" txt))
-            (setq txt (read-string (concat want ": ") txt))))
+      (cond ((null want) (setq txt ""))
+            ((and (stringp want)
+                  (or ask (string-match "\\`\\s *\\'" txt)))
+             (setq txt (read-string (concat want ": ") txt))))
       (apply 'agda2-go nil t t cmd
              (format "%d" g)
              (agda2-goal-Range o)
@@ -576,13 +577,17 @@ sexp is executed. The number of executed responses is returned."
   (agda2-update old-g paren))
 
 (defun agda2-refine ()
-  "Refine the goal at point by the expression in it." (interactive)
-  (agda2-goal-cmd "cmd_refine" "expression to refine"))
+  "Refine the goal at point.
+If the goal contains an expression e, and some \"suffix\" of the
+type of e matches the goal type, then the goal is replaced by e
+applied to a suitable number of new goals.
 
-(defun agda2-intro ()
-  "Refine the goal at point with a constructor application if there is a unique one."
+If the goal is empty and there is exactly one constructor which
+has a type with a \"suffix\" matching the goal type, then the the
+goal is replaced by the constructor applied to a suitable number
+of new goals."
   (interactive)
-  (agda2-goal-cmd "cmd_intro" nil))
+  (agda2-goal-cmd "cmd_refine_or_intro" 'goal))
 
 (defun agda2-auto ()
  "Simple proof search" (interactive)

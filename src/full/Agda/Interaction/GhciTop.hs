@@ -352,19 +352,6 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> quote . show
 
-cmd_auto :: GoalCommand
-cmd_auto ii rng s = Interaction False $ do
-  (xs, msg) <- Auto.auto ii rng s
-  mapM_ (\(ii, s) -> do
-    liftIO $ modifyIORef theState $ \s ->
-      s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
-    liftIO $ UTF8.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
-   ) xs
-  case msg of
-   Nothing -> command cmd_metas >> return ()
-   Just msg -> display_info "*Auto*" msg
-  return Nothing
-
 give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
   scope     <- getInteractionScope ii
   (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
@@ -380,6 +367,44 @@ give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
+
+cmd_intro :: GoalCommand
+cmd_intro ii rng _ = Interaction False $ do
+  cs <- B.introTactic ii
+  B.withInteractionId ii $ case cs of
+    []    -> do
+      display_infoD "*Intro*" $ text "No constructors found."
+      return Nothing
+    [c]   -> do
+      s <- show <$> prettyTCM c
+      command $ cmd_refine ii rng s
+    _:_:_ -> do
+      cs <- mapM prettyTCM cs
+      display_infoD "*Intro*" $
+        sep [ text "Don't know which constructor to introduce of"
+            , let mkOr []     = []
+                  mkOr [x, y] = [x <+> text "or" <+> y]
+                  mkOr (x:xs) = x : mkOr xs
+              in nest 2 $ fsep $ punctuate comma (mkOr cs)
+            ]
+      return Nothing
+
+cmd_refine_or_intro :: GoalCommand
+cmd_refine_or_intro ii rng s =
+  (if null s then cmd_intro else cmd_refine) ii rng s
+
+cmd_auto :: GoalCommand
+cmd_auto ii rng s = Interaction False $ do
+  (xs, msg) <- Auto.auto ii rng s
+  mapM_ (\(ii, s) -> do
+    liftIO $ modifyIORef theState $ \s ->
+      s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
+    liftIO $ UTF8.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
+   ) xs
+  case msg of
+   Nothing -> command cmd_metas >> return ()
+   Just msg -> display_info "*Auto*" msg
+  return Nothing
 
 -- | Sorts interaction points based on their ranges.
 
@@ -434,27 +459,6 @@ cmd_goal_type norm ii _ _ = Interaction False $ do
   s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
   display_infoD "*Current Goal*" s
   return Nothing
-
-cmd_intro :: GoalCommand
-cmd_intro ii rng _ = Interaction False $ do
-  cs <- B.introTactic ii
-  B.withInteractionId ii $ case cs of
-    []    -> do
-      display_infoD "*Intro*" $ text "No constructors found."
-      return Nothing
-    [c]   -> do
-      s <- show <$> prettyTCM c
-      command $ cmd_refine ii rng s
-    _:_:_ -> do
-      cs <- mapM prettyTCM cs
-      display_infoD "*Intro*" $
-        sep [ text "Don't know which constructor to introduce of"
-            , let mkOr []     = []
-                  mkOr [x, y] = [x <+> text "or" <+> y]
-                  mkOr (x:xs) = x : mkOr xs
-              in nest 2 $ fsep $ punctuate comma (mkOr cs)
-            ]
-      return Nothing
 
 -- | Displays the current goal and context plus the given document.
 
