@@ -366,7 +366,7 @@ record AppLemmas (T₁ T₂ : ℕ → Set) : Set where
   /-⨀ t (ρ ◅ ε)          = refl
   /-⨀ t (ρ ◅ (ρ′ ◅ ρs′)) = begin
     t / ⨀ ρs ⊙ ρ  ≡⟨ /-⊙ t ⟩
-    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ t ρs) refl ⟩
+    t / ⨀ ρs / ρ  ≡⟨ cong₂ _/_ (/-⨀ t (ρ′ ◅ ρs′)) refl ⟩
     t /✶ ρs / ρ   ∎
     where ρs = ρ′ ◅ ρs′
 
