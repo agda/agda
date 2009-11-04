@@ -178,15 +178,18 @@ data Warnings = Warnings
   , unsolvedMetaVariables :: [Range]
     -- ^ Meta-variable problems are reported as type errors unless
     -- 'optAllowUnsolved' is 'True'.
+  , unsolvedConstraints   :: Constraints
+    -- ^ Same as 'unsolvedMetaVariables'.
   }
 
 -- | Turns warnings into an error. Even if several errors are possible
 -- only one is raised.
 
 warningsToError :: Warnings -> TypeError
-warningsToError (Warnings [] [])     = __IMPOSSIBLE__
-warningsToError (Warnings _ w@(_:_)) = UnsolvedMetas w
-warningsToError (Warnings w@(_:_) _) = TerminationCheckFailed w
+warningsToError (Warnings [] [] [])    = __IMPOSSIBLE__
+warningsToError (Warnings _ w@(_:_) _) = UnsolvedMetas w
+warningsToError (Warnings _ _ w@(_:_)) = UnsolvedConstraints w
+warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
 
 -- | Type checks the given module (if necessary).
 --
@@ -490,14 +493,19 @@ createInterface file mname = do
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
-    -- Check if there are unsolved meta-variables.
+    -- Check if there are unsolved meta-variables...
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
-    case unsolvedMetas of
-	[]  -> return ()
-	_   -> do
-          unsolvedOK <- optAllowUnsolved <$> commandLineOptions
-          unless unsolvedOK $
-            typeError $ UnsolvedMetas unsolvedMetas
+    unless (null unsolvedMetas) $ do
+      unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+      unless unsolvedOK $
+        typeError $ UnsolvedMetas unsolvedMetas
+
+    -- ...or unsolved constraints
+    unsolvedConstraints <- getConstraints
+    unless (null unsolvedConstraints) $ do
+      unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+      unless unsolvedOK $
+        typeError $ UnsolvedConstraints unsolvedConstraints
 
     setScope $ outsideScope topLevel
 
@@ -505,13 +513,14 @@ createInterface file mname = do
 
     i <- buildInterface topLevel syntaxInfo
 
-    if null termErrs && null unsolvedMetas then do
+    if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
+     then do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
       t <- writeInterface (filePath $ toIFile file) i
       return (i, Right t)
      else
-      return (i, Left $ Warnings termErrs unsolvedMetas)
+      return (i, Left $ Warnings termErrs unsolvedMetas unsolvedConstraints)
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.

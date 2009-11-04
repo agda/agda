@@ -1,0 +1,4 @@
+
+Failed to solve the following constraints:
+  suc (\/ (Set (S i)) (Set i)) == Set (S i)
+  \/ (Set (S i)) (Set i) == Set i
