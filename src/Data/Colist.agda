@@ -83,7 +83,7 @@ concat ((x ∷ xs) ∷ xss) = x ∷ ♯ concat (xs ∷ xss)
 [ x ] = x ∷ ♯ []
 
 ------------------------------------------------------------------------
--- Equality and other relations
+-- Equality, membership, prefix
 
 -- xs ≈ ys means that xs and ys are equal.
 
@@ -109,8 +109,7 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
   []  : ∀ {ys}                            → []     ⊑ ys
   _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
-------------------------------------------------------------------------
--- Some proofs
+-- The equality relation forms a setoid.
 
 setoid : Set → Setoid
 setoid A = record
@@ -134,6 +133,8 @@ setoid A = record
   trans : Transitive _≈_
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
+
+-- The prefix relation forms a poset.
 
 poset : Set → Poset
 poset A = record
@@ -171,9 +172,13 @@ poset A = record
   antisym []       []        = []
   antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ ♯ antisym (♭ p₁) (♭ p₂)
 
+-- map preserves equality.
+
 map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
+
+-- take returns a prefix.
 
 take-⊑ : ∀ {A} n (xs : Colist A) →
          let toColist = fromList ∘ BVec.toList in
