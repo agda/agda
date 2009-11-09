@@ -472,20 +472,9 @@ m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 ------------------------------------------------------------------------
 -- (ℕ, _≡_, _<_) is a strict total order
 
-private
-
-  2+m+n≰m : ∀ {m n} → ¬ 2 + (m + n) ≤ m
-  2+m+n≰m (s≤s le) = 2+m+n≰m le
-
-  m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
-  m≢1+m+n zero    ()
-  m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
-
-  cmp : Trichotomous _≡_ _<_
-  cmp m n with compare m n
-  cmp .m .(suc (m + k)) | less    m k = tri< (m≤m+n (suc m) k) (m≢1+m+n _) 2+m+n≰m
-  cmp .n             .n | equal   n   = tri≈ 1+n≰n refl 1+n≰n
-  cmp .(suc (n + k)) .n | greater n k = tri> 2+m+n≰m (m≢1+m+n _ ∘ sym) (m≤m+n (suc n) k)
+m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
+m≢1+m+n zero    ()
+m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
 
 strictTotalOrder : StrictTotalOrder
 strictTotalOrder = record
@@ -499,6 +488,15 @@ strictTotalOrder = record
     ; <-resp-≈      = PropEq.resp₂ _<_
     }
   }
+  where
+  2+m+n≰m : ∀ {m n} → ¬ 2 + (m + n) ≤ m
+  2+m+n≰m (s≤s le) = 2+m+n≰m le
+
+  cmp : Trichotomous _≡_ _<_
+  cmp m n with compare m n
+  cmp .m .(suc (m + k)) | less    m k = tri< (m≤m+n (suc m) k) (m≢1+m+n _) 2+m+n≰m
+  cmp .n             .n | equal   n   = tri≈ 1+n≰n refl 1+n≰n
+  cmp .(suc (n + k)) .n | greater n k = tri> 2+m+n≰m (m≢1+m+n _ ∘ sym) (m≤m+n (suc n) k)
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties
