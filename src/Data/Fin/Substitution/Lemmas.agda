@@ -146,7 +146,7 @@ record Lemmas₂ (T : ℕ → Set) : Set where
   lookup-⨀ x (ρ ◅ (ρ′ ◅ ρs′)) = begin
     lookup x (⨀ (ρ ◅ ρs))  ≡⟨ refl ⟩
     lookup x (⨀ ρs ⊙ ρ)    ≡⟨ lookup-⊙ x ⟩
-    lookup x (⨀ ρs) / ρ    ≡⟨ cong₂ _/_ (lookup-⨀ x ρs) refl ⟩
+    lookup x (⨀ ρs) / ρ    ≡⟨ cong₂ _/_ (lookup-⨀ x (ρ′ ◅ ρs′)) refl ⟩
     var x /✶ ρs / ρ        ∎
     where ρs = ρ′ ◅ ρs′
 
