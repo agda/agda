@@ -2,6 +2,8 @@
 -- Decision procedures for finite sets and subsets of finite sets
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Fin.Dec where
 
 open import Data.Function
@@ -12,6 +14,7 @@ open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
 open import Data.Product as Prod
 open import Data.Empty
+open import Level
 open import Relation.Nullary
 open import Relation.Unary using (Pred)
 
@@ -132,7 +135,7 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 -- then we can find the smallest value for which this is the case.
 
 ¬∀⟶∃¬-smallest :
-  ∀ n (P : Pred (Fin n)) → (∀ i → Dec (P i)) →
+  ∀ n {p} (P : Fin n → Set p) → (∀ i → Dec (P i)) →
   ¬ (∀ i → P i) → ∃ λ i → ¬ P i × ((j : Fin′ i) → P (inject j))
 ¬∀⟶∃¬-smallest zero    P dec ¬∀iPi = ⊥-elim (¬∀iPi (λ()))
 ¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi with dec zero
