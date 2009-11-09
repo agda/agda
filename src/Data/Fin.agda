@@ -56,7 +56,7 @@ fromℕ≤ (Nat.s≤s (Nat.s≤s m≤n)) = suc (fromℕ≤ (Nat.s≤s m≤n))
 -- # m = "m".
 
 #_ : ∀ m {n} {m<n : True (suc m N≤? n)} → Fin n
-#_ _ {m<n = m<n} = fromℕ≤ (witnessToTruth m<n)
+#_ _ {m<n = m<n} = fromℕ≤ (toWitness m<n)
 
 -- raise m "n" = "m + n".
 

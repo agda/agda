@@ -71,7 +71,7 @@ digitChars =
 showDigit : ∀ {base} {base≤16 : True (base ≤? 16)} →
             Digit base → Char
 showDigit {base≤16 = base≤16} d =
-  Vec.lookup (Fin.inject≤ d (witnessToTruth base≤16)) digitChars
+  Vec.lookup (Fin.inject≤ d (toWitness base≤16)) digitChars
 
 ------------------------------------------------------------------------
 -- Digit expansions

@@ -21,9 +21,17 @@ True Q = T (decToBool Q)
 False : ∀ {P} → Dec P → Set
 False Q = T (not (decToBool Q))
 
-witnessToTruth : {P : Set} {Q : Dec P} → True Q → P
-witnessToTruth {Q = yes p} _  = p
-witnessToTruth {Q = no  _} ()
+-- Gives a witness to the "truth".
+
+toWitness : {P : Set} {Q : Dec P} → True Q → P
+toWitness {Q = yes p} _  = p
+toWitness {Q = no  _} ()
+
+-- Establishes a "truth", given a witness.
+
+fromWitness : {P : Set} {Q : Dec P} → P → True Q
+fromWitness {Q = yes p} = const _
+fromWitness {Q = no ¬p} = ¬p
 
 map : {P Q : Set} → P ⇔ Q → Dec P → Dec Q
 map eq (yes p) = yes (proj₁ eq p)

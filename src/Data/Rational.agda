@@ -35,7 +35,7 @@ record ℚ : Set where
   denominator = + suc denominator-1
 
   coprime : Coprime numerator denominator
-  coprime = witnessToTruth isCoprime
+  coprime = toWitness isCoprime
 
 -- Constructs rational numbers. The arguments have to be in reduced
 -- form.
@@ -92,7 +92,7 @@ p ≃ q = P.numerator ℤ* Q.denominator ≡
     where
     1+d₁∣1+d₂ : suc d₁ ∣ suc d₂
     1+d₁∣1+d₂ = ℤDiv.coprime-divisor (+ suc d₁) n₁ (+ suc d₂)
-                  (C.sym $ witnessToTruth c₁) $
+                  (C.sym $ toWitness c₁) $
                   ℕDiv.divides ∣ n₂ ∣ (begin
                     ∣ n₁ ℤ* + suc d₂ ∣  ≡⟨ cong ∣_∣ eq ⟩
                     ∣ n₂ ℤ* + suc d₁ ∣  ≡⟨ ℤ.abs-*-commute n₂ (+ suc d₁) ⟩
@@ -100,7 +100,7 @@ p ≃ q = P.numerator ℤ* Q.denominator ≡
 
     1+d₂∣1+d₁ : suc d₂ ∣ suc d₁
     1+d₂∣1+d₁ = ℤDiv.coprime-divisor (+ suc d₂) n₂ (+ suc d₁)
-                  (C.sym $ witnessToTruth c₂) $
+                  (C.sym $ toWitness c₂) $
                   ℕDiv.divides ∣ n₁ ∣ (begin
                     ∣ n₂ ℤ* + suc d₁ ∣  ≡⟨ cong ∣_∣ (PropEq.sym eq) ⟩
                     ∣ n₁ ℤ* + suc d₂ ∣  ≡⟨ ℤ.abs-*-commute n₁ (+ suc d₂) ⟩
