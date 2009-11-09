@@ -5,10 +5,10 @@
 module Foreign.Haskell where
 
 open import Coinduction
-open import Data.Char using ( Char )
+open import Data.Char using (Char)
 open import Data.Colist as C using ([]; _∷_)
-open import Data.Function using ( _∘_ )
-open import Data.String using ( String; toCostring )
+open import Data.Function using (_∘_)
+open import Data.String as String using (String)
 
 ------------------------------------------------------------------------
 -- Simple types
@@ -39,4 +39,4 @@ toColist []       = []
 toColist (x ∷ xs) = x ∷ ♯ toColist xs
 
 fromString : String → Colist Char
-fromString = fromColist ∘ toCostring
+fromString = fromColist ∘ String.toCostring
