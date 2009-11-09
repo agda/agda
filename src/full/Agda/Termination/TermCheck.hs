@@ -69,22 +69,28 @@ termDecls ds = fmap concat $ mapM termDecl ds
 
 -- | Termination check a single declaration.
 termDecl :: A.Declaration -> TCM Result
-termDecl d =
-    case d of
-	A.Axiom {}            -> return []
-        A.Field {}            -> return []
-	A.Primitive {}        -> return []
-        A.Definition i _ ds
-          | [A.RecDef _ _ _ _ _ rds] <- unscopeDefs ds
-                              -> setScopeFromDefs ds >> termDecls rds
-	A.Definition i ts ds  -> termMutual i ts ds
-	A.Section i x tel ds  -> termSection i x tel ds
-	A.Apply {}            -> return []
-	A.Import {}           -> return []
-	A.Pragma {}           -> return []
-	A.ScopedDecl scope ds -> setScope scope >> termDecls ds
-        A.Open {}             -> return []
-	    -- open is just an artifact from the concrete syntax
+termDecl (A.ScopedDecl scope ds) = do
+  setScope scope
+  termDecls ds
+termDecl d = case d of
+    A.Axiom {}            -> return []
+    A.Field {}            -> return []
+    A.Primitive {}        -> return []
+    A.Definition _ _ ds
+      | [A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
+                          -> do
+        let m = mnameFromList $ qnameToList r
+        setScopeFromDefs ds
+        termSection m rds
+    A.Definition i ts ds  -> termMutual i ts ds
+    A.Section _ x _ ds    -> termSection x ds
+    A.Apply {}            -> return []
+    A.Import {}           -> return []
+    A.Pragma {}           -> return []
+    A.Open {}             -> return []
+        -- open is just an artifact from the concrete syntax
+    A.ScopedDecl{}        -> __IMPOSSIBLE__
+        -- taken care of above
   where
     setScopeFromDefs = mapM_ setScopeFromDef
     setScopeFromDef (A.ScopedDef scope d) =
@@ -171,44 +177,16 @@ termMutual i ts ds = if names == [] then return [] else
   concat' = Set.toList . Set.unions
 
 -- | Termination check a module.
-termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
-termSection i x tel ds =
-  termTelescope tel $ \tel' -> do
-    addSection x (size tel')
-    verboseS "term.section" 10 $ do
-      dx   <- prettyTCM x
-      dtel <- mapM prettyA tel
-      dtel' <- prettyTCM =<< lookupSection x
-      liftIO $ UTF8.putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
-      liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ termDecls ds
+termSection :: ModuleName -> [A.Declaration] -> TCM Result
+termSection x ds = do
+  tel <- lookupSection x
+  reportSDoc "term.section" 10 $
+    sep [ text "termination checking section"
+          , prettyTCM x
+          , prettyTCM tel
+          ]
+  withCurrentModule x $ addCtxTel tel $ termDecls ds
 
--- | Termination check a telescope. Binds the variables defined by the telescope.
-termTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
-termTelescope [] ret = ret EmptyTel
-termTelescope (b : tel) ret =
-    termTypedBindings b $ \tel1 ->
-    termTelescope tel   $ \tel2 ->
-	ret $ abstract tel1 tel2
-
-
--- | Termination check a typed binding and extends the context with the bound variables.
---   The telescope passed to the continuation is valid in the original context.
-termTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-termTypedBindings (A.TypedBindings i h bs) ret =
-    thread (termTypedBinding h) bs $ \bss ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h t) . Abs x) EmptyTel (concat bss)
-
-termTypedBinding :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-termTypedBinding h (A.TBind i xs e) ret = do
-    t <- isType_ e
-    addCtxs xs (Arg h t) $ ret $ mkTel xs t
-    where
-	mkTel [] t     = []
-	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-termTypedBinding h (A.TNoBind e) ret = do
-    t <- isType_ e
-    ret [("_",t)]
 
 -- | Termination check a definition by pattern matching.
 termDef :: DBPConf -> MutualNames -> QName -> TCM Calls

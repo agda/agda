@@ -488,9 +488,10 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       return [ C.Record (getRange i) x' c' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
-      mkTel 0 t            = ([], t)
-      mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
-      mkTel _ _            = __IMPOSSIBLE__
+      mkTel n (A.ScopedExpr _ t) = mkTel n t
+      mkTel 0 t                  = ([], t)
+      mkTel n (A.Pi _ b t)       = (b++) -*- id $ mkTel (n - 1) t
+      mkTel _ _                  = __IMPOSSIBLE__
 
   toConcrete _ = __IMPOSSIBLE__
 
@@ -501,7 +502,7 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteCtx TopCtx t
     return $ C.TypeSig x' t'
-  toConcrete _ = __IMPOSSIBLE__
+  toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete A.Clause [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
