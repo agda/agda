@@ -453,6 +453,11 @@ m⊓n≤m zero    _       = z≤n
 m⊓n≤m (suc m) zero    = z≤n
 m⊓n≤m (suc m) (suc n) = s≤s $ m⊓n≤m m n
 
+m≤m⊔n : ∀ m n → m ≤ m ⊔ n
+m≤m⊔n zero    _       = z≤n
+m≤m⊔n (suc m) zero    = ≤-refl
+m≤m⊔n (suc m) (suc n) = s≤s $ m≤m⊔n m n
+
 ⌈n/2⌉≤′n : ∀ n → ⌈ n /2⌉ ≤′ n
 ⌈n/2⌉≤′n zero          = ≤′-refl
 ⌈n/2⌉≤′n (suc zero)    = ≤′-refl
