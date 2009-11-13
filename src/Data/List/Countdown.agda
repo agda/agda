@@ -35,7 +35,8 @@ private
              _≡_ {A = Fin (suc n)} (suc i) (suc j) → i ≡ j
   drop-suc refl = refl
 
-  drop-inj₂ : ∀ {A B x y} → inj₂ {A} {B} x ≡ inj₂ y → x ≡ y
+  drop-inj₂ : ∀ {A B : Set} {x y} →
+              inj₂ {A = A} {B = B} x ≡ inj₂ y → x ≡ y
   drop-inj₂ refl = refl
 
   -- The /first/ occurrence of x in xs.
