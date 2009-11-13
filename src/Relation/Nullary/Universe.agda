@@ -127,4 +127,4 @@ open RawMonad ¬¬-Monad
                    (λ f g → g (λ x → ⊥-elim (f x (λ y → g (λ _ → y)))))
 
 ¬¬-remove : ∀ F {P} → ¬ ¬ ⟦ F ⟧ (¬ ¬ P) → ¬ ¬ ⟦ F ⟧ P
-¬¬-remove F = ¬¬-drop ∘ ¬¬-pull (¬¬ F)
+¬¬-remove F = negated-stable ∘ ¬¬-pull (¬¬ F)

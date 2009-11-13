@@ -68,16 +68,30 @@ private
          (P → Q) → ¬ ¬ P → ¬ ¬ Q
 ¬¬-map f = contraposition (contraposition f)
 
-¬¬-drop : ∀ {p} {P : Set p} → ¬ ¬ ¬ P → ¬ P
-¬¬-drop ¬¬¬P P = ¬¬¬P (λ ¬P → ¬P P)
+-- Stability under double-negation.
 
-¬¬-drop-Dec : ∀ {p} {P : Set p} → Dec P → ¬ ¬ P → P
-¬¬-drop-Dec (yes p) ¬¬p = p
-¬¬-drop-Dec (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
+Stable : ∀ {ℓ} → Set ℓ → Set ℓ
+Stable P = ¬ ¬ P → P
+
+-- Everything is stable in the double-negation monad.
+
+stable : ∀ {p} {P : Set p} → ¬ ¬ Stable P
+stable ¬[¬¬p→p] = ¬[¬¬p→p] (λ ¬¬p → ⊥-elim (¬¬p (¬[¬¬p→p] ∘ const)))
+
+-- Negated predicates are stable.
+
+negated-stable : ∀ {p} {P : Set p} → Stable (¬ P)
+negated-stable ¬¬¬P P = ¬¬¬P (λ ¬P → ¬P P)
+
+-- Decidable predicates are stable.
+
+decidable-stable : ∀ {p} {P : Set p} → Dec P → Stable P
+decidable-stable (yes p) ¬¬p = p
+decidable-stable (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
 
 ¬-drop-Dec : ∀ {p} {P : Set p} → Dec (¬ ¬ P) → Dec (¬ P)
 ¬-drop-Dec (yes ¬¬p) = no ¬¬p
-¬-drop-Dec (no ¬¬¬p) = yes (¬¬-drop ¬¬¬p)
+¬-drop-Dec (no ¬¬¬p) = yes (negated-stable ¬¬¬p)
 
 -- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
 -- are equal).
@@ -85,7 +99,7 @@ private
 ¬¬-Monad : RawMonad (λ P → ¬ ¬ P)
 ¬¬-Monad = record
   { return = contradiction
-  ; _>>=_  = λ x f → ¬¬-drop (¬¬-map f x)
+  ; _>>=_  = λ x f → negated-stable (¬¬-map f x)
   }
 
 ¬¬-push : ∀ {p q} {P : Set p} {Q : P → Set q} →
