@@ -111,7 +111,8 @@ private
            m₂ + n₂ * 2   ∎
     )
     where
-    open Nat; open NP; open Poset poset renaming (refl to ≤-refl)
+    open Nat; open NP
+    open DecTotalOrder decTotalOrder renaming (refl to ≤-refl)
     m₁ = Fin.toℕ b₁;   m₂ = Fin.toℕ b₂
     n₁ = toℕ (bs₁ 1#); n₂ = toℕ (bs₂ 1#)
 
@@ -123,7 +124,7 @@ private
          m₂  + n * 2   ∎)
     where
     open Nat; open NP
-    open Poset poset renaming (refl to ≤-refl)
+    open DecTotalOrder decTotalOrder renaming (refl to ≤-refl)
     open CommutativeSemiring commutativeSemiring using (+-assoc)
     m₁ = Fin.toℕ b₁; m₂ = Fin.toℕ b₂; n = toℕ (bs 1#)
 

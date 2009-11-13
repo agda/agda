@@ -175,12 +175,6 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 ------------------------------------------------------------------------
 -- Some properties
 
-preorder : Preorder
-preorder = PropEq.preorder ℕ
-
-setoid : Setoid
-setoid = PropEq.setoid ℕ
-
 decTotalOrder : DecTotalOrder
 decTotalOrder = record
   { carrier         = ℕ
@@ -224,12 +218,6 @@ decTotalOrder = record
   ...                   | inj₁ m≤n = inj₁ (s≤s m≤n)
   ...                   | inj₂ n≤m = inj₂ (s≤s n≤m)
 
-decSetoid : DecSetoid
-decSetoid = DecTotalOrder.Eq.decSetoid decTotalOrder
-
-poset : Poset
-poset = DecTotalOrder.poset decTotalOrder
-
 import Relation.Binary.PartialOrderReasoning as POR
-module ≤-Reasoning = POR poset
+module ≤-Reasoning = POR (DecTotalOrder.poset decTotalOrder)
   renaming (_≈⟨_⟩_ to _≡⟨_⟩_)

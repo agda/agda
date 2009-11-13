@@ -122,7 +122,7 @@ infixl 6 _+′_
 
 _+′_ : ∀ {m n} (i : Fin m) (j : Fin n) → Fin (N.pred m ℕ+ n)
 i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ≤-refl)
-  where open Poset N.poset renaming (refl to ≤-refl)
+  where open DecTotalOrder N.decTotalOrder renaming (refl to ≤-refl)
 
 -- reverse {n} "i" = "n ∸ 1 ∸ i".
 

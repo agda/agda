@@ -4,7 +4,7 @@
 
 module Data.Nat.Divisibility where
 
-open import Data.Nat as Nat hiding (poset)
+open import Data.Nat as Nat
 open import Data.Nat.DivMod
 import Data.Nat.Properties as NatProp
 open import Data.Fin as Fin using (Fin; zero; suc)
@@ -65,7 +65,7 @@ poset = record
     }
   }
   where
-  module P = Poset Nat.poset
+  module DTO = DecTotalOrder Nat.decTotalOrder
   open PropEq.≡-Reasoning
 
   reflexive : _≡_ ⇒ _∣_
@@ -81,7 +81,7 @@ poset = record
     q₁ * 0  ≡⟨ sym eq₁ ⟩
     n₁      ∎
   antisym (divides {n = suc n₁} q₁ eq₁) (divides {n = suc n₂} q₂ eq₂) =
-    P.antisym (∣⇒≤ (divides q₁ eq₁)) (∣⇒≤ (divides q₂ eq₂))
+    DTO.antisym (∣⇒≤ (divides q₁ eq₁)) (∣⇒≤ (divides q₂ eq₂))
 
   trans : Transitive _∣_
   trans (divides q₁ refl) (divides q₂ refl) =
