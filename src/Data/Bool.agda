@@ -2,11 +2,14 @@
 -- Booleans
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Bool where
 
 open import Data.Function
 open import Data.Unit using (⊤)
 open import Data.Empty
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -14,7 +17,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
 
 infixr 6 _∧_
 infixr 5 _∨_ _xor_
-infix  0 if_then_else_ if₁_then_else_
+infix  0 if_then_else_
 
 ------------------------------------------------------------------------
 -- The boolean type
@@ -41,13 +44,9 @@ T : Bool → Set
 T true  = ⊤
 T false = ⊥
 
-if_then_else_ : {a : Set} → Bool → a → a → a
+if_then_else_ : ∀ {a} {A : Set a} → Bool → A → A → A
 if true  then t else f = t
 if false then t else f = f
-
-if₁_then_else_ : {A : Set₁} → Bool → A → A → A
-if₁ true  then x else y = x
-if₁ false then x else y = y
 
 _∧_ : Bool → Bool → Bool
 true  ∧ b = b
