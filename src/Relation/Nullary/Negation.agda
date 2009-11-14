@@ -8,11 +8,13 @@ module Relation.Nullary.Negation where
 
 open import Relation.Nullary
 open import Relation.Unary
+open import Data.Bool
 open import Data.Empty
 open import Data.Function
 open import Data.Product as Prod
 open import Data.Fin
 open import Data.Fin.Dec
+open import Data.Sum as Sum
 open import Category.Monad
 open import Level
 
@@ -124,3 +126,42 @@ excluded-middle ¬h = ¬h (no (λ p → ¬h (yes p)))
 call/cc : ∀ {w p} {Whatever : Set w} {P : Set p} →
           ((P → Whatever) → ¬ ¬ P) → ¬ ¬ P
 call/cc hyp ¬p = hyp (λ p → ⊥-elim (¬p p)) ¬p
+
+-- The "independence of premise" rule, in the double-negation monad.
+-- It is assumed that the index set (Q) is inhabited.
+
+independence-of-premise
+  : ∀ {p q r} {P : Set p} {Q : Set q} {R : Q → Set r} →
+    Q → (P → Σ Q R) → ¬ ¬ Σ Q (λ x → P → R x)
+independence-of-premise {P = P} q f = ¬¬-map helper excluded-middle
+  where
+  helper : Dec P → _
+  helper (yes p) = Prod.map id const (f p)
+  helper (no ¬p) = (q , ⊥-elim ∘′ ¬p)
+
+-- The independence of premise rule for binary sums.
+
+independence-of-premise-⊎
+  : ∀ {p q r} {P : Set p} {Q : Set q} {R : Set r} →
+    (P → Q ⊎ R) → ¬ ¬ ((P → Q) ⊎ (P → R))
+independence-of-premise-⊎ {P = P} f = ¬¬-map helper excluded-middle
+  where
+  helper : Dec P → _
+  helper (yes p) = Sum.map const const (f p)
+  helper (no ¬p) = inj₁ (⊥-elim ∘′ ¬p)
+
+private
+
+  -- Note that independence-of-premise-⊎ is a consequence of
+  -- independence-of-premise (for simplicity it is assumed that Q and
+  -- R have the same type here):
+
+  corollary : ∀ {p ℓ} {P : Set p} {Q R : Set ℓ} →
+              (P → Q ⊎ R) → ¬ ¬ ((P → Q) ⊎ (P → R))
+  corollary {P = P} {Q} {R} f =
+    ¬¬-map helper (independence-of-premise
+                     true ([ _,_ true , _,_ false ] ∘′ f))
+    where
+    helper : ∃ (λ b → P → if b then Q else R) → (P → Q) ⊎ (P → R)
+    helper (true  , f) = inj₁ f
+    helper (false , f) = inj₂ f
