@@ -13,12 +13,11 @@ import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
+open ≡-Reasoning
 import Algebra.FunctionProperties as P; open P _≡_
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
-
-import Relation.Binary.EqReasoning as EqR; open EqR Bool.setoid
 
 ------------------------------------------------------------------------
 -- Duality
@@ -70,11 +69,11 @@ private
     distʳ x y z =
                       begin
        (y ∨ z) ∧ x
-                      ≈⟨ ∧-comm (y ∨ z) x ⟩
+                      ≡⟨ ∧-comm (y ∨ z) x ⟩
        x ∧ (y ∨ z)
-                      ≈⟨ distˡ x y z ⟩
+                      ≡⟨ distˡ x y z ⟩
        x ∧ y ∨ x ∧ z
-                      ≈⟨ cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
+                      ≡⟨ cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
        y ∧ x ∨ z ∧ x
                       ∎
 
@@ -140,11 +139,11 @@ private
     distʳ x y z =
                           begin
        (y ∧ z) ∨ x
-                          ≈⟨ ∨-comm (y ∧ z) x ⟩
+                          ≡⟨ ∨-comm (y ∧ z) x ⟩
        x ∨ (y ∧ z)
-                          ≈⟨ distˡ x y z ⟩
+                          ≡⟨ distˡ x y z ⟩
        (x ∨ y) ∧ (x ∨ z)
-                          ≈⟨ cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
+                          ≡⟨ cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
        (y ∨ x) ∧ (z ∨ x)
                           ∎
 

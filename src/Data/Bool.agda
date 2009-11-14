@@ -72,11 +72,5 @@ false ≟ true  = no λ()
 ------------------------------------------------------------------------
 -- Some properties
 
-preorder : Preorder
-preorder = PropEq.preorder Bool
-
-setoid : Setoid
-setoid = PropEq.setoid Bool
-
 decSetoid : DecSetoid
 decSetoid = PropEq.decSetoid _≟_
