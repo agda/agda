@@ -4,8 +4,10 @@
 
 module Data.Colist where
 
+open import Category.Monad
 open import Coinduction
 open import Data.Bool          using (Bool; true; false)
+open import Data.Empty         using (⊥)
 open import Data.Maybe         using (Maybe; nothing; just)
 open import Data.Nat           using (ℕ; zero; suc)
 open import Data.Conat         using (Coℕ; zero; suc)
@@ -15,8 +17,12 @@ open import Data.List.NonEmpty using (List⁺; _∷_)
 open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
+open import Data.Sum     using (_⊎_; inj₁; inj₂)
 open import Data.Function
 open import Relation.Binary
+open import Relation.Nullary
+open import Relation.Nullary.Negation
+open RawMonad ¬¬-Monad
 
 ------------------------------------------------------------------------
 -- The type
@@ -186,3 +192,44 @@ take-⊑ : ∀ {A} n (xs : Colist A) →
 take-⊑ zero    xs       = []
 take-⊑ (suc n) []       = []
 take-⊑ (suc n) (x ∷ xs) = x ∷ ♯ take-⊑ n (♭ xs)
+
+------------------------------------------------------------------------
+-- Finiteness and infiniteness
+
+-- Finite xs means that xs has finite length.
+
+data Finite {A : Set} : Colist A → Set where
+  []  : Finite []
+  _∷_ : ∀ x {xs} (fin : Finite (♭ xs)) → Finite (x ∷ xs)
+
+-- Infinite xs means that xs has infinite length.
+
+data Infinite {A : Set} : Colist A → Set where
+  _∷_ : ∀ x {xs} (inf : ∞ (Infinite (♭ xs))) → Infinite (x ∷ xs)
+
+-- Colists which are not finite are infinite.
+
+not-finite-is-infinite :
+  {A : Set} (xs : Colist A) → ¬ Finite xs → Infinite xs
+not-finite-is-infinite []       hyp with hyp []
+... | ()
+not-finite-is-infinite (x ∷ xs) hyp =
+  x ∷ ♯ not-finite-is-infinite (♭ xs) (hyp ∘ _∷_ x)
+
+-- Colists are either finite or infinite (classically).
+
+finite-or-infinite :
+  {A : Set} (xs : Colist A) → ¬ ¬ (Finite xs ⊎ Infinite xs)
+finite-or-infinite xs = helper <$> excluded-middle
+  where
+  helper : Dec (Finite xs) → Finite xs ⊎ Infinite xs
+  helper (yes fin) = inj₁ fin
+  helper (no ¬fin) = inj₂ $ not-finite-is-infinite xs ¬fin
+
+-- Colists are not both finite and infinite.
+
+not-finite-and-infinite :
+  {A : Set} {xs : Colist A} → Finite xs → Infinite xs → ⊥
+not-finite-and-infinite []        ()
+not-finite-and-infinite (x ∷ fin) (.x ∷ inf) =
+  not-finite-and-infinite fin (♭ inf)
