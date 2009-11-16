@@ -76,8 +76,9 @@ A →-setoid B = A ≡⇨ λ _ → setoid B
 _≗_ : ∀ {a b} (f g : a → b) → Set
 _≗_ {a} {b} = Setoid._≈_ (a →-setoid b)
 
-→-to-⟶ : ∀ {A B} → (A → B) → setoid A ⟶ setoid B
-→-to-⟶ f = record { _⟨$⟩_ = f; pres = cong f }
+→-to-⟶ : ∀ {A B} → (A → Setoid.carrier B) → setoid A ⟶ B
+→-to-⟶ {B = B} f =
+  record { _⟨$⟩_ = f; pres = Setoid.reflexive B ∘ cong f }
 
 ------------------------------------------------------------------------
 -- The inspect idiom

@@ -458,28 +458,21 @@ module Membership-≡ where
 
   -- Introduction and elimination rules for _>>=_.
 
-  private
-
-    [→-to-⟶] : ∀ {A B} → (A → List B) →
-               PropEq.setoid A ⟶
-               ListEq.setoid (PropEq.setoid B)
-    [→-to-⟶] f =
-      record { _⟨$⟩_ = f; pres = S.reflexive ∘ PropEq.cong f }
-
   >>=-∈⁺ : ∀ {A B} (f : A → List B) {x y xs} →
            x ∈ xs → y ∈ f x → y ∈ (xs >>= f)
-  >>=-∈⁺ f = M₂.>>=-∈⁺ ([→-to-⟶] f)
+  >>=-∈⁺ f = M₂.>>=-∈⁺ (PropEq.→-to-⟶ f)
 
   >>=-∈⁻ : ∀ {A B} (f : A → List B) {y} xs →
            y ∈ (xs >>= f) → ∃ λ x → x ∈ xs × y ∈ f x
-  >>=-∈⁻ f = M₂.>>=-∈⁻ ([→-to-⟶] f)
+  >>=-∈⁻ f = M₂.>>=-∈⁻ (PropEq.→-to-⟶ f)
 
   -- _>>=_ is monotone.
 
   _>>=-mono_ : ∀ {A B} {f g : A → List B} {xs ys} →
                xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
                (xs >>= f) ⊆ (ys >>= g)
-  _>>=-mono_ {f = f} {g} = M₂.>>=-mono ([→-to-⟶] f) ([→-to-⟶] g)
+  _>>=-mono_ {f = f} {g} =
+    M₂.>>=-mono (PropEq.→-to-⟶ f) (PropEq.→-to-⟶ g)
 
   -- Introduction and elimination rules for _⊛_.
 
