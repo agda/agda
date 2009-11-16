@@ -16,6 +16,7 @@ open import Relation.Binary
 open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_)
+import Relation.Binary.Props.Preorder as PP
 
 -- Any P xs means that at least one element in xs satisfies P.
 
@@ -130,6 +131,12 @@ module Membership (S : Setoid) where
     _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
+  -- Set equality, i.e. an equality which ignores order and
+  -- multiplicity.
+
+  set-equality : Setoid
+  set-equality = PP.inducedEquivalence ⊆-preorder
+
   -- A variant of List.map.
 
   map-with-∈ : ∀ {B} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
@@ -152,7 +159,9 @@ module Membership-≡ {A : Set} where
 
   private
     open module M = Membership (PropEq.setoid A) public
-      hiding (lift-resp; lose; ⊆-preorder; module ⊆-Reasoning)
+      hiding ( lift-resp; lose
+             ; ⊆-preorder; module ⊆-Reasoning; set-equality
+             )
 
   lose : ∀ {P x xs} → x ∈ xs → P x → Any P xs
   lose {P} = M.lose (PropEq.subst P)
@@ -181,6 +190,12 @@ module Membership-≡ {A : Set} where
 
     _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
+
+  -- Set equality, i.e. an equality which ignores order and
+  -- multiplicity.
+
+  set-equality : Setoid
+  set-equality = PP.inducedEquivalence ⊆-preorder
 
 ------------------------------------------------------------------------
 -- Another function
