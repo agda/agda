@@ -4,13 +4,17 @@
 
 module Data.List.Any.Properties where
 
+open import Algebra
 open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
+open import Data.Empty
 open import Data.Function
 open import Data.List as List
 open RawMonad List.monad
 open import Data.List.Any as Any using (Any; here; there)
+open import Data.Nat as Nat
+import Data.Nat.Properties as NatProp
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
@@ -20,7 +24,10 @@ open import Relation.Binary.FunctionSetoid
 import Relation.Binary.List.Pointwise as ListEq
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; refl; inspect; _with-≡_)
+  using (_≡_; _≢_; refl; inspect; _with-≡_)
+import Relation.Binary.Props.DecTotalOrder as DTOProps
+open import Relation.Nullary
+open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------
 -- Lemmas related to Any
@@ -241,6 +248,67 @@ module Membership₁ (S : Setoid) where
             map-with-∈-∈⁺ g (xs⊆ys x∈xs)
     where open EqReasoning S
 
+  -- Only a finite number of distinct elements can be members of a
+  -- given list.
+
+  finite : (f : Injection (PropEq.setoid ℕ) S) →
+           ∀ xs → ¬ (∀ i → Injection.to f ⟨$⟩ i ∈ xs)
+  finite inj []       ∈[]   with ∈[] zero
+  ... | ()
+  finite inj (x ∷ xs) ∈x∷xs = excluded-middle helper
+    where
+    open Injection inj
+
+    module DTO = DecTotalOrder Nat.decTotalOrder
+    module STO = StrictTotalOrder
+                   (DTOProps.strictTotalOrder Nat.decTotalOrder)
+    module CS  = CommutativeSemiring NatProp.commutativeSemiring
+
+    not-x : ∀ {i} → ¬ (to ⟨$⟩ i ≈ x) → to ⟨$⟩ i ∈ xs
+    not-x {i} ≉x with ∈x∷xs i
+    ... | here  ≈x  = ⊥-elim (≉x ≈x)
+    ... | there ∈xs = ∈xs
+
+    helper : ¬ Dec (∃ λ i → to ⟨$⟩ i ≈ x)
+    helper (no ≉x)        = finite inj  xs (λ i → not-x (≉x ∘ _,_ i))
+    helper (yes (i , ≈x)) = finite inj′ xs ∈xs
+      where
+      open PropEq
+
+      f : ℕ → S.carrier
+      f j with STO.compare i j
+      f j | tri< _ _ _ = to ⟨$⟩ suc j
+      f j | tri≈ _ _ _ = to ⟨$⟩ suc j
+      f j | tri> _ _ _ = to ⟨$⟩ j
+
+      ∈-if-not-i : ∀ {j} → i ≢ j → to ⟨$⟩ j ∈ xs
+      ∈-if-not-i i≢j = not-x (i≢j ∘ injective ∘ S.trans ≈x ∘ S.sym)
+
+      lemma : ∀ {k j} → k ≤ j → suc j ≢ k
+      lemma 1+j≤j refl = NatProp.1+n≰n 1+j≤j
+
+      ∈xs : ∀ j → f j ∈ xs
+      ∈xs j with STO.compare i j
+      ∈xs j  | tri< (i≤j , _) _ _ = ∈-if-not-i (lemma i≤j ∘ sym)
+      ∈xs j  | tri> _ i≢j _       = ∈-if-not-i i≢j
+      ∈xs .i | tri≈ _ refl _      =
+        ∈-if-not-i (NatProp.m≢1+m+n i ∘
+                    subst (_≡_ i ∘ suc) (sym $ proj₂ CS.+-identity i))
+
+      injective′ : Injective {B = S} (→-to-⟶ f)
+      injective′ {j} {k} eq with STO.compare i j | STO.compare i k
+      ... | tri< _ _ _         | tri< _ _ _         = cong pred                                   $ injective eq
+      ... | tri< _ _ _         | tri≈ _ _ _         = cong pred                                   $ injective eq
+      ... | tri< (i≤j , _) _ _ | tri> _ _ (k≤i , _) = ⊥-elim (lemma (DTO.trans k≤i i≤j)           $ injective eq)
+      ... | tri≈ _ _ _         | tri< _ _ _         = cong pred                                   $ injective eq
+      ... | tri≈ _ _ _         | tri≈ _ _ _         = cong pred                                   $ injective eq
+      ... | tri≈ _ i≡j _       | tri> _ _ (k≤i , _) = ⊥-elim (lemma (subst (_≤_ k) i≡j k≤i)       $ injective eq)
+      ... | tri> _ _ (j≤i , _) | tri< (i≤k , _) _ _ = ⊥-elim (lemma (DTO.trans j≤i i≤k)     $ sym $ injective eq)
+      ... | tri> _ _ (j≤i , _) | tri≈ _ i≡k _       = ⊥-elim (lemma (subst (_≤_ j) i≡k j≤i) $ sym $ injective eq)
+      ... | tri> _ _ (j≤i , _) | tri> _ _ (k≤i , _) =                                               injective eq
+
+      inj′ = record { to = →-to-⟶ f; injective = injective′ }
+
 module Membership₂ (S₁ S₂ : Setoid) where
 
   private
@@ -339,7 +407,8 @@ module Membership-≡ where
     module S {A} = Setoid (ListEq.setoid (PropEq.setoid A))
     open module M₁ {A} = Membership₁ (PropEq.setoid A) public
       using (_++-mono_; ++-idempotent;
-             map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono)
+             map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono;
+             finite)
     open module M₂ {A} {B} =
       Membership₂ (PropEq.setoid A) (PropEq.setoid B) public
       using (map-∈⁻)
