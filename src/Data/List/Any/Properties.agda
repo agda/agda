@@ -187,6 +187,11 @@ module Membership₁ (S : Setoid) where
   ++-idempotent : ∀ {xs} → xs ++ xs ⊆ xs
   ++-idempotent = [ id , id ]′ ∘ ++⁻ _
 
+  -- _++_ is commutative.
+
+  ++-comm : ∀ xs ys → xs ++ ys ⊆ ys ++ xs
+  ++-comm xs ys = [ ++⁺ʳ ys , ++⁺ˡ ]′ ∘ ++⁻ xs
+
   -- Introduction and elimination rules for concat.
 
   concat-∈⁺ : ∀ {x xs xss} →
@@ -406,7 +411,7 @@ module Membership-≡ where
   private
     module S {A} = Setoid (ListEq.setoid (PropEq.setoid A))
     open module M₁ {A} = Membership₁ (PropEq.setoid A) public
-      using (_++-mono_; ++-idempotent;
+      using (_++-mono_; ++-idempotent; ++-comm;
              map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono;
              finite)
     open module M₂ {A} {B} =
