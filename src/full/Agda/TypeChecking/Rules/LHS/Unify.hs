@@ -10,6 +10,7 @@ import Control.Monad.Error
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -184,6 +185,7 @@ unifyIndices flex a us vs = liftTCM $ do
       case funView $ unEl a of
 	FunV (Arg _ b) _  -> do
 	  unify b u v
+          arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
 
