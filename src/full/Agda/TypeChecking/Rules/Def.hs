@@ -166,13 +166,18 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
                      equality <- primEquality >>= \eq -> return $ case eq of
-                        Lam Hidden (Abs _ (Def equality [_])) -> equality
-                        _                                     -> __IMPOSSIBLE__
+                        Lam Hidden (Abs _ (Def equality _)) -> equality
+                        _                                   -> __IMPOSSIBLE__
                      reflCon <- primRefl >>= \refl -> return $ case refl of
                          Lam Hidden (Abs _typ (Lam Hidden (Abs _val (Con reflCon [])))) -> reflCon
                          _ -> __IMPOSSIBLE__
                      (rewriteType,rewriteFrom,rewriteTo) <- case t' of
                          El _Set0 (Def equality' [Arg Hidden rewriteType,
+                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo])
+                            | equality' == equality ->
+                              return (rewriteType, rewriteFrom, rewriteTo)
+                         -- Universe polymorphic equality
+                         El _Set0 (Def equality' [_level,Arg Hidden rewriteType,
                                                   Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo])
                             | equality' == equality ->
                               return (rewriteType, rewriteFrom, rewriteTo)
