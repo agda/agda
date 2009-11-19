@@ -441,12 +441,13 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       es <- toConcrete es
       cs <- toConcrete cs
       return (C.AbsurdRHS, [], es, concat cs)
-    toConcrete (A.RewriteRHS _ eqs rhs) = do
+    toConcrete (A.RewriteRHS _ eqs rhs wh) = do
+      wh <- toConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
       eqs <- toConcrete eqs
-      return (rhs, eqs, es, whs)
+      return (rhs, eqs, es, wh ++ whs)
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 

@@ -122,7 +122,7 @@ insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause
     where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds) 
 --              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
               = A.Clause (A.LHS i x aps (pats ++ ps)) (insertPatterns pats rhs) ds
-insertPatterns pats (A.RewriteRHS qs eqs rhs) = A.RewriteRHS qs eqs (insertPatterns pats rhs) 
+insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
 
 
@@ -147,7 +147,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ let
-          handleRHS rhs = 
+          handleRHS rhs =
               case rhs of
                 A.RHS e
                   | any (containsAbsurdPattern . namedThing . unArg) aps ->
@@ -159,10 +159,11 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   | any (containsAbsurdPattern . namedThing . unArg) aps
                               -> return (NoBody, NoWithFunction)
                   | otherwise -> typeError $ NoRHSRequiresAbsurdPattern aps
-                A.RewriteRHS [] (_:_) _ -> __IMPOSSIBLE__
-                A.RewriteRHS (_:_) [] _ -> __IMPOSSIBLE__
-                A.RewriteRHS [] [] rhs -> handleRHS rhs
-                A.RewriteRHS (qname:names) (eq:eqs) rhs -> do
+                A.RewriteRHS [] (_:_) _ _ -> __IMPOSSIBLE__
+                A.RewriteRHS (_:_) [] _ _ -> __IMPOSSIBLE__
+                A.RewriteRHS [] [] rhs [] -> handleRHS rhs
+                A.RewriteRHS [] [] _ (_:_) -> __IMPOSSIBLE__
+                A.RewriteRHS (qname:names) (eq:eqs) rhs wh -> do
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
                      equality <- primEquality >>= \eq -> return $ case eq of
@@ -191,9 +192,13 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <- setShowImplicitArguments True $ reify
                       [rewriteFrom,   rewriteTo,    rewriteType    , proof]
-                     let newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
+                     let (inner, outer) -- the where clauses should go on the inner-most with
+                           | null eqs  = ([], wh)
+                           | otherwise = (wh, [])
+                         newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
                                   [A.Clause (A.LHS i x aps pats)
-                                    (A.RewriteRHS names eqs (insertPatterns pats rhs)) [{-no "where"-}]]
+                                    (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
+                                    outer]
                          pats = [A.DotP info underscore, -- rewriteToExpr,
                                  A.ConP info (AmbQ [reflCon]) []]
                      reportSDoc "tc.rewrite.top" 25 $ vcat 

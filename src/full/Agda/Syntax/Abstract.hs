@@ -123,9 +123,10 @@ data Clause	= Clause LHS RHS [Declaration]
 data RHS	= RHS Expr
 		| AbsurdRHS
 		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
-                | RewriteRHS [QName] [Expr] RHS -- ^ The 'QName's are the names of the generated with functions.
-                                                --   One for each 'Expr'.
-                    -- ^ The RHS shouldn't be another RewriteRHS
+                | RewriteRHS [QName] [Expr] RHS [Declaration]
+                    -- ^ The 'QName's are the names of the generated with functions.
+                    --   One for each 'Expr'.
+                    --   The RHS shouldn't be another RewriteRHS
   deriving (Typeable, Data)
 
 data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
@@ -255,10 +256,10 @@ instance HasRange Clause where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
 
 instance HasRange RHS where
-    getRange AbsurdRHS             = noRange
-    getRange (RHS e)               = getRange e
-    getRange (WithRHS _ e cs)      = fuseRange e cs
-    getRange (RewriteRHS _ es rhs) = fuseRange es rhs
+    getRange AbsurdRHS                = noRange
+    getRange (RHS e)                  = getRange e
+    getRange (WithRHS _ e cs)         = fuseRange e cs
+    getRange (RewriteRHS _ es rhs wh) = getRange (es, rhs, wh)
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
@@ -332,10 +333,10 @@ instance KillRange Clause where
   killRange (Clause lhs rhs ds) = killRange3 Clause lhs rhs ds
 
 instance KillRange RHS where
-  killRange AbsurdRHS             = AbsurdRHS
-  killRange (RHS e)               = killRange1 RHS e
-  killRange (WithRHS q e cs)      = killRange3 WithRHS q e cs
-  killRange (RewriteRHS x es rhs) = killRange3 RewriteRHS x es rhs
+  killRange AbsurdRHS                = AbsurdRHS
+  killRange (RHS e)                  = killRange1 RHS e
+  killRange (WithRHS q e cs)         = killRange3 WithRHS q e cs
+  killRange (RewriteRHS x es rhs wh) = killRange4 RewriteRHS x es rhs wh
 
 instance KillRange LetBinding where
   killRange (LetBind  i a b c       ) = killRange4 LetBind  i a b c
@@ -371,7 +372,9 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   allNamesR RHS {}                = Seq.empty
   allNamesR AbsurdRHS {}          = Seq.empty
   allNamesR (WithRHS q _ cls)     = q <| Fold.foldMap allNamesC cls
-  allNamesR (RewriteRHS qs _ rhs) = Seq.fromList qs >< allNamesR rhs
+  allNamesR (RewriteRHS qs _ rhs cls) =
+    Seq.fromList qs >< allNamesR rhs
+                    >< Fold.foldMap allNames cls
 allNames (Section _ _ _ decls) = Fold.foldMap allNames decls
 allNames Apply {}              = Seq.empty
 allNames Import {}             = Seq.empty

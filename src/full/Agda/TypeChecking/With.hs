@@ -52,10 +52,10 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
 
-    buildRHS rhs@(RHS _)            = return rhs
-    buildRHS rhs@AbsurdRHS          = return rhs
-    buildRHS (WithRHS q es cs)      = WithRHS q es <$> mapM buildWithClause cs
-    buildRHS (RewriteRHS q eqs rhs) = RewriteRHS q eqs <$> buildRHS rhs
+    buildRHS rhs@(RHS _)               = return rhs
+    buildRHS rhs@AbsurdRHS             = return rhs
+    buildRHS (WithRHS q es cs)         = WithRHS q es <$> mapM buildWithClause cs
+    buildRHS (RewriteRHS q eqs rhs wh) = flip (RewriteRHS q eqs) wh <$> buildRHS rhs
 
 {-| @stripWithClausePatterns Γ qs π ps = ps'@
 

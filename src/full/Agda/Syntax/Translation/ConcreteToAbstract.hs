@@ -829,33 +829,39 @@ instance ToAbstract C.Clause A.Clause where
             NoWhere        -> (Nothing, [])
             AnyWhere ds    -> (Nothing, ds)
             SomeWhere m ds -> (Just m, ds)
-      case whds of
-        [] -> do
-          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs)
+      if not (null eqs)
+        then do
+          rhs <- toAbstract =<< toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs whds)
           return $ A.Clause lhs' rhs []
-        _       -> do
-          m <- maybe (nameConcrete <$> freshNoName noRange) return whname
-          let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
-          let tel = []
-          old <- getCurrentModule
-          am  <- toAbstract (NewModuleName m)
-          (scope, ds) <- scopeCheckModule (getRange wh) (C.QName m) am tel whds
-          setScope scope
+        else do
           -- the right hand side is checked inside the module of the local definitions
-          rhs <- toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs)
-          setCurrentModule old
---        case acc of
---          PublicAccess  -> popScope PublicAccess
---          PrivateAccess -> popScope_  -- unnamed where clauses are not in scope
-          bindModule acc m am
+          (rhs, ds) <- whereToAbstract (getRange wh) whname whds $
+                        toAbstractCtx TopCtx (RightHandSide eqs with wcs' rhs [])
           rhs <- toAbstract rhs
           return $ A.Clause lhs' rhs ds
 
-data RightHandSide = RightHandSide [C.Expr] [C.Expr] [C.Clause] C.RHS
+whereToAbstract :: Range -> Maybe C.Name -> [C.Declaration] -> ScopeM a -> ScopeM (a, [A.Declaration])
+whereToAbstract _ _ [] inner = do
+  x <- inner
+  return (x, [])
+whereToAbstract r whname whds inner = do
+  m <- maybe (nameConcrete <$> freshNoName noRange) return whname
+  let acc = maybe PrivateAccess (const PublicAccess) whname  -- unnamed where's are private
+  let tel = []
+  old <- getCurrentModule
+  am  <- toAbstract (NewModuleName m)
+  (scope, ds) <- scopeCheckModule r (C.QName m) am tel whds
+  setScope scope
+  x <- inner
+  setCurrentModule old
+  bindModule acc m am
+  return (x, ds)
+
+data RightHandSide = RightHandSide [C.Expr] [C.Expr] [C.Clause] C.RHS [C.Declaration]
 data AbstractRHS = AbsurdRHS'
                  | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
                  | RHS' A.Expr
-                 | RewriteRHS' [A.Expr] AbstractRHS
+                 | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
 
 withFunctionName :: String -> ScopeM A.QName
 withFunctionName s = do
@@ -866,24 +872,31 @@ withFunctionName s = do
 instance ToAbstract AbstractRHS A.RHS where
   toAbstract AbsurdRHS'            = return A.AbsurdRHS
   toAbstract (RHS' e)              = return $ A.RHS e
-  toAbstract (RewriteRHS' eqs rhs) = do
+  toAbstract (RewriteRHS' eqs rhs wh) = do
     auxs <- replicateM (length eqs) $ withFunctionName "rewrite-"
-    RewriteRHS auxs eqs <$> toAbstract rhs
+    rhs  <- toAbstract rhs
+    return $ RewriteRHS auxs eqs rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
     A.WithRHS aux es <$> toAbstract cs
 
 instance ToAbstract RightHandSide AbstractRHS where
-  toAbstract (RightHandSide eqs@(_:_) es cs rhs) = do
+  toAbstract (RightHandSide eqs@(_:_) es cs rhs wh) = do
     eqs <- toAbstractCtx TopCtx eqs
-    rhs <- toAbstract (RightHandSide [] es cs rhs)
-    return $ RewriteRHS' eqs rhs
-  toAbstract (RightHandSide [] [] (_ : _) _)        = __IMPOSSIBLE__
-  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _)) = typeError $ BothWithAndRHS
-  toAbstract (RightHandSide [] [] [] rhs)           = toAbstract rhs
-  toAbstract (RightHandSide [] es cs C.AbsurdRHS)   = do
+                 -- TODO: remember named where
+    (rhs, ds) <- whereToAbstract (getRange wh) Nothing wh $
+                  toAbstract (RightHandSide [] es cs rhs [])
+    return $ RewriteRHS' eqs rhs ds
+  toAbstract (RightHandSide [] [] (_ : _) _ _)        = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] (_ : _) _ (C.RHS _) _) = typeError $ BothWithAndRHS
+  toAbstract (RightHandSide [] [] [] rhs [])          = toAbstract rhs
+  toAbstract (RightHandSide [] es cs C.AbsurdRHS [])  = do
     es <- toAbstractCtx TopCtx es
     return $ WithRHS' es cs
+  -- TODO: some of these might be possible
+  toAbstract (RightHandSide [] (_ : _) _ C.AbsurdRHS (_ : _)) = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] (C.RHS _) (_ : _))       = __IMPOSSIBLE__
+  toAbstract (RightHandSide [] [] [] C.AbsurdRHS (_ : _))     = __IMPOSSIBLE__
 
 instance ToAbstract C.RHS AbstractRHS where
     toAbstract C.AbsurdRHS = return $ AbsurdRHS'
