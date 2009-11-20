@@ -21,11 +21,11 @@ open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 
-∷-injective : ∀ {ℓ} {A : Set ℓ} {x y xs ys} →
+∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
 ∷-injective refl = (refl , refl)
 
-right-identity-unique : ∀ {ℓ} {A : Set ℓ} (xs : List A) {ys} →
+right-identity-unique : ∀ {a} {A : Set a} (xs : List A) {ys} →
                         xs ≡ xs ++ ys → ys ≡ []
 right-identity-unique []       refl = refl
 right-identity-unique (x ∷ xs) eq   =
@@ -46,7 +46,7 @@ left-identity-unique {xs = x ∷ xs} (y ∷ _ ∷ _) eq | ()
 
 -- Map, sum, and append.
 
-map-++-commute : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} (f : a → b) xs ys →
+map-++-commute : ∀ {a b} {A : Set a} {B : Set b} (f : A → B) xs ys →
                  map f (xs ++ ys) ≡ map f xs ++ map f ys
 map-++-commute f []       ys = refl
 map-++-commute f (x ∷ xs) ys =
@@ -184,13 +184,14 @@ map-cong {f = f} {g} f≗g =
 
 -- Take, drop, and splitAt.
 
-take++drop : ∀ {ℓ} {a : Set ℓ} n (xs : List a) → take n xs ++ drop n xs ≡ xs
+take++drop : ∀ {a} {A : Set a}
+             n (xs : List A) → take n xs ++ drop n xs ≡ xs
 take++drop zero    xs       = refl
 take++drop (suc n) []       = refl
 take++drop (suc n) (x ∷ xs) =
   cong (λ xs → x ∷ xs) (take++drop n xs)
 
-splitAt-defn : ∀ {a : Set} n → splitAt {a = a} n ≗ < take n , drop n >
+splitAt-defn : ∀ {A : Set} n → splitAt {A = A} n ≗ < take n , drop n >
 splitAt-defn zero    xs       = refl
 splitAt-defn (suc n) []       = refl
 splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
@@ -198,7 +199,7 @@ splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
 
 -- TakeWhile, dropWhile, and span.
 
-takeWhile++dropWhile : ∀ {ℓ} {a : Set ℓ} (p : a → Bool) (xs : List a) →
+takeWhile++dropWhile : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) →
                        takeWhile p xs ++ dropWhile p xs ≡ xs
 takeWhile++dropWhile p []       = refl
 takeWhile++dropWhile p (x ∷ xs) with p x
@@ -250,17 +251,17 @@ scanl-defn f e (x ∷ xs) = cong (_∷_ e) (begin
 
 -- Length.
 
-length-map : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} (f : A → B) xs →
+length-map : ∀ {a b} {A : Set a} {B : Set b} (f : A → B) xs →
              length (map f xs) ≡ length xs
 length-map f []       = refl
 length-map f (x ∷ xs) = cong suc (length-map f xs)
 
-length-++ : ∀ {ℓ} {A : Set ℓ} (xs : List A) {ys} →
+length-++ : ∀ {a} {A : Set a} (xs : List A) {ys} →
             length (xs ++ ys) ≡ length xs + length ys
 length-++ []       = refl
 length-++ (x ∷ xs) = cong suc (length-++ xs)
 
-length-gfilter : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} (p : A → Maybe B) xs →
+length-gfilter : ∀ {a b} {A : Set a} {B : Set b} (p : A → Maybe B) xs →
                  length (gfilter p xs) ≤ length xs
 length-gfilter p []       = z≤n
 length-gfilter p (x ∷ xs) with p x

@@ -23,13 +23,13 @@ boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
 boolToMaybe false = nothing
 
-maybeToBool : ∀ {ℓ} {A : Set ℓ} → Maybe A → Bool
+maybeToBool : ∀ {a} {A : Set a} → Maybe A → Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
 
 -- A non-dependent eliminator.
 
-maybe : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b) → b → Maybe a → b
+maybe : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → B → Maybe A → B
 maybe j n (just x) = j x
 maybe j n nothing  = n
 
@@ -101,10 +101,10 @@ open import Data.Product using (_,_)
 open import Data.Empty using (⊥)
 import Relation.Nullary.Decidable as Dec
 
-data Any {ℓ} {A : Set ℓ} (P : A → Set ℓ) : Maybe A → Set ℓ where
+data Any {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
   just : ∀ {x} (px : P x) → Any P (just x)
 
-data All {ℓ} {A : Set ℓ} (P : A → Set ℓ) : Maybe A → Set ℓ where
+data All {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
   just    : ∀ {x} (px : P x) → All P (just x)
   nothing : All P nothing
 

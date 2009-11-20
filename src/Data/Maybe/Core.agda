@@ -9,6 +9,6 @@ module Data.Maybe.Core where
 
 open import Level
 
-data Maybe {ℓ} (A : Set ℓ) : Set ℓ where
+data Maybe {a} (A : Set a) : Set a where
   just    : (x : A) → Maybe A
   nothing : Maybe A

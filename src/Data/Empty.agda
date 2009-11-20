@@ -10,5 +10,5 @@ open import Level
 
 data ⊥ : Set where
 
-⊥-elim : ∀ {ℓ} {Whatever : Set ℓ} → ⊥ → Whatever
+⊥-elim : ∀ {w} {Whatever : Set w} → ⊥ → Whatever
 ⊥-elim ()

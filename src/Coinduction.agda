@@ -14,8 +14,8 @@ open import Level
 
 infix 10 ♯_
 
-codata ∞ {ℓ} (T : Set ℓ) : Set ℓ where
-  ♯_ : (x : T) → ∞ T
+codata ∞ {a} (A : Set a) : Set a where
+  ♯_ : (x : A) → ∞ A
 
-♭ : ∀ {ℓ} {T : Set ℓ} → ∞ T → T
+♭ : ∀ {a} {A : Set a} → ∞ A → A
 ♭ (♯ x) = x
