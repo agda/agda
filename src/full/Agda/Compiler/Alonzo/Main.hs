@@ -80,7 +80,7 @@ compilerMain typeCheck = ignoreAbstractMode $ do
                 pathSep '.' = pathSeparator
                 pathSep c   = c
         let moduleString = show moduleName
-        let hsmod = hsModuleImporting moduleString hImps allImps (concat hsdefs)
+        let hsmod = hsModuleImporting moduleString (Set.toList hImps) allImps (concat hsdefs)
         liftIO $ outputHsModule fileBase hsmod mainNum
         -- let almod = List.map AlDecl hsdefs
         -- liftIO $ printAlModule moduleString almod

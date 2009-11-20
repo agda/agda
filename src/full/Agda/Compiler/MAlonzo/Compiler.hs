@@ -83,15 +83,16 @@ compile i = do
 --------------------------------------------------
 
 imports :: TCM [HsImportDecl]
-imports = (++) <$> unqualImps <*> qualImps where
-  unqualImps = (L.map (decl False) . (unsafeCoerceMod :) . L.map Module) <$>
-               getHaskellImports
-  qualImps   = L.map (decl True) . uniq <$>
-               ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
-  decl qual m = HsImportDecl dummy m qual Nothing Nothing
-  mnames      = (++) <$> (S.elems <$> gets stImportedModules)
-                     <*> (iImportedModules <$> curIF)
-  uniq        = L.map head . group . L.sort
+imports = (++) <$> hsImps <*> imps where
+  hsImps = (L.map decl . S.toList .
+            S.insert unsafeCoerceMod . S.map Module) <$>
+             getHaskellImports
+  imps   = L.map decl . uniq <$>
+             ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
+  decl m = HsImportDecl dummy m True Nothing Nothing
+  mnames = (++) <$> (S.elems <$> gets stImportedModules)
+                <*> (iImportedModules <$> curIF)
+  uniq   = L.map head . group . L.sort
 
 --------------------------------------------------
 -- Main compiling clauses

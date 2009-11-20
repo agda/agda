@@ -1,5 +1,6 @@
 {-# LANGUAGE OverlappingInstances,
              TypeSynonymInstances,
+             IncoherentInstances,
              ExistentialQuantification,
              ScopedTypeVariables,
              CPP
@@ -38,6 +39,8 @@ import Data.Int (Int32, Int64)
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as M
+import Data.Set (Set)
+import qualified Data.Set as S
 import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.List as List
@@ -74,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20091119 * 10 + 0
+currentInterfaceVersion = 20091120 * 10 + 0
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -295,6 +298,10 @@ instance EmbPrj a => EmbPrj [a] where
 instance (Ord a, EmbPrj a, EmbPrj b) => EmbPrj (Map a b) where
   icode m = icode (M.toList m)
   value m = M.fromList `fmap` value m
+
+instance (Ord a, EmbPrj a) => EmbPrj (Set a) where
+  icode s = icode (S.toList s)
+  value s = S.fromList `fmap` value s
 
 instance EmbPrj P.Interval where
   icode (P.Interval p q) = icode2' p q

@@ -156,6 +156,10 @@ Language
   0.3 of the standard library, where it is used to implement decidable
   equality on strings from the primitive boolean equality.
 
+* IMPORT pragmas are now viewed as /qualified/ imports, so Haskell
+  names need to be given qualified (unless they come from the Haskell
+  prelude).
+
 * The horizontal tab character (U+0009) is no longer treated as white
   space.
 

@@ -16,6 +16,7 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Generics
 import Data.List
 import Data.Map (Map)
+import Data.Set (Set)
 import System.Directory
 import System.Time
 import qualified System.IO.UTF8 as UTF8
@@ -99,7 +100,7 @@ mergeInterface i = do
       []               -> return ()
       (b, Builtin x):_ -> typeError $ DuplicateBuiltinBinding b x x
       (_, Prim{}):_    -> __IMPOSSIBLE__
-    addImportedThings sig bi
+    addImportedThings sig bi (iHaskellImports i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -110,11 +111,13 @@ mergeInterface i = do
 	    PrimImpl _ pf <- lookupPrimitiveFunction x
 	    return (x, Prim pf)
 
-addImportedThings :: Signature -> BuiltinThings PrimFun -> TCM ()
-addImportedThings isig ibuiltin =
+addImportedThings ::
+  Signature -> BuiltinThings PrimFun -> Set String -> TCM ()
+addImportedThings isig ibuiltin hsImports =
   modify $ \st -> st
     { stImports          = unionSignatures [stImports st, isig]
     , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
+    , stHaskellImports   = Set.union (stHaskellImports st) hsImports
     }
 
 -- | Scope checks the given module. A proper version of the module
@@ -348,7 +351,7 @@ getInterface' x includeStateChanges =
               -- Merge the signature with the signature for imported
               -- things.
               sig <- getSignature
-              addImportedThings sig Map.empty
+              addImportedThings sig Map.empty Set.empty
               setSignature emptySignature
 
               return (True, r)
@@ -369,20 +372,22 @@ getInterface' x includeStateChanges =
                        setCommandLineOptions PersistentOptions opts
                        modify $ \s -> s { stModuleToSource = mf }
                        setVisitedModules vs
-                       addImportedThings isig ibuiltin
+                       addImportedThings isig ibuiltin Set.empty
 
                        r <- createInterface file x
 
-                       mf       <- stModuleToSource <$> get
-                       vs       <- getVisitedModules
-                       ds       <- getDecodedModules
-                       isig     <- getImportedSignature
-                       ibuiltin <- gets stImportedBuiltins
+                       mf        <- stModuleToSource <$> get
+                       vs        <- getVisitedModules
+                       ds        <- getDecodedModules
+                       isig      <- getImportedSignature
+                       ibuiltin  <- gets stImportedBuiltins
+                       hsImports <- getHaskellImports
                        return (r, do
                          modify $ \s -> s { stModuleToSource = mf }
                          setVisitedModules vs
                          setDecodedModules ds
-                         addImportedThings isig ibuiltin)
+
+                         addImportedThings isig ibuiltin hsImports)
 
               case r of
                   Left err               -> throwError err
@@ -450,6 +455,8 @@ createInterface file mname = do
       liftIO $ UTF8.putStrLn $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
+    previousHsImports <- getHaskellImports
+
     (pragmas, top) <- liftIO $ parseFile' moduleParser file
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
@@ -511,7 +518,7 @@ createInterface file mname = do
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
-    i <- buildInterface topLevel syntaxInfo
+    i <- buildInterface topLevel syntaxInfo previousHsImports
 
     if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
      then do
@@ -529,8 +536,11 @@ buildInterface :: TopLevelInfo
                   -- ^ 'TopLevelInfo' for the current module.
                -> HighlightingInfo
                   -- ^ Syntax highlighting info for the module.
+               -> Set String
+                  -- ^ Haskell modules imported in imported modules
+                  -- (transitively).
                -> TCM Interface
-buildInterface topLevel syntaxInfo = do
+buildInterface topLevel syntaxInfo previousHsImports = do
     reportSLn "import.iface" 5 "Building interface..."
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
@@ -547,7 +557,8 @@ buildInterface topLevel syntaxInfo = do
                         , iInsideScope     = insideScope topLevel
 			, iSignature	   = sig
 			, iBuiltin	   = builtin'
-                        , iHaskellImports  = hsImps
+                        , iHaskellImports  = Set.difference hsImps
+                                                            previousHsImports
                         , iHighlighting    = syntaxInfo
 			}
     reportSLn "import.iface" 7 "  interface complete"

@@ -38,7 +38,6 @@ import Agda.Utils.Impossible
 setInterface :: Interface -> TCM ()
 setInterface i = modify $ \s -> s
   { stImportedModules = S.empty
-  , stHaskellImports  = iHaskellImports i
   , stCurrentModule   = Just $ iModuleName i
   }
 
@@ -134,7 +133,7 @@ mazMod' s = Module $ mazstr ++ "." ++ s
 mazMod :: ModuleName -> Module
 mazMod = mazMod' . show
 mazerror msg = error $ mazstr ++ ": " ++ msg
-mazCoerce = hsVarUQ $ HsIdent "unsafeCoerce"
+mazCoerce = HsVar $ Qual unsafeCoerceMod (HsIdent "unsafeCoerce")
 
 -- for Runtime module: Not really used (Runtime modules has been abolished).
 rtmMod  = mazMod' "Runtime"

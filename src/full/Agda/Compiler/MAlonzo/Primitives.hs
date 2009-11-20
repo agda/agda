@@ -64,20 +64,20 @@ declsForPrim = xForPrim $
     forList toH toA = decls ["NIL", "CONS"]
        toH (concat
            ["let { f <<0>>        = [];"
-           ,"      f (<<1>> x xs) = x : f (unsafeCoerce xs)"
+           ,"      f (<<1>> x xs) = x : f (Unsafe.Coerce.unsafeCoerce xs)"
            ,"} in f"])
        toA (concat
            ["let { f []     = <<0>>;"
-           ,"      f (c:cs) = <<1>> c (unsafeCoerce (f cs));"
+           ,"      f (c:cs) = <<1>> c (Unsafe.Coerce.unsafeCoerce (f cs));"
            ,"} in f"])
     natToFrom hty to from = let
         totxt   = repl ["<<0>>", "<<1>>", hty] (concat
                        ["let { f <<0>>     = 0 :: <<2>>;"
-                       ,"      f (<<1>> x) = 1 + f (unsafeCoerce x);"
+                       ,"      f (<<1>> x) = 1 + f (Unsafe.Coerce.unsafeCoerce x);"
                        ,"} in f"])
         fromtxt = repl ["<<0>>", "<<1>>", hty] (concat
                        ["let { f x | x <= (0 :: <<2>>) = <<0>>"
-                       ,"     | True = <<1>> (unsafeCoerce (f (x - 1)))"
+                       ,"     | True = <<1>> (Unsafe.Coerce.unsafeCoerce (f (x - 1)))"
                        ,"} in f"])
       in decls ["ZERO", "SUC"] to totxt from fromtxt
     decls cs n1 b1 n2 b2 =

@@ -3,6 +3,8 @@ module Agda.TypeChecking.Monad.State where
 
 import Control.Applicative
 import Control.Monad.State
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
@@ -82,9 +84,9 @@ withTopLevelModule x m = do
 -- | Tell the compiler to import the given Haskell module.
 addHaskellImport :: MonadTCM tcm => String -> tcm ()
 addHaskellImport i =
-  modify $ \s -> s { stHaskellImports = i : stHaskellImports s }
+  modify $ \s -> s { stHaskellImports = Set.insert i $ stHaskellImports s }
 
 -- | Get the Haskell imports.
-getHaskellImports :: MonadTCM tcm => tcm [String]
+getHaskellImports :: MonadTCM tcm => tcm (Set String)
 getHaskellImports = gets stHaskellImports
 
