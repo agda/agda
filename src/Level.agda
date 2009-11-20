@@ -14,7 +14,7 @@ data Level : Set where
 
 infixl 6 _⊔_
 
-_⊔_ : Level -> Level -> Level
+_⊔_ : Level → Level → Level
 zero  ⊔ j     = j
 suc i ⊔ zero  = suc i
 suc i ⊔ suc j = suc (i ⊔ j)
