@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Lists
 ------------------------------------------------------------------------
+{-# OPTIONS --universe-polymorphism #-}
 
 module Data.List where
 
@@ -19,7 +20,7 @@ infixr 5 _∷_ _++_
 ------------------------------------------------------------------------
 -- Types
 
-data List (A : Set) : Set where
+data List {ℓ} (A : Set ℓ) : Set ℓ where
   []  : List A
   _∷_ : (x : A) (xs : List A) → List A
 
@@ -32,10 +33,10 @@ data List (A : Set) : Set where
 
 -- * Basic functions
 
-[_] : ∀ {a} → a → List a
+[_] : ∀ {ℓ} {a : Set ℓ} → a → List a
 [ x ] = x ∷ []
 
-_++_ : ∀ {a} → List a → List a → List a
+_++_ : ∀ {ℓ} {a : Set ℓ} → List a → List a → List a
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
@@ -43,58 +44,59 @@ _++_ : ∀ {a} → List a → List a → List a
 
 infixl 5 _∷ʳ_
 
-_∷ʳ_ : ∀ {A} → List A → A → List A
+_∷ʳ_ : ∀ {ℓ} {A : Set ℓ} → List A → A → List A
 xs ∷ʳ x = xs ++ [ x ]
 
-null : ∀ {a} → List a → Bool
+null : ∀ {ℓ} {a : Set ℓ} → List a → Bool
 null []       = true
 null (x ∷ xs) = false
 
 -- * List transformations
 
-map : ∀ {a b} → (a → b) → List a → List b
+map : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b) → List a → List b
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
-reverse : ∀ {a} → List a → List a
+reverse : ∀ {ℓ} {a : Set ℓ} → List a → List a
 reverse xs = rev xs []
   where
-  rev : ∀ {a} → List a → List a → List a
+  rev : ∀ {ℓ} {a : Set ℓ} → List a → List a → List a
   rev []       ys = ys
   rev (x ∷ xs) ys = rev xs (x ∷ ys)
 
-replicate : ∀ {a} → (n : ℕ) → a → List a
+replicate : ∀ {ℓ} {a : Set ℓ} → (n : ℕ) → a → List a
 replicate zero    x = []
 replicate (suc n) x = x ∷ replicate n x
 
-zipWith : ∀ {A B C} → (A → B → C) → List A → List B → List C
+zipWith : ∀ {ℓ₁ ℓ₂ ℓ₃} {A : Set ℓ₁} {B : Set ℓ₂} {C : Set ℓ₃}
+          → (A → B → C) → List A → List B → List C
 zipWith f (x ∷ xs) (y ∷ ys) = f x y ∷ zipWith f xs ys
 zipWith f _        _        = []
 
-zip : ∀ {A B} → List A → List B → List (A × B)
+zip : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} → List A → List B → List (A × B)
 zip = zipWith (_,_)
 
-intersperse : ∀ {A} → A → List A → List A
+intersperse : ∀ {ℓ} {A : Set ℓ} → A → List A → List A
 intersperse x []           = []
 intersperse x (y ∷ [])     = [ y ]
 intersperse x (y ∷ z ∷ zs) = y ∷ x ∷ intersperse x (z ∷ zs)
 
 -- * Reducing lists (folds)
 
-foldr : {a b : Set} → (a → b → b) → b → List a → b
+foldr : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b → b) → b → List a → b
 foldr c n []       = n
 foldr c n (x ∷ xs) = c x (foldr c n xs)
 
-foldl : {a b : Set} → (a → b → a) → a → List b → a
+foldl : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b → a) → a → List b → a
 foldl c n []       = n
 foldl c n (x ∷ xs) = foldl c (c n x) xs
 
 -- ** Special folds
 
-concat : ∀ {a} → List (List a) → List a
+concat : ∀ {ℓ} {a : Set ℓ} → List (List a) → List a
 concat = foldr _++_ []
 
-concatMap : ∀ {a b} → (a → List b) → List a → List b
+concatMap : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → List b) → List a → List b
 concatMap f = concat ∘ map f
 
 and : List Bool → Bool
@@ -103,10 +105,10 @@ and = foldr _∧_ true
 or : List Bool → Bool
 or = foldr _∨_ false
 
-any : ∀ {a} → (a → Bool) → List a → Bool
+any : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → Bool
 any p = or ∘ map p
 
-all : ∀ {a} → (a → Bool) → List a → Bool
+all : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → Bool
 all p = and ∘ map p
 
 sum : List ℕ → ℕ
@@ -115,20 +117,20 @@ sum = foldr _+_ 0
 product : List ℕ → ℕ
 product = foldr _*_ 1
 
-length : ∀ {a} → List a → ℕ
+length : ∀ {ℓ} {a : Set ℓ} → List a → ℕ
 length = foldr (λ _ → suc) 0
 
 -- * Building lists
 
 -- ** Scans
 
-scanr : ∀ {a b} → (a → b → b) → b → List a → List b
+scanr : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b → b) → b → List a → List b
 scanr f e []       = e ∷ []
 scanr f e (x ∷ xs) with scanr f e xs
 ... | []     = []                -- dead branch
 ... | y ∷ ys = f x y ∷ y ∷ ys
 
-scanl : ∀ {a b} → (a → b → a) → a → List b → List a
+scanl : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b → a) → a → List b → List a
 scanl f e []       = e ∷ []
 scanl f e (x ∷ xs) = e ∷ scanl f (f e x) xs
 
@@ -136,7 +138,7 @@ scanl f e (x ∷ xs) = e ∷ scanl f (f e x) xs
 
 -- Unfold. Uses a measure (a natural number) to ensure termination.
 
-unfold : {A : Set} (B : ℕ → Set)
+unfold : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} (B : ℕ → Set ℓ₂)
          (f : ∀ {n} → B (suc n) → Maybe (A × B n)) →
          ∀ {n} → B n → List A
 unfold B f {n = zero}  s = []
@@ -157,7 +159,7 @@ downFrom n = unfold Singleton f (wrap n)
 
 -- ** Conversions
 
-fromMaybe : ∀ {A} → Maybe A → List A
+fromMaybe : ∀ {ℓ} {A : Set ℓ} → Maybe A → List A
 fromMaybe (just x) = [ x ]
 fromMaybe nothing  = []
 
@@ -165,58 +167,58 @@ fromMaybe nothing  = []
 
 -- ** Extracting sublists
 
-take : ∀ {a} → ℕ → List a → List a
+take : ∀ {ℓ} {a : Set ℓ} → ℕ → List a → List a
 take zero    xs       = []
 take (suc n) []       = []
 take (suc n) (x ∷ xs) = x ∷ take n xs
 
-drop : ∀ {a} → ℕ → List a → List a
+drop : ∀ {ℓ} {a : Set ℓ} → ℕ → List a → List a
 drop zero    xs       = xs
 drop (suc n) []       = []
 drop (suc n) (x ∷ xs) = drop n xs
 
-splitAt : ∀ {a} → ℕ → List a → (List a × List a)
+splitAt : ∀ {ℓ} {a : Set ℓ} → ℕ → List a → (List a × List a)
 splitAt zero    xs       = ([] , xs)
 splitAt (suc n) []       = ([] , [])
 splitAt (suc n) (x ∷ xs) with splitAt n xs
 ... | (ys , zs) = (x ∷ ys , zs)
 
-takeWhile : ∀ {a} → (a → Bool) → List a → List a
+takeWhile : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → List a
 takeWhile p []       = []
 takeWhile p (x ∷ xs) with p x
 ... | true  = x ∷ takeWhile p xs
 ... | false = []
 
-dropWhile : ∀ {a} → (a → Bool) → List a → List a
+dropWhile : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → List a
 dropWhile p []       = []
 dropWhile p (x ∷ xs) with p x
 ... | true  = dropWhile p xs
 ... | false = x ∷ xs
 
-span : ∀ {a} → (a → Bool) → List a → (List a × List a)
+span : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → (List a × List a)
 span p []       = ([] , [])
 span p (x ∷ xs) with p x
 ... | true  = Prod.map (_∷_ x) id (span p xs)
 ... | false = ([] , x ∷ xs)
 
-break : ∀ {a} → (a → Bool) → List a → (List a × List a)
+break : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → (List a × List a)
 break p = span (not ∘ p)
 
-inits : ∀ {a} →  List a → List (List a)
+inits : ∀ {ℓ} {a : Set ℓ} →  List a → List (List a)
 inits []       = [] ∷ []
 inits (x ∷ xs) = [] ∷ map (_∷_ x) (inits xs)
 
-tails : ∀ {a} → List a → List (List a)
+tails : ∀ {ℓ} {a : Set ℓ} → List a → List (List a)
 tails []       = [] ∷ []
 tails (x ∷ xs) = (x ∷ xs) ∷ tails xs
 
 infixl 5 _∷ʳ'_
 
-data InitLast {A : Set} : List A → Set where
+data InitLast {ℓ} {A : Set ℓ} : List A → Set ℓ where
   []    : InitLast []
   _∷ʳ'_ : (xs : List A) (x : A) → InitLast (xs ∷ʳ x)
 
-initLast : ∀ {A} (xs : List A) → InitLast xs
+initLast : ∀ {ℓ} {A : Set ℓ} (xs : List A) → InitLast xs
 initLast []               = []
 initLast (x ∷ xs)         with initLast xs
 initLast (x ∷ .[])        | []       = [] ∷ʳ' x
@@ -228,16 +230,16 @@ initLast (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
 
 -- A generalised variant of filter.
 
-gfilter : ∀ {a b} → (a → Maybe b) → List a → List b
+gfilter : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → Maybe b) → List a → List b
 gfilter p []       = []
 gfilter p (x ∷ xs) with p x
 ... | just y  = y ∷ gfilter p xs
 ... | nothing =     gfilter p xs
 
-filter : ∀ {a} → (a → Bool) → List a → List a
+filter : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → List a
 filter p = gfilter (λ x → if p x then just x else nothing)
 
-partition : ∀ {a} → (a → Bool) → List a → (List a × List a)
+partition : ∀ {ℓ} {a : Set ℓ} → (a → Bool) → List a → (List a × List a)
 partition p []       = ([] , [])
 partition p (x ∷ xs) with p x | partition p xs
 ... | true  | (ys , zs) = (x ∷ ys , zs)
@@ -304,11 +306,11 @@ private
 
   open RawMonad Mon
 
-  sequence : ∀ {A} → List (M A) → M (List A)
+  sequence : ∀ {A : Set} → List (M A) → M (List A)
   sequence []       = return []
   sequence (x ∷ xs) = _∷_ <$> x ⊛ sequence xs
 
-  mapM : ∀ {A B} → (A → M B) → List A → M (List B)
+  mapM : ∀ {ℓ} {A : Set ℓ} {B} → (A → M B) → List A → M (List B)
   mapM f = sequence ∘ map f
 
 open Monadic public

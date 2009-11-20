@@ -2,6 +2,8 @@
 -- List-related properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Note that the lemmas below could be generalised to work with other
 -- equalities than _≡_.
 
@@ -19,17 +21,17 @@ open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 
-∷-injective : ∀ {A} {x y xs ys} →
+∷-injective : ∀ {ℓ} {A : Set ℓ} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
 ∷-injective refl = (refl , refl)
 
-right-identity-unique : ∀ {A} (xs : List A) {ys} →
+right-identity-unique : ∀ {ℓ} {A : Set ℓ} (xs : List A) {ys} →
                         xs ≡ xs ++ ys → ys ≡ []
 right-identity-unique []       refl = refl
 right-identity-unique (x ∷ xs) eq   =
   right-identity-unique xs (proj₂ (∷-injective eq))
 
-left-identity-unique : ∀ {A xs} (ys : List A) →
+left-identity-unique : ∀ {A : Set} {xs} (ys : List A) →
                        xs ≡ ys ++ xs → ys ≡ []
 left-identity-unique               []       _  = refl
 left-identity-unique {xs = []}     (y ∷ ys) ()
@@ -44,7 +46,7 @@ left-identity-unique {xs = x ∷ xs} (y ∷ _ ∷ _) eq | ()
 
 -- Map, sum, and append.
 
-map-++-commute : ∀ {a b} (f : a → b) xs ys →
+map-++-commute : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} (f : a → b) xs ys →
                  map f (xs ++ ys) ≡ map f xs ++ map f ys
 map-++-commute f []       ys = refl
 map-++-commute f (x ∷ xs) ys =
@@ -65,7 +67,7 @@ sum-++-commute (x ∷ xs) ys = begin
 
 -- Various properties about folds.
 
-foldr-universal : ∀ {a b} (h : List a → b) f e →
+foldr-universal : ∀ {a b : Set} (h : List a → b) f e →
                   (h [] ≡ e) →
                   (∀ x xs → h (x ∷ xs) ≡ f x (h xs)) →
                   h ≗ foldr f e
@@ -79,8 +81,8 @@ foldr-universal h f e base step (x ∷ xs) = begin
     ∎
   where open ≡-Reasoning
 
-foldr-fusion : ∀ {a b c} (h : b → c)
-                 {f : a → b → b} {g : a → c → c} (e : b) →
+foldr-fusion : ∀ {a b c : Set} (h : b → c)
+               {f : a → b → b} {g : a → c → c} (e : b) →
                (∀ x y → h (f x y) ≡ g x (h y)) →
                h ∘ foldr f e ≗ foldr g (h e)
 foldr-fusion h {f} {g} e fuse =
@@ -90,7 +92,7 @@ foldr-fusion h {f} {g} e fuse =
 idIsFold : ∀ {A} → id {A = List A} ≗ foldr _∷_ []
 idIsFold = foldr-universal id _∷_ [] refl (λ _ _ → refl)
 
-++IsFold : ∀ {a} (xs ys : List a) →
+++IsFold : ∀ {a : Set} (xs ys : List a) →
            xs ++ ys ≡ foldr _∷_ ys xs
 ++IsFold xs ys =
   begin
@@ -182,13 +184,13 @@ map-cong {f = f} {g} f≗g =
 
 -- Take, drop, and splitAt.
 
-take++drop : ∀ {a} n (xs : List a) → take n xs ++ drop n xs ≡ xs
+take++drop : ∀ {ℓ} {a : Set ℓ} n (xs : List a) → take n xs ++ drop n xs ≡ xs
 take++drop zero    xs       = refl
 take++drop (suc n) []       = refl
 take++drop (suc n) (x ∷ xs) =
   cong (λ xs → x ∷ xs) (take++drop n xs)
 
-splitAt-defn : ∀ {a} n → splitAt {a} n ≗ < take n , drop n >
+splitAt-defn : ∀ {a : Set} n → splitAt {a = a} n ≗ < take n , drop n >
 splitAt-defn zero    xs       = refl
 splitAt-defn (suc n) []       = refl
 splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
@@ -196,7 +198,7 @@ splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
 
 -- TakeWhile, dropWhile, and span.
 
-takeWhile++dropWhile : ∀ {a} (p : a → Bool) (xs : List a) →
+takeWhile++dropWhile : ∀ {ℓ} {a : Set ℓ} (p : a → Bool) (xs : List a) →
                        takeWhile p xs ++ dropWhile p xs ≡ xs
 takeWhile++dropWhile p []       = refl
 takeWhile++dropWhile p (x ∷ xs) with p x
@@ -248,17 +250,17 @@ scanl-defn f e (x ∷ xs) = cong (_∷_ e) (begin
 
 -- Length.
 
-length-map : ∀ {A B} (f : A → B) xs →
+length-map : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} (f : A → B) xs →
              length (map f xs) ≡ length xs
 length-map f []       = refl
 length-map f (x ∷ xs) = cong suc (length-map f xs)
 
-length-++ : ∀ {A} (xs : List A) {ys} →
+length-++ : ∀ {ℓ} {A : Set ℓ} (xs : List A) {ys} →
             length (xs ++ ys) ≡ length xs + length ys
 length-++ []       = refl
 length-++ (x ∷ xs) = cong suc (length-++ xs)
 
-length-gfilter : ∀ {A B} (p : A → Maybe B) xs →
+length-gfilter : ∀ {ℓ₁ ℓ₂} {A : Set ℓ₁} {B : Set ℓ₂} (p : A → Maybe B) xs →
                  length (gfilter p xs) ≤ length xs
 length-gfilter p []       = z≤n
 length-gfilter p (x ∷ xs) with p x

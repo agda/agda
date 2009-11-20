@@ -139,7 +139,7 @@ module Membership (S : Setoid) where
 
   -- A variant of List.map.
 
-  map-with-∈ : ∀ {B} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
+  map-with-∈ : ∀ {B : Set} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
   map-with-∈ []       f = []
   map-with-∈ (x ∷ xs) f = f (here S.refl) ∷ map-with-∈ xs (f ∘ there)
 
