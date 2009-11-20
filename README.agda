@@ -27,7 +27,9 @@ module README where
 -- contributions in the form of darcs patches (run
 -- darcs send --output <patch file> and attach the patch file to an
 -- email), and include a statement saying that you agree to release
--- your library patches under the library's licence.
+-- your library patches under the library's licence. It is appreciated
+-- if every patch contains a single, complete change, and if the
+-- coding style used in the library is adhered to.
 
 ------------------------------------------------------------------------
 -- Module hierarchy
