@@ -23,7 +23,7 @@ record _≤_ (x y : ⊤) : Set where
 ------------------------------------------------------------------------
 -- Operations
 
-_≟_ : Decidable {⊤} _≡_
+_≟_ : Decidable {A = ⊤} _≡_
 _ ≟ _ = yes refl
 
 _≤?_ : Decidable _≤_
@@ -35,13 +35,13 @@ total _ _ = inj₁ _
 ------------------------------------------------------------------------
 -- Properties
 
-preorder : Preorder
+preorder : Preorder _ _ _
 preorder = PropEq.preorder ⊤
 
-setoid : Setoid
+setoid : Setoid _ _
 setoid = PropEq.setoid ⊤
 
-decTotalOrder : DecTotalOrder
+decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
   { carrier         = ⊤
   ; _≈_             = _≡_
@@ -67,8 +67,8 @@ decTotalOrder = record
   antisym : Antisymmetric _≡_ _≤_
   antisym _ _ = refl
 
-decSetoid : DecSetoid
+decSetoid : DecSetoid _ _
 decSetoid = DecTotalOrder.Eq.decSetoid decTotalOrder
 
-poset : Poset
+poset : Poset _ _ _
 poset = DecTotalOrder.poset decTotalOrder

@@ -94,7 +94,7 @@ data _⊑_ {A} : ∀ {m n} → Covec A m → Covec A n → Set where
 ------------------------------------------------------------------------
 -- Some proofs
 
-setoid : Set → Coℕ → Setoid
+setoid : Set → Coℕ → Setoid _ _
 setoid A n = record
   { carrier       = Covec A n
   ; _≈_           = _≈_
@@ -117,7 +117,7 @@ setoid A n = record
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-poset : Set → Coℕ → Poset
+poset : Set → Coℕ → Poset _ _ _
 poset A n = record
   { carrier        = Covec A n
   ; _≈_            = _≈_

@@ -116,22 +116,22 @@ private
 
 open Dummy public
 
-preorder : Preorder → Preorder
+preorder : Preorder _ _ _ → Preorder _ _ _
 preorder p = record
   { isPreorder = isPreorder (Preorder.isPreorder p)
   }
 
-setoid : Setoid → Setoid
+setoid : Setoid _ _ → Setoid _ _
 setoid s = record
   { isEquivalence = isEquivalence (Setoid.isEquivalence s)
   }
 
-decSetoid : DecSetoid → DecSetoid
+decSetoid : DecSetoid _ _ → DecSetoid _ _
 decSetoid d = record
   { isDecEquivalence = isDecEquivalence (DecSetoid.isDecEquivalence d)
   }
 
-poset : Poset → Poset
+poset : Poset _ _ _ → Poset _ _ _
 poset p = record
   { isPartialOrder = isPartialOrder (Poset.isPartialOrder p)
   }

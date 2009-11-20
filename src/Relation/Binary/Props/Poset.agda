@@ -2,18 +2,21 @@
 -- Properties satisfied by posets
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Relation.Binary
 
-module Relation.Binary.Props.Poset (p : Poset) where
+module Relation.Binary.Props.Poset
+         {p₁ p₂ p₃} (P : Poset p₁ p₂ p₃) where
 
-open Relation.Binary.Poset p hiding (trans)
+open Relation.Binary.Poset P hiding (trans)
 import Relation.Binary.NonStrictToStrict as Conv
 open Conv _≈_ _≤_
 
 ------------------------------------------------------------------------
 -- Posets can be turned into strict partial orders
 
-strictPartialOrder : StrictPartialOrder
+strictPartialOrder : StrictPartialOrder _ _ _
 strictPartialOrder = record
   { isStrictPartialOrder = record
     { isEquivalence = isEquivalence

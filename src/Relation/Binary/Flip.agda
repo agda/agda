@@ -2,6 +2,8 @@
 -- Many properties which hold for _∼_ also hold for flip _∼_
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Relation.Binary
 
 module Relation.Binary.Flip where
@@ -9,49 +11,56 @@ module Relation.Binary.Flip where
 open import Data.Function
 open import Data.Product
 
-implies : ∀ {A} (≈ ∼ : Rel A) → ≈ ⇒ ∼ → flip ≈ ⇒ flip ∼
+implies : ∀ {a ℓ₁ ℓ₂} {A : Set a} (≈ : REL A ℓ₁) (∼ : REL A ℓ₂) →
+          ≈ ⇒ ∼ → flip ≈ ⇒ flip ∼
 implies _ _ impl = impl
 
-reflexive : ∀ {A} (∼ : Rel A) → Reflexive ∼ → Reflexive (flip ∼)
+reflexive : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) →
+            Reflexive ∼ → Reflexive (flip ∼)
 reflexive _ refl = refl
 
-irreflexive : ∀ {A} (≈ ∼ : Rel A) →
+irreflexive : ∀ {a ℓ₁ ℓ₂} {A : Set a} (≈ : REL A ℓ₁) (∼ : REL A ℓ₂) →
               Irreflexive ≈ ∼ → Irreflexive (flip ≈) (flip ∼)
 irreflexive _ _ irrefl = irrefl
 
-symmetric : ∀ {A} (∼ : Rel A) → Symmetric ∼ → Symmetric (flip ∼)
+symmetric : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) →
+            Symmetric ∼ → Symmetric (flip ∼)
 symmetric _ sym = sym
 
-transitive : ∀ {A} (∼ : Rel A) → Transitive ∼ → Transitive (flip ∼)
+transitive : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) →
+             Transitive ∼ → Transitive (flip ∼)
 transitive _ trans = flip trans
 
-antisymmetric : ∀ {A} (≈ ≤ : Rel A) →
+antisymmetric : ∀ {a ℓ₁ ℓ₂} {A : Set a} (≈ : REL A ℓ₁) (≤ : REL A ℓ₂) →
                 Antisymmetric ≈ ≤ → Antisymmetric (flip ≈) (flip ≤)
 antisymmetric _ _ antisym = antisym
 
-asymmetric : ∀ {A} (< : Rel A) → Asymmetric < → Asymmetric (flip <)
+asymmetric : ∀ {a ℓ} {A : Set a} (< : REL A ℓ) →
+             Asymmetric < → Asymmetric (flip <)
 asymmetric _ asym = asym
 
-respects : ∀ {A} (∼ : Rel A) P →
+respects : ∀ {a ℓ p} {A : Set a} (∼ : REL A ℓ) (P : A → Set p) →
            Symmetric ∼ → P Respects ∼ → P Respects flip ∼
 respects _ _ sym resp ∼ = resp (sym ∼)
 
-respects₂ : ∀ {A} (∼₁ ∼₂ : Rel A) →
+respects₂ : ∀ {a ℓ₁ ℓ₂} {A : Set a} (∼₁ : REL A ℓ₁) (∼₂ : REL A ℓ₂) →
             Symmetric ∼₂ → ∼₁ Respects₂ ∼₂ → flip ∼₁ Respects₂ flip ∼₂
 respects₂ _ _ sym (resp₁ , resp₂) =
   ((λ {_} {_} {_} ∼ → resp₂ (sym ∼)) , λ {_} {_} {_} ∼ → resp₁ (sym ∼))
 
-decidable : ∀ {A} (∼ : Rel A) → Decidable ∼ → Decidable (flip ∼)
+decidable : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) →
+            Decidable ∼ → Decidable (flip ∼)
 decidable _ dec x y = dec y x
 
-total : ∀ {A} (∼ : Rel A) → Total ∼ → Total (flip ∼)
+total : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) →
+        Total ∼ → Total (flip ∼)
 total _ tot x y = tot y x
 
-trichotomous : ∀ {A} (≈ < : Rel A) →
+trichotomous : ∀ {a ℓ₁ ℓ₂} {A : Set a} (≈ : REL A ℓ₁) (< : REL A ℓ₂) →
                Trichotomous ≈ < → Trichotomous (flip ≈) (flip <)
 trichotomous _ _ compare x y = compare y x
 
-isEquivalence : ∀ {A} {≈ : Rel A} →
+isEquivalence : ∀ {a ℓ} {A : Set a} {≈ : REL A ℓ} →
                 IsEquivalence ≈ → IsEquivalence (flip ≈)
 isEquivalence {≈ = ≈} eq = record
   { refl  = reflexive  ≈ Eq.refl
@@ -60,13 +69,13 @@ isEquivalence {≈ = ≈} eq = record
   }
   where module Eq = IsEquivalence eq
 
-setoid : Setoid → Setoid
+setoid : ∀ {s₁ s₂} → Setoid s₁ s₂ → Setoid s₁ s₂
 setoid S = record
   { _≈_           = flip S._≈_
   ; isEquivalence = isEquivalence S.isEquivalence
   } where module S = Setoid S
 
-isPreorder : ∀ {A} {≈ ∼ : Rel A} →
+isPreorder : ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {∼ : REL A ℓ₂} →
              IsPreorder ≈ ∼ → IsPreorder (flip ≈) (flip ∼)
 isPreorder {≈ = ≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
@@ -76,14 +85,14 @@ isPreorder {≈ = ≈} {∼} pre = record
   }
   where module Pre = IsPreorder pre
 
-preorder : Preorder → Preorder
+preorder : ∀ {p₁ p₂ p₃} → Preorder p₁ p₂ p₃ → Preorder p₁ p₂ p₃
 preorder P = record
   { _∼_        = flip P._∼_
   ; _≈_        = flip P._≈_
   ; isPreorder = isPreorder P.isPreorder
   } where module P = Preorder P
 
-isDecEquivalence : ∀ {A} {≈ : Rel A} →
+isDecEquivalence : ∀ {a ℓ} {A : Set a} {≈ : REL A ℓ} →
                    IsDecEquivalence ≈ → IsDecEquivalence (flip ≈)
 isDecEquivalence {≈ = ≈} dec = record
   { isEquivalence = isEquivalence Dec.isEquivalence
@@ -91,13 +100,13 @@ isDecEquivalence {≈ = ≈} dec = record
   }
   where module Dec = IsDecEquivalence dec
 
-decSetoid : DecSetoid → DecSetoid
+decSetoid : ∀ {s₁ s₂} → DecSetoid s₁ s₂ → DecSetoid s₁ s₂
 decSetoid S = record
   { _≈_              = flip S._≈_
   ; isDecEquivalence = isDecEquivalence S.isDecEquivalence
   } where module S = DecSetoid S
 
-isPartialOrder : ∀ {A} {≈ ≤ : Rel A} →
+isPartialOrder : ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
                  IsPartialOrder ≈ ≤ →
                  IsPartialOrder (flip ≈) (flip ≤)
 isPartialOrder {≈ = ≈} {≤} po = record
@@ -106,16 +115,16 @@ isPartialOrder {≈ = ≈} {≤} po = record
   }
   where module Po = IsPartialOrder po
 
-poset : Poset → Poset
+poset : ∀ {p₁ p₂ p₃} → Poset p₁ p₂ p₃ → Poset p₁ p₂ p₃
 poset O = record
   { _≈_            = flip O._≈_
   ; _≤_            = flip O._≤_
   ; isPartialOrder = isPartialOrder O.isPartialOrder
   } where module O = Poset O
 
-isStrictPartialOrder : ∀ {A} {≈ < : Rel A} →
-                       IsStrictPartialOrder ≈ < →
-                       IsStrictPartialOrder (flip ≈) (flip <)
+isStrictPartialOrder :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  IsStrictPartialOrder ≈ < → IsStrictPartialOrder (flip ≈) (flip <)
 isStrictPartialOrder {≈ = ≈} {<} spo = record
   { isEquivalence = isEquivalence Spo.isEquivalence
   ; irrefl        = irreflexive ≈ < Spo.irrefl
@@ -124,32 +133,34 @@ isStrictPartialOrder {≈ = ≈} {<} spo = record
   }
   where module Spo = IsStrictPartialOrder spo
 
-strictPartialOrder : StrictPartialOrder → StrictPartialOrder
+strictPartialOrder :
+  ∀ {s₁ s₂ s₃} →
+  StrictPartialOrder s₁ s₂ s₃ → StrictPartialOrder s₁ s₂ s₃
 strictPartialOrder O = record
   { _≈_                  = flip O._≈_
   ; _<_                  = flip O._<_
   ; isStrictPartialOrder = isStrictPartialOrder O.isStrictPartialOrder
   } where module O = StrictPartialOrder O
 
-isTotalOrder : ∀ {A} {≈ ≤ : Rel A} →
-               IsTotalOrder ≈ ≤ →
-               IsTotalOrder (flip ≈) (flip ≤)
+isTotalOrder :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+  IsTotalOrder ≈ ≤ → IsTotalOrder (flip ≈) (flip ≤)
 isTotalOrder {≈ = ≈} {≤} to = record
   { isPartialOrder = isPartialOrder To.isPartialOrder
   ; total          = total ≤ To.total
   }
   where module To = IsTotalOrder to
 
-totalOrder : TotalOrder → TotalOrder
+totalOrder : ∀ {t₁ t₂ t₃} → TotalOrder t₁ t₂ t₃ → TotalOrder t₁ t₂ t₃
 totalOrder O = record
   { _≈_          = flip O._≈_
   ; _≤_          = flip O._≤_
   ; isTotalOrder = isTotalOrder O.isTotalOrder
   } where module O = TotalOrder O
 
-isDecTotalOrder : ∀ {A} {≈ ≤ : Rel A} →
-                  IsDecTotalOrder ≈ ≤ →
-                  IsDecTotalOrder (flip ≈) (flip ≤)
+isDecTotalOrder :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+  IsDecTotalOrder ≈ ≤ → IsDecTotalOrder (flip ≈) (flip ≤)
 isDecTotalOrder {≈ = ≈} {≤} dec = record
   { isTotalOrder = isTotalOrder Dec.isTotalOrder
   ; _≟_          = decidable ≈ Dec._≟_
@@ -157,16 +168,17 @@ isDecTotalOrder {≈ = ≈} {≤} dec = record
   }
   where module Dec = IsDecTotalOrder dec
 
-decTotalOrder : DecTotalOrder → DecTotalOrder
+decTotalOrder :
+  ∀ {d₁ d₂ d₃} → DecTotalOrder d₁ d₂ d₃ → DecTotalOrder d₁ d₂ d₃
 decTotalOrder O = record
   { _≈_             = flip O._≈_
   ; _≤_             = flip O._≤_
   ; isDecTotalOrder = isDecTotalOrder O.isDecTotalOrder
   } where module O = DecTotalOrder O
 
-isStrictTotalOrder : ∀ {A} {≈ < : Rel A} →
-                     IsStrictTotalOrder ≈ < →
-                       IsStrictTotalOrder (flip ≈) (flip <)
+isStrictTotalOrder :
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  IsStrictTotalOrder ≈ < → IsStrictTotalOrder (flip ≈) (flip <)
 isStrictTotalOrder {≈ = ≈} {<} sto = record
   { isEquivalence = isEquivalence Sto.isEquivalence
   ; trans         = transitive < Sto.trans
@@ -175,7 +187,8 @@ isStrictTotalOrder {≈ = ≈} {<} sto = record
   }
   where module Sto = IsStrictTotalOrder sto
 
-strictTotalOrder : StrictTotalOrder → StrictTotalOrder
+strictTotalOrder :
+  ∀ {s₁ s₂ s₃} → StrictTotalOrder s₁ s₂ s₃ → StrictTotalOrder s₁ s₂ s₃
 strictTotalOrder O = record
   { _≈_                = flip O._≈_
   ; _<_                = flip O._<_

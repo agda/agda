@@ -111,7 +111,7 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
 
 -- The equality relation forms a setoid.
 
-setoid : Set → Setoid
+setoid : Set → Setoid _ _
 setoid A = record
   { carrier       = Colist A
   ; _≈_           = _≈_
@@ -136,7 +136,7 @@ setoid A = record
 
 -- The prefix relation forms a poset.
 
-poset : Set → Poset
+poset : Set → Poset _ _ _
 poset A = record
   { carrier        = Colist A
   ; _≈_            = _≈_

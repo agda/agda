@@ -9,8 +9,10 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Data.List as L using (List)
 open import Data.Product
+open import Level
 
-module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
+module Map₁ (key-dto : DecTotalOrder zero zero zero)
+            (elem-s : Setoid zero zero) where
 
   open DecTotalOrder key-dto renaming (carrier to key)
   open Setoid elem-s         renaming (carrier to elem; _≈_ to _≗_)
@@ -19,7 +21,7 @@ module Map₁ (key-dto : DecTotalOrder) (elem-s : Setoid) where
   infix  5 _∈?_
   infix  4 _∈_ _|≈|_
 
-  abstract postulate decSetoid : DecSetoid
+  abstract postulate decSetoid : DecSetoid _ _
 
   Map : Set
   Map = Setoid.carrier (DecSetoid.setoid decSetoid)

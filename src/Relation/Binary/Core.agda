@@ -18,8 +18,11 @@ open import Relation.Nullary.Core
 ------------------------------------------------------------------------
 -- Homogeneous binary relations
 
-Rel : Set → Set₁
-Rel a = a → a → Set
+REL : ∀ {a} → Set a → (ℓ : Level) → Set (a ⊔ suc ℓ)
+REL A ℓ = A → A → Set ℓ
+
+Rel : ∀ {a} → Set a → Set (suc zero ⊔ a)
+Rel A = REL A zero
 
 ------------------------------------------------------------------------
 -- Simple properties of binary relations
@@ -28,22 +31,25 @@ infixr 4 _⇒_ _=[_]⇒_
 
 -- Implication/containment. Could also be written ⊆.
 
-_⇒_ : ∀ {a} → Rel a → Rel a → Set
+_⇒_ : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 P ⇒ Q = ∀ {i j} → P i j → Q i j
 
 -- Generalised implication. If P ≡ Q it can be read as "f preserves
 -- P".
 
-_=[_]⇒_ : ∀ {a b} → Rel a → (a → b) → Rel b → Set
+_=[_]⇒_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+          REL A ℓ₁ → (A → B) → REL B ℓ₂ → Set _
 P =[ f ]⇒ Q = P ⇒ (Q on f)
 
 -- A synonym, along with a binary variant.
 
-_Preserves_⟶_ : ∀ {a₁ a₂} → (a₁ → a₂) → Rel a₁ → Rel a₂ → Set
+_Preserves_⟶_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+                (A → B) → REL A ℓ₁ → REL B ℓ₂ → Set _
 f Preserves P ⟶ Q = P =[ f ]⇒ Q
 
-_Preserves₂_⟶_⟶_ : ∀ {a₁ a₂ a₃} →
-                   (a₁ → a₂ → a₃) → Rel a₁ → Rel a₂ → Rel a₃ → Set
+_Preserves₂_⟶_⟶_ :
+  ∀ {a b c ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} {C : Set c} →
+  (A → B → C) → REL A ℓ₁ → REL B ℓ₂ → REL C ℓ₃ → Set _
 _+_ Preserves₂ P ⟶ Q ⟶ R =
   ∀ {x y u v} → P x y → Q u v → R (x + u) (y + v)
 
@@ -51,74 +57,76 @@ _+_ Preserves₂ P ⟶ Q ⟶ R =
 -- underlying equality _≈_. However, the following variant is often
 -- easier to use.
 
-Reflexive : {a : Set} → (_∼_ : Rel a) → Set
+Reflexive : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Reflexive _∼_ = ∀ {x} → x ∼ x
 
 -- Irreflexivity is defined using an underlying equality.
 
-Irreflexive : {a : Set} → (_≈_ _<_ : Rel a) → Set
+Irreflexive : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 Irreflexive _≈_ _<_ = ∀ {x y} → x ≈ y → ¬ (x < y)
 
 -- Generalised symmetry.
 
-Sym : ∀ {a} → Rel a → Rel a → Set
+Sym : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 Sym P Q = P ⇒ flip Q
 
-Symmetric : {a : Set} → Rel a → Set
+Symmetric : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Symmetric _∼_ = Sym _∼_ _∼_
 
 -- Generalised transitivity.
 
-Trans : ∀ {a} → Rel a → Rel a → Rel a → Set
+Trans : ∀ {a ℓ₁ ℓ₂ ℓ₃} {A : Set a} →
+        REL A ℓ₁ → REL A ℓ₂ → REL A ℓ₃ → Set _
 Trans P Q R = ∀ {i j k} → P i j → Q j k → R i k
 
-Transitive : {a : Set} → Rel a → Set
+Transitive : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Transitive _∼_ = Trans _∼_ _∼_ _∼_
 
-Antisymmetric : {a : Set} → (_≈_ _≤_ : Rel a) → Set
+Antisymmetric : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 Antisymmetric _≈_ _≤_ = ∀ {x y} → x ≤ y → y ≤ x → x ≈ y
 
-Asymmetric : {a : Set} → (_<_ : Rel a) → Set
+Asymmetric : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Asymmetric _<_ = ∀ {x y} → x < y → ¬ (y < x)
 
-_Respects_ : {a : Set} → (a → Set) → Rel a → Set
+_Respects_ : ∀ {a ℓ₁ ℓ₂} {A : Set a} → (A → Set ℓ₁) → REL A ℓ₂ → Set _
 P Respects _∼_ = ∀ {x y} → x ∼ y → P x → P y
 
-_Respects₂_ : {a : Set} → Rel a → Rel a → Set
+_Respects₂_ : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 P Respects₂ _∼_ =
   (∀ {x} → P x      Respects _∼_) ×
   (∀ {y} → flip P y Respects _∼_)
 
-Substitutive : {a : Set} → Rel a → Set₁
-Substitutive _∼_ = ∀ P → P Respects _∼_
+Substitutive : ∀ {a ℓ₁} {A : Set a} → REL A ℓ₁ → (ℓ₂ : Level) → Set _
+Substitutive {A = A} _∼_ p = (P : A → Set p) → P Respects _∼_
 
-Congruential : ({a : Set} → Rel a) → Set₁
-Congruential ∼ = ∀ {a b} → (f : a → b) → f Preserves ∼ ⟶ ∼
+Congruential : ∀ {a ℓ} → ({A : Set a} → REL A ℓ) → Set _
+Congruential ∼ = ∀ {A B} → (f : A → B) → f Preserves ∼ ⟶ ∼
 
-Congruential₂ : ({a : Set} → Rel a) → Set₁
+Congruential₂ : ∀ {a ℓ} → ({A : Set a} → REL A ℓ) → Set _
 Congruential₂ ∼ =
-  ∀ {a b c} → (f : a → b → c) → f Preserves₂ ∼ ⟶ ∼ ⟶ ∼
+  ∀ {A B C} → (f : A → B → C) → f Preserves₂ ∼ ⟶ ∼ ⟶ ∼
 
-Decidable : {a : Set} → Rel a → Set
+Decidable : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Decidable _∼_ = ∀ x y → Dec (x ∼ y)
 
-Total : {a : Set} → Rel a → Set
+Total : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Total _∼_ = ∀ x y → (x ∼ y) ⊎ (y ∼ x)
 
-data Tri (A B C : Set) : Set where
+data Tri {a b c} (A : Set a) (B : Set b) (C : Set c) :
+         Set (a ⊔ b ⊔ c) where
   tri< : ( a :   A) (¬b : ¬ B) (¬c : ¬ C) → Tri A B C
   tri≈ : (¬a : ¬ A) ( b :   B) (¬c : ¬ C) → Tri A B C
   tri> : (¬a : ¬ A) (¬b : ¬ B) ( c :   C) → Tri A B C
 
-Trichotomous : {a : Set} → Rel a → Rel a → Set
+Trichotomous : ∀ {a ℓ₁ ℓ₂} {A : Set a} → REL A ℓ₁ → REL A ℓ₂ → Set _
 Trichotomous _≈_ _<_ = ∀ x y → Tri (x < y) (x ≈ y) (x > y)
   where _>_ = flip _<_
 
-record NonEmpty {I : Set} (T : Rel I) : Set where
+record NonEmpty {i ℓ} {I : Set i} (T : REL I ℓ) : Set (i ⊔ ℓ) where
   constructor nonEmpty
   field
-    {i j} : I
-    proof : T i j
+    {i₁ i₂} : I
+    proof   : T i₁ i₂
 
 ------------------------------------------------------------------------
 -- Propositional equality
@@ -150,7 +158,8 @@ private
 -- equivalence relation, and hence equivalence relations are not
 -- defined in terms of preorders.
 
-record IsEquivalence {a : Set} (_≈_ : Rel a) : Set where
+record IsEquivalence {a ℓ} {A : Set a}
+                     (_≈_ : REL A ℓ) : Set (a ⊔ ℓ) where
   field
     refl  : Reflexive _≈_
     sym   : Symmetric _≈_

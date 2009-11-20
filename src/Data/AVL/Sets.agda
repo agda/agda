@@ -2,9 +2,11 @@
 -- Finite sets, based on AVL trees
 ------------------------------------------------------------------------
 
+open import Level
 open import Relation.Binary
 
-module Data.AVL.Sets (OrderedKeySet : StrictTotalOrder) where
+module Data.AVL.Sets
+         (OrderedKeySet : StrictTotalOrder zero zero zero) where
 
 import Data.AVL as AVL
 open StrictTotalOrder OrderedKeySet renaming (carrier to Key)

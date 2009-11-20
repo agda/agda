@@ -145,13 +145,14 @@ open Dummy public
 
 -- "Packages" (e.g. posets) can also be combined.
 
-_×-poset_ : Poset → Poset → Poset
+_×-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
 p₁ ×-poset p₂ = record
   { isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
                      isPartialOrder p₂
   } where open Poset
 
-_×-totalOrder_ : DecTotalOrder → TotalOrder → TotalOrder
+_×-totalOrder_ :
+  DecTotalOrder _ _ _ → TotalOrder _ _ _ → TotalOrder _ _ _
 t₁ ×-totalOrder t₂ = record
   { isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
   }
@@ -159,7 +160,8 @@ t₁ ×-totalOrder t₂ = record
   module T₁ = DecTotalOrder t₁
   module T₂ =    TotalOrder t₂
 
-_×-decTotalOrder_ : DecTotalOrder → DecTotalOrder → DecTotalOrder
+_×-decTotalOrder_ :
+  DecTotalOrder _ _ _ → DecTotalOrder _ _ _ → DecTotalOrder _ _ _
 t₁ ×-decTotalOrder t₂ = record
   { isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
                       isDecTotalOrder t₂

@@ -277,27 +277,28 @@ open Dummy public
 
 -- "Packages" (e.g. preorders) can also be handled.
 
-≤-preorder : Preorder → Preorder
+≤-preorder : Preorder _ _ _ → Preorder _ _ _
 ≤-preorder pre = record
   { isPreorder = ≤-isPreorder isEquivalence trans ∼-resp-≈
   } where open Preorder pre
 
-≤-partialOrder : StrictPartialOrder → Poset
+≤-partialOrder : StrictPartialOrder _ _ _ → Poset _ _ _
 ≤-partialOrder spo = record
   { isPartialOrder = ≤-isPartialOrder isStrictPartialOrder
   } where open StrictPartialOrder spo
 
-≤-decTotalOrder : StrictTotalOrder → DecTotalOrder
+≤-decTotalOrder : StrictTotalOrder _ _ _ → DecTotalOrder _ _ _
 ≤-decTotalOrder sto = record
   { isDecTotalOrder = ≤-isDecTotalOrder isStrictTotalOrder
   } where open StrictTotalOrder sto
 
-<-strictPartialOrder : StrictPartialOrder → StrictPartialOrder
+<-strictPartialOrder :
+  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _
 <-strictPartialOrder spo = record
   { isStrictPartialOrder = <-isStrictPartialOrder isStrictPartialOrder
   } where open StrictPartialOrder spo
 
-<-strictTotalOrder : StrictTotalOrder → StrictTotalOrder
+<-strictTotalOrder : StrictTotalOrder _ _ _ → StrictTotalOrder _ _ _
 <-strictTotalOrder sto = record
   { isStrictTotalOrder = <-isStrictTotalOrder isStrictTotalOrder
   } where open StrictTotalOrder sto

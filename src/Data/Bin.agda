@@ -161,7 +161,7 @@ private
   compare (bs₁ 1#) 0#       = tri> (asym 0<+) (irr 0<+ ∘ sym) 0<+
   compare (bs₁ 1#) (bs₂ 1#) = compare⁺ bs₁ bs₂
 
-strictTotalOrder : StrictTotalOrder
+strictTotalOrder : StrictTotalOrder _ _ _
 strictTotalOrder = record
   { carrier            = Bin
   ; _≈_                = _≡_
@@ -177,12 +177,12 @@ strictTotalOrder = record
 ------------------------------------------------------------------------
 -- (Bin, _≡_) is a decidable setoid
 
-decSetoid : DecSetoid
+decSetoid : DecSetoid _ _
 decSetoid = StrictTotalOrder.decSetoid strictTotalOrder
 
 infix 4 _≟_
 
-_≟_ : Decidable {Bin} _≡_
+_≟_ : Decidable {A = Bin} _≡_
 _≟_ = DecSetoid._≟_ decSetoid
 
 ------------------------------------------------------------------------

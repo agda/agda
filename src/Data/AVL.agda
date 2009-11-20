@@ -6,9 +6,10 @@
 -- invariant is not statically enforced in the current implementation,
 -- just the balance invariant.
 
+open import Level
 open import Relation.Binary
 
-module Data.AVL (OrderedKeySet : StrictTotalOrder)
+module Data.AVL (OrderedKeySet : StrictTotalOrder zero zero zero)
                 (Value : StrictTotalOrder.carrier OrderedKeySet → Set)
                 where
 

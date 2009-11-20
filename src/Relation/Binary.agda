@@ -2,11 +2,14 @@
 -- Properties of homogeneous binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary where
 
 open import Data.Product
 open import Data.Sum
 open import Data.Function
+open import Level
 import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
 open import Relation.Binary.Core as Core using (_≡_)
@@ -19,10 +22,10 @@ open Core public hiding (_≡_; refl; _≢_)
 ------------------------------------------------------------------------
 -- Preorders
 
-record IsPreorder {a : Set}
-                  (_≈_ : Rel a) -- The underlying equality.
-                  (_∼_ : Rel a) -- The relation.
-                  : Set where
+record IsPreorder {a ℓ₁ ℓ₂} {A : Set a}
+                  (_≈_ : REL A ℓ₁) -- The underlying equality.
+                  (_∼_ : REL A ℓ₂) -- The relation.
+                  : Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
     -- Reflexivity is expressed in terms of an underlying equality:
@@ -35,12 +38,12 @@ record IsPreorder {a : Set}
   refl : Reflexive _∼_
   refl = reflexive Eq.refl
 
-record Preorder : Set₁ where
+record Preorder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _∼_
   field
-    carrier    : Set
-    _≈_        : Rel carrier  -- The underlying equality.
-    _∼_        : Rel carrier  -- The relation.
+    carrier    : Set c
+    _≈_        : REL carrier ℓ₁  -- The underlying equality.
+    _∼_        : REL carrier ℓ₂  -- The relation.
     isPreorder : IsPreorder _≈_ _∼_
 
   open IsPreorder isPreorder public
@@ -50,11 +53,11 @@ record Preorder : Set₁ where
 
 -- Equivalence relations are defined in Relation.Binary.Core.
 
-record Setoid : Set₁ where
+record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
-    carrier       : Set
-    _≈_           : Rel carrier
+    carrier       : Set c
+    _≈_           : REL carrier ℓ
     isEquivalence : IsEquivalence _≈_
 
   open IsEquivalence isEquivalence public
@@ -67,29 +70,30 @@ record Setoid : Set₁ where
     ; ∼-resp-≈      = PropEq.resp₂ _≈_
     }
 
-  preorder : Preorder
+  preorder : Preorder c zero ℓ
   preorder = record { isPreorder = isPreorder }
 
 ------------------------------------------------------------------------
 -- Decidable equivalence relations
 
-record IsDecEquivalence {a : Set} (_≈_ : Rel a) : Set where
+record IsDecEquivalence {a ℓ} {A : Set a}
+                        (_≈_ : REL A ℓ) : Set (a ⊔ ℓ) where
   field
     isEquivalence : IsEquivalence _≈_
     _≟_           : Decidable _≈_
 
   open IsEquivalence isEquivalence public
 
-record DecSetoid : Set₁ where
+record DecSetoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
-    carrier          : Set
-    _≈_              : Rel carrier
+    carrier          : Set c
+    _≈_              : REL carrier ℓ
     isDecEquivalence : IsDecEquivalence _≈_
 
   open IsDecEquivalence isDecEquivalence public
 
-  setoid : Setoid
+  setoid : Setoid c ℓ
   setoid = record { isEquivalence = isEquivalence }
 
   open Setoid setoid public using (preorder)
@@ -97,7 +101,9 @@ record DecSetoid : Set₁ where
 ------------------------------------------------------------------------
 -- Partial orders
 
-record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+record IsPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
+                      (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                      Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isPreorder : IsPreorder _≈_ _≤_
     antisym    : Antisymmetric _≈_ _≤_
@@ -105,23 +111,25 @@ record IsPartialOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
   open IsPreorder isPreorder public
          renaming (∼-resp-≈ to ≤-resp-≈)
 
-record Poset : Set₁ where
+record Poset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier        : Set
-    _≈_            : Rel carrier
-    _≤_            : Rel carrier
+    carrier        : Set c
+    _≈_            : REL carrier ℓ₁
+    _≤_            : REL carrier ℓ₂
     isPartialOrder : IsPartialOrder _≈_ _≤_
 
   open IsPartialOrder isPartialOrder public
 
-  preorder : Preorder
+  preorder : Preorder c ℓ₁ ℓ₂
   preorder = record { isPreorder = isPreorder }
 
 ------------------------------------------------------------------------
 -- Strict partial orders
 
-record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
+record IsStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
+                            (_≈_ : REL A ℓ₁) (_<_ : REL A ℓ₂) :
+                            Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
     irrefl        : Irreflexive _≈_ _<_
@@ -130,12 +138,12 @@ record IsStrictPartialOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
   module Eq = IsEquivalence isEquivalence
 
-record StrictPartialOrder : Set₁ where
+record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
   field
-    carrier              : Set
-    _≈_                  : Rel carrier
-    _<_                  : Rel carrier
+    carrier              : Set c
+    _≈_                  : REL carrier ℓ₁
+    _<_                  : REL carrier ℓ₂
     isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
 
   open IsStrictPartialOrder isStrictPartialOrder public
@@ -143,24 +151,26 @@ record StrictPartialOrder : Set₁ where
 ------------------------------------------------------------------------
 -- Total orders
 
-record IsTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+record IsTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
+                    (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                    Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isPartialOrder : IsPartialOrder _≈_ _≤_
     total          : Total _≤_
 
   open IsPartialOrder isPartialOrder public
 
-record TotalOrder : Set₁ where
+record TotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier      : Set
-    _≈_          : Rel carrier
-    _≤_          : Rel carrier
+    carrier      : Set c
+    _≈_          : REL carrier ℓ₁
+    _≤_          : REL carrier ℓ₂
     isTotalOrder : IsTotalOrder _≈_ _≤_
 
   open IsTotalOrder isTotalOrder public
 
-  poset : Poset
+  poset : Poset c ℓ₁ ℓ₂
   poset = record { isPartialOrder = isPartialOrder }
 
   open Poset poset public using (preorder)
@@ -168,7 +178,9 @@ record TotalOrder : Set₁ where
 ------------------------------------------------------------------------
 -- Decidable total orders
 
-record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
+record IsDecTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
+                       (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                       Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isTotalOrder : IsTotalOrder _≈_ _≤_
     _≟_          : Decidable _≈_
@@ -188,26 +200,26 @@ record IsDecTotalOrder {a : Set} (_≈_ _≤_ : Rel a) : Set where
 
     open IsDecEquivalence isDecEquivalence public
 
-record DecTotalOrder : Set₁ where
+record DecTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier         : Set
-    _≈_             : Rel carrier
-    _≤_             : Rel carrier
+    carrier         : Set c
+    _≈_             : REL carrier ℓ₁
+    _≤_             : REL carrier ℓ₂
     isDecTotalOrder : IsDecTotalOrder _≈_ _≤_
 
   private
     module DTO = IsDecTotalOrder isDecTotalOrder
   open DTO public hiding (module Eq)
 
-  totalOrder : TotalOrder
+  totalOrder : TotalOrder c ℓ₁ ℓ₂
   totalOrder = record { isTotalOrder = isTotalOrder }
 
   open TotalOrder totalOrder public using (poset; preorder)
 
   module Eq where
 
-    decSetoid : DecSetoid
+    decSetoid : DecSetoid c ℓ₁
     decSetoid = record { isDecEquivalence = DTO.Eq.isDecEquivalence }
 
     open DecSetoid decSetoid public
@@ -217,7 +229,9 @@ record DecTotalOrder : Set₁ where
 
 -- Note that these orders are decidable (see compare).
 
-record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
+record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
+                          (_≈_ : REL A ℓ₁) (_<_ : REL A ℓ₂) :
+                          Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
     trans         : Transitive _<_
@@ -245,22 +259,22 @@ record IsStrictTotalOrder {a : Set} (_≈_ _<_ : Rel a) : Set where
 
   open IsStrictPartialOrder isStrictPartialOrder using (irrefl)
 
-record StrictTotalOrder : Set₁ where
+record StrictTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
   field
-    carrier            : Set
-    _≈_                : Rel carrier
-    _<_                : Rel carrier
+    carrier            : Set c
+    _≈_                : REL carrier ℓ₁
+    _<_                : REL carrier ℓ₂
     isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
 
   open IsStrictTotalOrder isStrictTotalOrder public
     hiding (module Eq)
 
-  strictPartialOrder : StrictPartialOrder
+  strictPartialOrder : StrictPartialOrder c ℓ₁ ℓ₂
   strictPartialOrder =
     record { isStrictPartialOrder = isStrictPartialOrder }
 
-  decSetoid : DecSetoid
+  decSetoid : DecSetoid c ℓ₁
   decSetoid = record { isDecEquivalence = isDecEquivalence }
 
   module Eq = DecSetoid decSetoid

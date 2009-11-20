@@ -226,13 +226,14 @@ open Dummy public
 
 -- "Packages" (e.g. preorders) can also be combined.
 
-_×-preorder_ : Preorder → Preorder → Preorder
+_×-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
 p₁ ×-preorder p₂ = record
   { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   } where open Preorder
 
 _×-strictPartialOrder_ :
-  StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
+  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  StrictPartialOrder _ _ _
 s₁ ×-strictPartialOrder s₂ = record
   { isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder
@@ -240,7 +241,8 @@ s₁ ×-strictPartialOrder s₂ = record
   } where open StrictPartialOrder
 
 _×-strictTotalOrder_ :
-  StrictTotalOrder → StrictTotalOrder → StrictTotalOrder
+  StrictTotalOrder _ _ _ → StrictTotalOrder _ _ _ →
+  StrictTotalOrder _ _ _
 s₁ ×-strictTotalOrder s₂ = record
   { isStrictTotalOrder = isStrictTotalOrder s₁
                            ×-isStrictTotalOrder

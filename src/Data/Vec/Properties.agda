@@ -10,9 +10,10 @@ open import Data.Nat
 import Data.Nat.Properties as Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Function
+open import Level
 open import Relation.Binary
 
-module UsingVectorEquality (S : Setoid) where
+module UsingVectorEquality (S : Setoid zero zero) where
 
   private module SS = Setoid S
   open SS using () renaming (carrier to A)
@@ -47,18 +48,18 @@ lookup-natural f (suc i) (x ∷ xs) = lookup-natural f i xs
 -- map is a congruence.
 
 map-cong : ∀ {A B n} {f g : A → B} →
-           f ≗ g → _≗_ {Vec A n} (map f) (map g)
+           f ≗ g → _≗_ {A = Vec A n} (map f) (map g)
 map-cong f≗g []       = refl
 map-cong f≗g (x ∷ xs) = PropEq.cong₂ _∷_ (f≗g x) (map-cong f≗g xs)
 
 -- map is functorial.
 
-map-id : ∀ {A n} → _≗_ {Vec A n} (map id) id
+map-id : ∀ {A n} → _≗_ {A = Vec A n} (map id) id
 map-id []       = refl
 map-id (x ∷ xs) = PropEq.cong (_∷_ x) (map-id xs)
 
 map-∘ : ∀ {A B C n} (f : B → C) (g : A → B) →
-        _≗_ {Vec A n} (map (f ∘ g)) (map f ∘ map g)
+        _≗_ {A = Vec A n} (map (f ∘ g)) (map f ∘ map g)
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = PropEq.cong (_∷_ (f (g x))) (map-∘ f g xs)
 

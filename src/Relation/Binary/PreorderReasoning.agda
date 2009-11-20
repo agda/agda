@@ -2,6 +2,8 @@
 -- Convenient syntax for "equational reasoning" using a preorder
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- I think that the idea behind this library is originally Ulf
 -- Norell's. I have adapted it to my tastes and mixfix operators,
 -- though.
@@ -23,9 +25,10 @@
 
 open import Relation.Binary
 
-module Relation.Binary.PreorderReasoning (p : Preorder) where
+module Relation.Binary.PreorderReasoning
+         {p₁ p₂ p₃} (P : Preorder p₁ p₂ p₃) where
 
-open Preorder p
+open Preorder P
 
 infix  4 _IsRelatedTo_
 infix  2 _∎
@@ -35,7 +38,7 @@ infix  1 begin_
 -- This seemingly unnecessary type is used to make it possible to
 -- infer arguments even if the underlying equality evaluates.
 
-data _IsRelatedTo_ (x y : carrier) : Set where
+data _IsRelatedTo_ (x y : carrier) : Set p₃ where
   relTo : (x∼y : x ∼ y) → x IsRelatedTo y
 
 begin_ : ∀ {x y} → x IsRelatedTo y → x ∼ y

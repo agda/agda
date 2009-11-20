@@ -49,7 +49,7 @@ quotient (divides q _) = q
 
 -- _∣_ is a partial order.
 
-poset : Poset
+poset : Poset _ _ _
 poset = record
   { carrier        = ℕ
   ; _≈_            = _≡_

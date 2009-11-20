@@ -2,6 +2,8 @@
 -- Some properties imply others
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.Consequences where
 
 open import Relation.Binary.Core hiding (refl)
@@ -17,25 +19,25 @@ open import Data.Empty
 open import Relation.Binary.Consequences.Core public
 
 trans∧irr⟶asym :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} → {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Reflexive ≈ →
   Transitive < → Irreflexive ≈ < → Asymmetric <
 trans∧irr⟶asym refl trans irrefl = λ x<y y<x →
   irrefl refl (trans x<y y<x)
 
 irr∧antisym⟶asym :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Irreflexive ≈ < → Antisymmetric ≈ < → Asymmetric <
 irr∧antisym⟶asym irrefl antisym = λ x<y y<x →
   irrefl (antisym x<y y<x) x<y
 
 asym⟶antisym :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Asymmetric < → Antisymmetric ≈ <
 asym⟶antisym asym x<y y<x = ⊥-elim (asym x<y y<x)
 
 asym⟶irr :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   < Respects₂ ≈ → Symmetric ≈ →
   Asymmetric < → Irreflexive ≈ <
 asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
@@ -46,7 +48,7 @@ asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
   y<x = proj₁ resp (sym x≈y) y<y
 
 total⟶refl :
-  ∀ {a} → {≈ ∼ : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {∼ : REL A ℓ₂} →
   ∼ Respects₂ ≈ → Symmetric ≈ →
   Total ∼ → ≈ ⇒ ∼
 total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
@@ -58,7 +60,7 @@ total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
     proj₁ resp x≈y (proj₂ resp (sym x≈y) y∼x)
 
 total+dec⟶dec :
-  ∀ {a} → {≈ ≤ : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
   ≈ ⇒ ≤ → Antisymmetric ≈ ≤ →
   Total ≤ → Decidable ≈ → Decidable ≤
 total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
@@ -71,7 +73,7 @@ total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
   ...   | no  ¬x≈y = no (λ x≤y → ¬x≈y (antisym x≤y y≤x))
 
 tri⟶asym :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Trichotomous ≈ < → Asymmetric <
 tri⟶asym tri {x} {y} x<y x>y with tri x y
 ... | tri< _   _ x≯y = x≯y x>y
@@ -79,13 +81,13 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 ... | tri> x≮y _ _   = x≮y x<y
 
 tri⟶irr :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   < Respects₂ ≈ → Symmetric ≈ →
   Trichotomous ≈ < → Irreflexive ≈ <
 tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
 
 tri⟶dec≈ :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Trichotomous ≈ < → Decidable ≈
 tri⟶dec≈ compare x y with compare x y
 ... | tri< _ x≉y _ = no  x≉y
@@ -93,7 +95,7 @@ tri⟶dec≈ compare x y with compare x y
 ... | tri> _ x≉y _ = no  x≉y
 
 tri⟶dec< :
-  ∀ {a} → {≈ < : Rel a} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
   Trichotomous ≈ < → Decidable <
 tri⟶dec< compare x y with compare x y
 ... | tri< x<y _ _ = yes x<y
@@ -101,20 +103,20 @@ tri⟶dec< compare x y with compare x y
 ... | tri> x≮y _ _ = no  x≮y
 
 subst⟶cong :
-  {≈ : ∀ {a} → Rel a} →
-  (∀ {a} → Reflexive {a} ≈) →
-  (∀ {a} → Substitutive {a} ≈) →
+  ∀ {a ℓ} {≈ : {A : Set a} → REL A ℓ} →
+  (∀ {A} → Reflexive (≈ {A})) →
+  (∀ {A} → Substitutive (≈ {A}) ℓ) →
   Congruential ≈
 subst⟶cong {≈ = _≈_} refl subst f {x} x≈y =
   subst (λ y → f x ≈ f y) x≈y refl
 
 cong+trans⟶cong₂ :
-  {≈ : ∀ {a} → Rel a} →
-  Congruential  ≈ → (∀ {a} → Transitive {a} ≈) →
+  ∀ {a ℓ} {≈ : {A : Set a} → REL A ℓ} →
+  Congruential  ≈ → (∀ {A} → Transitive (≈ {A})) →
   Congruential₂ ≈
 cong+trans⟶cong₂ cong trans f {x = x} {v = v} x≈y u≈v =
   cong (f x) u≈v ⟨ trans ⟩ cong (flip f v) x≈y
 
-map-NonEmpty : ∀ {I} {P Q : Rel I} →
+map-NonEmpty : ∀ {i p q} {I : Set i} {P : REL I p} {Q : REL I q} →
                P ⇒ Q → NonEmpty P → NonEmpty Q
 map-NonEmpty f x = nonEmpty (f (NonEmpty.proof x))

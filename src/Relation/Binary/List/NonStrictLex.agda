@@ -154,27 +154,27 @@ open Dummy public
 
 -- "Packages" (e.g. preorders) can also be handled.
 
-≤-preorder : Poset → Preorder
+≤-preorder : Poset _ _ _ → Preorder _ _ _
 ≤-preorder po = record
   { isPreorder = ≤-isPreorder isPartialOrder
   } where open Poset po
 
-≤-partialOrder : Poset → Poset
+≤-partialOrder : Poset _ _ _ → Poset _ _ _
 ≤-partialOrder po = record
   { isPartialOrder = ≤-isPartialOrder isPartialOrder
   } where open Poset po
 
-≤-decTotalOrder : DecTotalOrder → DecTotalOrder
+≤-decTotalOrder : DecTotalOrder _ _ _ → DecTotalOrder _ _ _
 ≤-decTotalOrder dtot = record
   { isDecTotalOrder = ≤-isDecTotalOrder isDecTotalOrder
   } where open DecTotalOrder dtot
 
-<-strictPartialOrder : Poset → StrictPartialOrder
+<-strictPartialOrder : Poset _ _ _ → StrictPartialOrder _ _ _
 <-strictPartialOrder po = record
   { isStrictPartialOrder = <-isStrictPartialOrder isPartialOrder
   } where open Poset po
 
-<-strictTotalOrder : DecTotalOrder → StrictTotalOrder
+<-strictTotalOrder : DecTotalOrder _ _ _ → StrictTotalOrder _ _ _
 <-strictTotalOrder dtot = record
   { isStrictTotalOrder = <-isStrictTotalOrder _≟_ isTotalOrder
   } where open IsDecTotalOrder (DecTotalOrder.isDecTotalOrder dtot)

@@ -39,7 +39,7 @@ decoration (↦ p) = p
 
 All : ∀ {I} {T : Rel I} → EdgePred T → EdgePred (Star T)
 All P {j = j} xs =
-  Star (DecoratedWith P) (nonEmpty xs) (nonEmpty {j = j} ε)
+  Star (DecoratedWith P) (nonEmpty xs) (nonEmpty {i₂ = j} ε)
 
 -- We can map over decorated vectors.
 

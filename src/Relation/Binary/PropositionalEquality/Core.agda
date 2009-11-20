@@ -16,19 +16,19 @@ open import Relation.Binary.Consequences.Core
 ------------------------------------------------------------------------
 -- Some properties
 
-sym : ∀ {a} {A : Set a} {x y : A} → x ≡ y → y ≡ x
+sym : ∀ {a} {A : Set a} → Symmetric (_≡_ {A = A})
 sym refl = refl
 
-trans : ∀ {a} {A : Set a} {x y z : A} → x ≡ y → y ≡ z → x ≡ z
+trans : ∀ {a} {A : Set a} → Transitive (_≡_ {A = A})
 trans refl refl = refl
 
-subst : ∀ {a p} {A : Set a} (P : A → Set p) {x y} → x ≡ y → P x → P y
+subst : ∀ {a p} {A : Set a} → Substitutive (_≡_ {A = A}) p
 subst P refl p = p
 
-resp₂ : ∀ {a} (∼ : Rel a) → ∼ Respects₂ _≡_
+resp₂ : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) → ∼ Respects₂ _≡_
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
-isEquivalence : ∀ {a} → IsEquivalence {a} _≡_
+isEquivalence : ∀ {a} {A : Set a} → IsEquivalence (_≡_ {A = A})
 isEquivalence = record
   { refl  = refl
   ; sym   = sym

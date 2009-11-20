@@ -39,7 +39,7 @@ private
 
 private
 
-  Order : StrictTotalOrder
+  Order : StrictTotalOrder _ _ _
   Order = record { isStrictTotalOrder = isOrderedKeySet }
 
 -- The map type.

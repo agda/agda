@@ -38,7 +38,7 @@ data _≈_ : Coℕ → Coℕ → Set where
   zero :                                 zero  ≈ zero
   suc  : ∀ {m n} (m≈n : ∞ (♭ m ≈ ♭ n)) → suc m ≈ suc n
 
-setoid : Setoid
+setoid : Setoid _ _
 setoid = record
   { carrier       = Coℕ
   ; _≈_           = _≈_

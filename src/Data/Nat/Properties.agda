@@ -480,7 +480,7 @@ m≢1+m+n : ∀ m {n} → m ≢ suc (m + n)
 m≢1+m+n zero    ()
 m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
 
-strictTotalOrder : StrictTotalOrder
+strictTotalOrder : StrictTotalOrder _ _ _
 strictTotalOrder = record
   { carrier            = ℕ
   ; _≈_                = _≡_

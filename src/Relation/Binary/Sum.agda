@@ -9,6 +9,7 @@ open import Data.Sum as Sum
 open import Data.Product
 open import Data.Unit using (⊤)
 open import Data.Empty
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 
@@ -155,12 +156,12 @@ _⊎-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
   resp² (₁∼₁ x≈x') (₁∼₂ p)   = (₁∼₂ p)
   resp² (₁∼₂ ())   _
 
-_⊎-substitutive_ : ∀ {a₁} {∼₁ : Rel a₁} → Substitutive ∼₁ →
-                   ∀ {a₂} {∼₂ : Rel a₂} → Substitutive ∼₂ →
-                   Substitutive (∼₁ ⊎-Rel ∼₂)
+_⊎-substitutive_ : ∀ {a₁} {∼₁ : Rel a₁} → Substitutive ∼₁ zero →
+                   ∀ {a₂} {∼₂ : Rel a₂} → Substitutive ∼₂ zero →
+                   Substitutive (∼₁ ⊎-Rel ∼₂) zero
 subst₁ ⊎-substitutive subst₂ = subst
   where
-  subst : Substitutive (_ ⊎-Rel _)
+  subst : Substitutive (_ ⊎-Rel _) zero
   subst P (₁∼₁ x∼y) Px = subst₁ (λ z → P (inj₁ z)) x∼y Px
   subst P (₂∼₂ x∼y) Px = subst₂ (λ z → P (inj₂ z)) x∼y Px
   subst P (₁∼₂ ())  Px
@@ -297,31 +298,31 @@ to₁ ⊎-<-isDecTotalOrder to₂ = record
 ------------------------------------------------------------------------
 -- The game can be taken even further...
 
-_⊎-setoid_ : Setoid → Setoid → Setoid
+_⊎-setoid_ : Setoid _ _ → Setoid _ _ → Setoid _ _
 s₁ ⊎-setoid s₂ = record
   { isEquivalence = isEquivalence s₁ ⊎-isEquivalence isEquivalence s₂
   } where open Setoid
 
-_⊎-preorder_ : Preorder → Preorder → Preorder
+_⊎-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
 p₁ ⊎-preorder p₂ = record
   { _∼_          = _∼_        p₁ ⊎-Rel        _∼_        p₂
   ; isPreorder   = isPreorder p₁ ⊎-isPreorder isPreorder p₂
   } where open Preorder
 
-_⊎-decSetoid_ : DecSetoid → DecSetoid → DecSetoid
+_⊎-decSetoid_ : DecSetoid _ _ → DecSetoid _ _ → DecSetoid _ _
 ds₁ ⊎-decSetoid ds₂ = record
   { isDecEquivalence = isDecEquivalence ds₁ ⊎-isDecEquivalence
                        isDecEquivalence ds₂
   } where open DecSetoid
 
-_⊎-poset_ : Poset → Poset → Poset
+_⊎-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
 po₁ ⊎-poset po₂ = record
   { _≤_            = _≤_ po₁ ⊎-Rel _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
                      isPartialOrder po₂
   } where open Poset
 
-_⊎-<-poset_ : Poset → Poset → Poset
+_⊎-<-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
 po₁ ⊎-<-poset po₂ = record
   { _≤_            = _≤_ po₁ ⊎-< _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
@@ -329,7 +330,8 @@ po₁ ⊎-<-poset po₂ = record
   } where open Poset
 
 _⊎-<-strictPartialOrder_ :
-  StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
+  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  StrictPartialOrder _ _ _
 spo₁ ⊎-<-strictPartialOrder spo₂ = record
   { _<_                  = _<_ spo₁ ⊎-< _<_ spo₂
   ; isStrictPartialOrder = isStrictPartialOrder spo₁
@@ -337,12 +339,14 @@ spo₁ ⊎-<-strictPartialOrder spo₂ = record
                            isStrictPartialOrder spo₂
   } where open StrictPartialOrder
 
-_⊎-<-totalOrder_ : TotalOrder → TotalOrder → TotalOrder
+_⊎-<-totalOrder_ :
+  TotalOrder _ _ _ → TotalOrder _ _ _ → TotalOrder _ _ _
 to₁ ⊎-<-totalOrder to₂ = record
   { isTotalOrder = isTotalOrder to₁ ⊎-<-isTotalOrder isTotalOrder to₂
   } where open TotalOrder
 
-_⊎-<-decTotalOrder_ : DecTotalOrder → DecTotalOrder → DecTotalOrder
+_⊎-<-decTotalOrder_ :
+  DecTotalOrder _ _ _ → DecTotalOrder _ _ _ → DecTotalOrder _ _ _
 to₁ ⊎-<-decTotalOrder to₂ = record
   { isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
                       isDecTotalOrder to₂

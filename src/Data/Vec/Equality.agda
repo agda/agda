@@ -7,10 +7,11 @@ module Data.Vec.Equality where
 open import Data.Vec
 open import Data.Nat using (suc)
 open import Data.Function
+open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
-module Equality (S : Setoid) where
+module Equality (S : Setoid zero zero) where
 
   private
     open module SS = Setoid S
@@ -54,7 +55,7 @@ module Equality (S : Setoid) where
   []-cong          ++-cong eq₃ = eq₃
   (eq₁ ∷-cong eq₂) ++-cong eq₃ = eq₁ ∷-cong (eq₂ ++-cong eq₃)
 
-module DecidableEquality (D : DecSetoid) where
+module DecidableEquality (D : DecSetoid zero zero) where
 
   private module DS = DecSetoid D
   open DS using () renaming (_≟_ to _≟′_ ; carrier to A)

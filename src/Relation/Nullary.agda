@@ -36,22 +36,28 @@ open Core public using (Dec; yes; no)
 ------------------------------------------------------------------------
 -- Injections
 
-Injective : ∀ {A B} → A ⟶ B → Set
-Injective {A} {B} f = ∀ {x y} → f ⟨$⟩ x ≈₂ f ⟨$⟩ y → x ≈₁ y
+Injective : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →
+            A ⟶ B → Set _
+Injective {A = A} {B} f = ∀ {x y} → f ⟨$⟩ x ≈₂ f ⟨$⟩ y → x ≈₁ y
   where
   open Setoid A renaming (_≈_ to _≈₁_)
   open Setoid B renaming (_≈_ to _≈₂_)
 
-_LeftInverseOf_ : ∀ {A B} → B ⟶ A → A ⟶ B → Set
-_LeftInverseOf_ {A} f g = ∀ x → f ⟨$⟩ (g ⟨$⟩ x) ≈₁ x
+_LeftInverseOf_ : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →
+                  B ⟶ A → A ⟶ B → Set _
+_LeftInverseOf_ {A = A} f g = ∀ x → f ⟨$⟩ (g ⟨$⟩ x) ≈₁ x
   where open Setoid A renaming (_≈_ to _≈₁_)
 
-record Injection (From To : Setoid) : Set where
+record Injection {f₁ f₂ t₁ t₂}
+                 (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
+                 Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
   field
     to        : From ⟶ To
     injective : Injective to
 
-record LeftInverse (From To : Setoid) : Set where
+record LeftInverse {f₁ f₂ t₁ t₂}
+                   (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
+                   Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
   field
     to           : From ⟶ To
     from         : To ⟶ From

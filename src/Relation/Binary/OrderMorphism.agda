@@ -2,38 +2,51 @@
 -- Order morphisms
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.OrderMorphism where
 
 open import Relation.Binary
 open Poset
 import Data.Function as F
+open import Level
 
-record _⇒-Poset_ (po₁ po₂ : Poset) : Set where
+record _⇒-Poset_ {p₁ p₂ p₃ p₄ p₅ p₆}
+                 (P₁ : Poset p₁ p₂ p₃)
+                 (P₂ : Poset p₄ p₅ p₆) : Set (p₁ ⊔ p₃ ⊔ p₄ ⊔ p₆) where
   field
-    fun      : carrier po₁ → carrier po₂
-    monotone : _≤_ po₁ =[ fun ]⇒ _≤_ po₂
+    fun      : carrier P₁ → carrier P₂
+    monotone : _≤_ P₁ =[ fun ]⇒ _≤_ P₂
 
-_⇒-DTO_ : (dto₁ dto₂ : DecTotalOrder) → Set
-dto₁ ⇒-DTO dto₂ = poset dto₁ ⇒-Poset poset dto₂
+_⇒-DTO_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+          DecTotalOrder p₁ p₂ p₃ →
+          DecTotalOrder p₄ p₅ p₆ → Set _
+DTO₁ ⇒-DTO DTO₂ = poset DTO₁ ⇒-Poset poset DTO₂
   where open DecTotalOrder
 
 open _⇒-Poset_
 
-id : ∀ {po} → po ⇒-Poset po
+id : ∀ {p₁ p₂ p₃} {P : Poset p₁ p₂ p₃} → P ⇒-Poset P
 id = record
   { fun      = F.id
   ; monotone = F.id
   }
 
-_∘_ : ∀ {po₁ po₂ po₃} →
-      po₂ ⇒-Poset po₃ → po₁ ⇒-Poset po₂ → po₁ ⇒-Poset po₃
+_∘_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆ p₇ p₈ p₉}
+        {P₁ : Poset p₁ p₂ p₃}
+        {P₂ : Poset p₄ p₅ p₆}
+        {P₃ : Poset p₇ p₈ p₉} →
+      P₂ ⇒-Poset P₃ → P₁ ⇒-Poset P₂ → P₁ ⇒-Poset P₃
 f ∘ g = record
   { fun      = F._∘_ (fun f)      (fun g)
   ; monotone = F._∘_ (monotone f) (monotone g)
   }
 
-const : ∀ {po₁ po₂} → carrier po₂ → po₁ ⇒-Poset po₂
-const {po₂ = po₂} x = record
+const : ∀ {p₁ p₂ p₃ p₄ p₅ p₆}
+          {P₁ : Poset p₁ p₂ p₃}
+          {P₂ : Poset p₄ p₅ p₆} →
+        carrier P₂ → P₁ ⇒-Poset P₂
+const {P₂ = P₂} x = record
   { fun      = F.const x
-  ; monotone = F.const (refl po₂)
+  ; monotone = F.const (refl P₂)
   }

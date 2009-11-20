@@ -10,8 +10,9 @@ open import Relation.Binary.OrderMorphism
 open import Data.Function
 open import Data.List as L using (List)
 open import Data.Product using (∃; _×_)
+open import Level
 
-module Sets₁ (dto : DecTotalOrder) where
+module Sets₁ (dto : DecTotalOrder zero zero zero) where
 
   open DecTotalOrder dto public using (_≈_)
   open DecTotalOrder dto hiding (_≈_)
@@ -20,7 +21,7 @@ module Sets₁ (dto : DecTotalOrder) where
   infix  5 _∈?_
   infix  4 _∈_ _|≈|_
 
-  abstract postulate decSetoid : DecSetoid
+  abstract postulate decSetoid : DecSetoid _ _
 
   <Set> : Set
   <Set> = DecSetoid.carrier decSetoid

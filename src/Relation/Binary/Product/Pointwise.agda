@@ -182,30 +182,31 @@ open Dummy public
 
 -- "Packages" (e.g. setoids) can also be combined.
 
-_×-preorder_ : Preorder → Preorder → Preorder
+_×-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
 p₁ ×-preorder p₂ = record
   { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   } where open Preorder
 
-_×-setoid_ : Setoid → Setoid → Setoid
+_×-setoid_ : Setoid _ _ → Setoid _ _ → Setoid _ _
 s₁ ×-setoid s₂ = record
   { isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
   } where open Setoid
 
-_×-decSetoid_ : DecSetoid → DecSetoid → DecSetoid
+_×-decSetoid_ : DecSetoid _ _ → DecSetoid _ _ → DecSetoid _ _
 s₁ ×-decSetoid s₂ = record
   { isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
                        isDecEquivalence s₂
   } where open DecSetoid
 
-_×-poset_ : Poset → Poset → Poset
+_×-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
 s₁ ×-poset s₂ = record
   { isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
                      isPartialOrder s₂
   } where open Poset
 
 _×-strictPartialOrder_ :
-  StrictPartialOrder → StrictPartialOrder → StrictPartialOrder
+  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  StrictPartialOrder _ _ _
 s₁ ×-strictPartialOrder s₂ = record
   { isStrictPartialOrder = isStrictPartialOrder s₁
                              ×-isStrictPartialOrder

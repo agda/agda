@@ -2,9 +2,12 @@
 -- Function setoids and related constructions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.FunctionSetoid where
 
 open import Data.Function
+open import Level
 open import Relation.Binary
 
 infixr 0 _↝_ _⟶_ _⇨_ _≡⇨_
@@ -12,12 +15,14 @@ infixr 0 _↝_ _⟶_ _⇨_ _≡⇨_
 -- A logical relation (i.e. a relation which relates functions which
 -- map related things to related things).
 
-_↝_ : ∀ {A B} → (∼₁ : Rel A) (∼₂ : Rel B) → Rel (A → B)
+_↝_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+      (∼₁ : REL A ℓ₁) (∼₂ : REL B ℓ₂) → REL (A → B) (a ⊔ ℓ₁ ⊔ ℓ₂)
 _∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
 
 -- Functions which preserve equality.
 
-record _⟶_ (From To : Setoid) : Set where
+record _⟶_ {f₁ f₂ t₁ t₂} (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
+           Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
   open Setoid
   infixl 5 _⟨$⟩_
   field
@@ -26,7 +31,8 @@ record _⟶_ (From To : Setoid) : Set where
 
 open _⟶_ public
 
-↝-isEquivalence : ∀ {A B C} {∼₁ : Rel A} {∼₂ : Rel B}
+↝-isEquivalence : ∀ {a b c ℓ₁ ℓ₂} {A : Set a} {B : Set b} {C : Set c}
+                    {∼₁ : REL A ℓ₁} {∼₂ : REL B ℓ₂}
                   (fun : C → (A → B)) →
                   (∀ f → fun f Preserves ∼₁ ⟶ ∼₂) →
                   IsEquivalence ∼₁ → IsEquivalence ∼₂ →
@@ -39,28 +45,31 @@ open _⟶_ public
 
 -- Function setoids.
 
-_⇨_ : Setoid → Setoid → Setoid
+_⇨_ : ∀ {f₁ f₂ t₁ t₂} → Setoid f₁ f₂ → Setoid t₁ t₂ → Setoid _ _
 S₁ ⇨ S₂ = record
   { carrier       = S₁ ⟶ S₂
   ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
   ; isEquivalence =
-      ↝-isEquivalence _⟨$⟩_ pres (isEquivalence S₁) (isEquivalence S₂)
+      ↝-isEquivalence (_⟨$⟩_ {From = S₁} {To = S₂})
+                      pres (isEquivalence S₁) (isEquivalence S₂)
   } where open Setoid; open _⟶_
 
 -- A generalised variant of (_↝_ _≡_).
 
-≡↝ : ∀ {A} {B : A → Set} → (∀ x → Rel (B x)) → Rel ((x : A) → B x)
+≡↝ : ∀ {a b ℓ} {A : Set a} {B : A → Set b} →
+     (∀ x → REL (B x) ℓ) → REL ((x : A) → B x) _
 ≡↝ R = λ f g → ∀ x → R x (f x) (g x)
 
-≡↝-isEquivalence : {A : Set} {B : A → Set} {R : ∀ x → Rel (B x)} →
-                   (∀ x → IsEquivalence (R x)) → IsEquivalence (≡↝ R)
+≡↝-isEquivalence :
+  ∀ {a b ℓ} {A : Set a} {B : A → Set b} {R : ∀ x → REL (B x) ℓ} →
+  (∀ x → IsEquivalence (R x)) → IsEquivalence (≡↝ R)
 ≡↝-isEquivalence eq = record
   { refl  = λ _ → refl
   ; sym   = λ f∼g x → sym (f∼g x)
   ; trans = λ f∼g g∼h x → trans (f∼g x) (g∼h x)
   } where open module Eq {x} = IsEquivalence (eq x)
 
-_≡⇨_ : (A : Set) → (A → Setoid) → Setoid
+_≡⇨_ : ∀ {a s₁ s₂} (A : Set a) → (A → Setoid s₁ s₂) → Setoid _ _
 A ≡⇨ S = record
   { carrier       = (x : A) → carrier (S x)
   ; _≈_           = ≡↝ (λ x → _≈_ (S x))

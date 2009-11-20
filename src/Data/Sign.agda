@@ -16,7 +16,7 @@ data Sign : Set where
 
 -- Decidable equality.
 
-_≟_ : Decidable {Sign} _≡_
+_≟_ : Decidable {A = Sign} _≡_
 - ≟ - = yes refl
 - ≟ + = no λ()
 + ≟ - = no λ()

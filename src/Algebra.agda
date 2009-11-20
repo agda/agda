@@ -24,7 +24,7 @@ record Semigroup : Set₁ where
 
   open IsSemigroup isSemigroup public
 
-  setoid : Setoid
+  setoid : Setoid _ _
   setoid = record { isEquivalence = isEquivalence }
 
 -- A raw monoid is a monoid without any laws.
@@ -424,7 +424,7 @@ record Lattice : Set₁ where
 
   open IsLattice isLattice public
 
-  setoid : Setoid
+  setoid : Setoid _ _
   setoid = record { isEquivalence = isEquivalence }
 
 record DistributiveLattice : Set₁ where

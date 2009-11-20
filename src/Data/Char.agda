@@ -35,15 +35,15 @@ infix 4 _==_
 _==_ : Char → Char → Bool
 _==_ = primCharEquality
 
-_≟_ : Decidable {Char} _≡_
+_≟_ : Decidable {A = Char} _≡_
 s₁ ≟ s₂ with s₁ == s₂
 ... | true  = yes trustMe
   where postulate trustMe : _
 ... | false = no trustMe
   where postulate trustMe : _
 
-setoid : Setoid
+setoid : Setoid _ _
 setoid = PropEq.setoid Char
 
-decSetoid : DecSetoid
+decSetoid : DecSetoid _ _
 decSetoid = PropEq.decSetoid _≟_

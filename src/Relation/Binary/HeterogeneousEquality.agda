@@ -40,56 +40,63 @@ x ≇ y = ¬ x ≅ y
 ------------------------------------------------------------------------
 -- Some properties
 
-reflexive : ∀ {a} → _⇒_ {a} _≡_ (λ x y → x ≅ y)
+reflexive : ∀ {a} {A : Set a} → _⇒_ {A = A} _≡_ (λ x y → x ≅ y)
 reflexive refl = refl
 
-sym : {A B : Set} {x : A} {y : B} → x ≅ y → y ≅ x
+sym : ∀ {a b} {A : Set a} {B : Set b} {x : A} {y : B} → x ≅ y → y ≅ x
 sym refl = refl
 
-trans : {A B C : Set} {x : A} {y : B} {z : C} → x ≅ y → y ≅ z → x ≅ z
+trans : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+          {x : A} {y : B} {z : C} →
+        x ≅ y → y ≅ z → x ≅ z
 trans refl refl = refl
 
-subst : ∀ {a} → Substitutive {a} (λ x y → x ≅ y)
+subst : ∀ {a} {A : Set a} {p} → Substitutive {A = A} (λ x y → x ≅ y) p
 subst P refl p = p
 
-subst₂ : {A B : Set} (P : A → B → Set) →
+subst₂ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
          ∀ {x₁ x₂ y₁ y₂} → x₁ ≅ x₂ → y₁ ≅ y₂ → P x₁ y₁ → P x₂ y₂
 subst₂ P refl refl p = p
 
-subst-removable : ∀ {a} (P : a → Set) {x y} (eq : x ≅ y) z →
+subst-removable : ∀ {a p} {A : Set a}
+                  (P : A → Set p) {x y} (eq : x ≅ y) z →
                   subst P eq z ≅ z
 subst-removable P refl z = refl
 
-≡-subst-removable : ∀ {A : Set} (P : A → Set) {x y} (eq : x ≡ y) z →
+≡-subst-removable : ∀ {a p} {A : Set a}
+                    (P : A → Set p) {x y} (eq : x ≡ y) z →
                     PropEq.subst P eq z ≅ z
 ≡-subst-removable P refl z = refl
 
-cong : ∀ {A : Set} {B : A → Set} {x y}
+cong : ∀ {a b} {A : Set a} {B : A → Set b} {x y}
        (f : (x : A) → B x) → x ≅ y → f x ≅ f y
 cong f refl = refl
 
-cong₂ : ∀ {A : Set} {B : A → Set} {C : ∀ x → B x → Set} {x y u v}
+cong₂ : ∀ {a b c} {A : Set a} {B : A → Set b} {C : ∀ x → B x → Set c}
+          {x y u v}
         (f : (x : A) (y : B x) → C x y) → x ≅ y → u ≅ v → f x u ≅ f y v
 cong₂ f refl refl = refl
 
-resp₂ : ∀ {a} (∼ : Rel a) → ∼ Respects₂ (λ x y → x ≅ y)
+resp₂ : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
-isEquivalence : ∀ {a} → IsEquivalence {a} (λ x y → x ≅ y)
+isEquivalence : ∀ {a} {A : Set a} →
+                IsEquivalence {A = A} (λ x y → x ≅ y)
 isEquivalence = record
   { refl  = refl
   ; sym   = sym
   ; trans = trans
   }
 
-setoid : Set → Setoid
-setoid a = record
-  { carrier       = a
+setoid : ∀ {a} → Set a → Setoid _ _
+setoid A = record
+  { carrier       = A
   ; _≈_           = λ x y → x ≅ y
   ; isEquivalence = isEquivalence
   }
 
-decSetoid : {A : Set} → Decidable (λ x y → _≅_ {A = A} x y) → DecSetoid
+decSetoid : ∀ {a} {A : Set a} →
+            Decidable (λ x y → _≅_ {A = A} x y) → DecSetoid _ _
 decSetoid dec = record
   { _≈_              = λ x y → x ≅ y
   ; isDecEquivalence = record
@@ -98,7 +105,8 @@ decSetoid dec = record
       }
   }
 
-isPreorder : ∀ {a} → IsPreorder {a} (λ x y → x ≅ y) (λ x y → x ≅ y)
+isPreorder : ∀ {a} {A : Set a} →
+             IsPreorder {A = A} (λ x y → x ≅ y) (λ x y → x ≅ y)
 isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
@@ -106,7 +114,8 @@ isPreorder = record
   ; ∼-resp-≈      = resp₂ (λ x y → x ≅ y)
   }
 
-isPreorder-≡ : ∀ {a} → IsPreorder {a} _≡_ (λ x y → x ≅ y)
+isPreorder-≡ : ∀ {a} {A : Set a} →
+               IsPreorder {A = A} _≡_ (λ x y → x ≅ y)
 isPreorder-≡ = record
   { isEquivalence = PropEq.isEquivalence
   ; reflexive     = reflexive
@@ -114,9 +123,9 @@ isPreorder-≡ = record
   ; ∼-resp-≈      = PropEq.resp₂ (λ x y → x ≅ y)
   }
 
-preorder : Set → Preorder
-preorder a = record
-  { carrier    = a
+preorder : ∀ {a} → Set a → Preorder _ _ _
+preorder A = record
+  { carrier    = A
   ; _≈_        = _≡_
   ; _∼_        = λ x y → x ≅ y
   ; isPreorder = isPreorder-≡
@@ -127,10 +136,10 @@ preorder a = record
 
 -- See Relation.Binary.PropositionalEquality.Inspect.
 
-data Inspect {a : Set} (x : a) : Set where
-  _with-≅_ : (y : a) (eq : y ≅ x) → Inspect x
+data Inspect {a} {A : Set a} (x : A) : Set a where
+  _with-≅_ : (y : A) (eq : y ≅ x) → Inspect x
 
-inspect : ∀ {a} (x : a) → Inspect x
+inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
 inspect x = x with-≅ refl
 
 ------------------------------------------------------------------------
@@ -146,19 +155,22 @@ module ≅-Reasoning where
   infixr 2 _≅⟨_⟩_ _≡⟨_⟩_
   infix  1 begin_
 
-  data _IsRelatedTo_ {A : Set} (x : A) {B : Set} (y : B) : Set where
+  data _IsRelatedTo_ {a} {A : Set a} (x : A) {b} {B : Set b} (y : B) :
+                     Set where
     relTo : (x≅y : x ≅ y) → x IsRelatedTo y
 
-  begin_ : ∀ {A} {x : A} {B} {y : B} → x IsRelatedTo y → x ≅ y
+  begin_ : ∀ {a} {A : Set a} {x : A} {b} {B : Set b} {y : B} →
+           x IsRelatedTo y → x ≅ y
   begin relTo x≅y = x≅y
 
-  _≅⟨_⟩_ : ∀ {A} (x : A) {B} {y : B} {C} {z : C} →
+  _≅⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {b} {B : Set b} {y : B}
+             {c} {C : Set c} {z : C} →
            x ≅ y → y IsRelatedTo z → x IsRelatedTo z
   _ ≅⟨ x≅y ⟩ relTo y≅z = relTo (trans x≅y y≅z)
 
-  _≡⟨_⟩_ : ∀ {A} (x : A) {y} {C} {z : C} →
+  _≡⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {y c} {C : Set c} {z : C} →
            x ≡ y → y IsRelatedTo z → x IsRelatedTo z
   _ ≡⟨ x≡y ⟩ relTo y≅z = relTo (trans (reflexive x≡y) y≅z)
 
-  _∎ : ∀ {A} (x : A) → x IsRelatedTo x
+  _∎ : ∀ {a} {A : Set a} (x : A) → x IsRelatedTo x
   _∎ _ = relTo refl

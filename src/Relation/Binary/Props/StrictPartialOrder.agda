@@ -2,13 +2,14 @@
 -- Properties satisfied by strict partial orders
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Relation.Binary
 
 module Relation.Binary.Props.StrictPartialOrder
-       (spo : StrictPartialOrder)
-       where
+       {s₁ s₂ s₃} (SPO : StrictPartialOrder s₁ s₂ s₃) where
 
-open Relation.Binary.StrictPartialOrder spo
+open Relation.Binary.StrictPartialOrder SPO
   renaming (trans to <-trans)
 import Relation.Binary.StrictToNonStrict as Conv
 open Conv _≈_ _<_
@@ -16,7 +17,7 @@ open Conv _≈_ _<_
 ------------------------------------------------------------------------
 -- Strict partial orders can be converted to posets
 
-poset : Poset
+poset : Poset _ _ _
 poset = record
   { isPartialOrder = record
     { isPreorder = record

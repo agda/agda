@@ -2,6 +2,8 @@
 -- Conversion of < to ≤, along with a number of properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Possible TODO: Prove that a conversion ≤ → < → ≤ returns a
 -- relation equivalent to the original one (and similarly for
 -- < → ≤ → <).
@@ -9,7 +11,8 @@
 open import Relation.Binary
 
 module Relation.Binary.StrictToNonStrict
-         {a : Set} (_≈_ _<_ : Rel a)
+         {a ℓ₁ ℓ₂} {A : Set a}
+         (_≈_ : REL A ℓ₁) (_<_ : REL A ℓ₂)
          where
 
 open import Relation.Nullary
@@ -24,7 +27,7 @@ open import Data.Empty
 
 -- _<_ can be turned into _≤_ as follows:
 
-_≤_ : Rel a
+_≤_ : REL A _
 x ≤ y = (x < y) ⊎ (x ≈ y)
 
 ------------------------------------------------------------------------

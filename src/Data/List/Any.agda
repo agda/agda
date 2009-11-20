@@ -9,6 +9,7 @@ open import Data.Fin
 open import Data.Function
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
+open import Level
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
@@ -54,7 +55,7 @@ index (there pxs) = suc (index pxs)
 ------------------------------------------------------------------------
 -- List membership and some related definitions
 
-module Membership (S : Setoid) where
+module Membership (S : Setoid zero zero) where
 
   private
     open module  S = Setoid S using (_≈_) renaming (carrier to A)
@@ -103,7 +104,7 @@ module Membership (S : Setoid) where
 
   -- _⊆_ is a preorder.
 
-  ⊆-preorder : Preorder
+  ⊆-preorder : Preorder _ _ _
   ⊆-preorder = record
     { carrier    = List A
     ; _≈_        = _≋_
@@ -134,7 +135,7 @@ module Membership (S : Setoid) where
   -- Set equality, i.e. an equality which ignores order and
   -- multiplicity.
 
-  set-equality : Setoid
+  set-equality : Setoid _ _
   set-equality = PP.inducedEquivalence ⊆-preorder
 
   -- A variant of List.map.
@@ -168,7 +169,7 @@ module Membership-≡ {A : Set} where
 
   -- _⊆_ is a preorder.
 
-  ⊆-preorder : Preorder
+  ⊆-preorder : Preorder _ _ _
   ⊆-preorder = record
     { carrier    = List A
     ; _≈_        = _≡_
@@ -194,7 +195,7 @@ module Membership-≡ {A : Set} where
   -- Set equality, i.e. an equality which ignores order and
   -- multiplicity.
 
-  set-equality : Setoid
+  set-equality : Setoid _ _
   set-equality = PP.inducedEquivalence ⊆-preorder
 
 ------------------------------------------------------------------------

@@ -17,6 +17,7 @@ open import Data.Nat as Nat
 import Data.Nat.Properties as NatProp
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Level
 open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
@@ -158,7 +159,7 @@ any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
 ------------------------------------------------------------------------
 -- Lemmas related to _∈_, parameterised on underlying equalities
 
-module Membership₁ (S : Setoid) where
+module Membership₁ (S : Setoid zero zero) where
 
   open Any.Membership S
   private
@@ -314,7 +315,7 @@ module Membership₁ (S : Setoid) where
 
       inj′ = record { to = →-to-⟶ f; injective = injective′ }
 
-module Membership₂ (S₁ S₂ : Setoid) where
+module Membership₂ (S₁ S₂ : Setoid zero zero) where
 
   private
     open module S₁ = Setoid S₁ using () renaming (_≈_ to _≈₁_)

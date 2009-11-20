@@ -33,14 +33,14 @@ cong₂ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
         (f : A → B → C) {x y u v} → x ≡ y → u ≡ v → f x u ≡ f y v
 cong₂ f refl refl = refl
 
-setoid : Set → Setoid
-setoid a = record
-  { carrier       = a
+setoid : ∀ {a} → Set a → Setoid _ _
+setoid A = record
+  { carrier       = A
   ; _≈_           = _≡_
   ; isEquivalence = isEquivalence
   }
 
-decSetoid : {A : Set} → Decidable (_≡_ {A = A}) → DecSetoid
+decSetoid : ∀ {a} {A : Set a} → Decidable (_≡_ {A = A}) → DecSetoid _ _
 decSetoid dec = record
   { _≈_              = _≡_
   ; isDecEquivalence = record
@@ -49,7 +49,7 @@ decSetoid dec = record
       }
   }
 
-isPreorder : ∀ {a} → IsPreorder {a} _≡_ _≡_
+isPreorder : ∀ {a} {A : Set a} → IsPreorder {A = A} _≡_ _≡_
 isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
@@ -57,9 +57,9 @@ isPreorder = record
   ; ∼-resp-≈      = resp₂ _≡_
   }
 
-preorder : Set → Preorder
-preorder a = record
-  { carrier    = a
+preorder : ∀ {a} → Set a → Preorder _ _ _
+preorder A = record
+  { carrier    = A
   ; _≈_        = _≡_
   ; _∼_        = _≡_
   ; isPreorder = isPreorder
@@ -70,13 +70,14 @@ preorder a = record
 
 infix 4 _≗_
 
-_→-setoid_ : (A B : Set) → Setoid
+_→-setoid_ : ∀ {a b} (A : Set a) (B : Set b) → Setoid _ _
 A →-setoid B = A ≡⇨ λ _ → setoid B
 
-_≗_ : ∀ {a b} (f g : a → b) → Set
-_≗_ {a} {b} = Setoid._≈_ (a →-setoid b)
+_≗_ : ∀ {a b} {A : Set a} {B : Set b} (f g : A → B) → Set _
+_≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 
-→-to-⟶ : ∀ {A B} → (A → Setoid.carrier B) → setoid A ⟶ B
+→-to-⟶ : ∀ {a b₁ b₂} {A : Set a} {B : Setoid b₁ b₂} →
+         (A → Setoid.carrier B) → setoid A ⟶ B
 →-to-⟶ {B = B} f =
   record { _⟨$⟩_ = f; pres = Setoid.reflexive B ∘ cong f }
 
@@ -87,10 +88,10 @@ _≗_ {a} {b} = Setoid._≈_ (a →-setoid b)
 -- result r of some expression e, and you also need to "remember" that
 -- r ≡ e.
 
-data Inspect {a : Set} (x : a) : Set where
-  _with-≡_ : (y : a) (eq : y ≡ x) → Inspect x
+data Inspect {a} {A : Set a} (x : A) : Set a where
+  _with-≡_ : (y : A) (eq : y ≡ x) → Inspect x
 
-inspect : ∀ {a} (x : a) → Inspect x
+inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
 inspect x = x with-≡ refl
 
 -- Example usage:
@@ -110,7 +111,7 @@ import Relation.Binary.EqReasoning as EqR
 
 module ≡-Reasoning where
   private
-    module Dummy {a : Set} where
-      open EqR (setoid a) public
+    module Dummy {a} {A : Set a} where
+      open EqR (setoid A) public
         hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
   open Dummy public

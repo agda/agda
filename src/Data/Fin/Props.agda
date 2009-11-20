@@ -3,6 +3,8 @@
 -- properties (or other properties not available in Data.Fin)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Fin.Props where
 
 open import Data.Fin
@@ -29,13 +31,13 @@ private
              suc m ≡ (Fin (suc o) ∶ suc n) → m ≡ n
   drop-suc refl = refl
 
-preorder : ℕ → Preorder
+preorder : ℕ → Preorder _ _ _
 preorder n = PropEq.preorder (Fin n)
 
-setoid : ℕ → Setoid
+setoid : ℕ → Setoid _ _
 setoid n = PropEq.setoid (Fin n)
 
-strictTotalOrder : ℕ → StrictTotalOrder
+strictTotalOrder : ℕ → StrictTotalOrder _ _ _
 strictTotalOrder n = record
   { carrier            = Fin n
   ; _≈_                = _≡_
@@ -57,12 +59,12 @@ strictTotalOrder n = record
   ... | tri> ¬lt ¬eq  gt = tri> (¬lt ∘ N.≤-pred) (¬eq ∘ drop-suc) (s≤s gt)
   ... | tri≈ ¬lt  eq ¬gt = tri≈ (¬lt ∘ N.≤-pred) (cong suc eq)    (¬gt ∘ N.≤-pred)
 
-decSetoid : ℕ → DecSetoid
+decSetoid : ℕ → DecSetoid _ _
 decSetoid n = StrictTotalOrder.decSetoid (strictTotalOrder n)
 
 infix 4 _≟_
 
-_≟_ : {n : ℕ} → Decidable {Fin n} _≡_
+_≟_ : {n : ℕ} → Decidable {A = Fin n} _≡_
 _≟_ {n} = DecSetoid._≟_ (decSetoid n)
 
 to-from : ∀ n → toℕ (fromℕ n) ≡ n
@@ -133,7 +135,7 @@ reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
 -- If there is an injection from a set to a finite set, then equality
 -- of the set can be decided.
 
-eq? : ∀ {S n} →
+eq? : ∀ {s₁ s₂ n} {S : Setoid s₁ s₂} →
       Injection S (PropEq.setoid (Fin n)) → Decidable (Setoid._≈_ S)
 eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)

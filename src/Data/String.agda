@@ -63,14 +63,14 @@ infix 4 _==_
 _==_ : String → String → Bool
 _==_ = primStringEquality
 
-_≟_ : Decidable {String} _≡_
+_≟_ : Decidable {A = String} _≡_
 s₁ ≟ s₂ with s₁ == s₂
 ... | true  = yes trustMe
 ... | false = no whatever
   where postulate whatever : _
 
-setoid : Setoid
+setoid : Setoid _ _
 setoid = PropEq.setoid String
 
-decSetoid : DecSetoid
+decSetoid : DecSetoid _ _
 decSetoid = PropEq.decSetoid _≟_

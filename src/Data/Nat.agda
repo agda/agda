@@ -137,7 +137,7 @@ suc m ⊓ suc n = suc (m ⊓ n)
 ------------------------------------------------------------------------
 -- Queries
 
-_≟_ : Decidable {ℕ} _≡_
+_≟_ : Decidable {A = ℕ} _≡_
 zero  ≟ zero   = yes refl
 suc m ≟ suc n  with m ≟ n
 suc m ≟ suc .m | yes refl = yes refl
@@ -175,7 +175,7 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 ------------------------------------------------------------------------
 -- Some properties
 
-decTotalOrder : DecTotalOrder
+decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
   { carrier         = ℕ
   ; _≈_             = _≡_

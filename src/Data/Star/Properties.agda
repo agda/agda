@@ -62,7 +62,7 @@ fold-◅◅ P _⊕_ ∅ left-unit assoc (x ◅ xs) ys = begin
 
 -- Reflexive transitive closures are preorders.
 
-preorder : ∀ {I} (T : Rel I) → Preorder
+preorder : ∀ {I} (T : Rel I) → Preorder _ _ _
 preorder T = record
   { _≈_        = _≡_
   ; _∼_        = Star T

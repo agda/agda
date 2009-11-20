@@ -89,13 +89,13 @@ signAbs i = PropEq.subst SignAbs (◃-left-inverse i) $
 ------------------------------------------------------------------------
 -- Equality is decidable
 
-_≟_ : Decidable {ℤ} _≡_
+_≟_ : Decidable {A = ℤ} _≡_
 i ≟ j with Sign._≟_ (sign i) (sign j) | ℕ._≟_ ∣ i ∣ ∣ j ∣
 i ≟ j | yes sign-≡ | yes abs-≡ = yes (◃-cong sign-≡ abs-≡)
 i ≟ j | no  sign-≢ | _         = no (sign-≢ ∘ cong sign)
 i ≟ j | _          | no abs-≢  = no (abs-≢  ∘ cong ∣_∣)
 
-decSetoid : DecSetoid
+decSetoid : DecSetoid _ _
 decSetoid = PropEq.decSetoid _≟_
 
 ------------------------------------------------------------------------
@@ -213,7 +213,7 @@ _≤?_ : Decidable _≤_
 +    m   ≤? -[1+ n ] = no λ ()
 +    m   ≤? +    n   = Dec.map (+≤+ , drop‿+≤+) (ℕ._≤?_ m n)
 
-decTotalOrder : DecTotalOrder
+decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
   { carrier         = ℤ
   ; _≈_             = _≡_
@@ -259,7 +259,7 @@ decTotalOrder = record
   total (+    m  ) (-[1+ n ]) = inj₂ -≤+
   total (+    m  ) (+    n  ) = [ inj₁ ∘′ +≤+ , inj₂ ∘′ +≤+ ]′ $ ℕO.total m n
 
-poset : Poset
+poset : Poset _ _ _
 poset = DecTotalOrder.poset decTotalOrder
 
 import Relation.Binary.PartialOrderReasoning as POR

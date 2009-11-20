@@ -97,7 +97,7 @@ data _⊑_ {A : Set} : Colist A → Stream A → Set where
 ------------------------------------------------------------------------
 -- Some proofs
 
-setoid : Set → Setoid
+setoid : Set → Setoid _ _
 setoid A = record
   { carrier       = Stream A
   ; _≈_           = _≈_ {A}
