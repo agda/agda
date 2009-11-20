@@ -115,12 +115,12 @@ highlighting : syntax/highlighting/Test*agda
 
 compiler : MAlonzo/main.agda
 	@$(echo) "Testing the compiler"
-	@$(agda) --ignore-interfaces --compile --malonzo-dir=MAlonzo -iMAlonzo $<
+	@$(agda) --ignore-interfaces --compile --compile-dir=MAlonzo -iMAlonzo $<
 	@./MAlonzo/main
         # Compilation works also if the code has already been type
         # checked.
 	@rm -rf MAlonzo/MAlonzo
-	@$(agda) --compile --malonzo-dir=MAlonzo -iMAlonzo $<
+	@$(agda) --compile --compile-dir=MAlonzo -iMAlonzo $<
 	@./MAlonzo/main
 	@$(echo) "ok"
 

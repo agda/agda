@@ -210,16 +210,10 @@ standardOptions =
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program (experimental)"
-    , Option []	    ["agate"] (NoArg agateFlag)
-		    "use the Agate compiler (only with --compile)"
-    , Option []     ["alonzo"] (NoArg alonzoFlag)
-		    "use the Alonzo compiler (only with --compile)"
-    , Option []     ["malonzo"] (NoArg malonzoFlag)
-		    "use the MAlonzo compiler (DEFAULT) (only with --compile)"
-    , Option []     ["malonzo-dir"] (ReqArg malonzoDirFlag "DIR")
-		    ("directory for MAlonzo output (default: the project root)")
+    , Option []     ["compile-dir"] (ReqArg malonzoDirFlag "DIR")
+		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
+                    "give the flag GHC-FLAG to GHC when compiling"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)

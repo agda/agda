@@ -212,8 +212,11 @@ Tools
 * Type-checking is no longer done when an up-to-date interface exists.
   (Previously the initial module was always type-checked.)
 
+* The Agate and Alonzo compilers have been retired. The options
+  --agate, --alonzo and --malonzo have been removed.
+
 * The default directory for MAlonzo output is now the project's root
-  directory.
+  directory. The --malonzo-dir flag has been renamed to --compile-dir.
 
 * Emacs mode: C-c C-x C-d no longer resets the type checking state.
   C-c C-x C-r can be used for a more complete reset. C-c C-x C-s
