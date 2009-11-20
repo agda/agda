@@ -102,21 +102,6 @@ tri⟶dec< compare x y with compare x y
 ... | tri≈ x≮y _ _ = no  x≮y
 ... | tri> x≮y _ _ = no  x≮y
 
-subst⟶cong :
-  ∀ {a ℓ} {≈ : {A : Set a} → REL A ℓ} →
-  (∀ {A} → Reflexive (≈ {A})) →
-  (∀ {A} → Substitutive (≈ {A}) ℓ) →
-  Congruential ≈
-subst⟶cong {≈ = _≈_} refl subst f {x} x≈y =
-  subst (λ y → f x ≈ f y) x≈y refl
-
-cong+trans⟶cong₂ :
-  ∀ {a ℓ} {≈ : {A : Set a} → REL A ℓ} →
-  Congruential  ≈ → (∀ {A} → Transitive (≈ {A})) →
-  Congruential₂ ≈
-cong+trans⟶cong₂ cong trans f {x = x} {v = v} x≈y u≈v =
-  cong (f x) u≈v ⟨ trans ⟩ cong (flip f v) x≈y
-
 map-NonEmpty : ∀ {i p q} {I : Set i} {P : REL I p} {Q : REL I q} →
                P ⇒ Q → NonEmpty P → NonEmpty Q
 map-NonEmpty f x = nonEmpty (f (NonEmpty.proof x))

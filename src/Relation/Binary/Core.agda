@@ -99,13 +99,6 @@ P Respects₂ _∼_ =
 Substitutive : ∀ {a ℓ₁} {A : Set a} → REL A ℓ₁ → (ℓ₂ : Level) → Set _
 Substitutive {A = A} _∼_ p = (P : A → Set p) → P Respects _∼_
 
-Congruential : ∀ {a ℓ} → ({A : Set a} → REL A ℓ) → Set _
-Congruential ∼ = ∀ {A B} → (f : A → B) → f Preserves ∼ ⟶ ∼
-
-Congruential₂ : ∀ {a ℓ} → ({A : Set a} → REL A ℓ) → Set _
-Congruential₂ ∼ =
-  ∀ {A B C} → (f : A → B → C) → f Preserves₂ ∼ ⟶ ∼ ⟶ ∼
-
 Decidable : ∀ {a ℓ} {A : Set a} → REL A ℓ → Set _
 Decidable _∼_ = ∀ x y → Dec (x ∼ y)
 
