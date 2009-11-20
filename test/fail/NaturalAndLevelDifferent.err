@@ -1,0 +1,3 @@
+NaturalAndLevelDifferent.agda:8,1-26
+NATURAL and LEVEL have to be different types.
+when checking the pragma BUILTIN LEVEL ℕ

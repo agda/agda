@@ -48,6 +48,19 @@ bindBuiltinType b e = do
       ensureInductive t
     bindBuiltinName b t
 
+    -- NAT and LEVEL must be different. (Why?)
+    when (b `elem` [builtinNat, builtinLevel]) $ do
+      nat   <- getBuiltin' builtinNat
+      level <- getBuiltin' builtinLevel
+      case (nat, level) of
+        (Just nat, Just level) -> do
+          Def nat   _ <- normalise nat
+          Def level _ <- normalise level
+          when (nat == level) $ typeError $ GenericError $
+            builtinNat ++ " and " ++ builtinLevel ++
+            " have to be different types."
+        _ -> return ()
+
 bindBuiltinBool :: String -> A.Expr -> TCM ()
 bindBuiltinBool b e = do
     bool <- primBool
