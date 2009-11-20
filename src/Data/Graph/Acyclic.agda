@@ -219,7 +219,7 @@ preds (c & g) (suc i) =
   List._++_ (List.gfilter (p i) $ successors c)
             (List.map (Prod.map suc id) $ preds g i)
   where
-  p : ∀ {E n} (i : Fin n) → E × Fin n → Maybe (Fin′ (suc i) × E)
+  p : ∀ {E : Set} {n} (i : Fin n) → E × Fin n → Maybe (Fin′ (suc i) × E)
   p i (e , j)  with i ≟ j
   p i (e , .i) | yes refl = just (zero , e)
   p i (e , j)  | no _     = nothing
