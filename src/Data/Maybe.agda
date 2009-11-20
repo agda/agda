@@ -2,7 +2,11 @@
 -- The Maybe type
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Maybe where
+
+open import Level
 
 ------------------------------------------------------------------------
 -- The type
@@ -19,19 +23,15 @@ boolToMaybe : Bool → Maybe ⊤
 boolToMaybe true  = just _
 boolToMaybe false = nothing
 
-maybeToBool : ∀ {A} → Maybe A → Bool
+maybeToBool : ∀ {ℓ} {A : Set ℓ} → Maybe A → Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
 
 -- A non-dependent eliminator.
 
-maybe : {a b : Set} → (a → b) → b → Maybe a → b
+maybe : ∀ {ℓ₁ ℓ₂} {a : Set ℓ₁} {b : Set ℓ₂} → (a → b) → b → Maybe a → b
 maybe j n (just x) = j x
 maybe j n nothing  = n
-
-maybe₀₁ : {a : Set} {b : Set₁} → (a → b) → b → Maybe a → b
-maybe₀₁ j n (just x) = j x
-maybe₀₁ j n nothing  = n
 
 ------------------------------------------------------------------------
 -- Maybe monad
@@ -68,7 +68,7 @@ monadPlus = record
   ; _∣_       = _∣_
   }
   where
-  _∣_ : ∀ {a} → Maybe a → Maybe a → Maybe a
+  _∣_ : ∀ {a : Set} → Maybe a → Maybe a → Maybe a
   nothing ∣ y = y
   just x  ∣ y = just x
 
@@ -80,7 +80,7 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
-drop-just : ∀ {A} {x y : A} → just x ≡ just y → x ≡ y
+drop-just : ∀ {A : Set} {x y : A} → just x ≡ just y → x ≡ y
 drop-just refl = refl
 
 decSetoid : {A : Set} → Decidable (_≡_ {A = A}) → DecSetoid
@@ -101,14 +101,14 @@ open import Data.Product using (_,_)
 open import Data.Empty using (⊥)
 import Relation.Nullary.Decidable as Dec
 
-data Any {A} (P : A → Set) : Maybe A → Set where
+data Any {ℓ} {A : Set ℓ} (P : A → Set ℓ) : Maybe A → Set ℓ where
   just : ∀ {x} (px : P x) → Any P (just x)
 
-data All {A} (P : A → Set) : Maybe A → Set where
+data All {ℓ} {A : Set ℓ} (P : A → Set ℓ) : Maybe A → Set ℓ where
   just    : ∀ {x} (px : P x) → All P (just x)
   nothing : All P nothing
 
-IsJust : ∀ {A} → Maybe A → Set
+IsJust : ∀ {A : Set} → Maybe A → Set
 IsJust = Any (λ _ → ⊤)
 
 IsNothing : ∀ {A} → Maybe A → Set

@@ -1,3 +1,4 @@
+{-# OPTIONS --universe-polymorphism #-}
 ------------------------------------------------------------------------
 -- The Maybe type
 ------------------------------------------------------------------------
@@ -6,6 +7,8 @@
 
 module Data.Maybe.Core where
 
-data Maybe (A : Set) : Set where
+open import Level
+
+data Maybe {ℓ} (A : Set ℓ) : Set ℓ where
   just    : (x : A) → Maybe A
   nothing : Maybe A
