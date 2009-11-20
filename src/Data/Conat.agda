@@ -40,7 +40,7 @@ data _≈_ : Coℕ → Coℕ → Set where
 
 setoid : Setoid _ _
 setoid = record
-  { carrier       = Coℕ
+  { Carrier       = Coℕ
   ; _≈_           = _≈_
   ; isEquivalence = record
     { refl  = refl

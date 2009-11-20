@@ -58,7 +58,7 @@ index (there pxs) = suc (index pxs)
 module Membership (S : Setoid zero zero) where
 
   private
-    open module  S = Setoid S using (_≈_) renaming (carrier to A)
+    open module  S = Setoid S using (_≈_) renaming (Carrier to A)
     open module LS = Setoid (ListEq.setoid S)
       using () renaming (_≈_ to _≋_)
 
@@ -106,7 +106,7 @@ module Membership (S : Setoid zero zero) where
 
   ⊆-preorder : Preorder _ _ _
   ⊆-preorder = record
-    { carrier    = List A
+    { Carrier    = List A
     ; _≈_        = _≋_
     ; _∼_        = _⊆_
     ; isPreorder = record
@@ -171,7 +171,7 @@ module Membership-≡ {A : Set} where
 
   ⊆-preorder : Preorder _ _ _
   ⊆-preorder = record
-    { carrier    = List A
+    { Carrier    = List A
     ; _≈_        = _≡_
     ; _∼_        = _⊆_
     ; isPreorder = record

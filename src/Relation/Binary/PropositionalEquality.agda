@@ -35,7 +35,7 @@ cong₂ f refl refl = refl
 
 setoid : ∀ {a} → Set a → Setoid _ _
 setoid A = record
-  { carrier       = A
+  { Carrier       = A
   ; _≈_           = _≡_
   ; isEquivalence = isEquivalence
   }
@@ -59,7 +59,7 @@ isPreorder = record
 
 preorder : ∀ {a} → Set a → Preorder _ _ _
 preorder A = record
-  { carrier    = A
+  { Carrier    = A
   ; _≈_        = _≡_
   ; _∼_        = _≡_
   ; isPreorder = isPreorder
@@ -77,7 +77,7 @@ _≗_ : ∀ {a b} {A : Set a} {B : Set b} (f g : A → B) → Set _
 _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 
 →-to-⟶ : ∀ {a b₁ b₂} {A : Set a} {B : Setoid b₁ b₂} →
-         (A → Setoid.carrier B) → setoid A ⟶ B
+         (A → Setoid.Carrier B) → setoid A ⟶ B
 →-to-⟶ {B = B} f =
   record { _⟨$⟩_ = f; pres = Setoid.reflexive B ∘ cong f }
 

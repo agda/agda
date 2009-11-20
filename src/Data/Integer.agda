@@ -215,7 +215,7 @@ _≤?_ : Decidable _≤_
 
 decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
-  { carrier         = ℤ
+  { Carrier         = ℤ
   ; _≈_             = _≡_
   ; _≤_             = _≤_
   ; isDecTotalOrder = record

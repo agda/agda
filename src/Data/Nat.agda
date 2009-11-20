@@ -177,7 +177,7 @@ compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
 
 decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
-  { carrier         = ℕ
+  { Carrier         = ℕ
   ; _≈_             = _≡_
   ; _≤_             = _≤_
   ; isDecTotalOrder = record

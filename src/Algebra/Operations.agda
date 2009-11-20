@@ -22,7 +22,7 @@ open EqR setoid
 
 infixr 7 _×_
 
-_×_ : ℕ → carrier → carrier
+_×_ : ℕ → Carrier → Carrier
 zero  × x = 0#
 suc n × x = x + n × x
 
@@ -30,7 +30,7 @@ suc n × x = x + n × x
 
 infixr 8 _^_
 
-_^_ : carrier → ℕ → carrier
+_^_ : Carrier → ℕ → Carrier
 x ^ zero  = 1#
 x ^ suc n = x * x ^ n
 

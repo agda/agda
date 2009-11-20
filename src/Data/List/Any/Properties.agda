@@ -221,13 +221,13 @@ module Membership₁ (S : Setoid zero zero) where
   -- Introduction and elimination rules for map-with-∈.
 
   map-with-∈-∈⁺ : ∀ {A} {xs : List A}
-                  (f : ∀ {x} → x ∈≡ xs → S.carrier) {x} →
+                  (f : ∀ {x} → x ∈≡ xs → S.Carrier) {x} →
                   (x∈xs : x ∈≡ xs) → f x∈xs ∈ M≡.map-with-∈ xs f
   map-with-∈-∈⁺ f (here refl)  = here S.refl
   map-with-∈-∈⁺ f (there x∈xs) = there $ map-with-∈-∈⁺ (f ∘ there) x∈xs
 
   map-with-∈-∈⁻ : ∀ {A} {xs : List A}
-                  (f : ∀ {x} → x ∈≡ xs → S.carrier) {fx∈xs} →
+                  (f : ∀ {x} → x ∈≡ xs → S.Carrier) {fx∈xs} →
                   fx∈xs ∈ M≡.map-with-∈ xs f →
                   ∃ λ x → Σ (x ∈≡ xs) λ x∈xs → fx∈xs ≈ f x∈xs
   map-with-∈-∈⁻ {xs = []}     f ()
@@ -238,8 +238,8 @@ module Membership₁ (S : Setoid zero zero) where
   -- map-with-∈ is monotone.
 
   map-with-∈-mono :
-    ∀ {A} {xs : List A} {f : ∀ {x} → x ∈≡ xs → S.carrier}
-          {ys : List A} {g : ∀ {x} → x ∈≡ ys → S.carrier} →
+    ∀ {A} {xs : List A} {f : ∀ {x} → x ∈≡ xs → S.Carrier}
+          {ys : List A} {g : ∀ {x} → x ∈≡ ys → S.Carrier} →
     (xs⊆ys : xs ⊆≡ ys) →
     (∀ {x} (x∈xs : x ∈≡ xs) → f x∈xs ≈ g (xs⊆ys x∈xs)) →
     M≡.map-with-∈ xs f ⊆ M≡.map-with-∈ ys g
@@ -281,7 +281,7 @@ module Membership₁ (S : Setoid zero zero) where
       where
       open PropEq
 
-      f : ℕ → S.carrier
+      f : ℕ → S.Carrier
       f j with STO.compare i j
       f j | tri< _ _ _ = to ⟨$⟩ suc j
       f j | tri≈ _ _ _ = to ⟨$⟩ suc j
@@ -372,7 +372,7 @@ module Membership₂ (S₁ S₂ : Setoid zero zero) where
 
     infixl 4 _⟨⊛⟩_
 
-    _⟨⊛⟩_ : List (S₁ ⟶ S₂) → List S₁.carrier → List S₂.carrier
+    _⟨⊛⟩_ : List (S₁ ⟶ S₂) → List S₁.Carrier → List S₂.Carrier
     fs ⟨⊛⟩ xs = map _⟨$⟩_ fs ⊛ xs
 
   ⊛-∈⁺ : ∀ f {fs x xs} →

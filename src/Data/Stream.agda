@@ -99,7 +99,7 @@ data _⊑_ {A : Set} : Colist A → Stream A → Set where
 
 setoid : Set → Setoid _ _
 setoid A = record
-  { carrier       = Stream A
+  { Carrier       = Stream A
   ; _≈_           = _≈_ {A}
   ; isEquivalence = record
     { refl  = refl

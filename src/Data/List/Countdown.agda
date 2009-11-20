@@ -24,7 +24,7 @@ open PropEq.≡-Reasoning
 
 private
   open module D = DecSetoid D
-    hiding (refl) renaming (carrier to Elem)
+    hiding (refl) renaming (Carrier to Elem)
   open Any.Membership D.setoid
 
 ------------------------------------------------------------------------

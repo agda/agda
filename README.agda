@@ -201,9 +201,9 @@ import IO
 --     infixl 7 _∙_
 --     infix  4 _≈_
 --     field
---       carrier     : Set
---       _≈_         : Rel carrier
---       _∙_         : Op₂ carrier
+--       Carrier     : Set
+--       _≈_         : Rel Carrier
+--       _∙_         : Op₂ Carrier
 --       isSemigroup : IsSemigroup _≈_ _∙_
 --
 --     open IsSemigroup isSemigroup public
@@ -215,10 +215,10 @@ import IO
 --     infixl 7 _∙_
 --     infix  4 _≈_
 --     field
---       carrier  : Set
---       _≈_      : Rel carrier
---       _∙_      : Op₂ carrier
---       ε        : carrier
+--       Carrier  : Set
+--       _≈_      : Rel Carrier
+--       _∙_      : Op₂ Carrier
+--       ε        : Carrier
 --       isMonoid : IsMonoid _≈_ _∙_ ε
 --
 --     open IsMonoid isMonoid public

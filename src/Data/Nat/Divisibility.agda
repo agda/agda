@@ -51,7 +51,7 @@ quotient (divides q _) = q
 
 poset : Poset _ _ _
 poset = record
-  { carrier        = ℕ
+  { Carrier        = ℕ
   ; _≈_            = _≡_
   ; _≤_            = _∣_
   ; isPartialOrder = record

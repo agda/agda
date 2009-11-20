@@ -251,14 +251,14 @@ deMorgan₂ x y = begin
 -- This construction is parameterised over the definition of xor.
 
 module XorRing
-  (xor : Op₂ carrier)
+  (xor : Op₂ Carrier)
   (⊕-def : ∀ x y → xor x y ≈ (x ∨ y) ∧ ¬ (x ∧ y))
   where
 
   private
     infixl 6 _⊕_
 
-    _⊕_ : Op₂ carrier
+    _⊕_ : Op₂ Carrier
     _⊕_ = xor
 
   private
@@ -546,7 +546,7 @@ module XorRing
 
 infixl 6 _⊕_
 
-_⊕_ : Op₂ carrier
+_⊕_ : Op₂ Carrier
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
 module DefaultXorRing = XorRing _⊕_ (λ _ _ → refl)

@@ -39,7 +39,7 @@ setoid n = PropEq.setoid (Fin n)
 
 strictTotalOrder : ℕ → StrictTotalOrder _ _ _
 strictTotalOrder n = record
-  { carrier            = Fin n
+  { Carrier            = Fin n
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record

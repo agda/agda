@@ -26,7 +26,7 @@ record _⟶_ {f₁ f₂ t₁ t₂} (From : Setoid f₁ f₂) (To : Setoid t₁ t
   open Setoid
   infixl 5 _⟨$⟩_
   field
-    _⟨$⟩_ : carrier From → carrier To
+    _⟨$⟩_ : Carrier From → Carrier To
     pres  : _⟨$⟩_ Preserves _≈_ From ⟶ _≈_ To
 
 open _⟶_ public
@@ -47,7 +47,7 @@ open _⟶_ public
 
 _⇨_ : ∀ {f₁ f₂ t₁ t₂} → Setoid f₁ f₂ → Setoid t₁ t₂ → Setoid _ _
 S₁ ⇨ S₂ = record
-  { carrier       = S₁ ⟶ S₂
+  { Carrier       = S₁ ⟶ S₂
   ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
   ; isEquivalence =
       ↝-isEquivalence (_⟨$⟩_ {From = S₁} {To = S₂})
@@ -71,7 +71,7 @@ S₁ ⇨ S₂ = record
 
 _≡⇨_ : ∀ {a s₁ s₂} (A : Set a) → (A → Setoid s₁ s₂) → Setoid _ _
 A ≡⇨ S = record
-  { carrier       = (x : A) → carrier (S x)
+  { Carrier       = (x : A) → Carrier (S x)
   ; _≈_           = ≡↝ (λ x → _≈_ (S x))
   ; isEquivalence = ≡↝-isEquivalence (λ x → isEquivalence (S x))
   } where open Setoid

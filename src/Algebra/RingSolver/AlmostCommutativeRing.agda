@@ -31,13 +31,13 @@ record AlmostCommutativeRing : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier                 : Set
-    _≈_                     : Rel carrier
-    _+_                     : Op₂ carrier
-    _*_                     : Op₂ carrier
-    -_                      : Op₁ carrier
-    0#                      : carrier
-    1#                      : carrier
+    Carrier                 : Set
+    _≈_                     : Rel Carrier
+    _+_                     : Op₂ Carrier
+    _*_                     : Op₂ Carrier
+    -_                      : Op₁ Carrier
+    0#                      : Carrier
+    1#                      : Carrier
     isAlmostCommutativeRing :
       IsAlmostCommutativeRing _≈_ _+_ _*_ -_ 0# 1#
 
@@ -72,7 +72,7 @@ record _-Raw-AlmostCommutative⟶_
   private
     module F = RawRing From
     module T = AlmostCommutativeRing To
-  open Morphism.Definitions F.carrier T.carrier T._≈_
+  open Morphism.Definitions F.Carrier T.Carrier T._≈_
   field
     ⟦_⟧    : Morphism
     +-homo : Homomorphic₂ ⟦_⟧ F._+_ T._+_

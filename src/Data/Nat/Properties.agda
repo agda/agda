@@ -482,7 +482,7 @@ m≢1+m+n (suc m) eq = m≢1+m+n m (cong pred eq)
 
 strictTotalOrder : StrictTotalOrder _ _ _
 strictTotalOrder = record
-  { carrier            = ℕ
+  { Carrier            = ℕ
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record

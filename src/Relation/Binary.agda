@@ -41,9 +41,9 @@ record IsPreorder {a ℓ₁ ℓ₂} {A : Set a}
 record Preorder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _∼_
   field
-    carrier    : Set c
-    _≈_        : REL carrier ℓ₁  -- The underlying equality.
-    _∼_        : REL carrier ℓ₂  -- The relation.
+    Carrier    : Set c
+    _≈_        : REL Carrier ℓ₁  -- The underlying equality.
+    _∼_        : REL Carrier ℓ₂  -- The relation.
     isPreorder : IsPreorder _≈_ _∼_
 
   open IsPreorder isPreorder public
@@ -56,8 +56,8 @@ record Preorder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
-    carrier       : Set c
-    _≈_           : REL carrier ℓ
+    Carrier       : Set c
+    _≈_           : REL Carrier ℓ
     isEquivalence : IsEquivalence _≈_
 
   open IsEquivalence isEquivalence public
@@ -87,8 +87,8 @@ record IsDecEquivalence {a ℓ} {A : Set a}
 record DecSetoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
-    carrier          : Set c
-    _≈_              : REL carrier ℓ
+    Carrier          : Set c
+    _≈_              : REL Carrier ℓ
     isDecEquivalence : IsDecEquivalence _≈_
 
   open IsDecEquivalence isDecEquivalence public
@@ -114,9 +114,9 @@ record IsPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
 record Poset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier        : Set c
-    _≈_            : REL carrier ℓ₁
-    _≤_            : REL carrier ℓ₂
+    Carrier        : Set c
+    _≈_            : REL Carrier ℓ₁
+    _≤_            : REL Carrier ℓ₂
     isPartialOrder : IsPartialOrder _≈_ _≤_
 
   open IsPartialOrder isPartialOrder public
@@ -141,9 +141,9 @@ record IsStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
 record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
   field
-    carrier              : Set c
-    _≈_                  : REL carrier ℓ₁
-    _<_                  : REL carrier ℓ₂
+    Carrier              : Set c
+    _≈_                  : REL Carrier ℓ₁
+    _<_                  : REL Carrier ℓ₂
     isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
 
   open IsStrictPartialOrder isStrictPartialOrder public
@@ -163,9 +163,9 @@ record IsTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
 record TotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier      : Set c
-    _≈_          : REL carrier ℓ₁
-    _≤_          : REL carrier ℓ₂
+    Carrier      : Set c
+    _≈_          : REL Carrier ℓ₁
+    _≤_          : REL Carrier ℓ₂
     isTotalOrder : IsTotalOrder _≈_ _≤_
 
   open IsTotalOrder isTotalOrder public
@@ -203,9 +203,9 @@ record IsDecTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
 record DecTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
-    carrier         : Set c
-    _≈_             : REL carrier ℓ₁
-    _≤_             : REL carrier ℓ₂
+    Carrier         : Set c
+    _≈_             : REL Carrier ℓ₁
+    _≤_             : REL Carrier ℓ₂
     isDecTotalOrder : IsDecTotalOrder _≈_ _≤_
 
   private
@@ -262,9 +262,9 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
 record StrictTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
   field
-    carrier            : Set c
-    _≈_                : REL carrier ℓ₁
-    _<_                : REL carrier ℓ₂
+    Carrier            : Set c
+    _≈_                : REL Carrier ℓ₁
+    _<_                : REL Carrier ℓ₂
     isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
 
   open IsStrictTotalOrder isStrictTotalOrder public

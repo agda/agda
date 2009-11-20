@@ -14,8 +14,8 @@ open import Level
 module Map₁ (key-dto : DecTotalOrder zero zero zero)
             (elem-s : Setoid zero zero) where
 
-  open DecTotalOrder key-dto renaming (carrier to key)
-  open Setoid elem-s         renaming (carrier to elem; _≈_ to _≗_)
+  open DecTotalOrder key-dto renaming (Carrier to key)
+  open Setoid elem-s         renaming (Carrier to elem; _≈_ to _≗_)
 
   infixr 6 _∪_
   infix  5 _∈?_
@@ -24,7 +24,7 @@ module Map₁ (key-dto : DecTotalOrder zero zero zero)
   abstract postulate decSetoid : DecSetoid _ _
 
   Map : Set
-  Map = Setoid.carrier (DecSetoid.setoid decSetoid)
+  Map = Setoid.Carrier (DecSetoid.setoid decSetoid)
 
   _|≈|_ : Rel Map
   _|≈|_ = Setoid._≈_ (DecSetoid.setoid decSetoid)

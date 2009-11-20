@@ -15,7 +15,7 @@ record _⇒-Poset_ {p₁ p₂ p₃ p₄ p₅ p₆}
                  (P₁ : Poset p₁ p₂ p₃)
                  (P₂ : Poset p₄ p₅ p₆) : Set (p₁ ⊔ p₃ ⊔ p₄ ⊔ p₆) where
   field
-    fun      : carrier P₁ → carrier P₂
+    fun      : Carrier P₁ → Carrier P₂
     monotone : _≤_ P₁ =[ fun ]⇒ _≤_ P₂
 
 _⇒-DTO_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
@@ -45,7 +45,7 @@ f ∘ g = record
 const : ∀ {p₁ p₂ p₃ p₄ p₅ p₆}
           {P₁ : Poset p₁ p₂ p₃}
           {P₂ : Poset p₄ p₅ p₆} →
-        carrier P₂ → P₁ ⇒-Poset P₂
+        Carrier P₂ → P₁ ⇒-Poset P₂
 const {P₂ = P₂} x = record
   { fun      = F.const x
   ; monotone = F.const (refl P₂)

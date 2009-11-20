@@ -16,7 +16,7 @@ open import Relation.Binary
 module UsingVectorEquality (S : Setoid zero zero) where
 
   private module SS = Setoid S
-  open SS using () renaming (carrier to A)
+  open SS using () renaming (Carrier to A)
   import Data.Vec.Equality as VecEq
   open VecEq.Equality S
 

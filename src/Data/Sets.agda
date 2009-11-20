@@ -24,7 +24,7 @@ module Sets₁ (dto : DecTotalOrder zero zero zero) where
   abstract postulate decSetoid : DecSetoid _ _
 
   <Set> : Set
-  <Set> = DecSetoid.carrier decSetoid
+  <Set> = DecSetoid.Carrier decSetoid
 
   _|≈|_ : Rel <Set>
   _|≈|_ = DecSetoid._≈_ decSetoid
@@ -32,11 +32,11 @@ module Sets₁ (dto : DecTotalOrder zero zero zero) where
   abstract
    postulate
     empty  : <Set>
-    insert : carrier → <Set> → <Set>
+    insert : Carrier → <Set> → <Set>
     _∪_    : <Set> → <Set> → <Set>
-    _∈_    : carrier → <Set> → Set
-    _∈?_   : (x : carrier) → (s : <Set>) → Dec (x ∈ s)
-    toList : <Set> → List carrier
+    _∈_    : Carrier → <Set> → Set
+    _∈?_   : (x : Carrier) → (s : <Set>) → Dec (x ∈ s)
+    toList : <Set> → List Carrier
 
    postulate
     prop-∈-insert₁ : ∀ {x y s} → x ≈ y → x ∈ insert y s
@@ -55,13 +55,13 @@ module Sets₁ (dto : DecTotalOrder zero zero zero) where
 
     -- TODO: Postulates for toList.
 
-  singleton : carrier → <Set>
+  singleton : Carrier → <Set>
   singleton x = insert x empty
 
   ⋃_ : List <Set> → <Set>
   ⋃_ = L.foldr _∪_ empty
 
-  fromList : List carrier → <Set>
+  fromList : List Carrier → <Set>
   fromList = L.foldr insert empty
 
   _⊆_ : <Set> → <Set> → Set
@@ -75,7 +75,7 @@ abstract
  postulate
   map : ∀ {do₁ do₂} → do₁ ⇒-DTO do₂ → <Set> do₁ → <Set> do₂
   mapToSet : ∀ {do₁ do₂} →
-             (carrier do₁ → <Set> do₂) →
+             (Carrier do₁ → <Set> do₂) →
              <Set> do₁ → <Set> do₂
 
   prop-map-∈₁ : ∀ {do₁ do₂ f x s} →

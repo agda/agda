@@ -27,7 +27,7 @@ module Relation.Binary.Reflection
          {Expr : ℕ → Set} {A}
          Sem
          (var : ∀ {n} → Fin n → Expr n)
-         (⟦_⟧ ⟦_⇓⟧ : ∀ {n} → Expr n → Vec A n → Setoid.carrier Sem)
+         (⟦_⟧ ⟦_⇓⟧ : ∀ {n} → Expr n → Vec A n → Setoid.Carrier Sem)
          (correct : ∀ {n} (e : Expr n) ρ →
                     ⟦ e ⇓⟧ ρ ⟨ Setoid._≈_ Sem ⟩ ⟦ e ⟧ ρ)
          where

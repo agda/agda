@@ -15,7 +15,7 @@ module Equality (S : Setoid zero zero) where
 
   private
     open module SS = Setoid S
-      using () renaming (_≈_ to _≊_; carrier to A)
+      using () renaming (_≈_ to _≊_; Carrier to A)
 
   infix 4 _≈_
 
@@ -58,7 +58,7 @@ module Equality (S : Setoid zero zero) where
 module DecidableEquality (D : DecSetoid zero zero) where
 
   private module DS = DecSetoid D
-  open DS using () renaming (_≟_ to _≟′_ ; carrier to A)
+  open DS using () renaming (_≟_ to _≟′_ ; Carrier to A)
   open Equality DS.setoid
   open import Relation.Nullary
 

@@ -90,7 +90,7 @@ isEquivalence = record
 
 setoid : ∀ {a} → Set a → Setoid _ _
 setoid A = record
-  { carrier       = A
+  { Carrier       = A
   ; _≈_           = λ x y → x ≅ y
   ; isEquivalence = isEquivalence
   }
@@ -125,7 +125,7 @@ isPreorder-≡ = record
 
 preorder : ∀ {a} → Set a → Preorder _ _ _
 preorder A = record
-  { carrier    = A
+  { Carrier    = A
   ; _≈_        = _≡_
   ; _∼_        = λ x y → x ≅ y
   ; isPreorder = isPreorder-≡

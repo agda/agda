@@ -50,7 +50,7 @@ data Op : Set where
 
 data Polynomial (m : ℕ) : Set where
   op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) → Polynomial m
-  con  : (c : C.carrier) → Polynomial m
+  con  : (c : C.Carrier) → Polynomial m
   var  : (x : Fin m) → Polynomial m
   _:^_ : (p : Polynomial m) (n : ℕ) → Polynomial m
   :-_  : (p : Polynomial m) → Polynomial m
@@ -68,11 +68,11 @@ x :- y = x :+ :- y
 
 -- Semantics.
 
-sem : Op → Op₂ carrier
+sem : Op → Op₂ Carrier
 sem [+] = _+_
 sem [*] = _*_
 
-⟦_⟧ : ∀ {n} → Polynomial n → Vec carrier n → carrier
+⟦_⟧ : ∀ {n} → Polynomial n → Vec Carrier n → Carrier
 ⟦ op o p₁ p₂ ⟧ ρ = ⟦ p₁ ⟧ ρ ⟨ sem o ⟩ ⟦ p₂ ⟧ ρ
 ⟦ con c ⟧      ρ = ⟦ c ⟧'
 ⟦ var x ⟧      ρ = lookup x ρ
@@ -105,13 +105,13 @@ private
   -- * an equivalent polynomial.
 
   data Normal : (n : ℕ) → Polynomial n → Set where
-    con   : (c : C.carrier) → Normal 0 (con c)
+    con   : (c : C.Carrier) → Normal 0 (con c)
     _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
     _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
             Normal (suc n) (p' :* var zero :+ c' :↑ 1)
     _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
 
-  ⟦_⟧-NF : ∀ {n p} → Normal n p → Vec carrier n → carrier
+  ⟦_⟧-NF : ∀ {n p} → Normal n p → Vec Carrier n → Carrier
   ⟦ p ∶ _   ⟧-NF ρ       = ⟦ p ⟧-NF ρ
   ⟦ con c   ⟧-NF ρ       = ⟦ c ⟧'
   ⟦ p ↑     ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
@@ -122,7 +122,7 @@ private
 
 private
 
-  con-NF : ∀ {n} → (c : C.carrier) → Normal n (con c)
+  con-NF : ∀ {n} → (c : C.Carrier) → Normal n (con c)
   con-NF {zero}  c = con c
   con-NF {suc _} c = con-NF c ↑
 
@@ -191,7 +191,7 @@ private
   normalise (p :^ n)     = normalise p ^-NF n
   normalise (:- p)       = -‿NF normalise p
 
-⟦_⟧↓ : ∀ {n} → Polynomial n → Vec carrier n → carrier
+⟦_⟧↓ : ∀ {n} → Polynomial n → Vec Carrier n → Carrier
 ⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
 
 ------------------------------------------------------------------------

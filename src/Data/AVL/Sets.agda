@@ -9,7 +9,7 @@ module Data.AVL.Sets
          (OrderedKeySet : StrictTotalOrder zero zero zero) where
 
 import Data.AVL as AVL
-open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
+open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)
 open import Data.Unit
 open import Data.Function
 open import Data.Product as Prod using (_×_; _,_; proj₁)

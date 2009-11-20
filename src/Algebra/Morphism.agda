@@ -38,7 +38,7 @@ record _-Ring⟶_ (From To : Ring) : Set where
   private
     module F = Ring From
     module T = Ring To
-  open Definitions F.carrier T.carrier T._≈_
+  open Definitions F.Carrier T.Carrier T._≈_
 
   field
     ⟦_⟧       : Morphism

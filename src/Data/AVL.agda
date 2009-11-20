@@ -10,11 +10,11 @@ open import Level
 open import Relation.Binary
 
 module Data.AVL (OrderedKeySet : StrictTotalOrder zero zero zero)
-                (Value : StrictTotalOrder.carrier OrderedKeySet → Set)
+                (Value : StrictTotalOrder.Carrier OrderedKeySet → Set)
                 where
 
 open import Data.Nat hiding (compare)
-open StrictTotalOrder OrderedKeySet renaming (carrier to Key)
+open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)
 open import Data.Product
 open import Data.Maybe
 open import Data.Bool

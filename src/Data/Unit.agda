@@ -43,7 +43,7 @@ setoid = PropEq.setoid ⊤
 
 decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
-  { carrier         = ⊤
+  { Carrier         = ⊤
   ; _≈_             = _≡_
   ; _≤_             = _≤_
   ; isDecTotalOrder = record

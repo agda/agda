@@ -96,7 +96,7 @@ data _⊑_ {A} : ∀ {m n} → Covec A m → Covec A n → Set where
 
 setoid : Set → Coℕ → Setoid _ _
 setoid A n = record
-  { carrier       = Covec A n
+  { Carrier       = Covec A n
   ; _≈_           = _≈_
   ; isEquivalence = record
     { refl  = refl
@@ -119,7 +119,7 @@ setoid A n = record
 
 poset : Set → Coℕ → Poset _ _ _
 poset A n = record
-  { carrier        = Covec A n
+  { Carrier        = Covec A n
   ; _≈_            = _≈_
   ; _≤_            = _⊑_
   ; isPartialOrder = record

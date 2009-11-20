@@ -113,7 +113,7 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
 
 setoid : Set → Setoid _ _
 setoid A = record
-  { carrier       = Colist A
+  { Carrier       = Colist A
   ; _≈_           = _≈_
   ; isEquivalence = record
     { refl  = refl
@@ -138,7 +138,7 @@ setoid A = record
 
 poset : Set → Poset _ _ _
 poset A = record
-  { carrier        = Colist A
+  { Carrier        = Colist A
   ; _≈_            = _≈_
   ; _≤_            = _⊑_
   ; isPartialOrder = record

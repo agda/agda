@@ -163,7 +163,7 @@ private
 
 strictTotalOrder : StrictTotalOrder _ _ _
 strictTotalOrder = record
-  { carrier            = Bin
+  { Carrier            = Bin
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record

@@ -17,9 +17,9 @@ record Semigroup : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier     : Set
-    _≈_         : Rel carrier
-    _∙_         : Op₂ carrier
+    Carrier     : Set
+    _≈_         : Rel Carrier
+    _∙_         : Op₂ Carrier
     isSemigroup : IsSemigroup _≈_ _∙_
 
   open IsSemigroup isSemigroup public
@@ -33,19 +33,19 @@ record RawMonoid : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier : Set
-    _≈_     : Rel carrier
-    _∙_     : Op₂ carrier
-    ε       : carrier
+    Carrier : Set
+    _≈_     : Rel Carrier
+    _∙_     : Op₂ Carrier
+    ε       : Carrier
 
 record Monoid : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier  : Set
-    _≈_      : Rel carrier
-    _∙_      : Op₂ carrier
-    ε        : carrier
+    Carrier  : Set
+    _≈_      : Rel Carrier
+    _∙_      : Op₂ Carrier
+    ε        : Carrier
     isMonoid : IsMonoid _≈_ _∙_ ε
 
   open IsMonoid isMonoid public
@@ -66,10 +66,10 @@ record CommutativeMonoid : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier             : Set
-    _≈_                 : Rel carrier
-    _∙_                 : Op₂ carrier
-    ε                   : carrier
+    Carrier             : Set
+    _≈_                 : Rel Carrier
+    _∙_                 : Op₂ Carrier
+    ε                   : Carrier
     isCommutativeMonoid : IsCommutativeMonoid _≈_ _∙_ ε
 
   open IsCommutativeMonoid isCommutativeMonoid public
@@ -84,11 +84,11 @@ record Group : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier : Set
-    _≈_     : Rel carrier
-    _∙_     : Op₂ carrier
-    ε       : carrier
-    _⁻¹     : Op₁ carrier
+    Carrier : Set
+    _≈_     : Rel Carrier
+    _∙_     : Op₂ Carrier
+    ε       : Carrier
+    _⁻¹     : Op₁ Carrier
     isGroup : IsGroup _≈_ _∙_ ε _⁻¹
 
   open IsGroup isGroup public
@@ -103,11 +103,11 @@ record AbelianGroup : Set₁ where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    carrier        : Set
-    _≈_            : Rel carrier
-    _∙_            : Op₂ carrier
-    ε              : carrier
-    _⁻¹            : Op₁ carrier
+    Carrier        : Set
+    _≈_            : Rel Carrier
+    _∙_            : Op₂ Carrier
+    ε              : Carrier
+    _⁻¹            : Op₁ Carrier
     isAbelianGroup : IsAbelianGroup _≈_ _∙_ ε _⁻¹
 
   open IsAbelianGroup isAbelianGroup public
@@ -129,11 +129,11 @@ record NearSemiring : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier        : Set
-    _≈_            : Rel carrier
-    _+_            : Op₂ carrier
-    _*_            : Op₂ carrier
-    0#             : carrier
+    Carrier        : Set
+    _≈_            : Rel Carrier
+    _+_            : Op₂ Carrier
+    _*_            : Op₂ Carrier
+    0#             : Carrier
     isNearSemiring : IsNearSemiring _≈_ _+_ _*_ 0#
 
   open IsNearSemiring isNearSemiring public
@@ -154,11 +154,11 @@ record SemiringWithoutOne : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier              : Set
-    _≈_                  : Rel carrier
-    _+_                  : Op₂ carrier
-    _*_                  : Op₂ carrier
-    0#                   : carrier
+    Carrier              : Set
+    _≈_                  : Rel Carrier
+    _+_                  : Op₂ Carrier
+    _*_                  : Op₂ Carrier
+    0#                   : Carrier
     isSemiringWithoutOne : IsSemiringWithoutOne _≈_ _+_ _*_ 0#
 
   open IsSemiringWithoutOne isSemiringWithoutOne public
@@ -181,12 +181,12 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier                           : Set
-    _≈_                               : Rel carrier
-    _+_                               : Op₂ carrier
-    _*_                               : Op₂ carrier
-    0#                                : carrier
-    1#                                : carrier
+    Carrier                           : Set
+    _≈_                               : Rel Carrier
+    _+_                               : Op₂ Carrier
+    _*_                               : Op₂ Carrier
+    0#                                : Carrier
+    1#                                : Carrier
     isSemiringWithoutAnnihilatingZero :
       IsSemiringWithoutAnnihilatingZero _≈_ _+_ _*_ 0# 1#
 
@@ -218,12 +218,12 @@ record Semiring : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier    : Set
-    _≈_        : Rel carrier
-    _+_        : Op₂ carrier
-    _*_        : Op₂ carrier
-    0#         : carrier
-    1#         : carrier
+    Carrier    : Set
+    _≈_        : Rel Carrier
+    _+_        : Op₂ Carrier
+    _*_        : Op₂ Carrier
+    0#         : Carrier
+    1#         : Carrier
     isSemiring : IsSemiring _≈_ _+_ _*_ 0# 1#
 
   open IsSemiring isSemiring public
@@ -254,11 +254,11 @@ record CommutativeSemiringWithoutOne : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier                         : Set
-    _≈_                             : Rel carrier
-    _+_                             : Op₂ carrier
-    _*_                             : Op₂ carrier
-    0#                              : carrier
+    Carrier                         : Set
+    _≈_                             : Rel Carrier
+    _+_                             : Op₂ Carrier
+    _*_                             : Op₂ Carrier
+    0#                              : Carrier
     isCommutativeSemiringWithoutOne :
       IsCommutativeSemiringWithoutOne _≈_ _+_ _*_ 0#
 
@@ -282,12 +282,12 @@ record CommutativeSemiring : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier               : Set
-    _≈_                   : Rel carrier
-    _+_                   : Op₂ carrier
-    _*_                   : Op₂ carrier
-    0#                    : carrier
-    1#                    : carrier
+    Carrier               : Set
+    _≈_                   : Rel Carrier
+    _+_                   : Op₂ Carrier
+    _*_                   : Op₂ Carrier
+    0#                    : Carrier
+    1#                    : Carrier
     isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
 
   open IsCommutativeSemiring isCommutativeSemiring public
@@ -323,12 +323,12 @@ record RawRing : Set₁ where
   infixl 7 _*_
   infixl 6 _+_
   field
-    carrier : Set
-    _+_     : Op₂ carrier
-    _*_     : Op₂ carrier
-    -_      : Op₁ carrier
-    0#      : carrier
-    1#      : carrier
+    Carrier : Set
+    _+_     : Op₂ Carrier
+    _*_     : Op₂ Carrier
+    -_      : Op₁ Carrier
+    0#      : Carrier
+    1#      : Carrier
 
 record Ring : Set₁ where
   infix  8 -_
@@ -336,13 +336,13 @@ record Ring : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier : Set
-    _≈_     : Rel carrier
-    _+_     : Op₂ carrier
-    _*_     : Op₂ carrier
-    -_      : Op₁ carrier
-    0#      : carrier
-    1#      : carrier
+    Carrier : Set
+    _≈_     : Rel Carrier
+    _+_     : Op₂ Carrier
+    _*_     : Op₂ Carrier
+    -_      : Op₁ Carrier
+    0#      : Carrier
+    1#      : Carrier
     isRing  : IsRing _≈_ _+_ _*_ -_ 0# 1#
 
   open IsRing isRing public
@@ -380,13 +380,13 @@ record CommutativeRing : Set₁ where
   infixl 6 _+_
   infix  4 _≈_
   field
-    carrier           : Set
-    _≈_               : Rel carrier
-    _+_               : Op₂ carrier
-    _*_               : Op₂ carrier
-    -_                : Op₁ carrier
-    0#                : carrier
-    1#                : carrier
+    Carrier           : Set
+    _≈_               : Rel Carrier
+    _+_               : Op₂ Carrier
+    _*_               : Op₂ Carrier
+    -_                : Op₁ Carrier
+    0#                : Carrier
+    1#                : Carrier
     isCommutativeRing : IsCommutativeRing _≈_ _+_ _*_ -_ 0# 1#
 
   open IsCommutativeRing isCommutativeRing public
@@ -416,10 +416,10 @@ record Lattice : Set₁ where
   infixr 6 _∨_
   infix  4 _≈_
   field
-    carrier   : Set
-    _≈_       : Rel carrier
-    _∨_       : Op₂ carrier
-    _∧_       : Op₂ carrier
+    Carrier   : Set
+    _≈_       : Rel Carrier
+    _∨_       : Op₂ Carrier
+    _∧_       : Op₂ Carrier
     isLattice : IsLattice _≈_ _∨_ _∧_
 
   open IsLattice isLattice public
@@ -432,10 +432,10 @@ record DistributiveLattice : Set₁ where
   infixr 6 _∨_
   infix  4 _≈_
   field
-    carrier               : Set
-    _≈_                   : Rel carrier
-    _∨_                   : Op₂ carrier
-    _∧_                   : Op₂ carrier
+    Carrier               : Set
+    _≈_                   : Rel Carrier
+    _∨_                   : Op₂ Carrier
+    _∧_                   : Op₂ Carrier
     isDistributiveLattice : IsDistributiveLattice _≈_ _∨_ _∧_
 
   open IsDistributiveLattice isDistributiveLattice public
@@ -451,13 +451,13 @@ record BooleanAlgebra : Set₁ where
   infixr 6 _∨_
   infix  4 _≈_
   field
-    carrier          : Set
-    _≈_              : Rel carrier
-    _∨_              : Op₂ carrier
-    _∧_              : Op₂ carrier
-    ¬_               : Op₁ carrier
-    ⊤                : carrier
-    ⊥                : carrier
+    Carrier          : Set
+    _≈_              : Rel Carrier
+    _∨_              : Op₂ Carrier
+    _∧_              : Op₂ Carrier
+    ¬_               : Op₁ Carrier
+    ⊤                : Carrier
+    ⊥                : Carrier
     isBooleanAlgebra : IsBooleanAlgebra _≈_ _∨_ _∧_ ¬_ ⊤ ⊥
 
   open IsBooleanAlgebra isBooleanAlgebra public
