@@ -7,25 +7,25 @@ Important changes since 2.2.4:
 Language
 --------
 
-* Universe polymoprhism (experimental extension)
+* Universe polymorphism (experimental extension).
 
-  To enable universe polymorphism give the flag --universe-polyorphism
-  on the command line, as an OPTIONS pragma (recommended) or set it in
-  the emacs mode options.
+  To enable universe polymorphism give the flag
+  --universe-polymorphism on the command line or (recommended) as an
+  OPTIONS pragma.
 
   When universe polymorphism is enabled Set takes an argument which is
-  the universe level. For instance, the type of universe polymorphic identity
-  is
+  the universe level. For instance, the type of universe polymorphic
+  identity is
 
-    id : {i : Level}{A : Set i} -> A -> A
+    id : {a : Level} {A : Set a} → A → A.
 
   The type Level is isomorphic to the unary natural numbers and should be
   specified using the BUILTINs LEVEL, LEVELZERO, and LEVELSUC:
 
     data Level : Set where
       zero : Level
-      suc  : Level -> Level
-  
+      suc  : Level → Level
+
     {-# BUILTIN LEVEL     Level #-}
     {-# BUILTIN LEVELZERO zero  #-}
     {-# BUILTIN LEVELSUC  suc   #-}
@@ -33,20 +33,20 @@ Language
   There is an additional BUILTIN LEVELMAX for taking the maximum of two
   levels:
 
-    max : Level -> Level -> Level
+    max : Level → Level → Level
     max  zero    m      = m
     max (suc n)  zero   = suc n
     max (suc n) (suc m) = suc (max n m)
 
     {-# BUILTIN LEVELMAX max #-}
 
-  The non-polymorphic universe levels Set, Set₁, .. are sugar for Set zero,
-  Set (suc zero), ..
+  The non-polymorphic universe levels Set, Set₁ and so on are sugar
+  for Set zero, Set (suc zero), etc.
 
   At present there is no way to lift types from one level to another, that
   is, there is no function
 
-    lift : {i : Level} -> Set i -> Set (suc i)
+    lift : {i : Level} → Set i → Set (suc i).
 
   This is likely to change at some point.
 
