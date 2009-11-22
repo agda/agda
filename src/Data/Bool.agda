@@ -30,6 +30,8 @@ data Bool : Set where
 {-# BUILTIN TRUE  true  #-}
 {-# BUILTIN FALSE false #-}
 
+{-# COMPILED_DATA Bool Bool True False #-}
+
 ------------------------------------------------------------------------
 -- Some operations
 
