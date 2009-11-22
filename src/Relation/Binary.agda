@@ -241,6 +241,9 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
   _≟_ : Decidable _≈_
   _≟_ = tri⟶dec≈ compare
 
+  _<?_ : Decidable _<_
+  _<?_ = tri⟶dec< compare
+
   isDecEquivalence : IsDecEquivalence _≈_
   isDecEquivalence = record
     { isEquivalence = isEquivalence
