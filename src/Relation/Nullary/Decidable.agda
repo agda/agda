@@ -13,15 +13,15 @@ open import Data.Product hiding (map)
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
 
-decToBool : ∀ {p} {P : Set p} → Dec P → Bool
-decToBool (yes _) = true
-decToBool (no  _) = false
+⌊_⌋ : ∀ {p} {P : Set p} → Dec P → Bool
+⌊ yes _ ⌋ = true
+⌊ no  _ ⌋ = false
 
 True : ∀ {p} {P : Set p} → Dec P → Set
-True Q = T (decToBool Q)
+True Q = T ⌊ Q ⌋
 
 False : ∀ {p} {P : Set p} → Dec P → Set
-False Q = T (not (decToBool Q))
+False Q = T (not ⌊ Q ⌋)
 
 -- Gives a witness to the "truth".
 
