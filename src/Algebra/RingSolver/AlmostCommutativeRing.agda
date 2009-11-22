@@ -19,7 +19,7 @@ record IsAlmostCommutativeRing {A} (_≈_ : Rel A)
          (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set where
   field
     isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
-    -‿pres-≈              : -_ Preserves _≈_ ⟶ _≈_
+    -‿cong                : -_ Preserves _≈_ ⟶ _≈_
     -‿*-distribˡ          : ∀ x y → ((- x) * y)     ≈ (- (x * y))
     -‿+-comm              : ∀ x y → ((- x) + (- y)) ≈ (- (x + y))
 
@@ -103,7 +103,7 @@ fromCommutativeRing : CommutativeRing → AlmostCommutativeRing
 fromCommutativeRing cr = record
   { isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
-      ; -‿pres-≈              = -‿pres-≈
+      ; -‿cong                = -‿cong
       ; -‿*-distribˡ          = -‿*-distribˡ
       ; -‿+-comm              = -‿∙-comm
       }
@@ -121,7 +121,7 @@ fromCommutativeSemiring cs = record
   { -_                      = id
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
-      ; -‿pres-≈              = id
+      ; -‿cong                = id
       ; -‿*-distribˡ          = λ _ _ → refl
       ; -‿+-comm              = λ _ _ → refl
       }

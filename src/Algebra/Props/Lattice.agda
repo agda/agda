@@ -15,13 +15,13 @@ open import Data.Product
 
 ∧-idempotent : Idempotent _∧_
 ∧-idempotent x = begin
-  x ∧ x            ≈⟨ refl ⟨ ∧-pres-≈ ⟩ sym (proj₁ absorptive _ _) ⟩
+  x ∧ x            ≈⟨ refl ⟨ ∧-cong ⟩ sym (proj₁ absorptive _ _) ⟩
   x ∧ (x ∨ x ∧ x)  ≈⟨ proj₂ absorptive _ _ ⟩
   x                ∎
 
 ∨-idempotent : Idempotent _∨_
 ∨-idempotent x = begin
-  x ∨ x      ≈⟨ refl ⟨ ∨-pres-≈ ⟩ sym (∧-idempotent _) ⟩
+  x ∨ x      ≈⟨ refl ⟨ ∨-cong ⟩ sym (∧-idempotent _) ⟩
   x ∨ x ∧ x  ≈⟨ proj₁ absorptive _ _ ⟩
   x          ∎
 
@@ -32,10 +32,10 @@ open import Data.Product
   { isEquivalence = isEquivalence
   ; ∨-comm        = ∧-comm
   ; ∨-assoc       = ∧-assoc
-  ; ∨-pres-≈      = ∧-pres-≈
+  ; ∨-cong        = ∧-cong
   ; ∧-comm        = ∨-comm
   ; ∧-assoc       = ∨-assoc
-  ; ∧-pres-≈      = ∨-pres-≈
+  ; ∧-cong        = ∨-cong
   ; absorptive    = swap absorptive
   }
 

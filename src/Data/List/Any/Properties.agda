@@ -21,7 +21,8 @@ open import Level
 open import Relation.Unary using (Pred; _⟨×⟩_; _⟨→⟩_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
-open import Relation.Binary.FunctionSetoid
+open import Relation.Binary.FunctionSetoid as FunS
+  using (_⟶_; _⟨$⟩_; _⇨_)
 import Relation.Binary.List.Pointwise as ListEq
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -334,7 +335,7 @@ module Membership₂ (S₁ S₂ : Setoid zero zero) where
 
   map-∈⁺ : ∀ (f : S₁ ⟶ S₂) {x xs} →
           x ∈₁ xs → f ⟨$⟩ x ∈₂ map (_⟨$⟩_ f) xs
-  map-∈⁺ f = map⁺ ∘ Any.map (pres f)
+  map-∈⁺ f = map⁺ ∘ Any.map (FunS.cong f)
 
   map-∈⁻ : ∀ {f fx} xs →
            fx ∈₂ map f xs → ∃ λ x → x ∈₁ xs × fx ≈₂ f x
@@ -352,7 +353,7 @@ module Membership₂ (S₁ S₂ : Setoid zero zero) where
   >>=-∈⁺ : ∀ (f : S₁ ⟶ LS₂) {x y xs} →
            x ∈₁ xs → y ∈₂ f ⟨$⟩ x → y ∈₂ (xs >>= _⟨$⟩_ f)
   >>=-∈⁺ f x∈xs y∈fx =
-    >>=⁺ (Any.map (flip M₂.∈-resp-list-≈ y∈fx ∘ pres f) x∈xs)
+    >>=⁺ (Any.map (flip M₂.∈-resp-list-≈ y∈fx ∘ FunS.cong f) x∈xs)
 
   >>=-∈⁻ : ∀ (f : S₁ ⟶ LS₂) {y} xs →
            y ∈₂ (xs >>= _⟨$⟩_ f) → ∃ λ x → x ∈₁ xs × y ∈₂ f ⟨$⟩ x

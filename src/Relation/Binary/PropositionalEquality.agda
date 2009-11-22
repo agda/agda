@@ -11,7 +11,7 @@ open import Data.Product
 open import Level
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Relation.Binary.FunctionSetoid
+open import Relation.Binary.FunctionSetoid using (_≡⇨_; _⟶_)
 
 -- Some of the definitions can be found in the following modules:
 
@@ -79,7 +79,7 @@ _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 →-to-⟶ : ∀ {a b₁ b₂} {A : Set a} {B : Setoid b₁ b₂} →
          (A → Setoid.Carrier B) → setoid A ⟶ B
 →-to-⟶ {B = B} f =
-  record { _⟨$⟩_ = f; pres = Setoid.reflexive B ∘ cong f }
+  record { _⟨$⟩_ = f; cong = Setoid.reflexive B ∘ cong f }
 
 ------------------------------------------------------------------------
 -- The inspect idiom

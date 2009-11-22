@@ -262,7 +262,7 @@ monoid A = record
     { isSemigroup = record
       { isEquivalence = PropEq.isEquivalence
       ; assoc         = assoc
-      ; ∙-pres-≈      = cong₂ _++_
+      ; ∙-cong        = cong₂ _++_
       }
     ; identity = ((λ _ → refl) , identity)
     }

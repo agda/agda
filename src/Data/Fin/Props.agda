@@ -17,7 +17,7 @@ open import Data.Function
 open import Relation.Nullary
 open import Relation.Unary
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid
+open import Relation.Binary.FunctionSetoid as FunS using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; cong; subst)
 open import Category.Functor
@@ -139,7 +139,7 @@ eq? : ∀ {s₁ s₂ n} {S : Setoid s₁ s₂} →
       Injection S (PropEq.setoid (Fin n)) → Decidable (Setoid._≈_ S)
 eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
-... | no  tox≢toy = no  (tox≢toy ∘ pres (Injection.to inj))
+... | no  tox≢toy = no  (tox≢toy ∘ FunS.cong (Injection.to inj))
 
 -- Quantification over finite sets commutes with applicative functors.
 

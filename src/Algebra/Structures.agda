@@ -21,7 +21,7 @@ record IsSemigroup {A} (≈ : Rel A) (∙ : Op₂ A) : Set where
   field
     isEquivalence : IsEquivalence ≈
     assoc         : Associative ∙
-    ∙-pres-≈      : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
+    ∙-cong        : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
 
   open IsEquivalence isEquivalence public
 
@@ -49,7 +49,7 @@ record IsGroup
   field
     isMonoid  : IsMonoid ≈ _∙_ ε
     inverse   : Inverse ε _⁻¹ _∙_
-    ⁻¹-pres-≈ : _⁻¹ Preserves ≈ ⟶ ≈
+    ⁻¹-cong   : _⁻¹ Preserves ≈ ⟶ ≈
 
   open IsMonoid isMonoid public
 
@@ -84,7 +84,7 @@ record IsNearSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
 
   open IsMonoid +-isMonoid public
          renaming ( assoc       to +-assoc
-                  ; ∙-pres-≈    to +-pres-≈
+                  ; ∙-cong      to +-cong
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   )
@@ -92,7 +92,7 @@ record IsNearSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
   open IsSemigroup *-isSemigroup public
          using ()
          renaming ( assoc    to *-assoc
-                  ; ∙-pres-≈ to *-pres-≈
+                  ; ∙-cong   to *-cong
                   )
 
 record IsSemiringWithoutOne
@@ -106,7 +106,7 @@ record IsSemiringWithoutOne
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
          renaming ( assoc       to +-assoc
-                  ; ∙-pres-≈    to +-pres-≈
+                  ; ∙-cong      to +-cong
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   ; isMonoid    to +-isMonoid
@@ -116,7 +116,7 @@ record IsSemiringWithoutOne
   open IsSemigroup *-isSemigroup public
          using ()
          renaming ( assoc       to *-assoc
-                  ; ∙-pres-≈    to *-pres-≈
+                  ; ∙-cong      to *-cong
                   )
 
   isNearSemiring : IsNearSemiring ≈ + * 0#
@@ -139,7 +139,7 @@ record IsSemiringWithoutAnnihilatingZero
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
          renaming ( assoc       to +-assoc
-                  ; ∙-pres-≈    to +-pres-≈
+                  ; ∙-cong      to +-cong
                   ; isSemigroup to +-isSemigroup
                   ; identity    to +-identity
                   ; isMonoid    to +-isMonoid
@@ -149,7 +149,7 @@ record IsSemiringWithoutAnnihilatingZero
   open IsMonoid *-isMonoid public
          using ()
          renaming ( assoc       to *-assoc
-                  ; ∙-pres-≈    to *-pres-≈
+                  ; ∙-cong      to *-cong
                   ; isSemigroup to *-isSemigroup
                   ; identity    to *-identity
                   )
@@ -216,12 +216,12 @@ record IsRing {A} (≈ : Rel A)
 
   open IsAbelianGroup +-isAbelianGroup public
          renaming ( assoc               to +-assoc
-                  ; ∙-pres-≈            to +-pres-≈
+                  ; ∙-cong              to +-cong
                   ; isSemigroup         to +-isSemigroup
                   ; identity            to +-identity
                   ; isMonoid            to +-isMonoid
                   ; inverse             to -‿inverse
-                  ; ⁻¹-pres-≈           to -‿pres-≈
+                  ; ⁻¹-cong             to -‿cong
                   ; isGroup             to +-isGroup
                   ; comm                to +-comm
                   ; isCommutativeMonoid to +-isCommutativeMonoid
@@ -230,7 +230,7 @@ record IsRing {A} (≈ : Rel A)
   open IsMonoid *-isMonoid public
          using ()
          renaming ( assoc       to *-assoc
-                  ; ∙-pres-≈    to *-pres-≈
+                  ; ∙-cong      to *-cong
                   ; isSemigroup to *-isSemigroup
                   ; identity    to *-identity
                   )
@@ -243,11 +243,11 @@ record IsRing {A} (≈ : Rel A)
     zeroˡ : LeftZero 0# _*_
     zeroˡ x = begin
         0# * x                              ≈⟨ sym $ proj₂ +-identity _ ⟩
-       (0# * x) +            0#             ≈⟨ refl ⟨ +-pres-≈ ⟩ sym (proj₂ -‿inverse _) ⟩
+       (0# * x) +            0#             ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
        (0# * x) + ((0# * x)  + - (0# * x))  ≈⟨ sym $ +-assoc _ _ _ ⟩
-      ((0# * x) +  (0# * x)) + - (0# * x)   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-pres-≈ ⟩ refl ⟩
-             ((0# + 0#) * x) + - (0# * x)   ≈⟨ (proj₂ +-identity _ ⟨ *-pres-≈ ⟩ refl)
-                                                 ⟨ +-pres-≈ ⟩
+      ((0# * x) +  (0# * x)) + - (0# * x)   ≈⟨ sym (proj₂ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
+             ((0# + 0#) * x) + - (0# * x)   ≈⟨ (proj₂ +-identity _ ⟨ *-cong ⟩ refl)
+                                                 ⟨ +-cong ⟩
                                                refl ⟩
                     (0# * x) + - (0# * x)   ≈⟨ proj₂ -‿inverse _ ⟩
                              0#             ∎
@@ -255,11 +255,11 @@ record IsRing {A} (≈ : Rel A)
     zeroʳ : RightZero 0# _*_
     zeroʳ x = begin
       x * 0#                              ≈⟨ sym $ proj₂ +-identity _ ⟩
-      (x * 0#) + 0#                       ≈⟨ refl ⟨ +-pres-≈ ⟩ sym (proj₂ -‿inverse _) ⟩
+      (x * 0#) + 0#                       ≈⟨ refl ⟨ +-cong ⟩ sym (proj₂ -‿inverse _) ⟩
       (x * 0#) + ((x * 0#) + - (x * 0#))  ≈⟨ sym $ +-assoc _ _ _ ⟩
-      ((x * 0#) + (x * 0#)) + - (x * 0#)  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-pres-≈ ⟩ refl ⟩
-      (x * (0# + 0#)) + - (x * 0#)        ≈⟨ (refl ⟨ *-pres-≈ ⟩ proj₂ +-identity _)
-                                               ⟨ +-pres-≈ ⟩
+      ((x * 0#) + (x * 0#)) + - (x * 0#)  ≈⟨ sym (proj₁ distrib _ _ _) ⟨ +-cong ⟩ refl ⟩
+      (x * (0# + 0#)) + - (x * 0#)        ≈⟨ (refl ⟨ *-cong ⟩ proj₂ +-identity _)
+                                               ⟨ +-cong ⟩
                                              refl ⟩
       (x * 0#) + - (x * 0#)               ≈⟨ proj₂ -‿inverse _ ⟩
       0#                                  ∎
@@ -306,10 +306,10 @@ record IsLattice {A} (≈ : Rel A) (∨ ∧ : Op₂ A) : Set where
     isEquivalence : IsEquivalence ≈
     ∨-comm        : Commutative ∨
     ∨-assoc       : Associative ∨
-    ∨-pres-≈      : ∨ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
+    ∨-cong        : ∨ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
     ∧-comm        : Commutative ∧
     ∧-assoc       : Associative ∧
-    ∧-pres-≈      : ∧ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
+    ∧-cong        : ∧ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
     absorptive    : Absorptive ∨ ∧
 
   open IsEquivalence isEquivalence public
@@ -329,6 +329,6 @@ record IsBooleanAlgebra
     isDistributiveLattice : IsDistributiveLattice ≈ ∨ ∧
     ∨-complementʳ         : RightInverse ⊤ ¬ ∨
     ∧-complementʳ         : RightInverse ⊥ ¬ ∧
-    ¬-pres-≈              : ¬ Preserves ≈ ⟶ ≈
+    ¬-cong                : ¬ Preserves ≈ ⟶ ≈
 
   open IsDistributiveLattice isDistributiveLattice public

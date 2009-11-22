@@ -154,7 +154,7 @@ import IO
 --     field
 --       isEquivalence : IsEquivalence ≈
 --       assoc         : Associative ∙
---       ∙-pres-≈      : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
+--       ∙-cong        : ∙ Preserves₂ ≈ ⟶ ≈ ⟶ ≈
 --
 -- More specific concepts are then specified in terms of the simpler
 -- ones:

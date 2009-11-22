@@ -127,9 +127,9 @@ private
   con-NF {suc _} c = con-NF c ↑
 
   _+-NF_ : ∀ {n p₁ p₂} → Normal n p₁ → Normal n p₂ → Normal n (p₁ :+ p₂)
-  (p₁ ∶ eq₁) +-NF (p₂ ∶ eq₂) = p₁ +-NF p₂                    ∶ eq₁  ⟨ +-pres-≈ ⟩ eq₂
-  (p₁ ∶ eq)  +-NF p₂         = p₁ +-NF p₂                    ∶ eq   ⟨ +-pres-≈ ⟩ refl
-  p₁         +-NF (p₂ ∶ eq)  = p₁ +-NF p₂                    ∶ refl ⟨ +-pres-≈ ⟩ eq
+  (p₁ ∶ eq₁) +-NF (p₂ ∶ eq₂) = p₁ +-NF p₂                    ∶ eq₁  ⟨ +-cong ⟩ eq₂
+  (p₁ ∶ eq)  +-NF p₂         = p₁ +-NF p₂                    ∶ eq   ⟨ +-cong ⟩ refl
+  p₁         +-NF (p₂ ∶ eq)  = p₁ +-NF p₂                    ∶ refl ⟨ +-cong ⟩ eq
   con c₁     +-NF con c₂     = con (C._+_ c₁ c₂)             ∶ +-homo _ _
   p₁ ↑       +-NF p₂ ↑       = (p₁ +-NF p₂) ↑                ∶ refl
   p₁ *x+ c₁  +-NF p₂ ↑       = p₁ *x+ (c₁ +-NF p₂)           ∶ sym (+-assoc _ _ _)
@@ -148,15 +148,15 @@ private
     _↑-*-NF_ : ∀ {n p₁ p₂} →
                Normal n p₁ → Normal (suc n) p₂ →
                Normal (suc n) (p₁ :↑ 1 :* p₂)
-    p₁ ↑-*-NF (p₂ ∶ eq)   = p₁ ↑-*-NF p₂                    ∶ refl ⟨ *-pres-≈ ⟩ eq
+    p₁ ↑-*-NF (p₂ ∶ eq)   = p₁ ↑-*-NF p₂                    ∶ refl ⟨ *-cong ⟩ eq
     p₁ ↑-*-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
     p₁ ↑-*-NF (p₂ *x+ c₂) = (p₁ ↑-*-NF p₂) *x+ (p₁ *-NF c₂) ∶ lemma₄ _ _ _ _
 
     _*-NF_ : ∀ {n p₁ p₂} →
              Normal n p₁ → Normal n p₂ → Normal n (p₁ :* p₂)
-    (p₁ ∶ eq₁)  *-NF (p₂ ∶ eq₂)  = p₁ *-NF p₂                      ∶ eq₁  ⟨ *-pres-≈ ⟩ eq₂
-    (p₁ ∶ eq)   *-NF p₂          = p₁ *-NF p₂                      ∶ eq   ⟨ *-pres-≈ ⟩ refl
-    p₁          *-NF (p₂ ∶ eq)   = p₁ *-NF p₂                      ∶ refl ⟨ *-pres-≈ ⟩ eq
+    (p₁ ∶ eq₁)  *-NF (p₂ ∶ eq₂)  = p₁ *-NF p₂                      ∶ eq₁  ⟨ *-cong ⟩ eq₂
+    (p₁ ∶ eq)   *-NF p₂          = p₁ *-NF p₂                      ∶ eq   ⟨ *-cong ⟩ refl
+    p₁          *-NF (p₂ ∶ eq)   = p₁ *-NF p₂                      ∶ refl ⟨ *-cong ⟩ eq
     con c₁      *-NF con c₂      = con (C._*_ c₁ c₂)               ∶ *-homo _ _
     p₁ ↑        *-NF p₂ ↑        = (p₁ *-NF p₂) ↑                  ∶ refl
     (p₁ *x+ c₁) *-NF p₂ ↑        = (p₁ *-NF p₂ ↑) *x+ (c₁ *-NF p₂) ∶ lemma₃ _ _ _ _
@@ -166,7 +166,7 @@ private
       (p₁ *-NF c₂ ↑ +-NF c₁ ↑-*-NF p₂) *x+ (c₁ *-NF c₂)            ∶ lemma₅ _ _ _ _ _
 
   -‿NF_ : ∀ {n p} → Normal n p → Normal n (:- p)
-  -‿NF (p ∶ eq)  = -‿NF p ∶ -‿pres-≈ eq
+  -‿NF (p ∶ eq)  = -‿NF p ∶ -‿cong eq
   -‿NF con c     = con (C.-_ c) ∶ -‿homo _
   -‿NF (p ↑)     = (-‿NF p) ↑
   -‿NF (p *x+ c) = -‿NF p *x+ -‿NF c ∶ lemma₆ _ _ _
@@ -198,19 +198,19 @@ private
 -- Correctness
 
 private
-  sem-pres-≈ : ∀ op → sem op Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
-  sem-pres-≈ [+] = +-pres-≈
-  sem-pres-≈ [*] = *-pres-≈
+  sem-cong : ∀ op → sem op Preserves₂ _≈_ ⟶ _≈_ ⟶ _≈_
+  sem-cong [+] = +-cong
+  sem-cong [*] = *-cong
 
   raise-sem : ∀ {n x} (p : Polynomial n) ρ →
               ⟦ p :↑ 1 ⟧ (x ∷ ρ) ≈ ⟦ p ⟧ ρ
-  raise-sem (op o p₁ p₂) ρ = raise-sem p₁ ρ ⟨ sem-pres-≈ o ⟩
+  raise-sem (op o p₁ p₂) ρ = raise-sem p₁ ρ ⟨ sem-cong o ⟩
                              raise-sem p₂ ρ
   raise-sem (con c)      ρ = refl
   raise-sem (var x)      ρ = refl
-  raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-pres-≈ ⟩
+  raise-sem (p :^ n)     ρ = raise-sem p ρ ⟨ ^-cong ⟩
                              PropEq.refl {x = n}
-  raise-sem (:- p)       ρ = -‿pres-≈ (raise-sem p ρ)
+  raise-sem (:- p)       ρ = -‿cong (raise-sem p ρ)
 
   nf-sound : ∀ {n p} (nf : Normal n p) ρ →
              ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
@@ -219,8 +219,8 @@ private
   nf-sound (_↑ {p' = p'} nf) (x ∷ ρ) =
     nf-sound nf ρ ⟨ trans ⟩ sym (raise-sem p' ρ)
   nf-sound (_*x+_ {c' = c'} nf₁ nf₂) (x ∷ ρ) =
-    (nf-sound nf₁ (x ∷ ρ) ⟨ *-pres-≈ ⟩ refl)
-      ⟨ +-pres-≈ ⟩
+    (nf-sound nf₁ (x ∷ ρ) ⟨ *-cong ⟩ refl)
+      ⟨ +-cong ⟩
     (nf-sound nf₂ ρ ⟨ trans ⟩ sym (raise-sem c' ρ))
 
 -- Completeness can presumably also be proved (i.e. the normal forms

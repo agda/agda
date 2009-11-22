@@ -41,11 +41,11 @@ record _-Ring⟶_ (From To : Ring) : Set where
   open Definitions F.Carrier T.Carrier T._≈_
 
   field
-    ⟦_⟧       : Morphism
-    ⟦⟧-pres-≈ : ⟦_⟧ Preserves F._≈_ ⟶ T._≈_
-    +-homo    : Homomorphic₂ ⟦_⟧ F._+_ T._+_
-    *-homo    : Homomorphic₂ ⟦_⟧ F._*_ T._*_
-    1-homo    : Homomorphic₀ ⟦_⟧ F.1#  T.1#
+    ⟦_⟧     : Morphism
+    ⟦⟧-cong : ⟦_⟧ Preserves F._≈_ ⟶ T._≈_
+    +-homo  : Homomorphic₂ ⟦_⟧ F._+_ T._+_
+    *-homo  : Homomorphic₂ ⟦_⟧ F._*_ T._*_
+    1-homo  : Homomorphic₀ ⟦_⟧ F.1#  T.1#
 
   open EqR T.setoid
 
@@ -53,13 +53,13 @@ record _-Ring⟶_ (From To : Ring) : Set where
   0-homo =
     GroupP.left-identity-unique T.+-group ⟦ F.0# ⟧ ⟦ F.0# ⟧ (begin
       T._+_ ⟦ F.0# ⟧ ⟦ F.0# ⟧ ≈⟨ T.sym (+-homo F.0# F.0#) ⟩
-      ⟦ F._+_ F.0# F.0# ⟧     ≈⟨ ⟦⟧-pres-≈ (proj₁ F.+-identity F.0#) ⟩
+      ⟦ F._+_ F.0# F.0# ⟧     ≈⟨ ⟦⟧-cong (proj₁ F.+-identity F.0#) ⟩
       ⟦ F.0# ⟧                ∎)
 
   -‿homo : Homomorphic₁ ⟦_⟧ F.-_ T.-_
   -‿homo x =
     GroupP.left-inverse-unique T.+-group ⟦ F.-_ x ⟧ ⟦ x ⟧ (begin
       T._+_ ⟦ F.-_ x ⟧ ⟦ x ⟧ ≈⟨ T.sym (+-homo (F.-_ x) x) ⟩
-      ⟦ F._+_ (F.-_ x) x ⟧   ≈⟨ ⟦⟧-pres-≈ (proj₁ F.-‿inverse x) ⟩
+      ⟦ F._+_ (F.-_ x) x ⟧   ≈⟨ ⟦⟧-cong (proj₁ F.-‿inverse x) ⟩
       ⟦ F.0# ⟧               ≈⟨ 0-homo ⟩
       T.0#                   ∎)

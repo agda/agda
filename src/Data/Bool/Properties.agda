@@ -87,7 +87,7 @@ isCommutativeSemiring-∨-∧ = record
           { isSemigroup = record
             { isEquivalence = isEquivalence
             ; assoc         = ∨-assoc
-            ; ∙-pres-≈      = cong₂ _∨_
+            ; ∙-cong        = cong₂ _∨_
             }
           ; identity = ∨-identity
           }
@@ -97,7 +97,7 @@ isCommutativeSemiring-∨-∧ = record
         { isSemigroup = record
           { isEquivalence = isEquivalence
           ; assoc         = ∧-assoc
-          ; ∙-pres-≈      = cong₂ _∧_
+          ; ∙-cong        = cong₂ _∧_
           }
         ; identity = ∧-identity
         }
@@ -157,7 +157,7 @@ isCommutativeSemiring-∧-∨ = record
           { isSemigroup = record
             { isEquivalence = isEquivalence
             ; assoc         = ∧-assoc
-            ; ∙-pres-≈      = cong₂ _∧_
+            ; ∙-cong        = cong₂ _∧_
             }
           ; identity = ∧-identity
           }
@@ -167,7 +167,7 @@ isCommutativeSemiring-∧-∨ = record
         { isSemigroup = record
           { isEquivalence = isEquivalence
           ; assoc         = ∨-assoc
-          ; ∙-pres-≈      = cong₂ _∨_
+          ; ∙-cong        = cong₂ _∨_
           }
         ; identity = ∨-identity
         }
@@ -226,17 +226,17 @@ isBooleanAlgebra = record
           { isEquivalence = isEquivalence
           ; ∨-comm        = ∨-comm
           ; ∨-assoc       = ∨-assoc
-          ; ∨-pres-≈      = cong₂ _∨_
+          ; ∨-cong        = cong₂ _∨_
           ; ∧-comm        = ∧-comm
           ; ∧-assoc       = ∧-assoc
-          ; ∧-pres-≈      = cong₂ _∧_
+          ; ∧-cong        = cong₂ _∧_
           ; absorptive    = absorptive
           }
       ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
       }
   ; ∨-complementʳ = proj₂ not-∨-inverse
   ; ∧-complementʳ = proj₂ not-∧-inverse
-  ; ¬-pres-≈      = cong not
+  ; ¬-cong        = cong not
   }
 
 booleanAlgebra : BooleanAlgebra

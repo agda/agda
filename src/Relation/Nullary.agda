@@ -69,7 +69,7 @@ record LeftInverse {f₁ f₂ t₁ t₂}
   injective : Injective to
   injective {x} {y} eq = begin
     x                    ≈⟨ sym (left-inverse x) ⟩
-    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ pres from eq ⟩
+    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ cong from eq ⟩
     from ⟨$⟩ (to ⟨$⟩ y)  ≈⟨ left-inverse y ⟩
     y                    ∎
 

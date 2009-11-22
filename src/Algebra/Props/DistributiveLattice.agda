@@ -23,7 +23,7 @@ open import Data.Product
   ∨-∧-distribˡ x y z = begin
     x ∨ y ∧ z          ≈⟨ ∨-comm _ _ ⟩
     y ∧ z ∨ x          ≈⟨ ∨-∧-distribʳ _ _ _ ⟩
-    (y ∨ x) ∧ (z ∨ x)  ≈⟨ ∨-comm _ _ ⟨ ∧-pres-≈ ⟩ ∨-comm _ _ ⟩
+    (y ∨ x) ∧ (z ∨ x)  ≈⟨ ∨-comm _ _ ⟨ ∧-cong ⟩ ∨-comm _ _ ⟩
     (x ∨ y) ∧ (x ∨ z)  ∎
 
 ∧-∨-distrib : _∧_ DistributesOver _∨_
@@ -31,11 +31,11 @@ open import Data.Product
   where
   ∧-∨-distribˡ : _∧_ DistributesOverˡ _∨_
   ∧-∨-distribˡ x y z = begin
-    x ∧ (y ∨ z)                ≈⟨ sym (proj₂ absorptive _ _) ⟨ ∧-pres-≈ ⟩ refl ⟩
-    (x ∧ (x ∨ y)) ∧ (y ∨ z)    ≈⟨ (refl ⟨ ∧-pres-≈ ⟩ ∨-comm _ _) ⟨ ∧-pres-≈ ⟩ refl ⟩
+    x ∧ (y ∨ z)                ≈⟨ sym (proj₂ absorptive _ _) ⟨ ∧-cong ⟩ refl ⟩
+    (x ∧ (x ∨ y)) ∧ (y ∨ z)    ≈⟨ (refl ⟨ ∧-cong ⟩ ∨-comm _ _) ⟨ ∧-cong ⟩ refl ⟩
     (x ∧ (y ∨ x)) ∧ (y ∨ z)    ≈⟨ ∧-assoc _ _ _ ⟩
-    x ∧ ((y ∨ x) ∧ (y ∨ z))    ≈⟨ refl ⟨ ∧-pres-≈ ⟩ sym (proj₁ ∨-∧-distrib _ _ _) ⟩
-    x ∧ (y ∨ x ∧ z)            ≈⟨ sym (proj₁ absorptive _ _) ⟨ ∧-pres-≈ ⟩ refl ⟩
+    x ∧ ((y ∨ x) ∧ (y ∨ z))    ≈⟨ refl ⟨ ∧-cong ⟩ sym (proj₁ ∨-∧-distrib _ _ _) ⟩
+    x ∧ (y ∨ x ∧ z)            ≈⟨ sym (proj₁ absorptive _ _) ⟨ ∧-cong ⟩ refl ⟩
     (x ∨ x ∧ z) ∧ (y ∨ x ∧ z)  ≈⟨ sym $ proj₂ ∨-∧-distrib _ _ _ ⟩
     x ∧ y ∨ x ∧ z              ∎
 
@@ -43,7 +43,7 @@ open import Data.Product
   ∧-∨-distribʳ x y z = begin
     (y ∨ z) ∧ x    ≈⟨ ∧-comm _ _ ⟩
     x ∧ (y ∨ z)    ≈⟨ ∧-∨-distribˡ _ _ _ ⟩
-    x ∧ y ∨ x ∧ z  ≈⟨ ∧-comm _ _ ⟨ ∨-pres-≈ ⟩ ∧-comm _ _ ⟩
+    x ∧ y ∨ x ∧ z  ≈⟨ ∧-comm _ _ ⟨ ∨-cong ⟩ ∧-comm _ _ ⟩
     y ∧ x ∨ z ∧ x  ∎
 
 -- The dual construction is also a distributive lattice.

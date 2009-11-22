@@ -27,7 +27,7 @@ record _⟶_ {f₁ f₂ t₁ t₂} (From : Setoid f₁ f₂) (To : Setoid t₁ t
   infixl 5 _⟨$⟩_
   field
     _⟨$⟩_ : Carrier From → Carrier To
-    pres  : _⟨$⟩_ Preserves _≈_ From ⟶ _≈_ To
+    cong  : _⟨$⟩_ Preserves _≈_ From ⟶ _≈_ To
 
 open _⟶_ public
 
@@ -37,8 +37,8 @@ open _⟶_ public
                   (∀ f → fun f Preserves ∼₁ ⟶ ∼₂) →
                   IsEquivalence ∼₁ → IsEquivalence ∼₂ →
                   IsEquivalence ((∼₁ ↝ ∼₂) on fun)
-↝-isEquivalence _ pres eq₁ eq₂ = record
-  { refl  = λ {f} x∼₁y → pres f x∼₁y
+↝-isEquivalence _ cong eq₁ eq₂ = record
+  { refl  = λ {f} x∼₁y → cong f x∼₁y
   ; sym   = λ f∼g x∼y → sym eq₂ (f∼g (sym eq₁ x∼y))
   ; trans = λ f∼g g∼h x∼y → trans eq₂ (f∼g (refl eq₁)) (g∼h x∼y)
   } where open IsEquivalence
@@ -51,7 +51,7 @@ S₁ ⇨ S₂ = record
   ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
   ; isEquivalence =
       ↝-isEquivalence (_⟨$⟩_ {From = S₁} {To = S₂})
-                      pres (isEquivalence S₁) (isEquivalence S₂)
+                      cong (isEquivalence S₁) (isEquivalence S₂)
   } where open Setoid; open _⟶_
 
 -- A generalised variant of (_↝_ _≡_).

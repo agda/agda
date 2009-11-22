@@ -173,7 +173,7 @@ isCommutativeSemiring = record
           { isSemigroup = record
             { isEquivalence = PropEq.isEquivalence
             ; assoc         = +-assoc
-            ; ∙-pres-≈      = cong₂ _+_
+            ; ∙-cong        = cong₂ _+_
             }
           ; identity = +-identity
           }
@@ -183,7 +183,7 @@ isCommutativeSemiring = record
         { isSemigroup = record
           { isEquivalence = PropEq.isEquivalence
           ; assoc         = *-assoc
-          ; ∙-pres-≈      = cong₂ _*_
+          ; ∙-cong        = cong₂ _*_
           }
         ; identity = *-identity
         }
@@ -296,7 +296,7 @@ private
               { isSemigroup = record
                   { isEquivalence = PropEq.isEquivalence
                   ; assoc         = ⊔-assoc
-                  ; ∙-pres-≈      = cong₂ _⊔_
+                  ; ∙-cong        = cong₂ _⊔_
                   }
               ; identity = ⊔-identity
               }
@@ -305,7 +305,7 @@ private
       ; *-isSemigroup = record
           { isEquivalence = PropEq.isEquivalence
           ; assoc         = ⊓-assoc
-          ; ∙-pres-≈      = cong₂ _⊓_
+          ; ∙-cong        = cong₂ _⊓_
           }
       ; distrib = distrib-⊓-⊔
       ; zero    = ⊓-zero
@@ -353,10 +353,10 @@ isDistributiveLattice = record
       { isEquivalence = PropEq.isEquivalence
       ; ∨-comm        = ⊓-comm
       ; ∨-assoc       = ⊓-assoc
-      ; ∨-pres-≈      = cong₂ _⊓_
+      ; ∨-cong        = cong₂ _⊓_
       ; ∧-comm        = ⊔-comm
       ; ∧-assoc       = ⊔-assoc
-      ; ∧-pres-≈      = cong₂ _⊔_
+      ; ∧-cong        = cong₂ _⊔_
       ; absorptive    = absorptive-⊓-⊔
       }
   ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔

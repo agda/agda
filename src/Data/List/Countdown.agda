@@ -17,7 +17,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
-open import Relation.Binary.FunctionSetoid
+open import Relation.Binary.FunctionSetoid using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; cong)
 open PropEq.≡-Reasoning
@@ -55,9 +55,9 @@ private
 
   -- first-index preserves equality of its first argument.
 
-  first-index-pres : ∀ {x₁ x₂ xs} (x₁∈xs : x₁ ∈ xs) (x₂∈xs : x₂ ∈ xs) →
+  first-index-cong : ∀ {x₁ x₂ xs} (x₁∈xs : x₁ ∈ xs) (x₂∈xs : x₂ ∈ xs) →
                      x₁ ≈ x₂ → first-index x₁ x₁∈xs ≡ first-index x₂ x₂∈xs
-  first-index-pres {x₁} {x₂} x₁∈xs x₂∈xs x₁≈x₂ = helper x₁∈xs x₂∈xs
+  first-index-cong {x₁} {x₂} x₁∈xs x₂∈xs x₁≈x₂ = helper x₁∈xs x₂∈xs
     where
     helper : ∀ {xs} (x₁∈xs : x₁ ∈ xs) (x₂∈xs : x₂ ∈ xs) →
              first-index x₁ x₁∈xs ≡ first-index x₂ x₂∈xs
@@ -164,7 +164,7 @@ emptyFromList : (counted : List Elem) → (∀ x → x ∈ counted) →
 emptyFromList counted complete = empty record
   { to = record
     { _⟨$⟩_ = λ x → first-index x (complete x)
-    ; pres  = first-index-pres (complete _) (complete _)
+    ; cong  = first-index-cong (complete _) (complete _)
     }
   ; injective = first-index-injective (complete _) (complete _)
   }

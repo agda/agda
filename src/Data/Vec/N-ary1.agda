@@ -55,30 +55,30 @@ right-inverse (suc n) f = λ x → right-inverse n (f x)
 
 -- Conversion preserves equality.
 
-curryⁿ-pres : ∀ {n A B _∼_} (f g : Vec₁ A n → B) →
+curryⁿ-cong : ∀ {n A B _∼_} (f g : Vec₁ A n → B) →
               (∀ xs → f xs ∼ g xs) →
               Eq n _∼_ (curryⁿ f) (curryⁿ g)
-curryⁿ-pres {zero}  f g hyp = hyp []
-curryⁿ-pres {suc n} f g hyp = λ x →
-  curryⁿ-pres (λ xs → f (x ∷ xs)) (λ xs → g (x ∷ xs))
+curryⁿ-cong {zero}  f g hyp = hyp []
+curryⁿ-cong {suc n} f g hyp = λ x →
+  curryⁿ-cong (λ xs → f (x ∷ xs)) (λ xs → g (x ∷ xs))
               (λ xs → hyp (x ∷ xs))
 
-curryⁿ-pres⁻¹ : ∀ {n A B _∼_} (f g : Vec₁ A n → B) →
+curryⁿ-cong⁻¹ : ∀ {n A B _∼_} (f g : Vec₁ A n → B) →
                 Eq n _∼_ (curryⁿ f) (curryⁿ g) →
                 ∀ xs → f xs ∼ g xs
-curryⁿ-pres⁻¹ f g hyp []       = hyp
-curryⁿ-pres⁻¹ f g hyp (x ∷ xs) =
-  curryⁿ-pres⁻¹ (λ xs → f (x ∷ xs)) (λ xs → g (x ∷ xs)) (hyp x) xs
+curryⁿ-cong⁻¹ f g hyp []       = hyp
+curryⁿ-cong⁻¹ f g hyp (x ∷ xs) =
+  curryⁿ-cong⁻¹ (λ xs → f (x ∷ xs)) (λ xs → g (x ∷ xs)) (hyp x) xs
 
-appⁿ-pres : ∀ {n A B _∼_} (f g : N-ary n A B) →
+appⁿ-cong : ∀ {n A B _∼_} (f g : N-ary n A B) →
             Eq n _∼_ f g →
             (xs : Vec₁ A n) → (f $ⁿ xs) ∼ (g $ⁿ xs)
-appⁿ-pres f g hyp []       = hyp
-appⁿ-pres f g hyp (x ∷ xs) = appⁿ-pres (f x) (g x) (hyp x) xs
+appⁿ-cong f g hyp []       = hyp
+appⁿ-cong f g hyp (x ∷ xs) = appⁿ-cong (f x) (g x) (hyp x) xs
 
-appⁿ-pres⁻¹ : ∀ {n A B _∼_} (f g : N-ary n A B) →
+appⁿ-cong⁻¹ : ∀ {n A B _∼_} (f g : N-ary n A B) →
               ((xs : Vec₁ A n) → (f $ⁿ xs) ∼ (g $ⁿ xs)) →
               Eq n _∼_ f g
-appⁿ-pres⁻¹ {zero}  f g hyp = hyp []
-appⁿ-pres⁻¹ {suc n} f g hyp = λ x →
-  appⁿ-pres⁻¹ (f x) (g x) (λ xs → hyp (x ∷ xs))
+appⁿ-cong⁻¹ {zero}  f g hyp = hyp []
+appⁿ-cong⁻¹ {suc n} f g hyp = λ x →
+  appⁿ-cong⁻¹ (f x) (g x) (λ xs → hyp (x ∷ xs))

@@ -37,22 +37,22 @@ x ^ suc n = x * x ^ n
 ------------------------------------------------------------------------
 -- Some properties
 
-×-pres-≈ : _×_ Preserves₂ _≡_ ⟶ _≈_ ⟶ _≈_
-×-pres-≈ {n} {n'} {x} {x'} n≡n' x≈x' = begin
+×-cong : _×_ Preserves₂ _≡_ ⟶ _≈_ ⟶ _≈_
+×-cong {n} {n'} {x} {x'} n≡n' x≈x' = begin
   n  × x   ≈⟨ reflexive $ PropEq.cong (λ n → n × x) n≡n' ⟩
-  n' × x   ≈⟨ ×-pres-≈ʳ n' x≈x' ⟩
+  n' × x   ≈⟨ ×-congʳ n' x≈x' ⟩
   n' × x'  ∎
   where
-  ×-pres-≈ʳ : ∀ n → (_×_ n) Preserves _≈_ ⟶ _≈_
-  ×-pres-≈ʳ zero    x≈x' = refl
-  ×-pres-≈ʳ (suc n) x≈x' = x≈x' ⟨ +-pres-≈ ⟩ ×-pres-≈ʳ n x≈x'
+  ×-congʳ : ∀ n → (_×_ n) Preserves _≈_ ⟶ _≈_
+  ×-congʳ zero    x≈x' = refl
+  ×-congʳ (suc n) x≈x' = x≈x' ⟨ +-cong ⟩ ×-congʳ n x≈x'
 
-^-pres-≈ : _^_ Preserves₂ _≈_ ⟶ _≡_ ⟶ _≈_
-^-pres-≈ {x} {x'} {n} {n'} x≈x' n≡n' = begin
+^-cong : _^_ Preserves₂ _≈_ ⟶ _≡_ ⟶ _≈_
+^-cong {x} {x'} {n} {n'} x≈x' n≡n' = begin
   x  ^ n   ≈⟨ reflexive $ PropEq.cong (_^_ x) n≡n' ⟩
-  x  ^ n'  ≈⟨ ^-pres-≈ˡ n' x≈x' ⟩
+  x  ^ n'  ≈⟨ ^-congˡ n' x≈x' ⟩
   x' ^ n'  ∎
   where
-  ^-pres-≈ˡ : ∀ n → (λ x → x ^ n) Preserves _≈_ ⟶ _≈_
-  ^-pres-≈ˡ zero    x≈x' = refl
-  ^-pres-≈ˡ (suc n) x≈x' = x≈x' ⟨ *-pres-≈ ⟩ ^-pres-≈ˡ n x≈x'
+  ^-congˡ : ∀ n → (λ x → x ^ n) Preserves _≈_ ⟶ _≈_
+  ^-congˡ zero    x≈x' = refl
+  ^-congˡ (suc n) x≈x' = x≈x' ⟨ *-cong ⟩ ^-congˡ n x≈x'
