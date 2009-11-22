@@ -257,7 +257,7 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
     ; <-resp-≈      = <-resp-≈
     }
 
-  open IsStrictPartialOrder isStrictPartialOrder using (irrefl)
+  open IsStrictPartialOrder isStrictPartialOrder public using (irrefl)
 
 record StrictTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _<_
