@@ -6,17 +6,18 @@ module Agda.Syntax.Parser.Parser (
       moduleParser
     , exprParser
     , tokensParser
+    , tests
     ) where
 
 import Control.Arrow
 import Control.Monad
 import Control.Monad.State
-import Data.Char  (isDigit)
+import Data.Char
 import Data.List
 import Data.Maybe
 import qualified Data.Traversable as T
 
-import Agda.Syntax.Position
+import Agda.Syntax.Position hiding (tests)
 import Agda.Syntax.Parser.Monad
 import Agda.Syntax.Parser.Lexer
 import Agda.Syntax.Parser.Tokens
@@ -28,6 +29,8 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
 
 import Agda.Utils.Monad
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 }
 
@@ -814,8 +817,12 @@ CompiledDataPragma
 
 ImportPragma :: { Pragma }
 ImportPragma
-  : '{-#' 'IMPORT' PragmaStrings '#-}'
-    { ImportPragma (fuseRange $1 $4) (unwords $3) }
+  : '{-#' 'IMPORT' string '#-}'
+    {% let s = snd $3 in
+       if validHaskellModuleName s
+       then return $ ImportPragma (fuseRange $1 $4) s
+       else parseError $ "Malformed module name: " ++ s ++ "."
+    }
 
 ImpossiblePragma :: { Pragma }
   : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (fuseRange $1 $3) }
@@ -976,6 +983,44 @@ verifyImportDirective i =
 	names (Using xs)    = xs
 	names (Hiding xs)   = xs
 
+-- | Breaks up a string into substrings. Returns every maximal
+-- subsequence of zero or more characters distinct from @'.'@.
+--
+-- > splitOnDots ""         == [""]
+-- > splitOnDots "foo.bar"  == ["foo", "bar"]
+-- > splitOnDots ".foo.bar" == ["", "foo", "bar"]
+-- > splitOnDots "foo.bar." == ["foo", "bar", ""]
+-- > splitOnDots "foo..bar" == ["foo", "", "bar"]
+splitOnDots :: String -> [String]
+splitOnDots ""        = [""]
+splitOnDots ('.' : s) = [] : splitOnDots s
+splitOnDots (c   : s) = case splitOnDots s of
+  p : ps -> (c : p) : ps
+
+prop_splitOnDots = and
+  [ splitOnDots ""         == [""]
+  , splitOnDots "foo.bar"  == ["foo", "bar"]
+  , splitOnDots ".foo.bar" == ["", "foo", "bar"]
+  , splitOnDots "foo.bar." == ["foo", "bar", ""]
+  , splitOnDots "foo..bar" == ["foo", "", "bar"]
+  ]
+
+-- | Returns 'True' iff the name is a valid Haskell (hierarchical)
+-- module name.
+validHaskellModuleName :: String -> Bool
+validHaskellModuleName = all ok . splitOnDots
+  where
+  -- Checks if a dot-less module name is well-formed.
+  ok :: String -> Bool
+  ok []      = False
+  ok (c : s) =
+    isUpper c &&
+    all (\c -> isLower c || c == '_' ||
+               isUpper c ||
+               generalCategory c == DecimalNumber ||
+               c == '\'')
+        s
+
 {--------------------------------------------------------------------------
     Patterns
  --------------------------------------------------------------------------}
@@ -1008,5 +1053,15 @@ exprToPattern e =
 	_			->
           let Just pos = rStart $ getRange e in
           parseErrorAt pos $ "Not a valid pattern: " ++ show e
+
+{--------------------------------------------------------------------------
+    Tests
+ --------------------------------------------------------------------------}
+
+-- | Test suite.
+tests :: IO Bool
+tests = runTests "Agda.Syntax.Parser.Parser"
+  [ quickCheck' prop_splitOnDots
+  ]
 
 }

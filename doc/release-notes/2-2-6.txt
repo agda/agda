@@ -156,7 +156,12 @@ Language
   0.3 of the standard library, where it is used to implement decidable
   equality on strings from the primitive boolean equality.
 
-* IMPORT pragmas are now viewed as /qualified/ imports, so Haskell
+* Changes to the syntax and semantics of IMPORT pragmas. Such pragmas
+  must now have the following form:
+
+    {-# IMPORT <module name> #-}
+
+  These pragmas are interpreted as /qualified/ imports, so Haskell
   names need to be given qualified (unless they come from the Haskell
   prelude).
 

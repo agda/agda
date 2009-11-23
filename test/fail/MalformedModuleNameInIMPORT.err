@@ -1,0 +1,3 @@
+MalformedModuleNameInIMPORT.agda:4,1-1
+MalformedModuleNameInIMPORT.agda:4,1:
+Malformed module name: m. <EOF><ERROR> ...

@@ -4,7 +4,7 @@ module Lib.IO where
 open import Lib.List
 open import Lib.Prelude
 
-{-# IMPORT System.Environment (getArgs) #-}
+{-# IMPORT System.Environment #-}
 
 FilePath = String
 
@@ -29,7 +29,7 @@ postulate
   -- and resolve the overloading explicitly (since Alonzo
   -- output is sprinkled with unsafeCoerce#).
 {-# COMPILED getLine getLine #-}
-{-# COMPILED getArgs getArgs #-}
+{-# COMPILED getArgs System.Environment.getArgs #-}
 {-# COMPILED readFile readFile #-}
 {-# COMPILED writeFile writeFile #-}
 

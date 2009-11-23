@@ -241,6 +241,8 @@ data Pragma = OptionsPragma     !Range [String]
             | CompiledTypePragma !Range QName String
             | CompiledPragma    !Range QName String
             | ImportPragma      !Range String
+              -- ^ Invariant: The string must be a valid Haskell
+              -- module name.
             | ImpossiblePragma !Range
     deriving (Eq, Typeable, Data)
 
