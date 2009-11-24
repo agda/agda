@@ -54,7 +54,7 @@ newtype ModuleName = MName { mnameToList :: [Name] }
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, Data, HasRange)
+  deriving (Typeable, Data, HasRange, Show)
 
 instance HasRange ModuleName where
   getRange (MName []) = noRange

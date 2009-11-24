@@ -49,7 +49,7 @@ data Expr
         | ETel Telescope                     -- ^ only used when printing telescopes
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data Declaration
 	= Axiom      DefInfo        QName Expr			-- ^ postulate
@@ -63,19 +63,19 @@ data Declaration
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
             | CompiledPragma QName String
             | CompiledTypePragma QName String
             | CompiledDataPragma QName String [String]
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
                 | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName  -- ^ only for highlighting
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | A definition without its type signature.
 data Definition
@@ -86,7 +86,7 @@ data Definition
 	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
         | ScopedDef ScopeInfo Definition
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -96,12 +96,12 @@ type Constructor    = TypeSignature
 data LamBinding
 	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range Hiding [TypedBinding]
 	    -- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
@@ -111,7 +111,7 @@ data TypedBindings = TypedBindings Range Hiding [TypedBinding]
 --   you have to.
 data TypedBinding = TBind Range [Name] Expr
 		  | TNoBind Expr
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 type Telescope	= [TypedBindings]
 
@@ -119,7 +119,7 @@ type Telescope	= [TypedBindings]
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
 data Clause	= Clause LHS RHS [Declaration]
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 data RHS	= RHS Expr
 		| AbsurdRHS
 		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
@@ -127,10 +127,10 @@ data RHS	= RHS Expr
                     -- ^ The 'QName's are the names of the generated with functions.
                     --   One for each 'Expr'.
                     --   The RHS shouldn't be another RewriteRHS
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e	= VarP Name
@@ -142,7 +142,7 @@ data Pattern' e	= VarP Name
 		| AbsurdP PatInfo
 		| LitP Literal
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 type Pattern = Pattern' Expr
 

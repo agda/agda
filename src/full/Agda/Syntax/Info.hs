@@ -30,7 +30,7 @@ data MetaInfo =
 		 , metaScope	:: ScopeInfo
 		 , metaNumber	:: Maybe Nat
 		 }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance HasRange MetaInfo where
   getRange = metaRange
@@ -49,7 +49,7 @@ data ExprInfo
 	| ExprSource Range (Precedence -> Expr)
 	    -- ^ Even if we store the original expression we have to know
 	    --	 whether to put parenthesis around it.
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance HasRange ExprInfo where
   getRange (ExprRange  r  ) = r
@@ -72,7 +72,7 @@ data ModuleInfo =
                      -- The \"as\" module name, if any. Retained for
                      -- highlighting purposes.
 		   }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance HasRange ModuleInfo where
   getRange = minfoRange
@@ -85,7 +85,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -103,7 +103,7 @@ data DefInfo =
 		, defAbstract :: IsAbstract
 		, defInfo     :: DeclInfo
 		}
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 mkDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab (DeclInfo x r)
@@ -122,7 +122,7 @@ data DeclInfo =
 	DeclInfo { declName  :: Name
 		 , declRange :: Range
 		 }
-  deriving (Eq, Typeable, Data)
+  deriving (Eq, Typeable, Data, Show)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -135,7 +135,7 @@ instance KillRange DeclInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Show)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -153,6 +153,10 @@ instance KillRange LHSInfo where
 data PatInfo = PatRange Range
 	     | PatSource Range (Precedence -> Pattern)
   deriving (Typeable, Data)
+
+instance Show PatInfo where
+  show (PatRange r) = "PatRange " ++ show r
+  show (PatSource r _) = "PatSource " ++ show r
 
 instance HasRange PatInfo where
   getRange (PatRange r)    = r
