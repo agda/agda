@@ -44,6 +44,7 @@ import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation
+import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -442,8 +443,10 @@ introTactic ii = do
               Datatype{} -> introData t
               Record{}   -> introRec d
               _          -> return []
-          _ -> return []
---      `catchError` \_ -> return []
+          _ -> case telView t of
+            TelV EmptyTel _ -> return []
+            TelV tel _      -> introFun tel
+     `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
     conName [Arg _ (I.ConP c _)] = [c]
@@ -451,6 +454,21 @@ introTactic ii = do
     conName _                  = __IMPOSSIBLE__
 
     showTCM v = show <$> prettyTCM v
+
+    introFun tel = addCtxTel tel' $ do
+        imp <- showImplicitArguments
+        let okHiding h = imp || h == NotHidden
+        vars <- mapM showTCM [ Arg h (I.Var i [])
+                             | (h, i) <- zip hs $ reverse [0..n - 1]
+                             , okHiding h
+                             ]
+        return [ unwords $ ["λ"] ++ vars ++ ["→", "?"] ]
+      where
+        n = size tel
+        hs   = map argHiding $ telToList tel
+        tel' = telFromList [ fmap makeName b | b <- telToList tel ]
+        makeName ("_", t) = ("x", t)
+        makeName (x, t)   = (x, t)
 
     introData t = do
       let tel  = telFromList [Arg NotHidden ("_", t)]
