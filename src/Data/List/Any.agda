@@ -14,6 +14,7 @@ open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
+import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_)
@@ -105,22 +106,7 @@ module Membership (S : Setoid zero zero) where
   -- _⊆_ is a preorder.
 
   ⊆-preorder : Preorder _ _ _
-  ⊆-preorder = record
-    { Carrier    = List A
-    ; _≈_        = _≋_
-    ; _∼_        = _⊆_
-    ; isPreorder = record
-      { isEquivalence = LS.isEquivalence
-      ; reflexive     = reflexive
-      ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
-      ; ∼-resp-≈      =
-          (λ ys₁≋ys₂ xs⊆ys₁ → reflexive ys₁≋ys₂ ∘ xs⊆ys₁)
-        , (λ xs₁≋xs₂ xs₁⊆ys → xs₁⊆ys ∘ reflexive (LS.sym xs₁≋xs₂))
-      }
-    }
-    where
-    reflexive : _≋_ ⇒ _⊆_
-    reflexive eq = ∈-resp-list-≈ eq
+  ⊆-preorder = Ind.InducedPreorder₂ (ListEq.setoid S) _∈_ ∈-resp-list-≈
 
   module ⊆-Reasoning where
     import Relation.Binary.PreorderReasoning as PreR
@@ -170,17 +156,8 @@ module Membership-≡ {A : Set} where
   -- _⊆_ is a preorder.
 
   ⊆-preorder : Preorder _ _ _
-  ⊆-preorder = record
-    { Carrier    = List A
-    ; _≈_        = _≡_
-    ; _∼_        = _⊆_
-    ; isPreorder = record
-      { isEquivalence = PropEq.isEquivalence
-      ; reflexive     = λ eq → PropEq.subst (_∈_ _) eq
-      ; trans         = λ ys⊆zs xs⊆ys → xs⊆ys ∘ ys⊆zs
-      ; ∼-resp-≈      = PropEq.resp₂ _⊆_
-      }
-    }
+  ⊆-preorder = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
+                                    (PropEq.subst (_∈_ _))
 
   module ⊆-Reasoning where
     import Relation.Binary.PreorderReasoning as PreR
