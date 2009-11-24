@@ -2,7 +2,7 @@
 
 module Issue229 where
 
-open import Level
+open import Common.Level
 
 data Works a b : Set (suc a ⊔ suc b) where
   w : (A : Set a)(B : Set b) → Works a b
