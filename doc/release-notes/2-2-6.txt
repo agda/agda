@@ -178,13 +178,23 @@ Language
 Tools
 -----
 
-* New "introduce constructor" command in the Emacs mode. When there is
-  a unique constructor that will build something of the goal type (for
-  instance, if the goal type is a pair), the goal can be refined with
-  the unique constructor. This command is not limited to single
-  constructor datatypes, it is enough that there is only one possible
-  constructor. For instance, if the goal type is non-empty vector,
-  then a cons will be introduced.
+* New "intro" command in the Emacs mode. When there is a canonical way of
+  building something of the goal type (for instance, if the goal type is a
+  pair), the goal can be refined in this way. The command works for the
+  following goal types:
+
+    - A datatype where only one of its constructors can be used to construct an
+      element of the goal type (for instance, if the goal is non-empty vector,
+      a "cons" will be introduced)
+
+    - A record type. A record value will be introduced. Implicit fields will
+      not be included unless showing implicit arguments is switched on.
+
+    - A function type. A lambda binding as many variables as possible will be
+      introduced. The variable names will chosen from the goal type if its
+      normal form is a dependent function type, otherwise they will be
+      variations on "x". Implicit lambdas will only be inserted if showing of
+      implicit arguments is switched on.
 
   This command can be invoked by using the refine command (C-c C-r)
   when the goal is empty. (The old behaviour of the refine command in
