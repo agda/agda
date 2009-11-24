@@ -67,7 +67,8 @@ sum-++-commute (x ∷ xs) ys = begin
 
 -- Various properties about folds.
 
-foldr-universal : ∀ {a b : Set} (h : List a → b) f e →
+foldr-universal : ∀ {a b} {A : Set a} {B : Set b}
+                  (h : List A → B) f e →
                   (h [] ≡ e) →
                   (∀ x xs → h (x ∷ xs) ≡ f x (h xs)) →
                   h ≗ foldr f e
@@ -81,18 +82,18 @@ foldr-universal h f e base step (x ∷ xs) = begin
     ∎
   where open ≡-Reasoning
 
-foldr-fusion : ∀ {a b c : Set} (h : b → c)
-               {f : a → b → b} {g : a → c → c} (e : b) →
+foldr-fusion : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+               (h : B → C) {f : A → B → B} {g : A → C → C} (e : B) →
                (∀ x y → h (f x y) ≡ g x (h y)) →
                h ∘ foldr f e ≗ foldr g (h e)
 foldr-fusion h {f} {g} e fuse =
   foldr-universal (h ∘ foldr f e) g (h e) refl
                   (λ x xs → fuse x (foldr f e xs))
 
-idIsFold : ∀ {A} → id {A = List A} ≗ foldr _∷_ []
+idIsFold : ∀ {a} {A : Set a} → id {A = List A} ≗ foldr _∷_ []
 idIsFold = foldr-universal id _∷_ [] refl (λ _ _ → refl)
 
-++IsFold : ∀ {a : Set} (xs ys : List a) →
+++IsFold : ∀ {a} {A : Set a} (xs ys : List A) →
            xs ++ ys ≡ foldr _∷_ ys xs
 ++IsFold xs ys =
   begin
@@ -106,7 +107,7 @@ idIsFold = foldr-universal id _∷_ [] refl (λ _ _ → refl)
   ∎
   where open ≡-Reasoning
 
-mapIsFold : ∀ {a b} {f : a → b} →
+mapIsFold : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} →
             map f ≗ foldr (λ x ys → f x ∷ ys) []
 mapIsFold {f = f} =
   begin
@@ -118,14 +119,14 @@ mapIsFold {f = f} =
   ∎
   where open Eq (_ →-setoid _)
 
-concat-map : ∀ {a b} {f : a → b} →
+concat-map : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} →
              concat ∘ map (map f) ≗ map f ∘ concat
-concat-map {f = f} =
+concat-map {b = b} {f = f} =
   begin
     concat ∘ map (map f)
-  ≈⟨ cong concat ∘ mapIsFold ⟩
+  ≈⟨ cong concat ∘ mapIsFold {b = b} ⟩
     concat ∘ foldr (λ xs ys → map f xs ∷ ys) []
-  ≈⟨ foldr-fusion concat [] (λ _ _ → refl) ⟩
+  ≈⟨ foldr-fusion {b = b} concat [] (λ _ _ → refl) ⟩
     foldr (λ ys zs → map f ys ++ zs) []
   ≈⟨ sym ∘
      foldr-fusion (map f) [] (λ ys zs → map-++-commute f ys zs) ⟩
@@ -133,14 +134,15 @@ concat-map {f = f} =
   ∎
   where open Eq (_ →-setoid _)
 
-map-id : ∀ {A} → map id ≗ id {A = List A}
+map-id : ∀ {a} {A : Set a} → map id ≗ id {A = List A}
 map-id = begin
   map id        ≈⟨ mapIsFold ⟩
   foldr _∷_ []  ≈⟨ sym ∘ idIsFold ⟩
   id            ∎
   where open Eq (_ →-setoid _)
 
-map-compose : ∀ {a b c} {g : b → c} {f : a → b} →
+map-compose : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
+                {g : B → C} {f : A → B} →
               map (g ∘ f) ≗ map g ∘ map f
 map-compose {g = g} {f} =
   begin
@@ -156,7 +158,8 @@ map-compose {g = g} {f} =
   ∎
   where open Eq (_ →-setoid _)
 
-foldr-cong : ∀ {a b} {f₁ f₂ : a → b → b} {e₁ e₂ : b} →
+foldr-cong : ∀ {a b} {A : Set a} {B : Set b}
+               {f₁ f₂ : A → B → B} {e₁ e₂ : B} →
              (∀ x y → f₁ x y ≡ f₂ x y) → e₁ ≡ e₂ →
              foldr f₁ e₁ ≗ foldr f₂ e₂
 foldr-cong {f₁ = f₁} {f₂} {e} f₁≗₂f₂ refl =
@@ -169,7 +172,8 @@ foldr-cong {f₁ = f₁} {f₂} {e} f₁≗₂f₂ refl =
   ∎
   where open Eq (_ →-setoid _)
 
-map-cong : ∀ {a b} {f g : a → b} → f ≗ g → map f ≗ map g
+map-cong : ∀ {a b} {A : Set a} {B : Set b} {f g : A → B} →
+           f ≗ g → map f ≗ map g
 map-cong {f = f} {g} f≗g =
   begin
     map f
@@ -191,7 +195,8 @@ take++drop (suc n) []       = refl
 take++drop (suc n) (x ∷ xs) =
   cong (λ xs → x ∷ xs) (take++drop n xs)
 
-splitAt-defn : ∀ {A : Set} n → splitAt {A = A} n ≗ < take n , drop n >
+splitAt-defn : ∀ {a} {A : Set a} n →
+               splitAt {A = A} n ≗ < take n , drop n >
 splitAt-defn zero    xs       = refl
 splitAt-defn (suc n) []       = refl
 splitAt-defn (suc n) (x ∷ xs) with splitAt n xs | splitAt-defn n xs
@@ -206,7 +211,7 @@ takeWhile++dropWhile p (x ∷ xs) with p x
 ... | true  = cong (_∷_ x) (takeWhile++dropWhile p xs)
 ... | false = refl
 
-span-defn : ∀ {a} (p : a → Bool) →
+span-defn : ∀ {a} {A : Set a} (p : A → Bool) →
             span p ≗ < takeWhile p , dropWhile p >
 span-defn p []       = refl
 span-defn p (x ∷ xs) with p x
@@ -215,7 +220,7 @@ span-defn p (x ∷ xs) with p x
 
 -- Partition.
 
-partition-defn : ∀ {a} (p : a → Bool) →
+partition-defn : ∀ {a} {A : Set a} (p : A → Bool) →
                  partition p ≗ < filter p , filter (not ∘ p) >
 partition-defn p []       = refl
 partition-defn p (x ∷ xs)
@@ -225,7 +230,8 @@ partition-defn p (x ∷ xs)
 
 -- Inits, tails, and scanr.
 
-scanr-defn : ∀ {a b} (f : a → b → b) (e : b) →
+scanr-defn : ∀ {a b} {A : Set a} {B : Set b}
+             (f : A → B → B) (e : B) →
              scanr f e ≗ map (foldr f e) ∘ tails
 scanr-defn f e []             = refl
 scanr-defn f e (x ∷ [])       = refl
@@ -235,7 +241,8 @@ scanr-defn f e (x₁ ∷ x₂ ∷ xs)
 ...  | y ∷ ys | eq with ∷-injective eq
 ...        | y≡fx₂⦇f⦈xs , _ = cong₂ (λ z zs → f x₁ z ∷ zs) y≡fx₂⦇f⦈xs eq
 
-scanl-defn : ∀ {a b} (f : a → b → a) (e : a) →
+scanl-defn : ∀ {a b} {A : Set a} {B : Set b}
+             (f : A → B → A) (e : A) →
              scanl f e ≗ map (foldl f e) ∘ inits
 scanl-defn f e []       = refl
 scanl-defn f e (x ∷ xs) = cong (_∷_ e) (begin
