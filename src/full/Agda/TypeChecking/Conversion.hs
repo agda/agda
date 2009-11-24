@@ -427,10 +427,8 @@ leqLevel a b = liftTCM $ do
         (_, [])  -> concat <$> sequence [ leqPlusView a (ClosedLevel 0) | a <- as ]
         (_, [b]) -> concat <$> sequence [ leqPlusView a b | a <- as ]
         _        -> do
-          choice
-            [ concat <$> sequence [ leqPlusView a b | a <- as ]
-            | b <- bs
-            ]
+          -- Each a needs to be less than at least one of the b's
+          sequence [ choice [ leqPlusView a b | b <- bs ] | a <- as ]
           return []
     leqPlusView n m = do
       reportSDoc "tc.conv.nat" 10 $
@@ -530,8 +528,8 @@ equalLevel a b = do
         -- any other metas
         _ | any isMeta (as ++ bs) -> postpone
 
-        -- neutral == neutral
-        _ | all isNeutral (as ++ bs) -> as =!= bs
+        -- neutral/closed == neutral/closed
+        _ | all isNeutralOrClosed (as ++ bs) -> as =!= bs
 
         -- more cases?
         _ -> postpone
@@ -557,7 +555,12 @@ equalLevel a b = do
         subtr _ (Plus _ NeutralLevel{}) = notok
 
         isNeutral (Plus _ NeutralLevel{}) = True
-        isNeutral _                     = False
+        isNeutral _                       = False
+
+        isClosed ClosedLevel{} = True
+        isClosed _             = False
+
+        isNeutralOrClosed l = isClosed l || isNeutral l
 
         isBlocked (Plus _ BlockedLevel{}) = True
         isBlocked _                     = False
@@ -573,8 +576,8 @@ equalLevel a b = do
 equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
 equalSort s1 s2 =
   ifM typeInType (return []) $
-    catchConstraint (SortCmp CmpEq s1 s2) $
-    do	(s1,s2) <- reduce (s1,s2)
+    catchConstraint (SortCmp CmpEq s1 s2) $ do
+        (s1,s2) <- reduce (s1,s2)
         reportSDoc "tc.conv.sort" 10 $
           sep [ text "equalSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=="

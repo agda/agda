@@ -166,7 +166,8 @@ instance Reduce Sort where
                     (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden) [n, m])
                     _                -> sLub x y
           `catchError` \_ -> return sLub
-        red suc lub s
+        -- need to instantiate all meta to know if we need a DLub or a Lub
+        red suc lub =<< instantiateFull s
       where
         red suc lub s = do
           s <- instantiate s

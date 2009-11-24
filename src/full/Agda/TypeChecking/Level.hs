@@ -22,12 +22,19 @@ newtype LevelView = Max [PlusView]
 
 data PlusView = ClosedLevel Integer
               | Plus Integer LevelAtom
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq)
 
 data LevelAtom = MetaLevel MetaId Args
              | BlockedLevel Term
              | NeutralLevel Term
   deriving (Show, Eq, Ord)
+
+instance Ord PlusView where
+  compare ClosedLevel{} Plus{}            = LT
+  compare Plus{} ClosedLevel{}            = GT
+  compare (ClosedLevel n) (ClosedLevel m) = compare n m
+  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
+
 
 data LevelKit = LevelKit
   { levelSuc   :: Term -> Term
@@ -127,7 +134,7 @@ levelView a = do
         inc' (ClosedLevel n) = ClosedLevel $ n + 1
         inc' (Plus n a)    = Plus (n + 1) a
 
-    maxim as = Max $ ns ++ bs
+    maxim as = Max $ ns ++ List.sort bs
       where
         ns = case [ n | ClosedLevel n <- as, n > 0 ] of
           []  -> []
