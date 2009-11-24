@@ -38,6 +38,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.Records
+import Agda.TypeChecking.Pretty (prettyTCM)
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -423,27 +425,52 @@ withMetaId m ret = do
 
 -- The intro tactic
 
--- Returns the names of the constructors that can be
+-- Returns the terms (as strings) that can be
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
-introTactic :: InteractionId -> TCM [QName]
+introTactic :: InteractionId -> TCM [String]
 introTactic ii = do
   mi <- lookupInteractionId ii
   mv <- lookupMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ t -> do
-        t       <- piApply t <$> getContextArgs
-        let tel  = telFromList [Arg NotHidden ("_", t)]
-            perm = idP 1
-            pat  = [Arg NotHidden (I.VarP "c")]
-        r <- split tel perm pat 0
-        case r of
-          Left err -> return []
-          Right cs -> return $ concatMap (conName . scPats) cs
-      `catchError` \_ -> return []
+        t <- normalise =<< piApply t <$> getContextArgs
+        case unEl t of
+          I.Def d _ -> do
+            def <- getConstInfo d
+            case theDef def of
+              Datatype{} -> introData t
+              Record{}   -> introRec d
+              _          -> return []
+          _ -> return []
+--      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
     conName [Arg _ (I.ConP c _)] = [c]
     conName [_]                = []
     conName _                  = __IMPOSSIBLE__
+
+    showTCM v = show <$> prettyTCM v
+
+    introData t = do
+      let tel  = telFromList [Arg NotHidden ("_", t)]
+          perm = idP 1
+          pat  = [Arg NotHidden (I.VarP "c")]
+      r <- split tel perm pat 0
+      case r of
+        Left err -> return []
+        Right cs -> mapM showTCM $ concatMap (conName . scPats) cs
+
+    introRec d = do
+      hfs <- getRecordFieldNames d
+      fs <- ifM showImplicitArguments
+            (return $ map snd hfs)
+            (return [ f | (NotHidden, f) <- hfs ])
+      return
+        [ concat $
+            "record " :
+            zipWith (\c f -> unwords [c, show f, "= ?"])
+                    ("{":repeat ";") fs ++
+            [" }"]
+        ]
 

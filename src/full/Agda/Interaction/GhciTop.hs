@@ -370,22 +370,19 @@ give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
 
 cmd_intro :: GoalCommand
 cmd_intro ii rng _ = Interaction False $ do
-  cs <- B.introTactic ii
-  B.withInteractionId ii $ case cs of
+  ss <- B.introTactic ii
+  B.withInteractionId ii $ case ss of
     []    -> do
-      display_infoD "*Intro*" $ text "No constructors found."
+      display_infoD "*Intro*" $ text "No introduction forms found."
       return Nothing
-    [c]   -> do
-      s <- show <$> prettyTCM c
-      command $ cmd_refine ii rng s
+    [s]   -> command $ cmd_refine ii rng s
     _:_:_ -> do
-      cs <- mapM prettyTCM cs
       display_infoD "*Intro*" $
         sep [ text "Don't know which constructor to introduce of"
             , let mkOr []     = []
-                  mkOr [x, y] = [x <+> text "or" <+> y]
-                  mkOr (x:xs) = x : mkOr xs
-              in nest 2 $ fsep $ punctuate comma (mkOr cs)
+                  mkOr [x, y] = [text x <+> text "or" <+> text y]
+                  mkOr (x:xs) = text x : mkOr xs
+              in nest 2 $ fsep $ punctuate comma (mkOr ss)
             ]
       return Nothing
 
