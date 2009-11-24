@@ -83,7 +83,7 @@ checkRecDef i name con ps contel fields =
             ]
 	  ]
         reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ text "field tel =" <+> prettyTCM ftel
+          [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
           ]
 	addSection m (size tel')
 
@@ -199,13 +199,13 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 		 $ Body $ Var 0 []
           cltel  = ptel `abstract` ftel
 	  clause = Clause { clauseRange = getRange info
-                          , clauseTel   = cltel
+                          , clauseTel   = killRange cltel
                           , clausePerm  = idP $ size ptel + size ftel
                           , clausePats  = hps ++ [conp]
                           , clauseBody  = body
                           }
       escapeContext (size tel) $ do
-	addConstant projname $ Defn projname finalt (defaultDisplayForm projname) 0
+	addConstant projname $ Defn projname (killRange finalt) (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause]
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective

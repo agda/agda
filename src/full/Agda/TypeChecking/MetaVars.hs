@@ -82,7 +82,7 @@ instance HasMeta Sort where
 x =:= t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
     store <- getMetaStore
-    modify $ \st -> st { stMetaStore = ins x (InstS t) store }
+    modify $ \st -> st { stMetaStore = ins x (InstS $ killRange t) store }
     etaExpandListeners x
     wakeupConstraints
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
