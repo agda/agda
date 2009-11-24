@@ -27,25 +27,44 @@ import Agda.Utils.Size
 -- * Checking builtin pragmas
 ---------------------------------------------------------------------------
 
-ensureInductive :: Term -> TCM ()
-ensureInductive t = do
-  t <- normalise t
-  let err = typeError (NotInductive t)
-  case t of
-    Def t _ -> do
-      t <- theDef <$> getConstInfo t
+-- Buitin datatypes and the number of constructors
+builtinDatatypes :: [(String, Int)]
+builtinDatatypes =
+  [ (builtinList, 2)
+  , (builtinBool, 2)
+  , (builtinNat, 2)
+  , (builtinLevel, 2)
+  ]
+
+inductiveCheck :: String -> Term -> TCM ()
+inductiveCheck b t =
+  case lookup b builtinDatatypes of
+    Nothing -> return ()
+    Just n  -> do
+      t <- normalise t
+      let err = typeError (NotInductive t)
       case t of
-        Datatype { dataInduction = Inductive } -> return ()
+        Def t _ -> do
+          t <- theDef <$> getConstInfo t
+          case t of
+            Datatype { dataInduction = Inductive
+                     , dataCons      = cs
+                     }
+              | length cs == n -> return ()
+              | otherwise ->
+                typeError $ GenericError $ unwords
+                            [ "The builtin", b
+                            , "must be a datatype with", show n
+                            , "constructors" ]
+            _ -> err
         _ -> err
-    _ -> err
 
 bindBuiltinType :: String -> A.Expr -> TCM ()
 bindBuiltinType b e = do
     let s = sort $ mkType 0
     reportSDoc "tc.builtin" 20 $ text "checking builtin type" <+> prettyA e <+> text ":" <+> text (show s)
     t <- checkExpr e (sort $ mkType 0)
-    when (b `elem` [builtinBool, builtinNat, builtinLevel]) $ do
-      ensureInductive t
+    inductiveCheck b t
     bindBuiltinName b t
 
     -- NAT and LEVEL must be different. (Why?)
@@ -73,8 +92,7 @@ bindBuiltinType1 thing e = do
     let set      = sort (mkType 0)
         setToSet = El (mkType 1) $ Fun (Arg NotHidden set) set
     f <- checkExpr e setToSet
-    when (thing `elem` [builtinList]) $ do
-      ensureInductive f
+    inductiveCheck thing f
     bindBuiltinName thing f
 
 bindBuiltinZero' :: String -> TCM Term -> A.Expr -> TCM ()
