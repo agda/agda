@@ -51,7 +51,7 @@ Language
   This is likely to change at some point.
 
 * Multiple constructors, record fields, postulates or primitives can
-  now be declared using a single type signature:
+  be declared using a single type signature:
 
     data Bool : Set where
       false true : Bool
@@ -92,29 +92,30 @@ Language
   Note also that pattern matching for records has not been implemented
   yet.
 
-* BUILTIN hooks for equality
+* BUILTIN hooks for equality.
 
-  The datatype
+  The data type
 
-    data _≡_ {A : Set}(x : A) : A → Set where
+    data _≡_ {A : Set} (x : A) : A → Set where
       refl : x ≡ x
 
-  can be specified as the builtin equality type using the pragmas
+  can be specified as the builtin equality type using the following
+  pragmas:
 
-    {-# BUILTIN EQUALITY _≡_ #-}
-    {-# BUILTIN REFL refl #-}
+    {-# BUILTIN EQUALITY _≡_  #-}
+    {-# BUILTIN REFL     refl #-}
 
   The builtin equality is used for the new rewrite construct and
   the primTrustMe primitive described below.
 
-* New rewrite construct
+* New rewrite construct.
 
-  If eqn : a ≡ b, where _≡_ is the builtin equality (see above) you can now
-  write
+  If eqn : a ≡ b, where _≡_ is the builtin equality (see above) you
+  can now write
 
     f ps rewrite eqn = rhs
 
-  for
+  instead of
 
     f ps with a | eqn
     ... | ._ | refl = rhs
@@ -122,26 +123,27 @@ Language
   The rewrite construct has the effect of rewriting the goal and the
   context by the given equation (left to right).
 
-  You can rewrite by several equations (in sequence) by separating them
-  by | (bar):
+  You can rewrite using several equations (in sequence) by separating
+  them with vertical bars (|):
 
-    f ps rewrite eqn₁ | eqn₂ | .. = rhs
+    f ps rewrite eqn₁ | eqn₂ | … = rhs
 
   It is also possible to add with clauses after rewriting:
 
     f ps rewrite eqns with e
     ... | p = rhs
 
-  Note that pattern matching happens before rewriting--if you want to rewrite
-  and then do pattern matching you can use a with after the rewrite.
+  Note that pattern matching happens before rewriting—if you want to
+  rewrite and then do pattern matching you can use a with after the
+  rewrite.
 
-  See test/succeed/Rewrite.agda for some example uses.
+  See test/succeed/Rewrite.agda for some examples.
 
 * A new primitive, primTrustMe, has been added:
 
     primTrustMe : {A : Set} {x y : A} → x ≡ y
 
-  Where _≡_ is the builtin equality (see BUILTIN hooks for equality,
+  Here _≡_ is the builtin equality (see BUILTIN hooks for equality,
   above).
 
   If x and y are definitionally equal, then
@@ -154,10 +156,11 @@ Language
 
   For an example of the use of primTrustMe, see Data.String in version
   0.3 of the standard library, where it is used to implement decidable
-  equality on strings from the primitive boolean equality.
+  equality on strings using the primitive boolean equality.
 
-* Changes to the syntax and semantics of IMPORT pragmas. Such pragmas
-  must now have the following form:
+* Changes to the syntax and semantics of IMPORT pragmas, which are
+  used by the Haskell FFI. Such pragmas must now have the following
+  form:
 
     {-# IMPORT <module name> #-}
 
@@ -178,34 +181,36 @@ Language
 Tools
 -----
 
-* New "intro" command in the Emacs mode. When there is a canonical way of
-  building something of the goal type (for instance, if the goal type is a
-  pair), the goal can be refined in this way. The command works for the
-  following goal types:
+* New "intro" command in the Emacs mode. When there is a canonical way
+  of building something of the goal type (for instance, if the goal
+  type is a pair), the goal can be refined in this way. The command
+  works for the following goal types:
 
-    - A datatype where only one of its constructors can be used to construct an
-      element of the goal type (for instance, if the goal is non-empty vector,
-      a "cons" will be introduced)
+    - A data type where only one of its constructors can be used to
+      construct an element of the goal type. (For instance, if the
+      goal is a non-empty vector, a "cons" will be introduced.)
 
-    - A record type. A record value will be introduced. Implicit fields will
-      not be included unless showing implicit arguments is switched on.
+    - A record type. A record value will be introduced. Implicit
+      fields will not be included unless showing of implicit arguments
+      is switched on.
 
-    - A function type. A lambda binding as many variables as possible will be
-      introduced. The variable names will chosen from the goal type if its
-      normal form is a dependent function type, otherwise they will be
-      variations on "x". Implicit lambdas will only be inserted if showing of
-      implicit arguments is switched on.
+    - A function type. A lambda binding as many variables as possible
+      will be introduced. The variable names will be chosen from the
+      goal type if its normal form is a dependent function type,
+      otherwise they will be variations on "x". Implicit lambdas will
+      only be inserted if showing of implicit arguments is switched
+      on.
 
   This command can be invoked by using the refine command (C-c C-r)
   when the goal is empty. (The old behaviour of the refine command in
   this situation was to ask for an expression using the minibuffer.)
 
-* Syntax highlighting files for Emacs (.agda.el) are no longer used.
-  The --emacs flag has been removed.
+* The Emacs mode displays "Checked" in the mode line if the current
+  file type checked successfully without any warnings.
 
-* If a file F is loaded, and this file defines the module M, it is now
-  an error if F is not the file which defines M according to the
-  include path.
+* If a file F is loaded, and this file defines the module M, it is an
+  error if F is not the file which defines M according to the include
+  path.
 
   Note that the command-line tool and the Emacs mode define the
   meaning of relative include paths differently: the command-line tool
@@ -215,22 +220,25 @@ Tools
   the file <some-path>/A/B/C.agda, then the root directory is
   <some-path>.)
 
-* It is now an error if there are several files on the include path
-  which match a given module name.
+* It is an error if there are several files on the include path which
+  match a given module name.
 
-* Interface files are now relocatable. You can move around source
-  trees as long as the include path is updated in a corresponding way.
-  Note that a module M may be re-typechecked if its time stamp is
-  strictly newer than that of the corresponding interface file
-  (M.agdai).
+* Interface files are relocatable. You can move around source trees as
+  long as the include path is updated in a corresponding way. Note
+  that a module M may be re-typechecked if its time stamp is strictly
+  newer than that of the corresponding interface file (M.agdai).
 
 * Type-checking is no longer done when an up-to-date interface exists.
   (Previously the initial module was always type-checked.)
 
+* Syntax highlighting files for Emacs (.agda.el) are no longer used.
+  The --emacs flag has been removed. (Syntax highlighting information
+  is cached in the interface files.)
+
 * The Agate and Alonzo compilers have been retired. The options
   --agate, --alonzo and --malonzo have been removed.
 
-* The default directory for MAlonzo output is now the project's root
+* The default directory for MAlonzo output is the project's root
   directory. The --malonzo-dir flag has been renamed to --compile-dir.
 
 * Emacs mode: C-c C-x C-d no longer resets the type checking state.
@@ -238,11 +246,8 @@ Tools
   (which used to reload the syntax highlighting information) has been
   removed. C-c C-l can be used instead.
 
-* The Emacs mode now displays "Checked" in the mode line if the
-  current file type checked successfully without any warnings.
-
 * The Emacs mode used to define some "abbrevs", unless the user
-  explicitly turned this feature off. Now the default is /not/ to add
+  explicitly turned this feature off. The new default is /not/ to add
   any abbrevs. The old default can be obtained by customising
   agda2-mode-abbrevs-use-defaults (a customisation buffer can be
   obtained by typing M-x customize-group agda2 RET after an Agda file
