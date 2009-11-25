@@ -222,17 +222,25 @@ instance Reify ClauseBody RHS where
   reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
-stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> [A.Pattern] -> tcm [NamedArg A.Pattern]
+stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> [A.Pattern] ->
+                  tcm ([NamedArg A.Pattern], [A.Pattern])
 stripImplicits ps wps =
-  ifM showImplicitArguments (return ps) $ do
+  ifM showImplicitArguments (return (ps, wps)) $ do
   let vars = dotVars (ps, wps)
   reportSLn "syntax.reify.implicit" 30 $ unlines
     [ "stripping implicits"
---     , "  ps   = " ++ show ps
---     , "  wps  = " ++ show wps
+    , "  ps   = " ++ show ps
+    , "  wps  = " ++ show wps
     , "  vars = " ++ show vars
     ]
-  return $ strip vars ps
+  let allps       = ps ++ map (Arg NotHidden . unnamed) wps
+      sps         = foldl (.) (strip vars) (map rearrangeBinding vars) $ allps
+      (ps', wps') = splitAt (length sps - length wps) sps
+  reportSLn "syntax.reify.implicit" 30 $ unlines
+    [ "  ps'  = " ++ show ps'
+    , "  wps' = " ++ show (map (namedThing . unArg) wps')
+    ]
+  return (ps', map (namedThing . unArg) wps')
   where
     argsVars = Set.unions . map argVars
     argVars = patVars . namedThing . unArg
@@ -247,14 +255,20 @@ stripImplicits ps wps =
       A.ImplicitP _ -> Set.empty
       A.AsP _ _ p   -> patVars p
 
-    strip dvs = stripArgs
+    -- Pick the "best" place to bind the variable. Best in this case
+    -- is the left-most explicit binding site. But, of course we can't
+    -- do this since binding site might be forced by a parent clause.
+    -- Why? Because the binding site we pick might not exist in the
+    -- generated with function if it corresponds to a dot pattern.
+    rearrangeBinding x ps = ps
+
+    strip dvs ps = stripArgs ps
       where
         stripArgs [] = []
         stripArgs (a : as) = case argHiding a of
           Hidden | canStrip a as -> stripArgs as
           _                      -> stripArg a : stripArgs as
 
-        -- TODO: use named implicits (need to get the names from somewhere!)
         canStrip a as = and
           [ varOrDot p
           , noInterestingBindings p
@@ -278,11 +292,11 @@ stripImplicits ps wps =
         noInterestingBindings p =
           Set.null $ dvs `Set.intersection` patVars p
 
-        varOrDot (A.VarP _)      = True
-        varOrDot (A.WildP _)     = True
-        varOrDot (A.DotP _ _)    = True
-        varOrDot (A.ImplicitP _) = True
-        varOrDot _               = False
+        varOrDot A.VarP{}      = True
+        varOrDot A.WildP{}     = True
+        varOrDot A.DotP{}      = True
+        varOrDot A.ImplicitP{} = True
+        varOrDot _             = False
 
 
 class DotVars a where
@@ -385,7 +399,7 @@ instance Reify NamedClause A.Clause where
       info = LHSRange noRange
       dropParams n (LHS i f ps wps) = LHS i f (genericDrop n ps) wps
       stripImps (LHS i f ps wps) = do
-        ps <- stripImplicits ps wps
+        (ps, wps) <- stripImplicits ps wps
         return $ LHS i f ps wps
 
 instance Reify Type Expr where
