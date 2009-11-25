@@ -234,7 +234,7 @@ stripImplicits ps wps =
     , "  vars = " ++ show vars
     ]
   let allps       = ps ++ map (Arg NotHidden . unnamed) wps
-      sps         = foldl (.) (strip vars) (map rearrangeBinding vars) $ allps
+      sps         = foldl (.) (strip vars) (map rearrangeBinding $ Set.toList vars) $ allps
       (ps', wps') = splitAt (length sps - length wps) sps
   reportSLn "syntax.reify.implicit" 30 $ unlines
     [ "  ps'  = " ++ show ps'
