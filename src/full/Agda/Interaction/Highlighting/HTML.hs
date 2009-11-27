@@ -67,9 +67,11 @@ generateHTML mod = do
         cssFile <- getDataFileName defaultCSSFile
         copyFile cssFile (dir </> defaultCSSFile)
 
-      TCM.reportSLn "html" 1 $
-        "\nWarning: HTML is currently generated for ALL files which can be\n\
-        \reached from the given module, including library files.\n"
+      TCM.reportSLn "html" 1 $ unlines
+        [ ""
+        , "Warning: HTML is currently generated for ALL files which can be"
+        , "reached from the given module, including library files."
+        ]
 
       -- Pull highlighting info from the state and generate all the
       -- web pages.
