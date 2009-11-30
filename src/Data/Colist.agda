@@ -125,6 +125,11 @@ setoid A = record
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
+module ≈-Reasoning where
+  import Relation.Binary.EqReasoning as EqR
+  private
+    open module R {A : Set} = EqR (setoid A) public
+
 -- map preserves equality.
 
 map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
@@ -202,6 +207,12 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
   antisym []       []        = []
   antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ ♯ antisym (♭ p₁) (♭ p₂)
 
+module ⊑-Reasoning where
+  import Relation.Binary.PartialOrderReasoning as POR
+  private
+    open module R {A : Set} = POR (⊑-Poset A)
+      public renaming (_≤⟨_⟩_ to _⊑⟨_⟩_)
+
 -- The subset relation forms a preorder.
 
 ⊆-Preorder : Set → Preorder _ _ _
@@ -209,6 +220,18 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
   Ind.InducedPreorder₂ (setoid A) _∈_
                        (λ xs≈ys → ⊑⇒⊆ $ ⊑P.reflexive xs≈ys)
   where module ⊑P = Poset (⊑-Poset A)
+
+module ⊆-Reasoning where
+  import Relation.Binary.PreorderReasoning as PreR
+  private
+    open module R {A : Set} = PreR (⊆-Preorder A)
+      public renaming (_∼⟨_⟩_ to _⊆⟨_⟩_)
+
+  infix 1 _∈⟨_⟩_
+
+  _∈⟨_⟩_ : ∀ {A : Set} (x : A) {xs ys} →
+           x ∈ xs → xs IsRelatedTo ys → x ∈ ys
+  x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
 -- take returns a prefix.
 
