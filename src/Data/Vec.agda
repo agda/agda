@@ -7,7 +7,8 @@ module Data.Vec where
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.List as List using (List)
-open import Data.Product using (_×_; _,_)
+open import Data.Product using (∃; ∃₂; _×_; _,_)
+open import Relation.Binary.PropositionalEquality
 
 ------------------------------------------------------------------------
 -- Types
@@ -90,32 +91,28 @@ concat : ∀ {a m n} → Vec (Vec a m) n → Vec a (n * m)
 concat []         = []
 concat (xs ∷ xss) = xs ++ concat xss
 
-infixr 5 _++'_
-
-data SplitAt {a : Set} (m : ℕ) {n : ℕ} : Vec a (m + n) → Set where
-  _++'_ : (xs : Vec a m) (ys : Vec a n) → SplitAt m (xs ++ ys)
-
-splitAt : ∀ {a} m {n} (xs : Vec a (m + n)) → SplitAt m xs
-splitAt zero    xs                = [] ++' xs
+splitAt : ∀ {A} m {n} (xs : Vec A (m + n)) →
+          ∃₂ λ (ys : Vec A m) (zs : Vec A n) → xs ≡ ys ++ zs
+splitAt zero    xs                = ([] , xs , refl)
 splitAt (suc m) (x ∷ xs)          with splitAt m xs
-splitAt (suc m) (x ∷ .(ys ++ zs)) | ys ++' zs = (x ∷ ys) ++' zs
+splitAt (suc m) (x ∷ .(ys ++ zs)) | (ys , zs , refl) =
+  ((x ∷ ys) , zs , refl)
 
-take : ∀ {a} m {n} → Vec a (m + n) → Vec a m
-take m xs with splitAt m xs
-take m .(xs ++ ys) | xs ++' ys = xs
+take : ∀ {A} m {n} → Vec A (m + n) → Vec A m
+take m xs          with splitAt m xs
+take m .(ys ++ zs) | (ys , zs , refl) = ys
 
-drop : ∀ {a} m {n} → Vec a (m + n) → Vec a n
-drop m xs with splitAt m xs
-drop m .(xs ++ ys) | xs ++' ys = ys
+drop : ∀ {A} m {n} → Vec A (m + n) → Vec A n
+drop m xs          with splitAt m xs
+drop m .(ys ++ zs) | (ys , zs , refl) = zs
 
-data Group {a : Set} (n k : ℕ) : Vec a (n * k) → Set where
-  concat' : (xss : Vec (Vec a k) n) → Group n k (concat xss)
-
-group : ∀ {a} n k (xs : Vec a (n * k)) → Group n k xs
-group zero    k []                  = concat' []
+group : ∀ {A} n k (xs : Vec A (n * k)) →
+        ∃ λ (xss : Vec (Vec A k) n) → xs ≡ concat xss
+group zero    k []                  = ([] , refl)
 group (suc n) k xs                  with splitAt k xs
-group (suc n) k .(ys ++ zs)         | ys ++' zs with group n k zs
-group (suc n) k .(ys ++ concat zss) | ys ++' ._ | concat' zss = concat' (ys ∷ zss)
+group (suc n) k .(ys ++ zs)         | (ys , zs , refl) with group n k zs
+group (suc n) k .(ys ++ concat zss) | (ys , ._ , refl) | (zss , refl) =
+  ((ys ∷ zss) , refl)
 
 reverse : ∀ {a n} → Vec a n → Vec a n
 reverse {a} = foldl (Vec a) (λ rev x → x ∷ rev) []
@@ -139,23 +136,20 @@ _∷ʳ_ : ∀ {a n} → Vec a n → a → Vec a (1 + n)
 []       ∷ʳ y = [ y ]
 (x ∷ xs) ∷ʳ y = x ∷ (xs ∷ʳ y)
 
-infixl 5 _∷ʳ'_
-
-data InitLast {a : Set} (n : ℕ) : Vec a (1 + n) → Set where
-  _∷ʳ'_ : (xs : Vec a n) (x : a) → InitLast n (xs ∷ʳ x)
-
-initLast : ∀ {a n} (xs : Vec a (1 + n)) → InitLast n xs
-initLast {n = zero}  (x ∷ [])         = [] ∷ʳ' x
+initLast : ∀ {A n} (xs : Vec A (1 + n)) →
+           ∃₂ λ (ys : Vec A n) (y : A) → xs ≡ ys ∷ʳ y
+initLast {n = zero}  (x ∷ [])         = ([] , x , refl)
 initLast {n = suc n} (x ∷ xs)         with initLast xs
-initLast {n = suc n} (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ' y = (x ∷ ys) ∷ʳ' y
+initLast {n = suc n} (x ∷ .(ys ∷ʳ y)) | (ys , y , refl) =
+  ((x ∷ ys) , y , refl)
 
-init : ∀ {a n} → Vec a (1 + n) → Vec a n
-init xs with initLast xs
-init .(ys ∷ʳ y) | ys ∷ʳ' y = ys
+init : ∀ {A n} → Vec A (1 + n) → Vec A n
+init xs         with initLast xs
+init .(ys ∷ʳ y) | (ys , y , refl) = ys
 
-last : ∀ {a n} → Vec a (1 + n) → a
-last xs with initLast xs
-last .(ys ∷ʳ y) | ys ∷ʳ' y = y
+last : ∀ {A n} → Vec A (1 + n) → A
+last xs         with initLast xs
+last .(ys ∷ʳ y) | (ys , y , refl) = y
 
 infixl 1 _>>=_
 
