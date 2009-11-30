@@ -20,6 +20,7 @@ open import Data.Product using (_,_)
 open import Data.Sum     using (_⊎_; inj₁; inj₂)
 open import Data.Function
 open import Relation.Binary
+import Relation.Binary.InducedPreorders as Ind
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open RawMonad ¬¬-Monad
@@ -89,7 +90,7 @@ concat ((x ∷ xs) ∷ xss) = x ∷ ♯ concat (xs ∷ xss)
 [ x ] = x ∷ ♯ []
 
 ------------------------------------------------------------------------
--- Equality, membership, prefix
+-- Equality
 
 -- xs ≈ ys means that xs and ys are equal.
 
@@ -98,22 +99,6 @@ infix 4 _≈_
 data _≈_ {A} : (xs ys : Colist A) → Set where
   []  :                                       []     ≈ []
   _∷_ : ∀ x {xs ys} (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ x ∷ ys
-
--- x ∈ xs means that x is a member of xs.
-
-infix 4 _∈_
-
-data _∈_ {A : Set} : A → Colist A → Set where
-  here  : ∀ {x   xs}                   → x ∈ x ∷ xs
-  there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
-
--- xs ⊑ ys means that xs is a prefix of ys.
-
-infix 4 _⊑_
-
-data _⊑_ {A : Set} : Colist A → Colist A → Set where
-  []  : ∀ {ys}                            → []     ⊑ ys
-  _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
 -- The equality relation forms a setoid.
 
@@ -140,10 +125,49 @@ setoid A = record
   trans []        []         = []
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
+-- map preserves equality.
+
+map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
+map-cong f []        = []
+map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
+
+------------------------------------------------------------------------
+-- Memberships, subsets, prefixes
+
+-- x ∈ xs means that x is a member of xs.
+
+infix 4 _∈_
+
+data _∈_ {A : Set} : A → Colist A → Set where
+  here  : ∀ {x   xs}                   → x ∈ x ∷ xs
+  there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
+
+-- xs ⊆ ys means that xs is a subset of ys.
+
+infix 4 _⊆_
+
+_⊆_ : {A : Set} → Colist A → Colist A → Set
+xs ⊆ ys = ∀ {x} → x ∈ xs → x ∈ ys
+
+-- xs ⊑ ys means that xs is a prefix of ys.
+
+infix 4 _⊑_
+
+data _⊑_ {A : Set} : Colist A → Colist A → Set where
+  []  : ∀ {ys}                            → []     ⊑ ys
+  _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
+
+-- Prefixes are subsets.
+
+⊑⇒⊆ : {A : Set} → _⊑_ {A = A} ⇒ _⊆_
+⊑⇒⊆ []          ()
+⊑⇒⊆ (x ∷ xs⊑ys) here         = here
+⊑⇒⊆ (_ ∷ xs⊑ys) (there x∈xs) = there (⊑⇒⊆ (♭ xs⊑ys) x∈xs)
+
 -- The prefix relation forms a poset.
 
-poset : Set → Poset _ _ _
-poset A = record
+⊑-Poset : Set → Poset _ _ _
+⊑-Poset A = record
   { Carrier        = Colist A
   ; _≈_            = _≈_
   ; _≤_            = _⊑_
@@ -178,11 +202,13 @@ poset A = record
   antisym []       []        = []
   antisym (x ∷ p₁) (.x ∷ p₂) = x ∷ ♯ antisym (♭ p₁) (♭ p₂)
 
--- map preserves equality.
+-- The subset relation forms a preorder.
 
-map-cong : ∀ {A B} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
-map-cong f []        = []
-map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
+⊆-Preorder : Set → Preorder _ _ _
+⊆-Preorder A =
+  Ind.InducedPreorder₂ (setoid A) _∈_
+                       (λ xs≈ys → ⊑⇒⊆ $ ⊑P.reflexive xs≈ys)
+  where module ⊑P = Poset (⊑-Poset A)
 
 -- take returns a prefix.
 
