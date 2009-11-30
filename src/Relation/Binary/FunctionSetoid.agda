@@ -6,20 +6,14 @@
 
 module Relation.Binary.FunctionSetoid where
 
-open import Data.Function
+open import Data.Function as Fun using (_on_)
 open import Level
 open import Relation.Binary
 
-infixr 0 _↝_ _⟶_ _⇨_ _≡⇨_
+------------------------------------------------------------------------
+-- Functions which preserve equality
 
--- A logical relation (i.e. a relation which relates functions which
--- map related things to related things).
-
-_↝_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
-      (∼₁ : REL A ℓ₁) (∼₂ : REL B ℓ₂) → REL (A → B) (a ⊔ ℓ₁ ⊔ ℓ₂)
-_∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
-
--- Functions which preserve equality.
+infixr 0 _⟶_
 
 record _⟶_ {f₁ f₂ t₁ t₂} (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
            Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
@@ -30,6 +24,38 @@ record _⟶_ {f₁ f₂ t₁ t₂} (From : Setoid f₁ f₂) (To : Setoid t₁ t
     cong  : _⟨$⟩_ Preserves _≈_ From ⟶ _≈_ To
 
 open _⟶_ public
+
+id : ∀ {a₁ a₂} {A : Setoid a₁ a₂} → A ⟶ A
+id = record { _⟨$⟩_ = Fun.id; cong = Fun.id }
+
+infixr 9 _∘_
+
+_∘_ : ∀ {a₁ a₂} {A : Setoid a₁ a₂}
+        {b₁ b₂} {B : Setoid b₁ b₂}
+        {c₁ c₂} {C : Setoid c₁ c₂} →
+      B ⟶ C → A ⟶ B → A ⟶ C
+f ∘ g = record
+  { _⟨$⟩_ = Fun._∘_ (_⟨$⟩_ f) (_⟨$⟩_ g)
+  ; cong  = Fun._∘_ (cong  f) (cong  g)
+  }
+
+const : ∀ {a₁ a₂} {A : Setoid a₁ a₂}
+          {b₁ b₂} {B : Setoid b₁ b₂} →
+        Setoid.Carrier B → A ⟶ B
+const {B = B} b = record
+  { _⟨$⟩_ = Fun.const b
+  ; cong  = Fun.const (Setoid.refl B)
+  }
+
+------------------------------------------------------------------------
+-- A logical relation (i.e. a relation which relates functions which
+-- map related things to related things)
+
+infixr 0 _↝_
+
+_↝_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+      (∼₁ : REL A ℓ₁) (∼₂ : REL B ℓ₂) → REL (A → B) (a ⊔ ℓ₁ ⊔ ℓ₂)
+_∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
 
 ↝-isEquivalence : ∀ {a b c ℓ₁ ℓ₂} {A : Set a} {B : Set b} {C : Set c}
                     {∼₁ : REL A ℓ₁} {∼₂ : REL B ℓ₂}
@@ -42,17 +68,6 @@ open _⟶_ public
   ; sym   = λ f∼g x∼y → sym eq₂ (f∼g (sym eq₁ x∼y))
   ; trans = λ f∼g g∼h x∼y → trans eq₂ (f∼g (refl eq₁)) (g∼h x∼y)
   } where open IsEquivalence
-
--- Function setoids.
-
-_⇨_ : ∀ {f₁ f₂ t₁ t₂} → Setoid f₁ f₂ → Setoid t₁ t₂ → Setoid _ _
-S₁ ⇨ S₂ = record
-  { Carrier       = S₁ ⟶ S₂
-  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
-  ; isEquivalence =
-      ↝-isEquivalence (_⟨$⟩_ {From = S₁} {To = S₂})
-                      cong (isEquivalence S₁) (isEquivalence S₂)
-  } where open Setoid; open _⟶_
 
 -- A generalised variant of (_↝_ _≡_).
 
@@ -68,6 +83,20 @@ S₁ ⇨ S₂ = record
   ; sym   = λ f∼g x → sym (f∼g x)
   ; trans = λ f∼g g∼h x → trans (f∼g x) (g∼h x)
   } where open module Eq {x} = IsEquivalence (eq x)
+
+------------------------------------------------------------------------
+-- Function setoids
+
+infixr 0 _⇨_ _≡⇨_
+
+_⇨_ : ∀ {f₁ f₂ t₁ t₂} → Setoid f₁ f₂ → Setoid t₁ t₂ → Setoid _ _
+S₁ ⇨ S₂ = record
+  { Carrier       = S₁ ⟶ S₂
+  ; _≈_           = (_≈_ S₁ ↝ _≈_ S₂) on _⟨$⟩_
+  ; isEquivalence =
+      ↝-isEquivalence (_⟨$⟩_ {From = S₁} {To = S₂})
+                      cong (isEquivalence S₁) (isEquivalence S₂)
+  } where open Setoid; open _⟶_
 
 _≡⇨_ : ∀ {a s₁ s₂} (A : Set a) → (A → Setoid s₁ s₂) → Setoid _ _
 A ≡⇨ S = record
