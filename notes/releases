@@ -9,6 +9,8 @@ followed:
 * Finish the release notes in
   doc/release-notes/<version-written-with-dashes>.txt.
 
+* Update the README, if necessary.
+
 * Update the version numbers in Agda.cabal,
   src/main/Agda-executable.cabal (two places) and
   ../src/data/emacs-mode/agda2-mode.el.
