@@ -11,13 +11,19 @@
 -- n*0≡0 (suc n) =
 --   begin
 --     suc n * 0
---   ≈⟨ byDef ⟩
+--   ≈⟨ refl ⟩
 --     n * 0 + 0
---   ≈⟨ n+0≡n _ ⟩
+--   ≈⟨ ... ⟩
 --     n * 0
 --   ≈⟨ n*0≡0 n ⟩
 --     0
 --   ∎
+
+-- Note that some modules contain generalised versions of specific
+-- instantiations of this module. For instance, the module ≡-Reasoning
+-- in Relation.Binary.PropositionalEquality is recommended for
+-- equational reasoning when the underlying equality is
+-- Relation.Binary.PropositionalEquality._≡_.
 
 open import Relation.Binary
 
