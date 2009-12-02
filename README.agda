@@ -24,8 +24,9 @@ module README where
 -- To compile programs using some of the IO functions you need to
 -- install the Haskell package utf8-string (available from Hackage).
 
--- Contributions to this library are welcome. Please send
--- contributions in the form of darcs patches (run
+-- Contributions to this library are welcome (but to avoid wasted work
+-- it is suggested that you discuss large changes before implementing
+-- them). Please send contributions in the form of darcs patches (run
 -- darcs send --output <patch file> and attach the patch file to an
 -- email), and include a statement saying that you agree to release
 -- your library patches under the library's licence. It is appreciated
