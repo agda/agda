@@ -36,8 +36,11 @@ endif
 
 ## Cabal-based installation ###############################################
 
-# Installation prefix.
-PREFIX=/usr/local
+# The cabal command.
+CABAL_CMD=cabal
+
+# Options used by cabal install.
+CABAL_OPTIONS=--global --root-cmd=sudo
 
 install : install-lib install-bin install-emacs-mode
 
@@ -45,30 +48,24 @@ prof : install-prof-bin
 
 # Installs the Emacs mode, but does not set it up.
 install-lib :
-	cabal install --prefix="$(PREFIX)"
+	$(CABAL_CMD) install $(CABAL_OPTIONS)
 
 install-prof-lib :
-	cabal install --prefix="$(PREFIX)" --enable-library-profiling
-
-sudo-install-lib :
-	sudo cabal install --prefix="$(PREFIX)"
+	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling
 
 install-bin : install-lib
-	cd src/main && cabal clean && cabal install --prefix="$(PREFIX)"
+	cd src/main && $(CABAL_CMD) clean && \
+          $(CABAL_CMD) install $(CABAL_OPTIONS)
 
 install-prof-bin : install-prof-lib
-	cd src/main && cabal clean && \
-	cabal install --prefix="$(PREFIX)" --program-suffix=_p --enable-executable-profiling
-
-sudo-install-bin : sudo-install-lib
-	cd src/main && sudo cabal clean && sudo cabal install --prefix="$(PREFIX)"
+	cd src/main && $(CABAL_CMD) clean && \
+	  $(CABAL_CMD) install $(CABAL_OPTIONS) --program-suffix=_p \
+            --enable-executable-profiling
 
 install-emacs-mode : install-lib
 	@echo
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."
-	@echo "The command may have been installed in the following directory:"
-	@echo "$(PREFIX)/bin."
 	@echo
 	agda-mode setup
 
@@ -196,7 +193,7 @@ succeed :
 	@echo "======================================================================"
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
-	@$(MAKE) -C test/succeed 
+	@$(MAKE) -C test/succeed
 
 examples :
 	@echo "======================================================================"

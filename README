@@ -42,15 +42,13 @@ Wiki for information about the library.)
   1)  Install the prerequisites mentioned below.
 
   2a) If your system is Unix-like you can now hopefully install the
-      Agda 2 library, batch-mode tool and Emacs mode by running
+      Agda 2 library, batch-mode tool and Emacs mode by running the
+      following command:
 
-        make install PREFIX=<installation location>
+        make install
 
-      (the PREFIX=<...> part can be omitted if the default location is
-      OK for you).
-
-      If your system is not sufficiently Unix-like, or you want to have
-      more control, follow 2b instead.
+      If this does not work on your system, or you want to have more
+      control, you can follow 2b instead.
 
   2b) Run the following commands in the top-level directory of the
       Agda source tree:
@@ -119,7 +117,7 @@ You need recent versions of the following programs/libraries:
    Alex:          http://www.haskell.org/alex/
    Happy:         http://www.haskell.org/happy/
    GNU Emacs:     http://www.gnu.org/software/emacs/
-   haskell-mode:  http://haskell.org/haskell-mode/
+   haskell-mode:  http://projects.haskell.org/haskellmode-emacs/
 
 You should also make sure that programs installed by cabal-install are
 on your shell's search path.
@@ -256,17 +254,22 @@ when installing Emacs under Windows.
    You should see all the characters without white-boxes.
 
 ------------------------------------------------------------------------
-Installation script for (at least) Ubuntu
+Installation scripts for Ubuntu 9.10
 ------------------------------------------------------------------------
 
-Installs the development version.
+Installs a released version:
 
-  sudo apt-get install ghc6 happy alex darcs emacs haskell-mode zlib1g-dev
-  wget http://www.haskell.org/cabal/release/cabal-install-0.6.0.tar.gz
-  tar xzf cabal-install-0.6.0.tar.gz
-  cd cabal-install-0.6.0
+  sudo apt-get install agda-mode agda-bin
+
+Installs the development version:
+
+  sudo apt-get install ghc6 happy alex darcs emacs haskell-mode zlib1g-dev make
+  wget http://www.haskell.org/cabal/release/cabal-install-0.6.4/cabal-install-0.6.4.tar.gz
+  tar xzf cabal-install-0.6.4.tar.gz
+  cd cabal-install-0.6.4
   . bootstrap.sh
   cd ..
-  darcs get --partial http://code.haskell.org/Agda
+  $HOME/.cabal/bin/cabal update
+  darcs get --lazy http://code.haskell.org/Agda
   cd Agda
-  sudo make install
+  make CABAL_CMD="$HOME/.cabal/bin/cabal" install
