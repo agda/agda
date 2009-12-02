@@ -2,6 +2,8 @@
 -- Semi-heterogeneous vector equality
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Vec.Equality where
 
 open import Data.Vec
@@ -11,7 +13,7 @@ open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
-module Equality (S : Setoid zero zero) where
+module Equality {s₁ s₂} (S : Setoid s₁ s₂) where
 
   private
     open module SS = Setoid S
@@ -20,7 +22,7 @@ module Equality (S : Setoid zero zero) where
   infix 4 _≈_
 
   data _≈_ : ∀ {n¹} → Vec A n¹ →
-             ∀ {n²} → Vec A n² → Set where
+             ∀ {n²} → Vec A n² → Set (s₁ ⊔ s₂) where
     []-cong  : [] ≈ []
     _∷-cong_ : ∀ {x¹ n¹} {xs¹ : Vec A n¹}
                  {x² n²} {xs² : Vec A n²}
@@ -55,7 +57,7 @@ module Equality (S : Setoid zero zero) where
   []-cong          ++-cong eq₃ = eq₃
   (eq₁ ∷-cong eq₂) ++-cong eq₃ = eq₁ ∷-cong (eq₂ ++-cong eq₃)
 
-module DecidableEquality (D : DecSetoid zero zero) where
+module DecidableEquality {d₁ d₂} (D : DecSetoid d₁ d₂) where
 
   private module DS = DecSetoid D
   open DS using () renaming (_≟_ to _≟′_ ; Carrier to A)
@@ -77,7 +79,7 @@ module DecidableEquality (D : DecSetoid zero zero) where
     helper : ¬ (x ∷ xs ≈ y ∷ ys)
     helper (x≊y ∷-cong _) = ¬x≊y x≊y
 
-module HeterogeneousEquality {A : Set} where
+module HeterogeneousEquality {a} {A : Set a} where
 
   open import Relation.Binary.HeterogeneousEquality as HetEq
     using (_≅_)

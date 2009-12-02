@@ -3,11 +3,14 @@
 -- proof by reflection
 ------------------------------------------------------------------------
 
-open import Relation.Binary
-open import Data.Nat
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Data.Fin
-open import Data.Vec as Vec
 open import Data.Function
+open import Data.Nat
+open import Data.Vec as Vec
+open import Level
+open import Relation.Binary
 
 -- Think of the parameters as follows:
 --
@@ -24,8 +27,9 @@ open import Data.Function
 -- For an example of the use of this module, see Algebra.RingSolver.
 
 module Relation.Binary.Reflection
-         {Expr : ℕ → Set} {A}
-         Sem
+         {e a s}
+         {Expr : ℕ → Set e} {A : Set a}
+         (Sem : Setoid a s)
          (var : ∀ {n} → Fin n → Expr n)
          (⟦_⟧ ⟦_⇓⟧ : ∀ {n} → Expr n → Vec A n → Setoid.Carrier Sem)
          (correct : ∀ {n} (e : Expr n) ρ →
@@ -78,5 +82,5 @@ solve n f hyp =
 
 infix 4 _⊜_
 
-_⊜_ : {A : Set} → A → A → A × A
+_⊜_ : ∀ {n} → Expr n → Expr n → Expr n × Expr n
 _⊜_ = _,_

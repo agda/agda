@@ -2,6 +2,8 @@
 -- Some Vec-related properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Vec.Properties where
 
 open import Algebra
@@ -13,7 +15,7 @@ open import Data.Function
 open import Level
 open import Relation.Binary
 
-module UsingVectorEquality (S : Setoid zero zero) where
+module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
 
   private module SS = Setoid S
   open SS using () renaming (Carrier to A)
@@ -30,7 +32,8 @@ module UsingVectorEquality (S : Setoid zero zero) where
   xs++[]=xs []       = []-cong
   xs++[]=xs (x ∷ xs) = SS.refl ∷-cong xs++[]=xs xs
 
-  map-++-commute : ∀ {B m n} (f : B → A) (xs : Vec B m) {ys : Vec B n} →
+  map-++-commute : ∀ {b m n} {B : Set b}
+                   (f : B → A) (xs : Vec B m) {ys : Vec B n} →
                    map f (xs ++ ys) ≈ map f xs ++ map f ys
   map-++-commute f []       = refl _
   map-++-commute f (x ∷ xs) = SS.refl ∷-cong map-++-commute f xs
@@ -40,25 +43,27 @@ open import Relation.Binary.HeterogeneousEquality as HetEq
 
 -- lookup is natural.
 
-lookup-natural : ∀ {A B n} (f : A → B) (i : Fin n) →
+lookup-natural : ∀ {a b n} {A : Set a} {B : Set b}
+                 (f : A → B) (i : Fin n) →
                  lookup i ∘ map f ≗ f ∘ lookup i
 lookup-natural f zero    (x ∷ xs) = refl
 lookup-natural f (suc i) (x ∷ xs) = lookup-natural f i xs
 
 -- map is a congruence.
 
-map-cong : ∀ {A B n} {f g : A → B} →
+map-cong : ∀ {a b n} {A : Set a} {B : Set b} {f g : A → B} →
            f ≗ g → _≗_ {A = Vec A n} (map f) (map g)
 map-cong f≗g []       = refl
 map-cong f≗g (x ∷ xs) = PropEq.cong₂ _∷_ (f≗g x) (map-cong f≗g xs)
 
 -- map is functorial.
 
-map-id : ∀ {A n} → _≗_ {A = Vec A n} (map id) id
+map-id : ∀ {a n} {A : Set a} → _≗_ {A = Vec A n} (map id) id
 map-id []       = refl
 map-id (x ∷ xs) = PropEq.cong (_∷_ x) (map-id xs)
 
-map-∘ : ∀ {A B C n} (f : B → C) (g : A → B) →
+map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
+        (f : B → C) (g : A → B) →
         _≗_ {A = Vec A n} (map (f ∘ g)) (map f ∘ map g)
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = PropEq.cong (_∷_ (f (g x))) (map-∘ f g xs)
@@ -81,8 +86,11 @@ sum-++-commute (x ∷ xs) {ys} = begin
 
 -- foldr is a congruence.
 
-foldr-cong : ∀ {A} {B₁} {f₁ : ∀ {n} → A → B₁ n → B₁ (suc n)} {e₁}
-                   {B₂} {f₂ : ∀ {n} → A → B₂ n → B₂ (suc n)} {e₂} →
+foldr-cong : ∀ {a} {A : Set a}
+               {b₁} {B₁ : ℕ → Set b₁}
+               {f₁ : ∀ {n} → A → B₁ n → B₁ (suc n)} {e₁}
+               {b₂} {B₂ : ℕ → Set b₂}
+               {f₂ : ∀ {n} → A → B₂ n → B₂ (suc n)} {e₂} →
              (∀ {n x} {y₁ : B₁ n} {y₂ : B₂ n} →
                 y₁ ≅ y₂ → f₁ x y₁ ≅ f₂ x y₂) →
              e₁ ≅ e₂ →
@@ -94,8 +102,11 @@ foldr-cong {B₁ = B₁} f₁=f₂ e₁=e₂ (x ∷ xs) =
 
 -- foldl is a congruence.
 
-foldl-cong : ∀ {A} {B₁} {f₁ : ∀ {n} → B₁ n → A → B₁ (suc n)} {e₁}
-                   {B₂} {f₂ : ∀ {n} → B₂ n → A → B₂ (suc n)} {e₂} →
+foldl-cong : ∀ {a} {A : Set a}
+               {b₁} {B₁ : ℕ → Set b₁}
+               {f₁ : ∀ {n} → B₁ n → A → B₁ (suc n)} {e₁}
+               {b₂} {B₂ : ℕ → Set b₂}
+               {f₂ : ∀ {n} → B₂ n → A → B₂ (suc n)} {e₂} →
              (∀ {n x} {y₁ : B₁ n} {y₂ : B₂ n} →
                 y₁ ≅ y₂ → f₁ y₁ x ≅ f₂ y₂ x) →
              e₁ ≅ e₂ →
@@ -107,7 +118,7 @@ foldl-cong {B₁ = B₁} f₁=f₂ e₁=e₂ (x ∷ xs) =
 
 -- The (uniqueness part of the) universality property for foldr.
 
-foldr-universal : ∀ {A} (B : ℕ → Set)
+foldr-universal : ∀ {a b} {A : Set a} (B : ℕ → Set b)
                   (f : ∀ {n} → A → B n → B (suc n)) {e}
                   (h : ∀ {n} → Vec A n → B n) →
                   h [] ≡ e →
@@ -125,8 +136,9 @@ foldr-universal B f {e} h base step (x ∷ xs) = begin
 
 -- A fusion law for foldr.
 
-foldr-fusion : ∀ {A} {B : ℕ → Set} {f : ∀ {n} → A → B n → B (suc n)} e
-                     {C : ℕ → Set} {g : ∀ {n} → A → C n → C (suc n)}
+foldr-fusion : ∀ {a b c} {A : Set a}
+                 {B : ℕ → Set b} {f : ∀ {n} → A → B n → B (suc n)} e
+                 {C : ℕ → Set c} {g : ∀ {n} → A → C n → C (suc n)}
                (h : ∀ {n} → B n → C n) →
                (∀ {n} x → h ∘ f {n} x ≗ g x ∘ h) →
                ∀ {n} → h ∘ foldr B {n} f e ≗ foldr C g (h e)
@@ -135,5 +147,5 @@ foldr-fusion {B = B} {f} e {C} h fuse =
 
 -- The identity function is a fold.
 
-idIsFold : ∀ {A n} → id ≗ foldr (Vec A) {n} _∷_ []
+idIsFold : ∀ {a n} {A : Set a} → id ≗ foldr (Vec A) {n} _∷_ []
 idIsFold = foldr-universal _ _ id refl (λ _ _ → refl)
