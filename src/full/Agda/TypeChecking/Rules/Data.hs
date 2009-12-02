@@ -21,6 +21,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Free
 
 import Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -56,6 +57,24 @@ checkDataDef i ind name ps cs =
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
             (nofIxs, s) <- splitType =<< normalise t0
+
+            when (any (`freeIn` s) [0..nofIxs - 1]) $ do
+              err <- fsep [ text "The sort of" <+> prettyTCM name
+                          , text "cannot depend on its indices in the type"
+                          , prettyTCM t0
+                          ]
+              typeError $ GenericError $ show err
+
+            s <- return $ raise (-nofIxs) s
+
+            reportSDoc "tc.data.sort" 20 $ vcat
+              [ text "checking datatype" <+> prettyTCM name
+              , nest 2 $ vcat
+                [ text "type:   " <+> prettyTCM t0
+                , text "sort:   " <+> prettyTCM s
+                , text "indices:" <+> text (show nofIxs)
+                ]
+              ]
 
 	    -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype { dataPars           = npars
@@ -108,7 +127,7 @@ checkDataDef i ind name ps cs =
 	hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
-	splitType (El _ (Fun _ b)) = ((+ 1) -*- id) <$> splitType b
+	splitType (El _ (Fun _ b)) = ((+ 1) -*- raise 1) <$> splitType b
 	splitType (El _ (Sort s))  = return (0, s)
 	splitType (El _ t)	   = typeError $ DataMustEndInSort t
 
@@ -124,14 +143,18 @@ checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
-	verboseS "tc.data.con" 15 $ do
-	    td <- prettyTCM t
-	    liftIO $ UTF8.putStrLn $ "checking that " ++ show td ++ " ends in " ++ show d
-	    liftIO $ UTF8.putStrLn $ "  nofPars = " ++ show n
+	reportSDoc "tc.data.con" 15 $ vcat
+          [ sep [ text "checking that"
+                , nest 2 $ prettyTCM t
+                , text "ends in" <+> prettyTCM d
+                ]
+	  , nest 2 $ text "nofPars =" <+> text (show n)
+          ]
 	constructs n t d
-	verboseS "tc.data.con" 15 $ do
-	    d <- prettyTCM s
-	    liftIO $ UTF8.putStrLn $ "checking that the type fits in " ++ show d
+	reportSDoc "tc.data.con" 15 $ sep
+          [ text "checking that the type fits in"
+          , nest 2 $ prettyTCM s
+          ]
 	t `fitsIn` s
 	escapeContext (size tel)
 	    $ addConstant c
