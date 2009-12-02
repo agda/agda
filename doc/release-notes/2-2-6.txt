@@ -44,13 +44,14 @@ Language
   for Set zero, Set (suc zero), etc.
 
   At present there is no automatic lifting of types from one level to
-  another. It can still be done (but rather clumsily) by defining the
-  following datatype:
+  another. It can still be done (rather clumsily) by defining types
+  like the following one:
 
-    data Lifted {i}(A : Set i) : Set (suc i) where
+    data Lifted {a} (A : Set a) : Set (suc a) where
       lift : A → Lifted A
 
-  This is likely to change at some point.
+  However, it is likely that automatic lifting is introduced at some
+  point in the future.
 
 * Multiple constructors, record fields, postulates or primitives can
   be declared using a single type signature:
