@@ -17,9 +17,11 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
+import Agda.Syntax.Literal
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
@@ -269,7 +271,7 @@ etaExpandMeta m = do
   case unEl <$> bb of
     Blocked x _            -> listenToMeta m x
     NotBlocked (MetaV x _) -> listenToMeta m x
-    NotBlocked (Def r ps)  ->
+    NotBlocked lvl@(Def r ps)  ->
       ifM (isRecord r) (do
 	rng <- getMetaRange m
 	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
@@ -278,7 +280,15 @@ etaExpandMeta m = do
 	    du <- prettyTCM u
 	    liftIO $ UTF8.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
 	  noConstraints $ assignV b m args u  -- should never produce any constraints
-      ) $ return ()
+      ) $ do
+      mlvl <- getBuiltin' builtinLevel
+      tt   <- typeInType
+      if tt && Just lvl == mlvl
+       then do
+        reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
+        noConstraints $ assignV b m args (Lit $ LitLevel noRange 0)
+       else
+        return ()
     _		-> return ()
 
   return ()
