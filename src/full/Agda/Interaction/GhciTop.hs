@@ -51,6 +51,7 @@ import qualified Data.Map as Map
 import System.Exit
 import qualified System.Mem as System
 import System.Time
+import Text.PrettyPrint
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad as TM
@@ -622,7 +623,7 @@ cmd_make_case ii rng s = Interaction False $ do
     pcs <- mapM prettyA cs
     liftIO $ UTF8.putStrLn $ response $
       L [ A "agda2-make-case-action",
-          Q $ L $ List.map (A . quote . show) pcs
+          Q $ L $ List.map (A . quote . renderStyle (style { mode = OneLineMode })) pcs
         ]
   return Nothing
 
