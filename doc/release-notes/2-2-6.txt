@@ -43,10 +43,12 @@ Language
   The non-polymorphic universe levels Set, Set₁ and so on are sugar
   for Set zero, Set (suc zero), etc.
 
-  At present there is no way to lift types from one level to another, that
-  is, there is no function
+  At present there is no automatic lifting of types from one level to
+  another. It can still be done (but rather clumsily) by defining the
+  following datatype:
 
-    lift : {i : Level} → Set i → Set (suc i).
+    data Lifted {i}(A : Set i) : Set (suc i) where
+      lift : A → Lifted A
 
   This is likely to change at some point.
 
