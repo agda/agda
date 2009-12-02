@@ -40,6 +40,7 @@ import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty (prettyTCM)
+import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
@@ -86,7 +87,11 @@ give ii mr e = liftTCM $ do
   mis <- getInteractionPoints
   r <- getInteractionRange ii
   updateMetaVarRange mi $ maybe r id mr
-  giveExpr mi e
+  giveExpr mi e `catchError` \err -> case errError err of
+    PatternErr _ -> do
+      err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
+      typeError $ GenericError $ show err
+    _ -> throwError err
   removeInteractionPoint ii
   mis' <- getInteractionPoints
   return (e, mis' \\ mis)
