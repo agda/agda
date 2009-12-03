@@ -137,6 +137,8 @@ suc m ⊓ suc n = suc (m ⊓ n)
 ------------------------------------------------------------------------
 -- Queries
 
+infix 4 _≟_
+
 _≟_ : Decidable {A = ℕ} _≡_
 zero  ≟ zero   = yes refl
 suc m ≟ suc n  with m ≟ n

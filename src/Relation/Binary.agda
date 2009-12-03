@@ -78,6 +78,7 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
 
 record IsDecEquivalence {a ℓ} {A : Set a}
                         (_≈_ : REL A ℓ) : Set (a ⊔ ℓ) where
+  infix 4 _≟_
   field
     isEquivalence : IsEquivalence _≈_
     _≟_           : Decidable _≈_
@@ -181,6 +182,7 @@ record TotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 record IsDecTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
                        (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
                        Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
+  infix 4 _≟_ _≤?_
   field
     isTotalOrder : IsTotalOrder _≈_ _≤_
     _≟_          : Decidable _≈_
@@ -237,6 +239,8 @@ record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
     trans         : Transitive _<_
     compare       : Trichotomous _≈_ _<_
     <-resp-≈      : _<_ Respects₂ _≈_
+
+  infix 4 _≟_ _<?_
 
   _≟_ : Decidable _≈_
   _≟_ = tri⟶dec≈ compare
