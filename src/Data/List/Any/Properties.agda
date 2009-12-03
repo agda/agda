@@ -29,7 +29,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; inspect; _with-≡_)
 import Relation.Binary.Props.DecTotalOrder as DTOProps
 open import Relation.Nullary
-open import Relation.Nullary.Injection
+import Relation.Nullary.Injection as Inj
 open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------
@@ -259,13 +259,13 @@ module Membership₁ (S : Setoid zero zero) where
   -- Only a finite number of distinct elements can be members of a
   -- given list.
 
-  finite : (f : Injection (PropEq.setoid ℕ) S) →
-           ∀ xs → ¬ (∀ i → Injection.to f ⟨$⟩ i ∈ xs)
+  finite : (f : Inj.Injection (PropEq.setoid ℕ) S) →
+           ∀ xs → ¬ (∀ i → Inj.Injection.to f ⟨$⟩ i ∈ xs)
   finite inj []       ∈[]   with ∈[] zero
   ... | ()
   finite inj (x ∷ xs) ∈x∷xs = excluded-middle helper
     where
-    open Injection inj
+    open Inj.Injection inj
 
     module DTO = DecTotalOrder Nat.decTotalOrder
     module STO = StrictTotalOrder
@@ -303,7 +303,7 @@ module Membership₁ (S : Setoid zero zero) where
         ∈-if-not-i (NatProp.m≢1+m+n i ∘
                     subst (_≡_ i ∘ suc) (sym $ proj₂ CS.+-identity i))
 
-      injective′ : Injective {B = S} (→-to-⟶ f)
+      injective′ : Inj.Injective {B = S} (→-to-⟶ f)
       injective′ {j} {k} eq with STO.compare i j | STO.compare i k
       ... | tri< _ _ _         | tri< _ _ _         = cong pred                                   $ injective eq
       ... | tri< _ _ _         | tri≈ _ _ _         = cong pred                                   $ injective eq

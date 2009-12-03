@@ -9,8 +9,9 @@ module Relation.Nullary.LeftInverse where
 open import Level
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid
-open import Relation.Nullary.Injection
+open import Relation.Binary.FunctionSetoid as F
+  using (_⟶_; _⇨_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
+open import Relation.Nullary.Injection using (Injective; Injection)
 
 _LeftInverseOf_ : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →
                   B ⟶ A → A ⟶ B → Set _
@@ -31,9 +32,33 @@ record LeftInverse {f₁ f₂ t₁ t₂}
   injective : Injective to
   injective {x} {y} eq = begin
     x                    ≈⟨ sym (left-inverse x) ⟩
-    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ cong from eq ⟩
+    from ⟨$⟩ (to ⟨$⟩ x)  ≈⟨ F.cong from eq ⟩
     from ⟨$⟩ (to ⟨$⟩ y)  ≈⟨ left-inverse y ⟩
     y                    ∎
 
   injection : Injection From To
   injection = record { to = to; injective = injective }
+
+infixr 9 _∘_
+
+id : ∀ {s₁ s₂} {S : Setoid s₁ s₂} → LeftInverse S S
+id {S = S} = record
+  { to           = F.id
+  ; from         = F.id
+  ; left-inverse = λ _ → Setoid.refl S
+  }
+
+_∘_ : ∀ {f₁ f₂ m₁ m₂ t₁ t₂}
+        {F : Setoid f₁ f₂} {M : Setoid m₁ m₂} {T : Setoid t₁ t₂} →
+      LeftInverse M T → LeftInverse F M → LeftInverse F T
+_∘_ {F = F} f g = record
+  { to           = to   f ⟪∘⟫ to   g
+  ; from         = from g ⟪∘⟫ from f
+  ; left-inverse = λ x → begin
+      from g ⟨$⟩ (from f ⟨$⟩ (to f ⟨$⟩ (to g ⟨$⟩ x)))  ≈⟨ F.cong (from g) (left-inverse f (to g ⟨$⟩ x)) ⟩
+      from g ⟨$⟩ (to g ⟨$⟩ x)                          ≈⟨ left-inverse g x ⟩
+      x                                                ∎
+  }
+  where
+  open LeftInverse
+  open EqReasoning F
