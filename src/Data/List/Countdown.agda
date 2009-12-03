@@ -17,6 +17,7 @@ open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
+open import Relation.Nullary.Injection
 open import Relation.Binary.FunctionSetoid using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; cong)

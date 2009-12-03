@@ -29,6 +29,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; inspect; _with-≡_)
 import Relation.Binary.Props.DecTotalOrder as DTOProps
 open import Relation.Nullary
+open import Relation.Nullary.Injection
 open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------

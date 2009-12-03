@@ -15,6 +15,7 @@ open N.≤-Reasoning
 import Data.Nat.Properties as N
 open import Data.Function
 open import Relation.Nullary
+open import Relation.Nullary.Injection
 open import Relation.Unary
 open import Relation.Binary
 open import Relation.Binary.FunctionSetoid as FunS using (_⟨$⟩_)
