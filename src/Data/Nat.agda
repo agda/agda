@@ -2,13 +2,18 @@
 -- Natural numbers
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Nat where
 
 open import Data.Function
 open import Data.Sum
 open import Data.Empty
 open import Relation.Nullary
+open import Relation.Nullary.Injection
+  using (Injection; module Injection)
 open import Relation.Binary
+open import Relation.Binary.FunctionSetoid as F using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
@@ -173,6 +178,15 @@ compare (suc m) (suc n) with compare m n
 compare (suc .m)           (suc .(suc m + k)) | less    m k = less    (suc m) k
 compare (suc .m)           (suc .m)           | equal   m   = equal   (suc m)
 compare (suc .(suc m + k)) (suc .m)           | greater m k = greater (suc m) k
+
+-- If there is an injection from a set to ℕ, then equality of the set
+-- can be decided.
+
+eq? : ∀ {s₁ s₂} {S : Setoid s₁ s₂} →
+      Injection S (PropEq.setoid ℕ) → Decidable (Setoid._≈_ S)
+eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
+... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
+... | no  tox≢toy = no  (tox≢toy ∘ F.cong (Injection.to inj))
 
 ------------------------------------------------------------------------
 -- Some properties
