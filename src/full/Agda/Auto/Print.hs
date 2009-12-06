@@ -1,7 +1,7 @@
 module Agda.Auto.Print where
 
 import Data.IORef
-import Char
+import Data.Char
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
