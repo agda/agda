@@ -6,7 +6,7 @@
 
 module Agda.Utils.Impossible where
 
-import Control.OldException
+import Control.Exception as E
 import Data.Typeable
 
 -- | \"Impossible\" errors, annotated with a file name and a line
@@ -20,13 +20,15 @@ instance Show Impossible where
     , "Location of the error: " ++ file ++ ":" ++ show line
     ]
 
+instance Exception Impossible
+
 -- | Abort by throwing an \"impossible\" error. You should not use
 -- this function directly. Instead use the macro in @undefined.h@.
 
 throwImpossible :: Impossible -> a
-throwImpossible i = throwDyn i
+throwImpossible = throw
 
 -- | Catch an \"impossible\" error, if possible.
 
 catchImpossible :: IO a -> (Impossible -> IO a) -> IO a
-catchImpossible = catchDyn
+catchImpossible = E.catch

@@ -23,7 +23,7 @@ module Agda.TypeChecking.Serialise
   )
   where
 
-import qualified Control.OldException as E
+import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
 import Control.Monad.State.Strict
@@ -157,7 +157,7 @@ decode s = do
   -- input is malformed. The decoder is (intended to be) strict enough
   -- to ensure that all such errors can be caught by the handler here.
 
-  (mf, x) <- liftIO $ E.handle handler $ do
+  (mf, x) <- liftIO $ E.handle (\(E.ErrorCall {}) -> noResult) $ do
 
     (ver, s, _) <- return $ B.runGetState B.get s 0
     if ver /= currentInterfaceVersion
@@ -190,9 +190,6 @@ decode s = do
   ar l = listArray (0, List.length l - 1) l
 
   noResult = return (Nothing, Nothing)
-
-  handler (E.ErrorCall {}) = noResult
-  handler e                = E.throwIO e
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.

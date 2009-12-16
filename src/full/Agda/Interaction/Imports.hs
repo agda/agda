@@ -8,7 +8,7 @@ import Prelude hiding (catch)
 
 import Control.Monad.Error
 import Control.Monad.State
-import qualified Control.OldException as E
+import qualified Control.Exception as E
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
