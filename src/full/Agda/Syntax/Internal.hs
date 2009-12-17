@@ -10,6 +10,7 @@ import Control.Applicative
 import Data.Generics
 import Data.Foldable
 import Data.Traversable
+import Data.Function
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -151,7 +152,13 @@ instance Sized Telescope where
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
-  deriving (Typeable, Data, Eq, Ord)
+  deriving (Typeable, Data)
+
+instance Eq a => Eq (Abs a) where
+  (==) = (==) `on` absBody
+
+instance Ord a => Ord (Abs a) where
+  compare = compare `on` absBody
 
 instance Show a => Show (Abs a) where
   showsPrec p (Abs x a) = showParen (p > 0) $
