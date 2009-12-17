@@ -10,7 +10,7 @@ open import Data.Function
 open import Level
 open import Relation.Nullary.Core
 
-infixr 4 _,_
+infixr 4 _,_ _,′_
 infix  4 ,_
 infixr 2 _×_ _-×-_ _-,-_
 
@@ -32,6 +32,9 @@ data Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
 
 _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set (a ⊔ b)
 A × B = Σ A (λ _ → B)
+
+_,′_ : ∀ {a b} {A : Set a} {B : Set b} → A → B → A × B
+_,′_ = _,_
 
 ------------------------------------------------------------------------
 -- Unique existence
