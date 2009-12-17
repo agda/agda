@@ -62,7 +62,13 @@ mapM′ f []       = return _
 mapM′ f (x ∷ xs) = ♯ f x >> ♯ mapM′ f (♭ xs)
 
 ------------------------------------------------------------------------
--- Simple lazy IO (UTF8-based)
+-- Simple lazy IO
+
+-- Note that the semantics of these functions depends on the version
+-- of the Haskell base library. If the version is 4.2.0.0 (or later?),
+-- then the functions use the character encoding specified by the
+-- locale. For older versions of the library (going back to at least
+-- version 3) the functions use ISO-8859-1.
 
 getContents : IO Costring
 getContents =

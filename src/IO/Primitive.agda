@@ -26,7 +26,13 @@ postulate
 {-# COMPILED _>>=_  (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 
 ------------------------------------------------------------------------
--- Simple lazy IO (UTF8-based)
+-- Simple lazy IO
+
+-- Note that the semantics of these functions depends on the version
+-- of the Haskell base library. If the version is 4.2.0.0 (or later?),
+-- then the functions use the character encoding specified by the
+-- locale. For older versions of the library (going back to at least
+-- version 3) the functions use ISO-8859-1.
 
 private
   Costring = Colist Char
@@ -38,9 +44,8 @@ postulate
   putStr      : Costring → IO Unit
   putStrLn    : Costring → IO Unit
 
-{-# IMPORT System.IO.UTF8 #-}
-{-# COMPILED getContents System.IO.UTF8.getContents #-}
-{-# COMPILED readFile    System.IO.UTF8.readFile    #-}
-{-# COMPILED writeFile   System.IO.UTF8.writeFile   #-}
-{-# COMPILED putStr      System.IO.UTF8.putStr      #-}
-{-# COMPILED putStrLn    System.IO.UTF8.putStrLn    #-}
+{-# COMPILED getContents getContents #-}
+{-# COMPILED readFile    readFile    #-}
+{-# COMPILED writeFile   writeFile   #-}
+{-# COMPILED putStr      putStr      #-}
+{-# COMPILED putStrLn    putStrLn    #-}

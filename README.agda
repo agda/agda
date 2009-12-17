@@ -21,9 +21,6 @@ module README where
 -- --include-path flag or by customising the Emacs mode variable
 -- agda2-include-dirs (M-x customize-group RET agda2 RET).
 
--- To compile programs using some of the IO functions you need to
--- install the Haskell package utf8-string (available from Hackage).
-
 -- Contributions to this library are welcome (but to avoid wasted work
 -- it is suggested that you discuss large changes before implementing
 -- them). Please send contributions in the form of darcs patches (run
