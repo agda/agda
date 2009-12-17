@@ -28,6 +28,8 @@ import Agda.Utils.Impossible
 instantiateTel :: MonadTCM tcm => Substitution -> Telescope -> tcm (Telescope, Permutation, [Term], [Type])
 instantiateTel s tel = liftTCM $ do
 
+  tel <- normalise tel
+
   reportSDoc "tc.lhs.inst" 10 $ sep
     [ text "instantiateTel "
     , nest 2 $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
