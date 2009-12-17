@@ -324,7 +324,6 @@ writeModule m =
   preamble = unlines $ [ "{-# LANGUAGE EmptyDataDecls"
                        , "           , ExistentialQuantification"
                        , "           , ScopedTypeVariables"
-                       , "           , UnicodeSyntax"
                        , "           , NoMonomorphismRestriction"
                        , "  #-}"
                        ]
