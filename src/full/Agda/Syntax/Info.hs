@@ -8,6 +8,8 @@
 module Agda.Syntax.Info where
 
 import Data.Generics(Data,Typeable)
+import Text.Show.Functions
+
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
 import Agda.Syntax.Position

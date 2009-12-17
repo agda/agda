@@ -13,11 +13,14 @@ import Numeric
 -- the behaviour of 'show':
 --
 -- @
--- \> 'System.IO.UTF8.putStrLn' $ 'show' \"\\x2200\"
+-- \> 'putStrLn' $ 'show' \"\\x2200\"
 -- \"\\8704\"
--- \> 'System.IO.UTF8.putStrLn' $ 'quote' \"\\x2200\"
+-- \> 'putStrLn' $ 'quote' \"\\x2200\"
 -- \"&#x2200;\"
 -- @
+--
+-- (The code examples above have been tested using version 4.2.0.0 of
+-- the base library.)
 
 quote :: String -> String
 quote s = "\"" ++ concatMap escape s ++ "\""

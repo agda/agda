@@ -15,7 +15,6 @@ import System.Cmd
 import System.Directory
 import System.Exit
 import System.IO
-import qualified System.IO.UTF8 as UTF8
 import System.Time
 import System.Process
 import System.FilePath hiding (normalise, (<.>))
@@ -37,6 +36,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
+import qualified Agda.Utils.IO.Locale as LocIO
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Impossible
 
 #include "../../undefined.h"
@@ -319,6 +320,7 @@ hsCast' e = e
 
 writeModule :: HsModule -> TCM ()
 writeModule m =
+  -- Note that GHC assumes that sources use ASCII or UTF-8.
   liftIO . (`UTF8.writeFile` (preamble ++ prettyPrint m)) =<< outFile
   where
   preamble = unlines $ [ "{-# LANGUAGE EmptyDataDecls"
@@ -388,7 +390,7 @@ callGHC i = do
     hSetBinaryMode err False
 
   -- GHC seems to use stderr for progress reports.
-  s <- liftIO $ join <$> hGetContents err <*> hGetContents out
+  s <- liftIO $ join <$> LocIO.hGetContents err <*> LocIO.hGetContents out
   reportSLn "" 1 s
 
   exitcode <- liftIO $ do

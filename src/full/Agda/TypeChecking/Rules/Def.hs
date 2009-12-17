@@ -11,7 +11,7 @@ import Data.List hiding (sort)
 import Data.Traversable
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -108,7 +108,7 @@ checkFunDef delayed i name cs =
         verboseS "tc.def.fun" 10 $ do
           dx <- prettyTCM name
           t' <- prettyTCM . defType =<< getConstInfo name
-          liftIO $ UTF8.putStrLn $ "added " ++ show dx ++ " : " ++ show t'
+          liftIO $ LocIO.putStrLn $ "added " ++ show dx ++ " : " ++ show t'
 
         -- Check pattern coverage
         checkCoverage name
@@ -356,8 +356,8 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       dx   <- prettyTCM m
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
-      liftIO $ UTF8.putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
-      liftIO $ UTF8.putStrLn $ "        actual tele: " ++ show dtel'
+      liftIO $ LocIO.putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
+      liftIO $ LocIO.putStrLn $ "        actual tele: " ++ show dtel'
     x <- withCurrentModule m $ checkDecls ds >> ret
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
@@ -383,7 +383,7 @@ checkLHS ps t ret = do
     verbose 15 $ do
       dt  <- prettyTCM t
       dps <- mapM prettyA ps
-      liftIO $ UTF8.putStrLn $ "checking clause " ++ show dps ++ " : " ++ show dt
+      liftIO $ LocIO.putStrLn $ "checking clause " ++ show dps ++ " : " ++ show dt
 
     -- Save the state for later. (should this be done with the undo monad, or
     -- would that interfere with normal undo?)
@@ -404,18 +404,18 @@ checkLHS ps t ret = do
         d0 <- A.showA ps0
         d1 <- A.showA ps1
         liftIO $ do
-        UTF8.putStrLn $ "first check"
-        UTF8.putStrLn $ "  xs    = " ++ show xs
-        UTF8.putStrLn $ "  metas = " ++ show metas
-        UTF8.putStrLn $ "  ps0   = " ++ d0
-        UTF8.putStrLn $ "  ps1   = " ++ d1
+        LocIO.putStrLn $ "first check"
+        LocIO.putStrLn $ "  xs    = " ++ show xs
+        LocIO.putStrLn $ "  metas = " ++ show metas
+        LocIO.putStrLn $ "  ps0   = " ++ d0
+        LocIO.putStrLn $ "  ps1   = " ++ d1
 
     verbose 10 $ do
         is <- mapM (instantiateFull . flip MetaV []) metas
         ds <- mapM prettyTCM is
         dts <- mapM prettyTCM =<< mapM instantiateFull ts
-        liftIO $ UTF8.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
-        liftIO $ UTF8.putStrLn $ "  ts    = " ++ concat (intersperse ", " $ map show dts)
+        liftIO $ LocIO.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
+        liftIO $ LocIO.putStrLn $ "  ts    = " ++ concat (intersperse ", " $ map show dts)
 
     -- Now we forget that we ever type checked anything and type check the new
     -- pattern.
@@ -426,14 +426,14 @@ checkLHS ps t ret = do
     mapM_ isEmptyType emptyTypes
 
     verbose 10 $ liftIO $ do
-        UTF8.putStrLn $ "second check"
-        UTF8.putStrLn $ "  xs    = " ++ show xs
-        UTF8.putStrLn $ "  metas = " ++ show metas
+        LocIO.putStrLn $ "second check"
+        LocIO.putStrLn $ "  xs    = " ++ show xs
+        LocIO.putStrLn $ "  metas = " ++ show metas
 
     verbose 10 $ do
         is <- mapM (instantiateFull . flip MetaV []) metas
         ds <- mapM prettyTCM is
-        liftIO $ UTF8.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
+        liftIO $ LocIO.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
 
     -- Finally we type check the dot patterns and check that they match their
     -- instantiations.
@@ -475,8 +475,8 @@ checkLHS ps t ret = do
         verbose 20 $ do
             d <- prettyTCM ctx
             dt <- prettyTCM (substs sub a)
-            liftIO $ UTF8.putStrLn $ "context = " ++ show d
-            liftIO $ UTF8.putStrLn $ "type    = " ++ show dt
+            liftIO $ LocIO.putStrLn $ "context = " ++ show d
+            liftIO $ LocIO.putStrLn $ "type    = " ++ show dt
 
         reportLn 20 $ "finished type checking left hand side"
         ret rsub xs ps (substs sub a)
@@ -497,7 +497,7 @@ checkLHS ps t ret = do
             v <- lift $ instantiate (MetaV x [])
             lift $ verbose 6 $ do
                 d <- prettyTCM v
-                liftIO $ UTF8.putStrLn $ "new pattern for " ++ show x ++ " = " ++ show d
+                liftIO $ LocIO.putStrLn $ "new pattern for " ++ show x ++ " = " ++ show d
             case v of
                 -- Unsolved metas become variables
                 MetaV y _ | x == y  -> return $ A.WildP i
@@ -505,7 +505,7 @@ checkLHS ps t ret = do
                 _                   -> do
                     lift $ verbose 6 $ do
                         d <- prettyTCM =<< instantiateFull v
-                        liftIO $ UTF8.putStrLn $ show x ++ " := " ++ show d
+                        liftIO $ LocIO.putStrLn $ show x ++ " := " ++ show d
                     scope <- lift getScope
                     return $ A.DotP i (A.Underscore $ info scope)
                     where info s = Info.MetaInfo (getRange i) s Nothing
@@ -569,7 +569,7 @@ checkLHS ps t ret = do
                     xs   <- free t
                     verbose 20 $ do
                         d <- prettyTCM t
-                        liftIO $ UTF8.putStrLn $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
+                        liftIO $ LocIO.putStrLn $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
                     case intersect (map (fst . unArg) tel') xs of
                         [] -> return $ Arg h (x,t) : tel'
                         zs -> return $ ins zs (Arg h (x,t)) tel'
@@ -606,7 +606,7 @@ checkLHS ps t ret = do
                 par Hidden    s = "{" ++ s ++ "}"
                 par NotHidden s = "(" ++ s ++ ")"
             ds <- mapM pr ctx
-            liftIO $ UTF8.putStr $ unlines $ reverse ds
+            liftIO $ LocIO.putStr $ unlines $ reverse ds
 -}
 
 actualConstructor :: MonadTCM tcm => QName -> tcm QName

@@ -16,7 +16,7 @@ import Data.Maybe
 import System.Environment
 import System.Exit
 import System.FilePath
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 import System.Time
 
 import Agda.Syntax.Position
@@ -90,7 +90,7 @@ runAgda = do
       compile <- optCompile        <$> liftTCM commandLineOptions
       alonzo  <- optCompileAlonzo  <$> liftTCM commandLineOptions
       malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
-      when i $ liftIO $ UTF8.putStr splashScreen
+      when i $ liftIO $ LocIO.putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
           -- options should rule out Nothing here.
@@ -127,9 +127,9 @@ runAgda = do
           case stats of
             []      -> return ()
             _       -> liftIO $ do
-              UTF8.putStrLn "Statistics"
-              UTF8.putStrLn "----------"
-              mapM_ (\ (s,n) -> UTF8.putStrLn $ s ++ " : " ++ show n) $
+              LocIO.putStrLn "Statistics"
+              LocIO.putStrLn "----------"
+              mapM_ (\ (s,n) -> LocIO.putStrLn $ s ++ " : " ++ show n) $
                 sortBy (\x y -> compare (snd x) (snd y)) stats
 
           whenM (optGenerateHTML <$> commandLineOptions) $ do
@@ -144,17 +144,17 @@ runAgda = do
 printUsage :: IO ()
 printUsage = do
   progName <- getProgName
-  UTF8.putStr $ usage standardOptions_ [] progName
+  LocIO.putStr $ usage standardOptions_ [] progName
 
 -- | Print version information.
 printVersion :: IO ()
 printVersion =
-  UTF8.putStrLn $ "Agda version " ++ version
+  LocIO.putStrLn $ "Agda version " ++ version
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  UTF8.putStrLn $ "Error: " ++ err
+  LocIO.putStrLn $ "Error: " ++ err
   printUsage
   exitFailure
 
@@ -163,12 +163,12 @@ main :: IO ()
 main = do
     r <- runTCM $ runAgda `catchError` \err -> do
       s <- prettyError err
-      liftIO $ UTF8.putStrLn s
+      liftIO $ LocIO.putStrLn s
       throwError err
     case r of
       Right _ -> exitSuccess
       Left _  -> exitFailure
   `catchImpossible` \e -> do
-    UTF8.putStr $ show e
+    LocIO.putStr $ show e
     exitFailure
 

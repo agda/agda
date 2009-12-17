@@ -46,10 +46,20 @@ source-repository head
   type:     darcs
   location: http://code.haskell.org/Agda/
 
+flag use-locale
+  description:
+    Try to use the character encoding specified by the locale for most
+    of the IO going to/from stdin and stdout. (Note that source files
+    must always be encoded using UTF8.)
+
 library
   hs-source-dirs:  src/full
-  build-depends:   base >= 4.1 && < 4.2,
-                   mtl >= 1.1 && < 2,
+  if flag(use-locale)
+    build-depends: base >= 4.2 && < 4.3
+  else
+    build-depends: base >= 4.1 && < 4.2,
+                   utf8-string >= 0.3 && < 0.4
+  build-depends:   mtl >= 1.1 && < 2,
                    QuickCheck >= 2.1.0.2 && < 2.2,
                    haskell-src >= 1.0.1.1 && < 2,
                    containers >= 0.1.0 && < 1,
@@ -63,7 +73,6 @@ library
                    filepath >= 1.1 && < 2,
                    process >= 1.0.1.0 && < 2,
                    haskeline >= 0.3 && < 0.7,
-                   utf8-string >= 0.3 && < 0.4,
                    xhtml >= 3000.2 && < 3000.3,
                    syb >= 0.1 && < 0.2
   if impl(ghc >= 6.10)
@@ -215,7 +224,9 @@ library
                    Agda.Utils.Graph
                    Agda.Utils.Hash
                    Agda.Utils.Impossible
-                   Agda.Utils.IO
+                   Agda.Utils.IO.Binary
+                   Agda.Utils.IO.Locale
+                   Agda.Utils.IO.UTF8
                    Agda.Utils.List
                    Agda.Utils.Map
                    Agda.Utils.Maybe
@@ -226,7 +237,6 @@ library
                    Agda.Utils.QuickCheck
                    Agda.Utils.ReadP
                    Agda.Utils.SemiRing
-                   Agda.Utils.Serialise
                    Agda.Utils.Size
                    Agda.Utils.String
                    Agda.Utils.Suffix
@@ -265,7 +275,10 @@ executable agda-mode
   hs-source-dirs:  src/agda-mode
   main-is:         Main.hs
   other-modules:   Paths_Agda
-  build-depends:   base >= 4.1 && < 4.2,
-                   filepath >= 1.1 && < 2,
-                   process >= 1.0.1.0 && < 2,
+  if flag(use-locale)
+    build-depends: base >= 4.2 && < 4.3
+  else
+    build-depends: base >= 4.1 && < 4.2,
                    utf8-string >= 0.3 && < 0.4
+  build-depends:   filepath >= 1.1 && < 2,
+                   process >= 1.0.1.0 && < 2

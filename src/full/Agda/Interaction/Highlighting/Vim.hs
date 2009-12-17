@@ -7,7 +7,6 @@ import Data.Char
 import Data.Set ( Set )
 import Data.Map ( Map )
 import System.FilePath
-import qualified System.IO.UTF8 as UTF8
 
 import qualified Data.List as List
 import qualified Data.Map as Map
@@ -18,6 +17,7 @@ import Agda.Syntax.Concrete.Name as CName
 
 import Agda.TypeChecking.Monad
 
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Tuple
 
 #include "../../undefined.h"

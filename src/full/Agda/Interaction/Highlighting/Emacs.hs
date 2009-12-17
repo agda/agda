@@ -28,7 +28,6 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Char
 import Data.Maybe
-import qualified System.IO.UTF8 as UTF8
 
 ------------------------------------------------------------------------
 -- Read/show functions

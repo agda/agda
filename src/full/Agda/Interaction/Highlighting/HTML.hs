@@ -20,7 +20,6 @@ import Data.Monoid
 import Data.Maybe
 import qualified Data.Map  as Map
 import qualified Data.List as List
-import qualified Agda.Utils.IO as UTF8
 
 import Paths_Agda
 
@@ -37,6 +36,7 @@ import qualified Agda.Syntax.Scope.Monad as Scope
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Interaction.Options
 import Agda.Utils.FileName (filePath)
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible

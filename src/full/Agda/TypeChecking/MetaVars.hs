@@ -11,7 +11,7 @@ import Data.Set (Set)
 import Data.List as List hiding (sort)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
@@ -226,8 +226,8 @@ blockTerm t v m = do
                 dx  <- prettyTCM (MetaV x [])
                 dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
                 dcs <- mapM prettyTCM cs
-                liftIO $ UTF8.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
-                liftIO $ UTF8.putStrLn $ "     by " ++ show dcs
+                liftIO $ LocIO.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
+                liftIO $ LocIO.putStrLn $ "     by " ++ show dcs
 	    addConstraints c
 	    return $ MetaV x vs
 
@@ -278,7 +278,7 @@ etaExpandMeta m = do
 	inContext [] $ addCtxTel tel $ do
 	  verboseS "tc.meta.eta" 20 $ do
 	    du <- prettyTCM u
-	    liftIO $ UTF8.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
+	    liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
 	  noConstraints $ assignV b m args u  -- should never produce any constraints
       ) $ do
       mlvl <- getBuiltin' builtinLevel
@@ -352,7 +352,7 @@ assignV t x args v =
 		     , nest 2 $ text "type" <+> prettyTCM t
 		     , nest 2 $ text "term" <+> prettyTCM v
 		     ]
-	    liftIO $ UTF8.print d
+	    liftIO $ LocIO.print d
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 
@@ -434,7 +434,7 @@ assignS x args s =
 	    d <- sep [ text "size" <+> text (show n)
 		     , nest 2 $ text "sort" <+> prettyTCM v
 		     ]
-	    liftIO $ UTF8.print d
+	    liftIO $ LocIO.print d
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 

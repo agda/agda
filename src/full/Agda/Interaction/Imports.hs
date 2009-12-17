@@ -19,7 +19,7 @@ import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory
 import System.Time
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 import System.FilePath hiding (splitPath)
 
 import Agda.Syntax.Position
@@ -49,7 +49,7 @@ import qualified Agda.Interaction.Highlighting.Range as R
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
-import Agda.Utils.IO
+import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 
 import Agda.Utils.Impossible
@@ -128,7 +128,7 @@ scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     verboseS "import.scope" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      liftIO $ UTF8.putStrLn $
+      liftIO $ LocIO.putStrLn $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
     i <- fst <$> getInterface x
     addImport x
@@ -416,7 +416,7 @@ readInterface file = do
   where
     handler e = case errError e of
       IOException _ e -> do
-        liftIO $ UTF8.putStrLn $ "IO exception: " ++ show e
+        liftIO $ LocIO.putStrLn $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
@@ -452,7 +452,7 @@ createInterface file mname = do
       "Creating interface for " ++ render (pretty mname) ++ "."
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      liftIO $ UTF8.putStrLn $
+      liftIO $ LocIO.putStrLn $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
     previousHsImports <- getHaskellImports

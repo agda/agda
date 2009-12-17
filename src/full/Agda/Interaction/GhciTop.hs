@@ -27,13 +27,13 @@ module Agda.Interaction.GhciTop
   where
 
 import System.Directory
+import qualified System.IO as IO
 import System.IO.Unsafe
 import Data.Char
 import Data.Maybe
 import Data.IORef
 import Data.Function
 import Control.Applicative
-import qualified System.IO.UTF8 as UTF8
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
@@ -41,6 +41,8 @@ import Agda.Utils.Pretty as P
 import Agda.Utils.String
 import Agda.Utils.FileName
 import Agda.Utils.Tuple
+import qualified Agda.Utils.IO.Locale as LocIO
+import qualified Agda.Utils.IO.UTF8 as UTF8
 
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -162,6 +164,11 @@ ioTCM :: FilePath
       -> Interaction
       -> IO ()
 ioTCM current highlightingFile cmd = infoOnException $ do
+#if MIN_VERSION_base(4,2,0)
+  -- Ensure that UTF-8 is used for communication with the Emacs mode.
+  IO.hSetEncoding IO.stdout IO.utf8
+#endif
+
   current <- absolute current
 
   -- Read the state.
@@ -361,7 +368,7 @@ give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
   liftIO $ modifyIORef theState $ \s ->
              s { theInteractionPoints =
                    replace ii iis (theInteractionPoints s) }
-  liftIO $ UTF8.putStrLn $ response $
+  liftIO $ LocIO.putStrLn $ response $
              L [A "agda2-give-action", showNumIId ii, newtxt]
   command cmd_metas
   return Nothing
@@ -397,7 +404,7 @@ cmd_auto ii rng s = Interaction False $ do
   mapM_ (\(ii, s) -> do
     liftIO $ modifyIORef theState $ \s ->
       s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
-    liftIO $ UTF8.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
+    liftIO $ LocIO.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
    ) xs
   case msg of
    Nothing -> command cmd_metas >> return ()
@@ -541,7 +548,7 @@ showStatus s = intercalate "," $ catMaybes [checked, showImpl]
 
 displayStatus :: Status -> IO ()
 displayStatus s =
-  UTF8.putStrLn $ response $
+  LocIO.putStrLn $ response $
     L [A "agda2-status-action", A (quote $ showStatus s)]
 
 -- | @display_info' header content@ displays @content@ (with header
@@ -549,7 +556,7 @@ displayStatus s =
 
 display_info' :: String -> String -> IO ()
 display_info' bufname content =
-  UTF8.putStrLn $ response $
+  LocIO.putStrLn $ response $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
@@ -583,7 +590,7 @@ responseString s = response $
 -- | Responds to a query.
 
 respond :: Lisp String -> IO ()
-respond = UTF8.putStrLn . responseString
+respond = LocIO.putStrLn . responseString
 
 data Lisp a = A a | L [Lisp a] | Q (Lisp a)
 
@@ -621,7 +628,7 @@ cmd_make_case ii rng s = Interaction False $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
-    liftIO $ UTF8.putStrLn $ response $
+    liftIO $ LocIO.putStrLn $ response $
       L [ A "agda2-make-case-action",
           Q $ L $ List.map (A . quote . renderStyle (style { mode = OneLineMode })) pcs
         ]
@@ -630,7 +637,7 @@ cmd_make_case ii rng s = Interaction False $ do
 cmd_solveAll :: Interaction
 cmd_solveAll = Interaction False $ do
   out <- getInsts
-  liftIO $ UTF8.putStrLn $ response $
+  liftIO $ LocIO.putStrLn $ response $
     L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
   return Nothing
   where
@@ -856,7 +863,7 @@ tellEmacsToJumpToError r = do
     Nothing                                    -> return ()
     Just (Pn { srcFile = Nothing })            -> return ()
     Just (Pn { srcFile = Just f, posPos = p }) ->
-      UTF8.putStrLn $ response $
+      LocIO.putStrLn $ response $
         L [ A "annotation-goto"
           , Q $ L [A (quote $ filePath f), A ".", A (show p)]
           ]

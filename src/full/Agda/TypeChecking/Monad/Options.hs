@@ -6,7 +6,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 import System.Directory
 import System.FilePath
 
@@ -179,11 +179,11 @@ verboseS k n action | n < 0     = __IMPOSSIBLE__
     when (n <= m) action
 
 reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportS k n s = verboseS k n $ liftIO $ UTF8.putStr s
+reportS k n s = verboseS k n $ liftIO $ LocIO.putStr s
 
 reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportSLn k n s = verboseS k n $ liftIO $ UTF8.putStrLn s
+reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s
 
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
-reportSDoc k n d = verboseS k n $ liftIO . UTF8.print =<< d
+reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
 

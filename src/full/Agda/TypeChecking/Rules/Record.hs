@@ -5,7 +5,7 @@ module Agda.TypeChecking.Rules.Record where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
-import System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -116,7 +116,7 @@ checkRecDef i name con ps contel fields =
                              , conAbstr  = Info.defAbstract i
                              , conInd    = Inductive
                              }
-          verboseS "tc.rec.def" 20 $ liftIO . UTF8.print =<< getConstInfo c
+          verboseS "tc.rec.def" 20 $ liftIO . LocIO.print =<< getConstInfo c
         Just _ -> __IMPOSSIBLE__
 
       -- Check that the fields fit inside the sort

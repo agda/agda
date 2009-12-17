@@ -20,7 +20,6 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Text.PrettyPrint (Doc)
-import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal

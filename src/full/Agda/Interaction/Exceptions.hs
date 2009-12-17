@@ -7,7 +7,6 @@ import Prelude hiding (catch)
 import Control.Exception
 import Control.Monad.Trans
 import System.Exit
-import qualified System.IO.UTF8 as UTF8
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser ( ParseError(..) )

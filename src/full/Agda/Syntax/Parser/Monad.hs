@@ -36,11 +36,10 @@ import Control.Monad.State
 import Control.Monad.Error
 import Control.Applicative
 
-import qualified Agda.Utils.IO as UTF8
-
 import Agda.Syntax.Position
 
 import Agda.Utils.FileName
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Monad
 
 {--------------------------------------------------------------------------
@@ -199,6 +198,9 @@ parsePosString pos flags st p input = unP p (initStatePos pos flags input st)
 -- | The most general way of parsing a file. The "Agda.Syntax.Parser" will define
 --   more specialised functions that supply the 'ParseFlags' and the
 --   'LexState'.
+--
+--   Note that Agda source files always use the UTF-8 character
+--   encoding.
 parseFile :: ParseFlags -> [LexState] -> Parser a -> AbsolutePath
           -> IO (ParseResult a)
 parseFile flags st p file =

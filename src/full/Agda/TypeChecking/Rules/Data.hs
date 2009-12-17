@@ -5,7 +5,6 @@ module Agda.TypeChecking.Rules.Data where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
-import qualified System.IO.UTF8 as UTF8
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal

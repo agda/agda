@@ -10,7 +10,7 @@ import Data.Set as Set
 import Data.Map as Map
 import Data.List as List
 import Data.Maybe
-import qualified System.IO.UTF8 as UTF8
+import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Interaction.BasicOps as BasicOps
 import Agda.Interaction.Monad
@@ -69,16 +69,16 @@ interaction prompt cmds eval = loop
 			do  case matchCommand cmd cmds of
 				Right c	-> go =<< liftTCM (c args)
 				Left []	->
-				    do	liftIO $ UTF8.putStrLn $ "Unknown command '" ++ cmd ++ "'"
+				    do	liftIO $ LocIO.putStrLn $ "Unknown command '" ++ cmd ++ "'"
 					loop
 				Left xs	->
-				    do	liftIO $ UTF8.putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
+				    do	liftIO $ LocIO.putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
 					loop
 		    Just _ ->
 			do  go =<< liftTCM (eval $ fromJust ms)
 	    `catchError` \e ->
 		do  s <- prettyError e
-		    liftIO $ UTF8.putStrLn s
+		    liftIO $ LocIO.putStrLn s
 		    loop
 
 -- | The interaction loop.
@@ -100,8 +100,8 @@ interactionLoop typeCheck =
               Nothing -> emptyScopeInfo
 	  `catchError` \e -> do
 	    s <- prettyError e
-	    liftIO $ UTF8.putStrLn s
-	    liftIO $ UTF8.putStrLn "Failed."
+	    liftIO $ LocIO.putStrLn s
+	    liftIO $ LocIO.putStrLn "Failed."
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()
@@ -130,18 +130,18 @@ loadFile :: TCM () -> [String] -> TCM ()
 loadFile reload [file] =
     do	setInputFile file
 	reload
-loadFile _ _ = liftIO $ UTF8.putStrLn ":load file"
+loadFile _ _ = liftIO $ LocIO.putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [c] =
     do	i  <- readM c
 	cc <- normalise =<< lookupConstraint i
 	d  <- prettyTCM $ clValue cc
-	liftIO $ UTF8.print d
+	liftIO $ LocIO.print d
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
-	liftIO $ UTF8.putStrLn $ unlines (List.map show cs)
-showConstraints _ = liftIO $ UTF8.putStrLn ":constraints [cid]"
+	liftIO $ LocIO.putStrLn $ unlines (List.map show cs)
+showConstraints _ = liftIO $ LocIO.putStrLn ":constraints [cid]"
 
 
 showMetas :: [String] -> TCM ()
@@ -151,16 +151,16 @@ showMetas [m] =
 	  s <- typeOfMeta AsIs i
 	  r <- getInteractionRange i
 	  d <- showA s
-	  liftIO $ UTF8.putStrLn $ d ++ " " ++ show r
+	  liftIO $ LocIO.putStrLn $ d ++ " " ++ show r
 showMetas [m,"normal"] =
     do	i <- InteractionId <$> readM m
 	withInteractionId i $ do
 	  s <- showA =<< typeOfMeta Normalised i
 	  r <- getInteractionRange i
-	  liftIO $ UTF8.putStrLn $ s ++ " " ++ show r
+	  liftIO $ LocIO.putStrLn $ s ++ " " ++ show r
 showMetas [] =
     do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs
-        mapM_ (liftIO . UTF8.putStrLn) =<< mapM showII interactionMetas
+        mapM_ (liftIO . LocIO.putStrLn) =<< mapM showII interactionMetas
 	mapM_ print' hiddenMetas
     where
 	showII o = withInteractionId (outputFormId o) $ showA o
@@ -174,21 +174,21 @@ showMetas [] =
 	print' x = do
 	    r <- getMetaRange (metaId x)
 	    d <- showM x
-	    liftIO $ UTF8.putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
-showMetas _ = liftIO $ UTF8.putStrLn $ ":meta [metaid]"
+	    liftIO $ LocIO.putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
+showMetas _ = liftIO $ LocIO.putStrLn $ ":meta [metaid]"
 
 
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ UTF8.print scope
+  liftIO $ LocIO.print scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do	m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ UTF8.putStrLn $ show scope
+        --liftIO $ LocIO.putStrLn $ show scope
         let pos = case rStart r of
                     Nothing  -> __IMPOSSIBLE__
                     Just pos -> pos
@@ -208,7 +208,7 @@ giveMeta :: [String] -> TCM ()
 giveMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> give ii Nothing e)
         return ()
-giveMeta _ = liftIO $ UTF8.putStrLn $ ": give" ++ " metaid expr"
+giveMeta _ = liftIO $ LocIO.putStrLn $ ": give" ++ " metaid expr"
 
 
 
@@ -216,7 +216,7 @@ refineMeta :: [String] -> TCM ()
 refineMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> refine ii Nothing e)
         return ()
-refineMeta _ = liftIO $ UTF8.putStrLn $ ": refine" ++ " metaid expr"
+refineMeta _ = liftIO $ LocIO.putStrLn $ ": refine" ++ " metaid expr"
 
 
 
@@ -227,8 +227,8 @@ retryConstraints = liftTCM wakeupConstraints
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
     do	d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
-        liftIO $ UTF8.print d
-evalIn _ = liftIO $ UTF8.putStrLn ":eval metaid expr"
+        liftIO $ LocIO.print d
+evalIn _ = liftIO $ LocIO.putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
@@ -240,7 +240,7 @@ evalTerm s =
     do	e <- parseExpr s
         v <- evalInCurrent e
 	e <- prettyTCM v
-	liftIO $ UTF8.putStrLn $ show e
+	liftIO $ LocIO.putStrLn $ show e
 	return Continue
     where
 	evalInCurrent e = do
@@ -255,15 +255,15 @@ typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
-	liftIO . UTF8.putStrLn =<< showA e1
+	liftIO . LocIO.putStrLn =<< showA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) =
     actOnMeta s $ \i e ->
     do	e1  <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e
-	liftIO . UTF8.putStrLn =<< showA e1
-typeIn _ = liftIO $ UTF8.putStrLn ":typeIn meta expr"
+	liftIO . LocIO.putStrLn =<< showA e1
+typeIn _ = liftIO $ LocIO.putStrLn ":typeIn meta expr"
 
 showContext :: [String] -> TCM ()
 showContext (meta:args) = do
@@ -278,8 +278,8 @@ showContext (meta:args) = do
 		    ["normal"] -> normalise $ raise n t
 		    _	       -> return $ raise n t
 	    d <- prettyTCM t
-	    liftIO $ UTF8.print $ text x <+> text ":" <+> d
-showContext _ = liftIO $ UTF8.putStrLn ":Context meta"
+	    liftIO $ LocIO.print $ text x <+> text ":" <+> d
+showContext _ = liftIO $ LocIO.putStrLn ":Context meta"
 
 -- | The logo that prints when Agda is started in interactive mode.
 splashScreen :: String
@@ -299,7 +299,7 @@ splashScreen = unlines
 
 -- | The help message
 help :: [Command a] -> IO ()
-help cs = UTF8.putStr $ unlines $
+help cs = LocIO.putStr $ unlines $
     [ "Command overview" ] ++ List.map explain cs ++
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where
