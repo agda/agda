@@ -4,7 +4,7 @@
 
 module Data.Rational where
 
-open import Data.Bool.Properties
+import Data.Bool.Properties as Bool
 open import Data.Function
 open import Data.Integer hiding (suc) renaming (_*_ to _ℤ*_)
 open import Data.Integer.Divisibility as ℤDiv using (Coprime)
@@ -109,5 +109,5 @@ p ≃ q = P.numerator ℤ* Q.denominator ≡
 
   helper n₁ d c₁ n₂ .d c₂ eq | refl with ℤ.cancel-*-right
                                            n₁ n₂ (+ suc d) (λ ()) eq
-  helper n  d c₁ .n .d c₂ eq | refl | refl with proof-irrelevance c₁ c₂
+  helper n  d c₁ .n .d c₂ eq | refl | refl with Bool.proof-irrelevance c₁ c₂
   helper n  d c  .n .d .c eq | refl | refl | refl = refl

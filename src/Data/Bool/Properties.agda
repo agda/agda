@@ -13,6 +13,7 @@ import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
+  hiding (proof-irrelevance)
 open ≡-Reasoning
 import Algebra.FunctionProperties as P; open P _≡_
 open import Data.Product

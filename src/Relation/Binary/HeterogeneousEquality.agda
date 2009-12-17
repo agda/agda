@@ -80,6 +80,10 @@ cong₂ f refl refl = refl
 resp₂ : ∀ {a ℓ} {A : Set a} (∼ : Rel A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
+proof-irrelevance : ∀ {a b} {A : Set a} {B : Set b} {x : A} {y : B}
+                    (p q : x ≅ y) → p ≡ q
+proof-irrelevance refl refl = refl
+
 isEquivalence : ∀ {a} {A : Set a} →
                 IsEquivalence {A = A} (λ x y → x ≅ y)
 isEquivalence = record
