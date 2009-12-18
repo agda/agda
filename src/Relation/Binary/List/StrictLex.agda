@@ -15,6 +15,7 @@ open import Data.Function
 open import Data.Product
 open import Data.Sum
 open import Data.List
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
@@ -24,7 +25,7 @@ open import Relation.Binary.List.Pointwise as Pointwise
 private
  module Dummy {A : Set} where
 
-  data Lex (P : Set) (≈ < : Rel A) : Rel (List A) where
+  data Lex (P : Set) (≈ < : Rel A zero) : Rel (List A) zero where
     base : P                           → Lex P ≈ < []       []
     halt : ∀ {y ys}                    → Lex P ≈ < []       (y ∷ ys)
     this : ∀ {x xs y ys} (x<y : < x y) → Lex P ≈ < (x ∷ xs) (y ∷ ys)
@@ -33,7 +34,7 @@ private
 
   -- Strict lexicographic ordering.
 
-  Lex-< : (≈ < : Rel A) → Rel (List A)
+  Lex-< : (≈ < : Rel A zero) → Rel (List A) zero
   Lex-< = Lex ⊥
 
   ¬[]<[] : ∀ {≈ <} → ¬ Lex-< ≈ < [] []
@@ -41,7 +42,7 @@ private
 
   -- Non-strict lexicographic ordering.
 
-  Lex-≤ : (≈ < : Rel A) → Rel (List A)
+  Lex-≤ : (≈ < : Rel A zero) → Rel (List A) zero
   Lex-≤ = Lex ⊤
 
   -- Utilities.

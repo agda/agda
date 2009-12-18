@@ -23,8 +23,8 @@ open Core public hiding (_≡_; refl; _≢_)
 -- Preorders
 
 record IsPreorder {a ℓ₁ ℓ₂} {A : Set a}
-                  (_≈_ : REL A ℓ₁) -- The underlying equality.
-                  (_∼_ : REL A ℓ₂) -- The relation.
+                  (_≈_ : Rel A ℓ₁) -- The underlying equality.
+                  (_∼_ : Rel A ℓ₂) -- The relation.
                   : Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
@@ -42,8 +42,8 @@ record Preorder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _∼_
   field
     Carrier    : Set c
-    _≈_        : REL Carrier ℓ₁  -- The underlying equality.
-    _∼_        : REL Carrier ℓ₂  -- The relation.
+    _≈_        : Rel Carrier ℓ₁  -- The underlying equality.
+    _∼_        : Rel Carrier ℓ₂  -- The relation.
     isPreorder : IsPreorder _≈_ _∼_
 
   open IsPreorder isPreorder public
@@ -57,7 +57,7 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
     Carrier       : Set c
-    _≈_           : REL Carrier ℓ
+    _≈_           : Rel Carrier ℓ
     isEquivalence : IsEquivalence _≈_
 
   open IsEquivalence isEquivalence public
@@ -77,7 +77,7 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
 -- Decidable equivalence relations
 
 record IsDecEquivalence {a ℓ} {A : Set a}
-                        (_≈_ : REL A ℓ) : Set (a ⊔ ℓ) where
+                        (_≈_ : Rel A ℓ) : Set (a ⊔ ℓ) where
   infix 4 _≟_
   field
     isEquivalence : IsEquivalence _≈_
@@ -89,7 +89,7 @@ record DecSetoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
     Carrier          : Set c
-    _≈_              : REL Carrier ℓ
+    _≈_              : Rel Carrier ℓ
     isDecEquivalence : IsDecEquivalence _≈_
 
   open IsDecEquivalence isDecEquivalence public
@@ -103,7 +103,7 @@ record DecSetoid c ℓ : Set (suc (c ⊔ ℓ)) where
 -- Partial orders
 
 record IsPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
-                      (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                      (_≈_ : Rel A ℓ₁) (_≤_ : Rel A ℓ₂) :
                       Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isPreorder : IsPreorder _≈_ _≤_
@@ -116,8 +116,8 @@ record Poset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
     Carrier        : Set c
-    _≈_            : REL Carrier ℓ₁
-    _≤_            : REL Carrier ℓ₂
+    _≈_            : Rel Carrier ℓ₁
+    _≤_            : Rel Carrier ℓ₂
     isPartialOrder : IsPartialOrder _≈_ _≤_
 
   open IsPartialOrder isPartialOrder public
@@ -129,7 +129,7 @@ record Poset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 -- Strict partial orders
 
 record IsStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
-                            (_≈_ : REL A ℓ₁) (_<_ : REL A ℓ₂) :
+                            (_≈_ : Rel A ℓ₁) (_<_ : Rel A ℓ₂) :
                             Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
@@ -143,8 +143,8 @@ record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) 
   infix 4 _≈_ _<_
   field
     Carrier              : Set c
-    _≈_                  : REL Carrier ℓ₁
-    _<_                  : REL Carrier ℓ₂
+    _≈_                  : Rel Carrier ℓ₁
+    _<_                  : Rel Carrier ℓ₂
     isStrictPartialOrder : IsStrictPartialOrder _≈_ _<_
 
   open IsStrictPartialOrder isStrictPartialOrder public
@@ -153,7 +153,7 @@ record StrictPartialOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) 
 -- Total orders
 
 record IsTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
-                    (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                    (_≈_ : Rel A ℓ₁) (_≤_ : Rel A ℓ₂) :
                     Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isPartialOrder : IsPartialOrder _≈_ _≤_
@@ -165,8 +165,8 @@ record TotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
     Carrier      : Set c
-    _≈_          : REL Carrier ℓ₁
-    _≤_          : REL Carrier ℓ₂
+    _≈_          : Rel Carrier ℓ₁
+    _≤_          : Rel Carrier ℓ₂
     isTotalOrder : IsTotalOrder _≈_ _≤_
 
   open IsTotalOrder isTotalOrder public
@@ -180,7 +180,7 @@ record TotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 -- Decidable total orders
 
 record IsDecTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
-                       (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂) :
+                       (_≈_ : Rel A ℓ₁) (_≤_ : Rel A ℓ₂) :
                        Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   infix 4 _≟_ _≤?_
   field
@@ -206,8 +206,8 @@ record DecTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _≤_
   field
     Carrier         : Set c
-    _≈_             : REL Carrier ℓ₁
-    _≤_             : REL Carrier ℓ₂
+    _≈_             : Rel Carrier ℓ₁
+    _≤_             : Rel Carrier ℓ₂
     isDecTotalOrder : IsDecTotalOrder _≈_ _≤_
 
   private
@@ -232,7 +232,7 @@ record DecTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
 -- Note that these orders are decidable (see compare).
 
 record IsStrictTotalOrder {a ℓ₁ ℓ₂} {A : Set a}
-                          (_≈_ : REL A ℓ₁) (_<_ : REL A ℓ₂) :
+                          (_≈_ : Rel A ℓ₁) (_<_ : Rel A ℓ₂) :
                           Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
   field
     isEquivalence : IsEquivalence _≈_
@@ -270,8 +270,8 @@ record StrictTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) wh
   infix 4 _≈_ _<_
   field
     Carrier            : Set c
-    _≈_                : REL Carrier ℓ₁
-    _<_                : REL Carrier ℓ₂
+    _≈_                : Rel Carrier ℓ₁
+    _<_                : Rel Carrier ℓ₂
     isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
 
   open IsStrictTotalOrder isStrictTotalOrder public

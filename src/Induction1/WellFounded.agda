@@ -4,9 +4,10 @@
 
 -- I want universe polymorphism.
 
+open import Level
 open import Relation.Binary
 
-module Induction1.WellFounded {a : Set} (_<_ : Rel a) where
+module Induction1.WellFounded {A : Set} (_<_ : Rel A zero) where
 
 open import Induction1
 
@@ -14,14 +15,14 @@ open import Induction1
 -- long as the arguments become smaller, and "smaller" is
 -- well-founded.
 
-WfRec : RecStruct a
+WfRec : RecStruct A
 WfRec P x = ∀ y → y < x → P y
 
 -- The accessibility predicate encodes what it means to be
 -- well-founded; if all elements are accessible, then _<_ is
 -- well-founded.
 
-data Acc (x : a) : Set₁ where
+data Acc (x : A) : Set₁ where
   acc : (rs : WfRec Acc x) → Acc x
 
 -- Well-founded induction for the subset of accessible elements:

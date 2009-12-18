@@ -19,25 +19,25 @@ open import Data.Empty
 open import Relation.Binary.Consequences.Core public
 
 trans∧irr⟶asym :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} → {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} → {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Reflexive ≈ →
   Transitive < → Irreflexive ≈ < → Asymmetric <
 trans∧irr⟶asym refl trans irrefl = λ x<y y<x →
   irrefl refl (trans x<y y<x)
 
 irr∧antisym⟶asym :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Irreflexive ≈ < → Antisymmetric ≈ < → Asymmetric <
 irr∧antisym⟶asym irrefl antisym = λ x<y y<x →
   irrefl (antisym x<y y<x) x<y
 
 asym⟶antisym :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Asymmetric < → Antisymmetric ≈ <
 asym⟶antisym asym x<y y<x = ⊥-elim (asym x<y y<x)
 
 asym⟶irr :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   < Respects₂ ≈ → Symmetric ≈ →
   Asymmetric < → Irreflexive ≈ <
 asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
@@ -48,7 +48,7 @@ asym⟶irr {< = _<_} resp sym asym {x} {y} x≈y x<y = asym x<y y<x
   y<x = proj₁ resp (sym x≈y) y<y
 
 total⟶refl :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {∼ : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {∼ : Rel A ℓ₂} →
   ∼ Respects₂ ≈ → Symmetric ≈ →
   Total ∼ → ≈ ⇒ ∼
 total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
@@ -60,7 +60,7 @@ total⟶refl {≈ = ≈} {∼ = ∼} resp sym total = refl
     proj₁ resp x≈y (proj₂ resp (sym x≈y) y∼x)
 
 total+dec⟶dec :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {≤ : Rel A ℓ₂} →
   ≈ ⇒ ≤ → Antisymmetric ≈ ≤ →
   Total ≤ → Decidable ≈ → Decidable ≤
 total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
@@ -73,7 +73,7 @@ total+dec⟶dec {≈ = ≈} {≤ = ≤} refl antisym total _≟_ = dec
   ...   | no  ¬x≈y = no (λ x≤y → ¬x≈y (antisym x≤y y≤x))
 
 tri⟶asym :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Trichotomous ≈ < → Asymmetric <
 tri⟶asym tri {x} {y} x<y x>y with tri x y
 ... | tri< _   _ x≯y = x≯y x>y
@@ -81,13 +81,13 @@ tri⟶asym tri {x} {y} x<y x>y with tri x y
 ... | tri> x≮y _ _   = x≮y x<y
 
 tri⟶irr :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   < Respects₂ ≈ → Symmetric ≈ →
   Trichotomous ≈ < → Irreflexive ≈ <
 tri⟶irr resp sym tri = asym⟶irr resp sym (tri⟶asym tri)
 
 tri⟶dec≈ :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Trichotomous ≈ < → Decidable ≈
 tri⟶dec≈ compare x y with compare x y
 ... | tri< _ x≉y _ = no  x≉y
@@ -95,13 +95,14 @@ tri⟶dec≈ compare x y with compare x y
 ... | tri> _ x≉y _ = no  x≉y
 
 tri⟶dec< :
-  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+  ∀ {a ℓ₁ ℓ₂} {A : Set a} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
   Trichotomous ≈ < → Decidable <
 tri⟶dec< compare x y with compare x y
 ... | tri< x<y _ _ = yes x<y
 ... | tri≈ x≮y _ _ = no  x≮y
 ... | tri> x≮y _ _ = no  x≮y
 
-map-NonEmpty : ∀ {i p q} {I : Set i} {P : REL I p} {Q : REL I q} →
+map-NonEmpty : ∀ {a b p q} {A : Set a} {B : Set b}
+                 {P : REL A B p} {Q : REL A B q} →
                P ⇒ Q → NonEmpty P → NonEmpty Q
 map-NonEmpty f x = nonEmpty (f (NonEmpty.proof x))

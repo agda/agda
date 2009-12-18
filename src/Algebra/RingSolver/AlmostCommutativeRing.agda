@@ -11,11 +11,12 @@ open import Algebra.Structures
 open import Algebra.FunctionProperties
 import Algebra.Morphism as Morphism
 open import Data.Function
+open import Level
 
 ------------------------------------------------------------------------
 -- Definitions
 
-record IsAlmostCommutativeRing {A} (_≈_ : Rel A)
+record IsAlmostCommutativeRing {A} (_≈_ : Rel A zero)
          (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set where
   field
     isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
@@ -32,7 +33,7 @@ record AlmostCommutativeRing : Set₁ where
   infix  4 _≈_
   field
     Carrier                 : Set
-    _≈_                     : Rel Carrier
+    _≈_                     : Rel Carrier zero
     _+_                     : Op₂ Carrier
     _*_                     : Op₂ Carrier
     -_                      : Op₁ Carrier

@@ -9,6 +9,7 @@ open import Data.Unit
 open import Relation.Binary
 open import Relation.Binary.Simple
 open import Data.Function
+import Level as L
 
 -- Natural numbers.
 
@@ -25,7 +26,7 @@ suc = _◅_ tt
 
 -- The length of a star-list.
 
-length : ∀ {I} {T : Rel I} {i j} → Star T i j → ℕ
+length : ∀ {I} {T : Rel I L.zero} {i j} → Star T i j → ℕ
 length = gmap (const tt) (const tt)
 
 -- Arithmetic.

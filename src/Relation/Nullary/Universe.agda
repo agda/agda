@@ -19,6 +19,7 @@ open import Data.Function
 open import Data.Empty
 open import Category.Applicative
 open import Category.Monad
+open import Level
 
 infix  5 ¬¬_
 infixr 4 _⇒_
@@ -46,7 +47,7 @@ data PropF : Set₁ where
 
 -- Equalities for universe inhabitants.
 
-Eq : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P)
+Eq : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P) zero
 Eq Id        = _≡_
 Eq (K P)     = _≡_
 Eq (F₁ ∨ F₂) = Eq F₁ ⊎-Rel Eq F₂
@@ -54,7 +55,7 @@ Eq (F₁ ∧ F₂) = Eq F₁ ×-Rel Eq F₂
 Eq (P₁ ⇒ F₂) = FunS.≡↝ (λ _ → Eq F₂)
 Eq (¬¬ F)    = Always
 
-⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P)
+⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P) zero
 ⟨_⟩_≈_ = Eq
 
 isEquivalence : ∀ F {P} → IsEquivalence (Eq F {P})

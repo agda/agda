@@ -5,9 +5,10 @@
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Data.Product as Prod hiding (map)
+open import Level
 
 module Data.AVL.IndexedMap
-         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key)}
+         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key) zero}
          (isOrderedKeySet : IsStrictTotalOrder _≈_ _<_)
          -- Equal keys must have equal indices.
          (indicesEqual : _≈_ =[ proj₁ ]⇒ _≡_)

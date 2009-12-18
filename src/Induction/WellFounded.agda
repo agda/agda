@@ -2,9 +2,10 @@
 -- Well-founded induction
 ------------------------------------------------------------------------
 
+open import Level
 open import Relation.Binary
 
-module Induction.WellFounded {a : Set} (_<_ : Rel a) where
+module Induction.WellFounded {A : Set} (_<_ : Rel A zero) where
 
 open import Induction
 
@@ -12,14 +13,14 @@ open import Induction
 -- long as the arguments become smaller, and "smaller" is
 -- well-founded.
 
-WfRec : RecStruct a
+WfRec : RecStruct A
 WfRec P x = ∀ y → y < x → P y
 
 -- The accessibility predicate encodes what it means to be
 -- well-founded; if all elements are accessible, then _<_ is
 -- well-founded.
 
-data Acc (x : a) : Set where
+data Acc (x : A) : Set where
   acc : (rs : WfRec Acc x) → Acc x
 
 -- Well-founded induction for the subset of accessible elements:

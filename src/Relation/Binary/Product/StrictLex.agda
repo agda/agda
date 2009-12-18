@@ -11,6 +11,7 @@ open import Data.Function
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
+open import Level
 open import Relation.Nullary.Product
 open import Relation.Nullary.Sum
 open import Relation.Binary
@@ -21,7 +22,8 @@ open import Relation.Binary.Product.Pointwise as Pointwise
 private
  module Dummy {a₁ a₂ : Set} where
 
-  ×-Lex : (≈₁ <₁ : Rel a₁) → (≤₂ : Rel a₂) → Rel (a₁ × a₂)
+  ×-Lex : (≈₁ <₁ : Rel a₁ zero) → (≤₂ : Rel a₂ zero) →
+          Rel (a₁ × a₂) zero
   ×-Lex ≈₁ <₁ ≤₂ = (<₁ on proj₁) -⊎- (≈₁ on proj₁) -×- (≤₂ on proj₂)
 
   -- Some properties which are preserved by ×-Lex (under certain

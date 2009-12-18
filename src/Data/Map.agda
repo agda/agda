@@ -26,7 +26,7 @@ module Map₁ (key-dto : DecTotalOrder zero zero zero)
   Map : Set
   Map = Setoid.Carrier (DecSetoid.setoid decSetoid)
 
-  _|≈|_ : Rel Map
+  _|≈|_ : Rel Map zero
   _|≈|_ = Setoid._≈_ (DecSetoid.setoid decSetoid)
 
   abstract

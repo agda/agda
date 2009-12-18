@@ -12,7 +12,7 @@ open import Relation.Binary
 
 module Relation.Binary.NonStrictToStrict
          {a ℓ₁ ℓ₂} {A : Set a}
-         (_≈_ : REL A ℓ₁) (_≤_ : REL A ℓ₂)
+         (_≈_ : Rel A ℓ₁) (_≤_ : Rel A ℓ₂)
          where
 
 open import Relation.Nullary
@@ -26,7 +26,7 @@ open import Data.Sum
 
 -- _≤_ can be turned into _<_ as follows:
 
-_<_ : REL A _
+_<_ : Rel A _
 x < y = (x ≤ y) × ¬ (x ≈ y)
 
 ------------------------------------------------------------------------

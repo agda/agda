@@ -5,12 +5,13 @@
 -- These properties can (for instance) be used to define algebraic
 -- structures.
 
+open import Level
 open import Relation.Binary
 
 -- The properties are specified using the following relation as
 -- "equality".
 
-module Algebra.FunctionProperties {A} (_≈_ : Rel A) where
+module Algebra.FunctionProperties {A} (_≈_ : Rel A zero) where
 
 open import Data.Product
 

@@ -53,12 +53,13 @@ const {B = B} b = record
 
 infixr 0 _↝_
 
-_↝_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
-      (∼₁ : REL A ℓ₁) (∼₂ : REL B ℓ₂) → REL (A → B) (a ⊔ ℓ₁ ⊔ ℓ₂)
+_↝_ : ∀ {a b c d ℓ₁ ℓ₂}
+        {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+      (∼₁ : REL A B ℓ₁) (∼₂ : REL C D ℓ₂) → REL (A → C) (B → D) _
 _∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
 
 ↝-isEquivalence : ∀ {a b c ℓ₁ ℓ₂} {A : Set a} {B : Set b} {C : Set c}
-                    {∼₁ : REL A ℓ₁} {∼₂ : REL B ℓ₂}
+                    {∼₁ : Rel A ℓ₁} {∼₂ : Rel B ℓ₂}
                   (fun : C → (A → B)) →
                   (∀ f → fun f Preserves ∼₁ ⟶ ∼₂) →
                   IsEquivalence ∼₁ → IsEquivalence ∼₂ →
@@ -71,12 +72,13 @@ _∼₁_ ↝ _∼₂_ = λ f g → ∀ {x y} → x ∼₁ y → f x ∼₂ g y
 
 -- A generalised variant of (_↝_ _≡_).
 
-≡↝ : ∀ {a b ℓ} {A : Set a} {B : A → Set b} →
-     (∀ x → REL (B x) ℓ) → REL ((x : A) → B x) _
+≡↝ : ∀ {a b c ℓ} {A : Set a} {B : A → Set b} {C : A → Set c} →
+     (∀ x → REL (B x) (C x) ℓ) →
+     REL ((x : A) → B x) ((x : A) → C x) _
 ≡↝ R = λ f g → ∀ x → R x (f x) (g x)
 
 ≡↝-isEquivalence :
-  ∀ {a b ℓ} {A : Set a} {B : A → Set b} {R : ∀ x → REL (B x) ℓ} →
+  ∀ {a b ℓ} {A : Set a} {B : A → Set b} {R : ∀ x → Rel (B x) ℓ} →
   (∀ x → IsEquivalence (R x)) → IsEquivalence (≡↝ R)
 ≡↝-isEquivalence eq = record
   { refl  = λ _ → refl

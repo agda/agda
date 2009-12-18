@@ -9,6 +9,7 @@ module Relation.Binary.Product.NonStrictLex where
 
 open import Data.Product
 open import Data.Sum
+open import Level
 open import Relation.Binary
 open import Relation.Binary.Consequences
 import Relation.Binary.NonStrictToStrict as Conv
@@ -19,7 +20,8 @@ import Relation.Binary.Product.StrictLex as Strict
 private
  module Dummy {a₁ a₂ : Set} where
 
-  ×-Lex : (≈₁ ≤₁ : Rel a₁) → (≤₂ : Rel a₂) → Rel (a₁ × a₂)
+  ×-Lex : (≈₁ ≤₁ : Rel a₁ zero) → (≤₂ : Rel a₂ zero) →
+          Rel (a₁ × a₂) zero
   ×-Lex ≈₁ ≤₁ ≤₂ = Strict.×-Lex ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂
 
   -- Some properties which are preserved by ×-Lex (under certain

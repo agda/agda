@@ -77,7 +77,7 @@ cong₂ : ∀ {a b c} {A : Set a} {B : A → Set b} {C : ∀ x → B x → Set c
         (f : (x : A) (y : B x) → C x y) → x ≅ y → u ≅ v → f x u ≅ f y v
 cong₂ f refl refl = refl
 
-resp₂ : ∀ {a ℓ} {A : Set a} (∼ : REL A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
+resp₂ : ∀ {a ℓ} {A : Set a} (∼ : Rel A ℓ) → ∼ Respects₂ (λ x y → x ≅ y)
 resp₂ _∼_ = subst⟶resp₂ _∼_ subst
 
 isEquivalence : ∀ {a} {A : Set a} →
@@ -96,7 +96,8 @@ setoid A = record
   }
 
 decSetoid : ∀ {a} {A : Set a} →
-            Decidable (λ x y → _≅_ {A = A} x y) → DecSetoid _ _
+            Decidable {A = A} {B = A} (λ x y → x ≅ y) →
+            DecSetoid _ _
 decSetoid dec = record
   { _≈_              = λ x y → x ≅ y
   ; isDecEquivalence = record

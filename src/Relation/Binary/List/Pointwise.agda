@@ -7,6 +7,7 @@ module Relation.Binary.List.Pointwise where
 open import Data.Function
 open import Data.Product
 open import Data.List
+open import Level
 open import Relation.Nullary
 open import Relation.Binary renaming (Rel to Rel₂)
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
@@ -16,7 +17,7 @@ private
 
   infixr 5 _∷_
 
-  data Rel (_∼_ : Rel₂ A) : List A → List A → Set where
+  data Rel (_∼_ : Rel₂ A zero) : List A → List A → Set where
     []  : Rel _∼_ [] []
     _∷_ : ∀ {x xs y ys} (x∼y : x ∼ y) (xs∼ys : Rel _∼_ xs ys) →
           Rel _∼_ (x ∷ xs) (y ∷ ys)

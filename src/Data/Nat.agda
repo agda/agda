@@ -9,6 +9,7 @@ module Data.Nat where
 open import Data.Function
 open import Data.Sum
 open import Data.Empty
+open import Level using (zero)
 open import Relation.Nullary
 open import Relation.Nullary.Injection
   using (Injection; module Injection)
@@ -33,17 +34,17 @@ data ℕ : Set where
 
 infix 4 _≤_ _<_ _≥_ _>_
 
-data _≤_ : Rel ℕ where
+data _≤_ : Rel ℕ zero where
   z≤n : ∀ {n}                 → zero  ≤ n
   s≤s : ∀ {m n} (m≤n : m ≤ n) → suc m ≤ suc n
 
-_<_ : Rel ℕ
+_<_ : Rel ℕ zero
 m < n = suc m ≤ n
 
-_≥_ : Rel ℕ
+_≥_ : Rel ℕ zero
 m ≥ n = n ≤ m
 
-_>_ : Rel ℕ
+_>_ : Rel ℕ zero
 m > n = n < m
 
 -- The following, alternative definition of _≤_ is more suitable for
@@ -51,17 +52,17 @@ m > n = n < m
 
 infix 4 _≤′_ _<′_ _≥′_ _>′_
 
-data _≤′_ : Rel ℕ where
+data _≤′_ : Rel ℕ zero where
   ≤′-refl : ∀ {n}                   → n ≤′ n
   ≤′-step : ∀ {m n} (m≤′n : m ≤′ n) → m ≤′ suc n
 
-_<′_ : Rel ℕ
+_<′_ : Rel ℕ zero
 m <′ n = suc m ≤′ n
 
-_≥′_ : Rel ℕ
+_≥′_ : Rel ℕ zero
 m ≥′ n = n ≤′ m
 
-_>′_ : Rel ℕ
+_>′_ : Rel ℕ zero
 m >′ n = n <′ m
 
 ------------------------------------------------------------------------
@@ -165,7 +166,7 @@ suc m ≤? suc n with m ≤? n
 -- A comparison view. Taken from "View from the left"
 -- (McBride/McKinna); details may differ.
 
-data Ordering : Rel ℕ where
+data Ordering : Rel ℕ zero where
   less    : ∀ m k → Ordering m (suc (m + k))
   equal   : ∀ m   → Ordering m m
   greater : ∀ m k → Ordering (suc (m + k)) m

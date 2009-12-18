@@ -26,7 +26,7 @@ module Sets₁ (dto : DecTotalOrder zero zero zero) where
   <Set> : Set
   <Set> = DecSetoid.Carrier decSetoid
 
-  _|≈|_ : Rel <Set>
+  _|≈|_ : Rel <Set> zero
   _|≈|_ = DecSetoid._≈_ decSetoid
 
   abstract

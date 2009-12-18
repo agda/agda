@@ -12,11 +12,12 @@ open FunctionProperties using (Op₁; Op₂)
 import Relation.Binary.EqReasoning as EqR
 open import Data.Function
 open import Data.Product
+import Level as L
 
 ------------------------------------------------------------------------
 -- One binary operation
 
-record IsSemigroup {A} (≈ : Rel A) (∙ : Op₂ A) : Set where
+record IsSemigroup {A} (≈ : Rel A L.zero) (∙ : Op₂ A) : Set where
   open FunctionProperties ≈
   field
     isEquivalence : IsEquivalence ≈
@@ -25,7 +26,7 @@ record IsSemigroup {A} (≈ : Rel A) (∙ : Op₂ A) : Set where
 
   open IsEquivalence isEquivalence public
 
-record IsMonoid {A} (≈ : Rel A) (∙ : Op₂ A) (ε : A) : Set where
+record IsMonoid {A} (≈ : Rel A L.zero) (∙ : Op₂ A) (ε : A) : Set where
   open FunctionProperties ≈
   field
     isSemigroup : IsSemigroup ≈ ∙
@@ -33,8 +34,8 @@ record IsMonoid {A} (≈ : Rel A) (∙ : Op₂ A) (ε : A) : Set where
 
   open IsSemigroup isSemigroup public
 
-record IsCommutativeMonoid
-         {A} (≈ : Rel A) (∙ : Op₂ A) (ε : A) : Set where
+record IsCommutativeMonoid {A} (≈ : Rel A L.zero)
+                               (∙ : Op₂ A) (ε : A) : Set where
   open FunctionProperties ≈
   field
     isMonoid : IsMonoid ≈ ∙ ε
@@ -42,8 +43,8 @@ record IsCommutativeMonoid
 
   open IsMonoid isMonoid public
 
-record IsGroup
-         {A} (≈ : Rel A) (_∙_ : Op₂ A) (ε : A) (_⁻¹ : Op₁ A) : Set where
+record IsGroup {A} (≈ : Rel A L.zero)
+                   (_∙_ : Op₂ A) (ε : A) (_⁻¹ : Op₁ A) : Set where
   open FunctionProperties ≈
   infixl 7 _-_
   field
@@ -56,8 +57,8 @@ record IsGroup
   _-_ : Op₂ A
   x - y = x ∙ (y ⁻¹)
 
-record IsAbelianGroup
-         {A} (≈ : Rel A) (∙ : Op₂ A) (ε : A) (⁻¹ : Op₁ A) : Set where
+record IsAbelianGroup {A} (≈ : Rel A L.zero)
+                          (∙ : Op₂ A) (ε : A) (⁻¹ : Op₁ A) : Set where
   open FunctionProperties ≈
   field
     isGroup : IsGroup ≈ ∙ ε ⁻¹
@@ -74,7 +75,8 @@ record IsAbelianGroup
 ------------------------------------------------------------------------
 -- Two binary operations
 
-record IsNearSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
+record IsNearSemiring {A} (≈ : Rel A L.zero)
+                          (+ * : Op₂ A) (0# : A) : Set where
   open FunctionProperties ≈
   field
     +-isMonoid    : IsMonoid ≈ + 0#
@@ -95,8 +97,8 @@ record IsNearSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
                   ; ∙-cong   to *-cong
                   )
 
-record IsSemiringWithoutOne
-         {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
+record IsSemiringWithoutOne {A} (≈ : Rel A L.zero)
+                                (+ * : Op₂ A) (0# : A) : Set where
   open FunctionProperties ≈
   field
     +-isCommutativeMonoid : IsCommutativeMonoid ≈ + 0#
@@ -128,7 +130,7 @@ record IsSemiringWithoutOne
     }
 
 record IsSemiringWithoutAnnihilatingZero
-         {A} (≈ : Rel A) (+ * : Op₂ A) (0# 1# : A) : Set where
+         {A} (≈ : Rel A L.zero) (+ * : Op₂ A) (0# 1# : A) : Set where
   open FunctionProperties ≈
   field
     -- Note that these structures do have an additive unit, but this
@@ -154,7 +156,8 @@ record IsSemiringWithoutAnnihilatingZero
                   ; identity    to *-identity
                   )
 
-record IsSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# 1# : A) : Set where
+record IsSemiring {A} (≈ : Rel A L.zero)
+                      (+ * : Op₂ A) (0# 1# : A) : Set where
   open FunctionProperties ≈
   field
     isSemiringWithoutAnnihilatingZero :
@@ -176,7 +179,7 @@ record IsSemiring {A} (≈ : Rel A) (+ * : Op₂ A) (0# 1# : A) : Set where
          using (isNearSemiring)
 
 record IsCommutativeSemiringWithoutOne
-         {A} (≈ : Rel A) (+ * : Op₂ A) (0# : A) : Set where
+         {A} (≈ : Rel A L.zero) (+ * : Op₂ A) (0# : A) : Set where
   open FunctionProperties ≈
   field
     isSemiringWithoutOne : IsSemiringWithoutOne ≈ + * 0#
@@ -185,7 +188,7 @@ record IsCommutativeSemiringWithoutOne
   open IsSemiringWithoutOne isSemiringWithoutOne public
 
 record IsCommutativeSemiring
-         {A} (≈ : Rel A) (+ * : Op₂ A) (0# 1# : A) : Set where
+         {A} (≈ : Rel A L.zero) (+ * : Op₂ A) (0# 1# : A) : Set where
   open FunctionProperties ≈
   field
     isSemiring : IsSemiring ≈ + * 0# 1#
@@ -206,7 +209,7 @@ record IsCommutativeSemiring
     ; *-comm               = *-comm
     }
 
-record IsRing {A} (≈ : Rel A)
+record IsRing {A} (≈ : Rel A L.zero)
               (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set where
   open FunctionProperties ≈
   field
@@ -283,7 +286,8 @@ record IsRing {A} (≈ : Rel A)
          using (isNearSemiring; isSemiringWithoutOne)
 
 record IsCommutativeRing {A}
-         (≈ : Rel A) (+ * : Op₂ A) (- : Op₁ A) (0# 1# : A) : Set where
+         (≈ : Rel A L.zero)
+         (+ * : Op₂ A) (- : Op₁ A) (0# 1# : A) : Set where
   open FunctionProperties ≈
   field
     isRing : IsRing ≈ + * - 0# 1#
@@ -300,7 +304,7 @@ record IsCommutativeRing {A}
   open IsCommutativeSemiring isCommutativeSemiring public
          using (isCommutativeSemiringWithoutOne)
 
-record IsLattice {A} (≈ : Rel A) (∨ ∧ : Op₂ A) : Set where
+record IsLattice {A} (≈ : Rel A L.zero) (∨ ∧ : Op₂ A) : Set where
   open FunctionProperties ≈
   field
     isEquivalence : IsEquivalence ≈
@@ -314,7 +318,8 @@ record IsLattice {A} (≈ : Rel A) (∨ ∧ : Op₂ A) : Set where
 
   open IsEquivalence isEquivalence public
 
-record IsDistributiveLattice {A} (≈ : Rel A) (∨ ∧ : Op₂ A) : Set where
+record IsDistributiveLattice {A} (≈ : Rel A L.zero)
+                                 (∨ ∧ : Op₂ A) : Set where
   open FunctionProperties ≈
   field
     isLattice    : IsLattice ≈ ∨ ∧
@@ -322,8 +327,9 @@ record IsDistributiveLattice {A} (≈ : Rel A) (∨ ∧ : Op₂ A) : Set where
 
   open IsLattice isLattice public
 
-record IsBooleanAlgebra
-         {A} (≈ : Rel A) (∨ ∧ : Op₂ A) (¬ : Op₁ A) (⊤ ⊥ : A) : Set where
+record IsBooleanAlgebra {A}
+         (≈ : Rel A L.zero)
+         (∨ ∧ : Op₂ A) (¬ : Op₁ A) (⊤ ⊥ : A) : Set where
   open FunctionProperties ≈
   field
     isDistributiveLattice : IsDistributiveLattice ≈ ∨ ∧

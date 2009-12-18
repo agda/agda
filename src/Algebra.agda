@@ -9,6 +9,7 @@ open import Relation.Binary
 open import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Data.Function
+open import Level
 
 ------------------------------------------------------------------------
 -- Semigroups, (commutative) monoids and (abelian) groups
@@ -18,7 +19,7 @@ record Semigroup : Set₁ where
   infix  4 _≈_
   field
     Carrier     : Set
-    _≈_         : Rel Carrier
+    _≈_         : Rel Carrier zero
     _∙_         : Op₂ Carrier
     isSemigroup : IsSemigroup _≈_ _∙_
 
@@ -34,7 +35,7 @@ record RawMonoid : Set₁ where
   infix  4 _≈_
   field
     Carrier : Set
-    _≈_     : Rel Carrier
+    _≈_     : Rel Carrier zero
     _∙_     : Op₂ Carrier
     ε       : Carrier
 
@@ -43,7 +44,7 @@ record Monoid : Set₁ where
   infix  4 _≈_
   field
     Carrier  : Set
-    _≈_      : Rel Carrier
+    _≈_      : Rel Carrier zero
     _∙_      : Op₂ Carrier
     ε        : Carrier
     isMonoid : IsMonoid _≈_ _∙_ ε
@@ -67,7 +68,7 @@ record CommutativeMonoid : Set₁ where
   infix  4 _≈_
   field
     Carrier             : Set
-    _≈_                 : Rel Carrier
+    _≈_                 : Rel Carrier zero
     _∙_                 : Op₂ Carrier
     ε                   : Carrier
     isCommutativeMonoid : IsCommutativeMonoid _≈_ _∙_ ε
@@ -85,7 +86,7 @@ record Group : Set₁ where
   infix  4 _≈_
   field
     Carrier : Set
-    _≈_     : Rel Carrier
+    _≈_     : Rel Carrier zero
     _∙_     : Op₂ Carrier
     ε       : Carrier
     _⁻¹     : Op₁ Carrier
@@ -104,7 +105,7 @@ record AbelianGroup : Set₁ where
   infix  4 _≈_
   field
     Carrier        : Set
-    _≈_            : Rel Carrier
+    _≈_            : Rel Carrier zero
     _∙_            : Op₂ Carrier
     ε              : Carrier
     _⁻¹            : Op₁ Carrier
@@ -130,7 +131,7 @@ record NearSemiring : Set₁ where
   infix  4 _≈_
   field
     Carrier        : Set
-    _≈_            : Rel Carrier
+    _≈_            : Rel Carrier zero
     _+_            : Op₂ Carrier
     _*_            : Op₂ Carrier
     0#             : Carrier
@@ -155,7 +156,7 @@ record SemiringWithoutOne : Set₁ where
   infix  4 _≈_
   field
     Carrier              : Set
-    _≈_                  : Rel Carrier
+    _≈_                  : Rel Carrier zero
     _+_                  : Op₂ Carrier
     _*_                  : Op₂ Carrier
     0#                   : Carrier
@@ -182,7 +183,7 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
   infix  4 _≈_
   field
     Carrier                           : Set
-    _≈_                               : Rel Carrier
+    _≈_                               : Rel Carrier zero
     _+_                               : Op₂ Carrier
     _*_                               : Op₂ Carrier
     0#                                : Carrier
@@ -219,7 +220,7 @@ record Semiring : Set₁ where
   infix  4 _≈_
   field
     Carrier    : Set
-    _≈_        : Rel Carrier
+    _≈_        : Rel Carrier zero
     _+_        : Op₂ Carrier
     _*_        : Op₂ Carrier
     0#         : Carrier
@@ -255,7 +256,7 @@ record CommutativeSemiringWithoutOne : Set₁ where
   infix  4 _≈_
   field
     Carrier                         : Set
-    _≈_                             : Rel Carrier
+    _≈_                             : Rel Carrier zero
     _+_                             : Op₂ Carrier
     _*_                             : Op₂ Carrier
     0#                              : Carrier
@@ -283,7 +284,7 @@ record CommutativeSemiring : Set₁ where
   infix  4 _≈_
   field
     Carrier               : Set
-    _≈_                   : Rel Carrier
+    _≈_                   : Rel Carrier zero
     _+_                   : Op₂ Carrier
     _*_                   : Op₂ Carrier
     0#                    : Carrier
@@ -337,7 +338,7 @@ record Ring : Set₁ where
   infix  4 _≈_
   field
     Carrier : Set
-    _≈_     : Rel Carrier
+    _≈_     : Rel Carrier zero
     _+_     : Op₂ Carrier
     _*_     : Op₂ Carrier
     -_      : Op₁ Carrier
@@ -381,7 +382,7 @@ record CommutativeRing : Set₁ where
   infix  4 _≈_
   field
     Carrier           : Set
-    _≈_               : Rel Carrier
+    _≈_               : Rel Carrier zero
     _+_               : Op₂ Carrier
     _*_               : Op₂ Carrier
     -_                : Op₁ Carrier
@@ -417,7 +418,7 @@ record Lattice : Set₁ where
   infix  4 _≈_
   field
     Carrier   : Set
-    _≈_       : Rel Carrier
+    _≈_       : Rel Carrier zero
     _∨_       : Op₂ Carrier
     _∧_       : Op₂ Carrier
     isLattice : IsLattice _≈_ _∨_ _∧_
@@ -433,7 +434,7 @@ record DistributiveLattice : Set₁ where
   infix  4 _≈_
   field
     Carrier               : Set
-    _≈_                   : Rel Carrier
+    _≈_                   : Rel Carrier zero
     _∨_                   : Op₂ Carrier
     _∧_                   : Op₂ Carrier
     isDistributiveLattice : IsDistributiveLattice _≈_ _∨_ _∧_
@@ -452,7 +453,7 @@ record BooleanAlgebra : Set₁ where
   infix  4 _≈_
   field
     Carrier          : Set
-    _≈_              : Rel Carrier
+    _≈_              : Rel Carrier zero
     _∨_              : Op₂ Carrier
     _∧_              : Op₂ Carrier
     ¬_               : Op₁ Carrier

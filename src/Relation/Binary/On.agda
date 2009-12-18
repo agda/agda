@@ -12,50 +12,50 @@ module Relation.Binary.On {a b} {A : Set a} {B : Set b}
 open import Data.Function
 open import Data.Product
 
-implies : ∀ {ℓ₁ ℓ₂} (≈ : REL A ℓ₁) (∼ : REL A ℓ₂) →
+implies : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (∼ : Rel A ℓ₂) →
           ≈ ⇒ ∼ → (≈ on f) ⇒ (∼ on f)
 implies _ _ impl = impl
 
-reflexive : ∀ {ℓ} (∼ : REL A ℓ) → Reflexive ∼ → Reflexive (∼ on f)
+reflexive : ∀ {ℓ} (∼ : Rel A ℓ) → Reflexive ∼ → Reflexive (∼ on f)
 reflexive _ refl = refl
 
-irreflexive : ∀ {ℓ₁ ℓ₂} (≈ : REL A ℓ₁) (∼ : REL A ℓ₂) →
+irreflexive : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (∼ : Rel A ℓ₂) →
               Irreflexive ≈ ∼ → Irreflexive (≈ on f) (∼ on f)
 irreflexive _ _ irrefl = irrefl
 
-symmetric : ∀ {ℓ} (∼ : REL A ℓ) → Symmetric ∼ → Symmetric (∼ on f)
+symmetric : ∀ {ℓ} (∼ : Rel A ℓ) → Symmetric ∼ → Symmetric (∼ on f)
 symmetric _ sym = sym
 
-transitive : ∀ {ℓ} (∼ : REL A ℓ) → Transitive ∼ → Transitive (∼ on f)
+transitive : ∀ {ℓ} (∼ : Rel A ℓ) → Transitive ∼ → Transitive (∼ on f)
 transitive _ trans = trans
 
-antisymmetric : ∀ {ℓ₁ ℓ₂} (≈ : REL A ℓ₁) (≤ : REL A ℓ₂) →
+antisymmetric : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (≤ : Rel A ℓ₂) →
                 Antisymmetric ≈ ≤ → Antisymmetric (≈ on f) (≤ on f)
 antisymmetric _ _ antisym = antisym
 
-asymmetric : ∀ {ℓ} (< : REL A ℓ) → Asymmetric < → Asymmetric (< on f)
+asymmetric : ∀ {ℓ} (< : Rel A ℓ) → Asymmetric < → Asymmetric (< on f)
 asymmetric _ asym = asym
 
-respects : ∀ {ℓ p} (∼ : REL A ℓ) (P : A → Set p) →
+respects : ∀ {ℓ p} (∼ : Rel A ℓ) (P : A → Set p) →
            P Respects ∼ → (P ∘ f) Respects (∼ on f)
 respects _ _ resp = resp
 
-respects₂ : ∀ {ℓ₁ ℓ₂} (∼₁ : REL A ℓ₁) (∼₂ : REL A ℓ₂) →
+respects₂ : ∀ {ℓ₁ ℓ₂} (∼₁ : Rel A ℓ₁) (∼₂ : Rel A ℓ₂) →
             ∼₁ Respects₂ ∼₂ → (∼₁ on f) Respects₂ (∼₂ on f)
 respects₂ _ _ (resp₁ , resp₂) =
   ((λ {_} {_} {_} → resp₁) , λ {_} {_} {_} → resp₂)
 
-decidable : ∀ {ℓ} (∼ : REL A ℓ) → Decidable ∼ → Decidable (∼ on f)
+decidable : ∀ {ℓ} (∼ : Rel A ℓ) → Decidable ∼ → Decidable (∼ on f)
 decidable _ dec = λ x y → dec (f x) (f y)
 
-total : ∀ {ℓ} (∼ : REL A ℓ) → Total ∼ → Total (∼ on f)
+total : ∀ {ℓ} (∼ : Rel A ℓ) → Total ∼ → Total (∼ on f)
 total _ tot = λ x y → tot (f x) (f y)
 
-trichotomous : ∀ {ℓ₁ ℓ₂} (≈ : REL A ℓ₁) (< : REL A ℓ₂) →
+trichotomous : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (< : Rel A ℓ₂) →
                Trichotomous ≈ < → Trichotomous (≈ on f) (< on f)
 trichotomous _ _ compare = λ x y → compare (f x) (f y)
 
-isEquivalence : ∀ {ℓ} {≈ : REL A ℓ} →
+isEquivalence : ∀ {ℓ} {≈ : Rel A ℓ} →
                 IsEquivalence ≈ → IsEquivalence (≈ on f)
 isEquivalence {≈ = ≈} eq = record
   { refl  = reflexive  ≈ Eq.refl
@@ -64,7 +64,7 @@ isEquivalence {≈ = ≈} eq = record
   }
   where module Eq = IsEquivalence eq
 
-isPreorder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {∼ : REL A ℓ₂} →
+isPreorder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {∼ : Rel A ℓ₂} →
              IsPreorder ≈ ∼ → IsPreorder (≈ on f) (∼ on f)
 isPreorder {≈ = ≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
@@ -74,7 +74,7 @@ isPreorder {≈ = ≈} {∼} pre = record
   }
   where module Pre = IsPreorder pre
 
-isDecEquivalence : ∀ {ℓ} {≈ : REL A ℓ} →
+isDecEquivalence : ∀ {ℓ} {≈ : Rel A ℓ} →
                    IsDecEquivalence ≈ → IsDecEquivalence (≈ on f)
 isDecEquivalence {≈ = ≈} dec = record
   { isEquivalence = isEquivalence Dec.isEquivalence
@@ -82,7 +82,7 @@ isDecEquivalence {≈ = ≈} dec = record
   }
   where module Dec = IsDecEquivalence dec
 
-isPartialOrder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+isPartialOrder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {≤ : Rel A ℓ₂} →
                  IsPartialOrder ≈ ≤ →
                  IsPartialOrder (≈ on f) (≤ on f)
 isPartialOrder {≈ = ≈} {≤} po = record
@@ -91,7 +91,7 @@ isPartialOrder {≈ = ≈} {≤} po = record
   }
   where module Po = IsPartialOrder po
 
-isStrictPartialOrder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+isStrictPartialOrder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
                        IsStrictPartialOrder ≈ < →
                        IsStrictPartialOrder (≈ on f) (< on f)
 isStrictPartialOrder {≈ = ≈} {<} spo = record
@@ -102,7 +102,7 @@ isStrictPartialOrder {≈ = ≈} {<} spo = record
   }
   where module Spo = IsStrictPartialOrder spo
 
-isTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+isTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {≤ : Rel A ℓ₂} →
                IsTotalOrder ≈ ≤ →
                IsTotalOrder (≈ on f) (≤ on f)
 isTotalOrder {≈ = ≈} {≤} to = record
@@ -111,7 +111,7 @@ isTotalOrder {≈ = ≈} {≤} to = record
   }
   where module To = IsTotalOrder to
 
-isDecTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {≤ : REL A ℓ₂} →
+isDecTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {≤ : Rel A ℓ₂} →
                   IsDecTotalOrder ≈ ≤ →
                   IsDecTotalOrder (≈ on f) (≤ on f)
 isDecTotalOrder {≈ = ≈} {≤} dec = record
@@ -121,7 +121,7 @@ isDecTotalOrder {≈ = ≈} {≤} dec = record
   }
   where module Dec = IsDecTotalOrder dec
 
-isStrictTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : REL A ℓ₁} {< : REL A ℓ₂} →
+isStrictTotalOrder : ∀ {ℓ₁ ℓ₂} {≈ : Rel A ℓ₁} {< : Rel A ℓ₂} →
                      IsStrictTotalOrder ≈ < →
                        IsStrictTotalOrder (≈ on f) (< on f)
 isStrictTotalOrder {≈ = ≈} {<} sto = record

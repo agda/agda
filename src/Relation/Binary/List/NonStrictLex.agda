@@ -14,6 +14,7 @@ open import Data.Function
 open import Data.Unit using (⊤; tt)
 open import Data.Product
 open import Data.List
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 
@@ -25,17 +26,17 @@ open import Relation.Binary.List.Pointwise as Pointwise using ([])
 private
  module Dummy {A : Set} where
 
-  Lex : (P : Set) → (≈ ≤ : Rel A) → Rel (List A)
+  Lex : (P : Set) → (≈ ≤ : Rel A zero) → Rel (List A) zero
   Lex P ≈ ≤ = Strict.Lex P ≈ (Conv._<_ ≈ ≤)
 
   -- Strict lexicographic ordering.
 
-  Lex-< : (≈ ≤ : Rel A) → Rel (List A)
+  Lex-< : (≈ ≤ : Rel A zero) → Rel (List A) zero
   Lex-< = Lex ⊥
 
   -- Non-strict lexicographic ordering.
 
-  Lex-≤ : (≈ ≤ : Rel A) → Rel (List A)
+  Lex-≤ : (≈ ≤ : Rel A zero) → Rel (List A) zero
   Lex-≤ = Lex ⊤
 
   ------------------------------------------------------------------------

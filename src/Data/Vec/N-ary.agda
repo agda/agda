@@ -39,15 +39,15 @@ Eq-level : Level → Level → ℕ → Level
 Eq-level _ _ zero    = _
 Eq-level _ _ (suc n) = _
 
-Eq : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} n →
-     REL B ℓ₂ → (f g : N-ary n A B) → Set (Eq-level ℓ₁ ℓ₂ n)
+Eq : ∀ {ℓ₁ ℓ₂} {A B C : Set ℓ₁} n →
+     REL B C ℓ₂ → REL (N-ary n A B) (N-ary n A C) (Eq-level ℓ₁ ℓ₂ n)
 Eq zero    _∼_ f g = f ∼ g
 Eq (suc n) _∼_ f g = ∀ x → Eq n _∼_ (f x) (g x)
 
 -- A variant where all the arguments are implicit (hidden).
 
-Eqʰ : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} n →
-      REL B ℓ₂ → (f g : N-ary n A B) → Set (Eq-level ℓ₁ ℓ₂ n)
+Eqʰ : ∀ {ℓ₁ ℓ₂} {A B C : Set ℓ₁} n →
+      REL B C ℓ₂ → REL (N-ary n A B) (N-ary n A C) (Eq-level ℓ₁ ℓ₂ n)
 Eqʰ zero    _∼_ f g = f ∼ g
 Eqʰ (suc n) _∼_ f g = ∀ {x} → Eqʰ n _∼_ (f x) (g x)
 
@@ -68,31 +68,31 @@ right-inverse (suc n) f = λ x → right-inverse n (f x)
 
 -- Conversion preserves equality.
 
-curryⁿ-cong : ∀ {n ℓ₁ ℓ₂} {A B : Set ℓ₁} {_∼_ : REL B ℓ₂}
-              (f g : Vec A n → B) →
+curryⁿ-cong : ∀ {n ℓ₁ ℓ₂} {A B C : Set ℓ₁} {_∼_ : REL B C ℓ₂}
+              (f : Vec A n → B) (g : Vec A n → C) →
               (∀ xs → f xs ∼ g xs) →
               Eq n _∼_ (curryⁿ f) (curryⁿ g)
 curryⁿ-cong {zero}  f g hyp = hyp []
 curryⁿ-cong {suc n} f g hyp = λ x →
   curryⁿ-cong (f ∘ _∷_ x) (g ∘ _∷_ x) (λ xs → hyp (x ∷ xs))
 
-curryⁿ-cong⁻¹ : ∀ {n ℓ₁ ℓ₂} {A B : Set ℓ₁} {_∼_ : REL B ℓ₂}
-                (f g : Vec A n → B) →
+curryⁿ-cong⁻¹ : ∀ {n ℓ₁ ℓ₂} {A B C : Set ℓ₁} {_∼_ : REL B C ℓ₂}
+                (f : Vec A n → B) (g : Vec A n → C) →
                 Eq n _∼_ (curryⁿ f) (curryⁿ g) →
                 ∀ xs → f xs ∼ g xs
 curryⁿ-cong⁻¹ f g hyp []       = hyp
 curryⁿ-cong⁻¹ f g hyp (x ∷ xs) =
   curryⁿ-cong⁻¹ (f ∘ _∷_ x) (g ∘ _∷_ x) (hyp x) xs
 
-appⁿ-cong : ∀ {n ℓ₁ ℓ₂} {A B : Set ℓ₁} {_∼_ : REL B ℓ₂}
-            (f g : N-ary n A B) →
+appⁿ-cong : ∀ {n ℓ₁ ℓ₂} {A B C : Set ℓ₁} {_∼_ : REL B C ℓ₂}
+            (f : N-ary n A B) (g : N-ary n A C) →
             Eq n _∼_ f g →
             (xs : Vec A n) → (f $ⁿ xs) ∼ (g $ⁿ xs)
 appⁿ-cong f g hyp []       = hyp
 appⁿ-cong f g hyp (x ∷ xs) = appⁿ-cong (f x) (g x) (hyp x) xs
 
-appⁿ-cong⁻¹ : ∀ {n ℓ₁ ℓ₂} {A B : Set ℓ₁} {_∼_ : REL B ℓ₂}
-              (f g : N-ary n A B) →
+appⁿ-cong⁻¹ : ∀ {n ℓ₁ ℓ₂} {A B C : Set ℓ₁} {_∼_ : REL B C ℓ₂}
+              (f : N-ary n A B) (g : N-ary n A C) →
               ((xs : Vec A n) → (f $ⁿ xs) ∼ (g $ⁿ xs)) →
               Eq n _∼_ f g
 appⁿ-cong⁻¹ {zero}  f g hyp = hyp []
@@ -101,14 +101,14 @@ appⁿ-cong⁻¹ {suc n} f g hyp = λ x →
 
 -- Eq and Eqʰ are equivalent.
 
-Eq-to-Eqʰ : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} n {_∼_ : REL B ℓ₂}
-              {f g : N-ary n A B} →
+Eq-to-Eqʰ : ∀ {ℓ₁ ℓ₂} {A B C : Set ℓ₁} n {_∼_ : REL B C ℓ₂}
+              {f : N-ary n A B} {g : N-ary n A C} →
             Eq n _∼_ f g → Eqʰ n _∼_ f g
 Eq-to-Eqʰ zero    eq = eq
 Eq-to-Eqʰ (suc n) eq = Eq-to-Eqʰ n (eq _)
 
-Eqʰ-to-Eq : ∀ {ℓ₁ ℓ₂} {A B : Set ℓ₁} n {_∼_ : REL B ℓ₂}
-              {f g : N-ary n A B} →
+Eqʰ-to-Eq : ∀ {ℓ₁ ℓ₂} {A B C : Set ℓ₁} n {_∼_ : REL B C ℓ₂}
+              {f : N-ary n A B} {g : N-ary n A C} →
             Eqʰ n _∼_ f g → Eq n _∼_ f g
 Eqʰ-to-Eq zero    eq = eq
 Eqʰ-to-Eq (suc n) eq = λ _ → Eqʰ-to-Eq n eq

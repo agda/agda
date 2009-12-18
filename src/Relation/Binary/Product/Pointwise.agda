@@ -7,6 +7,7 @@ module Relation.Binary.Product.Pointwise where
 open import Data.Function
 open import Data.Product
 open import Data.Sum
+open import Level
 open import Relation.Nullary.Product
 open import Relation.Binary
 
@@ -15,7 +16,7 @@ private
 
   infixr 2 _×-Rel_
 
-  _×-Rel_ : Rel a₁ → Rel a₂ → Rel (a₁ × a₂)
+  _×-Rel_ : Rel a₁ zero → Rel a₂ zero → Rel (a₁ × a₂) zero
   ∼₁ ×-Rel ∼₂ = (∼₁ on proj₁) -×- (∼₂ on proj₂)
 
   -- Some properties which are preserved by ×-Rel (under certain

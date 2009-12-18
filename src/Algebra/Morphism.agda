@@ -10,12 +10,13 @@ open import Algebra.FunctionProperties
 import Algebra.Props.Group as GroupP
 open import Data.Function
 open import Data.Product
+open import Level
 import Relation.Binary.EqReasoning as EqR
 
 ------------------------------------------------------------------------
 -- Basic definitions
 
-module Definitions (From To : Set) (_≈_ : Rel To) where
+module Definitions (From To : Set) (_≈_ : Rel To zero) where
   Morphism : Set
   Morphism = From → To
 
