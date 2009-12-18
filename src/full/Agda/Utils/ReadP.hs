@@ -73,7 +73,7 @@ module Agda.Utils.ReadP
  where
 
 import Control.Monad
-import GHC.Prim
+import GHC.Exts
 import Data.Char
 
 infixr 5 +++, <++
