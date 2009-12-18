@@ -42,21 +42,25 @@ CABAL_CMD=cabal
 # Options used by cabal install.
 CABAL_OPTIONS=--global --root-cmd=sudo
 
-install : install-lib install-emacs-mode
+install : install-lib install-bin install-emacs-mode
 
-prof : install-prof-lib
+prof : install-prof-bin
 
 # Installs the Emacs mode, but does not set it up.
 install-lib :
 	$(CABAL_CMD) install $(CABAL_OPTIONS)
 
 install-prof-lib :
-	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling \
-           --program-suffix=_p --enable-executable-profiling
+	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling
 
 install-bin : install-lib
 	cd src/main && $(CABAL_CMD) clean && \
           $(CABAL_CMD) install $(CABAL_OPTIONS)
+
+install-prof-bin : install-prof-lib
+	cd src/main && $(CABAL_CMD) clean && \
+	  $(CABAL_CMD) install $(CABAL_OPTIONS) --program-suffix=_p \
+            --enable-executable-profiling
 
 install-emacs-mode : install-lib
 	@echo
