@@ -1,6 +1,6 @@
 name:            Agda
 version:         2.2.5
-cabal-version:   >= 1.6.0.3 && < 2
+cabal-version:   >= 1.8 && < 2
 build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
@@ -25,15 +25,13 @@ description:
   with other proof assistants based on dependent types, such as Coq,
   Epigram and NuPRL.
   .
-  Note that if you want to use the command-line program (agda), then
-  you should also install the Agda-executable package. The Agda
-  package includes an Emacs mode for Agda, but you need to set up the
-  Emacs mode yourself (for instance by running @agda-mode setup@; see
-  the README).
+  This package includes an Emacs mode for Agda, but you need to set it
+  up yourself (for instance by running @agda-mode setup@; see the
+  README).
   .
-  Note also that this library does not follow the package versioning
+  Note that this library does not follow the package versioning
   policy, because the library is only intended to be used by the Emacs
-  mode and the Agda-executable package.
+  mode.
 tested-with:     GHC == 6.10.4 && == 6.12.1
 extra-source-files: src/full/Agda/undefined.h
                     README
@@ -280,3 +278,11 @@ executable agda-mode
                    utf8-string == 0.3.*
   build-depends:   filepath >= 1.1 && < 2,
                    process >= 1.0.1.0 && < 2
+
+executable agda
+  hs-source-dirs:  src/main
+  main-is:         Main.hs
+  build-depends:   Agda == 2.2.5,
+                   -- Nothing is used from the following package,
+                   -- except for the prelude.
+                   base >= 3 && < 6

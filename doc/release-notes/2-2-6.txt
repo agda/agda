@@ -255,3 +255,14 @@ Tools
   agda2-mode-abbrevs-use-defaults (a customisation buffer can be
   obtained by typing M-x customize-group agda2 RET after an Agda file
   has been loaded).
+
+Infrastructure
+--------------
+
+* The Agda-executable package has been merged into the Agda package.
+
+* Cabal version 1.8 or newer is necessary to install Agda. If your
+  version is too old you can hopefully upgrade by running the
+  following command:
+
+    cabal install cabal-install

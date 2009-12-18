@@ -11,12 +11,10 @@ followed:
 
 * Update the README, if necessary.
 
-* Update the version numbers in Agda.cabal,
-  src/main/Agda-executable.cabal (two places) and
+* Update the version numbers in Agda.cabal (two places) and
   ../src/data/emacs-mode/agda2-mode.el.
 
-* Add a second source-repository section to Agda.cabal and
-  Agda-executable.cabal:
+* Add a second source-repository section to Agda.cabal:
 
     source-repository this
       type:     darcs
@@ -29,13 +27,9 @@ followed:
     VERSION=<version>
     darcs tag $VERSION
     cabal configure && cabal sdist && cabal check
-    cabal install
-    cd src/main && cabal configure && cabal sdist && cabal check && cd -
     darcs dist --dist-name=Agda-$VERSION
 
-  Note that configuring Agda-executable will not work unless the Agda
-  library is first installed. Note also that cabal check may warn
-  about -Werror.
+  Note that cabal check may warn about -Werror.
 
 * Ensure that all the packages build properly.
 
@@ -51,18 +45,13 @@ followed:
     cd Agda-$VERSION
     cabal install
     cd ..
-    tar xzf $BASE/src/main/dist/Agda-executable-$VERSION.tar.gz
-    cd Agda-executable-$VERSION
-    cabal install
-    cd ..
 
   Do not forget to test the Emacs mode.
 
-* Upload the Cabal packages using cabal upload.
+* Upload the Cabal package using cabal upload.
 
     cd $BASE
-    cabal upload dist/Agda-$VERSION.tar.gz \
-                 src/main/dist/Agda-executable-$VERSION.tar.gz
+    cabal upload dist/Agda-$VERSION.tar.gz
 
 * Upload the darcs tar-ball to code.haskell.org.
 
@@ -72,7 +61,7 @@ followed:
 
 * Update the version numbers again, so that released and development
   versions are not confused, and remove the "this" source-repository
-  sections from the Cabal files. (This would be unnecessary if we had
+  section from the Cabal file. (This would be unnecessary if we had
   two repositories, one stable and one for development.)
 
 * Push all changes.
