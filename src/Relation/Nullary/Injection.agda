@@ -8,7 +8,6 @@ module Relation.Nullary.Injection where
 
 open import Data.Function as Fun using () renaming (_∘_ to _⟨∘⟩_)
 open import Level
-import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
 open import Relation.Binary.FunctionSetoid as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
@@ -38,4 +37,4 @@ _∘_ : ∀ {f₁ f₂ m₁ m₂ t₁ t₂}
 f ∘ g = record
   { to        =          to        f  ⟪∘⟫ to        g
   ; injective = (λ {_} → injective g) ⟨∘⟩ injective f
-  }  where open Injection
+  } where open Injection
