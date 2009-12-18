@@ -2,10 +2,11 @@
 -- Well-founded induction
 ------------------------------------------------------------------------
 
-open import Level
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Relation.Binary
 
-module Induction.WellFounded {A : Set} (_<_ : Rel A zero) where
+module Induction.WellFounded {a} {A : Set a} (_<_ : Rel A a) where
 
 open import Induction
 
@@ -20,7 +21,7 @@ WfRec P x = ∀ y → y < x → P y
 -- well-founded; if all elements are accessible, then _<_ is
 -- well-founded.
 
-data Acc (x : A) : Set where
+data Acc (x : A) : Set a where
   acc : (rs : WfRec Acc x) → Acc x
 
 -- Well-founded induction for the subset of accessible elements:

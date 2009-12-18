@@ -2,6 +2,8 @@
 -- An abstraction of various forms of recursion/induction
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Note: The types in this module can perhaps be easier to understand
 -- if they are normalised. Note also that Agda can do the
 -- normalisation for you.
@@ -14,24 +16,23 @@ open import Relation.Unary
 -- A RecStruct describes the allowed structure of recursion. The
 -- examples in Induction.Nat should explain what this is all about.
 
-RecStruct : Set → Set₁
-RecStruct a = Pred a zero → Pred a zero
+RecStruct : ∀ {a} → Set a → Set (suc a)
+RecStruct {a} A = Pred A a → Pred A a
 
 -- A recursor builder constructs an instance of a recursion structure
 -- for a given input.
 
-RecursorBuilder : ∀ {a} → RecStruct a → Set₁
-RecursorBuilder {a} Rec =
-  (P : Pred a zero) → Rec P ⊆′ P → Universal (Rec P)
+RecursorBuilder : ∀ {a} {A : Set a} → RecStruct A → Set _
+RecursorBuilder Rec = ∀ P → Rec P ⊆′ P → Universal (Rec P)
 
 -- A recursor can be used to actually compute/prove something useful.
 
-Recursor : ∀ {a} → RecStruct a → Set₁
-Recursor {a} Rec = (P : Pred a zero) → Rec P ⊆′ P → Universal P
+Recursor : ∀ {a} {A : Set a} → RecStruct A → Set _
+Recursor Rec = ∀ P → Rec P ⊆′ P → Universal P
 
 -- And recursors can be constructed from recursor builders.
 
-build : ∀ {a} {Rec : RecStruct a} →
+build : ∀ {a} {A : Set a} {Rec : RecStruct A} →
         RecursorBuilder Rec →
         Recursor Rec
 build builder P f x = f x (builder P f x)
@@ -39,14 +40,15 @@ build builder P f x = f x (builder P f x)
 -- We can repeat the exercise above for subsets of the type we are
 -- recursing over.
 
-SubsetRecursorBuilder : ∀ {a} → Pred a zero → RecStruct a → Set₁
-SubsetRecursorBuilder {a} Q Rec =
-  (P : Pred a zero) → Rec P ⊆′ P → Q ⊆′ Rec P
+SubsetRecursorBuilder : ∀ {a ℓ} {A : Set a} →
+                        Pred A ℓ → RecStruct A → Set _
+SubsetRecursorBuilder Q Rec = ∀ P → Rec P ⊆′ P → Q ⊆′ Rec P
 
-SubsetRecursor : ∀ {a} → Pred a zero → RecStruct a → Set₁
-SubsetRecursor {a} Q Rec = (P : Pred a zero) → Rec P ⊆′ P → Q ⊆′ P
+SubsetRecursor : ∀ {a ℓ} {A : Set a} →
+                 Pred A ℓ → RecStruct A → Set _
+SubsetRecursor Q Rec = ∀ P → Rec P ⊆′ P → Q ⊆′ P
 
-subsetBuild : ∀ {a} {Q : Pred a zero} {Rec : RecStruct a} →
+subsetBuild : ∀ {a ℓ} {A : Set a} {Q : Pred A ℓ} {Rec : RecStruct A} →
               SubsetRecursorBuilder Q Rec →
               SubsetRecursor Q Rec
 subsetBuild builder P f x q = f x (builder P f x q)

@@ -2,6 +2,8 @@
 -- Lexicographic induction
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Induction.Lexicographic where
 
 open import Induction
@@ -9,7 +11,8 @@ open import Data.Product
 
 -- The structure of lexicographic induction.
 
-_⊗_ : ∀ {a b} → RecStruct a → RecStruct b → RecStruct (a × b)
+_⊗_ : ∀ {ℓ} {A B : Set ℓ} →
+      RecStruct A → RecStruct B → RecStruct (A × B)
 _⊗_ RecA RecB P (x , y) =
   -- Either x is constant and y is "smaller", ...
   RecB (λ y' → P (x , y')) y
@@ -19,8 +22,9 @@ _⊗_ RecA RecB P (x , y) =
 
 -- Constructs a recursor builder for lexicographic induction.
 
-[_⊗_] : ∀ {a} {RecA : RecStruct a} → RecursorBuilder RecA →
-        ∀ {b} {RecB : RecStruct b} → RecursorBuilder RecB →
+[_⊗_] : ∀ {ℓ} {A B : Set ℓ}
+          {RecA : RecStruct A} → RecursorBuilder RecA →
+          {RecB : RecStruct B} → RecursorBuilder RecB →
         RecursorBuilder (RecA ⊗ RecB)
 [_⊗_] {RecA = RecA} recA {RecB = RecB} recB P f (x , y) =
   (p₁ x y p₂x , p₂x)
