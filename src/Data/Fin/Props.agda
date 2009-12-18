@@ -17,7 +17,6 @@ open import Data.Function
 open import Relation.Nullary
 open import Relation.Nullary.Injection
   using (Injection; module Injection)
-open import Relation.Unary
 open import Relation.Binary
 open import Relation.Binary.FunctionSetoid as FunS using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -145,13 +144,13 @@ eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
 
 -- Quantification over finite sets commutes with applicative functors.
 
-sequence : ∀ {F n} {P : Pred (Fin n)} → RawApplicative F →
+sequence : ∀ {F n} {P : Fin n → Set} → RawApplicative F →
            (∀ i → F (P i)) → F (∀ i → P i)
 sequence {F} RA = helper _ _
   where
   open RawApplicative RA
 
-  helper : ∀ n (P : Pred (Fin n)) → (∀ i → F (P i)) → F (∀ i → P i)
+  helper : ∀ n (P : Fin n → Set) → (∀ i → F (P i)) → F (∀ i → P i)
   helper zero    P ∀iPi = pure (λ())
   helper (suc n) P ∀iPi =
     combine <$> ∀iPi zero ⊛ helper n (λ n → P (suc n)) (∀iPi ∘ suc)
@@ -166,7 +165,7 @@ private
   -- an equivalence relation with two equivalence classes, one with
   -- all inhabited sets and the other with all uninhabited sets).
 
-  sequence⁻¹ : ∀ {F A} {P : Pred A} → RawFunctor F →
+  sequence⁻¹ : ∀ {F A} {P : A → Set} → RawFunctor F →
                F (∀ i → P i) → ∀ i → F (P i)
   sequence⁻¹ RF F∀iPi i = (λ f → f i) <$> F∀iPi
     where open RawFunctor RF

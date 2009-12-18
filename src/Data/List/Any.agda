@@ -12,7 +12,7 @@ open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using () renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
@@ -28,7 +28,7 @@ data Any {A} (P : A → Set) : List A → Set where
 
 -- Map.
 
-map : ∀ {A} {P Q : Pred A} → P ⋐ Q → Any P ⋐ Any Q
+map : ∀ {A} {P Q : A → Set} → P ⋐ Q → Any P ⋐ Any Q
 map g (here px)   = here (g px)
 map g (there pxs) = there (map g pxs)
 

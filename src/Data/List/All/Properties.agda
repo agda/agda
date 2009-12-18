@@ -12,16 +12,16 @@ import Data.List.Any as Any
 open Any.Membership-≡
 open import Data.List.All as All using (All; []; _∷_)
 open import Data.Product
-open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using () renaming (_⊆_ to _⋐_)
 
 -- Functions can be shifted between the predicate and the list.
 
-All-map : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+All-map : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
           All (P ∘ f) xs → All P (List.map f xs)
 All-map []       = []
 All-map (p ∷ ps) = p ∷ All-map ps
 
-map-All : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+map-All : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
           All P (List.map f xs) → All (P ∘ f) xs
 map-All {xs = []}    []       = []
 map-All {xs = _ ∷ _} (p ∷ ps) = p ∷ map-All ps
@@ -47,7 +47,8 @@ all-All p (x ∷ xs) px∷xs | (px , pxs) = px ∷ all-All p xs pxs
 
 -- All is anti-monotone.
 
-anti-mono : ∀ {A} {P : Pred A} {xs ys} → xs ⊆ ys → All P ys → All P xs
+anti-mono : ∀ {A} {P : A → Set} {xs ys} →
+            xs ⊆ ys → All P ys → All P xs
 anti-mono xs⊆ys pys = All.tabulate (All.lookup pys ∘ xs⊆ys)
 
 -- all is anti-monotone.

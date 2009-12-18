@@ -2,6 +2,8 @@
 -- Unary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Unary where
 
 open import Data.Empty
@@ -9,13 +11,14 @@ open import Data.Function
 open import Data.Unit
 open import Data.Product
 open import Data.Sum
+open import Level
 open import Relation.Nullary
 
 ------------------------------------------------------------------------
 -- Unary relations
 
-Pred : Set → Set₁
-Pred a = a → Set
+Pred : ∀ {a} → Set a → (ℓ : Level) → Set (a ⊔ suc ℓ)
+Pred A ℓ = A → Set ℓ
 
 ------------------------------------------------------------------------
 -- Unary relations can be seen as sets
@@ -23,40 +26,40 @@ Pred a = a → Set
 -- I.e., they can be seen as subsets of the universe of discourse.
 
 private
- module Dummy {a : Set} -- The universe of discourse.
+ module Dummy {a} {A : Set a} -- The universe of discourse.
           where
 
   -- Set membership.
 
   infix 4 _∈_ _∉_
 
-  _∈_ : a → Pred a → Set
+  _∈_ : ∀ {ℓ} → A → Pred A ℓ → Set _
   x ∈ P = P x
 
-  _∉_ : a → Pred a → Set
+  _∉_ : ∀ {ℓ} → A → Pred A ℓ → Set _
   x ∉ P = ¬ x ∈ P
 
   -- The empty set.
 
-  ∅ : Pred a
+  ∅ : Pred A zero
   ∅ = λ _ → ⊥
 
   -- The property of being empty.
 
-  Empty : Pred a → Set
+  Empty : ∀ {ℓ} → Pred A ℓ → Set _
   Empty P = ∀ x → x ∉ P
 
   ∅-Empty : Empty ∅
   ∅-Empty x ()
 
-  -- The universe, i.e. the subset containing all elements in a.
+  -- The universe, i.e. the subset containing all elements in A.
 
-  U : Pred a
+  U : Pred A zero
   U = λ _ → ⊤
 
   -- The property of being universal.
 
-  Universal : Pred a → Set
+  Universal : ∀ {ℓ} → Pred A ℓ → Set _
   Universal P = ∀ x → x ∈ P
 
   U-Universal : Universal U
@@ -64,7 +67,7 @@ private
 
   -- Set complement.
 
-  ∁ : Pred a → Pred a
+  ∁ : ∀ {ℓ} → Pred A ℓ → Pred A ℓ
   ∁ P = λ x → x ∉ P
 
   ∁∅-Universal : Universal (∁ ∅)
@@ -77,36 +80,36 @@ private
 
   infix 4 _⊆_ _⊇_ _⊆′_ _⊇′_
 
-  _⊆_ : Pred a → Pred a → Set
+  _⊆_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   P ⊆ Q = ∀ {x} → x ∈ P → x ∈ Q
 
-  _⊆′_ : Pred a → Pred a → Set
+  _⊆′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   P ⊆′ Q = ∀ x → x ∈ P → x ∈ Q
 
-  _⊇_ : Pred a → Pred a → Set
+  _⊇_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   Q ⊇ P = P ⊆ Q
 
-  _⊇′_ : Pred a → Pred a → Set
+  _⊇′_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Set _
   Q ⊇′ P = P ⊆′ Q
 
-  ∅-⊆ : (P : Pred a) → ∅ ⊆ P
+  ∅-⊆ : ∀ {ℓ} → (P : Pred A ℓ) → ∅ ⊆ P
   ∅-⊆ P ()
 
-  ⊆-U : (P : Pred a) → P ⊆ U
+  ⊆-U : ∀ {ℓ} → (P : Pred A ℓ) → P ⊆ U
   ⊆-U P _ = _
 
   -- Set union.
 
   infixl 6 _∪_
 
-  _∪_ : Pred a → Pred a → Pred a
+  _∪_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Pred A _
   P ∪ Q = λ x → x ∈ P ⊎ x ∈ Q
 
   -- Set intersection.
 
   infixl 7 _∩_
 
-  _∩_ : Pred a → Pred a → Pred a
+  _∩_ : ∀ {ℓ₁ ℓ₂} → Pred A ℓ₁ → Pred A ℓ₂ → Pred A _
   P ∩ Q = λ x → x ∈ P × x ∈ Q
 
 open Dummy public
@@ -118,12 +121,15 @@ infixr 2 _⟨×⟩_
 infixr 1 _⟨⊎⟩_
 infixr 0 _⟨→⟩_
 
-_⟨×⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A × B)
+_⟨×⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+        Pred A ℓ₁ → Pred B ℓ₂ → Pred (A × B) _
 (P ⟨×⟩ Q) p = P (proj₁ p) × Q (proj₂ p)
 
-_⟨⊎⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A ⊎ B)
+_⟨⊎⟩_ : ∀ {a b ℓ} {A : Set a} {B : Set b} →
+        Pred A ℓ → Pred B ℓ → Pred (A ⊎ B) _
 (P ⟨⊎⟩ Q) (inj₁ p) = P p
 (P ⟨⊎⟩ Q) (inj₂ q) = Q q
 
-_⟨→⟩_ : ∀ {A B} → Pred A → Pred B → Pred (A → B)
+_⟨→⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
+        Pred A ℓ₁ → Pred B ℓ₂ → Pred (A → B) _
 (P ⟨→⟩ Q) f = P ⊆ Q ∘ f

@@ -11,7 +11,7 @@ open Any.Membership-≡ using (_∈_; _⊆_)
 open import Data.Product as Prod using (_,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using (Pred) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using () renaming (_⊆_ to _⋐_)
 open import Relation.Binary.PropositionalEquality
 
 -- All P xs means that all elements in xs satisfy P.
@@ -37,7 +37,7 @@ tabulate : ∀ {A} {P : A → Set} {xs} → (∀ {x} → x ∈ xs → P x) → A
 tabulate {xs = []}     hyp = []
 tabulate {xs = x ∷ xs} hyp = hyp (here refl) ∷ tabulate (hyp ∘ there)
 
-map : ∀ {A} {P Q : Pred A} → P ⋐ Q → All P ⋐ All Q
+map : ∀ {A} {P Q : A → Set} → P ⋐ Q → All P ⋐ All Q
 map g []         = []
 map g (px ∷ pxs) = g px ∷ map g pxs
 

@@ -18,8 +18,7 @@ import Data.Nat.Properties as NatProp
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Level
-open import Relation.Unary
-  using (Pred; _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using ( _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary.FunctionSetoid as FunS
@@ -39,13 +38,13 @@ open import Relation.Nullary.Negation
 
 -- Any.map is functorial.
 
-map-id : ∀ {A} {P : Pred A} (f : P ⋐ P) {xs} →
+map-id : ∀ {A} {P : A → Set} (f : P ⋐ P) {xs} →
          (∀ {x} (p : P x) → f p ≡ p) →
          (p : Any P xs) → Any.map f p ≡ p
 map-id f hyp (here  p) = P.cong here (hyp p)
 map-id f hyp (there p) = P.cong there $ map-id f hyp p
 
-map-∘ : ∀ {A} {P Q R : Pred A} (f : Q ⋐ R) (g : P ⋐ Q)
+map-∘ : ∀ {A} {P Q R : A → Set} (f : Q ⋐ R) (g : P ⋐ Q)
         {xs} (p : Any P xs) →
         Any.map (f ∘ g) p ≡ Any.map f (Any.map g p)
 map-∘ f g (here  p) = refl
@@ -53,12 +52,12 @@ map-∘ f g (there p) = P.cong there $ map-∘ f g p
 
 -- Introduction (⁺) and elimination (⁻) rules for map.
 
-map⁺ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+map⁺ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
        Any (P ∘ f) xs → Any P (map f xs)
 map⁺ (here p)  = here p
 map⁺ (there p) = there $ map⁺ p
 
-map⁻ : ∀ {A B} {P : Pred B} {f : A → B} {xs} →
+map⁻ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
        Any P (map f xs) → Any (P ∘ f) xs
 map⁻ {xs = []}     ()
 map⁻ {xs = x ∷ xs} (here p)  = here p
@@ -66,14 +65,14 @@ map⁻ {xs = x ∷ xs} (there p) = there $ map⁻ p
 
 -- The rules are inverses.
 
-map⁺∘map⁻ : ∀ {A B : Set} {P : Pred B} {f : A → B} {xs} →
+map⁺∘map⁻ : ∀ {A B : Set} {P : B → Set} {f : A → B} {xs} →
             (p : Any P (List.map f xs)) →
             map⁺ (map⁻ p) ≡ p
 map⁺∘map⁻ {xs = []}     ()
 map⁺∘map⁻ {xs = x ∷ xs} (here  p) = refl
 map⁺∘map⁻ {xs = x ∷ xs} (there p) = P.cong there (map⁺∘map⁻ p)
 
-map⁻∘map⁺ : ∀ {A B} (P : Pred B) {f : A → B} {xs} →
+map⁻∘map⁺ : ∀ {A B} (P : B → Set) {f : A → B} {xs} →
             (p : Any (P ∘ f) xs) →
             map⁻ {P = P} (map⁺ p) ≡ p
 map⁻∘map⁺ P (here  p) = refl
@@ -81,17 +80,17 @@ map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
 -- Introduction and elimination rules for _++_.
 
-++⁺ˡ : ∀ {A} {P : Pred A} {xs ys} →
+++⁺ˡ : ∀ {A} {P : A → Set} {xs ys} →
        Any P xs → Any P (xs ++ ys)
 ++⁺ˡ (here p)  = here p
 ++⁺ˡ (there p) = there (++⁺ˡ p)
 
-++⁺ʳ : ∀ {A} {P : Pred A} xs {ys} →
+++⁺ʳ : ∀ {A} {P : A → Set} xs {ys} →
        Any P ys → Any P (xs ++ ys)
 ++⁺ʳ []       p = p
 ++⁺ʳ (x ∷ xs) p = there (++⁺ʳ xs p)
 
-++⁻ : ∀ {A} {P : Pred A} xs {ys} →
+++⁻ : ∀ {A} {P : A → Set} xs {ys} →
       Any P (xs ++ ys) → Any P xs ⊎ Any P ys
 ++⁻ []       p         = inj₂ p
 ++⁻ (x ∷ xs) (here p)  = inj₁ (here p)
@@ -99,7 +98,7 @@ map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
 -- The rules are inverses.
 
-++⁺∘++⁻ : ∀ {A} {P : Pred A} xs {ys}
+++⁺∘++⁻ : ∀ {A} {P : A → Set} xs {ys}
           (p : Any P (xs ++ ys)) →
           [ ++⁺ˡ , ++⁺ʳ xs ]′ (++⁻ xs p) ≡ p
 ++⁺∘++⁻ []       p         = refl
@@ -108,7 +107,7 @@ map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 ++⁺∘++⁻ (x ∷ xs) (there p) | inj₁ p′ | ih = P.cong there ih
 ++⁺∘++⁻ (x ∷ xs) (there p) | inj₂ p′ | ih = P.cong there ih
 
-++⁻∘++⁺ : ∀ {A} {P : Pred A} xs {ys} (p : Any P xs ⊎ Any P ys) →
+++⁻∘++⁺ : ∀ {A} {P : A → Set} xs {ys} (p : Any P xs ⊎ Any P ys) →
           ++⁻ xs ([ ++⁺ˡ , ++⁺ʳ xs ]′ p) ≡ p
 ++⁻∘++⁺ []            (inj₁ ())
 ++⁻∘++⁺ []            (inj₂ p)         = refl
@@ -118,34 +117,34 @@ map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
 -- Introduction and elimination rules for return.
 
-return⁺ : ∀ {A} {P : Pred A} {x} →
+return⁺ : ∀ {A} {P : A → Set} {x} →
           P x → Any P (return x)
 return⁺ = here
 
-return⁻ : ∀ {A} {P : Pred A} {x} →
+return⁻ : ∀ {A} {P : A → Set} {x} →
           Any P (return x) → P x
 return⁻ (here p)   = p
 return⁻ (there ())
 
 -- The rules are inverses.
 
-return⁺∘return⁻ : ∀ {A} {P : Pred A} {x} (p : Any P (return x)) →
+return⁺∘return⁻ : ∀ {A} {P : A → Set} {x} (p : Any P (return x)) →
                   return⁺ (return⁻ p) ≡ p
 return⁺∘return⁻ (here p)   = refl
 return⁺∘return⁻ (there ())
 
-return⁻∘return⁺ : ∀ {A} {P : Pred A} {x} (p : P x) →
+return⁻∘return⁺ : ∀ {A} {P : A → Set} {x} (p : P x) →
                   return⁻ {P = P} (return⁺ p) ≡ p
 return⁻∘return⁺ p = refl
 
 -- Introduction and elimination rules for concat.
 
-concat⁺ : ∀ {A} {P : Pred A} {xss} →
+concat⁺ : ∀ {A} {P : A → Set} {xss} →
           Any (Any P) xss → Any P (concat xss)
 concat⁺ (here p)           = ++⁺ˡ p
 concat⁺ (there {x = xs} p) = ++⁺ʳ xs (concat⁺ p)
 
-concat⁻ : ∀ {A} {P : Pred A} xss →
+concat⁻ : ∀ {A} {P : A → Set} xss →
           Any P (concat xss) → Any (Any P) xss
 concat⁻ []               ()
 concat⁻ ([]       ∷ xss) p         = there $ concat⁻ xss p
@@ -157,17 +156,17 @@ concat⁻ ((x ∷ xs) ∷ xss) (there p)
 
 -- The rules are inverses.
 
-concat⁻∘++⁺ˡ : ∀ {A} {P : Pred A} {xs} xss (p : Any P xs) →
+concat⁻∘++⁺ˡ : ∀ {A} {P : A → Set} {xs} xss (p : Any P xs) →
                concat⁻ (xs ∷ xss) (++⁺ˡ p) ≡ here p
 concat⁻∘++⁺ˡ xss (here  p) = refl
 concat⁻∘++⁺ˡ xss (there p) rewrite concat⁻∘++⁺ˡ xss p = refl
 
-concat⁻∘++⁺ʳ : ∀ {A} {P : Pred A} xs xss (p : Any P (concat xss)) →
+concat⁻∘++⁺ʳ : ∀ {A} {P : A → Set} xs xss (p : Any P (concat xss)) →
                concat⁻ (xs ∷ xss) (++⁺ʳ xs p) ≡ there (concat⁻ xss p)
 concat⁻∘++⁺ʳ []       xss p = refl
 concat⁻∘++⁺ʳ (x ∷ xs) xss p rewrite concat⁻∘++⁺ʳ xs xss p = refl
 
-concat⁺∘concat⁻ : ∀ {A} {P : Pred A} xss (p : Any P (concat xss)) →
+concat⁺∘concat⁻ : ∀ {A} {P : A → Set} xss (p : Any P (concat xss)) →
                   concat⁺ (concat⁻ xss p) ≡ p
 concat⁺∘concat⁻ []               ()
 concat⁺∘concat⁻ ([]       ∷ xss) p         = concat⁺∘concat⁻ xss p
@@ -177,7 +176,7 @@ concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there p)
 concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ˡ p′))              | here  p′ | refl = refl
 concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ʳ xs (concat⁺ p′))) | there p′ | refl = refl
 
-concat⁻∘concat⁺ : ∀ {A} {P : Pred A} {xss} (p : Any (Any P) xss) →
+concat⁻∘concat⁺ : ∀ {A} {P : A → Set} {xss} (p : Any (Any P) xss) →
                   concat⁻ xss (concat⁺ p) ≡ p
 concat⁻∘concat⁺ (here                      p) = concat⁻∘++⁺ˡ _ p
 concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
@@ -243,7 +242,7 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
   p                                                                ∎
   where open P.≡-Reasoning
 
-⊛⁻∘⊛⁺ : ∀ {A B} {P : Pred B} {fs : List (A → B)} {xs}
+⊛⁻∘⊛⁺ : ∀ {A B} {P : B → Set} {fs : List (A → B)} {xs}
         (p : Any (λ f → Any (P ∘ f) xs) fs) →
         ⊛⁻ {P = P} fs xs (⊛⁺ p) ≡ p
 ⊛⁻∘⊛⁺ {P = P} {fs} {xs} p =
@@ -273,7 +272,7 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
      Any (λ x → Any (λ y → P (x , y)) ys) xs → Any P (xs ⊗ ys)
 ⊗⁺ = ⊛⁺ ∘′ ⊛⁺ ∘′ return⁺
 
-⊗⁺′ : ∀ {A B} {P : Pred A} {Q : Pred B} {xs ys} →
+⊗⁺′ : ∀ {A B} {P : A → Set} {Q : B → Set} {xs ys} →
       Any P xs → Any Q ys → Any (P ⟨×⟩ Q) (xs ⊗ ys)
 ⊗⁺′ p q = ⊗⁺ (Any.map (λ p → Any.map (λ q → (p , q)) q) p)
 
@@ -281,7 +280,7 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
      Any P (xs ⊗ ys) → Any (λ x → Any (λ y → P (x , y)) ys) xs
 ⊗⁻ _ _ = return⁻ ∘ ⊛⁻ _ _ ∘ ⊛⁻ _ _
 
-⊗⁻′ : ∀ {A B} {P : Pred A} {Q : Pred B} xs ys →
+⊗⁻′ : ∀ {A B} {P : A → Set} {Q : B → Set} xs ys →
       Any (P ⟨×⟩ Q) (xs ⊗ ys) → Any P xs × Any Q ys
 ⊗⁻′ _ _ pq =
   (Any.map (proj₁ ∘ proj₂ ∘ Any.satisfied) lem ,
@@ -572,7 +571,7 @@ module Membership-≡ where
 
   -- Any is monotone.
 
-  mono : ∀ {A xs ys} {P : Pred A} → xs ⊆ ys → Any P xs → Any P ys
+  mono : ∀ {A xs ys} {P : A → Set} → xs ⊆ ys → Any P xs → Any P ys
   mono {P = P} = M₁.mono (P.subst P)
 
   -- Any.map is related to find.
@@ -633,7 +632,7 @@ module Membership-≡ where
   map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (here refl) = refl
   map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (there p)   = there-cong (map-∈⁺∘map-∈⁻ p)
     where
-    there-cong : ∀ {A : Set} {P Q : Pred A} {x xs}
+    there-cong : ∀ {A : Set} {P Q : A → Set} {x xs}
                    {p : Any P xs} {q : Any Q xs} →
                  p ≅ q → there {x = x} p ≅ there {x = x} q
     there-cong refl = refl
