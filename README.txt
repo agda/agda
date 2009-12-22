@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
-The Agda "standard" library
+The Agda standard library
 ------------------------------------------------------------------------
 
 For information about the library, see README.agda.
