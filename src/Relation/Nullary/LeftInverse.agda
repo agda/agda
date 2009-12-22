@@ -6,6 +6,7 @@
 
 module Relation.Nullary.LeftInverse where
 
+open import Data.Product
 open import Level
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
@@ -38,6 +39,10 @@ record LeftInverse {f₁ f₂ t₁ t₂}
 
   injection : Injection From To
   injection = record { to = to; injective = injective }
+
+Surjective : ∀ {f₁ f₂ t₁ t₂} {F : Setoid f₁ f₂} {T : Setoid t₁ t₂} →
+             F ⟶ T → Set _
+Surjective f = ∃ λ g → f LeftInverseOf g
 
 infixr 9 _∘_
 
