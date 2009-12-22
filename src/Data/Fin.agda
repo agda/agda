@@ -13,7 +13,7 @@ open import Data.Nat as Nat
   renaming ( _+_ to _N+_; _∸_ to _N∸_
            ; _≤_ to _N≤_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Data.Function
-open import Level
+open import Level hiding (lift)
 open import Relation.Nullary.Decidable
 open import Relation.Binary
 

@@ -14,7 +14,7 @@ open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
 open import Data.Product as Prod
 open import Data.Empty
-open import Level
+open import Level hiding (Lift)
 open import Relation.Nullary
 open import Relation.Unary using (Pred)
 

@@ -2,7 +2,11 @@
 -- Universe levels
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Level where
+
+-- Levels.
 
 data Level : Set where
   zero : Level
@@ -12,6 +16,8 @@ data Level : Set where
 {-# BUILTIN LEVELZERO zero  #-}
 {-# BUILTIN LEVELSUC  suc   #-}
 
+-- Maximum.
+
 infixl 6 _⊔_
 
 _⊔_ : Level → Level → Level
@@ -19,4 +25,9 @@ zero  ⊔ j     = j
 suc i ⊔ zero  = suc i
 suc i ⊔ suc j = suc (i ⊔ j)
 
+-- Lifting.
+
 {-# BUILTIN LEVELMAX _⊔_ #-}
+
+data Lift {a ℓ} (A : Set a) : Set (a ⊔ ℓ) where
+  lift : (x : A) → Lift A
