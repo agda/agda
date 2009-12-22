@@ -4,12 +4,12 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Relation.Nullary.Injection where
+module Data.Function.Injection where
 
 open import Data.Function as Fun using () renaming (_∘_ to _⟨∘⟩_)
 open import Level
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid as F
+open import Data.Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
 
 Injective : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →

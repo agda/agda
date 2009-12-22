@@ -4,7 +4,7 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Relation.Binary.FunctionSetoid where
+module Data.Function.Equality where
 
 open import Data.Function as Fun using (_on_)
 open import Level

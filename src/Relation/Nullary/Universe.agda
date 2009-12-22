@@ -12,10 +12,10 @@ open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 open import Relation.Binary.Sum
 open import Relation.Binary.Product.Pointwise
-import Relation.Binary.FunctionSetoid as FunS
 open import Data.Sum     as Sum  hiding (map)
 open import Data.Product as Prod hiding (map)
 open import Data.Function
+import Data.Function.Equality as FunS
 open import Data.Empty
 open import Category.Applicative
 open import Category.Monad

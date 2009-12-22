@@ -11,15 +11,15 @@ module Data.List.Countdown (D : DecSetoid zero zero) where
 open import Data.Empty
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Function
+open import Data.Function.Equality using (_⟨$⟩_)
+open import Data.Function.Injection
+  using (Injection; module Injection)
 open import Data.List
 open import Data.List.Any as Any using (here; there)
 open import Data.Nat using (ℕ; zero; suc)
 open import Data.Product
 open import Data.Sum
 open import Relation.Nullary
-open import Relation.Nullary.Injection
-  using (Injection; module Injection)
-open import Relation.Binary.FunctionSetoid using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; cong)
 open PropEq.≡-Reasoning

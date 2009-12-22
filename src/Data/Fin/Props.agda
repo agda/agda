@@ -14,11 +14,11 @@ open import Data.Nat as N
 open N.≤-Reasoning
 import Data.Nat.Properties as N
 open import Data.Function
-open import Relation.Nullary
-open import Relation.Nullary.Injection
+open import Data.Function.Equality as FunS using (_⟨$⟩_)
+open import Data.Function.Injection
   using (Injection; module Injection)
+open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid as FunS using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; cong; subst)
 open import Category.Functor

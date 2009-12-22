@@ -7,14 +7,14 @@
 module Data.Nat where
 
 open import Data.Function
+open import Data.Function.Equality as F using (_⟨$⟩_)
+open import Data.Function.Injection
+  using (Injection; module Injection)
 open import Data.Sum
 open import Data.Empty
 open import Level using (zero)
 open import Relation.Nullary
-open import Relation.Nullary.Injection
-  using (Injection; module Injection)
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid as F using (_⟨$⟩_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 

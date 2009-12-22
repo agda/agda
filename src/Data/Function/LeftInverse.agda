@@ -4,15 +4,15 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Relation.Nullary.LeftInverse where
+module Data.Function.LeftInverse where
 
 open import Data.Product
 open import Level
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
-open import Relation.Binary.FunctionSetoid as F
+open import Data.Function.Equality as F
   using (_⟶_; _⇨_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
-open import Relation.Nullary.Injection using (Injective; Injection)
+open import Data.Function.Injection using (Injective; Injection)
 
 _LeftInverseOf_ : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →
                   B ⟶ A → A ⟶ B → Set _

@@ -7,11 +7,11 @@
 module Relation.Binary.PropositionalEquality where
 
 open import Data.Function
+open import Data.Function.Equality using (_≡⇨_; _⟶_)
 open import Data.Product
 open import Level
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Relation.Binary.FunctionSetoid using (_≡⇨_; _⟶_)
 
 -- Some of the definitions can be found in the following modules:
 

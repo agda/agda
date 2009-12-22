@@ -10,6 +10,9 @@ open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Empty
 open import Data.Function
+open import Data.Function.Equality as FunS
+  using (_⟶_; _⟨$⟩_; _⇨_)
+import Data.Function.Injection as Inj
 open import Data.List as List
 open RawMonad List.monad
 open import Data.List.Any as Any using (Any; here; there)
@@ -21,8 +24,6 @@ open import Level
 open import Relation.Unary using ( _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
-open import Relation.Binary.FunctionSetoid as FunS
-  using (_⟶_; _⟨$⟩_; _⇨_)
 import Relation.Binary.List.Pointwise as ListEq
 open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
 open import Relation.Binary.Product.Pointwise
@@ -30,7 +31,6 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; refl; inspect; _with-≡_)
 import Relation.Binary.Props.DecTotalOrder as DTOProps
 open import Relation.Nullary
-import Relation.Nullary.Injection as Inj
 open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------
