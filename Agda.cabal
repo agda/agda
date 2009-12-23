@@ -34,7 +34,7 @@ description:
   Note also that this library does not follow the package versioning
   policy, because the library is only intended to be used by the Emacs
   mode and the Agda-executable package.
-tested-with:     GHC == 6.10.4 && == 6.12.1
+tested-with:        GHC == 6.10.4 && == 6.12.1
 extra-source-files: src/full/Agda/undefined.h
                     README
                     doc/release-notes/*.txt
@@ -53,231 +53,232 @@ flag use-locale
     must always be encoded using UTF8.)
 
 library
-  hs-source-dirs:  src/full
+  hs-source-dirs:   src/full
   if flag(use-locale)
-    build-depends: base == 4.2.*
+    build-depends:  base == 4.2.*
   else
-    build-depends: base == 4.1.*,
-                   utf8-string == 0.3.*
-  build-depends:   mtl >= 1.1 && < 2,
-                   QuickCheck >= 2.1.0.2 && < 2.2,
-                   haskell-src >= 1.0.1.1 && < 2,
-                   containers >= 0.1.0 && < 1,
-                   pretty >= 1 && < 2,
-                   directory >= 1 && < 2,
-                   old-time >= 1 && < 2,
-                   bytestring >= 0.9.0.1 && < 1,
-                   array >= 0.1 && < 1,
-                   binary >= 0.4.4 && < 0.6,
-                   zlib >= 0.4.0.1 && < 1,
-                   filepath >= 1.1 && < 2,
-                   process >= 1.0.1.0 && < 2,
-                   haskeline >= 0.3 && < 0.7,
-                   xhtml == 3000.2.*,
-                   syb == 0.1.*
-  build-tools:     happy >= 1.15 && < 2,
-                   alex >= 2.0.1 && < 3
-  extensions:      CPP
-  exposed-modules: Agda.Main
-                   Agda.Interaction.BasicOps
-                   Agda.Interaction.GhciTop
-                   Agda.Compiler.Agate.Classify
-                   Agda.Compiler.Agate.Common
-                   Agda.Compiler.Agate.Main
-                   Agda.Compiler.Agate.OptimizedPrinter
-                   Agda.Compiler.Agate.TranslateName
-                   Agda.Compiler.Agate.UntypedPrinter
-                   Agda.Compiler.Alonzo.Main
-                   Agda.Compiler.Alonzo.Names
-                   Agda.Compiler.Alonzo.Haskell
-                   Agda.Compiler.Alonzo.PatternMonad
-                   Agda.Compiler.HaskellTypes
-                   Agda.Compiler.MAlonzo.Compiler
-                   Agda.Compiler.MAlonzo.Encode
-                   Agda.Compiler.MAlonzo.Misc
-                   Agda.Compiler.MAlonzo.Pretty
-                   Agda.Compiler.MAlonzo.Primitives
-                   Agda.Interaction.CommandLine.CommandLine
-                   Agda.Interaction.Exceptions
-                   Agda.Interaction.FindFile
-                   Agda.Interaction.Highlighting.Emacs
-                   Agda.Interaction.Highlighting.Generate
-                   Agda.Interaction.Highlighting.HTML
-                   Agda.Interaction.Highlighting.Precise
-                   Agda.Interaction.Highlighting.Range
-                   Agda.Interaction.Highlighting.Vim
-                   Agda.Interaction.Imports
-                   Agda.Interaction.MakeCase
-                   Agda.Interaction.Monad
-                   Agda.Interaction.Options
-                   Agda.Syntax.Abstract.Name
-                   Agda.Syntax.Abstract.Pretty
-                   Agda.Syntax.Abstract.Views
-                   Agda.Syntax.Abstract
-                   Agda.Syntax.Common
-                   Agda.Syntax.Concrete.Definitions
-                   Agda.Syntax.Concrete.Name
-                   Agda.Syntax.Concrete.Operators.Parser
-                   Agda.Syntax.Concrete.Operators
-                   Agda.Syntax.Concrete.Pretty
-                   Agda.Syntax.Concrete
-                   Agda.Syntax.Fixity
-                   Agda.Syntax.Info
-                   Agda.Syntax.Internal
-                   Agda.Syntax.Internal.Generic
-                   Agda.Syntax.Internal.Pattern
-                   Agda.Syntax.Literal
-                   Agda.Syntax.Parser.Alex
-                   Agda.Syntax.Parser.Comments
-                   Agda.Syntax.Parser.Layout
-                   Agda.Syntax.Parser.LexActions
-                   Agda.Syntax.Parser.Lexer
-                   Agda.Syntax.Parser.LookAhead
-                   Agda.Syntax.Parser.Monad
-                   Agda.Syntax.Parser.Parser
-                   Agda.Syntax.Parser.StringLiterals
-                   Agda.Syntax.Parser.Tokens
-                   Agda.Syntax.Parser
-                   Agda.Syntax.Position
-                   Agda.Syntax.Scope.Base
-                   Agda.Syntax.Scope.Monad
-                   Agda.Syntax.Strict
-                   Agda.Syntax.Translation.AbstractToConcrete
-                   Agda.Syntax.Translation.ConcreteToAbstract
-                   Agda.Syntax.Translation.InternalToAbstract
-                   Agda.Termination.CallGraph
-                   Agda.Termination.Lexicographic
-                   Agda.Termination.Matrix
-                   Agda.Termination.Semiring
-                   Agda.Termination.TermCheck
-                   Agda.Termination.Termination
-                   Agda.Tests
-                   Agda.TypeChecker
-                   Agda.TypeChecking.Abstract
-                   Agda.TypeChecking.Constraints
-                   Agda.TypeChecking.Conversion
-                   Agda.TypeChecking.Coverage
-                   Agda.TypeChecking.Coverage.Match
-                   Agda.TypeChecking.DisplayForm
-                   Agda.TypeChecking.Empty
-                   Agda.TypeChecking.EtaContract
-                   Agda.TypeChecking.Errors
-                   Agda.TypeChecking.Free
-                   Agda.TypeChecking.Implicit
-                   Agda.TypeChecking.Injectivity
-                   Agda.TypeChecking.Level
-                   Agda.TypeChecking.MetaVars
-                   Agda.TypeChecking.MetaVars.Occurs
-                   Agda.TypeChecking.Monad.Base
-                   Agda.TypeChecking.Monad.Builtin
-                   Agda.TypeChecking.Monad.Closure
-                   Agda.TypeChecking.Monad.Constraints
-                   Agda.TypeChecking.Monad.Context
-                   Agda.TypeChecking.Monad.Debug
-                   Agda.TypeChecking.Monad.Env
-                   Agda.TypeChecking.Monad.Exception
-                   Agda.TypeChecking.Monad.Imports
-                   Agda.TypeChecking.Monad.MetaVars
-                   Agda.TypeChecking.Monad.Mutual
-                   Agda.TypeChecking.Monad.Open
-                   Agda.TypeChecking.Monad.Options
-                   Agda.TypeChecking.Monad.Signature
-                   Agda.TypeChecking.Monad.SizedTypes
-                   Agda.TypeChecking.Monad.State
-                   Agda.TypeChecking.Monad.Statistics
-                   Agda.TypeChecking.Monad.Trace
-                   Agda.TypeChecking.Monad
-                   Agda.TypeChecking.Patterns.Match
-                   Agda.TypeChecking.Polarity
-                   Agda.TypeChecking.Positivity
-                   Agda.TypeChecking.Pretty
-                   Agda.TypeChecking.Primitive
-                   Agda.TypeChecking.Rebind
-                   Agda.TypeChecking.Records
-                   Agda.TypeChecking.Reduce
-                   Agda.TypeChecking.Rules.Builtin
-                   Agda.TypeChecking.Rules.Data
-                   Agda.TypeChecking.Rules.Decl
-                   Agda.TypeChecking.Rules.Def
-                   Agda.TypeChecking.Rules.LHS
-                   Agda.TypeChecking.Rules.LHS.Implicit
-                   Agda.TypeChecking.Rules.LHS.Instantiate
-                   Agda.TypeChecking.Rules.LHS.Problem
-                   Agda.TypeChecking.Rules.LHS.Split
-                   Agda.TypeChecking.Rules.LHS.Unify
-                   Agda.TypeChecking.Rules.Record
-                   Agda.TypeChecking.Rules.Term
-                   Agda.TypeChecking.Serialise
-                   Agda.TypeChecking.SizedTypes
-                   Agda.TypeChecking.Substitute
-                   Agda.TypeChecking.Telescope
-                   Agda.TypeChecking.Test.Generators
-                   Agda.TypeChecking.Tests
-                   Agda.TypeChecking.With
-                   Agda.Utils.Char
-                   Agda.Utils.Either
-                   Agda.Utils.FileName
-                   Agda.Utils.Fresh
-                   Agda.Utils.Function
-                   Agda.Utils.Generics
-                   Agda.Utils.Graph
-                   Agda.Utils.Hash
-                   Agda.Utils.Impossible
-                   Agda.Utils.IO.Binary
-                   Agda.Utils.IO.Locale
-                   Agda.Utils.IO.UTF8
-                   Agda.Utils.List
-                   Agda.Utils.Map
-                   Agda.Utils.Maybe
-                   Agda.Utils.Monad
-                   Agda.Utils.Permutation
-                   Agda.Utils.Pointer
-                   Agda.Utils.Pretty
-                   Agda.Utils.QuickCheck
-                   Agda.Utils.ReadP
-                   Agda.Utils.SemiRing
-                   Agda.Utils.Size
-                   Agda.Utils.String
-                   Agda.Utils.Suffix
-                   Agda.Utils.TestHelpers
-                   Agda.Utils.Trace
-                   Agda.Utils.Trie
-                   Agda.Utils.Tuple
-                   Agda.Utils.Unicode
-                   Agda.Utils.Warshall
-                   Agda.Version
-                   Agda.Auto.Auto
-                   Agda.Auto.Convert
-                   Agda.Auto.Typecheck
-                   Agda.Auto.NarrowingSearch
-                   Agda.Auto.Print
-                   Agda.Auto.Syntax
-                   Agda.Auto.SearchControl
-  other-modules:   Paths_Agda
+    build-depends:  base == 4.1.*,
+                    utf8-string == 0.3.*
+  build-depends:    mtl >= 1.1 && < 2,
+                    QuickCheck >= 2.1.0.2 && < 2.2,
+                    haskell-src >= 1.0.1.1 && < 2,
+                    containers >= 0.1.0 && < 1,
+                    pretty >= 1 && < 2,
+                    directory >= 1 && < 2,
+                    old-time >= 1 && < 2,
+                    bytestring >= 0.9.0.1 && < 1,
+                    array >= 0.1 && < 1,
+                    binary >= 0.4.4 && < 0.6,
+                    zlib >= 0.4.0.1 && < 1,
+                    filepath >= 1.1 && < 2,
+                    process >= 1.0.1.0 && < 2,
+                    haskeline >= 0.3 && < 0.7,
+                    xhtml == 3000.2.*,
+                    syb == 0.1.*
+  build-tools:      happy >= 1.15 && < 2,
+                    alex >= 2.0.1 && < 3
+  extensions:       CPP
+  exposed-modules:  Agda.Main
+                    Agda.Interaction.BasicOps
+                    Agda.Interaction.GhciTop
+                    Agda.Compiler.Agate.Classify
+                    Agda.Compiler.Agate.Common
+                    Agda.Compiler.Agate.Main
+                    Agda.Compiler.Agate.OptimizedPrinter
+                    Agda.Compiler.Agate.TranslateName
+                    Agda.Compiler.Agate.UntypedPrinter
+                    Agda.Compiler.Alonzo.Main
+                    Agda.Compiler.Alonzo.Names
+                    Agda.Compiler.Alonzo.Haskell
+                    Agda.Compiler.Alonzo.PatternMonad
+                    Agda.Compiler.HaskellTypes
+                    Agda.Compiler.MAlonzo.Compiler
+                    Agda.Compiler.MAlonzo.Encode
+                    Agda.Compiler.MAlonzo.Misc
+                    Agda.Compiler.MAlonzo.Pretty
+                    Agda.Compiler.MAlonzo.Primitives
+                    Agda.Interaction.CommandLine.CommandLine
+                    Agda.Interaction.Exceptions
+                    Agda.Interaction.FindFile
+                    Agda.Interaction.Highlighting.Emacs
+                    Agda.Interaction.Highlighting.Generate
+                    Agda.Interaction.Highlighting.HTML
+                    Agda.Interaction.Highlighting.Precise
+                    Agda.Interaction.Highlighting.Range
+                    Agda.Interaction.Highlighting.Vim
+                    Agda.Interaction.Imports
+                    Agda.Interaction.MakeCase
+                    Agda.Interaction.Monad
+                    Agda.Interaction.Options
+                    Agda.Syntax.Abstract.Name
+                    Agda.Syntax.Abstract.Pretty
+                    Agda.Syntax.Abstract.Views
+                    Agda.Syntax.Abstract
+                    Agda.Syntax.Common
+                    Agda.Syntax.Concrete.Definitions
+                    Agda.Syntax.Concrete.Name
+                    Agda.Syntax.Concrete.Operators.Parser
+                    Agda.Syntax.Concrete.Operators
+                    Agda.Syntax.Concrete.Pretty
+                    Agda.Syntax.Concrete
+                    Agda.Syntax.Fixity
+                    Agda.Syntax.Info
+                    Agda.Syntax.Internal
+                    Agda.Syntax.Internal.Generic
+                    Agda.Syntax.Internal.Pattern
+                    Agda.Syntax.Literal
+                    Agda.Syntax.Parser.Alex
+                    Agda.Syntax.Parser.Comments
+                    Agda.Syntax.Parser.Layout
+                    Agda.Syntax.Parser.LexActions
+                    Agda.Syntax.Parser.Lexer
+                    Agda.Syntax.Parser.LookAhead
+                    Agda.Syntax.Parser.Monad
+                    Agda.Syntax.Parser.Parser
+                    Agda.Syntax.Parser.StringLiterals
+                    Agda.Syntax.Parser.Tokens
+                    Agda.Syntax.Parser
+                    Agda.Syntax.Position
+                    Agda.Syntax.Scope.Base
+                    Agda.Syntax.Scope.Monad
+                    Agda.Syntax.Strict
+                    Agda.Syntax.Translation.AbstractToConcrete
+                    Agda.Syntax.Translation.ConcreteToAbstract
+                    Agda.Syntax.Translation.InternalToAbstract
+                    Agda.Termination.CallGraph
+                    Agda.Termination.Lexicographic
+                    Agda.Termination.Matrix
+                    Agda.Termination.Semiring
+                    Agda.Termination.TermCheck
+                    Agda.Termination.Termination
+                    Agda.Tests
+                    Agda.TypeChecker
+                    Agda.TypeChecking.Abstract
+                    Agda.TypeChecking.Constraints
+                    Agda.TypeChecking.Conversion
+                    Agda.TypeChecking.Coverage
+                    Agda.TypeChecking.Coverage.Match
+                    Agda.TypeChecking.DisplayForm
+                    Agda.TypeChecking.Empty
+                    Agda.TypeChecking.EtaContract
+                    Agda.TypeChecking.Errors
+                    Agda.TypeChecking.Free
+                    Agda.TypeChecking.Implicit
+                    Agda.TypeChecking.Injectivity
+                    Agda.TypeChecking.Level
+                    Agda.TypeChecking.MetaVars
+                    Agda.TypeChecking.MetaVars.Occurs
+                    Agda.TypeChecking.Monad.Base
+                    Agda.TypeChecking.Monad.Builtin
+                    Agda.TypeChecking.Monad.Closure
+                    Agda.TypeChecking.Monad.Constraints
+                    Agda.TypeChecking.Monad.Context
+                    Agda.TypeChecking.Monad.Debug
+                    Agda.TypeChecking.Monad.Env
+                    Agda.TypeChecking.Monad.Exception
+                    Agda.TypeChecking.Monad.Imports
+                    Agda.TypeChecking.Monad.MetaVars
+                    Agda.TypeChecking.Monad.Mutual
+                    Agda.TypeChecking.Monad.Open
+                    Agda.TypeChecking.Monad.Options
+                    Agda.TypeChecking.Monad.Signature
+                    Agda.TypeChecking.Monad.SizedTypes
+                    Agda.TypeChecking.Monad.State
+                    Agda.TypeChecking.Monad.Statistics
+                    Agda.TypeChecking.Monad.Trace
+                    Agda.TypeChecking.Monad
+                    Agda.TypeChecking.Patterns.Match
+                    Agda.TypeChecking.Polarity
+                    Agda.TypeChecking.Positivity
+                    Agda.TypeChecking.Pretty
+                    Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.Rebind
+                    Agda.TypeChecking.Records
+                    Agda.TypeChecking.Reduce
+                    Agda.TypeChecking.Rules.Builtin
+                    Agda.TypeChecking.Rules.Data
+                    Agda.TypeChecking.Rules.Decl
+                    Agda.TypeChecking.Rules.Def
+                    Agda.TypeChecking.Rules.LHS
+                    Agda.TypeChecking.Rules.LHS.Implicit
+                    Agda.TypeChecking.Rules.LHS.Instantiate
+                    Agda.TypeChecking.Rules.LHS.Problem
+                    Agda.TypeChecking.Rules.LHS.Split
+                    Agda.TypeChecking.Rules.LHS.Unify
+                    Agda.TypeChecking.Rules.Record
+                    Agda.TypeChecking.Rules.Term
+                    Agda.TypeChecking.Serialise
+                    Agda.TypeChecking.SizedTypes
+                    Agda.TypeChecking.Substitute
+                    Agda.TypeChecking.Telescope
+                    Agda.TypeChecking.Test.Generators
+                    Agda.TypeChecking.Tests
+                    Agda.TypeChecking.With
+                    Agda.Utils.Char
+                    Agda.Utils.Either
+                    Agda.Utils.FileName
+                    Agda.Utils.Fresh
+                    Agda.Utils.Function
+                    Agda.Utils.Generics
+                    Agda.Utils.Graph
+                    Agda.Utils.Hash
+                    Agda.Utils.Impossible
+                    Agda.Utils.IO.Binary
+                    Agda.Utils.IO.Locale
+                    Agda.Utils.IO.UTF8
+                    Agda.Utils.List
+                    Agda.Utils.Map
+                    Agda.Utils.Maybe
+                    Agda.Utils.Monad
+                    Agda.Utils.Permutation
+                    Agda.Utils.Pointer
+                    Agda.Utils.Pretty
+                    Agda.Utils.QuickCheck
+                    Agda.Utils.ReadP
+                    Agda.Utils.SemiRing
+                    Agda.Utils.Size
+                    Agda.Utils.String
+                    Agda.Utils.Suffix
+                    Agda.Utils.TestHelpers
+                    Agda.Utils.Trace
+                    Agda.Utils.Trie
+                    Agda.Utils.Tuple
+                    Agda.Utils.Unicode
+                    Agda.Utils.Warshall
+                    Agda.Version
+                    Agda.Auto.Auto
+                    Agda.Auto.Convert
+                    Agda.Auto.Typecheck
+                    Agda.Auto.NarrowingSearch
+                    Agda.Auto.Print
+                    Agda.Auto.Syntax
+                    Agda.Auto.SearchControl
+  other-modules:    Paths_Agda
   if impl(ghc < 6.12)
-    ghc-options:   -auto-all -w -Werror -fwarn-dodgy-imports
-                   -fwarn-duplicate-exports -fwarn-hi-shadowing
-                   -fwarn-incomplete-patterns -fwarn-missing-fields
-                   -fwarn-missing-methods -fwarn-overlapping-patterns
-                   -fwarn-warnings-deprecations -fwarn-deprecated-flags
-                   -fwarn-dodgy-foreign-imports
+    ghc-options:    -w -Werror -fwarn-dodgy-imports
+                    -fwarn-duplicate-exports -fwarn-hi-shadowing
+                    -fwarn-incomplete-patterns -fwarn-missing-fields
+                    -fwarn-missing-methods -fwarn-overlapping-patterns
+                    -fwarn-warnings-deprecations -fwarn-deprecated-flags
+                    -fwarn-dodgy-foreign-imports
   if impl(ghc >= 6.12)
-    ghc-options:   -auto-all -w -Werror -fwarn-dodgy-imports
-                   -fwarn-duplicate-exports -fwarn-hi-shadowing
-                   -fwarn-incomplete-patterns -fwarn-missing-fields
-                   -fwarn-missing-methods -fwarn-overlapping-patterns
-                   -fwarn-warnings-deprecations -fwarn-deprecated-flags
-                   -fwarn-dodgy-foreign-imports
-                   -fwarn-wrong-do-bind -fwarn-dodgy-exports
+    ghc-options:    -w -Werror -fwarn-dodgy-imports
+                    -fwarn-duplicate-exports -fwarn-hi-shadowing
+                    -fwarn-incomplete-patterns -fwarn-missing-fields
+                    -fwarn-missing-methods -fwarn-overlapping-patterns
+                    -fwarn-warnings-deprecations -fwarn-deprecated-flags
+                    -fwarn-dodgy-foreign-imports
+                    -fwarn-wrong-do-bind -fwarn-dodgy-exports
+  ghc-prof-options: -auto-all
 
 executable agda-mode
-  hs-source-dirs:  src/agda-mode
-  main-is:         Main.hs
-  other-modules:   Paths_Agda
+  hs-source-dirs:   src/agda-mode
+  main-is:          Main.hs
+  other-modules:    Paths_Agda
   if flag(use-locale)
-    build-depends: base == 4.2.*
+    build-depends:  base == 4.2.*
   else
-    build-depends: base == 4.1.*,
-                   utf8-string == 0.3.*
-  build-depends:   filepath >= 1.1 && < 2,
-                   process >= 1.0.1.0 && < 2
+    build-depends:  base == 4.1.*,
+                    utf8-string == 0.3.*
+  build-depends:    filepath >= 1.1 && < 2,
+                    process >= 1.0.1.0 && < 2
