@@ -13,7 +13,7 @@ followed:
 
 * Update the version numbers in Agda.cabal,
   src/main/Agda-executable.cabal (two places) and
-  ../src/data/emacs-mode/agda2-mode.el.
+  src/data/emacs-mode/agda2-mode.el.
 
 * Add a second source-repository section to Agda.cabal and
   Agda-executable.cabal:
@@ -22,6 +22,10 @@ followed:
       type:     darcs
       location: http://code.haskell.org/Agda/
       tag:      <version>
+
+* Ensure that cabal haddock works:
+
+    cabal configure && cabal haddock
 
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
@@ -43,7 +47,7 @@ followed:
     cd ${TMPDIR:-/tmp}
     tar xzf $BASE/Agda-$VERSION.tar.gz
     cd Agda-$VERSION
-    make install PREFIX=$PWD/usr
+    make install CABAL_OPTIONS="--prefix=$PWD/usr"
     autoconf
     ./configure
     make test
