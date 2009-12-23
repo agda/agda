@@ -1,13 +1,9 @@
 -- | Termination checker, based on
 --     \"A Predicative Analysis of Structural Recursion\" by
---     Andreas Abel and Thorsten Altenkirch (JFP'01).
+--     Andreas Abel and Thorsten Altenkirch (JFP'01),
 --   and
 --     \"The Size-Change Principle for Program Termination\" by
 --     Chin Soon Lee, Neil Jones, and Amir Ben-Amram (POPL'01).
---
--- TODO: Note that we should also check that data type definitions are
--- strictly positive. Furthermore, for inductive-recursive families we
--- may need to do something more clever.
 
 module Agda.Termination.Termination
   ( terminates
