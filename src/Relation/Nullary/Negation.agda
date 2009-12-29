@@ -10,7 +10,7 @@ open import Relation.Nullary
 open import Relation.Unary
 open import Data.Bool
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Product as Prod
 open import Data.Fin
 open import Data.Fin.Dec

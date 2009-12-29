@@ -6,7 +6,7 @@ module Data.List.All.Properties where
 
 open import Data.Bool
 open import Data.Bool.Properties
-open import Data.Function
+open import Function
 open import Data.List as List
 import Data.List.Any as Any
 open Any.Membership-≡

@@ -9,7 +9,7 @@ module Relation.Binary.Consequences where
 open import Relation.Binary.Core hiding (refl)
 open import Relation.Nullary.Core
 open import Relation.Binary.PropositionalEquality.Core
-open import Data.Function
+open import Function
 open import Data.Sum
 open import Data.Product
 open import Data.Empty

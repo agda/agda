@@ -11,7 +11,7 @@ module Data.AVL.Sets
 import Data.AVL as AVL
 open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)
 open import Data.Unit
-open import Data.Function
+open import Function
 open import Data.Product as Prod using (_×_; _,_; proj₁)
 open import Data.Maybe as Maybe
 open import Data.Bool

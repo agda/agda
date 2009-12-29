@@ -9,10 +9,10 @@ open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
 open import Data.Empty
-open import Data.Function
-open import Data.Function.Equality as FunS
+open import Function
+open import Function.Equality as FunS
   using (_⟶_; _⟨$⟩_; _⇨_)
-import Data.Function.Injection as Inj
+import Function.Injection as Inj
 open import Data.List as List
 open RawMonad List.monad
 open import Data.List.Any as Any using (Any; here; there)

@@ -18,7 +18,7 @@ open import Data.BoundedVec.Inefficient as BVec
   using (BoundedVec; []; _∷_)
 open import Data.Product using (_,_)
 open import Data.Sum     using (_⊎_; inj₁; inj₂)
-open import Data.Function
+open import Function
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
 open import Relation.Nullary

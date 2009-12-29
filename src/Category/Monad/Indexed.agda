@@ -6,7 +6,7 @@
 
 module Category.Monad.Indexed where
 
-open import Data.Function
+open import Function
 open import Category.Applicative.Indexed
 
 record RawIMonad {I : Set} (M : IFun I) : Set₁ where

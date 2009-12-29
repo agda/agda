@@ -7,7 +7,7 @@ module Data.Sets where
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.OrderMorphism
-open import Data.Function
+open import Function
 open import Data.List as L using (List)
 open import Data.Product using (∃; _×_)
 open import Level

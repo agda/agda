@@ -6,7 +6,7 @@ module Data.List.Any where
 
 open import Data.Empty
 open import Data.Fin
-open import Data.Function
+open import Function
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level

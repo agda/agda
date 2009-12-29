@@ -16,7 +16,7 @@ open import Induction.Nat
 open import Data.Nat.DivMod
 open ≤-Reasoning
 open import Relation.Binary.PropositionalEquality
-open import Data.Function
+open import Function
 
 ------------------------------------------------------------------------
 -- A boring lemma

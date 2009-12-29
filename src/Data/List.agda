@@ -10,7 +10,7 @@ open import Data.Sum as Sum using (_⊎_; inj₁; inj₂)
 open import Data.Bool
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Product as Prod using (_×_; _,_)
-open import Data.Function
+open import Function
 open import Algebra
 import Relation.Binary.PropositionalEquality as PropEq
 import Algebra.FunctionProperties as FunProp

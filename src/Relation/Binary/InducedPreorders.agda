@@ -11,7 +11,7 @@ module Relation.Binary.InducedPreorders
          (S : Setoid s₁ s₂)  -- The underlying equality.
          where
 
-open import Data.Function
+open import Function
 open import Data.Product
 
 open Setoid S

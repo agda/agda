@@ -15,7 +15,7 @@ open import Data.Fin as Fin
 open import Data.Fin.Props as FP using (_≟_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Data.Maybe
-open import Data.Function
+open import Function
 open import Data.Empty
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)

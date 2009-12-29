@@ -4,16 +4,16 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.Inverse where
+module Function.Inverse where
 
 open import Data.Product
 open import Level
 open import Relation.Binary
-open import Data.Function.Equality as F
+open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Data.Function.LeftInverse as Left hiding (id; _∘_)
-open import Data.Function.Surjection  as Surj hiding (id; _∘_)
-open import Data.Function.Bijection   as Bi   hiding (id; _∘_)
+open import Function.LeftInverse as Left hiding (id; _∘_)
+open import Function.Surjection  as Surj hiding (id; _∘_)
+open import Function.Bijection   as Bi   hiding (id; _∘_)
 
 -- Inverses.
 

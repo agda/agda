@@ -7,7 +7,7 @@
 
 module Relation.Binary.Product.StrictLex where
 
-open import Data.Function
+open import Function
 open import Data.Product
 open import Data.Sum
 open import Data.Empty

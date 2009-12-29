@@ -8,7 +8,7 @@ module Algebra where
 open import Relation.Binary
 open import Algebra.FunctionProperties
 open import Algebra.Structures
-open import Data.Function
+open import Function
 open import Level
 
 ------------------------------------------------------------------------

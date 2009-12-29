@@ -4,7 +4,7 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function where
+module Function where
 
 open import Level
 

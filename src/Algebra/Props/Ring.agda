@@ -8,7 +8,7 @@ module Algebra.Props.Ring (r : Ring) where
 
 open Ring r
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Data.Function
+open import Function
 open import Data.Product
 
 -‿*-distribˡ : ∀ x y → - x * y ≈ - (x * y)

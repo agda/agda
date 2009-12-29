@@ -9,7 +9,7 @@ open import Data.Vec as Vec using (Vec)
 open import Data.Colist as Colist using (Colist)
 open import Data.Char using (Char)
 open import Data.Bool using (Bool; true; false)
-open import Data.Function
+open import Function
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)

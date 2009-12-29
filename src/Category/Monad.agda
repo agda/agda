@@ -6,7 +6,7 @@
 
 module Category.Monad where
 
-open import Data.Function
+open import Function
 open import Category.Monad.Indexed
 open import Data.Unit
 

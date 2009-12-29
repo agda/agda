@@ -7,7 +7,7 @@
 module Relation.Nullary.Decidable where
 
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Bool
 open import Data.Product hiding (map)
 open import Relation.Nullary

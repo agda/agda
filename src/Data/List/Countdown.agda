@@ -10,9 +10,9 @@ module Data.List.Countdown (D : DecSetoid zero zero) where
 
 open import Data.Empty
 open import Data.Fin using (Fin; zero; suc)
-open import Data.Function
-open import Data.Function.Equality using (_⟨$⟩_)
-open import Data.Function.Injection
+open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Injection
   using (Injection; module Injection)
 open import Data.List
 open import Data.List.Any as Any using (here; there)

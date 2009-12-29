@@ -4,7 +4,7 @@
 
 module Induction.Nat where
 
-open import Data.Function
+open import Function
 open import Data.Nat
 open import Data.Fin
 open import Data.Fin.Props

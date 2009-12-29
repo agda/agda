@@ -13,7 +13,7 @@ open import Induction.Nat
 open import Relation.Nullary.Decidable
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
-open import Data.Function
+open import Function
 
 ------------------------------------------------------------------------
 -- Some boring lemmas

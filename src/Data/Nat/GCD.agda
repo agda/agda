@@ -13,7 +13,7 @@ open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Induction
 open import Induction.Nat
 open import Induction.Lexicographic
-open import Data.Function
+open import Function
 open import Data.Nat.GCD.Lemmas
 
 ------------------------------------------------------------------------

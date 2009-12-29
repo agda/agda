@@ -8,7 +8,7 @@ open import Relation.Binary
 
 module Relation.Binary.Flip where
 
-open import Data.Function
+open import Function
 open import Data.Product
 
 implies : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b}

@@ -10,7 +10,7 @@ open Lattice l
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Data.Function
+open import Function
 open import Data.Product
 
 ∧-idempotent : Idempotent _∧_

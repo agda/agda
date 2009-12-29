@@ -11,7 +11,7 @@ open import Data.Vec
 open import Data.Nat
 import Data.Nat.Properties as Nat
 open import Data.Fin using (Fin; zero; suc)
-open import Data.Function
+open import Function
 open import Level
 open import Relation.Binary
 

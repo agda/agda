@@ -4,7 +4,7 @@
 
 module Data.List.All where
 
-open import Data.Function
+open import Function
 open import Data.List as List hiding (map; all)
 open import Data.List.Any as Any using (here; there)
 open Any.Membership-≡ using (_∈_; _⊆_)

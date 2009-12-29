@@ -9,7 +9,7 @@ open import Data.Star.Decoration
 open import Relation.Binary
 open import Data.Maybe using (Maybe; nothing; just)
 open import Data.Unit
-open import Data.Function
+open import Function
 open import Level
 
 -- Pointers into star-lists. The edge pointed to is decorated with Q,

@@ -7,7 +7,7 @@ module Data.Fin.Subset.Props where
 open import Data.Nat
 open import Data.Vec hiding (_∈_)
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Product

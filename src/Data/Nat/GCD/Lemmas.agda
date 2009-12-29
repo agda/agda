@@ -9,7 +9,7 @@ import Data.Nat.Properties as NatProp
 open NatProp.SemiringSolver
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
-open import Data.Function
+open import Function
 
 lem₀ = solve 2 (λ n k → n :+ (con 1 :+ k)  :=  con 1 :+ n :+ k) refl
 

@@ -6,7 +6,7 @@
 {-# OPTIONS --universe-polymorphism #-}
 
 open import Data.Fin
-open import Data.Function
+open import Function
 open import Data.Nat
 open import Data.Vec as Vec
 open import Level

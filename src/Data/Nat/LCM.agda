@@ -11,7 +11,7 @@ open import Data.Nat.GCD
 open import Data.Nat.Divisibility as Div
 open import Data.Nat.Coprimality as Coprime
 open import Data.Product
-open import Data.Function
+open import Function
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; inspect; _with-≡_)
 open import Algebra

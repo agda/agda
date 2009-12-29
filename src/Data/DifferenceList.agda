@@ -5,7 +5,7 @@
 module Data.DifferenceList where
 
 open import Data.List as L using (List)
-open import Data.Function
+open import Function
 open import Data.Nat
 
 infixr 5 _∷_ _++_

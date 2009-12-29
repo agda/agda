@@ -8,7 +8,7 @@ open import Relation.Binary
 open import Algebra
 open import Algebra.FunctionProperties
 import Algebra.Props.Group as GroupP
-open import Data.Function
+open import Function
 open import Data.Product
 open import Level
 import Relation.Binary.EqReasoning as EqR

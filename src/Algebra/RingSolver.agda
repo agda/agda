@@ -30,7 +30,7 @@ import Relation.Binary.Reflection as Reflection
 open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 open import Data.Fin as Fin using (Fin; zero; suc)
 open import Data.Vec
-open import Data.Function hiding (_∶_)
+open import Function hiding (_∶_)
 
 infix  9 _↑ :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_

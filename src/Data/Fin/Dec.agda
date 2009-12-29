@@ -6,7 +6,7 @@
 
 module Data.Fin.Dec where
 
-open import Data.Function
+open import Function
 open import Data.Nat hiding (_<_)
 open import Data.Vec hiding (_∈_)
 open import Data.Fin

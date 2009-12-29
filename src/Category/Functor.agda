@@ -6,7 +6,7 @@
 
 module Category.Functor where
 
-open import Data.Function
+open import Function
 
 record RawFunctor (f : Set → Set) : Set₁ where
   infixl 4 _<$>_ _<$_

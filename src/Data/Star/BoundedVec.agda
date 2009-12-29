@@ -12,7 +12,7 @@ open import Data.Star.Decoration
 open import Data.Star.Pointer
 open import Data.Star.List using (List)
 open import Data.Unit
-open import Data.Function
+open import Function
 import Data.Maybe as Maybe
 open import Relation.Binary
 open import Relation.Binary.Consequences

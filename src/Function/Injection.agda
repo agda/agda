@@ -4,12 +4,12 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.Injection where
+module Function.Injection where
 
-open import Data.Function as Fun using () renaming (_∘_ to _⟨∘⟩_)
+open import Function as Fun using () renaming (_∘_ to _⟨∘⟩_)
 open import Level
 open import Relation.Binary
-open import Data.Function.Equality as F
+open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
 
 -- Injective functions.

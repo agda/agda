@@ -8,7 +8,7 @@ module Data.Vec.Equality where
 
 open import Data.Vec
 open import Data.Nat using (suc)
-open import Data.Function
+open import Function
 open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)

@@ -6,7 +6,7 @@ module Data.Star.Decoration where
 
 open import Data.Star
 open import Relation.Binary
-open import Data.Function
+open import Function
 open import Data.Unit
 open import Level
 

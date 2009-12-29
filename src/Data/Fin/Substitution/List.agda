@@ -12,7 +12,7 @@ module Data.Fin.Substitution.List {T} (lemmas₄ : Lemmas₄ T) where
 open import Data.List
 open import Data.List.Properties
 open import Data.Fin.Substitution
-import Data.Function as Fun
+import Function as Fun
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 

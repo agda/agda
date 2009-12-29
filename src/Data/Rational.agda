@@ -5,7 +5,7 @@
 module Data.Rational where
 
 import Data.Bool.Properties as Bool
-open import Data.Function
+open import Function
 open import Data.Integer hiding (suc) renaming (_*_ to _ℤ*_)
 open import Data.Integer.Divisibility as ℤDiv using (Coprime)
 import Data.Integer.Properties as ℤ

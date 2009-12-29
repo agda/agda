@@ -9,7 +9,7 @@ module Algebra.Props.Group (g : Group) where
 open Group g
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Data.Function
+open import Function
 open import Data.Product
 
 ⁻¹-involutive : ∀ x → x ⁻¹ ⁻¹ ≈ x

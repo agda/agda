@@ -4,7 +4,7 @@
 
 module Relation.Binary.List.Pointwise where
 
-open import Data.Function
+open import Function
 open import Data.Product
 open import Data.List
 open import Level

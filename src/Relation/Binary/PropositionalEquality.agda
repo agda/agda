@@ -6,8 +6,8 @@
 
 module Relation.Binary.PropositionalEquality where
 
-open import Data.Function
-open import Data.Function.Equality using (_≡⇨_; _⟶_)
+open import Function
+open import Function.Equality using (_≡⇨_; _⟶_)
 open import Data.Product
 open import Level
 open import Relation.Binary

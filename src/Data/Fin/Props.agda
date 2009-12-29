@@ -13,9 +13,9 @@ open import Data.Nat as N
   renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
 open N.≤-Reasoning
 import Data.Nat.Properties as N
-open import Data.Function
-open import Data.Function.Equality as FunS using (_⟨$⟩_)
-open import Data.Function.Injection
+open import Function
+open import Function.Equality as FunS using (_⟨$⟩_)
+open import Function.Injection
   using (Injection; module Injection)
 open import Relation.Nullary
 open import Relation.Binary

@@ -4,7 +4,7 @@
 
 module Relation.Binary.Sum where
 
-open import Data.Function
+open import Function
 open import Data.Sum as Sum
 open import Data.Product
 open import Data.Unit using (⊤)

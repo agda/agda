@@ -9,7 +9,7 @@ open import Data.Nat
 open import Data.Fin using (Fin; zero; suc; lift)
 open import Data.Vec
 import Data.Vec.Properties as VecProp
-open import Data.Function as Fun using (_∘_)
+open import Function as Fun using (_∘_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; sym; cong; cong₂)
 open PropEq.≡-Reasoning

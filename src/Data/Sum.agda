@@ -6,7 +6,7 @@
 
 module Data.Sum where
 
-open import Data.Function
+open import Function
 open import Data.Maybe.Core
 open import Level
 

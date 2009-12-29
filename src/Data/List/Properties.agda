@@ -15,7 +15,7 @@ private module LM {A} = Monoid (List.monoid A)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
-open import Data.Function
+open import Function
 open import Data.Product as Prod hiding (map)
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality

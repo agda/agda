@@ -10,7 +10,7 @@ open import Algebra
 open import Algebra.Structures
 open import Algebra.FunctionProperties
 import Algebra.Morphism as Morphism
-open import Data.Function
+open import Function
 open import Level
 
 ------------------------------------------------------------------------

@@ -4,13 +4,13 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.Surjection where
+module Function.Surjection where
 
 open import Level
-open import Data.Function.Equality as F
+open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Data.Function.Injection           hiding (id; _∘_)
-open import Data.Function.LeftInverse as Left hiding (id; _∘_)
+open import Function.Injection           hiding (id; _∘_)
+open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Data.Product
 open import Relation.Binary
 

@@ -6,7 +6,7 @@ module Data.Bool.Properties where
 
 open import Data.Bool as Bool
 open import Data.Fin
-open import Data.Function
+open import Function
 open import Algebra
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver

@@ -11,7 +11,7 @@ module Relation.Binary.List.StrictLex where
 
 open import Data.Empty
 open import Data.Unit using (⊤; tt)
-open import Data.Function
+open import Function
 open import Data.Product
 open import Data.Sum
 open import Data.List

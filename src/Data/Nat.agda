@@ -6,9 +6,9 @@
 
 module Data.Nat where
 
-open import Data.Function
-open import Data.Function.Equality as F using (_⟨$⟩_)
-open import Data.Function.Injection
+open import Function
+open import Function.Equality as F using (_⟨$⟩_)
+open import Function.Injection
   using (Injection; module Injection)
 open import Data.Sum
 open import Data.Empty

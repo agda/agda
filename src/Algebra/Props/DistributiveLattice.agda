@@ -13,7 +13,7 @@ import Algebra.Props.Lattice as L; open L lattice public
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Data.Function
+open import Function
 open import Data.Product
 
 ∨-∧-distrib : _∨_ DistributesOver _∧_

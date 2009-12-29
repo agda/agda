@@ -9,7 +9,7 @@
 module Data.Star where
 
 open import Relation.Binary
-open import Data.Function
+open import Function
 open import Level
 
 infixr 5 _◅_

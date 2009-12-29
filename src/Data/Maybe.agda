@@ -36,7 +36,7 @@ maybe j n nothing  = n
 ------------------------------------------------------------------------
 -- Maybe monad
 
-open import Data.Function
+open import Function
 open import Category.Functor
 open import Category.Monad
 open import Category.Monad.Identity

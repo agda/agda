@@ -8,7 +8,7 @@ module Algebra.Props.AbelianGroup (g : AbelianGroup) where
 
 open AbelianGroup g
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Data.Function
+open import Function
 open import Data.Product
 
 private

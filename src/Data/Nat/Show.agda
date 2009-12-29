@@ -8,7 +8,7 @@ open import Data.Nat
 open import Relation.Nullary.Decidable using (True)
 open import Data.String as String using (String)
 open import Data.Digit
-open import Data.Function
+open import Function
 open import Data.List
 
 -- showInBase b n is a string containing the representation of n in

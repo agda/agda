@@ -6,7 +6,7 @@
 
 module Data.Bool where
 
-open import Data.Function
+open import Function
 open import Data.Unit using (⊤)
 open import Data.Empty
 open import Level

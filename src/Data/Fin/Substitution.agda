@@ -14,7 +14,7 @@ module Data.Fin.Substitution where
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.Vec
-open import Data.Function as Fun using (flip)
+open import Function as Fun using (flip)
 open import Data.Star as Star using (Star; ε; _◅_)
 
 ------------------------------------------------------------------------

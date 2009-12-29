@@ -12,7 +12,7 @@ open ≤-Reasoning
   renaming (begin_ to start_; _∎ to _□; _≡⟨_⟩_ to _≡⟨_⟩'_)
 open import Relation.Binary
 open DecTotalOrder Nat.decTotalOrder using () renaming (refl to ≤-refl)
-open import Data.Function
+open import Function
 open import Algebra
 open import Algebra.Structures
 open import Relation.Nullary

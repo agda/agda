@@ -4,15 +4,15 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.Bijection where
+module Function.Bijection where
 
 open import Data.Product
 open import Level
 open import Relation.Binary
-open import Data.Function.Equality as F
+open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Data.Function.Injection  as Inj  hiding (id; _∘_)
-open import Data.Function.Surjection as Surj hiding (id; _∘_)
+open import Function.Injection  as Inj  hiding (id; _∘_)
+open import Function.Surjection as Surj hiding (id; _∘_)
 
 -- Bijective functions.
 

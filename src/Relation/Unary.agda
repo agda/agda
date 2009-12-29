@@ -7,7 +7,7 @@
 module Relation.Unary where
 
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Unit
 open import Data.Product
 open import Data.Sum

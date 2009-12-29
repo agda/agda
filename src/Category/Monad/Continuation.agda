@@ -10,7 +10,7 @@ open import Category.Monad
 open import Category.Monad.Indexed
 open import Category.Monad.Identity
 
-open import Data.Function
+open import Function
 
 ------------------------------------------------------------------------
 -- Delimited continuation monads

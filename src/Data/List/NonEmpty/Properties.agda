@@ -6,7 +6,7 @@ module Data.List.NonEmpty.Properties where
 
 open import Algebra
 open import Category.Monad
-open import Data.Function
+open import Function
 open import Data.Product
 open import Data.List as List using (List; []; _∷_; _++_)
 open RawMonad List.monad using () renaming (_>>=_ to _⋆>>=_)

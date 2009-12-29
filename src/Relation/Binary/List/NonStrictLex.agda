@@ -10,7 +10,7 @@
 module Relation.Binary.List.NonStrictLex where
 
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Unit using (⊤; tt)
 open import Data.Product
 open import Data.List

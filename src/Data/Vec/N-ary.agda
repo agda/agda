@@ -6,7 +6,7 @@
 
 module Data.Vec.N-ary where
 
-open import Data.Function
+open import Function
 open import Data.Nat
 open import Data.Vec
 open import Level

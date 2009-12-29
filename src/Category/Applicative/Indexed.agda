@@ -7,7 +7,7 @@
 
 module Category.Applicative.Indexed where
 
-open import Data.Function
+open import Function
 open import Data.Product
 open import Category.Functor
 

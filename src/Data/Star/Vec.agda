@@ -12,7 +12,7 @@ open import Data.Star.Pointer as Pointer hiding (lookup)
 open import Data.Star.List using (List)
 open import Relation.Binary
 open import Relation.Binary.Consequences
-open import Data.Function
+open import Function
 open import Data.Unit
 
 -- The vector type. Vectors are natural numbers decorated with extra

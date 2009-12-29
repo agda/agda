@@ -14,8 +14,8 @@ open import Relation.Binary.Sum
 open import Relation.Binary.Product.Pointwise
 open import Data.Sum     as Sum  hiding (map)
 open import Data.Product as Prod hiding (map)
-open import Data.Function
-import Data.Function.Equality as FunS
+open import Function
+import Function.Equality as FunS
 open import Data.Empty
 open import Category.Applicative
 open import Category.Monad

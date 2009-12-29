@@ -10,7 +10,7 @@ module Algebra.Structures where
 import Algebra.FunctionProperties as FunctionProperties
 open FunctionProperties using (Op₁; Op₂)
 import Relation.Binary.EqReasoning as EqR
-open import Data.Function
+open import Function
 open import Data.Product
 import Level as L
 

@@ -9,7 +9,7 @@
 
 module Data.Product.Record where
 
-open import Data.Function
+open import Function
 open import Level
 
 infixr 4 _,_

@@ -4,9 +4,9 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.Equality where
+module Function.Equality where
 
-open import Data.Function as Fun using (_on_)
+open import Function as Fun using (_on_)
 open import Level
 open import Relation.Binary
 

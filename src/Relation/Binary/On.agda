@@ -9,7 +9,7 @@ open import Relation.Binary
 module Relation.Binary.On {a b} {A : Set a} {B : Set b}
                           (f : B → A) where
 
-open import Data.Function
+open import Function
 open import Data.Product
 
 implies : ∀ {ℓ₁ ℓ₂} (≈ : Rel A ℓ₁) (∼ : Rel A ℓ₂) →

@@ -8,7 +8,7 @@ open import Category.Monad
 open import Category.Monad.Indexed
 open import Category.Monad.Identity
 open import Data.Product
-open import Data.Function
+open import Function
 open import Data.Unit
 open import Category.Applicative.Indexed
 

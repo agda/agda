@@ -5,7 +5,7 @@
 module Data.Star.Properties where
 
 open import Data.Star
-open import Data.Function
+open import Function
 open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq

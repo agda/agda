@@ -48,9 +48,9 @@ module README where
 -- • Coinduction
 --     Support for coinduction.
 -- • Data
---     Data types and properties about data types. (Also some
---     combinators working solely on and with functions; see
---     Data.Function.)
+--     Data types and properties about data types.
+-- • Function
+--     Combinators and properties related to functions.
 -- • Foreign
 --     Related to the foreign function interface.
 -- • Induction

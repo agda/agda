@@ -8,7 +8,7 @@ open import Data.Star
 open import Data.Unit
 open import Relation.Binary
 open import Relation.Binary.Simple
-open import Data.Function
+open import Function
 import Level as L
 
 -- Natural numbers.

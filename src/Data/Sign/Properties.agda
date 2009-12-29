@@ -5,7 +5,7 @@
 module Data.Sign.Properties where
 
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Sign
 open import Relation.Binary.PropositionalEquality
 

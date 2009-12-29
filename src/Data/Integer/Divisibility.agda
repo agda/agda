@@ -4,7 +4,7 @@
 
 module Data.Integer.Divisibility where
 
-open import Data.Function
+open import Function
 open import Data.Integer
 open import Data.Integer.Properties
 import Data.Nat.Divisibility as ℕ

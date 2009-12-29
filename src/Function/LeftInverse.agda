@@ -4,15 +4,15 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Data.Function.LeftInverse where
+module Function.LeftInverse where
 
 open import Data.Product
 open import Level
 import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
-open import Data.Function.Equality as F
+open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
-open import Data.Function.Injection using (Injective; Injection)
+open import Function.Injection using (Injective; Injection)
 
 -- Left and right inverses.
 

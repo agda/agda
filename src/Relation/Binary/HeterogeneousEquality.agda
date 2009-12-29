@@ -6,7 +6,7 @@
 
 module Relation.Binary.HeterogeneousEquality where
 
-open import Data.Function
+open import Function
 open import Data.Product
 open import Level
 open import Relation.Nullary

@@ -10,7 +10,7 @@ open import Data.Nat.Divisibility as Div
 open import Data.Nat.GCD
 open import Data.Nat.GCD.Lemmas
 open import Data.Product as Prod
-open import Data.Function
+open import Function
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl)
 open import Relation.Nullary

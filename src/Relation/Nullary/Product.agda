@@ -5,7 +5,7 @@
 module Relation.Nullary.Product where
 
 open import Data.Product
-open import Data.Function
+open import Function
 open import Relation.Nullary
 
 -- Some properties which are preserved by _×_.

@@ -7,7 +7,7 @@ module Data.Integer.Properties where
 open import Algebra
 import Algebra.Morphism as Morphism
 open import Data.Empty
-open import Data.Function
+open import Function
 open import Data.Integer hiding (suc)
 open import Data.Nat as ℕ renaming (_*_ to _ℕ*_)
 import Data.Nat.Properties as ℕ
