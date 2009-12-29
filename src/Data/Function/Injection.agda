@@ -12,6 +12,8 @@ open import Relation.Binary
 open import Data.Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
 
+-- Injective functions.
+
 Injective : ∀ {a₁ a₂ b₁ b₂} {A : Setoid a₁ a₂} {B : Setoid b₁ b₂} →
             A ⟶ B → Set _
 Injective {A = A} {B} f = ∀ {x y} → f ⟨$⟩ x ≈₂ f ⟨$⟩ y → x ≈₁ y
@@ -19,12 +21,16 @@ Injective {A = A} {B} f = ∀ {x y} → f ⟨$⟩ x ≈₂ f ⟨$⟩ y → x ≈
   open Setoid A renaming (_≈_ to _≈₁_)
   open Setoid B renaming (_≈_ to _≈₂_)
 
+-- The set of all injections between two setoids.
+
 record Injection {f₁ f₂ t₁ t₂}
                  (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
                  Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
   field
     to        : From ⟶ To
     injective : Injective to
+
+-- Identity and composition.
 
 infixr 9 _∘_
 

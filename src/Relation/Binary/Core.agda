@@ -86,6 +86,12 @@ Trans : ∀ {a b c ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} {C : Set c} →
         REL A B ℓ₁ → REL B C ℓ₂ → REL A C ℓ₃ → Set _
 Trans P Q R = ∀ {i j k} → P i j → Q j k → R i k
 
+-- A variant of Trans.
+
+TransFlip : ∀ {a b c ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} {C : Set c} →
+            REL A B ℓ₁ → REL B C ℓ₂ → REL A C ℓ₃ → Set _
+TransFlip P Q R = ∀ {i j k} → Q j k → P i j → R i k
+
 Transitive : ∀ {a ℓ} {A : Set a} → Rel A ℓ → Set _
 Transitive _∼_ = Trans _∼_ _∼_ _∼_
 

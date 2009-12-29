@@ -60,11 +60,6 @@ gmap f g (x ◅ xs) = g x ◅ gmap f g xs
 map : ∀ {I} {T U : Rel I zero} → T ⇒ U → Star T ⇒ Star U
 map = gmap id
 
--- TransFlip is used to state the type signature of gfold.
-
-TransFlip : {A : Set} → Rel A zero → Rel A zero → Rel A zero → Set
-TransFlip P Q R = ∀ {i j k} → Q j k → P i j → R i k
-
 -- A generalised variant of fold.
 
 gfold : ∀ {I J T} (f : I → J) P →
