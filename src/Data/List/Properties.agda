@@ -22,8 +22,20 @@ open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
 
 ∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
-              (List A ∶ x ∷ xs) ≡ (y ∷ ys) → (x ≡ y) × (xs ≡ ys)
+              (List A ∶ x ∷ xs) ≡ y ∷ ys → x ≡ y × xs ≡ ys
 ∷-injective refl = (refl , refl)
+
+∷ʳ-injective : ∀ {a} {A : Set a} {x y} xs ys →
+               (List A ∶ xs ∷ʳ x) ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
+∷ʳ-injective []          []          refl = (refl , refl)
+∷ʳ-injective (x ∷ xs)    (y  ∷ ys)   eq   with ∷-injective eq
+∷ʳ-injective (x ∷ xs)    (.x ∷ ys)   eq   | (refl , eq′) =
+  Prod.map (cong (_∷_ x)) id $ ∷ʳ-injective xs ys eq′
+
+∷ʳ-injective []          (_ ∷ [])    ()
+∷ʳ-injective []          (_ ∷ _ ∷ _) ()
+∷ʳ-injective (_ ∷ [])    []          ()
+∷ʳ-injective (_ ∷ _ ∷ _) []          ()
 
 right-identity-unique : ∀ {a} {A : Set a} (xs : List A) {ys} →
                         xs ≡ xs ++ ys → ys ≡ []
