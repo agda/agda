@@ -17,8 +17,8 @@ open Relation.Binary.Preorder P
 ------------------------------------------------------------------------
 -- For every preorder there is an induced equivalence
 
-inducedEquivalence : Setoid _ _
-inducedEquivalence = record
+InducedEquivalence : Setoid _ _
+InducedEquivalence = record
   { _≈_           = λ x y → x ∼ y × y ∼ x
   ; isEquivalence = record
     { refl  = (refl , refl)

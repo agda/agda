@@ -122,7 +122,7 @@ module Membership (S : Setoid zero zero) where
   -- multiplicity.
 
   set-equality : Setoid _ _
-  set-equality = PP.inducedEquivalence ⊆-preorder
+  set-equality = PP.InducedEquivalence ⊆-preorder
 
   -- A variant of List.map.
 
@@ -173,7 +173,7 @@ module Membership-≡ {A : Set} where
   -- multiplicity.
 
   set-equality : Setoid _ _
-  set-equality = PP.inducedEquivalence ⊆-preorder
+  set-equality = PP.InducedEquivalence ⊆-preorder
 
 ------------------------------------------------------------------------
 -- Another function
