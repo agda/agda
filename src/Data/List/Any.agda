@@ -121,8 +121,8 @@ module Membership (S : Setoid zero zero) where
   -- Set equality, i.e. an equality which ignores order and
   -- multiplicity.
 
-  set-equality : Setoid _ _
-  set-equality = PP.InducedEquivalence ⊆-preorder
+  Set-equality : Setoid _ _
+  Set-equality = PP.InducedEquivalence ⊆-preorder
 
   -- A variant of List.map.
 
@@ -147,7 +147,7 @@ module Membership-≡ {A : Set} where
   private
     open module M = Membership (PropEq.setoid A) public
       hiding ( lift-resp; lose
-             ; ⊆-preorder; module ⊆-Reasoning; set-equality
+             ; ⊆-preorder; module ⊆-Reasoning; Set-equality
              )
 
   lose : ∀ {P x xs} → x ∈ xs → P x → Any P xs
@@ -172,8 +172,8 @@ module Membership-≡ {A : Set} where
   -- Set equality, i.e. an equality which ignores order and
   -- multiplicity.
 
-  set-equality : Setoid _ _
-  set-equality = PP.InducedEquivalence ⊆-preorder
+  Set-equality : Setoid _ _
+  Set-equality = PP.InducedEquivalence ⊆-preorder
 
 ------------------------------------------------------------------------
 -- Another function
