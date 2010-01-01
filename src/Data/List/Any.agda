@@ -7,6 +7,8 @@ module Data.List.Any where
 open import Data.Empty
 open import Data.Fin
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Inverse as Inv using (module Inverse)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
@@ -123,6 +125,18 @@ module Membership (S : Setoid zero zero) where
 
   Set-equality : Setoid _ _
   Set-equality = PP.InducedEquivalence ⊆-preorder
+
+  -- Bag equality, i.e. an equality which ignores order.
+
+  Bag-equality : Setoid _ _
+  Bag-equality =
+    Inv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
+
+  -- Bag equality implies set equality.
+
+  bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
+  bag-=⇒set-= xs≈ys = (λ {_} → _⟨$⟩_ (Inverse.to   xs≈ys))
+                    , (λ {_} → _⟨$⟩_ (Inverse.from xs≈ys))
 
   -- A variant of List.map.
 
