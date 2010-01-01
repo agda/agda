@@ -9,6 +9,7 @@ module Function.Inverse where
 open import Data.Product
 open import Level
 open import Relation.Binary
+open import Function using (flip)
 open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse as Left hiding (id; _∘_)
@@ -104,3 +105,31 @@ sym inv = record
     ; right-inverse-of = left-inverse-of
     }
   } where open Inverse inv
+
+-- Every unary relation induces an equivalence relation. (No claim is
+-- made that this relation is unique.)
+
+InducedEquivalence₁ : ∀ {a s₁ s₂} {A : Set a}
+                      (S : A → Setoid s₁ s₂) → Setoid _ _
+InducedEquivalence₁ S = record
+  { _≈_           = λ x y → Inverse (S x) (S y)
+  ; isEquivalence = record
+    { refl  = id
+    ; sym   = sym
+    ; trans = flip _∘_
+    }
+  }
+
+-- Every binary relation induces an equivalence relation. (No claim is
+-- made that this relation is unique.)
+
+InducedEquivalence₂ : ∀ {a b s₁ s₂} {A : Set a} {B : Set b}
+                      (_S_ : A → B → Setoid s₁ s₂) → Setoid _ _
+InducedEquivalence₂ _S_ = record
+  { _≈_           = λ x y → ∀ {z} → Inverse (z S x) (z S y)
+  ; isEquivalence = record
+    { refl  = id
+    ; sym   = λ i≈j → sym i≈j
+    ; trans = λ i≈j j≈k → j≈k ∘ i≈j
+    }
+  }
