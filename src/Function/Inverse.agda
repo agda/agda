@@ -16,6 +16,7 @@ open import Function.Equivalence using (Equivalent)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Function.Surjection  as Surj hiding (id; _∘_)
 open import Relation.Binary
+import Relation.Binary.PropositionalEquality as P
 
 -- Inverses.
 
@@ -69,6 +70,13 @@ record Inverse {f₁ f₂ t₁ t₂}
 
   open Bijection bijection public
     using (surjective; surjection; right-inverse)
+
+-- The set of all inverses between two sets.
+
+infix 3 _⇿_
+
+_⇿_ : ∀ {f t} → Set f → Set t → Set _
+From ⇿ To = Inverse (P.setoid From) (P.setoid To)
 
 ------------------------------------------------------------------------
 -- Inverse is an equivalence relation
