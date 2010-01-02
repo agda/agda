@@ -8,13 +8,14 @@ module Function.Inverse where
 
 open import Data.Product
 open import Level
-open import Relation.Binary
 open import Function using (flip)
+open import Function.Bijection           hiding (id; _∘_)
 open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
+open import Function.Equivalence using (Equivalent)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Function.Surjection  as Surj hiding (id; _∘_)
-open import Function.Bijection   as Bi   hiding (id; _∘_)
+open import Relation.Binary
 
 -- Inverses.
 
@@ -25,6 +26,12 @@ record _InverseOf_ {f₁ f₂ t₁ t₂}
   field
     left-inverse-of  : from LeftInverseOf  to
     right-inverse-of : from RightInverseOf to
+
+  equivalence : Equivalent From To
+  equivalence = record
+    { to   = to
+    ; from = from
+    }
 
 -- The set of all inverses between two setoids.
 

@@ -9,6 +9,7 @@ module Function.Surjection where
 open import Level
 open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
+open import Function.Equivalence using (Equivalent)
 open import Function.Injection           hiding (id; _∘_)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Data.Product
@@ -23,6 +24,12 @@ record Surjective {f₁ f₂ t₁ t₂}
   field
     from             : To ⟶ From
     right-inverse-of : from RightInverseOf to
+
+  equivalence : Equivalent From To
+  equivalence = record
+    { to   = to
+    ; from = from
+    }
 
 -- The set of all surjections between two setoids.
 

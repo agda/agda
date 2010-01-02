@@ -12,6 +12,7 @@ import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
 open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
+open import Function.Equivalence using (Equivalent)
 open import Function.Injection using (Injective; Injection)
 
 -- Left and right inverses.
@@ -49,6 +50,12 @@ record LeftInverse {f₁ f₂ t₁ t₂}
 
   injection : Injection From To
   injection = record { to = to; injective = injective }
+
+  equivalence : Equivalent From To
+  equivalence = record
+    { to   = to
+    ; from = from
+    }
 
 -- The set of all right inverses between two setoids.
 
