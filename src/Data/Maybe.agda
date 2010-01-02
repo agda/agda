@@ -97,7 +97,6 @@ decSetoid {A} _A-≟_ = PropEq.decSetoid _≟_
 ------------------------------------------------------------------------
 -- Any and All
 
-open import Data.Product using (_,_)
 open import Data.Empty using (⊥)
 import Relation.Nullary.Decidable as Dec
 
@@ -125,9 +124,9 @@ private
 anyDec : ∀ {A} {P : A → Set} →
          (∀ x → Dec (P x)) → (x : Maybe A) → Dec (Any P x)
 anyDec p nothing  = no λ()
-anyDec p (just x) = Dec.map (just , drop-just-Any) (p x)
+anyDec p (just x) = Dec.map′ just drop-just-Any (p x)
 
 allDec : ∀ {A} {P : A → Set} →
          (∀ x → Dec (P x)) → (x : Maybe A) → Dec (All P x)
 allDec p nothing  = yes nothing
-allDec p (just x) = Dec.map (just , drop-just-All) (p x)
+allDec p (just x) = Dec.map′ just drop-just-All (p x)

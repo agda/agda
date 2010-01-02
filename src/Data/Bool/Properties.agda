@@ -7,11 +7,13 @@ module Data.Bool.Properties where
 open import Data.Bool as Bool
 open import Data.Fin
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence
+  using (_⇔_; equivalent; module Equivalent)
 open import Algebra
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
-open import Relation.Nullary using (_⇔_)
 open import Relation.Binary.PropositionalEquality
   hiding (proof-irrelevance)
 open ≡-Reasoning
@@ -288,25 +290,25 @@ not-¬ {false} refl ()
 
 ⇔→≡ : {b₁ b₂ b : Bool} → b₁ ≡ b ⇔ b₂ ≡ b → b₁ ≡ b₂
 ⇔→≡ {true } {true }         hyp = refl
-⇔→≡ {true } {false} {true } hyp = sym (proj₁ hyp refl)
-⇔→≡ {true } {false} {false} hyp = proj₂ hyp refl
-⇔→≡ {false} {true } {true } hyp = proj₂ hyp refl
-⇔→≡ {false} {true } {false} hyp = sym (proj₁ hyp refl)
+⇔→≡ {true } {false} {true } hyp = sym (Equivalent.to hyp ⟨$⟩ refl)
+⇔→≡ {true } {false} {false} hyp = Equivalent.from hyp ⟨$⟩ refl
+⇔→≡ {false} {true } {true } hyp = Equivalent.from hyp ⟨$⟩ refl
+⇔→≡ {false} {true } {false} hyp = sym (Equivalent.to hyp ⟨$⟩ refl)
 ⇔→≡ {false} {false}         hyp = refl
 
 T-≡ : ∀ {b} → T b ⇔ b ≡ true
-T-≡ {false} = ((λ ())     , λ ())
-T-≡ {true}  = (const refl , const _)
+T-≡ {false} = equivalent (λ ())       (λ ())
+T-≡ {true}  = equivalent (const refl) (const _)
 
 T-∧ : ∀ {b₁ b₂} → T (b₁ ∧ b₂) ⇔ (T b₁ × T b₂)
-T-∧ {true}  {true}  = (const (_ , _) , const _)
-T-∧ {true}  {false} = ((λ ()) , proj₂)
-T-∧ {false} {_}     = ((λ ()) , proj₁)
+T-∧ {true}  {true}  = equivalent (const (_ , _)) (const _)
+T-∧ {true}  {false} = equivalent (λ ())          proj₂
+T-∧ {false} {_}     = equivalent (λ ())          proj₁
 
 T-∨ : ∀ {b₁ b₂} → T (b₁ ∨ b₂) ⇔ (T b₁ ⊎ T b₂)
-T-∨ {true}  {b₂}    = (inj₁ , const _)
-T-∨ {false} {true}  = (inj₂ , const _)
-T-∨ {false} {false} = (inj₁ , [ id , id ])
+T-∨ {true}  {b₂}    = equivalent inj₁ (const _)
+T-∨ {false} {true}  = equivalent inj₂ (const _)
+T-∨ {false} {false} = equivalent inj₁ [ id , id ]
 
 proof-irrelevance : ∀ {b} (p q : T b) → p ≡ q
 proof-irrelevance {true}  _  _  = refl

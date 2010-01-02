@@ -7,6 +7,8 @@ module Data.List.All.Properties where
 open import Data.Bool
 open import Data.Bool.Properties
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence using (module Equivalent)
 open import Data.List as List
 import Data.List.Any as Any
 open Any.Membership-≡
@@ -37,12 +39,12 @@ gmap g = All-map ∘ All.map g
 All-all : ∀ {A} (p : A → Bool) {xs} →
           All (T ∘ p) xs → T (all p xs)
 All-all p []         = _
-All-all p (px ∷ pxs) = proj₂ T-∧ (px , All-all p pxs)
+All-all p (px ∷ pxs) = Equivalent.from T-∧ ⟨$⟩ (px , All-all p pxs)
 
 all-All : ∀ {A} (p : A → Bool) xs →
           T (all p xs) → All (T ∘ p) xs
 all-All p []       _     = []
-all-All p (x ∷ xs) px∷xs with proj₁ (T-∧ {p x}) px∷xs
+all-All p (x ∷ xs) px∷xs with Equivalent.to (T-∧ {p x}) ⟨$⟩ px∷xs
 all-All p (x ∷ xs) px∷xs | (px , pxs) = px ∷ all-All p xs pxs
 
 -- All is anti-monotone.

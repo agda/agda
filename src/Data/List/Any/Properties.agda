@@ -12,6 +12,7 @@ open import Data.Empty
 open import Function
 open import Function.Equality as FunS
   using (_⟶_; _⟨$⟩_; _⇨_)
+open import Function.Equivalence using (module Equivalent)
 import Function.Injection as Inj
 open import Data.List as List
 open RawMonad List.monad
@@ -291,7 +292,7 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
 
 any⁺ : ∀ {A} (p : A → Bool) {xs} →
        Any (T ∘ p) xs → T (any p xs)
-any⁺ p (here  px)          = proj₂ T-∨ (inj₁ px)
+any⁺ p (here  px)          = Equivalent.from T-∨ ⟨$⟩ inj₁ px
 any⁺ p (there {x = x} pxs) with p x
 ... | true  = _
 ... | false = any⁺ p pxs
@@ -300,7 +301,8 @@ any⁻ : ∀ {A} (p : A → Bool) xs →
        T (any p xs) → Any (T ∘ p) xs
 any⁻ p []       ()
 any⁻ p (x ∷ xs) px∷xs with inspect (p x)
-any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (proj₂ T-≡ $ P.sym eq)
+any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalent.from T-≡ ⟨$⟩
+                                                  P.sym eq)
 any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
 any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
   there (any⁻ p xs pxs)

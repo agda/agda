@@ -14,7 +14,7 @@ open import Level
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
--- Equivalence.
+-- Setoid equivalence.
 
 record Equivalent {f₁ f₂ t₁ t₂}
                   (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
@@ -22,6 +22,17 @@ record Equivalent {f₁ f₂ t₁ t₂}
   field
     to   : From ⟶ To
     from : To ⟶ From
+
+-- Set equivalence.
+
+infix 3 _⇔_
+
+_⇔_ : ∀ {f t} → Set f → Set t → Set _
+From ⇔ To = Equivalent (P.setoid From) (P.setoid To)
+
+equivalent : ∀ {f t} {From : Set f} {To : Set t} →
+             (From → To) → (To → From) → From ⇔ To
+equivalent to from = record { to = P.→-to-⟶ to; from = P.→-to-⟶ from }
 
 ------------------------------------------------------------------------
 -- Equivalent is an equivalence relation

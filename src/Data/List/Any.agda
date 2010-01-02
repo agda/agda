@@ -47,7 +47,7 @@ any : ∀ {A} {P : A → Set} →
 any p []       = no λ()
 any p (x ∷ xs) with p x
 any p (x ∷ xs) | yes px = yes (here px)
-any p (x ∷ xs) | no ¬px = Dec.map (there , tail ¬px) (any p xs)
+any p (x ∷ xs) | no ¬px = Dec.map′ there (tail ¬px) (any p xs)
 
 -- index x∈xs is the list position (zero-based) which x∈xs points to.
 

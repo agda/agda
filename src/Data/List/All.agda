@@ -8,7 +8,6 @@ open import Function
 open import Data.List as List hiding (map; all)
 open import Data.List.Any as Any using (here; there)
 open Any.Membership-≡ using (_∈_; _⊆_)
-open import Data.Product as Prod using (_,_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using () renaming (_⊆_ to _⋐_)
@@ -45,5 +44,5 @@ all : ∀ {A} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
 all p []       = yes []
 all p (x ∷ xs) with p x
-all p (x ∷ xs) | yes px = Dec.map (_∷_ px , tail) (all p xs)
+all p (x ∷ xs) | yes px = Dec.map′ (_∷_ px) tail (all p xs)
 all p (x ∷ xs) | no ¬px = no (¬px ∘ head)

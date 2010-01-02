@@ -208,10 +208,10 @@ drop‿-≤- : ∀ {m n} → -[1+ m ] ≤ -[1+ n ] → ℕ._≤_ n m
 drop‿-≤- (-≤- n≤m) = n≤m
 
 _≤?_ : Decidable _≤_
--[1+ m ] ≤? -[1+ n ] = Dec.map (-≤- , drop‿-≤-) (ℕ._≤?_ n m)
+-[1+ m ] ≤? -[1+ n ] = Dec.map′ -≤- drop‿-≤- (ℕ._≤?_ n m)
 -[1+ m ] ≤? +    n   = yes -≤+
 +    m   ≤? -[1+ n ] = no λ ()
-+    m   ≤? +    n   = Dec.map (+≤+ , drop‿+≤+) (ℕ._≤?_ m n)
++    m   ≤? +    n   = Dec.map′ +≤+ drop‿+≤+ (ℕ._≤?_ m n)
 
 decTotalOrder : DecTotalOrder _ _ _
 decTotalOrder = record
