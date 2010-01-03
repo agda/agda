@@ -8,6 +8,7 @@ open import Data.Empty
 open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
+import Function.Equivalence as Equiv
 open import Function.Inverse as Inv using (module Inverse)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
@@ -20,7 +21,6 @@ import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_)
-import Relation.Binary.Props.Preorder as PP
 
 -- Any P xs means that at least one element in xs satisfies P.
 
@@ -120,24 +120,6 @@ module Membership (S : Setoid zero zero) where
     _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
-  -- Set equality, i.e. an equality which ignores order and
-  -- multiplicity.
-
-  Set-equality : Setoid _ _
-  Set-equality = PP.InducedEquivalence ⊆-preorder
-
-  -- Bag equality, i.e. an equality which ignores order.
-
-  Bag-equality : Setoid _ _
-  Bag-equality =
-    Inv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
-
-  -- Bag equality implies set equality.
-
-  bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
-  bag-=⇒set-= xs≈ys = (λ {_} → _⟨$⟩_ (Inverse.to   xs≈ys))
-                    , (λ {_} → _⟨$⟩_ (Inverse.from xs≈ys))
-
   -- A variant of List.map.
 
   map-with-∈ : ∀ {B : Set} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
@@ -154,15 +136,13 @@ module Membership (S : Setoid zero zero) where
   lose resp x∈xs px = map (flip resp px) x∈xs
 
 -- The code above instantiated (and slightly changed) for
--- propositional equality.
+-- propositional equality, along with some additional definitions.
 
 module Membership-≡ {A : Set} where
 
   private
     open module M = Membership (PropEq.setoid A) public
-      hiding ( lift-resp; lose
-             ; ⊆-preorder; module ⊆-Reasoning; Set-equality
-             )
+      hiding (lift-resp; lose; ⊆-preorder; module ⊆-Reasoning)
 
   lose : ∀ {P x xs} → x ∈ xs → P x → Any P xs
   lose {P} = M.lose (PropEq.subst P)
@@ -187,7 +167,19 @@ module Membership-≡ {A : Set} where
   -- multiplicity.
 
   Set-equality : Setoid _ _
-  Set-equality = PP.InducedEquivalence ⊆-preorder
+  Set-equality =
+    Equiv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
+
+  -- Bag equality, i.e. an equality which ignores order.
+
+  Bag-equality : Setoid _ _
+  Bag-equality =
+    Inv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
+
+  -- Bag equality implies set equality.
+
+  bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
+  bag-=⇒set-= xs≈ys = Inverse.equivalence xs≈ys
 
 ------------------------------------------------------------------------
 -- Another function
