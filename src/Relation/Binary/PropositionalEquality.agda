@@ -92,7 +92,7 @@ _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 -- r ≡ e.
 
 data Inspect {a} {A : Set a} (x : A) : Set a where
-  _with-≡_ : (y : A) (eq : y ≡ x) → Inspect x
+  _with-≡_ : (y : A) (eq : x ≡ y) → Inspect x
 
 inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
 inspect x = x with-≡ refl

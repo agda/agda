@@ -302,7 +302,7 @@ any⁻ : ∀ {A} (p : A → Bool) xs →
 any⁻ p []       ()
 any⁻ p (x ∷ xs) px∷xs with inspect (p x)
 any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalent.from T-≡ ⟨$⟩
-                                                  P.sym eq)
+                                                  eq)
 any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
 any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
   there (any⁻ p xs pxs)
