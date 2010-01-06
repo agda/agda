@@ -21,13 +21,14 @@ Const I = λ _ _ → I
 Always : ∀ {a} {A : Set a} → Rel A zero
 Always = Const ⊤
 
+Always-setoid : ∀ {a} (A : Set a) → Setoid _ _
+Always-setoid A = record
+  { Carrier       = A
+  ; _≈_           = Always
+  ; isEquivalence = record {}
+  }
+
 -- The universally false relation.
 
 Never : ∀ {a} {A : Set a} → Rel A zero
 Never = Const ⊥
-
--- Always is an equivalence.
-
-Always-isEquivalence : ∀ {a} {A : Set a} →
-                       IsEquivalence (Always {A = A})
-Always-isEquivalence = record {}

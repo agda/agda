@@ -7,10 +7,11 @@
 module Relation.Binary.PropositionalEquality where
 
 open import Function
-open import Function.Equality using (_≡⇨_; _⟶_)
+open import Function.Equality using (Π; _⟶_; ≡-setoid)
 open import Data.Product
 open import Level
 open import Relation.Binary
+import Relation.Binary.Indexed as I
 open import Relation.Binary.Consequences
 
 -- Some of the definitions can be found in the following modules:
@@ -74,15 +75,23 @@ preorder A = record
 infix 4 _≗_
 
 _→-setoid_ : ∀ {a b} (A : Set a) (B : Set b) → Setoid _ _
-A →-setoid B = A ≡⇨ λ _ → setoid B
+A →-setoid B = ≡-setoid A (Setoid.indexedSetoid (setoid B))
 
 _≗_ : ∀ {a b} {A : Set a} {B : Set b} (f g : A → B) → Set _
 _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 
+:→-to-Π : ∀ {a b₁ b₂} {A : Set a} {B : I.Setoid _ b₁ b₂} →
+          ((x : A) → I.Setoid.Carrier B x) → Π (setoid A) B
+:→-to-Π {B = B} f = record { _⟨$⟩_ = f; cong = cong′ }
+  where
+  open I.Setoid B using (_≈_)
+
+  cong′ : ∀ {x y} → x ≡ y → f x ≈ f y
+  cong′ refl = I.Setoid.refl B
+
 →-to-⟶ : ∀ {a b₁ b₂} {A : Set a} {B : Setoid b₁ b₂} →
          (A → Setoid.Carrier B) → setoid A ⟶ B
-→-to-⟶ {B = B} f =
-  record { _⟨$⟩_ = f; cong = Setoid.reflexive B ∘ cong f }
+→-to-⟶ = :→-to-Π
 
 ------------------------------------------------------------------------
 -- The inspect idiom

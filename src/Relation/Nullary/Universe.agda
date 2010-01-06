@@ -37,36 +37,24 @@ data PropF : Set₁ where
   _⇒_  : (P₁ : Set) (F₂ : PropF) → PropF
   ¬¬_  : (F : PropF) → PropF
 
-⟦_⟧ : PropF → (Set → Set)
-⟦ Id ⟧      = λ x → x
-⟦ K P ⟧     = λ _ → P
-⟦ F₁ ∨ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x ⊎ ⟦ F₂ ⟧ x
-⟦ F₁ ∧ F₂ ⟧ = λ x → ⟦ F₁ ⟧ x × ⟦ F₂ ⟧ x
-⟦ P₁ ⇒ F₂ ⟧ = λ x → P₁       → ⟦ F₂ ⟧ x
-⟦ ¬¬ F ⟧    = λ x → ¬ ¬ ⟦ F ⟧ x
-
 -- Equalities for universe inhabitants.
 
-Eq : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P) zero
-Eq Id        = _≡_
-Eq (K P)     = _≡_
-Eq (F₁ ∨ F₂) = Eq F₁ ⊎-Rel Eq F₂
-Eq (F₁ ∧ F₂) = Eq F₁ ×-Rel Eq F₂
-Eq (P₁ ⇒ F₂) = FunS.≡↝ (λ _ → Eq F₂)
-Eq (¬¬ F)    = Always
+mutual
+
+  setoid : PropF → {P : Set} → Setoid zero zero
+  setoid Id {P}    = PropEq.setoid P
+  setoid (K P)     = PropEq.setoid P
+  setoid (F₁ ∨ F₂) = setoid F₁ ⊎-setoid setoid F₂
+  setoid (F₁ ∧ F₂) = setoid F₁ ×-setoid setoid F₂
+  setoid (P₁ ⇒ F₂) = FunS.≡-setoid P₁
+                         (Setoid.indexedSetoid (setoid F₂))
+  setoid (¬¬ F) {P} = Always-setoid (¬ ¬ ⟦ F ⟧ P)
+
+  ⟦_⟧ : PropF → (Set → Set)
+  ⟦ F ⟧ P = Setoid.Carrier (setoid F {P})
 
 ⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P) zero
-⟨_⟩_≈_ = Eq
-
-isEquivalence : ∀ F {P} → IsEquivalence (Eq F {P})
-isEquivalence Id        = PropEq.isEquivalence
-isEquivalence (K P)     = PropEq.isEquivalence
-isEquivalence (F₁ ∨ F₂) = isEquivalence F₁ ⊎-isEquivalence
-                          isEquivalence F₂
-isEquivalence (F₁ ∧ F₂) = isEquivalence F₁ ×-isEquivalence
-                          isEquivalence F₂
-isEquivalence (P₁ ⇒ F₂) = FunS.≡↝-isEquivalence (λ _ → isEquivalence F₂)
-isEquivalence (¬¬ F)    = Always-isEquivalence
+⟨_⟩_≈_ F = Setoid._≈_ (setoid F)
 
 -- ⟦ F ⟧ is functorial.
 
