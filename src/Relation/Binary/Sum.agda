@@ -4,14 +4,18 @@
 
 module Relation.Binary.Sum where
 
-open import Function
 open import Data.Sum as Sum
 open import Data.Product
 open import Data.Unit using (⊤)
 open import Data.Empty
+open import Function
+open import Function.Equality as F using (_⟨$⟩_)
+open import Function.Equivalence using (Equivalent; module Equivalent)
+open import Function.Inverse using (Inverse; module Inverse)
 open import Level
 open import Relation.Nullary
 open import Relation.Binary
+import Relation.Binary.PropositionalEquality as P
 
 private
  module Dummy {A₁ A₂ : Set} where
@@ -348,3 +352,72 @@ to₁ ⊎-<-decTotalOrder to₂ = record
   { isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
                       isDecTotalOrder to₂
   } where open DecTotalOrder
+
+------------------------------------------------------------------------
+-- Some properties related to equivalences and inverses
+
+⊎-Rel⇿≡ : {A B : Set} →
+          Inverse (P.setoid A ⊎-setoid P.setoid B) (P.setoid (A ⊎ B))
+⊎-Rel⇿≡ = record
+  { to         = record { _⟨$⟩_ = id; cong = to-cong   }
+  ; from       = record { _⟨$⟩_ = id; cong = from-cong }
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → P.refl ⊎-refl P.refl
+    ; right-inverse-of = λ _ → P.refl
+    }
+  }
+  where
+  to-cong : (P._≡_ ⊎-Rel P._≡_) ⇒ P._≡_
+  to-cong (₁∼₂ ())
+  to-cong (₁∼₁ P.refl) = P.refl
+  to-cong (₂∼₂ P.refl) = P.refl
+
+  from-cong : P._≡_ ⇒ (P._≡_ ⊎-Rel P._≡_)
+  from-cong P.refl = P.refl ⊎-refl P.refl
+
+_⊎-equivalent_ :
+  {A B C D : Setoid zero zero} →
+  Equivalent A B → Equivalent C D →
+  Equivalent (A ⊎-setoid C) (B ⊎-setoid D)
+_⊎-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
+  { to   = record { _⟨$⟩_ = to;   cong = to-cong   }
+  ; from = record { _⟨$⟩_ = from; cong = from-cong }
+  }
+  where
+  open Setoid (A ⊎-setoid C) using () renaming (_≈_ to _≈AC_)
+  open Setoid (B ⊎-setoid D) using () renaming (_≈_ to _≈BD_)
+
+  to = Sum.map (_⟨$⟩_ (Equivalent.to A⇔B))
+               (_⟨$⟩_ (Equivalent.to C⇔D))
+
+  to-cong : _≈AC_ =[ to ]⇒ _≈BD_
+  to-cong (₁∼₂ ())
+  to-cong (₁∼₁ x∼₁y) = ₁∼₁ $ F.cong (Equivalent.to A⇔B) x∼₁y
+  to-cong (₂∼₂ x∼₂y) = ₂∼₂ $ F.cong (Equivalent.to C⇔D) x∼₂y
+
+  from = Sum.map (_⟨$⟩_ (Equivalent.from A⇔B))
+                 (_⟨$⟩_ (Equivalent.from C⇔D))
+
+  from-cong : _≈BD_ =[ from ]⇒ _≈AC_
+  from-cong (₁∼₂ ())
+  from-cong (₁∼₁ x∼₁y) = ₁∼₁ $ F.cong (Equivalent.from A⇔B) x∼₁y
+  from-cong (₂∼₂ x∼₂y) = ₂∼₂ $ F.cong (Equivalent.from C⇔D) x∼₂y
+
+_⊎-inverse_ :
+  {A B C D : Setoid zero zero} →
+  Inverse A B → Inverse C D → Inverse (A ⊎-setoid C) (B ⊎-setoid D)
+A⇿B ⊎-inverse C⇿D = record
+  { to         = Equivalent.to   eq
+  ; from       = Equivalent.from eq
+  ; inverse-of = record
+    { left-inverse-of  = [ ₁∼₁ ∘ left-inverse-of A⇿B
+                         , ₂∼₂ ∘ left-inverse-of C⇿D
+                         ]
+    ; right-inverse-of = [ ₁∼₁ ∘ right-inverse-of A⇿B
+                         , ₂∼₂ ∘ right-inverse-of C⇿D
+                         ]
+    }
+  }
+  where
+  open Inverse
+  eq = equivalence A⇿B ⊎-equivalent equivalence C⇿D
