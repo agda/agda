@@ -13,6 +13,7 @@ open import Level
 import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
 open import Relation.Binary.Core as Core using (_≡_)
+import Relation.Binary.Indexed.Core as I
 
 ------------------------------------------------------------------------
 -- Simple properties and equivalence relations
@@ -72,6 +73,19 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
 
   preorder : Preorder c zero ℓ
   preorder = record { isPreorder = isPreorder }
+
+  -- A trivially indexed setoid.
+
+  indexedSetoid : ∀ {i} {I : Set i} → I.Setoid I c _
+  indexedSetoid = record
+    { Carrier = λ _ → Carrier
+    ; _≈_     = _≈_
+    ; isEquivalence = record
+      { refl  = refl
+      ; sym   = sym
+      ; trans = trans
+      }
+    }
 
 ------------------------------------------------------------------------
 -- Decidable equivalence relations
