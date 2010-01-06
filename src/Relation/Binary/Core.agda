@@ -16,7 +16,7 @@ open import Level
 open import Relation.Nullary.Core
 
 ------------------------------------------------------------------------
--- Binary relations.
+-- Binary relations
 
 -- Heterogeneous binary relations
 
