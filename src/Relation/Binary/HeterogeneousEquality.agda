@@ -6,12 +6,14 @@
 
 module Relation.Binary.HeterogeneousEquality where
 
-open import Function
 open import Data.Product
+open import Function
+open import Function.Inverse using (Inverse)
 open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
+open import Relation.Binary.Indexed as I using (_at_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
@@ -97,6 +99,28 @@ setoid A = record
   { Carrier       = A
   ; _≈_           = λ x y → x ≅ y
   ; isEquivalence = isEquivalence
+  }
+
+indexedSetoid : ∀ {a b} {A : Set a} → (A → Set b) → I.Setoid A _ _
+indexedSetoid B = record
+  { Carrier       = B
+  ; _≈_           = λ x y → x ≅ y
+  ; isEquivalence = record
+    { refl  = refl
+    ; sym   = sym
+    ; trans = trans
+    }
+  }
+
+≡⇿≅ : ∀ {a b} {A : Set a} (B : A → Set b) {x : A} →
+      Inverse (PropEq.setoid (B x)) (indexedSetoid B at x)
+≡⇿≅ B = record
+  { to         = record { _⟨$⟩_ = id; cong = ≡-to-≅ }
+  ; from       = record { _⟨$⟩_ = id; cong = ≅-to-≡ }
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → refl
+    ; right-inverse-of = λ _ → refl
+    }
   }
 
 decSetoid : ∀ {a} {A : Set a} →
