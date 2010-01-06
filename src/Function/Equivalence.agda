@@ -6,7 +6,6 @@
 
 module Function.Equivalence where
 
-open import Data.Product
 open import Function using (flip)
 open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)

@@ -6,7 +6,6 @@
 
 module Function.Inverse where
 
-open import Data.Product
 open import Level
 open import Function using (flip)
 open import Function.Bijection           hiding (id; _∘_)
