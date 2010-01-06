@@ -14,6 +14,7 @@ open import Function.Equality as FunS
   using (_⟶_; _⟨$⟩_; _⇨_)
 open import Function.Equivalence using (module Equivalent)
 import Function.Injection as Inj
+open import Function.Inverse using (_⇿_; module Inverse)
 open import Data.List as List
 open RawMonad List.monad
 open import Data.List.Any as Any using (Any; here; there)
@@ -22,7 +23,7 @@ import Data.Nat.Properties as NatProp
 open import Data.Product as Prod hiding (map)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Level
-open import Relation.Unary using ( _⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqReasoning
 import Relation.Binary.List.Pointwise as ListEq
@@ -79,6 +80,17 @@ map⁻∘map⁺ : ∀ {A B} (P : B → Set) {f : A → B} {xs} →
 map⁻∘map⁺ P (here  p) = refl
 map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
+map⇿ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
+        Any (P ∘ f) xs ⇿ Any P (map f xs)
+map⇿ {P = P} = record
+  { to         = P.→-to-⟶ $ map⁺ {P = P}
+  ; from       = P.→-to-⟶ map⁻
+  ; inverse-of = record
+    { left-inverse-of  = map⁻∘map⁺ P
+    ; right-inverse-of = map⁺∘map⁻
+    }
+  }
+
 -- Introduction and elimination rules for _++_.
 
 ++⁺ˡ : ∀ {A} {P : A → Set} {xs ys} →
@@ -116,6 +128,17 @@ map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 ++⁻∘++⁺ (x ∷ xs) {ys} (inj₁ (there p)) rewrite ++⁻∘++⁺ xs {ys} (inj₁ p) = refl
 ++⁻∘++⁺ (x ∷ xs)      (inj₂ p)         rewrite ++⁻∘++⁺ xs      (inj₂ p) = refl
 
+++⇿ : ∀ {A} {P : A → Set} {xs ys} →
+      (Any P xs ⊎ Any P ys) ⇿ Any P (xs ++ ys)
+++⇿ {xs = xs} = record
+  { to         = P.→-to-⟶ [ ++⁺ˡ , ++⁺ʳ xs ]′
+  ; from       = P.→-to-⟶ $ ++⁻ xs
+  ; inverse-of = record
+    { left-inverse-of  = ++⁻∘++⁺ xs
+    ; right-inverse-of = ++⁺∘++⁻ xs
+    }
+  }
+
 -- Introduction and elimination rules for return.
 
 return⁺ : ∀ {A} {P : A → Set} {x} →
@@ -134,9 +157,20 @@ return⁺∘return⁻ : ∀ {A} {P : A → Set} {x} (p : Any P (return x)) →
 return⁺∘return⁻ (here p)   = refl
 return⁺∘return⁻ (there ())
 
-return⁻∘return⁺ : ∀ {A} {P : A → Set} {x} (p : P x) →
+return⁻∘return⁺ : ∀ {A} (P : A → Set) {x} (p : P x) →
                   return⁻ {P = P} (return⁺ p) ≡ p
-return⁻∘return⁺ p = refl
+return⁻∘return⁺ P p = refl
+
+return⇿ : ∀ {A} {P : A → Set} {x} →
+          P x ⇿ Any P (return x)
+return⇿ {P = P} = record
+  { to         = P.→-to-⟶ return⁺
+  ; from       = P.→-to-⟶ return⁻
+  ; inverse-of = record
+    { left-inverse-of  = return⁻∘return⁺ P
+    ; right-inverse-of = return⁺∘return⁻
+    }
+  }
 
 -- Introduction and elimination rules for concat.
 
@@ -184,6 +218,17 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
   rewrite concat⁻∘++⁺ʳ xs xss (concat⁺ p) =
     P.cong there $ concat⁻∘concat⁺ p
 
+concat⇿ : ∀ {A} {P : A → Set} {xss} →
+          Any (Any P) xss ⇿ Any P (concat xss)
+concat⇿ {xss = xss} = record
+  { to         = P.→-to-⟶ concat⁺
+  ; from       = P.→-to-⟶ $ concat⁻ xss
+  ; inverse-of = record
+    { left-inverse-of  = concat⁻∘concat⁺
+    ; right-inverse-of = concat⁺∘concat⁻ xss
+    }
+  }
+
 -- Introduction and elimination rules for _>>=_.
 
 >>=⁺ : ∀ {A B P xs} {f : A → List B} →
@@ -205,6 +250,17 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
             >>=⁻ xs (>>=⁺ p) ≡ p
 >>=⁻∘>>=⁺ {P = P} p rewrite concat⁻∘concat⁺ (map⁺ p) =
   map⁻∘map⁺ (Any P) p
+
+>>=⇿ : ∀ {A B P xs} {f : A → List B} →
+       Any (Any P ∘ f) xs ⇿ Any P (xs >>= f)
+>>=⇿ {xs = xs} = record
+  { to         = P.→-to-⟶ >>=⁺
+  ; from       = P.→-to-⟶ $ >>=⁻ xs
+  ; inverse-of = record
+    { left-inverse-of  = >>=⁻∘>>=⁺
+    ; right-inverse-of = >>=⁺∘>>=⁻ xs
+    }
+  }
 
 -- Introduction and elimination rules for _⊛_.
 
@@ -243,10 +299,10 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
   p                                                                ∎
   where open P.≡-Reasoning
 
-⊛⁻∘⊛⁺ : ∀ {A B} {P : B → Set} {fs : List (A → B)} {xs}
+⊛⁻∘⊛⁺ : ∀ {A B} (P : B → Set) {fs : List (A → B)} {xs}
         (p : Any (λ f → Any (P ∘ f) xs) fs) →
         ⊛⁻ {P = P} fs xs (⊛⁺ p) ≡ p
-⊛⁻∘⊛⁺ {P = P} {fs} {xs} p =
+⊛⁻∘⊛⁺ P {fs} {xs} p =
   helper₁ (>>=⁻∘>>=⁺ (Any.map (>>=⁺ {P = P} ∘ Any.map return⁺) p))
   where
   open P.≡-Reasoning
@@ -266,6 +322,17 @@ concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
     rewrite P.sym (map-∘ (Any.map return⁻ ∘ >>=⁻ xs)
                          (>>=⁺ {P = P} ∘ Any.map return⁺) p) =
       map-id _ helper₂ p
+
+⊛⇿ : ∀ {A B P} {fs : List (A → B)} {xs} →
+     Any (λ f → Any (P ∘ f) xs) fs ⇿ Any P (fs ⊛ xs)
+⊛⇿ {P = P} {fs} {xs} = record
+  { to         = P.→-to-⟶ $ ⊛⁺ {P = P}
+  ; from       = P.→-to-⟶ $ ⊛⁻ fs xs
+  ; inverse-of = record
+    { left-inverse-of  = ⊛⁻∘⊛⁺ P
+    ; right-inverse-of = ⊛⁺∘⊛⁻ fs xs
+    }
+  }
 
 -- Introduction and elimination rules for _⊗_.
 
@@ -653,6 +720,29 @@ module Membership-≡ where
     f-cong : _≡_ =[ f ]⇒ _≡_
     f-cong = FunS.cong (P.→-to-⟶ {B = P.setoid B} f)
 
+  map-∈⇿ : ∀ {A B} {f : A → B} {fx xs} →
+           (∃ λ x → x ∈ xs × fx ≡ f x) ⇿ fx ∈ List.map f xs
+  map-∈⇿ {f = f} {xs = xs} = record
+    { to         = P.→-to-⟶ map-∈⁺′
+    ; from       = P.→-to-⟶ $ map-∈⁻ xs
+    ; inverse-of = record
+      { left-inverse-of  = map-∈⁻∘map-∈⁺′
+      ; right-inverse-of = map-∈⁺′∘map-∈⁻
+      }
+    }
+    where
+    map-∈⁺′ : ∀ {fx} → (∃ λ x → x ∈ xs × fx ≡ f x) → fx ∈ List.map f xs
+    map-∈⁺′ (x , x∈ , refl) = map-∈⁺ x∈
+
+    map-∈⁻∘map-∈⁺′ : ∀ {fx} (x∈ : ∃ λ x → x ∈ xs × fx ≡ f x) →
+                     map-∈⁻ xs (map-∈⁺′ x∈) ≡ x∈
+    map-∈⁻∘map-∈⁺′ (x , x∈ , refl) = map-∈⁻∘map-∈⁺ f x∈
+
+    map-∈⁺′∘map-∈⁻ : ∀ {fx} (fx∈ : fx ∈ List.map f xs) →
+                     map-∈⁺′ (map-∈⁻ xs fx∈) ≡ fx∈
+    map-∈⁺′∘map-∈⁻ fx∈ with map-∈⁻ xs fx∈ | map-∈⁺∘map-∈⁻ fx∈
+    map-∈⁺′∘map-∈⁻ .(map-∈⁺ x∈) | (x , x∈ , refl) | refl = refl
+
   -- map is monotone.
 
   map-mono : ∀ {A B} {f : A → B} {xs ys} →
@@ -701,6 +791,29 @@ module Membership-≡ where
     (x , x∈xs , _)                          ≡⟨ P.cong (λ p → (x , x∈xs , p)) (lift-resp-id _ _) ⟩
     (x , x∈xs , y∈fx)                       ∎
     where open P.≡-Reasoning
+
+  >>=-∈⇿ : ∀ {A B} (f : A → List B) {y xs} →
+           (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
+  >>=-∈⇿ f {y} {xs} = record
+    { to         = P.→-to-⟶ >>=-∈⁺′
+    ; from       = P.→-to-⟶ $ >>=-∈⁻ f xs
+    ; inverse-of = record
+      { left-inverse-of  = >>=-∈⁻∘>>=-∈⁺′
+      ; right-inverse-of = >>=-∈⁺′∘>>=-∈⁻
+      }
+    }
+    where
+    >>=-∈⁺′ : ∀ {y} → (∃ λ x → x ∈ xs × y ∈ f x) → y ∈ (xs >>= f)
+    >>=-∈⁺′ (x , x∈ , y∈) = >>=-∈⁺ f x∈ y∈
+
+    >>=-∈⁻∘>>=-∈⁺′ : ∀ {y} (y∈ : ∃ λ x → x ∈ xs × y ∈ f x) →
+                     >>=-∈⁻ f xs (>>=-∈⁺′ y∈) ≡ y∈
+    >>=-∈⁻∘>>=-∈⁺′ (x , x∈ , y∈) = >>=-∈⁻∘>>=-∈⁺ f x∈ y∈
+
+    >>=-∈⁺′∘>>=-∈⁻ : ∀ {y} (y∈ : y ∈ (xs >>= f)) →
+                     >>=-∈⁺′ (>>=-∈⁻ f xs y∈) ≡ y∈
+    >>=-∈⁺′∘>>=-∈⁻ y∈ with >>=-∈⁻ f xs y∈ | >>=-∈⁺∘>>=-∈⁻ f xs y∈
+    >>=-∈⁺′∘>>=-∈⁻ .(>>=-∈⁺ f x∈ y∈) | (x , x∈ , y∈) | refl = refl
 
   -- _>>=_ is monotone.
 
