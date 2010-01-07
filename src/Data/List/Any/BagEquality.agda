@@ -30,7 +30,7 @@ private
 
 _++-cong_ : {A : Set} {xs₁ xs₂ xs₃ xs₄ : List A} →
             xs₁ ≈ xs₂ → xs₃ ≈ xs₄ → xs₁ ++ xs₃ ≈ xs₂ ++ xs₄
-_++-cong_ xs₁≈xs₂ xs₃≈xs₄ =
+xs₁≈xs₂ ++-cong xs₃≈xs₄ =
   ++⇿ ⟪∘⟫ ⊎-Rel⇿≡ ⟪∘⟫
   (xs₁≈xs₂ ⊎-inverse xs₃≈xs₄) ⟪∘⟫
   Inv.sym (++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
