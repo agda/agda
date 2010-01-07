@@ -139,6 +139,45 @@ map⇿ {P = P} = record
     }
   }
 
+-- _++_ is idempotent.
+
+++-idempotent : ∀ {A} {P : A → Set} {xs} →
+                Any P (xs ++ xs) → Any P xs
+++-idempotent = [ id , id ]′ ∘ ++⁻ _
+
+-- _++_ is commutative.
+
+++-comm : ∀ {A} {P : A → Set} xs ys →
+          Any P (xs ++ ys) → Any P (ys ++ xs)
+++-comm xs ys = [ ++⁺ʳ ys , ++⁺ˡ ]′ ∘ ++⁻ xs
+
+++-comm∘++-comm : ∀ {A} {P : A → Set} xs {ys} (p : Any P (xs ++ ys)) →
+                  ++-comm ys xs (++-comm xs ys p) ≡ p
+++-comm∘++-comm [] {ys} p
+ rewrite ++⁻∘++⁺ ys {ys = []} (inj₁ p) = P.refl
+++-comm∘++-comm {P = P} (x ∷ xs) {ys} (here p)
+  rewrite ++⁻∘++⁺ {P = P} ys {ys = x ∷ xs} (inj₂ (here p)) = P.refl
+++-comm∘++-comm (x ∷ xs)      (there p) with ++⁻ xs p | ++-comm∘++-comm xs p
+++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ʳ ys p))))
+  | inj₁ p | P.refl
+  rewrite ++⁻∘++⁺ ys (inj₂                 p)
+        | ++⁻∘++⁺ ys (inj₂ $ there {x = x} p) = P.refl
+++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ˡ    p))))
+  | inj₂ p | P.refl
+  rewrite ++⁻∘++⁺ ys {ys =     xs} (inj₁ p)
+        | ++⁻∘++⁺ ys {ys = x ∷ xs} (inj₁ p) = P.refl
+
+++⇿++ : ∀ {A} {P : A → Set} xs ys →
+        Any P (xs ++ ys) ⇿ Any P (ys ++ xs)
+++⇿++ xs ys = record
+  { to         = P.→-to-⟶ $ ++-comm xs ys
+  ; from       = P.→-to-⟶ $ ++-comm ys xs
+  ; inverse-of = record
+    { left-inverse-of  = ++-comm∘++-comm xs
+    ; right-inverse-of = ++-comm∘++-comm ys
+    }
+  }
+
 -- Introduction and elimination rules for return.
 
 return⁺ : ∀ {A} {P : A → Set} {x} →
@@ -401,16 +440,6 @@ module Membership₁ (S : Setoid zero zero) where
   _++-mono_ {ys₁ = ys₁} xs₁⊆ys₁ xs₂⊆ys₂ =
     [ ++⁺ˡ ∘ xs₁⊆ys₁ , ++⁺ʳ ys₁ ∘ xs₂⊆ys₂ ]′ ∘ ++⁻ _
 
-  -- _++_ is idempotent.
-
-  ++-idempotent : ∀ {xs} → xs ++ xs ⊆ xs
-  ++-idempotent = [ id , id ]′ ∘ ++⁻ _
-
-  -- _++_ is commutative.
-
-  ++-comm : ∀ xs ys → xs ++ ys ⊆ ys ++ xs
-  ++-comm xs ys = [ ++⁺ʳ ys , ++⁺ˡ ]′ ∘ ++⁻ xs
-
   -- Introduction and elimination rules for concat.
 
   concat-∈⁺ : ∀ {x xs xss} →
@@ -631,7 +660,7 @@ module Membership-≡ where
     module S {A} = Setoid (ListEq.setoid (P.setoid A))
     module M {A} = Any.Membership (P.setoid A)
     open module M₁ {A} = Membership₁ (P.setoid A) public
-      using (_++-mono_; ++-idempotent; ++-comm;
+      using (_++-mono_;
              map-with-∈-∈⁺; map-with-∈-∈⁻; map-with-∈-mono;
              finite)
     open module M₂ {A} {B} =
