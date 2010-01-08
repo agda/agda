@@ -1,4 +1,4 @@
-{-# OPTIONS --sized-types #-}
+{-# OPTIONS --sized-types --injective-type-constructors #-}
 
 module SizedTypesFunctionFromSuccSize where
 

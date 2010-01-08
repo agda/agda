@@ -28,6 +28,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
 import Agda.TypeChecking.EtaContract
+import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
 
@@ -245,7 +246,8 @@ unifyIndices flex a us vs = liftTCM $ do
                     Record{}   -> True
                     Axiom{}    -> True
                     _          -> False
-              if ok
+              inj <- optInjectiveTypeConstructors <$> commandLineOptions
+              if inj && ok
                 then unifyArgs (defType def) us vs
                 else addEquality a u v
         (Lit l1, Lit l2)

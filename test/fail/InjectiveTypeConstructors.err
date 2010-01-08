@@ -1,0 +1,3 @@
+InjectiveTypeConstructors.agda:10,6-10
+A != B of type Set
+when checking that the pattern refl has type D A == D B
