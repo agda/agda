@@ -728,12 +728,10 @@ module Membership-≡ where
                   map-∈⁺ {f = f} (proj₁ (proj₂ (map-∈⁻ xs p))) ≅ p
   map-∈⁺∘map-∈⁻ {xs = []}     ()
   map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (here refl) = refl
-  map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (there p)   = there-cong (map-∈⁺∘map-∈⁻ p)
-    where
-    there-cong : ∀ {A : Set} {P Q : A → Set} {x xs}
-                   {p : Any P xs} {q : Any Q xs} →
-                 p ≅ q → there {x = x} p ≅ there {x = x} q
-    there-cong refl = refl
+  map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (there p)
+    with map-∈⁻ xs p | map-∈⁺∘map-∈⁻ p
+  map-∈⁺∘map-∈⁻ {xs = x ∷ xs} (there .(map-∈⁺ y∈xs))
+    | (y , y∈xs , refl) | refl = refl
 
   map-∈⁻∘map-∈⁺ : ∀ {A B : Set} (f : A → B) {x xs} (x∈xs : x ∈ xs) →
                   map-∈⁻ xs (map-∈⁺ {f = f} x∈xs) ≡ (x , x∈xs , refl)

@@ -93,4 +93,7 @@ module HeterogeneousEquality {a} {A : Set a} where
 
   from-≅ : ∀ {n m} {xs : Vec A n} {ys : Vec A m} →
            xs ≅ ys → xs ≈ ys
-  from-≅ HetEq.refl = refl _
+  from-≅ {xs = []}     {ys = []}       _          = refl _
+  from-≅ {xs = x ∷ xs} {ys = .x ∷ .xs} HetEq.refl = refl _
+  from-≅ {xs = _ ∷ _}  {ys = []}       ()
+  from-≅ {xs = []}     {ys = _ ∷ _}    ()
