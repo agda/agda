@@ -125,7 +125,7 @@ getInteractionScope ii =
        return $ getMetaScope mv
 
 withMetaInfo :: MonadTCM tcm => MetaInfo -> tcm a -> tcm a
-withMetaInfo mI m = enterClosure mI $ \_ -> m
+withMetaInfo mI m = enterClosure mI $ \r -> setCurrentRange r m
 
 getInstantiatedMetas :: MonadTCM tcm => tcm [MetaId]
 getInstantiatedMetas = do

@@ -145,7 +145,7 @@ newValueMeta t = do
 newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx t ctx = do
   m@(MetaV i _) <- newValueMetaCtx' t ctx
-  etaExpandMeta i
+  etaExpandMeta [SingletonRecords, Levels] i
   instantiateFull m
 
 -- | Create a new value meta without η-expanding.
@@ -257,41 +257,79 @@ etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandListeners m = do
   ms <- getMetaListeners m
   clearMetaListeners m	-- we don't really have to do this
-  mapM_ etaExpandMeta ms
+  mapM_ (etaExpandMeta allMetaKinds) ms
 
--- | Eta expand a metavariable.
-etaExpandMeta :: MonadTCM tcm => MetaId -> tcm ()
-etaExpandMeta m = do
-  HasType _ a <- mvJudgement <$> lookupMeta m
+-- | Various kinds of metavariables.
+
+data MetaKind =
+    Records
+    -- ^ Meta variables of record type.
+  | SingletonRecords
+    -- ^ Meta variables of \"hereditarily singleton\" record type.
+  | Levels
+    -- ^ Meta variables of level type, if type-in-type is activated.
+  deriving (Eq, Enum, Bounded)
+
+-- | All possible metavariable kinds.
+
+allMetaKinds :: [MetaKind]
+allMetaKinds = [minBound .. maxBound]
+
+-- | Eta expand a metavariable, if it is of the specified kind.
+etaExpandMeta :: MonadTCM tcm => [MetaKind] -> MetaId -> tcm ()
+etaExpandMeta kinds m = do
+  meta       <- lookupMeta m
+  let HasType _ a = mvJudgement meta
   TelV tel b <- telViewM a
   let args	 = [ Arg h $ Var i []
 		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
   bb <- reduceB b
   case unEl <$> bb of
-    Blocked x _            -> listenToMeta m x
-    NotBlocked (MetaV x _) -> listenToMeta m x
-    NotBlocked lvl@(Def r ps)  ->
+    Blocked x _               -> listenToMeta m x
+    NotBlocked (MetaV x _)    -> listenToMeta m x
+    NotBlocked lvl@(Def r ps) ->
       ifM (isRecord r) (do
-	rng <- getMetaRange m
-	u   <- setCurrentRange rng $ newRecordMetaCtx r ps tel args
-	inContext [] $ addCtxTel tel $ do
-	  verboseS "tc.meta.eta" 20 $ do
-	    du <- prettyTCM u
-	    liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
-	  noConstraints $ assignV b m args u  -- should never produce any constraints
-      ) $ do
-      mlvl <- getBuiltin' builtinLevel
-      tt   <- typeInType
-      if tt && Just lvl == mlvl
-       then do
-        reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
-        noConstraints $ assignV b m args (Lit $ LitLevel noRange 0)
-       else
-        return ()
-    _		-> return ()
+	let expand = do
+              u <- withMetaInfo (mvInfo meta) $ newRecordMetaCtx r ps tel args
+              inContext [] $ addCtxTel tel $ do
+                verboseS "tc.meta.eta" 20 $ do
+                  du <- prettyTCM u
+                  liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
+                noConstraints $ assignV b m args u  -- should never produce any constraints
+        if Records `elem` kinds then
+          expand
+         else if SingletonRecords `elem` kinds then do
+          singleton <- isSingletonRecord r ps
+          case singleton of
+            Left x      -> listenToMeta m x
+            Right False -> return ()
+            Right True  -> expand
+         else
+          return ()
+      ) $ when (Levels `elem` kinds) $ do
+        mlvl <- getBuiltin' builtinLevel
+        tt   <- typeInType
+        if tt && Just lvl == mlvl
+         then do
+          reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
+          noConstraints $ assignV b m args (Lit $ LitLevel noRange 0)
+         else
+          return ()
+    _ -> return ()
 
-  return ()
+-- | Eta expand blocking metavariables of record type, and reduce the
+-- blocked thing.
+
+etaExpandBlocked
+  :: (MonadTCM tcm, Reduce t) => Blocked t -> tcm (Blocked t)
+etaExpandBlocked t@NotBlocked{} = return t
+etaExpandBlocked (Blocked m t)  = do
+  etaExpandMeta [Records] m
+  t <- reduceB t
+  case t of
+    Blocked m' _ | m /= m' -> etaExpandBlocked t
+    _                      -> return t
 
 abortAssign :: MonadTCM tcm => tcm a
 abortAssign =

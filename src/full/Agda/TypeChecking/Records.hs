@@ -15,7 +15,10 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Telescope
 import Agda.Utils.List
+import Agda.Utils.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -129,3 +132,29 @@ etaContractRecord r args = do
         then return c
         else fallBack
     _ -> fallBack
+
+-- | Is the type a hereditarily singleton record type? May return a
+-- blocking metavariable.
+--
+-- Precondition: The name should refer to a record type, and the
+-- arguments should be the parameters to the type.
+
+isSingletonRecord ::
+  MonadTCM tcm => QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecord r ps =
+  check =<< ((`apply` ps) <$> getRecordFieldTypes r)
+  where
+  check EmptyTel            = return (Right True)
+  check (ExtendTel arg tel) = do
+    TelV _ t <- telView $ unArg arg
+    t <- reduceB $ unEl t
+    case t of
+      Blocked m _           -> return (Left m)
+      NotBlocked (Def r ps) ->
+        ifM (not <$> isRecord r) (return $ Right False) $ do
+          isRec <- isSingletonRecord r ps
+          case isRec of
+            Left _      -> return isRec
+            Right False -> return isRec
+            Right True  -> underAbstraction arg tel $ check
+      _ -> return (Right False)

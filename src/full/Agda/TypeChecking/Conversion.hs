@@ -148,8 +148,8 @@ compareTel cmp tel1 tel2 =
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom cmp t m n =
     catchConstraint (ValueCmp cmp t m n) $ do
-      mb <- traverse constructorForm =<< reduceB m
-      nb <- traverse constructorForm =<< reduceB n
+      mb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB m
+      nb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB n
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
       reportSDoc "tc.conv.atom" 10 $ fsep
