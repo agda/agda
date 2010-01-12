@@ -22,6 +22,7 @@ import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)
 import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
@@ -142,10 +143,8 @@ stripWithClausePatterns gamma qs perm ps = do
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])
             Defn _ ct _ _ Constructor{conPars = np}  <- getConstInfo c
-            ct <- normalise ct
-            let ct'         = flip apply (genericTake np us) ct
-                TelV tel' _ = telView ct'
-
+            let ct' = ct `apply` genericTake np us
+            TelV tel' _ <- telView ct'
 
             reportSDoc "tc.with.strip" 20 $
               vcat [ text "ct  = " <+> prettyTCM ct

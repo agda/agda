@@ -408,10 +408,10 @@ raise = raiseFrom 0
 
 data TelView = TelV Telescope Type
 
-telView :: Type -> TelView
-telView t = case unEl t of
-  Pi a (Abs x b)  -> absV a x $ telView b
-  Fun a b	  -> absV a "_" $ telView (raise 1 b)
+telView' :: Type -> TelView
+telView' t = case unEl t of
+  Pi a (Abs x b)  -> absV a x $ telView' b
+  Fun a b	  -> absV a "_" $ telView' (raise 1 b)
   _		  -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

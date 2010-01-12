@@ -11,6 +11,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
@@ -63,16 +64,16 @@ sizePolarity d =
   def <- getConstInfo d
   case theDef def of
     Datatype{ dataPars = np, dataCons = cons } -> do
-      let TelV tel _      = telView $ defType def
+      let TelV tel _      = telView' $ defType def
           (parTel, ixTel) = genericSplitAt np $ telToList tel
       case ixTel of
         []                -> return []  -- No size index
         Arg _ (_, a) : _  -> ifM (not <$> isSizeType a) (return []) $ do
           let check c = do
-                t <- normalise =<< defType <$> getConstInfo c
+                t <- defType <$> getConstInfo c
                 addCtxTel (telFromList parTel) $ do
                   let pars = reverse [ Arg NotHidden $ Var i [] | i <- [0..np - 1] ]
-                      TelV conTel target = telView $ t `piApply` pars
+                  TelV conTel target <- telView =<< (t `piApplyM` pars)
                   case conTel of
                     EmptyTel  -> return False  -- no size argument
                     ExtendTel arg@(Arg _ a) tel ->

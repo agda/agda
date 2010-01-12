@@ -309,7 +309,7 @@ computeOccurrences q = do
     Datatype{dataPars = np, dataCons = cs}       -> do
       let conOcc c = do
             a <- defType <$> getConstInfo c
-            TelV tel _ <- telView <$> normalise a
+            TelV tel _ <- telView' <$> normalise a
             let tel' = telFromList $ genericDrop np $ telToList tel
                 vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
             return $ occursAs (ConArgType c) $ occurrences vars tel'

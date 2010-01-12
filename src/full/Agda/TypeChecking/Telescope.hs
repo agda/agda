@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Telescope where
 
+import Control.Applicative
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.List
@@ -10,6 +11,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
@@ -117,3 +119,25 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     m         = genericLength $ takeWhile (`notElem` is) (reverse js)
     (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
 
+-- | A safe variant of telView.
+
+telView :: MonadTCM tcm => Type -> tcm TelView
+telView t = do
+  t <- reduce t
+  case unEl t of
+    Pi a (Abs x b) -> absV a x   <$> telView b
+    Fun a b	   -> absV a "_" <$> telView (raise 1 b)
+    _		   -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
+-- | A safe variant of piApply.
+
+piApplyM :: MonadTCM tcm => Type -> Args -> tcm Type
+piApplyM t []           = return t
+piApplyM t (arg : args) = do
+  t <- reduce t
+  case (t, arg) of
+    (El _ (Pi  _ b), Arg _ v) -> absApp b v `piApplyM` args
+    (El _ (Fun _ b), _      ) -> b `piApplyM` args
+    _                         -> __IMPOSSIBLE__

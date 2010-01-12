@@ -36,6 +36,7 @@ import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
@@ -440,7 +441,7 @@ introTactic ii = do
   mv <- lookupMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ t -> do
-        t <- normalise =<< piApply t <$> getContextArgs
+        t <- reduce =<< piApply t <$> getContextArgs
         case unEl t of
           I.Def d _ -> do
             def <- getConstInfo d
@@ -448,9 +449,11 @@ introTactic ii = do
               Datatype{} -> introData t
               Record{}   -> introRec d
               _          -> return []
-          _ -> case telView t of
-            TelV EmptyTel _ -> return []
-            TelV tel _      -> introFun tel
+          _ -> do
+            TelV tel _ <- telView t
+            case tel of
+              EmptyTel -> return []
+              tel      -> introFun tel
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where

@@ -15,6 +15,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
@@ -87,7 +88,7 @@ getSizeMetas = do
         mi <- lookupMeta m
         case mvJudgement mi of
           HasType _ a -> do
-            TelV tel b <- telView <$> instantiateFull a
+            TelV tel b <- telView =<< instantiateFull a
             if b /= sz
               then return []
               else return [(m, size tel)]

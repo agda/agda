@@ -71,7 +71,7 @@ checkRecDef i name con ps contel fields =
       -- We have to rebind the parameters to make them hidden
       -- Check the field telescope
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
-      let TelV ftel _ = telView contype
+      let TelV ftel _ = telView' contype
       let contype = telePi ftel (raise (size ftel) rect)
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do

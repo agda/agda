@@ -23,6 +23,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Primitive (constructorForm)
@@ -292,10 +293,9 @@ unifyIndices flex a us vs = liftTCM $ do
 
               -- Only generate metas for the arguments v' is actually applied to
               -- (in case of partial application)
-              let b' = telePi tel (sort Prop)
-                    where
-                      TelV tel0 _ = telView b
-                      tel = telFromList $ take (length vs) $ telToList tel0
+              TelV tel0 _ <- telView b
+              let tel = telFromList $ take (length vs) $ telToList tel0
+                  b'  = telePi tel (sort Prop)
               withMetaInfo mi $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
@@ -332,7 +332,7 @@ dataOrRecordType :: MonadTCM tcm
                  -> Type -> tcm Type
 dataOrRecordType c a = do
   -- The telescope ends with a datatype or a record.
-  TelV _ (El _ (Def d args)) <- telView <$> reduce a
+  TelV _ (El _ (Def d args)) <- telView a
   def <- theDef <$> getConstInfo d
   (n, a')  <- case def of
     Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c

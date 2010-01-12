@@ -64,12 +64,11 @@ typeOfVar tel n
 checkCoverage :: QName -> TCM ()
 checkCoverage f = do
   d <- getConstInfo f
-  t <- normalise $ defType d
+  TelV gamma _ <- telView $ defType d
   let defn = theDef d
   case defn of
     Function{ funClauses = cs@(_:_) } -> do
       let n            = genericLength $ clausePats $ head cs
-          TelV gamma _ = telView t
           gamma'       = telFromList $ genericTake n $ telToList gamma
           xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
       reportSDoc "tc.cover.top" 10 $ vcat
@@ -159,7 +158,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
   ctype <- defType <$> getConstInfo con
 
   -- Lookup the type of the constructor at the given parameters
-  TelV gamma (El _ (Def _ cixs)) <- telView <$> normalise (ctype `piApply` pars)
+  TelV gamma (El _ (Def _ cixs)) <- telView (ctype `piApply` pars)
 
   debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
 

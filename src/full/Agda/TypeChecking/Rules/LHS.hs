@@ -17,6 +17,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Primitive (constructorForm)
@@ -272,8 +273,7 @@ checkLeftHandSide
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c ps a ret = do
-  a <- normalise a
-  let TelV tel0' b0 = telView a
+  TelV tel0' b0 <- telView a
   ps <- insertImplicitPatterns ps tel0'
   unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
   let tel0     = useNamesFromPattern ps tel0'
@@ -290,7 +290,7 @@ checkLeftHandSide c ps a ret = do
     vcat [ text "checking lhs:"
 	 , nest 2 $ vcat
 	   [ text "ps    =" <+> fsep (map prettyA ps)
-	   , text "a     =" <+> prettyTCM a
+	   , text "a     =" <+> (prettyTCM =<< normalise a)
 	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
 	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
            , text "xs    =" <+> text (show $ map (fst . unArg) as)
@@ -415,10 +415,10 @@ checkLeftHandSide c ps a ret = do
               ]
 
             -- Lookup the type of the constructor at the given parameters
-            a <- normalise =<< (`piApply` vs) . defType <$> getConstInfo c
+            a <- (`piApply` vs) . defType <$> getConstInfo c
 
             -- It will end in an application of the datatype
-            let TelV gamma' ca@(El _ (Def d' us)) = telView a
+            TelV gamma' ca@(El _ (Def d' us)) <- telView a
 
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
@@ -432,7 +432,7 @@ checkLeftHandSide c ps a ret = do
             let gamma = useNamesFromPattern qs' gamma'
 
             -- Get the type of the datatype.
-            da <- normalise =<< (`piApply` vs) . defType <$> getConstInfo d
+            da <- (`piApply` vs) . defType <$> getConstInfo d
 
             -- Compute the flexible variables
             let flex = flexiblePatterns (problemInPat p0 ++ qs')
@@ -581,7 +581,7 @@ noPatternMatchingOnCodata = mapM_ check . map (unArg . snd) . filter fst
   check (DotP {})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
   check (ConP q ps) = do
-    TelV _ t <- telView . defType <$> getConstInfo q
+    TelV _ t <- telView' . defType <$> getConstInfo q
     c <- isCoinductive t
     case c of
       Nothing    -> __IMPOSSIBLE__

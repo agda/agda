@@ -34,6 +34,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -220,8 +221,7 @@ checkExpr e t =
 
                 -- Lets look at the target type at this point
                 let getCon = do
-                      t <- normalise t
-                      let TelV _ t1 = telView t
+                      TelV _ t1 <- telView t
                       t1 <- reduceB $ unEl t1
                       reportSDoc "tc.check.term.con" 40 $ nest 2 $
                         text "target type: " <+> prettyTCM t1
@@ -374,7 +374,7 @@ checkExpr e t =
 	  blockTerm t (Sort Prop) $ leqType (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
-	  t <- normalise t
+	  t <- reduce t
 	  case unEl t of
 	    Def r vs  -> do
 	      (hs, xs) <- unzip <$> getRecordFieldNames r
@@ -465,8 +465,8 @@ checkHeadApplication e t hd args = do
         Inductive   -> do
           (f, t0) <- inferHead hd
           checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
-            TelV eTel eType <- telView <$> normalise t
-            TelV fTel fType <- telView <$> normalise t1
+            TelV eTel eType <- telView t
+            TelV fTel fType <- telView t1
             blockTerm t (f vs) $ (cs ++) <$> do
               -- We know that the target type of the constructor (fType)
               -- does not depend on fTel so we can compare fType and eType
