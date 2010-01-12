@@ -96,16 +96,19 @@ isRecord r = do
 etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args)
 etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
-  let tel'        = apply tel pars
-      proj (h, x) = Arg h $ Def x $ map hide pars ++ [Arg NotHidden u]
-  reportSDoc "tc.record.eta" 20 $ vcat
-    [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
-    , nest 2 $ vcat
-      [ text "tel' =" <+> prettyTCM tel'
-      , text "args =" <+> prettyTCM (map proj xs)
-      ]
-    ]
-  return (tel', map proj xs)
+  let tel' = apply tel pars
+  case u of
+    Con _ args -> return (tel', args)  -- Already expanded.
+    _          -> do
+      let proj (h, x) = Arg h $ Def x $ map hide pars ++ [Arg NotHidden u]
+      reportSDoc "tc.record.eta" 20 $ vcat
+        [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
+        , nest 2 $ vcat
+          [ text "tel' =" <+> prettyTCM tel'
+          , text "args =" <+> prettyTCM (map proj xs)
+          ]
+        ]
+      return (tel', map proj xs)
   where
     hide (Arg _ x) = Arg Hidden x
 
