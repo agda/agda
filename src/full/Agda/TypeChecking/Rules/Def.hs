@@ -89,7 +89,7 @@ checkFunDef delayed i name cs =
         unless (allEqual $ map npats cs) $ typeError DifferentArities
 
         -- Annotate the clauses with which arguments are actually used.
-        cs <- mapM rebindClause cs
+        cs <- instantiateFull =<< mapM rebindClause cs
 
         -- Check if the function is injective
         inv <- checkInjectivity name cs
