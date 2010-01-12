@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20091123 * 10 + 0
+currentInterfaceVersion = 20100112 * 10 + 1
 
 type Node = [Int] -- constructor tag (maybe omitted) and arg indices
 
@@ -443,10 +443,6 @@ instance EmbPrj I.Type where
   value = vcase valu where valu [a, b] = valu2 El a b
                            valu _      = malformed
 
-instance EmbPrj I.MetaId where
-  icode (MetaId a) = icode a
-  value n = MetaId `fmap` value n
-
 instance (EmbPrj a) => EmbPrj (I.Abs a) where
   icode (Abs a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Abs a b
@@ -461,7 +457,7 @@ instance EmbPrj I.Term where
   icode (Pi       a b) = icode2 5 a b
   icode (Fun      a b) = icode2 6 a b
   icode (Sort     a  ) = icode1 7 a
-  icode (MetaV    a b) = icode2 8 a b
+  icode (MetaV    a b) = __IMPOSSIBLE__
   value = vcase valu where valu [0, a, b] = valu2 Var   a b
                            valu [1, a, b] = valu2 Lam   a b
                            valu [2, a]    = valu1 Lit   a
@@ -470,7 +466,6 @@ instance EmbPrj I.Term where
                            valu [5, a, b] = valu2 Pi    a b
                            valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
-                           valu [8, a, b] = valu2 MetaV a b
                            valu _         = malformed
 
 instance EmbPrj I.Sort where
@@ -478,16 +473,15 @@ instance EmbPrj I.Sort where
   icode Prop        = icode0 1
   icode (Lub   a b) = icode2 2 a b
   icode (Suc   a  ) = icode1 3 a
-  icode (MetaS a b) = icode2 4 a b
-  icode Inf         = icode0 5
-  icode (DLub a b)  = icode2 6 a b
+  icode (MetaS a b) = __IMPOSSIBLE__
+  icode Inf         = icode0 4
+  icode (DLub a b)  = icode2 5 a b
   value = vcase valu where valu [0, a]    = valu1 Type  a
                            valu [1]       = valu0 Prop
                            valu [2, a, b] = valu2 Lub   a b
                            valu [3, a]    = valu1 Suc   a
-                           valu [4, a, b] = valu2 MetaS a b
-                           valu [5]       = valu0 Inf
-                           valu [6, a, b] = valu2 DLub a b
+                           valu [4]       = valu0 Inf
+                           valu [5, a, b] = valu2 DLub a b
                            valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where

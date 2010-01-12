@@ -480,6 +480,12 @@ instance InstantiateFull Term where
           Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
           Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
 
+instance InstantiateFull Pattern where
+    instantiateFull v@VarP{}    = return v
+    instantiateFull (DotP t)    = DotP <$> instantiateFull t
+    instantiateFull (ConP n ps) = ConP n <$> instantiateFull ps
+    instantiateFull l@LitP{}    = return l
+
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t
     instantiateFull (Bind   b) = Bind   <$> instantiateFull b
@@ -585,7 +591,7 @@ instance InstantiateFull Clause where
     instantiateFull (Clause r tel perm ps b) =
        Clause r <$> instantiateFull tel
        <*> return perm
-       <*> return ps
+       <*> instantiateFull ps
        <*> instantiateFull b
 
 instance InstantiateFull Interface where
