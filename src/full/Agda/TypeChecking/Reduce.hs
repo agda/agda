@@ -221,6 +221,7 @@ instance Reduce Term where
 		Var _ _    -> return $ notBlocked v
 		Lam _ _    -> return $ notBlocked v
 	where
+            -- NOTE: reduceNat can traverse the entire term.
 	    reduceNat v@(Con c []) = do
 		mz  <- getBuiltin' builtinZero
                 mlz <- getBuiltin' builtinLevelZero
