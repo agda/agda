@@ -73,6 +73,14 @@ checkRecDef i name con ps contel fields =
       let TelV ftel _ = telView' contype
       let contype = telePi ftel (raise (size ftel) rect)
 
+      (conName, conInfo) <- case con of
+        Just (A.Axiom i c _) -> return (c, i)
+        Just _               -> __IMPOSSIBLE__
+        Nothing              -> do
+          m <- currentModule
+          c <- qualify m <$> freshName (getRange i) (show $ qnameName name)
+          return (c, i)
+
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
@@ -89,16 +97,8 @@ checkRecDef i name con ps contel fields =
         -- Check the types of the fields
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
-          checkRecordProjections m (maybe name A.axiomName con)
+          checkRecordProjections m conName
                                  tel' (raise 1 ftel) fields
-
-      (conName, conInfo) <- case con of
-        Just (A.Axiom i c _) -> return (c, i)
-        Just _               -> __IMPOSSIBLE__
-        Nothing              -> do
-          m <- currentModule
-          c <- qualify m <$> freshName (getRange i) (show $ qnameName name)
-          return (c, i)
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
