@@ -120,15 +120,18 @@ instance Instantiate Telescope where
   instantiate tel = return tel
 
 instance Instantiate Constraint where
-    instantiate (ValueCmp cmp t u v) =
-	do  (t,u,v) <- instantiate (t,u,v)
-	    return $ ValueCmp cmp t u v
-    instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
-    instantiate (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> instantiate (a,b)
-    instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
-    instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
-    instantiate (UnBlock m)          = return $ UnBlock m
-    instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
+  instantiate (ValueCmp cmp t u v) = do
+    (t,u,v) <- instantiate (t,u,v)
+    return $ ValueCmp cmp t u v
+  instantiate (ArgsCmp cmp t as bs) = do
+    (t, as, bs) <- instantiate (t, as, bs)
+    return $ ArgsCmp cmp t as bs
+  instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
+  instantiate (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> instantiate (a,b)
+  instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
+  instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
+  instantiate (UnBlock m)          = return $ UnBlock m
+  instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -331,15 +334,18 @@ instance Reduce Telescope where
   reduce tel = return tel
 
 instance Reduce Constraint where
-    reduce (ValueCmp cmp t u v) =
-	do  (t,u,v) <- reduce (t,u,v)
-	    return $ ValueCmp cmp t u v
-    reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
-    reduce (TelCmp  cmp a b)    = uncurry (TelCmp cmp)  <$> reduce (a,b)
-    reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
-    reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
-    reduce (UnBlock m)          = return $ UnBlock m
-    reduce (IsEmpty t)          = IsEmpty <$> reduce t
+  reduce (ValueCmp cmp t u v) = do
+    (t,u,v) <- reduce (t,u,v)
+    return $ ValueCmp cmp t u v
+  reduce (ArgsCmp cmp t us vs) = do
+    (t,us,vs) <- reduce (t,us,vs)
+    return $ ArgsCmp cmp t us vs
+  reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
+  reduce (TelCmp  cmp a b)    = uncurry (TelCmp cmp)  <$> reduce (a,b)
+  reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
+  reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
+  reduce (UnBlock m)          = return $ UnBlock m
+  reduce (IsEmpty t)          = IsEmpty <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -413,15 +419,18 @@ instance Normalise Telescope where
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
 
 instance Normalise Constraint where
-    normalise (ValueCmp cmp t u v) =
-	do  (t,u,v) <- normalise (t,u,v)
-	    return $ ValueCmp cmp t u v
-    normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
-    normalise (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> normalise (a,b)
-    normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
-    normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
-    normalise (UnBlock m)          = return $ UnBlock m
-    normalise (IsEmpty t)          = IsEmpty <$> normalise t
+  normalise (ValueCmp cmp t u v) = do
+    (t,u,v) <- normalise (t,u,v)
+    return $ ValueCmp cmp t u v
+  normalise (ArgsCmp cmp t u v) = do
+    (t,u,v) <- normalise (t,u,v)
+    return $ ArgsCmp cmp t u v
+  normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
+  normalise (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> normalise (a,b)
+  normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
+  normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
+  normalise (UnBlock m)          = return $ UnBlock m
+  normalise (IsEmpty t)          = IsEmpty <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -519,6 +528,9 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull (t,u,v)
       return $ ValueCmp cmp t u v
+    ArgsCmp cmp t u v -> do
+      (t,u,v) <- instantiateFull (t,u,v)
+      return $ ArgsCmp cmp t u v
     TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
     TelCmp cmp a b     -> uncurry (TelCmp cmp)  <$> instantiateFull (a,b)
     SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)

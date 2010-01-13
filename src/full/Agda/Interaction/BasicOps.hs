@@ -195,6 +195,7 @@ rewrite Normalised   t = etaContract =<< normalise t
 
 data OutputForm a b
       = OfType b a | CmpInType Comparison a b b
+                   | CmpTerms [Polarity] a [b] [b]
       | JustType b | CmpTypes Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
@@ -210,23 +211,26 @@ data OutputForm' a b = OfType' { ofName :: b
 
 outputFormId :: OutputForm a b -> b
 outputFormId o = case o of
-  OfType i _        -> i
-  CmpInType _ _ i _ -> i
-  JustType i        -> i
-  CmpTypes _ i _    -> i
-  CmpTeles _ i _    -> i
-  JustSort i        -> i
-  CmpSorts _ i _    -> i
-  Guard o _         -> outputFormId o
-  Assign i _        -> i
-  TypedAssign i _ _ -> i
-  IsEmptyType _     -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+  OfType i _           -> i
+  CmpInType _ _ i _    -> i
+  CmpTerms _ _ (i:_) _ -> i
+  CmpTerms _ _ [] _    -> __IMPOSSIBLE__
+  JustType i           -> i
+  CmpTypes _ i _       -> i
+  CmpTeles _ i _       -> i
+  JustSort i           -> i
+  CmpSorts _ i _       -> i
+  Guard o _            -> outputFormId o
+  Assign i _           -> i
+  TypedAssign i _ _    -> i
+  IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t)           = OfType (f e) t
     fmap f (JustType e)           = JustType (f e)
     fmap f (JustSort e)           = JustSort (f e)
     fmap f (CmpInType cmp t e e') = CmpInType cmp t (f e) (f e')
+    fmap f (CmpTerms cmp t e e')  = CmpTerms cmp t (map f e) (map f e')
     fmap f (CmpTypes cmp e e')    = CmpTypes cmp (f e) (f e')
     fmap f (CmpTeles cmp e e')    = CmpTeles cmp (f e) (f e')
     fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
@@ -237,6 +241,9 @@ instance Functor (OutputForm a) where
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
+    reify (ArgsCmp cmp t u v)    = CmpTerms cmp <$> reify t
+                                                <*> mapM (reify . unArg) u
+                                                <*> mapM (reify . unArg) v
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
     reify (TelCmp  cmp t t')     = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
@@ -269,6 +276,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (JustType e)           = "Type " ++ show e
     show (JustSort e)           = "Sort " ++ show e
     show (CmpInType cmp t e e') = show e ++ showComparison cmp ++ show e' ++ " : " ++ show t
+    show (CmpTerms cmp t e e')  = show e ++ "~~" ++ show e' ++ " : " ++ show t
     show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
@@ -283,7 +291,9 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
-             CmpInType cmp <$> toConcrete t <*> toConcrete e <*> toConcrete e'
+      CmpInType cmp <$> toConcrete t <*> toConcrete e <*> toConcrete e'
+    toConcrete (CmpTerms cmp t e e') =
+      CmpTerms cmp <$> toConcrete t <*> mapM toConcrete e <*> mapM toConcrete e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'

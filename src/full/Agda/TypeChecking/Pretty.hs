@@ -100,6 +100,15 @@ instance PrettyTCM Constraint where
 		      ]
 		, nest 2 $ text ":" <+> prettyTCM ty
 		]
+        ArgsCmp cmps t us vs ->
+          sep [ prettyList
+                [ sep [ prettyTCM u
+                      , nest 2 $ text "~~" <+> prettyTCM v
+                      , nest 2 $ text (show cmp)
+                      ] | (cmp, u, v) <- zip3 cmps us vs
+                ] 
+              , nest 2 $ text ":" <+> prettyTCM t
+              ]
 	TypeCmp cmp a b ->
 	    sep [ prettyTCM a
 		, prettyTCM cmp <+> prettyTCM b

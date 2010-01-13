@@ -59,6 +59,7 @@ guardConstraint m c = do
 	isNonBlocking = isNB . clValue
 	isNB SortCmp{}        = True
 	isNB ValueCmp{}       = False
+        isNB ArgsCmp{}        = False
 	isNB TypeCmp{}        = False
 	isNB TelCmp{}         = False
 	isNB (Guarded c _)    = isNB c
@@ -92,6 +93,7 @@ solveConstraints cs = do
 
 solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
+solveConstraint (ArgsCmp cmp a u v)  = compareArgs cmp a u v
 solveConstraint (TypeCmp cmp a b)    = compareType cmp a b
 solveConstraint (TelCmp cmp a b)     = compareTel  cmp a b
 solveConstraint (SortCmp cmp s1 s2)  = compareSort cmp s1 s2

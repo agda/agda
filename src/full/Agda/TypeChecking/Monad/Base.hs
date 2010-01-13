@@ -218,6 +218,7 @@ buildClosure x = liftTCM $ do
 type ConstraintClosure = Closure Constraint
 
 data Constraint = ValueCmp Comparison Type Term Term
+                | ArgsCmp [Polarity] Type Args Args
 		| TypeCmp Comparison Type Type
                 | TelCmp Comparison Telescope Telescope
 		| SortCmp Comparison Sort Sort

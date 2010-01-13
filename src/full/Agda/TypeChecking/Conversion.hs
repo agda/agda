@@ -280,6 +280,7 @@ compareArgs _ _ (_:_) [] = __IMPOSSIBLE__
 compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
     let (pol, pols) = nextPolarity pols0
     a <- reduce a
+    catchConstraint (ArgsCmp pols0 a (arg1 : args1) (arg2 : args2)) $ do
     reportSDoc "tc.conv.args" 30 $
       sep [ text "compareArgs"
           , nest 2 $ sep [ prettyTCM (arg1 : args1)
