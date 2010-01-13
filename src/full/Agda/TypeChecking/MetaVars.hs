@@ -276,8 +276,9 @@ allMetaKinds :: [MetaKind]
 allMetaKinds = [minBound .. maxBound]
 
 -- | Eta expand a metavariable, if it is of the specified kind.
+--   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: MonadTCM tcm => [MetaKind] -> MetaId -> tcm ()
-etaExpandMeta kinds m = do
+etaExpandMeta kinds m = unlessM (isBlockedTerm m) $ do
   meta       <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b <- telViewM a
