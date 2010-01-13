@@ -17,8 +17,13 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-data Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
-  _,_ : (x : A) (y : B x) → Σ A B
+record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+  constructor _,_
+  field
+    proj₁ : A
+    proj₂ : B proj₁
+
+open Σ public
 
 ∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∃ = Σ _
@@ -52,13 +57,6 @@ _,′_ = _,_
 
 ,_ : ∀ {a b} {A : Set a} {B : A → Set b} {x} → B x → ∃ B
 , y = _ , y
-
-proj₁ : ∀ {a b} {A : Set a} {B : A → Set b} → Σ A B → A
-proj₁ (x , y) = x
-
-proj₂ : ∀ {a b} {A : Set a} {B : A → Set b} →
-        (p : Σ A B) → B (proj₁ p)
-proj₂ (x , y) = y
 
 <_,_> : ∀ {a b c} {A : Set a} {B : A → Set b} {C : ∀ {x} → B x → Set c}
         (f : (x : A) → B x) → ((x : A) → C (f x)) →
