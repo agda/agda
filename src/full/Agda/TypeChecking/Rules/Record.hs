@@ -5,7 +5,6 @@ module Agda.TypeChecking.Rules.Record where
 import Control.Applicative
 import Control.Monad.Trans
 import Control.Monad.Reader
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common
@@ -93,10 +92,18 @@ checkRecDef i name con ps contel fields =
           checkRecordProjections m (maybe name A.axiomName con)
                                  tel' (raise 1 ftel) fields
 
+      (conName, conInfo) <- case con of
+        Just (A.Axiom i c _) -> return (c, i)
+        Just _               -> __IMPOSSIBLE__
+        Nothing              -> do
+          m <- currentModule
+          c <- qualify m <$> freshName (getRange i) (show $ qnameName name)
+          return (c, i)
+
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
-                                , recCon            = A.axiomName <$> con
+                                , recCon            = conName
                                 , recConType        = contype
 				, recFields         = concatMap getName fields
                                 , recTel            = ftel
@@ -104,20 +111,15 @@ checkRecDef i name con ps contel fields =
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }
-      case con of
-        Nothing              -> return ()
-        Just (A.Axiom i c _) -> do
-          addConstant c $
-            Defn c contype (defaultDisplayForm name) 0 $
-                 Constructor { conPars   = 0
-                             , conSrcCon = c
-                             , conData   = name
-                             , conHsCode = Nothing
-                             , conAbstr  = Info.defAbstract i
-                             , conInd    = Inductive
-                             }
-          verboseS "tc.rec.def" 20 $ liftIO . LocIO.print =<< getConstInfo c
-        Just _ -> __IMPOSSIBLE__
+      addConstant conName $
+        Defn conName contype (defaultDisplayForm conName) 0 $
+             Constructor { conPars   = 0
+                         , conSrcCon = conName
+                         , conData   = name
+                         , conHsCode = Nothing
+                         , conAbstr  = Info.defAbstract conInfo
+                         , conInd    = Inductive
+                         }
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here

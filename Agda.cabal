@@ -193,6 +193,7 @@ library
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
                     Agda.TypeChecking.Rebind
+                    Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
                     Agda.TypeChecking.Reduce
                     Agda.TypeChecking.Rules.Builtin

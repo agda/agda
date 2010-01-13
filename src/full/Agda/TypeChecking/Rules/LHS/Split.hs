@@ -91,14 +91,23 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  case unEl a' of
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
-	      case def of
-		Datatype{dataPars = np} ->
+              let mp = case def of
+                        Datatype{dataPars = np} -> Just np
+                        Record{recPars = np}    -> Just np
+                        _                       -> Nothing
+              case mp of
+                Nothing -> keepGoing
+                Just np ->
 		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
                       d'  <- canonicalName d
-                      Datatype{dataCons = cs0} <- theDef <$> getConstInfo d'
+                      let cons def = case theDef def of
+                            Datatype{dataCons = cs} -> cs
+                            Record{recCon = c}      -> [c]
+                            _                       -> __IMPOSSIBLE__
+                      cs0 <- cons <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
                         c : _ -> return c   -- if there are more than one they will
                                             -- all have the same canonical form
@@ -115,9 +124,6 @@ splitProblem (Problem ps (perm, qs) tel) = do
 				 xs
 				 (fmap (const $ Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
-		-- TODO: record patterns
-		Record{} -> typeError $ NotImplemented "Pattern matching for records"
-		_ -> keepGoing
 	    _	-> keepGoing
 	p -> keepGoing
       where

@@ -130,6 +130,8 @@ isDatatype t = do
         Datatype{dataPars = np, dataCons = cs} -> do
           let (ps, is) = genericSplitAt np args
           return $ Just (d, ps, is, cs)
+        Record{recPars = np, recCon = c} ->
+          return $ Just (d, args, [], [c])
         _ -> return Nothing
     _ -> return Nothing
 

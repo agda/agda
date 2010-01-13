@@ -41,6 +41,7 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.RecordPatterns
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -269,12 +270,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
           , text "body  =" <+> text (show body)
           ]
         ]
-      return $ Clause { clauseRange = getRange i
-                      , clauseTel   = killRange delta  -- TODO: make sure delta and perm are what we want
-                      , clausePerm  = perm
-                      , clausePats  = ps
-                      , clauseBody  = body
-                      }
+
+      translateRecordPatterns $
+        Clause { clauseRange = getRange i
+               , clauseTel   = killRange delta  -- TODO: make sure delta and perm are what we want
+               , clausePerm  = perm
+               , clausePats  = ps
+               , clauseBody  = body
+               }
 
 checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
