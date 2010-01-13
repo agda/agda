@@ -1,4 +1,0 @@
-RecordConstructorPatternMatching.agda:14,1-27
-Not implemented: Pattern matching for records
-when checking that the clause id (con f D g) = con f D g has type
-R → R

@@ -75,7 +75,11 @@ getRecordConstructorType r = recConType <$> getRecordDef r
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: MonadTCM tcm => QName -> tcm QName
-getRecordConstructor r = killRange . recCon <$> getRecordDef r
+getRecordConstructor r = killRange <$> do
+  c <- recCon <$> getRecordDef r
+  case c of
+    Nothing -> return r
+    Just c  -> return c
 
 -- | Check if a name refers to a record.
 isRecord :: MonadTCM tcm => QName -> tcm Bool

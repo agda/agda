@@ -122,7 +122,9 @@ definition (Defn q ty _ _ d) = do
     Record{ recClause = cl, recCon = c, recFields = flds } -> do
       let noFields = genericLength flds
       ar <- arity <$> normalise ty
-      cd <- snd <$> condecl c
+      cd <- case c of
+        Nothing -> return $ cdecl q noFields
+        Just c  -> snd <$> condecl c
       return $ tvaldecl q Inductive noFields ar [cd] cl
   where
   function cls = mkwhere <$> mapM (clause q) (tag 0 cls)

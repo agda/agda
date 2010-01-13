@@ -436,7 +436,7 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat
             , recClause         :: Maybe Clause
-            , recCon            :: QName                -- ^ Constructor name.
+            , recCon            :: Maybe QName          -- ^ Constructor name.
             , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [(Hiding, A.QName)]
             , recTel            :: Telescope

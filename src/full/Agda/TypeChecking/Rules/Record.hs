@@ -74,12 +74,9 @@ checkRecDef i name con ps contel fields =
       let contype = telePi ftel (raise (size ftel) rect)
 
       (conName, conInfo) <- case con of
-        Just (A.Axiom i c _) -> return (c, i)
+        Just (A.Axiom i c _) -> return (Just c, i)
         Just _               -> __IMPOSSIBLE__
-        Nothing              -> do
-          m <- currentModule
-          c <- qualify m <$> freshName (getRange i) (show $ qnameName name)
-          return (c, i)
+        Nothing              -> return (Nothing, i)
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
@@ -97,7 +94,7 @@ checkRecDef i name con ps contel fields =
         -- Check the types of the fields
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
-          checkRecordProjections m conName
+          checkRecordProjections m (maybe name id conName)
                                  tel' (raise 1 ftel) fields
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
@@ -111,15 +108,19 @@ checkRecDef i name con ps contel fields =
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }
-      addConstant conName $
-        Defn conName contype (defaultDisplayForm conName) 0 $
-             Constructor { conPars   = 0
-                         , conSrcCon = conName
-                         , conData   = name
-                         , conHsCode = Nothing
-                         , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = Inductive
-                         }
+
+      case conName of
+        Nothing      -> return ()
+        Just conName ->
+          addConstant conName $
+            Defn conName contype (defaultDisplayForm conName) 0 $
+                 Constructor { conPars   = 0
+                             , conSrcCon = conName
+                             , conData   = name
+                             , conHsCode = Nothing
+                             , conAbstr  = Info.defAbstract conInfo
+                             , conInd    = Inductive
+                             }
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here
