@@ -757,7 +757,7 @@ parseAndDoAtToplevel
   :: (SA.Expr -> TCM SA.Expr)
      -- ^ The command to perform.
   -> String
-     -- ^ The name to used for the buffer displaying the output.
+     -- ^ The name to use for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
   -> Interaction
