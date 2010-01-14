@@ -8,7 +8,7 @@ module Data.Product where
 
 open import Function
 open import Level
-open import Relation.Nullary.Core
+open import Relation.Nullary
 
 infixr 4 _,_ _,′_
 infix  4 ,_

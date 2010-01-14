@@ -13,7 +13,7 @@ open import Data.Product
 open import Data.Sum
 open import Function
 open import Level
-open import Relation.Nullary.Core
+open import Relation.Nullary
 
 ------------------------------------------------------------------------
 -- Binary relations
