@@ -755,17 +755,8 @@ parseAndDoAtToplevel
   -> Interaction
 parseAndDoAtToplevel cmd title s = Interaction False $ do
   e <- liftIO $ parse exprParser s
-  display_info title =<< do
-    mCurrent <- stCurrentModule <$> get
-    case mCurrent of
-      Nothing      -> return "Error: First load the file."
-      Just current -> do
-        r <- getVisitedModule (SA.toTopLevelModuleName current)
-        case r of
-          Nothing -> __IMPOSSIBLE__
-          Just mi -> do
-            setScope $ iInsideScope $ miInterface mi
-            showA =<< cmd =<< concreteToAbstract_ e
+  display_info title =<<
+    B.atTopLevel (showA =<< cmd =<< concreteToAbstract_ e)
   return Nothing
 
 -- | Parse the given expression (as if it were defined at the

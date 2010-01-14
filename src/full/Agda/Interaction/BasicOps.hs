@@ -10,6 +10,7 @@ module Agda.Interaction.BasicOps where
 
 import Control.Monad.Error
 import Control.Monad.Reader
+import Control.Monad.State
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List
@@ -27,6 +28,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
@@ -516,3 +518,22 @@ introTactic ii = do
             [" }"]
         ]
 
+-- | Runs the given computation as if in an anonymous goal at the end
+-- of the top-level module.
+
+atTopLevel :: TCM a -> TCM a
+atTopLevel m = do
+  mCurrent <- stCurrentModule <$> get
+  case mCurrent of
+    Nothing      -> typeError $
+                      GenericError "The file has not been loaded yet."
+    Just current -> do
+      r <- getVisitedModule (toTopLevelModuleName current)
+      case r of
+        Nothing -> __IMPOSSIBLE__
+        Just mi -> do
+          tel <- lookupSection current
+          M.withCurrentModule current $
+            withScope_ (iInsideScope $ miInterface mi) $
+              addCtxTel tel $
+                m
