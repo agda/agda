@@ -513,7 +513,7 @@ An error is raised if no responses are received."
       (cond ((null want) (setq txt ""))
             ((and (stringp want)
                   (or ask (string-match "\\`\\s *\\'" txt)))
-             (setq txt (read-string (concat want ": ") txt))))
+             (setq txt (read-string (concat want ": ") nil nil txt t))))
       (apply 'agda2-go nil t t cmd
              (format "%d" g)
              (agda2-goal-Range o)
