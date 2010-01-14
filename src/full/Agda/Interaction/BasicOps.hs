@@ -51,15 +51,21 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Parses an expression.
+
+parseExpr :: Range -> String -> TCM C.Expr
+parseExpr rng s = liftIO $ parsePosString exprParser pos s
+  where
+  pos = case rStart rng of
+          Just pos -> pos
+          Nothing  -> startPos Nothing
+
 parseExprIn :: InteractionId -> Range -> String -> TCM Expr
 parseExprIn ii rng s = do
     mId <- lookupInteractionId ii
     updateMetaVarRange mId rng
     mi  <- getMetaInfo <$> lookupMeta mId
-    let pos = case rStart (getRange mi) of
-                Just pos -> pos
-                Nothing  -> __IMPOSSIBLE__
-    e <- liftIO $ parsePosString exprParser pos s
+    e   <- parseExpr rng s
     concreteToAbstract (clScope mi) e
 
 giveExpr :: MetaId -> Expr -> TCM Expr

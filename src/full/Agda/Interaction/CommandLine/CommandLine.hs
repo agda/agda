@@ -12,7 +12,7 @@ import Data.List as List
 import Data.Maybe
 import qualified Agda.Utils.IO.Locale as LocIO
 
-import Agda.Interaction.BasicOps as BasicOps
+import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
 import Agda.Interaction.Monad
 
 import qualified Agda.Syntax.Abstract as A
