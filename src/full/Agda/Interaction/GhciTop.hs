@@ -437,15 +437,7 @@ prettyContext norm ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
   es  <- mapM (prettyA . B.ofExpr) ctx
   ns  <- mapM (showA   . B.ofName) ctx
-  let maxLen = maximum $ 0 : filter (< longNameLength) (map length ns)
-  return $ vcat $
-           map (\(n, e) -> text n $$ nest (maxLen + 1) (text ":") <+> e) $
-           zip ns es
-
--- | 'prettyContext' lays out @n : e@ on (at least) two lines if @n@
--- has at least @longNameLength@ characters.
-
-longNameLength = 10
+  return $ align 10 $ zip ns (map (text ":" <+>) es)
 
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = Interaction False $ do
