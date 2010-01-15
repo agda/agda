@@ -164,6 +164,7 @@ library
                     Agda.TypeChecking.Conversion
                     Agda.TypeChecking.Coverage
                     Agda.TypeChecking.Coverage.Match
+                    Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DisplayForm
                     Agda.TypeChecking.Empty
                     Agda.TypeChecking.EtaContract

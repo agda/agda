@@ -1,4 +1,4 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE PatternGuards, CPP #-}
 module Agda.TypeChecking.Rules.Builtin where
 
 import Control.Applicative
@@ -22,6 +22,9 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.Term ( checkExpr )
 
 import Agda.Utils.Size
+import Agda.Utils.Impossible
+
+#include "../..//undefined.h"
 
 ---------------------------------------------------------------------------
 -- * Checking builtin pragmas
@@ -80,11 +83,10 @@ bindBuiltinType b e = do
             " have to be different types."
         _ -> return ()
 
-bindBuiltinBool :: String -> A.Expr -> TCM ()
+bindBuiltinBool :: String -> A.Expr -> TCM Term
 bindBuiltinBool b e = do
     bool <- primBool
-    t    <- checkExpr e $ El (mkType 0) bool
-    bindBuiltinName b t
+    checkExpr e $ El (mkType 0) bool
 
 -- | Bind something of type @Set -> Set@.
 bindBuiltinType1 :: String -> A.Expr -> TCM ()
@@ -95,19 +97,17 @@ bindBuiltinType1 thing e = do
     inductiveCheck thing f
     bindBuiltinName thing f
 
-bindBuiltinZero' :: String -> TCM Term -> A.Expr -> TCM ()
+bindBuiltinZero' :: String -> TCM Term -> A.Expr -> TCM Term
 bindBuiltinZero' bZero pNat e = do
     nat  <- pNat
-    zero <- checkExpr e (El (mkType 0) nat)
-    bindBuiltinName bZero zero
+    checkExpr e (El (mkType 0) nat)
 
-bindBuiltinSuc' :: String -> TCM Term -> A.Expr -> TCM ()
+bindBuiltinSuc' :: String -> TCM Term -> A.Expr -> TCM Term
 bindBuiltinSuc' bSuc pNat e = do
     nat  <- pNat
     let nat' = El (mkType 0) nat
         natToNat = El (mkType 0) $ Fun (Arg NotHidden nat') nat'
-    suc <- checkExpr e natToNat
-    bindBuiltinName bSuc suc
+    checkExpr e natToNat
 
 bindBuiltinZero e = bindBuiltinZero' builtinZero primNat e
 bindBuiltinSuc  e = bindBuiltinSuc'  builtinSuc primNat e
@@ -127,17 +127,16 @@ typeOfSizeSuc = do
     return $ El (mkType 0) $ Fun (Arg NotHidden sz') sz'
 
 -- | Built-in nil should have type @{A:Set} -> List A@
-bindBuiltinNil :: A.Expr -> TCM ()
+bindBuiltinNil :: A.Expr -> TCM Term
 bindBuiltinNil e = do
     list' <- primList
     let set     = sort (mkType 0)
         list a  = El (mkType 0) (list' `apply` [Arg NotHidden a])
         nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
-    nil <- checkExpr e nilType
-    bindBuiltinName builtinNil nil
+    checkExpr e nilType
 
 -- | Built-in cons should have type @{A:Set} -> A -> List A -> List A@
-bindBuiltinCons :: A.Expr -> TCM ()
+bindBuiltinCons :: A.Expr -> TCM Term
 bindBuiltinCons e = do
     list' <- primList
     let set       = sort (mkType 0)
@@ -147,8 +146,7 @@ bindBuiltinCons e = do
         hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
         fun a b   = el $ Fun (Arg NotHidden a) b
         consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
-    cons <- checkExpr e consType
-    bindBuiltinName builtinCons cons
+    checkExpr e consType
 
 bindBuiltinPrimitive :: String -> String -> A.Expr -> (Term -> TCM ()) -> TCM ()
 bindBuiltinPrimitive name builtin (A.ScopedExpr scope e) verify = do
@@ -316,7 +314,7 @@ bindBuiltinEquality e = do
   bindBuiltinName builtinEquality eq
 
 
-bindBuiltinRefl :: A.Expr -> TCM ()
+bindBuiltinRefl :: A.Expr -> TCM Term
 bindBuiltinRefl e = do
   eq' <- primEquality
   let set       = sort (mkType 0)
@@ -327,11 +325,10 @@ bindBuiltinRefl e = do
       fun a b   = el $ Fun (Arg NotHidden a) b
       eq a b c  = el $ eq' `apply` [Arg Hidden a, Arg NotHidden b, Arg NotHidden c]
       reflType  = hPi "A" set $ hPi "x" (el v0) $ eq v1 v0 v0
-  refl <- checkExpr e reflType
-  bindBuiltinName builtinRefl refl
+  checkExpr e reflType
 
 -- | Builtin constructors
-builtinConstructors :: [(String, A.Expr -> TCM ())]
+builtinConstructors :: [(String, A.Expr -> TCM Term)]
 builtinConstructors =
   [ (builtinNil,       bindBuiltinNil               )
   , (builtinCons,      bindBuiltinCons              )
@@ -354,12 +351,18 @@ builtinPostulates =
 
 -- | Bind a builtin constructor. Pre-condition: argument is an element of
 --   'builtinConstructors'.
-bindConstructor :: String -> (A.Expr -> TCM ()) -> A.Expr -> TCM ()
-bindConstructor s bind (A.ScopedExpr scope e) = do
+bindConstructor :: String -> (A.Expr -> TCM Term) -> A.Expr -> TCM ()
+bindConstructor s check (A.ScopedExpr scope e) = do
   setScope scope
-  bindConstructor s bind e
-bindConstructor s bind e@(A.Con _) = bind e
-bindConstructor s _ e              = typeError $ BuiltinMustBeConstructor s e
+  bindConstructor s check e
+bindConstructor s check e@(A.Con _) = do
+  t <- check e
+  -- The constructor might have been eta expanded during type checking
+  let name (Lam h b) = name (absBody b)
+      name (Con c _) = Con c []
+      name _         = __IMPOSSIBLE__
+  bindBuiltinName s (name t)
+bindConstructor s _ e               = typeError $ BuiltinMustBeConstructor s e
 
 -- | Bind a builtin postulate. Pre-condition: argument is an element of
 --   'builtinPostulates'.
