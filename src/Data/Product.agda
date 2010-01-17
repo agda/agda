@@ -96,4 +96,8 @@ curry f x y = f (x , y)
 uncurry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
           ((x : A) → (y : B x) → C (x , y)) →
           ((p : Σ A B) → C p)
-uncurry f (p₁ , p₂) = f p₁ p₂
+uncurry f p = f (proj₁ p) (proj₂ p)
+
+uncurry′ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
+           (A → B → C) → (A × B → C)
+uncurry′ = uncurry
