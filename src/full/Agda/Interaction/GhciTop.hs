@@ -484,6 +484,38 @@ cmd_goal_type_context_infer norm ii rng s = Interaction False $ do
            prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
+-- | Shows all the top-level names in the given module, along with
+-- their types.
+
+showModuleContents :: Range -> String -> TCM ()
+showModuleContents rng s = do
+  (modules, types) <- B.moduleContents rng s
+  types' <- mapM (\(x, t) -> do
+                    t <- prettyTCM t
+                    return (show x, text ":" <+> t))
+                 types
+  display_infoD "*Module contents*" $
+    text "Modules" $$
+    nest 2 (vcat $ map (text . show) modules) $$
+    text "Names" $$
+    nest 2 (align 10 types')
+
+-- | Shows all the top-level names in the given module, along with
+-- their types. Uses the scope of the given goal.
+
+cmd_show_module_contents :: GoalCommand
+cmd_show_module_contents ii rng s = Interaction False $ do
+  B.withInteractionId ii $ showModuleContents rng s
+  return Nothing
+
+-- | Shows all the top-level names in the given module, along with
+-- their types. Uses the top-level scope.
+
+cmd_show_module_contents_toplevel :: String -> Interaction
+cmd_show_module_contents_toplevel s = Interaction False $ do
+  B.atTopLevel $ showModuleContents noRange s
+  return Nothing
+
 -- | Sets the command line options and updates the status information.
 
 setCommandLineOptions :: CommandLineOptions -> TCM ()

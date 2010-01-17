@@ -16,3 +16,11 @@ Language
     http://thread.gmane.org/gmane.comp.lang.agda/1367
 
   See test/succeed/InjectiveTypeConstructors.agda for an example.
+
+Tools
+-----
+
+* Command which shows module contents: Given a module name M the Emacs
+  mode can now display all the top-level modules and names inside M,
+  along with types for the names. The command is activated using
+  C-c C-o or the menus.

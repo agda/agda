@@ -537,3 +537,32 @@ atTopLevel m = do
             withScope_ (iInsideScope $ miInterface mi) $
               addCtxTel tel $
                 m
+
+-- | Returns the contents of the given module.
+
+moduleContents :: Range
+                  -- ^ The range of the next argument.
+               -> String
+                  -- ^ The module name.
+               -> TCM ([C.Name], [(C.Name, Type)])
+                  -- ^ Module names, names paired up with
+                  -- corresponding types.
+moduleContents rng s = do
+  m <- parseExpr rng s
+  m <- case m of
+         C.Ident m              -> return m
+         C.RawApp _ [C.Ident m] -> return m
+         _                      -> typeError $
+           GenericError $ "Not a module name: " ++ show m ++ "."
+  modScope <- getNamedScope . amodName =<< resolveModule m
+  let modules :: ThingsInScope AbstractModule
+      modules = allNamesInScope modScope
+      names :: ThingsInScope AbstractName
+      names = allNamesInScope modScope
+  types <- mapM (\(x, n) -> do
+                   d <- getConstInfo $ anameName n
+                   t <- defType <$> instantiateDef d
+                   return (x, t))
+                (concatMap (\(x, ns) -> map ((,) x) ns) $
+                           Map.toList names)
+  return (Map.keys modules, types)

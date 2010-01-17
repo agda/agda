@@ -245,6 +245,7 @@ constituents.")
     (agda2-infer-type-maybe-toplevel         "\C-c\C-d"         (local global) "Infer (deduce) type")
     (agda2-goal-and-context                  ,(kbd "C-c C-,")   (local)        "Goal type and context")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")   (local)        "Goal type, context and inferred type")
+    (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")   (local global) "Module contents")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"         (local global) "Evaluate term to normal form")
     (agda2-indent                ,(kbd "TAB"))
     (agda2-indent-reverse        [S-iso-lefttab])
@@ -756,6 +757,31 @@ top-level scope."
  "Show the context of the goal at point"
  "cmd_context"
  nil)
+
+(defun agda2-module-contents ()
+  "Shows all the top-level names in the given module.
+Along with their types."
+  (interactive)
+  (agda2-goal-cmd "cmd_show_module_contents" "Module name"))
+
+(defun agda2-module-contents-toplevel (module)
+  "Shows all the top-level names in the given module.
+Along with their types."
+  (interactive "MModule name: ")
+  (agda2-go nil nil nil
+            "cmd_show_module_contents_toplevel"
+            (agda2-string-quote module)))
+
+(defun agda2-module-contents-maybe-toplevel ()
+  "Shows all the top-level names in the given module.
+Along with their types.
+
+Uses either the scope of the current goal or, if point is not in
+a goal, the top-level scope."
+  (interactive)
+  (call-interactively (if (agda2-goal-at (point))
+                          'agda2-module-contents
+                        'agda2-module-contents-toplevel)))
 
 (defun agda2-solveAll ()
   "Solves all goals that are already instantiated internally."
