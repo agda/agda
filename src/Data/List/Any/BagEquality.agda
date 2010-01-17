@@ -6,6 +6,7 @@
 
 module Data.List.Any.BagEquality where
 
+open import Algebra
 open import Data.List as List
 open import Data.List.Any as Any
 open import Data.List.Any.Properties as AnyProp
@@ -24,16 +25,34 @@ open import Relation.Binary.Sum
 open Any.Membership-≡
 open AnyProp.Membership-≡
 private
+  module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module BagEq {A : Set} = Setoid (Bag-equality {A}) using (_≈_)
 
--- _++_ is a congruence.
+-- _++_ and [] form a commutative monoid.
 
-_++-cong_ : {A : Set} {xs₁ xs₂ xs₃ xs₄ : List A} →
-            xs₁ ≈ xs₂ → xs₃ ≈ xs₄ → xs₁ ++ xs₃ ≈ xs₂ ++ xs₄
-xs₁≈xs₂ ++-cong xs₃≈xs₄ =
-  ++⇿ ⟪∘⟫ ⊎-Rel⇿≡ ⟪∘⟫
-  (xs₁≈xs₂ ⊎-inverse xs₃≈xs₄) ⟪∘⟫
-  Inv.sym (++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+commutativeMonoid : Set → CommutativeMonoid
+commutativeMonoid A = record
+  { Carrier             = List A
+  ; _≈_                 = _≈_
+  ; _∙_                 = _++_
+  ; ε                   = []
+  ; isCommutativeMonoid = record
+    { isMonoid = record
+      { isSemigroup = record
+        { isEquivalence = BagEq.isEquivalence
+        ; assoc         = λ xs ys zs →
+                          BagEq.reflexive (ListMonoid.assoc xs ys zs)
+        ; ∙-cong        = λ xs₁≈xs₂ xs₃≈xs₄ →
+                            ++⇿ ⟪∘⟫ ⊎-Rel⇿≡ ⟪∘⟫
+                            (xs₁≈xs₂ ⊎-inverse xs₃≈xs₄) ⟪∘⟫
+                            Inv.sym (++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+        }
+      ; identity = (λ _ → BagEq.refl)
+                 , BagEq.reflexive ∘ proj₂ ListMonoid.identity
+      }
+    ; comm = λ xs ys → ++⇿++ xs ys
+    }
+  }
 
 -- List.map is a congruence.
 
