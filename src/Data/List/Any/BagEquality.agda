@@ -28,6 +28,18 @@ private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module BagEq {A : Set} = Setoid (Bag-equality {A}) using (_≈_)
 
+-- Any is a congruence.
+
+Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
+           (∀ x → P₁ x ⇿ P₂ x) → xs₁ ≈ xs₂ → Any P₁ xs₁ ⇿ Any P₂ xs₂
+Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
+  Any⇿ ⟪∘⟫ Σ.Rel⇿≡ ⟪∘⟫
+  Σ.inverse (λ {x} →
+    H.≡⇿≅ (λ x → x ∈ xs₂ × P₂ x) ⟪∘⟫ ×-Rel⇿≡ ⟪∘⟫
+    (xs₁≈xs₂ ×-inverse P₁⇿P₂ x) ⟪∘⟫
+    Inv.sym (H.≡⇿≅ (λ x → x ∈ xs₁ × P₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟪∘⟫
+  Inv.sym (Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
+
 -- _++_ and [] form a commutative monoid.
 
 commutativeMonoid : Set → CommutativeMonoid
@@ -58,13 +70,8 @@ commutativeMonoid A = record
 
 map-cong : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈ xs₂ → List.map f₁ xs₁ ≈ List.map f₂ xs₂
-map-cong {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {fx} =
-  map-∈⇿ ⟪∘⟫ Σ.Rel⇿≡ ⟪∘⟫
-  Σ.inverse
-    (H.≡⇿≅ (λ x → x ∈ xs₂ × fx ≡ f₂ x) ⟪∘⟫ ×-Rel⇿≡ ⟪∘⟫
-     (xs₁≈xs₂ ×-inverse lemma) ⟪∘⟫
-     Inv.sym (H.≡⇿≅ (λ x → x ∈ xs₁ × fx ≡ f₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟪∘⟫
-  Inv.sym (map-∈⇿ ⟪∘⟫ Σ.Rel⇿≡)
+map-cong {f₁ = f₁} {f₂} f₁≗f₂ xs₁≈xs₂ =
+  map⇿ ⟪∘⟫ Any-cong (λ _ → lemma) xs₁≈xs₂ ⟪∘⟫ Inv.sym map⇿
   where
   lemma : ∀ {x y} → y ≡ f₁ x ⇿ y ≡ f₂ x
   lemma {x} = record
