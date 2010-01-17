@@ -688,6 +688,29 @@ module Membership-≡ where
   find∘map (here  refl) f = refl
   find∘map (there x∈xs) f rewrite find∘map x∈xs f = refl
 
+  -- find and lose are inverses.
+
+  lose∘find : ∀ {A : Set} {P : A → Set} {xs} (p : Any P xs) →
+              uncurry′ lose (proj₂ $ find p) ≡ p
+  lose∘find p = map∘find p P.refl
+
+  find∘lose : ∀ {A : Set} (P : A → Set) {x xs}
+              (x∈xs : x ∈ xs) (p : P x) →
+              find {P = P} (lose x∈xs p) ≡ (x , x∈xs , p)
+  find∘lose P x∈xs p = find∘map x∈xs (flip (P.subst P) p)
+
+  Any⇿ : ∀ {A : Set} {P : A → Set} {xs} →
+         (∃ λ x → x ∈ xs × P x) ⇿ Any P xs
+  Any⇿ {P = P} = record
+    { to         = P.→-to-⟶ (uncurry′ lose ∘ proj₂)
+    ; from       = P.→-to-⟶ find
+    ; inverse-of = record
+        { left-inverse-of  = λ p →
+            find∘lose P (proj₁ (proj₂ p)) (proj₂ (proj₂ p))
+        ; right-inverse-of = lose∘find
+        }
+    }
+
   -- Introduction and elimination rules for concat.
 
   concat-∈⁺ : ∀ {A} {x : A} {xs xss} →
