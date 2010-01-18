@@ -7,6 +7,23 @@ Important changes since 2.2.6:
 Language
 --------
 
+* It is now possible to pattern match on named record constructors.
+  However, if you want to make use of η-equality you still need to use
+  projection functions.
+
+  Example:
+
+    record Σ (A : Set) (B : A → Set) : Set where
+      constructor _,_
+      field
+        proj₁ : A
+        proj₂ : B proj₁
+
+    map : {A B : Set} {P : A → Set} {Q : B → Set}
+          (f : A → B) → (∀ {x} → P x → Q (f x)) →
+          Σ A P → Σ B Q
+    map f g (x , y) = (f x , g y)
+
 * Automatic injectivity of type constructors has been disabled (by
   default). To enable it, use the flag --injective-type-constructors,
   either on the command line or in an OPTIONS pragma. Note that this
