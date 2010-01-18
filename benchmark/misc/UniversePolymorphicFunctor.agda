@@ -1,23 +1,45 @@
-module Functor where
+{-# OPTIONS --universe-polymorphism #-}
 
-record IsEquivalence {A : Set} (_≈_ : A → A → Set) : Set where
+module UniversePolymorphicFunctor where
+
+data Level : Set where
+  zero : Level
+  suc  : (i : Level) → Level
+
+{-# BUILTIN LEVEL     Level #-}
+{-# BUILTIN LEVELZERO zero  #-}
+{-# BUILTIN LEVELSUC  suc   #-}
+
+infixl 6 _⊔_
+
+_⊔_ : Level → Level → Level
+zero  ⊔ j     = j
+suc i ⊔ zero  = suc i
+suc i ⊔ suc j = suc (i ⊔ j)
+
+{-# BUILTIN LEVELMAX _⊔_ #-}
+
+record IsEquivalence {a ℓ} {A : Set a}
+                     (_≈_ : A → A → Set ℓ) : Set (a ⊔ ℓ) where
   field
     refl  : ∀ {x} → x ≈ x
     sym   : ∀ {i j} → i ≈ j → j ≈ i
     trans : ∀ {i j k} → i ≈ j → j ≈ k → i ≈ k
 
-record Setoid : Set₁ where
+record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infix 4 _≈_
   field
-    Carrier       : Set
-    _≈_           : Carrier → Carrier → Set
+    Carrier       : Set c
+    _≈_           : Carrier → Carrier → Set ℓ
     isEquivalence : IsEquivalence _≈_
 
   open IsEquivalence isEquivalence public
 
 infixr 0 _⟶_
 
-record _⟶_ (From To : Setoid) : Set where
+record _⟶_ {f₁ f₂ t₁ t₂}
+           (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
+           Set (f₁ ⊔ f₂ ⊔ t₁ ⊔ t₂) where
   infixl 5 _⟨$⟩_
   field
     _⟨$⟩_ : Setoid.Carrier From → Setoid.Carrier To
@@ -26,18 +48,21 @@ record _⟶_ (From To : Setoid) : Set where
 
 open _⟶_ public
 
-id : ∀ {A} → A ⟶ A
+id : ∀ {a₁ a₂} {A : Setoid a₁ a₂} → A ⟶ A
 id = record { _⟨$⟩_ = λ x → x; cong = λ x≈y → x≈y }
 
 infixr 9 _∘_
 
-_∘_ : ∀ {A B C} → B ⟶ C → A ⟶ B → A ⟶ C
+_∘_ : ∀ {a₁ a₂} {A : Setoid a₁ a₂}
+        {b₁ b₂} {B : Setoid b₁ b₂}
+        {c₁ c₂} {C : Setoid c₁ c₂} →
+      B ⟶ C → A ⟶ B → A ⟶ C
 f ∘ g = record
   { _⟨$⟩_ = λ x → f ⟨$⟩ (g ⟨$⟩ x)
   ; cong  = λ x≈y → cong f (cong g x≈y)
   }
 
-_⇨_ : (To From : Setoid) → Setoid
+_⇨_ : ∀ {f₁ f₂ t₁ t₂} → Setoid f₁ f₂ → Setoid t₁ t₂ → Setoid _ _
 From ⇨ To = record
   { Carrier       = From ⟶ To
   ; _≈_           = λ f g → ∀ {x y} → x ≈₁ y → f ⟨$⟩ x ≈₂ g ⟨$⟩ y
@@ -51,7 +76,9 @@ From ⇨ To = record
   open module From = Setoid From using () renaming (_≈_ to _≈₁_)
   open module To   = Setoid To   using () renaming (_≈_ to _≈₂_)
 
-record Functor (F : Setoid → Setoid) : Set₁ where
+record Functor {f₁ f₂ f₃ f₄}
+               (F : Setoid f₁ f₂ → Setoid f₃ f₄) :
+               Set (suc (f₁ ⊔ f₂) ⊔ f₃ ⊔ f₄) where
   field
     map : ∀ {A B} → (A ⇨ B) ⟶ (F A ⇨ F B)
 
