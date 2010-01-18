@@ -25,9 +25,9 @@ zero  ⊔ j     = j
 suc i ⊔ zero  = suc i
 suc i ⊔ suc j = suc (i ⊔ j)
 
--- Lifting.
-
 {-# BUILTIN LEVELMAX _⊔_ #-}
+
+-- Lifting.
 
 data Lift {a ℓ} (A : Set a) : Set (a ⊔ ℓ) where
   lift : (x : A) → Lift A
