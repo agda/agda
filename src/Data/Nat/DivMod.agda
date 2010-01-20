@@ -65,7 +65,7 @@ data DivMod' (dividend divisor : ℕ) : Set where
 
 -- Integer division with remainder.
 
--- Note that Induction.Nat.<-rec is used to ensure termination of
+-- Note that Induction.Nat.<-rec is used to establish termination of
 -- division. The run-time complexity of this implementation of integer
 -- division should be linear in the size of the dividend, assuming
 -- that well-founded recursion and the equality type are optimised
@@ -87,7 +87,7 @@ _divMod'_ m n {≢0} = <-rec Pred dm m n {≢0}
   dm m       rec zero    {≢0 = ()}
   dm zero    rec (suc n)            = result 0 zero refl
   dm (suc m) rec (suc n)            with compare m n
-  dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r  (lem₁ m k)
+  dm (suc m) rec (suc .(suc m + k)) | less .m k    = result 0 r (lem₁ m k)
                                         where r = suc (Fin.inject+ k (fromℕ m))
   dm (suc m) rec (suc .m)           | equal .m     = result 1 zero (lem₂ m)
   dm (suc .(suc n + k)) rec (suc n) | greater .n k =
