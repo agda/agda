@@ -35,8 +35,8 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
-import Agda.Termination.Matrix as Matrix
-import Agda.Termination.Semiring (Semiring)
+import Agda.Termination.SparseMatrix as Matrix
+import Agda.Termination.Semiring (SemiRing,Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -112,7 +112,7 @@ maxO o1 o2 = case (o1,o2) of
                (Lt,_) -> Lt
                (Unknown,_) -> o2
                (_,Unknown) -> o1
-               (Mat m1, Mat m2) -> Mat (Matrix.zipWith maxO m1 m2)
+               (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
                (Mat m,_) -> maxO (collapse m) o2
                (_,Mat m) ->  maxO o1 (collapse m)
                (Le,Le) -> Le
@@ -122,15 +122,22 @@ maxO o1 o2 = case (o1,o2) of
 -- infimum :: [Order] -> Order
 -- infimum = foldr min Lt -- DELETE ?
 
--- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero
--- and 'Le' as one.
+-- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero.
+{- -- and 'Le' as one. -}
+
+instance Monoid Order where
+  mempty = Unknown
+  mappend = maxO
+
+instance SemiRing Order where
+  multiply = (.*.)
 
 orderSemiring :: Semiring Order
 orderSemiring =
   Semiring.Semiring { Semiring.add = maxO
                     , Semiring.mul = (.*.)
                     , Semiring.zero = Unknown
-                    , Semiring.one = Le
+--                    , Semiring.one = Le
                     }
 
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring

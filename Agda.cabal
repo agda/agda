@@ -148,6 +148,7 @@ library
                     Agda.Termination.CallGraph
                     Agda.Termination.Lexicographic
                     Agda.Termination.Matrix
+                    Agda.Termination.SparseMatrix
                     Agda.Termination.Semiring
                     Agda.Termination.TermCheck
                     Agda.Termination.Termination

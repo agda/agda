@@ -29,8 +29,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal (Literal(LitString))
 
 import Agda.Termination.CallGraph   as Term
-import qualified Agda.Termination.Matrix      as Term
-import qualified Agda.Termination.Termination as Term
+import qualified Agda.Termination.SparseMatrix as Term
+import qualified Agda.Termination.Termination  as Term
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -176,17 +176,30 @@ termMutual i ts ds = if names == [] then return [] else
   concat' = Set.toList . Set.unions
 
 -- | Termination check a module.
+{-
+v v v v v v v
 termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
 termSection i x tel ds =
   termTelescope tel $ \tel' -> do
     addSection x (size tel')
-    verboseS "term.section" 10 $ do
+    verboseS "term.section" 5 $ do
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
       liftIO $ UTF8.putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
       liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ termDecls ds
+*************
+-}
+termSection :: ModuleName -> [A.Declaration] -> TCM Result
+termSection x ds = do
+  tel <- lookupSection x
+  reportSDoc "term.section" 10 $
+    sep [ text "termination checking section"
+          , prettyTCM x
+          , prettyTCM tel
+          ]
+  withCurrentModule x $ addCtxTel tel $ termDecls ds
 
 
 -- | Termination check a definition by pattern matching.
@@ -396,7 +409,7 @@ termTerm names f pats0 t0 = do
                   calls <- collectCalls (loop pats Unknown) args
 
 
-                  reportSDoc "term.found.call" 5
+                  reportSDoc "term.found.call" 20
                           (sep [ text "found call from" <+> prettyTCM f
                                , nest 2 $ text "to" <+> prettyTCM g
                 	       ])

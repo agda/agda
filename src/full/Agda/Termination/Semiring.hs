@@ -1,15 +1,28 @@
+-- {-# LANGUAGE UndecidableInstances #-}
+
 -- | Semirings.
 
 module Agda.Termination.Semiring
-  ( Semiring(..)
+  ( SemiRing(..)
+  , Semiring(..)
   , semiringInvariant
   , integerSemiring
   , boolSemiring
   , Agda.Termination.Semiring.tests
   ) where
 
+import Data.Monoid
+
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+
+{- | SemiRing type class.  Additive monoid with multiplication operation.
+Inherit addition and zero from Monoid. -}
+
+class (Eq a, Monoid a) => SemiRing a where
+--  isZero   :: a -> Bool
+  multiply :: a -> a -> a
+
 
 -- | Semirings.
 
@@ -17,7 +30,8 @@ data Semiring a
   = Semiring { add  :: a -> a -> a  -- ^ Addition.
              , mul  :: a -> a -> a  -- ^ Multiplication.
              , zero :: a            -- ^ Zero.
-             , one  :: a            -- ^ One.
+-- The one is never used in matrix multiplication
+--             , one  :: a            -- ^ One.
              }
 
 -- | Semiring invariant.
@@ -29,12 +43,13 @@ semiringInvariant :: (Arbitrary a, Eq a, Show a)
                   => Semiring a
                   -> a -> a -> a -> Bool
 semiringInvariant (Semiring { add = (+), mul = (*)
-                            , zero = zero, one = one}) = \x y z ->
+                            , zero = zero --, one = one
+                            }) = \x y z ->
   associative (+)           x y z &&
   identity zero (+)         x     &&
   commutative (+)           x y   &&
   associative (*)           x y z &&
-  identity one (*)          x     &&
+--  identity one (*)          x     &&
   leftDistributive (*) (+)  x y z &&
   rightDistributive (*) (+) x y z &&
   isZero zero (*)           x
@@ -44,8 +59,16 @@ semiringInvariant (Semiring { add = (+), mul = (*)
 
 -- | The standard semiring on 'Integer's.
 
+instance Monoid Integer where
+  mempty = 0
+  mappend = (+)
+
+instance SemiRing Integer where 
+  multiply = (*)
+    
+
 integerSemiring :: Semiring Integer
-integerSemiring = Semiring { add = (+), mul = (*), zero = 0, one = 1 }
+integerSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }
 
 prop_integerSemiring = semiringInvariant integerSemiring
 
@@ -53,7 +76,7 @@ prop_integerSemiring = semiringInvariant integerSemiring
 
 boolSemiring :: Semiring Bool
 boolSemiring =
-  Semiring { add = (||), mul = (&&), zero = False, one = True }
+  Semiring { add = (||), mul = (&&), zero = False } --, one = True }
 
 prop_boolSemiring = semiringInvariant boolSemiring
 

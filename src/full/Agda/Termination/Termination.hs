@@ -12,7 +12,7 @@ module Agda.Termination.Termination
 
 import Agda.Termination.Lexicographic
 import Agda.Termination.CallGraph
-import Agda.Termination.Matrix
+import Agda.Termination.SparseMatrix
 import Agda.Utils.Either
 import Agda.Utils.TestHelpers
 import Control.Arrow
