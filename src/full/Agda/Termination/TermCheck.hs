@@ -504,11 +504,8 @@ makeCM ncols nrows matrix = Term.CallMatrix $
                             })
                  matrix
 
-{- To turn off guardedness, restore this code.  
-   Guardedness is unsound if you nest a coinductive type inside an inductive type.
-(Andreas, AIM-10)
--- | 'addGuardedness' does nothing, since guardedness check is unsound
-     in the absense of a recursion/corecursion distinction (Andreas, AIM-10)
+{- To turn off guardedness, restore this code.
+-- | 'addGuardedness' does nothing.
 addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
 addGuardedness g nrows ncols m = (nrows, ncols, m)
 -}
