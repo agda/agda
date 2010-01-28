@@ -299,7 +299,7 @@ parsePluginOptions progName argv defaults opts =
 	(\s _ -> fail $ "Internal error: Flag " ++ s ++ " passed to a plugin")
 
 -- | The usage info message. The argument is the program name (probably
---   agdaLight).
+--   agda).
 usage :: [OptDescr ()] -> [(String, String, [String], [OptDescr ()])] -> String -> String
 usage options pluginInfos progName =
 	usageInfo (header progName) options ++
