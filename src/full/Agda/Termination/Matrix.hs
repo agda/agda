@@ -218,15 +218,14 @@ prop_add sz =
       matrixInvariant m' &&
       size m' == size m1
 
--- | @'mul' semiring m1 m2@ multiplies @m1@ and @m2@. Uses the
--- operations of the semiring @semiring@ to perform the
--- multiplication.
+-- | @'mul' m1 m2@ multiplies @m1@ and @m2@. Uses the operations of
+-- the semiring to perform the multiplication.
 --
 -- Precondition: @'cols' ('size' m1) == rows ('size' m2)@.
 
-mul :: (Enum i, Num i, Ix i)
-    => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
-mul semiring m1 m2 =
+mul :: (Enum i, Num i, Ix i, Semiring a)
+    => Matrix i a -> Matrix i a -> Matrix i a
+mul m1 m2 =
   fromIndexList sz' [ (ix, res)
                     | r <- [1 .. rows $ size m1]
                     , c <- [1 .. cols $ size m2]
@@ -237,11 +236,11 @@ mul semiring m1 m2 =
     sz' = Size { rows = rows $ size m1, cols = cols $ size m2 }
 
     mulRowCol r c =
-      foldl' (Semiring.add semiring) (Semiring.zero semiring)
-             [ (Semiring.mul semiring)
-               (unM m1 ! MIx { row = r, col = i })
-               (unM m2 ! MIx { row = i, col = c })
-             | i <- [1 .. cols (size m1)]]
+      foldl' Semiring.add Semiring.zero
+             [ Semiring.mul (unM m1 ! MIx { row = r, col = i })
+                            (unM m2 ! MIx { row = i, col = c })
+             | i <- [1 .. cols (size m1)]
+             ]
 
 prop_mul sz =
   sized $ \n -> resize (n `div` 2) $
@@ -249,11 +248,10 @@ prop_mul sz =
   forAll (matrix sz :: Gen TM) $ \m1 ->
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
   forAll (matrix (Size { rows = c2, cols = c3 })) $ \m3 ->
-    let m' = mult m1 m2 in
-      associative mult m1 m2 m3 &&
+    let m' = mul m1 m2 in
+      associative mul m1 m2 m3 &&
       matrixInvariant m' &&
       size m' == Size { rows = rows sz, cols = c2 }
-  where mult = mul Semiring.integerSemiring
 
 -- | @'diagonal' m@ extracts the diagonal of @m@.
 --

@@ -137,7 +137,7 @@ termMutual i ts ds = if names == [] then return [] else
              case r of
                Right _ -> return r
                Left _  -> do
-     -- now try to termination check regarding the dot patterns
+                 -- Try again, but include the dot patterns this time.
                  calls2 <- collect conf{ useDotPatterns = True }
                  reportS "term.lex" 20 $ unlines
                    [ "Calls    (dot patterns): " ++ show calls2
@@ -174,21 +174,6 @@ termMutual i ts ds = if names == [] then return [] else
   concat' = Set.toList . Set.unions
 
 -- | Termination check a module.
-{-
-v v v v v v v
-termSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM Result
-termSection i x tel ds =
-  termTelescope tel $ \tel' -> do
-    addSection x (size tel')
-    verboseS "term.section" 5 $ do
-      dx   <- prettyTCM x
-      dtel <- mapM prettyA tel
-      dtel' <- prettyTCM =<< lookupSection x
-      liftIO $ UTF8.putStrLn $ "termination checking section " ++ show dx ++ " " ++ show dtel
-      liftIO $ UTF8.putStrLn $ "    actual tele: " ++ show dtel'
-    withCurrentModule x $ termDecls ds
-*************
--}
 termSection :: ModuleName -> [A.Declaration] -> TCM Result
 termSection x ds = do
   tel <- lookupSection x
@@ -422,8 +407,8 @@ termTerm names f pats0 t0 = do
                      Just gInd' -> do
 
                         matrix <- compareArgs suc pats args
-                        let (nrows, ncols, matrix') = addGuardedness guarded 
-                               (genericLength args) -- number of rows 
+                        let (nrows, ncols, matrix') = addGuardedness guarded
+                               (genericLength args) -- number of rows
                                (genericLength pats) -- number of cols
                                matrix
 
@@ -511,7 +496,7 @@ addGuardedness g nrows ncols m = (nrows, ncols, m)
 -- | 'addGuardedness' adds guardedness flag in the upper left corner (0,0).
 addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
 addGuardedness g nrows ncols m =
-  (nrows + 1, ncols + 1, 
+  (nrows + 1, ncols + 1,
    (g : genericReplicate ncols Unknown) : map (Unknown :) m)
 
 

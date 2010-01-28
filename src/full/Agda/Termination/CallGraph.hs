@@ -36,7 +36,7 @@ import Agda.Utils.Function
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
 import Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Semiring (SemiRing,Semiring)
+import Agda.Termination.Semiring (Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -83,17 +83,17 @@ instance CoArbitrary Order where
 
 (.*.) :: Order -> Order -> Order
 Lt      .*. Unknown   = Unknown
-Lt      .*. (Mat m)   = Lt .*. (collapse m)
+Lt      .*. (Mat m)   = Lt .*. collapse m
 Lt      .*. _         = Lt
 Le      .*. o         = o
 Unknown .*. _         = Unknown
-(Mat m1) .*. (Mat m2) = if (okM m1 m2) then
-                            Mat $ mul orderSemiring m1 m2
+(Mat m1) .*. (Mat m2) = if okM m1 m2 then
+                            Mat (mul m1 m2)
                         else
-                            (collapse m1) .*. (collapse m2)
+                            collapse m1 .*. collapse m2
 (Mat m) .*. Le        = Mat m
 (Mat m) .*. Unknown   = Unknown
-(Mat m) .*. Lt        = (collapse m) .*. Lt
+(Mat m) .*. Lt        = collapse m .*. Lt
 
 collapse :: Matrix Integer Order -> Order
 collapse m = foldl (.*.) Le (Data.Array.elems $ diagonal m)
@@ -117,30 +117,14 @@ maxO o1 o2 = case (o1,o2) of
                (_,Mat m) ->  maxO o1 (collapse m)
                (Le,Le) -> Le
 
--- | The infimum of a (possibly empty) list of 'Order's.
+-- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as
+-- zero and 'Le' as one.
 
--- infimum :: [Order] -> Order
--- infimum = foldr min Lt -- DELETE ?
-
--- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero.
-{- -- and 'Le' as one. -}
-
-instance Monoid Order where
-  mempty = Unknown
-  mappend = maxO
-
-instance SemiRing Order where
-  multiply = (.*.)
-
-orderSemiring :: Semiring Order
-orderSemiring =
-  Semiring.Semiring { Semiring.add = maxO
-                    , Semiring.mul = (.*.)
-                    , Semiring.zero = Unknown
---                    , Semiring.one = Le
-                    }
-
-prop_orderSemiring = Semiring.semiringInvariant orderSemiring
+instance Semiring Order where
+  add  = maxO
+  mul  = (.*.)
+  zero = Unknown
+  one  = Le
 
 ------------------------------------------------------------------------
 -- Call matrices
@@ -162,8 +146,6 @@ instance Arbitrary CallMatrix where
 
 instance CoArbitrary CallMatrix where
   coarbitrary (CallMatrix m) = coarbitrary m
-
-prop_Arbitrary_CallMatrix = callMatrixInvariant
 
 -- | Generates a call matrix of the given size.
 
@@ -197,11 +179,10 @@ callMatrixInvariant cm =
 
 -- | Call matrix multiplication.
 --
--- Precondition: see 'mul'.
+-- Precondition: see 'Matrix.mul'.
 
 (<*>) :: CallMatrix -> CallMatrix -> CallMatrix
-cm1 <*> cm2 =
-  CallMatrix { mat = mul orderSemiring (mat cm1) (mat cm2) }
+cm1 <*> cm2 = CallMatrix { mat = mul (mat cm1) (mat cm2) }
 
 prop_cmMul sz =
   forAll natural $ \c2 ->
@@ -248,9 +229,6 @@ instance Arbitrary Call where
 instance CoArbitrary Call where
   coarbitrary (Call s t cm) =
     coarbitrary s . coarbitrary t . coarbitrary cm
-
-prop_Arbitrary_Call :: Call -> Bool
-prop_Arbitrary_Call = callInvariant
 
 -- | 'Call' invariant.
 
@@ -451,11 +429,12 @@ showBehaviour = concatMap showCall . toList
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.CallGraph"
-  [ quickCheck' prop_orderSemiring
-  , quickCheck' prop_Arbitrary_CallMatrix
+  [ quickCheck' (Semiring.semiringInvariant
+                   :: Order -> Order -> Order -> Bool)
+  , quickCheck' callMatrixInvariant
   , quickCheck' prop_callMatrix
   , quickCheck' prop_cmMul
-  , quickCheck' prop_Arbitrary_Call
+  , quickCheck' callInvariant
   , quickCheck' prop_callGraph
   , quickCheck' prop_complete
   , quickCheck' prop_ensureCompletePrecondition
