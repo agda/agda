@@ -3,7 +3,8 @@
 -- | Semirings.
 
 module Agda.Termination.Semiring
-  ( Semiring(..)
+  ( SemiRing(..)
+  , Semiring(..)
   , semiringInvariant
   , Agda.Termination.Semiring.tests
   ) where
@@ -12,6 +13,14 @@ import Data.Monoid
 
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+
+{- | SemiRing type class.  Additive monoid with multiplication operation.
+Inherit addition and zero from Monoid. -}
+
+class (Eq a, Monoid a) => SemiRing a where
+--  isZero   :: a -> Bool
+  multiply :: a -> a -> a
+
 
 -- | Semirings.
 
@@ -43,11 +52,18 @@ semiringInvariant = \x y z ->
 
 -- | The standard semiring on 'Integer's.
 
-instance Semiring Integer where
-  add  = (+)
-  mul  = (*)
-  zero = 0
-  one  = 1
+instance Monoid Integer where
+  mempty = 0
+  mappend = (+)
+
+instance SemiRing Integer where 
+  multiply = (*)
+    
+
+integerSemiring :: Semiring Integer
+integerSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }
+
+prop_integerSemiring = semiringInvariant integerSemiring
 
 -- | The standard semiring on 'Bool's.
 

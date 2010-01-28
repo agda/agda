@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP, ImplicitParams #-}
+
 -- | Call graphs and related concepts, more or less as defined in
 --     \"A Predicative Analysis of Structural Recursion\" by
 --     Andreas Abel and Thorsten Altenkirch.
@@ -6,9 +8,10 @@
 
 module Agda.Termination.CallGraph
   ( -- * Structural orderings
-    Order(..)
+    Order(Unknown,Mat), decr
   , (.*.)
-  , supremum
+  , supremum, infimum
+  , decreasing, le, lt
     -- * Call matrices
   , Index
   , CallMatrix(..)
@@ -34,10 +37,9 @@ module Agda.Termination.CallGraph
 import Agda.Utils.QuickCheck
 import Agda.Utils.Function
 import Agda.Utils.List
-import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.TestHelpers
 import Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Semiring (Semiring)
+import Agda.Termination.Semiring (SemiRing,Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -48,24 +50,70 @@ import Data.Monoid
 import Data.Array (elems)
 import Data.Function
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
+
 ------------------------------------------------------------------------
 -- Structural orderings
 
--- | The order called R in the paper referred to above. Note that
+-- | In the paper referred to above, there is an order R with
 -- @'Unknown' '<=' 'Le' '<=' 'Lt'@.
+--
+-- This is generalized to @'Unknown' '<=' 'Decr k'@ where
+-- @Decr 1@ replaces @Lt@ and @Decr 0@ replaces @Le@.
+-- A negative decrease means an increase.  The generalization
+-- allows the termination checker to record an increase by 1 which
+-- can be compensated by a following decrease by 2 which results in
+-- an overall decrease.  
+--
+-- However, the termination checker of the paper itself terminates because
+-- there are only finitely many different call-matrices.  To maintain
+-- termination of the terminator we set a @cutoff@ point which determines
+-- how high the termination checker can count.  This value should be
+-- set by a global or file-wise option.
 --
 -- See 'Call' for more information.
 --
 -- TODO: document orders which are call-matrices themselves.
 data Order
-  = Lt | Le | Unknown | Mat (Matrix Integer Order)
+  = Decr Int | Unknown | Mat (Matrix Integer Order)
   deriving (Eq,Ord)
 
 instance Show Order where
-  show Lt      = "<"
-  show Le      = "="
-  show Unknown = "?"
-  show (Mat m) = "Mat " ++ show m
+  show (Decr k) = show (- k)
+  show Unknown  = "."
+  show (Mat m)  = "Mat " ++ show m
+
+instance HasZero Order where
+  zeroElement = Unknown
+
+-- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
+--
+-- Possible values for @k@: @- ?cutoff '<=' k '<=' ?cutoff + 1@. 
+--
+decr :: (?cutoff :: Int) => Int -> Order
+decr k | k < - ?cutoff = Unknown
+       | k > ?cutoff = Decr (?cutoff + 1)
+       | otherwise   = Decr k 
+
+isOrder :: (?cutoff :: Int) => Order -> Bool
+isOrder (Decr k) = k >= - ?cutoff && k <= ?cutoff + 1
+isOrder Unknown = True
+isOrder (Mat m) = False  -- TODO: extend to matrices
+
+prop_decr :: (?cutoff :: Int) => Int -> Bool
+prop_decr = isOrder . decr
+
+-- | @le@, @lt@, @decreasing@: for backwards compatibility.
+le :: Order
+le = Decr 0
+
+lt :: Order
+lt = Decr 1
+
+decreasing :: Order -> Bool
+decreasing (Decr k) | k > 0 = True
+decreasing _ = False
 
 instance Pretty Order where
   pretty Lt      = text "<"
@@ -76,21 +124,44 @@ instance Pretty Order where
 --instance Ord Order where
 --    max = maxO
 
+{- instances cannot have implicit arguments?! GHC manual says:
+
+7.8.3.1. Implicit-parameter type constraints
+
+You can't have an implicit parameter in the context of a class or instance declaration. For example, both these declarations are illegal:
+
+  class (?x::Int) => C a where ...
+  instance (?x::a) => Foo [a] where ...
+
+Reason: exactly which implicit parameter you pick up depends on
+exactly where you invoke a function. But the ``invocation'' of
+instance declarations is done behind the scenes by the compiler, so
+it's hard to figure out exactly where it is done. Easiest thing is to
+outlaw the offending types.
+
+instance (?cutoff :: Int) => Arbitrary Order where
+  arbitrary = frequency 
+    [(20, return Unknown)
+    ,(80, elements [- ?cutoff .. ?cutoff + 1] >>= Decr)
+    ] -- no embedded matrices generated for now.
+-}
 instance Arbitrary Order where
-  arbitrary = elements [Lt, Le, Unknown]
+  arbitrary = frequency 
+    [(30, return Unknown)
+    ,(70, elements [0,1] >>= return . Decr)
+    ] -- no embedded matrices generated for now.
 
 instance CoArbitrary Order where
-  coarbitrary Lt      = variant 0
-  coarbitrary Le      = variant 1
-  coarbitrary Unknown = variant 2
-  coarbitrary (Mat m) = variant 3
+  coarbitrary (Decr k) = variant 0
+  coarbitrary Unknown  = variant 1
+  coarbitrary (Mat m)  = variant 2
 
 -- | Multiplication of 'Order's. (Corresponds to sequential
 -- composition.)
 
 (.*.) :: Order -> Order -> Order
 Lt      .*. Unknown   = Unknown
-Lt      .*. (Mat m)   = Lt .*. collapse m
+Lt      .*. (Mat m)   = Lt .*. (collapse m)
 Lt      .*. _         = Lt
 Le      .*. o         = o
 Unknown .*. _         = Unknown
@@ -100,38 +171,52 @@ Unknown .*. _         = Unknown
                             collapse m1 .*. collapse m2
 (Mat m) .*. Le        = Mat m
 (Mat m) .*. Unknown   = Unknown
-(Mat m) .*. Lt        = collapse m .*. Lt
+(Mat m) .*. Lt        = (collapse m) .*. Lt
 
-collapse :: Matrix Integer Order -> Order
-collapse m = foldl (.*.) Le (Data.Array.elems $ diagonal m)
+collapse :: (?cutoff :: Int) => Matrix Integer Order -> Order
+collapse m = foldl (.*.) le (Data.Array.elems $ diagonal m)
 
 okM :: Matrix Integer Order -> Matrix Integer Order -> Bool
 okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 
 -- | The supremum of a (possibly empty) list of 'Order's.
 
-supremum :: [Order] -> Order
+supremum :: (?cutoff :: Int) => [Order] -> Order
 supremum = foldr maxO Unknown
 
-maxO :: Order -> Order -> Order
+maxO :: (?cutoff :: Int) => Order -> Order -> Order
 maxO o1 o2 = case (o1,o2) of
-               (_,Lt) -> Lt
-               (Lt,_) -> Lt
+               (Decr k, Decr l) -> Decr (max k l) -- cut off not needed
                (Unknown,_) -> o2
                (_,Unknown) -> o1
                (Mat m1, Mat m2) -> Mat (Matrix.add maxO m1 m2)
                (Mat m,_) -> maxO (collapse m) o2
                (_,Mat m) ->  maxO o1 (collapse m)
-               (Le,Le) -> Le
 
--- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as
--- zero and 'Le' as one.
+-- | The infimum of a (possibly empty) list of 'Order's.
 
-instance Semiring Order where
-  add  = maxO
-  mul  = (.*.)
-  zero = Unknown
-  one  = Le
+-- infimum :: [Order] -> Order
+-- infimum = foldr min Lt -- DELETE ?
+
+-- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero.
+{- -- and 'Le' as one. -}
+
+instance Monoid Order where
+  mempty = Unknown
+  mappend = maxO
+
+instance SemiRing Order where
+  multiply = (.*.)
+
+orderSemiring :: Semiring Order
+orderSemiring =
+  Semiring.Semiring { Semiring.add = maxO
+                    , Semiring.mul = (.*.)
+                    , Semiring.zero = Unknown
+--                    , Semiring.one = Le
+                    }
+
+prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 
 ------------------------------------------------------------------------
 -- Call matrices
@@ -188,7 +273,7 @@ callMatrixInvariant cm =
 --
 -- Precondition: see 'Matrix.mul'.
 
-(<*>) :: CallMatrix -> CallMatrix -> CallMatrix
+(<*>) :: (?cutoff :: Int) => CallMatrix -> CallMatrix -> CallMatrix
 cm1 <*> cm2 = CallMatrix { mat = mul (mat cm1) (mat cm2) }
 
 prop_cmMul sz =
@@ -247,7 +332,7 @@ callInvariant = callMatrixInvariant . cm
 -- Precondition: see '<*>'; furthermore the 'source' of the first
 -- argument should be equal to the 'target' of the second one.
 
-(>*<) :: Call -> Call -> Call
+(>*<) :: (?cutoff :: Int) => Call -> Call -> Call
 c1 >*< c2 =
   Call { source    = source c2
        , target    = target c1
@@ -326,7 +411,7 @@ prop_callGraph =
 -- Precondition: see '<*>'.
 
 combine
-  :: Monoid meta => CallGraph meta -> CallGraph meta -> CallGraph meta
+  :: (Monoid meta, ?cutoff :: Int) => CallGraph meta -> CallGraph meta -> CallGraph meta
 combine s1 s2 = fromList $
   [ (c1 >*< c2, m1 `mappend` m2)
   | (c1, m1) <- toList s1, (c2, m2) <- toList s2
@@ -337,7 +422,7 @@ combine s1 s2 = fromList $
 -- complete if it contains all indirect calls; if @f -> g@ and @g ->
 -- h@ are present in the graph, then @f -> h@ should also be present.
 
-complete :: Monoid meta => CallGraph meta -> CallGraph meta
+complete :: (?cutoff :: Int) => Monoid meta => CallGraph meta -> CallGraph meta
 complete cs = complete' safeCS
   where
   safeCS = ensureCompletePrecondition cs
@@ -348,13 +433,14 @@ complete cs = complete' safeCS
     cs' = cs `union` combine cs safeCS
     (.==.) = ((==) `on` (Map.keys . cg))
 
+prop_complete :: (?cutoff :: Int) => Property
 prop_complete =
   forAll (callGraph :: Gen (CallGraph [Integer])) $ \cs ->
     isComplete (complete cs)
 
 -- | Returns 'True' iff the call graph is complete.
 
-isComplete :: (Ord meta, Monoid meta) => CallGraph meta -> Bool
+isComplete :: (Ord meta, Monoid meta, ?cutoff :: Int) => CallGraph meta -> Bool
 isComplete s = all (`Map.member` cg s) combinations
   where
   calls = toList s
@@ -447,9 +533,8 @@ prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.CallGraph"
-  [ quickCheck' (Semiring.semiringInvariant
-                   :: Order -> Order -> Order -> Bool)
-  , quickCheck' callMatrixInvariant
+  [ quickCheck' prop_orderSemiring
+  , quickCheck' prop_Arbitrary_CallMatrix
   , quickCheck' prop_callMatrix
   , quickCheck' prop_cmMul
   , quickCheck' callInvariant
@@ -457,3 +542,4 @@ tests = runTests "Agda.Termination.CallGraph"
   , quickCheck' prop_complete
   , quickCheck' prop_ensureCompletePrecondition
   ]
+  where ?cutoff = 2

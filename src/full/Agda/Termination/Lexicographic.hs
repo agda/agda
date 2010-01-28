@@ -140,12 +140,12 @@ prop_fromDiagonals m =
 -- at least one strictly decreasing).
 
 okColumn :: Column call -> Bool
-okColumn col = any (== Lt) col' && all (/= Unknown) col'
+okColumn col = any decreasing col' && all (/= Unknown) col'
   where col' = Map.elems col
 
 -- | @'newBehaviour' n rb@ computes a new recursion behaviour from
 -- @rb@ by removing all \"rows\" (calls) for which the @n@-th element
--- is 'Lt', and also completely removing the @n@-th column.
+-- is 'decreasing', and also completely removing the @n@-th column.
 --
 -- Precondition: there has to be an @n@-th column.
 
@@ -161,7 +161,7 @@ newBehaviour n rb =
      }
   where
   Just colN       = Map.lookup n $ columns rb
-  indicesToRemove = map fst $ filter ((== Lt) . snd) $ Map.toList colN
+  indicesToRemove = map fst $ filter (decreasing . snd) $ Map.toList colN
   remove colJ     = foldr Map.delete colJ indicesToRemove
 
 prop_newBehaviour :: RecBehaviour Integer Integer -> Property

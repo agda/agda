@@ -15,6 +15,7 @@ module Agda.Interaction.Options
     , tests
     ) where
 
+import Control.Monad            ( when )
 import Control.Monad.Error	( MonadError(catchError) )
 import Data.List		( isSuffixOf )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
@@ -66,6 +67,7 @@ data CommandLineOptions =
             , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
 	    , optTerminationCheck     :: Bool
+            , optTerminationDepth     :: Int
 	    , optCompletenessCheck    :: Bool
             , optUnreachableCheck     :: Bool
 	    , optUniverseCheck        :: Bool
@@ -106,6 +108,7 @@ defaultOptions =
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
             , optTerminationCheck     = True
+            , optTerminationDepth     = 0    -- this is the cutoff value
             , optCompletenessCheck    = True
             , optUnreachableCheck     = True
             , optUniverseCheck        = True
@@ -204,6 +207,12 @@ verboseFlag s o	    =
         return (init ss, n)
     usage = fail "argument to verbose should be on the form x.y.z:N or N"
 
+terminationDepthFlag    s o = 
+    do k <- readM s `catchError` \_ -> usage
+       when (k < 1) $ usage -- or: turn termination checking off for 0
+       checkOpts $ o { optTerminationDepth     = k-1 } 
+    where usage = fail "argument to termination-depth should be >= 1"
+
 integerArgument :: String -> String -> Either String Int
 integerArgument flag s =
     readM s `catchError` \_ ->
@@ -252,6 +261,8 @@ pragmaOptions =
 		    "do not warn about not strictly positive data types"
     , Option []	    ["no-termination-check"] (NoArg dontTerminationCheckFlag)
 		    "do not warn about possibly nonterminating code"
+    , Option []	    ["termination-depth"] (ReqArg terminationDepthFlag "N")
+		    "allow termination checker to count decrease/increase upto N (default N=1)"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
     , Option []	    ["no-unreachable-check"] (NoArg noUnreachableCheckFlag)

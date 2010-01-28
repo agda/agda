@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, ImplicitParams #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -112,7 +112,12 @@ termMutual i ts ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
-     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++ "..."
+
+     cutoff <- optTerminationDepth <$> commandLineOptions
+     let ?cutoff = cutoff
+
+     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++ 
+       " with cutoff=" ++ show cutoff ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
 
@@ -379,17 +384,17 @@ termClause use names name (Clause { clauseTel  = tel
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: DBPConf -> MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm conf names f pats0 t0 = do
+termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm names f pats0 t0 = do
   reportSDoc "term.check.clause" 6
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
-  loop pats0 Le t0
+  loop pats0 Term.le t0
   where
        Just fInd = toInteger <$> List.elemIndex f names
-       loop :: [DeBruijnPat] -> Order -> Term -> TCM Calls
+       loop :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
          suc <- sizeSuc
@@ -507,6 +512,14 @@ termTerm conf names f pats0 t0 = do
             -- variable
             Var i args -> collectCalls (loop pats Unknown) (map unArg args)
 
+            -- constructed value
+            Con c args -> do
+              ind <- whatInduction c
+              let g' = case ind of
+                        Inductive   -> guarded
+                        CoInductive -> Lt .*. guarded
+              collectCalls (loop pats g') (map unArg args)
+
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
                do g1 <- loop pats Unknown a
@@ -545,7 +558,7 @@ termTerm conf names f pats0 t0 = do
 
      If sized types are enabled, @suc@ is the name of the size successor.
  -}
-compareArgs :: Maybe QName -> [DeBruijnPat] -> [Term] -> TCM [[Term.Order]]
+compareArgs ::  (?cutoff :: Int) => Maybe QName -> [DeBruijnPat] -> [Term] -> TCM [[Term.Order]]
 compareArgs suc pats ts = mapM (\t -> mapM (compareTerm suc t) pats) ts
 
 -- | 'makeCM' turns the result of 'compareArgs' into a proper call matrix
@@ -576,20 +589,20 @@ subPatterns p = case p of
   ConDBP c ps -> ps ++ concatMap subPatterns ps
   LitDBP _    -> []
 
-compareTerm :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm suc t p = compareTerm' suc t p
 {-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
-    cmp p' = (Term..*.) Term.Lt (compareTerm' t p')
+    cmp p' = (Term..*.) Term.lt (compareTerm' t p')
 -}
 
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
-compareTerm' :: Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
 compareTerm' _ (Var i _)  p              = compareVar i p
 compareTerm' _ (Lit l)    (LitDBP l')
-  | l == l'   = return Term.Le
+  | l == l'   = return Term.le
   | otherwise = return Term.Unknown
 compareTerm' suc (Lit l) p = do
   t <- constructorForm (Lit l)
@@ -601,7 +614,15 @@ compareTerm' suc (Con c ts) (ConDBP c' ps)
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
 compareTerm' _ t@Con{} (ConDBP _ ps)
-  | any (isSubTerm t) ps = return Lt
+  | any (isSubTerm t) ps = return Term.lt
+-- new cases for counting constructors
+-- register also increase
+compareTerm' suc (Def s ts) p | Just s == suc = do
+    os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
+    return $ decr (-1) .*. infimum os 
+compareTerm' suc (Con c ts) p = do
+    os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
+    return $ if (null os) then Term.Unknown else decr (-1) .*. infimum os 
 compareTerm' _ _ _ = return Term.Unknown
 
 isSubTerm :: Term -> DeBruijnPat -> Bool
@@ -618,12 +639,12 @@ isSubTerm t p = equal t p || properSubTerm t p
     properSubTerm t (ConDBP _ ps) = any (isSubTerm t) ps
     properSubTerm _ _ = False
 
-compareConArgs :: Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
+compareConArgs :: (?cutoff :: Int) => Maybe QName -> Args -> [DeBruijnPat] -> TCM Term.Order
 compareConArgs suc ts ps =
   -- we may assume |ps| >= |ts|, otherwise c ps would be of functional type
   -- which is impossible
       case (length ts, length ps) of
-        (0,0) -> return Term.Le        -- c <= c
+        (0,0) -> return Term.le        -- c <= c
         (0,1) -> return Term.Unknown   -- c not<= c x
         (1,0) -> __IMPOSSIBLE__
         (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
@@ -639,10 +660,10 @@ compareConArgs suc ts ps =
        -- allows examples like (x, y) < (Succ x, y)
 -}
 
-compareVar :: Nat -> DeBruijnPat -> TCM Term.Order
-compareVar i (VarDBP j)    = return $ if i == j then Term.Le else Term.Unknown
+compareVar :: (?cutoff :: Int) => Nat -> DeBruijnPat -> TCM Term.Order
+compareVar i (VarDBP j)    = return $ if i == j then Term.le else Term.Unknown
 compareVar i (LitDBP _)    = return $ Term.Unknown
 compareVar i (ConDBP c ps) = do
   os <- mapM (compareVar i) ps
   let o = Term.supremum os
-  return $ (Term..*.) Term.Lt o
+  return $ (Term..*.) Term.lt o

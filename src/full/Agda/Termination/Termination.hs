@@ -1,3 +1,5 @@
+{-# LANGUAGE ImplicitParams #-}
+
 -- | Termination checker, based on
 --     \"A Predicative Analysis of Structural Recursion\" by
 --     Andreas Abel and Thorsten Altenkirch (JFP'01),
@@ -50,12 +52,12 @@ import Data.Array (Array)
 -- This criterion is strictly more liberal than searching for a
 -- lexicographic order (and easier to implement, but harder to justify).
 
-terminates :: (Ord meta, Monoid meta) => CallGraph meta -> Either meta ()
+terminates :: (Ord meta, Monoid meta, ?cutoff :: Int) => CallGraph meta -> Either meta ()
 terminates cs = let ccs = complete cs
                 in
                   checkIdems $ toList ccs
 
-checkIdems :: (Ord meta,Monoid meta) => [(Call,meta)] -> Either meta ()
+checkIdems :: (Ord meta, Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
 checkIdems [] = Right ()
 checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
 
@@ -65,7 +67,7 @@ checkIdems ((c,m):xs) = if (checkIdem c) then checkIdems xs else Left m
    The examples below do not include the guardedness flag, though.
  -}
 
-checkIdem :: Call -> Bool
+checkIdem :: (?cutoff :: Int) => Call -> Bool
 checkIdem c = let
   b = target c == source c
   idem = (c >*< c) == c
@@ -74,12 +76,11 @@ checkIdem c = let
   in
     (not b) || (not idem) || hasDecr
 
--- | Matrix is decreasing if any diagonal element is 'Lt'.
+-- | Matrix is decreasing if any diagonal element is decreasing.
 
 isDecr :: Order -> Bool
-isDecr Lt = True
 isDecr (Mat m) = any isDecr $ Array.elems $ diagonal m
-isDecr _ = False
+isDecr o = decreasing o
 
 ------------------------------------------------------------------------
 -- Some examples
@@ -101,16 +102,17 @@ example1 = buildCallGraph [c1, c2, c3]
   flat = 1
   aux  = 2
   c1 = Call { source = flat, target = aux
-            , cm = CallMatrix $ fromLists (Size 2 1) [[Lt], [Lt]]
+            , cm = CallMatrix $ fromLists (Size 2 1) [[lt], [lt]]
             }
   c2 = Call { source = aux,  target = aux
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le]]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
+                                                     , [Unknown, le]]
             }
   c3 = Call { source = aux,  target = flat
-            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, Le]]
+            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, le]]
             }
 
+prop_terminates_example1 ::  (?cutoff :: Int) => Bool
 prop_terminates_example1 = isRight $ terminates example1
 
 -- | An example which is now handled by this algorithm: argument
@@ -125,10 +127,11 @@ example2 = buildCallGraph [c]
   where
   plus = 1
   c = Call { source = plus, target = plus
-           , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                    , [Lt, Unknown] ]
+           , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, le]
+                                                    , [lt, Unknown] ]
            }
 
+prop_terminates_example2 ::  (?cutoff :: Int) => Bool
 prop_terminates_example2 = isRight $ terminates example2
 
 -- | A related example which is anyway handled: argument swapping addition
@@ -148,10 +151,11 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   plus  = 1
   plus' = 2
   c f g = Call { source = f, target = g
-               , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Le]
-                                                        , [Lt, Unknown] ]
+               , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, le]
+                                                        , [lt, Unknown] ]
                }
 
+prop_terminates_example3 ::  (?cutoff :: Int) => Bool
 prop_terminates_example3 = isRight $ terminates example3
 
 -- | A contrived example.
@@ -171,18 +175,19 @@ example4 = buildCallGraph [c1, c2, c3]
   f = 1
   g = 2
   c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
+                                                     , [Unknown, le] ]
             }
   c2 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
+                                                     , [Unknown, le] ]
             }
   c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
+                                                     , [Unknown, le] ]
             }
 
+prop_terminates_example4 ::  (?cutoff :: Int) => Bool
 prop_terminates_example4 = isLeft $ terminates example4
 
 -- | This should terminate.
@@ -197,22 +202,23 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   f = 1
   g = 2
   c1 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
+                                                     , [Unknown, le] ]
             }
   c2 = Call { source = f, target = f
             , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
-                                                     , [Unknown, Lt] ]
+                                                     , [Unknown, lt] ]
             }
   c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Le, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
+                                                     , [Unknown, le] ]
             }
   c4 = Call { source = g, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Lt, Unknown]
-                                                     , [Unknown, Le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
+                                                     , [Unknown, le] ]
             }
 
+prop_terminates_example5 ::  (?cutoff :: Int) => Bool
 prop_terminates_example5 = isRight $ terminates example5
 
 -- | Another example which should fail.
@@ -229,15 +235,16 @@ example6 = buildCallGraph [c1, c2, c3]
   where
   f = 1
   c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Lt] ]
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [lt] ]
             }
   c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [le] ]
             }
   c3 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 1 1) [ [Le] ]
+            , cm = CallMatrix $ fromLists (Size 1 1) [ [le] ]
             }
 
+prop_terminates_example6 ::  (?cutoff :: Int) => Bool
 prop_terminates_example6 = isLeft $ terminates example6
 
 ------------------------------------------------------------------------
@@ -252,3 +259,4 @@ tests = runTests "Agda.Termination.Termination"
   , quickCheck' prop_terminates_example5
   , quickCheck' prop_terminates_example6
   ]
+  where ?cutoff = 0 -- all these examples are with just lt,le,Unknown

@@ -27,7 +27,7 @@ module Agda.Termination.SparseMatrix
   , size
   , square
   , isEmpty
-  , add
+  , add, intersectWith
   , mul
   , diagonal
     -- * Modifying matrices
@@ -42,7 +42,7 @@ import qualified Data.List as List
 import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-import Agda.Termination.Semiring (Semiring)
+import Agda.Termination.Semiring (SemiRing, Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 
 #include "../undefined.h"
@@ -122,23 +122,16 @@ strictlySorted :: Ord i => i -> [(i, b)] -> Bool
 strictlySorted i []            = True
 strictlySorted i ((i', b) : l) = i < i' && strictlySorted i' l
 
-instance (Ord i, Integral i, Enum i, Show i, Show b, Semiring b) =>
-         Show (Matrix i b) where
+instance (Ord i, Integral i, Enum i, Show i, Show b, SemiRing b) => Show (Matrix i b) where
   showsPrec _ m =
     showString "Agda.Termination.Matrix.fromLists " . shows (size m) .
     showString " " . shows (toLists m)
 
-instance (Integral i, Semiring b, Pretty b) =>
-         Pretty (Matrix i b) where
-  pretty = vcat . map (hsep . map pretty) . toLists
-
-instance (Arbitrary i, Num i, Integral i,
-          Arbitrary b, Eq b, Semiring b) =>
-         Arbitrary (Matrix i b) where
+instance (Arbitrary i, Num i, Integral i, Arbitrary b, SemiRing b)
+         => Arbitrary (Matrix i b) where
   arbitrary     = matrix =<< arbitrary
 
-instance (Ord i, Integral i, Enum i, CoArbitrary b, Semiring b) =>
-         CoArbitrary (Matrix i b) where
+instance (Ord i, Integral i, Enum i, CoArbitrary b, SemiRing b) => CoArbitrary (Matrix i b) where
   coarbitrary m = coarbitrary (toLists m)
 
 ------------------------------------------------------------------------
@@ -147,8 +140,7 @@ instance (Ord i, Integral i, Enum i, CoArbitrary b, Semiring b) =>
 -- | Generates a matrix of the given size, using the given generator
 -- to generate the rows.
 
-matrixUsingRowGen
-  :: (Arbitrary i, Integral i, Arbitrary b, Eq b, Semiring b)
+matrixUsingRowGen :: (Arbitrary i, Integral i, Arbitrary b, SemiRing b)
   => Size i
   -> (i -> Gen [b])
      -- ^ The generator is parameterised on the size of the row.
@@ -159,10 +151,9 @@ matrixUsingRowGen sz rowGen = do
 
 -- | Generates a matrix of the given size.
 
-matrix :: (Arbitrary i, Integral i, Arbitrary b, Eq b, Semiring b)
-       => Size i -> Gen (Matrix i b)
-matrix sz =
-  matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
+matrix :: (Arbitrary i, Integral i, Arbitrary b, SemiRing b)
+  => Size i -> Gen (Matrix i b)
+matrix sz = matrixUsingRowGen sz (\n -> vectorOf (fromIntegral n) arbitrary)
 
 prop_matrix sz = forAll (matrix sz :: Gen TM) $ \m ->
   matrixInvariant m &&
@@ -170,12 +161,11 @@ prop_matrix sz = forAll (matrix sz :: Gen TM) $ \m ->
 
 -- | Constructs a matrix from a list of (index, value)-pairs.
 
-fromIndexList :: (Ord i, Eq b, Semiring b) =>
-                 Size i -> [(MIx i, b)] -> Matrix i b
-fromIndexList sz =
-  M sz .
-  List.sortBy (\ (i,_) (j,_) -> compare i j) .
-  filter (\ (i,b) -> b /= Semiring.zero)
+-- compareElt = (\ (i,_) (j,_) -> compare i j)
+-- normalize = filter (\ (i,b) -> b /= mempty)
+
+fromIndexList :: (Ord i, SemiRing b) => Size i -> [(MIx i, b)] -> Matrix i b
+fromIndexList sz = M sz . List.sortBy (\ (i,_) (j,_) -> compare i j) . filter (\ (i,b) -> b /= mempty)
 
 prop_fromIndexList :: TM -> Bool
 prop_fromIndexList m = matrixInvariant m' && m' == m
@@ -191,12 +181,9 @@ prop_size_fromIndexList sz =
 --
 -- Precondition: @'length' rs '==' 'rows' sz '&&' 'all' (('==' 'cols' sz) . 'length') rs@.
 
-fromLists :: (Ord i, Num i, Enum i, Eq b, Semiring b) =>
-             Size i -> [[b]] -> Matrix i b
-fromLists sz bs = fromIndexList sz $
-  zip ([ MIx i j | i <- [1..rows sz]
-                 , j <- [1..cols sz]])
-      (concat bs)
+fromLists :: (Ord i, Num i, Enum i, SemiRing b) => Size i -> [[b]] -> Matrix i b
+fromLists sz bs = fromIndexList sz $ zip ([ MIx i j | i <- [1..rows sz]
+                                                    , j <- [1..cols sz]]) (concat bs)
 
 -- | Converts a sparse matrix to a sparse list of rows
 
@@ -219,13 +206,13 @@ blowUpSparseVec zero n l = aux 1 l
 
 -- | Converts a matrix to a list of row lists.
 
-toLists :: (Ord i, Integral i, Enum i, Semiring b) =>
-           Matrix i b -> [[b]]
-toLists m = blowUpSparseVec emptyRow (rows sz) $
-    map (\ (i,r) -> (i, blowUpSparseVec Semiring.zero (cols sz) r)) $
-        toSparseRows m
+toLists :: (Ord i, Integral i, Enum i, SemiRing b) => Matrix i b -> [[b]]
+toLists m = blowUpSparseVec emptyRow (rows sz) $ 
+    map (\ (i,r) -> (i, blowUpSparseVec mempty (cols sz) r)) $ toSparseRows m 
+--            [ [ maybe mempty id $ lookup (MIx { row = r, col = c }) (unM m)
+--            | c <- [1 .. cols sz] ] | r <- [1 .. rows sz] ]
   where sz = size m
-        emptyRow = take (fromIntegral (cols sz)) $ repeat Semiring.zero
+        emptyRow = take (fromIntegral (cols sz)) $ repeat mempty
 
 prop_fromLists_toLists :: TM -> Bool
 prop_fromLists_toLists m = fromLists (size m) (toLists m) == m
@@ -269,6 +256,14 @@ mergeAssocWith f l@((i,a):l') m@((j,b):m')
     | i < j = (i,a) : mergeAssocWith f l' m
     | i > j = (j,b) : mergeAssocWith f l m'
     | otherwise = (i, f a b) : mergeAssocWith f l' m'
+
+-- | @'intersectWith' f m1 m2@ build the pointwise conjunction @m1@ and @m2@. 
+--   Uses @f@ to combine non-zero values.
+--
+-- Precondition: @'size' m1 == 'size' m2@.
+
+intersectWith :: (Ord i) => (a -> a -> a) -> Matrix i a -> Matrix i a -> Matrix i a
+intersectWith f m1 m2 = M (size m1) $ interAssocWith f (unM m1) (unM m2)
 
 -- | assoc list intersection
 interAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
@@ -323,12 +318,9 @@ prop_mul sz =
 --
 -- Precondition: @'square' m@.
 
-diagonal :: (Enum i, Num i, Ix i, Semiring b) => Matrix i b -> Array i b
-diagonal m =
-  listArray (1, rows sz) $
-  blowUpSparseVec Semiring.zero (rows sz) $
-  map (\(MIx i j, b) -> (i,b)) $
-  filter (\(MIx i j, b) -> i == j) (unM m)
+diagonal :: (Enum i, Num i, Ix i, SemiRing b) => Matrix i b -> Array i b
+diagonal m = listArray (1, rows sz) $ blowUpSparseVec mempty (rows sz) $
+  map (\ ((MIx i j),b) -> (i,b)) $ filter (\ ((MIx i j),b) -> i==j) (unM m)
   where sz = size m
 
 prop_diagonal =
@@ -343,10 +335,9 @@ prop_diagonal =
 -- already existing in the matrix. All elements in the new column get
 -- set to @x@.
 
-addColumn :: (Num i, Eq b, Semiring b) => b -> Matrix i b -> Matrix i b
-addColumn x m
-  | x == Semiring.zero = m { size = (size m) { cols = cols (size m) + 1 }}
-  | otherwise          = __IMPOSSIBLE__
+addColumn :: (Num i, SemiRing b) => b -> Matrix i b -> Matrix i b
+addColumn x m | x == mempty = m { size = (size m) { cols = cols (size m) + 1 }}
+              | otherwise = __IMPOSSIBLE__
 
 prop_addColumn :: TM -> Bool
 prop_addColumn m =
@@ -354,15 +345,14 @@ prop_addColumn m =
   &&
   map init (toLists m') == toLists m
   where
-  m' = addColumn Semiring.zero m
+  m' = addColumn mempty m
 
 -- | @'addRow' x m@ adds a new row to @m@, after the rows already
 -- existing in the matrix. All elements in the new row get set to @x@.
 
-addRow :: (Num i, Eq b, Semiring b) => b -> Matrix i b -> Matrix i b
-addRow x m
-  | x == Semiring.zero = m { size = (size m) { rows = rows (size m) + 1 }}
-  | otherwise          = __IMPOSSIBLE__
+addRow :: (Num i, SemiRing b) => b -> Matrix i b -> Matrix i b
+addRow x m | x == mempty = m { size = (size m) { rows = rows (size m) + 1 }}
+           | otherwise = __IMPOSSIBLE__
 
 prop_addRow :: TM -> Bool
 prop_addRow m =
@@ -370,7 +360,7 @@ prop_addRow m =
   &&
   init (toLists m') == toLists m
   where
-  m' = addRow Semiring.zero m
+  m' = addRow mempty m
 
 ------------------------------------------------------------------------
 -- All tests
