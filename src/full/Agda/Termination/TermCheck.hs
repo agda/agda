@@ -143,9 +143,7 @@ termMutual i ts ds = if names == [] then return [] else
                    [ "Calls    (dot patterns): " ++ show calls2
                    ]
                  reportS "term.behaviours" 20 $ unlines
-                   [ "Recursion behaviours (no dot patterns):"
-                   , indent 2 $ Term.showBehaviour (Term.complete calls1)
-                   , "Recursion behaviours (dot patterns):"
+                   [ "Recursion behaviours (dot patterns):"
                    , indent 2 $ Term.showBehaviour (Term.complete calls2)
                    ]
                  return $ Term.terminates calls2
