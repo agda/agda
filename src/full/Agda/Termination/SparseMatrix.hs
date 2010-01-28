@@ -39,6 +39,7 @@ module Agda.Termination.SparseMatrix
 
 import Data.Array
 import qualified Data.List as List
+import Agda.Utils.Pretty hiding (isEmpty)
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
 import Agda.Termination.Semiring (Semiring)
@@ -126,6 +127,10 @@ instance (Ord i, Integral i, Enum i, Show i, Show b, Semiring b) =>
   showsPrec _ m =
     showString "Agda.Termination.Matrix.fromLists " . shows (size m) .
     showString " " . shows (toLists m)
+
+instance (Integral i, Semiring b, Pretty b) =>
+         Pretty (Matrix i b) where
+  pretty = vcat . map (hsep . map pretty) . toLists
 
 instance (Arbitrary i, Num i, Integral i,
           Arbitrary b, Eq b, Semiring b) =>

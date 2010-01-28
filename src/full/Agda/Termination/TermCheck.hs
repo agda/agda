@@ -46,7 +46,6 @@ import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
-import Agda.Utils.String
 import Agda.Utils.Monad (thread, (<$>), ifM)
 
 #include "../undefined.h"
@@ -129,9 +128,13 @@ termMutual i ts ds = if names == [] then return [] else
      reportS "term.lex" 20 $ unlines
        [ "Calls (no dot patterns): " ++ show calls1
        ]
-     reportS "term.behaviours" 20 $ unlines
-       [ "Recursion behaviours (no dot patterns):"
-       , indent 2 $ Term.showBehaviour (Term.complete calls1)
+     reportSDoc "term.behaviours" 20 $ vcat
+       [ text "Recursion behaviours (no dot patterns):"
+       , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls1)
+       ]
+     reportSDoc "term.matrices" 30 $ vcat
+       [ text "Call matrices (no dot patterns):"
+       , nest 2 $ pretty $ Term.complete calls1
        ]
      r <- do let r = Term.terminates calls1
              case r of
@@ -140,11 +143,16 @@ termMutual i ts ds = if names == [] then return [] else
                  -- Try again, but include the dot patterns this time.
                  calls2 <- collect conf{ useDotPatterns = True }
                  reportS "term.lex" 20 $ unlines
-                   [ "Calls    (dot patterns): " ++ show calls2
+                   [ "Calls (dot patterns): " ++ show calls2
                    ]
-                 reportS "term.behaviours" 20 $ unlines
-                   [ "Recursion behaviours (dot patterns):"
-                   , indent 2 $ Term.showBehaviour (Term.complete calls2)
+                 reportSDoc "term.behaviours" 20 $ vcat
+                   [ text "Recursion behaviours (dot patterns):"
+                   , nest 2 $ return $
+                       Term.prettyBehaviour (Term.complete calls2)
+                   ]
+                 reportSDoc "term.matrices" 30 $ vcat
+                   [ text "Call matrices (dot patterns):"
+                   , nest 2 $ pretty $ Term.complete calls2
                    ]
                  return $ Term.terminates calls2
      case r of

@@ -26,7 +26,7 @@ module Agda.Termination.CallGraph
   , union
   , insert
   , complete
-  , showBehaviour
+  , prettyBehaviour
     -- * Tests
   , Agda.Termination.CallGraph.tests
   ) where
@@ -34,6 +34,7 @@ module Agda.Termination.CallGraph
 import Agda.Utils.QuickCheck
 import Agda.Utils.Function
 import Agda.Utils.List
+import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.TestHelpers
 import Agda.Termination.SparseMatrix as Matrix
 import Agda.Termination.Semiring (Semiring)
@@ -65,6 +66,12 @@ instance Show Order where
   show Le      = "="
   show Unknown = "?"
   show (Mat m) = "Mat " ++ show m
+
+instance Pretty Order where
+  pretty Lt      = text "<"
+  pretty Le      = text "="
+  pretty Unknown = text "?"
+  pretty (Mat m) = text "Mat" <+> pretty m
 
 --instance Ord Order where
 --    max = maxO
@@ -412,13 +419,24 @@ prop_ensureCompletePrecondition =
   zipZip :: [[a]] -> [[b]] -> [[(a, b)]]
   zipZip xs ys = map (uncurry zip) $ zip xs ys
 
+instance Show meta => Pretty (CallGraph meta) where
+  pretty = vcat . map prettyCall . toList
+    where
+    prettyCall (c, meta) = align 20
+      [ ("Source:",    text $ show $ source c)
+      , ("Target:",    text $ show $ target c)
+      , ("Matrix:",    pretty (mat $ cm c))
+      , ("Meta info:", text $ show meta)
+      ]
+
 -- | Displays the recursion behaviour corresponding to a call graph.
 
-showBehaviour :: Show meta => CallGraph meta -> String
-showBehaviour = concatMap showCall . toList
+prettyBehaviour :: Show meta => CallGraph meta -> Doc
+prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
   where
-  showCall (c, meta) | source c /= target c = ""
-                     | otherwise            = unlines
+  toSelf c = source c == target c
+
+  prettyCall (c, meta) = vcat $ map text
     [ "Function:  " ++ show (source c)
     , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
     , "Meta info: " ++ show meta
