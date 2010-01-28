@@ -24,6 +24,7 @@ import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.Monad		( readM )
 import Agda.Utils.List               ( wordsBy )
+import Agda.Utils.String             ( indent )
 import Agda.Utils.Trie               ( Trie )
 import qualified Agda.Utils.Trie as Trie
 
@@ -304,15 +305,13 @@ usage :: [OptDescr ()] -> [(String, String, [String], [OptDescr ()])] -> String 
 usage options pluginInfos progName =
 	usageInfo (header progName) options ++
 	"\nPlugins:\n" ++
-        indent (concatMap pluginMsg pluginInfos)
+        indent 2 (concatMap pluginMsg pluginInfos)
 
     where
 	header progName = unlines [ "Agda"
 				  , ""
 				  , "Usage: " ++ progName ++ " [OPTIONS...] FILE"
 				  ]
-
-	indent = unlines . map ("  " ++) . lines
 
         pluginMsg (name, help, inherited, opts)
             | null opts && null inherited = optHeader
@@ -321,7 +320,7 @@ usage options pluginInfos progName =
 				     inheritedOptions inherited
 				     ) opts
             where
-		optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent help
+		optHeader = "\n" ++ name ++ "-plugin:\n" ++ indent 2 help
 		inheritedOptions [] = ""
 		inheritedOptions pls =
 		    "\n    Inherits options from: " ++ unwords pls
