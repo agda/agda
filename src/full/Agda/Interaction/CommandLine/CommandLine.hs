@@ -159,7 +159,8 @@ showMetas [m,"normal"] =
 	  r <- getInteractionRange i
 	  liftIO $ LocIO.putStrLn $ s ++ " " ++ show r
 showMetas [] =
-    do  (interactionMetas,hiddenMetas) <- typeOfMetas AsIs
+    do  interactionMetas <- typesOfVisibleMetas AsIs
+        hiddenMetas      <- typesOfHiddenMetas  AsIs
         mapM_ (liftIO . LocIO.putStrLn) =<< mapM showII interactionMetas
 	mapM_ print' hiddenMetas
     where

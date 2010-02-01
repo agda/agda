@@ -322,8 +322,9 @@ cmd_constraints = Interaction False $ do
 -- show those instead.
 cmd_metas :: Interaction
 cmd_metas = Interaction False $ do -- CL.showMetas []
-  ims <- fst <$> B.typeOfMetas B.AsIs
-  hms <- snd <$> B.typeOfMetas B.Normalised -- show unsolved implicit arguments normalised
+  ims <- B.typesOfVisibleMetas B.AsIs
+  -- Show unsolved implicit arguments normalised.
+  hms <- B.typesOfHiddenMetas B.Normalised
   if not $ null ims && null hms
     then do
       di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims

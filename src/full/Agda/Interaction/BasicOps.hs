@@ -386,23 +386,19 @@ typeOfMeta norm ii =
         out <- typeOfMetaMI norm mi
         return $ fmap (\_ -> ii) out
 
+typesOfVisibleMetas :: Rewrite -> TCM [OutputForm Expr InteractionId]
+typesOfVisibleMetas norm =
+  liftTCM $ mapM (typeOfMeta norm) =<< getInteractionPoints
 
-typeOfMetas :: Rewrite -> TCM ([OutputForm Expr InteractionId],[OutputForm Expr MetaId])
--- First visible metas, then hidden
-typeOfMetas norm = liftTCM $
-    do	ips <- getInteractionPoints
-        js <- mapM (typeOfMeta norm) ips
-        hidden <- hiddenMetas
-        return $ (js,hidden)
-   where hiddenMetas =    --TODO: Change so that it uses getMetaMI above
-            do is <- getInteractionMetas
-	       store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
-               let mvs = Map.keys store
-               mapM (typeOfMetaMI norm) mvs
-          where
-               openAndImplicit is x (MetaVar _ _ _ M.Open _)		 = x `notElem` is
-	       openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
-	       openAndImplicit _ _ _					 = False
+typesOfHiddenMetas :: Rewrite -> TCM [OutputForm Expr MetaId]
+typesOfHiddenMetas norm = liftTCM $ do
+  is    <- getInteractionMetas
+  store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
+  mapM (typeOfMetaMI norm) $ Map.keys store
+  where
+  openAndImplicit is x (MetaVar _ _ _ M.Open             _) = x `notElem` is
+  openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
+  openAndImplicit _  _ _                                    = False
 
 -- Gives a list of names and corresponding types.
 
