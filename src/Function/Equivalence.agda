@@ -34,6 +34,30 @@ equivalent : ∀ {f t} {From : Set f} {To : Set t} →
 equivalent to from = record { to = P.→-to-⟶ to; from = P.→-to-⟶ from }
 
 ------------------------------------------------------------------------
+-- Map and zip
+
+map : ∀ {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂}
+        {f₁′ f₂′ t₁′ t₂′}
+        {From′ : Setoid f₁′ f₂′} {To′ : Setoid t₁′ t₂′} →
+      ((From ⟶ To) → (From′ ⟶ To′)) →
+      ((To ⟶ From) → (To′ ⟶ From′)) →
+      Equivalent From To → Equivalent From′ To′
+map t f eq = record { to = t to; from = f from }
+  where open Equivalent eq
+
+zip : ∀ {f₁₁ f₂₁ t₁₁ t₂₁}
+        {From₁ : Setoid f₁₁ f₂₁} {To₁ : Setoid t₁₁ t₂₁}
+        {f₁₂ f₂₂ t₁₂ t₂₂}
+        {From₂ : Setoid f₁₂ f₂₂} {To₂ : Setoid t₁₂ t₂₂}
+        {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂} →
+      ((From₁ ⟶ To₁) → (From₂ ⟶ To₂) → (From ⟶ To)) →
+      ((To₁ ⟶ From₁) → (To₂ ⟶ From₂) → (To ⟶ From)) →
+      Equivalent From₁ To₁ → Equivalent From₂ To₂ → Equivalent From To
+zip t f eq₁ eq₂ =
+  record { to = t (to eq₁) (to eq₂); from = f (from eq₁) (from eq₂) }
+  where open Equivalent
+
+------------------------------------------------------------------------
 -- Equivalent is an equivalence relation
 
 -- Identity and composition (reflexivity and transitivity).
