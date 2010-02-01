@@ -4,7 +4,8 @@ record Singleton : Set where
 
 record HereditarilySingleton : Set where
   field
-    singleton : Singleton
+    singleton      : Singleton
+    also-singleton : Singleton
 
 foo : Singleton
 foo = _
