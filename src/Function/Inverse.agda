@@ -78,6 +78,39 @@ _⇿_ : ∀ {f t} → Set f → Set t → Set _
 From ⇿ To = Inverse (P.setoid From) (P.setoid To)
 
 ------------------------------------------------------------------------
+-- Map and zip
+
+map : ∀ {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂}
+        {f₁′ f₂′ t₁′ t₂′}
+        {From′ : Setoid f₁′ f₂′} {To′ : Setoid t₁′ t₂′} →
+      (t : (From ⟶ To) → (From′ ⟶ To′)) →
+      (f : (To ⟶ From) → (To′ ⟶ From′)) →
+      (∀ {to from} → from InverseOf to → f from InverseOf t to) →
+      Inverse From To → Inverse From′ To′
+map t f pres eq = record
+  { to         = t to
+  ; from       = f from
+  ; inverse-of = pres inverse-of
+  } where open Inverse eq
+
+zip : ∀ {f₁₁ f₂₁ t₁₁ t₂₁}
+        {From₁ : Setoid f₁₁ f₂₁} {To₁ : Setoid t₁₁ t₂₁}
+        {f₁₂ f₂₂ t₁₂ t₂₂}
+        {From₂ : Setoid f₁₂ f₂₂} {To₂ : Setoid t₁₂ t₂₂}
+        {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂} →
+      (t : (From₁ ⟶ To₁) → (From₂ ⟶ To₂) → (From ⟶ To)) →
+      (f : (To₁ ⟶ From₁) → (To₂ ⟶ From₂) → (To ⟶ From)) →
+      (∀ {to₁ from₁ to₂ from₂} →
+         from₁ InverseOf to₁ → from₂ InverseOf to₂ →
+         f from₁ from₂ InverseOf t to₁ to₂) →
+      Inverse From₁ To₁ → Inverse From₂ To₂ → Inverse From To
+zip t f pres eq₁ eq₂ = record
+  { to         = t (to   eq₁) (to   eq₂)
+  ; from       = f (from eq₁) (from eq₂)
+  ; inverse-of = pres (inverse-of eq₁) (inverse-of eq₂)
+  } where open Inverse
+
+------------------------------------------------------------------------
 -- Inverse is an equivalence relation
 
 -- Identity and composition (reflexivity and transitivity).
