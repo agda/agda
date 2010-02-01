@@ -8,7 +8,8 @@ module Data.List.Any.SetEquality where
 
 open import Data.List as List
 open import Data.List.Any as Any
-open import Data.List.Any.Properties as AnyProp
+open import Data.List.Any.Properties
+open import Data.List.Any.Membership as MembershipProp
 open import Data.Product
 open import Function
 open import Function.Equivalence as Eq
@@ -24,7 +25,7 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
 open Any.Membership-≡
-open AnyProp.Membership-≡
+open MembershipProp.Membership-≡
 private
   open module SetEq {A : Set} = Setoid (Set-equality {A}) using (_≈_)
 

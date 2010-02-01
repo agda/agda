@@ -9,7 +9,8 @@ module Data.List.Any.BagEquality where
 open import Algebra
 open import Data.List as List
 open import Data.List.Any as Any
-open import Data.List.Any.Properties as AnyProp
+open import Data.List.Any.Membership as MembershipProp
+open import Data.List.Any.Properties
 open import Data.Product
 open import Function
 open import Function.Inverse as Inv
@@ -23,7 +24,7 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
 open Any.Membership-≡
-open AnyProp.Membership-≡
+open MembershipProp.Membership-≡
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module BagEq {A : Set} = Setoid (Bag-equality {A}) using (_≈_)
