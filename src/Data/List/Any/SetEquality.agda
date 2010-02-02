@@ -6,6 +6,8 @@
 
 module Data.List.Any.SetEquality where
 
+open import Algebra
+open import Category.Monad
 open import Data.List as List
 open import Data.List.Any as Any
 open import Data.List.Any.Properties
@@ -13,7 +15,7 @@ open import Data.List.Any.Membership as MembershipProp
 open import Data.Product
 open import Function
 open import Function.Equivalence as Eq
-  using (_⇔_) renaming (_∘_ to _⟨∘⟩_)
+  using (_⇔_; equivalent) renaming (_∘_ to _⟨∘⟩_)
 open import Function.Inverse
   using (module Inverse) renaming (_∘_ to _⟪∘⟫_)
 open import Relation.Binary
@@ -26,35 +28,85 @@ open import Relation.Binary.Sum
 
 open Any.Membership-≡
 open MembershipProp.Membership-≡
+open RawMonad List.monad
 private
+  module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module SetEq {A : Set} = Setoid (Set-equality {A}) using (_≈_)
 
--- _++_ is a congruence.
+-- Any is a congruence.
 
-_++-cong_ : {A : Set} {xs₁ xs₂ xs₃ xs₄ : List A} →
-            xs₁ ≈ xs₂ → xs₃ ≈ xs₄ → xs₁ ++ xs₃ ≈ xs₂ ++ xs₄
-xs₁≈xs₂ ++-cong xs₃≈xs₄ =
-  Inverse.equivalence (++⇿ ⟪∘⟫ ⊎-Rel⇿≡) ⟨∘⟩
-  (xs₁≈xs₂ ⊎-equivalent xs₃≈xs₄) ⟨∘⟩
-  Eq.sym (Inverse.equivalence $ ++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
+           (∀ x → P₁ x ⇔ P₂ x) → xs₁ ≈ xs₂ → Any P₁ xs₁ ⇔ Any P₂ xs₂
+Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇔P₂ xs₁≈xs₂ =
+  Inverse.equivalence (Any⇿ ⟪∘⟫ Σ.Rel⇿≡) ⟨∘⟩
+  Σ.equivalent (λ {x} →
+    Inverse.equivalence
+      (H.≡⇿≅ (λ x → x ∈ xs₂ × P₂ x) ⟪∘⟫ ×-Rel⇿≡) ⟨∘⟩
+    (xs₁≈xs₂ ×-equivalent P₁⇔P₂ x) ⟨∘⟩
+    Eq.sym (Inverse.equivalence $
+              H.≡⇿≅ (λ x → x ∈ xs₁ × P₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟨∘⟩
+  Eq.sym (Inverse.equivalence $ Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
+
+-- _++_ and [] form a commutative monoid.
+
+commutativeMonoid : Set → CommutativeMonoid
+commutativeMonoid A = record
+  { Carrier             = List A
+  ; _≈_                 = _≈_
+  ; _∙_                 = _++_
+  ; ε                   = []
+  ; isCommutativeMonoid = record
+    { isMonoid = record
+      { isSemigroup = record
+        { isEquivalence = SetEq.isEquivalence
+        ; assoc         = λ xs ys zs →
+                          SetEq.reflexive (ListMonoid.assoc xs ys zs)
+        ; ∙-cong        = λ xs₁≈xs₂ xs₃≈xs₄ →
+                            Inverse.equivalence (++⇿ ⟪∘⟫ ⊎-Rel⇿≡) ⟨∘⟩
+                            (xs₁≈xs₂ ⊎-equivalent xs₃≈xs₄) ⟨∘⟩
+                            Eq.sym (Inverse.equivalence $ ++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+        }
+      ; identity = (λ _ → SetEq.refl)
+                 , SetEq.reflexive ∘ proj₂ ListMonoid.identity
+      }
+    ; comm = λ xs ys → Inverse.equivalence $ ++⇿++ xs ys
+    }
+  }
 
 -- List.map is a congruence.
 
+private
+
+  map-cong′ : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
+              (∀ {y} x → y ≡ f₁ x ⇔ y ≡ f₂ x) → xs₁ ≈ xs₂ →
+              List.map f₁ xs₁ ≈ List.map f₂ xs₂
+  map-cong′ f₁⇔f₂ xs₁≈xs₂ =
+    Inverse.equivalence map⇿ ⟨∘⟩
+    Any-cong f₁⇔f₂ xs₁≈xs₂ ⟨∘⟩
+    Eq.sym (Inverse.equivalence map⇿)
+
 map-cong : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈ xs₂ → List.map f₁ xs₁ ≈ List.map f₂ xs₂
-map-cong {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {fx} =
-  Inverse.equivalence (map-∈⇿ ⟪∘⟫ Σ.Rel⇿≡) ⟨∘⟩
-  Σ.equivalent
-    (Inverse.equivalence
-       (H.≡⇿≅ (λ x → x ∈ xs₂ × fx ≡ f₂ x) ⟪∘⟫ ×-Rel⇿≡) ⟨∘⟩
-     (xs₁≈xs₂ ×-equivalent lemma) ⟨∘⟩
-     Eq.sym (Inverse.equivalence $
-               H.≡⇿≅ (λ x → x ∈ xs₁ × fx ≡ f₁ x) ⟪∘⟫ ×-Rel⇿≡))
-    ⟨∘⟩
-  Eq.sym (Inverse.equivalence $ map-∈⇿ ⟪∘⟫ Σ.Rel⇿≡)
-  where
-  lemma : ∀ {x y} → y ≡ f₁ x ⇔ y ≡ f₂ x
-  lemma {x} = record
-    { to   = P.→-to-⟶ (λ y≡f₁x → P.trans y≡f₁x (f₁≗f₂ x))
-    ; from = P.→-to-⟶ (λ y≡f₂x → P.trans y≡f₂x (P.sym $ f₁≗f₂ x))
-    }
+map-cong f₁≗f₂ =
+  map-cong′ (λ x →
+    equivalent (λ y≡f₁x → P.trans y≡f₁x (        f₁≗f₂ x))
+               (λ y≡f₂x → P.trans y≡f₂x (P.sym $ f₁≗f₂ x)))
+
+-- concat is a congruence.
+
+concat-cong : {A : Set} {xss₁ xss₂ : List (List A)} →
+              xss₁ ≈ xss₂ → concat xss₁ ≈ concat xss₂
+concat-cong xss₁≈xss₂ =
+  Inverse.equivalence concat⇿ ⟨∘⟩
+  Any-cong (λ _ → Eq.id) xss₁≈xss₂ ⟨∘⟩
+  Eq.sym (Inverse.equivalence concat⇿)
+
+-- The list monad's bind is a congruence.
+
+>>=-cong : ∀ {A B : Set} {xs₁ xs₂} {f₁ f₂ : A → List B} →
+           xs₁ ≈ xs₂ → (∀ x → f₁ x ≈ f₂ x) →
+           (xs₁ >>= f₁) ≈ (xs₂ >>= f₂)
+>>=-cong xs₁≈xs₂ f₁≈f₂ =
+  Inverse.equivalence >>=⇿ ⟨∘⟩
+  Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟨∘⟩
+  Eq.sym (Inverse.equivalence >>=⇿)
