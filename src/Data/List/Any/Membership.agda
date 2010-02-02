@@ -335,15 +335,57 @@ module Membership-≡ where
 
   -- Introduction and elimination rules for concat.
 
-  concat-∈⁺ : ∀ {A} {x : A} {xs xss} →
+  concat-∈⁺ : ∀ {A : Set} {x : A} {xs xss} →
               x ∈ xs → xs ∈ xss → x ∈ concat xss
-  concat-∈⁺ x∈xs = M₁.concat-∈⁺ x∈xs ∘ Any.map S.reflexive
+  concat-∈⁺ {x = x} x∈xs xs∈xss =
+    concat⁺ (Any.map (λ xs≡ys → P.subst (λ xs → x ∈ xs) xs≡ys x∈xs)
+                     xs∈xss)
 
-  concat-∈⁻ : ∀ {A} {x : A} xss →
-              x ∈ concat xss → ∃ λ xs → x ∈ xs × xs ∈ xss
-  concat-∈⁻ xss x∈ =
-    Prod.map id (Prod.map id (Any.map ListEq.Rel≡⇒≡)) $
-      M₁.concat-∈⁻ xss x∈
+  concat-∈⁻ : ∀ {A : Set} {x : A} xss → x ∈ concat xss →
+              ∃ λ xs → x ∈ xs × xs ∈ xss
+  concat-∈⁻ xss x∈ = Prod.map id swap $ find (concat⁻ xss x∈)
+
+  -- The introduction and elimination rules are inverses (more or
+  -- less).
+
+  concat-∈⁺∘concat-∈⁻ :
+    ∀ {A : Set} {x : A} xss (x∈ : x ∈ concat xss) →
+    uncurry′ concat-∈⁺ (proj₂ (concat-∈⁻ xss x∈)) ≡ x∈
+  concat-∈⁺∘concat-∈⁻ {x = x} xss x∈
+    rewrite let x∈xs = proj₁ (proj₂ (concat-∈⁻ xss x∈)) in
+            map∘find (concat⁻ xss x∈)
+                     {f = λ xs≡ys → P.subst (λ xs → x ∈ xs) xs≡ys x∈xs}
+                     P.refl = concat⁺∘concat⁻ xss x∈
+
+  concat-∈⁻∘concat-∈⁺ :
+    ∀ {A : Set} {x : A} {xs xss} (x∈xs : x ∈ xs) (xs∈xss : xs ∈ xss) →
+    concat-∈⁻ xss (concat-∈⁺ x∈xs xs∈xss) ≡ (xs , x∈xs , xs∈xss)
+  concat-∈⁻∘concat-∈⁺ {x = x} x∈xs xs∈xss
+    rewrite concat⁻∘concat⁺ $
+              Any.map (λ xs≡ys → P.subst (λ xs → x ∈ xs) xs≡ys x∈xs)
+                      xs∈xss
+          | find∘map xs∈xss (λ xs≡ys → P.subst (λ xs → x ∈ xs) xs≡ys
+                                               x∈xs)
+          = P.refl
+
+  concat-∈⇿ : ∀ {A : Set} {x : A} {xss} →
+              (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
+  concat-∈⇿ {x = x} {xss} = record
+    { to         = P.→-to-⟶ concat-∈⁺′
+    ; from       = P.→-to-⟶ $ concat-∈⁻ xss
+    ; inverse-of = record
+      { left-inverse-of  = concat-∈⁻∘concat-∈⁺′
+      ; right-inverse-of = concat-∈⁺∘concat-∈⁻ xss
+      }
+    }
+    where
+    concat-∈⁺′ : (∃ λ xs → x ∈ xs × xs ∈ xss) → x ∈ concat xss
+    concat-∈⁺′ (xs , x∈xs , xs∈xss) = concat-∈⁺ x∈xs xs∈xss
+
+    concat-∈⁻∘concat-∈⁺′ : (p : ∃ λ xs → x ∈ xs × xs ∈ xss) →
+                           concat-∈⁻ xss (concat-∈⁺′ p) ≡ p
+    concat-∈⁻∘concat-∈⁺′ (xs , x∈xs , xs∈xss) =
+      concat-∈⁻∘concat-∈⁺ x∈xs xs∈xss
 
   -- concat is monotone.
 
