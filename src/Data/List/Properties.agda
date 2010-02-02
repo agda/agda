@@ -10,8 +10,8 @@
 module Data.List.Properties where
 
 open import Algebra
+open import Category.Monad
 open import Data.List as List
-private module LM {A} = Monoid (List.monoid A)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Bool
@@ -20,6 +20,10 @@ open import Data.Product as Prod hiding (map)
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.EqReasoning as Eq
+
+open RawMonadPlus List.monadPlus
+private
+  module LM {A} = Monoid (List.monoid A)
 
 ∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ y ∷ ys → x ≡ y × xs ≡ ys
@@ -286,3 +290,50 @@ length-gfilter p []       = z≤n
 length-gfilter p (x ∷ xs) with p x
 length-gfilter p (x ∷ xs) | just y  = s≤s (length-gfilter p xs)
 length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
+
+-- The list monad.
+
+module Monad where
+
+  left-zero : {A B : Set} (f : A → List B) → (∅ >>= f) ≡ ∅
+  left-zero f = refl
+
+  right-zero : {A B : Set} (xs : List A) →
+               (xs >>= const ∅) ≡ (List B ∶ ∅)
+  right-zero []       = refl
+  right-zero (x ∷ xs) = right-zero xs
+
+  private
+
+    not-left-distributive :
+      let xs = true ∷ false ∷ []; f = return; g = return in
+      (xs >>= λ x → f x ∣ g x) ≢ ((xs >>= f) ∣ (xs >>= g))
+    not-left-distributive ()
+
+  right-distributive : {A B : Set} (xs ys : List A) (f : A → List B) →
+                       (xs ∣ ys >>= f) ≡ ((xs >>= f) ∣ (ys >>= f))
+  right-distributive []       ys f = refl
+  right-distributive (x ∷ xs) ys f = begin
+    f x ∣ (xs ∣ ys >>= f)            ≡⟨ cong (_∣_ (f x)) $ right-distributive xs ys f ⟩
+    f x ∣ ((xs >>= f) ∣ (ys >>= f))  ≡⟨ sym $ LM.assoc (f x) _ _ ⟩
+    (f x ∣ (xs >>= f)) ∣ (ys >>= f)  ∎
+    where open ≡-Reasoning
+
+  left-identity : {A B : Set} (x : A) (f : A → List B) →
+                  (return x >>= f) ≡ f x
+  left-identity x f = proj₂ LM.identity (f x)
+
+  right-identity : {A : Set} (xs : List A) →
+                   (xs >>= return) ≡ xs
+  right-identity []       = refl
+  right-identity (x ∷ xs) = cong (_∷_ x) (right-identity xs)
+
+  associative : {A B C : Set}
+                (xs : List A) (f : A → List B) (g : B → List C) →
+                (xs >>= λ x → f x >>= g) ≡ (xs >>= f >>= g)
+  associative []       f g = refl
+  associative (x ∷ xs) f g = begin
+    (f x >>= g) ∣ (xs >>= λ x → f x >>= g)  ≡⟨ cong (_∣_ (f x >>= g)) $ associative xs f g ⟩
+    (f x >>= g) ∣ (xs >>= f >>= g)          ≡⟨ sym $ right-distributive (f x) (xs >>= f) g ⟩
+    (f x ∣ (xs >>= f) >>= g)                ∎
+    where open ≡-Reasoning
