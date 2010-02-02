@@ -51,8 +51,8 @@ record LeftInverse {f₁ f₂ t₁ t₂}
   injection : Injection From To
   injection = record { to = to; injective = injective }
 
-  equivalence : Equivalent From To
-  equivalence = record
+  equivalent : Equivalent From To
+  equivalent = record
     { to   = to
     ; from = from
     }

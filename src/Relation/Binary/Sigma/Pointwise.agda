@@ -117,8 +117,7 @@ inverse {I = I} {From = F} {T} F⇿T = record
     }
   }
   where
-  open Inverse
-  eq = equivalent (equivalence F⇿T)
+  eq = equivalent (Inverse.equivalent F⇿T)
 
   left : Equivalent.from eq LeftInverseOf Equivalent.to eq
   left (x , y) = (P.refl , Inverse.left-inverse-of F⇿T y)

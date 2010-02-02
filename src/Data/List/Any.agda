@@ -179,7 +179,7 @@ module Membership-≡ {A : Set} where
   -- Bag equality implies set equality.
 
   bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
-  bag-=⇒set-= xs≈ys = Inverse.equivalence xs≈ys
+  bag-=⇒set-= xs≈ys = Inverse.equivalent xs≈ys
 
 ------------------------------------------------------------------------
 -- Another function

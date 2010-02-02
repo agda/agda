@@ -278,8 +278,7 @@ A⇿B ×-inverse C⇿D = record
     }
   }
   where
-  open Inverse
-  eq = equivalence A⇿B ×-equivalent equivalence C⇿D
+  eq = Inverse.equivalent A⇿B ×-equivalent Inverse.equivalent C⇿D
 
   left : Equivalent.from eq LeftInverseOf Equivalent.to eq
   left (x , y) = ( Inverse.left-inverse-of A⇿B x

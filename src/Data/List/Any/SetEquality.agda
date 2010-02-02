@@ -38,14 +38,14 @@ private
 Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
            (∀ x → P₁ x ⇔ P₂ x) → xs₁ ≈ xs₂ → Any P₁ xs₁ ⇔ Any P₂ xs₂
 Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇔P₂ xs₁≈xs₂ =
-  Inverse.equivalence (Any⇿ ⟪∘⟫ Σ.Rel⇿≡) ⟨∘⟩
+  Inverse.equivalent (Any⇿ ⟪∘⟫ Σ.Rel⇿≡) ⟨∘⟩
   Σ.equivalent (λ {x} →
-    Inverse.equivalence
+    Inverse.equivalent
       (H.≡⇿≅ (λ x → x ∈ xs₂ × P₂ x) ⟪∘⟫ ×-Rel⇿≡) ⟨∘⟩
     (xs₁≈xs₂ ×-equivalent P₁⇔P₂ x) ⟨∘⟩
-    Eq.sym (Inverse.equivalence $
+    Eq.sym (Inverse.equivalent $
               H.≡⇿≅ (λ x → x ∈ xs₁ × P₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟨∘⟩
-  Eq.sym (Inverse.equivalence $ Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
+  Eq.sym (Inverse.equivalent $ Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
 
 -- _++_ and [] form a commutative monoid.
 
@@ -62,14 +62,14 @@ commutativeMonoid A = record
         ; assoc         = λ xs ys zs →
                           SetEq.reflexive (ListMonoid.assoc xs ys zs)
         ; ∙-cong        = λ xs₁≈xs₂ xs₃≈xs₄ →
-                            Inverse.equivalence (++⇿ ⟪∘⟫ ⊎-Rel⇿≡) ⟨∘⟩
+                            Inverse.equivalent (++⇿ ⟪∘⟫ ⊎-Rel⇿≡) ⟨∘⟩
                             (xs₁≈xs₂ ⊎-equivalent xs₃≈xs₄) ⟨∘⟩
-                            Eq.sym (Inverse.equivalence $ ++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+                            Eq.sym (Inverse.equivalent $ ++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
         }
       ; identity = (λ _ → SetEq.refl)
                  , SetEq.reflexive ∘ proj₂ ListMonoid.identity
       }
-    ; comm = λ xs ys → Inverse.equivalence $ ++⇿++ xs ys
+    ; comm = λ xs ys → Inverse.equivalent $ ++⇿++ xs ys
     }
   }
 
@@ -81,9 +81,9 @@ private
               (∀ {y} x → y ≡ f₁ x ⇔ y ≡ f₂ x) → xs₁ ≈ xs₂ →
               List.map f₁ xs₁ ≈ List.map f₂ xs₂
   map-cong′ f₁⇔f₂ xs₁≈xs₂ =
-    Inverse.equivalence map⇿ ⟨∘⟩
+    Inverse.equivalent map⇿ ⟨∘⟩
     Any-cong f₁⇔f₂ xs₁≈xs₂ ⟨∘⟩
-    Eq.sym (Inverse.equivalence map⇿)
+    Eq.sym (Inverse.equivalent map⇿)
 
 map-cong : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈ xs₂ → List.map f₁ xs₁ ≈ List.map f₂ xs₂
@@ -97,9 +97,9 @@ map-cong f₁≗f₂ =
 concat-cong : {A : Set} {xss₁ xss₂ : List (List A)} →
               xss₁ ≈ xss₂ → concat xss₁ ≈ concat xss₂
 concat-cong xss₁≈xss₂ =
-  Inverse.equivalence concat⇿ ⟨∘⟩
+  Inverse.equivalent concat⇿ ⟨∘⟩
   Any-cong (λ _ → Eq.id) xss₁≈xss₂ ⟨∘⟩
-  Eq.sym (Inverse.equivalence concat⇿)
+  Eq.sym (Inverse.equivalent concat⇿)
 
 -- The list monad's bind is a congruence.
 
@@ -107,6 +107,6 @@ concat-cong xss₁≈xss₂ =
            xs₁ ≈ xs₂ → (∀ x → f₁ x ≈ f₂ x) →
            (xs₁ >>= f₁) ≈ (xs₂ >>= f₂)
 >>=-cong xs₁≈xs₂ f₁≈f₂ =
-  Inverse.equivalence >>=⇿ ⟨∘⟩
+  Inverse.equivalent >>=⇿ ⟨∘⟩
   Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟨∘⟩
-  Eq.sym (Inverse.equivalence >>=⇿)
+  Eq.sym (Inverse.equivalent >>=⇿)

@@ -420,4 +420,4 @@ A⇿B ⊎-inverse C⇿D = record
   }
   where
   open Inverse
-  eq = equivalence A⇿B ⊎-equivalent equivalence C⇿D
+  eq = equivalent A⇿B ⊎-equivalent equivalent C⇿D

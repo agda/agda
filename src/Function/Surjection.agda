@@ -25,8 +25,8 @@ record Surjective {f₁ f₂ t₁ t₂}
     from             : To ⟶ From
     right-inverse-of : from RightInverseOf to
 
-  equivalence : Equivalent From To
-  equivalence = record
+  equivalent : Equivalent From To
+  equivalent = record
     { to   = to
     ; from = from
     }
