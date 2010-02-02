@@ -7,6 +7,7 @@
 module Data.List.Any.BagEquality where
 
 open import Algebra
+open import Category.Monad
 open import Data.List as List
 open import Data.List.Any as Any
 open import Data.List.Any.Membership as MembershipProp
@@ -25,6 +26,7 @@ open import Relation.Binary.Sum
 
 open Any.Membership-≡
 open MembershipProp.Membership-≡
+open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module BagEq {A : Set} = Setoid (Bag-equality {A}) using (_≈_)
@@ -87,3 +89,18 @@ map-cong f₁≗f₂ = map-cong′ (λ x → record
     ; right-inverse-of = λ _ → P.proof-irrelevance _ _
     }
   })
+
+-- concat is a congruence.
+
+concat-cong : {A : Set} {xss₁ xss₂ : List (List A)} →
+              xss₁ ≈ xss₂ → concat xss₁ ≈ concat xss₂
+concat-cong xss₁≈xss₂ =
+  concat⇿ ⟪∘⟫ Any-cong (λ _ → Inv.id) xss₁≈xss₂ ⟪∘⟫ Inv.sym concat⇿
+
+-- The list monad's bind is a congruence.
+
+>>=-cong : ∀ {A B : Set} {xs₁ xs₂} {f₁ f₂ : A → List B} →
+           xs₁ ≈ xs₂ → (∀ x → f₁ x ≈ f₂ x) →
+           (xs₁ >>= f₁) ≈ (xs₂ >>= f₂)
+>>=-cong xs₁≈xs₂ f₁≈f₂ =
+  >>=⇿ ⟪∘⟫ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟪∘⟫ Inv.sym >>=⇿
