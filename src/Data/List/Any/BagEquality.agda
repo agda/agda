@@ -69,17 +69,21 @@ commutativeMonoid A = record
 
 -- List.map is a congruence.
 
+private
+
+  map-cong′ : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
+              (∀ {y} x → y ≡ f₁ x ⇿ y ≡ f₂ x) → xs₁ ≈ xs₂ →
+              List.map f₁ xs₁ ≈ List.map f₂ xs₂
+  map-cong′ f₁⇿f₂ xs₁≈xs₂ =
+    map⇿ ⟪∘⟫ Any-cong f₁⇿f₂ xs₁≈xs₂ ⟪∘⟫ Inv.sym map⇿
+
 map-cong : ∀ {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈ xs₂ → List.map f₁ xs₁ ≈ List.map f₂ xs₂
-map-cong {f₁ = f₁} {f₂} f₁≗f₂ xs₁≈xs₂ =
-  map⇿ ⟪∘⟫ Any-cong (λ _ → lemma) xs₁≈xs₂ ⟪∘⟫ Inv.sym map⇿
-  where
-  lemma : ∀ {x y} → y ≡ f₁ x ⇿ y ≡ f₂ x
-  lemma {x} = record
-    { to         = P.→-to-⟶ (λ y≡f₁x → P.trans y≡f₁x (f₁≗f₂ x))
-    ; from       = P.→-to-⟶ (λ y≡f₂x → P.trans y≡f₂x (P.sym $ f₁≗f₂ x))
-    ; inverse-of = record
-      { left-inverse-of  = λ _ → P.proof-irrelevance _ _
-      ; right-inverse-of = λ _ → P.proof-irrelevance _ _
-      }
+map-cong f₁≗f₂ = map-cong′ (λ x → record
+  { to         = P.→-to-⟶ (λ y≡f₁x → P.trans y≡f₁x (        f₁≗f₂ x))
+  ; from       = P.→-to-⟶ (λ y≡f₂x → P.trans y≡f₂x (P.sym $ f₁≗f₂ x))
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → P.proof-irrelevance _ _
+    ; right-inverse-of = λ _ → P.proof-irrelevance _ _
     }
+  })
