@@ -394,3 +394,38 @@ any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalent.from T-≡ �
 any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
 any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
   there (any⁻ p xs pxs)
+
+-- Sum commutes with Any (for a fixed list).
+
+⊎⇿ : ∀ {A : Set} {P Q : A → Set} {xs} →
+     (Any P xs ⊎ Any Q xs) ⇿ Any (λ x → P x ⊎ Q x) xs
+⊎⇿ {P = P} {Q} = record
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ from
+  ; inverse-of = record
+    { left-inverse-of  = from∘to
+    ; right-inverse-of = to∘from
+    }
+  }
+  where
+  to : ∀ {xs} → Any P xs ⊎ Any Q xs → Any (λ x → P x ⊎ Q x) xs
+  to = [ Any.map inj₁ , Any.map inj₂ ]′
+
+  from : ∀ {xs} → Any (λ x → P x ⊎ Q x) xs → Any P xs ⊎ Any Q xs
+  from (here (inj₁ p)) = inj₁ (here p)
+  from (here (inj₂ q)) = inj₂ (here q)
+  from (there p)       = Sum.map there there (from p)
+
+  from∘to : ∀ {xs} (p : Any P xs ⊎ Any Q xs) → from (to p) ≡ p
+  from∘to (inj₁ (here  p)) = P.refl
+  from∘to (inj₁ (there p)) rewrite from∘to (inj₁ p) = P.refl
+  from∘to (inj₂ (here  q)) = P.refl
+  from∘to (inj₂ (there q)) rewrite from∘to (inj₂ q) = P.refl
+
+  to∘from : ∀ {xs} (p : Any (λ x → P x ⊎ Q x) xs) →
+            to (from p) ≡ p
+  to∘from (here (inj₁ p)) = P.refl
+  to∘from (here (inj₂ q)) = P.refl
+  to∘from (there p) with from p | to∘from p
+  to∘from (there .(Any.map inj₁ p)) | inj₁ p | P.refl = P.refl
+  to∘from (there .(Any.map inj₂ q)) | inj₂ q | P.refl = P.refl

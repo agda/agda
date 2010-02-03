@@ -10,7 +10,7 @@ open import Algebra
 open import Category.Monad
 open import Data.List as List
 open import Data.List.Any as Any
-open import Data.List.Any.Membership as MembershipProp
+import Data.List.Any.Membership as ∈
 open import Data.List.Any.Properties
 open import Data.Product
 open import Function
@@ -25,7 +25,7 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
 open Any.Membership-≡
-open MembershipProp.Membership-≡
+open ∈.Membership-≡
 open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
@@ -104,3 +104,13 @@ concat-cong xss₁≈xss₂ =
            (xs₁ >>= f₁) ≈ (xs₂ >>= f₂)
 >>=-cong xs₁≈xs₂ f₁≈f₂ =
   >>=⇿ ⟪∘⟫ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟪∘⟫ Inv.sym >>=⇿
+
+-- The list monad's bind distributes from the left over _++_.
+
+>>=-left-distributive :
+  ∀ {A B : Set} (xs : List A) {f g : A → List B} →
+  (xs >>= λ x → f x ++ g x) ≈ (xs >>= f) ++ (xs >>= g)
+>>=-left-distributive xs =
+  ++⇿ ⟪∘⟫
+  ⊎-Rel⇿≡ ⟪∘⟫ (>>=⇿ ⊎-inverse >>=⇿) ⟪∘⟫ Inv.sym ⊎-Rel⇿≡ ⟪∘⟫
+  Inv.sym (>>=⇿ ⟪∘⟫ Any-cong (λ _ → ++⇿) (BagEq.refl {x = xs}) ⟪∘⟫ ⊎⇿)
