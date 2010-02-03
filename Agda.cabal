@@ -74,7 +74,8 @@ library
                     process >= 1.0.1.0 && < 2,
                     haskeline >= 0.3 && < 0.7,
                     xhtml == 3000.2.*,
-                    syb == 0.1.*
+                    syb == 0.1.*,
+                    Cabal >= 1.8.0.2 && < 1.9
   build-tools:      happy >= 1.15 && < 2,
                     alex >= 2.0.1 && < 3
   extensions:       CPP
@@ -97,6 +98,10 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Packaging.Config
+                    Agda.Packaging.Database
+                    Agda.Packaging.Monad
+                    Agda.Packaging.Types
                     Agda.Interaction.CommandLine.CommandLine
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile

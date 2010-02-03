@@ -1,0 +1,28 @@
+name:                agda-pkg
+version:             2.2.7
+description:         Agda package management tool
+license:             GPL
+license-file:        LICENSE
+author:              Darin Morrison
+maintainer:          darinmorrison@gmail.com
+build-type:          Simple
+cabal-version:       >= 1.8.0.2
+
+executable agda-pkg
+  extensions:       FlexibleContexts
+                  , FlexibleInstances
+                  , GeneralizedNewtypeDeriving
+                  , MultiParamTypeClasses
+                  , OverloadedStrings
+  ghc-options:    -Wall -Werror
+  hs-source-dirs: src
+  main-is:        Main.hs
+  build-depends:    Agda        >= 2.2.7
+                  , Cabal       >= 1.8.0.2
+                  , array       >= 0.3
+                  , base        >= 4.2.0.0
+                  , bytestring
+                  , mtl
+                  , pretty
+                  , regex-base
+                  , regex-posix
