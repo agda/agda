@@ -17,12 +17,12 @@ executable agda-pkg
   ghc-options:    -Wall -Werror
   hs-source-dirs: src
   main-is:        Main.hs
-  build-depends:    Agda        >= 2.2.7
-                  , Cabal       >= 1.8.0.2
-                  , array       >= 0.3
-                  , base        >= 4.2.0.0
-                  , bytestring
-                  , mtl
-                  , pretty
-                  , regex-base
-                  , regex-posix
+  build-depends:    Agda        == 2.2.7
+                  , Cabal       == 1.8.*
+                  , array       == 0.3.*
+                  , base        == 4.2.*
+                  , bytestring  >= 0.9.0.1 && < 1
+                  , mtl         == 1.1.*
+                  , pretty      == 1.0.*
+                  , regex-base  == 0.93.*
+                  , regex-posix == 0.94.*
