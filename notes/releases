@@ -12,11 +12,12 @@ followed:
 * Update the README, if necessary.
 
 * Update the version numbers in Agda.cabal,
-  src/main/Agda-executable.cabal (two places) and
+  src/main/Agda-executable.cabal (two places),
+  src/agda-pkg/agda-pkg.cabal (two places) and
   src/data/emacs-mode/agda2-mode.el.
 
-* Add a second source-repository section to Agda.cabal and
-  Agda-executable.cabal:
+* Add a second source-repository section to Agda.cabal,
+  Agda-executable.cabal and agda-pkg.cabal:
 
     source-repository this
       type:     darcs
@@ -26,6 +27,11 @@ followed:
 * Ensure that cabal haddock works:
 
     cabal configure && cabal haddock
+    cabal install && cd src/agda-pkg && cabal configure && \
+      cabal haddock && cd -
+
+  Note that configuring agda-pkg will not work unless the Agda library
+  is first installed.
 
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
@@ -35,11 +41,12 @@ followed:
     cabal configure && cabal sdist && cabal check
     cabal install
     cd src/main && cabal configure && cabal sdist && cabal check && cd -
+    cd src/agda-pkg && cabal configure && cabal sdist && cabal check && cd -
     darcs dist --dist-name=Agda-$VERSION
 
-  Note that configuring Agda-executable will not work unless the Agda
-  library is first installed. Note also that cabal check may warn
-  about -Werror.
+  Note that configuring Agda-executable and agda-pkg will not work
+  unless the Agda library is first installed. Note also that cabal
+  check may warn about -Werror.
 
 * Ensure that all the packages build properly.
 
@@ -59,6 +66,10 @@ followed:
     cd Agda-executable-$VERSION
     cabal install
     cd ..
+    tar xzf $BASE/src/agda-pkg/dist/agda-pkg-$VERSION.tar.gz
+    cd Agda-executable-$VERSION
+    cabal install
+    cd ..
 
   Do not forget to test the Emacs mode.
 
@@ -66,7 +77,8 @@ followed:
 
     cd $BASE
     cabal upload dist/Agda-$VERSION.tar.gz \
-                 src/main/dist/Agda-executable-$VERSION.tar.gz
+                 src/main/dist/Agda-executable-$VERSION.tar.gz \
+                 src/main/dist/agda-pkg-$VERSION.tar.gz
 
 * Upload the darcs tar-ball to code.haskell.org.
 
