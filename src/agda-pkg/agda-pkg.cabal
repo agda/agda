@@ -14,7 +14,21 @@ executable agda-pkg
                   , GeneralizedNewtypeDeriving
                   , MultiParamTypeClasses
                   , OverloadedStrings
-  ghc-options:    -Wall -Werror
+  if true
+    ghc-options:    -w -Werror
+                    -fwarn-deprecated-flags
+                    -fwarn-dodgy-foreign-imports
+                    -fwarn-dodgy-imports
+                    -fwarn-duplicate-exports
+                    -fwarn-hi-shadowing
+                    -fwarn-incomplete-patterns
+                    -fwarn-missing-fields
+                    -fwarn-missing-methods
+                    -fwarn-overlapping-patterns
+                    -fwarn-warnings-deprecations
+  if impl(ghc >= 6.12)
+    ghc-options:    -fwarn-dodgy-exports
+                    -fwarn-wrong-do-bind
   hs-source-dirs: src
   main-is:        Main.hs
   build-depends:    Agda        == 2.2.7
