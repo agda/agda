@@ -1,12 +1,21 @@
 name:                agda-pkg
 version:             2.2.7
-description:         Agda package management tool
-license:             GPL
+category:            Dependent types
+synopsis:            Agda package management tool
+description:         A package management tool for Agda.
+license:             OtherLicense
 license-file:        LICENSE
 author:              Darin Morrison
-maintainer:          darinmorrison@gmail.com
+maintainer:          dwm@cs.nott.ac.uk
+homepage:            http://wiki.portal.chalmers.se/agda/
+bug-reports:         http://code.google.com/p/agda/issues/list
 build-type:          Simple
-cabal-version:       >= 1.8.0.2
+cabal-version:       >= 1.8
+tested-with:         GHC == 6.12.1
+
+source-repository head
+  type:     darcs
+  location: http://code.haskell.org/Agda/
 
 executable agda-pkg
   extensions:       FlexibleContexts
