@@ -460,9 +460,10 @@ introTactic ii = do
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of
-              Datatype{} -> introData t
-              Record{}   -> introRec d
-              _          -> return []
+              Datatype{}                 -> introData t
+              Record{ recCon = Nothing } -> introRec d
+              Record{ recCon = Just _  } -> introData t
+              _                          -> return []
           _ -> do
             TelV tel _ <- telView t
             case tel of
