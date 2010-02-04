@@ -41,11 +41,13 @@ postulate
   getContents : IO Costring
   readFile    : String → IO Costring
   writeFile   : String → Costring → IO Unit
+  appendFile  : String → Costring → IO Unit
   putStr      : Costring → IO Unit
   putStrLn    : Costring → IO Unit
 
 {-# COMPILED getContents getContents #-}
 {-# COMPILED readFile    readFile    #-}
 {-# COMPILED writeFile   writeFile   #-}
+{-# COMPILED appendFile  appendFile  #-}
 {-# COMPILED putStr      putStr      #-}
 {-# COMPILED putStrLn    putStrLn    #-}
