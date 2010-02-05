@@ -19,10 +19,9 @@ substitute :: (Functor m, Monad m)
            -> BS.ByteString
            -> Substitution m
            -> m BS.ByteString
-substitute input regEx subst = output $ splits 0 (getAllMatches target) input
+substitute input regEx subst = output
+                             $ splits 0 (getAllMatches (input =~ regEx)) input
   where
-    target = input =~ regEx
-
     splits :: Int -> [MatchPair] -> BS.ByteString -> [MatchTriple]
     splits _o []            _str = []
     splits  o ((mo, ml):ms)  str = splitter str
