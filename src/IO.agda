@@ -88,6 +88,14 @@ writeFile∞ f s =
 writeFile : String → String → IO ⊤
 writeFile f s = writeFile∞ f (toCostring s)
 
+appendFile∞ : String → Costring → IO ⊤
+appendFile∞ f s =
+  ♯ lift (Prim.appendFile f (Haskell.fromColist s)) >>
+  ♯ return _
+
+appendFile : String → String → IO ⊤
+appendFile f s = appendFile∞ f (toCostring s)
+
 putStr∞ : Costring → IO ⊤
 putStr∞ s =
   ♯ lift (Prim.putStr (Haskell.fromColist s)) >>
