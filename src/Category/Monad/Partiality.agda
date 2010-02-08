@@ -11,6 +11,7 @@ open import Data.Nat
 open import Data.Product as Prod
 open import Data.Sum
 open import Function
+open import Function.Equivalence using (_⇔_; equivalent)
 open import Relation.Binary
 open import Relation.Nullary
 open import Relation.Nullary.Negation
@@ -296,6 +297,162 @@ module Workaround where
     >>=-hom : ∀ {A B} (x : A ⊥P) (f : A → B ⊥P) →
               ⟦ x >>= f ⟧P ≅ M._>>=_ ⟦ x ⟧P (λ y → ⟦ f y ⟧P)
     >>=-hom x f = >>=-homW (whnf x) f
+
+------------------------------------------------------------------------
+-- An alternative, but equivalent, formulation of equality
+
+module AlternativeEquality where
+
+  mutual
+
+    infix  4 _≅P_ _≈P_
+    infix  2 _∎
+    infixr 2 _≅⟨_⟩_ _≈⟨_⟩_
+    infixl 1 _>>=_
+
+    -- Equality proof "programs".
+
+    _≅P_ : {A : Set} → A ⊥ → A ⊥ → Set₁
+    _≅P_ = EqP strong
+
+    _≈P_ : {A : Set} → A ⊥ → A ⊥ → Set₁
+    _≈P_ = EqP weak
+
+    data EqP {A : Set} : Kind → A ⊥ → A ⊥ → Set₁ where
+
+      -- Congruences.
+
+      now   : ∀ {k v} → EqP k (now v) (now v)
+      later : ∀ {k x y} (x≈y : ∞ (EqP k (♭ x) (♭ y))) →
+              EqP k (later x) (later y)
+      _>>=_ : ∀ {B : Set} {k} {x₁ x₂} {f₁ f₂ : B → A ⊥} → let open M in
+              (x₁≈x₂ : EqP k x₁ x₂) (f₁≈f₂ : ∀ x → EqP k (f₁ x) (f₂ x)) →
+              EqP k (x₁ >>= f₁) (x₂ >>= f₂)
+
+      -- Weak equality.
+
+      laterʳ : ∀ {x y} (x≈y :   x ≈P ♭ y) →       x ≈P later y
+      laterˡ : ∀ {x y} (x≈y : ♭ x ≈P   y) → later x ≈P       y
+
+      -- Equational reasoning. Note that including full transitivity
+      -- for weak equality would make EqP weak trivial. Instead a
+      -- limited notion of transitivity, similar to weak bisimulation
+      -- up-to strong bisimulation, is included.
+
+      _∎     : ∀ x → x ≅P x
+      sym    : ∀ {k x y} (x≈y : EqP k x y) → EqP k y x
+      _≅⟨_⟩_ : ∀ {k} x {y z} (x≅y : x ≅P y) (y≈z : EqP k y z) → EqP k x z
+      _≈⟨_⟩_ : ∀     x {y z} (x≈y : x ≈P y) (y≅z : y ≅P z) → x ≈P z
+
+  -- EqP is complete with respect to Eq.
+
+  completeP : ∀ {A : Set} {k} {x y : A ⊥} → Eq k x y → EqP k x y
+  completeP now          = now
+  completeP (later  x≈y) = later (♯ completeP (♭ x≈y))
+  completeP (laterʳ x≈y) = laterʳ  (completeP    x≈y)
+  completeP (laterˡ x≈y) = laterˡ  (completeP    x≈y)
+
+  -- EqP is sound with respect to Eq.
+
+  private
+
+    -- Equality proof WHNFs.
+
+    data EqW {A : Set} : Kind → A ⊥ → A ⊥ → Set₁ where
+      now    : ∀ {k v}                                 → EqW k    (now   v) (now   v)
+      later  : ∀ {k x y} (x≈y : EqP  k    (♭ x) (♭ y)) → EqW k    (later x) (later y)
+      laterʳ : ∀ {x y}   (x≈y : EqW weak    x  (♭ y) ) → EqW weak        x  (later y)
+      laterˡ : ∀ {x y}   (x≈y : EqW weak (♭ x)    y  ) → EqW weak (later x)        y
+
+    -- WHNFs can be turned into programs.
+
+    program : ∀ {A : Set} {k} {x y : A ⊥} → EqW k x y → EqP k x y
+    program now          = now
+    program (later  x≈y) = later (♯ x≈y)
+    program (laterˡ x≈y) = laterˡ (program x≈y)
+    program (laterʳ x≈y) = laterʳ (program x≈y)
+
+    -- Lemmas for WHNFs.
+
+    _>>=W_ :
+      ∀ {A B : Set} {k} {x₁ x₂} {f₁ f₂ : B → A ⊥} →
+      EqW k x₁ x₂ → (∀ x → EqW k (f₁ x) (f₂ x)) →
+      EqW k (M._>>=_ x₁ f₁) (M._>>=_ x₂ f₂)
+    now        >>=W f₁≈f₂ = f₁≈f₂ _
+    later  x≈y >>=W f₁≈f₂ = later  (x≈y >>= program ∘ f₁≈f₂)
+    laterʳ x≈y >>=W f₁≈f₂ = laterʳ (x≈y >>=W f₁≈f₂)
+    laterˡ x≈y >>=W f₁≈f₂ = laterˡ (x≈y >>=W f₁≈f₂)
+
+    reflW : {A : Set} (x : A ⊥) → EqW strong x x
+    reflW (now   x) = now
+    reflW (later x) = later (♭ x ∎)
+
+    symW : ∀ {A : Set} {k} {x y : A ⊥} → EqW k x y → EqW k y x
+    symW now          = now
+    symW (later  x≈y) = later  (sym  x≈y)
+    symW (laterʳ x≈y) = laterˡ (symW x≈y)
+    symW (laterˡ x≈y) = laterʳ (symW x≈y)
+
+    transW : ∀ {A : Set} {x y z : A ⊥} →
+             EqW strong x y → EqW strong y z → EqW strong x z
+    transW now                y≈z  = y≈z
+    transW (later x≅y) (later y≈z) = later (_ ≅⟨ x≅y ⟩ y≈z)
+
+    -- Strong equality programs can be turned into WHNFs.
+
+    whnfS : ∀ {A} {x y : A ⊥} → x ≅P y → EqW strong x y
+    whnfS now               = now
+    whnfS (later x≈y)       = later (♭ x≈y)
+    whnfS (x₁≈x₂ >>= f₁≈f₂) = whnfS x₁≈x₂ >>=W λ x → whnfS (f₁≈f₂ x)
+    whnfS (x ∎)             = reflW x
+    whnfS (sym x≈y)         = symW (whnfS x≈y)
+    whnfS (x ≅⟨ x≅y ⟩ y≈z)  = transW (whnfS x≅y) (whnfS y≈z)
+
+    -- More lemmas for WHNFs.
+
+    transˡ : ∀ {A : Set} {k} {x y z : A ⊥} →
+             EqW strong x y → EqW k y z → EqW k x z
+    transˡ now                  y≈z  = y≈z
+    transˡ (later x≅y) (later   y≈z) = later (_ ≅⟨ x≅y ⟩ y≈z)
+    transˡ        x≅y  (laterʳ ly≈z) = laterʳ (transˡ x≅y ly≈z)
+    transˡ (later x≅y) (laterˡ  y≈z) = laterˡ (transˡ (whnfS x≅y) y≈z)
+
+    transʳ : ∀ {A : Set} {x y z : A ⊥} →
+             EqW weak x y → EqW strong y z → EqW weak x z
+    transʳ x≈y y≈z = symW (transˡ (symW y≈z) (symW x≈y))
+
+    -- All equality programs can be turned into WHNFs.
+
+    whnf : ∀ {A k} {x y : A ⊥} → EqP k x y → EqW k x y
+    whnf now               = now
+    whnf (later  x≈y)      = later     (♭ x≈y)
+    whnf (laterʳ x≈y)      = laterʳ (whnf x≈y)
+    whnf (laterˡ x≈y)      = laterˡ (whnf x≈y)
+    whnf (x₁≈x₂ >>= f₁≈f₂) = whnf x₁≈x₂ >>=W λ x → whnf (f₁≈f₂ x)
+    whnf (x ∎)             = reflW x
+    whnf (sym x≈y)         = symW (whnf x≈y)
+    whnf (x ≅⟨ x≅y ⟩ y≈z)  = transˡ (whnf x≅y) (whnf y≈z)
+    whnf (x ≈⟨ x≈y ⟩ y≅z)  = transʳ (whnf x≈y) (whnf y≅z)
+
+  mutual
+
+    -- Soundness.
+
+    private
+
+      soundW : ∀ {A k} {x y : A ⊥} → EqW k x y → Eq k x y
+      soundW now          = now
+      soundW (later  x≈y) = later (♯ soundP x≈y)
+      soundW (laterʳ x≈y) = laterʳ  (soundW x≈y)
+      soundW (laterˡ x≈y) = laterˡ  (soundW x≈y)
+
+    soundP : ∀ {A k} {x y : A ⊥} → EqP k x y → Eq k x y
+    soundP x≈y = soundW (whnf x≈y)
+
+  -- Correctness.
+
+  correct : ∀ {A k} {x y : A ⊥} → EqP k x y ⇔ Eq k x y
+  correct = equivalent soundP completeP
 
 ------------------------------------------------------------------------
 -- Examples
