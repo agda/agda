@@ -66,12 +66,12 @@ listPkgs = do
           where
             brokenPkgs = map Cabal.installedPackageId
                        $ Agda.brokenPkgs
-                       $ Agda.collatePkgDBs
+                       $ Agda.flattenPkgDBs
                        $ pkgDBStack
 
             doc        = text
                        $ Cabal.display
-                       $ Cabal.installedPackageId ipi
+                       $ Cabal.sourcePackageId ipi
 
         sortInstalledPkgInfos :: Cabal.InstalledPackageInfo
                               -> Cabal.InstalledPackageInfo

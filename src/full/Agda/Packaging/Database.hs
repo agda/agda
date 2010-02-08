@@ -8,14 +8,23 @@ import           Control.Monad.Cont
 import           Control.Monad.Error
 import           Data.List
   ( intersperse
+  , isSuffixOf
   , partition )
 import           Data.Maybe
   ( fromJust )
 import           System.Directory
-  ( getAppUserDataDirectory )
+  ( getAppUserDataDirectory
+  , getDirectoryContents )
 import           System.FilePath
+import           System.IO
+  ( IOMode (ReadMode)
+  , hGetContents
+  , hSetEncoding
+  , openFile
+  , utf8 )
 import           System.IO.Error
-  ( isPermissionError )
+  ( isPermissionError
+  , try )
 
 -- External Library Imports
 import qualified Distribution.InstalledPackageInfo
@@ -24,11 +33,16 @@ import qualified Distribution.InstalledPackageInfo
     , exposedModules
     , depends
     , hiddenModules
-    , installedPackageId )
+    , installedPackageId
+    , parseInstalledPackageInfo )
 import qualified Distribution.Package
   as Cabal
     ( PackageIdentifier
     , packageId )
+import qualified Distribution.ParseUtils
+  as Cabal
+    ( ParseResult (..)
+    , locatedErrorMsg )
 import qualified Distribution.Simple.Utils
   as Cabal
     ( die
@@ -52,13 +66,13 @@ import Paths_Agda
 getPkgDBPathGlobal :: IO FilePath
 getPkgDBPathGlobal =  pure (</>)
                   <*> getDataDir
-                  <*> pure "package.conf"
+                  <*> pure "package.conf.d"
 
 -- FIXME: Error handling
 getPkgDBPathUser :: IO FilePath
 getPkgDBPathUser =  pure (</>)
                 <*> getAppUserDataDirectory "Agda"
-                <*> pure "package.conf"
+                <*> pure "package.conf.d"
 
 getPkgDBs :: [FilePath] -> IO PackageDBStack
 getPkgDBs givenPkgDBNames = do
@@ -77,22 +91,38 @@ getPkgDBs givenPkgDBNames = do
 -- FIXME: Error handling
 readParsePkgDB :: PackageDBName -> IO NamedPackageDB
 readParsePkgDB dbName = do
-  (parsePkgDB =<< readFile dbName)
-    `catch` ioError
-  where
-    parsePkgDB :: String -> IO NamedPackageDB
-    parsePkgDB pkgDBText = do
-      let db = map parsePkgInfo $ read pkgDBText
-      return $ NamedPackageDB { dbName = dbName, db = db }
-        where
-          parsePkgInfo pkgInfo = pkgInfo
-            { Cabal.exposedModules = map parse $ Cabal.exposedModules pkgInfo
-            , Cabal.hiddenModules  = map parse $ Cabal.hiddenModules  pkgInfo }
-            where
-              parse = fromJust . Cabal.simpleParse
+  result <- try $ getDirectoryContents dbName
+  case result of
+    Left  ioErr     -> Cabal.die $ show ioErr
+    Right filePaths -> do
+      pkgInfos <- mapM parseSingletonPkgConf $ map (dbName </>) dbEntries
+      return $ NamedPackageDB
+        { dbName = dbName
+        , db     = pkgInfos }
+      where
+        dbEntries = filter (".conf" `isSuffixOf`) filePaths
 
-collatePkgDBs :: PackageDBStack -> PackageDB
-collatePkgDBs = concatMap db
+parseSingletonPkgConf :: FilePath -> IO Cabal.InstalledPackageInfo
+parseSingletonPkgConf = (parsePkgInfo =<<) . readUTF8File
+  where
+    readUTF8File :: FilePath -> IO String
+    readUTF8File file = do
+      handle <- openFile file ReadMode
+      hSetEncoding handle utf8
+      hGetContents handle
+
+parsePkgInfo :: String -> IO Cabal.InstalledPackageInfo
+parsePkgInfo pkgInfoStr =
+  case Cabal.parseInstalledPackageInfo pkgInfoStr of
+    Cabal.ParseOk     warnings ok ->
+      return ok
+    Cabal.ParseFailed err         ->
+      case Cabal.locatedErrorMsg err of
+        (Nothing     , msg) -> Cabal.die msg
+        (Just  lineNo, msg) -> Cabal.die (show lineNo ++ ": " ++ msg)
+
+flattenPkgDBs :: PackageDBStack -> PackageDB
+flattenPkgDBs = concatMap db
 
 brokenPkgs :: PackageDB -> PackageDB
 brokenPkgs = snd . transClos []

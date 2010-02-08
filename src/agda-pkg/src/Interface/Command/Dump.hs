@@ -25,5 +25,5 @@ dumpPkgs = Agda.asksM
          $ mapM_ (Agda.liftIO . putStrLn)
          . intersperse "---"
          . map Cabal.showInstalledPackageInfo
-         . Agda.collatePkgDBs
+         . Agda.flattenPkgDBs
          . Agda.configPkgDBStack
