@@ -55,13 +55,40 @@ isNow (later x) = false
 ------------------------------------------------------------------------
 -- Equality
 
-infix 4 _≈_
+-- The partiality monad comes with two forms of equality: weak and
+-- strong.
 
-data _≈_ {A : Set} : A ⊥ → A ⊥ → Set where
-  now    : ∀ {v}                         → now   v ≈ now   v
-  later  : ∀ {x y} (x≈y : ∞ (♭ x ≈ ♭ y)) → later x ≈ later y
-  laterʳ : ∀ {x y} (x≈y :      x ≈ ♭ y ) →       x ≈ later y
-  laterˡ : ∀ {x y} (x≈y :    ♭ x ≈   y ) → later x ≈       y
+data Kind : Set where
+  weak strong : Kind
+
+mutual
+
+  infix 4 _≅_ _≈_
+
+  _≅_ : {A : Set} → A ⊥ → A ⊥ → Set
+  _≅_ = Eq strong
+
+  _≈_ : {A : Set} → A ⊥ → A ⊥ → Set
+  _≈_ = Eq weak
+
+  data Eq {A : Set} : Kind → A ⊥ → A ⊥ → Set where
+    now    : ∀ {k v}                                 → Eq k (now   v) (now   v)
+    later  : ∀ {k x y} (x≈y : ∞ (Eq k (♭ x)  (♭ y))) → Eq k (later x) (later y)
+    laterʳ : ∀ {x y}   (x≈y :            x  ≈ ♭ y  ) →             x ≈ later y
+    laterˡ : ∀ {x y}   (x≈y :          ♭ x  ≈   y  ) →       later x ≈       y
+
+-- Weak equality includes the strong one.
+
+≅⇒≈ : {A : Set} {x y : A ⊥} → x ≅ y → x ≈ y
+≅⇒≈ now         = now
+≅⇒≈ (later x≅y) = later (♯ ≅⇒≈ (♭ x≅y))
+
+-- The two equalities agree for non-terminating computations.
+
+≈never⇒≅never : {A : Set} {x : A ⊥} → x ≈ never → x ≅ never
+≈never⇒≅never (later  x≈never) = later (♯ ≈never⇒≅never (♭ x≈never))
+≈never⇒≅never (laterʳ x≈never) =          ≈never⇒≅never    x≈never
+≈never⇒≅never (laterˡ x≈never) = later (♯ ≈never⇒≅never    x≈never)
 
 -- Later can be dropped.
 
@@ -75,47 +102,50 @@ laterˡ⁻¹ (later  x≈y)  = laterʳ         (♭ x≈y)
 laterˡ⁻¹ (laterʳ lx≈y) = laterʳ (laterˡ⁻¹ lx≈y)
 laterˡ⁻¹ (laterˡ x≈y)  = x≈y
 
-later⁻¹ : ∀ {A : Set} {x y : ∞ (A ⊥)} → later x ≈ later y → ♭ x ≈ ♭ y
-later⁻¹ = laterˡ⁻¹ ∘ laterʳ⁻¹
+later⁻¹ : ∀ {A : Set} {k} {x y : ∞ (A ⊥)} →
+          Eq k (later x) (later y) → Eq k (♭ x) (♭ y)
+later⁻¹ {k = weak}       lx≈ly = laterˡ⁻¹ (laterʳ⁻¹ lx≈ly)
+later⁻¹            (later x≈y) = ♭ x≈y
 
--- _≈_ is an equivalence relation.
+-- Both equalities are equivalences.
 
-setoid : Set → Setoid _ _
-setoid A = record
+setoid : Set → Kind → Setoid _ _
+setoid A k = record
   { Carrier       = A ⊥
-  ; _≈_           = _≈_
+  ; _≈_           = Eq k
   ; isEquivalence = record {refl = refl _; sym = sym; trans = trans}
   }
   where
-  refl : (x : A ⊥) → x ≈ x
+  refl : (x : A ⊥) → Eq k x x
   refl (now v)   = now
   refl (later x) = later (♯ refl (♭ x))
 
-  sym : {x y : A ⊥} → x ≈ y → y ≈ x
+  sym : ∀ {k} {x y : A ⊥} → Eq k x y → Eq k y x
   sym now          = now
   sym (later  x≈y) = later (♯ sym (♭ x≈y))
   sym (laterʳ x≈y) = laterˡ (sym x≈y)
   sym (laterˡ x≈y) = laterʳ (sym x≈y)
 
-  trans : {x y z : A ⊥} → x ≈ y → y ≈ z → x ≈ z
+  trans : ∀ {k} {x y z : A ⊥} → Eq k x y → Eq k y z → Eq k x z
   trans {x = now v} {z = z} p q = tr p q
     where
-    tr : ∀ {y} → now v ≈ y → y ≈ z → now v ≈ z
+    tr : ∀ {k y} → Eq k (now v) y → Eq k y z → Eq k (now v) z
     tr now          y≈z  = y≈z
     tr (laterʳ v≈y) ly≈z = tr v≈y (laterˡ⁻¹ ly≈z)
   trans {x = later x} lx≈y y≈z = tr lx≈y y≈z
     where
-    tr : ∀ {y z} → later x ≈ y → y ≈ z → later x ≈ z
-    tr         lx≈ly (later  y≈z) = later  (♯ trans (laterˡ⁻¹ lx≈ly) (laterˡ (♭ y≈z)))
-    tr         lx≈y  (laterʳ y≈z) = later  (♯ trans (laterˡ⁻¹ lx≈y)             y≈z  )
-    tr         lx≈ly (laterˡ y≈z) =           tr    (laterʳ⁻¹ lx≈ly)            y≈z
-    tr (laterˡ  x≈y)         y≈z  = laterˡ (  trans            x≈y              y≈z  )
+    tr : ∀ {k y z} → Eq k (later x) y → Eq k y z → Eq k (later x) z
+    tr (later   x≈y) (later  y≈z) = later  (♯ trans         (♭ x≈y) (♭ y≈z))
+    tr (laterʳ lx≈y) (later  y≈z) = later  (♯ trans (laterˡ⁻¹ lx≈y) (♭ y≈z))
+    tr         lx≈y  (laterʳ y≈z) = later  (♯ trans (laterˡ⁻¹ lx≈y)    y≈z )
+    tr         lx≈ly (laterˡ y≈z) =           tr    (laterʳ⁻¹ lx≈ly)   y≈z
+    tr (laterˡ  x≈y)         y≈z  = laterˡ (  trans            x≈y     y≈z )
 
-private module S {A : Set} = Setoid (setoid A)
+private module S {A : Set} {k} = Setoid (setoid A k)
 
 -- Now is not never.
 
-now≉never : {A : Set} {x : A} → ¬ (now x ≈ never)
+now≉never : {A : Set} {x : A} → ¬ now x ≈ never
 now≉never (laterʳ hyp) = now≉never hyp
 
 -- A partial value is either now or never (classically).
@@ -138,8 +168,9 @@ now-or-never {A} x = helper <$> excluded-middle
 
 -- Bind preserves equality.
 
-_>>=-cong_ : {A B : Set} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
-             x₁ ≈ x₂ → (∀ x → f₁ x ≈ f₂ x) → (x₁ >>= f₁) ≈ (x₂ >>= f₂)
+_>>=-cong_ :
+  ∀ {A B : Set} {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
+  Eq k x₁ x₂ → (∀ x → Eq k (f₁ x) (f₂ x)) → Eq k (x₁ >>= f₁) (x₂ >>= f₂)
 now          >>=-cong f₁≈f₂ = f₁≈f₂ _
 later  x₁≈x₂ >>=-cong f₁≈f₂ = later (♯ (♭ x₁≈x₂ >>=-cong f₁≈f₂))
 laterʳ x₁≈x₂ >>=-cong f₁≈f₂ = laterʳ (x₁≈x₂ >>=-cong f₁≈f₂)
@@ -147,8 +178,9 @@ laterˡ x₁≈x₂ >>=-cong f₁≈f₂ = laterˡ (x₁≈x₂ >>=-cong f₁≈
 
 -- Inversion lemmas for bind.
 
->>=-inversion-⇓ : ∀ {A B : Set} x {f : A → B ⊥} {y} → let open M in
-                  (x >>= f) ≈ now y → ∃ λ z → x ≈ now z × f z ≈ now y
+>>=-inversion-⇓ : ∀ {A B : Set} {k} x {f : A → B ⊥} {y} → let open M in
+                  Eq k (x >>= f) (now y) →
+                  ∃ λ z → Eq k x (now z) × Eq k (f z) (now y)
 >>=-inversion-⇓ (now   x) ≈now          = (x , now , ≈now)
 >>=-inversion-⇓ (later x) (laterˡ ≈now) =
   Prod.map id (Prod.map laterˡ id) $ >>=-inversion-⇓ (♭ x) ≈now
@@ -172,22 +204,22 @@ laterˡ x₁≈x₂ >>=-cong f₁≈f₂ = laterˡ (x₁≈x₂ >>=-cong f₁≈
 -- Never is a left and right "zero" of bind.
 
 left-zero : {A B : Set} (f : A → B ⊥) → let open M in
-            (never >>= f) ≈ never
+            (never >>= f) ≅ never
 left-zero f = later (♯ left-zero f)
 
 right-zero : {A B : Set} (x : A ⊥) → let open M in
-             (x >>= λ _ → never) ≈ never {A = B}
+             (x >>= λ _ → never) ≅ never {A = B}
 right-zero (now   x) = S.refl
 right-zero (later x) = later (♯ right-zero (♭ x))
 
 -- Now is a left and right identity of bind.
 
 left-identity : {A B : Set} (x : A) (f : A → B ⊥) → let open M in
-                (now x >>= f) ≈ f x
+                (now x >>= f) ≅ f x
 left-identity x f = S.refl
 
 right-identity : {A : Set} (x : A ⊥) → let open M in
-                 (x >>= now) ≈ x
+                 (x >>= now) ≅ x
 right-identity (now   x) = now
 right-identity (later x) = later (♯ right-identity (♭ x))
 
@@ -195,7 +227,7 @@ right-identity (later x) = later (♯ right-identity (♭ x))
 
 associative : {A B C : Set} (x : A ⊥) (f : A → B ⊥) (g : B → C ⊥) →
               let open M in
-              (x >>= f >>= g) ≈ (x >>= λ y → f y >>= g)
+              (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
 associative (now x)   f g = S.refl
 associative (later x) f g = later (♯ associative (♭ x) f g)
 
@@ -245,11 +277,11 @@ module Workaround where
   -- The definitions above make sense. ⟦_⟧P is homomorphic with
   -- respect to now, later and _>>=_.
 
-  now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≈ now x
+  now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≅ now x
   now-hom _ = S.refl
 
   later-hom : ∀ {A} (x : ∞ (A ⊥P)) →
-              ⟦ later x ⟧P ≈ later (♯ ⟦ ♭ x ⟧P)
+              ⟦ later x ⟧P ≅ later (♯ ⟦ ♭ x ⟧P)
   later-hom x = later (♯ S.refl)
 
   mutual
@@ -257,12 +289,12 @@ module Workaround where
     private
 
       >>=-homW : ∀ {A B} (x : A ⊥W) (f : A → B ⊥P) →
-                 ⟦ x >>=W f ⟧W ≈ M._>>=_ ⟦ x ⟧W (λ y → ⟦ f y ⟧P)
+                 ⟦ x >>=W f ⟧W ≅ M._>>=_ ⟦ x ⟧W (λ y → ⟦ f y ⟧P)
       >>=-homW (now   x) f = S.refl
       >>=-homW (later x) f = later (♯ >>=-hom x f)
 
     >>=-hom : ∀ {A B} (x : A ⊥P) (f : A → B ⊥P) →
-              ⟦ x >>= f ⟧P ≈ M._>>=_ ⟦ x ⟧P (λ y → ⟦ f y ⟧P)
+              ⟦ x >>= f ⟧P ≅ M._>>=_ ⟦ x ⟧P (λ y → ⟦ f y ⟧P)
     >>=-hom x f = >>=-homW (whnf x) f
 
 ------------------------------------------------------------------------
