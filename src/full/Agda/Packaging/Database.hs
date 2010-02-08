@@ -62,17 +62,27 @@ import Paths_Agda
 
 -------------------------------------------------------------------------------
 
--- FIXME: Error handling
 getPkgDBPathGlobal :: IO FilePath
-getPkgDBPathGlobal =  pure (</>)
-                  <*> getDataDir
-                  <*> pure "package.conf.d"
+getPkgDBPathGlobal = do
+  result <- try action
+  case result of
+    Left  ioErr    -> Cabal.die $ show ioErr
+    Right filePath -> return filePath
+  where
+    action =  pure (</>)
+          <*> getDataDir
+          <*> pure "package.conf.d"
 
--- FIXME: Error handling
 getPkgDBPathUser :: IO FilePath
-getPkgDBPathUser =  pure (</>)
-                <*> getAppUserDataDirectory "Agda"
-                <*> pure "package.conf.d"
+getPkgDBPathUser = do
+  result <- try action
+  case result of
+    Left  ioErr    -> Cabal.die $ show ioErr
+    Right filePath -> return filePath
+  where
+    action =  pure (</>)
+          <*> getAppUserDataDirectory "Agda"
+          <*> pure "package.conf.d"
 
 getPkgDBs :: [FilePath] -> IO PackageDBStack
 getPkgDBs givenPkgDBNames = do
@@ -88,7 +98,6 @@ getPkgDBs givenPkgDBNames = do
       return givenPkgDBNames
   mapM readParsePkgDB pkgDBNames
 
--- FIXME: Error handling
 readParsePkgDB :: PackageDBName -> IO NamedPackageDB
 readParsePkgDB dbName = do
   result <- try $ getDirectoryContents dbName
@@ -114,9 +123,9 @@ parseSingletonPkgConf = (parsePkgInfo =<<) . readUTF8File
 parsePkgInfo :: String -> IO Cabal.InstalledPackageInfo
 parsePkgInfo pkgInfoStr =
   case Cabal.parseInstalledPackageInfo pkgInfoStr of
-    Cabal.ParseOk     warnings ok ->
-      return ok
-    Cabal.ParseFailed err         ->
+    Cabal.ParseOk     warnings pkgInfo ->
+      return pkgInfo
+    Cabal.ParseFailed err              ->
       case Cabal.locatedErrorMsg err of
         (Nothing     , msg) -> Cabal.die msg
         (Just  lineNo, msg) -> Cabal.die (show lineNo ++ ": " ++ msg)
