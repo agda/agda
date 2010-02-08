@@ -7,14 +7,17 @@ import qualified Control.Exception
 import           Control.Monad.Cont
 import           Control.Monad.Error
 import           Data.List
-  ( intersperse
+  ( foldl'
+  , intersperse
   , isSuffixOf
   , partition )
 import           Data.Maybe
   ( fromJust )
 import           System.Directory
-  ( getAppUserDataDirectory
-  , getDirectoryContents )
+  ( createDirectoryIfMissing
+  , getAppUserDataDirectory
+  , getDirectoryContents
+  , removeFile )
 import           System.FilePath
 import           System.IO
   ( IOMode (ReadMode)
@@ -30,11 +33,13 @@ import           System.IO.Error
 import qualified Distribution.InstalledPackageInfo
   as Cabal
     ( InstalledPackageInfo
+    , exposed
     , exposedModules
     , depends
     , hiddenModules
     , installedPackageId
-    , parseInstalledPackageInfo )
+    , parseInstalledPackageInfo
+    , showInstalledPackageInfo )
 import qualified Distribution.Package
   as Cabal
     ( PackageIdentifier
@@ -46,8 +51,7 @@ import qualified Distribution.ParseUtils
 import qualified Distribution.Simple.Utils
   as Cabal
     ( die
-    , withFileContents
-    , writeFileAtomic )
+    , writeUTF8File )
 import qualified Distribution.Text
   as Cabal
     ( display
@@ -61,6 +65,10 @@ import Paths_Agda
   ( getDataDir )
 
 -------------------------------------------------------------------------------
+
+--------------------------
+-- Getting the DB paths --
+--------------------------
 
 getPkgDBPathGlobal :: IO FilePath
 getPkgDBPathGlobal = do
@@ -83,6 +91,12 @@ getPkgDBPathUser = do
     action =  pure (</>)
           <*> getAppUserDataDirectory "Agda"
           <*> pure "package.conf.d"
+
+
+
+---------------------------------
+-- Loading the DBs into memory --
+---------------------------------
 
 getPkgDBs :: [FilePath] -> IO PackageDBStack
 getPkgDBs givenPkgDBNames = do
@@ -130,8 +144,20 @@ parsePkgInfo pkgInfoStr =
         (Nothing     , msg) -> Cabal.die msg
         (Just  lineNo, msg) -> Cabal.die (show lineNo ++ ": " ++ msg)
 
-flattenPkgDBs :: PackageDBStack -> PackageDB
-flattenPkgDBs = concatMap db
+
+-------------------
+-- DB operations --
+-------------------
+
+data DBOp
+  = PkgAdd    Cabal.InstalledPackageInfo
+  | PkgModify Cabal.InstalledPackageInfo
+  | PkgRemove Cabal.InstalledPackageInfo
+
+
+----------------------------------
+-- Processing the DBs in memory --
+----------------------------------
 
 brokenPkgs :: PackageDB -> PackageDB
 brokenPkgs = snd . transClos []
@@ -152,45 +178,56 @@ brokenPkgs = snd . transClos []
             dangling = filter (`notElem` pkgIds) (Cabal.depends pkg)
             pkgIds   = map Cabal.installedPackageId okPkgs
 
--- FIXME: need an elegant way to warn about freshly broken pages
--- before writing to the disk.  Should be able to calculate this
--- somehow by comparing against configOrigBroken.
-writePkgDBToFile :: PackageDB -> FilePath -> AgdaPkg opt ()
-writePkgDBToFile pkgDB fileName = do
-  liftIO $ Cabal.writeFileAtomic fileName serializedPkgInfos
-    `catch` \ e ->
-      if isPermissionError e
-      then Cabal.die errMsg
-      else ioError e
-  where
-    serializedPkgInfos =
-         "["
-      ++ concat (intersperse ",\n " (map (show . prepPkgInfo) pkgDB))
-      ++ "\n]"
-      where
-        prepPkgInfo pkgInfo = pkgInfo
-          { Cabal.exposedModules = map Cabal.display
-                                 $ Cabal.exposedModules pkgInfo
-          , Cabal.hiddenModules  = map Cabal.display
-                                 $ Cabal.hiddenModules  pkgInfo }
-    errMsg =  "insufficient permissions to write package database to `"
-           ++ fileName
-           ++ "'"
+flattenPkgDBs :: PackageDBStack -> PackageDB
+flattenPkgDBs = concatMap db
 
-modifyPkgInDB :: Cabal.PackageIdentifier
-              -> (Cabal.InstalledPackageInfo -> Cabal.InstalledPackageInfo)
-              -> AgdaPkg opt ()
-modifyPkgInDB pkgId f = asksM (recOuter . configPkgDBStack)
+modifyDBWithOps :: PackageDB -> [DBOp] -> PackageDB
+modifyDBWithOps pkgDB dbOps = foldl' applyOp pkgDB dbOps
   where
-    recOuter :: PackageDBStack -> AgdaPkg opt ()
-    recOuter []     = return ()
-    recOuter (d:ds) =
-      case recInner (db d) of
-        Nothing -> recOuter ds
-        Just db -> writePkgDBToFile db (dbName d)
+    applyOp :: PackageDB -> DBOp -> PackageDB
+    applyOp pkgInfos (PkgAdd    pkgInfo) = pkgInfo : pkgInfos
+    applyOp pkgInfos (PkgModify pkgInfo) = applyOp pkgDB' $ PkgAdd pkgInfo
       where
-        recInner :: PackageDB -> Maybe PackageDB
-        recInner []                    = Nothing
-        recInner (p:ps)
-          | Cabal.packageId p == pkgId = pure (f p : ps)
-          | otherwise                  = pure (:) <*> pure p <*> recInner ps
+        pkgDB' = applyOp pkgInfos $ PkgRemove pkgInfo
+    applyOp pkgInfos (PkgRemove pkgInfo) = filter fpred pkgInfos
+      where
+        fpred  = (Cabal.installedPackageId pkgInfo /=)
+               .  Cabal.installedPackageId
+
+
+-------------------------------
+-- Modifying the DBs on disk --
+-------------------------------
+
+modifyAndWriteDBWithOps :: NamedPackageDB -> [DBOp] -> IO ()
+modifyAndWriteDBWithOps npkgDB dbOps = do
+  createDirectoryIfMissing True $ dbName npkgDB
+  writeDBWithOps npkgDB{ db = db' } dbOps
+  where
+    db' = db npkgDB `modifyDBWithOps` dbOps
+
+writeDBWithOps :: NamedPackageDB -> [DBOp] -> IO ()
+writeDBWithOps npkgDB = mapM_ doOp
+  where
+    fileNameOf      pkgInfo  =  dbName npkgDB
+                            </> Cabal.display (Cabal.installedPackageId pkgInfo)
+                            <.> "conf"
+
+    doOp (PkgAdd    pkgInfo) = Cabal.writeUTF8File (fileNameOf pkgInfo)
+                             $ Cabal.showInstalledPackageInfo  pkgInfo
+    doOp (PkgModify pkgInfo) = doOp                   $ PkgAdd pkgInfo
+    doOp (PkgRemove pkgInfo) = removeFile          (fileNameOf pkgInfo)
+
+modifyPkgInfoAndWriteDBWithFun :: Cabal.PackageIdentifier
+                               -> (Cabal.InstalledPackageInfo -> DBOp)
+                               -> AgdaPkg opt ()
+modifyPkgInfoAndWriteDBWithFun pkgId funToOp = asksM (rec . configPkgDBStack)
+  where
+    rec :: PackageDBStack -> AgdaPkg opt ()
+    rec = liftIO . mapM_ (\ npkgDB -> modifyAndWriteDBWithOps npkgDB (generateOps $ db npkgDB))
+      where
+        generateOps :: PackageDB -> [DBOp]
+        generateOps []                       = []
+        generateOps (pkgInfo:pkgInfos)
+          | Cabal.packageId pkgInfo == pkgId = funToOp pkgInfo : generateOps pkgInfos
+          | otherwise                        =                   generateOps pkgInfos

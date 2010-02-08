@@ -45,23 +45,28 @@ envSubst s
              $ BS.drop 2 s
 
 registerPkg :: FilePath -> Agda.AgdaPkg Opt ()
-registerPkg fileName = do
-  ds <- Agda.asks Agda.configPkgDBStack
-  case ds of
+registerPkg fileName = undefined
+  -- FIXME: rewrite
+  {-
+  do
+  npkgDBs <- Agda.asks Agda.configPkgDBStack
+  case npkgDBs of
     []           -> undefined
-    dbToModify:_ ->
-      do contents <- Agda.liftIO $
-           if fileName == "-"
-           then BS.getContents
-           else BS.readFile fileName
-         expandedContents <- return contents
---         expandedContents <- Agda.liftIO $ substitute contents envRegex envSubst
-         pkgInfo          <- parsePkgInfo expandedContents
-         let cond p = Cabal.installedPackageId p /= Cabal.installedPackageId pkgInfo
-             newDB  = pkgInfo : filter cond (Agda.db dbToModify)
-         Agda.writePkgDBToFile newDB (Agda.dbName dbToModify)
+    dbToModify:_ -> do
+      contents         <- Agda.liftIO $
+        if fileName == "-" then
+          BS.getContents
+        else
+          BS.readFile fileName
+      expandedContents <- return contents
+      pkgInfo          <- parsePkgInfo expandedContents
+      let cond pkgInfo' = Cabal.installedPackageId pkgInfo'
+                       /= Cabal.installedPackageId pkgInfo
+          newDB         = pkgInfo : filter cond $ Agda.db dbToModify
+      Agda.writePkgDBToFile newDB $ Agda.dbName dbToModify
   where
-    parsePkgInfo :: BS.ByteString -> Agda.AgdaPkg Opt Cabal.InstalledPackageInfo
+    parsePkgInfo :: BS.ByteString
+                 -> Agda.AgdaPkg Opt Cabal.InstalledPackageInfo
     parsePkgInfo contents =
       case Cabal.parseInstalledPackageInfo $ BS.unpack contents of
         Cabal.ParseFailed err    ->
@@ -70,3 +75,4 @@ registerPkg fileName = do
             (Just l , s) -> Agda.liftIO $ die $ show l ++ ": " ++ s
         Cabal.ParseOk _warns res -> do 
           return res
+    -}

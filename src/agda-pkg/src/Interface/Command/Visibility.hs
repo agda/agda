@@ -2,35 +2,36 @@ module Interface.Command.Visibility where
 -- FIXME: Proper Exports
 
 -- Standard Library Imports
-import qualified Distribution.InstalledPackageInfo
-  as Cabal
-import qualified Distribution.Text
-  as Cabal
+import Control.Monad.Trans
+  ( liftIO )
 
 -- External Library Imports
 import qualified Agda.Packaging.Database
   as Agda
 import qualified Agda.Packaging.Monad
   as Agda
+import qualified Distribution.InstalledPackageInfo
+  as Cabal
+import qualified Distribution.Simple.Utils
+  as Cabal
+import qualified Distribution.Text
+  as Cabal
 
 -- Local Library Imports
 import Interface.Options
 
 --------------------------------------------------------------------------------
 
--- FIXME: error handling
-modifyPkgVisibility :: Bool -> String -> Agda.AgdaPkg Opt ()
-modifyPkgVisibility makeVisible sPkgId =
-  case Cabal.simpleParse sPkgId of
-    Nothing    -> error $ "invalid pkg id: " ++ sPkgId
-    Just pkgId -> Agda.modifyPkgInDB pkgId f
-      where
-        f :: Cabal.InstalledPackageInfo -> Cabal.InstalledPackageInfo
-        f p = p { Cabal.exposed = makeVisible }
-
+modifyPkgVisibility :: (Cabal.InstalledPackageInfo -> Agda.DBOp)
+                    -> String
+                    -> Agda.AgdaPkg Opt ()
+modifyPkgVisibility funToOp strPkgId =
+  case Cabal.simpleParse strPkgId of
+    Nothing    -> liftIO $ Cabal.die $ "invalid pkg id: " ++ strPkgId
+    Just pkgId -> pkgId `Agda.modifyPkgInfoAndWriteDBWithFun` funToOp
 
 exposePkg :: String -> Agda.AgdaPkg Opt ()
-exposePkg = modifyPkgVisibility True
+exposePkg =  modifyPkgVisibility (\ pkgInfo -> Agda.PkgModify pkgInfo{ Cabal.exposed = True  } )
 
-hidePkg :: String -> Agda.AgdaPkg Opt ()
-hidePkg = modifyPkgVisibility True
+hidePkg   :: String -> Agda.AgdaPkg Opt ()
+hidePkg   =  modifyPkgVisibility (\ pkgInfo -> Agda.PkgModify pkgInfo{ Cabal.exposed = False } )
