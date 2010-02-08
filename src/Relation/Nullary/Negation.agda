@@ -165,3 +165,23 @@ private
     helper : ∃ (λ b → P → if b then Q else R) → (P → Q) ⊎ (P → R)
     helper (true  , f) = inj₁ f
     helper (false , f) = inj₂ f
+
+-- The classical statements of excluded middle and double-negation
+-- elimination.
+
+Excluded-Middle : (ℓ : Level) → Set (suc ℓ)
+Excluded-Middle p = {P : Set p} → Dec P
+
+Double-Negation-Elimination : (ℓ : Level) → Set (suc ℓ)
+Double-Negation-Elimination p = {P : Set p} → Stable P
+
+private
+
+  -- The two statements above are equivalent. The proofs are so
+  -- simple, given the definitions above, that they are not exported.
+
+  em⇒dne : ∀ {ℓ} → Excluded-Middle ℓ → Double-Negation-Elimination ℓ
+  em⇒dne em = decidable-stable em
+
+  dne⇒em : ∀ {ℓ} → Double-Negation-Elimination ℓ → Excluded-Middle ℓ
+  dne⇒em dne = dne excluded-middle
