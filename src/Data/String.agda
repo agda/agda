@@ -4,7 +4,7 @@
 
 module Data.String where
 
-open import Data.List as List using (List)
+open import Data.List as List using (_∷_; []; List)
 open import Data.Vec as Vec using (Vec)
 open import Data.Colist as Colist using (Colist)
 open import Data.Char using (Char)
@@ -57,6 +57,10 @@ toVec s = Vec.fromList (toList s)
 
 toCostring : String → Costring
 toCostring = Colist.fromList ∘ toList
+
+unlines : List String → String
+unlines []       = ""
+unlines (x ∷ xs) = x ++ "\n" ++ unlines xs
 
 infix 4 _==_
 
