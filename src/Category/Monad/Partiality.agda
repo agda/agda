@@ -201,6 +201,8 @@ preorder k A = record
     tr         lx∼ly (laterˡ y∼z) =           tr    (laterʳ⁻¹ lx∼ly)   y∼z
     tr (laterˡ  x∼y)         y∼z  = laterˡ (  trans            x∼y     y∼z )
 
+private module Pre {k} {A : Set} = Preorder (preorder k A)
+
 -- The two equalities are equivalence relations.
 
 setoid : (k : Kind) {eq : Equality k} → Set → Setoid _ _
@@ -214,14 +216,14 @@ setoid k {eq} A = record
     }
   }
   where
-  module Pre = Preorder (preorder k A)
-
   sym : ∀ {k} {x y : A ⊥} → Equality k → Rel k x y → Rel k y x
   sym eq now                 = now
   sym eq (later         x∼y) = later (♯ sym eq (♭ x∼y))
   sym eq (laterʳ        x≈y) = laterˡ  (sym eq    x≈y )
   sym eq (laterˡ {weak} x≈y) = laterʳ  (sym eq    x≈y )
   sym () (laterˡ {geq}  x≳y)
+
+private module S {k} {eq} {A : Set} = Setoid (setoid k {eq} A)
 
 -- The order is a partial order, with strong equality as the
 -- underlying equality.
@@ -243,9 +245,6 @@ setoid k {eq} A = record
     }
   }
   where
-  module S   = Setoid   (setoid strong A)
-  module Pre = Preorder (preorder (other geq) A)
-
   antisym : {x y : A ⊥} → x ≳ y → x ≲ y → x ≅ y
   antisym now           now           = now
   antisym (later  x≳y)  (later  x≲y)  = later (♯ antisym        (♭ x≳y)         (♭ x≲y))
@@ -253,7 +252,27 @@ setoid k {eq} A = record
   antisym (laterˡ x≳ly) (later  x≲y)  = later (♯ antisym (laterʳ⁻¹ x≳ly)        (♭ x≲y))
   antisym (laterˡ x≳ly) (laterˡ x≲ly) = later (♯ antisym (laterʳ⁻¹ x≳ly) (laterʳ⁻¹ x≲ly))
 
-private module S {k} {eq} {A : Set} = Setoid (setoid k {eq} A)
+-- Equational reasoning.
+
+module RelReasoning where
+
+  infix  2 _∎
+  infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
+
+  _≅⟨_⟩_ : ∀ {k A} x {y z : A ⊥} → x ≅ y → Rel k y z → Rel k x z
+  _ ≅⟨ x≅y ⟩ y∼z = Pre.trans (≅⇒ x≅y) y∼z
+
+  _≳⟨_⟩_ : ∀ {k A} x {y z : A ⊥} →
+           x ≳ y → Rel (other k) y z → Rel (other k) x z
+  _ ≳⟨ x≳y ⟩ y∼z = Pre.trans (≳⇒ x≳y) y∼z
+
+  _≈⟨_⟩_ : ∀ {A} x {y z : A ⊥} → x ≈ y → y ≈ z → x ≈ z
+  _ ≈⟨ x≈y ⟩ y≈z = Pre.trans x≈y y≈z
+
+  open S public using (sym)
+
+  _∎ : ∀ {k A} (x : A ⊥) → Rel k x x
+  x ∎ = Pre.refl
 
 ------------------------------------------------------------------------
 -- Lemmas related to now and never
