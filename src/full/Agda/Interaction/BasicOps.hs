@@ -553,9 +553,9 @@ moduleContents rng s = do
            GenericError $ "Not a module name: " ++ show m ++ "."
   modScope <- getNamedScope . amodName =<< resolveModule m
   let modules :: ThingsInScope AbstractModule
-      modules = allNamesInScope modScope
+      modules = exportedNamesInScope modScope
       names :: ThingsInScope AbstractName
-      names = allNamesInScope modScope
+      names = exportedNamesInScope modScope
   types <- mapM (\(x, n) -> do
                    d <- getConstInfo $ anameName n
                    t <- defType <$> instantiateDef d

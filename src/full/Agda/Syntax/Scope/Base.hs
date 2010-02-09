@@ -312,6 +312,10 @@ filterScope pd pm = mapScope_ (Map.filterKeys pd) (Map.filterKeys pm)
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
 allNamesInScope = namesInScope [scopePublic, scopeImported, scopePrivate]
 
+-- | Returns the scope's non-private names.
+exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
+exportedNamesInScope = namesInScope [scopePublic, scopeImported]
+
 namesInScope :: InScope a => [Scope -> NameSpace] -> Scope -> ThingsInScope a
 namesInScope fs s =
   foldr1 mergeNames [ inNameSpace (f s) | f <- fs ]
