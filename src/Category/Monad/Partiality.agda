@@ -279,14 +279,15 @@ module RelReasoning where
 
 -- Now is not never.
 
-now≉never : {A : Set} {x : A} → ¬ now x ≈ never
+now≉never : ∀ {k} {A : Set} {x : A} → ¬ Rel k (now x) never
 now≉never (laterʳ hyp) = now≉never hyp
 
 -- A partial value is either now or never (classically).
 
-now-or-never : {A : Set} (x : A ⊥) →
-               ¬ ¬ ((∃ λ y → x ≳ now y) ⊎ x ≳ never)
-now-or-never {A} x = helper <$> excluded-middle
+now-or-never : ∀ {k} {A : Set} (x : A ⊥) →
+               ¬ ¬ ((∃ λ y → Rel (other k) x (now y)) ⊎
+                    Rel (other k) x never)
+now-or-never {A = A} x = helper <$> excluded-middle
   where
   open RawMonad ¬¬-Monad
 
@@ -297,8 +298,8 @@ now-or-never {A} x = helper <$> excluded-middle
     later (♯ not-now-is-never (♭ x) (hyp ∘ Prod.map id laterˡ))
 
   helper : Dec (∃ λ y → x ≳ now y) → _
-  helper (yes ≳now) = inj₁ ≳now
-  helper (no  ≵now) = inj₂ $ not-now-is-never x ≵now
+  helper (yes ≳now) = inj₁ $ Prod.map id ≳⇒ ≳now
+  helper (no  ≵now) = inj₂ $ ≳⇒ $ not-now-is-never x ≵now
 
 ------------------------------------------------------------------------
 -- Laws related to bind
@@ -315,17 +316,19 @@ laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼
 
 -- Inversion lemmas for bind.
 
->>=-inversion-⇓ : ∀ {A B : Set} {k} x {f : A → B ⊥} {y} → let open M in
+>>=-inversion-⇓ : ∀ {k} {A B : Set} x {f : A → B ⊥} {y} → let open M in
                   Rel k (x >>= f) (now y) →
                   ∃ λ z → Rel k x (now z) × Rel k (f z) (now y)
 >>=-inversion-⇓ (now   x) ∼now          = (x , now , ∼now)
 >>=-inversion-⇓ (later x) (laterˡ ∼now) =
   Prod.map id (Prod.map laterˡ id) $ >>=-inversion-⇓ (♭ x) ∼now
 
->>=-inversion-⇑ : ∀ {A B : Set} x {f : A → B ⊥} → let open M in
-                  (x >>= f) ≳ never →
-                  ¬ ¬ (x ≳ never ⊎ ∃ λ y → x ≳ now y × f y ≳ never)
->>=-inversion-⇑ {A} x {f} ≳never = helper <$> now-or-never x
+>>=-inversion-⇑ : ∀ {k} {A B : Set} x {f : A → B ⊥} → let open M in
+                  Rel (other k) (x >>= f) never →
+                  ¬ ¬ (Rel (other k) x never ⊎
+                       ∃ λ y → Rel (other k) x (now y) ×
+                               Rel (other k) (f y) never)
+>>=-inversion-⇑ {A = A} x {f} ∼never = helper <$> now-or-never x
   where
   open RawMonad ¬¬-Monad using (_<$>_)
   open M using (_>>=_)
@@ -335,8 +338,9 @@ laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼
   is-never (laterˡ ≳now) = is-never ≳now ∘ later⁻¹
 
   helper : (∃ λ y → x ≳ now y) ⊎ x ≳ never → _
-  helper (inj₁ (y , ≳now)) = inj₂ (y , ≳now , is-never ≳now ≳never)
-  helper (inj₂ ≳never)     = inj₁ ≳never
+  helper (inj₂ ≳never)     = inj₁ $ ≳⇒ ≳never
+  helper (inj₁ (y , ≳now)) =
+    inj₂ (y , ≳⇒ ≳now , ≳⇒ (is-never ≳now (never⇒never ∼never)))
 
 -- Never is a left and right "zero" of bind.
 
