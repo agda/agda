@@ -59,8 +59,7 @@ import Agda.Utils.Impossible
     Types and classes
  --------------------------------------------------------------------------}
 
--- | Represents a point in the input (file, position, line, col).
--- Positions and line and column numbers start from 1.
+-- | Represents a point in the input.
 --
 -- If two positions have the same 'srcFile' and 'posPos' components,
 -- then the final two components should be the same as well, but since
@@ -70,9 +69,13 @@ import Agda.Utils.Impossible
 --
 -- Note the invariant which positions have to satisfy: 'positionInvariant'.
 data Position = Pn { srcFile :: Maybe AbsolutePath
+                     -- ^ File.
                    , posPos  :: !Int
+                     -- ^ Position.
 		   , posLine :: !Int
+                     -- ^ Line number, counting from 1.
 		   , posCol  :: !Int
+                     -- ^ Column number, counting from 1.
 		   }
     deriving (Typeable, Data)
 
