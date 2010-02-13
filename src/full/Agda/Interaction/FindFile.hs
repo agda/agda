@@ -93,20 +93,21 @@ findFile''
   -- ^ Cached invocations of 'findFile'''. An updated copy is returned.
   -> IO (Either FindError AbsolutePath, ModuleToSource)
 findFile'' dirs m modFile =
-    case Map.lookup m modFile of
-      Just f  -> return (Right f, modFile)
-      Nothing -> do
-        existingFiles <-
-          liftIO $ filterM (doesFileExist . filePath) files
-        return $ case nub existingFiles of
-          []     -> (Left (NotFound files), modFile)
-          [file] -> (Right file, Map.insert m file modFile)
-          files  -> (Left (Ambiguous files), modFile)
-    where
-    files = [ mkAbsolute (filePath dir </> file)
-            | dir  <- dirs
-            , file <- map (moduleNameToFileName m) [".agda", ".lagda"]
-            ]
+  case Map.lookup m modFile of
+    Just f  -> return (Right f, modFile)
+    Nothing -> do
+      files <- mapM absolute
+                    [ filePath dir </> file
+                    | dir  <- dirs
+                    , file <- map (moduleNameToFileName m)
+                                  [".agda", ".lagda"]
+                    ]
+      existingFiles <-
+        liftIO $ filterM (doesFileExist . filePath) files
+      return $ case nub existingFiles of
+        []     -> (Left (NotFound files), modFile)
+        [file] -> (Right file, Map.insert m file modFile)
+        files  -> (Left (Ambiguous files), modFile)
 
 -- | Finds the interface file corresponding to a given top-level
 -- module name. The returned paths are absolute.

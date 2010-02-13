@@ -44,7 +44,8 @@ absolutePathInvariant (AbsolutePath f) =
 
 -- | Constructs 'AbsolutePath's.
 --
--- Precondition: The path must be absolute.
+-- Precondition: The path must be \"canonical\" (as specified by the
+-- implementation of 'canonicalizePath').
 
 mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
