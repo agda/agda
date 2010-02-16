@@ -7,7 +7,7 @@ module Category.Monad.Partiality where
 open import Coinduction
 open import Category.Monad
 open import Data.Bool
-open import Data.Nat using (ℕ; zero; suc)
+open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod
 open import Data.Sum
 open import Function
@@ -186,20 +186,24 @@ preorder k A = record
   refl (now v)   P.refl = now
   refl (later x) P.refl = later (♯ refl (♭ x) P.refl)
 
-  trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
-  trans {x = now v} {z = z} p q = tr p q
-    where
-    tr : ∀ {k y} → Rel k (now v) y → Rel k y z → Rel k (now v) z
-    tr now          y∼z  = y∼z
-    tr (laterʳ v≈y) ly≈z = tr v≈y (laterˡ⁻¹ ly≈z)
-  trans {x = later x} lx∼y y∼z = tr lx∼y y∼z
-    where
-    tr : ∀ {k y z} → Rel k (later x) y → Rel k y z → Rel k (later x) z
-    tr (later   x∼y) (later  y∼z) = later  (♯ trans         (♭ x∼y) (♭ y∼z))
-    tr (laterʳ lx∼y) (later  y∼z) = later  (♯ trans (laterˡ⁻¹ lx∼y) (♭ y∼z))
-    tr         lx≈y  (laterʳ y≈z) = later  (♯ trans (laterˡ⁻¹ lx≈y)    y≈z )
-    tr         lx∼ly (laterˡ y∼z) =           tr    (laterʳ⁻¹ lx∼ly)   y∼z
-    tr (laterˡ  x∼y)         y∼z  = laterˡ (  trans            x∼y     y∼z )
+  now-trans : ∀ {k x y} {v : A} →
+              Rel k x y → Rel k y (now v) → Rel k x (now v)
+  now-trans x∼y  now          = x∼y
+  now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
+
+  mutual
+
+    later-trans : ∀ {k} {x y : A ⊥} {z} →
+                  Rel k x y → Rel k y (later z) → Rel k x (later z)
+    later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
+    later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
+    later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
+    later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
+    later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
+
+    trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
+    trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
+    trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
 
 private module Pre {k} {A : Set} = Preorder (preorder k A)
 
@@ -287,6 +291,44 @@ x ⇓[ k ] y = Rel k x (now y)
 _⇓_ : {A : Set} → A ⊥ → A → Set
 x ⇓ y = x ⇓[ other weak ] y
 
+-- The number of later constructors (steps) in the terminating
+-- computation x.
+
+steps : ∀ {k} {A : Set} {x : A ⊥} {y} → x ⇓[ k ] y → ℕ
+steps .{x = now   v} (now    {v = v})    = zero
+steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
+
+module Steps where
+
+  open P.≡-Reasoning
+  open RelReasoning using (_≅⟨_⟩_)
+
+  private
+
+    lemma : ∀ {k} {A : Set} {x y} {z : A}
+            (x∼y : Rel (other k) (♭ x) y)
+            (y⇓z : y ⇓[ other k ] z) →
+            steps (Pre.trans (laterˡ {x = x} x∼y) y⇓z) ≡
+            suc (steps (Pre.trans x∼y y⇓z))
+    lemma x∼y now          = P.refl
+    lemma x∼y (laterˡ y⇓z) = begin
+      steps (Pre.trans (laterˡ (laterʳ⁻¹ x∼y)) y⇓z)  ≡⟨ lemma (laterʳ⁻¹ x∼y) y⇓z ⟩
+      suc (steps (Pre.trans (laterʳ⁻¹ x∼y) y⇓z))     ∎
+
+  left-identity : ∀ {k} {A : Set} {x y} {z : A}
+                  (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
+                  steps (x ≅⟨ x≅y ⟩ y⇓z) ≡ steps y⇓z
+  left-identity now         now          = P.refl
+  left-identity (later x≅y) (laterˡ y⇓z) = begin
+    steps (Pre.trans (laterˡ (≅⇒ (♭ x≅y))) y⇓z)  ≡⟨ lemma (≅⇒ (♭ x≅y)) y⇓z ⟩
+    suc (steps (_ ≅⟨ ♭ x≅y ⟩ y⇓z))               ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
+    suc (steps y⇓z)                              ∎
+
+  right-identity : ∀ {k} {A : Set} {x} {y z : A}
+                   (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
+                   steps (Pre.trans x⇓y y≈z) ≡ steps x⇓y
+  right-identity x⇓y now = P.refl
+
 ------------------------------------------------------------------------
 -- Non-terminating computations
 
@@ -342,12 +384,15 @@ laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼
 
 -- Inversion lemmas for bind.
 
->>=-inversion-⇓ : ∀ {k} {A B : Set} x {f : A → B ⊥} {y} → let open M in
-                  (x >>= f) ⇓[ k ] y →
-                  ∃ λ z → x ⇓[ k ] z × f z ⇓[ k ] y
->>=-inversion-⇓ (now x)   fx⇓             = (x , now , fx⇓)
+>>=-inversion-⇓ :
+  ∀ {k} {A B : Set} x {f : A → B ⊥} {y} → let open M in
+  (x>>=f⇓ : (x >>= f) ⇓[ k ] y) →
+  ∃ λ z → ∃₂ λ (x⇓ : x ⇓[ k ] z) (fz⇓ : f z ⇓[ k ] y) →
+               steps x⇓ + steps fz⇓ ≡ steps x>>=f⇓
+>>=-inversion-⇓ (now x)   fx⇓             = (x , now , fx⇓ , P.refl)
 >>=-inversion-⇓ (later x) (laterˡ x>>=f⇓) =
-  Prod.map id (Prod.map laterˡ id) $ >>=-inversion-⇓ (♭ x) x>>=f⇓
+  Prod.map id (Prod.map laterˡ (Prod.map id (P.cong suc))) $
+    >>=-inversion-⇓ (♭ x) x>>=f⇓
 
 >>=-inversion-⇑ : ∀ {k} {A B : Set} x {f : A → B ⊥} → let open M in
                   Rel (other k) (x >>= f) never →
