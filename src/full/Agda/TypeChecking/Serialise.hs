@@ -45,7 +45,6 @@ import qualified Data.Binary as B
 import qualified Data.Binary.Get as B
 import qualified Data.List as List
 import Data.Function
-import Data.Generics
 import Data.Typeable
 import qualified Codec.Compression.GZip as G
 
@@ -92,7 +91,7 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int)
                 , fileMod   :: !SourceToModule
                 }
 
-data U    = forall a . Data a => U !a
+data U    = forall a . Typeable a => U !a
 type Memo = HashTable (Int, Int) U    -- (node index, type rep key)
 
 data St = St
@@ -125,7 +124,7 @@ type R a = ErrorT TypeError (StateT St IO) a
 malformed :: R a
 malformed = throwError $ GenericError "Malformed input."
 
-class Data a => EmbPrj a where
+class Typeable a => EmbPrj a where
   icode :: a -> S Int
   value :: Int -> R a
 
