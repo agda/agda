@@ -236,5 +236,11 @@ decTotalOrder = record
   ...                   | inj₂ n≤m = inj₂ (s≤s n≤m)
 
 import Relation.Binary.PartialOrderReasoning as POR
-module ≤-Reasoning = POR (DecTotalOrder.poset decTotalOrder)
-  renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+module ≤-Reasoning where
+  open POR (DecTotalOrder.poset decTotalOrder) public
+    renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
+
+  infixr 2 _<⟨_⟩_
+
+  _<⟨_⟩_ : ∀ x {y z} → x < y → y IsRelatedTo z → suc x IsRelatedTo z
+  x <⟨ x<y ⟩ y≤z = suc x ≤⟨ x<y ⟩ y≤z
