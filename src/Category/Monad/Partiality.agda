@@ -275,6 +275,32 @@ module RelReasoning where
   x ∎ = Pre.refl
 
 ------------------------------------------------------------------------
+-- Terminating computations
+
+-- x ⇓ y means that x terminates with y.
+
+infix 4 _⇓[_]_ _⇓_
+
+_⇓[_]_ : {A : Set} → A ⊥ → Kind → A → Set
+x ⇓[ k ] y = Rel k x (now y)
+
+_⇓_ : {A : Set} → A ⊥ → A → Set
+x ⇓ y = x ⇓[ other weak ] y
+
+------------------------------------------------------------------------
+-- Non-terminating computations
+
+-- x ⇑ means that x does not terminate.
+
+infix 4 _⇑[_] _⇑
+
+_⇑[_] : {A : Set} → A ⊥ → Kind → Set
+x ⇑[ k ] = Rel k x never
+
+_⇑ : {A : Set} → A ⊥ → Set
+x ⇑ = x ⇑[ other weak ]
+
+------------------------------------------------------------------------
 -- Lemmas related to now and never
 
 -- Now is not never.
@@ -285,8 +311,7 @@ now≉never (laterʳ hyp) = now≉never hyp
 -- A partial value is either now or never (classically).
 
 now-or-never : ∀ {k} {A : Set} (x : A ⊥) →
-               ¬ ¬ ((∃ λ y → Rel (other k) x (now y)) ⊎
-                    Rel (other k) x never)
+               ¬ ¬ ((∃ λ y → x ⇓[ other k ] y) ⊎ x ⇑[ other k ])
 now-or-never {A = A} x = helper <$> excluded-middle
   where
   open RawMonad ¬¬-Monad
@@ -308,7 +333,8 @@ now-or-never {A = A} x = helper <$> excluded-middle
 
 _>>=-cong_ :
   ∀ {A B : Set} {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
-  Rel k x₁ x₂ → (∀ x → Rel k (f₁ x) (f₂ x)) → Rel k (x₁ >>= f₁) (x₂ >>= f₂)
+  Rel k x₁ x₂ → (∀ x → Rel k (f₁ x) (f₂ x)) →
+  Rel k (x₁ >>= f₁) (x₂ >>= f₂)
 now          >>=-cong f₁∼f₂ = f₁∼f₂ _
 later  x₁∼x₂ >>=-cong f₁∼f₂ = later (♯ (♭ x₁∼x₂ >>=-cong f₁∼f₂))
 laterʳ x₁≈x₂ >>=-cong f₁≈f₂ = laterʳ (x₁≈x₂ >>=-cong f₁≈f₂)
@@ -317,17 +343,16 @@ laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼
 -- Inversion lemmas for bind.
 
 >>=-inversion-⇓ : ∀ {k} {A B : Set} x {f : A → B ⊥} {y} → let open M in
-                  Rel k (x >>= f) (now y) →
-                  ∃ λ z → Rel k x (now z) × Rel k (f z) (now y)
->>=-inversion-⇓ (now   x) ∼now          = (x , now , ∼now)
->>=-inversion-⇓ (later x) (laterˡ ∼now) =
-  Prod.map id (Prod.map laterˡ id) $ >>=-inversion-⇓ (♭ x) ∼now
+                  (x >>= f) ⇓[ k ] y →
+                  ∃ λ z → x ⇓[ k ] z × f z ⇓[ k ] y
+>>=-inversion-⇓ (now x)   fx⇓             = (x , now , fx⇓)
+>>=-inversion-⇓ (later x) (laterˡ x>>=f⇓) =
+  Prod.map id (Prod.map laterˡ id) $ >>=-inversion-⇓ (♭ x) x>>=f⇓
 
 >>=-inversion-⇑ : ∀ {k} {A B : Set} x {f : A → B ⊥} → let open M in
                   Rel (other k) (x >>= f) never →
-                  ¬ ¬ (Rel (other k) x never ⊎
-                       ∃ λ y → Rel (other k) x (now y) ×
-                               Rel (other k) (f y) never)
+                  ¬ ¬ (x ⇑[ other k ] ⊎
+                       ∃ λ y → x ⇓[ other k ] y × f y ⇑[ other k ])
 >>=-inversion-⇑ {A = A} x {f} ∼never = helper <$> now-or-never x
   where
   open RawMonad ¬¬-Monad using (_<$>_)
