@@ -11,8 +11,11 @@ open import Level
 open import Function
 import Function.Equality as F
 open import Function.Equivalence as Eq
-  using (Equivalent; module Equivalent)
-open import Function.Inverse using (Inverse; module Inverse)
+  using (Equivalent; _⇔_; module Equivalent)
+  renaming (_∘_ to _⟨∘⟩_)
+open import Function.Inverse as Inv
+  using (Inverse; _⇿_; module Inverse)
+  renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse
   using (_LeftInverseOf_; _RightInverseOf_)
 import Relation.Binary as B
@@ -79,6 +82,33 @@ setoid s₁ s₂ = record
                                   (I.Setoid.isEquivalence s₂)
   }
 
+------------------------------------------------------------------------
+-- The propositional equality setoid over sigma types can be
+-- decomposed using Rel
+
+Rel⇿≡ : ∀ {a b} {A : Set a} {B : A → Set b} →
+        Inverse (setoid (P.setoid A) (H.indexedSetoid B))
+                (P.setoid (Σ A B))
+Rel⇿≡ {A = A} {B} = record
+  { to         = record { _⟨$⟩_ = id; cong = to-cong   }
+  ; from       = record { _⟨$⟩_ = id; cong = from-cong }
+  ; inverse-of = record
+    { left-inverse-of  = uncurry (λ _ _ → (P.refl , H.refl))
+    ; right-inverse-of = λ _ → P.refl
+    }
+  }
+  where
+  open I using (_=[_]⇒_)
+
+  to-cong : Rel B P._≡_ (λ x y → H._≅_ x y) =[ id ]⇒ P._≡_
+  to-cong (P.refl , H.refl) = P.refl
+
+  from-cong : P._≡_ =[ id ]⇒ Rel B P._≡_ (λ x y → H._≅_ x y)
+  from-cong {i = (x , y)} P.refl = (P.refl , H.refl)
+
+------------------------------------------------------------------------
+-- Equivalences and inverses are also preserved
+
 equivalent :
   ∀ {i} {I : Set i}
     {f₁ f₂ t₁ t₂} {From : I.Setoid I f₁ f₂} {To : I.Setoid I t₁ t₂} →
@@ -103,6 +133,16 @@ equivalent {I = I} {From = F} {T} F⇔T = record
   from-cong : _≈T_ =[ from ]⇒ _≈F_
   from-cong (P.refl , ∼) = (P.refl , F.cong (Equivalent.from F⇔T) ∼)
 
+⇔ : ∀ {a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
+    (∀ {x} → B₁ x ⇔ B₂ x) → Σ A B₁ ⇔ Σ A B₂
+⇔ {B₁ = B₁} {B₂} B₁⇔B₂ =
+  Inverse.equivalent (Rel⇿≡ {B = B₂}) ⟨∘⟩
+  equivalent (λ {x} →
+    Inverse.equivalent (H.≡⇿≅ B₂) ⟨∘⟩
+    B₁⇔B₂ {x} ⟨∘⟩
+    Inverse.equivalent (Inv.sym (H.≡⇿≅ B₁))) ⟨∘⟩
+  Eq.sym (Inverse.equivalent (Rel⇿≡ {B = B₁}))
+
 inverse :
   ∀ {i} {I : Set i}
     {f₁ f₂ t₁ t₂} {From : I.Setoid I f₁ f₂} {To : I.Setoid I t₁ t₂} →
@@ -125,26 +165,9 @@ inverse {I = I} {From = F} {T} F⇿T = record
   right : Equivalent.from eq RightInverseOf Equivalent.to eq
   right (x , y) = (P.refl , Inverse.right-inverse-of F⇿T y)
 
-------------------------------------------------------------------------
--- The propositional equality setoid over sigma types can be
--- decomposed using Rel
-
-Rel⇿≡ : ∀ {a b} {A : Set a} {B : A → Set b} →
-        Inverse (setoid (P.setoid A) (H.indexedSetoid B))
-                (P.setoid (Σ A B))
-Rel⇿≡ {A = A} {B} = record
-  { to         = record { _⟨$⟩_ = id; cong = to-cong   }
-  ; from       = record { _⟨$⟩_ = id; cong = from-cong }
-  ; inverse-of = record
-    { left-inverse-of  = uncurry (λ _ _ → (P.refl , H.refl))
-    ; right-inverse-of = λ _ → P.refl
-    }
-  }
-  where
-  open I using (_=[_]⇒_)
-
-  to-cong : Rel B P._≡_ (λ x y → H._≅_ x y) =[ id ]⇒ P._≡_
-  to-cong (P.refl , H.refl) = P.refl
-
-  from-cong : P._≡_ =[ id ]⇒ Rel B P._≡_ (λ x y → H._≅_ x y)
-  from-cong {i = (x , y)} P.refl = (P.refl , H.refl)
+⇿ : ∀ {a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
+    (∀ {x} → B₁ x ⇿ B₂ x) → Σ A B₁ ⇿ Σ A B₂
+⇿ {B₁ = B₁} {B₂} B₁⇿B₂ =
+  Rel⇿≡ {B = B₂} ⟪∘⟫
+  inverse (λ {x} → H.≡⇿≅ B₂ ⟪∘⟫ B₁⇿B₂ {x} ⟪∘⟫ Inv.sym (H.≡⇿≅ B₁)) ⟪∘⟫
+  Inv.sym (Rel⇿≡ {B = B₁})

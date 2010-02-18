@@ -10,8 +10,12 @@ open import Data.Unit using (⊤)
 open import Data.Empty
 open import Function
 open import Function.Equality as F using (_⟨$⟩_)
-open import Function.Equivalence using (Equivalent; module Equivalent)
-open import Function.Inverse using (Inverse; module Inverse)
+open import Function.Equivalence as Eq
+  using (Equivalent; _⇔_; module Equivalent)
+  renaming (_∘_ to _⟨∘⟩_)
+open import Function.Inverse as Inv
+  using (Inverse; _⇿_; module Inverse)
+  renaming (_∘_ to _⟪∘⟫_)
 open import Level
 open import Relation.Nullary
 open import Relation.Binary
@@ -403,6 +407,12 @@ _⊎-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
   from-cong (₁∼₁ x∼₁y) = ₁∼₁ $ F.cong (Equivalent.from A⇔B) x∼₁y
   from-cong (₂∼₂ x∼₂y) = ₂∼₂ $ F.cong (Equivalent.from C⇔D) x∼₂y
 
+_⊎-⇔_ : {A B C D : Set} → A ⇔ B → C ⇔ D → (A ⊎ C) ⇔ (B ⊎ D)
+A⇔B ⊎-⇔ C⇔D =
+  Inverse.equivalent ⊎-Rel⇿≡ ⟨∘⟩
+  A⇔B ⊎-equivalent C⇔D ⟨∘⟩
+  Eq.sym (Inverse.equivalent ⊎-Rel⇿≡)
+
 _⊎-inverse_ :
   {A B C D : Setoid zero zero} →
   Inverse A B → Inverse C D → Inverse (A ⊎-setoid C) (B ⊎-setoid D)
@@ -421,3 +431,6 @@ A⇿B ⊎-inverse C⇿D = record
   where
   open Inverse
   eq = equivalent A⇿B ⊎-equivalent equivalent C⇿D
+
+_⊎-⇿_ : {A B C D : Set} → A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
+A⇿B ⊎-⇿ C⇿D = ⊎-Rel⇿≡ ⟪∘⟫ A⇿B ⊎-inverse C⇿D ⟪∘⟫ Inv.sym ⊎-Rel⇿≡
