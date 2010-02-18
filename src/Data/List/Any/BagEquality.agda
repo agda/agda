@@ -9,39 +9,22 @@ module Data.List.Any.BagEquality where
 open import Algebra
 open import Category.Monad
 open import Data.List as List
-open import Data.List.Any as Any
-import Data.List.Any.Membership as ∈
+import Data.List.Any as Any
 open import Data.List.Any.Properties
 open import Data.Product
 open import Function
 open import Function.Inverse as Inv
   using (_⇿_) renaming (_∘_ to _⟪∘⟫_)
 open import Relation.Binary
-import Relation.Binary.HeterogeneousEquality as H
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_)
-import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
 open Any.Membership-≡
-open ∈.Membership-≡
 open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module BagEq {A : Set} = Setoid (Bag-equality {A}) using (_≈_)
-
--- Any is a congruence.
-
-Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
-           (∀ x → P₁ x ⇿ P₂ x) → xs₁ ≈ xs₂ → Any P₁ xs₁ ⇿ Any P₂ xs₂
-Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
-  Any⇿ ⟪∘⟫ Σ.Rel⇿≡ ⟪∘⟫
-  Σ.inverse (λ {x} →
-    H.≡⇿≅ (λ x → x ∈ xs₂ × P₂ x) ⟪∘⟫ ×-Rel⇿≡ ⟪∘⟫
-    (xs₁≈xs₂ ×-inverse P₁⇿P₂ x) ⟪∘⟫
-    Inv.sym (H.≡⇿≅ (λ x → x ∈ xs₁ × P₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟪∘⟫
-  Inv.sym (Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
 
 -- _++_ and [] form a commutative monoid.
 
@@ -58,9 +41,7 @@ commutativeMonoid A = record
         ; assoc         = λ xs ys zs →
                           BagEq.reflexive (ListMonoid.assoc xs ys zs)
         ; ∙-cong        = λ xs₁≈xs₂ xs₃≈xs₄ →
-                            ++⇿ ⟪∘⟫ ⊎-Rel⇿≡ ⟪∘⟫
-                            (xs₁≈xs₂ ⊎-inverse xs₃≈xs₄) ⟪∘⟫
-                            Inv.sym (++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+                            ++⇿ ⟪∘⟫ (xs₁≈xs₂ ⊎-⇿ xs₃≈xs₄) ⟪∘⟫ Inv.sym ++⇿
         }
       ; identity = (λ _ → BagEq.refl)
                  , BagEq.reflexive ∘ proj₂ ListMonoid.identity
@@ -112,5 +93,5 @@ concat-cong xss₁≈xss₂ =
   (xs >>= λ x → f x ++ g x) ≈ (xs >>= f) ++ (xs >>= g)
 >>=-left-distributive xs =
   ++⇿ ⟪∘⟫
-  ⊎-Rel⇿≡ ⟪∘⟫ (>>=⇿ ⊎-inverse >>=⇿) ⟪∘⟫ Inv.sym ⊎-Rel⇿≡ ⟪∘⟫
+  (>>=⇿ ⊎-⇿ >>=⇿) ⟪∘⟫
   Inv.sym (>>=⇿ ⟪∘⟫ Any-cong (λ _ → ++⇿) (BagEq.refl {x = xs}) ⟪∘⟫ ⊎⇿)

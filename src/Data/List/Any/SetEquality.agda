@@ -11,8 +11,7 @@ open import Category.Monad
 open import Data.List as List
 open import Data.List.Any as Any
 import Data.List.Any.BagEquality as BagEq
-import Data.List.Any.Membership as ∈
-open import Data.List.Any.Properties
+open import Data.List.Any.Properties hiding (Any-cong)
 open import Data.Product
 open import Function
 open import Function.Equivalence as Eq
@@ -28,7 +27,6 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
 
 open Any.Membership-≡
-open ∈.Membership-≡
 open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
@@ -38,15 +36,10 @@ private
 
 Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
            (∀ x → P₁ x ⇔ P₂ x) → xs₁ ≈ xs₂ → Any P₁ xs₁ ⇔ Any P₂ xs₂
-Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇔P₂ xs₁≈xs₂ =
-  Inverse.equivalent (Any⇿ ⟪∘⟫ Σ.Rel⇿≡) ⟨∘⟩
-  Σ.equivalent (λ {x} →
-    Inverse.equivalent
-      (H.≡⇿≅ (λ x → x ∈ xs₂ × P₂ x) ⟪∘⟫ ×-Rel⇿≡) ⟨∘⟩
-    (xs₁≈xs₂ ×-equivalent P₁⇔P₂ x) ⟨∘⟩
-    Eq.sym (Inverse.equivalent $
-              H.≡⇿≅ (λ x → x ∈ xs₁ × P₁ x) ⟪∘⟫ ×-Rel⇿≡)) ⟨∘⟩
-  Eq.sym (Inverse.equivalent $ Any⇿ ⟪∘⟫ Σ.Rel⇿≡)
+Any-cong P₁⇔P₂ xs₁≈xs₂ =
+  Inverse.equivalent Any⇿ ⟨∘⟩
+  Σ.⇔ (xs₁≈xs₂ ×-⇔ P₁⇔P₂ _) ⟨∘⟩
+  Eq.sym (Inverse.equivalent Any⇿)
 
 -- _++_ and [] form a commutative monoid.
 
@@ -63,9 +56,9 @@ commutativeMonoid A = record
         ; assoc         = λ xs ys zs →
                           SetEq.reflexive (ListMonoid.assoc xs ys zs)
         ; ∙-cong        = λ xs₁≈xs₂ xs₃≈xs₄ →
-                            Inverse.equivalent (++⇿ ⟪∘⟫ ⊎-Rel⇿≡) ⟨∘⟩
-                            (xs₁≈xs₂ ⊎-equivalent xs₃≈xs₄) ⟨∘⟩
-                            Eq.sym (Inverse.equivalent $ ++⇿ ⟪∘⟫ ⊎-Rel⇿≡)
+                            Inverse.equivalent ++⇿ ⟨∘⟩
+                            (xs₁≈xs₂ ⊎-⇔ xs₃≈xs₄) ⟨∘⟩
+                            Eq.sym (Inverse.equivalent ++⇿)
         }
       ; identity = (λ _ → SetEq.refl)
                  , SetEq.reflexive ∘ proj₂ ListMonoid.identity
