@@ -17,8 +17,7 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (module Equivalent)
 import Function.Injection as Inj
-open import Function.Inverse as Inv
-  using (_⇿_; module Inverse) renaming (_∘_ to _⟪∘⟫_)
+open import Function.Inverse as Inv using (_⇿_; module Inverse)
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
@@ -33,6 +32,7 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)
 import Relation.Binary.Props.DecTotalOrder as DTOProps
 import Relation.Binary.Sigma.Pointwise as Σ
+open import Relation.Unary using (_⟨×⟩_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 
@@ -46,24 +46,48 @@ private
 
 map-∈⇿ : ∀ {A B : Set} {f : A → B} {y xs} →
          (∃ λ x → x ∈ xs × y ≡ f x) ⇿ y ∈ List.map f xs
-map-∈⇿ = map⇿ ⟪∘⟫ Any⇿
+map-∈⇿ {f = f} {y} {xs} = begin
+  (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ ⟩
+  Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ ⟩
+  y ∈ List.map f xs           ∎
+  where open Inv.⇿-Reasoning
 
 concat-∈⇿ : ∀ {A : Set} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
-concat-∈⇿ = concat⇿ ⟪∘⟫ Any⇿ ⟪∘⟫ Σ.⇿ ×-comm
+concat-∈⇿ {x = x} {xss} = begin
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.⇿ ×-comm ⟩
+  (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ ⟩
+  Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ ⟩
+  x ∈ concat xss                ∎
+  where open Inv.⇿-Reasoning
 
 >>=-∈⇿ : ∀ {A B : Set} {xs} {f : A → List B} {y} →
          (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
->>=-∈⇿ = >>=⇿ ⟪∘⟫ Any⇿
+>>=-∈⇿ {xs = xs} {f} {y} = begin
+  (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ ⟩
+  Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ ⟩
+  y ∈ (xs >>= f)              ∎
+  where open Inv.⇿-Reasoning
 
 ⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
-⊛-∈⇿ fs = ⊛⇿ ⟪∘⟫ Any⇿ ⟪∘⟫ Σ.⇿ ((Inv.id ×-⇿ Any⇿) ⟪∘⟫ ∃×⇿×∃)
+⊛-∈⇿ fs {xs} {y} = begin
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.⇿ ∃×⇿×∃ ⟩
+  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
+  (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
+  Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
+  y ∈ fs ⊛ xs                                  ∎
+  where open Inv.⇿-Reasoning
 
 ⊗-∈⇿ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
        (x ∈ xs × y ∈ ys) ⇿ (x , y) ∈ (xs ⊗ ys)
-⊗-∈⇿ {A} {B} {x = x} {y} = Any-cong helper BagS.refl ⟪∘⟫ ⊗⇿′
+⊗-∈⇿ {A} {B} {xs} {ys} {x} {y} = begin
+  (x ∈ xs × y ∈ ys)                ⇿⟨ ⊗⇿′ ⟩
+  Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ⇿⟨ Any-cong helper BagS.refl ⟩
+  (x , y) ∈ (xs ⊗ ys)              ∎
   where
+  open Inv.⇿-Reasoning
+
   helper : (p : A × B) → (x ≡ proj₁ p × y ≡ proj₂ p) ⇿ (x , y) ≡ p
   helper (x′ , y′) = record
     { to         = P.→-to-⟶ (uncurry $ P.cong₂ _,_)

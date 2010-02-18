@@ -15,7 +15,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using (_⇔_; equivalent; module Equivalent)
 open import Function.Inverse as Inv
-  using (_⇿_; module Inverse) renaming (_∘_ to _⟪∘⟫_)
+  using (_⇿_; module Inverse)
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.Product as Prod
@@ -29,6 +29,7 @@ open import Relation.Binary.PropositionalEquality as P
 import Relation.Binary.Sigma.Pointwise as Σ
 
 open Any.Membership-≡
+open Inv.⇿-Reasoning
 open RawMonad List.monad
 private
   open module BagS {A : Set} =
@@ -112,8 +113,11 @@ Any⇿ {P = P} = record
 Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
            (∀ x → P₁ x ⇿ P₂ x) → xs₁ Bag-≈ xs₂ →
            Any P₁ xs₁ ⇿ Any P₂ xs₂
-Any-cong P₁⇿P₂ xs₁≈xs₂ =
-  Any⇿ ⟪∘⟫ Σ.⇿ (xs₁≈xs₂ ×-⇿ P₁⇿P₂ _) ⟪∘⟫ Inv.sym Any⇿
+Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ = begin
+  Any P₁ xs₁                ⇿⟨ Inv.sym Any⇿ ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ⇿⟨ Σ.⇿ (xs₁≈xs₂ ×-⇿ P₁⇿P₂ _) ⟩
+  (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ ⟩
+  Any P₂ xs₂                ∎
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to sums and products
@@ -389,16 +393,20 @@ concat⇿ {xss = xss} = record
 
 >>=⇿ : ∀ {A B P xs} {f : A → List B} →
        Any (Any P ∘ f) xs ⇿ Any P (xs >>= f)
->>=⇿ = concat⇿ ⟪∘⟫ map⇿
+>>=⇿ {P = P} {xs} {f} = begin
+  Any (Any P ∘ f) xs           ⇿⟨ map⇿ ⟩
+  Any (Any P) (List.map f xs)  ⇿⟨ concat⇿ ⟩
+  Any P (xs >>= f)             ∎
 
 -- _⊛_.
 
 ⊛⇿ : ∀ {A B P} {fs : List (A → B)} {xs} →
      Any (λ f → Any (P ∘ f) xs) fs ⇿ Any P (fs ⊛ xs)
-⊛⇿ =
-  >>=⇿ ⟪∘⟫
-  Any-cong (λ _ → >>=⇿ ⟪∘⟫ Any-cong (λ _ → return⇿) BagS.refl)
-           BagS.refl
+⊛⇿ {P = P} {fs} {xs} = begin
+  Any (λ f → Any (P ∘ f) xs) fs               ⇿⟨ Any-cong (λ _ → Any-cong (λ _ → return⇿) BagS.refl) BagS.refl ⟩
+  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ⇿⟨ Any-cong (λ _ → >>=⇿) BagS.refl ⟩
+  Any (λ f → Any P (xs >>= return ∘ f)) fs    ⇿⟨ >>=⇿ ⟩
+  Any P (fs ⊛ xs)                             ∎
 
 -- An alternative introduction rule for _⊛_.
 
@@ -411,11 +419,18 @@ concat⇿ {xss = xss} = record
 
 ⊗⇿ : ∀ {A B P} {xs : List A} {ys : List B} →
      Any (λ x → Any (λ y → P (x , y)) ys) xs ⇿ Any P (xs ⊗ ys)
-⊗⇿ = ⊛⇿ ⟪∘⟫ ⊛⇿ ⟪∘⟫ return⇿
+⊗⇿ {P = P} {xs} {ys} = begin
+  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ⇿⟨ return⇿ ⟩
+  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ⇿⟨ ⊛⇿ ⟩
+  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ⇿⟨ ⊛⇿ ⟩
+  Any P (xs ⊗ ys)                                                     ∎
 
 ⊗⇿′ : ∀ {A B P Q} {xs : List A} {ys : List B} →
       (Any P xs × Any Q ys) ⇿ Any (P ⟨×⟩ Q) (xs ⊗ ys)
-⊗⇿′ = ⊗⇿ ⟪∘⟫ ×⇿
+⊗⇿′ {P = P} {Q} {xs} {ys} = begin
+  (Any P xs × Any Q ys)                    ⇿⟨ ×⇿ ⟩
+  Any (λ x → Any (λ y → P x × Q y) ys) xs  ⇿⟨ ⊗⇿ ⟩
+  Any (P ⟨×⟩ Q) (xs ⊗ ys)                  ∎
 
 -- map-with-∈.
 
