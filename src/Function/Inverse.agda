@@ -11,10 +11,11 @@ open import Function using (flip)
 open import Function.Bijection           hiding (id; _∘_)
 open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Function.Equivalence using (Equivalent)
+open import Function.Equivalence using (Equivalent; ⇔-setoid)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Function.Surjection  as Surj hiding (id; _∘_)
 open import Relation.Binary
+import Relation.Binary.EqReasoning as EqReasoning
 import Relation.Binary.PropositionalEquality as P
 
 -- Inverses.
@@ -152,6 +153,39 @@ sym inv = record
     ; right-inverse-of = left-inverse-of
     }
   } where open Inverse inv
+
+-- For fixed universe levels we can construct setoids.
+
+setoid : (s₁ s₂ : Level) → Setoid (suc (s₁ ⊔ s₂)) (s₁ ⊔ s₂)
+setoid s₁ s₂ = record
+  { Carrier       = Setoid s₁ s₂
+  ; _≈_           = Inverse
+  ; isEquivalence = record {refl = id; sym = sym; trans = flip _∘_}
+  }
+
+module Reasoning {s₁ s₂ : Level} where
+  open EqReasoning (setoid s₁ s₂) public
+    renaming (_≈⟨_⟩_ to _⇿⟨_⟩_)
+
+⇿-setoid : (ℓ : Level) → Setoid (suc ℓ) ℓ
+⇿-setoid ℓ = record
+  { Carrier       = Set ℓ
+  ; _≈_           = _⇿_
+  ; isEquivalence = record {refl = id; sym = sym; trans = flip _∘_}
+  }
+
+module ⇿-Reasoning {ℓ : Level} where
+  open EqReasoning (⇿-setoid ℓ) public
+    renaming (_≈⟨_⟩_ to _⇿⟨_⟩_)
+
+module ⇔-Reasoning {ℓ : Level} where
+  open EqReasoning (⇔-setoid ℓ) public
+    renaming (_≈⟨_⟩_ to _⇔⟨_⟩_)
+
+  infixr 2 _⇿⟨_⟩_
+
+  _⇿⟨_⟩_ : ∀ X {Y Z} → X ⇿ Y → Y IsRelatedTo Z → X IsRelatedTo Z
+  X ⇿⟨ X⇿Y ⟩ Y⇔Z = X ⇔⟨ Inverse.equivalent X⇿Y ⟩ Y⇔Z
 
 -- Every unary relation induces an equivalence relation. (No claim is
 -- made that this relation is unique.)

@@ -88,6 +88,22 @@ sym eq = record
   ; to         = from
   } where open Equivalent eq
 
+-- For fixed universe levels we can construct setoids.
+
+setoid : (s₁ s₂ : Level) → Setoid (suc (s₁ ⊔ s₂)) (s₁ ⊔ s₂)
+setoid s₁ s₂ = record
+  { Carrier       = Setoid s₁ s₂
+  ; _≈_           = Equivalent
+  ; isEquivalence = record {refl = id; sym = sym; trans = flip _∘_}
+  }
+
+⇔-setoid : (ℓ : Level) → Setoid (suc ℓ) ℓ
+⇔-setoid ℓ = record
+  { Carrier       = Set ℓ
+  ; _≈_           = _⇔_
+  ; isEquivalence = record {refl = id; sym = sym; trans = flip _∘_}
+  }
+
 -- Every unary relation induces an equivalence relation. (No claim is
 -- made that this relation is unique.)
 
