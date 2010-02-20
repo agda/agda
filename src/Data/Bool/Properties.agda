@@ -111,7 +111,7 @@ isCommutativeSemiring-∨-∧ = record
   ; *-comm = ∧-comm
   }
 
-commutativeSemiring-∨-∧ : CommutativeSemiring
+commutativeSemiring-∨-∧ : CommutativeSemiring _ _
 commutativeSemiring-∨-∧ = record
   { _+_                   = _∨_
   ; _*_                   = _∧_
@@ -181,7 +181,7 @@ isCommutativeSemiring-∧-∨ = record
   ; *-comm = ∨-comm
   }
 
-commutativeSemiring-∧-∨ : CommutativeSemiring
+commutativeSemiring-∧-∨ : CommutativeSemiring _ _
 commutativeSemiring-∧-∨ = record
   { _+_                   = _∧_
   ; _*_                   = _∨_
@@ -242,7 +242,7 @@ isBooleanAlgebra = record
   ; ¬-cong        = cong not
   }
 
-booleanAlgebra : BooleanAlgebra
+booleanAlgebra : BooleanAlgebra _ _
 booleanAlgebra = record
   { _∨_              = _∨_
   ; _∧_              = _∧_
@@ -261,7 +261,7 @@ private
   xor-is-ok true  y = refl
   xor-is-ok false y = sym $ proj₂ ∧-identity _
 
-commutativeRing-xor-∧ : CommutativeRing
+commutativeRing-xor-∧ : CommutativeRing _ _
 commutativeRing-xor-∧ = commutativeRing
   where
   import Algebra.Props.BooleanAlgebra as BA

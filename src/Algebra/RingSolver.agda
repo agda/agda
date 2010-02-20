@@ -2,6 +2,8 @@
 -- Solver for commutative ring or semiring equalities
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Uses ideas from the Coq ring tactic. See "Proving Equalities in a
 -- Commutative Ring Done Right in Coq" by Grégoire and Mahboubi. The
 -- code below is not optimised like theirs, though.
@@ -10,14 +12,15 @@ open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
 
 module Algebra.RingSolver
-  (coeff : RawRing)            -- Coefficient "ring".
-  (r : AlmostCommutativeRing)  -- Main "ring".
-  (morphism : coeff -Raw-AlmostCommutative⟶ r)
+  {r₁ r₂ r₃}
+  (Coeff : RawRing r₁)               -- Coefficient "ring".
+  (R : AlmostCommutativeRing r₂ r₃)  -- Main "ring".
+  (morphism : Coeff -Raw-AlmostCommutative⟶ R)
   where
 
-import Algebra.RingSolver.Lemmas as L; open L coeff r morphism
-private module C = RawRing coeff
-open AlmostCommutativeRing r hiding (zero)
+import Algebra.RingSolver.Lemmas as L; open L Coeff R morphism
+private module C = RawRing Coeff
+open AlmostCommutativeRing R hiding (zero)
 import Algebra.FunctionProperties as P; open P _≈_
 open import Algebra.Morphism
 open _-Raw-AlmostCommutative⟶_ morphism renaming (⟦_⟧ to ⟦_⟧')
@@ -31,6 +34,7 @@ open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 open import Data.Fin as Fin using (Fin; zero; suc)
 open import Data.Vec
 open import Function hiding (_∶_)
+open import Level
 
 infix  9 _↑ :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_
@@ -48,7 +52,7 @@ data Op : Set where
 
 -- The polynomials are indexed over the number of variables.
 
-data Polynomial (m : ℕ) : Set where
+data Polynomial (m : ℕ) : Set r₁ where
   op   : (o : Op) (p₁ : Polynomial m) (p₂ : Polynomial m) → Polynomial m
   con  : (c : C.Carrier) → Polynomial m
   var  : (x : Fin m) → Polynomial m
@@ -83,7 +87,7 @@ private
 
   -- Equality.
 
-  _≛_ : ∀ {n} → Polynomial n → Polynomial n → Set
+  _≛_ : ∀ {n} → Polynomial n → Polynomial n → Set _
   p₁ ≛ p₂ = ∀ {ρ} → ⟦ p₁ ⟧ ρ ≈ ⟦ p₂ ⟧ ρ
 
   -- Reindexing.
@@ -104,7 +108,7 @@ private
   -- * the number of variables in the polynomial, and
   -- * an equivalent polynomial.
 
-  data Normal : (n : ℕ) → Polynomial n → Set where
+  data Normal : (n : ℕ) → Polynomial n → Set (r₁ ⊔ r₂ ⊔ r₃) where
     con   : (c : C.Carrier) → Normal 0 (con c)
     _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
     _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →

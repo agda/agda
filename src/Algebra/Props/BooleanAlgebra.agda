@@ -2,11 +2,15 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Props.BooleanAlgebra (b : BooleanAlgebra) where
+module Algebra.Props.BooleanAlgebra
+         {b₁ b₂} (B : BooleanAlgebra b₁ b₂)
+         where
 
-open BooleanAlgebra b
+open BooleanAlgebra B
 import Algebra.Props.DistributiveLattice as DL
 open DL distributiveLattice public
 open import Algebra.Structures
@@ -48,7 +52,7 @@ open import Data.Product
   ; ¬-cong                = ¬-cong
   }
 
-∧-∨-booleanAlgebra : BooleanAlgebra
+∧-∨-booleanAlgebra : BooleanAlgebra _ _
 ∧-∨-booleanAlgebra = record
   { _∧_              = _∨_
   ; _∨_              = _∧_
@@ -121,7 +125,7 @@ private
   ; *-comm = ∧-comm
   }
 
-∨-∧-commutativeSemiring : CommutativeSemiring
+∨-∧-commutativeSemiring : CommutativeSemiring _ _
 ∨-∧-commutativeSemiring = record
   { _+_                   = _∨_
   ; _*_                   = _∧_
@@ -176,7 +180,7 @@ private
   ; *-comm = ∨-comm
   }
 
-∧-∨-commutativeSemiring : CommutativeSemiring
+∧-∨-commutativeSemiring : CommutativeSemiring _ _
 ∧-∨-commutativeSemiring =
   record { isCommutativeSemiring = ∧-∨-isCommutativeSemiring }
 
@@ -534,7 +538,7 @@ module XorRing
     ; *-comm = ∧-comm
     }
 
-  commutativeRing : CommutativeRing
+  commutativeRing : CommutativeRing _ _
   commutativeRing = record
     { _+_               = _⊕_
     ; _*_               = _∧_

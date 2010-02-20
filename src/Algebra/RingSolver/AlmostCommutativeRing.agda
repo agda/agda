@@ -3,6 +3,8 @@
 -- commutative rings), used by the ring solver
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Algebra.RingSolver.AlmostCommutativeRing where
 
 open import Relation.Binary
@@ -16,8 +18,9 @@ open import Level
 ------------------------------------------------------------------------
 -- Definitions
 
-record IsAlmostCommutativeRing {A} (_≈_ : Rel A zero)
-         (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set where
+record IsAlmostCommutativeRing
+         {a ℓ} {A : Set a} (_≈_ : Rel A ℓ)
+         (_+_ _*_ : Op₂ A) (-_ : Op₁ A) (0# 1# : A) : Set (a ⊔ ℓ) where
   field
     isCommutativeSemiring : IsCommutativeSemiring _≈_ _+_ _*_ 0# 1#
     -‿cong                : -_ Preserves _≈_ ⟶ _≈_
@@ -26,14 +29,14 @@ record IsAlmostCommutativeRing {A} (_≈_ : Rel A zero)
 
   open IsCommutativeSemiring isCommutativeSemiring public
 
-record AlmostCommutativeRing : Set₁ where
+record AlmostCommutativeRing c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier                 : Set
-    _≈_                     : Rel Carrier zero
+    Carrier                 : Set c
+    _≈_                     : Rel Carrier ℓ
     _+_                     : Op₂ Carrier
     _*_                     : Op₂ Carrier
     -_                      : Op₁ Carrier
@@ -44,7 +47,7 @@ record AlmostCommutativeRing : Set₁ where
 
   open IsAlmostCommutativeRing isAlmostCommutativeRing public
 
-  commutativeSemiring : CommutativeSemiring
+  commutativeSemiring : CommutativeSemiring _ _
   commutativeSemiring =
     record { isCommutativeSemiring = isCommutativeSemiring }
 
@@ -55,7 +58,7 @@ record AlmostCommutativeRing : Set₁ where
                ; semiring
                )
 
-  rawRing : RawRing
+  rawRing : RawRing _
   rawRing = record
     { _+_ = _+_
     ; _*_ = _*_
@@ -68,8 +71,9 @@ record AlmostCommutativeRing : Set₁ where
 -- Homomorphisms
 
 record _-Raw-AlmostCommutative⟶_
-         (From : RawRing)
-         (To : AlmostCommutativeRing) : Set where
+         {r₁ r₂ r₃}
+         (From : RawRing r₁)
+         (To : AlmostCommutativeRing r₂ r₃) : Set (r₁ ⊔ r₂ ⊔ r₃) where
   private
     module F = RawRing From
     module T = AlmostCommutativeRing To
@@ -83,9 +87,9 @@ record _-Raw-AlmostCommutative⟶_
     1-homo : Homomorphic₀ ⟦_⟧ F.1#  T.1#
 
 -raw-almostCommutative⟶
-  : ∀ r →
-    AlmostCommutativeRing.rawRing r -Raw-AlmostCommutative⟶ r
--raw-almostCommutative⟶ r = record
+  : ∀ {r₁ r₂} (R : AlmostCommutativeRing r₁ r₂) →
+    AlmostCommutativeRing.rawRing R -Raw-AlmostCommutative⟶ R
+-raw-almostCommutative⟶ R = record
   { ⟦_⟧    = id
   ; +-homo = λ _ _ → refl
   ; *-homo = λ _ _ → refl
@@ -93,15 +97,16 @@ record _-Raw-AlmostCommutative⟶_
   ; 0-homo = refl
   ; 1-homo = refl
   }
-  where open AlmostCommutativeRing r
+  where open AlmostCommutativeRing R
 
 ------------------------------------------------------------------------
 -- Conversions
 
 -- Commutative rings are almost commutative rings.
 
-fromCommutativeRing : CommutativeRing → AlmostCommutativeRing
-fromCommutativeRing cr = record
+fromCommutativeRing :
+  ∀ {r₁ r₂} → CommutativeRing r₁ r₂ → AlmostCommutativeRing _ _
+fromCommutativeRing CR = record
   { isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
       ; -‿cong                = -‿cong
@@ -110,15 +115,16 @@ fromCommutativeRing cr = record
       }
   }
   where
-  open CommutativeRing cr
+  open CommutativeRing CR
   import Algebra.Props.Ring as R; open R ring
   import Algebra.Props.AbelianGroup as AG; open AG +-abelianGroup
 
 -- Commutative semirings can be viewed as almost commutative rings by
 -- using identity as the "almost negation".
 
-fromCommutativeSemiring : CommutativeSemiring → AlmostCommutativeRing
-fromCommutativeSemiring cs = record
+fromCommutativeSemiring :
+  ∀ {r₁ r₂} → CommutativeSemiring r₁ r₂ → AlmostCommutativeRing _ _
+fromCommutativeSemiring CS = record
   { -_                      = id
   ; isAlmostCommutativeRing = record
       { isCommutativeSemiring = isCommutativeSemiring
@@ -127,4 +133,4 @@ fromCommutativeSemiring cs = record
       ; -‿+-comm              = λ _ _ → refl
       }
   }
-  where open CommutativeSemiring cs
+  where open CommutativeSemiring CS

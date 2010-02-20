@@ -29,7 +29,7 @@ private
 
 -- _++_ and [] form a commutative monoid.
 
-commutativeMonoid : Set → CommutativeMonoid
+commutativeMonoid : Set → CommutativeMonoid _ _
 commutativeMonoid A = record
   { Carrier             = List A
   ; _≈_                 = _≈_

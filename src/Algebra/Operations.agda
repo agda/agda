@@ -3,11 +3,13 @@
 -- exponentiation)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Operations (s : Semiring) where
+module Algebra.Operations {s₁ s₂} (S : Semiring s₁ s₂) where
 
-open Semiring s hiding (zero)
+open Semiring S hiding (zero)
 open import Data.Nat using (zero; suc; ℕ)
 open import Function
 open import Relation.Binary

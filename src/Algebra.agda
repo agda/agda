@@ -3,6 +3,8 @@
 -- (packed in records together with sets, operations, etc.)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Algebra where
 
 open import Relation.Binary
@@ -14,12 +16,12 @@ open import Level
 ------------------------------------------------------------------------
 -- Semigroups, (commutative) monoids and (abelian) groups
 
-record Semigroup : Set₁ where
+record Semigroup c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier     : Set
-    _≈_         : Rel Carrier zero
+    Carrier     : Set c
+    _≈_         : Rel Carrier ℓ
     _∙_         : Op₂ Carrier
     isSemigroup : IsSemigroup _≈_ _∙_
 
@@ -30,63 +32,63 @@ record Semigroup : Set₁ where
 
 -- A raw monoid is a monoid without any laws.
 
-record RawMonoid : Set₁ where
+record RawMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier : Set
-    _≈_     : Rel Carrier zero
+    Carrier : Set c
+    _≈_     : Rel Carrier ℓ
     _∙_     : Op₂ Carrier
     ε       : Carrier
 
-record Monoid : Set₁ where
+record Monoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier  : Set
-    _≈_      : Rel Carrier zero
+    Carrier  : Set c
+    _≈_      : Rel Carrier ℓ
     _∙_      : Op₂ Carrier
     ε        : Carrier
     isMonoid : IsMonoid _≈_ _∙_ ε
 
   open IsMonoid isMonoid public
 
-  semigroup : Semigroup
+  semigroup : Semigroup _ _
   semigroup = record { isSemigroup = isSemigroup }
 
   open Semigroup semigroup public using (setoid)
 
-  rawMonoid : RawMonoid
+  rawMonoid : RawMonoid _ _
   rawMonoid = record
     { _≈_ = _≈_
     ; _∙_ = _∙_
     ; ε   = ε
     }
 
-record CommutativeMonoid : Set₁ where
+record CommutativeMonoid c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier             : Set
-    _≈_                 : Rel Carrier zero
+    Carrier             : Set c
+    _≈_                 : Rel Carrier ℓ
     _∙_                 : Op₂ Carrier
     ε                   : Carrier
     isCommutativeMonoid : IsCommutativeMonoid _≈_ _∙_ ε
 
   open IsCommutativeMonoid isCommutativeMonoid public
 
-  monoid : Monoid
+  monoid : Monoid _ _
   monoid = record { isMonoid = isMonoid }
 
   open Monoid monoid public using (setoid; semigroup; rawMonoid)
 
-record Group : Set₁ where
+record Group c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 _⁻¹
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier : Set
-    _≈_     : Rel Carrier zero
+    Carrier : Set c
+    _≈_     : Rel Carrier ℓ
     _∙_     : Op₂ Carrier
     ε       : Carrier
     _⁻¹     : Op₁ Carrier
@@ -94,18 +96,18 @@ record Group : Set₁ where
 
   open IsGroup isGroup public
 
-  monoid : Monoid
+  monoid : Monoid _ _
   monoid = record { isMonoid = isMonoid }
 
   open Monoid monoid public using (setoid; semigroup; rawMonoid)
 
-record AbelianGroup : Set₁ where
+record AbelianGroup c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 _⁻¹
   infixl 7 _∙_
   infix  4 _≈_
   field
-    Carrier        : Set
-    _≈_            : Rel Carrier zero
+    Carrier        : Set c
+    _≈_            : Rel Carrier ℓ
     _∙_            : Op₂ Carrier
     ε              : Carrier
     _⁻¹            : Op₁ Carrier
@@ -113,25 +115,25 @@ record AbelianGroup : Set₁ where
 
   open IsAbelianGroup isAbelianGroup public
 
-  group : Group
+  group : Group _ _
   group = record { isGroup = isGroup }
 
   open Group group public using (setoid; semigroup; monoid; rawMonoid)
 
-  commutativeMonoid : CommutativeMonoid
+  commutativeMonoid : CommutativeMonoid _ _
   commutativeMonoid =
     record { isCommutativeMonoid = isCommutativeMonoid }
 
 ------------------------------------------------------------------------
 -- Various kinds of semirings
 
-record NearSemiring : Set₁ where
+record NearSemiring c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier        : Set
-    _≈_            : Rel Carrier zero
+    Carrier        : Set c
+    _≈_            : Rel Carrier ℓ
     _+_            : Op₂ Carrier
     _*_            : Op₂ Carrier
     0#             : Carrier
@@ -139,7 +141,7 @@ record NearSemiring : Set₁ where
 
   open IsNearSemiring isNearSemiring public
 
-  +-monoid : Monoid
+  +-monoid : Monoid _ _
   +-monoid = record { isMonoid = +-isMonoid }
 
   open Monoid +-monoid public
@@ -147,16 +149,16 @@ record NearSemiring : Set₁ where
          renaming ( semigroup to +-semigroup
                   ; rawMonoid to +-rawMonoid)
 
-  *-semigroup : Semigroup
+  *-semigroup : Semigroup _ _
   *-semigroup = record { isSemigroup = *-isSemigroup }
 
-record SemiringWithoutOne : Set₁ where
+record SemiringWithoutOne c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier              : Set
-    _≈_                  : Rel Carrier zero
+    Carrier              : Set c
+    _≈_                  : Rel Carrier ℓ
     _+_                  : Op₂ Carrier
     _*_                  : Op₂ Carrier
     0#                   : Carrier
@@ -164,7 +166,7 @@ record SemiringWithoutOne : Set₁ where
 
   open IsSemiringWithoutOne isSemiringWithoutOne public
 
-  nearSemiring : NearSemiring
+  nearSemiring : NearSemiring _ _
   nearSemiring = record { isNearSemiring = isNearSemiring }
 
   open NearSemiring nearSemiring public
@@ -173,17 +175,17 @@ record SemiringWithoutOne : Set₁ where
                ; *-semigroup
                )
 
-  +-commutativeMonoid : CommutativeMonoid
+  +-commutativeMonoid : CommutativeMonoid _ _
   +-commutativeMonoid =
     record { isCommutativeMonoid = +-isCommutativeMonoid }
 
-record SemiringWithoutAnnihilatingZero : Set₁ where
+record SemiringWithoutAnnihilatingZero c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier                           : Set
-    _≈_                               : Rel Carrier zero
+    Carrier                           : Set c
+    _≈_                               : Rel Carrier ℓ
     _+_                               : Op₂ Carrier
     _*_                               : Op₂ Carrier
     0#                                : Carrier
@@ -194,7 +196,7 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
   open IsSemiringWithoutAnnihilatingZero
          isSemiringWithoutAnnihilatingZero public
 
-  +-commutativeMonoid : CommutativeMonoid
+  +-commutativeMonoid : CommutativeMonoid _ _
   +-commutativeMonoid =
     record { isCommutativeMonoid = +-isCommutativeMonoid }
 
@@ -205,7 +207,7 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
                   ; monoid    to +-monoid
                   )
 
-  *-monoid : Monoid
+  *-monoid : Monoid _ _
   *-monoid = record { isMonoid = *-isMonoid }
 
   open Monoid *-monoid public
@@ -214,13 +216,13 @@ record SemiringWithoutAnnihilatingZero : Set₁ where
                   ; rawMonoid to *-rawMonoid
                   )
 
-record Semiring : Set₁ where
+record Semiring c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier    : Set
-    _≈_        : Rel Carrier zero
+    Carrier    : Set c
+    _≈_        : Rel Carrier ℓ
     _+_        : Op₂ Carrier
     _*_        : Op₂ Carrier
     0#         : Carrier
@@ -229,7 +231,7 @@ record Semiring : Set₁ where
 
   open IsSemiring isSemiring public
 
-  semiringWithoutAnnihilatingZero : SemiringWithoutAnnihilatingZero
+  semiringWithoutAnnihilatingZero : SemiringWithoutAnnihilatingZero _ _
   semiringWithoutAnnihilatingZero = record
     { isSemiringWithoutAnnihilatingZero =
         isSemiringWithoutAnnihilatingZero
@@ -243,20 +245,20 @@ record Semiring : Set₁ where
                ; *-semigroup; *-rawMonoid; *-monoid
                )
 
-  semiringWithoutOne : SemiringWithoutOne
+  semiringWithoutOne : SemiringWithoutOne _ _
   semiringWithoutOne =
     record { isSemiringWithoutOne = isSemiringWithoutOne }
 
   open SemiringWithoutOne semiringWithoutOne public
          using (nearSemiring)
 
-record CommutativeSemiringWithoutOne : Set₁ where
+record CommutativeSemiringWithoutOne c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier                         : Set
-    _≈_                             : Rel Carrier zero
+    Carrier                         : Set c
+    _≈_                             : Rel Carrier ℓ
     _+_                             : Op₂ Carrier
     _*_                             : Op₂ Carrier
     0#                              : Carrier
@@ -266,7 +268,7 @@ record CommutativeSemiringWithoutOne : Set₁ where
   open IsCommutativeSemiringWithoutOne
          isCommutativeSemiringWithoutOne public
 
-  semiringWithoutOne : SemiringWithoutOne
+  semiringWithoutOne : SemiringWithoutOne _ _
   semiringWithoutOne =
     record { isSemiringWithoutOne = isSemiringWithoutOne }
 
@@ -278,13 +280,13 @@ record CommutativeSemiringWithoutOne : Set₁ where
                ; nearSemiring
                )
 
-record CommutativeSemiring : Set₁ where
+record CommutativeSemiring c ℓ : Set (suc (c ⊔ ℓ)) where
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier               : Set
-    _≈_                   : Rel Carrier zero
+    Carrier               : Set c
+    _≈_                   : Rel Carrier ℓ
     _+_                   : Op₂ Carrier
     _*_                   : Op₂ Carrier
     0#                    : Carrier
@@ -293,7 +295,7 @@ record CommutativeSemiring : Set₁ where
 
   open IsCommutativeSemiring isCommutativeSemiring public
 
-  semiring : Semiring
+  semiring : Semiring _ _
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
@@ -305,11 +307,11 @@ record CommutativeSemiring : Set₁ where
                ; semiringWithoutAnnihilatingZero
                )
 
-  *-commutativeMonoid : CommutativeMonoid
+  *-commutativeMonoid : CommutativeMonoid _ _
   *-commutativeMonoid =
     record { isCommutativeMonoid = *-isCommutativeMonoid }
 
-  commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
+  commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne _ _
   commutativeSemiringWithoutOne = record
     { isCommutativeSemiringWithoutOne = isCommutativeSemiringWithoutOne
     }
@@ -319,26 +321,26 @@ record CommutativeSemiring : Set₁ where
 
 -- A raw ring is a ring without any laws.
 
-record RawRing : Set₁ where
+record RawRing c : Set (suc c) where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
   field
-    Carrier : Set
+    Carrier : Set c
     _+_     : Op₂ Carrier
     _*_     : Op₂ Carrier
     -_      : Op₁ Carrier
     0#      : Carrier
     1#      : Carrier
 
-record Ring : Set₁ where
+record Ring c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier : Set
-    _≈_     : Rel Carrier zero
+    Carrier : Set c
+    _≈_     : Rel Carrier ℓ
     _+_     : Op₂ Carrier
     _*_     : Op₂ Carrier
     -_      : Op₁ Carrier
@@ -348,10 +350,10 @@ record Ring : Set₁ where
 
   open IsRing isRing public
 
-  +-abelianGroup : AbelianGroup
+  +-abelianGroup : AbelianGroup _ _
   +-abelianGroup = record { isAbelianGroup = +-isAbelianGroup }
 
-  semiring : Semiring
+  semiring : Semiring _ _
   semiring = record { isSemiring = isSemiring }
 
   open Semiring semiring public
@@ -366,7 +368,7 @@ record Ring : Set₁ where
   open AbelianGroup +-abelianGroup public
          using () renaming (group to +-group)
 
-  rawRing : RawRing
+  rawRing : RawRing _
   rawRing = record
     { _+_ = _+_
     ; _*_ = _*_
@@ -375,14 +377,14 @@ record Ring : Set₁ where
     ; 1#  = 1#
     }
 
-record CommutativeRing : Set₁ where
+record CommutativeRing c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 -_
   infixl 7 _*_
   infixl 6 _+_
   infix  4 _≈_
   field
-    Carrier           : Set
-    _≈_               : Rel Carrier zero
+    Carrier           : Set c
+    _≈_               : Rel Carrier ℓ
     _+_               : Op₂ Carrier
     _*_               : Op₂ Carrier
     -_                : Op₁ Carrier
@@ -392,10 +394,10 @@ record CommutativeRing : Set₁ where
 
   open IsCommutativeRing isCommutativeRing public
 
-  ring : Ring
+  ring : Ring _ _
   ring = record { isRing = isRing }
 
-  commutativeSemiring : CommutativeSemiring
+  commutativeSemiring : CommutativeSemiring _ _
   commutativeSemiring =
     record { isCommutativeSemiring = isCommutativeSemiring }
 
@@ -412,13 +414,13 @@ record CommutativeRing : Set₁ where
 ------------------------------------------------------------------------
 -- (Distributive) lattices and boolean algebras
 
-record Lattice : Set₁ where
+record Lattice c ℓ : Set (suc (c ⊔ ℓ)) where
   infixr 7 _∧_
   infixr 6 _∨_
   infix  4 _≈_
   field
-    Carrier   : Set
-    _≈_       : Rel Carrier zero
+    Carrier   : Set c
+    _≈_       : Rel Carrier ℓ
     _∨_       : Op₂ Carrier
     _∧_       : Op₂ Carrier
     isLattice : IsLattice _≈_ _∨_ _∧_
@@ -428,32 +430,32 @@ record Lattice : Set₁ where
   setoid : Setoid _ _
   setoid = record { isEquivalence = isEquivalence }
 
-record DistributiveLattice : Set₁ where
+record DistributiveLattice c ℓ : Set (suc (c ⊔ ℓ)) where
   infixr 7 _∧_
   infixr 6 _∨_
   infix  4 _≈_
   field
-    Carrier               : Set
-    _≈_                   : Rel Carrier zero
+    Carrier               : Set c
+    _≈_                   : Rel Carrier ℓ
     _∨_                   : Op₂ Carrier
     _∧_                   : Op₂ Carrier
     isDistributiveLattice : IsDistributiveLattice _≈_ _∨_ _∧_
 
   open IsDistributiveLattice isDistributiveLattice public
 
-  lattice : Lattice
+  lattice : Lattice _ _
   lattice = record { isLattice = isLattice }
 
   open Lattice lattice public using (setoid)
 
-record BooleanAlgebra : Set₁ where
+record BooleanAlgebra c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 ¬_
   infixr 7 _∧_
   infixr 6 _∨_
   infix  4 _≈_
   field
-    Carrier          : Set
-    _≈_              : Rel Carrier zero
+    Carrier          : Set c
+    _≈_              : Rel Carrier ℓ
     _∨_              : Op₂ Carrier
     _∧_              : Op₂ Carrier
     ¬_               : Op₁ Carrier
@@ -463,7 +465,7 @@ record BooleanAlgebra : Set₁ where
 
   open IsBooleanAlgebra isBooleanAlgebra public
 
-  distributiveLattice : DistributiveLattice
+  distributiveLattice : DistributiveLattice _ _
   distributiveLattice =
     record { isDistributiveLattice = isDistributiveLattice }
 

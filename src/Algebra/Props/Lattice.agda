@@ -2,11 +2,13 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Props.Lattice (l : Lattice) where
+module Algebra.Props.Lattice {l₁ l₂} (L : Lattice l₁ l₂) where
 
-open Lattice l
+open Lattice L
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
@@ -39,7 +41,7 @@ open import Data.Product
   ; absorptive    = swap absorptive
   }
 
-∧-∨-lattice : Lattice
+∧-∨-lattice : Lattice _ _
 ∧-∨-lattice = record
   { _∧_       = _∨_
   ; _∨_       = _∧_

@@ -2,6 +2,8 @@
 -- Morphisms between algebraic structures
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Algebra.Morphism where
 
 open import Relation.Binary
@@ -16,17 +18,18 @@ import Relation.Binary.EqReasoning as EqR
 ------------------------------------------------------------------------
 -- Basic definitions
 
-module Definitions (From To : Set) (_≈_ : Rel To zero) where
-  Morphism : Set
+module Definitions {f t ℓ}
+                   (From : Set f) (To : Set t) (_≈_ : Rel To ℓ) where
+  Morphism : Set _
   Morphism = From → To
 
-  Homomorphic₀ : Morphism → From → To → Set
+  Homomorphic₀ : Morphism → From → To → Set _
   Homomorphic₀ ⟦_⟧ ∙ ∘ = ⟦ ∙ ⟧ ≈ ∘
 
-  Homomorphic₁ : Morphism → Fun₁ From → Op₁ To → Set
+  Homomorphic₁ : Morphism → Fun₁ From → Op₁ To → Set _
   Homomorphic₁ ⟦_⟧ ∙_ ∘_ = ∀ x → ⟦ ∙ x ⟧ ≈ ∘ ⟦ x ⟧
 
-  Homomorphic₂ : Morphism → Fun₂ From → Op₂ To → Set
+  Homomorphic₂ : Morphism → Fun₂ From → Op₂ To → Set _
   Homomorphic₂ ⟦_⟧ _∙_ _∘_ =
     ∀ x y → ⟦ x ∙ y ⟧ ≈ (⟦ x ⟧ ∘ ⟦ y ⟧)
 
@@ -35,7 +38,9 @@ module Definitions (From To : Set) (_≈_ : Rel To zero) where
 
 -- Ring homomorphisms.
 
-record _-Ring⟶_ (From To : Ring) : Set where
+record _-Ring⟶_ {r₁ r₂ r₃ r₄}
+                (From : Ring r₁ r₂) (To : Ring r₃ r₄) :
+                Set (r₁ ⊔ r₂ ⊔ r₃ ⊔ r₄) where
   private
     module F = Ring From
     module T = Ring To

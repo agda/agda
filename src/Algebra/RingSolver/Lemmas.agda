@@ -2,6 +2,8 @@
 -- Some boring lemmas used by the ring solver
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Note that these proofs use all "almost commutative ring" properties
 -- except for zero and -‿cong.
 
@@ -9,8 +11,9 @@ open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
 
 module Algebra.RingSolver.Lemmas
-  (coeff : RawRing)
-  (r : AlmostCommutativeRing)
+  {r₁ r₂ r₃}
+  (coeff : RawRing r₁)
+  (r : AlmostCommutativeRing r₂ r₃)
   (morphism : coeff -Raw-AlmostCommutative⟶ r)
   where
 

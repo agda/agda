@@ -2,13 +2,15 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
 module Algebra.Props.DistributiveLattice
-         (dl : DistributiveLattice)
+         {dl₁ dl₂} (DL : DistributiveLattice dl₁ dl₂)
          where
 
-open DistributiveLattice dl
+open DistributiveLattice DL
 import Algebra.Props.Lattice as L; open L lattice public
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
@@ -54,7 +56,7 @@ open import Data.Product
   ; ∨-∧-distribʳ = proj₂ ∧-∨-distrib
   }
 
-∧-∨-distributiveLattice : DistributiveLattice
+∧-∨-distributiveLattice : DistributiveLattice _ _
 ∧-∨-distributiveLattice = record
   { _∧_                   = _∨_
   ; _∨_                   = _∧_

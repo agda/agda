@@ -2,6 +2,8 @@
 -- Properties of non-empty lists
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.List.NonEmpty.Properties where
 
 open import Algebra
@@ -10,7 +12,7 @@ open import Function
 open import Data.Product
 open import Data.List as List using (List; []; _∷_; _++_)
 open RawMonad List.monad using () renaming (_>>=_ to _⋆>>=_)
-private module LM {A} = Monoid (List.monoid A)
+private module LM {a} {A : Set a} = Monoid (List.monoid A)
 open import Data.List.NonEmpty as List⁺
 open RawMonad List⁺.monad
 open import Relation.Binary.PropositionalEquality

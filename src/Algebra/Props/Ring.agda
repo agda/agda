@@ -2,11 +2,13 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Props.Ring (r : Ring) where
+module Algebra.Props.Ring {r₁ r₂} (R : Ring r₁ r₂) where
 
-open Ring r
+open Ring R
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Data.Product

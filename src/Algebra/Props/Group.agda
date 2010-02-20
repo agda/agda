@@ -2,11 +2,13 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Props.Group (g : Group) where
+module Algebra.Props.Group {g₁ g₂} (G : Group g₁ g₂) where
 
-open Group g
+open Group G
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function

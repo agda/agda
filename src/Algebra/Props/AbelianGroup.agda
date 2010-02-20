@@ -2,11 +2,14 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 open import Algebra
 
-module Algebra.Props.AbelianGroup (g : AbelianGroup) where
+module Algebra.Props.AbelianGroup
+         {g₁ g₂} (G : AbelianGroup g₁ g₂) where
 
-open AbelianGroup g
+open AbelianGroup G
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Data.Product

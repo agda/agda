@@ -23,7 +23,7 @@ import Relation.Binary.EqReasoning as Eq
 
 open RawMonadPlus List.monadPlus
 private
-  module LM {A} = Monoid (List.monoid A)
+  module LM {a} {A : Set a} = Monoid (List.monoid A)
 
 ∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
               (List A ∶ x ∷ xs) ≡ y ∷ ys → x ≡ y × xs ≡ ys

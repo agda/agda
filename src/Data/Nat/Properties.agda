@@ -194,7 +194,7 @@ isCommutativeSemiring = record
   ; *-comm = *-comm
   }
 
-commutativeSemiring : CommutativeSemiring
+commutativeSemiring : CommutativeSemiring _ _
 commutativeSemiring = record
   { _+_                   = _+_
   ; _*_                   = _*_
@@ -313,7 +313,7 @@ private
   ; *-comm = ⊓-comm
   }
 
-⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne
+⊔-⊓-0-commutativeSemiringWithoutOne : CommutativeSemiringWithoutOne _ _
 ⊔-⊓-0-commutativeSemiringWithoutOne = record
   { _+_                             = _⊔_
   ; _*_                             = _⊓_
@@ -362,7 +362,7 @@ isDistributiveLattice = record
   ; ∨-∧-distribʳ = proj₂ distrib-⊓-⊔
   }
 
-distributiveLattice : DistributiveLattice
+distributiveLattice : DistributiveLattice _ _
 distributiveLattice = record
   { _∨_                   = _⊓_
   ; _∧_                   = _⊔_

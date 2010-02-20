@@ -252,7 +252,7 @@ partition p (x ∷ xs) with p x | partition p xs
 ------------------------------------------------------------------------
 -- List monoid
 
-monoid : Set → Monoid
+monoid : ∀ {ℓ} → Set ℓ → Monoid _ _
 monoid A = record
   { Carrier  = List A
   ; _≈_      = _≡_
