@@ -7,6 +7,7 @@
 
 module Data.List.Any.Properties where
 
+open import Algebra
 open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
@@ -16,9 +17,10 @@ open import Function.Equivalence
   using (_⇔_; equivalent; module Equivalent)
 open import Function.Inverse as Inv
   using (_⇿_; module Inverse)
+open import Function.Inverse.TypeIsomorphisms
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
-open import Data.Product as Prod
+open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
@@ -32,6 +34,7 @@ open Any.Membership-≡
 open Inv.⇿-Reasoning
 open RawMonad List.monad
 private
+  module ×⊎ {ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring ℓ)
   open module BagS {A : Set} =
     Setoid (Any.Membership-≡.Bag-equality {A})
       using () renaming (_≈_ to _Bag-≈_)
@@ -118,6 +121,28 @@ Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ = begin
   (∃ λ x → x ∈ xs₁ × P₁ x)  ⇿⟨ Σ.⇿ (xs₁≈xs₂ ×-⇿ P₁⇿P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ ⟩
   Any P₂ xs₂                ∎
+
+------------------------------------------------------------------------
+-- Swapping
+
+-- Nested occurrences of Any can sometimes be swapped. See also ×⇿.
+
+swap : ∀ {A B : Set} {P : A → B → Set} {xs ys} →
+       Any (λ x → Any (P x) ys) xs ⇿ Any (λ y → Any (flip P y) xs) ys
+swap {P = P} {xs} {ys} = begin
+  Any (λ x → Any (P x) ys) xs                ⇿⟨ Inv.sym Any⇿ ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ Inv.sym $ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
+  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ ⟩
+  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.⇿ (λ {y} → Σ.⇿ (λ {x} → begin
+    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ Inv.sym $ ×⊎.*-assoc _ _ _ ⟩
+    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ×-⇿ Inv.id ⟩
+    ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
+    (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
+  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
+  Any (λ y → Any (flip P y) xs) ys           ∎
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to sums and products
