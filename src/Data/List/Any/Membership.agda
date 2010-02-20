@@ -18,6 +18,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (module Equivalent)
 import Function.Injection as Inj
 open import Function.Inverse as Inv using (_⇿_; module Inverse)
+open import Function.Inverse.TypeIsomorphisms
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
@@ -39,6 +40,7 @@ open import Relation.Nullary.Negation
 open Any.Membership-≡
 open RawMonad List.monad
 private
+  module ×⊎ {ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring ℓ)
   module BagS {A : Set} = Setoid (Any.Membership-≡.Bag-equality {A})
 
 ------------------------------------------------------------------------
@@ -55,7 +57,7 @@ map-∈⇿ {f = f} {y} {xs} = begin
 concat-∈⇿ : ∀ {A : Set} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
 concat-∈⇿ {x = x} {xss} = begin
-  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.⇿ ×-comm ⟩
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.⇿ $ ×⊎.*-comm _ _ ⟩
   (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ ⟩
   Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ ⟩
   x ∈ concat xss                ∎
@@ -72,7 +74,7 @@ concat-∈⇿ {x = x} {xss} = begin
 ⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
 ⊛-∈⇿ fs {xs} {y} = begin
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.⇿ ∃×⇿×∃ ⟩
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
   (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
