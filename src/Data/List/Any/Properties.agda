@@ -531,15 +531,7 @@ any⇔ : ∀ {A} {p : A → Bool} {xs} →
 any⇔ = equivalent (any⁺ _) (any⁻ _ _)
 
 ------------------------------------------------------------------------
--- More lemmas related to _++_
-
--- _++_ is idempotent.
-
-++-idempotent : ∀ {A} {P : A → Set} {xs} →
-                Any P (xs ++ xs) → Any P xs
-++-idempotent = [ id , id ]′ ∘ ++⁻ _
-
--- _++_ is commutative.
+-- _++_ is commutative
 
 private
 

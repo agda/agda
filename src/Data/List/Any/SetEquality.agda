@@ -7,6 +7,7 @@
 module Data.List.Any.SetEquality where
 
 open import Algebra
+import Algebra.FunctionProperties as FunctionProperties
 open import Category.Monad
 open import Data.List as List
 open import Data.List.Any as Any
@@ -15,6 +16,7 @@ open import Data.List.Any.Properties hiding (Any-cong)
 open import Data.Product
 open import Data.Sum
 open import Function
+open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; equivalent)
 open import Function.Inverse as Inv using (module Inverse)
 open import Relation.Binary
@@ -31,6 +33,7 @@ open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
   open module SetEq {A : Set} = Setoid (Set-equality {A}) using (_≈_)
+  open module FP {A : Set} = FunctionProperties (_≈_ {A = A})
 
 -- Any is a congruence.
 
@@ -67,6 +70,14 @@ commutativeMonoid A = record
                     x ∈ ys ++ xs  ∎
     }
   }
+
+-- _++_ is idempotent.
+
+++-idempotent : {A : Set} → Idempotent {A} _++_
+++-idempotent xs {x} = begin
+  x ∈ xs ++ xs  ⇔⟨ equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from ++⇿))
+                              (_⟨$⟩_ (Inverse.to ++⇿) ∘ inj₁) ⟩
+  x ∈ xs        ∎
 
 -- List.map is a congruence.
 
