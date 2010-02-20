@@ -29,5 +29,8 @@ suc i ⊔ suc j = suc (i ⊔ j)
 
 -- Lifting.
 
-data Lift {a ℓ} (A : Set a) : Set (a ⊔ ℓ) where
-  lift : (x : A) → Lift A
+record Lift {a ℓ} (A : Set a) : Set (a ⊔ ℓ) where
+  constructor lift
+  field lower : A
+
+open Lift public
