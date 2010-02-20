@@ -51,23 +51,20 @@ commutativeMonoid A = record
   ; _∙_                 = _++_
   ; ε                   = []
   ; isCommutativeMonoid = record
-    { isMonoid = record
-      { isSemigroup = record
-        { isEquivalence = SetEq.isEquivalence
-        ; assoc         = λ xs ys zs →
-                          SetEq.reflexive (ListMonoid.assoc xs ys zs)
-        ; ∙-cong        = λ {xs₁ xs₂ xs₃ xs₄} xs₁≈xs₂ xs₃≈xs₄ {x} → begin
-                            x ∈ xs₁ ++ xs₃       ⇿⟨ Inv.sym ++⇿ ⟩
-                            (x ∈ xs₁ ⊎ x ∈ xs₃)  ⇔⟨ xs₁≈xs₂ ⊎-⇔ xs₃≈xs₄ ⟩
-                            (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ ⟩
-                            x ∈ xs₂ ++ xs₄       ∎
-        }
-      ; identity = (λ _ → SetEq.refl)
-                 , SetEq.reflexive ∘ proj₂ ListMonoid.identity
+    { isSemigroup = record
+      { isEquivalence = SetEq.isEquivalence
+      ; assoc         = λ xs ys zs →
+                        SetEq.reflexive (ListMonoid.assoc xs ys zs)
+      ; ∙-cong        = λ {xs₁ xs₂ xs₃ xs₄} xs₁≈xs₂ xs₃≈xs₄ {x} → begin
+                          x ∈ xs₁ ++ xs₃       ⇿⟨ Inv.sym ++⇿ ⟩
+                          (x ∈ xs₁ ⊎ x ∈ xs₃)  ⇔⟨ xs₁≈xs₂ ⊎-⇔ xs₃≈xs₄ ⟩
+                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ ⟩
+                          x ∈ xs₂ ++ xs₄       ∎
       }
-    ; comm = λ xs ys {x} → begin
-               x ∈ xs ++ ys  ⇿⟨ ++⇿++ xs ys ⟩
-               x ∈ ys ++ xs  ∎
+    ; identityˡ = λ _ → SetEq.refl
+    ; comm      = λ xs ys {x} → begin
+                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ xs ys ⟩
+                    x ∈ ys ++ xs  ∎
     }
   }
 

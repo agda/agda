@@ -40,13 +40,31 @@ record IsMonoid {a ℓ} {A : Set a} (≈ : Rel A ℓ)
   open IsSemigroup isSemigroup public
 
 record IsCommutativeMonoid {a ℓ} {A : Set a} (≈ : Rel A ℓ)
-                           (∙ : Op₂ A) (ε : A) : Set (a ⊔ ℓ) where
+                           (_∙_ : Op₂ A) (ε : A) : Set (a ⊔ ℓ) where
   open FunctionProperties ≈
   field
-    isMonoid : IsMonoid ≈ ∙ ε
-    comm     : Commutative ∙
+    isSemigroup : IsSemigroup ≈ _∙_
+    identityˡ   : LeftIdentity ε _∙_
+    comm        : Commutative _∙_
 
-  open IsMonoid isMonoid public
+  open IsSemigroup isSemigroup public
+
+  identity : Identity ε _∙_
+  identity = (identityˡ , identityʳ)
+    where
+    open EqR (record { isEquivalence = isEquivalence })
+
+    identityʳ : RightIdentity ε _∙_
+    identityʳ = λ x → begin
+      (x ∙ ε)  ≈⟨ comm x ε ⟩
+      (ε ∙ x)  ≈⟨ identityˡ x ⟩
+      x        ∎
+
+  isMonoid : IsMonoid ≈ _∙_ ε
+  isMonoid = record
+    { isSemigroup = isSemigroup
+    ; identity    = identity
+    }
 
 record IsGroup {a ℓ} {A : Set a} (≈ : Rel A ℓ)
                (_∙_ : Op₂ A) (ε : A) (_⁻¹ : Op₁ A) : Set (a ⊔ ℓ) where
@@ -74,8 +92,9 @@ record IsAbelianGroup
 
   isCommutativeMonoid : IsCommutativeMonoid ≈ ∙ ε
   isCommutativeMonoid = record
-    { isMonoid = isMonoid
-    ; comm     = comm
+    { isSemigroup = isSemigroup
+    ; identityˡ   = proj₁ identity
+    ; comm        = comm
     }
 
 ------------------------------------------------------------------------
@@ -113,6 +132,7 @@ record IsSemiringWithoutOne {a ℓ} {A : Set a} (≈ : Rel A ℓ)
     zero                  : Zero 0# *
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
+         hiding (identityˡ)
          renaming ( assoc       to +-assoc
                   ; ∙-cong      to +-cong
                   ; isSemigroup to +-isSemigroup
@@ -147,6 +167,7 @@ record IsSemiringWithoutAnnihilatingZero
     distrib               : * DistributesOver +
 
   open IsCommutativeMonoid +-isCommutativeMonoid public
+         hiding (identityˡ)
          renaming ( assoc       to +-assoc
                   ; ∙-cong      to +-cong
                   ; isSemigroup to +-isSemigroup
@@ -197,25 +218,57 @@ record IsCommutativeSemiringWithoutOne
 
 record IsCommutativeSemiring
          {a ℓ} {A : Set a} (≈ : Rel A ℓ)
-         (+ * : Op₂ A) (0# 1# : A) : Set (a ⊔ ℓ) where
+         (_+_ _*_ : Op₂ A) (0# 1# : A) : Set (a ⊔ ℓ) where
   open FunctionProperties ≈
   field
-    isSemiring : IsSemiring ≈ + * 0# 1#
-    *-comm     : Commutative *
+    +-isCommutativeMonoid : IsCommutativeMonoid ≈ _+_ 0#
+    *-isCommutativeMonoid : IsCommutativeMonoid ≈ _*_ 1#
+    distribʳ              : _*_ DistributesOverʳ _+_
+    zeroˡ                 : LeftZero 0# _*_
+
+  private
+    module +-CM = IsCommutativeMonoid +-isCommutativeMonoid
+    open module *-CM = IsCommutativeMonoid *-isCommutativeMonoid public
+           using () renaming (comm to *-comm)
+  open EqR (record { isEquivalence = +-CM.isEquivalence })
+
+  distrib : _*_ DistributesOver _+_
+  distrib = (distribˡ , distribʳ)
+    where
+    distribˡ : _*_ DistributesOverˡ _+_
+    distribˡ x y z = begin
+      (x * (y + z))        ≈⟨ *-comm x (y + z) ⟩
+      ((y + z) * x)        ≈⟨ distribʳ x y z ⟩
+      ((y * x) + (z * x))  ≈⟨ *-comm y x ⟨ +-CM.∙-cong ⟩ *-comm z x ⟩
+      ((x * y) + (x * z))  ∎
+
+  zero : Zero 0# _*_
+  zero = (zeroˡ , zeroʳ)
+    where
+    zeroʳ : RightZero 0# _*_
+    zeroʳ x = begin
+      (x * 0#)  ≈⟨ *-comm x 0# ⟩
+      (0# * x)  ≈⟨ zeroˡ x ⟩
+      0#        ∎
+
+  isSemiring : IsSemiring ≈ _+_ _*_ 0# 1#
+  isSemiring = record
+    { isSemiringWithoutAnnihilatingZero = record
+      { +-isCommutativeMonoid = +-isCommutativeMonoid
+      ; *-isMonoid            = *-CM.isMonoid
+      ; distrib               = distrib
+      }
+    ; zero                              = zero
+    }
 
   open IsSemiring isSemiring public
-
-  *-isCommutativeMonoid : IsCommutativeMonoid ≈ * 1#
-  *-isCommutativeMonoid = record
-      { isMonoid = *-isMonoid
-      ; comm     = *-comm
-      }
+         hiding (distrib; zero; +-isCommutativeMonoid)
 
   isCommutativeSemiringWithoutOne :
-    IsCommutativeSemiringWithoutOne ≈ + * 0#
+    IsCommutativeSemiringWithoutOne ≈ _+_ _*_ 0#
   isCommutativeSemiringWithoutOne = record
     { isSemiringWithoutOne = isSemiringWithoutOne
-    ; *-comm               = *-comm
+    ; *-comm               = *-CM.comm
     }
 
 record IsRing
@@ -307,12 +360,20 @@ record IsCommutativeRing
 
   isCommutativeSemiring : IsCommutativeSemiring ≈ + * 0# 1#
   isCommutativeSemiring = record
-    { isSemiring = isSemiring
-    ; *-comm     = *-comm
+    { +-isCommutativeMonoid = +-isCommutativeMonoid
+    ; *-isCommutativeMonoid = record
+      { isSemigroup = *-isSemigroup
+      ; identityˡ   = proj₁ *-identity
+      ; comm        = *-comm
+      }
+    ; distribʳ              = proj₂ distrib
+    ; zeroˡ                 = proj₁ zero
     }
 
   open IsCommutativeSemiring isCommutativeSemiring public
-         using (isCommutativeSemiringWithoutOne)
+         using ( *-isCommutativeMonoid
+               ; isCommutativeSemiringWithoutOne
+               )
 
 record IsLattice {a ℓ} {A : Set a} (≈ : Rel A ℓ)
                  (∨ ∧ : Op₂ A) : Set (a ⊔ ℓ) where

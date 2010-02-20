@@ -96,43 +96,20 @@ private
       n * suc m
     ∎
 
-  distrib-*-+ : _*_ DistributesOver _+_
-  distrib-*-+ = distˡ , distʳ
-    where
-    distˡ : _*_ DistributesOverˡ _+_
-    distˡ zero    n o = refl
-    distˡ (suc m) n o =
-                                 begin
-      suc m * (n + o)
-                                 ≡⟨ refl ⟩
-      (n + o) + m * (n + o)
-                                 ≡⟨ cong (λ x → (n + o) + x) (distˡ m n o) ⟩
-      (n + o) + (m * n + m * o)
-                                 ≡⟨ sym $ +-assoc (n + o) (m * n) (m * o) ⟩
-      ((n + o) + m * n) + m * o
-                                 ≡⟨ cong (λ x → x + (m * o)) $ +-assoc n o (m * n) ⟩
-      (n + (o + m * n)) + m * o
-                                 ≡⟨ cong (λ x → (n + x) + m * o) $ +-comm o (m * n) ⟩
-      (n + (m * n + o)) + m * o
-                                 ≡⟨ cong (λ x → x + (m * o)) $ sym $ +-assoc n (m * n) o ⟩
-      ((n + m * n) + o) + m * o
-                                 ≡⟨ +-assoc (n + m * n) o (m * o) ⟩
-      (n + m * n) + (o + m * o)
-                                 ≡⟨ refl ⟩
-      suc m * n + suc m * o
-                                 ∎
-
-    distʳ : _*_ DistributesOverʳ _+_
-    distʳ m n o =
-                      begin
-       (n + o) * m
-                      ≡⟨ *-comm (n + o) m ⟩
-       m * (n + o)
-                      ≡⟨ distˡ m n o ⟩
-       m * n + m * o
-                      ≡⟨ cong₂ _+_ (*-comm m n) (*-comm m o) ⟩
-       n * m + o * m
-                      ∎
+  distribʳ-*-+ : _*_ DistributesOverʳ _+_
+  distribʳ-*-+ m zero    o = refl
+  distribʳ-*-+ m (suc n) o =
+                           begin
+      (suc n + o) * m
+                           ≡⟨ refl ⟩
+      m + (n + o) * m
+                           ≡⟨ cong (_+_ m) $ distribʳ-*-+ m n o ⟩
+      m + (n * m + o * m)
+                           ≡⟨ sym $ +-assoc m (n * m) (o * m) ⟩
+      m + n * m + o * m
+                           ≡⟨ refl ⟩
+      suc n * m + o * m
+                           ∎
 
   *-assoc : Associative _*_
   *-assoc zero    n o = refl
@@ -141,7 +118,7 @@ private
     (suc m * n) * o
                          ≡⟨ refl ⟩
     (n + m * n) * o
-                         ≡⟨ proj₂ distrib-*-+ o n (m * n) ⟩
+                         ≡⟨ distribʳ-*-+ o n (m * n) ⟩
     n * o + (m * n) * o
                          ≡⟨ cong (λ x → n * o + x) $ *-assoc m n o ⟩
     n * o + m * (n * o)
@@ -149,49 +126,28 @@ private
     suc m * (n * o)
                          ∎
 
-  *-identity : Identity 1 _*_
-  *-identity = proj₂ +-identity , n*1≡n
-    where
-    n*1≡n : RightIdentity 1 _*_
-    n*1≡n n =
-      begin
-        n * 1
-      ≡⟨ *-comm n 1 ⟩
-        1 * n
-      ≡⟨ refl ⟩
-        n + 0
-      ≡⟨ proj₂ +-identity n ⟩
-        n
-      ∎
-
 isCommutativeSemiring : IsCommutativeSemiring _≡_ _+_ _*_ 0 1
 isCommutativeSemiring = record
-  { isSemiring = record
-    { isSemiringWithoutAnnihilatingZero = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { isEquivalence = PropEq.isEquivalence
-            ; assoc         = +-assoc
-            ; ∙-cong        = cong₂ _+_
-            }
-          ; identity = +-identity
-          }
-        ; comm = +-comm
-        }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { isEquivalence = PropEq.isEquivalence
-          ; assoc         = *-assoc
-          ; ∙-cong        = cong₂ _*_
-          }
-        ; identity = *-identity
-        }
-      ; distrib = distrib-*-+
+  { +-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = PropEq.isEquivalence
+      ; assoc         = +-assoc
+      ; ∙-cong        = cong₂ _+_
       }
-    ; zero = *-zero
+    ; identityˡ = proj₁ +-identity
+    ; comm      = +-comm
     }
-  ; *-comm = *-comm
+  ; *-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = PropEq.isEquivalence
+      ; assoc         = *-assoc
+      ; ∙-cong        = cong₂ _*_
+      }
+    ; identityˡ = proj₂ +-identity
+    ; comm      = *-comm
+    }
+  ; distribʳ = distribʳ-*-+
+  ; zeroˡ    = proj₁ *-zero
   }
 
 commutativeSemiring : CommutativeSemiring _ _
@@ -291,25 +247,23 @@ private
   : IsCommutativeSemiringWithoutOne _≡_ _⊔_ _⊓_ 0
 ⊔-⊓-0-isCommutativeSemiringWithoutOne = record
   { isSemiringWithoutOne = record
-      { +-isCommutativeMonoid = record
-          { isMonoid = record
-              { isSemigroup = record
-                  { isEquivalence = PropEq.isEquivalence
-                  ; assoc         = ⊔-assoc
-                  ; ∙-cong        = cong₂ _⊔_
-                  }
-              ; identity = ⊔-identity
-              }
-          ; comm = ⊔-comm
-          }
-      ; *-isSemigroup = record
-          { isEquivalence = PropEq.isEquivalence
-          ; assoc         = ⊓-assoc
-          ; ∙-cong        = cong₂ _⊓_
-          }
-      ; distrib = distrib-⊓-⊔
-      ; zero    = ⊓-zero
+    { +-isCommutativeMonoid = record
+      { isSemigroup = record
+        { isEquivalence = PropEq.isEquivalence
+        ; assoc         = ⊔-assoc
+        ; ∙-cong        = cong₂ _⊔_
+        }
+      ; identityˡ = proj₁ ⊔-identity
+      ; comm      = ⊔-comm
       }
+    ; *-isSemigroup = record
+      { isEquivalence = PropEq.isEquivalence
+      ; assoc         = ⊓-assoc
+      ; ∙-cong        = cong₂ _⊓_
+      }
+    ; distrib = distrib-⊓-⊔
+    ; zero    = ⊓-zero
+    }
   ; *-comm = ⊓-comm
   }
 

@@ -97,32 +97,26 @@ private
 
 ∨-∧-isCommutativeSemiring : IsCommutativeSemiring _≈_ _∨_ _∧_ ⊥ ⊤
 ∨-∧-isCommutativeSemiring = record
-  { isSemiring = record
-    { isSemiringWithoutAnnihilatingZero = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { isEquivalence = isEquivalence
-            ; assoc         = ∨-assoc
-            ; ∙-cong        = ∨-cong
-            }
-          ; identity  = ∨-identity
-          }
-        ; comm  = ∨-comm
-        }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { isEquivalence = isEquivalence
-          ; assoc         = ∧-assoc
-          ; ∙-cong        = ∧-cong
-          }
-        ; identity = ∧-identity
-        }
-      ; distrib = ∧-∨-distrib
+  { +-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∨-assoc
+      ; ∙-cong        = ∨-cong
       }
-    ; zero = ∧-zero
+    ; identityˡ = proj₁ ∨-identity
+    ; comm      = ∨-comm
     }
-  ; *-comm = ∧-comm
+  ; *-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∧-assoc
+      ; ∙-cong        = ∧-cong
+      }
+    ; identityˡ = proj₁ ∧-identity
+    ; comm      = ∧-comm
+    }
+  ; distribʳ = proj₂ ∧-∨-distrib
+  ; zeroˡ    = proj₁ ∧-zero
   }
 
 ∨-∧-commutativeSemiring : CommutativeSemiring _ _
@@ -152,32 +146,26 @@ private
 
 ∧-∨-isCommutativeSemiring : IsCommutativeSemiring _≈_ _∧_ _∨_ ⊤ ⊥
 ∧-∨-isCommutativeSemiring = record
-  { isSemiring = record
-    { isSemiringWithoutAnnihilatingZero = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { isEquivalence = isEquivalence
-            ; assoc         = ∧-assoc
-            ; ∙-cong        = ∧-cong
-            }
-          ; identity  = ∧-identity
-          }
-        ; comm  = ∧-comm
-        }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { isEquivalence = isEquivalence
-          ; assoc         = ∨-assoc
-          ; ∙-cong        = ∨-cong
-          }
-        ; identity = ∨-identity
-        }
-      ; distrib = ∨-∧-distrib
+  { +-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∧-assoc
+      ; ∙-cong        = ∧-cong
       }
-    ; zero = ∨-zero
+    ; identityˡ = proj₁ ∧-identity
+    ; comm      = ∧-comm
     }
-  ; *-comm = ∨-comm
+  ; *-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∨-assoc
+      ; ∙-cong        = ∨-cong
+      }
+    ; identityˡ = proj₁ ∨-identity
+    ; comm      = ∨-comm
+    }
+  ; distribʳ = proj₂ ∨-∧-distrib
+  ; zeroˡ    = proj₁ ∨-zero
   }
 
 ∧-∨-commutativeSemiring : CommutativeSemiring _ _

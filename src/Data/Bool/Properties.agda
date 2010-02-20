@@ -52,15 +52,6 @@ private
   ∧-comm false true  = refl
   ∧-comm false false = refl
 
-  ∨-identity : Identity false _∨_
-  ∨-identity = (λ _ → refl) , (λ x → ∨-comm x false)
-
-  ∧-identity : Identity true _∧_
-  ∧-identity = (λ _ → refl) , (λ x → ∧-comm x true)
-
-  zero-∧ : Zero false _∧_
-  zero-∧ = (λ _ → refl) , (λ x → ∧-comm x false)
-
   distrib-∧-∨ : _∧_ DistributesOver _∨_
   distrib-∧-∨ = distˡ , distʳ
     where
@@ -83,32 +74,26 @@ private
 isCommutativeSemiring-∨-∧
   : IsCommutativeSemiring _≡_ _∨_ _∧_ false true
 isCommutativeSemiring-∨-∧ = record
-  { isSemiring = record
-    { isSemiringWithoutAnnihilatingZero = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { isEquivalence = isEquivalence
-            ; assoc         = ∨-assoc
-            ; ∙-cong        = cong₂ _∨_
-            }
-          ; identity = ∨-identity
-          }
-        ; comm = ∨-comm
-        }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { isEquivalence = isEquivalence
-          ; assoc         = ∧-assoc
-          ; ∙-cong        = cong₂ _∧_
-          }
-        ; identity = ∧-identity
-        }
-      ; distrib = distrib-∧-∨
+  { +-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∨-assoc
+      ; ∙-cong        = cong₂ _∨_
       }
-    ; zero = zero-∧
+    ; identityˡ = λ _ → refl
+    ; comm      = ∨-comm
     }
-  ; *-comm = ∧-comm
+  ; *-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∧-assoc
+      ; ∙-cong        = cong₂ _∧_
+      }
+      ; identityˡ = λ _ → refl
+    ; comm      = ∧-comm
+    }
+  ; distribʳ = proj₂ distrib-∧-∨
+  ; zeroˡ    = λ _ → refl
   }
 
 commutativeSemiring-∨-∧ : CommutativeSemiring _ _
@@ -127,9 +112,6 @@ module RingSolver =
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
 
 private
-
-  zero-∨ : Zero true _∨_
-  zero-∨ = (λ _ → refl) , (λ x → ∨-comm x true)
 
   distrib-∨-∧ : _∨_ DistributesOver _∧_
   distrib-∨-∧ = distˡ , distʳ
@@ -153,32 +135,26 @@ private
 isCommutativeSemiring-∧-∨
   : IsCommutativeSemiring _≡_ _∧_ _∨_ true false
 isCommutativeSemiring-∧-∨ = record
-  { isSemiring = record
-    { isSemiringWithoutAnnihilatingZero = record
-      { +-isCommutativeMonoid = record
-        { isMonoid = record
-          { isSemigroup = record
-            { isEquivalence = isEquivalence
-            ; assoc         = ∧-assoc
-            ; ∙-cong        = cong₂ _∧_
-            }
-          ; identity = ∧-identity
-          }
-        ; comm = ∧-comm
-        }
-      ; *-isMonoid = record
-        { isSemigroup = record
-          { isEquivalence = isEquivalence
-          ; assoc         = ∨-assoc
-          ; ∙-cong        = cong₂ _∨_
-          }
-        ; identity = ∨-identity
-        }
-      ; distrib = distrib-∨-∧
+  { +-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∧-assoc
+      ; ∙-cong        = cong₂ _∧_
       }
-    ; zero = zero-∨
+    ; identityˡ = λ _ → refl
+    ; comm      = ∧-comm
     }
-  ; *-comm = ∨-comm
+  ; *-isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = isEquivalence
+      ; assoc         = ∨-assoc
+      ; ∙-cong        = cong₂ _∨_
+      }
+    ; identityˡ = λ _ → refl
+    ; comm      = ∨-comm
+    }
+  ; distribʳ = proj₂ distrib-∨-∧
+  ; zeroˡ    = λ _ → refl
   }
 
 commutativeSemiring-∧-∨ : CommutativeSemiring _ _
@@ -259,7 +235,8 @@ private
 
   xor-is-ok : ∀ x y → x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
   xor-is-ok true  y = refl
-  xor-is-ok false y = sym $ proj₂ ∧-identity _
+  xor-is-ok false y = sym $ proj₂ CS.*-identity _
+    where module CS = CommutativeSemiring commutativeSemiring-∨-∧
 
 commutativeRing-xor-∧ : CommutativeRing _ _
 commutativeRing-xor-∧ = commutativeRing
