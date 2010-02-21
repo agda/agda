@@ -8,7 +8,7 @@ open import Data.Empty
 open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-import Function.Equivalence as Equiv
+open import Function.Equivalence as Equiv using (module Equivalent)
 open import Function.Inverse as Inv using (module Inverse)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
@@ -153,16 +153,6 @@ module Membership-≡ {A : Set} where
   ⊆-preorder = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
                                     (PropEq.subst (_∈_ _))
 
-  module ⊆-Reasoning where
-    import Relation.Binary.PreorderReasoning as PreR
-    open PreR ⊆-preorder public
-      renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
-
-    infix 1 _∈⟨_⟩_
-
-    _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
-    x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
-
   -- Set equality, i.e. an equality which ignores order and
   -- multiplicity.
 
@@ -180,6 +170,24 @@ module Membership-≡ {A : Set} where
 
   bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
   bag-=⇒set-= xs≈ys = Inverse.equivalent xs≈ys
+
+  -- "Equational" reasoning for _⊆_.
+
+  module ⊆-Reasoning where
+    import Relation.Binary.PreorderReasoning as PreR
+    open PreR ⊆-preorder public
+      renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
+    open Setoid Set-equality
+
+    infixr 2 _≈⟨_⟩_
+    infix  1 _∈⟨_⟩_
+
+    _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
+    x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
+
+    _≈⟨_⟩_ : ∀ xs {ys zs} →
+             xs ≈ ys → ys IsRelatedTo zs → xs IsRelatedTo zs
+    xs ≈⟨ xs≈ys ⟩ ys≈zs = xs ⊆⟨ _⟨$⟩_ (Equivalent.to xs≈ys) ⟩ ys≈zs
 
 ------------------------------------------------------------------------
 -- Another function
