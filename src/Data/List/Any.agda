@@ -9,7 +9,8 @@ open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv using (module Equivalent)
-open import Function.Inverse as Inv using (module Inverse)
+open import Function.Inverse as Inv
+  using (module Inverse)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
@@ -138,56 +139,59 @@ module Membership (S : Setoid zero zero) where
 -- The code above instantiated (and slightly changed) for
 -- propositional equality, along with some additional definitions.
 
-module Membership-≡ {A : Set} where
+module Membership-≡ where
 
   private
-    open module M = Membership (PropEq.setoid A) public
+    open module M {A : Set} = Membership (PropEq.setoid A) public
       hiding (lift-resp; lose; ⊆-preorder; module ⊆-Reasoning)
 
-  lose : ∀ {P x xs} → x ∈ xs → P x → Any P xs
-  lose {P} = M.lose (PropEq.subst P)
+  lose : ∀ {A} {P : A → Set} {x xs} → x ∈ xs → P x → Any P xs
+  lose {P = P} = M.lose (PropEq.subst P)
 
   -- _⊆_ is a preorder.
 
-  ⊆-preorder : Preorder _ _ _
-  ⊆-preorder = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
-                                    (PropEq.subst (_∈_ _))
+  ⊆-preorder : Set → Preorder _ _ _
+  ⊆-preorder A = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
+                                      (PropEq.subst (_∈_ _))
 
-  -- Set equality, i.e. an equality which ignores order and
-  -- multiplicity.
+  -- Set and bag equality.
 
-  Set-equality : Setoid _ _
-  Set-equality =
-    Equiv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
+  open Inv public
+    using (Kind) renaming (equivalent to set; inverse to bag)
 
-  -- Bag equality, i.e. an equality which ignores order.
+  [_]-Equality : Kind → Set → Setoid _ _
+  [ k ]-Equality A = Inv.InducedEquivalence₂ k (_∈_ {A = A})
 
-  Bag-equality : Setoid _ _
-  Bag-equality =
-    Inv.InducedEquivalence₂ (λ x xs → PropEq.setoid (x ∈ xs))
+  infix 4 _≈[_]_
+
+  _≈[_]_ : {A : Set} → List A → Kind → List A → Set
+  xs ≈[ k ] ys = Setoid._≈_ ([ k ]-Equality _) xs ys
 
   -- Bag equality implies set equality.
 
-  bag-=⇒set-= : Setoid._≈_ Bag-equality ⇒ Setoid._≈_ Set-equality
-  bag-=⇒set-= xs≈ys = Inverse.equivalent xs≈ys
+  bag-=⇒set-= : {A : Set} {xs ys : List A} →
+                xs ≈[ bag ] ys → xs ≈[ set ] ys
+  bag-=⇒set-= xs≈ys = Inv.⇿⇒ xs≈ys
 
   -- "Equational" reasoning for _⊆_.
 
   module ⊆-Reasoning where
     import Relation.Binary.PreorderReasoning as PreR
-    open PreR ⊆-preorder public
-      renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
-    open Setoid Set-equality
+    private
+      open module PR {A : Set} = PreR (⊆-preorder A) public
+        renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 
     infixr 2 _≈⟨_⟩_
     infix  1 _∈⟨_⟩_
 
-    _∈⟨_⟩_ : ∀ x {xs ys} → x ∈ xs → xs IsRelatedTo ys → x ∈ ys
+    _∈⟨_⟩_ : ∀ {A : Set} x {xs ys : List A} →
+             x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
-    _≈⟨_⟩_ : ∀ xs {ys zs} →
-             xs ≈ ys → ys IsRelatedTo zs → xs IsRelatedTo zs
-    xs ≈⟨ xs≈ys ⟩ ys≈zs = xs ⊆⟨ _⟨$⟩_ (Equivalent.to xs≈ys) ⟩ ys≈zs
+    _≈⟨_⟩_ : ∀ {k} {A : Set} xs {ys zs : List A} →
+             xs ≈[ k ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
+    xs ≈⟨ xs≈ys ⟩ ys≈zs =
+      xs ⊆⟨ _⟨$⟩_ (Equivalent.to (Inv.⇒⇔ xs≈ys)) ⟩ ys≈zs
 
 ------------------------------------------------------------------------
 -- Another function

@@ -15,7 +15,9 @@ open import Data.Unit
 open import Level
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse as Inv using (_⇿_; module Inverse)
+open import Function.Equivalence using (_⇔_; module Equivalent)
+open import Function.Inverse as Inv
+  using (Kind; Isomorphism; _⇿_; module Inverse)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 
@@ -23,35 +25,42 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 -- ⊥, ⊤, _×_ and _⊎_ form a commutative semiring
 
 -- TODO: Note that ×-cong and ⊎-cong duplicate the functionality of
--- Relation.Binary.Product.Pointwise.×-⇿ and Relation.Binary.Sum.⊎-⇿,
--- except that, at the time of writing, the latter functions are not
--- universe polymorphic.
+-- Relation.Binary.Product.Pointwise.×-⇔/×-⇿ and
+-- Relation.Binary.Sum.⊎-⇔/⊎-⇿, except that, at the time of writing,
+-- the latter functions are not universe polymorphic.
 
-×-CommutativeMonoid : (ℓ : Level) → CommutativeMonoid _ _
-×-CommutativeMonoid ℓ = record
+×-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
+×-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = _⇿_
+  ; _≈_                 = Isomorphism k
   ; _∙_                 = _×_
   ; ε                   = Lift ⊤
   ; isCommutativeMonoid = record
     { isSemigroup   = record
-      { isEquivalence = Setoid.isEquivalence $ Inv.⇿-setoid ℓ
-      ; assoc         = assoc
-      ; ∙-cong        = ×-cong
+      { isEquivalence = Setoid.isEquivalence $
+                          Inv.Isomorphism-setoid k ℓ
+      ; assoc         = λ A B C → Inv.⇿⇒ $ assoc A B C
+      ; ∙-cong        = ×-cong k
       }
-    ; identityˡ = left-identity
-    ; comm      = comm
+    ; identityˡ = λ A → Inv.⇿⇒ $ left-identity A
+    ; comm      = λ A B → Inv.⇿⇒ $ comm A B
     }
   }
   where
   open FP _⇿_
 
-  ×-cong : ∀ {A B C D : Set ℓ} → A ⇿ B → C ⇿ D → (A × C) ⇿ (B × D)
-  ×-cong A⇿B C⇿D = record
-    { to         = P.→-to-⟶ $ Prod.map (_⟨$⟩_ (Inverse.to   A⇿B))
-                                       (_⟨$⟩_ (Inverse.to   C⇿D))
-    ; from       = P.→-to-⟶ $ Prod.map (_⟨$⟩_ (Inverse.from A⇿B))
-                                       (_⟨$⟩_ (Inverse.from C⇿D))
+  ×-cong-⇔ : ∀ {A B C D : Set ℓ} → A ⇔ B → C ⇔ D → (A × C) ⇔ (B × D)
+  ×-cong-⇔ A⇔B C⇔D = record
+    { to   = P.→-to-⟶ $ Prod.map (_⟨$⟩_ (Equivalent.to   A⇔B))
+                                 (_⟨$⟩_ (Equivalent.to   C⇔D))
+    ; from = P.→-to-⟶ $ Prod.map (_⟨$⟩_ (Equivalent.from A⇔B))
+                                 (_⟨$⟩_ (Equivalent.from C⇔D))
+    }
+
+  ×-cong-⇿ : ∀ {A B C D : Set ℓ} → A ⇿ B → C ⇿ D → (A × C) ⇿ (B × D)
+  ×-cong-⇿ A⇿B C⇿D = record
+    { to         = Equivalent.to   ⇔
+    ; from       = Equivalent.from ⇔
     ; inverse-of = record
       { left-inverse-of  = λ p →
           P.cong₂ _,_ (Inverse.left-inverse-of A⇿B (proj₁ p))
@@ -61,6 +70,14 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
                       (Inverse.right-inverse-of C⇿D (proj₂ p))
       }
     }
+    where
+    ⇔ = ×-cong-⇔ (Inverse.equivalent A⇿B) (Inverse.equivalent C⇿D)
+
+  ×-cong : ∀ k {A B C D : Set ℓ} →
+           Isomorphism k A B → Isomorphism k C D →
+           Isomorphism k (A × C) (B × D)
+  ×-cong Inv.equivalent = ×-cong-⇔
+  ×-cong Inv.inverse    = ×-cong-⇿
 
   left-identity : LeftIdentity (Lift {ℓ = ℓ} ⊤) _×_
   left-identity _ = record
@@ -92,31 +109,38 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
       }
     }
 
-⊎-CommutativeMonoid : (ℓ : Level) → CommutativeMonoid _ _
-⊎-CommutativeMonoid ℓ = record
+⊎-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
+⊎-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = _⇿_
+  ; _≈_                 = Isomorphism k
   ; _∙_                 = _⊎_
   ; ε                   = Lift ⊥
   ; isCommutativeMonoid = record
     { isSemigroup   = record
-      { isEquivalence = Setoid.isEquivalence $ Inv.⇿-setoid ℓ
-      ; assoc         = assoc
-      ; ∙-cong        = ⊎-cong
+      { isEquivalence = Setoid.isEquivalence $
+                          Inv.Isomorphism-setoid k ℓ
+      ; assoc         = λ A B C → Inv.⇿⇒ $ assoc A B C
+      ; ∙-cong        = ⊎-cong k
       }
-    ; identityˡ = left-identity
-    ; comm      = comm
+    ; identityˡ = λ A → Inv.⇿⇒ $ left-identity A
+    ; comm      = λ A B → Inv.⇿⇒ $ comm A B
     }
   }
   where
   open FP _⇿_
 
-  ⊎-cong : ∀ {A B C D : Set ℓ} → A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
-  ⊎-cong A⇿B C⇿D = record
-    { to         = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Inverse.to   A⇿B))
-                                      (_⟨$⟩_ (Inverse.to   C⇿D))
-    ; from       = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Inverse.from A⇿B))
-                                      (_⟨$⟩_ (Inverse.from C⇿D))
+  ⊎-cong-⇔ : ∀ {A B C D : Set ℓ} → A ⇔ B → C ⇔ D → (A ⊎ C) ⇔ (B ⊎ D)
+  ⊎-cong-⇔ A⇔B C⇔D = record
+    { to   = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Equivalent.to   A⇔B))
+                                (_⟨$⟩_ (Equivalent.to   C⇔D))
+    ; from = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Equivalent.from A⇔B))
+                                (_⟨$⟩_ (Equivalent.from C⇔D))
+    }
+
+  ⊎-cong-⇿ : ∀ {A B C D : Set ℓ} → A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
+  ⊎-cong-⇿ A⇿B C⇿D = record
+    { to         = Equivalent.to   ⇔
+    ; from       = Equivalent.from ⇔
     ; inverse-of = record
       { left-inverse-of  = [ P.cong inj₁ ∘ Inverse.left-inverse-of A⇿B
                            , P.cong inj₂ ∘ Inverse.left-inverse-of C⇿D
@@ -126,6 +150,14 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
                            ]
       }
     }
+    where
+    ⇔ = ⊎-cong-⇔ (Inverse.equivalent A⇿B) (Inverse.equivalent C⇿D)
+
+  ⊎-cong : ∀ k {A B C D : Set ℓ} →
+           Isomorphism k A B → Isomorphism k C D →
+           Isomorphism k (A ⊎ C) (B ⊎ D)
+  ⊎-cong Inv.equivalent = ⊎-cong-⇔
+  ⊎-cong Inv.inverse    = ⊎-cong-⇿
 
   left-identity : LeftIdentity (Lift ⊥) (_⊎_ {a = ℓ} {b = ℓ})
   left-identity A = record
@@ -176,19 +208,21 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
     inv : ∀ {A B} → swap ∘ swap {A} {B} ≗ id
     inv = [ (λ _ → P.refl) , (λ _ → P.refl) ]
 
-×⊎-CommutativeSemiring : (ℓ : Level) → CommutativeSemiring _ _
-×⊎-CommutativeSemiring ℓ = record
+×⊎-CommutativeSemiring : Kind → (ℓ : Level) → CommutativeSemiring _ _
+×⊎-CommutativeSemiring k ℓ = record
   { Carrier               = Set ℓ
-  ; _≈_                   = _⇿_
+  ; _≈_                   = Isomorphism k
   ; _+_                   = _⊎_
   ; _*_                   = _×_
   ; 0#                    = Lift ⊥
   ; 1#                    = Lift ⊤
   ; isCommutativeSemiring = record
-    { +-isCommutativeMonoid = isCommutativeMonoid $ ⊎-CommutativeMonoid ℓ
-    ; *-isCommutativeMonoid = isCommutativeMonoid $ ×-CommutativeMonoid ℓ
-    ; distribʳ              = right-distrib
-    ; zeroˡ                 = left-zero
+    { +-isCommutativeMonoid = isCommutativeMonoid $
+                                ⊎-CommutativeMonoid k ℓ
+    ; *-isCommutativeMonoid = isCommutativeMonoid $
+                                ×-CommutativeMonoid k ℓ
+    ; distribʳ              = λ A B C → Inv.⇿⇒ $ right-distrib A B C
+    ; zeroˡ                 = λ A → Inv.⇿⇒ $ left-zero A
     }
   }
   where

@@ -16,7 +16,7 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using (_⇔_; equivalent; module Equivalent)
 open import Function.Inverse as Inv
-  using (_⇿_; module Inverse)
+  using (Isomorphism; _⇿_; module Inverse)
 open import Function.Inverse.TypeIsomorphisms
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
@@ -25,19 +25,15 @@ open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect; _with-≡_)
 import Relation.Binary.Sigma.Pointwise as Σ
 
 open Any.Membership-≡
-open Inv.⇿-Reasoning
+open Inv.EquationalReasoning
 open RawMonad List.monad
 private
-  module ×⊎ {ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring ℓ)
-  open module BagS {A : Set} =
-    Setoid (Any.Membership-≡.Bag-equality {A})
-      using () renaming (_≈_ to _Bag-≈_)
+  module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose
@@ -113,12 +109,12 @@ Any⇿ {P = P} = record
 ------------------------------------------------------------------------
 -- Any is a congruence
 
-Any-cong : {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
-           (∀ x → P₁ x ⇿ P₂ x) → xs₁ Bag-≈ xs₂ →
-           Any P₁ xs₁ ⇿ Any P₂ xs₂
-Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ = begin
-  Any P₁ xs₁                ⇿⟨ Inv.sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ⇿⟨ Σ.⇿ (xs₁≈xs₂ ×-⇿ P₁⇿P₂ _) ⟩
+Any-cong : ∀ {k} {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
+           (∀ x → Isomorphism k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
+           Isomorphism k (Any P₁ xs₁) (Any P₂ xs₂)
+Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
+  Any P₁ xs₁                ⇿⟨ sym Any⇿ ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ ⟩
   Any P₂ xs₂                ∎
 
@@ -129,18 +125,18 @@ Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ = begin
 
 swap : ∀ {A B : Set} {P : A → B → Set} {xs ys} →
        Any (λ x → Any (P x) ys) xs ⇿ Any (λ y → Any (flip P y) xs) ys
-swap {P = P} {xs} {ys} = begin
-  Any (λ x → Any (P x) ys) xs                ⇿⟨ Inv.sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ Inv.sym $ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
+swap {P = P} {xs} {ys} =
+  Any (λ x → Any (P x) ys) xs                ⇿⟨ sym Any⇿ ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
   (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ ⟩
-  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.⇿ (λ {y} → Σ.⇿ (λ {x} → begin
-    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ Inv.sym $ ×⊎.*-assoc _ _ _ ⟩
-    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ×-⇿ Inv.id ⟩
+  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong (λ {y} → Σ.cong (λ {x} →
+    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
+    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ⟨ ×⊎.*-cong ⟩ Inv.id ⟩
     ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎
 
@@ -418,7 +414,7 @@ concat⇿ {xss = xss} = record
 
 >>=⇿ : ∀ {A B P xs} {f : A → List B} →
        Any (Any P ∘ f) xs ⇿ Any P (xs >>= f)
->>=⇿ {P = P} {xs} {f} = begin
+>>=⇿ {P = P} {xs} {f} =
   Any (Any P ∘ f) xs           ⇿⟨ map⇿ ⟩
   Any (Any P) (List.map f xs)  ⇿⟨ concat⇿ ⟩
   Any P (xs >>= f)             ∎
@@ -427,9 +423,9 @@ concat⇿ {xss = xss} = record
 
 ⊛⇿ : ∀ {A B P} {fs : List (A → B)} {xs} →
      Any (λ f → Any (P ∘ f) xs) fs ⇿ Any P (fs ⊛ xs)
-⊛⇿ {P = P} {fs} {xs} = begin
-  Any (λ f → Any (P ∘ f) xs) fs               ⇿⟨ Any-cong (λ _ → Any-cong (λ _ → return⇿) BagS.refl) BagS.refl ⟩
-  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ⇿⟨ Any-cong (λ _ → >>=⇿) BagS.refl ⟩
+⊛⇿ {P = P} {fs} {xs} =
+  Any (λ f → Any (P ∘ f) xs) fs               ⇿⟨ Any-cong (λ _ → Any-cong (λ _ → return⇿) (_ ∎)) (_ ∎) ⟩
+  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ⇿⟨ Any-cong (λ _ → >>=⇿) (_ ∎) ⟩
   Any (λ f → Any P (xs >>= return ∘ f)) fs    ⇿⟨ >>=⇿ ⟩
   Any P (fs ⊛ xs)                             ∎
 
@@ -444,7 +440,7 @@ concat⇿ {xss = xss} = record
 
 ⊗⇿ : ∀ {A B P} {xs : List A} {ys : List B} →
      Any (λ x → Any (λ y → P (x , y)) ys) xs ⇿ Any P (xs ⊗ ys)
-⊗⇿ {P = P} {xs} {ys} = begin
+⊗⇿ {P = P} {xs} {ys} =
   Any (λ x → Any (λ y → P (x , y)) ys) xs                             ⇿⟨ return⇿ ⟩
   Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ⇿⟨ ⊛⇿ ⟩
   Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ⇿⟨ ⊛⇿ ⟩
@@ -452,7 +448,7 @@ concat⇿ {xss = xss} = record
 
 ⊗⇿′ : ∀ {A B P Q} {xs : List A} {ys : List B} →
       (Any P xs × Any Q ys) ⇿ Any (P ⟨×⟩ Q) (xs ⊗ ys)
-⊗⇿′ {P = P} {Q} {xs} {ys} = begin
+⊗⇿′ {P = P} {Q} {xs} {ys} =
   (Any P xs × Any Q ys)                    ⇿⟨ ×⇿ ⟩
   Any (λ x → Any (λ y → P x × Q y) ys) xs  ⇿⟨ ⊗⇿ ⟩
   Any (P ⟨×⟩ Q) (xs ⊗ ys)                  ∎

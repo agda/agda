@@ -14,7 +14,7 @@ open import Function.Equivalence as Eq
   using (Equivalent; _⇔_; module Equivalent)
   renaming (_∘_ to _⟨∘⟩_)
 open import Function.Inverse as Inv
-  using (Inverse; _⇿_; module Inverse)
+  using (Inverse; _⇿_; module Inverse; Isomorphism)
   renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse
   using (_LeftInverseOf_; _RightInverseOf_)
@@ -171,3 +171,9 @@ inverse {I = I} {From = F} {T} F⇿T = record
   Rel⇿≡ {B = B₂} ⟪∘⟫
   inverse (λ {x} → H.≡⇿≅ B₂ ⟪∘⟫ B₁⇿B₂ {x} ⟪∘⟫ Inv.sym (H.≡⇿≅ B₁)) ⟪∘⟫
   Inv.sym (Rel⇿≡ {B = B₁})
+
+cong : ∀ {k a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
+       (∀ {x} → Isomorphism k (B₁ x) (B₂ x)) →
+       Isomorphism k (Σ A B₁) (Σ A B₂)
+cong {k = Inv.equivalent} = ⇔
+cong {k = Inv.inverse}    = ⇿

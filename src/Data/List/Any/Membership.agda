@@ -28,7 +28,6 @@ open import Data.Product as Prod
 open import Data.Sum as Sum
 open import Level
 open import Relation.Binary
-open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)
 import Relation.Binary.Props.DecTotalOrder as DTOProps
@@ -40,55 +39,54 @@ open import Relation.Nullary.Negation
 open Any.Membership-≡
 open RawMonad List.monad
 private
-  module ×⊎ {ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring ℓ)
-  module BagS {A : Set} = Setoid (Any.Membership-≡.Bag-equality {A})
+  module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
 
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
 
 map-∈⇿ : ∀ {A B : Set} {f : A → B} {y xs} →
          (∃ λ x → x ∈ xs × y ≡ f x) ⇿ y ∈ List.map f xs
-map-∈⇿ {f = f} {y} {xs} = begin
+map-∈⇿ {f = f} {y} {xs} =
   (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ ⟩
   Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ ⟩
   y ∈ List.map f xs           ∎
-  where open Inv.⇿-Reasoning
+  where open Inv.EquationalReasoning
 
 concat-∈⇿ : ∀ {A : Set} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
-concat-∈⇿ {x = x} {xss} = begin
-  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.⇿ $ ×⊎.*-comm _ _ ⟩
+concat-∈⇿ {x = x} {xss} =
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong $ ×⊎.*-comm _ _ ⟩
   (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ ⟩
   Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ ⟩
   x ∈ concat xss                ∎
-  where open Inv.⇿-Reasoning
+  where open Inv.EquationalReasoning
 
 >>=-∈⇿ : ∀ {A B : Set} {xs} {f : A → List B} {y} →
          (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
->>=-∈⇿ {xs = xs} {f} {y} = begin
+>>=-∈⇿ {xs = xs} {f} {y} =
   (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ ⟩
   Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ ⟩
   y ∈ (xs >>= f)              ∎
-  where open Inv.⇿-Reasoning
+  where open Inv.EquationalReasoning
 
 ⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
-⊛-∈⇿ fs {xs} {y} = begin
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.⇿ ∃∃⇿∃∃ ⟩
-  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.⇿ (Inv.id ×-⇿ Any⇿) ⟩
+⊛-∈⇿ fs {xs} {y} =
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
+  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong ((_ ∎) ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
   y ∈ fs ⊛ xs                                  ∎
-  where open Inv.⇿-Reasoning
+  where open Inv.EquationalReasoning
 
 ⊗-∈⇿ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
        (x ∈ xs × y ∈ ys) ⇿ (x , y) ∈ (xs ⊗ ys)
-⊗-∈⇿ {A} {B} {xs} {ys} {x} {y} = begin
+⊗-∈⇿ {A} {B} {xs} {ys} {x} {y} =
   (x ∈ xs × y ∈ ys)                ⇿⟨ ⊗⇿′ ⟩
-  Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ⇿⟨ Any-cong helper BagS.refl ⟩
+  Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ⇿⟨ Any-cong helper (_ ∎) ⟩
   (x , y) ∈ (xs ⊗ ys)              ∎
   where
-  open Inv.⇿-Reasoning
+  open Inv.EquationalReasoning
 
   helper : (p : A × B) → (x ≡ proj₁ p × y ≡ proj₂ p) ⇿ (x , y) ≡ p
   helper (x′ , y′) = record
