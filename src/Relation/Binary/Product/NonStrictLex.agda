@@ -109,9 +109,6 @@ private
         ; trans         = λ {x y z} →
                           ×-transitive po₁ {≤₂ = ≤₂} (trans po₂)
                                        {x} {y} {z}
-        ; ∼-resp-≈      = ×-≈-respects₂ (isEquivalence po₁)
-                                        (≤-resp-≈ po₁)
-                                        (≤-resp-≈ po₂)
         }
     ; antisym = λ {x y} →
                 ×-antisymmetric {≤₁ = ≤₁} po₁

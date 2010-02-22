@@ -175,9 +175,6 @@ private
                       ×-transitive
                         (isEquivalence pre₁) (∼-resp-≈ pre₁) (trans pre₁)
                         {≤₂ = ∼₂} (trans pre₂) {x} {y} {z}
-    ; ∼-resp-≈      = ×-≈-respects₂ (isEquivalence pre₁)
-                                        (∼-resp-≈ pre₁)
-                                        (∼-resp-≈ pre₂)
     }
     where open IsPreorder
 

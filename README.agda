@@ -181,12 +181,10 @@ import IO
 --       -- Reflexivity is expressed in terms of an underlying equality:
 --       reflexive     : _≈_ ⇒ _∼_
 --       trans         : Transitive _∼_
---       ∼-resp-≈      : _∼_ Respects₂ _≈_
 --
 --     module Eq = IsEquivalence isEquivalence
 --
---     refl : Reflexive _∼_
---     refl = reflexive Eq.refl
+--     ...
 --
 -- The Eq module in IsPreorder is not opened publicly, because it
 -- contains some fields which clash with fields or other definitions

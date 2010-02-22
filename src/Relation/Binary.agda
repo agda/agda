@@ -32,12 +32,15 @@ record IsPreorder {a ℓ₁ ℓ₂} {A : Set a}
     -- Reflexivity is expressed in terms of an underlying equality:
     reflexive     : _≈_ ⇒ _∼_
     trans         : Transitive _∼_
-    ∼-resp-≈      : _∼_ Respects₂ _≈_
 
   module Eq = IsEquivalence isEquivalence
 
   refl : Reflexive _∼_
   refl = reflexive Eq.refl
+
+  ∼-resp-≈ : _∼_ Respects₂ _≈_
+  ∼-resp-≈ = (λ x≈y z∼x → trans z∼x (reflexive x≈y))
+           , (λ x≈y x∼z → trans (reflexive $ Eq.sym x≈y) x∼z)
 
 record Preorder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   infix 4 _≈_ _∼_
@@ -68,7 +71,6 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
     { isEquivalence = PropEq.isEquivalence
     ; reflexive     = reflexive
     ; trans         = trans
-    ; ∼-resp-≈      = PropEq.resp₂ _≈_
     }
 
   preorder : Preorder c zero ℓ

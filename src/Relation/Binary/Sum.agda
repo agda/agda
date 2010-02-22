@@ -241,7 +241,6 @@ private
                       isEquivalence pre₂
     ; reflexive     = reflexive pre₁ ⊎-reflexive   reflexive pre₂
     ; trans         = trans     pre₁ ⊎-transitive  trans     pre₂
-    ; ∼-resp-≈      = ∼-resp-≈  pre₁ ⊎-≈-respects₂ ∼-resp-≈  pre₂
     }
     where open IsPreorder
 

@@ -28,8 +28,6 @@ InducedPreorder₁ P resp = record
     { isEquivalence = isEquivalence
     ; reflexive     = resp
     ; trans         = flip _∘′_
-    ; ∼-resp-≈      = (λ c₁≈c₂ c₃∼c₁ → resp c₁≈c₂ ∘ c₃∼c₁)
-                    , (λ c₁≈c₂ c₁∼c₃ → c₁∼c₃ ∘ resp (sym c₁≈c₂))
     }
   }
 
@@ -46,7 +44,5 @@ InducedPreorder₂ _R_ resp = record
     { isEquivalence = isEquivalence
     ; reflexive     = λ c₁≈c₂ → resp c₁≈c₂
     ; trans         = λ c₁∼c₂ c₂∼c₃ → c₂∼c₃ ∘ c₁∼c₂
-    ; ∼-resp-≈      = (λ c₁≈c₂ c₃∼c₁ → resp c₁≈c₂ ∘ c₃∼c₁)
-                    , (λ c₁≈c₂ c₁∼c₃ → c₁∼c₃ ∘ resp (sym c₁≈c₂))
     }
   }

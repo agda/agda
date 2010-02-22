@@ -219,7 +219,6 @@ private
     { isEquivalence = Pointwise.isEquivalence eq
     ; reflexive     = ≤-reflexive ≈ <
     ; trans         = transitive eq resp tr
-    ; ∼-resp-≈      = respects₂ eq resp
     }
 
   ≤-isPartialOrder : ∀ {≈ <} →

@@ -145,7 +145,6 @@ private
                       _×-transitive_ {∼₁ = ∼₁} {∼₂ = ∼₂}
                                      (trans pre₁) (trans pre₂)
                                      {x} {y} {z}
-    ; ∼-resp-≈      = ∼-resp-≈ pre₁ ×-≈-respects₂ ∼-resp-≈ pre₂
     }
     where open IsPreorder
 

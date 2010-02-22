@@ -58,7 +58,6 @@ isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
   ; trans         = trans
-  ; ∼-resp-≈      = resp₂ _≡_
   }
 
 preorder : ∀ {a} → Set a → Preorder _ _ _

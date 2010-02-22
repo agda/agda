@@ -140,7 +140,6 @@ isPreorder = record
   { isEquivalence = isEquivalence
   ; reflexive     = id
   ; trans         = trans
-  ; ∼-resp-≈      = resp₂ (λ x y → x ≅ y)
   }
 
 isPreorder-≡ : ∀ {a} {A : Set a} →
@@ -149,7 +148,6 @@ isPreorder-≡ = record
   { isEquivalence = PropEq.isEquivalence
   ; reflexive     = reflexive
   ; trans         = trans
-  ; ∼-resp-≈      = PropEq.resp₂ (λ x y → x ≅ y)
   }
 
 preorder : ∀ {a} → Set a → Preorder _ _ _

@@ -178,7 +178,6 @@ preorder k A = record
     { isEquivalence = P.isEquivalence
     ; reflexive     = refl _
     ; trans         = trans
-    ; ∼-resp-≈      = P.resp₂ (Rel k)
     }
   }
   where
@@ -243,8 +242,6 @@ private module S {k} {eq} {A : Set} = Setoid (setoid k {eq} A)
       { isEquivalence = S.isEquivalence
       ; reflexive     = ≅⇒
       ; trans         = Pre.trans
-      ; ∼-resp-≈      = (λ x≅y z≳x → Pre.trans z≳x (≅⇒ x≅y))
-                      , (λ x≅y x≳z → Pre.trans (≅⇒ (S.sym x≅y)) x≳z)
       }
     }
   }

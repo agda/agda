@@ -88,7 +88,6 @@ private
     { isEquivalence = isEquivalence Pre.isEquivalence
     ; reflexive     = reflexive     Pre.reflexive
     ; trans         = transitive    Pre.trans
-    ; ∼-resp-≈      = respects₂     Pre.∼-resp-≈
     } where module Pre = IsPreorder pre
 
   isDecEquivalence : ∀ {≈} → IsDecEquivalence ≈ →

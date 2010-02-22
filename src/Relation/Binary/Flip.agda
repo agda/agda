@@ -83,7 +83,6 @@ isPreorder {≈ = ≈} {∼} pre = record
   { isEquivalence = isEquivalence Pre.isEquivalence
   ; reflexive     = implies ≈ ∼ Pre.reflexive
   ; trans         = transitive ∼ Pre.trans
-  ; ∼-resp-≈      = respects₂ ∼ ≈ Pre.Eq.sym Pre.∼-resp-≈
   }
   where module Pre = IsPreorder pre
 

@@ -73,7 +73,6 @@ preorder T = record
     { isEquivalence = PropEq.isEquivalence
     ; reflexive     = reflexive
     ; trans         = _◅◅_
-    ; ∼-resp-≈      = PropEq.resp₂ (Star T)
     }
   }
   where

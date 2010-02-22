@@ -204,7 +204,6 @@ decTotalOrder = record
                   { isEquivalence = PropEq.isEquivalence
                   ; reflexive     = refl′
                   ; trans         = trans
-                  ; ∼-resp-≈      = PropEq.resp₂ _≤_
                   }
               ; antisym  = antisym
               }
