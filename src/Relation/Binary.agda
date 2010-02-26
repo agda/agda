@@ -142,6 +142,40 @@ record Poset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
   preorder = record { isPreorder = isPreorder }
 
 ------------------------------------------------------------------------
+-- Decidable partial orders
+
+record IsDecPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
+                         (_≈_ : Rel A ℓ₁) (_≤_ : Rel A ℓ₂) :
+                         Set (a ⊔ ℓ₁ ⊔ ℓ₂) where
+  infix 4 _≟_ _≤?_
+  field
+    isPartialOrder : IsPartialOrder _≈_ _≤_
+    _≟_            : Decidable _≈_
+    _≤?_           : Decidable _≤_
+
+  private
+    module PO = IsPartialOrder isPartialOrder
+  open PO public hiding (module Eq)
+
+  module Eq where
+
+    isDecEquivalence : IsDecEquivalence _≈_
+    isDecEquivalence = record
+      { isEquivalence = PO.isEquivalence
+      ; _≟_           = _≟_
+      }
+
+    open IsDecEquivalence isDecEquivalence public
+
+record DecPoset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
+  infix 4 _≈_ _≤_
+  field
+    Carrier           : Set c
+    _≈_               : Rel Carrier ℓ₁
+    _≤_               : Rel Carrier ℓ₂
+    isDecPartialOrder : IsDecPartialOrder _≈_ _≤_
+
+------------------------------------------------------------------------
 -- Strict partial orders
 
 record IsStrictPartialOrder {a ℓ₁ ℓ₂} {A : Set a}
