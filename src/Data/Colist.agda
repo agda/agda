@@ -21,6 +21,7 @@ open import Data.Sum     using (_⊎_; inj₁; inj₂)
 open import Function
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
+open import Relation.Binary.PropositionalEquality using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open RawMonad ¬¬-Monad
@@ -143,9 +144,8 @@ map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
 infix 4 _∈_
 
-data _∈_ {A : Set} : A → Colist A → Set where
-  here  : ∀ {x   xs}                   → x ∈ x ∷ xs
-  there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
+_∈_ : {A : Set} → A → Colist A → Set
+x ∈ xs = Any (_≡_ x) xs
 
 -- xs ⊆ ys means that xs is a subset of ys.
 
@@ -166,7 +166,7 @@ data _⊑_ {A : Set} : Colist A → Colist A → Set where
 
 ⊑⇒⊆ : {A : Set} → _⊑_ {A = A} ⇒ _⊆_
 ⊑⇒⊆ []          ()
-⊑⇒⊆ (x ∷ xs⊑ys) here         = here
+⊑⇒⊆ (x ∷ xs⊑ys) (here ≡x)    = here ≡x
 ⊑⇒⊆ (_ ∷ xs⊑ys) (there x∈xs) = there (⊑⇒⊆ (♭ xs⊑ys) x∈xs)
 
 -- The prefix relation forms a poset.
