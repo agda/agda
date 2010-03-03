@@ -175,6 +175,22 @@ record DecPoset c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) where
     _≤_               : Rel Carrier ℓ₂
     isDecPartialOrder : IsDecPartialOrder _≈_ _≤_
 
+  private
+    module DPO = IsDecPartialOrder isDecPartialOrder
+  open DPO public hiding (module Eq)
+
+  poset : Poset c ℓ₁ ℓ₂
+  poset = record { isPartialOrder = isPartialOrder }
+
+  open Poset poset public using (preorder)
+
+  module Eq where
+
+    decSetoid : DecSetoid c ℓ₁
+    decSetoid = record { isDecEquivalence = DPO.Eq.isDecEquivalence }
+
+    open DecSetoid decSetoid public
+
 ------------------------------------------------------------------------
 -- Strict partial orders
 
