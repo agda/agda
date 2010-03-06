@@ -107,11 +107,11 @@ data All {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
   just    : ∀ {x} (px : P x) → All P (just x)
   nothing : All P nothing
 
-IsJust : ∀ {A : Set} → Maybe A → Set
-IsJust = Any (λ _ → ⊤)
+IsJust : ∀ {a} {A : Set a} → Maybe A → Set a
+IsJust = Any (λ _ → Lift ⊤)
 
-IsNothing : ∀ {A} → Maybe A → Set
-IsNothing = All (λ _ → ⊥)
+IsNothing : ∀ {a} {A : Set a} → Maybe A → Set a
+IsNothing = All (λ _ → Lift ⊥)
 
 private
 
