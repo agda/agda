@@ -123,12 +123,11 @@ infixr 0 _⟨→⟩_
 
 _⟨×⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
         Pred A ℓ₁ → Pred B ℓ₂ → Pred (A × B) _
-(P ⟨×⟩ Q) p = P (proj₁ p) × Q (proj₂ p)
+P ⟨×⟩ Q = uncurry (λ p q → P p × Q q)
 
 _⟨⊎⟩_ : ∀ {a b ℓ} {A : Set a} {B : Set b} →
         Pred A ℓ → Pred B ℓ → Pred (A ⊎ B) _
-(P ⟨⊎⟩ Q) (inj₁ p) = P p
-(P ⟨⊎⟩ Q) (inj₂ q) = Q q
+P ⟨⊎⟩ Q = [ P , Q ]
 
 _⟨→⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
         Pred A ℓ₁ → Pred B ℓ₂ → Pred (A → B) _
