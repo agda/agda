@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- Pointwise "dependent products" of binary relations
+-- Pointwise lifting of binary relations to sigma types
 ------------------------------------------------------------------------
 
 {-# OPTIONS --universe-polymorphism #-}
@@ -24,7 +24,7 @@ import Relation.Binary.HeterogeneousEquality as H
 import Relation.Binary.PropositionalEquality as P
 
 ------------------------------------------------------------------------
--- Pointwise products
+-- Pointwise lifting
 
 infixr 4 _,_
 
