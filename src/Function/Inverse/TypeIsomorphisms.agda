@@ -280,3 +280,17 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
     ; right-inverse-of = λ _ → P.refl
     }
   }
+
+------------------------------------------------------------------------
+-- Implicit and explicit function spaces are isomorphic
+
+Π⇿Π : ∀ {a b} {A : Set a} {B : A → Set b} →
+      ((x : A) → B x) ⇿ ({x : A} → B x)
+Π⇿Π = record
+  { to         = P.→-to-⟶ λ f {x} → f x
+  ; from       = P.→-to-⟶ λ f x → f {x}
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → P.refl
+    ; right-inverse-of = λ _ → P.refl
+    }
+  }
