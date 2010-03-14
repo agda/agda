@@ -128,14 +128,14 @@ swap : ∀ {A B : Set} {P : A → B → Set} {xs ys} →
 swap {P = P} {xs} {ys} =
   Any (λ x → Any (P x) ys) xs                ⇿⟨ sym Any⇿ ⟩
   (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
-  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
+  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ _ ⟩
   (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong (λ {y} → Σ.cong (λ {x} →
     (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
     ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ⟨ ×⊎.*-cong ⟩ Inv.id ⟩
     ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
   (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎

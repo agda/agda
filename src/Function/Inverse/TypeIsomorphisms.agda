@@ -259,9 +259,9 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 ------------------------------------------------------------------------
 -- Some reordering lemmas
 
-ΠΠ⇿ΠΠ : {A B : Set} {P : A → B → Set} →
+ΠΠ⇿ΠΠ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
         ((x : A) (y : B) → P x y) ⇿ ((y : B) (x : A) → P x y)
-ΠΠ⇿ΠΠ = record
+ΠΠ⇿ΠΠ _ = record
   { to         = P.→-to-⟶ λ f x y → f y x
   ; from       = P.→-to-⟶ λ f y x → f x y
   ; inverse-of = record
@@ -270,9 +270,9 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
     }
   }
 
-∃∃⇿∃∃ : {A B : Set} {P : A → B → Set} →
+∃∃⇿∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
         (∃₂ λ x y → P x y) ⇿ (∃₂ λ y x → P x y)
-∃∃⇿∃∃ = record
+∃∃⇿∃∃ _ = record
   { to         = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; from       = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; inverse-of = record

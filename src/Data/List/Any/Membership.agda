@@ -72,7 +72,7 @@ concat-∈⇿ {x = x} {xss} =
 ⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
 ⊛-∈⇿ fs {xs} {y} =
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong ∃∃⇿∃∃ ⟩
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
   (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong ((_ ∎) ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
