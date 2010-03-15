@@ -270,6 +270,16 @@ remove-linear {xs = xs} P m = record
                   (P.sym (right-inverse-of (position⊸ m) p₁))
                   p)
 
+-- Linear endomorphisms are identity functions if bag equality is
+-- used.
+
+linear-identity :
+  ∀ {c} {C : Container c} {X} {xs : ⟦ C ⟧ X} (m : C ⊸ C) →
+  ⟪ m ⟫⊸ xs ≈[ bag ] xs
+linear-identity {xs = xs} m {x} =
+  x ∈ ⟪ m ⟫⊸ xs  ⇿⟨ remove-linear (Lift ∘ _≡_ x) m ⟩
+  x ∈        xs  ∎
+
 -- If join can be expressed using a linear morphism (in a certain
 -- way), then it can be absorbed by the predicate.
 
