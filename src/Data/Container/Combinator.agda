@@ -15,7 +15,7 @@ open import Function as F hiding (id; const) renaming (_∘_ to _⟨∘⟩_)
 open import Function.Inverse using (_⇿_)
 open import Level
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; _≗_; refl)
+  using (_≗_; refl)
 
 ------------------------------------------------------------------------
 -- Combinators
@@ -92,8 +92,7 @@ module Identity where
       }
     }
 
-module Constant (ext : ∀ {ℓ} {A B : Set ℓ} {f g : A → B} →
-                       (∀ x → f x ≡ g x) → f ≡ g) where
+module Constant (ext : ∀ {ℓ} → P.Extensionality ℓ) where
 
   correct : ∀ {ℓ} (X : Set ℓ) {Y} → ⟦ const X ⟧ Y ⇿ F.const X Y
   correct X {Y} = record
@@ -137,8 +136,7 @@ module Composition where
     to∘from : to ⟨∘⟩ from ≗ F.id
     to∘from (s , f) = refl
 
-module Product (ext : ∀ {ℓ} {A B : Set ℓ} {f g : A → B} →
-                      (∀ x → f x ≡ g x) → f ≡ g) where
+module Product (ext : ∀ {ℓ} → P.Extensionality ℓ) where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
             ⟦ C₁ × C₂ ⟧ X ⇿ (⟦ C₁ ⟧ X ⟨×⟩ ⟦ C₂ ⟧ X)

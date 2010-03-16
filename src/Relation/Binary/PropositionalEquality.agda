@@ -126,3 +126,13 @@ module ≡-Reasoning where
       open EqR (setoid A) public
         hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
   open Dummy public
+
+------------------------------------------------------------------------
+-- Definition of functional extensionality
+
+-- If _≡_ were extensional, then the following statement could be
+-- proved.
+
+Extensionality : ∀ ℓ → Set (suc ℓ)
+Extensionality ℓ =
+  {A B : Set ℓ} {f g : A → B} → (∀ x → f x ≡ g x) → f ≡ g

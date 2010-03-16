@@ -52,9 +52,7 @@ private
   -- _≡_ would coincide.
 
   ≈⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
-        (ext : {A B : Set c} {f g : A → B} →
-               (∀ x → f x ≡ g x) → f ≡ g) →
-        xs ≈ ys → xs ≡ ys
+        P.Extensionality c → xs ≈ ys → xs ≡ ys
   ≈⇒≡ {xs = s , f} {ys = .s , g} ext (refl , f≈g) =
     P.cong (_,_ s) (ext f≈g)
 
