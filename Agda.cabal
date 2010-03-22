@@ -258,9 +258,9 @@ library
                     Agda.Auto.Convert
                     Agda.Auto.Typecheck
                     Agda.Auto.NarrowingSearch
-                    Agda.Auto.Print
                     Agda.Auto.Syntax
                     Agda.Auto.SearchControl
+                    Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
   if true
     ghc-options:    -w -Werror

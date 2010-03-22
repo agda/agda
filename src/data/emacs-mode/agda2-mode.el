@@ -592,7 +592,7 @@ of new goals."
 
 (defun agda2-auto ()
  "Simple proof search" (interactive)
- (agda2-goal-cmd "cmd_auto"))
+ (agda2-goal-cmd "cmd_auto" 'goal))
 
 (defun agda2-make-case ()
   "Refine the pattern var given in the goal.

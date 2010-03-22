@@ -401,15 +401,25 @@ cmd_refine_or_intro ii rng s =
 
 cmd_auto :: GoalCommand
 cmd_auto ii rng s = Interaction False $ do
-  (xs, msg) <- Auto.auto ii rng s
-  mapM_ (\(ii, s) -> do
-    liftIO $ modifyIORef theState $ \s ->
-      s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
-    liftIO $ LocIO.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
-   ) xs
-  case msg of
-   Nothing -> command cmd_metas >> return ()
-   Just msg -> display_info "*Auto*" msg
+  (res, msg) <- Auto.auto ii rng s
+  case res of
+   Left xs -> do
+    mapM_ (\(ii, s) -> do
+      liftIO $ modifyIORef theState $ \s ->
+        s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
+      liftIO $ LocIO.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
+     ) xs
+    case msg of
+     Nothing -> command cmd_metas >> return ()
+     Just msg -> display_info "*Auto*" msg
+   Right cs -> do
+    case msg of
+     Nothing -> return ()
+     Just msg -> display_info "*Auto*" msg
+    liftIO $ LocIO.putStrLn $ response $
+     L [ A "agda2-make-case-action",
+         Q $ L $ List.map (A . quote) cs
+       ]
   return Nothing
 
 -- | Sorts interaction points based on their ranges.
