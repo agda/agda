@@ -454,7 +454,8 @@ inferDef mkTerm x =
 --   without looking at the arguments to the constructor.
 checkConstructorApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
 checkConstructorApplication org t c args = do
-
+  checkHead t args
+{-
   TelV gamma d <- telView t
 
   -- Eta expand the constructor applications so it's fully applied
@@ -514,7 +515,7 @@ checkConstructorApplication org t c args = do
 
       -- Check the parameters. Just means checking that any given
       -- parameters are equal to the expected parameters.
-      checkParams pars parTel $ do
+      -- checkParams pars parTel $ do
 
       fallback
 
@@ -526,6 +527,7 @@ checkConstructorApplication org t c args = do
   --  * Check the arguments
   --  * Compare the computed indices from the constructor with the given
   --    indices
+-}
   where
     checkHead t args = checkHeadApplication org t (HeadCon [c]) args
 
