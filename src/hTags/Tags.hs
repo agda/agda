@@ -120,21 +120,24 @@ tagsN :: TagName name => name -> [Tag]
 tagsN = tags . Name
 
 instance TagName name => HasTags (HsModule name) where
-  tags (HsModule _ export _ decls _ _ _) = tags decls -- TODO: filter exports
+  tags HsModule{ hsmodExports = export
+               , hsmodDecls   = decls
+               } = tags decls -- TODO: filter exports
 
 instance TagName name => HasTags (HsDecl name) where
   tags d = case d of
-    TyClD d   -> tags d
-    ValD d    -> tags d
-    SigD d    -> tags d
-    ForD d    -> tags d
-    DocD _    -> []
-    SpliceD _ -> []
-    RuleD _   -> []
---    DeprecD _ -> []
-    DefD _    -> []
-    InstD _   -> []
-    DerivD _  -> []
+    TyClD d    -> tags d
+    ValD d     -> tags d
+    SigD d     -> tags d
+    ForD d     -> tags d
+    DocD _     -> []
+    SpliceD{}  -> []
+    RuleD{}    -> []
+    DefD{}     -> []
+    InstD{}    -> []
+    DerivD{}   -> []
+    WarningD{} -> []
+    AnnD{}     -> []
 
 instance TagName name => HasTags (TyClDecl name) where
   tags d = tagsLN (tcdLName d) ++
@@ -183,6 +186,8 @@ instance TagName name => HasTags (Pat name) where
     NPat{}                 -> []
     LitPat{}               -> []
     WildPat{}              -> []
+    ViewPat{}              -> []
+    QuasiQuotePat{}        -> []
 
 instance (HasTags arg, HasTags rec) => HasTags (HsConDetails arg rec) where
   tags d = case d of
@@ -203,6 +208,7 @@ instance TagName name => HasTags (Sig name) where
     InlineSig{}   -> []
     SpecSig{}     -> []
     SpecInstSig{} -> []
+    IdSig{}       -> []
 
 instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of
