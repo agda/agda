@@ -57,3 +57,4 @@ examples/MAlonzo/MAlonzo$
 examples/MAlonzo/main$
 test/fail/MAlonzo$
 test/compiler/(Main|MAlonzo)$
+^src/agda-pkg/dist$
