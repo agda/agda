@@ -4,7 +4,7 @@ include $(TOP)/mk/paths.mk
 
 include tests.mk
 
-TAG			= $(shell echo `hostname -s`-`date +"%Y%m%d-%H.%M"`)
+TAG			= $(shell echo `date +"%Y%m%d-%H.%M"`-`hostname -s`)
 LOG_DIR = logs
 PROC_INFO = $(shell which procinfo)
 HOST_INFO = $(shell which hostinfo)

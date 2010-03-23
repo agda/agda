@@ -1,6 +1,6 @@
 
 # Tests in categories
-cat			 = categories/Categories.agda --ignore-interfaces +RTS -K32M -RTS
+cat			 = categories/Categories.agda -icategories --ignore-interfaces +RTS -K32M -RTS
 catTests = cat
 
 # Tests in ac
@@ -19,7 +19,7 @@ cwf = cwf/CwF.agda --ignore-interfaces -icwf -v0
 cwfTests = cwf
 
 # Parsing monad
-monad = monad/Monad.agda -i../std-lib
+monad = monad/Monad.agda -i../std-lib/src -imonad
 monadTests = monad
 
 # All tests
