@@ -142,9 +142,9 @@ instance HasFresh Integer FreshThings where
 	    i = fInteger s
 
 instance HasFresh i FreshThings => HasFresh i TCState where
-    nextFresh s = (i, s { stFreshThings = f })
+    nextFresh s = ((,) $! i) $! s { stFreshThings = f }
 	where
-	    (i,f) = nextFresh $ stFreshThings s
+	    (i, f) = nextFresh $ stFreshThings s
 
 ---------------------------------------------------------------------------
 -- ** Interface
