@@ -339,14 +339,14 @@ abortAssign =
 
 handleAbort :: MonadTCM tcm => TCM a -> TCM a -> tcm a
 handleAbort h m = liftTCM $
-    m `catchError` \e ->
+    m `catchError_` \e ->
 	case errError e of
 	    AbortAssign s -> do put s; h
             PatternErr{}  -> do
-              reportSLn "tc.meta.assign" 50 "Pattern violation!"
+              -- reportSLn "tc.meta.assign" 50 "Pattern violation!"
               throwError e
 	    _		  -> do
-              reportSLn "tc.meta.assign" 50 "Some exception"
+              -- reportSLn "tc.meta.assign" 50 "Some exception"
               throwError e
 
 -- | Assign to an open metavar.

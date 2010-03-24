@@ -32,7 +32,7 @@ import Agda.Utils.Impossible
 --
 catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constraints
 catchConstraint c v = liftTCM $
-   catchError v $ \err ->
+   catchError_ v $ \err ->
    case errError err of
        PatternErr s -> put s >> buildConstraint c
        _	    -> throwError err
