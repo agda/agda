@@ -14,6 +14,7 @@ import Data.Set as Set
 import Data.Generics
 import Data.Foldable
 import Data.Traversable
+import Data.IORef
 import System.Time
 
 import Agda.Syntax.Common
@@ -908,15 +909,15 @@ instance Exception TCErr
 -- * Type checking monad transformer
 ---------------------------------------------------------------------------
 
-newtype TCMT m a = TCM { unTCM :: TCState -> TCEnv -> m (a, TCState) }
+newtype TCMT m a = TCM { unTCM :: IORef TCState -> TCEnv -> m a }
 
 instance MonadIO m => MonadReader TCEnv (TCMT m) where
-  ask = TCM $ \s e -> return (e, s)
+  ask = TCM $ \_ e -> return e
   local f (TCM m) = TCM $ \s e -> m s (f e)
 
 instance MonadIO m => MonadState TCState (TCMT m) where
-  get   = TCM $ \s _ -> return (s, s)
-  put s = TCM $ \_ _ -> return ((), s)
+  get   = TCM $ \s _ -> liftIO $ readIORef s
+  put s = TCM $ \r _ -> liftIO $ writeIORef r s
 
 type TCM = TCMT IO
 
@@ -928,18 +929,19 @@ class ( Applicative tcm, MonadIO tcm
 
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . throwIO
-  catchError m h = TCM $ \s e ->
-    unTCM m s e `E.catch` \err -> unTCM (h err) s e
+  catchError m h = TCM $ \r e -> do
+    -- s <- readIORef r
+    unTCM m r e `E.catch` \err -> {-writeIORef r s >>-} unTCM (h err) r e
 
 catchError_ m h = TCM $ \s e ->
   unTCM m s e
-  `E.catch` \err -> unTCM (h err) (error "catchError_") e
+  `E.catch` \err -> unTCM (h err) s e
 
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
 mapTCMT f (TCM m) = TCM $ \s e -> f (m s e)
 
-pureTCM :: Monad m => (TCState -> TCEnv -> a) -> TCMT m a
-pureTCM f = TCM $ \s e -> return (f s e, s)
+pureTCM :: MonadIO m => (TCState -> TCEnv -> a) -> TCMT m a
+pureTCM f = TCM $ \r e -> liftIO $ readIORef r >>= \s -> return (f s e)
 
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
@@ -948,15 +950,15 @@ instance (Error err, MonadTCM tcm) => MonadTCM (ErrorT err tcm) where
   liftTCM = lift . liftTCM
 
 instance MonadTrans TCMT where
-    lift m = TCM $ \s _ -> m >>= \x -> return (x, s)
+    lift m = TCM $ \_ _ -> m
 
 -- We want a special monad implementation of fail.
 {-# SPECIALIZE instance Monad TCM #-}
 instance MonadIO m => Monad (TCMT m) where
-    return x = TCM $ \s _ -> return (x, s)
-    m >>= k = TCM $ \s e -> do
-                (x, s') <- unTCM m s e
-                unTCM (k x) s' e
+    return x = TCM $ \_ _ -> return x
+    m >>= k = TCM $ \r e -> do
+                x <- unTCM m r e
+                unTCM (k x) r e
     fail    = internalError
 
 instance MonadIO m => Functor (TCMT m) where
@@ -967,11 +969,11 @@ instance MonadIO m => Applicative (TCMT m) where
     (<*>) = ap
 
 instance MonadIO m => MonadIO (TCMT m) where
-  liftIO m = TCM $ \s e ->
-              do let r = getRange $ stTrace s
-                 liftIO $ wrap r $ do
+  liftIO m = TCM $ \s e -> liftIO $ do
+                 r <- getRange . stTrace <$> readIORef s
+                 wrap r $ do
                  x <- m
-                 x `seq` return (x, s)
+                 x `seq` return x
     where
       wrap r m = failOnException handleException
                $ E.catch m (handleIOException r)
@@ -997,6 +999,8 @@ typeError err = liftTCM $ do
 runTCM :: TCMT IO a -> IO (Either TCErr a)
 runTCM m = (Right <$> runTCM' m) `E.catch` (return . Left)
 
-runTCM' :: Monad m => TCMT m a -> m a
-runTCM' m = liftM fst (unTCM m initState initEnv)
+runTCM' :: MonadIO m => TCMT m a -> m a
+runTCM' m = do
+  s <- liftIO $ newIORef initState
+  unTCM m s initEnv
 
