@@ -33,7 +33,6 @@ import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
-import Agda.Utils.Trace
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -63,8 +62,6 @@ data TCState =
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
-	 , stTrace	       :: CallTrace
-	     -- ^ record what is happening (for error msgs)
 	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stLocalBuiltins     :: BuiltinThings PrimFun
          , stImportedBuiltins  :: BuiltinThings PrimFun
@@ -101,7 +98,6 @@ initState =
 	 , stPersistentOptions = defaultOptions
 	 , stPragmaOptions     = defaultOptions
 	 , stStatistics	       = Map.empty
-	 , stTrace	       = noTrace
 	 , stMutualBlocks      = Map.empty
 	 , stLocalBuiltins     = Map.empty
 	 , stImportedBuiltins  = Map.empty
@@ -192,7 +188,6 @@ data Interface = Interface
 data Closure a = Closure { clSignature  :: Signature
 			 , clEnv	:: TCEnv
 			 , clScope	:: ScopeInfo
-			 , clTrace	:: CallTrace
 			 , clValue	:: a
 			 }
     deriving (Typeable, Data)
@@ -208,8 +203,7 @@ buildClosure x = liftTCM $ do
     env   <- ask
     sig   <- gets stSignature
     scope <- gets stScope
-    trace <- gets stTrace
-    return $ Closure sig env scope trace x
+    return $ Closure sig env scope x
 
 ---------------------------------------------------------------------------
 -- ** Constraints
@@ -531,11 +525,6 @@ type Statistics = Map String Int
 -- ** Trace
 ---------------------------------------------------------------------------
 
-type CallTrace = Trace (Closure Call)
-
-noTrace :: CallTrace
-noTrace = TopLevel []
-
 data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | forall a. CheckPattern A.Pattern Telescope Type (Maybe a)
 	  | CheckLetBinding A.LetBinding (Maybe ())
@@ -571,20 +560,6 @@ instance Data Call where
   dataTypeOf _  = mkDataType "Call" []
   toConstr   x  = mkConstr (dataTypeOf x) "Dummy" [] Prefix
   gunfold k z _ = __IMPOSSIBLE__
-
-instance HasRange a => HasRange (Trace a) where
-    getRange (TopLevel _)      = noRange
-    getRange (Current c par _ _)
-      | r == noRange = getRange par
-      | otherwise    = r
-      where r = getRange c
-
-instance HasRange a => HasRange (ParentCall a) where
-  getRange NoParent = noRange
-  getRange (Parent c par _)
-    | r == noRange = getRange par
-    | otherwise	   = r
-    where r = getRange c
 
 instance HasRange Call where
     getRange (CheckClause _ c _)                   = getRange c
@@ -666,6 +641,9 @@ data TCEnv =
           , envReifyInteractionPoints :: Bool
                 -- ^ should we try to recover interaction points when reifying?
                 --   disabled when generating types for with functions
+          , envRange :: Range
+          , envCall  :: Maybe (Closure Call)
+                -- ^ what we're doing at the moment
 	  }
     deriving (Typeable, Data)
 
@@ -680,6 +658,8 @@ initEnv = TCEnv { envContext	         = []
                 , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
+                , envRange                  = noRange
+                , envCall                   = Nothing
 		}
 
 ---------------------------------------------------------------------------
@@ -886,18 +866,18 @@ instance Show TCErr where
   show = show . errError
 
 instance Show TCErr' where
-    show (TypeError _ e) = show (getRange $ clTrace e) ++ ": " ++ show (clValue e)
+    show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
     show (IOException r e) = show r ++ ": " ++ show e
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
 
 instance HasRange TCErr' where
-    getRange (TypeError _ cl)  = getRange $ clTrace cl
+    getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
-    getRange (PatternErr s)    = getRange $ stTrace s
-    getRange (AbortAssign s)   = getRange $ stTrace s
+    getRange (PatternErr s)    = noRange
+    getRange (AbortAssign s)   = noRange
 
 instance HasRange TCErr where
     getRange = getRange . errError
@@ -931,6 +911,7 @@ instance MonadError TCErr (TCMT IO) where
   catchError m h = TCM $ \s e ->
     unTCM m s e `E.catch` \err -> unTCM (h err) s e
 
+catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
 catchError_ m h = TCM $ \s e ->
   unTCM m s e
   `E.catch` \err -> unTCM (h err) (error "catchError_") e
@@ -968,7 +949,7 @@ instance MonadIO m => Applicative (TCMT m) where
 
 instance MonadIO m => MonadIO (TCMT m) where
   liftIO m = TCM $ \s e ->
-              do let r = getRange $ stTrace s
+              do let r = envRange e
                  liftIO $ wrap r $ do
                  x <- m
                  x `seq` return (x, s)

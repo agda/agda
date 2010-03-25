@@ -361,14 +361,12 @@ getInterface' x includeStateChanges =
               vs       <- getVisitedModules
               ds       <- getDecodedModules
               opts     <- stPersistentOptions <$> get
-              trace    <- getTrace
               isig     <- getImportedSignature
               ibuiltin <- gets stImportedBuiltins
               -- Every interface is treated in isolation.
               r <- liftIO $ runTCM $
                      withImportPath ms $ do
                        setDecodedModules ds
-                       setTrace trace
                        setCommandLineOptions PersistentOptions opts
                        modify $ \s -> s { stModuleToSource = mf }
                        setVisitedModules vs

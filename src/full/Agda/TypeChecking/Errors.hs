@@ -29,7 +29,6 @@ import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName
 import Agda.Utils.Monad
-import Agda.Utils.Trace
 import Agda.Utils.Size
 
 #include "../undefined.h"
@@ -56,10 +55,9 @@ prettyError err = liftTCM $ liftM show $
 sayWhere :: (MonadTCM tcm, HasRange a) => a -> tcm Doc -> tcm Doc
 sayWhere x d = text (show $ getRange x) $$ d
 
-sayWhen :: MonadTCM tcm => CallTrace -> tcm Doc -> tcm Doc
-sayWhen tr m = case matchCall interestingCall tr of
-  Nothing -> sayWhere tr m
-  Just c  -> sayWhere tr (m $$ prettyTCM c)
+sayWhen :: MonadTCM tcm => Range -> Maybe (Closure Call) -> tcm Doc -> tcm Doc
+sayWhen r Nothing   m = sayWhere r m
+sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM (clValue cl))
 
 panic :: MonadTCM tcm => String -> tcm Doc
 panic s = fwords $ "Panic: " ++ s
@@ -177,7 +175,7 @@ instance PrettyTCM TCErr where
 	TypeError s e -> do
 	    s0 <- get
 	    put s
-	    d <- sayWhen (clTrace e) $ prettyTCM e
+	    d <- sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
 	    put s0
 	    return d
 	Exception r s   -> sayWhere r $ fwords s
@@ -187,7 +185,6 @@ instance PrettyTCM TCErr where
 
 instance PrettyTCM TypeError where
     prettyTCM err = do
-	trace <- getTrace
 	case err of
 	    InternalError s  -> panic s
 	    NotImplemented s -> fwords $ "Not implemented: " ++ s
@@ -626,12 +623,4 @@ instance PrettyTCM Call where
 		D.NiceOpen r x dir		       -> C.Open r x dir
 		D.NiceImport r x as op dir	       -> C.Import r x as op dir
 		D.NicePragma _ p		       -> C.Pragma p
-
-interestingCall :: Closure Call -> Maybe (Closure Call)
-interestingCall cl = case clValue cl of
-    InferVar _ _	      -> Nothing
-    InferDef _ _ _	      -> Nothing
-    CheckArguments _ [] _ _ _ -> Nothing
-    SetRange _ _	      -> Nothing
-    _			      -> Just cl
 
