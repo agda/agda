@@ -23,6 +23,7 @@ import qualified Agda.Syntax.Abstract.Pretty as P
 import qualified Agda.Syntax.Concrete.Pretty as P
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
+import Agda.Syntax.Scope.Base (ScopeInfo(..))
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -57,7 +58,7 @@ sayWhere x d = text (show $ getRange x) $$ d
 
 sayWhen :: MonadTCM tcm => Range -> Maybe (Closure Call) -> tcm Doc -> tcm Doc
 sayWhen r Nothing   m = sayWhere r m
-sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM (clValue cl))
+sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
 
 panic :: MonadTCM tcm => String -> tcm Doc
 panic s = fwords $ "Panic: " ++ s
