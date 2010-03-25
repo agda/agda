@@ -388,18 +388,10 @@ getInterface' x includeStateChanges =
                          addImportedThings isig ibuiltin hsImports)
 
               case r of
-                  Left err                       -> throwError err
-                  Right (result@(_, wt), update) -> do
+                  Left err               -> throwError err
+                  Right (result, update) -> do
                     update
-                    case wt of
-                      Left  w -> return (False, result)
-                      Right t -> do
-                        let ifile = filePath $ toIFile file
-                        mi <- readInterface ifile
-                        case mi of
-                          Nothing -> typeError $ GenericError $
-                                       "Unable to read " ++ ifile ++ "."
-                          Just i  -> return (False, (i, wt))
+                    return (False, result)
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
