@@ -1,8 +1,5 @@
 {-# LANGUAGE PatternGuards #-}
 
--- This program requires that the filepath and FileManip packages from
--- Hackage are installed.
-
 import qualified Data.List as List
 import Control.Applicative
 import System.Environment

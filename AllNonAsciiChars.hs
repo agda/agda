@@ -1,10 +1,7 @@
 -- | This module extracts all the non-ASCII characters used by the
 -- library code (along with how many times they are used).
---
--- The implementation relies on the FileManip library which is
--- available from Hackage.
 
-module AllNonAsciiChars where
+module Main where
 
 import qualified Data.List as L
 import Data.Char

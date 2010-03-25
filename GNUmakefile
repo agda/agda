@@ -5,4 +5,5 @@ test: Everything.agda
 
 .PHONY: Everything.agda
 Everything.agda:
-	runhaskell GenerateEverything.hs
+	cabal install
+	GenerateEverything

@@ -1,0 +1,19 @@
+name:            lib
+version:         0.0
+cabal-version:   >= 1.8
+build-type:      Simple
+description:     Helper programs.
+tested-with:     GHC == 6.12.1
+
+executable GenerateEverything
+  hs-source-dirs:   .
+  main-is:          GenerateEverything.hs
+  build-depends:    base == 4.2.*,
+                    FileManip == 0.3.*,
+                    filepath == 1.1.*
+
+executable AllNonAsciiChars
+  hs-source-dirs:   .
+  main-is:          AllNonAsciiChars.hs
+  build-depends:    base == 4.2.*,
+                    FileManip == 0.3.*
