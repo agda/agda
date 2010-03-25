@@ -278,7 +278,7 @@ getInterface' x includeStateChanges =
       (if uptodate then "" else "not ") ++ "up-to-date."
 
     (stateChangesIncluded, (i, wt)) <-
-      if uptodate then skip x file else typeCheck file
+      if uptodate then skip file else typeCheck file
 
     -- Ensure that the given module name matches the one in the file.
     let topLevelName = toTopLevelModuleName $ iModuleName i
@@ -301,7 +301,7 @@ getInterface' x includeStateChanges =
     return (i, wt)
 
     where
-	skip x file = do
+	skip file = do
 	    -- Examine the mtime of the interface file. If it is newer than the
 	    -- stored version (in stDecodedModules), or if there is no stored version,
 	    -- read and decode it. Otherwise use the stored version.
