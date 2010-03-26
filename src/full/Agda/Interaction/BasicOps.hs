@@ -509,10 +509,9 @@ introTactic ii = do
             (return [ f | (NotHidden, f) <- hfs ])
       return
         [ concat $
-            "record " :
-            zipWith (\c f -> unwords [c, show f, "= ?"])
-                    ("{":repeat ";") fs ++
-            [" }"]
+            "record {" :
+            intersperse ";" (map (\ f -> show f ++ " = ?") fs) ++
+            ["}"]
         ]
 
 -- | Runs the given computation as if in an anonymous goal at the end
