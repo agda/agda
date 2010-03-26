@@ -533,7 +533,7 @@ assignS x args s =
 --
 checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Arg Nat]
 checkArgs x args = do
-  args <- etaContract =<< instantiateFull args
+  args <- instantiateFull args
   case validParameters args of
     Just ids -> return $ reverse ids
     Nothing  -> patternViolation

@@ -9,7 +9,7 @@ import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Records
+import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -36,7 +36,11 @@ binAppView t = case t of
     app f xs = App (f $ init xs) (last xs)
 
 etaContract :: (MonadTCM tcm, TermLike a) => a -> tcm a
-etaContract = traverseTermM eta
+etaContract = traverseTermM etaOnce
+  where
+
+etaOnce :: (MonadTCM tcm) => Term -> tcm Term
+etaOnce v = ignoreAbstractMode $ eta v
   where
     eta t@(Lam h b) = case binAppView (absBody b) of
       App u (Arg _ (Var 0 []))

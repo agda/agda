@@ -169,6 +169,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                      t' <- reduce =<< instantiateFull t
                      equality <- primEquality >>= \eq -> return $ case eq of
                         Lam Hidden (Abs _ (Def equality _)) -> equality
+                        Def equality _                      -> equality
                         _                                   -> __IMPOSSIBLE__
                      reflCon <- primRefl >>= \refl -> return $ case refl of
                          Con reflCon [] -> reflCon

@@ -169,14 +169,17 @@ getVerbosity = optVerbose <$> commandLineOptions
 
 type VerboseKey = String
 
--- | Precondition: The level must be non-negative.
-verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
-verboseS k n action | n < 0     = __IMPOSSIBLE__
-                    | otherwise = do
+hasVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm Bool
+hasVerbosity k n | n < 0     = __IMPOSSIBLE__
+                 | otherwise = do
     t <- getVerbosity
     let ks = wordsBy (`elem` ".:") k
 	m  = maximum $ 0 : Trie.lookupPath ks t
-    when (n <= m) action
+    return (n <= m)
+
+-- | Precondition: The level must be non-negative.
+verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
+verboseS k n action = whenM (hasVerbosity k n) action
 
 reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
 reportS k n s = verboseS k n $ liftIO $ LocIO.putStr s
@@ -186,4 +189,14 @@ reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s
 
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
 reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
+
+verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm a -> tcm a
+verboseBracket k n s m = do
+  v <- hasVerbosity k n
+  if not v then m
+           else do
+    liftIO $ LocIO.putStrLn $ "{ " ++ s
+    x <- m
+    liftIO $ LocIO.putStrLn "}"
+    return x
 

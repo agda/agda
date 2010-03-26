@@ -84,7 +84,9 @@ solveConstraints cs = do
     cs <- concat <$> mapM (withConstraint solveConstraint) cs
     n' <- length <$> getInstantiatedMetas
     reportSDoc "tc.constr.solve" 70 $
-      sep [ text "new constraints", nest 2 $ prettyTCM cs ]
+      sep [ text "new constraints", nest 2 $ prettyTCM cs
+          , nest 2 $ text $ "progress: " ++ show n' ++ " --> " ++ show n
+          ]
     cs <- if (n' > n)
 	then solveConstraints cs -- Go again if we made progress
 	else return cs

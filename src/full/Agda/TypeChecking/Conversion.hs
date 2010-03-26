@@ -28,6 +28,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.EtaContract
 
 import Agda.Utils.Monad
 
@@ -63,6 +64,7 @@ equalType = compareType CmpEq
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareTerm cmp a m n =
+  verboseBracket "tc.conv.term" 5 "compareTerm" $
   catchConstraint (ValueCmp cmp a m n) $ do
     a'       <- reduce a
     reportSDoc "tc.conv.term" 10 $ fsep
@@ -118,6 +120,7 @@ compareTerm cmp a m n =
 
 compareTel :: MonadTCM tcm => Comparison -> Telescope -> Telescope -> tcm Constraints
 compareTel cmp tel1 tel2 =
+  verboseBracket "tc.conv.tel" 5 "compareTel" $
   catchConstraint (TelCmp cmp tel1 tel2) $ case (tel1, tel2) of
     (EmptyTel, EmptyTel) -> return []
     (EmptyTel, _)        -> bad
@@ -147,6 +150,7 @@ compareTel cmp tel1 tel2 =
 --
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom cmp t m n =
+    verboseBracket "tc.conv.atom" 5 "compareAtom" $
     catchConstraint (ValueCmp cmp t m n) $ do
       mb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB m
       nb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB n
@@ -277,7 +281,8 @@ compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Args -> Args -> tcm Constra
 compareArgs _ _ [] [] = return []
 compareArgs _ _ [] (_:_) = __IMPOSSIBLE__
 compareArgs _ _ (_:_) [] = __IMPOSSIBLE__
-compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
+compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
+    verboseBracket "tc.conv.args" 5 "compareArgs" $ do
     let (pol, pols) = nextPolarity pols0
     a <- reduce a
     catchConstraint (ArgsCmp pols0 a (arg1 : args1) (arg2 : args2)) $ do
@@ -332,6 +337,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) = do
 -- | Equality on Types
 compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
+    verboseBracket "tc.conv.type" 5 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
 	reportSDoc "tc.conv.type" 9 $ vcat
           [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]

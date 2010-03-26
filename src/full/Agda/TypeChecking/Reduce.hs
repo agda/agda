@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.EtaContract
 
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 
@@ -476,7 +477,7 @@ instance InstantiateFull Type where
       El <$> instantiateFull s <*> instantiateFull t
 
 instance InstantiateFull Term where
-    instantiateFull v = do
+    instantiateFull v = etaOnce =<< do
       v <- instantiate v
       case v of
           Var n vs   -> Var n <$> instantiateFull vs

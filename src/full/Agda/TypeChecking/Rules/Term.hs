@@ -174,6 +174,7 @@ checkArguments' exph r args t0 t e k = do
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
+    verboseBracket "tc.term.expr.top" 5 "checkExpr" $
     traceCall (CheckExpr e t) $ localScope $ do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
