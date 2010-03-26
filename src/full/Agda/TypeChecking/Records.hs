@@ -149,8 +149,9 @@ isSingletonRecord r ps =
     TelV _ t <- telView $ unArg arg
     t <- reduceB $ unEl t
     case t of
-      Blocked m _           -> return (Left m)
-      NotBlocked (Def r ps) ->
+      Blocked m _            -> return (Left m)
+      NotBlocked (MetaV m _) -> return (Left m)
+      NotBlocked (Def r ps)  ->
         ifM (not <$> isRecord r) (return $ Right False) $ do
           isRec <- isSingletonRecord r ps
           case isRec of
