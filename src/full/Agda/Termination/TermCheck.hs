@@ -122,8 +122,15 @@ termMutual i ts ds = if names == [] then return [] else
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
 
+     guardingTypeConstructors <-
+       optGuardingTypeConstructors <$> commandLineOptions
+
      -- first try to termination check ignoring the dot patterns
-     let conf = DBPConf { useDotPatterns = False, withSizeSuc = suc }
+     let conf = DBPConf
+           { useDotPatterns           = False
+           , guardingTypeConstructors = guardingTypeConstructors
+           , withSizeSuc              = suc
+           }
      calls1 <- collect conf{ useDotPatterns = False }
      reportS "term.lex" 20 $ unlines
        [ "Calls (no dot patterns): " ++ show calls1
@@ -263,8 +270,11 @@ liftDBP = adjIndexDBP (1+)
 
 {- | Configuration parameters to termination checker.
 -}
-data DBPConf = DBPConf { useDotPatterns :: Bool
-                       , withSizeSuc    :: Maybe QName
+data DBPConf = DBPConf { useDotPatterns           :: Bool
+                       , guardingTypeConstructors :: Bool
+                         -- ^ Do we assume that record and data type
+                         --   constructors preserve guardedness?
+                       , withSizeSuc              :: Maybe QName
                        }
 
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
@@ -357,7 +367,7 @@ termClause use names name (Clause { clauseTel  = tel
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM (stripCoConstructors use) dbpats
-          termTerm names name dbpats t
+          termTerm use names name dbpats t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -369,8 +379,8 @@ termClause use names name (Clause { clauseTel  = tel
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm names f pats0 t0 = do
+termTerm :: DBPConf -> MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm conf names f pats0 t0 = do
   reportSDoc "term.check.clause" 6
     (sep [ text "termination checking clause of" <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
@@ -383,76 +393,96 @@ termTerm names f pats0 t0 = do
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
          suc <- sizeSuc
+
+             -- Handles constructor applications.
+         let constructor c ind args = do
+               let g' = case ind of
+                         Inductive   -> guarded
+                         CoInductive -> Lt .*. guarded
+               collectCalls (loop pats g') (map unArg args)
+
+             -- Handles function applications.
+             function g args0 = do
+               let args1 = map unArg args0
+               args2 <- mapM instantiateFull args1
+
+               -- We have to reduce constructors in case they're reexported.
+               let reduceCon t@(Con _ _) = reduce t
+                   reduceCon t           = return t
+               args2 <- mapM reduceCon args2
+               args  <- mapM etaContract args2
+
+               -- collect calls in the arguments of this call
+               calls <- collectCalls (loop pats Unknown) args
+
+
+               reportSDoc "term.found.call" 20
+                       (sep [ text "found call from" <+> prettyTCM f
+                            , nest 2 $ text "to" <+> prettyTCM g
+                            ])
+
+               -- insert this call into the call list
+               case List.elemIndex g names of
+
+                  -- call leads outside the mutual block and can be ignored
+                  Nothing   -> return calls
+
+                  -- call is to one of the mutally recursive functions
+                  Just gInd' -> do
+
+                     matrix <- compareArgs suc pats args
+                     let (nrows, ncols, matrix') = addGuardedness guarded
+                            (genericLength args) -- number of rows
+                            (genericLength pats) -- number of cols
+                            matrix
+
+
+                     reportSDoc "term.kept.call" 5
+                       (sep [ text "kept call from" <+> prettyTCM f
+                               <+> hsep (map prettyTCM pats)
+                            , nest 2 $ text "to" <+> prettyTCM g <+>
+                                        hsep (map (parens . prettyTCM) args)
+                            , nest 2 $ text ("call matrix (with guardeness): " ++ show matrix')
+                            ])
+
+                     return
+                       (Term.insert
+                         (Term.Call { Term.source = fInd
+                                    , Term.target = toInteger gInd'
+                                    , Term.cm     = makeCM ncols nrows matrix'
+                                    })
+                         -- Note that only the base part of the
+                         -- name is collected here.
+                         (Set.fromList $ fst $ R.getRangesA g)
+                         calls)
+
+
          case t of
 
-            -- call to defined function
-            Def g args0 ->
-               do let args1 = map unArg args0
-                  args2 <- mapM instantiateFull args1
+            -- Constructed value.
+            Con c args -> do
+              ind <- whatInduction c
+              constructor c ind args
 
-                  -- We have to reduce constructors in case they're reexported.
-                  let reduceCon t@(Con _ _) = reduce t
-                      reduceCon t           = return t
-                  args2 <- mapM reduceCon args2
-                  args  <- mapM etaContract args2
-
-                  -- collect calls in the arguments of this call
-                  calls <- collectCalls (loop pats Unknown) args
-
-
-                  reportSDoc "term.found.call" 20
-                          (sep [ text "found call from" <+> prettyTCM f
-                               , nest 2 $ text "to" <+> prettyTCM g
-                	       ])
-
-                  -- insert this call into the call list
-                  case List.elemIndex g names of
-
-                     -- call leads outside the mutual block and can be ignored
-                     Nothing   -> return calls
-
-                     -- call is to one of the mutally recursive functions
-                     Just gInd' -> do
-
-                        matrix <- compareArgs suc pats args
-                        let (nrows, ncols, matrix') = addGuardedness guarded
-                               (genericLength args) -- number of rows
-                               (genericLength pats) -- number of cols
-                               matrix
-
-
-                        reportSDoc "term.kept.call" 5
-                          (sep [ text "kept call from" <+> prettyTCM f
-                                  <+> hsep (map prettyTCM pats)
-                               , nest 2 $ text "to" <+> prettyTCM g <+>
-                                           hsep (map (parens . prettyTCM) args)
-                               , nest 2 $ text ("call matrix (with guardeness): " ++ show matrix')
-                	       ])
-
-                        return
-                          (Term.insert
-                            (Term.Call { Term.source = fInd
-                                       , Term.target = toInteger gInd'
-                                       , Term.cm     = makeCM ncols nrows matrix'
-                                       })
-                            -- Note that only the base part of the
-                            -- name is collected here.
-                            (Set.fromList $ fst $ R.getRangesA g)
-                            calls)
+            Def g args0 -> do
+                  -- Data or record type constructor.
+              let con = constructor g Inductive args0
+                  -- Call to defined function.
+                  fun = function g args0
+              if guardingTypeConstructors conf then do
+                gDef <- theDef <$> getConstInfo g
+                case gDef of
+                  Datatype {} -> con
+                  Record   {} -> con
+                  _           -> fun
+               else
+                fun
 
             -- abstraction
             Lam _ (Abs _ t) -> loop (map liftDBP pats) guarded t
 
             -- variable
             Var i args -> collectCalls (loop pats Unknown) (map unArg args)
-
-            -- constructed value
-            Con c args -> do
-              ind <- whatInduction c
-              let g' = case ind of
-                        Inductive   -> guarded
-                        CoInductive -> Lt .*. guarded
-              collectCalls (loop pats g') (map unArg args)
 
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->

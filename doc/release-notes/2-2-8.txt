@@ -34,6 +34,30 @@ Language
 
   See test/succeed/InjectiveTypeConstructors.agda for an example.
 
+* If the new flag --guardedness-preserving-type-constructors is used,
+  then type constructors are treated as inductive constructors when we
+  check productivity. This makes examples such as the following
+  possible:
+
+    data Rec (A : ∞ Set) : Set where
+      fold : ♭ A → Rec A
+
+    ℕ : Set
+    ℕ = ⊤ ⊎ Rec (♯ ℕ)
+
+    zero : ℕ
+    zero = inj₁ _
+
+    suc : ℕ → ℕ
+    suc n = inj₂ (fold n)
+
+    ℕ-rec : (P : ℕ → Set) →
+            P zero →
+            (∀ n → P n → P (suc n)) →
+            ∀ n → P n
+    ℕ-rec P z s (inj₁ _)        = z
+    ℕ-rec P z s (inj₂ (fold n)) = s n (ℕ-rec P z s n)
+
 Tools
 -----
 

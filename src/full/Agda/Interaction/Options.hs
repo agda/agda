@@ -72,6 +72,7 @@ data CommandLineOptions =
             , optSizedTypes           :: Bool
             , optUniversePolymorphism :: Bool
             , optInjectiveTypeConstructors :: Bool
+            , optGuardingTypeConstructors  :: Bool
             , optGhcFlags             :: [String]
 	    }
     deriving Show
@@ -111,6 +112,7 @@ defaultOptions =
             , optSizedTypes           = False
             , optUniversePolymorphism = False
             , optInjectiveTypeConstructors = False
+            , optGuardingTypeConstructors  = False
             , optGhcFlags             = []
 	    }
 
@@ -173,6 +175,7 @@ noUnreachableCheckFlag    o = checkOpts $ o { optUnreachableCheck     = False }
 dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck        = False }
 sizedTypes                o = checkOpts $ o { optSizedTypes           = True  }
 injectiveTypeConstructorFlag o = checkOpts $ o { optInjectiveTypeConstructors = True }
+guardingTypeConstructorFlag  o = checkOpts $ o { optGuardingTypeConstructors  = True }
 universePolymorphismFlag  o = checkOpts $ o { optUniversePolymorphism = True  }
 
 interactiveFlag o = checkOpts $ o { optInteractive   = True
@@ -259,6 +262,8 @@ pragmaOptions =
                     "use sized datatypes"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
+    , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
+                    "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
                     "enable universe polymorphism (experimental feature)"
     ]
