@@ -509,10 +509,11 @@ instance ToConcrete A.Clause [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
       bindToConcrete lhs $ \(C.LHS p wps _ _) -> do
           (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
-          ds         <- toConcrete wh
-          let wh' = case ds of
-                []  -> C.NoWhere
-                _   -> C.AnyWhere ds
+--           ds         <- toConcrete wh
+--           let wh' = case ds of
+--                 []  -> C.NoWhere
+--                 _   -> C.AnyWhere ds
+          let wh' = C.NoWhere
           return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
 
 instance ToConcrete A.Declaration [C.Declaration] where
