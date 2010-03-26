@@ -1,0 +1,14 @@
+
+Prog. Program ::= [Decl];
+
+Def.   Decl ::= Ident "=" Expr;
+Const. Decl ::= Ident;
+terminator Decl ";";
+
+Lam. Expr  ::= "\\" Ident "->" Expr;
+App. Expr1 ::= Expr1 Expr2;
+Var. Expr2 ::= Ident;
+coercions Expr 2;
+
+comment "--";
+

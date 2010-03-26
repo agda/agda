@@ -1,0 +1,15 @@
+
+id = \x -> x;
+k  = \x -> \y -> x;
+s  = \x -> \y -> \z -> x z (y z);
+
+foo;
+
+foo' = id foo;
+
+id' = s k k;
+
+sk = s k;
+
+-- zero; suc;
+-- one = suc zero;
