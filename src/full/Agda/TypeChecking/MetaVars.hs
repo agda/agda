@@ -67,6 +67,16 @@ isBlockedTerm x = do
     reportSLn "tc.meta.blocked" 12 $ if r then "  yes" else "  no"
     return r
 
+isEtaExpandable :: MonadTCM tcm => MetaId -> tcm Bool
+isEtaExpandable x = do
+    i <- mvInstantiation <$> lookupMeta x
+    return $ case i of
+      Open{}                         -> True
+      InstV{}                        -> False
+      InstS{}                        -> False
+      BlockedConst{}                 -> False
+      PostponedTypeCheckingProblem{} -> False
+
 class HasMeta t where
     metaInstance :: MonadTCM tcm => t -> tcm MetaInstantiation
     metaVariable :: MetaId -> Args -> t
@@ -145,7 +155,6 @@ newValueMeta t = do
 newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx t ctx = do
   m@(MetaV i _) <- newValueMetaCtx' t ctx
-  etaExpandMeta [SingletonRecords, Levels] i
   instantiateFull m
 
 -- | Create a new value meta without η-expanding.
@@ -165,6 +174,7 @@ newValueMetaCtx' t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
+  etaExpandMeta [SingletonRecords, Levels] x
   return $ MetaV x vs
 
 newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
@@ -278,7 +288,9 @@ allMetaKinds = [minBound .. maxBound]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: MonadTCM tcm => [MetaKind] -> MetaId -> tcm ()
-etaExpandMeta kinds m = unlessM (isBlockedTerm m) $ do
+etaExpandMeta kinds m =
+  verboseBracket "tc.meta.eta" 10 ("etaExpandMeta " ++ show m) $
+  whenM (isEtaExpandable m) $ do
   meta       <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b <- telViewM a
