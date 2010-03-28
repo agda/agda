@@ -462,12 +462,12 @@ nameToFile :: SourceToModule
            -> File
 nameToFile modMap file xs x m mR =
   -- Make sure that we don't get any funny ranges.
-  if all (== Just file) $ catMaybes $
-     map (fmap P.srcFile . P.rStart . P.getRange) (x : xs) then
+  if all (== Just file) fileNames then
     several rs' ((m isOp) { definitionSite = mFilePos })
    else
     __IMPOSSIBLE__
   where
+  fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   (rs, isOp) = getRanges x
   rs'        = rs ++ concatMap (fst . getRanges) xs
   mFilePos   = do

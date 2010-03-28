@@ -213,7 +213,8 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                 A.WithRHS aux es cs -> do
                   -- Infer the types of the with expressions
                   vas <- mapM inferExpr es
-                  (vs, as) <- instantiateFull $ unzip vas
+                  (vs0, as) <- instantiateFull (unzip vas)
+                  (vs, as)  <- normalise (vs0, as)
 
                   -- Invent a clever name for the with function
                   m <- currentModule
@@ -238,7 +239,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                       us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
                       (us0, us1') = genericSplitAt (n - m) us
                       (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
-                      v    = Def aux $ us0 ++ us1 ++ (map (Arg NotHidden) vs) ++ us2
+                      v    = Def aux $ us0 ++ us1 ++ (map (Arg NotHidden) vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
                   t' <- return $ rename (reverseP perm') t'
@@ -274,7 +275,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
 
       translateRecordPatterns $
         Clause { clauseRange = getRange i
-               , clauseTel   = killRange delta  -- TODO: make sure delta and perm are what we want
+               , clauseTel   = killRange delta
                , clausePerm  = perm
                , clausePats  = ps
                , clauseBody  = body
