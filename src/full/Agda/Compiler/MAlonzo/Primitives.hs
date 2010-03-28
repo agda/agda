@@ -182,7 +182,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HsIdent) id <$>) $
   , ("primTrustMe"       , Right <$> do
        refl <- primRefl
        flip runReaderT 0 $
-         term $ lam "A" (lam "x" (lam "y" (refl `apply` [var 2, var 1]))))
+         term $ lam "A" (lam "x" (lam "y" refl)))
   ]
   where
   x |-> s = (x, Left <$> s)
