@@ -247,7 +247,7 @@ primTrustMe = do
           el (primEquality <#> var 2 <@> var 1 <@> var 0)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \[t, a, b] -> liftTCM $ do
       noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
-      rf <- return refl <#> return (unArg t) <#> return (unArg a)
+      rf <- return refl -- <#> return (unArg t) <#> return (unArg a)
       redReturn rf
     `catchError` \_ -> return (NoReduction [t, a, b])
 
