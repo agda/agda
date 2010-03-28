@@ -37,8 +37,8 @@ showPat (LitP l)    = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = do
-  vas <- etaContract =<< normalise (zip vs as)
-  b   <- etaContract =<< normalise (telePi_ delta2 b)
+  vas <- addCtxTel delta1 $ etaContract =<< normalise (zip vs as)
+  b   <- addCtxTel delta1 $ etaContract =<< normalise (telePi_ delta2 b)
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas
 
 -- | Compute the clauses for the with-function given the original patterns.

@@ -31,13 +31,24 @@ instance AbstractTerm Term where
     Pi a b      -> uncurry Pi $ absT (a, b)
     Fun a b      -> uncurry Fun $ absT (a, b)
     Lit l       -> Lit l
-    Sort s      -> Sort s
+    Sort s      -> Sort $ absT s
     MetaV m vs  -> MetaV m $ absT vs
     where
       absT x = abstractTerm u x
 
 instance AbstractTerm Type where
   abstractTerm u (El s v) = El s $ abstractTerm u v
+
+instance AbstractTerm Sort where
+  abstractTerm u s = case s of
+    Type n     -> Type $ absS n
+    Prop       -> Prop
+    Suc s      -> Suc $ absS s
+    Lub s1 s2  -> Lub (absS s1) (absS s2)
+    MetaS m as -> MetaS m (absS as)
+    Inf        -> Inf
+    DLub s1 s2 -> DLub (absS s1) (absS s2)
+    where absS x = abstractTerm u x
 
 instance AbstractTerm a => AbstractTerm (Arg a) where
   abstractTerm = fmap . abstractTerm
