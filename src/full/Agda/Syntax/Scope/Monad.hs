@@ -378,13 +378,22 @@ applyImportDirectiveM m dir scope = do
   xs <- filterM doesntExist names
   reportSLn "scope.import.apply" 20 $ "non existing names: " ++ show xs
   case xs of
-    []  -> return $ applyImportDirective dir scope
+    []  -> case targetNames \\ nub targetNames of
+      []  -> return $ applyImportDirective dir scope
+      dup -> typeError $ DuplicateImports m dup
     _   -> typeError $ ModuleDoesntExport m xs
   where
     names :: [ImportedName]
     names = map renFrom (renaming dir) ++ case usingOrHiding dir of
       Using  xs -> xs
       Hiding xs -> xs
+
+    targetNames :: [ImportedName]
+    targetNames = map renName (renaming dir) ++ case usingOrHiding dir of
+      Using xs -> xs
+      Hiding{} -> []
+      where
+        renName r = (renFrom r) { importedName = renTo r }
 
     doesntExist (ImportedName x) =
       case Map.lookup x (allNamesInScope scope :: ThingsInScope AbstractName) of

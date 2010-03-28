@@ -814,6 +814,7 @@ data TypeError
 	| ClashingModuleImport C.Name A.ModuleName
 	| PatternShadowsConstructor A.Name A.QName
 	| ModuleDoesntExport C.QName [C.ImportedName]
+        | DuplicateImports C.QName [C.ImportedName]
 	| InvalidPattern C.Pattern
 	| RepeatedVariablesInPattern [C.Name]
     -- Concrete to Abstract errors
