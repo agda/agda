@@ -16,38 +16,6 @@ import Agda.Auto.SearchControl
 
 
 
-closify :: MExp o -> CExp o
-closify e = TrBr [e] (Clos [] e)
-
-sub :: MExp o -> CExp o -> CExp o
--- sub e (Clos [] x) = Clos [Sub e] x
-sub e (TrBr trs (Clos (Skip : as) x)) = TrBr (e : trs) (Clos (Sub (Clos [] e) : as) x)
-{-sub e (Clos (Weak n : as) x) = if n == 1 then
-                                Clos as x
-                               else
-                                Clos (Weak (n - 1) : as) x-}
-sub _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 27))
-
-subi :: MExp o -> ICExp o -> ICExp o
-subi e (Clos (Skip : as) x) = Clos (Sub (Clos [] e) : as) x
-subi _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 31))
-
-weak :: Nat -> CExp o -> CExp o
-weak n (TrBr trs e) = TrBr trs (weaki n e)
-
-weaki :: Nat -> Clos a o -> Clos a o
-weaki 0 x = x
-weaki n (Clos as x) = Clos (Weak n : as) x
-
-weakarglist :: Nat -> ICArgList o -> ICArgList o
-weakarglist 0 = id
-weakarglist n = f
- where f CALNil = CALNil
-       f (CALConcat (Clos cl as) as2) = CALConcat (Clos (Weak n : cl) as) (f as2)
-weakelr :: Nat -> Elr o -> Elr o
-weakelr 0 elr = elr
-weakelr n (Var v) = Var (v + n)
-weakelr _ elr@(Const _) = elr
 
 
 -- ---------------------------------
@@ -79,11 +47,11 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
    Sort (Set i) -> case hntyp of
     HNSort s2 -> case s2 of
      Set j -> mpret $ if i < j then OK else Error "tcExp, type of set should be larger set"
-     UnknownSort -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 89))
+     UnknownSort -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 57))
      Type -> mpret OK
     _ -> mpret $ Error "tcExp, type of set should be set"
-   Sort UnknownSort -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 94))
-   Sort Type -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 96))
+   Sort UnknownSort -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 62))
+   Sort Type -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 64))
    AbsurdLambda hid -> case hntyp of
     HNPi _ hid2 _ it _ | hid == hid2 ->
      mbpcase prioAbsurdLambda Nothing (getDatatype it) $ \res -> case res of
@@ -131,7 +99,7 @@ unequal e1 e2 cont unifier2 =
        Nothing -> cont ((v2, hne1) : unifier2)
        Just hne2' -> cc hne1 hne2'
      HNALCons{} -> cont unifier2
-     HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 154))
+     HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 122))
    _ -> cc hne1 hne2
  where
   cc hne1 hne2 = case (hne1, hne2) of
@@ -162,7 +130,7 @@ tcargs okh isdep ctx etyp ityp@(TrBr ityptrs iityp) args = mmpcase (True, prioTy
         (tcExp (isdep || possdep) ctx (t it) a)
         (tcargs okh isdep ctx etyp (sub a (t ot)) as)
    _ -> mpret $ Error "tcargs, inf type should be fun or pi (and same hid)"
- ALConPar _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 191))
+ ALConPar _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 159))
  where
   t = TrBr ityptrs
 -- ---------------------------------
@@ -184,7 +152,7 @@ hnn' e as =
 hnb :: ICExp o -> ICArgList o -> EE (MyMB (HNExp o) o)
 hnb e as = mbcase (hnc False e as) $ \res -> case res of
             HNDone _ hne -> mbret hne
-            HNMeta _ _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 220))
+            HNMeta _ _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 188))
 data HNRes o = HNDone (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
              | HNMeta (ICExp o) (ICArgList o)
 hnc :: Bool -> ICExp o -> ICArgList o -> EE (MyMB (HNRes o) o)
@@ -204,7 +172,7 @@ hnc haltmeta = loop
      mbcase (hnarglist cargs) $ \hncargs -> case hncargs of
       HNALNil -> mbret $ HNDone expmeta (HNLam hid (Abs id (Clos (Skip : cl) b)))
       HNALCons _ arg cargs' -> loop (Clos (Sub arg : cl) b) cargs'
-      HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 243))
+      HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 211))
     Pi uid hid possdep it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNPi uid hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot)))
     Sort s -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNSort s)
     AbsurdLambda{} -> mbfailed "hnc: encountered absurdlambda"
@@ -213,16 +181,7 @@ hnc haltmeta = loop
    mbcase (hnarglist cargs) $ \hncargs -> case hncargs of
     HNALNil -> c
     HNALCons{} -> mbfailed "hnc: there should be no args"
-    HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 256))
-doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)
-doclos = f 0
- where
-  f ns [] i = Left (ns + i)
-  f ns (Weak n : xs) i = f (ns + n) xs i
-  f ns (Sub s : _) 0 = Right (weaki ns s)
-  f ns (Skip : _) 0 = Left ns
-  f ns (Skip : xs) i = f (ns + 1) xs (i - 1)
-  f ns (Sub _ : xs) i = f ns xs (i - 1)
+    HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 224))
 hnarglist :: ICArgList o -> EE (MyMB (HNArgList o) o)
 hnarglist args =
  case args of
@@ -242,7 +201,7 @@ getNArgs narg args =
    mbcase (getNArgs (narg - 1) args') $ \res -> case res of
     Nothing -> mbret Nothing
     Just (pargs, rargs) -> mbret $ Just (arg : pargs, rargs)
-  HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 319))
+  HNALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 277))
 getAllArgs :: ICArgList o -> EE (MyMB [ICExp o] o)
 getAllArgs args =
  mbcase (hnarglist args) $ \hnargs -> case hnargs of
@@ -251,7 +210,7 @@ getAllArgs args =
    mbcase (getAllArgs args') $ \args'' ->
     mbret (arg : args'')
   HNALConPar args2 ->
-   mbcase (getAllArgs args2) $ \args3 -> mbret ((throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 331)) : args3)
+   mbcase (getAllArgs args2) $ \args3 -> mbret ((throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 289)) : args3)
 data PEval o = PENo (ICExp o)
              | PEConApp (ICExp o) (ConstRef o) [PEval o]
 iotastep :: Bool -> HNExp o -> EE (MyMB (Maybe (ICExp o, ICArgList o)) o)
@@ -292,7 +251,7 @@ iotastep smartcheck e = case e of
      Left (Just hnas) -> mbret $ Left $ Just (hna : hnas)
    Left Nothing -> mbret $ Left Nothing
    Left (Just hna) -> mbret $ Left $ Just (hna : as')
- dopats _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 378))
+ dopats _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 336))
  dopat :: Pat o -> PEval o -> EE (MyMB (Either (Maybe (PEval o)) (PEval o, [ICExp o])) o)
  dopat (PatConApp c pas) a =
   case a of
@@ -354,7 +313,7 @@ noiotastep_term c args = f (HNApp Nothing (Const c) (CALConcat (Clos [] args) CA
      mpret OK
     else
      noiotastep hne
-  f _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 444))
+  f _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 402))
 data CMode o = CMRigid (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
              | forall b . Refinable b (RefInfo o) => CMFlex (MM b (RefInfo o)) (CMFlex o)
 data CMFlex o = CMFFlex (ICExp o) (ICArgList o)
@@ -394,7 +353,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
       (CMFlex m1 fl1, CMFlex m2 fl2) -> doubleblock m1 m2 $ fcm fl1 $ \res1 -> fcm fl2 $ \res2 -> g res1 res2
     fcm (CMFFlex ce cargs) = f True ce cargs
     fcm (CMFSemi mexpmeta hne) = fhn True mexpmeta hne
-    fcm (CMFBlocked _ hne) = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 490)) -- not used. if so should be: fhn False hne
+    fcm (CMFBlocked _ hne) = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 448)) -- not used. if so should be: fhn False hne
     mstp semif mexpmeta hne cont =
      mpret $ Or prioCompChoice
       (mpret $ And (Just [Term lhs, Term rhs])
@@ -430,8 +389,8 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
             (iter (CMRigid mexpmeta hne))
           HNMeta ce cargs -> loop ce cargs
       CMFSemi _ hne ->
-       (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 526)) -- CMFSemi disabled, if used should be: stp True hne iter
-      CMFBlocked{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 527))
+       (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 484)) -- CMFSemi disabled, if used should be: stp True hne iter
+      CMFBlocked{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 485))
     comphn :: Bool -> Maybe (Metavar (Exp o) (RefInfo o)) -> HNExp o -> Maybe (Metavar (Exp o) (RefInfo o)) -> HNExp o -> EE (MyPB o)
     comphn ineq mexpmeta1 hne1 mexpmeta2 hne2 =
      case (hne1, hne2) of
@@ -467,7 +426,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
         (UnknownSort, UnknownSort) -> OK
         (Type, Set _) | ineq -> OK
         (Type, UnknownSort) | ineq -> OK
-        _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 572))
+        _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 530))
       (_, _) -> mpret $ Error "comphn, not equal"
     compargs :: ICArgList o -> ICArgList o -> EE (MyPB o)
     compargs args1 args2 =
@@ -500,7 +459,7 @@ checkeliminand = f [] []
                          mpret OK
                    _ -> g (i - 1) as
                   ALConPar as -> case i of
-                   0 -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 645))
+                   0 -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Typecheck.hs") 603))
                    _ -> g (i - 1) as
       _ -> fs (adduid uid uids) used args
     Lam _ (Abs _ e) -> f uids (w used) e
@@ -516,6 +475,7 @@ checkeliminand = f [] []
   adduid (Just uid) uids = uid : uids
   adduid Nothing uids = uids
 -- ---------------------------------
+--maybeor _ _ mainalt _ = mainalt
 maybeor True prio mainalt alt = mpret $ Or prio mainalt alt
 maybeor False _ mainalt _ = mainalt
 iotapossmeta :: ICExp o -> ICArgList o -> EE Bool
@@ -546,24 +506,35 @@ iotapossmeta ce@(Clos cl _) cargs = do
   ncargs cl (ALConPar args) = ncmargs cl args
   nonconstructor :: ICExp o -> EE Bool
   nonconstructor ce = do
-   res <- hnn ce
+   res <- hnc True ce CALNil
    case res of
-    NotB hne -> case hne of
-     HNApp _ (Const c) _ -> do
-      cd <- readIORef c
-      case cdcont cd of
-       Constructor -> return False
-       _ -> return True
-     _ -> return True
-    Blocked m _ -> return False -- not necessary to do check here because already done by hnn (!! if it's known that m stands for an eliminator then it cannot be constructor so True instead)
-    Failed _ -> return False
+    Blocked{} -> return False
+    Failed{} -> return False
+    NotB res -> case res of
+     HNMeta{} -> return True -- ?? removes completeness
+     HNDone{} -> do
+      res <- hnn ce
+      case res of
+       NotB hne -> case hne of
+        HNApp _ (Const c) _ -> do
+         cd <- readIORef c
+         case cdcont cd of
+          Constructor -> return False
+          _ -> return True
+        _ -> return True
+       Blocked m _ -> return False -- not necessary to do check here because already done by hnn (!! if it's known that m stands for an eliminator then it cannot be constructor so True instead)
+       Failed _ -> return False
 meta_not_constructor :: ICExp o -> EE (MB Bool (RefInfo o))
 meta_not_constructor a =
  mbcase (hnc True a CALNil) $ \res -> case res of
   HNMeta ce _ -> do
     let (Clos _ (Meta m)) = ce
     infos <- extractblkinfos m
-    mbret $ any (\info -> case info of {RINotConstructor -> True; _ -> False}) infos
+    if any (\info -> case info of {RINotConstructor -> True; _ -> False}) infos then do
+      b <- iotapossmeta ce CALNil
+      mbret $ not b
+     else
+      mbret False
   HNDone{} -> mbret False
 -- ---------------------------------
 pickid :: MId -> MId -> MId

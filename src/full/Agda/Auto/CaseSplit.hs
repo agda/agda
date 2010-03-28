@@ -13,7 +13,6 @@ import Data.List (findIndex, union)
 import qualified Data.IntMap as IntMap
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
---import Agda.Auto.Print
 import Agda.Auto.SearchControl
 import Agda.Auto.Typecheck
 abspatvarname = "\0absurdPattern"
@@ -38,7 +37,7 @@ caseSplitSearch ticks nsolwanted chints depthinterval depth recdef ctx tt pats =
       let trm = Meta m
           hsol = do trm' <- expandExp trm
                     writeIORef sol (Just trm')
-          hpartsol = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 114))
+          hpartsol = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 116))
           initcon = mpret $ Sidecondition (localTerminationSidecond termcheckenv (length ctx - 1) trm)
                                           (tcSearch False (map (\(id, t) -> (id, closify t)) (drophid ctx)) (closify tt) trm)
       depreached <- topSearch ticks nsol hsol (RIEnv chints) initcon depth (depth + 1)
@@ -83,7 +82,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
        Just trm -> let trm' = renamec (length ctx') recdef trm
                    in [[(ctx', pats', Just trm')]]
        Nothing -> []
-     Nothing -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 192)) -- no permutation found
+     Nothing -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 194)) -- no permutation found
    splitvar :: Nat -> IO [Sol o]
    splitvar scrut = do
     let scruttype = infertypevar ctx scrut
@@ -99,9 +98,9 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
             Just perm ->
              let HI scrhid(_, scrt) = ctx !! scrut
                  ctx1 = take scrut ctx ++ (HI scrhid (Id abspatvarname, scrt)) : drop (scrut + 1) ctx
-                 (ctx', _, pats') = applyperm perm ctx1 tt ({-map (replacep scrut 1 CSAbsurd (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 208))) -}pats)
+                 (ctx', _, pats') = applyperm perm ctx1 tt ({-map (replacep scrut 1 CSAbsurd (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 210))) -}pats)
              in [(ctx', pats', Nothing)]
-            Nothing -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 210)) -- no permutation found
+            Nothing -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 212)) -- no permutation found
           _ -> sol
           ) sols
         where
@@ -178,8 +177,8 @@ betareduce e args = case rm args of
  ALCons _ a rargs -> case rm e of
   App uid ok elr eargs -> mm $ App uid ok elr (concatargs eargs args)
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
-  _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 350)) -- not type correct if this happens
- ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 352))
+  _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 352)) -- not type correct if this happens
+ ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 354))
 concatargs xs ys = case rm xs of
  ALNil -> ys
  ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
@@ -201,10 +200,10 @@ replacep sv nnew rp re = r
                      HI hid (CSPatVar v)
   r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ replace sv nnew re e)
   r p@(HI _ CSOmittedArg) = p
-  r _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 383)) -- other constructors dont appear in indata Pats
+  r _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 385)) -- other constructors dont appear in indata Pats
 rm :: MM a b -> a
 rm (NotM x) = x
-rm (Meta{}) = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 387))
+rm (Meta{}) = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 389))
 mm :: a -> MM a b
 mm = NotM
 unifyexp :: MExp o -> MExp o -> Maybe [(Nat, MExp o)]
@@ -249,7 +248,7 @@ removevar :: CSCtx o -> MExp o -> [CSPat o] -> [(Nat, MExp o)] -> (CSCtx o, MExp
 removevar ctx tt pats [] = (ctx, tt, pats)
 removevar ctx tt pats ((v, e) : unif) =
  let
-  e2 = replace v 0 ((throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 440)) {- occurs check failed -}) e
+  e2 = replace v 0 ((throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 442)) {- occurs check failed -}) e
   thesub = replace v 0 e2
   ctx1 = map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (take v ctx) ++
          map (\(HI hid (id, t)) -> HI hid (id, thesub t)) (drop (v + 1) ctx)
@@ -262,7 +261,7 @@ notequal :: Nat -> Nat -> MExp o -> MExp o -> IO Bool
 notequal firstnew nnew e1 e2 =
   case (rm e1, rm e2) of
    (App _ _ _ es1, App _ _ _ es2) -> rs es1 es2 (\_ -> return False) []
-   _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 454))
+   _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 456))
  where
   rs :: MArgList o -> MArgList o -> ([(Nat, MExp o)] -> IO Bool) -> [(Nat, MExp o)] -> IO Bool
   rs es1 es2 cont unifier2 =
@@ -279,7 +278,7 @@ notequal firstnew nnew e1 e2 =
        Nothing -> cont ((v2, e1) : unifier2)
        Just e2' -> cc e1 e2'
      ALCons{} -> cont unifier2
-     ALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 475))
+     ALConPar{} -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 477))
    _ -> cc e1 e2
    where
    cc e1 e2 = case (rm e1, rm e2) of
@@ -352,7 +351,7 @@ renamep ren = r
   r (HI hid (CSPatVar i)) = HI hid (CSPatVar $ ren i)
   r (HI hid (CSPatExp e)) = HI hid (CSPatExp $ rename ren e)
   r p@(HI _ CSOmittedArg) = p
-  r _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 565))
+  r _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 567))
 seqctx :: CSCtx o -> CSCtx o
 seqctx = r (-1)
  where
@@ -427,7 +426,7 @@ localTerminationSidecond (is, size, vars) reccallvar b =
         Nothing -> mpret $ Error "localTerminationSidecond: reccall not ok"
         Just (size', vars') -> okcall (i + 1) size' vars' as
       ALCons _ a as -> okcall (i + 1) size vars as
-      ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 655))
+      ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 657))
      he size vars e = mmcase e $ \e -> case e of
       App _ _ (Var v) _ ->
        case remove v vars of
@@ -449,7 +448,7 @@ localTerminationSidecond (is, size, vars) reccallvar b =
        mbcase (he size vars a) $ \x -> case x of
         Nothing -> mbret Nothing
         Just (size', vars') -> hes size' vars' as
-      ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 679))
+      ALConPar as -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/CaseSplit.hs") 681))
      remove _ [] = Nothing
      remove x (y : ys) | x == y = Just ys
      remove x (y : ys) = case remove x ys of {Nothing -> Nothing; Just ys' -> Just (y : ys')}

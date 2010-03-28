@@ -79,16 +79,20 @@ auto ii rng argstr = liftTCM $ do
             MNormal listmode disprove -> do
                sols <- liftIO $ newIORef []
                nsol <- liftIO $ newIORef (if listmode then (pick + 10) else (pick + 1))
-               let hsol = if listmode then do
+               let hsol recinfo =
+                       let getterm trm = case recinfo of
+                                          Nothing -> return trm
+                                          Just (_, _, recdef, recvar) -> expandExp trm >>= \trm -> return $ renamec recvar recdef trm
+                       in if listmode then do
                            nsol' <- readIORef nsol
-                           when (nsol' <= 10) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> modifyIORef sols (trms :)
+                           when (nsol' <= 10) $ mapM (\(m, _, _, _) -> getterm (Meta m) >>= frommy) (Map.elems tccons) >>= \trms -> modifyIORef sols (trms :)
                           else do
                            nsol' <- readIORef nsol
-                           when (nsol' == 1) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> writeIORef sols [trms]
+                           when (nsol' == 1) $ mapM (\(m, _, _, _) -> getterm (Meta m) >>= frommy) (Map.elems tccons) >>= \trms -> writeIORef sols [trms]
                ticks <- liftIO $ newIORef 0
-               let exsearch initprop = liftIO $ System.Timeout.timeout (timeout * 1000000) (
+               let exsearch initprop recinfo = liftIO $ System.Timeout.timeout (timeout * 1000000) (
                     let r d = do
-                         depreached <- topSearch ticks nsol hsol (RIEnv myhints) (initprop) d costIncrease
+                         depreached <- topSearch ticks nsol (hsol recinfo) (RIEnv myhints) (initprop) d costIncrease
                          nsol' <- readIORef nsol
                          if nsol' /= 0 && depreached then
                            r (d + costIncrease)
@@ -121,7 +125,7 @@ auto ii rng argstr = liftTCM $ do
                    (m, mytype, mylocalVars, _) : [] -> do
                        let mytype' = foldl (\x y -> NotM $ Pi Nothing Agda.Auto.Syntax.NotHidden (freeIn 0 y) y (Abs NoId x)) mytype mylocalVars
                            htyp = negtype mytype'
-                       res <- exsearch $ tcSearch False [(Id "h", closify htyp), (NoId, closify (NotM $ Sort (Set 0)))] (closify (NotM $ App Nothing (NotM OKVal) (Var 1) (NotM ALNil))) (Meta m)
+                       res <- exsearch (tcSearch False [(Id "h", closify htyp), (NoId, closify (NotM $ Sort (Set 0)))] (closify (NotM $ App Nothing (NotM OKVal) (Var 1) (NotM ALNil))) (Meta m)) Nothing
                        rsols <- liftM reverse $ liftIO $ readIORef sols
                        if null rsols then do
                          nsol' <- liftIO $ readIORef nsol
@@ -136,14 +140,37 @@ auto ii rng argstr = liftTCM $ do
                    _ -> dispmsg "Metavariable dependencies not allowed in disprove mode"
                   _ -> dispmsg "Metavariable dependencies not allowed in disprove mode"
                 else do
+                 recinfo <- do
+                  res <- catchError (findClause mi >>= \x -> return (Just x)) (\_ -> return Nothing)
+                  case res of
+                   Just (def, clause) -> do
+                    recdef <- getConstInfo def
+                    let rectyp = MB.defType recdef
+                    rectyp <- normalise rectyp
+                    (rectyp', _) <- runStateT (tomyType rectyp) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing})
+                    myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate}
+                    (_, pats) <- constructPats cmap clause
+                    let recvar = let [(_, _, mlv, _)] = filter (\(m, _, _, _) -> hequalMetavar m mainm) (Map.elems tccons)
+                                 in length mlv
+                    return $ Just (rectyp', pats, myrecdef, recvar)
+                   Nothing -> return Nothing
                  let tc (m, mytype, mylocalVars) isdep = tcSearch isdep (map (\x -> (NoId, closify x)) mylocalVars) (closify mytype) (Meta m)
                      initprop =
                        foldl (\x (ineq, e, i) -> mpret $ And Nothing x (comp' ineq (closify e) (closify i)))
-                        (foldl (\x (m, mt, mlv, _) -> mpret $ And Nothing x (tc (m, mt, mlv) (not $ hequalMetavar m mainm)))
+                        (foldl (\x (m, mt, mlv, _) ->
+                          if hequalMetavar m mainm then
+                           case recinfo of
+                            Just (rectype, recpats, _, _) ->
+                             mpret $ Sidecondition (localTerminationSidecond (localTerminationEnv recpats) (length mlv) (Meta m))
+                                                   (tc (m, mt, mlv ++ [rectype]) False)
+                            Nothing -> mpret $ And Nothing x (tc (m, mt, mlv) False)
+                          else
+                           mpret $ And Nothing x (tc (m, mt, mlv) True)
+                         )
                          (mpret OK)
                          (Map.elems tccons)
                         ) eqcons
-                 res <- exsearch initprop
+                 res <- exsearch initprop recinfo
                  iis <- getInteractionPoints
                  riis <- mapM (\ii -> lookupInteractionId ii >>= \mi -> return (mi, ii)) iis
                  if listmode then do
@@ -215,7 +242,7 @@ auto ii rng argstr = liftTCM $ do
                  myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate}
                  sols <- liftIO $ System.Timeout.timeout (timeout * 1000000) (
                     let r d = do
-                         sols <- liftIO $ caseSplitSearch ticks (throwImpossible (Impossible ("agsy: " ++ "Auto.hs") 216)) myhints (throwImpossible (Impossible ("agsy: " ++ "Auto.hs") 216)) d myrecdef ctx mytype pats
+                         sols <- liftIO $ caseSplitSearch ticks (throwImpossible (Impossible ("agsy: " ++ "Auto.hs") 243)) myhints (throwImpossible (Impossible ("agsy: " ++ "Auto.hs") 243)) d myrecdef ctx mytype pats
                          case sols of
                           [] -> r (d + costIncrease)
                           (_:_) -> return sols
@@ -235,7 +262,7 @@ auto ii rng argstr = liftTCM $ do
                   Just [] -> dispmsg "No solution found" -- case not possible at the moment because case split doesnt care about search exhaustiveness
                   Nothing -> dispmsg $ "No solution found at time out (" ++ show timeout ++ "s)"
                 _ -> dispmsg "Metavariable dependencies not allowed in case split mode"
-              Nothing -> dispmsg "Metavariable dependencies not allowed in case split mode"
+              Nothing -> dispmsg "Metavariable is not at top level of clause RHS"
  where
   agsyinfo = " {- by agsy" ++ (if null argstr then "" else " (" ++ argstr ++ ")") ++ " -}"
 insuffsols 0 = "No solution found"

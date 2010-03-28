@@ -214,3 +214,40 @@ expandExp = fm
 addtrailingargs :: Clos (MArgList o) o -> ICArgList o -> ICArgList o
 addtrailingargs newargs CALNil = CALConcat newargs CALNil
 addtrailingargs newargs (CALConcat x xs) = CALConcat x (addtrailingargs newargs xs)
+-- ---------------------------------
+closify :: MExp o -> CExp o
+closify e = TrBr [e] (Clos [] e)
+sub :: MExp o -> CExp o -> CExp o
+-- sub e (Clos [] x) = Clos [Sub e] x
+sub e (TrBr trs (Clos (Skip : as) x)) = TrBr (e : trs) (Clos (Sub (Clos [] e) : as) x)
+{-sub e (Clos (Weak n : as) x) = if n == 1 then
+                                Clos as x
+                               else
+                                Clos (Weak (n - 1) : as) x-}
+sub _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Syntax.hs") 264))
+subi :: MExp o -> ICExp o -> ICExp o
+subi e (Clos (Skip : as) x) = Clos (Sub (Clos [] e) : as) x
+subi _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Syntax.hs") 268))
+weak :: Nat -> CExp o -> CExp o
+weak n (TrBr trs e) = TrBr trs (weaki n e)
+weaki :: Nat -> Clos a o -> Clos a o
+weaki 0 x = x
+weaki n (Clos as x) = Clos (Weak n : as) x
+weakarglist :: Nat -> ICArgList o -> ICArgList o
+weakarglist 0 = id
+weakarglist n = f
+ where f CALNil = CALNil
+       f (CALConcat (Clos cl as) as2) = CALConcat (Clos (Weak n : cl) as) (f as2)
+weakelr :: Nat -> Elr o -> Elr o
+weakelr 0 elr = elr
+weakelr n (Var v) = Var (v + n)
+weakelr _ elr@(Const _) = elr
+doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)
+doclos = f 0
+ where
+  f ns [] i = Left (ns + i)
+  f ns (Weak n : xs) i = f (ns + n) xs i
+  f ns (Sub s : _) 0 = Right (weaki ns s)
+  f ns (Skip : _) 0 = Left ns
+  f ns (Skip : xs) i = f (ns + 1) xs (i - 1)
+  f ns (Sub _ : xs) i = f ns xs (i - 1)
