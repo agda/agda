@@ -123,15 +123,18 @@ etaContractRecord r args = do
         case v of
           Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
           _                         -> return Nothing
-  unless (length args == length xs) __IMPOSSIBLE__
-  cs <- zipWithM check args xs
-  let fallBack = Con <$> getRecordConstructor r <*> return args
-  case sequence cs of
-    Just (c:cs) -> do
-      if all (c ==) cs
-        then return c
-        else fallBack
-    _ -> fallBack
+      fallBack = Con <$> getRecordConstructor r <*> return args
+  case compare (length args) (length xs) of
+    LT -> fallBack       -- Not fully applied
+    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
+    EQ -> do
+      cs <- zipWithM check args xs
+      case sequence cs of
+        Just (c:cs) -> do
+          if all (c ==) cs
+            then return c
+            else fallBack
+        _ -> fallBack
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.
