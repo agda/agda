@@ -84,7 +84,7 @@ checkStrictlyPositive mi = do
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
           findOcc i = case Graph.allPaths isNegative (ArgNode q i) (DefNode q) g of
-            []                     -> Positive  -- Unused is not good for datatypes
+            []                     -> Unused -- Unused is not good for datatypes (why not? let's do it anyway!)
             es | any isNegative es -> Negative
                | otherwise         -> Positive
           args = map findOcc [0..nArgs - 1]
