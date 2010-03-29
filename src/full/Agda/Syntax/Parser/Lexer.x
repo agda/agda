@@ -80,6 +80,7 @@ tokens :-
 <pragma_>   "COMPILED"	        { keyword KwCOMPILED }
 <pragma_>   "IMPORT"	        { keyword KwIMPORT }
 <pragma_>   "IMPOSSIBLE"	{ keyword KwIMPOSSIBLE }
+<pragma_>   "ETA"               { keyword KwETA }
 <pragma_>   "LINE"		{ keyword KwLINE }
 <pragma_>   . # [ $white ] +    { withInterval $ TokString }
 

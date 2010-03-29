@@ -244,6 +244,7 @@ data Pragma = OptionsPragma     !Range [String]
               -- ^ Invariant: The string must be a valid Haskell
               -- module name.
             | ImpossiblePragma !Range
+            | EtaPragma !Range QName
     deriving (Eq, Typeable, Data)
 
 ---------------------------------------------------------------------------
@@ -367,6 +368,7 @@ instance HasRange Pragma where
     getRange (CompiledPragma r _ _)       = r
     getRange (ImportPragma r _)           = r
     getRange (ImpossiblePragma r)         = r
+    getRange (EtaPragma r _)              = r
 
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs

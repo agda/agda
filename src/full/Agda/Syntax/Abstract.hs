@@ -70,6 +70,7 @@ data Pragma = OptionsPragma [String]
             | CompiledPragma QName String
             | CompiledTypePragma QName String
             | CompiledDataPragma QName String [String]
+            | EtaPragma QName
   deriving (Typeable, Data, Show)
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn

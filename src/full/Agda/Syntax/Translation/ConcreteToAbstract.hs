@@ -635,6 +635,11 @@ instance ToAbstract C.Pragma [A.Pragma] where
       addHaskellImport i
       return []
     toAbstract (C.ImpossiblePragma _) = __IMPOSSIBLE__
+    toAbstract (C.EtaPragma _ x) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.EtaPragma x ]
+        _       -> fail "Bad ETA pragma"
 
 -- Only constructor names are bound by definitions.
 instance ToAbstract NiceDefinition Definition where

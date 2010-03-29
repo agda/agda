@@ -602,6 +602,7 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledPragma x hs -> do
           x <- toConcrete x
           return $ C.CompiledPragma r x hs
+        A.EtaPragma x -> C.EtaPragma r <$> toConcrete x
 
 -- Left hand sides --------------------------------------------------------
 

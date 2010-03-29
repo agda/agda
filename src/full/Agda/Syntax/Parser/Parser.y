@@ -81,6 +81,7 @@ import Agda.Utils.TestHelpers
     'BUILTIN'       { TokKeyword KwBUILTIN $$ }
     'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
+    'ETA'           { TokKeyword KwETA $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
@@ -170,6 +171,8 @@ Token
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
+    | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
+    | 'ETA'           { TokKeyword KwETA $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -791,6 +794,7 @@ DeclarationPragma
   | CompiledTypePragma { $1 }
   | ImportPragma       { $1 }
   | ImpossiblePragma   { $1 }
+  | RecordEtaPragma    { $1 }
 
 OptionsPragma :: { Pragma }
 OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
@@ -814,6 +818,11 @@ CompiledDataPragma :: { Pragma }
 CompiledDataPragma
   : '{-#' 'COMPILED_DATA' PragmaName string PragmaStrings '#-}'
     { CompiledDataPragma (fuseRange $1 $6) $3 (snd $4) $5 }
+
+RecordEtaPragma :: { Pragma }
+RecordEtaPragma
+  : '{-#' 'ETA' PragmaName '#-}'
+    { EtaPragma (fuseRange $1 $4) $3 }
 
 ImportPragma :: { Pragma }
 ImportPragma

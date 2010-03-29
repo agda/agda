@@ -153,6 +153,15 @@ checkPragma r p =
               addHaskellCode x ty hs
             _   -> typeError $ GenericError "COMPILED directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
+        A.EtaPragma r -> modifySignature eta
+          where
+            eta sig = sig { sigDefinitions = Map.adjust setEta r defs }
+              where
+                setEta def = def { theDef = setEtad $ theDef def }
+                setEtad d   = case d of
+                  Record{}   -> d { recEtaEquality = True }
+                  _          -> d
+                defs	  = sigDefinitions sig
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
