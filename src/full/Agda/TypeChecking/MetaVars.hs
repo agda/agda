@@ -302,7 +302,7 @@ etaExpandMeta kinds m =
     Blocked x _               -> listenToMeta m x
     NotBlocked (MetaV x _)    -> listenToMeta m x
     NotBlocked lvl@(Def r ps) ->
-      ifM (isRecord r) (do
+      ifM (isEtaRecord r) (do
 	let expand = do
               u <- withMetaInfo (mvInfo meta) $ newRecordMetaCtx r ps tel args
               inContext [] $ addCtxTel tel $ do

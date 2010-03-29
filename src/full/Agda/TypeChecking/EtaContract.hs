@@ -47,7 +47,7 @@ etaOnce v = ignoreAbstractMode $ eta v
         | not (freeIn 0 u)  -> return $ subst __IMPOSSIBLE__ u
       _ -> return t
     eta t@(Con r args) =
-      ifM (isRecord r)
+      ifM (isEtaRecord r)
           (etaContractRecord r args)
           (return t)
     eta t = return t

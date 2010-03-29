@@ -105,6 +105,7 @@ checkRecDef i name con ps contel fields =
 				, recFields         = concatMap getName fields
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
+                                , recEtaEquality    = True
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }

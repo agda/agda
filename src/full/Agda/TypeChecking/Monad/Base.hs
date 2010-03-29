@@ -436,6 +436,7 @@ data Defn = Axiom
             , recTel            :: Telescope
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
+            , recEtaEquality    :: Bool
             , recAbstr          :: IsAbstract
             }
 	  | Constructor

@@ -89,6 +89,14 @@ isRecord r = do
     Record{} -> True
     _        -> False
 
+-- | Check if a name refers to an eta expandable record.
+isEtaRecord :: MonadTCM tcm => QName -> tcm Bool
+isEtaRecord r = do
+  def <- theDef <$> getConstInfo r
+  return $ case def of
+    Record{recEtaEquality = eta} -> eta
+    _                            -> False
+
 {-| Compute the eta expansion of a record. The first argument should be
     the name of a record type. Given
 

@@ -87,7 +87,7 @@ compareTerm cmp a m n =
             else buildConstraint (ValueCmp cmp a m n)
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
-          isrec <- isRecord r
+          isrec <- isEtaRecord r
           if isrec
             then do
               m <- reduceB m
