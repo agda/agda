@@ -152,7 +152,7 @@ order for the change to take effect."
 
 (defcustom agda-input-inherit
   `(("TeX" . (agda-input-compose
-              (agda-input-drop '("geq" "leq" "bullet" "qed"))
+              (agda-input-drop '("geq" "leq" "bullet" "qed" "par"))
               (agda-input-or
                (agda-input-drop-prefix "\\")
                (agda-input-or
