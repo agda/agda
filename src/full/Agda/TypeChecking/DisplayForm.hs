@@ -53,8 +53,10 @@ matchDisplayForm (Display n ps v) vs
   | length ps > length vs = Nothing
   | otherwise             = do
     us <- match n ps $ raise 1 (map unArg vs0)
-    return $ substs (reverse us) v `apply` vs1
+    return $ substs (reverse us ++ ctx) v `apply` vs1
   where
+    -- TODO: figure out the length of the context
+    ctx = [ Var i [] | i <- [0..] ]
     (vs0, vs1) = splitAt (length ps) vs
 
 class Match a where
