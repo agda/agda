@@ -10,4 +10,5 @@ import Agda.TypeChecking.Monad
 isRecord :: MonadTCM tcm => QName -> tcm Bool
 isEtaRecord :: MonadTCM tcm => QName -> tcm Bool
 getRecordFieldNames :: MonadTCM tcm => QName -> tcm [(Hiding, C.Name)]
-etaContractRecord :: MonadTCM tcm => QName -> Args -> tcm Term
+etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
+isGeneratedRecordConstructor :: MonadTCM tcm => QName -> tcm Bool

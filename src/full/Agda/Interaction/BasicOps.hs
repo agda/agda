@@ -461,8 +461,9 @@ introTactic ii = do
             def <- getConstInfo d
             case theDef def of
               Datatype{}                 -> introData t
-              Record{ recCon = Nothing } -> introRec d
-              Record{ recCon = Just _  } -> introData t
+              Record{ recNamedCon = name }
+                | name      -> introData t
+                | otherwise -> introRec d
               _                          -> return []
           _ -> do
             TelV tel _ <- telView t

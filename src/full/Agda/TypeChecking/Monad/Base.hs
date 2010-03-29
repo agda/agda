@@ -430,7 +430,8 @@ data Defn = Axiom
 	  | Record
             { recPars           :: Nat
             , recClause         :: Maybe Clause
-            , recCon            :: Maybe QName          -- ^ Constructor name.
+            , recCon            :: QName                -- ^ Constructor name.
+            , recNamedCon       :: Bool
             , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [(Hiding, A.QName)]
             , recTel            :: Telescope

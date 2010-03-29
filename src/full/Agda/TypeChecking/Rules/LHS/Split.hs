@@ -105,7 +105,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
                       d'  <- canonicalName d
                       let cons def = case theDef def of
                             Datatype{dataCons = cs} -> cs
-                            Record{recCon = mc}     -> maybe [] (:[]) mc
+                            Record{recCon = c}      -> [c]
                             _                       -> __IMPOSSIBLE__
                       cs0 <- cons <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of

@@ -29,9 +29,9 @@ isDatatype :: MonadTCM tcm => QName -> tcm Bool
 isDatatype d = do
   def <- getConstInfo d
   case theDef def of
-    Datatype{}              -> return True
-    Record{recCon = Just _} -> return True
-    _                       -> return False
+    Datatype{}                   -> return True
+    Record{recNamedCon = namedC} -> return namedC
+    _                            -> return False
 
 data DatatypeInfo = DataInfo
   { datatypeName   :: QName
@@ -54,7 +54,7 @@ getDatatypeInfo t = do
       TelV tel _ <- telView (defType def)
       let npars  = case theDef def of
             Datatype{dataPars = np} -> Just np
-            Record{recPars = np, recCon = Just _}
+            Record{recPars = np, recNamedCon = True}
               | genericLength args == np -> Just np
               | otherwise                -> __IMPOSSIBLE__
             _                            -> Nothing

@@ -10,6 +10,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
 import {-# SOURCE #-} Agda.TypeChecking.Records
+import {-# SOURCE #-} Agda.TypeChecking.Datatypes
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -46,9 +47,10 @@ etaOnce v = ignoreAbstractMode $ eta v
       App u (Arg _ (Var 0 []))
         | not (freeIn 0 u)  -> return $ subst __IMPOSSIBLE__ u
       _ -> return t
-    eta t@(Con r args) =
+    eta t@(Con c args) = do
+      r <- getConstructorData c
       ifM (isEtaRecord r)
-          (etaContractRecord r args)
+          (etaContractRecord r c args)
           (return t)
     eta t = return t
 

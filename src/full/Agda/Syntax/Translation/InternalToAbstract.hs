@@ -44,6 +44,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Datatypes
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -182,12 +183,13 @@ instance Reify Term Expr where
 		    n <- getDefFreeVars x
 		    reifyApp (A.Def x) $ genericDrop n vs
 		I.Con x vs   -> do
-		  isR <- isRecord x
+		  isR <- isGeneratedRecordConstructor x
 		  case isR of
 		    True -> do
 		      showImp <- showImplicitArguments
                       let keep ((h, x), v) = showImp || h == NotHidden
-		      xs <- getRecordFieldNames x
+                      r  <- getConstructorData x
+		      xs <- getRecordFieldNames r
 		      vs <- reify $ map unArg vs
 		      return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
 		    False -> reifyDisplayForm x vs $ do

@@ -73,10 +73,13 @@ checkRecDef i name con ps contel fields =
       let TelV ftel _ = telView' contype
       let contype = telePi ftel (raise (size ftel) rect)
 
-      (conName, conInfo) <- case con of
-        Just (A.Axiom i c _) -> return (Just c, i)
+      (hasNamedCon, conName, conInfo) <- case con of
+        Just (A.Axiom i c _) -> return (True, c, i)
         Just _               -> __IMPOSSIBLE__
-        Nothing              -> return (Nothing, i)
+        Nothing              -> do
+          m <- currentModule
+          c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
+          return (False, c, i)
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
@@ -94,13 +97,13 @@ checkRecDef i name con ps contel fields =
         -- Check the types of the fields
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
-          checkRecordProjections m (maybe name id conName)
-                                 tel' (raise 1 ftel) fields
+          checkRecordProjections m conName tel' (raise 1 ftel) fields
 
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = conName
+                                , recNamedCon       = hasNamedCon
                                 , recConType        = contype
 				, recFields         = concatMap getName fields
                                 , recTel            = ftel
@@ -110,18 +113,15 @@ checkRecDef i name con ps contel fields =
                                 , recArgOccurrences = []
                                 }
 
-      case conName of
-        Nothing      -> return ()
-        Just conName ->
-          addConstant conName $
-            Defn conName contype (defaultDisplayForm conName) 0 $
-                 Constructor { conPars   = 0
-                             , conSrcCon = conName
-                             , conData   = name
-                             , conHsCode = Nothing
-                             , conAbstr  = Info.defAbstract conInfo
-                             , conInd    = Inductive
-                             }
+      addConstant conName $
+        Defn conName contype (defaultDisplayForm conName) 0 $
+             Constructor { conPars   = 0
+                         , conSrcCon = conName
+                         , conData   = name
+                         , conHsCode = Nothing
+                         , conAbstr  = Info.defAbstract conInfo
+                         , conInd    = Inductive
+                         }
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here

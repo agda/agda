@@ -228,10 +228,15 @@ compareAtom cmp t m n =
 		compareArgs pol a xArgs yArgs
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
-		    -- The type is a datatype.
+		    -- The type is a datatype or a record.
 		    Def d args <- reduce $ unEl t
-		    -- Get the number of parameters to the datatype
-		    Datatype{dataPars = npars} <- theDef <$> getConstInfo d
+		    -- Get the number of parameters to the datatype (or record)
+                    npars <- do
+                      def <- theDef <$> getConstInfo d
+                      case def of
+		        Datatype{dataPars = npars} -> return npars
+                        Record{recPars = npars}    -> return npars
+                        _                          -> __IMPOSSIBLE__
 		    -- The type to compare the arguments at is obtained by
 		    -- instantiating the parameters.
 		    a <- defType <$> getConstInfo x
@@ -320,7 +325,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                               , text "--->" <+> prettyTCM cs1
                               ]
                           ]
-                        patternViolation   -- TODO: will duplicate work (all arguments checked so far)
+                        patternViolation
 		_   -> do
                     reportSDoc "tc.conv.args" 15 $ sep
                       [ text "compareArgs" <+> parens (text $ show pol)

@@ -17,6 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Datatypes
 import Agda.Utils.List
 import Agda.Utils.Monad
 
@@ -75,11 +76,7 @@ getRecordConstructorType r = recConType <$> getRecordDef r
 -- | Returns the given record type's constructor name (with an empty
 -- range).
 getRecordConstructor :: MonadTCM tcm => QName -> tcm QName
-getRecordConstructor r = killRange <$> do
-  c <- recCon <$> getRecordDef r
-  case c of
-    Nothing -> return r
-    Just c  -> return c
+getRecordConstructor r = killRange <$> recCon <$> getRecordDef r
 
 -- | Check if a name refers to a record.
 isRecord :: MonadTCM tcm => QName -> tcm Bool
@@ -96,6 +93,18 @@ isEtaRecord r = do
   return $ case def of
     Record{recEtaEquality = eta} -> eta
     _                            -> False
+
+-- | Check if a constructor name is the internally generated record constructor.
+isGeneratedRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
+isGeneratedRecordConstructor c = do
+  def <- theDef <$> getConstInfo c
+  case def of
+    Constructor{ conData = r } -> do
+      def <- theDef <$> getConstInfo r
+      case def of
+        Record{ recNamedCon = False } -> return True
+        _                             -> return False
+    _ -> return False
 
 {-| Compute the eta expansion of a record. The first argument should be
     the name of a record type. Given
@@ -124,14 +133,14 @@ etaExpandRecord r pars u = do
     hide (Arg _ x) = Arg Hidden x
 
 -- | The fields should be eta contracted already.
-etaContractRecord :: MonadTCM tcm => QName -> Args -> tcm Term
-etaContractRecord r args = do
+etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
+etaContractRecord r c args = do
   Record{ recFields = xs } <- getRecordDef r
   let check (Arg _ v) (_, x) = do
         case v of
           Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
           _                         -> return Nothing
-      fallBack = Con <$> getRecordConstructor r <*> return args
+      fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
