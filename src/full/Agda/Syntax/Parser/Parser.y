@@ -173,6 +173,10 @@ Token
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
+    | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
+    | 'ETA'           { TokKeyword KwETA $1 }
+    | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
+    | 'quote'         { TokKeyword KwQuote $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
