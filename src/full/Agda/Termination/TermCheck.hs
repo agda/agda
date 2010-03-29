@@ -486,14 +486,14 @@ termTerm conf names f pats0 t0 = do
 
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
-               do g1 <- loop pats guarded a
-                  g2 <- loop (map liftDBP pats) guarded b
+               do g1 <- loop pats piArgumentGuarded a
+                  g2 <- loop (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
             Fun (Arg _ (El _ a)) (El _ b) ->
-               do g1 <- loop pats guarded a
-                  g2 <- loop pats guarded b
+               do g1 <- loop pats piArgumentGuarded a
+                  g2 <- loop pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- literal
@@ -505,6 +505,14 @@ termTerm conf names f pats0 t0 = do
 	    -- Unsolved metas are not considered termination problems, there
 	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
+         where
+         -- Should function and Π type constructors be treated as
+         -- preserving guardedness?
+         piArgumentGuarded =
+           if guardingTypeConstructors conf then
+             guarded
+            else
+             Unknown
 
 {- | compareArgs suc pats ts
 
