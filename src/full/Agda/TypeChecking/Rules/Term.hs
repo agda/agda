@@ -40,6 +40,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Quote
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -411,21 +412,24 @@ checkExpr e t =
         A.ETel _   -> __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
-        A.QuoteGoal _ x e      -> do
-             t' <- etaContract =<< normalise t
-             -- should check that there are no metavars
-             str <- show <$> prettyTCM t'
-             string <- El (mkType 0) <$> primString
-             let quoted = Lit (LitString noRange str)
-             (v,ty) <- addLetBinding x quoted string (inferExpr e)
-             blockTerm t' v $ leqType ty t'
+        e0@(A.QuoteGoal _ x e) -> do
+          t' <- etaContract =<< normalise t
+          let metas = foldTerm (\v -> case v of
+                                       MetaV m _ -> [m]
+                                       _         -> []
+                               ) t'
+          case metas of
+            _:_ -> postponeTypeCheckingProblem e0 t' $ and <$> mapM isInstantiatedMeta metas
+            []  -> do
+              quoted <- quoteType t'
+              tmType <- agdaTermType
+              (v,ty) <- addLetBinding x quoted tmType (inferExpr e)
+              blockTerm t' v $ leqType ty t'
         A.Quote _ e      -> do
-             do
-               (v,_) <- inferExpr e
-               str <- show <$> prettyTCM v
-               let quoted = Lit (LitString noRange str)
-               string <- El (mkType 0) <$> primString
-               blockTerm t quoted $ leqType string t
+           (v, _) <- inferExpr e
+           tmType <- agdaTermType
+           quoted <- quoteTerm v
+           blockTerm t quoted $ leqType tmType t
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)

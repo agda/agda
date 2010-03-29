@@ -52,6 +52,14 @@ isSortMeta m = do
     HasType{} -> False
     IsSort{}  -> True
 
+isInstantiatedMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isInstantiatedMeta m = do
+  mv <- lookupMeta m
+  return $ case mvInstantiation mv of
+    InstV{} -> True
+    InstS{} -> True
+    _       -> False
+
 createMetaInfo :: MonadTCM tcm => tcm MetaInfo
 createMetaInfo =
     do  r <- getCurrentRange

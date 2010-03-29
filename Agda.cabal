@@ -199,6 +199,7 @@ library
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.Quote
                     Agda.TypeChecking.Rebind
                     Agda.TypeChecking.RecordPatterns
                     Agda.TypeChecking.Records
