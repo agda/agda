@@ -230,7 +230,7 @@ instance Subst Term where
 	    Fun a b    -> uncurry Fun $ substs us (a,b)
 	    Sort s     -> Sort $ substs us s
         where
-            []     !!! n = error "unbound variable"
+            []     !!! n = __IMPOSSIBLE__
             (x:xs) !!! 0 = x
             (_:xs) !!! n = xs !!! (n - 1)
     substUnder n u t =
