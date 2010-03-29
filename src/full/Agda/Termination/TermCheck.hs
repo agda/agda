@@ -395,11 +395,26 @@ termTerm conf names f pats0 t0 = do
          suc <- sizeSuc
 
              -- Handles constructor applications.
-         let constructor c ind args = do
-               let g' = case ind of
-                         Inductive   -> guarded
-                         CoInductive -> Lt .*. guarded
-               collectCalls (loop pats g') (map unArg args)
+         let constructor
+               :: QName
+                  -- ^ Constructor name.
+               -> Induction
+                  -- ^ Should the constructor be treated as
+                  --   inductive or coinductive?
+               -> [(Arg Term, Bool)]
+                  -- ^ All the arguments, and for every
+                  --   argument a boolean which is 'True' iff the
+                  --   argument should be viewed as preserving
+                  --   guardedness.
+               -> TCM Calls
+             constructor c ind args = collectCalls loopArg args
+               where
+               loopArg (arg , preserves) = do
+                 loop pats g' (unArg arg)
+                 where g' = case (preserves, ind) of
+                              (True,  Inductive)   -> guarded
+                              (True,  CoInductive) -> Lt .*. guarded
+                              (False, _)           -> Unknown
 
              -- Handles function applications.
              function g args0 = do
@@ -462,21 +477,29 @@ termTerm conf names f pats0 t0 = do
             -- Constructed value.
             Con c args -> do
               ind <- whatInduction c
-              constructor c ind args
+              constructor c ind $ zip args (repeat True)
 
             Def g args0 -> do
-                  -- Data or record type constructor.
-              let con = constructor g Inductive args0
-                  -- Call to defined function.
-                  fun = function g args0
               if guardingTypeConstructors conf then do
                 gDef <- theDef <$> getConstInfo g
                 case gDef of
-                  Datatype {} -> con
-                  Record   {} -> con
-                  _           -> fun
+                  Datatype {dataArgOccurrences = occs} -> con occs
+                  Record   {recArgOccurrences  = occs} -> con occs
+                  _                                    -> fun
                else
                 fun
+              where
+              -- Data or record type constructor.
+              con occs =
+                constructor g Inductive $
+                  zip args0 (map preserves occs ++ repeat False)
+                where
+                preserves Positive = True
+                preserves Negative = False
+                preserves Unused   = True
+
+              -- Call to defined function.
+              fun = function g args0
 
             -- abstraction
             Lam _ (Abs _ t) -> loop (map liftDBP pats) guarded t
@@ -486,13 +509,13 @@ termTerm conf names f pats0 t0 = do
 
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
-               do g1 <- loop pats piArgumentGuarded a
+               do g1 <- loop pats Unknown a
                   g2 <- loop (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
             Fun (Arg _ (El _ a)) (El _ b) ->
-               do g1 <- loop pats piArgumentGuarded a
+               do g1 <- loop pats Unknown a
                   g2 <- loop pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
@@ -507,7 +530,7 @@ termTerm conf names f pats0 t0 = do
             MetaV x args -> return Term.empty
          where
          -- Should function and Π type constructors be treated as
-         -- preserving guardedness?
+         -- preserving guardedness in their right arguments?
          piArgumentGuarded =
            if guardingTypeConstructors conf then
              guarded
