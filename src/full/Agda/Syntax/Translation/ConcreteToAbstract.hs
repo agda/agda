@@ -485,6 +485,14 @@ instance ToAbstract C.Expr A.Expr where
   -- Impossible things
       C.ETel _   -> __IMPOSSIBLE__
 
+  -- Quoting
+      C.QuoteGoal _ x e -> do 
+        x' <- toAbstract (NewName x)
+        e' <- toAbstract e
+        return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
+      C.Quote _ e     -> do e' <- toAbstract e
+                            return $ A.Quote (ExprRange $ getRange e) e'
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb

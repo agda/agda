@@ -39,6 +39,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -410,6 +411,21 @@ checkExpr e t =
         A.ETel _   -> __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
+        A.QuoteGoal _ x e      -> do
+             t' <- etaContract =<< normalise t
+             -- should check that there are no metavars
+             str <- show <$> prettyTCM t'
+             string <- El (mkType 0) <$> primString
+             let quoted = Lit (LitString noRange str)
+             (v,ty) <- addLetBinding x quoted string (inferExpr e)
+             blockTerm t' v $ leqType ty t'
+        A.Quote _ e      -> do
+             do
+               (v,_) <- inferExpr e
+               str <- show <$> prettyTCM v
+               let quoted = Lit (LitString noRange str)
+               string <- El (mkType 0) <$> primString
+               blockTerm t quoted $ leqType string t
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)

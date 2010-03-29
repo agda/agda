@@ -70,6 +70,8 @@ data Expr
 	| As !Range Name Expr		       -- ^ ex: @x\@p@, only in patterns
 	| Dot !Range Expr		       -- ^ ex: @.p@, only in patterns
         | ETel Telescope                       -- ^ only used for printing telescopes
+        | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
+        | Quote !Range Expr                    -- ^ ex: @quote e@
     deriving (Typeable, Data, Eq)
 
 
@@ -310,6 +312,8 @@ instance HasRange Expr where
 	    HiddenArg r _	-> r
 	    Rec r _		-> r
             ETel tel            -> getRange tel
+            QuoteGoal r _ _     -> r
+            Quote r _           -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs

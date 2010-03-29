@@ -85,6 +85,8 @@ import Agda.Utils.TestHelpers
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
+    'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
+    'quote'         { TokKeyword KwQuote $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -171,8 +173,6 @@ Token
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
-    | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
-    | 'ETA'           { TokKeyword KwETA $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -398,6 +398,8 @@ Expr2
                                    }
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
+    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$4)) $2 $4}
+    | 'quote' Expr                 { Quote (getRange ($1,$2)) $2 }
 
 Application3 :: { [Expr] }
 Application3

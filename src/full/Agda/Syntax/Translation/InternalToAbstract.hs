@@ -349,6 +349,8 @@ instance DotVars A.Expr where
     A.Let _ _ _      -> __IMPOSSIBLE__
     A.Rec _ es       -> dotVars $ map snd es
     A.ETel _         -> __IMPOSSIBLE__
+    A.QuoteGoal {}   -> __IMPOSSIBLE__
+    A.Quote {}       -> __IMPOSSIBLE__
 
 instance DotVars TypedBindings where
   dotVars (TypedBindings _ _ bs) = dotVars bs

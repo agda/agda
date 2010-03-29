@@ -332,6 +332,9 @@ paren _   e@(Absurd _)         = return $ \p -> e
 paren _   e@(ETel _)           = return $ \p -> e
 paren _   e@(RawApp _ _)       = __IMPOSSIBLE__
 paren _   e@(HiddenArg _ _)    = __IMPOSSIBLE__
+paren _   e@(QuoteGoal _ _ _)  = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(Quote _ _)        = return $ \p -> mparen (appBrackets p) e
+
 
 mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e

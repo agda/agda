@@ -49,6 +49,8 @@ data Expr
         | ETel Telescope                     -- ^ only used when printing telescopes
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
+        | QuoteGoal ExprInfo Name Expr       -- ^  
+        | Quote ExprInfo Expr                -- ^
   deriving (Typeable, Data, Show)
 
 data Declaration
@@ -220,6 +222,8 @@ instance HasRange Expr where
     getRange (Rec i _)		= getRange i
     getRange (ETel tel)         = getRange tel
     getRange (ScopedExpr _ e)	= getRange e
+    getRange (QuoteGoal _ _ e)	= getRange e
+    getRange (Quote _ e)	= getRange e
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	       ) = getRange i
@@ -297,6 +301,8 @@ instance KillRange Expr where
   killRange (Rec i fs)       = Rec (killRange i) (map (id -*- killRange) fs)
   killRange (ETel tel)       = killRange1 ETel tel
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
+  killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
+  killRange (Quote i e)      = killRange2 Quote i e
 
 instance KillRange Declaration where
   killRange (Axiom      i a b         ) = killRange3 Axiom      i a b

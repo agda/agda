@@ -383,6 +383,12 @@ instance ToConcrete A.Expr C.Expr where
       return $ C.ETel tel
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
+    toConcrete (A.QuoteGoal i x e) = 
+        bindToConcrete x $ \ x' -> do
+            e' <- toConcrete e
+            return $ C.QuoteGoal (getRange i) x' e' 
+    toConcrete (A.Quote i e) = do e' <- toConcrete e
+                                  return $ C.Quote (getRange i) e'
 
 -- Binder instances -------------------------------------------------------
 
