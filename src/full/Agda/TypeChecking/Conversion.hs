@@ -488,7 +488,6 @@ equalLevel a b = do
   liftTCM $ check a b as bs
   where
     check a b as bs = do
-      let getLvl = El (mkType 0) <$> primLevel
       reportSDoc "tc.conv.nat" 20 $
         sep [ text "equalLevel"
             , nest 2 $ sep [ prettyTCM a <+> text "=="
@@ -526,16 +525,13 @@ equalLevel a b = do
         -- meta == any
         ([Plus n (MetaLevel x as)], _)
           | any (isThisMeta x) bs -> postpone
-          | otherwise             -> do
-            bs' <- mapM (subtr n) bs
-            lvl <- getLvl
-            assignV lvl x as =<< unLevelView (Max bs')
         (_, [Plus n (MetaLevel x bs)])
           | any (isThisMeta x) as -> postpone
-          | otherwise             -> do
-            as' <- mapM (subtr n) as
-            lvl <- getLvl
-            assignV lvl x bs =<< unLevelView (Max as')
+        ([Plus n (MetaLevel x as')], [Plus m (MetaLevel y bs')])
+          | (n, y) < (m, x)            -> meta n x as' bs
+          | otherwise                  -> meta m y bs' as
+        ([Plus n (MetaLevel x as)], _) -> meta n x as bs
+        (_, [Plus n (MetaLevel x bs)]) -> meta n x bs as
 
         -- any other metas
         _ | any isMeta (as ++ bs) -> postpone
@@ -550,6 +546,13 @@ equalLevel a b = do
         ok       = return []
         notok    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = patternViolation
+
+        getLvl = El (mkType 0) <$> primLevel
+
+        meta n x as bs = do
+          bs' <- mapM (subtr n) bs
+          lvl <- getLvl
+          assignV lvl x as =<< unLevelView (Max bs')
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->

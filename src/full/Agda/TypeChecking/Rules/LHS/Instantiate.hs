@@ -32,7 +32,7 @@ instantiateTel s tel = liftTCM $ do
 
   reportSDoc "tc.lhs.inst" 10 $ sep
     [ text "instantiateTel "
-    , nest 2 $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
+    , nest 2 $ addCtxTel tel $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
     , nest 2 $ prettyTCM tel
     ]
 
