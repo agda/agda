@@ -228,7 +228,8 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences vars (Clause{ clausePats = ps, clauseBody = body }) =
-    concatOccurs (zipWith match [0..] ps) >+<
+    -- We don't treat pattern matching as something dangerous
+    -- concatOccurs (zipWith match [0..] ps) >+<
     walk vars (patItems ps) body
     where
       walk _    _         NoBody     = Map.empty
@@ -244,7 +245,7 @@ instance ComputeOccurrences Clause where
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i (VarP _) = [Just (AnArg i)]
-      patItem i p        = replicate (nVars p) Nothing
+      patItem i p        = replicate (nVars p) (Just (AnArg i)) -- Nothing
 
       nVars p = case p of
         VarP{}    -> 1
