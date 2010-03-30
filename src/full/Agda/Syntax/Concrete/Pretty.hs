@@ -46,6 +46,7 @@ instance Pretty Literal where
     pretty (LitFloat _ x)   = text $ show x
     pretty (LitString _ s)  = text $ showString' s ""
     pretty (LitChar _ c)    = text $ "'" ++ showChar' c "" ++ "'"
+    pretty (LitQName _ x)   = text $ show x
 
 showString' :: String -> ShowS
 showString' s =

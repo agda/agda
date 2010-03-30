@@ -89,6 +89,7 @@ instance PrimTerm Double  where primTerm _ = primFloat
 instance PrimTerm Str	  where primTerm _ = primString
 instance PrimTerm Nat	  where primTerm _ = primNat
 instance PrimTerm Lvl     where primTerm _ = primLevel
+instance PrimTerm QName   where primTerm _ = primQName
 
 instance PrimTerm a => PrimTerm [a] where
     primTerm _ = list (primTerm (undefined :: a))
@@ -107,6 +108,7 @@ instance ToTerm Lvl	where toTerm = return $ Lit . LitLevel noRange . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
+instance ToTerm QName	where toTerm = return $ Lit . LitQName noRange
 
 instance ToTerm Bool where
     toTerm = do
@@ -165,6 +167,11 @@ instance FromTerm Char where
 instance FromTerm Str where
     fromTerm = fromLiteral $ \l -> case l of
 	LitString _ s -> Just $ Str s
+	_	      -> Nothing
+
+instance FromTerm QName where
+    fromTerm = fromLiteral $ \l -> case l of
+	LitQName _ x -> Just x
 	_	      -> Nothing
 
 instance FromTerm Bool where
@@ -440,6 +447,7 @@ primitiveFunctions = Map.fromList
 
     -- Other stuff
     , "primTrustMe"         |-> primTrustMe
+    , "primQNameEquality"  |-> mkPrimFun2 ((==) :: Rel QName)
     ]
     where
 	(|->) = (,)

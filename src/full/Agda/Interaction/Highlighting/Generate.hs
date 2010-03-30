@@ -152,6 +152,7 @@ generateSyntaxInfo file mErr top termErrs =
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
       tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
+      tokenToFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
       tokenToFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
       tokenToFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
       tokenToFile (T.TokId {})                     = mempty

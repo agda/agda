@@ -2,14 +2,15 @@
 module Agda.Syntax.Literal where
 
 import Data.Generics (Typeable, Data)
-
 import Agda.Syntax.Position
+import Agda.Syntax.Abstract.Name
 
 data Literal = LitInt    Range Integer
              | LitLevel  Range Integer
 	     | LitFloat  Range Double
 	     | LitString Range String
 	     | LitChar   Range Char
+             | LitQName  Range QName
   deriving (Typeable, Data, Show)
 
 instance Eq Literal where
@@ -18,6 +19,7 @@ instance Eq Literal where
   LitFloat _ x  == LitFloat _ y  = x == y
   LitString _ s == LitString _ t = s == t
   LitChar _ c   == LitChar _ d   = c == d
+  LitQName _ x  == LitQName _ y  = x == y
   _             == _             = False
 
 instance Ord Literal where
@@ -34,6 +36,8 @@ instance Ord Literal where
   compare _ LitFloat{} = GT
   compare LitString{} _ = LT
   compare _ LitString{} = GT
+  compare LitQName{} _  = LT
+  compare _ LitQName{}  = GT
 
 instance HasRange Literal where
   getRange (LitLevel  r _) = r
@@ -41,6 +45,7 @@ instance HasRange Literal where
   getRange (LitFloat  r _) = r
   getRange (LitString r _) = r
   getRange (LitChar   r _) = r
+  getRange (LitQName  r _) = r
 
 instance SetRange Literal where
   setRange r (LitLevel  _ x) = LitLevel  r x
@@ -48,6 +53,7 @@ instance SetRange Literal where
   setRange r (LitFloat  _ x) = LitFloat  r x
   setRange r (LitString _ x) = LitString r x
   setRange r (LitChar   _ x) = LitChar   r x
+  setRange r (LitQName  _ x) = LitQName  r x
 
 instance KillRange Literal where
   killRange (LitLevel  r x) = LitLevel  (killRange r) x
@@ -55,4 +61,5 @@ instance KillRange Literal where
   killRange (LitFloat  r x) = LitFloat  (killRange r) x
   killRange (LitString r x) = LitString (killRange r) x
   killRange (LitChar   r x) = LitChar   (killRange r) x
+  killRange (LitQName  r x) = LitQName  (killRange r) x
 

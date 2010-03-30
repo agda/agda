@@ -87,6 +87,7 @@ showOptimizedLiteral (LitInt    _ i) = text $ show i
 showOptimizedLiteral (LitString _ s) = text $ show s
 showOptimizedLiteral (LitFloat  _ f) = text $ show f
 showOptimizedLiteral (LitChar   _ c) = text $ show c
+showOptimizedLiteral (LitQName  _ x) = text $ show x
 
 showUntypedLiteral :: Literal -> Doc
 showUntypedLiteral (LitLevel  _ i) = text "VInt"    <+> text (show i)
@@ -94,7 +95,7 @@ showUntypedLiteral (LitInt    _ i) = text "VInt"    <+> text (show i)
 showUntypedLiteral (LitString _ s) = text "VString" <+> text (show s)
 showUntypedLiteral (LitFloat  _ f) = text "VFloat"  <+> text (show f)
 showUntypedLiteral (LitChar   _ c) = text "VChar"   <+> text (show c)
-
+showUntypedLiteral (LitQName   _ x) = text "VString" <+> text (show x)
 
 showClause :: (Term -> TCM Doc) ->
 	      (QName -> [Doc] -> TCM Doc) ->

@@ -147,6 +147,7 @@ litType l = case l of
     LitFloat _ _  -> el <$> primFloat
     LitChar _ _   -> el <$> primChar
     LitString _ _ -> el <$> primString
+    LitQName _ _ -> __IMPOSSIBLE__
   where
     el t = El (mkType 0) t
 

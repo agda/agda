@@ -259,6 +259,7 @@ hslit l = case l of LitInt    _ x -> HsInt    x
                     LitFloat  _ x -> HsFrac   (toRational x)
                     LitString _ x -> HsString x
                     LitChar   _ x -> HsChar   x
+                    LitQName  _ x -> HsString (show x)
 
 condecl :: QName -> TCM (Nat, HsConDecl)
 condecl q = getConstInfo q >>= \d -> case d of

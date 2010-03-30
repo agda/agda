@@ -489,11 +489,13 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icode (LitString a b) = icode2 2 a b
   icode (LitChar   a b) = icode2 3 a b
   icode (LitLevel  a b) = icode2 4 a b
+  icode (LitQName  a b) = icode2 5 a b
   value = vcase valu where valu [0, a, b] = valu2 LitInt    a b
                            valu [1, a, b] = valu2 LitFloat  a b
                            valu [2, a, b] = valu2 LitString a b
                            valu [3, a, b] = valu2 LitChar   a b
                            valu [4, a, b] = valu2 LitLevel  a b
+                           valu [5, a, b] = valu2 LitQName  a b
                            valu _         = malformed
 
 instance EmbPrj DisplayForm where

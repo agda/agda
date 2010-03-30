@@ -171,6 +171,7 @@ instance Reify Literal Expr where
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
   reify l@(LitChar   {}) = return (A.Lit l)
+  reify l@(LitQName   {}) = return (A.Lit l)
 
 instance Reify Term Expr where
     reify v =

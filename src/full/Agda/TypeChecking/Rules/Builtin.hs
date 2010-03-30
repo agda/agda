@@ -327,6 +327,11 @@ bindBuiltinRefl e = do
       reflType  = hPi "A" set $ hPi "x" (el v0) $ eq v1 v0 v0
   checkExpr e reflType
 
+bindBuiltinDummyConstructor :: A.Expr -> TCM Term
+bindBuiltinDummyConstructor (A.ScopedExpr _ e) = bindBuiltinDummyConstructor e
+bindBuiltinDummyConstructor (A.Con (AmbQ [c])) = return (Con c [])
+bindBuiltinDummyConstructor e = typeError $ GenericError "bad BUILTIN"
+
 -- | Builtin constructors
 builtinConstructors :: [(String, A.Expr -> TCM Term)]
 builtinConstructors =
@@ -339,6 +344,14 @@ builtinConstructors =
   , (builtinRefl,      bindBuiltinRefl              )
   , (builtinLevelZero, bindBuiltinLevelZero         )
   , (builtinLevelSuc,  bindBuiltinLevelSuc          )
+  , (builtinArgArg,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermVar,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermLam,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermDef,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermCon,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermPi,     bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermSort,    bindBuiltinDummyConstructor  )
+  , (builtinAgdaTermUnsupported,    bindBuiltinDummyConstructor  )
   ]
 
 -- | Builtin postulates
@@ -392,7 +405,7 @@ bindBuiltin b e = do
     where
         bind b e
             | elem b builtinTypes                        = bindBuiltinType b e
-            | elem b [builtinList]                       = bindBuiltinType1 b e
+            | elem b [builtinList,builtinArg]            = bindBuiltinType1 b e
             | b == builtinEquality                       = bindBuiltinEquality e
             | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
             | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v

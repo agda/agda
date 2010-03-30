@@ -60,7 +60,12 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
-    primEquality, primRefl, primLevel, primLevelZero, primLevelSuc, primLevelMax
+    primEquality, primRefl, 
+    primLevel, primLevelZero, primLevelSuc, primLevelMax,
+    -- builtins for reflection:
+    primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar, 
+    primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi, 
+    primAgdaTermSort, primAgdaTermUnsupported
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -92,6 +97,17 @@ primLevel        = getBuiltin builtinLevel
 primLevelZero    = getBuiltin builtinLevelZero
 primLevelSuc     = getBuiltin builtinLevelSuc
 primLevelMax     = getBuiltin builtinLevelMax
+primQName        = getBuiltin builtinQName
+primArg          = getBuiltin builtinArg
+primArgArg       = getBuiltin builtinArgArg
+primAgdaTerm         = getBuiltin builtinAgdaTerm
+primAgdaTermVar      = getBuiltin builtinAgdaTermVar
+primAgdaTermLam      = getBuiltin builtinAgdaTermLam
+primAgdaTermDef      = getBuiltin builtinAgdaTermDef
+primAgdaTermCon      = getBuiltin builtinAgdaTermCon
+primAgdaTermPi       = getBuiltin builtinAgdaTermPi
+primAgdaTermSort     = getBuiltin builtinAgdaTermSort
+primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported 
 
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
@@ -123,6 +139,17 @@ builtinLevelMax     = "LEVELMAX"
 builtinLevel        = "LEVEL"
 builtinLevelZero    = "LEVELZERO"
 builtinLevelSuc     = "LEVELSUC"
+builtinQName        = "QNAME"
+builtinArg          = "ARG"
+builtinArgArg       = "ARGARG"
+builtinAgdaTerm         = "AGDATERM"
+builtinAgdaTermVar      = "AGDATERMVAR"
+builtinAgdaTermLam      = "AGDATERMLAM"
+builtinAgdaTermDef      = "AGDATERMDEF"
+builtinAgdaTermCon      = "AGDATERMCON"
+builtinAgdaTermPi       = "AGDATERMPI"
+builtinAgdaTermSort     = "AGDATERMSORT"
+builtinAgdaTermUnsupported = "AGDATERMUNSUPPORTED"
 
 builtinTypes :: [String]
 builtinTypes =
@@ -133,5 +160,7 @@ builtinTypes =
     , builtinBool
     , builtinNat
     , builtinLevel
+    , builtinQName
+    , builtinAgdaTerm
     ]
 

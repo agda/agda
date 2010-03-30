@@ -447,6 +447,8 @@ processLit (LitFloat _ f) =  hsPreludeTypedExp "Double" $
 processLit (LitString _ s) =  HsLit $ HsString s
 processLit (LitChar _ c) =  HsApp (HsVar $ rtpCon "CharT")
                                   (HsLit $ HsChar c)
+processLit (LitQName _ x) =  HsLit $ HsString (show x)
+
 
 processVap :: HsExp -> [Arg Term] -> PM HsExp
 processVap e ts = do
