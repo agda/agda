@@ -29,6 +29,7 @@ module Agda.Termination.CallGraph
   , union
   , insert
   , complete
+  -- , showBehaviour -- RETIRED
   , prettyBehaviour
     -- * Tests
   , Agda.Termination.CallGraph.tests
@@ -36,10 +37,11 @@ module Agda.Termination.CallGraph
 
 import Agda.Utils.QuickCheck
 import Agda.Utils.Function
-import Agda.Utils.List
+import Agda.Utils.List hiding (tests)
+import Agda.Utils.Pretty hiding (empty)
 import Agda.Utils.TestHelpers
-import Agda.Termination.SparseMatrix as Matrix
-import Agda.Termination.Semiring (SemiRing,Semiring)
+import Agda.Termination.SparseMatrix as Matrix hiding (tests)
+import Agda.Termination.Semiring (HasZero(..),SemiRing,Semiring)
 import qualified Agda.Termination.Semiring as Semiring
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -116,10 +118,10 @@ decreasing (Decr k) | k > 0 = True
 decreasing _ = False
 
 instance Pretty Order where
-  pretty Lt      = text "<"
-  pretty Le      = text "="
-  pretty Unknown = text "?"
-  pretty (Mat m) = text "Mat" <+> pretty m
+  pretty (Decr 0) = text "="
+  pretty (Decr k) = text $ show k
+  pretty Unknown  = text "?"
+  pretty (Mat m)  = text "Mat" <+> pretty m
 
 --instance Ord Order where
 --    max = maxO
@@ -159,22 +161,42 @@ instance CoArbitrary Order where
 -- | Multiplication of 'Order's. (Corresponds to sequential
 -- composition.)
 
-(.*.) :: Order -> Order -> Order
-Lt      .*. Unknown   = Unknown
-Lt      .*. (Mat m)   = Lt .*. (collapse m)
-Lt      .*. _         = Lt
-Le      .*. o         = o
-Unknown .*. _         = Unknown
-(Mat m1) .*. (Mat m2) = if okM m1 m2 then
-                            Mat (mul m1 m2)
+-- I think this funny pattern matching is because overlapping patterns
+-- are producing a warning and thus an error (strict compilation settings)
+(.*.) :: (?cutoff :: Int) => Order -> Order -> Order
+Unknown  .*. _         = Unknown
+(Mat m)  .*. Unknown   = Unknown
+(Decr k) .*. Unknown   = Unknown
+(Decr k) .*. (Decr l)  = decr (k + l)
+(Decr 0) .*. (Mat m)   = Mat m
+(Decr k) .*. (Mat m)   = (Decr k) .*. (collapse m)
+(Mat m1) .*. (Mat m2) = if (okM m1 m2) then
+                            Mat $ mul orderSemiring m1 m2
                         else
-                            collapse m1 .*. collapse m2
-(Mat m) .*. Le        = Mat m
-(Mat m) .*. Unknown   = Unknown
-(Mat m) .*. Lt        = (collapse m) .*. Lt
+                            (collapse m1) .*. (collapse m2)
+(Mat m) .*. (Decr 0)  = Mat m
+(Mat m) .*. (Decr k)  = (collapse m) .*. (Decr k)
 
+{- collapse m
+
+We assume that m codes a permutation:  each row has at most one column
+that is not Un. 
+
+To collapse a matrix into a single value, we take the best value of
+each column and multiply them.  That means if one column is all Un,
+i.e., no argument relates to that parameter, than the collapsed value
+is also Un.
+
+This makes order multiplication associative.
+
+-}
+collapse :: (?cutoff :: Int) => Matrix Integer Order -> Order
+collapse m = foldl1 (.*.) (map (foldl1 maxO) (toLists (Matrix.transpose m)))
+
+{- OLD CODE, does not give associative matrix multiplication:
 collapse :: (?cutoff :: Int) => Matrix Integer Order -> Order
 collapse m = foldl (.*.) le (Data.Array.elems $ diagonal m)
+-}
 
 okM :: Matrix Integer Order -> Matrix Integer Order -> Bool
 okM m1 m2 = (rows $ size m2) == (cols $ size m1)
@@ -193,22 +215,39 @@ maxO o1 o2 = case (o1,o2) of
                (Mat m,_) -> maxO (collapse m) o2
                (_,Mat m) ->  maxO o1 (collapse m)
 
--- | The infimum of a (possibly empty) list of 'Order's.
+-- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as
+-- zero and 'Le' as one.
 
--- infimum :: [Order] -> Order
--- infimum = foldr min Lt -- DELETE ?
+-- | The infimum of a (non empty) list of 'Order's.
 
--- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as zero.
-{- -- and 'Le' as one. -}
+infimum :: (?cutoff :: Int) => [Order] -> Order
+infimum (o:l) = foldl minO o l
+infimum [] = __IMPOSSIBLE__ 
+
+minO :: (?cutoff :: Int) => Order -> Order -> Order
+minO o1 o2 = case (o1,o2) of
+               (Unknown,_) -> Unknown
+               (_,Unknown) -> Unknown
+               (Decr k, Decr l) -> decr (min k l)
+               (Mat m1, Mat m2) -> if (size m1 == size m2) then
+                                       Mat $ Matrix.intersectWith minO m1 m2
+                                   else
+                                       minO (collapse m1) (collapse m2)
+               (Mat m1,_) -> minO (collapse m1) o2
+               (_,Mat m2) -> minO o1 (collapse m2)
+
+
+{- Cannot have implicit arguments in instances.  Too bad!
 
 instance Monoid Order where
   mempty = Unknown
   mappend = maxO
 
-instance SemiRing Order where
+instance (cutoff :: Int) => SemiRing Order where
   multiply = (.*.)
+-}
 
-orderSemiring :: Semiring Order
+orderSemiring :: (?cutoff :: Int) => Semiring Order
 orderSemiring =
   Semiring.Semiring { Semiring.add = maxO
                     , Semiring.mul = (.*.)
@@ -216,6 +255,7 @@ orderSemiring =
 --                    , Semiring.one = Le
                     }
 
+prop_orderSemiring :: (?cutoff :: Int) => Order -> Order -> Order -> Bool
 prop_orderSemiring = Semiring.semiringInvariant orderSemiring
 
 ------------------------------------------------------------------------
@@ -238,6 +278,8 @@ instance Arbitrary CallMatrix where
 
 instance CoArbitrary CallMatrix where
   coarbitrary (CallMatrix m) = coarbitrary m
+
+prop_Arbitrary_CallMatrix = callMatrixInvariant
 
 -- | Generates a call matrix of the given size.
 
@@ -274,7 +316,8 @@ callMatrixInvariant cm =
 -- Precondition: see 'Matrix.mul'.
 
 (<*>) :: (?cutoff :: Int) => CallMatrix -> CallMatrix -> CallMatrix
-cm1 <*> cm2 = CallMatrix { mat = mul (mat cm1) (mat cm2) }
+cm1 <*> cm2 =
+  CallMatrix { mat = mul orderSemiring (mat cm1) (mat cm2) }
 
 prop_cmMul sz =
   forAll natural $ \c2 ->
@@ -321,6 +364,9 @@ instance Arbitrary Call where
 instance CoArbitrary Call where
   coarbitrary (Call s t cm) =
     coarbitrary s . coarbitrary t . coarbitrary cm
+
+prop_Arbitrary_Call :: Call -> Bool
+prop_Arbitrary_Call = callInvariant
 
 -- | 'Call' invariant.
 
@@ -505,6 +551,20 @@ prop_ensureCompletePrecondition =
   zipZip :: [[a]] -> [[b]] -> [[(a, b)]]
   zipZip xs ys = map (uncurry zip) $ zip xs ys
 
+-- | Displays the recursion behaviour corresponding to a call graph.
+
+{- RETIRED CODE
+showBehaviour :: Show meta => CallGraph meta -> String
+showBehaviour = concatMap showCall . toList
+  where
+  showCall (c, meta) | source c /= target c = ""
+                     | otherwise            = unlines
+    [ "Function:  " ++ show (source c)
+    , "Behaviour: " ++ show (elems $ diagonal $ mat $ cm c)
+    , "Meta info: " ++ show meta
+    ]
+-}
+
 instance Show meta => Pretty (CallGraph meta) where
   pretty = vcat . map prettyCall . toList
     where
@@ -532,12 +592,14 @@ prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
 -- All tests
 
 tests :: IO Bool
-tests = runTests "Agda.Termination.CallGraph"
-  [ quickCheck' prop_orderSemiring
+tests = runTests "Agda.Termination.CallGraph" 
+  [ quickCheck' callMatrixInvariant
+  , quickCheck' prop_decr
+  , quickCheck' prop_orderSemiring
   , quickCheck' prop_Arbitrary_CallMatrix
   , quickCheck' prop_callMatrix
   , quickCheck' prop_cmMul
-  , quickCheck' callInvariant
+  , quickCheck' prop_Arbitrary_Call
   , quickCheck' prop_callGraph
   , quickCheck' prop_complete
   , quickCheck' prop_ensureCompletePrecondition

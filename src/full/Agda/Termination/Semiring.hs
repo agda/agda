@@ -3,9 +3,11 @@
 -- | Semirings.
 
 module Agda.Termination.Semiring
-  ( SemiRing(..)
+  ( HasZero(..), SemiRing(..)
   , Semiring(..)
   , semiringInvariant
+  , integerSemiring
+  , boolSemiring
   , Agda.Termination.Semiring.tests
   ) where
 
@@ -22,35 +24,50 @@ class (Eq a, Monoid a) => SemiRing a where
   multiply :: a -> a -> a
 
 
+-- | @HasZero@ is needed for sparse matrices, to tell which is the element
+--   that does not have to be stored.
+--   It is a cut-down version of @SemiRing@ which is definable
+--   without the implicit @?cutoff@.
+class Eq a => HasZero a where
+  zeroElement :: a
+
 -- | Semirings.
 
-class Semiring a where
-  add  :: a -> a -> a  -- ^ Addition.
-  mul  :: a -> a -> a  -- ^ Multiplication.
-  zero :: a            -- ^ Zero.
-  one  :: a            -- ^ One.
+data Semiring a
+  = Semiring { add  :: a -> a -> a  -- ^ Addition.
+             , mul  :: a -> a -> a  -- ^ Multiplication.
+             , zero :: a            -- ^ Zero.
+-- The one is never used in matrix multiplication
+--             , one  :: a            -- ^ One.
+             }
 
 -- | Semiring invariant.
 
 -- I think it's OK to use the same x, y, z triple for all the
 -- properties below.
 
-semiringInvariant :: (Arbitrary a, Eq a, Show a, Semiring a)
-                  => a -> a -> a -> Bool
-semiringInvariant = \x y z ->
-  associative add           x y z &&
-  identity zero add         x     &&
-  commutative add           x y   &&
-  associative mul           x y z &&
-  identity one mul          x     &&
-  leftDistributive mul add  x y z &&
-  rightDistributive mul add x y z &&
-  isZero zero mul           x
+semiringInvariant :: (Arbitrary a, Eq a, Show a)
+                  => Semiring a
+                  -> a -> a -> a -> Bool
+semiringInvariant (Semiring { add = (+), mul = (*)
+                            , zero = zero --, one = one
+                            }) = \x y z ->
+  associative (+)           x y z &&
+  identity zero (+)         x     &&
+  commutative (+)           x y   &&
+  associative (*)           x y z &&
+--  identity one (*)          x     &&
+  leftDistributive (*) (+)  x y z &&
+  rightDistributive (*) (+) x y z &&
+  isZero zero (*)           x
 
 ------------------------------------------------------------------------
 -- Specific semirings
 
 -- | The standard semiring on 'Integer's.
+
+instance HasZero Integer where
+  zeroElement = 0
 
 instance Monoid Integer where
   mempty = 0
@@ -67,18 +84,17 @@ prop_integerSemiring = semiringInvariant integerSemiring
 
 -- | The standard semiring on 'Bool's.
 
-instance Semiring Bool where
-  add  = (||)
-  mul  = (&&)
-  zero = False
-  one  = True
+boolSemiring :: Semiring Bool
+boolSemiring =
+  Semiring { add = (||), mul = (&&), zero = False } --, one = True }
+
+prop_boolSemiring = semiringInvariant boolSemiring
 
 ------------------------------------------------------------------------
 -- All tests
 
 tests :: IO Bool
 tests = runTests "Agda.Termination.Semiring"
-  [ quickCheck' (semiringInvariant
-                   :: Integer -> Integer -> Integer -> Bool)
-  , quickCheck' (semiringInvariant :: Bool -> Bool -> Bool -> Bool)
+  [ quickCheck' prop_integerSemiring
+  , quickCheck' prop_boolSemiring
   ]

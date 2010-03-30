@@ -1,4 +1,4 @@
-{-# OPTIONS  --sized-types --show-implicit --no-coverage #-}
+{-# OPTIONS  --sized-types --show-implicit #-} 
 
 module SizedNat where
 
@@ -29,7 +29,7 @@ add (suc m) n = suc (add m n)
 nisse : {i : Size} -> Nat {i} -> Nat {i}
 nisse zero = zero
 nisse (suc zero) = suc zero
-nisse (suc (suc n)) = suc zero 
+nisse (suc (suc n)) = suc zero
 
 {- Agda complains about duplicate binding
 

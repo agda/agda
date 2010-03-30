@@ -2,13 +2,15 @@
 
 module TerminationWithMerge where
 
-open import Data.Bool
-open import Data.List
+data List (a : Set) : Set where
+  []  : List a
+  _∷_ : a -> List a -> List a
 
 -- infix
 
 postulate 
   a : Set
+  Bool : Set
   _≤?_ : a -> a -> Bool
 
 merge : List a -> List a -> List a
