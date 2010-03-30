@@ -116,18 +116,17 @@ instance ToTerm Bool where
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
-buildList :: MonadTCM tcm => Term -> tcm ([Term] -> Term)
-buildList a = do
+buildList :: MonadTCM tcm => tcm ([Term] -> Term)
+buildList = do
     nil'  <- primNil
     cons' <- primCons
-    let nil       = nil'  `apply` [Arg Hidden a]
-	cons x xs = cons' `apply` [Arg Hidden a, Arg NotHidden x, Arg NotHidden xs]
+    let nil       = nil'
+	cons x xs = cons' `apply` [Arg NotHidden x, Arg NotHidden xs]
     return $ foldr cons nil
 
 instance (PrimTerm a, ToTerm a) => ToTerm [a] where
     toTerm = do
-	a      <- primTerm (undefined :: a)
-	mkList <- buildList a
+	mkList <- buildList
 	fromA  <- toTerm
 	return $ mkList . map fromA
 
