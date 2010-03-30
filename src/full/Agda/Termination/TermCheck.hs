@@ -403,11 +403,26 @@ termTerm conf names f pats0 t0 = do
          suc <- sizeSuc
 
              -- Handles constructor applications.
-         let constructor c ind args = do
-               let g' = case ind of
-                         Inductive   -> guarded
-                         CoInductive -> Lt .*. guarded
-               collectCalls (loop pats g') (map unArg args)
+         let constructor
+               :: QName
+                  -- ^ Constructor name.
+               -> Induction
+                  -- ^ Should the constructor be treated as
+                  --   inductive or coinductive?
+               -> [(Arg Term, Bool)]
+                  -- ^ All the arguments, and for every
+                  --   argument a boolean which is 'True' iff the
+                  --   argument should be viewed as preserving
+                  --   guardedness.
+               -> TCM Calls
+             constructor c ind args = collectCalls loopArg args
+               where
+               loopArg (arg , preserves) = do
+                 loop pats g' (unArg arg)
+                 where g' = case (preserves, ind) of
+                              (True,  Inductive)   -> guarded
+                              (True,  CoInductive) -> Term.lt .*. guarded
+                              (False, _)           -> Unknown
 
              -- Handles function applications.
              function g args0 = do
