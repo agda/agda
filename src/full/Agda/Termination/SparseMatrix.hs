@@ -26,6 +26,7 @@ module Agda.Termination.SparseMatrix
   , size
   , square
   , isEmpty
+  , isSingleton
   , add, intersectWith
   , mul
   , transpose
@@ -257,6 +258,16 @@ square m = rows (size m) == cols (size m)
 
 isEmpty :: (Num i, Ix i) => Matrix i b -> Bool
 isEmpty m = rows sz <= 0 || cols sz <= 0
+  where sz = size m
+
+-- | Returns 'Just b' iff it is a 1x1 matrix with just one entry 'b'.
+
+isSingleton :: (Num i, Ix i) => Matrix i b -> Maybe b
+isSingleton m = if (rows sz == 1 || cols sz == 1) then 
+    case unM m of 
+      [(_,b)] -> Just b
+      _ -> __IMPOSSIBLE__
+  else Nothing
   where sz = size m
 
 -- | Transposition

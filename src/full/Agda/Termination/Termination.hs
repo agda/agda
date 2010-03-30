@@ -105,11 +105,11 @@ example1 = buildCallGraph [c1, c2, c3]
             , cm = CallMatrix $ fromLists (Size 2 1) [[lt], [lt]]
             }
   c2 = Call { source = aux,  target = aux
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
-                                                     , [Unknown, le]]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                     , [unknown, le]]
             }
   c3 = Call { source = aux,  target = flat
-            , cm = CallMatrix $ fromLists (Size 1 2) [[Unknown, le]]
+            , cm = CallMatrix $ fromLists (Size 1 2) [[unknown, le]]
             }
 
 prop_terminates_example1 ::  (?cutoff :: Int) => Bool
@@ -127,8 +127,8 @@ example2 = buildCallGraph [c]
   where
   plus = 1
   c = Call { source = plus, target = plus
-           , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, le]
-                                                    , [lt, Unknown] ]
+           , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
+                                                    , [lt, unknown] ]
            }
 
 prop_terminates_example2 ::  (?cutoff :: Int) => Bool
@@ -151,8 +151,8 @@ example3 = buildCallGraph [c plus plus', c plus' plus]
   plus  = 1
   plus' = 2
   c f g = Call { source = f, target = g
-               , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, le]
-                                                        , [lt, Unknown] ]
+               , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, le]
+                                                        , [lt, unknown] ]
                }
 
 prop_terminates_example3 ::  (?cutoff :: Int) => Bool
@@ -175,16 +175,16 @@ example4 = buildCallGraph [c1, c2, c3]
   f = 1
   g = 2
   c1 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                     , [unknown, le] ]
             }
   c2 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                     , [unknown, le] ]
             }
   c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                     , [unknown, le] ]
             }
 
 prop_terminates_example4 ::  (?cutoff :: Int) => Bool
@@ -202,20 +202,20 @@ example5 = buildCallGraph [c1, c2, c3, c4]
   f = 1
   g = 2
   c1 = Call { source = f, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                     , [unknown, le] ]
             }
   c2 = Call { source = f, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [Unknown, Unknown]
-                                                     , [Unknown, lt] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [unknown, unknown]
+                                                     , [unknown, lt] ]
             }
   c3 = Call { source = g, target = f
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [le, unknown]
+                                                     , [unknown, le] ]
             }
   c4 = Call { source = g, target = g
-            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, Unknown]
-                                                     , [Unknown, le] ]
+            , cm = CallMatrix $ fromLists (Size 2 2) [ [lt, unknown]
+                                                     , [unknown, le] ]
             }
 
 prop_terminates_example5 ::  (?cutoff :: Int) => Bool
@@ -259,4 +259,4 @@ tests = runTests "Agda.Termination.Termination"
   , quickCheck' prop_terminates_example5
   , quickCheck' prop_terminates_example6
   ]
-  where ?cutoff = 0 -- all these examples are with just lt,le,Unknown
+  where ?cutoff = 0 -- all these examples are with just lt,le,unknown

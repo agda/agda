@@ -422,7 +422,7 @@ termTerm conf names f pats0 t0 = do
                  where g' = case (preserves, ind) of
                               (True,  Inductive)   -> guarded
                               (True,  CoInductive) -> Term.lt .*. guarded
-                              (False, _)           -> Unknown
+                              (False, _)           -> Term.unknown
 
              -- Handles function applications.
              function g args0 = do
@@ -436,7 +436,7 @@ termTerm conf names f pats0 t0 = do
                args  <- mapM etaContract args2
 
                -- collect calls in the arguments of this call
-               calls <- collectCalls (loop pats Unknown) args
+               calls <- collectCalls (loop pats Term.unknown) args
 
 
                reportSDoc "term.found.call" 20
@@ -513,17 +513,17 @@ termTerm conf names f pats0 t0 = do
             Lam _ (Abs _ t) -> loop (map liftDBP pats) guarded t
 
             -- variable
-            Var i args -> collectCalls (loop pats Unknown) (map unArg args)
+            Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
 
             -- dependent function space
             Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
-               do g1 <- loop pats Unknown a
+               do g1 <- loop pats Term.unknown a
                   g2 <- loop (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
             Fun (Arg _ (El _ a)) (El _ b) ->
-               do g1 <- loop pats Unknown a
+               do g1 <- loop pats Term.unknown a
                   g2 <- loop pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
@@ -543,7 +543,7 @@ termTerm conf names f pats0 t0 = do
            if guardingTypeConstructors conf then
              guarded
             else
-             Unknown
+             Term.unknown
 
 {- | compareArgs suc pats ts
 
@@ -574,7 +574,7 @@ addGuardedness g nrows ncols m = (nrows, ncols, m)
 addGuardedness :: Integral n => Order -> n -> n -> [[Term.Order]] -> (n, n, [[Term.Order]])
 addGuardedness g nrows ncols m =
   (nrows + 1, ncols + 1,
-   (g : genericReplicate ncols Unknown) : map (Unknown :) m)
+   (g : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
 
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
@@ -598,11 +598,11 @@ compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Te
 compareTerm' _ (Var i _)  p              = compareVar i p
 compareTerm' _ (Lit l)    (LitDBP l')
   | l == l'   = return Term.le
-  | otherwise = return Term.Unknown
+  | otherwise = return Term.unknown
 compareTerm' suc (Lit l) p = do
   t <- constructorForm (Lit l)
   case t of
-    Lit _ -> return Term.Unknown
+    Lit _ -> return Term.unknown
     _     -> compareTerm' suc t p
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
@@ -617,8 +617,8 @@ compareTerm' suc (Def s ts) p | Just s == suc = do
     return $ decr (-1) .*. infimum os 
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    return $ if (null os) then Term.Unknown else decr (-1) .*. infimum os 
-compareTerm' _ _ _ = return Term.Unknown
+    return $ if (null os) then Term.unknown else decr (-1) .*. infimum os 
+compareTerm' _ _ _ = return Term.unknown
 
 isSubTerm :: Term -> DeBruijnPat -> Bool
 isSubTerm t p = equal t p || properSubTerm t p
@@ -640,13 +640,13 @@ compareConArgs suc ts ps =
   -- which is impossible
       case (length ts, length ps) of
         (0,0) -> return Term.le        -- c <= c
-        (0,1) -> return Term.Unknown   -- c not<= c x
+        (0,1) -> return Term.unknown   -- c not<= c x
         (1,0) -> __IMPOSSIBLE__
         (1,1) -> compareTerm' suc (unArg (head ts)) (head ps)
         (_,_) -> do -- build "call matrix"
           m <- mapM (\t -> mapM (compareTerm' suc (unArg t)) ps) ts
           let m2 = makeCM (genericLength ps) (genericLength ts) m
-          return $ Term.Mat (Term.mat m2)
+          return $ Term.orderMat (Term.mat m2)
 {-
 --    if null ts then Term.Le
 --               else Term.infimum (zipWith compareTerm' (map unArg ts) ps)
@@ -656,8 +656,8 @@ compareConArgs suc ts ps =
 -}
 
 compareVar :: (?cutoff :: Int) => Nat -> DeBruijnPat -> TCM Term.Order
-compareVar i (VarDBP j)    = return $ if i == j then Term.le else Term.Unknown
-compareVar i (LitDBP _)    = return $ Term.Unknown
+compareVar i (VarDBP j)    = return $ if i == j then Term.le else Term.unknown
+compareVar i (LitDBP _)    = return $ Term.unknown
 compareVar i (ConDBP c ps) = do
   os <- mapM (compareVar i) ps
   let o = Term.supremum os

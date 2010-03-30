@@ -140,7 +140,7 @@ prop_fromDiagonals m =
 -- at least one strictly decreasing).
 
 okColumn :: Column call -> Bool
-okColumn col = any decreasing col' && all (/= Unknown) col'
+okColumn col = any decreasing col' && all (/= unknown) col'
   where col' = Map.elems col
 
 -- | @'newBehaviour' n rb@ computes a new recursion behaviour from
