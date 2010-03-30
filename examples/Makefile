@@ -128,8 +128,9 @@ relocatable-interfaces : relocatable/originals/*.agda
 	-@rm -rf relocatable/copies
 	@$(echo) "Testing that interface files are relocatable"
 	@$(agda) --ignore-interfaces -irelocatable/originals relocatable/originals/C.agda
-	@cp -a relocatable/originals relocatable/copies
-	@touch -d '+ 1 seconds' relocatable/copies/B.agda
+	@cp -pR relocatable/originals relocatable/copies
+	@sleep 1
+	@touch relocatable/copies/B.agda
 	@sleep 2
         # Type checking succeeds...
 	@$(agda) -irelocatable/copies relocatable/copies/C.agda > relocatable/copies/output
