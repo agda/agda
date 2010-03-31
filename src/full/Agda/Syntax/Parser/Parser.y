@@ -403,7 +403,7 @@ Expr2
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$4)) $2 $4}
-    | 'quote' Expr                 { Quote (getRange ($1,$2)) $2 }
+    | 'quote' QId                  { Quote (getRange ($1,$2)) $2 }
 
 Application3 :: { [Expr] }
 Application3

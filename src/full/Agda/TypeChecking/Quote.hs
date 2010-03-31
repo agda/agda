@@ -55,3 +55,6 @@ quoteType (El _ v) = quoteTerm v
 agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
 
+qNameType :: TCM Type
+qNameType = El (mkType 0) <$> primQName
+

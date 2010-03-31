@@ -426,11 +426,15 @@ checkExpr e t =
               tmType <- agdaTermType
               (v,ty) <- addLetBinding x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType ty t'
-        A.Quote _ e      -> do
-           (v, _) <- inferExpr e
-           tmType <- agdaTermType
-           quoted <- quoteTerm v
-           blockTerm t quoted $ leqType tmType t
+        A.Quote _ x      -> do
+           quoted <- case x of 
+                       A.Def x' -> return x'
+                       A.Con (AmbQ [x']) -> return x'
+                       A.Con _ -> typeError $ GenericError "quote: Ambigous name"
+                       A.Var _ -> typeError $ GenericError "quote: Bound variable"
+                       _ -> __IMPOSSIBLE__
+           ty <- qNameType
+           blockTerm t (quoteName quoted) $ leqType ty t
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)

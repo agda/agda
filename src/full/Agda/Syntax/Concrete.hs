@@ -71,7 +71,7 @@ data Expr
 	| Dot !Range Expr		       -- ^ ex: @.p@, only in patterns
         | ETel Telescope                       -- ^ only used for printing telescopes
         | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
-        | Quote !Range Expr                    -- ^ ex: @quote e@
+        | Quote !Range QName                   -- ^ ex: @quote e@
     deriving (Typeable, Data, Eq)
 
 

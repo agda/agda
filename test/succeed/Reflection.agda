@@ -15,13 +15,6 @@ data Id {A : Set}(x : A) : (B : Set) → B → Set where
 
 primitive primTrustMe : {A : Set}{x y : A} → x ≡ y
 
-postulate badName : QName
-
-name_ : Term → QName
-name (def x _) = x
-name (con x _) = x
-name _ = badName
-
 open import Common.Level
 
 unCheck : Term → Term
@@ -36,7 +29,7 @@ mutual
                  (t′ ≡ t′) refl → Check x
 
   `Check : QName
-  `Check = name quote (Check {zero}{QName})
+  `Check = quote Check
 
 test₁ : Check ({A : Set} → A → A)
 test₁ = quoteGoal t in
@@ -50,18 +43,18 @@ test₂ X = quoteGoal t in
 infixr 40 _`∷_
 
 _`∷_ : Term → Term → Term
-x `∷ xs = con (name quote (_∷_ {Bool})) (arg false x ∷ arg false xs ∷ [])
-`[]    = quote ([] {Bool})
-`true  = quote true
-`false = quote false
+x `∷ xs = con (quote _∷_) (arg false x ∷ arg false xs ∷ [])
+`[]    = con (quote []) []
+`true  = con (quote true) []
+`false = con (quote false) []
 
 test₃ : Check (true ∷ false ∷ [])
 test₃ = quoteGoal t in
         t is `true `∷ `false `∷ `[] of course
 
 `List : Term → Term
-`List A = def (name quote List) (arg false A ∷ [])
-`Nat    = quote Nat
+`List A = def (quote List) (arg false A ∷ [])
+`Nat    = def (quote Nat) []
 
 test₄ : Check (List Nat)
 test₄ = quoteGoal t in
