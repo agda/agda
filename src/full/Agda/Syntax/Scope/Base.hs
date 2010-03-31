@@ -495,8 +495,13 @@ scopeLookup q scope = findName q root ++ imports
 
     findName (C.QName x)  s = lookupName x s
     findName (C.Qual x q) s = do
-      m <- amodName <$> lookupName x s
-      findName q (restrictPrivate $ moduleScope m)
+        m <- nub $ mods ++ defs -- record types will appear bot as a mod and a def
+        Just s' <- return $ Map.lookup m (scopeModules scope)
+        findName q (restrictPrivate s')
+      where
+        mods = amodName <$> lookupName x s
+        -- Qualified constructors are qualified by their datatype rather than a module
+        defs = mnameFromList . qnameToList . anameName <$> lookupName x s 
 
 -- * Inverse look-up
 

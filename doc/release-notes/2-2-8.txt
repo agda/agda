@@ -58,6 +58,32 @@ Language
     ℕ-rec P z s (inj₁ _)        = z
     ℕ-rec P z s (inj₂ (fold n)) = s n (ℕ-rec P z s n)
 
+* Qualified constructors.
+
+  Constructors can now be refered to qualified by their datatype.
+  For instance, given
+
+    data Nat : Set where
+      zero : Nat
+      suc  : Nat → Nat
+
+    data Fin : Nat → Set where
+      zero : ∀ {n} → Fin (suc n)
+      suc  : ∀ {n} → Fin n → Fin (suc n)
+
+  you can refer to the constructors unambiguously as Nat.zero,
+  Nat.suc, Fin.zero, and Fin.suc. For example:
+
+    inj : (n m : Nat) → Nat.suc n ≡ suc m → n ≡ m
+    inj .m m refl = refl
+
+  Previously you had to write 
+
+    inj : (n m : Nat) → _≡_ {Nat} (suc n) (suc m) → n ≡ m
+
+  to make the type checker able to figure out that you wanted the
+  natural number suc in this case.
+
 Tools
 -----
 

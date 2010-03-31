@@ -244,9 +244,12 @@ bindName acc kind x y = do
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
-      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head ds) -- TODO: head
+      | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head' ds)
     UnknownName        -> return [AbsName y kind]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
+  where
+    head' []    = {- ' -} __IMPOSSIBLE__
+    head' (x:_) = x
 
 -- | Bind a module name.
 bindModule :: Access -> C.Name -> A.ModuleName -> ScopeM ()

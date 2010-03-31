@@ -674,8 +674,11 @@ instance ToAbstract NiceDefinition Definition where
                   typeError $ DuplicateConstructors dups
 
           pars <- toAbstract pars
-          cons <- toAbstract (map Constr cons)
           x'   <- toAbstract (OldName x)
+          -- Create the module for the qualified constructors
+          let m = mnameFromList $ qnameToList x'
+          createModule m
+          cons <- toAbstract (map (ConstrDecl m) cons)
           printScope "data" 20 $ "Checked data " ++ show x
           return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
         where
@@ -692,17 +695,14 @@ instance ToAbstract NiceDefinition Definition where
           m0     <- getCurrentModule
           let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
           printScope "rec" 15 "before record"
-          -- pushScope m
           createModule m
           afields <- withCurrentModule m $ do
             afields <- toAbstract fields
             printScope "rec" 15 "checked fields"
             return afields
-            -- qm <- getCurrentModule
-          -- popScope p
           bindModule p x m
+          c' <- mapM (toAbstract . ConstrDecl m) c
           printScope "rec" 15 "record complete"
-          c' <- mapM (toAbstract . Constr) c
           return $ A.RecDef (mkDefInfo x f p a r) x' c' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
@@ -817,11 +817,16 @@ instance ToAbstract NiceDeclaration A.Declaration where
                            })
                         m ]
 
-instance ToAbstract (Constr C.NiceDeclaration) A.Declaration where
-    toAbstract (Constr (C.Axiom r f p a x t)) = do
+data ConstrDecl = ConstrDecl A.ModuleName C.NiceDeclaration
+
+instance ToAbstract ConstrDecl A.Declaration where
+    toAbstract (ConstrDecl m (C.Axiom r f p a x t)) = do
         t' <- toAbstractCtx TopCtx t
         y  <- freshAbstractQName f x
         bindName p' ConName x y
+        -- Bind a qualified version of the constructor
+        withCurrentModule m $ bindName p' ConName x y
+        printScope "con" 15 "bound construcor"
         return $ A.Axiom (mkDefInfo x f p a r) y t'
         where
             -- An abstract constructor is private (abstract constructor means
