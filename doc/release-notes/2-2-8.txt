@@ -90,6 +90,62 @@ Language
   to make the type checker able to figure out that you wanted the
   natural number suc in this case.
 
+* Reflection.
+
+  There are two new constructs for reflection:
+
+    - quoteGoal x in e
+
+      In e the value of x will be a representation of the goal type
+      (the type expected of the whole expression) as an element in a
+      datatype of Agda terms (see below). For instance,
+
+      example : Nat
+      example = quoteGoal x in {! at this point x = def (quote Nat) [] !}
+
+    - quote x : QName
+
+      If x is the name of a definition (function, datatype, record, or
+      a constructor), quote x gives you the representation of x as a
+      value in the primitive type QName (see below).
+
+  Quoted terms use the following BUILTINs and primitives:
+    
+    -- The type of Agda names.
+    postulate QName : Set
+    {-# BUILTIN QNAME QName #-}
+    primitive primQNameEquality : QName → QName → Bool
+
+    Hiding = Bool
+    data Arg A : Set where
+      arg : Hiding → A → Arg A
+
+    {-# BUILTIN ARG Arg #-}
+    {-# BUILTIN ARGARG arg #-}
+
+    -- The type of Agda terms.
+    data Term : Set where
+      var     : Nat → List (Arg Term) → Term
+      con     : QName → List (Arg Term) → Term
+      def     : QName → List (Arg Term) → Term
+      lam     : Hiding → Term → Term
+      pi      : Arg Term → Term → Term
+      sort    : Term
+      unknown : Term
+
+    {-# BUILTIN AGDATERM            Term    #-}
+    {-# BUILTIN AGDATERMVAR         var     #-}
+    {-# BUILTIN AGDATERMCON         con     #-}
+    {-# BUILTIN AGDATERMDEF         def     #-}
+    {-# BUILTIN AGDATERMLAM         lam     #-}
+    {-# BUILTIN AGDATERMPI          pi      #-}
+    {-# BUILTIN AGDATERMSORT        sort    #-}
+    {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+
+  Reflection is particularly useful when working with internal
+  decision procedures, such as the ring solver in the standard
+  library.
+
 Tools
 -----
 
