@@ -7,7 +7,9 @@ Important changes since 2.2.6:
 Language
 --------
 
-* It is now possible to pattern match on named record constructors.
+* Record pattern matching.
+
+  It is now possible to pattern match on named record constructors.
   However, if you want to make use of η-equality you still need to use
   projection functions.
 
@@ -24,7 +26,9 @@ Language
           Σ A P → Σ B Q
     map f g (x , y) = (f x , g y)
 
-* Automatic injectivity of type constructors has been disabled (by
+* Injective type constructors off by default.
+
+  Automatic injectivity of type constructors has been disabled (by
   default). To enable it, use the flag --injective-type-constructors,
   either on the command line or in an OPTIONS pragma. Note that this
   flag makes Agda anti-classical and possibly inconsistent:
@@ -34,7 +38,9 @@ Language
 
   See test/succeed/InjectiveTypeConstructors.agda for an example.
 
-* If the new flag --guardedness-preserving-type-constructors is used,
+* Infinite types.
+
+  If the new flag --guardedness-preserving-type-constructors is used,
   then type constructors are treated as inductive constructors when we
   check productivity. This makes examples such as the following
   possible:
@@ -77,7 +83,7 @@ Language
     inj : (n m : Nat) → Nat.suc n ≡ suc m → n ≡ m
     inj .m m refl = refl
 
-  Previously you had to write 
+  Previously you had to write
 
     inj : (n m : Nat) → _≡_ {Nat} (suc n) (suc m) → n ≡ m
 
@@ -87,7 +93,9 @@ Language
 Tools
 -----
 
-* Command which shows module contents: Given a module name M the Emacs
-  mode can now display all the top-level modules and names inside M,
-  along with types for the names. The command is activated using
-  C-c C-o or the menus.
+* Show module contents command.
+
+  Given a module name M the Emacs mode can now display all the
+  top-level modules and names inside M, along with types for the
+  names. The command is activated using C-c C-o or the menus.
+
