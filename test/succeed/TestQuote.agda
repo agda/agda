@@ -2,22 +2,12 @@ module TestQuote where
 
 {- test of reflection, implementing a trivial prover. -}
 
-data Bool : Set where
-  true false : Bool
+open import Common.Reflect
+open import Common.Prelude
 
-{-# BUILTIN BOOL Bool #-}
-{-# BUILTIN TRUE true #-}
-{-# BUILTIN FALSE false #-}
-
-postulate String : Set
-
-{-# BUILTIN STRING String #-}
-
-primitive
-  primStringEquality : String → String → Bool
-
-_==_ : String → String → Bool
-_==_ = primStringEquality
+_==_ : Term → Term → Bool
+def x [] == def y [] = primQNameEquality x y
+_        == _        = false
 
 data ⊥ : Set where
 record ⊤ : Set where
@@ -25,24 +15,22 @@ record ⊤ : Set where
 data Thm : Set where
   triv : Thm
 
-⟦_⟧ : String → Set
-⟦ s ⟧ with s == "Thm"
-...      | true = Thm
-...      | false = ⊥
+`Thm = quote Thm
 
-Hyp : String → Set → Set
-Hyp s A with s == "Thm"
-...      | true = ⊤
-...      | false = A
+⟦_⟧ : Term → Set
+⟦ goal ⟧ with goal == `Thm
+...     | true  = Thm
+...     | false = ⊥
 
-solve : (s : String) → Hyp s ⟦ s ⟧ → ⟦ s ⟧ 
-solve s h  with s == "Thm"
+Hyp : Term → Set → Set
+Hyp goal A with goal == `Thm
+...        | true  = ⊤
+...        | false = A
+
+solve : (goal : Term) → Hyp goal ⟦ goal ⟧ → ⟦ goal ⟧ 
+solve goal h  with goal == `Thm
 ...      | true = triv
 ...      | false = h
 
-test1 : Thm
-test1 = quoteGoal t in (solve t _)
-
-test2 : String
-test2 = quote (λ (x : Set) → Set)
-  
+test₁ : Thm
+test₁ = quoteGoal t in solve t _
