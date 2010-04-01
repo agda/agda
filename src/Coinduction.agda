@@ -15,7 +15,7 @@ import Level
 -- http://article.gmane.org/gmane.comp.lang.agda/633 for a longer
 -- explanation.
 
-infix 10 ♯_
+infix 1000 ♯_
 
 codata ∞ {a} (A : Set a) : Set a where
   ♯_ : (x : A) → ∞ A

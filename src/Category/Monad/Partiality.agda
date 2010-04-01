@@ -33,7 +33,7 @@ monad = record
   where
   _>>=_ : ∀ {A B} → A ⊥ → (A → B ⊥) → B ⊥
   now x   >>= f = f x
-  later x >>= f = later (♯ ♭ x >>= f)
+  later x >>= f = later (♯ (♭ x >>= f))
 
 private module M = RawMonad monad
 
