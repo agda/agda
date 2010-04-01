@@ -15,7 +15,7 @@ record ⊤ : Set where
 data Thm : Set where
   triv : Thm
 
-`Thm = quote Thm
+`Thm = def (quote Thm) []
 
 ⟦_⟧ : Term → Set
 ⟦ goal ⟧ with goal == `Thm
