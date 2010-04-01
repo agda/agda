@@ -460,7 +460,7 @@ everythingInScope scope =
 
 -- | Look up a name in the scope
 scopeLookup :: forall a. InScope a => C.QName -> ScopeInfo -> [a]
-scopeLookup q scope = findName q root ++ imports
+scopeLookup q scope = nub $ findName q root ++ imports
   where
     this    = scopeCurrent scope
     current = moduleScope this
