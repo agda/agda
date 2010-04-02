@@ -632,7 +632,7 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
-            A.Con _ -> fail "Use HASKELL_DATA for constructors" -- TODO
+            A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
             _       -> __IMPOSSIBLE__
       return [ A.CompiledPragma y hs ]
     toAbstract (C.BuiltinPragma _ b e) = do
