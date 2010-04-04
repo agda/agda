@@ -42,8 +42,9 @@ Language
 
   If the new flag --guardedness-preserving-type-constructors is used,
   then type constructors are treated as inductive constructors when we
-  check productivity. This makes examples such as the following
-  possible:
+  check productivity (but only in parameters, and only if they are
+  used strictly positively or not at all). This makes examples such as
+  the following possible:
 
     data Rec (A : ∞ Set) : Set where
       fold : ♭ A → Rec A
@@ -63,6 +64,11 @@ Language
             ∀ n → P n
     ℕ-rec P z s (inj₁ _)        = z
     ℕ-rec P z s (inj₂ (fold n)) = s n (ℕ-rec P z s n)
+
+  Note that this feature is experimental, it is not known if it leads
+  to inconsistencies. It seems to be rather strong: if the
+  productivity checker were smarter, then we could encode
+  induction-recursion using it.
 
 * Qualified constructors.
 
