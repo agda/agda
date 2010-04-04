@@ -17,16 +17,16 @@ infixr 2 _×_ _-×-_ _-,-_
 ------------------------------------------------------------------------
 -- Definition
 
-record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
+record ∃ {a b} {A : Set a} (B : A → Set b) : Set (a ⊔ b) where
   constructor _,_
   field
     proj₁ : A
     proj₂ : B proj₁
 
-open Σ public
+open ∃ public
 
-∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
-∃ = Σ _
+Σ : ∀ {a b} (A : Set a) → (A → Set b) → Set (a ⊔ b)
+Σ _ = ∃
 
 ∄ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∄ P = ¬ ∃ P
