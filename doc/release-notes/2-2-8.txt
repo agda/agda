@@ -72,7 +72,7 @@ Language
 
 * Qualified constructors.
 
-  Constructors can now be refered to qualified by their datatype.
+  Constructors can now be referred to qualified by their data type.
   For instance, given
 
     data Nat : Set where
@@ -116,7 +116,7 @@ Language
       value in the primitive type QName (see below).
 
   Quoted terms use the following BUILTINs and primitives:
-    
+
     -- The type of Agda names.
     postulate QName : Set
     {-# BUILTIN QNAME QName #-}
@@ -160,4 +160,3 @@ Tools
   Given a module name M the Emacs mode can now display all the
   top-level modules and names inside M, along with types for the
   names. The command is activated using C-c C-o or the menus.
-
