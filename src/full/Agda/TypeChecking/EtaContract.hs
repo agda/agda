@@ -44,8 +44,9 @@ etaOnce :: (MonadTCM tcm) => Term -> tcm Term
 etaOnce v = ignoreAbstractMode $ eta v
   where
     eta t@(Lam h b) = case binAppView (absBody b) of
-      App u (Arg _ (Var 0 []))
-        | not (freeIn 0 u)  -> return $ subst __IMPOSSIBLE__ u
+      App u (Arg h' (Var 0 []))
+        | h == h' && not (freeIn 0 u) ->
+          return $ subst __IMPOSSIBLE__ u
       _ -> return t
     eta t@(Con c args) = do
       r <- getConstructorData c
