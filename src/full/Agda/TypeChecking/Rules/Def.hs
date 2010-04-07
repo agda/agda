@@ -222,7 +222,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
 
                   -- Split the telescope into the part needed to type the with arguments
                   -- and all the other stuff
-                  let fv = allVars $ freeVars vs
+                  let fv = allVars $ freeVars (vs, as)
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 
@@ -230,6 +230,8 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                     [ text "delta  =" <+> prettyTCM delta
                     , text "delta1 =" <+> prettyTCM delta1
                     , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
+                    , text "vs     =" <+> prettyTCM vs
+                    , text "as     =" <+> prettyTCM as
                     ]
 
                   -- Create the body of the original function
