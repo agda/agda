@@ -114,7 +114,7 @@ makeSubstitution sub = map val [0..]
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 ureduce :: Term -> Unify Term
-ureduce u = do
+ureduce u = doEtaContractImplicit $ do
   rho <- onSub makeSubstitution
   liftTCM $ etaContract =<< reduce (substs rho u)
 

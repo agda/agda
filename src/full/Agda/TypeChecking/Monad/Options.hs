@@ -95,6 +95,10 @@ displayFormsEnabled = asks envDisplayFormsEnabled
 dontEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
 dontEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = False }
 
+-- | Do eta contract implicit
+doEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
+doEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = True }
+
 shouldEtaContractImplicit :: MonadTCM tcm => tcm Bool
 shouldEtaContractImplicit = asks envEtaContractImplicit
 

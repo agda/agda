@@ -18,6 +18,22 @@ data D : P → Set where
 Foo : (i : I) → D (c i) → Set₁
 Foo i (c .i) = Set
 
+postulate
+  A : Set
+  a : A
+  b : ({x : A} → A) → A
+  C : A → Set
+
+d : {x : A} → A
+d {x} = a
+
+e : A
+e = b (λ {x} → d {x}) -- this shouldn't be eta contracted though
+
+F : C e → Set₁
+F _ with Set
+F _ | _ = Set
+
 -- Bug.agda:20,8-12
 -- i' != i of type T x
 -- when checking that the pattern c .i has type D (c (λ {.x} → i))

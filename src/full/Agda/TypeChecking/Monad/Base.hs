@@ -664,7 +664,7 @@ initEnv = TCEnv { envContext	         = []
                 , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
-                , envEtaContractImplicit    = True
+                , envEtaContractImplicit    = False
                 , envRange                  = noRange
                 , envCall                   = Nothing
 		}
