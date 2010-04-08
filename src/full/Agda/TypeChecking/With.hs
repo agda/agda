@@ -36,7 +36,7 @@ showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
 showPat (LitP l)    = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
-withFunctionType delta1 vs as delta2 b = do
+withFunctionType delta1 vs as delta2 b = dontEtaContractImplicit $ do
   vas <- addCtxTel delta1 $ etaContract =<< normalise (zip vs as)
   b   <- addCtxTel delta1 $ etaContract =<< normalise (telePi_ delta2 b)
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas

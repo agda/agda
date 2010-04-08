@@ -43,11 +43,15 @@ etaContract = traverseTermM etaOnce
 etaOnce :: (MonadTCM tcm) => Term -> tcm Term
 etaOnce v = ignoreAbstractMode $ eta v
   where
-    eta t@(Lam NotHidden b) = case binAppView (absBody b) of
-      App u (Arg NotHidden (Var 0 []))  -- only eta contract explicit lambdas
-        | not (freeIn 0 u) ->
-          return $ subst __IMPOSSIBLE__ u
-      _ -> return t
+    eta t@(Lam h b) = do
+      imp <- shouldEtaContractImplicit
+      case binAppView (absBody b) of
+        App u (Arg h' (Var 0 []))
+          | allowed imp h' && not (freeIn 0 u) ->
+            return $ subst __IMPOSSIBLE__ u
+        _ -> return t
+      where
+        allowed imp h' = h == h' && (imp || h == NotHidden)
     eta t@(Con c args) = do
       r <- getConstructorData c
       ifM (isEtaRecord r)

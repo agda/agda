@@ -91,6 +91,13 @@ disableDisplayForms =
 displayFormsEnabled :: MonadTCM tcm => tcm Bool
 displayFormsEnabled = asks envDisplayFormsEnabled
 
+-- | Don't eta contract implicit
+dontEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
+dontEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = False }
+
+shouldEtaContractImplicit :: MonadTCM tcm => tcm Bool
+shouldEtaContractImplicit = asks envEtaContractImplicit
+
 -- | Don't reify interaction points
 dontReifyInteractionPoints :: MonadTCM tcm => tcm a -> tcm a
 dontReifyInteractionPoints =
