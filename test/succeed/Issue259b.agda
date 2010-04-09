@@ -20,20 +20,14 @@ Foo i (c .i) = Set
 
 postulate
   A : Set
-  a : A
-  b : ({x : A} → A) → A
+  B : A → Set
+  b : ({x : A} → B x) → A
   C : A → Set
-
-d : {x : A} → A
-d {x} = a
+  d : {x : A} → B x
 
 e : A
-e = b (λ {x} → d {x}) -- this shouldn't be eta contracted though
+e = b (λ {x} → d {x})
 
 F : C e → Set₁
 F _ with Set
 F _ | _ = Set
-
--- Bug.agda:20,8-12
--- i' != i of type T x
--- when checking that the pattern c .i has type D (c (λ {.x} → i))
