@@ -32,7 +32,9 @@ main = do
 
 usage :: String
 usage = unlines
-  [ "Usage: runhaskell GenerateEverything.hs"
+  [ "GenerateEverything: A utility program for Agda's standard library."
+  , ""
+  , "Usage: GenerateEverything"
   , ""
   , "This program should be run in the base directory of a clean checkout of"
   , "the library."
