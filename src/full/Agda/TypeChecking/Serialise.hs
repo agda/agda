@@ -32,7 +32,6 @@ import Data.Array.IArray
 import Data.Bits (shiftR)
 import Data.Word
 import Data.ByteString.Lazy as L
-import Data.Char (ord, chr)
 import Data.HashTable (HashTable)
 import qualified Data.HashTable as H
 import Data.Int (Int32, Int64)
@@ -76,29 +75,29 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100408 * 10 + 1
+currentInterfaceVersion = 20100412 * 10 + 1
 
-type Node = [Int] -- constructor tag (maybe omitted) and arg indices
+type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
-data Dict = Dict{ nodeD     :: !(HashTable Node    Int)
-                , stringD   :: !(HashTable String  Int)
-                , integerD  :: !(HashTable Integer Int)
-                , doubleD   :: !(HashTable Double  Int)
-                , nodeC     :: !(IORef Int)  -- counters for fresh indexes
-                , stringC   :: !(IORef Int)
-                , integerC  :: !(IORef Int)
-                , doubleC   :: !(IORef Int)
+data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
+                , stringD   :: !(HashTable String  Int32)
+                , integerD  :: !(HashTable Integer Int32)
+                , doubleD   :: !(HashTable Double  Int32)
+                , nodeC     :: !(IORef Int32)  -- counters for fresh indexes
+                , stringC   :: !(IORef Int32)
+                , integerC  :: !(IORef Int32)
+                , doubleC   :: !(IORef Int32)
                 , fileMod   :: !SourceToModule
                 }
 
 data U    = forall a . Typeable a => U !a
-type Memo = HashTable (Int, Int) U    -- (node index, type rep key)
+type Memo = HashTable (Int32, Int32) U    -- (node index, type rep key)
 
 data St = St
-  { nodeE     :: !(Array Int Node)
-  , stringE   :: !(Array Int String)
-  , integerE  :: !(Array Int Integer)
-  , doubleE   :: !(Array Int Double)
+  { nodeE     :: !(Array Int32 Node)
+  , stringE   :: !(Array Int32 String)
+  , integerE  :: !(Array Int32 Integer)
+  , doubleE   :: !(Array Int32 Double)
   , nodeMemo  :: !Memo
   , modFile   :: !ModuleToSource
     -- ^ Maps module names to file names. This is the only component
@@ -125,8 +124,8 @@ malformed :: R a
 malformed = throwError $ GenericError "Malformed input."
 
 class Typeable a => EmbPrj a where
-  icode :: a -> S Int
-  value :: Int -> R a
+  icode :: a -> S Int32
+  value :: Int32 -> R a
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
@@ -186,7 +185,7 @@ decode s = do
   return x
 
   where
-  ar l = listArray (0, List.length l - 1) l
+  ar l = listArray (0, List.genericLength l - 1) l
 
   noResult = return (Nothing, Nothing)
 
@@ -218,13 +217,13 @@ instance EmbPrj Integer where
   icode   = icodeX integerD integerC
   value i = (! i) `fmap` gets integerE
 
-instance EmbPrj Int where
+instance EmbPrj Int32 where
   icode i = return i
   value i = return i
 
 instance EmbPrj Char where
-  icode c = return (ord c)
-  value i = return (chr i)
+  icode c = return (fromIntegral $ fromEnum c)
+  value i = return (toEnum $ fromInteger $ toInteger i)
 
 instance EmbPrj Double where
   icode   = icodeX doubleD doubleC
@@ -740,8 +739,8 @@ instance EmbPrj Interface where
 
 
 
-icodeX :: (Dict -> HashTable k Int) -> (Dict -> IORef Int) ->
-          k -> S Int
+icodeX :: (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
+          k -> S Int32
 icodeX dict counter key = do
   d     <- asks dict
   c     <- asks counter
@@ -755,19 +754,28 @@ icodeX dict counter key = do
 
 icodeN = icodeX nodeD nodeC
 
-vcase :: forall a . EmbPrj a => ([Int] -> R a) -> Int -> R a
+vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu ix = do
     memo <- gets nodeMemo
     (aTyp, maybeU) <- liftIO $ do
       aTyp   <- typeRepKey $ typeOf (undefined :: a)
-      maybeU <- H.lookup memo (ix, aTyp)
-      return (aTyp, maybeU)
+      -- The following tests try to ensure that conversion to Int32
+      -- won't truncate the key. The tests can perhaps give erroneous
+      -- results if Int is "larger" than Int64.
+      when ((convert aTyp :: Int64) > convert (maxBound :: Int32)) __IMPOSSIBLE__
+      when ((convert aTyp :: Int64) < convert (minBound :: Int32)) __IMPOSSIBLE__
+      let aTyp' = convert aTyp :: Int32
+      maybeU <- H.lookup memo (ix, aTyp')
+      return (aTyp', maybeU)
     case maybeU of
       Just (U u) -> maybe malformed return (cast u)
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
           liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
+    where
+    convert :: (Integral b, Integral c) => b -> c
+    convert = fromInteger . toInteger
 
 icode0  tag                       = icodeN [tag]
 icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]
@@ -826,7 +834,7 @@ emptyDict fileMod = Dict
   <*> newIORef 0
   <*> return fileMod
 
-hashNode :: [ Int ] -> Int32
+hashNode :: Node -> Int32
 hashNode is = List.foldl' f golden is
    where f m c = fromIntegral c * magic + hashInt32 m
          magic  = 0xdeadbeef
@@ -838,5 +846,5 @@ hashNode is = List.foldl' f golden is
              where r :: Int64
                    r = fromIntegral a * fromIntegral b
 
-hashInt2 :: (Int, Int) -> Int32
+hashInt2 :: (Int32, Int32) -> Int32
 hashInt2 (ix, rep) = hashNode [ix , rep]

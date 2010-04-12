@@ -9,6 +9,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
+import Data.Int
 import Data.Map as Map
 import Data.Set as Set
 import Data.Generics
@@ -514,7 +515,7 @@ data TermHead = SortHead
 -- ** Mutual blocks
 ---------------------------------------------------------------------------
 
-newtype MutualId = MutId Int
+newtype MutualId = MutId Int32
   deriving (Typeable, Data, Eq, Ord, Show, Num)
 
 ---------------------------------------------------------------------------

@@ -30,6 +30,7 @@ module Agda.Syntax.Parser.Monad
 
 import Control.Exception
 import Data.Char
+import Data.Int
 import Data.Typeable
 
 import Control.Monad.State
@@ -75,8 +76,8 @@ type LexState = Int
 -- | We need to keep track of the context to do layout. The context
 --   specifies the indentation (if any) of a layout block. See
 --   "Agda.Syntax.Parser.Layout" for more informaton.
-data LayoutContext  = NoLayout	    -- ^ no layout
-		    | Layout Int    -- ^ layout at specified column
+data LayoutContext  = NoLayout	      -- ^ no layout
+		    | Layout Int32    -- ^ layout at specified column
     deriving Show
 
 -- | There aren't any parser flags at the moment.

@@ -46,6 +46,7 @@ import Data.List
 import Data.Function
 import Data.Set (Set, (\\))
 import qualified Data.Set as Set
+import Data.Int
 import Agda.Utils.QuickCheck
 import Control.Applicative
 import Control.Monad
@@ -70,11 +71,11 @@ import Agda.Utils.Impossible
 -- Note the invariant which positions have to satisfy: 'positionInvariant'.
 data Position = Pn { srcFile :: Maybe AbsolutePath
                      -- ^ File.
-                   , posPos  :: !Int
+                   , posPos  :: !Int32
                      -- ^ Position.
-		   , posLine :: !Int
+		   , posLine :: !Int32
                      -- ^ Line number, counting from 1.
-		   , posCol  :: !Int
+		   , posCol  :: !Int32
                      -- ^ Column number, counting from 1.
 		   }
     deriving (Typeable, Data)
@@ -104,7 +105,7 @@ intervalInvariant i =
 
 -- | The length of an interval, assuming that the start and end
 -- positions are in the same file.
-iLength :: Interval -> Int
+iLength :: Interval -> Int32
 iLength i = posPos (iEnd i) - posPos (iStart i)
 
 -- | A range is a list of intervals. The intervals should be
@@ -246,7 +247,7 @@ backupPos (Pn f p l c) = Pn f (p - 1) l (c - 1)
 --
 -- Precondition: The string must not be too long for the interval.
 takeI :: String -> Interval -> Interval
-takeI s i | length s > iLength i = __IMPOSSIBLE__
+takeI s i | genericLength s > iLength i = __IMPOSSIBLE__
           | otherwise = i { iEnd = movePosByString (iStart i) s }
 
 -- | Removes the interval corresponding to the given string from the
@@ -255,7 +256,7 @@ takeI s i | length s > iLength i = __IMPOSSIBLE__
 --
 -- Precondition: The string must not be too long for the interval.
 dropI :: String -> Interval -> Interval
-dropI s i | length s > iLength i = __IMPOSSIBLE__
+dropI s i | genericLength s > iLength i = __IMPOSSIBLE__
           | otherwise = i { iStart = movePosByString (iStart i) s }
 
 -- | Converts two positions to a range.
@@ -334,17 +335,17 @@ x `withRangeOf` y = setRange (getRange y) x
 -- end-point. This function assumes that the two end points belong to
 -- the same file. Note that the 'Arbitrary' instance for 'Position's
 -- uses a single, hard-wired file name.
-iPositions :: Interval -> Set Int
+iPositions :: Interval -> Set Int32
 iPositions i = Set.fromList [posPos (iStart i) .. posPos (iEnd i)]
 
 -- | The positions corresponding to the range, including the
 -- end-points. All ranges are assumed to belong to a single file.
-rPositions :: Range -> Set Int
+rPositions :: Range -> Set Int32
 rPositions (Range is) = Set.unions (map iPositions is)
 
 -- | Constructs the least interval containing all the elements in the
 -- set.
-makeInterval :: Set Int -> Set Int
+makeInterval :: Set Int32 -> Set Int32
 makeInterval s
   | Set.null s = Set.empty
   | otherwise  = Set.fromList [Set.findMin s .. Set.findMax s]
@@ -356,8 +357,8 @@ prop_startPos = positionInvariant . startPos
 prop_noRange = rangeInvariant noRange
 
 prop_takeI_dropI i =
-  forAll (choose (0, iLength i)) $ \n ->
-    let s = replicate n ' '
+  forAll (choose (0, toInteger $ iLength i)) $ \n ->
+    let s = genericReplicate n ' '
         t = takeI s i
         d = dropI s i
     in
