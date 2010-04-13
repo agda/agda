@@ -10,7 +10,9 @@
 ^doc/haddock/.*\.(gif|html|css|js|haddock)
 ^tmp$
 ^doc/pfe/fake/Syntax/Parser/(Parser|Lexer)\.hs$
-\.(log|ps|aux|bbl|nav|bak|snm|toc|out)$
+\.(log|ps|aux|bbl|nav|bak|snm|toc)$
+^doc/.*\.out$
+\.happy.out$
 \.dvi$
 \.pdf$
 ~$

@@ -102,6 +102,6 @@ customised/NestedProjectRoots : % : %.err
 # Clean
 
 clean :
-	-rm -f *.err *.tmp *~
+	-rm -f *.tmp *~
 
 # EOF

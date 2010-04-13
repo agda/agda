@@ -951,3 +951,23 @@ infoOnException m =
                -- does not really matter if it is displayed
                -- incorrectly when an unexpected error has occurred.
              }
+
+-- Helpers for testing ----------------------------------------------------
+
+getCurrentFile :: IO FilePath
+getCurrentFile = do
+  mf <- theCurrentFile <$> readIORef theState
+  case mf of
+    Nothing     -> error "command: No file loaded!"
+    Just (f, _) -> return (filePath f)
+
+top_command :: Interaction -> IO ()
+top_command cmd = do
+  f <- getCurrentFile
+  ioTCM f Nothing cmd
+
+goal_command :: InteractionId -> GoalCommand -> String -> IO ()
+goal_command i cmd s = do
+  f <- getCurrentFile
+  ioTCM f Nothing (cmd i noRange s)
+

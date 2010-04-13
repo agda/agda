@@ -1,0 +1,21 @@
+agda2_mode_code (agda2-status-action "")
+Checking Simple (Simple.agda).
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
+")
+agda2_mode_code (setq agda2-response '(0))
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*Goal type etc.*"
+                 "————————————————————————————————————————————————————————————
+Goal: Maybe Nat")
+agda2_mode_code (agda2-info-action
+                 "*Error*"
+                 "1,1-4
+Nat !=< Maybe Nat of type Set
+when checking that the expression s z has type Maybe Nat")
+agda2_mode_code (agda2-status-action "")
+*** Exception: ExitFailure 1
+agda2_mode_code (agda2-give-action 0 'no-paren)
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action "*All Goals*" "")

@@ -29,7 +29,7 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : install-bin core tags
+default : install-bin tags
 else
 default : make_configure
 endif
@@ -48,7 +48,7 @@ prof : install-prof-bin
 
 # Installs the Emacs mode, but does not set it up.
 install-lib :
-	$(CABAL_CMD) install $(CABAL_OPTIONS)
+	$(CABAL_CMD) install $(CABAL_OPTIONS) --disable-library-profiling
 
 install-prof-lib :
 	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling
@@ -182,7 +182,7 @@ endif
 
 ## Testing ###########################################################
 
-test : succeed examples fail tests library-test compiler-test
+test : succeed fail interaction examples tests library-test compiler-test
 
 tests :
 	@echo "======================================================================"
@@ -195,6 +195,12 @@ succeed :
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
 	@$(MAKE) -C test/succeed
+
+interaction :
+	@echo "======================================================================"
+	@echo "===================== Suite of interaction tests ====================="
+	@echo "======================================================================"
+	@$(MAKE) -C test/interaction
 
 examples :
 	@echo "======================================================================"
@@ -216,7 +222,7 @@ library-test : std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS))
+	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) +RTS -M1G -H1.5G -s)
 
 compiler-test : std-lib
 	@echo "======================================================================"
