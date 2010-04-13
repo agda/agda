@@ -21,7 +21,10 @@ run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 
 # No recorded output
 $(OutFiles) : %.out : %.agda %.in
+	@echo "=== Output for $* ==="
 	@$(run_test) > $@
+	@cat $@
+	@echo "=== End of output ==="
 
 # Comparing output
 $(Tests) : %.cmp : %.out
