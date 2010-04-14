@@ -77,7 +77,7 @@ checkRecDef i name con ps contel fields =
         Just (A.Axiom i c _) -> return (True, c, i)
         Just _               -> __IMPOSSIBLE__
         Nothing              -> do
-          m <- currentModule
+          m <- killRange <$> currentModule
           c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
           return (False, c, i)
 
