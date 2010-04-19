@@ -28,10 +28,10 @@ ex₂ = refl
 open import Algebra
 import Data.Nat.Properties as Nat
 private
-  module ℕ = CommutativeSemiring Nat.commutativeSemiring
+  module CS = CommutativeSemiring Nat.commutativeSemiring
 
 ex₃ : ∀ m n → m * n ≡ n * m
-ex₃ m n = ℕ.*-comm m n
+ex₃ m n = CS.*-comm m n
 
 -- The module ≡-Reasoning in Relation.Binary.PropositionalEquality
 -- provides some combinators for equational reasoning.
@@ -41,8 +41,8 @@ open import Data.Product
 
 ex₄ : ∀ m n → m * (n + 0) ≡ n * m
 ex₄ m n = begin
-  m * (n + 0)  ≡⟨ cong (_*_ m) (proj₂ ℕ.+-identity n) ⟩
-  m * n        ≡⟨ ℕ.*-comm m n ⟩
+  m * (n + 0)  ≡⟨ cong (_*_ m) (proj₂ CS.+-identity n) ⟩
+  m * n        ≡⟨ CS.*-comm m n ⟩
   n * m        ∎
 
 -- The module SemiringSolver in Data.Nat.Properties contains a solver

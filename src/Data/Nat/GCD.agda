@@ -76,18 +76,18 @@ open GCD public using (GCD)
 
 module Bézout where
 
-  -- If m and n have greatest common divisor d, then one of the
-  -- following two equations is satisfied, for some numbers x and y.
-  -- The proof is "lemma" below (Bézout's lemma).
-  --
-  -- (If this identity was stated using integers instead of natural
-  -- numbers, then it would not be necessary to have two equations.)
-
-  data Identity (d m n : ℕ) : Set where
-    +- : (x y : ℕ) (eq : d + y * n ≡ x * m) → Identity d m n
-    -+ : (x y : ℕ) (eq : d + x * m ≡ y * n) → Identity d m n
-
   module Identity where
+
+    -- If m and n have greatest common divisor d, then one of the
+    -- following two equations is satisfied, for some numbers x and y.
+    -- The proof is "lemma" below (Bézout's lemma).
+    --
+    -- (If this identity was stated using integers instead of natural
+    -- numbers, then it would not be necessary to have two equations.)
+
+    data Identity (d m n : ℕ) : Set where
+      +- : (x y : ℕ) (eq : d + y * n ≡ x * m) → Identity d m n
+      -+ : (x y : ℕ) (eq : d + x * m ≡ y * n) → Identity d m n
 
     -- Various properties about Identity.
 
@@ -117,13 +117,15 @@ module Bézout where
     step {d}     (-+ .x .(x ⊕ i) eq) | less x i    = -+ (2 * x ⊕ i) (x ⊕ i) (lem₆ d x   eq)
     step {d} {n} (-+ .(y ⊕ i) .y eq) | greater y i = -+ (2 * y ⊕ i) y       (lem₇ d y n eq)
 
-  -- This type packs up the gcd, the proof that it is a gcd, and the
-  -- proof that it satisfies Bézout's identity.
-
-  data Lemma (m n : ℕ) : Set where
-    result : (d : ℕ) (g : GCD m n d) (b : Identity d m n) → Lemma m n
+  open Identity public using (Identity; +-; -+)
 
   module Lemma where
+
+    -- This type packs up the gcd, the proof that it is a gcd, and the
+    -- proof that it satisfies Bézout's identity.
+
+    data Lemma (m n : ℕ) : Set where
+      result : (d : ℕ) (g : GCD m n d) (b : Identity d m n) → Lemma m n
 
     -- Various properties about Lemma.
 
@@ -143,6 +145,8 @@ module Bézout where
 
     stepʳ : ∀ {n k} → Lemma (suc k) n → Lemma (suc (n + k)) n
     stepʳ = sym ∘ stepˡ ∘ sym
+
+  open Lemma public using (Lemma; result)
 
   -- Bézout's lemma proved using some variant of the extended
   -- Euclidean algorithm.
