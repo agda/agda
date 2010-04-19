@@ -24,7 +24,7 @@ endif
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
 		 test succeed fail benchmark \
-		 install-lib install-bin install-emacs-mode
+		 update-cabal install-lib install-bin install-emacs-mode
 
 ## Default target #########################################################
 
@@ -42,9 +42,12 @@ CABAL_CMD=cabal
 # Options used by cabal install.
 CABAL_OPTIONS=--global --root-cmd=sudo
 
-install : install-lib install-bin install-emacs-mode
+install : update-cabal install-lib install-bin install-emacs-mode
 
-prof : install-prof-bin
+prof : update-cabal install-prof-bin
+
+update-cabal :
+	$(CABAL_CMD) update
 
 # Installs the Emacs mode, but does not set it up.
 install-lib :

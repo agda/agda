@@ -27,10 +27,11 @@ Wiki for information about the library.)
   Install the prerequisites mentioned below, then run the following
   commands:
 
+    cabal update
     cabal install Agda-executable
     agda-mode setup
 
-  The second command tries to set up Emacs for use with Agda. As an
+  The last command tries to set up Emacs for use with Agda. As an
   alternative you can copy the following text to your .emacs file:
 
     (load-file (let ((coding-system-for-read 'utf-8))
@@ -53,15 +54,15 @@ Wiki for information about the library.)
   2b) Run the following commands in the top-level directory of the
       Agda source tree:
 
+        cabal update
         cabal install
         agda-mode setup
         cd src/main
         cabal clean       # To ensure recompilation when upgrading.
         cabal install
 
-      The second command tries to set up Emacs for use with Agda. As
-      an alternative you can copy the following text to your .emacs
-      file:
+      The third command tries to set up Emacs for use with Agda. As an
+      alternative you can copy the following text to your .emacs file:
 
         (load-file (let ((coding-system-for-read 'utf-8))
                         (shell-command-to-string "agda-mode locate")))
