@@ -1,4 +1,4 @@
-ClashingModule.agda:5,1-15
+ClashingModule.agda:5,8-9
 Duplicate definition of module A. Previous definition at
 ClashingModule.agda:4,8-9
 when scope checking the declaration

@@ -347,12 +347,17 @@ newtype OldModuleName      = OldModuleName      C.QName
 freshQModule :: A.ModuleName -> C.Name -> ScopeM A.ModuleName
 freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
 
+checkForModuleClash :: C.Name -> ScopeM ()
+checkForModuleClash x = do
+  ms <- scopeLookup (C.QName x) <$> getScope
+  unless (null ms) $ 
+    setCurrentRange (getRange x) $
+    typeError $ ShadowedModule $
+                map ((`withRangeOf` x) . amodName) ms
+
 instance ToAbstract NewModuleName A.ModuleName where
   toAbstract (NewModuleName x) = do
-    ms <- scopeLookup (C.QName x) <$> getScope
-    unless (null ms) $ 
-      typeError $ ShadowedModule $
-                  map ((`withRangeOf` x) . amodName) ms
+    checkForModuleClash x
     m <- getCurrentModule
     y <- freshQModule m x
     createModule y
@@ -675,9 +680,13 @@ instance ToAbstract NiceDefinition Definition where
           pars <- toAbstract pars
           x'   <- toAbstract (OldName x)
           -- Create the module for the qualified constructors
+          checkForModuleClash x -- disallow shadowing previously defined modules
           let m = mnameFromList $ qnameToList x'
           createModule m
+          bindModule p x m  -- make it a proper module
           cons <- toAbstract (map (ConstrDecl m) cons)
+          -- Open the module
+          -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
           printScope "data" 20 $ "Checked data " ++ show x
           return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
         where
@@ -688,6 +697,9 @@ instance ToAbstract NiceDefinition Definition where
       C.RecDef r f p a x c pars fields ->
         traceCall (ScopeCheckDefinition d) $
         withLocalVars $ do
+          -- Check that the generated module doesn't clash with a previously
+          -- defined module
+          checkForModuleClash x
           pars   <- toAbstract pars
           x'     <- toAbstract (OldName x)
           contel <- toAbstract $ recordConstructorType fields
@@ -821,9 +833,10 @@ data ConstrDecl = ConstrDecl A.ModuleName C.NiceDeclaration
 instance ToAbstract ConstrDecl A.Declaration where
     toAbstract (ConstrDecl m (C.Axiom r f p a x t)) = do
         t' <- toAbstractCtx TopCtx t
-        y  <- freshAbstractQName f x
+        -- The abstract name is the qualified one
+        y  <- withCurrentModule m $ freshAbstractQName f x
+        -- Bind it twice, once unqualified and once qualified
         bindName p' ConName x y
-        -- Bind a qualified version of the constructor
         withCurrentModule m $ bindName p' ConName x y
         printScope "con" 15 "bound construcor"
         return $ A.Axiom (mkDefInfo x f p a r) y t'

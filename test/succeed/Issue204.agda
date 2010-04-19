@@ -1,3 +1,4 @@
+{-# OPTIONS --universe-polymorphism #-}
 module Issue204 where
 
 open import Issue204.Dependency
@@ -9,4 +10,4 @@ postulate
 
 open R r
 
-open D d
+open M d

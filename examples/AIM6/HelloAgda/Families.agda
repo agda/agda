@@ -18,7 +18,7 @@ module Families where
 
 -- You can import modules defined in other files.
 -- More details later...
-open import Nat
+open import Naturals
 
 -- Think of an inductive family...
 module Vec where

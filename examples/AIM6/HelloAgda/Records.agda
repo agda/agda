@@ -16,7 +16,7 @@
 
 module Records where
 
-open import Nat
+open import Naturals
 open import Bool
 
 {-

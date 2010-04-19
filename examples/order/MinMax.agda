@@ -75,6 +75,7 @@ module Max {A : Set}(Ord : DecidableOrder A)
               ; case-min  to case-max
               ; case-min′ to case-max′
               ; CaseMin   to CaseMax
+              ; module CaseMin to CaseMax
               ; leq       to geq
               ; geq       to leq
               ; min-glb   to max-lub

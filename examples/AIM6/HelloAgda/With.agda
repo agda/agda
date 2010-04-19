@@ -18,7 +18,7 @@
 
 module With where
 
-open import Nat
+open import Naturals
 
 {-
 

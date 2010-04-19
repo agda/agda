@@ -1,5 +1,5 @@
 
-module Nat where
+module Naturals where
 
 data Nat : Set where
   zero : Nat

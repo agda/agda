@@ -7,4 +7,4 @@ import With
 import Families
 import Datatypes
 import Bool
-import Nat
+import Naturals

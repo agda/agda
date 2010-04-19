@@ -23,16 +23,16 @@ module Modules where
 -}
 
 -- You can import a module defined in a different file.
-import Nat
+import Naturals
 
 -- This will bring the module into scope and allows you to
 -- access its contents using qualified names.
-plusTwo : Nat.Nat -> Nat.Nat
-plusTwo n = Nat._+_ n 2
+plusTwo : Naturals.Nat -> Naturals.Nat
+plusTwo n = Naturals._+_ n 2
 
 -- To bring everything from a module into scope you can open
 -- the module.
-open Nat
+open Naturals
 
 z : Nat
 z = zero
@@ -50,23 +50,23 @@ x && y = if x then y else false
 module DifferentWaysOfOpeningNat where
 
   -- nothing but Nat
-  open Nat using (Nat)
+  open Naturals using (Nat)
 
   -- everything but zero
-  open Nat hiding (zero)
+  open Naturals hiding (zero)
 
   -- everything, but zero and suc under different names
-  open Nat renaming (zero to ZZ; suc to S_S)
+  open Naturals renaming (zero to ZZ; suc to S_S)
 
   two : Nat
-  two = S S zero S S
+  two = S S ZZ S S
 
   -- you can combine using or hiding with renaming, but not using
   -- with hiding (for obvious reasons).
 
 -- To re-export something opened use the public modifier.
 module A where
-  open Nat public using (Nat)
+  open Naturals public using (Nat)
 
 N = A.Nat -- now Nat is a visible name in module A
 

@@ -14,5 +14,5 @@ data Maybe (A : Set) : Set where
   Nothing : Maybe A
 
 eval : Exp → Maybe Nat
-eval (val n)        = ?
+eval (val n)        = {!!}
 eval throw          = {!!}

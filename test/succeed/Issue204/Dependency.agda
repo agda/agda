@@ -14,4 +14,4 @@ record R (ℓ : Level) : Set (suc ℓ) where
 
 data D (ℓ : Level) : Set (suc ℓ) where
 
-module D {ℓ : Level} (d : D ℓ) where
+module M {ℓ : Level} (d : D ℓ) where

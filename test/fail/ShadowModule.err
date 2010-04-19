@@ -1,4 +1,4 @@
-ShadowModule.agda:10,1-15
+ShadowModule.agda:10,8-9
 Duplicate definition of module B. Previous definition at
 ShadowModule.agda:5,10-11
 when scope checking the declaration

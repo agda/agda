@@ -290,19 +290,32 @@ getConstInfo :: MonadTCM tcm => QName -> tcm Definition
 getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
   let defs  = sigDefinitions $ stSignature st
       idefs = sigDefinitions $ stImports st
-      ab    = treatAbstractly' q env
       smash = (++) `on` maybe [] (:[])
   in case smash (Map.lookup q defs) (Map.lookup q idefs) of
       []  -> fail $ "Unbound name: " ++ show q
-      [d] -> mkAbs ab d
+      [d] -> mkAbs env d
       ds  -> fail $ "Ambiguous name: " ++ show q
   where
-    mkAbs True d =
-      case makeAbstract d of
-	Just d	-> return d
-	Nothing	-> typeError $ NotInScope [qnameToConcrete q]
-	  -- the above can happen since the scope checker is a bit sloppy with 'abstract'
-    mkAbs False d = return d
+    mkAbs env d
+      | treatAbstractly' q' env =
+        case makeAbstract d of
+          Just d	-> return d
+          Nothing	-> typeError $ NotInScope [qnameToConcrete q]
+            -- the above can happen since the scope checker is a bit sloppy with 'abstract'
+      | otherwise = return d
+      where
+        q' = case theDef d of
+          -- Hack to make abstract constructors work properly. The constructors
+          -- live in a module with the same name as the datatype, but for 'abstract'
+          -- purposes they're considered to be in the same module as the datatype.
+          Constructor{} -> dropLastModule q
+          _             -> q
+
+        dropLastModule q@QName{ qnameModule = m } =
+          q{ qnameModule = mnameFromList $ init' $ mnameToList m }
+
+        init' [] = {-'-} __IMPOSSIBLE__
+        init' xs = init xs
 
 -- | Look up the polarity of a definition.
 getPolarity :: MonadTCM tcm => QName -> tcm [Polarity]
