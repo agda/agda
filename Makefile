@@ -40,7 +40,7 @@ endif
 CABAL_CMD=cabal
 
 # Options used by cabal install.
-CABAL_OPTIONS=--global --root-cmd=sudo
+CABAL_OPTIONS=
 
 install : update-cabal install-lib install-bin install-emacs-mode
 
@@ -134,9 +134,6 @@ $(AGDA_BIN) : $(INPLACE) $(MAIN_SRC_DIR)/Main.hs
 	$(MAKE) -C $(MAIN_SRC_DIR)
 
 full : $(AGDA_BIN)
-
-prof :
-	$(MAKE) -C $(MAIN_SRC_DIR) prof
 
 ## Making the core language ###############################################
 
