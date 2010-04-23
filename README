@@ -122,11 +122,12 @@ For instructions on installing a suitable version of Emacs under
 Windows, see below.
 
 Non-Windows users need to ensure that the development files for the C
-library zlib are installed (see http://zlib.net). Your package manager
-may be able to install these files for you. For instance, on Debian or
-Ubuntu it should suffice to run
+libraries zlib and ncurses are installed (see http://zlib.net and
+http://www.gnu.org/software/ncurses/). Your package manager may be
+able to install these files for you. For instance, on Debian or Ubuntu
+it should suffice to run
 
-  apt-get install zlib1g-dev
+  apt-get install zlib1g-dev libncurses5-dev
 
 as root to get the correct files installed.
 
