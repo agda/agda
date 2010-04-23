@@ -8,7 +8,6 @@ Table of contents:
 * Configuring the Emacs mode
 * Prerequisites
 * Installing a suitable version of Emacs under Windows
-* Installation script for (at least) Ubuntu
 
 ------------------------------------------------------------------------
 Installing Agda
@@ -70,10 +69,6 @@ Wiki for information about the library.)
       If you want to have more control over where files are installed
       then you can give various flags to cabal install, see
       cabal install --help.
-
-  A section below lists an installation script which should work under
-  the Ubuntu distribution of GNU/Linux, assuming that your
-  configuration is reasonably standard.
 
 ------------------------------------------------------------------------
 Configuring the Emacs mode
@@ -253,24 +248,3 @@ when installing Emacs under Windows.
        M-x view-hello-file
 
    You should see all the characters without white-boxes.
-
-------------------------------------------------------------------------
-Installation scripts for Ubuntu 9.10
-------------------------------------------------------------------------
-
-Installs a released version:
-
-  sudo apt-get install agda-mode agda-bin
-
-Installs the development version:
-
-  sudo apt-get install ghc6 happy alex darcs emacs haskell-mode zlib1g-dev make
-  wget http://www.haskell.org/cabal/release/cabal-install-0.6.4/cabal-install-0.6.4.tar.gz
-  tar xzf cabal-install-0.6.4.tar.gz
-  cd cabal-install-0.6.4
-  . bootstrap.sh
-  cd ..
-  $HOME/.cabal/bin/cabal update
-  darcs get --lazy http://code.haskell.org/Agda
-  cd Agda
-  make CABAL_CMD="$HOME/.cabal/bin/cabal" install
