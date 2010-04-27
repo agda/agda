@@ -4,6 +4,9 @@
 
 {-# OPTIONS --universe-polymorphism #-}
 
+-- The idea underlying Induction.* comes from Epigram 1, see Section 4
+-- of "The view from the left" by McBride and McKinna.
+
 -- Note: The types in this module can perhaps be easier to understand
 -- if they are normalised. Note also that Agda can do the
 -- normalisation for you.
