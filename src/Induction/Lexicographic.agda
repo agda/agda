@@ -11,28 +11,35 @@ open import Data.Product
 
 -- The structure of lexicographic induction.
 
-_⊗_ : ∀ {ℓ} {A B : Set ℓ} →
-      RecStruct A → RecStruct B → RecStruct (A × B)
-_⊗_ RecA RecB P (x , y) =
+Σ-Rec : ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ} →
+        RecStruct A → (∀ x → RecStruct (B x)) → RecStruct (Σ A B)
+Σ-Rec RecA RecB P (x , y) =
   -- Either x is constant and y is "smaller", ...
-  RecB (λ y' → P (x , y')) y
+  RecB x (λ y' → P (x , y')) y
     ×
   -- ...or x is "smaller" and y is arbitrary.
   RecA (λ x' → ∀ y' → P (x' , y')) x
 
+_⊗_ : ∀ {ℓ} {A B : Set ℓ} →
+      RecStruct A → RecStruct B → RecStruct (A × B)
+RecA ⊗ RecB = Σ-Rec RecA (λ _ → RecB)
+
 -- Constructs a recursor builder for lexicographic induction.
 
-[_⊗_] : ∀ {ℓ} {A B : Set ℓ}
-          {RecA : RecStruct A} → RecursorBuilder RecA →
-          {RecB : RecStruct B} → RecursorBuilder RecB →
-        RecursorBuilder (RecA ⊗ RecB)
-[_⊗_] {RecA = RecA} recA {RecB = RecB} recB P f (x , y) =
+Σ-rec-builder :
+  ∀ {ℓ} {A : Set ℓ} {B : A → Set ℓ}
+    {RecA : RecStruct A}
+    {RecB : ∀ x → RecStruct (B x)} →
+  RecursorBuilder RecA → (∀ x → RecursorBuilder (RecB x)) →
+  RecursorBuilder (Σ-Rec RecA RecB)
+Σ-rec-builder {RecA = RecA} {RecB = RecB} recA recB P f (x , y) =
   (p₁ x y p₂x , p₂x)
   where
   p₁ : ∀ x y →
        RecA (λ x' → ∀ y' → P (x' , y')) x →
-       RecB (λ y' → P (x , y')) y
-  p₁ x y x-rec = recB (λ y' → P (x , y'))
+       RecB x (λ y' → P (x , y')) y
+  p₁ x y x-rec = recB x
+                      (λ y' → P (x , y'))
                       (λ y y-rec → f (x , y) (y-rec , x-rec))
                       y
 
@@ -41,6 +48,11 @@ _⊗_ RecA RecB P (x , y) =
             (λ x x-rec y → f (x , y) (p₁ x y x-rec , x-rec))
 
   p₂x = p₂ x
+
+[_⊗_] : ∀ {ℓ} {A B : Set ℓ} {RecA : RecStruct A} {RecB : RecStruct B} →
+        RecursorBuilder RecA → RecursorBuilder RecB →
+        RecursorBuilder (RecA ⊗ RecB)
+[ recA ⊗ recB ] = Σ-rec-builder recA (λ _ → recB)
 
 ------------------------------------------------------------------------
 -- Example
