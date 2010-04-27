@@ -11,8 +11,9 @@ open import Data.Fin.Props
 open import Data.Product
 open import Data.Unit
 open import Induction
-import Induction.WellFounded as WF
+open import Induction.WellFounded as WF
 open import Relation.Binary.PropositionalEquality
+open import Relation.Unary
 
 ------------------------------------------------------------------------
 -- Ordinary induction
@@ -46,18 +47,18 @@ cRec = build cRec-builder
 ------------------------------------------------------------------------
 -- Complete induction based on _<′_
 
-open WF _<′_ using (acc) renaming (Acc to <-Acc)
+<-Rec : RecStruct ℕ
+<-Rec = WfRec _<′_
 
-<-allAcc : ∀ n → <-Acc n
-<-allAcc n = acc (helper n)
+<-well-founded : Well-founded _<′_
+<-well-founded n = acc (helper n)
   where
-  helper : ∀ n m → m <′ n → <-Acc m
+  helper : ∀ n m → m <′ n → Acc _<′_ m
   helper zero     _ ()
   helper (suc n) .n ≤′-refl       = acc (helper n)
   helper (suc n)  m (≤′-step m<n) = helper n m m<n
 
-open WF _<′_ public using () renaming (WfRec to <-Rec)
-open WF.All _<′_ <-allAcc public
+open WF.All <-well-founded public
   renaming ( wfRec-builder to <-rec-builder
            ; wfRec to <-rec
            )
@@ -65,17 +66,13 @@ open WF.All _<′_ <-allAcc public
 ------------------------------------------------------------------------
 -- Complete induction based on _≺_
 
-open WF _≺_ renaming (Acc to ≺-Acc)
+≺-Rec : RecStruct ℕ
+≺-Rec = WfRec _≺_
 
-<-Acc⇒≺-Acc : ∀ {n} → <-Acc n → ≺-Acc n
-<-Acc⇒≺-Acc (acc rs) =
-  acc (λ m m≺n → <-Acc⇒≺-Acc (rs m (≺⇒<′ m≺n)))
+≺-well-founded : Well-founded _≺_
+≺-well-founded = Subrelation.well-founded ≺⇒<′ <-well-founded
 
-≺-allAcc : ∀ n → ≺-Acc n
-≺-allAcc n = <-Acc⇒≺-Acc (<-allAcc n)
-
-open WF _≺_ public using () renaming (WfRec to ≺-Rec)
-open WF.All _≺_ ≺-allAcc public
+open WF.All ≺-well-founded public
   renaming ( wfRec-builder to ≺-rec-builder
            ; wfRec to ≺-rec
            )
