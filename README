@@ -13,15 +13,20 @@ Table of contents:
 Installing Agda
 ------------------------------------------------------------------------
 
-There are several ways to install Agda. (Note that this README only
-discusses installation of Agda, not its standard library. See the Agda
-Wiki for information about the library.)
+  Note that this README only discusses installation of Agda, not its
+  standard library. See the Agda Wiki for information about the
+  library.
+
+There are several ways to install Agda:
 
 * Using a binary package, prepared for your platform.
 
   Recommended if such a package exists. See the Agda Wiki.
 
-* Using stable packages available from Hackage.
+* Using a released source package, available from Hackage.
+
+  (Note that if you want to install the development version of Agda,
+  then you should use the next method.)
 
   Install the prerequisites mentioned below, then run the following
   commands:
