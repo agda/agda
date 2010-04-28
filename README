@@ -62,7 +62,6 @@ There are several ways to install Agda:
         cabal install
         agda-mode setup
         cd src/main
-        cabal clean       # To ensure recompilation when upgrading.
         cabal install
 
       The third command tries to set up Emacs for use with Agda. As an

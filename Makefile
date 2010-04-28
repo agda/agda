@@ -57,13 +57,13 @@ install-prof-lib :
 	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling
 
 install-bin : install-lib
-	cd src/main     && $(CABAL_CMD) install --reinstall $(CABAL_OPTIONS)
-	cd src/agda-pkg && $(CABAL_CMD) install --reinstall $(CABAL_OPTIONS)
+	cd src/main     && $(CABAL_CMD) install $(CABAL_OPTIONS)
+	cd src/agda-pkg && $(CABAL_CMD) install $(CABAL_OPTIONS)
 
 install-prof-bin : install-prof-lib
-	cd src/main     && $(CABAL_CMD) install --reinstall $(CABAL_OPTIONS) \
+	cd src/main     && $(CABAL_CMD) install $(CABAL_OPTIONS) \
 	  --program-suffix=_p --enable-executable-profiling
-	cd src/agda-pkg && $(CABAL_CMD) install --reinstall $(CABAL_OPTIONS) \
+	cd src/agda-pkg && $(CABAL_CMD) install $(CABAL_OPTIONS) \
 	  --program-suffix=_p --enable-executable-profiling
 
 install-emacs-mode : install-lib
