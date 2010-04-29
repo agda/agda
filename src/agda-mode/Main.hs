@@ -142,9 +142,7 @@ identifier :: Files -> String
 identifier files =
   takeFileName (thisProgram files) ++ " " ++ locateFlag
 
--- | The string appended to the end of the .emacs file. It is assumed
--- that the .emacs file uses ASCII or some other character encoding
--- which ASCII is compatible with (like Latin-1 or UTF-8).
+-- | The string appended to the end of the .emacs file.
 
 setupString :: Files -> String
 setupString files = unlines
