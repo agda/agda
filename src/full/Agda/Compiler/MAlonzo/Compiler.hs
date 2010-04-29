@@ -56,7 +56,7 @@ compilerMain mainI =
         let tm = toTopLevelModuleName $ iModuleName mainI
         f <- findFile tm
         return $ filePath $ CN.projectRoot f tm
-    setCommandLineOptions PersistentOptions $
+    setCommandLineOptions $
       opts { optMAlonzoDir = Just malonzoDir }
 
     ignoreAbstractMode $ do

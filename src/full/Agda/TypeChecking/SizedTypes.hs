@@ -155,7 +155,7 @@ haveSizedTypes = liftTCM $ do
     Def _ [] <- primSize
     Def _ [] <- primSizeInf
     Def _ [] <- primSizeSuc
-    optSizedTypes <$> commandLineOptions
+    optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
 
 solveSizeConstraints :: MonadTCM tcm => tcm ()

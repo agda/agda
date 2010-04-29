@@ -59,7 +59,7 @@ data TCState =
 	 , stScope	       :: ScopeInfo
 	 , stPersistentOptions :: CommandLineOptions
            -- ^ Options which apply to all files, unless overridden.
-	 , stPragmaOptions     :: CommandLineOptions
+	 , stPragmaOptions     :: PragmaOptions
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
@@ -97,7 +97,7 @@ initState =
          , stCurrentModule     = Nothing
 	 , stScope	       = emptyScopeInfo
 	 , stPersistentOptions = defaultOptions
-	 , stPragmaOptions     = defaultOptions
+	 , stPragmaOptions     = optPragmaOptions $ defaultOptions
 	 , stStatistics	       = Map.empty
 	 , stMutualBlocks      = Map.empty
 	 , stLocalBuiltins     = Map.empty

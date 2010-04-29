@@ -12,7 +12,6 @@ import System.FilePath
 
 import Agda.TypeChecking.Monad.Base
 import Agda.Interaction.Options
-import Agda.Syntax.Abstract
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
@@ -22,24 +21,25 @@ import qualified Agda.Utils.Trie as Trie
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
--- | Does the operation apply to the persistent options or only to the
--- pragma options? In the former case the pragma options are also
--- updated.
+-- | Sets the pragma options.
 
-data Target = PersistentOptions | PragmaOptions
+setPragmaOptions :: MonadTCM tcm => PragmaOptions -> tcm ()
+setPragmaOptions opts = do
+  clo <- commandLineOptions
+  case checkOpts (clo { optPragmaOptions = opts }) of
+    Left err   -> __IMPOSSIBLE__
+    Right opts ->
+      modify $ \s -> s { stPragmaOptions = optPragmaOptions opts }
 
--- | Sets the command line options.
+-- | Sets the command line options (both persistent and pragma options
+-- are updated).
 --
 -- Ensures that the 'optInputFile' field contains an absolute path.
 --
 -- An empty list of include directories is interpreted as @["."]@.
 
-setCommandLineOptions
-  :: MonadTCM tcm
-  => Target
-  -> CommandLineOptions
-  -> tcm ()
-setCommandLineOptions target opts =
+setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
+setCommandLineOptions opts =
   case checkOpts opts of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
@@ -54,28 +54,29 @@ setCommandLineOptions target opts =
                 [] -> ["."]
                 is -> is
             }
-      case target of
-        PersistentOptions ->
-          modify $ \s -> s { stPersistentOptions = newOpts
-                           , stPragmaOptions     = newOpts
-                           }
-        PragmaOptions ->
-          modify $ \s -> s { stPragmaOptions     = newOpts
-                           }
+      modify $ \s -> s { stPersistentOptions = newOpts
+                       , stPragmaOptions     = optPragmaOptions newOpts
+                       }
+
+-- | Returns the pragma options which are currently in effect.
+
+pragmaOptions :: MonadTCM tcm => tcm PragmaOptions
+pragmaOptions = liftTCM $ gets stPragmaOptions
+
+-- | Returns the command line options which are currently in effect.
 
 commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
-commandLineOptions = liftTCM $ gets stPragmaOptions
+commandLineOptions = liftTCM $ do
+  p  <- gets stPragmaOptions
+  cl <- gets stPersistentOptions
+  return $ cl { optPragmaOptions = p }
 
-setOptionsFromPragma :: MonadTCM tcm => Pragma -> tcm ()
-setOptionsFromPragma (OptionsPragma xs) = do
+setOptionsFromPragma :: MonadTCM tcm => OptionsPragma -> tcm ()
+setOptionsFromPragma ps = do
     opts <- commandLineOptions
-    case parsePragmaOptions xs opts of
+    case parsePragmaOptions ps opts of
 	Left err    -> typeError $ GenericError err
-	Right opts' -> setCommandLineOptions PragmaOptions opts'
-setOptionsFromPragma _ = return ()
-
-setOptionsFromPragmas :: MonadTCM tcm => [Pragma] -> tcm ()
-setOptionsFromPragmas = foldr (>>) (return ()) . map setOptionsFromPragma
+	Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
 enableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
@@ -124,14 +125,14 @@ getIncludeDirs =
 makeIncludeDirsAbsolute :: MonadTCM tcm => AbsolutePath -> tcm ()
 makeIncludeDirsAbsolute root = do
   opts <- commandLineOptions
-  setCommandLineOptions PersistentOptions $
+  setCommandLineOptions $
     opts { optIncludeDirs =
              map (filePath root </>) $ optIncludeDirs opts }
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =
     do	opts <- commandLineOptions
-	setCommandLineOptions PersistentOptions $
+	setCommandLineOptions $
           opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
@@ -146,37 +147,35 @@ hasInputFile :: MonadTCM tcm => tcm Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
 proofIrrelevance :: MonadTCM tcm => tcm Bool
-proofIrrelevance = optProofIrrelevance <$> commandLineOptions
+proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 
 hasUniversePolymorphism :: MonadTCM tcm => tcm Bool
-hasUniversePolymorphism = optUniversePolymorphism <$> commandLineOptions
+hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
 showImplicitArguments :: MonadTCM tcm => tcm Bool
-showImplicitArguments = optShowImplicit <$> commandLineOptions
+showImplicitArguments = optShowImplicit <$> pragmaOptions
 
 setShowImplicitArguments :: MonadTCM tcm => Bool -> tcm a -> tcm a
 setShowImplicitArguments showImp ret = do
-  opts <- commandLineOptions
+  opts <- pragmaOptions
   let imp = optShowImplicit opts
-  setCommandLineOptions PersistentOptions $
-    opts { optShowImplicit = showImp }
+  setPragmaOptions $ opts { optShowImplicit = showImp }
   x <- ret
-  opts <- commandLineOptions
-  setCommandLineOptions PersistentOptions $
-    opts { optShowImplicit = imp }
+  opts <- pragmaOptions
+  setPragmaOptions $ opts { optShowImplicit = imp }
   return x
 
 ignoreInterfaces :: MonadTCM tcm => tcm Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
 positivityCheckEnabled :: MonadTCM tcm => tcm Bool
-positivityCheckEnabled = not . optDisablePositivity <$> commandLineOptions
+positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
 typeInType :: MonadTCM tcm => tcm Bool
-typeInType = not . optUniverseCheck <$> commandLineOptions
+typeInType = not . optUniverseCheck <$> pragmaOptions
 
 getVerbosity :: MonadTCM tcm => tcm (Trie String Int)
-getVerbosity = optVerbose <$> commandLineOptions
+getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 

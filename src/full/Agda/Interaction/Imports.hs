@@ -15,6 +15,7 @@ import qualified Data.Set as Set
 import qualified Data.ByteString.Lazy as BS
 import Data.Generics
 import Data.List
+import Data.Maybe
 import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory
@@ -23,6 +24,7 @@ import qualified Agda.Utils.IO.Locale as LocIO
 import System.FilePath hiding (splitPath)
 
 import Agda.Syntax.Position
+import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Parser
@@ -256,10 +258,9 @@ getInterface' :: C.TopLevelModuleName
 getInterface' x includeStateChanges =
   -- Preserve the pragma options unless includeStateChanges is True.
   bracket (stPragmaOptions <$> get)
-          (unless includeStateChanges .
-             setCommandLineOptions PragmaOptions) $ \_ -> do
+          (unless includeStateChanges . setPragmaOptions) $ \_ -> do
    -- Forget the pragma options (locally).
-   setCommandLineOptions PersistentOptions . stPersistentOptions =<< get
+   setCommandLineOptions . stPersistentOptions =<< get
 
    alreadyVisited x $ addImportCycleCheck x $ do
     file <- findFile x  -- requires source to exist
@@ -367,7 +368,7 @@ getInterface' x includeStateChanges =
               r <- liftIO $ runTCM $
                      withImportPath ms $ do
                        setDecodedModules ds
-                       setCommandLineOptions PersistentOptions opts
+                       setCommandLineOptions opts
                        modify $ \s -> s { stModuleToSource = mf }
                        setVisitedModules vs
                        addImportedThings isig ibuiltin Set.empty
@@ -459,7 +460,10 @@ createInterface file mname = do
 
     pragmas <- concat <$> concreteToAbstract_ pragmas
                -- identity for top-level pragmas at the moment
-    setOptionsFromPragmas pragmas
+    let getOptions (A.OptionsPragma opts) = Just opts
+        getOptions _                      = Nothing
+        options = catMaybes $ map getOptions pragmas
+    mapM_ setOptionsFromPragma options
     topLevel <- concreteToAbstract_ (TopLevel top)
 
     termErrs <- catchError (do
@@ -467,7 +471,7 @@ createInterface file mname = do
       checkDecls (topLevelDecls topLevel)
 
       -- Termination checking.
-      termErrs <- ifM (optTerminationCheck <$> commandLineOptions)
+      termErrs <- ifM (optTerminationCheck <$> pragmaOptions)
                       (termDecls $ topLevelDecls topLevel)
                       (return [])
       mapM_ (\e -> reportSLn "term.warn.no" 2
@@ -501,14 +505,14 @@ createInterface file mname = do
     -- Check if there are unsolved meta-variables...
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
     unless (null unsolvedMetas) $ do
-      unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+      unsolvedOK <- optAllowUnsolved <$> pragmaOptions
       unless unsolvedOK $
         typeError $ UnsolvedMetas unsolvedMetas
 
     -- ...or unsolved constraints
     unsolvedConstraints <- getConstraints
     unless (null unsolvedConstraints) $ do
-      unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+      unsolvedOK <- optAllowUnsolved <$> pragmaOptions
       unless unsolvedOK $
         typeError $ UnsolvedConstraints unsolvedConstraints
 

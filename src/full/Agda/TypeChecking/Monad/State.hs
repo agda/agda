@@ -23,7 +23,7 @@ resetState :: MonadTCM tcm => tcm ()
 resetState = liftTCM $ do
     opts <- stPersistentOptions <$> get
     put initState
-    setCommandLineOptions PersistentOptions opts
+    setCommandLineOptions opts
 
 -- | Set the current scope.
 setScope :: MonadTCM tcm => ScopeInfo -> tcm ()

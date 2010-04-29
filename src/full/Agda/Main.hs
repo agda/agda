@@ -68,7 +68,7 @@ runAgda :: TCM ()
 runAgda = do
   progName <- liftIO getProgName
   argv   <- liftIO getArgs
-  let opts = parseStandardOptions progName argv
+  let opts = parseStandardOptions argv
   case opts of
     Left err -> liftIO $ optionError err
     Right opts
@@ -81,7 +81,7 @@ runAgda = do
           && not (optInteractive opts)
                             -> liftIO printUsage
       | otherwise           -> do
-          setCommandLineOptions PersistentOptions opts
+          setCommandLineOptions opts
           checkFile
   where
     checkFile :: TCM ()
@@ -109,7 +109,7 @@ runAgda = do
           file    <- getInputFile
           (i, mw) <- Imp.typeCheck file Imp.CurrentDir Nothing
 
-          unsolvedOK <- optAllowUnsolved <$> commandLineOptions
+          unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
           result <- case mw of
             Just (Imp.Warnings [] [] []) -> __IMPOSSIBLE__

@@ -76,13 +76,13 @@ checkCoverage f = do
         , nest 2 $ vcat $ map (text . show . clausePats) cs
         ]
       (used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
-      whenM (optCompletenessCheck <$> commandLineOptions) $
+      whenM (optCompletenessCheck <$> pragmaOptions) $
         case pss of
           []  -> return ()
           _   ->
             setCurrentRange (getRange cs) $
               typeError $ CoverageFailure f pss
-      whenM (optUnreachableCheck <$> commandLineOptions) $
+      whenM (optUnreachableCheck <$> pragmaOptions) $
         case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
           []  -> return ()
           is  -> do

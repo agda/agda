@@ -1,7 +1,7 @@
-{-# LANGUAGE CPP #-}
-
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
+    , PragmaOptions(..)
+    , OptionsPragma
     , Flag
     , checkOpts
     , parseStandardOptions
@@ -50,10 +50,6 @@ data CommandLineOptions =
 	    , optShowVersion          :: Bool
 	    , optShowHelp             :: Bool
 	    , optInteractive          :: Bool
-	    , optVerbose              :: Trie String Int
-	    , optProofIrrelevance     :: Bool
-	    , optAllowUnsolved        :: Bool
-	    , optShowImplicit         :: Bool
 	    , optRunTests             :: Bool
 	    , optCompile              :: Bool
 	    , optGenerateVimFile      :: Bool
@@ -61,23 +57,41 @@ data CommandLineOptions =
 	    , optHTMLDir              :: FilePath
 	    , optCSSFile              :: Maybe FilePath
 	    , optIgnoreInterfaces     :: Bool
-	    , optDisablePositivity    :: Bool
 	    , optCompileAlonzo        :: Bool
             , optCompileMAlonzo       :: Bool
             , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
-	    , optTerminationCheck     :: Bool
-            , optTerminationDepth     :: Int
-	    , optCompletenessCheck    :: Bool
-            , optUnreachableCheck     :: Bool
-	    , optUniverseCheck        :: Bool
-            , optSizedTypes           :: Bool
-            , optUniversePolymorphism :: Bool
-            , optInjectiveTypeConstructors :: Bool
-            , optGuardingTypeConstructors  :: Bool
             , optGhcFlags             :: [String]
+            , optPragmaOptions        :: PragmaOptions
 	    }
     deriving Show
+
+-- | Options which can be set in a pragma.
+
+data PragmaOptions = PragmaOptions
+  { optVerbose                   :: Trie String Int
+  , optShowImplicit              :: Bool
+  , optProofIrrelevance          :: Bool
+  , optAllowUnsolved             :: Bool
+  , optDisablePositivity         :: Bool
+  , optTerminationCheck          :: Bool
+  , optTerminationDepth          :: Int
+  , optCompletenessCheck         :: Bool
+  , optUnreachableCheck          :: Bool
+  , optUniverseCheck             :: Bool
+  , optSizedTypes                :: Bool
+  , optInjectiveTypeConstructors :: Bool
+  , optGuardingTypeConstructors  :: Bool
+  , optUniversePolymorphism      :: Bool
+  }
+  deriving Show
+
+-- | The options from an @OPTIONS@ pragma.
+--
+-- In the future it might be nice to switch to a more structured
+-- representation. Note that, currently, there is not a one-to-one
+-- correspondence between list elements and options.
+type OptionsPragma = [String]
 
 -- | Map a function over the long options. Also removes the short options.
 --   Will be used to add the plugin name to the plugin options.
@@ -92,10 +106,6 @@ defaultOptions =
 	    , optShowVersion          = False
 	    , optShowHelp             = False
 	    , optInteractive          = False
-	    , optVerbose              = Trie.singleton [] 1
-	    , optProofIrrelevance     = False
-	    , optAllowUnsolved        = False
-	    , optShowImplicit         = False
 	    , optRunTests             = False
 	    , optCompile              = False
 	    , optGenerateVimFile      = False
@@ -103,21 +113,30 @@ defaultOptions =
 	    , optHTMLDir              = defaultHTMLDir
 	    , optCSSFile              = Nothing
 	    , optIgnoreInterfaces     = False
-	    , optDisablePositivity    = False
 	    , optCompileAlonzo        = False
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
-            , optTerminationCheck     = True
-            , optTerminationDepth     = 0    -- this is the cutoff value
-            , optCompletenessCheck    = True
-            , optUnreachableCheck     = True
-            , optUniverseCheck        = True
-            , optSizedTypes           = False
-            , optUniversePolymorphism = False
-            , optInjectiveTypeConstructors = False
-            , optGuardingTypeConstructors  = False
             , optGhcFlags             = []
+            , optPragmaOptions        = defaultPragmaOptions
 	    }
+
+defaultPragmaOptions :: PragmaOptions
+defaultPragmaOptions = PragmaOptions
+  { optVerbose                   = Trie.singleton [] 1
+  , optShowImplicit              = False
+  , optProofIrrelevance          = False
+  , optAllowUnsolved             = False
+  , optDisablePositivity         = False
+  , optTerminationCheck          = True
+  , optTerminationDepth          = 0    -- this is the cutoff value
+  , optCompletenessCheck         = True
+  , optUnreachableCheck          = True
+  , optUniverseCheck             = True
+  , optSizedTypes                = False
+  , optInjectiveTypeConstructors = False
+  , optGuardingTypeConstructors  = False
+  , optUniversePolymorphism      = False
+  }
 
 -- | The default output directory for HTML.
 
@@ -131,7 +150,7 @@ prop_defaultOptions = case checkOpts defaultOptions of
      parsing an option.  @f opts@ produces either an error message or an
      updated options record
 -}
-type Flag opts	= opts -> Either String opts
+type Flag opts = opts -> Either String opts
 
 -- | Checks that the given options are consistent.
 
@@ -139,66 +158,70 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne compilerOpts) =
     Left "At most one compiler may be used.\n"
-  | not (atMostOne $ optAllowUnsolved : compilerOpts) = Left
+  | not (atMostOne $ optAllowUnsolved . p : compilerOpts) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
   | not (atMostOne $ optInteractive : compilerOpts) =
       Left "Choose at most one: compiler or interactive mode.\n"
   | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
-  | not (atMostOne [optUniversePolymorphism, not . optUniverseCheck]) =
+  | not (atMostOne [ optUniversePolymorphism . p
+                   , not . optUniverseCheck . p
+                   ]) =
       Left "Cannot have both universe polymorphism and type in type.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
 
+  p            = optPragmaOptions
   compilerOpts =
     [ optCompile
     , optCompileAlonzo
     , optCompileMAlonzo
     ]
 
-inputFlag :: FilePath -> CommandLineOptions -> Either String CommandLineOptions
-inputFlag f o	    =
+inputFlag :: FilePath -> Flag CommandLineOptions
+inputFlag f o =
     case optInputFile o of
-	Nothing  -> checkOpts $ o { optInputFile = Just f }
+	Nothing  -> return $ o { optInputFile = Just f }
 	Just _	 -> fail "only one input file allowed"
 
-versionFlag               o = checkOpts $ o { optShowVersion          = True  }
-helpFlag                  o = checkOpts $ o { optShowHelp             = True  }
-proofIrrelevanceFlag      o = checkOpts $ o { optProofIrrelevance     = True  }
-ignoreInterfacesFlag      o = checkOpts $ o { optIgnoreInterfaces     = True  }
-allowUnsolvedFlag         o = checkOpts $ o { optAllowUnsolved        = True  }
-showImplicitFlag          o = checkOpts $ o { optShowImplicit         = True  }
-runTestsFlag              o = checkOpts $ o { optRunTests             = True  }
-vimFlag                   o = checkOpts $ o { optGenerateVimFile      = True  }
-noPositivityFlag          o = checkOpts $ o { optDisablePositivity    = True  }
-dontTerminationCheckFlag  o = checkOpts $ o { optTerminationCheck     = False }
-dontCompletenessCheckFlag o = checkOpts $ o { optCompletenessCheck    = False }
-noUnreachableCheckFlag    o = checkOpts $ o { optUnreachableCheck     = False }
-dontUniverseCheckFlag     o = checkOpts $ o { optUniverseCheck        = False }
-sizedTypes                o = checkOpts $ o { optSizedTypes           = True  }
-injectiveTypeConstructorFlag o = checkOpts $ o { optInjectiveTypeConstructors = True }
-guardingTypeConstructorFlag  o = checkOpts $ o { optGuardingTypeConstructors  = True }
-universePolymorphismFlag  o = checkOpts $ o { optUniversePolymorphism = True  }
+versionFlag                  o = return $ o { optShowVersion               = True  }
+helpFlag                     o = return $ o { optShowHelp                  = True  }
+proofIrrelevanceFlag         o = return $ o { optProofIrrelevance          = True  }
+ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = True  }
+allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
+showImplicitFlag             o = return $ o { optShowImplicit              = True  }
+runTestsFlag                 o = return $ o { optRunTests                  = True  }
+vimFlag                      o = return $ o { optGenerateVimFile           = True  }
+noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
+dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
+dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = False }
+noUnreachableCheckFlag       o = return $ o { optUnreachableCheck          = False }
+dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False }
+sizedTypes                   o = return $ o { optSizedTypes                = True  }
+injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
+guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
+universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 
-interactiveFlag o = checkOpts $ o { optInteractive   = True
-			          , optAllowUnsolved = True
-			          }
-compileFlag      o = checkOpts $ o { optCompileMAlonzo = True }
-agateFlag        o = checkOpts $ o { optCompile        = True }
-alonzoFlag       o = checkOpts $ o { optCompileAlonzo  = True }
-malonzoFlag      o = checkOpts $ o { optCompileMAlonzo = True }
-malonzoDirFlag f o = checkOpts $ o { optMAlonzoDir     = Just f }
-ghcFlag        f o = checkOpts $ o { optGhcFlags       = f : optGhcFlags o }
+interactiveFlag  o = return $ o { optInteractive    = True
+                                , optPragmaOptions  = (optPragmaOptions o)
+                                                        { optAllowUnsolved = True }
+		                }
+compileFlag      o = return $ o { optCompileMAlonzo = True }
+agateFlag        o = return $ o { optCompile        = True }
+alonzoFlag       o = return $ o { optCompileAlonzo  = True }
+malonzoFlag      o = return $ o { optCompileMAlonzo = True }
+malonzoDirFlag f o = return $ o { optMAlonzoDir     = Just f }
+ghcFlag        f o = return $ o { optGhcFlags       = f : optGhcFlags o }
 
-htmlFlag      o = checkOpts $ o { optGenerateHTML = True }
-htmlDirFlag d o = checkOpts $ o { optHTMLDir      = d }
-cssFlag     f o = checkOpts $ o { optCSSFile      = Just f }
+htmlFlag      o = return $ o { optGenerateHTML = True }
+htmlDirFlag d o = return $ o { optHTMLDir      = d }
+cssFlag     f o = return $ o { optCSSFile      = Just f }
 
-includeFlag d o	    = checkOpts $ o { optIncludeDirs   = d : optIncludeDirs o   }
+includeFlag d o	    = return $ o { optIncludeDirs = d : optIncludeDirs o }
 verboseFlag s o	    =
     do	(k,n) <- parseVerbose s
-	checkOpts $ o { optVerbose = Trie.insert k n $ optVerbose o }
+	return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
     parseVerbose s = case wordsBy (`elem` ":.") s of
       []  -> usage
@@ -207,10 +230,10 @@ verboseFlag s o	    =
         return (init ss, n)
     usage = fail "argument to verbose should be on the form x.y.z:N or N"
 
-terminationDepthFlag    s o = 
+terminationDepthFlag s o =
     do k <- readM s `catchError` \_ -> usage
        when (k < 1) $ usage -- or: turn termination checking off for 0
-       checkOpts $ o { optTerminationDepth     = k-1 } 
+       return $ o { optTerminationDepth = k-1 }
     where usage = fail "argument to termination-depth should be >= 1"
 
 integerArgument :: String -> String -> Either String Int
@@ -245,9 +268,14 @@ standardOptions =
 		    "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
 		    "look for imports in DIR"
-    ] ++ pragmaOptions
+    ] ++ map (fmap lift) pragmaOptions
+  where
+  lift :: Flag PragmaOptions -> Flag CommandLineOptions
+  lift f = \opts -> do
+    ps <- f (optPragmaOptions opts)
+    return (opts { optPragmaOptions = ps })
 
-pragmaOptions :: [OptDescr (Flag CommandLineOptions)]
+pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
     [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
 		    "set verbosity level to N"
@@ -285,35 +313,37 @@ standardOptions_ = map (fmap $ const ()) standardOptions
 
 -- | Don't export
 parseOptions' ::
-    String -> [String] -> opts ->
-    [OptDescr (Flag opts)] -> (String -> Flag opts) -> Either String opts
-parseOptions' progName argv defaults opts fileArg =
-    case (getOpt (ReturnInOrder fileArg) opts argv) of
+  [String] -> [OptDescr (Flag opts)] -> (String -> Flag opts) -> Flag opts
+parseOptions' argv opts fileArg = \defaults ->
+    case getOpt (ReturnInOrder fileArg) opts argv of
 	(o,_,[])    -> foldl (>>=) (return defaults) o
 	(_,_,errs)  -> fail $ concat errs
 
 -- | Parse the standard options.
-parseStandardOptions :: String -> [String] -> Either String CommandLineOptions
-parseStandardOptions progName argv =
-    parseOptions' progName argv defaultOptions standardOptions inputFlag
+parseStandardOptions :: [String] -> Either String CommandLineOptions
+parseStandardOptions argv =
+  checkOpts =<<
+    parseOptions' argv standardOptions inputFlag defaultOptions
 
 -- | Parse options from an options pragma.
-parsePragmaOptions :: [String] -> CommandLineOptions -> Either String CommandLineOptions
-parsePragmaOptions argv opts =
-    parseOptions' progName argv opts pragmaOptions $
-    \s _ -> fail $ "Bad option in pragma: " ++ s
-    where
-	progName = optProgramName opts
+parsePragmaOptions
+  :: [String]
+     -- ^ Pragma options.
+  -> CommandLineOptions
+     -- ^ Command-line options which should be updated.
+  -> Either String PragmaOptions
+parsePragmaOptions argv opts = do
+  ps <- parseOptions' argv pragmaOptions
+          (\s _ -> fail $ "Bad option in pragma: " ++ s)
+          (optPragmaOptions opts)
+  checkOpts (opts { optPragmaOptions = ps })
+  return ps
 
 -- | Parse options for a plugin.
-parsePluginOptions ::
-    String -> [String] ->
-    opts -> [OptDescr (Flag opts)] ->
-    Either String opts
-parsePluginOptions progName argv defaults opts =
-    parseOptions'
-	progName argv defaults opts
-	(\s _ -> fail $ "Internal error: Flag " ++ s ++ " passed to a plugin")
+parsePluginOptions :: [String] -> [OptDescr (Flag opts)] -> Flag opts
+parsePluginOptions argv opts =
+  parseOptions' argv opts
+    (\s _ -> fail $ "Internal error: Flag " ++ s ++ " passed to a plugin")
 
 -- | The usage info message. The argument is the program name (probably
 --   agda).

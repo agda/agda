@@ -15,7 +15,7 @@ import Agda.Utils.Monad
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
 isSizeType :: MonadTCM tcm => Type -> tcm Bool
 isSizeType (El _ v) = liftTCM $
-  ifM (not . optSizedTypes <$> commandLineOptions) (return False) $
+  ifM (not . optSizedTypes <$> pragmaOptions) (return False) $
   case v of
     Def x [] -> do
       Def size [] <- primSize
@@ -28,7 +28,7 @@ sizeType = El (mkType 0) <$> primSize
 
 sizeSuc :: MonadTCM tcm => tcm (Maybe QName)
 sizeSuc = liftTCM $
-  ifM (not . optSizedTypes <$> commandLineOptions) (return Nothing) $ do
+  ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ do
     Def x [] <- primSizeSuc
     return $ Just x
   `catchError` \_ -> return Nothing

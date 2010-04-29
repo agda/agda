@@ -113,7 +113,7 @@ termMutual i ts ds = if names == [] then return [] else
      -- this includes local and auxiliary functions introduced
      -- during type-checking
 
-     cutoff <- optTerminationDepth <$> commandLineOptions
+     cutoff <- optTerminationDepth <$> pragmaOptions
      let ?cutoff = cutoff
 
      reportSLn "term.top" 10 $ "Termination checking " ++ show names ++ 
@@ -128,7 +128,7 @@ termMutual i ts ds = if names == [] then return [] else
      suc <- sizeSuc
 
      guardingTypeConstructors <-
-       optGuardingTypeConstructors <$> commandLineOptions
+       optGuardingTypeConstructors <$> pragmaOptions
 
      -- first try to termination check ignoring the dot patterns
      let conf = DBPConf
@@ -386,7 +386,7 @@ termClause use names name (Clause { clauseTel  = tel
 -- | Extract recursive calls from a term.
 termTerm :: DBPConf -> MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
 termTerm conf names f pats0 t0 = do
- cutoff <- optTerminationDepth <$> commandLineOptions
+ cutoff <- optTerminationDepth <$> pragmaOptions
  let ?cutoff = cutoff
  do
   reportSDoc "term.check.clause" 6

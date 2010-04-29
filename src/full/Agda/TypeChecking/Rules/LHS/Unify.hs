@@ -247,7 +247,7 @@ unifyIndices flex a us vs = liftTCM $ do
                     Record{}   -> True
                     Axiom{}    -> True
                     _          -> False
-              inj <- optInjectiveTypeConstructors <$> commandLineOptions
+              inj <- optInjectiveTypeConstructors <$> pragmaOptions
               if inj && ok
                 then unifyArgs (defType def) us vs
                 else addEquality a u v

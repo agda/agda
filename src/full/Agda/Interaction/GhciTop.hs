@@ -267,8 +267,10 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
   -- choice of whether or not to display implicit arguments.
   oldIncs <- getIncludeDirs
   setCommandLineOptions $
-    defaultOptions { optAllowUnsolved = unsolvedOK
-                   , optIncludeDirs   = includes
+    defaultOptions { optIncludeDirs   = includes
+                   , optPragmaOptions =
+                       (optPragmaOptions defaultOptions)
+                         { optAllowUnsolved = unsolvedOK }
                    }
 
   -- Reset the state, preserving options and decoded modules. Note
@@ -531,7 +533,7 @@ cmd_show_module_contents_toplevel s = Interaction False $ do
 
 setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts = do
-  TM.setCommandLineOptions PersistentOptions opts
+  TM.setCommandLineOptions opts
   liftIO . displayStatus =<< status
 
 -- | Status information.
@@ -905,7 +907,9 @@ showImplicitArgs :: Bool -- ^ Show them?
                  -> Interaction
 showImplicitArgs showImpl = Interaction False $ do
   opts <- commandLineOptions
-  setCommandLineOptions (opts { optShowImplicit = showImpl })
+  setCommandLineOptions $
+    opts { optPragmaOptions =
+             (optPragmaOptions opts) { optShowImplicit = showImpl } }
   return Nothing
 
 -- | Toggle display of implicit arguments.
@@ -913,8 +917,10 @@ showImplicitArgs showImpl = Interaction False $ do
 toggleImplicitArgs :: Interaction
 toggleImplicitArgs = Interaction False $ do
   opts <- commandLineOptions
-  setCommandLineOptions (opts { optShowImplicit =
-                                  not $ optShowImplicit opts })
+  let ps = optPragmaOptions opts
+  setCommandLineOptions $
+    opts { optPragmaOptions =
+             ps { optShowImplicit = not $ optShowImplicit ps } }
   return Nothing
 
 ------------------------------------------------------------------------

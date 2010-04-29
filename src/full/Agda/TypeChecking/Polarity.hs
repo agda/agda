@@ -60,7 +60,7 @@ computePolarity x = do
 -- | Hack for polarity of size indices.
 sizePolarity :: QName -> TCM [Polarity]
 sizePolarity d =
-  ifM (not . optSizedTypes <$> commandLineOptions) (return []) $ do
+  ifM (not . optSizedTypes <$> pragmaOptions) (return []) $ do
   def <- getConstInfo d
   case theDef def of
     Datatype{ dataPars = np, dataCons = cons } -> do
