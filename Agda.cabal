@@ -289,4 +289,5 @@ executable agda-mode
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
   build-depends:    filepath >= 1.1 && < 2,
-                    process >= 1.0.1.0 && < 2
+                    process >= 1.0.1.0 && < 2,
+                    directory == 1.0.*
