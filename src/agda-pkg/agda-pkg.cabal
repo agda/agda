@@ -10,7 +10,7 @@ maintainer:          dwm@cs.nott.ac.uk
 homepage:            http://wiki.portal.chalmers.se/agda/
 bug-reports:         http://code.google.com/p/agda/issues/list
 build-type:          Simple
-cabal-version:       >= 1.8
+cabal-version:       >= 1.8 && < 2
 tested-with:         GHC >= 6.12.1 && <= 6.12.2
 
 source-repository head
