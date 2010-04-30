@@ -50,13 +50,15 @@ cRec = build cRec-builder
 <-Rec : RecStruct ℕ
 <-Rec = WfRec _<′_
 
-<-well-founded : Well-founded _<′_
-<-well-founded n = acc (helper n)
-  where
-  helper : ∀ n m → m <′ n → Acc _<′_ m
-  helper zero     _ ()
-  helper (suc n) .n ≤′-refl       = acc (helper n)
-  helper (suc n)  m (≤′-step m<n) = helper n m m<n
+mutual
+
+  <-well-founded : Well-founded _<′_
+  <-well-founded n = acc (<-well-founded′ n)
+
+  <-well-founded′ : ∀ n → <-Rec (Acc _<′_) n
+  <-well-founded′ zero     _ ()
+  <-well-founded′ (suc n) .n ≤′-refl       = <-well-founded n
+  <-well-founded′ (suc n)  m (≤′-step m<n) = <-well-founded′ n m m<n
 
 open WF.All <-well-founded public
   renaming ( wfRec-builder to <-rec-builder

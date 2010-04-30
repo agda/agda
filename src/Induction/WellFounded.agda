@@ -90,12 +90,15 @@ module Transitive-closure {a} {A : Set a} (_<_ : Rel A a) where
   downwards-closed : ∀ {x y} → Acc _<⁺_ y → x <⁺ y → Acc _<⁺_ x
   downwards-closed (acc rs) x<y = acc (λ z z<x → rs z (trans z<x x<y))
 
-  accessible : ∀ {x} → Acc _<_ x → Acc _<⁺_ x
-  accessible {x} (acc rs) = acc helper
-    where
-    helper : WfRec _<⁺_ (Acc _<⁺_) x
-    helper y [ y<x ]         = accessible (rs y y<x)
-    helper y (trans y<z z<x) = downwards-closed (helper _ z<x) y<z
+  mutual
+
+    accessible : ∀ {x} → Acc _<_ x → Acc _<⁺_ x
+    accessible acc-x = acc (accessible′ acc-x)
+
+    accessible′ : ∀ {x} → Acc _<_ x → WfRec _<⁺_ (Acc _<⁺_) x
+    accessible′ (acc rs) y [ y<x ]         = accessible (rs y y<x)
+    accessible′ acc-x    y (trans y<z z<x) =
+      downwards-closed (accessible′ acc-x _ z<x) y<z
 
   well-founded : Well-founded _<_ → Well-founded _<⁺_
   well-founded wf = λ x → accessible (wf x)
@@ -108,14 +111,20 @@ module Lexicographic {ℓ} {A : Set ℓ} {B : A → Set ℓ}
     left  : ∀ {x₁ y₁ x₂ y₂} (x₁<x₂ : RelA   x₁ x₂) → (x₁ , y₁) < (x₂ , y₂)
     right : ∀ {x y₁ y₂}     (y₁<y₂ : RelB x y₁ y₂) → (x  , y₁) < (x  , y₂)
 
-  accessible : ∀ {x y} → Acc RelA x → (∀ {x} → Well-founded (RelB x)) →
-               Acc _<_ (x , y)
-  accessible accA wfB = acc (helper accA (wfB _))
-    where
-    helper : ∀ {x y} → Acc RelA x → Acc (RelB x) y →
-             WfRec _<_ (Acc _<_) (x , y)
-    helper (acc rsA) _         ._ (left  x′<x) = accessible (rsA _ x′<x) wfB
-    helper accA      (acc rsB) ._ (right y′<y) = acc (helper accA (rsB _ y′<y))
+  mutual
+
+    accessible : ∀ {x y} →
+                 Acc RelA x → (∀ {x} → Well-founded (RelB x)) →
+                 Acc _<_ (x , y)
+    accessible accA wfB = acc (accessible′ accA (wfB _) wfB)
+
+    accessible′ :
+      ∀ {x y} →
+      Acc RelA x → Acc (RelB x) y → (∀ {x} → Well-founded (RelB x)) →
+      WfRec _<_ (Acc _<_) (x , y)
+    accessible′ (acc rsA) _    wfB ._ (left  x′<x) = accessible (rsA _ x′<x) wfB
+    accessible′ accA (acc rsB) wfB ._ (right y′<y) =
+      acc (accessible′ accA (rsB _ y′<y) wfB)
 
   well-founded : Well-founded RelA → (∀ {x} → Well-founded (RelB x)) →
                  Well-founded _<_
