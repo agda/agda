@@ -12,7 +12,7 @@ Tests=$(patsubst %.agda,%.cmp,$(AgdaFiles))
 default : $(Tests)
 
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-					 echo 'ioTCM "$*.agda" Nothing ( cmd_load "$*.agda" ["."] )' ; \
+					 echo 'ioTCM "$*.agda" Nothing ( cmd_load_silently "$*.agda" ["."] )' ; \
 					 echo 'let currentFile = "$*.agda"' ) \
 				 | cat - $*.in | ghci -v0 | sed -e 's"$(pwd)""g'
 
@@ -21,6 +21,7 @@ run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 
 # No recorded output
 $(OutFiles) : %.out : %.agda %.in
+	@rm -f "$(@:.out=.agdai)"
 	@echo "=== Output for $* ==="
 	@$(run_test) > $@
 	@cat $@
@@ -28,6 +29,7 @@ $(OutFiles) : %.out : %.agda %.in
 
 # Comparing output
 $(Tests) : %.cmp : %.out
+	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
 	@if cmp $*.out $*.tmp; \

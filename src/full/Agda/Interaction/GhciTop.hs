@@ -40,6 +40,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Pretty as P
 import Agda.Utils.String
 import Agda.Utils.FileName
+import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Tuple
 import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Agda.Utils.IO.UTF8 as UTF8
@@ -239,21 +240,29 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 -- @includes@ as the include directories.
 
 cmd_load :: FilePath -> [FilePath] -> Interaction
-cmd_load m includes =
-  cmd_load' m includes True (\_ -> command cmd_metas >> return ())
+cmd_load m includes = cmd_load_v m includes defaultVerbosity
 
--- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
--- using @includes@ as the include directories.
+-- | @cmd_load_v m includes v@ loads the module in file @m@, using
+-- @includes@ as the include directories and @v@ as the verbosity
+-- setting.
+
+cmd_load_v :: FilePath -> [FilePath] -> Verbosity -> Interaction
+cmd_load_v m includes v =
+  cmd_load' m includes v True (\_ -> command cmd_metas >> return ())
+
+-- | @cmd_load' m includes v cmd cmd2@ loads the module in file @m@,
+-- using @includes@ as the include directories and @v@ as the
+-- verbosity setting.
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
 -- result of 'Imp.typeCheck'.
 
-cmd_load' :: FilePath -> [FilePath]
+cmd_load' :: FilePath -> [FilePath] -> Verbosity
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
-cmd_load' file includes unsolvedOK cmd = Interaction True $ do
+cmd_load' file includes v unsolvedOK cmd = Interaction True $ do
   -- Forget the previous "current file" and interaction points.
   liftIO $ modifyIORef theState $ \s ->
     s { theInteractionPoints = []
@@ -268,6 +277,7 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
   oldIncs <- getIncludeDirs
   setCommandLineOptions $
     defaultOptions { optIncludeDirs   = includes
+                   , optVerbose       = v
                    , optPragmaOptions =
                        (optPragmaOptions defaultOptions)
                          { optAllowUnsolved = unsolvedOK }
@@ -302,7 +312,7 @@ cmd_load' file includes unsolvedOK cmd = Interaction True $ do
 
 cmd_compile :: FilePath -> [FilePath] -> Interaction
 cmd_compile file includes =
-  cmd_load' file includes False (\(i, mw) ->
+  cmd_load' file includes defaultVerbosity False (\(i, mw) ->
     case mw of
       Nothing -> do
         MAlonzo.compilerMain i
@@ -977,3 +987,9 @@ goal_command i cmd s = do
   f <- getCurrentFile
   ioTCM f Nothing (cmd i noRange s)
 
+-- | @cmd_load_silently m includes@ loads the module in file @m@,
+-- using @includes@ as the include directories, and minimal verbosity.
+
+cmd_load_silently :: FilePath -> [FilePath] -> Interaction
+cmd_load_silently m includes =
+  cmd_load_v m includes (Trie.singleton [] 0)

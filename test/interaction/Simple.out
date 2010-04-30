@@ -1,5 +1,4 @@
 agda2_mode_code (agda2-status-action "")
-Checking Simple (Simple.agda).
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"
