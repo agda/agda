@@ -341,6 +341,10 @@ getInterface' x includeStateChanges =
 			    reportSLn "" 1 $
                               "Skipping " ++ render (pretty x) ++
                                 " (" ++ (if cached then "cached" else ifile) ++ ")."
+                            -- We set the pragma options of the skipped file here,
+                            -- because if the top-level file is skipped we want the
+                            -- pragmas to apply to interactive commands in the UI.
+                            mapM_ setOptionsFromPragma (iPragmaOptions i)
 			    return (False, (i, Right t))
 
 	typeCheck file = do
@@ -520,7 +524,7 @@ createInterface file mname = do
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
-    i <- buildInterface topLevel syntaxInfo previousHsImports
+    i <- buildInterface topLevel syntaxInfo previousHsImports options
 
     if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
      then do
@@ -541,8 +545,10 @@ buildInterface :: TopLevelInfo
                -> Set String
                   -- ^ Haskell modules imported in imported modules
                   -- (transitively).
+               -> [OptionsPragma]
+                  -- ^ Options set in @OPTIONS@ pragmas.
                -> TCM Interface
-buildInterface topLevel syntaxInfo previousHsImports = do
+buildInterface topLevel syntaxInfo previousHsImports pragmas = do
     reportSLn "import.iface" 5 "Building interface..."
     scope'  <- getScope
     let scope = scope' { scopeCurrent = m }
@@ -562,6 +568,7 @@ buildInterface topLevel syntaxInfo previousHsImports = do
                         , iHaskellImports  = Set.difference hsImps
                                                             previousHsImports
                         , iHighlighting    = syntaxInfo
+                        , iPragmaOptions   = pragmas
 			}
     reportSLn "import.iface" 7 "  interface complete"
     return i

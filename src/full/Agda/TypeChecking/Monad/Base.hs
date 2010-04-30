@@ -179,6 +179,8 @@ data Interface = Interface
                               -- (transitively) imported modules are
                               -- not included here.
         , iHighlighting    :: HighlightingInfo
+        , iPragmaOptions   :: [OptionsPragma]
+                              -- ^ Pragma options set in the file.
 	}
     deriving (Typeable, Data, Show)
 

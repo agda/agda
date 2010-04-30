@@ -75,7 +75,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100419 * 10 + 0
+currentInterfaceVersion = 20100429 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -733,9 +733,9 @@ instance EmbPrj ScopeInfo where
                            valu _            = malformed
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g h) = icode8' a b c d e f g h
-  value = vcase valu where valu [a, b, c, d, e, f, g, h] = valu8 Interface a b c d e f g h
-                           valu _                        = malformed
+  icode (Interface a b c d e f g h i) = icode9' a b c d e f g h i
+  value = vcase valu where valu [a, b, c, d, e, f, g, h, i] = valu9 Interface a b c d e f g h i
+                           valu _                           = malformed
 
 
 
