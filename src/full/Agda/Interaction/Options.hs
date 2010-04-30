@@ -3,11 +3,13 @@ module Agda.Interaction.Options
     , PragmaOptions(..)
     , OptionsPragma
     , Flag
+    , Verbosity
     , checkOpts
     , parseStandardOptions
     , parsePragmaOptions
     , parsePluginOptions
     , defaultOptions
+    , defaultVerbosity
     , standardOptions_
     , isLiterate
     , mapFlag
@@ -43,6 +45,8 @@ instance Functor ArgDescr where
     fmap f (ReqArg p s) = ReqArg (f . p) s
     fmap f (OptArg p s) = OptArg (f . p) s
 
+type Verbosity = Trie String Int
+
 data CommandLineOptions =
     Options { optProgramName          :: String
 	    , optInputFile            :: Maybe FilePath
@@ -62,6 +66,7 @@ data CommandLineOptions =
             , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
             , optGhcFlags             :: [String]
+            , optVerbose              :: Verbosity
             , optPragmaOptions        :: PragmaOptions
 	    }
     deriving Show
@@ -69,8 +74,7 @@ data CommandLineOptions =
 -- | Options which can be set in a pragma.
 
 data PragmaOptions = PragmaOptions
-  { optVerbose                   :: Trie String Int
-  , optShowImplicit              :: Bool
+  { optShowImplicit              :: Bool
   , optProofIrrelevance          :: Bool
   , optAllowUnsolved             :: Bool
   , optDisablePositivity         :: Bool
@@ -98,6 +102,9 @@ type OptionsPragma = [String]
 mapFlag :: (String -> String) -> OptDescr a -> OptDescr a
 mapFlag f (Option _ long arg descr) = Option [] (map f long) arg descr
 
+defaultVerbosity :: Verbosity
+defaultVerbosity = Trie.singleton [] 1
+
 defaultOptions :: CommandLineOptions
 defaultOptions =
     Options { optProgramName          = "agda"
@@ -117,13 +124,13 @@ defaultOptions =
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
             , optGhcFlags             = []
+            , optVerbose              = defaultVerbosity
             , optPragmaOptions        = defaultPragmaOptions
 	    }
 
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
-  { optVerbose                   = Trie.singleton [] 1
-  , optShowImplicit              = False
+  { optShowImplicit              = False
   , optProofIrrelevance          = False
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
@@ -268,6 +275,8 @@ standardOptions =
 		    "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
 		    "look for imports in DIR"
+    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+		    "set verbosity level to N"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions
@@ -277,9 +286,7 @@ standardOptions =
 
 pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
-    [ Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
-		    "set verbosity level to N"
-    , Option []	    ["show-implicit"] (NoArg showImplicitFlag)
+    [ Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
     -- , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
     --     	    "enable proof irrelevance (experimental feature)"

@@ -152,6 +152,8 @@ Language
   decision procedures, such as the ring solver in the standard
   library.
 
+* The -v/--verbose flag can no longer be given as a pragma.
+
 Tools
 -----
 

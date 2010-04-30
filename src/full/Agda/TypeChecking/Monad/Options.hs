@@ -175,7 +175,7 @@ typeInType :: MonadTCM tcm => tcm Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
 getVerbosity :: MonadTCM tcm => tcm (Trie String Int)
-getVerbosity = optVerbose <$> pragmaOptions
+getVerbosity = optVerbose <$> commandLineOptions
 
 type VerboseKey = String
 
