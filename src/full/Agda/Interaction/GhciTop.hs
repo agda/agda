@@ -274,9 +274,10 @@ cmd_load' file includes v unsolvedOK cmd = Interaction True $ do
 
   -- All options are reset when a file is reloaded, including the
   -- choice of whether or not to display implicit arguments.
-  oldIncs <- getIncludeDirs
+  oldIncs <- either (const Nothing) Just . optIncludeDirs <$>
+               commandLineOptions
   setCommandLineOptions $
-    defaultOptions { optIncludeDirs   = includes
+    defaultOptions { optIncludeDirs   = Left includes
                    , optVerbose       = v
                    , optPragmaOptions =
                        (optPragmaOptions defaultOptions)
@@ -288,7 +289,7 @@ cmd_load' file includes v unsolvedOK cmd = Interaction True $ do
   -- directories have changed.
   preserveDecodedModules resetState
 
-  ok <- Imp.typeCheck file Imp.ProjectRoot (Just oldIncs)
+  ok <- Imp.typeCheck file Imp.ProjectRoot oldIncs
 
   -- The module type checked. If the file was not changed while the
   -- type checker was running then the interaction points and the

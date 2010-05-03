@@ -35,8 +35,6 @@ setPragmaOptions opts = do
 -- are updated).
 --
 -- Ensures that the 'optInputFile' field contains an absolute path.
---
--- An empty list of include directories is interpreted as @["."]@.
 
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
@@ -49,13 +47,8 @@ setCommandLineOptions opts =
           -- canonicalizePath seems to return absolute paths.
           f <- liftIO $ canonicalizePath f
           return (opts { optInputFile = Just f })
-      let newOpts = opts { optIncludeDirs =
-              case optIncludeDirs opts of
-                [] -> ["."]
-                is -> is
-            }
-      modify $ \s -> s { stPersistentOptions = newOpts
-                       , stPragmaOptions     = optPragmaOptions newOpts
+      modify $ \s -> s { stPersistentOptions = opts
+                       , stPragmaOptions     = optPragmaOptions opts
                        }
 
 -- | Returns the pragma options which are currently in effect.
@@ -112,22 +105,36 @@ shouldReifyInteractionPoints :: MonadTCM tcm => tcm Bool
 shouldReifyInteractionPoints = asks envReifyInteractionPoints
 
 -- | Gets the include directories.
+--
+-- Precondition: 'optIncludeDirs' must be @'Right' something@.
 
 getIncludeDirs :: MonadTCM tcm => tcm [AbsolutePath]
-getIncludeDirs =
-  map mkAbsolute . optIncludeDirs <$> commandLineOptions
+getIncludeDirs = do
+  incs <- optIncludeDirs <$> commandLineOptions
+  case incs of
+    Left  _    -> __IMPOSSIBLE__
+    Right incs -> return incs
 
 -- | Makes the include directories absolute.
 --
 -- Relative directories are made absolute with respect to the given
 -- path.
+--
+-- An empty list of relative include directories (@'Left' something@)
+-- is interpreted as @["."]@.
 
 makeIncludeDirsAbsolute :: MonadTCM tcm => AbsolutePath -> tcm ()
 makeIncludeDirsAbsolute root = do
   opts <- commandLineOptions
-  setCommandLineOptions $
-    opts { optIncludeDirs =
-             map (filePath root </>) $ optIncludeDirs opts }
+  setCommandLineOptions $ opts { optIncludeDirs =
+      Right $ case optIncludeDirs opts of
+        Right incs -> incs
+        Left  incs ->
+          map (mkAbsolute . (filePath root </>)) $
+              case incs of
+                [] -> ["."]
+                _  -> incs
+    }
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =

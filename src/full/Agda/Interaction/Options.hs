@@ -25,6 +25,7 @@ import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				)
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
+import Agda.Utils.FileName      ( AbsolutePath )
 import Agda.Utils.Monad		( readM )
 import Agda.Utils.List               ( wordsBy )
 import Agda.Utils.String             ( indent )
@@ -50,7 +51,11 @@ type Verbosity = Trie String Int
 data CommandLineOptions =
     Options { optProgramName          :: String
 	    , optInputFile            :: Maybe FilePath
-	    , optIncludeDirs          :: [FilePath]
+	    , optIncludeDirs          :: Either [FilePath] [AbsolutePath]
+              -- ^ 'Left' is used temporarily, before the paths have
+              -- been made absolute. An empty 'Left' list is
+              -- interpreted as @["."]@ (see
+              -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
 	    , optShowVersion          :: Bool
 	    , optShowHelp             :: Bool
 	    , optInteractive          :: Bool
@@ -109,7 +114,7 @@ defaultOptions :: CommandLineOptions
 defaultOptions =
     Options { optProgramName          = "agda"
 	    , optInputFile            = Nothing
-	    , optIncludeDirs          = []
+	    , optIncludeDirs          = Left []
 	    , optShowVersion          = False
 	    , optShowHelp             = False
 	    , optInteractive          = False
@@ -225,8 +230,10 @@ htmlFlag      o = return $ o { optGenerateHTML = True }
 htmlDirFlag d o = return $ o { optHTMLDir      = d }
 cssFlag     f o = return $ o { optCSSFile      = Just f }
 
-includeFlag d o	    = return $ o { optIncludeDirs = d : optIncludeDirs o }
-verboseFlag s o	    =
+includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
+  where ds = either id (const []) $ optIncludeDirs o
+
+verboseFlag s o =
     do	(k,n) <- parseVerbose s
 	return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
