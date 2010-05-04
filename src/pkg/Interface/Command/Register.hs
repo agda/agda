@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Interface.Command.Register where
 -- FIXME: Proper Exports
 

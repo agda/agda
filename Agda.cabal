@@ -294,11 +294,6 @@ executable agda-mode
 
 executable agda-pkg
   buildable:      False
-  extensions:       FlexibleContexts
-                  , FlexibleInstances
-                  , GeneralizedNewtypeDeriving
-                  , MultiParamTypeClasses
-                  , OverloadedStrings
   if true
     ghc-options:    -w -Werror
                     -fwarn-deprecated-flags
