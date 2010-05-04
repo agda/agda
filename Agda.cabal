@@ -4,7 +4,7 @@ cabal-version:   >= 1.8 && < 2
 build-type:      Simple
 license:         OtherLicense
 license-file:    LICENSE
-author:          Ulf Norell, Nils Anders Danielsson, Catarina Coquand, Makoto Takeyama, Andreas Abel, ...
+author:          Ulf Norell, Nils Anders Danielsson, Catarina Coquand, Makoto Takeyama, Andreas Abel, Darin Morrison...
 maintainer:      Ulf Norell <ulfn@chalmers.se>
 homepage:        http://wiki.portal.chalmers.se/agda/
 bug-reports:     http://code.google.com/p/agda/issues/list
@@ -64,7 +64,7 @@ library
                     haskell-src >= 1.0.1.1 && < 2,
                     containers >= 0.1.0 && < 1,
                     pretty >= 1 && < 2,
-                    directory >= 1 && < 2,
+                    directory >= 1.0 && < 1.2,
                     old-time >= 1 && < 2,
                     bytestring >= 0.9.0.1 && < 1,
                     array >= 0.1 && < 1,
@@ -290,4 +290,39 @@ executable agda-mode
                     utf8-string == 0.3.*
   build-depends:    filepath >= 1.1 && < 2,
                     process >= 1.0.1.0 && < 2,
-                    directory == 1.0.*
+                    directory >= 1.0 && < 1.2
+
+executable agda-pkg
+  buildable:      False
+  extensions:       FlexibleContexts
+                  , FlexibleInstances
+                  , GeneralizedNewtypeDeriving
+                  , MultiParamTypeClasses
+                  , OverloadedStrings
+  if true
+    ghc-options:    -w -Werror
+                    -fwarn-deprecated-flags
+                    -fwarn-dodgy-foreign-imports
+                    -fwarn-dodgy-imports
+                    -fwarn-duplicate-exports
+                    -fwarn-hi-shadowing
+                    -fwarn-incomplete-patterns
+                    -fwarn-missing-fields
+                    -fwarn-missing-methods
+                    -fwarn-overlapping-patterns
+                    -fwarn-warnings-deprecations
+  if impl(ghc >= 6.12)
+    ghc-options:    -fwarn-dodgy-exports
+                    -fwarn-wrong-do-bind
+  hs-source-dirs: src/pkg, src/full
+  main-is:        Main.hs
+  build-depends:    Cabal       == 1.8.*
+                  , array       == 0.3.*
+                  , base        == 4.2.*
+                  , bytestring  >= 0.9.0.1 && < 1
+                  , directory   >= 1.0 && < 1.2
+                  , filepath    == 1.1.*
+                  , mtl         == 1.1.*
+                  , pretty      == 1.0.*
+                  , regex-base  == 0.93.*
+                  , regex-posix == 0.94.*
