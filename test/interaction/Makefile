@@ -12,7 +12,6 @@ Tests=$(patsubst %.agda,%.cmp,$(AgdaFiles))
 default : $(Tests)
 
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-					 echo 'ioTCM "$*.agda" Nothing ( cmd_load_silently "$*.agda" ["."] )' ; \
 					 echo 'let currentFile = "$*.agda"' ) \
 				 | cat - $*.in | ghci -v0 | sed -e 's"$(pwd)""g'
 

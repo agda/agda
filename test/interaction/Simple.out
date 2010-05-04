@@ -5,13 +5,14 @@ agda2_mode_code (agda2-info-action
                  "?0 : Maybe Nat
 ?1 : Maybe Nat
 ")
-agda2_mode_code (setq agda2-response '(0 1))
+agda2_mode_code (agda2-goals-action '(0 1))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*Goal type etc.*"
                  "n : Nat
 ————————————————————————————————————————————————————————————
 Goal: Maybe Nat")
+agda2_mode_code (agda2-goals-action '(0 1))
 agda2_mode_code (agda2-give-action 0 "Just ?")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
@@ -19,10 +20,12 @@ agda2_mode_code (agda2-info-action
                  "?1 : Maybe Nat
 ?2 : Nat
 ")
+agda2_mode_code (agda2-goals-action '(2 1))
 agda2_mode_code (agda2-give-action 2 'no-paren)
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ")
+agda2_mode_code (agda2-goals-action '(1))
 agda2_mode_code (agda2-info-action
                  "*Error*"
                  "1,1-4
@@ -33,3 +36,4 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-give-action 1 'no-paren)
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "")
+agda2_mode_code (agda2-goals-action '())

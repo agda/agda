@@ -225,16 +225,20 @@ ioTCM current highlightingFile cmd = infoOnException $ do
             Left e              -> errHi e Nothing
 
   -- If an error was encountered, display an error message and exit
-  -- with an error code.
+  -- with an error code; otherwise, inform Emacs about the buffer's
+  -- goals.
   let errStatus = Status { sChecked               = False
                          , sShowImplicitArguments =
                              optShowImplicit $ stPragmaOptions st
                          }
   case r of
-    Right (Right _)     -> return ()
     Right (Left (s, e)) -> displayErrorAndExit errStatus (getRange e) s
     Left e              -> displayErrorAndExit errStatus (getRange e) $
                              tcErrString e
+    Right (Right _)     -> do
+      is <- theInteractionPoints <$> liftIO (readIORef theState)
+      liftIO $ LocIO.putStrLn $ response $
+        L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
@@ -629,23 +633,13 @@ display_infoD bufname content = display_info bufname (render content)
 response :: Lisp String -> String
 response l = show (text "agda2_mode_code" <+> pretty l)
 
--- | Formats a response string.
-
-responseString :: Lisp String -> String
-responseString s = response $
-  L [A "setq", A "agda2-response", s]
-
--- | Responds to a query.
-
-respond :: Lisp String -> IO ()
-respond = LocIO.putStrLn . responseString
-
-data Lisp a = A a | L [Lisp a] | Q (Lisp a)
+data Lisp a = A a | L [Lisp a] | Q (Lisp a) | Cons (Lisp a) (Lisp a)
 
 instance Pretty a => Pretty (Lisp a) where
-  pretty (A a ) = pretty a
-  pretty (L xs) = parens (sep (List.map pretty xs))
-  pretty (Q x)  = text "'"<>pretty x
+  pretty (A a )     = pretty a
+  pretty (L xs)     = parens (sep (List.map pretty xs))
+  pretty (Q x)      = text "'" <> pretty x
+  pretty (Cons a b) = parens (pretty a <+> text "." <+> pretty b)
 
 instance Pretty String where pretty = text
 
@@ -677,16 +671,21 @@ cmd_make_case ii rng s = Interaction False $ do
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
     liftIO $ LocIO.putStrLn $ response $
-      L [ A "agda2-make-case-action",
-          Q $ L $ List.map (A . quote . renderStyle (style { mode = OneLineMode })) pcs
-        ]
+      Cons (A "last")
+           (L [ A "agda2-make-case-action"
+              , Q $ L $ List.map (A . quote . render) pcs
+              ])
   return Nothing
+  where render = renderStyle (style { mode = OneLineMode })
 
 cmd_solveAll :: Interaction
 cmd_solveAll = Interaction False $ do
   out <- getInsts
   liftIO $ LocIO.putStrLn $ response $
-    L[ A"agda2-solveAll-action" , Q . L $ concatMap prn out]
+    Cons (A "last")
+         (L [ A "agda2-solveAll-action"
+            , Q . L $ concatMap prn out
+            ])
   return Nothing
   where
   getInsts = mapM lowr =<< B.getSolvedInteractionPoints
@@ -870,32 +869,6 @@ cmd_write_highlighting_info source target = Interaction True $ do
               return Nothing
   return Nothing
 
--- | Returns the interaction ids for all goals in the current module,
--- in the order in which they appear in the module. If there is no
--- current module, then an empty list of goals is returned.
-
-cmd_goals :: FilePath
-             -- ^ If the module name in this file does not match that
-             -- of the current module (or the module name cannot be
-             -- determined), then an empty list of goals is returned.
-          -> Interaction
-cmd_goals f = Interaction True $ do
-  is <- do
-    ex <- liftIO $ doesFileExist f
-    case ex of
-      False -> return []
-      True  -> do
-        mm       <- (Just <$> Imp.moduleName f)
-                      `catchError`
-                    \_ -> return Nothing
-        mCurrent <- stCurrentModule <$> get
-        if mm == (SA.toTopLevelModuleName <$> mCurrent) then
-          theInteractionPoints <$> liftIO (readIORef theState)
-         else
-          return []
-  liftIO $ respond $ Q $ L $ List.map showNumIId is
-  return Nothing
-
 -- | Tells the Emacs mode to go to the first error position (if any).
 
 tellEmacsToJumpToError :: Range -> IO ()
@@ -978,19 +951,18 @@ getCurrentFile = do
     Nothing     -> error "command: No file loaded!"
     Just (f, _) -> return (filePath f)
 
-top_command :: Interaction -> IO ()
-top_command cmd = do
-  f <- getCurrentFile
-  ioTCM f Nothing cmd
+top_command :: FilePath -> Interaction -> IO ()
+top_command f cmd = ioTCM f Nothing cmd
 
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
   ioTCM f Nothing (cmd i noRange s)
 
--- | @cmd_load_silently m includes@ loads the module in file @m@,
--- using @includes@ as the include directories, and minimal verbosity.
+-- | @load_silently f includes@ loads the module in file @f@, using
+-- @includes@ as the include directories. All debug messages are
+-- turned off.
 
-cmd_load_silently :: FilePath -> [FilePath] -> Interaction
-cmd_load_silently m includes =
-  cmd_load_v m includes (Trie.singleton [] 0)
+load_silently :: FilePath -> [FilePath] -> IO ()
+load_silently f includes =
+  top_command f $ cmd_load_v f includes (Trie.singleton [] 0)

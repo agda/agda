@@ -1,5 +1,6 @@
-top_command (cmd_infer_toplevel Normalised "Bar")
+load_silently currentFile []
+top_command currentFile (cmd_infer_toplevel Normalised "Bar")
 -- Reload to test that pragmas are respected when interface files are
 -- used.
-ioTCM "PragmasRespected.agda" Nothing ( cmd_load_silently "PragmasRespected.agda" ["."] )
-top_command (cmd_infer_toplevel Normalised "Bar")
+load_silently currentFile []
+top_command currentFile (cmd_infer_toplevel Normalised "Bar")

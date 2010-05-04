@@ -424,8 +424,7 @@ long strings (some versions of GHCi, on some systems)."
 (defun agda2-call-ghci (&rest args)
   "Executes commands in GHCi.
 Sends the list of strings ARGS to GHCi, waits for output and
-executes the responses, if any. Returns the number of processed
-responses."
+returns the responses."
   (unless (eq 'run (agda2-process-status))
     ;; Try restarting automatically, but only once, in case there is
     ;; some major problem.
@@ -454,37 +453,36 @@ responses."
                 (setq response (buffer-substring-no-properties
                                 (point-min) (point-max)))))
           (delete-file tempfile))))
-    (agda2-respond response)))
+    response))
 
-(defun agda2-go (highlight require-response update-goals &rest args)
+(defun agda2-go (highlight &rest args)
   "Executes commands in GHCi.
 Sends the list of strings ARGS to GHCi, waits for output and
 executes the responses, if any. An error is raised if no
-responses are received (unless REQUIRE-RESPONSE is nil), and
-otherwise the syntax highlighting information is reloaded (unless
-HIGHLIGHT is nil; if HIGHLIGHT is a string, then highlighting
-info is read from the corresponding file) and the goals
-updated (unless UPDATE-GOALS is nil)."
+responses are received, and otherwise the syntax highlighting
+information is reloaded (unless HIGHLIGHT is nil; if HIGHLIGHT is
+a string, then highlighting info is read from the corresponding
+file)."
   (let* ((highlighting-temp (and highlight (not (stringp highlight))))
          (highlighting (cond ((stringp highlight) highlight)
                              (highlighting-temp (make-temp-file "agda2-mode")))))
         (unwind-protect
-            (let ((no-responses
-                   (apply 'agda2-call-ghci
-                          "ioTCM"
-                          (agda2-string-quote (buffer-file-name))
-                          (if highlighting-temp
-                              (concat "(Just "
-                                      (agda2-string-quote highlighting)
-                                      ")")
-                            "Nothing")
-                          "("
-                          (append args '(")")))))
-                (when (and require-response (>= 0 no-responses))
-                  (agda2-raise-ghci-error))
-                (if highlight (agda2-highlight-load highlighting)))
-          (if highlighting-temp (delete-file highlighting))))
-  (if update-goals (agda2-annotate)))
+            (let ((responses
+                   (agda2-read-responses
+                    (apply 'agda2-call-ghci
+                           "ioTCM"
+                           (agda2-string-quote (buffer-file-name))
+                           (if highlighting-temp
+                               (concat "(Just "
+                                       (agda2-string-quote highlighting)
+                                       ")")
+                             "Nothing")
+                           "("
+                           (append args '(")"))))))
+                (when (null responses) (agda2-raise-ghci-error))
+                (if highlight (agda2-highlight-load highlighting))
+                (agda2-exec-responses responses))
+          (if highlighting-temp (delete-file highlighting)))))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
   "Reads input from goal or minibuffer and sends command to Agda.
@@ -515,10 +513,25 @@ An error is raised if no responses are received."
             ((and (stringp want)
                   (or ask (string-match "\\`\\s *\\'" txt)))
              (setq txt (read-string (concat want ": ") nil nil txt t))))
-      (apply 'agda2-go nil t t cmd
+      (apply 'agda2-go nil cmd
              (format "%d" g)
              (agda2-goal-Range o)
              (agda2-string-quote txt) args))))
+
+(defun agda2-read-responses (response)
+  "Returns a list containing the responses in the response string.
+Responses of the form (last . actual-response) are placed last in
+the returned list, with last stripped."
+  (let ((responses)
+        (former)
+        (latter))
+    (while (string-match "agda2_mode_code" response)
+      (setq response (substring response (match-end 0)))
+      (push (read response) responses))
+    (dolist (r responses (append former latter))
+      (if (and (consp r) (equal (car r) 'last))
+          (push (cdr r) latter)
+        (push r former)))))
 
 ;; Note that the following function is a security risk, since it
 ;; evaluates code without first inspecting it. The code (supposedly)
@@ -526,29 +539,12 @@ An error is raised if no responses are received."
 ;; which can be exploited by an attacker which manages to trick
 ;; someone into type-checking compromised Agda code.
 
-(defun agda2-respond (response)
-  "Interprets response strings.
-For every occurrence of 'agda2_mode_code<sexp>' in RESPONSE the
-sexp is executed. The number of executed responses is returned."
-  (let ((no-responses 0))
-    (while (string-match "agda2_mode_code" response)
-      (incf no-responses)
-      (setq response (substring response (match-end 0)))
-      (let ((inhibit-read-only t))
-        (eval (read response))))
-    no-responses))
-
-(defvar agda2-response nil
-  "Used by the backend to give responses to the Agda mode.")
-(make-variable-buffer-local 'agda2-response)
-
-(defun agda2-ask (&rest args)
-  "Executes a query in GHCi and returns the response string."
-  (setq agda2-response 'agda2-no-response)
-  (apply 'agda2-go nil nil nil args)
-  (if (equal agda2-response 'agda2-no-response)
-      (agda2-raise-ghci-error)
-    agda2-response))
+(defun agda2-exec-responses (responses)
+  "Interprets responses."
+  (mapc (lambda (r)
+          (let ((inhibit-read-only t))
+            (eval r)))
+          responses))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
@@ -556,7 +552,7 @@ sexp is executed. The number of executed responses is returned."
 (defun agda2-load ()
   "Load current buffer."
   (interactive)
-  (agda2-go t t t "cmd_load"
+  (agda2-go t "cmd_load"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))
@@ -564,7 +560,7 @@ sexp is executed. The number of executed responses is returned."
 (defun agda2-compile ()
   "Compile the current module."
   (interactive)
-  (agda2-go t t t "cmd_compile"
+  (agda2-go t "cmd_compile"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))
@@ -643,11 +639,11 @@ in the buffer's mode line."
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
-  (agda2-go t t t "cmd_metas"))
+  (agda2-go t "cmd_metas"))
 
 (defun agda2-show-constraints()
   "Show constraints." (interactive)
-  (agda2-go t t t "cmd_constraints"))
+  (agda2-go t "cmd_constraints"))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
@@ -698,8 +694,8 @@ With a prefix argument the result is not explicitly normalised.")
 COMMENT is used to build the function's comments. The function
 NAME takes a prefix argument which tells whether it should
 normalise types or not when running CMD (through
-`agda2-go' nil t nil; the string PROMPT is used as the goal
-command prompt)."
+`agda2-go' nil; the string PROMPT is used as the goal command
+prompt)."
   (let ((eval (make-symbol "eval")))
     `(defun ,name (not-normalise expr)
        ,(concat comment ".
@@ -707,7 +703,7 @@ command prompt)."
 With a prefix argument the result is not explicitly normalised.")
        (interactive ,(concat "P\nM" prompt ": "))
        (let ((,eval (if not-normalise "Instantiated" "Normalised")))
-         (agda2-go nil t nil
+         (agda2-go nil
                    (concat ,cmd " Agda.Interaction.BasicOps." ,eval " "
                            (agda2-string-quote expr)))))))
 
@@ -768,7 +764,7 @@ Along with their types."
   "Shows all the top-level names in the given module.
 Along with their types."
   (interactive "MModule name: ")
-  (agda2-go nil nil nil
+  (agda2-go nil
             "cmd_show_module_contents_toplevel"
             (agda2-string-quote module)))
 
@@ -786,7 +782,7 @@ a goal, the top-level scope."
 (defun agda2-solveAll ()
   "Solves all goals that are already instantiated internally."
   (interactive)
-  (agda2-go t t t "cmd_solveAll"))
+  (agda2-go t "cmd_solveAll"))
 
 (defun agda2-solveAll-action (iss)
   (save-excursion
@@ -813,7 +809,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
   (let ((cmd (concat "cmd_compute_toplevel"
                      (if arg " True" " False")
                      " ")))
-    (agda2-go nil t nil (concat cmd (agda2-string-quote expr)))))
+    (agda2-go nil (concat cmd (agda2-string-quote expr)))))
 
 (defun agda2-compute-normalised-maybe-toplevel ()
   "Computes the normal form of the given expression,
@@ -834,23 +830,24 @@ If there is any to load."
   (let ((highlighting (make-temp-file "agda2-mode")))
     (unwind-protect
         (progn
-          (agda2-go highlighting nil t
+          (agda2-go highlighting
                     "cmd_write_highlighting_info"
+                    (agda2-list-quote agda2-include-dirs)
                     (agda2-string-quote (buffer-file-name))
                     (agda2-string-quote highlighting)))
       (delete-file highlighting))))
 
-(defun agda2-annotate ()
+(defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
-Note that this function should be run /after/ syntax highlighting
-information has been loaded, because the two highlighting
-mechanisms interact in unfortunate ways."
+GOALS is a list of the buffer's goal numbers, in the order in
+which they appear in the buffer. Note that this function should
+be run /after/ syntax highlighting information has been loaded,
+because the two highlighting mechanisms interact in unfortunate
+ways."
   (agda2-forget-all-goals)
   (agda2-let
       (stk
-       top
-       (goals (agda2-ask "cmd_goals"
-                         (agda2-string-quote (buffer-file-name)))))
+       top)
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--" nil t))
        (is-lone-questionmark ()
           (save-excursion
@@ -1157,10 +1154,10 @@ invoked."
 With prefix argument, turn on display of implicit arguments if
 the argument is a positive number, otherwise turn it off."
   (interactive "P")
-  (cond ((eq arg nil)       (agda2-go t t t "toggleImplicitArgs"))
+  (cond ((eq arg nil)       (agda2-go t "toggleImplicitArgs"))
         ((and (numberp arg)
-              (> arg 0))    (agda2-go t t t "showImplicitArgs" "True"))
-        (t                  (agda2-go t t t "showImplicitArgs" "False"))))
+              (> arg 0))    (agda2-go t "showImplicitArgs" "True"))
+        (t                  (agda2-go t "showImplicitArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;

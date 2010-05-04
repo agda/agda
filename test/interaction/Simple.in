@@ -1,4 +1,4 @@
-top_command    (cmd_goals currentFile)
+load_silently currentFile []
 goal_command 0 (cmd_goal_type_context Normalised) ""
 goal_command 0 cmd_refine "Just"
 goal_command 2 cmd_give "n"
