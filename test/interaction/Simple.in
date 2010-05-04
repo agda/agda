@@ -1,3 +1,4 @@
+top_command currentFile (cmd_write_highlighting_info [] currentFile "/dev/null")
 load_silently currentFile []
 goal_command 0 (cmd_goal_type_context Normalised) ""
 goal_command 0 cmd_refine "Just"

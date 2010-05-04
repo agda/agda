@@ -10,7 +10,10 @@ import qualified Agda.Utils.IO.Locale as LocIO
 import System.Directory
 import System.FilePath
 
+import Agda.Syntax.Concrete
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.State
+import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -34,22 +37,27 @@ setPragmaOptions opts = do
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --
--- Ensures that the 'optInputFile' field contains an absolute path.
+-- Relative include directories are made absolute with respect to the
+-- current working directory. If the include directories have changed,
+-- then the state is reset.
+--
+-- An empty list of relative include directories (@'Left' []@) is
+-- interpreted as @["."]@.
 
 setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
 setCommandLineOptions opts =
   case checkOpts opts of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
-      opts <- case optInputFile opts of
-        Nothing -> return opts
-        Just f  -> do
-          -- canonicalizePath seems to return absolute paths.
-          f <- liftIO $ canonicalizePath f
-          return (opts { optInputFile = Just f })
-      modify $ \s -> s { stPersistentOptions = opts
-                       , stPragmaOptions     = optPragmaOptions opts
-                       }
+      incs <- case optIncludeDirs opts of
+        Right is -> return is
+        Left  is -> do
+          setIncludeDirs is CurrentDir
+          getIncludeDirs
+      modify $ \s ->
+        s { stPersistentOptions = opts { optIncludeDirs = Right incs }
+          , stPragmaOptions     = optPragmaOptions opts
+          }
 
 -- | Returns the pragma options which are currently in effect.
 
@@ -115,26 +123,55 @@ getIncludeDirs = do
     Left  _    -> __IMPOSSIBLE__
     Right incs -> return incs
 
--- | Makes the include directories absolute.
---
--- Relative directories are made absolute with respect to the given
--- path.
---
--- An empty list of relative include directories (@'Left' something@)
--- is interpreted as @["."]@.
+-- | Which directory should form the base of relative include paths?
 
-makeIncludeDirsAbsolute :: MonadTCM tcm => AbsolutePath -> tcm ()
-makeIncludeDirsAbsolute root = do
+data RelativeTo
+  = ProjectRoot AbsolutePath
+    -- ^ The root directory of the \"project\" containing the given
+    -- file. The file needs to be syntactically correct, with a module
+    -- name matching the file name.
+  | CurrentDir
+    -- ^ The current working directory.
+
+-- | Makes the given directories absolute and stores them as include
+-- directories.
+--
+-- If the include directories have changed, then the state is reset.
+--
+-- An empty list is interpreted as @["."]@.
+
+setIncludeDirs
+  :: MonadTCM tcm
+  => [FilePath]
+  -- ^ New include directories.
+  -> RelativeTo
+  -- ^ How should relative paths be interpreted?
+  -> tcm ()
+setIncludeDirs incs relativeTo = do
   opts <- commandLineOptions
-  setCommandLineOptions $ opts { optIncludeDirs =
-      Right $ case optIncludeDirs opts of
-        Right incs -> incs
-        Left  incs ->
-          map (mkAbsolute . (filePath root </>)) $
-              case incs of
-                [] -> ["."]
-                _  -> incs
-    }
+  let oldIncs = optIncludeDirs opts
+
+  (root, check) <- case relativeTo of
+    CurrentDir -> do
+      root <- liftIO (absolute =<< getCurrentDirectory)
+      return (root, return ())
+    ProjectRoot f -> do
+      m <- liftTCM $ moduleName' f
+      return (projectRoot f m, liftTCM $ checkModuleName m f)
+
+  modify $ \s -> s { stPersistentOptions =
+    (stPersistentOptions s) { optIncludeDirs =
+      Right $ map (mkAbsolute . (filePath root </>)) $
+        case incs of
+          [] -> ["."]
+          _  -> incs } }
+
+  incs <- getIncludeDirs
+  case oldIncs of
+    Right incs' | incs' /= incs -> resetState
+    _                           -> return ()
+
+  check
 
 setInputFile :: MonadTCM tcm => FilePath -> tcm ()
 setInputFile file =
@@ -143,12 +180,12 @@ setInputFile file =
           opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
-getInputFile :: MonadTCM tcm => tcm FilePath
+getInputFile :: MonadTCM tcm => tcm AbsolutePath
 getInputFile =
     do	mf <- optInputFile <$> commandLineOptions
 	case mf of
-	    Just file	-> return file
-	    Nothing	-> __IMPOSSIBLE__
+	    Just file -> liftIO $ absolute file
+	    Nothing   -> __IMPOSSIBLE__
 
 hasInputFile :: MonadTCM tcm => tcm Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions

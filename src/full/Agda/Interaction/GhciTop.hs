@@ -131,13 +131,19 @@ theState = unsafePerformIO $ newIORef initState
 -- | An interactive computation.
 
 data Interaction = Interaction
-  { isIndependent :: Bool
-    -- ^ Can the command run even if the relevant file has not been
-    -- loaded into the state?
+  { includeDirectories :: Maybe [FilePath]
+    -- ^ A command is independent iff this field is @'Just' is@; @is@
+    -- is used as the command's include directories.
   , command :: TCM (Maybe ModuleName)
     -- ^ If a module name is returned, then syntax highlighting
     -- information will be written for the given module (by 'ioTCM').
   }
+
+-- | Can the command run even if the relevant file has not been loaded
+-- into the state?
+
+isIndependent :: Interaction -> Bool
+isIndependent = isJust . includeDirectories
 
 -- | Run a TCM computation in the current state. Should only
 --   be used for debugging.
@@ -178,19 +184,19 @@ ioTCM current highlightingFile cmd = infoOnException $ do
         } <- readIORef theState
 
   -- Run the computation.
-  r <- if not (isIndependent cmd) && Just current /= (fst <$> f) then
-         let s = "Error: First load the file." in
-         return $ Right $ Left (s, TCErr Nothing $ Exception noRange s)
-        else
-         runTCM $ catchError (do
-             put st
-             x  <- withEnv initEnv $ command cmd
-             st <- get
-             return (Right (x, st))
-           ) (\e -> do
-             s <- prettyError e
-             return (Left (s, e))
-           )
+  r <- runTCM $ catchError (do
+           put st
+           x  <- withEnv initEnv $ do
+                   case includeDirectories cmd of
+                     Nothing -> ensureFileLoaded current
+                     Just is -> setIncludeDirs is (ProjectRoot current)
+                   command cmd
+           st <- get
+           return (Right (x, st))
+         ) (\e -> do
+           s <- prettyError e
+           return (Left (s, e))
+         )
 
   -- Update the state.
   case r of
@@ -266,51 +272,53 @@ cmd_load' :: FilePath -> [FilePath] -> Verbosity
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
-cmd_load' file includes v unsolvedOK cmd = Interaction True $ do
-  -- Forget the previous "current file" and interaction points.
-  liftIO $ modifyIORef theState $ \s ->
-    s { theInteractionPoints = []
-      , theCurrentFile       = Nothing
-      }
-
-  f <- liftIO $ absolute file
-  t <- liftIO $ getModificationTime file
-
-  -- All options are reset when a file is reloaded, including the
-  -- choice of whether or not to display implicit arguments.
-  oldIncs <- either (const Nothing) Just . optIncludeDirs <$>
-               commandLineOptions
-  setCommandLineOptions $
-    defaultOptions { optIncludeDirs   = Left includes
-                   , optVerbose       = v
-                   , optPragmaOptions =
-                       (optPragmaOptions defaultOptions)
-                         { optAllowUnsolved = unsolvedOK }
-                   }
-
-  -- Reset the state, preserving options and decoded modules. Note
-  -- that Imp.typeCheck resets the decoded modules if the include
-  -- directories have changed.
-  preserveDecodedModules resetState
-
-  ok <- Imp.typeCheck file Imp.ProjectRoot oldIncs
-
-  -- The module type checked. If the file was not changed while the
-  -- type checker was running then the interaction points and the
-  -- "current file" are stored.
-  t' <- liftIO $ getModificationTime file
-  when (t == t') $ do
-    is <- sortInteractionPoints =<< getInteractionPoints
+cmd_load' file includes v unsolvedOK cmd =
+  Interaction (Just includes) $ do
+    -- Forget the previous "current file" and interaction points.
     liftIO $ modifyIORef theState $ \s ->
-      s { theInteractionPoints = is
-        , theCurrentFile       = Just (f, t)
+      s { theInteractionPoints = []
+        , theCurrentFile       = Nothing
         }
 
-  cmd ok
+    f <- liftIO $ absolute file
+    t <- liftIO $ getModificationTime file
 
-  liftIO System.performGC
+    -- All options are reset when a file is reloaded, including the
+    -- choice of whether or not to display implicit arguments. (At
+    -- this point the include directories have already been reset, so
+    -- they are preserved.)
+    opts <- commandLineOptions
+    setCommandLineOptions $
+      defaultOptions { optIncludeDirs   = optIncludeDirs opts
+                     , optVerbose       = v
+                     , optPragmaOptions =
+                         (optPragmaOptions defaultOptions)
+                           { optAllowUnsolved = unsolvedOK }
+                     }
 
-  return $ Just $ iModuleName (fst ok)
+    -- Reset the state, preserving options and decoded modules. Note
+    -- that Imp.typeCheck resets the decoded modules if the include
+    -- directories have changed.
+    preserveDecodedModules resetState
+
+    ok <- Imp.typeCheck f
+
+    -- The module type checked. If the file was not changed while the
+    -- type checker was running then the interaction points and the
+    -- "current file" are stored.
+    t' <- liftIO $ getModificationTime file
+    when (t == t') $ do
+      is <- sortInteractionPoints =<< getInteractionPoints
+      liftIO $ modifyIORef theState $ \s ->
+        s { theInteractionPoints = is
+          , theCurrentFile       = Just (f, t)
+          }
+
+    cmd ok
+
+    liftIO System.performGC
+
+    return $ Just $ iModuleName (fst ok)
 
 -- | @cmd_compile m includes@ compiles the module in file @m@, using
 -- @includes@ as the include directories.
@@ -330,7 +338,7 @@ cmd_compile file includes =
           ])
 
 cmd_constraints :: Interaction
-cmd_constraints = Interaction False $ do
+cmd_constraints = Interaction Nothing $ do
     cs <- map show <$> B.getConstraints
     display_info "*Constraints*" (unlines cs)
     return Nothing
@@ -338,7 +346,7 @@ cmd_constraints = Interaction False $ do
 -- Show unsolved metas. If there are no unsolved metas but unsolved constraints
 -- show those instead.
 cmd_metas :: Interaction
-cmd_metas = Interaction False $ do -- CL.showMetas []
+cmd_metas = Interaction Nothing $ do -- CL.showMetas []
   ims <- B.typesOfVisibleMetas B.AsIs
   -- Show unsolved implicit arguments normalised.
   hms <- B.typesOfHiddenMetas B.Normalised
@@ -364,11 +372,6 @@ cmd_metas = Interaction False $ do -- CL.showMetas []
       d <- B.withMetaId (B.outputFormId m) (showA m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
-cmd_reset :: Interaction
-cmd_reset = Interaction True $ do
-  preserveDecodedModules resetState
-  return Nothing
-
 type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 cmd_give :: GoalCommand
@@ -378,7 +381,7 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> quote . show
 
-give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
+give_gen give_ref mk_newtxt ii rng s = Interaction Nothing $ do
   scope     <- getInteractionScope ii
   (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
   let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
@@ -395,7 +398,7 @@ give_gen give_ref mk_newtxt ii rng s = Interaction False $ do
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
 
 cmd_intro :: GoalCommand
-cmd_intro ii rng _ = Interaction False $ do
+cmd_intro ii rng _ = Interaction Nothing $ do
   ss <- B.introTactic ii
   B.withInteractionId ii $ case ss of
     []    -> do
@@ -417,7 +420,7 @@ cmd_refine_or_intro ii rng s =
   (if null s then cmd_intro else cmd_refine) ii rng s
 
 cmd_auto :: GoalCommand
-cmd_auto ii rng s = Interaction False $ do
+cmd_auto ii rng s = Interaction Nothing $ do
   (res, msg) <- Auto.auto ii rng s
   case res of
    Left xs -> do
@@ -468,19 +471,19 @@ prettyContext norm ii = B.withInteractionId ii $ do
   return $ align 10 $ zip ns (map (text ":" <+>) es)
 
 cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = Interaction False $ do
+cmd_context norm ii _ _ = Interaction Nothing $ do
   display_infoD "*Context*" =<< prettyContext norm ii
   return Nothing
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = Interaction False $ do
+cmd_infer norm ii rng s = Interaction Nothing $ do
   display_infoD "*Inferred Type*"
     =<< B.withInteractionId ii
           (prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
   return Nothing
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = Interaction False $ do
+cmd_goal_type norm ii _ _ = Interaction Nothing $ do
   s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
   display_infoD "*Current Goal*" s
   return Nothing
@@ -500,14 +503,14 @@ cmd_goal_type_context_and doc norm ii _ _ = do
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context norm ii rng s = Interaction False $
+cmd_goal_type_context norm ii rng s = Interaction Nothing $
   cmd_goal_type_context_and P.empty norm ii rng s
 
 -- | Displays the current goal and context /and/ infers the type of an
 -- expression.
 
 cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_context_infer norm ii rng s = Interaction False $ do
+cmd_goal_type_context_infer norm ii rng s = Interaction Nothing $ do
   typ <- B.withInteractionId ii $
            prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
@@ -532,7 +535,7 @@ showModuleContents rng s = do
 -- their types. Uses the scope of the given goal.
 
 cmd_show_module_contents :: GoalCommand
-cmd_show_module_contents ii rng s = Interaction False $ do
+cmd_show_module_contents ii rng s = Interaction Nothing $ do
   B.withInteractionId ii $ showModuleContents rng s
   return Nothing
 
@@ -540,7 +543,7 @@ cmd_show_module_contents ii rng s = Interaction False $ do
 -- their types. Uses the top-level scope.
 
 cmd_show_module_contents_toplevel :: String -> Interaction
-cmd_show_module_contents_toplevel s = Interaction False $ do
+cmd_show_module_contents_toplevel s = Interaction Nothing $ do
   B.atTopLevel $ showModuleContents noRange s
   return Nothing
 
@@ -666,7 +669,7 @@ refreshStr taken s = go nameModifiers where
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = Interaction False $ do
+cmd_make_case ii rng s = Interaction Nothing $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
@@ -679,7 +682,7 @@ cmd_make_case ii rng s = Interaction False $ do
   where render = renderStyle (style { mode = OneLineMode })
 
 cmd_solveAll :: Interaction
-cmd_solveAll = Interaction False $ do
+cmd_solveAll = Interaction Nothing $ do
   out <- getInsts
   liftIO $ LocIO.putStrLn $ response $
     Cons (A "last")
@@ -789,7 +792,7 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
-cmd_compute ignore ii rng s = Interaction False $ do
+cmd_compute ignore ii rng s = Interaction Nothing $ do
   e <- B.parseExprIn ii rng s
   d <- B.withInteractionId ii $ do
          let c = B.evalInCurrent e
@@ -810,7 +813,7 @@ parseAndDoAtToplevel
   -> String
      -- ^ The expression to parse.
   -> Interaction
-parseAndDoAtToplevel cmd title s = Interaction False $ do
+parseAndDoAtToplevel cmd title s = Interaction Nothing $ do
   e <- liftIO $ parse exprParser s
   display_info title =<<
     B.atTopLevel (showA =<< cmd =<< concreteToAbstract_ e)
@@ -839,35 +842,38 @@ cmd_compute_toplevel ignore =
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | @cmd_write_highlighting_info source target@ writes syntax
--- highlighting information for the module in @source@ into @target@.
--- If the module does not exist, or its module name is malformed or
--- cannot be determined, or the module has not already been visited,
--- or the cached info is out of date, then the representation of \"no
--- highlighting information available\" is instead written to
--- @target@.
+-- | @cmd_write_highlighting_info includes source target@ writes
+-- syntax highlighting information for the module in @source@ into
+-- @target@; @includes@ is the include directories. If the module does
+-- not exist, or its module name is malformed or cannot be determined,
+-- or the module has not already been visited, or the cached info is
+-- out of date, then the representation of \"no highlighting
+-- information available\" is instead written to @target@.
 
-cmd_write_highlighting_info :: FilePath -> FilePath -> Interaction
-cmd_write_highlighting_info source target = Interaction True $ do
-  liftIO . UTF8.writeFile target . showHighlightingInfo =<< do
-    ex <- liftIO $ doesFileExist source
-    case ex of
-      False -> return Nothing
-      True  -> do
-        mmi <- (getVisitedModule =<< Imp.moduleName source)
-                 `catchError`
-               \_ -> return Nothing
-        case mmi of
-          Nothing     -> return Nothing
-          Just mi -> do
-            sourceT <- liftIO $ getModificationTime source
-            if sourceT <= miTimeStamp mi
-             then do
-              modFile <- stModuleToSource <$> get
-              return $ Just (iHighlighting $ miInterface mi, modFile)
-             else
-              return Nothing
-  return Nothing
+cmd_write_highlighting_info ::
+  [FilePath] -> FilePath -> FilePath -> Interaction
+cmd_write_highlighting_info includes source target =
+  Interaction (Just includes) $ do
+    liftIO . UTF8.writeFile target . showHighlightingInfo =<< do
+      ex <- liftIO $ doesFileExist source
+      case ex of
+        False -> return Nothing
+        True  -> do
+          mmi <- (getVisitedModule =<<
+                    moduleName =<< liftIO (absolute source))
+                   `catchError`
+                 \_ -> return Nothing
+          case mmi of
+            Nothing -> return Nothing
+            Just mi -> do
+              sourceT <- liftIO $ getModificationTime source
+              if sourceT <= miTimeStamp mi
+               then do
+                modFile <- stModuleToSource <$> get
+                return $ Just (iHighlighting $ miInterface mi, modFile)
+               else
+                return Nothing
+    return Nothing
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 
@@ -889,7 +895,7 @@ tellEmacsToJumpToError r = do
 
 showImplicitArgs :: Bool -- ^ Show them?
                  -> Interaction
-showImplicitArgs showImpl = Interaction False $ do
+showImplicitArgs showImpl = Interaction Nothing $ do
   opts <- commandLineOptions
   setCommandLineOptions $
     opts { optPragmaOptions =
@@ -899,7 +905,7 @@ showImplicitArgs showImpl = Interaction False $ do
 -- | Toggle display of implicit arguments.
 
 toggleImplicitArgs :: Interaction
-toggleImplicitArgs = Interaction False $ do
+toggleImplicitArgs = Interaction Nothing $ do
   opts <- commandLineOptions
   let ps = optPragmaOptions opts
   setCommandLineOptions $
@@ -941,6 +947,15 @@ infoOnException m =
                -- does not really matter if it is displayed
                -- incorrectly when an unexpected error has occurred.
              }
+
+-- | Raises an error if the given file is not the one currently
+-- loaded.
+
+ensureFileLoaded :: AbsolutePath -> TCM ()
+ensureFileLoaded current = do
+  f <- theCurrentFile <$> liftIO (readIORef theState)
+  when (Just current /= (fst <$> f)) $
+    typeError $ GenericError "Error: First load the file."
 
 -- Helpers for testing ----------------------------------------------------
 

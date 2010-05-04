@@ -57,35 +57,6 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
--- | Which directory should form the base of relative include paths?
-
-data RelativeTo
-  = ProjectRoot
-    -- ^ The root directory of the \"project\" containing the current
-    -- file.
-  | CurrentDir
-    -- ^ The current working directory.
-
--- | A variant of 'moduleName'' which raises an error if the file name
--- does not match the module name.
---
--- The file name is interpreted relative to the current working
--- directory (unless it is absolute).
-
-moduleName :: FilePath -> TCM C.TopLevelModuleName
-moduleName file = do
-  file <- liftIO (absolute file)
-  m <- moduleName' file
-  checkModuleName m file
-  return m
-
--- | Computes the module name of the top-level module in the given
--- file.
-
-moduleName' :: AbsolutePath -> TCM C.TopLevelModuleName
-moduleName' file = liftIO $ do
-  C.topLevelModuleName <$> parseFile' moduleParser file
-
 -- | Merge an interface into the current proof state.
 mergeInterface :: Interface -> TCM ()
 mergeInterface i = do
@@ -197,37 +168,10 @@ warningsToError (Warnings _ _ w@(_:_)) = UnsolvedConstraints w
 warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
 
 -- | Type checks the given module (if necessary).
---
--- The function also makes relative directories absolute, based on the
--- 'RelativeTo' argument. If this argument is 'ProjectRoot', then the
--- \"current file\" is taken to be the one given as the first
--- argument.
 
-typeCheck :: FilePath
-          -- ^ The file name is interpreted relative to the current
-          -- working directory (unless it is absolute).
-          -> RelativeTo
-          -> Maybe [AbsolutePath]
-          -- ^ If this argument is given, and it does not coincide
-          -- with the new value of the include directories (after
-          -- making them absolute), the state is reset (but the
-          -- command-line options are preserved).
-          -> TCM (Interface, Maybe Warnings)
-typeCheck f relativeTo oldIncs = do
-  f <- liftIO (absolute f)
-  m <- moduleName' f
-
-  makeIncludeDirsAbsolute =<< case relativeTo of
-    CurrentDir  -> liftIO (absolute =<< getCurrentDirectory)
-    ProjectRoot -> return $ C.projectRoot f m
-
-  -- If the include directories have changed the state is reset.
-  incs <- getIncludeDirs
-  case oldIncs of
-    Just incs' | incs' /= incs -> resetState
-    _                          -> return ()
-
-  checkModuleName m f
+typeCheck :: AbsolutePath -> TCM (Interface, Maybe Warnings)
+typeCheck f = do
+  m <- moduleName f
 
   (i, wt) <- getInterface' m True
   return (i, case wt of

@@ -12,7 +12,6 @@ import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Options
 
 import Agda.Utils.Hash
 
@@ -22,8 +21,7 @@ import Agda.Utils.Hash
 resetState :: MonadTCM tcm => tcm ()
 resetState = liftTCM $ do
     opts <- stPersistentOptions <$> get
-    put initState
-    setCommandLineOptions opts
+    put $ initState { stPersistentOptions = opts }
 
 -- | Set the current scope.
 setScope :: MonadTCM tcm => ScopeInfo -> tcm ()

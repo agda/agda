@@ -12,6 +12,7 @@ module Agda.Interaction.FindFile
   , findFile, findFile', findFile''
   , findInterfaceFile
   , checkModuleName
+  , moduleName', moduleName
   , ModuleToSource
   , SourceToModule, sourceToModule
   , tests
@@ -27,8 +28,10 @@ import qualified Data.Map as Map
 import System.FilePath
 import System.Directory
 
-import Agda.Syntax.Concrete.Name
-import Agda.TypeChecking.Monad
+import Agda.Syntax.Concrete
+import Agda.Syntax.Parser
+import Agda.TypeChecking.Monad.Base
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 
@@ -142,6 +145,25 @@ checkModuleName name file = do
       ifM (liftIO $ filePath file === filePath file')
           (return ())
           (typeError $ ModuleDefinedInOtherFile name file file')
+
+-- | Computes the module name of the top-level module in the given
+-- file.
+
+moduleName' :: AbsolutePath -> TCM TopLevelModuleName
+moduleName' file = liftIO $ do
+  topLevelModuleName <$> parseFile' moduleParser file
+
+-- | A variant of 'moduleName'' which raises an error if the file name
+-- does not match the module name.
+--
+-- The file name is interpreted relative to the current working
+-- directory (unless it is absolute).
+
+moduleName :: AbsolutePath -> TCM TopLevelModuleName
+moduleName file = do
+  m <- moduleName' file
+  checkModuleName m file
+  return m
 
 -- | Maps top-level module names to the corresponding source file
 -- names.
