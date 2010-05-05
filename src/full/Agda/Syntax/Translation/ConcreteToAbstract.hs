@@ -838,7 +838,7 @@ instance ToAbstract ConstrDecl A.Declaration where
         -- Bind it twice, once unqualified and once qualified
         bindName p' ConName x y
         withCurrentModule m $ bindName p' ConName x y
-        printScope "con" 15 "bound construcor"
+        printScope "con" 15 "bound constructor"
         return $ A.Axiom (mkDefInfo x f p a r) y t'
         where
             -- An abstract constructor is private (abstract constructor means
