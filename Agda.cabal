@@ -52,6 +52,14 @@ flag use-locale
     of the IO going to/from stdin and stdout. (Note that source files
     must always be encoded using UTF8.)
 
+flag agda-pkg
+  description:
+    Build agda-pkg, a package management tool for Agda. (Note: This
+    tool is currently under development, and not recommended for
+    general use.)
+  default: False
+  manual:  True
+
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
@@ -293,7 +301,8 @@ executable agda-mode
                     directory >= 1.0 && < 1.2
 
 executable agda-pkg
-  buildable:      False
+  if !flag(agda-pkg)
+    buildable:      False
   if true
     ghc-options:    -w -Werror
                     -fwarn-deprecated-flags
