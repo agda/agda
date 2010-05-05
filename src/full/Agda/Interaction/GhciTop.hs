@@ -250,29 +250,21 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 -- @includes@ as the include directories.
 
 cmd_load :: FilePath -> [FilePath] -> Interaction
-cmd_load m includes = cmd_load_v m includes defaultVerbosity
+cmd_load m includes =
+  cmd_load' m includes True (\_ -> command cmd_metas >> return ())
 
--- | @cmd_load_v m includes v@ loads the module in file @m@, using
--- @includes@ as the include directories and @v@ as the verbosity
--- setting.
-
-cmd_load_v :: FilePath -> [FilePath] -> Verbosity -> Interaction
-cmd_load_v m includes v =
-  cmd_load' m includes v True (\_ -> command cmd_metas >> return ())
-
--- | @cmd_load' m includes v cmd cmd2@ loads the module in file @m@,
--- using @includes@ as the include directories and @v@ as the
--- verbosity setting.
+-- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
+-- using @includes@ as the include directories.
 --
 -- If type checking completes without any exceptions having been
 -- encountered then the command @cmd r@ is executed, where @r@ is the
 -- result of 'Imp.typeCheck'.
 
-cmd_load' :: FilePath -> [FilePath] -> Verbosity
+cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
-cmd_load' file includes v unsolvedOK cmd =
+cmd_load' file includes unsolvedOK cmd =
   Interaction (Just includes) $ do
     -- Forget the previous "current file" and interaction points.
     liftIO $ modifyIORef theState $ \s ->
@@ -283,14 +275,14 @@ cmd_load' file includes v unsolvedOK cmd =
     f <- liftIO $ absolute file
     t <- liftIO $ getModificationTime file
 
-    -- All options are reset when a file is reloaded, including the
-    -- choice of whether or not to display implicit arguments. (At
-    -- this point the include directories have already been reset, so
-    -- they are preserved.)
+    -- All options (except for the verbosity setting) are reset when a
+    -- file is reloaded, including the choice of whether or not to
+    -- display implicit arguments. (At this point the include
+    -- directories have already been reset, so they are preserved.)
     opts <- commandLineOptions
     setCommandLineOptions $
       defaultOptions { optIncludeDirs   = optIncludeDirs opts
-                     , optVerbose       = v
+                     , optVerbose       = optVerbose opts
                      , optPragmaOptions =
                          (optPragmaOptions defaultOptions)
                            { optAllowUnsolved = unsolvedOK }
@@ -325,7 +317,7 @@ cmd_load' file includes v unsolvedOK cmd =
 
 cmd_compile :: FilePath -> [FilePath] -> Interaction
 cmd_compile file includes =
-  cmd_load' file includes defaultVerbosity False (\(i, mw) ->
+  cmd_load' file includes False (\(i, mw) ->
     case mw of
       Nothing -> do
         MAlonzo.compilerMain i
@@ -966,18 +958,19 @@ getCurrentFile = do
     Nothing     -> error "command: No file loaded!"
     Just (f, _) -> return (filePath f)
 
-top_command :: FilePath -> Interaction -> IO ()
-top_command f cmd = ioTCM f Nothing cmd
+-- | Changes the 'Interaction' so that its first action is to turn off
+-- all debug messages.
+
+makeSilent :: Interaction -> Interaction
+makeSilent i = i { command = do
+  opts <- commandLineOptions
+  TM.setCommandLineOptions $ opts { optVerbose = Trie.singleton [] 0 }
+  command i }
+
+top_command' :: FilePath -> Interaction -> IO ()
+top_command' f cmd = ioTCM f Nothing $ makeSilent cmd
 
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
-  ioTCM f Nothing (cmd i noRange s)
-
--- | @load_silently f includes@ loads the module in file @f@, using
--- @includes@ as the include directories. All debug messages are
--- turned off.
-
-load_silently :: FilePath -> [FilePath] -> IO ()
-load_silently f includes =
-  top_command f $ cmd_load_v f includes (Trie.singleton [] 0)
+  ioTCM f Nothing $ makeSilent $ cmd i noRange s

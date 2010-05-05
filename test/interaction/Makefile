@@ -12,7 +12,8 @@ Tests=$(patsubst %.agda,%.cmp,$(AgdaFiles))
 default : $(Tests)
 
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-					 echo 'let currentFile = "$*.agda"' ) \
+					 echo 'let currentFile = "$*.agda"'; \
+					 echo "let top_command = top_command' currentFile" ) \
 				 | cat - $*.in | ghci -v0 | sed -e 's"$(pwd)""g'
 
 %.test : %.in %.agda

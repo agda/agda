@@ -6,16 +6,15 @@ Test framework for interactions
   script SomeTest.in. The interaction script contains interactions (as
   commands to ghci) that should be performed on the Agda file.
 - A simple example:
-    top_command currentFile (cmd_load_silently currentFile)
+    top_command    (cmd_load currentFile [])
     goal_command 0 (cmd_goal_type_context Normalised) ""
     goal_command 0 cmd_give "s z"
     goal_command 0 cmd_give "Nothing"
   The variable currentFile is bound to the current file name.
 - Some new functions have been added to Agda.Interaction.GhciTop for
   convenience:
-    load_silently :: FilePath -> [FilePath] -> IO ()
-    top_command   :: FilePath -> Interaction -> IO ()
-    goal_command  :: InteractionId -> GoalCommand -> String -> IO ()
+    top_command' :: FilePath -> Interaction -> IO ()
+    goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 - The default scope for the script is
   Agda.Interaction.GhciTop and Agda.Interaction.BasicOps, but more modules
   can be added with ':mod +Agda.Some.Other.Module'.

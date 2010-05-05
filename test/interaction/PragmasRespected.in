@@ -1,6 +1,6 @@
-load_silently currentFile []
-top_command currentFile (cmd_infer_toplevel Normalised "Bar")
+top_command (cmd_load currentFile [])
+top_command (cmd_infer_toplevel Normalised "Bar")
 -- Reload to test that pragmas are respected when interface files are
 -- used.
-load_silently currentFile []
-top_command currentFile (cmd_infer_toplevel Normalised "Bar")
+top_command (cmd_load currentFile [])
+top_command (cmd_infer_toplevel Normalised "Bar")
