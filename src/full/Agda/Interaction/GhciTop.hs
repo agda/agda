@@ -189,7 +189,10 @@ ioTCM current highlightingFile cmd = infoOnException $ do
            x  <- withEnv initEnv $ do
                    case includeDirectories cmd of
                      Nothing -> ensureFileLoaded current
-                     Just is -> setIncludeDirs is (ProjectRoot current)
+                     Just is -> do
+                       ex <- liftIO $ doesFileExist $ filePath current
+                       setIncludeDirs is $
+                         if ex then ProjectRoot current else CurrentDir
                    command cmd
            st <- get
            return (Right (x, st))
