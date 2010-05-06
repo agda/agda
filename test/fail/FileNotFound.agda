@@ -1,3 +1,3 @@
 module FileNotFound where
 
-import WildGoose
+import A.B.WildGoose

@@ -44,8 +44,7 @@ absolutePathInvariant (AbsolutePath f) =
 
 -- | Constructs 'AbsolutePath's.
 --
--- Precondition: The path must be \"canonical\" (as specified by the
--- implementation of 'canonicalizePath').
+-- Precondition: The path must be absolute and valid.
 
 mkAbsolute :: FilePath -> AbsolutePath
 mkAbsolute f
@@ -58,22 +57,31 @@ prop_mkAbsolute f =
 
 -- | Makes the path absolute.
 --
--- This function raises an @\_\_IMPOSSIBLE\_\_@ error if
+-- This function may raise an @\_\_IMPOSSIBLE\_\_@ error if
 -- 'canonicalizePath' does not return an absolute path.
 
 absolute :: FilePath -> IO AbsolutePath
-absolute f = mkAbsolute <$> canonicalizePath f
+absolute f = mkAbsolute <$> do
+  -- canonicalizePath sometimes truncates paths pointing to
+  -- non-existing files/directories.
+  ex <- doesFileExist f .||. doesDirectoryExist f
+  if ex then
+    canonicalizePath f
+   else do
+    cwd <- getCurrentDirectory
+    return (cwd </> f)
+  where
+  m1 .||. m2 = do
+    b1 <- m1
+    if b1 then return True else m2
 
 -- | Tries to establish if the two file paths point to the same file
 -- (or directory).
 
 infix 4 ===
 
-(===) :: FilePath -> FilePath -> IO Bool
-p1 === p2 = do
-  p1 <- canonicalizePath p1
-  p2 <- canonicalizePath p2
-  return $ equalFilePath p1 p2
+(===) :: AbsolutePath -> AbsolutePath -> Bool
+(===) = equalFilePath `on` filePath
 
 ------------------------------------------------------------------------
 -- Generators

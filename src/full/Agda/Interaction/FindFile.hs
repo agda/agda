@@ -33,7 +33,6 @@ import Agda.Syntax.Parser
 import Agda.TypeChecking.Monad.Base
 import {-# SOURCE #-} Agda.TypeChecking.Monad.Options (getIncludeDirs)
 import Agda.Utils.FileName
-import Agda.Utils.Monad
 
 -- | Converts an Agda file name to the corresponding interface file
 -- name.
@@ -142,9 +141,10 @@ checkModuleName name file = do
     Left (Ambiguous files) -> typeError $
                                 AmbiguousTopLevelModuleName name files
     Right file' ->
-      ifM (liftIO $ filePath file === filePath file')
-          (return ())
-          (typeError $ ModuleDefinedInOtherFile name file file')
+      if file === file' then
+        return ()
+       else
+        typeError $ ModuleDefinedInOtherFile name file file'
 
 -- | Computes the module name of the top-level module in the given
 -- file.
