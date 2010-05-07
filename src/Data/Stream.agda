@@ -55,6 +55,20 @@ infixr 5 _⋎_
 _⋎_ : ∀ {A} → Stream A → Stream A → Stream A
 (x ∷ xs) ⋎ ys = x ∷ ♯ (ys ⋎ ♭ xs)
 
+mutual
+
+  -- Takes every other element from the stream, starting with the
+  -- first one.
+
+  evens : {A : Set} → Stream A → Stream A
+  evens (x ∷ xs) = x ∷ ♯ odds (♭ xs)
+
+  -- Takes every other element from the stream, starting with the
+  -- second one.
+
+  odds : {A : Set} → Stream A → Stream A
+  odds (x ∷ xs) = evens (♭ xs)
+
 toColist : ∀ {A} → Stream A → Colist A
 toColist (x ∷ xs) = x ∷ ♯ toColist (♭ xs)
 
