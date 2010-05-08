@@ -376,7 +376,9 @@ cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \s -> quote . show
 
-give_gen give_ref mk_newtxt ii rng s = Interaction Nothing $ do
+give_gen give_ref mk_newtxt ii rng s = Interaction Nothing $ give_gen' give_ref mk_newtxt ii rng s
+
+give_gen' give_ref mk_newtxt ii rng s = do
   scope     <- getInteractionScope ii
   (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
   let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
@@ -427,15 +429,18 @@ cmd_auto ii rng s = Interaction Nothing $ do
     case msg of
      Nothing -> command cmd_metas >> return ()
      Just msg -> display_info "*Auto*" msg
-   Right cs -> do
+    return Nothing
+   Right (Left cs) -> do
     case msg of
      Nothing -> return ()
      Just msg -> display_info "*Auto*" msg
     liftIO $ LocIO.putStrLn $ response $
-     L [ A "agda2-make-case-action",
-         Q $ L $ List.map (A . quote) cs
-       ]
-  return Nothing
+     Cons (A "last")
+          (L [ A "agda2-make-case-action",
+               Q $ L $ List.map (A . quote) cs
+             ])
+    return Nothing
+   Right (Right s) -> give_gen' B.refine (\s -> quote . show) ii rng s
 
 -- | Sorts interaction points based on their ranges.
 

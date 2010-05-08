@@ -1,17 +1,14 @@
-
-
-{-# OPTIONS -fglasgow-exts #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE UndecidableInstances, Rank2Types, ExistentialQuantification, MultiParamTypeClasses, FunctionalDependencies, FlexibleInstances, ScopedTypeVariables #-}
 
 module Agda.Auto.NarrowingSearch where
+
+
 import Agda.Utils.Impossible
--- mode: Agda implicit arguments
--- mode: Omitted arguments, used for implicit constructor type arguments
--- mode: A sort can be unknown, used as a hack for Agda's universe polymorphism
+#include "../undefined.h"
+
 import Data.IORef hiding (writeIORef, modifyIORef)
 import qualified Data.IORef as NoUndo (writeIORef, modifyIORef)
 import Control.Monad.State
-
 
 
 type Prio = Int
@@ -41,11 +38,16 @@ data Metavar a blk = Metavar
   mobs :: IORef [(QPB a blk, Maybe (CTree blk))],
   mcompoint :: IORef [SubConstraints blk],
   mextrarefs :: IORef [(Int, RefCreateEnv blk a)]
+
+
  }
+
 hequalMetavar :: Metavar a1 blk1 -> Metavar a2 bkl2 -> Bool
 hequalMetavar m1 m2 = mprincipalpresent m1 == mprincipalpresent m2
+
 instance Eq (Metavar a blk) where
  x == y = hequalMetavar x y
+
 newMeta :: IORef [SubConstraints blk] -> IO (Metavar a blk)
 newMeta mcompoint = do
  bind <- newIORef Nothing
@@ -53,22 +55,27 @@ newMeta mcompoint = do
  obs <- newIORef []
  erefs <- newIORef []
  return $ Metavar bind pp obs mcompoint erefs
+
 initMeta :: IO (Metavar a blk)
 initMeta = do
  cp <- newIORef []
  newMeta cp
+
 data CTree blk = CTree
  {ctpriometa :: IORef (PrioMeta blk),
   ctsub :: IORef (Maybe (SubConstraints blk)),
   ctparent :: IORef (Maybe (CTree blk)), -- Nothing - root
   cthandles :: IORef [OKMeta blk]
  }
+
 data SubConstraints blk = SubConstraints
  {scflip :: IORef Bool,
   sccomcount :: IORef Int,
   scsub1 :: CTree blk,
   scsub2 :: CTree blk
  }
+
+
 newCTree :: Maybe (CTree blk) -> IO (CTree blk)
 newCTree parent = do
  priometa <- newIORef (NoPrio False)
@@ -76,6 +83,7 @@ newCTree parent = do
  rparent <- newIORef parent
  handles <- newIORef []
  return $ CTree priometa sub rparent handles
+
 newSubConstraints :: CTree blk -> IO (SubConstraints blk)
 newSubConstraints node = do
  flip <- newIORef True -- False -- initially (and always) True, trying out prefer rightmost subterm when none have priority
@@ -83,49 +91,68 @@ newSubConstraints node = do
  sub1 <- newCTree $ Just node
  sub2 <- newCTree $ Just node
  return $ SubConstraints flip comcount sub1 sub2
+
+
 data PrioMeta blk = forall a . Refinable a blk => PrioMeta Prio (Metavar a blk)
                   | NoPrio Bool -- True if subconstraint is done (all OK)
+
 instance Eq (PrioMeta blk) where
  NoPrio d1 == NoPrio d2 = d1 == d2
  PrioMeta p1 m1 == PrioMeta p2 m2 = p1 == p2 && hequalMetavar m1 m2
  _ == _ = False
+
 -- -----------------------
+
 data Restore = forall a . Restore (IORef a) a
+
 type Undo = StateT [Restore] IO
+
 ureadIORef :: IORef a -> Undo a
 ureadIORef ptr = lift $ readIORef ptr
+
 uwriteIORef :: IORef a -> a -> Undo ()
 uwriteIORef ptr newval = do
  oldval <- ureadIORef ptr
  modify (Restore ptr oldval :)
  lift $ NoUndo.writeIORef ptr newval
+
 umodifyIORef :: IORef a -> (a -> a) -> Undo ()
 umodifyIORef ptr f = do
  oldval <- ureadIORef ptr
  modify (Restore ptr oldval :)
  lift $ NoUndo.writeIORef ptr (f oldval)
+
 ureadmodifyIORef :: IORef a -> (a -> a) -> Undo a
 ureadmodifyIORef ptr f = do
  oldval <- ureadIORef ptr
  modify (Restore ptr oldval :)
  lift $ NoUndo.writeIORef ptr (f oldval)
  return oldval
+
 runUndo :: Undo a -> IO a
 runUndo x = do
  (res, restores) <- runStateT x []
  mapM_ (\(Restore ptr oldval) -> NoUndo.writeIORef ptr oldval) restores
  return res
+
 -- -----------------------
+
+
 type RefCreateEnv blk = StateT ( ( (IORef [SubConstraints blk])), Int) IO
+
 data Pair a b = Pair a b
+
 class Refinable a blk | a -> blk where
  refinements :: blk -> [blk] -> Metavar a blk -> IO [(Int, RefCreateEnv blk a)]
+
+
 newPlaceholder :: RefCreateEnv blk (MM a blk)
 newPlaceholder = do
  (e@( ( mcompoint)), c) <- get
  m <- lift $ newMeta mcompoint
  put (e, (c + 1))
  return $ Meta m
+
 newOKHandle :: RefCreateEnv blk (OKHandle blk)
 newOKHandle = do
  (e@( ( _)), c) <- get
@@ -133,20 +160,29 @@ newOKHandle = do
  m <- lift $ newMeta cp
  put (e, (c + 1))
  return $ Meta m
+
 dryInstantiate :: RefCreateEnv blk a -> IO a
-dryInstantiate bind = evalStateT bind ( ( (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 214))), 0)
+dryInstantiate bind = evalStateT bind ( ( __IMPOSSIBLE__), 0)
+
 type BlkInfo blk = (Bool, Prio, Maybe blk) -- Bool - is principal
+
 data MM a blk = NotM a
               | Meta (Metavar a blk)
+
 type MetaEnv = IO
+
+
 data MB a blk = NotB a
               | forall b . Refinable b blk => Blocked (Metavar b blk) (MetaEnv (MB a blk))
               | Failed String
+
 data PB blk = NotPB (Prop blk)
             | forall b . Refinable b blk => PBlocked (Metavar b blk) (BlkInfo blk) (MetaEnv (PB blk))
             | forall b1 b2 . (Refinable b1 blk, Refinable b2 blk) => PDoubleBlocked (Metavar b1 blk) (Metavar b2 blk) (MetaEnv (PB blk))
+
 data QPB b blk = QPBlocked (BlkInfo blk) (MetaEnv (PB blk))
                | QPDoubleBlocked (IORef Bool) (MetaEnv (PB blk)) -- flag set True by first observer that continues
+
 mmcase :: Refinable a blk => MM a blk -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
 mmcase x f = case x of
  NotM x -> f x
@@ -155,6 +191,7 @@ mmcase x f = case x of
   case bind of
    Just x -> f x
    Nothing -> return $ Blocked m (mmcase x f)
+
 mmmcase :: Refinable a blk => MM a blk -> MetaEnv (MB b blk) -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
 mmmcase x fm f = case x of
  NotM x -> f x
@@ -163,6 +200,7 @@ mmmcase x fm f = case x of
   case bind of
    Just x -> f x
    Nothing -> fm
+
 mmpcase :: Refinable a blk => BlkInfo blk -> MM a blk -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
 mmpcase blkinfo x f = case x of
  NotM x -> f x
@@ -170,10 +208,12 @@ mmpcase blkinfo x f = case x of
   bind <- readIORef $ mbind m
   case bind of
    Just x -> f x
-   Nothing -> return $ PBlocked m blkinfo (mmpcase (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 263)) x f) -- blkinfo not needed because will be notb next time
+   Nothing -> return $ PBlocked m blkinfo (mmpcase __IMPOSSIBLE__ x f) -- blkinfo not needed because will be notb next time
+
 doubleblock :: (Refinable a blk, Refinable b blk) => MM a blk -> MM b blk -> MetaEnv (PB blk) -> MetaEnv (PB blk)
 doubleblock (Meta m1) (Meta m2) cont = return $ PDoubleBlocked m1 m2 cont
-doubleblock _ _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 267))
+doubleblock _ _ _ = __IMPOSSIBLE__
+
 mbcase :: MetaEnv (MB a blk) -> (a -> MetaEnv (MB b blk)) -> MetaEnv (MB b blk)
 mbcase x f = do
  x' <- x
@@ -181,6 +221,7 @@ mbcase x f = do
   NotB x -> f x
   Blocked m x -> return $ Blocked m (mbcase x f)
   Failed msg -> return $ Failed msg
+
 mbpcase :: Prio -> Maybe blk -> MetaEnv (MB a blk) -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
 mbpcase prio bi x f = do
  x' <- x
@@ -188,6 +229,7 @@ mbpcase prio bi x f = do
   NotB x -> f x
   Blocked m x -> return $ PBlocked m (False, prio, bi) (mbpcase prio bi x f)
   Failed msg -> return $ NotPB $ Error msg
+
 mmbpcase :: MetaEnv (MB a blk) -> (forall b . Refinable b blk => MM b blk -> MetaEnv (PB blk)) -> (a -> MetaEnv (PB blk)) -> MetaEnv (PB blk)
 mmbpcase x fm f = do
  x' <- x
@@ -195,30 +237,46 @@ mmbpcase x fm f = do
   NotB x -> f x
   Blocked m x -> fm (Meta m)
   Failed msg -> return $ NotPB $ Error msg
+
 waitok :: OKHandle blk -> MetaEnv (MB b blk) -> MetaEnv (MB b blk)
 waitok okh f =
  mmcase okh $ \b -> case b of -- principle constraint is never present for okhandle so it will not be refined
   OKVal -> f
+
 mbret :: a -> MetaEnv (MB a blk)
 mbret x = return $ NotB x
+
 mbfailed :: String -> MetaEnv (MB a blk)
 mbfailed msg = return $ Failed msg
+
 mpret :: Prop blk -> MetaEnv (PB blk)
 mpret p = return $ NotPB p
+
 -- -----------------------
+
 type HandleSol = IO ()
+
+
 type SRes = Either Bool Int
+
 topSearch :: forall blk . IORef Int -> IORef Int -> HandleSol -> blk -> MetaEnv (PB blk) -> Int -> Int -> IO Bool
 topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
  depthreached <- newIORef False
+
+
  mainroot <- newCTree Nothing
+
  let
   searchSubProb :: [(CTree blk, Maybe (IORef Bool))] -> Int -> IO SRes
   searchSubProb [] depth = do
    when (depth < depthinterval) $ do
+
+
     hsol
     n <- readIORef nsol
     NoUndo.writeIORef nsol $! n - 1
+
+
    return $ Left True
   searchSubProb ((root, firstdone) : restprobs) depth =
    let
@@ -226,7 +284,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
     search depth = do
      pm <- readIORef $ ctpriometa root
      case pm of
-      NoPrio False -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 346)) -- nothing to refine but not done
+      NoPrio False -> __IMPOSSIBLE__ -- nothing to refine but not done
       NoPrio True ->
        searchSubProb restprobs depth -- ?? what should depth be
       PrioMeta _ m -> do
@@ -250,6 +308,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
              case comc of
               0 -> split
               _ -> carryon
+
     fork :: Refinable a blk => Metavar a blk -> Int -> IO SRes
     fork m depth = do
       blkinfos <- extractblkinfos m
@@ -276,15 +335,21 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
         else do
          res2 <- x2
          case res2 of
-          Right _ -> if found then (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 480)) else return res2
+          Right _ -> if found then __IMPOSSIBLE__ else return res2
           Left found2 -> return $ Left (found || found2)
+
     refine :: Metavar a blk -> RefCreateEnv blk a -> Int -> IO SRes
+
     refine _ _ depthleft | depthleft < 0 = do
      NoUndo.writeIORef depthreached True
      return $ Left False
+
+
     refine m bind depthleft = runUndo $
      do t <- ureadIORef ticks
         lift $ NoUndo.writeIORef ticks $! t + 1
+
+
         (bind, (_, nnewmeta)) <- lift $ runStateT bind ( ( (mcompoint m)), 0)
         uwriteIORef (mbind m) (Just bind)
         mcomptr <- ureadIORef $ mcompoint m
@@ -298,6 +363,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
          True -> -- failed
           return $ Left False
          False -> lift $ search depthleft -- succeeded
+
     doit = do
      res <- search depth
      return $ case res of
@@ -325,6 +391,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
        else do
         NoUndo.writeIORef rdone True
         doit
+
  runUndo $ do
   res <- reccalc p (Just mainroot)
   case res of
@@ -334,6 +401,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
     Left solfound <- lift $ searchSubProb [(mainroot, Nothing)] searchdepth
     dr <- lift $ readIORef depthreached
     return dr
+
 extractblkinfos :: Metavar a blk -> IO [blk]
 extractblkinfos m = do
  obs <- readIORef $ mobs m
@@ -345,15 +413,18 @@ extractblkinfos m = do
     Nothing -> f cs
     Just blkinfo -> blkinfo : f cs
   f ((QPDoubleBlocked{}, _) : cs) = f cs
+
 recalcs :: [(QPB a blk, Maybe (CTree blk))] -> Undo Bool
 recalcs [] = return False
 recalcs (c : cs) = seqc (recalc c) (recalcs cs)
+
 seqc :: Undo Bool -> Undo Bool -> Undo Bool
 seqc x y = do
  res1 <- x
  case res1 of
   res1@True -> return res1
   False -> y
+
 recalc :: (QPB a blk, Maybe (CTree blk)) -> Undo Bool
 recalc (con, node) =
  case con of
@@ -365,6 +436,7 @@ recalc (con, node) =
     else do
      uwriteIORef flag True
      reccalc cont node
+
 reccalc :: MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo Bool
 reccalc cont node = do
  res <- calc cont node
@@ -375,10 +447,13 @@ reccalc cont node = do
     case res1 of
      True -> return res1
      False -> do
+
+
       uwriteIORef (mbind h) $ Just OKVal
       obs <- ureadIORef (mobs h)
       recalcs obs
    ) False pendhandles
+
 calc :: forall blk . MetaEnv (PB blk) -> Maybe (CTree blk) -> Undo (Maybe [OKMeta blk])
 calc cont node = do
   res <- donewp node cont
@@ -408,24 +483,25 @@ calc cont node = do
     PBlocked m blkinfo cont -> do
      oldobs <- ureadmodifyIORef (mobs m) ((QPBlocked blkinfo cont, node) :)
      let (princ, prio, _) = blkinfo
-     if princ then do
-       uwriteIORef (mprincipalpresent m) True
-       mapM_ (\(qpb, node) -> case node of
-          Just node -> do
-           let priometa = case qpb of
-                        QPBlocked (_, prio, _) _ -> PrioMeta prio m
-                        QPDoubleBlocked{} -> NoPrio False
-           uwriteIORef (ctpriometa node) priometa
-           propagatePrio node
-          Nothing -> return []
-        ) oldobs
+     pp <- ureadIORef (mprincipalpresent m)
+     when (princ && not pp) $ do
+      uwriteIORef (mprincipalpresent m) True
+      mapM_ (\(qpb, node) -> case node of
+         Just node ->
+          case qpb of
+           QPBlocked (_, prio, _) _ -> do
+
+
+            uwriteIORef (ctpriometa node) (PrioMeta prio m)
+            propagatePrio node
+           QPDoubleBlocked flag _ ->
+            return []
+         Nothing -> return []
+       ) oldobs
+     if pp || princ then
        storeprio node (PrioMeta prio m) []
-      else do
-       pp <- ureadIORef (mprincipalpresent m)
-       if pp then
-         storeprio node (PrioMeta prio m) []
-        else
-         storeprio node (NoPrio False) []
+      else
+       storeprio node (NoPrio False) []
     PDoubleBlocked m1 m2 cont -> do
      flag <- lift $ newIORef False
      let newobs = ((QPDoubleBlocked flag cont, node) :)
@@ -436,12 +512,16 @@ calc cont node = do
    case p of
     OK -> storeprio node (NoPrio True) []
     Error _ -> return Nothing
+
+
     AddExtraRef _ m eref -> do
      lift $ NoUndo.modifyIORef (mextrarefs m) (eref :)
      return Nothing
     And coms p1 p2 -> do
      let Just jnode = node
      sc <- lift $ newSubConstraints jnode
+
+
      uwriteIORef (ctsub jnode) $ Just sc
      ndep <- case coms of
       Nothing -> return 1 -- no metas pointing to it so will never decrement to 0
@@ -473,12 +553,14 @@ calc cont node = do
      let Just jnode = node
      umodifyIORef (cthandles jnode) (handle :)
      donewp node p'
-    ConnectHandle (NotM _) _ -> (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 739))
+    ConnectHandle (NotM _) _ -> __IMPOSSIBLE__
+
 choosePrioMeta :: Bool -> PrioMeta blk -> PrioMeta blk -> PrioMeta blk
 choosePrioMeta flip pm1@(PrioMeta p1 _) pm2@(PrioMeta p2 _) = if p1 > p2 then pm1 else if p2 > p1 then pm2 else if flip then pm2 else pm1
 choosePrioMeta _ pm@(PrioMeta _ _) (NoPrio _) = pm
 choosePrioMeta _ (NoPrio _) pm@(PrioMeta _ _) = pm
 choosePrioMeta _ (NoPrio d1) (NoPrio d2) = NoPrio (d1 && d2)
+
 propagatePrio :: CTree blk -> Undo [OKMeta blk]
 propagatePrio node = do
  parent <- lift $ readIORef $ ctparent node
@@ -500,14 +582,21 @@ propagatePrio node = do
      return $ phs ++ phs2
     else
      return []
+
 data Choice = LeftDisjunct | RightDisjunct
+
 choose :: MM Choice blk -> Prio -> MetaEnv (PB blk) -> MetaEnv (PB blk) -> MetaEnv (PB blk)
 choose c prio p1 p2 =
  mmpcase (True, prio, Nothing) c $ \c -> case c of
   LeftDisjunct -> p1
   RightDisjunct -> p2
+
 instance Refinable Choice blk where
  refinements _ x _ = return [(0, return LeftDisjunct), (0, return RightDisjunct)]
+
+
 instance Refinable OKVal blk where
- refinements _ _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/NarrowingSearch.hs") 785)) -- OKVal should never be refined
+ refinements _ _ _ = __IMPOSSIBLE__ -- OKVal should never be refined
+
+
 -- ------------------------------------

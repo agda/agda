@@ -1,25 +1,43 @@
-
-
-{-# OPTIONS -fglasgow-exts #-}
+{-# LANGUAGE ExistentialQuantification #-}
 
 module Agda.Auto.Syntax where
 
+
 import Agda.Utils.Impossible
--- mode: Agda implicit arguments
--- mode: Omitted arguments, used for implicit constructor type arguments
--- mode: A sort can be unknown, used as a hack for Agda's universe polymorphism
+#include "../undefined.h"
+
 import Data.IORef
+
 import Agda.Auto.NarrowingSearch
+
 type UId o = Metavar (Exp o) (RefInfo o)
 
-data RefInfo o = RIEnv [ConstRef o]
+data HintMode = HMNormal
+              | HMRecCall
+
+
+data EqReasoningConsts o = EqReasoningConsts {eqrcId, eqrcBegin, eqrcStep, eqrcEnd, eqrcSym, eqrcCong :: ConstRef o} -- "_≡_", "begin_", "_≡⟨_⟩_", "_∎", "sym", "cong"
+
+data EqReasoningState = EqRSNone | EqRSChain | EqRSPrf1 | EqRSPrf2 | EqRSPrf3
+ deriving (Eq, Show)
+
+
+data RefInfo o = RIEnv {rieHints :: [(ConstRef o, HintMode)], rieDefFreeVars :: Nat -- Nat - deffreevars (to make cost of using module parameters correspond to that of hints)
+
+                        , rieEqReasoningConsts :: Maybe (EqReasoningConsts o)
+
+                       }
                | RIMainInfo Nat (HNExp o) Bool -- true if iota steps performed when normalising target type (used to put cost when traversing a definition by construction instantiation)
                | forall a . RIUnifInfo [CAction o] (HNExp o) -- meta environment, opp hne
+               | RICopyInfo (ICExp o)
                | RIIotaStep Bool -- True - semiflex
                | RIInferredTypeUnknown
                | RINotConstructor
-               | RIUsedVars [UId o] [Nat]
+               | RIUsedVars [UId o] [Elr o]
                | RIPickSubsvar
+
+               | RIEqRState EqReasoningState
+
 
 type MyPB o = PB (RefInfo o)
 type MyMB a o = MB a (RefInfo o)
@@ -37,11 +55,15 @@ data MId = Id String
 
 data Abs a = Abs MId a
 
-data ConstDef o = ConstDef {cdname :: String, cdorigin :: o, cdtype :: MExp o, cdcont :: DeclCont o} -- contains no metas
+data ConstDef o = ConstDef {cdname :: String, cdorigin :: o, cdtype :: MExp o, cdcont :: DeclCont o
+
+                   , cddeffreevars :: Nat
+
+                  } -- contains no metas
 
 data DeclCont o = Def Nat [Clause o] (Maybe Nat) (Maybe Nat) -- maybe an index to elimand argument, maybe index to elim arg if semiflex
                 | Datatype [ConstRef o] -- constructors
-                | Constructor
+                | Constructor Nat -- number of omitted args
                 | Postulate
 
 type Clause o = ([Pat o], MExp o)
@@ -67,6 +89,9 @@ data Exp o = App (Maybe (UId o)) (OKHandle (RefInfo o)) (Elr o) (MArgList o)
            | Sort Sort
 
            | AbsurdLambda FMode
+
+
+           | Copy (MM (ICExp o) (RefInfo o))
 
 
 type MExp o = MM (Exp o) (RefInfo o)
@@ -123,21 +148,23 @@ detecteliminand cls =
   notcon PatConApp{} = False
   notcon _ = True
 
-detectsemiflex :: [Clause o] -> IO Bool
-detectsemiflex _ = return False -- disabled
+detectsemiflex :: ConstRef o -> [Clause o] -> IO Bool
+detectsemiflex _ _ = return False -- disabled
 categorizedecl :: ConstRef o -> IO ()
 categorizedecl c = do
  cd <- readIORef c
  case cdcont cd of
   Def narg cls _ _ -> do
-   semif <- detectsemiflex cls
+   semif <- detectsemiflex c cls
    let elim = detecteliminand cls
        semifb = case (semif, elim) of
                  (True, Just i) -> Just i -- just copying val of elim arg. this should be changed
                  (_, _) -> Nothing
    writeIORef c (cd {cdcont = Def narg cls elim semifb})
   _ -> return ()
+
 -- -------------------------------------------
+
 metaliseokh :: MExp o -> IO (MExp o)
 metaliseokh = fm
  where
@@ -157,7 +184,12 @@ metaliseokh = fm
    ot <- fm ot
    return $ Pi uid hid posdep it (Abs id ot)
   f e@(Sort{}) = return e
+
   f e@(AbsurdLambda{}) = return e
+
+
+  f Copy{} = __IMPOSSIBLE__
+
   fms (Meta m) = return $ Meta m
   fms (NotM es) = do
    es <- fs es
@@ -167,10 +199,14 @@ metaliseokh = fm
    a <- fm a
    as <- fms as
    return $ ALCons hid a as
+
   fs (ALConPar as) = do
    as <- fms as
    return $ ALConPar as
+
+
 -- -------------------------------------------
+
 expandExp :: MExp o -> IO (MExp o)
 expandExp = fm
  where
@@ -193,7 +229,12 @@ expandExp = fm
    ot <- fm ot
    return $ Pi uid hid posdep it (Abs id ot)
   f e@(Sort{}) = return e
+
   f e@(AbsurdLambda{}) = return e
+
+
+  f e@(Copy{}) = return e
+
   fms (Meta m) = do
    mb <- readIORef $ mbind m
    case mb of
@@ -207,16 +248,23 @@ expandExp = fm
    a <- fm a
    as <- fms as
    return $ ALCons hid a as
+
   fs (ALConPar as) = do
    as <- fms as
    return $ ALConPar as
+
+
 -- ---------------------------------
+
 addtrailingargs :: Clos (MArgList o) o -> ICArgList o -> ICArgList o
 addtrailingargs newargs CALNil = CALConcat newargs CALNil
 addtrailingargs newargs (CALConcat x xs) = CALConcat x (addtrailingargs newargs xs)
+
 -- ---------------------------------
+
 closify :: MExp o -> CExp o
 closify e = TrBr [e] (Clos [] e)
+
 sub :: MExp o -> CExp o -> CExp o
 -- sub e (Clos [] x) = Clos [Sub e] x
 sub e (TrBr trs (Clos (Skip : as) x)) = TrBr (e : trs) (Clos (Sub (Clos [] e) : as) x)
@@ -224,15 +272,19 @@ sub e (TrBr trs (Clos (Skip : as) x)) = TrBr (e : trs) (Clos (Sub (Clos [] e) : 
                                 Clos as x
                                else
                                 Clos (Weak (n - 1) : as) x-}
-sub _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Syntax.hs") 264))
+sub _ _ = __IMPOSSIBLE__
+
 subi :: MExp o -> ICExp o -> ICExp o
 subi e (Clos (Skip : as) x) = Clos (Sub (Clos [] e) : as) x
-subi _ _ = (throwImpossible (Impossible ("agsy: " ++ "../agsy/Agda/Auto/Syntax.hs") 268))
+subi _ _ = __IMPOSSIBLE__
+
 weak :: Nat -> CExp o -> CExp o
 weak n (TrBr trs e) = TrBr trs (weaki n e)
+
 weaki :: Nat -> Clos a o -> Clos a o
 weaki 0 x = x
 weaki n (Clos as x) = Clos (Weak n : as) x
+
 weakarglist :: Nat -> ICArgList o -> ICArgList o
 weakarglist 0 = id
 weakarglist n = f
@@ -242,6 +294,7 @@ weakelr :: Nat -> Elr o -> Elr o
 weakelr 0 elr = elr
 weakelr n (Var v) = Var (v + n)
 weakelr _ elr@(Const _) = elr
+
 doclos :: [CAction o] -> Nat -> Either Nat (ICExp o)
 doclos = f 0
  where

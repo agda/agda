@@ -162,3 +162,11 @@ Tools
   Given a module name M the Emacs mode can now display all the
   top-level modules and names inside M, along with types for the
   names. The command is activated using C-c C-o or the menus.
+
+* Auto command.
+
+  A command searching for type inhabitants has been added. The
+  command is invoked by pressing C-C C-a. There are several flags
+  and parameters, e.g. '-c' which enables case-splitting in the
+  search. For further information, read section 'Auto' on the
+  Agda wiki.

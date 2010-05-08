@@ -1,18 +1,15 @@
-
-
 module Agda.Auto.Convert where
 
 
-
 import Agda.Utils.Impossible
--- mode: Agda implicit arguments
--- mode: Omitted arguments, used for implicit constructor type arguments
--- mode: A sort can be unknown, used as a hack for Agda's universe polymorphism
+#include "../undefined.h"
+
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Control.Monad.State
 import Control.Monad.Error
+
 import qualified Agda.Syntax.Internal as I
 import qualified Agda.Syntax.Literal as I
 import qualified Agda.Syntax.Common as C
@@ -20,21 +17,24 @@ import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
-import Agda.TypeChecking.Monad.Signature (getConstInfo)
+import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
 import Agda.Utils.Permutation (Permutation(Perm), idP)
 import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
 import Agda.TypeChecking.Monad.Base (mvJudgement, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (lookupConstraint, getConstraints)
-import Agda.TypeChecking.Substitute (piApply)
+import Agda.TypeChecking.Substitute (piApply, raise)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
+
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
+
 import Agda.Auto.CaseSplit hiding (lift)
+
 
 norm :: Normalise t => t -> MB.TCM t
 norm x = normalise x
@@ -57,13 +57,14 @@ popMapS r w = do (m, xs) <- gets r
 data S = S {sConsts :: MapS AN.QName (TMode, ConstRef O),
             sMetas :: MapS I.MetaId (Metavar (Exp O) (RefInfo O), Maybe (MExp O, [MExp O]), [I.MetaId]),
             sEqs :: MapS Int (Maybe (Bool, MExp O, MExp O)),
-            sCurMeta :: Maybe I.MetaId
+            sCurMeta :: Maybe I.MetaId,
+            sMainMeta :: I.MetaId
            }
 
 type TOM = StateT S MB.TCM
 
-tomy :: I.MetaId -> [(Bool, AN.QName)] -> MB.TCM ([ConstRef O], Map I.MetaId (Metavar (Exp O) (RefInfo O), MExp O, [MExp O], [I.MetaId]), [(Bool, MExp O, MExp O)], Map AN.QName (TMode, ConstRef O))
-tomy imi icns = do
+tomy :: I.MetaId -> [(Bool, AN.QName)] -> [I.Type] -> MB.TCM ([ConstRef O], [MExp O], Map I.MetaId (Metavar (Exp O) (RefInfo O), MExp O, [MExp O], [I.MetaId]), [(Bool, MExp O, MExp O)], Map AN.QName (TMode, ConstRef O))
+tomy imi icns typs = do
  eqs <- getEqs
  let
   r :: TOM ()
@@ -104,7 +105,9 @@ tomy imi icns = do
        return $ cdcont cc
       MB.Constructor {MB.conData = dt} -> do
        _ <- getConst False dt TMAll -- make sure that datatype is included
-       return Constructor
+       cc <- lift $ liftIO $ readIORef c
+       let (Just nomi, _) = cdorigin cc
+       return $ Constructor (nomi - cddeffreevars cc)
      lift $ liftIO $ modifyIORef c (\cdef -> cdef {cdtype = typ', cdcont = cont})
      r
     Nothing -> do
@@ -158,20 +161,21 @@ tomy imi icns = do
          r
         Nothing ->
          return ()
- (icns', s) <- runStateT
+ ((icns', typs'), s) <- runStateT
   (do _ <- getMeta imi
       icns' <- mapM (\(iscon, name) -> getConst iscon name TMAll) icns
+      typs' <- mapM tomyType typs
       r
-      return icns'
-  ) (S {sConsts = initMapS, sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing})
+      return (icns', typs')
+  ) (S {sConsts = initMapS, sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = imi})
  lift $ liftIO $ mapM_ categorizedecl icns'
- return (icns', Map.map (\(x, Just (y, z), w) -> (x, y, z, w)) (fst (sMetas s)), map (\(Just x) -> x) $ Map.elems (fst (sEqs s)), fst (sConsts s))
+ return (icns', typs', Map.map (\(x, Just (y, z), w) -> (x, y, z, w)) (fst (sMetas s)), map (\(Just x) -> x) $ Map.elems (fst (sEqs s)), fst (sConsts s))
 
 getConst :: Bool -> AN.QName -> TMode -> TOM (ConstRef O)
 getConst iscon name mode = do
  def <- lift $ getConstInfo name
  case MB.theDef def of
-  MB.Record{} -> do
+  MB.Record {MB.recCon = conname} -> do
    cmap <- fst `liftM` gets sConsts
    case Map.lookup name cmap of
     Just (mode', c) ->
@@ -182,8 +186,11 @@ getConst iscon name mode = do
      else
       return c
     Nothing -> do
-     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = show name ++ ".CONS", cdorigin = (Just (fromIntegral $ I.arity (MB.defType def)), name), cdtype = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 183)), cdcont = Constructor})
-     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 184)), cdcont = Datatype [ccon]})
+     mainm <- gets sMainMeta
+     dfv <- lift $ getdfv mainm name
+     let nomi = fromIntegral $ I.arity (MB.defType def)
+     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = show name ++ ".CONS", cdorigin = (Just nomi, conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - fromIntegral dfv), cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
+     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon], cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return $ if iscon then ccon else c
   _ -> do
@@ -197,9 +204,15 @@ getConst iscon name mode = do
        return (Just (fromIntegral npar), show dname ++ "." ++ show (I.qnameName name))
       else
        return (Nothing, show name)
-     c <- lift $ liftIO $ newIORef (ConstDef {cdname = sname, cdorigin = (miscon, name), cdtype = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 198)), cdcont = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 198))})
+     mainm <- gets sMainMeta
+     dfv <- lift $ getdfv mainm name
+     c <- lift $ liftIO $ newIORef (ConstDef {cdname = sname, cdorigin = (miscon, name), cdtype = __IMPOSSIBLE__, cdcont = __IMPOSSIBLE__, cddeffreevars = fromIntegral dfv})
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return c
+
+getdfv mainm name = do
+ mv <- lookupMeta mainm
+ withMetaInfo (getMetaInfo mv) $ getDefFreeVars name
 
 getMeta :: I.MetaId -> TOM (Metavar (Exp O) (RefInfo O))
 getMeta name = do
@@ -300,6 +313,8 @@ weaken i (NotM e) =
   AbsurdLambda{} -> NotM e
 
 
+  Copy{} -> __IMPOSSIBLE__
+
 
 weakens :: Int -> MArgList O -> MArgList O
 weakens _ as@(Meta m) = as
@@ -350,7 +365,7 @@ tomyExp (I.Fun (C.Arg hid x) y) = do
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) False x' (Abs NoId (weaken 0 y'))
 tomyExp (I.Sort (I.Type (I.Lit (I.LitLevel _ l)))) = return $ NotM $ Sort $ Set $ fromIntegral l
-tomyExp (I.Sort (I.MetaS _ _)) = throwError $ strMsg "Auto: Searching for type place holders is not supported"
+tomyExp (I.Sort (I.MetaS _ _)) = throwError $ strMsg "Auto: Searching for a type of arbitrary set level is not supported"
 tomyExp (I.Sort _) = return $ NotM $ Sort UnknownSort
 tomyExp t@I.MetaV{} = do
  t <- lift $ instantiate t
@@ -411,7 +426,7 @@ frommyExp :: MExp O -> IO I.Term
 frommyExp (Meta m) = do
  bind <- readIORef $ mbind m
  case bind of
-  Nothing -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 412))
+  Nothing -> __IMPOSSIBLE__
   Just e -> frommyExp (NotM e)
 frommyExp (NotM e) =
  case e of
@@ -434,18 +449,21 @@ frommyExp (NotM e) =
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (C.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
-  Sort UnknownSort -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 435))
-  Sort Type -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 436))
+  Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
+  Sort Type -> __IMPOSSIBLE__
 
   AbsurdLambda hid ->
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
+
+
+  Copy{} -> __IMPOSSIBLE__ -- argument thrown away
 
 
 frommyExps :: Nat -> MArgList O -> IO I.Args
 frommyExps ndrop (Meta m) = do
  bind <- readIORef $ mbind m
  case bind of
-  Nothing -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 446))
+  Nothing -> __IMPOSSIBLE__
   Just e -> frommyExps ndrop (NotM e)
 frommyExps ndrop (NotM as) =
  case as of
@@ -455,7 +473,8 @@ frommyExps ndrop (NotM as) =
    x' <- frommyExp x
    xs' <- frommyExps ndrop xs
    return $ C.Arg (icnvh hid) x' : xs'
-  ALConPar _ -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 456))
+  ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs
+  ALConPar _ -> __IMPOSSIBLE__
 
 -- --------------------------------
 
@@ -478,8 +497,8 @@ modifyAbstractClause cl = cl
 -- ---------------------------------
 
 
-constructPats :: Map AN.QName (TMode, ConstRef O) -> I.Clause -> MB.TCM ([(FMode, MId)], [CSPat O])
-constructPats cmap clause = do
+constructPats :: Map AN.QName (TMode, ConstRef O) -> I.MetaId -> I.Clause -> MB.TCM ([(FMode, MId)], [CSPat O])
+constructPats cmap mainm clause = do
  let cnvps ns [] = return (ns, [])
      cnvps ns (p : ps) = do
       (ns', ps') <- cnvps ns ps
@@ -490,15 +509,15 @@ constructPats cmap clause = do
       in case C.unArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
        I.ConP c ps -> do
-        (c', _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing})
+        (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         (ns', ps') <- cnvps ns ps
-        cc <- liftIO $ readIORef c'
+        cc <- liftIO $ readIORef c2
         let Just npar = fst $ cdorigin cc
-        return (ns', HI hid (CSPatConApp c' (replicate (fromIntegral npar) (HI Hidden CSOmittedArg) ++ ps')))
+        return (ns', HI hid (CSPatConApp c2 (replicate (fromIntegral npar) (HI Hidden CSOmittedArg) ++ ps')))
        I.DotP t -> do
-        (t', _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing})
-        return (ns, HI hid (CSPatExp t'))
-       _ -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 499))
+        (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
+        return (ns, HI hid (CSPatExp t2))
+       _ -> __IMPOSSIBLE__
  (names, pats) <- cnvps [] (I.clausePats clause)
  return (reverse names, pats)
 
@@ -513,35 +532,37 @@ frommyClause (ids, pats, mrhs) = do
       return $ I.ExtendTel (C.Arg (icnvh hid) t') (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
-     getperms n [] _ _ = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 514))
+     getperms n [] _ _ = __IMPOSSIBLE__
      getperms 0 (p : ps) perm nv = do
       (perm, nv) <- getperm p perm nv
       getperms 0 ps perm nv
      getperms n (HI _ CSPatExp{} : ps) perm nv = getperms (n - 1) ps perm nv
      getperms n (HI _ CSOmittedArg{} : ps) perm nv = getperms (n - 1) ps perm nv
-     getperms n (_ : _) _ _ = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 520))
+     getperms n (_ : _) _ _ = __IMPOSSIBLE__
      getperm (HI _ p) perm nv =
       case p of
-       CSPatVar v -> return (length ids + nv - 1 - v : perm, nv)
+       --CSPatVar v -> return (length ids + nv - 1 - v : perm, nv)
+       CSPatVar v -> return ((length ids - 1 - v, nv) : perm, nv + 1)
        CSPatConApp c ps -> do
         cdef <- readIORef c
         let (Just ndrop, _) = cdorigin cdef
         getperms ndrop ps perm nv
        CSPatExp e -> return (perm, nv + 1)
-       _ -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 529))
+       _ -> __IMPOSSIBLE__
  (rperm, nv) <- getperms 0 pats [] 0
- let perm = reverse rperm
-     renperm = map (\i -> length ids + nv - 1 - i) rperm
-     renm = rename (\i -> renperm !! i)
+ let --perm = reverse rperm
+     perm = map (\i -> let Just x = lookup i rperm in x) [0..length ids - 1]
+     --renperm = map (\i -> length ids + nv - 1 - i) rperm
+     --renm = rename (\i -> renperm !! i)
      cnvps 0 [] = return []
-     cnvps n [] = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 535))
+     cnvps n [] = __IMPOSSIBLE__
      cnvps 0 (p : ps) = do
       p' <- cnvp p
       ps' <- cnvps 0 ps
       return (p' : ps')
      cnvps n (HI _ CSPatExp{} : ps) = cnvps (n - 1) ps
      cnvps n (HI _ CSOmittedArg{} : ps) = cnvps (n - 1) ps
-     cnvps n (_ : _) = (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 542))
+     cnvps n (_ : _) = __IMPOSSIBLE__
      cnvp (HI hid p) = do
       p' <- case p of
        CSPatVar v -> return (I.VarP $ let HI _ (Id n, _) = ids !! v in n)
@@ -553,8 +574,8 @@ frommyClause (ids, pats, mrhs) = do
        CSPatExp e -> do
         e' <- frommyExp {-$ renm-} e  -- rename disabled to match (incorrect?) Agda reification of clauses
         return (I.DotP e')
-       CSAbsurd -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 554)) -- CSAbsurd not used
-       _ -> (throwImpossible (Impossible ("agsy: " ++ "Convert.hs") 555))
+       CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
+       _ -> __IMPOSSIBLE__
       return $ C.Arg (icnvh hid) p'
  ps <- cnvps 0 pats
  body <- case mrhs of
@@ -563,9 +584,17 @@ frommyClause (ids, pats, mrhs) = do
            e' <- frommyExp {-$ renm-} e  -- rename disabled to match (incorrect?) Agda reification of clauses
            let r 0 = I.Body e'
                r n = I.Bind $ I.Abs "h" $ r (n - 1)
-               e'' = r (length ids + nv)
+               e'' = r ({-length ids + -}nv)
            return e''
- return $ I.Clause SP.noRange tel (Perm (fromIntegral $ nv + length ids) (map fromIntegral perm)) ps body
+ return $ I.Clause SP.noRange tel (Perm (fromIntegral $ nv{- + length ids-}) (map fromIntegral perm)) ps body
+
+contains_constructor :: [CSPat O] -> Bool
+contains_constructor = any f
+ where
+  f (HI _ p) = case p of
+         CSPatConApp{} -> True
+         _ -> False
+
 
 etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
 etaContractBody (I.NoBody) = return I.NoBody
@@ -590,6 +619,9 @@ freeIn = f
 
    AbsurdLambda{} -> True
 
+
+   Copy{} -> __IMPOSSIBLE__
+
   fs v es = case mr es of
    ALNil -> True
    ALCons _ a as -> f v a && fs v as
@@ -597,10 +629,94 @@ freeIn = f
    ALConPar as -> fs v as
 
 
-negtype :: MExp o -> MExp o
-negtype = f 0
+negtype :: ConstRef o -> MExp o -> MExp o
+negtype ee = f 0
  where
   mr x = let NotM x' = x in x'
   f n e = case mr e of
    Pi uid hid possdep it (Abs id ot) -> NotM $ Pi uid hid possdep it (Abs id (f (n + 1) ot))
-   _ -> NotM $ Pi Nothing NotHidden False (NotM $ Pi Nothing NotHidden False e (Abs NoId (NotM $ Pi Nothing NotHidden True (NotM $ Sort (Set 0)) (Abs NoId (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)))))) (Abs NoId (NotM $ App Nothing (NotM OKVal) (Var (n + 1)) (NotM ALNil)))
+   _ -> NotM $ Pi Nothing NotHidden False (NotM $ Pi Nothing NotHidden False e (Abs NoId (NotM $ Pi Nothing NotHidden True (NotM $ Sort (Set 0)) (Abs NoId (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)))))) (Abs NoId (NotM $ App Nothing (NotM OKVal) (Const ee) (NotM ALNil)))
+
+-- ---------------------------------------
+
+findClauseDeep :: I.MetaId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
+findClauseDeep m = do
+  sig <- getImportedSignature
+  let res = do
+        def <- Map.elems $ MB.sigDefinitions sig
+        MB.Function{MB.funClauses = cs} <- [MB.theDef def]
+        c <- cs
+        unless (peelbinds False findMeta $ I.clauseBody c) []
+        return (MB.defName def, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
+  return $ case res of
+    [] -> Nothing
+    [r] -> Just r
+    _ -> __IMPOSSIBLE__
+  where
+    peelbinds d f = r
+     where r b = case b of
+                  I.Bind b -> r $ I.absBody b
+                  I.NoBind b -> r b
+                  I.NoBody -> d
+                  I.Body e -> f e
+    findMeta e =
+     case e of
+      I.Var _ as -> findMetas as
+      I.Lam _ b -> findMeta (I.absBody b)
+      I.Lit{} -> False
+      I.Def _ as -> findMetas as
+      I.Con _ as -> findMetas as
+      I.Pi it ot -> findMetat (C.unArg it) || findMetat (I.absBody ot)
+      I.Fun it ot -> findMetat (C.unArg it) || findMetat ot
+      I.Sort{} -> False
+      I.MetaV m' _  -> m == m'
+    findMetas = any (findMeta . C.unArg)
+    findMetat (I.El _ e) = findMeta e
+    toplevel e =
+     case e of
+      I.MetaV{} -> True
+      _ -> False
+
+-- ---------------------------------------
+
+matchType :: Integer -> Integer -> I.Type -> I.Type -> Maybe (Nat, Nat) -- Nat is deffreevars of const, Nat is ctx length of target type, left arg is const type, right is target type
+matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
+ where
+  trmodps 0 ctyp = tr 0 0 ctyp
+  trmodps n ctyp = case ctyp of
+   I.El _ (I.Pi _ ot) -> trmodps (n - 1) (I.absBody ot)
+   _ -> __IMPOSSIBLE__
+  tr narg na ctyp =
+   case ft 0 0 Just ctyp ttyp of
+    Just n -> Just (n, narg)
+    Nothing -> case ctyp of
+     I.El _ (I.Pi _ ot) -> tr (narg + 1) (na + 1) (I.absBody ot)
+     I.El _ (I.Fun _ ot) -> tr (narg + 1) na ot
+     _ -> Nothing
+   where
+    ft nl n c (I.El _ e1) (I.El _ e2) = f nl n c e1 e2
+    f nl n c e1 e2 = case e1 of
+     I.Var v1 as1 | v1 < nl -> case e2 of
+      I.Var v2 as2 | v1 == v2 -> fs nl (n + 1) c as1 as2
+      _ -> Nothing
+     I.Var v1 _ | v1 < nl + na -> c n -- unify vars with no args?
+     I.Var v1 as1 -> case e2 of
+      I.Var v2 as2 | cdfv + na + nl - v1 == tctx + nl - v2 -> fs nl (n + 1) c as1 as2
+      _ -> Nothing
+     _ -> case (e1, e2) of
+      (I.MetaV{}, _) -> c n
+      (_, I.MetaV{}) -> c n
+      (I.Lam hid1 b1, I.Lam hid2 b2) | hid1 == hid2 -> f (nl + 1) n c (I.absBody b1) (I.absBody b2)
+      (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
+      (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
+      (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
+      (I.Pi (C.Arg hid1 it1) ot1, I.Pi (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Fun (C.Arg hid1 it1) ot1, I.Fun (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft nl n c ot1 ot2) it1 it2
+      (I.Fun (C.Arg hid1 it1) ot1, I.Pi (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (raise 1 ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (C.Arg hid1 it1) ot1, I.Fun (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (raise 1 ot2)) it1 it2
+      (I.Sort{}, I.Sort{}) -> c n -- sloppy
+      _ -> Nothing
+    fs nl n c es1 es2 = case (es1, es2) of
+     ([], []) -> c n
+     (C.Arg hid1 e1 : es1, C.Arg hid2 e2 : es2) | hid1 == hid2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     _ -> Nothing
