@@ -41,7 +41,7 @@ module Agda.Syntax.Position
   , tests
   ) where
 
-import Data.Generics (Data, Typeable)
+import Data.Generics (Typeable, Data)
 import Data.List
 import Data.Function
 import Data.Set (Set, (\\))

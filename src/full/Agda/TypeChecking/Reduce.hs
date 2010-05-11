@@ -10,7 +10,6 @@ import Control.Applicative
 import Data.List as List hiding (sort)
 import Data.Map as Map
 import qualified Data.Set as Set
-import Data.Generics
 import Data.Traversable
 
 import Agda.Syntax.Position

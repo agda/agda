@@ -8,7 +8,6 @@ import Control.Monad.Error
 import Control.Monad.State
 import System.IO.Unsafe (unsafePerformIO)
 import Data.List
-import Data.Generics
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.IORef

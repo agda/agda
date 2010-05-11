@@ -7,7 +7,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr)
 import Control.Applicative
-import Data.Generics
+import Data.Generics (Typeable, Data)
 import Data.Foldable
 import Data.Traversable
 import Data.Function

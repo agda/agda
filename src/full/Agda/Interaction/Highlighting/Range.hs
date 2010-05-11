@@ -15,7 +15,7 @@ module Agda.Interaction.Highlighting.Range
 
 import Agda.Utils.QuickCheck
 import Data.List
-import Data.Generics
+import Data.Generics (Typeable, Data)
 import Agda.Utils.TestHelpers
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Concrete as C

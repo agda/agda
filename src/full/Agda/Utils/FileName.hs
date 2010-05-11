@@ -13,7 +13,7 @@ module Agda.Utils.FileName
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 import Data.Function
-import Data.Generics
+import Data.Generics (Typeable, Data)
 import Data.List
 import Data.Maybe
 import Control.Applicative

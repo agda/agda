@@ -13,7 +13,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Control.Applicative
 
-import Data.Generics (Data, Typeable)
+import Data.Generics (Typeable, Data)
 import qualified Data.Map as Map
 import Control.Monad.Error
 import Data.List

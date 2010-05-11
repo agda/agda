@@ -13,7 +13,6 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 import qualified Data.ByteString.Lazy as BS
-import Data.Generics
 import Data.List
 import Data.Maybe
 import Data.Map (Map)

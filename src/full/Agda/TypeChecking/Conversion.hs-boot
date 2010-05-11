@@ -1,7 +1,6 @@
 
 module Agda.TypeChecking.Conversion where
 
-import Data.Generics
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 

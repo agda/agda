@@ -5,7 +5,7 @@ import Control.Monad.State
 import Agda.Interaction.Monad
 import Agda.TypeChecking.Monad
 
-import Data.Generics
+import Data.Generics (Data)
 import Data.Generics.Text
 import Data.Map
 

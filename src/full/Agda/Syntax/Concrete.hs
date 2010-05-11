@@ -33,7 +33,7 @@ module Agda.Syntax.Concrete
     )
     where
 
-import Data.Generics hiding (Fixity, Infix)
+import Data.Generics (Typeable, Data)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common

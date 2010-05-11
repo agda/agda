@@ -3,7 +3,6 @@ module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity
 import Control.Monad.Reader
-import Data.Generics
 import Data.List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -301,7 +300,7 @@ instance Subst Telescope where
   substUnder n u  EmptyTel	   = EmptyTel
   substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
 
-instance (Data a, Subst a) => Subst (Abs a) where
+instance Subst a => Subst (Abs a) where
     substs us	   (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
     substUnder n u (Abs x t) = Abs x $ substUnder (n + 1) u t
 

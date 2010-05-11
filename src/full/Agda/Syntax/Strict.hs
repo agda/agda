@@ -2,7 +2,7 @@
 
 module Agda.Syntax.Strict where
 
-import Data.Generics
+import Data.Generics (everything)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

@@ -6,7 +6,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Error
-import Data.Generics
 import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List

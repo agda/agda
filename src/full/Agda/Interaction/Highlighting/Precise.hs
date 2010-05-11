@@ -29,7 +29,7 @@ import Control.Monad
 import Agda.Utils.QuickCheck
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Generics
+import Data.Generics (Typeable, Data)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Common as C
