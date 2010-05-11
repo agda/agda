@@ -124,7 +124,7 @@ data DeclInfo =
 	DeclInfo { declName  :: Name
 		 , declRange :: Range
 		 }
-  deriving (Eq, Typeable, Data, Show)
+  deriving (Typeable, Data, Show)
 
 instance HasRange DeclInfo where
   getRange = declRange

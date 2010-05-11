@@ -72,7 +72,7 @@ data Expr
         | ETel Telescope                       -- ^ only used for printing telescopes
         | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
         | Quote !Range QName                   -- ^ ex: @quote e@
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -88,27 +88,27 @@ data Pattern
 	| AsP !Range Name Pattern
 	| DotP !Range Expr
 	| LitP Literal
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding BoundName -- ^ . @x@ or @{x}@
 	| DomainFull TypedBindings    -- ^ . @(xs:e,..,ys:e')@ or @{xs:e,..,ys:e'}@
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
 data TypedBindings = TypedBindings !Range Hiding [TypedBinding]
 	-- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 
 data BoundName = BName { boundName   :: Name
                        , bnameFixity :: Fixity
                        }
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = BName x defaultFixity
@@ -117,7 +117,7 @@ mkBoundName_ x = BName x defaultFixity
 data TypedBinding
 	= TBind !Range [BoundName] Expr   -- Binding @x1,..,xn:A@
 	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
@@ -125,7 +125,7 @@ data TypedBinding
 type Telescope = [TypedBindings]
 -- data Telescope = TeleBind [TypedBindings]
 -- 	       | TeleFun Telescope Telescope
---     deriving (Typeable, Data, Eq)
+--     deriving (Typeable, Data)
 
 
 {-| Left hand sides can be written in infix style. For example:
@@ -139,17 +139,17 @@ data LHS = LHS Pattern [Pattern] [RewriteEqn] [WithExpr]
          -- ^ original pattern, with-patterns, rewrite equations and with-expressions
          | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
          -- ^ new with-patterns, rewrite equations and with-expressions
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data)
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
 
 data RHS = AbsurdRHS
 	 | RHS Expr
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
-  deriving (Typeable, Data, Eq)
+  deriving (Typeable, Data)
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -161,7 +161,7 @@ data ImportDirective
 	    , renaming		:: [Renaming]
 	    , publicOpen	:: Bool	-- ^ Only for @open@. Exports the opened names from the current module.
 	    }
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 defaultImportDir :: ImportDirective
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
@@ -169,7 +169,7 @@ defaultImportDir = ImportDirective noRange (Hiding []) [] False
 data UsingOrHiding
 	= Hiding [ImportedName]
 	| Using  [ImportedName]
-    deriving (Typeable, Data, Eq)
+    deriving (Typeable, Data)
 
 -- | An imported name can be a module or a defined name
 data ImportedName = ImportedModule  { importedName :: Name }
@@ -188,7 +188,7 @@ data Renaming = Renaming { renFrom    :: ImportedName
                            -- ^ The range of the \"to\" keyword. Retained
                            --   for highlighting purposes.
                          }
-    deriving (Eq, Typeable, Data)
+    deriving (Typeable, Data)
 
 data AsName = AsName { asName  :: Name
                        -- ^ The \"as\" name.
@@ -196,7 +196,7 @@ data AsName = AsName { asName  :: Name
                        -- ^ The range of the \"as\" keyword. Retained
                        --   for highlighting purposes.
                      }
-    deriving (Eq, Typeable, Data)
+    deriving (Typeable, Data)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -230,10 +230,10 @@ data Declaration
 	| ModuleMacro !Range  Name [TypedBindings] Expr OpenShortHand ImportDirective
 	| Module      !Range QName [TypedBindings] [Declaration]
 	| Pragma      Pragma
-    deriving (Eq, Typeable, Data)
+    deriving (Typeable, Data)
 
 data OpenShortHand = DoOpen | DontOpen
-    deriving (Eq, Typeable, Data, Show)
+    deriving (Typeable, Data, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -247,7 +247,7 @@ data Pragma = OptionsPragma     !Range [String]
               -- module name.
             | ImpossiblePragma !Range
             | EtaPragma !Range QName
-    deriving (Eq, Typeable, Data)
+    deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
 
