@@ -19,7 +19,7 @@ open import Function
 open import Data.Product as Prod hiding (map)
 open import Data.Maybe
 open import Relation.Binary.PropositionalEquality
-import Relation.Binary.EqReasoning as Eq
+import Relation.Binary.EqReasoning as EqR
 
 open RawMonadPlus List.monadPlus
 private
@@ -133,7 +133,7 @@ mapIsFold {f = f} =
   ≈⟨ foldr-fusion (map f) [] (λ _ _ → refl) ⟩
     foldr (λ x ys → f x ∷ ys) []
   ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 concat-map : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} →
              concat ∘ map (map f) ≗ map f ∘ concat
@@ -148,14 +148,14 @@ concat-map {b = b} {f = f} =
      foldr-fusion (map f) [] (λ ys zs → map-++-commute f ys zs) ⟩
     map f ∘ concat
   ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 map-id : ∀ {a} {A : Set a} → map id ≗ id {A = List A}
 map-id = begin
   map id        ≈⟨ mapIsFold ⟩
   foldr _∷_ []  ≈⟨ sym ∘ idIsFold ⟩
   id            ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 map-compose : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
                 {g : B → C} {f : A → B} →
@@ -172,7 +172,7 @@ map-compose {g = g} {f} =
   ≈⟨ cong (map g) ∘ sym ∘ mapIsFold ⟩
     map g ∘ map f
   ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 foldr-cong : ∀ {a b} {A : Set a} {B : Set b}
                {f₁ f₂ : A → B → B} {e₁ e₂ : B} →
@@ -186,7 +186,7 @@ foldr-cong {f₁ = f₁} {f₂} {e} f₁≗₂f₂ refl =
   ≈⟨ foldr-fusion (foldr f₁ e) [] (λ x xs → f₁≗₂f₂ x (foldr f₁ e xs)) ⟩
     foldr f₂ e
   ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 map-cong : ∀ {a b} {A : Set a} {B : Set b} {f g : A → B} →
            f ≗ g → map f ≗ map g
@@ -200,7 +200,7 @@ map-cong {f = f} {g} f≗g =
   ≈⟨ sym ∘ mapIsFold ⟩
     map g
   ∎
-  where open Eq (_ →-setoid _)
+  where open EqR (_ →-setoid _)
 
 -- Take, drop, and splitAt.
 
