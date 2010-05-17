@@ -134,3 +134,15 @@ setoid A = record
 map-cong : ∀ {A B} (f : A → B) {xs ys : Stream A} →
            xs ≈ ys → map f xs ≈ map f ys
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
+
+zipWith-cong : ∀ {A B C} (_∙_ : A → B → C) {xs xs′ ys ys′} →
+               xs ≈ xs′ → ys ≈ ys′ →
+               zipWith _∙_ xs ys ≈ zipWith _∙_ xs′ ys′
+zipWith-cong _∙_ (x ∷ xs≈) (y ∷ ys≈) =
+  (x ∙ y) ∷ ♯ zipWith-cong _∙_ (♭ xs≈) (♭ ys≈)
+
+infixr 5 _⋎-cong_
+
+_⋎-cong_ : ∀ {A} {xs xs′ ys ys′ : Stream A} →
+           xs ≈ xs′ → ys ≈ ys′ → xs ⋎ ys ≈ xs′ ⋎ ys′
+(x ∷ xs≈) ⋎-cong ys≈ = x ∷ ♯ (ys≈ ⋎-cong ♭ xs≈)
