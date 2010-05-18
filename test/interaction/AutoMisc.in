@@ -1,0 +1,6 @@
+top_command (cmd_load currentFile [])
+goal_command 0 cmd_auto "-c"
+goal_command 1 cmd_auto "-c lemma' -t 60"
+goal_command 2 cmd_auto "RAA -t 60"
+goal_command 3 cmd_auto "-c"
+goal_command 4 cmd_auto "-d Fin"

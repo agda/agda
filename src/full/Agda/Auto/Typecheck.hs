@@ -379,7 +379,7 @@ noiotastep_term c args = f (HNApp Nothing (Const c) (CALConcat (Clos [] args) CA
    cd <- readIORef c
    let isshorthand =
         case cdcont cd of
-         Def _ [(pats, _)] _ _ -> all (\pat -> case pat of {PatConApp{} -> False; _ -> True}) pats
+         Def _ [(pats, _)] _ _ -> True -- all (\pat -> case pat of {PatConApp{} -> False; _ -> True}) pats
          _ -> False
    if isshorthand then
      mpret OK

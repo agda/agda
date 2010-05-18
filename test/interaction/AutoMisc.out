@@ -1,0 +1,55 @@
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*All Goals*"
+                 "?0 : (n + suc m) ≡ suc (n + m)
+?1 : (n + m) ≡ (m + n)
+?2 : Σ A (λ x → Drink x → Π A Drink)
+?3 : Vec .Y .n
+?4 : (xs : List .X) (ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
+")
+agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
+agda2_mode_code (last . (agda2-make-case-action
+                         '("lemma zero m = refl"
+                           "lemma (suc n) m = cong suc (lemma n m)"
+                           " {- by agsy {!-c!} -}")))
+agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
+agda2_mode_code (last . (agda2-make-case-action
+                         '("addcommut zero zero = refl"
+                           "addcommut zero (suc n) = sym (cong suc (addcommut n zero))"
+                           "addcommut (suc n) m = begin (suc (n + m) ≡⟨ cong suc (addcommut n m) ⟩ (suc (m + n) ≡⟨ sym (lemma' m n) ⟩ ((m + suc n) ∎)))"
+                           " {- by agsy {!-c lemma' -t 60!} -}")))
+agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
+agda2_mode_code (agda2-give-action
+                 2
+                 "RAA (Σ A (λ x → (x' : Drink x) → Π A Drink))
+(λ x →
+   x
+   (ΣI a
+    (λ x' →
+       fun
+       (λ a' →
+          RAA (Drink a')
+          (λ x0 →
+             x (ΣI a' (λ x1 → fun (λ a0 → RAA (Drink a0) (λ x2 → x0 x1))))))))) {- by agsy {!RAA -t 60!} -}")
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*All Goals*"
+                 "?0 : (n + suc m) ≡ suc (n + m)
+?1 : (n + m) ≡ (m + n)
+?3 : Vec .Y .n
+?4 : (xs : List .X) (ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
+")
+agda2_mode_code (agda2-goals-action '(0 1 3 4))
+agda2_mode_code (last . (agda2-make-case-action
+                         '("map f [] = []"
+                           "map f (xs ∷ xs') = f xs ∷ map f xs'"
+                           " {- by agsy {!-c!} -}")))
+agda2_mode_code (agda2-goals-action '(0 1 3 4))
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*Auto*"
+                 "Listing disproof(s) 0-0
+0  (Fin (suc (suc zero))) (zero ∷ []) (suc zero ∷ []) (λ ())
+")
+agda2_mode_code (agda2-goals-action '(0 1 3 4))
