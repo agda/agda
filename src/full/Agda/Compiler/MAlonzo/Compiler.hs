@@ -187,17 +187,19 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
   match hps rhs = HsMatch dummy (dsubname q i) hps (HsUnGuardedRhs rhs) []
   bvars (Body _)          _ = []
   bvars (Bind (Abs _ b')) n = HsPVar (ihname "v" n) : bvars b' (n + 1)
-  bvars (NoBind      b' ) n = HsPWildCard           : bvars b' n
+  bvars (NoBind      b' ) n = HsPWildCard           : bvars b' n -- WHY NOT: bvars b' n  -- PRODDUCES head [] exception
   bvars NoBody            _ = repeat HsPWildCard -- ?
 
   isCon (Arg _ ConP{}) = True
   isCon _              = False
 
+-- argpatts aps xs = hps
+-- xs is alist of haskell *variables* in form of patterns (because of wildcard)
 argpatts :: [Arg Pattern] -> [HsPat] -> TCM [HsPat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
-  pat   (DotP _   ) = pat (VarP dummy)
+  pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HsPWildCard -- SEE ABOVE
   pat   (LitP l   ) = return $ HsPLit $ hslit l
   pat p@(ConP q ps) = do
     -- Note that irr is applied once for every subpattern, so in the

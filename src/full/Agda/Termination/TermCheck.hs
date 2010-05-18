@@ -397,6 +397,34 @@ termTerm conf names f pats0 t0 = do
   loop pats0 Term.le t0
   where
        Just fInd = toInteger <$> List.elemIndex f names
+
+       -- sorts can contain arb. terms of type Nat, 
+       -- so look for recursive calls also
+       -- in sorts.  Ideally, Sort would not be its own datatype but just
+       -- a subgrammar of Term, then we would not need this boilerplate.
+       -- We do not care about guardedness since guardedness is destroyed
+       -- anyway when going from a coinductive type to Nat to Sort.
+       loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Sort -> TCM Calls
+       loopSort pats guarded s = do
+         case s of
+           Type t -> loop pats guarded t
+           Prop   -> return Term.empty
+           Inf    -> return Term.empty
+           Lub s1 s2 -> liftM2 Term.union
+             (loopSort pats guarded s1)
+             (loopSort pats guarded s2)
+           DLub s1 (Abs x s2) -> liftM2 Term.union
+             (loopSort pats guarded s1)
+             (loopSort (map liftDBP pats) guarded s2)
+           Suc s -> loopSort pats guarded s
+           MetaS _ _ -> return Term.empty  -- see comment on MetaV below
+
+
+       loopType :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Type -> TCM Calls
+       loopType pats guarded (El s t) = liftM2 Term.union 
+         (loopSort pats guarded s)
+         (loop pats guarded t)
+     
        loop :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
@@ -510,28 +538,28 @@ termTerm conf names f pats0 t0 = do
               fun = function g args0
 
             -- abstraction
-            Lam _ (Abs _ t) -> loop (map liftDBP pats) guarded t
+            Lam h (Abs x t) -> loop (map liftDBP pats) guarded t
 
             -- variable
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
 
             -- dependent function space
-            Pi (Arg _ (El _ a)) (Abs _ (El _ b)) ->
-               do g1 <- loop pats Term.unknown a
-                  g2 <- loop (map liftDBP pats) piArgumentGuarded b
+            Pi (Arg _ a) (Abs _ b) ->
+               do g1 <- loopType pats Term.unknown a
+                  g2 <- loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
-            Fun (Arg _ (El _ a)) (El _ b) ->
-               do g1 <- loop pats Term.unknown a
-                  g2 <- loop pats piArgumentGuarded b
+            Fun (Arg _ a) b ->
+               do g1 <- loopType pats Term.unknown a
+                  g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- literal
             Lit l -> return Term.empty
 
             -- sort
-            Sort s -> return Term.empty
+            Sort s -> loopSort pats guarded s
 
 	    -- Unsolved metas are not considered termination problems, there
 	    -- will be a warning for them anyway.
