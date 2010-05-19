@@ -38,6 +38,121 @@ Language
 
   See test/succeed/InjectiveTypeConstructors.agda for an example.
 
+* Termination checker can count.
+
+  There is a new flag --termination-depth=N accepting values N >= 1
+  (with N = 1 being the default) which influences the behavior of the
+  termination checker.  So far, the termination checker has only
+  distinguished three cases when comparing the argument of a recursive
+  call with the formal parameter of the callee.
+
+    < : the argument is structurally smaller than the parameter
+    = : they are equal
+    ? : the argument is bigger or unrelated to the parameter
+
+  This behavior, which is still the default (N = 1), will not
+  recognize the following functions as terminating.  
+
+    mutual
+  
+      f : ℕ → ℕ
+      f zero          = zero
+      f (suc zero)    = zero
+      f (suc (suc n)) = aux n 
+  
+      aux : ℕ → ℕ
+      aux m = f (suc m)
+
+   The call graph
+
+    f --(<)--> aux --(?)--> f
+
+  yields a recursive call from f to f via aux where the relation of
+  call argument to callee parameter is computed as "unrelated"
+  (composition of < and ?).
+
+  Setting N >= 2 allows a finer analysis: n has two constructors less
+  than (suc (suc n)), and (suc m) has one more than m, so we get the
+  call graph:
+
+    f --(-2)--> aux --(+1)--> f
+
+  The indirect call f --> f is now labeled with (-1), the termination
+  checker can now recognize that the call argument is decreasing on
+  this path.
+
+  Setting termination depth to N means that the termination checker
+  counts decrease up to N and increase up to N-1.  The default, N=1,
+  means that no increase is counted, every increase turns to
+  "unrelated".
+
+  In practice, the above example often arises when we use "with",
+  e.g., the program
+
+    f : ℕ → ℕ
+    f zero          = zero
+    f (suc zero)    = zero
+    f (suc (suc n)) with zero
+    ... | _ = f (suc n)
+  
+  is internally represented as
+  
+    mutual
+  
+      f : ℕ → ℕ
+      f zero          = zero
+      f (suc zero)    = zero
+      f (suc (suc n)) = aux n zero
+  
+      aux : ℕ → ℕ → ℕ
+      aux m k = f (suc m)
+
+  Thus, by default, the definition of f via "with" is not accepted by
+  the termination checker, against appearance ((suc) n is a subterm of
+  (suc (suc n))). Now, the termination checker is satisfied with
+  option "--termination-depth=2".
+
+  Caveats:
+
+  - This is an experimental feature, hopefully being replaced by
+    something smarter in the near future.
+
+  - Increasing the termination depth will quickly lead to very long
+    termination checking times.  So, use with care.  Setting
+    termination depth to 100 by habit, just to be on the safe side, is
+    not a good idea!
+
+  - Increasing termination depths makes only sense for linear data
+    types such as ℕ and Size.  For other types, increase cannot be
+    recognized.  For instance, consider a similar example with lists.
+
+      data List : Set where
+	nil  : List
+	cons : ℕ → List → List
+
+      mutual
+	f : List → List
+	f nil                  = nil
+	f (cons x nil)         = nil
+	f (cons x (cons y ys)) = aux y ys
+
+	aux : ℕ → List → List 
+	aux z zs = f (cons z zs)
+
+    Here, the termination checker compares (cons z zs) to z and also
+    to zs.  In both cases, the result will be "unrelated", no matter
+    how high we set the termination depth.  This is because when
+    comparing (cons z zs) to zs, for instance, z is unrelated to zs,
+    thus, (cons z zs) is also unrelated to zs.  We cannot say it is
+    just one up since z could a very large term.  Anyway, this points
+    to a weakness of untyped termination checking and could be fixed
+    by switching to a type-based termination checker.
+
+    To regain the benefit of an increased termination depth, we need
+    to index our lists by a linear type such as ℕ or Size.  With
+    termination depth 2, the above example is accepted for vectors
+    instead of lists.
+
 * Infinite types.
 
   If the new flag --guardedness-preserving-type-constructors is used,
