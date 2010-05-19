@@ -62,6 +62,7 @@ withSignature sig m =
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
 addConstant q d = liftTCM $ do
+  reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = killRange $ case theDef d of
 	      Constructor{} -> hideTel tel
