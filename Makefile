@@ -23,7 +23,7 @@ endif
 
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
-		 test succeed fail benchmark \
+		 test succeed fail benchmark up-to-date-std-lib \
 		 update-cabal install-lib install-bin install-emacs-mode
 
 ## Default target #########################################################
@@ -215,17 +215,19 @@ std-lib :
 	darcs get --lazy --repo-name=$@ \
 		 http://www.cs.nott.ac.uk/~nad/repos/lib/
 
-library-test : std-lib
+up-to-date-std-lib : std-lib
+	@(cd std-lib && darcs pull -a && make Everything.agda)
+
+library-test : up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && darcs pull -a && make Everything.agda && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) +RTS -M1G -H1.5G -s)
+	@(cd std-lib && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) +RTS -M1G -H1.5G -s)
 
-compiler-test : std-lib
+compiler-test : up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "============================== Compiler =============================="
 	@echo "======================================================================"
-	@(cd std-lib && darcs pull -a && make Everything.agda)
 	@(cd test/compiler && time ../../$(AGDA_BIN) --compile -i. -i../../std-lib -i../../std-lib/src Main.agda && ./Main)
 
 benchmark :
