@@ -12,8 +12,9 @@ open import Data.Product as Prod
 open import Data.Sum
 open import Function
 open import Function.Equivalence using (_⇔_; equivalent)
-open import Relation.Binary hiding (Rel)
-open import Relation.Binary.PropositionalEquality as P using (_≡_; _≢_)
+open import Level
+open import Relation.Binary as B hiding (Rel)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Nullary.Negation
@@ -92,352 +93,410 @@ Equality k = False (k ≟-Kind other geq)
 ------------------------------------------------------------------------
 -- Equality/ordering
 
--- The three relations.
+module Equality {A : Set} -- The "return type".
+                (_R_ : A → A → Set) where
 
-data Rel {A : Set} : Kind → A ⊥ → A ⊥ → Set where
-  now    : ∀ {k v}                                         → Rel k         (now   v) (now   v)
-  later  : ∀ {k x y} (x∼y : ∞ (Rel k         (♭ x) (♭ y))) → Rel k         (later x) (later y)
-  laterʳ : ∀ {x y}   (x≈y :    Rel (other weak) x  (♭ y) ) → Rel (other weak)     x  (later y)
-  laterˡ : ∀ {k x y} (x∼y :    Rel (other k) (♭ x)    y  ) → Rel (other k) (later x)        y
+  -- The three relations.
 
-infix 4 _≅_ _≳_ _≲_ _≈_
+  data Rel : Kind → A ⊥ → A ⊥ → Set where
+    now    : ∀ {k x y} (xRy : x R y)                         → Rel k         (now   x) (now   y)
+    later  : ∀ {k x y} (x∼y : ∞ (Rel k         (♭ x) (♭ y))) → Rel k         (later x) (later y)
+    laterʳ : ∀ {x y}   (x≈y :    Rel (other weak) x  (♭ y) ) → Rel (other weak)     x  (later y)
+    laterˡ : ∀ {k x y} (x∼y :    Rel (other k) (♭ x)    y  ) → Rel (other k) (later x)        y
 
-_≅_ : {A : Set} → A ⊥ → A ⊥ → Set
-_≅_ = Rel strong
+  infix 4 _≅_ _≳_ _≲_ _≈_
 
-_≳_ : {A : Set} → A ⊥ → A ⊥ → Set
-_≳_ = Rel (other geq)
+  _≅_ : A ⊥ → A ⊥ → Set
+  _≅_ = Rel strong
 
-_≲_ : {A : Set} → A ⊥ → A ⊥ → Set
-_≲_ = flip _≳_
+  _≳_ : A ⊥ → A ⊥ → Set
+  _≳_ = Rel (other geq)
 
-_≈_ : {A : Set} → A ⊥ → A ⊥ → Set
-_≈_ = Rel (other weak)
+  _≲_ : A ⊥ → A ⊥ → Set
+  _≲_ = flip _≳_
+
+  _≈_ : A ⊥ → A ⊥ → Set
+  _≈_ = Rel (other weak)
 
 ------------------------------------------------------------------------
 -- Lemmas relating the three relations
 
--- All relations include strong equality.
+  -- All relations include strong equality.
 
-≅⇒ : ∀ {A : Set} {k} {x y : A ⊥} → x ≅ y → Rel k x y
-≅⇒ now         = now
-≅⇒ (later x≅y) = later (♯ ≅⇒ (♭ x≅y))
+  ≅⇒ : ∀ {k} {x y : A ⊥} → x ≅ y → Rel k x y
+  ≅⇒ (now xRy)   = now xRy
+  ≅⇒ (later x≅y) = later (♯ ≅⇒ (♭ x≅y))
 
--- The weak equality includes the ordering.
+  -- The weak equality includes the ordering.
 
-≳⇒ : ∀ {A : Set} {k} {x y : A ⊥} → x ≳ y → Rel (other k) x y
-≳⇒ now          = now
-≳⇒ (later  x≳y) = later (♯ ≳⇒ (♭ x≳y))
-≳⇒ (laterˡ x≳y) = laterˡ  (≳⇒    x≳y )
+  ≳⇒ : ∀ {k} {x y : A ⊥} → x ≳ y → Rel (other k) x y
+  ≳⇒ (now xRy)    = now xRy
+  ≳⇒ (later  x≳y) = later (♯ ≳⇒ (♭ x≳y))
+  ≳⇒ (laterˡ x≳y) = laterˡ  (≳⇒    x≳y )
 
--- The relations agree for non-terminating computations.
+  -- The relations agree for non-terminating computations.
 
-never⇒never : ∀ {A : Set} {k₁ k₂} {x : A ⊥} →
-              Rel k₁ x never → Rel k₂ x never
-never⇒never (later  x∼never) = later (♯ never⇒never (♭ x∼never))
-never⇒never (laterʳ x≈never) =          never⇒never    x≈never
-never⇒never (laterˡ x∼never) = later (♯ never⇒never    x∼never)
+  never⇒never : ∀ {k₁ k₂} {x : A ⊥} →
+                Rel k₁ x never → Rel k₂ x never
+  never⇒never (later  x∼never) = later (♯ never⇒never (♭ x∼never))
+  never⇒never (laterʳ x≈never) =          never⇒never    x≈never
+  never⇒never (laterˡ x∼never) = later (♯ never⇒never    x∼never)
 
--- The "other" relations agree when the right-hand side is a value.
+  -- The "other" relations agree when the right-hand side is a value.
 
-now⇒now : ∀ {A : Set} {k₁ k₂} {x} {y : A} →
-          Rel (other k₁) x (now y) → Rel (other k₂) x (now y)
-now⇒now now            = now
-now⇒now (laterˡ x∼now) = laterˡ (now⇒now x∼now)
+  now⇒now : ∀ {k₁ k₂} {x} {y : A} →
+            Rel (other k₁) x (now y) → Rel (other k₂) x (now y)
+  now⇒now (now xRy)      = now xRy
+  now⇒now (laterˡ x∼now) = laterˡ (now⇒now x∼now)
 
 ------------------------------------------------------------------------
--- The relations are equivalences or partial orders
+-- Later can be dropped
 
--- Later can be dropped.
+  laterʳ⁻¹ : ∀ {k} {x : A ⊥} {y} →
+             Rel (other k) x (later y) → Rel (other k) x (♭ y)
+  laterʳ⁻¹ (later  x∼y)  = laterˡ        (♭ x∼y)
+  laterʳ⁻¹ (laterʳ x≈y)  = x≈y
+  laterʳ⁻¹ (laterˡ x∼ly) = laterˡ (laterʳ⁻¹ x∼ly)
 
-laterʳ⁻¹ : ∀ {A : Set} {k} {x : A ⊥} {y} →
-           Rel (other k) x (later y) → Rel (other k) x (♭ y)
-laterʳ⁻¹ (later  x∼y)  = laterˡ        (♭ x∼y)
-laterʳ⁻¹ (laterʳ x≈y)  = x≈y
-laterʳ⁻¹ (laterˡ x∼ly) = laterˡ (laterʳ⁻¹ x∼ly)
+  laterˡ⁻¹ : ∀ {x} {y : A ⊥} → later x ≈ y → ♭ x ≈ y
+  laterˡ⁻¹ (later  x≈y)  = laterʳ         (♭ x≈y)
+  laterˡ⁻¹ (laterʳ lx≈y) = laterʳ (laterˡ⁻¹ lx≈y)
+  laterˡ⁻¹ (laterˡ x≈y)  = x≈y
 
-laterˡ⁻¹ : ∀ {A : Set} {x} {y : A ⊥} → later x ≈ y → ♭ x ≈ y
-laterˡ⁻¹ (later  x≈y)  = laterʳ         (♭ x≈y)
-laterˡ⁻¹ (laterʳ lx≈y) = laterʳ (laterˡ⁻¹ lx≈y)
-laterˡ⁻¹ (laterˡ x≈y)  = x≈y
-
-later⁻¹ : ∀ {A : Set} {k} {x y : ∞ (A ⊥)} →
-          Rel k (later x) (later y) → Rel k (♭ x) (♭ y)
-later⁻¹ (later  x∼y)  = ♭ x∼y
-later⁻¹ (laterʳ lx≈y) = laterˡ⁻¹ lx≈y
-later⁻¹ (laterˡ x∼ly) = laterʳ⁻¹ x∼ly
-
--- All the relations are preorders.
-
-preorder : Kind → Set → Preorder _ _ _
-preorder k A = record
-  { Carrier    = A ⊥
-  ; _≈_        = _≡_
-  ; _∼_        = Rel k
-  ; isPreorder = record
-    { isEquivalence = P.isEquivalence
-    ; reflexive     = refl _
-    ; trans         = trans
-    }
-  }
-  where
-  refl : ∀ {k} (x : A ⊥) {y} → x ≡ y → Rel k x y
-  refl (now v)   P.refl = now
-  refl (later x) P.refl = later (♯ refl (♭ x) P.refl)
-
-  now-trans : ∀ {k x y} {v : A} →
-              Rel k x y → Rel k y (now v) → Rel k x (now v)
-  now-trans x∼y  now          = x∼y
-  now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
-
-  mutual
-
-    later-trans : ∀ {k} {x y : A ⊥} {z} →
-                  Rel k x y → Rel k y (later z) → Rel k x (later z)
-    later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
-    later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
-    later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
-    later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
-    later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
-
-    trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
-    trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
-    trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
-
-private module Pre {k} {A : Set} = Preorder (preorder k A)
-
--- The two equalities are equivalence relations.
-
-setoid : (k : Kind) {eq : Equality k} → Set → Setoid _ _
-setoid k {eq} A = record
-  { Carrier       = A ⊥
-  ; _≈_           = Rel k
-  ; isEquivalence = record
-    { refl  = Pre.refl
-    ; sym   = sym eq
-    ; trans = Pre.trans
-    }
-  }
-  where
-  sym : ∀ {k} {x y : A ⊥} → Equality k → Rel k x y → Rel k y x
-  sym eq now                 = now
-  sym eq (later         x∼y) = later (♯ sym eq (♭ x∼y))
-  sym eq (laterʳ        x≈y) = laterˡ  (sym eq    x≈y )
-  sym eq (laterˡ {weak} x≈y) = laterʳ  (sym eq    x≈y )
-  sym () (laterˡ {geq}  x≳y)
-
-private module S {k} {eq} {A : Set} = Setoid (setoid k {eq} A)
-
--- The order is a partial order, with strong equality as the
--- underlying equality.
-
-≳-poset : Set → Poset _ _ _
-≳-poset A = record
-  { Carrier        = A ⊥
-  ; _≈_            = _≅_
-  ; _≤_            = _≳_
-  ; isPartialOrder = record
-    { antisym    = antisym
-    ; isPreorder = record
-      { isEquivalence = S.isEquivalence
-      ; reflexive     = ≅⇒
-      ; trans         = Pre.trans
-      }
-    }
-  }
-  where
-  antisym : {x y : A ⊥} → x ≳ y → x ≲ y → x ≅ y
-  antisym now           now           = now
-  antisym (later  x≳y)  (later  x≲y)  = later (♯ antisym        (♭ x≳y)         (♭ x≲y))
-  antisym (later  x≳y)  (laterˡ x≲ly) = later (♯ antisym        (♭ x≳y)  (laterʳ⁻¹ x≲ly))
-  antisym (laterˡ x≳ly) (later  x≲y)  = later (♯ antisym (laterʳ⁻¹ x≳ly)        (♭ x≲y))
-  antisym (laterˡ x≳ly) (laterˡ x≲ly) = later (♯ antisym (laterʳ⁻¹ x≳ly) (laterʳ⁻¹ x≲ly))
-
--- Equational reasoning.
-
-module RelReasoning where
-
-  infix  2 _∎
-  infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
-
-  _≅⟨_⟩_ : ∀ {k A} x {y z : A ⊥} → x ≅ y → Rel k y z → Rel k x z
-  _ ≅⟨ x≅y ⟩ y∼z = Pre.trans (≅⇒ x≅y) y∼z
-
-  _≳⟨_⟩_ : ∀ {k A} x {y z : A ⊥} →
-           x ≳ y → Rel (other k) y z → Rel (other k) x z
-  _ ≳⟨ x≳y ⟩ y∼z = Pre.trans (≳⇒ x≳y) y∼z
-
-  _≈⟨_⟩_ : ∀ {A} x {y z : A ⊥} → x ≈ y → y ≈ z → x ≈ z
-  _ ≈⟨ x≈y ⟩ y≈z = Pre.trans x≈y y≈z
-
-  open S public using (sym)
-
-  _∎ : ∀ {k A} (x : A ⊥) → Rel k x x
-  x ∎ = Pre.refl
+  later⁻¹ : ∀ {k} {x y : ∞ (A ⊥)} →
+            Rel k (later x) (later y) → Rel k (♭ x) (♭ y)
+  later⁻¹ (later  x∼y)  = ♭ x∼y
+  later⁻¹ (laterʳ lx≈y) = laterˡ⁻¹ lx≈y
+  later⁻¹ (laterˡ x∼ly) = laterʳ⁻¹ x∼ly
 
 ------------------------------------------------------------------------
 -- Terminating computations
 
--- x ⇓ y means that x terminates with y.
+  -- x ⇓ y means that x terminates with y.
 
-infix 4 _⇓[_]_ _⇓_
+  infix 4 _⇓[_]_ _⇓_
 
-_⇓[_]_ : {A : Set} → A ⊥ → Kind → A → Set
-x ⇓[ k ] y = Rel k x (now y)
+  _⇓[_]_ : A ⊥ → Kind → A → Set
+  x ⇓[ k ] y = Rel k x (now y)
 
-_⇓_ : {A : Set} → A ⊥ → A → Set
-x ⇓ y = x ⇓[ other weak ] y
+  _⇓_ : A ⊥ → A → Set
+  x ⇓ y = x ⇓[ other weak ] y
 
--- The number of later constructors (steps) in the terminating
--- computation x.
+  -- The number of later constructors (steps) in the terminating
+  -- computation x.
 
-steps : ∀ {k} {A : Set} {x : A ⊥} {y} → x ⇓[ k ] y → ℕ
-steps .{x = now   v} (now    {v = v})    = zero
-steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
-
-module Steps where
-
-  open P.≡-Reasoning
-  open RelReasoning using (_≅⟨_⟩_)
-
-  private
-
-    lemma : ∀ {k} {A : Set} {x y} {z : A}
-            (x∼y : Rel (other k) (♭ x) y)
-            (y⇓z : y ⇓[ other k ] z) →
-            steps (Pre.trans (laterˡ {x = x} x∼y) y⇓z) ≡
-            suc (steps (Pre.trans x∼y y⇓z))
-    lemma x∼y now          = P.refl
-    lemma x∼y (laterˡ y⇓z) = begin
-      steps (Pre.trans (laterˡ (laterʳ⁻¹ x∼y)) y⇓z)  ≡⟨ lemma (laterʳ⁻¹ x∼y) y⇓z ⟩
-      suc (steps (Pre.trans (laterʳ⁻¹ x∼y) y⇓z))     ∎
-
-  left-identity : ∀ {k} {A : Set} {x y} {z : A}
-                  (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
-                  steps (x ≅⟨ x≅y ⟩ y⇓z) ≡ steps y⇓z
-  left-identity now         now          = P.refl
-  left-identity (later x≅y) (laterˡ y⇓z) = begin
-    steps (Pre.trans (laterˡ (≅⇒ (♭ x≅y))) y⇓z)  ≡⟨ lemma (≅⇒ (♭ x≅y)) y⇓z ⟩
-    suc (steps (_ ≅⟨ ♭ x≅y ⟩ y⇓z))               ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
-    suc (steps y⇓z)                              ∎
-
-  right-identity : ∀ {k} {A : Set} {x} {y z : A}
-                   (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
-                   steps (Pre.trans x⇓y y≈z) ≡ steps x⇓y
-  right-identity x⇓y now = P.refl
+  steps : ∀ {k} {x : A ⊥} {y} → x ⇓[ k ] y → ℕ
+  steps                (now _)             = zero
+  steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
 
 ------------------------------------------------------------------------
 -- Non-terminating computations
 
--- x ⇑ means that x does not terminate.
+  -- x ⇑ means that x does not terminate.
 
-infix 4 _⇑[_] _⇑
+  infix 4 _⇑[_] _⇑
 
-_⇑[_] : {A : Set} → A ⊥ → Kind → Set
-x ⇑[ k ] = Rel k x never
+  _⇑[_] : A ⊥ → Kind → Set
+  x ⇑[ k ] = Rel k x never
 
-_⇑ : {A : Set} → A ⊥ → Set
-x ⇑ = x ⇑[ other weak ]
+  _⇑ : A ⊥ → Set
+  x ⇑ = x ⇑[ other weak ]
+
+------------------------------------------------------------------------
+-- The relations are equivalences or partial orders
+
+-- The precondition that the underlying relation is an equivalence can
+-- be weakened for some of the properties.
+
+module Properties (S : Setoid zero zero) where
+
+  private
+    open module R = Setoid S
+      using () renaming (Carrier to A; _≈_ to _R_)
+    open Equality _R_
+
+  -- All the relations are preorders.
+
+  preorder : Kind → Preorder _ _ _
+  preorder k = record
+    { Carrier    = A ⊥
+    ; _≈_        = _≡_
+    ; _∼_        = Rel k
+    ; isPreorder = record
+      { isEquivalence = P.isEquivalence
+      ; reflexive     = refl _
+      ; trans         = trans
+      }
+    }
+    where
+    refl : ∀ {k} (x : A ⊥) {y} → x ≡ y → Rel k x y
+    refl (now v)   P.refl = now R.refl
+    refl (later x) P.refl = later (♯ refl (♭ x) P.refl)
+
+    now-R-trans : ∀ {k x} {y z : A} →
+                  Rel k x (now y) → y R z → Rel k x (now z)
+    now-R-trans (now xRy)    yRz = now (R.trans xRy yRz)
+    now-R-trans (laterˡ x∼y) yRz = laterˡ (now-R-trans x∼y yRz)
+
+    now-trans : ∀ {k x y} {v : A} →
+                Rel k x y → Rel k y (now v) → Rel k x (now v)
+    now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
+    now-trans x∼y  (now yRz)    = now-R-trans x∼y yRz
+
+    mutual
+
+      later-trans : ∀ {k} {x y : A ⊥} {z} →
+                    Rel k x y → Rel k y (later z) → Rel k x (later z)
+      later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
+      later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
+      later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
+      later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
+      later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
+
+      trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
+      trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
+      trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
+
+  private module Pre {k} = Preorder (preorder k)
+
+  -- The two equalities are equivalence relations.
+
+  setoid : (k : Kind) {eq : Equality k} → Setoid _ _
+  setoid k {eq} = record
+    { Carrier       = A ⊥
+    ; _≈_           = Rel k
+    ; isEquivalence = record
+      { refl  = Pre.refl
+      ; sym   = sym eq
+      ; trans = Pre.trans
+      }
+    }
+    where
+    sym : ∀ {k} {x y : A ⊥} → Equality k → Rel k x y → Rel k y x
+    sym eq (now xRy)           = now (R.sym xRy)
+    sym eq (later         x∼y) = later (♯ sym eq (♭ x∼y))
+    sym eq (laterʳ        x≈y) = laterˡ  (sym eq    x≈y )
+    sym eq (laterˡ {weak} x≈y) = laterʳ  (sym eq    x≈y )
+    sym () (laterˡ {geq}  x≳y)
+
+  private module S {k} {eq} = Setoid (setoid k {eq})
+
+  -- The order is a partial order, with strong equality as the
+  -- underlying equality.
+
+  ≳-poset : Poset _ _ _
+  ≳-poset = record
+    { Carrier        = A ⊥
+    ; _≈_            = _≅_
+    ; _≤_            = _≳_
+    ; isPartialOrder = record
+      { antisym    = antisym
+      ; isPreorder = record
+        { isEquivalence = S.isEquivalence
+        ; reflexive     = ≅⇒
+        ; trans         = Pre.trans
+        }
+      }
+    }
+    where
+    antisym : {x y : A ⊥} → x ≳ y → x ≲ y → x ≅ y
+    antisym (now    xRy)  (now    _)    = now xRy
+    antisym (later  x≳y)  (later  x≲y)  = later (♯ antisym        (♭ x≳y)         (♭ x≲y))
+    antisym (later  x≳y)  (laterˡ x≲ly) = later (♯ antisym        (♭ x≳y)  (laterʳ⁻¹ x≲ly))
+    antisym (laterˡ x≳ly) (later  x≲y)  = later (♯ antisym (laterʳ⁻¹ x≳ly)        (♭ x≲y))
+    antisym (laterˡ x≳ly) (laterˡ x≲ly) = later (♯ antisym (laterʳ⁻¹ x≳ly) (laterʳ⁻¹ x≲ly))
+
+  -- Equational reasoning.
+
+  module Reasoning where
+
+    infix  2 _∎
+    infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
+
+    _≅⟨_⟩_ : ∀ {k} x {y z : A ⊥} → x ≅ y → Rel k y z → Rel k x z
+    _ ≅⟨ x≅y ⟩ y∼z = Pre.trans (≅⇒ x≅y) y∼z
+
+    _≳⟨_⟩_ : ∀ {k} x {y z : A ⊥} →
+             x ≳ y → Rel (other k) y z → Rel (other k) x z
+    _ ≳⟨ x≳y ⟩ y∼z = Pre.trans (≳⇒ x≳y) y∼z
+
+    _≈⟨_⟩_ : ∀ x {y z : A ⊥} → x ≈ y → y ≈ z → x ≈ z
+    _ ≈⟨ x≈y ⟩ y≈z = Pre.trans x≈y y≈z
+
+    sym : ∀ {k} {eq : Equality k} {x y : A ⊥} →
+          Rel k x y → Rel k y x
+    sym {eq = eq} = S.sym {eq = eq}
+
+    _∎ : ∀ {k} (x : A ⊥) → Rel k x x
+    x ∎ = Pre.refl
 
 ------------------------------------------------------------------------
 -- Lemmas related to now and never
 
--- Now is not never.
+  -- Now is not never.
 
-now≉never : ∀ {k} {A : Set} {x : A} → ¬ Rel k (now x) never
-now≉never (laterʳ hyp) = now≉never hyp
+  now≉never : ∀ {k} {x : A} → ¬ Rel k (now x) never
+  now≉never (laterʳ hyp) = now≉never hyp
 
--- A partial value is either now or never (classically).
+  -- A partial value is either now or never (classically).
 
-now-or-never : ∀ {k} {A : Set} (x : A ⊥) →
-               ¬ ¬ ((∃ λ y → x ⇓[ other k ] y) ⊎ x ⇑[ other k ])
-now-or-never {A = A} x = helper <$> excluded-middle
-  where
-  open RawMonad ¬¬-Monad
+  now-or-never : ∀ {k} (x : A ⊥) →
+                 ¬ ¬ ((∃ λ y → x ⇓[ other k ] y) ⊎ x ⇑[ other k ])
+  now-or-never x = helper <$> excluded-middle
+    where
+    open RawMonad ¬¬-Monad
 
-  not-now-is-never : (x : A ⊥) → (∄ λ y → x ≳ now y) → x ≳ never
-  not-now-is-never (now x)   hyp with hyp (, now)
-  ... | ()
-  not-now-is-never (later x) hyp =
-    later (♯ not-now-is-never (♭ x) (hyp ∘ Prod.map id laterˡ))
+    not-now-is-never : (x : A ⊥) → (∄ λ y → x ≳ now y) → x ≳ never
+    not-now-is-never (now x)   hyp with hyp (, now R.refl)
+    ... | ()
+    not-now-is-never (later x) hyp =
+      later (♯ not-now-is-never (♭ x) (hyp ∘ Prod.map id laterˡ))
 
-  helper : Dec (∃ λ y → x ≳ now y) → _
-  helper (yes ≳now) = inj₁ $ Prod.map id ≳⇒ ≳now
-  helper (no  ≵now) = inj₂ $ ≳⇒ $ not-now-is-never x ≵now
+    helper : Dec (∃ λ y → x ≳ now y) → _
+    helper (yes ≳now) = inj₁ $ Prod.map id ≳⇒ ≳now
+    helper (no  ≵now) = inj₂ $ ≳⇒ $ not-now-is-never x ≵now
+
+------------------------------------------------------------------------
+-- Lemmas related to steps
+
+  module Steps where
+
+    open P.≡-Reasoning
+    open Reasoning using (_≅⟨_⟩_)
+
+    private
+
+      lemma : ∀ {k x y} {z : A}
+              (x∼y : Rel (other k) (♭ x) y)
+              (y⇓z : y ⇓[ other k ] z) →
+              steps (Pre.trans (laterˡ {x = x} x∼y) y⇓z) ≡
+              suc (steps (Pre.trans x∼y y⇓z))
+      lemma x∼y (now yRz)    = P.refl
+      lemma x∼y (laterˡ y⇓z) = begin
+        steps (Pre.trans (laterˡ (laterʳ⁻¹ x∼y)) y⇓z)  ≡⟨ lemma (laterʳ⁻¹ x∼y) y⇓z ⟩
+        suc (steps (Pre.trans (laterʳ⁻¹ x∼y) y⇓z))     ∎
+
+    left-identity : ∀ {k x y} {z : A}
+                    (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
+                    steps (x ≅⟨ x≅y ⟩ y⇓z) ≡ steps y⇓z
+    left-identity (now _)     (now _)      = P.refl
+    left-identity (later x≅y) (laterˡ y⇓z) = begin
+      steps (Pre.trans (laterˡ (≅⇒ (♭ x≅y))) y⇓z)  ≡⟨ lemma (≅⇒ (♭ x≅y)) y⇓z ⟩
+      suc (steps (_ ≅⟨ ♭ x≅y ⟩ y⇓z))               ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
+      suc (steps y⇓z)                              ∎
+
+    right-identity : ∀ {k x} {y z : A}
+                     (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
+                     steps (Pre.trans x⇓y y≈z) ≡ steps x⇓y
+    right-identity (now xRy)    (now yRz) = P.refl
+    right-identity (laterˡ x∼y) (now yRz) =
+      P.cong suc $ right-identity x∼y (now yRz)
 
 ------------------------------------------------------------------------
 -- Laws related to bind
 
--- Bind preserves all the relations.
+  -- Never is a left and right "zero" of bind.
 
-_>>=-cong_ :
-  ∀ {A B : Set} {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
-  Rel k x₁ x₂ → (∀ x → Rel k (f₁ x) (f₂ x)) →
-  Rel k (x₁ >>= f₁) (x₂ >>= f₂)
-now          >>=-cong f₁∼f₂ = f₁∼f₂ _
-later  x₁∼x₂ >>=-cong f₁∼f₂ = later (♯ (♭ x₁∼x₂ >>=-cong f₁∼f₂))
-laterʳ x₁≈x₂ >>=-cong f₁≈f₂ = laterʳ (x₁≈x₂ >>=-cong f₁≈f₂)
-laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼f₂)
+  left-zero : {B : Set} (f : B → A ⊥) → let open M in
+              (never >>= f) ≅ never
+  left-zero f = later (♯ left-zero f)
 
--- Inversion lemmas for bind.
+  right-zero : {B : Set} (x : B ⊥) → let open M in
+               (x >>= λ _ → never) ≅ never
+  right-zero (now   x) = S.refl
+  right-zero (later x) = later (♯ right-zero (♭ x))
 
->>=-inversion-⇓ :
-  ∀ {k} {A B : Set} x {f : A → B ⊥} {y} → let open M in
-  (x>>=f⇓ : (x >>= f) ⇓[ k ] y) →
-  ∃ λ z → ∃₂ λ (x⇓ : x ⇓[ k ] z) (fz⇓ : f z ⇓[ k ] y) →
-               steps x⇓ + steps fz⇓ ≡ steps x>>=f⇓
->>=-inversion-⇓ (now x)   fx⇓             = (x , now , fx⇓ , P.refl)
->>=-inversion-⇓ (later x) (laterˡ x>>=f⇓) =
-  Prod.map id (Prod.map laterˡ (Prod.map id (P.cong suc))) $
-    >>=-inversion-⇓ (♭ x) x>>=f⇓
+  -- Now is a left and right identity of bind.
 
->>=-inversion-⇑ : ∀ {k} {A B : Set} x {f : A → B ⊥} → let open M in
-                  Rel (other k) (x >>= f) never →
-                  ¬ ¬ (x ⇑[ other k ] ⊎
-                       ∃ λ y → x ⇓[ other k ] y × f y ⇑[ other k ])
->>=-inversion-⇑ {A = A} x {f} ∼never = helper <$> now-or-never x
-  where
-  open RawMonad ¬¬-Monad using (_<$>_)
-  open M using (_>>=_)
+  left-identity : {B : Set} (x : B) (f : B → A ⊥) → let open M in
+                  (now x >>= f) ≅ f x
+  left-identity x f = S.refl
 
-  is-never : ∀ {x y} → x ≳ now y → (x >>= f) ≳ never → f y ≳ never
-  is-never now           = id
-  is-never (laterˡ ≳now) = is-never ≳now ∘ later⁻¹
+  right-identity : (x : A ⊥) → let open M in
+                   (x >>= now) ≅ x
+  right-identity (now   x) = now R.refl
+  right-identity (later x) = later (♯ right-identity (♭ x))
 
-  helper : (∃ λ y → x ≳ now y) ⊎ x ≳ never → _
-  helper (inj₂ ≳never)     = inj₁ $ ≳⇒ ≳never
-  helper (inj₁ (y , ≳now)) =
-    inj₂ (y , ≳⇒ ≳now , ≳⇒ (is-never ≳now (never⇒never ∼never)))
+  -- Bind is associative.
 
--- Never is a left and right "zero" of bind.
+  associative : {B C : Set} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
+                let open M in
+                (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
+  associative (now x)   f g = S.refl
+  associative (later x) f g = later (♯ associative (♭ x) f g)
 
-left-zero : {A B : Set} (f : A → B ⊥) → let open M in
-            (never >>= f) ≅ never
-left-zero f = later (♯ left-zero f)
+module Properties₂ (S₁ S₂ : Setoid zero zero) where
 
-right-zero : {A B : Set} (x : A ⊥) → let open M in
-             (x >>= λ _ → never) ≅ never {A = B}
-right-zero (now   x) = S.refl
-right-zero (later x) = later (♯ right-zero (♭ x))
+  open Setoid S₁ renaming (Carrier to A; _≈_ to _≈A_)
+  open Setoid S₂ renaming (Carrier to B; _≈_ to _≈B_)
+  open Equality
+  private
+    open module EqA = Equality _≈A_ using () renaming (_⇓[_]_ to _⇓[_]A_; _⇑[_] to _⇑[_]A)
+    open module EqB = Equality _≈B_ using () renaming (_⇓[_]_ to _⇓[_]B_; _⇑[_] to _⇑[_]B)
+    module PropA = Properties S₁
+  open PropA.Reasoning
 
--- Now is a left and right identity of bind.
+  -- Bind preserves all the relations.
 
-left-identity : {A B : Set} (x : A) (f : A → B ⊥) → let open M in
-                (now x >>= f) ≅ f x
-left-identity x f = S.refl
+  _>>=-cong_ :
+    ∀ {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
+    EqA.Rel k x₁ x₂ →
+    (∀ {x₁ x₂} → x₁ ≈A x₂ → EqB.Rel k (f₁ x₁) (f₂ x₂)) →
+    EqB.Rel k (x₁ >>= f₁) (x₂ >>= f₂)
+  now    x₁Rx₂ >>=-cong f₁∼f₂ = f₁∼f₂ x₁Rx₂
+  later  x₁∼x₂ >>=-cong f₁∼f₂ = later (♯ (♭ x₁∼x₂ >>=-cong f₁∼f₂))
+  laterʳ x₁≈x₂ >>=-cong f₁≈f₂ = laterʳ (x₁≈x₂ >>=-cong f₁≈f₂)
+  laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼f₂)
 
-right-identity : {A : Set} (x : A ⊥) → let open M in
-                 (x >>= now) ≅ x
-right-identity (now   x) = now
-right-identity (later x) = later (♯ right-identity (♭ x))
+  -- Inversion lemmas for bind.
 
--- Bind is associative.
+  >>=-inversion-⇓ :
+    ∀ {k} x {f : A → B ⊥} {y} → let open M in
+    (x>>=f⇓ : (x >>= f) ⇓[ k ]B y) →
+    ∃ λ z → ∃₂ λ (x⇓ : x ⇓[ k ]A z) (fz⇓ : f z ⇓[ k ]B y) →
+                 EqA.steps x⇓ + EqB.steps fz⇓ ≡ EqB.steps x>>=f⇓
+  >>=-inversion-⇓ (now x) fx⇓ =
+    (x , now (Setoid.refl S₁) , fx⇓ , P.refl)
+  >>=-inversion-⇓ (later x) (laterˡ x>>=f⇓) =
+    Prod.map id (Prod.map laterˡ (Prod.map id (P.cong suc))) $
+      >>=-inversion-⇓ (♭ x) x>>=f⇓
 
-associative : {A B C : Set} (x : A ⊥) (f : A → B ⊥) (g : B → C ⊥) →
-              let open M in
-              (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
-associative (now x)   f g = S.refl
-associative (later x) f g = later (♯ associative (♭ x) f g)
+  >>=-inversion-⇑ : ∀ {k} x {f : A → B ⊥} → let open M in
+                    EqB.Rel (other k) (x >>= f) never →
+                    ¬ ¬ (x ⇑[ other k ]A ⊎
+                         ∃ λ y → x ⇓[ other k ]A y × f y ⇑[ other k ]B)
+  >>=-inversion-⇑ {k} x {f} ∼never = helper <$> PropA.now-or-never x
+    where
+    open RawMonad ¬¬-Monad using (_<$>_)
+    open M using (_>>=_)
+
+    k≳ = other geq
+
+    is-never : ∀ {x y} →
+               x ⇓[ k≳ ]A y → (x >>= f) ⇑[ k≳ ]B →
+               ∃ λ z → y ≈A z × f z ⇑[ k≳ ]B
+    is-never (now    xRy)  = λ fx⇑ → (_ , Setoid.sym S₁ xRy , fx⇑)
+    is-never (laterˡ ≳now) = is-never ≳now ∘ EqB.later⁻¹
+
+    helper : (∃ λ y → x ⇓[ k≳ ]A y) ⊎ x ⇑[ k≳ ]A →
+             x ⇑[ other k ]A ⊎
+             ∃ λ y → x ⇓[ other k ]A y × f y ⇑[ other k ]B
+    helper (inj₂ ≳never)     = inj₁ (EqA.≳⇒ ≳never)
+    helper (inj₁ (y , ≳now)) with is-never ≳now (EqB.never⇒never ∼never)
+    ... | (z , yRz , fz⇑) = inj₂ (z , EqA.≳⇒ (x     ≳⟨ ≳now ⟩
+                                              now y ≅⟨ now yRz ⟩
+                                              now z ∎)
+                                    , EqB.≳⇒ fz⇑)
+
+------------------------------------------------------------------------
+-- Instantiation of the modules above using propositional equality
+
+module Propositional where
+  private
+    open module Eq {A : Set} = Equality (_≡_ {A = A}) public
+    open module P₁ {A : Set} = Properties (P.setoid A) public
+    open module P₂ {A B : Set} =
+      Properties₂ (P.setoid A) (P.setoid B) public
 
 ------------------------------------------------------------------------
 -- Productivity checker workaround
@@ -485,32 +544,48 @@ module Workaround where
   -- The definitions above make sense. ⟦_⟧P is homomorphic with
   -- respect to now, later and _>>=_.
 
-  now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≅ now x
-  now-hom _ = S.refl
+  module Correct where
 
-  later-hom : ∀ {A} (x : ∞ (A ⊥P)) →
-              ⟦ later x ⟧P ≅ later (♯ ⟦ ♭ x ⟧P)
-  later-hom x = later (♯ S.refl)
+    open Propositional
+    open Reasoning
 
-  mutual
+    now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≅ now x
+    now-hom x = now x ∎
 
-    private
+    later-hom : ∀ {A} (x : ∞ (A ⊥P)) →
+                ⟦ later x ⟧P ≅ later (♯ ⟦ ♭ x ⟧P)
+    later-hom x = later (♯ (⟦ ♭ x ⟧P ∎))
 
-      >>=-homW : ∀ {A B} (x : A ⊥W) (f : A → B ⊥P) →
-                 ⟦ x >>=W f ⟧W ≅ M._>>=_ ⟦ x ⟧W (λ y → ⟦ f y ⟧P)
-      >>=-homW (now   x) f = S.refl
-      >>=-homW (later x) f = later (♯ >>=-hom x f)
+    mutual
 
-    >>=-hom : ∀ {A B} (x : A ⊥P) (f : A → B ⊥P) →
-              ⟦ x >>= f ⟧P ≅ M._>>=_ ⟦ x ⟧P (λ y → ⟦ f y ⟧P)
-    >>=-hom x f = >>=-homW (whnf x) f
+      private
+
+        >>=-homW : ∀ {A B} (x : B ⊥W) (f : B → A ⊥P) →
+                   ⟦ x >>=W f ⟧W ≅ M._>>=_ ⟦ x ⟧W (λ y → ⟦ f y ⟧P)
+        >>=-homW (now   x) f = ⟦ f x ⟧P ∎
+        >>=-homW (later x) f = later (♯ >>=-hom x f)
+
+      >>=-hom : ∀ {A B} (x : B ⊥P) (f : B → A ⊥P) →
+                ⟦ x >>= f ⟧P ≅ M._>>=_ ⟦ x ⟧P (λ y → ⟦ f y ⟧P)
+      >>=-hom x f = >>=-homW (whnf x) f
 
 ------------------------------------------------------------------------
 -- An alternative, but equivalent, formulation of equality/ordering
 
-module AlternativeRel where
+module AlternativeEquality where
 
-  infix  4 _≅P_ _≳P_ _≈P_
+  private
+
+    El : Setoid zero zero → Set
+    El = Setoid.Carrier
+
+    Eq : ∀ S → B.Rel (El S) _
+    Eq = Setoid._≈_
+
+  open Equality using (Rel)
+  open Equality.Rel
+
+  infix  4 _∣_≅P_ _∣_≳P_ _∣_≈P_
   infix  2 _∎
   infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≳⟨_⟩≅_ _≳⟨_⟩≈_ _≈⟨_⟩≅_ _≈⟨_⟩≲_
   infixl 1 _>>=_
@@ -519,47 +594,51 @@ module AlternativeRel where
 
     -- Proof "programs".
 
-    _≅P_ : {A : Set} → A ⊥ → A ⊥ → Set₁
-    _≅P_ = RelP strong
+    _∣_≅P_ : ∀ S → B.Rel (El S ⊥) _
+    _∣_≅P_ = flip RelP strong
 
-    _≳P_ : {A : Set} → A ⊥ → A ⊥ → Set₁
-    _≳P_ = RelP (other geq)
+    _∣_≳P_ : ∀ S → B.Rel (El S ⊥) _
+    _∣_≳P_ = flip RelP (other geq)
 
-    _≈P_ : {A : Set} → A ⊥ → A ⊥ → Set₁
-    _≈P_ = RelP (other weak)
+    _∣_≈P_ : ∀ S → B.Rel (El S ⊥) _
+    _∣_≈P_ = flip RelP (other weak)
 
-    data RelP {A : Set} : Kind → A ⊥ → A ⊥ → Set₁ where
+    data RelP S : Kind → B.Rel (El S ⊥) (suc zero) where
 
       -- Congruences.
 
-      now   : ∀ {k v} → RelP k (now v) (now v)
-      later : ∀ {k x y} (x∼y : ∞ (RelP k (♭ x) (♭ y))) →
-              RelP k (later x) (later y)
-      _>>=_ : ∀ {B : Set} {k} {x₁ x₂} {f₁ f₂ : B → A ⊥} → let open M in
-              (x₁∼x₂ : RelP k x₁ x₂)
-              (f₁∼f₂ : ∀ x → RelP k (f₁ x) (f₂ x)) →
-              RelP k (x₁ >>= f₁) (x₂ >>= f₂)
+      now   : ∀ {k x y} (xRy : x ⟨ Eq S ⟩ y) → RelP S k (now x) (now y)
+      later : ∀ {k x y} (x∼y : ∞ (RelP S k (♭ x) (♭ y))) →
+              RelP S k (later x) (later y)
+      _>>=_ : ∀ {S′ : Setoid zero zero} {k} {x₁ x₂}
+                {f₁ f₂ : El S′ → El S ⊥} →
+              let open M in
+              (x₁∼x₂ : RelP S′ k x₁ x₂)
+              (f₁∼f₂ : ∀ {x y} → x ⟨ Eq S′ ⟩ y →
+                       RelP S k (f₁ x) (f₂ y)) →
+              RelP S k (x₁ >>= f₁) (x₂ >>= f₂)
 
       -- Ordering/weak equality.
 
-      laterʳ : ∀   {x y} (x≈y : RelP (other weak) x (♭ y)) → RelP (other weak)     x (later y)
-      laterˡ : ∀ {k x y} (x∼y : RelP (other k) (♭ x)   y)  → RelP (other k) (later x)       y
+      laterʳ : ∀   {x y} (x≈y : RelP S (other weak) x (♭ y)) → RelP S (other weak)     x (later y)
+      laterˡ : ∀ {k x y} (x∼y : RelP S (other k) (♭ x)   y)  → RelP S (other k) (later x)       y
 
       -- Equational reasoning. Note that including full transitivity
-      -- for weak equality would make _≈P_ trivial; a similar problem
-      -- applies to _≳P_ (never ≳P now x would be provable). Instead
-      -- the definition of RelP includes limited notions of
-      -- transitivity, similar to weak bisimulation up-to various
-      -- things.
+      -- for weak equality would make _∣_≈P_ trivial; a similar
+      -- problem applies to _∣_≳P_ (A ∣ never ≳P now x would be
+      -- provable). Instead the definition of RelP includes limited
+      -- notions of transitivity, similar to weak bisimulation up-to
+      -- various things.
 
-      _∎      : ∀ {k} x → RelP k x x
-      sym     : ∀ {k x y} {eq : Equality k} (x∼y : RelP k x y) → RelP k y x
-      _≅⟨_⟩_  : ∀ {k} x {y z} (x≅y : x ≅P y) (y∼z : RelP k y z) → RelP k x z
-      _≳⟨_⟩_  : ∀     x {y z} (x≳y : x ≳  y) (y≳z : y ≳P z) → x ≳P z
-      _≳⟨_⟩≅_ : ∀     x {y z} (x≳y : x ≳P y) (y≅z : y ≅P z) → x ≳P z
-      _≳⟨_⟩≈_ : ∀     x {y z} (x≳y : x ≳P y) (y≈z : y ≈P z) → x ≈P z
-      _≈⟨_⟩≅_ : ∀     x {y z} (x≈y : x ≈P y) (y≅z : y ≅P z) → x ≈P z
-      _≈⟨_⟩≲_ : ∀     x {y z} (x≈y : x ≈P y) (y≲z : z ≳P y) → x ≈P z
+      _∎      : ∀ {k} x → RelP S k x x
+      sym     : ∀ {k x y} {eq : Equality k} (x∼y : RelP S k x y) → RelP S k y x
+      _≅⟨_⟩_  : ∀ {k} x {y z} (x≅y : S ∣ x ≅P y) (y∼z : RelP S k y z) → RelP S k x z
+      _≳⟨_⟩_  : let open Equality (Eq S) in
+                ∀     x {y z} (x≳y :     x ≳  y) (y≳z : S ∣ y ≳P z) → S ∣ x ≳P z
+      _≳⟨_⟩≅_ : ∀     x {y z} (x≳y : S ∣ x ≳P y) (y≅z : S ∣ y ≅P z) → S ∣ x ≳P z
+      _≳⟨_⟩≈_ : ∀     x {y z} (x≳y : S ∣ x ≳P y) (y≈z : S ∣ y ≈P z) → S ∣ x ≈P z
+      _≈⟨_⟩≅_ : ∀     x {y z} (x≈y : S ∣ x ≈P y) (y≅z : S ∣ y ≅P z) → S ∣ x ≈P z
+      _≈⟨_⟩≲_ : ∀     x {y z} (x≈y : S ∣ x ≈P y) (y≲z : S ∣ z ≳P y) → S ∣ x ≈P z
 
       -- If any of the following transitivity-like rules were added to
       -- RelP, then RelP and Rel would no longer be equivalent:
@@ -579,8 +658,9 @@ module AlternativeRel where
 
   -- RelP is complete with respect to Rel.
 
-  complete : ∀ {A : Set} {k} {x y : A ⊥} → Rel k x y → RelP k x y
-  complete now          = now
+  complete : ∀ {S k} {x y : El S ⊥} →
+             Equality.Rel (Eq S) k x y → RelP S k x y
+  complete (now xRy)    = now xRy
   complete (later  x∼y) = later (♯ complete (♭ x∼y))
   complete (laterʳ x≈y) = laterʳ  (complete    x≈y)
   complete (laterˡ x∼y) = laterˡ  (complete    x∼y)
@@ -591,94 +671,93 @@ module AlternativeRel where
 
     -- Proof WHNFs.
 
-    data RelW {A : Set} : Kind → A ⊥ → A ⊥ → Set₁ where
-      now    : ∀ {k v}                                      → RelW k         (now   v) (now   v)
-      later  : ∀ {k x y} (x∼y : RelP k         (♭ x) (♭ y)) → RelW k         (later x) (later y)
-      laterʳ : ∀   {x y} (x≈y : RelW (other weak) x  (♭ y)) → RelW (other weak)     x  (later y)
-      laterˡ : ∀ {k x y} (x∼y : RelW (other k) (♭ x)    y)  → RelW (other k) (later x)        y
+    data RelW S : Kind → B.Rel (El S ⊥) (suc zero) where
+      now    : ∀ {k x y} (xRy : x ⟨ Eq S ⟩ y)                 → RelW S k         (now   x) (now   y)
+      later  : ∀ {k x y} (x∼y : RelP S k         (♭ x) (♭ y)) → RelW S k         (later x) (later y)
+      laterʳ : ∀   {x y} (x≈y : RelW S (other weak) x  (♭ y)) → RelW S (other weak)     x  (later y)
+      laterˡ : ∀ {k x y} (x∼y : RelW S (other k) (♭ x)    y)  → RelW S (other k) (later x)        y
 
     -- WHNFs can be turned into programs.
 
-    program : ∀ {A : Set} {k} {x y : A ⊥} → RelW k x y → RelP k x y
-    program now          = now
+    program : ∀ {S k x y} → RelW S k x y → RelP S k x y
+    program (now    xRy) = now xRy
     program (later  x∼y) = later (♯ x∼y)
     program (laterˡ x∼y) = laterˡ (program x∼y)
     program (laterʳ x≈y) = laterʳ (program x≈y)
 
     -- Lemmas for WHNFs.
 
-    _>>=W_ :
-      ∀ {A B : Set} {k} {x₁ x₂} {f₁ f₂ : B → A ⊥} →
-      RelW k x₁ x₂ → (∀ x → RelW k (f₁ x) (f₂ x)) →
-      RelW k (M._>>=_ x₁ f₁) (M._>>=_ x₂ f₂)
-    now        >>=W f₁∼f₂ = f₁∼f₂ _
+    _>>=W_ : ∀ {A B k x₁ x₂} {f₁ f₂ : El A → El B ⊥} →
+             RelW A k x₁ x₂ →
+             (∀ {x y} → x ⟨ Eq A ⟩ y → RelW B k (f₁ x) (f₂ y)) →
+             RelW B k (M._>>=_ x₁ f₁) (M._>>=_ x₂ f₂)
+    now    xRy >>=W f₁∼f₂ = f₁∼f₂ xRy
     later  x∼y >>=W f₁∼f₂ = later  (x∼y >>= program ∘ f₁∼f₂)
     laterʳ x≈y >>=W f₁≈f₂ = laterʳ (x≈y >>=W f₁≈f₂)
     laterˡ x∼y >>=W f₁∼f₂ = laterˡ (x∼y >>=W f₁∼f₂)
 
-    reflW : ∀ {A : Set} {k} (x : A ⊥) → RelW k x x
-    reflW (now   x) = now
-    reflW (later x) = later (♭ x ∎)
+    reflW : ∀ {S k} x → RelW S k x x
+    reflW {S} (now   x) = now (Setoid.refl S)
+    reflW     (later x) = later (♭ x ∎)
 
-    symW : ∀ {A : Set} {k} {x y : A ⊥} →
-           Equality k → RelW k x y → RelW k y x
-    symW eq now                 = now
-    symW eq (later         x≈y) = later  (sym {eq = eq} x≈y)
-    symW eq (laterʳ        x≈y) = laterˡ (symW      eq  x≈y)
-    symW eq (laterˡ {weak} x≈y) = laterʳ (symW      eq  x≈y)
-    symW () (laterˡ {geq}  x≈y)
+    symW : ∀ {S k x y} → Equality k → RelW S k x y → RelW S k y x
+    symW {S} eq (now           xRy) = now (Setoid.sym S xRy)
+    symW     eq (later         x≈y) = later  (sym {eq = eq} x≈y)
+    symW     eq (laterʳ        x≈y) = laterˡ (symW      eq  x≈y)
+    symW     eq (laterˡ {weak} x≈y) = laterʳ (symW      eq  x≈y)
+    symW     () (laterˡ {geq}  x≈y)
 
-    trans≅W : {A : Set} {x y z : A ⊥} →
-              RelW strong x y → RelW strong y z → RelW strong x z
-    trans≅W        x≅y  now         = x≅y
-    trans≅W (later x≅y) (later y≅z) = later (_ ≅⟨ x≅y ⟩ y≅z)
+    trans≅W : ∀ {S x y z} →
+              RelW S strong x y → RelW S strong y z → RelW S strong x z
+    trans≅W {S} (now   xRy) (now   yRz) = now (Setoid.trans S xRy yRz)
+    trans≅W     (later x≅y) (later y≅z) = later (_ ≅⟨ x≅y ⟩ y≅z)
 
-    trans≳-W : {A : Set} {x y z : A ⊥} →
-               x ≳ y → RelW (other geq) y z → RelW (other geq) x z
-    trans≳-W now          now          = now
-    trans≳-W (later  x≳y) (later  y≳z) = later (_ ≳⟨ ♭ x≳y ⟩ y≳z)
-    trans≳-W (later  x≳y) (laterˡ y≳z) = laterˡ (trans≳-W (♭ x≳y) y≳z)
-    trans≳-W (laterˡ x≳y)         y≳z  = laterˡ (trans≳-W    x≳y  y≳z)
+    trans≳-W : ∀ {S x y z} → let open Equality (Eq S) in
+               x ≳ y → RelW S (other geq) y z → RelW S (other geq) x z
+    trans≳-W {S} (now    xRy) (now    yRz) = now (Setoid.trans S xRy yRz)
+    trans≳-W     (later  x≳y) (later  y≳z) = later (_ ≳⟨ ♭ x≳y ⟩ y≳z)
+    trans≳-W     (later  x≳y) (laterˡ y≳z) = laterˡ (trans≳-W (♭ x≳y) y≳z)
+    trans≳-W     (laterˡ x≳y)         y≳z  = laterˡ (trans≳-W    x≳y  y≳z)
 
     -- Strong equality programs can be turned into WHNFs.
 
-    whnf≅ : ∀ {A} {x y : A ⊥} → x ≅P y → RelW strong x y
-    whnf≅ now               = now
+    whnf≅ : ∀ {S x y} → S ∣ x ≅P y → RelW S strong x y
+    whnf≅ (now xRy)         = now xRy
     whnf≅ (later x≅y)       = later (♭ x≅y)
-    whnf≅ (x₁≅x₂ >>= f₁≅f₂) = whnf≅ x₁≅x₂ >>=W λ x → whnf≅ (f₁≅f₂ x)
+    whnf≅ (x₁≅x₂ >>= f₁≅f₂) = whnf≅ x₁≅x₂ >>=W λ xRy → whnf≅ (f₁≅f₂ xRy)
     whnf≅ (x ∎)             = reflW x
     whnf≅ (sym x≅y)         = symW _ (whnf≅ x≅y)
-    whnf≅ (x ≅⟨ x≅y ⟩ y≅z)  = trans≅W (whnf≅     x≅y) (whnf≅ y≅z)
+    whnf≅ (x ≅⟨ x≅y ⟩ y≅z)  = trans≅W (whnf≅ x≅y) (whnf≅ y≅z)
 
     -- More transitivity lemmas.
 
-    _⟨_⟩≅_ : ∀ {A : Set} {k} x {y z : A ⊥} →
-             RelP k x y → y ≅P z → RelP k x z
+    _⟨_⟩≅_ : ∀ {S k} x {y z} →
+             RelP S k x y → S ∣ y ≅P z → RelP S k x z
     _⟨_⟩≅_ {k = strong}     x x≅y y≅z = x ≅⟨ x≅y ⟩  y≅z
     _⟨_⟩≅_ {k = other geq}  x x≳y y≅z = x ≳⟨ x≳y ⟩≅ y≅z
     _⟨_⟩≅_ {k = other weak} x x≈y y≅z = x ≈⟨ x≈y ⟩≅ y≅z
 
-    trans∼≅W : ∀ {A : Set} {k} {x y z : A ⊥} →
-               RelW k x y → RelW strong y z → RelW k x z
-    trans∼≅W         x∼y  now         = x∼y
-    trans∼≅W (later  x∼y) (later y≅z) = later (_ ⟨ x∼y ⟩≅ y≅z)
-    trans∼≅W (laterʳ x≈y) (later y≅z) = laterʳ (trans∼≅W x≈y (whnf≅ y≅z))
-    trans∼≅W (laterˡ x∼y)        y≅z  = laterˡ (trans∼≅W x∼y        y≅z)
+    trans∼≅W : ∀ {S k x y z} →
+               RelW S k x y → RelW S strong y z → RelW S k x z
+    trans∼≅W {S} (now    xRy) (now   yRz) = now (Setoid.trans S xRy yRz)
+    trans∼≅W     (later  x∼y) (later y≅z) = later (_ ⟨ x∼y ⟩≅ y≅z)
+    trans∼≅W     (laterʳ x≈y) (later y≅z) = laterʳ (trans∼≅W x≈y (whnf≅ y≅z))
+    trans∼≅W     (laterˡ x∼y)        y≅z  = laterˡ (trans∼≅W x∼y        y≅z)
 
-    trans≅∼W : ∀ {A : Set} {k} {x y z : A ⊥} →
-               RelW strong x y → RelW k y z → RelW k x z
-    trans≅∼W now                  y∼z  = y∼z
-    trans≅∼W (later x≅y) (later   y∼z) = later (_ ≅⟨ x≅y ⟩ y∼z)
-    trans≅∼W (later x≅y) (laterˡ  y∼z) = laterˡ (trans≅∼W (whnf≅ x≅y) y∼z)
-    trans≅∼W        x≅y  (laterʳ ly≈z) = laterʳ (trans≅∼W        x≅y ly≈z)
+    trans≅∼W : ∀ {S k x y z} →
+               RelW S strong x y → RelW S k y z → RelW S k x z
+    trans≅∼W {S} (now   xRy) (now     yRz) = now (Setoid.trans S xRy yRz)
+    trans≅∼W     (later x≅y) (later   y∼z) = later (_ ≅⟨ x≅y ⟩ y∼z)
+    trans≅∼W     (later x≅y) (laterˡ  y∼z) = laterˡ (trans≅∼W (whnf≅ x≅y) y∼z)
+    trans≅∼W            x≅y  (laterʳ ly≈z) = laterʳ (trans≅∼W        x≅y ly≈z)
 
     -- Order programs can be turned into WHNFs.
 
-    whnf≳ : ∀ {A : Set} {x y : A ⊥} → x ≳P y → RelW (other geq) x y
-    whnf≳ now                 = now
+    whnf≳ : ∀ {S x y} → S ∣ x ≳P y → RelW S (other geq) x y
+    whnf≳ (now xRy)           = now xRy
     whnf≳ (later  x∼y)        = later (♭ x∼y)
     whnf≳ (laterˡ x≲y)        = laterˡ (whnf≳ x≲y)
-    whnf≳ (x₁∼x₂ >>= f₁∼f₂)   = whnf≳ x₁∼x₂ >>=W λ x → whnf≳ (f₁∼f₂ x)
+    whnf≳ (x₁∼x₂ >>= f₁∼f₂)   = whnf≳ x₁∼x₂ >>=W λ xRy → whnf≳ (f₁∼f₂ xRy)
     whnf≳ (x ∎)               = reflW x
     whnf≳ (sym {eq = ()} x≅y)
     whnf≳ (x ≅⟨ x≅y ⟩  y≳z)   = trans≅∼W (whnf≅ x≅y) (whnf≳ y≳z)
@@ -687,23 +766,23 @@ module AlternativeRel where
 
     -- Another transitivity lemma.
 
-    trans≳≈W : {A : Set} {x y z : A ⊥} →
-               RelW (other geq) x y → RelW (other weak) y z →
-               RelW (other weak) x z
-    trans≳≈W now          now          = now
-    trans≳≈W (later  x≳y) (later  y≈z) = later (_ ≳⟨ x≳y ⟩≈ y≈z)
-    trans≳≈W (laterˡ x≳y)         y≈z  = laterˡ (trans≳≈W        x≳y  y≈z)
-    trans≳≈W         x≳y  (laterʳ y≈z) = laterʳ (trans≳≈W        x≳y  y≈z)
-    trans≳≈W (later  x≳y) (laterˡ y≈z) = laterˡ (trans≳≈W (whnf≳ x≳y) y≈z)
+    trans≳≈W : ∀ {S x y z} →
+               RelW S (other geq) x y → RelW S (other weak) y z →
+               RelW S (other weak) x z
+    trans≳≈W {S} (now    xRy) (now    yRz) = now (Setoid.trans S xRy yRz)
+    trans≳≈W     (later  x≳y) (later  y≈z) = later (_ ≳⟨ x≳y ⟩≈ y≈z)
+    trans≳≈W     (laterˡ x≳y)         y≈z  = laterˡ (trans≳≈W        x≳y  y≈z)
+    trans≳≈W             x≳y  (laterʳ y≈z) = laterʳ (trans≳≈W        x≳y  y≈z)
+    trans≳≈W     (later  x≳y) (laterˡ y≈z) = laterˡ (trans≳≈W (whnf≳ x≳y) y≈z)
 
     -- All programs can be turned into WHNFs.
 
-    whnf : ∀ {A k} {x y : A ⊥} → RelP k x y → RelW k x y
-    whnf now                 = now
+    whnf : ∀ {S k x y} → RelP S k x y → RelW S k x y
+    whnf (now xRy)           = now xRy
     whnf (later  x∼y)        = later     (♭ x∼y)
     whnf (laterʳ x≈y)        = laterʳ (whnf x≈y)
     whnf (laterˡ x∼y)        = laterˡ (whnf x∼y)
-    whnf (x₁∼x₂ >>= f₁∼f₂)   = whnf x₁∼x₂ >>=W λ x → whnf (f₁∼f₂ x)
+    whnf (x₁∼x₂ >>= f₁∼f₂)   = whnf x₁∼x₂ >>=W λ xRy → whnf (f₁∼f₂ xRy)
     whnf (x ∎)               = reflW x
     whnf (sym {eq = eq} x≈y) = symW eq (whnf x≈y)
     whnf (x ≅⟨ x≅y ⟩  y∼z)   = trans≅∼W (whnf x≅y) (whnf y∼z)
@@ -719,18 +798,19 @@ module AlternativeRel where
 
     private
 
-      soundW : ∀ {A k} {x y : A ⊥} → RelW k x y → Rel k x y
-      soundW now          = now
+      soundW : ∀ {S k x y} → RelW S k x y → Rel (Eq S) k x y
+      soundW (now    xRy) = now xRy
       soundW (later  x∼y) = later (♯ sound  x∼y)
       soundW (laterʳ x≈y) = laterʳ  (soundW x≈y)
       soundW (laterˡ x∼y) = laterˡ  (soundW x∼y)
 
-    sound : ∀ {A k} {x y : A ⊥} → RelP k x y → Rel k x y
+    sound : ∀ {S k x y} → RelP S k x y → Rel (Eq S) k x y
     sound x∼y = soundW (whnf x∼y)
 
-  -- RelP and Rel are equivalent.
+  -- RelP and Rel are equivalent (when the underlying relation is an
+  -- equivalence).
 
-  correct : ∀ {A k} {x y : A ⊥} → RelP k x y ⇔ Rel k x y
+  correct : ∀ {S k x y} → RelP S k x y ⇔ Rel (Eq S) k x y
   correct = equivalent sound complete
 
 ------------------------------------------------------------------------
