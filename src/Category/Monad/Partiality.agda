@@ -816,7 +816,8 @@ module AlternativeEquality where
 ------------------------------------------------------------------------
 -- Example
 
-module Example where
+private
+ module Example where
 
   open Data.Nat
   open Workaround
