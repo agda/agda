@@ -11,6 +11,7 @@ open import Algebra
 open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
+open import Data.Empty
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
@@ -22,11 +23,11 @@ open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
-open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect; _with-≡_)
+open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
 
 open Any.Membership-≡
@@ -139,6 +140,33 @@ swap {P = P} {xs} {ys} =
   (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎
+
+------------------------------------------------------------------------
+-- Lemmas relating Any to ⊥
+
+⊥⇿Any⊥ : {A : Set} {xs : List A} → ⊥ ⇿ Any (const ⊥) xs
+⊥⇿Any⊥ {A} = record
+  { to         = P.→-to-⟶ (λ ())
+  ; from       = P.→-to-⟶ (λ p → from p)
+  ; inverse-of = record
+    { left-inverse-of  = λ ()
+    ; right-inverse-of = λ p → from p
+    }
+  }
+  where
+  from : {xs : List A} → Any (const ⊥) xs → {B : Set} → B
+  from (here ())
+  from (there p) = from p
+
+⊥⇿∈[] : {A : Set} {x : A} → ⊥ ⇿ x ∈ []
+⊥⇿∈[] = record
+  { to         = P.→-to-⟶ (λ ())
+  ; from       = P.→-to-⟶ (λ ())
+  ; inverse-of = record
+    { left-inverse-of  = λ ()
+    ; right-inverse-of = λ ()
+    }
+  }
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to sums and products
