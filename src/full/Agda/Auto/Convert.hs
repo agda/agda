@@ -1,6 +1,5 @@
 module Agda.Auto.Convert where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 

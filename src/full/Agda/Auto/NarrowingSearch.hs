@@ -2,7 +2,6 @@
 
 module Agda.Auto.NarrowingSearch where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 

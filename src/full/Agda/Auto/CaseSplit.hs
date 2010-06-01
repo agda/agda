@@ -1,7 +1,6 @@
 {-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
 module Agda.Auto.CaseSplit where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 

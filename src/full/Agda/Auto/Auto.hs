@@ -1,6 +1,5 @@
 module Agda.Auto.Auto (auto) where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
@@ -164,7 +163,7 @@ auto ii rng argstr = liftTCM $ do
                        defdfv <- case thisdefinfo of
                                   Just (def, _, _) -> fromIntegral `liftM` getdfv mi def
                                   Nothing -> return 0
-                       ee <- liftIO $ newIORef $ ConstDef {cdname = "T", cdorigin = __IMPOSSIBLE__, cdtype = __IMPOSSIBLE__, cdcont = Postulate, cddeffreevars = 0}
+                       ee <- liftIO $ newIORef $ ConstDef {cdname = "T", cdorigin = __IMPOSSIBLE__, cdtype = NotM $ Sort (Set 0), cdcont = Postulate, cddeffreevars = 0}
                        let modargs = drop (length mylocalVars - defdfv) mylocalVars
                            restargs = take (length mylocalVars - defdfv) mylocalVars
                            mytype' = foldl (\x y -> NotM $ Pi Nothing Agda.Auto.Syntax.NotHidden (freeIn 0 y) y (Abs NoId x)) mytype restargs

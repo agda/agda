@@ -2,7 +2,6 @@
 
 module Agda.Auto.Typecheck where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
@@ -48,7 +47,7 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
     HNSort s2 -> case s2 of
      Set j -> mpret $ if i < j then OK else Error "tcExp, type of set should be larger set"
 
-     UnknownSort -> __IMPOSSIBLE__
+     UnknownSort -> mpret $ Error "tcExp, type of set i unknown sort" -- OK instead? (prev __IMPOSSIBLE__)
 
      Type -> mpret OK
     _ -> mpret $ Error "tcExp, type of set should be set"
@@ -505,13 +504,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        in case ce of
             Nothing -> compargs args1 args2
             Just msg -> mpret $ Error msg
-      (HNApp uid1 (Const c1) _, _) -> case mexpmeta2 of
-       Nothing -> mpret $ Error "comphn, not equal (2)"
-       Just m2 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m2 (extraref m2 uid1 c1)
-      (_, HNApp uid2 (Const c2) _) -> case mexpmeta1 of
-       Nothing -> mpret $ Error "comphn, not equal (3)"
-       Just m1 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m1 (extraref m1 uid2 c2)
-      (HNLam hid1 (Abs id1 b1), HNLam hid2 (Abs id2 b2)) {-| hid1 == hid2-} -> comp False b1 b2
+      (HNLam hid1 (Abs id1 b1), HNLam hid2 (Abs id2 b2)) -> comp False b1 b2
       (HNLam _ (Abs _ b1), HNApp uid2 elr2 args2) ->
        f True b1 CALNil $ \res1 -> g res1
         (CMRigid mexpmeta2 (HNApp uid2 (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))))
@@ -519,7 +512,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        f True b2 CALNil $ \res2 -> g
         (CMRigid mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))))
         res2
-      (HNPi _ hid1 _ it1 (Abs id1 ot1), HNPi _ hid2 _ it2 (Abs id2 ot2)) {-| hid1 == hid2-} -> mpret $
+      (HNPi _ hid1 _ it1 (Abs id1 ot1), HNPi _ hid2 _ it2 (Abs id2 ot2)) -> mpret $
        And (Just [Term trs1, Term trs2]) (comp False it1 it2) (comp ineq ot1 ot2)
       (HNSort s1, HNSort s2) -> mpret $
        case (s1, s2) of
@@ -530,6 +523,12 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
         (Type, Set _) | ineq -> OK
         (Type, UnknownSort) | ineq -> OK
         _ -> __IMPOSSIBLE__
+      (HNApp uid1 (Const c1) _, _) -> case mexpmeta2 of
+       Nothing -> mpret $ Error "comphn, not equal (2)"
+       Just m2 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m2 (extraref m2 uid1 c1)
+      (_, HNApp uid2 (Const c2) _) -> case mexpmeta1 of
+       Nothing -> mpret $ Error "comphn, not equal (3)"
+       Just m1 -> mpret $ AddExtraRef "comphn: not equal, adding extra ref" m1 (extraref m1 uid2 c2)
       (_, _) -> mpret $ Error "comphn, not equal"
 
     compargs :: ICArgList o -> ICArgList o -> EE (MyPB o)
@@ -538,7 +537,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
      mbpcase prioCompareArgList Nothing (hnarglist args2) $ \hnargs2 ->
      case (hnargs1, hnargs2) of
       (HNALNil, HNALNil) -> mpret OK
-      (HNALCons hid1 arg1 args1b, HNALCons hid2 arg2 args2b) {-| hid1 == hid2-} -> mpret $
+      (HNALCons hid1 arg1 args1b, HNALCons hid2 arg2 args2b) -> mpret $
        And (Just [Term trs1, Term trs2]) (comp False arg1 arg2) (compargs args1b args2b)
 
       (HNALConPar args1b, HNALCons _ _ args2b) -> compargs args1b args2b

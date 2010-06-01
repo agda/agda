@@ -2,7 +2,6 @@
 
 module Agda.Auto.Syntax where
 
-
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
