@@ -2,6 +2,8 @@
 -- Sums of binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.Sum where
 
 open import Data.Sum as Sum
@@ -22,7 +24,7 @@ open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
 private
- module Dummy {A₁ A₂ : Set} where
+ module Dummy {a₁ a₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   ----------------------------------------------------------------------
   -- Sums of relations
@@ -31,21 +33,21 @@ private
 
   -- Generalised sum.
 
-  data ⊎ʳ (P : Set) (_∼₁_ : Rel A₁ zero) (_∼₂_ : Rel A₂ zero) :
-          A₁ ⊎ A₂ → A₁ ⊎ A₂ → Set where
+  data ⊎ʳ {ℓ₁ ℓ₂} (P : Set) (_∼₁_ : Rel A₁ ℓ₁) (_∼₂_ : Rel A₂ ℓ₂) :
+          A₁ ⊎ A₂ → A₁ ⊎ A₂ → Set (a₁ ⊔ a₂ ⊔ ℓ₁ ⊔ ℓ₂) where
     ₁∼₂ : ∀ {x y} (p : P)         → ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₂ y)
     ₁∼₁ : ∀ {x y} (x∼₁y : x ∼₁ y) → ⊎ʳ P _∼₁_ _∼₂_ (inj₁ x) (inj₁ y)
     ₂∼₂ : ∀ {x y} (x∼₂y : x ∼₂ y) → ⊎ʳ P _∼₁_ _∼₂_ (inj₂ x) (inj₂ y)
 
   -- Pointwise sum.
 
-  _⊎-Rel_ : Rel A₁ zero → Rel A₂ zero → Rel (A₁ ⊎ A₂) zero
+  _⊎-Rel_ : ∀ {ℓ₁ ℓ₂} → Rel A₁ ℓ₁ → Rel A₂ ℓ₂ → Rel (A₁ ⊎ A₂) _
   _⊎-Rel_ = ⊎ʳ ⊥
 
   -- All things to the left are "smaller than" all things to the
   -- right.
 
-  _⊎-<_ : Rel A₁ zero → Rel A₂ zero → Rel (A₁ ⊎ A₂) zero
+  _⊎-<_ : ∀ {ℓ₁ ℓ₂} → Rel A₁ ℓ₁ → Rel A₂ ℓ₂ → Rel (A₁ ⊎ A₂) _
   _⊎-<_ = ⊎ʳ ⊤
 
   ----------------------------------------------------------------------
@@ -53,23 +55,24 @@ private
 
   private
 
-    ₁≁₂ : {∼₁ : Rel A₁ zero} {∼₂ : Rel A₂ zero} →
+    ₁≁₂ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
           ∀ {x y} → ¬ (inj₁ x ⟨ ∼₁ ⊎-Rel ∼₂ ⟩ inj₂ y)
     ₁≁₂ (₁∼₂ ())
 
-    drop-inj₁ : {∼₁ : Rel A₁ zero} {∼₂ : Rel A₂ zero} →
+    drop-inj₁ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
                 ∀ {P x y} → inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₁ y → ∼₁ x y
     drop-inj₁ (₁∼₁ x∼y) = x∼y
 
-    drop-inj₂ : {∼₁ : Rel A₁ zero} {∼₂ : Rel A₂ zero} →
+    drop-inj₂ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
                 ∀ {P x y} → inj₂ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₂ y → ∼₂ x y
     drop-inj₂ (₂∼₂ x∼y) = x∼y
 
   ----------------------------------------------------------------------
   -- Some properties which are preserved by the relation formers above
 
-  _⊎-reflexive_ : {≈₁ ∼₁ : Rel A₁ zero} → ≈₁ ⇒ ∼₁ →
-                  {≈₂ ∼₂ : Rel A₂ zero} → ≈₂ ⇒ ∼₂ →
+  _⊎-reflexive_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {∼₁ : Rel A₁ ℓ₁′}
+                    {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {∼₂ : Rel A₂ ℓ₂′} →
+                  ≈₁ ⇒ ∼₁ → ≈₂ ⇒ ∼₂ →
                   ∀ {P} → (≈₁ ⊎-Rel ≈₂) ⇒ (⊎ʳ P ∼₁ ∼₂)
   refl₁ ⊎-reflexive refl₂ = refl
     where
@@ -78,17 +81,17 @@ private
     refl (₂∼₂ x₂≈y₂) = ₂∼₂ (refl₂ x₂≈y₂)
     refl (₁∼₂ ())
 
-  _⊎-refl_ : {∼₁ : Rel A₁ zero} → Reflexive ∼₁ →
-             {∼₂ : Rel A₂ zero} → Reflexive ∼₂ →
-             Reflexive (∼₁ ⊎-Rel ∼₂)
+  _⊎-refl_ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
+             Reflexive ∼₁ → Reflexive ∼₂ → Reflexive (∼₁ ⊎-Rel ∼₂)
   refl₁ ⊎-refl refl₂ = refl
     where
     refl : Reflexive (_ ⊎-Rel _)
     refl {x = inj₁ _} = ₁∼₁ refl₁
     refl {x = inj₂ _} = ₂∼₂ refl₂
 
-  _⊎-irreflexive_ : {≈₁ <₁ : Rel A₁ zero} → Irreflexive ≈₁ <₁ →
-                    {≈₂ <₂ : Rel A₂ zero} → Irreflexive ≈₂ <₂ →
+  _⊎-irreflexive_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {<₁ : Rel A₁ ℓ₁′}
+                      {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {<₂ : Rel A₂ ℓ₂′} →
+                    Irreflexive ≈₁ <₁ → Irreflexive ≈₂ <₂ →
                     ∀ {P} → Irreflexive (≈₁ ⊎-Rel ≈₂) (⊎ʳ P <₁ <₂)
   irrefl₁ ⊎-irreflexive irrefl₂ = irrefl
     where
@@ -97,9 +100,8 @@ private
     irrefl (₂∼₂ x₂≈y₂) (₂∼₂ x₂<y₂) = irrefl₂ x₂≈y₂ x₂<y₂
     irrefl (₁∼₂ ())    _
 
-  _⊎-symmetric_ : {∼₁ : Rel A₁ zero} → Symmetric ∼₁ →
-                  {∼₂ : Rel A₂ zero} → Symmetric ∼₂ →
-                  Symmetric (∼₁ ⊎-Rel ∼₂)
+  _⊎-symmetric_ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
+                  Symmetric ∼₁ → Symmetric ∼₂ → Symmetric (∼₁ ⊎-Rel ∼₂)
   sym₁ ⊎-symmetric sym₂ = sym
     where
     sym : Symmetric (_ ⊎-Rel _)
@@ -107,8 +109,8 @@ private
     sym (₂∼₂ x₂∼y₂) = ₂∼₂ (sym₂ x₂∼y₂)
     sym (₁∼₂ ())
 
-  _⊎-transitive_ : {∼₁ : Rel A₁ zero} → Transitive ∼₁ →
-                   {∼₂ : Rel A₂ zero} → Transitive ∼₂ →
+  _⊎-transitive_ : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
+                   Transitive ∼₁ → Transitive ∼₂ →
                    ∀ {P} → Transitive (⊎ʳ P ∼₁ ∼₂)
   trans₁ ⊎-transitive trans₂ = trans
     where
@@ -118,8 +120,9 @@ private
     trans (₁∼₂ p)   (₂∼₂ _)     = ₁∼₂ p
     trans (₁∼₁ _)   (₁∼₂ p)     = ₁∼₂ p
 
-  _⊎-antisymmetric_ : {≈₁ ≤₁ : Rel A₁ zero} → Antisymmetric ≈₁ ≤₁ →
-                      {≈₂ ≤₂ : Rel A₂ zero} → Antisymmetric ≈₂ ≤₂ →
+  _⊎-antisymmetric_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {≤₁ : Rel A₁ ℓ₁′}
+                        {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {≤₂ : Rel A₂ ℓ₂′} →
+                      Antisymmetric ≈₁ ≤₁ → Antisymmetric ≈₂ ≤₂ →
                       ∀ {P} → Antisymmetric (≈₁ ⊎-Rel ≈₂) (⊎ʳ P ≤₁ ≤₂)
   antisym₁ ⊎-antisymmetric antisym₂ = antisym
     where
@@ -128,8 +131,8 @@ private
     antisym (₂∼₂ x≤y) (₂∼₂ y≤x) = ₂∼₂ (antisym₂ x≤y y≤x)
     antisym (₁∼₂ _)   ()
 
-  _⊎-asymmetric_ : {<₁ : Rel A₁ zero} → Asymmetric <₁ →
-                   {<₂ : Rel A₂ zero} → Asymmetric <₂ →
+  _⊎-asymmetric_ : ∀ {ℓ₁ ℓ₂} {<₁ : Rel A₁ ℓ₁} {<₂ : Rel A₂ ℓ₂} →
+                   Asymmetric <₁ → Asymmetric <₂ →
                    ∀ {P} → Asymmetric (⊎ʳ P <₁ <₂)
   asym₁ ⊎-asymmetric asym₂ = asym
     where
@@ -138,11 +141,12 @@ private
     asym (₂∼₂ x<y) (₂∼₂ y<x) = asym₂ x<y y<x
     asym (₁∼₂ _)   ()
 
-  _⊎-≈-respects₂_ : {≈₁ ∼₁ : Rel A₁ zero} → ∼₁ Respects₂ ≈₁ →
-                    {≈₂ ∼₂ : Rel A₂ zero} → ∼₂ Respects₂ ≈₂ →
+  _⊎-≈-respects₂_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {∼₁ : Rel A₁ ℓ₁′}
+                      {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {∼₂ : Rel A₂ ℓ₂′} →
+                    ∼₁ Respects₂ ≈₁ → ∼₂ Respects₂ ≈₂ →
                     ∀ {P} → (⊎ʳ P ∼₁ ∼₂) Respects₂ (≈₁ ⊎-Rel ≈₂)
-  _⊎-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁} resp₁
-                  {≈₂ = ≈₂} {∼₂ = ∼₂} resp₂ {P} =
+  _⊎-≈-respects₂_ {≈₁ = ≈₁} {∼₁ = ∼₁}{≈₂ = ≈₂} {∼₂ = ∼₂}
+                  resp₁ resp₂ {P} =
     (λ {_ _ _} → resp¹) ,
     (λ {_ _ _} → resp²)
     where
@@ -159,21 +163,21 @@ private
     resp² (₁∼₁ x≈x') (₁∼₂ p)   = (₁∼₂ p)
     resp² (₁∼₂ ())   _
 
-  _⊎-substitutive_ : {∼₁ : Rel A₁ zero} → Substitutive ∼₁ zero →
-                     {∼₂ : Rel A₂ zero} → Substitutive ∼₂ zero →
-                     Substitutive (∼₁ ⊎-Rel ∼₂) zero
+  _⊎-substitutive_ : ∀ {ℓ₁ ℓ₂ ℓ₃} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
+                     Substitutive ∼₁ ℓ₃ → Substitutive ∼₂ ℓ₃ →
+                     Substitutive (∼₁ ⊎-Rel ∼₂) ℓ₃
   subst₁ ⊎-substitutive subst₂ = subst
     where
-    subst : Substitutive (_ ⊎-Rel _) zero
+    subst : Substitutive (_ ⊎-Rel _) _
     subst P (₁∼₁ x∼y) Px = subst₁ (λ z → P (inj₁ z)) x∼y Px
     subst P (₂∼₂ x∼y) Px = subst₂ (λ z → P (inj₂ z)) x∼y Px
     subst P (₁∼₂ ())  Px
 
-  ⊎-decidable : {∼₁ : Rel A₁ zero} → Decidable ∼₁ →
-                {∼₂ : Rel A₂ zero} → Decidable ∼₂ →
+  ⊎-decidable : ∀ {ℓ₁ ℓ₂} {∼₁ : Rel A₁ ℓ₁} {∼₂ : Rel A₂ ℓ₂} →
+                Decidable ∼₁ → Decidable ∼₂ →
                 ∀ {P} → (∀ {x y} → Dec (inj₁ x ⟨ ⊎ʳ P ∼₁ ∼₂ ⟩ inj₂ y)) →
                 Decidable (⊎ʳ P ∼₁ ∼₂)
-  ⊎-decidable {∼₁ = ∼₁} dec₁ {∼₂ = ∼₂} dec₂ {P} dec₁₂ = dec
+  ⊎-decidable {∼₁ = ∼₁} {∼₂ = ∼₂} dec₁ dec₂ {P} dec₁₂ = dec
     where
     dec : Decidable (⊎ʳ P ∼₁ ∼₂)
     dec (inj₁ x) (inj₁ y) with dec₁ x y
@@ -185,9 +189,8 @@ private
     dec (inj₁ x) (inj₂ y) = dec₁₂
     dec (inj₂ x) (inj₁ y) = no (λ())
 
-  _⊎-<-total_ : {≤₁ : Rel A₁ zero} → Total ≤₁ →
-                {≤₂ : Rel A₂ zero} → Total ≤₂ →
-                Total (≤₁ ⊎-< ≤₂)
+  _⊎-<-total_ : ∀ {ℓ₁ ℓ₂} {≤₁ : Rel A₁ ℓ₁} {≤₂ : Rel A₂ ℓ₂} →
+                Total ≤₁ → Total ≤₂ → Total (≤₁ ⊎-< ≤₂)
   total₁ ⊎-<-total total₂ = total
     where
     total : Total (_ ⊎-< _)
@@ -196,11 +199,12 @@ private
     total (inj₁ x) (inj₂ y) = inj₁ (₁∼₂ _)
     total (inj₂ x) (inj₁ y) = inj₂ (₁∼₂ _)
 
-  _⊎-<-trichotomous_ : {≈₁ <₁ : Rel A₁ zero} → Trichotomous ≈₁ <₁ →
-                       {≈₂ <₂ : Rel A₂ zero} → Trichotomous ≈₂ <₂ →
+  _⊎-<-trichotomous_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {<₁ : Rel A₁ ℓ₁′}
+                         {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {<₂ : Rel A₂ ℓ₂′} →
+                       Trichotomous ≈₁ <₁ → Trichotomous ≈₂ <₂ →
                        Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-< <₂)
-  _⊎-<-trichotomous_ {≈₁ = ≈₁} {<₁ = <₁} tri₁
-                     {≈₂ = ≈₂} {<₂ = <₂} tri₂ = tri
+  _⊎-<-trichotomous_ {≈₁ = ≈₁} {<₁ = <₁} {≈₂ = ≈₂} {<₂ = <₂}
+                     tri₁ tri₂ = tri
     where
     tri : Trichotomous (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-< <₂)
     tri (inj₁ x) (inj₂ y) = tri< (₁∼₂ _) ₁≁₂ (λ())
@@ -223,8 +227,8 @@ private
   ----------------------------------------------------------------------
   -- Some collections of properties which are preserved
 
-  _⊎-isEquivalence_ : {≈₁ : Rel A₁ zero} → IsEquivalence ≈₁ →
-                      {≈₂ : Rel A₂ zero} → IsEquivalence ≈₂ →
+  _⊎-isEquivalence_ : ∀ {ℓ₁ ℓ₂} {≈₁ : Rel A₁ ℓ₁} {≈₂ : Rel A₂ ℓ₂} →
+                      IsEquivalence ≈₁ → IsEquivalence ≈₂ →
                       IsEquivalence (≈₁ ⊎-Rel ≈₂)
   eq₁ ⊎-isEquivalence eq₂ = record
     { refl  = refl  eq₁ ⊎-refl        refl  eq₂
@@ -233,8 +237,9 @@ private
     }
     where open IsEquivalence
 
-  _⊎-isPreorder_ : {≈₁ ∼₁ : Rel A₁ zero} → IsPreorder ≈₁ ∼₁ →
-                   {≈₂ ∼₂ : Rel A₂ zero} → IsPreorder ≈₂ ∼₂ →
+  _⊎-isPreorder_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {∼₁ : Rel A₁ ℓ₁′}
+                     {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {∼₂ : Rel A₂ ℓ₂′} →
+                   IsPreorder ≈₁ ∼₁ → IsPreorder ≈₂ ∼₂ →
                    ∀ {P} → IsPreorder (≈₁ ⊎-Rel ≈₂) (⊎ʳ P ∼₁ ∼₂)
   pre₁ ⊎-isPreorder pre₂ = record
     { isEquivalence = isEquivalence pre₁ ⊎-isEquivalence
@@ -244,8 +249,8 @@ private
     }
     where open IsPreorder
 
-  _⊎-isDecEquivalence_ : {≈₁ : Rel A₁ zero} → IsDecEquivalence ≈₁ →
-                         {≈₂ : Rel A₂ zero} → IsDecEquivalence ≈₂ →
+  _⊎-isDecEquivalence_ : ∀ {ℓ₁ ℓ₂} {≈₁ : Rel A₁ ℓ₁} {≈₂ : Rel A₂ ℓ₂} →
+                         IsDecEquivalence ≈₁ → IsDecEquivalence ≈₂ →
                          IsDecEquivalence (≈₁ ⊎-Rel ≈₂)
   eq₁ ⊎-isDecEquivalence eq₂ = record
     { isEquivalence = isEquivalence eq₁ ⊎-isEquivalence
@@ -254,8 +259,9 @@ private
     }
     where open IsDecEquivalence
 
-  _⊎-isPartialOrder_ : {≈₁ ≤₁ : Rel A₁ zero} → IsPartialOrder ≈₁ ≤₁ →
-                       {≈₂ ≤₂ : Rel A₂ zero} → IsPartialOrder ≈₂ ≤₂ →
+  _⊎-isPartialOrder_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {≤₁ : Rel A₁ ℓ₁′}
+                         {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {≤₂ : Rel A₂ ℓ₂′} →
+                       IsPartialOrder ≈₁ ≤₁ → IsPartialOrder ≈₂ ≤₂ →
                        ∀ {P} → IsPartialOrder (≈₁ ⊎-Rel ≈₂) (⊎ʳ P ≤₁ ≤₂)
   po₁ ⊎-isPartialOrder po₂ = record
     { isPreorder = isPreorder po₁ ⊎-isPreorder    isPreorder po₂
@@ -264,8 +270,9 @@ private
     where open IsPartialOrder
 
   _⊎-isStrictPartialOrder_ :
-    {≈₁ <₁ : Rel A₁ zero} → IsStrictPartialOrder ≈₁ <₁ →
-    {≈₂ <₂ : Rel A₂ zero} → IsStrictPartialOrder ≈₂ <₂ →
+    ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {<₁ : Rel A₁ ℓ₁′}
+      {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {<₂ : Rel A₂ ℓ₂′} →
+    IsStrictPartialOrder ≈₁ <₁ → IsStrictPartialOrder ≈₂ <₂ →
     ∀ {P} → IsStrictPartialOrder (≈₁ ⊎-Rel ≈₂) (⊎ʳ P <₁ <₂)
   spo₁ ⊎-isStrictPartialOrder spo₂ = record
     { isEquivalence = isEquivalence spo₁ ⊎-isEquivalence
@@ -276,8 +283,9 @@ private
     }
     where open IsStrictPartialOrder
 
-  _⊎-<-isTotalOrder_ : {≈₁ ≤₁ : Rel A₁ zero} → IsTotalOrder ≈₁ ≤₁ →
-                       {≈₂ ≤₂ : Rel A₂ zero} → IsTotalOrder ≈₂ ≤₂ →
+  _⊎-<-isTotalOrder_ : ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {≤₁ : Rel A₁ ℓ₁′}
+                         {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {≤₂ : Rel A₂ ℓ₂′} →
+                       IsTotalOrder ≈₁ ≤₁ → IsTotalOrder ≈₂ ≤₂ →
                        IsTotalOrder (≈₁ ⊎-Rel ≈₂) (≤₁ ⊎-< ≤₂)
   to₁ ⊎-<-isTotalOrder to₂ = record
     { isPartialOrder = isPartialOrder to₁ ⊎-isPartialOrder
@@ -287,8 +295,9 @@ private
     where open IsTotalOrder
 
   _⊎-<-isDecTotalOrder_ :
-    {≈₁ ≤₁ : Rel A₁ zero} → IsDecTotalOrder ≈₁ ≤₁ →
-    {≈₂ ≤₂ : Rel A₂ zero} → IsDecTotalOrder ≈₂ ≤₂ →
+    ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {≤₁ : Rel A₁ ℓ₁′}
+      {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {≤₂ : Rel A₂ ℓ₂′} →
+    IsDecTotalOrder ≈₁ ≤₁ → IsDecTotalOrder ≈₂ ≤₂ →
     IsDecTotalOrder (≈₁ ⊎-Rel ≈₂) (≤₁ ⊎-< ≤₂)
   to₁ ⊎-<-isDecTotalOrder to₂ = record
     { isTotalOrder = isTotalOrder to₁ ⊎-<-isTotalOrder isTotalOrder to₂
@@ -302,31 +311,36 @@ open Dummy public
 ------------------------------------------------------------------------
 -- The game can be taken even further...
 
-_⊎-setoid_ : Setoid _ _ → Setoid _ _ → Setoid _ _
+_⊎-setoid_ : ∀ {s₁ s₂ s₃ s₄} →
+             Setoid s₁ s₂ → Setoid s₃ s₄ → Setoid _ _
 s₁ ⊎-setoid s₂ = record
   { isEquivalence = isEquivalence s₁ ⊎-isEquivalence isEquivalence s₂
   } where open Setoid
 
-_⊎-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
+_⊎-preorder_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+               Preorder p₁ p₂ p₃ → Preorder p₄ p₅ p₆ → Preorder _ _ _
 p₁ ⊎-preorder p₂ = record
   { _∼_          = _∼_        p₁ ⊎-Rel        _∼_        p₂
   ; isPreorder   = isPreorder p₁ ⊎-isPreorder isPreorder p₂
   } where open Preorder
 
-_⊎-decSetoid_ : DecSetoid _ _ → DecSetoid _ _ → DecSetoid _ _
+_⊎-decSetoid_ : ∀ {s₁ s₂ s₃ s₄} →
+                DecSetoid s₁ s₂ → DecSetoid s₃ s₄ → DecSetoid _ _
 ds₁ ⊎-decSetoid ds₂ = record
   { isDecEquivalence = isDecEquivalence ds₁ ⊎-isDecEquivalence
                        isDecEquivalence ds₂
   } where open DecSetoid
 
-_⊎-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
+_⊎-poset_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+            Poset p₁ p₂ p₃ → Poset p₄ p₅ p₆ → Poset _ _ _
 po₁ ⊎-poset po₂ = record
   { _≤_            = _≤_ po₁ ⊎-Rel _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
                      isPartialOrder po₂
   } where open Poset
 
-_⊎-<-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
+_⊎-<-poset_ : ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+              Poset p₁ p₂ p₃ → Poset p₄ p₅ p₆ → Poset _ _ _
 po₁ ⊎-<-poset po₂ = record
   { _≤_            = _≤_ po₁ ⊎-< _≤_ po₂
   ; isPartialOrder = isPartialOrder po₁ ⊎-isPartialOrder
@@ -334,7 +348,8 @@ po₁ ⊎-<-poset po₂ = record
   } where open Poset
 
 _⊎-<-strictPartialOrder_ :
-  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+  StrictPartialOrder p₁ p₂ p₃ → StrictPartialOrder p₄ p₅ p₆ →
   StrictPartialOrder _ _ _
 spo₁ ⊎-<-strictPartialOrder spo₂ = record
   { _<_                  = _<_ spo₁ ⊎-< _<_ spo₂
@@ -344,13 +359,15 @@ spo₁ ⊎-<-strictPartialOrder spo₂ = record
   } where open StrictPartialOrder
 
 _⊎-<-totalOrder_ :
-  TotalOrder _ _ _ → TotalOrder _ _ _ → TotalOrder _ _ _
+  ∀ {t₁ t₂ t₃ t₄ t₅ t₆} →
+  TotalOrder t₁ t₂ t₃ → TotalOrder t₄ t₅ t₆ → TotalOrder _ _ _
 to₁ ⊎-<-totalOrder to₂ = record
   { isTotalOrder = isTotalOrder to₁ ⊎-<-isTotalOrder isTotalOrder to₂
   } where open TotalOrder
 
 _⊎-<-decTotalOrder_ :
-  DecTotalOrder _ _ _ → DecTotalOrder _ _ _ → DecTotalOrder _ _ _
+  ∀ {t₁ t₂ t₃ t₄ t₅ t₆} →
+  DecTotalOrder t₁ t₂ t₃ → DecTotalOrder t₄ t₅ t₆ → DecTotalOrder _ _ _
 to₁ ⊎-<-decTotalOrder to₂ = record
   { isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
                       isDecTotalOrder to₂
@@ -359,9 +376,9 @@ to₁ ⊎-<-decTotalOrder to₂ = record
 ------------------------------------------------------------------------
 -- Some properties related to equivalences and inverses
 
-⊎-Rel⇿≡ : {A B : Set} →
+⊎-Rel⇿≡ : ∀ {a b} (A : Set a) (B : Set b) →
           Inverse (P.setoid A ⊎-setoid P.setoid B) (P.setoid (A ⊎ B))
-⊎-Rel⇿≡ = record
+⊎-Rel⇿≡ _ _ = record
   { to         = record { _⟨$⟩_ = id; cong = to-cong   }
   ; from       = record { _⟨$⟩_ = id; cong = from-cong }
   ; inverse-of = record
@@ -379,10 +396,12 @@ to₁ ⊎-<-decTotalOrder to₂ = record
   from-cong P.refl = P.refl ⊎-refl P.refl
 
 _⊎-equivalent_ :
-  {A B C D : Setoid zero zero} →
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
   Equivalent A B → Equivalent C D →
   Equivalent (A ⊎-setoid C) (B ⊎-setoid D)
-_⊎-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
+_⊎-equivalent_ {A = A} {B} {C} {D} A⇔B C⇔D = record
   { to   = record { _⟨$⟩_ = to;   cong = to-cong   }
   ; from = record { _⟨$⟩_ = from; cong = from-cong }
   }
@@ -406,14 +425,17 @@ _⊎-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
   from-cong (₁∼₁ x∼₁y) = ₁∼₁ $ F.cong (Equivalent.from A⇔B) x∼₁y
   from-cong (₂∼₂ x∼₂y) = ₂∼₂ $ F.cong (Equivalent.from C⇔D) x∼₂y
 
-_⊎-⇔_ : {A B C D : Set} → A ⇔ B → C ⇔ D → (A ⊎ C) ⇔ (B ⊎ D)
-A⇔B ⊎-⇔ C⇔D =
-  Inverse.equivalent ⊎-Rel⇿≡ ⟨∘⟩
+_⊎-⇔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ⇔ B → C ⇔ D → (A ⊎ C) ⇔ (B ⊎ D)
+_⊎-⇔_ {A = A} {B} {C} {D} A⇔B C⇔D =
+  Inverse.equivalent (⊎-Rel⇿≡ B D) ⟨∘⟩
   A⇔B ⊎-equivalent C⇔D ⟨∘⟩
-  Eq.sym (Inverse.equivalent ⊎-Rel⇿≡)
+  Eq.sym (Inverse.equivalent (⊎-Rel⇿≡ A C))
 
 _⊎-inverse_ :
-  {A B C D : Setoid zero zero} →
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
   Inverse A B → Inverse C D → Inverse (A ⊎-setoid C) (B ⊎-setoid D)
 A⇿B ⊎-inverse C⇿D = record
   { to         = Equivalent.to   eq
@@ -431,5 +453,7 @@ A⇿B ⊎-inverse C⇿D = record
   open Inverse
   eq = equivalent A⇿B ⊎-equivalent equivalent C⇿D
 
-_⊎-⇿_ : {A B C D : Set} → A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
-A⇿B ⊎-⇿ C⇿D = ⊎-Rel⇿≡ ⟪∘⟫ A⇿B ⊎-inverse C⇿D ⟪∘⟫ Inv.sym ⊎-Rel⇿≡
+_⊎-⇿_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
+_⊎-⇿_ {A = A} {B} {C} {D} A⇿B C⇿D =
+  ⊎-Rel⇿≡ B D ⟪∘⟫ A⇿B ⊎-inverse C⇿D ⟪∘⟫ Inv.sym (⊎-Rel⇿≡ A C)

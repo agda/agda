@@ -20,14 +20,14 @@ open import Function.Inverse as Inv
   using (Kind; Isomorphism; _⇿_; module Inverse)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
+open import Relation.Binary.Sum
 
 ------------------------------------------------------------------------
 -- ⊥, ⊤, _×_ and _⊎_ form a commutative semiring
 
--- TODO: Note that ×-cong and ⊎-cong duplicate the functionality of
--- Relation.Binary.Product.Pointwise.×-⇔/×-⇿ and
--- Relation.Binary.Sum.⊎-⇔/⊎-⇿, except that, at the time of writing,
--- the latter functions are not universe polymorphic.
+-- TODO: Note that ×-cong duplicates the functionality of
+-- Relation.Binary.Product.Pointwise.×-⇔/×-⇿, except that, at the time
+-- of writing, the latter functions are not universe polymorphic.
 
 ×-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
 ×-CommutativeMonoid k ℓ = record
@@ -129,35 +129,11 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
   where
   open FP _⇿_
 
-  ⊎-cong-⇔ : ∀ {A B C D : Set ℓ} → A ⇔ B → C ⇔ D → (A ⊎ C) ⇔ (B ⊎ D)
-  ⊎-cong-⇔ A⇔B C⇔D = record
-    { to   = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Equivalent.to   A⇔B))
-                                (_⟨$⟩_ (Equivalent.to   C⇔D))
-    ; from = P.→-to-⟶ $ Sum.map (_⟨$⟩_ (Equivalent.from A⇔B))
-                                (_⟨$⟩_ (Equivalent.from C⇔D))
-    }
-
-  ⊎-cong-⇿ : ∀ {A B C D : Set ℓ} → A ⇿ B → C ⇿ D → (A ⊎ C) ⇿ (B ⊎ D)
-  ⊎-cong-⇿ A⇿B C⇿D = record
-    { to         = Equivalent.to   ⇔
-    ; from       = Equivalent.from ⇔
-    ; inverse-of = record
-      { left-inverse-of  = [ P.cong inj₁ ∘ Inverse.left-inverse-of A⇿B
-                           , P.cong inj₂ ∘ Inverse.left-inverse-of C⇿D
-                           ]
-      ; right-inverse-of = [ P.cong inj₁ ∘ Inverse.right-inverse-of A⇿B
-                           , P.cong inj₂ ∘ Inverse.right-inverse-of C⇿D
-                           ]
-      }
-    }
-    where
-    ⇔ = ⊎-cong-⇔ (Inverse.equivalent A⇿B) (Inverse.equivalent C⇿D)
-
   ⊎-cong : ∀ k {A B C D : Set ℓ} →
            Isomorphism k A B → Isomorphism k C D →
            Isomorphism k (A ⊎ C) (B ⊎ D)
-  ⊎-cong Inv.equivalent = ⊎-cong-⇔
-  ⊎-cong Inv.inverse    = ⊎-cong-⇿
+  ⊎-cong Inv.equivalent = _⊎-⇔_
+  ⊎-cong Inv.inverse    = _⊎-⇿_
 
   left-identity : LeftIdentity (Lift ⊥) (_⊎_ {a = ℓ} {b = ℓ})
   left-identity A = record
