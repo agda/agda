@@ -42,8 +42,8 @@ private
   _⊎-Rel_ : Rel A₁ zero → Rel A₂ zero → Rel (A₁ ⊎ A₂) zero
   _⊎-Rel_ = ⊎ʳ ⊥
 
-  -- All things to the left are smaller than (or equal to, depending
-  -- on the underlying equality) all things to the right.
+  -- All things to the left are "smaller than" all things to the
+  -- right.
 
   _⊎-<_ : Rel A₁ zero → Rel A₂ zero → Rel (A₁ ⊎ A₂) zero
   _⊎-<_ = ⊎ʳ ⊤
