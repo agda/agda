@@ -44,6 +44,9 @@ checkDataDef i ind name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 	let npars = size ps
 
+        -- Add the datatype module
+        addSection (qnameToMName name) 0
+
 	-- Look up the type of the datatype.
 	t <- instantiateFull =<< typeOfConst name
 
