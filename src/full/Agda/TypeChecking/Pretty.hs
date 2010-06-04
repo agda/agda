@@ -71,6 +71,20 @@ instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 
+instance PrettyTCM ClauseBody where
+  prettyTCM b = do
+    (binds, body) <- walk b
+    sep [ brackets (fsep binds), return body ]
+    where
+      walk NoBody = return ([], P.text "()")
+      walk (Body v) = (,) [] <$> prettyTCM v
+      walk (NoBind b) = do
+        (bs, v) <- walk b
+        return (text "." : bs, v)
+      walk (Bind b) = do
+        (bs, v) <- underAbstraction_ b walk
+        return (text (absName b) : bs, v)
+ 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
   prettyTCM (IsSort a)    = text "Sort" <+> prettyTCM a

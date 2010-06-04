@@ -220,7 +220,9 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
     var i = Var i []
     sub wild = map term [0..] -- m - 1]
       where
-        Perm m xs = reverseP perm
+        -- Perm m xs = reverseP perm
+        Perm m xs = perm    -- thinking required.. but ignored
+                            -- dropping the reverse seems to work better
         term i = case findIndex (i ==) xs of
           Nothing -> wild
           Just j  -> Var (fromIntegral j) []

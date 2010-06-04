@@ -329,7 +329,7 @@ checkLeftHandSide c ps a ret = do
 
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
-        xs  = replicate (fromIntegral n) "h"
+        xs  = [ "h" ++ show n | n <- [0..n - 1] ]
     ret gamma delta rho xs qs b' perm
   where
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->

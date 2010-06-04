@@ -260,6 +260,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                     , text "           context" <+> (prettyTCM =<< getContextTelescope)
                     , text "             delta" <+> prettyTCM delta
                     , text "                fv" <+> text (show fv)
+                    , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
                     ]
 
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)

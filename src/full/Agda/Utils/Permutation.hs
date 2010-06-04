@@ -7,7 +7,10 @@ import Agda.Utils.Size
 
 -- | @permute [2,3,1] [x,y,z] = [y,z,x]@
 data Permutation = Perm Integer [Integer]
-  deriving (Show, Eq, Data, Typeable)
+  deriving (Eq, Data, Typeable)
+
+instance Show Permutation where
+  show (Perm n xs) = show [0..n - 1] ++ "->" ++ show xs
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs

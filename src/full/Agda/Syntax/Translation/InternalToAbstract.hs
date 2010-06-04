@@ -113,7 +113,8 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
     let vs = [ Arg h $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
     md <- liftTCM $ displayForm x vs
-    reportSLn "syntax.reify.display" 20 $ "display form of " ++ show x ++ ": " ++ show md
+    reportSLn "syntax.reify.display" 20 $
+      "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
     case md of
       Just d  | okDisplayForm d ->
         reifyDisplayFormP =<< displayLHS (map (namedThing . unArg) ps) wps d
