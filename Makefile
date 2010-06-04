@@ -51,7 +51,7 @@ update-cabal :
 
 # Installs the Emacs mode, but does not set it up.
 install-lib :
-	$(CABAL_CMD) install $(CABAL_OPTIONS)
+	$(CABAL_CMD) install $(CABAL_OPTIONS) --disable-library-profiling
 
 install-prof-lib :
 	$(CABAL_CMD) install $(CABAL_OPTIONS) --enable-library-profiling
