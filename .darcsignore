@@ -33,7 +33,7 @@ notes/papers/implicit/(examples|lhs2TeXpreamble|exintro).tex
 src/prototyping/modules/flat/Syntax$
 src/prototyping/modules/flat/module$
 \.vrb$
-^dist$
+(^|/)dist$
 ^\.(inplace-pkg|installed-pkg|setup)-config$
 ^src/main/setup$
 ^setup$
