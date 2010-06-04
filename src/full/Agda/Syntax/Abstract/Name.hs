@@ -118,6 +118,16 @@ qnameFromList :: [Name] -> QName
 qnameFromList [] = __IMPOSSIBLE__
 qnameFromList xs = QName (mnameFromList $ init xs) (last xs)
 
+qnameToMName :: QName -> ModuleName
+qnameToMName = mnameFromList . qnameToList
+
+showQNameId :: QName -> String
+showQNameId q = show ns ++ "@" ++ show m
+  where
+    is = map nameId $ mnameToList (qnameModule q) ++ [qnameName q]
+    ns = [ n | NameId n _ <- is ]
+    m  = head [ m | NameId _ m <- is ]
+
 -- | Turn a qualified name into a concrete name. This should only be used as a
 --   fallback when looking up the right concrete name in the scope fails.
 qnameToConcrete :: QName -> C.QName

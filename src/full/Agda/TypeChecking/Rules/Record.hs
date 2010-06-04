@@ -50,7 +50,7 @@ checkRecDef i name con ps contel fields =
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope
-      let m = mnameFromList $ qnameToList name
+      let m = qnameToMName name
 	  hide (Arg _ x) = Arg Hidden x
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse

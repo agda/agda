@@ -9,6 +9,7 @@ import Prelude hiding (mapM)
 import Control.Applicative
 import Control.Monad hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
+import Control.Monad.State hiding (mapM)
 import Data.Map (Map)
 import Data.Traversable
 import Data.List
@@ -58,6 +59,14 @@ withCurrentModule new action = do
   setCurrentModule new
   x   <- action
   setCurrentModule old
+  return x
+
+withCurrentModule' :: (MonadTrans t, Monad (t ScopeM)) => A.ModuleName -> t ScopeM a -> t ScopeM a
+withCurrentModule' new action = do
+  old <- lift getCurrentModule
+  lift $ setCurrentModule new
+  x   <- action
+  lift $ setCurrentModule old
   return x
 
 getNamedScope :: A.ModuleName -> ScopeM Scope
@@ -271,60 +280,25 @@ stripNoNames = modifyScopes $ Map.map strip
     stripN m  = Map.filterWithKey (const . notNoName) m
     notNoName = not . isNoName
 
--- | @renamedCanonicalNames old new s@ returns a renaming replacing all
---   (abstract) names @old.m.x@ with @new.m.x@. Any other names are left
---   untouched.
-renamedCanonicalNames :: ModuleName -> ModuleName -> Scope ->
-                       ScopeM (Map A.QName A.QName, Map A.ModuleName A.ModuleName)
-renamedCanonicalNames old new s = (,) <$> renamedNames names <*> renamedMods mods
-  where
-    ns    = allThingsInScope s
-    names = nsNames ns
-    mods  = nsModules ns
-
-    renamedNames ds = Map.fromList <$> zip xs <$> mapM renName xs
-      where
-        xs = filter (`isInModule` old) $ map anameName $ concat $ Map.elems ds
-
-    renamedMods ms = Map.fromList <$> zip xs <$> mapM renMod xs
-      where
-        xs = filter (`isSubModuleOf` old) $ map amodName $ concat $ Map.elems ms
-
-    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
-    renName :: A.QName -> ScopeM A.QName
-    renName y = do
-      i <- fresh
-      return . qualifyQ new . dequalify
-             $ y { qnameName = (qnameName y) { nameId = i } }
-      where
-        dequalify = A.qnameFromList . drop (size old) . A.qnameToList
-
-    -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
-    renMod :: A.ModuleName -> ScopeM A.ModuleName
-    renMod = return . qualifyM new . dequalify
-      where
-        dequalify = A.mnameFromList . drop (size old) . A.mnameToList
-
 type Ren a = Map a a
-type Out = [Either (Ren A.ModuleName) (Ren A.QName)]
-type WSM = WriterT Out ScopeM
+type Out = (Ren A.ModuleName, Ren A.QName)
+type WSM = StateT Out ScopeM
 
 -- | Create a new scope with the given name from an old scope. Renames
 --   public names in the old scope to match the new name and returns the
 --   renamings.
-copyScope :: A.ModuleName -> Scope -> ScopeM (Scope, Ren A.ModuleName, Ren A.QName)
-copyScope new s = do
-  s0 <- getNamedScope new
-  (s', rho) <- runWriterT $ mapScopeM copyD copyM s
-  let s'' = s' { scopeName    = scopeName s0
-               , scopeParents = scopeParents s0
-               }
-  return (s'', modRenaming rho, defRenaming rho)
+copyScope :: A.ModuleName -> Scope -> ScopeM (Scope, (Ren A.ModuleName, Ren A.QName))
+copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
   where
+    copy new s = do
+      s0 <- lift $ getNamedScope new
+      s' <- mapScopeM copyD copyM s
+      return $ s' { scopeName    = scopeName s0
+                  , scopeParents = scopeParents s0
+                  }
+
     new' = killRange new
     old  = scopeName s
-    modRenaming rho = Map.unions [ m | Left m  <- rho ]
-    defRenaming rho = Map.unions [ m | Right m <- rho ]
 
     copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
     copyM ImportedNS ms = return ms
@@ -344,33 +318,49 @@ copyScope new s = do
       x <- f $ anameName d
       return d { anameName = x }
 
+    addName x y = addNames (Map.singleton x y)
+    addMod  x y = addMods (Map.singleton x y)
+
+    addNames rd' = modify $ \(rm, rd) -> (rm, Map.union rd rd')
+    addMods  rm' = modify $ \(rm, rd) -> (Map.union rm rm', rd)
+
+    findName x = Map.lookup x <$> gets snd
+    findMod  x = Map.lookup x <$> gets fst
+
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
     renName :: A.QName -> WSM A.QName
     renName x = do
-      i <- lift fresh
-      let y = qualifyQ new' . dequalify
-            $ x { qnameName = (qnameName x) { nameId = i } }
-      tell [Right $ Map.singleton x y]
-      return y
+      -- Check if we've seen it already
+      my <- findName x
+      case my of
+        Just y -> return y
+        Nothing -> do
+          -- First time, generate a fresh name for it
+          i <- lift fresh
+          let y = qualifyQ new' . dequalify
+                $ x { qnameName = (qnameName x) { nameId = i } }
+          addName x y
+          return y
       where
         dequalify = A.qnameFromList . drop (size old) . A.qnameToList
 
     -- Change a binding M.x -> old.M'.y to M.x -> new.M'.y
     renMod :: A.ModuleName -> WSM A.ModuleName
     renMod x = do
+      -- Check if we've seen it already
+      my <- findMod x
+      case my of
+        Just y -> return y
+        Nothing -> do
+          -- Create the name of the new module
+          let y = qualifyM new' $ dequalify x
+          addMod x y
 
-      -- Create the name of the new module
-      let y = qualifyM new' $ dequalify x
-      tell [Left $ Map.singleton x y]
-
-      -- We need to copy the contents of included modules recursively
-      (s, renM, renD) <- lift $ do
-        createModule y
-        s0 <- getNamedScope x
-        withCurrentModule y $ copyScope y s0
-      lift $ modifyNamedScope y (const s)
-      tell [Left renM, Right renD]
-      return y
+          -- We need to copy the contents of included modules recursively
+          s0 <- lift $ createModule y >> getNamedScope x
+          s  <- withCurrentModule' y $ copy y s0
+          lift $ modifyNamedScope y (const s)
+          return y
       where
         dequalify = A.mnameFromList . drop (size old) . A.mnameToList
 

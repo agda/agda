@@ -170,11 +170,16 @@ applySection ::
 applySection new ptel old ts rd rm = liftTCM $ do
   sig  <- getSignature
   isig <- getImportedSignature
-  let ss = Map.toList $ Map.filterKeys partOfOldM $ sigSections sig `Map.union` sigSections isig
-      ds = Map.toList $ Map.filterKeys partOfOldD $ sigDefinitions sig `Map.union` sigDefinitions isig
+  let ss = getOld partOfOldM sigSections    [sig, isig]
+      ds = getOld partOfOldD sigDefinitions [sig, isig]
+  reportSLn "tc.mod.apply" 80 $ "sections:    " ++ show ss ++ "\n" ++
+                                "definitions: " ++ show ds
   mapM_ (copyDef ts) ds
   mapM_ (copySec ts) ss
   where
+    getOld partOfOld fromSig sigs =
+      Map.toList $ Map.filterKeys partOfOld $ Map.unions $ map fromSig sigs
+
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
 
@@ -227,7 +232,8 @@ applySection new ptel old ts rd rm = liftTCM $ do
     copySec ts (x, sec) = case Map.lookup x rm of
 	Nothing -> return ()  -- if it's not in the renaming it was private and
 			      -- we won't need it
-	Just y  -> addCtxTel (apply tel ts) $ addSection y 0
+	Just y  ->
+          addCtxTel (apply tel ts) $ addSection y 0
       where
 	tel = secTelescope sec
 
@@ -292,7 +298,7 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
       idefs = sigDefinitions $ stImports st
       smash = (++) `on` maybe [] (:[])
   in case smash (Map.lookup q defs) (Map.lookup q idefs) of
-      []  -> fail $ "Unbound name: " ++ show q
+      []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
       [d] -> mkAbs env d
       ds  -> fail $ "Ambiguous name: " ++ show q
   where

@@ -177,13 +177,14 @@ checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
 
     (renD, renM) <- withCurrentModule m0 $ do
       s  <- getNamedScope m1
-      (s', renM, renD) <- copyScope m0 =<< getNamedScope m1
+      (s', (renM, renD)) <- copyScope m0 =<< getNamedScope m1
       s' <- applyImportDirectiveM (C.QName x) dir' s'
       modifyCurrentScope $ const s'
       printScope "mod.inst" 20 "copied source module"
+      reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
       return (renD, renM)
     bindModule p x m0
-    printScope "mod.inst" 20 "after copying"
+    printScope "mod.inst.copy.after" 20 "after copying"
     case open of
       DoOpen   -> openModule_ (C.QName x) dir
       DontOpen -> return ()
