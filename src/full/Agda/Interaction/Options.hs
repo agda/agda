@@ -71,7 +71,6 @@ data CommandLineOptions =
             , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
             , optGhcFlags             :: [String]
-            , optVerbose              :: Verbosity
             , optPragmaOptions        :: PragmaOptions
 	    }
     deriving Show
@@ -80,6 +79,7 @@ data CommandLineOptions =
 
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
+  , optVerbose                   :: Verbosity
   , optProofIrrelevance          :: Bool
   , optAllowUnsolved             :: Bool
   , optDisablePositivity         :: Bool
@@ -129,13 +129,13 @@ defaultOptions =
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
             , optGhcFlags             = []
-            , optVerbose              = defaultVerbosity
             , optPragmaOptions        = defaultPragmaOptions
 	    }
 
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
+  , optVerbose                   = defaultVerbosity
   , optProofIrrelevance          = False
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
@@ -282,8 +282,6 @@ standardOptions =
 		    "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
 		    "look for imports in DIR"
-    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
-		    "set verbosity level to N"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions
@@ -295,6 +293,8 @@ pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
     [ Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
+    , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
+                    "set verbosity level to N"
     -- , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)
     --     	    "enable proof irrelevance (experimental feature)"
     , Option []	    ["allow-unsolved-metas"] (NoArg allowUnsolvedFlag)

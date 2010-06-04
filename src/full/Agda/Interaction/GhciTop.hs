@@ -285,10 +285,11 @@ cmd_load' file includes unsolvedOK cmd =
     opts <- commandLineOptions
     setCommandLineOptions $
       defaultOptions { optIncludeDirs   = optIncludeDirs opts
-                     , optVerbose       = optVerbose opts
                      , optPragmaOptions =
                          (optPragmaOptions defaultOptions)
-                           { optAllowUnsolved = unsolvedOK }
+                           { optAllowUnsolved = unsolvedOK
+                           , optVerbose       = optVerbose (optPragmaOptions opts)
+                           }
                      }
 
     -- Reset the state, preserving options and decoded modules. Note
@@ -972,7 +973,11 @@ getCurrentFile = do
 makeSilent :: Interaction -> Interaction
 makeSilent i = i { command = do
   opts <- commandLineOptions
-  TM.setCommandLineOptions $ opts { optVerbose = Trie.singleton [] 0 }
+  TM.setCommandLineOptions $ opts
+    { optPragmaOptions = 
+        (optPragmaOptions opts)
+          { optVerbose = Trie.singleton [] 0 }
+    }
   command i }
 
 top_command' :: FilePath -> Interaction -> IO ()
