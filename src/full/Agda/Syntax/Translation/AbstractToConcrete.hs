@@ -383,13 +383,17 @@ instance ToConcrete A.Expr C.Expr where
       return $ C.ETel tel
 
     toConcrete (A.ScopedExpr _ e) = toConcrete e
-    toConcrete (A.QuoteGoal i x e) = 
+
+    toConcrete (A.QuoteGoal i x e) =
+      bracket lamBrackets $
         bindToConcrete x $ \ x' -> do
             e' <- toConcrete e
-            return $ C.QuoteGoal (getRange i) x' e' 
-    toConcrete (A.Quote i x) = do
-      C.Ident x' <- toConcrete x
-      return $ C.Quote (getRange i) x'
+            return $ C.QuoteGoal (getRange i) x' e'
+    toConcrete (A.Quote i x) =
+      bracket appBrackets $ do
+        C.Ident x' <- toConcrete x
+        return $ C.Quote (getRange i) x'
+
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where
