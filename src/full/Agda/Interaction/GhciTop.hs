@@ -836,7 +836,8 @@ cmd_infer_toplevel norm =
 cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
                      -> String -> Interaction
 cmd_compute_toplevel ignore =
-  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c else c)
+  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c
+                                  else inConcreteMode . c)
                        "*Normal Form*"
   where c = B.evalInCurrent
 

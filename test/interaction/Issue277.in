@@ -1,0 +1,14 @@
+top_command    (cmd_load currentFile [])
+
+-- Should be 'x'
+top_command (cmd_compute_toplevel False "x")
+
+-- Should be 'd'
+top_command (cmd_compute_toplevel True "x")
+
+-- Should be 'x'
+goal_command 0 (cmd_compute False) "x"
+
+-- Should be 'd'
+goal_command 0 (cmd_compute True) "x"
+
