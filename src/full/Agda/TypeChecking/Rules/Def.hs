@@ -192,8 +192,9 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
                          underscore = A.Underscore metaInfo
                          
-                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <- setShowImplicitArguments True $ reify
-                      [rewriteFrom,   rewriteTo,    rewriteType    , proof]
+                     [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-
+                      disableDisplayForms $ setShowImplicitArguments True $ reify
+                        [rewriteFrom,   rewriteTo,    rewriteType    , proof]
                      let (inner, outer) -- the where clauses should go on the inner-most with
                            | null eqs  = ([], wh)
                            | otherwise = (wh, [])
