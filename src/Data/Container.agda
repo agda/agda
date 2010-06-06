@@ -170,7 +170,6 @@ module Morphism where
               ⟪ f ∘ g ⟫ {X} ≗ (⟪ f ⟫ ⟨∘⟩ ⟪ g ⟫)
   ∘-correct f g xs = refl
 
-
 ------------------------------------------------------------------------
 -- Linear container morphisms
 
