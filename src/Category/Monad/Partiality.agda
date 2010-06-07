@@ -134,6 +134,13 @@ module Equality {A : Set} -- The "return type".
   ≳⇒ (later  x≳y) = later (♯ ≳⇒ (♭ x≳y))
   ≳⇒ (laterˡ x≳y) = laterˡ  (≳⇒    x≳y )
 
+  -- Weak equality includes the other relations.
+
+  ⇒≈ : ∀ {k} {x y : A ⊥} → Rel k x y → x ≈ y
+  ⇒≈ {strong}     = ≅⇒
+  ⇒≈ {other geq}  = ≳⇒
+  ⇒≈ {other weak} = id
+
   -- The relations agree for non-terminating computations.
 
   never⇒never : ∀ {k₁ k₂} {x : A ⊥} →
@@ -497,6 +504,17 @@ module Propositional where
     open module P₁ {A : Set} = Properties (P.setoid A) public
     open module P₂ {A B : Set} =
       Properties₂ (P.setoid A) (P.setoid B) public
+
+  -- If a statement can be proved using propositional equality as the
+  -- underlying relation, then it can also be proved for any other
+  -- reflexive underlying relation.
+
+  ≡⇒ : ∀ {A : Set} {_≈_ : A → A → Set} → Reflexive _≈_ →
+       ∀ {k x y} → Rel k x y → Equality.Rel _≈_ k x y
+  ≡⇒ refl (now P.refl) = Equality.now refl
+  ≡⇒ refl (later  x∼y) = Equality.later (♯ ≡⇒ refl (♭ x∼y))
+  ≡⇒ refl (laterʳ x≈y) = Equality.laterʳ  (≡⇒ refl    x≈y)
+  ≡⇒ refl (laterˡ x∼y) = Equality.laterˡ  (≡⇒ refl    x∼y)
 
 ------------------------------------------------------------------------
 -- Productivity checker workaround
