@@ -85,13 +85,12 @@ compile i = do
 
 imports :: TCM [HsImportDecl]
 imports = (++) <$> hsImps <*> imps where
-  hsImps = (L.map udecl . S.toList . S.map Module) <$>
+  hsImps = (L.map decl . S.toList .
+            S.insert unsafeCoerceMod . S.map Module) <$>
              getHaskellImports
-  imps   = L.map decl . (unsafeCoerceMod :) . uniq <$>
+  imps   = L.map decl . uniq <$>
              ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
-  udecl = decl' False
-  decl  = decl' True
-  decl' q m  = HsImportDecl dummy m q Nothing Nothing
+  decl m = HsImportDecl dummy m True Nothing Nothing
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
                 <*> (iImportedModules <$> curIF)
   uniq   = L.map head . group . L.sort
