@@ -402,27 +402,24 @@ termTerm conf names f pats0 t0 = do
        -- so look for recursive calls also
        -- in sorts.  Ideally, Sort would not be its own datatype but just
        -- a subgrammar of Term, then we would not need this boilerplate.
-       -- We do not care about guardedness since guardedness is destroyed
-       -- anyway when going from a coinductive type to Nat to Sort.
-       loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Sort -> TCM Calls
-       loopSort pats guarded s = do
+       loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Sort -> TCM Calls
+       loopSort pats s = do
          case s of
-           Type t -> loop pats guarded t
+           Type t -> loop pats Term.unknown t
            Prop   -> return Term.empty
            Inf    -> return Term.empty
            Lub s1 s2 -> liftM2 Term.union
-             (loopSort pats guarded s1)
-             (loopSort pats guarded s2)
+             (loopSort pats s1)
+             (loopSort pats s2)
            DLub s1 (Abs x s2) -> liftM2 Term.union
-             (loopSort pats guarded s1)
-             (loopSort (map liftDBP pats) guarded s2)
-           Suc s -> loopSort pats guarded s
+             (loopSort pats s1)
+             (loopSort (map liftDBP pats) s2)
+           Suc s -> loopSort pats s
            MetaS _ _ -> return Term.empty  -- see comment on MetaV below
 
-
        loopType :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Type -> TCM Calls
-       loopType pats guarded (El s t) = liftM2 Term.union 
-         (loopSort pats guarded s)
+       loopType pats guarded (El s t) = liftM2 Term.union
+         (loopSort pats s)
          (loop pats guarded t)
      
        loop :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Term -> TCM Calls
@@ -559,7 +556,7 @@ termTerm conf names f pats0 t0 = do
             Lit l -> return Term.empty
 
             -- sort
-            Sort s -> loopSort pats guarded s
+            Sort s -> loopSort pats s
 
 	    -- Unsolved metas are not considered termination problems, there
 	    -- will be a warning for them anyway.
