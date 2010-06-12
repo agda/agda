@@ -6,9 +6,8 @@
 -- specifies under base 4.2 (and later?; only if the locale is
 -- supported, see "System.IO").
 --
--- Note that @'hSetEncoding' 'stdin'@ and @'hSetEncoding' 'stdout'@
--- can be used to change the behaviour of the functions below if base
--- 4.2 (or later?) is used.
+-- Note that 'hSetEncoding' can be used to change the behaviour of the
+-- functions below if base 4.2 (or later?) is used.
 
 module Agda.Utils.IO.Locale
   ( print
