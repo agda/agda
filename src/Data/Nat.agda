@@ -52,9 +52,9 @@ m > n = n < m
 
 infix 4 _≤′_ _<′_ _≥′_ _>′_
 
-data _≤′_ : Rel ℕ zero where
-  ≤′-refl : ∀ {n}                   → n ≤′ n
-  ≤′-step : ∀ {m n} (m≤′n : m ≤′ n) → m ≤′ suc n
+data _≤′_ (m : ℕ) : ℕ → Set where
+  ≤′-refl :                         m ≤′ m
+  ≤′-step : ∀ {n} (m≤′n : m ≤′ n) → m ≤′ suc n
 
 _<′_ : Rel ℕ zero
 m <′ n = suc m ≤′ n
