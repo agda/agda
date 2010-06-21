@@ -596,7 +596,9 @@ instance ToAbstract LetDef [A.LetBinding] where
                                    , minfoAsName = Nothing
                                    , minfoAsTo   = renamingRange dirs
                                    })
-                                m]
+                                m
+                                dirs
+                     ]
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
               AppView (Ident m) args -> checkModuleMacro LetApply r p x tel m args open dir

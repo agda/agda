@@ -18,6 +18,7 @@ import Data.Map (Map)
 import Data.Generics (Typeable, Data)
 
 import qualified Agda.Syntax.Concrete as C
+import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Info
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -77,7 +78,7 @@ data Pragma = OptionsPragma [String]
 
 data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
                 | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
-                | LetOpen ModuleInfo ModuleName  -- ^ only for highlighting
+                | LetOpen ModuleInfo ModuleName C.ImportDirective -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Data, Show)
 
 -- | A definition without its type signature.
@@ -269,7 +270,7 @@ instance HasRange RHS where
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _       ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
-    getRange (LetOpen  i _           ) = getRange i
+    getRange (LetOpen  i _ _         ) = getRange i
 
 instance KillRange LamBinding where
   killRange (DomainFree h x) = killRange1 (DomainFree h) x
@@ -348,7 +349,7 @@ instance KillRange RHS where
 instance KillRange LetBinding where
   killRange (LetBind  i a b c       ) = killRange4 LetBind  i a b c
   killRange (LetApply i a b c d e f ) = killRange5 LetApply i a b c d e f
-  killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
+  killRange (LetOpen  i x dir       ) = killRange2 LetOpen  i x dir
 
 ------------------------------------------------------------------------
 -- Queries

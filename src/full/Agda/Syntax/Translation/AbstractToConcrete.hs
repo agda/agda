@@ -432,9 +432,19 @@ instance ToConcrete LetBinding [C.Declaration] where
                   (foldl (C.App r) (C.Ident y) es) DontOpen
                   (ImportDirective r (Hiding []) [] False)
           ]
-    bindToConcrete (LetOpen i x) ret = do
-      x <- toConcrete x
-      ret [ C.Open (getRange i) x defaultImportDir ]
+    bindToConcrete (LetOpen i x dir) ret = do
+      y <- toConcrete x
+      local openModule_x $ ret [ C.Open (getRange i) y dir ]
+      where
+      openModule_x env = env{currentScope = sInfo{scopeModules = mods'}}
+        where sInfo = currentScope env
+              amod  = scopeCurrent sInfo
+              mods  = scopeModules sInfo
+              news  = setScopeAccess PrivateNS 
+                    $ applyImportDirective dir
+                    $ maybe __IMPOSSIBLE__  restrictPrivate
+                    $ Map.lookup x mods
+              mods' = Map.update (Just . (`mergeScope` news)) amod mods
 
 
 -- Declaration instances --------------------------------------------------
