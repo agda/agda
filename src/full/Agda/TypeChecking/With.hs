@@ -212,6 +212,8 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
       , text "perm   =" <+> text (show perm)
       , text "dt     =" <+> prettyTCM dt
       , text "raw    =" <+> text (show display)
+      , text "qsToTm =" <+> prettyTCM (patsToTerms qs)
+      , text "sub qs =" <+> prettyTCM (substs (sub wild) $ patsToTerms qs)
       ]
     ]
 
