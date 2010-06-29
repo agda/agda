@@ -1,9 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, CPP #-}
 module Agda.Utils.Permutation where
 
 import Data.Generics (Typeable, Data)
 import Data.List
 import Agda.Utils.Size
+import Agda.Utils.Impossible
+
+#include "../undefined.h"
 
 -- | @permute [2,3,1] [x,y,z] = [y,z,x]@
 data Permutation = Perm Integer [Integer]
@@ -16,7 +19,11 @@ instance Sized Permutation where
   size (Perm _ xs) = size xs
 
 permute :: Permutation -> [a] -> [a]
-permute (Perm _ is) xs = map ((xs !!) . fromIntegral) is
+permute (Perm _ is) xs = map (xs !!!) is
+  where
+    []     !!! _ = __IMPOSSIBLE__
+    (x:xs) !!! 0 = x
+    (x:xs) !!! n = xs !!! (n - 1)
 
 idP :: Integer -> Permutation
 idP n = Perm n [0..n - 1]
