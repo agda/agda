@@ -376,7 +376,14 @@ typeOfMetaMI norm mi =
     rewriteJudg mv (HasType i t) = do
       t <- rewrite norm t
       vs <- getContextArgs
-      OfType i <$> reify (t `piApply` vs)
+      reportSDoc "interactive.meta" 10 $ TP.vcat
+        [ TP.text $ unwords ["permuting", show i, "with", show $ mvPermutation mv]
+        , TP.nest 2 $ TP.vcat
+          [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
+          , TP.text "args =" TP.<+> prettyTCM vs
+          ]
+        ]
+      OfType i <$> reify (t `piApply` permute (mvPermutation mv) vs)
     rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
@@ -396,8 +403,8 @@ typesOfHiddenMetas norm = liftTCM $ do
   store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
   mapM (typeOfMetaMI norm) $ Map.keys store
   where
-  openAndImplicit is x (MetaVar _ _ _ M.Open             _) = x `notElem` is
-  openAndImplicit is x (MetaVar _ _ _ (M.BlockedConst _) _) = True
+  openAndImplicit is x (MetaVar{mvInstantiation = M.Open}) = x `notElem` is
+  openAndImplicit is x (MetaVar{mvInstantiation = M.BlockedConst _}) = True
   openAndImplicit _  _ _                                    = False
 
 -- Gives a list of names and corresponding types.

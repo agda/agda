@@ -314,9 +314,14 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                             Covariant     -> compareTerm CmpLeq b x y
                             Contravariant -> compareTerm CmpLeq b y x
             cs1 <- cmp (unArg arg1) (unArg arg2)
+            -- mlvl <- mlevel
 	    case (cs1, unEl a) of
-                                -- We can safely ignore sort annotations here.
-		(_:_, Pi _ c) | 0 `freeInIgnoringSorts` absBody c
+                                -- We can safely ignore sort annotations here
+                                -- (except it's not, we risk leaving unsolved sorts)
+                                -- We're also ignoring levels which isn't quite as
+                                -- safe (it would be if we disallowed matching on levels?)
+		(_:_, Pi (Arg _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
+                                                  -- && Just lvl' /= mlvl
 		    -> do
                         reportSDoc "tc.conv.args" 15 $ sep
                           [ text "aborting compareArgs" <+> parens (text $ show pol)
@@ -352,6 +357,13 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           ]
 	cs1 <- compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
                   TypeError _ _ -> do
+                    reportSDoc "tc.conv.type" 10 $ vcat
+                      [ text "sort comparison failed"
+                      , nest 2 $ vcat
+                        [ text "s1 =" <+> prettyTCM s1
+                        , text "s2 =" <+> prettyTCM s2
+                        ]
+                      ]
                     -- This error will probably be more informative
                     compareTerm cmp (sort s1) a1 a2
                     -- Throw the original error if the above doesn't

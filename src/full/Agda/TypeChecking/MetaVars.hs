@@ -39,6 +39,7 @@ import Agda.Utils.Fresh
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Permutation
 
 import Agda.TypeChecking.Monad.Debug
 
@@ -129,14 +130,14 @@ newSortMeta =
   ifM typeInType (return $ mkType 0) $
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
   $ do i <- createMetaInfo
-       x <- newMeta i normalMetaPriority (IsSort())
+       x <- newMeta i normalMetaPriority (idP 0) (IsSort())
        return $ MetaS x []
 
 newSortMetaCtx :: MonadTCM tcm => Args -> tcm Sort
 newSortMetaCtx vs =
   ifM typeInType (return $ mkType 0) $ do
     i <- createMetaInfo
-    x <- newMeta i normalMetaPriority (IsSort ())
+    x <- newMeta i normalMetaPriority (idP 0) (IsSort ())
     return $ MetaS x vs
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
@@ -168,7 +169,9 @@ newValueMeta' t = do
 newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
 newValueMetaCtx' t vs = do
   i <- createMetaInfo
-  x <- newMeta i normalMetaPriority (HasType () t)
+  let TelV tel _ = telView' t
+      perm = idP (size tel)
+  x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
@@ -229,7 +232,8 @@ blockTerm t v m = do
 	    vs	  <- getContextArgs
 	    tel   <- getContextTelescope
 	    x	  <- newMeta' (BlockedConst $ abstract tel v)
-                              i lowMetaPriority (HasType () $ telePi_ tel t)
+                              i lowMetaPriority (idP $ size tel)
+                              (HasType () $ telePi_ tel t)
 			    -- we don't instantiate blocked terms
 	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
             verboseS "tc.meta.blocked" 20 $ do
@@ -258,7 +262,8 @@ postponeTypeCheckingProblem e t unblock = do
   tel <- getContextTelescope
   cl  <- buildClosure (e, t, unblock)
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
-                  i normalMetaPriority $ HasType () $ telePi_ tel t
+                  i normalMetaPriority (idP (size tel))
+         $ HasType () $ telePi_ tel t
   addConstraints =<< buildConstraint (UnBlock m)
   MetaV m <$> getContextArgs
 

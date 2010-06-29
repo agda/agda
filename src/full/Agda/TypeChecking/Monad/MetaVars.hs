@@ -22,6 +22,7 @@ import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
+import Agda.Utils.Permutation
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -106,14 +107,14 @@ judgementInteractionId ii =
         mvJudgement <$> lookupMeta mi
 
 -- | Generate new meta variable.
-newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Judgement Type a -> tcm MetaId
+newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> tcm MetaId
 newMeta = newMeta' Open
 
-newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority ->
+newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
             Judgement Type a -> tcm MetaId
-newMeta' inst mi p j = do
+newMeta' inst mi p perm j = do
   x <- fresh
-  let mv = MetaVar mi p (fmap (const x) j) inst Set.empty
+  let mv = MetaVar mi p perm (fmap (const x) j) inst Set.empty
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 
@@ -138,7 +139,7 @@ withMetaInfo mI m = enterClosure mI $ \r -> setCurrentRange r m
 getInstantiatedMetas :: MonadTCM tcm => tcm [MetaId]
 getInstantiatedMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isInst mi ]
+    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isInst mi ]
     where
 	isInst Open                             = False
 	isInst (BlockedConst _)                 = False
@@ -149,7 +150,7 @@ getInstantiatedMetas = do
 getOpenMetas :: MonadTCM tcm => tcm [MetaId]
 getOpenMetas = do
     store <- getMetaStore
-    return [ i | (i, MetaVar _ _ _ mi _) <- Map.assocs store, isOpen mi ]
+    return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpen mi ]
     where
 	isOpen Open                             = True
 	isOpen (BlockedConst _)                 = True

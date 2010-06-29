@@ -34,6 +34,7 @@ import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
+import Agda.Utils.Permutation
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -269,6 +270,10 @@ instance Traversable (Judgement t) where
 data MetaVariable =
 	MetaVar	{ mvInfo	  :: MetaInfo
 		, mvPriority	  :: MetaPriority -- ^ some metavariables are more eager to be instantiated
+                , mvPermutation   :: Permutation
+                  -- ^ a metavariable doesn't have to depend on all variables
+                  --   in the context, this "permutation" will throw away the
+                  --   ones it does not depend on
 		, mvJudgement	  :: Judgement Type MetaId
 		, mvInstantiation :: MetaInstantiation
 		, mvListeners	  :: Set MetaId	  -- ^ metavariables interested in what happens to this guy
@@ -302,7 +307,8 @@ instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
 instance SetRange MetaVariable where
-  setRange r (MetaVar mi p j inst ls) = MetaVar (mi {clValue = r}) p j inst ls
+  setRange r (MetaVar mi p perm j inst ls) =
+    MetaVar (mi {clValue = r}) p perm j inst ls
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
