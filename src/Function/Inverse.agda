@@ -77,6 +77,21 @@ infix 3 _⇿_
 _⇿_ : ∀ {f t} → Set f → Set t → Set _
 From ⇿ To = Inverse (P.setoid From) (P.setoid To)
 
+-- If two setoids are in bijective correspondence, then there is an
+-- inverse between them.
+
+fromBijection :
+  ∀ {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂} →
+  Bijection From To → Inverse From To
+fromBijection b = record
+  { to         = Bijection.to b
+  ; from       = Bijection.from b
+  ; inverse-of = record
+    { left-inverse-of  = Bijection.left-inverse-of b
+    ; right-inverse-of = Bijection.right-inverse-of b
+    }
+  }
+
 ------------------------------------------------------------------------
 -- Map and zip
 

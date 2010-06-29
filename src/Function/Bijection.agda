@@ -10,9 +10,10 @@ open import Data.Product
 open import Level
 open import Relation.Binary
 open import Function.Equality as F
-  using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Function.Injection  as Inj  hiding (id; _∘_)
-open import Function.Surjection as Surj hiding (id; _∘_)
+  using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
+open import Function.Injection   as Inj  hiding (id; _∘_)
+open import Function.Surjection  as Surj hiding (id; _∘_)
+open import Function.LeftInverse as Left hiding (id; _∘_)
 
 -- Bijective functions.
 
@@ -25,6 +26,9 @@ record Bijective {f₁ f₂ t₁ t₂}
     surjective : Surjective to
 
   open Surjective surjective public
+
+  left-inverse-of : from LeftInverseOf to
+  left-inverse-of x = injective (right-inverse-of (to ⟨$⟩ x))
 
 -- The set of all bijections between two setoids.
 
@@ -51,7 +55,15 @@ record Bijection {f₁ f₂ t₁ t₂}
 
   open Surjection surjection public using (right-inverse)
 
--- Identity and composition.
+  left-inverse : LeftInverse From To
+  left-inverse = record
+    { to              = to
+    ; from            = from
+    ; left-inverse-of = left-inverse-of
+    }
+
+-- Identity and composition. (Note that these proofs are superfluous,
+-- given that Bijection is equivalent to Function.Inverse.Inverse.)
 
 id : ∀ {s₁ s₂} {S : Setoid s₁ s₂} → Bijection S S
 id {S = S} = record
