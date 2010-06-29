@@ -25,12 +25,6 @@ record Surjective {f₁ f₂ t₁ t₂}
     from             : To ⟶ From
     right-inverse-of : from RightInverseOf to
 
-  equivalent : Equivalent From To
-  equivalent = record
-    { to   = to
-    ; from = from
-    }
-
 -- The set of all surjections between two setoids.
 
 record Surjection {f₁ f₂ t₁ t₂}
@@ -54,6 +48,12 @@ record Surjection {f₁ f₂ t₁ t₂}
 
   injection : Injection To From
   injection = LeftInverse.injection right-inverse
+
+  equivalent : Equivalent From To
+  equivalent = record
+    { to   = to
+    ; from = from
+    }
 
 -- Identity and composition.
 

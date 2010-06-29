@@ -27,12 +27,6 @@ record _InverseOf_ {f₁ f₂ t₁ t₂}
     left-inverse-of  : from LeftInverseOf  to
     right-inverse-of : from RightInverseOf to
 
-  equivalent : Equivalent From To
-  equivalent = record
-    { to   = to
-    ; from = from
-    }
-
 -- The set of all inverses between two setoids.
 
 record Inverse {f₁ f₂ t₁ t₂}
@@ -68,7 +62,7 @@ record Inverse {f₁ f₂ t₁ t₂}
     }
 
   open Bijection bijection public
-    using (surjective; surjection; right-inverse)
+    using (equivalent; surjective; surjection; right-inverse)
 
 -- The set of all inverses between two sets.
 
