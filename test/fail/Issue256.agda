@@ -20,5 +20,5 @@ level {ℓ} _ = ℓ
 ℓ : Level
 ℓ = const zero (Set ℓ)
 
-A : Set (suc {!ℓ!})
-A = Set (level A)
+-- A : Set (suc {!ℓ!})
+-- A = Set (level A)
