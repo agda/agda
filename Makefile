@@ -29,7 +29,8 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : install-bin tags
+default : install-bin
+# tags
 else
 default : make_configure
 endif
