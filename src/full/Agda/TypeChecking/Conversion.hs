@@ -59,6 +59,9 @@ equalArgs = compareArgs []
 equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType = compareType CmpEq
 
+mlevel :: MonadTCM tcm => tcm (Maybe Term)
+mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
+
 -- | Type directed equality on values.
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
@@ -71,7 +74,7 @@ compareTerm cmp a m n =
     proofIrr <- proofIrrelevance
     isSize   <- isSizeType a'
     s        <- reduce $ getSort a'
-    mlvl     <- liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
+    mlvl     <- mlevel
     case s of
       Prop | proofIrr -> return []
       _    | isSize   -> compareSizes cmp m n
@@ -480,11 +483,13 @@ leqLevel a b = liftTCM $ do
 
 equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
 equalLevel a b = do
+  lvl    <- primLevel
   Max as <- levelView a
   Max bs <- levelView b
   a <- unLevelView (Max as)
   b <- unLevelView (Max bs)
-  liftTCM $ check a b as bs
+  liftTCM $ catchConstraint (ValueCmp CmpEq (El (mkType 0) lvl) a b)
+          $ check a b as bs
   where
     check a b as bs = do
       reportSDoc "tc.conv.nat" 20 $
@@ -566,7 +571,7 @@ equalLevel a b = do
           | m >= n    = return $ Plus (m - n) a
         subtr _ (Plus _ BlockedLevel{}) = postpone
         subtr _ (Plus _ MetaLevel{})    = postpone
-        subtr _ (Plus _ NeutralLevel{}) = notok
+        subtr _ (Plus _ NeutralLevel{}) = postpone
 
         isNeutral (Plus _ NeutralLevel{}) = True
         isNeutral _                       = False
