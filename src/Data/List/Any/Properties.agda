@@ -158,8 +158,8 @@ swap {P = P} {xs} {ys} =
   from (here ())
   from (there p) = from p
 
-⊥⇿∈[] : {A : Set} {x : A} → ⊥ ⇿ x ∈ []
-⊥⇿∈[] = record
+⊥⇿Any[] : {A : Set} {P : A → Set} → ⊥ ⇿ Any P []
+⊥⇿Any[] = record
   { to         = P.→-to-⟶ (λ ())
   ; from       = P.→-to-⟶ (λ ())
   ; inverse-of = record
