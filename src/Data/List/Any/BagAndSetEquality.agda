@@ -10,6 +10,7 @@ open import Algebra
 open import Algebra.FunctionProperties
 open import Category.Monad
 open import Data.List as List
+import Data.List.Properties as LP
 open import Data.List.Any as Any using (Any)
 open import Data.List.Any.Properties
 open import Data.Sum
@@ -19,11 +20,11 @@ import Function.Equivalence as FE
 open import Function.Inverse as Inv using (_⇿_; module Inverse)
 open import Function.Inverse.TypeIsomorphisms
 open import Relation.Binary
+import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_)
 
 open Any.Membership-≡
-open Inv.EquationalReasoning
 open RawMonad List.monad
 private
   module ListMonoid {A : Set} = Monoid (List.monoid A)
@@ -56,6 +57,7 @@ commutativeMonoid k A = record
                     x ∈ ys ++ xs  ∎
     }
   }
+  where open Inv.EquationalReasoning
 
 -- _++_ is idempotent (under set equality).
 
@@ -65,6 +67,7 @@ commutativeMonoid k A = record
   x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from ++⇿))
                                  (_⟨$⟩_ (Inverse.to ++⇿) ∘ inj₁) ⟩
   x ∈ xs        ∎
+  where open Inv.EquationalReasoning
 
 -- List.map is a congruence.
 
@@ -77,6 +80,8 @@ map-cong {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
   Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ ⟩
   x ∈ List.map f₂ xs₂       ∎
   where
+  open Inv.EquationalReasoning
+
   helper : ∀ y → x ≡ f₁ y ⇿ x ≡ f₂ y
   helper y = record
     { to         = P.→-to-⟶ (λ x≡f₁y → P.trans x≡f₁y (        f₁≗f₂ y))
@@ -96,6 +101,7 @@ concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   Any (Any (_≡_ x)) xss₁  ≈⟨ Any-cong (λ _ → _ ∎) xss₁≈xss₂ ⟩
   Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ ⟩
   x ∈ concat xss₂         ∎
+  where open Inv.EquationalReasoning
 
 -- The list monad's bind is a congruence.
 
@@ -107,6 +113,17 @@ concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   Any (λ y → x ∈ f₁ y) xs₁  ≈⟨ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟩
   Any (λ y → x ∈ f₂ y) xs₂  ⇿⟨ >>=⇿ ⟩
   x ∈ (xs₂ >>= f₂)          ∎
+  where open Inv.EquationalReasoning
+
+-- _⊛_ is a congruence.
+
+⊛-cong : ∀ {k A B} {fs₁ fs₂ : List (A → B)} {xs₁ xs₂} →
+         fs₁ ≈[ k ] fs₂ → xs₁ ≈[ k ] xs₂ → fs₁ ⊛ xs₁ ≈[ k ] fs₂ ⊛ xs₂
+⊛-cong fs₁≈fs₂ xs₁≈xs₂ =
+  >>=-cong fs₁≈fs₂ λ f →
+  >>=-cong xs₁≈xs₂ λ x →
+  _ ∎
+  where open Inv.EquationalReasoning
 
 -- The list monad's bind distributes from the left over _++_.
 
@@ -120,3 +137,22 @@ concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ⇿⟨ >>=⇿ ⟨ ×⊎.+-cong ⟩ >>=⇿ ⟩
   (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ⇿⟨ ++⇿ ⟩
   y ∈ (xs >>= f) ++ (xs >>= g)                       ∎
+  where open Inv.EquationalReasoning
+
+-- The same applies to _⊛_.
+
+⊛-left-distributive :
+  ∀ {A B} (fs : List (A → B)) xs₁ xs₂ →
+  fs ⊛ (xs₁ ++ xs₂) ≈[ bag ] (fs ⊛ xs₁) ++ (fs ⊛ xs₂)
+⊛-left-distributive fs xs₁ xs₂ = begin
+  fs ⊛ (xs₁ ++ xs₂)                         ≡⟨ P.refl ⟩
+  (fs >>= λ f → xs₁ ++ xs₂ >>= return ∘ f)  ≡⟨ (LP.Monad.cong (P.refl {x = fs}) λ f →
+                                                LP.Monad.right-distributive xs₁ xs₂ (return ∘ f)) ⟩
+  (fs >>= λ f → (xs₁ >>= return ∘ f) ++
+                (xs₂ >>= return ∘ f))       ≈⟨ >>=-left-distributive fs ⟩
+
+  (fs >>= λ f → xs₁ >>= return ∘ f) ++
+  (fs >>= λ f → xs₂ >>= return ∘ f)         ≡⟨ P.refl ⟩
+
+  (fs ⊛ xs₁) ++ (fs ⊛ xs₂)                  ∎
+  where open EqR ([ bag ]-Equality _)
