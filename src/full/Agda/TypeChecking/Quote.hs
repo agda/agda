@@ -26,12 +26,16 @@ quoteTerm v = do
   con <- primAgdaTermCon
   pi <- primAgdaTermPi
   sort <- primAgdaTermSort  
+  Con z _ <- primZero
+  Con s _ <- primSuc
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [Arg NotHidden u]
       quoteHiding Hidden = true
       quoteHiding NotHidden = false
       list [] = nil
       list (a : as) = cons @@ a @@ list as 
+      zero = con @@ quoteName z @@ nil
+      suc n = con @@ quoteName s @@ list [n]
       quoteArg (Arg h t) = arg @@ quoteHiding h @@ quote t
       quoteArgs ts = list (map quoteArg ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange n) @@ quoteArgs ts
@@ -42,6 +46,7 @@ quoteTerm v = do
                           @@ quote (unEl (absBody u))
       quote (Fun t u) = pi @@ quoteArg (fmap unEl t)
                            @@ quote (raise 1 (unEl u))
+      quote (Lit (LitInt _ n)) = iterate suc zero !! fromIntegral n
       quote (Sort _) = sort
       quote _ = unsupported
   return (quote v)
