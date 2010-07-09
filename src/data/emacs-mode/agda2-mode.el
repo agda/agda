@@ -501,21 +501,26 @@ The user input is computed as follows:
   contains whitespace, then the input is taken from the
   minibuffer. In this case WANT is used as the prompt string.
 
-* Otherwise (including if WANT is 'goal) the goal contents is
+* Otherwise (including if WANT is 'goal) the goal contents are
   used.
+
+If the user input is not taken from the goal, then an empty goal
+range is given.
 
 An error is raised if no responses are received."
   (multiple-value-bind (o g) (agda2-goal-at (point))
     (unless g (error "For this command, please place the cursor in a goal"))
     (let ((txt (buffer-substring-no-properties (+ (overlay-start o) 2)
-                                               (- (overlay-end   o) 2))))
+                                               (- (overlay-end   o) 2)))
+          (input-from-goal nil))
       (cond ((null want) (setq txt ""))
             ((and (stringp want)
                   (or ask (string-match "\\`\\s *\\'" txt)))
-             (setq txt (read-string (concat want ": ") nil nil txt t))))
+             (setq txt (read-string (concat want ": ") nil nil txt t)))
+            (t (setq input-from-goal t)))
       (apply 'agda2-go nil cmd
              (format "%d" g)
-             (agda2-goal-Range o)
+             (if input-from-goal (agda2-goal-Range o) "noRange")
              (agda2-string-quote txt) args))))
 
 (defun agda2-read-responses (response)

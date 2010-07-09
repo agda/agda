@@ -153,7 +153,7 @@ agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Normal Form*" "(s z)")
 agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
-agda2_mode_code (agda2-give-action 8 'no-paren)
+agda2_mode_code (agda2-give-action 8 "d")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"
@@ -175,7 +175,7 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Normal Form*" "?1")
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
-agda2_mode_code (agda2-give-action 1 'no-paren)
+agda2_mode_code (agda2-give-action 1 "Nothing")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"
@@ -184,7 +184,7 @@ agda2_mode_code (agda2-info-action
 ?7 : Nat
 ")
 agda2_mode_code (agda2-goals-action '(7 2 5))
-agda2_mode_code (agda2-give-action 7 'no-paren)
+agda2_mode_code (agda2-give-action 7 "n")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"

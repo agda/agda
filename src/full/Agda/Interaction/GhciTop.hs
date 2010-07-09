@@ -368,21 +368,27 @@ cmd_metas = Interaction Nothing $ do -- CL.showMetas []
       d <- B.withMetaId (B.outputFormId m) (showA m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
+-- | If the range is 'noRange', then the string comes from the
+-- minibuffer rather than the goal.
+
 type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 cmd_give :: GoalCommand
-cmd_give = give_gen B.give $ \s ce -> case ce of (SC.Paren _ _)-> "'paren"
-                                                 _             -> "'no-paren"
+cmd_give = give_gen B.give $ \rng s ce ->
+  case ce of
+    ce | rng == noRange -> quote (show ce)
+    SC.Paren _ _ -> "'paren"
+    _            -> "'no-paren"
 
 cmd_refine :: GoalCommand
-cmd_refine = give_gen B.refine $ \s -> quote . show
+cmd_refine = give_gen B.refine $ \_ s -> quote . show
 
 give_gen give_ref mk_newtxt ii rng s = Interaction Nothing $ give_gen' give_ref mk_newtxt ii rng s
 
 give_gen' give_ref mk_newtxt ii rng s = do
   scope     <- getInteractionScope ii
   (ae, iis) <- give_ref ii Nothing =<< B.parseExprIn ii rng s
-  let newtxt = A . mk_newtxt s $ abstractToConcrete (makeEnv scope) ae
+  let newtxt = A . mk_newtxt rng s $ abstractToConcrete (makeEnv scope) ae
   iis       <- sortInteractionPoints iis
   liftIO $ modifyIORef theState $ \s ->
              s { theInteractionPoints =
@@ -441,7 +447,7 @@ cmd_auto ii rng s = Interaction Nothing $ do
                Q $ L $ List.map (A . quote) cs
              ])
     return Nothing
-   Right (Right s) -> give_gen' B.refine (\s -> quote . show) ii rng s
+   Right (Right s) -> give_gen' B.refine (\_ s -> quote . show) ii rng s
 
 -- | Sorts interaction points based on their ranges.
 
@@ -987,4 +993,5 @@ top_command' f cmd = ioTCM f Nothing $ makeSilent cmd
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
+  -- TODO: Test with other ranges as well.
   ioTCM f Nothing $ makeSilent $ cmd i noRange s
