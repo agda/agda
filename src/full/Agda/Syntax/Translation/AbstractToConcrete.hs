@@ -11,6 +11,7 @@
 -}
 module Agda.Syntax.Translation.AbstractToConcrete
     ( ToConcrete(..)
+    , toConcreteCtx
     , abstractToConcrete_
     , runAbsToCon
     , RangeAndPragma(..)

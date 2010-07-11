@@ -295,27 +295,31 @@ instance (Show a,Show b) => Show (OutputForm a b) where
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
-    toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcrete t
+    toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcreteCtx TopCtx t
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
     toConcrete (CmpInType cmp t e e') =
-      CmpInType cmp <$> toConcrete t <*> toConcrete e <*> toConcrete e'
+      CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx ArgumentCtx e
+                                               <*> toConcreteCtx ArgumentCtx e'
     toConcrete (CmpTerms cmp t e e') =
-      CmpTerms cmp <$> toConcrete t <*> mapM toConcrete e <*> mapM toConcrete e'
-    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcrete e <*> toConcrete e'
+      CmpTerms cmp <$> toConcreteCtx TopCtx t <*> mapM toConcrete e <*> mapM toConcrete e'
+    toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx ArgumentCtx e
+                                                  <*> toConcreteCtx ArgumentCtx e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
-    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcrete e <*> toConcrete e'
+    toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx ArgumentCtx e
+                                                  <*> toConcreteCtx ArgumentCtx e'
     toConcrete (Guard o os) = Guard <$> toConcrete o <*> toConcrete os
-    toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcrete e
-    toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcrete e <*> toConcrete a
-    toConcrete (IsEmptyType a) = IsEmptyType <$> toConcrete a
+    toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
+    toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
+                                                                  <*> toConcreteCtx TopCtx a
+    toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t
 
 instance (ToConcrete a c, ToConcrete b d) =>
             ToConcrete (OutputForm' a b) (OutputForm' c d) where
-  toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcrete t
+  toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where
@@ -385,7 +389,7 @@ typeOfMetaMI norm mi =
           ]
         ]
       OfType i <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
-    rewriteJudg mv (IsSort i)    = return $ JustSort i
+    rewriteJudg mv (IsSort i) = return $ JustSort i
 
 
 typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputForm Expr InteractionId)
