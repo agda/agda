@@ -28,6 +28,9 @@ permute (Perm _ is) xs = map (xs !!!) is
 idP :: Integer -> Permutation
 idP n = Perm n [0..n - 1]
 
+takeP :: Integer -> Permutation -> Permutation
+takeP n (Perm m xs) = Perm n $ filter (< n) xs
+
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
 composeP :: Permutation -> Permutation -> Permutation
 composeP p1 (Perm n xs) = Perm n $ permute p1 xs

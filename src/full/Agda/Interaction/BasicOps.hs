@@ -381,9 +381,10 @@ typeOfMetaMI norm mi =
         , TP.nest 2 $ TP.vcat
           [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
           , TP.text "args =" TP.<+> prettyTCM vs
+          , TP.text "t    =" TP.<+> prettyTCM t
           ]
         ]
-      OfType i <$> reify (t `piApply` permute (mvPermutation mv) vs)
+      OfType i <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
     rewriteJudg mv (IsSort i)    = return $ JustSort i
 
 
