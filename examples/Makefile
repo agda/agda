@@ -8,7 +8,7 @@ default : test polydep hello path regexp-talk aim4-bag ac effects minmax real vi
 
 agda = $(AGDA_BIN)
 
-run_agda = $(agda) --vim $(AGDA_TEST_FLAGS)
+run_agda = $(agda) -v0 --vim $(AGDA_TEST_FLAGS)
 
 test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \
