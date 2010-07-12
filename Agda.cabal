@@ -168,6 +168,8 @@ library
                     Agda.Tests
                     Agda.TypeChecker
                     Agda.TypeChecking.Abstract
+                    Agda.TypeChecking.CompiledClause
+                    Agda.TypeChecking.CompiledClause.Match
                     Agda.TypeChecking.Constraints
                     Agda.TypeChecking.Conversion
                     Agda.TypeChecking.Coverage

@@ -23,6 +23,7 @@ import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 
 import Agda.Utils.Monad
@@ -216,6 +217,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                          }
 		_ ->
                   Function { funClauses        = [cl]
+                           , funCompiled       = cc
                            , funDelayed        = NotDelayed
                            , funInv            = NotInjective
                            , funPolarity       = []
@@ -228,6 +230,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , clausePats  = []
                     , clauseBody  = Body $ Def x ts
                     }
+        cc = compileClauses [cl]
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of

@@ -11,6 +11,10 @@ import Text.Show.Functions
 import Data.List
 import Data.Function
 
+mhead :: [a] -> Maybe a
+mhead []    = Nothing
+mhead (x:_) = Just x
+
 type Prefix a = [a]
 type Suffix a = [a]
 
@@ -95,10 +99,15 @@ groupOn f = groupBy ((==) `on` f) . sortBy (compare `on` f)
 -- | @'extractNthElement' n xs@ gives the @n@-th element in @xs@
 -- (counting from 0), plus the remaining elements (preserving order).
 
-extractNthElement :: Integral i => i -> [a] -> (a, [a])
-extractNthElement n xs = (elem, left ++ right)
+extractNthElement' :: Integral i => i -> [a] -> ([a], a, [a])
+extractNthElement' n xs = (left, el, right)
   where
-  (left, elem : right) = genericSplitAt n xs
+  (left, el : right) = genericSplitAt n xs
+
+extractNthElement :: Integral i => i -> [a] -> (a, [a])
+extractNthElement n xs = (el, left ++ right)
+  where
+  (left, el, right) = extractNthElement' n xs
 
 prop_extractNthElement :: Integer -> [Integer] -> Property
 prop_extractNthElement n xs =

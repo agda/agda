@@ -42,6 +42,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.RecordPatterns
+import Agda.TypeChecking.CompiledClause
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -95,10 +96,14 @@ checkFunDef delayed i name cs =
         -- Check if the function is injective
         inv <- checkInjectivity name cs
 
+        -- Compile the clauses
+        let cc = compileClauses cs
+
         -- Add the definition
         addConstant name $ Defn name t (defaultDisplayForm name) 0
                          $ Function
                             { funClauses        = cs
+                            , funCompiled       = cc
                             , funDelayed        = delayed
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i
@@ -106,13 +111,16 @@ checkFunDef delayed i name cs =
                             , funArgOccurrences = []
                             }
         computePolarity name
-        verboseS "tc.def.fun" 10 $ do
-          dx <- prettyTCM name
-          t' <- prettyTCM . defType =<< getConstInfo name
-          liftIO $ LocIO.putStrLn $ "added " ++ show dx ++ " : " ++ show t'
+        reportSDoc "tc.def.fun" 10 $ do
+          sep [ text "added " <+> prettyTCM name <+> text ":"
+              , nest 2 $ prettyTCM . defType =<< getConstInfo name
+              ]
 
         -- Check pattern coverage
         checkCoverage name
+
+        reportSLn "tc.def.fun.compile" 10 $
+          "compiled clauses for " ++ show name ++ ":\n" ++ show cc
     where
         npats = size . clausePats
 

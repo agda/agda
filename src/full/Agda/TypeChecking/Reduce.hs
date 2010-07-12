@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -24,8 +24,10 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.CompiledClause
 
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
+import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
 import Agda.Utils.Monad
 
@@ -259,41 +261,50 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
               return $ notBlocked $ Con (c `withRangeOf` f) args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
-                reducePrimitive x v0 f args pf (defDelayed info) (maybe [] id cls)
-            _  -> reduceNormal v0 f args (defDelayed info) (defClauses info)
+                reducePrimitive x v0 f args pf (defDelayed info) (maybe [] id cls) Nothing
+            _  -> reduceNormal v0 f args (defDelayed info) (defClauses info) (defCompiled info)
   where
-    reducePrimitive x v0 f args pf delayed cls
+    reducePrimitive x v0 f args pf delayed cls mcc
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
         | otherwise = {-# SCC "reducePrimitive" #-} do
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
                 NoReduction args1' -> reduceNormal v0 f (args1' ++ args2)
-                                                   delayed cls
+                                                   delayed cls mcc
                 YesReduction v	   -> keepGoing $ v `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
             def = primFunImplementation pf
 
-    reduceNormal v0 f args delayed def = {-# SCC "reduceNormal" #-} do
-        case (delayed, def) of
-            (Delayed, _) | not unfoldDelayed -> defaultResult
-            (_, []) -> defaultResult -- no definition for head
-            (_, cls@(Clause{ clausePats = ps } : _))
-                | length ps <= length args ->
-                    do  let (args1,args2) = splitAt (length ps) args
-                        ev <- appDef v0 cls args1
-                        case ev of
-                            NoReduction  v -> return    $ v `apply` args2
-                            YesReduction v -> keepGoing $ v `apply` args2
-                | otherwise	-> defaultResult -- partial application
+    reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
+        case def of
+          _ | Delayed <- delayed,
+              not unfoldDelayed -> defaultResult
+          [] -> defaultResult -- no definition for head
+          cls@(Clause{ clausePats = ps } : _)
+            | length ps <= length args -> do
+                let (args1,args2) = splitAt (length ps) args
+                ev <- maybe (appDef' v0 cls args1)
+                            (\cc -> appDef v0 cc args1) mcc
+                case ev of
+                  NoReduction  v -> return    $ v `apply` args2
+                  YesReduction v -> keepGoing $ v `apply` args2
+            | otherwise	-> defaultResult -- partial application
       where defaultResult = return $ notBlocked $ v0 `apply` args
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
-    appDef :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
-    appDef v cls args = {-# SCC "appDef" #-} goCls cls args where
+    appDef :: MonadTCM tcm => Term -> CompiledClauses -> Args -> tcm (Reduced (Blocked Term) Term)
+    appDef v cc args = liftTCM $ do
+      r <- matchCompiled cc args
+      case r of
+        YesReduction t    -> return $ YesReduction t
+        NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
+
+    appDef' :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
+    appDef' v cls args = {-# SCC "appDef" #-} goCls cls args where
 
         goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args
@@ -578,9 +589,9 @@ instance InstantiateFull DisplayTerm where
 instance InstantiateFull Defn where
     instantiateFull d = case d of
       Axiom{} -> return d
-      Function{ funClauses = cs, funInv = inv } -> do
-        (cs, inv) <- instantiateFull (cs, inv)
-        return $ d { funClauses = cs, funInv = inv }
+      Function{ funClauses = cs, funCompiled = cc, funInv = inv } -> do
+        (cs, cc, inv) <- instantiateFull (cs, cc, inv)
+        return $ d { funClauses = cs, funCompiled = cc, funInv = inv }
       Datatype{ dataSort = s, dataClause = cl } -> do
 	s  <- instantiateFull s
 	cl <- instantiateFull cl
@@ -598,6 +609,17 @@ instance InstantiateFull Defn where
 instance InstantiateFull FunctionInverse where
   instantiateFull NotInjective = return NotInjective
   instantiateFull (Inverse inv) = Inverse <$> instantiateFull inv
+
+instance InstantiateFull a => InstantiateFull (Case a) where
+  instantiateFull (Branches cs ls m) =
+    Branches <$> instantiateFull cs
+             <*> instantiateFull ls
+             <*> instantiateFull m
+
+instance InstantiateFull CompiledClauses where
+  instantiateFull Fail        = return Fail
+  instantiateFull (Done m t)  = Done m <$> instantiateFull t
+  instantiateFull (Case n bs) = Case n <$> instantiateFull bs
 
 instance InstantiateFull Clause where
     instantiateFull (Clause r tel perm ps b) =

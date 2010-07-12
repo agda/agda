@@ -194,8 +194,9 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 --
 --  The telescope contains the types of the pattern variables and the
 --  permutation is how to get from the order the variables occur in the
---  patterns to the order they occur in the telescope.  For the purpose of the
---  permutation dot patterns counts as variables.
+--  patterns to the order they occur in the telescope. The body binds the
+--  variables is the order they appear in the patterns.
+--  For the purpose of the permutation dot patterns counts as variables.
 --  TODO: change this!
 data Clause = Clause
     { clauseRange     :: Range

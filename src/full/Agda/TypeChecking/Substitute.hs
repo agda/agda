@@ -13,6 +13,7 @@ import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -29,16 +30,16 @@ class Apply t where
 instance Apply Term where
     apply m [] = m
     apply m args@(Arg _ v:args0) =
-	case m of
-	    Var i args'   -> Var i (args' ++ args)
-	    Def c args'   -> Def c (args' ++ args)
-	    Con c args'   -> Con c (args' ++ args)
-	    Lam _ u	  -> absApp u v `apply` args0
-	    MetaV x args' -> MetaV x (args' ++ args)
-	    Lit l	  -> __IMPOSSIBLE__
-	    Pi _ _	  -> __IMPOSSIBLE__
-	    Fun _ _	  -> __IMPOSSIBLE__
-	    Sort _	  -> __IMPOSSIBLE__
+        case m of
+            Var i args'   -> Var i (args' ++ args)
+            Def c args'   -> Def c (args' ++ args)
+            Con c args'   -> Con c (args' ++ args)
+            Lam _ u       -> absApp u v `apply` args0
+            MetaV x args' -> MetaV x (args' ++ args)
+            Lit l         -> __IMPOSSIBLE__
+            Pi _ _        -> __IMPOSSIBLE__
+            Fun _ _       -> __IMPOSSIBLE__
+            Sort _        -> __IMPOSSIBLE__
 
 instance Apply Type where
   apply = piApply
@@ -48,8 +49,8 @@ instance Apply Sort where
   apply s _  = __IMPOSSIBLE__
 
 instance Apply Telescope where
-  apply tel		  []	   = tel
-  apply EmptyTel	  _	   = __IMPOSSIBLE__
+  apply tel               []       = tel
+  apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
@@ -58,8 +59,9 @@ instance Apply Definition where
 instance Apply Defn where
   apply d args = case d of
     Axiom{} -> d
-    Function{ funClauses = cs, funInv = inv } ->
-      d { funClauses = apply cs args, funInv = apply inv args }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv } ->
+      d { funClauses = apply cs args, funCompiled = apply cc args
+        , funInv = apply inv args }
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args, dataClause = apply cl args }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel } ->
@@ -79,19 +81,37 @@ instance Apply Clause where
       Clause r (apply tel args) (apply perm args)
              (drop (size args) ps) (apply b args)
 
+instance Apply CompiledClauses where
+  apply cc args = case cc of
+    Fail     -> Fail
+    Done m t
+      | m >= len  -> Done (m - len) (substs ([ Var (fromIntegral i) []
+                                             | i <- [0..m - len - 1]] ++
+                                             map unArg args) t)
+      | otherwise -> __IMPOSSIBLE__
+    Case n bs
+      | n >= len  -> Case (n - len) (apply bs args)
+      | otherwise -> __IMPOSSIBLE__
+    where
+      len = length args
+
+instance Apply a => Apply (Case a) where
+  apply (Branches cs ls m) args =
+    Branches (apply cs args) (apply ls args) (apply m args)
+
 instance Apply FunctionInverse where
   apply NotInjective  args = NotInjective
   apply (Inverse inv) args = Inverse $ apply inv args
 
 instance Apply ClauseBody where
-    apply  b		   []		  = b
+    apply  b               []             = b
     apply (Bind (Abs _ b)) (Arg _ v:args) = subst v b `apply` args
-    apply (NoBind b)	   (_:args)	  = b `apply` args
-    apply (Body _)	   (_:_)	  = __IMPOSSIBLE__
-    apply  NoBody	    _		  = NoBody
+    apply (NoBind b)       (_:args)       = b `apply` args
+    apply (Body _)         (_:_)          = __IMPOSSIBLE__
+    apply  NoBody           _             = NoBody
 
 instance Apply DisplayTerm where
-  apply (DTerm v)	   args = DTerm $ apply v args
+  apply (DTerm v)          args = DTerm $ apply v args
   apply (DWithApp v args') args = DWithApp v $ args' ++ args
 
 instance Apply t => Apply [t] where
@@ -126,10 +146,10 @@ instance Abstract Permutation where
 -- | The type must contain the right number of pis without have to perform any
 -- reduction.
 piApply :: Type -> Args -> Type
-piApply t []				= t
+piApply t []                            = t
 piApply (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply` args
-piApply (El _ (Fun _ b)) (_:args)	= b `piApply` args
-piApply _ _				= __IMPOSSIBLE__
+piApply (El _ (Fun _ b)) (_:args)       = b `piApply` args
+piApply _ _                             = __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
@@ -143,10 +163,10 @@ instance Abstract Type where
 
 instance Abstract Sort where
     abstract EmptyTel s = s
-    abstract _	      s = __IMPOSSIBLE__
+    abstract _        s = __IMPOSSIBLE__
 
 instance Abstract Telescope where
-  abstract  EmptyTel	        tel = tel
+  abstract  EmptyTel            tel = tel
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
@@ -155,8 +175,9 @@ instance Abstract Definition where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
-    Function{ funClauses = cs, funInv = inv } ->
-      d { funClauses = abstract tel cs, funInv = abstract tel inv }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv } ->
+      d { funClauses = abstract tel cs, funCompiled = abstract tel cc
+        , funInv = abstract tel inv }
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->
@@ -170,14 +191,24 @@ instance Abstract Defn where
 
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ genericDrop n ts
-	where n = size tel
+        where n = size tel
 
 instance Abstract Clause where
   abstract tel (Clause r tel' perm ps b) =
     Clause r (abstract tel tel') (abstract tel perm)
            (telVars tel ++ ps) (abstract tel b)
 
-telVars EmptyTel		    = []
+instance Abstract CompiledClauses where
+  abstract tel Fail = Fail
+  abstract tel (Done m t) = Done (m + fromIntegral (size tel)) t
+  abstract tel (Case n bs) =
+    Case (n + fromIntegral (size tel)) (abstract tel bs)
+
+instance Abstract a => Abstract (Case a) where
+  abstract tel (Branches cs ls m) =
+    Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
+
+telVars EmptyTel                    = []
 telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
 
 instance Abstract FunctionInverse where
@@ -185,11 +216,11 @@ instance Abstract FunctionInverse where
   abstract tel (Inverse inv) = Inverse $ abstract tel inv
 
 instance Abstract ClauseBody where
-    abstract EmptyTel		 b = b
-    abstract (ExtendTel _ tel)	 b = Bind $ fmap (`abstract` b) tel
+  abstract EmptyTel          b = b
+  abstract (ExtendTel _ tel) b = Bind $ fmap (`abstract` b) tel
 
 instance Abstract t => Abstract [t] where
-    abstract tel = map (abstract tel)
+  abstract tel = map (abstract tel)
 
 instance Abstract t => Abstract (Maybe t) where
   abstract tel x = fmap (abstract tel) x
@@ -200,9 +231,9 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-	tel   = foldr (\(Arg h x) -> ExtendTel (Arg h $ sort Prop) . Abs x) EmptyTel
-	      $ zipWith (fmap . const) names args
-	names = cycle $ map (:[]) ['a'..'z']
+        tel   = foldr (\(Arg h x) -> ExtendTel (Arg h $ sort Prop) . Abs x) EmptyTel
+              $ zipWith (fmap . const) names args
+        names = cycle $ map (:[]) ['a'..'z']
 
 -- | Substitute a term for the nth free variable.
 --
@@ -218,34 +249,34 @@ subst u t = substUnder 0 u t
 
 instance Subst Term where
     substs us t =
-	case t of
-	    Var i vs   -> (us !!! i) `apply` substs us vs
-	    Lam h m    -> Lam h $ substs us m
-	    Def c vs   -> Def c $ substs us vs
-	    Con c vs   -> Con c $ substs us vs
-	    MetaV x vs -> MetaV x $ substs us vs
-	    Lit l      -> Lit l
-	    Pi a b     -> uncurry Pi $ substs us (a,b)
-	    Fun a b    -> uncurry Fun $ substs us (a,b)
-	    Sort s     -> Sort $ substs us s
+        case t of
+            Var i vs   -> (us !!! i) `apply` substs us vs
+            Lam h m    -> Lam h $ substs us m
+            Def c vs   -> Def c $ substs us vs
+            Con c vs   -> Con c $ substs us vs
+            MetaV x vs -> MetaV x $ substs us vs
+            Lit l      -> Lit l
+            Pi a b     -> uncurry Pi $ substs us (a,b)
+            Fun a b    -> uncurry Fun $ substs us (a,b)
+            Sort s     -> Sort $ substs us s
         where
             []     !!! n = __IMPOSSIBLE__
             (x:xs) !!! 0 = x
             (_:xs) !!! n = xs !!! (n - 1)
     substUnder n u t =
-	case t of
-	    Var i vs
-	      | i == n	  -> raise n u `apply` substUnder n u vs
-	      | i < n	  -> Var i $ substUnder n u vs
-	      | otherwise -> Var (i - 1) $ substUnder n u vs
-	    Lam h m    -> Lam h $ substUnder n u m
-	    Def c vs   -> Def c $ substUnder n u vs
-	    Con c vs   -> Con c $ substUnder n u vs
-	    MetaV x vs -> MetaV x $ substUnder n u vs
-	    Lit l      -> Lit l
-	    Pi a b     -> uncurry Pi $ substUnder n u (a,b)
-	    Fun a b    -> uncurry Fun $ substUnder n u (a,b)
-	    Sort s     -> Sort $ substUnder n u s
+        case t of
+            Var i vs
+              | i == n    -> raise n u `apply` substUnder n u vs
+              | i < n     -> Var i $ substUnder n u vs
+              | otherwise -> Var (i - 1) $ substUnder n u vs
+            Lam h m    -> Lam h $ substUnder n u m
+            Def c vs   -> Def c $ substUnder n u vs
+            Con c vs   -> Con c $ substUnder n u vs
+            MetaV x vs -> MetaV x $ substUnder n u vs
+            Lit l      -> Lit l
+            Pi a b     -> uncurry Pi $ substUnder n u (a,b)
+            Fun a b    -> uncurry Fun $ substUnder n u (a,b)
+            Sort s     -> Sort $ substUnder n u s
 
 instance Subst Type where
     substs us (El s t) = substs us s `El` substs us t
@@ -285,46 +316,46 @@ instance Subst Pattern where
     DotP t    -> DotP $ substUnder n u t
 
 instance Subst t => Subst (Blocked t) where
-    substs us b	     = fmap (substs us) b
+    substs us b      = fmap (substs us) b
     substUnder n u b = fmap (substUnder n u) b
 
 instance Subst DisplayTerm where
-  substs us	 (DTerm v)	  = DTerm $ substs us v
-  substs us	 (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
-  substUnder n u (DTerm v)	  = DTerm $ substUnder n u v
+  substs us      (DTerm v)        = DTerm $ substs us v
+  substs us      (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
+  substUnder n u (DTerm v)        = DTerm $ substUnder n u v
   substUnder n u (DWithApp vs ws) = uncurry DWithApp $ substUnder n u (vs, ws)
 
 instance Subst Telescope where
-  substs us  EmptyTel		   = EmptyTel
-  substs us (ExtendTel t tel)	   = uncurry ExtendTel $ substs us (t, tel)
-  substUnder n u  EmptyTel	   = EmptyTel
+  substs us  EmptyTel              = EmptyTel
+  substs us (ExtendTel t tel)      = uncurry ExtendTel $ substs us (t, tel)
+  substUnder n u  EmptyTel         = EmptyTel
   substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
 
 instance Subst a => Subst (Abs a) where
-    substs us	   (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
+    substs us      (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
     substUnder n u (Abs x t) = Abs x $ substUnder (n + 1) u t
 
 instance Subst a => Subst (Arg a) where
-    substs us	   = fmap (substs us)
+    substs us      = fmap (substs us)
     substUnder n u = fmap (substUnder n u)
 
 instance Subst a => Subst (Maybe a) where
-  substs us	 = fmap (substs us)
+  substs us      = fmap (substs us)
   substUnder n u = fmap (substUnder n u)
 
 instance Subst a => Subst [a] where
-    substs us	   = map (substs us)
+    substs us      = map (substs us)
     substUnder n u = map (substUnder n u)
 
 instance (Subst a, Subst b) => Subst (a,b) where
-    substs us (x,y)	 = (substs us x, substs us y)
+    substs us (x,y)      = (substs us x, substs us y)
     substUnder n u (x,y) = (substUnder n u x, substUnder n u y)
 
 instance Subst ClauseBody where
-    substs us (Body t)	      = Body $ substs us t
-    substs us (Bind b)	      = Bind $ substs us b
+    substs us (Body t)        = Body $ substs us t
+    substs us (Bind b)        = Bind $ substs us b
     substs us (NoBind b)      = NoBind $ substs us b
-    substs _   NoBody	      = NoBody
+    substs _   NoBody         = NoBody
     substUnder n u (Body t)   = Body $ substUnder n u t
     substUnder n u (Bind b)   = Bind $ substUnder n u b
     substUnder n u (NoBind b) = NoBind $ substUnder n u b
@@ -340,20 +371,20 @@ class Raise t where
 
 instance Raise Term where
     raiseFrom m k v =
-	case v of
-	    Var i vs
-		| i < m	    -> Var i $ rf vs
-		| otherwise -> Var (i + k) $ rf vs
-	    Lam h m	    -> Lam h $ rf m
-	    Def c vs	    -> Def c $ rf vs
-	    Con c vs	    -> Con c $ rf vs
-	    MetaV x vs	    -> MetaV x $ rf vs
-	    Lit l	    -> Lit l
-	    Pi a b	    -> uncurry Pi $ rf (a,b)
-	    Fun a b	    -> uncurry Fun $ rf (a,b)
-	    Sort s	    -> Sort $ rf s
-	where
-	    rf x = raiseFrom m k x
+        case v of
+            Var i vs
+                | i < m     -> Var i $ rf vs
+                | otherwise -> Var (i + k) $ rf vs
+            Lam h m         -> Lam h $ rf m
+            Def c vs        -> Def c $ rf vs
+            Con c vs        -> Con c $ rf vs
+            MetaV x vs      -> MetaV x $ rf vs
+            Lit l           -> Lit l
+            Pi a b          -> uncurry Pi $ rf (a,b)
+            Fun a b         -> uncurry Fun $ rf (a,b)
+            Sort s          -> Sort $ rf s
+        where
+            rf x = raiseFrom m k x
 
 instance Raise Type where
     raiseFrom m k (El s t) = raiseFrom m k s `El` raiseFrom m k t
@@ -370,16 +401,16 @@ instance Raise Sort where
       where rf x = raiseFrom m k x
 
 instance Raise Telescope where
-    raiseFrom m k EmptyTel	    = EmptyTel
+    raiseFrom m k EmptyTel          = EmptyTel
     raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
 
 instance Raise DisplayForm where
   raiseFrom m k (Display n ps v) = Display n (raiseFrom (m + 1) k ps)
-					     (raiseFrom (m + n) k v)
+                                             (raiseFrom (m + n) k v)
 
 instance Raise DisplayTerm where
   raiseFrom m k (DWithApp xs ys) = uncurry DWithApp $ raiseFrom m k (xs, ys)
-  raiseFrom m k (DTerm v)	 = DTerm $ raiseFrom m k v
+  raiseFrom m k (DTerm v)        = DTerm $ raiseFrom m k v
 
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)
@@ -410,13 +441,13 @@ data TelView = TelV Telescope Type
 telView' :: Type -> TelView
 telView' t = case unEl t of
   Pi a (Abs x b)  -> absV a x $ telView' b
-  Fun a b	  -> absV a "_" $ telView' (raise 1 b)
-  _		  -> TelV EmptyTel t
+  Fun a b         -> absV a "_" $ telView' (raise 1 b)
+  _               -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telePi :: Telescope -> Type -> Type
-telePi  EmptyTel	 t = t
+telePi  EmptyTel         t = t
 telePi (ExtendTel u tel) t = el $ fn u b
   where
     el = El (dLub s1 s2)
@@ -426,11 +457,11 @@ telePi (ExtendTel u tel) t = el $ fn u b
 
     fn a b
       | 0 `freeIn` absBody b = Pi a b
-      | otherwise	     = Fun a $ absApp b __IMPOSSIBLE__
+      | otherwise            = Fun a $ absApp b __IMPOSSIBLE__
 
 -- | Everything will be a pi.
 telePi_ :: Telescope -> Type -> Type
-telePi_  EmptyTel	 t = t
+telePi_  EmptyTel        t = t
 telePi_ (ExtendTel u tel) t = el $ Pi u b
   where
     el = El (dLub s1 s2)

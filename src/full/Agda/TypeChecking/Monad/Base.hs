@@ -25,6 +25,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 
+import Agda.TypeChecking.CompiledClause
+
 import Agda.Interaction.Exceptions
 import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -417,6 +419,7 @@ data Defn = Axiom
             }
 	  | Function
             { funClauses        :: [Clause]
+            , funCompiled       :: CompiledClauses
             , funInv            :: FunctionInverse
             , funPolarity       :: [Polarity]
             , funArgOccurrences :: [Occurrence]
@@ -486,6 +489,10 @@ defClauses Defn{theDef = Primitive{primClauses = Just cs}} = cs
 defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
 defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
 defClauses _                                               = []
+
+defCompiled :: Definition -> Maybe CompiledClauses
+defCompiled Defn{theDef = Function{funCompiled = cc}} = Just cc
+defCompiled _ = Nothing
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed

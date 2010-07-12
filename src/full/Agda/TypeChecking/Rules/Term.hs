@@ -41,6 +41,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
+import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -308,6 +309,7 @@ checkExpr e t =
                                                 , clauseBody  = NoBody
                                                 }
                                         ]
+                                    , funCompiled       = Fail
                                     , funDelayed        = NotDelayed
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef

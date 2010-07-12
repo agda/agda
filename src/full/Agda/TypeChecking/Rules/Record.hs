@@ -17,6 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.CompiledClause
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import Agda.TypeChecking.Rules.Term ( isType_ )
@@ -195,12 +196,12 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                               (map argHiding (telToList ftel))
 			      [ VarP "x" | _ <- [1..size ftel] ]
 	  nobind 0 = id
-	  nobind n = NoBind . nobind (n - 1)
+	  nobind n = Bind . Abs "_" . nobind (n - 1)
 	  body	 = nobind (size tel - 1)
 		 $ nobind (size ftel1)
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
-		 $ Body $ Var 0 []
+		 $ Body $ Var (size ftel2) []
           cltel  = ptel `abstract` ftel
 	  clause = Clause { clauseRange = getRange info
                           , clauseTel   = killRange cltel
@@ -211,6 +212,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname (killRange finalt) (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause]
+                     , funCompiled       = compileClauses [clause]
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
