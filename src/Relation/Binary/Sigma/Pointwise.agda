@@ -89,7 +89,7 @@ setoid s₁ s₂ = record
 Rel⇿≡ : ∀ {a b} {A : Set a} {B : A → Set b} →
         Inverse (setoid (P.setoid A) (H.indexedSetoid B))
                 (P.setoid (Σ A B))
-Rel⇿≡ {A = A} {B} = record
+Rel⇿≡ {a} {b} {A} {B} = record
   { to         = record { _⟨$⟩_ = id; cong = to-cong   }
   ; from       = record { _⟨$⟩_ = id; cong = from-cong }
   ; inverse-of = record
@@ -100,10 +100,10 @@ Rel⇿≡ {A = A} {B} = record
   where
   open I using (_=[_]⇒_)
 
-  to-cong : Rel B P._≡_ (λ x y → H._≅_ x y) =[ id ]⇒ P._≡_
+  to-cong : Rel B P._≡_ (λ x y → H._≅_ x y) =[ id {a = a ⊔ b} ]⇒ P._≡_
   to-cong (P.refl , H.refl) = P.refl
 
-  from-cong : P._≡_ =[ id ]⇒ Rel B P._≡_ (λ x y → H._≅_ x y)
+  from-cong : P._≡_ =[ id {a = a ⊔ b} ]⇒ Rel B P._≡_ (λ x y → H._≅_ x y)
   from-cong {i = (x , y)} P.refl = (P.refl , H.refl)
 
 ------------------------------------------------------------------------

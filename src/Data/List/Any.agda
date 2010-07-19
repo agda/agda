@@ -43,7 +43,7 @@ tail ¬px (there pxs) = pxs
 
 -- Decides Any.
 
-any : ∀ {A} {P : A → Set} →
+any : {A : Set} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
 any p []       = no λ()
 any p (x ∷ xs) with p x

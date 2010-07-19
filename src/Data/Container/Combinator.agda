@@ -83,9 +83,9 @@ const[ X ]⟶ C = Π {I = X} (F.const C)
 module Identity where
 
   correct : ∀ {c} {X : Set c} → ⟦ id ⟧ X ⇿ F.id X
-  correct = record
-    { to         = P.→-to-⟶ λ xs → proj₂ xs _
-    ; from       = P.→-to-⟶ λ x → (_ , λ _ → x)
+  correct {c} = record
+    { to         = P.→-to-⟶ {a  = c} λ xs → proj₂ xs _
+    ; from       = P.→-to-⟶ {b₁ = c} λ x → (_ , λ _ → x)
     ; inverse-of = record
       { left-inverse-of  = λ _ → refl
       ; right-inverse-of = λ _ → refl

@@ -223,9 +223,9 @@ insert {counted} {n} counted⊕1+n x x∉counted =
   inj _   _   | no  _ | no  _ | inj₁ x∈counted | _      | _      | _ | _ | _ = ⊥-elim (x∉counted x∈counted)
   inj ()  _   | no  _ | no  _ | inj₂ _         | inj₁ _ | _      | _ | _ | _
   inj _   ()  | no  _ | no  _ | inj₂ _         | _      | inj₁ _ | _ | _ | _
-  inj eq₁ eq₂ | no  _ | no  _ | inj₂ _         | inj₂ _ | inj₂ _ | _ | _ | hlp =
+  inj eq₁ eq₂ | no  _ | no  _ | inj₂ i         | inj₂ _ | inj₂ _ | _ | _ | hlp =
     hlp _ refl refl $
-      thick-injective _ _ _ $
+      thick-injective i _ _ $
         PropEq.trans (drop-inj₂ eq₁) (PropEq.sym (drop-inj₂ eq₂))
 
 -- Counts an element if it has not already been counted.

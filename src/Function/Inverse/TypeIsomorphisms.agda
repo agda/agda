@@ -82,7 +82,7 @@ open import Relation.Binary.Sum
   left-identity : LeftIdentity (Lift {ℓ = ℓ} ⊤) _×_
   left-identity _ = record
     { to         = P.→-to-⟶ $ proj₂ {a = ℓ} {b = ℓ}
-    ; from       = P.→-to-⟶ λ y → _ , y
+    ; from       = P.→-to-⟶ {b₁ = ℓ} λ y → _ , y
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
@@ -91,8 +91,8 @@ open import Relation.Binary.Sum
 
   assoc : Associative _×_
   assoc _ _ _ = record
-    { to         = P.→-to-⟶ λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
-    ; from       = P.→-to-⟶ λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
+    { to         = P.→-to-⟶ {a = ℓ} {b₁ = ℓ} λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
+    ; from       = P.→-to-⟶ {a = ℓ} {b₁ = ℓ} λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
@@ -248,14 +248,14 @@ open import Relation.Binary.Sum
 
 ∃∃⇿∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
         (∃₂ λ x y → P x y) ⇿ (∃₂ λ y x → P x y)
-∃∃⇿∃∃ _ = record
-  { to         = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
-  ; from       = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
+∃∃⇿∃∃ {a} {b} {p} _ = record
+  { to         = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
+  ; from       = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; inverse-of = record
     { left-inverse-of  = λ _ → P.refl
     ; right-inverse-of = λ _ → P.refl
     }
-  }
+  } where ℓ = p ⊔ (b ⊔ a)
 
 ------------------------------------------------------------------------
 -- Implicit and explicit function spaces are isomorphic

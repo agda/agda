@@ -212,13 +212,13 @@ map-cong : ∀ {k c} {C : Container c} {X Y : Set c}
              {f₁ f₂ : X → Y} {xs₁ xs₂ : ⟦ C ⟧ X} →
            f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
            C.map f₁ xs₁ ≈[ k ] C.map f₂ xs₂
-map-cong {C = C} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
+map-cong {c = c} {C} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
   x ∈ C.map f₁ xs₁               ⇿⟨ map⇿∘ C (Lift ∘ _≡_ x) f₁ ⟩
   ◇ (λ y → Lift (x ≡ f₁ y)) xs₁  ≈⟨ cong {xs₁ = xs₁} {xs₂ = xs₂} (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
   ◇ (λ y → Lift (x ≡ f₂ y)) xs₂  ⇿⟨ sym (map⇿∘ C (Lift ∘ _≡_ x) f₂) ⟩
   x ∈ C.map f₂ xs₂               ∎
   where
-  helper : ∀ y → Lift (x ≡ f₁ y) ⇿ Lift (x ≡ f₂ y)
+  helper : ∀ y → _⇿_ {c} {c} (Lift (x ≡ f₁ y)) (Lift (x ≡ f₂ y))
   helper y = record
     { to         = P.→-to-⟶ (λ x≡f₁y → lift $ P.trans (lower x≡f₁y) (        f₁≗f₂ y))
     ; from       = P.→-to-⟶ (λ x≡f₂y → lift $ P.trans (lower x≡f₂y) (P.sym $ f₁≗f₂ y))
