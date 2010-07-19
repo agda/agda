@@ -267,6 +267,22 @@ Language
   decision procedures, such as the ring solver in the standard
   library.
 
+* Minor record definition improvement.
+
+  The definition of a record type is now available when type checking
+  the record module definitions. This means that you can define
+  things like
+
+    record Cat : Set₁ where
+      field
+        Obj  : Set
+        _=>_ : Obj → Obj → Set
+        -- ...
+
+      -- not possible before:
+      op : Cat
+      op = record { Obj = Obj; _=>_ = λ A B → B => A }
+
 Tools
 -----
 

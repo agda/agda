@@ -82,24 +82,6 @@ checkRecDef i name con ps contel fields =
           c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
           return (False, c, i)
 
-      escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
-	reportSDoc "tc.rec.def" 10 $ sep
-	  [ text "record section:"
-	  , nest 2 $ sep
-            [ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
-            , fsep $ punctuate comma $ map (text . show . getName) fields
-            ]
-	  ]
-        reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
-          [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
-          ]
-	addSection m (size tel')
-
-        -- Check the types of the fields
-        -- ftel <- checkRecordFields m name tel s [] (size fields) fields
-        withCurrentModule m $
-          checkRecordProjections m conName tel' (raise 1 ftel) fields
-
       addConstant name $ Defn name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
@@ -123,6 +105,24 @@ checkRecDef i name con ps contel fields =
                          , conAbstr  = Info.defAbstract conInfo
                          , conInd    = Inductive
                          }
+
+      escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
+	reportSDoc "tc.rec.def" 10 $ sep
+	  [ text "record section:"
+	  , nest 2 $ sep
+            [ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
+            , fsep $ punctuate comma $ map (text . show . getName) fields
+            ]
+	  ]
+        reportSDoc "tc.rec.def" 15 $ nest 2 $ vcat
+          [ text "field tel =" <+> escapeContext 1 (prettyTCM ftel)
+          ]
+	addSection m (size tel')
+
+        -- Check the types of the fields
+        -- ftel <- checkRecordFields m name tel s [] (size fields) fields
+        withCurrentModule m $
+          checkRecordProjections m conName tel' (raise 1 ftel) fields
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here
