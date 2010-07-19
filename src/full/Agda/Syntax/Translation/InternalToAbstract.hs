@@ -8,10 +8,10 @@
 
     TODO
 
-	- numbers on metas
-	- fake dependent functions to independent functions
-	- meta parameters
-	- shadowing
+        - numbers on metas
+        - fake dependent functions to independent functions
+        - meta parameters
+        - shadowing
 -}
 module Agda.Syntax.Translation.InternalToAbstract where
 
@@ -45,6 +45,8 @@ import Agda.TypeChecking.DisplayForm
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Free
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -55,12 +57,12 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 apps :: MonadTCM tcm => (Expr, [Arg Expr]) -> tcm Expr
-apps (e, [])		    = return e
+apps (e, [])                = return e
 apps (e, arg@(Arg Hidden _) : args) =
-    do	showImp <- showImplicitArguments
-	if showImp then apps (App exprInfo e (unnamed <$> arg), args)
-		   else apps (e, args)
-apps (e, arg:args)	    =
+    do  showImp <- showImplicitArguments
+        if showImp then apps (App exprInfo e (unnamed <$> arg), args)
+                   else apps (e, args)
+apps (e, arg:args)          =
     apps (App exprInfo e (unnamed <$> arg), args)
 
 exprInfo :: ExprInfo
@@ -84,7 +86,7 @@ instance Reify MetaId Expr where
               case lookup x iis of
                 Just ii@(InteractionId n)
                         -> return $ A.QuestionMark $ mi' {metaNumber = Just n}
-                Nothing	-> return $ A.Underscore mi'
+                Nothing -> return $ A.Underscore mi'
           ) (return $ A.Underscore mi')
 
 instance Reify DisplayTerm Expr where
@@ -93,8 +95,8 @@ instance Reify DisplayTerm Expr where
     DWithApp us vs -> do
       us <- reify us
       let wapp [e] = e
-	  wapp (e : es) = A.WithApp exprInfo e es
-	  wapp [] = __IMPOSSIBLE__
+          wapp (e : es) = A.WithApp exprInfo e es
+          wapp [] = __IMPOSSIBLE__
       reifyApp (wapp us) vs
 
 reifyDisplayForm :: MonadTCM tcm => QName -> Args -> tcm A.Expr -> tcm A.Expr
@@ -175,46 +177,46 @@ instance Reify Literal Expr where
   reify l@(LitQName   {}) = return (A.Lit l)
 
 instance Reify Term Expr where
-    reify v =
-	do  v <- instantiate v
-	    case v of
-		I.Var n vs   -> do
-                    x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
-                    reifyApp (A.Var x) vs
-		I.Def x vs   -> reifyDisplayForm x vs $ do
-		    n <- getDefFreeVars x
-		    reifyApp (A.Def x) $ genericDrop n vs
-		I.Con x vs   -> do
-		  isR <- isGeneratedRecordConstructor x
-		  case isR of
-		    True -> do
-		      showImp <- showImplicitArguments
-                      let keep ((h, x), v) = showImp || h == NotHidden
-                      r  <- getConstructorData x
-		      xs <- getRecordFieldNames r
-		      vs <- reify $ map unArg vs
-		      return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
-		    False -> reifyDisplayForm x vs $ do
-                      let hide (Arg _ x) = Arg Hidden x
-                      Constructor{conPars = np} <- theDef <$> getConstInfo x
-		      scope <- getScope
-                      let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                          us = replicate (fromIntegral np) $ Arg Hidden whocares
-                      n  <- getDefFreeVars x
-                      es <- reify vs
-                      apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
-		I.Lam h b    ->
-		    do	(x,e) <- reify b
-			return $ A.Lam exprInfo (DomainFree h x) e
-		I.Lit l	     -> reify l
-		I.Pi a b     ->
-		    do	Arg h a <- reify a
-			(x,b)   <- reify b
-			return $ A.Pi exprInfo [TypedBindings noRange h [TBind noRange [x] a]] b
-		I.Fun a b    -> uncurry (A.Fun $ exprInfo)
-				<$> reify (a,b)
-		I.Sort s     -> reify s
-		I.MetaV x vs -> apps =<< reify (x,vs)
+  reify v = do
+    v <- instantiate v
+    case v of
+      I.Var n vs   -> do
+          x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
+          reifyApp (A.Var x) vs
+      I.Def x vs   -> reifyDisplayForm x vs $ do
+          n <- getDefFreeVars x
+          reifyApp (A.Def x) $ genericDrop n vs
+      I.Con x vs   -> do
+        isR <- isGeneratedRecordConstructor x
+        case isR of
+          True -> do
+            showImp <- showImplicitArguments
+            let keep ((h, x), v) = showImp || h == NotHidden
+            r  <- getConstructorData x
+            xs <- getRecordFieldNames r
+            vs <- reify $ map unArg vs
+            return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
+          False -> reifyDisplayForm x vs $ do
+            let hide (Arg _ x) = Arg Hidden x
+            Constructor{conPars = np} <- theDef <$> getConstInfo x
+            scope <- getScope
+            let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
+                us = replicate (fromIntegral np) $ Arg Hidden whocares
+            n  <- getDefFreeVars x
+            es <- reify vs
+            apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
+      I.Lam h b    -> do
+        (x,e) <- reify b
+        return $ A.Lam exprInfo (DomainFree h x) e
+      I.Lit l        -> reify l
+      I.Pi a b       -> do
+        Arg h a <- reify a
+        (x,b)   <- reify b
+        return $ A.Pi exprInfo [TypedBindings noRange h [TBind noRange [x] a]] b
+      I.Fun a b    -> uncurry (A.Fun $ exprInfo)
+                      <$> reify (a,b)
+      I.Sort s     -> reify s
+      I.MetaV x vs -> apps =<< reify (x,vs)
 
 data NamedClause = NamedClause QName I.Clause
 -- Named clause does not need 'Recursion' flag since I.Clause has it
@@ -413,37 +415,37 @@ instance Reify Type Expr where
 
 instance Reify Sort Expr where
     reify s =
-	do  s <- instantiateFull s
-	    case s of
+        do  s <- instantiateFull s
+            case s of
                 I.Type (I.Lit (LitLevel _ n)) -> return $ A.Set exprInfo n
                 I.Type a -> do
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0)
                                           (Arg NotHidden (unnamed a))
-		I.Prop	     -> return $ A.Prop exprInfo
-		I.MetaS x as -> apps =<< reify (x, as)
-		I.Suc s	     ->
-		    do	suc <- freshName_ "suc"	-- TODO: hack
-			e   <- reify s
-			return $ A.App exprInfo (A.Var suc) (Arg NotHidden $ unnamed e)
+                I.Prop       -> return $ A.Prop exprInfo
+                I.MetaS x as -> apps =<< reify (x, as)
+                I.Suc s      ->
+                    do  suc <- freshName_ "suc" -- TODO: hack
+                        e   <- reify s
+                        return $ A.App exprInfo (A.Var suc) (Arg NotHidden $ unnamed e)
                 I.Inf       -> A.Var <$> freshName_ "Setω"
                 I.DLub s1 s2 -> do
                   lub <- freshName_ "dLub" -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
                   let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
                   return $ A.Var lub `app` e1 `app` e2
-		I.Lub s1 s2 ->
-		    do	lub <- freshName_ "\\/"	-- TODO: hack
-			(e1,e2) <- reify (s1,s2)
-			let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
-			return $ A.Var lub `app` e1 `app` e2
+                I.Lub s1 s2 ->
+                    do  lub <- freshName_ "\\/" -- TODO: hack
+                        (e1,e2) <- reify (s1,s2)
+                        let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
+                        return $ A.Var lub `app` e1 `app` e2
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =
-	do  x <- freshName_ s
-	    e <- addCtx x (Arg NotHidden $ sort I.Prop) -- type doesn't matter
-		 $ reify v
-	    return (x,e)
+        do  x <- freshName_ s
+            e <- addCtx x (Arg NotHidden $ sort I.Prop) -- type doesn't matter
+                 $ reify v
+            return (x,e)
 
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []

@@ -102,7 +102,7 @@ instance Pretty Expr where
 		    , pretty e2
 		    ]
 	    Pi tel e ->
-		sep [ fsep (map pretty tel ++ [arrow])
+		sep [ fsep (map pretty (smashTel tel) ++ [arrow])
 		    , pretty e
 		    ]
 	    Set _   -> text "Set"
@@ -116,10 +116,9 @@ instance Pretty Expr where
 	    As _ x e  -> pretty x <> text "@" <> pretty e
 	    Dot _ e   -> text "." <> pretty e
 	    Absurd _  -> text "()"
-	    Rec _ xs  -> sep
-	      [ text "record"
-	      , nest 2 $ braces $ fsep $ punctuate (text ";") $ map pr xs
-	      ]
+	    Rec _ xs  -> sep (
+	      [ text "record {" ] ++
+	      punctuate (text ";") (map pr xs)) <+> text "}"
 	      where
 		pr (x, e) = sep [ pretty x <+> text "="
 				, nest 2 $ pretty e
@@ -148,9 +147,17 @@ instance Pretty TypedBindings where
 instance Pretty TypedBinding where
     pretty (TNoBind e) = pretty e
     pretty (TBind _ xs e) =
-	sep [ fsep (punctuate comma $ map pretty xs)
+	sep [ fsep (map pretty xs)
 	    , text ":" <+> pretty e
 	    ]
+
+smashTel :: Telescope -> Telescope
+smashTel (TypedBindings r h  [TBind r' xs e] :
+          TypedBindings _ h' [TBind _  ys e'] : tel)
+  | h == h' && show e == show e' =
+    smashTel (TypedBindings r h [TBind r' (xs ++ ys) e] : tel)
+smashTel (b : tel) = b : smashTel tel
+smashTel [] = []
 
 instance Pretty RHS where
     pretty (RHS e)   = text "=" <+> pretty e

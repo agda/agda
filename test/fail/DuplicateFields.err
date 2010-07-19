@@ -1,3 +1,4 @@
 DuplicateFields.agda:10,9-30
 Duplicate fields x in record
-when checking that the expression record {x = x; x = y} has type D
+when checking that the expression record { x = x; x = y } has type
+D
