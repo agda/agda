@@ -6,7 +6,7 @@ agda2_mode_code (agda2-info-action
 ?1 : (n + m) ≡ (m + n)
 ?2 : Σ A (λ x → Drink x → Π A Drink)
 ?3 : Vec .Y .n
-?4 : (xs : List .X) (ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
+?4 : (xs ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
 agda2_mode_code (last . (agda2-make-case-action
@@ -38,7 +38,7 @@ agda2_mode_code (agda2-info-action
                  "?0 : (n + suc m) ≡ suc (n + m)
 ?1 : (n + m) ≡ (m + n)
 ?3 : Vec .Y .n
-?4 : (xs : List .X) (ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
+?4 : (xs ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
 ")
 agda2_mode_code (agda2-goals-action '(0 1 3 4))
 agda2_mode_code (last . (agda2-make-case-action
