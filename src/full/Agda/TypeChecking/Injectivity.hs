@@ -10,6 +10,7 @@ import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe
 import Data.List
 import Data.Traversable
@@ -54,7 +55,7 @@ headSymbol v = ignoreAbstractMode $ do
       case def of
         Datatype{}  -> return (Just $ ConHead f)
         Record{}    -> return (Just $ ConHead f)
-        Axiom{}     -> return Nothing
+        Axiom{}     -> return (Just $ ConHead f)
         _           -> return Nothing
     Con c _ -> return (Just $ ConHead c)
     Sort _  -> return (Just SortHead)
