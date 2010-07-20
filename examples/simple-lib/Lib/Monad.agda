@@ -3,12 +3,20 @@ module Lib.Monad where
 
 open import Lib.Nat
 open import Lib.List
-open import Lib.IO hiding (mapM)
+open import Lib.IO hiding (IO; mapM)
 open import Lib.Maybe
 open import Lib.Prelude
 
 infixr 40 _>>=_ _>>_
 infixl 90 _<*>_ _<$>_
+
+-- Wrapper type, used to ensure that ElM is constructor-headed.
+
+record IO (A : Set) : Set where
+  constructor io
+  field unIO : Lib.IO.IO A
+
+open IO
 
 -- State monad transformer
 
@@ -45,7 +53,7 @@ ElM (reader E m) = ReaderT E (ElM m)
 return : {m : Monad}{A : Set} -> A -> ElM m A
 return {maybe}      x = just x
 return {list}       x = x :: []
-return {io}         x = returnIO x
+return {io}         x = io (returnIO x)
 return {state _ m}  x = stateT \s -> return (x , s)
 return {reader _ m} x = readerT \_ -> return x
 
@@ -53,7 +61,7 @@ _>>=_ : {m : Monad}{A B : Set} -> ElM m A -> (A -> ElM m B) -> ElM m B
 _>>=_ {maybe}     nothing    k = nothing
 _>>=_ {maybe}     (just x)   k = k x
 _>>=_ {list}      xs         k = foldr (\x ys -> k x ++ ys) [] xs
-_>>=_ {io}        m          k = bindIO m k
+_>>=_ {io}        (io m)     k = io (bindIO m (unIO ∘ k))
 _>>=_ {state S m} (stateT f) k = stateT \s -> f s >>= rest
   where
     rest : _ × _ -> ElM m _

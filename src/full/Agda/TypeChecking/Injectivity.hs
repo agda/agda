@@ -54,7 +54,7 @@ headSymbol v = ignoreAbstractMode $ do
       case def of
         Datatype{}  -> return (Just $ ConHead f)
         Record{}    -> return (Just $ ConHead f)
-        Axiom{}     -> return (Just $ ConHead f)
+        Axiom{}     -> return Nothing
         _           -> return Nothing
     Con c _ -> return (Just $ ConHead c)
     Sort _  -> return (Just SortHead)

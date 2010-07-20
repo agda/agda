@@ -53,5 +53,4 @@ module Pos where
     -- Returns Nothing if input is 1.
     predOK : (p : Pos) -> Pred p (pred p)
     predOK Nat.zero    = ok (dRefl posDatoid {one})
-    predOK (Nat.suc n) = ok (dRefl posDatoid)
-
+    predOK (Nat.suc n) = ok (dRefl posDatoid {n})
