@@ -83,12 +83,12 @@ sem [*] = _*_
 ⟦ p :^ n ⟧     ρ = ⟦ p ⟧ ρ ^ n
 ⟦ :- p ⟧       ρ = - ⟦ p ⟧ ρ
 
+-- Equality.
+
+_≛_ : ∀ {n} → Polynomial n → Polynomial n → Set _
+p₁ ≛ p₂ = ∀ {ρ} → ⟦ p₁ ⟧ ρ ≈ ⟦ p₂ ⟧ ρ
+
 private
-
-  -- Equality.
-
-  _≛_ : ∀ {n} → Polynomial n → Polynomial n → Set _
-  p₁ ≛ p₂ = ∀ {ρ} → ⟦ p₁ ⟧ ρ ≈ ⟦ p₂ ⟧ ρ
 
   -- Reindexing.
 
@@ -102,24 +102,22 @@ private
 ------------------------------------------------------------------------
 -- Normal forms of polynomials
 
-private
+-- The normal forms (Horner forms) are indexed over
+-- * the number of variables in the polynomial, and
+-- * an equivalent polynomial.
 
-  -- The normal forms (Horner forms) are indexed over
-  -- * the number of variables in the polynomial, and
-  -- * an equivalent polynomial.
+data Normal : (n : ℕ) → Polynomial n → Set (r₁ ⊔ r₂ ⊔ r₃) where
+  con   : (c : C.Carrier) → Normal 0 (con c)
+  _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
+  _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
+          Normal (suc n) (p' :* var zero :+ c' :↑ 1)
+  _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
 
-  data Normal : (n : ℕ) → Polynomial n → Set (r₁ ⊔ r₂ ⊔ r₃) where
-    con   : (c : C.Carrier) → Normal 0 (con c)
-    _↑    : ∀ {n p'} (p : Normal n p') → Normal (suc n) (p' :↑ 1)
-    _*x+_ : ∀ {n p' c'} (p : Normal (suc n) p') (c : Normal n c') →
-            Normal (suc n) (p' :* var zero :+ c' :↑ 1)
-    _∶_   : ∀ {n p₁ p₂} (p : Normal n p₁) (eq : p₁ ≛ p₂) → Normal n p₂
-
-  ⟦_⟧-NF : ∀ {n p} → Normal n p → Vec Carrier n → Carrier
-  ⟦ p ∶ _   ⟧-NF ρ       = ⟦ p ⟧-NF ρ
-  ⟦ con c   ⟧-NF ρ       = ⟦ c ⟧'
-  ⟦ p ↑     ⟧-NF (x ∷ ρ) = ⟦ p ⟧-NF ρ
-  ⟦ p *x+ c ⟧-NF (x ∷ ρ) = (⟦ p ⟧-NF (x ∷ ρ) * x) + ⟦ c ⟧-NF ρ
+⟦_⟧-Normal : ∀ {n p} → Normal n p → Vec Carrier n → Carrier
+⟦ p ∶ _   ⟧-Normal ρ       = ⟦ p ⟧-Normal ρ
+⟦ con c   ⟧-Normal ρ       = ⟦ c ⟧'
+⟦ p ↑     ⟧-Normal (x ∷ ρ) = ⟦ p ⟧-Normal ρ
+⟦ p *x+ c ⟧-Normal (x ∷ ρ) = (⟦ p ⟧-Normal (x ∷ ρ) * x) + ⟦ c ⟧-Normal ρ
 
 ------------------------------------------------------------------------
 -- Normalisation
@@ -188,15 +186,15 @@ private
   normaliseOp [+] = _+-NF_
   normaliseOp [*] = _*-NF_
 
-  normalise : ∀ {n} (p : Polynomial n) → Normal n p
-  normalise (op o p₁ p₂) = normalise p₁ ⟨ normaliseOp o ⟩ normalise p₂
-  normalise (con c)      = con-NF c
-  normalise (var i)      = var-NF i
-  normalise (p :^ n)     = normalise p ^-NF n
-  normalise (:- p)       = -‿NF normalise p
+normalise : ∀ {n} (p : Polynomial n) → Normal n p
+normalise (op o p₁ p₂) = normalise p₁ ⟨ normaliseOp o ⟩ normalise p₂
+normalise (con c)      = con-NF c
+normalise (var i)      = var-NF i
+normalise (p :^ n)     = normalise p ^-NF n
+normalise (:- p)       = -‿NF normalise p
 
 ⟦_⟧↓ : ∀ {n} → Polynomial n → Vec Carrier n → Carrier
-⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-NF ρ
+⟦ p ⟧↓ ρ = ⟦ normalise p ⟧-Normal ρ
 
 ------------------------------------------------------------------------
 -- Correctness
@@ -217,7 +215,7 @@ private
   raise-sem (:- p)       ρ = -‿cong (raise-sem p ρ)
 
   nf-sound : ∀ {n p} (nf : Normal n p) ρ →
-             ⟦ nf ⟧-NF ρ ≈ ⟦ p ⟧ ρ
+             ⟦ nf ⟧-Normal ρ ≈ ⟦ p ⟧ ρ
   nf-sound (nf ∶ eq)         ρ       = nf-sound nf ρ ⟨ trans ⟩ eq
   nf-sound (con c)           ρ       = refl
   nf-sound (_↑ {p' = p'} nf) (x ∷ ρ) =
