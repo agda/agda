@@ -106,16 +106,16 @@ agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*Goal type etc.*"
-                 "n : Nat
+                 "Goal: Nat
 ————————————————————————————————————————————————————————————
-Goal: Nat")
+n : Nat")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*Goal type etc.*"
-                 "n : Nat
+                 "Goal: Nat
 ————————————————————————————————————————————————————————————
-Goal: Nat
+n : Nat
 Have: Nat")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")

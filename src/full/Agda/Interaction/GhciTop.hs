@@ -501,9 +501,9 @@ cmd_goal_type_context_and doc norm ii _ _ = do
   goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
   ctx  <- prettyContext norm ii
   display_infoD "*Goal type etc.*"
-                (ctx $+$
+                (text "Goal:" <+> goal $+$
                  text (replicate 60 '\x2014') $+$
-                 text "Goal:" <+> goal $+$
+                 ctx $+$
                  doc)
   return Nothing
 
