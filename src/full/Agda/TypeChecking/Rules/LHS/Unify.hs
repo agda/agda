@@ -207,6 +207,7 @@ unifyIndices flex a us vs = liftTCM $ do
       su <- sizeView u
       sv <- sizeView v
       case (su, sv) of
+        (SizeSuc u, SizeSuc v) -> unify sz u v
         (SizeSuc u, SizeInf) -> unify sz u v
         (SizeInf, SizeSuc v) -> unify sz u v
         _                    -> unifyAtom sz u v
