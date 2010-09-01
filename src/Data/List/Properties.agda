@@ -27,11 +27,11 @@ private
   module LM {a} {A : Set a} = Monoid (List.monoid A)
 
 ∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
-              (List A ∶ x ∷ xs) ≡ y ∷ ys → x ≡ y × xs ≡ ys
+              (List A ∋ x ∷ xs) ≡ y ∷ ys → x ≡ y × xs ≡ ys
 ∷-injective refl = (refl , refl)
 
 ∷ʳ-injective : ∀ {a} {A : Set a} {x y} xs ys →
-               (List A ∶ xs ∷ʳ x) ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
+               (List A ∋ xs ∷ʳ x) ≡ ys ∷ʳ y → xs ≡ ys × x ≡ y
 ∷ʳ-injective []          []          refl = (refl , refl)
 ∷ʳ-injective (x ∷ xs)    (y  ∷ ys)   eq   with ∷-injective eq
 ∷ʳ-injective (x ∷ xs)    (.x ∷ ys)   eq   | (refl , eq′) =
@@ -300,7 +300,7 @@ module Monad where
   left-zero f = refl
 
   right-zero : {A B : Set} (xs : List A) →
-               (xs >>= const ∅) ≡ (List B ∶ ∅)
+               (xs >>= const ∅) ≡ (List B ∋ ∅)
   right-zero []       = refl
   right-zero (x ∷ xs) = right-zero xs
 
@@ -362,7 +362,7 @@ module Applicative where
 
   -- ∅ is a left zero for _⊛_.
 
-  left-zero : ∀ {A B} xs → (List (A → B) ∶ ∅) ⊛ xs ≡ ∅
+  left-zero : ∀ {A B} xs → (List (A → B) ∋ ∅) ⊛ xs ≡ ∅
   left-zero xs = begin
     ∅ ⊛ xs          ≡⟨ refl ⟩
     (∅ >>= pam xs)  ≡⟨ Monad.left-zero (pam xs) ⟩
