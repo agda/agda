@@ -41,7 +41,7 @@ endif
 CABAL_CMD=cabal
 
 # Options used by cabal install.
-CABAL_OPTIONS=--global --root-cmd=sudo
+CABAL_OPTIONS=--global
 
 install : update-cabal install-lib install-bin install-emacs-mode
 
