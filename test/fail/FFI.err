@@ -2,9 +2,9 @@
 Compilation error:
 [1 of 1] Compiling MAlonzo.FFI      ( MAlonzo/FFI.hs, MAlonzo/FFI.o )
 
-MAlonzo/FFI.hs:24:10:
+MAlonzo/FFI.hs:23:9:
     Not in scope: `nothing'
 
-MAlonzo/FFI.hs:35:41:
+MAlonzo/FFI.hs:34:39:
     Not in scope: `nothing'
 

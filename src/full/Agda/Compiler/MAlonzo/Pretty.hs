@@ -15,5 +15,10 @@ import Agda.Compiler.MAlonzo.Encode
 
 prettyPrint :: (Pretty.Pretty a, Data a) => a -> String
 prettyPrint = Pretty.prettyPrint .
-              everywhere (mkT HsParen) .
+              everywhere (mkT bracket) .
               everywhere (mkT encodeModuleName)
+  where
+  -- Workaround for GHC bug #4284.
+  bracket :: HsExp -> HsExp
+  bracket e@(HsVar _) = e
+  bracket e           = HsParen e
