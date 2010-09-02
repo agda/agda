@@ -66,6 +66,7 @@ checkStrictlyPositive mi = do
       def <- theDef <$> getConstInfo q
       return $ case def of
         Datatype{dataClause = Nothing} -> True
+        Record  {recClause  = Nothing} -> True
         _ -> False
 
     getArity q = do

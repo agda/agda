@@ -36,7 +36,6 @@ import Agda.Utils.Impossible
 checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
                [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
 checkRecDef i name con ps contel fields =
-  noMutualBlock $ -- records can't be recursive anyway
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
