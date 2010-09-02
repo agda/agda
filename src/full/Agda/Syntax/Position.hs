@@ -140,6 +140,9 @@ instance (HasRange a, HasRange b) => HasRange (a,b) where
 instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
     getRange (x,y,z) = getRange (x,(y,z))
 
+instance (HasRange a, HasRange b, HasRange c, HasRange d) => HasRange (a,b,c,d) where
+    getRange (x,y,z,w) = getRange (x,(y,(z, w)))
+
 instance HasRange a => HasRange (Maybe a) where
     getRange Nothing  = noRange
     getRange (Just a) = getRange a

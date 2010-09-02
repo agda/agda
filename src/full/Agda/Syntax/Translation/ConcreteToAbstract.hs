@@ -197,6 +197,8 @@ checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
              { minfoRange  = r
              , minfoAsName = Nothing
              , minfoAsTo   = renamingRange dir
+             , minfoOpenShort = Just open
+             , minfoDirective = Just dir
              }
 
 -- | The @public@ keyword must only be used together with @open@.
@@ -534,7 +536,7 @@ scopeCheckModule r x qm tel ds = do
   printScope "module" 20 $ "after module " ++ show x
   return res
   where
-    info = ModuleInfo r noRange Nothing
+    info = ModuleInfo r noRange Nothing Nothing Nothing
 
 newtype TopLevel a = TopLevel a
 
@@ -595,9 +597,10 @@ instance ToAbstract LetDef [A.LetBinding] where
                                    { minfoRange  = r
                                    , minfoAsName = Nothing
                                    , minfoAsTo   = renamingRange dirs
+                                   , minfoOpenShort = Nothing
+                                   , minfoDirective = Just dirs
                                    })
                                 m
-                                dirs
                      ]
 
             NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
@@ -776,6 +779,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
                         { minfoRange  = r
                         , minfoAsName = Nothing
                         , minfoAsTo   = renamingRange dir
+                        , minfoOpenShort = Nothing
+                        , minfoDirective = Just dir
                         })
                      m]
 
@@ -828,6 +833,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
                            , minfoAsName = theAsName
                            , minfoAsTo   =
                                getRange (theAsSymbol, renamingRange dir)
+                           , minfoOpenShort = Just open
+                           , minfoDirective = Just dir
                            })
                         m ]
 

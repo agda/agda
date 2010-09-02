@@ -545,20 +545,20 @@ ImportDirective1
 
 ImportDirective2 :: { ImportDirective }
 ImportDirective2
-    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange $1 $2) $1 $2 False }
-    | RenamingDir		{ ImportDirective (getRange $1) (Hiding []) $1 False }
-    | UsingOrHiding		{ ImportDirective (getRange $1) $1 [] False }
+    : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange (snd $1) (snd $2)) (fst $1) (fst $2) False }
+    | RenamingDir		{ ImportDirective (getRange (snd $1)) (Hiding []) (fst $1) False }
+    | UsingOrHiding		{ ImportDirective (getRange (snd $1)) (fst $1) [] False }
     | {- empty -}		{ ImportDirective noRange (Hiding []) [] False }
 
-UsingOrHiding :: { UsingOrHiding }
+UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
-    : 'using' '(' CommaImportNames ')'   { Using $3 }
+    : 'using' '(' CommaImportNames ')'   { (Using $3 , fuseRange $1 $4) }
 	-- only using can have an empty list
-    | 'hiding' '(' CommaImportNames1 ')' { Hiding $3 }
+    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , fuseRange $1 $4) }
 
-RenamingDir :: { [Renaming] }
+RenamingDir :: { ([Renaming] , Range) }
 RenamingDir
-    : 'renaming' '(' Renamings ')'	{ $3 }
+    : 'renaming' '(' Renamings ')'	{ ($3 , fuseRange $1 $4) }
 
 -- Renamings of the form 'x to y'
 Renamings :: { [Renaming] }
@@ -741,7 +741,7 @@ Open : 'open' ModuleName OpenArgs ImportDirective {
     { m   = $2
     ; es  = $3
     ; dir = $4
-    ; r   = getRange ($1, m, dir)
+    ; r   = getRange ($1, m, es, dir)
     } in
     case es of
     { []  -> Open r m dir

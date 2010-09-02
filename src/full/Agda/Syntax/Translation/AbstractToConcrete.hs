@@ -424,28 +424,44 @@ instance ToConcrete LetBinding [C.Declaration] where
                               e C.NoWhere
                 ]
     bindToConcrete (LetApply i x tel y es _ _) ret = do
-      x  <- unsafeQNameToName <$> toConcrete x
-      y  <- toConcrete y
+      x' <- unqualify <$> toConcrete x
+      y' <- toConcrete y
       bindToConcrete tel $ \tel -> do
-      es <- toConcrete es
-      let r = fuseRange y es
-      ret [ C.ModuleMacro (getRange i) x tel
-                  (foldl (C.App r) (C.Ident y) es) DontOpen
-                  (ImportDirective r (Hiding []) [] False)
-          ]
-    bindToConcrete (LetOpen i x dir) ret = do
-      y <- toConcrete x
-      local openModule_x $ ret [ C.Open (getRange i) y dir ]
-      where
-      openModule_x env = env{currentScope = sInfo{scopeModules = mods'}}
-        where sInfo = currentScope env
-              amod  = scopeCurrent sInfo
-              mods  = scopeModules sInfo
-              news  = setScopeAccess PrivateNS 
-                    $ applyImportDirective dir
-                    $ maybe __IMPOSSIBLE__  restrictPrivate
-                    $ Map.lookup x mods
-              mods' = Map.update (Just . (`mergeScope` news)) amod mods
+      es' <- toConcrete es
+      let r = fuseRange y' es'
+          open = maybe DontOpen id $ minfoOpenShort i
+          dir  = maybe (ImportDirective r (Hiding []) [] False) id $ minfoDirective i
+      -- This is no use since toAbstract LetDefs is in localToAbstract.
+      local (openModule' x dir id) $
+        ret [ C.ModuleMacro (getRange i) x' tel
+                  (foldl (C.App r) (C.Ident y') es') open dir ]
+    bindToConcrete (LetOpen i x) ret = do
+      x' <- toConcrete x
+      let dir = maybe defaultImportDir id $ minfoDirective i
+      local (openModule' x dir restrictPrivate) $
+            ret [ C.Open (getRange i) x' dir ]
+
+data AsWhereDecls = AsWhereDecls [A.Declaration]
+
+instance ToConcrete AsWhereDecls WhereClause where
+  bindToConcrete (AsWhereDecls []) ret = ret C.NoWhere
+  bindToConcrete (AsWhereDecls ds@[Section _ am _ _]) ret = do
+    ds' <- toConcrete ds
+    cm  <- unqualify <$> lookupModule am
+    let wh' = (if isNoName cm then AnyWhere else SomeWhere cm) $ ds'
+    local (openModule' am defaultImportDir id) $ ret wh'
+  bindToConcrete (AsWhereDecls ds) ret = ret . AnyWhere =<< toConcrete ds
+
+openModule' :: A.ModuleName -> ImportDirective -> (Scope -> Scope) -> Env -> Env
+openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
+  where sInfo = currentScope env
+        amod  = scopeCurrent sInfo
+        mods  = scopeModules sInfo
+        news  = setScopeAccess PrivateNS 
+                $ applyImportDirective dir
+                $ maybe emptyScope restrict
+                $ Map.lookup x mods
+        mods' = Map.update (Just . (`mergeScope` news)) amod mods
 
 
 -- Declaration instances --------------------------------------------------
@@ -529,12 +545,8 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 instance ToConcrete A.Clause [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
       bindToConcrete lhs $ \(C.LHS p wps _ _) -> do
+      bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
           (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
---           ds         <- toConcrete wh
---           let wh' = case ds of
---                 []  -> C.NoWhere
---                 _   -> C.AnyWhere ds
-          let wh' = C.NoWhere
           return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
 
 instance ToConcrete A.Declaration [C.Declaration] where
@@ -589,14 +601,18 @@ instance ToConcrete A.Declaration [C.Declaration] where
     bindToConcrete tel $ \tel -> do
     es <- toConcrete es
     let r = fuseRange y es
+        open = maybe DontOpen id $ minfoOpenShort i
+        dir  = maybe (ImportDirective r (Hiding []) [] False) id $ minfoDirective i
     return [ C.ModuleMacro (getRange i) x tel
-                (foldl (C.App r) (C.Ident y) es) DontOpen
-                (ImportDirective r (Hiding []) [] False)
+                (foldl (C.App r) (C.Ident y) es) open
+                                                 dir
            ]
 
   toConcrete (A.Import i x) = do
     x <- toConcrete x
-    return [ C.Import (getRange i) x Nothing DontOpen defaultImportDir ]
+    let open = maybe DontOpen id $ minfoOpenShort i
+        dir  = maybe defaultImportDir id $ minfoDirective i
+    return [ C.Import (getRange i) x Nothing open dir]
 
   toConcrete (A.Pragma i p)     = do
     p <- toConcrete $ RangeAndPragma (getRange i) p

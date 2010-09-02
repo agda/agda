@@ -165,6 +165,8 @@ instance Pretty RHS where
 
 instance Pretty WhereClause where
   pretty  NoWhere = empty
+  pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
+                       = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (AnyWhere ds) = vcat [ text "where", nest 2 (vcat $ map pretty ds) ]
   pretty (SomeWhere m ds) =
     vcat [ hsep [ text "module", pretty m, text "where" ]
@@ -240,6 +242,11 @@ instance Pretty Declaration where
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
+	    ModuleMacro _ x [] e DoOpen i | isNoName x ->
+		sep [ pretty DoOpen
+                    , nest 2 $ pretty e
+                    , nest 4 $ pretty i
+                    ]
 	    ModuleMacro _ x tel e open i ->
 		sep [ pretty open <+> text "module" <+> pretty x <+> fcat (map pretty tel)
 		    , nest 2 $ text "=" <+> pretty e <+> pretty i

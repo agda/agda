@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, FlexibleContexts, UndecidableInstances #-}
 {-| An info object contains additional information about a piece of abstract
     syntax that isn't part of the actual syntax. For instance, it might contain
     the source code posisiton of an expression or the concrete syntax that
@@ -73,8 +73,13 @@ data ModuleInfo =
                    , minfoAsName   :: Maybe C.Name
                      -- The \"as\" module name, if any. Retained for
                      -- highlighting purposes.
+                   , minfoOpenShort :: Maybe OpenShortHand
+                   , minfoDirective :: Maybe ImportDirective
+                     -- Retained for abstractToConcrete of ModuleMacro
 		   }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data)
+
+deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 
 instance HasRange ModuleInfo where
   getRange = minfoRange
