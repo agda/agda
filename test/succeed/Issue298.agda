@@ -1,7 +1,7 @@
 {-# OPTIONS --show-implicit #-} 
 {-# OPTIONS --sized-types #-} 
 
-module SizedBTree where
+module Issue298 where
 
 open import Size
 
