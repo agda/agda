@@ -3,7 +3,15 @@
 
 module Issue298 where
 
-open import Size
+
+postulate
+  Size : Set
+  ↑_   : Size → Size
+  ∞    : Size
+
+{-# BUILTIN SIZE    Size #-}
+{-# BUILTIN SIZESUC ↑_   #-}
+{-# BUILTIN SIZEINF ∞    #-}
 
 data BTree : {i : Size} → Set where
   leaf : ∀ {i} → BTree {↑ i}
