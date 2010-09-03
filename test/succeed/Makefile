@@ -12,19 +12,19 @@ include $(TOP)/mk/config.mk
 V = 0
 
 # Getting all agda files
-allagda=$(patsubst %.agda,%,$(shell find . -name "*.agda"))
-alllagda=$(patsubst %.lagda,%,$(shell find . -name "*.lagda"))
+allagda=$(patsubst %.agda,%.test,$(shell find . -name "*.agda"))
+alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))
 
 default : all
 all : $(allagda) $(alllagda)
 
 RUN_AGDA = $(AGDA_BIN) --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
-$(allagda) : % : %.agda
+%.test : %.agda
 	@echo $<
 	@$(RUN_AGDA) $<
 
-$(alllagda) : % : %.lagda
+%.test : %.lagda
 	@echo $<
 	@$(RUN_AGDA) $<
 
