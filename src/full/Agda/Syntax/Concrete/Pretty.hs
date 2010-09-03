@@ -37,6 +37,7 @@ pHidden NotHidden   = pretty
 pRelevance :: Pretty a => Relevance -> a -> Doc
 pRelevance Relevant   a = pretty a
 pRelevance Irrelevant a = text "." <> pretty a 
+pRelevance Forced     a = pretty a
 
 instance Pretty Name where
     pretty = text . show

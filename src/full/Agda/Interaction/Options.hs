@@ -66,6 +66,7 @@ data CommandLineOptions =
 	    , optHTMLDir              :: FilePath
 	    , optCSSFile              :: Maybe FilePath
 	    , optIgnoreInterfaces     :: Bool
+            , optForcing              :: Bool
 	    , optCompileAlonzo        :: Bool
             , optCompileMAlonzo       :: Bool
             , optMAlonzoDir           :: Maybe FilePath
@@ -125,6 +126,7 @@ defaultOptions =
 	    , optHTMLDir              = defaultHTMLDir
 	    , optCSSFile              = Nothing
 	    , optIgnoreInterfaces     = False
+            , optForcing              = True
 	    , optCompileAlonzo        = False
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
@@ -214,6 +216,7 @@ sizedTypes                   o = return $ o { optSizedTypes                = Tru
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
 guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
+noForcingFlag                o = return $ o { optForcing                   = False }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -282,6 +285,8 @@ standardOptions =
 		    "ignore interface files (re-type check everything)"
     , Option ['i']  ["include-path"] (ReqArg includeFlag "DIR")
 		    "look for imports in DIR"
+    , Option []     ["no-forcing"] (NoArg noForcingFlag)
+                    "disable the forcing optimisation"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions

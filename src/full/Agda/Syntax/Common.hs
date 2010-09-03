@@ -27,6 +27,7 @@ data Hiding  = Hidden | NotHidden
 data Relevance 
   = Relevant    -- ^ the argument is (possibly) relevant at compile-time 
   | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime 
+  | Forced      -- ^ the argument can be skipped during equality checking
     deriving (Typeable, Data, Show, Eq, Ord)
 
 instance KillRange Induction where killRange = id
@@ -64,10 +65,13 @@ instance Sized a => Sized (Arg a) where
   size = size . unArg
 
 instance Show a => Show (Arg a) where
-    show (Arg Hidden    Relevant   x) = "{" ++ show x ++ "}"
-    show (Arg NotHidden Relevant   x) = "(" ++ show x ++ ")"
-    show (Arg Hidden    Irrelevant x) = ".{" ++ show x ++ "}"
-    show (Arg NotHidden Irrelevant x) = ".(" ++ show x ++ ")"
+    show (Arg h r x) = showR r $ showH h $ show x
+      where
+        showH Hidden     s = "{" ++ s ++ "}"
+        showH NotHidden  s = "(" ++ s ++ ")"
+        showR Irrelevant s = "." ++ s
+        showR Forced     s = "!" ++ s
+        showR Relevant   s = s
 
 data Named name a =
     Named { nameOf     :: Maybe name

@@ -195,8 +195,9 @@ instance PrettyTCM PrettyContext where
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
-              rel Irrelevant x = P.text "." P.<> x 
-              rel Relevant x   = x 
+              rel Irrelevant x = P.text "." P.<> x
+              rel Relevant x   = x
+              rel Forced   x   = x
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
