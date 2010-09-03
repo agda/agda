@@ -12,7 +12,7 @@ module Monad
 
   -- Input string positions.
 
-  {Position : Set} {_<P_ : Rel Position}
+  {Position : Set} {_<P_ : Rel Position _}
   (posOrdered : IsStrictTotalOrder _≡_ _<P_)
 
   -- Input strings.
@@ -30,11 +30,11 @@ module Monad
   -- the current input string position.
 
   {Key : let PosPoset = STOProps.poset
-                          (record { carrier = _ ; _≈_ = _; _<_ = _
+                          (record { Carrier = _ ; _≈_ = _; _<_ = _
                                   ; isStrictTotalOrder = posOrdered })
              MonoFun = PosPoset ⇒-Poset PosPoset in
          MonoFun -> Result -> Set}
-  {_≈_ _<_ : Rel (∃₂ Key)}
+  {_≈_ _<_ : Rel (∃₂ Key) _}
   (keyOrdered : IsStrictTotalOrder _≈_ _<_)
 
   -- Furthermore the underlying equality needs to be strong enough.
@@ -45,7 +45,7 @@ module Monad
   where
 
 open _⇒-Poset_
-open STOProps (record { carrier = _ ; _≈_ = _; _<_ = _
+open STOProps (record { Carrier = _ ; _≈_ = _; _<_ = _
                       ; isStrictTotalOrder = posOrdered })
 
 import Data.AVL.IndexedMap as Map renaming (Map to MemoTable)
@@ -53,8 +53,8 @@ open import Category.Monad
 open import Category.Monad.State
 import Data.List as List; open List using (List)
 open import Data.Unit hiding (poset; _≤_)
-open import Data.Function
-open import Data.Maybe
+open import Function
+open import Data.Maybe hiding (Eq)
 open import Relation.Binary.Product.StrictLex
 open import Relation.Binary.Product.Pointwise
 import Relation.Binary.On as On
@@ -94,11 +94,11 @@ shuffle ((pos , f , r) , key k .pos) = (pos , f , r , k)
 
 -- Equality and order.
 
-Eq : Rel (∃ MemoTableKey)
-Eq = _≡_ ×-Rel _≈_  on₁  shuffle
+Eq : Rel (∃ MemoTableKey) _
+Eq = _≡_ ×-Rel _≈_  on  shuffle
 
-Lt : Rel (∃ MemoTableKey)
-Lt = ×-Lex _≡_ _<P_ _<_  on₁  shuffle
+Lt : Rel (∃ MemoTableKey) _
+Lt = ×-Lex _≡_ _<P_ _<_  on  shuffle
 
 isOrdered : IsStrictTotalOrder Eq Lt
 isOrdered = On.isStrictTotalOrder shuffle

@@ -20,7 +20,7 @@ addForcingAnnotations :: Type -> TCM Type
 addForcingAnnotations t =
   ifM (not . optForcing <$> commandLineOptions)
       (return t) $ do
-  -- t <- normalise t0
+  -- t <- normalise t
   let TelV tel (El _ a) = telView' t
       n  = size tel
       indexToLevel x = n - x - 1
