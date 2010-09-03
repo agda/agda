@@ -34,7 +34,7 @@ description:
   Note also that this library does not follow the package versioning
   policy, because the library is only intended to be used by the Emacs
   mode and the Agda-executable package.
-tested-with:        GHC >= 6.12.1 && <= 6.12.2
+tested-with:        GHC == 6.12.1, GHC == 6.12.3
 extra-source-files: src/full/Agda/undefined.h
                     README
                     doc/release-notes/*.txt
