@@ -17,10 +17,10 @@ import Agda.Utils.Impossible
 #include "../undefined.h"
 
 addForcingAnnotations :: Type -> TCM Type
-addForcingAnnotations t =
+addForcingAnnotations t0 =
   ifM (not . optForcing <$> commandLineOptions)
-      (return t) $ do
-  t <- normalise t
+      (return t0) $ do
+  t <- normalise t0
   let TelV tel (El _ a) = telView' t
       n  = size tel
       indexToLevel x = n - x - 1
@@ -32,7 +32,9 @@ addForcingAnnotations t =
     , "  t  = " ++ show t
     , "  t' = " ++ show t'
     ]
-  return t'
+  case xs of
+    []  -> return t0
+    _   -> return t'
 
 forcedVariables :: Term -> TCM [Nat]
 forcedVariables t = case t of

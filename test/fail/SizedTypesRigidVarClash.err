@@ -1,3 +1,3 @@
 SizedTypesRigidVarClash.agda:19,1-14
-Unsolvable size constraints: [X22 =< c28,c27 =< X22]
+Unsolvable size constraints: [X22 =< c31,c30 =< X22]
 when checking the definition of inc

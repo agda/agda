@@ -248,7 +248,6 @@ compareAtom cmp t m n =
     where
 	equalFun (FunV arg1@(Arg h1 r1 a1) t1) (FunV (Arg h2 r2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
-	    | r1 /= r2	= typeError $ UnequalRelevance ty1 ty2
 	    | otherwise = do
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
 			arg	    = Arg h1 r1 (Var 0 [])

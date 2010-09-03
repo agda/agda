@@ -25,6 +25,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Forcing
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
@@ -72,6 +73,7 @@ checkAxiom _ x e = do
     [ text "checked axiom"
     , nest 2 $ prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
     ]
+  t <- addForcingAnnotations t
   addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
   solveSizeConstraints
 
