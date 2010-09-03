@@ -126,7 +126,7 @@ compareTel cmp tel1 tel2 =
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
     (ExtendTel arg1@(Arg h1 r1 a1) tel1, ExtendTel arg2@(Arg h2 r2 a2) tel2)
-      | h1 /= h2 || r1 /= r2 -> bad
+      | h1 /= h2 -> bad
       | otherwise -> do
           let (tel1', tel2') = raise 1 (tel1, tel2)
               arg            = Var 0 []
@@ -300,7 +300,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
           , nest 2 $ text ":" <+> prettyTCM a
           ]
     case funView (unEl a) of
-	FunV (Arg _ _ b) _ -> do
+	FunV (Arg _ r b) _ -> do
 	    reportSDoc "tc.conv.args" 10 $
               sep [ text "compareArgs" <+> parens (text $ show pol)
                   , nest 2 $ sep [ prettyTCM arg1
@@ -312,7 +312,9 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                             Invariant     -> compareTerm CmpEq b x y
                             Covariant     -> compareTerm CmpLeq b x y
                             Contravariant -> compareTerm CmpLeq b y x
-            cs1 <- cmp (unArg arg1) (unArg arg2)
+            cs1 <- case r of
+                    Forced -> return []
+                    _      -> cmp (unArg arg1) (unArg arg2)
             -- mlvl <- mlevel
 	    case (cs1, unEl a) of
                                 -- We can safely ignore sort annotations here

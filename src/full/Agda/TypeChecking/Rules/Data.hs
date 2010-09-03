@@ -21,6 +21,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Forcing
 
 import Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -145,23 +146,29 @@ checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
-	reportSDoc "tc.data.con" 15 $ vcat
-          [ sep [ text "checking that"
-                , nest 2 $ prettyTCM t
-                , text "ends in" <+> prettyTCM d
-                ]
-	  , nest 2 $ text "nofPars =" <+> text (show n)
-          ]
+        debugEndsIn t d n
 	constructs n t d
-	reportSDoc "tc.data.con" 15 $ sep
-          [ text "checking that the type fits in"
-          , nest 2 $ prettyTCM s
-          ]
+        debugFitsIn s
 	t `fitsIn` s
+        t' <- addForcingAnnotations t
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn c (telePi tel t) (defaultDisplayForm c) 0
+	    $ Defn c (telePi tel t') (defaultDisplayForm c) 0
 	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) ind
+  where
+    debugEndsIn t d n =
+      reportSDoc "tc.data.con" 15 $ vcat
+        [ sep [ text "checking that"
+              , nest 2 $ prettyTCM t
+              , text "ends in" <+> prettyTCM d
+              ]
+        , nest 2 $ text "nofPars =" <+> text (show n)
+        ]
+    debugFitsIn s =
+      reportSDoc "tc.data.con" 15 $ sep
+        [ text "checking that the type fits in"
+        , nest 2 $ prettyTCM s
+        ]
 checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 

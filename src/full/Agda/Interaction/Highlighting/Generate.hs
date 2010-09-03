@@ -462,11 +462,11 @@ nameToFile :: SourceToModule
               -- if possible.
            -> File
 nameToFile modMap file xs x m mR =
-  -- Make sure that we don't get any funny ranges.
+  -- We don't care if we get any funny ranges.
   if all (== Just file) fileNames then
     several rs' ((m isOp) { definitionSite = mFilePos })
    else
-    __IMPOSSIBLE__
+    mempty
   where
   fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
   (rs, isOp) = getRanges x
