@@ -79,7 +79,7 @@ compareTerm cmp a m n =
       Prop | proofIrr -> return []
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
-        a | Just a == mlvl && cmp == CmpEq -> equalLevel m n
+        a | Just a == mlvl -> equalLevel m n
         Pi a _    -> equalFun (a,a') m n
         Fun a _   -> equalFun (a,a') m n
         MetaV x _ -> do
@@ -137,7 +137,7 @@ compareTel cmp tel1 tel2 =
           let c = TelCmp cmp (absApp tel1' arg) (absApp tel2' arg)
 
 	  let dependent = 0 `freeIn` absBody tel2
-	  
+
           if dependent
 	    then addCtx name arg1 $ guardConstraint (return cs) c
 	    else do cs' <- addCtx name arg1 $ solveConstraint c
