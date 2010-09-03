@@ -222,6 +222,7 @@ data Constraint = ValueCmp Comparison Type Term Term
 		| TypeCmp Comparison Type Type
                 | TelCmp Comparison Telescope Telescope
 		| SortCmp Comparison Sort Sort
+                | LevelCmp Comparison Term Term
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
                 | IsEmpty Type
@@ -774,6 +775,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
+        | UnequalLevel Comparison Term Term
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
 	| UnequalTelescopes Comparison Telescope Telescope

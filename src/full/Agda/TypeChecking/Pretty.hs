@@ -123,6 +123,10 @@ instance PrettyTCM Constraint where
                 ] 
               , nest 2 $ text ":" <+> prettyTCM t
               ]
+	LevelCmp cmp a b ->
+	    sep [ prettyTCM a
+		, prettyTCM cmp <+> prettyTCM b
+		]
 	TypeCmp cmp a b ->
 	    sep [ prettyTCM a
 		, prettyTCM cmp <+> prettyTCM b

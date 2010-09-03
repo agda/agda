@@ -28,6 +28,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Utils.Monad
 
@@ -58,9 +59,6 @@ equalArgs = compareArgs []
 
 equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType = compareType CmpEq
-
-mlevel :: MonadTCM tcm => tcm (Maybe Term)
-mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
 -- | Type directed equality on values.
 --
@@ -405,15 +403,19 @@ leqSort s1 s2 =
               ]
 	case (s1,s2) of
 
+            -- New universe polymorphism
+--             (Type a  , Type b  )             -> compareLevel CmpLeq a b
+
+	    (Type (Lit (LitLevel _ n)), Type (Lit (LitLevel _ m)))
+              | n <= m    -> return []
+	      | otherwise -> notLeq s1 s2
+            (Type a, Type b) -> leqLevel a b
+
 	    (Prop    , Prop    )	     -> return []
 	    (Type _  , Prop    )	     -> notLeq s1 s2
 	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
 	    (Prop    , Type _  )	     -> return []
-	    (Type (Lit (LitLevel _ n)), Type (Lit (LitLevel _ m)))
-              | n <= m    -> return []
-	      | otherwise -> notLeq s1 s2
-            (Type a, Type b) -> leqLevel a b
 
 	    (Suc s   , Type (Lit (LitLevel _ n)))
               | 1 <= n    -> leqSort s (mkType $ n - 1)
@@ -616,6 +618,14 @@ equalSort s1 s2 =
               ]
 	case (s1,s2) of
 
+            -- New universe polymorphism
+--             (Type a, Type b) -> compareLevel CmpEq a b
+
+            (Type (Lit n), Type (Lit m))
+              | n == m           -> return []
+              | otherwise        -> notEq s1 s2
+            (Type a  , Type b  ) -> equalLevel a b
+
 	    (MetaS x us , MetaS y vs) -> do
               s1 <- normalise s1
               s2 <- normalise s2
@@ -631,10 +641,6 @@ equalSort s1 s2 =
 	    (Type _  , Prop    ) -> notEq s1 s2
 	    (Prop    , Type _  ) -> notEq s1 s2
 
-            (Type (Lit n), Type (Lit m))
-              | n == m           -> return []
-              | otherwise        -> notEq s1 s2
-            (Type a  , Type b  ) -> equalLevel a b
 	    (Suc s   , Prop    ) -> notEq s1 s2
 	    (Suc s   , Type (Lit (LitLevel _ 0))) -> notEq s1 s2
 	    (Suc s   , Type (Lit (LitLevel _ 1))) -> buildConstraint (SortCmp CmpEq s1 s2)

@@ -238,7 +238,7 @@ type Solution = Map Int SizeExpr
 emptySolution = Map.empty
 extendSolution subst k v = Map.insert k v subst
 
-data SizeExpr = SizeVar Int Int   -- e.g. x + 5
+data SizeExpr = SizeVar RigidId Int   -- e.g. x + 5
               | SizeConst Weight  -- a number or infinity
 
 instance Show SizeExpr where

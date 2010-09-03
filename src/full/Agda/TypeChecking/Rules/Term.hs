@@ -78,6 +78,7 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
+{-
 forcePi :: MonadTCM tcm => Hiding -> String -> Type -> tcm (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
@@ -97,7 +98,7 @@ forcePi h name (El s t) =
                 cs <- equalType (El s t') ty
                 ty' <- reduce ty
                 return (ty', cs)
-
+-}
 
 ---------------------------------------------------------------------------
 -- * Telescopes

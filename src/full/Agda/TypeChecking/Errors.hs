@@ -156,6 +156,7 @@ errorString err = case err of
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
     TooManyFields{}                          -> "TooManyFields"
     UnequalHiding{}                          -> "UnequalHiding"
+    UnequalLevel{}                           -> "UnequalLevel"
     UnequalSorts{}                           -> "UnequalSorts"
     UnequalTerms{}                           -> "UnequalTerms"
     UnequalTypes{}                           -> "UnequalTypes"
@@ -272,6 +273,11 @@ instance PrettyTCM TypeError where
 		fwords "Found a malformed term"
 	    UnequalTerms cmp s t a -> fsep $
 		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
+                where
+                  f CmpEq  = text "!="
+                  f CmpLeq = text "!=<"
+	    UnequalLevel cmp s t -> fsep $
+		[prettyTCM s, f cmp, prettyTCM t]
                 where
                   f CmpEq  = text "!="
                   f CmpLeq = text "!=<"

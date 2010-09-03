@@ -205,6 +205,7 @@ data OutputForm a b
       = OfType b a | CmpInType Comparison a b b
                    | CmpTerms [Polarity] a [b] [b]
       | JustType b | CmpTypes Comparison b b
+                   | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputForm a b) [OutputForm a b]
@@ -224,6 +225,7 @@ outputFormId o = case o of
   CmpTerms _ _ (i:_) _ -> i
   CmpTerms _ _ [] _    -> __IMPOSSIBLE__
   JustType i           -> i
+  CmpLevels _ i _      -> i
   CmpTypes _ i _       -> i
   CmpTeles _ i _       -> i
   JustSort i           -> i
@@ -240,6 +242,7 @@ instance Functor (OutputForm a) where
     fmap f (CmpInType cmp t e e') = CmpInType cmp t (f e) (f e')
     fmap f (CmpTerms cmp t e e')  = CmpTerms cmp t (map f e) (map f e')
     fmap f (CmpTypes cmp e e')    = CmpTypes cmp (f e) (f e')
+    fmap f (CmpLevels cmp e e')   = CmpLevels cmp (f e) (f e')
     fmap f (CmpTeles cmp e e')    = CmpTeles cmp (f e) (f e')
     fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
     fmap f (Guard o os)           = Guard (fmap f o) (fmap (fmap f) os)
@@ -252,6 +255,7 @@ instance Reify Constraint (OutputForm Expr Expr) where
     reify (ArgsCmp cmp t u v)    = CmpTerms cmp <$> reify t
                                                 <*> mapM (reify . unArg) u
                                                 <*> mapM (reify . unArg) v
+    reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
     reify (TelCmp  cmp t t')     = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
@@ -286,6 +290,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (CmpInType cmp t e e') = show e ++ showComparison cmp ++ show e' ++ " : " ++ show t
     show (CmpTerms cmp t e e')  = show e ++ "~~" ++ show e' ++ " : " ++ show t
     show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
+    show (CmpLevels cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
     show (Guard o os)           = show o ++ "  if  " ++ show os
@@ -305,6 +310,8 @@ instance (ToConcrete a c, ToConcrete b d) =>
       CmpTerms cmp <$> toConcreteCtx TopCtx t <*> mapM toConcrete e <*> mapM toConcrete e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx ArgumentCtx e
                                                   <*> toConcreteCtx ArgumentCtx e'
+    toConcrete (CmpLevels cmp e e') = CmpLevels cmp <$> toConcreteCtx ArgumentCtx e
+                                                    <*> toConcreteCtx ArgumentCtx e'
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx ArgumentCtx e
                                                   <*> toConcreteCtx ArgumentCtx e'

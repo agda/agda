@@ -98,6 +98,7 @@ getSizeMetas = do
 data SizeExpr = SizeMeta MetaId [CtxId]
               | Rigid CtxId
 
+-- Leq a n b = (a =< b + n)
 data SizeConstraint = Leq SizeExpr Int SizeExpr
 
 instance Show SizeExpr where
