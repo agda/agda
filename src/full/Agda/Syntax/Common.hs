@@ -38,7 +38,10 @@ data Arg e  = Arg
   { argHiding    :: Hiding
   , argRelevance :: Relevance
   , unArg :: e 
-  } deriving (Typeable, Data, Eq, Ord)
+  } deriving (Typeable, Data, Ord)
+
+instance Eq a => Eq (Arg a) where
+  Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
 
 defaultArg :: a -> Arg a
 defaultArg = Arg NotHidden Relevant
