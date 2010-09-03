@@ -46,16 +46,7 @@ There are several ways to install Agda:
 
   1)  Install the prerequisites mentioned below.
 
-  2a) If your system is Unix-like you can now hopefully install the
-      Agda 2 library, batch-mode tool and Emacs mode by running the
-      following command:
-
-        make install
-
-      If this does not work on your system, or you want to have more
-      control, you can follow 2b instead.
-
-  2b) Run the following commands in the top-level directory of the
+  2a) Run the following commands in the top-level directory of the
       Agda source tree:
 
         cabal update
@@ -71,8 +62,17 @@ There are several ways to install Agda:
                         (shell-command-to-string "agda-mode locate")))
 
       If you want to have more control over where files are installed
-      then you can give various flags to cabal install, see
-      cabal install --help.
+      then you can give various flags to cabal install, see
+      cabal install --help.
+
+  2b) If your system is Unix-like you can now hopefully install the
+      Agda 2 library, batch-mode tool and Emacs mode by running the
+      following command:
+
+        make install
+
+      If this does not work on your system, or you want to have more
+      control, you can follow 2b instead.
 
 ------------------------------------------------------------------------
 Configuring the Emacs mode
