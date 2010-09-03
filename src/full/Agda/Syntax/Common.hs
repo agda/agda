@@ -23,7 +23,10 @@ data Induction = Inductive | CoInductive
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
-data Relevance = Relevant | Irrelevant
+-- | A function argument can be relevant or irrelevant.
+data Relevance 
+  = Relevant    -- ^ the argument is (possibly) relevant at compile-time 
+  | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime 
     deriving (Typeable, Data, Show, Eq, Ord)
 
 instance KillRange Induction where killRange = id
