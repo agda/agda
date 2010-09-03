@@ -108,7 +108,7 @@ instantiatePattern sub perm ps
     merge Nothing   ps = ps
     merge (Just qs) ps = zipWith mergeA qs ps
       where
-        mergeA (Arg h p) (Arg _ q) = Arg h $ mergeP p q
+        mergeA a1 a2 = a1 { unArg = mergeP (unArg a1) (unArg a2) }
         mergeP (DotP s)  (DotP t)
           | s == t                 = DotP s
           | otherwise              = __IMPOSSIBLE__
@@ -256,7 +256,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Arg NotHidden (_, a)) = Arg NotHidden (show x, a)
+    ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
     ren _ a = a
     toPats = map (namedThing . unArg)
 
@@ -347,7 +347,7 @@ checkLeftHandSide c ps a ret = do
           Left (SplitPanic err) -> __IMPOSSIBLE__
 
           -- Split on literal pattern
-          Right (Split p0 xs (Arg h (LitFocus lit iph hix a)) p1) -> do
+          Right (Split p0 xs (Arg _ _ (LitFocus lit iph hix a)) p1) -> do
 
             -- plug the hole with a lit pattern
             let ip    = plugHole (LitP lit) iph
@@ -374,7 +374,7 @@ checkLeftHandSide c ps a ret = do
             checkLHS problem' sigma' dpi' asb'
 
           -- Split on constructor pattern
-          Right (Split p0 xs (Arg h
+          Right (Split p0 xs (Arg _ _
                   ( Focus { focusCon      = c
                           , focusConArgs  = qs
                           , focusRange    = r

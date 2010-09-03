@@ -29,14 +29,14 @@ quoteTerm v = do
   Con z _ <- primZero
   Con s _ <- primSuc
   unsupported <- primAgdaTermUnsupported
-  let t @@ u = apply t [Arg NotHidden u]
+  let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden = true
       quoteHiding NotHidden = false
       list [] = nil
       list (a : as) = cons @@ a @@ list as 
       zero = con @@ quoteName z @@ nil
       suc n = con @@ quoteName s @@ list [n]
-      quoteArg (Arg h t) = arg @@ quoteHiding h @@ quote t
+      quoteArg (Arg h r t) = arg @@ quoteHiding h @@ quote t
       quoteArgs ts = list (map quoteArg ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange n) @@ quoteArgs ts
       quote (Lam h t) = lam @@ quoteHiding h @@ quote (absBody t)

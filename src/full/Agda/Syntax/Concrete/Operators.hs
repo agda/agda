@@ -215,7 +215,7 @@ instance IsExpr Pattern where
 -- | Returns the list of possible parses.
 parsePattern :: ReadP Pattern Pattern -> Pattern -> [Pattern]
 parsePattern prs p = case p of
-    AppP p (Arg h q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h <$> traverse (parsePattern prs) q))
+    AppP p (Arg h r q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h r <$> traverse (parsePattern prs) q))
     RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
@@ -259,7 +259,7 @@ parseLHS top p = do
 
         appView :: Pattern -> [Pattern]
         appView p = case p of
-            AppP p (Arg _ q) -> appView p ++ [namedThing q]
+            AppP p a         -> appView p ++ [namedThing (unArg a)]
             OpAppP _ op ps   -> IdentP (QName op) : ps
             ParenP _ p       -> appView p
             RawAppP _ _      -> __IMPOSSIBLE__
@@ -299,7 +299,7 @@ fullParen' e = case exprView e of
     OtherV _     -> e
     HiddenArgV _ -> e
     ParenV _     -> e
-    AppV e1 (Arg h e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h e2')
+    AppV e1 (Arg h r e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h r e2')
         where
             e2' = case h of
                 Hidden    -> e2

@@ -47,7 +47,7 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
       Just n	-> insertImplicitPatterns (replicate n implicitP ++ p : ps) tel
       Nothing	-> (p :) <$> insertImplicitPatterns ps (absBody tel')
   where
-    dummy = Arg NotHidden $ unnamed ()
+    dummy = defaultArg $ unnamed ()
 
     insImp x tel = case insertImplicit x $ map (fmap fst) $ telToList tel of
       BadImplicits   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
@@ -55,5 +55,5 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
       ImpInsert n    -> return $ Just n
       NoInsertNeeded -> return Nothing
 
-    implicitP = Arg Hidden . unnamed . A.ImplicitP . PatRange $ noRange
+    implicitP = Arg Hidden Relevant . unnamed . A.ImplicitP . PatRange $ noRange
 

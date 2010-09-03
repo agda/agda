@@ -262,10 +262,10 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
             reorder (x,(y,z)) = (x,y,z)
 
 instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
-    toConcrete (Arg h@Hidden    x) = Arg h <$> toConcreteCtx TopCtx x
-    toConcrete (Arg h@NotHidden x) = Arg h <$> toConcrete x
+    toConcrete (Arg h@Hidden    r x) = Arg h r <$> toConcreteCtx TopCtx x
+    toConcrete (Arg h@NotHidden r x) = Arg h r <$> toConcrete x
 
-    bindToConcrete (Arg h x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h
+    bindToConcrete (Arg h r x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h r
 
 instance ToConcrete a c => ToConcrete (Named name a) (Named name c) where
     toConcrete (Named n x) = Named n <$> toConcrete x
@@ -360,8 +360,8 @@ instance ToConcrete A.Expr C.Expr where
              b' <- toConcreteCtx TopCtx b
              return $ C.Fun (getRange i) (mkArg a') b'
         where
-            mkArg (Arg Hidden    e) = HiddenArg (getRange e) (unnamed e)
-            mkArg (Arg NotHidden e) = e
+            mkArg (Arg Hidden    r e) = HiddenArg (getRange e) (unnamed e)
+            mkArg (Arg NotHidden r e) = e
 
     toConcrete (A.Set i 0)  = return $ C.Set (getRange i)
     toConcrete (A.Set i n)  = return $ C.SetN (getRange i) n
@@ -734,7 +734,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
 
   isNoName x = C.isNoName $ A.nameConcrete x
 
-  notHidden (Arg h _) = h == NotHidden
+  notHidden a = argHiding a == NotHidden
 
   -- qualified names can't use mixfix syntax
   doQName qn as = do

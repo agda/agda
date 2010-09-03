@@ -120,7 +120,7 @@ appP top p = do
 	isHidden (HiddenArgV _) = True
 	isHidden _	       = False
 
-	nothidden = Arg NotHidden . unnamed <$> do
+	nothidden = Arg NotHidden Relevant . unnamed <$> do
 	    e <- p
 	    case exprView e of
 		HiddenArgV _ -> pfail
@@ -128,7 +128,7 @@ appP top p = do
 
 	hidden = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
-	    return $ Arg Hidden e
+	    return $ Arg Hidden Relevant e
 
 atomP :: IsExpr e => (Name -> Bool) -> ReadP e e
 atomP p = do

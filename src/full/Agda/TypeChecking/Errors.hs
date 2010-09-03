@@ -155,6 +155,7 @@ errorString err = case err of
     TooFewFields{}                           -> "TooFewFields"
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
     TooManyFields{}                          -> "TooManyFields"
+    UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
     UnequalLevel{}                           -> "UnequalLevel"
     UnequalSorts{}                           -> "UnequalSorts"
@@ -291,6 +292,9 @@ instance PrettyTCM TypeError where
                 where
                   f CmpEq  = text "!="
                   f CmpLeq = text "!=<"
+	    UnequalRelevance a b -> fsep $
+		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
+		pwords "because one is a relevant function type and the other is an irrelevant function type"
 	    UnequalHiding a b -> fsep $
 		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
 		pwords "because one is an implicit function type and the other is an explicit function type"
@@ -523,8 +527,8 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg (Arg Hidden x)    = braces $ showPat 0 x
-            showArg (Arg NotHidden x) = showPat 1 x
+            showArg (Arg Hidden r x)    = braces $ showPat 0 x
+            showArg (Arg NotHidden r x) = showPat 1 x
 
             showPat _ (I.VarP _)      = text "_"
             showPat _ (I.DotP _)      = text "._"
@@ -603,7 +607,7 @@ instance PrettyTCM Call where
             info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
 	where
-	    hPretty a@(Arg h _) = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx h) a
+	    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (argHiding a)) a
 
 	    simpleDef d = case d of
 	      D.FunDef _ ds _ _ _ _ _	 -> ds

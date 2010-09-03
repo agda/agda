@@ -77,7 +77,7 @@ addConstant q d = liftTCM $ do
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
 
     hideTel  EmptyTel		      = EmptyTel
-    hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
+    hideTel (ExtendTel (Arg _ r t) tel) = ExtendTel (Arg Hidden r t) $ hideTel <$> tel
 
 addHaskellCode :: MonadTCM tcm => QName -> HaskellType -> HaskellCode -> tcm ()
 addHaskellCode q hsTy hsDef =
@@ -150,7 +150,7 @@ addDisplayForms x = do
 			| m > length args -> "too many args"
 			| otherwise	      -> "args=" ++ unwords (map var args) ++ " vs=" ++ unwords (map var vs)
 			  where
-			    var (Arg h x) = hid h $ case x of
+			    var (Arg h r x) = hid h $ case x of
 			      Var i []	-> show i
 			      MetaV _ _	-> "?"
 			      _		-> "_"

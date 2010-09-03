@@ -23,21 +23,33 @@ data Induction = Inductive | CoInductive
 data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
+data Relevance = Relevant | Irrelevant
+    deriving (Typeable, Data, Show, Eq, Ord)
+
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 
 -- | A function argument can be hidden.
-data Arg e  = Arg { argHiding :: Hiding, unArg :: e }
-    deriving (Typeable, Data, Eq, Ord)
+data Arg e  = Arg 
+  { argHiding    :: Hiding
+  , argRelevance :: Relevance
+  , unArg :: e 
+  } deriving (Typeable, Data, Eq, Ord)
+
+defaultArg :: a -> Arg a
+defaultArg = Arg NotHidden Relevant
+
+isHiddenArg :: Arg a -> Bool
+isHiddenArg arg = argHiding arg == Hidden
 
 instance Functor Arg where
-    fmap f (Arg h x) = Arg h $ f x
+    fmap f a = a { unArg = f (unArg a) }
 
 instance Foldable Arg where
-    foldr f z (Arg _ x) = f x z
+    foldr f z a = f (unArg a) z
 
 instance Traversable Arg where
-    traverse f (Arg h x) = Arg h <$> f x
+    traverse f (Arg h r x) = Arg h r <$> f x
 
 instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
@@ -49,8 +61,10 @@ instance Sized a => Sized (Arg a) where
   size = size . unArg
 
 instance Show a => Show (Arg a) where
-    show (Arg Hidden x)    = "{" ++ show x ++ "}"
-    show (Arg NotHidden x) = "(" ++ show x ++ ")"
+    show (Arg Hidden    Relevant   x) = "{" ++ show x ++ "}"
+    show (Arg NotHidden Relevant   x) = "(" ++ show x ++ ")"
+    show (Arg Hidden    Irrelevant x) = ".{" ++ show x ++ "}"
+    show (Arg NotHidden Irrelevant x) = ".(" ++ show x ++ ")"
 
 data Named name a =
     Named { nameOf     :: Maybe name

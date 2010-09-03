@@ -336,7 +336,7 @@ processArgPats :: [Arg Pattern] -> PM [HsPat]
 processArgPats args = mapM processArgPat args
 
 processArgPat :: (Arg Pattern) -> PM HsPat
-processArgPat (Arg hid pat) = processPat pat
+processArgPat = processPat . unArg
 
 processPat :: Pattern -> PM HsPat
 processPat (VarP _) = do
@@ -457,11 +457,11 @@ processVap e ts = do
 
 unfoldVap :: PState -> HsExp -> [Arg Term] -> TCM HsExp
 unfoldVap _ e [] = return e
-unfoldVap p e ((Arg NotHidden t):ts) = do
+unfoldVap p e ((Arg NotHidden _ t):ts) = do
   e1 <- evalStateT (processTerm t) p
   unfoldVap p (hsAp e e1) ts
 -- unfoldVap p e ((Arg Hidden t):ts) = unfoldVap p e ts
-unfoldVap p e ((Arg Hidden t):ts) = do
+unfoldVap p e ((Arg Hidden _ t):ts) = do
   e1 <- evalStateT (processTerm t) p
   unfoldVap p (hsAp e e1) ts
 

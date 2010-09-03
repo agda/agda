@@ -86,11 +86,11 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
 
 lhsArgs :: C.Pattern -> (C.Name, [NamedArg C.Pattern])
 lhsArgs p = case appView p of
-    Arg _ (Named _ (IdentP (C.QName x))) : ps -> (x, ps)
+    Arg _ _ (Named _ (IdentP (C.QName x))) : ps -> (x, ps)
     _                                         -> __IMPOSSIBLE__
     where
-        mkHead    = Arg NotHidden . unnamed
-        notHidden = Arg NotHidden . unnamed
+        mkHead    = Arg NotHidden Relevant . unnamed
+        notHidden = Arg NotHidden Relevant . unnamed
         appView p = case p of
             AppP p arg    -> appView p ++ [arg]
             OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
@@ -384,13 +384,13 @@ instance ToAbstract OldModuleName A.ModuleName where
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
 mkNamedArg :: C.Expr -> NamedArg C.Expr
-mkNamedArg (C.HiddenArg _ e) = Arg Hidden e
-mkNamedArg e                 = Arg NotHidden $ unnamed e
+mkNamedArg (C.HiddenArg _ e) = Arg Hidden    Relevant e
+mkNamedArg e                 = Arg NotHidden Relevant $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg :: C.Expr -> Arg C.Expr
-mkArg (C.HiddenArg _ e) = Arg Hidden $ namedThing e
-mkArg e                 = Arg NotHidden e
+mkArg (C.HiddenArg _ e) = Arg Hidden    Relevant $ namedThing e
+mkArg e                 = Arg NotHidden Relevant e
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
@@ -617,10 +617,10 @@ instance ToAbstract LetDef [A.LetBinding] where
             letToAbstract _ = notAValidLetBinding d
 
             -- Named patterns not allowed in let definitions
-            lambda e (Arg h (Named Nothing (A.VarP x))) = return $ A.Lam i (A.DomainFree h x) e
+            lambda e (Arg h r (Named Nothing (A.VarP x))) = return $ A.Lam i (A.DomainFree h x) e
                 where
                     i = ExprRange (fuseRange x e)
-            lambda e (Arg h (Named Nothing (A.WildP i))) =
+            lambda e (Arg h r (Named Nothing (A.WildP i))) =
                 do  x <- freshNoName (getRange i)
                     return $ A.Lam i' (A.DomainFree h x) e
                 where
@@ -961,7 +961,7 @@ instance ToAbstract LeftHandSide A.LHS where
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) x args wps
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
-    toAbstract (Arg h e) = Arg h <$> toAbstractCtx (hiddenArgumentCtx h) e
+    toAbstract (Arg h r e) = Arg h r <$> toAbstractCtx (hiddenArgumentCtx h) e
 
 instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
     toAbstract (Named n e) = Named n <$> toAbstract e
@@ -997,8 +997,8 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract (IdentP $ C.QName op)
         ps <- toAbstract ps
         case p of
-          ConP _ x as -> return $ ConP info x (as ++ map (Arg NotHidden . unnamed) ps)
-          DefP _ x as -> return $ DefP info x (as ++ map (Arg NotHidden . unnamed) ps)
+          ConP _ x as -> return $ ConP info x (as ++ map (Arg NotHidden Relevant . unnamed) ps)
+          DefP _ x as -> return $ DefP info x (as ++ map (Arg NotHidden Relevant. unnamed) ps)
           _           -> __IMPOSSIBLE__
         where
             r = getRange p0
@@ -1036,7 +1036,7 @@ toAbstractOpApp op@(C.Name _ xs) es = do
     foldl app op <$> left f xs es
     where
         app e arg = A.App (ExprRange (fuseRange e arg)) e
-                  $ Arg NotHidden $ unnamed arg
+                  $ Arg NotHidden Relevant $ unnamed arg
 
         left f (Hole : xs) (e : es) = do
             e  <- toAbstractCtx (LeftOperandCtx f) e

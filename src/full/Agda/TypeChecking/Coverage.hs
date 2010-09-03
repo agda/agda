@@ -344,7 +344,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
       let absurd = VarP "()"
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
-                                        [Arg NotHidden ("()", t)] ++
+                                        [defaultArg ("()", t)] ++
                                         telToList delta2
                , scPerm = perm
                , scPats = plugHole absurd hps

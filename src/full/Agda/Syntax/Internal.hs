@@ -177,7 +177,7 @@ instance Sized a => Sized (Abs a) where
   size = size . absBody
 
 telFromList :: [Arg (String, Type)] -> Telescope
-telFromList = foldr (\(Arg h (x, a)) -> ExtendTel (Arg h a) . Abs x) EmptyTel
+telFromList = foldr (\(Arg h r (x, a)) -> ExtendTel (Arg h r a) . Abs x) EmptyTel
 
 telToList :: Telescope -> [Arg (String, Type)]
 telToList EmptyTel = []

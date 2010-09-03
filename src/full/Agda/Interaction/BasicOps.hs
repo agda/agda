@@ -135,7 +135,7 @@ refine ii mr e =
                                     , Agda.Syntax.Info.metaScope = scope { scopePrecedence = ArgumentCtx }
 				    , metaNumber = Nothing
 				    }
-                      in App (ExprRange $ r) e (Arg NotHidden $ unnamed metaVar)
+                      in App (ExprRange $ r) e (defaultArg $ unnamed metaVar)
                  --ToDo: The position of metaVar is not correct
                  --ToDo: The fixity of metavars is not correct -- fixed? MT
 
@@ -432,7 +432,7 @@ contextOfMeta ii norm = do
 	visible _	     = __IMPOSSIBLE__
         reifyContext xs = reverse <$> zipWithM out [1..] xs
 
-        out i (Arg h (x, t)) = escapeContext i $ do
+        out i (Arg h _ (x, t)) = escapeContext i $ do
           t' <- reify =<< rewrite norm t
           return $ OfType x t'
 
@@ -492,7 +492,7 @@ introTactic ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
-    conName [Arg _ (I.ConP c _)] = [c]
+    conName [Arg _ _ (I.ConP c _)] = [c]
     conName [_]                = []
     conName _                  = __IMPOSSIBLE__
 
@@ -501,7 +501,7 @@ introTactic ii = do
     introFun tel = addCtxTel tel' $ do
         imp <- showImplicitArguments
         let okHiding h = imp || h == NotHidden
-        vars <- mapM showTCM [ Arg h (I.Var i [])
+        vars <- mapM showTCM [ Arg h Relevant (I.Var i [])
                              | (h, i) <- zip hs $ reverse [0..n - 1]
                              , okHiding h
                              ]
@@ -514,9 +514,9 @@ introTactic ii = do
         makeName (x, t)   = (x, t)
 
     introData t = do
-      let tel  = telFromList [Arg NotHidden ("_", t)]
+      let tel  = telFromList [defaultArg ("_", t)]
           perm = idP 1
-          pat  = [Arg NotHidden (I.VarP "c")]
+          pat  = [defaultArg (I.VarP "c")]
       r <- split tel perm pat 0
       case r of
         Left err -> return []

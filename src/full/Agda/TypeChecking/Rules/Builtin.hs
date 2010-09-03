@@ -92,7 +92,7 @@ bindBuiltinBool b e = do
 bindBuiltinType1 :: String -> A.Expr -> TCM ()
 bindBuiltinType1 thing e = do
     let set      = sort (mkType 0)
-        setToSet = El (mkType 1) $ Fun (Arg NotHidden set) set
+        setToSet = El (mkType 1) $ Fun (defaultArg set) set
     f <- checkExpr e setToSet
     inductiveCheck thing f
     bindBuiltinName thing f
@@ -106,7 +106,7 @@ bindBuiltinSuc' :: String -> TCM Term -> A.Expr -> TCM Term
 bindBuiltinSuc' bSuc pNat e = do
     nat  <- pNat
     let nat' = El (mkType 0) nat
-        natToNat = El (mkType 0) $ Fun (Arg NotHidden nat') nat'
+        natToNat = El (mkType 0) $ Fun (defaultArg nat') nat'
     checkExpr e natToNat
 
 bindBuiltinZero e = bindBuiltinZero' builtinZero primNat e
@@ -124,15 +124,15 @@ typeOfSizeSuc :: TCM Type
 typeOfSizeSuc = do
     sz  <- primSize
     let sz' = El (mkType 0) sz
-    return $ El (mkType 0) $ Fun (Arg NotHidden sz') sz'
+    return $ El (mkType 0) $ Fun (defaultArg sz') sz'
 
 -- | Built-in nil should have type @{A:Set} -> List A@
 bindBuiltinNil :: A.Expr -> TCM Term
 bindBuiltinNil e = do
     list' <- primList
     let set     = sort (mkType 0)
-        list a  = El (mkType 0) (list' `apply` [Arg NotHidden a])
-        nilType = telePi (telFromList [Arg Hidden ("A",set)]) $ list (Var 0 [])
+        list a  = El (mkType 0) (list' `apply` [defaultArg a])
+        nilType = telePi (telFromList [Arg Hidden Relevant ("A",set)]) $ list (Var 0 [])
     checkExpr e nilType
 
 -- | Built-in cons should have type @{A:Set} -> A -> List A -> List A@
@@ -142,9 +142,9 @@ bindBuiltinCons e = do
     let set       = sort (mkType 0)
         el        = El (mkType 0)
         a         = Var 0 []
-        list x    = el $ list' `apply` [Arg NotHidden x]
-        hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
-        fun a b   = el $ Fun (Arg NotHidden a) b
+        list x    = el $ list' `apply` [defaultArg x]
+        hPi x a b = telePi (telFromList [Arg Hidden Relevant (x,a)]) b
+        fun a b   = el $ Fun (defaultArg a) b
         consType  = hPi "A" set $ el a `fun` (list a `fun` list a)
     checkExpr e consType
 
@@ -295,20 +295,20 @@ builtinPrimitives =
             nat  <- El (mkType 0) <$> pNat
             zero <- pZero
             s    <- pSuc
-            let x @@ y = x `apply` [Arg NotHidden y]
+            let x @@ y = x `apply` [defaultArg y]
                 x == y = noConstraints $ equalTerm nat x y
                 suc n  = s @@ n
                 choice = foldr1 (\x y -> x `catchError` \_ -> y)
             xs <- mapM freshName_ xs
-            addCtxs xs (Arg NotHidden nat) $ f (@@) zero suc (==) choice
+            addCtxs xs (defaultArg nat) $ f (@@) zero suc (==) choice
 
 bindBuiltinEquality :: A.Expr -> TCM ()
 bindBuiltinEquality e = do
   let set       = sort (mkType 0)
       el        = El (mkType 0)
       a         = Var 0 []
-      hPi x a b = telePi (telFromList [Arg Hidden (x,a)]) b
-      fun a b   = El (mkType 1) $ Fun (Arg NotHidden a) b
+      hPi x a b = telePi (telFromList [Arg Hidden Relevant (x,a)]) b
+      fun a b   = El (mkType 1) $ Fun (defaultArg a) b
       eqType    = hPi "A" set $ el a `fun` (el a `fun` set)
   eq <- checkExpr e eqType
   bindBuiltinName builtinEquality eq
@@ -321,9 +321,9 @@ bindBuiltinRefl e = do
       el        = El (mkType 0)
       v0        = Var 0 []
       v1        = Var 1 []
-      hPi x a b = telePi (telFromList [Arg Hidden (x, a)]) b
-      fun a b   = el $ Fun (Arg NotHidden a) b
-      eq a b c  = el $ eq' `apply` [Arg Hidden a, Arg NotHidden b, Arg NotHidden c]
+      hPi x a b = telePi (telFromList [Arg Hidden Relevant (x, a)]) b
+      fun a b   = el $ Fun (defaultArg a) b
+      eq a b c  = el $ eq' `apply` [Arg Hidden Relevant a, defaultArg b, defaultArg c]
       reflType  = hPi "A" set $ hPi "x" (el v0) $ eq v1 v0 v0
   checkExpr e reflType
 

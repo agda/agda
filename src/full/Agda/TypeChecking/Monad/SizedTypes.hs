@@ -50,6 +50,6 @@ sizeView v = do
 -- | Turn a size view into a term.
 unSizeView :: MonadTCM tcm => SizeView -> tcm Term
 unSizeView SizeInf       = primSizeInf
-unSizeView (SizeSuc v)   = flip apply [Arg NotHidden v] <$> primSizeSuc
+unSizeView (SizeSuc v)   = flip apply [Arg NotHidden Relevant v] <$> primSizeSuc
 unSizeView (OtherSize v) = return v
 

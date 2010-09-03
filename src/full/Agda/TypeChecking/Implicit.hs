@@ -22,21 +22,21 @@ impInsert n = ImpInsert n
 
 -- | The list should be non-empty.
 insertImplicit :: NamedArg e -> [Arg String] -> ImplicitInsertion
-insertImplicit _		 [] = __IMPOSSIBLE__
-insertImplicit (Arg NotHidden _) ts = impInsert $ nofHidden ts
+insertImplicit _ [] = __IMPOSSIBLE__
+insertImplicit a ts | argHiding a == NotHidden = impInsert $ nofHidden ts
   where
     nofHidden :: [Arg a] -> Int
     nofHidden = length . takeWhile ((Hidden ==) . argHiding)
-insertImplicit (Arg _ e) ts@(t : _) =
+insertImplicit a ts@(t : _) =
   case argHiding t of
     NotHidden -> BadImplicits
-    Hidden    -> case nameOf e of
+    Hidden    -> case nameOf (unArg a) of
       Nothing -> impInsert 0
       Just x  -> find 0 x ts
   where
-    find i x (Arg Hidden y : ts)
+    find i x (Arg Hidden r y : ts)
       | x == y	  = impInsert i
       | otherwise = find (i + 1) x ts
-    find i x (Arg NotHidden _ : _) = NoSuchName x
-    find i x []			   = NoSuchName x
+    find i x (Arg NotHidden _ _ : _) = NoSuchName x
+    find i x []			     = NoSuchName x
 

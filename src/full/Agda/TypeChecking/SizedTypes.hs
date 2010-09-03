@@ -139,10 +139,10 @@ sizeExpr u = do
       MetaV m args
         | all isVar args && distinct args -> do
           cxt <- getContextId
-          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ (Var i []) <- args ], 0)
+          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ _ (Var i []) <- args ], 0)
       _ -> patternViolation
   where
-    isVar (Arg _ (Var _ [])) = True
+    isVar (Arg _ _ (Var _ [])) = True
     isVar _ = False
 
 flexibleVariables :: SizeConstraint -> [(MetaId, [CtxId])]
@@ -203,7 +203,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
       inf <- primSizeInf
       s <- primSizeSuc
-      let suc v = s `apply` [Arg NotHidden v]
+      let suc v = s `apply` [defaultArg v]
           plus v 0 = v
           plus v n = suc $ plus v (n - 1)
 

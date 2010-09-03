@@ -120,7 +120,7 @@ etaExpandRecord r pars u = do
   case u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
-      let proj (h, x) = Arg h $ Def x $ map hide pars ++ [Arg NotHidden u]
+      let proj (h, x) = Arg h Relevant $ Def x $ map hide pars ++ [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -130,14 +130,14 @@ etaExpandRecord r pars u = do
         ]
       return (tel', map proj xs)
   where
-    hide (Arg _ x) = Arg Hidden x
+    hide a = a { argHiding = Hidden }
 
 -- | The fields should be eta contracted already.
 etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
 etaContractRecord r c args = do
   Record{ recFields = xs } <- getRecordDef r
-  let check (Arg _ v) (_, x) = do
-        case v of
+  let check a (_, x) = do
+        case (unArg a) of
           Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
           _                         -> return Nothing
       fallBack = return (Con c args)

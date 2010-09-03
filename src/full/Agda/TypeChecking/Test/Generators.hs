@@ -192,7 +192,8 @@ instance GenC Hiding where
 	hiddenFreqs $ tcFrequencies conf
 
 instance GenC a => GenC (Arg a) where
-  genC conf = uncurry Arg <$> genC conf
+  genC conf = (\ (h, a) -> Arg h Relevant a) <$> genC conf
+--   genC conf = uncurry Arg <$> genC conf
 
 instance GenC a => GenC (Abs a) where
   genC conf = Abs "x" <$> genC (extendConf conf)
@@ -405,7 +406,8 @@ instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
-  shrinkC conf (Arg h x) = uncurry Arg <$> shrinkC conf (h, x)
+  shrinkC conf (Arg h r x) = (\ (h,x) -> Arg h r x) <$> shrinkC conf (h, x)
+--  shrinkC conf (Arg h x) = uncurry Arg <$> shrinkC conf (h, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where

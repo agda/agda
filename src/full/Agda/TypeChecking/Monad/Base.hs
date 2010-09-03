@@ -779,6 +779,8 @@ data TypeError
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
 	| UnequalTelescopes Comparison Telescope Telescope
+	| UnequalRelevance Type Type
+	    -- ^ The two function types have different relevance.
 	| UnequalHiding Type Type
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort

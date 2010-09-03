@@ -30,16 +30,16 @@ match Fail args patch stack = return $ NoReduction $ NotBlocked (patch args)
 match (Done _ t) args _ _ =
   return $ YesReduction $ substs (reverse $ map unArg args) t
 match (Case n bs) args patch stack = do
-  let (args0, Arg h v, args1) = extractNthElement' n args
+  let (args0, Arg h r v, args1) = extractNthElement' n args
   w  <- unfoldCorecursion =<< reduceB v
   cv <- constructorForm $ ignoreBlocking w
   let v      = ignoreBlocking w
-      args'  = args0 ++ [Arg h v] ++ args1
+      args'  = args0 ++ [Arg h r v] ++ args1
       stack' = maybe [] (\c -> [(c, args', patch)]) (catchAllBranch bs)
                ++ stack
-      patchLit args = patch (args0 ++ [Arg h v] ++ args1)
+      patchLit args = patch (args0 ++ [Arg h r v] ++ args1)
         where (args0, args1) = splitAt n args
-      patchCon c m args = patch (args0 ++ [Arg h $ Con c vs] ++ args1)
+      patchCon c m args = patch (args0 ++ [Arg h r $ Con c vs] ++ args1)
         where (args0, args1') = splitAt n args
               (vs, args1)     = splitAt m args1'
   case w of

@@ -541,14 +541,14 @@ termTerm conf names f pats0 t0 = do
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
 
             -- dependent function space
-            Pi (Arg _ a) (Abs _ b) ->
-               do g1 <- loopType pats Term.unknown a
+            Pi a (Abs _ b) ->
+               do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- non-dependent function space
-            Fun (Arg _ a) b ->
-               do g1 <- loopType pats Term.unknown a
+            Fun a b ->
+               do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 

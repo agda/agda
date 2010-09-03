@@ -218,7 +218,7 @@ checkModuleArity m tel args = check tel args
 
     check eta []             = return eta
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Arg h _) (Abs y tel)) args0@(Arg h' (Named name _) : args) =
+    check (ExtendTel (Arg h _ _) (Abs y tel)) args0@(Arg h' _ (Named name _) : args) =
       case (h, h', name) of
         (Hidden, NotHidden, _)    -> check tel args0
         (Hidden, Hidden, Nothing) -> check tel args

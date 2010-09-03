@@ -92,7 +92,7 @@ forcePi h name (El s t) =
 
                 a <- newTypeMeta sa
                 x <- freshName_ name
-		let arg = Arg h a
+		let arg = Arg h Relevant a
                 b <- addCtx x arg $ newTypeMeta sb
                 let ty = El s' $ Pi arg (Abs (show x) b)
                 cs <- equalType (El s t') ty
@@ -118,12 +118,12 @@ checkTelescope (b : tel) ret =
 checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings (A.TypedBindings i h bs) ret =
     thread (checkTypedBinding h) bs $ \bss ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h t) . Abs x) EmptyTel (concat bss)
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h Relevant t) . Abs x) EmptyTel (concat bss)
 
 checkTypedBinding :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding h (A.TBind i xs e) ret = do
     t <- isType_ e
-    addCtxs xs (Arg h t) $ ret $ mkTel xs t
+    addCtxs xs (Arg h Relevant t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
@@ -200,7 +200,7 @@ checkExpr e t =
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambdaOrHole e)
-	    , FunV (Arg Hidden _) _ <- funView (unEl t) -> do
+	    , FunV (Arg Hidden _ _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
 		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
@@ -262,14 +262,14 @@ checkExpr e t =
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
-        A.App i s (Arg NotHidden l)
+        A.App i s (Arg NotHidden r l)
           | A.Set _ 0 <- unScope s ->
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ do
             lvl <- primLevel
             suc <- do s <- primLevelSuc
-                      return $ \x -> s `apply` [Arg NotHidden x]
+                      return $ \x -> s `apply` [defaultArg x]
             n   <- checkExpr (namedThing l) (El (mkType 0) lvl)
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+> text "against" <+> prettyTCM t
@@ -286,7 +286,7 @@ checkExpr e t =
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case funView $ unEl t' of
-              FunV (Arg h' a) _
+              FunV (Arg h' _ a) _
                 | h == h' && not (null $ foldTerm metas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
@@ -306,7 +306,7 @@ checkExpr e t =
                                         [Clause { clauseRange = getRange e
                                                 , clauseTel   = EmptyTel
                                                 , clausePerm  = Perm 0 []
-                                                , clausePats  = [Arg h $ VarP "()"]
+                                                , clausePats  = [Arg h Relevant $ VarP "()"]
                                                 , clauseBody  = NoBody
                                                 }
                                         ]
@@ -332,7 +332,7 @@ checkExpr e t =
                 return (teleLam tel v, cs)
 	    blockTerm t v (return cs)
 	    where
-		name (Arg h (x,_)) = Arg h x
+		name (Arg h r (x,_)) = Arg h r x
 
 	A.Lam i (A.DomainFree h x) e0 -> do
 	    -- (t',cs) <- forcePi h (show x) t
@@ -341,10 +341,10 @@ checkExpr e t =
               Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
               NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
               NotBlocked t' -> case funView $ unEl t' of
-		FunV arg0@(Arg h' a) _
+		FunV arg0@(Arg h' r a) _
 		    | h == h' -> do
 			v <- addCtx x arg0 $ do
-                              let arg = Arg h (Var 0 [])
+                              let arg = Arg h r (Var 0 [])
                                   tb  = raise 1 t' `piApply` [arg]
                               v <- checkExpr e0 tb
                               return $ Lam h $ Abs (show x) v
@@ -375,11 +375,11 @@ checkExpr e t =
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
 	    blockTerm t (unEl t') $ leqType (sort s) t
-	A.Fun _ (Arg h a) b -> do
+	A.Fun _ (Arg h r a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    blockTerm t (Fun (Arg h a') b') $ leqType (sort s) t
+	    blockTerm t (Fun (Arg h r a') b') $ leqType (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  blockTerm t (Sort (mkType n)) $ leqType (sort $ mkType $ n + 1) t
@@ -399,7 +399,7 @@ checkExpr e t =
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
-			      (zipWith (\h e -> Arg h (unnamed e)) hs es) tel
+			      (zipWith (\h e -> Arg h Relevant (unnamed e)) hs es) tel
 	      blockTerm t (Con con args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep
@@ -566,7 +566,7 @@ checkConstructorApplication org t c args = do
     splitArgs [] args = ([], args)
     splitArgs ps []   =
           (map (const dummyUnderscore) ps, args)
-    splitArgs ps args@(Arg NotHidden _ : _) =
+    splitArgs ps args@(Arg NotHidden _ _ : _) =
           (map (const dummyUnderscore) ps, args)
     splitArgs (p:ps) (arg : args)
       | elem mname [Nothing, Just p] =
@@ -576,7 +576,7 @@ checkConstructorApplication org t c args = do
       where
         mname = nameOf (unArg arg)
 
-    dummyUnderscore = Arg Hidden (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
+    dummyUnderscore = Arg Hidden Relevant (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
 
 --   TelV _ (El _ (Def d dargs)) <- telView t
 --   condef  <- getConstInfo c
@@ -743,18 +743,18 @@ checkArguments exh r [] t0 t1 =
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
 	case funView $ unEl t0' of -- TODO: clean
-	    FunV (Arg Hidden a) _ | notHPi $ unEl t1'  -> do
+	    FunV (Arg Hidden rel a) _ | notHPi $ unEl t1'  -> do
 		v  <- lift $ newValueMeta a
-		let arg = Arg Hidden v
+		let arg = Arg Hidden rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
 	    _ -> return ([], t0', [])
     where
-	notHPi (Pi  (Arg Hidden _) _) = False
-	notHPi (Fun (Arg Hidden _) _) = False
-	notHPi _		      = True
+	notHPi (Pi  (Arg Hidden _ _) _) = False
+	notHPi (Fun (Arg Hidden _ _) _) = False
+	notHPi _		        = True
 
-checkArguments exh r args0@(Arg h e : args) t0 t1 =
+checkArguments exh r args0@(Arg h rel e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       t0b <- lift $ reduceB t0
       case t0b of
@@ -764,15 +764,15 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
           case (h, funView $ unEl t0') of
-              (NotHidden, FunV (Arg Hidden a) _) -> insertUnderscore
-              (Hidden, FunV (Arg Hidden a) _)
+              (NotHidden, FunV (Arg Hidden _ a) _) -> insertUnderscore
+              (Hidden, FunV (Arg Hidden _ a) _)
                   | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore
-              (_, FunV (Arg h' a) _) | h == h' -> do
+              (_, FunV (Arg h' rel' a) _) | h == h' -> do
                   u  <- lift $ checkExpr e' a
-                  let arg = Arg h u
+                  let arg = Arg h rel u
                   (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
                   return (arg : us, t0'', cs')
-              (Hidden, FunV (Arg NotHidden _) _) ->
+              (Hidden, FunV (Arg NotHidden _ _) _) ->
                   lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
@@ -783,7 +783,7 @@ checkArguments exh r args0@(Arg h e : args) t0 t1 =
 		  , A.metaScope  = scope
 		  , A.metaNumber = Nothing
 		  }
-	  checkArguments exh r (Arg Hidden (unnamed m) : args0) t0 t1
+	  checkArguments exh r (Arg Hidden Relevant (unnamed m) : args0) t0 t1
 
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x

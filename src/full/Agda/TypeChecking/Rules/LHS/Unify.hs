@@ -176,7 +176,7 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyArgs _ [] [] = return ()
-    unifyArgs a us0@(arg@(Arg _ u) : us) vs0@(Arg _ v : vs) = do
+    unifyArgs a us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
       reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyArgs"
 	, nest 2 $ parens (prettyTCM a)
@@ -185,8 +185,8 @@ unifyIndices flex a us vs = liftTCM $ do
         ]
       a <- reduce a
       case funView $ unEl a of
-	FunV (Arg _ b) _  -> do
-	  unify b u v
+	FunV b _  -> do
+	  unify (unArg b) u v
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__

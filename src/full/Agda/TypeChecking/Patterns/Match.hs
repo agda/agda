@@ -46,19 +46,19 @@ matchPatterns ps vs =
 	return (mconcat ms, vs)
 
 matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
-matchPattern (Arg h' (VarP _))	  arg@(Arg _ v) = return (Yes [v], arg)
-matchPattern (Arg _  (DotP _))    arg@(Arg _ v) = return (Yes [v], arg)
-matchPattern (Arg h' (LitP l))	  arg@(Arg h v) = do
+matchPattern (Arg h' _  (VarP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
+matchPattern (Arg _  _  (DotP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
+matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do
     w <- reduceB v
     let v = ignoreBlocking w
     case w of
 	NotBlocked (Lit l')
-	    | l == l'          -> return (Yes [], Arg h v)
-	    | otherwise        -> return (No, Arg h v)
-	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg h v)
-	Blocked x _            -> return (DontKnow $ Just x, Arg h v)
-	_                      -> return (DontKnow Nothing, Arg h v)
-matchPattern (Arg h' (ConP c ps))     (Arg h v) =
+	    | l == l'          -> return (Yes [], Arg h r v)
+	    | otherwise        -> return (No, Arg h r v)
+	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg h r v)
+	Blocked x _            -> return (DontKnow $ Just x, Arg h r v)
+	_                      -> return (DontKnow Nothing, Arg h r v)
+matchPattern (Arg h' r' (ConP c ps))     (Arg h r v) =
     do	w <- traverse constructorForm =<< reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but
@@ -78,9 +78,9 @@ matchPattern (Arg h' (ConP c ps))     (Arg h v) =
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do
 		(m, vs) <- matchPatterns ps vs
-		return (m, Arg h $ Con c' vs)
-	    | otherwise           -> return (No, Arg h v)
-	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg h v)
-	  Blocked x _             -> return (DontKnow $ Just x, Arg h v)
-          _                       -> return (DontKnow Nothing, Arg h v)
+		return (m, Arg h r $ Con c' vs)
+	    | otherwise           -> return (No, Arg h r v)
+	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg h r v)
+	  Blocked x _             -> return (DontKnow $ Just x, Arg h r v)
+          _                       -> return (DontKnow Nothing, Arg h r v)
 

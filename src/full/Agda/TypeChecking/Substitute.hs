@@ -29,12 +29,12 @@ class Apply t where
 
 instance Apply Term where
     apply m [] = m
-    apply m args@(Arg _ v:args0) =
+    apply m args@(a:args0) =
         case m of
             Var i args'   -> Var i (args' ++ args)
             Def c args'   -> Def c (args' ++ args)
             Con c args'   -> Con c (args' ++ args)
-            Lam _ u       -> absApp u v `apply` args0
+            Lam _ u       -> absApp u (unArg a) `apply` args0
             MetaV x args' -> MetaV x (args' ++ args)
             Lit l         -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
@@ -104,11 +104,11 @@ instance Apply FunctionInverse where
   apply (Inverse inv) args = Inverse $ apply inv args
 
 instance Apply ClauseBody where
-    apply  b               []             = b
-    apply (Bind (Abs _ b)) (Arg _ v:args) = subst v b `apply` args
-    apply (NoBind b)       (_:args)       = b `apply` args
-    apply (Body _)         (_:_)          = __IMPOSSIBLE__
-    apply  NoBody           _             = NoBody
+    apply  b               []       = b
+    apply (Bind (Abs _ b)) (a:args) = subst (unArg a) b `apply` args
+    apply (NoBind b)       (_:args) = b `apply` args
+    apply (Body _)         (_:_)    = __IMPOSSIBLE__
+    apply  NoBody           _       = NoBody
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
@@ -146,10 +146,10 @@ instance Abstract Permutation where
 -- | The type must contain the right number of pis without have to perform any
 -- reduction.
 piApply :: Type -> Args -> Type
-piApply t []                            = t
-piApply (El _ (Pi  _ b)) (Arg _ v:args) = absApp b v `piApply` args
-piApply (El _ (Fun _ b)) (_:args)       = b `piApply` args
-piApply _ _                             = __IMPOSSIBLE__
+piApply t []                      = t
+piApply (El _ (Pi  _ b)) (a:args) = absApp b (unArg a) `piApply` args
+piApply (El _ (Fun _ b)) (_:args) = b `piApply` args
+piApply _ _                       = __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
 class Abstract t where
@@ -231,7 +231,7 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Arg h x) -> ExtendTel (Arg h $ sort Prop) . Abs x) EmptyTel
+        tel   = foldr (\(Arg h r x) -> ExtendTel (Arg h r $ sort Prop) . Abs x) EmptyTel
               $ zipWith (fmap . const) names args
         names = cycle $ map (:[]) ['a'..'z']
 

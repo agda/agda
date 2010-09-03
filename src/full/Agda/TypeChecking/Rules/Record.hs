@@ -51,15 +51,15 @@ checkRecDef i name con ps contel fields =
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope
       let m = qnameToMName name
-	  hide (Arg _ x) = Arg Hidden x
+	  hide a         = a { argHiding = Hidden }
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse
-			   [ Arg h (Var i [])
-			   | (i, Arg h _) <- zip [0..] $ reverse $ telToList gamma
+			   [ Arg h r (Var i [])
+			   | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
 			   ]
-	  tel'		 = telFromList $ htel ++ [Arg NotHidden ("r", rect)]
-          extWithR ret   = underAbstraction (Arg NotHidden rect) (Abs "r" ()) $ \_ -> ret
-          ext (Arg h (x, t)) = addCtx x (Arg h t)
+	  tel'		 = telFromList $ htel ++ [defaultArg ("r", rect)]
+          extWithR ret   = underAbstraction (defaultArg rect) (Abs "r" ()) $ \_ -> ret
+          ext (Arg h r (x, t)) = addCtx x (Arg h r t)
 
       let getName (A.Field _ h x _)    = [(h, x)]
 	  getName (A.ScopedDecl _ [f]) = getName f
@@ -150,7 +150,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
     checkProjs _ _ [] = return ()
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
-    checkProjs ftel1 (ExtendTel (Arg _ _) ftel2) (A.Field info h x t : fs) = do
+    checkProjs ftel1 (ExtendTel _ ftel2) (A.Field info h x t : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in
       reportSDoc "tc.rec.proj" 5 $ sep
@@ -190,9 +190,10 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       --  P.xi {tel} (r _ .. x .. _) = x
       let ptel   = telFromList $ take (size tel - 1) $ telToList tel
           hps	 = map (fmap $ VarP . fst) $ telToList ptel
-	  conp	 = Arg NotHidden
-		 $ ConP q $ zipWith Arg
+	  conp	 = defaultArg
+		 $ ConP q $ zipWith3 Arg
                               (map argHiding (telToList ftel))
+                              (map argRelevance (telToList ftel))
 			      [ VarP "x" | _ <- [1..size ftel] ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
@@ -220,7 +221,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      }
         computePolarity projname
 
-      checkProjs (abstract ftel1 $ ExtendTel (Arg h t)
+      checkProjs (abstract ftel1 $ ExtendTel (Arg h Relevant t)
                                  $ Abs (show $ qnameName projname) EmptyTel
                  ) (absBody ftel2) fs
     checkProjs ftel1 ftel2 (d : fs) = do

@@ -58,7 +58,7 @@ underAbstraction t a k = do
 
 -- | Go under an abstract without worrying about the type to add to the context.
 underAbstraction_ :: MonadTCM tcm => Abs a -> (a -> tcm b) -> tcm b
-underAbstraction_ = underAbstraction (Arg NotHidden $ sort Prop)
+underAbstraction_ = underAbstraction (Arg NotHidden Relevant $ sort Prop)
 
 -- | Add a telescope to the context.
 addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
@@ -73,7 +73,7 @@ getContext = asks $ map ctxEntry . envContext
 getContextArgs :: MonadTCM tcm => tcm Args
 getContextArgs = do
   ctx <- getContext
-  return $ reverse $ [ Arg h $ Var i [] | (Arg h _, i) <- zip ctx [0..] ]
+  return $ reverse $ [ Arg h r $ Var i [] | (Arg h r _, i) <- zip ctx [0..] ]
 
 getContextTerms :: MonadTCM tcm => tcm [Term]
 getContextTerms = map unArg <$> getContextArgs
@@ -82,7 +82,7 @@ getContextTerms = map unArg <$> getContextArgs
 getContextTelescope :: MonadTCM tcm => tcm Telescope
 getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
   where
-    extTel (Arg h (x, t)) = ExtendTel (Arg h t) . Abs (show x)
+    extTel (Arg h r (x, t)) = ExtendTel (Arg h r t) . Abs (show x)
 
 -- | add a bunch of variables with the same type to the context
 addCtxs :: MonadTCM tcm => [Name] -> Arg Type -> tcm a -> tcm a
@@ -104,8 +104,8 @@ addLetBinding x v t ret = do
 typeOfBV' :: MonadTCM tcm => Nat -> tcm (Arg Type)
 typeOfBV' n =
     do	ctx <- getContext
-	Arg h (_,t) <- ctx !!! n
-	return $ Arg h $ raise (n + 1) t
+	Arg h r (_,t) <- ctx !!! n
+	return $ Arg h r $ raise (n + 1) t
 
 typeOfBV :: MonadTCM tcm => Nat -> tcm Type
 typeOfBV i = unArg <$> typeOfBV' i
@@ -113,7 +113,7 @@ typeOfBV i = unArg <$> typeOfBV' i
 nameOfBV :: MonadTCM tcm => Nat -> tcm Name
 nameOfBV n =
     do	ctx <- getContext
-	Arg _ (x,_) <- ctx !!! n
+	Arg _ _ (x,_) <- ctx !!! n
 	return x
 
 -- | TODO: move(?)

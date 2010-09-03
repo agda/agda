@@ -190,8 +190,8 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
   bvars (NoBind      b' ) n = HsPWildCard           : bvars b' n -- WHY NOT: bvars b' n  -- PRODDUCES head [] exception
   bvars NoBody            _ = repeat HsPWildCard -- ?
 
-  isCon (Arg _ ConP{}) = True
-  isCon _              = False
+  isCon (Arg _ _ ConP{}) = True
+  isCon _                = False
 
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)

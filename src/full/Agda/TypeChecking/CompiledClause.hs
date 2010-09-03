@@ -52,7 +52,7 @@ compile cs = case nextSplit cs of
 
 nextSplit :: Clauses -> Maybe Int
 nextSplit [] = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = mhead [ n | (Arg _ p, n) <- zip ps [0..], isPat p ]
+nextSplit ((ps, _):_) = mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
   where
     isPat VarP{} = False
     isPat DotP{} = False

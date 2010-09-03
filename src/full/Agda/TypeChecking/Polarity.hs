@@ -67,17 +67,17 @@ sizePolarity d =
       let TelV tel _      = telView' $ defType def
           (parTel, ixTel) = genericSplitAt np $ telToList tel
       case ixTel of
-        []                -> return []  -- No size index
-        Arg _ (_, a) : _  -> ifM (not <$> isSizeType a) (return []) $ do
+        []                 -> return []  -- No size index
+        Arg _ _ (_, a) : _ -> ifM (not <$> isSizeType a) (return []) $ do
           let check c = do
                 t <- defType <$> getConstInfo c
                 addCtxTel (telFromList parTel) $ do
-                  let pars = reverse [ Arg NotHidden $ Var i [] | i <- [0..np - 1] ]
+                  let pars = reverse [ defaultArg $ Var i [] | i <- [0..np - 1] ]
                   TelV conTel target <- telView =<< (t `piApplyM` pars)
                   case conTel of
                     EmptyTel  -> return False  -- no size argument
-                    ExtendTel arg@(Arg _ a) tel ->
-                      ifM (not <$> isSizeType a) (return False) $ do -- also no size argument
+                    ExtendTel arg  tel ->
+                      ifM (not <$> isSizeType (unArg arg)) (return False) $ do -- also no size argument
                         -- First constructor argument has type Size
 
                         -- check only positive occurences in tel
@@ -105,7 +105,7 @@ checkSizeIndex np i (El _ (Def _ args)) = do
     SizeSuc (Var j []) -> return $ and [ excl, i == j ]
     _                  -> return False
   where
-    (pars, Arg _ ix : ixs) = genericSplitAt np args
+    (pars, Arg _ _ ix : ixs) = genericSplitAt np args
 checkSizeIndex _ _ _ = __IMPOSSIBLE__
 
 (/\) :: Polarity -> Polarity -> Polarity

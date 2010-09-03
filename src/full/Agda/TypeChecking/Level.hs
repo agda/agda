@@ -48,14 +48,14 @@ data LevelKit = LevelKit
 levelSucFunction :: MonadTCM tcm => tcm (Term -> Term)
 levelSucFunction = do
   suc <- primLevelSuc
-  return $ \a -> suc `apply` [Arg NotHidden a]
+  return $ \a -> suc `apply` [defaultArg a]
 
 builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
     zero@(Con z []) <- primLevelZero
     suc@(Con s []) <- primLevelSuc
     max@(Def m []) <- primLevelMax
-    let a @@ b = a `apply` [Arg NotHidden b]
+    let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
       { levelSuc = \a -> suc @@ a
       , levelMax = \a b -> max @@ a @@ b
@@ -78,7 +78,7 @@ unLevelView nv = case nv of
     Max [Plus 0 a]    -> return $ unLevelAtom a
     Max [a]           -> do
       suc <- primLevelSuc
-      return $ unPlusV (\n -> suc `apply` [Arg NotHidden n]) a
+      return $ unPlusV (\n -> suc `apply` [defaultArg n]) a
     Max as -> do
       Just LevelKit{ levelSuc = suc, levelMax = max } <- builtinLevelKit
       return $ case map (unPlusV suc) as of
@@ -108,13 +108,13 @@ levelView a = do
   mmax <- maybePrimDef primLevelMax
   let view a =
         case a of
-          Con s [Arg NotHidden a]
-            | Just s == msuc -> inc <$> view a
+          Con s [arg]
+            | Just s == msuc -> inc <$> view (unArg arg)
           Con z []
             | Just z == mzer -> return $ closed 0
           Lit (LitLevel _ n)   -> return $ closed n
-          Def m [Arg NotHidden a, Arg NotHidden b]
-            | Just m == mmax -> lub <$> view a <*> view b
+          Def m [arg1, arg2]
+            | Just m == mmax -> lub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
   view =<< normalise a
   where

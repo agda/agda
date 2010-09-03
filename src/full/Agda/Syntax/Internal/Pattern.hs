@@ -25,7 +25,7 @@ allHolesWithContents []       = []
 allHolesWithContents (p : ps) = map left phs ++ map (right p) (allHolesWithContents ps)
   where
     phs :: [(Pattern, Arg OneHolePattern)]
-    phs = map (id -*- Arg (argHiding p)) (holes $ unArg p)
+    phs = map (id -*- Arg (argHiding p) Relevant) (holes $ unArg p)
 
     holes :: Pattern -> [(Pattern, OneHolePattern)]
     holes p@(VarP _)  = [(p, Hole)]

@@ -93,7 +93,7 @@ tomy imi icns typs = do
        cons' <- mapM (\con -> getConst True con TMAll) cons
        return $ Datatype cons'
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (I.Var n []) : pars (n - 1) typ
+       let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) typ
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
@@ -355,11 +355,11 @@ tomyExp (I.Con name as) = do
  cc <- lift $ liftIO $ readIORef c
  let Just npar = fst $ cdorigin cc
  return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-tomyExp (I.Pi (C.Arg hid x) (I.Abs name y)) = do
+tomyExp (I.Pi (C.Arg hid _ x) (I.Abs name y)) = do
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
-tomyExp (I.Fun (C.Arg hid x) y) = do
+tomyExp (I.Fun (C.Arg hid _ x) y) = do
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) False x' (Abs NoId (weaken 0 y'))
@@ -380,7 +380,7 @@ tomyExp t@I.MetaV{} = do
   _ -> tomyExp t
 
 tomyExps [] = return $ NotM ALNil
-tomyExps (C.Arg hid a : as) = do
+tomyExps (C.Arg hid _ a : as) = do
  a' <- tomyExp a
  as' <- tomyExps as
  return $ NotM $ ALCons (cnvh hid) a' as'
@@ -399,13 +399,13 @@ fmExp m (I.Lam _ (I.Abs _ b)) = fmExp m b
 fmExp m (I.Lit _) = False
 fmExp m (I.Def _ as) = fmExps m as
 fmExp m (I.Con _ as) = fmExps m as
-fmExp m (I.Pi (C.Arg _ x) (I.Abs _ y)) = fmType m x || fmType m y
-fmExp m (I.Fun (C.Arg _ x) y) = fmType m x || fmType m y
+fmExp m (I.Pi x (I.Abs _ y)) = fmType m (C.unArg x) || fmType m y
+fmExp m (I.Fun x y) = fmType m (C.unArg x) || fmType m y
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 
 fmExps m [] = False
-fmExps m (C.Arg _ a : as) = fmExp m a || fmExps m as
+fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
 
 -- ---------------------------------------------
 
@@ -444,7 +444,7 @@ frommyExp (NotM e) =
   Pi _ hid _ x (Abs mid y) -> do
    x' <- frommyType x
    y' <- frommyType y
-   return $ I.Pi (C.Arg (icnvh hid) x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+   return $ I.Pi (C.Arg (icnvh hid) C.Relevant x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (C.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
@@ -471,7 +471,7 @@ frommyExps ndrop (NotM as) =
   ALCons hid x xs -> do
    x' <- frommyExp x
    xs' <- frommyExps ndrop xs
-   return $ C.Arg (icnvh hid) x' : xs'
+   return $ C.Arg (icnvh hid) C.Relevant x' : xs'
   ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs
   ALConPar _ -> __IMPOSSIBLE__
 
@@ -482,7 +482,7 @@ abslamvarname = "\0absurdlambda"
 modifyAbstractExpr :: A.Expr -> A.Expr
 modifyAbstractExpr = f
  where
-  f (A.App i e1 (C.Arg h (C.Named n e2))) = A.App i (f e1) (C.Arg h (C.Named n (f e2)))
+  f (A.App i e1 (C.Arg h r (C.Named n e2))) = A.App i (f e1) (C.Arg h r (C.Named n (f e2)))
   f (A.Lam i (A.DomainFree h n) _) | show n == abslamvarname = A.AbsurdLam i h
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (\(n, e) -> (n, f e)) xs)
@@ -528,7 +528,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- frommyType t
-      return $ I.ExtendTel (C.Arg (icnvh hid) t') (I.Abs id tel)
+      return $ I.ExtendTel (C.Arg (icnvh hid) C.Relevant t') (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
      getperms n [] _ _ = __IMPOSSIBLE__
@@ -575,7 +575,7 @@ frommyClause (ids, pats, mrhs) = do
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
-      return $ C.Arg (icnvh hid) p'
+      return $ C.Arg (icnvh hid) C.Relevant p'
  ps <- cnvps 0 pats
  body <- case mrhs of
           Nothing -> return $ I.NoBody
@@ -709,13 +709,13 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (C.Arg hid1 it1) ot1, I.Pi (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
-      (I.Fun (C.Arg hid1 it1) ot1, I.Fun (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft nl n c ot1 ot2) it1 it2
-      (I.Fun (C.Arg hid1 it1) ot1, I.Pi (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (raise 1 ot1) (I.absBody ot2)) it1 it2
-      (I.Pi (C.Arg hid1 it1) ot1, I.Fun (C.Arg hid2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (raise 1 ot2)) it1 it2
+      (I.Pi (C.Arg hid1 rel1 it1) ot1, I.Pi (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Fun (C.Arg hid1 rel1 it1) ot1, I.Fun (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft nl n c ot1 ot2) it1 it2
+      (I.Fun (C.Arg hid1 rel1 it1) ot1, I.Pi (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (raise 1 ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (C.Arg hid1 rel1 it1) ot1, I.Fun (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (raise 1 ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of
      ([], []) -> c n
-     (C.Arg hid1 e1 : es1, C.Arg hid2 e2 : es2) | hid1 == hid2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
+     (C.Arg hid1 rel1 e1 : es1, C.Arg hid2 rel2 e2 : es2) | hid1 == hid2 -> f nl n (\n -> fs nl n c es1 es2) e1 e2
      _ -> Nothing

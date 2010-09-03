@@ -27,8 +27,8 @@ isEmptyTypeC t = do
     Blocked{}          -> buildConstraint (IsEmpty t)
     _                  -> do
       tel0 <- getContextTelescope
-      let tel = telFromList $ telToList tel0 ++ [Arg NotHidden ("_", t)]
-          ps  = [ Arg h $ VarP x | Arg h (x, _) <- telToList tel ]
+      let tel = telFromList $ telToList tel0 ++ [defaultArg ("_", t)]
+          ps  = [ Arg h r $ VarP x | Arg h r (x, _) <- telToList tel ]
 
       r <- split tel (idP $ size tel) ps 0
 

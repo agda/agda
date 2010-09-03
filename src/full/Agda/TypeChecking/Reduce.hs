@@ -164,12 +164,12 @@ instance Reduce Sort where
       $ liftTCM $ do
         suc  <- do sc <- primLevelSuc
                    return $ \x -> case x of
-                                    Type n -> Type (sc `apply` [Arg NotHidden n])
+                                    Type n -> Type (sc `apply` [Arg NotHidden Relevant n])
                                     _      -> sSuc x
           `catchError` \_ -> return sSuc
         lub <- do mx <- primLevelMax
                   return $ \x y -> case (x, y) of
-                    (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden) [n, m])
+                    (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden Relevant) [n, m])
                     _                -> sLub x y
           `catchError` \_ -> return sLub
         -- need to instantiate all meta to know if we need a DLub or a Lub
@@ -235,7 +235,7 @@ instance Reduce Term where
                   _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
                     | Just v == mlz -> return $ Lit $ LitLevel (getRange c) 0
 		  _		    -> return v
-	    reduceNat v@(Con c [Arg NotHidden w]) = do
+	    reduceNat v@(Con c [Arg NotHidden Relevant w]) = do
 		ms  <- getBuiltin' builtinSuc
                 mls <- getBuiltin' builtinLevelSuc
 		case v of
@@ -246,7 +246,7 @@ instance Reduce Term where
                     inc w = case w of
                       Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
                       Lit (LitLevel r n) -> Lit (LitLevel (fuseRange c r) $ n + 1)
-                      _                  -> Con c [Arg NotHidden w]
+                      _                  -> Con c [Arg NotHidden Relevant w]
 	    reduceNat v = return v
 
 -- | If the first argument is 'True', then a single delayed clause may

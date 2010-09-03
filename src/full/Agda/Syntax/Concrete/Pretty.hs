@@ -34,6 +34,10 @@ pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces . pretty
 pHidden NotHidden   = pretty
 
+pRelevance :: Pretty a => Relevance -> a -> Doc
+pRelevance Relevant   a = pretty a
+pRelevance Irrelevant a = text "." <> pretty a 
+
 instance Pretty Name where
     pretty = text . show
 
@@ -290,7 +294,7 @@ instance Pretty Fixity where
     pretty (NonAssoc _ n)   = text "infix" <+> text (show n)
 
 instance Pretty e => Pretty (Arg e) where
-    pretty (Arg h e) = pHidden h e
+    pretty (Arg h r e) = pRelevance r $ pHidden h e
 
 instance Pretty e => Pretty (Named String e) where
     pretty (Named Nothing e) = pretty e

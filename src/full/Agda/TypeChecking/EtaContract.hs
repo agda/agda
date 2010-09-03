@@ -46,7 +46,7 @@ etaOnce v = ignoreAbstractMode $ eta v
     eta t@(Lam h b) = do
       imp <- shouldEtaContractImplicit
       case binAppView (absBody b) of
-        App u (Arg h' (Var 0 []))
+        App u (Arg h' r (Var 0 []))
           | allowed imp h' && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
         _ -> return t

@@ -78,7 +78,7 @@ teleArgNames = map (fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
 teleArgs tel =
-  reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse (telToList tel) ]
+  reverse [ Arg h r (Var i []) | (i, Arg h r _) <- zip [0..] $ reverse (telToList tel) ]
 
 -- | A telescope split in two.
 data SplitTel = SplitTel
@@ -138,6 +138,6 @@ piApplyM t []           = return t
 piApplyM t (arg : args) = do
   t <- reduce t
   case (t, arg) of
-    (El _ (Pi  _ b), Arg _ v) -> absApp b v `piApplyM` args
-    (El _ (Fun _ b), _      ) -> b `piApplyM` args
-    _                         -> __IMPOSSIBLE__
+    (El _ (Pi  _ b), arg) -> absApp b (unArg arg) `piApplyM` args
+    (El _ (Fun _ b), _  ) -> b `piApplyM` args
+    _                     -> __IMPOSSIBLE__

@@ -57,8 +57,8 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 apps :: MonadTCM tcm => (Expr, [Arg Expr]) -> tcm Expr
-apps (e, [])                = return e
-apps (e, arg@(Arg Hidden _) : args) =
+apps (e, []) = return e
+apps (e, arg : args) | isHiddenArg arg =
     do  showImp <- showImplicitArguments
         if showImp then apps (App exprInfo e (unnamed <$> arg), args)
                    else apps (e, args)
@@ -113,7 +113,7 @@ reifyDisplayForm x vs fallback = do
 reifyDisplayFormP :: A.LHS -> TCM A.LHS
 reifyDisplayFormP lhs@(A.LHS i x ps wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
-    let vs = [ Arg h $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
+    let vs = [ Arg h Relevant $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
     md <- liftTCM $ displayForm x vs
     reportSLn "syntax.reify.display" 20 $
       "display form of " ++ show x ++ " " ++ show ps ++ " " ++ show wps ++ ":\n  " ++ show md
@@ -197,11 +197,11 @@ instance Reify Term Expr where
             vs <- reify $ map unArg vs
             return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
-            let hide (Arg _ x) = Arg Hidden x
+            -- let hide a = a { argHiding = Hidden }
             Constructor{conPars = np} <- theDef <$> getConstInfo x
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                us = replicate (fromIntegral np) $ Arg Hidden whocares
+                us = replicate (fromIntegral np) $ Arg Hidden Irrelevant whocares
             n  <- getDefFreeVars x
             es <- reify vs
             apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
@@ -210,8 +210,8 @@ instance Reify Term Expr where
         return $ A.Lam exprInfo (DomainFree h x) e
       I.Lit l        -> reify l
       I.Pi a b       -> do
-        Arg h a <- reify a
-        (x,b)   <- reify b
+        Arg h r a <- reify a
+        (x,b)     <- reify b
         return $ A.Pi exprInfo [TypedBindings noRange h [TBind noRange [x] a]] b
       I.Fun a b    -> uncurry (A.Fun $ exprInfo)
                       <$> reify (a,b)
@@ -239,7 +239,7 @@ stripImplicits ps wps =
     , "  wps  = " ++ show wps
     , "  vars = " ++ show vars
     ]
-  let allps       = ps ++ map (Arg NotHidden . unnamed) wps
+  let allps       = ps ++ map (defaultArg . unnamed) wps
       sps         = foldl (.) (strip vars) (map rearrangeBinding $ Set.toList vars) $ allps
       (ps', wps') = splitAt (length sps - length wps) sps
   reportSLn "syntax.reify.implicit" 30 $ unlines
@@ -309,8 +309,7 @@ class DotVars a where
   dotVars :: a -> Set Name
 
 instance DotVars a => DotVars (Arg a) where
-  dotVars (Arg Hidden _)    = Set.empty
-  dotVars (Arg NotHidden x) = dotVars x
+  dotVars a = if isHiddenArg a then Set.empty else dotVars (unArg a)
 
 instance DotVars a => DotVars (Named s a) where
   dotVars = dotVars . namedThing
@@ -421,36 +420,36 @@ instance Reify Sort Expr where
                 I.Type a -> do
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0)
-                                          (Arg NotHidden (unnamed a))
+                                          (defaultArg (unnamed a))
                 I.Prop       -> return $ A.Prop exprInfo
                 I.MetaS x as -> apps =<< reify (x, as)
                 I.Suc s      ->
                     do  suc <- freshName_ "suc" -- TODO: hack
                         e   <- reify s
-                        return $ A.App exprInfo (A.Var suc) (Arg NotHidden $ unnamed e)
+                        return $ A.App exprInfo (A.Var suc) (defaultArg $ unnamed e)
                 I.Inf       -> A.Var <$> freshName_ "Setω"
                 I.DLub s1 s2 -> do
                   lub <- freshName_ "dLub" -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
-                  let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
+                  let app x y = A.App exprInfo x (defaultArg $ unnamed y)
                   return $ A.Var lub `app` e1 `app` e2
                 I.Lub s1 s2 ->
                     do  lub <- freshName_ "\\/" -- TODO: hack
                         (e1,e2) <- reify (s1,s2)
-                        let app x y = A.App exprInfo x (Arg NotHidden $ unnamed y)
+                        let app x y = A.App exprInfo x (defaultArg $ unnamed y)
                         return $ A.Var lub `app` e1 `app` e2
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =
         do  x <- freshName_ s
-            e <- addCtx x (Arg NotHidden $ sort I.Prop) -- type doesn't matter
+            e <- addCtx x (defaultArg $ sort I.Prop) -- type doesn't matter
                  $ reify v
             return (x,e)
 
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
-    Arg h e <- reify arg
+    Arg h r e <- reify arg
     (x,bs)  <- reify $ betterName tel
     let r = getRange e
     return $ TypedBindings r h [TBind r [x] e] : bs

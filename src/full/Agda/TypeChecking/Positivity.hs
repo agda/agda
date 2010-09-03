@@ -241,8 +241,8 @@ instance ComputeOccurrences Clause where
       walk _    []        NoBind{}   = __IMPOSSIBLE__
       walk _    (_ : _)   Body{}     = __IMPOSSIBLE__
 
-      match i (Arg _ VarP{}) = Map.empty
-      match i _              = Map.singleton (AnArg i) [Unknown]
+      match i (Arg _ _ VarP{}) = Map.empty
+      match i _                = Map.singleton (AnArg i) [Unknown]
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i (VarP _) = [Just (AnArg i)]
@@ -334,7 +334,7 @@ computeOccurrences q = do
 etaExpandClause :: Nat -> Clause -> Clause
 etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
   | m <= 0    = c
-  | otherwise = c { clausePats = ps ++ genericReplicate m (Arg NotHidden $ VarP "_")
+  | otherwise = c { clausePats = ps ++ genericReplicate m (defaultArg $ VarP "_")
                   , clauseBody = liftBody m b
                   }
   where
@@ -343,7 +343,7 @@ etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
     bind 0 = id
     bind n = Bind . Abs "_" . bind (n - 1)
 
-    vars = reverse [ Arg NotHidden $ Var i [] | i <- [0..m - 1] ]
+    vars = reverse [ defaultArg $ Var i [] | i <- [0..m - 1] ]
 
     liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
     liftBody m (NoBind b) = NoBind $ liftBody m b

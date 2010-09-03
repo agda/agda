@@ -144,7 +144,7 @@ instance Occurs a => Occurs (Abs a) where
   occurs ctx m xs (Abs s x) = Abs s <$> occurs ctx m (0 : map (1+) xs) x
 
 instance Occurs a => Occurs (Arg a) where
-  occurs ctx m xs (Arg h x) = Arg h <$> occurs ctx m xs x
+  occurs ctx m xs (Arg h r x) = Arg h r <$> occurs ctx m xs x
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
   occurs ctx m xs (x,y) = (,) <$> occurs ctx m xs x <*> occurs ctx m xs y
@@ -201,10 +201,10 @@ performKill :: [Arg Bool] -> MetaId -> Type -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
   let perm = Perm (size kills)
-             [ i | (i, Arg _ False) <- zip [0..] (reverse kills) ]
+             [ i | (i, Arg _ _ False) <- zip [0..] (reverse kills) ]
   m' <- newMeta (mvInfo mv) (mvPriority mv) perm (HasType undefined a)
-  let vars = reverse [ Arg h (Var i []) | (i, Arg h False) <- zip [0..] kills ]
-      hs   = reverse [ h | Arg h _ <- kills ]
+  let vars = reverse [ Arg h r (Var i []) | (i, Arg h r False) <- zip [0..] kills ]
+      hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)
       u       = foldr lam (MetaV m' vars) hs
   dbg m' u

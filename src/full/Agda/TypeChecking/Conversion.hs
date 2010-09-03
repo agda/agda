@@ -45,8 +45,8 @@ nextPolarity (p : ps) = (p, ps)
 sameVars :: Args -> Args -> Bool
 sameVars xs ys = and $ zipWith same xs ys
     where
-	same (Arg _ (Var n [])) (Arg _ (Var m [])) = n == m
-	same _ _				   = False
+	same (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = n == m
+	same _ _				       = False
 
 equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
 equalTerm = compareTerm CmpEq
@@ -125,8 +125,8 @@ compareTel cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return []
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel arg1@(Arg h1 a1) tel1, ExtendTel arg2@(Arg h2 a2) tel2)
-      | h1 /= h2  -> bad
+    (ExtendTel arg1@(Arg h1 r1 a1) tel1, ExtendTel arg2@(Arg h2 r2 a2) tel2)
+      | h1 /= h2 || r1 /= r2 -> bad
       | otherwise -> do
           let (tel1', tel2') = raise 1 (tel1, tel2)
               arg            = Var 0 []
@@ -246,11 +246,12 @@ compareAtom cmp t m n =
                     compareArgs [] a' xArgs yArgs
             _ -> typeError $ UnequalTerms cmp m n t
     where
-	equalFun (FunV arg1@(Arg h1 a1) t1) (FunV (Arg h2 a2) t2)
+	equalFun (FunV arg1@(Arg h1 r1 a1) t1) (FunV (Arg h2 r2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
+	    | r1 /= r2	= typeError $ UnequalRelevance ty1 ty2
 	    | otherwise = do
 		    let (ty1',ty2') = raise 1 (ty1,ty2)
-			arg	    = Arg h1 (Var 0 [])
+			arg	    = Arg h1 r1 (Var 0 [])
 		    name <- freshName_ (suggest t1 t2)
 		    cs   <- compareType cmp a2 a1
 		    let c = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
@@ -299,7 +300,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
           , nest 2 $ text ":" <+> prettyTCM a
           ]
     case funView (unEl a) of
-	FunV (Arg _ b) _ -> do
+	FunV (Arg _ _ b) _ -> do
 	    reportSDoc "tc.conv.args" 10 $
               sep [ text "compareArgs" <+> parens (text $ show pol)
                   , nest 2 $ sep [ prettyTCM arg1
@@ -318,7 +319,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                                 -- (except it's not, we risk leaving unsolved sorts)
                                 -- We're also ignoring levels which isn't quite as
                                 -- safe (it would be if we disallowed matching on levels?)
-		(_:_, Pi (Arg _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
+		(_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
                                                   -- && Just lvl' /= mlvl
 		    -> do
                         reportSDoc "tc.conv.args" 15 $ sep

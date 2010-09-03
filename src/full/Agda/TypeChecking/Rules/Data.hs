@@ -126,7 +126,7 @@ checkDataDef i ind name ps cs =
 	cname _			   = __IMPOSSIBLE__ -- constructors are axioms
 
 	hideTel  EmptyTel		  = EmptyTel
-	hideTel (ExtendTel (Arg _ t) tel) = ExtendTel (Arg Hidden t) $ hideTel <$> tel
+	hideTel (ExtendTel (Arg _ r t) tel) = ExtendTel (Arg Hidden r t) $ hideTel <$> tel
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
 	splitType (El _ (Fun _ b)) = ((+ 1) -*- raise 1) <$> splitType b
@@ -168,20 +168,20 @@ checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 -- | Bind the parameters of a datatype. The bindings should be domain free.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
 bindParameters [] a ret = ret EmptyTel a
-bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' a) b)) ret
+bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' Relevant a) b)) ret
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
-    arg = Arg h a
-bindParameters (A.DomainFree h x : ps) (El _ (Fun (Arg h' a) b)) ret
+    arg = Arg h Relevant a
+bindParameters (A.DomainFree h x : ps) (El _ (Fun (Arg h' Relevant a) b)) ret
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (raise 1 b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
-    arg = Arg h a
+    arg = Arg h Relevant a
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -200,12 +200,12 @@ fitsIn t s = do
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
   case funView $ unEl t of
-    FunV arg@(Arg h a) _ -> do
+    FunV arg@(Arg h r a) _ -> do
       let s' = getSort a
       cs <- s' `leqSort` s
       addConstraints cs
       x <- freshName_ (argName t)
-      let v  = Arg h $ Var 0 []
+      let v  = Arg h r $ Var 0 []
           t' = piApply (raise 1 t) [v]
       addCtx x arg $ fitsIn t' (raise 1 s)
     _		     -> return ()
@@ -233,7 +233,7 @@ constructs nofPars t q = constrT 0 t
 
 	checkParams n vs = zipWithM_ sameVar (map unArg vs) ps
 	    where
-		ps = reverse [ i | (i,Arg h _) <- zip [n..] vs ]
+		ps = reverse [ i | (i,_) <- zip [n..] vs ]
 
 		sameVar v i = do
 		    t <- typeOfBV i

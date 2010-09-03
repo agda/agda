@@ -46,7 +46,7 @@ constructorForm v = case v of
       | n == 0  = pZero
       | n > 0   = do
         s <- pSuc
-        return $ s `apply` [Arg NotHidden $ Lit $ lit $ n - 1]
+        return $ s `apply` [defaultArg $ Lit $ lit $ n - 1]
       | otherwise	= return v
 
 ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ buildList = do
     nil'  <- primNil
     cons' <- primCons
     let nil       = nil'
-	cons x xs = cons' `apply` [Arg NotHidden x, Arg NotHidden xs]
+	cons x xs = cons' `apply` [defaultArg x, defaultArg xs]
     return $ foldr cons nil
 
 instance (PrimTerm a, ToTerm a) => ToTerm [a] where
@@ -207,7 +207,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 
 	    mkList nil cons toA fromA t = do
 		t <- reduce t
-		let arg = Arg (argHiding t)
+		let arg = Arg (argHiding t) (argRelevance t)
 		case unArg t of
 		    Con c []
 			| c == nil  -> return $ YesReduction []
@@ -217,7 +217,7 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
 				(\x' -> arg $ Con c [x',xs]) $ \y ->
 			    redBind
 				(mkList nil cons toA fromA xs)
-				(\xs' -> arg $ Con c [Arg NotHidden $ fromA y, xs']) $ \ys ->
+				(\xs' -> arg $ Con c [defaultArg $ fromA y, xs']) $ \ys ->
 			    redReturn (y : ys)
 		    _ -> return $ NoReduction t
 
@@ -281,7 +281,7 @@ mkPrimFun2 f = do
 	redBind (toA v)
 	    (\v' -> [v',w]) $ \x ->
 	redBind (toB w)
-	    (\w' -> [Arg (argHiding v) (fromA x), w']) $ \y ->
+	    (\w' -> [Arg (argHiding v) (argRelevance v) (fromA x), w']) $ \y ->
 	redReturn $ fromC $ f x y
 
 mkPrimFun4 :: ( MonadTCM tcm
@@ -302,14 +302,14 @@ mkPrimFun4 f = do
 	redBind (toA a)
 	    (\a' -> [a',b,c,d]) $ \x ->
 	redBind (toB b)
-	    (\b' -> [Arg (argHiding a) (fromA x), b', c, d]) $ \y ->
+	    (\b' -> [Arg (argHiding a) (argRelevance a) (fromA x), b', c, d]) $ \y ->
 	redBind (toC c)
-	    (\c' -> [ Arg (argHiding a) (fromA x)
-                    , Arg (argHiding b) (fromB y), c', d]) $ \z ->
+	    (\c' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
+                    , Arg (argHiding b) (argRelevance b) (fromB y), c', d]) $ \z ->
 	redBind (toD d)
-	    (\d' -> [ Arg (argHiding a) (fromA x)
-                    , Arg (argHiding b) (fromB y)
-                    , Arg (argHiding c) (fromC z)
+	    (\d' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
+                    , Arg (argHiding b) (argRelevance b) (fromB y)
+                    , Arg (argHiding c) (argRelevance c) (fromC z)
                     , d']) $ \w ->
 	redReturn $ fromE $ f x y z w
 
@@ -329,18 +329,18 @@ infixr 4 -->
 a --> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Fun (Arg NotHidden a') b'
+    return $ El (getSort a' `sLub` getSort b') $ Fun (defaultArg a') b'
 
-gpi :: MonadTCM tcm => Hiding -> String -> tcm Type -> tcm Type -> tcm Type
-gpi h name a b = do
+gpi :: MonadTCM tcm => Hiding -> Relevance -> String -> tcm Type -> tcm Type -> tcm Type
+gpi h r name a b = do
     a' <- a
     x  <- freshName_ name
-    b' <- addCtx x (Arg h a') b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h a') (Abs name b')
+    b' <- addCtx x (Arg h r a') b
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h r a') (Abs name b')
 
 hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
-hPi = gpi Hidden
-nPi = gpi NotHidden
+hPi = gpi Hidden Relevant
+nPi = gpi NotHidden Relevant
 
 var :: MonadTCM tcm => Integer -> tcm Term
 var n = return $ Var n []
@@ -351,7 +351,7 @@ gApply :: MonadTCM tcm => Hiding -> tcm Term -> tcm Term -> tcm Term
 gApply h a b = do
     x <- a
     y <- b
-    return $ x `apply` [Arg h y]
+    return $ x `apply` [Arg h Relevant y]
 
 (<@>),(<#>) :: MonadTCM tcm => tcm Term -> tcm Term -> tcm Term
 (<@>) = gApply NotHidden

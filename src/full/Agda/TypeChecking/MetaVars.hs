@@ -193,10 +193,10 @@ newArgsMetaCtx :: MonadTCM tcm => Type -> Telescope -> Args -> tcm Args
 newArgsMetaCtx (El s tm) tel ctx = do
   tm <- reduce tm
   case funView tm of
-      FunV (Arg h a) _  -> do
+      FunV (Arg h r a) _  -> do
 	  v    <- newValueMetaCtx (telePi_ tel a) ctx
-	  args <- newArgsMetaCtx (El s tm `piApply` [Arg h v]) tel ctx
-	  return $ Arg h v : args
+	  args <- newArgsMetaCtx (El s tm `piApply` [Arg h r v]) tel ctx
+	  return $ Arg h r v : args
       NoFunV _    -> return []
 
 -- | Create a metavariable of record type. This is actually one metavariable
@@ -299,8 +299,8 @@ etaExpandMeta kinds m =
   meta       <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b <- telViewM a
-  let args	 = [ Arg h $ Var i []
-		   | (i, Arg h _) <- reverse $ zip [0..] $ reverse $ telToList tel
+  let args	 = [ Arg h r $ Var i []
+		   | (i, Arg h r _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
   bb <- reduceB b
   case unEl <$> bb of
@@ -420,16 +420,16 @@ assignV t x args v =
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel  <- getContextTelescope
-	    args <- map (Arg NotHidden) <$> getContextTerms
+	    args <- map defaultArg <$> getContextTerms
 	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
 		v'    = raise (size ids) (abstract tel v) `apply` iargs
 	    return v'
 
-	let extTel (Arg h i) m = do
+	let extTel (Arg h r i) m = do
 	      tel <- m
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
-	      return $ ExtendTel (Arg h t) (Abs (show x) tel)
+	      return $ ExtendTel (Arg h r t) (Abs (show x) tel)
 	tel' <- foldr extTel (return EmptyTel) ids
 
 	reportSDoc "tc.meta.assign" 15 $
@@ -502,16 +502,16 @@ assignS x args s =
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel  <- getContextTelescope
-	    args <- map (Arg NotHidden) <$> getContextTerms
+	    args <- map defaultArg <$> getContextTerms
 	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
 		v'    = raise (size ids) (abstract tel v) `apply` iargs
 	    return v'
 
-	let extTel (Arg h i) m = do
+	let extTel (Arg h r i) m = do
 	      tel <- m
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
-	      return $ ExtendTel (Arg h t) (Abs (show x) tel)
+	      return $ ExtendTel (Arg h r t) (Abs (show x) tel)
 	tel' <- foldr extTel (return EmptyTel) ids
 
 	reportSDoc "tc.meta.assign" 15 $
@@ -562,10 +562,10 @@ validParameters args
                 = return $ reverse vars
     | otherwise	= fail "invalid parameters"
     where
-	vars = [ Arg h i | Arg h (Var i []) <- args ]
+	vars = [ Arg h r i | Arg h r (Var i []) <- args ]
 
 isVar :: Arg Term -> Bool
-isVar (Arg _ (Var _ [])) = True
+isVar (Arg _ _ (Var _ [])) = True
 isVar _			 = False
 
 

@@ -51,7 +51,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
   where
     buildWithClause (A.Clause (LHS i _ ps wps) rhs wh) = do
       let (wps0, wps1) = genericSplitAt n wps
-          ps0          = map (Arg NotHidden . unnamed) wps0
+          ps0          = map (defaultArg . unnamed) wps0
       rhs <- buildRHS rhs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
       return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
@@ -158,7 +158,7 @@ stripWithClausePatterns gamma qs perm ps = do
                    ]
 
             -- Compute the new telescope
-            let v     = Con c $ reverse [ Arg h (Var i []) | (i, Arg h _) <- zip [0..] $ reverse qs' ]
+            let v     = Con c $ reverse [ Arg h r (Var i []) | (i, Arg h r _) <- zip [0..] $ reverse qs' ]
                 tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
             reportSDoc "tc.with.strip" 15 $ sep

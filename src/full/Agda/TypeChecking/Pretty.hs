@@ -187,14 +187,16 @@ instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
       where
           pr []		   = return []
-          pr (Arg h (x,t) : ctx) = escapeContext 1 $ do
+          pr (Arg h r (x,t) : ctx) = escapeContext 1 $ do
               d    <- prettyTCM t
               x    <- prettyTCM x
               dctx <- pr ctx
-              return $ par h (P.hsep [ x, P.text ":", d]) : dctx
+              return $ rel r (par h (P.hsep [ x, P.text ":", d])) : dctx
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
+              rel Irrelevant x = P.text "." P.<> x 
+              rel Relevant x   = x 
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

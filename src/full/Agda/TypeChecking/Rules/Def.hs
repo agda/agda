@@ -183,13 +183,13 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          Con reflCon [] -> reflCon
                          _              -> __IMPOSSIBLE__
                      (rewriteType,rewriteFrom,rewriteTo) <- case t' of
-                         El _Set0 (Def equality' [Arg Hidden rewriteType,
-                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo])
+                         El _Set0 (Def equality' [Arg Hidden Relevant rewriteType,
+                                                  Arg NotHidden Relevant rewriteFrom, Arg NotHidden Relevant rewriteTo])
                             | equality' == equality ->
                               return (rewriteType, rewriteFrom, rewriteTo)
                          -- Universe polymorphic equality
-                         El _Set0 (Def equality' [_level,Arg Hidden rewriteType,
-                                                  Arg NotHidden rewriteFrom, Arg NotHidden rewriteTo])
+                         El _Set0 (Def equality' [_level, Arg Hidden Relevant rewriteType,
+                                                  Arg NotHidden Relevant rewriteFrom, Arg NotHidden Relevant rewriteTo])
                             | equality' == equality ->
                               return (rewriteType, rewriteFrom, rewriteTo)
                          _ -> do
@@ -247,10 +247,10 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   ctx <- getContextTelescope
                   let n    = size ctx
                       m    = size delta
-                      us   = [ Arg h (Var i []) | (i, Arg h _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
+                      us   = [ Arg h r (Var i []) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
                       (us0, us1') = genericSplitAt (n - m) us
                       (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
-                      v    = Def aux $ us0 ++ us1 ++ (map (Arg NotHidden) vs0) ++ us2
+                      v    = Def aux $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
                   t' <- return $ rename (reverseP perm') t'
@@ -637,6 +637,6 @@ actualConstructor c = do
             Con c _ -> return c
             Lam h b -> do
                 x <- freshName_ $ absName b
-                addCtx x (Arg h $ sort Prop) $ stripLambdas (absBody b)
+                addCtx x (Arg h Relevant $ sort Prop) $ stripLambdas (absBody b)
             _       -> typeError $ GenericError $ "Not a constructor: " ++ show c
 
