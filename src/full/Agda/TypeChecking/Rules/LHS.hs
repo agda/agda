@@ -584,4 +584,5 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
     case c of
       Nothing    -> __IMPOSSIBLE__
       Just False -> mapM_ (check . unArg) ps
-      Just True  -> typeError DependentPatternMatchingOnCodata
+      Just True  -> typeError $
+        GenericError "Pattern matching on codata is not allowed"

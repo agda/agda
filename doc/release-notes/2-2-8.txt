@@ -173,7 +173,10 @@ Language
     {-# BUILTIN SHARP    ♯_ #-}
     {-# BUILTIN FLAT     ♭  #-}
 
-  Note that strange things might happen if you try to combine the
+  Note that (non-dependent) pattern matching on SHARP is no longer
+  allowed.
+
+  Note also that strange things might happen if you try to combine the
   pragmas above with COMPILED_TYPE, COMPILED_DATA or COMPILED pragmas,
   or if the pragmas do not occur right after the postulates.
 
