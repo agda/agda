@@ -306,8 +306,7 @@ checkLeftHandSide c ps a ret = do
   (Problem ps (perm, qs) delta, sigma, dpi, asb) <- checkLHS problem idsub [] []
   let b' = substs sigma b
 
-  noPatternMatchingOnCodata $
-    zip (map (not . (== "_") . fst . unArg) as) qs
+  noPatternMatchingOnCodata qs
 
   reportSDoc "tc.lhs.top" 10 $
     vcat [ text "checked lhs:"
@@ -568,14 +567,13 @@ checkLeftHandSide c ps a ret = do
             -- Continue splitting
             checkLHS problem' sigma' dpi' asb'
 
--- Ensures that we are not performing dependent pattern matching on
--- codata.
+-- Ensures that we are not performing pattern matching on codata.
 
 noPatternMatchingOnCodata
   :: MonadTCM tcm
-  => [(Bool, Arg Pattern)]  -- ^ True stands for dependent pattern matching.
+  => [Arg Pattern]
   -> tcm ()
-noPatternMatchingOnCodata = mapM_ check . map (unArg . snd) . filter fst
+noPatternMatchingOnCodata = mapM_ (check . unArg)
   where
   check (VarP {})   = return ()
   check (DotP {})   = return ()
