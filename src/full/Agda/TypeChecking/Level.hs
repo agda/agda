@@ -37,9 +37,11 @@ instance Ord PlusView where
 
 
 data LevelKit = LevelKit
-  { levelSuc   :: Term -> Term
+  { levelType  :: Term
+  , levelSuc   :: Term -> Term
   , levelMax   :: Term -> Term -> Term
   , levelZero  :: Term
+  , typeName :: QName
   , sucName  :: QName
   , maxName  :: QName
   , zeroName :: QName
@@ -52,19 +54,32 @@ levelSucFunction = do
 
 builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
+    level@(Def l []) <- primLevel
     zero@(Con z []) <- primLevelZero
     suc@(Con s []) <- primLevelSuc
     max@(Def m []) <- primLevelMax
     let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
-      { levelSuc = \a -> suc @@ a
+      { levelType = level
+      , levelSuc = \a -> suc @@ a
       , levelMax = \a b -> max @@ a @@ b
       , levelZero = zero
+      , typeName = l
       , sucName = s
       , maxName = m
       , zeroName = z
       }
   `catchError` \_ -> return Nothing
+
+-- | Raises an error if no level kit is available.
+
+requireLevels :: TCM LevelKit
+requireLevels = do
+  mKit <- builtinLevelKit
+  case mKit of
+    Nothing -> typeError $ GenericError $
+      "Some or all of the LEVEL builtins have not been defined."
+    Just k  -> return k
 
 unLevelAtom :: LevelAtom -> Term
 unLevelAtom (MetaLevel x as) = MetaV x as
@@ -140,7 +155,7 @@ levelView a = do
           []  -> []
           ns  -> [ClosedLevel $ maximum ns]
         bs = subsume [ b | b@Plus{} <- as ]
-        
+
         subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
         subsume [] = []
         subsume (Plus n a : bs)

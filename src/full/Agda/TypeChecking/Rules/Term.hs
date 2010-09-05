@@ -42,6 +42,8 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
+  (CoinductionKit(..), coinductionKit)
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -430,7 +432,7 @@ checkExpr e t =
               (v,ty) <- addLetBinding x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType ty t'
         A.Quote _ x      -> do
-           quoted <- case x of 
+           quoted <- case x of
                        A.Def x' -> return x'
                        A.Con (AmbQ [x']) -> return x'
                        A.Con _ -> typeError $ GenericError "quote: Ambigous name"
@@ -624,86 +626,84 @@ checkConstructorApplication org t c args = do
 checkHeadApplication :: A.Expr -> Type -> A.Head -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
   replacing <- envReplace <$> ask
+  kit       <- coinductionKit
   if not replacing
    then local (\e -> e { envReplace = True }) defaultResult
    else case hd of
     HeadCon [c] -> do
-      info <- getConstInfo c
-      case conInd $ theDef info of
-        Inductive   -> do
-          (f, t0) <- inferHead hd
-          checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
-            TelV eTel eType <- telView t
-            TelV fTel fType <- telView t1
-            blockTerm t (f vs) $ (cs ++) <$> do
-              -- We know that the target type of the constructor (fType)
-              -- does not depend on fTel so we can compare fType and eType
-              -- first.
-                                             -- This will fail
-              when (size eTel > size fTel) $ compareTel CmpLeq eTel fTel >> return ()
+      (f, t0) <- inferHead hd
+      checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
+        TelV eTel eType <- telView t
+        TelV fTel fType <- telView t1
+        blockTerm t (f vs) $ (cs ++) <$> do
+          -- We know that the target type of the constructor (fType)
+          -- does not depend on fTel so we can compare fType and eType
+          -- first.
+                                         -- This will fail
+          when (size eTel > size fTel) $ compareTel CmpLeq eTel fTel >> return ()
 
-              -- If the expected type is a metavariable we have to make
-              -- sure it's instantiated to the proper pi type
-              let (fTel0, fTel1) = telFromList -*- telFromList
-                                 $ splitAt (size eTel)
-                                 $ telToList fTel
-                  fType' = abstract fTel1 fType
+          -- If the expected type is a metavariable we have to make
+          -- sure it's instantiated to the proper pi type
+          let (fTel0, fTel1) = telFromList -*- telFromList
+                             $ splitAt (size eTel)
+                             $ telToList fTel
+              fType' = abstract fTel1 fType
 
-              cs1 <- addCtxTel eTel $ leqType fType' eType
-              cs2 <- compareTel CmpLeq eTel fTel0
-              return $ cs1 ++ cs2
-        CoInductive -> do
-          -- TODO: Handle coinductive constructors under lets.
-          lets <- envLetBindings <$> ask
-          unless (Map.null lets) $
-            typeError $ NotImplemented
-              "coinductive constructor in the scope of a let-bound variable"
+          cs1 <- addCtxTel eTel $ leqType fType' eType
+          cs2 <- compareTel CmpLeq eTel fTel0
+          return $ cs1 ++ cs2
+    HeadDef c | Just c == (nameOfSharp <$> kit) -> do
+      -- TODO: Handle coinductive constructors under lets.
+      lets <- envLetBindings <$> ask
+      unless (Map.null lets) $
+        typeError $ NotImplemented
+          "coinductive constructor in the scope of a let-bound variable"
 
-          -- The name of the fresh function.
-          i <- fresh :: TCM Integer
-          let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
-          c' <- liftM2 qualify currentModule (freshName_ name)
+      -- The name of the fresh function.
+      i <- fresh :: TCM Integer
+      let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
+      c' <- liftM2 qualify currentModule (freshName_ name)
 
-          -- The application of the fresh function to the relevant
-          -- arguments.
-          e' <- Def c' <$> getContextArgs
+      -- The application of the fresh function to the relevant
+      -- arguments.
+      e' <- Def c' <$> getContextArgs
 
-          -- Add the type signature of the fresh function to the
-          -- signature.
-          i   <- currentMutualBlock
-          tel <- getContextTelescope
-          addConstant c' (Defn c' t (defaultDisplayForm c') i $ Axiom Nothing)
+      -- Add the type signature of the fresh function to the
+      -- signature.
+      i   <- currentMutualBlock
+      tel <- getContextTelescope
+      addConstant c' (Defn c' t (defaultDisplayForm c') i $ Axiom Nothing)
 
-          -- Define and type check the fresh function.
-          ctx <- getContext
-          let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity
-                                   PublicAccess ConcreteDef noRange
-              pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
-                           reverse ctx
-              clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
-                                (A.RHS $ unAppView (A.Application hd args))
-                                []
+      -- Define and type check the fresh function.
+      ctx <- getContext
+      let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity
+                               PublicAccess ConcreteDef noRange
+          pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
+                       reverse ctx
+          clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
+                            (A.RHS $ unAppView (A.Application hd args))
+                            []
 
-          reportSDoc "tc.term.expr.coind" 15 $ vcat $
-              [ text "The coinductive constructor application"
-              , nest 2 $ prettyTCM e
-              , text "was translated into the application"
-              , nest 2 $ prettyTCM e'
-              , text "and the function"
-              , nest 2 $ prettyTCM c' <+> text ":"
-              , nest 4 $ prettyTCM (telePi tel t)
-              , nest 2 $ prettyA clause <> text "."
-              ]
+      reportSDoc "tc.term.expr.coind" 15 $ vcat $
+          [ text "The coinductive constructor application"
+          , nest 2 $ prettyTCM e
+          , text "was translated into the application"
+          , nest 2 $ prettyTCM e'
+          , text "and the function"
+          , nest 2 $ prettyTCM c' <+> text ":"
+          , nest 4 $ prettyTCM (telePi tel t)
+          , nest 2 $ prettyA clause <> text "."
+          ]
 
-          local (\e -> e { envReplace = False }) $
-            escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
+      local (\e -> e { envReplace = False }) $
+        escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
 
-          reportSDoc "tc.term.expr.coind" 15 $ do
-            def <- theDef <$> getConstInfo c'
-            text "The definition is" <+> text (show $ funDelayed def) <>
-              text "."
+      reportSDoc "tc.term.expr.coind" 15 $ do
+        def <- theDef <$> getConstInfo c'
+        text "The definition is" <+> text (show $ funDelayed def) <>
+          text "."
 
-          return e'
+      return e'
     HeadCon _  -> __IMPOSSIBLE__
     HeadVar {} -> defaultResult
     HeadDef {} -> defaultResult

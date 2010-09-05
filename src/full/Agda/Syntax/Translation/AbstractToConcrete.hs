@@ -457,7 +457,7 @@ openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
   where sInfo = currentScope env
         amod  = scopeCurrent sInfo
         mods  = scopeModules sInfo
-        news  = setScopeAccess PrivateNS 
+        news  = setScopeAccess PrivateNS
                 $ applyImportDirective dir
                 $ maybe emptyScope restrict
                 $ Map.lookup x mods
@@ -504,12 +504,12 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     x'  <- unsafeQNameToName <$> toConcrete x
     return $ TypeSig x' t' : concat cs'
 
-  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ ind bs cs)) =
+  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) ind x' tel' t' cs' ]
+      return [ C.Data (getRange i) Inductive x' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel 0 t            = ([], t)

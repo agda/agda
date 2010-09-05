@@ -119,7 +119,7 @@ cover cs (SClause tel perm ps _) = do
           GenericSplitError s -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
--- | Check that a type is a datatype
+-- | Check that a type is an inductive datatype
 isDatatype :: MonadTCM tcm => Type -> tcm (Maybe (QName, [Arg Term], [Arg Term], [QName]))
 isDatatype t = do
   t <- normalise t
@@ -127,7 +127,7 @@ isDatatype t = do
     Def d args -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype{dataPars = np, dataCons = cs} -> do
+        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} -> do
           let (ps, is) = genericSplitAt np args
           return $ Just (d, ps, is, cs)
         Record{recPars = np, recCon = c, recNamedCon = True} ->
@@ -330,7 +330,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
 
     return (hps, hix)
 
-  -- Check that t is a datatype
+  -- Check that t is an inductive datatype
   (d, pars, ixs, cons) <- do
     dt <- isDatatype t
     case dt of

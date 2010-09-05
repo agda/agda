@@ -1,8 +1,10 @@
 module CoinductiveBuiltinNatural where
 
-codata ℕ : Set where
+open import Imports.Coinduction
+
+data ℕ : Set where
   zero : ℕ
-  suc  : (n : ℕ) → ℕ
+  suc  : (n : ∞ ℕ) → ℕ
 
 {-# BUILTIN NATURAL ℕ    #-}
 {-# BUILTIN ZERO    zero #-}

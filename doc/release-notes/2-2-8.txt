@@ -153,6 +153,40 @@ Language
     termination depth 2, the above example is accepted for vectors
     instead of lists.
 
+* The codata keyword has been removed. To use coinduction, use the
+  following new builtins: INFINITY, SHARP and FLAT. Example:
+
+    {-# OPTIONS --universe-polymorphism #-}
+
+    module Coinduction where
+
+    open import Level
+
+    infix 1000 ♯_
+
+    postulate
+      ∞  : ∀ {a} (A : Set a) → Set a
+      ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+      ♭  : ∀ {a} {A : Set a} → ∞ A → A
+
+    {-# BUILTIN INFINITY ∞  #-}
+    {-# BUILTIN SHARP    ♯_ #-}
+    {-# BUILTIN FLAT     ♭  #-}
+
+  Note that strange things might happen if you try to combine the
+  pragmas above with COMPILED_TYPE, COMPILED_DATA or COMPILED pragmas,
+  or if the pragmas do not occur right after the postulates.
+
+  MAlonzo compiles the INFINITY builtin to nothing (more or less), so
+  that the use of coinduction does not get in the way of FFI
+  declarations:
+
+    data Colist (A : Set) : Set where
+      []  : Colist A
+      _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
+
+    {-# COMPILED_DATA Colist [] [] (:) #-}
+
 * Infinite types.
 
   If the new flag --guardedness-preserving-type-constructors is used,

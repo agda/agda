@@ -302,9 +302,9 @@ nameKinds mErr decls = do
 
   getDef :: A.Definition -> Map A.QName NameKind
   getDef (A.FunDef  _ q _)       = Map.singleton q Function
-  getDef (A.DataDef _ q i _ cs)  = Map.singleton q Datatype `union`
+  getDef (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
                                    (Map.unions $
-                                    map (\q -> Map.singleton q (Constructor i)) $
+                                    map (\q -> Map.singleton q (Constructor SC.Inductive)) $
                                     map getAxiomName cs)
   getDef (A.RecDef  _ q c _ _ _) = Map.singleton q Record `union`
                                    case c of
@@ -387,7 +387,7 @@ generateConstructorInfo modMap file kinds decls = do
         clauses <- R.instantiateFull $ defClauses def
         case clauses of
           [I.Clause{ I.clauseBody = body }] -> case getRHS body of
-            Just (I.Con c args) -> do
+            Just (I.Def c args) -> do
               s <- everything' (liftM2 (><)) query args
               return $ Seq.singleton c >< s
 

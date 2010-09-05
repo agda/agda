@@ -611,8 +611,8 @@ instance PrettyTCM Call where
 
 	    simpleDef d = case d of
 	      D.FunDef _ ds _ _ _ _ _	 -> ds
-	      D.DataDef r ind fx p a d bs cs ->
-		[ C.Data r ind d (map bind bs) (C.Underscore noRange Nothing)
+	      D.DataDef r fx p a d bs cs ->
+		[ C.Data r Inductive d (map bind bs) (C.Underscore noRange Nothing)
 		    $ map simpleDecl cs
 		]
 	      D.RecDef r fx p a d c bs cs ->

@@ -353,7 +353,7 @@ freshQModule m x = A.qualifyM m . mnameFromList . (:[]) <$> freshAbstractName_ x
 checkForModuleClash :: C.Name -> ScopeM ()
 checkForModuleClash x = do
   ms <- scopeLookup (C.QName x) <$> getScope
-  unless (null ms) $ 
+  unless (null ms) $
     setCurrentRange (getRange x) $
     typeError $ ShadowedModule $
                 map ((`withRangeOf` x) . amodName) ms
@@ -494,7 +494,7 @@ instance ToAbstract C.Expr A.Expr where
       C.ETel _   -> __IMPOSSIBLE__
 
   -- Quoting
-      C.QuoteGoal _ x e -> do 
+      C.QuoteGoal _ x e -> do
         x' <- toAbstract (NewName x)
         e' <- toAbstract e
         return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
@@ -671,7 +671,7 @@ instance ToAbstract NiceDefinition Definition where
           return $ A.FunDef (mkDefInfo x f p a r) x' cs'
 
     -- Data definitions
-      C.DataDef r ind f p a x pars cons ->
+      C.DataDef r f p a x pars cons ->
         traceCall (ScopeCheckDefinition d) $
         withLocalVars $ do
 
@@ -694,7 +694,7 @@ instance ToAbstract NiceDefinition Definition where
           -- Open the module
           -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
           printScope "data" 20 $ "Checked data " ++ show x
-          return $ A.DataDef (mkDefInfo x f p a r) x' ind pars cons
+          return $ A.DataDef (mkDefInfo x f p a r) x' pars cons
         where
           conName (C.Axiom _ _ _ _ c _) = c
           conName _ = __IMPOSSIBLE__

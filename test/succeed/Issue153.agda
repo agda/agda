@@ -4,8 +4,7 @@
 
 module Issue153 where
 
-codata ∞ (A : Set) : Set where
-  ♯ : A → ∞ A
+open import Coinduction
 
 record R : Set₁ where
   field

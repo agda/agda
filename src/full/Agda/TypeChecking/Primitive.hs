@@ -369,6 +369,14 @@ el t = El (mkType 0) <$> t
 tset :: MonadTCM tcm => tcm Type
 tset = return $ sort (mkType 0)
 
+-- | Abbreviation: @argN = 'Arg' 'NotHidden' 'Relevant'@.
+
+argN = Arg NotHidden Relevant
+
+-- | Abbreviation: @argH = 'Arg' 'Hidden' 'Relevant'@.
+
+argH = Arg Hidden Relevant
+
 ---------------------------------------------------------------------------
 -- * The actual primitive functions
 ---------------------------------------------------------------------------

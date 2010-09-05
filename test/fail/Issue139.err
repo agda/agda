@@ -1,4 +1,0 @@
-Issue139.agda:18,9-13
-.Issue139.A.c-0 != .Issue139.c-2 of type C
-when checking that the expression refl has type
-foo .Issue139.c-1 ≡ .Issue139.c-2

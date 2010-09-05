@@ -1,0 +1,4 @@
+PatternMatchingOnCodata.agda:31,1-11
+Could not parse the left-hand side my-♭ (♯ x)
+when scope checking the left-hand side my-♭ (♯ x) in the definition
+of my-♭

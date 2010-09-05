@@ -1,5 +1,5 @@
-SubjectReduction.agda:22,40-42
-.SubjectReduction.tick-1 != (.SubjectReduction.tick-3 eq P Px .s)
-of type Stream
+SubjectReduction.agda:24,44-46
+.SubjectReduction.♯-1 != (.SubjectReduction.♯-3 eq P Px .s) of type
+(∞ Stream)
 when checking that the expression Px has type
-P (.SubjectReduction.tick-3 eq P Px .s)
+P (tick (.SubjectReduction.♯-3 eq P Px .s))

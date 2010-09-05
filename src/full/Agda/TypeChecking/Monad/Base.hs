@@ -461,6 +461,9 @@ data Defn = Axiom
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
             }
+            -- ^ Note that, currently, the sharp constructor is
+            --   represented as a definition ('Def'), but if you look
+            --   up the name you will get a @Constructor@.
 	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String

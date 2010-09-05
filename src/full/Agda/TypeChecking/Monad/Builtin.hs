@@ -60,11 +60,12 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
     primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
-    primEquality, primRefl, 
+    primInf, primSharp, primFlat,
+    primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
     -- builtins for reflection:
-    primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar, 
-    primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi, 
+    primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
+    primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermUnsupported
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
@@ -91,6 +92,9 @@ primNatLess      = getBuiltin builtinNatLess
 primSize         = getBuiltin builtinSize
 primSizeSuc      = getBuiltin builtinSizeSuc
 primSizeInf      = getBuiltin builtinSizeInf
+primInf          = getBuiltin builtinInf
+primSharp        = getBuiltin builtinSharp
+primFlat         = getBuiltin builtinFlat
 primEquality     = getBuiltin builtinEquality
 primRefl         = getBuiltin builtinRefl
 primLevel        = getBuiltin builtinLevel
@@ -107,7 +111,7 @@ primAgdaTermDef      = getBuiltin builtinAgdaTermDef
 primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
-primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported 
+primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
 
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
@@ -133,6 +137,9 @@ builtinIO           = "IO"
 builtinSize         = "SIZE"
 builtinSizeSuc      = "SIZESUC"
 builtinSizeInf      = "SIZEINF"
+builtinInf          = "INFINITY"
+builtinSharp        = "SHARP"
+builtinFlat         = "FLAT"
 builtinEquality     = "EQUALITY"
 builtinRefl         = "REFL"
 builtinLevelMax     = "LEVELMAX"

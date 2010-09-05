@@ -1,10 +1,6 @@
 module InductiveAndCoinductiveConstructors where
 
-codata ∞ (T : Set) : Set where
-  ♯_ : (x : T) → ∞ T
-
-♭ : ∀ {T} → ∞ T → T
-♭ (♯ x) = x
+open import Imports.Coinduction
 
 record ⊤ : Set where
 

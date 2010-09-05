@@ -1,3 +1,4 @@
-CoinductiveBuiltinList.agda:7,1-26
-List is not an inductive data type
-when checking the pragma BUILTIN LIST List
+CoinductiveBuiltinList.agda:11,18-21
+List .A !=< ∞ (List .A) of type Set
+when checking that the expression _∷_ has type
+.A → List .A → List .A

@@ -57,7 +57,7 @@ data NiceDeclaration
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
-	| DataDef Range Induction Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
+	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
 	| RecDef Range Fixity Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
           -- ^ The 'NiceConstructor' has a dummy type field (the
           --   record constructor type has not been computed yet).
@@ -82,6 +82,7 @@ data DeclarationException
 	| MissingTypeSignature LHS
 	| NotAllowedInMutual NiceDeclaration
 	| UnknownNamesInFixityDecl [Name]
+        | Codata Range
 	| DeclarationPanic String
     deriving (Typeable)
 
@@ -92,6 +93,7 @@ instance HasRange DeclarationException where
     getRange (MissingTypeSignature x)	   = getRange x
     getRange (NotAllowedInMutual x)	   = getRange x
     getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
+    getRange (Codata r)                    = r
     getRange (DeclarationPanic _)	   = noRange
 
 instance HasRange NiceDeclaration where
@@ -106,9 +108,9 @@ instance HasRange NiceDeclaration where
     getRange (PrimitiveFunction r _ _ _ _ _)   = r
 
 instance HasRange NiceDefinition where
-  getRange (FunDef r _ _ _ _ _ _)    = r
-  getRange (DataDef r _ _ _ _ _ _ _) = r
-  getRange (RecDef r _ _ _ _ _ _ _)  = r
+  getRange (FunDef r _ _ _ _ _ _)   = r
+  getRange (DataDef r _ _ _ _ _ _)  = r
+  getRange (RecDef r _ _ _ _ _ _ _) = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -141,6 +143,9 @@ instance Show DeclarationException where
       decl (NiceImport _ _ _ _ _)	     = "Import statements"
       decl (NicePragma _ _)		     = "Pragmas"
       decl (PrimitiveFunction _ _ _ _ _ _)   = "Primitive declarations"
+  show (Codata _) =
+    "The codata construction has been removed. " ++
+    "Use the INFINITY builtin instead."
   show (DeclarationPanic s) = s
 
 {--------------------------------------------------------------------------
@@ -219,9 +224,10 @@ niceDeclarations ds = do
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
 			nds = case d of
-                            Field h x t             -> return $ niceAxioms fixs [ Field h x t ]
-			    Data   r ind x tel t cs -> dataOrRec (flip DataDef ind) niceAx r x tel t cs
-			    Record r x c tel t cs   -> do
+                            Field h x t                   -> return $ niceAxioms fixs [ Field h x t ]
+			    Data r CoInductive x tel t cs -> throwError (Codata r)
+			    Data r Inductive   x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
+			    Record r x c tel t cs         -> do
                               let dummyType = Prop noRange
                                   c'        = (\c -> niceAxiom fixs (TypeSig c dummyType)) <$> c
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
@@ -405,10 +411,9 @@ niceDeclarations ds = do
 
 	mkAbstractDef d =
 	    case d of
-		FunDef r ds f a _ x cs      -> FunDef r ds f a AbstractDef x
-						  (map mkAbstractClause cs)
-		DataDef r ind f a _ x ps cs -> DataDef r ind f a AbstractDef x ps $ map mkAbstract cs
-		RecDef r f a _ x c ps cs    -> RecDef r f a AbstractDef x (mkAbstract <$> c) ps $ map mkAbstract cs
+		FunDef r ds f a _ x cs   -> FunDef r ds f a AbstractDef x (map mkAbstractClause cs)
+		DataDef r f a _ x ps cs  -> DataDef r f a AbstractDef x ps $ map mkAbstract cs
+		RecDef r f a _ x c ps cs -> RecDef r f a AbstractDef x (mkAbstract <$> c) ps $ map mkAbstract cs
 
 	mkAbstractClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
@@ -433,10 +438,9 @@ niceDeclarations ds = do
 
 	mkPrivateDef d =
 	    case d of
-		FunDef r ds f _ a x cs      -> FunDef r ds f PrivateAccess a x
-						  (map mkPrivateClause cs)
-		DataDef r ind f _ a x ps cs -> DataDef r ind f PrivateAccess a x ps (map mkPrivate cs)
-		RecDef r f _ a x c ps cs    -> RecDef r f PrivateAccess a x (mkPrivate <$> c) ps cs
+		FunDef r ds f _ a x cs   -> FunDef r ds f PrivateAccess a x (map mkPrivateClause cs)
+		DataDef r f _ a x ps cs  -> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
+		RecDef r f _ a x c ps cs -> RecDef r f PrivateAccess a x (mkPrivate <$> c) ps cs
 
 	mkPrivateClause (Clause x lhs rhs wh with) =
 	    Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)

@@ -3,7 +3,7 @@ module MultipleIdentifiersOneSignature where
 data Bool : Set where
   false true : Bool
 
-codata Suit : Set where
+data Suit : Set where
   ♥ ♢ ♠ ♣ : Suit
 
 record R : Set₁ where

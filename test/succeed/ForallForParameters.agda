@@ -12,7 +12,7 @@ module M A {B} (C : F A B) where
 
   data P A : D A -> Set where
 
-  codata Q {A} X : P A X -> Set where
+  data Q {A} X : P A X -> Set where
 
 module N I J K = M I {J} K
 open module O I J K = N I J K

@@ -1,6 +1,7 @@
 {-# OPTIONS --guardedness-preserving-type-constructors --universe-polymorphism #-}
 module UnusedArgsInPositivity where
 
+open import Coinduction
 
 module Ex₁ where
   data Unit : Set where
@@ -23,22 +24,16 @@ module Ex₂ where
 
   data Maybe A : Set where
 
-  codata ∞ {a} (A : Set a) : Set a where
-    ♯_ : (x : A) → ∞ A
-
-  ♭ : ∀ {a} {A : Set a} → ∞ A → A
-  ♭ (♯ x) = x
-
   data Rec (A : ∞ Set) : Set where
     fold : ♭ A → Rec A
 
-  mutual 
+  mutual
 
     data Data : Set where
       maybe : ∞ Data -> Data
       sigma : (A : Data) → (El A → Data) -> Data
 
-    El : Data → Set 
+    El : Data → Set
     El (maybe A) = Rec (♯ Maybe (El (♭ {A = Data} A)))
     El (sigma A B) = El A
 

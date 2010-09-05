@@ -20,6 +20,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 
 import Agda.TypeChecking.Rules.Term ( checkExpr )
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 
 import Agda.Utils.Size
 import Agda.Utils.Impossible
@@ -332,6 +333,27 @@ bindBuiltinDummyConstructor (A.ScopedExpr _ e) = bindBuiltinDummyConstructor e
 bindBuiltinDummyConstructor (A.Con (AmbQ [c])) = return (Con c [])
 bindBuiltinDummyConstructor e = typeError $ GenericError "bad BUILTIN"
 
+-- | @bindPostulatedName builtin e m@ checks that @e@ is a postulated
+-- name @q@, and binds the builtin @builtin@ to the term @m q def@,
+-- where @def@ is the current 'Definition' of @q@.
+
+bindPostulatedName ::
+  String -> A.Expr -> (QName -> Definition -> TCM Term) -> TCM ()
+bindPostulatedName builtin e m = do
+  q   <- getName e
+  def <- ignoreAbstractMode $ getConstInfo q
+  case theDef def of
+    Axiom {} -> bindBuiltinName builtin =<< m q def
+    _        -> err
+  where
+  err = typeError $ GenericError $
+          "The argument to BUILTIN " ++ builtin ++
+          " must be a postulated name"
+
+  getName (A.Def q)          = return q
+  getName (A.ScopedExpr _ e) = getName e
+  getName _                  = err
+
 -- | Builtin constructors
 builtinConstructors :: [(String, A.Expr -> TCM Term)]
 builtinConstructors =
@@ -380,21 +402,8 @@ bindConstructor s _ e               = typeError $ BuiltinMustBeConstructor s e
 -- | Bind a builtin postulate. Pre-condition: argument is an element of
 --   'builtinPostulates'.
 bindPostulate :: String -> TCM Type -> A.Expr -> TCM ()
-bindPostulate s typ e = do
-  t <- typ
-  v <- checkExpr e t
-
-  let bad = typeError $ GenericError $ "The builtin " ++ s ++ " must be bound to a postulated identifier."
-
-  case v of
-    Def c []  -> ignoreAbstractMode $ do
-      defn <- theDef <$> getConstInfo c
-      case defn of
-        Axiom{} -> return ()
-        _       -> bad
-    _         -> bad
-
-  bindBuiltinName s v
+bindPostulate builtin typ e = bindPostulatedName builtin e $ \q _ ->
+  checkExpr (A.Def q) =<< typ
 
 -- | Bind a builtin thing to an expression.
 bindBuiltin :: String -> A.Expr -> TCM ()
@@ -407,8 +416,10 @@ bindBuiltin b e = do
             | elem b builtinTypes                        = bindBuiltinType b e
             | elem b [builtinList,builtinArg]            = bindBuiltinType1 b e
             | b == builtinEquality                       = bindBuiltinEquality e
+            | b == builtinInf                            = bindBuiltinInf e
+            | b == builtinSharp                          = bindBuiltinSharp e
+            | b == builtinFlat                           = bindBuiltinFlat e
             | Just bind  <- lookup b builtinConstructors = bindConstructor b bind e
             | Just (s,v) <- lookup b builtinPrimitives   = bindBuiltinPrimitive s b e v
             | Just typ   <- lookup b builtinPostulates   = bindPostulate b typ e
             | otherwise                                  = typeError $ NoSuchBuiltinName b
-

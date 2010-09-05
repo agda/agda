@@ -14,7 +14,7 @@ test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 			 TT.agda ISWIM.agda ParenDepTac.agda \
 			 AIM5/Hedberg/SET.agda AIM5/yoshiki/SET.agda \
 			 SimpleTypes.agda Monad.agda Miller/Pat.agda \
-       syntax/Literate.lagda StreamEating.agda
+       syntax/Literate.lagda Termination/StreamEating.agda
 tests	   = $(patsubst %,%.test,$(test_files))
 
 echo = $(shell which echo)

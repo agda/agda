@@ -40,8 +40,8 @@ import Agda.Utils.Impossible
 
 -- | Type check a datatype definition. Assumes that the type has already been
 --   checked.
-checkDataDef :: Info.DefInfo -> Induction -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
-checkDataDef i ind name ps cs =
+checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
+checkDataDef i name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
 	let npars = size ps
 
@@ -82,7 +82,7 @@ checkDataDef i ind name ps cs =
 	    -- Change the datatype from an axiom to a datatype with no constructors.
             let dataDef = Datatype { dataPars           = npars
                                    , dataIxs            = nofIxs
-                                   , dataInduction      = ind
+                                   , dataInduction      = Inductive
                                    , dataClause         = Nothing
                                    , dataCons           = []     -- Constructors are added later
 				   , dataSort           = s
@@ -96,7 +96,7 @@ checkDataDef i ind name ps cs =
 	      addConstant name ( Defn name t (defaultDisplayForm name) 0 dataDef )
 
 	    -- Check the types of the constructors
-	    mapM_ (checkConstructor name tel' nofIxs s ind) cs
+	    mapM_ (checkConstructor name tel' nofIxs s) cs
 
 	    -- Return the data definition
 	    return dataDef
@@ -137,12 +137,11 @@ checkDataDef i ind name ps cs =
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
 checkConstructor :: QName -> Telescope -> Nat -> Sort
-                 -> Induction -- ^ Is the constructor inductive or coinductive?
                  -> A.Constructor -> TCM ()
-checkConstructor d tel nofIxs s ind (A.ScopedDecl scope [con]) = do
+checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
-  checkConstructor d tel nofIxs s ind con
-checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
+  checkConstructor d tel nofIxs s con
+checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
@@ -154,7 +153,7 @@ checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
 	escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn c (telePi tel t') (defaultDisplayForm c) 0
-	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) ind
+	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive
   where
     debugEndsIn t d n =
       reportSDoc "tc.data.con" 15 $ vcat
@@ -169,7 +168,7 @@ checkConstructor d tel nofIxs s ind con@(A.Axiom i c e) =
         [ text "checking that the type fits in"
         , nest 2 $ prettyTCM s
         ]
-checkConstructor _ _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
+checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
 -- | Bind the parameters of a datatype. The bindings should be domain free.

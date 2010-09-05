@@ -1,19 +1,19 @@
 {- Agda can check termination of Stream transducer operations.
-   (Created: Andreas Abel, 2008-12-01 
+   (Created: Andreas Abel, 2008-12-01
     at Agda Intensive Meeting 9 in Sendai, Japan.
     I acknowledge the support by AIST and JST.)
 
 Stream transducers have been described in:
 
   N. Ghani, P. Hancock, and D. Pattinson,
-  Continuous functions on final coalgebras. 
-  In Proc. CMCS 2006, Electr. Notes in Theoret. Comp. Sci., 2006. 
+  Continuous functions on final coalgebras.
+  In Proc. CMCS 2006, Electr. Notes in Theoret. Comp. Sci., 2006.
 
 They have been modelled by mixed equi-(co)inductive sized types in
 
-  A. Abel, 
+  A. Abel,
   Mixed Inductive/Coinductive Types and Strong Normalization.
-  In APLAS 2007, LNCS 4807. 
+  In APLAS 2007, LNCS 4807.
 
 Here we model them by mutual data/codata and mutual recursion/corecursion.
 Cf. examples/StreamEating.agda
@@ -21,27 +21,29 @@ Cf. examples/StreamEating.agda
 
 module StreamProc where
 
-codata Stream (A : Set) : Set where
-  cons : A -> Stream A -> Stream A
+open import Common.Coinduction
+
+data Stream (A : Set) : Set where
+  cons : A -> ∞ (Stream A) -> Stream A
 
 -- Stream Transducer: Trans A B
 -- intended semantics: Stream A -> Stream B
 
 mutual
 
-  codata Trans (A B : Set) : Set where
-    〈_〉 : Trans' A B -> Trans A B
+  data Trans (A B : Set) : Set where
+    〈_〉 : ∞ (Trans' A B) -> Trans A B
 
   data Trans' (A B : Set) : Set where
     get : (A -> Trans' A B) -> Trans' A B
     put : B -> Trans A B -> Trans' A B
-  
+
 out : forall {A B} -> Trans A B -> Trans' A B
-out 〈 p 〉 = p 
+out 〈 p 〉 = p
 
 -- evaluating a stream transducer ("stream eating")
 
-mutual 
+mutual
 
   -- eat is defined by corecursion into Stream B
   eat  : forall {A B} -> Trans A B -> Stream A -> Stream B

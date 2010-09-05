@@ -14,6 +14,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.Utils.Monad
@@ -85,15 +86,28 @@ haskellKind a = do
     Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
     _       -> notAHaskellKind a
 
+-- | Note that @Inf a b@, where @Inf@ is the INFINITY builtin, is
+-- translated to @<translation of b>@ (assuming that all coinductive
+-- builtins are defined).
+--
+-- Note that if @haskellType@ supported universe polymorphism then the
+-- special treatment of INFINITY might not be needed.
+
 haskellType :: MonadTCM tcm => Type -> tcm HaskellType
 haskellType = liftTCM . fromType
   where
     fromArgs = mapM (fromTerm . unArg)
     fromType = fromTerm . unEl
     fromTerm v = do
-      v <- reduce v
+      v   <- reduce v
+      kit <- liftTCM coinductionKit
+      let err = notAHaskellType (El Prop v)
       case v of
         Var x args -> hsApp <$> getHsVar x <*> fromArgs args
+        Def d args | Just d == (nameOfInf <$> kit) ->
+          case args of
+            [a, b] -> fromTerm (unArg b)
+            _      -> err
         Def d args -> hsApp <$> getHsType d <*> fromArgs args
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
@@ -104,14 +118,11 @@ haskellType = liftTCM . fromType
               return $ hsForall x $ hsFun "()" b
           )
           (if 0 `freeIn` absBody b
-           then notAHaskellType (El Prop v)
+           then err
            else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
           )
-        Con{}      -> notAHaskellType (El Prop v)
-        Lam{}      -> notAHaskellType (El Prop v)
-        Lit{}      -> notAHaskellType (El Prop v)
-        Sort{}     -> notAHaskellType (El Prop v)
-        MetaV{}    -> notAHaskellType (El Prop v)
-
-
-
+        Con{}      -> err
+        Lam{}      -> err
+        Lit{}      -> err
+        Sort{}     -> err
+        MetaV{}    -> err

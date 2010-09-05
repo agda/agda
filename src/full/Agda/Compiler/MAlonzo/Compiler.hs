@@ -33,6 +33,7 @@ import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -100,12 +101,59 @@ imports = (++) <$> hsImps <*> imps where
 --------------------------------------------------
 
 definitions :: Definitions -> TCM [HsDecl]
-definitions = M.fold (liftM2(++).(definition<.>instantiateFull)) declsForPrim
+definitions defs = do
+  kit <- coinductionKit
+  M.fold (liftM2 (++) . (definition kit <.> instantiateFull))
+         declsForPrim
+         defs
 
-definition :: Definition -> TCM [HsDecl]
-definition (Defn q ty _ _ d) = do
+-- | Note that the INFINITY, SHARP and FLAT builtins are translated as
+-- follows (if a 'CoinductionKit' is given):
+--
+-- @
+--   type Infinity a b = b
+--
+--   sharp :: forall a. () -> forall b. () -> b -> b
+--   sharp _ _ x = x
+--
+--   flat :: forall a. () -> forall b. () -> b -> b
+--   flat _ _ x = x
+-- @
+
+definition :: Maybe CoinductionKit -> Definition -> TCM [HsDecl]
+definition kit (Defn q ty _ _ d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
+
+    -- Special treatment of coinductive builtins.
+    Datatype{} | Just q == (nameOfInf <$> kit) -> do
+      let inf = unqhname "T" q
+          a   = ihname "a" 0
+          b   = ihname "a" 1
+      return [HsTypeDecl dummy inf [a, b] (HsTyVar b)]
+    Constructor{} | Just q == (nameOfSharp <$> kit) -> do
+      let sharp = unqhname "d" q
+          x     = ihname "x" 0
+      return $
+        [ HsTypeSig dummy [sharp] $ fakeType $
+            "forall a. () -> forall b. () -> b -> b"
+        , HsFunBind [HsMatch dummy sharp
+                             [HsPWildCard, HsPWildCard, HsPVar x]
+                             (HsUnGuardedRhs (HsVar (UnQual x)))
+                             []]
+        ]
+    Function{} | Just q == (nameOfFlat <$> kit) -> do
+      let flat = unqhname "d" q
+          x    = ihname "x" 0
+      return $
+        [ HsTypeSig dummy [flat] $ fakeType $
+            "forall a. () -> forall b. () -> b -> b"
+        , HsFunBind [HsMatch dummy flat
+                             [HsPWildCard, HsPWildCard, HsPVar x]
+                             (HsUnGuardedRhs (HsVar (UnQual x)))
+                             []]
+        ]
+
     Axiom{ axHsDef = Just (HsDefn ty hs) } -> return $ fbWithType ty (fakeExp hs)
     Axiom{}                                -> return $ fb axiomErr
     Function{ funClauses =        cls } -> function cls

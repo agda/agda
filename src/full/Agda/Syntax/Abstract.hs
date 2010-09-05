@@ -50,7 +50,7 @@ data Expr
         | ETel Telescope                     -- ^ only used when printing telescopes
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
-        | QuoteGoal ExprInfo Name Expr       -- ^  
+        | QuoteGoal ExprInfo Name Expr       -- ^
         | Quote ExprInfo Expr                -- ^
   deriving (Typeable, Data, Show)
 
@@ -84,7 +84,7 @@ data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type 
 -- | A definition without its type signature.
 data Definition
 	= FunDef     DefInfo QName [Clause]
-	| DataDef    DefInfo QName Induction [LamBinding] [Constructor]
+	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
 	| RecDef     DefInfo QName (Maybe Constructor) [LamBinding] Expr [Declaration]
 	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
@@ -240,7 +240,7 @@ instance HasRange Declaration where
 
 instance HasRange Definition where
     getRange (FunDef  i _ _    )   = getRange i
-    getRange (DataDef i _ _ _ _  ) = getRange i
+    getRange (DataDef i _ _ _  )   = getRange i
     getRange (RecDef  i _ _ _ _ _) = getRange i
     getRange (ScopedDef _ d)       = getRange d
 
@@ -319,7 +319,7 @@ instance KillRange Declaration where
 
 instance KillRange Definition where
   killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
-  killRange (DataDef i a b c d)   = killRange5 DataDef i a b c d
+  killRange (DataDef i a b c)     = killRange4 DataDef i a b c
   killRange (RecDef  i a b c d e) = killRange6 RecDef  i a b c d e
   killRange (ScopedDef s a)       = killRange1 (ScopedDef s) a
 
@@ -367,7 +367,7 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   where
   allNamesD :: Definition -> Seq QName
   allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
-  allNamesD (DataDef _ q _ _ decls)  = q <| Fold.foldMap allNames decls
+  allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
   allNamesD (ScopedDef _ def)        = allNamesD def
   allNamesD (RecDef _ q c _ _ decls) =
     q <| Fold.foldMap allNames c >< Fold.foldMap allNames decls

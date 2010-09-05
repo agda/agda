@@ -2,11 +2,7 @@
 
 module TypeConstructorsWhichPreserveGuardedness4 where
 
-codata ∞ (A : Set₁) : Set₁ where
-  ♯_ : A → ∞ A
-
-♭ : {A : Set₁} → ∞ A → A
-♭ (♯ x) = x
+open import Imports.Coinduction
 
 data Rec (A : ∞ Set) : Set where
   fold : ♭ A → Rec A

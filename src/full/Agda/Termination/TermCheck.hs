@@ -35,6 +35,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
@@ -116,7 +117,7 @@ termMutual i ts ds = if names == [] then return [] else
      cutoff <- optTerminationDepth <$> pragmaOptions
      let ?cutoff = cutoff
 
-     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++ 
+     reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
        " with cutoff=" ++ show cutoff ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
@@ -127,6 +128,9 @@ termMutual i ts ds = if names == [] then return [] else
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
 
+     -- The name of sharp (if available).
+     sharp <- fmap nameOfSharp <$> coinductionKit
+
      guardingTypeConstructors <-
        optGuardingTypeConstructors <$> pragmaOptions
 
@@ -135,6 +139,7 @@ termMutual i ts ds = if names == [] then return [] else
            { useDotPatterns           = False
            , guardingTypeConstructors = guardingTypeConstructors
            , withSizeSuc              = suc
+           , sharp                    = sharp
            }
      calls1 <- collect conf{ useDotPatterns = False }
      reportS "term.lex" 20 $ unlines
@@ -280,6 +285,9 @@ data DBPConf = DBPConf { useDotPatterns           :: Bool
                          -- ^ Do we assume that record and data type
                          --   constructors preserve guardedness?
                        , withSizeSuc              :: Maybe QName
+                       , sharp                    :: Maybe QName
+                         -- ^ The name of the sharp constructor, if
+                         --   any.
                        }
 
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
@@ -398,7 +406,7 @@ termTerm conf names f pats0 t0 = do
   where
        Just fInd = toInteger <$> List.elemIndex f names
 
-       -- sorts can contain arb. terms of type Nat, 
+       -- sorts can contain arb. terms of type Nat,
        -- so look for recursive calls also
        -- in sorts.  Ideally, Sort would not be its own datatype but just
        -- a subgrammar of Term, then we would not need this boilerplate.
@@ -421,7 +429,7 @@ termTerm conf names f pats0 t0 = do
        loopType pats guarded (El s t) = liftM2 Term.union
          (loopSort pats s)
          (loop pats guarded t)
-     
+
        loop :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Term -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
@@ -508,19 +516,19 @@ termTerm conf names f pats0 t0 = do
          case t of
 
             -- Constructed value.
-            Con c args -> do
-              ind <- whatInduction c
-              constructor c ind $ zip args (repeat True)
+            Con c args ->
+              constructor c Inductive $ zip args (repeat True)
 
-            Def g args0 -> do
-              if guardingTypeConstructors conf then do
+            Def g args0
+              | Just g == sharp conf ->
+                constructor g CoInductive $ zip args0 (repeat True)
+              | guardingTypeConstructors conf -> do
                 gDef <- theDef <$> getConstInfo g
                 case gDef of
                   Datatype {dataArgOccurrences = occs} -> con occs
                   Record   {recArgOccurrences  = occs} -> con occs
                   _                                    -> fun
-               else
-                fun
+              | otherwise -> fun
               where
               -- Data or record type constructor.
               con occs =
@@ -639,10 +647,10 @@ compareTerm' _ t@Con{} (ConDBP _ ps)
 -- register also increase
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    return $ decr (-1) .*. infimum os 
+    return $ decr (-1) .*. infimum os
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    return $ if (null os) then Term.unknown else decr (-1) .*. infimum os 
+    return $ if (null os) then Term.unknown else decr (-1) .*. infimum os
 compareTerm' _ _ _ = return Term.unknown
 
 isSubTerm :: Term -> DeBruijnPat -> Bool

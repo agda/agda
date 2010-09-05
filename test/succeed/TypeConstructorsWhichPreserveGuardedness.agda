@@ -2,11 +2,7 @@
 
 module TypeConstructorsWhichPreserveGuardedness where
 
-codata ∞ (A : Set₁) : Set₁ where
-  ♯_ : A → ∞ A
-
-♭ : {A : Set₁} → ∞ A → A
-♭ (♯ x) = x
+open import Coinduction
 
 record ⊤ : Set where
 

@@ -2,14 +2,14 @@
 Stream transducers have been described in:
 
   N. Ghani, P. Hancock, and D. Pattinson,
-  Continuous functions on final coalgebras. 
-  In Proc. CMCS 2006, Electr. Notes in Theoret. Comp. Sci., 2006. 
+  Continuous functions on final coalgebras.
+  In Proc. CMCS 2006, Electr. Notes in Theoret. Comp. Sci., 2006.
 
 They have been modelled by mixed equi-(co)inductive sized types in
 
-  A. Abel, 
+  A. Abel,
   Mixed Inductive/Coinductive Types and Strong Normalization.
-  In APLAS 2007, LNCS 4807. 
+  In APLAS 2007, LNCS 4807.
 
 Here we model them by mutual data/codata and mixed recursion/corecursion.
 Cf. examples/Termination/StreamProc.agda
@@ -17,11 +17,7 @@ Cf. examples/Termination/StreamProc.agda
 
 module StreamEating where
 
-codata ∞ (A : Set) : Set where
-  ♯_ : (x : A) → ∞ A
-
-♭ : ∀ {A} → ∞ A → A
-♭ (♯ x) = x
+open import Common.Coinduction
 
 -- Infinite streams.
 
@@ -35,7 +31,7 @@ data Stream (A : Set) : Set where
 data SP (A B : Set) : Set where
   get : (f : A → SP A B) → SP A B
   put : (b : B) (sp : ∞ (SP A B)) → SP A B
-  
+
 -- eat is defined by (outer) corecursion into Stream B
 -- and an inner recursion on SP A B
 eat : ∀ {A B} → SP A B → Stream A → Stream B

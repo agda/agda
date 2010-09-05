@@ -2,19 +2,21 @@
 
 module Issue89 where
 
+open import Coinduction renaming (∞ to ∞_)
+
 ------------------------------------------------------------------------
 -- Streams
 
 infixr 5 _≺_
 
-codata Stream A : Set where
-  _≺_ : (x : A) (xs : Stream A) -> Stream A
+data Stream A : Set where
+  _≺_ : (x : A) (xs : ∞ (Stream A)) -> Stream A
 
 head : forall {A} -> Stream A -> A
 head (x ≺ xs) = x
 
 tail : forall {A} -> Stream A -> Stream A
-tail (x ≺ xs) = xs
+tail (x ≺ xs) = ♭ xs
 
 ------------------------------------------------------------------------
 -- Stream programs
@@ -25,8 +27,8 @@ infix  4 ↓_
 
 mutual
 
-  codata Stream′ A : Set1 where
-    _≺_ : (x : A) (xs : StreamProg A) -> Stream′ A
+  data Stream′ A : Set1 where
+    _≺_ : (x : A) (xs : ∞ (StreamProg A)) -> Stream′ A
 
   data StreamProg (A : Set) : Set1 where
     ↓_  : (xs : Stream′ A) -> StreamProg A
@@ -37,18 +39,18 @@ head′ : ∀ {A} → Stream′ A → A
 head′ (x ≺ xs) = x
 
 tail′ : ∀ {A} → Stream′ A → StreamProg A
-tail′ (x ≺ xs) = xs
+tail′ (x ≺ xs) = ♭ xs
 
 P⇒′ : forall {A} -> StreamProg A -> Stream′ A
 P⇒′ (↓ xs)    = xs
-P⇒′ (x ∞)     = x ≺ x ∞
+P⇒′ (x ∞)     = x ≺ ♯ (x ∞)
 P⇒′ (xs ⋎ ys) with P⇒′ xs
-P⇒′ (xs ⋎ ys) | xs′ = head′ xs′ ≺ ys ⋎ tail′ xs′
+P⇒′ (xs ⋎ ys) | xs′ = head′ xs′ ≺ ♯ (ys ⋎ tail′ xs′)
 
 mutual
 
   ′⇒ : forall {A} -> Stream′ A -> Stream A
-  ′⇒ (x ≺ xs) = x ≺ P⇒ xs
+  ′⇒ (x ≺ xs) = x ≺ ♯ P⇒ (♭ xs)
 
   P⇒ : forall {A} -> StreamProg A -> Stream A
   P⇒ xs = ′⇒ (P⇒′ xs)
@@ -61,14 +63,15 @@ infix 4 _≡_ _≈_ _≊_
 data _≡_ {a : Set} (x : a) : a -> Set where
   ≡-refl : x ≡ x
 
-codata _≈_ {A} (xs ys : Stream A) : Set where
-  _≺_ : (x≡ : head xs ≡ head ys) (xs≈ : tail xs ≈ tail ys) -> xs ≈ ys
+data _≈_ {A} (xs ys : Stream A) : Set where
+  _≺_ : (x≡ : head xs ≡ head ys) (xs≈ : ∞ (tail xs ≈ tail ys)) ->
+        xs ≈ ys
 
 _≊_ : forall {A} (xs ys : StreamProg A) -> Set
 xs ≊ ys = P⇒ xs ≈ P⇒ ys
 
 foo : forall {A} (x : A) -> x ∞ ⋎ x ∞ ≊ x ∞
-foo x = ≡-refl ≺ foo x
+foo x = ≡-refl ≺ ♯ foo x
 
 -- The first goal has goal type
 --   head (′⇒ (x ≺ x ∞ ⋎ x ∞)) ≡ head (′⇒ (x ≺ x ∞)).

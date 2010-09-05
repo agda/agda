@@ -1,11 +1,10 @@
 module CoinductiveConstructorsAndLet where
 
+open import Imports.Coinduction
+
 data D : Set where
 
-codata ∞ : Set where
-  ♯ : D → ∞
-
-foo : D → ∞
+foo : D → ∞ D
 foo x = let y = x in ♯ y
 
 -- CoinductiveConstructorsAndLet.agda:9,24-25
