@@ -1,4 +1,5 @@
-{-# LANGUAGE ExistentialQuantification, FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE ExistentialQuantification, FlexibleContexts,
+             ScopedTypeVariables, CPP #-}
 
 module Agda.Auto.Typecheck where
 

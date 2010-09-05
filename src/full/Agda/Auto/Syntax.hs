@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ExistentialQuantification, CPP #-}
 
 module Agda.Auto.Syntax where
 

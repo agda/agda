@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Auto.Auto (auto) where
 
 import Agda.Utils.Impossible

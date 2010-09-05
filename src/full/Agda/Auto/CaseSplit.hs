@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types, ScopedTypeVariables #-}
+{-# LANGUAGE Rank2Types, ScopedTypeVariables, CPP #-}
 module Agda.Auto.CaseSplit where
 
 import Agda.Utils.Impossible

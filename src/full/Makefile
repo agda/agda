@@ -104,13 +104,13 @@ $(OUT_P)/%.hs : %.y
 ## Tags ###################################################################
 
 hTags=../hTags/dist/build/hTags/hTags
+hTags_include=../../dist/build/autogen/cabal_macros.h
 
 $(hTags) :
 	$(MAKE) -C ../hTags
 
-tags : $(src_files) $(hTags)
-	$(hTags) -c $(src_files)
+tags : $(src_files) $(hTags) $(hTags_include)
+	$(hTags) -i$(hTags_include) -c $(src_files)
 
-TAGS : $(src_files) $(hTags)
-	$(hTags) -e $(src_files)
-
+TAGS : $(src_files) $(hTags) $(hTags_include)
+	$(hTags) -i$(hTags_include) -e $(src_files)

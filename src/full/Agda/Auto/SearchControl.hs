@@ -1,4 +1,5 @@
-{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE UndecidableInstances, MultiParamTypeClasses,
+             TypeSynonymInstances, FlexibleInstances, CPP #-}
 
 module Agda.Auto.SearchControl where
 

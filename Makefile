@@ -167,17 +167,10 @@ dist :
 
 endif
 
-ifeq ($(HAVE_HASKTAGS),Yes)
 tags :
 	$(MAKE) -C $(FULL_SRC_DIR) tags
 TAGS :
 	$(MAKE) -C $(FULL_SRC_DIR) TAGS
-else
-tags :
-	@true
-TAGS :
-	@true
-endif
 
 ## Testing ###########################################################
 

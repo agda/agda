@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 module Agda.Auto.Convert where
 
 import Agda.Utils.Impossible

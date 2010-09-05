@@ -83,9 +83,10 @@ main = do
          | otherwise = do
             top : _ <- lines <$> runCmd "ghc --print-libdir"
             ts <- runGhc (Just top) $ do
-              -- This looks like a no-op but it's actually not.
-              -- setSessionDynFlags does interesting (and necessary) things.
-              setSessionDynFlags =<< getSessionDynFlags
+              dynFlags <- getSessionDynFlags
+              setSessionDynFlags $ dynFlags { opt_P =
+                concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
+                opt_P dynFlags }
               mapM (\f -> liftM2 ((,,) f) (liftIO $ readFile f)
                                           (goFile f)) $
                          optFiles opts
@@ -119,6 +120,7 @@ data Options = Options
   , optCTagsFile :: String
   , optETagsFile :: String
   , optHelp      :: Bool
+  , optIncludes  :: [FilePath]
   , optFiles     :: [FilePath]
   }
 
@@ -129,14 +131,16 @@ defaultOptions files = Options
   , optCTagsFile = "tags"
   , optETagsFile = "TAGS"
   , optHelp      = False
+  , optIncludes  = []
   , optFiles     = files
   }
 
 options :: [OptDescr (Options -> Options)]
 options =
-  [ Option []    ["help"]  (NoArg setHelp)  "Show help."
-  , Option ['c'] ["ctags"] (OptArg setCTagsFile "FILE") "Generate ctags (default file=tags)"
-  , Option ['e'] ["etags"] (OptArg setETagsFile "FILE") "Generate etags (default file=TAGS)"
+  [ Option []    ["help"]    (NoArg setHelp)  "Show help."
+  , Option ['c'] ["ctags"]   (OptArg setCTagsFile "FILE") "Generate ctags (default file=tags)"
+  , Option ['e'] ["etags"]   (OptArg setETagsFile "FILE") "Generate etags (default file=TAGS)"
+  , Option ['i'] ["include"] (ReqArg addInclude   "FILE") "File to #include"
   ]
   where
     setHelp           o = o { optHelp      = True }
@@ -144,5 +148,4 @@ options =
     setETags          o = o { optETags     = True }
     setCTagsFile file o = o { optCTagsFile = fromMaybe "tags" file, optCTags = True }
     setETagsFile file o = o { optETagsFile = fromMaybe "TAGS" file, optETags = True }
-
-
+    addInclude   file o = o { optIncludes  = file : optIncludes o }
