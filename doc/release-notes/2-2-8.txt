@@ -51,15 +51,15 @@ Language
     ? : the argument is bigger or unrelated to the parameter
 
   This behavior, which is still the default (N = 1), will not
-  recognize the following functions as terminating.  
+  recognize the following functions as terminating.
 
     mutual
-  
+
       f : ℕ → ℕ
       f zero          = zero
       f (suc zero)    = zero
-      f (suc (suc n)) = aux n 
-  
+      f (suc (suc n)) = aux n
+
       aux : ℕ → ℕ
       aux m = f (suc m)
 
@@ -94,16 +94,16 @@ Language
     f (suc zero)    = zero
     f (suc (suc n)) with zero
     ... | _ = f (suc n)
-  
+
   is internally represented as
-  
+
     mutual
-  
+
       f : ℕ → ℕ
       f zero          = zero
       f (suc zero)    = zero
       f (suc (suc n)) = aux n zero
-  
+
       aux : ℕ → ℕ → ℕ
       aux m k = f (suc m)
 
@@ -136,7 +136,7 @@ Language
 	f (cons x nil)         = nil
 	f (cons x (cons y ys)) = aux y ys
 
-	aux : ℕ → List → List 
+	aux : ℕ → List → List
 	aux z zs = f (cons z zs)
 
     Here, the termination checker compares (cons z zs) to z and also
