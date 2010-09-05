@@ -100,7 +100,7 @@ tlmname m = do
         L.filter (flip (isPrefixOf `on` mnameToList) m) <$>
         L.map (iModuleName . miInterface) . M.elems <$>
         getVisitedModules
-  return $ case ms of (m' : _) -> m'; _ -> mazerror$ "tlmodOf: "++show m
+  return $ case ms of (m' : _) -> m'; _ -> __IMPOSSIBLE__
 
 -- qualify HsName n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
