@@ -2,6 +2,7 @@
 
 module Tags where
 
+import Data.Function
 import Data.List
 import Data.Maybe
 import Data.Map (Map, (!))
@@ -21,6 +22,16 @@ data Pos = Pos { line, column :: Int }
 data Tag = NoLoc String
          | Tag String FilePath Pos
   deriving (Eq, Ord)
+
+-- | Removes duplicate /adjacent/ tags, ignoring the 'Pos' field.
+
+removeDuplicates :: [Tag] -> [Tag]
+removeDuplicates = map head . groupBy ((==) `on` everythingButPos)
+  where
+  dummyPos = Pos 0 0
+
+  everythingButPos (Tag s f p) = Tag s f dummyPos
+  everythingButPos t@NoLoc {}  = t
 
 -- | Takes a list of (filename, file contents, tags) and generates
 -- text for an etags file.

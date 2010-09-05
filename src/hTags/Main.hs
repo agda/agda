@@ -61,7 +61,7 @@ goFile file = do
   (dflags, srcFile) <- preprocess env (file, Just $ Cpp HsSrcFile)
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
-    POk _ m   -> return $ tags $ unLoc m
+    POk _ m   -> return $ removeDuplicates $ tags $ unLoc m
     PFailed loc err -> do
       let file = unpackFS $ srcLocFile $ srcSpanStart loc
           line = srcSpanStartLine loc
