@@ -72,6 +72,16 @@ sigMName sig = case M.keys (sigSections sig) of
 -- utilities for haskell names
 --------------------------------------------------
 
+-- The following naming scheme seems to be used:
+--
+-- * Types coming from Agda are named "T<number>".
+--
+-- * Other definitions coming from Agda are named "d<number>".
+--   Exception: the main function is named "main".
+--
+-- * Names coming from Haskell must always be used qualified.
+--   Exception: names from the Prelude.
+
 ihname :: String -> Nat -> HsName
 ihname s i = HsIdent $ s ++ show i
 
