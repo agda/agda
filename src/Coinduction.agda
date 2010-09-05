@@ -11,17 +11,16 @@ import Level
 ------------------------------------------------------------------------
 -- A type used to make recursive arguments coinductive
 
--- See Data.Colist for examples of how this type is used, or
--- http://article.gmane.org/gmane.comp.lang.agda/633 for a longer
--- explanation.
-
 infix 1000 ♯_
 
-codata ∞ {a} (A : Set a) : Set a where
-  ♯_ : (x : A) → ∞ A
+postulate
+  ∞  : ∀ {a} (A : Set a) → Set a
+  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
+  ♭  : ∀ {a} {A : Set a} → ∞ A → A
 
-♭ : ∀ {a} {A : Set a} → ∞ A → A
-♭ (♯ x) = x
+{-# BUILTIN INFINITY ∞  #-}
+{-# BUILTIN SHARP    ♯_ #-}
+{-# BUILTIN FLAT     ♭  #-}
 
 ------------------------------------------------------------------------
 -- Rec, a type which is analogous to the Rec type constructor used in

@@ -24,19 +24,19 @@ data Unit : Set where
 
 infixr 5 _∷_
 
-codata Colist (A : Set) : Set where
+data Colist (A : Set) : Set where
   []  : Colist A
-  _∷_ : (x : A) (xs : Colist A) → Colist A
+  _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
 {-# COMPILED_DATA Colist [] [] (:) #-}
 
 fromColist : ∀ {A} → C.Colist A → Colist A
 fromColist []       = []
-fromColist (x ∷ xs) = x ∷ fromColist (♭ xs)
+fromColist (x ∷ xs) = x ∷ ♯ fromColist (♭ xs)
 
 toColist : ∀ {A} → Colist A → C.Colist A
 toColist []       = []
-toColist (x ∷ xs) = x ∷ ♯ toColist xs
+toColist (x ∷ xs) = x ∷ ♯ toColist (♭ xs)
 
 fromString : String → Colist Char
 fromString = fromColist ∘ String.toCostring
