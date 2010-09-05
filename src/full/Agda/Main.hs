@@ -48,7 +48,6 @@ import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.SizedTypes
 
 import Agda.Compiler.Agate.Main as Agate
-import Agda.Compiler.Alonzo.Main as Alonzo
 import Agda.Compiler.MAlonzo.Compiler as MAlonzo
 
 import Agda.Termination.TermCheck
@@ -88,7 +87,6 @@ runAgda = do
     checkFile = do
       i       <- optInteractive    <$> liftTCM commandLineOptions
       compile <- optCompile        <$> liftTCM commandLineOptions
-      alonzo  <- optCompileAlonzo  <$> liftTCM commandLineOptions
       malonzo <- optCompileMAlonzo <$> liftTCM commandLineOptions
       when i $ liftIO $ LocIO.putStr splashScreen
       let failIfNoInt (Just i) = return i
@@ -99,7 +97,6 @@ runAgda = do
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i         = runIM . interactionLoop
                       | compile   = Agate.compilerMain         . (() <$)
-                      | alonzo    = Alonzo.compilerMain        . (() <$)
                       | malonzo   = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
                       | otherwise = (() <$)
       interaction $ do

@@ -96,10 +96,6 @@ library
                     Agda.Compiler.Agate.OptimizedPrinter
                     Agda.Compiler.Agate.TranslateName
                     Agda.Compiler.Agate.UntypedPrinter
-                    Agda.Compiler.Alonzo.Main
-                    Agda.Compiler.Alonzo.Names
-                    Agda.Compiler.Alonzo.Haskell
-                    Agda.Compiler.Alonzo.PatternMonad
                     Agda.Compiler.HaskellTypes
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode

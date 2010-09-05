@@ -67,7 +67,6 @@ data CommandLineOptions =
 	    , optCSSFile              :: Maybe FilePath
 	    , optIgnoreInterfaces     :: Bool
             , optForcing              :: Bool
-	    , optCompileAlonzo        :: Bool
             , optCompileMAlonzo       :: Bool
             , optMAlonzoDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
@@ -127,7 +126,6 @@ defaultOptions =
 	    , optCSSFile              = Nothing
 	    , optIgnoreInterfaces     = False
             , optForcing              = True
-	    , optCompileAlonzo        = False
 	    , optCompileMAlonzo       = False
             , optMAlonzoDir           = Nothing
             , optGhcFlags             = []
@@ -189,7 +187,6 @@ checkOpts opts
   p            = optPragmaOptions
   compilerOpts =
     [ optCompile
-    , optCompileAlonzo
     , optCompileMAlonzo
     ]
 
@@ -224,7 +221,6 @@ interactiveFlag  o = return $ o { optInteractive    = True
 		                }
 compileFlag      o = return $ o { optCompileMAlonzo = True }
 agateFlag        o = return $ o { optCompile        = True }
-alonzoFlag       o = return $ o { optCompileAlonzo  = True }
 malonzoFlag      o = return $ o { optCompileMAlonzo = True }
 malonzoDirFlag f o = return $ o { optMAlonzoDir     = Just f }
 ghcFlag        f o = return $ o { optGhcFlags       = f : optGhcFlags o }
