@@ -95,9 +95,24 @@ getContextId = asks $ map ctxId . envContext
 
 -- | Add a let bound variable
 addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding x v t ret = do
+addLetBinding x v t0 ret = do
+    let t = defaultArg t0  -- Andreas, 2010-09-06: for now, no irrelevant let
     vt <- makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+
+-- | Wake up irrelevant variables and make them relevant.  For instance,
+--   in an irrelevant function argument otherwise irrelevant variables
+--   may be used, so they are awoken before type checking the argument.
+wakeIrrelevantVars :: MonadTCM tcm => tcm a -> tcm a
+wakeIrrelevantVars = local $ \ e -> e { envContext = map wakeVar (envContext e) }
+  where wakeVar ce = ce { ctxEntry = wakeArg (ctxEntry ce) }
+        wakeArg a  = case (argRelevance a) of
+                       Irrelevant -> a { argRelevance = Relevant } 
+                       _          -> a
+
+applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
+applyRelevanceToContext Irrelevant cont = wakeIrrelevantVars cont
+applyRelevanceToContext _          cont = cont
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -128,14 +143,14 @@ xs !!! n = xs !!!! n
 -- | Get the term corresponding to a named variable. If it is a lambda bound
 --   variable the deBruijn index is returned and if it is a let bound variable
 --   its definition is returned.
-getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Type)
+getVarInfo :: MonadTCM tcm => Name -> tcm (Term, Arg Type)
 getVarInfo x =
     do	ctx <- getContext
 	def <- asks envLetBindings
 	case findIndex ((==x) . fst . unArg) ctx of
-	    Just n  ->
-		do  n <- return $ fromIntegral n
-                    t <- typeOfBV n
+	    Just n0 ->
+		do  let n = fromIntegral n0
+                    t <- typeOfBV' n
 		    return (Var n [], t)
 	    _	    ->
 		case Map.lookup x def of

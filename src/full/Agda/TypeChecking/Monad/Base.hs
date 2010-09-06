@@ -706,7 +706,7 @@ newtype CtxId	  = CtxId Nat
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
-type LetBindings = Map Name (Open (Term, Type))
+type LetBindings = Map Name (Open (Term, Arg Type))
 
 ---------------------------------------------------------------------------
 -- ** Abstract mode
@@ -777,6 +777,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
+        | VariableIsIrrelevant Name
         | UnequalLevel Comparison Term Term
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type

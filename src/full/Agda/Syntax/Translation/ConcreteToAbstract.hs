@@ -37,6 +37,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Concrete.Operators
+import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
@@ -54,6 +55,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.List
 import Agda.Utils.Fresh
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -388,13 +390,41 @@ mkNamedArg (C.HiddenArg _ e) = Arg Hidden    Relevant e
 mkNamedArg e                 = Arg NotHidden Relevant $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
+mkArg' :: Relevance -> C.Expr -> Arg C.Expr
+mkArg' r (C.HiddenArg _ e) = Arg Hidden    r $ namedThing e
+mkArg' r e                 = Arg NotHidden r e
+
+-- | By default, arguments are @Relevant@.
 mkArg :: C.Expr -> Arg C.Expr
-mkArg (C.HiddenArg _ e) = Arg Hidden    Relevant $ namedThing e
-mkArg e                 = Arg NotHidden Relevant e
+-- mkArg (C.Dot _ e) = mkArg' Irrelevant e 
+mkArg e           = mkArg' Relevant e 
+
+
+-- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
+toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
+toAbstractDot prec e = do
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)  
+    traceCall (ScopeCheckExpr e) $ case e of
+    -- annotateExpr e = ScopedExpr <scope from Monad> e
+      C.Dot _ e -> do
+        e <- toAbstractCtx prec e
+        return (e, True)
+
+      C.RawApp r es -> do
+        e <- parseApplication es
+        toAbstractDot prec e
+
+      C.Paren _ e -> toAbstractDot TopCtx e
+
+      e -> do 
+        e <- toAbstractCtx prec e
+        return (e, False)
 
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
+    -- annotateExpr e = ScopedExpr <scope from Monad> e
+ 
   -- Names
       Ident x -> toAbstract (OldQName x)
 
@@ -421,6 +451,15 @@ instance ToAbstract C.Expr A.Expr where
       C.RawApp r es -> do
         e <- parseApplication es
         toAbstract e
+
+{- Andreas, 2010-09-06 STALE COMMENT
+  -- Dots are used in dot patterns and in irrelevant function space .A n -> B
+  -- we propagate dots out from the head of applications
+  
+      C.Dot r e1 -> do
+        t1 <- toAbstract e1
+        return $ A.Dot t1
+-}
 
   -- Application
       C.App r e1 e2 -> do
@@ -451,12 +490,24 @@ instance ToAbstract C.Expr A.Expr where
         where
             mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
 
-  -- Function types
+-- Irrelevant non-dependent function type
+
+      C.Fun r e1 e2 -> do
+        Arg h rel (e0, dotted) <- fmapM (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
+        let e1 = Arg h (if dotted then Irrelevant else rel) e0
+        e2 <- toAbstractCtx TopCtx e2
+        let info = ExprRange r
+        return $ A.Fun info e1 e2
+  
+{-
+-- Other function types
+
       C.Fun r e1 e2 -> do
         e1 <- toAbstractCtx FunctionSpaceDomainCtx $ mkArg e1
         e2 <- toAbstractCtx TopCtx e2
         let info = ExprRange r
         return $ A.Fun info e1 e2
+-}
 
       e0@(C.Pi tel e) ->
         localToAbstract tel $ \tel -> do
@@ -486,8 +537,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Paren _ e -> toAbstractCtx TopCtx e
 
   -- Pattern things
-      C.As _ _ _ -> notAnExpression e
       C.Dot _ _  -> notAnExpression e
+      C.As _ _ _ -> notAnExpression e
       C.Absurd _ -> notAnExpression e
 
   -- Impossible things

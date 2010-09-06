@@ -358,8 +358,9 @@ instance ToConcrete A.Expr C.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx FunctionSpaceDomainCtx a
              b' <- toConcreteCtx TopCtx b
-             return $ C.Fun (getRange i) (mkArg a') b'
+             return $ C.Fun (getRange i) (addDot a' $ mkArg a') b'
         where
+            addDot a e = if (argRelevance a == Irrelevant) then Dot (getRange a) e else e
             mkArg (Arg Hidden    r e) = HiddenArg (getRange e) (unnamed e)
             mkArg (Arg NotHidden r e) = e
 
@@ -515,6 +516,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       mkTel 0 t            = ([], t)
       mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
       mkTel _ _            = __IMPOSSIBLE__
+--      mkTel n t            = error $ "mkTel " ++ show n ++ " " ++ show t
 
   toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ c bs _ cs)) =
     withAbstractPrivate i $

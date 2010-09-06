@@ -1,0 +1,3 @@
+IrrelevantVar.agda:8,9-10
+variable x is declared irrelevant, so it cannot be used here
+when checking that the expression x has type .A

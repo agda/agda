@@ -58,7 +58,7 @@ data Expr
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
         | AbsurdLam !Range Hiding              -- ^ ex: @\\ ()@
-	| Fun !Range Expr Expr		       -- ^ ex: @e -> e@ or @{e} -> e@
+	| Fun !Range Expr Expr                 -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
 	| Pi Telescope Expr		       -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set !Range			       -- ^ ex: @Set@
 	| Prop !Range			       -- ^ ex: @Prop@

@@ -312,8 +312,9 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                             Covariant     -> compareTerm CmpLeq b x y
                             Contravariant -> compareTerm CmpLeq b y x
             cs1 <- case r of
-                    Forced -> return []
-                    _      -> cmp (unArg arg1) (unArg arg2)
+                    Forced     -> return []
+                    Irrelevant -> return [] -- Andreas: ignore irr. func. args.
+                    Relevant   -> cmp (unArg arg1) (unArg arg2)
             -- mlvl <- mlevel
 	    case (cs1, unEl a) of
                                 -- We can safely ignore sort annotations here

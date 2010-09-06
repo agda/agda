@@ -65,6 +65,11 @@ showChar' c
     where
 	escapeMe c = not (isPrint c) || c == '\\'
 
+instance Pretty Relevance where
+  pretty Forced     = empty
+  pretty Relevant   = empty
+  pretty Irrelevant = text "."
+
 instance Pretty Induction where
   pretty Inductive = text "data"
   pretty CoInductive = text "codata"

@@ -154,6 +154,7 @@ errorString err = case err of
     TooFewFields{}                           -> "TooFewFields"
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
     TooManyFields{}                          -> "TooManyFields"
+    VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
     UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
     UnequalLevel{}                           -> "UnequalLevel"
@@ -269,7 +270,9 @@ instance PrettyTCM TypeError where
 		[prettyTCM t] ++ pwords "should be a function type, but it isn't"
 	    NotAProperTerm ->
 		fwords "Found a malformed term"
-	    UnequalTerms cmp s t a -> fsep $
+            VariableIsIrrelevant x -> fsep $
+                text "variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+ 	    UnequalTerms cmp s t a -> fsep $
 		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
                 where
                   f CmpEq  = text "!="

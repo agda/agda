@@ -86,6 +86,9 @@ forceM xs = do () <- length xs `seq` return ()
 commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
 commuteM = traverse id
 
+fmapM :: (Traversable f, Applicative m) => (a -> m b) -> f a -> m (f b)
+fmapM f = commuteM . fmap f
+
 type Cont r a = (a -> r) -> r
 
 -- | 'Control.Monad.mapM' for the continuation monad. Terribly useful.

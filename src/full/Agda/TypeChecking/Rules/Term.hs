@@ -444,7 +444,9 @@ checkExpr e t =
 inferHead :: Head -> TCM (Args -> Term, Type)
 inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
-  return (apply u, a)
+  when (argRelevance a == Irrelevant) $
+    typeError $ VariableIsIrrelevant x
+  return (apply u, unArg a)
 inferHead (HeadDef x) = do
   (u, a) <- inferDef Def x
   return (apply u, a)
@@ -743,7 +745,7 @@ checkArguments exh r [] t0 t1 =
 	t1' <- lift $ reduce t1
 	case funView $ unEl t0' of -- TODO: clean
 	    FunV (Arg Hidden rel a) _ | notHPi $ unEl t1'  -> do
-		v  <- lift $ newValueMeta a
+		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
@@ -753,7 +755,7 @@ checkArguments exh r [] t0 t1 =
 	notHPi (Fun (Arg Hidden _ _) _) = False
 	notHPi _		        = True
 
-checkArguments exh r args0@(Arg h rel e : args) t0 t1 =
+checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       t0b <- lift $ reduceB t0
       case t0b of
@@ -763,26 +765,26 @@ checkArguments exh r args0@(Arg h rel e : args) t0 t1 =
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
           case (h, funView $ unEl t0') of
-              (NotHidden, FunV (Arg Hidden _ a) _) -> insertUnderscore
-              (Hidden, FunV (Arg Hidden _ a) _)
-                  | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore
-              (_, FunV (Arg h' rel' a) _) | h == h' -> do
-                  u  <- lift $ checkExpr e' a
-                  let arg = Arg h rel u
+              (NotHidden, FunV (Arg Hidden rel a) _) -> insertUnderscore rel
+              (Hidden, FunV (Arg Hidden rel a) _)
+                  | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore rel
+              (_, FunV (Arg h' rel a) _) | h == h' -> do
+                  u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
+                  let arg = Arg h rel u  -- save relevance info in argument
                   (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
                   return (arg : us, t0'', cs')
               (Hidden, FunV (Arg NotHidden _ _) _) ->
                   lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
-	insertUnderscore = do
+	insertUnderscore rel = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo
 		  { A.metaRange  = r
 		  , A.metaScope  = scope
 		  , A.metaNumber = Nothing
 		  }
-	  checkArguments exh r (Arg Hidden Relevant (unnamed m) : args0) t0 t1
+	  checkArguments exh r (Arg Hidden rel (unnamed m) : args0) t0 t1
 
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
