@@ -53,7 +53,18 @@ mkAbsolute f
   | otherwise    = __IMPOSSIBLE__
 
 prop_mkAbsolute f =
-  absolutePathInvariant $ mkAbsolute (pathSeparator : f)
+  let path = rootPath ++ f
+  in
+#if mingw32_HOST_OS
+      isValid path ==>
+#endif
+      absolutePathInvariant $ mkAbsolute $ path
+
+#if mingw32_HOST_OS
+rootPath = joinDrive "C:" [pathSeparator]
+#else
+rootPath = [pathSeparator]
+#endif
 
 -- | Makes the path absolute.
 --
@@ -89,7 +100,7 @@ infix 4 ===
 instance Arbitrary AbsolutePath where
   arbitrary = mk . take 3 . map (take 2) <$>
                 listOf (listOf1 (elements "a1"))
-    where mk ps = AbsolutePath (joinPath $ [pathSeparator] : ps)
+    where mk ps = AbsolutePath (joinPath $ rootPath : ps)
 
 ------------------------------------------------------------------------
 -- All tests
