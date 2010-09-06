@@ -573,7 +573,7 @@ frommyClause (ids, pats, mrhs) = do
         ps' <- cnvps ndrop ps
         return (I.ConP name ps')
        CSPatExp e -> do
-        e' <- frommyExp {-$ renm-} e  -- rename disabled to match (incorrect?) Agda reification of clauses
+        e' <- frommyExp {- renm e -} e  -- rename disabled to match (incorrect?) Agda reification of clauses
         return (I.DotP e')
        CSAbsurd -> __IMPOSSIBLE__ -- CSAbsurd not used
        _ -> __IMPOSSIBLE__
@@ -582,7 +582,7 @@ frommyClause (ids, pats, mrhs) = do
  body <- case mrhs of
           Nothing -> return $ I.NoBody
           Just e -> do
-           e' <- frommyExp {-$ renm-} e  -- rename disabled to match (incorrect?) Agda reification of clauses
+           e' <- frommyExp {- renm e -} e  -- rename disabled to match (incorrect?) Agda reification of clauses
            let r 0 = I.Body e'
                r n = I.Bind $ I.Abs "h" $ r (n - 1)
                e'' = r ({-length ids + -}nv)
