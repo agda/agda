@@ -3,7 +3,12 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
+uname:=$(shell uname)
+ifeq (NT-5,$(findstring NT-5,$(uname)))
+pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')\\\\
+else
 pwd=$(shell pwd)/
+endif
 
 AgdaFiles=$(shell find . -name '*.agda')
 OutFiles=$(patsubst %.agda,%.out,$(AgdaFiles))
@@ -14,7 +19,7 @@ default : $(Tests)
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 					 echo 'let currentFile = "$*.agda"'; \
 					 echo "let top_command = top_command' currentFile" ) \
-				 | cat - $*.in | ghci -v0 | sed -e 's"$(pwd)""g'
+				 | cat - $*.in | ghc --interactive -v0 | sed -e 's"$(pwd)""g'
 
 %.test : %.in %.agda
 	@$(run_test)
