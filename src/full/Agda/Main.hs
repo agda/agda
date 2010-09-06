@@ -59,6 +59,8 @@ import Agda.Utils.Pretty
 import Agda.Tests
 import Agda.Version
 
+import qualified System.IO as IO
+
 #include "undefined.h"
 import Agda.Utils.Impossible
 
@@ -158,6 +160,10 @@ optionError err = do
 -- | Main
 main :: IO ()
 main = do
+#if MIN_VERSION_base(4,2,0)
+    -- Ensure that UTF-8 is used for functions in Agda.Utils.IO.Locale
+    IO.hSetEncoding IO.stdout IO.utf8
+#endif
     r <- runTCM $ runAgda `catchError` \err -> do
       s <- prettyError err
       liftIO $ LocIO.putStrLn s

@@ -513,6 +513,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       return [ C.Data (getRange i) Inductive x' tel' t' cs' ]
     where
       (tel, t0) = mkTel (length bs) t
+      mkTel n (ScopedExpr _ t) = mkTel n t
       mkTel 0 t            = ([], t)
       mkTel n (A.Pi _ b t) = (b++) -*- id $ mkTel (n - 1) t
       mkTel _ _            = __IMPOSSIBLE__
