@@ -121,12 +121,8 @@ data TypedBinding
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
---   in later types. Or it's the mysterious Thierry-function-telescope. Only it's not.
+--   in later types. 
 type Telescope = [TypedBindings]
--- data Telescope = TeleBind [TypedBindings]
--- 	       | TeleFun Telescope Telescope
---     deriving (Typeable, Data)
-
 
 {-| Left hand sides can be written in infix style. For example:
 

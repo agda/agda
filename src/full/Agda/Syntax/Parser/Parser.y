@@ -298,8 +298,6 @@ HiddenIds
     | '{' SpaceIds '}' HiddenIds { map ((,) Hidden) $2 ++ $4 }
     | '{' SpaceIds '}'           { map ((,) Hidden) $2 }
 
--- Qualified operators are treated as identifiers, i.e. they have to be back
--- quoted to appear infix.
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
     | Id    { QName $1 }
@@ -323,8 +321,10 @@ SpaceBIds
     : BId SpaceBIds { $1 : $2 }
     | BId	    { [$1] }
 
--- Comma separated list of binding identifiers. Used in dependent
--- function spaces: (x,y,z : Nat) -> ...
+-- Space-separated list of binding identifiers. Used in dependent
+-- function spaces: (x y z : Nat) -> ...
+-- (Used to be comma-separated; hence the name)
+-- QUESTION: Should this be replaced by SpaceBIds above?
 CommaBIds :: { [Name] }
 CommaBIds : Application {%
     let getName (Ident (QName x)) = Just x
@@ -459,7 +459,7 @@ TypedBindingss
     | TypedBindings		   { [$1] }
 
 
--- A typed binding is either (x1,..,xn:A;..;y1,..,ym:B) or {x1,..,xn:A;..;y1,..,ym:B}.
+-- A typed binding is either (x1 .. xn:A;..;y1 .. ym:B) or {x1 .. xn:A;..;y1 .. ym:B}.
 TypedBindings :: { TypedBindings }
 TypedBindings
     : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) NotHidden $2 }
@@ -477,7 +477,7 @@ TBinds2 : TBinds	   { $1 }
 	| Expr		   { [TNoBind $1] }
 
 
--- x1,..,xn:A
+-- x1 .. xn:A
 TBind :: { TypedBinding }
 TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) (map mkBoundName_ $1) $3 }
 
@@ -581,6 +581,7 @@ ImportName :: { ImportedName }
 ImportName : Id  	 { ImportedName $1 }
 	   | 'module' Id { ImportedModule $2 }
 
+-- Actually semi-colon separated
 CommaImportNames :: { [ImportedName] }
 CommaImportNames
     : {- empty -}	{ [] }
@@ -950,7 +951,7 @@ mkName (i, s) = do
 	    ParseOk _ (TokId _) -> return ()
 	    _			-> fail $ "in the name " ++ s ++ ", the part " ++ x ++ " is not valid"
 
-	-- we know that there aren't two Ids in a row
+	-- we know that there are no two Ids in a row
 	alternating (Hole : Hole : _) = False
 	alternating (_ : xs)	      = alternating xs
 	alternating []		      = True
