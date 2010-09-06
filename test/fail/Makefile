@@ -57,8 +57,8 @@ $(allstems) : % : %.err
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e "s/[^ (]*test.fail.//g" $*.tmp.2 > $*.tmp; \
-				 echo `cat $*.err` > $*.tmp.2; \
+    else sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' $*.tmp.2 > $*.tmp; \
+				 echo `cat $*.err` | sed -e 's/\\/\//g' > $*.tmp.2; \
 				 echo `cat $*.tmp` > $*.tmp.3; \
 				 true; \
 		fi
@@ -84,9 +84,9 @@ customised/NestedProjectRoots : % : %.err
 	-@($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
 	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
 	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) \
-	    | sed -e "s/[^ (]*test.fail.//g" \
+	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' \
 	    > $*.err.tmp
-	@echo `cat $*.err.tmp` > $*.err.tmp.2
+	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
 	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
 		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
