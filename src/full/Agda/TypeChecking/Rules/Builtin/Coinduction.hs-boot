@@ -7,10 +7,9 @@ bindBuiltinInf   :: Expr -> TCM ()
 bindBuiltinSharp :: Expr -> TCM ()
 bindBuiltinFlat  :: Expr -> TCM ()
 
-data CoinductionKit = CoinductionKit
-  { nameOfInf   :: QName
-  , nameOfSharp :: QName
-  , nameOfFlat  :: QName
-  }
+data CoinductionKit
+nameOfInf   :: CoinductionKit -> QName
+nameOfSharp :: CoinductionKit -> QName
+nameOfFlat  :: CoinductionKit -> QName
 
 coinductionKit :: TCM (Maybe CoinductionKit)

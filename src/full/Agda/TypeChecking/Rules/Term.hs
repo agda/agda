@@ -43,7 +43,6 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
-  (CoinductionKit(..), coinductionKit)
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
