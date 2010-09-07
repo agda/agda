@@ -14,6 +14,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Primitive
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
 
@@ -41,9 +42,15 @@ instance Monoid Match where
     DontKnow m `mappend` _		  = DontKnow m
 
 matchPatterns :: MonadTCM tcm => [Arg Pattern] -> [Arg Term] -> tcm (Match, [Arg Term])
-matchPatterns ps vs =
-    do	(ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
-	return (mconcat ms, vs)
+matchPatterns ps vs = do
+    reportSDoc "tc.match" 50 $
+      vcat [ text "matchPatterns"
+           , nest 2 $ text "ps =" <+> fsep (punctuate comma $ map (text . show) ps)
+           , nest 2 $ text "vs =" <+> fsep (punctuate comma $ map prettyTCM vs)
+           ]
+
+    (ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
+    return (mconcat ms, vs)
 
 matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
 matchPattern (Arg h' _  (VarP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
@@ -58,6 +65,15 @@ matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do
 	NotBlocked (MetaV x _) -> return (DontKnow $ Just x, Arg h r v)
 	Blocked x _            -> return (DontKnow $ Just x, Arg h r v)
 	_                      -> return (DontKnow Nothing, Arg h r v)
+
+matchPattern (Arg h' r' (ConP c ps))     (Arg h Irrelevant v) = do
+          -- Andreas, 2010-09-07 matching a record constructor against
+          -- something irrelevant will just continue matching against
+          -- irrelevant stuff
+		(m, vs) <- matchPatterns ps $ 
+                  repeat $ Arg NotHidden Irrelevant $ Sort Prop
+		return (m, Arg h Irrelevant $ Con c vs)
+
 matchPattern (Arg h' r' (ConP c ps))     (Arg h r v) =
     do	w <- traverse constructorForm =<< reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
@@ -75,6 +91,14 @@ matchPattern (Arg h' r' (ConP c ps))     (Arg h r v) =
                _ -> return w
         let v = ignoreBlocking w
 	case w of
+          -- Andreas, 2010-09-07 matching a record constructor against
+          -- something irrelevant will just continue matching against
+          -- irrelevant stuff
+          -- NotBlocked (Sort Prop)
+          _  | r == Irrelevant -> do
+		(m, vs) <- matchPatterns ps $ 
+                  repeat $ Arg NotHidden Irrelevant $ Sort Prop
+		return (m, Arg h r $ Con c vs)
 	  NotBlocked (Con c' vs)
 	    | c == c'             -> do
 		(m, vs) <- matchPatterns ps vs

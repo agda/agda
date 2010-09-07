@@ -33,7 +33,7 @@ data Relevance
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 
--- | A function argument can be hidden.
+-- | A function argument can be hidden and/or irrelevant.
 data Arg e  = Arg
   { argHiding    :: Hiding
   , argRelevance :: Relevance
@@ -48,6 +48,9 @@ defaultArg = Arg NotHidden Relevant
 
 isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg == Hidden
+
+makeIrrelevant :: Arg a -> Arg a
+makeIrrelevant a = a { argRelevance = Irrelevant }
 
 makeRelevant :: Arg a -> Arg a
 makeRelevant a = if argRelevance a == Irrelevant 
@@ -88,7 +91,7 @@ instance Show a => Show (Arg a) where
         showH NotHidden  s = "(" ++ s ++ ")"
         showR Irrelevant s = "." ++ s
         showR Forced     s = "!" ++ s
-        showR Relevant   s = s
+        showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
 
 data Named name a =
     Named { nameOf     :: Maybe name

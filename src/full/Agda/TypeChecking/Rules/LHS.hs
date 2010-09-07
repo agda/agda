@@ -423,9 +423,15 @@ checkLeftHandSide c ps a ret = do
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
+
+            reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+              [ text "gamma' =" <+> text (show gamma')
+              ]
+
             -- Andreas 2010-09-07  propagate relevance info to new vars
+            -- DOES NOT SEEM TO HAVE AN EFFECT
             gamma' <- return $ if rel == Irrelevant then
-                                fmap makeRelevant gamma'
+                                fmap makeIrrelevant gamma'
                                else gamma'
 
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat

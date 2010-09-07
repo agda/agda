@@ -40,6 +40,8 @@ data Term = Var Nat Args
 	  | Fun (Arg Type) Type
 	  | Sort Sort
 	  | MetaV MetaId Args
+-- Andreas: MAYBE LATER:
+--          | DontCare               -- ^ nuked irrelevant and other stuff
   deriving (Typeable, Data, Eq, Ord, Show)
 
 data Type = El Sort Term

@@ -24,3 +24,13 @@ pId : {A : Set} -> A -> A
 pId x = x
 
 -- t = pId id
+
+record Prod (A B : Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B
+
+-- matching an irrelevant record is ok as long as fields are use irrelevantly
+irrElim : {A B C : Set} → .(Prod A B) → (.A → .B → C) → C
+irrElim (a , b) f = f a b
