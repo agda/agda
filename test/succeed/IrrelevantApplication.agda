@@ -19,3 +19,8 @@ proofIrr = refl
 
 id : {A B : Set} -> (.A -> B) -> .A -> B
 id g x = g x
+
+pId : {A : Set} -> A -> A
+pId x = x
+
+-- t = pId id

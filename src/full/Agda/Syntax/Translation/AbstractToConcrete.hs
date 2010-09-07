@@ -403,9 +403,9 @@ instance ToConcrete A.LamBinding C.LamBinding where
     bindToConcrete (A.DomainFull b)   ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBindings C.TypedBindings where
-    bindToConcrete (A.TypedBindings r h bs) ret =
+    bindToConcrete (A.TypedBindings r bs) ret =
         bindToConcrete bs $ \bs ->
-        ret (C.TypedBindings r h bs)
+        ret (C.TypedBindings r bs)
 
 instance ToConcrete A.TypedBinding C.TypedBinding where
     bindToConcrete (A.TBind r xs e) ret =

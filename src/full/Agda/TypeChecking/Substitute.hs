@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TypeSynonymInstances #-}
 module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity
@@ -48,7 +48,7 @@ instance Apply Sort where
   apply s [] = s
   apply s _  = __IMPOSSIBLE__
 
-instance Apply Telescope where
+instance Subst a => Apply (Tele a) where
   apply tel               []       = tel
   apply EmptyTel          _        = __IMPOSSIBLE__
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
@@ -325,7 +325,7 @@ instance Subst DisplayTerm where
   substUnder n u (DTerm v)        = DTerm $ substUnder n u v
   substUnder n u (DWithApp vs ws) = uncurry DWithApp $ substUnder n u (vs, ws)
 
-instance Subst Telescope where
+instance Subst a => Subst (Tele a) where
   substs us  EmptyTel              = EmptyTel
   substs us (ExtendTel t tel)      = uncurry ExtendTel $ substs us (t, tel)
   substUnder n u  EmptyTel         = EmptyTel
@@ -400,7 +400,7 @@ instance Raise Sort where
       DLub s1 s2 -> DLub (rf s1) (rf s2)
       where rf x = raiseFrom m k x
 
-instance Raise Telescope where
+instance Raise a => Raise (Tele a) where
     raiseFrom m k EmptyTel          = EmptyTel
     raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
 

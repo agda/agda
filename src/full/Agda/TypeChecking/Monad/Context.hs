@@ -105,10 +105,7 @@ addLetBinding x v t0 ret = do
 --   may be used, so they are awoken before type checking the argument.
 wakeIrrelevantVars :: MonadTCM tcm => tcm a -> tcm a
 wakeIrrelevantVars = local $ \ e -> e { envContext = map wakeVar (envContext e) }
-  where wakeVar ce = ce { ctxEntry = wakeArg (ctxEntry ce) }
-        wakeArg a  = case (argRelevance a) of
-                       Irrelevant -> a { argRelevance = Relevant } 
-                       _          -> a
+  where wakeVar ce = ce { ctxEntry = makeRelevant (ctxEntry ce) }
 
 applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
 applyRelevanceToContext Irrelevant cont = wakeIrrelevantVars cont

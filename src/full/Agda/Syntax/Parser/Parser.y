@@ -462,8 +462,8 @@ TypedBindingss
 -- A typed binding is either (x1 .. xn:A;..;y1 .. ym:B) or {x1 .. xn:A;..;y1 .. ym:B}.
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) NotHidden $2 }
-    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) Hidden    $2 }
+    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
+    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
 
 
 -- A semicolon separated list of TypedBindings
@@ -975,7 +975,7 @@ forallPi bs e = Pi (map addType bs) e
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBindings
 addType (DomainFull b)	 = b
-addType (DomainFree h x) = TypedBindings r h [TBind r [x] $ Underscore r Nothing]
+addType (DomainFree h x) = TypedBindings r $ Arg h Relevant [TBind r [x] $ Underscore r Nothing]
   where r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names

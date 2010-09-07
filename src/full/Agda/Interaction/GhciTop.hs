@@ -749,7 +749,7 @@ instance LowerMeta SC.LamBinding where
   lowerMeta (SC.DomainFull tb)    = SC.DomainFull (lowerMeta tb)
 
 instance LowerMeta SC.TypedBindings where
-  lowerMeta (SC.TypedBindings r h bs) = SC.TypedBindings r h (lowerMeta bs)
+  lowerMeta (SC.TypedBindings r bs) = SC.TypedBindings r (lowerMeta bs)
 
 instance LowerMeta SC.TypedBinding where
   lowerMeta (SC.TBind r ns e) = SC.TBind r ns (lowerMeta e)

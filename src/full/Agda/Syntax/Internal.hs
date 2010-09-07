@@ -124,9 +124,14 @@ instance KillRange Sort where
     DLub s1 s2 -> killRange2 DLub s1 s2
     MetaS x as -> killRange1 (MetaS x) as
 
-instance KillRange Telescope where
+instance KillRange a => KillRange (Tele a) where
+  killRange = fmap killRange
+
+{-
+-- instance KillRange Telescope where
   killRange EmptyTel = EmptyTel
-  killRange (ExtendTel a tel) = killRange2 ExtendTel a tel
+  killRange (ExtendTel a tel) = ExtendTel (killRange a) (killRange tel) -- killRange2 ExtendTel a tel
+-}
 
 instance KillRange a => KillRange (Blocked a) where
   killRange = fmap killRange
@@ -140,11 +145,17 @@ type Args = [Arg Term]
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
-data Telescope = EmptyTel
-	       | ExtendTel (Arg Type) (Abs Telescope)
+data Tele a = EmptyTel
+	    | ExtendTel a (Abs (Tele a))
   deriving (Typeable, Data, Show, Eq, Ord)
 
-instance Sized Telescope where
+type Telescope = Tele (Arg Type)
+
+instance Functor Tele where
+  fmap f  EmptyTel         = EmptyTel
+  fmap f (ExtendTel a tel) = ExtendTel (f a) (fmap (fmap f) tel)
+
+instance Sized (Tele a) where
   size  EmptyTel	 = 0
   size (ExtendTel _ tel) = 1 + size tel
 

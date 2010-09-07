@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, TypeSynonymInstances #-}
 
 module Agda.TypeChecking.Reduce where
 
@@ -427,8 +427,8 @@ instance Normalise a => Normalise (Closure a) where
 	x <- enterClosure cl normalise
 	return $ cl { clValue = x }
 
-instance Normalise Telescope where
-  normalise EmptyTel = return EmptyTel
+instance Normalise a => Normalise (Tele a) where
+  normalise EmptyTel        = return EmptyTel
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
 
 instance Normalise Constraint where
@@ -568,7 +568,7 @@ instance InstantiateFull Signature where
 instance InstantiateFull Section where
   instantiateFull (Section tel n) = flip Section n <$> instantiateFull tel
 
-instance InstantiateFull Telescope where
+instance InstantiateFull a => InstantiateFull (Tele a) where
   instantiateFull EmptyTel = return EmptyTel
   instantiateFull (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull (a, b)
 

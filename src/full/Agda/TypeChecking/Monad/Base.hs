@@ -474,6 +474,10 @@ data Defn = Axiom
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
 
+defIsRecord :: Defn -> Bool
+defIsRecord Record{} = True
+defIsRecord _        = False
+
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Data)
 
@@ -777,6 +781,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
+        | SplitOnIrrelevant A.Pattern (Arg Type)
         | VariableIsIrrelevant Name
         | UnequalLevel Comparison Term Term
 	| UnequalTerms Comparison Term Term Type

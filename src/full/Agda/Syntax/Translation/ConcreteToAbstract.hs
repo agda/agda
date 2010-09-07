@@ -154,7 +154,7 @@ recordConstructorType fields = build fs
     notField NiceField{} = False
     notField _           = True
 
-    build (NiceField r f _ _ h x e : fs) = C.Pi [C.TypedBindings r h
+    build (NiceField r f _ _ h x e : fs) = C.Pi [C.TypedBindings r $ Arg h Relevant
                                                   [C.TBind r [BName x f] e]
                                                 ] $ build fs
       where r = getRange x
@@ -556,7 +556,7 @@ instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb
 
 instance ToAbstract C.TypedBindings A.TypedBindings where
-  toAbstract (C.TypedBindings r h bs) = A.TypedBindings r h <$> toAbstract bs
+  toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
 
 instance ToAbstract C.TypedBinding A.TypedBinding where
   toAbstract (C.TBind r xs t) = do

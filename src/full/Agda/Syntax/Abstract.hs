@@ -103,7 +103,7 @@ data LamBinding
   deriving (Typeable, Data, Show)
 
 -- | Typed bindings with hiding information.
-data TypedBindings = TypedBindings Range Hiding [TypedBinding]
+data TypedBindings = TypedBindings Range (Arg [TypedBinding])
 	    -- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
   deriving (Typeable, Data, Show)
 
@@ -198,7 +198,7 @@ instance HasRange LamBinding where
     getRange (DomainFull b)   = getRange b
 
 instance HasRange TypedBindings where
-    getRange (TypedBindings r _ _) = r
+    getRange (TypedBindings r _) = r
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r
@@ -277,7 +277,7 @@ instance KillRange LamBinding where
   killRange (DomainFull b)   = killRange1 DomainFull b
 
 instance KillRange TypedBindings where
-  killRange (TypedBindings r h b) = TypedBindings (killRange r) h (killRange b)
+  killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)
 
 instance KillRange TypedBinding where
   killRange (TBind r xs e) = killRange3 TBind r xs e

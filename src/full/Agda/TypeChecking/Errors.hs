@@ -154,6 +154,7 @@ errorString err = case err of
     TooFewFields{}                           -> "TooFewFields"
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
     TooManyFields{}                          -> "TooManyFields"
+    SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
     VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
     UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
@@ -270,6 +271,9 @@ instance PrettyTCM TypeError where
 		[prettyTCM t] ++ pwords "should be a function type, but it isn't"
 	    NotAProperTerm ->
 		fwords "Found a malformed term"
+            SplitOnIrrelevant p t -> fsep $
+                pwords "cannot pattern match" ++ [prettyA p] ++
+                pwords "against irrelevant type" ++ [prettyTCM t]
             VariableIsIrrelevant x -> fsep $
                 text "variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
  	    UnequalTerms cmp s t a -> fsep $
@@ -622,7 +626,7 @@ instance PrettyTCM Call where
 	      where
 		bind :: C.LamBinding -> C.TypedBindings
 		bind (C.DomainFull b) = b
-		bind (C.DomainFree h x) = C.TypedBindings r h [C.TBind r [x] (C.Underscore r Nothing)]
+		bind (C.DomainFree h x) = C.TypedBindings r $ Arg h Relevant [C.TBind r [x] (C.Underscore r Nothing)]
 		  where r = getRange x
 
                 name (D.Axiom _ _ _ _ n _) = n

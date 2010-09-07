@@ -373,7 +373,7 @@ checkLeftHandSide c ps a ret = do
             checkLHS problem' sigma' dpi' asb'
 
           -- Split on constructor pattern
-          Right (Split p0 xs (Arg _ _
+          Right (Split p0 xs (Arg _ rel
                   ( Focus { focusCon      = c
                           , focusConArgs  = qs
                           , focusRange    = r
@@ -393,6 +393,7 @@ checkLeftHandSide c ps a ret = do
             reportSDoc "tc.lhs.top" 10 $ sep
               [ text "checking lhs"
               , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
+              , nest 2 $ text "rel =" <+> (text $ show rel)
               ]
 
             reportSDoc "tc.lhs.split" 15 $ sep
@@ -421,6 +422,15 @@ checkLeftHandSide c ps a ret = do
 
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
+
+            -- Andreas 2010-09-07  propagate relevance info to new vars
+            gamma' <- return $ if rel == Irrelevant then
+                                fmap makeRelevant gamma'
+                               else gamma'
+
+            reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+              [ text "gamma' =" <+> text (show gamma')
+              ]
 
             -- Insert implicit patterns
             qs' <- insertImplicitPatterns qs gamma'

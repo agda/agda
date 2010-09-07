@@ -49,6 +49,11 @@ defaultArg = Arg NotHidden Relevant
 isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg == Hidden
 
+makeRelevant :: Arg a -> Arg a
+makeRelevant a = if argRelevance a == Irrelevant 
+                  then a { argRelevance = Relevant } 
+                  else a
+
 -- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
 --

@@ -279,7 +279,7 @@ instance ComputeOccurrences Term where
 instance ComputeOccurrences Type where
   occurrences vars (El _ v) = occurrences vars v
 
-instance ComputeOccurrences Telescope where
+instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences vars EmptyTel        = Map.empty
   occurrences vars (ExtendTel a b) = occurrences vars (a, b)
 

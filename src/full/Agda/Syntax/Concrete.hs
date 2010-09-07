@@ -100,7 +100,7 @@ data LamBinding
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
-data TypedBindings = TypedBindings !Range Hiding [TypedBinding]
+data TypedBindings = TypedBindings !Range (Arg [TypedBinding])
 	-- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
     deriving (Typeable, Data)
 
@@ -316,7 +316,7 @@ instance HasRange Expr where
 --     getRange (TeleFun x y) = fuseRange x y
 
 instance HasRange TypedBindings where
-    getRange (TypedBindings r _ _) = r
+    getRange (TypedBindings r _) = r
 
 instance HasRange TypedBinding where
     getRange (TBind r _ _) = r

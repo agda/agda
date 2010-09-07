@@ -212,7 +212,7 @@ instance Reify Term Expr where
       I.Pi a b       -> do
         Arg h r a <- reify a
         (x,b)     <- reify b
-        return $ A.Pi exprInfo [TypedBindings noRange h [TBind noRange [x] a]] b
+        return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r [TBind noRange [x] a]] b
       I.Fun a b    -> uncurry (A.Fun $ exprInfo)
                       <$> reify (a,b)
       I.Sort s     -> reify s
@@ -356,7 +356,7 @@ instance DotVars A.Expr where
     A.Quote {}       -> __IMPOSSIBLE__
 
 instance DotVars TypedBindings where
-  dotVars (TypedBindings _ _ bs) = dotVars bs
+  dotVars (TypedBindings _ bs) = dotVars bs
 
 instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
@@ -449,10 +449,10 @@ instance Reify i a => Reify (Abs i) (Name, a) where
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
-    Arg h r e <- reify arg
+    Arg h rel e <- reify arg
     (x,bs)  <- reify $ betterName tel
     let r = getRange e
-    return $ TypedBindings r h [TBind r [x] e] : bs
+    return $ TypedBindings r (Arg h rel [TBind r [x] e]) : bs
     where
       betterName (Abs "_" x) = Abs "z" x
       betterName (Abs s   x) = Abs s   x

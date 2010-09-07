@@ -73,7 +73,10 @@ splitProblem (Problem ps (perm, qs) tel) = do
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       p <- lift $ expandLitPattern p
       case asView $ namedThing $ unArg p of
-	(xs, A.LitP lit)  -> do
+	(xs, p@(A.LitP lit))  -> do
+          -- Andreas, 2010-09-07 cannot split on irrelevant args
+          when (argRelevance a == Irrelevant) $
+            typeError $ SplitOnIrrelevant p a
 	  b <- lift $ litType lit
 	  ok <- lift $ do
 	      noConstraints (equalType (unArg a) b)
@@ -91,6 +94,9 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  case unEl a' of
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
+              unless (defIsRecord def) $
+                when (argRelevance a == Irrelevant) $
+                  typeError $ SplitOnIrrelevant p a
               let mp = case def of
                         Datatype{dataPars = np} -> Just np
                         Record{recPars = np}    -> Just np

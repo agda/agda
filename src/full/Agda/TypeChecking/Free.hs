@@ -103,8 +103,8 @@ instance Free a => Free (Arg a) where
 instance Free a => Free (Abs a) where
   freeVars' conf (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars' conf b
 
-instance Free Telescope where
-  freeVars' conf EmptyTel	     = empty
+instance Free a => Free (Tele a) where
+  freeVars' conf EmptyTel	   = empty
   freeVars' conf (ExtendTel a tel) = freeVars' conf (a, tel)
 
 instance Free ClauseBody where

@@ -278,7 +278,7 @@ niceDeclarations ds = do
                                 ]
                               where
                                 f = fixity x fixs
-                                binding (TypedBindings _ h bs) =
+                                binding (TypedBindings _ (Arg h rel bs)) =
                                     concatMap (bind h) bs
                                 bind h (TBind _ xs _) =
                                     map (DomainFree h) xs

@@ -117,9 +117,9 @@ checkTelescope (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings (A.TypedBindings i h bs) ret =
+checkTypedBindings (A.TypedBindings i (Arg h rel bs)) ret =
     thread (checkTypedBinding h) bs $ \bss ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h Relevant t) . Abs x) EmptyTel (concat bss)
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel (concat bss)
 
 checkTypedBinding :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding h (A.TBind i xs e) ret = do
@@ -212,7 +212,7 @@ checkExpr e t =
 
                 hiddenLambdaOrHole (A.AbsurdLam _ Hidden)                                  = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
-		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ Hidden _)) _) = True
+		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg Hidden _ _))) _) = True
 		hiddenLambdaOrHole (A.QuestionMark _)					   = True
 		hiddenLambdaOrHole _							   = False
 
@@ -772,7 +772,11 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
                   (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
-                  return (arg : us, t0'', cs')
+                  return (nukeIfIrrelevant arg : us, t0'', cs')
+                         where nukeIfIrrelevant arg = 
+                                 if argRelevance arg == Irrelevant then
+                                   arg { unArg = Sort Prop }
+                                  else arg
               (Hidden, FunV (Arg NotHidden _ _) _) ->
                   lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
