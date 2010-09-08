@@ -24,9 +24,9 @@ data Hiding  = Hidden | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | A function argument can be relevant or irrelevant.
-data Relevance 
-  = Relevant    -- ^ the argument is (possibly) relevant at compile-time 
-  | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime 
+data Relevance
+  = Relevant    -- ^ the argument is (possibly) relevant at compile-time
+  | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime
   | Forced      -- ^ the argument can be skipped during equality checking
     deriving (Typeable, Data, Show, Eq, Ord)
 
@@ -34,10 +34,10 @@ instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 
 -- | A function argument can be hidden.
-data Arg e  = Arg 
+data Arg e  = Arg
   { argHiding    :: Hiding
   , argRelevance :: Relevance
-  , unArg :: e 
+  , unArg :: e
   } deriving (Typeable, Data, Ord)
 
 instance Eq a => Eq (Arg a) where
@@ -48,6 +48,15 @@ defaultArg = Arg NotHidden Relevant
 
 isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg == Hidden
+
+-- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
+-- using the elements in @args@ to fill in the non-'unArg' fields.
+--
+-- Precondition: The two lists should have equal length.
+
+withArgsFrom :: [a] -> [Arg b] -> [Arg a]
+xs `withArgsFrom` args =
+  zipWith (\x arg -> fmap (const x) arg) xs args
 
 instance Functor Arg where
     fmap f a = a { unArg = f (unArg a) }
