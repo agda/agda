@@ -469,17 +469,19 @@ prettyTypeOfMeta norm ii = do
 
 prettyContext
   :: B.Rewrite      -- ^ Normalise?
+  -> Bool           -- ^ Print the elements in reverse order?
   -> InteractionId
   -> TCM Doc
-prettyContext norm ii = B.withInteractionId ii $ do
+prettyContext norm rev ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
   es  <- mapM (prettyA . B.ofExpr) ctx
   ns  <- mapM (showA   . B.ofName) ctx
-  return $ align 10 $ zip ns (map (text ":" <+>) es)
+  let shuffle = if rev then reverse else id
+  return $ align 10 $ shuffle $ zip ns (map (text ":" <+>) es)
 
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = Interaction Nothing $ do
-  display_infoD "*Context*" =<< prettyContext norm ii
+  display_infoD "*Context*" =<< prettyContext norm False ii
   return Nothing
 
 cmd_infer :: B.Rewrite -> GoalCommand
@@ -500,7 +502,7 @@ cmd_goal_type norm ii _ _ = Interaction Nothing $ do
 
 cmd_goal_type_context_and doc norm ii _ _ = do
   goal <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
-  ctx  <- prettyContext norm ii
+  ctx  <- prettyContext norm True ii
   display_infoD "*Goal type etc.*"
                 (text "Goal:" <+> goal $+$
                  doc $+$
@@ -982,7 +984,7 @@ makeSilent :: Interaction -> Interaction
 makeSilent i = i { command = do
   opts <- commandLineOptions
   TM.setCommandLineOptions $ opts
-    { optPragmaOptions = 
+    { optPragmaOptions =
         (optPragmaOptions opts)
           { optVerbose = Trie.singleton [] 0 }
     }
