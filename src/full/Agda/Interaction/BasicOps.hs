@@ -492,9 +492,9 @@ introTactic ii = do
      `catchError` \_ -> return []
     _ -> __IMPOSSIBLE__
   where
-    conName [Arg _ _ (I.ConP c _)] = [c]
-    conName [_]                = []
-    conName _                  = __IMPOSSIBLE__
+    conName [Arg _ _ (I.ConP c _ _)] = [c]
+    conName [_]                      = []
+    conName _                        = __IMPOSSIBLE__
 
     showTCM v = show <$> prettyTCM v
 

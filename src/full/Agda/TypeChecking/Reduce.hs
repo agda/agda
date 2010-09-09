@@ -448,10 +448,10 @@ instance Normalise Constraint where
 
 instance Normalise Pattern where
   normalise p = case p of
-    VarP _    -> return p
-    LitP _    -> return p
-    ConP c ps -> ConP c <$> normalise ps
-    DotP v    -> DotP <$> normalise v
+    VarP _       -> return p
+    LitP _       -> return p
+    ConP c mt ps -> ConP c <$> normalise mt <*> normalise ps
+    DotP v       -> DotP <$> normalise v
 
 instance Normalise DisplayForm where
   normalise (Display n ps v) = Display n <$> normalise ps <*> return v
@@ -459,6 +459,8 @@ instance Normalise DisplayForm where
 instance (Ord k, Normalise e) => Normalise (Map k e) where
     normalise = traverse normalise
 
+instance Normalise a => Normalise (Maybe a) where
+    normalise = traverse normalise
 
 ---------------------------------------------------------------------------
 -- * Full instantiation
@@ -493,21 +495,21 @@ instance InstantiateFull Term where
     instantiateFull v = etaOnce =<< do
       v <- instantiate v
       case v of
-          Var n vs   -> Var n <$> instantiateFull vs
-          Con c vs   -> Con c <$> instantiateFull vs
-          Def f vs   -> Def f <$> instantiateFull vs
-          MetaV x vs -> MetaV x <$> instantiateFull vs
-          Lit _	   -> return v
-          Lam h b    -> Lam h <$> instantiateFull b
-          Sort s	   -> Sort <$> instantiateFull s
-          Pi a b	   -> uncurry Pi <$> instantiateFull (a,b)
-          Fun a b    -> uncurry Fun <$> instantiateFull (a,b)
+          Var n vs    -> Var n <$> instantiateFull vs
+          Con c vs    -> Con c <$> instantiateFull vs
+          Def f vs    -> Def f <$> instantiateFull vs
+          MetaV x vs  -> MetaV x <$> instantiateFull vs
+          Lit _	      -> return v
+          Lam h b     -> Lam h <$> instantiateFull b
+          Sort s      -> Sort <$> instantiateFull s
+          Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
+          Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
 
 instance InstantiateFull Pattern where
-    instantiateFull v@VarP{}    = return v
-    instantiateFull (DotP t)    = DotP <$> instantiateFull t
-    instantiateFull (ConP n ps) = ConP n <$> instantiateFull ps
-    instantiateFull l@LitP{}    = return l
+    instantiateFull v@VarP{}       = return v
+    instantiateFull (DotP t)       = DotP <$> instantiateFull t
+    instantiateFull (ConP n mt ps) = ConP n <$> instantiateFull mt <*> instantiateFull ps
+    instantiateFull l@LitP{}       = return l
 
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t

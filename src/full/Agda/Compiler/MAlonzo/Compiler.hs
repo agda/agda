@@ -249,7 +249,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
   pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HsPWildCard -- SEE ABOVE
   pat   (LitP l   ) = return $ HsPLit $ hslit l
-  pat p@(ConP q ps) = do
+  pat p@(ConP q _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
@@ -269,7 +269,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr (VarP {})   = return True
   irr (DotP {})   = return True
   irr (LitP {})   = return False
-  irr (ConP q ps) =
+  irr (ConP q _ ps) =
     (&&) <$> singleConstructorType q
          <*> (and <$> mapM (irr . unArg) ps)
 

@@ -126,7 +126,7 @@ showClause fTerm fCon fBody (Clause{ clausePats = pats, clauseBody = body })   =
     showPattern []             (VarP s) = __IMPOSSIBLE__
     showPattern (dvar : dvars) (DotP _) = return (dvars, dvar)
     showPattern []             (DotP _) = __IMPOSSIBLE__
-    showPattern dvars (ConP name args) = do
+    showPattern dvars (ConP name _ args) = do
 	(dvars',dargs) <- showPatterns dvars (map unArg args)
 	dcon <- fCon name dargs
 	return (dvars', dcon)

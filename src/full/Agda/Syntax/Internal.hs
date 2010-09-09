@@ -236,7 +236,8 @@ instance HasRange Clause where
 --
 data Pattern = VarP String  -- name suggestion
              | DotP Term
-	     | ConP QName [Arg Pattern]
+	     | ConP QName (Maybe Type) [Arg Pattern] 
+               -- ^ record patterns come with a type of the whole pattern
 	     | LitP Literal
   deriving (Typeable, Data, Show)
 

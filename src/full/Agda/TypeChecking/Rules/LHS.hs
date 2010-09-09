@@ -110,27 +110,27 @@ instantiatePattern sub perm ps
       where
         mergeA a1 a2 = a1 { unArg = mergeP (unArg a1) (unArg a2) }
         mergeP (DotP s)  (DotP t)
-          | s == t                 = DotP s
-          | otherwise              = __IMPOSSIBLE__
-        mergeP (DotP t)  (VarP _)  = DotP t
-        mergeP (VarP _)  (DotP t)  = DotP t
-        mergeP (DotP _)  _         = __IMPOSSIBLE__
-        mergeP _         (DotP _)  = __IMPOSSIBLE__
-        mergeP (ConP c1 ps) (ConP c2 qs)
-          | c1 == c2               = ConP (c1 `withRangeOf` c2) $ zipWith mergeA ps qs
-          | otherwise              = __IMPOSSIBLE__
+          | s == t                    = DotP s
+          | otherwise                 = __IMPOSSIBLE__
+        mergeP (DotP t)  (VarP _)     = DotP t
+        mergeP (VarP _)  (DotP t)     = DotP t
+        mergeP (DotP _)  _            = __IMPOSSIBLE__
+        mergeP _         (DotP _)     = __IMPOSSIBLE__
+        mergeP (ConP c1 _ ps) (ConP c2 _ qs)
+          | c1 == c2                  = ConP (c1 `withRangeOf` c2) Nothing $ zipWith mergeA ps qs
+          | otherwise                 = __IMPOSSIBLE__
         mergeP (LitP l1) (LitP l2)
-          | l1 == l2               = LitP (l1 `withRangeOf` l2)
-          | otherwise              = __IMPOSSIBLE__
+          | l1 == l2                  = LitP (l1 `withRangeOf` l2)
+          | otherwise                 = __IMPOSSIBLE__
         mergeP (VarP x) (VarP y)
-          | x == y                 = VarP x
-          | otherwise              = __IMPOSSIBLE__
-        mergeP (ConP _ _) (VarP _) = __IMPOSSIBLE__
-        mergeP (ConP _ _) (LitP _) = __IMPOSSIBLE__
-        mergeP (VarP _) (ConP _ _) = __IMPOSSIBLE__
-        mergeP (VarP _) (LitP _)   = __IMPOSSIBLE__
-        mergeP (LitP _) (ConP _ _) = __IMPOSSIBLE__
-        mergeP (LitP _) (VarP _)   = __IMPOSSIBLE__
+          | x == y                    = VarP x
+          | otherwise                 = __IMPOSSIBLE__
+        mergeP (ConP _ _ _) (VarP _)  = __IMPOSSIBLE__
+        mergeP (ConP _ _ _) (LitP _)  = __IMPOSSIBLE__
+        mergeP (VarP _) (ConP _ _ _)  = __IMPOSSIBLE__
+        mergeP (VarP _) (LitP _)      = __IMPOSSIBLE__
+        mergeP (LitP _) (ConP _ _ _)  = __IMPOSSIBLE__
+        mergeP (LitP _) (VarP _)      = __IMPOSSIBLE__
 
 -- | Check if a problem is solved. That is, if the patterns are all variables.
 isSolvedProblem :: Problem -> Bool
@@ -423,21 +423,21 @@ checkLeftHandSide c ps a ret = do
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'
 
-
+{-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
               [ text "gamma' =" <+> text (show gamma')
               ]
+-}
 
             -- Andreas 2010-09-07  propagate relevance info to new vars
-            -- DOES NOT SEEM TO HAVE AN EFFECT
             gamma' <- return $ if rel == Irrelevant then
                                 fmap makeIrrelevant gamma'
                                else gamma'
-
+{-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
               [ text "gamma' =" <+> text (show gamma')
               ]
-
+-}
             -- Insert implicit patterns
             qs' <- insertImplicitPatterns qs gamma'
 
@@ -492,7 +492,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Plug the hole in the out pattern with c ys
             let ysp = map (fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c ysp) iph
+                ip  = plugHole (ConP c Nothing ysp) iph
                 ip0 = substs rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
@@ -594,7 +594,7 @@ noPatternMatchingOnCodata = mapM_ (check . unArg)
   check (VarP {})   = return ()
   check (DotP {})   = return ()
   check (LitP {})   = return ()  -- Literals are assumed not to be coinductive.
-  check (ConP q ps) = do
+  check (ConP q _ ps) = do
     TelV _ t <- telView' . defType <$> getConstInfo q
     c <- isCoinductive t
     case c of

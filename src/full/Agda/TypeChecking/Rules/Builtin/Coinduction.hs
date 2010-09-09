@@ -154,7 +154,7 @@ bindBuiltinFlat e =
                         , clausePerm  = idP 3
                         , clausePats  = [ argH (VarP "a")
                                         , argH (VarP "A")
-                                        , argN (ConP sharp [argN (VarP "x")])
+                                        , argN (ConP sharp Nothing [argN (VarP "x")])
                                         ]
                         , clauseBody  = Bind $ Abs "h0" $
                                         Bind $ Abs "h1" $

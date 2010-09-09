@@ -373,8 +373,8 @@ generateConstructorInfo modMap file kinds decls = do
   getConstructor _           = return Seq.empty
 
   getConstructorP :: I.Pattern -> TCM (Seq A.QName)
-  getConstructorP (I.ConP q _) = return $ Seq.singleton q
-  getConstructorP _            = return Seq.empty
+  getConstructorP (I.ConP q _ _) = return $ Seq.singleton q
+  getConstructorP _              = return Seq.empty
 
   retrieveCoconstructor :: A.QName -> TCM (Seq A.QName)
   retrieveCoconstructor c = do

@@ -305,15 +305,15 @@ instance Subst Sort where
 
 instance Subst Pattern where
   substs us p = case p of
-    VarP s    -> VarP s
-    LitP l    -> LitP l
-    ConP c ps -> ConP c $ substs us ps
-    DotP t    -> DotP $ substs us t
+    VarP s       -> VarP s
+    LitP l       -> LitP l
+    ConP c mt ps -> ConP c (substs us mt) $ substs us ps
+    DotP t       -> DotP $ substs us t
   substUnder n u p = case p of
-    VarP s    -> VarP s
-    LitP l    -> LitP l
-    ConP c ps -> ConP c $ substUnder n u ps
-    DotP t    -> DotP $ substUnder n u t
+    VarP s       -> VarP s
+    LitP l       -> LitP l
+    ConP c mt ps -> ConP c (substUnder n u mt) $ substUnder n u ps
+    DotP t       -> DotP $ substUnder n u t
 
 instance Subst t => Subst (Blocked t) where
     substs us b      = fmap (substs us) b

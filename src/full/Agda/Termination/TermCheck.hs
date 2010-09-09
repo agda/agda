@@ -343,7 +343,7 @@ stripBind conf i (DotP t) (Bind b)   = do
   return $ Just (i - 1, t, absBody b)
 stripBind conf i (DotP _) (Body b)   = __IMPOSSIBLE__
 stripBind conf i (LitP l) b          = return $ Just (i, LitDBP l, b)
-stripBind conf i (ConP c args) b     = do
+stripBind conf i (ConP c _ args) b   = do
     r <- stripBinds conf i (map unArg args) b
     case r of
       Just (i', dbps, b') -> return $ Just (i', ConDBP c dbps, b')

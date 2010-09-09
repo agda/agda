@@ -534,10 +534,10 @@ instance PrettyTCM TypeError where
             showArg (Arg Hidden r x)    = braces $ showPat 0 x
             showArg (Arg NotHidden r x) = showPat 1 x
 
-            showPat _ (I.VarP _)      = text "_"
-            showPat _ (I.DotP _)      = text "._"
-            showPat n (I.ConP c args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
-            showPat _ (I.LitP l)      = text (show l)
+            showPat _ (I.VarP _)        = text "_"
+            showPat _ (I.DotP _)        = text "._"
+            showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
+            showPat _ (I.LitP l)        = text (show l)
 
 
 

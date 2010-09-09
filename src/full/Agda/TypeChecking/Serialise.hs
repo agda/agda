@@ -76,7 +76,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100903 * 10 + 0
+currentInterfaceVersion = 20100909 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -653,15 +653,15 @@ instance EmbPrj Delayed where
                            valu _   = malformed
 
 instance EmbPrj I.Pattern where
-  icode (VarP a  ) = icode1 0 a
-  icode (ConP a b) = icode2 1 a b
-  icode (LitP a  ) = icode1 2 a
-  icode (DotP a  ) = icode1 3 a
-  value = vcase valu where valu [0, a]    = valu1 VarP a
-                           valu [1, a, b] = valu2 ConP a b
-                           valu [2, a]    = valu1 LitP a
-                           valu [3, a]    = valu1 DotP a
-                           valu _         = malformed
+  icode (VarP a    ) = icode1 0 a
+  icode (ConP a b c) = icode2 1 a b
+  icode (LitP a    ) = icode1 2 a
+  icode (DotP a    ) = icode1 3 a
+  value = vcase valu where valu [0, a]       = valu1 VarP a
+                           valu [1, a, b, c] = valu3 ConP a b c
+                           valu [2, a]       = valu1 LitP a
+                           valu [3, a]       = valu1 DotP a
+                           valu _            = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where
   icode (Prim    a) = icode1 0 a

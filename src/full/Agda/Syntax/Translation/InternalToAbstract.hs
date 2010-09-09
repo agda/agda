@@ -389,7 +389,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
           else lift $ A.DotP i <$> reify v
       I.LitP (LitLevel {}) -> __IMPOSSIBLE__
       I.LitP l             -> return (A.LitP l)
-      I.ConP c ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
+      I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps  
       where
         i = PatRange noRange
         mi = MetaInfo noRange emptyScopeInfo Nothing

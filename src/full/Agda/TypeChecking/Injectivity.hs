@@ -215,6 +215,8 @@ useInjectivity cmp a u v = do
 
     metaPat (DotP v) = dotP v
     metaPat (VarP _) = nextMeta
-    metaPat (ConP c args) = Con c <$> metaArgs args
+    metaPat (ConP c mt args) = do
+      args <- metaArgs args
+      return $ Con c args
     metaPat (LitP l) = return $ Lit l
 

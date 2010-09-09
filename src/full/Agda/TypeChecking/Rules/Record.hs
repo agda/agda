@@ -188,10 +188,11 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 
       -- The body should be
       --  P.xi {tel} (r _ .. x .. _) = x
-      let ptel   = telFromList $ take (size tel - 1) $ telToList tel
-          hps	 = map (fmap $ VarP . fst) $ telToList ptel
+      let (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
+          hps	 = map (fmap $ VarP . fst) $ ptel
 	  conp	 = defaultArg
-		 $ ConP q $ zipWith3 Arg
+		 $ ConP q (Just (snd (unArg rt)))
+                   $ zipWith3 Arg
                               (map argHiding (telToList ftel))
                               (map argRelevance (telToList ftel))
 			      [ VarP "x" | _ <- [1..size ftel] ]
@@ -202,7 +203,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
 		 $ Body $ Var (size ftel2) []
-          cltel  = ptel `abstract` ftel
+          cltel  = (telFromList ptel) `abstract` ftel
 	  clause = Clause { clauseRange = getRange info
                           , clauseTel   = killRange cltel
                           , clausePerm  = idP $ size ptel + size ftel

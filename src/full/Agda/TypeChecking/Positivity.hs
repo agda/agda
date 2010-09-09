@@ -249,10 +249,10 @@ instance ComputeOccurrences Clause where
       patItem i p        = replicate (nVars p) (Just (AnArg i)) -- Nothing
 
       nVars p = case p of
-        VarP{}    -> 1
-        DotP{}    -> 1
-        ConP _ ps -> sum $ map (nVars . unArg) ps
-        LitP{}    -> 0
+        VarP{}      -> 1
+        DotP{}      -> 1
+        ConP _ _ ps -> sum $ map (nVars . unArg) ps
+        LitP{}      -> 0
 
 instance ComputeOccurrences Term where
   occurrences vars v = case v of

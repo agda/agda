@@ -30,14 +30,14 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     xs   = permute (invertP perm) $ reverse [0 .. fromIntegral (size perm) - 1]
     tick = do x : xs <- get; put xs; return x
 
-    build (VarP _)      = VarMP <$> tick
-    build (ConP con ps) = ConMP con <$> mapM (traverse build) ps
-    build (DotP t)      = tick *> buildT t
-    build (LitP l)      = return $ LitMP l
+    build (VarP _)        = VarMP <$> tick
+    build (ConP con _ ps) = ConMP con <$> mapM (traverse build) ps
+    build (DotP t)        = tick *> buildT t
+    build (LitP l)        = return $ LitMP l
 
-    buildT (Con c args) = ConMP c <$> mapM (traverse buildT) args
-    buildT (Var i [])   = return (VarMP i)
-    buildT _            = return WildMP
+    buildT (Con c args)   = ConMP c <$> mapM (traverse buildT) args
+    buildT (Var i [])     = return (VarMP i)
+    buildT _              = return WildMP
 
 -- | If matching is inconclusive (@Block@) we want to know which
 --   variable is blocking the match. If a dot pattern is blocking a match
@@ -109,7 +109,7 @@ matchPat :: MatchLit -> Pattern -> MPat -> Match ()
 matchPat _    (VarP _) _ = Yes ()
 matchPat _    (DotP _) _ = Yes ()
 matchPat mlit (LitP l) q = mlit l q
-matchPat mlit (ConP c ps) q = case q of
+matchPat mlit (ConP c _ ps) q = case q of
   VarMP x -> Block $ Just x
   WildMP  -> Block Nothing
   ConMP c' qs

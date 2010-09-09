@@ -267,7 +267,7 @@ tomyClause cl@(I.Clause {I.clausePerm = Perm n ps, I.clausePats = pats, I.clause
 tomyPat p = case C.unArg p of
  I.VarP n -> return $ PatVar (show n)
  I.DotP _ -> return $ PatVar "_" -- because Agda includes these when referring to variables in the body
- I.ConP n pats -> do
+ I.ConP n _ pats -> do
   c <- getConst True n TMAll
   pats' <- mapM tomyPat pats
   def <- lift $ getConstInfo n
@@ -509,7 +509,7 @@ constructPats cmap mainm clause = do
       let hid = cnvh $ C.argHiding p
       in case C.unArg p of
        I.VarP n -> return ((hid, Id n) : ns, HI hid (CSPatVar $ length ns))
-       I.ConP c ps -> do
+       I.ConP c _ ps -> do
         (c2, _) <- runStateT (getConst True c TMAll) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         (ns', ps') <- cnvps ns ps
         cc <- liftIO $ readIORef c2
@@ -571,7 +571,7 @@ frommyClause (ids, pats, mrhs) = do
         cdef <- readIORef c
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
-        return (I.ConP name ps')
+        return (I.ConP name Nothing ps')
        CSPatExp e -> do
         e' <- frommyExp {- renm e -} e  -- rename disabled to match (incorrect?) Agda reification of clauses
         return (I.DotP e')

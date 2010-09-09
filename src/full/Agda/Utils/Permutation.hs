@@ -13,11 +13,16 @@ data Permutation = Perm Integer [Integer]
   deriving (Eq, Data, Typeable)
 
 instance Show Permutation where
-  show (Perm n xs) = show [0..n - 1] ++ "->" ++ show xs
+  show (Perm n xs) = showx [0..n - 1] ++ "->" ++ showx xs
+    where showx i= "x" ++ show i
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs
 
+-- | @permute [2,3,1] [x1,x2,x3] = [x2,x3,x1]@
+--   More precisely, @permute indices list = sublist@, generates @sublist@
+--   from @list@ by picking the elements of list as indicated by @indices@. 
+--   @permute [2,4,1] [x1,x2,x3,x4] = [x2,x4,x1]@
 permute :: Permutation -> [a] -> [a]
 permute (Perm _ is) xs = map (xs !!!) is
   where

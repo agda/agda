@@ -66,7 +66,7 @@ matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do
 	Blocked x _            -> return (DontKnow $ Just x, Arg h r v)
 	_                      -> return (DontKnow Nothing, Arg h r v)
 
-matchPattern (Arg h' r' (ConP c ps))     (Arg h Irrelevant v) = do
+matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
@@ -74,7 +74,7 @@ matchPattern (Arg h' r' (ConP c ps))     (Arg h Irrelevant v) = do
                   repeat $ Arg NotHidden Irrelevant $ Sort Prop
 		return (m, Arg h Irrelevant $ Con c vs)
 
-matchPattern (Arg h' r' (ConP c ps))     (Arg h r v) =
+matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
     do	w <- traverse constructorForm =<< reduceB v
         -- Unfold delayed (corecursive) definitions one step. This is
         -- only necessary if c is a coinductive constructor, but

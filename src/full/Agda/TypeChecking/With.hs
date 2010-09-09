@@ -30,10 +30,11 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-showPat (VarP x)    = text x
-showPat (DotP t)    = comma <> text (showsPrec 10 t "")
-showPat (ConP c ps) = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
-showPat (LitP l)    = text (show l)
+showPat (VarP x)              = text x
+showPat (DotP t)              = comma <> text (showsPrec 10 t "")
+showPat (ConP c Nothing ps)   = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps)
+showPat (ConP c (Just t) ps)  = parens $ prettyTCM c <+> fsep (map (showPat . unArg) ps) <+> text ":" <+> prettyTCM t
+showPat (LitP l)              = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
 withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
@@ -129,7 +130,7 @@ stripWithClausePatterns gamma qs perm ps = do
               ps <- strip (tel `absApp` v) ps qs
               return $ p : ps
 
-        ConP c qs' -> case namedThing $ unArg p of
+        ConP c _ qs' -> case namedThing $ unArg p of
           A.ConP _ (A.AmbQ cs') ps' -> do
 
             Con c' [] <- constructorForm =<< reduce (Con c [])
@@ -248,10 +249,10 @@ patsToTerms ps = evalState (toTerms ps) 0
 
     toTerm :: Pattern -> State Nat Term
     toTerm p = case p of
-      VarP _    -> var >>= \i -> return $ Var i []
-      DotP t    -> return t
-      ConP c ps -> Con c <$> toTerms ps
-      LitP l    -> return $ Lit l
+      VarP _      -> var >>= \i -> return $ Var i []
+      DotP t      -> return t
+      ConP c _ ps -> Con c <$> toTerms ps
+      LitP l      -> return $ Lit l
 
 data ConPos = Here
             | ArgPat Int ConPos
