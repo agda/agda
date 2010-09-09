@@ -55,7 +55,11 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
           ps0          = map (defaultArg . unnamed) wps0
       rhs <- buildRHS rhs
       (ps1, ps2)  <- genericSplitAt n1 <$> stripWithClausePatterns gamma qs perm ps
-      return $ A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
+      let result = A.Clause (LHS i aux (ps1 ++ ps0 ++ ps2) wps1) rhs wh
+      reportSDoc "tc.with" 20 $ vcat
+        [ text "buildWithClause returns" <+> prettyA result
+        ]
+      return result
 
     buildRHS rhs@(RHS _)               = return rhs
     buildRHS rhs@AbsurdRHS             = return rhs
@@ -87,12 +91,12 @@ stripWithClausePatterns gamma qs perm ps = do
     , nest 2 $ text "qs  = " <+> fsep (punctuate comma $ map (showPat . unArg) qs)
     ]
   ps' <- strip gamma psi qs
+  let psp = permute perm ps'
   reportSDoc "tc.with.strip" 10 $ vcat
     [ nest 2 $ text "ps' = " <+> fsep (punctuate comma $ map prettyA ps')
-    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ permute perm ps')
+    , nest 2 $ text "psp = " <+> fsep (punctuate comma $ map prettyA $ psp)
     ]
-
-  return $ permute perm ps'
+  return psp
   where
     -- implicit args inserted at top level
     -- all three arguments should have the same size
@@ -223,12 +227,28 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
     var i = Var i []
     sub wild = map term [0..] -- m - 1]
       where
-        -- Perm m xs = reverseP perm
-        Perm m xs = perm    -- thinking required.. but ignored
+        Perm m xs = reverseP perm
+        -- Perm m xs = perm    -- thinking required.. but ignored
                             -- dropping the reverse seems to work better
+                            -- Andreas, 2010-09-09: I DISAGREE.
         term i = case findIndex (i ==) xs of
           Nothing -> wild
           Just j  -> Var (fromIntegral j) []
+
+{- example (test/fail/Issue295.agda)
+
+  aux  = aux d w a b c
+  delta1 = d
+  delta2 = a b c
+  perm = x0,x1,x2,x3 -> x3,x0,x1,x2
+  perm = a,b,c,d -> d,a,b,c
+WIHOUT reverseP IS:
+  dt   = (@0 ⟶ @4) ﹔ (@2 ⟶ @1) | @3
+  dt   = (c ⟶ d) ﹔ (a ⟶ b) | w
+WITH reverseP IS, AS IT SHOULD:
+  dt   = (a ⟶ b) ﹔ (c ⟶ d) | w
+  dt   = (@2 ⟶ @1) ﹔ (@0 ⟶ @4) | @3
+-}
 
 patsToTerms :: [Arg Pattern] -> [Arg Term]
 patsToTerms ps = evalState (toTerms ps) 0
