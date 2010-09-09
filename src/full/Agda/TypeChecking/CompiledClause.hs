@@ -64,9 +64,9 @@ splitOn n cs = mconcat $ map (fmap (:[]) . splitC n) cs
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
-  ConP c qs -> conCase c (ps0 ++ qs ++ ps1, b)
-  LitP l    -> litCase l (ps0 ++ ps1, b)
-  _         -> catchAll (ps, b)
+  ConP c _ qs -> conCase c (ps0 ++ qs ++ ps1, b)
+  LitP l      -> litCase l (ps0 ++ ps1, b)
+  _           -> catchAll (ps, b)
   where
     (ps0, p, ps1) = extractNthElement' n ps
 
