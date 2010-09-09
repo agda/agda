@@ -206,11 +206,12 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 -- aren't used. (Note: This optimisation has been disabled.)
 --
 --  The telescope contains the types of the pattern variables and the
---  permutation is how to get from the order the variables occur in the
---  patterns to the order they occur in the telescope. The body binds the
---  variables in the order they appear in the patterns.
---  For the purpose of the permutation dot patterns count as variables.
---  TODO: change this!
+--  permutation is how to get from the order the variables occur in
+--  the patterns to the order they occur in the telescope. The body
+--  binds the variables in the order they appear in the patterns.
+--
+--  For the purpose of the permutation and the body dot patterns count
+--  as variables. TODO: Change this!
 data Clause = Clause
     { clauseRange     :: Range
     , clauseTel       :: Telescope
@@ -237,7 +238,7 @@ instance HasRange Clause where
 --
 data Pattern = VarP String  -- name suggestion
              | DotP Term
-	     | ConP QName (Maybe (Arg Type)) [Arg Pattern] 
+	     | ConP QName (Maybe (Arg Type)) [Arg Pattern]
                -- ^ Record patterns come with a type of the whole pattern.
                -- The type's scope is like that of a term in a dot pattern:
                -- it is in scope of all the variables bound in alls patterns
