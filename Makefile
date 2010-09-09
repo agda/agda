@@ -217,13 +217,18 @@ library-test : up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
-	@(cd std-lib && time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) +RTS -M1G -H1.5G -s)
+	@(cd std-lib && \
+          time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+            +RTS -H1G -M1.5G -s)
 
 compiler-test : up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "============================== Compiler =============================="
 	@echo "======================================================================"
-	@(cd test/compiler && time ../../$(AGDA_BIN) --compile -i. -i../../std-lib -i../../std-lib/src Main.agda && ./Main)
+	@(cd test/compiler && \
+          time ../../$(AGDA_BIN) --compile -i. -i../../std-lib -i../../std-lib/src \
+            Main.agda +RTS -H1G -M1.5G && \
+          ./Main)
 
 benchmark :
 	@$(MAKE) -C benchmark
