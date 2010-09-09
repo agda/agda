@@ -164,6 +164,13 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 	]
       t <- isType_ t
 
+
+      -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
+      -- in fact, tel includes the variable of record type as last one
+      -- e.g. for cartesion product it is
+      -- 
+      --   tel = {A' : Set} {B' : Set} (r : Prod A' B')
+
       -- create the projection functions (instantiate the type with the values
       -- of the previous fields)
 
@@ -177,7 +184,8 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-      delta <- getContextTelescope
+      
+
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x
 
@@ -188,7 +196,11 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 
       -- The body should be
       --  P.xi {tel} (r _ .. x .. _) = x
-      let (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
+
+      let -- Andreas, 2010-09-09: comment for existing code
+          -- split the telescope into parameters (ptel) and the type or the record
+          -- (rt) which should be  R ptel
+          (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
           hps	 = map (fmap $ VarP . fst) $ ptel
 	  conp	 = defaultArg
 		 $ ConP q (Just (snd (unArg rt)))

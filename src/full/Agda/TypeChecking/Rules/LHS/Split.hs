@@ -128,7 +128,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 			 ]
 		  return $ Split mempty
 				 xs
-				 (fmap (const $ Focus c args (getRange p) q i d pars ixs) a)
+				 (fmap (Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
 	    _	-> keepGoing
 	p -> keepGoing

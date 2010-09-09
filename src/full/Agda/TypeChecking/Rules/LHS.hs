@@ -116,8 +116,8 @@ instantiatePattern sub perm ps
         mergeP (VarP _)  (DotP t)     = DotP t
         mergeP (DotP _)  _            = __IMPOSSIBLE__
         mergeP _         (DotP _)     = __IMPOSSIBLE__
-        mergeP (ConP c1 _ ps) (ConP c2 _ qs)
-          | c1 == c2                  = ConP (c1 `withRangeOf` c2) Nothing $ zipWith mergeA ps qs
+        mergeP (ConP c1 mt1 ps) (ConP c2 mt2 qs)
+          | c1 == c2                  = ConP (c1 `withRangeOf` c2) (mplus mt1 mt2) $ zipWith mergeA ps qs
           | otherwise                 = __IMPOSSIBLE__
         mergeP (LitP l1) (LitP l2)
           | l1 == l2                  = LitP (l1 `withRangeOf` l2)
@@ -382,6 +382,7 @@ checkLeftHandSide c ps a ret = do
                           , focusDatatype = d
                           , focusParams   = vs
                           , focusIndices  = ws
+                          , focusType     = typeOfSplitVar
                           }
                   )) p1
                 ) -> traceCall (CheckPattern (A.ConP (PatRange r) (A.AmbQ [c]) qs)
@@ -400,6 +401,8 @@ checkLeftHandSide c ps a ret = do
               [ text "split problem"
               , nest 2 $ vcat
                 [ text "delta1 = " <+> prettyTCM delta1
+                , text "typeOfSplitVar =" <+> prettyTCM typeOfSplitVar
+                , text "focusOutPat =" <+> (text . show) iph
                 , text "delta2 = " <+> prettyTCM (problemTel $ absBody p1)
                 ]
               ]
@@ -492,7 +495,12 @@ checkLeftHandSide c ps a ret = do
 
             -- Plug the hole in the out pattern with c ys
             let ysp = map (fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c Nothing ysp) iph
+                ip  = plugHole (ConP c (Just $ raise (1 + size delta2) $ typeOfSplitVar) ysp) iph  
+                  -- Andreas, 2010-09-09, save the type a of pattern
+                  -- it is relative to delta1, but it should be relative to 
+                  -- all variables which will be bound by patterns
+                  -- thus, it has to be raised by 1 (the "hole" variable)
+                  -- plus the length of delta2 (the variables coming after the hole)
                 ip0 = substs rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
@@ -505,9 +513,12 @@ checkLeftHandSide c ps a ret = do
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "newTel =" <+> prettyTCM newTel
               , addCtxTel newTel $ text "sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
-              , text "ip  =" <+> text (show ip)
-              , text "ip0  = " <+> text (show ip0)
+              , text "ip   =" <+> text (show ip)
+              , text "ip0  =" <+> text (show ip0)
               ]
+            reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
+              [ text "rho0 =" <+> text (show $ take (size delta1 + size gamma + size delta2) rho0)
+              ]  -- Andreas, this is showing some inital segment of rho0, not necessarily the most meaningful one
 
             -- Instantiate the new telescope with the given substitution
             (delta', perm, rho, instTypes) <- instantiateTel sub newTel

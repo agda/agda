@@ -400,6 +400,14 @@ instance Raise Sort where
       DLub s1 s2 -> DLub (rf s1) (rf s2)
       where rf x = raiseFrom m k x
 
+-- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern
+instance Raise Pattern where
+    raiseFrom m k p = case p of
+      DotP t -> DotP $ raiseFrom m k t
+      ConP c mt ps -> ConP c (raiseFrom m k mt) (raiseFrom m k ps)
+      VarP x -> p
+      LitP l -> p
+
 instance Raise a => Raise (Tele a) where
     raiseFrom m k EmptyTel          = EmptyTel
     raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)

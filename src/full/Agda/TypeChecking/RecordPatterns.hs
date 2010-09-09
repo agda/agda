@@ -21,8 +21,13 @@ f (zero, xyz) true (x', false) rhs'  where rhs = subst
 We walk through the patterns from left to right, to get the de Bruijn indices
 for the pattern variables (dot patterns also have a de Bruijn index).
 
+  Gamma, pi, n |- x --> Gamma(pi(n)), n+1, [n/n]
+
+  Gamma, pi, n |- .t --> infer
+
 If we return from a record pattern whose components were all irrefutable, we
 apply a substitution to Telescope
+
 
 -}
 

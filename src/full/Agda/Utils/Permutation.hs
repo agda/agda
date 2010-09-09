@@ -13,8 +13,12 @@ data Permutation = Perm Integer [Integer]
   deriving (Eq, Data, Typeable)
 
 instance Show Permutation where
-  show (Perm n xs) = showx [0..n - 1] ++ "->" ++ showx xs
-    where showx i= "x" ++ show i
+  show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs
+    where showx = showList "," (\ i -> "x" ++ show i)
+          showList :: String -> (a -> String) -> [a] -> String
+          showList sep f [] = ""
+          showList sep f [e] = f e
+          showList sep f (e:es) = f e ++ sep ++ showList sep f es 
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs
