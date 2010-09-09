@@ -7,7 +7,7 @@ import Agda.Syntax.Internal
 import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute hiding (Substitution)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce

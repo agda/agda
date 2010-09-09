@@ -235,13 +235,17 @@ abstractArgs args x = abstract tel x
               $ zipWith (fmap . const) names args
         names = cycle $ map (:[]) ['a'..'z']
 
+-- | Substitutions.
+
+type Substitution = [Term]
+
 -- | Substitute a term for the nth free variable.
 --
 class Subst t where
-    substs     :: [Term] -> t -> t
+    substs     :: Substitution -> t -> t
     substUnder :: Nat -> Term -> t -> t
 
-idSub :: Telescope -> [Term]
+idSub :: Telescope -> Substitution
 idSub tel = [ Var i [] | i <- [0..size tel - 1] ]
 
 subst :: Subst t => Term -> t -> t

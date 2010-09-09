@@ -17,7 +17,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- isRecord
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute hiding (Substitution)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -496,7 +496,7 @@ checkLeftHandSide c ps a ret = do
                 ]
 
             -- Andreas, 2010-09-09, save the type a of record pattern.
-            -- It is relative to delta1, but it should be relative to 
+            -- It is relative to delta1, but it should be relative to
             -- all variables which will be bound by patterns.
             -- Thus, it has to be raised by 1 (the "hole" variable)
             -- plus the length of delta2 (the variables coming after the hole).
@@ -506,7 +506,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Plug the hole in the out pattern with c ys
             let ysp = map (fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c storedPatternType ysp) iph  
+                ip  = plugHole (ConP c storedPatternType ysp) iph
                 ip0 = substs rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
