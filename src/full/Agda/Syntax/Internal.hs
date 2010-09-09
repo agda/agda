@@ -222,7 +222,8 @@ data Clause = Clause
 data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
 		| NoBind ClauseBody
-		| NoBody    -- for absurd clauses
+		| NoBody    -- ^ for absurd clauses.  A @NoBody@ is never
+                            -- preceded by any @Bind@ or @NoBind@.
   deriving (Typeable, Data, Show)
 
 instance HasRange Clause where
@@ -236,8 +237,12 @@ instance HasRange Clause where
 --
 data Pattern = VarP String  -- name suggestion
              | DotP Term
-	     | ConP QName (Maybe Type) [Arg Pattern] 
-               -- ^ record patterns come with a type of the whole pattern
+	     | ConP QName (Maybe (Arg Type)) [Arg Pattern] 
+               -- ^ Record patterns come with a type of the whole pattern.
+               -- The type's scope is like that of a term in a dot pattern:
+               -- it is in scope of all the variables bound in alls patterns
+               -- of a clause.
+               -- If the Maybe is @Nothing@ then it is not a record pattern.
 	     | LitP Literal
   deriving (Typeable, Data, Show)
 

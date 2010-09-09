@@ -203,7 +203,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
           hps	 = map (fmap $ VarP . fst) $ ptel
 	  conp	 = defaultArg
-		 $ ConP q (Just (snd (unArg rt)))
+		 $ ConP q (Just (fmap snd rt))
                    $ zipWith3 Arg
                               (map argHiding (telToList ftel))
                               (map argRelevance (telToList ftel))

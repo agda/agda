@@ -15,6 +15,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records -- isRecord
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -373,7 +374,7 @@ checkLeftHandSide c ps a ret = do
             checkLHS problem' sigma' dpi' asb'
 
           -- Split on constructor pattern
-          Right (Split p0 xs (Arg _ rel
+          Right (Split p0 xs (Arg h rel
                   ( Focus { focusCon      = c
                           , focusConArgs  = qs
                           , focusRange    = r
@@ -382,7 +383,7 @@ checkLeftHandSide c ps a ret = do
                           , focusDatatype = d
                           , focusParams   = vs
                           , focusIndices  = ws
-                          , focusType     = typeOfSplitVar
+                          , focusType     = a
                           }
                   )) p1
                 ) -> traceCall (CheckPattern (A.ConP (PatRange r) (A.AmbQ [c]) qs)
@@ -390,6 +391,7 @@ checkLeftHandSide c ps a ret = do
                                              (El Prop $ Def d $ vs ++ ws)) $ do
 
             let delta1 = problemTel p0
+            let typeOfSplitVar = Arg h rel a
 
             reportSDoc "tc.lhs.top" 10 $ sep
               [ text "checking lhs"
@@ -493,14 +495,18 @@ checkLeftHandSide c ps a ret = do
                 , text "asb0 = " <+> brackets (fsep $ punctuate comma $ map prettyTCM asb0)
                 ]
 
+            -- Andreas, 2010-09-09, save the type a of record pattern.
+            -- It is relative to delta1, but it should be relative to 
+            -- all variables which will be bound by patterns.
+            -- Thus, it has to be raised by 1 (the "hole" variable)
+            -- plus the length of delta2 (the variables coming after the hole).
+            storedPatternType <- ifM (isRecord d)
+              (return $ Just $ raise (1 + size delta2) $ typeOfSplitVar)
+              (return $ Nothing)
+
             -- Plug the hole in the out pattern with c ys
             let ysp = map (fmap (VarP . fst)) $ telToList gamma
-                ip  = plugHole (ConP c (Just $ raise (1 + size delta2) $ typeOfSplitVar) ysp) iph  
-                  -- Andreas, 2010-09-09, save the type a of pattern
-                  -- it is relative to delta1, but it should be relative to 
-                  -- all variables which will be bound by patterns
-                  -- thus, it has to be raised by 1 (the "hole" variable)
-                  -- plus the length of delta2 (the variables coming after the hole)
+                ip  = plugHole (ConP c storedPatternType ysp) iph  
                 ip0 = substs rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
