@@ -24,6 +24,7 @@ import Agda.Syntax.Concrete
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty
 import Agda.Utils.Pretty
 
@@ -40,9 +41,9 @@ import Agda.Utils.Impossible
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity Access IsAbstract Name Expr
-        | NiceField Range Fixity Access IsAbstract Hiding Name Expr
-	| PrimitiveFunction Range Fixity Access IsAbstract Name Expr
+	= Axiom Range Fixity' Access IsAbstract Name Expr
+        | NiceField Range Fixity' Access IsAbstract Hiding Name Expr
+	| PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
@@ -56,9 +57,9 @@ data NiceDeclaration
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= FunDef  Range [Declaration] Fixity Access IsAbstract Name [Clause]
-	| DataDef Range Fixity Access IsAbstract Name [LamBinding] [NiceConstructor]
-	| RecDef Range Fixity Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
+	= FunDef  Range [Declaration] Fixity' Access IsAbstract Name [Clause]
+	| DataDef Range Fixity' Access IsAbstract Name [LamBinding] [NiceConstructor]
+	| RecDef Range Fixity' Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
           -- ^ The 'NiceConstructor' has a dummy type field (the
           --   record constructor type has not been computed yet).
     deriving (Typeable, Data)
@@ -76,7 +77,7 @@ data Clause = Clause Name LHS RHS WhereClause [Clause]
 
 -- | The exception type.
 data DeclarationException
-	= MultipleFixityDecls [(Name, [Fixity])]
+	= MultipleFixityDecls [(Name, [Fixity'])]
 	| MissingDefinition Name
         | MissingWithClauses Name
 	| MissingTypeSignature LHS
@@ -166,8 +167,8 @@ niceDeclarations ds = do
     where
 
 	-- If no fixity is given we return the default fixity.
-	fixity :: Name -> Map.Map Name Fixity -> Fixity
-	fixity = Map.findWithDefault defaultFixity
+	fixity :: Name -> Map.Map Name Fixity' -> Fixity'
+	fixity = Map.findWithDefault defaultFixity'
 
 	-- We forget all fixities in recursive calls. This is because
 	-- fixity declarations have to appear at the same level as the
@@ -185,6 +186,7 @@ niceDeclarations ds = do
 	  Data _ _ x _ _ cs			       -> x : concatMap declaredNames cs
 	  Record _ x c _ _ _			       -> x : maybeToList c
 	  Infix _ _				       -> []
+          Syntax _ _                                   -> []
 	  Mutual _ ds				       -> concatMap declaredNames ds
 	  Abstract _ ds				       -> concatMap declaredNames ds
 	  Private _ ds				       -> concatMap declaredNames ds
@@ -253,6 +255,7 @@ niceDeclarations ds = do
 				[ NiceModuleMacro r PublicAccess ConcreteDef x tel e op is ]
 
 			    Infix _ _		-> return []
+			    Syntax _ _		-> return []
 			    Open r x is		-> return [NiceOpen r x is]
 			    Import r x as op is	-> return [NiceImport r x as op is]
 
@@ -290,10 +293,10 @@ niceDeclarations ds = do
 	-- Translate axioms
         niceAx fixs ds = return $ niceAxioms fixs ds
 
-	niceAxioms :: Map.Map Name Fixity -> [TypeSignature] -> [NiceDeclaration]
+	niceAxioms :: Map.Map Name Fixity' -> [TypeSignature] -> [NiceDeclaration]
 	niceAxioms fixs ds = map (niceAxiom fixs) ds
 
-        niceAxiom :: Map.Map Name Fixity -> TypeSignature -> NiceDeclaration
+        niceAxiom :: Map.Map Name Fixity' -> TypeSignature -> NiceDeclaration
         niceAxiom fixs d@(TypeSig x t) =
             Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
         niceAxiom fixs d@(Field h x t) =
@@ -450,23 +453,33 @@ niceDeclarations ds = do
 	mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
-plusFixities :: Map.Map Name Fixity -> Map.Map Name Fixity -> Nice (Map.Map Name Fixity)
+plusFixities :: Map.Map Name Fixity' -> Map.Map Name Fixity' -> Nice (Map.Map Name Fixity')
 plusFixities m1 m2
-    | Map.null isect	= return $ Map.union m1 m2
-    | otherwise		=
-	throwError $ MultipleFixityDecls $ map decls (Map.keys isect)
-    where
-	isect	= Map.intersection m1 m2
-	decls x = (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
+    | not (null isect) = throwError $ MultipleFixityDecls isect
+    | otherwise = return $ Map.unionWithKey mergeFixites m1 m2
+    where mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s 
+              where f | f1 == noFixity = f2
+                      | f2 == noFixity = f1
+                      | otherwise = __IMPOSSIBLE__
+                    s | s1 == noNotation = s2
+                      | s2 == noNotation = s1
+                      | otherwise = __IMPOSSIBLE__
+ 	  isect	= [decls x | (x,compat) <- Map.assocs (Map.intersectionWith compatible m1 m2), not compat]
+          
+	  decls x = (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
 				-- cpp doesn't know about primes
+          compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
+                                                       (s1 == noNotation || s2 == noNotation)
 
 -- | Get the fixities from the current block. Doesn't go inside /any/ blocks.
 --   The reason for this is that fixity declarations have to appear at the same
 --   level (or possibly outside an abstract or mutual block) as its target
 --   declaration.
-fixities :: [Declaration] -> Nice (Map.Map Name Fixity)
+fixities :: [Declaration] -> Nice (Map.Map Name Fixity')
 fixities (d:ds) = case d of
-  Infix f xs -> plusFixities (Map.fromList [ (x,f) | x <- xs ]) =<< fixities ds
+  Syntax x syn -> do fs <- fixities ds
+                     plusFixities fs (Map.singleton x (Fixity' noFixity syn))
+  Infix f xs -> plusFixities (Map.fromList [ (x,Fixity' f noNotation) | x <- xs ]) =<< fixities ds
   _          -> fixities ds
 fixities [] = return $ Map.empty
 

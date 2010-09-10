@@ -150,7 +150,7 @@ makeConfiguration ds cs vs = TermConf
 			{ nameId	  = NameId n 1
 			, nameConcrete	  = C.Name noRange [C.Id s]
 			, nameBindingSite = noRange
-			, nameFixity	  = defaultFixity
+			, nameFixity	  = defaultFixity'
 			}
 		      }
 

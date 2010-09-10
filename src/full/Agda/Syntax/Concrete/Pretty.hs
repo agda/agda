@@ -240,7 +240,7 @@ instance Pretty Declaration where
                                         map pretty cs)
 	    Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
-
+            Syntax n xs -> text "syntax" <+> pretty n <+> text "..."
 	    Mutual _ ds	    -> namedBlock "mutual" ds
 	    Abstract _ ds   -> namedBlock "abstract" ds
 	    Private _ ds    -> namedBlock "private" ds

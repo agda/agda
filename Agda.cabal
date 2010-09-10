@@ -124,6 +124,7 @@ library
                     Agda.Syntax.Internal.Generic
                     Agda.Syntax.Internal.Pattern
                     Agda.Syntax.Literal
+                    Agda.Syntax.Notation
                     Agda.Syntax.Parser.Alex
                     Agda.Syntax.Parser.Comments
                     Agda.Syntax.Parser.Layout

@@ -26,6 +26,7 @@ import Agda.Syntax.Concrete.Name
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Utils.Monad
@@ -77,6 +78,7 @@ import Agda.Utils.TestHelpers
     'Prop'          { TokKeyword KwProp $$ }
     'Set'           { TokKeyword KwSet $$ }
     'forall'        { TokKeyword KwForall $$ }
+    'syntax'        { TokKeyword KwSyntax $$ }
     'OPTIONS'       { TokKeyword KwOPTIONS $$ }
     'BUILTIN'       { TokKeyword KwBUILTIN $$ }
     'IMPORT'        { TokKeyword KwIMPORT $$ }
@@ -167,6 +169,7 @@ Token
     | 'Prop'	    { TokKeyword KwProp $1 }
     | 'Set'	    { TokKeyword KwSet $1 }
     | 'forall'	    { TokKeyword KwForall $1 }
+    | 'syntax'      { TokKeyword KwSyntax $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
@@ -653,6 +656,7 @@ Declaration
     | ModuleMacro   { [$1] }
     | Module	    { [$1] }
     | Pragma	    { [$1] }
+    | Syntax        { [$1] }
 
 
 {--------------------------------------------------------------------------
@@ -734,6 +738,30 @@ Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
 Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
+
+-- Syntax declaration (To declare eg. mixfix binders) 
+Syntax :: { Declaration }
+Syntax : 'syntax' Id HoleNames '=' SimpleIds  {
+  Syntax $2 (mkNotation $3 $5)
+}
+
+SimpleIds :: { [String] }
+SimpleIds : SimpleId { [$1] }
+          | SimpleIds SimpleId {$1 ++ [$2]}
+
+HoleNames :: { [HoleName] }
+HoleNames : HoleName { [$1] }
+          | HoleNames HoleName {$1 ++ [$2]}
+
+HoleName :: { HoleName }
+HoleName : SimpleId { ExprHole $1}
+--         | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+-- Variable name hole to be implemented later. 
+
+-- Discard the interval.
+SimpleId :: { String }
+SimpleId : id  { snd $1 } 
+
 
 -- Open
 Open :: { Declaration }

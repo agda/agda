@@ -770,6 +770,7 @@ instance LowerMeta SC.Declaration where
       SC.Record r n c tel e1 cs     -> SC.Record r n c
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _                     -> d
+      Syntax _ _                     -> d
       Mutual r ds                   -> Mutual r (lowerMeta ds)
       Abstract r ds                 -> Abstract r (lowerMeta ds)
       Private r ds                  -> Private r (lowerMeta ds)

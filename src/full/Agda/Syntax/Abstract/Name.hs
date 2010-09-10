@@ -18,6 +18,8 @@ import Agda.Utils.Fresh
 import Agda.Utils.Size
 import Agda.Utils.Suffix
 
+import Agda.Syntax.Notation
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -27,7 +29,7 @@ import Agda.Utils.Impossible
 data Name = Name { nameId	   :: NameId
 		 , nameConcrete	   :: C.Name
 		 , nameBindingSite :: Range
-		 , nameFixity	   :: Fixity
+		 , nameFixity	   :: Fixity'
 		 }
     deriving (Typeable, Data)
 
@@ -101,7 +103,7 @@ noModuleName = mnameFromList []
 -- site.
 
 mkName :: Range -> NameId -> String -> Name
-mkName r i s = Name i (C.Name noRange (parseName s)) r defaultFixity
+mkName r i s = Name i (C.Name noRange (parseName s)) r defaultFixity'
   where
     parseName ""      = []
     parseName ('_':s) = C.Hole : parseName s
@@ -183,7 +185,7 @@ freshName_ = freshName noRange
 freshNoName :: (MonadState s m, HasFresh NameId s) => Range -> m Name
 freshNoName r =
     do	i <- fresh
-	return $ Name i (C.NoName noRange i) r defaultFixity
+	return $ Name i (C.NoName noRange i) r defaultFixity'
 
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange

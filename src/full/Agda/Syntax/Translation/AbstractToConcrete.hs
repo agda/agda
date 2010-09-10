@@ -197,11 +197,11 @@ bracketP par ret m = m $ \p -> do
 -- | If a name is defined with a fixity that differs from the default, we have
 --   to generate a fixity declaration for that name.
 withInfixDecl :: DefInfo -> C.Name -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
-withInfixDecl i x m
-    | defFixity i == defaultFixity = m
-    | otherwise                    = do
-        ds <- m
-        return $ C.Infix (defFixity i) [x] : ds
+withInfixDecl i x m = do
+  ds <- m
+  return $ fixDecl ++ synDecl ++ ds
+ where fixDecl = [C.Infix (theFixity $ defFixity i) [x] | theFixity (defFixity i) /= defaultFixity]
+       synDecl = [C.Syntax x (theNotation (defFixity i))]
 
 withInfixDecls :: [(DefInfo, C.Name)] -> AbsToCon [C.Declaration] -> AbsToCon [C.Declaration]
 withInfixDecls = foldr (.) id . map (uncurry withInfixDecl)
@@ -729,7 +729,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
         HdVar n | isNoName n -> mdefault
                 | otherwise  -> do
           x <- toConcrete n
-          doCName (nameFixity n) x args'
+          doCName (theFixity $ nameFixity n) x args'
         HdDef qn -> doQName qn args'
         HdCon qn -> doQName qn args'
     | otherwise -> mdefault
@@ -743,7 +743,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
   doQName qn as = do
     x <- toConcrete qn
     case x of
-      C.QName x -> doCName (nameFixity $ qnameName qn) x as
+      C.QName x -> doCName (theFixity $ nameFixity $ qnameName qn) x as
       _         -> mdefault
 
   -- fall-back (wrong number of arguments or no holes)

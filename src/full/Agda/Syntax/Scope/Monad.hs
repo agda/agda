@@ -18,6 +18,7 @@ import qualified Data.Map as Map
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Scope.Base
@@ -136,7 +137,6 @@ modifyCurrentNameSpace acc f = modifyCurrentScope action
       PrivateNS  -> (id, f, id)
       ImportedNS -> (id, id, f)
 
--- | Set context precedence
 setContextPrecedence :: Precedence -> ScopeM ()
 setContextPrecedence p = modifyScopeInfo $ \s -> s { scopePrecedence = p }
 
@@ -168,17 +168,17 @@ withLocalVars m = do
 -- * Names
 
 -- | Create a fresh abstract name from a concrete name.
-freshAbstractName :: Fixity -> C.Name -> ScopeM A.Name
+freshAbstractName :: Fixity' -> C.Name -> ScopeM A.Name
 freshAbstractName fx x = do
   i <- fresh
   return $ A.Name i x (getRange x) fx
 
 -- | @freshAbstractName_ = freshAbstractName defaultFixity@
 freshAbstractName_ :: C.Name -> ScopeM A.Name
-freshAbstractName_ = freshAbstractName defaultFixity
+freshAbstractName_ = freshAbstractName defaultFixity'
 
 -- | Create a fresh abstract qualified name.
-freshAbstractQName :: Fixity -> C.Name -> ScopeM A.QName
+freshAbstractQName :: Fixity' -> C.Name -> ScopeM A.QName
 freshAbstractQName fx x = do
   y <- freshAbstractName fx x
   m <- getCurrentModule
@@ -221,7 +221,7 @@ resolveModule x = do
     ms            -> typeError $ AmbiguousModule x (map amodName ms)
 
 -- | Get the fixity of a name. The name is assumed to be in scope.
-getFixity :: C.QName -> ScopeM Fixity
+getFixity :: C.QName -> ScopeM Fixity'
 getFixity x = do
   r <- resolveName x
   case r of
@@ -230,7 +230,7 @@ getFixity x = do
     ConstructorName ds
       | null fs        -> __IMPOSSIBLE__
       | allEqual fs    -> return $ head fs
-      | otherwise      -> return defaultFixity
+      | otherwise      -> return defaultFixity'
       where
         fs = map (nameFixity . qnameName . anameName) ds
     UnknownName        -> __IMPOSSIBLE__

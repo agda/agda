@@ -5,6 +5,7 @@ module Agda.Syntax.Concrete.Operators.Parser where
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Name
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
@@ -36,7 +37,10 @@ recursive f = p0
 	fs = f p0
 	p0 = foldr ( $ ) p0 fs
 
+----------------------------
 -- Specific combinators
+
+-- | Parse a specific identifier as a NamePart
 partP :: IsExpr e => String -> ReadP e (Range, NamePart)
 partP s = do
     tok <- get
@@ -48,51 +52,66 @@ partP s = do
 	    LocalV (Name r [Id y]) | x == y -> Just (r, Id y)
 	    _			            -> Nothing
 
-binop :: IsExpr e => ReadP e e -> ReadP e (e -> e -> e)
-binop opP = do
-    OpAppV (Name r ps) es <- exprView <$> opP
-    return $ \x y -> unExprView $
-      OpAppV (Name r ([Hole] ++ ps ++ [Hole])) ([x] ++ es ++ [y])
+binop :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e (e -> e -> e)
+binop middleP = do
+  (nsyn,es) <- middleP
+  return $ \x y -> rebuild nsyn (x : es ++ [y])
 
-preop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
-preop opP = do
-    OpAppV (Name r ps) es <- exprView <$> opP
-    return $ \x -> unExprView $
-      OpAppV (Name r (ps ++ [Hole])) (es ++ [x])
+preop, postop :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e (e -> e)
+preop middleP = do
+  (nsyn,es) <- middleP
+  return $ \x -> rebuild nsyn (es ++ [x])
 
-postop :: IsExpr e => ReadP e e -> ReadP e (e -> e)
-postop opP = do
-    OpAppV (Name r ps) es <- exprView <$> opP
-    return $ \x -> unExprView $
-      OpAppV (Name r ([Hole] ++ ps)) ([x] ++ es)
+postop middleP = do
+  (nsyn,es) <- middleP
+  return $ \x -> rebuild nsyn (x : es)
 
-opP :: IsExpr e => ReadP e e -> Name -> ReadP e e
-opP p (NoName _ _) = pfail
-opP p (Name _ xs)  = do
-    (r, ps, es) <- mix [ x | Id x <- xs ]
-    return $ unExprView $ OpAppV (Name r ps) es
-    where
-	mix []	   = __IMPOSSIBLE__
-	mix [x]	   = do (r, part) <- partP x; return (r, [part], [])
-	mix (x:xs) = do
-	    (r1, part)    <- partP x
+removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
+  where removeLeadingHoles = dropWhile isAHole
+
+
+-- | Parse the "operator part" of the given syntax.
+-- holes at beginning and end are IGNORED.
+
+-- Note: it would be better to take the decision of "postprocessing" at the same
+-- place as where the holes are discarded, however that would require a dependently
+-- typed function (or duplicated code)
+opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation, [e])
+opP p nsyn@(_,_,syn) = do
+  (range,es) <- opP' $ removeExternalHoles syn
+  return (nsyn,es)
+ where opP' [IdPart x] = do (r, part) <- partP x; return (r,[])
+       opP' (IdPart x : _ : xs) = do
+            (r1, part)    <- partP x
 	    e             <- p
-	    (r2 , ps, es) <- mix xs
-	    return (fuseRanges r1 r2, part : Hole : ps, e : es)
+	    (r2 , es) <- opP' xs
+            return (fuseRanges r1 r2, e : es)
+       opP' x = error $ "opP': " ++ show (removeExternalHoles syn)
 
-prefixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
+-- | Given a name with a syntax spec, and a list of parsed expressions
+-- fitting it, rebuild the expression
+rebuild :: IsExpr e => NewNotation -> [e] -> e
+rebuild (name,_,syn) es = unExprView $ OpAppV name (map findExprFor [0..length es - 1])
+  where filledHoles = zip es (filter isAHole syn)
+        findExprFor n = case  [ e | (e,hole) <- filledHoles, holeTarget hole == Just n] of
+                          [] -> error $ "no expression for hole " ++ show n
+                          [x] -> x
+                          _ -> error $ "more than one expression for hole " ++ show n
+
+-- | Parse using the appropriate fixity, given a parser parsing the
+-- operator part, the name of the operator, and a parser of
+-- subexpressions.
+infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e e -> ReadP e e
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
     return $ foldr ( $ ) e fs
 
-postfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 postfixP op p = do
     e <- p
     fs <- many (postop op)
     return $ foldl (flip ( $ )) e fs
 
-infixP, infixrP, infixlP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 infixlP op p = chainl1 p (binop op)
 infixrP op p = chainr1 p (binop op)
 infixP  op p = do
@@ -105,8 +124,10 @@ infixP  op p = do
 	    e <- p
 	    return $ flip f e
 
-nonfixP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
-nonfixP op p = op +++ p
+nonfixP op p = (do
+  (nsyn,es) <- op
+  return (rebuild nsyn es))
+ +++ p
 
 appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 appP top p = do

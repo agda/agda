@@ -38,6 +38,7 @@ import Data.Generics (Typeable, Data)
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
 import Agda.Syntax.Concrete.Name
@@ -106,12 +107,12 @@ data TypedBindings = TypedBindings !Range (Arg [TypedBinding])
 
 
 data BoundName = BName { boundName   :: Name
-                       , bnameFixity :: Fixity
+                       , bnameFixity :: Fixity'
                        }
     deriving (Typeable, Data)
 
 mkBoundName_ :: Name -> BoundName
-mkBoundName_ x = BName x defaultFixity
+mkBoundName_ x = BName x defaultFixity'
 
 -- | A typed binding.
 data TypedBinding
@@ -216,6 +217,7 @@ data Declaration
 	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
+        | Syntax      Name Notation -- ^ notation declaration for a name
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
 	| Private     !Range [Declaration]
@@ -350,6 +352,7 @@ instance HasRange Declaration where
     getRange (Primitive r _)		= r
     getRange (Module r _ _ _)		= r
     getRange (Infix f _)		= getRange f
+    getRange (Syntax n _)          = getRange n
     getRange (Pragma p)			= getRange p
 
 instance HasRange LHS where

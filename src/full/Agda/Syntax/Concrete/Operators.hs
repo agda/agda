@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
@@ -32,6 +32,7 @@ import Agda.Syntax.Concrete.Operators.Parser
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
@@ -43,6 +44,8 @@ import Agda.Utils.ReadP
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 
+import Debug.Trace
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -52,15 +55,16 @@ import Agda.Utils.Impossible
 
 partsInScope :: ScopeM (Set Name)
 partsInScope = do
-    xs <- uncurry (++) . (id -*- map fst) <$> localNames
-    return $ Set.fromList $ concatMap parts xs
+    (names, ops) <- localNames
+    let xs = concatMap parts names ++ concatMap notationNames ops
+    return $ Set.fromList xs
     where
         parts (NoName _ _)   = []
         parts x@(Name _ [_]) = [x]
         parts x@(Name _ xs)  = x : [ Name noRange [i] | i@(Id {}) <- xs ]
 
 -- | Compute all unqualified defined names in scope and their fixities.
-getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity)]
+getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity')]
 getDefinedNames kinds = do
   names <- nsNames . everythingInScope <$> getScope
   reportSLn "scope.operators" 20 $ "everythingInScope: " ++ show names
@@ -72,7 +76,7 @@ getDefinedNames kinds = do
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
-localNames :: ScopeM ([Name], [(Name, Fixity)])
+localNames :: ScopeM ([Name], [NewNotation])
 localNames = do
   defs   <- getDefinedNames [DefName, ConName]
   locals <- scopeLocals <$> getScope
@@ -83,10 +87,19 @@ localNames = do
         where
             zs = concatMap opOrNot ops
 
-    opOrNot (x@(Name _ [_]), fx) = [Left x]
-    opOrNot (x, fx)              = [Left x, Right (x, fx)]
-
+    opOrNot (x, Fixity' fx syn) = Left x 
+                                :  case x of
+                                      Name _ [_] -> []
+                                      _ -> [Right (x, fx, syntaxOf x)]
+                                ++ case syn of
+                                    [] -> []
+                                    _ -> [Right (x, fx, syn)]
+        
 data UseBoundNames = UseBoundNames | DontUseBoundNames
+
+
+
+
 
 {-| Builds parser for operator applications from all the operators and function
     symbols in scope. When parsing a pattern we 'DontUseBoundNames' since a
@@ -116,61 +129,87 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
     this is a Bad Thing, but since it's not trivial to implement the check it
     will stay this way until people start complaining about it.
 
-    TODO: Clean up (too many fst and snd)
 -}
-buildParser :: IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
+
+data NotationStyle = InfixS | Prefix | Postfix | Nonfix | None
+   deriving (Eq)
+
+fixStyle :: Notation -> NotationStyle
+fixStyle [] = None
+fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
+  (True,True) -> InfixS
+  (True,False) -> Postfix
+  (False,True) -> Prefix
+  (False,False) -> Nonfix
+  
+
+notationNames :: NewNotation -> [Name]
+notationNames (_, _, ps) = [Name noRange [Id x] | IdPart x <- ps ]  
+
+buildParser :: forall e. IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
     (names, ops) <- localNames
     cons         <- getDefinedNames [ConName]
-    let conparts   = Set.fromList $ concatMap (parts . fst) cons
+    let conparts   = Set.fromList $ concatMap notationNames $ map oldToNewNotation cons
         connames   = Set.fromList $ map fst cons
         (non, fix) = partition nonfix ops
         set        = Set.fromList names
         isLocal    = case use of
             UseBoundNames     -> \x -> Set.member x set
             DontUseBoundNames -> \x -> Set.member x connames || not (Set.member x conparts)
-    return $ recursive $ \p ->
-        concatMap (mkP p) (order fix)
-        ++ [ appP p ]
-        ++ map (nonfixP . opP p . fst) non
+    return $ -- traceShow ops $ 
+           recursive $ \p -> -- p is a parser for an arbitrary expression
+        concatMap (mkP p) (order fix) -- for infix operators (with outer "holes")
+        ++ [ appP p ] -- parser for simple applications
+        ++ map (nonfixP . opP p) non -- for things with no outer "holes"
         ++ [ const $ atomP isLocal ]
     where
-        parts (NoName _ _) = []
-        parts (Name _ [_]) = []
-        parts (Name _ xs)  = [ Name noRange [i] | i@(Id {}) <- xs ]
+        
 
-        level = fixityLevel . snd
-
-        isinfixl (op, LeftAssoc _ _)  = isInfix op
-        isinfixl _                    = False
-
-        isinfixr (op, RightAssoc _ _) = isInfix op
-        isinfixr _                    = False
-
-        isinfix (op, NonAssoc _ _)    = isInfix op
-        isinfix _                     = False
+        level :: NewNotation -> Nat
+        level (_name, fixity, _syn) = fixityLevel fixity
 
         on f g x y = f (g x) (g y)
 
-        nonfix = isNonfix . fst
+        isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
+
+        isinfixl (_, LeftAssoc _ _, syn)  = isInfix syn
+        isinfixl _                    = False 
+
+        isinfixr (_, RightAssoc _ _, syn) = isInfix syn
+        isinfixr _                    = False
+
+        isinfix (_, NonAssoc _ _,syn)    = isInfix syn
+        isinfix _                     = False
+
+        nonfix (_,_,syn) = fixStyle syn == Nonfix
+        isprefix (_,_,syn) = fixStyle syn == Prefix
+        ispostfix (_,_,syn) = fixStyle syn == Postfix
+        isInfix :: Notation -> Bool
+        isInfix syn = fixStyle syn == InfixS
+
+        -- | Group operators by precedence level
+        order :: [NewNotation] -> [[NewNotation]]
         order = groupBy ((==) `on` level) . sortBy (compare `on` level)
 
+        -- | Each element of the returned list takes the parser for an
+        -- expression of higher precedence as parameter.
+        mkP :: ReadP e e -> [NewNotation] -> [ReadP e e -> ReadP e e]
         mkP p0 ops = case concat [infx, inlfx, inrfx, prefx, postfx] of
             []      -> [id]
             fs      -> fs
             where
-                choice' = foldr1 (++++)
-                f ++++ g = \p -> f p +++ g p
                 inlfx   = fixP infixlP  isinfixl
                 inrfx   = fixP infixrP  isinfixr
                 infx    = fixP infixP   isinfix
-                prefx   = fixP prefixP  (isPrefix . fst)
-                postfx  = fixP postfixP (isPostfix . fst)
+                prefx   = fixP prefixP  isprefix
+                postfx  = fixP postfixP ispostfix
 
-                fixP f g =
+                fixP :: (ReadP e (NewNotation,[e]) -> ReadP e e -> ReadP e e) -> (NewNotation -> Bool) -> [ReadP e e -> ReadP e e]
+                fixP f g = 
                     case filter g ops of
                         []  -> []
-                        ops -> [ f $ choice $ map (opP p0 . fst) ops ]
+                        ops -> [ f $ choice $ map (opP p0) ops ]
 
 ---------------------------------------------------------------------------
 -- * Expression instances

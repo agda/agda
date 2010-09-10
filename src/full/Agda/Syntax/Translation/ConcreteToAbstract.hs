@@ -31,6 +31,7 @@ import Data.List ((\\), nub)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
+import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -39,6 +40,7 @@ import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Strict
@@ -1081,34 +1083,34 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 -- right precedences for the various arguments.
 toAbstractOpApp :: C.Name -> [C.Expr] -> ScopeM A.Expr
 toAbstractOpApp op@(C.NoName _ _) es = __IMPOSSIBLE__
-toAbstractOpApp op@(C.Name _ xs) es = do
+toAbstractOpApp op@(C.Name _ _) es = do
     f  <- getFixity (C.QName op)
+    let (_,_,parts) = oldToNewNotation $ (op, f)
     op <- toAbstract (OldQName $ C.QName op)
-    foldl app op <$> left f xs es
+    foldl app op <$> left (theFixity f) parts es
     where
         app e arg = A.App (ExprRange (fuseRange e arg)) e
                   $ Arg NotHidden Relevant $ unnamed arg
 
-        left f (Hole : xs) (e : es) = do
+        left f (IdPart _ : xs) es = inside f xs es
+        left f (_ : xs) (e : es) = do
             e  <- toAbstractCtx (LeftOperandCtx f) e
             es <- inside f xs es
             return (e : es)
-        left f (Id {} : xs) es = inside f xs es
-        left f (Hole  : _)  [] = __IMPOSSIBLE__
-        left f []           _  = __IMPOSSIBLE__
+        left f (_  : _)  [] = __IMPOSSIBLE__
+        left f []        _  = __IMPOSSIBLE__
 
         inside f [x]          es       = right f x es
-        inside f (Id {} : xs) es       = inside f xs es
-        inside f (Hole  : xs) (e : es) = do
+        inside f (IdPart _ : xs) es       = inside f xs es
+        inside f (_  : xs) (e : es) = do
             e  <- toAbstractCtx InsideOperandCtx e
             es <- inside f xs es
             return (e : es)
-        inside _ (Hole : _) [] = __IMPOSSIBLE__
+        inside _ (_ : _) [] = __IMPOSSIBLE__
         inside _ []         _  = __IMPOSSIBLE__
 
-        right f Hole [e] = do
+        right _ (IdPart _)  [] = return []
+        right f _          [e] = do
             e <- toAbstractCtx (RightOperandCtx f) e
             return [e]
-        right _ (Id {})  [] = return []
-        right _ Hole     _  = __IMPOSSIBLE__
-        right _ (Id {})  _  = __IMPOSSIBLE__
+        right _ _     _  = __IMPOSSIBLE__

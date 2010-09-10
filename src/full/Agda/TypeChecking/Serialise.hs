@@ -56,6 +56,7 @@ import Agda.Syntax.Position (Position(..), Range)
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
+import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
@@ -380,6 +381,20 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity where
                            valu [1, a, b] = valu2 RightAssoc a b
                            valu [2, a, b] = valu2 NonAssoc   a b
                            valu _         = malformed
+
+instance EmbPrj Agda.Syntax.Fixity.Fixity' where
+  icode (Fixity' a b) = icode2' a b
+  value = vcase valu where valu [a,b] = valu2 Fixity' a b
+                           valu _ = malformed
+
+instance EmbPrj GenPart where 
+    icode (BindHole a)   = icode1 0 a
+    icode (NormalHole a) = icode1 1 a
+    icode (IdPart a)     = icode1 2 a
+    value = vcase valu where valu [0, a] = valu1 BindHole a
+                             valu [1, a] = valu1 NormalHole a
+                             valu [2, a] = valu1 IdPart a
+                             valu _      = malformed
 
 instance EmbPrj A.QName where
   icode (A.QName a b) = icode2' a b

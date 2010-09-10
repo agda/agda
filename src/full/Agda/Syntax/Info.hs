@@ -105,14 +105,14 @@ instance KillRange LetInfo where
  --------------------------------------------------------------------------}
 
 data DefInfo =
-	DefInfo	{ defFixity   :: Fixity
+	DefInfo	{ defFixity   :: Fixity'
 		, defAccess   :: Access
 		, defAbstract :: IsAbstract
 		, defInfo     :: DeclInfo
 		}
   deriving (Typeable, Data, Show)
 
-mkDefInfo :: Name -> Fixity -> Access -> IsAbstract -> Range -> DefInfo
+mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab (DeclInfo x r)
 
 instance HasRange DefInfo where
