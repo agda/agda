@@ -205,7 +205,7 @@ buildParser r use = do
                 prefx   = fixP prefixP  isprefix
                 postfx  = fixP postfixP ispostfix
 
-                fixP :: (ReadP e (NewNotation,[e]) -> ReadP e e -> ReadP e e) -> (NewNotation -> Bool) -> [ReadP e e -> ReadP e e]
+                fixP :: (ReadP e (NewNotation,Range,[e]) -> ReadP e e -> ReadP e e) -> (NewNotation -> Bool) -> [ReadP e e -> ReadP e e]
                 fixP f g = 
                     case filter g ops of
                         []  -> []

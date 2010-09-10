@@ -52,19 +52,19 @@ partP s = do
 	    LocalV (Name r [Id y]) | x == y -> Just (r, Id y)
 	    _			            -> Nothing
 
-binop :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e (e -> e -> e)
+binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> e)
 binop middleP = do
-  (nsyn,es) <- middleP
-  return $ \x y -> rebuild nsyn (x : es ++ [y])
+  (nsyn,r,es) <- middleP
+  return $ \x y -> rebuild nsyn r (x : es ++ [y])
 
-preop, postop :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e (e -> e)
+preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e)
 preop middleP = do
-  (nsyn,es) <- middleP
-  return $ \x -> rebuild nsyn (es ++ [x])
+  (nsyn,r,es) <- middleP
+  return $ \x -> rebuild nsyn r (es ++ [x])
 
 postop middleP = do
-  (nsyn,es) <- middleP
-  return $ \x -> rebuild nsyn (x : es)
+  (nsyn,r,es) <- middleP
+  return $ \x -> rebuild nsyn r (x : es)
 
 removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
   where removeLeadingHoles = dropWhile isAHole
@@ -76,10 +76,10 @@ removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHole
 -- Note: it would be better to take the decision of "postprocessing" at the same
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
-opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation, [e])
+opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
 opP p nsyn@(_,_,syn) = do
   (range,es) <- opP' $ removeExternalHoles syn
-  return (nsyn,es)
+  return (nsyn,range,es)
  where opP' [IdPart x] = do (r, part) <- partP x; return (r,[])
        opP' (IdPart x : _ : xs) = do
             (r1, part)    <- partP x
@@ -90,8 +90,8 @@ opP p nsyn@(_,_,syn) = do
 
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression
-rebuild :: IsExpr e => NewNotation -> [e] -> e
-rebuild (name,_,syn) es = unExprView $ OpAppV name (map findExprFor [0..length es - 1])
+rebuild :: IsExpr e => NewNotation -> Range -> [e] -> e
+rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) (map findExprFor [0..length es - 1])
   where filledHoles = zip es (filter isAHole syn)
         findExprFor n = case  [ e | (e,hole) <- filledHoles, holeTarget hole == Just n] of
                           [] -> error $ "no expression for hole " ++ show n
@@ -101,7 +101,7 @@ rebuild (name,_,syn) es = unExprView $ OpAppV name (map findExprFor [0..length e
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
 -- subexpressions.
-infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewNotation,[e]) -> ReadP e e -> ReadP e e
+infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e e -> ReadP e e
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
@@ -125,8 +125,8 @@ infixP  op p = do
 	    return $ flip f e
 
 nonfixP op p = (do
-  (nsyn,es) <- op
-  return (rebuild nsyn es))
+  (nsyn,r,es) <- op
+  return (rebuild nsyn r es))
  +++ p
 
 appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
