@@ -654,7 +654,7 @@ instance EmbPrj Delayed where
 
 instance EmbPrj I.Pattern where
   icode (VarP a    ) = icode1 0 a
-  icode (ConP a b c) = icode2 1 a b
+  icode (ConP a b c) = icode3 1 a b c
   icode (LitP a    ) = icode1 2 a
   icode (DotP a    ) = icode1 3 a
   value = vcase valu where valu [0, a]       = valu1 VarP a
