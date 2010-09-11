@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 
 module Agda.Syntax.Concrete.Operators.Parser where
 
@@ -6,6 +6,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
+import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
@@ -19,8 +20,9 @@ data ExprView e
     | AppV e (NamedArg e)
     | OpAppV Name [e]
     | HiddenArgV (Named String e)
+    | LamV [LamBinding] e
     | ParenV e
-    deriving (Show)
+--    deriving (Show)
 
 class HasRange e => IsExpr e where
     exprView   :: e -> ExprView e
@@ -55,9 +57,6 @@ chainl1' p op = p >>= rest
                     rest fxy
                  +++ return x
 
-
-
-
 ----------------------------
 -- Specific combinators
 
@@ -87,8 +86,6 @@ postop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x -> rebuild nsyn r (x : es)
 
-removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
-  where removeLeadingHoles = dropWhile isAHole
 
 
 -- | Parse the "operator part" of the given syntax.
@@ -109,19 +106,30 @@ opP p nsyn@(_,_,syn) = do
             return (fuseRanges r1 r2, e : es)
        opP' x = error $ "opP': " ++ show (removeExternalHoles syn)
 
+       removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
+           where removeLeadingHoles = dropWhile isAHole
+
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
 -- Note that this function must not parse any input (as guaranteed by the type)
-rebuild :: IsExpr e => NewNotation -> Range -> [e] -> ReadP a e
+rebuild :: forall a e. IsExpr e => NewNotation -> Range -> [e] -> ReadP a e
 rebuild (name,_,syn) r es = do
   exprs <- mapM findExprFor [0..lastHole]
   return $ unExprView $ OpAppV (setRange r name) exprs
   where filledHoles = zip es (filter isAHole syn)
         lastHole = maximum [t | Just t <- map holeTarget syn]
-        findExprFor n = case  [ e | (e,hole) <- filledHoles, holeTarget hole == Just n] of
+        findExprFor :: Int -> ReadP a e
+        findExprFor n = case  [ e | (e,NormalHole m) <- filledHoles, m == n] of
                           [] -> fail $ "no expression for hole " ++ show n
-                          [x] -> return x
+                          [x] -> case [ e | (e,BindHole m) <- filledHoles, m == n] of
+                                   [] -> return x -- no variable to bind
+                                   vars -> do bs <- mapM rebuildBinding $ map exprView vars
+                                              return $ unExprView $ LamV bs x
                           _ -> fail $ "more than one expression for hole " ++ show n
+
+rebuildBinding :: ExprView e -> ReadP a LamBinding
+rebuildBinding (LocalV name) = return $ DomainFree NotHidden (mkBoundName_ name)
+rebuildBinding _ = fail "variable name expected"
 
 ($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e
 f $$$ x = do

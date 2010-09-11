@@ -1087,7 +1087,7 @@ toAbstractOpApp op@(C.Name _ _) es = do
     f  <- getFixity (C.QName op)
     let (_,_,parts) = oldToNewNotation $ (op, f)
     op <- toAbstract (OldQName $ C.QName op)
-    foldl app op <$> left (theFixity f) parts es
+    foldl app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
     where
         app e arg = A.App (ExprRange (fuseRange e arg)) e
                   $ Arg NotHidden Relevant $ unnamed arg

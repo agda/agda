@@ -151,12 +151,13 @@ buildParser r use = do
     (names, ops) <- localNames
     cons         <- getDefinedNames [ConName]
     let conparts   = Set.fromList $ concatMap notationNames $ map oldToNewNotation cons
+        opsparts   = Set.fromList $ concatMap notationNames $ ops
+        allParts   = Set.union conparts opsparts
         connames   = Set.fromList $ map fst cons
         (non, fix) = partition nonfix ops
         set        = Set.fromList names
-        isLocal    = case use of
-            UseBoundNames     -> \x -> Set.member x set
-            DontUseBoundNames -> \x -> Set.member x connames || not (Set.member x conparts)
+        isLocal x = not (Set.member x allParts)
+        -- If string is a part of notation, it cannot be used as an identifier.
     return $ -- traceShow ops $ 
            recursive $ \p -> -- p is a parser for an arbitrary expression
         concatMap (mkP p) (order fix) -- for infix operators (with outer "holes")
@@ -222,6 +223,7 @@ instance IsExpr Expr where
         OpApp r d es    -> OpAppV d es
         HiddenArg _ e   -> HiddenArgV e
         Paren _ e       -> ParenV e
+        Lam _ bs    e   -> LamV bs e
         _               -> OtherV e
     unExprView e = case e of
         LocalV x      -> Ident (QName x)
@@ -229,6 +231,7 @@ instance IsExpr Expr where
         OpAppV d es   -> OpApp (fuseRange d es) d es
         HiddenArgV e  -> HiddenArg (getRange e) e
         ParenV e      -> Paren (getRange e) e
+        LamV bs e     -> Lam (fuseRange bs e) bs e
         OtherV e      -> e
 
 instance IsExpr Pattern where
@@ -245,6 +248,7 @@ instance IsExpr Pattern where
         OpAppV d es      -> OpAppP (fuseRange d es) d es
         HiddenArgV e     -> HiddenP (getRange e) e
         ParenV e         -> ParenP (getRange e) e
+        LamV _ _         -> __IMPOSSIBLE__
         OtherV e         -> e
 
 ---------------------------------------------------------------------------
@@ -308,14 +312,6 @@ parseLHS top p = do
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es = do
-
-    -- Check that all parts of the application are in scope (else it won't
-    -- parse and we can just as well give a nice error).
-    inScope <- partsInScope
-    case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
-        []  -> return ()
-        xs  -> typeError $ NotInScope xs
-
     -- Build the parser
     p <- buildParser (getRange es) UseBoundNames
 
@@ -344,6 +340,7 @@ fullParen' e = case exprView e of
                 Hidden    -> e2
                 NotHidden -> fullParen' <$> e2
     OpAppV x es -> par $ unExprView $ OpAppV x $ map fullParen' es
+    LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
     where
         par = unExprView . ParenV
 

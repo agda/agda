@@ -755,7 +755,7 @@ HoleNames : HoleName { [$1] }
 
 HoleName :: { HoleName }
 HoleName : SimpleId { ExprHole $1}
---         | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
+         | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
 -- Variable name hole to be implemented later. 
 
 -- Discard the interval.

@@ -56,6 +56,9 @@ holeTarget (IdPart _) = Nothing
 isAHole :: GenPart -> Bool
 isAHole = isJust . holeTarget
 
+isBindingHole (BindHole _) = True
+isBindingHole _ = False
+
 -- | From notation with names to notation with indices.
 mkNotation :: [HoleName] -> [String] -> Notation
 mkNotation holes ids = map mkPart ids
