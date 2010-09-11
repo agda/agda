@@ -1,0 +1,4 @@
+top_command (cmd_load currentFile [])
+
+-- The output should not contain superfluous outer parentheses.
+goal_command 0 (cmd_goal_type_context Normalised) ""

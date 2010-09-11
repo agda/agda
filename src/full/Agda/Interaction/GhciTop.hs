@@ -348,7 +348,7 @@ cmd_metas = Interaction Nothing $ do -- CL.showMetas []
   hms <- B.typesOfHiddenMetas B.Normalised
   if not $ null ims && null hms
     then do
-      di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showA i)) ims
+      di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showATop i)) ims
       dh <- mapM showA' hms
       display_info "*All Goals*" $ unlines $ di ++ dh
       return Nothing
@@ -365,7 +365,7 @@ cmd_metas = Interaction Nothing $ do -- CL.showMetas []
     metaId _ = __IMPOSSIBLE__
     showA' m = do
       r <- getMetaRange (metaId m)
-      d <- B.withMetaId (B.outputFormId m) (showA m)
+      d <- B.withMetaId (B.outputFormId m) (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
 -- | If the range is 'noRange', then the string comes from the
@@ -462,8 +462,8 @@ prettyTypeOfMeta :: B.Rewrite -> InteractionId -> TCM Doc
 prettyTypeOfMeta norm ii = do
   form <- B.typeOfMeta norm ii
   case form of
-    B.OfType _ e -> prettyA e
-    _            -> text <$> showA form
+    B.OfType _ e -> prettyATop e
+    _            -> text <$> showATop form
 
 -- | Pretty-prints the context of the given meta-variable.
 
@@ -474,8 +474,8 @@ prettyContext
   -> TCM Doc
 prettyContext norm rev ii = B.withInteractionId ii $ do
   ctx <- B.contextOfMeta ii norm
-  es  <- mapM (prettyA . B.ofExpr) ctx
-  ns  <- mapM (showA   . B.ofName) ctx
+  es  <- mapM (prettyATop . B.ofExpr) ctx
+  ns  <- mapM (showATop   . B.ofName) ctx
   let shuffle = if rev then reverse else id
   return $ align 10 $ shuffle $ zip ns (map (text ":" <+>) es)
 
@@ -488,7 +488,7 @@ cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = Interaction Nothing $ do
   display_infoD "*Inferred Type*"
     =<< B.withInteractionId ii
-          (prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
+          (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
   return Nothing
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
@@ -522,7 +522,7 @@ cmd_goal_type_context norm ii rng s = Interaction Nothing $
 cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
 cmd_goal_type_context_infer norm ii rng s = Interaction Nothing $ do
   typ <- B.withInteractionId ii $
-           prettyA =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+           prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
   cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
 -- | Shows all the top-level names in the given module, along with
@@ -807,7 +807,7 @@ cmd_compute ignore ii rng s = Interaction Nothing $ do
   d <- B.withInteractionId ii $ do
          let c = B.evalInCurrent e
          v <- if ignore then ignoreAbstractMode c else c
-         prettyA v
+         prettyATop v
   display_info "*Normal Form*" (show d)
   return Nothing
 
