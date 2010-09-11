@@ -37,6 +37,27 @@ recursive f = p0
 	fs = f p0
 	p0 = foldr ( $ ) p0 fs
 
+-- | Variant of chainr1
+chainr1' :: ReadP t a -> ReadP t (a -> a -> ReadP t a) -> ReadP t a
+chainr1' p op = scan
+  where scan   = p >>= rest
+        rest x = do f <- op
+                    y <- scan
+                    f x y
+                 +++ return x
+
+-- | Variant of chainl1
+chainl1' :: ReadP t a -> ReadP t (a -> a -> ReadP t a) -> ReadP t a
+chainl1' p op = p >>= rest
+  where rest x = do f <- op
+                    y <- p
+                    fxy <- f x y
+                    rest fxy
+                 +++ return x
+
+
+
+
 ----------------------------
 -- Specific combinators
 
@@ -52,12 +73,12 @@ partP s = do
 	    LocalV (Name r [Id y]) | x == y -> Just (r, Id y)
 	    _			            -> Nothing
 
-binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> e)
+binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> ReadP a e)
 binop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x y -> rebuild nsyn r (x : es ++ [y])
 
-preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e)
+preop, postop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> ReadP a e)
 preop middleP = do
   (nsyn,r,es) <- middleP
   return $ \x -> rebuild nsyn r (es ++ [x])
@@ -89,14 +110,23 @@ opP p nsyn@(_,_,syn) = do
        opP' x = error $ "opP': " ++ show (removeExternalHoles syn)
 
 -- | Given a name with a syntax spec, and a list of parsed expressions
--- fitting it, rebuild the expression
-rebuild :: IsExpr e => NewNotation -> Range -> [e] -> e
-rebuild (name,_,syn) r es = unExprView $ OpAppV (setRange r name) (map findExprFor [0..length es - 1])
+-- fitting it, rebuild the expression.
+-- Note that this function must not parse any input (as guaranteed by the type)
+rebuild :: IsExpr e => NewNotation -> Range -> [e] -> ReadP a e
+rebuild (name,_,syn) r es = do
+  exprs <- mapM findExprFor [0..lastHole]
+  return $ unExprView $ OpAppV (setRange r name) exprs
   where filledHoles = zip es (filter isAHole syn)
+        lastHole = maximum [t | Just t <- map holeTarget syn]
         findExprFor n = case  [ e | (e,hole) <- filledHoles, holeTarget hole == Just n] of
-                          [] -> error $ "no expression for hole " ++ show n
-                          [x] -> x
-                          _ -> error $ "more than one expression for hole " ++ show n
+                          [] -> fail $ "no expression for hole " ++ show n
+                          [x] -> return x
+                          _ -> fail $ "more than one expression for hole " ++ show n
+
+($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e
+f $$$ x = do
+   x' <- x
+   f x'
 
 -- | Parse using the appropriate fixity, given a parser parsing the
 -- operator part, the name of the operator, and a parser of
@@ -105,28 +135,27 @@ infixP, infixrP, infixlP, postfixP, prefixP,nonfixP :: IsExpr e => ReadP e (NewN
 prefixP op p = do
     fs <- many (preop op)
     e  <- p
-    return $ foldr ( $ ) e fs
+    foldr (($$$)) (return e) fs
 
 postfixP op p = do
     e <- p
     fs <- many (postop op)
-    return $ foldl (flip ( $ )) e fs
+    foldl (flip ( $$$ )) (return e) fs
 
-infixlP op p = chainl1 p (binop op)
-infixrP op p = chainr1 p (binop op)
+infixlP op p = chainl1' p (binop op)
+infixrP op p = chainr1' p (binop op)
 infixP  op p = do
     e <- p
-    f <- restP
-    return $ f e
+    restP e
     where
-	restP = return id +++ do
+	restP x = return x +++ do
 	    f <- binop op
 	    e <- p
-	    return $ flip f e
+	    f x e 
 
 nonfixP op p = (do
   (nsyn,r,es) <- op
-  return (rebuild nsyn r es))
+  rebuild nsyn r es)
  +++ p
 
 appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
