@@ -200,10 +200,10 @@ agda2_mode_code (agda2-info-action "*Normal Form*" "Nothing")
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-info-action
                  "*Error*"
-                 "1,1-5
+                 "1,4-5
 Not in scope:
   n at 1,4-5
-when scope checking s′ n")
+when scope checking n")
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
