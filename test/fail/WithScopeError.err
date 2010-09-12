@@ -1,5 +1,5 @@
-WithScopeError.agda:11,11-14
+WithScopeError.agda:11,11-12
 Not in scope:
   y
   at WithScopeError.agda:11,11-12
-when scope checking y x
+when scope checking y

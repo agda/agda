@@ -1,6 +1,7 @@
 MultipleFixityDecl.agda:4,11-14
-Multiple fixity declarations for _+_: LeftAssoc
+Multiple fixity declarations for _+_: Fixity' {theFixity =
+LeftAssoc
 MultipleFixityDecl.agda:4,1-14
-40 RightAssoc
+40, theNotation = []} Fixity' {theFixity = RightAssoc
 MultipleFixityDecl.agda:5,1-14
-60
+60, theNotation = []}
