@@ -52,14 +52,6 @@ flag use-locale
     of the IO going to/from stdin and stdout. (Note that source files
     must always be encoded using UTF8.)
 
-flag agda-pkg
-  description:
-    Build agda-pkg, a package management tool for Agda. (Note: This
-    tool is currently under development, and not recommended for
-    general use.)
-  default: False
-  manual:  True
-
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
@@ -102,10 +94,6 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
-                    Agda.Packaging.Config
-                    Agda.Packaging.Database
-                    Agda.Packaging.Monad
-                    Agda.Packaging.Types
                     Agda.Interaction.CommandLine.CommandLine
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile
@@ -300,34 +288,3 @@ executable agda-mode
   build-depends:    filepath >= 1.1 && < 2,
                     process >= 1.0.1.0 && < 2,
                     directory >= 1.0 && < 1.2
-
-executable agda-pkg
-  if !flag(agda-pkg)
-    buildable:      False
-  if true
-    ghc-options:    -w -Werror
-                    -fwarn-deprecated-flags
-                    -fwarn-dodgy-foreign-imports
-                    -fwarn-dodgy-imports
-                    -fwarn-duplicate-exports
-                    -fwarn-hi-shadowing
-                    -fwarn-incomplete-patterns
-                    -fwarn-missing-fields
-                    -fwarn-missing-methods
-                    -fwarn-overlapping-patterns
-                    -fwarn-warnings-deprecations
-  if impl(ghc >= 6.12)
-    ghc-options:    -fwarn-dodgy-exports
-                    -fwarn-wrong-do-bind
-  hs-source-dirs: src/pkg, src/full
-  main-is:        Main.hs
-  build-depends:    Cabal       == 1.8.*
-                  , array       == 0.3.*
-                  , base        == 4.2.*
-                  , bytestring  >= 0.9.0.1 && < 1
-                  , directory   >= 1.0 && < 1.2
-                  , filepath    == 1.1.*
-                  , mtl         == 1.1.*
-                  , pretty      == 1.0.*
-                  , regex-base  == 0.93.*
-                  , regex-posix == 0.94.*
