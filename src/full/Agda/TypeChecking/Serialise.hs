@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100909 * 10 + 0
+currentInterfaceVersion = 20100912 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -387,7 +387,7 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity' where
   value = vcase valu where valu [a,b] = valu2 Fixity' a b
                            valu _ = malformed
 
-instance EmbPrj GenPart where 
+instance EmbPrj GenPart where
     icode (BindHole a)   = icode1 0 a
     icode (NormalHole a) = icode1 1 a
     icode (IdPart a)     = icode1 2 a
