@@ -31,6 +31,10 @@ Language
 
     syntax wrong x = x + x
 
+  Syntax declarations must apply to simple names. eg. the following is disallowed.
+
+    syntax _==_ x y = x === y
+
 
 * Record pattern matching.
 
