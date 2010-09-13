@@ -4,7 +4,7 @@
 module Agda.Syntax.Notation where
 
 import Control.Applicative
-
+import Control.Monad (when)
 import Data.List
 import Data.Maybe
 import Data.Generics (Typeable, Data)
@@ -42,7 +42,7 @@ holeName (ExprHole n) = n
 type Notation = [GenPart] 
 
 -- | Part of a Notation
-data GenPart = BindHole Int  -- ^ Unused for now
+data GenPart = BindHole Int  -- ^ Argument is the position of the hole (with binding) where the binding should occur.
              | NormalHole Int -- ^ Argument is where the expression should go
              | IdPart String
   deriving (Data, Typeable, Show, Eq)
@@ -59,24 +59,36 @@ isAHole = isJust . holeTarget
 isBindingHole (BindHole _) = True
 isBindingHole _ = False
 
-isAlternating :: [GenPart] -> Bool
-isAlternating [] = __IMPOSSIBLE__
-isAlternating [x] = True
-isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+isLambdaHole (LambdaHole _ _) = True
+isLambdaHole _ = False
+
 
 -- | From notation with names to notation with indices.
 mkNotation :: [HoleName] -> [String] -> Either String Notation
 mkNotation _ [] = fail "empty notation is disallowed"
 mkNotation holes ids = do
   xs <- mapM mkPart ids
-  if isAlternating xs then return xs else fail "notation must alternate holes and non-holes"
+  when (not (isAlternating xs)) $ fail "syntax must alternate holes and non-holes"
+  when (not (isExprLinear xs)) $ fail "syntax must use holes exactly once"
+  when (not (isLambdaLinear xs)) $ fail "syntax must use binding holes exactly once"
+  return xs
     where mkPart ident = 
-             case (findIndex (\x -> ident == holeName x) holes, 
-                   findIndex (\x -> case x of LambdaHole ident' _ -> ident == ident';_ -> False) holes)  of
-                           (Nothing,Just x)   -> return $ BindHole x
-                           (Just x, Nothing)  -> return $ NormalHole x
-                           (Nothing, Nothing) -> return $ IdPart ident
-                           _ -> fail "name used both in lambda and an regular hole"
+             case (findIndices (\x -> ident == holeName x) holes, 
+                   findIndices (\x -> case x of LambdaHole ident' _ -> ident == ident';_ -> False) holes)  of
+                           ([],[x])   -> return $ BindHole x
+                           ([x], [])  -> return $ NormalHole x
+                           ([], []) -> return $ IdPart ident
+                           _ -> fail "hole names must be unique"
+
+          isExprLinear   xs = sort [ x | NormalHole x <- xs] == [ i | (i,h) <- zip [0..] holes ]
+          isLambdaLinear xs = sort [ x | BindHole   x <- xs] == [ i | (i,h) <- zip [0..] holes, isLambdaHole h ]
+
+
+          isAlternating :: [GenPart] -> Bool
+          isAlternating [] = __IMPOSSIBLE__
+          isAlternating [x] = True
+          isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+
 
 -- | No notation by default
 defaultNotation = []

@@ -27,6 +27,11 @@ Language
                 put (x + 1)
 
 
+  Syntax declarations must be linear. eg. the following is disallowed.
+
+    syntax wrong x = x + x
+
+
 * Record pattern matching.
 
   It is now possible to pattern match on named record constructors.

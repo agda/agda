@@ -23,3 +23,6 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
+
+
+
