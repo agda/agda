@@ -251,10 +251,18 @@ checkExpr e t =
                 let getData Constructor{conData = d} = d
                     getData _                        = __IMPOSSIBLE__
                 reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
-                cs  <- zipWith setRange (map getRange cs) <$> mapM reduceCon cs
+                -- We use the reduced constructor when disambiguating, but
+                -- the original constructor for type checking. This is important
+                -- since they may have different types (different parameters).
+                -- See issue 279.
+                cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
                 reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
                 reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
-                dcs <- mapM (\c -> (getData /\ const c) . theDef <$> getConstInfo c) cs
+                dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
+
+                -- Type error
+                let badCon t = typeError $ DoesNotConstructAnElementOf
+                                            (fst $ head cs) t
 
                 -- Lets look at the target type at this point
                 let getCon = do
@@ -265,17 +273,18 @@ checkExpr e t =
                       case t1 of
                         NotBlocked (Def d _) -> do
                           let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
-                                c:_ -> return (Just c)
-                                []  -> typeError $ DoesNotConstructAnElementOf
-                                                     (head cs) (Def d [])
+                                c:_ -> do
+                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                                  return (Just c)
+                                []  -> badCon (Def d [])
                           defn <- theDef <$> getConstInfo d
                           case defn of
                             Datatype{} -> dataOrRec
                             Record{}   -> dataOrRec
-                            _ -> typeError $ DoesNotConstructAnElementOf (head cs) (ignoreBlocking t1)
+                            _ -> badCon (ignoreBlocking t1)
                         NotBlocked (MetaV _ _)  -> return Nothing
                         Blocked{} -> return Nothing
-                        _ -> typeError $ DoesNotConstructAnElementOf (head cs) (ignoreBlocking t1)
+                        _ -> badCon (ignoreBlocking t1)
                 let unblock = isJust <$> getCon
                 mc <- getCon
                 case mc of
