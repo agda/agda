@@ -102,12 +102,11 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
 
 
 {-| Builds parser for operator applications from all the operators and function
-    symbols in scope. When parsing a pattern we use 'DontUseBoundNames' since a
-    pattern binds new variables, but when parsing an expression we
-    'UseBoundNames' and refute application of things that aren't in scope. The
-    reason for this is to disambiguate things like @x + y@. This could mean
-    both @_+_@ applied to @x@ and @y@, and @x@ applied to @+@ and @y@, but if there
-    is no @+@ in scope it could only be the first.
+    symbols in scope. When parsing a pattern we use 'DontUseBoundNames'.
+
+    The effect is that operator parts (that are not constructor parts)
+    can be used as atomic names in the pattern (so they can be
+    rebound). See test/succeed/OpBind.agda for an example.
 
     To avoid problems with operators of the same precedence but different
     associativity we decide (completely arbitrary) to fix the precedences of
@@ -156,7 +155,9 @@ buildParser r use = do
         connames   = Set.fromList $ map fst cons
         (non, fix) = partition nonfix ops
         set        = Set.fromList names
-        isAtom   x = not (Set.member x allParts) || Set.member x set
+        isAtom   x = case use of
+                       UseBoundNames     -> not (Set.member x allParts) || Set.member x set
+                       DontUseBoundNames -> not (Set.member x conparts) || Set.member x connames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
     return $ -- traceShow ops $ 
