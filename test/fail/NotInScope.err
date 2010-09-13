@@ -1,3 +1,5 @@
 NotInScope.agda:9,7-26
-Could not parse the application if x thenn x else x
+Not in scope:
+  thenn
+  at NotInScope.agda:9,12-17
 when scope checking if x thenn x else x
