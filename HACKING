@@ -1,0 +1,23 @@
+
+Some Agda Hacking Lore. 
+
+
+* Whenever you change the interface file format you should update
+  Agda.TypeChecking.Serialise.currentInterfaceVersion.
+
+* When a new feature is implemented it should be documented in
+  doc/release-notes/<next-version>.txt. It is also a good idea to add
+  test cases under test/succeed and test/fail, and maybe also
+  test/interaction.
+
+* Please use __IMPOSSIBLE__ instead of calls to error. __IMPOSSIBLE__
+  generates errors of the following form:
+
+   An internal error has occurred. Please report this as a bug.
+   Location of the error: ...
+
+  Calls to error can make Agda fail with an error message in the *ghci*
+  buffer.
+
+
+
