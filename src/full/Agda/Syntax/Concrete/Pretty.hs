@@ -27,11 +27,16 @@ instance Show ImportDirective where show = show . pretty
 instance Show Pragma	      where show = show . pretty
 instance Show RHS	      where show = show . pretty
 
+braces' d = case render d of
+  -- Add space to avoid starting a comment
+  '-':_ -> braces (text " " <> d)
+  _     -> braces d
+
 arrow  = text "\x2192"
 lambda = text "\x03bb"
 
 pHidden :: Pretty a => Hiding -> a -> Doc
-pHidden Hidden	    = braces . pretty
+pHidden Hidden	    = braces' . pretty
 pHidden NotHidden   = pretty
 
 pRelevance :: Pretty a => Relevance -> a -> Doc
@@ -100,7 +105,7 @@ instance Pretty Expr where
 	    WithApp _ e es -> fsep $
 	      pretty e : map ((text "|" <+>) . pretty) es
 
-	    HiddenArg _ e -> braces $ pretty e
+	    HiddenArg _ e -> braces' $ pretty e
 	    Lam _ bs e ->
 		sep [ lambda <+> fsep (map pretty bs) <+> arrow
 		    , nest 2 $ pretty e
@@ -151,7 +156,7 @@ instance Pretty TypedBindings where
 	pRelevance rel $ bracks $ fsep $ punctuate semi $ map pretty bs
 	where
 	    bracks = case h of
-			Hidden	    -> braces
+			Hidden	    -> braces'
 			NotHidden   -> parens
 
 instance Pretty TypedBinding where
@@ -323,7 +328,7 @@ instance Pretty Pattern where
 		    prOp []	     []       = []
 		    prOp []	     (_ : _)  = __IMPOSSIBLE__
 	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
-	    HiddenP _ p	       -> braces $ pretty p
+	    HiddenP _ p	       -> braces' $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> text "_"
 	    AsP _ x p	       -> pretty x <> text "@" <> pretty p
