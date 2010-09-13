@@ -102,7 +102,7 @@ data UseBoundNames = UseBoundNames | DontUseBoundNames
 
 
 {-| Builds parser for operator applications from all the operators and function
-    symbols in scope. When parsing a pattern we 'DontUseBoundNames' since a
+    symbols in scope. When parsing a pattern we use 'DontUseBoundNames' since a
     pattern binds new variables, but when parsing an expression we
     'UseBoundNames' and refute application of things that aren't in scope. The
     reason for this is to disambiguate things like @x + y@. This could mean
@@ -156,14 +156,15 @@ buildParser r use = do
         connames   = Set.fromList $ map fst cons
         (non, fix) = partition nonfix ops
         set        = Set.fromList names
-        isLocal x = not (Set.member x allParts)
-        -- If string is a part of notation, it cannot be used as an identifier.
+        isAtom   x = not (Set.member x allParts) || Set.member x set
+        -- If string is a part of notation, it cannot be used as an identifier,
+        -- unless it is also used as an identifier. See issue 307.
     return $ -- traceShow ops $ 
            recursive $ \p -> -- p is a parser for an arbitrary expression
         concatMap (mkP p) (order fix) -- for infix operators (with outer "holes")
         ++ [ appP p ] -- parser for simple applications
         ++ map (nonfixP . opP p) non -- for things with no outer "holes"
-        ++ [ const $ atomP isLocal ]
+        ++ [ const $ atomP isAtom ]
     where
         
 
