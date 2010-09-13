@@ -1,0 +1,4 @@
+Issue308b.agda:6,18-18
+Issue308b.agda:6,18:
+malformed syntax declaration: notation must alternate holes and
+non-holes x<ERROR> g : D → D g (d x) = e x ...
