@@ -319,7 +319,14 @@ parseApplication es = do
     -- Parse
     case parse p es of
         [e] -> return e
-        []  -> typeError $ NoParseForApplication es
+        []  -> do
+          -- When the parser fails and a name is not in scope, it is more
+          -- useful to say that to the user rather than just "failed".
+          inScope <- partsInScope
+          case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
+               []  -> typeError $ NoParseForApplication es
+               xs  -> typeError $ NotInScope xs
+
         es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
 
 -- Inserting parenthesis --------------------------------------------------

@@ -96,15 +96,15 @@ postop middleP = do
 -- typed function (or duplicated code)
 opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
 opP p nsyn@(_,_,syn) = do
-  (range,es) <- opP' $ removeExternalHoles syn
+  (range,es) <- worker $ removeExternalHoles syn
   return (nsyn,range,es)
- where opP' [IdPart x] = do (r, part) <- partP x; return (r,[])
-       opP' (IdPart x : _ : xs) = do
+ where worker [IdPart x] = do (r, part) <- partP x; return (r,[])
+       worker (IdPart x : _ : xs) = do
             (r1, part)    <- partP x
 	    e             <- p
-	    (r2 , es) <- opP' xs
+	    (r2 , es) <- worker xs
             return (fuseRanges r1 r2, e : es)
-       opP' x = error $ "opP': " ++ show (removeExternalHoles syn)
+       worker x = __IMPOSSIBLE__ -- holes and non-holes must be alternated.
 
        removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
            where removeLeadingHoles = dropWhile isAHole

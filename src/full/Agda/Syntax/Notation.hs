@@ -59,16 +59,25 @@ isAHole = isJust . holeTarget
 isBindingHole (BindHole _) = True
 isBindingHole _ = False
 
+isAlternating :: [GenPart] -> Bool
+isAlternating [] = __IMPOSSIBLE__
+isAlternating [x] = True
+isAlternating (x:y:xs) = isAHole x /= isAHole y && isAlternating (y:xs)
+
 -- | From notation with names to notation with indices.
-mkNotation :: [HoleName] -> [String] -> Notation
-mkNotation holes ids = map mkPart ids
+mkNotation :: [HoleName] -> [String] -> Either String Notation
+mkNotation _ [] = fail "empty notation is disallowed"
+mkNotation holes ids = do
+  xs <- mapM mkPart ids
+  if isAlternating xs then return xs else fail "notation must alternate holes and non-holes"
     where mkPart ident = 
              case (findIndex (\x -> ident == holeName x) holes, 
                    findIndex (\x -> case x of LambdaHole ident' _ -> ident == ident';_ -> False) holes)  of
-                           (Nothing,Just x)   -> BindHole x
-                           (Just x, Nothing)  -> NormalHole x
-                           (Nothing, Nothing) -> IdPart ident
-                           _ -> __IMPOSSIBLE__
+                           (Nothing,Just x)   -> return $ BindHole x
+                           (Just x, Nothing)  -> return $ NormalHole x
+                           (Nothing, Nothing) -> return $ IdPart ident
+                           _ -> fail "name used both in lambda and an regular hole"
+
 -- | No notation by default
 defaultNotation = []
 noNotation = []

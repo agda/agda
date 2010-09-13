@@ -741,8 +741,10 @@ Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 
 -- Syntax declaration (To declare eg. mixfix binders) 
 Syntax :: { Declaration }
-Syntax : 'syntax' Id HoleNames '=' SimpleIds  {
-  Syntax $2 (mkNotation $3 $5)
+Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
+  case mkNotation $3 $5 of
+    Left err -> parseError $ "malformed syntax declaration: " ++ err
+    Right n -> return $ Syntax $2 n
 }
 
 SimpleIds :: { [String] }
