@@ -7,6 +7,26 @@ Important changes since 2.2.6:
 Language
 --------
 
+* Mixfix binders.
+
+  It is now possible to declare user-defined syntax that binds identifiers.
+  For example, assuming
+ 
+    put : ∀ {s} -> s -> State s ⊤
+    get : ∀ {s} -> State s s
+    return : ∀ {a s} -> a -> State s a
+    bind : ∀ {a b s} -> State s b -> (b -> State s a) -> State s a
+ 
+  one can declare
+
+    syntax bind e1 (\x → e2) = x ← e1 ⟩ e2
+
+  and then the following is valid:
+
+    increment = x ← get ⟩ 
+                put (x + 1)
+
+
 * Record pattern matching.
 
   It is now possible to pattern match on named record constructors.
