@@ -88,6 +88,10 @@ library
                     Agda.Compiler.MAlonzo.Misc
                     Agda.Compiler.MAlonzo.Pretty
                     Agda.Compiler.MAlonzo.Primitives
+                    Agda.Packaging.Config
+                    Agda.Packaging.Database
+                    Agda.Packaging.Monad
+                    Agda.Packaging.Types
                     Agda.Interaction.CommandLine.CommandLine
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile

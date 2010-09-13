@@ -1,0 +1,1 @@
+* Make sure all IO is UTF-8 encoded since new format requires it.
