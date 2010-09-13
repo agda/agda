@@ -44,7 +44,7 @@ import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope, isType_ )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope_, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 import Agda.TypeChecking.Rules.Data                ( isCoinductive )
@@ -364,7 +364,7 @@ checkWhere :: Nat -> [A.Declaration] -> TCM a -> TCM a
 checkWhere _ []                      ret = ret
 checkWhere n [A.ScopedDecl scope ds] ret = withScope_ scope $ checkWhere n ds ret
 checkWhere n [A.Section _ m tel ds]  ret = do
-  checkTelescope tel $ \tel' -> do
+  checkTelescope_ tel $ \tel' -> do
     reportSDoc "tc.def.where" 10 $
       text "adding section:" <+> prettyTCM m <+> text (show (size tel')) <+> text (show n)
     addSection m (size tel' + n)  -- the variables bound in the lhs

@@ -203,7 +203,7 @@ checkDefinition d =
 -- | Type check a module.
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()
 checkSection i x tel ds =
-  checkTelescope tel $ \tel' -> do
+  checkTelescope_ tel $ \tel' -> do
     addSection x (size tel')
     verboseS "tc.section.check" 10 $ do
       dx   <- prettyTCM x
@@ -236,7 +236,7 @@ checkSectionApplication ::
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
 checkSectionApplication i m1 ptel m2 args rd rm =
   traceCall (CheckSectionApplication (getRange i) m1 ptel m2 args) $
-  checkTelescope ptel $ \ptel -> do
+  checkTelescope_ ptel $ \ptel -> do
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
   let tel' = apply tel vs

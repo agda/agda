@@ -76,7 +76,6 @@ isType_ e =
     s <- newSortMeta
     isType e s
 
-
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 {-
@@ -106,29 +105,56 @@ forcePi h name (El s t) =
 ---------------------------------------------------------------------------
 
 -- | Type check a telescope. Binds the variables defined by the telescope.
-checkTelescope :: A.Telescope -> (Telescope -> TCM a) -> TCM a
-checkTelescope [] ret = ret EmptyTel
-checkTelescope (b : tel) ret =
-    checkTypedBindings b $ \tel1 ->
-    checkTelescope tel   $ \tel2 ->
+checkTelescope :: A.Telescope -> Sort -> (Telescope -> TCM a) -> TCM a
+checkTelescope [] s ret = ret EmptyTel
+checkTelescope (b : tel) s ret =
+    checkTypedBindings b s $ \tel1 ->
+    checkTelescope tel s   $ \tel2 ->
+	ret $ abstract tel1 tel2
+
+-- | Check a typed binding and extends the context with the bound variables.
+--   The telescope passed to the continuation is valid in the original context.
+checkTypedBindings :: A.TypedBindings -> Sort -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings (A.TypedBindings i (Arg h rel bs)) s ret =
+    thread (checkTypedBinding h s) bs $ \bss ->
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel (concat bss)
+
+checkTypedBinding :: Hiding -> Sort -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding h s (A.TBind i xs e) ret = do
+    t <- isType e s
+    addCtxs xs (Arg h Relevant t) $ ret $ mkTel xs t
+    where
+	mkTel [] t     = []
+	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
+checkTypedBinding h s (A.TNoBind e) ret = do
+    t <- isType e s
+    ret [("_",t)]
+
+
+-- | Type check a telescope. Binds the variables defined by the telescope.
+checkTelescope_ :: A.Telescope -> (Telescope -> TCM a) -> TCM a
+checkTelescope_ [] ret = ret EmptyTel
+checkTelescope_ (b : tel) ret =
+    checkTypedBindings_ b $ \tel1 ->
+    checkTelescope_ tel   $ \tel2 ->
 	ret $ abstract tel1 tel2
 
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
-checkTypedBindings :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings (A.TypedBindings i (Arg h rel bs)) ret =
-    thread (checkTypedBinding h) bs $ \bss ->
+checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings_ (A.TypedBindings i (Arg h rel bs)) ret =
+    thread (checkTypedBinding_ h) bs $ \bss ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel (concat bss)
 
-checkTypedBinding :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding h (A.TBind i xs e) ret = do
+checkTypedBinding_ :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding_ h (A.TBind i xs e) ret = do
     t <- isType_ e
     addCtxs xs (Arg h Relevant t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding h (A.TNoBind e) ret = do
+checkTypedBinding_ h (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
@@ -326,7 +352,7 @@ checkExpr e t =
             metas _           = []
 
 	A.Lam i (A.DomainFull b) e -> do
-	    (v, cs) <- checkTypedBindings b $ \tel -> do
+	    (v, cs) <- checkTypedBindings_ b $ \tel -> do
 	        t1 <- newTypeMeta_
                 cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
                 v <- checkExpr e t1
@@ -365,7 +391,7 @@ checkExpr e t =
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
 	A.Pi _ tel e -> do
-	    t' <- checkTelescope tel $ \tel -> do
+	    t' <- checkTelescope_ tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
                     return $ telePi_ tel t
