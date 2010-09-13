@@ -50,7 +50,7 @@ compilerMain mainI =
 
     -- Compute the output directory.
     opts <- commandLineOptions
-    malonzoDir <- case optMAlonzoDir opts of
+    compileDir <- case optCompileDir opts of
       Just dir -> return dir
       Nothing  -> do
         -- The default output directory is the project root.
@@ -58,7 +58,7 @@ compilerMain mainI =
         f <- findFile tm
         return $ filePath $ CN.projectRoot f tm
     setCommandLineOptions $
-      opts { optMAlonzoDir = Just malonzoDir }
+      opts { optCompileDir = Just compileDir }
 
     ignoreAbstractMode $ do
       mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
@@ -382,15 +382,15 @@ writeModule m =
                        , "  #-}"
                        ]
 
-malonzoDir :: TCM FilePath
-malonzoDir = do
-  mdir <- optMAlonzoDir <$> commandLineOptions
+compileDir :: TCM FilePath
+compileDir = do
+  mdir <- optCompileDir <$> commandLineOptions
   case mdir of
     Just dir -> return dir
     Nothing  -> __IMPOSSIBLE__
 
 outFile' = do
-  mdir <- malonzoDir
+  mdir <- compileDir
   (fdir, fn) <- splitFileName . repldot pathSeparator .
                 prettyPrint <$> curHsMod
   let dir = mdir </> fdir
@@ -406,7 +406,7 @@ outFile = snd <$> outFile'
 callGHC :: Interface -> TCM ()
 callGHC i = do
   setInterface i
-  mdir          <- malonzoDir
+  mdir          <- compileDir
   hsmod         <- prettyPrint <$> curHsMod
   MName agdaMod <- curMName
   let outputName = case agdaMod of

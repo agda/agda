@@ -82,12 +82,6 @@ library
   exposed-modules:  Agda.Main
                     Agda.Interaction.BasicOps
                     Agda.Interaction.GhciTop
-                    Agda.Compiler.Agate.Classify
-                    Agda.Compiler.Agate.Common
-                    Agda.Compiler.Agate.Main
-                    Agda.Compiler.Agate.OptimizedPrinter
-                    Agda.Compiler.Agate.TranslateName
-                    Agda.Compiler.Agate.UntypedPrinter
                     Agda.Compiler.HaskellTypes
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode

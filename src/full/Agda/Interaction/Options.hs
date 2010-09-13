@@ -61,15 +61,14 @@ data CommandLineOptions =
 	    , optInteractive          :: Bool
 	    , optRunTests             :: Bool
 	    , optCompile              :: Bool
+            , optCompileDir           :: Maybe FilePath
+              -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
 	    , optGenerateHTML         :: Bool
 	    , optHTMLDir              :: FilePath
 	    , optCSSFile              :: Maybe FilePath
 	    , optIgnoreInterfaces     :: Bool
             , optForcing              :: Bool
-            , optCompileMAlonzo       :: Bool
-            , optMAlonzoDir           :: Maybe FilePath
-              -- ^ In the absence of a path the project root is used.
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
 	    }
@@ -120,14 +119,13 @@ defaultOptions =
 	    , optInteractive          = False
 	    , optRunTests             = False
 	    , optCompile              = False
+            , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
 	    , optGenerateHTML         = False
 	    , optHTMLDir              = defaultHTMLDir
 	    , optCSSFile              = Nothing
 	    , optIgnoreInterfaces     = False
             , optForcing              = True
-	    , optCompileMAlonzo       = False
-            , optMAlonzoDir           = Nothing
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
 	    }
@@ -168,11 +166,9 @@ type Flag opts = opts -> Either String opts
 
 checkOpts :: Flag CommandLineOptions
 checkOpts opts
-  | not (atMostOne compilerOpts) =
-    Left "At most one compiler may be used.\n"
-  | not (atMostOne $ optAllowUnsolved . p : compilerOpts) = Left
+  | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne $ optInteractive : compilerOpts) =
+  | not (atMostOne [optInteractive, optCompile]) =
       Left "Choose at most one: compiler or interactive mode.\n"
   | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
@@ -184,11 +180,7 @@ checkOpts opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
 
-  p            = optPragmaOptions
-  compilerOpts =
-    [ optCompile
-    , optCompileMAlonzo
-    ]
+  p = optPragmaOptions
 
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
@@ -219,11 +211,9 @@ interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
                                                         { optAllowUnsolved = True }
 		                }
-compileFlag      o = return $ o { optCompileMAlonzo = True }
-agateFlag        o = return $ o { optCompile        = True }
-malonzoFlag      o = return $ o { optCompileMAlonzo = True }
-malonzoDirFlag f o = return $ o { optMAlonzoDir     = Just f }
-ghcFlag        f o = return $ o { optGhcFlags       = f : optGhcFlags o }
+compileFlag      o = return $ o { optCompile    = True }
+compileDirFlag f o = return $ o { optCompileDir = Just f }
+ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
 htmlDirFlag d o = return $ o { optHTMLDir      = d }
@@ -262,7 +252,7 @@ standardOptions =
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program (experimental)"
-    , Option []     ["compile-dir"] (ReqArg malonzoDirFlag "DIR")
+    , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling"
