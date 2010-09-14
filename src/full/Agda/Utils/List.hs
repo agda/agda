@@ -9,6 +9,7 @@ import Agda.Utils.Tuple
 
 import Text.Show.Functions
 import Data.List
+import Data.Maybe
 import Data.Function
 
 mhead :: [a] -> Maybe a
@@ -115,6 +116,21 @@ prop_extractNthElement n xs =
     genericTake n rest ++ [elem] ++ genericDrop n rest == xs
   where (elem, rest) = extractNthElement n xs
 
+-- A generalised variant of 'elemIndex'.
+
+genericElemIndex :: (Eq a, Integral i) => a -> [a] -> Maybe i
+genericElemIndex x xs =
+  listToMaybe $
+  map fst $
+  filter snd $
+  zip [0..] $
+  map (== x) xs
+
+prop_genericElemIndex :: Integer -> [Integer] -> Property
+prop_genericElemIndex x xs =
+  classify (x `elem` xs) "members" $
+    genericElemIndex x xs == elemIndex x xs
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -122,4 +138,5 @@ tests :: IO Bool
 tests = runTests "Agda.Utils.List"
   [ quickCheck' prop_groupBy'
   , quickCheck' prop_extractNthElement
+  , quickCheck' prop_genericElemIndex
   ]
