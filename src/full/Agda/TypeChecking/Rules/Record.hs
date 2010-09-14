@@ -51,7 +51,6 @@ checkRecDef i name con ps contel fields =
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope
       let m = qnameToMName name
-	  hide a         = a { argHiding = Hidden }
 	  htel		 = map hide $ telToList tel
 	  rect		 = El s $ Def name $ reverse
 			   [ Arg h r (Var i [])
@@ -168,7 +167,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
       -- in fact, tel includes the variable of record type as last one
       -- e.g. for cartesion product it is
-      -- 
+      --
       --   tel = {A' : Set} {B' : Set} (r : Prod A' B')
 
       -- create the projection functions (instantiate the type with the values
@@ -184,7 +183,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-      
+
 
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x

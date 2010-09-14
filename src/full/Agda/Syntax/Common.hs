@@ -43,6 +43,9 @@ data Arg e  = Arg
 instance Eq a => Eq (Arg a) where
   Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
 
+hide :: Arg a -> Arg a
+hide a = a { argHiding = Hidden }
+
 defaultArg :: a -> Arg a
 defaultArg = Arg NotHidden Relevant
 
@@ -53,8 +56,8 @@ makeIrrelevant :: Arg a -> Arg a
 makeIrrelevant a = a { argRelevance = Irrelevant }
 
 makeRelevant :: Arg a -> Arg a
-makeRelevant a = if argRelevance a == Irrelevant 
-                  then a { argRelevance = Relevant } 
+makeRelevant a = if argRelevance a == Irrelevant
+                  then a { argRelevance = Relevant }
                   else a
 
 -- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
