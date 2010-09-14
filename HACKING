@@ -24,5 +24,10 @@ Some Agda Hacking Lore
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
 
+* Run the testsuite:
 
+    make
+    make test
 
+  If the new error is also acceptable, you can 'touch' the source file
+  of a test/failing case to accept it.
