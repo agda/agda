@@ -1,12 +1,12 @@
 module MixfixBinders where
 
 postulate
-  M : Set → Set
+  M      : Set → Set
   return : ∀ {A} → A → M A
-  _>>=_  : ∀ {A B} → M A → (A → M B) → M B
+  bind   : ∀ {A B} → M A → (A → M B) → M B
 
-infixr 40 _>>=_
-syntax _>>=_ m (λ x → m′) = x ← m , m′
+infixr 40 bind
+syntax bind m (λ x → m′) = x ← m , m′
 
 postulate
   X : Set

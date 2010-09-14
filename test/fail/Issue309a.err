@@ -1,0 +1,4 @@
+Issue309a.agda:6,18-18
+Issue309a.agda:6,18:
+malformed syntax declaration: hole names must be unique x<ERROR> g
+: D → D g (d x) = e x ...
