@@ -9,7 +9,7 @@ Some Agda Hacking Lore
   test/interaction. When adding test cases under test/fail, remember
   to record the error messages (.err files) after running make test.
 
-* To run the test-suite, use make test (which does not work properly
+* Run the test-suite, using make test (which does not work properly
   unless you run autoreconf and ./configure first).
 
   Tests under test/fail can fail if an error message has changed. To
@@ -23,11 +23,3 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
-
-* Run the testsuite:
-
-    make
-    make test
-
-  If the new error is also acceptable, you can 'touch' the source file
-  of a test/failing case to accept it.
