@@ -128,11 +128,8 @@ runAgda = do
               mapM_ (\ (s,n) -> LocIO.putStrLn $ s ++ " : " ++ show n) $
                 sortBy (\x y -> compare (snd x) (snd y)) stats
 
-          whenM (optGenerateHTML <$> commandLineOptions) $ do
-            case mw of
-              Nothing -> generateHTML $ iModuleName i
-              Just _  -> reportSLn "" 1
-                "HTML is not generated (unsolved meta-variables)."
+          whenM (optGenerateHTML <$> commandLineOptions) $
+            generateHTML $ iModuleName i
 
           return result
 
