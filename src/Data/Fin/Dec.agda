@@ -40,7 +40,7 @@ private
 any? : ∀ {n} {P : Fin n → Set} →
        ((f : Fin n) → Dec (P f)) →
        Dec (∃ P)
-any? {zero}  {P} dec = no ((¬ Fin 0 ∋ λ()) ∘ proj₁)
+any? {zero}  {P} dec = no (((λ()) ∶ ¬ Fin 0) ∘ proj₁)
 any? {suc n} {P} dec with dec zero | any? (restrict dec)
 ...                  | yes p | _            = yes (_ , p)
 ...                  | _     | yes (_ , p') = yes (_ , p')
