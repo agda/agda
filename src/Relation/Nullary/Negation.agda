@@ -132,7 +132,7 @@ call/cc hyp ¬p = hyp (λ p → ⊥-elim (¬p p)) ¬p
 
 independence-of-premise
   : ∀ {p q r} {P : Set p} {Q : Set q} {R : Q → Set r} →
-    Q → (P → Σ Q R) → ¬ ¬ Σ Q (λ x → P → R x)
+    Q → (P → Σ Q R) → ¬ ¬ (Σ[ x ∶ Q ] (P → R x))
 independence-of-premise {P = P} q f = ¬¬-map helper excluded-middle
   where
   helper : Dec P → _

@@ -25,6 +25,8 @@ record Σ {a b} (A : Set a) (B : A → Set b) : Set (a ⊔ b) where
 
 open Σ public
 
+syntax Σ A (λ x → B) = Σ[ x ∶ A ] B
+
 ∃ : ∀ {a b} {A : Set a} → (A → Set b) → Set (a ⊔ b)
 ∃ = Σ _
 
@@ -36,7 +38,7 @@ open Σ public
 ∃₂ C = ∃ λ a → ∃ λ b → C a b
 
 _×_ : ∀ {a b} (A : Set a) (B : Set b) → Set (a ⊔ b)
-A × B = Σ A (λ _ → B)
+A × B = Σ[ x ∶ A ] B
 
 _,′_ : ∀ {a b} {A : Set a} {B : Set b} → A → B → A × B
 _,′_ = _,_

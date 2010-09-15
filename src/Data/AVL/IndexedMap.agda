@@ -32,10 +32,10 @@ KV = ∃ λ i → Key i × Value i
 
 private
 
-  fromKV : KV → Σ (∃ Key) λ ik → Value (proj₁ ik)
+  fromKV : KV → Σ[ ik ∶ ∃ Key ] Value (proj₁ ik)
   fromKV (i , k , v) = ((i , k) , v)
 
-  toKV : Σ (∃ Key) (λ ik → Value (proj₁ ik)) → KV
+  toKV : Σ[ ik ∶ ∃ Key ] Value (proj₁ ik) → KV
   toKV ((i , k) , v) = (i , k , v)
 
 private
