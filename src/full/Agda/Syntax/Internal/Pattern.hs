@@ -8,14 +8,14 @@ import Agda.Utils.Tuple
 data OneHolePatterns = OHPats [Arg Pattern] (Arg OneHolePattern) [Arg Pattern]
   deriving (Show)
 data OneHolePattern  = Hole
-		     | OHCon QName OneHolePatterns
+		     | OHCon QName (Maybe (Arg Type)) OneHolePatterns
   deriving (Show)
 
 plugHole :: Pattern -> OneHolePatterns -> [Arg Pattern]
 plugHole p (OHPats ps hole qs) = ps ++ [fmap (plug p) hole] ++ qs
   where
     plug p Hole	       = p
-    plug p (OHCon c h) = ConP c Nothing $ plugHole p h
+    plug p (OHCon c mt h) = ConP c mt $ plugHole p h
 
 allHoles :: [Arg Pattern] -> [OneHolePatterns]
 allHoles = map snd . allHolesWithContents
@@ -30,7 +30,7 @@ allHolesWithContents (p : ps) = map left phs ++ map (right p) (allHolesWithConte
     holes :: Pattern -> [(Pattern, OneHolePattern)]
     holes p@(VarP _)  = [(p, Hole)]
     holes p@(DotP _)  = [(p, Hole)]
-    holes (ConP c _ qs) = map (id -*- OHCon c) $ allHolesWithContents qs
+    holes (ConP c mt qs) = map (id -*- OHCon c mt) $ allHolesWithContents qs
     holes _           = []
 
     left  (p, ph)               = (p, OHPats [] ph ps)
