@@ -67,8 +67,9 @@ checkCoverage f = do
   TelV gamma _ <- telView $ defType d
   let defn = theDef d
   case defn of
-    Function{ funClauses = cs@(_:_) } -> do
-      let n            = genericLength $ clausePats $ head cs
+    Function{ funClauses = cs'@(_:_) } -> do
+      let cs           = map translatedClause cs'
+          n            = genericLength $ clausePats $ head cs
           gamma'       = telFromList $ genericTake n $ telToList gamma
           xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
       reportSDoc "tc.cover.top" 10 $ vcat

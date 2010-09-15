@@ -339,12 +339,13 @@ checkExpr e t =
                   addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
                                   $ Function
                                     { funClauses        =
-                                        [Clause { clauseRange = getRange e
-                                                , clauseTel   = EmptyTel
-                                                , clausePerm  = Perm 0 []
-                                                , clausePats  = [Arg h Relevant $ VarP "()"]
-                                                , clauseBody  = NoBody
-                                                }
+                                        [Clauses Nothing
+                                                 (Clause { clauseRange = getRange e
+                                                         , clauseTel   = EmptyTel
+                                                         , clausePerm  = Perm 0 []
+                                                         , clausePats  = [Arg h Relevant $ VarP "()"]
+                                                         , clauseBody  = NoBody
+                                                         })
                                         ]
                                     , funCompiled       = Fail
                                     , funDelayed        = NotDelayed
@@ -808,7 +809,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                   let arg = Arg h rel u  -- save relevance info in argument
                   (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
                   return (nukeIfIrrelevant arg : us, t0'', cs')
-                         where nukeIfIrrelevant arg = 
+                         where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
                                    arg { unArg = Sort Prop }
                                   else arg

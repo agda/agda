@@ -1,0 +1,5 @@
+top_command (cmd_load currentFile [])
+
+-- Case splitting should work.
+goal_command 1 cmd_make_case "x"
+goal_command 0 cmd_make_case "x"

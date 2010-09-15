@@ -200,6 +200,26 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 -- Definitions
 --
 
+-- | Pairs consisting of original and translated clauses.
+data Clauses = Clauses
+  { maybeOriginalClause :: Maybe Clause
+    -- ^ The original clause, before translation of record patterns.
+    -- 'Nothing' if the translated clause is identical to the original
+    -- one.
+  , translatedClause :: Clause
+    -- ^ The translated clause.
+  }
+  deriving (Typeable, Data, Show)
+
+-- | The original clause, before translation of record patterns.
+originalClause :: Clauses -> Clause
+originalClause Clauses{ maybeOriginalClause = Just c } = c
+originalClause Clauses{ maybeOriginalClause = Nothing
+                      , translatedClause    = c      } = c
+
+instance HasRange Clauses where
+  getRange = getRange . translatedClause
+
 -- | A clause is a list of patterns and the clause body should @Bind@ or
 -- @NoBind@ in the order the variables occur in the patterns. The @NoBind@
 -- constructor is an optimisation to avoid substituting for variables that
@@ -239,11 +259,10 @@ instance HasRange Clause where
 data Pattern = VarP String  -- name suggestion
              | DotP Term
 	     | ConP QName (Maybe (Arg Type)) [Arg Pattern]
-               -- ^ Record patterns come with a type of the whole pattern.
-               -- The type's scope is like that of a term in a dot pattern:
-               -- it is in scope of all the variables bound in alls patterns
-               -- of a clause.
-               -- If the Maybe is @Nothing@ then it is not a record pattern.
+               -- ^ The type is @'Just' t@' iff the pattern is a
+               -- record pattern. The scope used for the type is given
+               -- by any outer scope plus the clause's telescope
+               -- ('clauseTel').
 	     | LitP Literal
   deriving (Typeable, Data, Show)
 

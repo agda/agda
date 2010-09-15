@@ -29,13 +29,19 @@ data CompiledClauses
   | Fail
   deriving (Typeable, Data)
 
-compileClauses :: [Clause] -> CompiledClauses
-compileClauses cs = compile [ (clausePats c, clauseBody c) | c <- cs ]
+-- | Note that it is the /translated/ clauses which are compiled, not
+-- the original ones.
 
-type Cl      = ([Arg Pattern], ClauseBody)
-type Clauses = [Cl]
+compileClauses :: [Clauses] -> CompiledClauses
+compileClauses cs =
+  compile [ (clausePats c, clauseBody c)
+          | Clauses { translatedClause = c } <- cs
+          ]
 
-compile :: Clauses -> CompiledClauses
+type Cl  = ([Arg Pattern], ClauseBody)
+type Cls = [Cl]
+
+compile :: Cls -> CompiledClauses
 compile cs = case nextSplit cs of
   Just n  -> Case n $ fmap compile $ splitOn n cs
   Nothing -> case map getBody cs of
@@ -50,7 +56,7 @@ compile cs = case nextSplit cs of
     inc Nothing       = Nothing
     inc (Just (n, t)) = Just (n + 1, t)
 
-nextSplit :: Clauses -> Maybe Int
+nextSplit :: Cls -> Maybe Int
 nextSplit [] = __IMPOSSIBLE__
 nextSplit ((ps, _):_) = mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
   where
@@ -59,7 +65,7 @@ nextSplit ((ps, _):_) = mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
     isPat ConP{} = True
     isPat LitP{} = True
 
-splitOn :: Int -> Clauses -> Case Clauses
+splitOn :: Int -> Cls -> Case Cls
 splitOn n cs = mconcat $ map (fmap (:[]) . splitC n) cs
 
 splitC :: Int -> Cl -> Case Cl

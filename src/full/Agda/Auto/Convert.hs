@@ -81,11 +81,12 @@ tomy imi icns typs = do
      typ <- lift $ norm typ
      typ' <- tomyType typ
      let clausesToDef clauses = do
-           clauses' <- tomyClauses clauses
-           let narg = case clauses of
+           let clauses' = map I.translatedClause clauses
+           clauses'' <- tomyClauses clauses'
+           let narg = case clauses' of
                         [] -> 0
                         I.Clause {I.clausePats = xs} : _ -> length xs
-           return $ Def narg clauses' Nothing Nothing
+           return $ Def narg clauses'' Nothing Nothing
      cont <- case defn of
       MB.Axiom {} -> return Postulate
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses
@@ -646,7 +647,7 @@ findClauseDeep m = do
   let res = do
         def <- Map.elems $ MB.sigDefinitions sig
         MB.Function{MB.funClauses = cs} <- [MB.theDef def]
-        c <- cs
+        c <- map I.translatedClause cs
         unless (peelbinds False findMeta $ I.clauseBody c) []
         return (MB.defName def, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   return $ case res of

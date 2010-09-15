@@ -88,13 +88,14 @@ checkFunDef delayed i name cs =
         cs <- mapM check cs
 
         -- Check that all clauses have the same number of arguments
-        unless (allEqual $ map npats cs) $ typeError DifferentArities
+        unless (allEqual $ map (npats . translatedClause) cs) $
+               typeError DifferentArities
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull =<< mapM rebindClause cs
 
         -- Check if the function is injective
-        inv <- checkInjectivity name cs
+        inv <- checkInjectivity name $ map translatedClause cs
 
         -- Compile the clauses
         let cc = compileClauses cs
@@ -128,7 +129,7 @@ checkFunDef delayed i name cs =
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
-    where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds) 
+    where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds)
 --              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
               = A.Clause (A.LHS i x aps (pats ++ ps)) (insertPatterns pats rhs) ds
 insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
@@ -150,7 +151,7 @@ data WithFunctionProblem
                      [A.Clause]     -- the given clauses for the with function
 
 -- | Type check a function clause.
-checkClause :: Type -> A.Clause -> TCM Clause
+checkClause :: Type -> A.Clause -> TCM Clauses
 checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
@@ -195,24 +196,24 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          _ -> do
                           err <- text "Cannot rewrite by equation of type" <+> prettyTCM t'
                           typeError $ GenericError $ show err
-                         
+
                      let info = PatRange noRange
                          metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
                          underscore = A.Underscore metaInfo
-                         
+
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-
                       disableDisplayForms $ setShowImplicitArguments True $ reify
                         [rewriteFrom,   rewriteTo,    rewriteType    , proof]
                      let (inner, outer) -- the where clauses should go on the inner-most with
                            | null eqs  = ([], wh)
                            | otherwise = (wh, [])
-                         newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr] 
+                         newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr]
                                   [A.Clause (A.LHS i x aps pats)
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [A.DotP info underscore, -- rewriteToExpr,
                                  A.ConP info (AmbQ [reflCon]) []]
-                     reportSDoc "tc.rewrite.top" 25 $ vcat 
+                     reportSDoc "tc.rewrite.top" 25 $ vcat
                                          [ text "from = " <+> prettyTCM rewriteFromExpr,
                                            text "to = " <+> prettyTCM rewriteToExpr,
                                            text "typ = " <+> prettyTCM rewriteType,
@@ -275,13 +276,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
 
-      reportSDoc "tc.lhs.top" 10 $ vcat
-        [ text "Final clause:"
+      reportSDoc "tc.lhs.top" 10 $ escapeContext (size delta) $ vcat
+        [ text "Clause before translation:"
         , nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "perm  =" <+> text (show perm)
           , text "ps    =" <+> text (show ps)
           , text "body  =" <+> text (show body)
+          , text "body  =" <+> prettyTCM body
           ]
         ]
 

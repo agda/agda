@@ -39,9 +39,6 @@ Language
 * Record pattern matching.
 
   It is now possible to pattern match on named record constructors.
-  However, if you want to make use of η-equality you still need to use
-  projection functions.
-
   Example:
 
     record Σ (A : Set) (B : A → Set) : Set where
@@ -54,6 +51,23 @@ Language
           (f : A → B) → (∀ {x} → P x → Q (f x)) →
           Σ A P → Σ B Q
     map f g (x , y) = (f x , g y)
+
+  The clause above is internally translated into the following one:
+
+    map f g p = (f (Σ.proj₁ p) , g (Σ.proj₂ p))
+
+  Record patterns containing data type patterns are not translated.
+  Example:
+
+    add : ℕ × ℕ → ℕ
+    add (zero  , n) = n
+    add (suc m , n) = suc (add (m , n))
+
+  Record patterns which do not contain data type patterns, but which
+  do contain dot patterns, are currently rejected. Example:
+
+    Foo : {A : Set} (p₁ p₂ : A × A) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
+    Foo (x , y) (.x , y′) refl = Set
 
 * Injective type constructors off by default.
 

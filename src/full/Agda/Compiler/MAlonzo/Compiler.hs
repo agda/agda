@@ -176,7 +176,8 @@ definition kit (Defn q ty _ _ d) = do
 --         Just c  -> snd <$> condecl c
       return $ tvaldecl q Inductive noFields ar [cd] cl
   where
-  function cls = mkwhere <$> mapM (clause q) (tag 0 cls)
+  function cls = mkwhere <$> mapM (clause q)
+                                  (tag 0 $ L.map translatedClause cls)
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []
   tag i (cl:cls) = (i, False, cl): tag (i + 1) cls

@@ -419,7 +419,7 @@ data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
             }
 	  | Function
-            { funClauses        :: [Clause]
+            { funClauses        :: [Clauses]
             , funCompiled       :: CompiledClauses
             , funInv            :: FunctionInverse
             , funPolarity       :: [Polarity]
@@ -467,7 +467,7 @@ data Defn = Axiom
 	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String
-            , primClauses :: Maybe [Clause]
+            , primClauses :: Maybe [Clauses]
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
             }
@@ -491,11 +491,11 @@ data PrimFun = PrimFun
 	}
     deriving (Typeable)
 
-defClauses :: Definition -> [Clause]
+defClauses :: Definition -> [Clauses]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
 defClauses Defn{theDef = Primitive{primClauses = Just cs}} = cs
-defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
-defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
+defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [Clauses Nothing c]
+defClauses Defn{theDef = Record{recClause = Just c}}       = [Clauses Nothing c]
 defClauses _                                               = []
 
 defCompiled :: Definition -> Maybe CompiledClauses

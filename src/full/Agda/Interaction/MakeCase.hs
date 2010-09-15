@@ -33,15 +33,16 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | Find the clause whose right hand side is the given meta.
---   Raises an error if there is no such clause.
+-- | Find the clause whose right hand side is the given meta. Returns
+-- the original clause, before record patterns have been translated
+-- away. Raises an error if there is no matching clause.
 findClause :: MetaId -> TCM (QName, Clause)
 findClause m = do
   sig <- getImportedSignature
   let res = do
         def <- Map.elems $ sigDefinitions sig
         Function{funClauses = cs} <- [theDef def]
-        c <- cs
+        c <- map originalClause cs
         unless (rhsIsm $ clauseBody c) []
         return (defName def, c)
   case res of

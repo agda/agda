@@ -262,8 +262,12 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
               return $ notBlocked $ Con (c `withRangeOf` f) args
             Primitive ConcreteDef x cls -> do
                 pf <- getPrimitive x
-                reducePrimitive x v0 f args pf (defDelayed info) (maybe [] id cls) Nothing
-            _  -> reduceNormal v0 f args (defDelayed info) (defClauses info) (defCompiled info)
+                reducePrimitive x v0 f args pf (defDelayed info)
+                                (maybe [] (List.map translatedClause) cls)
+                                Nothing
+            _  -> reduceNormal v0 f args (defDelayed info)
+                               (List.map translatedClause $ defClauses info)
+                               (defCompiled info)
   where
     reducePrimitive x v0 f args pf delayed cls mcc
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
@@ -626,6 +630,10 @@ instance InstantiateFull CompiledClauses where
   instantiateFull Fail        = return Fail
   instantiateFull (Done m t)  = Done m <$> instantiateFull t
   instantiateFull (Case n bs) = Case n <$> instantiateFull bs
+
+instance InstantiateFull Clauses where
+    instantiateFull (Clauses c tc) =
+       Clauses <$> instantiateFull c <*> instantiateFull tc
 
 instance InstantiateFull Clause where
     instantiateFull (Clause r tel perm ps b) =

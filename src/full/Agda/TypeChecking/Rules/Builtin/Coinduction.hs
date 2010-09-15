@@ -162,7 +162,7 @@ bindBuiltinFlat e =
                         }
     addConstant flat $
       flatDefn { theDef = Function
-                   { funClauses        = [clause]
+                   { funClauses        = [Clauses Nothing clause]
                    , funCompiled       = Case 2 (Branches (Map.singleton sharp (Done 3 (Var 0 [])))
                                                           Map.empty
                                                           Nothing)

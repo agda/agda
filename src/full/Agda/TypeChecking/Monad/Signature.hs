@@ -130,7 +130,7 @@ addDisplayForms x = do
   add args x x []
   where
     add args top x ps = do
-      cs <- defClauses <$> getConstInfo x
+      cs <- map originalClause . defClauses <$> getConstInfo x
       case cs of
 	[ Clause{ clauseBody = b } ]
 	  | Just (m, Def y vs) <- strip b
@@ -216,7 +216,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                          , recConType = apply t ts, recTel = apply tel ts
                          }
 		_ ->
-                  Function { funClauses        = [cl]
+                  Function { funClauses        = [cl2]
                            , funCompiled       = cc
                            , funDelayed        = NotDelayed
                            , funInv            = NotInjective
@@ -230,7 +230,8 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , clausePats  = []
                     , clauseBody  = Body $ Def x ts
                     }
-        cc = compileClauses [cl]
+        cl2 = Clauses Nothing cl
+        cc  = compileClauses [cl2]
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of

@@ -221,10 +221,11 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                           , clausePats  = hps ++ [conp]
                           , clauseBody  = body
                           }
+          clause2 = Clauses Nothing clause
       escapeContext (size tel) $ do
 	addConstant projname $ Defn projname (killRange finalt) (defaultDisplayForm projname) 0
-          $ Function { funClauses        = [clause]
-                     , funCompiled       = compileClauses [clause]
+          $ Function { funClauses        = [clause2]
+                     , funCompiled       = compileClauses [clause2]
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef

@@ -72,10 +72,10 @@ checkStrictlyPositive mi = do
     getArity q = do
       def <- theDef <$> getConstInfo q
       return $ case def of
-        Function{ funClauses = Clause{ clausePats = ps } : _ } -> size ps
-        Datatype{ dataPars = n }                     -> n
-        Record{ recPars = n }                        -> n
-        _                                            -> 0
+        Function{ funClauses = c : _ } -> size $ clausePats $ translatedClause c
+        Datatype{ dataPars = n }       -> n
+        Record{ recPars = n }          -> n
+        _                              -> 0
 
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
@@ -302,7 +302,8 @@ computeOccurrences q = do
   occursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
       n  <- arity <$> instantiateFull (defType def)
-      cs <- map (etaExpandClause n) <$> instantiateFull cs
+      cs <- map (etaExpandClause n) <$>
+              instantiateFull (map translatedClause cs)
       return
         $ concatOccurs
         $ zipWith (occursAs . InClause) [0..]

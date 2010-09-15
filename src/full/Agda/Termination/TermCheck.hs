@@ -223,7 +223,8 @@ termDef use names name = do
 	      ]
         case (theDef def) of
           Function{ funClauses = cls } ->
-            collectCalls (termClause use names name) cls
+            collectCalls (termClause use names name) $
+              map translatedClause cls
           _ -> return Term.empty
 
 
