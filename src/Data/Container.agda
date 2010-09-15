@@ -42,19 +42,24 @@ open Container public
 infix 4 _≈_
 
 _≈_ : ∀ {c} {C : Container c} {X : Set c} → ⟦ C ⟧ X → ⟦ C ⟧ X → Set c
-_≈_ {C = C} xs ys =
-  ∃ λ (eq : proj₁ xs ≡ proj₁ ys) →
-    ∀ p → proj₂ xs p ≡ proj₂ ys (P.subst (Position C) eq p)
+_≈_ {C = C} (s , f) (s′ , f′) =
+  ∃ λ (eq : s ≡ s′) → ∀ p → f p ≡ f′ (P.subst (Position C) eq p)
 
 private
 
-  -- Note that, if propositional equality were extensional, _≈_ and
-  -- _≡_ would coincide.
+  -- Note that, if propositional equality were extensional, then _≈_
+  -- and _≡_ would coincide.
 
   ≈⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
         P.Extensionality c → xs ≈ ys → xs ≡ ys
-  ≈⇒≡ {xs = s , f} {ys = .s , g} ext (refl , f≈g) =
-    P.cong (_,_ s) (ext f≈g)
+  ≈⇒≡ {C = C} {X} ext (s≡s′ , f≈f′) = helper s≡s′ f≈f′
+    where
+    helper : {s s′ : Shape C} (eq : s ≡ s′) →
+             {f  : Position C s  → X}
+             {f′ : Position C s′ → X} →
+             (∀ p → f p ≡ f′ (P.subst (Position C) eq p)) →
+             _≡_ {A = ⟦ C ⟧ X} (s , f) (s′ , f′)
+    helper refl f≈f′ = P.cong (_,_ _) (ext f≈f′)
 
 setoid : ∀ {ℓ} → Container ℓ → Set ℓ → Setoid ℓ ℓ
 setoid C X = record
@@ -63,16 +68,31 @@ setoid C X = record
   ; isEquivalence = record
     { refl  = (refl , λ _ → refl)
     ; sym   = sym
-    ; trans = λ {_ _ zs} → trans {zs = zs}
+    ; trans = λ {_ _ zs} → trans zs
     }
   }
   where
   sym : {xs ys : ⟦ C ⟧ X} → xs ≈ ys → ys ≈ xs
-  sym {_ , _} {._ , _} (refl , f) = (refl , P.sym ⟨∘⟩ f)
+  sym (eq , f) = helper eq f
+    where
+    helper : {s s′ : Shape C} (eq : s ≡ s′) →
+             {f  : Position C s  → X}
+             {f′ : Position C s′ → X} →
+             (∀ p → f p ≡ f′ (P.subst (Position C) eq p)) →
+             _≈_ {C = C} (s′ , f′) (s , f)
+    helper refl eq = (refl , P.sym ⟨∘⟩ eq)
 
-  trans : {xs ys zs : ⟦ C ⟧ X} → xs ≈ ys → ys ≈ zs → xs ≈ zs
-  trans {_ , _} {._ , _} {._ , _} (refl , f) (refl , g) =
-    (refl , λ p → P.trans (f p) (g p))
+  trans : ∀ {xs ys : ⟦ C ⟧ X} zs → xs ≈ ys → ys ≈ zs → xs ≈ zs
+  trans zs (eq₁ , f₁) (eq₂ , f₂) = helper eq₁ eq₂ (proj₂ zs) f₁ f₂
+    where
+    helper : {s s′ s″ : Shape C} (eq₁ : s ≡ s′) (eq₂ : s′ ≡ s″) →
+             {f  : Position C s  → X}
+             {f′ : Position C s′ → X} →
+             (f″ : Position C s″ → X) →
+             (∀ p → f  p ≡ f′ (P.subst (Position C) eq₁ p)) →
+             (∀ p → f′ p ≡ f″ (P.subst (Position C) eq₂ p)) →
+             _≈_ {C = C} (s , f) (s″ , f″)
+    helper refl refl _ eq₁ eq₂ = (refl , λ p → P.trans (eq₁ p) (eq₂ p))
 
 ------------------------------------------------------------------------
 -- Functoriality
@@ -196,7 +216,7 @@ open _⊸_ public using (shape⊸; position⊸; ⟪_⟫⊸)
 
 □ : ∀ {c} {C : Container c} {X : Set c} →
     (X → Set c) → (⟦ C ⟧ X → Set c)
-□ P xs = ∀ p → P (proj₂ xs p)
+□ P (s , f) = ∀ p → P (f p)
 
 □-map : ∀ {c} {C : Container c} {X : Set c} {P Q : X → Set c} →
         P ⊆ Q → □ {C = C} P ⊆ □ Q
@@ -206,7 +226,7 @@ open _⊸_ public using (shape⊸; position⊸; ⟪_⟫⊸)
 
 ◇ : ∀ {c} {C : Container c} {X : Set c} →
     (X → Set c) → (⟦ C ⟧ X → Set c)
-◇ P xs = ∃ λ p → P (proj₂ xs p)
+◇ P (s , f) = ∃ λ p → P (f p)
 
 ◇-map : ∀ {c} {C : Container c} {X : Set c} {P Q : X → Set c} →
         P ⊆ Q → ◇ {C = C} P ⊆ ◇ Q

@@ -36,7 +36,7 @@ private
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
-    { left-inverse-of  = from∘to
+    { left-inverse-of  = λ _ → refl
     ; right-inverse-of = to∘from
     }
   }
@@ -46,9 +46,6 @@ private
 
   from : (∃ λ x → x ∈ xs × P x) → ◇ P xs
   from (.(proj₂ xs p) , (p , lift refl) , Px) = (p , Px)
-
-  from∘to : from ∘ to ≗ id
-  from∘to (p , Px) = refl
 
   to∘from : to ∘ from ≗ id
   to∘from (.(proj₂ xs p) , (p , lift refl) , Px) = refl
@@ -93,31 +90,22 @@ flatten : ∀ {c} {C₁ C₂ : Container c} {X}
           P (xss : ⟦ C₁ ⟧ (⟦ C₂ ⟧ X)) →
           ◇ (◇ P) xss ⇿
           ◇ P (Inverse.from (Composition.correct C₁ C₂) ⟨$⟩ xss)
-flatten {C₁ = C₁} {C₂} {X} P (s₁ , p₁) = record
+flatten {C₁ = C₁} {C₂} {X} P xss = record
   { to         = P.→-to-⟶ t
   ; from       = P.→-to-⟶ f
   ; inverse-of = record
-    { left-inverse-of  = f∘t
-    ; right-inverse-of = t∘f
+    { left-inverse-of  = λ _ → refl
+    ; right-inverse-of = λ _ → refl
     }
   }
   where
   open Inverse
-
-  xss : ⟦ C₁ ⟧ (⟦ C₂ ⟧ X)
-  xss = (s₁ , p₁)
 
   t : ◇ (◇ P) xss → ◇ P (from (Composition.correct C₁ C₂) ⟨$⟩ xss)
   t (p₁ , p₂ , p) = ((p₁ , p₂) , p)
 
   f : ◇ P (from (Composition.correct C₁ C₂) ⟨$⟩ xss) → ◇ (◇ P) xss
   f ((p₁ , p₂) , p) = (p₁ , p₂ , p)
-
-  f∘t : f ∘ t ≗ id
-  f∘t (p₁ , p₂ , p) = refl
-
-  t∘f : t ∘ f ≗ id
-  t∘f ((p₁ , p₂) , p) = refl
 
 -- Sums commute with ◇ (for a fixed instance of a given container).
 
@@ -154,8 +142,8 @@ flatten {C₁ = C₁} {C₂} {X} P (s₁ , p₁) = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
-    { left-inverse-of  = from∘to
-    ; right-inverse-of = to∘from
+    { left-inverse-of  = λ _ → refl
+    ; right-inverse-of = λ _ → refl
     }
   }
   where
@@ -164,12 +152,6 @@ flatten {C₁ = C₁} {C₂} {X} P (s₁ , p₁) = record
 
   from : ◇ P xs × ◇ Q ys → ◇ (λ x → ◇ (λ y → P x × Q y) ys) xs
   from ((p₁ , p) , (p₂ , q)) = (p₁ , p₂ , p , q)
-
-  to∘from : to ∘ from ≗ id
-  to∘from ((p₁ , p) , (p₂ , q)) = refl
-
-  from∘to : from ∘ to ≗ id
-  from∘to (p₁ , p₂ , p , q) = refl
 
 -- map can be absorbed by the predicate.
 

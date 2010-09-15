@@ -67,7 +67,7 @@ map : ∀ {a b p q}
         {A : Set a} {B : Set b} {P : A → Set p} {Q : B → Set q} →
       (f : A → B) → (∀ {x} → P x → Q (f x)) →
       Σ A P → Σ B Q
-map f g = < f ∘ proj₁ , g ∘ proj₂ >
+map f g (x , y) = (f x , g y)
 
 zip : ∀ {a b c p q r}
         {A : Set a} {B : Set b} {C : Set c}
@@ -75,10 +75,10 @@ zip : ∀ {a b c p q r}
       (_∙_ : A → B → C) →
       (∀ {x y} → P x → Q y → R (x ∙ y)) →
       Σ A P → Σ B Q → Σ C R
-zip _∙_ _∘_ p₁ p₂ = (proj₁ p₁ ∙ proj₁ p₂ , proj₂ p₁ ∘ proj₂ p₂)
+zip _∙_ _∘_ (a , p) (b , q) = (a ∙ b , p ∘ q)
 
 swap : ∀ {a b} {A : Set a} {B : Set b} → A × B → B × A
-swap = < proj₂ , proj₁ >
+swap (x , y) = (y , x)
 
 _-×-_ : ∀ {a b i j} {A : Set a} {B : Set b} →
         (A → B → Set i) → (A → B → Set j) → (A → B → Set _)
@@ -96,7 +96,7 @@ curry f x y = f (x , y)
 uncurry : ∀ {a b c} {A : Set a} {B : A → Set b} {C : Σ A B → Set c} →
           ((x : A) → (y : B x) → C (x , y)) →
           ((p : Σ A B) → C p)
-uncurry f p = f (proj₁ p) (proj₂ p)
+uncurry f (x , y) = f x y
 
 uncurry′ : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c} →
            (A → B → C) → (A × B → C)

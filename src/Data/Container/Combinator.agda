@@ -119,8 +119,8 @@ module Composition where
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
-      { left-inverse-of  = from∘to
-      ; right-inverse-of = to∘from
+      { left-inverse-of  = λ _ → refl
+      ; right-inverse-of = λ _ → refl
       }
     }
     where
@@ -129,12 +129,6 @@ module Composition where
 
     from : ⟦ C₁ ⟧ (⟦ C₂ ⟧ X) → ⟦ C₁ ∘ C₂ ⟧ X
     from (s , f) = ((s , proj₁ ⟨∘⟩ f) , uncurry (proj₂ ⟨∘⟩ f))
-
-    from∘to : from ⟨∘⟩ to ≗ F.id
-    from∘to ((s , f) , g) = refl
-
-    to∘from : to ⟨∘⟩ from ≗ F.id
-    to∘from (s , f) = refl
 
 module Product (ext : ∀ {ℓ} → P.Extensionality ℓ) where
 
@@ -145,7 +139,7 @@ module Product (ext : ∀ {ℓ} → P.Extensionality ℓ) where
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
       { left-inverse-of  = from∘to
-      ; right-inverse-of = to∘from
+      ; right-inverse-of = λ _ → refl
       }
     }
     where
@@ -156,11 +150,8 @@ module Product (ext : ∀ {ℓ} → P.Extensionality ℓ) where
     from ((s₁ , f₁) , (s₂ , f₂)) = ((s₁ , s₂) , [ f₁ , f₂ ])
 
     from∘to : from ⟨∘⟩ to ≗ F.id
-    from∘to ((s₁ , s₂) , f) =
-      P.cong (_,_ (s₁ , s₂)) (ext [ (λ _ → refl) , (λ _ → refl) ])
-
-    to∘from : to ⟨∘⟩ from ≗ F.id
-    to∘from ((s₁ , f₁) , (s₂ , f₂)) = refl
+    from∘to (s , f) =
+      P.cong (_,_ s) (ext [ (λ _ → refl) , (λ _ → refl) ])
 
 module IndexedProduct where
 
@@ -170,7 +161,7 @@ module IndexedProduct where
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
-      { left-inverse-of  = from∘to
+      { left-inverse-of  = λ _ → refl
       ; right-inverse-of = λ _ → refl
       }
     }
@@ -180,9 +171,6 @@ module IndexedProduct where
 
     from : (∀ i → ⟦ C i ⟧ X) → ⟦ Π C ⟧ X
     from f = (proj₁ ⟨∘⟩ f , uncurry (proj₂ ⟨∘⟩ f))
-
-    from∘to : from ⟨∘⟩ to ≗ F.id
-    from∘to (s , f) = refl
 
 module Sum where
 
@@ -216,8 +204,8 @@ module IndexedSum where
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
-      { left-inverse-of  = from∘to
-      ; right-inverse-of = to∘from
+      { left-inverse-of  = λ _ → refl
+      ; right-inverse-of = λ _ → refl
       }
     }
     where
@@ -226,12 +214,6 @@ module IndexedSum where
 
     from : (∃ λ i → ⟦ C i ⟧ X) → ⟦ Σ C ⟧ X
     from (i , (s , f)) = ((i , s) , f)
-
-    from∘to : from ⟨∘⟩ to ≗ F.id
-    from∘to ((i , s) , f) = refl
-
-    to∘from : to ⟨∘⟩ from ≗ F.id
-    to∘from (i , (s , f)) = refl
 
 module ConstantExponentiation where
 

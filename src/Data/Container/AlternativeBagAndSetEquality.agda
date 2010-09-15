@@ -28,13 +28,10 @@ infix 4 _≈[_]′_
 
 _≈[_]′_ : ∀ {c} {C : Container c} {X : Set c} →
           ⟦ C ⟧ X → Kind → ⟦ C ⟧ X → Set c
-_≈[_]′_ {C = C} xs k ys =
-  ∃ λ (p₁≈p₂ : Isomorphism k (Position C (proj₁ xs))
-                             (Position C (proj₁ ys))) →
-      (∀ p → proj₂ xs p ≡
-             proj₂ ys (Equivalent.to   (Inv.⇒⇔ p₁≈p₂) ⟨$⟩ p)) ×
-      (∀ p → proj₂ ys p ≡
-             proj₂ xs (Equivalent.from (Inv.⇒⇔ p₁≈p₂) ⟨$⟩ p))
+_≈[_]′_ {C = C} (s , f) k (s′ , f′) =
+  ∃ λ (p₁≈p₂ : Isomorphism k (Position C s) (Position C s′)) →
+      (∀ p → f  p ≡ f′ (Equivalent.to   (Inv.⇒⇔ p₁≈p₂) ⟨$⟩ p)) ×
+      (∀ p → f′ p ≡ f  (Equivalent.from (Inv.⇒⇔ p₁≈p₂) ⟨$⟩ p))
       -- The last component is unnecessary when k equals bag.
 
 -- This definition is equivalent to the one in Data.Container.
