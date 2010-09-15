@@ -25,58 +25,60 @@ open import Relation.Binary.List.Pointwise as Pointwise
 private
  module Dummy {A : Set} where
 
-  data Lex (P : Set) (≈ < : Rel A zero) : Rel (List A) zero where
-    base : P                           → Lex P ≈ < []       []
-    halt : ∀ {y ys}                    → Lex P ≈ < []       (y ∷ ys)
-    this : ∀ {x xs y ys} (x<y : < x y) → Lex P ≈ < (x ∷ xs) (y ∷ ys)
-    next : ∀ {x xs y ys} (x≈y : ≈ x y)
-           (xs⊴ys : Lex P ≈ < xs ys)   → Lex P ≈ < (x ∷ xs) (y ∷ ys)
+  data Lex (P : Set) (_≈_ _<_ : Rel A zero) : Rel (List A) zero where
+    base : P                             → Lex P _≈_ _<_ []       []
+    halt : ∀ {y ys}                      → Lex P _≈_ _<_ []       (y ∷ ys)
+    this : ∀ {x xs y ys} (x<y : x < y)   → Lex P _≈_ _<_ (x ∷ xs) (y ∷ ys)
+    next : ∀ {x xs y ys} (x≈y : x ≈ y)
+           (xs⊴ys : Lex P _≈_ _<_ xs ys) → Lex P _≈_ _<_ (x ∷ xs) (y ∷ ys)
 
   -- Strict lexicographic ordering.
 
-  Lex-< : (≈ < : Rel A zero) → Rel (List A) zero
+  Lex-< : (_≈_ _<_ : Rel A zero) → Rel (List A) zero
   Lex-< = Lex ⊥
 
-  ¬[]<[] : ∀ {≈ <} → ¬ Lex-< ≈ < [] []
+  ¬[]<[] : ∀ {_≈_ _<_} → ¬ Lex-< _≈_ _<_ [] []
   ¬[]<[] (base ())
 
   -- Non-strict lexicographic ordering.
 
-  Lex-≤ : (≈ < : Rel A zero) → Rel (List A) zero
+  Lex-≤ : (_≈_ _<_ : Rel A zero) → Rel (List A) zero
   Lex-≤ = Lex ⊤
 
   -- Utilities.
 
-  ¬≤-this : ∀ {P ≈ < x y xs ys} → ¬ ≈ x y → ¬ < x y →
-            ¬ Lex P ≈ < (x ∷ xs) (y ∷ ys)
+  ¬≤-this : ∀ {P _≈_ _<_ x y xs ys} → ¬ (x ≈ y) → ¬ (x < y) →
+            ¬ Lex P _≈_ _<_ (x ∷ xs) (y ∷ ys)
   ¬≤-this ¬x≈y ¬x<y (this x<y)       = ¬x<y x<y
   ¬≤-this ¬x≈y ¬x<y (next x≈y xs⊴ys) = ¬x≈y x≈y
 
-  ¬≤-next : ∀ {P ≈ < x y xs ys} → ¬ < x y → ¬ Lex P ≈ < xs ys →
-            ¬ Lex P ≈ < (x ∷ xs) (y ∷ ys)
+  ¬≤-next : ∀ {P _≈_ _<_ x y xs ys} →
+            ¬ (x < y) → ¬ Lex P _≈_ _<_ xs ys →
+            ¬ Lex P _≈_ _<_ (x ∷ xs) (y ∷ ys)
   ¬≤-next ¬x<y ¬xs⊴ys (this x<y)       = ¬x<y x<y
   ¬≤-next ¬x<y ¬xs⊴ys (next x≈y xs⊴ys) = ¬xs⊴ys xs⊴ys
 
   ----------------------------------------------------------------------
   -- Properties
 
-  ≤-reflexive : ∀ ≈ < → Pointwise.Rel ≈ ⇒ Lex-≤ ≈ <
-  ≤-reflexive ≈ < []            = base tt
-  ≤-reflexive ≈ < (x≈y ∷ xs≈ys) = next x≈y (≤-reflexive ≈ < xs≈ys)
+  ≤-reflexive : ∀ _≈_ _<_ → Pointwise.Rel _≈_ ⇒ Lex-≤ _≈_ _<_
+  ≤-reflexive _≈_ _<_ []            = base tt
+  ≤-reflexive _≈_ _<_ (x≈y ∷ xs≈ys) =
+    next x≈y (≤-reflexive _≈_ _<_ xs≈ys)
 
-  <-irreflexive : ∀ {≈ <} → Irreflexive ≈ < →
-                  Irreflexive (Pointwise.Rel ≈) (Lex-< ≈ <)
+  <-irreflexive : ∀ {_≈_ _<_} → Irreflexive _≈_ _<_ →
+                  Irreflexive (Pointwise.Rel _≈_) (Lex-< _≈_ _<_)
   <-irreflexive irr []            (base ())
   <-irreflexive irr (x≈y ∷ xs≈ys) (this x<y)       = irr x≈y x<y
   <-irreflexive irr (x≈y ∷ xs≈ys) (next x≊y xs⊴ys) =
     <-irreflexive irr xs≈ys xs⊴ys
 
-  transitive : ∀ {P ≈ <} →
-               IsEquivalence ≈ → < Respects₂ ≈ → Transitive < →
-               Transitive (Lex P ≈ <)
-  transitive {P} {≈} {<} eq resp tr = trans
+  transitive : ∀ {P _≈_ _<_} →
+               IsEquivalence _≈_ → _<_ Respects₂ _≈_ → Transitive _<_ →
+               Transitive (Lex P _≈_ _<_)
+  transitive {P} {_≈_} {_<_} eq resp tr = trans
     where
-    trans : Transitive (Lex P ≈ <)
+    trans : Transitive (Lex P _≈_ _<_)
     trans (base p)         (base _)         = base p
     trans (base y)         halt             = halt
     trans halt             (this y<z)       = halt
@@ -88,12 +90,13 @@ private
     trans (next x≈y xs⊴ys) (next y≈z ys⊴zs) =
        next (IsEquivalence.trans eq x≈y y≈z) (trans xs⊴ys ys⊴zs)
 
-  antisymmetric : ∀ {P ≈ <} →
-                  Symmetric ≈ → Irreflexive ≈ < →  Asymmetric < →
-                  Antisymmetric (Pointwise.Rel ≈) (Lex P ≈ <)
-  antisymmetric {P} {≈} {<} sym ir asym = as
+  antisymmetric :
+    ∀ {P _≈_ _<_} →
+    Symmetric _≈_ → Irreflexive _≈_ _<_ →  Asymmetric _<_ →
+    Antisymmetric (Pointwise.Rel _≈_) (Lex P _≈_ _<_)
+  antisymmetric {P} {_≈_} {_<_} sym ir asym = as
     where
-    as : Antisymmetric (Pointwise.Rel ≈) (Lex P ≈ <)
+    as : Antisymmetric (Pointwise.Rel _≈_) (Lex P _≈_ _<_)
     as (base _)         (base _)         = []
     as halt             ()
     as (this x<y)       (this y<x)       = ⊥-elim (asym x<y y<x)
@@ -101,15 +104,15 @@ private
     as (next x≈y xs⊴ys) (this y<x)       = ⊥-elim (ir (sym x≈y) y<x)
     as (next x≈y xs⊴ys) (next y≈x ys⊴xs) = x≈y ∷ as xs⊴ys ys⊴xs
 
-  <-asymmetric : ∀ {≈ <} →
-                 Symmetric ≈ → < Respects₂ ≈ → Asymmetric < →
-                 Asymmetric (Lex-< ≈ <)
-  <-asymmetric {≈} {<} sym resp as = asym
+  <-asymmetric : ∀ {_≈_ _<_} →
+                 Symmetric _≈_ → _<_ Respects₂ _≈_ → Asymmetric _<_ →
+                 Asymmetric (Lex-< _≈_ _<_)
+  <-asymmetric {_≈_} {_<_} sym resp as = asym
     where
-    irrefl : Irreflexive ≈ <
+    irrefl : Irreflexive _≈_ _<_
     irrefl = asym⟶irr resp sym as
 
-    asym : Asymmetric (Lex-< ≈ <)
+    asym : Asymmetric (Lex-< _≈_ _<_)
     asym (base bot)       _                = bot
     asym halt             ()
     asym (this x<y)       (this y<x)       = as x<y y<x
@@ -117,14 +120,14 @@ private
     asym (next x≈y xs⊴ys) (this y<x)       = irrefl (sym x≈y) y<x
     asym (next x≈y xs⊴ys) (next y≈x ys⊴xs) = asym xs⊴ys ys⊴xs
 
-  respects₂ : ∀ {P ≈ <} →
-              IsEquivalence ≈ → < Respects₂ ≈ →
-              Lex P ≈ < Respects₂ Pointwise.Rel ≈
-  respects₂ {P} {≈} {<} eq resp =
+  respects₂ : ∀ {P _≈_ _<_} →
+              IsEquivalence _≈_ → _<_ Respects₂ _≈_ →
+              Lex P _≈_ _<_ Respects₂ Pointwise.Rel _≈_
+  respects₂ {P} {_≈_} {_<_} eq resp =
     (λ {xs} {ys} {zs} → resp¹ {xs} {ys} {zs}) ,
     (λ {xs} {ys} {zs} → resp² {xs} {ys} {zs})
     where
-    resp¹ : ∀ {xs} → Lex P ≈ < xs Respects Pointwise.Rel ≈
+    resp¹ : ∀ {xs} → Lex P _≈_ _<_ xs Respects Pointwise.Rel _≈_
     resp¹ []            xs⊴[]            = xs⊴[]
     resp¹ (x≈y ∷ xs≈ys) halt             = halt
     resp¹ (x≈y ∷ xs≈ys) (this z<x)       = this (proj₁ resp x≈y z<x)
@@ -132,24 +135,24 @@ private
       next (Eq.trans z≈x x≈y) (resp¹ xs≈ys zs⊴xs)
       where module Eq = IsEquivalence eq
 
-    resp² : ∀ {ys} → flip (Lex P ≈ <) ys Respects Pointwise.Rel ≈
+    resp² : ∀ {ys} → flip (Lex P _≈_ _<_) ys Respects Pointwise.Rel _≈_
     resp² []            []⊴ys            = []⊴ys
     resp² (x≈z ∷ xs≈zs) (this x<y)       = this (proj₂ resp x≈z x<y)
     resp² (x≈z ∷ xs≈zs) (next x≈y xs⊴ys) =
       next (Eq.trans (Eq.sym x≈z) x≈y) (resp² xs≈zs xs⊴ys)
       where module Eq = IsEquivalence eq
 
-  decidable : ∀ {P ≈ <} →
-              Dec P → Decidable ≈ → Decidable < →
-              Decidable (Lex P ≈ <)
-  decidable {P} {≈} {<} dec-P dec-≈ dec-< = dec
+  decidable : ∀ {P _≈_ _<_} →
+              Dec P → Decidable _≈_ → Decidable _<_ →
+              Decidable (Lex P _≈_ _<_)
+  decidable {P} {_≈_} {_<_} dec-P dec-≈ dec-< = dec
     where
-    dec : Decidable (Lex P ≈ <)
+    dec : Decidable (Lex P _≈_ _<_)
     dec []       []       with dec-P
     ...                   | yes p = yes (base p)
     ...                   | no ¬p = no helper
       where
-      helper : ¬ Lex P ≈ < [] []
+      helper : ¬ Lex P _≈_ _<_ [] []
       helper (base p) = ¬p p
     dec []       (y ∷ ys) = yes halt
     dec (x ∷ xs) []       = no (λ ())
@@ -161,22 +164,25 @@ private
     ...                     | yes xs⊴ys = yes (next x≈y xs⊴ys)
     ...                     | no ¬xs⊴ys = no (¬≤-next ¬x<y ¬xs⊴ys)
 
-  <-decidable : ∀ {≈ <} →
-                Decidable ≈ → Decidable < → Decidable (Lex-< ≈ <)
+  <-decidable :
+    ∀ {_≈_ _<_} →
+    Decidable _≈_ → Decidable _<_ → Decidable (Lex-< _≈_ _<_)
   <-decidable = decidable (no id)
 
-  ≤-decidable : ∀ {≈ <} →
-                Decidable ≈ → Decidable < → Decidable (Lex-≤ ≈ <)
+  ≤-decidable :
+    ∀ {_≈_ _<_} →
+    Decidable _≈_ → Decidable _<_ → Decidable (Lex-≤ _≈_ _<_)
   ≤-decidable = decidable (yes tt)
 
   -- Note that trichotomy is an unnecessarily strong precondition for
   -- the following lemma.
 
-  ≤-total : ∀ {≈ <} →
-            Symmetric ≈ → Trichotomous ≈ < → Total (Lex-≤ ≈ <)
-  ≤-total {≈} {<} sym tri = total
+  ≤-total :
+    ∀ {_≈_ _<_} →
+    Symmetric _≈_ → Trichotomous _≈_ _<_ → Total (Lex-≤ _≈_ _<_)
+  ≤-total {_≈_} {_<_} sym tri = total
     where
-    total : Total (Lex-≤ ≈ <)
+    total : Total (Lex-≤ _≈_ _<_)
     total []       []       = inj₁ (base tt)
     total []       (x ∷ xs) = inj₁ halt
     total (x ∷ xs) []       = inj₂ halt
@@ -187,12 +193,12 @@ private
     ...                | inj₁ xs≲ys = inj₁ (next      x≈y  xs≲ys)
     ...                | inj₂ ys≲xs = inj₂ (next (sym x≈y) ys≲xs)
 
-  <-compare : ∀ {≈ <} →
-              Symmetric ≈ → Trichotomous ≈ < →
-              Trichotomous (Pointwise.Rel ≈) (Lex-< ≈ <)
-  <-compare {≈} {<} sym tri = cmp
+  <-compare : ∀ {_≈_ _<_} →
+              Symmetric _≈_ → Trichotomous _≈_ _<_ →
+              Trichotomous (Pointwise.Rel _≈_) (Lex-< _≈_ _<_)
+  <-compare {_≈_} {_<_} sym tri = cmp
    where
-   cmp : Trichotomous (Pointwise.Rel ≈) (Lex-< ≈ <)
+   cmp : Trichotomous (Pointwise.Rel _≈_) (Lex-< _≈_ _<_)
    cmp []       []       = tri≈ ¬[]<[] [] ¬[]<[]
    cmp []       (y ∷ ys) = tri< halt (λ ()) (λ ())
    cmp (x ∷ xs) []       = tri> (λ ()) (λ ()) halt
@@ -212,27 +218,28 @@ private
   -- Some collections of properties which are preserved by Lex-≤ or
   -- Lex-<.
 
-  ≤-isPreorder : ∀ {≈ <} →
-                 IsEquivalence ≈ → Transitive < → < Respects₂ ≈ →
-                 IsPreorder (Pointwise.Rel ≈) (Lex-≤ ≈ <)
-  ≤-isPreorder {≈} {<} eq tr resp = record
+  ≤-isPreorder : ∀ {_≈_ _<_} →
+                 IsEquivalence _≈_ → Transitive _<_ → _<_ Respects₂ _≈_ →
+                 IsPreorder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _<_)
+  ≤-isPreorder {_≈_} {_<_} eq tr resp = record
     { isEquivalence = Pointwise.isEquivalence eq
-    ; reflexive     = ≤-reflexive ≈ <
+    ; reflexive     = ≤-reflexive _≈_ _<_
     ; trans         = transitive eq resp tr
     }
 
-  ≤-isPartialOrder : ∀ {≈ <} →
-                     IsStrictPartialOrder ≈ < →
-                     IsPartialOrder (Pointwise.Rel ≈) (Lex-≤ ≈ <)
-  ≤-isPartialOrder {≈} {<} spo = record
+  ≤-isPartialOrder : ∀ {_≈_ _<_} →
+                     IsStrictPartialOrder _≈_ _<_ →
+                     IsPartialOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _<_)
+  ≤-isPartialOrder {_≈_} {_<_} spo = record
     { isPreorder = ≤-isPreorder isEquivalence trans <-resp-≈
     ; antisym    = antisymmetric Eq.sym irrefl
-                     (trans∧irr⟶asym {≈ = ≈} {<} Eq.refl trans irrefl)
+                     (trans∧irr⟶asym {_≈_ = _≈_} {_<_ = _<_}
+                                     Eq.refl trans irrefl)
     } where open IsStrictPartialOrder spo
 
-  ≤-isTotalOrder : ∀ {≈ <} →
-                   IsStrictTotalOrder ≈ < →
-                   IsTotalOrder (Pointwise.Rel ≈) (Lex-≤ ≈ <)
+  ≤-isTotalOrder : ∀ {_≈_ _<_} →
+                   IsStrictTotalOrder _≈_ _<_ →
+                   IsTotalOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _<_)
   ≤-isTotalOrder sto = record
     { isPartialOrder =
         ≤-isPartialOrder (record
@@ -244,9 +251,9 @@ private
     ; total          = ≤-total Eq.sym compare
     } where open IsStrictTotalOrder sto
 
-  ≤-isDecTotalOrder : ∀ {≈ <} →
-                      IsStrictTotalOrder ≈ < →
-                      IsDecTotalOrder (Pointwise.Rel ≈) (Lex-≤ ≈ <)
+  ≤-isDecTotalOrder : ∀ {_≈_ _<_} →
+                      IsStrictTotalOrder _≈_ _<_ →
+                      IsDecTotalOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _<_)
   ≤-isDecTotalOrder sto = record
     { isTotalOrder = ≤-isTotalOrder sto
     ; _≟_          = Pointwise.decidable _≟_
@@ -254,8 +261,8 @@ private
     } where open IsStrictTotalOrder sto
 
   <-isStrictPartialOrder
-    : ∀ {≈ <} → IsStrictPartialOrder ≈ < →
-      IsStrictPartialOrder (Pointwise.Rel ≈) (Lex-< ≈ <)
+    : ∀ {_≈_ _<_} → IsStrictPartialOrder _≈_ _<_ →
+      IsStrictPartialOrder (Pointwise.Rel _≈_) (Lex-< _≈_ _<_)
   <-isStrictPartialOrder spo = record
     { isEquivalence = Pointwise.isEquivalence isEquivalence
     ; irrefl        = <-irreflexive irrefl
@@ -264,8 +271,8 @@ private
     } where open IsStrictPartialOrder spo
 
   <-isStrictTotalOrder
-    : ∀ {≈ <} → IsStrictTotalOrder ≈ < →
-      IsStrictTotalOrder (Pointwise.Rel ≈) (Lex-< ≈ <)
+    : ∀ {_≈_ _<_} → IsStrictTotalOrder _≈_ _<_ →
+      IsStrictTotalOrder (Pointwise.Rel _≈_) (Lex-< _≈_ _<_)
   <-isStrictTotalOrder sto = record
     { isEquivalence = Pointwise.isEquivalence isEquivalence
     ; trans         = transitive isEquivalence <-resp-≈ trans

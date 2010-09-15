@@ -20,72 +20,75 @@ import Relation.Binary.Product.StrictLex as Strict
 private
  module Dummy {a₁ a₂ : Set} where
 
-  ×-Lex : (≈₁ ≤₁ : Rel a₁ zero) → (≤₂ : Rel a₂ zero) →
+  ×-Lex : (_≈₁_ _≤₁_ : Rel a₁ zero) → (_≤₂_ : Rel a₂ zero) →
           Rel (a₁ × a₂) zero
-  ×-Lex ≈₁ ≤₁ ≤₂ = Strict.×-Lex ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂
+  ×-Lex _≈₁_ _≤₁_ _≤₂_ = Strict.×-Lex _≈₁_ (Conv._<_ _≈₁_ _≤₁_) _≤₂_
 
   -- Some properties which are preserved by ×-Lex (under certain
   -- assumptions).
 
-  ×-reflexive : ∀ ≈₁ ≤₁ {≈₂} ≤₂ →
-                ≈₂ ⇒ ≤₂ → (≈₁ ×-Rel ≈₂) ⇒ (×-Lex ≈₁ ≤₁ ≤₂)
-  ×-reflexive ≈₁ ≤₁ ≤₂ refl₂ {x} {y} =
-    Strict.×-reflexive ≈₁ (Conv._<_ ≈₁ ≤₁) ≤₂ refl₂ {x} {y}
+  ×-reflexive : ∀ _≈₁_ _≤₁_ {_≈₂_} _≤₂_ →
+                _≈₂_ ⇒ _≤₂_ → (_≈₁_ ×-Rel _≈₂_) ⇒ (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  ×-reflexive _≈₁_ _≤₁_ _≤₂_ refl₂ {x} {y} =
+    Strict.×-reflexive _≈₁_ (Conv._<_ _≈₁_ _≤₁_) _≤₂_ refl₂ {x} {y}
 
-  ×-transitive : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
-                 ∀ {≤₂} → Transitive ≤₂ →
-                 Transitive (×-Lex ≈₁ ≤₁ ≤₂)
-  ×-transitive {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} trans₂
+  ×-transitive : ∀ {_≈₁_ _≤₁_} → IsPartialOrder _≈₁_ _≤₁_ →
+                 ∀ {_≤₂_} → Transitive _≤₂_ →
+                 Transitive (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  ×-transitive {_≈₁_ = _≈₁_} {_≤₁_ = _≤₁_} po₁ {_≤₂_ = _≤₂_} trans₂
                {x} {y} {z} =
     Strict.×-transitive
-      {<₁ = Conv._<_ ≈₁ ≤₁}
+      {_<₁_ = Conv._<_ _≈₁_ _≤₁_}
       isEquivalence (Conv.<-resp-≈ _ _ isEquivalence ≤-resp-≈)
       (Conv.trans _ _ po₁)
-      {≤₂ = ≤₂} trans₂ {x} {y} {z}
+      {_≤₂_ = _≤₂_} trans₂ {x} {y} {z}
     where open IsPartialOrder po₁
 
-  ×-antisymmetric : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
-                    ∀ {≈₂ ≤₂} → Antisymmetric ≈₂ ≤₂ →
-                    Antisymmetric (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
-  ×-antisymmetric {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} antisym₂
-                  {x} {y} =
-    Strict.×-antisymmetric {<₁ = Conv._<_ ≈₁ ≤₁} ≈-sym₁ irrefl₁ asym₁
-                           {≤₂ = ≤₂} antisym₂ {x} {y}
+  ×-antisymmetric :
+    ∀ {_≈₁_ _≤₁_} → IsPartialOrder _≈₁_ _≤₁_ →
+    ∀ {_≈₂_ _≤₂_} → Antisymmetric _≈₂_ _≤₂_ →
+    Antisymmetric (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  ×-antisymmetric {_≈₁_ = _≈₁_} {_≤₁_ = _≤₁_}
+                  po₁ {_≤₂_ = _≤₂_} antisym₂ {x} {y} =
+    Strict.×-antisymmetric {_<₁_ = Conv._<_ _≈₁_ _≤₁_}
+                           ≈-sym₁ irrefl₁ asym₁
+                           {_≤₂_ = _≤₂_} antisym₂ {x} {y}
     where
     open IsPartialOrder po₁
     open Eq renaming (refl to ≈-refl₁; sym to ≈-sym₁)
 
-    irrefl₁ : Irreflexive ≈₁ (Conv._<_ ≈₁ ≤₁)
-    irrefl₁ = Conv.irrefl ≈₁ ≤₁
+    irrefl₁ : Irreflexive _≈₁_ (Conv._<_ _≈₁_ _≤₁_)
+    irrefl₁ = Conv.irrefl _≈₁_ _≤₁_
 
-    asym₁ : Asymmetric (Conv._<_ ≈₁ ≤₁)
-    asym₁ = trans∧irr⟶asym {≈ = ≈₁}
+    asym₁ : Asymmetric (Conv._<_ _≈₁_ _≤₁_)
+    asym₁ = trans∧irr⟶asym {_≈_ = _≈₁_}
                            ≈-refl₁ (Conv.trans _ _ po₁) irrefl₁
 
-  ×-≈-respects₂ : ∀ {≈₁ ≤₁} → IsEquivalence ≈₁ → ≤₁ Respects₂ ≈₁ →
-                  ∀ {≈₂ ≤₂} → ≤₂ Respects₂ ≈₂ →
-                  (×-Lex ≈₁ ≤₁ ≤₂) Respects₂ (≈₁ ×-Rel ≈₂)
+  ×-≈-respects₂ :
+    ∀ {_≈₁_ _≤₁_} → IsEquivalence _≈₁_ → _≤₁_ Respects₂ _≈₁_ →
+    ∀ {_≈₂_ _≤₂_} → _≤₂_ Respects₂ _≈₂_ →
+    (×-Lex _≈₁_ _≤₁_ _≤₂_) Respects₂ (_≈₁_ ×-Rel _≈₂_)
   ×-≈-respects₂ eq₁ resp₁ resp₂ =
     Strict.×-≈-respects₂ eq₁ (Conv.<-resp-≈ _ _ eq₁ resp₁) resp₂
 
-  ×-decidable : ∀ {≈₁ ≤₁} → Decidable ≈₁ → Decidable ≤₁ →
-                ∀ {≤₂} → Decidable ≤₂ →
-                Decidable (×-Lex ≈₁ ≤₁ ≤₂)
+  ×-decidable : ∀ {_≈₁_ _≤₁_} → Decidable _≈₁_ → Decidable _≤₁_ →
+                ∀ {_≤₂_} → Decidable _≤₂_ →
+                Decidable (×-Lex _≈₁_ _≤₁_ _≤₂_)
   ×-decidable dec-≈₁ dec-≤₁ dec-≤₂ =
     Strict.×-decidable dec-≈₁ (Conv.decidable _ _ dec-≈₁ dec-≤₁)
                        dec-≤₂
 
-  ×-total : ∀ {≈₁ ≤₁} → Symmetric ≈₁ → Decidable ≈₁ →
-                        Antisymmetric ≈₁ ≤₁ → Total ≤₁ →
-            ∀ {≤₂} → Total ≤₂ →
-            Total (×-Lex ≈₁ ≤₁ ≤₂)
-  ×-total {≈₁ = ≈₁} {≤₁ = ≤₁} sym₁ dec₁ antisym₁ total₁
-                    {≤₂ = ≤₂} total₂ = total
+  ×-total : ∀ {_≈₁_ _≤₁_} → Symmetric _≈₁_ → Decidable _≈₁_ →
+                            Antisymmetric _≈₁_ _≤₁_ → Total _≤₁_ →
+            ∀ {_≤₂_} → Total _≤₂_ →
+            Total (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  ×-total {_≈₁_ = _≈₁_} {_≤₁_ = _≤₁_} sym₁ dec₁ antisym₁ total₁
+                        {_≤₂_ = _≤₂_} total₂ = total
     where
-    tri₁ : Trichotomous ≈₁ (Conv._<_ ≈₁ ≤₁)
+    tri₁ : Trichotomous _≈₁_ (Conv._<_ _≈₁_ _≤₁_)
     tri₁ = Conv.trichotomous _ _ sym₁ dec₁ antisym₁ total₁
 
-    total : Total (×-Lex ≈₁ ≤₁ ≤₂)
+    total : Total (×-Lex _≈₁_ _≤₁_ _≤₂_)
     total x y with tri₁ (proj₁ x) (proj₁ y)
     ... | tri< x₁<y₁ x₁≉y₁ x₁≯y₁ = inj₁ (inj₁ x₁<y₁)
     ... | tri> x₁≮y₁ x₁≉y₁ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
@@ -96,42 +99,47 @@ private
   -- Some collections of properties which are preserved by ×-Lex
   -- (under certain assumptions).
 
-  _×-isPartialOrder_ : ∀ {≈₁ ≤₁} → IsPartialOrder ≈₁ ≤₁ →
-                       ∀ {≈₂ ≤₂} → IsPartialOrder ≈₂ ≤₂ →
-                       IsPartialOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
-  _×-isPartialOrder_ {≈₁ = ≈₁} {≤₁ = ≤₁} po₁ {≤₂ = ≤₂} po₂ = record
+  _×-isPartialOrder_ :
+    ∀ {_≈₁_ _≤₁_} → IsPartialOrder _≈₁_ _≤₁_ →
+    ∀ {_≈₂_ _≤₂_} → IsPartialOrder _≈₂_ _≤₂_ →
+    IsPartialOrder (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  _×-isPartialOrder_ {_≈₁_ = _≈₁_} {_≤₁_ = _≤₁_} po₁
+                     {_≤₂_ = _≤₂_} po₂ = record
     { isPreorder = record
         { isEquivalence = Pointwise._×-isEquivalence_
                             (isEquivalence po₁)
                             (isEquivalence po₂)
         ; reflexive     = λ {x y} →
-                          ×-reflexive ≈₁ ≤₁ ≤₂ (reflexive po₂) {x} {y}
+                          ×-reflexive _≈₁_ _≤₁_ _≤₂_ (reflexive po₂)
+                                      {x} {y}
         ; trans         = λ {x y z} →
-                          ×-transitive po₁ {≤₂ = ≤₂} (trans po₂)
+                          ×-transitive po₁ {_≤₂_ = _≤₂_} (trans po₂)
                                        {x} {y} {z}
         }
     ; antisym = λ {x y} →
-                ×-antisymmetric {≤₁ = ≤₁} po₁
-                                {≤₂ = ≤₂} (antisym po₂) {x} {y}
+                ×-antisymmetric {_≤₁_ = _≤₁_} po₁
+                                {_≤₂_ = _≤₂_} (antisym po₂) {x} {y}
     }
     where open IsPartialOrder
 
-  ×-isTotalOrder : ∀ {≈₁ ≤₁} → Decidable ≈₁ → IsTotalOrder ≈₁ ≤₁ →
-                   ∀ {≈₂ ≤₂} → IsTotalOrder ≈₂ ≤₂ →
-                   IsTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
-  ×-isTotalOrder {≤₁ = ≤₁} ≈₁-dec to₁ {≤₂ = ≤₂} to₂ = record
+  ×-isTotalOrder :
+    ∀ {_≈₁_ _≤₁_} → Decidable _≈₁_ → IsTotalOrder _≈₁_ _≤₁_ →
+    ∀ {_≈₂_ _≤₂_} → IsTotalOrder _≈₂_ _≤₂_ →
+    IsTotalOrder (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  ×-isTotalOrder {_≤₁_ = _≤₁_} ≈₁-dec to₁ {_≤₂_ = _≤₂_} to₂ = record
     { isPartialOrder = isPartialOrder to₁ ×-isPartialOrder
                        isPartialOrder to₂
-    ; total          = ×-total {≤₁ = ≤₁} (Eq.sym to₁) ≈₁-dec
-                                         (antisym to₁) (total to₁)
-                               {≤₂ = ≤₂} (total to₂)
+    ; total          = ×-total {_≤₁_ = _≤₁_} (Eq.sym to₁) ≈₁-dec
+                                             (antisym to₁) (total to₁)
+                               {_≤₂_ = _≤₂_} (total to₂)
     }
     where open IsTotalOrder
 
-  _×-isDecTotalOrder_ : ∀ {≈₁ ≤₁} → IsDecTotalOrder ≈₁ ≤₁ →
-                        ∀ {≈₂ ≤₂} → IsDecTotalOrder ≈₂ ≤₂ →
-                        IsDecTotalOrder (≈₁ ×-Rel ≈₂) (×-Lex ≈₁ ≤₁ ≤₂)
-  _×-isDecTotalOrder_ {≤₁ = ≤₁} to₁ {≤₂ = ≤₂} to₂ = record
+  _×-isDecTotalOrder_ :
+    ∀ {_≈₁_ _≤₁_} → IsDecTotalOrder _≈₁_ _≤₁_ →
+    ∀ {_≈₂_ _≤₂_} → IsDecTotalOrder _≈₂_ _≤₂_ →
+    IsDecTotalOrder (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _≤₁_ _≤₂_)
+  _×-isDecTotalOrder_ {_≤₁_ = _≤₁_} to₁ {_≤₂_ = _≤₂_} to₂ = record
     { isTotalOrder = ×-isTotalOrder (_≟_ to₁)
                                     (isTotalOrder to₁)
                                     (isTotalOrder to₂)

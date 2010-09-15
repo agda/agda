@@ -26,31 +26,32 @@ open import Relation.Binary.List.Pointwise as Pointwise using ([])
 private
  module Dummy {A : Set} where
 
-  Lex : (P : Set) → (≈ ≤ : Rel A zero) → Rel (List A) zero
-  Lex P ≈ ≤ = Strict.Lex P ≈ (Conv._<_ ≈ ≤)
+  Lex : (P : Set) → (_≈_ _≤_ : Rel A zero) → Rel (List A) zero
+  Lex P _≈_ _≤_ = Strict.Lex P _≈_ (Conv._<_ _≈_ _≤_)
 
   -- Strict lexicographic ordering.
 
-  Lex-< : (≈ ≤ : Rel A zero) → Rel (List A) zero
+  Lex-< : (_≈_ _≤_ : Rel A zero) → Rel (List A) zero
   Lex-< = Lex ⊥
 
   -- Non-strict lexicographic ordering.
 
-  Lex-≤ : (≈ ≤ : Rel A zero) → Rel (List A) zero
+  Lex-≤ : (_≈_ _≤_ : Rel A zero) → Rel (List A) zero
   Lex-≤ = Lex ⊤
 
   ------------------------------------------------------------------------
   -- Properties
 
-  ≤-reflexive : ∀ ≈ ≤ → Pointwise.Rel ≈ ⇒ Lex-≤ ≈ ≤
-  ≤-reflexive ≈ ≤ = Strict.≤-reflexive ≈ (Conv._<_ ≈ ≤)
+  ≤-reflexive : ∀ _≈_ _≤_ → Pointwise.Rel _≈_ ⇒ Lex-≤ _≈_ _≤_
+  ≤-reflexive _≈_ _≤_ = Strict.≤-reflexive _≈_ (Conv._<_ _≈_ _≤_)
 
-  <-irreflexive : ∀ {≈ ≤} → Irreflexive (Pointwise.Rel ≈) (Lex-< ≈ ≤)
-  <-irreflexive {≈} {≤} =
-    Strict.<-irreflexive {< = Conv._<_ ≈ ≤} (Conv.irrefl ≈ ≤)
+  <-irreflexive : ∀ {_≈_ _≤_} →
+                  Irreflexive (Pointwise.Rel _≈_) (Lex-< _≈_ _≤_)
+  <-irreflexive {_≈_} {_≤_} =
+    Strict.<-irreflexive {_<_ = Conv._<_ _≈_ _≤_} (Conv.irrefl _≈_ _≤_)
 
-  transitive : ∀ {P ≈ ≤} →
-               IsPartialOrder ≈ ≤ → Transitive (Lex P ≈ ≤)
+  transitive : ∀ {P _≈_ _≤_} →
+               IsPartialOrder _≈_ _≤_ → Transitive (Lex P _≈_ _≤_)
   transitive po =
     Strict.transitive
        isEquivalence
@@ -58,95 +59,98 @@ private
        (Conv.trans _ _ po)
     where open IsPartialOrder po
 
-  antisymmetric : ∀ {P ≈ ≤} →
-                  Symmetric ≈ → Antisymmetric ≈ ≤ →
-                  Antisymmetric (Pointwise.Rel ≈) (Lex P ≈ ≤)
-  antisymmetric {≈ = ≈} {≤} sym antisym =
-    Strict.antisymmetric sym (Conv.irrefl ≈ ≤)
-                         (Conv.antisym⟶asym ≈ _ antisym)
+  antisymmetric : ∀ {P _≈_ _≤_} →
+                  Symmetric _≈_ → Antisymmetric _≈_ _≤_ →
+                  Antisymmetric (Pointwise.Rel _≈_) (Lex P _≈_ _≤_)
+  antisymmetric {_≈_ = _≈_} {_≤_} sym antisym =
+    Strict.antisymmetric sym (Conv.irrefl _≈_ _≤_)
+                         (Conv.antisym⟶asym _≈_ _ antisym)
 
-  <-asymmetric : ∀ {≈ ≤} →
-                 IsEquivalence ≈ → ≤ Respects₂ ≈ →
-                 Antisymmetric ≈ ≤ → Asymmetric (Lex-< ≈ ≤)
-  <-asymmetric {≈} eq resp antisym  =
+  <-asymmetric : ∀ {_≈_ _≤_} →
+                 IsEquivalence _≈_ → _≤_ Respects₂ _≈_ →
+                 Antisymmetric _≈_ _≤_ → Asymmetric (Lex-< _≈_ _≤_)
+  <-asymmetric {_≈_} eq resp antisym  =
     Strict.<-asymmetric sym (Conv.<-resp-≈ _ _ eq resp)
-                        (Conv.antisym⟶asym ≈ _ antisym)
+                        (Conv.antisym⟶asym _≈_ _ antisym)
     where open IsEquivalence eq
 
-  respects₂ : ∀ {P ≈ ≤} →
-              IsEquivalence ≈ → ≤ Respects₂ ≈ →
-              Lex P ≈ ≤ Respects₂ Pointwise.Rel ≈
+  respects₂ : ∀ {P _≈_ _≤_} →
+              IsEquivalence _≈_ → _≤_ Respects₂ _≈_ →
+              Lex P _≈_ _≤_ Respects₂ Pointwise.Rel _≈_
   respects₂ eq resp = Strict.respects₂ eq (Conv.<-resp-≈ _ _ eq resp)
 
-  decidable : ∀ {P ≈ ≤} →
-              Dec P → Decidable ≈ → Decidable ≤ →
-              Decidable (Lex P ≈ ≤)
+  decidable : ∀ {P _≈_ _≤_} →
+              Dec P → Decidable _≈_ → Decidable _≤_ →
+              Decidable (Lex P _≈_ _≤_)
   decidable dec-P dec-≈ dec-≤ =
     Strict.decidable dec-P dec-≈ (Conv.decidable _ _ dec-≈ dec-≤)
 
-  <-decidable : ∀ {≈ ≤} →
-                Decidable ≈ → Decidable ≤ → Decidable (Lex-< ≈ ≤)
+  <-decidable :
+    ∀ {_≈_ _≤_} →
+    Decidable _≈_ → Decidable _≤_ → Decidable (Lex-< _≈_ _≤_)
   <-decidable = decidable (no id)
 
-  ≤-decidable : ∀ {≈ ≤} →
-                Decidable ≈ → Decidable ≤ → Decidable (Lex-≤ ≈ ≤)
+  ≤-decidable :
+    ∀ {_≈_ _≤_} →
+    Decidable _≈_ → Decidable _≤_ → Decidable (Lex-≤ _≈_ _≤_)
   ≤-decidable = decidable (yes tt)
 
-  ≤-total : ∀ {≈ ≤} → Symmetric ≈ → Decidable ≈ →
-            Antisymmetric ≈ ≤ → Total ≤ →
-            Total (Lex-≤ ≈ ≤)
+  ≤-total : ∀ {_≈_ _≤_} → Symmetric _≈_ → Decidable _≈_ →
+            Antisymmetric _≈_ _≤_ → Total _≤_ →
+            Total (Lex-≤ _≈_ _≤_)
   ≤-total sym dec-≈ antisym tot =
     Strict.≤-total sym (Conv.trichotomous _ _ sym dec-≈ antisym tot)
 
-  <-compare : ∀ {≈ ≤} → Symmetric ≈ → Decidable ≈ →
-              Antisymmetric ≈ ≤ → Total ≤ →
-              Trichotomous (Pointwise.Rel ≈) (Lex-< ≈ ≤)
+  <-compare : ∀ {_≈_ _≤_} → Symmetric _≈_ → Decidable _≈_ →
+              Antisymmetric _≈_ _≤_ → Total _≤_ →
+              Trichotomous (Pointwise.Rel _≈_) (Lex-< _≈_ _≤_)
   <-compare sym dec-≈ antisym tot =
     Strict.<-compare sym (Conv.trichotomous _ _ sym dec-≈ antisym tot)
 
   -- Some collections of properties which are preserved by Lex-≤ or
   -- Lex-<.
 
-  ≤-isPreorder : ∀ {≈ ≤} →
-                 IsPartialOrder ≈ ≤ →
-                 IsPreorder (Pointwise.Rel ≈) (Lex-≤ ≈ ≤)
+  ≤-isPreorder : ∀ {_≈_ _≤_} →
+                 IsPartialOrder _≈_ _≤_ →
+                 IsPreorder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _≤_)
   ≤-isPreorder po =
     Strict.≤-isPreorder
        isEquivalence (Conv.trans _ _ po)
        (Conv.<-resp-≈ _ _ isEquivalence ≤-resp-≈)
    where open IsPartialOrder po
 
-  ≤-isPartialOrder : ∀ {≈ ≤} →
-                     IsPartialOrder ≈ ≤ →
-                     IsPartialOrder (Pointwise.Rel ≈) (Lex-≤ ≈ ≤)
+  ≤-isPartialOrder : ∀ {_≈_ _≤_} →
+                     IsPartialOrder _≈_ _≤_ →
+                     IsPartialOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _≤_)
   ≤-isPartialOrder po =
     Strict.≤-isPartialOrder
       (Conv.isPartialOrder⟶isStrictPartialOrder _ _ po)
 
-  ≤-isTotalOrder : ∀ {≈ ≤} →
-                   Decidable ≈ → IsTotalOrder ≈ ≤ →
-                   IsTotalOrder (Pointwise.Rel ≈) (Lex-≤ ≈ ≤)
+  ≤-isTotalOrder : ∀ {_≈_ _≤_} →
+                   Decidable _≈_ → IsTotalOrder _≈_ _≤_ →
+                   IsTotalOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _≤_)
   ≤-isTotalOrder dec tot =
     Strict.≤-isTotalOrder
       (Conv.isTotalOrder⟶isStrictTotalOrder _ _ dec tot)
 
-  ≤-isDecTotalOrder : ∀ {≈ ≤} →
-                      IsDecTotalOrder ≈ ≤ →
-                      IsDecTotalOrder (Pointwise.Rel ≈) (Lex-≤ ≈ ≤)
+  ≤-isDecTotalOrder :
+    ∀ {_≈_ _≤_} →
+    IsDecTotalOrder _≈_ _≤_ →
+    IsDecTotalOrder (Pointwise.Rel _≈_) (Lex-≤ _≈_ _≤_)
   ≤-isDecTotalOrder dtot =
     Strict.≤-isDecTotalOrder
       (Conv.isDecTotalOrder⟶isStrictTotalOrder _ _ dtot)
 
-  <-isStrictPartialOrder : ∀ {≈ ≤} →
-    IsPartialOrder ≈ ≤ →
-    IsStrictPartialOrder (Pointwise.Rel ≈) (Lex-< ≈ ≤)
+  <-isStrictPartialOrder : ∀ {_≈_ _≤_} →
+    IsPartialOrder _≈_ _≤_ →
+    IsStrictPartialOrder (Pointwise.Rel _≈_) (Lex-< _≈_ _≤_)
   <-isStrictPartialOrder po =
     Strict.<-isStrictPartialOrder
       (Conv.isPartialOrder⟶isStrictPartialOrder _ _ po)
 
-  <-isStrictTotalOrder : ∀ {≈ ≤} →
-    Decidable ≈ → IsTotalOrder ≈ ≤ →
-    IsStrictTotalOrder (Pointwise.Rel ≈) (Lex-< ≈ ≤)
+  <-isStrictTotalOrder : ∀ {_≈_ _≤_} →
+    Decidable _≈_ → IsTotalOrder _≈_ _≤_ →
+    IsStrictTotalOrder (Pointwise.Rel _≈_) (Lex-< _≈_ _≤_)
   <-isStrictTotalOrder dec tot =
     Strict.<-isStrictTotalOrder
       (Conv.isTotalOrder⟶isStrictTotalOrder _ _ dec tot)

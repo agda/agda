@@ -28,45 +28,46 @@ private
   tail : ∀ {_∼_ x y xs ys} → Rel _∼_ (x ∷ xs) (y ∷ ys) → Rel _∼_ xs ys
   tail (x∼y ∷ xs∼ys) = xs∼ys
 
-  reflexive : ∀ {≈ ∼} → ≈ ⇒ ∼ → (Rel ≈) ⇒ (Rel ∼)
+  reflexive : ∀ {_≈_ _∼_} → _≈_ ⇒ _∼_ → Rel _≈_ ⇒ Rel _∼_
   reflexive ≈⇒∼ []            = []
   reflexive ≈⇒∼ (x≈y ∷ xs≈ys) = ≈⇒∼ x≈y ∷ reflexive ≈⇒∼ xs≈ys
 
-  refl : ∀ {∼} → Reflexive ∼ → Reflexive (Rel ∼)
+  refl : ∀ {_∼_} → Reflexive _∼_ → Reflexive (Rel _∼_)
   refl rfl {[]}     = []
   refl rfl {x ∷ xs} = rfl ∷ refl rfl
 
-  symmetric : ∀ {∼} → Symmetric ∼ → Symmetric (Rel ∼)
+  symmetric : ∀ {_∼_} → Symmetric _∼_ → Symmetric (Rel _∼_)
   symmetric sym []            = []
   symmetric sym (x∼y ∷ xs∼ys) = sym x∼y ∷ symmetric sym xs∼ys
 
-  transitive : ∀ {∼} → Transitive ∼ → Transitive (Rel ∼)
+  transitive : ∀ {_∼_} → Transitive _∼_ → Transitive (Rel _∼_)
   transitive trans []            []            = []
   transitive trans (x∼y ∷ xs∼ys) (y∼z ∷ ys∼zs) =
     trans x∼y y∼z ∷ transitive trans xs∼ys ys∼zs
 
-  antisymmetric : ∀ {≈ ≤} → Antisymmetric ≈ ≤ →
-                  Antisymmetric (Rel ≈) (Rel ≤)
+  antisymmetric : ∀ {_≈_ _≤_} → Antisymmetric _≈_ _≤_ →
+                  Antisymmetric (Rel _≈_) (Rel _≤_)
   antisymmetric antisym []            []            = []
   antisymmetric antisym (x∼y ∷ xs∼ys) (y∼x ∷ ys∼xs) =
     antisym x∼y y∼x ∷ antisymmetric antisym xs∼ys ys∼xs
 
-  respects₂ : ∀ {≈ ∼} → ∼ Respects₂ ≈ → (Rel ∼) Respects₂ (Rel ≈)
-  respects₂ {≈} {∼} resp =
+  respects₂ : ∀ {_≈_ _∼_} →
+              _∼_ Respects₂ _≈_ → (Rel _∼_) Respects₂ (Rel _≈_)
+  respects₂ {_≈_} {_∼_} resp =
     (λ {xs} {ys} {zs} → resp¹ {xs} {ys} {zs}) ,
     (λ {xs} {ys} {zs} → resp² {xs} {ys} {zs})
     where
-    resp¹ : ∀ {xs} → (Rel ∼ xs) Respects (Rel ≈)
+    resp¹ : ∀ {xs} → (Rel _∼_ xs) Respects (Rel _≈_)
     resp¹ []            []            = []
     resp¹ (x≈y ∷ xs≈ys) (z∼x ∷ zs∼xs) =
       proj₁ resp x≈y z∼x ∷ resp¹ xs≈ys zs∼xs
 
-    resp² : ∀ {ys} → (flip (Rel ∼) ys) Respects (Rel ≈)
+    resp² : ∀ {ys} → (flip (Rel _∼_) ys) Respects (Rel _≈_)
     resp² []            []            = []
     resp² (x≈y ∷ xs≈ys) (x∼z ∷ xs∼zs) =
       proj₂ resp x≈y x∼z ∷ resp² xs≈ys xs∼zs
 
-  decidable : ∀ {∼} → Decidable ∼ → Decidable (Rel ∼)
+  decidable : ∀ {_∼_} → Decidable _∼_ → Decidable (Rel _∼_)
   decidable dec []       []       = yes []
   decidable dec []       (y ∷ ys) = no (λ ())
   decidable dec (x ∷ xs) []       = no (λ ())
@@ -76,29 +77,30 @@ private
   ...           | no ¬xs∼ys = no (¬xs∼ys ∘ tail)
   ...           | yes xs∼ys = yes (x∼y ∷ xs∼ys)
 
-  isEquivalence : ∀ {≈} → IsEquivalence ≈ → IsEquivalence (Rel ≈)
+  isEquivalence : ∀ {_≈_} → IsEquivalence _≈_ → IsEquivalence (Rel _≈_)
   isEquivalence eq = record
     { refl  = refl       Eq.refl
     ; sym   = symmetric  Eq.sym
     ; trans = transitive Eq.trans
     } where module Eq = IsEquivalence eq
 
-  isPreorder : ∀ {≈ ∼} → IsPreorder ≈ ∼ → IsPreorder (Rel ≈) (Rel ∼)
+  isPreorder : ∀ {_≈_ _∼_} →
+               IsPreorder _≈_ _∼_ → IsPreorder (Rel _≈_) (Rel _∼_)
   isPreorder pre = record
     { isEquivalence = isEquivalence Pre.isEquivalence
     ; reflexive     = reflexive     Pre.reflexive
     ; trans         = transitive    Pre.trans
     } where module Pre = IsPreorder pre
 
-  isDecEquivalence : ∀ {≈} → IsDecEquivalence ≈ →
-                     IsDecEquivalence (Rel ≈)
+  isDecEquivalence : ∀ {_≈_} → IsDecEquivalence _≈_ →
+                     IsDecEquivalence (Rel _≈_)
   isDecEquivalence eq = record
     { isEquivalence = isEquivalence Dec.isEquivalence
     ; _≟_           = decidable     Dec._≟_
     } where module Dec = IsDecEquivalence eq
 
-  isPartialOrder : ∀ {≈ ≤} → IsPartialOrder ≈ ≤ →
-                   IsPartialOrder (Rel ≈) (Rel ≤)
+  isPartialOrder : ∀ {_≈_ _≤_} → IsPartialOrder _≈_ _≤_ →
+                   IsPartialOrder (Rel _≈_) (Rel _≤_)
   isPartialOrder po = record
     { isPreorder = isPreorder    PO.isPreorder
     ; antisym    = antisymmetric PO.antisym
