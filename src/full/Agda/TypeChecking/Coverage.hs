@@ -197,6 +197,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
              ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
 
       -- Plug the hole with the constructor and apply ρ
+      -- TODO: Is it really correct to use Nothing here?
       let conp = ConP con Nothing $ map (fmap VarP) $ teleArgNames gamma
           ps   = plugHole conp hps
           ps'  = substs rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
