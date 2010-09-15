@@ -379,3 +379,6 @@ Tools
   and parameters, e.g. '-c' which enables case-splitting in the
   search. For further information, read section 'Auto' on the
   Agda wiki.
+
+* HTML generation is now possible for a module with unsolved
+  meta-variables.
