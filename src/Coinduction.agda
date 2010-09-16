@@ -26,12 +26,8 @@ postulate
 -- Rec, a type which is analogous to the Rec type constructor used in
 -- (the current version of) ΠΣ
 
-record Rec {a} (A : ∞ (Set a)) : Set a where
-  constructor fold
-  field
-    unfold : ♭ A
-
-open Rec public
+data Rec {a} (A : ∞ (Set a)) : Set a where
+  fold : ♭ A → Rec A
 
 {-
 
