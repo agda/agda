@@ -7,35 +7,6 @@ Important changes since 2.2.6:
 Language
 --------
 
-* Mixfix binders.
-
-  It is now possible to declare user-defined syntax that binds identifiers.
-  For example, assuming
-
-    put : ∀ {s} -> s -> State s ⊤
-    get : ∀ {s} -> State s s
-    return : ∀ {a s} -> a -> State s a
-    bind : ∀ {a b s} -> State s b -> (b -> State s a) -> State s a
-
-  one can declare
-
-    syntax bind e1 (\x → e2) = x ← e1 ⟩ e2
-
-  and then the following is valid:
-
-    increment = x ← get ⟩
-                put (x + 1)
-
-
-  Syntax declarations must be linear. eg. the following is disallowed.
-
-    syntax wrong x = x + x
-
-  Syntax declarations must apply to simple names. eg. the following is disallowed.
-
-    syntax _==_ x y = x === y
-
-
 * Record pattern matching.
 
   It is now possible to pattern match on named record constructors.
@@ -69,6 +40,47 @@ Language
     Foo : {A : Set} (p₁ p₂ : A × A) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
     Foo (x , y) (.x , y′) refl = Set
 
+* Mixfix binders.
+
+  It is now possible to declare user-defined syntax that binds
+  identifiers. Example:
+
+    postulate
+      State  : Set → Set → Set
+      put    : ∀ {S} → S → State S ⊤
+      get    : ∀ {S} → State S S
+      return : ∀ {A S} → A → State S A
+      bind   : ∀ {A B S} → State S B → (B → State S A) → State S A
+
+    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+
+    increment : State ℕ ⊤
+    increment = x ← get ,
+                put (1 + x)
+
+  The syntax declaration for bind implies that x is in scope in e₂,
+  but not in e₁.
+
+  You can give fixity declarations along with syntax declarations:
+
+    infixr 40 bind
+    syntax bind e₁ (λ x → e₂) = x ← e₁ , e₂
+
+  The fixity applies to the syntax, not the name; syntax declarations
+  are also restricted to ordinary, non-operator names. The following
+  declaration is disallowed:
+
+    syntax _==_ x y = x === y
+
+  Syntax declarations must also be linear; the following declaration
+  is disallowed:
+
+    syntax wrong x = x + x
+
+  Syntax declarations were added very recently, and have not been
+  subjected to much experimentation yet, so do not be surprised if
+  something is changed before the next release.
+
 * Injective type constructors off by default.
 
   Automatic injectivity of type constructors has been disabled (by
@@ -85,7 +97,7 @@ Language
 
   There is a new flag --termination-depth=N accepting values N >= 1
   (with N = 1 being the default) which influences the behavior of the
-  termination checker.  So far, the termination checker has only
+  termination checker. So far, the termination checker has only
   distinguished three cases when comparing the argument of a recursive
   call with the formal parameter of the callee.
 
@@ -94,7 +106,7 @@ Language
     ? : the argument is bigger or unrelated to the parameter
 
   This behavior, which is still the default (N = 1), will not
-  recognize the following functions as terminating.
+  recognise the following functions as terminating.
 
     mutual
 
@@ -106,7 +118,7 @@ Language
       aux : ℕ → ℕ
       aux m = f (suc m)
 
-   The call graph
+  The call graph
 
     f --(<)--> aux --(?)--> f
 
@@ -115,22 +127,22 @@ Language
   (composition of < and ?).
 
   Setting N >= 2 allows a finer analysis: n has two constructors less
-  than (suc (suc n)), and (suc m) has one more than m, so we get the
-  call graph:
+  than suc (suc n), and suc m has one more than m, so we get the call
+  graph:
 
     f --(-2)--> aux --(+1)--> f
 
-  The indirect call f --> f is now labeled with (-1), the termination
-  checker can now recognize that the call argument is decreasing on
-  this path.
+  The indirect call f --> f is now labeled with (-1), and the
+  termination checker can recognise that the call argument is
+  decreasing on this path.
 
-  Setting termination depth to N means that the termination checker
-  counts decrease up to N and increase up to N-1.  The default, N=1,
-  means that no increase is counted, every increase turns to
+  Setting the termination depth to N means that the termination
+  checker counts decrease up to N and increase up to N-1. The default,
+  N=1, means that no increase is counted, every increase turns to
   "unrelated".
 
-  In practice, the above example often arises when we use "with",
-  e.g., the program
+  In practice, examples like the one above sometimes arise when "with"
+  is used. As an example, the program
 
     f : ℕ → ℕ
     f zero          = zero
@@ -150,10 +162,10 @@ Language
       aux : ℕ → ℕ → ℕ
       aux m k = f (suc m)
 
-  Thus, by default, the definition of f via "with" is not accepted by
-  the termination checker, against appearance ((suc) n is a subterm of
-  (suc (suc n))). Now, the termination checker is satisfied with
-  option "--termination-depth=2".
+  Thus, by default, the definition of f using "with" is not accepted
+  by the termination checker, even though it looks structural (suc n
+  is a subterm of suc suc n). Now, the termination checker is
+  satisfied if the option "--termination-depth=2" is used.
 
   Caveats:
 
@@ -161,13 +173,13 @@ Language
     something smarter in the near future.
 
   - Increasing the termination depth will quickly lead to very long
-    termination checking times.  So, use with care.  Setting
-    termination depth to 100 by habit, just to be on the safe side, is
-    not a good idea!
+    termination checking times. So, use with care. Setting termination
+    depth to 100 by habit, just to be on the safe side, is not a good
+    idea!
 
-  - Increasing termination depths makes only sense for linear data
-    types such as ℕ and Size.  For other types, increase cannot be
-    recognized.  For instance, consider a similar example with lists.
+  - Increasing termination depth only makes sense for linear data
+    types such as ℕ and Size. For other types, increase cannot be
+    recognised. For instance, consider a similar example with lists.
 
       data List : Set where
 	nil  : List
@@ -182,17 +194,16 @@ Language
 	aux : ℕ → List → List
 	aux z zs = f (cons z zs)
 
-    Here, the termination checker compares (cons z zs) to z and also
-    to zs.  In both cases, the result will be "unrelated", no matter
-    how high we set the termination depth.  This is because when
-    comparing (cons z zs) to zs, for instance, z is unrelated to zs,
-    thus, (cons z zs) is also unrelated to zs.  We cannot say it is
-    just one up since z could a very large term.  Anyway, this points
-    to a weakness of untyped termination checking and could be fixed
-    by switching to a type-based termination checker.
+    Here the termination checker compares cons z zs to z and also to
+    zs. In both cases, the result will be "unrelated", no matter how
+    high we set the termination depth. This is because when comparing
+    cons z zs to zs, for instance, z is unrelated to zs, thus,
+    cons z zs is also unrelated to zs. We cannot say it is just "one
+    larger" since z could be a very large term. Note that this points
+    to a weakness of untyped termination checking.
 
-    To regain the benefit of an increased termination depth, we need
-    to index our lists by a linear type such as ℕ or Size.  With
+    To regain the benefit of increased termination depth, we need to
+    index our lists by a linear type such as ℕ or Size. With
     termination depth 2, the above example is accepted for vectors
     instead of lists.
 
@@ -223,8 +234,8 @@ Language
   pragmas above with COMPILED_TYPE, COMPILED_DATA or COMPILED pragmas,
   or if the pragmas do not occur right after the postulates.
 
-  MAlonzo compiles the INFINITY builtin to nothing (more or less), so
-  that the use of coinduction does not get in the way of FFI
+  The compiler compiles the INFINITY builtin to nothing (more or
+  less), so that the use of coinduction does not get in the way of FFI
   declarations:
 
     data Colist (A : Set) : Set where
@@ -244,26 +255,81 @@ Language
     data Rec (A : ∞ Set) : Set where
       fold : ♭ A → Rec A
 
-    ℕ : Set
-    ℕ = ⊤ ⊎ Rec (♯ ℕ)
+    -- Σ cannot be a record type below.
 
-    zero : ℕ
-    zero = inj₁ _
+    data Σ (A : Set) (B : A → Set) : Set where
+      _,_ : (x : A) → B x → Σ A B
 
-    suc : ℕ → ℕ
-    suc n = inj₂ (fold n)
+    syntax Σ A (λ x → B) = Σ[ x ∶ A ] B
 
-    ℕ-rec : (P : ℕ → Set) →
-            P zero →
-            (∀ n → P n → P (suc n)) →
-            ∀ n → P n
-    ℕ-rec P z s (inj₁ _)        = z
-    ℕ-rec P z s (inj₂ (fold n)) = s n (ℕ-rec P z s n)
+    -- Corecursive definition of the W-type.
 
-  Note that this feature is experimental, it is not known if it leads
-  to inconsistencies. It seems to be rather strong: if the
-  productivity checker were smarter, then we could encode
-  induction-recursion using it.
+    W : (A : Set) → (A → Set) → Set
+    W A B = Rec (♯ (Σ[ x ∶ A ] (B x → W A B)))
+
+    syntax W A (λ x → B) = W[ x ∶ A ] B
+
+    sup : {A : Set} {B : A → Set} (x : A) (f : B x → W A B) → W A B
+    sup x f = fold (x , f)
+
+    W-rec : {A : Set} {B : A → Set}
+            (P : W A B → Set) →
+            (∀ {x} {f : B x → W A B} → (∀ y → P (f y)) → P (sup x f)) →
+            ∀ x → P x
+    W-rec P h (fold (x , f)) = h (λ y → W-rec P h (f y))
+
+    -- Induction-recursion encoded as corecursion-recursion.
+
+    data Label : Set where
+      ′0 ′1 ′2 ′σ ′π ′w : Label
+
+    mutual
+
+      U : Set
+      U = Σ Label U′
+
+      U′ : Label → Set
+      U′ ′0 = ⊤
+      U′ ′1 = ⊤
+      U′ ′2 = ⊤
+      U′ ′σ = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+      U′ ′π = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+      U′ ′w = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
+
+      El : U → Set
+      El (′0 , _)            = ⊥
+      El (′1 , _)            = ⊤
+      El (′2 , _)            = Bool
+      El (′σ , fold (a , b)) = Σ[ x ∶ El a ]  El (b x)
+      El (′π , fold (a , b)) =   (x : El a) → El (b x)
+      El (′w , fold (a , b)) = W[ x ∶ El a ]  El (b x)
+
+    U-rec : (P : ∀ u → El u → Set) →
+            P (′1 , _) tt →
+            P (′2 , _) true →
+            P (′2 , _) false →
+            (∀ {a b x y} →
+             P a x → P (b x) y → P (′σ , fold (a , b)) (x , y)) →
+            (∀ {a b f} →
+             (∀ x → P (b x) (f x)) → P (′π , fold (a , b)) f) →
+            (∀ {a b x f} →
+             (∀ y → P (′w , fold (a , b)) (f y)) →
+             P (′w , fold (a , b)) (sup x f)) →
+            ∀ u (x : El u) → P u x
+    U-rec P P1 P2t P2f Pσ Pπ Pw = rec
+      where
+      rec : ∀ u (x : El u) → P u x
+      rec (′0 , _)            ()
+      rec (′1 , _)            _              = P1
+      rec (′2 , _)            true           = P2t
+      rec (′2 , _)            false          = P2f
+      rec (′σ , fold (a , b)) (x , y)        = Pσ (rec _ x) (rec _ y)
+      rec (′π , fold (a , b)) f              = Pπ (λ x → rec _ (f x))
+      rec (′w , fold (a , b)) (fold (x , f)) = Pw (λ y → rec _ (f y))
+
+  The --guardedness-preserving-type-constructors extension is based on
+  a rather operational understanding of ∞/♯_; it's not yet clear if
+  this extension is consistent.
 
 * Qualified constructors.
 
@@ -279,12 +345,13 @@ Language
       suc  : ∀ {n} → Fin n → Fin (suc n)
 
   you can refer to the constructors unambiguously as Nat.zero,
-  Nat.suc, Fin.zero, and Fin.suc. For example:
+  Nat.suc, Fin.zero, and Fin.suc (Nat and Fin are modules containing
+  the respective constructors). Example:
 
     inj : (n m : Nat) → Nat.suc n ≡ suc m → n ≡ m
     inj .m m refl = refl
 
-  Previously you had to write
+  Previously you had to write something like
 
     inj : (n m : Nat) → _≡_ {Nat} (suc n) (suc m) → n ≡ m
 
@@ -301,35 +368,43 @@ Language
       (the type expected of the whole expression) as an element in a
       datatype of Agda terms (see below). For instance,
 
-      example : Nat
-      example = quoteGoal x in {! at this point x = def (quote Nat) [] !}
+      example : ℕ
+      example = quoteGoal x in {! at this point x = def (quote ℕ) [] !}
 
-    - quote x : QName
+    - quote x : Name
 
       If x is the name of a definition (function, datatype, record, or
-      a constructor), quote x gives you the representation of x as a
-      value in the primitive type QName (see below).
+      a constructor), quote x gives you the representation of x as a
+      value in the primitive type Name (see below).
 
-  Quoted terms use the following BUILTINs and primitives:
+  Quoted terms use the following BUILTINs and primitives (available
+  from the standard library module Reflection):
 
     -- The type of Agda names.
-    postulate QName : Set
-    {-# BUILTIN QNAME QName #-}
-    primitive primQNameEquality : QName → QName → Bool
 
-    Hiding = Bool
+    postulate Name : Set
+
+    {-# BUILTIN QNAME Name #-}
+
+    primitive primQNameEquality : Name → Name → Bool
+
+    -- Arguments.
+
+    Explicit? = Bool
+
     data Arg A : Set where
-      arg : Hiding → A → Arg A
+      arg : Explicit? → A → Arg A
 
-    {-# BUILTIN ARG Arg #-}
+    {-# BUILTIN ARG    Arg #-}
     {-# BUILTIN ARGARG arg #-}
 
     -- The type of Agda terms.
+
     data Term : Set where
-      var     : Nat → List (Arg Term) → Term
-      con     : QName → List (Arg Term) → Term
-      def     : QName → List (Arg Term) → Term
-      lam     : Hiding → Term → Term
+      var     : ℕ → List (Arg Term) → Term
+      con     : Name → List (Arg Term) → Term
+      def     : Name → List (Arg Term) → Term
+      lam     : Explicit? → Term → Term
       pi      : Arg Term → Term → Term
       sort    : Term
       unknown : Term
@@ -343,15 +418,14 @@ Language
     {-# BUILTIN AGDATERMSORT        sort    #-}
     {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
 
-  Reflection is particularly useful when working with internal
-  decision procedures, such as the ring solver in the standard
-  library.
+  Reflection may be useful when working with internal decision
+  procedures, such as the standard library's ring solver.
 
 * Minor record definition improvement.
 
   The definition of a record type is now available when type checking
-  the record module definitions. This means that you can define
-  things like
+  record module definitions. This means that you can define things
+  like the following:
 
     record Cat : Set₁ where
       field
@@ -366,6 +440,11 @@ Language
 Tools
 -----
 
+* The "Goal type and context" command now shows the goal type before
+  the context, and the context is shown in reverse order. The "Goal
+  type, context and inferred type" command has been modified in a
+  similar way.
+
 * Show module contents command.
 
   Given a module name M the Emacs mode can now display all the
@@ -374,11 +453,13 @@ Tools
 
 * Auto command.
 
-  A command searching for type inhabitants has been added. The
-  command is invoked by pressing C-C C-a. There are several flags
-  and parameters, e.g. '-c' which enables case-splitting in the
-  search. For further information, read section 'Auto' on the
-  Agda wiki.
+  A command which searches for type inhabitants has been added. The
+  command is invoked by pressing C-C C-a (or using the goal menu).
+  There are several flags and parameters, e.g. '-c' which enables
+  case-splitting in the search. For further information, see the Agda
+  wiki:
+
+    http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Auto
 
 * HTML generation is now possible for a module with unsolved
   meta-variables.
