@@ -4,6 +4,8 @@ module Coinduction where
 
 open import Common.Level
 
+infix 1000 ♯_
+
 postulate
   ∞  : ∀ {a} (A : Set a) → Set a
   ♯_ : ∀ {a} {A : Set a} → A → ∞ A
