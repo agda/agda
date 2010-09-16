@@ -462,4 +462,5 @@ Tools
     http://wiki.portal.chalmers.se/agda/pmwiki.php?n=Main.Auto
 
 * HTML generation is now possible for a module with unsolved
-  meta-variables.
+  meta-variables, provided that the --allow-unsolved-metas flag is
+  used.
