@@ -60,6 +60,8 @@ module README where
 --     Input/output-related functions.
 -- • Level
 --     Universe levels.
+-- • Reflection
+--     Support for reflection.
 -- • Relation
 --     Properties of and proofs about relations (mostly homogeneous
 --     binary relations).
