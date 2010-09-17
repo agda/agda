@@ -40,6 +40,76 @@ Language
     Foo : {A : Set} (p₁ p₂ : A × A) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
     Foo (x , y) (.x , y′) refl = Set
 
+* Proof irrelevant function types.
+
+  Agda now supports an irrelevant non-dependent function type
+
+    f : .A -> B
+
+  meaning that f does not computationally depend its argument of type
+  A.  Typical use cases are data structures with embedded proofs,
+  like sorted lists:
+    
+    postulate 
+      _≤_ : ℕ → ℕ → Set
+      p1 : 0 ≤ 1
+      p2 : 0 ≤ 1
+    
+    data SList (bound : ℕ) : Set where
+      []    : SList bound
+      scons : (head : ℕ) →
+              .(head ≤ bound) → 
+              (tail : SList head) → 
+              SList bound
+    
+  The effect is that the second argument of scons is never looked at
+  after type-checking.  It is even thrown away, leading to smaller
+  term sizes and hopefully some gain in efficiency.  
+
+  As a consequence, it is not counted during equality checking; two
+  lists can be equal even if they embed different proofs:
+
+    l1 : SList 1
+    l1 = scons 0 p1 []
+    
+    l2 : SList 1
+    l2 = scons 0 p2 []
+    
+    l1≡l2 : l1 ≡ l2
+    l1≡l2 = refl
+    
+  Irrelevant arguments can only used in irrelevant contexts.  Consider
+  the subset type:
+
+    data Subset (A : Set)(P : A → Set) : Set where
+      _#_ : (elem : A) → .(P elem) → Subset A P
+
+  The following two uses are fine:
+    
+    elimSubset : ∀ {A P C} → Subset A P → ((a : A) → .(P a) → C) → C
+    elimSubset (a # p) k = k a p
+    
+    elem : {A : Set}{P : A → Set} → ⁅ x ∈ A ∣ P x ⁆ → A
+    elem (x # p) = x
+
+  If we try to project out the proof component, Agda complains
+  "variable p is declared irrelevant, so it cannot be used here":
+    
+    prjProof : ∀ {A P} → (x : Subset A P) → P (elem x)
+    prjProof (a # p) = p 
+    
+  Matching against irrelevant arguments is also forbidden, except for
+  irrefutable matches, i.e., matching against a record constructor as
+  described above.  For instance, the match against record pattern
+  (p , q) is fine:
+    
+    elim2 : ∀ {A P Q C} → Subset A (λ x → Σ (P x) (λ _ → Q x)) → 
+            ((a : A) → .(P a) → .(Q a) → C) → C
+    elim2 (a # (p , q)) k = k a p q
+    
+  Absurd matches () are also allowed.  Dependent irrelevant function
+  spaces .(x : A) -> B might be added in the future.
+
 * Mixfix binders.
 
   It is now possible to declare user-defined syntax that binds
