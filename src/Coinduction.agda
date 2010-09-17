@@ -27,7 +27,10 @@ postulate
 -- (the current version of) ΠΣ
 
 data Rec {a} (A : ∞ (Set a)) : Set a where
-  fold : ♭ A → Rec A
+  fold : (x : ♭ A) → Rec A
+
+unfold : ∀ {a} {A : ∞ (Set a)} → Rec A → ♭ A
+unfold (fold x) = x
 
 {-
 
