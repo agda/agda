@@ -68,8 +68,8 @@ tomy :: I.MetaId -> [(Bool, AN.QName)] -> [I.Type] -> MB.TCM ([ConstRef O], [MEx
 tomy imi icns typs = do
  eqs <- getEqs
  let
-  r :: TOM ()
-  r = do
+  r :: [AN.QName] -> TOM [AN.QName]
+  r projfcns = do
    nxt <- popMapS sConsts (\x y -> y {sConsts = x})
    case nxt of
     Just cn -> do
@@ -86,15 +86,15 @@ tomy imi icns typs = do
            let narg = case clauses' of
                         [] -> 0
                         I.Clause {I.clausePats = xs} : _ -> length xs
-           return $ Def narg clauses'' Nothing Nothing
-     cont <- case defn of
-      MB.Axiom {} -> return Postulate
+           return (Def narg clauses'' Nothing Nothing, [])
+     (cont, projfcns2) <- case defn of
+      MB.Axiom {} -> return (Postulate, [])
       MB.Function {MB.funClauses = clauses} -> clausesToDef clauses
       MB.Primitive {MB.primClauses = Just clauses} -> clausesToDef clauses
       MB.Primitive {} -> throwError $ strMsg "Auto: Primitive functions are not supported"
       MB.Datatype {MB.dataCons = cons} -> do
-       cons' <- mapM (\con -> getConst True con TMAll) cons
-       return $ Datatype cons'
+       cons2 <- mapM (\con -> getConst True con TMAll) cons
+       return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
        let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) typ
            pars _ (I.El _ _) = []
@@ -102,16 +102,19 @@ tomy imi icns typs = do
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
        contyp' <- tomyType $ contyp 0 tel
        cc <- lift $ liftIO $ readIORef c
-       let Datatype [con] = cdcont cc
+       let Datatype [con] [] = cdcont cc
        lift $ liftIO $ modifyIORef con (\cdef -> cdef {cdtype = contyp'})
-       return $ cdcont cc
+
+       projfcns <- mapM (\name -> getConst False name TMAll) (map snd fields)
+
+       return (Datatype [con] projfcns, []{-map snd fields-})
       MB.Constructor {MB.conData = dt} -> do
        _ <- getConst False dt TMAll -- make sure that datatype is included
        cc <- lift $ liftIO $ readIORef c
        let (Just nomi, _) = cdorigin cc
-       return $ Constructor (nomi - cddeffreevars cc)
+       return (Constructor (nomi - cddeffreevars cc), [])
      lift $ liftIO $ modifyIORef c (\cdef -> cdef {cdtype = typ', cdcont = cont})
-     r
+     r $ projfcns2 ++ projfcns
     Nothing -> do
      nxt <- popMapS sMetas (\x y -> y {sMetas = x})
      case nxt of
@@ -151,7 +154,7 @@ tomy imi icns typs = do
        ctx' <- mapM tomyType localVars
        modify (\s -> s {sCurMeta = Nothing})
        modify (\s -> s {sMetas = (Map.adjust (\(m, Nothing, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
-       r
+       r projfcns
       Nothing -> do
        nxt <- popMapS sEqs (\x y -> y {sEqs = x})
        case nxt of
@@ -160,15 +163,17 @@ tomy imi icns typs = do
          e' <- tomyExp e
          i' <- tomyExp i
          modify (\s -> s {sEqs = (Map.adjust (\Nothing -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
-         r
+         r projfcns
         Nothing ->
-         return ()
+         return projfcns
  ((icns', typs'), s) <- runStateT
   (do _ <- getMeta imi
       icns' <- mapM (\(iscon, name) -> getConst iscon name TMAll) icns
       typs' <- mapM tomyType typs
-      r
-      return (icns', typs')
+      projfcns <- r []
+      projfcns' <- mapM (\name -> getConst False name TMAll) projfcns
+      [] <- r []
+      return (projfcns' ++ icns', typs')
   ) (S {sConsts = initMapS, sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = imi})
  lift $ liftIO $ mapM_ categorizedecl icns'
  return (icns', typs', Map.map (\(x, Just (y, z), w) -> (x, y, z, w)) (fst (sMetas s)), map (\(Just x) -> x) $ Map.elems (fst (sEqs s)), fst (sConsts s))
@@ -183,7 +188,7 @@ getConst iscon name mode = do
     Just (mode', c) ->
      if iscon then do
       cd <- lift $ liftIO $ readIORef c
-      let Datatype [con] = cdcont cd
+      let Datatype [con] _ = cdcont cd
       return con
      else
       return c
@@ -192,7 +197,7 @@ getConst iscon name mode = do
      dfv <- lift $ getdfv mainm name
      let nomi = fromIntegral $ I.arity (MB.defType def)
      ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = show name ++ ".CONS", cdorigin = (Just nomi, conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - fromIntegral dfv), cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
-     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon], cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
+     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon] [], cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return $ if iscon then ccon else c
   _ -> do
@@ -324,6 +329,9 @@ weakens i (NotM as) =
    let x' = weaken i x
        xs' = weakens i xs
    in NotM $ ALCons hid x' xs'
+
+  ALProj{} -> __IMPOSSIBLE__
+
   ALConPar xs ->
    let xs' = weakens i xs
    in NotM $ ALConPar xs'
@@ -429,15 +437,13 @@ frommyExp (Meta m) = do
   Just e -> frommyExp (NotM e)
 frommyExp (NotM e) =
  case e of
-  App _ _ (Var v) as -> do
-   as' <- frommyExps 0 as
-   return $ I.Var (fromIntegral v) as'
+  App _ _ (Var v) as ->
+   frommyExps 0 as (I.Var (fromIntegral v) [])
   App _ _ (Const c) as -> do
    cdef <- readIORef c
    let (iscon, name) = cdorigin cdef
        (ndrop, h) = case iscon of {Just n -> (n, I.Con); Nothing -> (0, I.Def)}
-   as' <- frommyExps ndrop as
-   return $ h name as'
+   frommyExps ndrop as (h name [])
   Lam hid (Abs mid t) -> do
    t' <- frommyExp t
    return $ I.Lam (icnvh hid) (I.Abs (case mid of {NoId -> "x"; Id id -> id}) t')
@@ -455,22 +461,37 @@ frommyExp (NotM e) =
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
 
 
-frommyExps :: Nat -> MArgList O -> IO I.Args
-frommyExps ndrop (Meta m) = do
+frommyExps :: Nat -> MArgList O -> I.Term -> IO I.Term
+frommyExps ndrop (Meta m) trm = do
  bind <- readIORef $ mbind m
  case bind of
   Nothing -> __IMPOSSIBLE__
-  Just e -> frommyExps ndrop (NotM e)
-frommyExps ndrop (NotM as) =
+  Just e -> frommyExps ndrop (NotM e) trm
+frommyExps ndrop (NotM as) trm =
  case as of
-  ALNil -> return []
-  ALCons _ _ xs | ndrop > 0 -> frommyExps (ndrop - 1) xs
+  ALNil -> return trm
+  ALCons _ _ xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALCons hid x xs -> do
    x' <- frommyExp x
-   xs' <- frommyExps ndrop xs
-   return $ C.Arg (icnvh hid) C.Relevant x' : xs'
-  ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs
+   frommyExps ndrop xs (addend (C.Arg (icnvh hid) C.Relevant x') trm)
+
+  ALProj eas idx hid xs -> do
+   idx <- expandbind idx
+   let c = case idx of
+            NotM c -> c
+            Meta{} -> __IMPOSSIBLE__
+   cdef <- readIORef c
+   let name = snd $ cdorigin cdef
+   trm2 <- frommyExps 0 eas (I.Def name [])
+   frommyExps 0 xs (addend (C.Arg (icnvh hid) C.Relevant trm) trm2)
+
+  ALConPar xs | ndrop > 0 -> frommyExps (ndrop - 1) xs trm
   ALConPar _ -> __IMPOSSIBLE__
+ where
+  addend x (I.Var h xs) = I.Var h (xs ++ [x])
+  addend x (I.Con h xs) = I.Con h (xs ++ [x])
+  addend x (I.Def h xs) = I.Def h (xs ++ [x])
+  addend _ _ = __IMPOSSIBLE__
 
 -- --------------------------------
 
@@ -619,6 +640,9 @@ freeIn = f
   fs v es = case mr es of
    ALNil -> True
    ALCons _ a as -> f v a && fs v as
+
+   ALProj{} -> __IMPOSSIBLE__
+
 
    ALConPar as -> fs v as
 

@@ -90,10 +90,10 @@ auto ii rng argstr = liftTCM $ do
 
            (myhints', mymrectyp, tccons, eqcons, cmap) <- tomy mi ehints' mrectyp
 
-           let myhints = take (length ehints) myhints'
+           let myhints = take (length myhints' - (length ehints' - length ehints)) myhints'
                meqr = case eqstuff of
                        Nothing -> Nothing
-                       Just _ -> let [c1, c2, c3, c4, c5, c6] = drop (length ehints) myhints'
+                       Just _ -> let [c1, c2, c3, c4, c5, c6] = drop (length myhints' - (length ehints' - length ehints)) myhints'
                                  in Just $ EqReasoningConsts c1 c2 c3 c4 c5 c6
 
 
@@ -373,9 +373,9 @@ auto ii rng argstr = liftTCM $ do
                else
                 return (Right $ Right (fst $ sorthits !! pick), Nothing)
  where
+
+
   agsyinfo ticks = if null argstr then "" else " {- by agsy {!" ++ argstr ++ "!} -}"
-
-
 autohints AHMModule mi (Just def) = do
  mv <- lookupMeta mi
  let scopeinfo = clScope (getMetaInfo mv)

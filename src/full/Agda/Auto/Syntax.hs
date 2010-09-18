@@ -38,6 +38,10 @@ data RefInfo o = RIEnv {rieHints :: [(ConstRef o, HintMode)], rieDefFreeVars :: 
                | RIEqRState EqReasoningState
 
 
+               | RICheckElim Bool -- isdep
+               | RICheckProjIndex [ConstRef o] -- noof proj functions
+
+
 type MyPB o = PB (RefInfo o)
 type MyMB a o = MB a (RefInfo o)
 
@@ -62,6 +66,9 @@ data ConstDef o = ConstDef {cdname :: String, cdorigin :: o, cdtype :: MExp o, c
 
 data DeclCont o = Def Nat [Clause o] (Maybe Nat) (Maybe Nat) -- maybe an index to elimand argument, maybe index to elim arg if semiflex
                 | Datatype [ConstRef o] -- constructors
+
+                           [ConstRef o] -- projection functions
+
                 | Constructor Nat -- number of omitted args
                 | Postulate
 
@@ -94,6 +101,9 @@ type MExp o = MM (Exp o) (RefInfo o)
 
 data ArgList o = ALNil
                | ALCons FMode (MExp o) (MArgList o)
+
+               | ALProj (MArgList o) (MM (ConstRef o) (RefInfo o)) FMode (MArgList o) -- proj pre args, projfcn idx, tail
+
 
                | ALConPar (MArgList o) -- inserted to cover glitch of polymorphic constructor applications coming from Agda
 
@@ -194,6 +204,12 @@ metaliseokh = fm
    as <- fms as
    return $ ALCons hid a as
 
+  fs (ALProj eas idx hid as) = do
+   eas <- fms eas
+   as <- fms as
+   return $ ALProj eas idx hid as
+
+
   fs (ALConPar as) = do
    as <- fms as
    return $ ALConPar as
@@ -240,6 +256,13 @@ expandExp = fm
    a <- fm a
    as <- fms as
    return $ ALCons hid a as
+
+  fs (ALProj eas idx hid as) = do
+   idx <- expandbind idx
+   eas <- fms eas
+   as <- fms as
+   return $ ALProj eas idx hid as
+
 
   fs (ALConPar as) = do
    as <- fms as

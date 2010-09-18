@@ -22,10 +22,28 @@ instance Refinable (ArgList o) (RefInfo o) where
 
             (0, cons NotHidden),
             (0, cons Hidden)
+
+
            ]
-  where cons hid = do p1 <- newPlaceholder
-                      p2 <- newPlaceholder
-                      return $ ALCons hid p1 p2
+
+           ++
+           (let isdep = rr infos
+                rr (RICheckElim isdep : _) = isdep
+                rr (_ : xs) = rr xs
+                rr _ = __IMPOSSIBLE__
+                proj hid = newPlaceholder >>= \p1 -> newPlaceholder >>= \p2 -> newPlaceholder >>= \p3 -> return $ ALProj p1 p2 hid p3
+            in if isdep then
+                 []
+                else
+
+                 [(0, proj NotHidden), (0, proj Hidden)]
+
+
+           )
+
+  where cons hid = newPlaceholder >>= \p1 -> newPlaceholder >>= \p2 -> return $ ALCons hid p1 p2
+
+
 data ExpRefInfo o = ExpRefInfo {eriMain :: Maybe (RefInfo o), eriUnifs :: [RefInfo o], eriInfTypeUnknown, eriIsEliminand :: Bool, eriUsedVars :: Maybe ([UId o], [Elr o]),
                                 eriIotaStep :: Maybe Bool, eriPickSubsVar :: Bool
 
@@ -189,7 +207,7 @@ instance Refinable (Exp o) (RefInfo o) where
      HNApp _ (Const c) _ -> do
       cd <- readIORef c
       return $ case cdcont cd of
-       Datatype cons
+       Datatype cons _
 
         | eqrstate == EqRSNone
 
@@ -256,6 +274,11 @@ instance Refinable (ICExp o) (RefInfo o) where
   in return [(0, return e)]
 
 
+instance Refinable (ConstRef o) (RefInfo o) where
+ refinements _ [RICheckProjIndex projs] _ = return $ map (\x -> (0, return x)) projs
+ refinements _ _ _ = __IMPOSSIBLE__
+
+
 -- ---------------------------------
 costIotaStep, costAppExtraRef, costIncrease :: Int
 costIncrease = 1000
@@ -301,6 +324,9 @@ prioCompareArgList = 7000 -- 5 -- 2
 prioNoIota = 500 -- 500
 prioAbsurdLambda = 1000
 
+prioProjIndex = 3000 :: Int
+
+
 -- ---------------------------------
 
 instance Trav a blk => Trav [a] blk where
@@ -325,8 +351,9 @@ instance Trav (Exp o) (RefInfo o) where
 
 instance Trav (ArgList o) (RefInfo o) where
  traverse _ ALNil = return ()
-
  traverse f (ALCons _ arg args) = traverse f arg >> traverse f args
+
+ traverse f (ALProj eas _ _ as) = traverse f eas >> traverse f as
 
 
  traverse f (ALConPar args) = traverse f args

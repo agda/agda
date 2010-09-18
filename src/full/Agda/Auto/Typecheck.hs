@@ -34,7 +34,14 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
               Var{} -> return 0
               Const c -> readIORef c >>= \cd -> return (cddeffreevars cd)
 
-     sc $ tcargs ndfv okh isdep ctx typ ityp args
+
+     isconstructor <- case elr of
+      Var{} -> return False
+      Const c -> do
+       cdef <- readIORef c
+       return $ case cdcont cdef of {Constructor{} -> True; _ -> False}
+
+     sc $ tcargs ndfv isdep ctx ityp args (NotM $ App Nothing (NotM OKVal) elr (NotM ALNil)) isconstructor $ \ityp _ -> mpret $ ConnectHandle okh (comp' True typ ityp)
    Lam hid (Abs id1 b) -> case hntyp of
     HNPi _ hid2 _ it (Abs id2 ot) | hid == hid2 ->
      tcExp isdep ((pickid id1 id2, t it) : ctx) (t ot) b
@@ -79,7 +86,7 @@ getDatatype t =
   HNApp _ (Const c) args -> do
    cd <- readIORef c
    case cdcont cd of
-    Datatype cons -> mbret $ Just (args, cons) -- ?? check that lenth args corresponds to type of datatype
+    Datatype cons _ -> mbret $ Just (args, cons) -- ?? check that lenth args corresponds to type of datatype
     _ -> mbret Nothing
   _ -> mbret Nothing
 
@@ -140,16 +147,43 @@ traversePi v t =
   _ -> mbret hnt
 
 
-tcargs :: Nat -> OKHandle (RefInfo o) -> Bool -> Ctx o -> CExp o -> CExp o -> MArgList o -> EE (MyPB o)
-tcargs ndfv okh isdep ctx etyp ityp@(TrBr ityptrs iityp) args = mmpcase (True, prioTypecheckArgList, Nothing) args $ \args' -> case args' of
- ALNil -> mpret $ ConnectHandle okh (comp' True etyp ityp)
+tcargs :: Nat -> Bool -> Ctx o -> CExp o -> MArgList o -> MExp o -> Bool -> (CExp o -> MExp o -> EE (MyPB o)) -> EE (MyPB o)
+tcargs ndfv isdep ctx ityp@(TrBr ityptrs iityp) args elimtrm isconstructor cont = mmpcase (True, prioTypecheckArgList, (Just $ RICheckElim $ isdep || isconstructor)) args $ \args' -> case args' of
+ ALNil -> cont ityp elimtrm
  ALCons hid a as ->
   mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case hnityp of
    HNPi _ hid2 possdep it (Abs _ ot) | ndfv > 0 || copyarg a || hid == hid2 -> mpret $
     And (Just ((if possdep then [Term a] else []) ++ [Term ctx, Term ityptrs]))
         (if ndfv > 0 then mpret OK else (tcExp (isdep || possdep) ctx (t it) a))
-        (tcargs (ndfv - 1) okh isdep ctx etyp (sub a (t ot)) as)
+        (tcargs (ndfv - 1) isdep ctx (sub a (t ot)) as (addend hid a elimtrm) isconstructor cont)
    _ -> mpret $ Error "tcargs, inf type should be fun or pi (and same hid)"
+
+
+ ALProj{} | ndfv > 0 -> __IMPOSSIBLE__
+
+ ALProj preas projidx hid as ->
+  mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp) $ \hnityp -> case hnityp of
+   HNApp _ (Const dd) _ -> do
+    dddef <- readIORef dd
+    case cdcont dddef of
+     Datatype _ projs ->
+      mmpcase (True, prioProjIndex, Just (RICheckProjIndex projs)) projidx $
+      \projidx -> do
+       projd <- readIORef projidx
+       tcargs (cddeffreevars projd) isdep ctx (closify $ cdtype projd) preas (NotM $ App Nothing (NotM OKVal) (Const projidx) (NotM ALNil)) True $
+        \ityp2@(TrBr ityp2trs iityp2) elimtrm2 ->
+         case iityp2 of
+          Clos _ (NotM (Pi _ _ _ (NotM (App _ _ (Const dd2) _)) _)) | dd2 == dd ->
+           mbpcase prioInferredTypeUnknown (Just RIInferredTypeUnknown) (hnn iityp2) $ \hnityp2 -> case hnityp2 of
+            HNPi _ hid2 possdep it (Abs _ ot) | hid == hid2 -> mpret $
+             And Nothing
+                 (comp' True (TrBr ityp2trs it) ityp)
+                 (tcargs 0 isdep ctx (sub elimtrm (t ot)) as (addend hid elimtrm elimtrm2) isconstructor cont)
+            _ -> mpret $ Error "proj function type is not a Pi"
+          _ -> mpret $ Error "proj function type is not correct"
+     _ -> mpret $ Error "proj, not a datatype"
+   _ -> mpret $ Error "proj, not a const app"
+
 
  ALConPar _ -> __IMPOSSIBLE__
 
@@ -157,6 +191,11 @@ tcargs ndfv okh isdep ctx etyp ityp@(TrBr ityptrs iityp) args = mmpcase (True, p
   t = TrBr ityptrs
 
 
+addend hid a (NotM (App uid okh elr as)) = NotM $ App uid okh elr (f as)
+ where f (NotM ALNil) = NotM $ ALCons hid a (NotM $ ALNil)
+       f (NotM (ALCons hid a as)) = NotM $ ALCons hid a (f as)
+       f _ = __IMPOSSIBLE__
+addend _ _ _ = __IMPOSSIBLE__
 copyarg _ = False
 
 
@@ -242,6 +281,9 @@ hnarglist args =
    mmcase args $ \args -> case args of
     ALNil -> hnarglist args2
     ALCons hid arg argsb -> mbret $ HNALCons hid (Clos cl arg) (CALConcat (Clos cl argsb) args2)
+
+    ALProj{} -> mbret HNALNil -- dirty hack to make check of no-iota in term work
+
 
     ALConPar args -> mbret $ HNALConPar (CALConcat (Clos cl args) args2)
 -- -----------------------------
@@ -556,6 +598,9 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
            Right e -> boringExp e
           ALCons{} -> return False
 
+          ALProj{} -> __IMPOSSIBLE__
+
+
           ALConPar{} -> return False
 
        _ -> return False
@@ -584,6 +629,9 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
           b2 <- f cl as
           return $ b1 && b2
 
+         ALProj{} -> __IMPOSSIBLE__
+
+
          ALConPar as -> f cl as
 -- ---------------------------------
 
@@ -605,6 +653,9 @@ checkeliminand = f [] []
                          mpret OK
                    _ -> g (i - 1) as
 
+                  ALProj eas _ _ as -> mpret OK
+
+
                   ALConPar as -> case i of
                    0 -> __IMPOSSIBLE__
                    _ -> g (i - 1) as
@@ -621,6 +672,9 @@ checkeliminand = f [] []
    mmpcase (False, prioNo, Nothing) as $ \as -> case as of
     ALNil -> mpret OK
     ALCons _ a as -> mpret $ Sidecondition (f uids used a) (fs uids used as)
+
+    ALProj eas _ _ as -> mpret $ Sidecondition (fs uids used eas) (fs uids used as)
+
 
     ALConPar as -> fs uids used as
 
@@ -658,6 +712,9 @@ iotapossmeta ce@(Clos cl _) cargs = do
    x <- nonconstructor (Clos cl a)
    y <- ncmargs cl args
    return $ x && y
+
+  ncargs _ (ALProj{}) = __IMPOSSIBLE__
+
 
   ncargs cl (ALConPar args) = ncmargs cl args
 
@@ -728,6 +785,10 @@ calcEqRState cs = f EqRSNone
     (_, ALNil) -> mpret OK
     (s : ss, ALCons _ a args) -> mpret $ Sidecondition (f s a) (fs ss args)
     ([], ALCons _ a args) -> mpret $ Sidecondition (f EqRSNone a) (fs [] args)
+
+    ([], ALProj eas _ _ as) -> mpret $ Sidecondition (fs [] eas) (fs [] as)
+    ((_:_), ALProj{}) -> __IMPOSSIBLE__
+
 
     (_ : ss, ALConPar args) -> fs ss args
     ([], ALConPar args) -> fs [] args

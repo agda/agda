@@ -128,7 +128,7 @@ caseSplitSearch' branchsearch depthinterval depth recdef ctx tt pats = do
      App _ _ (Const c) _ -> do
       cd <- readIORef c
       case cdcont cd of
-       Datatype cons -> do
+       Datatype cons _ -> do
          sols <- dobranches cons
          return $ map (\sol -> case sol of
           [] ->
@@ -224,6 +224,9 @@ replace sv nnew re = r 0
     ALNil -> mm $ ALNil
     ALCons hid a as -> mm $ ALCons hid (r n a) (rs n as)
 
+    ALProj{} -> __IMPOSSIBLE__
+
+
     ALConPar as -> mm $ ALConPar (rs n as)
 
 
@@ -235,12 +238,18 @@ betareduce e args = case rm args of
   Lam _ (Abs _ b) -> betareduce (replace 0 0 a b) rargs
   _ -> __IMPOSSIBLE__ -- not type correct if this happens
 
+ ALProj{} -> __IMPOSSIBLE__
+
+
  ALConPar as -> __IMPOSSIBLE__
 
 
 concatargs xs ys = case rm xs of
  ALNil -> ys
  ALCons hid x xs -> mm $ ALCons hid x (concatargs xs ys)
+
+ ALProj{} -> __IMPOSSIBLE__
+
 
  ALConPar as -> mm $ ALConPar (concatargs xs ys)
 
@@ -320,6 +329,9 @@ lift n = r 0
     ALNil -> mm $ ALNil
     ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
 
+    ALProj{} -> __IMPOSSIBLE__
+
+
     ALConPar as -> mm $ ALConPar (rs j as)
 
 
@@ -361,6 +373,9 @@ notequal firstnew nnew e1 e2 =
        Nothing -> cont ((v2, e1) : unifier2)
        Just e2' -> cc e1 e2'
      ALCons{} -> cont unifier2
+
+     ALProj{} -> __IMPOSSIBLE__
+
 
      ALConPar{} -> __IMPOSSIBLE__
 
@@ -408,6 +423,9 @@ freevars = f 0
    ALNil -> []
    ALCons _ e es -> union (f n e) (fs n es)
 
+   ALProj{} -> __IMPOSSIBLE__
+
+
    ALConPar es -> fs n es
 
 
@@ -441,6 +459,9 @@ rename ren = r 0
    case rm es of
     ALNil -> mm $ ALNil
     ALCons hid a as -> mm $ ALCons hid (r j a) (rs j as)
+
+    ALProj{} -> __IMPOSSIBLE__
+
 
     ALConPar as -> mm $ ALConPar (rs j as)
 
@@ -507,6 +528,9 @@ localTerminationEnv pats =
            (size', vars') = hes as
        in (size + size', vars ++ vars')
 
+      ALProj{} -> __IMPOSSIBLE__
+
+
       ALConPar as -> hes as
 
  in g 0 pats
@@ -538,6 +562,9 @@ localTerminationSidecond (is, size, vars) reccallc b =
        (ok a)
        (oks as)
 
+      ALProj eas _ _ as -> mpret $ Sidecondition (oks eas) (oks as)
+
+
       ALConPar as -> oks as
 
      okcall i size vars as = mmpcase (False, prioNo, Nothing) as $ \as -> case as of
@@ -547,6 +574,9 @@ localTerminationSidecond (is, size, vars) reccallc b =
         Nothing -> mpret $ Error "localTerminationSidecond: reccall not ok"
         Just (size', vars') -> okcall (i + 1) size' vars' as
       ALCons _ a as -> okcall (i + 1) size vars as
+
+      ALProj{} -> mpret OK
+
 
       ALConPar as -> __IMPOSSIBLE__
 
@@ -571,6 +601,9 @@ localTerminationSidecond (is, size, vars) reccallc b =
        mbcase (he size vars a) $ \x -> case x of
         Nothing -> mbret Nothing
         Just (size', vars') -> hes size' vars' as
+
+      ALProj{} -> __IMPOSSIBLE__
+
 
       ALConPar as -> __IMPOSSIBLE__
 
