@@ -219,8 +219,6 @@ replace sv nnew re = r 0
          AbsurdLambda{} -> e
 
 
-         Copy{} -> __IMPOSSIBLE__
-
   rs n es =
    case rm es of
     ALNil -> mm $ ALNil
@@ -317,8 +315,6 @@ lift n = r 0
          AbsurdLambda{} -> e
 
 
-         Copy{} -> __IMPOSSIBLE__
-
   rs j es =
    case rm es of
     ALNil -> mm $ ALNil
@@ -408,8 +404,6 @@ freevars = f 0
    AbsurdLambda{} -> []
 
 
-   Copy{} -> __IMPOSSIBLE__
-
   fs n es = case rm es of
    ALNil -> []
    ALCons _ e es -> union (f n e) (fs n es)
@@ -442,8 +436,6 @@ rename ren = r 0
 
          AbsurdLambda{} -> e
 
-
-         Copy{} -> __IMPOSSIBLE__
 
   rs j es =
    case rm es of
@@ -539,8 +531,6 @@ localTerminationSidecond (is, size, vars) reccallc b =
 
       AbsurdLambda{} -> mpret OK
 
-
-      Copy{} -> mpret OK
 
      oks as = mmpcase (False, prioNo, Nothing) as $ \as -> case as of
       ALNil -> mpret OK

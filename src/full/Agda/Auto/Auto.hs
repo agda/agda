@@ -373,10 +373,9 @@ auto ii rng argstr = liftTCM $ do
                else
                 return (Right $ Right (fst $ sorthits !! pick), Nothing)
  where
-  agsyinfo ticks = " {- by agsy" ++ (if null argstr then "" else " {!" ++ argstr ++ "!}") ++
+  agsyinfo ticks = if null argstr then "" else " {- by agsy {!" ++ argstr ++ "!} -}"
 
 
-                   " -}"
 autohints AHMModule mi (Just def) = do
  mv <- lookupMeta mi
  let scopeinfo = clScope (getMetaInfo mv)

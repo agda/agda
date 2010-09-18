@@ -7,6 +7,7 @@ import Agda.Utils.Impossible
 #include "../undefined.h"
 
 import Data.IORef
+import Control.Monad (liftM)
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
@@ -48,7 +49,7 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
     HNSort s2 -> case s2 of
      Set j -> mpret $ if i < j then OK else Error "tcExp, type of set should be larger set"
 
-     UnknownSort -> mpret $ Error "tcExp, type of set i unknown sort" -- OK instead? (prev __IMPOSSIBLE__)
+     UnknownSort -> mpret OK -- mpret $ Error "tcExp, type of set i unknown sort" -- OK instead? (prev __IMPOSSIBLE__)
 
      Type -> mpret OK
     _ -> mpret $ Error "tcExp, type of set should be set"
@@ -67,8 +68,6 @@ tcExp isdep ctx typ@(TrBr typtrs ityp@(Clos _ itypexp)) trm =
       Nothing -> mpret $ Error "tcExp, absurd lambda, datatype needed"
     _ -> mpret $ Error "tcExp, type of absurd lam should be fun or pi (and same hid)"
 
-
-   Copy{} -> mpret OK
 
   where
    t = TrBr typtrs
@@ -158,9 +157,7 @@ tcargs ndfv okh isdep ctx etyp ityp@(TrBr ityptrs iityp) args = mmpcase (True, p
   t = TrBr ityptrs
 
 
-copyarg a = case a of
-             NotM (Copy{}) -> True
-             _ -> False
+copyarg _ = False
 
 
 -- ---------------------------------
@@ -195,40 +192,38 @@ hnn' e as =
    Left (e, as) -> hnn' e as
 
 hnb :: ICExp o -> ICArgList o -> EE (MyMB (HNExp o) o)
-hnb e as = mbcase (hnc False e as) $ \res -> case res of
+hnb e as = mbcase (hnc False e as []) $ \res -> case res of
             HNDone _ hne -> mbret hne
-            HNMeta _ _ -> __IMPOSSIBLE__
+            HNMeta{} -> __IMPOSSIBLE__
 
 data HNRes o = HNDone (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
-             | HNMeta (ICExp o) (ICArgList o)
+             | HNMeta (ICExp o) (ICArgList o) [Maybe (UId o)]
 
-hnc :: Bool -> ICExp o -> ICArgList o -> EE (MyMB (HNRes o) o)
+hnc :: Bool -> ICExp o -> ICArgList o -> [Maybe (UId o)] -> EE (MyMB (HNRes o) o)
 hnc haltmeta = loop
  where
-  loop ce@(Clos cl e) cargs =
-   (if haltmeta then mmmcase e (mbret $ HNMeta ce cargs) else mmcase e) $
+  loop ce@(Clos cl e) cargs seenuids =
+   (if haltmeta then mmmcase e (mbret $ HNMeta ce cargs seenuids) else mmcase e) $
    \ee -> case ee of
     App uid okh elr args ->
      let ncargs = CALConcat (Clos cl args) cargs
      in case elr of
       Var v -> case doclos cl v of
-       Left v' -> mbret $ HNDone expmeta (HNApp uid (Var v') ncargs)
-       Right f -> loop f ncargs
-      Const _ -> mbret $ HNDone expmeta (HNApp uid elr ncargs)
+       Left v' -> mbret $ HNDone expmeta (HNApp (uid : seenuids) (Var v') ncargs)
+       Right f -> loop f ncargs (uid : seenuids)
+      Const _ -> mbret $ HNDone expmeta (HNApp (uid : seenuids) elr ncargs)
     Lam hid (Abs id b) ->
      mbcase (hnarglist cargs) $ \hncargs -> case hncargs of
-      HNALNil -> mbret $ HNDone expmeta (HNLam hid (Abs id (Clos (Skip : cl) b)))
-      HNALCons _ arg cargs' -> loop (Clos (Sub arg : cl) b) cargs'
+      HNALNil -> mbret $ HNDone expmeta (HNLam seenuids hid (Abs id (Clos (Skip : cl) b)))
+      HNALCons _ arg cargs' -> loop (Clos (Sub arg : cl) b) cargs' seenuids
 
       HNALConPar{} -> __IMPOSSIBLE__
 
-    Pi uid hid possdep it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNPi uid hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot)))
+    Pi uid hid possdep it (Abs id ot) -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNPi (uid : seenuids) hid possdep (Clos cl it) (Abs id (Clos (Skip : cl) ot)))
     Sort s -> checkNoArgs cargs $ mbret $ HNDone expmeta (HNSort s)
 
     AbsurdLambda{} -> mbfailed "hnc: encountered absurdlambda"
 
-
-    Copy ce -> mmcase ce $ \(Clos cl2 e) -> loop (Clos (cl ++ cl2) e) cargs
 
    where expmeta = case e of {Meta m -> Just m; NotM _ -> Nothing}
   checkNoArgs cargs c =
@@ -373,7 +368,7 @@ noiotastep hne =
   Right _ -> mpret OK
 
 noiotastep_term :: ConstRef o -> MArgList o -> EE (MyPB o)
-noiotastep_term c args = f (HNApp Nothing (Const c) (CALConcat (Clos [] args) CALNil))
+noiotastep_term c args = f (HNApp [] (Const c) (CALConcat (Clos [] args) CALNil))
  where
   f hne@(HNApp _ (Const c) _) = do
    cd <- readIORef c
@@ -389,7 +384,7 @@ noiotastep_term c args = f (HNApp Nothing (Const c) (CALConcat (Clos [] args) CA
 
 data CMode o = CMRigid (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
              | forall b . Refinable b (RefInfo o) => CMFlex (MM b (RefInfo o)) (CMFlex o)
-data CMFlex o = CMFFlex (ICExp o) (ICArgList o)
+data CMFlex o = CMFFlex (ICExp o) (ICArgList o) [Maybe (UId o)]
               | CMFSemi (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
               | CMFBlocked (Maybe (Metavar (Exp o) (RefInfo o))) (HNExp o)
 
@@ -398,39 +393,27 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
  where
   comp :: Bool -> ICExp o -> ICExp o -> EE (MyPB o)
   comp ineq e1 e2 =
-
-   let copyflex ee@(Clos cl e) = case e of
-        NotM (Copy e) -> case e of
-          NotM (Clos cl2 e) -> return $ Right (Clos (cl ++ cl2) e)
-          Meta m -> do
-           mb <- readIORef $ mbind m
-           case mb of
-            Just (Clos cl2 e) -> return $ Right (Clos (cl ++ cl2) e)
-            Nothing -> return $ Left e
-{- Nothing | null cl -> return $ Left e
-                    | otherwise -> __IMPOSSIBLE__-}
-        NotM (App _ _ (Var v) (NotM ALNil)) -> case doclos cl v of
-         Left{} -> return $ Right ee
-         Right e -> copyflex e
-        _ -> return $ Right ee
-       rc e1 e2 = do
-        res1 <- copyflex e1
-        res2 <- copyflex e2
-        case (res1, res2) of
-         (Right e1, Right e2) -> proc e1 e2
-         (Left m1, Left m2) -> doubleblock m1 m2 $ rc e1 e2
-         (Left m1, Right e2) -> mmpcase (True, prioCompCopy, Just (RICopyInfo e2)) m1 $ \_ -> rc e1 e2
-         (Right e1, Left m2) -> mmpcase (True, prioCompCopy, Just (RICopyInfo e1)) m2 $ \_ -> rc e1 e2
-   in rc e1 e2
-
+   proc e1 e2
 
    where
-    proc e1 e2 = f True e1 CALNil $ \res1 -> f True e2 CALNil $ \res2 -> g res1 res2
-    f semifok e as cont =
-     mbpcase prioCompBeta Nothing (hnc True e as) $ \res ->
+    proc e1 e2 = f True e1 CALNil [] $ \res1 -> f True e2 CALNil [] $ \res2 -> g res1 res2
+    f semifok e as seenuids cont =
+     mbpcase prioCompBeta Nothing (hnc True e as seenuids) $ \res ->
       case res of
        HNDone mexpmeta hne -> fhn semifok mexpmeta hne cont
-       HNMeta ce@(Clos _ m) cargs -> cont (CMFlex m (CMFFlex ce cargs))
+
+       HNMeta ce@(Clos cl m) cargs seenuids -> do
+        b1 <- boringClos cl
+        b2 <- boringArgs cargs
+        if b1 && b2 then
+          cont $ CMFlex m (CMFFlex ce cargs seenuids)
+         else
+          mbpcase prioCompBetaStructured Nothing (hnc False ce cargs seenuids) $ \res ->
+           case res of
+            HNDone mexpmeta hne -> cont $ CMFlex m (CMFBlocked mexpmeta hne)
+            HNMeta{} -> __IMPOSSIBLE__
+
+
     fhn semifok mexpmeta hne cont =
      mmbpcase (iotastep True hne)
       (\m -> do
@@ -442,7 +425,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
       )
       (\res -> case res of
         Right _ -> cont (CMRigid mexpmeta hne)
-        Left (e, as) -> f semifok e as cont
+        Left (e, as) -> f semifok e as [] cont
       )
     g res1 res2 =
      case (res1, res2) of
@@ -454,7 +437,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
 
 
       (CMFlex m1 fl1, CMFlex m2 fl2) -> doubleblock m1 m2 $ fcm fl1 $ \res1 -> fcm fl2 $ \res2 -> g res1 res2
-    fcm (CMFFlex ce cargs) = f True ce cargs
+    fcm (CMFFlex ce cargs seenuids) = f True ce cargs seenuids
     fcm (CMFSemi mexpmeta hne) = fhn True mexpmeta hne
     fcm (CMFBlocked _ hne) = __IMPOSSIBLE__ -- not used. if so should be: fhn False hne
     mstp semif mexpmeta hne cont =
@@ -467,30 +450,33 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
     stp semif hne cont =
      mbpcase prioCompIota (Just $ RIIotaStep semif) (iotastep True hne) $ \res -> case res of
       Right _ -> mpret $ Error "no iota step possible, contrary to assumed"
-      Left (e, as) -> f semif e as cont
+      Left (e, as) -> f semif e as [] cont
     unif oppis1 oppmexpmeta opphne res =
      let iter res = if oppis1 then
                      g (CMRigid oppmexpmeta opphne) res
                     else
                      g res (CMRigid oppmexpmeta opphne)
      in case res of
-      CMFFlex ce cargs -> do
+      CMFFlex ce cargs seenuids -> do
        poss <- iotapossmeta ce cargs
        maybeor poss prioCompChoice
-        (loop ce cargs)
-        (mbpcase prioCompBeta (Just $ RIIotaStep False) (hnb ce cargs) $ \hne ->
+        (loop ce cargs seenuids)
+-- (mbpcase prioCompBeta (Just $ RIIotaStep False) (hnb ce cargs) $ \hne ->
+        (mbpcase prioCompBeta (Just $ RIIotaStep False) (hnc False ce cargs seenuids) $ \res ->
           -- RIIotaStep here on beta-norm to make cost high when guessing elim const in type par
-         stp False hne iter
+          case res of
+           HNDone mexpmeta hne -> stp False hne iter
+           HNMeta{} -> __IMPOSSIBLE__
         )
        where
-        loop ce@(Clos cl m) cargs =
+        loop ce@(Clos cl m) cargs seenuids =
          mmpcase (False, prioCompUnif, Just (RIUnifInfo cl opphne)) m $ \_ ->
-         mbpcase prioCompBeta Nothing (hnc True ce cargs) $ \res -> case res of
+         mbpcase prioCompBeta Nothing (hnc True ce cargs seenuids) $ \res -> case res of
           HNDone mexpmeta hne ->
            mpret $ And (Just [Term lhs, Term rhs])
             (noiotastep hne)
             (iter (CMRigid mexpmeta hne))
-          HNMeta ce cargs -> loop ce cargs
+          HNMeta ce cargs seenuids -> loop ce cargs seenuids
       CMFSemi _ hne ->
        __IMPOSSIBLE__ -- CMFSemi disabled, if used should be: stp True hne iter
       CMFBlocked{} -> __IMPOSSIBLE__
@@ -505,7 +491,12 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        in case ce of
             Nothing -> compargs args1 args2
             Just msg -> mpret $ Error msg
-      (HNLam hid1 (Abs id1 b1), HNLam hid2 (Abs id2 b2)) -> comp False b1 b2
+      (HNLam _ hid1 (Abs id1 b1), HNLam _ hid2 (Abs id2 b2)) -> comp False b1 b2
+      (HNLam seenuids _ (Abs _ b1), HNApp uid2 elr2 args2) ->
+       f True b1 CALNil seenuids $ \res1 -> fhn True mexpmeta2 (HNApp uid2 (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))) $ \res2 -> g res1 res2
+      (HNApp uid1 elr1 args1, HNLam seenuids _ (Abs _ b2)) ->
+       fhn True mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))) $ \res1 -> f True b2 CALNil seenuids $ \res2 -> g res1 res2
+{-
       (HNLam _ (Abs _ b1), HNApp uid2 elr2 args2) ->
        f True b1 CALNil $ \res1 -> g res1
         (CMRigid mexpmeta2 (HNApp uid2 (weakelr 1 elr2) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args2))))
@@ -513,6 +504,7 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
        f True b2 CALNil $ \res2 -> g
         (CMRigid mexpmeta1 (HNApp uid1 (weakelr 1 elr1) (addtrailingargs (Clos [] $ NotM $ ALCons NotHidden{- arbitrary -} (NotM $ App Nothing (NotM OKVal) (Var 0) (NotM ALNil)) (NotM ALNil)) (weakarglist 1 args1))))
         res2
+-}
       (HNPi _ hid1 _ it1 (Abs id1 ot1), HNPi _ hid2 _ it2 (Abs id2 ot2)) -> mpret $
        And (Just [Term trs1, Term trs2]) (comp False it1 it2) (comp ineq ot1 ot2)
       (HNSort s1, HNSort s2) -> mpret $
@@ -546,6 +538,53 @@ comp' ineq lhs@(TrBr trs1 e1) rhs@(TrBr trs2 e2) = comp ineq e1 e2
       (HNALConPar args1', HNALConPar args2') -> compargs args1' args2'
 
       (_, _) -> mpret $ Error $ "comphnargs, not equal"
+
+
+    boringExp :: ICExp o -> EE Bool
+    boringExp (Clos cl e) = do
+     e <- expandbind e
+     case e of
+      Meta{} -> boringClos cl
+      NotM e -> case e of
+       App _ _ (Var v) as -> do
+        as <- expandbind as
+        case as of
+         Meta{} -> return False
+         NotM as -> case as of
+          ALNil -> case doclos cl v of
+           Left _ -> return True
+           Right e -> boringExp e
+          ALCons{} -> return False
+
+          ALConPar{} -> return False
+
+       _ -> return False
+
+    boringClos :: [CAction o] -> EE Bool
+    boringClos cl = liftM (all id) $ mapM f cl
+     where f (Sub e) = boringExp e
+           f Skip = return True
+           f (Weak _) = return True
+
+    boringArgs :: ICArgList o -> EE Bool
+    boringArgs CALNil = return True
+    boringArgs (CALConcat (Clos cl as) as2) = do
+     b1 <- f cl as
+     b2 <- boringArgs as2
+     return $ b1 && b2
+     where
+      f cl as = do
+       as <- expandbind as
+       case as of
+        Meta{} -> return False
+        NotM as -> case as of
+         ALNil -> return True
+         ALCons _ a as -> do
+          b1 <- boringExp (Clos cl a)
+          b2 <- f cl as
+          return $ b1 && b2
+
+         ALConPar as -> f cl as
 -- ---------------------------------
 
 checkeliminand :: MExp o -> EE (MyPB o)
@@ -578,8 +617,6 @@ checkeliminand = f [] []
     AbsurdLambda{} -> mpret OK
 
 
-    Copy{} -> mpret OK
-
   fs uids used as =
    mmpcase (False, prioNo, Nothing) as $ \as -> case as of
     ALNil -> mpret OK
@@ -593,8 +630,8 @@ checkeliminand = f [] []
 
 -- ---------------------------------
 
-maybeor True prio mainalt alt = mpret $ Or prio mainalt alt
-maybeor False _ mainalt _ = mainalt
+
+maybeor _ _ mainalt _ = mainalt
 
 iotapossmeta :: ICExp o -> ICArgList o -> EE Bool
 iotapossmeta ce@(Clos cl _) cargs = do
@@ -626,12 +663,19 @@ iotapossmeta ce@(Clos cl _) cargs = do
 
   nonconstructor :: ICExp o -> EE Bool
   nonconstructor ce = do
-   res <- hnc True ce CALNil
+   res <- hnc True ce CALNil []
    case res of
     Blocked{} -> return False
     Failed{} -> return False
     NotB res -> case res of
-     HNMeta{} -> return True -- ?? removes completeness
+     HNMeta ce _ _ -> do
+      let (Clos _ (Meta m)) = ce
+      infos <- extractblkinfos m
+      if any (\info -> case info of {RINotConstructor -> True; _ -> False}) infos then do
+        return True
+       else
+        return False
+      -- return False -- return True -- ?? removes completeness - Yes, in DavidW1.additionRight
      HNDone{} -> do
       res <- hnn ce
       case res of
@@ -647,8 +691,8 @@ iotapossmeta ce@(Clos cl _) cargs = do
 
 meta_not_constructor :: ICExp o -> EE (MB Bool (RefInfo o))
 meta_not_constructor a =
- mbcase (hnc True a CALNil) $ \res -> case res of
-  HNMeta ce _ -> do
+ mbcase (hnc True a CALNil []) $ \res -> case res of
+  HNMeta ce _ _ -> do
     let (Clos _ (Meta m)) = ce
     infos <- extractblkinfos m
     if any (\info -> case info of {RINotConstructor -> True; _ -> False}) infos then do
@@ -678,8 +722,6 @@ calcEqRState cs = f EqRSNone
 
     AbsurdLambda{} -> mpret OK
 
-
-    Copy{} -> mpret OK
 
   fs ss args =
    mmpcase (False, prioNo, Nothing) args $ \args -> case (ss, args) of

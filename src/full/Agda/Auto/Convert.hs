@@ -315,9 +315,6 @@ weaken i (NotM e) =
   AbsurdLambda{} -> NotM e
 
 
-  Copy{} -> __IMPOSSIBLE__
-
-
 weakens :: Int -> MArgList O -> MArgList O
 weakens _ as@(Meta m) = as
 weakens i (NotM as) =
@@ -456,9 +453,6 @@ frommyExp (NotM e) =
 
   AbsurdLambda hid ->
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
-
-
-  Copy{} -> __IMPOSSIBLE__ -- argument thrown away
 
 
 frommyExps :: Nat -> MArgList O -> IO I.Args
@@ -621,8 +615,6 @@ freeIn = f
 
    AbsurdLambda{} -> True
 
-
-   Copy{} -> __IMPOSSIBLE__
 
   fs v es = case mr es of
    ALNil -> True

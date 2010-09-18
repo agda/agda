@@ -254,6 +254,16 @@ mbfailed msg = return $ Failed msg
 mpret :: Prop blk -> MetaEnv (PB blk)
 mpret p = return $ NotPB p
 
+expandbind :: MM a blk -> MetaEnv (MM a blk)
+expandbind x = case x of
+ NotM{} -> return x
+ Meta m -> do
+  bind <- readIORef $ mbind m
+  case bind of
+   Just x -> return $ NotM x
+   Nothing -> return x
+
+
 -- -----------------------
 
 type HandleSol = IO ()

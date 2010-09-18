@@ -91,23 +91,6 @@ instance Refinable (Exp o) (RefInfo o) where
    eqrstate = maybe EqRSNone id meqrstate
 
    app muid elr = do p <- newPlaceholder
-
-
-                     p <- case elr of
-                      Var{} -> return p
-                      Const c -> do
-                       cd <- lift $ readIORef c
-                       case cdcont cd of
-                        Constructor nomi ->
-                         let cpapp 0 = return p
-                             cpapp n = do
-                              p <- cpapp (n - 1)
-                              cp <- newPlaceholder
-                              return $ NotM $ ALCons NotHidden (NotM $ Copy cp) p
-                         in cpapp nomi
-                        _ -> return p
-
-
                      p <- case elr of
                       Var{} -> return p
                       Const c -> do
@@ -229,23 +212,35 @@ instance Refinable (Exp o) (RefInfo o) where
       HNPi _ hid _ _ (Abs id _) -> [(costUnification, lam hid id)]
       _ -> []
      generics = mlam ++ subsvarapps
-     checkocc uid = case uid of {Just uid | elem uid uids -> costUnificationOccurs; _ -> costUnification}
+
+     pickuid seenuids =
+      case f seenuids of
+       Just uid -> (uid, True)
+       Nothing -> (head seenuids, False) -- ?? which uid to pick
+      where f [] = Nothing
+            f (Nothing:_) = Just Nothing
+            f (Just u:us) = if elem u uids then f us else Just (Just u)
     in
      return $ case hne of
-      HNApp uid (Var v) _ ->
-       let uni = case univar cl v of
-                  Just v | v < n -> [(checkocc uid, app uid (Var v))]
+      HNApp seenuids (Var v) _ ->
+       let (uid, isunique) = pickuid seenuids
+           uni = case univar cl v of
+                  Just v | v < n -> [(if isunique then costUnification else costUnificationOccurs, app uid (Var v))]
                   _ -> []
        in uni ++ generics
-      HNApp uid (Const c) _ -> (checkocc uid, app uid (Const c)) : generics
+      HNApp seenuids (Const c) _ ->
+       let (uid, isunique) = pickuid seenuids
+       in (if isunique then costUnification else costUnificationOccurs, app uid (Const c)) : generics
       HNLam{} -> generics
-      HNPi uid hid possdep _ _ -> (checkocc uid, pi uid possdep hid) : generics
+      HNPi seenuids hid possdep _ _ ->
+       let (uid, isunique) = pickuid seenuids
+       in (if isunique then costUnification else costUnificationOccurs, pi uid possdep hid) : generics
       HNSort (Set l) -> map (\l -> (costUnification, set l)) [0..l] ++ generics
       HNSort _ -> generics
    _ -> __IMPOSSIBLE__
 
 
-extraref meta uid c = (costAppExtraRef, app uid (Const c))
+extraref meta seenuids c = (costAppExtraRef, app (head seenuids) (Const c))
  where
    app muid elr = do p <- newPlaceholder
                      okh <- newOKHandle
@@ -264,7 +259,7 @@ instance Refinable (ICExp o) (RefInfo o) where
 -- ---------------------------------
 costIotaStep, costAppExtraRef, costIncrease :: Int
 costIncrease = 1000
-costUnificationOccurs = 1000001 -- 1 -- 100
+costUnificationOccurs = 100 -- 1000001 -- 1 -- 100
 costUnification = 0000
 costAppVar = 0000 -- 0, 1
 costAppVarUsed = 1000 -- 5
@@ -289,7 +284,7 @@ costEqSym = 0
 costEqCong = 500
 
 
-prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown, prioCompBeta, prioCompareArgList, prioCompIota, prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda :: Int
+prioNo, prioTypeUnknown, prioTypecheckArgList, prioInferredTypeUnknown, prioCompBeta, prioCompBetaStructured, prioCompareArgList, prioCompIota, prioCompChoice, prioCompUnif, prioCompCopy, prioNoIota, prioAbsurdLambda :: Int
 prioNo = (-1)
 prioTypeUnknown = 0
 prioTypecheck False = 1000
@@ -297,6 +292,7 @@ prioTypecheck True = 0
 prioTypecheckArgList = 3000
 prioInferredTypeUnknown = 4000
 prioCompBeta = 4000
+prioCompBetaStructured = 4000
 prioCompIota = 4000
 prioCompChoice = 5000 -- 700 -- 5000
 prioCompUnif = 6000 -- 2
@@ -325,9 +321,6 @@ instance Trav (Exp o) (RefInfo o) where
   Sort _ -> return ()
 
   AbsurdLambda{} -> return ()
-
-
-  Copy{} -> return ()
 
 
 instance Trav (ArgList o) (RefInfo o) where

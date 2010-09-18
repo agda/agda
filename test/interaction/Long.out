@@ -82,7 +82,7 @@ agda2_mode_code (agda2-info-action
                  "*Intro*"
                  "Don't know which constructor to introduce of z or s")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 4 5 6))
-agda2_mode_code (agda2-give-action 4 "d {- by agsy -}")
+agda2_mode_code (agda2-give-action 4 "d")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"

@@ -50,6 +50,6 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*Auto*"
                  "Listing disproof(s) 0-0
-0  (Fin (suc (suc zero))) (zero ∷ []) (suc zero ∷ []) (λ ())
+0  (Fin (suc (suc zero))) (suc zero ∷ []) (zero ∷ []) (λ ())
 ")
 agda2_mode_code (agda2-goals-action '(0 1 3 4))

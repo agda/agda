@@ -90,9 +90,6 @@ data Exp o = App (Maybe (UId o)) (OKHandle (RefInfo o)) (Elr o) (MArgList o)
            | AbsurdLambda FMode
 
 
-           | Copy (MM (ICExp o) (RefInfo o))
-
-
 type MExp o = MM (Exp o) (RefInfo o)
 
 data ArgList o = ALNil
@@ -103,9 +100,9 @@ data ArgList o = ALNil
 
 type MArgList o = MM (ArgList o) (RefInfo o)
 
-data HNExp o = HNApp (Maybe (UId o)) (Elr o) (ICArgList o)
-             | HNLam FMode (Abs (ICExp o))
-             | HNPi (Maybe (UId o)) FMode Bool (ICExp o) (Abs (ICExp o))
+data HNExp o = HNApp [Maybe (UId o)] (Elr o) (ICArgList o)
+             | HNLam [Maybe (UId o)] FMode (Abs (ICExp o))
+             | HNPi [Maybe (UId o)] FMode Bool (ICExp o) (Abs (ICExp o))
              | HNSort Sort
 
 data HNArgList o = HNALNil
@@ -187,8 +184,6 @@ metaliseokh = fm
   f e@(AbsurdLambda{}) = return e
 
 
-  f Copy{} = __IMPOSSIBLE__
-
   fms (Meta m) = return $ Meta m
   fms (NotM es) = do
    es <- fs es
@@ -231,8 +226,6 @@ expandExp = fm
 
   f e@(AbsurdLambda{}) = return e
 
-
-  f e@(Copy{}) = return e
 
   fms (Meta m) = do
    mb <- readIORef $ mbind m
