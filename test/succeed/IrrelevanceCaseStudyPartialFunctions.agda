@@ -18,7 +18,8 @@ syntax Sigma A (λ x → B) = Σ x ∈ A , B
 data Subset (A : Set)(P : A → Set) : Set where
   _#_ : (elem : A) → .(P elem) → Subset A P
 
-elimSubset : ∀ {A P C} → Subset A P → ((a : A) → .(P a) → C) → C
+elimSubset : ∀ {A C : Set} {P} →
+             Subset A P → ((a : A) → .(P a) → C) → C
 elimSubset (a # p) k = k a p
 
 syntax Subset A (λ x → P) = ⁅ x ∈ A ∣ P ⁆
@@ -26,20 +27,21 @@ syntax Subset A (λ x → P) = ⁅ x ∈ A ∣ P ⁆
 elem : {A : Set}{P : A → Set} → ⁅ x ∈ A ∣ P x ⁆ → A
 elem (x # p) = x
 
-elim2 : ∀ {A P Q C} → Subset A (λ x → Sigma (P x) (λ _ → Q x)) → 
+elim₂ : ∀ {A C : Set} {P Q : A → Set} →
+        Subset A (λ x → Sigma (P x) (λ _ → Q x)) →
         ((a : A) → .(P a) → .(Q a) → C) → C
-elim2 (a # (p , q)) k = k a p q
+elim₂ (a # (p , q)) k = k a p q
 
 
-Record _⇀_ (A B : Set) : Set1 where
-  constructor mkParFun 
+record _⇀_ (A B : Set) : Set1 where
+  constructor mkParFun
   field
     dom : A → Set
     _′_ : ⁅ x ∈ A ∣ dom x ⁆ → B
- 
+
 open _⇀_ public
 
-syntax mkParFun dom f = f ↾ dom  
+syntax mkParFun dom f = f ↾ dom
 
 pure : {A B : Set} → (A → B) → A ⇀ B
 pure f = record { dom = λ x → ⊤ ; _′_ = λ a → f (elem a) }
@@ -49,9 +51,9 @@ _∘_ : {A B C : Set} → (B ⇀ C) → (A ⇀ B) → A ⇀ C
   QP : _ → Set
   QP x             = Σ x∈P ∈ P x , Q (f (x # x∈P))
   gf : Subset _ QP → _
-  gf (x # (p , q)) = g (f (x # p) # q) 
+  gf (x # (p , q)) = g (f (x # p) # q)
 
 _⊑_ : {A B : Set} → (f f' : A ⇀ B) → Set
-(f ↾ P) ⊑ (f' ↾ P') = 
+(f ↾ P) ⊑ (f' ↾ P') =
   Σ φ ∈ (∀ {x} → P x → P' x) ,
     (∀ {x} (p : P x) → f (x # p) ≡ f' (x # φ p))
