@@ -42,73 +42,81 @@ Language
 
 * Proof irrelevant function types.
 
-  Agda now supports an irrelevant non-dependent function type
+  Agda now supports irrelevant non-dependent function types:
 
-    f : .A -> B
+    f : .A → B
 
-  meaning that f does not computationally depend its argument of type
-  A.  Typical use cases are data structures with embedded proofs,
-  like sorted lists:
-    
-    postulate 
+  This type implies that f does not depend computationally on its
+  argument. One intended use case is data structures with embedded
+  proofs, like sorted lists:
+
+    postulate
       _≤_ : ℕ → ℕ → Set
-      p1 : 0 ≤ 1
-      p2 : 0 ≤ 1
-    
+      p₁  : 0 ≤ 1
+      p₂  : 0 ≤ 1
+
     data SList (bound : ℕ) : Set where
       []    : SList bound
       scons : (head : ℕ) →
-              .(head ≤ bound) → 
-              (tail : SList head) → 
+              .(head ≤ bound) →
+              (tail : SList head) →
               SList bound
-    
-  The effect is that the second argument of scons is never looked at
-  after type-checking.  It is even thrown away, leading to smaller
-  term sizes and hopefully some gain in efficiency.  
 
-  As a consequence, it is not counted during equality checking; two
-  lists can be equal even if they embed different proofs:
+  The effect of the irrelevant type in the signature of scons is that
+  scons's second argument is never inspected after Agda has ensured
+  that it has the right type. It is even thrown away, leading to
+  smaller term sizes and hopefully some gain in efficiency. The
+  type-checker ignores irrelevant arguments when checking equality, so
+  two lists can be equal even if they contain different proofs:
 
-    l1 : SList 1
-    l1 = scons 0 p1 []
-    
-    l2 : SList 1
-    l2 = scons 0 p2 []
-    
-    l1≡l2 : l1 ≡ l2
-    l1≡l2 = refl
-    
-  Irrelevant arguments can only used in irrelevant contexts.  Consider
-  the subset type:
+    l₁ : SList 1
+    l₁ = scons 0 p₁ []
 
-    data Subset (A : Set)(P : A → Set) : Set where
+    l₂ : SList 1
+    l₂ = scons 0 p₂ []
+
+    l₁≡l₂ : l₁ ≡ l₂
+    l₁≡l₂ = refl
+
+  Irrelevant arguments can only be used in irrelevant contexts.
+  Consider the following subset type:
+
+    data Subset (A : Set) (P : A → Set) : Set where
       _#_ : (elem : A) → .(P elem) → Subset A P
 
   The following two uses are fine:
-    
-    elimSubset : ∀ {A P C} → Subset A P → ((a : A) → .(P a) → C) → C
+
+    elimSubset : ∀ {A C : Set} {P} →
+                 Subset A P → ((a : A) → .(P a) → C) → C
     elimSubset (a # p) k = k a p
-    
-    elem : {A : Set}{P : A → Set} → ⁅ x ∈ A ∣ P x ⁆ → A
+
+    elem : {A : Set} {P : A → Set} → Subset A P → A
     elem (x # p) = x
 
-  If we try to project out the proof component, Agda complains
-  "variable p is declared irrelevant, so it cannot be used here":
-    
-    prjProof : ∀ {A P} → (x : Subset A P) → P (elem x)
-    prjProof (a # p) = p 
-    
-  Matching against irrelevant arguments is also forbidden, except for
-  irrefutable matches, i.e., matching against a record constructor as
-  described above.  For instance, the match against record pattern
-  (p , q) is fine:
-    
-    elim2 : ∀ {A P Q C} → Subset A (λ x → Σ (P x) (λ _ → Q x)) → 
+  However, if we try to project out the proof component, then Agda
+  complains that "variable p is declared irrelevant, so it cannot be
+  used here":
+
+    prjProof : ∀ {A P} (x : Subset A P) → P (elem x)
+    prjProof (a # p) = p
+
+  Matching against irrelevant arguments is also forbidden, except in
+  the case of irrefutable matches (record constructor patterns which
+  have been translated away). For instance, the match against the
+  pattern (p , q) here is accepted:
+
+    elim₂ : ∀ {A C : Set} {P Q : A → Set} →
+            Subset A (λ x → Σ (P x) (λ _ → Q x)) →
             ((a : A) → .(P a) → .(Q a) → C) → C
-    elim2 (a # (p , q)) k = k a p q
-    
-  Absurd matches () are also allowed.  Dependent irrelevant function
-  spaces .(x : A) -> B might be added in the future.
+    elim₂ (a # (p , q)) k = k a p q
+
+  Absurd matches () are also allowed.
+
+  Irrelevant function types were added very recently, and have not
+  been subjected to much experimentation yet, so do not be surprised
+  if something is changed before the next release. For instance,
+  dependent irrelevant function spaces .(x : A) → B might be added in
+  the future.
 
 * Mixfix binders.
 
