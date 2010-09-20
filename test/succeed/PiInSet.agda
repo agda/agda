@@ -2,18 +2,18 @@
 module PiInSet where
 
 Rel : Set -> Set1
-Rel A = A -> A -> Prop
+Rel A = A -> A -> Set
 
-Reflexive : {A : Set} -> Rel A -> Prop
+Reflexive : {A : Set} -> Rel A -> Set
 Reflexive {A} _R_ = forall x -> x R x
 
-Symmetric : {A : Set} -> Rel A -> Prop
+Symmetric : {A : Set} -> Rel A -> Set
 Symmetric {A} _R_ = forall x y -> x R y -> y R x
 
-data True : Prop where
+data True : Set where
   tt : True
 
-data False : Prop where
+data False : Set where
 
 data Nat : Set where
   zero : Nat

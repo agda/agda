@@ -6,7 +6,7 @@ data Pi {X : Set} (Y : X -> Set) : Set where
 apply : {a : Set} -> {f : a -> Set} -> Pi f -> (x : a) -> f x
 apply (pi f) x = f x
 
-data Forall {X : Set} (Y : X -> Prop) : Prop where
+data Forall {X : Set} (Y : X -> Set) : Set where
   forAll : ((x : X) -> Y x) -> Forall Y
 
 data _=>_ (X Y : Set) : Set where

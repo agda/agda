@@ -161,7 +161,7 @@ recordConstructorType fields = build fs
                                                 ] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
-    build []                           = C.Prop noRange
+    build []                           = C.SetN noRange 0 -- todo: nicer
 
 checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
     notPublicWithoutOpen open dir

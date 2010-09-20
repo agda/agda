@@ -434,8 +434,9 @@ checkExpr e t =
           n <- ifM typeInType (return 0) (return n)
 	  blockTerm t (Sort (mkType n)) $ leqType (sort $ mkType $ n + 1) t
 	A.Prop _     -> do
-          s <- ifM typeInType (return $ mkType 0) (return Prop)
-	  blockTerm t (Sort Prop) $ leqType (sort $ mkType 1) t
+          typeError $ GenericError "Prop is no longer supported"
+          -- s <- ifM typeInType (return $ mkType 0) (return Prop)
+	  -- blockTerm t (Sort Prop) $ leqType (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
 	  t <- reduce t

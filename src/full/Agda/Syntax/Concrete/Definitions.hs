@@ -230,8 +230,7 @@ niceDeclarations ds = do
 			    Data r CoInductive x tel t cs -> throwError (Codata r)
 			    Data r Inductive   x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
 			    Record r x c tel t cs         -> do
-                              let dummyType = Prop noRange
-                                  c'        = (\c -> niceAxiom fixs (TypeSig c dummyType)) <$> c
+                              let c' = (\c -> niceAxiom fixs (TypeSig c t)) <$> c
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
                                         (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do

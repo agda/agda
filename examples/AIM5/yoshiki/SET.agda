@@ -16,22 +16,22 @@ module SET where
   data Unop (A : Set) : Set1 where
     unopI : (A -> A) -> Unop A
   data Pred (A : Set) : Set1 where
-    PredI : (A -> Prop) -> Pred A
+    PredI : (A -> Set) -> Pred A
   data Rel (A : Set) : Set1 where
-    RelI : (A -> A -> Prop) -> Rel A
-  data Reflexive {A : Set} (R : A -> A -> Prop) : Prop where
+    RelI : (A -> A -> Set) -> Rel A
+  data Reflexive {A : Set} (R : A -> A -> Set) : Set where
     reflexiveI : ((a : A) -> R a a) -> Reflexive R
-  data Symmetrical {A : Set} (R : A -> A -> Prop) : Prop where
+  data Symmetrical {A : Set} (R : A -> A -> Set) : Set where
     symmetricalI : ({a b : A} -> R a b -> R a b) -> Symmetrical R
-  data Transitive {A : Set} (R : A -> A -> Prop) : Prop where
+  data Transitive {A : Set} (R : A -> A -> Set) : Set where
     transitiveI : ({a b c : A} -> R a b -> R b c -> R a c) -> Transitive R
   compositionalI : 
-    {A : Set} -> (R : A -> A -> Prop)
+    {A : Set} -> (R : A -> A -> Set)
     -> ({a b c : A} -> R b c -> R a b -> R a c) -> Transitive R
   compositionalI {A} R f =
     transitiveI (\{a b c : A} -> \(x : R a b) -> \(y : R b c) -> f y x)
-  data Substitutive {A : Set} (R : A -> A -> Prop) : Set1 where
-    substitutiveI : ((P : A -> Prop) -> {a b : A} -> R a b -> P a -> P b)
+  data Substitutive {A : Set} (R : A -> A -> Set) : Set1 where
+    substitutiveI : ((P : A -> Set) -> {a b : A} -> R a b -> P a -> P b)
                    -> Substitutive R
   data Collapsed (A : Set) : Set1 where
     collapsedI : ((P : A -> Set) -> {a b : A} -> P a -> P b) -> Collapsed A
@@ -53,12 +53,12 @@ module SET where
 
   const = \{A B : Set} -> K {A}{B}
 
-  -- Prop version
-  pS : {P Q R : Prop} -> (R -> Q -> P) -> (R -> Q) -> R -> P
+  -- Set version
+  pS : {P Q R : Set} -> (R -> Q -> P) -> (R -> Q) -> R -> P
   pS x y z = x z (y z)
-  pK : {P Q : Prop} -> P -> Q -> P
+  pK : {P Q : Set} -> P -> Q -> P
   pK x y = x
-  pI : {P : Prop} -> P -> P
+  pI : {P : Set} -> P -> P
   pI a = a
 
   proj : {A : Set} -> (B : A -> Set) -> (a : A) -> (f : (aa : A) -> B aa) -> B a
@@ -68,8 +68,8 @@ module SET where
   flip f b a = f a b
 
   -- separate definition of FlipRel is necessary because it is not the case
-  -- that Prop : Set.
-  FlipRel : {A : Set} -> (R : A -> A -> Prop) -> (a b : A) -> Prop
+  -- that Set : Set.
+  FlipRel : {A : Set} -> (R : A -> A -> Set) -> (a b : A) -> Set
   FlipRel R a b = R b a
 
   ----------------------------------------------------------------------------
@@ -383,36 +383,36 @@ module SET where
 ----------------------------------------------------------------------------
 -- Propositions.
 ----------------------------------------------------------------------------
-  data Implies (A B : Prop) : Prop where
+  data Implies (A B : Set) : Set where
     impliesI : (A -> B) -> Implies A B
-  data Absurd : Prop where
-  data Taut : Prop where
+  data Absurd : Set where
+  data Taut : Set where
     tt : Taut
-  data Not (P : Prop) : Prop where
+  data Not (P : Set) : Set where
     notI : (P -> Absurd) -> Not P
-  -- encoding of Exists is unsatisfactory!  Its type should be Prop.
-  data Exists (A : Set) (P : A -> Prop) : Set where
+  -- encoding of Exists is unsatisfactory!  Its type should be Set.
+  data Exists (A : Set) (P : A -> Set) : Set where
     existsI : (evidence : A) -> P evidence -> Exists A P
-  data Forall (A : Set) (P : A -> Prop) : Prop where
+  data Forall (A : Set) (P : A -> Set) : Set where
     forallI : ((a : A) -> P a) -> Forall A P
-  data And (A B : Prop) : Prop where
+  data And (A B : Set) : Set where
     andI : A -> B -> And A B
-  Iff : Prop -> Prop -> Prop
+  Iff : Set -> Set -> Set
   Iff A B = And (Implies A B) (Implies B A)
-  data Or (A B : Prop) : Prop where
+  data Or (A B : Set) : Set where
     orIl : (a : A) -> Or A B
     orIr : (b : B) -> Or A B
-  Decidable : Prop -> Prop
+  Decidable : Set -> Set
   Decidable P = Or P (Implies P Absurd)
-  data DecidablePred {A : Set} (P : A -> Prop) : Set where
+  data DecidablePred {A : Set} (P : A -> Set) : Set where
    decidablepredIl : (a : A) -> (P a) -> DecidablePred P
    decidablepredIr : (a : A) -> (Implies (P a) Absurd) -> DecidablePred P
-  data DecidableRel {A : Set} (R : A -> A -> Prop) : Set where
+  data DecidableRel {A : Set} (R : A -> A -> Set) : Set where
    decidablerelIl : (a b : A) -> (R a b) -> DecidableRel R
    decidablerelIr : (a b : A) -> (Implies (R a b) Absurd) -> DecidableRel R
-  data Least {A : Set} (_<=_ : A -> A -> Prop) (P : A -> Prop) (a : A) : Set where
+  data Least {A : Set} (_<=_ : A -> A -> Set) (P : A -> Set) (a : A) : Set where
     leastI : (P a) -> ((aa : A) -> P aa -> (a <= aa)) -> Least _<=_ P a
-  data Greatest {A : Set} (_<=_ : A -> A -> Prop) (P : A -> Prop) (a : A) : Set where
+  data Greatest {A : Set} (_<=_ : A -> A -> Set) (P : A -> Set) (a : A) : Set where
     greatestI : (P a) -> ((aa : A) -> P aa -> (aa <= a)) -> Greatest _<=_ P a
 
 ----------------------------------------------------------------------------
@@ -430,7 +430,7 @@ module SET where
     predI : (A -> Bool) -> pred A
   data rel (A : Set) : Set where
     relI : (A -> A -> Bool) -> rel A
-  True : Bool -> Prop
+  True : Bool -> Set
   True true = Taut
   True false = Absurd
   bool2set = True

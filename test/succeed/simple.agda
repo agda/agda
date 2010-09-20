@@ -91,7 +91,7 @@ module TestIdentity where
     A   : Set
     idA : A -> A
     F   : Set -> Set
-    H   : (A B : Set) -> Prop
+    H   : (A B : Set) -> Set
     id0 : (A : Set) -> A -> A
     idH : {A : Set} -> A -> A
     fa  : F A
@@ -109,18 +109,18 @@ module TestIdentity where
 module prop where
 
   postulate
-    _\/_  : Prop -> Prop -> Prop
-    inl   : {P Q : Prop} -> P -> P \/ Q
-    inr   : {P Q : Prop} -> Q -> P \/ Q
-    orE   : {P Q R : Prop} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
-    False : Prop
-    _==>_ : Prop -> Prop -> Prop
-    impI  : {P Q : Prop} -> (P -> Q) -> P ==> Q
-    impE  : {P Q : Prop} -> P ==> Q -> P -> Q
+    _\/_  : Set -> Set -> Set
+    inl   : {P Q : Set} -> P -> P \/ Q
+    inr   : {P Q : Set} -> Q -> P \/ Q
+    orE   : {P Q R : Set} -> P \/ Q -> (P -> R) -> (Q -> R) -> R
+    False : Set
+    _==>_ : Set -> Set -> Set
+    impI  : {P Q : Set} -> (P -> Q) -> P ==> Q
+    impE  : {P Q : Set} -> P ==> Q -> P -> Q
 
-  Not = \(P : Prop) -> P ==> False
+  Not = \(P : Set) -> P ==> False
 
-  notnotEM = \(P : Prop) ->
+  notnotEM = \(P : Set) ->
     impI (\ (nEM : Not (P \/ Not P)) ->
             impE nEM (
                 inr (

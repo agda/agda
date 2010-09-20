@@ -6,17 +6,17 @@ module Prelude where
 
 -- Props ------------------------------------------------------------------
 
-  data True : Prop where
+  data True : Set where
     tt : True
 
-  data False : Prop where
+  data False : Set where
 
   postulate
     falseE : (A : Set) -> False -> A
 
   infix 3 _/\_
 
-  data _/\_ (P Q : Prop) : Prop where
+  data _/\_ (P Q : Set) : Set where
     andI : P -> Q -> P /\ Q
 
   -- Zero and One -----------------------------------------------------------
@@ -40,7 +40,7 @@ module Prelude where
 
     infix 5 _==_
 
-    _==_ : Nat -> Nat -> Prop
+    _==_ : Nat -> Nat -> Set
     zero  == zero = True
     suc n == suc m = n == m
     _     == _     = False
@@ -51,7 +51,7 @@ module Prelude where
     rewriteEq C {zero}  {suc _} () _
     rewriteEq C {suc _} {zero}  () _
 
-module Chain {A : Set}(_==_ : A -> A -> Prop)
+module Chain {A : Set}(_==_ : A -> A -> Set)
              (_trans_ : {x y z : A} -> x == y -> y == z -> x == z)
     where
 
@@ -100,7 +100,7 @@ module Fin where
 
     infix 5 _==_
 
-    _==_ : {n : Nat} -> Fin n -> Fin n -> Prop
+    _==_ : {n : Nat} -> Fin n -> Fin n -> Set
     _==_ {suc _} (finI  fzero'  ) (finI  fzero'  ) = True
     _==_ {suc _} (finI (fsuc' i)) (finI (fsuc' j)) = i == j
     _==_          _                _               = False
@@ -183,7 +183,7 @@ module Untyped where
 
     infix 5 _==_
 
-    _==_ : {n : Nat} -> Expr n -> Expr n -> Prop
+    _==_ : {n : Nat} -> Expr n -> Expr n -> Set
     eVar i              == eVar j                = FinEq._==_ i j
     eApp e1 e2          == eApp e3 e4            = e1 == e3 /\ e2 == e4
     eLam e1             == eLam e2               = e1 == e2
@@ -437,7 +437,7 @@ module Typed where
 
     -- Convertibility ---------------------------------------------------------
 
-    _==_ : {n : Nat}{Γ : Context n} -> Type Γ -> Type Γ -> Prop
+    _==_ : {n : Nat}{Γ : Context n} -> Type Γ -> Type Γ -> Set
     A == B = {!!}
 
     refl : {n : Nat}{Γ : Context n}{A : Type Γ} -> A == A

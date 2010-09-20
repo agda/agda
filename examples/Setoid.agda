@@ -5,16 +5,16 @@ module Logic where
   infix 4 _/\_
   -- infix 2 _\/_
 
-  data True : Prop where
+  data True : Set where
     tt : True
 
-  data False : Prop where
+  data False : Set where
 
-  data _/\_ (P Q : Prop) : Prop where
+  data _/\_ (P Q : Set) : Set where
     andI : P -> Q -> P /\ Q
 
 --   Not allowed if we have proof irrelevance
---   data _\/_ (P Q : Prop) : Prop where
+--   data _\/_ (P Q : Set) : Set where
 --     orIL : P -> P \/ Q
 --     orIR : Q -> P \/ Q
 
@@ -22,7 +22,7 @@ module Setoid where
 
   data Setoid : Set1 where
     setoid : (A     : Set)
-          -> (_==_  : A -> A -> Prop)
+          -> (_==_  : A -> A -> Set)
           -> (refl  : (x : A) -> x == x)
           -> (sym   : (x y : A) -> x == y -> y == x)
           -> (trans : (x y z : A) -> x == y -> y == z -> x == z)
@@ -33,7 +33,7 @@ module Setoid where
 
   module Projections where
 
-    eq : (A : Setoid) -> El A -> El A -> Prop
+    eq : (A : Setoid) -> El A -> El A -> Set
     eq (setoid _ e _ _ _) = e
 
     refl : (A : Setoid) -> {x : El A} -> eq A x x
@@ -49,7 +49,7 @@ module Setoid where
 
     infix 6 _==_
 
-    _==_ : El A -> El A -> Prop
+    _==_ : El A -> El A -> Set
     _==_ = Projections.eq A
 
     refl : {x : El A} -> x == x
@@ -104,7 +104,7 @@ module Fun where
          eq A x y -> eq B (app f x) (app f y)
   cong (lam _ resp) = resp
 
-  data EqFun {A B : Setoid}(f g : A => B) : Prop where
+  data EqFun {A B : Setoid}(f g : A => B) : Set where
     eqFunI : ({x y : El A} -> eq A x y -> eq B (app f x) (app g y)) ->
              EqFun f g
 
@@ -210,13 +210,13 @@ module Nat where
 
   module NatSetoid where
 
-    eqNat : Nat -> Nat -> Prop
+    eqNat : Nat -> Nat -> Set
     eqNat zero     zero   = True
     eqNat zero    (suc _) = False
     eqNat (suc _)  zero   = False
     eqNat (suc n) (suc m) = eqNat n m
 
-    data EqNat (n m : Nat) : Prop where
+    data EqNat (n m : Nat) : Set where
       eqnat : eqNat n m -> EqNat n m
 
     uneqnat : {n m : Nat} -> EqNat n m -> eqNat n m
@@ -283,7 +283,7 @@ module List where
       module EqA = Equality A
       open EqA
 
-      eqList : List (El A) -> List (El A) -> Prop
+      eqList : List (El A) -> List (El A) -> Set
       eqList nil        nil      = True
       eqList nil       (_ :: _)  = False
       eqList (_ :: _)   nil      = False

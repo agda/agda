@@ -159,6 +159,12 @@ Language
   subjected to much experimentation yet, so do not be surprised if
   something is changed before the next release.
 
+* Prop has been removed from the language.
+
+  The experimental sort Prop has been disabled. Any program using Prop
+  should typecheck if Prop is replaced by Set₀. Note that Prop is still
+  a keyword.
+
 * Injective type constructors off by default.
 
   Automatic injectivity of type constructors has been disabled (by
