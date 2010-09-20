@@ -68,12 +68,13 @@ addConstant q d = liftTCM $ do
   let tel' = killRange $ case theDef d of
 	      Constructor{} -> hideTel tel
 	      _		    -> tel
+  let d' = abstract tel' $ d { defName = q }
+  reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ \sig -> sig
-    { sigDefinitions = Map.insertWith (+++) q (abstract tel' d') $ sigDefinitions sig }
+    { sigDefinitions = Map.insertWith (+++) q d' $ sigDefinitions sig }
   i <- currentMutualBlock
   setMutualBlock i q
   where
-    d' = d { defName = q }
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
 
     hideTel  EmptyTel		      = EmptyTel

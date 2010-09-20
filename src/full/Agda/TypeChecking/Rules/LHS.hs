@@ -3,6 +3,8 @@
 module Agda.TypeChecking.Rules.LHS where
 
 import Data.Maybe
+import qualified Data.List as List
+
 import Control.Applicative
 import Control.Monad
 
@@ -540,6 +542,11 @@ checkLeftHandSide c ps a ret = do
                    , nest 2 $ text "itypes =" <+> fsep (punctuate comma $ map prettyTCM instTypes)
                    ]
 
+{-          -- Andreas, 2010-09-09
+            -- temporary error message to find non-id perms
+            let sorted (Perm _ xs) = xs == List.sort xs
+            unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm 
+-}
             -- Compute the new dot pattern instantiations
             let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
                 newDpi = dotPatternInsts ps0' (substs rho sub) instTypes

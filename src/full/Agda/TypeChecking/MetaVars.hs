@@ -360,10 +360,12 @@ handleAbort h m = liftTCM $
 	case errError e of
 	    AbortAssign s -> do put s; h
             PatternErr{}  -> do
-              -- reportSLn "tc.meta.assign" 50 "Pattern violation!"
+              -- Andreas, 2010-09-17 uncommenting the reportSLn statements
+              -- breaks something.  Why?
+              -- reportSLn "tc.meta.assign" 50 "handleAbort: Pattern violation!"
               throwError e
 	    _		  -> do
-              -- reportSLn "tc.meta.assign" 50 "Some exception"
+              -- reportSLn "tc.meta.assign" 50 "handleAbort: Some exception"
               throwError e
 
 -- | Assign to an open metavar.
