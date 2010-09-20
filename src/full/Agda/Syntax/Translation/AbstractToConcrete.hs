@@ -391,10 +391,7 @@ instance ToConcrete A.Expr C.Expr where
         bindToConcrete x $ \ x' -> do
             e' <- toConcrete e
             return $ C.QuoteGoal (getRange i) x' e'
-    toConcrete (A.Quote i x) =
-      bracket appBrackets $ do
-        C.Ident x' <- toConcrete x
-        return $ C.Quote (getRange i) x'
+    toConcrete (A.Quote i) = return $ C.Quote (getRange i)
 
 -- Binder instances -------------------------------------------------------
 

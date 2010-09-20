@@ -551,7 +551,7 @@ instance ToAbstract C.Expr A.Expr where
         x' <- toAbstract (NewName x)
         e' <- toAbstract e
         return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
-      C.Quote r x     -> A.Quote (ExprRange r) <$> toAbstract (OldQName x)
+      C.Quote r -> return $ A.Quote (ExprRange r)
 
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)

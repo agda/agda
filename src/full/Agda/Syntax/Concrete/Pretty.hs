@@ -142,7 +142,7 @@ instance Pretty Expr where
             ETel tel -> fsep $ map pretty tel
             QuoteGoal _ x e -> sep [text "quoteGoal" <+> pretty x <+> text "in",
                                     nest 2 $ pretty e]
-            Quote _ e -> text "quote" <+> pretty e
+            Quote _ -> text "quote"
 
 instance Pretty BoundName where
   pretty = pretty . boundName

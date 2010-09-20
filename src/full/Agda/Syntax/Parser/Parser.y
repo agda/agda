@@ -406,7 +406,6 @@ Expr2
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
     | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$4)) $2 $4}
-    | 'quote' QId                  { Quote (getRange ($1,$2)) $2 }
 
 Application3 :: { [Expr] }
 Application3
@@ -421,6 +420,7 @@ Expr3
     | '_'				{ Underscore (getRange $1) Nothing }
     | 'Prop'				{ Prop (getRange $1) }
     | 'Set'				{ Set (getRange $1) }
+    | 'quote'                           { Quote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }

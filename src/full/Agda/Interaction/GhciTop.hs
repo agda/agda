@@ -742,7 +742,7 @@ instance LowerMeta SC.Expr where
       SC.Rec r fs	-> SC.Rec r (List.map (id -*- lowerMeta) fs)
       SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
       SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)
-      SC.Quote r x      -> SC.Quote r x
+      SC.Quote r        -> SC.Quote r
 
 instance LowerMeta SC.LamBinding where
   lowerMeta b@(SC.DomainFree _ _) = b

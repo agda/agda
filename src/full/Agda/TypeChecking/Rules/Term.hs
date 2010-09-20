@@ -311,6 +311,19 @@ checkExpr e t =
               text "checking Set " <+> prettyTCM n <+> text "against" <+> prettyTCM t
             blockTerm t (Sort $ Type n) $ leqType (sort $ Type $ suc n) t
 
+        A.App i q (Arg NotHidden r e)
+          | A.Quote _ <- unScope q -> do
+          let quoted (A.Def x) = return x
+              quoted (A.Con (AmbQ [x])) = return x
+              quoted (A.Con (AmbQ xs))  = typeError $ GenericError $ "quote: Ambigous name: " ++ show xs
+              quoted (A.ScopedExpr _ e) = quoted e
+              quoted _                  = typeError $ GenericError $ "quote: not a defined name"
+          x <- quoted (namedThing e)
+          ty <- qNameType
+          blockTerm t (quoteName x) $ leqType ty t
+
+        A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
+
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
 	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
@@ -466,15 +479,6 @@ checkExpr e t =
               tmType <- agdaTermType
               (v,ty) <- addLetBinding x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType ty t'
-        A.Quote _ x      -> do
-           quoted <- case x of
-                       A.Def x' -> return x'
-                       A.Con (AmbQ [x']) -> return x'
-                       A.Con _ -> typeError $ GenericError "quote: Ambigous name"
-                       A.Var _ -> typeError $ GenericError "quote: Bound variable"
-                       _ -> __IMPOSSIBLE__
-           ty <- qNameType
-           blockTerm t (quoteName quoted) $ leqType ty t
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)

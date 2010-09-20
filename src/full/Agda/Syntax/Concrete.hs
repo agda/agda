@@ -72,7 +72,7 @@ data Expr
 	| Dot !Range Expr		       -- ^ ex: @.p@, only in patterns
         | ETel Telescope                       -- ^ only used for printing telescopes
         | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
-        | Quote !Range QName                   -- ^ ex: @quote e@
+        | Quote !Range                         -- ^ ex: @quote@, should be applied to a name
     deriving (Typeable, Data)
 
 
@@ -311,7 +311,7 @@ instance HasRange Expr where
 	    Rec r _		-> r
             ETel tel            -> getRange tel
             QuoteGoal r _ _     -> r
-            Quote r _           -> r
+            Quote r             -> r
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs
