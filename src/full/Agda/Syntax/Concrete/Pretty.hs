@@ -47,6 +47,12 @@ pRelevance Irrelevant a =
   let d = pretty a 
   in  if render d == "_" then d else text "." <> d
 
+{- UNUSED
+-- | Use for printing non-dependent function types
+prettyWithRelevance :: Pretty a => Arg a -> Doc
+prettyWithRelevance a = pRelevance (argRelevance a) a
+-}
+
 instance Pretty Name where
     pretty = text . show
 
@@ -308,7 +314,9 @@ instance Pretty Fixity where
     pretty (NonAssoc _ n)   = text "infix" <+> text (show n)
 
 instance Pretty e => Pretty (Arg e) where
-    pretty (Arg h r e) = pRelevance r $ pHidden h e
+ -- Andreas 2010-09-21: do not print relevance in general, only in function types! 
+    pretty (Arg h r e) = -- pRelevance r $
+                         pHidden h e
 
 instance Pretty e => Pretty (Named String e) where
     pretty (Named Nothing e) = pretty e
