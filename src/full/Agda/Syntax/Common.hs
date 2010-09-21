@@ -30,6 +30,12 @@ data Relevance
   | Forced      -- ^ the argument can be skipped during equality checking
     deriving (Typeable, Data, Show, Eq, Ord)
 
+-- | For comparing @Relevance@ ignoring @Forced@.
+ignoreForced :: Relevance -> Relevance
+ignoreForced Forced     = Relevant
+ignoreForced Relevant   = Relevant
+ignoreForced Irrelevant = Irrelevant
+
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 

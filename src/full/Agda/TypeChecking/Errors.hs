@@ -298,6 +298,8 @@ instance PrettyTCM TypeError where
                   f CmpLeq = text "!=<"
 	    UnequalRelevance a b -> fsep $
 		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
+-- Andreas 2010-09-21 to reveal Forced annotations, print also uglily
+--		[text $ show a] ++ pwords "!=" ++ [text $ show b] ++
 		pwords "because one is a relevant function type and the other is an irrelevant function type"
 	    UnequalHiding a b -> fsep $
 		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
