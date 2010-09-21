@@ -96,6 +96,9 @@ data Exp o = App (Maybe (UId o)) (OKHandle (RefInfo o)) (Elr o) (MArgList o)
 
            | AbsurdLambda FMode
 
+-- Andreas 2010-09-21: abusing Sort for erased stuff
+dontCare = Sort UnknownSort
+
 
 type MExp o = MM (Exp o) (RefInfo o)
 

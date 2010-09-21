@@ -570,6 +570,10 @@ termTerm conf names f pats0 t0 = do
 	    -- Unsolved metas are not considered termination problems, there
 	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
+
+            -- erased proof
+            DontCare -> return Term.empty
+
          where
          -- Should function and Π type constructors be treated as
          -- preserving guardedness in their right arguments?

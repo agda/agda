@@ -13,6 +13,7 @@ import qualified Agda.Syntax.Concrete.Definitions as C
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | @force@ is the recursive @const 0@ function, to force Haskell to evaluate.
 class Strict a where
     force :: a -> Int
 
@@ -27,6 +28,7 @@ instance Strict Term where
 	Fun a b    -> force (a,b)
 	Sort s	   -> force s
 	MetaV _ ts -> force ts
+        DontCare   -> 0
 
 instance Strict Type where
     force (El s t) = force (s,t)

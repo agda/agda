@@ -31,6 +31,7 @@ binAppView t = case t of
   Fun _ _    -> noApp
   Sort _     -> noApp
   MetaV _ _  -> noApp
+  DontCare   -> noApp
   where
     noApp = NoApp t
     app f [] = noApp

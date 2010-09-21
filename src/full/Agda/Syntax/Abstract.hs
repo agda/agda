@@ -52,6 +52,7 @@ data Expr
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^
         | Quote ExprInfo                     -- ^
+        | DontCare                           -- ^ for printing DontCare from Syntax.Internal
   deriving (Typeable, Data, Show)
 
 data Declaration
@@ -225,6 +226,7 @@ instance HasRange Expr where
     getRange (ScopedExpr _ e)	= getRange e
     getRange (QuoteGoal _ _ e)	= getRange e
     getRange (Quote i)  	= getRange i
+    getRange (DontCare)         = noRange
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _	       ) = getRange i
@@ -304,6 +306,7 @@ instance KillRange Expr where
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
   killRange (Quote i)        = killRange1 Quote i
+  killRange (DontCare)       = DontCare
 
 instance KillRange Declaration where
   killRange (Axiom      i a b         ) = killRange3 Axiom      i a b

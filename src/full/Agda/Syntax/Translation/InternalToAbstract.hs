@@ -217,6 +217,7 @@ instance Reify Term Expr where
                       <$> reify (a,b)
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
+      I.DontCare   -> return A.DontCare
 
 data NamedClause = NamedClause QName I.Clause
 -- Named clause does not need 'Recursion' flag since I.Clause has it
@@ -345,7 +346,7 @@ instance DotVars A.Expr where
     A.WithApp _ e es -> dotVars (e, es)
     A.Lam _ _ e      -> dotVars e
     A.AbsurdLam _ _  -> Set.empty
-    A.Pi _ tel e     ->  dotVars (tel, e)
+    A.Pi _ tel e     -> dotVars (tel, e)
     A.Fun _ a b      -> dotVars (a, b)
     A.Set _ _        -> Set.empty
     A.Prop _         -> Set.empty
@@ -354,6 +355,7 @@ instance DotVars A.Expr where
     A.ETel _         -> __IMPOSSIBLE__
     A.QuoteGoal {}   -> __IMPOSSIBLE__
     A.Quote {}       -> __IMPOSSIBLE__
+    A.DontCare       -> __IMPOSSIBLE__  -- Set.empty
 
 instance DotVars TypedBindings where
   dotVars (TypedBindings _ bs) = dotVars bs

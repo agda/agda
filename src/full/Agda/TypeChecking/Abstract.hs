@@ -33,6 +33,7 @@ instance AbstractTerm Term where
     Lit l       -> Lit l
     Sort s      -> Sort $ absT s
     MetaV m vs  -> MetaV m $ absT vs
+    DontCare    -> DontCare
     where
       absT x = abstractTerm u x
 

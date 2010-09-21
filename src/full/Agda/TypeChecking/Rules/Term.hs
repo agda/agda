@@ -466,6 +466,8 @@ checkExpr e t =
 
         A.ETel _   -> __IMPOSSIBLE__
 
+	A.DontCare -> __IMPOSSIBLE__
+
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
         e0@(A.QuoteGoal _ x e) -> do
           t' <- etaContract =<< normalise t
@@ -816,7 +818,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                   return (nukeIfIrrelevant arg : us, t0'', cs')
                          where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
-                                   arg { unArg = Sort Prop }
+                                   arg { unArg = DontCare }
                                   else arg
               (Hidden, FunV (Arg NotHidden _ _) _) ->
                   lift $ typeError $ WrongHidingInApplication t0'

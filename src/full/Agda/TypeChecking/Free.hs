@@ -75,6 +75,7 @@ instance Free Term where
     Fun a b    -> freeVars' conf (a,b)
     Sort s     -> freeVars' conf s
     MetaV _ ts -> flexible $ freeVars' conf ts
+    DontCare   -> empty
 
 instance Free Type where
   freeVars' conf (El s t) = freeVars' conf (s, t)

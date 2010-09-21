@@ -40,6 +40,7 @@ instance Apply Term where
             Pi _ _        -> __IMPOSSIBLE__
             Fun _ _       -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
+            DontCare      -> __IMPOSSIBLE__ 
 
 instance Apply Type where
   apply = piApply
@@ -271,6 +272,7 @@ instance Subst Term where
             Pi a b     -> uncurry Pi $ substs us (a,b)
             Fun a b    -> uncurry Fun $ substs us (a,b)
             Sort s     -> Sort $ substs us s
+            DontCare   -> DontCare
         where
             []     !!! n = __IMPOSSIBLE__
             (x:xs) !!! 0 = x
@@ -289,6 +291,7 @@ instance Subst Term where
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
             Fun a b    -> uncurry Fun $ substUnder n u (a,b)
             Sort s     -> Sort $ substUnder n u s
+            DontCare   -> DontCare
 
 instance Subst Type where
     substs us (El s t) = substs us s `El` substs us t
@@ -395,6 +398,7 @@ instance Raise Term where
             Pi a b          -> uncurry Pi $ rf (a,b)
             Fun a b         -> uncurry Fun $ rf (a,b)
             Sort s          -> Sort $ rf s
+            DontCare        -> DontCare
         where
             rf x = raiseFrom m k x
 

@@ -40,9 +40,9 @@ data Term = Var Nat Args
 	  | Fun (Arg Type) Type
 	  | Sort Sort
 	  | MetaV MetaId Args
--- Andreas: MAYBE LATER:
---          | DontCare               -- ^ nuked irrelevant and other stuff
+          | DontCare               -- ^ nuked irrelevant and other stuff
   deriving (Typeable, Data, Eq, Ord, Show)
+-- Andreas 2010-09-21: @DontCare@ replaces the hack @Sort Prop@
 
 data Type = El Sort Term
   deriving (Typeable, Data, Eq, Ord, Show)
@@ -97,6 +97,7 @@ instance Sized Term where
     Pi a b     -> 1 + size a + size b
     Fun a b    -> 1 + size a + size b
     Sort s     -> 1
+    DontCare   -> 1
 
 instance Sized Type where
   size = size . unEl
@@ -112,6 +113,7 @@ instance KillRange Term where
     Pi a b     -> killRange2 Pi a b
     Fun a b    -> killRange2 Fun a b
     Sort s     -> killRange1 Sort s
+    DontCare   -> DontCare
 
 instance KillRange Type where
   killRange (El s v) = killRange2 El s v

@@ -415,6 +415,7 @@ instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
   shrinkC conf (NotBlocked x) = NotBlocked <$> shrinkC conf x
   noShrink = fmap noShrink
 
+-- Andreas 2010-09-21: simplify? since Sort Prop is no longer abused as DontCare
 instance ShrinkC Sort Sort where
   shrinkC conf Prop = []
   shrinkC conf s = Prop : case s of
@@ -438,8 +439,9 @@ instance ShrinkC Type Type where
   noShrink = id
 
 instance ShrinkC Term Term where
+  shrinkC conf (DontCare)  = []
   shrinkC conf (Sort Prop) = []
-  shrinkC conf t	   = filter validType $ Sort Prop : case t of
+  shrinkC conf t	   = filter validType $ DontCare : case t of
     Var i args   -> map unArg args ++
 		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
     Def d args   -> map unArg args ++
@@ -454,6 +456,7 @@ instance ShrinkC Term Term where
 		    (uncurry Fun <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
+    DontCare     -> __IMPOSSIBLE__
     where
       validType t
 	| not (tcIsType conf) = True
@@ -472,7 +475,7 @@ class KillVar a where
 
 instance KillVar Term where
   killVar i t = case t of
-    Var j args | j == i	   -> Sort Prop
+    Var j args | j == i	   -> DontCare
 	       | j >  i	   -> Var (j - 1) $ killVar i args
 	       | otherwise -> Var j	  $ killVar i args
     Def c args		   -> Def c	  $ killVar i args
@@ -483,6 +486,7 @@ instance KillVar Term where
     Pi a b		   -> uncurry Pi  $ killVar i (a, b)
     Fun a b		   -> uncurry Fun $ killVar i (a, b)
     MetaV m args	   -> MetaV m	  $ killVar i args
+    DontCare               -> DontCare
 
 instance KillVar Type where
   killVar i (El s t) = El s $ killVar i t

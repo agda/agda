@@ -287,3 +287,4 @@ isCoinductive t = do
     Fun   {} -> return (Just False)
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
+    DontCare -> __IMPOSSIBLE__

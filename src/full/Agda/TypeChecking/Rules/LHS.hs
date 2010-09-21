@@ -205,6 +205,7 @@ noShadowingOfConstructors c problem =
       Lam   {} -> __IMPOSSIBLE__
       Lit   {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
+      DontCare -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM Constraints

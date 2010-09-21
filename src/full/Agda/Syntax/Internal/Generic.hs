@@ -48,6 +48,7 @@ instance TermLike Term where
     MetaV m xs -> f $ MetaV m $ traverseTerm f xs
     Lit _    -> f t
     Sort _   -> f t
+    DontCare -> f t
 
   traverseTermM f t = case t of
     Var i xs -> f =<< Var i <$> traverseTermM f xs
@@ -59,6 +60,7 @@ instance TermLike Term where
     MetaV m xs -> f =<< MetaV m <$> traverseTermM f xs
     Lit _    -> f t
     Sort _   -> f t
+    DontCare -> f t
 
   foldTerm f t = f t `mappend` case t of
     Var i xs   -> foldTerm f xs
@@ -70,6 +72,7 @@ instance TermLike Term where
     MetaV m xs -> foldTerm f xs
     Lit _      -> mempty
     Sort _     -> mempty
+    DontCare   -> mempty
 
 instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t

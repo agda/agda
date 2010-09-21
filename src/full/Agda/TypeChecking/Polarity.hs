@@ -162,4 +162,5 @@ instance HasPolarity Term where
     Fun a b    -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort _     -> return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
+    DontCare   -> return []
 

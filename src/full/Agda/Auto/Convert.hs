@@ -386,6 +386,7 @@ tomyExp t@I.MetaV{} = do
    m <- getMeta mid
    return $ Meta m
   _ -> tomyExp t
+tomyExp (I.DontCare) = return $ NotM $ dontCare
 
 tomyExps [] = return $ NotM ALNil
 tomyExps (C.Arg hid _ a : as) = do
@@ -411,6 +412,7 @@ fmExp m (I.Pi x (I.Abs _ y)) = fmType m (C.unArg x) || fmType m y
 fmExp m (I.Fun x y) = fmType m (C.unArg x) || fmType m y
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
+fmExp m (I.DontCare) = False
 
 fmExps m [] = False
 fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
@@ -454,8 +456,10 @@ frommyExp (NotM e) =
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (C.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
-  Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
   Sort Type -> __IMPOSSIBLE__
+  -- Andreas, 2010-09-21 translate unknown stuff as DontCare
+  Sort UnknownSort -> return I.DontCare
+  -- Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
 
   AbsurdLambda hid ->
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
@@ -688,6 +692,7 @@ findClauseDeep m = do
       I.Fun it ot -> findMetat (C.unArg it) || findMetat ot
       I.Sort{} -> False
       I.MetaV m' _  -> m == m'
+      I.DontCare -> False
     findMetas = any (findMeta . C.unArg)
     findMetat (I.El _ e) = findMeta e
     toplevel e =

@@ -393,6 +393,9 @@ instance ToConcrete A.Expr C.Expr where
             return $ C.QuoteGoal (getRange i) x' e'
     toConcrete (A.Quote i) = return $ C.Quote (getRange i)
 
+    -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
+    toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
+
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where

@@ -85,6 +85,7 @@ instance Occurs Term where
           Var i <$> occ vs
         Lam h f	    -> Lam h <$> occ f
         Lit l	    -> return v
+        DontCare    -> return v
         Def c vs    -> Def c <$> occ vs
         Con c vs    -> Con c <$> occ vs
         Pi a b	    -> uncurry Pi <$> occ (a,b)

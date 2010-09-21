@@ -271,6 +271,7 @@ instance ComputeOccurrences Term where
     Lam _ b      -> occurrences vars b
     Lit{}        -> Map.empty
     Sort{}       -> Map.empty
+    DontCare     -> Map.empty
     where
       vs ! i
         | i < length vs = vs !! i

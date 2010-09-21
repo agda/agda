@@ -34,15 +34,18 @@ braces' d = case render d of
 
 arrow  = text "\x2192"
 lambda = text "\x03bb"
+underscore = text "_"
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces' . pretty
 pHidden NotHidden   = pretty
 
 pRelevance :: Pretty a => Relevance -> a -> Doc
-pRelevance Relevant   a = pretty a
-pRelevance Irrelevant a = text "." <> pretty a 
 pRelevance Forced     a = pretty a
+pRelevance Relevant   a = pretty a
+pRelevance Irrelevant a = 
+  let d = pretty a 
+  in  if render d == "_" then d else text "." <> d
 
 instance Pretty Name where
     pretty = text . show
@@ -85,7 +88,7 @@ instance Pretty Expr where
 	    Ident x	     -> pretty x
 	    Lit l	     -> pretty l
 	    QuestionMark _ n -> text "?" <> maybe empty (text . show) n
-	    Underscore _ n   -> text "_" <> maybe empty (text . show) n
+	    Underscore _ n   -> underscore <> maybe empty (text . show) n
 	    App _ _ _	     ->
 		case appView e of
 		    AppView e1 args	->
@@ -330,7 +333,7 @@ instance Pretty Pattern where
 	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
 	    HiddenP _ p	       -> braces' $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
-	    WildP _	       -> text "_"
+	    WildP _	       -> underscore
 	    AsP _ x p	       -> pretty x <> text "@" <> pretty p
 	    DotP _ p	       -> text "." <> pretty p
 	    AbsurdP _	       -> text "()"
