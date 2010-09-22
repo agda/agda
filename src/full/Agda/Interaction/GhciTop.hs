@@ -150,6 +150,20 @@ isIndependent = isJust . includeDirectories
 ioTCM_ :: TCM a -> IO a
 ioTCM_ m = do
   tcs <- readIORef theState
+  result <- runTCM $ do
+    put $ theTCState tcs
+    x <- withEnv initEnv m
+    s <- get
+    return (x, s)
+  case result of
+    Right (x, s) -> do
+      writeIORef theState $ tcs { theTCState = s }
+      return x
+    Left err -> do
+      Right doc <- runTCM $ prettyTCM err
+      putStrLn $ render doc
+      return $ undefined
+{-
   Right (x, s) <- runTCM $ do
     put $ theTCState tcs
     x <- withEnv initEnv m
@@ -157,6 +171,7 @@ ioTCM_ m = do
     return (x, s)
   writeIORef theState $ tcs { theTCState = s }
   return x
+-}
 
 -- | Runs a 'TCM' computation. All calls from the Emacs mode should be
 -- wrapped in this function.
