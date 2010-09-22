@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts, TupleSections #-}
 
 module Agda.TypeChecking.Coverage where
 
@@ -52,10 +52,24 @@ data SplitClause = SClause
 
 type Covering = [SplitClause]
 
-typeOfVar :: Telescope -> Nat -> Type
+data SplitError = NotADatatype Type         -- ^ neither data type nor record
+                | IrrelevantDatatype Type   -- ^ data type, but in irrelevant position
+                | NoRecordConstructor Type  -- ^ record type, but no constructor
+                | CantSplit QName Telescope Args Args [Term]
+                | GenericSplitError String
+  deriving (Show)
+
+instance Error SplitError where
+  noMsg  = strMsg ""
+  strMsg = GenericSplitError
+
+type CoverM = ExceptionT SplitError TCM
+
+typeOfVar :: Telescope -> Nat -> Arg Type
 typeOfVar tel n
   | n >= len  = __IMPOSSIBLE__
-  | otherwise = snd . unArg $ ts !! fromIntegral n
+  | otherwise = fmap snd  -- throw away name, keep Arg Type
+                  $ ts !! fromIntegral n 
   where
     len = genericLength ts
     ts  = reverse $ telToList tel
@@ -115,37 +129,34 @@ cover cs (SClause tel perm ps _) = do
       r <- split tel perm ps x
       case r of
         Left err  -> case err of
-          CantSplit c _ _ _ _ -> typeError $ CoverageCantSplitOn c
-          NotADatatype a      -> typeError $ CoverageCantSplitType a
-          GenericSplitError s -> fail $ "failed to split: " ++ s
+          CantSplit c _ _ _ _   -> typeError $ CoverageCantSplitOn c
+          NotADatatype a        -> typeError $ CoverageCantSplitType a
+          IrrelevantDatatype a  -> typeError $ CoverageCantSplitType a
+          NoRecordConstructor a -> typeError $ CoverageCantSplitType a
+          GenericSplitError s   -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
--- | Check that a type is an inductive datatype
-isDatatype :: MonadTCM tcm => Type -> tcm (Maybe (QName, [Arg Term], [Arg Term], [QName]))
-isDatatype t = do
-  t <- normalise t
-  case unEl t of
+-- | Check that a type is a non-irrelevant datatype or a record with named constructor.
+isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) => 
+              Arg Type -> tcm (QName, [Arg Term], [Arg Term], [QName])
+isDatatype at = do
+  let t = unArg at
+  t' <- normalise t
+  case unEl t' of
     Def d args -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} -> do
-          let (ps, is) = genericSplitAt np args
-          return $ Just (d, ps, is, cs)
-        Record{recPars = np, recCon = c, recNamedCon = True} ->
-          return $ Just (d, args, [], [c])
-        _ -> return Nothing
-    _ -> return Nothing
-
-data SplitError = NotADatatype Type
-                | CantSplit QName Telescope Args Args [Term]
-                | GenericSplitError String
-  deriving (Show)
-
-instance Error SplitError where
-  noMsg  = strMsg ""
-  strMsg = GenericSplitError
-
-type CoverM = ExceptionT SplitError TCM
+        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} -> 
+          if argRelevance at == Irrelevant 
+           then throwException $ IrrelevantDatatype t
+           else do
+             let (ps, is) = genericSplitAt np args
+             return (d, ps, is, cs)
+        Record{recPars = np, recCon = c, recNamedCon = hasCon} ->
+          if hasCon then return (d, args, [], [c])
+           else throwException $ NoRecordConstructor t
+        _ -> throwException $ NotADatatype t
+    _ -> throwException $ NotADatatype t
 
 -- | @dtype == d pars ixs@
 computeNeighbourhood :: Telescope -> Telescope -> Permutation -> QName -> Args -> Args -> Nat -> OneHolePatterns -> QName -> CoverM [SplitClause]
@@ -332,12 +343,9 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
 
     return (hps, hix)
 
-  -- Check that t is an inductive datatype
-  (d, pars, ixs, cons) <- do
-    dt <- isDatatype t
-    case dt of
-      Nothing -> throwException $ NotADatatype t
-      Just d  -> return d
+  -- Check that t is a datatype or a record
+  -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
+  (d, pars, ixs, cons) <- isDatatype t
 
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
@@ -346,7 +354,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
       let absurd = VarP "()"
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
-                                        [defaultArg ("()", t)] ++
+                                        [fmap ("()",) t] ++ -- add name "()"
                                         telToList delta2
                , scPerm = perm
                , scPats = plugHole absurd hps
@@ -360,7 +368,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
     -- Debug printing
     debugInit tel perm x ps =
       reportSDoc "tc.cover.top" 10 $ vcat
-        [ text "split"
+        [ text "TypeChecking.Rules.LHS.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel  =" <+> prettyTCM tel
           , text "perm =" <+> text (show perm)

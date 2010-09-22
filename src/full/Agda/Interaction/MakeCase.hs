@@ -20,6 +20,7 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 
 import Agda.TypeChecking.Monad
+import qualified Agda.TypeChecking.Monad.Context as Context
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -81,6 +82,12 @@ prettySplitError :: SplitError -> TCM Doc
 prettySplitError err = case err of
   NotADatatype t -> fsep $
     pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
+  IrrelevantDatatype t -> fsep $
+    pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
+    pwords "since it is declared irrelevant" 
+  NoRecordConstructor t -> fsep $
+    pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
+    pwords "because it has no constructor"
   CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
     [ fsep $ pwords "Cannot pattern match on constructor" ++ [prettyTCM c <> text ","] ++
              pwords "since the inferred indices"
@@ -95,7 +102,7 @@ prettySplitError err = case err of
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
   reportSDoc "interaction.case" 10 $ vcat
-    [ text "split clause:"
+    [ text "Interaction.MakeCase.makeCase: split clause:"
     , nest 2 $ vcat
       [ text "context =" <+> (prettyTCM =<< getContextTelescope)
       , text "tel =" <+> prettyTCM tel
@@ -120,7 +127,9 @@ makeAbstractClause f cl = do
 
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do
-  (v, _) <- inferExpr e
+  (v, _) <- -- Andreas, 2010-09-21 allow splitting on irrelevant (record) vars
+            Context.wakeIrrelevantVars $ 
+              inferExpr e
   case v of
     Var n _ -> return n
     _       -> typeError . GenericError . show =<< (fsep $
