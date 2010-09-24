@@ -373,10 +373,10 @@ PragmaName : string {% fmap QName (mkName $1) }
 -- Top level: Function types.
 Expr :: { Expr }
 Expr
-    : TeleArrow Expr		{ Pi $1 $2 }
-    | 'forall' LamBindings Expr	{ forallPi $2 $3 }
-    | Application3 '->' Expr	{ Fun (fuseRange $1 $3) (RawApp (getRange $1) $1) $3 }
-    | Expr1 %prec LOWEST	{ $1 }
+  : TeleArrow Expr                      { Pi $1 $2 }
+  | 'forall' ForallBindings Expr        { forallPi $2 $3 }
+  | Application3 '->' Expr              { Fun (fuseRange $1 $3) (RawApp (getRange $1) $1) $3 }
+  | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
 Expr1  : WithExprs {% case $1 of
@@ -502,6 +502,7 @@ AbsurdLamBindings
       Left h  -> return ([ b | Right b <- init $1], h)
     }
 
+-- absurd lambda is represented by Left hiding
 LamBinds :: { [Either Hiding LamBinding] }
 LamBinds
   : DomainFreeBinding LamBinds	{ map Right $1 ++ $2 }
@@ -511,12 +512,26 @@ LamBinds
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
 
+
+ForallBindings :: { [LamBinding] }
+ForallBindings
+  : TypedUntypedBindings1 '->' { $1 }
+
+-- A non-empty sequence of possibly untyped bindings
+TypedUntypedBindings1 :: { [LamBinding] }
+TypedUntypedBindings1 
+  : DomainFreeBinding TypedUntypedBindings1 { $1 ++ $2 }
+  | TypedBindings TypedUntypedBindings1	    { DomainFull $1 : $2 }
+  | DomainFreeBinding                       { $1 }
+  | TypedBindings                           { [DomainFull $1] }
+
 -- A possibly empty sequence of lambda bindings.
-LamBindings0 :: { [LamBinding] }
-LamBindings0
-  : DomainFreeBinding LamBindings0	{ $1 ++ $2 }
-  | TypedBindings LamBindings0	        { DomainFull $1 : $2 }
-  |             		        { [] }
+-- This is also used as telescope in data and record decls.
+TypedUntypedBindings :: { [LamBinding] }
+TypedUntypedBindings
+  : DomainFreeBinding TypedUntypedBindings { $1 ++ $2 }
+  | TypedBindings TypedUntypedBindings	   { DomainFull $1 : $2 }
+  |                                        { [] }
 
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
@@ -689,15 +704,15 @@ RHS : '=' Expr	    { RHS $2 }
 
 -- Data declaration. Can be local.
 Data :: { Declaration }
-Data : 'data' Id LamBindings0 ':' Expr 'where'
+Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 (map addType $3) $5 $7 }
-     | 'codata' Id LamBindings0 ':' Expr 'where'
+     | 'codata' Id TypedUntypedBindings ':' Expr 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 (map addType $3) $5 $7 }
 
 
 -- Record declarations.
 Record :: { Declaration }
-Record : 'record' Id LamBindings0 ':' Expr 'where'
+Record : 'record' Id TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
          { Record (getRange ($1, $6, $7)) $2 (fst $7) (map addType $3) $5 (snd $7) }
 
@@ -790,9 +805,9 @@ OpenArgs : {- empty -}    { [] }
 
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' Id LamBindings0 '=' Expr ImportDirective
+ModuleMacro : 'module' Id TypedUntypedBindings '=' Expr ImportDirective
 		    { ModuleMacro (getRange ($1, $5, $6)) $2 (map addType $3) $5 DontOpen $6 }
-	    | 'open' 'module' Id LamBindings0 '=' Expr ImportDirective
+	    | 'open' 'module' Id TypedUntypedBindings '=' Expr ImportDirective
 		    { ModuleMacro (getRange ($1, $6, $7)) $3 (map addType $4) $6 DoOpen $7 }
 
 -- Import
@@ -804,7 +819,7 @@ Import : 'import' ModuleName ImportImportDirective
 
 -- Module
 Module :: { Declaration }
-Module : 'module' Id LamBindings0 'where' Declarations0
+Module : 'module' Id TypedUntypedBindings 'where' Declarations0
 		    { Module (getRange ($1,$4,$5)) (QName $2) (map addType $3) $5 }
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
@@ -815,7 +830,7 @@ TopLevel : TeX TopModule       { [$2] }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
-TopModule : 'module' ModuleName LamBindings0 'where' Declarations0
+TopModule : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
 		    { Module (getRange ($1,$4,$5)) $2 (map addType $3) $5 }
 
 Pragma :: { Declaration }
