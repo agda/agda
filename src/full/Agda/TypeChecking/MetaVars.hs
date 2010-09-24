@@ -65,7 +65,8 @@ isBlockedTerm x = do
 	    InstV{}                        -> False
 	    InstS{}                        -> False
 	    Open{}                         -> False
-    reportSLn "tc.meta.blocked" 12 $ if r then "  yes" else "  no"
+    reportSLn "tc.meta.blocked" 12 $ 
+      if r then "  yes, because " ++ show i else "  no"
     return r
 
 isEtaExpandable :: MonadTCM tcm => MetaId -> tcm Bool
