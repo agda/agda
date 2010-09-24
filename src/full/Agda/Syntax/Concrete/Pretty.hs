@@ -221,9 +221,10 @@ instance Pretty Declaration where
 	    TypeSig x e	-> sep [ pretty x <+> text ":"
 			       , nest 2 $ pretty e
 			       ]
-            Field h x e -> sep [ text "field"
-                               , nest 2 $ pHidden h (TypeSig x e)
-                               ]
+            Field x (Arg h rel e) -> 
+                sep [ text "field"
+                    , nest 2 $ pRelevance rel $ pHidden h (TypeSig x e)
+                    ]
 	    FunClause lhs rhs wh ->
 		sep [ pretty lhs
 		    , nest 2 $ pretty rhs
@@ -315,6 +316,7 @@ instance Pretty Fixity where
 
 instance Pretty e => Pretty (Arg e) where
  -- Andreas 2010-09-21: do not print relevance in general, only in function types! 
+ -- Andreas 2010-09-24: and in record fields
     pretty (Arg h r e) = -- pRelevance r $
                          pHidden h e
 

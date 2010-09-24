@@ -43,8 +43,10 @@ checkRecDef i name con ps contel fields =
       , nest 2 $ text "contel =" <+> prettyA contel
       , nest 2 $ text "fields =" <+> prettyA fields
       ]
+    -- get type of record
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
+      -- t = tel -> t0 where t0 must be a sort s 
       t0' <- normalise t0
       s <- case unEl t0' of
 	Sort s	-> return s
@@ -60,7 +62,8 @@ checkRecDef i name con ps contel fields =
           extWithR ret   = underAbstraction (defaultArg rect) (Abs "r" ()) $ \_ -> ret
           ext (Arg h r (x, t)) = addCtx x (Arg h r t)
 
-      let getName (A.Field _ h x _)    = [(h, x)]
+      let getName :: A.Declaration -> [Arg QName]
+          getName (A.Field _ x arg)    = [fmap (const x) arg]
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
@@ -149,7 +152,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
     checkProjs _ _ [] = return ()
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
-    checkProjs ftel1 (ExtendTel _ ftel2) (A.Field info h x t : fs) = do
+    checkProjs ftel1 (ExtendTel _ ftel2) (A.Field info x (Arg h rel t) : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in
       reportSDoc "tc.rec.proj" 5 $ sep

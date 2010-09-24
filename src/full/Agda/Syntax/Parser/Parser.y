@@ -294,12 +294,12 @@ SpaceIds
 
 -- Space separated list of one or more identifiers, some of which may
 -- be surrounded by braces.
-HiddenIds :: { [(Hiding, Name)] }
+HiddenIds :: { [Arg Name] }
 HiddenIds
-    : Id HiddenIds               { (NotHidden, $1) : $2 }
-    | Id	                 { [(NotHidden, $1)] }
-    | '{' SpaceIds '}' HiddenIds { map ((,) Hidden) $2 ++ $4 }
-    | '{' SpaceIds '}'           { map ((,) Hidden) $2 }
+    : Id HiddenIds               { defaultArg $1 : $2 }
+    | Id	                 { [defaultArg $1] }
+    | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
+    | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -517,7 +517,7 @@ ForallBindings :: { [LamBinding] }
 ForallBindings
   : TypedUntypedBindings1 '->' { $1 }
 
--- A non-empty sequence of possibly untyped bindings
+-- A non-empty sequence of possibly untyped bindings.
 TypedUntypedBindings1 :: { [LamBinding] }
 TypedUntypedBindings1 
   : DomainFreeBinding TypedUntypedBindings1 { $1 ++ $2 }
@@ -525,8 +525,8 @@ TypedUntypedBindings1
   | DomainFreeBinding                       { $1 }
   | TypedBindings                           { [DomainFull $1] }
 
--- A possibly empty sequence of lambda bindings.
--- This is also used as telescope in data and record decls.
+-- A possibly empty sequence of possibly untyped bindings.
+-- This is used as telescope in data and record decls.
 TypedUntypedBindings :: { [LamBinding] }
 TypedUntypedBindings
   : DomainFreeBinding TypedUntypedBindings { $1 ++ $2 }
@@ -690,8 +690,9 @@ TypeSigs : SpaceIds ':' Expr { map (flip TypeSig $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden using braces: {n1 n2} n3 n4 {n5} {n6} ... : Type.
-HiddenTypeSigs :: { [(Hiding, Declaration)] }
-HiddenTypeSigs : HiddenIds ':' Expr { map (id *** flip TypeSig $3) $1 }
+HiddenTypeSigs :: { [Arg Declaration] }
+HiddenTypeSigs : HiddenIds ':' Expr { map (fmap (flip TypeSig $3)) $1 }
+--REM HiddenTypeSigs : HiddenIds ':' Expr { map (id *** flip TypeSig $3) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -729,7 +730,8 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
 -- Field declarations.
 Fields :: { [Declaration] }
 Fields : 'field' HiddenTypeSignatures
-            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
+            { let toField (Arg h rel (TypeSig x t)) = Field x (Arg h rel t) in map toField $2 }
+--REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
 -- Mutually recursive declarations.
 Mutual :: { Declaration }
@@ -908,12 +910,12 @@ TypeSignatures1
 
 -- A variant of TypeSignatures which uses HiddenTypeSigs instead of
 -- TypeSigs.
-HiddenTypeSignatures :: { [(Hiding, TypeSignature)] }
+HiddenTypeSignatures :: { [Arg TypeSignature] }
 HiddenTypeSignatures
     : TeX vopen HiddenTypeSignatures1 TeX close   { reverse $3 }
 
 -- Inside the layout block.
-HiddenTypeSignatures1 :: { [(Hiding, TypeSignature)] }
+HiddenTypeSignatures1 :: { [Arg TypeSignature] }
 HiddenTypeSignatures1
     : HiddenTypeSignatures1 semi TeX HiddenTypeSigs { reverse $4 ++ $1 }
     | TeX HiddenTypeSigs		            { reverse $2 }

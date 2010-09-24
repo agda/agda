@@ -42,7 +42,7 @@ import Agda.Utils.Impossible
 -}
 data NiceDeclaration
 	= Axiom Range Fixity' Access IsAbstract Name Expr
-        | NiceField Range Fixity' Access IsAbstract Hiding Name Expr
+        | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
 	| PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
@@ -99,7 +99,7 @@ instance HasRange DeclarationException where
 
 instance HasRange NiceDeclaration where
     getRange (Axiom r _ _ _ _ _)	       = r
-    getRange (NiceField r _ _ _ _ _ _)	       = r
+    getRange (NiceField r _ _ _ _ _)	       = r
     getRange (NiceDef r _ _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
     getRange (NiceModuleMacro r _ _ _ _ _ _ _) = r
@@ -135,15 +135,15 @@ instance Show DeclarationException where
   show (NotAllowedInMutual nd) = show $ fsep $
     [text $ decl nd] ++ pwords "are not allowed in mutual blocks"
     where
-      decl (Axiom _ _ _ _ _ _)		     = "Postulates"
-      decl (NiceField _ _ _ _ _ _ _)         = "Fields"
-      decl (NiceDef _ _ _ _)		     = "Record types"
-      decl (NiceModule _ _ _ _ _ _)	     = "Modules"
-      decl (NiceModuleMacro _ _ _ _ _ _ _ _) = "Modules"
-      decl (NiceOpen _ _ _)		     = "Open declarations"
-      decl (NiceImport _ _ _ _ _)	     = "Import statements"
-      decl (NicePragma _ _)		     = "Pragmas"
-      decl (PrimitiveFunction _ _ _ _ _ _)   = "Primitive declarations"
+      decl (Axiom{})		 = "Postulates"
+      decl (NiceField{})         = "Fields"
+      decl (NiceDef{})		 = "Record types"
+      decl (NiceModule{})	 = "Modules"
+      decl (NiceModuleMacro{})   = "Modules"
+      decl (NiceOpen{})		 = "Open declarations"
+      decl (NiceImport{})	 = "Import statements"
+      decl (NicePragma{})	 = "Pragmas"
+      decl (PrimitiveFunction{}) = "Primitive declarations"
   show (Codata _) =
     "The codata construction has been removed. " ++
     "Use the INFINITY builtin instead."
@@ -179,7 +179,7 @@ niceDeclarations ds = do
 	declaredNames :: Declaration -> [Name]
 	declaredNames d = case d of
 	  TypeSig x _				       -> [x]
-          Field _ x _                                  -> [x]
+          Field x _                                    -> [x]
 	  FunClause (LHS p [] _ _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
@@ -226,7 +226,7 @@ niceDeclarations ds = do
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
 			nds = case d of
-                            Field h x t                   -> return $ niceAxioms fixs [ Field h x t ]
+                            Field x t                     -> return $ niceAxioms fixs [ d ]
 			    Data r CoInductive x tel t cs -> throwError (Codata r)
 			    Data r Inductive   x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
 			    Record r x c tel t cs         -> do
@@ -298,8 +298,8 @@ niceDeclarations ds = do
         niceAxiom :: Map.Map Name Fixity' -> TypeSignature -> NiceDeclaration
         niceAxiom fixs d@(TypeSig x t) =
             Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
-        niceAxiom fixs d@(Field h x t) =
-            NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef h x t
+        niceAxiom fixs d@(Field x argt) =
+            NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef x argt
         niceAxiom _ _ = __IMPOSSIBLE__
 
 	toPrim :: NiceDeclaration -> NiceDeclaration
@@ -401,7 +401,7 @@ niceDeclarations ds = do
 	mkAbstract d =
 	    case d of
 		Axiom r f a _ x e		    -> Axiom r f a AbstractDef x e
-		NiceField r f a _ h x e		    -> NiceField r f a AbstractDef h x e
+		NiceField r f a _ x e		    -> NiceField r f a AbstractDef x e
 		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
@@ -428,7 +428,7 @@ niceDeclarations ds = do
 	mkPrivate d =
 	    case d of
 		Axiom r f _ a x e		    -> Axiom r f PrivateAccess a x e
-		NiceField r f _ a h x e		    -> NiceField r f PrivateAccess a h x e
+		NiceField r f _ a x e		    -> NiceField r f PrivateAccess a x e
 		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
 								    (map mkPrivateDef ds)
@@ -486,7 +486,7 @@ notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
 notSoNiceDeclarations = concatMap notNice
   where
     notNice (Axiom _ _ _ _ x e)                   = [TypeSig x e]
-    notNice (NiceField _ _ _ _ h x e)             = [Field h x e]
+    notNice (NiceField _ _ _ _ x argt)            = [Field x argt]
     notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig x e]]
     notNice (NiceDef _ ds _ _)                    = ds
     notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]

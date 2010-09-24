@@ -61,9 +61,9 @@ getRecordDef r = do
     _        -> typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
-getRecordFieldNames :: MonadTCM tcm => QName -> tcm [(Hiding, C.Name)]
+getRecordFieldNames :: MonadTCM tcm => QName -> tcm [Arg C.Name]
 getRecordFieldNames r =
-  map (id *** nameConcrete . qnameName) . recFields <$> getRecordDef r
+  map (fmap (nameConcrete . qnameName)) . recFields <$> getRecordDef r
 
 -- | Get the field types of a record.
 getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope
@@ -120,7 +120,7 @@ etaExpandRecord r pars u = do
   case u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
-      let proj (h, x) = Arg h Relevant $ Def x $ map hide pars ++ [defaultArg u]
+      let proj (Arg h rel x) = Arg h rel $ Def x $ map hide pars ++ [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -136,10 +136,10 @@ etaExpandRecord r pars u = do
 etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
 etaContractRecord r c args = do
   Record{ recFields = xs } <- getRecordDef r
-  let check a (_, x) = do
+  let check a ax = do
         case (unArg a) of
-          Def y args@(_:_) | x == y -> return (Just $ unArg $ last args)
-          _                         -> return Nothing
+          Def y args@(_:_) | unArg ax == y -> return (Just $ unArg $ last args)
+          _                                -> return Nothing
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied

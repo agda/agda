@@ -442,15 +442,17 @@ checkExpr e t =
 	  t <- reduce t
 	  case unEl t of
 	    Def r vs  -> do
-	      (hs, xs) <- unzip <$> getRecordFieldNames r
-	      ftel     <- getRecordFieldTypes r
-              con      <- getRecordConstructor r
-              scope    <- getScope
+	      axs    <- getRecordFieldNames r
+              let xs = map unArg axs
+	      ftel   <- getRecordFieldTypes r
+              con    <- getRecordConstructor r
+              scope  <- getScope
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
 	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
-			      (zipWith (\h e -> Arg h Relevant (unnamed e)) hs es) tel
+			      (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
+                              tel
 	      blockTerm t (Con con args) $ return cs
             MetaV _ _ -> do
               reportSDoc "tc.term.expr.rec" 10 $ sep

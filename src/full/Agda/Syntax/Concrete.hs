@@ -211,7 +211,7 @@ type Field	 = TypeSignature
 -}
 data Declaration
 	= TypeSig Name Expr
-        | Field Hiding Name Expr
+        | Field Name (Arg Expr)
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
 	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
@@ -338,7 +338,7 @@ instance HasRange WhereClause where
 
 instance HasRange Declaration where
     getRange (TypeSig x t)		= fuseRange x t
-    getRange (Field _ x t)              = fuseRange x t
+    getRange (Field x t)              = fuseRange x t
     getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
     getRange (Data r _ _ _ _ _)		= r
     getRange (Record r _ _ _ _ _)	= r

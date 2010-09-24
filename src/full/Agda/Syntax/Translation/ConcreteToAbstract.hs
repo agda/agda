@@ -156,9 +156,8 @@ recordConstructorType fields = build fs
     notField NiceField{} = False
     notField _           = True
 
-    build (NiceField r f _ _ h x e : fs) = C.Pi [C.TypedBindings r $ Arg h Relevant
-                                                  [C.TBind r [BName x f] e]
-                                                ] $ build fs
+    build (NiceField r f _ _ x (Arg h rel e) : fs) = 
+        C.Pi [C.TypedBindings r $ Arg h rel [C.TBind r [BName x f] e]] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
     build []                           = C.SetN noRange 0 -- todo: nicer
@@ -791,11 +790,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Axiom (mkDefInfo x f p a r) y t' ]
 
   -- Fields
-    C.NiceField r f p a h x t -> do
+    C.NiceField r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Field (mkDefInfo x f p a r) h y t' ]
+      return [ A.Field (mkDefInfo x f p a r) y t' ]
 
   -- Primitive function
     PrimitiveFunction r f p a x t -> do

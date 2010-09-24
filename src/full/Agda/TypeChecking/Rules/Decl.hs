@@ -51,7 +51,7 @@ checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
     case d of
 	A.Axiom i x e		     -> checkAxiom i x e
-        A.Field _ _ _ _              -> typeError FieldOutsideRecord
+        A.Field{}                    -> typeError FieldOutsideRecord
 	A.Primitive i x e	     -> checkPrimitive i x e
 	A.Definition i ts ds	     -> checkMutual i ts ds
 	A.Section i x tel ds	     -> checkSection i x tel ds

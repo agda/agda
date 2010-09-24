@@ -446,7 +446,7 @@ data Defn = Axiom
             , recCon            :: QName                -- ^ Constructor name.
             , recNamedCon       :: Bool
             , recConType        :: Type                 -- ^ The record constructor's type.
-            , recFields         :: [(Hiding, A.QName)]
+            , recFields         :: [Arg A.QName]
             , recTel            :: Telescope
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]

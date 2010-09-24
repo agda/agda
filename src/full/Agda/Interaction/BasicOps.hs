@@ -525,8 +525,8 @@ introTactic ii = do
     introRec d = do
       hfs <- getRecordFieldNames d
       fs <- ifM showImplicitArguments
-            (return $ map snd hfs)
-            (return [ f | (NotHidden, f) <- hfs ])
+            (return $ map unArg hfs)
+            (return [ f | (Arg NotHidden _ f) <- hfs ])
       return
         [ concat $
             "record {" :

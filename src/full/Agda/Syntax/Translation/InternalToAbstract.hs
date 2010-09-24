@@ -191,11 +191,11 @@ instance Reify Term Expr where
         case isR of
           True -> do
             showImp <- showImplicitArguments
-            let keep ((h, x), v) = showImp || h == NotHidden
+            let keep (a, v) = showImp || argHiding a == NotHidden
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
             vs <- reify $ map unArg vs
-            return $ A.Rec exprInfo $ map (snd *** id) $ filter keep $ zip xs vs
+            return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
             -- let hide a = a { argHiding = Hidden }
             Constructor{conPars = np} <- theDef <$> getConstInfo x
