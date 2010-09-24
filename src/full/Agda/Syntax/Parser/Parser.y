@@ -292,6 +292,7 @@ SpaceIds
     : Id SpaceIds { $1 : $2 }
     | Id	  { [$1] }
 
+{- UNUSED
 -- Space separated list of one or more identifiers, some of which may
 -- be surrounded by braces.
 HiddenIds :: { [Arg Name] }
@@ -300,6 +301,30 @@ HiddenIds
     | Id	                 { [defaultArg $1] }
     | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
     | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
+-}
+
+-- A possibly dotted identifier.
+MaybeDottedId :: { Arg Name }
+MaybeDottedId 
+  : '.' Id { Arg NotHidden Irrelevant $2 }
+  | Id     { defaultArg $1 }
+
+-- Space separated list of one or more possibly dotted identifiers.
+MaybeDottedIds :: { [Arg Name] }
+MaybeDottedIds
+    : MaybeDottedId MaybeDottedIds { $1 : $2 }
+    | MaybeDottedId                { [$1] }
+
+-- Space separated list of one or more identifiers, some of which may
+-- be surrounded by braces or dotted.
+ArgIds :: { [Arg Name] }
+ArgIds
+    : MaybeDottedId ArgIds          { $1 : $2 }
+    | MaybeDottedId                 { [$1] }
+    | '{' MaybeDottedIds '}' ArgIds { map hide $2 ++ $4 }
+    | '{' MaybeDottedIds '}'        { map hide $2 }
+    | '.' '{' SpaceIds '}' ArgIds   { map (Arg Hidden Irrelevant) $3 ++ $5 }
+    | '.' '{' SpaceIds '}'          { map (Arg Hidden Irrelevant) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -689,10 +714,10 @@ TypeSigs :: { [Declaration] }
 TypeSigs : SpaceIds ':' Expr { map (flip TypeSig $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
--- as hidden using braces: {n1 n2} n3 n4 {n5} {n6} ... : Type.
-HiddenTypeSigs :: { [Arg Declaration] }
-HiddenTypeSigs : HiddenIds ':' Expr { map (fmap (flip TypeSig $3)) $1 }
---REM HiddenTypeSigs : HiddenIds ':' Expr { map (id *** flip TypeSig $3) $1 }
+-- as hidden or irrelevant using braces and dots: 
+-- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
+ArgTypeSigs :: { [Arg Declaration] }
+ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip TypeSig $3)) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -729,7 +754,7 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
 
 -- Field declarations.
 Fields :: { [Declaration] }
-Fields : 'field' HiddenTypeSignatures
+Fields : 'field' ArgTypeSignatures
             { let toField (Arg h rel (TypeSig x t)) = Field x (Arg h rel t) in map toField $2 }
 --REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
@@ -908,17 +933,17 @@ TypeSignatures1
     : TypeSignatures1 semi TeX TypeSigs { reverse $4 ++ $1 }
     | TeX TypeSigs			{ reverse $2 }
 
--- A variant of TypeSignatures which uses HiddenTypeSigs instead of
+-- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
-HiddenTypeSignatures :: { [Arg TypeSignature] }
-HiddenTypeSignatures
-    : TeX vopen HiddenTypeSignatures1 TeX close   { reverse $3 }
+ArgTypeSignatures :: { [Arg TypeSignature] }
+ArgTypeSignatures
+    : TeX vopen ArgTypeSignatures1 TeX close   { reverse $3 }
 
 -- Inside the layout block.
-HiddenTypeSignatures1 :: { [Arg TypeSignature] }
-HiddenTypeSignatures1
-    : HiddenTypeSignatures1 semi TeX HiddenTypeSigs { reverse $4 ++ $1 }
-    | TeX HiddenTypeSigs		            { reverse $2 }
+ArgTypeSignatures1 :: { [Arg TypeSignature] }
+ArgTypeSignatures1
+    : ArgTypeSignatures1 semi TeX ArgTypeSigs { reverse $4 ++ $1 }
+    | TeX ArgTypeSigs		              { reverse $2 }
 
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
