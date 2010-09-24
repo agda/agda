@@ -52,7 +52,9 @@ singleton x = FV { rigidVars	= Set.singleton x
 		 , flexibleVars = Set.empty
 		 }
 
--- | Doesn't go inside metas.
+-- | Doesn't go inside solved metas, but collects the variables from a
+-- metavariable application @X ts@ as @flexibleVars@.
+
 class Free a where
   freeVars' :: FreeConf -> a -> FreeVars
 

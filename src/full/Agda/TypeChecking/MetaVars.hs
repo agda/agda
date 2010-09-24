@@ -390,14 +390,18 @@ assignV t x args v =
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
 	-- Check that the arguments are distinct variables
+        -- Andreas, 2010-09-24: Herein, ignore the variables which are not
+        -- free in v
+        let fvs = allVars $ freeVars v
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
                 pr _          = text ".."
-            in
-            text "args:" <+> sep (map (pr . unArg) args)
-
-	ids <- checkArgs x args
+            in vcat 
+                 [ text "mvar args:" <+> sep (map (pr . unArg) args)
+                 , text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+                 ]
+	ids <- checkArgs x args fvs
 
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM v
@@ -475,12 +479,12 @@ assignS x args s =
             text "args:" <+> sep (map (pr . unArg) args)
 
         -- TODO Hack
-        let fv = flexibleVars $ freeVars s
-        when (any (< 0) $ Set.toList fv) $ do
+        let fvs = freeVars s
+        when (any (< 0) $ Set.toList (flexibleVars fvs)) $ do
             reportSLn "tc.meta.assign" 10 "negative variables!"
             patternViolation
 
-	ids <- checkArgs x args
+	ids <- checkArgs x args (allVars fvs)
 
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM s
@@ -544,6 +548,8 @@ assignS x args s =
             x =: s
             return []
 
+type FVs = Set Nat
+
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
 --   Parameters are represented as @Var@s so @checkArgs@ really
@@ -553,21 +559,23 @@ assignS x args s =
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MonadTCM tcm => MetaId -> Args -> tcm [Arg Nat]
-checkArgs x args = do
+checkArgs :: MonadTCM tcm => MetaId -> Args -> FVs -> tcm [Arg Nat]
+checkArgs x args fvs = do
   args <- instantiateFull args
-  case validParameters args of
+  case validParameters args fvs of
     Just ids -> return $ reverse ids
     Nothing  -> patternViolation
 
 -- | Check that the parameters to a meta variable are distinct variables.
-validParameters :: Monad m => Args -> m [Arg Nat]
-validParameters args
-    | all isVar args && distinct (map unArg vars)
+-- Andreas, 2010-09-24: Allow non-linear variables that do not appear in @FVs@.
+validParameters :: Monad m => Args -> FVs -> m [Arg Nat]
+validParameters args fvs
+    | all isVar args && distinct (filter (flip Set.member fvs) $ map unArg vars)
                 = return $ reverse vars
     | otherwise	= fail "invalid parameters"
     where
 	vars = [ Arg h r i | Arg h r (Var i []) <- args ]
+        
 
 isVar :: Arg Term -> Bool
 isVar (Arg _ _ (Var _ [])) = True
