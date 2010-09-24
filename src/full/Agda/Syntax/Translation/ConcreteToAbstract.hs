@@ -793,7 +793,10 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceField r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
-      bindName p DefName x y
+      unless (argRelevance t == Irrelevant) $  
+        -- Andreas, 2010-09-24: irrelevant fields are not in scope
+        -- this ensures that projections out of irrelevant fields cannot occur
+        bindName p DefName x y
       return [ A.Field (mkDefInfo x f p a r) y t' ]
 
   -- Primitive function

@@ -109,9 +109,9 @@ isGeneratedRecordConstructor c = do
 {-| Compute the eta expansion of a record. The first argument should be
     the name of a record type. Given
 
-    @record R : Set where x : A; y : B@
+    @record R : Set where x : A; y : B; .z : C@
 
-    and @r : R@, @etaExpand R [] r@ is @[R.x r, R.y r]@
+    and @r : R@, @etaExpand R [] r@ is @[R.x r, R.y r, DontCare]@
 -}
 etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args)
 etaExpandRecord r pars u = do
@@ -120,7 +120,10 @@ etaExpandRecord r pars u = do
   case u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
-      let proj (Arg h rel x) = Arg h rel $ Def x $ map hide pars ++ [defaultArg u]
+      -- irrelevant fields are expanded to DontCare
+      let proj (Arg h Irrelevant _) = Arg h Irrelevant DontCare
+          proj (Arg h rel x)        = Arg h rel $ 
+            Def x $ map hide pars ++ [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -137,9 +140,11 @@ etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
 etaContractRecord r c args = do
   Record{ recFields = xs } <- getRecordDef r
   let check a ax = do
-        case (unArg a) of
-          Def y args@(_:_) | unArg ax == y -> return (Just $ unArg $ last args)
-          _                                -> return Nothing
+        -- skip irrelevant record fields by returning DontCare
+        case (argRelevance a, unArg a) of
+          (Irrelevant, _)                       -> return $ Just DontCare
+          (_, Def y args@(_:_)) | unArg ax == y -> return (Just $ unArg $ last args)
+          _                                     -> return Nothing
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied
@@ -147,11 +152,13 @@ etaContractRecord r c args = do
     EQ -> do
       cs <- zipWithM check args xs
       case sequence cs of
-        Just (c:cs) -> do
-          if all (c ==) cs
-            then return c
-            else fallBack
-        _ -> fallBack
+        Just cs -> case filter (DontCare /=) cs of
+          (c:cs) -> do
+            if all (c ==) cs
+              then return c
+              else fallBack
+          _ -> fallBack -- just DontCares
+        _ -> fallBack  -- a Nothing
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.

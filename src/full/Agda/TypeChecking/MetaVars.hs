@@ -194,9 +194,12 @@ newArgsMetaCtx (El s tm) tel ctx = do
   tm <- reduce tm
   case funView tm of
       FunV (Arg h r a) _  -> do
-	  v    <- newValueMetaCtx (telePi_ tel a) ctx
-	  args <- newArgsMetaCtx (El s tm `piApply` [Arg h r v]) tel ctx
-	  return $ Arg h r v : args
+          -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
+	  arg  <- (Arg h r) <$>  
+                    if r == Irrelevant then return DontCare
+                     else newValueMetaCtx (telePi_ tel a) ctx
+	  args <- newArgsMetaCtx (El s tm `piApply` [arg]) tel ctx
+	  return $ arg : args
       NoFunV _    -> return []
 
 -- | Create a metavariable of record type. This is actually one metavariable
