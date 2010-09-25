@@ -29,7 +29,9 @@ V = 0
 # Andreas 2010-09-24 skip over annoying Impossible.agde 
 # which always changes error message because it mentions a line number in a 
 # Agda source file
-excluded=./Impossible.agda
+# 2010-09-25 reactivated
+excluded=   
+#./Impossible.agda
 allagda=$(filter-out $(excluded),$(shell find . -name '*.agda' -o \( -name Imports -o -name customised \) -prune -a -name '*agda'))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))

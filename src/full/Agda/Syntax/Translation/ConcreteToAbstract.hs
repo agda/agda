@@ -63,6 +63,40 @@ import Agda.Utils.Pretty
 import Agda.Utils.Impossible
 
 
+-- moved here to reduce the probability of line number change
+-- in C.ImpossiblePragma  (test/fail/Impossible.agda)
+instance ToAbstract C.Pragma [A.Pragma] where
+    toAbstract (C.ImpossiblePragma _) = __IMPOSSIBLE__
+    toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
+    toAbstract (C.CompiledTypePragma _ x hs) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.CompiledTypePragma x hs ]
+        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
+    toAbstract (C.CompiledDataPragma _ x hs hcs) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
+        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
+    toAbstract (C.CompiledPragma _ x hs) = do
+      e <- toAbstract $ OldQName x
+      y <- case e of
+            A.Def x -> return x
+            A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
+            _       -> __IMPOSSIBLE__
+      return [ A.CompiledPragma y hs ]
+    toAbstract (C.BuiltinPragma _ b e) = do
+        e <- toAbstract e
+        return [ A.BuiltinPragma b e ]
+    toAbstract (C.ImportPragma _ i) = do
+      addHaskellImport i
+      return []
+    toAbstract (C.EtaPragma _ x) = do
+      e <- toAbstract $ OldQName x
+      case e of
+        A.Def x -> return [ A.EtaPragma x ]
+        _       -> fail "Bad ETA pragma"
+
 {--------------------------------------------------------------------------
     Exceptions
  --------------------------------------------------------------------------}
@@ -679,37 +713,9 @@ instance ToAbstract LetDef [A.LetBinding] where
                     i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d
 
-instance ToAbstract C.Pragma [A.Pragma] where
-    toAbstract (C.OptionsPragma _ opts) = return [ A.OptionsPragma opts ]
-    toAbstract (C.CompiledTypePragma _ x hs) = do
-      e <- toAbstract $ OldQName x
-      case e of
-        A.Def x -> return [ A.CompiledTypePragma x hs ]
-        _       -> fail $ "Bad compiled type: " ++ show x  -- TODO: error message
-    toAbstract (C.CompiledDataPragma _ x hs hcs) = do
-      e <- toAbstract $ OldQName x
-      case e of
-        A.Def x -> return [ A.CompiledDataPragma x hs hcs ]
-        _       -> fail $ "Not a datatype: " ++ show x  -- TODO: error message
-    toAbstract (C.CompiledPragma _ x hs) = do
-      e <- toAbstract $ OldQName x
-      y <- case e of
-            A.Def x -> return x
-            A.Con _ -> fail "Use COMPILED_DATA for constructors" -- TODO
-            _       -> __IMPOSSIBLE__
-      return [ A.CompiledPragma y hs ]
-    toAbstract (C.BuiltinPragma _ b e) = do
-        e <- toAbstract e
-        return [ A.BuiltinPragma b e ]
-    toAbstract (C.ImportPragma _ i) = do
-      addHaskellImport i
-      return []
-    toAbstract (C.ImpossiblePragma _) = __IMPOSSIBLE__
-    toAbstract (C.EtaPragma _ x) = do
-      e <- toAbstract $ OldQName x
-      case e of
-        A.Def x -> return [ A.EtaPragma x ]
-        _       -> fail "Bad ETA pragma"
+-- instance ToAbstract C.Pragma [A.Pragma] 
+-- moved higher up to reduce the probability of line number change
+-- in C.ImpossiblePragma  (test/fail/Impossible.agda)
 
 -- Only constructor names are bound by definitions.
 instance ToAbstract NiceDefinition Definition where
