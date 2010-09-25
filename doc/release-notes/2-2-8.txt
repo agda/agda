@@ -112,11 +112,27 @@ Language
 
   Absurd matches () are also allowed.
 
-  Irrelevant function types were added very recently, and have not
-  been subjected to much experimentation yet, so do not be surprised
-  if something is changed before the next release. For instance,
-  dependent irrelevant function spaces .(x : A) → B might be added in
-  the future.
+  Also irrelevant fields are allowed in records.  E.g., we can have
+
+    record Subset (A : Set) (P : A -> Set) : Set where
+      constructor _#_
+      field
+        elem : A
+        .proof : P elem
+
+  This is treated like the data definition above, only that you also
+  get the benefit of records (eta expansion, module).  Irrelevant
+  fields like proof are not in scope, neither inside nor outside the
+  record.  This means that no field of a record can depend on an
+  irrelevant field, and the projection of irrelevant fields is not
+  defined.  Irrelevant fields can only be retriven by matching, as in
+  elimSubset above.
+
+  Note: Irrelevant function types were added very recently, and have
+  not been subjected to much experimentation yet, so do not be
+  surprised if something is changed before the next release. For
+  instance, dependent irrelevant function spaces .(x : A) → B might be
+  added in the future.
 
 * Mixfix binders.
 
