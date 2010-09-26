@@ -2,6 +2,8 @@
 -- Pointwise products of binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Relation.Binary.Product.Pointwise where
 
 open import Data.Product as Prod
@@ -23,11 +25,11 @@ open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 
 private
- module Dummy {a₁ a₂ : Set} where
+ module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
   infixr 2 _×-Rel_
 
-  _×-Rel_ : Rel a₁ zero → Rel a₂ zero → Rel (a₁ × a₂) zero
+  _×-Rel_ : Rel A₁ ℓ₁ → Rel A₂ ℓ₂ → Rel (A₁ × A₂) _
   _∼₁_ ×-Rel _∼₂_ = (_∼₁_ on proj₁) -×- (_∼₂_ on proj₂)
 
   -- Some properties which are preserved by ×-Rel (under certain
@@ -208,30 +210,36 @@ open Dummy public
 
 -- "Packages" (e.g. setoids) can also be combined.
 
-_×-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
+_×-preorder_ :
+  ∀ {p₁ p₂ p₃ p₄} →
+  Preorder p₁ p₂ _ → Preorder p₃ p₄ _ → Preorder _ _ _
 p₁ ×-preorder p₂ = record
   { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   } where open Preorder
 
-_×-setoid_ : Setoid _ _ → Setoid _ _ → Setoid _ _
+_×-setoid_ :
+  ∀ {s₁ s₂ s₃ s₄} → Setoid s₁ s₂ → Setoid s₃ s₄ → Setoid _ _
 s₁ ×-setoid s₂ = record
   { isEquivalence = isEquivalence s₁ ×-isEquivalence isEquivalence s₂
   } where open Setoid
 
-_×-decSetoid_ : DecSetoid _ _ → DecSetoid _ _ → DecSetoid _ _
+_×-decSetoid_ :
+  ∀ {d₁ d₂ d₃ d₄} → DecSetoid d₁ d₂ → DecSetoid d₃ d₄ → DecSetoid _ _
 s₁ ×-decSetoid s₂ = record
   { isDecEquivalence = isDecEquivalence s₁ ×-isDecEquivalence
                        isDecEquivalence s₂
   } where open DecSetoid
 
-_×-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
+_×-poset_ :
+  ∀ {p₁ p₂ p₃ p₄} → Poset p₁ p₂ _ → Poset p₃ p₄ _ → Poset _ _ _
 s₁ ×-poset s₂ = record
   { isPartialOrder = isPartialOrder s₁ ×-isPartialOrder
                      isPartialOrder s₂
   } where open Poset
 
 _×-strictPartialOrder_ :
-  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  ∀ {s₁ s₂ s₃ s₄} →
+  StrictPartialOrder s₁ s₂ _ → StrictPartialOrder s₃ s₄ _ →
   StrictPartialOrder _ _ _
 s₁ ×-strictPartialOrder s₂ = record
   { isStrictPartialOrder = isStrictPartialOrder s₁
@@ -242,9 +250,9 @@ s₁ ×-strictPartialOrder s₂ = record
 ------------------------------------------------------------------------
 -- Some properties related to equivalences and inverses
 
-×-Rel⇿≡ : {A B : Set} →
+×-Rel⇿≡ : ∀ {a b} {A : Set a} {B : Set b} →
           Inverse (P.setoid A ×-setoid P.setoid B) (P.setoid (A × B))
-×-Rel⇿≡ {A} {B} = record
+×-Rel⇿≡ {A = A} {B} = record
   { to         = record { _⟨$⟩_ = id; cong = to-cong   }
   ; from       = record { _⟨$⟩_ = id; cong = from-cong }
   ; inverse-of = record
@@ -266,10 +274,12 @@ s₁ ×-strictPartialOrder s₂ = record
   from-cong P.refl = (P.refl , P.refl)
 
 _×-equivalent_ :
-  {A B C D : Setoid zero zero} →
+  ∀ {a₁ a₂ b₁ b₂ c₁ c₂ d₁ d₂}
+    {A : Setoid a₁ a₂} {B : Setoid b₁ b₂}
+    {C : Setoid c₁ c₂} {D : Setoid d₁ d₂} →
   Equivalent A B → Equivalent C D →
   Equivalent (A ×-setoid C) (B ×-setoid D)
-_×-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
+_×-equivalent_ {A = A} {B} {C} {D} A⇔B C⇔D = record
   { to   = record { _⟨$⟩_ = to;   cong = λ {x y} → to-cong   {x} {y} }
   ; from = record { _⟨$⟩_ = from; cong = λ {x y} → from-cong {x} {y} }
   }
@@ -292,14 +302,17 @@ _×-equivalent_ {A} {B} {C} {D} A⇔B C⇔D = record
     (F.cong (Equivalent.from A⇔B) _∼₁_ ,
      F.cong (Equivalent.from C⇔D) _∼₂_)
 
-_×-⇔_ : {A B C D : Set} → A ⇔ B → C ⇔ D → (A × C) ⇔ (B × D)
-A⇔B ×-⇔ C⇔D =
-  Inverse.equivalent ×-Rel⇿≡ ⟨∘⟩
+_×-⇔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ⇔ B → C ⇔ D → (A × C) ⇔ (B × D)
+_×-⇔_ {A = A} {B} {C} {D} A⇔B C⇔D =
+  Inverse.equivalent (×-Rel⇿≡ {A = B} {B = D}) ⟨∘⟩
   A⇔B ×-equivalent C⇔D ⟨∘⟩
-  Eq.sym (Inverse.equivalent ×-Rel⇿≡)
+  Eq.sym (Inverse.equivalent (×-Rel⇿≡ {A = A} {B = C}))
 
 _×-inverse_ :
-  {A B C D : Setoid zero zero} →
+  ∀ {a₁ a₂ b₁ b₂ c₁ c₂ d₁ d₂}
+    {A : Setoid a₁ a₂} {B : Setoid b₁ b₂}
+    {C : Setoid c₁ c₂} {D : Setoid d₁ d₂} →
   Inverse A B → Inverse C D → Inverse (A ×-setoid C) (B ×-setoid D)
 A⇿B ×-inverse C⇿D = record
   { to         = Equivalent.to   eq
@@ -322,5 +335,9 @@ A⇿B ×-inverse C⇿D = record
                   , Inverse.right-inverse-of C⇿D y
                   )
 
-_×-⇿_ : {A B C D : Set} → A ⇿ B → C ⇿ D → (A × C) ⇿ (B × D)
-A⇿B ×-⇿ C⇿D = ×-Rel⇿≡ ⟪∘⟫ A⇿B ×-inverse C⇿D ⟪∘⟫ Inv.sym ×-Rel⇿≡
+_×-⇿_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ⇿ B → C ⇿ D → (A × C) ⇿ (B × D)
+_×-⇿_ {A = A} {B} {C} {D} A⇿B C⇿D =
+  ×-Rel⇿≡ {A = B} {B = D} ⟪∘⟫
+  A⇿B ×-inverse C⇿D ⟪∘⟫
+  Inv.sym (×-Rel⇿≡ {A = A} {B = C})

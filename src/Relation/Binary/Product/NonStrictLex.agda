@@ -2,6 +2,8 @@
 -- Lexicographic products of binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- The definition of lexicographic product used here is suitable if
 -- the left-hand relation is a (non-strict) partial order.
 
@@ -18,10 +20,10 @@ open import Relation.Binary.Product.Pointwise as Pointwise
 import Relation.Binary.Product.StrictLex as Strict
 
 private
- module Dummy {a₁ a₂ : Set} where
+ module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
-  ×-Lex : (_≈₁_ _≤₁_ : Rel a₁ zero) → (_≤₂_ : Rel a₂ zero) →
-          Rel (a₁ × a₂) zero
+  ×-Lex : (_≈₁_ _≤₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) →
+          Rel (A₁ × A₂) _
   ×-Lex _≈₁_ _≤₁_ _≤₂_ = Strict.×-Lex _≈₁_ (Conv._<_ _≈₁_ _≤₁_) _≤₂_
 
   -- Some properties which are preserved by ×-Lex (under certain
@@ -66,7 +68,7 @@ private
 
   ×-≈-respects₂ :
     ∀ {_≈₁_ _≤₁_} → IsEquivalence _≈₁_ → _≤₁_ Respects₂ _≈₁_ →
-    ∀ {_≈₂_ _≤₂_} → _≤₂_ Respects₂ _≈₂_ →
+    ∀ {_≈₂_ _≤₂_ : Rel A₂ ℓ₂} → _≤₂_ Respects₂ _≈₂_ →
     (×-Lex _≈₁_ _≤₁_ _≤₂_) Respects₂ (_≈₁_ ×-Rel _≈₂_)
   ×-≈-respects₂ eq₁ resp₁ resp₂ =
     Strict.×-≈-respects₂ eq₁ (Conv.<-resp-≈ _ _ eq₁ resp₁) resp₂
@@ -152,14 +154,16 @@ open Dummy public
 
 -- "Packages" (e.g. posets) can also be combined.
 
-_×-poset_ : Poset _ _ _ → Poset _ _ _ → Poset _ _ _
+_×-poset_ :
+  ∀ {p₁ p₂ p₃ p₄} → Poset p₁ p₂ _ → Poset p₃ p₄ _ → Poset _ _ _
 p₁ ×-poset p₂ = record
   { isPartialOrder = isPartialOrder p₁ ×-isPartialOrder
                      isPartialOrder p₂
   } where open Poset
 
 _×-totalOrder_ :
-  DecTotalOrder _ _ _ → TotalOrder _ _ _ → TotalOrder _ _ _
+  ∀ {d₁ d₂ t₃ t₄} →
+  DecTotalOrder d₁ d₂ _ → TotalOrder t₃ t₄ _ → TotalOrder _ _ _
 t₁ ×-totalOrder t₂ = record
   { isTotalOrder = ×-isTotalOrder T₁._≟_ T₁.isTotalOrder T₂.isTotalOrder
   }
@@ -168,7 +172,8 @@ t₁ ×-totalOrder t₂ = record
   module T₂ =    TotalOrder t₂
 
 _×-decTotalOrder_ :
-  DecTotalOrder _ _ _ → DecTotalOrder _ _ _ → DecTotalOrder _ _ _
+  ∀ {d₁ d₂ d₃ d₄} →
+  DecTotalOrder d₁ d₂ _ → DecTotalOrder d₃ d₄ _ → DecTotalOrder _ _ _
 t₁ ×-decTotalOrder t₂ = record
   { isDecTotalOrder = isDecTotalOrder t₁ ×-isDecTotalOrder
                       isDecTotalOrder t₂

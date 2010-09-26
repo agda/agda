@@ -2,6 +2,8 @@
 -- Lexicographic products of binary relations
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- The definition of lexicographic product used here is suitable if
 -- the left-hand relation is a strict partial order.
 
@@ -18,25 +20,26 @@ open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Relation.Binary.Product.Pointwise as Pointwise
   using (_×-Rel_)
+open import Relation.Nullary
 
 private
- module Dummy {a₁ a₂ : Set} where
+ module Dummy {a₁ a₂ ℓ₁ ℓ₂} {A₁ : Set a₁} {A₂ : Set a₂} where
 
-  ×-Lex : (_≈₁_ _<₁_ : Rel a₁ zero) → (_≤₂_ : Rel a₂ zero) →
-          Rel (a₁ × a₂) zero
+  ×-Lex : (_≈₁_ _<₁_ : Rel A₁ ℓ₁) → (_≤₂_ : Rel A₂ ℓ₂) →
+          Rel (A₁ × A₂) _
   ×-Lex _≈₁_ _<₁_ _≤₂_ =
     (_<₁_ on proj₁) -⊎- (_≈₁_ on proj₁) -×- (_≤₂_ on proj₂)
 
   -- Some properties which are preserved by ×-Lex (under certain
   -- assumptions).
 
-  ×-reflexive : ∀ _≈₁_ _∼₁_ {_≈₂_} _≤₂_ →
+  ×-reflexive : ∀ _≈₁_ _∼₁_ {_≈₂_ : Rel A₂ ℓ₂} _≤₂_ →
                 _≈₂_ ⇒ _≤₂_ → (_≈₁_ ×-Rel _≈₂_) ⇒ (×-Lex _≈₁_ _∼₁_ _≤₂_)
   ×-reflexive _ _ _ refl₂ = λ x≈y →
     inj₂ (proj₁ x≈y , refl₂ (proj₂ x≈y))
 
-  _×-irreflexive_ : ∀ {_≈₁_ _<₁_} → Irreflexive _≈₁_ _<₁_ →
-                    ∀ {_≈₂_ _<₂_} → Irreflexive _≈₂_ _<₂_ →
+  _×-irreflexive_ : ∀ {_≈₁_ _<₁_}             → Irreflexive _≈₁_ _<₁_ →
+                    ∀ {_≈₂_ _<₂_ : Rel A₂ ℓ₂} → Irreflexive _≈₂_ _<₂_ →
                     Irreflexive (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _<₂_)
   (ir₁ ×-irreflexive ir₂) x≈y (inj₁ x₁<y₁) = ir₁ (proj₁ x≈y) x₁<y₁
   (ir₁ ×-irreflexive ir₂) x≈y (inj₂ x≈<y)  =
@@ -66,7 +69,7 @@ private
   ×-antisymmetric :
     ∀ {_≈₁_ _<₁_} →
     Symmetric _≈₁_ → Irreflexive _≈₁_ _<₁_ → Asymmetric _<₁_ →
-    ∀ {_≈₂_ _≤₂_} →
+    ∀ {_≈₂_ _≤₂_ : Rel A₂ ℓ₂} →
     Antisymmetric _≈₂_ _≤₂_ →
     Antisymmetric (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _≤₂_)
   ×-antisymmetric {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} sym₁ irrefl₁ asym₁
@@ -151,22 +154,39 @@ private
               Trichotomous (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _<₂_)
   ×-compare {_≈₁_} {_<₁_} sym₁ compare₁ {_≈₂_} {_<₂_} compare₂ = cmp
     where
+    cmp″ : ∀ {x₁ y₁ x₂ y₂} →
+           ¬ (x₁ <₁ y₁) → x₁ ≈₁ y₁ → ¬ (y₁ <₁ x₁) →
+           Tri (x₂ <₂ y₂) (x₂ ≈₂ y₂) (y₂ <₂ x₂) →
+           Tri (×-Lex _≈₁_ _<₁_ _<₂_ (x₁ , x₂) (y₁ , y₂))
+               ((_≈₁_ ×-Rel _≈₂_) (x₁ , x₂) (y₁ , y₂))
+               (×-Lex _≈₁_ _<₁_ _<₂_ (y₁ , y₂) (x₁ , x₂))
+    cmp″ x₁≮y₁ x₁≈y₁ x₁≯y₁ (tri< x₂<y₂ x₂≉y₂ x₂≯y₂) =
+      tri< (inj₂ (x₁≈y₁ , x₂<y₂))
+           (x₂≉y₂ ∘ proj₂)
+           [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
+    cmp″ x₁≮y₁ x₁≈y₁ x₁≯y₁ (tri> x₂≮y₂ x₂≉y₂ x₂>y₂) =
+      tri> [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
+           (x₂≉y₂ ∘ proj₂)
+           (inj₂ (sym₁ x₁≈y₁ , x₂>y₂))
+    cmp″ x₁≮y₁ x₁≈y₁ x₁≯y₁ (tri≈ x₂≮y₂ x₂≈y₂ x₂≯y₂) =
+      tri≈ [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
+           (x₁≈y₁ , x₂≈y₂)
+           [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
+
+    cmp′ : ∀ {x₁ y₁} → Tri (x₁ <₁ y₁) (x₁ ≈₁ y₁) (y₁ <₁ x₁) →
+           ∀ x₂ y₂ →
+           Tri (×-Lex _≈₁_ _<₁_ _<₂_ (x₁ , x₂) (y₁ , y₂))
+               ((_≈₁_ ×-Rel _≈₂_) (x₁ , x₂) (y₁ , y₂))
+               (×-Lex _≈₁_ _<₁_ _<₂_ (y₁ , y₂) (x₁ , x₂))
+    cmp′ (tri< x₁<y₁ x₁≉y₁ x₁≯y₁) x₂ y₂ =
+      tri< (inj₁ x₁<y₁) (x₁≉y₁ ∘ proj₁) [ x₁≯y₁ , x₁≉y₁ ∘ sym₁ ∘ proj₁ ]
+    cmp′ (tri> x₁≮y₁ x₁≉y₁ x₁>y₁) x₂ y₂ =
+      tri> [ x₁≮y₁ , x₁≉y₁ ∘ proj₁ ] (x₁≉y₁ ∘ proj₁) (inj₁ x₁>y₁)
+    cmp′ (tri≈ x₁≮y₁ x₁≈y₁ x₁≯y₁) x₂ y₂ =
+      cmp″ x₁≮y₁ x₁≈y₁ x₁≯y₁ (compare₂ x₂ y₂)
+
     cmp : Trichotomous (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _<₂_)
-    cmp (x₁ , x₂) (y₁ , y₂) with compare₁ x₁ y₁
-    ... | tri< x₁<y₁ x₁≉y₁ x₁≯y₁ = tri< (inj₁ x₁<y₁) (x₁≉y₁ ∘ proj₁)
-                                        [ x₁≯y₁ , x₁≉y₁ ∘ sym₁ ∘ proj₁ ]
-    ... | tri> x₁≮y₁ x₁≉y₁ x₁>y₁ = tri> [ x₁≮y₁ , x₁≉y₁ ∘ proj₁ ]
-                                        (x₁≉y₁ ∘ proj₁) (inj₁ x₁>y₁)
-    ... | tri≈ x₁≮y₁ x₁≈y₁ x₁≯y₁ with compare₂ x₂ y₂
-    ...   | tri< x₂<y₂ x₂≉y₂ x₂≯y₂ = tri< (inj₂ (x₁≈y₁ , x₂<y₂))
-                                          (x₂≉y₂ ∘ proj₂)
-                                          [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
-    ...   | tri> x₂≮y₂ x₂≉y₂ x₂>y₂ = tri> [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
-                                          (x₂≉y₂ ∘ proj₂)
-                                          (inj₂ (sym₁ x₁≈y₁ , x₂>y₂))
-    ...   | tri≈ x₂≮y₂ x₂≈y₂ x₂≯y₂ = tri≈ [ x₁≮y₁ , x₂≮y₂ ∘ proj₂ ]
-                                          (x₁≈y₁ , x₂≈y₂)
-                                          [ x₁≯y₁ , x₂≯y₂ ∘ proj₂ ]
+    cmp (x₁ , x₂) (y₁ , y₂) = cmp′ (compare₁ x₁ y₁) x₂ y₂
 
   -- Some collections of properties which are preserved by ×-Lex.
 
@@ -236,13 +256,16 @@ open Dummy public
 
 -- "Packages" (e.g. preorders) can also be combined.
 
-_×-preorder_ : Preorder _ _ _ → Preorder _ _ _ → Preorder _ _ _
+_×-preorder_ :
+  ∀ {p₁ p₂ p₃ p₄} →
+  Preorder p₁ p₂ _ → Preorder p₃ p₄ _ → Preorder _ _ _
 p₁ ×-preorder p₂ = record
   { isPreorder = isPreorder p₁ ×-isPreorder isPreorder p₂
   } where open Preorder
 
 _×-strictPartialOrder_ :
-  StrictPartialOrder _ _ _ → StrictPartialOrder _ _ _ →
+  ∀ {s₁ s₂ s₃ s₄} →
+  StrictPartialOrder s₁ s₂ _ → StrictPartialOrder s₃ s₄ _ →
   StrictPartialOrder _ _ _
 s₁ ×-strictPartialOrder s₂ = record
   { isStrictPartialOrder = isStrictPartialOrder s₁
@@ -251,7 +274,8 @@ s₁ ×-strictPartialOrder s₂ = record
   } where open StrictPartialOrder
 
 _×-strictTotalOrder_ :
-  StrictTotalOrder _ _ _ → StrictTotalOrder _ _ _ →
+  ∀ {s₁ s₂ s₃ s₄} →
+  StrictTotalOrder s₁ s₂ _ → StrictTotalOrder s₃ s₄ _ →
   StrictTotalOrder _ _ _
 s₁ ×-strictTotalOrder s₂ = record
   { isStrictTotalOrder = isStrictTotalOrder s₁
