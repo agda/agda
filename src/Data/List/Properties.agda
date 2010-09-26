@@ -152,16 +152,16 @@ concat-map {b = b} {f = f} =
   where open EqR (P._→-setoid_ _ _)
 
 map-id : ∀ {a} {A : Set a} → map id ≗ id {A = List A}
-map-id = begin
+map-id {A = A} = begin
   map id        ≈⟨ mapIsFold ⟩
-  foldr _∷_ []  ≈⟨ P.sym ∘ idIsFold ⟩
+  foldr _∷_ []  ≈⟨ P.sym ∘ idIsFold {A = A} ⟩
   id            ∎
   where open EqR (P._→-setoid_ _ _)
 
 map-compose : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
                 {g : B → C} {f : A → B} →
               map (g ∘ f) ≗ map g ∘ map f
-map-compose {g = g} {f} =
+map-compose {A = A} {B} {g = g} {f} =
   begin
     map (g ∘ f)
   ≈⟨ P.cong (map (g ∘ f)) ∘ idIsFold ⟩
@@ -170,7 +170,7 @@ map-compose {g = g} {f} =
     foldr (λ a y → g (f a) ∷ y) []
   ≈⟨ P.sym ∘ foldr-fusion (map g) [] (λ _ _ → refl) ⟩
     map g ∘ foldr (λ a y → f a ∷ y) []
-  ≈⟨ P.cong (map g) ∘ P.sym ∘ mapIsFold ⟩
+  ≈⟨ P.cong (map g) ∘ P.sym ∘ mapIsFold {A = A} {B = B} ⟩
     map g ∘ map f
   ∎
   where open EqR (P._→-setoid_ _ _)
@@ -191,14 +191,14 @@ foldr-cong {f₁ = f₁} {f₂} {e} f₁≗₂f₂ refl =
 
 map-cong : ∀ {a b} {A : Set a} {B : Set b} {f g : A → B} →
            f ≗ g → map f ≗ map g
-map-cong {f = f} {g} f≗g =
+map-cong {A = A} {B} {f} {g} f≗g =
   begin
     map f
   ≈⟨ mapIsFold ⟩
     foldr (λ x ys → f x ∷ ys) []
   ≈⟨ foldr-cong (λ x ys → P.cong₂ _∷_ (f≗g x) refl) refl ⟩
     foldr (λ x ys → g x ∷ ys) []
-  ≈⟨ P.sym ∘ mapIsFold ⟩
+  ≈⟨ P.sym ∘ mapIsFold {A = A} {B = B} ⟩
     map g
   ∎
   where open EqR (P._→-setoid_ _ _)

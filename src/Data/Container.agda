@@ -238,7 +238,7 @@ infix 4 _∈_
 
 _∈_ : ∀ {c} {C : Container c} {X : Set c} →
       X → ⟦ C ⟧ X → Set c
-x ∈ xs = ◇ (Lift ⟨∘⟩ _≡_ x) xs
+x ∈ xs = ◇ (_≡_ x) xs
 
 -- Bag and set equality. Two containers xs and ys are equal when
 -- viewed as sets if, whenever x ∈ xs, we also have x ∈ ys, and vice

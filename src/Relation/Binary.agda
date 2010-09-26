@@ -73,7 +73,7 @@ record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
     ; trans         = trans
     }
 
-  preorder : Preorder c zero ℓ
+  preorder : Preorder c c ℓ
   preorder = record { isPreorder = isPreorder }
 
   -- A trivially indexed setoid.

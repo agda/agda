@@ -12,7 +12,6 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalent)
 open import Function.Inverse as Inv using (Isomorphism; module Inverse)
-open import Level
 open import Relation.Binary.HeterogeneousEquality as H using (_≅_; refl)
 open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
@@ -45,24 +44,24 @@ private
     to : xs ≈[ set ] ys → xs ≈[ set ]′ ys
     to xs≈ys =
       Eq.equivalent
-        (λ p → proj₁ $ Equivalent.to   xs≈ys ⟨$⟩ (p , lift refl))
-        (λ p → proj₁ $ Equivalent.from xs≈ys ⟨$⟩ (p , lift refl)) ,
-      (λ p → lower $ proj₂ (Equivalent.to   xs≈ys ⟨$⟩ (p , lift refl))) ,
-      (λ p → lower $ proj₂ (Equivalent.from xs≈ys ⟨$⟩ (p , lift refl)))
+        (λ p → proj₁ $ Equivalent.to   xs≈ys ⟨$⟩ (p , refl))
+        (λ p → proj₁ $ Equivalent.from xs≈ys ⟨$⟩ (p , refl)) ,
+      (λ p → proj₂ (Equivalent.to   xs≈ys ⟨$⟩ (p , refl))) ,
+      (λ p → proj₂ (Equivalent.from xs≈ys ⟨$⟩ (p , refl)))
 
     from : xs ≈[ set ]′ ys → xs ≈[ set ] ys
     from (p₁≈p₂ , f₁≈f₂ , f₂≈f₁) {z} =
       Eq.equivalent
         (Prod.map (_⟨$⟩_ (Equivalent.to p₁≈p₂))
-                  (λ {x} eq → lift (begin
-                     z                                     ≡⟨ lower {ℓ = c} eq ⟩
+                  (λ {x} eq → begin
+                     z                                     ≡⟨ eq ⟩
                      proj₂ xs x                            ≡⟨ f₁≈f₂ x ⟩
-                     proj₂ ys (Equivalent.to p₁≈p₂ ⟨$⟩ x)  ∎)))
+                     proj₂ ys (Equivalent.to p₁≈p₂ ⟨$⟩ x)  ∎))
         (Prod.map (_⟨$⟩_ (Equivalent.from p₁≈p₂))
-                  (λ {x} eq → lift (begin
-                     z                                       ≡⟨ lower {ℓ = c} eq ⟩
+                  (λ {x} eq → begin
+                     z                                       ≡⟨ eq ⟩
                      proj₂ ys x                              ≡⟨ f₂≈f₁ x ⟩
-                     proj₂ xs (Equivalent.from p₁≈p₂ ⟨$⟩ x)  ∎)))
+                     proj₂ xs (Equivalent.from p₁≈p₂ ⟨$⟩ x)  ∎))
 
   ≈⇔≈′-bag : ∀ {c} {C : Container c} {X : Set c} (xs ys : ⟦ C ⟧ X) →
              xs ≈[ bag ] ys ⇔ xs ≈[ bag ]′ ys
@@ -84,32 +83,32 @@ private
       xs∼ys = Equivalent.to (≈⇔≈′-set xs ys) ⟨$⟩ Inv.⇿⇒ xs≈ys
 
       from∘to : ∀ p → proj₁ (from xs≈ys ⟨$⟩
-                               (proj₁ (to xs≈ys ⟨$⟩ (p , lift refl)) ,
-                                lift refl)) ≡ p
+                               (proj₁ (to xs≈ys ⟨$⟩ (p , refl)) ,
+                                refl)) ≡ p
       from∘to p = begin
-        proj₁ (from xs≈ys ⟨$⟩ (proj₁ (to xs≈ys ⟨$⟩ (p , lift refl)) , lift refl))  ≡⟨ lemma (to xs≈ys ⟨$⟩ (p , lift refl)) ⟩
-        proj₁ (from xs≈ys ⟨$⟩        (to xs≈ys ⟨$⟩ (p , lift refl))             )  ≡⟨ P.cong proj₁ $
-                                                                                        left-inverse-of xs≈ys (p , lift refl) ⟩
-        p                                                                          ∎
+        proj₁ (from xs≈ys ⟨$⟩ (proj₁ (to xs≈ys ⟨$⟩ (p , refl)) , refl))  ≡⟨ lemma (to xs≈ys ⟨$⟩ (p , refl)) ⟩
+        proj₁ (from xs≈ys ⟨$⟩        (to xs≈ys ⟨$⟩ (p , refl))        )  ≡⟨ P.cong proj₁ $
+                                                                              left-inverse-of xs≈ys (p , refl) ⟩
+        p                                                                ∎
         where
-        lemma : ∀ {y} (x : ∃ λ p′ → Lift (y ≡ proj₂ ys p′)) →
-                proj₁ (from xs≈ys ⟨$⟩ (proj₁ x , lift refl)) ≡
-                proj₁ (from xs≈ys ⟨$⟩        x             )
-        lemma (p′ , lift refl) = refl
+        lemma : ∀ {y} (x : ∃ λ p′ → y ≡ proj₂ ys p′) →
+                proj₁ (from xs≈ys ⟨$⟩ (proj₁ x , refl)) ≡
+                proj₁ (from xs≈ys ⟨$⟩        x        )
+        lemma (p′ , refl) = refl
 
       to∘from : ∀ p → proj₁ (to xs≈ys ⟨$⟩
-                               (proj₁ (from xs≈ys ⟨$⟩ (p , lift refl)) ,
-                                lift refl)) ≡ p
+                               (proj₁ (from xs≈ys ⟨$⟩ (p , refl)) ,
+                                refl)) ≡ p
       to∘from p = begin
-        proj₁ (to xs≈ys ⟨$⟩ (proj₁ (from xs≈ys ⟨$⟩ (p , lift refl)) , lift refl))  ≡⟨ lemma (from xs≈ys ⟨$⟩ (p , lift refl)) ⟩
-        proj₁ (to xs≈ys ⟨$⟩        (from xs≈ys ⟨$⟩ (p , lift refl))             )  ≡⟨ P.cong proj₁ $
-                                                                                        right-inverse-of xs≈ys (p , lift refl) ⟩
-        p                                                                          ∎
+        proj₁ (to xs≈ys ⟨$⟩ (proj₁ (from xs≈ys ⟨$⟩ (p , refl)) , refl))  ≡⟨ lemma (from xs≈ys ⟨$⟩ (p , refl)) ⟩
+        proj₁ (to xs≈ys ⟨$⟩        (from xs≈ys ⟨$⟩ (p , refl))        )  ≡⟨ P.cong proj₁ $
+                                                                              right-inverse-of xs≈ys (p , refl) ⟩
+        p                                                                ∎
         where
-        lemma : ∀ {y} (x : ∃ λ p′ → Lift (y ≡ proj₂ xs p′)) →
-                proj₁ (to xs≈ys ⟨$⟩ (proj₁ x , lift refl)) ≡
-                proj₁ (to xs≈ys ⟨$⟩        x             )
-        lemma (p′ , lift refl) = refl
+        lemma : ∀ {y} (x : ∃ λ p′ → y ≡ proj₂ xs p′) →
+                proj₁ (to xs≈ys ⟨$⟩ (proj₁ x , refl)) ≡
+                proj₁ (to xs≈ys ⟨$⟩        x        )
+        lemma (p′ , refl) = refl
 
     f : xs ≈[ bag ]′ ys → xs ≈[ bag ] ys
     f (p₁≈p₂ , f₁≈f₂ , f₂≈f₁) {z} = record
@@ -117,19 +116,19 @@ private
       ; from       = Equivalent.from xs∼ys
       ; inverse-of = record
         { left-inverse-of  = λ x →
-            let eq = P.trans (P.trans (lower (proj₂ x)) (P.trans (f₁≈f₂ (proj₁ x)) refl))
+            let eq = P.trans (P.trans (proj₂ x) (P.trans (f₁≈f₂ (proj₁ x)) refl))
                              (P.trans (f₂≈f₁ (to p₁≈p₂ ⟨$⟩ proj₁ x)) refl) in
             H.≅-to-≡ $
-              H.cong₂ {B = λ x → Lift (z ≡ proj₂ xs x)}
+              H.cong₂ {B = λ x → z ≡ proj₂ xs x}
                       _,_ (H.≡-to-≅ $ left-inverse-of  p₁≈p₂ (proj₁ x))
-                          (proof-irrelevance eq (lower $ proj₂ x))
+                          (proof-irrelevance eq (proj₂ x))
         ; right-inverse-of = λ x →
-            let eq = P.trans (P.trans (lower (proj₂ x)) (P.trans (f₂≈f₁ (proj₁ x)) refl))
+            let eq = P.trans (P.trans (proj₂ x) (P.trans (f₂≈f₁ (proj₁ x)) refl))
                              (P.trans (f₁≈f₂ (from p₁≈p₂ ⟨$⟩ proj₁ x)) refl) in
             H.≅-to-≡ $
-              H.cong₂ {B = λ x → Lift (z ≡ proj₂ ys x)}
+              H.cong₂ {B = λ x → z ≡ proj₂ ys x}
                       _,_ (H.≡-to-≅ $ right-inverse-of p₁≈p₂ (proj₁ x))
-                          (proof-irrelevance eq (lower $ proj₂ x))
+                          (proof-irrelevance eq (proj₂ x))
         }
       }
       where
@@ -137,8 +136,7 @@ private
                 (Inv.⇿⇒ p₁≈p₂ , f₁≈f₂ , f₂≈f₁)
 
       proof-irrelevance : {A : Set c} {x y z : A}
-                          (p : x ≡ y) (q : x ≡ z) →
-                          lift {ℓ = c} p ≅ lift {ℓ = c} q
+                          (p : x ≡ y) (q : x ≡ z) → p ≅ q
       proof-irrelevance refl refl = refl
 
 ≈⇔≈′ : ∀ {k c} {C : Container c} {X : Set c} (xs ys : ⟦ C ⟧ X) →

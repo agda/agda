@@ -134,7 +134,7 @@ module Product (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
             ⟦ C₁ × C₂ ⟧ X ⇿ (⟦ C₁ ⟧ X ⟨×⟩ ⟦ C₂ ⟧ X)
-  correct C₁ C₂ {X} = record
+  correct {c} C₁ C₂ {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
@@ -151,7 +151,7 @@ module Product (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
     from∘to : from ⟨∘⟩ to ≗ F.id
     from∘to (s , f) =
-      P.cong (_,_ s) (ext [ (λ _ → refl) , (λ _ → refl) ])
+      P.cong (_,_ s) (ext {ℓ = c} [ (λ _ → refl) , (λ _ → refl) ])
 
 module IndexedProduct where
 

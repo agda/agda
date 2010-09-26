@@ -17,7 +17,6 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse as Inv
   using (_⇿_; Isomorphism; module Inverse)
 open import Function.Inverse.TypeIsomorphisms
-open import Level
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; refl)
@@ -42,13 +41,13 @@ private
   }
   where
   to : ◇ P xs → ∃ λ x → x ∈ xs × P x
-  to (p , Px) = (proj₂ xs p , (p , lift refl) , Px)
+  to (p , Px) = (proj₂ xs p , (p , refl) , Px)
 
   from : (∃ λ x → x ∈ xs × P x) → ◇ P xs
-  from (.(proj₂ xs p) , (p , lift refl) , Px) = (p , Px)
+  from (.(proj₂ xs p) , (p , refl) , Px) = (p , Px)
 
   to∘from : to ∘ from ≗ id
-  to∘from (.(proj₂ xs p) , (p , lift refl) , Px) = refl
+  to∘from (.(proj₂ xs p) , (p , refl) , Px) = refl
 
 -- ◇ is a congruence for bag and set equality.
 
@@ -167,26 +166,9 @@ map⇿∘ _ _ _ = Inv.id
              {xs : ⟦ C ⟧ X} {y} →
            y ∈ C.map f xs ⇿ (∃ λ x → x ∈ xs × y ≡ f x)
 ∈map⇿∈×≡ {c} C {f = f} {xs} {y} =
-  y ∈ C.map f xs                             ⇿⟨ map⇿∘ C (Lift ∘ _≡_ y) f ⟩
-  ◇ (λ x → Lift (y ≡ f x)) xs                ⇿⟨ ⇿∈ C ⟩
-  (∃ λ x → x ∈ xs × Lift {ℓ = c} (y ≡ f x))  ⇿⟨ Σ.cong (λ {x} → helper (x ∈ xs)) ⟩
-  (∃ λ x → x ∈ xs × y ≡ f x)                 ∎
-  where
-  helper : ∀ {a} (A : Set a) {B : Set} → (A × Lift {ℓ = a} B) ⇿ (A × B)
-  helper {a} A {B} = record
-    { to         = P.→-to-⟶ to
-    ; from       = P.→-to-⟶ from
-    ; inverse-of = record
-      { left-inverse-of  = λ _ → refl
-      ; right-inverse-of = λ _ → refl
-      }
-    }
-    where
-    to : A × Lift {ℓ = a} B → A × B
-    to = Prod.map id lower
-
-    from : A × B → A × Lift {ℓ = a} B
-    from = Prod.map id lift
+  y ∈ C.map f xs              ⇿⟨ map⇿∘ C (_≡_ y) f ⟩
+  ◇ (λ x → y ≡ f x) xs        ⇿⟨ ⇿∈ C ⟩
+  (∃ λ x → x ∈ xs × y ≡ f x)  ∎
 
 -- map is a congruence for bag and set equality.
 
@@ -195,18 +177,18 @@ map-cong : ∀ {k c} {C : Container c} {X Y : Set c}
            f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
            C.map f₁ xs₁ ≈[ k ] C.map f₂ xs₂
 map-cong {c = c} {C} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
-  x ∈ C.map f₁ xs₁               ⇿⟨ map⇿∘ C (Lift ∘ _≡_ x) f₁ ⟩
-  ◇ (λ y → Lift (x ≡ f₁ y)) xs₁  ≈⟨ cong {xs₁ = xs₁} {xs₂ = xs₂} (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
-  ◇ (λ y → Lift (x ≡ f₂ y)) xs₂  ⇿⟨ sym (map⇿∘ C (Lift ∘ _≡_ x) f₂) ⟩
-  x ∈ C.map f₂ xs₂               ∎
+  x ∈ C.map f₁ xs₁        ⇿⟨ map⇿∘ C (_≡_ x) f₁ ⟩
+  ◇ (λ y → x ≡ f₁ y) xs₁  ≈⟨ cong {xs₁ = xs₁} {xs₂ = xs₂} (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
+  ◇ (λ y → x ≡ f₂ y) xs₂  ⇿⟨ sym (map⇿∘ C (_≡_ x) f₂) ⟩
+  x ∈ C.map f₂ xs₂        ∎
   where
-  helper : ∀ y → _⇿_ {c} {c} (Lift (x ≡ f₁ y)) (Lift (x ≡ f₂ y))
+  helper : ∀ y → (x ≡ f₁ y) ⇿ (x ≡ f₂ y)
   helper y = record
-    { to         = P.→-to-⟶ (λ x≡f₁y → lift $ P.trans (lower x≡f₁y) (        f₁≗f₂ y))
-    ; from       = P.→-to-⟶ (λ x≡f₂y → lift $ P.trans (lower x≡f₂y) (P.sym $ f₁≗f₂ y))
+    { to         = P.→-to-⟶ (λ x≡f₁y → P.trans x≡f₁y (        f₁≗f₂ y))
+    ; from       = P.→-to-⟶ (λ x≡f₂y → P.trans x≡f₂y (P.sym $ f₁≗f₂ y))
     ; inverse-of = record
-      { left-inverse-of  = λ _ → P.cong lift $ P.proof-irrelevance _ _
-      ; right-inverse-of = λ _ → P.cong lift $ P.proof-irrelevance _ _
+      { left-inverse-of  = λ _ → P.proof-irrelevance _ _
+      ; right-inverse-of = λ _ → P.proof-irrelevance _ _
       }
     }
 
@@ -259,7 +241,7 @@ linear-identity :
   ∀ {c} {C : Container c} {X} {xs : ⟦ C ⟧ X} (m : C ⊸ C) →
   ⟪ m ⟫⊸ xs ≈[ bag ] xs
 linear-identity {xs = xs} m {x} =
-  x ∈ ⟪ m ⟫⊸ xs  ⇿⟨ remove-linear (Lift ∘ _≡_ x) m ⟩
+  x ∈ ⟪ m ⟫⊸ xs  ⇿⟨ remove-linear (_≡_ x) m ⟩
   x ∈        xs  ∎
 
 -- If join can be expressed using a linear morphism (in a certain

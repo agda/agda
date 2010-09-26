@@ -148,7 +148,7 @@ private
 
   infix 4 _≡_ _≢_
 
-  data _≡_ {a} {A : Set a} (x : A) : A → Set where
+  data _≡_ {a} {A : Set a} (x : A) : A → Set a where
     refl : x ≡ x
 
   {-# BUILTIN EQUALITY _≡_ #-}
@@ -156,7 +156,7 @@ private
 
   -- Nonequality.
 
-  _≢_ : ∀ {a} {A : Set a} → A → A → Set
+  _≢_ : ∀ {a} {A : Set a} → A → A → Set a
   x ≢ y = ¬ x ≡ y
 
 ------------------------------------------------------------------------
