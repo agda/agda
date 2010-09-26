@@ -21,6 +21,7 @@ open import Function.Inverse as Inv
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
 open import Relation.Binary.Sum
+open import Relation.Nullary
 
 ------------------------------------------------------------------------
 -- ⊥, ⊤, _×_ and _⊎_ form a commutative semiring
@@ -270,3 +271,27 @@ open import Relation.Binary.Sum
     ; right-inverse-of = λ _ → P.refl
     }
   }
+
+------------------------------------------------------------------------
+-- ¬_ preserves isomorphisms
+
+¬-cong-⇔ : ∀ {a b} {A : Set a} {B : Set b} →
+           A ⇔ B → (¬ A) ⇔ (¬ B)
+¬-cong-⇔ A⇔B = record
+  { to   = P.→-to-⟶ (λ ¬a b → ¬a (Equivalent.from A⇔B ⟨$⟩ b))
+  ; from = P.→-to-⟶ (λ ¬b a → ¬b (Equivalent.to   A⇔B ⟨$⟩ a))
+  }
+
+¬-cong : ∀ {a b} →
+         P.Extensionality a zero → P.Extensionality b zero →
+         ∀ {k} {A : Set a} {B : Set b} →
+         Isomorphism k A B → Isomorphism k (¬ A) (¬ B)
+¬-cong _    _    {k = Inv.equivalent}          A⇔B = ¬-cong-⇔ A⇔B
+¬-cong extA extB {k = Inv.inverse} {A = A} {B} A⇿B = record
+  { to         = Equivalent.to   ¬A⇔¬B
+  ; from       = Equivalent.from ¬A⇔¬B
+  ; inverse-of = record
+    { left-inverse-of  = λ ¬a → extA (λ a → P.cong ¬a (Inverse.left-inverse-of  A⇿B a))
+    ; right-inverse-of = λ ¬b → extB (λ b → P.cong ¬b (Inverse.right-inverse-of A⇿B b))
+    }
+  } where ¬A⇔¬B = ¬-cong-⇔ (Inv.⇿⇒ A⇿B)
