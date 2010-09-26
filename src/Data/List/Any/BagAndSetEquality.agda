@@ -13,6 +13,7 @@ open import Data.List as List
 import Data.List.Properties as LP
 open import Data.List.Any as Any using (Any)
 open import Data.List.Any.Properties
+open import Data.Product
 open import Data.Sum
 open import Function
 open import Function.Equality using (_⟨$⟩_)
@@ -124,6 +125,14 @@ concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   >>=-cong xs₁≈xs₂ λ x →
   _ ∎
   where open Inv.EquationalReasoning
+
+-- _⊗_ is a congruence.
+
+⊗-cong : ∀ {k A B} {xs₁ xs₂ : List A} {ys₁ ys₂ : List B} →
+         xs₁ ≈[ k ] xs₂ → ys₁ ≈[ k ] ys₂ →
+         (xs₁ ⊗ ys₁) ≈[ k ] (xs₂ ⊗ ys₂)
+⊗-cong xs₁≈xs₂ ys₁≈ys₂ =
+  ⊛-cong (⊛-cong (Eq.refl {x = [ _,_ ]}) xs₁≈xs₂) ys₁≈ys₂
 
 -- The list monad's bind distributes from the left over _++_.
 
