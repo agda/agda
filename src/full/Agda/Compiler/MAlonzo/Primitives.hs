@@ -178,6 +178,9 @@ primBody s = maybe unimplemented (either (hsVarUQ . HsIdent) id <$>) $
   , "primStringEquality" |-> rel "(==)" "String"
   , "primShowString"     |-> return "(show :: String -> String)"
 
+  -- QNames
+  , "primQNameEquality" |-> rel "(==)" "String"
+
   -- Trust me
   , ("primTrustMe"       , Right <$> do
        refl <- primRefl

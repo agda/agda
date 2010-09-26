@@ -63,4 +63,4 @@ test/compiler/(Main|MAlonzo)$
 src/prototyping/terms/(dist|term)$
 ^examples/relocatable/copies$
 ^test/succeed/MAlonzo($|/)
-^test/succeed/Issue296
+^test/succeed/Issue(296|326)$
