@@ -51,7 +51,7 @@ private
   -- and _≡_ would coincide.
 
   ≈⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
-        P.Extensionality c → xs ≈ ys → xs ≡ ys
+        P.Extensionality c c → xs ≈ ys → xs ≡ ys
   ≈⇒≡ {C = C} {X} ext (s≡s′ , f≈f′) = helper s≡s′ f≈f′
     where
     helper : {s s′ : Shape C} (eq : s ≡ s′) →

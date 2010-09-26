@@ -92,7 +92,7 @@ module Identity where
       }
     }
 
-module Constant (ext : ∀ {ℓ} → P.Extensionality ℓ) where
+module Constant (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
   correct : ∀ {ℓ} (X : Set ℓ) {Y} → ⟦ const X ⟧ Y ⇿ F.const X Y
   correct X {Y} = record
@@ -130,7 +130,7 @@ module Composition where
     from : ⟦ C₁ ⟧ (⟦ C₂ ⟧ X) → ⟦ C₁ ∘ C₂ ⟧ X
     from (s , f) = ((s , proj₁ ⟨∘⟩ f) , uncurry (proj₂ ⟨∘⟩ f))
 
-module Product (ext : ∀ {ℓ} → P.Extensionality ℓ) where
+module Product (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
             ⟦ C₁ × C₂ ⟧ X ⇿ (⟦ C₁ ⟧ X ⟨×⟩ ⟦ C₂ ⟧ X)

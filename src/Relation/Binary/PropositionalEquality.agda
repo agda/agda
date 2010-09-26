@@ -133,6 +133,7 @@ module ≡-Reasoning where
 -- If _≡_ were extensional, then the following statement could be
 -- proved.
 
-Extensionality : ∀ ℓ → Set (suc ℓ)
-Extensionality ℓ =
-  {A B : Set ℓ} {f g : A → B} → (∀ x → f x ≡ g x) → f ≡ g
+Extensionality : (a b : Level) → Set _
+Extensionality a b =
+  {A : Set a} {B : A → Set b} {f g : (x : A) → B x} →
+  (∀ x → f x ≡ g x) → f ≡ g
