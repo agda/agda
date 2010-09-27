@@ -379,7 +379,7 @@ niceDeclarations ds = do
 	-- Make a mutual declaration
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> Nice NiceDeclaration
 	mkMutual r cs ds = do
-            when (length ds > 1) $ mapM_ checkMutual ds
+            mapM_ checkMutual ds
             setConcrete cs <$> foldM smash (NiceDef r [] [] []) ds
 	  where
             setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
@@ -456,7 +456,7 @@ plusFixities :: Map.Map Name Fixity' -> Map.Map Name Fixity' -> Nice (Map.Map Na
 plusFixities m1 m2
     | not (null isect) = throwError $ MultipleFixityDecls isect
     | otherwise = return $ Map.unionWithKey mergeFixites m1 m2
-    where mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s 
+    where mergeFixites name (Fixity' f1 s1) (Fixity' f2 s2) = Fixity' f s
               where f | f1 == noFixity = f2
                       | f2 == noFixity = f1
                       | otherwise = __IMPOSSIBLE__
@@ -464,7 +464,7 @@ plusFixities m1 m2
                       | s2 == noNotation = s1
                       | otherwise = __IMPOSSIBLE__
  	  isect	= [decls x | (x,compat) <- Map.assocs (Map.intersectionWith compatible m1 m2), not compat]
-          
+
 	  decls x = (x, map (Map.findWithDefault __IMPOSSIBLE__ x) [m1,m2])
 				-- cpp doesn't know about primes
           compatible (Fixity' f1 s1) (Fixity' f2 s2) = (f1 == noFixity || f2 == noFixity) &&
