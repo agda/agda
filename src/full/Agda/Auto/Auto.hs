@@ -305,7 +305,10 @@ auto ii rng argstr = liftTCM $ do
                     ) cls'
                    pcs <- withInteractionId ii $ mapM prettyA cls''
                    ticks <- liftIO $ readIORef ticks
-                   return (Right $ Left (map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs ++ [agsyinfo ticks]), Nothing)
+
+
+                   return (Right $ Left (map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs), Nothing)
+
                   Just [] -> dispmsg "No solution found" -- case not possible at the moment because case split doesnt care about search exhaustiveness
                   Nothing -> dispmsg $ "No solution found at time out (" ++ show timeout ++ "s)"
                 _ -> dispmsg "Metavariable dependencies not allowed in case split mode"
@@ -375,7 +378,7 @@ auto ii rng argstr = liftTCM $ do
  where
 
 
-  agsyinfo ticks = if null argstr then "" else " {- by agsy {!" ++ argstr ++ "!} -}"
+  agsyinfo ticks = ""
 autohints AHMModule mi (Just def) = do
  mv <- lookupMeta mi
  let scopeinfo = clScope (getMetaInfo mv)

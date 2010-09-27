@@ -10,15 +10,12 @@ agda2_mode_code (agda2-info-action
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
 agda2_mode_code (last . (agda2-make-case-action
-                         '("lemma zero m = refl"
-                           "lemma (suc n) m = cong suc (lemma n m)"
-                           " {- by agsy {!-c!} -}")))
+                         '("lemma zero m = refl" "lemma (suc n) m = cong suc (lemma n m)")))
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
 agda2_mode_code (last . (agda2-make-case-action
                          '("addcommut zero zero = refl"
                            "addcommut zero (suc n) = sym (cong suc (addcommut n zero))"
-                           "addcommut (suc n) m = begin (suc (n + m) ≡⟨ cong suc (addcommut n m) ⟩ (suc (m + n) ≡⟨ sym (lemma' m n) ⟩ ((m + suc n) ∎)))"
-                           " {- by agsy {!-c lemma' -t 60!} -}")))
+                           "addcommut (suc n) m = begin (suc (n + m) ≡⟨ cong suc (addcommut n m) ⟩ (suc (m + n) ≡⟨ sym (lemma' m n) ⟩ ((m + suc n) ∎)))")))
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
 agda2_mode_code (agda2-give-action
                  2
@@ -31,7 +28,7 @@ agda2_mode_code (agda2-give-action
        (λ a' →
           RAA (Drink a')
           (λ x0 →
-             x (ΣI a' (λ x1 → fun (λ a0 → RAA (Drink a0) (λ x2 → x0 x1))))))))) {- by agsy {!RAA -t 60!} -}")
+             x (ΣI a' (λ x1 → fun (λ a0 → RAA (Drink a0) (λ x2 → x0 x1)))))))))")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
                  "*All Goals*"
@@ -42,9 +39,7 @@ agda2_mode_code (agda2-info-action
 ")
 agda2_mode_code (agda2-goals-action '(0 1 3 4))
 agda2_mode_code (last . (agda2-make-case-action
-                         '("map f [] = []"
-                           "map f (xs ∷ xs') = f xs ∷ map f xs'"
-                           " {- by agsy {!-c!} -}")))
+                         '("map f [] = []" "map f (xs ∷ xs') = f xs ∷ map f xs'")))
 agda2_mode_code (agda2-goals-action '(0 1 3 4))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action

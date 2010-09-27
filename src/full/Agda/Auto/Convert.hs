@@ -457,7 +457,6 @@ frommyExp (NotM e) =
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
   Sort Type -> __IMPOSSIBLE__
-  -- Andreas, 2010-09-21 translate unknown stuff as DontCare
   Sort UnknownSort -> return I.DontCare
   -- Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
 
