@@ -73,7 +73,8 @@ checkAxiom _ x e = do
     [ text "checked axiom"
     , nest 2 $ prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
     ]
-  t <- addForcingAnnotations t
+  -- Not safe. See Issue 330
+  -- t <- addForcingAnnotations t
   addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
   solveSizeConstraints
 

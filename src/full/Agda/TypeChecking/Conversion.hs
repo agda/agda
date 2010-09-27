@@ -303,7 +303,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
     case funView (unEl a) of
 	FunV (Arg _ r b) _ -> do
 	    reportSDoc "tc.conv.args" 10 $
-              sep [ text "compareArgs" <+> parens (text $ show pol)
+              sep [ text "compareArgs" <+> parens (text $ show pol ++ " " ++ show r)
                   , nest 2 $ sep [ prettyTCM arg1
                                  , text "~~" <+> prettyTCM arg2
                                  , text ":" <+> prettyTCM b
@@ -340,8 +340,8 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                     reportSDoc "tc.conv.args" 15 $ sep
                       [ text "compareArgs" <+> parens (text $ show pol)
                       , nest 2 $ sep
-                        [ prettyTCM arg1
-                        , text "~~" <+> prettyTCM arg2
+                        [ prettyTCM args1
+                        , text "~~" <+> prettyTCM args2
                         , text ":" <+> prettyTCM (piApply a [arg1])
                         ]
                       ]
