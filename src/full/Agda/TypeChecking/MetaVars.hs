@@ -249,16 +249,18 @@ blockTerm t v m = do
 	    addConstraints c
 	    return $ MetaV x vs
 
+-- | Auxiliary function to create a postponed type checking problem.
+unblockedTester :: MonadTCM tcm => Type -> tcm Bool
+unblockedTester t = do
+  t <- reduceB $ unEl t
+  case t of
+    Blocked{}          -> return False
+    NotBlocked MetaV{} -> return False
+    _                  -> return True
+
 postponeTypeCheckingProblem_ :: MonadTCM tcm => A.Expr -> Type -> tcm Term
-postponeTypeCheckingProblem_ e t =
-  postponeTypeCheckingProblem e t unblock
-  where
-    unblock = do
-      t <- reduceB $ unEl t
-      case t of
-        Blocked{}          -> return False
-        NotBlocked MetaV{} -> return False
-        _                  -> return True
+postponeTypeCheckingProblem_ e t = do
+  postponeTypeCheckingProblem e t (unblockedTester t)
 
 postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> TCM Bool -> tcm Term
 postponeTypeCheckingProblem e t unblock = do

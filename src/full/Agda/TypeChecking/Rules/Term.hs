@@ -190,18 +190,18 @@ reduceCon c = do
   Con c [] <- constructorForm =<< reduce (Con c [])
   return c
 
+-- | @checkArguments' exph r args t0 t e k@ tries @checkArguments exph args t0 t@.
+-- If it succeeds, it continues @k@ with the returned results.  If it fails,
+-- it registers a postponed typechecking problem and returns the resulting new 
+-- meta variable.
+checkArguments' :: 
+  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr -> 
+  (Args -> Type -> Constraints -> TCM Term) -> TCM Term
 checkArguments' exph r args t0 t e k = do
   z <- runErrorT $ checkArguments exph r args t0 t
   case z of
     Right (vs, t1, cs) -> k vs t1 cs
-    Left t0 -> do
-      let unblock = do
-            t0 <- reduceB $ unEl t0
-            case t0 of
-              Blocked{}          -> return False
-              NotBlocked MetaV{} -> return False
-              _                  -> return True
-      postponeTypeCheckingProblem e t unblock
+    Left t0            -> postponeTypeCheckingProblem e t (unblockedTester t0)
 
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
@@ -381,8 +381,6 @@ checkExpr e t =
                 v <- checkExpr e t1
                 return (teleLam tel v, cs)
 	    blockTerm t v (return cs)
-	    where
-		name (Arg h r (x,_)) = Arg h r x
 
 	A.Lam i (A.DomainFree h x) e0 -> do
 	    -- (t',cs) <- forcePi h (show x) t
