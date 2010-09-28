@@ -1,4 +1,4 @@
-{-# OPTIONS -v tc.meta:20 #-}
+-- {-# OPTIONS -v tc.meta:20 #-}
 -- Agdalist 2010-09-24 David Leduc
 module Issue323 where
 
