@@ -1,0 +1,5 @@
+ExistentialsProjections.agda:12,18-26
+Not in scope:
+  fwitness
+  at ExistentialsProjections.agda:12,18-26
+when scope checking fwitness
