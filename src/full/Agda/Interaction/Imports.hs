@@ -450,18 +450,15 @@ createInterface file mname = do
 	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
     -- Check if there are unsolved meta-variables...
+    unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
-    unless (null unsolvedMetas) $ do
-      unsolvedOK <- optAllowUnsolved <$> pragmaOptions
-      unless unsolvedOK $
-        typeError $ UnsolvedMetas unsolvedMetas
+    unless (null unsolvedMetas || unsolvedOk) $
+      typeError $ UnsolvedMetas unsolvedMetas
 
     -- ...or unsolved constraints
     unsolvedConstraints <- getConstraints
-    unless (null unsolvedConstraints) $ do
-      unsolvedOK <- optAllowUnsolved <$> pragmaOptions
-      unless unsolvedOK $
-        typeError $ UnsolvedConstraints unsolvedConstraints
+    unless (null unsolvedConstraints || unsolvedOK) $
+      typeError $ UnsolvedConstraints unsolvedConstraints
 
     setScope $ outsideScope topLevel
 
