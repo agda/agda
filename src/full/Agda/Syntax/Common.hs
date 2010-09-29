@@ -36,6 +36,11 @@ ignoreForced Forced     = Relevant
 ignoreForced Relevant   = Relevant
 ignoreForced Irrelevant = Irrelevant
 
+-- | @Relevance@ from @Bool@.
+irrelevant :: Bool -> Relevance
+irrelevant True  = Irrelevant
+irrelevant False = Relevant
+
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 

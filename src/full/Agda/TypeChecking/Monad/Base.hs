@@ -391,12 +391,14 @@ data DisplayTerm = DWithApp [DisplayTerm] Args
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
-data Definition = Defn { defName     :: QName
-		       , defType     :: Type	-- type of the lifted definition
-		       , defDisplay  :: [Open DisplayForm]
-		       , defMutual   :: MutualId
-		       , theDef	     :: Defn
-		       }
+data Definition = Defn 
+  { defRelevance :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
+  , defName      :: QName
+  , defType      :: Type	      -- ^ Type of the lifted definition.
+  , defDisplay   :: [Open DisplayForm]
+  , defMutual    :: MutualId
+  , theDef	 :: Defn
+  }
     deriving (Typeable, Data, Show)
 
 type HaskellCode = String
@@ -653,6 +655,9 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
+          , envIrrelevant          :: Bool
+                -- ^ Are we checking an irrelevant argument?  
+                -- Then top-level irrelevant declarations are enabled.
           , envReplace             :: Bool
                 -- ^ Coinductive constructor applications @c args@ get
                 -- replaced by a function application @f tel@, where
@@ -685,6 +690,7 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
+                , envIrrelevant          = False
                 , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
@@ -782,6 +788,7 @@ data TypeError
 	| ShouldBeRecordType Type
 	| NotAProperTerm
         | SplitOnIrrelevant A.Pattern (Arg Type)
+        | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
         | UnequalLevel Comparison Term Term
 	| UnequalTerms Comparison Term Term Type

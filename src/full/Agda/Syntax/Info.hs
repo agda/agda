@@ -101,7 +101,7 @@ instance KillRange LetInfo where
   killRange (LetRange r) = LetRange (killRange r)
 
 {--------------------------------------------------------------------------
-    Definition information (declarations that actually defines something)
+    Definition information (declarations that actually define something)
  --------------------------------------------------------------------------}
 
 data DefInfo =

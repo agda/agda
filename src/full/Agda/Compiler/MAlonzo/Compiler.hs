@@ -121,7 +121,12 @@ definitions defs = do
 -- @
 
 definition :: Maybe CoinductionKit -> Definition -> TCM [HsDecl]
-definition kit (Defn q ty _ _ d) = do
+{- TODO: ignore irrelevant definitions
+definition kit (Defn Forced     _ _  _ _ _) = __IMPOSSIBLE__
+definition kit (Defn Irrelevant _ _  _ _ _) = return []
+definition kit (Defn Relevant   q ty _ _ d) = do
+-}
+definition kit (Defn _   q ty _ _ d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
 
@@ -315,8 +320,9 @@ hslit l = case l of LitInt    _ x -> HsInt    x
 
 condecl :: QName -> TCM (Nat, HsConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
-  Defn _ ty _ _ (Constructor {conPars = np}) -> do ar <- arity <$> normalise ty
-                                                   return $ (ar, cdecl q (ar - np))
+  Defn _ _ ty _ _ (Constructor {conPars = np}) -> do 
+    ar <- arity <$> normalise ty
+    return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)
 
 cdecl :: QName -> Nat -> HsConDecl

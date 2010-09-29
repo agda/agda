@@ -585,9 +585,9 @@ instance InstantiateFull Char where
     instantiateFull = return
 
 instance InstantiateFull Definition where
-    instantiateFull (Defn x t df i d) = do
+    instantiateFull (Defn rel x t df i d) = do
       (t, (df, d)) <- instantiateFull (t, (df, d))
-      return $ Defn x t df i d
+      return $ Defn rel x t df i d
 
 instance InstantiateFull a => InstantiateFull (Open a) where
   instantiateFull (OpenThing n a) = OpenThing n <$> instantiateFull a

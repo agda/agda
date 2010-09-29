@@ -102,6 +102,11 @@ instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
 instance PrettyTCM A.Expr where
     prettyTCM = prettyA
 
+instance PrettyTCM Relevance where
+  prettyTCM Irrelevant = text "."
+  prettyTCM Relevant   = empty
+  prettyTCM Forced     = empty
+
 instance PrettyTCM Comparison where
   prettyTCM CmpEq  = text "=="
   prettyTCM CmpLeq = text "=<"
@@ -191,13 +196,15 @@ instance PrettyTCM PrettyContext where
               d    <- prettyTCM t
               x    <- prettyTCM x
               dctx <- pr ctx
-              return $ rel r (par h (P.hsep [ x, P.text ":", d])) : dctx
+              return $ P.pRelevance r (par h (P.hsep [ x, P.text ":", d])) : dctx
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
+{-
               rel Irrelevant x = P.text "." P.<> x
               rel Relevant x   = x
               rel Forced   x   = x
+-}
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

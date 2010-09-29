@@ -56,7 +56,7 @@ data Expr
   deriving (Typeable, Data, Show)
 
 data Declaration
-	= Axiom      DefInfo QName Expr			   -- ^ postulate
+	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition] -- ^ a bunch of mutually recursive definitions
@@ -77,7 +77,7 @@ data Pragma = OptionsPragma [String]
             | EtaPragma QName
   deriving (Typeable, Data, Show)
 
-data LetBinding = LetBind LetInfo Name Expr Expr    -- ^ LetBind info name type defn
+data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info name type defn
                 | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Data, Show)
@@ -229,7 +229,7 @@ instance HasRange Expr where
     getRange (DontCare)         = noRange
 
 instance HasRange Declaration where
-    getRange (Axiom      i _ _	       ) = getRange i
+    getRange (Axiom      i _ _ _       ) = getRange i
     getRange (Field      i _ _         ) = getRange i
     getRange (Definition i _ _	       ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
@@ -270,7 +270,7 @@ instance HasRange RHS where
     getRange (RewriteRHS _ es rhs wh) = getRange (es, rhs, wh)
 
 instance HasRange LetBinding where
-    getRange (LetBind  i _ _ _       ) = getRange i
+    getRange (LetBind  i _ _ _ _     ) = getRange i
     getRange (LetApply i _ _ _ _ _ _ ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
 
@@ -308,12 +308,16 @@ instance KillRange Expr where
   killRange (Quote i)        = killRange1 Quote i
   killRange (DontCare)       = DontCare
 
+instance KillRange Relevance where
+  killRange rel = rel -- no range to kill
+
 instance KillRange Declaration where
-  killRange (Axiom      i a b         ) = killRange3 Axiom      i a b
+  killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Definition i a b         ) = killRange3 Definition i a b
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
   killRange (Apply      i a b c d e f ) = killRange5 Apply      i a b c d e f
+   -- the last two arguments of Apply are name maps, so nothing to kill 
   killRange (Import     i a           ) = killRange2 Import     i a
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
@@ -350,7 +354,7 @@ instance KillRange RHS where
   killRange (RewriteRHS x es rhs wh) = killRange4 RewriteRHS x es rhs wh
 
 instance KillRange LetBinding where
-  killRange (LetBind  i a b c       ) = killRange4 LetBind  i a b c
+  killRange (LetBind  i rel a b c   ) = killRange5 LetBind  i rel a b c
   killRange (LetApply i a b c d e f ) = killRange5 LetApply i a b c d e f
   killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
 
@@ -363,7 +367,7 @@ instance KillRange LetBinding where
 -- include local modules and where clauses.
 
 allNames :: Declaration -> Seq QName
-allNames (Axiom     _   q _)   = Seq.singleton q
+allNames (Axiom     _ _ q _)   = Seq.singleton q
 allNames (Field     _   q _)   = Seq.singleton q
 allNames (Primitive _   q _)   = Seq.singleton q
 allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
@@ -398,5 +402,5 @@ allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls
 -- Precondition: The declaration has to be an 'Axiom'.
 
 axiomName :: Declaration -> QName
-axiomName (Axiom _ q _) = q
+axiomName (Axiom _ _ q _) = q
 axiomName _             = __IMPOSSIBLE__

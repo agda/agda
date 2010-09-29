@@ -76,14 +76,14 @@ checkRecDef i name con ps contel fields =
       let contype = telePi ftel (raise (size ftel) rect)
 
       (hasNamedCon, conName, conInfo) <- case con of
-        Just (A.Axiom i c _) -> return (True, c, i)
-        Just _               -> __IMPOSSIBLE__
-        Nothing              -> do
+        Just (A.Axiom i _ c _) -> return (True, c, i)
+        Just _                 -> __IMPOSSIBLE__
+        Nothing                -> do
           m <- killRange <$> currentModule
           c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
           return (False, c, i)
 
-      addConstant name $ Defn name t0 (defaultDisplayForm name) 0
+      addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = conName
@@ -98,7 +98,7 @@ checkRecDef i name con ps contel fields =
                                 }
 
       addConstant conName $
-        Defn conName contype (defaultDisplayForm conName) 0 $
+        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
              Constructor { conPars   = 0
                          , conSrcCon = conName
                          , conData   = name
@@ -148,10 +148,14 @@ checkRecordProjections ::
   [A.Declaration] -> TCM ()
 checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
   where
+
     checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
+
     checkProjs _ _ [] = return ()
+
     checkProjs ftel1 ftel2 (A.ScopedDecl scope fs' : fs) =
       setScope scope >> checkProjs ftel1 ftel2 (fs' ++ fs)
+
     checkProjs ftel1 (ExtendTel _ ftel2) (A.Field info x (Arg h rel t) : fs) = do
       -- check the type (in the context of the telescope)
       -- the previous fields will be free in
@@ -226,7 +230,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                           }
           clause2 = Clauses Nothing clause
       escapeContext (size tel) $ do
-	addConstant projname $ Defn projname (killRange finalt) (defaultDisplayForm projname) 0
+	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause2]
                      , funCompiled       = compileClauses [clause2]
                      , funDelayed        = NotDelayed
@@ -237,7 +241,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      }
         computePolarity projname
 
-      checkProjs (abstract ftel1 $ ExtendTel (Arg h Relevant t)
+      checkProjs (abstract ftel1 $ ExtendTel (Arg h rel t)
                                  $ Abs (show $ qnameName projname) EmptyTel
                  ) (absBody ftel2) fs
     checkProjs ftel1 ftel2 (d : fs) = do

@@ -217,9 +217,9 @@ generateSyntaxInfo file mErr top termErrs =
       getVarAndField _            = mempty
 
       getLet :: A.LetBinding -> File
-      getLet (A.LetBind _ x _ _) = bound x
-      getLet A.LetApply{}        = mempty
-      getLet A.LetOpen{}         = mempty
+      getLet (A.LetBind _ _ x _ _) = bound x
+      getLet A.LetApply{}          = mempty
+      getLet A.LetOpen{}           = mempty
 
       getLam :: A.LamBinding -> File
       getLam (A.DomainFree _ x) = bound x
@@ -297,8 +297,8 @@ nameKinds mErr decls = do
   defnToNameKind (M.Primitive {})                 = Primitive
 
   getAxiomName :: A.Declaration -> A.QName
-  getAxiomName (A.Axiom _ q _) = q
-  getAxiomName _               = __IMPOSSIBLE__
+  getAxiomName (A.Axiom _ _ q _) = q
+  getAxiomName _                 = __IMPOSSIBLE__
 
   getDef :: A.Definition -> Map A.QName NameKind
   getDef (A.FunDef  _ q _)       = Map.singleton q Function
@@ -309,13 +309,13 @@ nameKinds mErr decls = do
   getDef (A.RecDef  _ q c _ _ _) = Map.singleton q Record `union`
                                    case c of
                                      Nothing -> Map.empty
-                                     Just (A.Axiom _ q _) ->
+                                     Just (A.Axiom _ _ q _) ->
                                        Map.singleton q (Constructor SC.Inductive)
                                      Just _ -> __IMPOSSIBLE__
   getDef (A.ScopedDef {})        = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind
-  getDecl (A.Axiom _ q _)     = Map.singleton q Postulate
+  getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate
   getDecl (A.Field _ q _)     = Map.singleton q Field
   getDecl (A.Primitive _ q _) = Map.singleton q Primitive
   getDecl (A.Definition {})   = Map.empty

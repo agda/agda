@@ -50,7 +50,7 @@ checkDecls ds = mapM_ checkDecl ds
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
     case d of
-	A.Axiom i x e		     -> checkAxiom i x e
+	A.Axiom i rel x e            -> checkAxiom i rel x e
         A.Field{}                    -> typeError FieldOutsideRecord
 	A.Primitive i x e	     -> checkPrimitive i x e
 	A.Definition i ts ds	     -> checkMutual i ts ds
@@ -66,16 +66,16 @@ checkDecl d = do
 
 
 -- | Type check an axiom.
-checkAxiom :: Info.DefInfo -> QName -> A.Expr -> TCM ()
-checkAxiom _ x e = do
+checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
+checkAxiom _ rel x e = do
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text "checked axiom"
-    , nest 2 $ prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
+    , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn x t (defaultDisplayForm x) 0 $ Axiom Nothing)
+  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing)
   solveSizeConstraints
 
 
@@ -88,7 +88,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn x t (defaultDisplayForm x) 0 $ Primitive (Info.defAbstract i) s Nothing)
+    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 $ Primitive (Info.defAbstract i) s Nothing)
     where
 	nameString (Name _ x _ _) = show x
 
@@ -179,10 +179,10 @@ checkTypeSignature :: A.TypeSignature -> TCM ()
 checkTypeSignature (A.ScopedDecl scope ds) = do
   setScope scope
   mapM_ checkTypeSignature ds
-checkTypeSignature (A.Axiom i x e) =
+checkTypeSignature (A.Axiom i rel x e) =
     case Info.defAccess i of
-	PublicAccess  -> inConcreteMode $ checkAxiom i x e
-	PrivateAccess -> inAbstractMode $ checkAxiom i x e
+	PublicAccess  -> inConcreteMode $ checkAxiom i rel x e
+	PrivateAccess -> inAbstractMode $ checkAxiom i rel x e
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
 

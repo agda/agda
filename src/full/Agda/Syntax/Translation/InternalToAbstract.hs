@@ -201,7 +201,7 @@ instance Reify Term Expr where
             Constructor{conPars = np} <- theDef <$> getConstInfo x
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                us = replicate (fromIntegral np) $ Arg Hidden Irrelevant whocares
+                us = replicate (fromIntegral np) $ Arg Hidden Relevant whocares
             n  <- getDefFreeVars x
             es <- reify vs
             apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)

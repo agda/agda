@@ -55,7 +55,7 @@ instance Subst a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn x t df m d) args = Defn x (piApply t args) df m (apply d args)
+    apply (Defn rel x t df m d) args = Defn rel x (piApply t args) df m (apply d args)
 
 instance Apply Defn where
   apply d args = case d of
@@ -175,7 +175,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn x t df m d) = Defn x (abstract tel t) df m (abstract tel d)
+    abstract tel (Defn rel x t df m d) = Defn rel x (abstract tel t) df m (abstract tel d)
 
 instance Abstract Defn where
   abstract tel d = case d of

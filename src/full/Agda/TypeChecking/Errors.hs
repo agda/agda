@@ -155,6 +155,7 @@ errorString err = case err of
     TooManyArgumentsInLHS{}                  -> "TooManyArgumentsInLHS"
     TooManyFields{}                          -> "TooManyFields"
     SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
+    DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
     VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
     UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
@@ -274,6 +275,8 @@ instance PrettyTCM TypeError where
             SplitOnIrrelevant p t -> fsep $
                 pwords "cannot pattern match" ++ [prettyA p] ++
                 pwords "against irrelevant type" ++ [prettyTCM t]
+            DefinitionIsIrrelevant x -> fsep $
+                text "identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
             VariableIsIrrelevant x -> fsep $
                 text "variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
  	    UnequalTerms cmp s t a -> fsep $
@@ -571,7 +574,7 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
 	CheckDataDef _ x ps cs _ ->
 	    fsep $ pwords "when checking the definition of" ++ [prettyTCM x]
-	CheckConstructor d _ _ (A.Axiom _ c _) _ -> fsep $
+	CheckConstructor d _ _ (A.Axiom _ _ c _) _ -> fsep $
 	    pwords "when checking the constructor" ++ [prettyTCM c] ++
 	    pwords "in the declaration of" ++ [prettyTCM d]
 	CheckConstructor _ _ _ _ _ -> __IMPOSSIBLE__
@@ -631,13 +634,13 @@ instance PrettyTCM Call where
 		bind (C.DomainFree h x) = C.TypedBindings r $ Arg h Relevant [C.TBind r [x] (C.Underscore r Nothing)]
 		  where r = getRange x
 
-                name (D.Axiom _ _ _ _ n _) = n
+                name (D.Axiom _ _ _ _ _ n _) = n
                 name _                     = __IMPOSSIBLE__
 
 	    simpleDecl d = case d of
-		D.Axiom _ _ _ _ x e		       -> C.TypeSig x e
+		D.Axiom _ _ _ _ rel x e		       -> C.TypeSig rel x e
 		D.NiceField _ _ _ _ x e	               -> C.Field x e
-		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig x e]
+		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig Relevant x e]
 		D.NiceDef r ds _ _		       -> C.Mutual r ds
 		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []
 		D.NiceModuleMacro r _ _ x tel e op dir -> C.ModuleMacro r x tel e op dir

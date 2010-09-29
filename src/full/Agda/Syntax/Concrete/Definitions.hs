@@ -41,7 +41,8 @@ import Agda.Utils.Impossible
     modifiers have been distributed to the individual declarations.
 -}
 data NiceDeclaration
-	= Axiom Range Fixity' Access IsAbstract Name Expr
+	= Axiom Range Fixity' Access IsAbstract Relevance Name Expr
+            -- ^ Axioms and functions can be declared irrelevant.
         | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
 	| PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
 	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
@@ -98,7 +99,7 @@ instance HasRange DeclarationException where
     getRange (DeclarationPanic _)	   = noRange
 
 instance HasRange NiceDeclaration where
-    getRange (Axiom r _ _ _ _ _)	       = r
+    getRange (Axiom r _ _ _ _ _ _)	       = r
     getRange (NiceField r _ _ _ _ _)	       = r
     getRange (NiceDef r _ _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
@@ -178,7 +179,7 @@ niceDeclarations ds = do
 	-- Compute the names defined in a declaration
 	declaredNames :: Declaration -> [Name]
 	declaredNames d = case d of
-	  TypeSig x _				       -> [x]
+	  TypeSig _ x _				       -> [x]
           Field x _                                    -> [x]
 	  FunClause (LHS p [] _ _) _ _
             | IdentP (QName x) <- noSingletonRawAppP p -> [x]
@@ -205,21 +206,21 @@ niceDeclarations ds = do
 	nice _ []	 = return []
 	nice fixs (d:ds) =
 	    case d of
-		TypeSig x t ->
+		TypeSig rel x t ->
 		    -- After a type signature there should follow a bunch of
 		    -- clauses.
 		    case span (isFunClauseOf x) ds of
 			([], _)	    -> throwError $ MissingDefinition x
 			(ds0,ds1)   -> do
 			  ds1 <- nice fixs ds1
-			  d <- mkFunDef fixs x (Just t) ds0
+			  d <- mkFunDef rel fixs x (Just t) ds0
                           return $ d : ds1
 
 		cl@(FunClause lhs@(LHS p [] _ _) _ _)
                   | IdentP (QName x) <- noSingletonRawAppP p
                                   -> do
 		      ds <- nice fixs ds
-		      d <- mkFunDef fixs x Nothing [cl]
+		      d <- mkFunDef Relevant fixs x Nothing [cl] -- fun def without type signature is relevant
                       return $ d : ds
                 FunClause lhs _ _ -> throwError $ MissingTypeSignature lhs
 
@@ -230,7 +231,7 @@ niceDeclarations ds = do
 			    Data r CoInductive x tel t cs -> throwError (Codata r)
 			    Data r Inductive   x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
 			    Record r x c tel t cs         -> do
-                              let c' = (\c -> niceAxiom fixs (TypeSig c t)) <$> c
+                              let c' = (\c -> niceAxiom fixs (TypeSig Relevant c t)) <$> c -- constructor is always relevant
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
                                         (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
@@ -261,13 +262,13 @@ niceDeclarations ds = do
 			    Pragma p		-> return [NicePragma (getRange p) p]
 
 			    FunClause _ _ _	-> __IMPOSSIBLE__
-			    TypeSig _ _		-> __IMPOSSIBLE__
+			    TypeSig{}		-> __IMPOSSIBLE__
 			  where
 			    dataOrRec mkDef niceD r x tel t cs = do
                               ds <- niceD fixs cs
                               return $
                                 [ NiceDef r [d]
-                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef
+                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant
                                           x (Pi tel t)
                                   ]
                                   -- Setting the range to the range of t makes sense
@@ -296,23 +297,23 @@ niceDeclarations ds = do
 	niceAxioms fixs ds = map (niceAxiom fixs) ds
 
         niceAxiom :: Map.Map Name Fixity' -> TypeSignature -> NiceDeclaration
-        niceAxiom fixs d@(TypeSig x t) =
-            Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef x t
+        niceAxiom fixs d@(TypeSig rel x t) =
+            Axiom (getRange d) (fixity x fixs) PublicAccess ConcreteDef rel x t
         niceAxiom fixs d@(Field x argt) =
             NiceField (getRange d) (fixity x fixs) PublicAccess ConcreteDef x argt
         niceAxiom _ _ = __IMPOSSIBLE__
 
 	toPrim :: NiceDeclaration -> NiceDeclaration
-	toPrim (Axiom r f a c x t) = PrimitiveFunction r f a c x t
-	toPrim _		   = __IMPOSSIBLE__
+	toPrim (Axiom r f a c rel x t) = PrimitiveFunction r f a c x t
+	toPrim _		       = __IMPOSSIBLE__
 
 	-- Create a function definition.
-	mkFunDef fixs x mt ds0 = do
+	mkFunDef rel fixs x mt ds0 = do
           cs <- mkClauses x $ expandEllipsis ds0
           return $
 	    NiceDef (fuseRange x ds0)
-		    (TypeSig x t : ds0)
-		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef x t ]
+		    (TypeSig rel x t : ds0)
+		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t ]
 		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs
 		    ]
 	    where
@@ -400,7 +401,7 @@ niceDeclarations ds = do
 	-- Make a declaration abstract
 	mkAbstract d =
 	    case d of
-		Axiom r f a _ x e		    -> Axiom r f a AbstractDef x e
+		Axiom r f a _ rel x e		    -> Axiom r f a AbstractDef rel x e
 		NiceField r f a _ x e		    -> NiceField r f a AbstractDef x e
 		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
@@ -427,7 +428,7 @@ niceDeclarations ds = do
 	-- Make a declaration private
 	mkPrivate d =
 	    case d of
-		Axiom r f _ a x e		    -> Axiom r f PrivateAccess a x e
+		Axiom r f _ a rel x e		    -> Axiom r f PrivateAccess a rel x e
 		NiceField r f _ a x e		    -> NiceField r f PrivateAccess a x e
 		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
@@ -485,9 +486,9 @@ fixities [] = return $ Map.empty
 notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
 notSoNiceDeclarations = concatMap notNice
   where
-    notNice (Axiom _ _ _ _ x e)                   = [TypeSig x e]
+    notNice (Axiom _ _ _ _ rel x e)               = [TypeSig rel x e]
     notNice (NiceField _ _ _ _ x argt)            = [Field x argt]
-    notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig x e]]
+    notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig Relevant x e]]
     notNice (NiceDef _ ds _ _)                    = ds
     notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]
     notNice (NiceModuleMacro r _ _ x tel e o dir) = [ModuleMacro r x tel e o dir]

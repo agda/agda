@@ -218,12 +218,13 @@ instance Pretty [Declaration] where
 instance Pretty Declaration where
     pretty d =
 	case d of
-	    TypeSig x e	-> sep [ pretty x <+> text ":"
-			       , nest 2 $ pretty e
-			       ]
+	    TypeSig rel x e -> 
+                sep [ pRelevance rel $ pretty x <+> text ":"
+		    , nest 2 $ pretty e
+		    ]
             Field x (Arg h rel e) -> 
                 sep [ text "field"
-                    , nest 2 $ pRelevance rel $ pHidden h (TypeSig x e)
+                    , nest 2 $ pRelevance rel $ pHidden h (TypeSig Relevant x e)
                     ]
 	    FunClause lhs rhs wh ->
 		sep [ pretty lhs

@@ -16,7 +16,7 @@ import qualified Data.Set as Set
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
-import Agda.Syntax.Concrete.Pretty () -- just Pretty instances
+import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
@@ -78,7 +78,7 @@ isType_ e =
 
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
-{-
+
 forcePi :: MonadTCM tcm => Hiding -> String -> Type -> tcm (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
@@ -98,7 +98,7 @@ forcePi h name (El s t) =
                 cs <- equalType (El s t') ty
                 ty' <- reduce ty
                 return (ty', cs)
--}
+
 
 ---------------------------------------------------------------------------
 -- * Telescopes
@@ -345,11 +345,14 @@ checkExpr e t =
                   top <- currentModule
                   let name = "absurd"
                   aux <- qualify top <$> freshName (getRange i) name
+                  -- if we are in irrelevant position, the helper function
+                  -- is added as irrelevant
+                  rel <- irrelevant <$> asks envIrrelevant
                   reportSDoc "tc.term.absurd" 10 $ vcat
-                    [ text "Adding absurd function" <+> prettyTCM aux
+                    [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
-                  addConstant aux $ Defn aux t' (defaultDisplayForm aux) 0
+                  addConstant aux $ Defn rel aux t' (defaultDisplayForm aux) 0
                                   $ Function
                                     { funClauses        =
                                         [Clauses Nothing
@@ -469,6 +472,7 @@ checkExpr e t =
 	A.DontCare -> __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
+
         e0@(A.QuoteGoal _ x e) -> do
           t' <- etaContract =<< normalise t
           let metas = foldTerm (\v -> case v of
@@ -480,7 +484,7 @@ checkExpr e t =
             []  -> do
               quoted <- quoteType t'
               tmType <- agdaTermType
-              (v,ty) <- addLetBinding x quoted tmType (inferExpr e)
+              (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType ty t'
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
@@ -516,6 +520,10 @@ inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
     d  <- instantiateDef =<< getConstInfo x
+    -- irrelevant defs are only allowed in irrelevant position
+    when (defRelevance d == Irrelevant) $ do
+      irr <- asks envIrrelevant
+      unless irr $ typeError $ DefinitionIsIrrelevant x
     vs <- freeVarsToApply x
     verboseS "tc.term.def" 10 $ do
       ds <- mapM prettyTCM vs
@@ -716,7 +724,10 @@ checkHeadApplication e t hd args = do
       -- signature.
       i   <- currentMutualBlock
       tel <- getContextTelescope
-      addConstant c' (Defn c' t (defaultDisplayForm c') i $ Axiom Nothing)
+      -- If we are in irrelevant position, add definition irrelevantly.
+      -- TODO: is this sufficient?
+      rel <- irrelevant <$> asks envIrrelevant
+      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing)
 
       -- Define and type check the fresh function.
       ctx <- getContext
@@ -734,7 +745,7 @@ checkHeadApplication e t hd args = do
           , text "was translated into the application"
           , nest 2 $ prettyTCM e'
           , text "and the function"
-          , nest 2 $ prettyTCM c' <+> text ":"
+          , nest 2 $ prettyTCM rel <> prettyTCM c' <+> text ":"
           , nest 4 $ prettyTCM (telePi tel t)
           , nest 2 $ prettyA clause <> text "."
           ]
@@ -870,11 +881,11 @@ checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
 checkLetBindings = foldr (.) id . map checkLetBinding
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
-checkLetBinding b@(A.LetBind i x t e) ret =
+checkLetBinding b@(A.LetBind i rel x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
-    v <- checkExpr e t
-    addLetBinding x v t ret
+    v <- applyRelevanceToContext rel $ checkExpr e t
+    addLetBinding rel x v t ret
 checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.

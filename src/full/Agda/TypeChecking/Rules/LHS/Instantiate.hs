@@ -30,10 +30,11 @@ instantiateTel s tel = liftTCM $ do
 
   tel <- normalise tel
 
-  reportSDoc "tc.lhs.inst" 10 $ sep
+  reportSDoc "tc.lhs.inst" 10 $ vcat
     [ text "instantiateTel "
     , nest 2 $ addCtxTel tel $ fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) s
-    , nest 2 $ prettyTCM tel
+    , nest 2 $ text "tel  =" <+> prettyTCM tel
+--    , nest 2 $ text "tel  =" <+> text (show tel)
     ]
 
   -- Shrinking permutation (removing Justs) (and its complement, and reverse)
@@ -41,10 +42,10 @@ instantiateTel s tel = liftTCM $ do
       psR = reverseP ps
       psC = Perm (size s) [ i | (i, Just _)  <- zip [0..] $ reverse s ]
 
-  reportS "tc.lhs.inst" 10 $ unlines
-    [ "ps  = " ++ show ps
-    , "psR = " ++ show psR
-    , "psC = " ++ show psC
+  reportSDoc "tc.lhs.inst" 10 $ vcat
+    [ nest 2 $ text $ "ps   = " ++ show ps 
+    , nest 2 $ text $ "psR  = " ++ show psR
+    , nest 2 $ text $ "psC  = " ++ show psC
     ]
 
   -- s' : Substitution Γσ
@@ -60,8 +61,10 @@ instantiateTel s tel = liftTCM $ do
   let tel1   = flattenTel tel
       names1 = teleNames tel
 
-  reportSDoc "tc.lhs.inst" 15 $ nest 2 $
-    text "tel1 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel1)
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $ vcat
+    [ text "tel1 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel1)
+--    , text "tel1 =" <+> text (show tel1)
+    ]
 
   -- tel2 : [Type Γσ]Γ
   let tel2 = substs rho tel1

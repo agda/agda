@@ -253,7 +253,7 @@ bindAsPatterns (AsB x v a : asb) ret = do
     sep [ text ":" <+> prettyTCM a
         , text "=" <+> prettyTCM v
         ]
-  addLetBinding x v a $ bindAsPatterns asb ret
+  addLetBinding Relevant x v a $ bindAsPatterns asb ret
 
 -- | Rename the variables in a telescope using the names from a given pattern
 useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope

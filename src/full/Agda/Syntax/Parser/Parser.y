@@ -680,7 +680,7 @@ WhereClause
 -- Top-level definitions.
 Declaration :: { [Declaration] }
 Declaration
-    : TypeSig	    { [$1] }
+    : RelTypeSig    { [$1] }  -- Possibly dotted type signature.
     | Fields        { $1   }
     | FunClause	    { [$1] }
     | Data	    { [$1] }
@@ -706,18 +706,27 @@ Declaration
 -- Type signatures can appear everywhere, so the type is completely polymorphic
 -- in the indices.
 TypeSig :: { Declaration }
-TypeSig : Id ':' Expr   { TypeSig $1 $3 }
+TypeSig : Id ':' Expr   { TypeSig Relevant $1 $3 }
 
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
-TypeSigs : SpaceIds ':' Expr { map (flip TypeSig $3) $1 }
+TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig Relevant) $3) $1 }
+
+-- Some declaration can include relevance information (axioms, functions)
+RelTypeSig :: { Declaration }
+RelTypeSig 
+    : '.' Id ':' Expr   { TypeSig Irrelevant $2 $4 }
+    | Id ':' Expr       { TypeSig Relevant $1 $3 }
+
+RelTypeSigs :: { [Declaration] }
+RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Arg _ rel x) -> TypeSig rel x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
 -- as hidden or irrelevant using braces and dots: 
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
-ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip TypeSig $3)) $1 }
+ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig Relevant) $3)) $1 }
 
 -- Function declarations. The left hand side is parsed as an expression to allow
 -- declarations like 'x::xs ++ ys = e', when '::' has higher precedence than '++'.
@@ -755,7 +764,7 @@ Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
 -- Field declarations.
 Fields :: { [Declaration] }
 Fields : 'field' ArgTypeSignatures
-            { let toField (Arg h rel (TypeSig x t)) = Field x (Arg h rel t) in map toField $2 }
+            { let toField (Arg h rel (TypeSig _ x t)) = Field x (Arg h rel t) in map toField $2 }
 --REM            { let toField (h, TypeSig x t) = Field h x t in map toField $2 }
 
 -- Mutually recursive declarations.
@@ -775,7 +784,7 @@ Private : 'private' Declarations	{ Private (fuseRange $1 $2) $2 }
 
 -- Postulates. Can only contain type signatures. TODO: relax this.
 Postulate :: { Declaration }
-Postulate : 'postulate' TypeSignatures	{ Postulate (fuseRange $1 $2) $2 }
+Postulate : 'postulate' RelTypeSignatures { Postulate (fuseRange $1 $2) $2 }
 
 -- Primitives. Can only contain type signatures.
 Primitive :: { Declaration }
@@ -932,6 +941,17 @@ TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
     : TypeSignatures1 semi TeX TypeSigs { reverse $4 ++ $1 }
     | TeX TypeSigs			{ reverse $2 }
+
+-- A variant of TypeSignatures which allows the irrelevance annotation (dot).
+RelTypeSignatures :: { [TypeSignature] }
+RelTypeSignatures
+    : TeX vopen RelTypeSignatures1 TeX close   { reverse $3 }
+
+-- Inside the layout block.
+RelTypeSignatures1 :: { [TypeSignature] }
+RelTypeSignatures1
+    : RelTypeSignatures1 semi TeX RelTypeSigs { reverse $4 ++ $1 }
+    | TeX RelTypeSigs			      { reverse $2 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.

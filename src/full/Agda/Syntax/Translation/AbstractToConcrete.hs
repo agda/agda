@@ -417,10 +417,10 @@ instance ToConcrete A.TypedBinding C.TypedBinding where
         ret (C.TNoBind e)
 
 instance ToConcrete LetBinding [C.Declaration] where
-    bindToConcrete (LetBind i x t e) ret =
+    bindToConcrete (LetBind i rel x t e) ret =
         bindToConcrete x $ \x ->
         do  (t,(e, [], [], [])) <- toConcrete (t, A.RHS e)
-            ret [ C.TypeSig x t
+            ret [ C.TypeSig rel x t
                 , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                               e C.NoWhere
                 ]
@@ -498,14 +498,14 @@ instance ToConcrete TypeAndDef [C.Declaration] where
   toConcrete (TypeAndDef d (ScopedDef scope def)) =
     withScope scope $ toConcrete (TypeAndDef d def)
 
-  toConcrete (TypeAndDef (Axiom _ x t) (FunDef i _ cs)) =
+  toConcrete (TypeAndDef (Axiom _ rel x t) (FunDef i _ cs)) =
     withAbstractPrivate i $ do
     t'  <- toConcreteCtx TopCtx t
     cs' <- toConcrete cs
     x'  <- unsafeQNameToName <$> toConcrete x
-    return $ TypeSig x' t' : concat cs'
+    return $ TypeSig rel x' t' : concat cs'
 
-  toConcrete (TypeAndDef (Axiom _ x t) (DataDef i _ bs cs)) =
+  toConcrete (TypeAndDef (Axiom _ _ x t) (DataDef i _ bs cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
@@ -519,7 +519,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       mkTel _ _            = __IMPOSSIBLE__
 --      mkTel n t            = error $ "mkTel " ++ show n ++ " " ++ show t
 
-  toConcrete (TypeAndDef (Axiom _ x t) (RecDef  i _ c bs _ cs)) =
+  toConcrete (TypeAndDef (Axiom _ _ x t) (RecDef  i _ c bs _ cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
@@ -539,10 +539,10 @@ instance ToConcrete TypeAndDef [C.Declaration] where
 instance ToConcrete (Constr A.Constructor) C.Declaration where
   toConcrete (Constr (A.ScopedDecl scope [d])) =
     withScope scope $ toConcrete (Constr d)
-  toConcrete (Constr (A.Axiom i x t)) = do
+  toConcrete (Constr (A.Axiom i rel x t)) = do
     x' <- unsafeQNameToName <$> toConcrete x
     t' <- toConcreteCtx TopCtx t
-    return $ C.TypeSig x' t'
+    return $ C.TypeSig rel x' t'
   toConcrete (Constr d) = head <$> toConcrete d
 
 instance ToConcrete A.Clause [C.Declaration] where
@@ -556,12 +556,12 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope $ toConcrete ds
 
-  toConcrete (Axiom i x t) = do
+  toConcrete (Axiom i rel x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteCtx TopCtx t
-      return [C.Postulate (getRange i) [C.TypeSig x' t']]
+      return [C.Postulate (getRange i) [C.TypeSig rel x' t']]
 
   toConcrete (A.Field i x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -575,7 +575,8 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
       withInfixDecl i x'  $ do
       t' <- toConcreteCtx TopCtx t
-      return [C.Primitive (getRange i) [C.TypeSig x' t']]
+      return [C.Primitive (getRange i) [C.TypeSig Relevant x' t']]
+        -- Primitives are always relevant.
 
   toConcrete (Definition i ts ds) = do
       ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
@@ -585,7 +586,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
       where
           ixs = map getInfoAndName ts
           is  = map fst ixs
-          getInfoAndName (A.Axiom i x _)          = (i,x)
+          getInfoAndName (A.Axiom i _ x _)        = (i,x)
           getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
           getInfoAndName _                        = __IMPOSSIBLE__
 

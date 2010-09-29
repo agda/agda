@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100927 * 10 + 0
+currentInterfaceVersion = 20100929 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -554,9 +554,9 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icode (Defn a b c d e) = icode5' a b c d e
-  value = vcase valu where valu [a, b, c, d, e] = valu5 Defn a b c d e
-                           valu _               = malformed
+  icode (Defn rel a b c d e) = icode6' rel a b c d e
+  value = vcase valu where valu [rel, a, b, c, d, e] = valu6 Defn rel a b c d e
+                           valu _                    = malformed
 
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1 0 a

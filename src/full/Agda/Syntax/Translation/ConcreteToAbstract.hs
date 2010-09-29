@@ -668,11 +668,11 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceDef _ c [C.Axiom _ _ _ _ x t] [C.FunDef _ _ _ _ _ _ [cl]] ->
+            NiceDef _ c [C.Axiom _ _ _ _ rel x t] [C.FunDef _ _ _ _ _ _ [cl]] ->
                 do  e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName x)
-                    return [ A.LetBind (LetRange $ getRange c) x t e ]
+                    return [ A.LetBind (LetRange $ getRange c) rel x t e ]
 
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
@@ -754,7 +754,7 @@ instance ToAbstract NiceDefinition Definition where
           printScope "data" 20 $ "Checked data " ++ show x
           return $ A.DataDef (mkDefInfo x f p a r) x' pars cons
         where
-          conName (C.Axiom _ _ _ _ c _) = c
+          conName (C.Axiom _ _ _ _ _ c _) = c
           conName _ = __IMPOSSIBLE__
 
     -- Record definitions (mucho interesting)
@@ -789,11 +789,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom
-    C.Axiom r f p a x t -> do
+    C.Axiom r f p a rel x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Axiom (mkDefInfo x f p a r) y t' ]
+      return [ A.Axiom (mkDefInfo x f p a r) rel y t' ]
 
   -- Fields
     C.NiceField r f p a x t -> do
@@ -902,7 +902,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 data ConstrDecl = ConstrDecl A.ModuleName C.NiceDeclaration
 
 instance ToAbstract ConstrDecl A.Declaration where
-    toAbstract (ConstrDecl m (C.Axiom r f p a x t)) = do
+    toAbstract (ConstrDecl m (C.Axiom r f p a rel x t)) = do -- rel==Relevant
         t' <- toAbstractCtx TopCtx t
         -- The abstract name is the qualified one
         y  <- withCurrentModule m $ freshAbstractQName f x
@@ -910,7 +910,7 @@ instance ToAbstract ConstrDecl A.Declaration where
         bindName p' ConName x y
         withCurrentModule m $ bindName p' ConName x y
         printScope "con" 15 "bound constructor"
-        return $ A.Axiom (mkDefInfo x f p a r) y t'
+        return $ A.Axiom (mkDefInfo x f p a r) rel y t'
         where
             -- An abstract constructor is private (abstract constructor means
             -- abstract datatype, so the constructor should not be exported).

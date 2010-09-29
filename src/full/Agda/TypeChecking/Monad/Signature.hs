@@ -201,7 +201,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn y t [] (-1) def  -- TODO: mutual block?
+	nd y = Defn (defRelevance d) y t [] (-1) def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon = case oldDef of
 	  Constructor{} -> True
@@ -464,6 +464,10 @@ treatAbstractly' q env = case envAbstractMode env of
 -- | get type of a constant
 typeOfConst :: MonadTCM tcm => QName -> tcm Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
+
+-- | get relevance of a constant
+relOfConst :: MonadTCM tcm => QName -> tcm Relevance
+relOfConst q = defRelevance <$> getConstInfo q
 
 -- | The name must be a datatype.
 sortOfConst :: MonadTCM tcm => QName -> tcm Sort

@@ -93,7 +93,7 @@ checkDataDef i name ps cs =
                                    }
 
 	    escapeContext (size tel) $ do
-	      addConstant name ( Defn name t (defaultDisplayForm name) 0 dataDef )
+	      addConstant name ( Defn Relevant name t (defaultDisplayForm name) 0 dataDef )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
@@ -110,20 +110,20 @@ checkDataDef i name ps cs =
 	    case (proofIrr, s, cs) of
 		(True, Prop, _:_:_) -> setCurrentRange (getRange $ map conName cs) $
                                         typeError PropMustBeSingleton
-                  where conName (A.Axiom _ c _) = c
+                  where conName (A.Axiom _ _ c _) = c
                         conName (A.ScopedDecl _ (d:_)) = conName d
                         conName _ = __IMPOSSIBLE__
 		_		    -> return ()
 
 	-- Add the datatype to the signature with its constructors. It was previously
 	-- added without them.
-	addConstant name (Defn name t (defaultDisplayForm name) 0 $
+	addConstant name (Defn Relevant name t (defaultDisplayForm name) 0 $
                             dataDef { dataCons = map cname cs }
 			 )
         computePolarity name
     where
 	cname (A.ScopedDecl _ [d]) = cname d
-	cname (A.Axiom _ x _)	   = x
+	cname (A.Axiom _ _ x _)	   = x
 	cname _			   = __IMPOSSIBLE__ -- constructors are axioms
 
 	hideTel  EmptyTel		  = EmptyTel
@@ -141,7 +141,7 @@ checkConstructor :: QName -> Telescope -> Nat -> Sort
 checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   setScope scope
   checkConstructor d tel nofIxs s con
-checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
+checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
     traceCall (CheckConstructor d tel s con) $ do
 	t <- isType_ e
 	n <- size <$> getContextTelescope
@@ -152,7 +152,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i c e) =
         t' <- addForcingAnnotations t
 	escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn c (telePi tel t') (defaultDisplayForm c) 0
+	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0
 	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive
   where
     debugEndsIn t d n =
@@ -256,7 +256,7 @@ forceData d (El s0 t) = liftTCM $ do
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ t _ _ Datatype{dataSort = s} <- getConstInfo d
+	    Defn _ _ t _ _ Datatype{dataSort = s} <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
 	    reduce $ El s0 t'

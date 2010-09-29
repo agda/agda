@@ -210,8 +210,8 @@ type Field	 = TypeSignature
     which type in the intended family the constructor targets.
 -}
 data Declaration
-	= TypeSig Name Expr
-        | Field Name (Arg Expr)
+	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
+        | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
 	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
 	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
@@ -337,23 +337,23 @@ instance HasRange WhereClause where
   getRange (SomeWhere _ ds) = getRange ds
 
 instance HasRange Declaration where
-    getRange (TypeSig x t)		= fuseRange x t
-    getRange (Field x t)              = fuseRange x t
-    getRange (FunClause lhs rhs wh)	= fuseRange lhs rhs `fuseRange` wh
-    getRange (Data r _ _ _ _ _)		= r
-    getRange (Record r _ _ _ _ _)	= r
-    getRange (Mutual r _)		= r
-    getRange (Abstract r _)		= r
-    getRange (Open r _ _)		= r
-    getRange (ModuleMacro r _ _ _ _ _)	= r
-    getRange (Import r _ _ _ _)		= r
-    getRange (Private r _)		= r
-    getRange (Postulate r _)		= r
-    getRange (Primitive r _)		= r
-    getRange (Module r _ _ _)		= r
-    getRange (Infix f _)		= getRange f
-    getRange (Syntax n _)          = getRange n
-    getRange (Pragma p)			= getRange p
+    getRange (TypeSig _ x t)	       = fuseRange x t
+    getRange (Field x t)               = fuseRange x t
+    getRange (FunClause lhs rhs wh)    = fuseRange lhs rhs `fuseRange` wh
+    getRange (Data r _ _ _ _ _)	       = r
+    getRange (Record r _ _ _ _ _)      = r
+    getRange (Mutual r _)	       = r
+    getRange (Abstract r _)	       = r
+    getRange (Open r _ _)	       = r
+    getRange (ModuleMacro r _ _ _ _ _) = r
+    getRange (Import r _ _ _ _)	       = r
+    getRange (Private r _)	       = r
+    getRange (Postulate r _)	       = r
+    getRange (Primitive r _)	       = r
+    getRange (Module r _ _ _)	       = r
+    getRange (Infix f _)	       = getRange f
+    getRange (Syntax n _)              = getRange n
+    getRange (Pragma p)		       = getRange p
 
 instance HasRange LHS where
   getRange (LHS p ps eqns ws) = fuseRange p (fuseRange ps (eqns ++ ws))

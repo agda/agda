@@ -71,8 +71,9 @@ checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef delayed i name cs =
 
     traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
-        -- Get the type of the function
+        -- Get the type and relevance of the function
         t    <- typeOfConst name
+        rel  <- relOfConst name
 
         reportSDoc "tc.def.fun" 10 $
           sep [ text "checking body of" <+> prettyTCM name
@@ -82,7 +83,7 @@ checkFunDef delayed i name cs =
 
         -- Check the clauses
         let check c = do
-              c <- checkClause t c
+              c <- applyRelevanceToContext rel $ checkClause t c
               solveSizeConstraints
               return c
         cs <- mapM check cs
@@ -101,7 +102,7 @@ checkFunDef delayed i name cs =
         let cc = compileClauses cs
 
         -- Add the definition
-        addConstant name $ Defn name t (defaultDisplayForm name) 0
+        addConstant name $ Defn rel name t (defaultDisplayForm name) 0
                          $ Function
                             { funClauses        = cs
                             , funCompiled       = cc
@@ -342,7 +343,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn aux auxType [df] 0 $ Axiom Nothing)
+  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep

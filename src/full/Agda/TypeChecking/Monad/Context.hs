@@ -94,9 +94,9 @@ getContextId :: MonadTCM tcm => tcm [CtxId]
 getContextId = asks $ map ctxId . envContext
 
 -- | Add a let bound variable
-addLetBinding :: MonadTCM tcm => Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding x v t0 ret = do
-    let t = defaultArg t0  -- Andreas, 2010-09-06: for now, no irrelevant let
+addLetBinding :: MonadTCM tcm => Relevance -> Name -> Term -> Type -> tcm a -> tcm a
+addLetBinding rel x v t0 ret = do
+    let t = Arg NotHidden rel t0 
     vt <- makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
@@ -104,7 +104,10 @@ addLetBinding x v t0 ret = do
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
 wakeIrrelevantVars :: MonadTCM tcm => tcm a -> tcm a
-wakeIrrelevantVars = local $ \ e -> e { envContext = map wakeVar (envContext e) }
+wakeIrrelevantVars = local $ \ e -> e 
+   { envContext = map wakeVar (envContext e) -- enable local  irr. defs 
+   , envIrrelevant = True                    -- enable global irr. defs
+   }
   where wakeVar ce = ce { ctxEntry = makeRelevant (ctxEntry ce) }
 
 applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
