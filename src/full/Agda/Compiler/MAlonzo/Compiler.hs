@@ -121,12 +121,10 @@ definitions defs = do
 -- @
 
 definition :: Maybe CoinductionKit -> Definition -> TCM [HsDecl]
-{- TODO: ignore irrelevant definitions
+-- ignore irrelevant definitions
 definition kit (Defn Forced     _ _  _ _ _) = __IMPOSSIBLE__
 definition kit (Defn Irrelevant _ _  _ _ _) = return []
 definition kit (Defn Relevant   q ty _ _ d) = do
--}
-definition kit (Defn _   q ty _ _ d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
 
@@ -266,7 +264,10 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
     (tilde . HsPParen) <$>
       (HsPApp <$> lift (conhqn q) <*> mapM pat' ps)
 
-  pat' = pat . unArg
+  -- Andreas, 2010-09-29
+  -- do not match against irrelevant stuff
+  pat' (Arg _ Irrelevant _) = return $ HsPWildCard
+  pat' (Arg _ _          p) = pat p
 
   tildesEnabled = False
 
@@ -277,14 +278,18 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr (LitP {})   = return False
   irr (ConP q _ ps) =
     (&&) <$> singleConstructorType q
-         <*> (and <$> mapM (irr . unArg) ps)
+         <*> (and <$> mapM irr' ps)
+
+  -- | Irrelevant patterns are naturally irrefutable.
+  irr' (Arg _ Irrelevant _) = return $ True
+  irr' (Arg _ _          p) = irr p
 
 clausebody :: ClauseBody -> TCM HsExp
 clausebody b0 = runReaderT (go b0) 0 where
   go (Body   tm       ) = hsCast <$> term tm
   go (Bind   (Abs _ b)) = local (1+) $ go b
   go (NoBind b        ) = go b
-  go NoBody             = return$ rtmError$ "Impossible Clause Body"
+  go NoBody             = return $ rtmError$ "Impossible Clause Body"
 
 term :: Term -> ReaderT Nat TCM HsExp
 term tm0 = case tm0 of
@@ -299,7 +304,15 @@ term tm0 = case tm0 of
   Sort  _    -> return unit_con
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare   -> return unit_con
-  where apps =  foldM (\h a -> HsApp h <$> term (unArg a))
+  where apps =  foldM (\h a -> HsApp h <$> term' a)
+
+-- | Irrelevant arguments are replaced by a dummy.
+term' :: Arg Term -> ReaderT Nat TCM HsExp
+term' (Arg _ Irrelevant _) = return hsDummyExp
+term' (Arg _ _          t) = term t
+
+hsDummyExp :: HsExp
+hsDummyExp = HsCon $ Special $ HsUnitCon  -- Haskell's '()'
 
 literal :: Literal -> TCM HsExp
 literal l = case l of
