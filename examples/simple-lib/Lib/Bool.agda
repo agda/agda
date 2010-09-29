@@ -22,8 +22,8 @@ isFalse true  = False
 isFalse false = True
 
 data Inspect (b : Bool) : Set where
-  itsTrue  : isTrue b  -> Inspect b
-  itsFalse : isFalse b -> Inspect b
+  itsTrue  : .(isTrue b)  -> Inspect b
+  itsFalse : .(isFalse b) -> Inspect b
 
 inspect : (b : Bool) -> Inspect b
 inspect true  = itsTrue _
