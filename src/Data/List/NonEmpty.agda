@@ -2,6 +2,7 @@
 -- Non-empty lists
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
 module Data.List.NonEmpty where
 
 open import Data.Product hiding (map)
@@ -14,74 +15,74 @@ open import Relation.Binary.PropositionalEquality
 
 infixr 5 _∷_ _∷ʳ_ _⁺++⁺_ _++⁺_ _⁺++_
 
-data List⁺ (A : Set) : Set where
+data List⁺ {ℓ} (A : Set ℓ) : Set ℓ where
   [_] : (x : A) → List⁺ A
   _∷_ : (x : A) (xs : List⁺ A) → List⁺ A
 
-length_-1 : ∀ {A} → List⁺ A → ℕ
+length_-1 : ∀ {ℓ} {A : Set ℓ} → List⁺ A → ℕ
 length [ x ]  -1 = 0
 length x ∷ xs -1 = 1 + length xs -1
 
 ------------------------------------------------------------------------
 -- Conversion
 
-fromVec : ∀ {n A} → Vec A (suc n) → List⁺ A
-fromVec {zero}  (x ∷ _)  = [ x ]
-fromVec {suc n} (x ∷ xs) = x ∷ fromVec xs
+fromVec : ∀ {ℓ n} {A : Set ℓ} → Vec A (suc n) → List⁺ A
+fromVec {_} {zero}  (x ∷ _)  = [ x ]
+fromVec {_} {suc n} (x ∷ xs) = x ∷ fromVec xs
 
-toVec : ∀ {A} (xs : List⁺ A) → Vec A (suc (length xs -1))
+toVec : ∀ {ℓ} {A : Set ℓ} (xs : List⁺ A) → Vec A (suc (length xs -1))
 toVec [ x ]    = Vec.[_] x
 toVec (x ∷ xs) = x ∷ toVec xs
 
-lift : ∀ {A B} →
+lift : ∀ {ℓ} {A B : Set ℓ} →
        (∀ {m} → Vec A (suc m) → ∃ λ n → Vec B (suc n)) →
        List⁺ A → List⁺ B
 lift f xs = fromVec (proj₂ (f (toVec xs)))
 
-fromList : ∀ {A} → A → List A → List⁺ A
+fromList : ∀ {ℓ} {A : Set ℓ} → A → List A → List⁺ A
 fromList x xs = fromVec (Vec.fromList (x ∷ xs))
 
-toList : ∀ {A} → List⁺ A → List A
-toList = Vec.toList ∘ toVec
+toList : ∀ {ℓ} {A : Set ℓ} → List⁺ A → List A
+toList {ℓ} = Vec.toList {ℓ} ∘ toVec
 
 ------------------------------------------------------------------------
 -- Other operations
 
-head : ∀ {A} → List⁺ A → A
-head = Vec.head ∘ toVec
+head : ∀ {ℓ} {A : Set ℓ} → List⁺ A → A
+head {ℓ} = Vec.head {ℓ} ∘ toVec
 
-tail : ∀ {A} → List⁺ A → List A
-tail = Vec.toList ∘ Vec.tail ∘ toVec
+tail : ∀ {ℓ} {A : Set ℓ} → List⁺ A → List A
+tail {ℓ} = Vec.toList {ℓ} ∘ Vec.tail {ℓ} ∘ toVec
 
-map : ∀ {A B} → (A → B) → List⁺ A → List⁺ B
+map : ∀ {ℓ} {A B : Set ℓ} → (A → B) → List⁺ A → List⁺ B
 map f = lift (λ xs → (, Vec.map f xs))
 
 -- Right fold. Note that s is only applied to the last element (see
 -- the examples below).
 
-foldr : {A B : Set} → (A → B → B) → (A → B) → List⁺ A → B
+foldr : ∀ {ℓ} {A B : Set ℓ} → (A → B → B) → (A → B) → List⁺ A → B
 foldr c s [ x ]    = s x
 foldr c s (x ∷ xs) = c x (foldr c s xs)
 
 -- Left fold. Note that s is only applied to the first element (see
 -- the examples below).
 
-foldl : {A B : Set} → (B → A → B) → (A → B) → List⁺ A → B
+foldl : ∀ {ℓ} {A B : Set ℓ} → (B → A → B) → (A → B) → List⁺ A → B
 foldl c s [ x ]    = s x
 foldl c s (x ∷ xs) = foldl c (c (s x)) xs
 
 -- Append (several variants).
 
-_⁺++⁺_ : ∀ {A} → List⁺ A → List⁺ A → List⁺ A
+_⁺++⁺_ : ∀ {ℓ} {A : Set ℓ} → List⁺ A → List⁺ A → List⁺ A
 xs ⁺++⁺ ys = foldr _∷_ (λ x → x ∷ ys) xs
 
-_⁺++_ : ∀ {A} → List⁺ A → List A → List⁺ A
+_⁺++_ : ∀ {ℓ} {A : Set ℓ} → List⁺ A → List A → List⁺ A
 xs ⁺++ ys = foldr _∷_ (λ x → fromList x ys) xs
 
-_++⁺_ : ∀ {A} → List A → List⁺ A → List⁺ A
+_++⁺_ : ∀ {ℓ} {A : Set ℓ} → List A → List⁺ A → List⁺ A
 xs ++⁺ ys = List.foldr _∷_ ys xs
 
-concat : ∀ {A} → List⁺ (List⁺ A) → List⁺ A
+concat : ∀ {ℓ} {A : Set ℓ} → List⁺ (List⁺ A) → List⁺ A
 concat [ xs ]     = xs
 concat (xs ∷ xss) = xs ⁺++⁺ concat xss
 
@@ -91,23 +92,23 @@ monad = record
   ; _>>=_  = λ xs f → concat (map f xs)
   }
 
-reverse : ∀ {A} → List⁺ A → List⁺ A
+reverse : ∀ {ℓ} {A : Set ℓ} → List⁺ A → List⁺ A
 reverse = lift (,_ ∘′ Vec.reverse)
 
 -- Snoc.
 
-_∷ʳ_ : ∀ {A} → List⁺ A → A → List⁺ A
+_∷ʳ_ : ∀ {ℓ} {A : Set ℓ} → List⁺ A → A → List⁺ A
 xs ∷ʳ x = foldr _∷_ (λ y → y ∷ [ x ]) xs
 
 -- A snoc-view of non-empty lists.
 
 infixl 5 _∷ʳ′_
 
-data SnocView {A} : List⁺ A → Set where
+data SnocView {ℓ} {A : Set ℓ} : List⁺ A → Set ℓ where
   [_]   : (x : A)                → SnocView [ x ]
   _∷ʳ′_ : (xs : List⁺ A) (x : A) → SnocView (xs ∷ʳ x)
 
-snocView : ∀ {A} (xs : List⁺ A) → SnocView xs
+snocView : ∀ {ℓ} {A : Set ℓ} (xs : List⁺ A) → SnocView xs
 snocView [ x ]            = [ x ]
 snocView (x ∷ xs)         with snocView xs
 snocView (x ∷ .([ y ]))   | [ y ]    = [ x ] ∷ʳ′ y
@@ -115,7 +116,7 @@ snocView (x ∷ .(ys ∷ʳ y)) | ys ∷ʳ′ y = (x ∷ ys) ∷ʳ′ y
 
 -- The last element in the list.
 
-last : ∀ {A} → List⁺ A → A
+last : ∀ {ℓ} {A : Set ℓ} → List⁺ A → A
 last xs with snocView xs
 last .([ y ])   | [ y ]    = y
 last .(ys ∷ʳ y) | ys ∷ʳ′ y = y

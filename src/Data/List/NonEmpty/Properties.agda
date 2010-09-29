@@ -18,27 +18,28 @@ open RawMonad List⁺.monad
 open import Relation.Binary.PropositionalEquality
 open ≡-Reasoning
 
-η : ∀ {A} (xs : List⁺ A) → head xs ∷ tail xs ≡ List⁺.toList xs
+η : ∀ {ℓ} {A : Set ℓ} (xs : List⁺ A) → head xs ∷ tail xs ≡ List⁺.toList xs
 η [ x ]    = refl
 η (x ∷ xs) = refl
 
-toList-fromList : ∀ {A} x (xs : List A) →
+toList-fromList : ∀ {ℓ} {A : Set ℓ} x (xs : List A) →
                   x ∷ xs ≡ List⁺.toList (List⁺.fromList x xs)
 toList-fromList x []       = refl
 toList-fromList x (y ∷ xs) = cong (_∷_ x) (toList-fromList y xs)
 
-toList-⁺++ : ∀ {A} (xs : List⁺ A) ys →
+toList-⁺++ : ∀ {ℓ} {A : Set ℓ} (xs : List⁺ A) ys →
              List⁺.toList xs ++ ys ≡
              List⁺.toList (xs ⁺++ ys)
 toList-⁺++ [ x ]    ys = toList-fromList x ys
 toList-⁺++ (x ∷ xs) ys = cong (_∷_ x) (toList-⁺++ xs ys)
 
-toList-⁺++⁺ : ∀ {A} (xs ys : List⁺ A) →
+toList-⁺++⁺ : ∀ {ℓ} {A : Set ℓ} (xs ys : List⁺ A) →
               List⁺.toList xs ++ List⁺.toList ys ≡
               List⁺.toList (xs ⁺++⁺ ys)
 toList-⁺++⁺ [ x ]    ys = refl
 toList-⁺++⁺ (x ∷ xs) ys = cong (_∷_ x) (toList-⁺++⁺ xs ys)
 
+-- FIXME <dbrown> Can't make ℓ work here...
 toList->>= : ∀ {A B} (f : A → List⁺ B) (xs : List⁺ A) →
              (List⁺.toList xs ⋆>>= List⁺.toList ∘ f) ≡
              (List⁺.toList (xs >>= f))

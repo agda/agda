@@ -41,7 +41,7 @@ open import Category.Functor
 open import Category.Monad
 open import Category.Monad.Identity
 
-functor : RawFunctor Maybe
+functor : ∀ {ℓ} → RawFunctor {ℓ} Maybe
 functor = record
   { _<$>_ = λ f → maybe (just ∘ f) nothing
   }
