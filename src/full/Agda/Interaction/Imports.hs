@@ -452,7 +452,7 @@ createInterface file mname = do
     -- Check if there are unsolved meta-variables...
     unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
     unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
-    unless (null unsolvedMetas || unsolvedOk) $
+    unless (null unsolvedMetas || unsolvedOK) $
       typeError $ UnsolvedMetas unsolvedMetas
 
     -- ...or unsolved constraints
