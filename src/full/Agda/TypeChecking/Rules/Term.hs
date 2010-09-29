@@ -469,7 +469,9 @@ checkExpr e t =
 
         A.ETel _   -> __IMPOSSIBLE__
 
-	A.DontCare -> __IMPOSSIBLE__
+	A.DontCare -> -- can happen in the context of with functions
+                      return DontCare
+                      -- __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
