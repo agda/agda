@@ -18,6 +18,9 @@ infixr 5 _∷_
 data Stream (A : Set) : Set where
   _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
+{-# IMPORT Data.FFI #-}
+{-# COMPILED_DATA Stream Data.FFI.AgdaStream Data.FFI.Cons #-}
+
 ------------------------------------------------------------------------
 -- Some operations
 

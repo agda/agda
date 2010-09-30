@@ -28,6 +28,9 @@ data List {a} (A : Set a) : Set a where
 {-# BUILTIN NIL  []   #-}
 {-# BUILTIN CONS _∷_  #-}
 
+{-# IMPORT Data.FFI #-}
+{-# COMPILED_DATA List Data.FFI.AgdaList [] (:) #-}
+
 ------------------------------------------------------------------------
 -- Some operations
 

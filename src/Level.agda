@@ -16,6 +16,9 @@ data Level : Set where
 {-# BUILTIN LEVELZERO zero  #-}
 {-# BUILTIN LEVELSUC  suc   #-}
 
+{-# IMPORT Level.FFI #-}
+{-# COMPILED_DATA Level Level.FFI.Level Level.FFI.Zero Level.FFI.Suc #-}
+
 -- Maximum.
 
 infixl 6 _⊔_
