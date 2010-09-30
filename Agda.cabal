@@ -80,6 +80,7 @@ library
                     alex >= 2.0.1 && < 3
   extensions:       CPP
   exposed-modules:  Agda.Main
+                    Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
                     Agda.Interaction.GhciTop
                     Agda.Compiler.HaskellTypes
