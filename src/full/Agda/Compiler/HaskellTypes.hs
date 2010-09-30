@@ -84,6 +84,12 @@ haskellKind a = do
     Sort _  -> return hsStar
     Pi a b  -> hsKFun <$> haskellKind (unArg a) <*> underAbstraction a b haskellKind
     Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
+    Def d _ -> do
+      d <- theDef <$> getConstInfo d
+      case d of
+        Axiom{ axHsDef = Just (HsType t) } -> return hsStar
+        Datatype{ dataHsType = Just t }    -> return hsStar
+        _                                  -> notAHaskellKind a
     _       -> notAHaskellKind a
 
 -- | Note that @Inf a b@, where @Inf@ is the INFINITY builtin, is
@@ -111,19 +117,14 @@ haskellType = liftTCM . fromType
         Def d args -> hsApp <$> getHsType d <*> fromArgs args
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
-          ifM (isHaskellKind $ unArg a)
-          (underAbstraction a b $ \b -> do
-              x <- getHsVar 0
-              b <- fromType b
-              return $ hsForall x $ hsFun "()" b
-          )
-          (if 0 `freeIn` absBody b
-           then err
-           else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
-          )
+          if 0 `freeIn` absBody b
+          then underAbstraction a b $ \b -> 
+            hsForall <$> getHsVar 0 <*> 
+              (hsFun <$> fromType (unArg a) <*> fromType b)
+          else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
         Con{}      -> err
         Lam{}      -> err
         Lit{}      -> err
-        Sort{}     -> err
+        Sort{}     -> return "()"
         MetaV{}    -> err
         DontCare   -> err
