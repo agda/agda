@@ -91,6 +91,7 @@ data PragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors :: Bool
   , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
+  , optIrrelevantProjections     :: Bool
   }
   deriving Show
 
@@ -146,6 +147,7 @@ defaultPragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors = False
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = False
+  , optIrrelevantProjections     = False
   }
 
 -- | The default output directory for HTML.
@@ -206,6 +208,7 @@ injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = Tru
 guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 noForcingFlag                o = return $ o { optForcing                   = False }
+irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = True  }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -310,6 +313,8 @@ pragmaOptions =
                     "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
                     "enable universe polymorphism (experimental feature)"
+    , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
+                    "enable projection of irrelevant record fields"
     ]
 
 -- | Used for printing usage info.

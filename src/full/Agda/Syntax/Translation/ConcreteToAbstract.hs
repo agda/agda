@@ -52,6 +52,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
 
 import {-# SOURCE #-} Agda.Interaction.Imports (scopeCheckImport)
+import Agda.Interaction.Options
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -799,9 +800,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.NiceField r f p a x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
-      unless (argRelevance t == Irrelevant) $  
+      irrProj <- optIrrelevantProjections <$> pragmaOptions
+      unless (argRelevance t == Irrelevant && not irrProj) $  
         -- Andreas, 2010-09-24: irrelevant fields are not in scope
         -- this ensures that projections out of irrelevant fields cannot occur
+        -- Ulf: unless you turn on --irrelevant-projections
         bindName p DefName x y
       return [ A.Field (mkDefInfo x f p a r) y t' ]
 
