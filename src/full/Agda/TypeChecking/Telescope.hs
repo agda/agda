@@ -119,14 +119,32 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     m         = genericLength $ takeWhile (`notElem` is) (reverse js)
     (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
 
+{- Andreas 2010-10-01: this comment seems stale.  Where is the unsafe variant? 
 -- | A safe variant of telView.
 
+OLD CODE:
 telView :: MonadTCM tcm => Type -> tcm TelView
 telView t = do
   t <- reduce t
   case unEl t of
     Pi a (Abs x b) -> absV a x   <$> telView b
     Fun a b	   -> absV a "_" <$> telView (raise 1 b)
+    _		   -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+-}
+telView :: MonadTCM tcm => Type -> tcm TelView
+telView = telViewUpTo (-1)
+
+-- | @telViewUpTo n t@ takes off the first @n@ function types of @t@.
+-- Takes off all if $n < 0$.
+telViewUpTo :: MonadTCM tcm => Int -> Type -> tcm TelView
+telViewUpTo 0 t = return $ TelV EmptyTel t
+telViewUpTo n t = do
+  t <- reduce t
+  case unEl t of
+    Pi a (Abs x b) -> absV a x   <$> telViewUpTo (n-1) b
+    Fun a b	   -> absV a "_" <$> telViewUpTo (n-1) (raise 1 b)
     _		   -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

@@ -10,9 +10,10 @@ data AppView = Application Head [NamedArg Expr]
 	     | NonApplication Expr
 		-- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
 
-data Head = HeadVar Name
-	  | HeadDef QName
-	  | HeadCon [QName]
+-- | @Head@ of an applicative expression.
+data Head = HeadVar Name     -- ^ A variable.
+	  | HeadDef QName    -- ^ A defined symbol (except constructor).
+	  | HeadCon [QName]  -- ^ A constructor which could belong to any of the data types in the list.
 
 appView :: Expr -> AppView
 appView e =

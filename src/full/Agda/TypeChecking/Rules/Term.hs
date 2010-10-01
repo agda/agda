@@ -243,6 +243,7 @@ checkExpr e t =
 		hiddenLambdaOrHole _							   = False
 
 	-- Variable or constant application
+           -- Subcase: ambiguous constructor
 	_   | Application (HeadCon cs@(_:_:_)) args <- appView e -> do
                 -- First we should figure out which constructor we want.
                 reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
@@ -291,8 +292,10 @@ checkExpr e t =
                   Just c  -> checkConstructorApplication e t c args
                   Nothing -> postponeTypeCheckingProblem e t unblock
 
+              -- Subcase: non-ambiguous constructor
             | Application (HeadCon [c]) args <- appView e ->
                 checkConstructorApplication e t c args
+              -- Subcase: defined symbol or variable.
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args
 
@@ -686,26 +689,32 @@ checkHeadApplication e t hd args = do
    else case hd of
     HeadCon [c] -> do
       (f, t0) <- inferHead hd
+      reportSDoc "tc.term.con" 5 $ vcat
+        [ text "checkHeadApplication inferred" <+> 
+          prettyTCM c <+> text ":" <+> prettyTCM t0 
+        ]
       checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
         TelV eTel eType <- telView t
-        TelV fTel fType <- telView t1
+        -- If the expected type @eType@ is a metavariable we have to make
+        -- sure it's instantiated to the proper pi type
+        TelV fTel fType <- telViewUpTo (size eTel) t1
         blockTerm t (f vs) $ (cs ++) <$> do
           -- We know that the target type of the constructor (fType)
           -- does not depend on fTel so we can compare fType and eType
           -- first.
-                                         -- This will fail
-          when (size eTel > size fTel) $ compareTel CmpLeq eTel fTel >> return ()
+                                         
+          when (size eTel > size fTel) $ 
+            compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
-          -- If the expected type is a metavariable we have to make
-          -- sure it's instantiated to the proper pi type
-          let (fTel0, fTel1) = telFromList -*- telFromList
-                             $ splitAt (size eTel)
-                             $ telToList fTel
-              fType' = abstract fTel1 fType
+          reportSDoc "tc.term.con" 10 $ vcat
+            [ text "checking" <+> 
+              prettyTCM fType <+> text "?<=" <+> prettyTCM eType
+            ]
+          cs1 <- addCtxTel eTel $ leqType fType eType
 
-          cs1 <- addCtxTel eTel $ leqType fType' eType
-          cs2 <- compareTel CmpLeq eTel fTel0
+          cs2 <- compareTel CmpLeq eTel fTel
           return $ cs1 ++ cs2
+
     HeadDef c | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
       lets <- envLetBindings <$> ask

@@ -143,6 +143,7 @@ checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   checkConstructor d tel nofIxs s con
 checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
     traceCall (CheckConstructor d tel s con) $ do
+        debugEnter c e
 	t <- isType_ e
 	n <- size <$> getContextTelescope
         debugEndsIn t d n
@@ -150,11 +151,16 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         debugFitsIn s
 	t `fitsIn` s
         t' <- addForcingAnnotations t
+        debugAdd c t'
 	escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0
 	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive
   where
+    debugEnter c e =
+      reportSDoc "tc.data.con" 5 $ vcat
+        [ text "checking constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM e
+        ]
     debugEndsIn t d n =
       reportSDoc "tc.data.con" 15 $ vcat
         [ sep [ text "checking that"
@@ -167,6 +173,10 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
       reportSDoc "tc.data.con" 15 $ sep
         [ text "checking that the type fits in"
         , nest 2 $ prettyTCM s
+        ]
+    debugAdd c t =
+      reportSDoc "tc.data.con" 5 $ vcat
+        [ text "adding constructor" <+> prettyTCM c <+> text ":" <+> prettyTCM t
         ]
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
