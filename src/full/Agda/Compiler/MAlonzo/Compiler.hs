@@ -289,8 +289,12 @@ clausebody b0 = runReaderT (go b0) 0 where
   go (Body   tm       ) = hsCast <$> term tm
   go (Bind   (Abs _ b)) = local (1+) $ go b
   go (NoBind b        ) = go b
-  go NoBody             = return $ rtmError$ "Impossible Clause Body"
+  go NoBody             = return $ rtmError $ "Impossible Clause Body"
 
+-- | Extract Agda term to Haskell expression.
+--   Irrelevant arguments are extracted as @()@.
+--   Types are extracted as @()@.  
+--   @DontCare@ outside of irrelevant arguments is extracted as @error@.
 term :: Term -> ReaderT Nat TCM HsExp
 term tm0 = case tm0 of
   Var   i as -> do n <- ask; apps (hsVarUQ $ ihname "v" (n - i - 1)) as
@@ -303,16 +307,13 @@ term tm0 = case tm0 of
   Fun   _ _  -> return unit_con
   Sort  _    -> return unit_con
   MetaV _ _  -> mazerror "hit MetaV"
-  DontCare   -> return unit_con
+  DontCare   -> return $ rtmError $ "hit DontCare" 
   where apps =  foldM (\h a -> HsApp h <$> term' a)
 
--- | Irrelevant arguments are replaced by a dummy.
+-- | Irrelevant arguments are replaced by Haskells' ().
 term' :: Arg Term -> ReaderT Nat TCM HsExp
-term' (Arg _ Irrelevant _) = return hsDummyExp
+term' (Arg _ Irrelevant _) = return unit_con
 term' (Arg _ _          t) = term t
-
-hsDummyExp :: HsExp
-hsDummyExp = HsCon $ Special $ HsUnitCon  -- Haskell's '()'
 
 literal :: Literal -> TCM HsExp
 literal l = case l of
