@@ -60,9 +60,13 @@ instance Apply Definition where
 instance Apply Defn where
   apply d args = case d of
     Axiom{} -> d
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv } ->
-      d { funClauses = apply cs args, funCompiled = apply cc args
-        , funInv = apply inv args }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv 
+            , funProjection = mn } ->
+      d { funClauses    = apply cs args
+        , funCompiled   = apply cc args
+        , funInv        = apply inv args 
+        , funProjection = fmap (nonNeg . \ n -> n - size args) mn
+        } where nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np - size args, dataClause = apply cl args }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel } ->
@@ -180,9 +184,13 @@ instance Abstract Definition where
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv } ->
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funProjection = mn } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
-        , funInv = abstract tel inv }
+        , funInv = abstract tel inv 
+        , funProjection = fmap ((+) (size tel)) mn 
+          -- index of record arg shifts back by number of new args
+        }
     Datatype{ dataPars = np, dataClause = cl } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->

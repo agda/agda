@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20100929 * 10 + 0
+currentInterfaceVersion = 20101002 * 10 + 1
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -591,14 +591,14 @@ instance EmbPrj Occurrence where
 
 instance EmbPrj Defn where
   icode (Axiom       a)                     = icode1 0 a
-  icode (Function    a b c d e f g)         = icode7 1 a b c d e f g
+  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
   icode (Datatype    a b c d e f g h i j)   = icode10 2 a b c d e f g h i j
   icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
   icode (Constructor a b c d e f)           = icode6 4 a b c d e f
   icode (Primitive   a b c)                 = icode3 5 a b c
   value = vcase valu where
     valu [0, a]                               = valu1 Axiom       a
-    valu [1, a, b, c, d, e, f, g]             = valu7 Function    a b c d e f g
+    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
     valu [2, a, b, c, d, e, f, g, h, i, j]    = valu10 Datatype   a b c d e f g h i j
     valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
     valu [4, a, b, c, d, e, f]                = valu6 Constructor a b c d e f

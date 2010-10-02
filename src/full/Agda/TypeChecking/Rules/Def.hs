@@ -111,6 +111,7 @@ checkFunDef delayed i name cs =
                             , funAbstr          = Info.defAbstract i
                             , funPolarity       = []
                             , funArgOccurrences = []
+                            , funProjection     = Nothing
                             }
         computePolarity name
         reportSDoc "tc.def.fun" 10 $ do

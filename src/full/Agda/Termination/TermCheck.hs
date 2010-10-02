@@ -41,6 +41,7 @@ import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Signature (isProjection)
 import Agda.TypeChecking.Primitive (constructorForm)
 
 import qualified Agda.Interaction.Highlighting.Range as R
@@ -653,6 +654,15 @@ compareTerm' _ t@Con{} (ConDBP _ ps)
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     return $ decr (-1) .*. infimum os
+-- projections are size preserving
+compareTerm' suc (Def qn ts) p = do
+    isProj <- isProjection qn
+    case isProj of
+      -- strip off projection (n is the number of the record argument, counting starts with 1)
+      Just n | length ts >= n && n >= 1 -> 
+        compareTerm' suc (unArg (ts !! (n - 1))) p
+      -- not a projection or underapplied:
+      _ -> return Term.unknown 
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     return $ if (null os) then Term.unknown else decr (-1) .*. infimum os

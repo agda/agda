@@ -372,6 +372,7 @@ checkExpr e t =
                                     , funAbstr          = ConcreteDef
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
+                                    , funProjection     = Nothing
                                     }
                   blockTerm t' (Def aux []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'

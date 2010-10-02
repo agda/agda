@@ -23,6 +23,7 @@ import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Substitute
+-- import Agda.TypeChecking.Pretty -- leads to cyclicity
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 
@@ -30,6 +31,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Map as Map
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -175,8 +177,18 @@ applySection new ptel old ts rd rm = liftTCM $ do
   isig <- getImportedSignature
   let ss = getOld partOfOldM sigSections    [sig, isig]
       ds = getOld partOfOldD sigDefinitions [sig, isig]
+  reportSLn "tc.mod.apply" 10 $ render $ vcat 
+    [ text "applySection"
+    , text "new  =" <+> text (show new)
+    , text "ptel =" <+> text (show ptel)
+    , text "old  =" <+> text (show old)
+    , text "ts   =" <+> text (show ts)
+    ]
   reportSLn "tc.mod.apply" 80 $ "sections:    " ++ show ss ++ "\n" ++
                                 "definitions: " ++ show ds
+  reportSLn "tc.mod.apply" 80 $ render $ vcat
+    [ text "arguments:  " <+> text (show ts)
+    ]                              
   mapM_ (copyDef ts) ds
   mapM_ (copySec ts) ss
   where
@@ -216,7 +228,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { recPars = np - size ts, recClause = Just cl
                          , recConType = apply t ts, recTel = apply tel ts
                          }
-		_ ->
+		_ -> 
                   Function { funClauses        = [cl2]
                            , funCompiled       = cc
                            , funDelayed        = NotDelayed
@@ -224,7 +236,12 @@ applySection new ptel old ts rd rm = liftTCM $ do
                            , funPolarity       = []
                            , funArgOccurrences = []
                            , funAbstr          = ConcreteDef
+                           , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
                            }
+                  where maybeNum = case oldDef of
+                                     Function { funProjection = mn } -> mn
+                                     _                               -> Nothing
+                        nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
 	cl = Clause { clauseRange = getRange $ defClauses d
                     , clauseTel   = EmptyTel
                     , clausePerm  = idP 0
@@ -477,3 +494,10 @@ sortOfConst q =
 	    Datatype{dataSort = s} -> return s
 	    _			   -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
+-- | Is it the name of a record projection?
+isProjection :: MonadTCM tcm => QName -> tcm (Maybe Int)
+isProjection qn = do
+  def <- theDef <$> getConstInfo qn
+  case def of
+    Function { funProjection = result } -> return $ result
+    _                                   -> return $ Nothing

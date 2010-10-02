@@ -216,7 +216,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 			      [ VarP "x" | _ <- [1..size ftel] ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
-	  body	 = nobind (size tel - 1)
+	  body	 = nobind (size ptel)
 		 $ nobind (size ftel1)
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
@@ -238,6 +238,8 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
                      , funArgOccurrences = map (const Unused) hps ++ [Negative]
+                     , funProjection     = Just (size hps + 1) 
+                       -- index of the record argument, start counting with 1
                      }
         computePolarity projname
 

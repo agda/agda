@@ -429,6 +429,12 @@ data Defn = Axiom
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
+            , funProjection     :: Maybe Int 
+              -- ^ Is it a record projection?
+              --   If yes, then return the index of the record argument. 
+              --   Start counting with 1, because 0 means that it is already
+              --   applied to the record. (Can happen in module instantiation.)  
+              --   This information is used in the termination checker.
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
