@@ -7,6 +7,44 @@ Important changes since 2.2.8:
 Language
 --------
 
+* Irrelevant declarations.
+
+  Prefixing the type signature of a postulate or a function marks 
+  this identifier as irrelevant which means it can only be refered
+  to in irrelevant positions or in other irrelevant declarations.
+
+    postulate
+      .irrelevant : {A : Set} → .A → A
+
+  This axiom can be used for instance to define a projection from
+  an irrelevant record field.
+
+    data Subset (A : Set) (P : A → Set) : Set where
+      _#_ : (elem : A) → .(P elem) → Subset A P
+
+    .certificate : ∀ {A P} → (x : Subset A P) → P (elem x)
+    certificate (a # p) = irrelevant p
+
+  Right to = we are in relevant position, so we cannot directly put p
+  there.  However, since certificate is declared irrelevant, it can 
+  use other irrelevant declarations, in particular the axiom irrelevant,
+  whose argument p is now in irrelevant position.
+
+  The above axiom justifies irrelevant projections, hence for record
+  defintitions like
+
+    record Subset (A : Set) (P : A → Set) : Set where
+      constructor _#_
+      field
+        elem : A
+        .certificate : P elem
+
+  they are generated automatically, if the option
+
+    --irrelevant-projections
+
+  is supplied.  Irrelevant projections are highly experimental.
+
 * Termination checker recognises projections.
 
   Projections now preserve sizes, both in patterns and expressions.
