@@ -35,6 +35,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
+import Agda.TypeChecking.Records (isRecordConstructor)
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
@@ -615,6 +616,23 @@ addGuardedness g nrows ncols m =
   (nrows + 1, ncols + 1,
    (g : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
 
+-- | Stripping off a record constructor is not counted as decrease, in
+--   contrast to a data constructor. 
+decreaseFromConstructor :: QName -> TCM Order
+decreaseFromConstructor c = do
+  isRC <- isRecordConstructor c
+  return $ if isRC then Term.le else Term.lt
+
+increaseFromConstructor :: (?cutoff :: Int) => QName -> TCM Order
+increaseFromConstructor c = do
+  isRC <- isRecordConstructor c
+  return $ if isRC then Term.le else Term.decr (-1)
+
+{-
+increaseFromConstructor c = negateOrder <$> decreaseFromConstructor c
+  where negateOrder (Decr k) = Decr (- k)
+        negateOrder _ = __IMPOSSIBLE__
+-}
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
@@ -647,9 +665,9 @@ compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
-compareTerm' _ t@Con{} (ConDBP _ ps)
-  | any (isSubTerm t) ps = return Term.lt
--- new cases for counting constructors
+compareTerm' _ t@Con{} (ConDBP c ps)
+  | any (isSubTerm t) ps = decreaseFromConstructor c
+-- new cases for counting constructors / projections
 -- register also increase
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
@@ -665,9 +683,11 @@ compareTerm' suc (Def qn ts) p = do
       _ -> return Term.unknown 
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    return $ if (null os) then Term.unknown else decr (-1) .*. infimum os
+    oc <- increaseFromConstructor c
+    return $ if (null os) then Term.unknown else oc .*. infimum os
 compareTerm' _ _ _ = return Term.unknown
 
+-- TODO: isSubTerm should compute a size difference (Term.Order)
 isSubTerm :: Term -> DeBruijnPat -> Bool
 isSubTerm t p = equal t p || properSubTerm t p
   where
@@ -709,4 +729,5 @@ compareVar i (LitDBP _)    = return $ Term.unknown
 compareVar i (ConDBP c ps) = do
   os <- mapM (compareVar i) ps
   let o = Term.supremum os
-  return $ (Term..*.) Term.lt o
+  oc <- decreaseFromConstructor c
+  return $ (Term..*.) oc o

@@ -94,6 +94,14 @@ isEtaRecord r = do
     Record{recEtaEquality = eta} -> eta
     _                            -> False
 
+-- | Check if a name refers to a record constructor.
+isRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
+isRecordConstructor c = do
+  def <- theDef <$> getConstInfo c
+  case def of
+    Constructor{ conData = r } -> isRecord r
+    _                          -> return False
+
 -- | Check if a constructor name is the internally generated record constructor.
 isGeneratedRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
 isGeneratedRecordConstructor c = do
