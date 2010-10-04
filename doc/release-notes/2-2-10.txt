@@ -7,36 +7,31 @@ Important changes since 2.2.8:
 Language
 --------
 
-* Termination checker recognizes projections.   This is a natural 
-  extension which has become important since record patterns are
-  translated to projections since 2.2.8.
-      
+* Termination checker recognises projections.
+
+  Projections now preserve sizes, both in patterns and expressions.
+  Example:
+
     record Wrap (A : Set) : Set where
       constructor wrap
       field
         unwrap : A
-    
+
     open Wrap public
-    
+
     data WNat : Set where
       zero : WNat
-      suc  : Wrap WNat -> WNat
-    
-    id : WNat -> WNat
+      suc  : Wrap WNat → WNat
+
+    id : WNat → WNat
     id zero    = zero
     id (suc w) = suc (wrap (id (unwrap w)))
-    
-  In the structural ordering, unwrap w <= w, thus, altogether
 
-    unwrap <= w < suc w
+  In the structural ordering unwrap w ≤ w. This means that
 
-  and the recursive call to id is accepted.  Before 2.2.8 we
-  could have used record constructors
+    unwrap w ≤ w < suc w,
 
-    id (suc (wrap n)) = suc (wrap (id n))
-
-  but now this definition is internally equivalent to the previous
-  one.
+  and hence the recursive call to id is accepted.
 
 Tools
 -----
