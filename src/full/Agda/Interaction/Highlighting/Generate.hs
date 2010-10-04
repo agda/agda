@@ -289,12 +289,13 @@ nameKinds mErr decls = do
     dropPostulates k         _ = k
 
   defnToNameKind :: Defn -> NameKind
-  defnToNameKind (M.Axiom {})                     = Postulate
-  defnToNameKind (M.Function {})                  = Function
-  defnToNameKind (M.Datatype {})                  = Datatype
-  defnToNameKind (M.Record {})                    = Record
-  defnToNameKind (M.Constructor { M.conInd = i }) = Constructor i
-  defnToNameKind (M.Primitive {})                 = Primitive
+  defnToNameKind (M.Axiom {})                               = Postulate
+  defnToNameKind (M.Function { M.funProjection = Nothing }) = Function
+  defnToNameKind (M.Function { M.funProjection = Just _  }) = Field
+  defnToNameKind (M.Datatype {})                            = Datatype
+  defnToNameKind (M.Record {})                              = Record
+  defnToNameKind (M.Constructor { M.conInd = i })           = Constructor i
+  defnToNameKind (M.Primitive {})                           = Primitive
 
   getAxiomName :: A.Declaration -> A.QName
   getAxiomName (A.Axiom _ _ q _) = q

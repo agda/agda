@@ -35,3 +35,7 @@ Language
 
 Tools
 -----
+
+* Most occurrences of record field names are now highlighted as
+  "fields". Previously many occurrences were highlighted as
+  "functions".
