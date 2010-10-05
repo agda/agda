@@ -786,8 +786,7 @@ calcEqRState cs = f EqRSNone
     (s : ss, ALCons _ a args) -> mpret $ Sidecondition (f s a) (fs ss args)
     ([], ALCons _ a args) -> mpret $ Sidecondition (f EqRSNone a) (fs [] args)
 
-    ([], ALProj eas _ _ as) -> mpret $ Sidecondition (fs [] eas) (fs [] as)
-    ((_:_), ALProj{}) -> __IMPOSSIBLE__
+    (_, ALProj eas _ _ as) -> mpret $ Sidecondition (fs [] eas) (fs [] as) -- when eqr-hint is given manually, ss can be non-empty here
 
 
     (_ : ss, ALConPar args) -> fs ss args
