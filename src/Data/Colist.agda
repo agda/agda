@@ -3,6 +3,7 @@
 ------------------------------------------------------------------------
 
 {-# OPTIONS --universe-polymorphism #-}
+
 module Data.Colist where
 
 open import Category.Monad
@@ -33,63 +34,65 @@ open RawMonad ¬¬-Monad
 
 infixr 5 _∷_
 
-data Colist {ℓ} (A : Set ℓ) : Set ℓ where
+data Colist {a} (A : Set a) : Set a where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
-data Any {ℓ ℓ′} {A : Set ℓ} (P : A → Set ℓ′) : Colist A → Set (ℓ ⊔ ℓ′) where
+data Any {a p} {A : Set a} (P : A → Set p) :
+         Colist A → Set (a ⊔ p) where
   here  : ∀ {x xs} (px  : P x)          → Any P (x ∷ xs)
   there : ∀ {x xs} (pxs : Any P (♭ xs)) → Any P (x ∷ xs)
 
-data All {ℓ ℓ′} {A : Set ℓ} (P : A → Set ℓ′) : Colist A → Set (ℓ ⊔ ℓ′) where
+data All {a p} {A : Set a} (P : A → Set p) :
+         Colist A → Set (a ⊔ p) where
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : ∞ (All P (♭ xs))) → All P (x ∷ xs)
 
 ------------------------------------------------------------------------
 -- Some operations
 
-null : ∀ {ℓ} {A : Set ℓ} → Colist A → Bool
+null : ∀ {a} {A : Set a} → Colist A → Bool
 null []      = true
 null (_ ∷ _) = false
 
-length : ∀ {ℓ} {A : Set ℓ} → Colist A → Coℕ
+length : ∀ {a} {A : Set a} → Colist A → Coℕ
 length []       = zero
 length (x ∷ xs) = suc (♯ length (♭ xs))
 
-map : ∀ {ℓ} {A B : Set ℓ} → (A → B) → Colist A → Colist B
+map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → Colist A → Colist B
 map f []       = []
 map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
-fromList : ∀ {ℓ} {A : Set ℓ} → List A → Colist A
+fromList : ∀ {a} {A : Set a} → List A → Colist A
 fromList []       = []
 fromList (x ∷ xs) = x ∷ ♯ fromList xs
 
-take : ∀ {ℓ} {A : Set ℓ} (n : ℕ) → Colist A → BoundedVec A n
+take : ∀ {a} {A : Set a} (n : ℕ) → Colist A → BoundedVec A n
 take zero    xs       = []
 take (suc n) []       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
-replicate : ∀ {ℓ} {A : Set ℓ} → Coℕ → A → Colist A
+replicate : ∀ {a} {A : Set a} → Coℕ → A → Colist A
 replicate zero    x = []
 replicate (suc n) x = x ∷ ♯ replicate (♭ n) x
 
-lookup : ∀ {ℓ} {A : Set ℓ} → ℕ → Colist A → Maybe A
+lookup : ∀ {a} {A : Set a} → ℕ → Colist A → Maybe A
 lookup n       []       = nothing
 lookup zero    (x ∷ xs) = just x
 lookup (suc n) (x ∷ xs) = lookup n (♭ xs)
 
 infixr 5 _++_
 
-_++_ : ∀ {ℓ} {A : Set ℓ} → Colist A → Colist A → Colist A
+_++_ : ∀ {a} {A : Set a} → Colist A → Colist A → Colist A
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ ♯ (♭ xs ++ ys)
 
-concat : ∀ {ℓ} {A : Set ℓ} → Colist (List⁺ A) → Colist A
+concat : ∀ {a} {A : Set a} → Colist (List⁺ A) → Colist A
 concat []               = []
 concat ([ x ]⁺   ∷ xss) = x ∷ ♯ concat (♭ xss)
 concat ((x ∷ xs) ∷ xss) = x ∷ ♯ concat (xs ∷ xss)
 
-[_] : ∀ {ℓ} {A : Set ℓ} → A → Colist A
+[_] : ∀ {a} {A : Set a} → A → Colist A
 [ x ] = x ∷ ♯ []
 
 ------------------------------------------------------------------------
@@ -99,7 +102,7 @@ concat ((x ∷ xs) ∷ xss) = x ∷ ♯ concat (xs ∷ xss)
 
 infix 4 _≈_
 
-data _≈_ {ℓ} {A : Set ℓ} : (xs ys : Colist A) → Set ℓ where
+data _≈_ {a} {A : Set a} : (xs ys : Colist A) → Set a where
   []  :                                       []     ≈ []
   _∷_ : ∀ x {xs ys} (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ x ∷ ys
 
@@ -131,11 +134,12 @@ setoid A = record
 module ≈-Reasoning where
   import Relation.Binary.EqReasoning as EqR
   private
-    open module R {ℓ} {A : Set ℓ} = EqR (setoid A) public
+    open module R {a} {A : Set a} = EqR (setoid A) public
 
 -- map preserves equality.
 
-map-cong : ∀ {ℓ} {A B : Set ℓ} (f : A → B) → _≈_ =[ map f ]⇒ _≈_
+map-cong : ∀ {a b} {A : Set a} {B : Set b}
+           (f : A → B) → _≈_ =[ map f ]⇒ _≈_
 map-cong f []        = []
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
@@ -146,27 +150,27 @@ map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
 infix 4 _∈_
 
-_∈_ : ∀ {ℓ} → {A : Set ℓ} → A → Colist A → Set ℓ
+_∈_ : ∀ {a} → {A : Set a} → A → Colist A → Set a
 x ∈ xs = Any (_≡_ x) xs
 
 -- xs ⊆ ys means that xs is a subset of ys.
 
 infix 4 _⊆_
 
-_⊆_ : ∀ {ℓ} → {A : Set ℓ} → Colist A → Colist A → Set ℓ
+_⊆_ : ∀ {a} → {A : Set a} → Colist A → Colist A → Set a
 xs ⊆ ys = ∀ {x} → x ∈ xs → x ∈ ys
 
 -- xs ⊑ ys means that xs is a prefix of ys.
 
 infix 4 _⊑_
 
-data _⊑_ {ℓ} {A : Set ℓ} : Colist A → Colist A → Set ℓ where
+data _⊑_ {a} {A : Set a} : Colist A → Colist A → Set a where
   []  : ∀ {ys}                            → []     ⊑ ys
   _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
 -- Prefixes are subsets.
 
-⊑⇒⊆ : ∀ {ℓ} → {A : Set ℓ} → _⊑_ {A = A} ⇒ _⊆_
+⊑⇒⊆ : ∀ {a} → {A : Set a} → _⊑_ {A = A} ⇒ _⊆_
 ⊑⇒⊆ []          ()
 ⊑⇒⊆ (x ∷ xs⊑ys) (here ≡x)    = here ≡x
 ⊑⇒⊆ (_ ∷ xs⊑ys) (there x∈xs) = there (⊑⇒⊆ (♭ xs⊑ys) x∈xs)
@@ -203,7 +207,7 @@ data _⊑_ {ℓ} {A : Set ℓ} : Colist A → Colist A → Set ℓ where
 module ⊑-Reasoning where
   import Relation.Binary.PartialOrderReasoning as POR
   private
-    open module R {ℓ} {A : Set ℓ} = POR (⊑-Poset A)
+    open module R {a} {A : Set a} = POR (⊑-Poset A)
       public renaming (_≤⟨_⟩_ to _⊑⟨_⟩_)
 
 -- The subset relation forms a preorder.
@@ -217,19 +221,19 @@ module ⊑-Reasoning where
 module ⊆-Reasoning where
   import Relation.Binary.PreorderReasoning as PreR
   private
-    open module R {ℓ} {A : Set ℓ} = PreR (⊆-Preorder A)
+    open module R {a} {A : Set a} = PreR (⊆-Preorder A)
       public renaming (_∼⟨_⟩_ to _⊆⟨_⟩_)
 
   infix 1 _∈⟨_⟩_
 
-  _∈⟨_⟩_ : ∀ {ℓ} {A : Set ℓ} (x : A) {xs ys} →
+  _∈⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {xs ys} →
            x ∈ xs → xs IsRelatedTo ys → x ∈ ys
   x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
 -- take returns a prefix.
 
-take-⊑ : ∀ {ℓ} {A : Set ℓ} n (xs : Colist A) →
-         let toColist = fromList {ℓ} ∘ BVec.toList in
+take-⊑ : ∀ {a} {A : Set a} n (xs : Colist A) →
+         let toColist = fromList {a} ∘ BVec.toList in
          toColist (take n xs) ⊑ xs
 take-⊑ zero    xs       = []
 take-⊑ (suc n) []       = []
@@ -240,28 +244,29 @@ take-⊑ (suc n) (x ∷ xs) = x ∷ ♯ take-⊑ n (♭ xs)
 
 -- Finite xs means that xs has finite length.
 
-data Finite {ℓ} {A : Set ℓ} : Colist A → Set ℓ where
+data Finite {a} {A : Set a} : Colist A → Set a where
   []  : Finite []
   _∷_ : ∀ x {xs} (fin : Finite (♭ xs)) → Finite (x ∷ xs)
 
 -- Infinite xs means that xs has infinite length.
 
-data Infinite {ℓ} {A : Set ℓ} : Colist A → Set ℓ where
+data Infinite {a} {A : Set a} : Colist A → Set a where
   _∷_ : ∀ x {xs} (inf : ∞ (Infinite (♭ xs))) → Infinite (x ∷ xs)
 
 -- Colists which are not finite are infinite.
 
 not-finite-is-infinite :
-  ∀ {ℓ} {A : Set ℓ} (xs : Colist A) → ¬ Finite xs → Infinite xs
+  ∀ {a} {A : Set a} (xs : Colist A) → ¬ Finite xs → Infinite xs
 not-finite-is-infinite []       hyp with hyp []
 ... | ()
 not-finite-is-infinite (x ∷ xs) hyp =
   x ∷ ♯ not-finite-is-infinite (♭ xs) (hyp ∘ _∷_ x)
 
 -- Colists are either finite or infinite (classically).
+--
+-- TODO: Make this definition universe polymorphic.
 
 finite-or-infinite :
-  -- FIXME <dbrown> Can't make ℓ work here...
   {A : Set} (xs : Colist A) → ¬ ¬ (Finite xs ⊎ Infinite xs)
 finite-or-infinite xs = helper <$> excluded-middle
   where
@@ -272,7 +277,7 @@ finite-or-infinite xs = helper <$> excluded-middle
 -- Colists are not both finite and infinite.
 
 not-finite-and-infinite :
-  ∀ {ℓ} {A : Set ℓ} {xs : Colist A} → Finite xs → Infinite xs → ⊥
+  ∀ {a} {A : Set a} {xs : Colist A} → Finite xs → Infinite xs → ⊥
 not-finite-and-infinite []        ()
 not-finite-and-infinite (x ∷ fin) (.x ∷ inf) =
   not-finite-and-infinite fin (♭ inf)

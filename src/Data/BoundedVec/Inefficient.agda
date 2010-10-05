@@ -2,9 +2,10 @@
 -- Bounded vectors (inefficient, concrete implementation)
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Vectors of a specified maximum length.
 
-{-# OPTIONS --universe-polymorphism #-}
 module Data.BoundedVec.Inefficient where
 
 open import Data.Nat
@@ -15,26 +16,26 @@ open import Data.List
 
 infixr 5 _∷_
 
-data BoundedVec {ℓ} (a : Set ℓ) : ℕ → Set ℓ where
-  []  : ∀ {n} → BoundedVec a n
-  _∷_ : ∀ {n} (x : a) (xs : BoundedVec a n) → BoundedVec a (suc n)
+data BoundedVec {a} (A : Set a) : ℕ → Set a where
+  []  : ∀ {n} → BoundedVec A n
+  _∷_ : ∀ {n} (x : A) (xs : BoundedVec A n) → BoundedVec A (suc n)
 
 ------------------------------------------------------------------------
 -- Increasing the bound
 
 -- Note that this operation is linear in the length of the list.
 
-↑ : ∀ {ℓ n} {a : Set ℓ} → BoundedVec a n → BoundedVec a (suc n)
+↑ : ∀ {a n} {A : Set a} → BoundedVec A n → BoundedVec A (suc n)
 ↑ []       = []
 ↑ (x ∷ xs) = x ∷ ↑ xs
 
 ------------------------------------------------------------------------
 -- Conversions
 
-fromList : ∀ {ℓ} {a : Set ℓ} → (xs : List a) → BoundedVec a (length xs)
+fromList : ∀ {a} {A : Set a} → (xs : List A) → BoundedVec A (length xs)
 fromList []       = []
 fromList (x ∷ xs) = x ∷ fromList xs
 
-toList : ∀ {ℓ n} {a : Set ℓ} → BoundedVec a n → List a
+toList : ∀ {a n} {A : Set a} → BoundedVec A n → List A
 toList []       = []
 toList (x ∷ xs) = x ∷ toList xs

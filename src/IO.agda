@@ -2,7 +2,7 @@
 -- IO
 ------------------------------------------------------------------------
 
-{-# OPTIONS --no-termination-check --universe-polymorphism #-}
+{-# OPTIONS --no-termination-check #-}
 
 module IO where
 
@@ -11,7 +11,6 @@ open import Data.Unit
 open import Data.String
 open import Data.Colist
 import Foreign.Haskell as Haskell
-open import Level using (zero)
 import IO.Primitive as Prim
 
 ------------------------------------------------------------------------
@@ -49,7 +48,7 @@ abstract
 -- Because IO A lives in Set₁ I hesitate to define sequence, which
 -- would require defining a Set₁ variant of Colist.
 
-mapM : ∀ {ℓ A B} → (A → IO B) → Colist {ℓ} A → IO (Colist B)
+mapM : {A B : Set} → (A → IO B) → Colist A → IO (Colist B)
 mapM f []       = return []
 mapM f (x ∷ xs) = ♯ f x              >>= λ y  →
                   ♯ (♯ mapM f (♭ xs) >>= λ ys →
@@ -58,7 +57,7 @@ mapM f (x ∷ xs) = ♯ f x              >>= λ y  →
 -- The reason for not defining mapM′ in terms of mapM is efficiency
 -- (the unused results could cause unnecessary memory use).
 
-mapM′ : ∀ {ℓ A B} → (A → IO B) → Colist {ℓ} A → IO ⊤
+mapM′ : {A B : Set} → (A → IO B) → Colist A → IO ⊤
 mapM′ f []       = return _
 mapM′ f (x ∷ xs) = ♯ f x >> ♯ mapM′ f (♭ xs)
 
