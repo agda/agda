@@ -25,12 +25,16 @@ dual : SemiG -> SemiG
 dual (M , e , _+_ , assoc , leftUnit , rightUnit) = 
   M , e , (λ x y -> y + x) , sym assoc , rightUnit , leftUnit
 
-
 data _≡₁_ {A : Set1}(a : A) : A -> Set where
   refl : a ≡₁ a
 
-dual∘dual≡id : ∀ {M} -> dual (dual M) ≡₁ M
-dual∘dual≡id = refl
+open SemiG
+
+-- trivId : ∀ (M : SemiG) -> M ≡₁ M
+-- trivId M = refl 
+
+dual∘dual≡id : ∀ M -> dual (dual M) ≡₁ M
+dual∘dual≡id M = refl {a = M}
 
 
  
