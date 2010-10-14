@@ -433,7 +433,12 @@ termTerm conf names f pats0 t0 = do
          (loopSort pats s)
          (loop pats guarded t)
 
-       loop :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Term -> TCM Calls
+       loop 
+         :: (?cutoff :: Int) 
+         => [DeBruijnPat] -- ^ Parameters of calling function as patterns. 
+         -> Order         -- ^ Guardedness status of @Term@.
+         -> Term          -- ^ Part of function body from which calls are to be extracted.
+         -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
          suc <- sizeSuc
@@ -460,7 +465,8 @@ termTerm conf names f pats0 t0 = do
                               (True,  CoInductive) -> Term.lt .*. guarded
                               (False, _)           -> Term.unknown
 
-             -- Handles function applications.
+             -- Handles function applications @g args0@.
+             function :: QName -> [Arg Term] -> TCM Calls
              function g args0 = do
                let args1 = map unArg args0
                args2 <- mapM instantiateFull args1
@@ -471,8 +477,17 @@ termTerm conf names f pats0 t0 = do
                args2 <- mapM reduceCon args2
                args  <- mapM etaContract args2
 
+               -- If the function is a projection, then preserve guardedness
+               -- for its principal argument.
+               isProj <- isProjection g
+               let unguards = repeat Term.unknown
+               let guards = maybe unguards -- not a proj. ==> unguarded 
+                              (\ n -> take (n - 1) unguards ++ guarded : unguards) 
+                                -- proj. => preserve g. of princ. arg. (counting starts with 1)
+                              isProj
                -- collect calls in the arguments of this call
-               calls <- collectCalls (loop pats Term.unknown) args
+               calls <- collectCalls (uncurry (loop pats)) (zip guards args)
+               -- calls <- collectCalls (loop pats Term.unknown) args
 
 
                reportSDoc "term.found.call" 20
@@ -545,35 +560,35 @@ termTerm conf names f pats0 t0 = do
               -- Call to defined function.
               fun = function g args0
 
-            -- abstraction
+            -- Abstraction. Preserves guardedness.
             Lam h (Abs x t) -> loop (map liftDBP pats) guarded t
 
-            -- variable
+            -- Neutral term. Destroys guardedness.
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
 
-            -- dependent function space
+            -- Dependent function space.
             Pi a (Abs _ b) ->
                do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
-            -- non-dependent function space
+            -- Non-dependent function space.
             Fun a b ->
                do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
-            -- literal
+            -- Literal.
             Lit l -> return Term.empty
 
-            -- sort
+            -- Sort.
             Sort s -> loopSort pats s
 
 	    -- Unsolved metas are not considered termination problems, there
 	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
 
-            -- erased proof
+            -- Erased proof. 
             DontCare -> return Term.empty
 
          where
