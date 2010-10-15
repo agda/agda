@@ -205,6 +205,8 @@ performKill kills m a = do
   let perm = Perm (size kills)
              [ i | (i, Arg _ _ False) <- zip [0..] (reverse kills) ]
   m' <- newMeta (mvInfo mv) (mvPriority mv) perm (HasType undefined a)
+  -- Andreas, 2010-10-15 eta expand new meta variable if necessary
+  etaExpandMetaSafe m'
   let vars = reverse [ Arg h r (Var i []) | (i, Arg h r False) <- zip [0..] kills ]
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)

@@ -7,3 +7,4 @@ import Agda.TypeChecking.Monad.Base ( MonadTCM )
 assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 assignSort :: MonadTCM tcm => MetaId -> Sort -> tcm ()
 
+etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()

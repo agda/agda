@@ -178,7 +178,7 @@ newValueMetaCtx' t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  etaExpandMeta [SingletonRecords, Levels] x
+  etaExpandMetaSafe x
   return $ MetaV x vs
 
 newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
@@ -282,8 +282,12 @@ etaExpandListeners m = do
   ms <- getMetaListeners m
   clearMetaListeners m	-- we don't really have to do this
   -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
-  mapM_ (etaExpandMeta [SingletonRecords,Levels]) ms
+  mapM_ etaExpandMetaSafe ms
 --  mapM_ (etaExpandMeta allMetaKinds) ms
+
+-- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
+etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
+etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 
 -- | Various kinds of metavariables.
 
