@@ -45,7 +45,7 @@ Language
 
   is supplied.  Irrelevant projections are highly experimental.
 
-* Termination checker recognises projections.
+* Termination checker recognizes projections.
 
   Projections now preserve sizes, both in patterns and expressions.
   Example:
@@ -70,6 +70,8 @@ Language
     unwrap w ≤ w < suc w,
 
   and hence the recursive call to id is accepted.
+
+  Projections also preserve guardedness.
 
 Tools
 -----
