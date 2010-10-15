@@ -103,7 +103,9 @@ compareTerm cmp a m n =
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
   where
-    isNeutral Blocked{}          = False
+-- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
+-- to change Agda's behavior
+--    isNeutral Blocked{}          = False
     isNeutral (NotBlocked Con{}) = False
     isNeutral _                  = True
 
@@ -152,6 +154,9 @@ compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constra
 compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 5 "compareAtom" $
     catchConstraint (ValueCmp cmp t m n) $ do
+      -- constructorForm changes literal to constructors
+      -- Andreas: what happens if I cut out the eta expansion here?
+      -- Answer: Triggers issue 245, does not resolve 348
       mb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB m
       nb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB n
       let m = ignoreBlocking mb

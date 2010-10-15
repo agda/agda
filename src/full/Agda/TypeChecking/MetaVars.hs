@@ -281,7 +281,9 @@ etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandListeners m = do
   ms <- getMetaListeners m
   clearMetaListeners m	-- we don't really have to do this
-  mapM_ (etaExpandMeta allMetaKinds) ms
+  -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
+  mapM_ (etaExpandMeta [SingletonRecords,Levels]) ms
+--  mapM_ (etaExpandMeta allMetaKinds) ms
 
 -- | Various kinds of metavariables.
 
@@ -302,9 +304,8 @@ allMetaKinds = [minBound .. maxBound]
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
 etaExpandMeta :: MonadTCM tcm => [MetaKind] -> MetaId -> tcm ()
-etaExpandMeta kinds m =
-  verboseBracket "tc.meta.eta" 10 ("etaExpandMeta " ++ show m) $
-  whenM (isEtaExpandable m) $ do
+etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
+  verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ show m) $ do
   meta       <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b <- telViewM a
@@ -320,7 +321,7 @@ etaExpandMeta kinds m =
 	let expand = do
               u <- withMetaInfo (mvInfo meta) $ newRecordMetaCtx r ps tel args
               inContext [] $ addCtxTel tel $ do
-                verboseS "tc.meta.eta" 20 $ do
+                verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
                   liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
                 noConstraints $ assignV b m args u  -- should never produce any constraints
