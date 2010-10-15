@@ -93,7 +93,7 @@ compareTerm cmp a m n =
               m <- reduceB m
               n <- reduceB n
               case (m, n) of
-                _ | isNeutral m && isNeutral n ->
+                _ | isMeta m || isMeta n || (isNeutral m && isNeutral n) ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
@@ -108,6 +108,8 @@ compareTerm cmp a m n =
 --    isNeutral Blocked{}          = False
     isNeutral (NotBlocked Con{}) = False
     isNeutral _                  = True
+    isMeta (NotBlocked MetaV{})  = True
+    isMeta _                     = False
 
     equalFun (a,t) m n = do
         name <- freshName_ (suggest $ unEl t)
