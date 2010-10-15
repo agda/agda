@@ -25,7 +25,7 @@ import Agda.Utils.Impossible
 #include "../../undefined.h"
 
 data OccursCtx = Flex | Rigid
-  deriving (Eq)
+  deriving (Eq, Show)
 
 abort :: OccursCtx -> TypeError -> TCM ()
 abort Flex  _   = patternViolation
@@ -35,6 +35,8 @@ abort Rigid err = typeError err
 class Occurs t where
   occurs :: OccursCtx -> MetaId -> [Nat] -> t -> TCM t
 
+-- | When assigning @m xs := v@, check that @m@ does not occur in @v@
+--   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MonadTCM tcm => MetaId -> [Nat] -> Term -> tcm Term
 occursCheck m xs v = liftTCM $ do
   v <- instantiate v
@@ -80,7 +82,7 @@ instance Occurs Term where
       NotBlocked v -> occurs' ctx v
     where
       occurs' ctx v = case v of
-        Var i vs   -> do
+        Var i vs   -> do         -- abort Rigid turns this error into PatternErr
           unless (i `elem` xs) $ abort ctx $ MetaCannotDependOn m xs i
           Var i <$> occ vs
         Lam h f	    -> Lam h <$> occ f
@@ -97,6 +99,10 @@ instance Occurs Term where
 
             -- The arguments are in a flexible position
             (MetaV m' <$> occurs Flex m xs vs) `catchError` \err -> do
+              reportSDoc "tc.meta.kill" 25 $ vcat
+                [ text $ "error during flexible occurs check, we are " ++ show ctx
+                , text $ show (errError err)
+                ]
               case errError err of
                 -- On pattern violations try to remove offending
                 -- flexible occurrences (if in a rigid context)

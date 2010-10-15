@@ -417,6 +417,13 @@ assignV t x args v =
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM v
 
+        -- Andreas, 2010-10-15 I want to see whether rhd is blocked
+        reportSDoc "tc.meta.assign" 25 $ do
+          v0 <- reduceB v
+          case v0 of
+            Blocked m0 _ -> text "blocked on:" <+> prettyTCM m0
+            NotBlocked{} -> text "not blocked"
+
 	-- Check that the x doesn't occur in the right hand side
 	v <- liftTCM $ occursCheck x (map unArg ids) v
 
