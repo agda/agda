@@ -1,7 +1,7 @@
 -- 2010-10-15
 {-# OPTIONS --irrelevant-projections #-}
 
-module DoNotEtaExapndMVarsWhenComparingAgainstRecord where
+module DoNotEtaExpandMVarsWhenComparingAgainstRecord where
 
 data _==_ {A : Set1}(a : A) : A -> Set where
   refl : a == a
