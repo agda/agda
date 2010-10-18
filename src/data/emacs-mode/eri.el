@@ -68,13 +68,19 @@ Example (positions marked with ^ are returned):
   "Calculate a new indentation point, two steps in from the
 indentation of the first non-empty line above the current line.
 If there is no such line 2 is returned."
-  (save-excursion
-    (while
-        (progn
-          (forward-line -1)
-          (not (or (bobp)
-                   (not (eri-current-line-empty))))))
-    (+ 2 (current-indentation))))
+  (let ((start (line-beginning-position)))
+    (save-excursion
+      ; Find a non-empty line above the current one, if any.
+      (while
+          (progn
+            (forward-line -1)
+            (not (or (bobp)
+                     (not (eri-current-line-empty))))))
+      (+ 2
+         (if (or (equal (point) start)
+                 (eri-current-line-empty))
+             0
+           (current-indentation))))))
 
 (defun eri-calculate-indentation-points (reverse)
   "Calculate some indentation points.  Gives them in reverse order if
