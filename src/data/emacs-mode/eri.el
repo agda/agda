@@ -7,7 +7,7 @@
 (require 'cl)
 
 (defun eri-current-line-length nil
-  "Calculates length of current line."
+  "Calculate length of current line."
   (- (line-end-position) (line-beginning-position)))
 
 (defun eri-current-line-empty nil
@@ -16,7 +16,8 @@
          (eri-current-line-length)))
 
 (defun eri-maximum (xs)
-  "Calculate maximum element in XS.  Return nil if the list is empty."
+  "Calculate maximum element in XS.
+Returns nil if the list is empty."
   (if xs (apply 'max xs)))
 
 (defun eri-take (n xs)
@@ -25,8 +26,8 @@
 
 (defun eri-split (x xs)
   "Return a pair of lists (XS1 . XS2).
-If XS is sorted, then XS = (append XS1 XS2), and all elements in XS1 are <= X,
-whereas all elements in XS2 are > X."
+If XS is sorted, then XS = (append XS1 XS2), and all elements in
+XS1 are <= X, whereas all elements in XS2 are > X."
   (let* ((pos (or (position-if (lambda (y) (> y x)) xs) (length xs)))
          (xs1 (eri-take pos xs))
          (xs2 (nthcdr pos xs)))
@@ -34,8 +35,9 @@ whereas all elements in XS2 are > X."
 
 (defun eri-calculate-indentation-points-on-line (max)
   "Calculate indentation points on current line.
-Only points left of column number MAX are included.
-If MAX is nil, then all points are included.  Return points in ascending order.
+Only points left of column number MAX are included. If MAX is
+nil, then all points are included. Points are returned in
+ascending order.
 
 Example (positions marked with ^ are returned):
 
@@ -65,9 +67,10 @@ Example (positions marked with ^ are returned):
         ))))
 
 (defun eri-new-indentation-point ()
-  "Calculate a new indentation point, two steps in from the
-indentation of the first non-empty line above the current line.
-If there is no such line 2 is returned."
+  "Calculate a new indentation point.
+This point is two steps in from the indentation of the first
+non-empty line above the current line. If there is no such line 2
+is returned."
   (let ((start (line-beginning-position)))
     (save-excursion
       ; Find a non-empty line above the current one, if any.
@@ -83,9 +86,11 @@ If there is no such line 2 is returned."
            (current-indentation))))))
 
 (defun eri-calculate-indentation-points (reverse)
-  "Calculate some indentation points.  Gives them in reverse order if
-REVERSE is non-nil.  See `eri-indent' for a description of how
-the indentation points are calculated."
+  "Calculate points used to indent the current line.
+The points are given in reverse order if REVERSE is non-nil. See
+`eri-indent' for a description of how the indentation points are
+calculated; note that the current indentation is not included in
+the returned list."
   ;; First find a bunch of indentations used above the current line.
   (let ((points)
         (max))
@@ -120,8 +125,8 @@ the indentation points are calculated."
   "Cycle between some possible indentation points.
 With prefix argument REVERSE, cycle in reverse order.
 
-Assume that a file contains the following lines of code, with point on
-the line with three dots:
+Assume that a file contains the following lines of code, with
+point on the line with three dots:
 
 frob = loooooooooooooooooooooooooong identifier
 foo = f a b
@@ -133,19 +138,21 @@ foo = f a b
 
 ^ ^ ^ ^    ^  ^ ^ ^   ^ * ^ ^ ^ ^
 
-Then the ^'s and the * mark the indentation points that this function
-cycles through.  The indentation points are selected as follows:
+Then the ^'s and the * mark the indentation points that this
+function cycles through. The indentation points are selected as
+follows:
 
-  * All lines before the current one, up to and including the first
-    non-indented line (or the beginning of the buffer) are considered.
+  * All lines before the current one, up to and including the
+    first non-indented line (or the beginning of the buffer) are
+    considered.
 
       foo = f a b
         where
           f (Foo x) y = let bar = x
                             baz = 3 + 5
 
-  * On these lines, erase all characters that stand to the right of
-    some non-white space character on a lower line.
+  * On these lines, erase all characters that stand to the right
+    of some non-white space character on a lower line.
 
       foo
         whe
@@ -160,14 +167,15 @@ cycles through.  The indentation points are selected as follows:
           f (    x  y = l   b
                             b   = 3 + 5
 
-  * The columns of all remaining characters are indentation points.
+  * The columns of all remaining characters are indentation
+    points.
 
       f w f (    x  y = l   b   = 3 + 5
       ^ ^ ^ ^    ^  ^ ^ ^   ^   ^ ^ ^ ^
 
   * A new indentation point is also added, two steps in from the
-    indentation of the first non-empty line above the current line
-    (or in the second column, if there is no such line).
+    indentation of the first non-empty line above the current
+    line (or in the second column, if there is no such line).
 
       f w f (    x  y = l   b   = 3 + 5
       ^ ^ ^ ^    ^  ^ ^ ^   ^ * ^ ^ ^ ^"
@@ -184,8 +192,8 @@ cycles through.  The indentation points are selected as follows:
 
 (defun eri-indent-reverse nil
   "Cycle between some possible indentation points (in reverse order).
-See `eri-indent' for a description of how the indentation points are
-calculated."
+See `eri-indent' for a description of how the indentation points
+are calculated."
   (interactive)
   (eri-indent t))
 
