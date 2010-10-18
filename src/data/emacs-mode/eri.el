@@ -31,7 +31,7 @@ XS1 are <= X, whereas all elements in XS2 are > X."
   (let* ((pos (or (position-if (lambda (y) (> y x)) xs) (length xs)))
          (xs1 (eri-take pos xs))
          (xs2 (nthcdr pos xs)))
-    `(,xs1 . ,xs2)))
+    (cons xs1 xs2)))
 
 (defun eri-calculate-indentation-points-on-line (max)
   "Calculate indentation points on current line.
@@ -113,16 +113,18 @@ the returned list."
             (not (or (bobp)
                      (and (equal (current-indentation) 0)
                           (> (eri-current-line-length) 0)))))))
-    ;; Add new indentation points. Sort the indentations.
-    ;; Rearrange the points so that the next point is the one after the
-    ;; current one.
-    (let* ((ps (append (eri-new-indentation-points) points))
-           (ps1 (sort ps '<)) ; Note: sort is destructive.
-           (ps2 (eri-split (current-indentation)
-                           (remove (current-indentation) ps1))))
+    ;; Add new indentation points, but remove the current indentation.
+    ;; Sort the indentations. Rearrange the points so that the next
+    ;; point is the one after the current one. Reverse if necessary.
+    ;;
+    ;; Note: sort and nreverse are destructive.
+    (let* ((ps0 (remove (current-indentation)
+                        (append (eri-new-indentation-points) points)))
+           (ps1 (eri-split (current-indentation) (sort ps0 '<)))
+           (ps2 (append (cdr ps1) (car ps1))))
       (if reverse
-          (append (nreverse (car ps2)) (nreverse (cdr ps2)))
-        (append (cdr ps2) (car ps2))))))
+          (nreverse ps2)
+        ps2))))
 
 (defun eri-indent (&optional reverse)
   "Cycle between some possible indentation points.
