@@ -15,7 +15,7 @@
 Note that, by default, the same version of the underlying Haskell
 library is used (see `agda2-ghci-options').")
 
-(require 'cl) ;  haskell-indent requires it anyway.
+(require 'cl)
 (set (make-local-variable 'lisp-indent-function)
      'common-lisp-indent-function)
 (require 'comint)
@@ -25,7 +25,6 @@ library is used (see `agda2-ghci-options').")
 (require 'agda-input)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
-(require 'haskell-indent)
 (require 'haskell-ghci)
 ;; due to a bug in haskell-mode-2.1
 (setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
@@ -101,14 +100,6 @@ Note that only dynamic options can be set using this variable."
   '(agda2-fix-ghci-for-windows)
   "Hooks for `agda2-mode'."
   :type 'hook :group 'agda2)
-
-(defcustom agda2-indentation
-  'eri
-  "*The kind of indentation used in `agda2-mode'."
-  :type '(choice (const :tag "Haskell" haskell)
-                 (const :tag "Extended relative" eri)
-                 (const :tag "None" nil))
-  :group 'agda2)
 
 (defcustom agda2-information-window-max-height
   0.35
@@ -247,10 +238,10 @@ constituents.")
     (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")   (local)        "Goal type, context and inferred type")
     (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")   (local global) "Module contents")
     (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"         (local global) "Evaluate term to normal form")
-    (agda2-indent                ,(kbd "TAB"))
-    (agda2-indent-reverse        [S-iso-lefttab])
-    (agda2-indent-reverse        [S-lefttab])
-    (agda2-indent-reverse        [S-tab])
+    (eri-indent                  ,(kbd "TAB"))
+    (eri-indent-reverse          [S-iso-lefttab])
+    (eri-indent-reverse          [S-lefttab])
+    (eri-indent-reverse          [S-tab])
     (agda2-goto-definition-mouse [mouse-2])
     (agda2-goto-definition-keyboard "\M-.")
     (agda2-go-back                  "\M-*")
@@ -356,7 +347,6 @@ Special commands:
      (condition-case nil
          (set-frame-font agda2-fontset-name)
        (error (error "Unable to change the font; change agda2-fontset-name or tweak agda2-fontset-spec-of-fontset-agda2"))))
- (agda2-indent-setup)
  ;; If GHCi is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
@@ -1058,38 +1048,6 @@ To do: dealing with semicolon separated decls."
 (defun agda2-beginning-of-decl ()
   (interactive)
   (goto-char (agda2-decl-beginning)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Indentation
-
-(defun agda2-indent ()
-  "This is what happens when TAB is pressed.
-Depends on the setting of `agda2-indentation'."
-  (interactive)
-  (cond ((eq agda2-indentation 'haskell) (haskell-indent-cycle))
-        ((eq agda2-indentation 'eri) (eri-indent))))
-
-(defun agda2-indent-reverse ()
-  "This is what happens when S-TAB is pressed.
-Depends on the setting of `agda2-indentation'."
-  (interactive)
-  (cond ((eq agda2-indentation 'eri) (eri-indent-reverse))))
-
-(defun agda2-indent-setup ()
-  "Set up and start the indentation subsystem.
-Depends on the setting of `agda2-indentation'."
-  (interactive)
-  (cond ((eq agda2-indentation 'haskell)
-         (labels ((setl (var val) (set (make-local-variable var) val)))
-           (setl 'indent-line-function 'haskell-indent-cycle)
-           (setl 'haskell-indent-off-side-keywords-re
-                 "\\<\\(do\\|let\\|of\\|where\\|sig\\|struct\\)\\>[ \t]*"))
-         (local-set-key "\177"  'backward-delete-char-untabify)
-         (set (make-local-variable 'haskell-literate)
-              (if (string-match "\\.lagda$" (buffer-file-name))
-                  'latex))
-         (setq haskell-indent-mode t)
-         (run-hooks 'haskell-indent-hook))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs

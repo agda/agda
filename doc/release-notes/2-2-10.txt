@@ -79,3 +79,6 @@ Tools
 * Most occurrences of record field names are now highlighted as
   "fields". Previously many occurrences were highlighted as
   "functions".
+
+* Emacs mode: It is no longer possible to change the behaviour of the
+  TAB key by customising agda2-indentation.
