@@ -66,11 +66,12 @@ Example (positions marked with ^ are returned):
         (nreverse result) ; Destructive operation.
         ))))
 
-(defun eri-new-indentation-point ()
-  "Calculate a new indentation point.
-This point is two steps in from the indentation of the first
-non-empty line above the current line. If there is no such line 2
-is returned."
+(defun eri-new-indentation-points ()
+  "Calculate new indentation points.
+Returns a singleton list containing the column number two steps
+in from the indentation of the first non-empty line (white space
+excluded) above the current line. If there is no such line,
+then the empty list is returned."
   (let ((start (line-beginning-position)))
     (save-excursion
       ; Find a non-empty line above the current one, if any.
@@ -79,11 +80,10 @@ is returned."
             (forward-line -1)
             (not (or (bobp)
                      (not (eri-current-line-empty))))))
-      (+ 2
-         (if (or (equal (point) start)
-                 (eri-current-line-empty))
-             0
-           (current-indentation))))))
+      (if (or (equal (point) start)
+              (eri-current-line-empty))
+          nil
+        (list (+ 2 (current-indentation)))))))
 
 (defun eri-calculate-indentation-points (reverse)
   "Calculate points used to indent the current line.
@@ -113,10 +113,10 @@ the returned list."
             (not (or (bobp)
                      (and (equal (current-indentation) 0)
                           (> (eri-current-line-length) 0)))))))
-    ;; Add a new indentation point. Sort the indentations.
+    ;; Add new indentation points. Sort the indentations.
     ;; Rearrange the points so that the next point is the one after the
     ;; current one.
-    (let* ((ps (add-to-list 'points (eri-new-indentation-point)))
+    (let* ((ps (append (eri-new-indentation-points) points))
            (ps1 (sort ps '<)) ; Note: sort is destructive.
            (ps2 (eri-split (current-indentation)
                            (remove (current-indentation) ps1))))
@@ -177,8 +177,8 @@ follows:
       ^ ^ ^ ^    ^  ^ ^ ^   ^   ^ ^ ^ ^
 
   * A new indentation point is also added, two steps in from the
-    indentation of the first non-empty line above the current
-    line (or in the second column, if there is no such line).
+    indentation of the first non-empty line (white space
+    excluded) above the current line (if there is such a line).
 
       f w f (    x  y = l   b   = 3 + 5
       ^ ^ ^ ^    ^  ^ ^ ^   ^ * ^ ^ ^ ^"
