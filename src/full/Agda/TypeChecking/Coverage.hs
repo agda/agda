@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts, TupleSections #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 
 module Agda.TypeChecking.Coverage where
 
@@ -69,7 +69,7 @@ typeOfVar :: Telescope -> Nat -> Arg Type
 typeOfVar tel n
   | n >= len  = __IMPOSSIBLE__
   | otherwise = fmap snd  -- throw away name, keep Arg Type
-                  $ ts !! fromIntegral n 
+                  $ ts !! fromIntegral n
   where
     len = genericLength ts
     ts  = reverse $ telToList tel
@@ -137,7 +137,7 @@ cover cs (SClause tel perm ps _) = do
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
 -- | Check that a type is a non-irrelevant datatype or a record with named constructor.
-isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) => 
+isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
               Arg Type -> tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype at = do
   let t = unArg at
@@ -146,8 +146,8 @@ isDatatype at = do
     Def d args -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} -> 
-          if argRelevance at == Irrelevant 
+        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} ->
+          if argRelevance at == Irrelevant
            then throwException $ IrrelevantDatatype t
            else do
              let (ps, is) = genericSplitAt np args
@@ -354,7 +354,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
       let absurd = VarP "()"
       return $ Left $ SClause
                { scTel  = telFromList $ telToList delta1 ++
-                                        [fmap ("()",) t] ++ -- add name "()"
+                                        [fmap ((,) "()") t] ++ -- add name "()"
                                         telToList delta2
                , scPerm = perm
                , scPats = plugHole absurd hps
