@@ -93,13 +93,16 @@ calculated; note that the current indentation is not included in
 the returned list."
   ;; First find a bunch of indentations used above the current line.
   (let ((points)
-        (max))
+        (max)
+        (start (line-beginning-position)))
     (save-excursion
       (while
           (progn
             (forward-line -1)
-            ; Skip lines with only white space.
-            (unless (eri-current-line-empty)
+            ; Skip the line we started from and lines with nothing but
+            ; white space.
+            (unless (or (equal (point) start)
+                        (eri-current-line-empty))
               (setq points
                     (append
                      (eri-calculate-indentation-points-on-line max)
