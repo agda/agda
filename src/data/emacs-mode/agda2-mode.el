@@ -370,7 +370,14 @@ Special commands:
   (interactive)
   (save-excursion (let ((agda2-bufname "*ghci*")
                         (ignore-dot-ghci "-ignore-dot-ghci"))
-                    (agda2-protect (kill-buffer agda2-bufname))
+                    (agda2-protect
+                      (progn
+                        ;; GHCi doesn't always die when its buffer is
+                        ;; killed, so GHCi is killed before the buffer
+                        ;; is.
+                        (set-buffer agda2-bufname)
+                        (agda2-protect (comint-kill-subjob))
+                        (kill-buffer agda2-bufname)))
                     ;; Make sure that the user's .ghci is not read.
                     ;; Users can override this by adding
                     ;; "-read-dot-ghci" to
