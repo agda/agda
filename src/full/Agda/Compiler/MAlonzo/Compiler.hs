@@ -130,10 +130,15 @@ definition kit (Defn Relevant   q ty _ _ d) = do
 
     -- Special treatment of coinductive builtins.
     Datatype{} | Just q == (nameOfInf <$> kit) -> do
-      let inf = unqhname "T" q
-          a   = ihname "a" 0
-          b   = ihname "a" 1
-      return [HsTypeDecl dummy inf [a, b] (HsTyVar b)]
+      let infT = unqhname "T" q
+          infV = unqhname "d" q
+          a    = ihname "a" 0
+          b    = ihname "a" 1
+          vars = [a, b]
+      return [ HsTypeDecl dummy infT vars (HsTyVar b)
+             , HsFunBind [HsMatch dummy infV (L.map HsPVar vars)
+                                  (HsUnGuardedRhs unit_con) []]
+             ]
     Constructor{} | Just q == (nameOfSharp <$> kit) -> do
       let sharp = unqhname "d" q
           x     = ihname "x" 0
@@ -293,7 +298,7 @@ clausebody b0 = runReaderT (go b0) 0 where
 
 -- | Extract Agda term to Haskell expression.
 --   Irrelevant arguments are extracted as @()@.
---   Types are extracted as @()@.  
+--   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
 term :: Term -> ReaderT Nat TCM HsExp
 term tm0 = case tm0 of
@@ -307,7 +312,7 @@ term tm0 = case tm0 of
   Fun   _ _  -> return unit_con
   Sort  _    -> return unit_con
   MetaV _ _  -> mazerror "hit MetaV"
-  DontCare   -> return $ rtmError $ "hit DontCare" 
+  DontCare   -> return $ rtmError $ "hit DontCare"
   where apps =  foldM (\h a -> HsApp h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().
@@ -334,7 +339,7 @@ hslit l = case l of LitInt    _ x -> HsInt    x
 
 condecl :: QName -> TCM (Nat, HsConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
-  Defn _ _ ty _ _ (Constructor {conPars = np}) -> do 
+  Defn _ _ ty _ _ (Constructor {conPars = np}) -> do
     ar <- arity <$> normalise ty
     return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)
