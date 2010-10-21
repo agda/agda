@@ -19,7 +19,7 @@ readUTF8File f = do
 main :: IO ()
 main = do
   agdaFiles <- find always
-                    (extension ~~? ".agda" ||? extension ~~? ".lagda")
+                    (extension ==? ".agda" ||? extension ==? ".lagda")
                     "src"
   nonAsciiChars <-
     filter (not . isAscii) . concat <$> mapM readUTF8File agdaFiles
