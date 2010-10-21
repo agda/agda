@@ -389,9 +389,14 @@ hsCast = addcast . go where
 -}
 
 hsCast e = mazCoerce `HsApp` hsCast' e
-hsCast' (HsApp e1 e2)     = hsCast' e1 `HsApp` (mazCoerce `HsApp` hsCast' e2)
+hsCast' (HsApp e1 e2)     = hsCast' e1 `HsApp` (hsCoerce $ hsCast' e2)
 hsCast' (HsLambda _ ps e) = HsLambda dummy ps $ hsCast' e
 hsCast' e = e
+
+-- No coercion for literal integers
+hsCoerce e@(HsExpTypeSig _ (HsLit (HsInt{})) _) = e
+hsCoerce e = HsApp mazCoerce e
+
 
 --------------------------------------------------
 -- Writing out a haskell module

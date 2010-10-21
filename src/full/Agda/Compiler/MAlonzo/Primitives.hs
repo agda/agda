@@ -71,14 +71,12 @@ declsForPrim = xForPrim $
            ,"      f (c:cs) = <<1>> c (Unsafe.Coerce.unsafeCoerce (f cs));"
            ,"} in f"])
     natToFrom hty to from = let
-        totxt   = repl ["<<0>>", "<<1>>", hty] (concat
-                       ["let { f <<0>>     = 0 :: <<2>>;"
-                       ,"      f (<<1>> x) = 1 + f (Unsafe.Coerce.unsafeCoerce x);"
-                       ,"} in f"])
-        fromtxt = repl ["<<0>>", "<<1>>", hty] (concat
-                       ["let { f x | x <= (0 :: <<2>>) = <<0>>"
-                       ,"     | True = <<1>> (Unsafe.Coerce.unsafeCoerce (f (x - 1)))"
-                       ,"} in f"])
+        totxt   = repl ["<<0>>", "<<1>>", hty, to] $ concat
+                  [ "\\ x -> case x of { <<0>> -> 0 :: <<2>>; "
+                  , "<<1>> x -> 1 + (<<3>> (Unsafe.Coerce.unsafeCoerce x)) }" ]
+        fromtxt = repl ["<<0>>", "<<1>>", hty, from] $ concat
+                  [ "\\ x -> if x <= (0 :: <<2>>) then <<0>> "
+                  , "else <<1>> (Unsafe.Coerce.unsafeCoerce (<<3>> (x - 1)))" ]
       in decls ["ZERO", "SUC"] to totxt from fromtxt
     decls cs n1 b1 n2 b2 =
       ifM (hasCompiledData cs)
