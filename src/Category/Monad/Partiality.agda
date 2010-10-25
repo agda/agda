@@ -94,12 +94,12 @@ Equality k = False (k ≟-Kind other geq)
 -- Equality/ordering
 
 module Equality {A : Set} -- The "return type".
-                (_R_ : A → A → Set) where
+                (_∼_ : A → A → Set) where
 
   -- The three relations.
 
   data Rel : Kind → A ⊥ → A ⊥ → Set where
-    now    : ∀ {k x y} (xRy : x R y)                         → Rel k         (now   x) (now   y)
+    now    : ∀ {k x y} (x∼y : x ∼ y)                         → Rel k         (now   x) (now   y)
     later  : ∀ {k x y} (x∼y : ∞ (Rel k         (♭ x) (♭ y))) → Rel k         (later x) (later y)
     laterʳ : ∀ {x y}   (x≈y :    Rel (other weak) x  (♭ y) ) → Rel (other weak)     x  (later y)
     laterˡ : ∀ {k x y} (x∼y :    Rel (other k) (♭ x)    y  ) → Rel (other k) (later x)        y
@@ -118,19 +118,44 @@ module Equality {A : Set} -- The "return type".
   _≈_ : A ⊥ → A ⊥ → Set
   _≈_ = Rel (other weak)
 
+  -- x ⇓ y means that x terminates with y.
+
+  infix 4 _⇓[_]_ _⇓_
+
+  _⇓[_]_ : A ⊥ → Kind → A → Set
+  x ⇓[ k ] y = Rel k x (now y)
+
+  _⇓_ : A ⊥ → A → Set
+  x ⇓ y = x ⇓[ other weak ] y
+
+  -- x ⇑ means that x does not terminate.
+
+  infix 4 _⇑[_] _⇑
+
+  _⇑[_] : A ⊥ → Kind → Set
+  x ⇑[ k ] = Rel k x never
+
+  _⇑ : A ⊥ → Set
+  x ⇑ = x ⇑[ other weak ]
+
 ------------------------------------------------------------------------
 -- Lemmas relating the three relations
+
+private
+ module Dummy {A : Set} {_∼_ : A → A → Set} where
+
+  open Equality _∼_
 
   -- All relations include strong equality.
 
   ≅⇒ : ∀ {k} {x y : A ⊥} → x ≅ y → Rel k x y
-  ≅⇒ (now xRy)   = now xRy
+  ≅⇒ (now x∼y)   = now x∼y
   ≅⇒ (later x≅y) = later (♯ ≅⇒ (♭ x≅y))
 
   -- The weak equality includes the ordering.
 
   ≳⇒ : ∀ {k} {x y : A ⊥} → x ≳ y → Rel (other k) x y
-  ≳⇒ (now xRy)    = now xRy
+  ≳⇒ (now x∼y)    = now x∼y
   ≳⇒ (later  x≳y) = later (♯ ≳⇒ (♭ x≳y))
   ≳⇒ (laterˡ x≳y) = laterˡ  (≳⇒    x≳y )
 
@@ -153,7 +178,7 @@ module Equality {A : Set} -- The "return type".
 
   now⇒now : ∀ {k₁ k₂} {x} {y : A} →
             Rel (other k₁) x (now y) → Rel (other k₂) x (now y)
-  now⇒now (now xRy)      = now xRy
+  now⇒now (now x∼y)      = now x∼y
   now⇒now (laterˡ x∼now) = laterˡ (now⇒now x∼now)
 
 ------------------------------------------------------------------------
@@ -177,78 +202,41 @@ module Equality {A : Set} -- The "return type".
   later⁻¹ (laterˡ x∼ly) = laterʳ⁻¹ x∼ly
 
 ------------------------------------------------------------------------
--- Terminating computations
+-- The relations are equivalences or partial orders, given suitable
+-- assumptions about the underlying relation
 
-  -- x ⇓ y means that x terminates with y.
+  -- Reflexivity.
 
-  infix 4 _⇓[_]_ _⇓_
-
-  _⇓[_]_ : A ⊥ → Kind → A → Set
-  x ⇓[ k ] y = Rel k x (now y)
-
-  _⇓_ : A ⊥ → A → Set
-  x ⇓ y = x ⇓[ other weak ] y
-
-  -- The number of later constructors (steps) in the terminating
-  -- computation x.
-
-  steps : ∀ {k} {x : A ⊥} {y} → x ⇓[ k ] y → ℕ
-  steps                (now _)             = zero
-  steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
-
-------------------------------------------------------------------------
--- Non-terminating computations
-
-  -- x ⇑ means that x does not terminate.
-
-  infix 4 _⇑[_] _⇑
-
-  _⇑[_] : A ⊥ → Kind → Set
-  x ⇑[ k ] = Rel k x never
-
-  _⇑ : A ⊥ → Set
-  x ⇑ = x ⇑[ other weak ]
-
-------------------------------------------------------------------------
--- The relations are equivalences or partial orders
-
--- The precondition that the underlying relation is an equivalence can
--- be weakened for some of the properties.
-
-module Properties (S : Setoid zero zero) where
-
-  private
-    open module R = Setoid S
-      using () renaming (Carrier to A; _≈_ to _R_)
-    open Equality _R_
+  refl : ∀ {k} → Reflexive _∼_ → Reflexive (Rel k)
+  refl refl-∼ {x = now v}   = now refl-∼
+  refl refl-∼ {x = later x} = later (♯ refl refl-∼)
 
   -- All the relations are preorders.
 
-  preorder : Kind → Preorder _ _ _
-  preorder k = record
+  preorder : IsPreorder _≡_ _∼_ → Kind → Preorder _ _ _
+  preorder pre k = record
     { Carrier    = A ⊥
     ; _≈_        = _≡_
     ; _∼_        = Rel k
     ; isPreorder = record
       { isEquivalence = P.isEquivalence
-      ; reflexive     = refl _
+      ; reflexive     = refl′
       ; trans         = trans
       }
     }
     where
-    refl : ∀ {k} (x : A ⊥) {y} → x ≡ y → Rel k x y
-    refl (now v)   P.refl = now R.refl
-    refl (later x) P.refl = later (♯ refl (♭ x) P.refl)
+    refl′ : ∀ {k} {x y : A ⊥} → x ≡ y → Rel k x y
+    refl′ P.refl = refl (IsPreorder.refl pre)
 
-    now-R-trans : ∀ {k x} {y z : A} →
-                  Rel k x (now y) → y R z → Rel k x (now z)
-    now-R-trans (now xRy)    yRz = now (R.trans xRy yRz)
-    now-R-trans (laterˡ x∼y) yRz = laterˡ (now-R-trans x∼y yRz)
+    now-∼-trans : ∀ {k x} {y z : A} →
+                  Rel k x (now y) → y ∼ z → Rel k x (now z)
+    now-∼-trans (now x∼y)    y∼z = now (IsPreorder.trans pre x∼y y∼z)
+    now-∼-trans (laterˡ x∼y) y∼z = laterˡ (now-∼-trans x∼y y∼z)
 
     now-trans : ∀ {k x y} {v : A} →
                 Rel k x y → Rel k y (now v) → Rel k x (now v)
     now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
-    now-trans x∼y  (now yRz)    = now-R-trans x∼y yRz
+    now-trans x∼y  (now y∼z)    = now-∼-trans x∼y y∼z
 
     mutual
 
@@ -264,12 +252,16 @@ module Properties (S : Setoid zero zero) where
       trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
       trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
 
-  private module Pre {k} = Preorder (preorder k)
+  private
+    preorder′ : IsEquivalence _∼_ → Kind → Preorder _ _ _
+    preorder′ equiv =
+      preorder (Setoid.isPreorder (record { isEquivalence = equiv }))
 
   -- The two equalities are equivalence relations.
 
-  setoid : (k : Kind) {eq : Equality k} → Setoid _ _
-  setoid k {eq} = record
+  setoid : IsEquivalence _∼_ →
+           (k : Kind) {eq : Equality k} → Setoid _ _
+  setoid equiv k {eq} = record
     { Carrier       = A ⊥
     ; _≈_           = Rel k
     ; isEquivalence = record
@@ -279,20 +271,20 @@ module Properties (S : Setoid zero zero) where
       }
     }
     where
+    module Pre = Preorder (preorder′ equiv k)
+
     sym : ∀ {k} {x y : A ⊥} → Equality k → Rel k x y → Rel k y x
-    sym eq (now xRy)           = now (R.sym xRy)
+    sym eq (now x∼y)           = now (IsEquivalence.sym equiv x∼y)
     sym eq (later         x∼y) = later (♯ sym eq (♭ x∼y))
     sym eq (laterʳ        x≈y) = laterˡ  (sym eq    x≈y )
     sym eq (laterˡ {weak} x≈y) = laterʳ  (sym eq    x≈y )
     sym () (laterˡ {geq}  x≳y)
 
-  private module S {k} {eq} = Setoid (setoid k {eq})
-
   -- The order is a partial order, with strong equality as the
   -- underlying equality.
 
-  ≳-poset : Poset _ _ _
-  ≳-poset = record
+  ≳-poset : IsEquivalence _∼_ → Poset _ _ _
+  ≳-poset equiv = record
     { Carrier        = A ⊥
     ; _≈_            = _≅_
     ; _≤_            = _≳_
@@ -306,8 +298,11 @@ module Properties (S : Setoid zero zero) where
       }
     }
     where
+    module S   = Setoid (setoid equiv strong)
+    module Pre = Preorder (preorder′ equiv (other geq))
+
     antisym : {x y : A ⊥} → x ≳ y → x ≲ y → x ≅ y
-    antisym (now    xRy)  (now    _)    = now xRy
+    antisym (now    x∼y)  (now    _)    = now x∼y
     antisym (later  x≳y)  (later  x≲y)  = later (♯ antisym        (♭ x≳y)         (♭ x≲y))
     antisym (later  x≳y)  (laterˡ x≲ly) = later (♯ antisym        (♭ x≳y)  (laterʳ⁻¹ x≲ly))
     antisym (laterˡ x≳ly) (later  x≲y)  = later (♯ antisym (laterʳ⁻¹ x≳ly)        (♭ x≲y))
@@ -315,7 +310,11 @@ module Properties (S : Setoid zero zero) where
 
   -- Equational reasoning.
 
-  module Reasoning where
+  module Reasoning (isEquivalence : IsEquivalence _∼_) where
+
+    private
+      module Pre {k}  = Preorder (preorder′ isEquivalence k)
+      module S {k eq} = Setoid (setoid isEquivalence k {eq})
 
     infix  2 _∎
     infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
@@ -345,16 +344,18 @@ module Properties (S : Setoid zero zero) where
   now≉never : ∀ {k} {x : A} → ¬ Rel k (now x) never
   now≉never (laterʳ hyp) = now≉never hyp
 
-  -- A partial value is either now or never (classically).
+  -- A partial value is either now or never (classically, when the
+  -- underlying relation is reflexive).
 
-  now-or-never : ∀ {k} (x : A ⊥) →
+  now-or-never : Reflexive _∼_ →
+                 ∀ {k} (x : A ⊥) →
                  ¬ ¬ ((∃ λ y → x ⇓[ other k ] y) ⊎ x ⇑[ other k ])
-  now-or-never x = helper <$> excluded-middle
+  now-or-never refl x = helper <$> excluded-middle
     where
     open RawMonad ¬¬-Monad
 
     not-now-is-never : (x : A ⊥) → (∄ λ y → x ≳ now y) → x ≳ never
-    not-now-is-never (now x)   hyp with hyp (, now R.refl)
+    not-now-is-never (now x)   hyp with hyp (, now refl)
     ... | ()
     not-now-is-never (later x) hyp =
       later (♯ not-now-is-never (♭ x) (hyp ∘ Prod.map id laterˡ))
@@ -364,12 +365,34 @@ module Properties (S : Setoid zero zero) where
     helper (no  ≵now) = inj₂ $ ≳⇒ $ not-now-is-never x ≵now
 
 ------------------------------------------------------------------------
--- Lemmas related to steps
+-- Lemma related to propositional equality
 
-  module Steps where
+  -- If a statement can be proved using propositional equality as the
+  -- underlying relation, then it can also be proved for any other
+  -- reflexive underlying relation.
+
+  ≡⇒ : Reflexive _∼_ →
+       ∀ {k x y} → Equality.Rel _≡_ k x y → Rel k x y
+  ≡⇒ refl (now P.refl) = Equality.now refl
+  ≡⇒ refl (later  x∼y) = Equality.later (♯ ≡⇒ refl (♭ x∼y))
+  ≡⇒ refl (laterʳ x≈y) = Equality.laterʳ  (≡⇒ refl    x≈y)
+  ≡⇒ refl (laterˡ x∼y) = Equality.laterˡ  (≡⇒ refl    x∼y)
+
+------------------------------------------------------------------------
+-- Steps
+
+  -- The number of later constructors (steps) in the terminating
+  -- computation x.
+
+  steps : ∀ {k} {x : A ⊥} {y} → x ⇓[ k ] y → ℕ
+  steps                (now _)             = zero
+  steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
+
+  module Steps (isPreorder : IsPreorder _≡_ _∼_) where
 
     open P.≡-Reasoning
-    open Reasoning using (_≅⟨_⟩_)
+    private
+      module Pre {k} = Preorder (preorder isPreorder k)
 
     private
 
@@ -378,26 +401,26 @@ module Properties (S : Setoid zero zero) where
               (y⇓z : y ⇓[ other k ] z) →
               steps (Pre.trans (laterˡ {x = x} x∼y) y⇓z) ≡
               suc (steps (Pre.trans x∼y y⇓z))
-      lemma x∼y (now yRz)    = P.refl
+      lemma x∼y (now y∼z)    = P.refl
       lemma x∼y (laterˡ y⇓z) = begin
         steps (Pre.trans (laterˡ (laterʳ⁻¹ x∼y)) y⇓z)  ≡⟨ lemma (laterʳ⁻¹ x∼y) y⇓z ⟩
         suc (steps (Pre.trans (laterʳ⁻¹ x∼y) y⇓z))     ∎
 
     left-identity : ∀ {k x y} {z : A}
                     (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
-                    steps (x ≅⟨ x≅y ⟩ y⇓z) ≡ steps y⇓z
+                    steps (Pre.trans (≅⇒ x≅y) y⇓z) ≡ steps y⇓z
     left-identity (now _)     (now _)      = P.refl
     left-identity (later x≅y) (laterˡ y⇓z) = begin
       steps (Pre.trans (laterˡ (≅⇒ (♭ x≅y))) y⇓z)  ≡⟨ lemma (≅⇒ (♭ x≅y)) y⇓z ⟩
-      suc (steps (_ ≅⟨ ♭ x≅y ⟩ y⇓z))               ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
+      suc (steps (Pre.trans (≅⇒ (♭ x≅y)) y⇓z))     ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
       suc (steps y⇓z)                              ∎
 
     right-identity : ∀ {k x} {y z : A}
                      (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
                      steps (Pre.trans x⇓y y≈z) ≡ steps x⇓y
-    right-identity (now xRy)    (now yRz) = P.refl
-    right-identity (laterˡ x∼y) (now yRz) =
-      P.cong suc $ right-identity x∼y (now yRz)
+    right-identity (now x∼y)    (now y∼z) = P.refl
+    right-identity (laterˡ x∼y) (now y∼z) =
+      P.cong suc $ right-identity x∼y (now y∼z)
 
 ------------------------------------------------------------------------
 -- Laws related to bind
@@ -410,47 +433,54 @@ module Properties (S : Setoid zero zero) where
 
   right-zero : {B : Set} (x : B ⊥) → let open M in
                (x >>= λ _ → never) ≅ never
-  right-zero (now   x) = S.refl
   right-zero (later x) = later (♯ right-zero (♭ x))
+  right-zero (now   x) = never≅never
+    where never≅never = later (♯ never≅never)
 
-  -- Now is a left and right identity of bind.
+  -- Now is a left and right identity of bind (for a reflexive
+  -- underlying relation).
 
-  left-identity : {B : Set} (x : B) (f : B → A ⊥) → let open M in
+  left-identity : Reflexive _∼_ →
+                  {B : Set} (x : B) (f : B → A ⊥) → let open M in
                   (now x >>= f) ≅ f x
-  left-identity x f = S.refl
+  left-identity refl-∼ x f = refl refl-∼
 
-  right-identity : (x : A ⊥) → let open M in
+  right-identity : Reflexive _∼_ →
+                   (x : A ⊥) → let open M in
                    (x >>= now) ≅ x
-  right-identity (now   x) = now R.refl
-  right-identity (later x) = later (♯ right-identity (♭ x))
+  right-identity refl (now   x) = now refl
+  right-identity refl (later x) = later (♯ right-identity refl (♭ x))
 
-  -- Bind is associative.
+  -- Bind is associative (for a reflexive underlying relation).
 
-  associative : {B C : Set} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
+  associative : Reflexive _∼_ →
+                {B C : Set} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
                 let open M in
                 (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
-  associative (now x)   f g = S.refl
-  associative (later x) f g = later (♯ associative (♭ x) f g)
+  associative refl-∼ (now x)   f g = refl refl-∼
+  associative refl-∼ (later x) f g =
+    later (♯ associative refl-∼ (♭ x) f g)
 
-module Properties₂ (S₁ S₂ : Setoid zero zero) where
+open Dummy public
 
-  open Setoid S₁ renaming (Carrier to A; _≈_ to _≈A_)
-  open Setoid S₂ renaming (Carrier to B; _≈_ to _≈B_)
+private
+ module Dummy₂ {A B : Set}
+               {_∼A_ : A → A → Set}
+               {_∼B_ : B → B → Set} where
+
   open Equality
   private
-    open module EqA = Equality _≈A_ using () renaming (_⇓[_]_ to _⇓[_]A_; _⇑[_] to _⇑[_]A)
-    open module EqB = Equality _≈B_ using () renaming (_⇓[_]_ to _⇓[_]B_; _⇑[_] to _⇑[_]B)
-    module PropA = Properties S₁
-  open PropA.Reasoning
+    open module EqA = Equality _∼A_ using () renaming (_⇓[_]_ to _⇓[_]A_; _⇑[_] to _⇑[_]A)
+    open module EqB = Equality _∼B_ using () renaming (_⇓[_]_ to _⇓[_]B_; _⇑[_] to _⇑[_]B)
 
   -- Bind preserves all the relations.
 
   _>>=-cong_ :
     ∀ {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
-    EqA.Rel k x₁ x₂ →
-    (∀ {x₁ x₂} → x₁ ≈A x₂ → EqB.Rel k (f₁ x₁) (f₂ x₂)) →
-    EqB.Rel k (x₁ >>= f₁) (x₂ >>= f₂)
-  now    x₁Rx₂ >>=-cong f₁∼f₂ = f₁∼f₂ x₁Rx₂
+    Rel _∼A_ k x₁ x₂ →
+    (∀ {x₁ x₂} → x₁ ∼A x₂ → Rel _∼B_ k (f₁ x₁) (f₂ x₂)) →
+    Rel _∼B_ k (x₁ >>= f₁) (x₂ >>= f₂)
+  now    x₁∼x₂ >>=-cong f₁∼f₂ = f₁∼f₂ x₁∼x₂
   later  x₁∼x₂ >>=-cong f₁∼f₂ = later (♯ (♭ x₁∼x₂ >>=-cong f₁∼f₂))
   laterʳ x₁≈x₂ >>=-cong f₁≈f₂ = laterʳ (x₁≈x₂ >>=-cong f₁≈f₂)
   laterˡ x₁∼x₂ >>=-cong f₁∼f₂ = laterˡ (x₁∼x₂ >>=-cong f₁∼f₂)
@@ -458,63 +488,49 @@ module Properties₂ (S₁ S₂ : Setoid zero zero) where
   -- Inversion lemmas for bind.
 
   >>=-inversion-⇓ :
+    Reflexive _∼A_ →
     ∀ {k} x {f : A → B ⊥} {y} → let open M in
     (x>>=f⇓ : (x >>= f) ⇓[ k ]B y) →
     ∃ λ z → ∃₂ λ (x⇓ : x ⇓[ k ]A z) (fz⇓ : f z ⇓[ k ]B y) →
-                 EqA.steps x⇓ + EqB.steps fz⇓ ≡ EqB.steps x>>=f⇓
-  >>=-inversion-⇓ (now x) fx⇓ =
-    (x , now (Setoid.refl S₁) , fx⇓ , P.refl)
-  >>=-inversion-⇓ (later x) (laterˡ x>>=f⇓) =
+                 steps x⇓ + steps fz⇓ ≡ steps x>>=f⇓
+  >>=-inversion-⇓ refl (now x) fx⇓ =
+    (x , now refl , fx⇓ , P.refl)
+  >>=-inversion-⇓ refl (later x) (laterˡ x>>=f⇓) =
     Prod.map id (Prod.map laterˡ (Prod.map id (P.cong suc))) $
-      >>=-inversion-⇓ (♭ x) x>>=f⇓
+      >>=-inversion-⇓ refl (♭ x) x>>=f⇓
 
-  >>=-inversion-⇑ : ∀ {k} x {f : A → B ⊥} → let open M in
-                    EqB.Rel (other k) (x >>= f) never →
+  >>=-inversion-⇑ : IsEquivalence _∼A_ →
+                    ∀ {k} x {f : A → B ⊥} → let open M in
+                    Rel _∼B_ (other k) (x >>= f) never →
                     ¬ ¬ (x ⇑[ other k ]A ⊎
                          ∃ λ y → x ⇓[ other k ]A y × f y ⇑[ other k ]B)
-  >>=-inversion-⇑ {k} x {f} ∼never = helper <$> PropA.now-or-never x
+  >>=-inversion-⇑ eqA {k} x {f} ∼never =
+    helper <$> now-or-never IsEqA.refl x
     where
     open RawMonad ¬¬-Monad using (_<$>_)
     open M using (_>>=_)
+    open Reasoning eqA
+    module IsEqA = IsEquivalence eqA
 
     k≳ = other geq
 
     is-never : ∀ {x y} →
                x ⇓[ k≳ ]A y → (x >>= f) ⇑[ k≳ ]B →
-               ∃ λ z → y ≈A z × f z ⇑[ k≳ ]B
-    is-never (now    xRy)  = λ fx⇑ → (_ , Setoid.sym S₁ xRy , fx⇑)
-    is-never (laterˡ ≳now) = is-never ≳now ∘ EqB.later⁻¹
+               ∃ λ z → y ∼A z × f z ⇑[ k≳ ]B
+    is-never (now    x∼y)  = λ fx⇑ → (_ , IsEqA.sym x∼y , fx⇑)
+    is-never (laterˡ ≳now) = is-never ≳now ∘ later⁻¹
 
     helper : (∃ λ y → x ⇓[ k≳ ]A y) ⊎ x ⇑[ k≳ ]A →
              x ⇑[ other k ]A ⊎
              ∃ λ y → x ⇓[ other k ]A y × f y ⇑[ other k ]B
-    helper (inj₂ ≳never)     = inj₁ (EqA.≳⇒ ≳never)
-    helper (inj₁ (y , ≳now)) with is-never ≳now (EqB.never⇒never ∼never)
-    ... | (z , yRz , fz⇑) = inj₂ (z , EqA.≳⇒ (x     ≳⟨ ≳now ⟩
-                                              now y ≅⟨ now yRz ⟩
-                                              now z ∎)
-                                    , EqB.≳⇒ fz⇑)
+    helper (inj₂ ≳never)     = inj₁ (≳⇒ ≳never)
+    helper (inj₁ (y , ≳now)) with is-never ≳now (never⇒never ∼never)
+    ... | (z , y∼z , fz⇑) = inj₂ (z , ≳⇒ (x     ≳⟨ ≳now ⟩
+                                          now y ≅⟨ now y∼z ⟩
+                                          now z ∎)
+                                    , ≳⇒ fz⇑)
 
-------------------------------------------------------------------------
--- Instantiation of the modules above using propositional equality
-
-module Propositional where
-  private
-    open module Eq {A : Set} = Equality (_≡_ {A = A}) public
-    open module P₁ {A : Set} = Properties (P.setoid A) public
-    open module P₂ {A B : Set} =
-      Properties₂ (P.setoid A) (P.setoid B) public
-
-  -- If a statement can be proved using propositional equality as the
-  -- underlying relation, then it can also be proved for any other
-  -- reflexive underlying relation.
-
-  ≡⇒ : ∀ {A : Set} {_≈_ : A → A → Set} → Reflexive _≈_ →
-       ∀ {k x y} → Rel k x y → Equality.Rel _≈_ k x y
-  ≡⇒ refl (now P.refl) = Equality.now refl
-  ≡⇒ refl (later  x∼y) = Equality.later (♯ ≡⇒ refl (♭ x∼y))
-  ≡⇒ refl (laterʳ x≈y) = Equality.laterʳ  (≡⇒ refl    x≈y)
-  ≡⇒ refl (laterˡ x∼y) = Equality.laterˡ  (≡⇒ refl    x∼y)
+open Dummy₂ public
 
 ------------------------------------------------------------------------
 -- Productivity checker workaround
@@ -564,8 +580,9 @@ module Workaround where
 
   module Correct where
 
-    open Propositional
-    open Reasoning
+    private
+      open module Eq {A} = Equality  {A = A} _≡_
+      open module R  {A} = Reasoning {A = A} P.isEquivalence
 
     now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≅ now x
     now-hom x = now x ∎
