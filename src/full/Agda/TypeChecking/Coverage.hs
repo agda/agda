@@ -54,6 +54,7 @@ type Covering = [SplitClause]
 
 data SplitError = NotADatatype Type         -- ^ neither data type nor record
                 | IrrelevantDatatype Type   -- ^ data type, but in irrelevant position
+                | CoinductiveDatatype Type  -- ^ coinductive data type
                 | NoRecordConstructor Type  -- ^ record type, but no constructor
                 | CantSplit QName Telescope Args Args [Term]
                 | GenericSplitError String
@@ -126,32 +127,38 @@ cover cs (SClause tel perm ps _) = do
     No             -> return (Set.empty, [ps])
     Block Nothing  -> fail $ "blocked by dot pattern"
     Block (Just x) -> do
-      r <- split tel perm ps x
+      r <- split Inductive tel perm ps x
       case r of
         Left err  -> case err of
           CantSplit c _ _ _ _   -> typeError $ CoverageCantSplitOn c
           NotADatatype a        -> typeError $ CoverageCantSplitType a
           IrrelevantDatatype a  -> typeError $ CoverageCantSplitType a
+          CoinductiveDatatype a -> typeError $ CoverageCantSplitType a
           NoRecordConstructor a -> typeError $ CoverageCantSplitType a
           GenericSplitError s   -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
--- | Check that a type is a non-irrelevant datatype or a record with named constructor.
+-- | Check that a type is a non-irrelevant datatype or a record with
+-- named constructor. Unless the 'Induction' argument is 'CoInductive'
+-- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
-              Arg Type -> tcm (QName, [Arg Term], [Arg Term], [QName])
-isDatatype at = do
+              Induction -> Arg Type ->
+              tcm (QName, [Arg Term], [Arg Term], [QName])
+isDatatype ind at = do
   let t = unArg at
   t' <- normalise t
   case unEl t' of
     Def d args -> do
       def <- theDef <$> getConstInfo d
       case def of
-        Datatype{dataPars = np, dataCons = cs, dataInduction = Inductive} ->
-          if argRelevance at == Irrelevant
-           then throwException $ IrrelevantDatatype t
-           else do
-             let (ps, is) = genericSplitAt np args
-             return (d, ps, is, cs)
+        Datatype{dataPars = np, dataCons = cs, dataInduction = i}
+          | i == CoInductive && ind /= CoInductive ->
+              throwException $ CoinductiveDatatype t
+          | argRelevance at == Irrelevant ->
+              throwException $ IrrelevantDatatype t
+          | otherwise -> do
+              let (ps, is) = genericSplitAt np args
+              return (d, ps, is, cs)
         Record{recPars = np, recCon = c, recNamedCon = hasCon} ->
           if hasCon then return (d, args, [], [c])
            else throwException $ NoRecordConstructor t
@@ -303,23 +310,33 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
-splitClause c x = split (clauseTel c) (clausePerm c) (clausePats c) x
+splitClause c x =
+  split Inductive (clauseTel c) (clausePerm c) (clausePats c) x
 
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs c x = split' (clauseTel c) (clausePerm c) (clausePats c) x
+splitClauseWithAbs c x =
+  split' Inductive (clauseTel c) (clausePerm c) (clausePats c) x
 
-split :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
-         tcm (Either SplitError Covering)
-split tel perm ps x = do
-  r <- split' tel perm ps x
+split :: MonadTCM tcm
+      => Induction
+         -- ^ Coinductive constructors are allowed if this argument is
+         -- 'CoInductive'.
+      -> Telescope -> Permutation -> [Arg Pattern] -> Nat
+      -> tcm (Either SplitError Covering)
+split ind tel perm ps x = do
+  r <- split' ind tel perm ps x
   return $ case r of
     Left err        -> Left err
     Right (Left _)  -> Right []
     Right (Right c) -> Right c
 
-split' :: MonadTCM tcm => Telescope -> Permutation -> [Arg Pattern] -> Nat ->
-         tcm (Either SplitError (Either SplitClause Covering))
-split' tel perm ps x = liftTCM $ runExceptionT $ do
+split' :: MonadTCM tcm
+       => Induction
+          -- ^ Coinductive constructors are allowed if this argument is
+          -- 'CoInductive'.
+       -> Telescope -> Permutation -> [Arg Pattern] -> Nat
+       -> tcm (Either SplitError (Either SplitClause Covering))
+split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -345,7 +362,7 @@ split' tel perm ps x = liftTCM $ runExceptionT $ do
 
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
-  (d, pars, ixs, cons) <- isDatatype t
+  (d, pars, ixs, cons) <- isDatatype ind t
 
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons

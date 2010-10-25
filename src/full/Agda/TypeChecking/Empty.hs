@@ -30,7 +30,7 @@ isEmptyTypeC t = do
       let tel = telFromList $ telToList tel0 ++ [defaultArg ("_", t)]
           ps  = [ Arg h r $ VarP x | Arg h r (x, _) <- telToList tel ]
 
-      r <- split tel (idP $ size tel) ps 0
+      r <- split Inductive tel (idP $ size tel) ps 0
 
       case r of
         Left err  -> typeError $ ShouldBeEmpty t []

@@ -98,7 +98,9 @@ prettySplitError err = case err of
     pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
   IrrelevantDatatype t -> fsep $
     pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
-    pwords "since it is declared irrelevant" 
+    pwords "since it is declared irrelevant"
+  CoinductiveDatatype t -> fsep $
+    pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
   NoRecordConstructor t -> fsep $
     pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
     pwords "because it has no constructor"

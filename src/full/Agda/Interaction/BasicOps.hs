@@ -517,7 +517,7 @@ introTactic ii = do
       let tel  = telFromList [defaultArg ("_", t)]
           perm = idP 1
           pat  = [defaultArg (I.VarP "c")]
-      r <- split tel perm pat 0
+      r <- split CoInductive tel perm pat 0
       case r of
         Left err -> return []
         Right cs -> mapM showTCM $ concatMap (conName . scPats) cs
