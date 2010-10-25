@@ -250,7 +250,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
 
   -- If an error was encountered, display an error message and exit
   -- with an error code; otherwise, inform Emacs about the buffer's
-  -- goals.
+  -- goals (if current matches the new current file).
   let errStatus = Status { sChecked               = False
                          , sShowImplicitArguments =
                              optShowImplicit $ stPragmaOptions st
@@ -260,9 +260,13 @@ ioTCM current highlightingFile cmd = infoOnException $ do
     Left e              -> displayErrorAndExit errStatus (getRange e) $
                              tcErrString e
     Right (Right _)     -> do
-      is <- theInteractionPoints <$> liftIO (readIORef theState)
-      liftIO $ LocIO.putStrLn $ response $
-        L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
+      f <- theCurrentFile <$> readIORef theState
+      case f of
+        Just (f, _) | f === current -> do
+          is <- theInteractionPoints <$> liftIO (readIORef theState)
+          liftIO $ LocIO.putStrLn $ response $
+            L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
+        _ -> return ()
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.

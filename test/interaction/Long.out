@@ -1,4 +1,4 @@
-agda2_mode_code (agda2-goals-action '())
+agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
@@ -12,6 +12,7 @@ agda2_mode_code (agda2-info-action
 ?6 : Maybe ?5
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
+agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action
