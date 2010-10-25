@@ -8,15 +8,15 @@ open import Coinduction
 open import Category.Monad
 open import Data.Bool
 open import Data.Nat using (ℕ; zero; suc; _+_)
-open import Data.Product as Prod
-open import Data.Sum
+open import Data.Product as Prod hiding (map)
+open import Data.Sum hiding (map)
 open import Function
 open import Function.Equivalence using (_⇔_; equivalent)
 open import Level
 open import Relation.Binary as B hiding (Rel)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
-open import Relation.Nullary.Decidable
+open import Relation.Nullary.Decidable hiding (map)
 open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------
@@ -145,6 +145,7 @@ private
  module Dummy {A : Set} {_∼_ : A → A → Set} where
 
   open Equality _∼_
+  open Equality.Rel
 
   -- All relations include strong equality.
 
@@ -365,7 +366,16 @@ private
     helper (no  ≵now) = inj₂ $ ≳⇒ $ not-now-is-never x ≵now
 
 ------------------------------------------------------------------------
--- Lemma related to propositional equality
+-- Map-like results
+
+  -- Map.
+
+  map : ∀ {_∼′_ k} →
+        _∼′_ ⇒ _∼_ → Equality.Rel _∼′_ k ⇒ Equality.Rel _∼_ k
+  map ∼′⇒∼ (now x∼y)    = now (∼′⇒∼ x∼y)
+  map ∼′⇒∼ (later  x∼y) = later (♯ map ∼′⇒∼ (♭ x∼y))
+  map ∼′⇒∼ (laterʳ x≈y) = laterʳ  (map ∼′⇒∼    x≈y)
+  map ∼′⇒∼ (laterˡ x∼y) = laterˡ  (map ∼′⇒∼    x∼y)
 
   -- If a statement can be proved using propositional equality as the
   -- underlying relation, then it can also be proved for any other
@@ -373,10 +383,7 @@ private
 
   ≡⇒ : Reflexive _∼_ →
        ∀ {k x y} → Equality.Rel _≡_ k x y → Rel k x y
-  ≡⇒ refl (now P.refl) = Equality.now refl
-  ≡⇒ refl (later  x∼y) = Equality.later (♯ ≡⇒ refl (♭ x∼y))
-  ≡⇒ refl (laterʳ x≈y) = Equality.laterʳ  (≡⇒ refl    x≈y)
-  ≡⇒ refl (laterˡ x∼y) = Equality.laterˡ  (≡⇒ refl    x∼y)
+  ≡⇒ refl-∼ = map (flip (P.subst (_∼_ _)) refl-∼)
 
 ------------------------------------------------------------------------
 -- Steps
