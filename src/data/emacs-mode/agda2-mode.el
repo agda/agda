@@ -835,7 +835,6 @@ If there is any to load."
         (progn
           (agda2-go nil highlighting
                     "cmd_write_highlighting_info"
-                    (agda2-list-quote agda2-include-dirs)
                     (agda2-string-quote (buffer-file-name))
                     (agda2-string-quote highlighting)))
       (delete-file highlighting))))

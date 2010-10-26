@@ -128,22 +128,32 @@ initState = State
 theState :: IORef State
 theState = unsafePerformIO $ newIORef initState
 
+-- | Can the command run even if the relevant file has not been loaded
+-- into the state?
+
+data Independence
+  = Independent (Maybe [FilePath])
+    -- ^ Yes. If the argument is @'Just' is@, then @is@ is used as the
+    -- command's include directories.
+  | Dependent
+    -- No.
+
 -- | An interactive computation.
 
 data Interaction = Interaction
-  { includeDirectories :: Maybe [FilePath]
-    -- ^ A command is independent iff this field is @'Just' is@; @is@
-    -- is used as the command's include directories.
+  { independence :: Independence
+    -- ^ Is the command independent?
   , command :: TCM (Maybe ModuleName)
     -- ^ If a module name is returned, then syntax highlighting
     -- information will be written for the given module (by 'ioTCM').
   }
 
--- | Can the command run even if the relevant file has not been loaded
--- into the state?
+-- ^ Is the command independent?
 
 isIndependent :: Interaction -> Bool
-isIndependent = isJust . includeDirectories
+isIndependent i = case independence i of
+  Independent {} -> True
+  Dependent   {} -> False
 
 -- | Run a TCM computation in the current state. Should only
 --   be used for debugging.
@@ -202,9 +212,13 @@ ioTCM current highlightingFile cmd = infoOnException $ do
   r <- runTCM $ catchError (do
            put st
            x  <- withEnv initEnv $ do
-                   case includeDirectories cmd of
-                     Nothing -> ensureFileLoaded current
-                     Just is -> do
+                   case independence cmd of
+                     Dependent             -> ensureFileLoaded current
+                     Independent Nothing   ->
+                       -- Make sure that the include directories have
+                       -- been set.
+                       setCommandLineOptions =<< commandLineOptions
+                     Independent (Just is) -> do
                        ex <- liftIO $ doesFileExist $ filePath current
                        setIncludeDirs is $
                          if ex then ProjectRoot current else CurrentDir
@@ -287,7 +301,7 @@ cmd_load' :: FilePath -> [FilePath]
           -> ((Interface, Maybe Imp.Warnings) -> TCM ())
           -> Interaction
 cmd_load' file includes unsolvedOK cmd =
-  Interaction (Just includes) $ do
+  Interaction (Independent (Just includes)) $ do
     -- Forget the previous "current file" and interaction points.
     liftIO $ modifyIORef theState $ \s ->
       s { theInteractionPoints = []
@@ -353,7 +367,7 @@ cmd_compile file includes =
           ])
 
 cmd_constraints :: Interaction
-cmd_constraints = Interaction Nothing $ do
+cmd_constraints = Interaction Dependent $ do
     cs <- map show <$> B.getConstraints
     display_info "*Constraints*" (unlines cs)
     return Nothing
@@ -361,7 +375,7 @@ cmd_constraints = Interaction Nothing $ do
 -- Show unsolved metas. If there are no unsolved metas but unsolved constraints
 -- show those instead.
 cmd_metas :: Interaction
-cmd_metas = Interaction Nothing $ do -- CL.showMetas []
+cmd_metas = Interaction Dependent $ do -- CL.showMetas []
   ims <- B.typesOfVisibleMetas B.AsIs
   -- Show unsolved implicit arguments normalised.
   hms <- B.typesOfHiddenMetas B.Normalised
@@ -402,7 +416,8 @@ cmd_give = give_gen B.give $ \rng s ce ->
 cmd_refine :: GoalCommand
 cmd_refine = give_gen B.refine $ \_ s -> quote . show
 
-give_gen give_ref mk_newtxt ii rng s = Interaction Nothing $ give_gen' give_ref mk_newtxt ii rng s
+give_gen give_ref mk_newtxt ii rng s = Interaction Dependent $
+  give_gen' give_ref mk_newtxt ii rng s
 
 give_gen' give_ref mk_newtxt ii rng s = do
   scope     <- getInteractionScope ii
@@ -421,7 +436,7 @@ give_gen' give_ref mk_newtxt ii rng s = do
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
 
 cmd_intro :: GoalCommand
-cmd_intro ii rng _ = Interaction Nothing $ do
+cmd_intro ii rng _ = Interaction Dependent $ do
   ss <- B.introTactic ii
   B.withInteractionId ii $ case ss of
     []    -> do
@@ -443,7 +458,7 @@ cmd_refine_or_intro ii rng s =
   (if null s then cmd_intro else cmd_refine) ii rng s
 
 cmd_auto :: GoalCommand
-cmd_auto ii rng s = Interaction Nothing $ do
+cmd_auto ii rng s = Interaction Dependent $ do
   (res, msg) <- Auto.auto ii rng s
   case res of
    Left xs -> do
@@ -499,19 +514,19 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   return $ align 10 $ shuffle $ zip ns (map (text ":" <+>) es)
 
 cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = Interaction Nothing $ do
+cmd_context norm ii _ _ = Interaction Dependent $ do
   display_infoD "*Context*" =<< prettyContext norm False ii
   return Nothing
 
 cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = Interaction Nothing $ do
+cmd_infer norm ii rng s = Interaction Dependent $ do
   display_infoD "*Inferred Type*"
     =<< B.withInteractionId ii
           (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s)
   return Nothing
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = Interaction Nothing $ do
+cmd_goal_type norm ii _ _ = Interaction Dependent $ do
   s <- B.withInteractionId ii $ prettyTypeOfMeta norm ii
   display_infoD "*Current Goal*" s
   return Nothing
@@ -532,17 +547,18 @@ cmd_goal_type_context_and doc norm ii _ _ = do
 -- | Displays the current goal and context.
 
 cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context norm ii rng s = Interaction Nothing $
+cmd_goal_type_context norm ii rng s = Interaction Dependent $
   cmd_goal_type_context_and P.empty norm ii rng s
 
 -- | Displays the current goal and context /and/ infers the type of an
 -- expression.
 
 cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_context_infer norm ii rng s = Interaction Nothing $ do
-  typ <- B.withInteractionId ii $
-           prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-  cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
+cmd_goal_type_context_infer norm ii rng s =
+  Interaction Dependent $ do
+    typ <- B.withInteractionId ii $
+             prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+    cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
@@ -564,7 +580,7 @@ showModuleContents rng s = do
 -- their types. Uses the scope of the given goal.
 
 cmd_show_module_contents :: GoalCommand
-cmd_show_module_contents ii rng s = Interaction Nothing $ do
+cmd_show_module_contents ii rng s = Interaction Dependent $ do
   B.withInteractionId ii $ showModuleContents rng s
   return Nothing
 
@@ -572,7 +588,7 @@ cmd_show_module_contents ii rng s = Interaction Nothing $ do
 -- their types. Uses the top-level scope.
 
 cmd_show_module_contents_toplevel :: String -> Interaction
-cmd_show_module_contents_toplevel s = Interaction Nothing $ do
+cmd_show_module_contents_toplevel s = Interaction Dependent $ do
   B.atTopLevel $ showModuleContents noRange s
   return Nothing
 
@@ -698,7 +714,7 @@ refreshStr taken s = go nameModifiers where
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = Interaction Nothing $ do
+cmd_make_case ii rng s = Interaction Dependent $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
@@ -711,7 +727,7 @@ cmd_make_case ii rng s = Interaction Nothing $ do
   where render = renderStyle (style { mode = OneLineMode })
 
 cmd_solveAll :: Interaction
-cmd_solveAll = Interaction Nothing $ do
+cmd_solveAll = Interaction Dependent $ do
   out <- getInsts
   liftIO $ LocIO.putStrLn $ response $
     Cons (A "last")
@@ -822,7 +838,7 @@ preUscore = SC.Underscore   noRange Nothing
 
 cmd_compute :: Bool -- ^ Ignore abstract?
                -> GoalCommand
-cmd_compute ignore ii rng s = Interaction Nothing $ do
+cmd_compute ignore ii rng s = Interaction Dependent $ do
   e <- B.parseExprIn ii rng s
   d <- B.withInteractionId ii $ do
          let c = B.evalInCurrent e
@@ -843,7 +859,7 @@ parseAndDoAtToplevel
   -> String
      -- ^ The expression to parse.
   -> Interaction
-parseAndDoAtToplevel cmd title s = Interaction Nothing $ do
+parseAndDoAtToplevel cmd title s = Interaction Dependent $ do
   e <- liftIO $ parse exprParser s
   display_info title =<<
     B.atTopLevel (showA =<< cmd =<< concreteToAbstract_ e)
@@ -873,18 +889,25 @@ cmd_compute_toplevel ignore =
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | @cmd_write_highlighting_info includes source target@ writes
--- syntax highlighting information for the module in @source@ into
--- @target@; @includes@ is the include directories. If the module does
--- not exist, or its module name is malformed or cannot be determined,
--- or the module has not already been visited, or the cached info is
--- out of date, then the representation of \"no highlighting
--- information available\" is instead written to @target@.
+-- | @cmd_write_highlighting_info source target@ writes syntax
+-- highlighting information for the module in @source@ into @target@.
+--
+-- If the module does not exist, or its module name is malformed or
+-- cannot be determined, or the module has not already been visited,
+-- or the cached info is out of date, then the representation of \"no
+-- highlighting information available\" is instead written to
+-- @target@.
+--
+-- This command is used to load syntax highlighting information when a
+-- new file is opened, and it would probably be annoying if jumping to
+-- the definition of an identifier reset the proof state, so this
+-- command tries not to do that. One result of this is that the
+-- command uses the current include directories, whatever they happen
+-- to be.
 
-cmd_write_highlighting_info ::
-  [FilePath] -> FilePath -> FilePath -> Interaction
-cmd_write_highlighting_info includes source target =
-  Interaction (Just includes) $ do
+cmd_write_highlighting_info :: FilePath -> FilePath -> Interaction
+cmd_write_highlighting_info source target =
+  Interaction (Independent Nothing) $ do
     liftIO . UTF8.writeFile target . showHighlightingInfo =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
@@ -926,7 +949,7 @@ tellEmacsToJumpToError r = do
 
 showImplicitArgs :: Bool -- ^ Show them?
                  -> Interaction
-showImplicitArgs showImpl = Interaction Nothing $ do
+showImplicitArgs showImpl = Interaction Dependent $ do
   opts <- commandLineOptions
   setCommandLineOptions $
     opts { optPragmaOptions =
@@ -936,7 +959,7 @@ showImplicitArgs showImpl = Interaction Nothing $ do
 -- | Toggle display of implicit arguments.
 
 toggleImplicitArgs :: Interaction
-toggleImplicitArgs = Interaction Nothing $ do
+toggleImplicitArgs = Interaction Dependent $ do
   opts <- commandLineOptions
   let ps = optPragmaOptions opts
   setCommandLineOptions $
