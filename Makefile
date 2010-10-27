@@ -242,16 +242,16 @@ fix-agda-whitespace=src/fix-agda-whitespace/dist/build/fix-agda-whitespace/fix-a
 
 .PHONY:
 fix-whitespace : $(fix-agda-whitespace)
-	fix-agda-whitespace
+	$(fix-agda-whitespace)
 
 .PHONY:
 check-whitespace : $(fix-agda-whitespace)
-	fix-agda-whitespace --check
+	$(fix-agda-whitespace) --check
 
 $(fix-agda-whitespace) : src/fix-agda-whitespace/fix-agda-whitespace.cabal \
-                         src/fix-agda-whitespace/FixWhitespace.hs
-	cabal update
-	cd src/fix-agda-whitespace && cabal install
+                         src/fix-agda-whitespace/FixWhitespace.hs \
+			 update-cabal
+	cd src/fix-agda-whitespace && $(CABAL_CMD) install
 
 ## Clean ##################################################################
 

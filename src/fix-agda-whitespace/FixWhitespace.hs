@@ -10,7 +10,7 @@ import System.IO
 
 -- Configuration parameters.
 
-extensions = [".hs", ".x", ".y"]
+extensions = [".hs", ".x", ".y", ".el"]
 srcDir     = "src"
 
 -- Modes.
@@ -54,7 +54,7 @@ usage = unlines
   , "case it returns with a non-zero exit code."
   , ""
   , "Background: Agda was reported to fail to compile on Windows"
-  , "because a file did not end with a newline character (and Agda"
+  , "because a file did not end with a newline character (Agda"
   , "uses -Werror)."
   ]
   where

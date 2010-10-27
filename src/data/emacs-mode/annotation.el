@@ -1,7 +1,7 @@
 ;;; annotation.el --- Functions for annotating text with faces and help bubbles
 
 ;;; Commentary:
-;; 
+;;
 
 ;;; Code:
 (require 'cl)
