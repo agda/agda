@@ -79,4 +79,3 @@ modelPath ks (Model xs) =
 prop_path ks m =
   collect (length $ modelPath ks m) $
   lookupPath ks (modelToTrie m) == modelPath ks m
-

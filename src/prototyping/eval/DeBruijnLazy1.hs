@@ -268,4 +268,3 @@ eval sig e = runHeap $ do
     v <- compile e imap
     eval' 0 sig' v
     decompile nmap v
-

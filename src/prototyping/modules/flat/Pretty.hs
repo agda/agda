@@ -12,4 +12,3 @@ class Pretty a where
 
 mparens True = parens
 mparens False = id
-

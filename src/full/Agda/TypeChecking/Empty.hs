@@ -36,4 +36,3 @@ isEmptyTypeC t = do
         Left err  -> typeError $ ShouldBeEmpty t []
         Right []  -> return []
         Right cs  -> typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) cs
-

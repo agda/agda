@@ -86,4 +86,3 @@ solveLevelConstraints = do
       -- do something interesting with the solution
       addConstraints rest
       return ()
-

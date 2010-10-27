@@ -46,4 +46,3 @@ evalBody env v (Efun nes) =
         f w = app v w
         nvs = map (\ (Bcon c e) -> (c,eval env e)) nes
 evalBody env v e = eval env e
-

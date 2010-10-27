@@ -391,7 +391,7 @@ data DisplayTerm = DWithApp [DisplayTerm] Args
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
-data Definition = Defn 
+data Definition = Defn
   { defRelevance :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
   , defName      :: QName
   , defType      :: Type	      -- ^ Type of the lifted definition.
@@ -429,11 +429,11 @@ data Defn = Axiom
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
-            , funProjection     :: Maybe Int 
+            , funProjection     :: Maybe Int
               -- ^ Is it a record projection?
-              --   If yes, then return the index of the record argument. 
+              --   If yes, then return the index of the record argument.
               --   Start counting with 1, because 0 means that it is already
-              --   applied to the record. (Can happen in module instantiation.)  
+              --   applied to the record. (Can happen in module instantiation.)
               --   This information is used in the termination checker.
             }
 	  | Datatype
@@ -662,7 +662,7 @@ data TCEnv =
 		--   To prevent information about abstract things leaking
 		--   outside the module.
           , envIrrelevant          :: Bool
-                -- ^ Are we checking an irrelevant argument?  
+                -- ^ Are we checking an irrelevant argument?
                 -- Then top-level irrelevant declarations are enabled.
           , envReplace             :: Bool
                 -- ^ Coinductive constructor applications @c args@ get
@@ -1029,4 +1029,3 @@ runTCM m = (Right <$> runTCM' m) `E.catch` (return . Left)
 
 runTCM' :: Monad m => TCMT m a -> m a
 runTCM' m = liftM fst (unTCM m initState initEnv)
-

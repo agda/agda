@@ -100,7 +100,7 @@ checkOpApps = atLeastOneMid +++ pres many1 +++ posts many
     e  <- elem
     ps <- c (do Right (Post o) <- get; return o)
     return $ foldr ($) e ps
-    
+
   atLeastOneMid = do
     e1 <- posts many
     Right (Bin o a) <- get

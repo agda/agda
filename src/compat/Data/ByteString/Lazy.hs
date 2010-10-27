@@ -17,4 +17,3 @@ unpack = map fromEnum
 
 head :: ByteString -> Int
 head = fromEnum . Prelude.head
-

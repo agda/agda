@@ -179,15 +179,15 @@ f <$> a = fmap f a
 -- | Replace the value.
 (<$) :: Functor f => a -> f b -> f a
 (<$) = (<$>) . const
- 
+
 -- | Sequence actions, discarding the value of the first argument.
 (*>) :: Applicative f => f a -> f b -> f b
 (*>) = liftA2 (const id)
- 
+
 -- | Sequence actions, discarding the value of the second argument.
 (<*) :: Applicative f => f a -> f b -> f a
 (<*) = liftA2 const
- 
+
 -- | A variant of '<*>' with the arguments reversed.
 (<**>) :: Applicative f => f a -> f (a -> b) -> f b
 (<**>) = liftA2 (flip ($))
@@ -220,4 +220,3 @@ many :: Alternative f => f a -> f [a]
 many v = many_v
   where many_v = some_v <|> pure []
 	some_v = (:) <$> v <*> many_v
-

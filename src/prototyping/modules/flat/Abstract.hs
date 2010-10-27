@@ -86,4 +86,3 @@ instance Pretty Expr where
 
 instance Pretty (Var, Expr) where
     pretty (x, e) = parens $ text x <+> text ":" <+> pretty e
-

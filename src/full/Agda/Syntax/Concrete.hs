@@ -122,7 +122,7 @@ data TypedBinding
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
---   in later types. 
+--   in later types.
 type Telescope = [TypedBindings]
 
 {-| Left hand sides can be written in infix style. For example:
@@ -402,4 +402,3 @@ instance HasRange Pattern where
     getRange (LitP l)		= getRange l
     getRange (HiddenP r _)	= r
     getRange (DotP r _)		= r
-

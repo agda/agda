@@ -140,4 +140,3 @@ instance ScopeCheck r i => ScopeCheck [r] [i] where
 	scopeCheckAnd x  $ \x ->
 	scopeCheckAnd xs $ \xs ->
 	ret (x : xs)
-

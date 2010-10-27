@@ -73,4 +73,3 @@ instance Pretty Clause where
 	sep [ fsep ps <+> text "="
 	    , nest 2 $ prettyP 0 fresh used v
 	    ]
-

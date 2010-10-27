@@ -13,7 +13,7 @@ import Agda.Syntax.Notation
 
 -- | The notation is handled as the fixity in the renamer. Hence they
 -- are grouped together in this type.
-data Fixity' = Fixity' 
+data Fixity' = Fixity'
     {theFixity :: Fixity,
      theNotation :: Notation}
   deriving (Typeable, Data, Show, Eq)
@@ -38,7 +38,7 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 
 defaultFixity' = Fixity' defaultFixity defaultNotation
 
-noFixity = NonAssoc noRange (negate 666) 
+noFixity = NonAssoc noRange (negate 666)
 
 -- | Fixity of operators.
 data Fixity = LeftAssoc  Range Nat
@@ -127,4 +127,3 @@ instance HasRange Fixity where
     getRange (LeftAssoc  r _)	= r
     getRange (RightAssoc r _)	= r
     getRange (NonAssoc   r _)	= r
-

@@ -43,8 +43,8 @@ pHidden NotHidden   = pretty
 pRelevance :: Pretty a => Relevance -> a -> Doc
 pRelevance Forced     a = pretty a
 pRelevance Relevant   a = pretty a
-pRelevance Irrelevant a = 
-  let d = pretty a 
+pRelevance Irrelevant a =
+  let d = pretty a
   in  if render d == "_" then d else text "." <> d
 
 {- UNUSED
@@ -218,11 +218,11 @@ instance Pretty [Declaration] where
 instance Pretty Declaration where
     pretty d =
 	case d of
-	    TypeSig rel x e -> 
+	    TypeSig rel x e ->
                 sep [ pRelevance rel $ pretty x <+> text ":"
 		    , nest 2 $ pretty e
 		    ]
-            Field x (Arg h rel e) -> 
+            Field x (Arg h rel e) ->
                 sep [ text "field"
                     , nest 2 $ pRelevance rel $ pHidden h (TypeSig Relevant x e)
                     ]
@@ -316,7 +316,7 @@ instance Pretty Fixity where
     pretty (NonAssoc _ n)   = text "infix" <+> text (show n)
 
 instance Pretty e => Pretty (Arg e) where
- -- Andreas 2010-09-21: do not print relevance in general, only in function types! 
+ -- Andreas 2010-09-21: do not print relevance in general, only in function types!
  -- Andreas 2010-09-24: and in record fields
     pretty (Arg h r e) = -- pRelevance r $
                          pHidden h e
@@ -377,4 +377,3 @@ instance Pretty UsingOrHiding where
 instance Pretty ImportedName where
     pretty (ImportedName x)	= pretty x
     pretty (ImportedModule x)	= text "module" <+> pretty x
-

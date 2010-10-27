@@ -26,4 +26,3 @@ fromList = foldl (:<) Empty
 
 instance Show a => Show (Stack a) where
   show = show . toList
-

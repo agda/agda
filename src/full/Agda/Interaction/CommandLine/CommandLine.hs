@@ -305,4 +305,3 @@ help cs = LocIO.putStr $ unlines $
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where
 	explain (x,_) = ":" ++ x
-

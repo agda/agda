@@ -264,4 +264,3 @@ instance Sized QName where
 
 instance Sized ModuleName where
   size = size . mnameToList
-

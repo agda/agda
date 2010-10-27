@@ -47,4 +47,3 @@ alloc v = do
     p <- fresh
     store p v
     return p
-

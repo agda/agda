@@ -1,4 +1,4 @@
-module CITrans where 
+module CITrans where
 --import UIdInfo
 import Position(noPosition)
 import Id(Id, UId, getIdPosition, addId, remId, SymTab, rangeST, initST, lookupST,toId)
@@ -39,18 +39,18 @@ scope :: CITrans -> [UId]
 scope (vst,cst,cb,_) =  rangeST vst ++ rangeST cst
 
 addVar :: Id -> UId -> CITrans -> CITrans
-addVar x x' (vst,cst,cb,cpvs) = let vst' = addId x x' vst 
+addVar x x' (vst,cst,cb,cpvs) = let vst' = addId x x' vst
                                     cst' = remId x cst
                            in (vst',cst',cb,cpvs)
 
-addCst ::  Id ->  UId -> CITrans -> CITrans 
-addCst c c' (vst,cst,cb,cpvs) = let cst' = addId c c' cst 
+addCst ::  Id ->  UId -> CITrans -> CITrans
+addCst c c' (vst,cst,cb,cpvs) = let cst' = addId c c' cst
                                     vst' = remId c vst
                            in (vst',cst',cb,cpvs)
 
-addCsts ::  [(Id,UId)] -> CITrans -> CITrans 
-addCsts ccs cit = foldr (uncurry addCst) cit ccs 
-     
+addCsts ::  [(Id,UId)] -> CITrans -> CITrans
+addCsts ccs cit = foldr (uncurry addCst) cit ccs
+
 
 
 addCaseVar :: UId -> CITrans -> CITrans

@@ -1,6 +1,6 @@
 -- | Identifiers with Position information. Symbol tables.
 module Id(
-       Id, mkId, dummyId, hypId, internalHypId, isDummyId,getIdString, getIdPosition, toId, 
+       Id, mkId, dummyId, hypId, internalHypId, isDummyId,getIdString, getIdPosition, toId,
        getIdNo, UId, mkUId, internalUId, isInternalUId, dummyUId, isDummyUId,toDummyUId,getUIdString,
        getUIdPosition, toUId,sameId, eqAsId, getUIdNo,putUIdNo,
        getUIdFString, isModuleId, isModuleString, getFixity, SymTab,
@@ -38,7 +38,7 @@ hypId p = Id p fsHypvar
 internalHypId  = Id noPosition fsInternalHypvar
 
 
-dummyId = Id noPosition fsUnderscore 
+dummyId = Id noPosition fsUnderscore
 isDummyId (Id _ fs) = fs == fsUnderscore
 
 instance PPrint Id where
@@ -59,7 +59,7 @@ getIdFString (Id _ fs) = fs
 getIdNo :: Id -> Int
 getIdNo (Id _ fs) = getFStrNo fs
 
-data UId = UId Position FString !Int 
+data UId = UId Position FString !Int
 
 instance Eq UId where
         UId _ _ i == UId _ _ i'  =  i == i'
@@ -86,10 +86,10 @@ toDummyUId (Id p fs) = dummyUId p fs
 isDummyUId (UId _ _ i) = i == 0
 
 instance PPrint UId where
-     pPrint d _ x@(UId _ fs u) = 
+     pPrint d _ x@(UId _ fs u) =
         if d == PDDebug then
             text (getFString fs ++ "#" ++ show u)
-        else if (isInternalUId x) then 
+        else if (isInternalUId x) then
                  text (getFString fs++"Internal")
              else text (getFString fs)
 
@@ -179,7 +179,7 @@ isBRArrow (Id p fs) = fs == fsBRArrow
 appendId :: StrTable -> Id -> String -> (StrTable,Id)
 appendId t n s = let (t',fs) = hmkFString t (getIdString n ++ s)
                  in (t',mkId noPosition fs)
- 
+
 
 freshId :: StrTable -> [Id] -> Id -> (StrTable,Id)
 freshId t xs x
@@ -189,7 +189,7 @@ freshId t xs x
     | otherwise = freshId' t x xs 0
     where  (t',x') = appendId t x "'"            -- "'"
            freshId' t x xs n = let (t',x') = appendId t x (show n)
-                               in if x' `elem` xs 
+                               in if x' `elem` xs
                                      then freshId' t x xs (n+1)
                                      else (t',x')
 
@@ -231,13 +231,13 @@ rangeST = Map.elems
 symTabToList :: SymTab -> [(Id,UId)]
 symTabToList = Map.toList
 
-   
+
 
 
 {-- from CSyntax --}
 
 ppId :: PDetail -> Id -> IText
-ppId d i = 
+ppId d i =
     case getIdString i of
     s@(c:_) | isAlpha c || c == '_' -> text s
     s -> text ("("++s++")")
@@ -257,8 +257,8 @@ ppInfix d i =
 
 ppUId :: PDetail -> UId -> IText
 ppUId PDDebug i = ppId  PDDebug (toId i)~.text("#"++(show $ getUIdNo i))
-ppUId d i 
-    | isInternalUId i = pPrint d 0 i 
+ppUId d i
+    | isInternalUId i = pPrint d 0 i
     | otherwise = ppId d (toId i)
 
 pprUId :: UId -> String

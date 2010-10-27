@@ -46,7 +46,7 @@ starling f g x = f x (g x)
 ----------------------------------------------------------------------
 
 agda1Lexer :: Bool -> FilePath -> String -> [Token]
-agda1Lexer alfa file = lexStart alfa file preStrTable 
+agda1Lexer alfa file = lexStart alfa file preStrTable
 
 agda1Parser :: Bool -> [Token] -> Error ([CLetDef],StrTable)
 agda1Parser True  = New.finalP New.pLetDefs
@@ -94,7 +94,7 @@ elimLamCExpr ce = case ce of
   CApply f args   -> CApply (elimLamCExpr f) [(b,elimLamCExpr e) | (b,e) <- args]
   _               -> ce
 
--- eliminate top level case 
+-- eliminate top level case
 
 elimTopCase :: CLetDef -> [CLetDef]
 elimTopCase = (:[])                       -- do nothing
@@ -111,7 +111,7 @@ substdfn i new _    ldf = substLetDef i new ldf
 substLetDef :: Id -> CExpr -> CLetDef -> (Bool,CLetDef)
 substLetDef i new ld = case ld of
   CSimple d  -> case substcdef i new d of
-		  (b,d') -> (b,CSimple d')    
+		  (b,d') -> (b,CSimple d')
   CMutual ds -> case unzip $ map (substcdef i new) ds of
                   (bs,ds') -> if or bs then (True,CMutual ds) else (False,CMutual ds')
   _          -> (False,ld)
@@ -130,7 +130,7 @@ substcdefn i new cdefn = case cdefn of
 
 substcclause :: Id -> CExpr -> CClause -> CClause
 substcclause i new (CClause bcps cexpr)
- = if elem i (concatMap (exid . snd) bcps) 
+ = if elem i (concatMap (exid . snd) bcps)
       then CClause bcps cexpr
       else CClause bcps (substcexpr i new cexpr)
    where exid (CPCon i cpats) = i : concatMap exid cpats
@@ -140,7 +140,7 @@ substcclause i new (CClause bcps cexpr)
 substcexpr :: Id -> CExpr -> CExpr -> CExpr
 substcexpr i new ce = case ce of
   CVar x | i == x  -> new
-  Clam b@(_,CBind is _) e 
+  Clam b@(_,CBind is _) e
     | notElem i is -> Clam b (substcexpr i new e)
   Clet dfs e       -> case mapAccumL (substdfn i new) False dfs  of
                         (True, dfs') -> Clet dfs' e
@@ -169,7 +169,7 @@ t2sCDef cdef = case cdef of
   _                -> cdef
 
 t2sCDefn :: CDefn -> CDefn
-t2sCDefn cdefn = case cdefn of 
+t2sCDefn cdefn = case cdefn of
   CValueT i args ctype cexpr -> CValueS i args ctype (CClause cpats $ t2sCExpr cexpr)
                                   where cpats = concatMap carg2bcpat args
                                         carg2bcpat (CArg bis _) = map f bis
@@ -221,7 +221,7 @@ transCLetDef cletdef = case cletdef of
   CSimple cdef  -> transCDef cdef
   CMutual cdefs -> [Mutual noRange (concatMap transCDef cdefs)]
   CLetDefComment cs
-    | not ("--#include" `isPrefixOf` cs) 
+    | not ("--#include" `isPrefixOf` cs)
                 -> commentDecls cs
     | otherwise -> maybe []
                      (\ md -> [Import noRange
@@ -230,8 +230,8 @@ transCLetDef cletdef = case cletdef of
 			              DontOpen
  				      (ImportDirective noRange (Hiding []) [] False) ])
                      mdlname
-   where 
-     trim str = case break ('\"'==) str of 
+   where
+     trim str = case break ('\"'==) str of
                     (_,[])   -> Nothing
                     (_,_:xs) -> Just xs
      mdlname = trim cs >>= trim . reverse >>= return . takeWhile ('.'/=) . reverse . takeWhile ('/'/=)
@@ -254,25 +254,25 @@ transCDefn cdefn = case cdefn of
     -> case cexpr of
          CProduct pos csigs
            -> case ctype of
-                CUniv carg e 
-                  -> [Record noRange name 
-                             (carg2telescope carg) 
-                             (transCExpr e) 
+                CUniv carg e
+                  -> [Record noRange name
+                             (carg2telescope carg)
+                             (transCExpr e)
                              (concatMap csig2fields csigs)]
-                CStar _ 0 _  
+                CStar _ 0 _
                   -> [Record noRange name [] (Set noRange) (concatMap csig2fields csigs)]
-                CStar _ n _  
+                CStar _ n _
                   -> [Record noRange name [] (SetN noRange $ fromIntegral n) (concatMap csig2fields csigs)]
                 _ -> errorDecls $ pp "" cdefn
          CRecord cprops pos cletdefs
-           -> ctype2typesig flg i [] ctype 
+           -> ctype2typesig flg i [] ctype
            :  [FunClause (LHS (RawAppP noRange (op : pats)) [] [] [])
                          (RHS (Rec noRange $ map decls2namexpr decls))
                          (localdefs undefined)]
-               where 
+               where
                  decls = map transCLetDef cletdefs
                  op  = IdentP $ str2qname $ getIdString i
-	         pats = ctype2pats ctype 
+	         pats = ctype2pats ctype
          _ -> ctype2typesig flg i [] ctype : cclause2funclauses i flg cclause
        where flg = isInfixOp i
              name = if flg then id2infixName i else id2name i
@@ -286,7 +286,7 @@ transCDefn cdefn = case cdefn of
   Cdata i args mctype csums
     -> [Data noRange Inductive n tls t (map (csummand2constructor ot) csums)]
        where
-        t = maybe (Set noRange) transCExpr mctype 
+        t = maybe (Set noRange) transCExpr mctype
         tls = concatMap carg2telescope args
         n = id2name i
         ot = foldl (\ f (TypedBindings _ _ [TBind _ [BName x _] _]) -> RawApp noRange [f, Ident (QName x)]) (Ident (QName n)) tls
@@ -313,7 +313,7 @@ transCDefn cdefn = case cdefn of
     -> errorDecls $ pp "" cdefn
   CPackage i args pkgbody
     -> case pkgbody of
-         CPackageDef [] _ cletdefs 
+         CPackageDef [] _ cletdefs
            -> [Module noRange (QName (id2name i)) (concatMap carg2telescope args)
 	       (concatMap transCLetDef cletdefs)]
          _ -> errorDecls $ pp "" cdefn
@@ -333,10 +333,10 @@ transCDefn cdefn = case cdefn of
 
 cletdef2bind :: CLetDef -> Maybe (Name,Expr)
 cletdef2bind cletdef = case cletdef of
-  CSimple cdef 
+  CSimple cdef
     -> case [ (lhs,rhs) | FunClause lhs rhs ld <- transCDef cdef ] of
          (LHS p _ _ _,RHS e):_
-           -> case p of 
+           -> case p of
                 IdentP    qn            -> Just (qn2n qn, e)
                 RawAppP _ (IdentP qn:_) -> Just (qn2n qn, e)
                 _ -> Nothing
@@ -354,7 +354,7 @@ ctype2pats _ = []
 
 ctype2typesig :: InfixP -> Id -> CArgs -> CType -> Declaration
 ctype2typesig flg i args ctype
-  | flg = TypeSig (id2infixName i) ys   
+  | flg = TypeSig (id2infixName i) ys
   | otherwise = TypeSig (id2name i) ys
   where xs = concatMap (\ (CArg bns ct) -> bns) args
         ys = foldr (\ (b,i) e -> Fun noRange ((if b then HiddenArg noRange . unnamed else id) (Ident $ QName $ id2name i)) e)
@@ -401,7 +401,7 @@ paren e = case e of
  _             -> e
 
 copenargs2importdirective :: [COArg] -> ImportDirective
-copenargs2importdirective coargs 
+copenargs2importdirective coargs
  = case unzip $ map coarg2urm coargs of
      (ns, rns) -> ImportDirective noRange (Using (map ImportedName (catMaybes ns)))
                                              (map mkRenaming $ catMaybes rns) False
@@ -419,11 +419,11 @@ transCExpr ce = case ce of
   CVar i      -> Ident (QName (id2name i))
   CStar _ 0 _ -> Set noRange
   CStar _ n _ -> SetN noRange (fromIntegral n)
-  Clam (flg,CBind [x] Nothing) e 
+  Clam (flg,CBind [x] Nothing) e
               -> Lam noRange [DomainFree (bool2hiding flg) (mkBoundName_ $ id2name x)] (transCExpr e)
   Clam (flg,CBind xs (Just t)) e
-              -> Lam noRange 
-                     [DomainFull (TypedBindings 
+              -> Lam noRange
+                     [DomainFull (TypedBindings
                                     noRange
                                     (bool2hiding flg)
                                     [TBind noRange (map (mkBoundName_ . id2name) xs) (transCExpr t)]
@@ -433,7 +433,7 @@ transCExpr ce = case ce of
   Clam _ _    -> error $ "transCExpr: Never!! "++pp' ce
   CUniv a e   -> case a of
 		   CArg bis ctype
-                     -> foldr (\ (b,i) expr 
+                     -> foldr (\ (b,i) expr
                                -> Pi [TypedBindings noRange
                                                     (bool2hiding b)
                                                     [TBind noRange
@@ -441,7 +441,7 @@ transCExpr ce = case ce of
                                                            (transCExpr ctype)]
                                      ]
                                      expr)
-                              (transCExpr e) bis 
+                              (transCExpr e) bis
   CArrow flg ce1 ce2
               -> Fun noRange (parenExpr (transCExpr ce1)) (transCExpr ce2)
   Clet defs cexpr
@@ -458,12 +458,12 @@ transCExpr ce = case ce of
               -> errorExpr $ pp' ce
   CApply f args
               -> case f of
-                   CVar i | isSym (head (getIdString i)) 
+                   CVar i | isSym (head (getIdString i))
                      -> transCExpr
                      $  CApply (CBinOp (snd $ head args) i (snd $ head $ tail  args))
                                [(flg,t2sCExpr e) | (flg,e) <- tail (tail args)]
                    _        -> foldl (\ e (flg,cexpr)
-                                      -> App noRange 
+                                      -> App noRange
                                              e
                                              (Arg { argHiding = bool2hiding flg
                                                   , unArg = unnamed (parenExpr (transCExpr cexpr)) }))
@@ -472,7 +472,7 @@ transCExpr ce = case ce of
   CBinOp o1 b o2
     | isSym (head (getIdString b))
               -> OpApp noRange (id2infixName b) (map (parenExpr . transCExpr) [o1,o2])
-    | otherwise 
+    | otherwise
               -> transCExpr (CApply (CVar b) [(False,o1),(False,o2)])
   CMeta _ _ _ _
               -> QuestionMark noRange Nothing
@@ -528,7 +528,7 @@ pp s = if debugFlg then (++ (" (D-> "++s++" <-D) ")) . ppAll else ppAll
 pp' = starling (flip pp) show
 
 errorDecls :: String -> [Declaration]
-errorDecls msg 
+errorDecls msg
  = [TypeSig (str2name "{- translation error! ") (errorExpr' msg)]
 
 errorExpr :: String -> Expr
@@ -578,19 +578,19 @@ cclause2funclauses
  :: Id -> InfixP -> CClause -> [Declaration]
 cclause2funclauses i flg (CClause cpats expr)
  = case expr of
-     Ccase _ _ 
+     Ccase _ _
        -> liftCcase i flg cpats expr
      _ | flg
        -> [FunClause (LHS (RawAppP noRange (intersperse op pats)) [] [] [])
 		     (RHS (transCExpr expr))
                      (localdefs expr)]
-     _ | otherwise 
+     _ | otherwise
        -> [FunClause (LHS (RawAppP noRange (op : pats)) [] [] [])
 	             (RHS (transCExpr expr))
 		     (localdefs expr)]
   where twoargs = 2 == length cpats
         op  = IdentP $ str2qname $ getIdString i
-        pats = map (parenPattern . 
+        pats = map (parenPattern .
                     (\(b, p) -> if b == Hidden
                                   then HiddenP noRange $ unnamed p
                                   else p)) (map cpat2pat cpats)
@@ -650,7 +650,7 @@ cpat2cexpr (CPVar (CPatId i )) = CVar i
 
 cpat2pattern :: CPat -> Int -> [(Bool,CPat)] -> [Pattern]
 cpat2pattern pat i cpats
- = map (\(b, p) -> if b == Hidden 
+ = map (\(b, p) -> if b == Hidden
                       then HiddenP noRange $ unnamed p
                       else p) $ map cpat2pat $ exchcpat pat i cpats
 
@@ -664,9 +664,9 @@ cpat2pat (flg,CPVar (CPatT i _))
  = (bool2hiding flg,IdentP (QName (id2name i)))
 cpat2pat (flg,CPCon i pats)
  = (h
-   , parenPattern 
+   , parenPattern
    $ foldl (\ p a -> RawAppP noRange [p, (snd $ cpat2pat (flg, a))])
-           (IdentP (QName (id2name i))) 
+           (IdentP (QName (id2name i)))
            pats
    )
    where h = bool2hiding flg

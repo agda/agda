@@ -31,7 +31,7 @@ newtype AgdaPkg opt a
 
 instance Applicative (AgdaPkg opt) where
   pure  = return
-  (<*>) = ap 
+  (<*>) = ap
 
 asksM :: (MonadReader r m) => (r -> m a) -> m a
 asksM = join . asks

@@ -34,7 +34,7 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | Find the clause whose right hand side is the given meta 
+-- | Find the clause whose right hand side is the given meta
 -- BY SEARCHING THE WHOLE SIGNATURE. Returns
 -- the original clause, before record patterns have been translated
 -- away. Raises an error if there is no matching clause.
@@ -42,7 +42,7 @@ import Agda.Utils.Impossible
 -- Andreas, 2010-09-21: This looks like a SUPER UGLY HACK to me. You are
 -- walking through the WHOLE signature to find an information you have
 -- thrown away earlier.  (shutter with disgust).
--- This code fails for record rhs because they have been eta-expanded, 
+-- This code fails for record rhs because they have been eta-expanded,
 -- so the MVar is gone.
 findClause :: MetaId -> TCM (QName, Clause)
 findClause m = do
@@ -58,8 +58,8 @@ findClause m = do
       reportSDoc "interaction.case" 10 $ vcat $
         [ text "Interaction.MakeCase.findClause fails"
         , text "expected rhs to be meta var" <+> (text $ show m)
-        , text "but could not find it in the signature" 
-        ] 
+        , text "but could not find it in the signature"
+        ]
       reportSDoc "interaction.case" 20 $ vcat $ map (text . show) (Map.elems $ sigDefinitions sig)  -- you asked for it!
       typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
     [r] -> return r
@@ -144,11 +144,10 @@ makeAbstractClause f cl = do
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do
   (v, _) <- -- Andreas, 2010-09-21 allow splitting on irrelevant (record) vars
-            Context.wakeIrrelevantVars $ 
+            Context.wakeIrrelevantVars $
               inferExpr e
   case v of
     Var n _ -> return n
     _       -> typeError . GenericError . show =<< (fsep $
                 pwords "The scrutinee of a case distinction must be a variable,"
                 ++ [ prettyTCM v ] ++ pwords "isn't.")
-

@@ -546,7 +546,7 @@ checkLeftHandSide c ps a ret = do
 {-          -- Andreas, 2010-09-09
             -- temporary error message to find non-id perms
             let sorted (Perm _ xs) = xs == List.sort xs
-            unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm 
+            unless (sorted (perm)) $ typeError $ GenericError $ "detected proper permutation " ++ show perm
 -}
             -- Compute the new dot pattern instantiations
             let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)

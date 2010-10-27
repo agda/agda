@@ -157,4 +157,3 @@ sig "T" = Expl phi defT modT
     noMod x m = error $ "no module " ++ x ++ " in " ++ show m
 
 -- vim: sts=2 sw=2
-

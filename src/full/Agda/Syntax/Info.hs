@@ -172,4 +172,3 @@ instance HasRange PatInfo where
 instance KillRange PatInfo where
   killRange (PatRange r)    = PatRange $ killRange r
   killRange (PatSource r f) = PatSource (killRange r) f
-

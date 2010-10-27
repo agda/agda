@@ -7,7 +7,7 @@ import FString
 import Data.Char
 import AgdaTrace
 
-data LexItem = 
+data LexItem =
           L_varid FString
         | L_modid FString
         | L_varsym FString
@@ -28,33 +28,33 @@ data LexItem =
         | L_rsquare
         -- reserved words
 
-        | L_abstract | L_axiom 
-        | L_case | L_class  | L_concrete | L_data 
-         | L_do 
+        | L_abstract | L_axiom
+        | L_case | L_class  | L_concrete | L_data
+         | L_do
         | L_else
         | L_exports | L_extends | L_external
-        
-        | L_icase  | L_idata 
-        | L_if   
-        | L_in 
+
+        | L_icase  | L_idata
+        | L_if
+        | L_in
         | L_instance  | L_interface
-        | L_native | L_let | L_module 
-        | L_mutual 
-        | L_newtype 
-        | L_of | L_open  | L_over 
+        | L_native | L_let | L_module
+        | L_mutual
+        | L_newtype
+        | L_of | L_open  | L_over
         | L_package | L_private
         | L_public | L_Set | L_sig | L_struct
-        | L_then | L_Type | L_type | L_use 
-        | L_where 
+        | L_then | L_Type | L_type | L_use
+        | L_where
         -- reserved ops
         | L_dcolon | L_eq | L_at | L_lam | L_bar | L_excl
         | L_rarrow | L_larrow | L_brarrow | L_star | L_dot
-        
+
         -- pseudo items
         | L_eof StrTable
         | L_error ErrMsg
 
-         | L_meta | L_conid FString 
+         | L_meta | L_conid FString
         | L_comment String     -- for alfa
         deriving (Eq,Show)
 
@@ -133,7 +133,7 @@ prLexItem e = error (show e)
 
 
 
- 
+
 data Token = Token Position LexItem deriving (Eq)
 instance Show Token where
   showsPrec _ (Token _ itm) = showString (prLexItem itm)
@@ -156,10 +156,10 @@ lx fl f l c t ('\r':cs)    = lx fl f l (c+1) t cs
 lx fl f l c t ('\t':cs)    = lx fl f l (nextTab (c+1)) t cs
 lx fl f l c t ('\v':cs)    = lx fl f l 0 t cs
 lx fl f l c t ('\f':cs)    = lx fl f l 0 t cs
-lx fl f l c t ('-':'-':cs)      
+lx fl f l c t ('-':'-':cs)
     | fl                   = spanToEOL fl f l c t cs "--"
     | otherwise            = skipToEOL fl f l t cs
-lx fl f l c t ('{':'-':cs)     
+lx fl f l c t ('{':'-':cs)
     | fl                   = spanComm fl (l, c) 1 f l (c+2) t cs "-{"
     | otherwise            = skipComm fl (l, c) 1 f l (c+2) t cs
 lx fl f l c t ('{':'!':cs) = Token (Position f l c) L_meta : skipMeta fl (l, c) 1 f l (c+2) t cs
@@ -175,7 +175,7 @@ lx fl f l c t (']':cs)     = Token (Position f l c) L_rsquare : lx fl f l (c+1) 
 --lx fl f l c t ('-':'>':cs)            = Token (Position f l c) L_rarrow : lx fl f l (c+2) t cs
 lx fl f l c t (':':':':cs) = Token (Position f l c) L_dcolon : lx fl f l (c+2) t cs
 lx fl f l c t  ('?':cs)    = Token (Position f l c) L_meta : lx fl f l (c+1) t cs
-lx fl f l c t ('\'':cs)    = 
+lx fl f l c t ('\'':cs)    =
     case lexLitChar' cs of
         Just (cc, n, '\'':cs) -> Token (Position f l c) (L_char cc) : lx fl f l (c+2+n) t cs
         _ -> lexerr f l c t EBadCharLit
@@ -194,15 +194,15 @@ lx fl f l c t (x:cs) | isDigit x =
     (s', cs') ->
         let s = x:s'
         in  case cs' of
-                '.':cs@(y:_) | isDigit y -> 
+                '.':cs@(y:_) | isDigit y ->
                     let (s'', cs'') = span isDigit cs
                         sf = s++'.':s''
                     in  case cs'' of
-                            e:z:w:cs | (e=='e' || e=='E') && (z=='+' || z=='-') && isDigit w -> 
+                            e:z:w:cs | (e=='e' || e=='E') && (z=='+' || z=='-') && isDigit w ->
                                 let (s''', cs''') = span isDigit cs
                                 in Token (Position f l c) (ldouble (sf++e:z:w:s''')) :
                                    lx fl f l (c+length sf+3+length s''') t cs'''
-                            e:w:cs | (e=='e' || e=='E') && isDigit w -> 
+                            e:w:cs | (e=='e' || e=='E') && isDigit w ->
                                 let (s''', cs''') = span isDigit cs
                                 in Token (Position f l c) (ldouble (sf++e:w:s''')) :
                                    lx fl f l (c+length sf+2+length s''') t cs'''
@@ -231,7 +231,7 @@ lx fl f l c t (x:cs) | isSym x = spanSym [] (c+1) cs
 --              "|->"   -> lxrs L_brarrow
                 "."     -> lxrs L_dot
                 ","     -> lxrs L_comma
-                _       -> 
+                _       ->
                         case hmkFString t s of
                         (t', fs) ->
                             Token p (L_varsym fs) : lx fl f l cn t' cs'
@@ -287,7 +287,7 @@ lx fl f l c t (x:cs) | isAlpha x || x == '_' = spanId [] (c+1) cs
 
 
 
-                _               -> 
+                _               ->
                    case hmkFString t s of
                         (t', fs) ->
                            if modChar `elem` s then
@@ -331,7 +331,7 @@ skipComm fl (ll,cc) n f l c t ""      = lexerr f l c t (EUntermComm (Position ""
 
 spanComm :: Bool -> (Int,Int) -> Int -> String -> Int -> Int -> StrTable -> String -> String -> [Token]
 spanComm fl (ll,cc) 0 f l c t cs s      = let pos = Position f ll cc
-                                          in Token pos (L_comment (reverse s)) : 
+                                          in Token pos (L_comment (reverse s)) :
                                              lx fl f l c t cs
 spanComm fl lc n f l c t ('-':'}':cs) s = spanComm fl lc (n-1) f l (c+2) t cs ('}':'-':s)
 spanComm fl lc n f l c t ('{':'-':cs) s = spanComm fl lc (n+1) f l (c+2) t cs ('-':'{':s)
@@ -362,8 +362,8 @@ skipToEOL fl f l t (_:cs)    = skipToEOL fl f l t cs
 skipToEOL fl f l t ""        = lexerr f l 0 t EMissingNL
 
 spanToEOL :: Bool -> String -> Int -> Int -> StrTable -> String -> String -> [Token]
-spanToEOL fl f l c t ('\n':cs) s = let pos = Position f l c 
-                                   in Token pos (L_comment (reverse s)) : 
+spanToEOL fl f l c t ('\n':cs) s = let pos = Position f l c
+                                   in Token pos (L_comment (reverse s)) :
                                       lx fl f (l+1) 0 t cs
 spanToEOL fl f l c t (c':cs) s   = spanToEOL fl f l c t cs (c':s)
 spanToEOL fl f l c t "" s        = lexerr f l c t EMissingNL
@@ -385,7 +385,7 @@ lexLitChar' (c:s)       = Just (c, 1, s)
 lexLitChar' ""          = Nothing
 
 readN radix s = foldl1 (\n d -> n * radix + d) (map (char2int . toUpper) s)
-  where  
+  where
     char2int :: Char -> Int
     char2int c = let n = (ord c) - (ord '0')
                  in if n < 10

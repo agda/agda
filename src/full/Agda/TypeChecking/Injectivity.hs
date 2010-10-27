@@ -219,4 +219,3 @@ useInjectivity cmp a u v = do
       args <- metaArgs args
       return $ Con c args
     metaPat (LitP l) = return $ Lit l
-

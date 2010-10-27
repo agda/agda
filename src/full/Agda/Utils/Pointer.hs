@@ -22,4 +22,3 @@ updatePtr p f = do
     y <- f x
     store p y
     return y
-

@@ -307,4 +307,3 @@ eval sig e = runHeap (do
 	eval' 0 sig' v
 	decompile nmap v
     )
-

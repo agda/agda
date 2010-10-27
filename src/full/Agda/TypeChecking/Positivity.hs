@@ -432,4 +432,3 @@ computeEdge muts o = do
         -- D: (A B -> C) generates a positive edge B --> A.1
         -- even though the context is negative.
         inArg d i = mkEdge (ArgNode d i) Positive
-

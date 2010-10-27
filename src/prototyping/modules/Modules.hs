@@ -191,7 +191,7 @@ instance Subst t => Subst [t] where
 
 	Top.B (y:N) --> Top.A y zero
     so	Top.B.f	    --> \y -> Top.A.f y zero
-    
+
 	Top.A.f	    --> \y x -> e[Top.A.f y x, x, y]
     and Top.B.f     --> \y -> e[Top.A.f y zero, zero, y]
 
@@ -298,7 +298,7 @@ instance Reduce Term where
       NoDef     -> Def x $ reduce sig vs
       YesDef t  -> reduce sig $ t `apply` vs
   reduce sig (Var x vs) = Var x $ reduce sig vs
-  reduce sig (Lam t)	= Lam t 
+  reduce sig (Lam t)	= Lam t
 
 instance Reduce Def where
   reduce sig NoDef	= NoDef
@@ -551,4 +551,3 @@ showT ctx t =
     app s ts = "(" ++ unwords (s : List.map (showT ctx) ts) ++ ")"
 
 -- vim: sts=2 sw=2
-

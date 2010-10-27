@@ -4,13 +4,13 @@
 -- Module      :  Text.ParserCombinators.ReadP
 -- Copyright   :  (c) The University of Glasgow 2002
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  non-portable (local universal quantification)
 --
 -- This is a library of parser combinators, originally written by Koen Claessen.
--- It parses all alternatives in parallel, so it never keeps hold of 
+-- It parses all alternatives in parallel, so it never keeps hold of
 -- the beginning of the input string, a common source of space leaks with
 -- other parsers.  The '(+++)' choice combinator is genuinely commutative;
 -- it makes no difference which branch is \"shorter\".
@@ -18,10 +18,10 @@
 -----------------------------------------------------------------------------
 
 module ReadP
-  ( 
+  (
   -- * The 'ReadP' type
   ReadP,      -- :: * -> *; instance Functor, Monad, MonadPlus
-  
+
   -- * Primitive operations
   get,        -- :: ReadP Char
   look,       -- :: ReadP String
@@ -99,7 +99,7 @@ instance MonadPlus (P t) where
 
   -- most common case: two gets are combined
   Get f1     `mplus` Get f2     = Get (\c -> f1 c `mplus` f2 c)
-  
+
   -- results are delivered as soon as possible
   Result x p `mplus` q          = Result x (p `mplus` q)
   p          `mplus` Result x q = Result x (p `mplus` q)
@@ -203,9 +203,9 @@ gather :: ReadP t a -> ReadP t ([t], a)
 -- ^ Transforms a parser into one that does the same, but
 --   in addition returns the exact characters read.
 --   IMPORTANT NOTE: 'gather' gives a runtime error if its first argument
---   is built using any occurrences of readS_to_P. 
+--   is built using any occurrences of readS_to_P.
 gather (R m) =
-  R (\k -> gath id (m (\a -> return (\s -> k (s,a)))))  
+  R (\k -> gath id (m (\a -> return (\s -> k (s,a)))))
  where
   gath l (Get f)      = Get (\c -> gath (l.(c:)) (f c))
   gath l Fail         = Fail
@@ -445,7 +445,7 @@ Here follow the properties:
 >    xs +<+ _  = xs
 >
 >  prop_Gather s =
->    forAll readPWithoutReadS $ \p -> 
+>    forAll readPWithoutReadS $ \p ->
 >      readP_to_S (gather p) s =~
 >	 [ ((pre,x::Int),s')
 >	 | (x,s') <- readP_to_S p s

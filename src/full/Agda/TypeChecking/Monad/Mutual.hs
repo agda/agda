@@ -61,4 +61,3 @@ findMutualBlock f = do
   case filter (Set.member f) bs of
     []    -> fail $ "No mutual block for " ++ show f
     b : _ -> return b
-

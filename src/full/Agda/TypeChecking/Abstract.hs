@@ -64,4 +64,3 @@ instance (Subst a, AbstractTerm a) => AbstractTerm (Abs a) where
 
 instance (AbstractTerm a, AbstractTerm b) => AbstractTerm (a, b) where
   abstractTerm u (x, y) = (abstractTerm u x, abstractTerm u y)
-

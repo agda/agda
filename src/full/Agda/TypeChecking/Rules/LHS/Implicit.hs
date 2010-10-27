@@ -56,4 +56,3 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
       NoInsertNeeded -> return Nothing
 
     implicitP = Arg Hidden Relevant . unnamed . A.ImplicitP . PatRange $ noRange
-

@@ -192,10 +192,10 @@ reduceCon c = do
 
 -- | @checkArguments' exph r args t0 t e k@ tries @checkArguments exph args t0 t@.
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
--- it registers a postponed typechecking problem and returns the resulting new 
+-- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
-checkArguments' :: 
-  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr -> 
+checkArguments' ::
+  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
   (Args -> Type -> Constraints -> TCM Term) -> TCM Term
 checkArguments' exph r args t0 t e k = do
   z <- runErrorT $ checkArguments exph r args t0 t
@@ -691,8 +691,8 @@ checkHeadApplication e t hd args = do
     HeadCon [c] -> do
       (f, t0) <- inferHead hd
       reportSDoc "tc.term.con" 5 $ vcat
-        [ text "checkHeadApplication inferred" <+> 
-          prettyTCM c <+> text ":" <+> prettyTCM t0 
+        [ text "checkHeadApplication inferred" <+>
+          prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
       checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
         TelV eTel eType <- telView t
@@ -703,12 +703,12 @@ checkHeadApplication e t hd args = do
           -- We know that the target type of the constructor (fType)
           -- does not depend on fTel so we can compare fType and eType
           -- first.
-                                         
-          when (size eTel > size fTel) $ 
+
+          when (size eTel > size fTel) $
             compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
           reportSDoc "tc.term.con" 10 $ vcat
-            [ text "checking" <+> 
+            [ text "checking" <+>
               prettyTCM fType <+> text "?<=" <+> prettyTCM eType
             ]
           cs1 <- addCtxTel eTel $ leqType fType eType
@@ -915,4 +915,3 @@ checkLetBinding (A.LetApply i x tel m args rd rm) ret = do
   withAnonymousModule x new ret
 -- LetOpen is only used for highlighting and has no semantics
 checkLetBinding A.LetOpen{} ret = ret
-

@@ -161,7 +161,7 @@ whnf sig v = case v of
     Var n vs	   -> Var n vs
     Con c vs	   -> Con c vs
     Def c vs	   -> iota sig c vs
-    Lam u (v : vs) -> whnf sig (subst (top v) u `apps` vs) 
+    Lam u (v : vs) -> whnf sig (subst (top v) u `apps` vs)
     Lam u []	   -> Lam u []
 
 eval' :: Sig -> Exp -> Exp
@@ -173,4 +173,3 @@ eval' sig v = case whnf sig v of
 
 eval :: S.Sig -> S.Exp -> S.Exp
 eval sig e = decompile $ eval' (compile sig) (compile e)
-

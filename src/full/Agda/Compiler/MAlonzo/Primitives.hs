@@ -235,4 +235,3 @@ hasCompiledData _    = return False
 
 
 bltQual' b s = prettyPrint <$> bltQual b s
-

@@ -221,4 +221,3 @@ toAbstract v = case v of
 toAbstractDecl :: Defn -> Decl
 toAbstractDecl (Ax x a)   = Axiom (nameToVarName x) (toAbstract a)
 toAbstractDecl (Df x a v) = Def (nameToVarName x) (toAbstract a) (toAbstract v)
-

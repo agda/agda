@@ -73,4 +73,3 @@ loop file sig = do
     `catch` \err -> do
 	print err
 	loop file sig
-

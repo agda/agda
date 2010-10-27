@@ -17,4 +17,3 @@ tick x = modify $ \s ->
 
 getStatistics :: TCM Statistics
 getStatistics = gets stStatistics
-

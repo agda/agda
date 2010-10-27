@@ -132,7 +132,7 @@ etaExpandRecord r pars u = do
       -- this is sound because etaExpandRecord is only called during conversion
       -- WARNING: do not use etaExpandRecord to expand MetaVars!!
       let proj (Arg h Irrelevant _) = Arg h Irrelevant DontCare
-          proj (Arg h rel x)        = Arg h rel $ 
+          proj (Arg h rel x)        = Arg h rel $
             Def x $ map hide pars ++ [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r

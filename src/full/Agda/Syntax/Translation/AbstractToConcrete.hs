@@ -797,4 +797,3 @@ recoverOpApp bracket opApp view e mdefault = case view e of
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
       $ return $ opApp (getRange cn) cn es
-

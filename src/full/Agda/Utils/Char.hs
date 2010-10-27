@@ -12,4 +12,3 @@ hexDigit c | isDigit c	= decDigit c
 
 octDigit :: Char -> Int
 octDigit = decDigit
-

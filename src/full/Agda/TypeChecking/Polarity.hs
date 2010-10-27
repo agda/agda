@@ -163,4 +163,3 @@ instance HasPolarity Term where
     Sort _     -> return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
     DontCare   -> return []
-

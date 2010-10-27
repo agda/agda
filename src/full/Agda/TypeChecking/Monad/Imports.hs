@@ -89,4 +89,3 @@ checkForImportCycle = do
     m:ms <- getImportPath
     when (m `elem` ms) $ typeError $ CyclicModuleDependency
 				   $ dropWhile (/= m) $ reverse (m:ms)
-

@@ -18,14 +18,14 @@ instance Show Permutation where
           showList :: String -> (a -> String) -> [a] -> String
           showList sep f [] = ""
           showList sep f [e] = f e
-          showList sep f (e:es) = f e ++ sep ++ showList sep f es 
+          showList sep f (e:es) = f e ++ sep ++ showList sep f es
 
 instance Sized Permutation where
   size (Perm _ xs) = size xs
 
 -- | @permute [2,3,1] [x1,x2,x3] = [x2,x3,x1]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
---   from @list@ by picking the elements of list as indicated by @indices@. 
+--   from @list@ by picking the elements of list as indicated by @indices@.
 --   @permute [2,4,1] [x1,x2,x3,x4] = [x2,x4,x1]@
 permute :: Permutation -> [a] -> [a]
 permute (Perm _ is) xs = map (xs !!!) is
@@ -102,4 +102,3 @@ topoSort parent xs = fmap (Perm (size xs)) $ topo g
       where
 	xs = [ x | (x, []) <- g ]
 	remove x g = [ (y, filter (/= x) ys) | (y, ys) <- g, x /= y ]
-

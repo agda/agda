@@ -40,4 +40,3 @@ binop fix bin op atom = (atom >>- (:[])) `into` opsO []
             f@(FInfixl i) -> (i, f)
             f@(FInfixr i) -> (i, f)
             f@(FInfix  i) -> (i, f)
-

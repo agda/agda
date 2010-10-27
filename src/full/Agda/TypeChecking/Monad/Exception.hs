@@ -61,4 +61,3 @@ instance (Error err, MonadIO m) => MonadIO (ExceptionT err m) where
 
 instance (Error err, MonadTCM tcm) => MonadTCM (ExceptionT err tcm) where
   liftTCM m = ExceptionT $ Right `liftM` liftTCM m
-

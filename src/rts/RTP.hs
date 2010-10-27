@@ -29,10 +29,10 @@ _primShowBool True = "True"
 _primShowInteger :: Prelude.Integer -> Prelude.String
 _primShowInteger = Prelude.show
 
-_primIntZero :: Prelude.Integer 
+_primIntZero :: Prelude.Integer
 _primIntZero = (0::Prelude.Integer)
 
-_primIntOne :: Prelude.Integer 
+_primIntOne :: Prelude.Integer
 _primIntOne = (1::Prelude.Integer)
 
 _primIntAdd :: Prelude.Integer -> Prelude.Integer -> Prelude.Integer
@@ -114,4 +114,3 @@ zero = Zero
 suc = Suc
 one = suc zero
 two = suc one
-

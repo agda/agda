@@ -35,11 +35,11 @@ import Agda.Utils.Impossible
 data HoleName = LambdaHole String String -- ^ (\x -> y) ; 1st argument is the bound name (unused for now)
               | ExprHole String          -- ^ simple named hole
 
--- | Target of a hole  
+-- | Target of a hole
 holeName (LambdaHole _ n) = n
 holeName (ExprHole n) = n
 
-type Notation = [GenPart] 
+type Notation = [GenPart]
 
 -- | Part of a Notation
 data GenPart = BindHole Int  -- ^ Argument is the position of the hole (with binding) where the binding should occur.
@@ -72,8 +72,8 @@ mkNotation holes ids = do
   when (not (isExprLinear xs)) $ fail "syntax must use holes exactly once"
   when (not (isLambdaLinear xs)) $ fail "syntax must use binding holes exactly once"
   return xs
-    where mkPart ident = 
-             case (findIndices (\x -> ident == holeName x) holes, 
+    where mkPart ident =
+             case (findIndices (\x -> ident == holeName x) holes,
                    findIndices (\x -> case x of LambdaHole ident' _ -> ident == ident';_ -> False) holes)  of
                            ([],[x])   -> return $ BindHole x
                            ([x], [])  -> return $ NormalHole x
@@ -93,5 +93,3 @@ mkNotation holes ids = do
 -- | No notation by default
 defaultNotation = []
 noNotation = []
-
-

@@ -21,4 +21,3 @@ withFresh :: (HasFresh i e, MonadReader e m) => (i -> m a) -> m a
 withFresh ret =
     do	(i,e) <- asks nextFresh
 	local (const e) $ ret i
-

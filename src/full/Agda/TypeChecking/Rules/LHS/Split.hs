@@ -137,5 +137,3 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel)
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
-
-

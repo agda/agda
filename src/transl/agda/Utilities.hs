@@ -5,7 +5,7 @@ import PPrint
 import Error --(prEMsg)
 import Control.Monad
 import Monads
-import Data.Maybe 
+import Data.Maybe
 
 infixr 9 `oM`
 infixl 2 `phandle`
@@ -60,17 +60,17 @@ build f _ xs = foldr1 f xs
 build2 :: (a -> a -> a) -> a -> (b,[a]) -> (b,a)
 build2 f u (c,xs) = (c,build f u xs)
 
- 
+
 mapAccumLM :: Monad m => (a -> b -> m (a,c)) -> a -> [b] -> m (a,[c])
 mapAccumLM f s [] = return (s,[])
-mapAccumLM f s (x:xs) = do 
+mapAccumLM f s (x:xs) = do
         (s',y) <- f s x
         (s'',ys) <- mapAccumLM f s' xs
         return (s'',y:ys)
 
 mapAccumRM :: Monad m => (a -> b -> m (a,c)) -> a -> [b] -> m (a,[c])
 mapAccumRM f s [] = return (s,[])
-mapAccumRM f s (x:xs) = do 
+mapAccumRM f s (x:xs) = do
         (s',ys) <- mapAccumLM f s xs
         (s'',y) <- f s' x
         return (s'',y:ys)
@@ -107,7 +107,7 @@ liftMaybePair (Just a,Just b) = Just (a,b)
 oM:: Monad m => (b -> m c) -> (a -> m b) -> a -> m c
 f `oM` g = \ a -> f =<< (g a)
 
-tM:: Monad m => (a, m b)-> m (a, b) 
+tM:: Monad m => (a, m b)-> m (a, b)
 tM (a,x) = (return . (,) a) =<< x
 
 --

@@ -84,4 +84,3 @@ listPkgs = do
           where
             pkgInfoName    = Cabal.pkgName    . Cabal.sourcePackageId
             pkgInfoVersion = Cabal.pkgVersion . Cabal.sourcePackageId
-

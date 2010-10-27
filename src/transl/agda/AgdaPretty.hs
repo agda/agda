@@ -42,7 +42,7 @@ d1 ^. d2 = \ (v,w,m,m') -> d1 (True,w,m,m') ++ d2 (True,w,m,0)
 
 separate :: [IText] -> IText
 separate [] _ = [""]
-separate ds c@(v,w,m,m') = 
+separate ds c@(v,w,m,m') =
         let hor = joinText (text " ") ds
             ver = foldr1 (^.) ds
             t = hor c
@@ -52,7 +52,7 @@ separate ds c@(v,w,m,m') =
 
 nseparate :: [IText] -> IText
 nseparate [] _ = [""]
-nseparate ds c@(v,w,m,m') = 
+nseparate ds c@(v,w,m,m') =
         let hor = joinText (text "") ds
             ver = foldr1 (^.) ds
             t   = hor c
@@ -64,7 +64,7 @@ nseparate ds c@(v,w,m,m') =
 -- Inefficient!
 cseparate :: [IText] -> IText
 cseparate [] _            = [""]
-cseparate ds c@(v,w,m,m') = 
+cseparate ds c@(v,w,m,m') =
         let csep r a []     = r ++ adda a
             csep r a (d:ds) =
                 let t = joinText (text " ") (a ++ [d]) c
@@ -88,10 +88,10 @@ lengthLe (_:_)  0 = False
 lengthLe (_:xs) n = lengthLe xs (n-1)
 
 nest :: Int -> IText -> IText
-nest n d (v,w,m,m') = 
+nest n d (v,w,m,m') =
         if v then
-            map (space n++) (d (v,w-n,m,if m'==0 then 0 else m'+n)) 
-        else 
+            map (space n++) (d (v,w-n,m,if m'==0 then 0 else m'+n))
+        else
             d (v,w,m,m')
 
 pretty :: Int->Int->IText->String

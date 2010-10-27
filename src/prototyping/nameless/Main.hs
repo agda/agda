@@ -38,4 +38,3 @@ main = do
   case args of
     [file]  -> goFile file
     _       -> putStrLn "File argument missing."
-

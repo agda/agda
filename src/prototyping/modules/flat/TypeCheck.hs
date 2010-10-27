@@ -22,7 +22,7 @@ import Debug
 import Utils
 
 data TCState = TCState
-	{ sections  :: Map A.ModuleName Tel 
+	{ sections  :: Map A.ModuleName Tel
 	, functions :: Map Name Defn
 	}
 
@@ -257,4 +257,3 @@ checkType e = case e of
     A.App e1 e2 -> App <$> checkType e1 <*> checkType e2
     A.Lam x e	-> Lam . Abs x <$> extendContext x Set (checkType e)
     _		-> fail $ "not a term: " ++ show e
-

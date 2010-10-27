@@ -305,7 +305,7 @@ HiddenIds
 
 -- A possibly dotted identifier.
 MaybeDottedId :: { Arg Name }
-MaybeDottedId 
+MaybeDottedId
   : '.' Id { Arg NotHidden Irrelevant $2 }
   | Id     { defaultArg $1 }
 
@@ -544,7 +544,7 @@ ForallBindings
 
 -- A non-empty sequence of possibly untyped bindings.
 TypedUntypedBindings1 :: { [LamBinding] }
-TypedUntypedBindings1 
+TypedUntypedBindings1
   : DomainFreeBinding TypedUntypedBindings1 { $1 ++ $2 }
   | TypedBindings TypedUntypedBindings1	    { DomainFull $1 : $2 }
   | DomainFreeBinding                       { $1 }
@@ -715,7 +715,7 @@ TypeSigs : SpaceIds ':' Expr { map (flip (TypeSig Relevant) $3) $1 }
 
 -- Some declaration can include relevance information (axioms, functions)
 RelTypeSig :: { Declaration }
-RelTypeSig 
+RelTypeSig
     : '.' Id ':' Expr   { TypeSig Irrelevant $2 $4 }
     | Id ':' Expr       { TypeSig Relevant $1 $3 }
 
@@ -723,7 +723,7 @@ RelTypeSigs :: { [Declaration] }
 RelTypeSigs : MaybeDottedIds ':' Expr { map (\ (Arg _ rel x) -> TypeSig rel x $3) $1 }
 
 -- A variant of TypeSigs where any sub-sequence of names can be marked
--- as hidden or irrelevant using braces and dots: 
+-- as hidden or irrelevant using braces and dots:
 -- {n1 .n2} n3 .n4 {n5} .{n6 n7} ... : Type.
 ArgTypeSigs :: { [Arg Declaration] }
 ArgTypeSigs : ArgIds ':' Expr { map (fmap (flip (TypeSig Relevant) $3)) $1 }
@@ -790,10 +790,10 @@ Postulate : 'postulate' RelTypeSignatures { Postulate (fuseRange $1 $2) $2 }
 Primitive :: { Declaration }
 Primitive : 'primitive' TypeSignatures	{ Primitive (fuseRange $1 $2) $2 }
 
--- Syntax declaration (To declare eg. mixfix binders) 
+-- Syntax declaration (To declare eg. mixfix binders)
 Syntax :: { Declaration }
 Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
-  case $2 of 
+  case $2 of
     Name _ [_] -> case mkNotation $3 $5 of
       Left err -> parseError $ "malformed syntax declaration: " ++ err
       Right n -> return $ Syntax $2 n
@@ -811,11 +811,11 @@ HoleNames : HoleName { [$1] }
 HoleName :: { HoleName }
 HoleName : SimpleId { ExprHole $1}
          | '(' '\\' SimpleId '->' SimpleId ')' { LambdaHole $3 $5 }
--- Variable name hole to be implemented later. 
+-- Variable name hole to be implemented later.
 
 -- Discard the interval.
 SimpleId :: { String }
-SimpleId : id  { snd $1 } 
+SimpleId : id  { snd $1 }
 
 
 -- Open

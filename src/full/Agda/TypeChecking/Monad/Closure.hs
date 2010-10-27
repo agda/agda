@@ -12,5 +12,3 @@ enterClosure (Closure sig env scope x) k =
     withScope_ scope
     $ withEnv env
     $ k x
-
-

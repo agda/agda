@@ -57,8 +57,8 @@ hypTypeId p = mkId p fsHypTypeVar
 
 hypTypeIdB p = mkId p fsHypTypeVarB
 
-listVarHeadId = mkId noPosition fsListVarHead 
-listVarTailId = mkId noPosition fsListVarTail 
+listVarHeadId = mkId noPosition fsListVarHead
+listVarTailId = mkId noPosition fsListVarTail
 
 monadName = mkId noPosition fsMonadName
 

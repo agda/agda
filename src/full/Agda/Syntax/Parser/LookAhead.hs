@@ -133,4 +133,3 @@ runLookAhead :: (forall b. String -> LookAhead b) -> LookAhead a -> Parser a
 runLookAhead err (LookAhead m) =
     do	inp <- getLexInput
 	evalStateT (runReaderT m (ErrorFun err)) inp
-

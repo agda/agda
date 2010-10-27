@@ -168,4 +168,3 @@ main = do
   `catchImpossible` \e -> do
     LocIO.putStr $ show e
     exitFailure
-

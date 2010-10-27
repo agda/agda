@@ -146,4 +146,3 @@ getOffside loc =
 	return $ case ctx of
 	    Layout n	-> compare (posCol loc) n
 	    _		-> GT
-

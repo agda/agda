@@ -317,7 +317,7 @@ instance KillRange Declaration where
   killRange (Definition i a b         ) = killRange3 Definition i a b
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
   killRange (Apply      i a b c d e f ) = killRange5 Apply      i a b c d e f
-   -- the last two arguments of Apply are name maps, so nothing to kill 
+   -- the last two arguments of Apply are name maps, so nothing to kill
   killRange (Import     i a           ) = killRange2 Import     i a
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a

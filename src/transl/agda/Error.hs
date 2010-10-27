@@ -15,15 +15,15 @@ data PassMsg                          -- errors that will be handled somewhere e
         | ESplitStruct
         | ESplitPackage
         | ESplitFun
-        | ESplitMeta 
+        | ESplitMeta
         | ESplitData
         | ESplitSort
         | ESplitCon
         | ESplitStop
-        | ENoArity 
+        | ENoArity
         | ENotEqual
         | ELookupProj
-        | ENotInSig 
+        | ENotInSig
         | EMissingRecField
         | ENoSolve
         | EImitate
@@ -36,15 +36,15 @@ data PassMsg                          -- errors that will be handled somewhere e
      deriving (Show,Eq)
 
 {-
-data Warning = 
-      WNotTerminate String 
+data Warning =
+      WNotTerminate String
     | WNotPositive String
 -}
-     
-    
- 
 
-data ErrMsg 
+
+
+
+data ErrMsg
         = ESyntax String [String]       -- found token, expected tokens
         | EBadCharLit
         | EBadStringLit
@@ -61,10 +61,10 @@ data ErrMsg
 --      | EFieldNonKind String String
 --      | EConNonKind String String
 --      | EVarNonKind String String
-        | ENotSum String 
+        | ENotSum String
         | ENotSumElem String String
-        | ENotProduct String String 
-        | ENotProductOpen 
+        | ENotProduct String String
+        | ENotProductOpen
  {-20-} | ENotProductElem String String
         | ENotSumCase String String
         | ENotInType String String
@@ -73,7 +73,7 @@ data ErrMsg
         | ETermination String String
 --         | EHide Bool String
 --      | ENoHide String
-        | EOverlap 
+        | EOverlap
         | EBadPatterns String
  {-30-} | EMissingPatArg String
 --         | EExtraPatArg String
@@ -96,7 +96,7 @@ data ErrMsg
         | EUntermMeta Position
 {-50-}        | EUninstantiated String
         | EUnknownConstraint String
-        | EUnknownTactic String 
+        | EUnknownTactic String
         | ESolveNotApp String String
         | ESolveNonTerm Int
         | ECommand String
@@ -109,7 +109,7 @@ data ErrMsg
         | ERefineArity String
         | ERefine Int
         | ENotFun String String
-        | ENotEqualValues String Position String 
+        | ENotEqualValues String Position String
         | EDeclaredNotEqual String String String String
         | ENotEqualConstraints String String
         | ENotSignature String
@@ -117,24 +117,24 @@ data ErrMsg
         | EMissingField String Position
         | ETooManyFields String Position
         | EMisMatchingTypes String String String Position
-        | ENotStruct String 
+        | ENotStruct String
         | ENotSetData
         | ENotTypeSig
         | WNotTerminate String
-        | WNotPositive [String] String 
+        | WNotPositive [String] String
        --  | WUnknownDataPos String
         --  | WMutual [String]
         --  | Warnings [EMsg]
         | EMissingConstrs [String]
         | ENrConstrArgs String Int
-        | EPatternNotConstr 
+        | EPatternNotConstr
         | EPatternNested
         | ENoMeta
         | ENoOpenInMutual
         | EWrongPlace String
-        | ENoFile String 
+        | ENoFile String
         | ENoOpen
-        | EBecause ErrMsg [EMsg] 
+        | EBecause ErrMsg [EMsg]
         | EHiddenArgs
         | ENotClass String
         | EClassTooMany String
@@ -142,7 +142,7 @@ data ErrMsg
         | ENoInstance String String
         | EIfNotBool String
         | ELookupPrelude String
-        | ELastInDo 
+        | ELastInDo
         | ENoSuchPlugin String
         | EPluginError String       -- ^ Error message for plugin
        deriving (Eq)
@@ -157,7 +157,7 @@ instance PPrint ErrMsg where
 
 
 prEMsg (p,m) = let s = prPosition p
-               in if null s 
+               in if null s
                      then prError m
                      else "At: "++s++"\n"++prError m
 -- 1
@@ -185,7 +185,7 @@ prError (EKindError msg e t1 t2 pos) =
        t1++"  which is not contained in\n "++
        t2++
        prPos "  from " pos ++ msg
--- prError (ETypeTermination e t) = 
+-- prError (ETypeTermination e t) =
 --     "Type error: Cannot normalize \n"++t
 -- prError (EFieldNonKind t i) = "Field type illegal: "++ i ++" :: " ++ t
 -- prError (EConNonKind t i) = "Constructor field type illegal: " ++ t
@@ -194,7 +194,7 @@ prError (ENotSum t)           = "Constructor type is not a data: " ++ t
 prError (ENotSumElem i t)     = "Constructor type does not contain constructor: " ++ i ++ " in " ++ t
 prError (ENotProduct t i)     = "Type of selection expression ( ."++i++" ) not a signature: " ++ t
 prError ENotProductOpen       = "Open expression is neither a package nor of signature type"
-prError (ENotProductElem t i) = "Signature\n"++t++"\ndoes not contain selector: " ++ i 
+prError (ENotProductElem t i) = "Signature\n"++t++"\ndoes not contain selector: " ++ i
 prError (ENotSumCase t i)     = "Case inspection on a non-data type: " ++ t
 prError (ENotInType t i)      = "Type does not contain constructor: " ++ i ++ " in " ++ t
 -- prError (ENoSign i) = "Definition must have a (complete) type signature: " ++ i
@@ -231,14 +231,14 @@ prError (ESolveNonTerm n)      = "Solve has not terminated after "++show n++" ca
 prError (ECommand s)           = "Not allowed at this point: "++s
 prError (EInternal msg)        = "good error message not implemented yet: \n"++msg++"\n"
 prError (EPass p)              = "Internal error  : uncaught exception "++show p
-prError (EParseCommand msg ss) = "Command error: found "++ msg++ 
+prError (EParseCommand msg ss) = "Command error: found "++ msg++
                                  if null ss then "" else ", expected "++unwordsOr ss
 prError (ENotType e t)         = "The type of "++e++" is "++t++". The type should be a sort"
 prError (EInLetDef c k msg)    = "Error in the "++k++" of "++c++" because:\n"++msg
-prError (ERefineArity t)       = "Can not refine because the number of arguments needed for: \n"++ t ++ " is unknown" 
+prError (ERefineArity t)       = "Can not refine because the number of arguments needed for: \n"++ t ++ " is unknown"
 prError (ERefine i)            = "Can not refine, eiher it is not type correct or it has more than "++show i++" arguments"
-prError (ENotFun e t)          = "Type error :\n  Expression "++ e ++ 
-                                 "\nis declared to have type \n"++t ++ 
+prError (ENotFun e t)          = "Type error :\n  Expression "++ e ++
+                                 "\nis declared to have type \n"++t ++
                                  "\nwhich is not a function type"
 
 prError (ENotEqualValues s1 pos s2)     = "Expression \n"++ s1++"\nis not equal to\n"++s2++
@@ -263,7 +263,7 @@ prError (WNotPositive strs str)         = "The function"++plural "" str++" "++un
 --prError (Warnings es) = "Warnings:\n" ++ unlines (map prEMsg es)
 prError (EMissingConstrs ss) = "Missing constructors in case: "++ unwordsx "and" ss
 prError (ENrConstrArgs s i) = "Constructor: "++s++" needs "++(show i)++" arguments"
-prError ELastInDo = "an expression must be last in a do-block" 
+prError ELastInDo = "an expression must be last in a do-block"
 
 prError EPatternNotConstr    = "Only constructors are allowed in pattern"
 prError EPatternNested       = "Nested patterns are not allowed"
@@ -284,8 +284,8 @@ prError (ENoSuchPlugin s) = "No such plugin: " ++ s
 prError (EPluginError s) = "Plugin error: " ++ s
 
 prPos :: String -> Position -> String
-prPos str pos = 
-  if pos /= noPosition then str ++ prPosition pos ++ "\n" 
+prPos str pos =
+  if pos /= noPosition then str ++ prPosition pos ++ "\n"
                        else ""
 
 

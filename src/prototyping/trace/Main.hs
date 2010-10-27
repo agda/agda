@@ -22,4 +22,3 @@ action s =
 		Right t ->
 		    putStrLn $ "OK " ++ printTree t
 	Bad err -> putStrLn err
-

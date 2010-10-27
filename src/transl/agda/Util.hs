@@ -52,7 +52,7 @@ findSameEq eq [] = []
 findSameEq eq (x:xs) =
         case partition (eq x) xs of
             ([], ns) -> findSameEq eq ns
-            (es, ns) -> (x:es) : findSameEq eq ns 
+            (es, ns) -> (x:es) : findSameEq eq ns
 
 --mapFst f xys = [(f x, y) | (x,y)<-xys]
 
@@ -95,7 +95,7 @@ breakAt x xs =
 
 mapThd f xyzs = [(x, y, f z) | (x, y, z) <- xyzs]
 
-concatUnzipMap f zs = 
+concatUnzipMap f zs =
         let (xss, yss) = unzip (map f zs)
         in  (concat xss, concat yss)
 

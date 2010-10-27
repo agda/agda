@@ -52,4 +52,3 @@ unSizeView :: MonadTCM tcm => SizeView -> tcm Term
 unSizeView SizeInf       = primSizeInf
 unSizeView (SizeSuc v)   = flip apply [Arg NotHidden Relevant v] <$> primSizeSuc
 unSizeView (OtherSize v) = return v
-

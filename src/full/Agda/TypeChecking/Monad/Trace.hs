@@ -49,4 +49,3 @@ setCurrentRange :: MonadTCM tcm => Range -> tcm a -> tcm a
 setCurrentRange r
   | r == noRange = id
   | otherwise    = traceCall (SetRange r)
-

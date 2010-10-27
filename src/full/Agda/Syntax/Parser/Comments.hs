@@ -78,5 +78,3 @@ skipBlock open close = scan 1
 	    where
 		(==>) = (,)
 		other = ($)
-
-

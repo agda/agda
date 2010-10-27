@@ -207,7 +207,7 @@ displayError (tr, e) = case e of
 	where
 	    f = case matchCall isInferApp tr of
 		    Just f  -> f
-		    Nothing -> error "displayError: can't find function" 
+		    Nothing -> error "displayError: can't find function"
 	    isInferApp (Infer (App f _) Nothing) = Just f
 	    isInferApp _			 = Nothing
 

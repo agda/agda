@@ -65,7 +65,7 @@ isBlockedTerm x = do
 	    InstV{}                        -> False
 	    InstS{}                        -> False
 	    Open{}                         -> False
-    reportSLn "tc.meta.blocked" 12 $ 
+    reportSLn "tc.meta.blocked" 12 $
       if r then "  yes, because " ++ show i else "  no"
     return r
 
@@ -196,10 +196,10 @@ newArgsMetaCtx (El s tm) tel ctx = do
   case funView tm of
       FunV (Arg h r a) _  -> do
 	  arg  <- (Arg h r) <$>
-                   {-  
+                   {-
                      -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                      -- Andreas, 2010-10-11 this is WRONG, see Issue 347
-                    if r == Irrelevant then return DontCare else 
+                    if r == Irrelevant then return DontCare else
                     -}
                      newValueMetaCtx (telePi_ tel a) ctx
 	  args <- newArgsMetaCtx (El s tm `piApply` [arg]) tel ctx
@@ -408,7 +408,7 @@ assignV t x args v =
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
                 pr _          = text ".."
-            in vcat 
+            in vcat
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
                  , text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
                  ]
@@ -593,7 +593,7 @@ validParameters args fvs
     | otherwise	= fail "invalid parameters"
     where
 	vars = [ Arg h r i | Arg h r (Var i []) <- args ]
-        
+
 
 isVar :: Arg Term -> Bool
 isVar (Arg _ _ (Var _ [])) = True
@@ -615,4 +615,3 @@ updateMeta mI t =
 		updV _ _	     = __IMPOSSIBLE__
 
 		updS s = assignS mI args s
-

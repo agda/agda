@@ -198,5 +198,3 @@ gshow' = ( \t ->
          `extQ` (gshow' . M.toList :: M.Map TermHead [Arg Pattern] -> String)
          `extQ` (gshow' . M.toList :: M.Map String (Builtin String) -> String)
          `extQ` (show :: Scope -> String)
-
-

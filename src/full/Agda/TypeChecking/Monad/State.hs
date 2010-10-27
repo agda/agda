@@ -87,4 +87,3 @@ addHaskellImport i =
 -- | Get the Haskell imports.
 getHaskellImports :: MonadTCM tcm => tcm (Set String)
 getHaskellImports = gets stHaskellImports
-

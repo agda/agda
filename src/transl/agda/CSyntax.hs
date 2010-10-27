@@ -1,4 +1,4 @@
-{-| 
+{-|
   Agda abstract syntax which is produced by the parser
 
   The name CSyntax originates from `Cayenne Syntax´, which served as a
@@ -16,7 +16,7 @@ import PluginType(Plugin(..))
 import Data.List (groupBy)
 
 data CProgram
-        = CProgram [CModule]    
+        = CProgram [CModule]
     --  | ErrProgram EMsg
         deriving (Eq, Ord)
 
@@ -27,7 +27,7 @@ data CModule
 
 type Comment = String
 
-data CExpr =   
+data CExpr =
      CVar Id
    | CStar Position Int Int  -- ^ #0 = Set, #1 = Type ... (second Int unused)
    | Clam (Bool,CBind) CExpr
@@ -51,7 +51,7 @@ data CExpr =
    | CPackageType   -- Just for printing
    | CIndSum [CArg] CIndSummands
          --  ^ the telescope over which this is inductive
-   | CExternal (Plugin CExpr ()) 
+   | CExternal (Plugin CExpr ())
    | Cif CExpr CExpr CExpr
    | CLit Position Literal
    | CDo Position [CDoBind]
@@ -68,26 +68,26 @@ cApply e as = CApply e as
 cVar v = CVar v
 
 cLam :: [(Bool,CBind)] -> CExpr -> CExpr
-cLam args e = foldr Clam e args 
+cLam args e = foldr Clam e args
 
 clam :: CArg -> CExpr -> CExpr
-clam (CArg xs (CMeta _ _ vis _)) e |(not (isVisible vis)) 
+clam (CArg xs (CMeta _ _ vis _)) e |(not (isVisible vis))
      = cLam (toCBind xs Nothing) e
-clam (CArg xs a) e = cLam (toCBind xs (Just a)) e 
+clam (CArg xs a) e = cLam (toCBind xs (Just a)) e
 
 toCBind :: [(Bool,Id)] -> Maybe CExpr -> [(Bool,CBind)]
-toCBind bs mt = map trans part 
+toCBind bs mt = map trans part
       where part = groupBy (\p1 -> \p2 -> fst p1 == fst p2) bs
             trans :: [(Bool,Id)] -> (Bool,CBind)
             trans bxs = (fst (head bxs),CBind (map snd bs) mt)
 
 
 cUniv1 :: CArg -> CExpr -> CExpr
-cUniv1 (CArg ((hidden,x):xs) a) b | isDummyId x = 
+cUniv1 (CArg ((hidden,x):xs) a) b | isDummyId x =
     CArrow hidden a (cUniv1 (CArg xs a) b)
-cUniv1 (CArg [] a) b  = b 
+cUniv1 (CArg [] a) b  = b
 cUniv1 cb b = CUniv cb b
- 
+
 cUniv :: [CArg] -> CExpr -> CExpr
 cUniv cb b = foldr cUniv1 b cb
 
@@ -110,15 +110,15 @@ type CCaseArms = [(CPat, CExpr)]
 data CIndSummand = CIndExpl CSummand Id [(Bool,CExpr)]
                                     --  ^ substitution
                  | CIndImpl CSummand [(Bool,CExpr)]
-                                 --  ^ substitution 
+                                 --  ^ substitution
            deriving (Eq,Ord,Show)
 type CIndSummands = [CIndSummand]
 
 
-data CProp 
-        = Cprivate 
-        | Cpublic 
-        | Cabstract 
+data CProp
+        = Cprivate
+        | Cpublic
+        | Cabstract
         | Cconcrete
         deriving (Eq, Ord, Show)
 
@@ -129,7 +129,7 @@ data COArg
         | COArgAsT [CProp] Id CType Id
         deriving (Eq, Ord,Show)
 
- 
+
 type COArgs = [COArg]
 data COpenArgs
         = COpenArgs [COArg]
@@ -162,30 +162,30 @@ data CDefn
         | Ctype Id CArgs CType
         | Cnewtype Id CArgs CType CSummand
         | Cdata Id CArgs (Maybe CType) CSummands
-        | Cidata Id CArgs CType CIndSummands 
+        | Cidata Id CArgs CType CIndSummands
         | CValue Id CExpr
-        | CAxiom Id [CArg] CType 
-        | CNative Id CType 
+        | CAxiom Id [CArg] CType
+        | CNative Id CType
        --  | CPackage Id [CArg] [CProp] Position [CLetDef]
         | CPackage Id [CArg] CPackageBody
         | COpen CExpr COpenArgs
-        | CClass CClassArg Bool [CSign] -- should maybe rather be a CDef? 
+        | CClass CClassArg Bool [CSign] -- should maybe rather be a CDef?
         | CInstance Id [CArg] CInstanceArg [CLetDef]
 
        --  | CDSign Id CType               -- Used only while type checking
          deriving (Eq, Ord,Show)
 
- 
 
 
-data CPackageBody = 
+
+data CPackageBody =
        CPackageDef [CProp] Position [CLetDef]
      | CPackageInstance CExpr
     deriving (Eq, Ord,Show)
-       
 
 
-data CClause 
+
+data CClause
         =   CClause [(Bool,CPat)] CExpr
          deriving (Eq, Ord,Show)
 
@@ -199,7 +199,7 @@ getCPatArgPos (CPatId x) = getIdPosition x
 
 
 data CPat
-        = CPCon Id [CPat]  
+        = CPCon Id [CPat]
         | CPVar CPatArg
 --        | CPAs Id CPat
 --        | CPLit Position Literal
@@ -207,7 +207,7 @@ data CPat
 
 cPatVar :: Id -> CPat
 cPatVar x = CPVar (CPatId x)
- 
+
 getCPatPos :: CPat -> Position
 getCPatPos (CPCon c _) = getIdPosition c
 getCPatPos (CPVar x) = getCPatArgPos x
@@ -236,7 +236,7 @@ data CDoBind
 
 {- moved to Id
 ppId :: PDetail -> Id -> IText
-ppId d i = 
+ppId d i =
     case getIdString i of
     s@(c:_) | isAlpha c || c == '_' -> t s
     s -> t ("("++s++")")
@@ -247,7 +247,7 @@ pprId i = pIText (ppId PDReadable i)
 
 {-
 ppConId :: PDetail -> Id -> IText
-ppConId d i =  
+ppConId d i =
     (case getIdString i of
        s@(c:_) | isAlpha c -> t ('@':s)
        s -> t ('@':("("++s++")")))
@@ -277,7 +277,7 @@ idCDefn (CAxiom c _ _) = Just c
 idCDefn (CNative c _) = Just c
 idCDefn (CPackage c _ _) = Just c
 idCDefn (COpen e as) = Nothing
-idCDefn (CClass (CClassArg c _ _ _) _ _) = Just c 
+idCDefn (CClass (CClassArg c _ _ _) _ _) = Just c
 idCDefn (CInstance c _ _ _) = Just c
 --idCDefn (CNative c _ _) = Just c
 --idCDefn (CDSign c _) = Just c               -- Used only while type checking
@@ -298,9 +298,9 @@ instance Identifiers CLetDef where
    identifiers (CMutual ds) = concatMap identifiers ds
    identifiers _ = []
 
-     
+
 instance Identifiers CDef where
-    identifiers (CDefComment _) = [] 
+    identifiers (CDefComment _) = []
     identifiers (CDef _ d) = identifiers d
 
 
@@ -316,22 +316,22 @@ instance Identifiers CDefn where
     identifiers (CNative c _) = [c]
     identifiers (CPackage c _ _) = [c]
     identifiers (COpen e as) = identifiers as
-    identifiers (CClass (CClassArg c _ _ _) _ _) = [c] 
+    identifiers (CClass (CClassArg c _ _ _) _ _) = [c]
     identifiers (CInstance c _ _ _) = [c]
     identifiers _ = []
 
 
-instance Identifiers COpenArgs where 
+instance Identifiers COpenArgs where
     identifiers (COpenArgs oas) = concatMap identifiers oas
 
 instance Identifiers COArg where
     identifiers (COArgT _ c _) = [c]
-    identifiers (COArg _ c) = [c] 
+    identifiers (COArg _ c) = [c]
     identifiers (COArgAs _ _ c) = [c]
     identifiers (COArgAsT _ _ _ c) = [c]
 
 
-instance Identifiers CSign where 
+instance Identifiers CSign where
     identifiers (CSign is t) = is
     identifiers (CSignDef d) = []
 
@@ -340,14 +340,14 @@ instance Identifiers CIndSummand where
     identifiers (CIndExpl sum _ _) = [fst sum]
     identifiers (CIndImpl sum _) = [fst sum]
 
-instance Identifiers CArg where 
+instance Identifiers CArg where
     identifiers (CArg xs e) = map snd xs
 
 
 addModifiers :: [CProp] -> CDef -> CDef
 addModifiers ps (CDef ps' ds)  = CDef (addMod' ps ps') ds
           where  addMod' [] ps = ps
-                 addMod' (p:ps) ps' = 
+                 addMod' (p:ps) ps' =
                     let ps2 = addMod' ps ps'
                     in if elem p ps2
                         then ps2
@@ -370,7 +370,7 @@ data CJudgement a =  CIsType a
                   | HasType a  CExpr
                   --deriving Show
 
-precCExpr :: CExpr -> Int 
+precCExpr :: CExpr -> Int
 precCExpr (CVar _) = 12
 precCExpr (CStar _ _ _) = 12
 precCExpr (CMeta _ _ _ _) = 12
@@ -395,7 +395,7 @@ type CMetaSubst = (Bool,MetaVar,CExpr)
 
 -- Gives an approx. position
 getCExprPos :: CExpr -> Position
-getCExprPos e = case e of   
+getCExprPos e = case e of
     CVar n -> getIdPosition n
     CStar pos _ _  -> pos
     Clam as e -> getCExprPos e
@@ -408,12 +408,12 @@ getCExprPos e = case e of
     CSelect _ n -> getIdPosition n
     CSum [] -> noPosition
     CSum ((n,_):_) -> getIdPosition n
-    CCCon n _  -> getIdPosition n 
+    CCCon n _  -> getIdPosition n
     CCConS n -> getIdPosition n
     Ccase e _ -> getCExprPos e
     CApply e _ -> getCExprPos e
     CBinOp e1 _ _ -> getCExprPos e1
-    CMeta pos _ _ _ -> pos 
+    CMeta pos _ _ _ -> pos
     CClos _ e -> getCExprPos e
     Ccomment _ _ e -> getCExprPos e
     CPackageType  -> noPosition
@@ -456,7 +456,7 @@ instance Eq CExpr where
    (CLit _ l) == (CLit _ l') = l == l'
    (CDo _ bs) == (CDo _ bs') = bs == bs'
    (CList _ es) == (CList _ es') = es == es'
-  
+
    _ == _ = False
 
 

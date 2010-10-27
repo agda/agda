@@ -122,4 +122,3 @@ freeIn v t = v `Set.member` allVars (freeVars t)
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts v t =
   v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
-

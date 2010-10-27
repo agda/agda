@@ -131,4 +131,3 @@ main = do
               Agda.liftIO $ die $  "unrecognized command "
                                 ++ "`" ++ cmd ++ "'\n"
                                 ++ "See --help for usage info."
-

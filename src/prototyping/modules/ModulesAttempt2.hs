@@ -140,7 +140,7 @@ substMDef tel args (Expl _ f) = Expl tel (Map.map (subst $ reverse args) f)
   the context of the referring module (A.B.C.f returns the definition of f
   valid in the context inside A.B.C). When looking up a definition we want
   something valid in the current context.
-  
+
   First observe that the only time we look up definitions from uninstantiated
   modules is when we are still inside these modules. This means that the
   definition we get will be valid in a subcontext to the current context, so we
@@ -208,7 +208,7 @@ lookupModule = lookupModule0
 
 	Top.B (y:N) --> Top.A y zero
     so	Top.B.f	    --> \y -> Top.A.f y zero
-    
+
 	Top.A.f	    --> \y x -> e[Top.A.f y x, x, y]
     and Top.B.f     --> \y -> e[Top.A.f y zero, zero, y]
 
@@ -352,4 +352,3 @@ showT ctx t =
     app s ts = "(" ++ unwords (s : List.map (showT ctx) ts) ++ ")"
 
 -- vim: sts=2 sw=2
-

@@ -39,29 +39,29 @@ updatesEnv' env xs vs = (env,xs,vs)
 
 addIdEnv :: Environment -> [UId] -> [UId] -> Environment
 addIdEnv env [] _ = env
-addIdEnv env (x:xs) (x':xs') = addIdEnv (updateEnv env x (EVar x' Nothing)) xs xs' 
+addIdEnv env (x:xs) (x':xs') = addIdEnv (updateEnv env x (EVar x' Nothing)) xs xs'
 addIdEnv _   _       _       = error "addIdEnv: "
 
 addHIdEnv :: Environment -> [(Bool,UId)] -> [(Bool,UId)] -> Environment
 addHIdEnv env [] _ = env
-addHIdEnv env ((_,x):xs) ((_,x'):xs') = addHIdEnv (updateEnv env x (EVar x' Nothing)) xs xs' 
+addHIdEnv env ((_,x):xs) ((_,x'):xs') = addHIdEnv (updateEnv env x (EVar x' Nothing)) xs xs'
 addHIdEnv _   _       _       = error "addHIdEnv: "
 
 lookupE :: Env -> UId -> Maybe Value
--- Use lookupEnv for looking up the Value of a variable 
+-- Use lookupEnv for looking up the Value of a variable
 lookupE env x = lookup x env
-              
-           
+
+
 retrieveE :: Environment -> [UId] -> Environment
 retrieveE env xs = env
 
 --retrieveE (E (_,sigma)) []  =  E ([],sigma)
 --retrieveE env (x:xs) = let env' = retrieveE env xs
---                           v = lookupE x env 
+--                           v = lookupE x env
 --                       in updateEnv env' x v
 
 domEnv :: Environment -> [UId]
-domEnv (E (env,_)) = nub $ map fst env 
+domEnv (E (env,_)) = nub $ map fst env
 
 accessible :: Environment -> [UId]
 accessible (E (_,sigma)) = sigma
@@ -112,7 +112,7 @@ emptyTCEnv :: TCEnv
 emptyTCEnv = (emptyC,emptyEnv)
 
 
-addAbsConst :: TCEnv -> UId -> TCEnv 
+addAbsConst :: TCEnv -> UId -> TCEnv
 addAbsConst (gamma,env) c = (gamma,addAccessible env c)
 
 {- still used in (now broken) import -}
@@ -130,7 +130,7 @@ breakTCEnv ce@(g,E(r,sigma)) us = let
   in ((g1,E(r1,s1)),(g2,E(r2,s2)))
 
 addBind::TCEnv -> Bind -> TCEnv
-addBind (g,r) b@(hxs,_) = let (_,xs) = unzip hxs 
+addBind (g,r) b@(hxs,_) = let (_,xs) = unzip hxs
                           in (addDeclC g b, addIdEnv r xs xs)
 
 addBind1 (g,r) x a = (addC g x a, updateEnv r x (EVar x Nothing))
@@ -147,10 +147,8 @@ listEnv (E(env, _)) = env
 
 shrinkEnv:: Environment -> [UId] -> Environment
 shrinkEnv (E (xvs, acs)) xs = E (xvs', acs \\ xs)
-          where xvs' = filter (\(key,_) ->  key `notElem` xs) xvs 
+          where xvs' = filter (\(key,_) ->  key `notElem` xs) xvs
 
 
 rangeEnv :: Environment -> [Value]
 rangeEnv (E(xvs  ,_)) = map snd xvs
-
-

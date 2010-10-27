@@ -310,4 +310,3 @@ notElem x = not . elem x
 -- 'Nothing' if there is no such element.
 find :: Foldable t => (a -> Bool) -> t a -> Maybe a
 find p = listToMaybe . concatMap (\ x -> if p x then [x] else [])
-

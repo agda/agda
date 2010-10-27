@@ -46,8 +46,8 @@ main = do { argv <- getArgs
     newSyntax fs = OldSyntax `notElem` fs
     trans fs cldfs tab = do { return ()                       -- dummy
                          ; let whenDebug = when (Debug `elem` fs) . hPutStrLn stderr
-                         ; whenDebug $ show 
-			 $ let { (t,i)   = freshId' tab [] "add" 
+                         ; whenDebug $ show
+			 $ let { (t,i)   = freshId' tab [] "add"
 			       ; (t',i') = freshId' t [i] "add" }
 			   in freshId' t' [i,i'] "add"
                          ; whenDebug $ show $ cldfs

@@ -87,14 +87,14 @@ localNames = do
         where
             zs = concatMap opOrNot ops
 
-    opOrNot (x, Fixity' fx syn) = Left x 
+    opOrNot (x, Fixity' fx syn) = Left x
                                 :  case x of
                                       Name _ [_] -> []
                                       _ -> [Right (x, fx, syntaxOf x)]
                                 ++ case syn of
                                     [] -> []
                                     _ -> [Right (x, fx, syn)]
-        
+
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
 
@@ -140,10 +140,10 @@ fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
   (True,False) -> Postfix
   (False,True) -> Prefix
   (False,False) -> Nonfix
-  
+
 
 notationNames :: NewNotation -> [Name]
-notationNames (_, _, ps) = [Name noRange [Id x] | IdPart x <- ps ]  
+notationNames (_, _, ps) = [Name noRange [Id x] | IdPart x <- ps ]
 
 buildParser :: forall e. IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
@@ -160,14 +160,14 @@ buildParser r use = do
                        DontUseBoundNames -> not (Set.member x conparts) || Set.member x connames
         -- If string is a part of notation, it cannot be used as an identifier,
         -- unless it is also used as an identifier. See issue 307.
-    return $ -- traceShow ops $ 
+    return $ -- traceShow ops $
            recursive $ \p -> -- p is a parser for an arbitrary expression
         concatMap (mkP p) (order fix) -- for infix operators (with outer "holes")
         ++ [ appP p ] -- parser for simple applications
         ++ map (nonfixP . opP p) non -- for things with no outer "holes"
         ++ [ const $ atomP isAtom ]
     where
-        
+
 
         level :: NewNotation -> Nat
         level (_name, fixity, _syn) = fixityLevel fixity
@@ -177,7 +177,7 @@ buildParser r use = do
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
 
         isinfixl (_, LeftAssoc _ _, syn)  = isInfix syn
-        isinfixl _                    = False 
+        isinfixl _                    = False
 
         isinfixr (_, RightAssoc _ _, syn) = isInfix syn
         isinfixr _                    = False
@@ -209,7 +209,7 @@ buildParser r use = do
                 postfx  = fixP postfixP ispostfix
 
                 fixP :: (ReadP e (NewNotation,Range,[e]) -> ReadP e e -> ReadP e e) -> (NewNotation -> Bool) -> [ReadP e e -> ReadP e e]
-                fixP f g = 
+                fixP f g =
                     case filter g ops of
                         []  -> []
                         ops -> [ f $ choice $ map (opP p0) ops ]
@@ -384,4 +384,3 @@ paren _   e@(Quote _)          = return $ \p -> e
 mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e
 mparen False e = e
-

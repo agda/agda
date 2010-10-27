@@ -37,7 +37,7 @@ bindVar x ret = do
   local (\e -> e { envSubst = (x, Var x []) : envSubst e }) (ret x)
 
 addDecl :: Name -> Term -> TC ()
-addDecl x v = 
+addDecl x v =
   modify $ \s -> s { stSignature = (x, v) : stSignature s }
 
 addConst :: String -> TC Name
@@ -84,4 +84,3 @@ getSubst = asks envSubst
 
 withSubst :: Env -> TC a -> TC a
 withSubst sub = local $ \e -> e { envSubst = sub }
-

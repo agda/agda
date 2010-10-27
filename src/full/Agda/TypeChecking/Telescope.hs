@@ -119,7 +119,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     m         = genericLength $ takeWhile (`notElem` is) (reverse js)
     (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
 
-{- Andreas 2010-10-01: this comment seems stale.  Where is the unsafe variant? 
+{- Andreas 2010-10-01: this comment seems stale.  Where is the unsafe variant?
 -- | A safe variant of telView.
 
 OLD CODE:

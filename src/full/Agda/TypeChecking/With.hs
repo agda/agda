@@ -289,6 +289,3 @@ constructorsInClauses pos cs = concatMap (constructorsInClause pos) cs
 
 constructorsInClause :: ConPos -> A.Clause -> [Range]
 constructorsInClause pos (A.Clause (A.LHS _ _ ps wps) rhs _) = []
-
-
-

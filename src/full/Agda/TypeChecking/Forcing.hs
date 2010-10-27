@@ -71,4 +71,3 @@ force xs t = aux 0 t
       where
         upd a | i `elem` xs = a { argRelevance = Forced }
               | otherwise   = a
-

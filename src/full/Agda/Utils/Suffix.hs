@@ -21,4 +21,3 @@ addSuffix :: String -> Suffix -> String
 addSuffix s NoSuffix = s
 addSuffix s (Prime n) = s ++ replicate n '\''
 addSuffix s (Index i) = s ++ show i
-

@@ -157,7 +157,7 @@ recordConstructorType fields = build fs
     notField NiceField{} = False
     notField _           = True
 
-    build (NiceField r f _ _ x (Arg h rel e) : fs) = 
+    build (NiceField r f _ _ x (Arg h rel e) : fs) =
         C.Pi [C.TypedBindings r $ Arg h rel [C.TBind r [BName x f] e]] $ build fs
       where r = getRange x
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
@@ -398,14 +398,14 @@ mkArg' r e                 = Arg NotHidden r e
 
 -- | By default, arguments are @Relevant@.
 mkArg :: C.Expr -> Arg C.Expr
--- mkArg (C.Dot _ e) = mkArg' Irrelevant e 
-mkArg e           = mkArg' Relevant e 
+-- mkArg (C.Dot _ e) = mkArg' Irrelevant e
+mkArg e           = mkArg' Relevant e
 
 
 -- | Parse a possibly dotted C.Expr as A.Expr.  Bool = True if dotted.
 toAbstractDot :: Precedence -> C.Expr -> ScopeM (A.Expr, Bool)
 toAbstractDot prec e = do
-    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)  
+    reportSLn "scope.irrelevance" 100 $ "toAbstractDot: " ++ (render $ pretty e)
     traceCall (ScopeCheckExpr e) $ case e of
     -- annotateExpr e = ScopedExpr <scope from Monad> e
       C.Dot _ e -> do
@@ -418,7 +418,7 @@ toAbstractDot prec e = do
 
       C.Paren _ e -> toAbstractDot TopCtx e
 
-      e -> do 
+      e -> do
         e <- toAbstractCtx prec e
         return (e, False)
 
@@ -426,7 +426,7 @@ instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
     -- annotateExpr e = ScopedExpr <scope from Monad> e
- 
+
   -- Names
       Ident x -> toAbstract (OldQName x)
 
@@ -457,7 +457,7 @@ instance ToAbstract C.Expr A.Expr where
 {- Andreas, 2010-09-06 STALE COMMENT
   -- Dots are used in dot patterns and in irrelevant function space .A n -> B
   -- we propagate dots out from the head of applications
-  
+
       C.Dot r e1 -> do
         t1 <- toAbstract e1
         return $ A.Dot t1
@@ -500,7 +500,7 @@ instance ToAbstract C.Expr A.Expr where
         e2 <- toAbstractCtx TopCtx e2
         let info = ExprRange r
         return $ A.Fun info e1 e2
-  
+
 {-
 -- Other function types
 
@@ -680,7 +680,7 @@ instance ToAbstract LetDef [A.LetBinding] where
                     i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d
 
--- instance ToAbstract C.Pragma [A.Pragma] 
+-- instance ToAbstract C.Pragma [A.Pragma]
 -- moved higher up to reduce the probability of line number change
 -- in C.ImpossiblePragma  (test/fail/Impossible.agda)
 
@@ -767,7 +767,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       irrProj <- optIrrelevantProjections <$> pragmaOptions
-      unless (argRelevance t == Irrelevant && not irrProj) $  
+      unless (argRelevance t == Irrelevant && not irrProj) $
         -- Andreas, 2010-09-24: irrelevant fields are not in scope
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections

@@ -244,4 +244,3 @@ eof _ _ _ inp = null $ lexInput inp
 -- | True if the given state appears somewhere on the state stack
 inState :: LexState -> LexPredicate
 inState s (ls, _) _ _ _ = s `elem` ls
-

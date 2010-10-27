@@ -31,4 +31,3 @@ onThunk p f = do
     w <- f v
     store p w
     return w
-

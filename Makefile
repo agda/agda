@@ -233,6 +233,26 @@ compiler-test : up-to-date-std-lib
 benchmark :
 	@$(MAKE) -C benchmark
 
+## Whitespace-related #####################################################
+
+# Agda can fail to compile on Windows if files which are CPP-processed
+# don't end with a newline character (because we use -Werror).
+
+fix-agda-whitespace=src/fix-agda-whitespace/dist/build/fix-agda-whitespace/fix-agda-whitespace
+
+.PHONY:
+fix-whitespace : $(fix-agda-whitespace)
+	fix-agda-whitespace
+
+.PHONY:
+check-whitespace : $(fix-agda-whitespace)
+	fix-agda-whitespace --check
+
+$(fix-agda-whitespace) : src/fix-agda-whitespace/fix-agda-whitespace.cabal \
+                         src/fix-agda-whitespace/FixWhitespace.hs
+	cabal update
+	cd src/fix-agda-whitespace && cabal install
+
 ## Clean ##################################################################
 
 clean :

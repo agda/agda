@@ -266,5 +266,3 @@ checkSectionApplication i m1 ptel m2 args rd rm =
 --   the work is done when scope checking.
 checkImport :: Info.ModuleInfo -> ModuleName -> TCM ()
 checkImport i x = return ()
-
-

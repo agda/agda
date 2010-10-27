@@ -8,4 +8,3 @@ instance Eq Name where
 
 instance Show Name where
   show (Name x i) = x ++ "_" ++ show i
-

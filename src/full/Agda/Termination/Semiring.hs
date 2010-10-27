@@ -73,9 +73,9 @@ instance Monoid Integer where
   mempty = 0
   mappend = (+)
 
-instance SemiRing Integer where 
+instance SemiRing Integer where
   multiply = (*)
-    
+
 
 integerSemiring :: Semiring Integer
 integerSemiring = Semiring { add = (+), mul = (*), zero = 0 } -- , one = 1 }

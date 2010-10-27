@@ -242,4 +242,3 @@ performKill kills m a = do
   - We don't need to check for success, we can just
     continue occurs checking.
 -}
-

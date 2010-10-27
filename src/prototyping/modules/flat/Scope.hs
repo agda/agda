@@ -123,7 +123,7 @@ mapScope md mm s = s { scopePublic  = mapNS $ scopePublic s
 		     , scopePrivate = mapNS $ scopePrivate s
 		     }
   where
-    mapNS ns = 
+    mapNS ns =
       ns { nsContents = md $ nsContents ns
 	 , nsModules  = mm $ nsModules  ns
 	 }
@@ -285,7 +285,7 @@ bindModule m = do
     debug $ "in module " ++ showName top ++ " binding module " ++ show m ++ " --> " ++ showName am
     modifyStack $ \ss -> case ss of
 	[]	 -> []
-	scope:ss -> 
+	scope:ss ->
 	  scope { scopePublic = (scopePublic scope)
 		  { nsModules = Map.insertWith (++) m' [Module am fv] $ nsModules $ scopePublic scope
 		  }
@@ -424,7 +424,7 @@ instance ScopeCheck C.Decl [Decl] where
 	  -- Opening a submodule or opening into a non-parameterised module
 	  -- is fine. Otherwise we have to create a temporary module.
 	  if m' `isSubModuleOf` current || moduleParams current == 0
-	    then do 
+	    then do
 	      openModule_ m access mods
 	      return []
 	    else do
@@ -456,4 +456,3 @@ instance ScopeCheck C.Bind (Var, Expr) where
 instance ScopeCheck c a => ScopeCheck [c] [a] where
     scopeCheck	  = mapM scopeCheck
     scopeCheckCPS = runCont . mapM (Cont . scopeCheckCPS)
-

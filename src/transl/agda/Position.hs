@@ -17,7 +17,7 @@ module Position(
   positionFile
 ) where
 
-data Position = 
+data Position =
     Position String Int Int     -- ^ file, line, pos
     deriving (Eq, Ord,Show)
 

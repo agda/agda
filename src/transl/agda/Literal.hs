@@ -2,8 +2,8 @@ module Literal(Literal(..)) where
 import Position
 import PPrint
 
-data Literal 
-        = LString String 
+data Literal
+        = LString String
         | LChar Char
         | LInt Integer
         | LInteger Integer

@@ -101,7 +101,7 @@ whnf sig v = case appView v of
     Var n `Apps` vs -> Var n `apps` vs
     Con c `Apps` vs -> Con c `apps` vs
     Def c `Apps` vs -> iota sig c vs
-    Lam u `Apps` (v : vs) -> whnf sig (subst v u `apps` vs) 
+    Lam u `Apps` (v : vs) -> whnf sig (subst v u `apps` vs)
     Lam u `Apps` []	  -> Lam u
 
 eval :: Sig -> Exp -> Exp
@@ -109,4 +109,3 @@ eval sig v = case whnf sig v of
     Lam u   -> Lam $ eval sig u
     App u v -> App (eval sig u) (eval sig v)
     u	    -> u
-

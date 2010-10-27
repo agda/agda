@@ -20,4 +20,3 @@ failOnException :: (Range -> String -> IO a) -> IO a -> IO a
 failOnException h m = m `catch` handleParseException handler
     where
 	handler x = h (getRange x) (show x)
-

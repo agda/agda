@@ -30,7 +30,7 @@ boolToEq True  = Just Refl
 
 eqToBool :: Maybe (Equal i j) -> Bool
 eqToBool Nothing     = False
-eqToBool (Just Refl) = True 
+eqToBool (Just Refl) = True
 
 prop_eqToEq     meq = boolToEq (eqToBool meq) == meq
 prop_boolToBool b   = eqToBool (boolToEq b)   == b

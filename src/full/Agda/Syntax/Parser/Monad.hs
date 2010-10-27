@@ -313,4 +313,3 @@ pushCurrentContext :: Parser ()
 pushCurrentContext =
     do	p <- getLastPos
 	pushContext (Layout (posCol p))
-

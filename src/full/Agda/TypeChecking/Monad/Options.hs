@@ -253,4 +253,3 @@ verboseBracket k n s m = do
     x <- m
     liftIO $ LocIO.putStrLn "}"
     return x
-

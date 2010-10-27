@@ -130,4 +130,3 @@ solveConstraint (UnBlock m)          = do
       InstS{} -> return []
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
-

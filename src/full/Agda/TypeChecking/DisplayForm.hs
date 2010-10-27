@@ -77,4 +77,3 @@ instance Match Term where
     (Lit l, Lit l')      | l == l' -> return []
     (p, v)               | p == v  -> return []
     _                              -> fail ""
-

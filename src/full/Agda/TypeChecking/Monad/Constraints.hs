@@ -39,4 +39,3 @@ buildConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 buildConstraint c = do
     cl <- buildClosure c
     return [cl]
-

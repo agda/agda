@@ -46,4 +46,3 @@ tryOpen :: (MonadTCM tcm, Raise a) => Open a -> tcm (Maybe a)
 tryOpen o = liftTCM $
   (Just <$> getOpen o)
   `catchError` \_ -> return Nothing
-

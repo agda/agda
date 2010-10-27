@@ -56,7 +56,7 @@ instance Show Exp where
 		merge' []      ys    = ys
 		merge' xs      []    = xs
 
-type P = ReadP Raw 
+type P = ReadP Raw
 type Parser = P Raw
 
 -- Parsing raw terms (for testing)
@@ -141,7 +141,7 @@ infixP  op p = do
     return $ f e
     where
 	restP = return id +++ do
-	    f <- binop op 
+	    f <- binop op
 	    e <- p
 	    return $ flip f e
 
@@ -294,4 +294,3 @@ arithP' = recursive $ \p ->
 	f ++++ g = \p -> f p +++ g p
 
 main = print $ parseExp testP $ parseRaw "1 +0 2 +0 3"
-

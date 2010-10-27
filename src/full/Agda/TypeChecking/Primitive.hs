@@ -473,4 +473,3 @@ rebindPrimitive x = do
     PrimImpl _ pf <- lookupPrimitiveFunction x
     bindPrimitive x pf
     return pf
-

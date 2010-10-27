@@ -24,13 +24,10 @@ upCon :: Name -> Val -> Val -> Cont -> Cont
 upCon s u a con = (s,u,a):con
 
 genCon :: Cont -> Name -> Val -> G Val
-genCon con = gensym (length con) 
+genCon con = gensym (length con)
 
 evalCon :: Cont -> Exp -> Val
 evalCon con = eval (envConv con)
 
 evalBodyCon :: Cont -> Val -> Exp -> Val
 evalBodyCon con = evalBody (envConv con)
-
-
-

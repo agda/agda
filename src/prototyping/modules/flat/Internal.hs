@@ -61,4 +61,3 @@ fresh ctx x
 
 variants :: Var -> [Var]
 variants x = map (x ++) $ "'" : [ show n | n <- [0..] ]
-

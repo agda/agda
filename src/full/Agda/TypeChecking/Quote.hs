@@ -25,7 +25,7 @@ quoteTerm v = do
   def <- primAgdaTermDef
   con <- primAgdaTermCon
   pi <- primAgdaTermPi
-  sort <- primAgdaTermSort  
+  sort <- primAgdaTermSort
   Con z _ <- primZero
   Con s _ <- primSuc
   unsupported <- primAgdaTermUnsupported
@@ -33,7 +33,7 @@ quoteTerm v = do
       quoteHiding Hidden = true
       quoteHiding NotHidden = false
       list [] = nil
-      list (a : as) = cons @@ a @@ list as 
+      list (a : as) = cons @@ a @@ list as
       zero = con @@ quoteName z @@ nil
       suc n = con @@ quoteName s @@ list [n]
       quoteArg (Arg h r t) = arg @@ quoteHiding h @@ quote t
@@ -62,4 +62,3 @@ agdaTermType = El (mkType 0) <$> primAgdaTerm
 
 qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
-

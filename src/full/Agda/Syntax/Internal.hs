@@ -369,4 +369,3 @@ impossibleTerm file line = Lit $ LitString noRange $ unlines
   [ "An internal error has occurred. Please report this as a bug."
   , "Location of the error: " ++ file ++ ":" ++ show line
   ]
-

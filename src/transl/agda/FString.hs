@@ -17,7 +17,7 @@ unique identifier.
 
 module FString(
   -- * Types
-  FString,  -- fast strings 
+  FString,  -- fast strings
   StrTable, -- hash table to create and resolve strings (state)
   -- * Constructors
   emptyStrTable, -- create a new string table
@@ -38,7 +38,7 @@ import Util(mkSet)
 
 -- | This was the original documentation which does not hold any more:
 --
--- Fast strings may be represented by a number and the real string, or just by 
+-- Fast strings may be represented by a number and the real string, or just by
 -- a string (not so fast).  The fast strings are made by using a hash table
 -- were old strings are kept.
 data FString = N !Int !Hash String -- ^ unique number, hash value, actual string
@@ -77,10 +77,10 @@ getFStrNo (N n _ _) = n
 
 -- | unique identifiers for fast strings start at 100
 startNo :: Int
-startNo = 100           
+startNo = 100
 -- ^ just some start number
 
--- | A string table is a pair T k ht of an integer k, denoting the next free 
+-- | A string table is a pair T k ht of an integer k, denoting the next free
 -- unique identifier available plus a hashtable ht.
 -- A hashtable maps an Int (hash) to a list of fast strings.
 data StrTable = T !Int (I.IntMap [FString]) deriving (Show)
@@ -92,7 +92,7 @@ emptyStrTable = T startNo I.empty
 
 hmkFString tbl\@(T k ht) s = (tbl1, fs)
 
-If s is already stored in tbl, then tbl = tbl1, 
+If s is already stored in tbl, then tbl = tbl1,
 and fs is the fast string retrieved from tbl.
 
 Otherwise tbl1 = T (k+1) ht' and fs = N k h s,
@@ -114,7 +114,7 @@ instance Eq StrTable
         where _ == _  =  True
         -- Just for convenience
 
--- | Temporary fast strings have an absolute identifying number 
+-- | Temporary fast strings have an absolute identifying number
 -- greater equal to one million.
 tmpOffs = 1000000 :: Int
 

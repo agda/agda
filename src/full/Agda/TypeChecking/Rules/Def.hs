@@ -224,9 +224,9 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                      handleRHS newRhs
 
                 A.WithRHS aux es cs -> do
-                  reportSDoc "tc.with.top" 5 $ 
+                  reportSDoc "tc.with.top" 5 $
                     text "TC.Rules.Def.checkclause reached A.WithRHS"
-                  reportSDoc "tc.with.top" 30 $ 
+                  reportSDoc "tc.with.top" 30 $
                     text (show c)
                   -- Infer the types of the with expressions
                   vas <- mapM inferExpr es
@@ -648,4 +648,3 @@ actualConstructor c = do
                 x <- freshName_ $ absName b
                 addCtx x (Arg h Relevant $ sort Prop) $ stripLambdas (absBody b)
             _       -> typeError $ GenericError $ "Not a constructor: " ++ show c
-

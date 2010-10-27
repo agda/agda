@@ -28,4 +28,3 @@ rebindClause (Clause tel perm ps rec b) = return $ Clause tel perm ps rec b
 	rebind (NoBind b) = NoBind $ rebind b
 	rebind  NoBody	  = NoBody
 -}
-

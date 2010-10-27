@@ -40,5 +40,4 @@ instance Pretty Term where
           ]
     where
       app d [] = d
-      app d vs = paren (p > 1) $ fsep (d : map (prettyPrec 2) vs) 
-
+      app d vs = paren (p > 1) $ fsep (d : map (prettyPrec 2) vs)

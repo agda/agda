@@ -1,0 +1,13 @@
+name:            fix-agda-whitespace
+version:         0.0
+cabal-version:   >= 1.8
+build-type:      Simple
+description:     Fixes whitespace issues for Agda sources.
+tested-with:     GHC == 6.12.3
+
+executable fix-agda-whitespace
+  hs-source-dirs:   .
+  main-is:          FixWhitespace.hs
+  build-depends:    base == 4.2.*,
+                    filemanip == 0.3.*,
+                    text == 0.10.*

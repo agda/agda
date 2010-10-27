@@ -170,4 +170,3 @@ builtinTypes =
     , builtinQName
     , builtinAgdaTerm
     ]
-

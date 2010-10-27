@@ -210,4 +210,3 @@ sillyEscapeChars =
     , ("SP", '\SP')
     , ("DEL", '\DEL')
     ]
-

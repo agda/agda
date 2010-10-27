@@ -495,4 +495,3 @@ notSoNiceDeclarations = concatMap notNice
     notNice (NiceOpen r x dir)                    = [Open r x dir]
     notNice (NiceImport r x as o dir)             = [Import r x as o dir]
     notNice (NicePragma _ p)                      = [Pragma p]
-

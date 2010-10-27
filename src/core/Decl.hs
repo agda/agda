@@ -32,9 +32,3 @@ mNewCon con1 v s e =
   where
     w = evalBodyCon newcon (mconst s v) e
     newcon = upCon w v con1
-
-
-
-
-
-   

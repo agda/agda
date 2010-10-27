@@ -64,7 +64,7 @@ readSTM f = readSTME (return.f)
 
 -- Should it be update :: (s -> s) -> StateM s s??
 
-updateSTM :: (s -> s) -> StateM s () 
+updateSTM :: (s -> s) -> StateM s ()
 updateSTM f = STM$ \s -> Done((),f s)
 
 updateSTMR :: (s -> (a,s)) -> StateM s a
@@ -113,7 +113,7 @@ tempM (STM g) = STM$ \s -> case g s of Err  msg -> Err msg
                                        Done(a,_)-> Done$!(a,s)
 
 {- -------------------------- -}
--- reader-state-error 
+-- reader-state-error
 data Error2 s a = Done2 !s !a | Err2 EMsg
 elimError2 f g e = case e of Done2 s a-> f s a; Err2 msg-> g msg
 instance Functor (Error2 s) where

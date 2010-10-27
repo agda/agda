@@ -111,7 +111,7 @@ data Matrix i b = M { size :: Size i, unM :: [(MIx i, b)] }
   deriving (Eq, Ord)
 
 matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
-matrixInvariant m = all (\ (MIx i j, b) -> 1 <= i && i <= rows sz 
+matrixInvariant m = all (\ (MIx i j, b) -> 1 <= i && i <= rows sz
                                         && 1 <= j && j <= cols sz) (unM m)
   && strictlySorted (MIx 0 0) (unM m)
   && sizeInvariant sz
@@ -125,8 +125,8 @@ strictlySorted i [] = True
 strictlySorted i ((i', b) : l) = i < i' && strictlySorted i' l
 {-
 strictlySorted (MIx i j) [] = True
-strictlySorted (MIx i j) ((MIx i' j', b) : l) = 
-  (i < i' || i == i' &&  j < j' ) && strictlySorted (MIx i' j') b 
+strictlySorted (MIx i j) ((MIx i' j', b) : l) =
+  (i < i' || i == i' &&  j < j' ) && strictlySorted (MIx i' j') b
 -}
 
 instance (Ord i, Integral i, Enum i, Show i, Show b, HasZero b) => Show (Matrix i b) where
@@ -200,10 +200,10 @@ fromLists sz bs = fromIndexList sz $ zip ([ MIx i j | i <- [1..rows sz]
 -- | Converts a sparse matrix to a sparse list of rows
 
 toSparseRows :: (Num i, Enum i) => Matrix i b -> [(i,[(i,b)])]
-toSparseRows m = aux 1 [] (unM m)  
+toSparseRows m = aux 1 [] (unM m)
   where aux i' [] []  = []
         aux i' row [] = [(i', reverse row)]
-        aux i' row ((MIx i j, b) : m) 
+        aux i' row ((MIx i j, b) : m)
             | i' == i   = aux i' ((j,b):row) m
             | otherwise = (i', reverse row) : aux i [(j,b)] m
 
@@ -220,8 +220,8 @@ blowUpSparseVec zero n l = aux 1 l
 -- | Converts a matrix to a list of row lists.
 
 toLists :: (Ord i, Integral i, Enum i, HasZero b) => Matrix i b -> [[b]]
-toLists m = blowUpSparseVec emptyRow (rows sz) $ 
-    map (\ (i,r) -> (i, blowUpSparseVec zeroElement (cols sz) r)) $ toSparseRows m 
+toLists m = blowUpSparseVec emptyRow (rows sz) $
+    map (\ (i,r) -> (i, blowUpSparseVec zeroElement (cols sz) r)) $ toSparseRows m
 --            [ [ maybe zeroElement id $ lookup (MIx { row = r, col = c }) (unM m)
 --            | c <- [1 .. cols sz] ] | r <- [1 .. rows sz] ]
   where sz = size m
@@ -263,17 +263,17 @@ isEmpty m = rows sz <= 0 || cols sz <= 0
 -- | Returns 'Just b' iff it is a 1x1 matrix with just one entry 'b'.
 
 isSingleton :: (Num i, Ix i) => Matrix i b -> Maybe b
-isSingleton m = if (rows sz == 1 || cols sz == 1) then 
-    case unM m of 
+isSingleton m = if (rows sz == 1 || cols sz == 1) then
+    case unM m of
       [(_,b)] -> Just b
       _ -> __IMPOSSIBLE__
   else Nothing
   where sz = size m
 
 -- | Transposition
-transposeSize (Size { rows = n, cols = m }) = Size { rows = m, cols = n } 
+transposeSize (Size { rows = n, cols = m }) = Size { rows = m, cols = n }
 transpose m = M { size = transposeSize (size m)
-                , unM  = List.sortBy (\ (i,a) (j,b) -> compare i j) $ 
+                , unM  = List.sortBy (\ (i,a) (j,b) -> compare i j) $
                            map (\(MIx i j, b) -> (MIx j i, b)) $ unM m }
 
 -- | @'add' (+) m1 m2@ adds @m1@ and @m2@. Uses @(+)@ to add values.
@@ -284,15 +284,15 @@ add :: (Ord i) => (a -> a -> a) -> Matrix i a -> Matrix i a -> Matrix i a
 add plus m1 m2 = M (size m1) $ mergeAssocWith plus (unM m1) (unM m2)
 
 -- | assoc list union
-mergeAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]  
+mergeAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
 mergeAssocWith f [] m = m
 mergeAssocWith f l [] = l
-mergeAssocWith f l@((i,a):l') m@((j,b):m') 
+mergeAssocWith f l@((i,a):l') m@((j,b):m')
     | i < j = (i,a) : mergeAssocWith f l' m
     | i > j = (j,b) : mergeAssocWith f l m'
     | otherwise = (i, f a b) : mergeAssocWith f l' m'
 
--- | @'intersectWith' f m1 m2@ build the pointwise conjunction @m1@ and @m2@. 
+-- | @'intersectWith' f m1 m2@ build the pointwise conjunction @m1@ and @m2@.
 --   Uses @f@ to combine non-zero values.
 --
 -- Precondition: @'size' m1 == 'size' m2@.
@@ -301,10 +301,10 @@ intersectWith :: (Ord i) => (a -> a -> a) -> Matrix i a -> Matrix i a -> Matrix 
 intersectWith f m1 m2 = M (size m1) $ interAssocWith f (unM m1) (unM m2)
 
 -- | assoc list intersection
-interAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]  
+interAssocWith :: (Ord i) => (a -> a -> a) -> [(i,a)] -> [(i,a)] -> [(i,a)]
 interAssocWith f [] m = []
 interAssocWith f l [] = []
-interAssocWith f l@((i,a):l') m@((j,b):m') 
+interAssocWith f l@((i,a):l') m@((j,b):m')
     | i < j = interAssocWith f l' m
     | i > j = interAssocWith f l m'
     | otherwise = (i, f a b) : interAssocWith f l' m'
@@ -326,15 +326,15 @@ prop_add sz =
 {- mul A B works as follows:
 * turn A into a list of sparse rows and the transposed B as well
 * form the crossproduct using the inner vector product to compute els
-* the inner vector product is summing up 
+* the inner vector product is summing up
   after intersecting with the muliplication op of the semiring
 -}
 
 mul :: (Enum i, Num i, Ix i, Eq a)
-    => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a 
+    => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
 mul semiring m1 m2 = M (Size { rows = rows (size m1), cols = cols (size m2) }) $
   filter (\ (i,b) -> b /= Semiring.zero semiring) $
-  [ (MIx i j, foldl (Semiring.add semiring) (Semiring.zero semiring) $ 
+  [ (MIx i j, foldl (Semiring.add semiring) (Semiring.zero semiring) $
                 map snd $ interAssocWith (Semiring.mul semiring) v w)
     | (i,v) <- toSparseRows m1
     , (j,w) <- toSparseRows $ transpose m2 ]

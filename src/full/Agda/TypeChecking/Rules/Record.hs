@@ -46,7 +46,7 @@ checkRecDef i name con ps contel fields =
     -- get type of record
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
-      -- t = tel -> t0 where t0 must be a sort s 
+      -- t = tel -> t0 where t0 must be a sort s
       t0' <- normalise t0
       s <- case unEl t0' of
 	Sort s	-> return s
@@ -238,7 +238,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
                      , funArgOccurrences = map (const Unused) hps ++ [Negative]
-                     , funProjection     = Just (size hps + 1) 
+                     , funProjection     = Just (size hps + 1)
                        -- index of the record argument, start counting with 1
                      }
         computePolarity projname
@@ -249,4 +249,3 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
     checkProjs ftel1 ftel2 (d : fs) = do
       checkDecl d
       checkProjs ftel1 ftel2 fs
-

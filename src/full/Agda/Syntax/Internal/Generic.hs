@@ -78,4 +78,3 @@ instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
-

@@ -176,4 +176,3 @@ getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 clearMetaListeners :: MonadTCM tcm => MetaId -> tcm ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
-

@@ -33,5 +33,3 @@ import Agda.TypeChecking.Monad.SizedTypes
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Statistics
 import Agda.TypeChecking.Monad.Trace
-
-

@@ -15,4 +15,3 @@ main =
         case pProgram $ myLexer s of
             Bad s   -> putStrLn $ "Parse error: " ++ s
             Ok p    -> putStrLn $ printTree p
-

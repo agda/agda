@@ -39,4 +39,3 @@ appView v	  = Apps v []
 
 apps :: Exp -> [Exp] -> Exp
 apps = foldl App
-

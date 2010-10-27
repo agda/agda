@@ -44,4 +44,3 @@ instance HasRange Head where
     getRange (HeadVar x) = getRange x
     getRange (HeadDef x) = getRange x
     getRange (HeadCon x) = getRange x
-

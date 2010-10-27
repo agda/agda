@@ -66,7 +66,7 @@ import Agda.Utils.Impossible
 -- A negative decrease means an increase.  The generalization
 -- allows the termination checker to record an increase by 1 which
 -- can be compensated by a following decrease by 2 which results in
--- an overall decrease.  
+-- an overall decrease.
 --
 -- However, the termination checker of the paper itself terminates because
 -- there are only finitely many different call-matrices.  To maintain
@@ -91,17 +91,17 @@ instance HasZero Order where
 
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --
--- Possible values for @k@: @- ?cutoff '<=' k '<=' ?cutoff + 1@. 
+-- Possible values for @k@: @- ?cutoff '<=' k '<=' ?cutoff + 1@.
 --
 decr :: (?cutoff :: Int) => Int -> Order
 decr k | k < - ?cutoff = Unknown
        | k > ?cutoff = Decr (?cutoff + 1)
-       | otherwise   = Decr k 
+       | otherwise   = Decr k
 
--- | Smart constructor for matrix shaped orders, avoiding empty and singleton matrices. 
+-- | Smart constructor for matrix shaped orders, avoiding empty and singleton matrices.
 orderMat :: Matrix Integer Order -> Order
 orderMat m | Matrix.isEmpty m  = Decr 0                -- 0x0 Matrix = neutral element
-           | otherwise         = case isSingleton m of        
+           | otherwise         = case isSingleton m of
                                    Just o -> o         -- 1x1 Matrix
                                    Nothing -> Mat m    -- nxn Matrix
 
@@ -152,13 +152,13 @@ it's hard to figure out exactly where it is done. Easiest thing is to
 outlaw the offending types.
 
 instance (?cutoff :: Int) => Arbitrary Order where
-  arbitrary = frequency 
+  arbitrary = frequency
     [(20, return Unknown)
     ,(80, elements [- ?cutoff .. ?cutoff + 1] >>= Decr)
     ] -- no embedded matrices generated for now.
 -}
 instance Arbitrary Order where
-  arbitrary = frequency 
+  arbitrary = frequency
     [(30, return Unknown)
     ,(70, elements [0,1] >>= return . Decr)
     ] -- no embedded matrices generated for now.
@@ -190,7 +190,7 @@ Unknown  .*. _         = Unknown
 {- collapse m
 
 We assume that m codes a permutation:  each row has at most one column
-that is not Un. 
+that is not Un.
 
 To collapse a matrix into a single value, we take the best value of
 each column and multiply them.  That means if one column is all Un,
@@ -234,7 +234,7 @@ maxO o1 o2 = case (o1,o2) of
 
 infimum :: (?cutoff :: Int) => [Order] -> Order
 infimum (o:l) = foldl minO o l
-infimum [] = __IMPOSSIBLE__ 
+infimum [] = __IMPOSSIBLE__
 
 minO :: (?cutoff :: Int) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
@@ -604,7 +604,7 @@ prettyBehaviour = vcat . map prettyCall . filter (toSelf . fst) . toList
 -- All tests
 
 tests :: IO Bool
-tests = runTests "Agda.Termination.CallGraph" 
+tests = runTests "Agda.Termination.CallGraph"
   [ quickCheck' callMatrixInvariant
   , quickCheck' prop_decr
   , quickCheck' prop_orderSemiring

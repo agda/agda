@@ -53,4 +53,3 @@ instance Monoid p => Monoid (Problem' p) where
   mempty = Problem [] mempty EmptyTel
   Problem ps1 qs1 tel1 `mappend` Problem ps2 qs2 tel2 =
     Problem (ps1 ++ ps2) (mappend qs1 qs2) (abstract tel1 tel2)
-

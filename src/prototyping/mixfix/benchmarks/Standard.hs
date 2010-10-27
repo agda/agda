@@ -34,5 +34,5 @@ instance (Ord k, Ord tok) =>
     case cs of
       c' : cs | c == c' -> do
         put cs
-        return c' 
+        return c'
       _ -> mzero

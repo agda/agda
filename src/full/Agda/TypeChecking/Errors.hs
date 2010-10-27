@@ -647,4 +647,3 @@ instance PrettyTCM Call where
 		D.NiceOpen r x dir		       -> C.Open r x dir
 		D.NiceImport r x as op dir	       -> C.Import r x as op dir
 		D.NicePragma _ p		       -> C.Pragma p
-

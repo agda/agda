@@ -2,7 +2,7 @@ module Val where
 
 type Name = String
 
--- to simplify: only one data type for 
+-- to simplify: only one data type for
 -- values/type values/vector of values/values of telescopes
 
 data Val =
@@ -19,7 +19,7 @@ mvar :: Head -> Val
 mvar h = App h []
 
 mconst :: Name -> Val -> Val
-mconst s v = mvar (Const s v) 
+mconst s v = mvar (Const s v)
 
 eqH (Gen n1 _ _) (Gen n2 _ _) = n1 == n2
 eqH (Const s1 _) (Const s2 _) = s1 == s2

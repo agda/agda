@@ -1,9 +1,9 @@
-{-| 
+{-|
 
   ISyntax abstract syntax.
 
   Properties:
-  
+
   * Names are unique.
   * Equipped with position information.
 
@@ -34,7 +34,7 @@ data Def     =  Def Bool  Bool    [EProp] UId FCVars  Tel Exp Drhs
              |  DOpen Exp OpenArgs                             deriving (Eq,Show)
 data Drhs    = DExp Exp | PN | Native   deriving (Eq,Show)
 
-data Exp = 
+data Exp =
    EMeta     MetaVar Position Bool TransClass Int Visibility
  | EMetaV    MetaVar Bool FCVars TransClass
  | EVar      UId (Maybe TransClass)
@@ -44,7 +44,7 @@ data Exp =
  | EProd     Bind  Exp
  | EArrow    Bool Exp Exp -- kept for nicer pretty printing and easier to
                           -- automatically
- | EAbs      Bind  Exp 
+ | EAbs      Bind  Exp
  | EApp      Exp  [(Bool,Exp)]
  | EBinOp    Exp   Exp Exp                                -- EBinOp e1 op e2
  | EIf       Exp Exp Exp -- kept for nicer pretty printing
@@ -57,13 +57,13 @@ data Exp =
  | EProj     Exp Id
  | EData     [ConBind]
  | EIndData  Tel [IndConBind]          -- Tel is [] when used for 1.
- | ECon      Id     [(Bool,Exp)] 
- | EConF     Id Exp [(Bool,Exp)] 
+ | ECon      Id     [(Bool,Exp)]
+ | EConF     Id Exp [(Bool,Exp)]
  | ECase     Exp [(CaseBranch,Exp)]
- | PreMeta 
+ | PreMeta
  | EStop MetaVar Exp
- | EClos Environment Exp  
- | ELiteral Position Literal 
+ | EClos Environment Exp
+ | ELiteral Position Literal
  | EExternal (Plugin Exp TransClass)
 
 --- | EClass Position [Id] [ESigDef]
@@ -94,13 +94,13 @@ data CaseBranch = CBConM Id  [PatArg]  {- constructor name, args -}
                                    as a constant in this branch, and its
                                    free vars (incl. patarg)
                                 -}
-                     
+
                  | CBLit Position Literal   -- defunct
           deriving (Eq,Show)
 
-data OpenArg  = OpenConst    [EProp]    UId 
-              | OpenConstAs  [EProp] Id UId 
-              | OpenConstT   [EProp]    UId Exp 
+data OpenArg  = OpenConst    [EProp]    UId
+              | OpenConstAs  [EProp] Id UId
+              | OpenConstT   [EProp]    UId Exp
               | OpenConstAsT [EProp] Id UId Exp                deriving (Eq,Show)
 data OpenArgs = OpenArgs [OpenArg] FCVars                      deriving (Eq,Show)
 
@@ -147,7 +147,7 @@ mkUnTyped :: Bool -> Bool -> [EProp] -> UId -> FCVars -> Exp -> Def
 mkUnTyped blocked rec p c xs e = UnTypedDef blocked rec p c xs (DExp e)
 
 unTypeDef :: Def -> Def
-unTypeDef (Def blocked rec ps c xs [] a (DExp  e)) 
+unTypeDef (Def blocked rec ps c xs [] a (DExp  e))
      = mkUnTyped blocked rec ps c xs e
 unTypeDef d = d
 
@@ -185,12 +185,12 @@ varScopeDef (UnTypedDef _ _ _ _ xs _) = xs
 varScopeDef (DOpen _ (OpenArgs _ xs)) = xs
 
 
-isRecDef :: Def -> Bool 
+isRecDef :: Def -> Bool
 isRecDef (Def _ rec _ _ _ _ _ _) = rec
 isRecDef (UnTypedDef _ rec _ _ _ _ ) = rec
 isRecDef _ = False
 
-isBlockedDef :: Def -> Bool 
+isBlockedDef :: Def -> Bool
 isBlockedDef (Def blocked _ _ _ _ _ _ _) = blocked
 isBlockedDef (UnTypedDef blocked _ _ _ _ _ ) = blocked
 isBlockedDef _ = False
@@ -215,8 +215,8 @@ eApp' e [] = e
 eApp' e es = eApp e es
        where eApp :: Exp -> [(Bool,Exp)] -> Exp
              eApp (EApp e es) es' = eApp e (es ++ es')
-             eApp (ECon c es) es' = ECon c (es ++ es') 
-             eApp (EConF c e es) es' = EConF c e (es++ es') 
+             eApp (ECon c es) es' = ECon c (es ++ es')
+             eApp (EConF c e es) es' = EConF c e (es++ es')
              eApp e es = EApp e es
 
 
@@ -241,7 +241,7 @@ eLiteral :: Literal -> Exp
 eLiteral l = ELiteral noPosition l
 
 expToLiteral :: Exp -> Maybe Literal
-expToLiteral (ELiteral _ l) = Just l 
+expToLiteral (ELiteral _ l) = Just l
 expToLiteral _ = Nothing
 
 isStopped :: Exp -> Bool
@@ -252,7 +252,7 @@ isStopped _           = False
 stoppedBy:: [Exp] -> Maybe MetaVar
 stoppedBy [] = Nothing
 stoppedBy (EStop m _:_) = Just m
-stoppedBy (_:es) = stoppedBy es 
+stoppedBy (_:es) = stoppedBy es
 
 initEAbs :: Decl -> Exp -> Exp
 initEAbs d e = EAbs d e
@@ -266,7 +266,7 @@ typeD :: Decl -> Exp
 typeD (_,a) = a
 
 domTel :: Tel -> [UId]
-domTel tel = concatMap getVarsBind tel 
+domTel tel = concatMap getVarsBind tel
 
 addBindTel :: Tel -> Decl -> Tel
 addBindTel tel ([],_)  = tel
@@ -322,17 +322,17 @@ isAbstract _ = False
 abstractLetDef :: [LetDef] -> [UId]
 abstractLetDef []                 = []
 abstractLetDef (DSimple d : ds)   = abstractDef d ++ abstractLetDef ds
-abstractLetDef (DMutual ds : ds') = concatMap abstractDef ds ++ 
+abstractLetDef (DMutual ds : ds') = concatMap abstractDef ds ++
                                     abstractLetDef ds'
 
 abstractDef :: Def -> [UId]
-abstractDef (Def _ _ ps c _ _ _ _) 
+abstractDef (Def _ _ ps c _ _ _ _)
     | Eabstract `elem` ps  = [c]
     | otherwise = []
-abstractDef (UnTypedDef _ _ ps c _ _) 
+abstractDef (UnTypedDef _ _ ps c _ _)
     | Eabstract `elem` ps  = [c]
     | otherwise            = []
-abstractDef (DOpen _ (OpenArgs oas _)) 
+abstractDef (DOpen _ (OpenArgs oas _))
                            = catMaybes (map visibleOpenArg oas)
 
 isPrivate :: Def -> Bool
@@ -343,44 +343,44 @@ isPrivate _ = False
 domVisibleLetDef :: [LetDef] -> [UId]
 domVisibleLetDef []                 = []
 domVisibleLetDef (DSimple d : ds)   = domVisibleDef d ++ domVisibleLetDef ds
-domVisibleLetDef (DMutual ds : ds') = concatMap domVisibleDef ds ++ 
+domVisibleLetDef (DMutual ds : ds') = concatMap domVisibleDef ds ++
                                       domVisibleLetDef ds'
---domVisibleLetDef (DOpen _ oas : ds) = exportConsts oas++domVisibleLetDef ds 
+--domVisibleLetDef (DOpen _ oas : ds) = exportConsts oas++domVisibleLetDef ds
 domVisibleDef :: Def -> [UId]
-domVisibleDef (Def _ _ ps c _ _ _ _) 
+domVisibleDef (Def _ _ ps c _ _ _ _)
     | Eprivate `elem` ps  = []
     | otherwise = [c]
-domVisibleDef (UnTypedDef _ _ ps c _ _) 
+domVisibleDef (UnTypedDef _ _ ps c _ _)
     | Eprivate `elem` ps  = []
     | otherwise           = [c]
-domVisibleDef (DOpen _ (OpenArgs oas _)) 
+domVisibleDef (DOpen _ (OpenArgs oas _))
                           = catMaybes (map visibleOpenArg oas)
 
 visibleOpenArg :: OpenArg -> Maybe UId
-visibleOpenArg (OpenConst ps c) 
+visibleOpenArg (OpenConst ps c)
     | Eprivate `elem` ps = Nothing
     | otherwise          = Just c
-visibleOpenArg (OpenConstAs ps i c) 
+visibleOpenArg (OpenConstAs ps i c)
     | Eprivate `elem` ps = Nothing
     | otherwise          = Just c
-visibleOpenArg (OpenConstT ps c _) 
+visibleOpenArg (OpenConstT ps c _)
     | Eprivate `elem` ps = Nothing
     | otherwise          = Just c
-visibleOpenArg (OpenConstAsT ps i c _) 
+visibleOpenArg (OpenConstAsT ps i c _)
     | Eprivate `elem` ps = Nothing
     | otherwise          = Just c
 
 abstractOpenArg :: OpenArg -> Maybe UId                  -- used in import.
-abstractOpenArg (OpenConst ps c) 
+abstractOpenArg (OpenConst ps c)
     | Eabstract `elem` ps  = Just c
     | otherwise = Nothing
-abstractOpenArg (OpenConstAs ps i c) 
+abstractOpenArg (OpenConstAs ps i c)
     | Eabstract `elem` ps = Just c
     | otherwise           = Nothing
-abstractOpenArg (OpenConstT ps c _) 
+abstractOpenArg (OpenConstT ps c _)
     | Eabstract `elem` ps = Just c
     | otherwise           = Nothing
-abstractOpenArg (OpenConstAsT ps i c _) 
+abstractOpenArg (OpenConstAsT ps i c _)
     | Eabstract `elem` ps = Just c
     | otherwise           = Nothing
 
@@ -405,37 +405,37 @@ idsDef (Def _ _ _ c _ _ _ _) = [c]
 idsDef (UnTypedDef _ _ _ c _ _) = [c]
 idsDef _ = []
 
-idsLetDef :: LetDef -> [UId] 
+idsLetDef :: LetDef -> [UId]
 idsLetDef (DSimple d)  = idsDef d
 idsLetDef (DMutual ds) = concatMap idsDef ds
 
 {- want to put it in ISynEnv ... -}
 
 type Value = Exp
--- terms of this type should only be created with the operations in Eval, 
+-- terms of this type should only be created with the operations in Eval,
 -- but this invariant has been broken on some places which needs to be fixed
 -- Possible values are (I need to think this through CC)
---  v  = EVar x | ECon i [(h1,v11),...,(hn,vn) |  EConF i e [(h1,v1),...,(hn,vn) | 
+--  v  = EVar x | ECon i [(h1,v11),...,(hn,vn) |  EConF i e [(h1,v1),...,(hn,vn) |
 --     | EApp  v [(h1,v1),...,(hn,vn) ] (where v is not a lambda)
 --     | EProj v n   (where v is not EStructV or Eackage)
 --     | ELiteral | EStop m v | ESort _ _ | EPackageType
---     | EClos eclos env 
---  eclos = EConstV c xs | Eackage _ _ _ _ _ | EStructV _ _ _ _ _ | EMetaV _ _ _ 
---        | EAbs _ _ | EProd _ _ 
---        | EData _ _ | EIndData _ _ _ | ECase _ _ | ESig _ _   
+--     | EClos eclos env
+--  eclos = EConstV c xs | Eackage _ _ _ _ _ | EStructV _ _ _ _ _ | EMetaV _ _ _
+--        | EAbs _ _ | EProd _ _
+--        | EData _ _ | EIndData _ _ _ | ECase _ _ | ESig _ _
 
 newtype Environment = E (Env,[UId])  deriving (Eq,Show)
                          --  ^^^ accessibles ...
-                             
+
 type Env = [(UId,Value)] --FiniteMap UId Value
 
 {- ---- -}
 type FCVars = [UId]
 
 {-
-Instead of backtracking in the unfold, one could instead 
+Instead of backtracking in the unfold, one could instead
 decorate all expressions that has  name equality
-such as data, idata and sig (+ related metas) with 
+such as data, idata and sig (+ related metas) with
 appropiate information so that backtracking is not needed
 but it still behaves as equality on name. Makoto had
 started this, but I took it away to do a more complete
@@ -478,9 +478,9 @@ getCtxCCPV (_,_,_,ccpvs) = ccpvs
 -}
 
 appnormalized :: Value -> (Value,[(Bool,Value)])
-appnormalized (EStop _ v) = appnormalized v               
+appnormalized (EStop _ v) = appnormalized v
 appnormalized (EApp h vs) = apSnd (++ vs) (appnormalized h)
-appnormalized (EBinOp v1 op v2) = (op,[(False,v1),(False,v2)]) 
+appnormalized (EBinOp v1 op v2) = (op,[(False,v1),(False,v2)])
 appnormalized h           = (h,[])
 
 
@@ -515,14 +515,14 @@ initInstTable = []
 type SuperClass = (UId,UId)
 type SuperClasses = [SuperClass]
 
-type ClassTable = [(UId,SuperClasses)]   -- list of superclasses together with the "path" projections to 
-                                         -- reach them 
+type ClassTable = [(UId,SuperClasses)]   -- list of superclasses together with the "path" projections to
+                                         -- reach them
 
 type InstancePath = (UId,[UId])
 type InstanceInfo = (UId,InstancePath)
                 --- ^ Class name
 type InstanceTable = [(UId,[InstanceInfo])]   -- type name and it's instances together with the name of
-                                           -- the instance 
+                                           -- the instance
 
 
 type TransClass = (CITrans,ClassEnv)

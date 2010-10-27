@@ -5,4 +5,3 @@
 module OldCParser where
 
 #include "CParser.hs"
-

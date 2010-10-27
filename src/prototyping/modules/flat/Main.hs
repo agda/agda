@@ -56,4 +56,3 @@ main = do args <- getArgs
           case args of
             "-s":fs -> mapM_ (runFile 0 pDecl1) fs
             fs -> mapM_ (runFile 2 pDecl1) fs
-

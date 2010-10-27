@@ -5,4 +5,3 @@
 module NewCParser where
 
 #include "CParser.hs"
-

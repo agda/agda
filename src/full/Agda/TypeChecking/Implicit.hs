@@ -39,4 +39,3 @@ insertImplicit a ts@(t : _) =
       | otherwise = find (i + 1) x ts
     find i x (Arg NotHidden _ _ : _) = NoSuchName x
     find i x []			     = NoSuchName x
-

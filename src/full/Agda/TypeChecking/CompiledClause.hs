@@ -114,4 +114,3 @@ instance Pretty CompiledClauses where
     sep [ text ("case " ++ show n ++ " of")
         , nest 2 $ pretty bs
         ]
-

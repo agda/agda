@@ -1,11 +1,11 @@
 {-# OPTIONS #-}
 module PluginType  (
   -- * Type declarations
-  Plugin (..), 
+  Plugin (..),
   -- * Class declarations
 
-  -- * Function types 
- 
+  -- * Function types
+
   -- * Exported modules
 
   -- * Notes
@@ -27,8 +27,6 @@ data Plugin a tc = Plugin {
 
 
 instance (PPrint a, PPrint tc) => PPrint (Plugin a tc) where
-      pPrint d _ (Plugin pos name opts es tc) 
+      pPrint d _ (Plugin pos name opts es tc)
         = text "\"" ~. t name ~. text "\"" ~. separate (t opts : map (pPrint d 10) es)
           -- separate (t name:t opts : map (pPrint d 10) es)
-      
-

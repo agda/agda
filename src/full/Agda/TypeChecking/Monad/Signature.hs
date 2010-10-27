@@ -177,7 +177,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
   isig <- getImportedSignature
   let ss = getOld partOfOldM sigSections    [sig, isig]
       ds = getOld partOfOldD sigDefinitions [sig, isig]
-  reportSLn "tc.mod.apply" 10 $ render $ vcat 
+  reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)
     , text "ptel =" <+> text (show ptel)
@@ -188,7 +188,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                                 "definitions: " ++ show ds
   reportSLn "tc.mod.apply" 80 $ render $ vcat
     [ text "arguments:  " <+> text (show ts)
-    ]                              
+    ]
   mapM_ (copyDef ts) ds
   mapM_ (copySec ts) ss
   where
@@ -228,7 +228,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                   oldDef { recPars = np - size ts, recClause = Just cl
                          , recConType = apply t ts, recTel = apply tel ts
                          }
-		_ -> 
+		_ ->
                   Function { funClauses        = [cl2]
                            , funCompiled       = cc
                            , funDelayed        = NotDelayed

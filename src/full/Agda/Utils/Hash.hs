@@ -9,4 +9,3 @@ hash = foldr step 0
     prime1 = 1230371
     prime2 = 446441
     prime3 = 275604541
-

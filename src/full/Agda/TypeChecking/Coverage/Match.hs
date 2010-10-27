@@ -116,4 +116,3 @@ matchPat mlit (ConP c _ ps) q = case q of
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   LitMP _ -> __IMPOSSIBLE__
-

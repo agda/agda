@@ -98,10 +98,10 @@ matchDef sig (c : cs) vs = case m of
 match :: Sig -> Clause -> [Exp] -> (Match Exp, [Exp])
 match sig (Clause ps v) vs
     | length vs < nargs = (DontKnow, vs)
-    | otherwise		= 
+    | otherwise		=
 	let (m, vs0') = {-# SCC "matchPs" #-} matchPats sig ps vs0
 	in  case m of
-	    Yes us   -> 
+	    Yes us   ->
 		let r = {-# SCC "matchYes" #-} subst (reverse us) v `apps` vs1
 		in	(Yes r,	   vs0' ++ vs1)
 	    No	     -> (No,	   vs0' ++ vs1)
@@ -151,7 +151,7 @@ whnf sig v = case v of
     Var n vs	   -> Var n vs
     Con c vs	   -> Con c vs
     Def c vs	   -> iota sig c vs
-    Lam u (v : vs) -> whnf sig (subst (top v) u `apps` vs) 
+    Lam u (v : vs) -> whnf sig (subst (top v) u `apps` vs)
     Lam u []	   -> Lam u []
 
 eval' :: Sig -> Exp -> Exp
@@ -163,4 +163,3 @@ eval' sig v = case whnf sig v of
 
 eval :: S.Sig -> S.Exp -> S.Exp
 eval sig e = decompile $ eval' (compile sig) (compile e)
-

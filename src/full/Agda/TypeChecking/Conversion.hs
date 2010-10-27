@@ -696,4 +696,3 @@ equalSort s1 s2 =
             (_       , DLub{}  )             -> buildConstraint (SortCmp CmpEq s1 s2)
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
-

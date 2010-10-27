@@ -225,4 +225,3 @@ instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of
     ForeignImport x _ _ -> tagsLN x
     ForeignExport _ _ _ -> []
-

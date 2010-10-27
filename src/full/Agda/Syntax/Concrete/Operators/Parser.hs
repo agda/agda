@@ -159,7 +159,7 @@ infixP  op p = do
 	restP x = return x +++ do
 	    f <- binop op
 	    e <- p
-	    f x e 
+	    f x e
 
 nonfixP op p = (do
   (nsyn,r,es) <- op
@@ -194,4 +194,3 @@ atomP p = do
     case exprView e of
 	LocalV x | not (p x) -> pfail
 	_		     -> return e
-

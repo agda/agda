@@ -18,7 +18,7 @@ import MiscId(commaId)
 --import AgdaPretty  -- just for debugging
 --import PPrint      -- just for debugging
 
-infix 6 >>>> , >>>>> 
+infix 6 >>>> , >>>>>
 type CParser a = Parser [Token] a
 
 pProgram :: CParser CProgram
@@ -27,7 +27,7 @@ pProgram = many pModule >>- CProgram
 
 pLetDefs =
       --trace "LDs" $
-      block (pLetDef pBindId) 
+      block (pLetDef pBindId)
 
 
 pModule :: CParser CModule
@@ -37,7 +37,7 @@ pModule = l L_module ..+ pModId +.+ pPArgs +.+  pPackageBody >>>> CModule
 -- pNativeLine = l L_native ..+ string' +.. sm
 
 --pInterface :: CParser (CInterface, StrTable)
---pInterface = (l L_interface ..+ l L_use ..+ sepBy pModId cm +.+ l L_in ..+ 
+--pInterface = (l L_interface ..+ l L_use ..+ sepBy pModId cm +.+ l L_in ..+
 --            pSign pModId +.. sm >>> CInterface) +.+ eof
 
 pType = pExpr
@@ -45,7 +45,7 @@ pType = pExpr
 pExpr :: CParser CExpr
 pExpr =
         --trace "E" $
-        exp0 +.+ many comment >>> foldr (Ccomment False) 
+        exp0 +.+ many comment >>> foldr (Ccomment False)
 
 {-
 pExprStart :: CParser CExpr
@@ -59,22 +59,22 @@ exp0 =
        --trace "0" $
        binop getFixity mkBin pOper exp10
 
-mkBin e1 op e2 = 
+mkBin e1 op e2 =
     if isRArrow op  then CArrow False e1 e2
-    else if isBRArrow op then CArrow True e1 e2  
+    else if isBRArrow op then CArrow True e1 e2
     else CBinOp e1 op e2
 
 
 pB p = p `into` \ (xs,a)->
                  rarrow         .> CArg (map ((,) False) xs) a
              |!! brarrow        .> CArg (map ((,) True) xs) a
-        
+
 
 
 pB' p = p `into` \ xsas ->
                  rarrow         .> (False,xsas)
              |!! brarrow        .> (True,xsas)
-        
+
 
 
 
@@ -82,31 +82,31 @@ pB' p = p `into` \ xsas ->
 exp10 :: CParser CExpr
 exp10 =
       --trace "A" $
-            l L_lam ..+ pB' pPBind +.+ pExpr >>> 
+            l L_lam ..+ pB' pPBind +.+ pExpr >>>
                      (\(h,CBind xs a) e  -> cLam [(h,CBind [x] a) | x<- xs] e)
-        |!! l L_let ..+ block (pLetDef pBindId) +.+ l L_in ..+ pExpr    >>> Clet        
+        |!! l L_let ..+ block (pLetDef pBindId) +.+ l L_in ..+ pExpr    >>> Clet
         |!! l L_case ..+ pExpr +.+ l L_of ..+ block pCaseArm        >>> Ccase
 #ifdef NEWSYNTAX
 
 #else
         |!! l L_open ..+ pExpr +.+ pOpenArgs +.+ l L_in ..+ pExpr >>>> Copen
 
-        
+
 
         |!! l L_data ..+ pSummands                                      >>- CSum
         |!! l L_idata ..+  pIndSummands                  >>- (CIndSum [])
 #endif
-        |!! l L_sig +.+ block (pSign pBindId)                >>> CProduct 
+        |!! l L_sig +.+ block (pSign pBindId)                >>> CProduct
         |!! l L_external +.+ (many1 string') +.+ (many aexp)      >>>> (\p -> \(name:opts) -> \es -> (CExternal (Plugin p name (concat opts) es ())))
             -- Should only be one or two strings
-        |!! l L_do +.+ pDoBlock                                         >>> CDo       
+        |!! l L_do +.+ pDoBlock                                         >>> CDo
         |!! l L_if ..+ exp0 +.+ l L_then ..+ exp0 +.+ l L_else ..+ exp0 >>>> Cif
-        ||! pB pPArgsT +.+ pExpr                                                >>> CUniv        
+        ||! pB pPArgsT +.+ pExpr                                                >>> CUniv
         ||! aexp +.+ many abexp                                         >>> cApply
 
 
 pOpenArgs :: CParser COpenArgs
-pOpenArgs =  l L_use ..+ pOArgs     >>-  COpenArgs 
+pOpenArgs =  l L_use ..+ pOArgs     >>-  COpenArgs
 
 
 pOArgs :: CParser [COArg]
@@ -115,7 +115,7 @@ pOArgs = sepBy pOArg cm
 
 
 pOArg :: CParser COArg
-pOArg = ( many pProp +.+ pBindId ) `into` 
+pOArg = ( many pProp +.+ pBindId ) `into`
         \ (ps,i) ->
            (eq ..+ pBindId                                        >>- (\i' -> COArgAs ps i' i)
            ||! (dc ..+ pExpr) `into` (\a ->  eq ..+ pBindId >>- (\i' -> COArgAsT ps i' a i)
@@ -127,11 +127,11 @@ pOArg = ( many pProp +.+ pBindId ) `into`
         \ (ps,i) ->
            (eq ..+ pBindId                                        >>- (\i' -> COArgAs ps i' i)
            ||! (dc ..+ pExpr +.+ eq ..+ pBindId >>- (\(a,i') -> COArgAsT ps i' a i))
-       
+
 -}
 
 -- Is this a problem? MT says that it conflicts with Ilya syntax???
-abexp =  l L_bar ..+ aexp               >>- (\x->(True,x)) 
+abexp =  l L_bar ..+ aexp               >>- (\x->(True,x))
        |!! aexp                 >>- (\x->(False,x))
 
 
@@ -152,14 +152,14 @@ aexp' =
                         l L_at ..+ l L_uscore       .>  (CCConS i)
                         ||!  l L_at ..+ aexp        >>- CCCon i
                         ||! succeed (CVar i))
-#endif      
+#endif
         ||! lp ..+  pCmId +.. rp                     >>- CVar
         ||! lp ..+ sepBy1 pExpr cm +.. rp            >>- cBinOp commaId
-        ||! lb +.+ sepBy pExpr cm +.. rb            >>> CList 
+        ||! lb +.+ sepBy pExpr cm +.. rb            >>> CList
         ||! pTYPE +.+ oNum                          >>>> CStar
         ||! l L_Type                                >>- cType
         ||! l L_Set                                 >>- cSet
-        ||! pMeta False                                               
+        ||! pMeta False
         ||! many pProp +.+ l L_struct +.+ block (pLetDef pBindId)               >>>> CRecord
         ||! integer
         ||! string
@@ -187,12 +187,12 @@ pDoBind =   pBindId +.+ l L_larrow ..+ pExpr                        >>> CDoBind
 block :: CParser a -> CParser [a]
 block p =
           --trace "bl" $
-          startBlock ..+ hBlock p 
+          startBlock ..+ hBlock p
 
 hBlock :: CParser a -> CParser [a]
 hBlock p =
            --trace "hB" $
-           lc ..+ sepBy p dsm +.. osm +.. rc 
+           lc ..+ sepBy p dsm +.. osm +.. rc
 
 block1 :: CParser a -> CParser [a]
 block1 p =
@@ -202,7 +202,7 @@ block1 p =
 hBlock1 :: CParser a -> CParser [a]
 hBlock1 p =
             --trace "hB1" $
-            lc ..+ sepBy1 p dsm +.. osm +.. rc 
+            lc ..+ sepBy1 p dsm +.. osm +.. rc
 
 
 pTYPE = l L_star
@@ -220,10 +220,10 @@ pSummand' :: CParser (Id, [CArg])
 pSummand' = pBindId +.+ (pPArgsBT  False)                   >>> \i -> \a -> (i,[a])
 
 pIndSummands :: CParser CIndSummands
-pIndSummands = sepBy pIndSummand (l L_bar) 
+pIndSummands = sepBy pIndSummand (l L_bar)
 
 pExplInds :: CParser CIndSummands
-pExplInds = sepBy pExplInd (l L_bar) 
+pExplInds = sepBy pExplInd (l L_bar)
 
 pIndSummand :: CParser CIndSummand
 pIndSummand = pSummand `into` \ (c,cas1) ->
@@ -238,7 +238,7 @@ pExplInd = pSummand `into` \ (c,cas1) ->
 
 pIndSummandTyp :: CParser [CExpr]
 pIndSummandTyp = (l L_over ..+  block aexp )
-                  ||! dc ..+  (l L_uscore ..+ many aexp) 
+                  ||! dc ..+  (l L_uscore ..+ many aexp)
                  ||! succeed []
 
 pExplTyp :: CParser (Id,[(Bool,CExpr)])
@@ -248,12 +248,12 @@ pExplTyp = dc ..+  pId +.+ many abexp
 pPackageBody :: CParser CPackageBody
 pPackageBody =
             --trace "PBd" $
-            eq ..+ pExpr                      >>- CPackageInstance 
-            ||! many pProp +.+ l L_where +.+ block (pLetDef pBindId)     >>>> CPackageDef 
+            eq ..+ pExpr                      >>- CPackageInstance
+            ||! many pProp +.+ l L_where +.+ block (pLetDef pBindId)     >>>> CPackageDef
 
 
 --pOpenArgs :: CParser COpenArgs
---pOpenArgs 
+--pOpenArgs
 
 
 pSign :: CParser Id -> CParser CSign
@@ -262,16 +262,16 @@ pSign :: CParser Id -> CParser CSign
 
 
 pSign pi =  pDefn pi                                                    >>- CSignDef
-        ||! sepBy1 pi cm +.+ dc ..+ pType               >>>  CSign 
+        ||! sepBy1 pi cm +.+ dc ..+ pType               >>>  CSign
 
 --      ||! l L_type ..+ pi +.+ many pPArg                              >>> CSignType
 
 pLetDef :: CParser Id -> CParser CLetDef
-pLetDef p = 
+pLetDef p =
         --trace "LD" $
         l L_mutual ..+ block1 (pDef p)                              >>-  CMutual
 
-        ||! comment                                                >>- CLetDefComment 
+        ||! comment                                                >>- CLetDefComment
         ||! pDef p                                                      >>- CSimple
 
 pDef :: CParser Id -> CParser CDef
@@ -297,27 +297,27 @@ pDefn pi =
             l L_data ..+        pi +.+ pPArgs +.+ pPMaybeExpr +.+ eq ..+ pSummands >>>>> Cdata
 
         |!! l L_idata ..+     pi +.+ pPArgs' +.+ dc ..+ pExpr +.+ l L_where ..+ block (pExplInd) >>>>> Cidata
-        |!! l L_newtype ..+ pi +.+ pPArgs +.+ dc ..+ pType +.+ eq ..+ pSummand' >>>>>  Cnewtype 
+        |!! l L_newtype ..+ pi +.+ pPArgs +.+ dc ..+ pType +.+ eq ..+ pSummand' >>>>>  Cnewtype
         |!! l L_type ..+ pi +.+ pPArgs +.+ eq ..+ pExpr >>>>  Ctype
         |!! l L_native ..+ pi +.+  dc ..+ pType           >>> CNative
         |!! l L_axiom ..+ pi +.+ pPArgs +.+ dc ..+ pType           >>>> CAxiom
         |!! l L_package ..+ pi +.+ pPArgs +.+  pPackageBody >>>> CPackage
-        |!! l L_open ..+ pExpr +.+  pOpenArgs   >>> COpen  
-        |!! l L_instance ..+ pi +.+ pPArgs +.+ dc ..+ pPInstanceArg +.+ l L_where ..+  block (pLetDef pBindId) >>>>> CInstance    
-       ||! pi +.+ pPArgs' +.+ dc ..+ pType 
-             `into` (\ (i,(as,e)) -> 
+        |!! l L_open ..+ pExpr +.+  pOpenArgs   >>> COpen
+        |!! l L_instance ..+ pi +.+ pPArgs +.+ dc ..+ pPInstanceArg +.+ l L_where ..+  block (pLetDef pBindId) >>>>> CInstance
+       ||! pi +.+ pPArgs' +.+ dc ..+ pType
+             `into` (\ (i,(as,e)) ->
                        eq ..+ pExpr      >>-  CValueT i as e
                      ||! dsm ..+ pClause1 i pi   >>-  CValueS i as e )
                        {- allows for a def like
                            foo(n::N)::N -> N;
                            foo x = n
                         -}
-#ifdef NEWSYNTAX 
+#ifdef NEWSYNTAX
 
 #else
        ||!  pi +.+ eq ..+ pExpr                        >>>   CValue
 #endif
-        
+
 
 --pClauses :: Id -> CParser Id -> CParser [CClause]
 --pClauses i pi = many (dsm ..+ pClause i pi)
@@ -326,15 +326,15 @@ pDefn pi =
 --pClauses1 i pi = sepBy1 (pClause i pi) dsm
 
 pClause1 :: Id -> CParser Id -> CParser CClause
-pClause1 i pi = pClause i pi 
+pClause1 i pi = pClause i pi
 --
 --pClauses :: Id -> CParser Id -> CParser [CClause]
 --pClauses i pi = pClause i pi
 
 pClause :: Id -> CParser Id -> CParser CClause
-pClause i pi = 
+pClause i pi =
         piEq i pi ..+ many pBAPat +.+ eq ..+ pExpr            >>> CClause
-    ||! pAPat +.+ piEq i pOper ..+ pAPat +.+ eq ..+ pExpr     >>>> 
+    ||! pAPat +.+ piEq i pOper ..+ pAPat +.+ eq ..+ pExpr     >>>>
                 (\a1 -> \a2  -> \e -> CClause [(False,a1),(False,a2)] e)
 
 piEq :: Id -> CParser Id -> CParser Id
@@ -344,12 +344,12 @@ piEq i pi = testp (getIdString i) (\i'->i==i') pi
 pPatArg :: CParser CPatArg
 pPatArg = lp ..+ pBindId +.+ dc ..+ pExpr +.. rp >>>  CPatT
       ||! pBindId >>- CPatId
-         
+
 
 pPatApply :: CParser CPat
 pPatApply = pBindId +.+ many pPatArg                            >>> (\i -> \l -> (CPCon i (map CPVar l)))
 
-     
+
 pPatOp :: CParser CPat
 pPatOp = binop getFixity mkBinP (pOper |!! pCmId) pAPat
   where mkBinP p1 op p2 = CPCon op [p1, p2]
@@ -369,25 +369,25 @@ pAPat =   -- pBindId `into` (\ i ->
 
 
 pPArgsT :: CParser ([Id],CExpr)
-pPArgsT = lp ..+ sepBy1 pBindId cm +.+ dc ..+ pType +.. rp      
+pPArgsT = lp ..+ sepBy1 pBindId cm +.+ dc ..+ pType +.. rp
 
 pPBind :: CParser CBind
-pPBind =  
+pPBind =
           many1 pBindId   >>- (\xs -> CBind  xs Nothing )
       ||! pPArgsT      >>- (\(xs,t) -> CBind xs (Just t))
-        
-       
+
+
 
 
 pPArgsBT :: Bool -> CParser CArg
-pPArgsBT def = lp ..+ sepBy1 (pBBindId def) cm +.+ dc ..+ pType +.. rp    >>> CArg 
+pPArgsBT def = lp ..+ sepBy1 (pBBindId def) cm +.+ dc ..+ pType +.. rp    >>> CArg
 
 pPArgs :: CParser CArgs
-pPArgs = many (pPArgsBT False)  
+pPArgs = many (pPArgsBT False)
 
 #ifdef NEWSYNTAX
 pPArgs' :: CParser CArgs
-pPArgs' = many (pPArgsBT True)  
+pPArgs' = many (pPArgsBT True)
 #else
 pPArgs' :: CParser CArgs
 pPArgs' = many (pPArgsBT False)
@@ -395,19 +395,19 @@ pPArgs' = many (pPArgsBT False)
 
 
 pPClassArg :: CParser Id -> CParser CClassArg
-pPClassArg pi = pi +.+ pPArgs +.+ dc ..+ pExpr 
+pPClassArg pi = pi +.+ pPArgs +.+ dc ..+ pExpr
        `into` (\(c,(as,t)) -> l L_extends ..+  pPArgs >>- CClassArg c as t
                             |!! succeed (CClassArg  c as t []))
 pClassRhs :: CParser (Bool, [CSign])
 pClassRhs = l L_where ..+   block (pSign pBindId) >>- (\sds -> (False,sds))
         |!! l L_exports ..+   block (pSign pBindId) >>- (\sds -> (True,sds))
- 
+
 pPMaybeExpr ::  CParser (Maybe CExpr)
 pPMaybeExpr  = dc ..+ pExpr >>- Just
             ||! succeed Nothing
 
 pPInstanceArg :: CParser CInstanceArg
-pPInstanceArg = pType >>- CInstanceArg 
+pPInstanceArg = pType >>- CInstanceArg
 
 
 
@@ -420,8 +420,8 @@ pMeta b  = l L_uscore >>- (\p -> CMeta p b (Just True) preMetaVar)
        ||! l L_meta   >>- (\p -> CMeta p b (Just False) preMetaVar)
 
 pOper :: CParser Id
-pOper = pOpId ||! l L_bquote ..+ pVarId +.. l L_bquote 
-         
+pOper = pOpId ||! l L_bquote ..+ pVarId +.. l L_bquote
+
 
 
 pModId, pVarId,pConId, pBindId, pOpId, pCmId :: CParser Id
@@ -429,13 +429,13 @@ pModId = lcp "<modid>" (\p x->case x of L_modid fs -> Just (mkId p fs); _ -> Not
 
 pBindId = pVarId
       ||! lp ..+ pOpId +.. rp
-      
+
 
 
 pBindIds = many pBindId
 
-pBBindId def = l L_bar ..+ pBindId >>- (,) True  
-       |!! l L_excl ..+ pBindId >>- (,) False 
+pBBindId def = l L_bar ..+ pBindId >>- (,) True
+       |!! l L_excl ..+ pBindId >>- (,) False
        |!! pBindId          >>- (,) def
 
 
@@ -449,7 +449,7 @@ pConId = lcp "<id>"  (\p x->case x of L_conid fs -> Just (mkId p fs); _ -> Nothi
 
 
 pId :: CParser Id
-pId = pBindId ||!  pModId 
+pId = pBindId ||!  pModId
 
 -- Utilities
 
@@ -482,10 +482,10 @@ getPos = token ( \ls->
         Token p _ : _ -> Right (p, ls))
 
 lcp :: String -> (Position -> LexItem -> Maybe a) -> CParser a
-lcp s f = 
-        token $ \ls-> 
+lcp s f =
+        token $ \ls->
         case ls of
-        Token p li : ls' -> 
+        Token p li : ls' ->
             case f p li of
             Just x  -> Right (x, ls')
             Nothing -> Left s
@@ -514,7 +514,7 @@ errSyntax ss ts =
                                     s -> s
 
 oNum :: CParser (Int, Int)
-oNum =     integer' `into` (\ n -> 
+oNum =     integer' `into` (\ n ->
                             l L_dot ..+ integer' >>- (\m -> (n,m))
                             ||! succeed (n,n))
        ||! succeed (0,0)

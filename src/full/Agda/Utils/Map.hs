@@ -37,4 +37,3 @@ insertWithKeyM clash k x m =
 -- | Filter a map based on the keys.
 filterKeys :: Ord k => (k -> Bool) -> Map k a -> Map k a
 filterKeys p = filterWithKey (const . p)
-

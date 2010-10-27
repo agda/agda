@@ -102,4 +102,3 @@ appView :: Term -> AppView
 appView v = peel v [] where
   peel (App v u) us = peel v (u : us)
   peel v us         = AppV v us
-

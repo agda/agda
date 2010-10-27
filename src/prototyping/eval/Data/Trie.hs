@@ -83,4 +83,3 @@ prop_deleteLookup :: [Lower] -> Trie Lower Int -> Property
 prop_deleteLookup x t = member x t ==> lookup x (delete x t) == Nothing
 
 -- more tests should follow
-

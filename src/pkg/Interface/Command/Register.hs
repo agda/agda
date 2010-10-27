@@ -75,6 +75,6 @@ registerPkg fileName = undefined
           case Cabal.locatedErrorMsg err of
             (Nothing, s) -> Agda.liftIO $ die                     s
             (Just l , s) -> Agda.liftIO $ die $ show l ++ ": " ++ s
-        Cabal.ParseOk _warns res -> do 
+        Cabal.ParseOk _warns res -> do
           return res
     -}

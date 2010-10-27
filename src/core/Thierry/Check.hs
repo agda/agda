@@ -52,4 +52,3 @@ checkI con (Fun a f) (e:es) =
   checkI con (f (evalCon con e)) es
 checkI _ v []  = return v
 checkI _ _ _   = fail "checkI"
-

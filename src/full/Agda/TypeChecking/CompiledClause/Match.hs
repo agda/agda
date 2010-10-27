@@ -66,4 +66,3 @@ match' [] = typeError $ GenericError "Incomplete pattern matching"
 unfoldCorecursion (NotBlocked (Def f args)) =
   unfoldDefinition True reduceB (Def f []) f args
 unfoldCorecursion w = return w
-

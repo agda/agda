@@ -50,5 +50,3 @@ normalize v = do
       withSubst ((x, Var x []) : env) $
         Lam x <$> normalize t
     _ -> return v
-
-

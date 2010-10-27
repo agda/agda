@@ -43,7 +43,7 @@ instantiateTel s tel = liftTCM $ do
       psC = Perm (size s) [ i | (i, Just _)  <- zip [0..] $ reverse s ]
 
   reportSDoc "tc.lhs.inst" 10 $ vcat
-    [ nest 2 $ text $ "ps   = " ++ show ps 
+    [ nest 2 $ text $ "ps   = " ++ show ps
     , nest 2 $ text $ "psR  = " ++ show psR
     , nest 2 $ text $ "psC  = " ++ show psC
     ]
@@ -135,4 +135,3 @@ nothingToSplitError (Problem ps _ tel) = splitError ps tel
 	  A.ConP _ _ _ -> True
 	  A.LitP _     -> True
 	  _	       -> False
-

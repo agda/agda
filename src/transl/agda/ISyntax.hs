@@ -1,6 +1,6 @@
 {-# OPTIONS -cpp #-}
 #include "config.h"
-{-| 
+{-|
 
   Pretty printer for ISyntax (as def. in ISynType)
 -}
@@ -79,7 +79,7 @@ ppExp d p = go where
                  else t("("++show m)~.pp PDDebug pi~.t")"
 
       (EStop m e)-> if deb then pparen True (t(show m++"!")~.go e) else go e
-    
+
       (EClos env e)
         | deb       -> pparen True $ go e `sepnest` ppEnv d env
 	| readable  -> go e
@@ -96,18 +96,18 @@ ppExp d p = go where
 
   ppQuant d p e =  pparen (p > 8) $  separate (ppQuants d e)
         where ppQuants :: PDetail -> Exp -> [IText]
-              ppQuants d (EAbs cb e) = 
+              ppQuants d (EAbs cb e) =
                 let cbs :: [(Bool,[UId],Exp)]
                     cbs = groupHidden cb
                     pcbs :: [IText]
                     pcbs = map (\cb -> t "\\" ~. pparg d 9 cb) cbs
                 in pcbs ++ ppQuants d e
-              ppQuants d (EProd cb e) = 
+              ppQuants d (EProd cb e) =
                  let cbs = groupHidden cb
                  in map (pparg d 9) cbs ++  ppQuants d e
               ppQuants d e = [pPrint d 8 e]
               groupHidden :: ([(Bool,UId)],Exp)-> [(Bool,[UId],Exp)]
-              groupHidden (hxs,a) = 
+              groupHidden (hxs,a) =
                 let hxss = groupBy (\(h,_) -> \(h',_) -> h == h') hxs
                     liftHidden :: [(Bool,UId)] -> (Bool,[UId],Exp)
                     liftHidden hxs' = let (hs,xs) = unzip hxs'
@@ -158,19 +158,19 @@ env `reducedFor` e = case e of
 
 {- still to go -}
 
-instance PPrint Sort where 
+instance PPrint Sort where
     pPrint _ _ (Sort 0) = t"Set"
     pPrint _ _ (Sort 1) = t"Type"
     pPrint _ _ (Sort n) = t("#"++show n)
 
-instance PPrint EProp where 
+instance PPrint EProp where
     pPrint _ _ p = t (tail (show p))
 
 instance PPrint LetDef where
     pPrint d p (DSimple def) = pPrint d p def
-    pPrint d p (DMutual ds) = (t"mutual " ~. foldr1 (^.) (map (pp d) ds)) 
+    pPrint d p (DMutual ds) = (t"mutual " ~. foldr1 (^.) (map (pp d) ds))
 
-instance PPrint Def where 
+instance PPrint Def where
     pPrint d@PDDebug p (Def blocked _ ps c xs tel a (DExp e)) =
       cseparate [sepList (map (pPrint d 0) ps) (t" "),
                  (if blocked then t"newtype " else t"")~.ppUId d c~.ppTel d 10 tel,
@@ -178,14 +178,14 @@ instance PPrint Def where
                  nest 2 $ pp d e,
                  t"fv="~.pPrint d 0 xs]
 
-      
-    pPrint d p (Def blocked _ ps c _ [] a (DExp e)) = 
+
+    pPrint d p (Def blocked _ ps c _ [] a (DExp e)) =
           separate [
              separate [
                 separate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(if blocked then t"newtype " else t"") ~. ppUId d c])  ,
                          nest 2 (t" :: " ~. pp d a)],
                     nest 2 (t"= " ~. pp d e)]
-    pPrint d p (Def blocked  _ ps c _ tel a (DExp e)) = 
+    pPrint d p (Def blocked  _ ps c _ tel a (DExp e)) =
           separate [
              separate [
                       separate [separate ((map ((\s -> s ~. t" ") . pp d) ps)
@@ -193,23 +193,23 @@ instance PPrint Def where
                                 nest 2 (separate (map (ppBind d 12) tel))],
                       nest 2 (t" :: " ~. pp d a)],
              nest 2 (t"= " ~. pp d e)]
-    pPrint d p (Def _ _ ps c _ tel a PN) = 
+    pPrint d p (Def _ _ ps c _ tel a PN) =
           separate[
           separate [cseparate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(t"postulate ")~.ppUId d c]), nest 2 (separate (map (ppBind d p) tel))],
                     nest 2 (t" :: " ~.pp d a)]
 
 
-    pPrint d p (Def _ _ ps c _ _ a Native) = 
+    pPrint d p (Def _ _ ps c _ _ a Native) =
           separate[
           cseparate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(t"native")~.ppUId d c]),
                     nest 2 (t" :: " ~.pp d a)]
-    pPrint d p (UnTypedDef blocked _ ps c _ (DExp e)) = 
+    pPrint d p (UnTypedDef blocked _ ps c _ (DExp e)) =
           separate [
             separate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(if blocked then t"newtype " else t"") ~. ppUId d c]),
                     nest 2 (t"= " ~. pp d e)]
-    pPrint d p (UnTypedDef blocked _ ps c _ PN) = 
+    pPrint d p (UnTypedDef blocked _ ps c _ PN) =
        cseparate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(t"postulate ")~.ppUId d c])
-    pPrint d p (UnTypedDef _ _ ps c _ Native) = 
+    pPrint d p (UnTypedDef _ _ ps c _ Native) =
        cseparate ((map ((\s -> s ~. t" ") . pp d) ps)++ [(t"native ")~.ppUId d c])
 
     pPrint d p (DOpen m as) = t"open " ~. pp d m ~. pp d as
@@ -253,7 +253,7 @@ instance PPrint OpenArg where
     pPrint d _(OpenConstT ps c a) = sepList (map (pp d) ps) (t " ") ~.  ppUId d c ~. t" :: " ~. pPrint d 6 a
     pPrint d _(OpenConstAsT ps i c a) = sepList (map (pp d) ps) (t " ") ~.  ppUId d c ~. t" :: " ~. pPrint d 6 a ~. t" = "~. ppId d i
 
-   
+
 
 instance PPrint OpenArgs where
     pPrint d p (OpenArgs us _) =  t " use "~.sepList (map (pp d) us) (t",")
@@ -263,22 +263,22 @@ ppEq' d (x,e) = ppUId d x ~. t" = " ~. pPrint d 0 e
 ppEq d (x,e) = case e of
   EVar y _ | x == y -> (ppUId d x)
   _               -> (ppUId d x ~. t"=" ~. pPrint d 0 e)
-              
+
 removeEq :: Environment -> Environment   --- NOT CORRECT
 removeEq (E (env,sigma)) = E ( removeEq' env,sigma)
     where removeEq' env =  filter uninteresting env
-          uninteresting (x,(EVar x' _)) =  (toId x) /= (toId x') 
+          uninteresting (x,(EVar x' _)) =  (toId x) /= (toId x')
           uninteresting _          = True
 
 instance PPrint PatArg where
     pPrint d p (PArgT i a) = pparen (p > 0) $ ppUId d i ~.t"::"~. pp d a
-    pPrint d _ (PArg i) = ppUId d i 
+    pPrint d _ (PArg i) = ppUId d i
 
 
 instance PPrint CaseBranch where
    --pPrint PDDebug _ (CBCon i []) = ppId PDDebug i~.t"()"
    --pPrint d p (CBCon i pas) =  pparen (p>9) $ separate (ppId d i : map (pPrint d 10) pas)
-     pPrint d p (CBConM i pas _) = 
+     pPrint d p (CBConM i pas _) =
         pparen (p>9) $ separate (ppId d i : map (pPrint d 10) pas)
      pPrint d p (CBLit _ l) =  pPrint d p l
 
@@ -300,7 +300,7 @@ ppAbs d e =  separate (ppLmds d e)
 
 ppProd p d e = pparen (p > 8) $ separate (ppProds p d e)
         where ppProds p d (EProd b'@([(_,x)],b) a) =
-                 if isDummyUId x 
+                 if isDummyUId x
                      then (pPrint d 9 b ~. t(" ->")) : (ppProds 1 d a)
                      else (ppBind d 9 b' ~. t(" ->")) :  (ppProds 8 d a)
               ppProds p d (EProd b'@(x,b) a) =
@@ -322,14 +322,14 @@ instance PPrint Env where
 
 instance PPrint Environment where
     pPrint d p env =
-          if null xes then 
+          if null xes then
                 if d == PDDebug then t"{}" else t""
           else if d == PDDebug then t" where {" ~. csepList (map (ppEq d) xes) (t",") ~. t"}"
                   else t" where " ~. foldr1 (^.) (map (ppEq d) xes)
       where xes = listEnv env
-          
 
-ppBinExp d pd e p1 p2 = 
+
+ppBinExp d pd e p1 p2 =
   case e of
    EVar x _ -> ppOp' d pd x p1 p2
    EConst c _ -> ppOp' d pd c p1 p2
@@ -340,7 +340,7 @@ ppBinExp d pd e p1 p2 =
 
 ppOp'' d@PDDebug pd i no p1 p2 =
          let (p, lp, rp) =
-                case getFixity i of 
+                case getFixity i of
                 FInfixl p -> (p, p, p+1)
                 FInfixr p -> (p, p+1, p)
                 FInfix  p -> (p, p+1, p+1)
@@ -348,7 +348,7 @@ ppOp'' d@PDDebug pd i no p1 p2 =
                   (pPrint d lp  p1 ~. t" " ~. ppInfix d i ~.t("#"++show no)~. t" " ~. pPrint d rp p2)
 ppOp'' d pd i no p1 p2 =
          let (p, lp, rp) =
-                case getFixity i of 
+                case getFixity i of
                 FInfixl p -> (p, p, p+1)
                 FInfixr p -> (p, p+1, p)
                 FInfix  p -> (p, p+1, p+1)
@@ -362,7 +362,7 @@ instance PPrint Drhs where
        pPrint d _ PN = t"PN"
        pPrint _ _ Native = t"Native"
 
-instance PPrint a => PPrint (Judgement a) where 
+instance PPrint a => PPrint (Judgement a) where
        pPrint d _ (IsType a) = t"type "~. pp d a
        pPrint d _ (a :! v) = pp d a ~. t" :: " ~. pp d v
 
@@ -380,7 +380,7 @@ isBinExp (EConst c _) = isBinOp (toId c)
 isBinExp (EConstV c _) = isBinOp (toId c)
 isBinExp otherwise = False
 
-precExp :: Exp -> Int 
+precExp :: Exp -> Int
 precExp (EVar _ _) = 12
 precExp (EConst  _ _) = 12
 precExp (ESort _ _) = 12

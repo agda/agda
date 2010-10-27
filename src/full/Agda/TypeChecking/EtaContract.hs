@@ -59,4 +59,3 @@ etaOnce v = ignoreAbstractMode $ eta v
           (etaContractRecord r c args)
           (return t)
     eta t = return t
-

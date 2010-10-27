@@ -13,4 +13,3 @@ instance SemiRing a => SemiRing (Maybe a) where
   otimes Nothing _ = Nothing
   otimes _ Nothing = Nothing
   otimes (Just x) (Just y) = Just (otimes x y)
-

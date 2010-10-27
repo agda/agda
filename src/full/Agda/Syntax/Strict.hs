@@ -85,4 +85,3 @@ f $!! x = force x `seq` f x
 
 strict :: Strict a => a -> a
 strict x = id $!! x
-

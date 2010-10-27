@@ -40,7 +40,7 @@ instance Apply Term where
             Pi _ _        -> __IMPOSSIBLE__
             Fun _ _       -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
-            DontCare      -> __IMPOSSIBLE__ 
+            DontCare      -> __IMPOSSIBLE__
 
 instance Apply Type where
   apply = piApply
@@ -60,11 +60,11 @@ instance Apply Definition where
 instance Apply Defn where
   apply d args = case d of
     Axiom{} -> d
-    Function{ funClauses = cs, funCompiled = cc, funInv = inv 
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = mn } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
-        , funInv        = apply inv args 
+        , funInv        = apply inv args
         , funProjection = fmap (nonNeg . \ n -> n - size args) mn
         } where nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
     Datatype{ dataPars = np, dataClause = cl } ->
@@ -187,8 +187,8 @@ instance Abstract Defn where
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = mn } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
-        , funInv = abstract tel inv 
-        , funProjection = fmap ((+) (size tel)) mn 
+        , funInv = abstract tel inv
+        , funProjection = fmap ((+) (size tel)) mn
           -- index of record arg shifts back by number of new args
         }
     Datatype{ dataPars = np, dataClause = cl } ->
@@ -510,5 +510,3 @@ dLub s1 s2
     vs = freeVars (absBody s2)
     fv = flexibleVars vs
     rv = rigidVars vs
-
-

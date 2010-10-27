@@ -31,4 +31,3 @@ checkExpr (A.Lam (A.Ident x) t) =
   bindVar x $ \x -> do
   v <- checkExpr t
   return $ Lam x v
-

@@ -165,4 +165,3 @@ levelView a = do
             ns = [ m | Plus m a'  <- bs, a == a', m > n ]
 
     lub (Max as) (Max bs) = maxim $ as ++ bs
-

@@ -403,7 +403,7 @@ openModule_ cm dir = do
   current <- getCurrentModule
   m <- amodName <$> resolveModule cm
   let ns = namespace current m
-  s <- setScopeAccess ns <$> 
+  s <- setScopeAccess ns <$>
         (applyImportDirectiveM cm dir . restrictPrivate =<< getNamedScope m)
   checkForClashes (scopeNameSpace ns s)
   modifyCurrentScope (`mergeScope` s)
@@ -438,4 +438,3 @@ openModule_ cm dir = do
         case filter realClash modClashes of
           (_, (m0:_, m1:_)):_ -> typeError $ ClashingModule (amodName m0) (amodName m1)
           _                   -> return ()
-

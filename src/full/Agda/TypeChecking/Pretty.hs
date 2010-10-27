@@ -84,7 +84,7 @@ instance PrettyTCM ClauseBody where
       walk (Bind b) = do
         (bs, v) <- underAbstraction_ b walk
         return (text (absName b) : bs, v)
- 
+
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
   prettyTCM (IsSort a)    = text "Sort" <+> prettyTCM a
@@ -125,7 +125,7 @@ instance PrettyTCM Constraint where
                       , nest 2 $ text "~~" <+> prettyTCM v
                       , nest 2 $ text (show cmp)
                       ] | (cmp, u, v) <- zip3 cmps us vs
-                ] 
+                ]
               , nest 2 $ text ":" <+> prettyTCM t
               ]
 	LevelCmp cmp a b ->
@@ -208,4 +208,3 @@ instance PrettyTCM PrettyContext where
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext
-

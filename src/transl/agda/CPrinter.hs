@@ -11,7 +11,7 @@ import Id(Id,ppId,isBinOp,ppInfix,getFixity)
 import BinParse(Fixity(..))
 import MetaVars(MetaVar,preMetaVar)
 import Data.List(groupBy)
-import MiscId 
+import MiscId
 import Literal
 import Data.Maybe(fromMaybe,mapMaybe)
 
@@ -27,15 +27,15 @@ ppComments cs = t cs
 
 ppOp d pd i p1 p2 =
         let (p, lp, rp) =
-                case getFixity i of 
+                case getFixity i of
                 FInfixl p -> (p, p, p+1)
                 FInfixr p -> (p, p+1, p)
                 FInfix  p -> (p, p+1, p+1)
-        in pparen (d > PDReadable || pd>p) 
+        in pparen (d > PDReadable || pd>p)
                   (pPrint d lp p1 ~. t" " ~.ppInfix d i ~. t" " ~. pPrint d rp p2)    -- Ett hack
 
 
-ppBinCExpr d pd e p1 p2 = 
+ppBinCExpr d pd e p1 p2 =
   case e of
    CVar x -> ppOp d pd x p1 p2
    _          -> t"Internal error"
@@ -61,18 +61,18 @@ instance PPrint CExpr where
     pPrint d p (Clet ds e) = pparen (p > 8) $
         (t"let " ~. layout d ds) ^.
         (t"in  " ~. pp d e)
-    pPrint d p (CProduct _ []) = 
+    pPrint d p (CProduct _ []) =
         pparen (p>8) $ t"sig {}"
-    pPrint d p (CProduct _ as) 
-        =  if p > 8 then 
+    pPrint d p (CProduct _ as)
+        =  if p > 8 then
               pparen True $  t"sig " ~. nolayout d as
            else t"sig " ^.   nest 2 (layout d as)
     pPrint d p (CRecord ps _ []) =
         pparen (p>8) $ t"struct {}"
-    pPrint d p (CRecord ps _ ds) = 
-         if p > 8 then 
+    pPrint d p (CRecord ps _ ds) =
+         if p > 8 then
               pparen True $ separate (ppProps ps ~. t"struct " ~.  t"{" : [nest 2 (vcat (map (\s -> s~.text ";")(map (\def -> pp d def ) ds)))])~. t "}"
-        else separate (map (pp d) ps) ~. t"struct " ^. 
+        else separate (map (pp d) ps) ~. t"struct " ^.
                 nest 2 (layout d ds) -- vcat (map (pp d) ds)
     pPrint d p (Copen e as b) = pparen (p > 8) $ (t"open " ~. pp d e ~. pp d as ~. t" in ") ^. (pp d b)
     pPrint d p (CSelect e i) = pparen (p > 12) $ pPrint d 12 e ~. t"." ~. ppId d i
@@ -80,44 +80,44 @@ instance PPrint CExpr where
     pPrint d p (CSum cs) = pparen (p > 12) $
         t"data " ~. ppSummands d cs
 #ifdef NEWSYNTAX
-    pPrint d p (CCCon  i ty) = 
+    pPrint d p (CCCon  i ty) =
         ppId d i
     pPrint d p (CCConS i) =  ppId d i
 #else
-    pPrint d p (CCCon  i ty) = 
+    pPrint d p (CCCon  i ty) =
         pparen (p > 12) $ ppId d i ~. t"@" ~. pPrint d 12 ty
     pPrint d p (CCConS i) = pparen (p > 12) $ ppId d i ~. t"@_"
 #endif
     pPrint d p (Ccase e arms) = ppCase d p e arms
-    pPrint d p (Cif c tr e) = pparen (p>1) (separate [t"if " ~. pp d c ~. t" then", nest 4 (pp d tr), t"else", nest 4 (pp d e)])        
+    pPrint d p (Cif c tr e) = pparen (p>1) (separate [t"if " ~. pp d c ~. t" then", nest 4 (pp d tr), t"else", nest 4 (pp d e)])
     pPrint d p (CLit _ l) = pPrint d p l
-    pPrint d p e@(CBinOp e1 i e2) = 
+    pPrint d p e@(CBinOp e1 i e2) =
          fromMaybe (fromMaybe (ppOp d p i e1 e2) (ppCList d e)) (ppStr e)
         --pparen (p>0) $ pPrint d 1 e1 ~. t" " ~. ppInfix d i ~. t" " ~. pPrint d 1 e2
     pPrint d p (CMeta pos _ aut m)
                | isVisAut aut  = t("_")
                | m == preMetaVar = t"?"
                | otherwise = t("?"++(show m))
-    pPrint d p (CClos [] e) =  pPrint d p e 
+    pPrint d p (CClos [] e) =  pPrint d p e
     pPrint d p (CClos env e) = pparen (p > 0)$ separate [pPrint d p e,nest 2 (ppCEnv d env)]
-    pPrint d p (Ccomment left cs e) 
-                  | left =  ppComments cs ~. pPrint d p e 
+    pPrint d p (Ccomment left cs e)
+                  | left =  ppComments cs ~. pPrint d p e
                   | otherwise = pPrint d p e ~. ppComments cs
     pPrint d p CPackageType =  t"<package>"
     -- share with CProduct later.
     pPrint d p (CIndSum ctel cs) = pparen (p > 12) $
         nseparate [t"idata "~.ppCArgs d 10 ctel, nest 2 (ppIndSummands d cs)]
-    pPrint d p (CDo _ bs) = pparen (p>0) $ 
-        t"do " ~. -- pPrint d 11 e ~. t" " ~. 
+    pPrint d p (CDo _ bs) = pparen (p>0) $
+        t"do " ~. -- pPrint d 11 e ~. t" " ~.
         separate [t"{", nest 2 (separate (map (pp d) bs)), t"}"]
     pPrint d p (CList _ l) = ppList d l
     pPrint d p (CExternal ext) = t"external " ~. pPrint d p ext
-        
+
     --pPrint d p e = error (ppr d e)
 
 --     pPrint d p (Cdo e bs) =
---         pparen (p>0) $ 
---      t"do " ~. pPrint d 11 e ~. t" " ~. 
+--         pparen (p>0) $
+--      t"do " ~. pPrint d 11 e ~. t" " ~.
 --      separate [t"{", nest 2 (separate (map (pp d) bs)), t"}"]
 --    pPrint d p (CWarn _ e) = pPrint d p e
 --    pPrint d p (CHasType e t) = pparen (p>0) $ pPrint d 10 e ~. text "::" ~. pPrint d 10 t
@@ -134,19 +134,19 @@ ppCEnv d [] = t""
 ppCEnv d env = t"where " ~. vcat (map (ppEqCEnv d) env)
 
 
-ppApp d p e = fromMaybe (fromMaybe (fromMaybe (ppApp' d p e) (ppCList d e)) (ppStr e)) (ppPair d e) 
-    where 
+ppApp d p e = fromMaybe (fromMaybe (fromMaybe (ppApp' d p e) (ppCList d e)) (ppStr e)) (ppPair d e)
+    where
           ppApp' :: PDetail -> Int -> CExpr -> IText
           ppApp' PDReadable p (CApply e []) = pPrint PDReadable p e
           ppApp' PDReadable p (CApply e [e1]) = pparen (p>9) $  pPrint PDReadable p e ~. t" " ~. (ppApArg PDReadable 10 e1)
-          ppApp' d p (CApply h@(CVar x) [e1,e2]) 
+          ppApp' d p (CApply h@(CVar x) [e1,e2])
               | isBinOp x = ppOp d p x (snd e1) (snd e2)
               | otherwise = pparen (p>9) $ pPrint d 9 h  ~. t" " ~. (ppApArg d 10 e1) ~. t" " ~. (ppApArg d 10 e2)
           --ppApp' d p (CApply e [e1,e2]) = pparen (p>9) $  pPrint d 9 e  ~. t" " ~. (ppApArg d 10 e1) ~. t" " ~. (ppApArg d 10 e2)
           --ppApp' d p (CApply e [e1,e2,e3]) = pparen (p>9) $  pPrint d 9 e  ~. t" " ~.(ppApArg d 10 e1) ~. t" " ~. (ppApArg d 10 e2) ~. t" " ~. (ppApArg d 10 e3)
           --ppApp' d p (CApply e [e1,e2,e3,e4]) = pparen (p>9) $  pPrint d 9 e  ~. t" " ~. (ppApArg d 10 e1) ~. t" " ~.  (ppApArg d 10 e2) ~. t" " ~. (ppApArg d 10 e3)~. t" " ~. (ppApArg d 10 e4)
 #ifdef NEWSYNTAX
-          ppApp' d p (CApply h@(CCConS x) [e1,e2]) 
+          ppApp' d p (CApply h@(CCConS x) [e1,e2])
               | isBinOp x = ppOp d p x (snd e1) (snd e2)
               | otherwise = pparen (p>9) $ pPrint d 9 h  ~. t" " ~. (ppApArg d 10 e1) ~. t" " ~. (ppApArg d 10 e2)
 #endif
@@ -156,12 +156,12 @@ ppApp d p e = fromMaybe (fromMaybe (fromMaybe (ppApp' d p e) (ppCList d e)) (ppS
 
 ppQuant d p e =  pparen (p > 0) $  separate (ppQuants d e)
         where ppQuants :: PDetail -> CExpr -> [IText]
-              ppQuants d (CUniv cb e) = 
+              ppQuants d (CUniv cb e) =
                  let cbs = groupHidden cb
                  in map pparg cbs ++  ppQuants d e
               ppQuants d e = [pPrint d 0 e]
               groupHidden :: CArg -> [(Bool,[Id],CExpr)]
-              groupHidden (CArg hxs a) = 
+              groupHidden (CArg hxs a) =
                 let hxss = groupBy (\(h,_) -> \(h',_) -> h == h') hxs
                     liftHidden :: [(Bool,Id)] -> (Bool,[Id],CExpr)
                     liftHidden hxs' = let (hs,xs) = unzip hxs'
@@ -172,16 +172,16 @@ ppQuant d p e =  pparen (p > 0) $  separate (ppQuants d e)
               -- pparg' d p (h,is,CMeta _ _ _ _) = (nsepList (map (\i -> t " \\" ~.ppId d i) is) (if h then t" |->" else t"->")) ~. (if h then t" |->" else t"->")
 ppLam d p e =  pparen (p > 8) $ separate (pplams e)
         where pplams (Clam (h,CBind xs mt) e)= (pparg (h,xs,mt)) : pplams e
-              pplams e = [pPrint d 0 e] 
+              pplams e = [pPrint d 0 e]
               pparg :: (Bool,[Id],Maybe CExpr) -> IText
               pparg  (hidden,is,Nothing) = t"\\" ~. (nsepList (map (ppId d) is) (t" ")) ~. t(if hidden  then " |->" else " ->")
               pparg (hidden,is,Just ty) = t"\\" ~. pparen True ( (nsepList (map (ppId d) is) (t","))  ~. t"::" ~. pPrint d 0 ty) ~. t(if hidden  then " |->" else " ->")
 
 ppCase d p e [] = t"case " ~. pp d e ~. t" of { }"
-ppCase d p e arms  = 
+ppCase d p e arms  =
       if p > 8 then   pparen True $ separate [t"case " ~. pp d e ~. t" of {", nest 2 (vcat  (map (\br -> (ppBranch d br) ~. t";") arms) ~. t"}")]
-      else (t"case " ~. pp d e ~. t" of ") ^.   (nest 4 (vcat (map (ppBranch d) arms))) 
-   ---  | otherwise =     
+      else (t"case " ~. pp d e ~. t" of ") ^.   (nest 4 (vcat (map (ppBranch d) arms)))
+   ---  | otherwise =
    --(
   where ppBranch d (br,e) = separate [pPrint d 10 br ~. t" ->", nest 2 (pp d e)]
 
@@ -212,7 +212,7 @@ instance PPrint CDef where
     pPrint d p (CDefComment cs) = ppComments cs
 
 ppCDefn ::  PDetail -> [IText] -> CDefn -> IText
-ppCDefn d ps (CValueT i [] ty e) = 
+ppCDefn d ps (CValueT i [] ty e) =
         (foldr (~.) (separate [ppId d i~.t"::", nest 2 (pp d ty )]) ps) ^.
                   (separate [{-ppId d i,-}nest 2 (t"= " ~. pp d e)])
 ppCDefn d ps (CValueT i as ty e) =
@@ -224,7 +224,7 @@ ppCDefn d ps (CValueS i [] ty c) =
         (ppId d i ~. t" " ~. pp d c)
 ppCDefn d ps (CValueS i as ty c) =
         foldr (~.) (separate [ppId d i~.t" "~. ppCArgs' d 10 as~.
-                     t" :: " , nest 2 (pp d ty)]~.t";") ps  ^. 
+                     t" :: " , nest 2 (pp d ty)]~.t";") ps  ^.
           (ppId d i ~. t" " ~. pp d c)
 ppCDefn d ps def = foldr (~.) (pp d def) ps
 
@@ -250,7 +250,7 @@ instance PPrint CDefn where
         separate [ppId d i~.t" ::" ~. nest 2 (pp d ty )]^.
                   separate [{-ppId d i,-}nest 2 (t"= " ~. pp d e)]
     pPrint d _ (CValueT i as ty e) =
-        
+
             separate [ppId d i~.t" "~. ppCArgs' d 10 as~.t" ::",
                      nest 2 (pp d ty)]^.
             separate [{-ppId d i,-}nest 2 (t"= "~.pp d e)]
@@ -259,7 +259,7 @@ instance PPrint CDefn where
         (ppId d i ~. t" " ~. pp d c)
     pPrint d p (CValueS i as ty c) =
         separate [ppId d i~.t" "~. ppCArgs' d 10 as~.
-                     t" :: ",nest 2 (pp d ty)~.t";"] ^. 
+                     t" :: ",nest 2 (pp d ty)~.t";"] ^.
           (ppId d i ~. t" " ~. pp d c)
 --    pPrint d p (CValueP i cs) =
 --      vcat (map (\ cl -> ppClause d p [ppId d i] cl ~. t";") cs)
@@ -272,7 +272,7 @@ instance PPrint CDefn where
         separate [t"newtype "~.ppId d i~.t" ::" ~. nest 2 (pp d ty )]^.
                   separate [{-ppId d i,-}nest 2 (t"= " ~. pp d e)]
     pPrint d _ (Cnewtype i as ty e) =
-        
+
             separate [t"newtype "~.ppId d i~.t" "~. ppCArgs d 10 as~.t" ::",
                      nest 2 (pp d ty)]^.
             separate [{-ppId d i,-}nest 2 (t"= "~.pp d e)]
@@ -287,23 +287,23 @@ instance PPrint CDefn where
                   t" :: "~.pp d e, t" = " ~. ppIndSummands d cs]
     pPrint d p (CValue i e) =
         separate [ppId d i ~. t" =",
-                  nest 2 (pp d e)] 
+                  nest 2 (pp d e)]
     pPrint d p (CAxiom i [] b) =  separate [t"postulate "~.ppId d i~.t" ::",nest 2 (pp d b)]
     pPrint d p (CAxiom i as b) =  separate [t"postulate "~.ppId d i~.t" " ~. ppCArgs d 10 as~. t" ::",nest 2 (pp d b)]
     pPrint d p (CNative i b) =  separate [t"native "~.ppId d i~.t" ::",nest 2 (pp d b)]
-    pPrint d p (CClass (CClassArg i as ty exts) exports csign) = 
+    pPrint d p (CClass (CClassArg i as ty exts) exports csign) =
           separate [separate [t"class "~. ppId d i ~. ppCArgs d 10 as ~. t" :: ", nest 2 (pp d ty ~. (if null exts then t"" else t" extends " ~. ppCArgs d 10 exts) ~. (if exports then t" exports" else t " where"))],nest 2 (layout d csign)]
-    pPrint d p (CInstance i as (CInstanceArg e) ds) = 
+    pPrint d p (CInstance i as (CInstanceArg e) ds) =
         separate [t"instance "~. ppId d i ~. ppCArgs d 10 as ~. t" :: " ~. pp d e ~. t" where",
                   nest 2 (layout d ds)]
 
-    pPrint d p (CPackage i [] (CPackageDef ps _ [])) = 
+    pPrint d p (CPackage i [] (CPackageDef ps _ [])) =
            separate [ t"package "~. ppId d i ~. ppProps ps ~. t" where ;"]
-    pPrint d p (CPackage i [] (CPackageDef ps _ ds)) = 
+    pPrint d p (CPackage i [] (CPackageDef ps _ ds)) =
            separate [ t"package "~. ppId d i ~. ppProps ps ~. t" where",nest 2 (layout d ds)]
-    pPrint d p (CPackage i as  (CPackageDef ps _ [])) = 
+    pPrint d p (CPackage i as  (CPackageDef ps _ [])) =
                  separate [ t"package "~. ppId d i, ppCArgs d 10 as,ppProps ps ~. t" where ;"]
-    pPrint d p (CPackage i as  (CPackageDef ps _ ds)) = 
+    pPrint d p (CPackage i as  (CPackageDef ps _ ds)) =
                   separate [separate [ t"package "~. ppId d i, ppCArgs d 10 as,ppProps ps ~. t" where"],  nest 2 (layout d ds)]
 
     pPrint d p (CPackage i [] e) = separate [t"package "~. ppId d i,nest 2 (pPrint d p e)]
@@ -314,7 +314,7 @@ instance PPrint CDefn where
 
 --    pPrint d p (CNative i ty s) =
 --      ppId d i ~. t" :: " ~. pp d ty ~. t" = " ~. t (show s) ~. t";"
---    pPrint d p (CDSign i ty) = 
+--    pPrint d p (CDSign i ty) =
 --      separate [ppId d i ~. t" ::", nest 2 (pp d ty ~. t";")]
 
 ppSummands d cs = sepList (map ppCon cs) (t" |")
@@ -329,7 +329,7 @@ ppIndSummands d cs = sepList (map ppIndCon cs) (t" |")
           , nest 2 . separate $ t":: _" : map (ppApArg d 10) es]
 
 instance PPrint CPackageBody where
-       pPrint d p (CPackageDef ps _ []) =  ppProps ps ~. t" where ;" 
+       pPrint d p (CPackageDef ps _ []) =  ppProps ps ~. t" where ;"
        pPrint d p (CPackageDef ps _ ds) =  ppProps ps ~. t" where" ^. nest 2 (layout d ds)
        pPrint d p (CPackageInstance e) = t"= " ~. pp d e
 
@@ -342,7 +342,7 @@ instance PPrint CDoBind where
 instance PPrint CClause where
     pPrint d p cl = ppClause d p [] cl
 
-ppClause d p xs (CClause ps e) = 
+ppClause d p xs (CClause ps e) =
         separate (xs ++ map f ps) ~. t" = " ~. nest 2 (pp d e)
         --   t"= " ~. nest 2 (pp d e)
         where f (False, p) = pPrint d 10 p
@@ -369,7 +369,7 @@ ppCArgs d p = nest 2 . nseparate . map (pPrint d p)
 
 #if (NEWSYNTAX || TRANSLATE)
 ppCArgs' d p = nest 2 . nseparate . map (printArg d p)
-printArg d p (CArg his ty) = 
+printArg d p (CArg his ty) =
   pparen (p > 0)( (nsepList (map printB his) (t","))  ~. t"::" ~. pPrint d 6 ty) where
    printB (True,i) = ppId d i
    printB (False,i) = t"!"~.ppId d i
@@ -410,7 +410,7 @@ isCons :: CExpr -> Bool
 isCons (CCCon i _) = i == consId
 isCons (CCConS i) = i == consId
 isCons (CVar i) = i == consId
-isCons _ = False 
+isCons _ = False
 
 isNil :: CExpr -> Bool
 isNil (CCCon i _) = i == nilId
@@ -421,14 +421,14 @@ isNil _ = False
 
 
 mkPair :: CExpr -> Maybe [CExpr]
-mkPair (CApply (CVar i) [(False,e),(False,e')]) | i == commaId = 
+mkPair (CApply (CVar i) [(False,e),(False,e')]) | i == commaId =
          Just$ e: (maybe [e'] id (mkPair e') )
 
-mkPair (CApply (CVar i) [(True,_),(False,e),(False,e')]) | i == commaId = 
-         Just$ e: maybe [e'] id (mkPair e') 
+mkPair (CApply (CVar i) [(True,_),(False,e),(False,e')]) | i == commaId =
+         Just$ e: maybe [e'] id (mkPair e')
 
-mkPair (CApply (CVar i) [(True,_),(True,_),(False,e),(False,e')]) | i == commaId = 
-         Just$ e: maybe [e'] id (mkPair e') 
+mkPair (CApply (CVar i) [(True,_),(True,_),(False,e),(False,e')]) | i == commaId =
+         Just$ e: maybe [e'] id (mkPair e')
 
 mkPair (CApply (CCCon i _) es) = mkPair (CApply (CVar i) es)
 mkPair (CApply (CCConS i) es) = mkPair (CApply (CVar i) es)
@@ -437,7 +437,7 @@ mkPair _ = Nothing
 ppPair :: PDetail -> CExpr -> Maybe IText
 ppPair d e = fmap ppPair' (mkPair e)
      where ppPair' xs = let (y:ys) = reverse $ map (pPrint d 0) xs
-                            f =  \s -> (~.) s (text ",") 
+                            f =  \s -> (~.) s (text ",")
                             ys' = map f ys
                             xs' = reverse (y:ys')
                         in  text "(" ~. separate xs' ~. text ")"

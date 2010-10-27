@@ -71,5 +71,3 @@ getDatatypeInfo t = do
                           , datatypeIxs    = is
                           }
     _ -> return Nothing
-
-

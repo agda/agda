@@ -18,4 +18,3 @@ instance Sized (Map k a) where
 
 instance Sized (Set a) where
   size = fromIntegral . Set.size
-

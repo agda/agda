@@ -32,7 +32,7 @@ data Scope = Scope
       { scopeName     :: A.ModuleName
       , scopeParents  :: [A.ModuleName]
       , scopePrivate  :: NameSpace
-      , scopePublic   :: NameSpace 
+      , scopePublic   :: NameSpace
       , scopeImported :: NameSpace -- ^ public opened names
       , scopeImports  :: Map C.QName A.ModuleName
       }
@@ -501,7 +501,7 @@ scopeLookup q scope = nub $ findName q root ++ imports
       where
         mods = amodName <$> lookupName x s
         -- Qualified constructors are qualified by their datatype rather than a module
-        defs = mnameFromList . qnameToList . anameName <$> lookupName x s 
+        defs = mnameFromList . qnameToList . anameName <$> lookupName x s
 
 -- * Inverse look-up
 
@@ -576,4 +576,3 @@ inverseScopeLookupName x = inverseScopeLookup (Right x)
 -- | Takes the second component of 'inverseScopeLookup'.
 inverseScopeLookupModule :: A.ModuleName -> ScopeInfo -> Maybe C.QName
 inverseScopeLookupModule x = inverseScopeLookup (Left x)
-

@@ -155,7 +155,7 @@ empty :: PrecedenceGraph
 empty = PG G.empty
 
 -- @bindsAs op fix n g@ adds @op@ (with fixity @fix@) to node @n@.
--- 
+--
 -- Precondition: @n@ has to exist in @g@, and @n@ should not already
 -- be annotated with @op@. (The second precondition is not checked.)
 

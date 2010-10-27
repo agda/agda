@@ -62,4 +62,3 @@ instance KillRange Literal where
   killRange (LitString r x) = LitString (killRange r) x
   killRange (LitChar   r x) = LitChar   (killRange r) x
   killRange (LitQName  r x) = LitQName  (killRange r) x
-

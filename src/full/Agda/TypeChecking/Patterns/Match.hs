@@ -70,7 +70,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
-		(m, vs) <- matchPatterns ps $ 
+		(m, vs) <- matchPatterns ps $
                   repeat $ Arg NotHidden Irrelevant $ Sort Prop
 		return (m, Arg h Irrelevant $ Con c vs)
 
@@ -96,7 +96,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
           -- irrelevant stuff
           -- NotBlocked (Sort Prop)
           _  | r == Irrelevant -> do
-		(m, vs) <- matchPatterns ps $ 
+		(m, vs) <- matchPatterns ps $
                   repeat $ Arg NotHidden Irrelevant $ Sort Prop
 		return (m, Arg h r $ Con c vs)
 	  NotBlocked (Con c' vs)
@@ -107,4 +107,3 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
 	  NotBlocked (MetaV x vs) -> return (DontKnow $ Just x, Arg h r v)
 	  Blocked x _             -> return (DontKnow $ Just x, Arg h r v)
           _                       -> return (DontKnow Nothing, Arg h r v)
-

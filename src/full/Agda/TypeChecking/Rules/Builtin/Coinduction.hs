@@ -171,8 +171,8 @@ bindBuiltinFlat e =
                    , funArgOccurrences = [Unused, Unused, Positive]
                    , funAbstr          = ConcreteDef
                    , funDelayed        = NotDelayed
-                   , funProjection     = Nothing 
-                     {- flat is a projection, but in the termination checker 
+                   , funProjection     = Nothing
+                     {- flat is a projection, but in the termination checker
                         it destroys the (inductive) structural ordering.
                         Thus, we do not register it as a projection. -}
                    }

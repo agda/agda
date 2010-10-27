@@ -31,18 +31,18 @@ type Parser a b = a -> Int -> ParseResult a b
 
 noFail = FailAt (-1) [] (error "noFail")                -- indicates no failure yet
 
-updFail f (None w f')     = None w (bestFailAt f f') 
+updFail f (None w f')     = None w (bestFailAt f f')
 updFail f (One c n as f') = One c n as (bestFailAt f f')
 updFail f (Many cas f')   = let r = bestFailAt f f' in seq r (Many cas r)
 
 bestFailAt f@(FailAt i a t) f'@(FailAt j a' _) =
-        if i > j then 
-            f 
-        else if j > i then 
-            f' 
-        else if i == -1 then 
+        if i > j then
+            f
+        else if j > i then
+            f'
+        else if i == -1 then
             noFail
-        else 
+        else
             FailAt i (a ++ a') t
 
 -- Alternative
@@ -58,8 +58,8 @@ p ||| q = \as n ->
           lf (None _   f)   = ([],         f)
 
 -- Alternative, but with committed choice
-(||!) :: Parser a b -> Parser a b -> Parser a b 
-p ||! q = \as n -> 
+(||!) :: Parser a b -> Parser a b -> Parser a b
+p ||! q = \as n ->
     case (p as n, q as n) of
         (pr@(None True  _), _                ) -> pr
         (    None _     f , qr               ) -> updFail f qr
@@ -77,13 +77,13 @@ doMany g cas f = Many [ (g c, n, as) | (c,n,as) <- cas] f
 
 -- Sequence
 (+.+) :: Parser a b -> Parser a c -> Parser a (b,c)
-p +.+ q = 
-    \as n-> 
+p +.+ q =
+    \as n->
     case p as n of
         None w f -> None w f
         One b n' as' f ->
             case q as' n' of
-                None w f'         -> None w (bestFailAt f f') 
+                None w f'         -> None w (bestFailAt f f')
                 One c n'' as'' f' -> One (b,c) n'' as'' (bestFailAt f f')
                 Many cas f'       -> doMany (\x->(b,x)) cas (bestFailAt f f')
         Many bas f ->
@@ -96,7 +96,7 @@ p +.+ q =
 -- Sequence, throw away first part
 (..+) :: Parser a b -> Parser a c -> Parser a c
 p ..+ q = -- p +.+ q >>- snd
-    \as n-> 
+    \as n->
     case p as n of
         None w f       -> None w f
         One _ n' as' f -> updFail f (q as' n')
@@ -105,7 +105,7 @@ p ..+ q = -- p +.+ q >>- snd
 -- Sequence, throw away second part
 (+..) :: Parser a b -> Parser a c -> Parser a b
 p +.. q = -- p +.+ q >>- fst
-    \as n-> 
+    \as n->
     case p as n of
         None w f -> None w f
         One b n' as' f ->
@@ -114,7 +114,7 @@ p +.. q = -- p +.+ q >>- fst
                 One _ n'' as'' f' -> One b n'' as'' (bestFailAt f f')
                 Many cas f'       -> doMany (const b) cas (bestFailAt f f')
         Many bas f ->
-            let rss = [ case q as' n' of { None w f -> None w f; 
+            let rss = [ case q as' n' of { None w f -> None w f;
                                            One _ n'' as'' f' -> One b n'' as'' f';
                                            Many cas f' -> doMany (const b) cas f' }
                         | (b,n',as') <- bas ]
@@ -123,7 +123,7 @@ p +.. q = -- p +.+ q >>- fst
 -- Return a fixed value
 (.>) :: Parser a b -> c -> Parser a c
 p .> v =
-    \as n-> 
+    \as n->
     case p as n of
       None w f        -> None w f
       One _ n' as' f' -> One v n' as' f'
@@ -131,7 +131,7 @@ p .> v =
 
 -- Action
 (>>-) :: Parser a b -> (b->c) -> Parser a c
-p >>- f = \as n-> 
+p >>- f = \as n->
     case p as n of
         None w f       -> None w f
         One b n as' ff -> One (f b) n as' ff
@@ -139,7 +139,7 @@ p >>- f = \as n->
 
 -- Action on two items
 (>>>) :: Parser a (b,c) -> (b->c->d) -> Parser a d
-p >>> f = \as n-> 
+p >>> f = \as n->
     case p as n of
         None w ff          -> None w ff
         One (b,c) n as' ff -> One (f b c) n as' ff
@@ -147,7 +147,7 @@ p >>> f = \as n->
 
 -- Use value
 into :: Parser a b -> (b -> Parser a c) -> Parser a c
-p `into` fq = \as n -> 
+p `into` fq = \as n ->
     case p as n of
         None w f       -> None w f
         One b n' as' f -> updFail f (fq b as' n')
@@ -166,7 +166,7 @@ mustAll :: Parser a b -> Parser a b
 mustAll p = \as n->
         case p as n of
         None False f@(FailAt x _ _) | x/=n -> None True f
-        r -> r 
+        r -> r
 
 -- If first alternative gives partial parse it's a failure
 p |!! q = mustAll p ||! q

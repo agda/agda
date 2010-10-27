@@ -32,5 +32,3 @@ main =
                           case (checkTree p) of
                               Fail s -> do putStrLn ("type-checking failed " ++ s)
                               Success _ ->  do putStrLn ("type-checking succeded ")
-
-

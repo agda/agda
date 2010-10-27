@@ -391,7 +391,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
           else lift $ A.DotP i <$> reify v
       I.LitP (LitLevel {}) -> __IMPOSSIBLE__
       I.LitP l             -> return (A.LitP l)
-      I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps  
+      I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
         i = PatRange noRange
         mi = MetaInfo noRange emptyScopeInfo Nothing
@@ -472,5 +472,3 @@ instance (Reify t t', Reify a a')
          => Reify (Judgement t a) (Judgement t' a') where
     reify (HasType i t) = HasType <$> reify i <*> reify t
     reify (IsSort i) = IsSort <$> reify i
-
-

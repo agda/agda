@@ -15,4 +15,3 @@ nm :: String -> Name
 nm s = Empty <: s
 
 type Agency agent = Name -> agent
-

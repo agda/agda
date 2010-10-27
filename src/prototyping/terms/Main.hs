@@ -30,4 +30,3 @@ main = do
     Ok p    -> case runTC (checkProg p >>= mapM showDef) of
       Left err -> putStrLn $ "Scope error: " ++ err
       Right ss -> putStr $ unlines (concat ss)
-

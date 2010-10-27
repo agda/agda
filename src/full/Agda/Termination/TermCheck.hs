@@ -433,9 +433,9 @@ termTerm conf names f pats0 t0 = do
          (loopSort pats s)
          (loop pats guarded t)
 
-       loop 
-         :: (?cutoff :: Int) 
-         => [DeBruijnPat] -- ^ Parameters of calling function as patterns. 
+       loop
+         :: (?cutoff :: Int)
+         => [DeBruijnPat] -- ^ Parameters of calling function as patterns.
          -> Order         -- ^ Guardedness status of @Term@.
          -> Term          -- ^ Part of function body from which calls are to be extracted.
          -> TCM Calls
@@ -481,8 +481,8 @@ termTerm conf names f pats0 t0 = do
                -- for its principal argument.
                isProj <- isProjection g
                let unguards = repeat Term.unknown
-               let guards = maybe unguards -- not a proj. ==> unguarded 
-                              (\ n -> take (n - 1) unguards ++ guarded : unguards) 
+               let guards = maybe unguards -- not a proj. ==> unguarded
+                              (\ n -> take (n - 1) unguards ++ guarded : unguards)
                                 -- proj. => preserve g. of princ. arg. (counting starts with 1)
                               isProj
                -- collect calls in the arguments of this call
@@ -588,7 +588,7 @@ termTerm conf names f pats0 t0 = do
 	    -- will be a warning for them anyway.
             MetaV x args -> return Term.empty
 
-            -- Erased proof. 
+            -- Erased proof.
             DontCare -> return Term.empty
 
          where
@@ -632,7 +632,7 @@ addGuardedness g nrows ncols m =
    (g : genericReplicate ncols Term.unknown) : map (Term.unknown :) m)
 
 -- | Stripping off a record constructor is not counted as decrease, in
---   contrast to a data constructor. 
+--   contrast to a data constructor.
 decreaseFromConstructor :: QName -> TCM Order
 decreaseFromConstructor c = do
   isRC <- isRecordConstructor c
@@ -692,10 +692,10 @@ compareTerm' suc (Def qn ts) p = do
     isProj <- isProjection qn
     case isProj of
       -- strip off projection (n is the number of the record argument, counting starts with 1)
-      Just n | length ts >= n && n >= 1 -> 
+      Just n | length ts >= n && n >= 1 ->
         compareTerm' suc (unArg (ts !! (n - 1))) p
       -- not a projection or underapplied:
-      _ -> return Term.unknown 
+      _ -> return Term.unknown
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     oc <- increaseFromConstructor c
