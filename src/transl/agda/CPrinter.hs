@@ -18,7 +18,7 @@ import Data.Maybe(fromMaybe,mapMaybe)
 instance PPrint CProgram where
     pPrint d _ (CProgram ms) = vcat (map (pp d) ms)
 
-instance PPrint CModule where     --Förbättra
+instance PPrint CModule where     --FÃ¶rbÃ¤ttra
     pPrint d p (CModule i [] e) = separate [t"module "~. ppId d i,nest 2 (pPrint d p e)]
     pPrint d p (CModule i as e) = separate [separate [t"module "~. ppId d i, ppCArgs d 10 as], nest 2 (pPrint d p e)]
 
@@ -520,4 +520,3 @@ layout d = vcat . map (pp d)
 nolayout d ds = t"{" ~. vcat (map ((~.t";").pp d) ds) ~. t"}"
 
 vcat = foldr1 (^.)
-

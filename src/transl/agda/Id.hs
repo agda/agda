@@ -147,7 +147,7 @@ getFixity i =
     "$"   -> FInfixr 0
     ">>"  -> FInfixl 1
     ">>=" -> FInfixl 1
-    "\xd7"-> FInfixr 1	-- ×
+    "\xd7"-> FInfixr 1	-- Ã—
     "||"  -> FInfixr 2
     "&&"  -> FInfixr 3
     "=="  -> FInfix  4
@@ -162,8 +162,8 @@ getFixity i =
     "-"   -> FInfixl 6
     "*"   -> FInfixl 7
     "/"   -> FInfixl 7
-    "\xb7"   -> FInfixr 8   -- ·
-    "\xb0"   -> FInfixr 8   -- °
+    "\xb7"   -> FInfixr 8   -- Â·
+    "\xb0"   -> FInfixr 8   -- Â°
     _     -> FInfixl 9
 
 

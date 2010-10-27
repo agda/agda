@@ -1,8 +1,8 @@
 {-| 
   Agda abstract syntax which is produced by the parser
 
-  The name CSyntax originates from `Cayenne Syntax´, which served as a
-  starting point for Agda. (Lennart says it actually meant `concrete syntax´.)
+  The name CSyntax originates from `Cayenne SyntaxÂ´, which served as a
+  starting point for Agda. (Lennart says it actually meant `concrete syntaxÂ´.)
 -}
 
 module CSyntax(module CSyntax, pprId,module MetaVars) where

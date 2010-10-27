@@ -58,8 +58,8 @@ instance (Hashable a, Hashable b) => Hashable (Either a b) where
     hash (Right y) = hash y
 
 
--- Denna bör inte vara bortkommenterad men jag kunde inte 
--- göra en instans med String nedan
+-- Denna bÃ¶r inte vara bortkommenterad men jag kunde inte 
+-- gÃ¶ra en instans med String nedan
 --instance Hashable a => Hashable [a] where
 --    hash l = H $ f l 0
 --      where f :: (Hashable a) => [a] -> Int -> Int

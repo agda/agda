@@ -46,6 +46,6 @@ fsEmpty, fsUnderscore, fsBOX, fsQuest, fsRec, fsNoMatch, fsTmp, fsCName, fsStrin
   "Setoid","Elem","Equal","ref","sym",
   "tran","El","Eq", "_V", "A", 
   "B", "x", "xs", "m","JMeq", 
-  "same", "a", "b", "\215"  -- \215 == ×
+  "same", "a", "b", "\215"  -- \215 == Ã—
  ]
 
