@@ -703,11 +703,6 @@ Declaration
     Individual declarations
  --------------------------------------------------------------------------}
 
--- Type signatures can appear everywhere, so the type is completely polymorphic
--- in the indices.
-TypeSig :: { Declaration }
-TypeSig : Id ':' Expr   { TypeSig Relevant $1 $3 }
-
 -- Type signatures of the form "n1 n2 n3 ... : Type", with at least
 -- one bound name.
 TypeSigs :: { [Declaration] }
