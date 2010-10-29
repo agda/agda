@@ -45,7 +45,7 @@ CABAL_OPTIONS=--global
 
 install : update-cabal install-lib install-bin install-emacs-mode
 
-prof : update-cabal install-prof-bin
+prof : install-prof-bin
 
 update-cabal :
 	$(CABAL_CMD) update
@@ -233,26 +233,6 @@ compiler-test : up-to-date-std-lib
 benchmark :
 	@$(MAKE) -C benchmark
 
-## Whitespace-related #####################################################
-
-# Agda can fail to compile on Windows if files which are CPP-processed
-# don't end with a newline character (because we use -Werror).
-
-fix-agda-whitespace=src/fix-agda-whitespace/dist/build/fix-agda-whitespace/fix-agda-whitespace
-
-.PHONY:
-fix-whitespace : $(fix-agda-whitespace)
-	$(fix-agda-whitespace)
-
-.PHONY:
-check-whitespace : $(fix-agda-whitespace)
-	$(fix-agda-whitespace) --check
-
-$(fix-agda-whitespace) : src/fix-agda-whitespace/fix-agda-whitespace.cabal \
-                         src/fix-agda-whitespace/FixWhitespace.hs \
-			 update-cabal
-	cd src/fix-agda-whitespace && $(CABAL_CMD) install
-
 ## Clean ##################################################################
 
 clean :
@@ -277,4 +257,23 @@ info :
 	@echo "You haven't run configure."
 
 endif	# is_configured
+
+## Whitespace-related #####################################################
+
+# Agda can fail to compile on Windows if files which are CPP-processed
+# don't end with a newline character (because we use -Werror).
+
+fix-agda-whitespace=src/fix-agda-whitespace/dist/build/fix-agda-whitespace/fix-agda-whitespace
+
+.PHONY:
+fix-whitespace : $(fix-agda-whitespace)
+	$(fix-agda-whitespace)
+
+.PHONY:
+check-whitespace : $(fix-agda-whitespace)
+	$(fix-agda-whitespace) --check
+
+$(fix-agda-whitespace) : src/fix-agda-whitespace/fix-agda-whitespace.cabal \
+                         src/fix-agda-whitespace/FixWhitespace.hs
+	cd src/fix-agda-whitespace && $(CABAL_CMD) install
 
