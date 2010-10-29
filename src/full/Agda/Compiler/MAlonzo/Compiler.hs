@@ -403,16 +403,30 @@ hsCoerce e = HsApp mazCoerce e
 --------------------------------------------------
 
 writeModule :: HsModule -> TCM ()
-writeModule m =
+writeModule (HsModule l m ex imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
-  liftIO . (`UTF8.writeFile` (preamble ++ prettyPrint m)) =<< outFile
+  out <- outFile
+  liftIO $ UTF8.writeFile out $ unlines $
+    [ preamble
+    , prettyPrint m0
+    ] ++ coerceDef
+      ++ L.map prettyPrint ds
   where
-  preamble = unlines $ [ "{-# LANGUAGE EmptyDataDecls"
-                       , "           , ExistentialQuantification"
-                       , "           , ScopedTypeVariables"
-                       , "           , NoMonomorphismRestriction"
-                       , "  #-}"
-                       ]
+  m0 = HsModule l m ex imp []
+  preamble = unlines [ "{-# LANGUAGE EmptyDataDecls"
+                     , "           , ExistentialQuantification"
+                     , "           , ScopedTypeVariables"
+                     , "           , NoMonomorphismRestriction"
+                     , "  #-}"
+                     ]
+  coerceDef =
+    [ ""
+    , "-- Special version of coerce that plays well with rules."
+    , "{-# INLINE [1] mazCoerce #-}"
+    , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
+    , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
+    , ""
+    ]
 
 compileDir :: TCM FilePath
 compileDir = do

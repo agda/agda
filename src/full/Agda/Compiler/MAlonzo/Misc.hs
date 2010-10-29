@@ -142,7 +142,8 @@ mazMod' s = Module $ mazstr ++ "." ++ s
 mazMod :: ModuleName -> Module
 mazMod = mazMod' . show
 mazerror msg = error $ mazstr ++ ": " ++ msg
-mazCoerce = HsVar $ Qual unsafeCoerceMod (HsIdent "unsafeCoerce")
+-- mazCoerce = HsVar $ Qual unsafeCoerceMod (HsIdent "unsafeCoerce")
+mazCoerce = HsVar $ UnQual $ HsIdent "mazCoerce"
 
 -- for Runtime module: Not really used (Runtime modules has been abolished).
 rtmMod  = mazMod' "Runtime"
