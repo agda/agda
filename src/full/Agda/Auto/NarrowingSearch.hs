@@ -296,7 +296,7 @@ topSearch ticks nsol hsol envinfo p searchdepth depthinterval = do
     search depth = do
      pm <- readIORef $ ctpriometa root
      case pm of
-      NoPrio False -> __IMPOSSIBLE__ -- nothing to refine but not done
+      NoPrio False -> return $ Left False  -- nothing to refine but not done, this can happen when eq constraints are passed along with main constraint in agdaplugin
       NoPrio True ->
        searchSubProb restprobs depth -- ?? what should depth be
       PrioMeta _ m -> do
