@@ -539,6 +539,24 @@ private
 
 open Dummy₂ public
 
+private
+ module Dummy₃ {A B : Set} {_∼_ : B → B → Set} where
+
+  open Equality
+
+  -- A variant of _>>=-cong_.
+
+  _≡->>=-cong_ :
+    ∀ {k} {x₁ x₂ : A ⊥} {f₁ f₂ : A → B ⊥} → let open M in
+    Rel _≡_ k x₁ x₂ →
+    (∀ x → Rel _∼_ k (f₁ x) (f₂ x)) →
+    Rel _∼_ k (x₁ >>= f₁) (x₂ >>= f₂)
+  _≡->>=-cong_ {k} {f₁ = f₁} {f₂} x₁≈x₂ f₁≈f₂ =
+    x₁≈x₂ >>=-cong λ {x} x≡x′ →
+    P.subst (λ y → Rel _∼_ k (f₁ x) (f₂ y)) x≡x′ (f₁≈f₂ x)
+
+open Dummy₃ public
+
 ------------------------------------------------------------------------
 -- Productivity checker workaround
 
