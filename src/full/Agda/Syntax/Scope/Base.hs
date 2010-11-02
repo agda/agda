@@ -166,6 +166,7 @@ instance Show NameSpace where
       blockOfLines "names"   (map pr $ Map.toList names) ++
       blockOfLines "modules" (map pr $ Map.toList mods)
     where
+      pr :: (Show a, Show b) => (a,b) -> String
       pr (x, y) = show x ++ " --> " ++ show y
 
 instance Show AbstractName where
@@ -462,17 +463,24 @@ everythingInScope scope =
 scopeLookup :: forall a. InScope a => C.QName -> ScopeInfo -> [a]
 scopeLookup q scope = nub $ findName q root ++ imports
   where
+    this    :: A.ModuleName
     this    = scopeCurrent scope
+
+    current :: Scope
     current = moduleScope this
+
+    root    :: Scope
     root    = mergeScopes $ current : map moduleScope (scopeParents current)
 
     tag = inScopeTag :: InScopeTag a
 
+    splitName :: C.QName -> [(C.QName, C.QName)]
     splitName (C.QName x) = []
     splitName (C.Qual x q) = (C.QName x, q) : do
       (m, r) <- splitName q
       return (C.Qual x m, r)
 
+    imported :: C.QName -> [A.ModuleName]
     imported q = maybe [] (:[]) $ Map.lookup q $ scopeImports root
 
     topImports :: [a]
@@ -487,18 +495,22 @@ scopeLookup q scope = nub $ findName q root ++ imports
       x <- findName x (restrictPrivate $ moduleScope m)
       return x
 
+    moduleScope :: A.ModuleName -> Scope
     moduleScope name = case Map.lookup name (scopeModules scope) of
       Nothing -> __IMPOSSIBLE__
       Just s  -> s
 
+    lookupName :: forall a. InScope a => C.Name -> Scope -> [a]
     lookupName x s = maybe [] id $ Map.lookup x (allNamesInScope s)
 
+    findName :: forall a. InScope a => C.QName -> Scope -> [a]
     findName (C.QName x)  s = lookupName x s
     findName (C.Qual x q) s = do
         m <- nub $ mods ++ defs -- record types will appear bot as a mod and a def
         Just s' <- return $ Map.lookup m (scopeModules scope)
         findName q (restrictPrivate s')
       where
+        mods, defs :: [ModuleName]
         mods = amodName <$> lookupName x s
         -- Qualified constructors are qualified by their datatype rather than a module
         defs = mnameFromList . qnameToList . anameName <$> lookupName x s
@@ -531,6 +543,7 @@ inverseScopeLookup name scope = case name of
       []    -> Nothing
       x : _ -> Just x
 
+    unique :: forall a . [a] -> Bool
     unique []      = __IMPOSSIBLE__
     unique [_]     = True
     unique (_:_:_) = False
