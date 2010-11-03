@@ -15,6 +15,16 @@ Some Agda Hacking Lore
   Tests under test/fail can fail if an error message has changed. To
   accept the new error message, touch the corresponding source file.
 
+* Under darcs 2.5 the --test flag is not enabled by default. This can
+  be changed by adding the following line to _darcs/prefs/defaults:
+
+    ALL test
+
+* To avoid problems with the whitespace test failing you can add the
+  following line to _darcs/prefs/defaults:
+
+    record prehook make fix-whitespace
+
 * Use __IMPOSSIBLE__ instead of calls to error. __IMPOSSIBLE__
   generates errors of the following form:
 
@@ -23,8 +33,3 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
-
-* To avoid problems with the whitespace test failing you can add the
-  following line to _darcs/prefs/defaults:
-
-    record prehook make fix-whitespace
