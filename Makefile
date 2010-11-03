@@ -174,7 +174,7 @@ TAGS :
 
 ## Testing ###########################################################
 
-test : succeed fail interaction examples tests library-test compiler-test
+test : check-whitespace succeed fail interaction examples tests library-test compiler-test
 
 tests :
 	@echo "======================================================================"
