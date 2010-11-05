@@ -1,6 +1,6 @@
 Checking NestedProjectRoots (customised/NestedProjectRoots.agda).
 Checking Imports.A (customised/Imports/A.agda).
-Finished Imports.A .
+Finished Imports.A.
 customised/NestedProjectRoots.agda:3,1-17
 The file
 customised/Imports/A.agda
@@ -9,7 +9,7 @@ point to this file.
 when scope checking the declaration
   import Imports.A
 Checking A (customised/Imports/A.agda).
-Finished A .
+Finished A.
 Checking NestedProjectRoots (customised/NestedProjectRoots.agda).
 Skipping Imports.A (customised/Imports/A.agdai).
 customised/NestedProjectRoots.agda:3,1-17
