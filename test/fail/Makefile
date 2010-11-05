@@ -83,6 +83,18 @@ $(allstems) : % : %.err
 .PHONY:
 customised : customised/NestedProjectRoots
 
+customised/NestedProjectRoots.err : %.err : %.agda
+	@echo "$*.agda"
+	@if ($(AGDA_BIN) --ignore-interfaces -icustomised -icustomised/Imports $*.agda; \
+	    $(AGDA_BIN) -icustomised/Imports customised/Imports/A.agda; \
+	    $(AGDA_BIN) -icustomised -icustomised/Imports $*.agda) > $*.tmp; \
+		then echo "Unexpected success"; rm -f $*.tmp; false; \
+    else if [ -s $*.tmp ]; \
+		then sed -e "s/[^ (]*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		else rm -f $@ $*.tmp; false; \
+		fi; \
+	fi
+
 .PHONY:
 customised/NestedProjectRoots : % : %.err
 	@echo $*.agda
