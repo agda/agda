@@ -290,7 +290,11 @@ getInterface' x includeStateChanges =
                             mapM_ setOptionsFromPragma (iPragmaOptions i)
 			    return (False, (i, Right t))
 
-	typeCheck file = do
+	typeCheck file =
+          let ret a = do
+               reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ " ."
+               return a
+          in do
 	    -- Do the type checking.
             reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
             if includeStateChanges then do
@@ -302,7 +306,7 @@ getInterface' x includeStateChanges =
               addImportedThings sig Map.empty Set.empty
               setSignature emptySignature
 
-              return (True, r)
+              ret (True, r)
              else do
               ms       <- getImportPath
               mf       <- stModuleToSource <$> get
@@ -339,7 +343,7 @@ getInterface' x includeStateChanges =
                   Left err               -> throwError err
                   Right (result, update) -> do
                     update
-                    return (False, result)
+                    ret (False, result)
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
