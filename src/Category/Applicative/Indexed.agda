@@ -2,19 +2,23 @@
 -- Indexed applicative functors
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Note that currently the applicative functor laws are not included
 -- here.
 
 module Category.Applicative.Indexed where
 
-open import Function
-open import Data.Product
 open import Category.Functor
+open import Data.Product
+open import Function
+open import Level
 
-IFun : Set → Set₁
-IFun I = I → I → Set → Set
+IFun : ∀ {i} → Set i → (ℓ : Level) → Set _
+IFun I ℓ = I → I → Set ℓ → Set ℓ
 
-record RawIApplicative {I : Set} (F : IFun I) : Set₁ where
+record RawIApplicative {i f} {I : Set i} (F : IFun I f) :
+                       Set (i ⊔ suc f) where
   infixl 4 _⊛_ _<⊛_ _⊛>_
   infix  4 _⊗_
 

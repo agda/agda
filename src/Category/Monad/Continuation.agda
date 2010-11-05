@@ -2,26 +2,28 @@
 -- A delimited continuation monad
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Category.Monad.Continuation where
 
 open import Category.Applicative
 open import Category.Applicative.Indexed
 open import Category.Monad
-open import Category.Monad.Indexed
 open import Category.Monad.Identity
-
+open import Category.Monad.Indexed
 open import Function
+open import Level
 
 ------------------------------------------------------------------------
 -- Delimited continuation monads
 
-DContT : {I : Set} → (I → Set) → (Set → Set) → IFun I
+DContT : ∀ {i f} {I : Set i} → (I → Set f) → (Set f → Set f) → IFun I f
 DContT K M r₂ r₁ a = (a → M (K r₁)) → M (K r₂)
 
-DCont : {I : Set} → (I → Set) → IFun I
+DCont : ∀ {i f} {I : Set i} → (I → Set f) → IFun I f
 DCont K = DContT K Identity
 
-DContTIMonad : ∀ {I} (K : I → Set) {M} →
+DContTIMonad : ∀ {i f} {I : Set i} (K : I → Set f) {M} →
                RawMonad M → RawIMonad (DContT K M)
 DContTIMonad K Mon = record
   { return = λ a k → k a
@@ -29,14 +31,14 @@ DContTIMonad K Mon = record
   }
   where open RawMonad Mon
 
-DContIMonad : ∀ {I} (K : I → Set) → RawIMonad (DCont K)
+DContIMonad : ∀ {i f} {I : Set i} (K : I → Set f) → RawIMonad (DCont K)
 DContIMonad K = DContTIMonad K IdentityMonad
 
 ------------------------------------------------------------------------
 -- Delimited continuation operations
 
-record RawIMonadDCont {I : Set} (K : I → Set)
-                      (M : I → I → Set → Set) : Set₁ where
+record RawIMonadDCont {i f} {I : Set i} (K : I → Set f)
+                      (M : IFun I f) : Set (i ⊔ suc f) where
   field
     monad : RawIMonad M
     reset : ∀ {r₁ r₂ r₃} → M r₁ r₂ (K r₂) → M r₃ r₃ (K r₁)
@@ -45,7 +47,7 @@ record RawIMonadDCont {I : Set} (K : I → Set)
 
   open RawIMonad monad public
 
-DContTIMonadDCont : ∀ {I} (K : I → Set) {M} →
+DContTIMonadDCont : ∀ {i f} {I : Set i} (K : I → Set f) {M} →
                     RawMonad M → RawIMonadDCont K (DContT K M)
 DContTIMonadDCont K Mon = record
   { monad = DContTIMonad K Mon
@@ -55,5 +57,6 @@ DContTIMonadDCont K Mon = record
   where
   open RawIMonad Mon
 
-DContIMonadDCont : ∀ {I} (K : I → Set) → RawIMonadDCont K (DCont K)
+DContIMonadDCont : ∀ {i f} {I : Set i}
+                   (K : I → Set f) → RawIMonadDCont K (DCont K)
 DContIMonadDCont K = DContTIMonadDCont K IdentityMonad

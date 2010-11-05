@@ -2,6 +2,8 @@
 -- The partiality monad
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Category.Monad.Partiality where
 
 open import Coinduction
@@ -22,11 +24,11 @@ open import Relation.Nullary.Negation
 ------------------------------------------------------------------------
 -- The partiality monad
 
-data _⊥ (A : Set) : Set where
+data _⊥ {a} (A : Set a) : Set a where
   now   : (x : A) → A ⊥
   later : (x : ∞ (A ⊥)) → A ⊥
 
-monad : RawMonad _⊥
+monad : ∀ {f} → RawMonad {f = f} _⊥
 monad = record
   { return = now
   ; _>>=_  = _>>=_
@@ -36,23 +38,23 @@ monad = record
   now x   >>= f = f x
   later x >>= f = later (♯ (♭ x >>= f))
 
-private module M = RawMonad monad
+private module M {f} = RawMonad (monad {f})
 
 -- Non-termination.
 
-never : {A : Set} → A ⊥
+never : ∀ {a} {A : Set a} → A ⊥
 never = later (♯ never)
 
 -- run x for n steps peels off at most n "later" constructors from x.
 
-run_for_steps : ∀ {A} → A ⊥ → ℕ → A ⊥
+run_for_steps : ∀ {a} {A : Set a} → A ⊥ → ℕ → A ⊥
 run now   x for n     steps = now x
 run later x for zero  steps = later x
 run later x for suc n steps = run ♭ x for n steps
 
 -- Is the computation done?
 
-isNow : ∀ {A} → A ⊥ → Bool
+isNow : ∀ {a} {A : Set a} → A ⊥ → Bool
 isNow (now x)   = true
 isNow (later x) = false
 
@@ -93,12 +95,12 @@ Equality k = False (k ≟-Kind other geq)
 ------------------------------------------------------------------------
 -- Equality/ordering
 
-module Equality {A : Set} -- The "return type".
-                (_∼_ : A → A → Set) where
+module Equality {a ℓ} {A : Set a} -- The "return type".
+                (_∼_ : A → A → Set ℓ) where
 
   -- The three relations.
 
-  data Rel : Kind → A ⊥ → A ⊥ → Set where
+  data Rel : Kind → A ⊥ → A ⊥ → Set (a ⊔ ℓ) where
     now    : ∀ {k x y} (x∼y : x ∼ y)                         → Rel k         (now   x) (now   y)
     later  : ∀ {k x y} (x∼y : ∞ (Rel k         (♭ x) (♭ y))) → Rel k         (later x) (later y)
     laterʳ : ∀ {x y}   (x≈y :    Rel (other weak) x  (♭ y) ) → Rel (other weak)     x  (later y)
@@ -106,43 +108,43 @@ module Equality {A : Set} -- The "return type".
 
   infix 4 _≅_ _≳_ _≲_ _≈_
 
-  _≅_ : A ⊥ → A ⊥ → Set
+  _≅_ : A ⊥ → A ⊥ → Set _
   _≅_ = Rel strong
 
-  _≳_ : A ⊥ → A ⊥ → Set
+  _≳_ : A ⊥ → A ⊥ → Set _
   _≳_ = Rel (other geq)
 
-  _≲_ : A ⊥ → A ⊥ → Set
+  _≲_ : A ⊥ → A ⊥ → Set _
   _≲_ = flip _≳_
 
-  _≈_ : A ⊥ → A ⊥ → Set
+  _≈_ : A ⊥ → A ⊥ → Set _
   _≈_ = Rel (other weak)
 
   -- x ⇓ y means that x terminates with y.
 
   infix 4 _⇓[_]_ _⇓_
 
-  _⇓[_]_ : A ⊥ → Kind → A → Set
+  _⇓[_]_ : A ⊥ → Kind → A → Set _
   x ⇓[ k ] y = Rel k x (now y)
 
-  _⇓_ : A ⊥ → A → Set
+  _⇓_ : A ⊥ → A → Set _
   x ⇓ y = x ⇓[ other weak ] y
 
   -- x ⇑ means that x does not terminate.
 
   infix 4 _⇑[_] _⇑
 
-  _⇑[_] : A ⊥ → Kind → Set
+  _⇑[_] : A ⊥ → Kind → Set _
   x ⇑[ k ] = Rel k x never
 
-  _⇑ : A ⊥ → Set
+  _⇑ : A ⊥ → Set _
   x ⇑ = x ⇑[ other weak ]
 
 ------------------------------------------------------------------------
 -- Lemmas relating the three relations
 
 private
- module Dummy {A : Set} {_∼_ : A → A → Set} where
+ module Dummy {a ℓ} {A : Set a} {_∼_ : A → A → Set ℓ} where
 
   open Equality _∼_
   open Equality.Rel
@@ -434,11 +436,11 @@ private
 
   -- Never is a left and right "zero" of bind.
 
-  left-zero : {B : Set} (f : B → A ⊥) → let open M in
+  left-zero : ∀ {B} (f : B → A ⊥) → let open M in
               (never >>= f) ≅ never
   left-zero f = later (♯ left-zero f)
 
-  right-zero : {B : Set} (x : B ⊥) → let open M in
+  right-zero : ∀ {B} (x : B ⊥) → let open M in
                (x >>= λ _ → never) ≅ never
   right-zero (later x) = later (♯ right-zero (♭ x))
   right-zero (now   x) = never≅never
@@ -448,7 +450,7 @@ private
   -- underlying relation).
 
   left-identity : Reflexive _∼_ →
-                  {B : Set} (x : B) (f : B → A ⊥) → let open M in
+                  ∀ {B} (x : B) (f : B → A ⊥) → let open M in
                   (now x >>= f) ≅ f x
   left-identity refl-∼ x f = refl refl-∼
 
@@ -461,7 +463,7 @@ private
   -- Bind is associative (for a reflexive underlying relation).
 
   associative : Reflexive _∼_ →
-                {B C : Set} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
+                ∀ {B C} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
                 let open M in
                 (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
   associative refl-∼ (now x)   f g = refl refl-∼
@@ -471,9 +473,9 @@ private
 open Dummy public
 
 private
- module Dummy₂ {A B : Set}
-               {_∼A_ : A → A → Set}
-               {_∼B_ : B → B → Set} where
+ module Dummy₂ {s ℓ} {A B : Set s}
+               {_∼A_ : A → A → Set ℓ}
+               {_∼B_ : B → B → Set ℓ} where
 
   open Equality
   private
@@ -540,7 +542,7 @@ private
 open Dummy₂ public
 
 private
- module Dummy₃ {A B : Set} {_∼_ : B → B → Set} where
+ module Dummy₃ {ℓ} {A B : Set ℓ} {_∼_ : B → B → Set ℓ} where
 
   open Equality
 
@@ -563,18 +565,18 @@ open Dummy₃ public
 -- The monad can be awkward to use, due to the limitations of guarded
 -- coinduction. The following code provides a (limited) workaround.
 
-module Workaround where
+module Workaround {a} where
 
   infixl 1 _>>=_
 
-  data _⊥P : Set → Set₁ where
+  data _⊥P : Set a → Set (suc a) where
     now   : ∀ {A} (x : A) → A ⊥P
     later : ∀ {A} (x : ∞ (A ⊥P)) → A ⊥P
     _>>=_ : ∀ {A B} (x : A ⊥P) (f : A → B ⊥P) → B ⊥P
 
   private
 
-    data _⊥W : Set → Set₁ where
+    data _⊥W : Set a → Set (suc a) where
       now   : ∀ {A} (x : A) → A ⊥W
       later : ∀ {A} (x : A ⊥P) → A ⊥W
 
@@ -632,11 +634,11 @@ module Workaround where
 ------------------------------------------------------------------------
 -- An alternative, but equivalent, formulation of equality/ordering
 
-module AlternativeEquality where
+module AlternativeEquality {a ℓ} where
 
   private
 
-    El : Setoid zero zero → Set
+    El : Setoid a ℓ → Set _
     El = Setoid.Carrier
 
     Eq : ∀ S → B.Rel (El S) _
@@ -663,14 +665,14 @@ module AlternativeEquality where
     _∣_≈P_ : ∀ S → B.Rel (El S ⊥) _
     _∣_≈P_ = flip RelP (other weak)
 
-    data RelP S : Kind → B.Rel (El S ⊥) (suc zero) where
+    data RelP S : Kind → B.Rel (El S ⊥) (suc (a ⊔ ℓ)) where
 
       -- Congruences.
 
       now   : ∀ {k x y} (xRy : x ⟨ Eq S ⟩ y) → RelP S k (now x) (now y)
       later : ∀ {k x y} (x∼y : ∞ (RelP S k (♭ x) (♭ y))) →
               RelP S k (later x) (later y)
-      _>>=_ : ∀ {S′ : Setoid zero zero} {k} {x₁ x₂}
+      _>>=_ : ∀ {S′ : Setoid a ℓ} {k} {x₁ x₂}
                 {f₁ f₂ : El S′ → El S ⊥} →
               let open M in
               (x₁∼x₂ : RelP S′ k x₁ x₂)
@@ -731,7 +733,7 @@ module AlternativeEquality where
 
     -- Proof WHNFs.
 
-    data RelW S : Kind → B.Rel (El S ⊥) (suc zero) where
+    data RelW S : Kind → B.Rel (El S ⊥) (suc (a ⊔ ℓ)) where
       now    : ∀ {k x y} (xRy : x ⟨ Eq S ⟩ y)                 → RelW S k         (now   x) (now   y)
       later  : ∀ {k x y} (x∼y : RelP S k         (♭ x) (♭ y)) → RelW S k         (later x) (later y)
       laterʳ : ∀   {x y} (x≈y : RelW S (other weak) x  (♭ y)) → RelW S (other weak)     x  (later y)

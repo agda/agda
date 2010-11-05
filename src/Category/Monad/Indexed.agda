@@ -2,14 +2,18 @@
 -- Indexed monads
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 -- Note that currently the monad laws are not included here.
 
 module Category.Monad.Indexed where
 
-open import Function
 open import Category.Applicative.Indexed
+open import Function
+open import Level
 
-record RawIMonad {I : Set} (M : IFun I) : Set₁ where
+record RawIMonad {i f} {I : Set i} (M : IFun I f) :
+                 Set (i ⊔ suc f) where
   infixl 1 _>>=_ _>>_
   infixr 1 _=<<_
 
@@ -34,14 +38,16 @@ record RawIMonad {I : Set} (M : IFun I) : Set₁ where
 
   open RawIApplicative rawIApplicative public
 
-record RawIMonadZero {I : Set} (M : IFun I) : Set₁ where
+record RawIMonadZero {i f} {I : Set i} (M : IFun I f) :
+                     Set (i ⊔ suc f) where
   field
     monad : RawIMonad M
     ∅     : ∀ {i j A} → M i j A
 
   open RawIMonad monad public
 
-record RawIMonadPlus {I : Set} (M : IFun I) : Set₁ where
+record RawIMonadPlus {i f} {I : Set i} (M : IFun I f) :
+                     Set (i ⊔ suc f) where
   infixr 3 _∣_
   field
     monadZero : RawIMonadZero M

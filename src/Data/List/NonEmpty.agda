@@ -89,7 +89,7 @@ concat : ∀ {a} {A : Set a} → List⁺ (List⁺ A) → List⁺ A
 concat [ xs ]     = xs
 concat (xs ∷ xss) = xs ⁺++⁺ concat xss
 
-monad : RawMonad List⁺
+monad : ∀ {f} → RawMonad (List⁺ {a = f})
 monad = record
   { return = [_]
   ; _>>=_  = λ xs f → concat (map f xs)

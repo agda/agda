@@ -284,19 +284,19 @@ monoid A = record
 
 open import Category.Monad
 
-monad : RawMonad List
+monad : ∀ {ℓ} → RawMonad (List {ℓ})
 monad = record
   { return = λ x → x ∷ []
   ; _>>=_  = λ xs f → concat (map f xs)
   }
 
-monadZero : RawMonadZero List
+monadZero : ∀ {ℓ} → RawMonadZero (List {ℓ})
 monadZero = record
   { monad = monad
   ; ∅     = []
   }
 
-monadPlus : RawMonadPlus List
+monadPlus : ∀ {ℓ} → RawMonadPlus (List {ℓ})
 monadPlus = record
   { monadZero = monadZero
   ; _∣_       = _++_
@@ -306,11 +306,11 @@ monadPlus = record
 -- Monadic functions
 
 private
- module Monadic {M} (Mon : RawMonad M) where
+ module Monadic {m} {M : Set m → Set m} (Mon : RawMonad M) where
 
   open RawMonad Mon
 
-  sequence : ∀ {A : Set} → List (M A) → M (List A)
+  sequence : ∀ {A} → List (M A) → M (List A)
   sequence []       = return []
   sequence (x ∷ xs) = _∷_ <$> x ⊛ sequence xs
 

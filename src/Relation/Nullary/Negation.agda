@@ -98,7 +98,7 @@ decidable-stable (no ¬p) ¬¬p = ⊥-elim (¬¬p ¬p)
 -- Double-negation is a monad (if we assume that all elements of ¬ ¬ P
 -- are equal).
 
-¬¬-Monad : RawMonad (λ P → ¬ ¬ P)
+¬¬-Monad : ∀ {p} → RawMonad (λ (P : Set p) → ¬ ¬ P)
 ¬¬-Monad = record
   { return = contradiction
   ; _>>=_  = λ x f → negated-stable (¬¬-map f x)

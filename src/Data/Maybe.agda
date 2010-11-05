@@ -41,34 +41,35 @@ open import Category.Functor
 open import Category.Monad
 open import Category.Monad.Identity
 
-functor : ∀ {ℓ} → RawFunctor {ℓ} Maybe
+functor : ∀ {f} → RawFunctor (Maybe {a = f})
 functor = record
   { _<$>_ = λ f → maybe (just ∘ f) nothing
   }
 
-monadT : ∀ {M} → RawMonad M → RawMonad (λ A → M (Maybe A))
+monadT : ∀ {f} {M : Set f → Set f} →
+         RawMonad M → RawMonad (λ A → M (Maybe A))
 monadT M = record
   { return = M.return ∘ just
   ; _>>=_  = λ m f → M._>>=_ m (maybe f (M.return nothing))
   }
   where module M = RawMonad M
 
-monad : RawMonad Maybe
+monad : ∀ {f} → RawMonad (Maybe {a = f})
 monad = monadT IdentityMonad
 
-monadZero : RawMonadZero Maybe
+monadZero : ∀ {f} → RawMonadZero (Maybe {a = f})
 monadZero = record
   { monad = monad
   ; ∅     = nothing
   }
 
-monadPlus : RawMonadPlus Maybe
-monadPlus = record
+monadPlus : ∀ {f} → RawMonadPlus (Maybe {a = f})
+monadPlus {f} = record
   { monadZero = monadZero
   ; _∣_       = _∣_
   }
   where
-  _∣_ : ∀ {a : Set} → Maybe a → Maybe a → Maybe a
+  _∣_ : {A : Set f} → Maybe A → Maybe A → Maybe A
   nothing ∣ y = y
   just x  ∣ y = just x
 

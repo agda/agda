@@ -8,15 +8,20 @@ module Data.List.NonEmpty.Properties where
 
 open import Algebra
 open import Category.Monad
-open import Function
-open import Data.Product
 open import Data.List as List using (List; []; _∷_; _++_)
-open RawMonad List.monad using () renaming (_>>=_ to _⋆>>=_)
-private module LM {a} {A : Set a} = Monoid (List.monoid A)
 open import Data.List.NonEmpty as List⁺
-open RawMonad List⁺.monad
+open import Data.Product
+open import Function
 open import Relation.Binary.PropositionalEquality
+
 open ≡-Reasoning
+private
+  module LM {a} {A : Set a} = Monoid (List.monoid A)
+  open module LMo {a} =
+         RawMonad {f = a} List.monad
+           using () renaming (_>>=_ to _⋆>>=_)
+  open module L⁺Mo {a} =
+         RawMonad {f = a} List⁺.monad
 
 η : ∀ {a} {A : Set a}
     (xs : List⁺ A) → head xs ∷ tail xs ≡ List⁺.toList xs
@@ -40,12 +45,12 @@ toList-⁺++⁺ : ∀ {a} {A : Set a} (xs ys : List⁺ A) →
 toList-⁺++⁺ [ x ]    ys = refl
 toList-⁺++⁺ (x ∷ xs) ys = cong (_∷_ x) (toList-⁺++⁺ xs ys)
 
--- TODO: Make the following definition universe polymorphic.
-
-toList->>= : ∀ {A B} (f : A → List⁺ B) (xs : List⁺ A) →
+toList->>= : ∀ {ℓ} {A B : Set ℓ}
+             (f : A → List⁺ B) (xs : List⁺ A) →
              (List⁺.toList xs ⋆>>= List⁺.toList ∘ f) ≡
              (List⁺.toList (xs >>= f))
-toList->>= f [ x ]    = proj₂ LM.identity _
+toList->>= {ℓ} f [ x ] =
+  proj₂ {a = ℓ} {b = ℓ} LM.identity _
 toList->>= f (x ∷ xs) = begin
   List⁺.toList (f x) ++ (List⁺.toList xs ⋆>>= List⁺.toList ∘ f) ≡⟨ cong (_++_ (List⁺.toList (f x))) (toList->>= f xs) ⟩
   List⁺.toList (f x) ++ List⁺.toList (xs >>= f)                 ≡⟨ toList-⁺++⁺ (f x) (xs >>= f) ⟩
