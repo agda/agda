@@ -292,7 +292,7 @@ getInterface' x includeStateChanges =
 
 	typeCheck file =
           let ret a = do
-               reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ " ."
+               reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ "."
                return a
           in do
 	    -- Do the type checking.
