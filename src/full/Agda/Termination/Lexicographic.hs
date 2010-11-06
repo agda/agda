@@ -229,11 +229,10 @@ tests = runTests "Agda.Termination.Lexicographic"
   [ quickCheck' prop_recBehaviour_Arbitrary
   , quickCheck' prop_fromDiagonals
   , quickCheck' prop_newBehaviour
-  , quickCheckWith' Args{ replay     = Nothing
-                        , maxSuccess = 50
-                        , maxDiscard = 200
-                        , maxSize    = 20
-                        }
+  , quickCheckWith' stdArgs{ maxSuccess = 50
+                           , maxDiscard = 200
+                           , maxSize    = 20
+                           }
                     prop_lexOrder
   , quickCheck' prop_lexOrder_noArgs
   ]
