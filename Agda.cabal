@@ -59,7 +59,7 @@ library
   else
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
-  build-depends:    mtl >= 1.1 && < 2,
+  build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.1.0.2 && < 2.4,
                     haskell-src >= 1.0.1.1 && < 2,
                     containers >= 0.1.0 && < 1,

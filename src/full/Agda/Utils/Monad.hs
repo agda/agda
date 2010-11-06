@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE FlexibleContexts, CPP #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -20,36 +20,6 @@ import Data.Monoid
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
-
--- Instances --------------------------------------------------------------
-
-instance Applicative (Reader env) where
-  pure  = return
-  (<*>) = ap
-
-instance (Error e, Monad m) => Applicative (ErrorT e m) where
-  pure  = return
-  (<*>) = ap
-
-instance Monad m => Applicative (ReaderT env m) where
-  pure  = return
-  (<*>) = ap
-
-instance Monad m => Applicative (StateT s m) where
-  pure  = return
-  (<*>) = ap
-
-instance Monad m => Applicative (SS.StateT s m) where
-  pure  = return
-  (<*>) = ap
-
-instance (Monoid o, Monad m) => Applicative (WriterT o m) where
-  pure	= return
-  (<*>)	= ap
-
-instance Applicative (State s) where
-  pure	= return
-  (<*>)	= ap
 
 -- Monads -----------------------------------------------------------------
 
@@ -138,7 +108,8 @@ liftEither = either throwError return
 
 -- Read -------------------------------------------------------------------
 
-readM :: (Monad m, Read a) => String -> m a
+readM :: (Error e, MonadError e m, Read a) => String -> m a
 readM s = case reads s of
 	    [(x,"")]	-> return x
-	    _		-> fail $ "readM: parse error string " ++ s
+	    _		->
+              throwError $ strMsg $ "readM: parse error string " ++ s

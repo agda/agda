@@ -18,7 +18,7 @@ module Agda.Interaction.Options
     ) where
 
 import Control.Monad            ( when )
-import Control.Monad.Error	( MonadError(catchError) )
+import Control.Monad.Error	( MonadError(..) )
 import Data.List		( isSuffixOf )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
@@ -188,7 +188,7 @@ inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
     case optInputFile o of
 	Nothing  -> return $ o { optInputFile = Just f }
-	Just _	 -> fail "only one input file allowed"
+	Just _	 -> throwError "only one input file allowed"
 
 versionFlag                  o = return $ o { optShowVersion               = True  }
 helpFlag                     o = return $ o { optShowHelp                  = True  }
@@ -234,18 +234,18 @@ verboseFlag s o =
       ss  -> do
         n <- readM (last ss) `catchError` \_ -> usage
         return (init ss, n)
-    usage = fail "argument to verbose should be on the form x.y.z:N or N"
+    usage = throwError "argument to verbose should be on the form x.y.z:N or N"
 
 terminationDepthFlag s o =
     do k <- readM s `catchError` \_ -> usage
        when (k < 1) $ usage -- or: turn termination checking off for 0
        return $ o { optTerminationDepth = k-1 }
-    where usage = fail "argument to termination-depth should be >= 1"
+    where usage = throwError "argument to termination-depth should be >= 1"
 
 integerArgument :: String -> String -> Either String Int
 integerArgument flag s =
     readM s `catchError` \_ ->
-	fail $ "option '" ++ flag ++ "' requires an integer argument"
+	throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
@@ -327,7 +327,7 @@ parseOptions' ::
 parseOptions' argv opts fileArg = \defaults ->
     case getOpt (ReturnInOrder fileArg) opts argv of
 	(o,_,[])    -> foldl (>>=) (return defaults) o
-	(_,_,errs)  -> fail $ concat errs
+	(_,_,errs)  -> throwError $ concat errs
 
 -- | Parse the standard options.
 parseStandardOptions :: [String] -> Either String CommandLineOptions
@@ -344,7 +344,7 @@ parsePragmaOptions
   -> Either String PragmaOptions
 parsePragmaOptions argv opts = do
   ps <- parseOptions' argv pragmaOptions
-          (\s _ -> fail $ "Bad option in pragma: " ++ s)
+          (\s _ -> throwError $ "Bad option in pragma: " ++ s)
           (optPragmaOptions opts)
   checkOpts (opts { optPragmaOptions = ps })
   return ps
@@ -353,7 +353,8 @@ parsePragmaOptions argv opts = do
 parsePluginOptions :: [String] -> [OptDescr (Flag opts)] -> Flag opts
 parsePluginOptions argv opts =
   parseOptions' argv opts
-    (\s _ -> fail $ "Internal error: Flag " ++ s ++ " passed to a plugin")
+    (\s _ -> throwError $
+               "Internal error: Flag " ++ s ++ " passed to a plugin")
 
 -- | The usage info message. The argument is the program name (probably
 --   agda).

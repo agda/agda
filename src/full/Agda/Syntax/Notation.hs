@@ -5,6 +5,7 @@ module Agda.Syntax.Notation where
 
 import Control.Applicative
 import Control.Monad (when)
+import Control.Monad.Error (throwError)
 import Data.List
 import Data.Maybe
 import Data.Generics (Typeable, Data)
@@ -65,12 +66,12 @@ isLambdaHole _ = False
 
 -- | From notation with names to notation with indices.
 mkNotation :: [HoleName] -> [String] -> Either String Notation
-mkNotation _ [] = fail "empty notation is disallowed"
+mkNotation _ [] = throwError "empty notation is disallowed"
 mkNotation holes ids = do
   xs <- mapM mkPart ids
-  when (not (isAlternating xs)) $ fail "syntax must alternate holes and non-holes"
-  when (not (isExprLinear xs)) $ fail "syntax must use holes exactly once"
-  when (not (isLambdaLinear xs)) $ fail "syntax must use binding holes exactly once"
+  when (not (isAlternating xs)) $ throwError "syntax must alternate holes and non-holes"
+  when (not (isExprLinear xs)) $ throwError "syntax must use holes exactly once"
+  when (not (isLambdaLinear xs)) $ throwError "syntax must use binding holes exactly once"
   return xs
     where mkPart ident =
              case (findIndices (\x -> ident == holeName x) holes,
@@ -78,7 +79,7 @@ mkNotation holes ids = do
                            ([],[x])   -> return $ BindHole x
                            ([x], [])  -> return $ NormalHole x
                            ([], []) -> return $ IdPart ident
-                           _ -> fail "hole names must be unique"
+                           _ -> throwError "hole names must be unique"
 
           isExprLinear   xs = sort [ x | NormalHole x <- xs] == [ i | (i,h) <- zip [0..] holes ]
           isLambdaLinear xs = sort [ x | BindHole   x <- xs] == [ i | (i,h) <- zip [0..] holes, isLambdaHole h ]
