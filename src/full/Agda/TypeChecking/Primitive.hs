@@ -251,11 +251,14 @@ primTrustMe = do
   refl <- primRefl
   t    <- hPi "A" tset $ hPi "a" (el $ var 0) $ hPi "b" (el $ var 1) $
           el (primEquality <#> var 2 <@> var 1 <@> var 0)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \[t, a, b] -> liftTCM $ do
-      noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
-      rf <- return refl -- <#> return (unArg t) <#> return (unArg a)
-      redReturn rf
-    `catchError` \_ -> return (NoReduction [t, a, b])
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ts ->
+      case ts of
+        [t, a, b] -> liftTCM $ do
+              noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
+              rf <- return refl -- <#> return (unArg t) <#> return (unArg a)
+              redReturn rf
+            `catchError` \_ -> return (NoReduction [t, a, b])
+        _ -> __IMPOSSIBLE__
 
 -- Tying the knot
 mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
@@ -264,10 +267,13 @@ mkPrimFun1 f = do
     toA   <- fromTerm
     fromB <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \[v] -> liftTCM $
-	redBind (toA v)
-	    (\v' -> [v']) $ \x ->
-	redReturn $ fromB $ f x
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+      case ts of
+        [v] -> liftTCM $
+          redBind (toA v)
+              (\v' -> [v']) $ \x ->
+          redReturn $ fromB $ f x
+        _ -> __IMPOSSIBLE__
 
 mkPrimFun2 :: (MonadTCM tcm, PrimType a, PrimType b, PrimType c, FromTerm a, ToTerm a, FromTerm b, ToTerm c) =>
 	      (a -> b -> c) -> tcm PrimitiveImpl
@@ -277,12 +283,15 @@ mkPrimFun2 f = do
     toB	  <- fromTerm
     fromC <- toTerm
     t	  <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \[v,w] -> liftTCM $
-	redBind (toA v)
-	    (\v' -> [v',w]) $ \x ->
-	redBind (toB w)
-	    (\w' -> [Arg (argHiding v) (argRelevance v) (fromA x), w']) $ \y ->
-	redReturn $ fromC $ f x y
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ts ->
+      case ts of
+        [v,w] -> liftTCM $
+          redBind (toA v)
+              (\v' -> [v',w]) $ \x ->
+          redBind (toB w)
+              (\w' -> [Arg (argHiding v) (argRelevance v) (fromA x), w']) $ \y ->
+          redReturn $ fromC $ f x y
+        _ -> __IMPOSSIBLE__
 
 mkPrimFun4 :: ( MonadTCM tcm
               , PrimType a, FromTerm a, ToTerm a
@@ -298,20 +307,24 @@ mkPrimFun4 f = do
     toD          <- fromTerm
     fromE        <- toTerm
     t <- primType f
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \[a,b,c,d] -> liftTCM $
-	redBind (toA a)
-	    (\a' -> [a',b,c,d]) $ \x ->
-	redBind (toB b)
-	    (\b' -> [Arg (argHiding a) (argRelevance a) (fromA x), b', c, d]) $ \y ->
-	redBind (toC c)
-	    (\c' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
-                    , Arg (argHiding b) (argRelevance b) (fromB y), c', d]) $ \z ->
-	redBind (toD d)
-	    (\d' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
-                    , Arg (argHiding b) (argRelevance b) (fromB y)
-                    , Arg (argHiding c) (argRelevance c) (fromC z)
-                    , d']) $ \w ->
-	redReturn $ fromE $ f x y z w
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
+      case ts of
+        [a,b,c,d] -> liftTCM $
+          redBind (toA a)
+              (\a' -> [a',b,c,d]) $ \x ->
+          redBind (toB b)
+              (\b' -> [Arg (argHiding a) (argRelevance a) (fromA x), b', c, d]) $ \y ->
+          redBind (toC c)
+              (\c' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
+                      , Arg (argHiding b) (argRelevance b) (fromB y), c', d]) $ \z ->
+          redBind (toD d)
+              (\d' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
+                      , Arg (argHiding b) (argRelevance b) (fromB y)
+                      , Arg (argHiding c) (argRelevance c) (fromC z)
+                      , d']) $ \w ->
+
+          redReturn $ fromE $ f x y z w
+        _ -> __IMPOSSIBLE__
 
 -- Abstract primitive functions
 abstractPrim :: (MonadTCM tcm, PrimType a) => a -> tcm PrimitiveImpl

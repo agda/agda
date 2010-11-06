@@ -113,13 +113,16 @@ instance Show SizeConstraint where
 
 computeSizeConstraint :: MonadTCM tcm => ConstraintClosure -> tcm (Maybe SizeConstraint)
 computeSizeConstraint cl = liftTCM $
-  enterClosure cl $ \(ValueCmp CmpLeq _ u v) -> do
-    (a, n) <- sizeExpr u
-    (b, m) <- sizeExpr v
-    return $ Just $ Leq a (m - n) b
-  `catchError` \err -> case errError err of
-    PatternErr _ -> return Nothing
-    _            -> throwError err
+  enterClosure cl $ \c ->
+    case c of
+      ValueCmp CmpLeq _ u v -> do
+          (a, n) <- sizeExpr u
+          (b, m) <- sizeExpr v
+          return $ Just $ Leq a (m - n) b
+        `catchError` \err -> case errError err of
+          PatternErr _ -> return Nothing
+          _            -> throwError err
+      _ -> __IMPOSSIBLE__
 
 -- | Throws a 'patternViolation' if the term isn't a proper size expression.
 sizeExpr :: MonadTCM tcm => Term -> tcm (SizeExpr, Int)

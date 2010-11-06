@@ -547,10 +547,16 @@ instance ToConcrete (Constr A.Constructor) C.Declaration where
 
 instance ToConcrete A.Clause [C.Declaration] where
   toConcrete (A.Clause lhs rhs wh) =
-      bindToConcrete lhs $ \(C.LHS p wps _ _) -> do
-      bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
-          (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
-          return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
+      bindToConcrete lhs $ \lhs ->
+        case lhs of
+          C.LHS p wps _ _ -> do
+            bindToConcrete (AsWhereDecls wh)  $ \wh' -> do
+                (rhs', eqs, with, wcs) <- toConcreteCtx TopCtx rhs
+                return $ FunClause (C.LHS p wps eqs with) rhs' wh' : wcs
+          C.Ellipsis {} -> __IMPOSSIBLE__
+          -- TODO: Is the case above impossible? Previously there was
+          -- no code for it, but GHC 7's completeness checker spotted
+          -- that the case was not covered.
 
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =

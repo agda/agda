@@ -485,7 +485,7 @@ genPath n i j g = do
 -- | Check that all transitive edges are added.
 prop_path n' =
   forAll (genGraph_ n) $ \g ->
-  forAll (replicateM 2 $ choose (0, n - 1)) $ \[i, j] ->
+  forAll (two $ choose (0, n - 1)) $ \(i, j) ->
   forAll (genPath n i j g) $ \g' ->
   isJust (lookupEdge i j $ warshallG g')
   where
@@ -498,7 +498,7 @@ mapNodes f = Map.map f' . Map.mapKeys f
 
 -- | Check that no edges are added between components.
 prop_disjoint n' =
-  forAll (replicateM 2 $ genGraph_ n) $ \[g1, g2] ->
+  forAll (two $ genGraph_ n) $ \(g1, g2) ->
   let g  = Map.union (mapNodes Left g1) (mapNodes Right g2)
       g' = warshallG g
   in all disjoint (Map.assocs g')

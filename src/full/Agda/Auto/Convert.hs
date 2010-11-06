@@ -153,7 +153,7 @@ tomy imi icns typs = do
        typ' <- tomyType targettype
        ctx' <- mapM tomyType localVars
        modify (\s -> s {sCurMeta = Nothing})
-       modify (\s -> s {sMetas = (Map.adjust (\(m, Nothing, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
+       modify (\s -> s {sMetas = (Map.adjust (\(m, _, deps) -> (m, Just (typ', ctx'), deps)) mi (fst $ sMetas s), snd $ sMetas s)})
        r projfcns
       Nothing -> do
        nxt <- popMapS sEqs (\x y -> y {sEqs = x})
@@ -162,7 +162,7 @@ tomy imi icns typs = do
          let (ineq, e, i) = eqs !! eqi
          e' <- tomyExp e
          i' <- tomyExp i
-         modify (\s -> s {sEqs = (Map.adjust (\Nothing -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
+         modify (\s -> s {sEqs = (Map.adjust (\_ -> Just (ineq, e', i')) eqi (fst $ sEqs s), snd $ sEqs s)})
          r projfcns
         Nothing ->
          return projfcns
@@ -176,7 +176,13 @@ tomy imi icns typs = do
       return (projfcns' ++ icns', typs')
   ) (S {sConsts = initMapS, sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = imi})
  lift $ liftIO $ mapM_ categorizedecl icns'
- return (icns', typs', Map.map (\(x, Just (y, z), w) -> (x, y, z, w)) (fst (sMetas s)), map (\(Just x) -> x) $ Map.elems (fst (sEqs s)), fst (sConsts s))
+ return (icns', typs', Map.map flatten (fst (sMetas s)), map fromJust $ Map.elems (fst (sEqs s)), fst (sConsts s))
+ where
+ flatten (x, Just (y, z), w) = (x, y, z, w)
+ flatten (x, Nothing,     w) = __IMPOSSIBLE__
+
+ fromJust (Just x) = x
+ fromJust Nothing  = __IMPOSSIBLE__
 
 getConst :: Bool -> AN.QName -> TMode -> TOM (ConstRef O)
 getConst iscon name mode = do

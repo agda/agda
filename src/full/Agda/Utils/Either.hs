@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 ------------------------------------------------------------------------
 -- | Utilities for the 'Either' type
 ------------------------------------------------------------------------
@@ -11,6 +13,9 @@ module Agda.Utils.Either
 import Control.Arrow
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
 
@@ -45,9 +50,12 @@ allRight (Right b : xs)  = case allRight xs of
 prop_allRight xs =
   allRight xs ==
     if all isRight xs then
-      Right (map (\(Right x) -> x) xs)
+      Right (map fromRight xs)
      else
       Left xs
+  where
+  fromRight (Right x) = x
+  fromRight (Left _)  = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- All tests

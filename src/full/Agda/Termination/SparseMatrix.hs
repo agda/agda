@@ -310,7 +310,7 @@ interAssocWith f l@((i,a):l') m@((j,b):m')
     | otherwise = (i, f a b) : interAssocWith f l' m'
 
 prop_add sz =
-  forAll (vectorOf 3 (matrix sz :: Gen TM)) $ \[m1, m2, m3] ->
+  forAll (three (matrix sz :: Gen TM)) $ \(m1, m2, m3) ->
     let m' = add (+) m1 m2 in
       associative (add (+)) m1 m2 m3 &&
       commutative (add (+)) m1 m2 &&
@@ -341,7 +341,7 @@ mul semiring m1 m2 = M (Size { rows = rows (size m1), cols = cols (size m2) }) $
 
 prop_mul sz =
   sized $ \n -> resize (n `div` 2) $
-  forAll (vectorOf 2 natural) $ \[c2, c3] ->
+  forAll (two natural) $ \(c2, c3) ->
   forAll (matrix sz :: Gen TM) $ \m1 ->
   forAll (matrix (Size { rows = cols sz, cols = c2 })) $ \m2 ->
   forAll (matrix (Size { rows = c2, cols = c3 })) $ \m3 ->

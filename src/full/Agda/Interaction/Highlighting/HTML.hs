@@ -140,8 +140,10 @@ code :: String         -- ^ The contents of the module.
 code contents info =
   mconcat $
   map (\(pos, s, mi) -> annotate pos mi (stringToHtml s)) $
-  map (\cs@((mi, (pos, _)) : _) ->
-         (pos, map (snd . snd) cs, maybe mempty id mi)) $
+  map (\cs -> case cs of
+          (mi, (pos, _)) : _ ->
+            (pos, map (snd . snd) cs, maybe mempty id mi)
+          [] -> __IMPOSSIBLE__) $
   List.groupBy ((==) `on` fst) $
   map (\(pos, c) -> (Map.lookup pos infoMap, (pos, c))) $
   zip [1..] contents

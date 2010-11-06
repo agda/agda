@@ -15,13 +15,17 @@ module Agda.Utils.TestHelpers
   , maybeGen
   , maybeCoGen
   , listOfElements
+  , two
+  , three
     -- * Test driver.
   , runTests
   )
   where
 
-import Agda.Utils.QuickCheck
+import Control.Monad
 import Data.List
+
+import Agda.Utils.QuickCheck
 import qualified Agda.Utils.IO.Locale as LocIO
 
 ------------------------------------------------------------------------
@@ -114,6 +118,16 @@ maybeGen gen = frequency [ (1, return Nothing)
 maybeCoGen :: (a -> Gen b -> Gen b) -> (Maybe a -> Gen b -> Gen b)
 maybeCoGen f Nothing  = variant 0
 maybeCoGen f (Just x) = variant 1 . f x
+
+-- | Generates two elements.
+
+two :: Gen a -> Gen (a, a)
+two gen = liftM2 (,) gen gen
+
+-- | Generates three elements.
+
+three :: Gen a -> Gen (a, a, a)
+three gen = liftM3 (,,) gen gen gen
 
 ------------------------------------------------------------------------
 -- Test driver

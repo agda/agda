@@ -485,12 +485,15 @@ instance ToAbstract C.Expr A.Expr where
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
 
       e0@(C.Lam r bs e) -> do
-        localToAbstract bs $ \(b:bs') -> do
-        e        <- toAbstractCtx TopCtx e
-        let info = ExprRange r
-        return $ A.Lam info b $ foldr mkLam e bs'
-        where
-            mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
+        localToAbstract bs $ \bs ->
+          case bs of
+            b:bs' -> do
+              e        <- toAbstractCtx TopCtx e
+              let info = ExprRange r
+              return $ A.Lam info b $ foldr mkLam e bs'
+              where
+                  mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
+            [] -> __IMPOSSIBLE__
 
 -- Irrelevant non-dependent function type
 
