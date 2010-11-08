@@ -26,3 +26,10 @@ executable agda
                  -- Nothing is used from the following package, except
                  -- for the prelude.
                  base >= 3 && < 6
+  if impl(ghc >= 7)
+    -- If someone installs Agda with the setuid bit set, then the
+    -- presence of +RTS may be a security problem (see GHC bug #3910).
+    -- However, we sometimes recommend people to use +RTS to control
+    -- Agda's memory usage, so we want this functionality enabled by
+    -- default.
+    ghc-options: -rtsopts

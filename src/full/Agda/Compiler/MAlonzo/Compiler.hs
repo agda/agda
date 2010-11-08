@@ -490,30 +490,26 @@ callGHC i = do
       args     = overridableArgs ++ opts ++ otherArgs
       compiler = "ghc"
 
+  -- Note: Some versions of GHC use stderr for progress reports. For
+  -- those versions of GHC we don't print any progress information
+  -- unless an error is encountered.
+
   reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
-  (inn, out, err, p) <-
-    liftIO $ runInteractiveProcess compiler args Nothing Nothing
+  (_, _, err, p) <-
+    liftIO $ createProcess (proc compiler args){ std_err = CreatePipe }
 
-  liftIO $ do
-    hClose inn
-    -- The handles should be in text mode.
-    hSetBinaryMode out False
-    hSetBinaryMode err False
-
-  -- GHC seems to use stderr for progress reports.
-  s <- liftIO $ join <$> LocIO.hGetContents err <*> LocIO.hGetContents out
-  reportSLn "" 1 s
+  errors <- liftIO $ case err of
+    Nothing  -> __IMPOSSIBLE__
+    Just err -> do
+      -- The handle should be in text mode.
+      hSetBinaryMode err False
+      liftIO $ LocIO.hGetContents err
 
   exitcode <- liftIO $ do
     -- Ensure that the output has been read before waiting for the
     -- process.
-    E.evaluate (length s)
+    E.evaluate (length errors)
     waitForProcess p
   case exitcode of
-    ExitFailure _ -> typeError (CompilationError s)
+    ExitFailure _ -> typeError (CompilationError errors)
     _             -> return ()
-
-  where
-  -- Note that this function returns s1 before inspecting its input.
-  join s1 s2 =
-    s1 ++ (if L.null s1 || last s1 == '\n' then "" else "\n") ++ s2

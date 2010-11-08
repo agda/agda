@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fglasgow-exts #-} -- unboxed integers
+{-# LANGUAGE MagicHash, Rank2Types #-}
 -----------------------------------------------------------------------------
 -- |
 
