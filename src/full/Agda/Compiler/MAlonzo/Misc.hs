@@ -9,7 +9,7 @@ import Data.Map as M
 import Data.Set as S
 import Data.Maybe
 import Data.Function
-import Language.Haskell.Syntax
+import qualified Language.Haskell.Exts.Syntax as HS
 import System.IO
 import System.Time
 
@@ -57,7 +57,7 @@ curSig = iSignature <$> curIF
 curMName :: TCM ModuleName
 curMName = sigMName <$> curSig
 
-curHsMod :: TCM Module
+curHsMod :: TCM HS.ModuleName
 curHsMod = mazMod <$> curMName
 
 curDefs :: TCM Definitions
@@ -82,16 +82,16 @@ sigMName sig = case M.keys (sigSections sig) of
 -- * Names coming from Haskell must always be used qualified.
 --   Exception: names from the Prelude.
 
-ihname :: String -> Nat -> HsName
-ihname s i = HsIdent $ s ++ show i
+ihname :: String -> Nat -> HS.Name
+ihname s i = HS.Ident $ s ++ show i
 
-unqhname :: String -> QName -> HsName
-unqhname s q | ("d", "main") == (s, show(qnameName q)) = HsIdent "main"
+unqhname :: String -> QName -> HS.Name
+unqhname s q | ("d", "main") == (s, show(qnameName q)) = HS.Ident "main"
              | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
   where idnum (NameId x _) = fromIntegral x
 
 -- the toplevel module containing the given one
-tlmodOf :: ModuleName -> TCM Module
+tlmodOf :: ModuleName -> TCM HS.ModuleName
 tlmodOf = fmap mazMod . tlmname
 
 tlmname :: ModuleName -> TCM ModuleName
@@ -102,35 +102,35 @@ tlmname m = do
         getVisitedModules
   return $ case ms of (m' : _) -> m'; _ -> __IMPOSSIBLE__
 
--- qualify HsName n by the module of QName q, if necessary;
+-- qualify HS.Name n by the module of QName q, if necessary;
 -- accumulates the used module in stImportedModules at the same time.
-xqual :: QName -> HsName -> TCM HsQName
+xqual :: QName -> HS.Name -> TCM HS.QName
 xqual q n = do m1 <- tlmname (qnameModule q)
                m2 <- curMName
-               if m1 == m2 then return (UnQual n)
-                  else addImport m1 >> return (Qual (mazMod m1) n)
+               if m1 == m2 then return (HS.UnQual n)
+                  else addImport m1 >> return (HS.Qual (mazMod m1) n)
 
-xhqn :: String -> QName -> TCM HsQName
+xhqn :: String -> QName -> TCM HS.QName
 xhqn s q = xqual q (unqhname s q)
 
 -- always use the original name for a constructor even when it's redefined.
-conhqn :: QName -> TCM HsQName
+conhqn :: QName -> TCM HS.QName
 conhqn q = do
     cq   <- canonicalName q
     defn <- theDef <$> getConstInfo cq
-    case defn of Constructor{conHsCode = Just (_, hs)} -> return $ UnQual $ HsIdent hs
+    case defn of Constructor{conHsCode = Just (_, hs)} -> return $ HS.UnQual $ HS.Ident hs
                  _                                     -> xhqn "C" cq
 
 -- qualify name s by the module of builtin b
-bltQual :: String -> String -> TCM HsQName
-bltQual b s = do (Def q _) <- getBuiltin b; xqual q (HsIdent s)
+bltQual :: String -> String -> TCM HS.QName
+bltQual b s = do (Def q _) <- getBuiltin b; xqual q (HS.Ident s)
 
 -- sub-naming for cascaded definitions for concsecutive clauses
 dsubname q i | i == 0    = unqhname "d"                     q
              | otherwise = unqhname ("d_" ++ show i ++ "_") q
 
-hsVarUQ :: HsName -> HsExp
-hsVarUQ = HsVar . UnQual
+hsVarUQ :: HS.Name -> HS.Exp
+hsVarUQ = HS.Var . HS.UnQual
 
 --------------------------------------------------
 -- Hard coded module names
@@ -138,41 +138,43 @@ hsVarUQ = HsVar . UnQual
 
 mazstr  = "MAlonzo"
 mazName = mkName_ dummy mazstr
-mazMod' s = Module $ mazstr ++ "." ++ s
-mazMod :: ModuleName -> Module
+mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
+mazMod :: ModuleName -> HS.ModuleName
 mazMod = mazMod' . show
 mazerror msg = error $ mazstr ++ ": " ++ msg
--- mazCoerce = HsVar $ Qual unsafeCoerceMod (HsIdent "unsafeCoerce")
-mazCoerce = HsVar $ UnQual $ HsIdent "mazCoerce"
+-- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
+mazCoerce = HS.Var $ HS.UnQual $ HS.Ident "mazCoerce"
 
 -- for Runtime module: Not really used (Runtime modules has been abolished).
 rtmMod  = mazMod' "Runtime"
-rtmQual = UnQual . HsIdent
-rtmVar  = HsVar . rtmQual
-rtmError s = rtmVar "error" `HsApp`
-             (HsLit $ HsString $ "MAlonzo Runtime Error: " ++ s)
+rtmQual = HS.UnQual . HS.Ident
+rtmVar  = HS.Var . rtmQual
+rtmError s = rtmVar "error" `HS.App`
+             (HS.Lit $ HS.String $ "MAlonzo Runtime Error: " ++ s)
 
-unsafeCoerceMod = Module "Unsafe.Coerce"
+unsafeCoerceMod = HS.ModuleName "Unsafe.Coerce"
 
 --------------------------------------------------
 -- Sloppy ways to declare <name> = <string>
 --------------------------------------------------
 
-fakeD :: HsName -> String -> HsDecl
-fakeD v s = HsFunBind [HsMatch dummy v []
-                      (HsUnGuardedRhs $ hsVarUQ $ HsIdent $ s) [] ]
+fakeD :: HS.Name -> String -> HS.Decl
+fakeD v s = HS.FunBind [ HS.Match dummy v [] Nothing
+                           (HS.UnGuardedRhs $ hsVarUQ $ HS.Ident $ s)
+                           (HS.BDecls [])
+                       ]
 
-fakeDS :: String -> String -> HsDecl
-fakeDS = fakeD . HsIdent
+fakeDS :: String -> String -> HS.Decl
+fakeDS = fakeD . HS.Ident
 
-fakeDQ :: QName -> String -> HsDecl
+fakeDQ :: QName -> String -> HS.Decl
 fakeDQ = fakeD . unqhname "d"
 
-fakeType :: String -> HsQualType
-fakeType = HsQualType [] . HsTyVar . HsIdent
+fakeType :: String -> HS.Type
+fakeType = HS.TyVar . HS.Ident
 
-fakeExp :: String -> HsExp
-fakeExp = HsVar . UnQual . HsIdent
+fakeExp :: String -> HS.Exp
+fakeExp = HS.Var . HS.UnQual . HS.Ident
 
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."

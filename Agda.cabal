@@ -61,7 +61,7 @@ library
                     utf8-string == 0.3.*
   build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.1.0.2 && < 2.4,
-                    haskell-src >= 1.0.1.1 && < 2,
+                    haskell-src-exts >= 1.9.6 && < 1.10,
                     containers >= 0.1.0 && < 1,
                     pretty >= 1 && < 2,
                     directory >= 1.0 && < 1.2,

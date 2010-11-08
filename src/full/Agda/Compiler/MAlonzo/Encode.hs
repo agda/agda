@@ -10,7 +10,7 @@ module Agda.Compiler.MAlonzo.Encode
 import Data.Char
 import Data.Function
 import Data.List
-import Language.Haskell.Syntax
+import qualified Language.Haskell.Exts.Syntax as HS
 import Test.QuickCheck
 
 import Agda.Compiler.MAlonzo.Misc
@@ -38,8 +38,8 @@ isModChar c =
 -- Precondition: The input must not start or end with @.@, and no two
 -- @.@s may be adjacent.
 
-encodeModuleName :: Module -> Module
-encodeModuleName (Module s) = Module $ case splitUp s of
+encodeModuleName :: HS.ModuleName -> HS.ModuleName
+encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case splitUp s of
   p : ps | p == mazstr -> concat (p : map encNamePart ps)
   _                    -> s
   where
@@ -65,13 +65,14 @@ encodeModuleName (Module s) = Module $ case splitUp s of
 -- generator could strengthen it.
 
 prop_encodeModuleName_injective (M s1) (M s2) =
-  if encodeModuleName (Module s1) == encodeModuleName (Module s2) then
+  if encodeModuleName (HS.ModuleName s1) ==
+     encodeModuleName (HS.ModuleName s2) then
     s1 == s2
    else
     True
 
 prop_encodeModuleName_OK (M s') =
-  s ~= unM (encodeModuleName (Module s))
+  s ~= unM (encodeModuleName (HS.ModuleName s))
   where
   s = mazstr ++ "." ++ s'
 
@@ -82,11 +83,11 @@ prop_encodeModuleName_OK (M s') =
                               where (s1', s2') = span (/= '.') s'
   _         ~= _          = False
 
-  unM (Module s) = s
+  unM (HS.ModuleName s) = s
 
 prop_encodeModuleName_preserved (M m) =
   shouldBePreserved m ==>
-    encodeModuleName (Module m) == Module m
+    encodeModuleName (HS.ModuleName m) == HS.ModuleName m
   where
   shouldBePreserved m =
     not (m == mazstr || (mazstr ++ ".") `isPrefixOf` m)

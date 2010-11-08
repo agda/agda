@@ -10,7 +10,9 @@ import Data.Char
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
-import Language.Haskell.Syntax
+import qualified Language.Haskell.Exts.Extension as HS
+import qualified Language.Haskell.Exts.Parser as HS
+import qualified Language.Haskell.Exts.Syntax as HS
 import System.Cmd
 import System.Directory
 import System.Exit
@@ -70,7 +72,7 @@ compile i = do
   ifM uptodate noComp $ (yesComp >>) $ do
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
-  decl mn ds imp = HsModule dummy mn Nothing imp ds
+  decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
   uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
@@ -84,14 +86,14 @@ compile i = do
 --   accumulating in it what are acutally used in Misc.xqual
 --------------------------------------------------
 
-imports :: TCM [HsImportDecl]
+imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
   hsImps = (L.map decl . S.toList .
-            S.insert unsafeCoerceMod . S.map Module) <$>
+            S.insert unsafeCoerceMod . S.map HS.ModuleName) <$>
              getHaskellImports
   imps   = L.map decl . uniq <$>
              ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
-  decl m = HsImportDecl dummy m True Nothing Nothing
+  decl m = HS.ImportDecl dummy m True False Nothing Nothing Nothing
   mnames = (++) <$> (S.elems <$> gets stImportedModules)
                 <*> (iImportedModules <$> curIF)
   uniq   = L.map head . group . L.sort
@@ -100,7 +102,7 @@ imports = (++) <$> hsImps <*> imps where
 -- Main compiling clauses
 --------------------------------------------------
 
-definitions :: Definitions -> TCM [HsDecl]
+definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
   M.fold (liftM2 (++) . (definition kit <.> instantiateFull))
@@ -120,7 +122,7 @@ definitions defs = do
 --   flat _ _ x = x
 -- @
 
-definition :: Maybe CoinductionKit -> Definition -> TCM [HsDecl]
+definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
 definition kit (Defn Forced     _ _  _ _ _) = __IMPOSSIBLE__
 definition kit (Defn Irrelevant _ _  _ _ _) = return []
@@ -135,31 +137,37 @@ definition kit (Defn Relevant   q ty _ _ d) = do
           a    = ihname "a" 0
           b    = ihname "a" 1
           vars = [a, b]
-      return [ HsTypeDecl dummy infT vars (HsTyVar b)
-             , HsFunBind [HsMatch dummy infV (L.map HsPVar vars)
-                                  (HsUnGuardedRhs unit_con) []]
+      return [ HS.TypeDecl dummy infT
+                           (L.map HS.UnkindedVar vars)
+                           (HS.TyVar b)
+             , HS.FunBind [HS.Match dummy infV
+                                    (L.map HS.PVar vars) Nothing
+                                    (HS.UnGuardedRhs HS.unit_con)
+                                    (HS.BDecls [])]
              ]
     Constructor{} | Just q == (nameOfSharp <$> kit) -> do
       let sharp = unqhname "d" q
           x     = ihname "x" 0
       return $
-        [ HsTypeSig dummy [sharp] $ fakeType $
+        [ HS.TypeSig dummy [sharp] $ fakeType $
             "forall a. () -> forall b. () -> b -> b"
-        , HsFunBind [HsMatch dummy sharp
-                             [HsPWildCard, HsPWildCard, HsPVar x]
-                             (HsUnGuardedRhs (HsVar (UnQual x)))
-                             []]
+        , HS.FunBind [HS.Match dummy sharp
+                               [HS.PWildCard, HS.PWildCard, HS.PVar x]
+                               Nothing
+                               (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                               (HS.BDecls [])]
         ]
     Function{} | Just q == (nameOfFlat <$> kit) -> do
       let flat = unqhname "d" q
           x    = ihname "x" 0
       return $
-        [ HsTypeSig dummy [flat] $ fakeType $
+        [ HS.TypeSig dummy [flat] $ fakeType $
             "forall a. () -> forall b. () -> b -> b"
-        , HsFunBind [HsMatch dummy flat
-                             [HsPWildCard, HsPWildCard, HsPVar x]
-                             (HsUnGuardedRhs (HsVar (UnQual x)))
-                             []]
+        , HS.FunBind [HS.Match dummy flat
+                               [HS.PWildCard, HS.PWildCard, HS.PVar x]
+                               Nothing
+                               (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
+                               (HS.BDecls [])]
         ]
 
     Axiom{ axHsDef = Just (HsDefn ty hs) } -> return $ fbWithType ty (fakeExp hs)
@@ -189,37 +197,40 @@ definition kit (Defn Relevant   q ty _ _ d) = do
   tag _ []       = []
   tag i [cl]     = (i, True , cl): []
   tag i (cl:cls) = (i, False, cl): tag (i + 1) cls
-  mkwhere (HsFunBind [m0, HsMatch _     dn ps rhs [] ] : fbs@(_:_)) =
-          [HsFunBind [m0, HsMatch dummy dn ps rhs fbs]]
+  mkwhere (HS.FunBind [m0, HS.Match _     dn ps mt rhs (HS.BDecls [])] :
+           fbs@(_:_)) =
+          [HS.FunBind [m0, HS.Match dummy dn ps mt rhs (HS.BDecls fbs)]]
   mkwhere fbs = fbs
   fbWithType ty e =
-    [ HsTypeSig dummy [unqhname "d" q] $ fakeType ty ] ++ fb e
-  fb e  =[HsFunBind[HsMatch dummy (unqhname "d" q)[] (HsUnGuardedRhs $ e) []]]
+    [ HS.TypeSig dummy [unqhname "d" q] $ fakeType ty ] ++ fb e
+  fb e  = [HS.FunBind [HS.Match dummy (unqhname "d" q) [] Nothing
+                                (HS.UnGuardedRhs $ e) (HS.BDecls [])]]
   axiomErr = rtmError $ "postulate evaluated: " ++ show q
 
-checkConstructorType :: QName -> TCM [HsDecl]
+checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
   Constructor{ conHsCode = Just (ty, hs) } <- theDef <$> getConstInfo q
-  return [ HsTypeSig dummy [unqhname "check" q] $ fakeType ty
-         , HsFunBind [HsMatch dummy (unqhname "check" q) [] (HsUnGuardedRhs $ fakeExp hs) []]
+  return [ HS.TypeSig dummy [unqhname "check" q] $ fakeType ty
+         , HS.FunBind [HS.Match dummy (unqhname "check" q) [] Nothing
+                                (HS.UnGuardedRhs $ fakeExp hs) (HS.BDecls [])]
          ]
 
-checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HsDecl]
+checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
 checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
         a <- constructorArity c
         Just (_, hsc) <- conHsCode . theDef <$> getConstInfo c
-        let pat = HsPApp (UnQual $ HsIdent hsc) $ genericReplicate a HsPWildCard
-        return $ HsAlt dummy pat (HsUnGuardedAlt $ HsTuple []) []
+        let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
+        return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.Tuple []) (HS.BDecls [])
   cs <- mapM makeClause cs
   let rhs = case cs of
               [] -> fakeExp "()" -- There is no empty case statement in Haskell
-              _  -> HsCase (HsVar $ UnQual $ HsIdent "x") cs
+              _  -> HS.Case (HS.Var $ HS.UnQual $ HS.Ident "x") cs
 
-  return [ HsTypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
-         , HsFunBind [HsMatch dummy (unqhname "cover" q) [HsPVar $ HsIdent "x"]
-            (HsUnGuardedRhs rhs) []]
+  return [ HS.TypeSig dummy [unqhname "cover" q] $ fakeType $ unwords (ty : tvs) ++ " -> ()"
+         , HS.FunBind [HS.Match dummy (unqhname "cover" q) [HS.PVar $ HS.Ident "x"]
+                                Nothing (HS.UnGuardedRhs rhs) (HS.BDecls [])]
          ]
 
 -- | Move somewhere else!
@@ -231,47 +242,48 @@ constructorArity q = do
     Constructor{ conPars = np } -> return $ arity a - np
     _ -> fail $ "constructorArity: non constructor: " ++ show q
 
-clause :: QName -> (Nat, Bool, Clause) -> TCM HsDecl
+clause :: QName -> (Nat, Bool, Clause) -> TCM HS.Decl
 clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
-  HsFunBind . (: cont) <$> main where
+  HS.FunBind . (: cont) <$> main where
   main = match <$> argpatts ps (bvars b (0::Nat)) <*> clausebody b
-  cont | isLast && any isCon ps = [match (L.map HsPVar cvs) failrhs]
+  cont | isLast && any isCon ps = [match (L.map HS.PVar cvs) failrhs]
        | isLast                 = []
-       | otherwise              = [match (L.map HsPVar cvs) crhs]
+       | otherwise              = [match (L.map HS.PVar cvs) crhs]
   cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
-  crhs = hsCast$ foldl HsApp (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
+  crhs = hsCast$ foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
   failrhs = rtmError $ "incomplete pattern matching: " ++ show q
-  match hps rhs = HsMatch dummy (dsubname q i) hps (HsUnGuardedRhs rhs) []
+  match hps rhs = HS.Match dummy (dsubname q i) hps Nothing
+                           (HS.UnGuardedRhs rhs) (HS.BDecls [])
   bvars (Body _)          _ = []
-  bvars (Bind (Abs _ b')) n = HsPVar (ihname "v" n) : bvars b' (n + 1)
-  bvars (NoBind      b' ) n = HsPWildCard           : bvars b' n -- WHY NOT: bvars b' n  -- PRODDUCES head [] exception
-  bvars NoBody            _ = repeat HsPWildCard -- ?
+  bvars (Bind (Abs _ b')) n = HS.PVar (ihname "v" n) : bvars b' (n + 1)
+  bvars (NoBind      b' ) n = HS.PWildCard           : bvars b' n -- WHY NOT: bvars b' n  -- PRODDUCES head [] exception
+  bvars NoBody            _ = repeat HS.PWildCard -- ?
 
   isCon (Arg _ _ ConP{}) = True
   isCon _                = False
 
 -- argpatts aps xs = hps
 -- xs is alist of haskell *variables* in form of patterns (because of wildcard)
-argpatts :: [Arg Pattern] -> [HsPat] -> TCM [HsPat]
+argpatts :: [Arg Pattern] -> [HS.Pat] -> TCM [HS.Pat]
 argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   where
   pat   (VarP _   ) = do v <- gets head; modify tail; return v
-  pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HsPWildCard -- SEE ABOVE
-  pat   (LitP l   ) = return $ HsPLit $ hslit l
+  pat   (DotP _   ) = pat (VarP dummy) -- WHY NOT: return HS.PWildCard -- SEE ABOVE
+  pat   (LitP l   ) = return $ HS.PLit $ hslit l
   pat p@(ConP q _ ps) = do
     -- Note that irr is applied once for every subpattern, so in the
     -- worst case it is quadratic in the size of the pattern. I
     -- suspect that this will not be a problem in practice, though.
     irrefutable <- lift $ irr p
     let tilde = if   tildesEnabled && irrefutable
-                then HsPParen . HsPIrrPat
+                then HS.PParen . HS.PIrrPat
                 else id
-    (tilde . HsPParen) <$>
-      (HsPApp <$> lift (conhqn q) <*> mapM pat' ps)
+    (tilde . HS.PParen) <$>
+      (HS.PApp <$> lift (conhqn q) <*> mapM pat' ps)
 
   -- Andreas, 2010-09-29
   -- do not match against irrelevant stuff
-  pat' (Arg _ Irrelevant _) = return $ HsPWildCard
+  pat' (Arg _ Irrelevant _) = return $ HS.PWildCard
   pat' (Arg _ _          p) = pat p
 
   tildesEnabled = False
@@ -289,7 +301,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr' (Arg _ Irrelevant _) = return $ True
   irr' (Arg _ _          p) = irr p
 
-clausebody :: ClauseBody -> TCM HsExp
+clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = runReaderT (go b0) 0 where
   go (Body   tm       ) = hsCast <$> term tm
   go (Bind   (Abs _ b)) = local (1+) $ go b
@@ -300,133 +312,134 @@ clausebody b0 = runReaderT (go b0) 0 where
 --   Irrelevant arguments are extracted as @()@.
 --   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
-term :: Term -> ReaderT Nat TCM HsExp
+term :: Term -> ReaderT Nat TCM HS.Exp
 term tm0 = case tm0 of
   Var   i as -> do n <- ask; apps (hsVarUQ $ ihname "v" (n - i - 1)) as
-  Lam   _ at -> do n <- ask; HsLambda dummy [HsPVar $ ihname "v" n] <$>
+  Lam   _ at -> do n <- ask; HS.Lambda dummy [HS.PVar $ ihname "v" n] <$>
                               local (1+) (term $ absBody at)
   Lit   l    -> lift $ literal l
-  Def   q as -> (`apps` as) . HsVar =<< lift (xhqn "d" q)
-  Con   q as -> (`apps` as) . HsCon =<< lift (conhqn q)
-  Pi    _ _  -> return unit_con
-  Fun   _ _  -> return unit_con
-  Sort  _    -> return unit_con
+  Def   q as -> (`apps` as) . HS.Var =<< lift (xhqn "d" q)
+  Con   q as -> (`apps` as) . HS.Con =<< lift (conhqn q)
+  Pi    _ _  -> return HS.unit_con
+  Fun   _ _  -> return HS.unit_con
+  Sort  _    -> return HS.unit_con
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare   -> return $ rtmError $ "hit DontCare"
-  where apps =  foldM (\h a -> HsApp h <$> term' a)
+  where apps =  foldM (\h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().
-term' :: Arg Term -> ReaderT Nat TCM HsExp
-term' (Arg _ Irrelevant _) = return unit_con
+term' :: Arg Term -> ReaderT Nat TCM HS.Exp
+term' (Arg _ Irrelevant _) = return HS.unit_con
 term' (Arg _ _          t) = term t
 
-literal :: Literal -> TCM HsExp
+literal :: Literal -> TCM HS.Exp
 literal l = case l of
   LitInt    _ _   -> do toN <- bltQual "NATURAL" mazIntegerToNat
-                        return $ HsVar toN `HsApp` typed "Integer"
+                        return $ HS.Var toN `HS.App` typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
   _               -> return $ l'
-  where l'    = HsLit $ hslit l
-        typed = HsExpTypeSig dummy l' . HsQualType [] . HsTyCon . rtmQual
+  where l'    = HS.Lit $ hslit l
+        typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
 
-hslit :: Literal -> HsLiteral
-hslit l = case l of LitInt    _ x -> HsInt    x
-                    LitLevel  _ x -> HsInt    x
-                    LitFloat  _ x -> HsFrac   (toRational x)
-                    LitString _ x -> HsString x
-                    LitChar   _ x -> HsChar   x
-                    LitQName  _ x -> HsString (show x)
+hslit :: Literal -> HS.Literal
+hslit l = case l of LitInt    _ x -> HS.Int    x
+                    LitLevel  _ x -> HS.Int    x
+                    LitFloat  _ x -> HS.Frac   (toRational x)
+                    LitString _ x -> HS.String x
+                    LitChar   _ x -> HS.Char   x
+                    LitQName  _ x -> HS.String (show x)
 
-condecl :: QName -> TCM (Nat, HsConDecl)
+condecl :: QName -> TCM (Nat, HS.ConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
   Defn _ _ ty _ _ (Constructor {conPars = np}) -> do
     ar <- arity <$> normalise ty
     return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)
 
-cdecl :: QName -> Nat -> HsConDecl
-cdecl q n = HsConDecl dummy (unqhname "C" q)
-            [ HsUnBangedTy $ HsTyVar $ ihname "a" i | i <- [0 .. n - 1]]
+cdecl :: QName -> Nat -> HS.ConDecl
+cdecl q n = HS.ConDecl (unqhname "C" q)
+            [ HS.UnBangedTy $ HS.TyVar $ ihname "a" i | i <- [0 .. n - 1]]
 
 tvaldecl :: QName
          -> Induction
             -- ^ Is the type inductive or coinductive?
-         -> Nat -> Nat -> [HsConDecl] -> Maybe Clause -> [HsDecl]
+         -> Nat -> Nat -> [HS.ConDecl] -> Maybe Clause -> [HS.Decl]
 tvaldecl q ind ntv npar cds cl =
-  HsFunBind [HsMatch dummy vn pvs (HsUnGuardedRhs unit_con) []] :
-  maybe [datatype] (const []) cl
+  HS.FunBind [HS.Match dummy vn pvs Nothing
+                       (HS.UnGuardedRhs HS.unit_con) (HS.BDecls [])] :
+  maybe [HS.DataDecl dummy kind [] tn tvs
+                     (L.map (HS.QualConDecl dummy [] []) cds) []]
+        (const []) cl
   where
   (tn, vn) = (unqhname "T" q, unqhname "d" q)
-  tvs = [          ihname "a" i | i <- [0 .. ntv  - 1]]
-  pvs = [ HsPVar $ ihname "a" i | i <- [0 .. npar - 1]]
+  tvs = [ HS.UnkindedVar $ ihname "a" i | i <- [0 .. ntv  - 1]]
+  pvs = [ HS.PVar        $ ihname "a" i | i <- [0 .. npar - 1]]
 
   -- Inductive data types consisting of a single constructor with a
   -- single argument are translated into newtypes.
-  datatype = case (ind, cds) of
-    (Inductive, [c@(HsConDecl _ _ [_])]) -> newtyp c
-    (Inductive, [c@(HsRecDecl _ _ [_])]) -> newtyp c
-    _                                    -> datatyp
+  kind = case (ind, cds) of
+    (Inductive, [HS.ConDecl _ [_]]) -> HS.NewType
+    (Inductive, [HS.RecDecl _ [_]]) -> HS.NewType
+    _                               -> HS.DataType
 
-  newtyp c = HsNewTypeDecl dummy [] tn tvs c   []
-  datatyp  = HsDataDecl    dummy [] tn tvs cds []
-
-infodecl :: QName -> HsDecl
+infodecl :: QName -> HS.Decl
 infodecl q = fakeD (unqhname "name" q) $ show (show q)
 
 --------------------------------------------------
 -- Inserting unsafeCoerce
 --------------------------------------------------
 
-hsCast :: HsExp -> HsExp
+hsCast :: HS.Exp -> HS.Exp
 {-
 hsCast = addcast . go where
-  addcast [e@(HsVar(UnQual(HsIdent(c:ns))))] | c == 'v' && all isDigit ns = e
-  addcast es = foldl HsApp mazCoerce es
+  addcast [e@(HS.Var(HS.UnQual(HS.Ident(c:ns))))] | c == 'v' && all isDigit ns = e
+  addcast es = foldl HS.App mazCoerce es
   -- this need to be extended if you generate other kinds of exps.
-  go (HsApp e1 e2    ) = go e1 ++ [hsCast e2]
-  go (HsLambda _ ps e) = [ HsLambda dummy ps (hsCast e) ]
+  go (HS.App e1 e2    ) = go e1 ++ [hsCast e2]
+  go (HS.Lambda _ ps e) = [ HS.Lambda dummy ps (hsCast e) ]
   go e = [e]
 -}
 
-hsCast e = mazCoerce `HsApp` hsCast' e
-hsCast' (HsApp e1 e2)     = hsCast' e1 `HsApp` (hsCoerce $ hsCast' e2)
-hsCast' (HsLambda _ ps e) = HsLambda dummy ps $ hsCast' e
+hsCast e = mazCoerce `HS.App` hsCast' e
+hsCast' (HS.App e1 e2)     = hsCast' e1 `HS.App` (hsCoerce $ hsCast' e2)
+hsCast' (HS.Lambda _ ps e) = HS.Lambda dummy ps $ hsCast' e
 hsCast' e = e
 
 -- No coercion for literal integers
-hsCoerce e@(HsExpTypeSig _ (HsLit (HsInt{})) _) = e
-hsCoerce e = HsApp mazCoerce e
+hsCoerce e@(HS.ExpTypeSig _ (HS.Lit (HS.Int{})) _) = e
+hsCoerce e = HS.App mazCoerce e
 
 
 --------------------------------------------------
 -- Writing out a haskell module
 --------------------------------------------------
 
-writeModule :: HsModule -> TCM ()
-writeModule (HsModule l m ex imp ds) = do
+writeModule :: HS.Module -> TCM ()
+writeModule (HS.Module l m ps w ex imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
   out <- outFile
-  liftIO $ UTF8.writeFile out $ unlines $
-    [ preamble
-    , prettyPrint m0
-    ] ++ coerceDef
-      ++ L.map prettyPrint ds
+  liftIO $ UTF8.writeFile out $ prettyPrint $
+    HS.Module l m (p : ps) w ex imp (ds ++ coerceDef)
   where
-  m0 = HsModule l m ex imp []
-  preamble = unlines [ "{-# LANGUAGE EmptyDataDecls"
-                     , "           , ExistentialQuantification"
-                     , "           , ScopedTypeVariables"
-                     , "           , NoMonomorphismRestriction"
-                     , "  #-}"
-                     ]
-  coerceDef =
-    [ ""
-    , "-- Special version of coerce that plays well with rules."
-    , "{-# INLINE [1] mazCoerce #-}"
+  p = HS.LanguagePragma dummy $ L.map HS.Ident $
+        [ "EmptyDataDecls"
+        , "ExistentialQuantification"
+        , "ScopedTypeVariables"
+        , "NoMonomorphismRestriction"
+        ]
+
+  -- Special version of coerce that plays well with rules.
+  coerceDef = L.map (ok . parse)
+    [ "{-# INLINE [1] mazCoerce #-}"
     , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
     , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
-    , ""
     ]
+
+  parse = HS.parseWithMode
+            HS.defaultParseMode{HS.extensions = [HS.ExplicitForall]}
+
+  ok (HS.ParseOk d)   = d
+  ok HS.ParseFailed{} = __IMPOSSIBLE__
 
 compileDir :: TCM FilePath
 compileDir = do

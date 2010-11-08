@@ -5,7 +5,7 @@ import Control.Monad.State
 import Data.Char
 import Data.List as L
 import Data.Map as M
-import Language.Haskell.Syntax
+import qualified Language.Haskell.Exts.Syntax as HS
 
 import {-# SOURCE #-} Agda.Compiler.MAlonzo.Compiler (term)
 import Agda.Compiler.MAlonzo.Misc
@@ -35,16 +35,17 @@ checkTypeOfMain q ty
         typeError $ GenericError $ show err
 
 -- Haskell modules to be imported for BUILT-INs
-importsForPrim :: TCM [Module]
-importsForPrim = xForPrim $ L.map (\(s, ms)-> (s, return (L.map Module ms))) $
+importsForPrim :: TCM [HS.ModuleName]
+importsForPrim =
+  xForPrim $
+  L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
   [ "CHAR" |-> ["Data.Char"]
   -- , "IO" |-> ["System.IO"]
   ]
   where (|->) = (,)
 
-
 -- Declarations of helper functions for BUILT-INs
-declsForPrim :: TCM [HsDecl]
+declsForPrim :: TCM [HS.Decl]
 declsForPrim = xForPrim $
   [ "NATURAL" |-> (++) <$> natToFrom "Integer" mazNatToInteger mazIntegerToNat
                        <*> natToFrom "Int"     mazNatToInt     mazIntToNat
@@ -107,8 +108,8 @@ xForPrim table = do
 
 
 -- Definition bodies for primitive functions
-primBody :: String -> TCM HsExp
-primBody s = maybe unimplemented (either (hsVarUQ . HsIdent) id <$>) $
+primBody :: String -> TCM HS.Exp
+primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
              L.lookup s $
   [
   -- Integer functions
