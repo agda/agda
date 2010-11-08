@@ -1,19 +1,19 @@
 name:            lib
-version:         0.0.1
+version:         0.0.2
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Helper programs.
-tested-with:     GHC == 6.12.3
+tested-with:     GHC == 6.12.3, GHC == 7.0.0.20101028
 
 executable GenerateEverything
   hs-source-dirs:   .
   main-is:          GenerateEverything.hs
-  build-depends:    base == 4.2.*,
+  build-depends:    base >= 4.2 && < 4.4,
                     filemanip == 0.3.*,
-                    filepath == 1.1.*
+                    filepath >= 1.1 && < 1.3
 
 executable AllNonAsciiChars
   hs-source-dirs:   .
   main-is:          AllNonAsciiChars.hs
-  build-depends:    base == 4.2.*,
+  build-depends:    base >= 4.2 && < 4.4,
                     filemanip == 0.3.*
