@@ -136,14 +136,17 @@ hsVarUQ = HS.Var . HS.UnQual
 -- Hard coded module names
 --------------------------------------------------
 
-mazstr  = "MAlonzo"
+mazstr  = "MAlonzo.Code"
 mazName = mkName_ dummy mazstr
 mazMod' s = HS.ModuleName $ mazstr ++ "." ++ s
 mazMod :: ModuleName -> HS.ModuleName
 mazMod = mazMod' . show
 mazerror msg = error $ mazstr ++ ": " ++ msg
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
-mazCoerce = HS.Var $ HS.UnQual $ HS.Ident "mazCoerce"
+mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazCoerce"
+
+mazRTE :: HS.ModuleName
+mazRTE = HS.ModuleName "MAlonzo.RTE"
 
 -- for Runtime module: Not really used (Runtime modules has been abolished).
 rtmMod  = mazMod' "Runtime"

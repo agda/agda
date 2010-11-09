@@ -65,19 +65,19 @@ declsForPrim = xForPrim $
     forList toH toA = decls ["NIL", "CONS"]
        toH (concat
            ["let { f <<0>>        = [];"
-           ,"      f (<<1>> x xs) = x : f (mazCoerce xs)"
+           ,"      f (<<1>> x xs) = x : f (" ++ prettyPrint mazCoerce ++ " xs)"
            ,"} in f"])
        toA (concat
            ["let { f []     = <<0>>;"
-           ,"      f (c:cs) = <<1>> c (mazCoerce (f cs));"
+           ,"      f (c:cs) = <<1>> c (" ++ prettyPrint mazCoerce ++ " (f cs));"
            ,"} in f"])
     natToFrom hty to from = let
         totxt   = repl ["<<0>>", "<<1>>", hty, to] $ concat
                   [ "\\ x -> case x of { <<0>> -> 0 :: <<2>>; "
-                  , "<<1>> x -> 1 + (<<3>> (mazCoerce x)) }" ]
+                  , "<<1>> x -> 1 + (<<3>> (" ++ prettyPrint mazCoerce ++ " x)) }" ]
         fromtxt = repl ["<<0>>", "<<1>>", hty, from] $ concat
                   [ "\\ x -> if x <= (0 :: <<2>>) then <<0>> "
-                  , "else <<1>> (mazCoerce (<<3>> (x - 1)))" ]
+                  , "else <<1>> (" ++ prettyPrint mazCoerce ++ " (<<3>> (x - 1)))" ]
       in do
         ds <- decls ["ZERO", "SUC"] to totxt from fromtxt
         let rule name = HS.Rule name HS.AlwaysActive (Just [HS.RuleVar $ HS.Ident "x"])

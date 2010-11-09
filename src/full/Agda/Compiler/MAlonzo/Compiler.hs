@@ -64,6 +64,7 @@ compilerMain mainI =
 
     ignoreAbstractMode $ do
       mapM_ (compile . miInterface) =<< (M.elems <$> getVisitedModules)
+      writeModule rteModule
       callGHC mainI
 
 compile :: Interface -> TCM ()
@@ -73,12 +74,12 @@ compile i = do
     writeModule =<< decl <$> curHsMod <*> (definitions =<< curDefs) <*> imports
   where
   decl mn ds imp = HS.Module dummy mn [] Nothing Nothing imp ds
-  uptodate = liftIO =<< (isNewerThan <$> outFile <*> ifile)
+  uptodate = liftIO =<< (isNewerThan <$> outFile_ <*> ifile)
   ifile    = maybe __IMPOSSIBLE__ filePath <$>
                (findInterfaceFile . toTopLevelModuleName =<< curMName)
   noComp   = reportSLn "" 1 . (++ " : no compilation is needed.").show =<< curMName
   yesComp  = reportSLn "" 1 . (`repl` "Compiling <<0>> in <<1>> to <<2>>") =<<
-             sequence [show <$> curMName, ifile, outFile] :: TCM ()
+             sequence [show <$> curMName, ifile, outFile_] :: TCM ()
 
 --------------------------------------------------
 -- imported modules
@@ -89,7 +90,7 @@ compile i = do
 imports :: TCM [HS.ImportDecl]
 imports = (++) <$> hsImps <*> imps where
   hsImps = (L.map decl . S.toList .
-            S.insert unsafeCoerceMod . S.map HS.ModuleName) <$>
+            S.insert mazRTE . S.map HS.ModuleName) <$>
              getHaskellImports
   imps   = L.map decl . uniq <$>
              ((++) <$> importsForPrim <*> (L.map mazMod <$> mnames))
@@ -417,9 +418,9 @@ hsCoerce e = HS.App mazCoerce e
 writeModule :: HS.Module -> TCM ()
 writeModule (HS.Module l m ps w ex imp ds) = do
   -- Note that GHC assumes that sources use ASCII or UTF-8.
-  out <- outFile
+  out <- outFile m
   liftIO $ UTF8.writeFile out $ prettyPrint $
-    HS.Module l m (p : ps) w ex imp (ds ++ coerceDef)
+    HS.Module l m (p : ps) w ex imp ds
   where
   p = HS.LanguagePragma dummy $ L.map HS.Ident $
         [ "EmptyDataDecls"
@@ -428,18 +429,23 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         , "NoMonomorphismRestriction"
         ]
 
-  -- Special version of coerce that plays well with rules.
-  coerceDef = L.map (ok . parse)
-    [ "{-# INLINE [1] mazCoerce #-}"
-    , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
-    , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
-    ]
+rteModule :: HS.Module
+rteModule = ok $ parse $ unlines
+  [ "module " ++ prettyPrint mazRTE ++ " where"
+  , "import Unsafe.Coerce"
+  , ""
+  , "-- Special version of coerce that plays well with rules."
+  , "{-# INLINE [1] mazCoerce #-}"
+  , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
+  , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
+  ]
+  where
+    parse = HS.parseWithMode
+              HS.defaultParseMode{HS.extensions = [HS.ExplicitForall]}
 
-  parse = HS.parseWithMode
-            HS.defaultParseMode{HS.extensions = [HS.ExplicitForall]}
+    ok (HS.ParseOk d)   = d
+    ok HS.ParseFailed{} = __IMPOSSIBLE__
 
-  ok (HS.ParseOk d)   = d
-  ok HS.ParseFailed{} = __IMPOSSIBLE__
 
 compileDir :: TCM FilePath
 compileDir = do
@@ -448,10 +454,10 @@ compileDir = do
     Just dir -> return dir
     Nothing  -> __IMPOSSIBLE__
 
-outFile' = do
+outFile' m = do
   mdir <- compileDir
-  (fdir, fn) <- splitFileName . repldot pathSeparator .
-                prettyPrint <$> curHsMod
+  let (fdir, fn) = splitFileName $ repldot pathSeparator $
+                   prettyPrint m
   let dir = mdir </> fdir
       fp  = dir </> replaceExtension fn "hs"
   liftIO $ createDirectoryIfMissing True dir
@@ -459,8 +465,11 @@ outFile' = do
   where
   repldot c = L.map (\c' -> if c' == '.' then c else c')
 
-outFile :: TCM FilePath
-outFile = snd <$> outFile'
+outFile :: HS.ModuleName -> TCM FilePath
+outFile m = snd <$> outFile' m
+
+outFile_ :: TCM FilePath
+outFile_ = outFile =<< curHsMod
 
 callGHC :: Interface -> TCM ()
 callGHC i = do
@@ -471,7 +480,7 @@ callGHC i = do
   let outputName = case agdaMod of
         [] -> __IMPOSSIBLE__
         ms -> last ms
-  (mdir, fp) <- outFile'
+  (mdir, fp) <- outFile' =<< curHsMod
   opts       <- optGhcFlags <$> commandLineOptions
 
   let overridableArgs =
