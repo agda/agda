@@ -78,7 +78,15 @@ declsForPrim = xForPrim $
         fromtxt = repl ["<<0>>", "<<1>>", hty, from] $ concat
                   [ "\\ x -> if x <= (0 :: <<2>>) then <<0>> "
                   , "else <<1>> (mazCoerce (<<3>> (x - 1)))" ]
-      in decls ["ZERO", "SUC"] to totxt from fromtxt
+      in do
+        ds <- decls ["ZERO", "SUC"] to totxt from fromtxt
+        let rule name = HS.Rule name HS.AlwaysActive (Just [HS.RuleVar $ HS.Ident "x"])
+            var = HS.Var . HS.UnQual . HS.Ident
+            (%) = HS.App
+        return $ [HS.RulePragmaDecl dummy
+                  [ rule (to ++ "-" ++ from) (var to   % (var from % var "x")) (var "x")
+                  , rule (from ++ "-" ++ to) (var from % (var to   % var "x")) (var "x")
+                  ]] ++ ds
     decls cs n1 b1 n2 b2 =
       ifM (hasCompiledData cs)
           (return $ L.map (`fakeDS` "id") [n1, n2])
