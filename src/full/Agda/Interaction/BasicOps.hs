@@ -180,7 +180,7 @@ evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
     do  t <- newTypeMeta_
 	v <- checkExpr e t
-	v' <- etaContract =<< normalise v
+	v' <- {- etaContract =<< -} normalise v
 	reify v'
 
 
@@ -197,8 +197,8 @@ data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t
 rewrite Instantiated t = return t   -- reify does instantiation
-rewrite HeadNormal   t = etaContract =<< reduce t
-rewrite Normalised   t = etaContract =<< normalise t
+rewrite HeadNormal   t = {- etaContract =<< -} reduce t
+rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 
 data OutputForm a b
