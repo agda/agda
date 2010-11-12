@@ -498,7 +498,7 @@ instance InstantiateFull Type where
       El <$> instantiateFull s <*> instantiateFull t
 
 instance InstantiateFull Term where
-    instantiateFull v = etaOnce =<< do
+    instantiateFull v = {- etaOnce =<< -} do -- Andreas, 2010-11-12 DONT ETA!! eta-reduction breaks subject reduction
       v <- instantiate v
       case v of
           Var n vs    -> Var n <$> instantiateFull vs
