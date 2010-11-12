@@ -93,7 +93,7 @@ checkFunDef delayed i name cs =
                typeError DifferentArities
 
         -- Annotate the clauses with which arguments are actually used.
-        {- cs <- instantiateFull =<< mapM rebindClause cs -} 
+        {- cs <- instantiateFull =<< mapM rebindClause cs -}
         -- Andreas, 2010-11-12
         -- rebindClause is the identity, and instantiateFull eta-contracts
         -- removing this eta-contraction fixes issue 361
