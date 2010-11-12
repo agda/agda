@@ -160,12 +160,17 @@ etaContractRecord r c args = do
     LT -> fallBack       -- Not fully applied
     GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
     EQ -> do
-      cs <- zipWithM check args xs
-      case sequence cs of
-        Just cs -> case filter (DontCare /=) cs of
-          (c:cs) -> do
-            if all (c ==) cs
-              then return c
+      as <- zipWithM check args xs
+      case sequence as of
+        Just as -> case filter (DontCare /=) as of
+          (a:as) ->
+            if all (a ==) as
+              then do
+                reportSDoc "tc.record.eta" 15 $ vcat
+                  [ text "record" <+> prettyTCM (Con c args)
+                  , text "is eta-contracted to" <+> prettyTCM a
+                  ]
+                return a
               else fallBack
           _ -> fallBack -- just DontCares
         _ -> fallBack  -- a Nothing
