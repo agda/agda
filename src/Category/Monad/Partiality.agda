@@ -208,11 +208,53 @@ private
 -- The relations are equivalences or partial orders, given suitable
 -- assumptions about the underlying relation
 
-  -- Reflexivity.
+  module Equivalence where
 
-  refl : ∀ {k} → Reflexive _∼_ → Reflexive (Rel k)
-  refl refl-∼ {x = now v}   = now refl-∼
-  refl refl-∼ {x = later x} = later (♯ refl refl-∼)
+    -- Reflexivity.
+
+    refl : Reflexive _∼_ → ∀ {k} → Reflexive (Rel k)
+    refl refl-∼ {x = now v}   = now refl-∼
+    refl refl-∼ {x = later x} = later (♯ refl refl-∼)
+
+    -- Symmetry.
+
+    sym : Symmetric _∼_ → ∀ {k} → Equality k → Symmetric (Rel k)
+    sym sym-∼ eq (now x∼y)           = now (sym-∼ x∼y)
+    sym sym-∼ eq (later         x∼y) = later (♯ sym sym-∼ eq (♭ x∼y))
+    sym sym-∼ eq (laterʳ        x≈y) = laterˡ  (sym sym-∼ eq    x≈y )
+    sym sym-∼ eq (laterˡ {weak} x≈y) = laterʳ  (sym sym-∼ eq    x≈y )
+    sym sym-∼ () (laterˡ {geq}  x≳y)
+
+    -- Transitivity.
+
+    private
+     module Trans (trans-∼ : Transitive _∼_) where
+
+      now-∼-trans : ∀ {k x} {y z : A} →
+                    Rel k x (now y) → y ∼ z → Rel k x (now z)
+      now-∼-trans (now x∼y)    y∼z = now (trans-∼ x∼y y∼z)
+      now-∼-trans (laterˡ x∼y) y∼z = laterˡ (now-∼-trans x∼y y∼z)
+
+      now-trans : ∀ {k x y} {v : A} →
+                  Rel k x y → Rel k y (now v) → Rel k x (now v)
+      now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
+      now-trans x∼y  (now y∼z)    = now-∼-trans x∼y y∼z
+
+      mutual
+
+        later-trans : ∀ {k} {x y : A ⊥} {z} →
+                      Rel k x y → Rel k y (later z) → Rel k x (later z)
+        later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
+        later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
+        later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
+        later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
+        later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
+
+        trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
+        trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
+        trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
+
+    open Trans public using (trans)
 
   -- All the relations are preorders.
 
@@ -224,36 +266,12 @@ private
     ; isPreorder = record
       { isEquivalence = P.isEquivalence
       ; reflexive     = refl′
-      ; trans         = trans
+      ; trans         = Equivalence.trans (IsPreorder.trans pre)
       }
     }
     where
     refl′ : ∀ {k} {x y : A ⊥} → x ≡ y → Rel k x y
-    refl′ P.refl = refl (IsPreorder.refl pre)
-
-    now-∼-trans : ∀ {k x} {y z : A} →
-                  Rel k x (now y) → y ∼ z → Rel k x (now z)
-    now-∼-trans (now x∼y)    y∼z = now (IsPreorder.trans pre x∼y y∼z)
-    now-∼-trans (laterˡ x∼y) y∼z = laterˡ (now-∼-trans x∼y y∼z)
-
-    now-trans : ∀ {k x y} {v : A} →
-                Rel k x y → Rel k y (now v) → Rel k x (now v)
-    now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
-    now-trans x∼y  (now y∼z)    = now-∼-trans x∼y y∼z
-
-    mutual
-
-      later-trans : ∀ {k} {x y : A ⊥} {z} →
-                    Rel k x y → Rel k y (later z) → Rel k x (later z)
-      later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
-      later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
-      later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
-      later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
-      later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
-
-      trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
-      trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
-      trans {z = later z} x∼y y∼lz = later-trans x∼y y∼lz
+    refl′ P.refl = Equivalence.refl (IsPreorder.refl pre)
 
   private
     preorder′ : IsEquivalence _∼_ → Kind → Preorder _ _ _
@@ -269,19 +287,10 @@ private
     ; _≈_           = Rel k
     ; isEquivalence = record
       { refl  = Pre.refl
-      ; sym   = sym eq
+      ; sym   = Equivalence.sym (IsEquivalence.sym equiv) eq
       ; trans = Pre.trans
       }
-    }
-    where
-    module Pre = Preorder (preorder′ equiv k)
-
-    sym : ∀ {k} {x y : A ⊥} → Equality k → Rel k x y → Rel k y x
-    sym eq (now x∼y)           = now (IsEquivalence.sym equiv x∼y)
-    sym eq (later         x∼y) = later (♯ sym eq (♭ x∼y))
-    sym eq (laterʳ        x≈y) = laterˡ  (sym eq    x≈y )
-    sym eq (laterˡ {weak} x≈y) = laterʳ  (sym eq    x≈y )
-    sym () (laterˡ {geq}  x≳y)
+    } where module Pre = Preorder (preorder′ equiv k)
 
   -- The order is a partial order, with strong equality as the
   -- underlying equality.
@@ -452,7 +461,7 @@ private
   left-identity : Reflexive _∼_ →
                   ∀ {B} (x : B) (f : B → A ⊥) → let open M in
                   (now x >>= f) ≅ f x
-  left-identity refl-∼ x f = refl refl-∼
+  left-identity refl-∼ x f = Equivalence.refl refl-∼
 
   right-identity : Reflexive _∼_ →
                    (x : A ⊥) → let open M in
@@ -466,7 +475,7 @@ private
                 ∀ {B C} (x : C ⊥) (f : C → B ⊥) (g : B → A ⊥) →
                 let open M in
                 (x >>= f >>= g) ≅ (x >>= λ y → f y >>= g)
-  associative refl-∼ (now x)   f g = refl refl-∼
+  associative refl-∼ (now x)   f g = Equivalence.refl refl-∼
   associative refl-∼ (later x) f g =
     later (♯ associative refl-∼ (♭ x) f g)
 
