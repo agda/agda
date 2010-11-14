@@ -230,25 +230,20 @@ private
     private
      module Trans (trans-∼ : Transitive _∼_) where
 
-      now-∼-trans : ∀ {k x} {y z : A} →
-                    Rel k x (now y) → y ∼ z → Rel k x (now z)
-      now-∼-trans (now x∼y)    y∼z = now (trans-∼ x∼y y∼z)
-      now-∼-trans (laterˡ x∼y) y∼z = laterˡ (now-∼-trans x∼y y∼z)
-
       now-trans : ∀ {k x y} {v : A} →
                   Rel k x y → Rel k y (now v) → Rel k x (now v)
-      now-trans x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
-      now-trans x∼y  (now y∼z)    = now-∼-trans x∼y y∼z
+      now-trans (now    x∼y) (now    y∼z) = now (trans-∼        x∼y   y∼z)
+      now-trans         x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
+      now-trans (laterˡ x∼y)         y∼z  = laterˡ (now-trans   x∼y   y∼z)
 
       mutual
 
         later-trans : ∀ {k} {x y : A ⊥} {z} →
                       Rel k x y → Rel k y (later z) → Rel k x (later z)
-        later-trans (later  x∼y) (later  y∼z)  = later  (♯ trans (♭ x∼y)         (♭ y∼z))
-        later-trans (later  x∼y) (laterˡ y∼lz) = later  (♯ trans (♭ x∼y) (laterʳ⁻¹  y∼lz))
-        later-trans (laterˡ x∼y)         y∼lz  = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
-        later-trans (laterʳ x≈y)        ly≈lz  =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
-        later-trans         x≈y  (laterʳ y≈z)  = laterʳ (  trans    x≈y             y≈z )
+        later-trans (later  x∼y)        ly∼lz = later  (♯ trans (♭ x∼y) (later⁻¹  ly∼lz))
+        later-trans (laterˡ x∼y)         y∼lz = later  (♯ trans    x∼y  (laterʳ⁻¹  y∼lz))
+        later-trans (laterʳ x≈y)        ly≈lz =     later-trans    x≈y  (laterˡ⁻¹ ly≈lz)
+        later-trans         x≈y  (laterʳ y≈z) = laterʳ (  trans    x≈y             y≈z )
 
         trans : ∀ {k} {x y z : A ⊥} → Rel k x y → Rel k y z → Rel k x z
         trans {z = now v}   x∼y y∼v  = now-trans   x∼y y∼v
@@ -406,36 +401,20 @@ private
   steps                (now _)             = zero
   steps .{x = later x} (laterˡ {x = x} x⇓) = suc (steps {x = ♭ x} x⇓)
 
-  module Steps (isPreorder : IsPreorder _≡_ _∼_) where
+  module Steps {trans-∼ : Transitive _∼_} where
 
-    open P.≡-Reasoning
-    private
-      module Pre {k} = Preorder (preorder isPreorder k)
-
-    private
-
-      lemma : ∀ {k x y} {z : A}
-              (x∼y : Rel (other k) (♭ x) y)
-              (y⇓z : y ⇓[ other k ] z) →
-              steps (Pre.trans (laterˡ {x = x} x∼y) y⇓z) ≡
-              suc (steps (Pre.trans x∼y y⇓z))
-      lemma x∼y (now y∼z)    = P.refl
-      lemma x∼y (laterˡ y⇓z) = begin
-        steps (Pre.trans (laterˡ (laterʳ⁻¹ x∼y)) y⇓z)  ≡⟨ lemma (laterʳ⁻¹ x∼y) y⇓z ⟩
-        suc (steps (Pre.trans (laterʳ⁻¹ x∼y) y⇓z))     ∎
-
-    left-identity : ∀ {k x y} {z : A}
-                    (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
-                    steps (Pre.trans (≅⇒ x≅y) y⇓z) ≡ steps y⇓z
+    left-identity :
+      ∀ {k x y} {z : A}
+      (x≅y : x ≅ y) (y⇓z : y ⇓[ k ] z) →
+      steps (Equivalence.trans trans-∼ (≅⇒ x≅y) y⇓z) ≡ steps y⇓z
     left-identity (now _)     (now _)      = P.refl
-    left-identity (later x≅y) (laterˡ y⇓z) = begin
-      steps (Pre.trans (laterˡ (≅⇒ (♭ x≅y))) y⇓z)  ≡⟨ lemma (≅⇒ (♭ x≅y)) y⇓z ⟩
-      suc (steps (Pre.trans (≅⇒ (♭ x≅y)) y⇓z))     ≡⟨ P.cong suc $ left-identity (♭ x≅y) y⇓z ⟩
-      suc (steps y⇓z)                              ∎
+    left-identity (later x≅y) (laterˡ y⇓z) =
+      P.cong suc $ left-identity (♭ x≅y) y⇓z
 
-    right-identity : ∀ {k x} {y z : A}
-                     (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
-                     steps (Pre.trans x⇓y y≈z) ≡ steps x⇓y
+    right-identity :
+      ∀ {k x} {y z : A}
+      (x⇓y : x ⇓[ k ] y) (y≈z : now y ⇓[ k ] z) →
+      steps (Equivalence.trans trans-∼ x⇓y y≈z) ≡ steps x⇓y
     right-identity (now x∼y)    (now y∼z) = P.refl
     right-identity (laterˡ x∼y) (now y∼z) =
       P.cong suc $ right-identity x∼y (now y∼z)
