@@ -40,11 +40,14 @@ isModChar c =
 
 encodeModuleName :: HS.ModuleName -> HS.ModuleName
 encodeModuleName (HS.ModuleName s) = HS.ModuleName $ case splitUp s of
-  p : ps | p == mazstr -> concat (p : map encNamePart ps)
-  _                    -> s
+  ps | mazstr' `isPrefixOf` ps ->
+       concat (mazstr' ++ map encNamePart (drop (length mazstr') ps))
+  _                            -> s
   where
   -- splitUp ".apa.bepa." == [".","apa",".","bepa","."]
   splitUp = groupBy ((&&) `on` (/= '.'))
+
+  mazstr' = splitUp mazstr
 
   encNamePart "." = "."
   encNamePart s   = ensureFirstCharLarge s ++ concatMap enc s
