@@ -51,7 +51,7 @@ $(allout) : %.err : %.agda
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-				 then sed -e "s/[^ (]*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+				 then sed -e 's/[^ (]*test.fail.//g;s/:[[:digit:]]\+:$$//' $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 				 else rm -f $@ $*.tmp; false; \
 				 fi; \
 		fi
@@ -63,7 +63,7 @@ $(allstems) : % : %.err
 	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
-    else sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' $*.tmp.2 > $*.tmp; \
+    else sed -e 's/[^ (]*test.fail.//g;s/\\/\//g;s/:[[:digit:]]\+:$$//' $*.tmp.2 > $*.tmp; \
 				 echo `cat $*.err` | sed -e 's/\\/\//g' > $*.tmp.2; \
 				 echo `cat $*.tmp` > $*.tmp.3; \
 				 true; \

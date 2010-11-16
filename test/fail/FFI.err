@@ -3,9 +3,9 @@
 
 Compilation error:
 
-MAlonzo/Code/FFI.hs:20:10:
+MAlonzo/Code/FFI.hs:20
     Not in scope: `nothing'
 
-MAlonzo/Code/FFI.hs:30:61:
+MAlonzo/Code/FFI.hs:30
     Not in scope: `nothing'
 
