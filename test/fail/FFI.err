@@ -1,10 +1,11 @@
+[1 of 2] Compiling MAlonzo.RTE      ( MAlonzo/RTE.hs, MAlonzo/RTE.o )
+[2 of 2] Compiling MAlonzo.Code.FFI ( MAlonzo/Code/FFI.hs, MAlonzo/Code/FFI.o )
 
 Compilation error:
-[1 of 1] Compiling MAlonzo.FFI      ( MAlonzo/FFI.hs, MAlonzo/FFI.o )
 
-MAlonzo/FFI.hs:20:9:
+MAlonzo/Code/FFI.hs:20:10:
     Not in scope: `nothing'
 
-MAlonzo/FFI.hs:28:47:
+MAlonzo/Code/FFI.hs:30:61:
     Not in scope: `nothing'
 
