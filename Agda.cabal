@@ -60,7 +60,7 @@ library
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
   build-depends:    mtl == 2.0.*,
-                    QuickCheck == 2.3.*,
+                    QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.10,
                     containers >= 0.1.0 && < 1,
                     pretty >= 1 && < 2,
