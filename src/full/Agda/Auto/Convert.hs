@@ -19,9 +19,9 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Position as SP
 import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
-import Agda.Utils.Permutation (Permutation(Perm), idP)
+import Agda.Utils.Permutation (Permutation(Perm), idP, permute, takeP)
 import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
-import Agda.TypeChecking.Monad.Base (mvJudgement, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
+import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (lookupConstraint, getConstraints)
@@ -145,7 +145,7 @@ tomy imi icns typs = do
            localVars = map (snd . C.unArg . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
-        let targettype = tt `piApply` vs
+        let targettype = tt `piApply` permute (takeP (fromIntegral $ length vs) $ mvPermutation mv) vs
         targettype <- norm targettype
         localVars <- mapM norm localVars
         return (targettype, localVars)
@@ -179,10 +179,10 @@ tomy imi icns typs = do
  return (icns', typs', Map.map flatten (fst (sMetas s)), map fromJust $ Map.elems (fst (sEqs s)), fst (sConsts s))
  where
  flatten (x, Just (y, z), w) = (x, y, z, w)
- flatten (x, Nothing,     w) = __IMPOSSIBLE__
+ flatten (x, Nothing, w) = __IMPOSSIBLE__
 
  fromJust (Just x) = x
- fromJust Nothing  = __IMPOSSIBLE__
+ fromJust Nothing = __IMPOSSIBLE__
 
 getConst :: Bool -> AN.QName -> TMode -> TOM (ConstRef O)
 getConst iscon name mode = do

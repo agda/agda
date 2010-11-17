@@ -15,6 +15,7 @@ import Data.IORef
 import qualified System.Timeout
 import Data.Maybe (catMaybes)
 
+import Agda.Utils.Permutation (permute, takeP)
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Context
@@ -320,7 +321,7 @@ auto ii rng argstr = liftTCM $ do
                  minfo = getMetaInfo mv
              targettyp <- withMetaInfo minfo $ do
               vs <- getContextArgs
-              let targettype = tt `piApply` vs
+              let targettype = tt `piApply` permute (takeP (fromIntegral $ length vs) $ mvPermutation mv) vs
               normalise targettype
              let tctx = length $ envContext $ clEnv minfo
 
