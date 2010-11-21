@@ -3,7 +3,6 @@ version:         0.0
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Fixes whitespace issues for Agda sources.
-tested-with:     GHC == 6.12.3, GHC == 7.0.1
 
 executable fix-agda-whitespace
   hs-source-dirs:   .
