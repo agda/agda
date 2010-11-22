@@ -148,13 +148,17 @@ etaExpandRecord r pars u = do
 -- | The fields should be eta contracted already.
 etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
 etaContractRecord r c args = do
-  Record{ recFields = xs } <- getRecordDef r
+  Record{ recPars = npars, recFields = xs } <- getRecordDef r
   let check a ax = do
+      -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
         case (argRelevance a, unArg a) of
-          (Irrelevant, _)                       -> return $ Just DontCare
-          (_, Def y args@(_:_)) | unArg ax == y -> return (Just $ unArg $ last args)
-          _                                     -> return Nothing
+          (Irrelevant, _) -> return $ Just DontCare
+          -- if @a@ is the record field name applied to (npars+1) args,
+          -- then it passes the check
+          (_, Def y args) | unArg ax == y && genericLength args == npars + 1
+                         -> return (Just $ unArg $ last args)
+          _              -> return Nothing
       fallBack = return (Con c args)
   case compare (length args) (length xs) of
     LT -> fallBack       -- Not fully applied

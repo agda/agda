@@ -229,10 +229,17 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                           , clauseBody  = body
                           }
           clause2 = Clauses Nothing clause
+          cc      = compileClauses [clause2]
+
+      reportSDoc "tc.cc" 10 $ do
+        sep [ text "compiled clauses of " <+> prettyTCM projname
+            , nest 2 $ text (show cc)
+            ]
+
       escapeContext (size tel) $ do
 	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0
           $ Function { funClauses        = [clause2]
-                     , funCompiled       = compileClauses [clause2]
+                     , funCompiled       = cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef

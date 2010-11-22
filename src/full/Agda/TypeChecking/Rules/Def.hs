@@ -92,6 +92,11 @@ checkFunDef delayed i name cs =
         unless (allEqual $ map (npats . translatedClause) cs) $
                typeError DifferentArities
 
+        reportSDoc "tc.cc" 15 $ do
+          sep [ text "clauses before rebindClause"
+              , nest 2 $ prettyTCM (map (NamedClause name . translatedClause) cs)
+              ]
+
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull =<< mapM rebindClause cs
         -- Andreas, 2010-11-12
@@ -103,8 +108,18 @@ checkFunDef delayed i name cs =
         -- Check if the function is injective
         inv <- checkInjectivity name $ map translatedClause cs
 
+        reportSDoc "tc.cc" 15 $ do
+          sep [ text "clauses before compilation"
+              , nest 2 $ prettyTCM (map (NamedClause name . translatedClause) cs)
+              ]
+
         -- Compile the clauses
         let cc = compileClauses cs
+
+        reportSDoc "tc.cc" 10 $ do
+          sep [ text "compiled clauses of" <+> prettyTCM name
+              , nest 2 $ text (show cc)
+              ]
 
         -- Add the definition
         addConstant name $ Defn rel name t (defaultDisplayForm name) 0
