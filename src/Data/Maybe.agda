@@ -27,11 +27,17 @@ maybeToBool : ∀ {a} {A : Set a} → Maybe A → Bool
 maybeToBool (just _) = true
 maybeToBool nothing  = false
 
--- A non-dependent eliminator.
+-- A dependent eliminator.
 
-maybe : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → B → Maybe A → B
+maybe : ∀ {a b} {A : Set a} {B : Maybe A → Set b} →
+        ((x : A) → B (just x)) → B nothing → (x : Maybe A) → B x
 maybe j n (just x) = j x
 maybe j n nothing  = n
+
+-- A non-dependent eliminator.
+
+maybe′ : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → B → Maybe A → B
+maybe′ = maybe
 
 ------------------------------------------------------------------------
 -- Maybe monad
