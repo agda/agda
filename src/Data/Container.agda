@@ -37,22 +37,21 @@ open Container public
 ⟦_⟧ : ∀ {ℓ} → Container ℓ → Set ℓ → Set ℓ
 ⟦ C ⟧ X = Σ[ s ∶ Shape C ] (Position C s → X)
 
--- Equality (based on propositional equality).
+-- Equality, parametrised on an underlying relation.
 
-infix 4 _≈_
-
-_≈_ : ∀ {c} {C : Container c} {X : Set c} → ⟦ C ⟧ X → ⟦ C ⟧ X → Set c
-_≈_ {C = C} (s , f) (s′ , f′) =
-  Σ[ eq ∶ s ≡ s′ ] (∀ p → f p ≡ f′ (P.subst (Position C) eq p))
+Eq : ∀ {c ℓ} {C : Container c} {X Y : Set c} →
+     (X → Y → Set ℓ) → ⟦ C ⟧ X → ⟦ C ⟧ Y → Set (c ⊔ ℓ)
+Eq {C = C} _≈_ (s , f) (s′ , f′) =
+  Σ[ eq ∶ s ≡ s′ ] (∀ p → f p ≈ f′ (P.subst (Position C) eq p))
 
 private
 
-  -- Note that, if propositional equality were extensional, then _≈_
-  -- and _≡_ would coincide.
+  -- Note that, if propositional equality were extensional, then
+  -- Eq _≡_ and _≡_ would coincide.
 
-  ≈⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
-        P.Extensionality c c → xs ≈ ys → xs ≡ ys
-  ≈⇒≡ {C = C} {X} ext (s≡s′ , f≈f′) = helper s≡s′ f≈f′
+  Eq⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
+         P.Extensionality c c → Eq _≡_ xs ys → xs ≡ ys
+  Eq⇒≡ {C = C} {X} ext (s≡s′ , f≈f′) = helper s≡s′ f≈f′
     where
     helper : {s s′ : Shape C} (eq : s ≡ s′) →
              {f  : Position C s  → X}
@@ -61,38 +60,42 @@ private
              _≡_ {A = ⟦ C ⟧ X} (s , f) (s′ , f′)
     helper refl f≈f′ = P.cong (_,_ _) (ext f≈f′)
 
-setoid : ∀ {ℓ} → Container ℓ → Set ℓ → Setoid ℓ ℓ
+setoid : ∀ {ℓ} → Container ℓ → Setoid ℓ ℓ → Setoid ℓ ℓ
 setoid C X = record
-  { Carrier       = ⟦ C ⟧ X
+  { Carrier       = ⟦ C ⟧ X.Carrier
   ; _≈_           = _≈_
   ; isEquivalence = record
-    { refl  = (refl , λ _ → refl)
+    { refl  = (refl , λ _ → X.refl)
     ; sym   = sym
     ; trans = λ {_ _ zs} → trans zs
     }
   }
   where
-  sym : {xs ys : ⟦ C ⟧ X} → xs ≈ ys → ys ≈ xs
+  module X = Setoid X
+
+  _≈_ = Eq X._≈_
+
+  sym : {xs ys : ⟦ C ⟧ X.Carrier} → xs ≈ ys → ys ≈ xs
   sym (eq , f) = helper eq f
     where
     helper : {s s′ : Shape C} (eq : s ≡ s′) →
-             {f  : Position C s  → X}
-             {f′ : Position C s′ → X} →
-             (∀ p → f p ≡ f′ (P.subst (Position C) eq p)) →
-             _≈_ {C = C} (s′ , f′) (s , f)
-    helper refl eq = (refl , P.sym ⟨∘⟩ eq)
+             {f  : Position C s  → X.Carrier}
+             {f′ : Position C s′ → X.Carrier} →
+             (∀ p → X._≈_ (f p) (f′ $ P.subst (Position C) eq p)) →
+             (s′ , f′) ≈ (s , f)
+    helper refl eq = (refl , X.sym ⟨∘⟩ eq)
 
-  trans : ∀ {xs ys : ⟦ C ⟧ X} zs → xs ≈ ys → ys ≈ zs → xs ≈ zs
+  trans : ∀ {xs ys : ⟦ C ⟧ X.Carrier} zs → xs ≈ ys → ys ≈ zs → xs ≈ zs
   trans zs (eq₁ , f₁) (eq₂ , f₂) = helper eq₁ eq₂ (proj₂ zs) f₁ f₂
     where
     helper : {s s′ s″ : Shape C} (eq₁ : s ≡ s′) (eq₂ : s′ ≡ s″) →
-             {f  : Position C s  → X}
-             {f′ : Position C s′ → X} →
-             (f″ : Position C s″ → X) →
-             (∀ p → f  p ≡ f′ (P.subst (Position C) eq₁ p)) →
-             (∀ p → f′ p ≡ f″ (P.subst (Position C) eq₂ p)) →
-             _≈_ {C = C} (s , f) (s″ , f″)
-    helper refl refl _ eq₁ eq₂ = (refl , λ p → P.trans (eq₁ p) (eq₂ p))
+             {f  : Position C s  → X.Carrier}
+             {f′ : Position C s′ → X.Carrier} →
+             (f″ : Position C s″ → X.Carrier) →
+             (∀ p → X._≈_ (f  p) (f′ $ P.subst (Position C) eq₁ p)) →
+             (∀ p → X._≈_ (f′ p) (f″ $ P.subst (Position C) eq₂ p)) →
+             (s , f) ≈ (s″ , f″)
+    helper refl refl _ eq₁ eq₂ = (refl , λ p → X.trans (eq₁ p) (eq₂ p))
 
 ------------------------------------------------------------------------
 -- Functoriality
@@ -104,14 +107,16 @@ map f = Prod.map ⟨id⟩ (λ g → f ⟨∘⟩ g)
 
 module Map where
 
-  identity : ∀ {c} {C : Container c} {X}
-             (xs : ⟦ C ⟧ X) → map ⟨id⟩ xs ≈ xs
-  identity {C = C} xs = Setoid.refl (setoid C _)
+  identity : ∀ {c} {C : Container c} X →
+             let module X = Setoid X in
+             (xs : ⟦ C ⟧ X.Carrier) → Eq X._≈_ (map ⟨id⟩ xs) xs
+  identity {C = C} X xs = Setoid.refl (setoid C X)
 
-  composition : ∀ {c} {C : Container c} {X Y Z}
-                (f : Y → Z) (g : X → Y) (xs : ⟦ C ⟧ X) →
-                map f (map g xs) ≈ map (f ⟨∘⟩ g) xs
-  composition {C = C} f g xs = Setoid.refl (setoid C _)
+  composition : ∀ {c} {C : Container c} {X Y} Z →
+                let module Z = Setoid Z in
+                (f : Y → Z.Carrier) (g : X → Y) (xs : ⟦ C ⟧ X) →
+                Eq Z._≈_ (map f (map g xs)) (map (f ⟨∘⟩ g) xs)
+  composition {C = C} Z f g xs = Setoid.refl (setoid C Z)
 
 ------------------------------------------------------------------------
 -- Container morphisms
@@ -137,9 +142,10 @@ module Morphism where
 
   Natural : ∀ {c} {C₁ C₂ : Container c} →
             (∀ {X} → ⟦ C₁ ⟧ X → ⟦ C₂ ⟧ X) → Set (suc c)
-  Natural {C₁ = C₁} m =
-    ∀ {X Y} (f : X → Y) (xs : ⟦ C₁ ⟧ X) →
-    m (map f xs) ≈ map f (m xs)
+  Natural {c} {C₁} m =
+    ∀ {X} (Y : Setoid c c) → let module Y = Setoid Y in
+    (f : X → Y.Carrier) (xs : ⟦ C₁ ⟧ X) →
+    Eq Y._≈_ (m $ map f xs) (map f $ m xs)
 
   -- Natural transformations.
 
@@ -150,15 +156,19 @@ module Morphism where
 
   natural : ∀ {c} {C₁ C₂ : Container c}
             (m : C₁ ⇒ C₂) → Natural ⟪ m ⟫
-  natural {C₂ = C₂} m f xs = Setoid.refl (setoid C₂ _)
+  natural {C₂ = C₂} m Y f xs = Setoid.refl (setoid C₂ Y)
 
   -- In fact, all natural functions of the right type are container
   -- morphisms.
 
   complete : ∀ {c} {C₁ C₂ : Container c} →
              (nt : NT C₁ C₂) →
-             ∃ λ m → ∀ {X} (xs : ⟦ C₁ ⟧ X) → proj₁ nt xs ≈ ⟪ m ⟫ xs
-  complete (nt , nat) = (m , λ xs → nat (proj₂ xs) (proj₁ xs , ⟨id⟩))
+             ∃ λ m → (X : Setoid c c) →
+                     let module X = Setoid X in
+                     (xs : ⟦ C₁ ⟧ X.Carrier) →
+                     Eq X._≈_ (proj₁ nt xs) (⟪ m ⟫ xs)
+  complete (nt , nat) =
+    (m , λ X xs → nat X (proj₂ xs) (proj₁ xs , ⟨id⟩))
     where
     m = record { shape    = λ  s  → proj₁ (nt (s , ⟨id⟩))
                ; position = λ {s} → proj₂ (nt (s , ⟨id⟩))
