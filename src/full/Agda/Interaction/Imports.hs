@@ -377,6 +377,8 @@ readInterface file = do
 
 writeInterface :: FilePath -> Interface -> TCM ClockTime
 writeInterface file i = do
+    reportSLn "import.iface.write" 5  $
+      "Writing interface file " ++ file ++ "."
     encodeFile file i
     liftIO $ getModificationTime file
   `catchError` \e -> do
