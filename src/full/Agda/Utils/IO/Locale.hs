@@ -13,17 +13,21 @@ module Agda.Utils.IO.Locale
   ( print
   , putStr
   , putStrLn
+  , stdoutFlush
   , hGetContents
   ) where
 
 import Prelude (Show, IO, String)
-import System.IO (Handle)
+import System.IO (Handle, hFlush, stdout)
 #if MIN_VERSION_base(4,2,0)
 import qualified Prelude
 import qualified System.IO as IO
 #else
 import qualified System.IO.UTF8 as UTF8
 #endif
+
+stdoutFlush :: IO ()
+stdoutFlush = hFlush stdout
 
 -- | Prints the value.
 

@@ -239,7 +239,7 @@ reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
 reportS k n s = verboseS k n $ liftIO $ LocIO.putStr s
 
 reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
-reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s
+reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
 
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
 reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
