@@ -14,6 +14,7 @@ import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
+import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
@@ -95,7 +96,10 @@ generateSyntaxInfo
                             --   along with ranges for problematic
                             --   call sites.
   -> TCM HighlightingInfo
-generateSyntaxInfo file mErr top termErrs =
+generateSyntaxInfo file mErr top termErrs = do
+  reportSLn "import.iface.create" 15  $
+      "Generating syntax info for " ++ filePath file ++ ' ' : maybe "(No TCErr)" (const "(with TCErr)") mErr ++ "."
+
   M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
     modMap <- sourceToModule
     tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
