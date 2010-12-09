@@ -61,6 +61,7 @@ data CommandLineOptions =
 	    , optInteractive          :: Bool
 	    , optRunTests             :: Bool
 	    , optCompile              :: Bool
+	    , optEpicCompile          :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
@@ -92,6 +93,7 @@ data PragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
+  , optIncludeC                  :: Either [FilePath] [AbsolutePath]
   }
   deriving Show
 
@@ -120,6 +122,7 @@ defaultOptions =
 	    , optInteractive          = False
 	    , optRunTests             = False
 	    , optCompile              = False
+	    , optEpicCompile          = False
             , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
 	    , optGenerateHTML         = False
@@ -148,6 +151,7 @@ defaultPragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = False
   , optIrrelevantProjections     = False
+  , optIncludeC                  = Left []
   }
 
 -- | The default output directory for HTML.
@@ -209,12 +213,15 @@ guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = Tru
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 noForcingFlag                o = return $ o { optForcing                   = False }
 irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = True  }
+includeC                   f o = return $ o { optIncludeC                  = Left (f : fs) }
+  where fs = either id (const []) $ optIncludeC o
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
                                                         { optAllowUnsolved = True }
 		                }
 compileFlag      o = return $ o { optCompile    = True }
+compileEpicFlag  o = return $ o { optEpicCompile = True}
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
 
@@ -255,6 +262,7 @@ standardOptions =
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program (experimental)"
+    , Option []     ["epic"] (NoArg compileEpicFlag) "use the epic backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
@@ -315,6 +323,8 @@ pragmaOptions =
                     "enable universe polymorphism (experimental feature)"
     , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
                     "enable projection of irrelevant record fields"
+    , Option []     ["includeC"] (ReqArg includeC "PATH")
+                    "add the c filepath when compiling"
     ]
 
 -- | Used for printing usage info.

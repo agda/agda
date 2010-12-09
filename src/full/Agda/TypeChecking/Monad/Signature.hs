@@ -106,6 +106,18 @@ addHaskellType q hsTy =
       def{theDef = d{dataHsType = Just hsTy}}
     addHs def = def
 
+addEpicCode :: MonadTCM tcm => QName -> EpicCode -> tcm ()
+addEpicCode q epDef =
+  -- TODO: sanity checking
+  modifySignature $ \sig -> sig
+  { sigDefinitions = Map.adjust addEp q $ sigDefinitions sig }
+  where
+    --addEp def@Defn{theDef = con@Constructor{}} =
+      --def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
+    addEp def@Defn{theDef = ax@Axiom{}} =
+      def{theDef = ax{axEpDef = Just $ epDef}}
+    addEp def = def
+
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
@@ -446,8 +458,8 @@ makeAbstract :: Definition -> Maybe Definition
 makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
-	makeAbs Datatype   {dataAbstr = AbstractDef} = Just $ Axiom Nothing
-	makeAbs Function   {funAbstr  = AbstractDef} = Just $ Axiom Nothing
+	makeAbs Datatype   {dataAbstr = AbstractDef} = Just $ Axiom Nothing Nothing
+	makeAbs Function   {funAbstr  = AbstractDef} = Just $ Axiom Nothing Nothing
 	makeAbs Constructor{conAbstr  = AbstractDef} = Nothing
 	makeAbs d                                    = Just d
 

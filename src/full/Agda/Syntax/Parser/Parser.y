@@ -88,6 +88,7 @@ import Agda.Utils.TestHelpers
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
+    'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quote'         { TokKeyword KwQuote $$ }
 
@@ -177,6 +178,7 @@ Token
     | 'COMPILED'    { TokKeyword KwCOMPILED $1 }
     | 'COMPILED_DATA'{ TokKeyword KwCOMPILED_DATA $1 }
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
+    | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
@@ -878,6 +880,7 @@ DeclarationPragma
   | CompiledPragma     { $1 }
   | CompiledDataPragma { $1 }
   | CompiledTypePragma { $1 }
+  | CompiledEpicPragma { $1 }
   | ImportPragma       { $1 }
   | ImpossiblePragma   { $1 }
   | RecordEtaPragma    { $1 }
@@ -904,6 +907,12 @@ CompiledDataPragma :: { Pragma }
 CompiledDataPragma
   : '{-#' 'COMPILED_DATA' PragmaName string PragmaStrings '#-}'
     { CompiledDataPragma (fuseRange $1 $6) $3 (snd $4) $5 }
+
+CompiledEpicPragma :: { Pragma }
+CompiledEpicPragma
+  : '{-#' 'COMPILED_EPIC' PragmaName PragmaStrings '#-}'
+    { CompiledEpicPragma (fuseRange $1 $5) $3 (unwords $4) }
+
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma

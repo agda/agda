@@ -369,7 +369,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing)
+  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing Nothing)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep

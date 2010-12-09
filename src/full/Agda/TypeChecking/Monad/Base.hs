@@ -403,6 +403,7 @@ data Definition = Defn
 
 type HaskellCode = String
 type HaskellType = String
+type EpicCode    = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -419,6 +420,7 @@ data Occurrence = Positive | Negative | Unused
 
 data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
+            , axEpDef   :: Maybe EpicCode
             }
 	  | Function
             { funClauses        :: [Clauses]

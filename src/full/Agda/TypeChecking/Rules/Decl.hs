@@ -75,7 +75,7 @@ checkAxiom _ rel x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing)
+  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing Nothing)
   solveSizeConstraints
 
 
@@ -155,6 +155,14 @@ checkPragma r p =
               reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addHaskellCode x ty hs
             _   -> typeError $ GenericError "COMPILED directive only works on postulates."
+        A.CompiledEpicPragma x ep -> do
+          def <- getConstInfo x
+          case theDef def of
+            Axiom{} -> do
+              --ty <- haskellType $ defType def
+              --reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
+              addEpicCode x ep
+            _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
         A.EtaPragma r -> modifySignature eta
           where

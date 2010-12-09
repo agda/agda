@@ -31,9 +31,13 @@ setPragmaOptions opts = do
   clo <- commandLineOptions
   case checkOpts (clo { optPragmaOptions = opts }) of
     Left err   -> __IMPOSSIBLE__
-    Right opts ->
-      modify $ \s -> s { stPragmaOptions = optPragmaOptions opts }
-
+    Right opts -> do
+      cincs <- case optIncludeC (optPragmaOptions opts) of
+        Right is -> return is
+        Left  is -> do
+          root <- liftIO (absolute =<< getCurrentDirectory)
+          return $ map (mkAbsolute . (filePath root </>)) is
+      modify $ \s -> s { stPragmaOptions = (optPragmaOptions opts) { optIncludeC = Right cincs } }
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --

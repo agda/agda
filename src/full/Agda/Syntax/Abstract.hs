@@ -74,6 +74,7 @@ data Pragma = OptionsPragma [String]
             | CompiledPragma QName String
             | CompiledTypePragma QName String
             | CompiledDataPragma QName String [String]
+            | CompiledEpicPragma QName String
             | EtaPragma QName
   deriving (Typeable, Data, Show)
 

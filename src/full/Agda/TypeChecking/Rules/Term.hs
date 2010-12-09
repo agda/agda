@@ -739,7 +739,7 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- irrelevant <$> asks envIrrelevant
-      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing)
+      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing Nothing)
 
       -- Define and type check the fresh function.
       ctx <- getContext

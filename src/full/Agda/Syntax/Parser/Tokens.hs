@@ -17,8 +17,8 @@ data Keyword
 	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
 	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
-	| KwOPTIONS | KwBUILTIN | KwLINE
-        | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwIMPORT
+	| KwOPTIONS | KwBUILTIN | KwLINE 
+        | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwIMPORT
         | KwIMPOSSIBLE | KwETA | KwQuoteGoal | KwQuote | KwSyntax
     deriving (Eq, Show)
 

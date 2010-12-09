@@ -41,6 +41,9 @@ extra-source-files: src/full/Agda/undefined.h
 data-dir:           src/data
 data-files:         Agda.css
                     emacs-mode/*.el
+                    EpicInclude/AgdaPrelude.e
+                    EpicInclude/stdagda.c
+                    EpicInclude/stdagda.h
 
 source-repository head
   type:     darcs
@@ -83,6 +86,16 @@ library
                     Agda.Interaction.BasicOps
                     Agda.Interaction.GhciTop
                     Agda.Compiler.HaskellTypes
+                    Agda.Compiler.Epic.AuxAST
+                    Agda.Compiler.Epic.Compiler
+                    Agda.Compiler.Epic.CompileState
+                    Agda.Compiler.Epic.ConstructorIrrelevancy
+                    Agda.Compiler.Epic.Erasure
+                    Agda.Compiler.Epic.Epic
+                    Agda.Compiler.Epic.FromAgda
+                    Agda.Compiler.Epic.LambdaLift
+                    Agda.Compiler.Epic.NatDetection
+                    Agda.Compiler.Epic.Primitive
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.Misc
