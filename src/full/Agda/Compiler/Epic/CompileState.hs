@@ -5,8 +5,8 @@ module Agda.Compiler.Epic.CompileState where
 
 import Control.Applicative
 import Control.Monad.State
-import qualified Data.ByteString.Char8 as BS
-import Data.Char(isAlpha, isDigit)
+-- import qualified Data.ByteString.Char8 as BS
+-- import Data.Char(isAlpha, isDigit)
 import Data.Map(Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -58,15 +58,15 @@ type Compile = StateT CompileState
 -- | Create a name which can be used in Epic code from a QName.
 unqname :: QName -> Var
 unqname qn = case nameId $ qnameName qn of
-    NameId name modul -> 'd' : show modul ++ "_" ++ mkAllowed (qnameModule qn)
-                     ++ "_" ++ show name  ++ "_" ++ mkAllowed (qnameName   qn)
-  where
+    NameId name modul -> 'd' : show modul -- ++ "_" ++ mkAllowed (qnameModule qn)
+                     ++ "_" ++ show name  -- ++ "_" ++ mkAllowed (qnameName   qn)
+  {- where
     isAllowed c = isAlpha c || isDigit c || c `elem` "_\'?#"
     changeDot '.' = '_'
     changeDot c   = c
     mkAllowed :: Show a => a -> String
     mkAllowed = filter isAllowed . map changeDot . cheat . show 
-    cheat = BS.unpack . BS.pack
+    cheat = BS.unpack . BS.pack -}
 
 -- * State modifiers
 

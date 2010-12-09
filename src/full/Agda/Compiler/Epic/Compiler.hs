@@ -72,13 +72,18 @@ compileDefns defs = do
     msharp <- lift $ getBuiltin' builtinSharp
     emits   <- FAgda.fromAgda msharp defs
                >>= Prim.primitivise
-               >>= CIrr.constrIrr
+               >>= irr -- CIrr.constrIrr
                >>= Eras.erasure
                >>= LL.lambdaLift
     if null emits 
        then return Nothing
        else return . return . unlines . map prettyEpicFun $ emits
-
+  where
+    irr ds = do
+        f <- lift $ gets (optForcing . stPersistentOptions)
+        if f then CIrr.constrIrr ds 
+             else return ds
+        
 -- | Compile all definitions from a signature
 compileModule :: MonadTCM m => Signature -> Compile m (Maybe EpicCode)
 compileModule sig = do
