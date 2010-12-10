@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
--- | Lift lambda expressions to top level definitions (Epic does not support 
+-- | Lift lambda expressions to top level definitions (Epic does not support
 --   lambdas).
 module Agda.Compiler.Epic.LambdaLift where
 
@@ -20,7 +20,7 @@ type LL = WriterT [Fun]
 lambdaLift :: MonadTCM m => [Fun] -> Compile m [Fun]
 lambdaLift fs = do
   concat <$> sequence
-    [do (f', lifts) <- runWriterT (lambdaLiftFun f) 
+    [do (f', lifts) <- runWriterT (lambdaLiftFun f)
         return $ f' : lifts
     | f <- fs]
 
@@ -35,12 +35,12 @@ lambdaLiftExpr expr = case expr of
     Var _    -> return expr
     Lit _    -> return expr
     e1@(Lam _ _) -> do
-      -- This is the only difficult case, get a group of lambda binders, 
+      -- This is the only difficult case, get a group of lambda binders,
       -- lambda lift the body of it, and create a new supercombinator from
       -- this.
       let (vs, e2) = collectLam e1
       topBinding <- lift topBindings
-      let vs' = filter (`S.notMember` topBinding) $ fv e1 
+      let vs' = filter (`S.notMember` topBinding) $ fv e1
       e3 <- lambdaLiftExpr e2
       name <- lift newName
       tell [Fun True name "lambda" (vs' ++ vs) e3]

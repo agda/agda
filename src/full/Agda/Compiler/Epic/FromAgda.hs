@@ -42,7 +42,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
         tag   <- getConstrTag n
         -- Sharp has to use the primSharp function from AgdaPrelude.e
         case msharp of
-          Just (T.Def sharp []) | sharp == n -> return <$> mkFun n' "primSharp" 3 
+          Just (T.Def sharp []) | sharp == n -> return <$> mkFun n' "primSharp" 3
           _    -> return <$> mkCon n tag arit
     r@(Record{}) -> do
         vars <- replicateM (fromIntegral $ recPars r) newName
@@ -60,7 +60,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
     mkCon q tag ari = do
         let name = unqname q
         mkFunGen (flip Con q) (const $ "constructor: " ++ show q) name tag ari
-    mkFunGen :: Monad m 
+    mkFunGen :: Monad m
             => (name -> [Expr] -> Expr) -- ^ combinator
             -> (name -> String)         -- ^ make comment
             -> Var                      -- ^ Name of the function
@@ -84,7 +84,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
 --
 -- > f 0@(X x y) 1@(Y z) = term
 --
---   The first case will be on @0@, and the variables bound inside the @X@ 
+--   The first case will be on @0@, and the variables bound inside the @X@
 --   pattern will replace the outer index, so we get something like this:
 --
 -- > f 0 2@(Y z) = case 0 of X 0 1 -> term
@@ -96,12 +96,12 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
 --
 --   This replacement is what is done using the replaceAt function.
 --
---   CompiledClauses also have default branches for when all branches fail (even 
+--   CompiledClauses also have default branches for when all branches fail (even
 --   inner branches), the catchAllBranch. Epic does not support this, so
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
-compileClauses :: MonadTCM m 
+compileClauses :: MonadTCM m
                => QName
                -> Int -- ^ Number of arguments in the definition
                -> CC.CompiledClauses -> Compile m Fun
@@ -124,11 +124,11 @@ compileClauses name nargs c = do
         CC.Done _ t -> substTerm (reverse env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: MonadTCM m 
+    compileCase :: MonadTCM m
                 => [Var]
                 -> Maybe Var
-                -> Int 
-                -> CC.Case CC.CompiledClauses 
+                -> Int
+                -> CC.Case CC.CompiledClauses
                 -> Compile m [Branch]
     compileCase env omniDefault casedvar nc = do
         cb <- dispatchBranches env omniDefault casedvar nc
@@ -136,7 +136,7 @@ compileClauses name nargs c = do
             Nothing -> return cb
             Just cc -> do
               return $ cb ++ [Default (Var cc)]
-              
+
     dispatchBranches :: MonadTCM m
                      => [Var]
                      -> Maybe Var
@@ -148,11 +148,11 @@ compileClauses name nargs c = do
            then compileLitBranch env omniDefault casedvar (CC.litBranches nc)
            else compileConBranch env omniDefault casedvar (CC.conBranches nc)
 
-    compileConBranch :: MonadTCM m 
-                     => [Var] 
-                     -> Maybe Var 
-                     -> Int 
-                     -> Map QName CC.CompiledClauses 
+    compileConBranch :: MonadTCM m
+                     => [Var]
+                     -> Maybe Var
+                     -> Int
+                     -> Map QName CC.CompiledClauses
                      -> Compile m [Branch]
     compileConBranch env omniDefault casedvar bs = forM (M.toList bs) $ \(b, cc) -> do
         par <- getConPar b
@@ -160,12 +160,12 @@ compileClauses name nargs c = do
         vars <- replicateM par newName
         cc' <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
         return $ Branch tag b vars cc'
-  
+
     compileLitBranch :: MonadTCM m
                      => [Var]
                      -> Maybe Var
-                     -> Int 
-                     -> Map TL.Literal CC.CompiledClauses 
+                     -> Int
+                     -> Map TL.Literal CC.CompiledClauses
                      -> Compile m [Branch]
     compileLitBranch env omniDefault _casedvar bs = forM (M.toList bs) $ \(l, cc) -> do
         cc' <- compileClauses' env omniDefault cc

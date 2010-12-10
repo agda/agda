@@ -25,7 +25,7 @@ type IrrFilter = [Bool]
 
 -- | Stuff we need in our compiler
 data CompileState = CompileState
-    { dataDecls     :: Map QName Tag 
+    { dataDecls     :: Map QName Tag
     , nameSupply    :: [Var]
     , definitions   :: Set Var
     , defDelayed    :: Map QName Bool
@@ -65,7 +65,7 @@ unqname qn = case nameId $ qnameName qn of
     changeDot '.' = '_'
     changeDot c   = c
     mkAllowed :: Show a => a -> String
-    mkAllowed = filter isAllowed . map changeDot . cheat . show 
+    mkAllowed = filter isAllowed . map changeDot . cheat . show
     cheat = BS.unpack . BS.pack -}
 
 -- * State modifiers
@@ -85,11 +85,11 @@ newName = do
 -- | Add a data declaration by giving a list of its constructors.
 --   Tags will be created and saved.
 addDataDecl :: Monad m => [QName] -> Compile m ()
-addDataDecl ts = modify 
+addDataDecl ts = modify
     $ \s -> s { dataDecls = M.union (M.fromList $ zip ts [0..]) (dataDecls s)}
 
 getConstrTag :: Monad m => QName -> Compile m Tag
-getConstrTag con = gets $ fromMaybe __IMPOSSIBLE__ 
+getConstrTag con = gets $ fromMaybe __IMPOSSIBLE__
                         . M.lookup con
                         . dataDecls
 

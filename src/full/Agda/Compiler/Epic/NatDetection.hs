@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 -- | Detect if a datatype could be represented as a primitive integer.
 --   If it has one constructor with no arguments and one with a recursive
---   argument this is true. This is done using IrrFilters which filter out 
+--   argument this is true. This is done using IrrFilters which filter out
 --   forced arguments, so for example Fin becomes primitive.
 module Agda.Compiler.Epic.NatDetection where
 

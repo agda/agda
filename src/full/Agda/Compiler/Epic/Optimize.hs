@@ -36,7 +36,7 @@ transformBuiltins funs = do
     ptfs <- getBuiltins
     natish <- getNatish
     liftIO $ putStrLn $ "NATISH: " ++ show natish
-    mapM (translateFun $ ptfs ++ map (uncurry natPrimTF) natish) funs 
+    mapM (translateFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
 
 getBuiltins :: MonadTCM m => Compile m [PrimTransform]
 getBuiltins =
@@ -61,11 +61,11 @@ natPrimTF filt [zero, suc] = PrimTF
   { mapCon = M.fromList [(zero, "primZero"), (suc, "primSuc")]
   , translateCase = \ce brs -> case brs of
         [Branch _ n vs e, Branch _ n' vs' e'] ->
-            if n == zero 
+            if n == zero
                then primNatCaseZS ce e  (head (pairwiseFilter filt vs')) e'
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e
         [Branch _ n vs e, Default e'] ->
-            if n == zero 
+            if n == zero
                then primNatCaseZD ce e e'    -- zero
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e  -- suc (IMPORTANT PRIMES, BE CAREFUL)
         _ -> __IMPOSSIBLE__
@@ -80,11 +80,11 @@ primNatCaseZD n zeroBr defBr = If (App "primNatEquality" [n, Var "primZero"]) ze
 boolPrimTF :: [QName] -> PrimTransform
 boolPrimTF [true, false] = PrimTF
   { mapCon = M.fromList [(true, "primTrue"), (false, "primFalse")]
-  , translateCase = \ce brs -> 
+  , translateCase = \ce brs ->
     case brs of
-        [Branch _ n vs e, b'] -> 
+        [Branch _ n vs e, b'] ->
                     (if n == true
-                             then If ce e (brExpr b') 
+                             then If ce e (brExpr b')
                              else If ce (brExpr b') e)
         _ -> __IMPOSSIBLE__
   }
@@ -108,7 +108,7 @@ translate prim ex = case ex of
     App v es   -> App v <$> mapM (translate prim) es
     Case e brs -> case testBranch prim brs of
        Just p  -> do
-          liftIO $ putStrLn $ "translateCase: " ++ show ex 
+          liftIO $ putStrLn $ "translateCase: " ++ show ex
           translate prim $ translateCase p e brs
        Nothing -> Case <$> translate prim e <*> mapM translateBranch brs
     If a b c   -> If <$> translate prim a <*> translate prim b <*> translate prim c
@@ -130,9 +130,8 @@ translate prim ex = case ex of
         Branch  _ n _ _ -> fmap (const p) $ M.lookup n (mapCon p)
         BrInt _ _       -> Nothing
         Default _       -> Nothing
-     
+
     translateBranch :: MonadIO m => Branch -> Compile m Branch
     translateBranch br = do
         e' <- translate prim (brExpr br)
         return br {brExpr = e'}
-        

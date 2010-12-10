@@ -59,7 +59,7 @@ erasure fs = do
         mapM_ initiate fs
         fu <- gets funs
         M.mapKeys (fromJust . flip M.lookup fu) <$> step
-    fmap concat $ mapM (\f -> check f (M.lookup f rels)) fs 
+    fmap concat $ mapM (\f -> check f (M.lookup f rels)) fs
   where
     -- | Perform the worker//wrapper transform
     check :: MonadTCM m => Fun -> Maybe [Relevancy] -> Compile m [Fun]
@@ -82,7 +82,7 @@ erasure fs = do
                      , funArgs    = args'
                      , funExpr    = e'
                      }
-               ] 
+               ]
     check f _ = return [f]
 
 -- | Initiate a function's relevancies (all DontKnow)
@@ -102,12 +102,12 @@ relevant var expr = case expr of
     Lam _ e     -> relevant var e
     Con _ _ es  -> relevants var es
     App v es | v == var  -> return Rel
-             | otherwise -> do 
+             | otherwise -> do
                 -- The variable is relevant if it is used in a relevant position
                 mvrs <- gets (M.lookup v . relevancies)
                 case mvrs of
                   Nothing  -> relevants var es
-                  Just vrs -> relevants var 
+                  Just vrs -> relevants var
                             $ pairwiseFilter (map isRel vrs) es
     Case e brs  -> (&&-) <$> relevant var e  <*> relevants var (map brExpr brs)
     If a b c    -> relevants var [a,b,c]

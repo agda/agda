@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
 --   Epic syntax.
-module Agda.Compiler.Epic.AuxAST where 
+module Agda.Compiler.Epic.AuxAST where
 
 import Data.Set (Set)
 import qualified Data.Set as S
@@ -14,11 +14,11 @@ type Tag = Int
 type Comment  = String
 type Inline   = Bool
 
-data Fun 
-  = Fun 
+data Fun
+  = Fun
       { funInline  :: Inline
       , funName    :: Var
-      , funComment :: Comment 
+      , funComment :: Comment
       , funArgs    :: [Var]
       , funExpr    :: Expr
       }
@@ -29,13 +29,13 @@ data Fun
       }
   deriving (Eq, Ord, Show)
 
-data Lit 
+data Lit
   = LInt Integer
   | LChar Char
   | LString String
   deriving (Show, Ord, Eq)
 
-data Expr 
+data Expr
   = Var Var
   | Lit Lit
   | Lam Var Expr
@@ -58,7 +58,7 @@ data Branch
 -- | Smart constructor for applications to avoid empty applications
 apps :: Var -> [Expr] -> Expr
 apps v [] = Var v
-apps v as = App v as 
+apps v as = App v as
 
 -- | Substitution
 subst :: Var  -- ^ Substitute this ...
@@ -99,14 +99,14 @@ fv = S.toList . fv'
       App v es -> S.insert v $ S.unions (map fv' es)
       Case e brs -> fv' e `S.union` S.unions (map fvBr brs)
       If a b c   -> S.unions (map fv' [a,b,c])
-      Let v e e' -> fv' e `S.union` (S.delete v $ fv' e') 
+      Let v e e' -> fv' e `S.union` (S.delete v $ fv' e')
       Lazy e     -> fv' e
       UNIT       -> S.empty
       IMPOSSIBLE -> S.empty
 
     fvBr :: Branch -> Set Var
     fvBr b = case b of
-      Branch _ _ vs e -> fv' e S.\\ S.fromList vs 
+      Branch _ _ vs e -> fv' e S.\\ S.fromList vs
       BrInt _ e       -> fv' e
       Default e       -> fv' e
 

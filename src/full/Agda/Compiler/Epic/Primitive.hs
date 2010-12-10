@@ -35,7 +35,7 @@ primitivise :: MonadTCM m => [Fun] -> Compile m [Fun]
 primitivise funs = do
     ptfs <- getBuiltins
     natish <- getNatish
-    mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs 
+    mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
 
 -- | Build transforms using the names of builtins
 getBuiltins :: MonadTCM m => Compile m [PrimTransform]
@@ -62,11 +62,11 @@ natPrimTF filt [zero, suc] = PrimTF
   { mapCon = M.fromList [(zero, "primZero"), (suc, "primSuc")]
   , translateCase = \ce brs -> case brs of
         [Branch _ n vs e, Branch _ _n' vs' e'] ->
-            if n == zero 
+            if n == zero
                then primNatCaseZS ce e  (head (pairwiseFilter filt vs')) e'
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e
         [Branch _ n vs e, Default e'] ->
-            if n == zero 
+            if n == zero
                then primNatCaseZD ce e e' -- zero
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e -- suc
         _ -> __IMPOSSIBLE__
@@ -93,11 +93,11 @@ primNatCaseZD n zeroBr defBr = If (App "primNatEquality" [n, Var "primZero"]) ze
 boolPrimTF :: [QName] -> PrimTransform
 boolPrimTF [true, false] = PrimTF
   { mapCon = M.fromList [(true, "primTrue"), (false, "primFalse")]
-  , translateCase = \ce brs -> 
+  , translateCase = \ce brs ->
     case brs of
-        [Branch _ n _vs e, b'] -> 
+        [Branch _ n _vs e, b'] ->
                     (if n == true
-                             then If ce e (brExpr b') 
+                             then If ce e (brExpr b')
                              else If ce (brExpr b') e)
         _ -> __IMPOSSIBLE__
   }
@@ -151,7 +151,7 @@ primExpr prim ex = case ex of
         Branch  _ n _ _ -> fmap (const p) $ M.lookup n (mapCon p)
         BrInt _ _       -> Nothing
         Default _       -> Nothing
-    
+
     -- | Change all primitives in a branch
     primBranch :: MonadTCM m => Branch -> Compile m Branch
     primBranch br = do

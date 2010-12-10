@@ -38,7 +38,7 @@ compilerMain inter = flip evalStateT initCompileState $ do
     liftIO $ print cincludes
     setEpicDir inter
     initialAnalysis
-    code <- compileModule =<< lift (gets stImports)  
+    code <- compileModule =<< lift (gets stImports)
     case code of
       Nothing -> error "no code to compile :'("
       Just c  -> runEpic (either id (map filePath) cincludes) c
@@ -75,15 +75,15 @@ compileDefns defs = do
                >>= irr -- CIrr.constrIrr
                >>= Eras.erasure
                >>= LL.lambdaLift
-    if null emits 
+    if null emits
        then return Nothing
        else return . return . unlines . map prettyEpicFun $ emits
   where
     irr ds = do
         f <- lift $ gets (optForcing . stPersistentOptions)
-        if f then CIrr.constrIrr ds 
+        if f then CIrr.constrIrr ds
              else return ds
-        
+
 -- | Compile all definitions from a signature
 compileModule :: MonadTCM m => Signature -> Compile m (Maybe EpicCode)
 compileModule sig = do
@@ -112,9 +112,9 @@ runEpic cincludes code = do
                       (curDir </> "AgdaPrelude" <.> "e")
     liftIO $ writeFile ("main" <.> "e") code'
     let fcincludes = concat $ map (" -i " ++) cincludes
-    _ <- liftIO $ system ("epic " 
+    _ <- liftIO $ system ("epic "
                          ++ "-keepc "
                          ++ " " ++ "main" <.> "e"
-                         ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c") 
+                         ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
                          ++ fcincludes)
     return ()

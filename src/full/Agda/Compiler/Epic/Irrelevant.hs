@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
--- | 
+-- |
 module Agda.Compiler.Epic.Irrelevant where
 
 import Control.Applicative
