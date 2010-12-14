@@ -261,12 +261,12 @@ standardOptions =
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
-                    "compile program (experimental)"
-    , Option []     ["epic"] (NoArg compileEpicFlag) "use the epic backend"
+                    "compile program using the MAlonzo backend (experimental)"
+    , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
-                    "give the flag GHC-FLAG to GHC when compiling"
+                    "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
