@@ -57,13 +57,6 @@ map : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → List A → List B
 map f []       = []
 map f (x ∷ xs) = f x ∷ map f xs
 
-reverse : ∀ {a} {A : Set a} → List A → List A
-reverse xs = rev xs []
-  where
-  rev : ∀ {a} {A : Set a} → List A → List A → List A
-  rev []       ys = ys
-  rev (x ∷ xs) ys = rev xs (x ∷ ys)
-
 replicate : ∀ {a} {A : Set a} → (n : ℕ) → A → List A
 replicate zero    x = []
 replicate (suc n) x = x ∷ replicate n x
@@ -120,6 +113,9 @@ product = foldr _*_ 1
 
 length : ∀ {a} {A : Set a} → List A → ℕ
 length = foldr (λ _ → suc) 0
+
+reverse : ∀ {a} {A : Set a} → List A → List A
+reverse = foldl (λ rev x → x ∷ rev) []
 
 -- * Building lists
 

@@ -292,6 +292,41 @@ length-gfilter p (x ∷ xs) with p x
 length-gfilter p (x ∷ xs) | just y  = s≤s (length-gfilter p xs)
 length-gfilter p (x ∷ xs) | nothing = ≤-step (length-gfilter p xs)
 
+-- Reverse.
+
+unfold-reverse : ∀ {a} {A : Set a} (x : A) (xs : List A) →
+                 reverse (x ∷ xs) ≡ reverse xs ∷ʳ x
+unfold-reverse x xs = begin
+  foldl (flip _∷_) [ x ] xs  ≡⟨ helper [ x ] xs ⟩
+  reverse xs ∷ʳ x            ∎
+  where
+  open P.≡-Reasoning
+
+  helper : ∀ {a} {A : Set a} (xs ys : List A) →
+           foldl (flip _∷_) xs ys ≡ reverse ys ++ xs
+  helper xs []       = P.refl
+  helper xs (y ∷ ys) = begin
+    foldl (flip _∷_) (y ∷ xs) ys  ≡⟨ helper (y ∷ xs) ys ⟩
+    reverse ys ++ y ∷ xs          ≡⟨ P.sym $ LM.assoc (reverse ys) _ _ ⟩
+    (reverse ys ∷ʳ y) ++ xs       ≡⟨ P.sym $ P.cong (λ zs → zs ++ xs) (unfold-reverse y ys) ⟩
+    reverse (y ∷ ys) ++ xs        ∎
+
+reverse-++-commute :
+  ∀ {a} {A : Set a} (xs ys : List A) →
+  reverse (xs ++ ys) ≡ reverse ys ++ reverse xs
+reverse-++-commute {a} [] ys = begin
+  reverse ys                ≡⟨ P.sym $ proj₂ {a = a} {b = a} LM.identity _ ⟩
+  reverse ys ++ []          ≡⟨ P.refl ⟩
+  reverse ys ++ reverse []  ∎
+  where open P.≡-Reasoning
+reverse-++-commute (x ∷ xs) ys = begin
+  reverse (x ∷ xs ++ ys)               ≡⟨ unfold-reverse x (xs ++ ys) ⟩
+  reverse (xs ++ ys) ++ [ x ]          ≡⟨ P.cong (λ zs → zs ++ [ x ]) (reverse-++-commute xs ys) ⟩
+  (reverse ys ++ reverse xs) ++ [ x ]  ≡⟨ LM.assoc (reverse ys) _ _ ⟩
+  reverse ys ++ (reverse xs ++ [ x ])  ≡⟨ P.sym $ P.cong (λ zs → reverse ys ++ zs) (unfold-reverse x xs) ⟩
+  reverse ys ++ reverse (x ∷ xs)       ∎
+  where open P.≡-Reasoning
+
 -- The list monad.
 
 module Monad where
