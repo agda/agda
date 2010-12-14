@@ -82,3 +82,63 @@ Tools
 
 * Emacs mode: It is no longer possible to change the behaviour of the
   TAB key by customising agda2-indentation.
+
+* Epic compiler backend.
+  
+  A new backend for Agda to compile to Epic has been created. Epic is a language
+  used by Idris and Epigram made by Edwin Brady. Almost all of Agda should work
+  when using this backend, but it needs more testing. It should be noted that
+  this is very much experimental code.
+
+  There is a new pragma for giving the Epic code for postulated definitions.
+  The Epic code given can then contain the definition itself, or use a foreign
+  call to call a C function. The pragma is {-# COMPILED_EPIC def code #-} and
+  works similar to the COMPILED pragma but instead of expecting Haskell code, 
+  it expects Epic code. The code includes function arguments, return
+  type and the function body. Note that def is the name of an Agda definition,
+  which will be translated to a valid Epic name automatically.
+  
+  The Epic backend supports Agda's primitive pragma for primitive functions that
+  are defined (with the same name) in the AgdaPrelude.e 
+  (Agda/src/data/EpicInclude/) file.
+  
+  Usage:
+  > agda --epic --includeC=<C-FILE> --compile-dir=<DIR> <FILE>.agda
+
+  A new directory, Epic, will be created in the compile-dir (default: the 
+  project root), containing the file main.e with the Epic source code. The
+  compiler will also do a system call running the Epic compiler on that file.
+
+  The compilation requires a definition of main, which should be of type IO Unit.
+  Currently IO A actions are represented in Epic as functions from Unit to A. 
+  Because of this the main function is applied a single unit. 
+
+  Here follows how to define the IO monad:
+    postulate
+      IO : Set → Set
+      return  : ∀ {A} → A → IO A
+      _>>=_   : ∀ {A B} → IO A → (A → IO B) → IO B
+    
+    {-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
+    {-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any = iobind(x,f) #-}
+  
+  ioreturn and iobind are Epic functions defined in AgdaPrelude.e which is
+  always included. This is how IO is defined in the standard library 
+  (IO.Primitive). We only need to add the new COMPILED_EPIC pragmas.
+
+  The backend supports the {-# BUILTIN #-} pragma, which can be used e.g. to get 
+  Natural numbers and their operations to be represented more efficiently as
+  BigInts and operations on them in Epic.
+  
+  Currently, the backend will remove forced constructor arguments. Note that if 
+  pattern matching is done on an index inside a constructor, an error can occur.
+  This can be disabled using the flag --no-forcing. 
+  
+  All types that looks like Nats after forced constructor arguments have been
+  removed - i.e. if they have two constructors: one with no arguments and one
+  with a recursive argument - will be represented as BigInts. This applies to
+  the standard Fin type.
+
+  Compilation using Epic requires a few libraries. Particularly gcc, the Boehm
+  garbage collector and the GNU MP library. For more information, check out
+  Epic's homepage: http://www.cs.st-andrews.ac.uk/~eb/epic.php

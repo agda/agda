@@ -35,7 +35,6 @@ import qualified Agda.Compiler.Epic.Primitive  as Prim
 compilerMain :: Interface -> TCM ()
 compilerMain inter = flip evalStateT initCompileState $ do
     cincludes <- optIncludeC <$> lift pragmaOptions
-    liftIO $ print cincludes
     setEpicDir inter
     initialAnalysis
     code <- compileModule =<< lift (gets stImports)
