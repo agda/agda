@@ -4,7 +4,8 @@ TOP = ..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting compiler relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2
+# TODO: Add epic to the list of tests below.
+default : test polydep hello path regexp-talk aim4-bag ac effects minmax real view simplelib lib divmod highlighting malonzo relocatable-interfaces malformed-interfaces term1 term2 term3 html1 html2
 
 agda = $(AGDA_BIN)
 
@@ -113,15 +114,26 @@ highlighting : syntax/highlighting/Test*agda
 	@$(echo) :q | $(run_agda) --vim -isyntax/highlighting syntax/highlighting/Test3.lagda
 	@$(echo) "ok"
 
-compiler : MAlonzo/main.agda
-	@$(echo) "Testing the compiler"
-	@$(agda) --ignore-interfaces --compile --compile-dir=MAlonzo -iMAlonzo $<
-	@./MAlonzo/main
+malonzo : compiler/main.agda
+	@$(echo) "Testing the MAlonzo backend"
+	@$(agda) --ignore-interfaces --compile --compile-dir=compiler -icompiler $<
+	@./compiler/main
         # Compilation works also if the code has already been type
         # checked.
-	@rm -rf MAlonzo/MAlonzo
-	@$(agda) --compile --compile-dir=MAlonzo -iMAlonzo $<
-	@./MAlonzo/main
+	@rm -rf compiler/main compiler/MAlonzo
+	@$(agda) --compile --compile-dir=compiler -icompiler $<
+	@./compiler/main
+	@$(echo) "ok"
+
+epic : compiler/main.agda
+	@$(echo) "Testing the Epic backend"
+	@$(agda) --ignore-interfaces --epic --compile-dir=compiler -icompiler $<
+	@./compiler/main
+        # Compilation works also if the code has already been type
+        # checked.
+	@rm -rf compiler/main compiler/Epic
+	@$(agda) --epic --compile-dir=compiler -icompiler $<
+	@./compiler/main
 	@$(echo) "ok"
 
 relocatable-interfaces : relocatable/originals/*.agda
