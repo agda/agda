@@ -11,7 +11,7 @@ module Data.Fin where
 open import Data.Nat as Nat
   using (ℕ; zero; suc; z≤n; s≤s)
   renaming ( _+_ to _N+_; _∸_ to _N∸_
-           ; _≤_ to _N≤_; _<_ to _N<_; _≤?_ to _N≤?_)
+           ; _≤_ to _N≤_; _≥_ to _N≥_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Function
 open import Level hiding (lift)
 open import Relation.Nullary.Decidable
@@ -90,6 +90,12 @@ inject≤ : ∀ {m n} → Fin m → m N≤ n → Fin n
 inject≤ zero    (Nat.s≤s le) = zero
 inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 
+reduce≥ : ∀ {m n} (x : Fin (m N+ n)) (x≥m : toℕ x N≥ m) → Fin n
+reduce≥ {zero} x x≥m = x
+reduce≥ {suc m} zero ()
+reduce≥ {suc m} (suc i) (s≤s i≥m) = reduce≥ {m} i i≥m
+
+
 ------------------------------------------------------------------------
 -- Operations
 
@@ -149,6 +155,9 @@ suc n ℕ-ℕ suc i  = n ℕ-ℕ i
 pred : ∀ {n} → Fin n → Fin n
 pred zero    = zero
 pred (suc i) = inject₁ i
+
+pred-fun : ∀ {m} {A : Set} → (Fin (suc m) → A) → (Fin m → A)
+pred-fun f x = f (suc x)
 
 ------------------------------------------------------------------------
 -- Order relations

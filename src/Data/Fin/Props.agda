@@ -118,6 +118,31 @@ inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
 <′⇒≺ (N.≤′-step m≤′n) | n ≻toℕ i =
   subst (λ i → i ≺ suc n) (inject₁-lemma i) (suc n ≻toℕ (inject₁ i))
 
+toℕ-inject+ : ∀ {m} n → (x : Fin m) → toℕ (inject+ n x) ≡ toℕ x
+toℕ-inject+ n zero = refl
+toℕ-inject+ n (suc i) = cong suc (toℕ-inject+ n i)
+
+toℕ-raise : ∀ {m} n → (x : Fin m) → toℕ (raise n x) ≡ n ℕ+ toℕ x
+toℕ-raise zero x = refl
+toℕ-raise (suc n) x = cong suc (toℕ-raise n x) 
+
+toℕ-fromℕ≤-suc : ∀ {m} {n} {p : m ℕ< n} → m ≡ toℕ (fromℕ≤ p) → suc m ≡ toℕ (fromℕ≤ (s≤s p))
+toℕ-fromℕ≤-suc {n = .(suc n)} {s≤s {n = n} m≤n} q = cong suc q
+
+fromℕ≤-toℕ : ∀ {m} (x : Fin m) (p : suc (toℕ x) ℕ≤ m) → fromℕ≤ p ≡ x
+fromℕ≤-toℕ zero (s≤s z≤n) = refl
+fromℕ≤-toℕ (suc x) (s≤s (s≤s m≤n)) = cong suc (fromℕ≤-toℕ x (s≤s m≤n))
+
+inject+-< : ∀ {m} n (x : Fin m) → toℕ (inject+ n x) ℕ< m
+inject+-< n zero = s≤s z≤n
+inject+-< n (suc i) = s≤s (inject+-< n i)
+
+toℕ-fromℕ≤-≰ : ∀ {x y} {x≰y : ¬ (x ℕ≤ y)} → toℕ (fromℕ≤ (N.≰-to-> x≰y)) ≡ y
+toℕ-fromℕ≤-≰ {zero} {y} {x≰y} with x≰y z≤n
+... | ()
+toℕ-fromℕ≤-≰ {suc m} {zero} = refl 
+toℕ-fromℕ≤-≰ {suc m} {suc n} {p} = PropEq.sym (toℕ-fromℕ≤-suc (PropEq.sym (toℕ-fromℕ≤-≰ {m} {n} {N.≰-mono p})))
+
 ------------------------------------------------------------------------
 -- Operations
 
