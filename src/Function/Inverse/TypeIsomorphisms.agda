@@ -15,7 +15,8 @@ open import Data.Unit
 open import Level
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (_⇔_; module Equivalent)
+open import Function.Equivalence
+  using (_⇔_; equivalent; module Equivalent)
 open import Function.Inverse as Inv
   using (Kind; Isomorphism; _⇿_; module Inverse)
 open import Relation.Binary
@@ -246,25 +247,75 @@ open import Relation.Nullary
   }
 
 ------------------------------------------------------------------------
+-- _→_ preserves isomorphisms
+
+_→-cong-⇔_ :
+  ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+  A ⇔ B → C ⇔ D → (A → C) ⇔ (B → D)
+A⇔B →-cong-⇔ C⇔D = record
+  { to   = P.→-to-⟶ λ f x →
+             Equivalent.to   C⇔D ⟨$⟩ f (Equivalent.from A⇔B ⟨$⟩ x)
+  ; from = P.→-to-⟶ λ f x →
+             Equivalent.from C⇔D ⟨$⟩ f (Equivalent.to   A⇔B ⟨$⟩ x)
+  }
+
+→-cong :
+  ∀ {a b c d} →
+  P.Extensionality a c → P.Extensionality b d →
+  ∀ {k} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+  Isomorphism k A B → Isomorphism k C D → Isomorphism k (A → C) (B → D)
+→-cong extAC extBD {Inv.equivalent} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
+→-cong extAC extBD {Inv.inverse}    A⇿B C⇿D = record
+  { to         = Equivalent.to   A→C⇔B→D
+  ; from       = Equivalent.from A→C⇔B→D
+  ; inverse-of = record
+    { left-inverse-of  = λ f → extAC λ x → begin
+        Inverse.from C⇿D ⟨$⟩ (Inverse.to C⇿D ⟨$⟩
+          f (Inverse.from A⇿B ⟨$⟩ (Inverse.to A⇿B ⟨$⟩ x)))  ≡⟨ Inverse.left-inverse-of C⇿D _ ⟩
+        f (Inverse.from A⇿B ⟨$⟩ (Inverse.to A⇿B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.left-inverse-of A⇿B x ⟩
+        f x                                                 ∎
+    ; right-inverse-of = λ f → extBD λ x → begin
+        Inverse.to C⇿D ⟨$⟩ (Inverse.from C⇿D ⟨$⟩
+          f (Inverse.to A⇿B ⟨$⟩ (Inverse.from A⇿B ⟨$⟩ x)))  ≡⟨ Inverse.right-inverse-of C⇿D _ ⟩
+        f (Inverse.to A⇿B ⟨$⟩ (Inverse.from A⇿B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.right-inverse-of A⇿B x ⟩
+        f x                                                 ∎
+    }
+  }
+  where
+  open P.≡-Reasoning
+  A→C⇔B→D = Inv.⇿⇒ A⇿B →-cong-⇔ Inv.⇿⇒ C⇿D
+
+------------------------------------------------------------------------
 -- ¬_ preserves isomorphisms
 
 ¬-cong-⇔ : ∀ {a b} {A : Set a} {B : Set b} →
            A ⇔ B → (¬ A) ⇔ (¬ B)
-¬-cong-⇔ A⇔B = record
-  { to   = P.→-to-⟶ (λ ¬a b → ¬a (Equivalent.from A⇔B ⟨$⟩ b))
-  ; from = P.→-to-⟶ (λ ¬b a → ¬b (Equivalent.to   A⇔B ⟨$⟩ a))
-  }
+¬-cong-⇔ A⇔B = A⇔B →-cong-⇔ (⊥ ∎)
+  where open Inv.EquationalReasoning
 
 ¬-cong : ∀ {a b} →
          P.Extensionality a zero → P.Extensionality b zero →
          ∀ {k} {A : Set a} {B : Set b} →
          Isomorphism k A B → Isomorphism k (¬ A) (¬ B)
-¬-cong _    _    {k = Inv.equivalent}          A⇔B = ¬-cong-⇔ A⇔B
-¬-cong extA extB {k = Inv.inverse} {A = A} {B} A⇿B = record
-  { to         = Equivalent.to   ¬A⇔¬B
-  ; from       = Equivalent.from ¬A⇔¬B
-  ; inverse-of = record
-    { left-inverse-of  = λ ¬a → extA (λ a → P.cong ¬a (Inverse.left-inverse-of  A⇿B a))
-    ; right-inverse-of = λ ¬b → extB (λ b → P.cong ¬b (Inverse.right-inverse-of A⇿B b))
-    }
-  } where ¬A⇔¬B = ¬-cong-⇔ (Inv.⇿⇒ A⇿B)
+¬-cong extA extB A≈B = →-cong extA extB A≈B (⊥ ∎)
+  where open Inv.EquationalReasoning
+
+------------------------------------------------------------------------
+-- _⇔_ preserves _⇔_
+
+-- The type of the following proof is a bit more general.
+
+Isomorphism-cong :
+  ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+  Isomorphism k A B → Isomorphism k C D →
+  Isomorphism k A C ⇔ Isomorphism k B D
+Isomorphism-cong {A = A} {B} {C} {D} A≈B C≈D =
+  equivalent (λ A≈C → B  ≈⟨ sym A≈B ⟩
+                      A  ≈⟨ A≈C ⟩
+                      C  ≈⟨ C≈D ⟩
+                      D  ∎)
+             (λ B≈D → A  ≈⟨ A≈B ⟩
+                      B  ≈⟨ B≈D ⟩
+                      D  ≈⟨ sym C≈D ⟩
+                      C  ∎)
+  where open Inv.EquationalReasoning
