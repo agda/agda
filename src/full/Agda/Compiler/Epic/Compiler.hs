@@ -114,6 +114,7 @@ runEpic cincludes code = do
     let fcincludes = concat $ map (" -i " ++) cincludes
     _ <- liftIO $ system ("epic "
                          ++ "-keepc "
+                         ++ "-checking 0 "
                          ++ " " ++ "main" <.> "e"
                          ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
                          ++ fcincludes)
