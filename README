@@ -250,3 +250,24 @@ when installing Emacs under Windows.
        M-x view-hello-file
 
    You should see all the characters without white-boxes.
+
+------------------------------------------------------------------------
+Installing the epic-backend
+------------------------------------------------------------------------
+
+The epic backend is experimental and is not activated by default. To activate
+it, add -fuse-epic to CABAL_OPTIONS in the Makefile. Currently this will only 
+make cabal install the epic package from hackage, therfore this backend will
+also work if you already have epic installed via:
+
+> cabal install epic
+
+Epic currently require the following packages:
+  * GHC
+  * happy
+  * Boehm garbarge collector (http://www.hpl.hp.com/personal/Hans_Boehm/gc/)
+  * GNU_MP (http://www.swox.com/gmp/)
+  * gcc
+
+If you have problem installing epic check out epics website:
+    http://www.cs.st-andrews.ac.uk/~eb/epic.php
