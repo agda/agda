@@ -256,7 +256,7 @@ Installing the epic-backend
 ------------------------------------------------------------------------
 
 The epic backend is experimental and is not activated by default. To activate
-it, add -fuse-epic to CABAL_OPTIONS in the Makefile. Currently this will only 
+it, add -fepic to CABAL_OPTIONS in the Makefile. Currently this will only 
 make cabal install the epic package from hackage, therfore this backend will
 also work if you already have epic installed via:
 
