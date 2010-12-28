@@ -55,10 +55,11 @@ flag use-locale
     of the IO going to/from stdin and stdout. (Note that source files
     must always be encoded using UTF8.)
 
-flag use-epic
+flag epic
   default: False
+  manual:  True
   description:
-    Install the dependencies used by the epic backend.
+    Install the dependencies used by the Epic backend.
 
 library
   hs-source-dirs:   src/full
@@ -67,7 +68,7 @@ library
   else
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
-  if flag(use-epic)
+  if flag(epic)
     build-depends:  epic >= 0.1.7 && < 0.2
   build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.3 && < 2.5,
