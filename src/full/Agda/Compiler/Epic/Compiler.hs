@@ -9,6 +9,7 @@ import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe
 import System.Directory
+import System.Exit
 import System.FilePath hiding (normalise)
 import System.Process hiding (env)
 
@@ -33,14 +34,21 @@ import qualified Agda.Compiler.Epic.Primitive  as Prim
 --   /actually this is not true, we compile everything so we don't even look at
 --   the Interface. This may change in the future.
 compilerMain :: Interface -> TCM ()
-compilerMain inter = flip evalStateT initCompileState $ do
-    cincludes <- optIncludeC <$> lift pragmaOptions
-    setEpicDir inter
-    initialAnalysis
-    code <- compileModule =<< lift (gets stImports)
-    case code of
-      Nothing -> error "no code to compile :'("
-      Just c  -> runEpic (either id (map filePath) cincludes) c
+compilerMain inter = do
+    epic_exist <- liftIO $ rawSystem "ghc-pkg" ["-v0", "field", "epic", "id"]
+    case epic_exist of
+        ExitSuccess -> flip evalStateT initCompileState $ do
+            cincludes <- optIncludeC <$> lift pragmaOptions
+            setEpicDir inter
+            initialAnalysis
+            code <- compileModule =<< lift (gets stImports)  
+            case code of
+                Nothing -> error "no code to compile :'("
+                Just c  -> runEpic (either id (map filePath) cincludes) c
+        ExitFailure _ -> error $
+           "Agda can't find epic support, usually `cabal install epic' will be enough. "
+           ++ "Look in the README for more information."
+
 
 -- | Before running the compiler, we need to store some things in the state,
 --   namely constructor tags, constructor irrelevancies and the delayed field
