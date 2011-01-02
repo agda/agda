@@ -41,7 +41,7 @@ compilerMain inter = do
             cincludes <- optIncludeC <$> lift pragmaOptions
             setEpicDir inter
             initialAnalysis
-            code <- compileModule =<< lift (gets stImports)  
+            code <- compileModule =<< lift (gets stImports)
             case code of
                 Nothing -> error "no code to compile :'("
                 Just c  -> runEpic (either id (map filePath) cincludes) c
