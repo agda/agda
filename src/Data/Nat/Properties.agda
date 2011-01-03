@@ -614,9 +614,3 @@ s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
 _*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 z≤n       *-mono n₁≤n₂ = z≤n
 s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)
-
-≰-to-> : ∀ {x y} → ¬ (x ≤ y) → x > y
-≰-to-> {zero} x≰y with x≰y z≤n 
-... | ()
-≰-to-> {suc m} {zero} x≰y = s≤s z≤n
-≰-to-> {suc m} {suc n} x≰y = s≤s (≰-to-> (λ x → x≰y (s≤s x)))
