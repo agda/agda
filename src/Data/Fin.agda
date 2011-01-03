@@ -156,9 +156,6 @@ pred : ∀ {n} → Fin n → Fin n
 pred zero    = zero
 pred (suc i) = inject₁ i
 
-pred-fun : ∀ {m} {A : Set} → (Fin (suc m) → A) → (Fin m → A)
-pred-fun f x = f (suc x)
-
 ------------------------------------------------------------------------
 -- Order relations
 
