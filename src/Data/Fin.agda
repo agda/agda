@@ -65,6 +65,13 @@ raise : ∀ {m} n → Fin m → Fin (n N+ m)
 raise zero    i = i
 raise (suc n) i = suc (raise n i)
 
+-- reduce≥ "m + n" _ = "n".
+
+reduce≥ : ∀ {m n} (i : Fin (m N+ n)) (i≥m : toℕ i N≥ m) → Fin n
+reduce≥ {zero}  i       i≥m       = i
+reduce≥ {suc m} zero    ()
+reduce≥ {suc m} (suc i) (s≤s i≥m) = reduce≥ i i≥m
+
 -- inject⋆ m "n" = "n".
 
 inject : ∀ {n} {i : Fin n} → Fin′ i → Fin n
@@ -89,12 +96,6 @@ inject₁ (suc i) = suc (inject₁ i)
 inject≤ : ∀ {m n} → Fin m → m N≤ n → Fin n
 inject≤ zero    (Nat.s≤s le) = zero
 inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
-
-reduce≥ : ∀ {m n} (x : Fin (m N+ n)) (x≥m : toℕ x N≥ m) → Fin n
-reduce≥ {zero} x x≥m = x
-reduce≥ {suc m} zero ()
-reduce≥ {suc m} (suc i) (s≤s i≥m) = reduce≥ {m} i i≥m
-
 
 ------------------------------------------------------------------------
 -- Operations
