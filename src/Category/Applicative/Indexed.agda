@@ -44,3 +44,6 @@ record RawIApplicative {i f} {I : Set i} (F : IFun I f) :
 
   _⊗_ : ∀ {i j k A B} → F i j A → F j k B → F i k (A × B)
   x ⊗ y = (_,_) <$> x ⊛ y
+
+  zipWith : ∀ {i j k A B C} → (A → B → C) → F i j A → F j k B → F i k C
+  zipWith f x y = f <$> x ⊛ y
