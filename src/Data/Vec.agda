@@ -195,7 +195,7 @@ _[_]≔_ : ∀ {a n} {A : Set a} → Vec A n → Fin n → A → Vec A n
 (x ∷ xs) [ suc i ]≔ y = x ∷ xs [ i ]≔ y
 
 -- Generates a vector containing all elements in Fin n. This function
--- is not placed in Data.Fin since Data.Vec depends on Data.Fin.
+-- is not placed in Data.Fin because Data.Vec depends on Data.Fin.
 
 allFin : ∀ n → Vec (Fin n) n
 allFin zero    = []
