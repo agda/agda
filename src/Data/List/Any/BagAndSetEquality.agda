@@ -11,7 +11,7 @@ open import Algebra.FunctionProperties
 open import Category.Monad
 open import Data.List as List
 import Data.List.Properties as LP
-open import Data.List.Any as Any using (Any)
+open import Data.List.Any as Any using (Any; here)
 open import Data.List.Any.Properties
 open import Data.Product
 open import Data.Sum
@@ -59,6 +59,16 @@ commutativeMonoid k A = record
     }
   }
   where open Inv.EquationalReasoning
+
+-- The only list which is bag or set equal to the empty list is the
+-- empty list itself.
+
+empty-unique : ∀ {k} {A : Set} {xs : List A} →
+               xs ≈[ k ] [] → xs ≡ []
+empty-unique {xs = []}    _    = P.refl
+empty-unique {xs = _ ∷ _} ∷≈[]
+  with FE.Equivalent.to (Inv.⇒⇔ ∷≈[]) ⟨$⟩ here P.refl
+... | ()
 
 -- _++_ is idempotent (under set equality).
 
