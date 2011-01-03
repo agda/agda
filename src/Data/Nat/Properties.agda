@@ -620,6 +620,3 @@ s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n�
 ... | ()
 ≰-to-> {suc m} {zero} x≰y = s≤s z≤n
 ≰-to-> {suc m} {suc n} x≰y = s≤s (≰-to-> (λ x → x≰y (s≤s x)))
-
-≰-mono : ∀ {m n} → ¬ (suc m ≤ suc n) → ¬ (m ≤ n)
-≰-mono p = λ x → p (s≤s x) 
