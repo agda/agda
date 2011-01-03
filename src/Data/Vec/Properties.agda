@@ -10,8 +10,8 @@ open import Algebra
 open import Data.Vec
 open import Data.Nat
 import Data.Nat.Properties as Nat
-open import Data.Fin using (Fin; zero; suc; toℕ; fromℕ; fromℕ≤; reduce≥; inject+)
-open import Data.Fin.Props
+open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
+open import Data.Fin.Props using (_+′_)
 open import Function
 open import Level
 open import Relation.Binary
@@ -50,46 +50,46 @@ lookup-natural : ∀ {a b n} {A : Set a} {B : Set b}
 lookup-natural f zero    (x ∷ xs) = refl
 lookup-natural f (suc i) (x ∷ xs) = lookup-natural f i xs
 
--- lookup over allFin yields the index.
+-- If you look up an index in allFin n, then you get the index.
 
-lookup-allFin : ∀ {n : ℕ} (i : Fin n) → lookup i (allFin n) ≡ i
-lookup-allFin zero = refl 
+lookup-allFin : ∀ {n} (i : Fin n) → lookup i (allFin n) ≡ i
+lookup-allFin         zero    = refl
 lookup-allFin {suc n} (suc i) = begin
-  lookup i (map suc (allFin n)) 
-    ≡⟨ lookup-natural suc i _ ⟩
-  suc (lookup i (allFin n))
-    ≡⟨ PropEq.cong suc (lookup-allFin i) ⟩
-  suc i 
-    ∎
-  where
-  open ≡-Reasoning
+  lookup i (map suc (allFin n))  ≡⟨ lookup-natural suc i _ ⟩
+  suc (lookup i (allFin n))      ≡⟨ PropEq.cong suc (lookup-allFin i) ⟩
+  suc i                          ∎
+  where open ≡-Reasoning
 
-lookup-++-< : ∀ {a} {A : Set a} {m n} (xs : Vec A m) (ys : Vec A n) 
-                                      (i : Fin (m + n)) (i<m : toℕ i < m)
-            → lookup i (xs ++ ys) ≡ lookup (fromℕ≤ i<m) xs
-lookup-++-< [] ys i ()
-lookup-++-< (x ∷ xs) ys zero (s≤s z≤n) = refl
-lookup-++-< (x ∷ xs) ys (suc i) (s≤s (s≤s m≤n)) = lookup-++-< xs ys i (s≤s m≤n)
+-- Various lemmas relating lookup and _++_.
 
-lookup-++-≥ : ∀ {a} {A : Set a} {m n} (xs : Vec A m) (ys : Vec A n) 
-                                      (i : Fin (m + n)) (i≥m : toℕ i ≥ m)
-            → lookup i (xs ++ ys) ≡ lookup (reduce≥ i i≥m) ys
-lookup-++-≥ [] ys i i≥m = refl
-lookup-++-≥ (x ∷ xs) ys zero ()
+lookup-++-< : ∀ {a} {A : Set a} {m n}
+              (xs : Vec A m) (ys : Vec A n) i (i<m : toℕ i < m) →
+              lookup i (xs ++ ys) ≡ lookup (Fin.fromℕ≤ i<m) xs
+lookup-++-< []       ys i       ()
+lookup-++-< (x ∷ xs) ys zero    (s≤s z≤n)       = refl
+lookup-++-< (x ∷ xs) ys (suc i) (s≤s (s≤s i<m)) =
+  lookup-++-< xs ys i (s≤s i<m)
+
+lookup-++-≥ : ∀ {a} {A : Set a} {m n}
+              (xs : Vec A m) (ys : Vec A n) i (i≥m : toℕ i ≥ m) →
+              lookup i (xs ++ ys) ≡ lookup (Fin.reduce≥ i i≥m) ys
+lookup-++-≥ []       ys i       i≥m = refl
+lookup-++-≥ (x ∷ xs) ys zero    ()
 lookup-++-≥ (x ∷ xs) ys (suc i) (s≤s i≥m) = lookup-++-≥ xs ys i i≥m
 
-lookup-++₁ : ∀ {a} {A : Set a} {m n} (xs : Vec A m) (ys : Vec A n) (i : Fin m)
-            → lookup (inject+ n i) (xs ++ ys) ≡ lookup i xs
-lookup-++₁ [] ys ()
-lookup-++₁ (x ∷ xs) ys zero = refl
-lookup-++₁ (x ∷ xs) ys (suc i) = lookup-++₁ xs ys i
+lookup-++-inject+ : ∀ {a} {A : Set a} {m n}
+                    (xs : Vec A m) (ys : Vec A n) i →
+                    lookup (Fin.inject+ n i) (xs ++ ys) ≡ lookup i xs
+lookup-++-inject+ []       ys ()
+lookup-++-inject+ (x ∷ xs) ys zero    = refl
+lookup-++-inject+ (x ∷ xs) ys (suc i) = lookup-++-inject+ xs ys i
 
-
-lookup-++₂ : ∀ {a} {A : Set a} {m n} (xs : Vec A m) (ys : Vec A n) (i : Fin n)
-            → lookup (fromℕ m +′ i) (xs ++ ys) ≡ lookup i ys
-lookup-++₂ [] ys zero = refl
-lookup-++₂ [] (y ∷ xs) (suc i) = lookup-++₂ [] xs i
-lookup-++₂ (x ∷ xs) ys i = lookup-++₂ xs ys i
+lookup-++-+′ : ∀ {a} {A : Set a} {m n}
+               (xs : Vec A m) (ys : Vec A n) i →
+               lookup (fromℕ m +′ i) (xs ++ ys) ≡ lookup i ys
+lookup-++-+′ []       ys       zero    = refl
+lookup-++-+′ []       (y ∷ xs) (suc i) = lookup-++-+′ [] xs i
+lookup-++-+′ (x ∷ xs) ys       i       = lookup-++-+′ xs ys i
 
 -- Constructor mangling
 
@@ -121,19 +121,17 @@ map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = PropEq.cong (_∷_ (f (g x))) (map-∘ f g xs)
 
--- mapping lookup over all finite numbers yields the original list.
+-- If you look up every possible index, in increasing order, then you
+-- get back the vector you started with.
 
-map-lookup-allFin : ∀ {a} {A : Set a} {n} (xs : Vec A n) → map (λ x → lookup x xs) (allFin n) ≡ xs
-map-lookup-allFin [] = refl
-map-lookup-allFin {n = suc n} (x ∷ xs) = ∷-cong refl (begin
-  map (λ x' → lookup x' (x ∷ xs)) (map suc (allFin n))
-    ≡⟨ PropEq.sym $ map-∘ (λ x' → lookup x' (x ∷ xs)) suc (allFin n) ⟩
-  map (λ x' → lookup x' xs) (allFin n)
-    ≡⟨ map-lookup-allFin xs ⟩
-  xs
-    ∎)
-  where
-  open ≡-Reasoning
+map-lookup-allFin : ∀ {a} {A : Set a} {n} (xs : Vec A n) →
+                    map (λ x → lookup x xs) (allFin n) ≡ xs
+map-lookup-allFin             []       = refl
+map-lookup-allFin {n = suc n} (x ∷ xs) = PropEq.cong (_∷_ x) (begin
+  map (λ y → lookup y (x ∷ xs)) (map suc (allFin n))  ≡⟨ PropEq.sym $ map-∘ (λ y → lookup y (x ∷ xs)) suc (allFin n) ⟩
+  map (λ y → lookup y xs) (allFin n)                  ≡⟨ map-lookup-allFin xs ⟩
+  xs                                                  ∎)
+  where open ≡-Reasoning
 
 -- sum commutes with _++_.
 
@@ -217,8 +215,10 @@ foldr-fusion {B = B} {f} e {C} h fuse =
 idIsFold : ∀ {a n} {A : Set a} → id ≗ foldr (Vec A) {n} _∷_ []
 idIsFold = foldr-universal _ _ id refl (λ _ _ → refl)
 
--- Proof irrelevance of _[_]=_
-[]=-irrelevance : ∀ {a} {A : Set a} {n} {xs : Vec A n} {i : Fin n} {x : A}
-                  → (p q : xs [ i ]= x) → p ≡ q
-[]=-irrelevance here here = refl
-[]=-irrelevance (there xs[i]=x) (there xs[i]=x') = PropEq.cong there ([]=-irrelevance xs[i]=x xs[i]=x')
+-- Proof irrelevance for _[_]=_.
+
+proof-irrelevance-[]= : ∀ {a} {A : Set a} {n} {xs : Vec A n} {i x} →
+                        (p q : xs [ i ]= x) → p ≡ q
+proof-irrelevance-[]= here            here             = refl
+proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
+  PropEq.cong there (proof-irrelevance-[]= xs[i]=x xs[i]=x')
