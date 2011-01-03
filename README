@@ -8,6 +8,7 @@ Table of contents:
 * Configuring the Emacs mode
 * Prerequisites
 * Installing a suitable version of Emacs under Windows
+* Installing the Epic backend
 
 ------------------------------------------------------------------------
 Installing Agda
@@ -252,22 +253,50 @@ when installing Emacs under Windows.
    You should see all the characters without white-boxes.
 
 ------------------------------------------------------------------------
-Installing the epic-backend
+Installing the Epic backend
 ------------------------------------------------------------------------
 
-The epic backend is experimental and is not activated by default. To activate
-it, add -fepic to CABAL_OPTIONS in the Makefile. Currently this will only
-make cabal install the epic package from hackage, therfore this backend will
-also work if you already have epic installed via:
+The Epic backend is experimental and requires that the Epic program is
+installed. You can install this program by giving the epic flag to
+cabal:
 
-> cabal install epic
+* When installing from Hackage:
 
-Epic currently require the following packages:
-  * GHC
-  * happy
-  * Boehm garbarge collector (http://www.hpl.hp.com/personal/Hans_Boehm/gc/)
-  * GNU_MP (http://www.swox.com/gmp/)
-  * gcc
+    cabal update
+    cabal install Agda -fepic
+    cabal install Agda-executable
+    agda-mode setup
 
-If you have problem installing epic check out epics website:
-    http://www.cs.st-andrews.ac.uk/~eb/epic.php
+* When installing using a source tar ball, following the instructions
+  in 2a) above:
+
+    cabal update
+    cabal install -fepic
+    agda-mode setup
+    cd src/main
+    cabal install
+
+* When installing using a source tar ball, following the instructions
+  in 2b) above:
+
+    make CABAL_OPTIONS="--global -fepic" install
+
+  (The Makefile specifies CABAL_OPTIONS=--global by default; feel free
+  to omit --global.)
+
+You can also install Epic directly:
+
+  cabal install epic
+
+Note that Epic depends on other software:
+
+  The Boehm garbage collector:
+    http://www.hpl.hp.com/personal/Hans_Boehm/gc/
+  The GNU Multiple Precision Arithmetic Library:
+    http://gmplib.org/
+  GCC, the GNU Compiler Collection:
+    http://gcc.gnu.org/
+
+For more information about Epic:
+
+  http://www.cs.st-andrews.ac.uk/~eb/epic.php
