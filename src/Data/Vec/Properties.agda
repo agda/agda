@@ -91,17 +91,6 @@ lookup-++-+′ []       ys       zero    = refl
 lookup-++-+′ []       (y ∷ xs) (suc i) = lookup-++-+′ [] xs i
 lookup-++-+′ (x ∷ xs) ys       i       = lookup-++-+′ xs ys i
 
--- Constructor mangling
-
-∷-cong : ∀ {a} {A : Set a} {n} {x y : A} {xs ys : Vec A n} → x ≡ y → xs ≡ ys → x ∷ xs ≡ y ∷ ys
-∷-cong refl refl = refl
-
-drop-head-≡ : ∀ {a} {A : Set a} {n} {x y : A} {xs ys : Vec A n} → x ∷ xs ≡ y ∷ ys → x ≡ y
-drop-head-≡ refl = refl 
-
-drop-tail-≡ : ∀ {a} {A : Set a} {n} {x y : A} {xs ys : Vec A n} → x ∷ xs ≡ y ∷ ys → xs ≡ ys
-drop-tail-≡ refl = refl 
-
 -- map is a congruence.
 
 map-cong : ∀ {a b n} {A : Set a} {B : Set b} {f g : A → B} →
