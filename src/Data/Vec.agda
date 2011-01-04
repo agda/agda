@@ -6,6 +6,7 @@
 
 module Data.Vec where
 
+open import Category.Applicative
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.List as List using (List)
@@ -54,23 +55,34 @@ _++_ : ∀ {a m n} {A : Set a} → Vec A m → Vec A n → Vec A (m + n)
 []       ++ ys = ys
 (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
-map : ∀ {a b n} {A : Set a} {B : Set b} →
-      (A → B) → Vec A n → Vec B n
-map f []       = []
-map f (x ∷ xs) = f x ∷ map f xs
+infixl 4 _⊛_
 
-zipWith : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
-          (A → B → C) → Vec A n → Vec B n → Vec C n
-zipWith _⊕_ []       []       = []
-zipWith _⊕_ (x ∷ xs) (y ∷ ys) = (x ⊕ y) ∷ zipWith _⊕_ xs ys
-
-zip : ∀ {a b n} {A : Set a} {B : Set b} →
-      Vec A n → Vec B n → Vec (A × B) n
-zip = zipWith _,_
+_⊛_ : ∀ {a b n} {A : Set a} {B : Set b} →
+      Vec (A → B) n → Vec A n → Vec B n
+[]       ⊛ []       = []
+(f ∷ fs) ⊛ (x ∷ xs) = f x ∷ (fs ⊛ xs)
 
 replicate : ∀ {a n} {A : Set a} → A → Vec A n
 replicate {n = zero}  x = []
 replicate {n = suc n} x = x ∷ replicate x
+
+applicative : ∀ {a n} → RawApplicative (λ (A : Set a) → Vec A n)
+applicative = record
+  { pure = replicate
+  ; _⊛_  = _⊛_
+  }
+
+map : ∀ {a b n} {A : Set a} {B : Set b} →
+      (A → B) → Vec A n → Vec B n
+map f xs = replicate f ⊛ xs
+
+zipWith : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c} →
+          (A → B → C) → Vec A n → Vec B n → Vec C n
+zipWith _⊕_ xs ys = replicate _⊕_ ⊛ xs ⊛ ys
+
+zip : ∀ {a b n} {A : Set a} {B : Set b} →
+      Vec A n → Vec B n → Vec (A × B) n
+zip = zipWith _,_
 
 foldr : ∀ {a b} {A : Set a} (B : ℕ → Set b) {m} →
         (∀ {n} → A → B n → B (suc n)) →
@@ -166,11 +178,11 @@ _>>=_ : ∀ {a b m n} {A : Set a} {B : Set b} →
         Vec A m → (A → Vec B n) → Vec B (m * n)
 xs >>= f = concat (map f xs)
 
-infixl 4 _⊛_
+infixl 4 _⊛*_
 
-_⊛_ : ∀ {a b m n} {A : Set a} {B : Set b} →
-      Vec (A → B) m → Vec A n → Vec B (m * n)
-fs ⊛ xs = fs >>= λ f → map f xs
+_⊛*_ : ∀ {a b m n} {A : Set a} {B : Set b} →
+       Vec (A → B) m → Vec A n → Vec B (m * n)
+fs ⊛* xs = fs >>= λ f → map f xs
 
 -- Interleaves the two vectors.
 
