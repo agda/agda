@@ -4,12 +4,13 @@
 
 module Data.Fin.Substitution.Lemmas where
 
+import Category.Applicative.Indexed as Applicative
 open import Data.Fin.Substitution
 open import Data.Nat
 open import Data.Fin using (Fin; zero; suc; lift)
 open import Data.Vec
 import Data.Vec.Properties as VecProp
-open import Function as Fun using (_∘_)
+open import Function as Fun using (_∘_; _$_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; sym; cong; cong₂)
 open PropEq.≡-Reasoning
@@ -52,9 +53,10 @@ record Lemmas₀ (T : ℕ → Set) : Set where
   lookup-map-weaken-↑⋆ zero    x           = refl
   lookup-map-weaken-↑⋆ (suc k) zero        = refl
   lookup-map-weaken-↑⋆ (suc k) (suc x) {ρ} = begin
-    lookup x (map weaken (map weaken ρ ↑⋆ k))        ≡⟨ VecProp.lookup-natural weaken x _ ⟩
+    lookup x (map weaken (map weaken ρ ↑⋆ k))        ≡⟨ Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) weaken _ ⟩
     weaken (lookup x (map weaken ρ ↑⋆ k))            ≡⟨ cong weaken (lookup-map-weaken-↑⋆ k x) ⟩
-    weaken (lookup (lift k suc x) ((ρ ↑) ↑⋆ k))      ≡⟨ sym (VecProp.lookup-natural weaken (lift k suc x) _) ⟩
+    weaken (lookup (lift k suc x) ((ρ ↑) ↑⋆ k))      ≡⟨ sym $
+                                                          Applicative.Morphism.op-<$> (VecProp.lookup-morphism (lift k suc x)) weaken _ ⟩
     lookup (lift k suc x) (map weaken ((ρ ↑) ↑⋆ k))  ∎
 
 record Lemmas₁ (T : ℕ → Set) : Set where
@@ -69,7 +71,7 @@ record Lemmas₁ (T : ℕ → Set) : Set where
                       lookup x             ρ  ≡ var      y →
                       lookup x (map weaken ρ) ≡ var (suc y)
   lookup-map-weaken x {y} {ρ} hyp = begin
-    lookup x (map weaken ρ)  ≡⟨ VecProp.lookup-natural weaken x ρ ⟩
+    lookup x (map weaken ρ)  ≡⟨ Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) weaken ρ ⟩
     weaken (lookup x ρ)      ≡⟨ cong weaken hyp ⟩
     weaken (var y)           ≡⟨ weaken-var ⟩
     var (suc y)              ∎
@@ -137,7 +139,7 @@ record Lemmas₂ (T : ℕ → Set) : Set where
 
   lookup-⊙ : ∀ {m n k} x {ρ₁ : Sub T m n} {ρ₂ : Sub T n k} →
              lookup x (ρ₁ ⊙ ρ₂) ≡ lookup x ρ₁ / ρ₂
-  lookup-⊙ x = VecProp.lookup-natural _ x _
+  lookup-⊙ x = Applicative.Morphism.op-<$> (VecProp.lookup-morphism x) _ _
 
   lookup-⨀ : ∀ {m n} x (ρs : Subs T m n) →
              lookup x (⨀ ρs) ≡ var x /✶ ρs

@@ -7,6 +7,9 @@
 module Data.Vec.Properties where
 
 open import Algebra
+open import Category.Applicative.Indexed
+open import Category.Monad
+open import Category.Monad.Identity
 open import Data.Vec
 open import Data.Nat
 import Data.Nat.Properties as Nat
@@ -43,20 +46,35 @@ module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
 open import Relation.Binary.PropositionalEquality as PropEq
 open import Relation.Binary.HeterogeneousEquality as HetEq
 
--- lookup is natural.
+-- lookup is an applicative functor morphism.
 
-lookup-natural : ∀ {a b n} {A : Set a} {B : Set b}
-                 (f : A → B) (i : Fin n) →
-                 lookup i ∘ map f ≗ f ∘ lookup i
-lookup-natural f zero    (x ∷ xs) = refl
-lookup-natural f (suc i) (x ∷ xs) = lookup-natural f i xs
+lookup-morphism :
+  ∀ {a n} (i : Fin n) →
+  Morphism (applicative {a = a})
+           (RawMonad.rawIApplicative IdentityMonad)
+lookup-morphism i = record
+  { op      = lookup i
+  ; op-pure = lookup-replicate i
+  ; op-⊛    = lookup-⊛ i
+  }
+  where
+  lookup-replicate : ∀ {a n} {A : Set a} (i : Fin n) →
+                     lookup i ∘ replicate {A = A} ≗ id {A = A}
+  lookup-replicate zero    = λ _ → refl
+  lookup-replicate (suc i) = lookup-replicate i
+
+  lookup-⊛ : ∀ {a b n} {A : Set a} {B : Set b}
+             i (fs : Vec (A → B) n) (xs : Vec A n) →
+             lookup i (fs ⊛ xs) ≡ (lookup i fs $ lookup i xs)
+  lookup-⊛ zero    (f ∷ fs) (x ∷ xs) = refl
+  lookup-⊛ (suc i) (f ∷ fs) (x ∷ xs) = lookup-⊛ i fs xs
 
 -- If you look up an index in allFin n, then you get the index.
 
 lookup-allFin : ∀ {n} (i : Fin n) → lookup i (allFin n) ≡ i
 lookup-allFin         zero    = refl
 lookup-allFin {suc n} (suc i) = begin
-  lookup i (map suc (allFin n))  ≡⟨ lookup-natural suc i _ ⟩
+  lookup i (map suc (allFin n))  ≡⟨ Morphism.op-<$> (lookup-morphism i) suc _ ⟩
   suc (lookup i (allFin n))      ≡⟨ PropEq.cong suc (lookup-allFin i) ⟩
   suc i                          ∎
   where open ≡-Reasoning

@@ -6,6 +6,7 @@
 
 module Relation.Binary.Vec.Pointwise where
 
+open import Category.Applicative.Indexed
 open import Data.Fin
 open import Data.Plus as Plus hiding (equivalent; map)
 open import Data.Vec as Vec hiding ([_]; map)
@@ -192,11 +193,12 @@ map R⇒R′ xsRys = ext λ i →
 
 -- A variant.
 
-gmap : ∀ {a a′} {A : Set a} {A′ : Set a′}
-         {_R_ : Rel A a} {_R′_ : Rel A′ a′} {f : A → A′} {n} →
+gmap : ∀ {a} {A A′ : Set a}
+         {_R_ : Rel A a} {_R′_ : Rel A′ a} {f : A → A′} {n} →
        _R_ =[ f ]⇒ _R′_ →
        Pointwise _R_ =[ Vec.map {n = n} f ]⇒ Pointwise _R′_
 gmap {_R′_ = _R′_} {f} R⇒R′ {i = xs} {j = ys} xsRys = ext λ i →
-  P.subst₂ _R′_ (P.sym $ VecProp.lookup-natural f i xs)
-                (P.sym $ VecProp.lookup-natural f i ys)
+  let module M = Morphism (VecProp.lookup-morphism i) in
+  P.subst₂ _R′_ (P.sym $ M.op-<$> f xs)
+                (P.sym $ M.op-<$> f ys)
                 (R⇒R′ (Pointwise.app xsRys i))
