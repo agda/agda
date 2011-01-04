@@ -95,9 +95,9 @@ inject-lemma {i = zero}  ()
 inject-lemma {i = suc i} zero    = refl
 inject-lemma {i = suc i} (suc j) = cong suc (inject-lemma j)
 
-inject+-lemma : ∀ m k → m ≡ toℕ (inject+ k (fromℕ m))
-inject+-lemma zero    k = refl
-inject+-lemma (suc m) k = cong suc (inject+-lemma m k)
+inject+-lemma : ∀ {m} n (i : Fin m) → toℕ i ≡ toℕ (inject+ n i)
+inject+-lemma n zero    = refl
+inject+-lemma n (suc i) = cong suc (inject+-lemma n i)
 
 inject₁-lemma : ∀ {m} (i : Fin m) → toℕ (inject₁ i) ≡ toℕ i
 inject₁-lemma zero    = refl
@@ -118,9 +118,6 @@ inject≤-lemma (suc i) (N.s≤s le) = cong suc (inject≤-lemma i le)
 <′⇒≺ (N.≤′-step m≤′n) | n ≻toℕ i =
   subst (λ i → i ≺ suc n) (inject₁-lemma i) (suc n ≻toℕ (inject₁ i))
 
-toℕ-inject+ : ∀ {m} n → (x : Fin m) → toℕ (inject+ n x) ≡ toℕ x
-toℕ-inject+ n zero = refl
-toℕ-inject+ n (suc i) = cong suc (toℕ-inject+ n i)
 
 toℕ-raise : ∀ {m} n → (x : Fin m) → toℕ (raise n x) ≡ n ℕ+ toℕ x
 toℕ-raise zero x = refl
@@ -132,10 +129,6 @@ toℕ-fromℕ≤-suc {n = .(suc n)} {s≤s {n = n} m≤n} q = cong suc q
 fromℕ≤-toℕ : ∀ {m} (x : Fin m) (p : suc (toℕ x) ℕ≤ m) → fromℕ≤ p ≡ x
 fromℕ≤-toℕ zero (s≤s z≤n) = refl
 fromℕ≤-toℕ (suc x) (s≤s (s≤s m≤n)) = cong suc (fromℕ≤-toℕ x (s≤s m≤n))
-
-inject+-< : ∀ {m} n (x : Fin m) → toℕ (inject+ n x) ℕ< m
-inject+-< n zero = s≤s z≤n
-inject+-< n (suc i) = s≤s (inject+-< n i)
 
 toℕ-fromℕ≤-≰ : ∀ {x y} {x≰y : ¬ (x ℕ≤ y)} → toℕ (fromℕ≤ (N.≰-to-> x≰y)) ≡ y
 toℕ-fromℕ≤-≰ {zero} {y} {x≰y} with x≰y z≤n

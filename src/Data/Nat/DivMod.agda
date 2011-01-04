@@ -23,7 +23,9 @@ private
   lem₁ : ∀ m k → _
   lem₁ m k = cong suc $ begin
     m
-      ≡⟨ Fin.inject+-lemma m k ⟩
+      ≡⟨ sym $ Fin.to-from m ⟩
+    toℕ (fromℕ m)
+      ≡⟨ Fin.inject+-lemma k (fromℕ m) ⟩
     toℕ (Fin.inject+ k (fromℕ m))
       ≡⟨ solve 1 (λ x → x := x :+ con 0) refl _ ⟩
     toℕ (Fin.inject+ k (fromℕ m)) + 0
