@@ -72,10 +72,11 @@ solve : ∀ n (f : N-ary n (Expr n) (Expr n × Expr n)) →
   Eqʰ n _≈_ (curryⁿ ⟦ proj₁ (close n f) ⇓⟧) (curryⁿ ⟦ proj₂ (close n f) ⇓⟧) →
   Eq  n _≈_ (curryⁿ ⟦ proj₁ (close n f)  ⟧) (curryⁿ ⟦ proj₂ (close n f)  ⟧)
 solve n f hyp =
-  curryⁿ-cong ⟦ proj₁ (close n f) ⟧ ⟦ proj₂ (close n f) ⟧
+  curryⁿ-cong _≈_ ⟦ proj₁ (close n f) ⟧ ⟦ proj₂ (close n f) ⟧
     (λ ρ → prove ρ (proj₁ (close n f)) (proj₂ (close n f))
-             (curryⁿ-cong⁻¹ ⟦ proj₁ (close n f) ⇓⟧ ⟦ proj₂ (close n f) ⇓⟧
-                            (Eqʰ-to-Eq n hyp) ρ))
+             (curryⁿ-cong⁻¹ _≈_
+                ⟦ proj₁ (close n f) ⇓⟧ ⟦ proj₂ (close n f) ⇓⟧
+                (Eqʰ-to-Eq n _≈_ hyp) ρ))
 
 -- A variant of _,_ which is intended to make uses of solve look a
 -- bit nicer.
