@@ -92,8 +92,8 @@ all∈? {q = q} dec = decFinSubset (λ f → f ∈? q) dec
 all? : ∀ {n} {P : Fin n → Set} →
        (∀ f → Dec (P f)) →
        Dec (∀ f → P f)
-all? dec with all∈? {q = all inside} (λ {f} _ → dec f)
-...      | yes ∀p = yes (λ f → ∀p (allInside f))
+all? dec with all∈? {q = ⊤} (λ {f} _ → dec f)
+...      | yes ∀p = yes (λ f → ∀p ∈⊤)
 ...      | no ¬∀p = no  (λ ∀p → ¬∀p (λ {f} _ → ∀p f))
 
 decLift : ∀ {n} {P : Fin n → Set} →

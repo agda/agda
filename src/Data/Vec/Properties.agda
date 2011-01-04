@@ -13,6 +13,7 @@ import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
 open import Function
+open import Function.Inverse using (_⇿_)
 open import Level
 open import Relation.Binary
 
@@ -211,3 +212,24 @@ proof-irrelevance-[]= : ∀ {a} {A : Set a} {n} {xs : Vec A n} {i x} →
 proof-irrelevance-[]= here            here             = refl
 proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
   PropEq.cong there (proof-irrelevance-[]= xs[i]=x xs[i]=x')
+
+-- _[_]=_ can be expressed using lookup and _≡_.
+
+[]=⇿lookup : ∀ {a n i} {A : Set a} {x} {xs : Vec A n} →
+             xs [ i ]= x ⇿ lookup i xs ≡ x
+[]=⇿lookup {i = i} {x = x} {xs} = record
+  { to         = PropEq.→-to-⟶ to
+  ; from       = PropEq.→-to-⟶ (from i xs)
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → proof-irrelevance-[]= _ _
+    ; right-inverse-of = λ _ → PropEq.proof-irrelevance _ _
+    }
+  }
+  where
+  to : ∀ {n xs} {i : Fin n} → xs [ i ]= x → lookup i xs ≡ x
+  to here            = refl
+  to (there xs[i]=x) = to xs[i]=x
+
+  from : ∀ {n} (i : Fin n) xs → lookup i xs ≡ x → xs [ i ]= x
+  from zero    (.x ∷ _)  refl = here
+  from (suc i) (_  ∷ xs) p    = there (from i xs p)

@@ -4,40 +4,36 @@
 
 module Data.Fin.Subset where
 
-open import Data.Nat hiding (_≟_)
-open import Data.Bool
-open import Data.Vec hiding (_∈_)
-import Data.List as List
+open import Algebra
+import Algebra.Props.BooleanAlgebra.Expression as BAExpr
+import Data.Bool.Properties as BoolProp
 open import Data.Fin
+open import Data.List as List using (List)
+open import Data.Nat
 open import Data.Product
+open import Data.Vec using (Vec; _∷_; _[_]=_)
 open import Relation.Nullary
-open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
 
-infixr 2 _∈_ _∉_ _⊆_ _⊈_
+infix 4 _∈_ _∉_ _⊆_ _⊈_
 
 ------------------------------------------------------------------------
 -- Definitions
 
+-- Sides.
+
+open import Data.Bool public
+  using () renaming (Bool to Side; true to inside; false to outside)
+
 -- Partitions a finite set into two parts, the inside and the outside.
 
-Side : Set
-Side = Bool
-
-inside : Side
-inside = true
-
-outside : Side
-outside = false
-
 Subset : ℕ → Set
-Subset = Vec Bool
+Subset = Vec Side
 
 ------------------------------------------------------------------------
 -- Membership and subset predicates
 
 _∈_ : ∀ {n} → Fin n → Subset n → Set
-x ∈ p = p [ x ]= true
+x ∈ p = p [ x ]= inside
 
 _∉_ : ∀ {n} → Fin n → Subset n → Set
 x ∉ p = ¬ (x ∈ p)
@@ -49,36 +45,41 @@ _⊈_ : ∀ {n} → Subset n → Subset n → Set
 p₁ ⊈ p₂ = ¬ (p₁ ⊆ p₂)
 
 ------------------------------------------------------------------------
--- Some specific subsets
-
-all : ∀ {n} → Bool → Subset n
-all {zero}  _ = []
-all {suc n} s = s ∷ all s
-
-------------------------------------------------------------------------
 -- Set operations
 
-_∪_ : ∀ {n} → Subset n → Subset n → Subset n
-[] ∪ xs = xs
-(x ∷ xs) ∪ (y ∷ ys) = (x ∨ y) ∷ xs ∪ ys
+-- Pointwise lifting of the usual boolean algebra for booleans gives
+-- us a boolean algebra for subsets.
 
-_∩_ : ∀ {n} → Subset n → Subset n → Subset n
-[] ∩ _ = []
-(x ∷ xs) ∩ (y ∷ ys) = x ∧ y ∷ xs ∩ ys
+booleanAlgebra : ℕ → BooleanAlgebra _ _
+booleanAlgebra n = BAExpr.lift BoolProp.booleanAlgebra n
 
-∅ : ∀ {n} → Subset n
-∅ {suc n} = false ∷ ∅ {n}
-∅ {zero}  = []
+private
+  open module BA {n} = BooleanAlgebra (booleanAlgebra n) public
+    using
+      ( ⊥  -- The empty subset.
+      ; ⊤  -- The subset containing all elements.
+      )
+    renaming
+      ( _∨_ to _∪_  -- Binary union.
+      ; _∧_ to _∩_  -- Binary intersection.
+      ; ¬_  to ∁    -- Complement.
+      )
 
-full  : ∀ {n} → Subset n
-full = all true
+-- A singleton subset, containing just the given element.
 
 ⁅_⁆ : ∀ {n} → Fin n → Subset n
-⁅ zero ⁆ = true ∷ ∅
-⁅ suc i ⁆ = false ∷ ⁅ i ⁆
+⁅ zero  ⁆ = inside  ∷ ⊥
+⁅ suc i ⁆ = outside ∷ ⁅ i ⁆
 
-⋃ : ∀ {n} → List.List (Subset n) → Subset n
-⋃ = List.foldr _∪_ ∅
+-- N-ary union.
+
+⋃ : ∀ {n} → List (Subset n) → Subset n
+⋃ = List.foldr _∪_ ⊥
+
+-- N-ary intersection.
+
+⋂ : ∀ {n} → List (Subset n) → Subset n
+⋂ = List.foldr _∩_ ⊤
 
 ------------------------------------------------------------------------
 -- Properties
