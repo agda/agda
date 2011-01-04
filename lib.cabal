@@ -3,7 +3,6 @@ version:         0.0.2
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Helper programs.
-tested-with:     GHC == 6.12.3, GHC == 7.0.0.20101028
 
 executable GenerateEverything
   hs-source-dirs:   .
