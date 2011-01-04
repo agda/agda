@@ -6,11 +6,14 @@
 {-# OPTIONS --universe-polymorphism #-}
 
 open import Data.Fin
-open import Function
 open import Data.Nat
 open import Data.Vec as Vec
+open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence using (module Equivalent)
 open import Level
 open import Relation.Binary
+import Relation.Binary.PropositionalEquality as P
 
 -- Think of the parameters as follows:
 --
@@ -78,8 +81,20 @@ solve n f hyp =
                 ⟦ proj₁ (close n f) ⇓⟧ ⟦ proj₂ (close n f) ⇓⟧
                 (Eqʰ-to-Eq n _≈_ hyp) ρ))
 
--- A variant of _,_ which is intended to make uses of solve look a
--- bit nicer.
+-- A variant of solve which does not require that the normal form
+-- equality is proved for an arbitrary environment.
+
+solve₁ : ∀ n (f : N-ary n (Expr n) (Expr n × Expr n)) →
+         ∀ⁿ n (curryⁿ λ ρ →
+                 ⟦ proj₁ (close n f) ⇓⟧ ρ ≈ ⟦ proj₂ (close n f) ⇓⟧ ρ →
+                 ⟦ proj₁ (close n f)  ⟧ ρ ≈ ⟦ proj₂ (close n f)  ⟧ ρ)
+solve₁ n f =
+  Equivalent.from (uncurry-∀ⁿ n) ⟨$⟩ λ ρ →
+    P.subst id (P.sym (left-inverse (λ _ → _ ≈ _ → _ ≈ _) ρ))
+      (prove ρ (proj₁ (close n f)) (proj₂ (close n f)))
+
+-- A variant of _,_ which is intended to make uses of solve and solve₁
+-- look a bit nicer.
 
 infix 4 _⊜_
 
