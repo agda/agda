@@ -16,7 +16,7 @@ open import Function.Equivalence as Equiv
   using (_⇔_; module Equivalent)
 open import Level
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as P
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 
 private
@@ -97,6 +97,19 @@ private
     ; sym   = sym   (IsEquivalence.sym   equiv)
     ; trans = trans (IsEquivalence.trans equiv)
     }
+
+  -- Pointwise _≡_ is equivalent to _≡_.
+
+  Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
+                Pointwise _≡_ xs ys ⇔ xs ≡ ys
+  Pointwise-≡ =
+    Equiv.equivalent
+      (to ∘ _⟨$⟩_ (Equivalent.to equivalent))
+      (λ xs≡ys → P.subst (Pointwise _≡_ _) xs≡ys (refl P.refl))
+    where
+    to : ∀ {n} {xs ys : Vec A n} → Pointwise′ _≡_ xs ys → xs ≡ ys
+    to []               = P.refl
+    to (P.refl ∷ xs∼ys) = P.cong (_∷_ _) $ to xs∼ys
 
   -- Pointwise and Plus commute when the underlying relation is
   -- reflexive.
