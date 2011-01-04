@@ -74,6 +74,30 @@ private
          Reflexive _∼_ → Reflexive (Pointwise _∼_ {n = n})
   refl rfl = ext (λ _ → rfl)
 
+  -- Pointwise preserves symmetry.
+
+  sym : ∀ {_∼_ : Rel A a} {n} →
+        Symmetric _∼_ → Symmetric (Pointwise _∼_ {n = n})
+  sym sm xs∼ys = ext λ i → sm (Pointwise.app xs∼ys i)
+
+  -- Pointwise preserves transitivity.
+
+  trans : ∀ {_∼_ : Rel A a} {n} →
+        Transitive _∼_ → Transitive (Pointwise _∼_ {n = n})
+  trans trns xs∼ys ys∼zs = ext λ i →
+    trns (Pointwise.app xs∼ys i) (Pointwise.app ys∼zs i)
+
+  -- Pointwise preserves equivalences.
+
+  isEquivalence :
+    ∀ {_∼_ : Rel A a} {n} →
+    IsEquivalence _∼_ → IsEquivalence (Pointwise _∼_ {n = n})
+  isEquivalence equiv = record
+    { refl  = refl  (IsEquivalence.refl  equiv)
+    ; sym   = sym   (IsEquivalence.sym   equiv)
+    ; trans = trans (IsEquivalence.trans equiv)
+    }
+
   -- Pointwise and Plus commute when the underlying relation is
   -- reflexive.
 
