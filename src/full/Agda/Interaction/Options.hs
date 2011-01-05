@@ -174,8 +174,8 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne [optInteractive, optCompile]) =
-      Left "Choose at most one: compiler or interactive mode.\n"
+  | not (atMostOne [optInteractive, optCompile, optEpicCompile]) =
+      Left "Choose at most one: compiler/interactive mode.\n"
   | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
   | not (atMostOne [ optUniversePolymorphism . p

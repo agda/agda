@@ -1,0 +1,38 @@
+Error: Choose at most one: compiler/interactive mode.
+
+Agda
+
+Usage: agda [OPTIONS...] FILE
+
+  -V      --version                                   show version number
+  -?      --help                                      show this help
+  -I      --interactive                               start in interactive mode
+  -c      --compile                                   compile program using the MAlonzo backend (experimental)
+          --epic                                      compile program using the Epic backend
+          --compile-dir=DIR                           directory for compiler output (default: the project root)
+          --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
+          --test                                      run internal test suite
+          --vim                                       generate Vim highlighting files
+          --html                                      generate HTML files with highlighted source code
+          --html-dir=DIR                              directory in which HTML files are placed (default: html)
+          --css=URL                                   the CSS file used by the HTML files (can be relative)
+          --ignore-interfaces                         ignore interface files (re-type check everything)
+  -i DIR  --include-path=DIR                          look for imports in DIR
+          --no-forcing                                disable the forcing optimisation
+          --show-implicit                             show implicit arguments when printing
+  -v N    --verbose=N                                 set verbosity level to N
+          --allow-unsolved-metas                      allow unsolved meta variables (only needed in batch mode)
+          --no-positivity-check                       do not warn about not strictly positive data types
+          --no-termination-check                      do not warn about possibly nonterminating code
+          --termination-depth=N                       allow termination checker to count decrease/increase upto N (default N=1)
+          --no-coverage-check                         do not warn about possibly incomplete pattern matches
+          --no-unreachable-check                      do not warn about unreachable function clauses
+          --type-in-type                              ignore universe levels (this makes Agda inconsistent)
+          --sized-types                               use sized datatypes
+          --injective-type-constructors               enable injective type constructors (makes Agda anti-classical and possibly inconsistent)
+          --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
+          --universe-polymorphism                     enable universe polymorphism (experimental feature)
+          --irrelevant-projections                    enable projection of irrelevant record fields
+          --includeC=PATH                             add the c filepath when compiling
+
+Plugins:
