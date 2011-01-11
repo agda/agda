@@ -14,8 +14,12 @@ open DistributiveLattice DL
 import Algebra.Props.Lattice as L; open L lattice public
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
+open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence
+  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
 open import Data.Product
 
 ∨-∧-distrib : _∨_ DistributesOver _∧_
@@ -61,4 +65,19 @@ open import Data.Product
   { _∧_                   = _∨_
   ; _∨_                   = _∧_
   ; isDistributiveLattice = ∧-∨-isDistributiveLattice
+  }
+
+≈⇔≈‵-isDistributiveLattice : {_≈‵_ : Rel Carrier dl₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
+                           → IsDistributiveLattice _≈‵_ _∨_ _∧_
+≈⇔≈‵-isDistributiveLattice ≈⇔≈‵ = record 
+  { isLattice = ≈⇔≈‵-isLattice ≈⇔≈‵
+  ; ∨-∧-distribʳ = λ x y z → E.to ≈⇔≈‵ ⟨$⟩ (∨-∧-distribʳ x y z) 
+  }
+
+≈⇔≈‵-distributiveLattice : {_≈‵_ : Rel Carrier dl₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
+                           → DistributiveLattice _ _
+≈⇔≈‵-distributiveLattice ≈⇔≈‵ = record
+  { _∧_ = _∧_
+  ; _∨_ = _∨_
+  ; isDistributiveLattice = ≈⇔≈‵-isDistributiveLattice ≈⇔≈‵
   }

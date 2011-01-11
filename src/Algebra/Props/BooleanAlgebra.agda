@@ -18,6 +18,9 @@ import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Relation.Binary
 open import Function
+open import Function.Equality using (_⟨$⟩_)
+open import Function.Equivalence
+  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
 open import Data.Product
 
 ------------------------------------------------------------------------
@@ -542,3 +545,23 @@ _⊕_ : Op₂ Carrier
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
 module DefaultXorRing = XorRing _⊕_ (λ _ _ → refl)
+
+≈⇔≈‵-isBooleanAlgebra : {_≈‵_ : Rel Carrier b₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
+                      → IsBooleanAlgebra _≈‵_ _∨_ _∧_ ¬_ ⊤ ⊥
+≈⇔≈‵-isBooleanAlgebra ≈⇔≈‵ = record 
+  { isDistributiveLattice = ≈⇔≈‵-isDistributiveLattice ≈⇔≈‵
+  ; ∨-complementʳ = λ x → E.to ≈⇔≈‵ ⟨$⟩ ∨-complementʳ x 
+  ; ∧-complementʳ = λ x → E.to ≈⇔≈‵ ⟨$⟩ ∧-complementʳ x 
+  ; ¬-cong = λ i≈j → E.to ≈⇔≈‵ ⟨$⟩ ¬-cong (E.from ≈⇔≈‵ ⟨$⟩ i≈j) 
+  }
+
+≈⇔≈‵-booleanAlgebra : {_≈‵_ : Rel Carrier b₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
+                    → BooleanAlgebra b₁ b₂
+≈⇔≈‵-booleanAlgebra ≈⇔≈‵ = record 
+  { _∨_ = _∨_
+  ; _∧_ = _∧_
+  ; ¬_ = ¬_
+  ; ⊤ = ⊤
+  ; ⊥ = ⊥
+  ; isBooleanAlgebra = ≈⇔≈‵-isBooleanAlgebra ≈⇔≈‵
+  }
