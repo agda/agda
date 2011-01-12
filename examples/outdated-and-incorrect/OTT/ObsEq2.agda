@@ -1,4 +1,4 @@
-module Obseq2 where
+module ObsEq2 where
 
 data Nat : Set where
   zero : Nat
@@ -83,6 +83,7 @@ S × T = /Σ/ S \_ -> T
 NatR : [ /1/ ] -> [ /2/ ] -> List [ /1/ ]
 NatR _ fz       = ε
 NatR _ (fs fz)  = fz :: ε
+NatR _ (fs (fs ()))
 
 /Nat/ : ∗
 /Nat/ = /D/ /1/ (\_ -> /2/) NatR fz
@@ -264,8 +265,13 @@ mutual
   /Σ/ _ _ > _ < /Fin/ _ ! ()
   /Σ/ _ _ > _ < /D/ _ _ _ _ ! ()
 
+  /D/ _ _ _ _ > _ < /Π/ _ _ ! ()
+  /D/ _ _ _ _ > _ < /Σ/ _ _ ! ()
+  /D/ _ _ _ _ > _ < /Fin/ _ ! ()
+
   /Fin/ _ > _ < /Π/ _ _ ! ()
   /Fin/ _ > _ < /Σ/ _ _ ! ()
+  /Fin/ zero > () < /Fin/ zero ! _
   /Fin/ zero > _ < /Fin/ (suc n) ! ()
   /Fin/ (suc n) > _ < /Fin/ zero ! ()
   /Fin/ _ > _ < /D/ _ _ _ _ ! ()

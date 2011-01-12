@@ -1,4 +1,4 @@
-module Obseq where
+module ObsEq where
 
 data Zero : Set where
 
