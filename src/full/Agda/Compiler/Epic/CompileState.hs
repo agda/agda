@@ -16,7 +16,7 @@ import qualified Data.Set as S
 import Agda.Compiler.Epic.AuxAST
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Base (MonadTCM, internalError)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -54,6 +54,8 @@ initCompileState = CompileState
 -- | Compiler monad
 type Compile = StateT CompileState
 
+epicError :: MonadTCM m => String -> Compile m a
+epicError = lift . internalError
 
 -- | Create a name which can be used in Epic code from a QName.
 unqname :: QName -> Var
@@ -111,7 +113,7 @@ putMain :: Monad m => QName -> Compile m ()
 putMain m = modify $ \s -> s { mainName = Just m }
 
 getMain :: MonadTCM m => Compile m Var
-getMain = unqname <$> fromMaybe (error "Where is main? :(") <$> gets (mainName)
+getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< gets mainName
 
 getIrrFilter :: Monad m => QName -> Compile m IrrFilter
 getIrrFilter q = gets $ fromMaybe __IMPOSSIBLE__

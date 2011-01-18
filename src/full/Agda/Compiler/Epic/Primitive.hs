@@ -54,7 +54,7 @@ getBuiltins =
            else return Nothing
     defName (T.Def q []) = q
     defName (T.Con q []) = q
-    defName x            = error $ show x
+    defName x            = __IMPOSSIBLE__
 
 -- | Translation to primitive integer functions
 natPrimTF :: IrrFilter -> [QName] -> PrimTransform

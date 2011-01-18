@@ -30,6 +30,9 @@ import qualified Agda.Compiler.Epic.FromAgda as FAgda
 import qualified Agda.Compiler.Epic.LambdaLift as LL
 import qualified Agda.Compiler.Epic.Primitive  as Prim
 
+#include "../../undefined.h"
+import Agda.Utils.Impossible
+
 -- | Compile an interface into an Epic/a.out program
 --   /actually this is not true, we compile everything so we don't even look at
 --   the Interface. This may change in the future.
@@ -43,9 +46,9 @@ compilerMain inter = do
             initialAnalysis
             code <- compileModule =<< lift (gets stImports)
             case code of
-                Nothing -> error "no code to compile :'("
+                Nothing -> __IMPOSSIBLE__
                 Just c  -> runEpic (either id (map filePath) cincludes) c
-        ExitFailure _ -> error $
+        ExitFailure _ -> internalError $
            "Agda can't find epic support, usually `cabal install epic' will be enough. "
            ++ "Look in the README for more information."
 
