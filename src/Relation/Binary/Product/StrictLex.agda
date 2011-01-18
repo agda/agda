@@ -106,7 +106,7 @@ private
 
   ×-≈-respects₂ :
     ∀ {_≈₁_ _<₁_} → IsEquivalence _≈₁_ → _<₁_ Respects₂ _≈₁_ →
-    ∀ {_≈₂_ _<₂_} → _<₂_ Respects₂ _≈₂_ →
+    {_≈₂_ _<₂_ : Rel A₂ ℓ₂} → _<₂_ Respects₂ _≈₂_ →
     (×-Lex _≈₁_ _<₁_ _<₂_) Respects₂ (_≈₁_ ×-Rel _≈₂_)
   ×-≈-respects₂ {_≈₁_ = _≈₁_} {_<₁_ = _<₁_} eq₁ resp₁
                 {_≈₂_ = _≈₂_} {_<₂_ = _<₂_}     resp₂ =
@@ -149,9 +149,10 @@ private
     ... | inj₁ x₁<y₁ = inj₁ (inj₁ x₁<y₁)
     ... | inj₂ x₁>y₁ = inj₂ (inj₁ x₁>y₁)
 
-  ×-compare : ∀ {_≈₁_ _<₁_} → Symmetric _≈₁_ → Trichotomous _≈₁_ _<₁_ →
-              ∀ {_≈₂_ _<₂_} → Trichotomous _≈₂_ _<₂_ →
-              Trichotomous (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _<₂_)
+  ×-compare :
+    {_≈₁_ _<₁_ : Rel A₁ ℓ₁} → Symmetric _≈₁_ → Trichotomous _≈₁_ _<₁_ →
+    {_≈₂_ _<₂_ : Rel A₂ ℓ₂} → Trichotomous _≈₂_ _<₂_ →
+    Trichotomous (_≈₁_ ×-Rel _≈₂_) (×-Lex _≈₁_ _<₁_ _<₂_)
   ×-compare {_≈₁_} {_<₁_} sym₁ compare₁ {_≈₂_} {_<₂_} compare₂ = cmp
     where
     cmp″ : ∀ {x₁ y₁ x₂ y₂} →
