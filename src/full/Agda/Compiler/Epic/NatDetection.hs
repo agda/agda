@@ -17,7 +17,7 @@ import Agda.TypeChecking.Monad
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
 
-import Agda.Compiler.Epic.CompileState
+import Agda.Compiler.Epic.CompileState hiding (conPars)
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
@@ -34,10 +34,11 @@ getNatish = do
                   case sortBy (compare `on` nrRel . snd) z of
                     [(cz,fz), (cs,fs)] -> do
                       let ts = defType $ sig M.! cs
+                          nr = fromIntegral $ dataPars d
                       return $ do
                        guard (nrRel fz == 0) -- where one constructor has zero arguments ...
                        guard (nrRel fs == 1) -- and the other one one argument ...
-                       guard (isRec (fromJust $ elemIndex True fs) ts q) -- which is recursive.
+                       guard (isRec ((fromJust $ elemIndex True fs) + nr) ts q) -- which is recursive.
                        return (fs, [cz, cs]) -- It's natish!
                     _ -> return Nothing
               _       -> return Nothing
