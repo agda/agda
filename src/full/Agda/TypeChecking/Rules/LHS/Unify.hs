@@ -28,7 +28,6 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.MetaVars (assignV, newArgsMetaCtx)
-import Agda.TypeChecking.EtaContract
 import Agda.Interaction.Options (optInjectiveTypeConstructors)
 
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -114,9 +113,9 @@ makeSubstitution sub = map val [0..]
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 ureduce :: Term -> Unify Term
-ureduce u = doEtaContractImplicit $ do
+ureduce u = do
   rho <- onSub makeSubstitution
-  liftTCM $ etaContract =<< reduce (substs rho u)
+  liftTCM $ reduce (substs rho u)
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.

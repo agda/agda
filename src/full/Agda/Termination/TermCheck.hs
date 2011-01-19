@@ -36,11 +36,10 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
 import Agda.TypeChecking.Records (isRecordConstructor)
-import Agda.TypeChecking.Rules.Builtin.Coinduction
+import qualified Agda.TypeChecking.Rules.Builtin.Coinduction as Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Signature (isProjection)
 import Agda.TypeChecking.Primitive (constructorForm)
@@ -131,7 +130,7 @@ termMutual i ts ds = if names == [] then return [] else
      suc <- sizeSuc
 
      -- The name of sharp (if available).
-     sharp <- fmap nameOfSharp <$> coinductionKit
+     sharp <- fmap Coinduction.sharp <$> Coinduction.coinductionKit
 
      guardingTypeConstructors <-
        optGuardingTypeConstructors <$> pragmaOptions
@@ -474,8 +473,7 @@ termTerm conf names f pats0 t0 = do
                -- We have to reduce constructors in case they're reexported.
                let reduceCon t@(Con _ _) = reduce t
                    reduceCon t           = return t
-               args2 <- mapM reduceCon args2
-               args  <- mapM etaContract args2
+               args <- mapM reduceCon args2
 
                -- If the function is a projection, then preserve guardedness
                -- for its principal argument.

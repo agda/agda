@@ -681,9 +681,7 @@ data TCEnv =
                 -- ^ should we try to recover interaction points when reifying?
                 --   disabled when generating types for with functions
           , envEtaContractImplicit :: Bool
-                -- ^ it's safe to eta contract implicit lambdas as long as we're
-                --   not going to reify and retypecheck (like when doing with
-                --   abstraction)
+                -- ^ do eta contract implicit lambdas
           , envRange :: Range
           , envCall  :: Maybe (Closure Call)
                 -- ^ what we're doing at the moment

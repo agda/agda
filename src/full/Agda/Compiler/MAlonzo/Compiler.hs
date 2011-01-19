@@ -132,7 +132,7 @@ definition kit (Defn Relevant   q ty _ _ d) = do
   (infodecl q :) <$> case d of
 
     -- Special treatment of coinductive builtins.
-    Datatype{} | Just q == (nameOfInf <$> kit) -> do
+    Datatype{} | Just q == (inf <$> kit) -> do
       let infT = unqhname "T" q
           infV = unqhname "d" q
           a    = ihname "a" 0
@@ -146,7 +146,7 @@ definition kit (Defn Relevant   q ty _ _ d) = do
                                     (HS.UnGuardedRhs HS.unit_con)
                                     (HS.BDecls [])]
              ]
-    Constructor{} | Just q == (nameOfSharp <$> kit) -> do
+    Constructor{} | Just q == (sharp <$> kit) -> do
       let sharp = unqhname "d" q
           x     = ihname "x" 0
       return $
@@ -158,7 +158,7 @@ definition kit (Defn Relevant   q ty _ _ d) = do
                                (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                (HS.BDecls [])]
         ]
-    Function{} | Just q == (nameOfFlat <$> kit) -> do
+    Function{} | Just q == (flat <$> kit) -> do
       let flat = unqhname "d" q
           x    = ihname "x" 0
       return $

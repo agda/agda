@@ -1,0 +1,14 @@
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*All Goals*"
+                 "?0 : R c (λ v → P′ c v)
+")
+agda2_mode_code (agda2-goals-action '(0))
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*Goal type etc.*"
+                 "Goal: R c (λ v → P c v)
+Have: R c (P c)
+————————————————————————————————————————————————————————————")
+agda2_mode_code (agda2-goals-action '(0))

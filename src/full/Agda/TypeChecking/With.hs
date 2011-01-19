@@ -13,6 +13,7 @@ import Agda.Syntax.Abstract (LHS(..), RHS(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
 
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
@@ -21,7 +22,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Split (expandLitPattern)
 import Agda.TypeChecking.Abstract
-import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Permutation
@@ -37,7 +37,7 @@ showPat (ConP c (Just t) ps)  = parens $ prettyTCM c <+> fsep (map (showPat . un
 showPat (LitP l)              = text (show l)
 
 withFunctionType :: Telescope -> [Term] -> [Type] -> Telescope -> Type -> TCM Type
-withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
+withFunctionType delta1 vs as delta2 b = do
   (vas, b) <- addCtxTel delta1 $ do
     vs <- etaContract =<< normalise vs
     as <- etaContract =<< normalise as

@@ -1,3 +1,5 @@
+-- Note: It would be good if the code below type checked, this file
+-- documents that it doesn't.
 
 module Issue259b where
 
@@ -17,17 +19,3 @@ data D : P → Set where
 -- When pattern matching we do want to eta contract implicit lambdas.
 Foo : (i : I) → D (c i) → Set₁
 Foo i (c .i) = Set
-
-postulate
-  A : Set
-  B : A → Set
-  b : ({x : A} → B x) → A
-  C : A → Set
-  d : {x : A} → B x
-
-e : A
-e = b (λ {x} → d {x})
-
-F : C e → Set₁
-F _ with Set
-F _ | _ = Set

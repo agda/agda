@@ -1,0 +1,4 @@
+Issue151a.agda:22,20-27
+a′ != a of type A
+when checking that the pattern c .a .p has type
+C a (b a p) (b a′ y)
