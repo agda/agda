@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Change constructors and cases on builtins and natish datatypes to use
 --   primitive data
 module Agda.Compiler.Epic.Primitive where
@@ -54,7 +53,7 @@ getBuiltins =
            else return Nothing
     defName (T.Def q []) = q
     defName (T.Con q []) = q
-    defName x            = __IMPOSSIBLE__
+    defName _            = __IMPOSSIBLE__
 
 -- | Translation to primitive integer functions
 natPrimTF :: IrrFilter -> [QName] -> PrimTransform

@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Contains the state monad that the compiler works in and some functions
 --   for tampering with the state.
 module Agda.Compiler.Epic.CompileState where

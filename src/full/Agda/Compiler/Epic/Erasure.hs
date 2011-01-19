@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Some arguments to functions (types in particular) will not be used in the
 --   body. Wouldn't it be useful if these wasn't passed around at all?
 --   Fear not, we here perform some analysis and try to remove as many of these

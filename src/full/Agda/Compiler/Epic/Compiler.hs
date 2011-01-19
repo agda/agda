@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Epic compiler backend.
 module Agda.Compiler.Epic.Compiler(compilerMain) where
 

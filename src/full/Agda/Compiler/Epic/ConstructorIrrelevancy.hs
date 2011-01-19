@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Remove forced (irrelevant) arguments from constructors.
 module Agda.Compiler.Epic.ConstructorIrrelevancy where
 

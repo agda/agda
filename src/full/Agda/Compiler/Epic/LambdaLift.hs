@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wall #-}
 -- | Lift lambda expressions to top level definitions (Epic does not support
 --   lambdas).
 module Agda.Compiler.Epic.LambdaLift where
