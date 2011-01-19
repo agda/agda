@@ -48,7 +48,8 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
         return . return $ Fun True n' ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_EPIC pragmas
         case axEpDef a of
-            Nothing -> epicError $ "Can't find the Epic definition for " ++ show a
+            -- TODO: Check if the axiom is not a type; if so something is wrong
+            Nothing -> return Nothing -- epicError $ "Can't find the Epic definition for " ++ show a
             Just x  -> return . return $ EpicFun n' ("COMPILED_EPIC: " ++ show n) x
     p@(Primitive{}) -> do -- Prifailmitives use primitive functions from AgdaPrelude.e of the same name.
                           -- Hopefully they are defined!
