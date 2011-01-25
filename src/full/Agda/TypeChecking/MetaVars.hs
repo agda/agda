@@ -29,6 +29,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.EtaContract
 
 import Agda.TypeChecking.MetaVars.Occurs
 

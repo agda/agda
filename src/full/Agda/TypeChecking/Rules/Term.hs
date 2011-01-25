@@ -39,6 +39,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
@@ -479,7 +480,7 @@ checkExpr e t =
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
         e0@(A.QuoteGoal _ x e) -> do
-          t' <- normalise t
+          t' <- etaContract =<< normalise t
           let metas = foldTerm (\v -> case v of
                                        MetaV m _ -> [m]
                                        _         -> []
@@ -715,7 +716,7 @@ checkHeadApplication e t hd args = do
           cs2 <- compareTel CmpLeq eTel fTel
           return $ cs1 ++ cs2
 
-    HeadDef c | Just c == (sharp <$> kit) -> do
+    HeadDef c | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
       lets <- envLetBindings <$> ask
       unless (Map.null lets) $

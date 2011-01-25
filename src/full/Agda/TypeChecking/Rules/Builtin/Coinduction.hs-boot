@@ -8,8 +8,8 @@ bindBuiltinSharp :: Expr -> TCM ()
 bindBuiltinFlat  :: Expr -> TCM ()
 
 data CoinductionKit
-inf   :: CoinductionKit -> QName
-sharp :: CoinductionKit -> QName
-flat  :: CoinductionKit -> QName
+nameOfInf   :: CoinductionKit -> QName
+nameOfSharp :: CoinductionKit -> QName
+nameOfFlat  :: CoinductionKit -> QName
 
 coinductionKit :: TCM (Maybe CoinductionKit)

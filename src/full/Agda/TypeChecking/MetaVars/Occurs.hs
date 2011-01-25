@@ -14,6 +14,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.EtaContract
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Monad

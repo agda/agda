@@ -39,6 +39,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty (prettyTCM)
@@ -177,7 +178,10 @@ refineExact ii e =
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
-  reify =<< normalise =<< checkExpr e =<< newTypeMeta_
+    do  t <- newTypeMeta_
+	v <- checkExpr e t
+	v' <- {- etaContract =<< -} normalise v
+	reify v'
 
 
 evalInMeta :: InteractionId -> Expr -> TCM Expr
@@ -193,8 +197,8 @@ data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t
 rewrite Instantiated t = return t   -- reify does instantiation
-rewrite HeadNormal   t = reduce t
-rewrite Normalised   t = normalise t
+rewrite HeadNormal   t = {- etaContract =<< -} reduce t
+rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 
 data OutputForm a b

@@ -27,6 +27,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Utils.Monad

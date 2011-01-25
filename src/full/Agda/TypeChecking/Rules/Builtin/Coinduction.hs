@@ -44,39 +44,15 @@ typeOfInf = do
                                  (Abs "A" $ El (Type (levelSuc kit (Var 1 [])))
                                                (Sort (Type (Var 1 [])))))))
 
--- | The name of @&#x221e@.
-
-nameOfInf :: TCM QName
-nameOfInf =
-  (\t -> case t of
-           Lam _ (Abs _ (Def q _)) -> q
-           _                       -> __IMPOSSIBLE__)
-  <$> primInf
-
--- | The name of @&#x266f_@.
-
-nameOfSharp :: TCM QName
-nameOfSharp =
-  (\t -> case t of
-           Lam _ (Abs _ (Lam _ (Abs _ (Def q _)))) -> q
-           _                                       -> __IMPOSSIBLE__)
-  <$> primSharp
-
--- | The name of @&#x266d@.
-
-nameOfFlat :: TCM QName
-nameOfFlat =
-  (\t -> case t of
-           Lam _ (Abs _ (Lam _ (Abs _ (Def q _)))) -> q
-           _                                       -> __IMPOSSIBLE__)
-  <$> primFlat
-
 -- | The type of @&#x266f_@.
 
 typeOfSharp :: TCM Type
 typeOfSharp = do
   kit <- requireLevels
-  inf <- nameOfInf
+  inf <- (\t -> case t of
+                  Def q _ -> q
+                  _       -> __IMPOSSIBLE__)
+         <$> primInf
   return $
     El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (levelType kit))
                (Abs "a" $ El (Lub (Type (levelSuc kit (Var 0 []))) (Type (Var 0 [])))
@@ -91,7 +67,10 @@ typeOfSharp = do
 typeOfFlat :: TCM Type
 typeOfFlat = do
   kit <- requireLevels
-  inf <- nameOfInf
+  inf <- (\t -> case t of
+                  Def q _ -> q
+                  _       -> __IMPOSSIBLE__)
+         <$> primInf
   return $
     El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (levelType kit))
                (Abs "a" $ El (Lub (Type (levelSuc kit (Var 0 []))) (Type (Var 0 [])))
@@ -120,7 +99,10 @@ bindBuiltinSharp :: A.Expr -> TCM ()
 bindBuiltinSharp e =
   bindPostulatedName builtinSharp e $ \sharp sharpDefn -> do
     sharpE  <- instantiateFull =<< checkExpr (A.Def sharp) =<< typeOfSharp
-    infDefn <- getConstInfo =<< nameOfInf
+    inf     <- primInf
+    infDefn <- case inf of
+      Def inf _ -> getConstInfo inf
+      _         -> __IMPOSSIBLE__
     addConstant (defName infDefn) $
       infDefn { theDef = Datatype
                   { dataPars           = 2
@@ -158,7 +140,10 @@ bindBuiltinFlat :: A.Expr -> TCM ()
 bindBuiltinFlat e =
   bindPostulatedName builtinFlat e $ \flat flatDefn -> do
     flatE  <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
-    sharp  <- nameOfSharp
+    sharp  <- (\t -> case t of
+                 Def q _ -> q
+                 _       -> __IMPOSSIBLE__)
+              <$> primSharp
     kit    <- requireLevels
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (argH (El (Type (Lit (LitLevel noRange 0))) (Def (typeName kit) [])))
@@ -197,21 +182,21 @@ bindBuiltinFlat e =
 -- | The coinductive primitives.
 
 data CoinductionKit = CoinductionKit
-  { inf   :: QName
-  , sharp :: QName
-  , flat  :: QName
+  { nameOfInf   :: QName
+  , nameOfSharp :: QName
+  , nameOfFlat  :: QName
   }
 
 -- | Tries to build a 'CoinductionKit'.
 
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = (do
-  inf   <- nameOfInf
-  sharp <- nameOfSharp
-  flat  <- nameOfFlat
+  Def inf   _ <- primInf
+  Def sharp _ <- primSharp
+  Def flat  _ <- primFlat
   return $ Just $ CoinductionKit
-    { inf   = inf
-    , sharp = sharp
-    , flat  = flat
+    { nameOfInf   = inf
+    , nameOfSharp = sharp
+    , nameOfFlat  = flat
     })
     `catchError` \_ -> return Nothing

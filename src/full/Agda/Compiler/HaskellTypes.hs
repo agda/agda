@@ -104,7 +104,7 @@ haskellType = liftTCM . fromType
       let err = notAHaskellType (El Prop v)
       case v of
         Var x args -> hsApp <$> getHsVar x <*> fromArgs args
-        Def d args | Just d == (inf <$> kit) ->
+        Def d args | Just d == (nameOfInf <$> kit) ->
           case args of
             [a, b] -> fromTerm (unArg b)
             _      -> err

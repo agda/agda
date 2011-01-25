@@ -99,6 +99,11 @@ checkFunDef delayed i name cs =
 
         -- Annotate the clauses with which arguments are actually used.
         cs <- instantiateFull =<< mapM rebindClause cs
+        -- Andreas, 2010-11-12
+        -- rebindClause is the identity, and instantiateFull eta-contracts
+        -- removing this eta-contraction fixes issue 361
+        -- however, Data.Star.Decoration.gmapAll no longer type-checks
+        -- possibly due to missing eta-contraction!?
 
         -- Check if the function is injective
         inv <- checkInjectivity name $ map translatedClause cs

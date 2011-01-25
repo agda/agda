@@ -1,3 +1,0 @@
-Issue259b.agda:21,8-12
-i' != i of type T x
-when checking that the pattern c .i has type D (c (λ {.x} → i))
