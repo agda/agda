@@ -208,7 +208,7 @@ fail :
 
 std-lib :
 	darcs get --lazy --repo-name=$@ \
-		 http://www.cs.nott.ac.uk/~nad/repos/lib/
+		 http://www.cse.chalmers.se/~nad/repos/lib/
 
 up-to-date-std-lib : std-lib
 	@(cd std-lib && darcs pull -a && make Everything.agda)
