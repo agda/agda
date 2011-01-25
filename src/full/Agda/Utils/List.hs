@@ -8,9 +8,10 @@ import Agda.Utils.QuickCheck
 import Agda.Utils.Tuple
 
 import Text.Show.Functions
+import Data.Function
 import Data.List
 import Data.Maybe
-import Data.Function
+import qualified Data.Set as Set
 
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
@@ -59,6 +60,16 @@ holes (x:xs) = (x, xs) : map (id -*- (x:)) (holes xs)
 distinct :: Eq a => [a] -> Bool
 distinct []	= True
 distinct (x:xs) = x `notElem` xs && distinct xs
+
+-- | An optimised version of 'distinct'.
+--
+-- Precondition: The list's length must fit in an 'Int'.
+
+fastDistinct :: Ord a => [a] -> Bool
+fastDistinct xs = Set.size (Set.fromList xs) == length xs
+
+prop_distinct_fastDistinct :: [Integer] -> Bool
+prop_distinct_fastDistinct xs = distinct xs == fastDistinct xs
 
 -- | Checks if all the elements in the list are equal. Assumes that
 -- the 'Eq' instance stands for an equivalence relation.
@@ -136,7 +147,8 @@ prop_genericElemIndex x xs =
 
 tests :: IO Bool
 tests = runTests "Agda.Utils.List"
-  [ quickCheck' prop_groupBy'
+  [ quickCheck' prop_distinct_fastDistinct
+  , quickCheck' prop_groupBy'
   , quickCheck' prop_extractNthElement
   , quickCheck' prop_genericElemIndex
   ]
