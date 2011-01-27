@@ -33,6 +33,7 @@ Usage: agda [OPTIONS...] FILE
           --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
           --universe-polymorphism                     enable universe polymorphism (experimental feature)
           --irrelevant-projections                    enable projection of irrelevant record fields
+          --without-K                                 disable the K rule (maybe)
           --includeC=PATH                             add the c filepath when compiling
 
 Plugins:

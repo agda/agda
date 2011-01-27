@@ -6,7 +6,9 @@ import Control.Applicative
 import Control.Monad.Error
 import Data.Monoid
 import Data.List
-import Data.Traversable hiding (mapM)
+import Data.Traversable hiding (mapM, sequence)
+
+import Agda.Interaction.Options
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
@@ -24,7 +26,10 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Free
 
+import Agda.Utils.List
+import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Tuple
 
@@ -74,6 +79,10 @@ splitProblem (Problem ps (perm, qs) tel) = do
       p <- lift $ expandLitPattern p
       case asView $ namedThing $ unArg p of
 	(xs, p@(A.LitP lit))  -> do
+          -- Note that, in the presence of --without-K, this branch is
+          -- based on the assumption that the types of literals are
+          -- not indexed.
+
           -- Andreas, 2010-09-07 cannot split on irrelevant args
           when (argRelevance a == Irrelevant) $
             typeError $ SplitOnIrrelevant p a
@@ -126,6 +135,17 @@ splitProblem (Problem ps (perm, qs) tel) = do
 			 , nest 2 $ text "pars =" <+> fsep (punctuate comma $ map prettyTCM pars)
 			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
 			 ]
+
+                  whenM (optWithoutK <$> pragmaOptions) $ do
+                    pars <- normalise pars
+                    ixs  <- normalise ixs
+                    case distinctVariables ixs of
+                      Nothing -> typeError $ IndicesNotDistinctVariables ixs
+                      Just vs ->
+                        case filter snd $ zip vs (map (`freeIn` pars) vs) of
+                          []          -> return ()
+                          (v , _) : _ -> typeError $ IndexFreeInParameter v pars
+
 		  return $ Split mempty
 				 xs
 				 (fmap (Focus c args (getRange p) q i d pars ixs) a)
@@ -137,3 +157,14 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel)
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
+
+        -- If the list consists solely of distinct variables, then the
+        -- variables are returned, otherwise Nothing.
+        distinctVariables ixs = do
+          xs <- mapM (isVar . unArg) ixs
+          guard (fastDistinct xs)
+          return xs
+          where
+          isVar :: Term -> Maybe Nat
+          isVar (Var x []) = Just x
+          isVar _          = Nothing

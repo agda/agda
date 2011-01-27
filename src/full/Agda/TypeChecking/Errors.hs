@@ -110,6 +110,8 @@ errorString err = case err of
     GenericError{}                           -> "GenericError"
     IlltypedPattern{}                        -> "IlltypedPattern"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
+    IndexFreeInParameter{}                   -> "IndexFreeInParameter"
+    IndicesNotDistinctVariables{}            -> "IndicesNotDistinctVariables"
     InternalError{}                          -> "InternalError"
     InvalidPattern{}                         -> "InvalidPattern"
     LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
@@ -241,6 +243,13 @@ instance PrettyTCM TypeError where
               pwords "does not construct an element of" ++ [prettyTCM t]
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
+            IndicesNotDistinctVariables is ->
+              fsep (pwords "The following indices are not distinct variables:")
+              $$ nest 2 (vcat $ map prettyTCM is)
+            IndexFreeInParameter i pars ->
+              fsep (pwords "The index" ++ [prettyTCM (I.Var i [])] ++
+                    pwords "is free in the following parameters:")
+              $$ nest 2 (vcat $ map prettyTCM pars)
             ShadowedModule [] -> __IMPOSSIBLE__
             ShadowedModule ms@(m : _) -> fsep $
               pwords "Duplicate definition of module" ++ [prettyTCM m <> text "."] ++

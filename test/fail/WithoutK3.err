@@ -1,0 +1,5 @@
+WithoutK3.agda:25,9-13
+The index A is free in the following parameters:
+  {A}
+  x
+when checking that the pattern refl has type x ≅ y

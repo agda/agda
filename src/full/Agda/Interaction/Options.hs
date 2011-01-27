@@ -93,6 +93,7 @@ data PragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
+  , optWithoutK                  :: Bool
   , optIncludeC                  :: Either [FilePath] [AbsolutePath]
   }
   deriving Show
@@ -151,6 +152,7 @@ defaultPragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = False
   , optIrrelevantProjections     = False
+  , optWithoutK                  = False
   , optIncludeC                  = Left []
   }
 
@@ -213,6 +215,7 @@ guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = Tru
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 noForcingFlag                o = return $ o { optForcing                   = False }
 irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = True  }
+withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 includeC                   f o = return $ o { optIncludeC                  = Left (f : fs) }
   where fs = either id (const []) $ optIncludeC o
 
@@ -323,6 +326,8 @@ pragmaOptions =
                     "enable universe polymorphism (experimental feature)"
     , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
                     "enable projection of irrelevant record fields"
+    , Option []     ["without-K"] (NoArg withoutKFlag)
+                    "disable the K rule (maybe)"
     , Option []     ["includeC"] (ReqArg includeC "PATH")
                     "add the c filepath when compiling"
     ]

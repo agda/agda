@@ -772,6 +772,8 @@ data TypeError
 	| ShouldBeApplicationOf Type QName
 	    -- ^ Expected a type to be an application of a particular datatype.
 	| ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
+        | IndicesNotDistinctVariables [Arg Term] -- ^ Indices.
+        | IndexFreeInParameter Nat [Arg Term] -- ^ Index (a variable), parameters.
         | DoesNotConstructAnElementOf QName Term -- ^ constructor, type
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.

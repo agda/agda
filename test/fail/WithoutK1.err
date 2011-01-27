@@ -1,0 +1,5 @@
+WithoutK1.agda:13,7-11
+The index x is free in the following parameters:
+  {A}
+  x
+when checking that the pattern refl has type x ≡ x
