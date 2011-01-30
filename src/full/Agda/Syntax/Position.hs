@@ -36,6 +36,7 @@ module Agda.Syntax.Position
   , fuseRange
   , fuseRanges
   , beginningOf
+  , beginningOfFile
 
     -- * Tests
   , tests
@@ -324,8 +325,17 @@ fuseRange x y = fuseRanges (getRange x) (getRange y)
 -- beginning, then 'noRange' is returned.
 beginningOf :: Range -> Range
 beginningOf r = case rStart r of
-  Just pos -> Range [Interval { iStart = pos, iEnd = pos }]
   Nothing  -> noRange
+  Just pos -> posToRange pos pos
+
+-- | @beginningOfFile r@ is an empty range (a single, empty interval)
+-- at the beginning of @r@'s starting position's file. If there is no
+-- such position, then an empty range is returned.
+beginningOfFile :: Range -> Range
+beginningOfFile r = case rStart r of
+  Nothing                   -> noRange
+  Just (Pn { srcFile = f }) -> posToRange p p
+    where p = startPos f
 
 -- | @x `withRangeOf` y@ sets the range of @x@ to the range of @y@.
 withRangeOf :: (SetRange t, HasRange u) => t -> u -> t
@@ -395,6 +405,8 @@ prop_fuseRanges r1 r2 =
 
 prop_beginningOf r = rangeInvariant (beginningOf r)
 
+prop_beginningOfFile r = rangeInvariant (beginningOfFile r)
+
 instance Arbitrary Position where
   arbitrary = do
     srcFile                    <- arbitrary
@@ -453,5 +465,6 @@ tests = runTests "Agda.Syntax.Position"
   , quickCheck' prop_fuseIntervals
   , quickCheck' prop_fuseRanges
   , quickCheck' prop_beginningOf
+  , quickCheck' prop_beginningOfFile
   , quickCheck' prop_intervalInSameFileAs
   ]
