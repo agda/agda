@@ -206,14 +206,16 @@ generateSyntaxInfo file mErr top termErrs = do
       field m n = nameToFile modMap file m n
                              (\isOp -> mempty { aspect = Just $ Name (Just Field) isOp })
                              Nothing
-      mod n = nameToFile modMap file []
-                         (A.nameConcrete n)
-                         (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
-                         (Just $ A.nameBindingSite n)
       asName n = nameToFile modMap file []
                             n
                             (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
                             Nothing
+      mod isTopLevelModule n =
+        nameToFile modMap file []
+                   (A.nameConcrete n)
+                   (\isOp -> mempty { aspect = Just $ Name (Just Module) isOp })
+                   (Just $ (if isTopLevelModule then P.beginningOfFile else id)
+                             (A.nameBindingSite n))
 
       getVarAndField :: A.Expr -> File
       getVarAndField (A.Var x)    = bound x
@@ -251,8 +253,18 @@ generateSyntaxInfo file mErr top termErrs = do
       getFieldDecl _                   = mempty
 
       getModuleName :: A.ModuleName -> File
-      getModuleName (A.MName { A.mnameToList = xs }) =
-        mconcat $ map mod xs
+      getModuleName m@(A.MName { A.mnameToList = xs }) =
+        mconcat $ map (mod isTopLevelModule) xs
+        where
+        isTopLevelModule =
+          case catMaybes $
+               map (join .
+                    fmap P.srcFile .
+                    P.rStart .
+                    A.nameBindingSite) xs of
+            f : _ -> Map.lookup f modMap ==
+                     Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
+            []    -> False
 
       getModuleInfo :: SI.ModuleInfo -> File
       getModuleInfo (SI.ModuleInfo { SI.minfoAsTo   = asTo

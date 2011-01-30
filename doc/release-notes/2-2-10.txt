@@ -181,3 +181,10 @@ Tools
   Compilation using Epic requires a few libraries. Particularly gcc, the Boehm
   garbage collector and the GNU MP library. For more information, check out
   Epic's homepage: http://www.cs.st-andrews.ac.uk/~eb/epic.php
+
+Tools
+-----
+
+* Hyperlinks for top-level module names now point to the start of the
+  module rather than to the declaration of the module name. This
+  applies both to the Emacs mode and to the output of agda --html.
