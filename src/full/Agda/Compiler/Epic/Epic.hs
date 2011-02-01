@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Pretty-print the AuxAST to valid Epic code.
 module Agda.Compiler.Epic.Epic
   ( prettyEpicFun

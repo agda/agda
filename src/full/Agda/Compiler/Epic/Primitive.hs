@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Change constructors and cases on builtins and natish datatypes to use
 --   primitive data
 module Agda.Compiler.Epic.Primitive where

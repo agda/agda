@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Epic compiler backend.
 module Agda.Compiler.Epic.Compiler(compilerMain) where
 

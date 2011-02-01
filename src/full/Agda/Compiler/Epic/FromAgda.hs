@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Convert from Agda's internal representation to our auxiliary AST.
 module Agda.Compiler.Epic.FromAgda where
 
