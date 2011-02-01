@@ -88,32 +88,9 @@ makeCase hole rng s = withInteractionId hole $ do
   var         <- deBruijnIndex =<< parseExprIn hole rng s
   z           <- splitClauseWithAbs clause var
   case z of
-    Left err        -> typeError . GenericError . show =<< prettySplitError err
+    Left err        -> typeError . GenericError . show =<< prettyTCM err
     Right (Left cl) -> (:[]) <$> makeAbsurdClause f cl
     Right (Right c) -> mapM (makeAbstractClause f) c
-
-prettySplitError :: SplitError -> TCM Doc
-prettySplitError err = case err of
-  NotADatatype t -> fsep $
-    pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
-  IrrelevantDatatype t -> fsep $
-    pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
-    pwords "since it is declared irrelevant"
-  CoinductiveDatatype t -> fsep $
-    pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
-  NoRecordConstructor t -> fsep $
-    pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
-    pwords "because it has no constructor"
-  CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
-    [ fsep $ pwords "Cannot pattern match on constructor" ++ [prettyTCM c <> text ","] ++
-             pwords "since the inferred indices"
-    , nest 2 $ prettyTCM cIxs
-    , fsep $ pwords "cannot be unified with the expected indices"
-    , nest 2 $ prettyTCM gIxs
-    , fsep $ pwords "for some" ++ punctuate comma (map prettyTCM flex)
-    ]
-  GenericSplitError s -> fsep $
-    pwords "Split failed:" ++ pwords s
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
