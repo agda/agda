@@ -24,6 +24,7 @@ import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.LHS
+import qualified Agda.TypeChecking.Rules.LHS.Split as Split
 
 import Agda.TypeChecking.Coverage.Match
 
@@ -363,6 +364,9 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
   (d, pars, ixs, cons) <- isDatatype ind t
+
+  whenM (optWithoutK <$> pragmaOptions) $
+    Split.wellFormedIndices pars ixs
 
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons

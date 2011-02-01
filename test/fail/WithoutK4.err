@@ -1,0 +1,5 @@
+WithoutK4.agda:14,1-14
+The following indices are not distinct variables:
+  false
+when checking that the clause true≢false () has type
+true ≡ false → ⊥

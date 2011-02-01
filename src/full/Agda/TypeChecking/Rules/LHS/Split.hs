@@ -136,15 +136,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
 			 , nest 2 $ text "ixs  =" <+> fsep (punctuate comma $ map prettyTCM ixs)
 			 ]
 
-                  whenM (optWithoutK <$> pragmaOptions) $ do
-                    pars <- normalise pars
-                    ixs  <- normalise ixs
-                    case distinctVariables ixs of
-                      Nothing -> typeError $ IndicesNotDistinctVariables ixs
-                      Just vs ->
-                        case filter snd $ zip vs (map (`freeIn` pars) vs) of
-                          []          -> return ()
-                          (v , _) : _ -> typeError $ IndexFreeInParameter v pars
+                  whenM (optWithoutK <$> pragmaOptions) $
+                    wellFormedIndices pars ixs
 
 		  return $ Split mempty
 				 xs
@@ -158,13 +151,31 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
 
-        -- If the list consists solely of distinct variables, then the
-        -- variables are returned, otherwise Nothing.
-        distinctVariables ixs = do
-          xs <- mapM (isVar . unArg) ixs
-          guard (fastDistinct xs)
-          return xs
-          where
-          isVar :: Term -> Maybe Nat
-          isVar (Var x []) = Just x
-          isVar _          = Nothing
+-- | Checks that the indices are distinct variables which do not occur
+-- free in the parameters.
+
+wellFormedIndices
+  :: MonadTCM tcm
+  => [Arg Term] -- ^ Parameters.
+  -> [Arg Term] -- ^ Indices.
+  -> tcm ()
+wellFormedIndices pars ixs = do
+  pars <- normalise pars
+  ixs  <- normalise ixs
+  case distinctVariables ixs of
+    Nothing -> typeError $ IndicesNotDistinctVariables ixs
+    Just vs ->
+      case filter snd $ zip vs (map (`freeIn` pars) vs) of
+        []          -> return ()
+        (v , _) : _ -> typeError $ IndexFreeInParameter v pars
+  where
+  -- If the list consists solely of distinct variables, then the
+  -- variables are returned, otherwise Nothing.
+  distinctVariables ixs = do
+    xs <- mapM (isVar . unArg) ixs
+    guard (fastDistinct xs)
+    return xs
+    where
+    isVar :: Term -> Maybe Nat
+    isVar (Var x []) = Just x
+    isVar _          = Nothing
