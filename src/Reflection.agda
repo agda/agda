@@ -44,14 +44,15 @@ s₁ ≟-Name s₂ with s₁ == s₂
 ------------------------------------------------------------------------
 -- Terms
 
--- Is the argument explicit?
+-- Is the argument implicit? (Here true stands for implicit and false
+-- for explicit.)
 
-Explicit? = Bool
+Implicit? = Bool
 
 -- Arguments.
 
 data Arg A : Set where
-  arg : (ex? : Explicit?) (x : A) → Arg A
+  arg : (im? : Implicit?) (x : A) → Arg A
 
 {-# BUILTIN ARG    Arg #-}
 {-# BUILTIN ARGARG arg #-}
@@ -66,7 +67,7 @@ data Term : Set where
   -- Identifier applied to arguments.
   def     : (f : Name) (args : List (Arg Term)) → Term
   -- Explicit or implicit λ abstraction.
-  lam     : (ex? : Explicit?) (t : Term) → Term
+  lam     : (im? : Implicit?) (t : Term) → Term
   -- Pi-type.
   pi      : (t₁ : Arg Term) (t₂ : Term) → Term
   -- An arbitrary sort (Set, for instance).
@@ -90,12 +91,12 @@ data Term : Set where
 
 private
 
-  arg₁ : ∀ {A ex? ex?′} {x x′ : A} →
-         arg ex? x ≡ arg ex?′ x′ → ex? ≡ ex?′
+  arg₁ : ∀ {A im? im?′} {x x′ : A} →
+         arg im? x ≡ arg im?′ x′ → im? ≡ im?′
   arg₁ refl = refl
 
-  arg₂ : ∀ {A ex? ex?′} {x x′ : A} →
-         arg ex? x ≡ arg ex?′ x′ → x ≡ x′
+  arg₂ : ∀ {A im? im?′} {x x′ : A} →
+         arg im? x ≡ arg im?′ x′ → x ≡ x′
   arg₂ refl = refl
 
   cons₁ : ∀ {A : Set} {x y} {xs ys : List A} → x ∷ xs ≡ y ∷ ys → x ≡ y
@@ -122,10 +123,10 @@ private
   def₂ : ∀ {f f′ args args′} → def f args ≡ def f′ args′ → args ≡ args′
   def₂ refl = refl
 
-  lam₁ : ∀ {ex? ex?′ t t′} → lam ex? t ≡ lam ex?′ t′ → ex? ≡ ex?′
+  lam₁ : ∀ {im? im?′ t t′} → lam im? t ≡ lam im?′ t′ → im? ≡ im?′
   lam₁ refl = refl
 
-  lam₂ : ∀ {ex? ex?′ t t′} → lam ex? t ≡ lam ex?′ t′ → t ≡ t′
+  lam₂ : ∀ {im? im?′ t t′} → lam im? t ≡ lam im?′ t′ → t ≡ t′
   lam₂ refl = refl
 
   pi₁ : ∀ {t₁ t₁′ t₂ t₂′} → pi t₁ t₂ ≡ pi t₁′ t₂′ → t₁ ≡ t₁′
@@ -166,10 +167,10 @@ mutual
   def f args ≟ def .f .args | yes refl | yes refl      = yes refl
   def f args ≟ def f′ args′ | no f≢f′  | _             = no (f≢f′ ∘ def₁)
   def f args ≟ def f′ args′ | _        | no args≢args′ = no (args≢args′ ∘ def₂)
-  lam ex? t  ≟ lam ex?′ t′  with Bool._≟_ ex? ex?′ | t ≟ t′
-  lam ex? t  ≟ lam .ex? .t  | yes refl    | yes refl = yes refl
-  lam ex? t  ≟ lam ex?′ t′  | no ex?≢ex?′ | _        = no (ex?≢ex?′ ∘ lam₁)
-  lam ex? t  ≟ lam ex?′ t′  | _           | no t≢t′  = no (t≢t′ ∘ lam₂)
+  lam im? t  ≟ lam im?′ t′  with Bool._≟_ im? im?′ | t ≟ t′
+  lam im? t  ≟ lam .im? .t  | yes refl    | yes refl = yes refl
+  lam im? t  ≟ lam im?′ t′  | no im?≢im?′ | _        = no (im?≢im?′ ∘ lam₁)
+  lam im? t  ≟ lam im?′ t′  | _           | no t≢t′  = no (t≢t′ ∘ lam₂)
   pi t₁ t₂   ≟ pi t₁′ t₂′   with t₁ ≟-Arg t₁′ | t₂ ≟ t₂′
   pi t₁ t₂   ≟ pi .t₁ .t₂   | yes refl  | yes refl  = yes refl
   pi t₁ t₂   ≟ pi t₁′ t₂′   | no t₁≢t₁′ | _         = no (t₁≢t₁′ ∘ pi₁)
@@ -179,43 +180,43 @@ mutual
 
   var x args ≟ con c args′  = no λ()
   var x args ≟ def f args′  = no λ()
-  var x args ≟ lam ex? t    = no λ()
+  var x args ≟ lam im? t    = no λ()
   var x args ≟ pi t₁ t₂     = no λ()
   var x args ≟ sort         = no λ()
   var x args ≟ unknown      = no λ()
   con c args ≟ var x args′  = no λ()
   con c args ≟ def f args′  = no λ()
-  con c args ≟ lam ex? t    = no λ()
+  con c args ≟ lam im? t    = no λ()
   con c args ≟ pi t₁ t₂     = no λ()
   con c args ≟ sort         = no λ()
   con c args ≟ unknown      = no λ()
   def f args ≟ var x args′  = no λ()
   def f args ≟ con c args′  = no λ()
-  def f args ≟ lam ex? t    = no λ()
+  def f args ≟ lam im? t    = no λ()
   def f args ≟ pi t₁ t₂     = no λ()
   def f args ≟ sort         = no λ()
   def f args ≟ unknown      = no λ()
-  lam ex? t  ≟ var x args   = no λ()
-  lam ex? t  ≟ con c args   = no λ()
-  lam ex? t  ≟ def f args   = no λ()
-  lam ex? t  ≟ pi t₁ t₂     = no λ()
-  lam ex? t  ≟ sort         = no λ()
-  lam ex? t  ≟ unknown      = no λ()
+  lam im? t  ≟ var x args   = no λ()
+  lam im? t  ≟ con c args   = no λ()
+  lam im? t  ≟ def f args   = no λ()
+  lam im? t  ≟ pi t₁ t₂     = no λ()
+  lam im? t  ≟ sort         = no λ()
+  lam im? t  ≟ unknown      = no λ()
   pi t₁ t₂   ≟ var x args   = no λ()
   pi t₁ t₂   ≟ con c args   = no λ()
   pi t₁ t₂   ≟ def f args   = no λ()
-  pi t₁ t₂   ≟ lam ex? t    = no λ()
+  pi t₁ t₂   ≟ lam im? t    = no λ()
   pi t₁ t₂   ≟ sort         = no λ()
   pi t₁ t₂   ≟ unknown      = no λ()
   sort       ≟ var x args   = no λ()
   sort       ≟ con c args   = no λ()
   sort       ≟ def f args   = no λ()
-  sort       ≟ lam ex? t    = no λ()
+  sort       ≟ lam im? t    = no λ()
   sort       ≟ pi t₁ t₂     = no λ()
   sort       ≟ unknown      = no λ()
   unknown    ≟ var x args   = no λ()
   unknown    ≟ con c args   = no λ()
   unknown    ≟ def f args   = no λ()
-  unknown    ≟ lam ex? t    = no λ()
+  unknown    ≟ lam im? t    = no λ()
   unknown    ≟ pi t₁ t₂     = no λ()
   unknown    ≟ sort         = no λ()
