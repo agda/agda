@@ -29,9 +29,10 @@ data Fun
   deriving (Eq, Ord, Show)
 
 data Lit
-  = LInt Integer
-  | LChar Char
+  = LInt    Integer
+  | LChar   Char
   | LString String
+  | LFloat  Double
   deriving (Show, Ord, Eq)
 
 data Expr

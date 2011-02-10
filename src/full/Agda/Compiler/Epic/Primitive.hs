@@ -34,10 +34,46 @@ data PrimTransform = PrimTF
 --   primitive data
 primitivise :: MonadTCM m => [Fun] -> Compile m [Fun]
 primitivise funs = do
-    ptfs <- getBuiltins
+    ptfs   <- getBuiltins
     natish <- getNatish
-    mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
+    lists  <- primLists
+    (++ lists) <$> mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
 
+-- | Create primitive functions if list constructors are marked as builtins
+primLists :: MonadTCM m => Compile m [Fun]
+primLists = do
+    mnil  <- lift $ getBuiltin' builtinNil
+    mcons <- lift $ getBuiltin' builtinCons
+    case (mnil, mcons) of
+      (Just (T.Con nil []), Just (T.Con cons [])) -> do
+          [nilT, consT] <- mapM getConstrTag [nil, cons]
+          let fun s n = Fun 
+                   { funInline  = True
+                   , funName    = "prim" ++ s
+                   , funComment = "BUILTIN " ++ s
+                   , funArgs    = []
+                   , funExpr    = Var (unqname n)
+                   }
+          return [ fun "Nil" nil
+                 , fun "Cons" cons
+                 , Fun 
+                    { funInline  = False
+                    , funName    = "primListElim"
+                    , funComment = "Eliminator for Lists"
+                    , funArgs    = ["op" , "z" , "xs"]
+                    , funExpr    = Case (Var "xs") 
+                        [ Branch nilT nil [] $ Var "z"
+                        , Branch consT cons ["y", "ys"] $
+                            App "op" [ Var "y"
+                                     , App "primListElim" [ Var "op"
+                                                          , Var "z"
+                                                          , Var "ys"
+                                                          ]
+                                     ]
+                        ]
+                    }
+                 ] 
+      _                     -> return []
 -- | Build transforms using the names of builtins
 getBuiltins :: MonadTCM m => Compile m [PrimTransform]
 getBuiltins =
@@ -62,14 +98,19 @@ natPrimTF :: IrrFilter -> [QName] -> PrimTransform
 natPrimTF filt [zero, suc] = PrimTF
   { mapCon = M.fromList [(zero, "primZero"), (suc, "primSuc")]
   , translateCase = \ce brs -> case brs of
-        [Branch _ n vs e, Branch _ _n' vs' e'] ->
+        -- Assuming only the first two branches are relevant when casing on Nats
+        (Branch _ n vs e:Branch _ _n' vs' e':_) ->
             if n == zero
                then primNatCaseZS ce e  (head (pairwiseFilter filt vs')) e'
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e
-        [Branch _ n vs e, Default e'] ->
+        (Branch _ n vs e:Default e':_) ->
             if n == zero
                then primNatCaseZD ce e e' -- zero
                else primNatCaseZS ce e' (head (pairwiseFilter filt vs )) e -- suc
+        [ Branch _ n vs e ] ->
+            if n == zero
+              then e
+              else Let (head (pairwiseFilter filt vs)) (App "primPred" [ce]) e
         _ -> __IMPOSSIBLE__
   }
 natPrimTF _ _ = __IMPOSSIBLE__

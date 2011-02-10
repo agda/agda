@@ -95,6 +95,7 @@ data PragmaOptions = PragmaOptions
   , optIrrelevantProjections     :: Bool
   , optWithoutK                  :: Bool
   , optIncludeC                  :: Either [FilePath] [AbsolutePath]
+  , optEpicFlags                 :: [String]
   }
   deriving Show
 
@@ -154,6 +155,7 @@ defaultPragmaOptions = PragmaOptions
   , optIrrelevantProjections     = False
   , optWithoutK                  = False
   , optIncludeC                  = Left []
+  , optEpicFlags                 = []
   }
 
 -- | The default output directory for HTML.
@@ -184,6 +186,9 @@ checkOpts opts
                    , not . optUniverseCheck . p
                    ]) =
       Left "Cannot have both universe polymorphism and type in type.\n"
+  | (not . null . optEpicFlags $ p opts)
+      && not (optEpicCompile opts) =
+      Left "Cannot set Epic flags without using the Epic backend"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -218,6 +223,7 @@ irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = Tru
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 includeC                   f o = return $ o { optIncludeC                  = Left (f : fs) }
   where fs = either id (const []) $ optIncludeC o
+epicFlagsFlag   s o = return $ o { optEpicFlags     = s : optEpicFlags o}
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -326,10 +332,12 @@ pragmaOptions =
                     "enable universe polymorphism (experimental feature)"
     , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
                     "enable projection of irrelevant record fields"
+    , Option []     ["include-c"] (ReqArg includeC "PATH")
+                    "add the c filepath when compiling using Epic"
+    , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
+                    "give the flag EPIC-FLAG to Epic when compiling using Epic"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule (maybe)"
-    , Option []     ["includeC"] (ReqArg includeC "PATH")
-                    "add the c filepath when compiling"
     ]
 
 -- | Used for printing usage info.

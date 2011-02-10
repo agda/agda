@@ -6,8 +6,6 @@ module Agda.Compiler.Epic.CompileState where
 
 import Control.Applicative
 import Control.Monad.State
--- import qualified Data.ByteString.Char8 as BS
--- import Data.Char(isAlpha, isDigit)
 import Data.Map(Map)
 import qualified Data.Map as M
 import Data.Maybe
@@ -17,7 +15,9 @@ import qualified Data.Set as S
 import Agda.Compiler.Epic.AuxAST
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad.Base (MonadTCM, internalError)
+import Agda.TypeChecking.Monad (MonadTCM, internalError, defType, theDef, getConstInfo)
+import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Reduce
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -33,8 +33,7 @@ data CompileState = CompileState
     , conPars       :: Map QName Int
     , mainName      :: Maybe QName
     , irrFilters    :: Map QName IrrFilter
-    }
-    deriving Show
+    } deriving Show
 
 -- | The initial (empty) state
 initCompileState :: CompileState
@@ -61,15 +60,8 @@ epicError = lift . internalError
 -- | Create a name which can be used in Epic code from a QName.
 unqname :: QName -> Var
 unqname qn = case nameId $ qnameName qn of
-    NameId name modul -> 'd' : show modul -- ++ "_" ++ mkAllowed (qnameModule qn)
-                     ++ "_" ++ show name  -- ++ "_" ++ mkAllowed (qnameName   qn)
-  {- where
-    isAllowed c = isAlpha c || isDigit c || c `elem` "_\'?#"
-    changeDot '.' = '_'
-    changeDot c   = c
-    mkAllowed :: Show a => a -> String
-    mkAllowed = filter isAllowed . map changeDot . cheat . show
-    cheat = BS.unpack . BS.pack -}
+    NameId name modul -> 'd' : show modul
+                     ++ "_" ++ show name
 
 -- * State modifiers
 
@@ -123,3 +115,21 @@ getIrrFilter q = gets $ fromMaybe __IMPOSSIBLE__
 
 putIrrFilter :: Monad m => QName -> IrrFilter -> Compile m ()
 putIrrFilter n f = modify $ \s -> s {irrFilters = M.insert n f $ irrFilters s}
+
+replaceAt :: Int -- ^ replace at
+          -> [a] -- ^ to replace
+          -> [a] -- ^ replace with
+          -> [a] -- ^ result?
+replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
+
+
+-- | Copy pasted from MAlonzo, HAHA!!!
+--   Move somewhere else!
+constructorArity :: (MonadTCM tcm, Num a) => QName -> tcm a
+constructorArity q = do
+  def <- getConstInfo q
+  a <- normalise $ defType def
+  case theDef def of
+    M.Constructor{ M.conPars = np } -> return . fromIntegral $ arity a - np
+    _ -> internalError $ "constructorArity: non constructor: " ++ show q
+

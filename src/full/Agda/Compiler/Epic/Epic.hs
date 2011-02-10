@@ -73,6 +73,7 @@ prettyEpicLit l = case l of
     LInt n    -> show n ++ "L"
     LChar c   -> show (ord c)
     LString s -> show s
+    LFloat f  -> show f
 
 typVar :: Var -> String
 typVar v = v <+> ":" <+> "Any"

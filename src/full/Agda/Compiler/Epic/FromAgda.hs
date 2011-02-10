@@ -5,22 +5,24 @@ module Agda.Compiler.Epic.FromAgda where
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Trans
+import Control.Monad.State
 import Data.Char
 import Data.Map(Map)
 import qualified Data.Map as M
 import Data.Maybe
 
+import Agda.Interaction.Options
 import Agda.Syntax.Common
 import Agda.Syntax.Internal hiding (Term(..))
 import qualified Agda.Syntax.Internal as T
 import qualified Agda.Syntax.Literal  as TL
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Monad
-import Agda.TypeChecking.Reduce
+import qualified Agda.TypeChecking.Substitute as S
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState hiding (conPars)
+import Agda.Compiler.Epic.Forcing
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -30,14 +32,21 @@ fromAgda :: MonadTCM m => Maybe T.Term -> [(QName, Definition)] -> Compile m [Fu
 fromAgda msharp defs = catMaybes <$> mapM (translateDefn msharp) defs
 
 -- | Translate an Agda definition to an Epic function where applicable
-translateDefn :: MonadTCM m => (Maybe T.Term) -> (QName, Definition) -> Compile m (Maybe Fun)
+translateDefn :: MonadTCM m => Maybe T.Term -> (QName, Definition) -> Compile m (Maybe Fun)
 translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (fromIntegral $ dataPars d + dataIxs d) newName
         return . return $ Fun True n' ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
-        let len = length . clausePats . translatedClause . head .  funClauses $ f
-        return <$> compileClauses n len (funCompiled f)
+        irrF <- gets irrFilters
+        let len   = length . clausePats . translatedClause . head .  funClauses $ f
+            toEta = fromIntegral (arity (defType defini)) - len
+            ccs   = reverseCCBody $ funCompiled f
+        forcing <- lift $ gets (optForcing . stPersistentOptions)
+        funComp <- if forcing
+                    then removeForced ccs (defType defini)
+                    else return ccs
+        return <$> (etaExpand toEta =<< compileClauses n len funComp)
     Constructor{} -> do -- become functions returning a constructor with their tag
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
@@ -50,10 +59,10 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
         return . return $ Fun True n' ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_EPIC pragmas
         case axEpDef a of
-            -- TODO: Check if the axiom is not a type; if so something is wrong
-            Nothing -> return Nothing -- epicError $ "Can't find the Epic definition for " ++ show a
+            Nothing -> return . return $ EpicFun n' ("AXIOM_UNDEFINED: " ++ show n) 
+                $ "() -> Any = lazy(error \"Axiom " ++ show n ++ " used but has no computation\")"
             Just x  -> return . return $ EpicFun n' ("COMPILED_EPIC: " ++ show n) x
-    p@(Primitive{}) -> do -- Prifailmitives use primitive functions from AgdaPrelude.e of the same name.
+    p@(Primitive{}) -> do -- Primitives use primitive functions from AgdaPrelude.e of the same name.
                           -- Hopefully they are defined!
       let ar = fromIntegral $ arity $ defType defini
       return <$> mkFun n' (primName p) ar
@@ -72,6 +81,42 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
     mkFunGen comb sh name primname arit = do
         vars <- replicateM arit newName
         return $ Fun True name (sh primname) vars (comb primname (map Var vars))
+
+    etaExpand :: MonadTCM m => Int -> Fun -> Compile m Fun
+    etaExpand num fun = do
+        names <- replicateM num newName
+        return $ fun 
+            { funExpr = funExpr fun @@ names
+            , funArgs = funArgs fun ++ names
+            }
+
+    (@@) :: Expr -> [Var] -> Expr
+    e @@ [] = e
+    e @@ vs = let ts = map Var vs in case e of
+      Var var -> apps var ts
+      Lam var expr -> case vs of
+          v:vs' -> subst var v expr @@ vs'
+          []    -> __IMPOSSIBLE__
+      Con tag qName es -> Con tag qName (es ++ ts)
+      App var es       -> App var (es ++ ts)
+      Case expr bs     -> Case expr (map (flip appBranch vs) bs)
+      If ea eb ec      -> If ea (eb @@ vs) (ec @@ vs)
+      Let var el e'    -> Let var el (e' @@ vs)
+      Lazy e'          -> Lazy (e' @@ vs)
+      Lit _lit         -> IMPOSSIBLE -- Right?
+      UNIT             -> IMPOSSIBLE
+      IMPOSSIBLE       -> IMPOSSIBLE
+
+    appBranch :: Branch -> [Var] -> Branch
+    appBranch b vs = b {brExpr = brExpr b @@ vs}
+
+reverseCCBody :: CC.CompiledClauses -> CC.CompiledClauses
+reverseCCBody cc = case cc of
+    CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case n $ CC.Branches (M.map reverseCCBody cbr)
+                                                        (M.map reverseCCBody lbr) 
+                                                        (fmap  reverseCCBody cabr)
+    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [0..])) t)
+    CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
 --   This is all done by magic. It uses 'substTerm' to translate the actual
@@ -123,63 +168,31 @@ compileClauses name nargs c = do
                 var <- newName
                 def <- compileClauses' env omniDefault de
                 Let var (Lazy def) . Case (Var (env !! n)) <$> compileCase env (Just var) n nc
-        CC.Done _ t -> substTerm (reverse env) t
+        CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: MonadTCM m
-                => [Var]
-                -> Maybe Var
-                -> Int
-                -> CC.Case CC.CompiledClauses
+    compileCase :: MonadTCM m => [Var] -> Maybe Var -> Int -> CC.Case CC.CompiledClauses
                 -> Compile m [Branch]
     compileCase env omniDefault casedvar nc = do
-        cb <- dispatchBranches env omniDefault casedvar nc
+        cb <- if M.null (CC.conBranches nc)
+           -- Lit branch
+           then forM (M.toList (CC.litBranches nc)) $ \(l, cc) -> do
+               cc' <- compileClauses' (replaceAt casedvar env []) omniDefault cc
+               case l of
+                   TL.LitChar _ cha -> return $ BrInt (ord cha) cc'
+                   _ -> __IMPOSSIBLE__ -- TODO: Handle other literals
+           -- Con branch
+           else forM (M.toList (CC.conBranches nc)) $ \(b, cc) -> do
+               par  <- getConPar b
+               tag  <- getConstrTag b
+               vars <- replicateM par newName
+               cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
+               return $ Branch tag b vars cc'
+
         case omniDefault of
             Nothing -> return cb
             Just cc -> do
               return $ cb ++ [Default (Var cc)]
-
-    dispatchBranches :: MonadTCM m
-                     => [Var]
-                     -> Maybe Var
-                     -> Int
-                     -> CC.Case CC.CompiledClauses
-                     -> Compile m [Branch]
-    dispatchBranches env omniDefault casedvar nc = do
-        if M.null (CC.conBranches nc)
-           then compileLitBranch env omniDefault casedvar (CC.litBranches nc)
-           else compileConBranch env omniDefault casedvar (CC.conBranches nc)
-
-    compileConBranch :: MonadTCM m
-                     => [Var]
-                     -> Maybe Var
-                     -> Int
-                     -> Map QName CC.CompiledClauses
-                     -> Compile m [Branch]
-    compileConBranch env omniDefault casedvar bs = forM (M.toList bs) $ \(b, cc) -> do
-        par <- getConPar b
-        tag <- getConstrTag b
-        vars <- replicateM par newName
-        cc' <- compileClauses' (replaceAt casedvar env vars) omniDefault cc
-        return $ Branch tag b vars cc'
-
-    compileLitBranch :: MonadTCM m
-                     => [Var]
-                     -> Maybe Var
-                     -> Int
-                     -> Map TL.Literal CC.CompiledClauses
-                     -> Compile m [Branch]
-    compileLitBranch env omniDefault _casedvar bs = forM (M.toList bs) $ \(l, cc) -> do
-        cc' <- compileClauses' env omniDefault cc
-        case l of
-            TL.LitChar _ cha -> return $ BrInt (ord cha) cc'
-            _ -> __IMPOSSIBLE__ -- TODO: Handle other literals
-
-    replaceAt :: Int -- ^ replace at
-              -> [a] -- ^ to replace
-              -> [a] -- ^ replace with
-              -> [a] -- ^ result?
-    replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
 
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
@@ -210,20 +223,11 @@ substTerm env term = case term of
     T.DontCare  -> return UNIT
 
 -- | Translate Agda literals to our AUX definition
-substLit :: Monad m => TL.Literal -> Compile m Lit
+substLit :: MonadTCM m => TL.Literal -> Compile m Lit
 substLit lit = case lit of
   TL.LitInt    _ i -> return $ LInt i
   TL.LitLevel  _ i -> return $ LInt i
   TL.LitString _ s -> return $ LString s
   TL.LitChar   _ c -> return $ LChar c
-  _ -> fail $ "literal not supported: " ++ show lit
-
--- | Copy pasted from MAlonzo, HAHA!!!
---   Move somewhere else!
-constructorArity :: (MonadTCM tcm, Num a) => QName -> tcm a
-constructorArity q = do
-  def <- getConstInfo q
-  a <- normalise $ defType def
-  case theDef def of
-    Constructor{ conPars = np } -> return . fromIntegral $ arity a - np
-    _ -> fail $ "constructorArity: non constructor: " ++ show q
+  TL.LitFloat  _ f -> return $ LFloat f
+  _ -> epicError $ "literal not supported: " ++ show lit

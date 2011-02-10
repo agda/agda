@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-
 -- | Epic compiler backend.
 module Agda.Compiler.Epic.Compiler(compilerMain) where
 
@@ -67,7 +66,7 @@ initialAnalysis = do
         addDataDecl $ dataCons d
       Constructor {conPars = np} -> do
         putIrrFilter q . drop (fromIntegral np) . CIrr.irrFilter $ defType def
-        putConPar q =<< lift (FAgda.constructorArity q)
+        putConPar q =<< lift (constructorArity q)
       r@(Record{}) -> do
         addDataDecl [recCon r]
       f@(Function{}) -> do
@@ -117,17 +116,22 @@ setEpicDir mainI = do
 runEpic :: MonadTCM m => [FilePath] -> EpicCode -> Compile m ()
 runEpic cincludes code = do
     nam <- getMain
+    epicflags <- optEpicFlags <$> lift pragmaOptions
     let code' = "include \"AgdaPrelude.e\"\n" ++ code ++ "main() -> Unit = init() ; " ++ nam ++ "(unit)"
     dataDir <- liftIO getDataDir
     curDir  <- liftIO getCurrentDirectory
     liftIO $ copyFile (dataDir </> "EpicInclude" </> "AgdaPrelude" <.> "e")
                       (curDir </> "AgdaPrelude" <.> "e")
     liftIO $ writeFile ("main" <.> "e") code'
-    let fcincludes = concat $ map (" -i " ++) cincludes
-    _ <- liftIO $ system ("epic "
+    let fcincludes = concat $ map ((" -i \"" ++) . (++ "\"")) cincludes
+        epicCommand = ("epic "
                          ++ "-keepc "
                          ++ "-checking 0 "
-                         ++ " " ++ "main" <.> "e"
+                         -- ++ "-trace "
                          ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
-                         ++ fcincludes)
+                         ++ fcincludes ++ " "
+                         ++ " " ++ "main" <.> "e " 
+                         ++ unwords epicflags)
+    lift $ reportSLn "" 1 $ "calling: " ++ epicCommand
+    _ <- liftIO $ system epicCommand
     return ()

@@ -107,7 +107,7 @@ relevant var expr = case expr of
                 case mvrs of
                   Nothing  -> relevants var es
                   Just vrs -> relevants var
-                            $ pairwiseFilter (map isRel vrs) es
+                            $ pairwiseFilter (map isRel vrs ++ repeat True {- Needs ETA expansion -}) es
     Case e brs  -> (&&-) <$> relevant var e  <*> relevants var (map brExpr brs)
     If a b c    -> relevants var [a,b,c]
     Let _ e1 e2 -> (&&-) <$> relevant var e1 <*> relevant var e2
