@@ -132,4 +132,3 @@ constructorArity q = do
   case theDef def of
     M.Constructor{ M.conPars = np } -> return . fromIntegral $ arity a - np
     _ -> internalError $ "constructorArity: non constructor: " ++ show q
-

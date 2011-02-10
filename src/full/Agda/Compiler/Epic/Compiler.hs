@@ -130,7 +130,7 @@ runEpic cincludes code = do
                          -- ++ "-trace "
                          ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
                          ++ fcincludes ++ " "
-                         ++ " " ++ "main" <.> "e " 
+                         ++ " " ++ "main" <.> "e "
                          ++ unwords epicflags)
     lift $ reportSLn "" 1 $ "calling: " ++ epicCommand
     _ <- liftIO $ system epicCommand

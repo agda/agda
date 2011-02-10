@@ -59,7 +59,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
         return . return $ Fun True n' ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_EPIC pragmas
         case axEpDef a of
-            Nothing -> return . return $ EpicFun n' ("AXIOM_UNDEFINED: " ++ show n) 
+            Nothing -> return . return $ EpicFun n' ("AXIOM_UNDEFINED: " ++ show n)
                 $ "() -> Any = lazy(error \"Axiom " ++ show n ++ " used but has no computation\")"
             Just x  -> return . return $ EpicFun n' ("COMPILED_EPIC: " ++ show n) x
     p@(Primitive{}) -> do -- Primitives use primitive functions from AgdaPrelude.e of the same name.
@@ -85,7 +85,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
     etaExpand :: MonadTCM m => Int -> Fun -> Compile m Fun
     etaExpand num fun = do
         names <- replicateM num newName
-        return $ fun 
+        return $ fun
             { funExpr = funExpr fun @@ names
             , funArgs = funArgs fun ++ names
             }
@@ -113,7 +113,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
 reverseCCBody :: CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody cc = case cc of
     CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case n $ CC.Branches (M.map reverseCCBody cbr)
-                                                        (M.map reverseCCBody lbr) 
+                                                        (M.map reverseCCBody lbr)
                                                         (fmap  reverseCCBody cabr)
     CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [0..])) t)
     CC.Fail     -> CC.Fail

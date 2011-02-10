@@ -47,7 +47,7 @@ primLists = do
     case (mnil, mcons) of
       (Just (T.Con nil []), Just (T.Con cons [])) -> do
           [nilT, consT] <- mapM getConstrTag [nil, cons]
-          let fun s n = Fun 
+          let fun s n = Fun
                    { funInline  = True
                    , funName    = "prim" ++ s
                    , funComment = "BUILTIN " ++ s
@@ -56,12 +56,12 @@ primLists = do
                    }
           return [ fun "Nil" nil
                  , fun "Cons" cons
-                 , Fun 
+                 , Fun
                     { funInline  = False
                     , funName    = "primListElim"
                     , funComment = "Eliminator for Lists"
                     , funArgs    = ["op" , "z" , "xs"]
-                    , funExpr    = Case (Var "xs") 
+                    , funExpr    = Case (Var "xs")
                         [ Branch nilT nil [] $ Var "z"
                         , Branch consT cons ["y", "ys"] $
                             App "op" [ Var "y"
@@ -72,7 +72,7 @@ primLists = do
                                      ]
                         ]
                     }
-                 ] 
+                 ]
       _                     -> return []
 -- | Build transforms using the names of builtins
 getBuiltins :: MonadTCM m => Compile m [PrimTransform]

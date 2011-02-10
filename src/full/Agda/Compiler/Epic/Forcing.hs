@@ -41,7 +41,7 @@ removeForced cc typ = do
 constrType :: MonadTCM m => QName -> Compile m Type
 constrType q = do
     map <- lift (gets (sigDefinitions . stImports))
-    return $ maybe __IMPOSSIBLE__ defType (M.lookup q map) 
+    return $ maybe __IMPOSSIBLE__ defType (M.lookup q map)
 
 -- | Returns how many parameters a datatype has
 dataParameters :: MonadTCM m => QName -> Compile m Nat
@@ -57,14 +57,14 @@ dataParameters name = do
 -- | Is variable n used in a CompiledClause?
 isIn :: MonadTCM m => Nat -> CompiledClauses -> Compile m Bool
 n `isIn` Case i brs | n == fromIntegral i = return True
-                    | otherwise = or <$> mapM (n `isIn`) (M.elems (conBranches brs) 
-                                                       ++ M.elems (litBranches brs) 
+                    | otherwise = or <$> mapM (n `isIn`) (M.elems (conBranches brs)
+                                                       ++ M.elems (litBranches brs)
                                                        ++ maybeToList (catchAllBranch brs))
 n `isIn` Done _ t = return $ n `isInTerm` t
 n `isIn` Fail     = return $ False
 
 isInTerm :: Nat -> Term -> Bool
-n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of 
+n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Var i as -> i == n || recs as
    Lam _ ab -> (n+1) `isInTerm` absBody ab
    Lit _    -> False
@@ -72,7 +72,7 @@ n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Con _ as -> recs as
    Pi a b   -> n `isInTerm` unEl (unArg a) || (n+1) `isInTerm` unEl (absBody b)
    Fun a b  -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
-   Sort sor -> False -- ?	 
+   Sort sor -> False -- ?
    MetaV meta as -> False -- can't occur?
    DontCare -> False
 
@@ -91,7 +91,7 @@ becomes
 we raise the type since we have added xs' new bindings before Gamma, and as can
 only bind to Gamma.
 -}
-insertTele :: MonadTCM m  
+insertTele :: MonadTCM m
             => Int     -- ^ ABS `pos` in tele
             -> Telescope -- ^ The telescope to insert
             -> Term      -- ^ Term to replace at pos
@@ -142,8 +142,8 @@ remForced ccOrig tele = case ccOrig of
             (tele', ntyp)   <- insertTele n ctele (mkCon constr par) tele
             notForced       <- getIrrFilter constr
             -- Get the variables that are forced, relative to the position after constr
-            forcedVars <- filterM ((`isIn` cc) . (flip subtract (fromIntegral $ n + par - 1))) 
-                        $ pairwiseFilter (map not notForced) 
+            forcedVars <- filterM ((`isIn` cc) . (flip subtract (fromIntegral $ n + par - 1)))
+                        $ pairwiseFilter (map not notForced)
                         $ map fromIntegral [par-1,par-2..0]
             ntyp <- lift $ reduce ntyp
             ctyp <- lift $ reduce ctyp
@@ -157,19 +157,19 @@ remForced ccOrig tele = case ccOrig of
                         we know that C : ts -> T ss ; for some T
                         we also know from tele that we are splitting on T as
                         we want to unify ss with as, but not taking into account
-                        the Data parameters to T. 
+                        the Data parameters to T.
                     -}
                     lift $ unifyIndices (map fromIntegral [par .. n + par]) -- Don't unify the constructor arguments
                                         (setType `apply` take typPars a1')
-                                        (drop typPars a1') 
+                                        (drop typPars a1')
                                         (drop typPars a2)
                 x -> __IMPOSSIBLE__
             case (forcedVars, munif) of
               (_:_, Unifies unif) -> do
                   -- we calculate the new tpos from n (the old one) by adding
                   -- how many more bindings we have
-                  (,) constr <$> replaceForced (fromIntegral $ n + par, tele') 
-                                               forcedVars 
+                  (,) constr <$> replaceForced (fromIntegral $ n + par, tele')
+                                               forcedVars
                                                (cc, unif)
               (_:_, NoUnify _ _ _) -> __IMPOSSIBLE__
               (_:_, DontKnow _)    -> __IMPOSSIBLE__
@@ -191,7 +191,7 @@ remForced ccOrig tele = case ccOrig of
     Done n t   -> return $ Done n t
     Fail       -> return Fail
 
-data FoldState = FoldState 
+data FoldState = FoldState
   { clauseToFix  :: CompiledClauses
   , clausesAbove :: CompiledClauses -> CompiledClauses
   , unification  :: [Maybe Term]
@@ -212,7 +212,7 @@ modifyM f = get >>= f >>= put -- (>>= put) . (get >>=)
 
 -- | replaceForced (tpos, tele) forcedVars (cc, unification)
 --   For each forceVar dig out the corresponding case and continue to remForced.
-replaceForced :: MonadTCM m 
+replaceForced :: MonadTCM m
               => (Nat, Telescope) -> [Nat] -> (CompiledClauses, [Maybe Term])
               -> Compile m CompiledClauses
 replaceForced (telPos, tele) forcedVars (cc, unif) = do
@@ -228,7 +228,7 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
         let (caseVar, caseTerm) = findPosition forcedVar unif
         telPos <- gets telePos
         termToBranch (telPos - caseVar - 1) caseTerm forcedVar
-    clausesAbove st <$> remForced (clauseToFix st) (theTelescope st) 
+    clausesAbove st <$> remForced (clauseToFix st) (theTelescope st)
   where
     {-
       In this function the following de Bruijn is:
@@ -259,23 +259,23 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
                 nextTelePos = telPos + newBinds
             TelV ctele ctyp <- lift2 . telView =<< lift (constrType c)
 
-            modifyM $ \ st -> do       
-                (newTele , _) <- lift $ insertTele (fromIntegral caseVar) ctele 
+            modifyM $ \ st -> do
+                (newTele , _) <- lift $ insertTele (fromIntegral caseVar) ctele
                                         (mkCon c (length args)) (theTelescope st)
                 -- We have to update the unifications-list so that we don't try
                 -- to dig out the same again later.
-                let newUnif = raiseFrom (telPos - caseVar) newBinds $ 
-                        replaceAt (fromIntegral $ telPos - caseVar - 1) 
+                let newUnif = raiseFrom (telPos - caseVar) newBinds $
+                        replaceAt (fromIntegral $ telPos - caseVar - 1)
                                   (unification st)
                                   (reverse $ map (Just . unArg) args)
                                   -- The variables in the unification-list is
                                   -- relative so we need to reverse the args
                                   -- so they get in the right place.
-                return st 
-                    { clauseToFix  = raiseFromCC caseVar newBinds 
-                                                 (substCCBody caseVar 
-                                                 (Con c $ map (defaultArg . flip Var []) 
-                                                              [caseVar .. caseVar + newBinds])  
+                return st
+                    { clauseToFix  = raiseFromCC caseVar newBinds
+                                                 (substCCBody caseVar
+                                                 (Con c $ map (defaultArg . flip Var [])
+                                                              [caseVar .. caseVar + newBinds])
                                                  (clauseToFix st))
                     , theTelescope = newTele
                     , unification  = newUnif
@@ -291,7 +291,7 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
 -- Note: Absolute positions
 raiseFromCC :: Nat -> Nat -> CompiledClauses -> CompiledClauses
 raiseFromCC from add  cc = case cc of
-    Case n (Branches cbr lbr cabr) -> Case (fromIntegral $ raiseN from add (fromIntegral n)) $ 
+    Case n (Branches cbr lbr cabr) -> Case (fromIntegral $ raiseN from add (fromIntegral n)) $
                                            Branches (M.map rec cbr)
                                                     (M.map rec lbr)
                                                     (fmap  rec cabr)
@@ -318,20 +318,20 @@ substCC ss cc = case cc of
         cbs <- forM (M.toList $ conBranches brs) $ \ (c, br) -> do
             nargs <- lift2 $ constructorArity c
             let delta = (ss !! n) - fi n
-                ss'   = take n ss 
-                      ++ [fi n + delta .. fi n + delta + nargs - 1] 
-                      ++ map (+ (nargs - 1)) (drop (n+1) ss)        
+                ss'   = take n ss
+                      ++ [fi n + delta .. fi n + delta + nargs - 1]
+                      ++ map (+ (nargs - 1)) (drop (n+1) ss)
             (,) c <$> substCC ss' br
 
         lbs <- forM (M.toList $ litBranches brs) $ \ (l, br) -> do
             -- We have one less binder here
             (,) l <$> substCC (replaceAt n ss []) br
-        
+
         cabs <- case catchAllBranch brs of
             Nothing -> return Nothing
             Just br -> Just <$> substCC ss br
-        
-        return $ Case (fromIntegral (ss !! n)) 
+
+        return $ Case (fromIntegral (ss !! n))
                   Branches { conBranches    = M.fromList cbs
                            , litBranches    = M.fromList lbs
                            , catchAllBranch = cabs
@@ -359,7 +359,7 @@ findPosition var ts = let Just n = findIndex (maybe False pred) ts
                        in (fromIntegral n , fromJust $ ts !! n)
   where
     pred :: Term -> Bool
-    pred t = case t of  
+    pred t = case t of
       Var i _ | var == i -> True
       Con _ args         -> any (pred . unArg) args
       _                  -> False
