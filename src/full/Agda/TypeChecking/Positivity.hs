@@ -273,7 +273,9 @@ instance ComputeOccurrences Term where
     Sort{}       -> Map.empty
     DontCare     -> Map.empty
     where
-      vs ! i
+      -- Apparently some development version of GHC chokes if the
+      -- following line is replaced by vs ! i.
+      (!) vs i
         | i < length vs = vs !! i
         | otherwise     = error $ show vs ++ " ! " ++ show i ++ "  (" ++ show v ++ ")"
 
