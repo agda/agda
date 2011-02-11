@@ -188,7 +188,7 @@ checkOpts opts
       Left "Cannot have both universe polymorphism and type in type.\n"
   | (not . null . optEpicFlags $ p opts)
       && not (optEpicCompile opts) =
-      Left "Cannot set Epic flags without using the Epic backend"
+      Left "Cannot set Epic flags without using the Epic backend.\n"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
