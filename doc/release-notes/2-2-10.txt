@@ -146,11 +146,12 @@ Tools
   (Agda/src/data/EpicInclude/) file.
 
   Usage:
-  > agda --epic --includeC=<C-FILE> --compile-dir=<DIR> <FILE>.agda
+  > agda --epic --epic-flag=<EPIC-FLAG> --compile-dir=<DIR> <FILE>.agda
 
   A new directory, Epic, will be created in the compile-dir (default: the
   project root), containing the file main.e with the Epic source code. The
-  compiler will also do a system call running the Epic compiler on that file.
+  compiler will also do a system call running the Epic compiler on that file,
+  passing any epic-flags to Epic in the order of their appearance.
 
   The compilation requires a definition of main, which should be of type IO Unit.
   Currently IO A actions are represented in Epic as functions from Unit to A.
@@ -173,14 +174,14 @@ Tools
   Natural numbers and their operations to be represented more efficiently as
   BigInts and operations on them in Epic.
 
-  Currently, the backend will remove forced constructor arguments. Note that if
-  pattern matching is done on an index inside a constructor, an error can occur.
-  This can be disabled using the flag --no-forcing.
+  By default the backend will remove forced constructor arguments. Pattern matching
+  on forced variables will be rewritten so that it doesn't use the forced variable.
+  This optmization can be disabled by using the flag --no-forcing.
 
   All types that looks like Nats after forced constructor arguments have been
   removed - i.e. if they have two constructors: one with no arguments and one
   with a recursive argument - will be represented as BigInts. This applies to
-  the standard Fin type.
+  the standard Fin type for example.
 
   Compilation using Epic requires a few libraries. Particularly gcc, the Boehm
   garbage collector and the GNU MP library. For more information, check out

@@ -41,13 +41,12 @@ compilerMain inter = do
     epic_exist <- liftIO $ rawSystem "ghc-pkg" ["-v0", "field", "epic", "id"]
     case epic_exist of
         ExitSuccess -> flip evalStateT initCompileState $ do
-            cincludes <- optIncludeC <$> lift pragmaOptions
             setEpicDir inter
             initialAnalysis
             code <- compileModule =<< lift (gets stImports)
             case code of
                 Nothing -> __IMPOSSIBLE__
-                Just c  -> runEpic (either id (map filePath) cincludes) c
+                Just c  -> runEpic c
         ExitFailure _ -> internalError $
            "Agda can't find epic support, usually `cabal install epic' will be enough. "
            ++ "Look in the README for more information."
@@ -113,25 +112,24 @@ setEpicDir mainI = do
     liftIO $ setCurrentDirectory $ compileDir </> "Epic"
 
 -- | Make a program from EpicCode in the current directory
-runEpic :: MonadTCM m => [FilePath] -> EpicCode -> Compile m ()
-runEpic cincludes code = do
+runEpic :: MonadTCM m => EpicCode -> Compile m ()
+runEpic code = do
     nam <- getMain
-    epicflags <- optEpicFlags <$> lift pragmaOptions
+    epicflags <- optEpicFlags <$> lift commandLineOptions
     let code' = "include \"AgdaPrelude.e\"\n" ++ code ++ "main() -> Unit = init() ; " ++ nam ++ "(unit)"
     dataDir <- liftIO getDataDir
     curDir  <- liftIO getCurrentDirectory
     liftIO $ copyFile (dataDir </> "EpicInclude" </> "AgdaPrelude" <.> "e")
                       (curDir </> "AgdaPrelude" <.> "e")
     liftIO $ writeFile ("main" <.> "e") code'
-    let fcincludes = concat $ map ((" -i \"" ++) . (++ "\"")) cincludes
-        epicCommand = ("epic "
-                         ++ "-keepc "
-                         ++ "-checking 0 "
-                         -- ++ "-trace "
-                         ++ " -i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
-                         ++ fcincludes ++ " "
-                         ++ " " ++ "main" <.> "e "
-                         ++ unwords epicflags)
+    let epicCommand = unwords
+          [ "epic"
+          , "-keepc"
+          , "-checking 0"
+          -- , "-trace"
+          , "-i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
+          , "main" <.> "e"
+          ] ++ " " ++ unwords epicflags
     lift $ reportSLn "" 1 $ "calling: " ++ epicCommand
     _ <- liftIO $ system epicCommand
     return ()

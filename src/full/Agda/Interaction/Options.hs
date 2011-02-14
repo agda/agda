@@ -72,6 +72,7 @@ data CommandLineOptions =
             , optForcing              :: Bool
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
+            , optEpicFlags            :: [String]
 	    }
     deriving Show
 
@@ -94,8 +95,6 @@ data PragmaOptions = PragmaOptions
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
   , optWithoutK                  :: Bool
-  , optIncludeC                  :: Either [FilePath] [AbsolutePath]
-  , optEpicFlags                 :: [String]
   }
   deriving Show
 
@@ -134,6 +133,7 @@ defaultOptions =
             , optForcing              = True
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
+            , optEpicFlags            = []
 	    }
 
 defaultPragmaOptions :: PragmaOptions
@@ -154,8 +154,6 @@ defaultPragmaOptions = PragmaOptions
   , optUniversePolymorphism      = False
   , optIrrelevantProjections     = False
   , optWithoutK                  = False
-  , optIncludeC                  = Left []
-  , optEpicFlags                 = []
   }
 
 -- | The default output directory for HTML.
@@ -186,9 +184,9 @@ checkOpts opts
                    , not . optUniverseCheck . p
                    ]) =
       Left "Cannot have both universe polymorphism and type in type.\n"
-  | (not . null . optEpicFlags $ p opts)
+  | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
-      Left "Cannot set Epic flags without using the Epic backend.\n"
+      Left "Cannot set Epic flags without using the Epic backend"
   | otherwise = Right opts
   where
   atMostOne bs = length (filter ($ opts) bs) <= 1
@@ -221,9 +219,6 @@ universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = Tru
 noForcingFlag                o = return $ o { optForcing                   = False }
 irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = True  }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
-includeC                   f o = return $ o { optIncludeC                  = Left (f : fs) }
-  where fs = either id (const []) $ optIncludeC o
-epicFlagsFlag   s o = return $ o { optEpicFlags     = s : optEpicFlags o}
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -233,6 +228,7 @@ compileFlag      o = return $ o { optCompile    = True }
 compileEpicFlag  o = return $ o { optEpicCompile = True}
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
+epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s]}
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
 htmlDirFlag d o = return $ o { optHTMLDir      = d }
@@ -276,6 +272,8 @@ standardOptions =
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")
                     "give the flag GHC-FLAG to GHC when compiling using MAlonzo"
+    , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
+                    "give the flag EPIC-FLAG to Epic when compiling using Epic"
     , Option []	    ["test"] (NoArg runTestsFlag)
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
@@ -332,10 +330,6 @@ pragmaOptions =
                     "enable universe polymorphism (experimental feature)"
     , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
                     "enable projection of irrelevant record fields"
-    , Option []     ["include-c"] (ReqArg includeC "PATH")
-                    "add the c filepath when compiling using Epic"
-    , Option []     ["epic-flag"] (ReqArg epicFlagsFlag "EPIC-FLAG")
-                    "give the flag EPIC-FLAG to Epic when compiling using Epic"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule (maybe)"
     ]
