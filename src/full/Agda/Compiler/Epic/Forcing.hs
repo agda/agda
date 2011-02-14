@@ -1,7 +1,8 @@
+{-# LANGUAGE CPP #-}
 module Agda.Compiler.Epic.Forcing where
 
 import Control.Applicative
-import Control.Arrow
+import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans
@@ -57,11 +58,31 @@ dataParameters name = do
 -- | Is variable n used in a CompiledClause?
 isIn :: MonadTCM m => Nat -> CompiledClauses -> Compile m Bool
 n `isIn` Case i brs | n == fromIntegral i = return True
-                    | otherwise = or <$> mapM (n `isIn`) (M.elems (conBranches brs)
-                                                       ++ M.elems (litBranches brs)
-                                                       ++ maybeToList (catchAllBranch brs))
+                    | otherwise = n `isInCase` (fromIntegral i, brs)
 n `isIn` Done _ t = return $ n `isInTerm` t
 n `isIn` Fail     = return $ False
+
+isInCase :: MonadTCM m => Nat -> (Nat, Case CompiledClauses) -> Compile m Bool
+n `isInCase` (i, Branches { conBranches    = cbrs
+                          , litBranches    = lbrs
+                          , catchAllBranch = cabr}) = do
+    cbrs' <- (or <$>) $ forM (M.toList cbrs) $ \ (constr, cc) -> do
+        if i < n
+          then do
+            par <- fromIntegral <$> getConPar constr
+            (n + par - 1) `isIn` cc
+          else n `isIn` cc
+
+    lbrs' <- (or <$>) $ forM (M.toList lbrs) $ \ (_, cc) ->
+        (if i < n
+           then (n - 1)
+           else n) `isIn` cc
+
+    cabr' <- case cabr of
+        Nothing -> return False
+        Just cc -> n `isIn` cc
+    return (cbrs' || lbrs' || cabr')
+
 
 isInTerm :: Nat -> Term -> Bool
 n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
@@ -92,25 +113,31 @@ we raise the type since we have added xs' new bindings before Gamma, and as can
 only bind to Gamma.
 -}
 insertTele :: MonadTCM m
-            => Int     -- ^ ABS `pos` in tele
-            -> Telescope -- ^ The telescope to insert
-            -> Term      -- ^ Term to replace at pos
-            -> Telescope -- ^ The telescope `tele` where everything is at
+            => Int        -- ^ ABS `pos` in tele
+            -> Maybe Type -- ^ If Just, it is the type to insert patterns from
+                          --   is nothing if we only want to delete a binding.
+            -> Term       -- ^ Term to replace at pos
+            -> Telescope  -- ^ The telescope `tele` where everything is at
             -> Compile m ( Telescope -- ^ Resulting telescope
-                         , Type      -- ^ The type at pos in tele
+                         , ( Type -- ^ The type at pos in tele
+                           , Type -- ^ The return Type of the inserted type
+                           )
                          )
 insertTele 0 ins term (ExtendTel t to) = do
-    Def st arg <- unEl . unArg <$> lift (reduce t)
+    t' <- lift $ normalise t
+    let Def st arg = unEl . unArg $ t'
     -- Apply the parameters of the type of t
     -- Because: parameters occurs in the type of constructors but are not bound by it.
     pars <- dataParameters st
-    let ins' = ins `apply` take (fromIntegral pars) arg
+    TelV ctele ctyp <- lift $ telView $ maybe (unArg t')
+                            (`apply` take (fromIntegral pars) arg) ins
+
     () <- if length (take (fromIntegral pars) arg) == fromIntegral pars
         then return ()
         else __IMPOSSIBLE__
     -- we deal with absBody to directly since we remove t
-    return ( ins' +:+  (subst term $ raiseFrom 1 (size ins') (absBody to))
-           , raise (size ins') $ unArg t
+    return ( ctele +:+  (subst term $ raiseFrom 1 (size ctele) (absBody to))
+           , (raise (size ctele) $ unArg t , ctyp)
            )
   where
     -- Append the telescope, we raise since we add a new binding and all the previous
@@ -126,6 +153,13 @@ insertTele n ins term (ExtendTel x xs) = do
 
 mkCon c n = Con c [ defaultArg $ Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
+unifyI :: MonadTCM m => Telescope -> [Nat] -> Type -> Args -> Args -> Compile m [Maybe Term]
+unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
+
+takeTele 0 _ = EmptyTel
+takeTele n (ExtendTel t ts) = ExtendTel t ts {absBody = takeTele (n-1) (absBody ts) }
+takeTele _ _ = __IMPOSSIBLE__
+
 -- | Remove forced variables cased on in the current top-level case in the CompiledClauses
 remForced :: MonadTCM m
      => CompiledClauses -- ^ Remove cases on forced variables in this
@@ -137,47 +171,44 @@ remForced ccOrig tele = case ccOrig of
         cbs <- forM (M.toList $ conBranches brs) $ \(constr, cc) -> do
             par             <- getConPar  constr
             typ             <- constrType constr
-            TelV ctele ctyp <- lift $ telView typ
             -- Update tele with the telescope from the constructor's type
-            (tele', ntyp)   <- insertTele n ctele (mkCon constr par) tele
+            (tele', (ntyp, ctyp))   <- insertTele n (Just typ) (mkCon constr par) tele
+            ntyp <- lift $ reduce ntyp
+            ctyp <- lift $ reduce ctyp
             notForced       <- getIrrFilter constr
             -- Get the variables that are forced, relative to the position after constr
             forcedVars <- filterM ((`isIn` cc) . (flip subtract (fromIntegral $ n + par - 1)))
                         $ pairwiseFilter (map not notForced)
                         $ map fromIntegral [par-1,par-2..0]
-            ntyp <- lift $ reduce ntyp
-            ctyp <- lift $ reduce ctyp
-            munif <- case (unEl ntyp, unEl ctyp) of
-                (Def st a1, Def st' a2) | st == st' -> do
-                    a1' <- mapM (lift . reduce) a1
-                    typPars <- fromIntegral <$> dataParameters st
-                    setType <- constrType st
-                    {-
-                        We are splitting on C xs
-                        we know that C : ts -> T ss ; for some T
-                        we also know from tele that we are splitting on T as
-                        we want to unify ss with as, but not taking into account
-                        the Data parameters to T.
-                    -}
-                    lift $ unifyIndices (map fromIntegral [par .. n + par]) -- Don't unify the constructor arguments
-                                        (setType `apply` take typPars a1')
-                                        (drop typPars a1')
-                                        (drop typPars a2)
-                x -> __IMPOSSIBLE__
-            case (forcedVars, munif) of
-              (_:_, Unifies unif) -> do
-                  -- we calculate the new tpos from n (the old one) by adding
-                  -- how many more bindings we have
-                  (,) constr <$> replaceForced (fromIntegral $ n + par, tele')
-                                               forcedVars
-                                               (cc, unif)
-              (_:_, NoUnify _ _ _) -> __IMPOSSIBLE__
-              (_:_, DontKnow _)    -> __IMPOSSIBLE__
-              ([], _) -> (,) constr <$> remForced cc tele'
+            if null forcedVars
+                then (,) constr <$> remForced cc tele'
+                else do
+                    unif <- case (unEl ntyp, unEl ctyp) of
+                        (Def st a1, Def st' a2) | st == st' -> do
+                            typPars <- fromIntegral <$> dataParameters st
+                            setType <- constrType st
+                            {-
+                                We are splitting on C xs
+                                we know that C : ts -> T ss ; for some T
+                                we also know from tele that we are splitting on T as
+                                we want to unify ss with as, but not taking into account
+                                the Data parameters to T.
+                            -}
+                            unifyI (takeTele (n + par) tele')
+                                   (map fromIntegral [0 .. n + par]) -- Don't unify the constructor arguments
+                                   (setType `apply` take typPars a1)
+                                   (drop typPars a1)
+                                   (drop typPars a2)
+                        x -> __IMPOSSIBLE__
+                    -- we calculate the new tpos from n (the old one) by adding
+                    -- how many more bindings we have
+                    (,) constr <$> replaceForced (fromIntegral $ n + par, tele')
+                                                 forcedVars
+                                                 (cc, unif)
 
         lbs <- forM (M.toList $ litBranches brs) $ \(lit, cc) -> do
             -- We have one less binding
-            (newTele, _) <- insertTele n EmptyTel (Lit lit) tele
+            (newTele, _) <- insertTele n Nothing (Lit lit) tele
             (,) lit <$>  remForced cc newTele
 
         cabs <- case catchAllBranch brs of
@@ -257,10 +288,10 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
                 newBinds    = fromIntegral $ length args - 1
                 -- we have added newBinds new bindings and removed one before telePos
                 nextTelePos = telPos + newBinds
-            TelV ctele ctyp <- lift2 . telView =<< lift (constrType c)
+            ctyp <- lift (constrType c)
 
             modifyM $ \ st -> do
-                (newTele , _) <- lift $ insertTele (fromIntegral caseVar) ctele
+                (newTele , _) <- lift $ insertTele (fromIntegral caseVar) (Just ctyp)
                                         (mkCon c (length args)) (theTelescope st)
                 -- We have to update the unifications-list so that we don't try
                 -- to dig out the same again later.
@@ -286,7 +317,7 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
             modify $ \ st -> st
                 { clausesAbove = Case (fromIntegral caseVar) . conCase c . (clausesAbove st)
                 }
-        _ -> __IMPOSSIBLE__ -- Ulf said so
+        _ -> __IMPOSSIBLE__
 
 -- Note: Absolute positions
 raiseFromCC :: Nat -> Nat -> CompiledClauses -> CompiledClauses

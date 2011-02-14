@@ -137,7 +137,7 @@ boolPrimTF [true, false] = PrimTF
   { mapCon = M.fromList [(true, "primTrue"), (false, "primFalse")]
   , translateCase = \ce brs ->
     case brs of
-        [Branch _ n _vs e, b'] ->
+        (Branch _ n _vs e:b':_) ->
                     (if n == true
                              then If ce e (brExpr b')
                              else If ce (brExpr b') e)
