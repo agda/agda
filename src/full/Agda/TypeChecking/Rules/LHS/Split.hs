@@ -151,8 +151,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
 
--- | Checks that the indices are distinct variables which do not occur
--- free in the parameters.
+-- | Checks that the indices are constructors applied to distinct
+-- variables which do not occur free in the parameters.
 
 wellFormedIndices
   :: MonadTCM tcm
@@ -162,20 +162,23 @@ wellFormedIndices
 wellFormedIndices pars ixs = do
   pars <- normalise pars
   ixs  <- normalise ixs
-  case distinctVariables ixs of
-    Nothing -> typeError $ IndicesNotDistinctVariables ixs
-    Just vs ->
-      case filter snd $ zip vs (map (`freeIn` pars) vs) of
-        []          -> return ()
-        (v , _) : _ -> typeError $ IndexFreeInParameter v pars
+  vs   <- case constructorApplications ixs of
+            Nothing -> typeError $ IndicesNotConstructorApplications ixs
+            Just vs -> return vs
+  unless (fastDistinct vs) $
+    typeError $ IndexVariablesNotDistinct ixs
+  case filter snd $ zip vs (map (`freeIn` pars) vs) of
+    []          -> return ()
+    (v , _) : _ -> typeError $ IndexFreeInParameter v pars
   where
-  -- If the list consists solely of distinct variables, then the
-  -- variables are returned, otherwise Nothing.
-  distinctVariables ixs = do
-    xs <- mapM (isVar . unArg) ixs
-    guard (fastDistinct xs)
-    return xs
-    where
-    isVar :: Term -> Maybe Nat
-    isVar (Var x []) = Just x
-    isVar _          = Nothing
+  -- | If the term consists solely of constructors applied to
+  -- variables, then the variables are returned, and otherwise
+  -- nothing.
+  constructorApplication :: Term -> Maybe [Nat]
+  constructorApplication (Var x [])   = Just [x]
+  constructorApplication (Con c args) = constructorApplications args
+  constructorApplication _            = Nothing
+
+  constructorApplications :: [Arg Term] -> Maybe [Nat]
+  constructorApplications args =
+    concat <$> mapM (constructorApplication . unArg) args

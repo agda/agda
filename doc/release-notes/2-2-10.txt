@@ -11,8 +11,12 @@ Language
   flag is activated, then Agda only accepts certain case-splits: if
   the type of the variable to be split is D pars ixs, where D is a
   data (or record) type, pars stands for the parameters, and ixs the
-  indices, then ixs has to consist of distinct variables, and these
-  variables must not be free in pars.
+  indices, then the following requirements must be satisfied:
+
+  * The indices ixs must be applications of constructors to distinct
+    variables.
+
+  * These variables must not be free in pars.
 
   The intended use of --without-K is to enable experiments with a
   propositional equality without the K rule. Let us define propositional

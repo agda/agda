@@ -111,7 +111,8 @@ errorString err = case err of
     IlltypedPattern{}                        -> "IlltypedPattern"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
     IndexFreeInParameter{}                   -> "IndexFreeInParameter"
-    IndicesNotDistinctVariables{}            -> "IndicesNotDistinctVariables"
+    IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
+    IndicesNotConstructorApplications{}      -> "IndicesNotConstructorApplications"
     InternalError{}                          -> "InternalError"
     InvalidPattern{}                         -> "InvalidPattern"
     LocalVsImportedModuleClash{}             -> "LocalVsImportedModuleClash"
@@ -243,8 +244,11 @@ instance PrettyTCM TypeError where
               pwords "does not construct an element of" ++ [prettyTCM t]
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
-            IndicesNotDistinctVariables is ->
-              fsep (pwords "The following indices are not distinct variables:")
+            IndicesNotConstructorApplications is ->
+              fsep (pwords "The following indices are not constructors applied to variables:")
+              $$ nest 2 (vcat $ map prettyTCM is)
+            IndexVariablesNotDistinct is ->
+              fsep (pwords "The variables in the following indices are not distinct:")
               $$ nest 2 (vcat $ map prettyTCM is)
             IndexFreeInParameter i pars ->
               fsep (pwords "The index" ++ [prettyTCM (I.Var i [])] ++

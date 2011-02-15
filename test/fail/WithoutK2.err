@@ -1,5 +1,5 @@
 WithoutK2.agda:13,8-14
-The following indices are not distinct variables:
+The variables in the following indices are not distinct:
   x
   x
 when checking that the pattern refl x has type x ≡ x

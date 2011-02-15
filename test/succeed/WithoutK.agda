@@ -35,3 +35,20 @@ const x _ = x
 
 id : {A : Set} {x y : A} → const x y ≡′ const y x → x ≡′ y
 id refl = refl
+
+-- We can handle more complicated indices as well.
+
+data ⊥ : Set where
+
+data Bool : Set where
+  true false : Bool
+
+true≢false : true ≡ false → ⊥
+true≢false ()
+
+data D : Set where
+  c₀ : D
+  c₂ : (i₁ i₂ : D) → D
+
+f : ∀ {x y z} → x ≡ y → c₂ y c₀ ≡ c₂ c₀ z → x ≡ z
+f x≡y (refl .(c₂ c₀ c₀)) = x≡y

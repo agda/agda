@@ -1,5 +1,4 @@
-WithoutK4.agda:14,1-14
-The following indices are not distinct variables:
-  false
-when checking that the clause true≢false () has type
-true ≡ false → ⊥
+WithoutK4.agda:10,16-20
+The following indices are not constructors applied to variables:
+  f y
+when checking that the pattern refl has type x ≡ f y
