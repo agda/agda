@@ -14,6 +14,7 @@ open import Function.Injection           hiding (id; _∘_)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Data.Product
 open import Relation.Binary
+import Relation.Binary.PropositionalEquality as P
 
 -- Surjective functions.
 
@@ -25,7 +26,7 @@ record Surjective {f₁ f₂ t₁ t₂}
     from             : To ⟶ From
     right-inverse-of : from RightInverseOf to
 
--- The set of all surjections between two setoids.
+-- The set of all surjections from one setoid to another.
 
 record Surjection {f₁ f₂ t₁ t₂}
                   (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) :
@@ -54,6 +55,13 @@ record Surjection {f₁ f₂ t₁ t₂}
     { to   = to
     ; from = from
     }
+
+-- The set of all surjections from one set to another.
+
+infix 3 _↠_
+
+_↠_ : ∀ {f t} → Set f → Set t → Set _
+From ↠ To = Surjection (P.setoid From) (P.setoid To)
 
 -- Identity and composition.
 
