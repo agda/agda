@@ -55,7 +55,7 @@ map-∈⇿ {f = f} {y} {xs} =
 concat-∈⇿ : ∀ {A : Set} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
 concat-∈⇿ {x = x} {xss} =
-  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong $ ×⊎.*-comm _ _ ⟩
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong Inv.id $ ×⊎.*-comm _ _ ⟩
   (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ ⟩
   Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ ⟩
   x ∈ concat xss                ∎
@@ -72,8 +72,8 @@ concat-∈⇿ {x = x} {xss} =
 ⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
 ⊛-∈⇿ fs {xs} {y} =
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
-  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong ((_ ∎) ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
+  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong Inv.id ((_ ∎) ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
   y ∈ fs ⊛ xs                                  ∎

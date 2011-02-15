@@ -9,7 +9,8 @@ module Relation.Binary.Sigma.Pointwise where
 open import Data.Product as Prod
 open import Level
 open import Function
-import Function.Equality as F
+open import Function.Equality as F using (_⟶_; _⟨$⟩_)
+  renaming (_∘_ to _⊚_)
 open import Function.Equivalence as Eq
   using (Equivalent; _⇔_; module Equivalent)
   renaming (_∘_ to _⟨∘⟩_)
@@ -18,6 +19,7 @@ open import Function.Inverse as Inv
   renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse
   using (_LeftInverseOf_; _RightInverseOf_)
+open import Function.Surjection using (_↠_; module Surjection)
 import Relation.Binary as B
 open import Relation.Binary.Indexed as I using (_at_)
 import Relation.Binary.HeterogeneousEquality as H
@@ -110,45 +112,101 @@ Rel⇿≡ {a} {b} {A} {B} = record
 -- Equivalences and inverses are also preserved
 
 equivalent :
-  ∀ {i} {I : Set i}
-    {f₁ f₂ t₁ t₂} {From : I.Setoid I f₁ f₂} {To : I.Setoid I t₁ t₂} →
-  (∀ {i} → Equivalent (From at i) (To at i)) →
-  Equivalent (setoid (P.setoid I) From) (setoid (P.setoid I) To)
-equivalent {I = I} {From = F} {T} F⇔T = record
+  ∀ {a₁ a₂ b₁ b₁′ b₂ b₂′}
+    {A₁ : Set a₁} {A₂ : Set a₂}
+    {B₁ : I.Setoid A₁ b₁ b₁′} {B₂ : I.Setoid A₂ b₂ b₂′}
+  (A₁⇔A₂ : A₁ ⇔ A₂) →
+  (∀ {x} → B₁ at x ⟶ B₂ at (Equivalent.to   A₁⇔A₂ ⟨$⟩ x)) →
+  (∀ {y} → B₂ at y ⟶ B₁ at (Equivalent.from A₁⇔A₂ ⟨$⟩ y)) →
+  Equivalent (setoid (P.setoid A₁) B₁) (setoid (P.setoid A₂) B₂)
+equivalent {A₁ = A₁} {A₂} {B₁} {B₂} A₁⇔A₂ B-to B-from = record
   { to   = record { _⟨$⟩_ = to;   cong = to-cong   }
   ; from = record { _⟨$⟩_ = from; cong = from-cong }
   }
   where
-  open B.Setoid (setoid (P.setoid I) F) using () renaming (_≈_ to _≈F_)
-  open B.Setoid (setoid (P.setoid I) T) using () renaming (_≈_ to _≈T_)
+  open B.Setoid (setoid (P.setoid A₁) B₁)
+    using () renaming (_≈_ to _≈₁_)
+  open B.Setoid (setoid (P.setoid A₂) B₂)
+    using () renaming (_≈_ to _≈₂_)
   open B using (_=[_]⇒_)
 
-  to = Prod.map id (F._⟨$⟩_ (Equivalent.to F⇔T))
+  to = Prod.map (_⟨$⟩_ (Equivalent.to A₁⇔A₂)) (_⟨$⟩_ B-to)
 
-  to-cong : _≈F_ =[ to ]⇒ _≈T_
-  to-cong (P.refl , ∼) = (P.refl , F.cong (Equivalent.to F⇔T) ∼)
+  to-cong : _≈₁_ =[ to ]⇒ _≈₂_
+  to-cong (P.refl , ∼) = (P.refl , F.cong B-to ∼)
 
-  from = Prod.map id (F._⟨$⟩_ (Equivalent.from F⇔T))
+  from = Prod.map (_⟨$⟩_ (Equivalent.from A₁⇔A₂)) (_⟨$⟩_ B-from)
 
-  from-cong : _≈T_ =[ from ]⇒ _≈F_
-  from-cong (P.refl , ∼) = (P.refl , F.cong (Equivalent.from F⇔T) ∼)
+  from-cong : _≈₂_ =[ from ]⇒ _≈₁_
+  from-cong (P.refl , ∼) = (P.refl , F.cong B-from ∼)
 
-⇔ : ∀ {a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
-    (∀ {x} → B₁ x ⇔ B₂ x) → Σ A B₁ ⇔ Σ A B₂
-⇔ {B₁ = B₁} {B₂} B₁⇔B₂ =
+equivalent′ :
+  ∀ {a₁ a₂ b₁ b₁′ b₂ b₂′}
+    {A₁ : Set a₁} {A₂ : Set a₂}
+    {B₁ : I.Setoid A₁ b₁ b₁′} (B₂ : I.Setoid A₂ b₂ b₂′)
+  (A₁↠A₂ : A₁ ↠ A₂) →
+  (∀ {x} → Equivalent (B₁ at x) (B₂ at (Surjection.to A₁↠A₂ ⟨$⟩ x))) →
+  Equivalent (setoid (P.setoid A₁) B₁) (setoid (P.setoid A₂) B₂)
+equivalent′ {B₁ = B₁} B₂ A₁↠A₂ B₁⇔B₂ =
+  equivalent (Surjection.equivalent A₁↠A₂) B-to B-from
+  where
+  B-to : ∀ {x} → B₁ at x ⟶ B₂ at (Surjection.to A₁↠A₂ ⟨$⟩ x)
+  B-to = Equivalent.to B₁⇔B₂
+
+  subst-cong : ∀ {i a p} {I : Set i} {A : I → Set a}
+               (P : ∀ {i} → A i → A i → Set p) {i i′} {x y : A i}
+               (i≡i′ : P._≡_ i i′) →
+               P x y → P (P.subst A i≡i′ x) (P.subst A i≡i′ y)
+  subst-cong P P.refl p = p
+
+  B-from : ∀ {y} → B₂ at y ⟶ B₁ at (Surjection.from A₁↠A₂ ⟨$⟩ y)
+  B-from = record
+    { _⟨$⟩_ = λ x → Equivalent.from B₁⇔B₂ ⟨$⟩
+                      P.subst (I.Setoid.Carrier B₂)
+                         (P.sym $ Surjection.right-inverse-of A₁↠A₂ _)
+                         x
+    ; cong  = F.cong (Equivalent.from B₁⇔B₂) ∘
+              subst-cong (λ {x} → I.Setoid._≈_ B₂ {x} {x})
+                         (P.sym (Surjection.right-inverse-of A₁↠A₂ _))
+    }
+
+⇔ : ∀ {a₁ a₂ b₁ b₂}
+      {A₁ : Set a₁} {A₂ : Set a₂}
+      {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
+    (A₁⇔A₂ : A₁ ⇔ A₂) →
+    (∀ {x} → B₁ x → B₂ (Equivalent.to   A₁⇔A₂ ⟨$⟩ x)) →
+    (∀ {y} → B₂ y → B₁ (Equivalent.from A₁⇔A₂ ⟨$⟩ y)) →
+    Σ A₁ B₁ ⇔ Σ A₂ B₂
+⇔ {B₁ = B₁} {B₂} A₁⇔A₂ B-to B-from =
   Inverse.equivalent (Rel⇿≡ {B = B₂}) ⟨∘⟩
-  equivalent (λ {x} →
-    Inverse.equivalent (H.≡⇿≅ B₂) ⟨∘⟩
-    B₁⇔B₂ {x} ⟨∘⟩
-    Inverse.equivalent (Inv.sym (H.≡⇿≅ B₁))) ⟨∘⟩
+  equivalent A₁⇔A₂
+    (Inverse.to (H.≡⇿≅ B₂) ⊚ P.→-to-⟶ B-to ⊚ Inverse.from (H.≡⇿≅ B₁))
+    (Inverse.to (H.≡⇿≅ B₁) ⊚ P.→-to-⟶ B-from ⊚ Inverse.from (H.≡⇿≅ B₂))
+    ⟨∘⟩
+  Eq.sym (Inverse.equivalent (Rel⇿≡ {B = B₁}))
+
+⇔′ : ∀ {a₁ a₂ b₁ b₂}
+       {A₁ : Set a₁} {A₂ : Set a₂}
+       {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
+     (A₁↠A₂ : A₁ ↠ A₂) →
+     (∀ {x} → _⇔_ (B₁ x) (B₂ (Surjection.to A₁↠A₂ ⟨$⟩ x))) →
+     _⇔_ (Σ A₁ B₁) (Σ A₂ B₂)
+⇔′ {B₁ = B₁} {B₂} A₁↠A₂ B₁⇔B₂ =
+  Inverse.equivalent (Rel⇿≡ {B = B₂}) ⟨∘⟩
+  equivalent′ (H.indexedSetoid B₂) A₁↠A₂
+    (λ {x} → Inverse.equivalent (H.≡⇿≅ B₂) ⟨∘⟩
+             B₁⇔B₂ {x} ⟨∘⟩
+             Inverse.equivalent (Inv.sym (H.≡⇿≅ B₁))) ⟨∘⟩
   Eq.sym (Inverse.equivalent (Rel⇿≡ {B = B₁}))
 
 inverse :
-  ∀ {i} {I : Set i}
-    {f₁ f₂ t₁ t₂} {From : I.Setoid I f₁ f₂} {To : I.Setoid I t₁ t₂} →
-  (∀ {i} → Inverse (From at i) (To at i)) →
-  Inverse (setoid (P.setoid I) From) (setoid (P.setoid I) To)
-inverse {I = I} {From = F} {T} F⇿T = record
+  ∀ {a₁ a₂ b₁ b₁′ b₂ b₂′}
+    {A₁ : Set a₁} {A₂ : Set a₂}
+    {B₁ : I.Setoid A₁ b₁ b₁′} (B₂ : I.Setoid A₂ b₂ b₂′) →
+  (A₁⇿A₂ : A₁ ⇿ A₂) →
+  (∀ {x} → Inverse (B₁ at x) (B₂ at (Inverse.to A₁⇿A₂ ⟨$⟩ x))) →
+  Inverse (setoid (P.setoid A₁) B₁) (setoid (P.setoid A₂) B₂)
+inverse {A₁ = A₁} {A₂} {B₁} B₂ A₁⇿A₂ B₁⇿B₂ = record
   { to         = Equivalent.to   eq
   ; from       = Equivalent.from eq
   ; inverse-of = record
@@ -157,23 +215,59 @@ inverse {I = I} {From = F} {T} F⇿T = record
     }
   }
   where
-  eq = equivalent (Inverse.equivalent F⇿T)
+  eq = equivalent′ B₂ (Inverse.surjection A₁⇿A₂)
+                      (Inverse.equivalent B₁⇿B₂)
 
   left : Equivalent.from eq LeftInverseOf Equivalent.to eq
-  left (x , y) = (P.refl , Inverse.left-inverse-of F⇿T y)
+  left (x , y) =
+    Inverse.left-inverse-of A₁⇿A₂ x ,
+    I.Setoid.trans B₁
+      (lemma (P.sym (Inverse.left-inverse-of A₁⇿A₂ x))
+             (P.sym (Inverse.right-inverse-of A₁⇿A₂
+                       (Inverse.to A₁⇿A₂ ⟨$⟩ x))))
+      (Inverse.left-inverse-of B₁⇿B₂ y)
+    where
+    lemma :
+      ∀ {x x′ y} → P._≡_ x x′ →
+      (eq : P._≡_ (Inverse.to A₁⇿A₂ ⟨$⟩ x) (Inverse.to A₁⇿A₂ ⟨$⟩ x′)) →
+      I.Setoid._≈_ B₁
+        (Inverse.from B₁⇿B₂ ⟨$⟩ P.subst (I.Setoid.Carrier B₂) eq y)
+        (Inverse.from B₁⇿B₂ ⟨$⟩ y)
+    lemma P.refl P.refl = I.Setoid.refl B₁
 
   right : Equivalent.from eq RightInverseOf Equivalent.to eq
-  right (x , y) = (P.refl , Inverse.right-inverse-of F⇿T y)
+  right (x , y) =
+    Inverse.right-inverse-of A₁⇿A₂ x ,
+    I.Setoid.trans B₂
+      (Inverse.right-inverse-of B₁⇿B₂
+         (P.subst (I.Setoid.Carrier B₂) p y))
+      (lemma p)
+    where
+    p = P.sym $ Inverse.right-inverse-of A₁⇿A₂ x
 
-⇿ : ∀ {a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
-    (∀ {x} → B₁ x ⇿ B₂ x) → Σ A B₁ ⇿ Σ A B₂
-⇿ {B₁ = B₁} {B₂} B₁⇿B₂ =
+    lemma : ∀ {x x′ y} (eq : P._≡_ x x′) →
+            I.Setoid._≈_ B₂
+              (P.subst (I.Setoid.Carrier B₂) eq y)
+              y
+    lemma P.refl = I.Setoid.refl B₂
+
+⇿ : ∀ {a₁ a₂ b₁ b₂}
+      {A₁ : Set a₁} {A₂ : Set a₂}
+      {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
+    (A₁⇿A₂ : A₁ ⇿ A₂) →
+    (∀ {x} → B₁ x ⇿ B₂ (Inverse.to A₁⇿A₂ ⟨$⟩ x)) →
+    Σ A₁ B₁ ⇿ Σ A₂ B₂
+⇿ {B₁ = B₁} {B₂} A₁⇿A₂ B₁⇿B₂ =
   Rel⇿≡ {B = B₂} ⟪∘⟫
-  inverse (λ {x} → H.≡⇿≅ B₂ ⟪∘⟫ B₁⇿B₂ {x} ⟪∘⟫ Inv.sym (H.≡⇿≅ B₁)) ⟪∘⟫
+  inverse (H.indexedSetoid B₂) A₁⇿A₂
+    (λ {x} → H.≡⇿≅ B₂ ⟪∘⟫ B₁⇿B₂ {x} ⟪∘⟫ Inv.sym (H.≡⇿≅ B₁)) ⟪∘⟫
   Inv.sym (Rel⇿≡ {B = B₁})
 
-cong : ∀ {k a b₁ b₂} {A : Set a} {B₁ : A → Set b₁} {B₂ : A → Set b₂} →
-       (∀ {x} → Isomorphism k (B₁ x) (B₂ x)) →
-       Isomorphism k (Σ A B₁) (Σ A B₂)
-cong {k = Inv.equivalent} = ⇔
+cong : ∀ {k a₁ a₂ b₁ b₂}
+         {A₁ : Set a₁} {A₂ : Set a₂}
+         {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
+       (A₁⇿A₂ : _⇿_ A₁ A₂) →
+       (∀ {x} → Isomorphism k (B₁ x) (B₂ (Inverse.to A₁⇿A₂ ⟨$⟩ x))) →
+       Isomorphism k (Σ A₁ B₁) (Σ A₂ B₂)
+cong {k = Inv.equivalent} = ⇔′ ∘ Inverse.surjection
 cong {k = Inv.inverse}    = ⇿

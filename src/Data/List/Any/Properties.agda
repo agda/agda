@@ -115,7 +115,7 @@ Any-cong : ∀ {k} {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
            Isomorphism k (Any P₁ xs₁) (Any P₂ xs₂)
 Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
   Any P₁ xs₁                ⇿⟨ sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ ⟩
   Any P₂ xs₂                ∎
 
@@ -128,16 +128,16 @@ swap : ∀ {A B : Set} {P : A → B → Set} {xs ys} →
        Any (λ x → Any (P x) ys) xs ⇿ Any (λ y → Any (flip P y) xs) ys
 swap {P = P} {xs} {ys} =
   Any (λ x → Any (P x) ys) xs                ⇿⟨ sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong Inv.id (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
   (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ _ ⟩
-  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong (λ {y} → Σ.cong (λ {x} →
+  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
     (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
     ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ⟨ ×⊎.*-cong ⟩ Inv.id ⟩
     ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong (∃∃⇿∃∃ _) ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong Inv.id (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
   (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎
 

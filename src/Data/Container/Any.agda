@@ -57,7 +57,7 @@ cong : ∀ {k c} {C : Container c}
        Isomorphism k (◇ P₁ xs₁) (◇ P₂ xs₂)
 cong {C = C} {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
   ◇ P₁ xs₁                  ⇿⟨ ⇿∈ C ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ sym (⇿∈ C) ⟩
   ◇ P₂ xs₂                  ∎
 
@@ -70,16 +70,16 @@ swap : ∀ {c} {C₁ C₂ : Container c} {X Y : Set c} {P : X → Y → Set c}
        ◈ xs (◈ ys ∘ P) ⇿ ◈ ys (◈ xs ∘ flip P)
 swap {c} {C₁} {C₂} {P = P} {xs} {ys} =
   ◇ (λ x → ◇ (P x) ys) xs                    ⇿⟨ ⇿∈ C₁ ⟩
-  (∃ λ x → x ∈ xs × ◇ (P x) ys)              ⇿⟨ Σ.cong (λ {x} → Inv.id ⟨ ×⊎.*-cong {ℓ = c} ⟩ ⇿∈ C₂ {P = P x}) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong (λ {x} → ∃∃⇿∃∃ {A = x ∈ xs} (λ _ y → y ∈ ys × P x y)) ⟩
+  (∃ λ x → x ∈ xs × ◇ (P x) ys)              ⇿⟨ Σ.cong Inv.id (λ {x} → Inv.id ⟨ ×⊎.*-cong {ℓ = c} ⟩ ⇿∈ C₂ {P = P x}) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong Inv.id (λ {x} → ∃∃⇿∃∃ {A = x ∈ xs} (λ _ y → y ∈ ys × P x y)) ⟩
   (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ (λ x y → x ∈ xs × y ∈ ys × P x y) ⟩
-  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong (λ {y} → Σ.cong (λ {x} →
+  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
     (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
     ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ⟨ ×⊎.*-cong {ℓ = c} ⟩ Inv.id ⟩
     ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong (λ {y} → ∃∃⇿∃∃ {B = y ∈ ys} (λ x _ → x ∈ xs × P x y)) ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong (λ {y} → Inv.id ⟨ ×⊎.*-cong {ℓ = c} ⟩ sym (⇿∈ C₁ {P = flip P y})) ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong Inv.id (λ {y} → ∃∃⇿∃∃ {B = y ∈ ys} (λ x _ → x ∈ xs × P x y)) ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong Inv.id (λ {y} → Inv.id ⟨ ×⊎.*-cong {ℓ = c} ⟩ sym (⇿∈ C₁ {P = flip P y})) ⟩
   (∃ λ y → y ∈ ys × ◇ (flip P y) xs)         ⇿⟨ sym (⇿∈ C₂) ⟩
   ◇ (λ y → ◇ (flip P y) xs) ys               ∎
 
