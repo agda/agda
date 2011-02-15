@@ -9,12 +9,14 @@ module Data.List.Any.BagAndSetEquality where
 open import Algebra
 open import Algebra.FunctionProperties
 open import Category.Monad
+open import Data.Empty
 open import Data.List as List
 import Data.List.Properties as LP
-open import Data.List.Any as Any using (Any; here)
+open import Data.List.Any as Any using (Any); open Any.Any
 open import Data.List.Any.Properties
 open import Data.Product
 open import Data.Sum
+open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE
@@ -22,8 +24,10 @@ open import Function.Inverse as Inv using (_⇿_; module Inverse)
 open import Function.Inverse.TypeIsomorphisms
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR
+import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; _≗_)
+  using (_≡_; _≗_; _with-≡_)
+open import Relation.Nullary
 
 open Any.Membership-≡
 open RawMonad List.monad
@@ -175,3 +179,141 @@ concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
 
   (fs ⊛ xs₁) ++ (fs ⊛ xs₂)                  ∎
   where open EqR ([ bag ]-Equality _)
+
+private
+
+  -- If x ∷ xs is set equal to x ∷ ys, then xs and ys are not
+  -- necessarily set equal.
+
+  ¬-drop-cons :
+    ∀ {A : Set} {x : A} →
+    ¬ (∀ {xs ys} → x ∷ xs ≈[ set ] x ∷ ys → xs ≈[ set ] ys)
+  ¬-drop-cons {x = x} drop-cons
+    with FE.Equivalent.to x≈[] ⟨$⟩ here P.refl
+    where
+    x,x≈x :  (x ∷ x ∷ []) ≈[ set ] [ x ]
+    x,x≈x = ++-idempotent [ x ]
+
+    x≈[] : [ x ] ≈[ set ] []
+    x≈[] = drop-cons x,x≈x
+  ... | ()
+
+-- However, the corresponding property does hold for bag equality.
+
+drop-cons : ∀ {A : Set} {x : A} {xs ys} →
+            x ∷ xs ≈[ bag ] x ∷ ys → xs ≈[ bag ] ys
+drop-cons {A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
+  z ∈ xs                                      ⇿⟨ lemma xs ⟩
+  (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)  ⇿⟨ Σ.⇿ x∷xs≈x∷ys′ x∷xs≈x∷ys′-preserves-There ⟩
+  (∃ λ (z∈x∷ys : z ∈ x ∷ ys) → There z∈x∷ys)  ⇿⟨ sym $ lemma ys ⟩
+  z ∈ ys                                      ∎
+  where
+  open Inv.EquationalReasoning
+
+  -- Inhabited for there but not here.
+
+  There : ∀ {z : A} {xs} → z ∈ xs → Set
+  There (here  _) = ⊥
+  There (there _) = ⊤
+
+  -- There is proof irrelevant.
+
+  proof-irrelevance : ∀ {z xs} {z∈xs : z ∈ xs}
+                      (p q : There z∈xs) → p ≡ q
+  proof-irrelevance {z∈xs = here  _} () ()
+  proof-irrelevance {z∈xs = there _} _  _  = P.refl
+
+  -- An isomorphism.
+
+  lemma : ∀ xs → z ∈ xs ⇿ (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)
+  lemma xs = record
+    { to         = P.→-to-⟶ to
+    ; from       = P.→-to-⟶ from
+    ; inverse-of = record
+      { left-inverse-of  = λ _ → P.refl
+      ; right-inverse-of = to∘from
+      }
+    }
+    where
+    to : z ∈ xs → (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)
+    to z∈xs = (there z∈xs , _)
+
+    from : (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs) → z ∈ xs
+    from (here  z≡x  , ())
+    from (there z∈xs , _) = z∈xs
+
+    to∘from : ∀ p → to (from p) ≡ p
+    to∘from (here  z≡x  , ())
+    to∘from (there z∈xs , _) = P.refl
+
+  -- The isomorphisms x∷xs≈x∷ys may not preserve There, because they
+  -- could map here P.refl to something other than here P.refl.
+  -- However, we can construct isomorphisms which do preserve There:
+
+  x∷xs≈x∷ys′ : x ∷ xs ≈[ bag ] x ∷ ys
+  x∷xs≈x∷ys′ = record
+    { to         = P.→-to-⟶ $ f           x∷xs≈x∷ys
+    ; from       = P.→-to-⟶ $ f $ Inv.sym x∷xs≈x∷ys
+    ; inverse-of = record
+      { left-inverse-of  = f∘f           x∷xs≈x∷ys
+      ; right-inverse-of = f∘f $ Inv.sym x∷xs≈x∷ys
+      }
+    }
+    where
+    f : ∀ {xs ys} → x ∷ xs ≈[ bag ] x ∷ ys →
+        ∀ {z} → z ∈ x ∷ xs → z ∈ x ∷ ys
+    f x∷xs≈x∷ys (here P.refl) = here P.refl
+    f x∷xs≈x∷ys (there z∈xs)  with Inverse.to x∷xs≈x∷ys ⟨$⟩ there z∈xs
+    ... | there z∈ys  = there z∈ys
+    ... | here P.refl = Inverse.to x∷xs≈x∷ys ⟨$⟩ here P.refl
+
+    f∘f : ∀ {xs ys}
+          (x∷xs≈x∷ys : x ∷ xs ≈[ bag ] x ∷ ys) →
+          ∀ {z} (p : z ∈ x ∷ xs) →
+          f (Inv.sym x∷xs≈x∷ys) (f x∷xs≈x∷ys p) ≡ p
+    f∘f x∷xs≈x∷ys (here P.refl) = P.refl
+    f∘f x∷xs≈x∷ys (there z∈xs)
+      with Inverse.to x∷xs≈x∷ys ⟨$⟩ there z∈xs
+         | Inverse.left-inverse-of x∷xs≈x∷ys (there z∈xs)
+    ... | there z∈ys  | left rewrite left = P.refl
+    ... | here P.refl | left
+      with Inverse.to x∷xs≈x∷ys ⟨$⟩ here P.refl
+         | Inverse.left-inverse-of x∷xs≈x∷ys (here P.refl)
+    ... | there z∈xs′  | left′ rewrite left′ = left
+    ... | here  P.refl | left′ rewrite left′ = left
+
+  x∷xs≈x∷ys′-preserves-There :
+    ∀ {z} {z∈x∷xs : z ∈ x ∷ xs} →
+    There z∈x∷xs ⇿ There (Inverse.to x∷xs≈x∷ys′ ⟨$⟩ z∈x∷xs)
+  x∷xs≈x∷ys′-preserves-There {z∈x∷xs = z∈x∷xs} = record
+    { to         = P.→-to-⟶ $ to   z∈x∷xs
+    ; from       = P.→-to-⟶ $ from z∈x∷xs
+    ; inverse-of = record
+      { left-inverse-of  = λ _ → proof-irrelevance _ _
+      ; right-inverse-of = λ _ → proof-irrelevance _ _
+      }
+    }
+    where
+    open P.≡-Reasoning renaming (_∎ to _□)
+
+    to : ∀ {z} (z∈x∷xs : z ∈ x ∷ xs) →
+         There z∈x∷xs → There (Inverse.to x∷xs≈x∷ys′ ⟨$⟩ z∈x∷xs)
+    to (here  _)  ()
+    to (there z∈) _  with P.inspect (Inverse.to x∷xs≈x∷ys ⟨$⟩ there z∈)
+    ... | there _     with-≡ eq rewrite eq = _
+    ... | here P.refl with-≡ eq rewrite eq
+      with P.inspect (Inverse.to x∷xs≈x∷ys ⟨$⟩ here P.refl)
+    ... | there _     with-≡ eq′ rewrite eq′ = _
+    ... | here P.refl with-≡ eq′ rewrite eq′
+      with begin
+        there z∈                                                           ≡⟨ P.sym $ Inverse.left-inverse-of x∷xs≈x∷ys _ ⟩
+        Inverse.from x∷xs≈x∷ys ⟨$⟩ (Inverse.to x∷xs≈x∷ys ⟨$⟩ there z∈)     ≡⟨ P.cong (_⟨$⟩_ (Inverse.from x∷xs≈x∷ys)) eq ⟩
+        Inverse.from x∷xs≈x∷ys ⟨$⟩ here P.refl                             ≡⟨ P.cong (_⟨$⟩_ (Inverse.from x∷xs≈x∷ys)) (P.sym eq′) ⟩
+        Inverse.from x∷xs≈x∷ys ⟨$⟩ (Inverse.to x∷xs≈x∷ys ⟨$⟩ here P.refl)  ≡⟨ Inverse.left-inverse-of x∷xs≈x∷ys _ ⟩
+        here P.refl                                                        □
+    ... | ()
+
+    from : ∀ {z} (z∈x∷xs : z ∈ x ∷ xs) →
+           There (Inverse.to x∷xs≈x∷ys′ ⟨$⟩ z∈x∷xs) → There z∈x∷xs
+    from (here P.refl) ()
+    from (there z∈xs)  _  = _
