@@ -11,6 +11,7 @@ Usage: agda [OPTIONS...] FILE
           --epic                                      compile program using the Epic backend
           --compile-dir=DIR                           directory for compiler output (default: the project root)
           --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
+          --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic
           --test                                      run internal test suite
           --vim                                       generate Vim highlighting files
           --html                                      generate HTML files with highlighted source code
@@ -33,8 +34,6 @@ Usage: agda [OPTIONS...] FILE
           --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
           --universe-polymorphism                     enable universe polymorphism (experimental feature)
           --irrelevant-projections                    enable projection of irrelevant record fields
-          --include-c=PATH                            add the c filepath when compiling using Epic
-          --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic
           --without-K                                 disable the K rule (maybe)
 
 Plugins:
