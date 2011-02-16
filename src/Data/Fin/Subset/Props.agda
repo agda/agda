@@ -5,22 +5,20 @@
 module Data.Fin.Subset.Props where
 
 open import Algebra
-import Algebra.Props.Lattice as LatProp
 import Algebra.Props.BooleanAlgebra as BoolProp
 open import Data.Empty using (⊥-elim)
-open import Data.Fin hiding (_≤_)
+open import Data.Fin using (Fin); open Data.Fin.Fin
 open import Data.Fin.Subset
-open import Data.Nat hiding (_≤_)
+open import Data.Nat using (ℕ)
 open import Data.Product
 open import Data.Sum as Sum
 open import Data.Vec hiding (_∈_)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
+  using (_⇔_; equivalent; module Equivalent)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
-import Relation.Binary.Vec.Pointwise as Pointwise
 
 ------------------------------------------------------------------------
 -- Constructor mangling
@@ -33,40 +31,6 @@ drop-∷-⊆ p₁s₁⊆p₂s₂ x∈p₁ = drop-there $ p₁s₁⊆p₂s₂ (th
 
 drop-∷-Empty : ∀ {n s} {p : Subset n} → Empty (s ∷ p) → Empty p
 drop-∷-Empty ¬∃∈ (x , x∈p) = ¬∃∈ (suc x , there x∈p)
-
-{-
-------------------------------------------------------------------------
--- _⊆_ is a partial order
-
-poset : ℕ → Poset _ _ _
-poset n = record
-  { Carrier        = Subset n
-  ; _≈_            = _≡_
-  ; _≤_            = _⊆_
-  ; isPartialOrder = record
-    { isPreorder = record
-      { isEquivalence = P.isEquivalence
-      ; reflexive     = λ p₁≡p₂ {x} → P.subst (λ p → x ∈ p) p₁≡p₂
-      ; trans         = λ xs⊆ys ys⊆zs x∈xs → ys⊆zs (xs⊆ys x∈xs)
-      }
-    ; antisym = ⊆⊇⟶≡
-    }
-  }
-  where
-  ⊆⊇⟶≡ : ∀ {n} {p₁ p₂ : Subset n} → p₁ ⊆ p₂ → p₂ ⊆ p₁ → p₁ ≡ p₂
-  ⊆⊇⟶≡ = helper _ _
-    where
-    helper : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆ p₂ → p₂ ⊆ p₁ → p₁ ≡ p₂
-    helper []            []             _   _   = P.refl
-    helper (s₁ ∷ p₁)     (s₂ ∷ p₂)      ₁⊆₂ ₂⊆₁ with ⊆⊇⟶≡ (drop-∷-⊆ ₁⊆₂)
-                                                          (drop-∷-⊆ ₂⊆₁)
-    helper (outside ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | P.refl = P.refl
-    helper (inside  ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | P.refl = P.refl
-    helper (outside ∷ p) (inside  ∷ .p) ₁⊆₂ ₂⊆₁ | P.refl with ₂⊆₁ here
-    ...                                                  | ()
-    helper (inside  ∷ p) (outside ∷ .p) ₁⊆₂ ₂⊆₁ | P.refl with ₁⊆₂ here
-    ...                                                  | ()
--}
 
 ------------------------------------------------------------------------
 -- Properties involving ⊥
@@ -97,7 +61,7 @@ Empty-unique {p = inside  ∷ .⊥} ¬∃∈ | P.refl =
 ⊆⊤ = const ∈⊤
 
 ------------------------------------------------------------------------
--- Properties involving ⁅_⁆
+-- A property involving ⁅_⁆
 
 x∈⁅y⁆⇔x≡y : ∀ {n} {x y : Fin n} → x ∈ ⁅ y ⁆ ⇔ x ≡ y
 x∈⁅y⁆⇔x≡y {x = x} {y} =
@@ -113,7 +77,6 @@ x∈⁅y⁆⇔x≡y {x = x} {y} =
   x∈⁅x⁆ : ∀ {n} (x : Fin n) → x ∈ ⁅ x ⁆
   x∈⁅x⁆ zero    = here
   x∈⁅x⁆ (suc x) = there (x∈⁅x⁆ x)
-
 
 ------------------------------------------------------------------------
 -- A property involving _∪_
@@ -134,9 +97,7 @@ x∈⁅y⁆⇔x≡y {x = x} {y} =
   ⊆∪ˡ (s ∷ p₂) (there x∈p₁) = there (⊆∪ˡ p₂ x∈p₁)
 
   ⊆∪ʳ : ∀ {n} (p₁ p₂ : Subset n) → p₂ ⊆ p₁ ∪ p₂
-  ⊆∪ʳ p₁ p₂
-    rewrite Equivalent.to Pointwise.Pointwise-≡ ⟨$⟩
-              BooleanAlgebra.∨-comm (booleanAlgebra _) p₁ p₂
+  ⊆∪ʳ p₁ p₂ rewrite BooleanAlgebra.∨-comm (booleanAlgebra _) p₁ p₂
     = ⊆∪ˡ p₁
 
   from : ∀ {n} {p₁ p₂ : Subset n} {x} → x ∈ p₁ ⊎ x ∈ p₂ → x ∈ p₁ ∪ p₂
@@ -144,46 +105,50 @@ x∈⁅y⁆⇔x≡y {x = x} {y} =
   from (inj₂ x∈p₂) = ⊆∪ʳ _ _ x∈p₂
 
 ------------------------------------------------------------------------
--- Show that subset is equivalent to the natural lattice order
+-- _⊆_ is a partial order
 
-module PS {n : ℕ} where
-  open BoolProp (booleanAlgebra n) using (≈⇔≈‵-booleanAlgebra)
-  open BooleanAlgebra (≈⇔≈‵-booleanAlgebra Pointwise.Pointwise-≡) public
-  open LatProp lattice public
+-- The "natural poset" associated with the boolean algebra.
 
-open PS public using () renaming (_≤_ to _⊆‵_)
+module NaturalPoset where
+  private
+    open module BA {n} = BoolProp (booleanAlgebra n) public
+      using (poset)
+    open module Po {n} = Poset (poset {n = n}) public
 
-⊆⇿⊆‵ : ∀ {n} {p₁ p₂ : Subset n} → p₁ ⊆ p₂ ⇔ p₁ ⊆‵ p₂
-⊆⇿⊆‵ = equivalent (to _ _) (from _ _)
+  -- _⊆_ is equivalent to the natural lattice order.
 
-  where
+  orders-equivalent : ∀ {n} {p₁ p₂ : Subset n} → p₁ ⊆ p₂ ⇔ p₁ ≤ p₂
+  orders-equivalent = equivalent (to _ _) (from _ _)
+    where
+    to : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆ p₂ → p₁ ≤ p₂
+    to []             []             p₁⊆p₂ = P.refl
+    to (inside  ∷ p₁) (_       ∷ p₂) p₁⊆p₂ with p₁⊆p₂ here
+    to (inside  ∷ p₁) (.inside ∷ p₂) p₁⊆p₂ | here = P.cong (_∷_ inside)  (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
+    to (outside ∷ p₁) (_       ∷ p₂) p₁⊆p₂        = P.cong (_∷_ outside) (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
 
-  to : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆ p₂ → p₁ ⊆‵ p₂
-  to [] [] p₁⊆p₂ = P.refl
-  to (inside ∷ p₁) (y ∷ p₂) p₁⊆p₂ with p₁⊆p₂ here
-  to (inside ∷ p₁) (.inside ∷ p₂) p₁⊆p₂ | here = P.cong₂ _∷_ P.refl (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
-  to (outside ∷ p₁) (y ∷ p₂) p₁⊆p₂ = P.cong (_∷_ outside) (to p₁ p₂ (drop-∷-⊆ p₁⊆p₂))
+    from : ∀ {n} (p₁ p₂ : Subset n) → p₁ ≤ p₂ → p₁ ⊆ p₂
+    from []             []       p₁≤p₂ x               = x
+    from (.inside ∷ _)  (_ ∷ _)  p₁≤p₂ here            rewrite P.cong head p₁≤p₂ = here
+    from (_       ∷ p₁) (_ ∷ p₂) p₁≤p₂ (there xs[i]=x) =
+      there (from p₁ p₂ (P.cong tail p₁≤p₂) xs[i]=x)
 
-  from : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆‵ p₂ → p₁ ⊆ p₂
-  from [] [] p₁⊆‵p₂ x = x
-  from (.inside ∷ _) (_ ∷ _) p₁⊆‵p₂ here rewrite P.cong head p₁⊆‵p₂ = here
-  from (_ ∷ p₁) (_ ∷ p₂) p₁⊆‵p₂ (there xs[i]=x) = there (from p₁ p₂ (P.cong tail p₁⊆‵p₂) xs[i]=x)
-
-------------------------------------------------------------------------
--- _⊆_ is a partial order via the lattice order
+-- _⊆_ is a partial order.
 
 poset : ℕ → Poset _ _ _
 poset n = record
   { Carrier        = Subset n
   ; _≈_            = _≡_
   ; _≤_            = _⊆_
-  ; isPartialOrder = record 
-    { isPreorder = record 
-      { isEquivalence = PS.isEquivalence
-      ; reflexive = λ i≡j → E.from ⊆⇿⊆‵ ⟨$⟩ reflexive i≡j
-      ; trans = λ x⊆y y⊆z → E.from ⊆⇿⊆‵ ⟨$⟩ trans (E.to ⊆⇿⊆‵ ⟨$⟩ x⊆y) (E.to ⊆⇿⊆‵ ⟨$⟩ y⊆z)
+  ; isPartialOrder = record
+    { isPreorder = record
+      { isEquivalence = P.isEquivalence
+      ; reflexive     = λ i≡j → from ⟨$⟩ reflexive i≡j
+      ; trans         = λ x⊆y y⊆z → from ⟨$⟩ trans (to ⟨$⟩ x⊆y) (to ⟨$⟩ y⊆z)
       }
-    ; antisym = λ x⊆y y⊆x → antisym (E.to ⊆⇿⊆‵ ⟨$⟩ x⊆y) (E.to ⊆⇿⊆‵ ⟨$⟩ y⊆x)  
+    ; antisym = λ x⊆y y⊆x → antisym (to ⟨$⟩ x⊆y) (to ⟨$⟩ y⊆x)
     }
   }
-  where open Poset PS.poset
+  where
+  open NaturalPoset
+  open module E {p₁ p₂} =
+    Equivalent (orders-equivalent {n = n} {p₁ = p₁} {p₂ = p₂})

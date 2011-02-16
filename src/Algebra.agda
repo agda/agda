@@ -427,9 +427,6 @@ record Lattice c ℓ : Set (suc (c ⊔ ℓ)) where
 
   open IsLattice isLattice public
 
-  _≤_ : Rel Carrier ℓ
-  x ≤ y = x ≈ x ∧ y
-
   setoid : Setoid _ _
   setoid = record { isEquivalence = isEquivalence }
 
@@ -449,7 +446,7 @@ record DistributiveLattice c ℓ : Set (suc (c ⊔ ℓ)) where
   lattice : Lattice _ _
   lattice = record { isLattice = isLattice }
 
-  open Lattice lattice public using (setoid; _≤_)
+  open Lattice lattice public using (setoid)
 
 record BooleanAlgebra c ℓ : Set (suc (c ⊔ ℓ)) where
   infix  8 ¬_
@@ -473,4 +470,4 @@ record BooleanAlgebra c ℓ : Set (suc (c ⊔ ℓ)) where
     record { isDistributiveLattice = isDistributiveLattice }
 
   open DistributiveLattice distributiveLattice public
-         using (setoid; lattice; _≤_)
+         using (setoid; lattice)

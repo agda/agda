@@ -340,8 +340,6 @@ record StrictTotalOrder c ℓ₁ ℓ₂ : Set (suc (c ⊔ ℓ₁ ⊔ ℓ₂)) wh
     _<_                : Rel Carrier ℓ₂
     isStrictTotalOrder : IsStrictTotalOrder _≈_ _<_
 
-  _>_ = flip _<_
-
   open IsStrictTotalOrder isStrictTotalOrder public
     hiding (module Eq)
 

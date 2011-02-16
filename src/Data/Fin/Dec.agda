@@ -7,24 +7,24 @@
 module Data.Fin.Dec where
 
 open import Function
-open import Data.Bool
+import Data.Bool as Bool
 open import Data.Nat hiding (_<_)
 open import Data.Vec hiding (_∈_)
 open import Data.Vec.Equality as VecEq
+  using () renaming (module HeterogeneousEquality to HetVecEq)
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
 open import Data.Product as Prod
 open import Data.Empty
-open import Level hiding (Lift)
-open import Relation.Nullary
-open import Relation.Unary using (Pred)
-open import Relation.Binary
-open import Relation.Binary.HeterogeneousEquality using (≅-to-≡ ; ≡-to-≅)
 open import Function
-open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
+import Function.Equivalence as Eq
+open import Level hiding (Lift)
+open import Relation.Binary
+import Relation.Binary.HeterogeneousEquality as H
+open import Relation.Nullary
+import Relation.Nullary.Decidable as Dec
+open import Relation.Unary using (Pred)
 
 infix 4 _∈?_
 
@@ -162,14 +162,14 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
   extend′ g zero    = P0
   extend′ g (suc j) = g j
 
--- Decision procedure for ⊆ obtained via lattice order
+-- Decision procedure for _⊆_ (obtained via the natural lattice
+-- order).
 
 infix 4 _⊆?_
 
-open HeterogeneousEquality
-
-_⊆?_ : ∀ {n} (p q : Subset n) → Dec (p ⊆ q)
-_⊆?_ p q with p ≟v (p ∩ q)
-  where open VecEq.DecidableEquality (decSetoid) renaming (_≟_ to _≟v_)
-... | yes p⊆‵q = yes (λ x → (E.from ⊆⇿⊆‵ ⟨$⟩ ≅-to-≡ (to-≅ p⊆‵q)) x)
-... | no ¬p⊆‵q = no (¬p⊆‵q ∘ from-≅ ∘ ≡-to-≅ ∘ _⟨$⟩_ (E.to ⊆⇿⊆‵)) 
+_⊆?_ : ∀ {n} → Decidable (_⊆_ {n = n})
+p₁ ⊆? p₂ =
+  Dec.map (Eq.sym NaturalPoset.orders-equivalent) $
+  Dec.map′ H.≅-to-≡ H.≡-to-≅ $
+  Dec.map′ HetVecEq.to-≅ HetVecEq.from-≅ $
+  VecEq.DecidableEquality._≟_ Bool.decSetoid p₁ (p₁ ∩ p₂)

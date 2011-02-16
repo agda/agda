@@ -11,16 +11,18 @@ module Algebra.Props.BooleanAlgebra
          where
 
 open BooleanAlgebra B
-import Algebra.Props.DistributiveLattice as DL
-open DL distributiveLattice public
+import Algebra.Props.DistributiveLattice
+private
+  open module DL = Algebra.Props.DistributiveLattice
+                     distributiveLattice public
+    hiding (replace-equality)
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Relation.Binary
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
+open import Function.Equivalence using (_⇔_; module Equivalent)
 open import Data.Product
 
 ------------------------------------------------------------------------
@@ -239,6 +241,27 @@ deMorgan₂ x y = begin
   ¬ (¬ ¬ x ∨ ¬ ¬ y)  ≈⟨ ¬-cong $ sym $ deMorgan₁ _ _ ⟩
   ¬ ¬ (¬ x ∧ ¬ y)    ≈⟨ ¬-involutive _ ⟩
   ¬ x ∧ ¬ y          ∎
+
+-- One can replace the underlying equality with an equivalent one.
+
+replace-equality :
+  {_≈′_ : Rel Carrier b₂} →
+  (∀ {x y} → x ≈ y ⇔ x ≈′ y) → BooleanAlgebra _ _
+replace-equality {_≈′_} ≈⇔≈′ = record
+  { _≈_              = _≈′_
+  ; _∨_              = _∨_
+  ; _∧_              = _∧_
+  ; ¬_               = ¬_
+  ; ⊤                = ⊤
+  ; ⊥                = ⊥
+  ; isBooleanAlgebra =  record
+    { isDistributiveLattice = DistributiveLattice.isDistributiveLattice
+                                (DL.replace-equality ≈⇔≈′)
+    ; ∨-complementʳ         = λ x → to ⟨$⟩ ∨-complementʳ x
+    ; ∧-complementʳ         = λ x → to ⟨$⟩ ∧-complementʳ x
+    ; ¬-cong                = λ i≈j → to ⟨$⟩ ¬-cong (from ⟨$⟩ i≈j)
+    }
+  } where open module E {x y} = Equivalent (≈⇔≈′ {x} {y})
 
 ------------------------------------------------------------------------
 -- (⊕, ∧, id, ⊥, ⊤) is a commutative ring
@@ -545,23 +568,3 @@ _⊕_ : Op₂ Carrier
 x ⊕ y = (x ∨ y) ∧ ¬ (x ∧ y)
 
 module DefaultXorRing = XorRing _⊕_ (λ _ _ → refl)
-
-≈⇔≈‵-isBooleanAlgebra : {_≈‵_ : Rel Carrier b₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
-                      → IsBooleanAlgebra _≈‵_ _∨_ _∧_ ¬_ ⊤ ⊥
-≈⇔≈‵-isBooleanAlgebra ≈⇔≈‵ = record 
-  { isDistributiveLattice = ≈⇔≈‵-isDistributiveLattice ≈⇔≈‵
-  ; ∨-complementʳ = λ x → E.to ≈⇔≈‵ ⟨$⟩ ∨-complementʳ x 
-  ; ∧-complementʳ = λ x → E.to ≈⇔≈‵ ⟨$⟩ ∧-complementʳ x 
-  ; ¬-cong = λ i≈j → E.to ≈⇔≈‵ ⟨$⟩ ¬-cong (E.from ≈⇔≈‵ ⟨$⟩ i≈j) 
-  }
-
-≈⇔≈‵-booleanAlgebra : {_≈‵_ : Rel Carrier b₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
-                    → BooleanAlgebra b₁ b₂
-≈⇔≈‵-booleanAlgebra ≈⇔≈‵ = record 
-  { _∨_ = _∨_
-  ; _∧_ = _∧_
-  ; ¬_ = ¬_
-  ; ⊤ = ⊤
-  ; ⊥ = ⊥
-  ; isBooleanAlgebra = ≈⇔≈‵-isBooleanAlgebra ≈⇔≈‵
-  }

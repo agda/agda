@@ -11,15 +11,17 @@ module Algebra.Props.DistributiveLattice
          where
 
 open DistributiveLattice DL
-import Algebra.Props.Lattice as L; open L lattice public
+import Algebra.Props.Lattice
+private
+  open module L = Algebra.Props.Lattice lattice public
+    hiding (replace-equality)
 open import Algebra.Structures
 import Algebra.FunctionProperties as P; open P _≈_
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent) renaming (Equivalent to E)
+open import Function.Equivalence using (_⇔_; module Equivalent)
 open import Data.Product
 
 ∨-∧-distrib : _∨_ DistributesOver _∧_
@@ -67,17 +69,17 @@ open import Data.Product
   ; isDistributiveLattice = ∧-∨-isDistributiveLattice
   }
 
-≈⇔≈‵-isDistributiveLattice : {_≈‵_ : Rel Carrier dl₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
-                           → IsDistributiveLattice _≈‵_ _∨_ _∧_
-≈⇔≈‵-isDistributiveLattice ≈⇔≈‵ = record 
-  { isLattice = ≈⇔≈‵-isLattice ≈⇔≈‵
-  ; ∨-∧-distribʳ = λ x y z → E.to ≈⇔≈‵ ⟨$⟩ (∨-∧-distribʳ x y z) 
-  }
+-- One can replace the underlying equality with an equivalent one.
 
-≈⇔≈‵-distributiveLattice : {_≈‵_ : Rel Carrier dl₂} → (∀ {x y} → x ≈ y ⇔ x ≈‵ y) 
-                           → DistributiveLattice _ _
-≈⇔≈‵-distributiveLattice ≈⇔≈‵ = record
-  { _∧_ = _∧_
-  ; _∨_ = _∨_
-  ; isDistributiveLattice = ≈⇔≈‵-isDistributiveLattice ≈⇔≈‵
-  }
+replace-equality :
+  {_≈′_ : Rel Carrier dl₂} →
+  (∀ {x y} → x ≈ y ⇔ x ≈′ y) → DistributiveLattice _ _
+replace-equality {_≈′_} ≈⇔≈′ = record
+  { _≈_                   = _≈′_
+  ; _∧_                   = _∧_
+  ; _∨_                   = _∨_
+  ; isDistributiveLattice = record
+    { isLattice    = Lattice.isLattice (L.replace-equality ≈⇔≈′)
+    ; ∨-∧-distribʳ = λ x y z → to ⟨$⟩ ∨-∧-distribʳ x y z
+    }
+  } where open module E {x y} = Equivalent (≈⇔≈′ {x} {y})

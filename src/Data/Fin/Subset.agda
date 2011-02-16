@@ -5,6 +5,7 @@
 module Data.Fin.Subset where
 
 open import Algebra
+import Algebra.Props.BooleanAlgebra as BoolAlgProp
 import Algebra.Props.BooleanAlgebra.Expression as BAExpr
 import Data.Bool.Properties as BoolProp
 open import Data.Fin
@@ -12,6 +13,7 @@ open import Data.List as List using (List)
 open import Data.Nat
 open import Data.Product
 open import Data.Vec using (Vec; _∷_; _[_]=_)
+import Relation.Binary.Vec.Pointwise as Pointwise
 open import Relation.Nullary
 
 infix 4 _∈_ _∉_ _⊆_ _⊈_
@@ -49,9 +51,15 @@ p₁ ⊈ p₂ = ¬ (p₁ ⊆ p₂)
 
 -- Pointwise lifting of the usual boolean algebra for booleans gives
 -- us a boolean algebra for subsets.
+--
+-- The underlying equality of the returned boolean algebra is
+-- propositional equality.
 
 booleanAlgebra : ℕ → BooleanAlgebra _ _
-booleanAlgebra n = BAExpr.lift BoolProp.booleanAlgebra n
+booleanAlgebra n =
+  BoolAlgProp.replace-equality
+    (BAExpr.lift BoolProp.booleanAlgebra n)
+    Pointwise.Pointwise-≡
 
 private
   open module BA {n} = BooleanAlgebra (booleanAlgebra n) public
