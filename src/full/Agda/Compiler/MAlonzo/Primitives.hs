@@ -88,10 +88,8 @@ declsForPrim = xForPrim $
                   , rule (from ++ "-" ++ to) (var from % (var to   % var "x")) (var "x")
                   ]] ++ ds
     decls cs n1 b1 n2 b2 =
-      ifM (hasCompiledData cs)
-          (return $ L.map (`fakeDS` "id") [n1, n2])
-        $ do cs' <- mapM pconName cs
-             return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
+      do cs' <- mapM pconName cs
+         return $ zipWith (\ n -> fakeDS n . repl cs') [n1, n2] [b1, b2]
 
 mazNatToInteger  = "mazNatToInteger"
 mazIntegerToNat  = "mazIntegerToNat"

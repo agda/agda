@@ -1,0 +1,10 @@
+agda2_mode_code (agda2-status-action "")
+[1 of 3] Compiling MAlonzo.RTE      ( MAlonzo/RTE.hs, MAlonzo/RTE.o )
+[2 of 3] Compiling Imports.Nat      ( Imports/Nat.hs, Imports/Nat.o )
+[3 of 3] Compiling MAlonzo.Code.Issue373 ( MAlonzo/Code/Issue373.hs, MAlonzo/Code/Issue373.o )
+agda2_mode_code (agda2-status-action "Checked")
+agda2_mode_code (agda2-info-action
+                 "*Compilation result*"
+                 "The module was successfully compiled.")
+agda2_mode_code (agda2-goals-action '())
+ok
