@@ -1,5 +1,5 @@
-ScopeIrrelevantRecordField.agda:9,9-17
+ScopeIrrelevantRecordField.agda:10,9-17
 Not in scope:
   Bla.bla0
-  at ScopeIrrelevantRecordField.agda:9,9-17
+  at ScopeIrrelevantRecordField.agda:10,9-17
 when scope checking Bla.bla0

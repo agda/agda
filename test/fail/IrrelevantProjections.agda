@@ -1,4 +1,3 @@
-{-# OPTIONS --irrelevant-projections #-}
 module IrrelevantProjections where
 
 record [_] (A : Set) : Set where

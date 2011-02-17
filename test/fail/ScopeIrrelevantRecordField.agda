@@ -1,3 +1,4 @@
+{-# OPTIONS --no-irrelevant-projections #-}
 module ScopeIrrelevantRecordField where
 
 record Bla : Set1 where

@@ -141,6 +141,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optVerbose                   = defaultVerbosity
   , optProofIrrelevance          = False
+  , optIrrelevantProjections     = True
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
   , optTerminationCheck          = True
@@ -152,7 +153,6 @@ defaultPragmaOptions = PragmaOptions
   , optInjectiveTypeConstructors = False
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = False
-  , optIrrelevantProjections     = False
   , optWithoutK                  = False
   }
 
@@ -202,6 +202,7 @@ inputFlag f o =
 versionFlag                  o = return $ o { optShowVersion               = True  }
 helpFlag                     o = return $ o { optShowHelp                  = True  }
 proofIrrelevanceFlag         o = return $ o { optProofIrrelevance          = True  }
+noIrrelevantProjectionsFlag  o = return $ o { optIrrelevantProjections     = False }
 ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = True  }
 allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
 showImplicitFlag             o = return $ o { optShowImplicit              = True  }
@@ -217,7 +218,6 @@ injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = Tru
 guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
 noForcingFlag                o = return $ o { optForcing                   = False }
-irrelevantProjectionsFlag    o = return $ o { optIrrelevantProjections     = True  }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 
 interactiveFlag  o = return $ o { optInteractive    = True
@@ -328,8 +328,8 @@ pragmaOptions =
                     "treat type constructors as inductive constructors when checking productivity"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
                     "enable universe polymorphism (experimental feature)"
-    , Option []     ["irrelevant-projections"] (NoArg irrelevantProjectionsFlag)
-                    "enable projection of irrelevant record fields"
+    , Option []     ["no-irrelevant-projections"] (NoArg noIrrelevantProjectionsFlag)
+                    "disable projection of irrelevant record fields"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule (maybe)"
     ]

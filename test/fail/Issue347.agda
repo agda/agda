@@ -1,4 +1,3 @@
-{-# OPTIONS --irrelevant-projections #-}
 module Issue347 where
 
 {- Dan Doel, 2010-10-09

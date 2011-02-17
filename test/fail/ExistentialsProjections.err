@@ -1,5 +1,4 @@
 ExistentialsProjections.agda:12,18-26
-Not in scope:
-  fwitness
-  at ExistentialsProjections.agda:12,18-26
-when scope checking fwitness
+identifier fwitness is declared irrelevant, so it cannot be used
+here
+when checking that the expression fwitness has type A
