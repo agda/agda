@@ -438,9 +438,7 @@ checkLeftHandSide c ps a ret = do
 -}
 
             -- Andreas 2010-09-07  propagate relevance info to new vars
-            gamma' <- return $ if rel == Irrelevant then
-                                fmap makeIrrelevant gamma'
-                               else gamma'
+            gamma' <- return $ fmap (\a -> a { argRelevance = rel }) gamma'
 {-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
               [ text "gamma' =" <+> text (show gamma')
