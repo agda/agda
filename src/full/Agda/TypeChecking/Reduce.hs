@@ -8,7 +8,8 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Control.Applicative
 import Data.List as List hiding (sort)
-import Data.Map as Map
+import qualified Data.Map as Map
+import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Traversable
 
@@ -256,19 +257,19 @@ unfoldDefinition :: MonadTCM tcm =>
   Bool -> (Term -> tcm (Blocked Term)) ->
   Term -> QName -> Args -> tcm (Blocked Term)
 unfoldDefinition unfoldDelayed keepGoing v0 f args =
-    {-# SCC "reduceDef" #-}
-    do  info <- getConstInfo f
-        case theDef info of
-            Constructor{conSrcCon = c} ->
-              return $ notBlocked $ Con (c `withRangeOf` f) args
-            Primitive ConcreteDef x cls -> do
-                pf <- getPrimitive x
-                reducePrimitive x v0 f args pf (defDelayed info)
-                                (maybe [] (List.map translatedClause) cls)
-                                Nothing
-            _  -> reduceNormal v0 f args (defDelayed info)
-                               (List.map translatedClause $ defClauses info)
-                               (defCompiled info)
+  {-# SCC "reduceDef" #-} do
+  info <- getConstInfo f
+  case theDef info of
+    Constructor{conSrcCon = c} ->
+      return $ notBlocked $ Con (c `withRangeOf` f) args
+    Primitive{primAbstr = ConcreteDef, primName = x, primClauses = cls} -> do
+      pf <- getPrimitive x
+      reducePrimitive x v0 f args pf (defDelayed info)
+                      (maybe [] (List.map translatedClause) cls)
+                      (defCompiled info)
+    _  -> reduceNormal v0 f (map notReduced args) (defDelayed info)
+                       (List.map translatedClause $ defClauses info)
+                       (defCompiled info)
   where
     reducePrimitive x v0 f args pf delayed cls mcc
         | n < ar    = return $ notBlocked $ v0 `apply` args -- not fully applied
@@ -276,9 +277,12 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             let (args1,args2) = genericSplitAt ar args
             r <- def args1
             case r of
-                NoReduction args1' -> reduceNormal v0 f (args1' ++ args2)
-                                                   delayed cls mcc
-                YesReduction v	   -> keepGoing $ v `apply` args2
+              NoReduction args1' ->
+                reduceNormal v0 f (args1' ++
+                                   map notReduced args2)
+                             delayed cls mcc
+              YesReduction v ->
+                keepGoing $ v `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
@@ -291,26 +295,28 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
           [] -> defaultResult -- no definition for head
           cls@(Clause{ clausePats = ps } : _)
             | length ps <= length args -> do
-                let (args1,args2) = splitAt (length ps) args
+                let (args1,args2') = splitAt (length ps) args
+                    args2 = map ignoreReduced args2'
                 ev <- maybe (appDef' v0 cls args1)
                             (\cc -> appDef v0 cc args1) mcc
                 case ev of
                   NoReduction  v -> return    $ v `apply` args2
                   YesReduction v -> keepGoing $ v `apply` args2
             | otherwise	-> defaultResult -- partial application
-      where defaultResult = return $ notBlocked $ v0 `apply` args
+      where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
-    appDef :: MonadTCM tcm => Term -> CompiledClauses -> Args -> tcm (Reduced (Blocked Term) Term)
+    appDef :: MonadTCM tcm => Term -> CompiledClauses -> MaybeReducedArgs -> tcm (Reduced (Blocked Term) Term)
     appDef v cc args = liftTCM $ do
       r <- matchCompiled cc args
       case r of
         YesReduction t    -> return $ YesReduction t
         NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
 
-    appDef' :: MonadTCM tcm => Term -> [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
-    appDef' v cls args = {-# SCC "appDef" #-} goCls cls args where
+    appDef' :: MonadTCM tcm => Term -> [Clause] -> MaybeReducedArgs -> tcm (Reduced (Blocked Term) Term)
+    appDef' v cls args = {-# SCC "appDef" #-} do
+      goCls cls (map ignoreReduced args) where
 
         goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args

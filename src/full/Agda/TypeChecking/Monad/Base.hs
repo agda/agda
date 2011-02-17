@@ -480,6 +480,7 @@ data Defn = Axiom
             , primClauses :: Maybe [Clauses]
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
+            , primCompiled :: Maybe CompiledClauses
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
@@ -494,10 +495,27 @@ newtype Fields = Fields [(C.Name, Type)]
 data Reduced no yes = NoReduction no | YesReduction yes
     deriving (Typeable)
 
+data IsReduced = NotReduced | Reduced (Blocked ())
+data MaybeReduced a = MaybeRed
+  { isReduced     :: IsReduced
+  , ignoreReduced :: a
+  }
+
+instance Functor MaybeReduced where
+  fmap f (MaybeRed r x) = MaybeRed r (f x)
+
+type MaybeReducedArgs = [MaybeReduced (Arg Term)]
+
+notReduced :: a -> MaybeReduced a
+notReduced x = MaybeRed NotReduced x
+
+reduced :: Blocked a -> MaybeReduced a
+reduced b = MaybeRed (Reduced $ fmap (const ()) b) (ignoreBlocking b)
+
 data PrimFun = PrimFun
 	{ primFunName		:: QName
 	, primFunArity		:: Arity
-	, primFunImplementation :: MonadTCM tcm => [Arg Term] -> tcm (Reduced [Arg Term] Term)
+	, primFunImplementation :: MonadTCM tcm => [Arg Term] -> tcm (Reduced MaybeReducedArgs Term)
 	}
     deriving (Typeable)
 
@@ -510,6 +528,7 @@ defClauses _                                               = []
 
 defCompiled :: Definition -> Maybe CompiledClauses
 defCompiled Defn{theDef = Function{funCompiled = cc}} = Just cc
+defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 
 -- | Used to specify whether something should be delayed.

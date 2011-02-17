@@ -134,7 +134,7 @@ instance (PrimTerm a, ToTerm a) => ToTerm [a] where
 
 -- From Haskell value to Agda term
 
-type FromTermFunction a = Arg Term -> TCM (Reduced (Arg Term) a)
+type FromTermFunction a = Arg Term -> TCM (Reduced (MaybeReduced (Arg Term)) a)
 
 class FromTerm a where
     fromTerm :: MonadTCM tcm => tcm (FromTermFunction a)
@@ -189,37 +189,38 @@ instance FromTerm Bool where
 	    _	     === _	    = False
 
 instance (ToTerm a, FromTerm a) => FromTerm [a] where
-    fromTerm = do
-	nil'  <- primNil
-	cons' <- primCons
-	nil   <- isCon nil'
-	cons  <- isCon cons'
-	toA   <- fromTerm
-	fromA <- toTerm
-	return $ mkList nil cons toA fromA
-	where
-	    isCon (Lam _ b) = isCon $ absBody b
-	    isCon (Con c _) = return c
-	    isCon v	    = do
-		d <- prettyTCM v
-		typeError $ GenericError $ "expected constructor in built-in binding to " ++ show d
-				-- TODO: check this when binding the things
+  fromTerm = do
+    nil'  <- primNil
+    cons' <- primCons
+    nil   <- isCon nil'
+    cons  <- isCon cons'
+    toA   <- fromTerm
+    fromA <- toTerm
+    return $ mkList nil cons toA fromA
+    where
+      isCon (Lam _ b) = isCon $ absBody b
+      isCon (Con c _) = return c
+      isCon v	    = do
+        d <- prettyTCM v
+        typeError $ GenericError $ "expected constructor in built-in binding to " ++ show d
+                        -- TODO: check this when binding the things
 
-	    mkList nil cons toA fromA t = do
-		t <- reduce t
-		let arg = Arg (argHiding t) (argRelevance t)
-		case unArg t of
-		    Con c []
-			| c == nil  -> return $ YesReduction []
-		    Con c [x,xs]
-			| c == cons ->
-			    redBind (toA x)
-				(\x' -> arg $ Con c [x',xs]) $ \y ->
-			    redBind
-				(mkList nil cons toA fromA xs)
-				(\xs' -> arg $ Con c [defaultArg $ fromA y, xs']) $ \ys ->
-			    redReturn (y : ys)
-		    _ -> return $ NoReduction t
+      mkList nil cons toA fromA t = do
+        b <- reduceB t
+        let t = ignoreBlocking b
+        let arg = Arg (argHiding t) (argRelevance t)
+        case unArg t of
+          Con c []
+            | c == nil  -> return $ YesReduction []
+          Con c [x,xs]
+            | c == cons ->
+              redBind (toA x)
+                  (\x' -> notReduced $ arg $ Con c [ignoreReduced x',xs]) $ \y ->
+              redBind
+                  (mkList nil cons toA fromA xs)
+                  (fmap $ \xs' -> arg $ Con c [defaultArg $ fromA y, xs']) $ \ys ->
+              redReturn (y : ys)
+          _ -> return $ NoReduction (reduced b)
 
 -- | Conceptually: @redBind m f k = either (return . Left . f) k =<< m@
 redBind :: MonadTCM tcm => tcm (Reduced a a') -> (a -> b) ->
@@ -235,10 +236,10 @@ redReturn = return . YesReduction
 
 fromReducedTerm :: MonadTCM tcm => (Term -> Maybe a) -> tcm (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
-    t <- reduce t
-    case f $ unArg t of
+    b <- reduceB t
+    case f $ unArg (ignoreBlocking b) of
 	Just x	-> return $ YesReduction x
-	Nothing	-> return $ NoReduction t
+	Nothing	-> return $ NoReduction (reduced b)
 
 fromLiteral :: MonadTCM tcm => (Literal -> Maybe a) -> tcm (FromTermFunction a)
 fromLiteral f = fromReducedTerm $ \t -> case t of
@@ -257,7 +258,7 @@ primTrustMe = do
               noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
               rf <- return refl -- <#> return (unArg t) <#> return (unArg a)
               redReturn rf
-            `catchError` \_ -> return (NoReduction [t, a, b])
+            `catchError` \_ -> return (NoReduction $ map notReduced [t, a, b])
         _ -> __IMPOSSIBLE__
 
 -- Tying the knot
@@ -287,9 +288,10 @@ mkPrimFun2 f = do
       case ts of
         [v,w] -> liftTCM $
           redBind (toA v)
-              (\v' -> [v',w]) $ \x ->
+              (\v' -> [v', notReduced w]) $ \x ->
           redBind (toB w)
-              (\w' -> [Arg (argHiding v) (argRelevance v) (fromA x), w']) $ \y ->
+              (\w' -> [ reduced $ notBlocked $ Arg (argHiding v) (argRelevance v) (fromA x)
+                      , w']) $ \y ->
           redReturn $ fromC $ f x y
         _ -> __IMPOSSIBLE__
 
@@ -308,32 +310,26 @@ mkPrimFun4 f = do
     fromE        <- toTerm
     t <- primType f
     return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
-      case ts of
+      let argFrom fromX a x =
+            reduced $ notBlocked $ Arg (argHiding a) (argRelevance a) (fromX x)
+      in case ts of
         [a,b,c,d] -> liftTCM $
           redBind (toA a)
-              (\a' -> [a',b,c,d]) $ \x ->
+              (\a' -> a' : map notReduced [b,c,d]) $ \x ->
           redBind (toB b)
-              (\b' -> [Arg (argHiding a) (argRelevance a) (fromA x), b', c, d]) $ \y ->
+              (\b' -> [argFrom fromA a x, b', notReduced c, notReduced d]) $ \y ->
           redBind (toC c)
-              (\c' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
-                      , Arg (argHiding b) (argRelevance b) (fromB y), c', d]) $ \z ->
+              (\c' -> [ argFrom fromA a x
+                      , argFrom fromB b y
+                      , c', notReduced d]) $ \z ->
           redBind (toD d)
-              (\d' -> [ Arg (argHiding a) (argRelevance a) (fromA x)
-                      , Arg (argHiding b) (argRelevance b) (fromB y)
-                      , Arg (argHiding c) (argRelevance c) (fromC z)
+              (\d' -> [ argFrom fromA a x
+                      , argFrom fromB b y
+                      , argFrom fromC c z
                       , d']) $ \w ->
 
           redReturn $ fromE $ f x y z w
         _ -> __IMPOSSIBLE__
-
--- Abstract primitive functions
-abstractPrim :: (MonadTCM tcm, PrimType a) => a -> tcm PrimitiveImpl
-abstractPrim x = abstractFromType (primType x)
-
-abstractFromType :: MonadTCM tcm => tcm Type -> tcm PrimitiveImpl
-abstractFromType mt = do
-    t <- mt
-    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ (arity t) $ \args -> NoReduction <$> normalise args
 
 -- Type combinators
 infixr 4 -->

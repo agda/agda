@@ -11,9 +11,12 @@ import Agda.TypeChecking.Monad.Base
 
 tick :: String -> TCM ()
 tick x = modify $ \s ->
-    s { stStatistics = Map.insertWith (\_ n -> n + 1) x 1
-		     $ stStatistics s
-      }
+  let st' = inc $ stStatistics s in
+  force st' `seq` s { stStatistics = st' }
+  where
+    -- We need to be strict in the map
+    force m = sum (Map.elems m)
+    inc = Map.insertWith (\_ n -> n + 1) x 1
 
 getStatistics :: TCM Statistics
 getStatistics = gets stStatistics

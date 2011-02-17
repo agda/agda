@@ -88,7 +88,8 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 $ Primitive (Info.defAbstract i) s Nothing)
+    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 $
+                Primitive (Info.defAbstract i) s Nothing Nothing)
     where
 	nameString (Name _ x _ _) = show x
 
