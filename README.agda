@@ -68,6 +68,8 @@ module README where
 --     binary relations).
 -- • Size
 --     Sizes used by the sized types mechanism.
+-- • Universe
+--     A definition of universes.
 
 ------------------------------------------------------------------------
 -- A selection of useful library modules
