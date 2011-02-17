@@ -219,7 +219,7 @@ library-test : up-to-date-std-lib
 	@echo "======================================================================"
 	@(cd std-lib && \
           time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
-            +RTS -H1G -M1.5G -s)
+            +RTS -H1G -M1.8G -s)
 
 compiler-test : up-to-date-std-lib
 	@echo "======================================================================"
