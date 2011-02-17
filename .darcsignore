@@ -64,3 +64,6 @@ src/prototyping/terms/(dist|term)$
 ^examples/relocatable/copies$
 ^test/succeed/MAlonzo($|/)
 ^test/succeed/Issue(296|326)$
+examples/compiler/MAlonzo$
+test/succeed/Epic$
+examples/compiler/main$
