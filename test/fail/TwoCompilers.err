@@ -33,7 +33,7 @@ Usage: agda [OPTIONS...] FILE
           --injective-type-constructors               enable injective type constructors (makes Agda anti-classical and possibly inconsistent)
           --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
           --universe-polymorphism                     enable universe polymorphism (experimental feature)
-          --irrelevant-projections                    enable projection of irrelevant record fields
+          --no-irrelevant-projections                 disable projection of irrelevant record fields
           --without-K                                 disable the K rule (maybe)
 
 Plugins:

@@ -117,6 +117,36 @@ customised/NestedProjectRoots : % : %.err
 			 false; \
 		fi
 
+customised/FFI.err : %.err : %.agda
+	@echo "$*.agda"
+	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
+		then echo "Unexpected success"; rm -f $*.tmp; false; \
+    else if [ -s $*.tmp ]; \
+		then sed -e "s/[^ (]*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		else rm -f $@ $*.tmp; false; \
+		fi; \
+	fi
+
+.PHONY:
+customised/FFI : % : %.err
+	@echo $*.agda
+	-@rm -rf customised/MAlonzo
+	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
+	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' \
+	    > $*.err.tmp
+	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
+	@echo `cat $*.err` > $*.err.tmp.3
+	@if cmp $*.err.tmp.2 $*.err.tmp.3; \
+		then rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
+				 true; \
+		else echo "== Old error ==="; \
+			 cat $*.err; \
+			 echo "== New error ==="; \
+			 cat $*.err.tmp; \
+			 rm -f $*.err.tmp; rm -f $*.err.tmp.2; rm -f $*.err.tmp.3; \
+			 false; \
+		fi
+
 # Clean
 
 clean :

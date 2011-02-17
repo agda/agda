@@ -1,0 +1,10 @@
+[2 of 2] Compiling MAlonzo.Code.FFI ( customised/MAlonzo/Code/FFI.hs, customised/MAlonzo/Code/FFI.o )
+
+Compilation error:
+
+customised/MAlonzo/Code/FFI.hs:20:10:
+    Not in scope: `nothing'
+
+customised/MAlonzo/Code/FFI.hs:30:61:
+    Not in scope: `nothing'
+

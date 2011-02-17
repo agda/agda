@@ -67,3 +67,4 @@ src/prototyping/terms/(dist|term)$
 examples/compiler/MAlonzo$
 test/succeed/Epic$
 examples/compiler/main$
+test/fail/customised/MAlonzo
