@@ -2,31 +2,32 @@
 -- Some properties related to Data.Star
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Star.Properties where
 
 open import Data.Star
 open import Function
-open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl; sym; cong; cong₂)
 import Relation.Binary.PreorderReasoning as PreR
 
-◅◅-assoc : ∀ {I} {T : Rel I zero} {i j k l}
-                  (xs : Star T i j) (ys : Star T j k)
-                  (zs : Star T k l) →
+◅◅-assoc : ∀ {i t} {I : Set i} {T : Rel I t} {i j k l}
+           (xs : Star T i j) (ys : Star T j k)
+           (zs : Star T k l) →
            (xs ◅◅ ys) ◅◅ zs ≡ xs ◅◅ (ys ◅◅ zs)
 ◅◅-assoc ε        ys zs = refl
 ◅◅-assoc (x ◅ xs) ys zs = cong (_◅_ x) (◅◅-assoc xs ys zs)
 
-gmap-id : ∀ {I} {T : Rel I zero} {i j} (xs : Star T i j) →
+gmap-id : ∀ {i t} {I : Set i} {T : Rel I t} {i j} (xs : Star T i j) →
           gmap id id xs ≡ xs
 gmap-id ε        = refl
 gmap-id (x ◅ xs) = cong (_◅_ x) (gmap-id xs)
 
-gmap-∘ : ∀ {I} {T : Rel I zero}
-           {J} {U : Rel J zero}
-           {K} {V : Rel K zero}
+gmap-∘ : ∀ {i t} {I : Set i} {T : Rel I t}
+           {j u} {J : Set j} {U : Rel J u}
+           {k v} {K : Set k} {V : Rel K v}
          (f  : J → K) (g  : U =[ f  ]⇒ V)
          (f′ : I → J) (g′ : T =[ f′ ]⇒ U)
          {i j} (xs : Star T i j) →
@@ -34,14 +35,16 @@ gmap-∘ : ∀ {I} {T : Rel I zero}
 gmap-∘ f g f′ g′ ε        = refl
 gmap-∘ f g f′ g′ (x ◅ xs) = cong (_◅_ (g (g′ x))) (gmap-∘ f g f′ g′ xs)
 
-gmap-◅◅ : ∀ {I} {T : Rel I zero} {J} {U : Rel J zero}
+gmap-◅◅ : ∀ {i t j u}
+            {I : Set i} {T : Rel I t} {J : Set j} {U : Rel J u}
           (f : I → J) (g : T =[ f ]⇒ U)
           {i j k} (xs : Star T i j) (ys : Star T j k) →
           gmap {U = U} f g (xs ◅◅ ys) ≡ gmap f g xs ◅◅ gmap f g ys
 gmap-◅◅ f g ε        ys = refl
 gmap-◅◅ f g (x ◅ xs) ys = cong (_◅_ (g x)) (gmap-◅◅ f g xs ys)
 
-gmap-cong : ∀ {I} {T : Rel I zero} {J} {U : Rel J zero}
+gmap-cong : ∀ {i t j u}
+              {I : Set i} {T : Rel I t} {J : Set j} {U : Rel J u}
             (f : I → J) (g : T =[ f ]⇒ U) (g′ : T =[ f ]⇒ U) →
             (∀ {i j} (x : T i j) → g x ≡ g′ x) →
             ∀ {i j} (xs : Star T i j) →
@@ -49,7 +52,8 @@ gmap-cong : ∀ {I} {T : Rel I zero} {J} {U : Rel J zero}
 gmap-cong f g g′ eq ε        = refl
 gmap-cong f g g′ eq (x ◅ xs) = cong₂ _◅_ (eq x) (gmap-cong f g g′ eq xs)
 
-fold-◅◅ : ∀ {I} (P : Rel I zero) (_⊕_ : Transitive P) (∅ : Reflexive P) →
+fold-◅◅ : ∀ {i p} {I : Set i}
+          (P : Rel I p) (_⊕_ : Transitive P) (∅ : Reflexive P) →
           (∀ {i j} (x : P i j) → ∅ ⊕ x ≡ x) →
           (∀ {i j k l} (x : P i j) (y : P j k) (z : P k l) →
              (x ⊕ y) ⊕ z ≡ x ⊕ (y ⊕ z)) →
@@ -65,7 +69,7 @@ fold-◅◅ P _⊕_ ∅ left-unit assoc (x ◅ xs) ys = begin
 
 -- Reflexive transitive closures are preorders.
 
-preorder : ∀ {I} (T : Rel I zero) → Preorder _ _ _
+preorder : ∀ {i t} {I : Set i} (T : Rel I t) → Preorder _ _ _
 preorder T = record
   { _≈_        = _≡_
   ; _∼_        = Star T
@@ -81,7 +85,7 @@ preorder T = record
 
 -- Preorder reasoning for Star.
 
-module StarReasoning {I : Set} (T : Rel I zero) where
+module StarReasoning {i t} {I : Set i} (T : Rel I t) where
   open PreR (preorder T) public
     renaming (_∼⟨_⟩_ to _⟶⋆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 

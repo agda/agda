@@ -2,6 +2,8 @@
 -- Natural numbers defined in terms of Data.Star
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module Data.Star.Nat where
 
 open import Data.Star
@@ -9,7 +11,6 @@ open import Data.Unit
 open import Relation.Binary
 open import Relation.Binary.Simple
 open import Function
-import Level as L
 
 -- Natural numbers.
 
@@ -26,7 +27,7 @@ suc = _◅_ tt
 
 -- The length of a star-list.
 
-length : ∀ {I} {T : Rel I L.zero} {i j} → Star T i j → ℕ
+length : ∀ {i t} {I : Set i} {T : Rel I t} {i j} → Star T i j → ℕ
 length = gmap (const tt) (const tt)
 
 -- Arithmetic.
