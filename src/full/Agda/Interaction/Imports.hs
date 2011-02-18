@@ -346,19 +346,24 @@ getInterface' x includeStateChanges =
 
                      mf        <- stModuleToSource <$> get
                      ds        <- getDecodedModules
-                     return $ do
+                     return (r, do
                         modify $ \s -> s { stModuleToSource = mf }
                         setDecodedModules ds
                         case r of
                           (i, Right t) -> storeDecodedModule i t
                           _            -> return ()
+                        )
 
             case r of
                 Left err               -> throwError err
-                Right update -> do
+                Right (r, update) -> do
                   update
-                  r <- skip file
-                  ret r
+                  case r of
+                    (_, Right _) -> do
+                      r <- skip file
+                      ret r
+                    _ ->
+                      ret (False, r)
 
 
 readInterface :: FilePath -> TCM (Maybe Interface)
