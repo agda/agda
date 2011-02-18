@@ -65,6 +65,13 @@ infixr 4 _⇨_
 _⇨_ : Ctxt → Ctxt → Set _
 Γ ⇨ Δ = Env Δ → Env Γ
 
+-- Maps between types.
+
+infixr 4 _⇨₁_
+
+_⇨₁_ : ∀ {Γ} → Type Γ → Type Γ → Set _
+σ ⇨₁ τ = ∀ {γ} → El (τ γ) → El (σ γ)
+
 -- Application of substitutions to types.
 --
 -- Note that this operation is composition of functions. I have chosen
@@ -89,17 +96,33 @@ v /v ρ = v ∘ ρ
 wk : ∀ {Γ σ} → Γ ⇨ Γ ▻ σ
 wk = proj₁
 
+-- Extends a substitution with another value.
+
+infixl 5 _►_
+
+_►_ : ∀ {Γ Δ σ} (ρ : Γ ⇨ Δ) → Value Δ (σ / ρ) → Γ ▻ σ ⇨ Δ
+_►_ = <_,_>
+
 -- A substitution which only replaces the first "variable".
 
 sub : ∀ {Γ σ} → Value Γ σ → Γ ▻ σ ⇨ Γ
-sub v = < id , v >
+sub v = id ► v
+
+-- One can construct a substitution between two non-empty contexts by
+-- supplying two functions, one which handles the last element and one
+-- which handles the rest.
+
+infixl 10 _↑_
+
+_↑_ : ∀ {Γ Δ σ τ} (ρ : Γ ⇨ Δ) → σ / ρ ⇨₁ τ → Γ ▻ σ ⇨ Δ ▻ τ
+_↑_ = Prod.map
 
 -- Lifting.
 
 infix 10 _↑
 
 _↑ : ∀ {Γ Δ σ} (ρ : Γ ⇨ Δ) → Γ ▻ σ ⇨ Δ ▻ σ / ρ
-ρ ↑ = Prod.map ρ id
+ρ ↑ = ρ ↑ id
 
 ------------------------------------------------------------------------
 -- Variables
