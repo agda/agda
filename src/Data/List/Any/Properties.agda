@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Properties related to Any
 ------------------------------------------------------------------------
+{-# OPTIONS --universe-polymorphism #-}
 
 -- The other modules under Data.List.Any also contain properties
 -- related to Any.
@@ -8,6 +9,8 @@
 module Data.List.Any.Properties where
 
 open import Algebra
+open import Level
+import Algebra.FunctionProperties as FP
 open import Category.Monad
 open import Data.Bool
 open import Data.Bool.Properties
@@ -26,28 +29,69 @@ open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; inspect; _with-≡_)
+  using (_≡_; refl; inspect; _with-≡_; setoid) renaming (module ≡-Reasoning to EqR)
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
+import Relation.Binary.Product.Pointwise as Π
 
 open Any.Membership-≡
-open Inv.EquationalReasoning
-open RawMonad List.monad
+open module ListMonad {l : Level} = RawMonad (List.monad {l})
+
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
+
+  map₂ : {a p q : Level} {A : Set a} {P : A → Set p} {Q : A → Set q} →
+          (∀ {x} → P x → Q x) → Σ A P → Σ A Q
+  map₂ = Prod.map id
+
+  map₂′ : {a p q : Level} {A : Set a} {P : Set p} {Q : Set q} →
+          (P → Q) → A × P → A × Q
+  map₂′ f = Prod.map id f
+
+private
+  -- some lemma's for ×
+  sum-cong : ∀ {a₁ a₂ b₁ b₂ k} {A₁ : Set a₁} {A₂ : Set a₂} {B₁ : Set b₁} {B₂ : Set b₂} → 
+             Isomorphism k A₁ A₂ → Isomorphism k B₁ B₂ →
+             Isomorphism k (A₁ × B₁) (A₂ × B₂)
+  sum-cong {k = Inv.inverse} = Π._×-⇿_
+  sum-cong {k = Inv.equivalent} = Π._×-⇔_
+
+  sum-assoc : ∀ {a b c k} (A : Set a) (B : Set b) (C : Set c) → 
+             Isomorphism k ((A × B) × C) (A × B × C)
+  sum-assoc A B C = Inv.⇿⇒ $ record
+      { to         = P.→-to-⟶ λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
+      ; from       = P.→-to-⟶ {A = A × B × C} λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
+      ; inverse-of = record
+        { left-inverse-of  = λ _ → P.refl
+        ; right-inverse-of = λ _ → P.refl
+        }
+      }
+
+  sum-comm : ∀ {a b k} (A : Set a) (B : Set b) → 
+             Isomorphism k (A × B) (B × A)
+  sum-comm A B = Inv.⇿⇒ $ record
+      { to = P.→-to-⟶ Prod.swap
+      ; from =  P.→-to-⟶ $ Prod.swap {A = B} {B = A}
+      ; inverse-of = record
+        { left-inverse-of = λ _ → P.refl
+        ; right-inverse-of = λ _ → P.refl
+        }
+      }
+
 
 ------------------------------------------------------------------------
 -- Some lemmas related to map, find and lose
 
 -- Any.map is functorial.
 
-map-id : ∀ {A} {P : A → Set} (f : P ⋐ P) {xs} →
+map-id : ∀ {a p} {A : Set a} {P : A → Set p} (f : P ⋐ P) {xs} →
          (∀ {x} (p : P x) → f p ≡ p) →
          (p : Any P xs) → Any.map f p ≡ p
 map-id f hyp (here  p) = P.cong here (hyp p)
 map-id f hyp (there p) = P.cong there $ map-id f hyp p
 
-map-∘ : ∀ {A} {P Q R : A → Set} (f : Q ⋐ R) (g : P ⋐ Q)
+map-∘ : ∀ {a p q r} {A : Set a} {P : A → Set p} {Q : A → Set q} {R : A → Set r}
+        (f : Q ⋐ R) (g : P ⋐ Q)
         {xs} (p : Any P xs) →
         Any.map (f ∘ g) p ≡ Any.map f (Any.map g p)
 map-∘ f g (here  p) = refl
@@ -55,24 +99,24 @@ map-∘ f g (there p) = P.cong there $ map-∘ f g p
 
 -- Lemmas relating map and find.
 
-map∘find : ∀ {A : Set} {P : A → Set} {xs}
-           (p : Any P xs) → let p′ = find p in
-           {f : _≡_ (proj₁ p′) ⋐ P} →
-           f refl ≡ proj₂ (proj₂ p′) →
-           Any.map f (proj₁ (proj₂ p′)) ≡ p
-map∘find (here  p) hyp = P.cong here  hyp
-map∘find (there p) hyp = P.cong there (map∘find p hyp)
+map∘find : ∀ {a p} {A : Set a} {P : A → Set p} {xs}
+           (pa : Any P xs) → let pa′ = find pa in
+           {f : _≡_ (proj₁ pa′) ⋐ P} →
+           f refl ≡ proj₂ (proj₂ pa′) →
+           Any.map f (proj₁ (proj₂ pa′)) ≡ pa
+map∘find (here  pa) hyp = P.cong here  hyp
+map∘find (there pa) hyp = P.cong there (map∘find pa hyp)
 
-find∘map : ∀ {A : Set} {P Q : A → Set} {xs}
-           (p : Any P xs) (f : P ⋐ Q) →
-           find (Any.map f p) ≡ Prod.map id (Prod.map id f) (find p)
+find∘map : {a p q : Level} {A : Set a} {P : A → Set p} {Q : A → Set q}
+           {xs : List A} (pa : Any P xs) (f : P ⋐ Q) →
+           find (Any.map f pa) ≡ map₂ (map₂ f) (find pa)
 find∘map (here  p) f = refl
 find∘map (there p) f rewrite find∘map p f = refl
 
 -- find satisfies a simple equality when the predicate is a
 -- propositional equality.
 
-find-∈ : ∀ {A : Set} {x : A} {xs} (x∈xs : x ∈ xs) →
+find-∈ : {a : Level} {A : Set a} {x : A} {xs : List A} (x∈xs : x ∈ xs) →
          find x∈xs ≡ (x , x∈xs , refl)
 find-∈ (here refl)  = refl
 find-∈ (there x∈xs) rewrite find-∈ x∈xs = refl
@@ -81,25 +125,25 @@ private
 
   -- find and lose are inverses (more or less).
 
-  lose∘find : ∀ {A : Set} {P : A → Set} {xs} (p : Any P xs) →
-              uncurry′ lose (proj₂ $ find p) ≡ p
-  lose∘find p = map∘find p P.refl
+  lose∘find : {a p : Level} {A : Set a} {P : A → Set p} {xs : List A} (pa : Any P xs) →
+              uncurry′ lose (proj₂ (find pa)) ≡ pa
+  lose∘find pa = map∘find pa P.refl
 
-  find∘lose : ∀ {A : Set} (P : A → Set) {x xs}
-              (x∈xs : x ∈ xs) (p : P x) →
-              find {P = P} (lose x∈xs p) ≡ (x , x∈xs , p)
-  find∘lose P x∈xs p
-    rewrite find∘map x∈xs (flip (P.subst P) p)
+  find∘lose : ∀ {a p} {A : Set a} (P : A → Set p) {x xs}
+              (x∈xs : x ∈ xs) (pp : P x) →
+              find {P = P} (lose x∈xs pp) ≡ (x , x∈xs , pp)
+  find∘lose P x∈xs pp
+    rewrite find∘map x∈xs (flip (P.subst P) pp)
           | find-∈ x∈xs
           = refl
 
 -- Any can be expressed using _∈_.
 
-Any⇿ : ∀ {A : Set} {P : A → Set} {xs} →
+Any⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
        (∃ λ x → x ∈ xs × P x) ⇿ Any P xs
-Any⇿ {P = P} = record
-  { to         = P.→-to-⟶ (uncurry′ lose ∘ proj₂)
-  ; from       = P.→-to-⟶ find
+Any⇿ {P = P} {xs} = record
+  { to         = P.→-to-⟶ (λ (t : ∃ λ x → x ∈ xs × P x) → uncurry′ lose $ proj₂ t)
+  ; from       = P.→-to-⟶ (find {P = P})
   ; inverse-of = record
       { left-inverse-of  = λ p →
           find∘lose P (proj₁ (proj₂ p)) (proj₂ (proj₂ p))
@@ -110,42 +154,45 @@ Any⇿ {P = P} = record
 ------------------------------------------------------------------------
 -- Any is a congruence
 
-Any-cong : ∀ {k} {A : Set} {P₁ P₂ : A → Set} {xs₁ xs₂ : List A} →
+Any-cong : ∀ {k a p₁ p₂} {A : Set a} {P₁ : A → Set p₁} {P₂ : A → Set p₂}
+           {xs₁ xs₂ : List A} →
            (∀ x → Isomorphism k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
            Isomorphism k (Any P₁ xs₁) (Any P₂ xs₂)
-Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
-  Any P₁ xs₁                ⇿⟨ sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
-  (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ ⟩
+Any-cong {A = A} {P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
+  Any P₁ xs₁                ⇿⟨ sym $ Any⇿ {A = A} {P = P₁} ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ sum-cong ⟩ P₁⇿P₂ _) ⟩
+  (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ {A = A} {P = P₂} ⟩
   Any P₂ xs₂                ∎
+  where open Inv.EquationalReasoning
 
 ------------------------------------------------------------------------
 -- Swapping
 
 -- Nested occurrences of Any can sometimes be swapped. See also ×⇿.
 
-swap : ∀ {A B : Set} {P : A → B → Set} {xs ys} →
+swap : ∀ {a b p} {A : Set a} {B : Set b} {P : A → B → Set p} {xs ys} →
        Any (λ x → Any (P x) ys) xs ⇿ Any (λ y → Any (flip P y) xs) ys
-swap {P = P} {xs} {ys} =
-  Any (λ x → Any (P x) ys) xs                ⇿⟨ sym Any⇿ ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong Inv.id (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
-  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ _ ⟩
+swap {a} {b} {p} {A} {B} {P} {xs} {ys} =
+  Any (λ x → Any (P x) ys) xs                ⇿⟨ sym $ Any⇿ {a} {b ⊔ p} ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong Inv.id (λ {x} → Inv.id ⟨ sum-cong {a} {a} ⟩ Any⇿ {P = P x}) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y) ⇿⟨ Σ.cong {A₁ = A} Inv.id (∃∃⇿∃∃ {a} {b} {p ⊔ b} _) ⟩
+  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ {a} {b} {a ⊔ b ⊔ p} _ ⟩
   (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
-    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
-    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm _ _ ⟨ ×⊎.*-cong ⟩ Inv.id ⟩
-    ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
+    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ sum-assoc (x ∈ xs) (y ∈ ys) (P x y) ⟩
+    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ sum-comm (x ∈ xs) (y ∈ ys) ⟨ sum-cong {B₁ = P x y} ⟩ Inv.id ⟩
+    ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ sum-assoc (y ∈ ys) (x ∈ xs) (P x y) ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong Inv.id (Inv.id ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
-  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong {A₁ = B} Inv.id (∃∃⇿∃∃ {a} {b} {a ⊔ p} _) ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y) ⇿⟨ Σ.cong Inv.id (λ {y} → Inv.id ⟨ sum-cong {b} {b} ⟩ Any⇿ {P = flip P y}) ⟩
+  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ {b} {a ⊔ p} ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎
+  where open Inv.EquationalReasoning
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to ⊥
 
-⊥⇿Any⊥ : {A : Set} {xs : List A} → ⊥ ⇿ Any (const ⊥) xs
-⊥⇿Any⊥ {A} = record
+⊥⇿Any⊥ : {a : Level} {A : Set a} {xs : List A} → ⊥ ⇿ Any (const ⊥) xs
+⊥⇿Any⊥ {A = A} = record
   { to         = P.→-to-⟶ (λ ())
   ; from       = P.→-to-⟶ (λ p → from p)
   ; inverse-of = record
@@ -154,11 +201,11 @@ swap {P = P} {xs} {ys} =
     }
   }
   where
-  from : {xs : List A} → Any (const ⊥) xs → {B : Set} → B
+  from : {xs : List A} → Any (const ⊥) xs → ∀ {b} {B : Set b} → B
   from (here ())
   from (there p) = from p
 
-⊥⇿Any[] : {A : Set} {P : A → Set} → ⊥ ⇿ Any P []
+⊥⇿Any[] : {a : Level} {A : Set a} {P : A → Set} → ⊥ ⇿ Any P []
 ⊥⇿Any[] = record
   { to         = P.→-to-⟶ (λ ())
   ; from       = P.→-to-⟶ (λ ())
@@ -173,7 +220,7 @@ swap {P = P} {xs} {ys} =
 
 -- Sums commute with Any (for a fixed list).
 
-⊎⇿ : ∀ {A : Set} {P Q : A → Set} {xs} →
+⊎⇿ : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} {xs} →
      (Any P xs ⊎ Any Q xs) ⇿ Any (λ x → P x ⊎ Q x) xs
 ⊎⇿ {P = P} {Q} = record
   { to         = P.→-to-⟶ to
@@ -208,9 +255,12 @@ swap {P = P} {xs} {ys} =
 
 -- Products "commute" with Any.
 
-×⇿ : ∀ {A B} {P : A → Set} {Q : B → Set} {xs} {ys} →
+-- Dominique: I tried hard to make this universe-polymorphic, but I
+-- can't get the proof to work...
+×⇿ : {A : Set} {B : Set} {P : A → Set} {Q : B → Set}
+     {xs : List A} {ys : List B} →
      (Any P xs × Any Q ys) ⇿ Any (λ x → Any (λ y → P x × Q y) ys) xs
-×⇿ {P = P} {Q} {xs} {ys} = record
+×⇿ {A} {B} {P} {Q} {xs} {ys} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
@@ -223,18 +273,17 @@ swap {P = P} {xs} {ys} =
   to (p , q) = Any.map (λ p → Any.map (λ q → (p , q)) q) p
 
   from : Any (λ x → Any (λ y → P x × Q y) ys) xs → Any P xs × Any Q ys
-  from pq with Prod.map id (Prod.map id find) $ find pq
+  from pq with map₂ (map₂′ find) (find pq)
   ... | (x , x∈xs , y , y∈ys , p , q) = (lose x∈xs p , lose y∈ys q)
 
-  from∘to : ∀ pq → from (to pq) ≡ pq
+  from∘to : (pq : Any P xs × Any Q ys) → from (to pq) ≡ pq
   from∘to (p , q)
-    rewrite find∘map {Q = λ x → Any (λ y → P x × Q y) ys}
-                     p (λ p → Any.map (λ q → (p , q)) q)
-          | find∘map {Q = λ y → P (proj₁ (find p)) × Q y}
-                     q (λ q → proj₂ (proj₂ (find p)) , q)
-          | lose∘find p
-          | lose∘find q
-      = refl
+   rewrite find∘map p (λ p' → Any.map (λ q' → (p' , q')) q)
+         | find∘map {Q = λ y → P (proj₁ (find p)) × Q y}
+                    q (λ q' → proj₂ (proj₂ (find p)) , q')
+         | lose∘find p
+         | lose∘find q
+   = refl
 
   to∘from : ∀ pq → to (from pq) ≡ pq
   to∘from pq
@@ -244,18 +293,23 @@ swap {P = P} {xs} {ys} =
     with find pq′
        | (λ (f : _≡_ (proj₁ (find pq′)) ⋐ _) → map∘find pq′ {f})
   ... | (y , y∈ys , p , q) | lem₂
-    rewrite P.sym $ map-∘ {R = λ x → Any (λ y → P x × Q y) ys}
-                          (λ p → Any.map (λ q → p , q) (lose y∈ys q))
-                          (λ y → P.subst P y p)
-                          x∈xs
-      = lem₁ _ helper
-    where
-    helper : Any.map (λ q → p , q) (lose y∈ys q) ≡ pq′
-    helper rewrite P.sym $ map-∘ {R = λ y → P x × Q y}
-                                 (λ q → p , q)
-                                 (λ y → P.subst Q y q)
-                                 y∈ys
-      = lem₂ _ refl
+       = P.trans helper'' (lem₁ _ helper)
+     where
+     helper'' : Any.map (λ p → Any.map (_,_ p) (Any.map (λ y → P.subst Q y q) y∈ys))
+                        (Any.map (λ y → P.subst P y p) x∈xs) ≡
+                Any.map (λ y → Any.map (_,_ (P.subst P y p))
+                           (Any.map (λ y′ → P.subst Q y′ q) y∈ys)) x∈xs
+     helper'' = P.sym $ map-∘ {R = λ x → Any (λ y → P x × Q y) ys}
+                            (λ p → Any.map (λ q → p , q) (lose y∈ys q))
+                            (λ y → P.subst P y p)
+                            x∈xs
+     helper' : (Any.map (λ q → p , q) (lose y∈ys q)) ≡ (Any.map (λ y → p , P.subst Q y q) y∈ys)
+     helper' = P.sym $ map-∘ {R = λ y → P x × Q y}
+                             (λ q → p , q)
+                             (λ y → P.subst Q y q)
+                             y∈ys
+     helper : Any.map (λ q → p , q) (lose y∈ys q) ≡ pq′
+     helper = P.trans helper' (lem₂ _ refl)
 
 ------------------------------------------------------------------------
 -- Invertible introduction (⁺) and elimination (⁻) rules for various
@@ -265,35 +319,35 @@ swap {P = P} {xs} {ys} =
 
 private
 
-  map⁺ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
+  map⁺ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
          Any (P ∘ f) xs → Any P (List.map f xs)
   map⁺ (here p)  = here p
   map⁺ (there p) = there $ map⁺ p
 
-  map⁻ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
+  map⁻ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
          Any P (List.map f xs) → Any (P ∘ f) xs
   map⁻ {xs = []}     ()
   map⁻ {xs = x ∷ xs} (here p)  = here p
   map⁻ {xs = x ∷ xs} (there p) = there $ map⁻ p
 
-  map⁺∘map⁻ : ∀ {A B : Set} {P : B → Set} {f : A → B} {xs} →
+  map⁺∘map⁻ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
               (p : Any P (List.map f xs)) →
               map⁺ (map⁻ p) ≡ p
   map⁺∘map⁻ {xs = []}     ()
   map⁺∘map⁻ {xs = x ∷ xs} (here  p) = refl
   map⁺∘map⁻ {xs = x ∷ xs} (there p) = P.cong there (map⁺∘map⁻ p)
 
-  map⁻∘map⁺ : ∀ {A B} (P : B → Set) {f : A → B} {xs} →
+  map⁻∘map⁺ : ∀ {a b p} {A : Set a} {B : Set b} (P : B → Set p) {f : A → B} {xs} →
               (p : Any (P ∘ f) xs) →
               map⁻ {P = P} (map⁺ p) ≡ p
   map⁻∘map⁺ P (here  p) = refl
   map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
-map⇿ : ∀ {A B} {P : B → Set} {f : A → B} {xs} →
+map⇿ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
        Any (P ∘ f) xs ⇿ Any P (List.map f xs)
-map⇿ {P = P} = record
-  { to         = P.→-to-⟶ $ map⁺ {P = P}
-  ; from       = P.→-to-⟶ map⁻
+map⇿ {P = P} {f = f} = record
+  { to         = P.→-to-⟶ $ map⁺ {P = P} {f = f}
+  ; from       = P.→-to-⟶ $ map⁻ {P = P} {f = f}
   ; inverse-of = record
     { left-inverse-of  = map⁻∘map⁺ P
     ; right-inverse-of = map⁺∘map⁻
@@ -304,44 +358,44 @@ map⇿ {P = P} = record
 
 private
 
-  ++⁺ˡ : ∀ {A} {P : A → Set} {xs ys} →
+  ++⁺ˡ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
          Any P xs → Any P (xs ++ ys)
   ++⁺ˡ (here p)  = here p
   ++⁺ˡ (there p) = there (++⁺ˡ p)
 
-  ++⁺ʳ : ∀ {A} {P : A → Set} xs {ys} →
+  ++⁺ʳ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} →
          Any P ys → Any P (xs ++ ys)
   ++⁺ʳ []       p = p
   ++⁺ʳ (x ∷ xs) p = there (++⁺ʳ xs p)
 
-  ++⁻ : ∀ {A} {P : A → Set} xs {ys} →
+  ++⁻ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} →
         Any P (xs ++ ys) → Any P xs ⊎ Any P ys
   ++⁻ []       p         = inj₂ p
   ++⁻ (x ∷ xs) (here p)  = inj₁ (here p)
   ++⁻ (x ∷ xs) (there p) = Sum.map there id (++⁻ xs p)
 
-  ++⁺∘++⁻ : ∀ {A} {P : A → Set} xs {ys}
-            (p : Any P (xs ++ ys)) →
-            [ ++⁺ˡ , ++⁺ʳ xs ]′ (++⁻ xs p) ≡ p
+  ++⁺∘++⁻ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys}
+            (pa : Any P (xs ++ ys)) →
+            [ ++⁺ˡ , ++⁺ʳ xs ]′ (++⁻ xs pa) ≡ pa
   ++⁺∘++⁻ []       p         = refl
   ++⁺∘++⁻ (x ∷ xs) (here  p) = refl
   ++⁺∘++⁻ (x ∷ xs) (there p) with ++⁻ xs p | ++⁺∘++⁻ xs p
   ++⁺∘++⁻ (x ∷ xs) (there p) | inj₁ p′ | ih = P.cong there ih
   ++⁺∘++⁻ (x ∷ xs) (there p) | inj₂ p′ | ih = P.cong there ih
 
-  ++⁻∘++⁺ : ∀ {A} {P : A → Set} xs {ys} (p : Any P xs ⊎ Any P ys) →
-            ++⁻ xs ([ ++⁺ˡ , ++⁺ʳ xs ]′ p) ≡ p
+  ++⁻∘++⁺ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys} (pa : Any P xs ⊎ Any P ys) →
+            ++⁻ xs ([ ++⁺ˡ , ++⁺ʳ xs ]′ pa) ≡ pa
   ++⁻∘++⁺ []            (inj₁ ())
   ++⁻∘++⁺ []            (inj₂ p)         = refl
   ++⁻∘++⁺ (x ∷ xs)      (inj₁ (here  p)) = refl
   ++⁻∘++⁺ (x ∷ xs) {ys} (inj₁ (there p)) rewrite ++⁻∘++⁺ xs {ys} (inj₁ p) = refl
   ++⁻∘++⁺ (x ∷ xs)      (inj₂ p)         rewrite ++⁻∘++⁺ xs      (inj₂ p) = refl
 
-++⇿ : ∀ {A} {P : A → Set} {xs ys} →
+++⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
       (Any P xs ⊎ Any P ys) ⇿ Any P (xs ++ ys)
-++⇿ {xs = xs} = record
-  { to         = P.→-to-⟶ [ ++⁺ˡ , ++⁺ʳ xs ]′
-  ; from       = P.→-to-⟶ $ ++⁻ xs
+++⇿ {P = P} {xs = xs} = record
+  { to         = P.→-to-⟶ [ ++⁺ˡ {P = P}, ++⁺ʳ {P = P} xs ]′
+  ; from       = P.→-to-⟶ $ ++⁻ {P = P} xs
   ; inverse-of = record
     { left-inverse-of  = ++⁻∘++⁺ xs
     ; right-inverse-of = ++⁺∘++⁻ xs
@@ -352,25 +406,29 @@ private
 
 private
 
-  return⁺ : ∀ {A} {P : A → Set} {x} →
+  -- No full universe polymorphism here, since the current Agda Monad
+  -- theory is not universe polymorphic.
+
+  return⁺ : ∀ {p} {A : Set} {P : A → Set p} {x} →
             P x → Any P (return x)
   return⁺ = here
 
-  return⁻ : ∀ {A} {P : A → Set} {x} →
+  return⁻ : ∀ {p} {A : Set} {P : A → Set p} {x} →
             Any P (return x) → P x
   return⁻ (here p)   = p
   return⁻ (there ())
 
-  return⁺∘return⁻ : ∀ {A} {P : A → Set} {x} (p : Any P (return x)) →
-                    return⁺ (return⁻ p) ≡ p
+  return⁺∘return⁻ : ∀ {p} {A : Set} {P : A → Set p} {x}
+                    (pa : Any P (return x)) →
+                    return⁺ (return⁻ pa) ≡ pa
   return⁺∘return⁻ (here p)   = refl
   return⁺∘return⁻ (there ())
 
-  return⁻∘return⁺ : ∀ {A} (P : A → Set) {x} (p : P x) →
-                    return⁻ {P = P} (return⁺ p) ≡ p
+  return⁻∘return⁺ : ∀ {p} {A : Set} (P : A → Set p) {x} (pa : P x) →
+                    return⁻ {P = P} (return⁺ pa) ≡ pa
   return⁻∘return⁺ P p = refl
 
-return⇿ : ∀ {A} {P : A → Set} {x} →
+return⇿ : ∀ {p} {A : Set} {P : A → Set p} {x} →
           P x ⇿ Any P (return x)
 return⇿ {P = P} = record
   { to         = P.→-to-⟶ return⁺
@@ -385,12 +443,12 @@ return⇿ {P = P} = record
 
 private
 
-  concat⁺ : ∀ {A} {P : A → Set} {xss} →
+  concat⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {xss} →
             Any (Any P) xss → Any P (concat xss)
   concat⁺ (here p)           = ++⁺ˡ p
   concat⁺ (there {x = xs} p) = ++⁺ʳ xs (concat⁺ p)
 
-  concat⁻ : ∀ {A} {P : A → Set} xss →
+  concat⁻ : ∀ {a p} {A : Set a} {P : A → Set p} xss →
             Any P (concat xss) → Any (Any P) xss
   concat⁻ []               ()
   concat⁻ ([]       ∷ xss) p         = there $ concat⁻ xss p
@@ -400,38 +458,38 @@ private
   ... | here  p′ = here (there p′)
   ... | there p′ = there p′
 
-  concat⁻∘++⁺ˡ : ∀ {A} {P : A → Set} {xs} xss (p : Any P xs) →
-                 concat⁻ (xs ∷ xss) (++⁺ˡ p) ≡ here p
-  concat⁻∘++⁺ˡ xss (here  p) = refl
-  concat⁻∘++⁺ˡ xss (there p) rewrite concat⁻∘++⁺ˡ xss p = refl
+  concat⁻∘++⁺ˡ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} xss (pa : Any P xs) →
+                 concat⁻ (xs ∷ xss) (++⁺ˡ pa) ≡ here pa
+  concat⁻∘++⁺ˡ xss (here  pa) = refl
+  concat⁻∘++⁺ˡ xss (there pa) rewrite concat⁻∘++⁺ˡ xss pa = refl
 
-  concat⁻∘++⁺ʳ : ∀ {A} {P : A → Set} xs xss (p : Any P (concat xss)) →
-                 concat⁻ (xs ∷ xss) (++⁺ʳ xs p) ≡ there (concat⁻ xss p)
-  concat⁻∘++⁺ʳ []       xss p = refl
-  concat⁻∘++⁺ʳ (x ∷ xs) xss p rewrite concat⁻∘++⁺ʳ xs xss p = refl
+  concat⁻∘++⁺ʳ : ∀ {a p} {A : Set a} {P : A → Set p} xs xss (pa : Any P (concat xss)) →
+                 concat⁻ (xs ∷ xss) (++⁺ʳ xs pa) ≡ there (concat⁻ xss pa)
+  concat⁻∘++⁺ʳ []       xss pa = refl
+  concat⁻∘++⁺ʳ (x ∷ xs) xss pa rewrite concat⁻∘++⁺ʳ xs xss pa = refl
 
-  concat⁺∘concat⁻ : ∀ {A} {P : A → Set} xss (p : Any P (concat xss)) →
-                    concat⁺ (concat⁻ xss p) ≡ p
+  concat⁺∘concat⁻ : ∀ {a p} {A : Set a} {P : A → Set p} xss (pa : Any P (concat xss)) →
+                    concat⁺ (concat⁻ xss pa) ≡ pa
   concat⁺∘concat⁻ []               ()
-  concat⁺∘concat⁻ ([]       ∷ xss) p         = concat⁺∘concat⁻ xss p
-  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (here p)  = refl
-  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there p)
-    with concat⁻ (xs ∷ xss) p | concat⁺∘concat⁻ (xs ∷ xss) p
-  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ˡ p′))              | here  p′ | refl = refl
-  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ʳ xs (concat⁺ p′))) | there p′ | refl = refl
+  concat⁺∘concat⁻ ([]       ∷ xss) pa         = concat⁺∘concat⁻ xss pa
+  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (here pa)  = refl
+  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there pa)
+    with concat⁻ (xs ∷ xss) pa | concat⁺∘concat⁻ (xs ∷ xss) pa
+  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ˡ pa′))              | here  pa′ | refl = refl
+  concat⁺∘concat⁻ ((x ∷ xs) ∷ xss) (there .(++⁺ʳ xs (concat⁺ pa′))) | there pa′ | refl = refl
 
-  concat⁻∘concat⁺ : ∀ {A} {P : A → Set} {xss} (p : Any (Any P) xss) →
-                    concat⁻ xss (concat⁺ p) ≡ p
-  concat⁻∘concat⁺ (here                      p) = concat⁻∘++⁺ˡ _ p
-  concat⁻∘concat⁺ (there {x = xs} {xs = xss} p)
-    rewrite concat⁻∘++⁺ʳ xs xss (concat⁺ p) =
-      P.cong there $ concat⁻∘concat⁺ p
+  concat⁻∘concat⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {xss} (pa : Any (Any P) xss) →
+                    concat⁻ xss (concat⁺ pa) ≡ pa
+  concat⁻∘concat⁺ (here                      pa) = concat⁻∘++⁺ˡ _ pa
+  concat⁻∘concat⁺ (there {x = xs} {xs = xss} pa)
+    rewrite concat⁻∘++⁺ʳ xs xss (concat⁺ pa) =
+      P.cong there $ concat⁻∘concat⁺ pa
 
-concat⇿ : ∀ {A} {P : A → Set} {xss} →
+concat⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xss} →
           Any (Any P) xss ⇿ Any P (concat xss)
-concat⇿ {xss = xss} = record
-  { to         = P.→-to-⟶ concat⁺
-  ; from       = P.→-to-⟶ $ concat⁻ xss
+concat⇿ {P = P} {xss = xss} = record
+  { to         = P.→-to-⟶ $ concat⁺ {P = P}
+  ; from       = P.→-to-⟶ $ concat⁻ {P = P} xss
   ; inverse-of = record
     { left-inverse-of  = concat⁻∘concat⁺
     ; right-inverse-of = concat⁺∘concat⁻ xss
@@ -440,53 +498,60 @@ concat⇿ {xss = xss} = record
 
 -- _>>=_.
 
->>=⇿ : ∀ {A B P xs} {f : A → List B} →
+>>=⇿ : ∀ {p} {A B : Set} {P : B → Set p} {xs} {f : A → List B} →
        Any (Any P ∘ f) xs ⇿ Any P (xs >>= f)
 >>=⇿ {P = P} {xs} {f} =
-  Any (Any P ∘ f) xs           ⇿⟨ map⇿ ⟩
-  Any (Any P) (List.map f xs)  ⇿⟨ concat⇿ ⟩
+  Any (Any P ∘ f) xs           ⇿⟨ map⇿ {P = Any P} {f = f} ⟩
+  Any (Any P) (List.map f xs)  ⇿⟨ concat⇿ {P = P} ⟩
   Any P (xs >>= f)             ∎
+  where open Inv.EquationalReasoning
 
 -- _⊛_.
 
-⊛⇿ : ∀ {A B P} {fs : List (A → B)} {xs} →
+⊛⇿ : ∀ {p} {A B : Set} {P : B → Set p} {fs : List (A → B)} {xs : List A} →
      Any (λ f → Any (P ∘ f) xs) fs ⇿ Any P (fs ⊛ xs)
-⊛⇿ {P = P} {fs} {xs} =
-  Any (λ f → Any (P ∘ f) xs) fs               ⇿⟨ Any-cong (λ _ → Any-cong (λ _ → return⇿) (_ ∎)) (_ ∎) ⟩
-  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ⇿⟨ Any-cong (λ _ → >>=⇿) (_ ∎) ⟩
-  Any (λ f → Any P (xs >>= return ∘ f)) fs    ⇿⟨ >>=⇿ ⟩
+⊛⇿ {A = A} {B = B} {P = P} {fs} {xs} =
+  Any (λ f → Any (P ∘′ f) xs) fs               ⇿⟨ Any-cong (λ (f : A → B) → Any-cong (λ (x : A) → return⇿ {P = P} {x = f x}) (_ ∎)) (_ ∎) ⟩
+  Any (λ f → Any (Any P ∘′ return ∘′ f) xs) fs  ⇿⟨ Any-cong (λ f → >>=⇿ {P = P} {f = return ∘′ f}) (_ ∎) ⟩
+  Any (λ f → Any P (xs >>= return ∘′ f)) fs    ⇿⟨ >>=⇿ ⟩
   Any P (fs ⊛ xs)                             ∎
+  where open Inv.EquationalReasoning
 
 -- An alternative introduction rule for _⊛_.
 
-⊛⁺′ : ∀ {A B P Q} {fs : List (A → B)} {xs} →
+⊛⁺′ : ∀ {p q} {A B : Set} {P : A → Set p} {Q : B → Set q}
+      {fs : List (A → B)} {xs} →
       Any (P ⟨→⟩ Q) fs → Any P xs → Any Q (fs ⊛ xs)
-⊛⁺′ pq p =
-  Inverse.to ⊛⇿ ⟨$⟩ Any.map (λ pq → Any.map (λ {x} → pq {x}) p) pq
+⊛⁺′ {Q = Q} pq p =
+  Inverse.to (⊛⇿ {P = Q}) ⟨$⟩ Any.map (λ pq → Any.map (λ {x} → pq {x}) p) pq
 
 -- _⊗_.
 
-⊗⇿ : ∀ {A B P} {xs : List A} {ys : List B} →
+⊗⇿ : ∀ {p} {A B : Set} {P : A × B → Set p} {xs : List A} {ys : List B} →
      Any (λ x → Any (λ y → P (x , y)) ys) xs ⇿ Any P (xs ⊗ ys)
 ⊗⇿ {P = P} {xs} {ys} =
   Any (λ x → Any (λ y → P (x , y)) ys) xs                             ⇿⟨ return⇿ ⟩
   Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ⇿⟨ ⊛⇿ ⟩
   Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ⇿⟨ ⊛⇿ ⟩
   Any P (xs ⊗ ys)                                                     ∎
+  where open Inv.EquationalReasoning
 
-⊗⇿′ : ∀ {A B P Q} {xs : List A} {ys : List B} →
+⊗⇿′ : ∀ {A B : Set} {P : A → Set} {Q : B → Set}
+      {xs : List A} {ys : List B} →
       (Any P xs × Any Q ys) ⇿ Any (P ⟨×⟩ Q) (xs ⊗ ys)
 ⊗⇿′ {P = P} {Q} {xs} {ys} =
-  (Any P xs × Any Q ys)                    ⇿⟨ ×⇿ ⟩
+  (Any P xs × Any Q ys)                    ⇿⟨ ×⇿ {P = P} {Q = Q} ⟩
   Any (λ x → Any (λ y → P x × Q y) ys) xs  ⇿⟨ ⊗⇿ ⟩
   Any (P ⟨×⟩ Q) (xs ⊗ ys)                  ∎
+  where open Inv.EquationalReasoning
 
 -- map-with-∈.
 
 map-with-∈⇿ :
-  ∀ {A B : Set} {P : B → Set} {xs : List A} {f : ∀ {x} → x ∈ xs → B} →
+  ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {xs : List A}
+    {f : ∀ {x} → x ∈ xs → B} →
   (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) ⇿ Any P (map-with-∈ xs f)
-map-with-∈⇿ {A} {B} {P} = record
+map-with-∈⇿ {A = A} {B} {P} = record
   { to         = P.→-to-⟶ (map-with-∈⁺ _)
   ; from       = P.→-to-⟶ (map-with-∈⁻ _ _)
   ; inverse-of = record
@@ -510,7 +575,7 @@ map-with-∈⇿ {A} {B} {P} = record
   map-with-∈⁻ []       f ()
   map-with-∈⁻ (y ∷ xs) f (here  p) = (y , here refl , p)
   map-with-∈⁻ (y ∷ xs) f (there p) =
-    Prod.map id (Prod.map there id) $ map-with-∈⁻ xs (f ∘ there) p
+    map₂ (Prod.map there id) $ map-with-∈⁻ xs (f ∘ there) p
 
   from∘to : ∀ {xs : List A} (f : ∀ {x} → x ∈ xs → B)
             (p : ∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) →
@@ -534,14 +599,14 @@ map-with-∈⇿ {A} {B} {P} = record
 
 private
 
-  any⁺ : ∀ {A} (p : A → Bool) {xs} →
+  any⁺ : ∀ {a} {A : Set a} (p : A → Bool) {xs} →
          Any (T ∘ p) xs → T (any p xs)
   any⁺ p (here  px)          = Equivalent.from T-∨ ⟨$⟩ inj₁ px
   any⁺ p (there {x = x} pxs) with p x
   ... | true  = _
   ... | false = any⁺ p pxs
 
-  any⁻ : ∀ {A} (p : A → Bool) xs →
+  any⁻ : ∀ {a} {A : Set a} (p : A → Bool) xs →
          T (any p xs) → Any (T ∘ p) xs
   any⁻ p []       ()
   any⁻ p (x ∷ xs) px∷xs with inspect (p x)
@@ -550,7 +615,7 @@ private
   any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
     there (any⁻ p xs pxs)
 
-any⇔ : ∀ {A} {p : A → Bool} {xs} →
+any⇔ : ∀ {a} {A : Set a} {p : A → Bool} {xs} →
        Any (T ∘ p) xs ⇔ T (any p xs)
 any⇔ = equivalent (any⁺ _) (any⁻ _ _)
 
@@ -559,11 +624,12 @@ any⇔ = equivalent (any⁺ _) (any⁻ _ _)
 
 private
 
-  ++-comm : ∀ {A} {P : A → Set} xs ys →
+  ++-comm : ∀ {a p} {A : Set a} {P : A → Set p} xs ys →
             Any P (xs ++ ys) → Any P (ys ++ xs)
   ++-comm xs ys = [ ++⁺ʳ ys , ++⁺ˡ ]′ ∘ ++⁻ xs
 
-  ++-comm∘++-comm : ∀ {A} {P : A → Set} xs {ys} (p : Any P (xs ++ ys)) →
+  ++-comm∘++-comm : ∀ {a p} {A : Set a} {P : A → Set p}
+                    xs {ys} (p : Any P (xs ++ ys)) →
                     ++-comm ys xs (++-comm xs ys p) ≡ p
   ++-comm∘++-comm [] {ys} p
    rewrite ++⁻∘++⁺ ys {ys = []} (inj₁ p) = P.refl
@@ -571,19 +637,19 @@ private
     rewrite ++⁻∘++⁺ {P = P} ys {ys = x ∷ xs} (inj₂ (here p)) = P.refl
   ++-comm∘++-comm (x ∷ xs)      (there p) with ++⁻ xs p | ++-comm∘++-comm xs p
   ++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ʳ ys p))))
-    | inj₁ p | P.refl
-    rewrite ++⁻∘++⁺ ys (inj₂                 p)
-          | ++⁻∘++⁺ ys (inj₂ $ there {x = x} p) = P.refl
+    | inj₁ p | P.refl 
+     rewrite ++⁻∘++⁺ ys (inj₂                 p)
+           | ++⁻∘++⁺ ys (inj₂ $ there {x = x} p) = P.refl
   ++-comm∘++-comm (x ∷ xs) {ys} (there .([ ++⁺ʳ xs , ++⁺ˡ ]′ (++⁻ ys (++⁺ˡ    p))))
     | inj₂ p | P.refl
-    rewrite ++⁻∘++⁺ ys {ys =     xs} (inj₁ p)
-          | ++⁻∘++⁺ ys {ys = x ∷ xs} (inj₁ p) = P.refl
+     rewrite ++⁻∘++⁺ ys {ys =     xs} (inj₁ p)
+           | ++⁻∘++⁺ ys {ys = x ∷ xs} (inj₁ p) = P.refl
 
-++⇿++ : ∀ {A} {P : A → Set} xs ys →
+++⇿++ : ∀ {a p} {A : Set a} {P : A → Set p} xs ys →
         Any P (xs ++ ys) ⇿ Any P (ys ++ xs)
-++⇿++ xs ys = record
-  { to         = P.→-to-⟶ $ ++-comm xs ys
-  ; from       = P.→-to-⟶ $ ++-comm ys xs
+++⇿++ {P = P} xs ys = record
+  { to         = P.→-to-⟶ $ ++-comm {P = P} xs ys
+  ; from       = P.→-to-⟶ $ ++-comm {P = P} ys xs
   ; inverse-of = record
     { left-inverse-of  = ++-comm∘++-comm xs
     ; right-inverse-of = ++-comm∘++-comm ys

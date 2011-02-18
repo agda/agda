@@ -1,9 +1,11 @@
 ------------------------------------------------------------------------
 -- Lists where all elements satisfy a given property
 ------------------------------------------------------------------------
+{-# OPTIONS --universe-polymorphism #-}
 
 module Data.List.All where
 
+open import Level
 open import Function
 open import Data.List as List hiding (map; all)
 open import Data.List.Any as Any using (here; there)
@@ -17,30 +19,33 @@ open import Relation.Binary.PropositionalEquality
 
 infixr 5 _∷_
 
-data All {A} (P : A → Set) : List A → Set where
+data All {p a} {A : Set a} (P : A → Set p) : List A → Set (p ⊔ a) where
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : All P xs) → All P (x ∷ xs)
 
-head : ∀ {A} {P : A → Set} {x xs} → All P (x ∷ xs) → P x
+head : ∀ {p a} {A : Set a} {P : A → Set p} {x xs} → All P (x ∷ xs) → P x
 head (px ∷ pxs) = px
 
-tail : ∀ {A} {P : A → Set} {x xs} → All P (x ∷ xs) → All P xs
+tail : ∀ {p a} {A : Set a} {P : A → Set p} {x xs} → All P (x ∷ xs) → All P xs
 tail (px ∷ pxs) = pxs
 
-lookup : ∀ {A} {P : A → Set} {xs} → All P xs → (∀ {x} → x ∈ xs → P x)
+lookup : ∀ {p a} {A : Set a} {P : A → Set p} {xs : List A} →
+         All P xs → (∀ {x : A} → x ∈ xs → P x)
 lookup []         ()
 lookup (px ∷ pxs) (here refl)  = px
 lookup (px ∷ pxs) (there x∈xs) = lookup pxs x∈xs
 
-tabulate : ∀ {A} {P : A → Set} {xs} → (∀ {x} → x ∈ xs → P x) → All P xs
+tabulate : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+           (∀ {x} → x ∈ xs → P x) → All P xs
 tabulate {xs = []}     hyp = []
 tabulate {xs = x ∷ xs} hyp = hyp (here refl) ∷ tabulate (hyp ∘ there)
 
-map : ∀ {A} {P Q : A → Set} → P ⋐ Q → All P ⋐ All Q
+map : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} →
+      P ⋐ Q → All P ⋐ All Q
 map g []         = []
 map g (px ∷ pxs) = g px ∷ map g pxs
 
-all : ∀ {A} {P : A → Set} →
+all : ∀ {p a} {A : Set a} {P : A → Set p} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
 all p []       = yes []
 all p (x ∷ xs) with p x

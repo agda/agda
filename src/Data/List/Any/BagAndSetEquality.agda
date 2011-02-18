@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Properties related to bag and set equality
 ------------------------------------------------------------------------
+{-# OPTIONS --universe-polymorphism #-}
 
 -- Bag and set equality are defined in Data.List.Any.
 
@@ -28,19 +29,20 @@ import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; _with-≡_)
 open import Relation.Nullary
+open import Level
 
 open Any.Membership-≡
 open RawMonad List.monad
 private
-  module ListMonoid {A : Set} = Monoid (List.monoid A)
-  module Eq {k} {A : Set} = Setoid ([ k ]-Equality A)
+  module ListMonoid {a} {A : Set a} = Monoid (List.monoid A)
+  module Eq {a k} {A : Set a} = Setoid ([ k ]-Equality A)
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
 
 -- _++_ and [] form a commutative monoid, with either bag or set
 -- equality as the underlying equality.
 
-commutativeMonoid : Kind → Set → CommutativeMonoid _ _
-commutativeMonoid k A = record
+commutativeMonoid : {a : Level} → Kind → Set a → CommutativeMonoid _ _
+commutativeMonoid {a} k A = record
   { Carrier             = List A
   ; _≈_                 = λ xs ys → xs ≈[ k ] ys
   ; _∙_                 = _++_
@@ -49,16 +51,16 @@ commutativeMonoid k A = record
     { isSemigroup = record
       { isEquivalence = Eq.isEquivalence
       ; assoc         = λ xs ys zs →
-                          Eq.reflexive $ ListMonoid.assoc xs ys zs
+                          Eq.reflexive {a} {k} $ ListMonoid.assoc xs ys zs
       ; ∙-cong        = λ {xs₁ xs₂ xs₃ xs₄} xs₁≈xs₂ xs₃≈xs₄ {x} →
-                          x ∈ xs₁ ++ xs₃       ⇿⟨ sym ++⇿ ⟩
+                          x ∈ xs₁ ++ xs₃       ⇿⟨ sym $ ++⇿ {a} {a} ⟩
                           (x ∈ xs₁ ⊎ x ∈ xs₃)  ≈⟨ xs₁≈xs₂ ⟨ ×⊎.+-cong ⟩ xs₃≈xs₄ ⟩
-                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ ⟩
+                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ {a} {a} ⟩
                           x ∈ xs₂ ++ xs₄       ∎
       }
     ; identityˡ = λ xs {x} → x ∈ xs ∎
     ; comm      = λ xs ys {x} →
-                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ xs ys ⟩
+                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ {a} {a} xs ys ⟩
                     x ∈ ys ++ xs  ∎
     }
   }
@@ -76,23 +78,23 @@ empty-unique {xs = _ ∷ _} ∷≈[]
 
 -- _++_ is idempotent (under set equality).
 
-++-idempotent : {A : Set} →
+++-idempotent : {a : Level} {A : Set a} →
                 Idempotent (λ (xs ys : List A) → xs ≈[ set ] ys) _++_
-++-idempotent xs {x} =
-  x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from ++⇿))
-                                 (_⟨$⟩_ (Inverse.to ++⇿) ∘ inj₁) ⟩
+++-idempotent {a} xs {x} =
+  x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++⇿ {a} {a} ))
+                                 (_⟨$⟩_ (Inverse.to $ ++⇿ {a} {a}) ∘ inj₁) ⟩
   x ∈ xs        ∎
   where open Inv.EquationalReasoning
 
 -- List.map is a congruence.
 
-map-cong : ∀ {k} {A B : Set} {f₁ f₂ : A → B} {xs₁ xs₂} →
+map-cong : ∀ {a b} {k} {A : Set a} {B : Set b} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
            List.map f₁ xs₁ ≈[ k ] List.map f₂ xs₂
-map-cong {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
-  x ∈ List.map f₁ xs₁       ⇿⟨ sym map⇿ ⟩
+map-cong {a} {b} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
+  x ∈ List.map f₁ xs₁       ⇿⟨ sym $ map⇿ {a} {b} {b} ⟩
   Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
-  Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ ⟩
+  Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ {a} {b} {b} ⟩
   x ∈ List.map f₂ xs₂       ∎
   where
   open Inv.EquationalReasoning
@@ -109,12 +111,12 @@ map-cong {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
 
 -- concat is a congruence.
 
-concat-cong : ∀ {k} {A : Set} {xss₁ xss₂ : List (List A)} →
+concat-cong : ∀ {a k} {A : Set a} {xss₁ xss₂ : List (List A)} →
               xss₁ ≈[ k ] xss₂ → concat xss₁ ≈[ k ] concat xss₂
-concat-cong {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
-  x ∈ concat xss₁         ⇿⟨ sym concat⇿ ⟩
+concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
+  x ∈ concat xss₁         ⇿⟨ sym $ concat⇿ {a} {a} ⟩
   Any (Any (_≡_ x)) xss₁  ≈⟨ Any-cong (λ _ → _ ∎) xss₁≈xss₂ ⟩
-  Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ ⟩
+  Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ {a} {a} ⟩
   x ∈ concat xss₂         ∎
   where open Inv.EquationalReasoning
 

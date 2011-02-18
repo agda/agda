@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Lists where at least one element satisfies a given property
 ------------------------------------------------------------------------
+{-# OPTIONS --universe-polymorphism #-}
 
 module Data.List.Any where
 
@@ -25,25 +26,27 @@ open import Relation.Binary.PropositionalEquality as PropEq
 
 -- Any P xs means that at least one element in xs satisfies P.
 
-data Any {A} (P : A → Set) : List A → Set where
+data Any {a p : Level} {A : Set a} (P : A → Set p) : List A → Set (a ⊔ p) where
   here  : ∀ {x xs} (px  : P x)      → Any P (x ∷ xs)
   there : ∀ {x xs} (pxs : Any P xs) → Any P (x ∷ xs)
 
 -- Map.
 
-map : ∀ {A} {P Q : A → Set} → P ⋐ Q → Any P ⋐ Any Q
+map : ∀ {a p q} {A : Set a} {P : A → Set p} → {Q : A → Set q} →
+      P ⋐ Q → Any P ⋐ Any Q
 map g (here px)   = here (g px)
 map g (there pxs) = there (map g pxs)
 
 -- If the head does not satisfy the predicate, then the tail will.
 
-tail : ∀ {A x xs} {P : A → Set} → ¬ P x → Any P (x ∷ xs) → Any P xs
+tail : ∀ {a} {A : Set a} {x : A} {xs : List A} {P : A → Set} →
+       ¬ P x → Any P (x ∷ xs) → Any P xs
 tail ¬px (here  px)  = ⊥-elim (¬px px)
 tail ¬px (there pxs) = pxs
 
 -- Decides Any.
 
-any : {A : Set} {P : A → Set} →
+any : {a : Level} {A : Set a} {P : A → Set} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
 any p []       = no λ()
 any p (x ∷ xs) with p x
@@ -52,14 +55,14 @@ any p (x ∷ xs) | no ¬px = Dec.map′ there (tail ¬px) (any p xs)
 
 -- index x∈xs is the list position (zero-based) which x∈xs points to.
 
-index : ∀ {A} {P : A → Set} {xs} → Any P xs → Fin (List.length xs)
+index : ∀ {a} {A : Set a} {P : A → Set} {xs} → Any P xs → Fin (List.length xs)
 index (here  px)  = zero
 index (there pxs) = suc (index pxs)
 
 ------------------------------------------------------------------------
 -- List membership and some related definitions
 
-module Membership (S : Setoid zero zero) where
+module Membership {c ℓ : Level} (S : Setoid c ℓ) where
 
   private
     open module  S = Setoid S using (_≈_) renaming (Carrier to A)
@@ -79,20 +82,20 @@ module Membership (S : Setoid zero zero) where
 
   infix 4 _∈_ _∉_
 
-  _∈_ : A → List A → Set
+  _∈_ : A → List A → Set (c ⊔ ℓ)
   x ∈ xs = Any (_≈_ x) xs
 
-  _∉_ : A → List A → Set
+  _∉_ : A → List A → Set _
   x ∉ xs = ¬ x ∈ xs
 
   -- Subsets.
 
   infix 4 _⊆_ _⊈_
 
-  _⊆_ : List A → List A → Set
+  _⊆_ : List A → List A → Set _
   xs ⊆ ys = ∀ {x} → x ∈ xs → x ∈ ys
 
-  _⊈_ : List A → List A → Set
+  _⊈_ : List A → List A → Set _
   xs ⊈ ys = ¬ xs ⊆ ys
 
   -- Equality is respected by the predicate which is used to define
@@ -123,17 +126,18 @@ module Membership (S : Setoid zero zero) where
 
   -- A variant of List.map.
 
-  map-with-∈ : ∀ {B : Set} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
+  map-with-∈ : ∀ {b} {B : Set b} (xs : List A) → (∀ {x} → x ∈ xs → B) → List B
   map-with-∈ []       f = []
   map-with-∈ (x ∷ xs) f = f (here S.refl) ∷ map-with-∈ xs (f ∘ there)
 
   -- Finds an element satisfying the predicate.
 
-  find : ∀ {P : A → Set} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
+  find : ∀ {p} {P : A → Set p} {xs} → Any P xs → ∃ λ x → x ∈ xs × P x
   find (here px)   = (_ , here S.refl , px)
   find (there pxs) = Prod.map id (Prod.map there id) (find pxs)
 
-  lose : ∀ {P x xs} → P Respects _≈_ → x ∈ xs → P x → Any P xs
+  lose : ∀ {p} {P : A → Set p} {x xs} → P Respects _≈_ →
+         x ∈ xs → P x → Any P xs
   lose resp x∈xs px = map (flip resp px) x∈xs
 
 -- The code above instantiated (and slightly changed) for
@@ -142,15 +146,15 @@ module Membership (S : Setoid zero zero) where
 module Membership-≡ where
 
   private
-    open module M {A : Set} = Membership (PropEq.setoid A) public
+    open module M {a} {A : Set a} = Membership (PropEq.setoid A) public
       hiding (lift-resp; lose; ⊆-preorder; module ⊆-Reasoning)
 
-  lose : ∀ {A} {P : A → Set} {x xs} → x ∈ xs → P x → Any P xs
+  lose : ∀ {a p} {A : Set a} {P : A → Set p} {x xs} → x ∈ xs → P x → Any P xs
   lose {P = P} = M.lose (PropEq.subst P)
 
   -- _⊆_ is a preorder.
 
-  ⊆-preorder : Set → Preorder _ _ _
+  ⊆-preorder : {a : Level} → Set a → Preorder _ _ _
   ⊆-preorder A = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
                                       (PropEq.subst (_∈_ _))
 
@@ -159,17 +163,17 @@ module Membership-≡ where
   open Inv public
     using (Kind) renaming (equivalent to set; inverse to bag)
 
-  [_]-Equality : Kind → Set → Setoid _ _
+  [_]-Equality : Kind → {a : Level} → Set a → Setoid _ _
   [ k ]-Equality A = Inv.InducedEquivalence₂ k (_∈_ {A = A})
 
   infix 4 _≈[_]_
 
-  _≈[_]_ : {A : Set} → List A → Kind → List A → Set
-  xs ≈[ k ] ys = Setoid._≈_ ([ k ]-Equality _) xs ys
+  _≈[_]_ : {a : Level} {A : Set a} → List A → Kind → List A → Set _
+  _≈[_]_ {a} {A} xs k ys = Setoid._≈_ ([ k ]-Equality A) xs ys
 
   -- Bag equality implies set equality.
 
-  bag-=⇒set-= : {A : Set} {xs ys : List A} →
+  bag-=⇒set-= : {a : Level} {A : Set a} {xs ys : List A} →
                 xs ≈[ bag ] ys → xs ≈[ set ] ys
   bag-=⇒set-= xs≈ys = Inv.⇿⇒ xs≈ys
 
@@ -198,5 +202,5 @@ module Membership-≡ where
 
 -- If any element satisfies P, then P is satisfied.
 
-satisfied : ∀ {A} {P : A → Set} {xs} → Any P xs → ∃ P
+satisfied : ∀ {a p} {A : Set a} {P : A → Set p} {xs} → Any P xs → ∃ P
 satisfied = Prod.map id Prod.proj₂ ∘ Membership-≡.find
