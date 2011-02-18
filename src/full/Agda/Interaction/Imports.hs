@@ -68,10 +68,15 @@ mergeInterface i = do
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++
       "  New builtins     " ++ show (Map.keys bi)
-    case Map.toList $ Map.intersection bs bi of
-      []               -> return ()
-      (b, Builtin x):_ -> typeError $ DuplicateBuiltinBinding b x x
-      (_, Prim{}):_    -> __IMPOSSIBLE__
+    let check b = case (b1, b2) of
+            (Builtin x, Builtin y)
+              | x == y    -> return ()
+              | otherwise -> typeError $ DuplicateBuiltinBinding b x y
+            _ -> __IMPOSSIBLE__
+          where
+            Just b1 = Map.lookup b bs
+            Just b2 = Map.lookup b bi
+    mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
     addImportedThings sig bi (iHaskellImports i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
@@ -211,11 +216,12 @@ getInterface' x includeStateChanges =
     reportSLn "import.iface" 10 $ "  Check for cycle"
     checkForImportCycle
 
-    uptodate <- ifM ignoreInterfaces
-		    (return False)
-		    (liftIO $ filePath (toIFile file)
-                                `isNewerThan`
-                              filePath file)
+    uptodate <- do
+      ignore <- ignoreInterfaces
+      cached <- isCached file -- if it's cached ignoreInterfaces has no effect
+                              -- to avoid typechecking a file more than once
+      newer  <- liftIO $ filePath (toIFile file) `isNewerThan` filePath file
+      return $ newer && (not ignore || cached)
 
     reportSLn "import.iface" 5 $
       "  " ++ render (pretty x) ++ " is " ++
@@ -245,105 +251,115 @@ getInterface' x includeStateChanges =
     return (i, wt)
 
     where
-	skip file = do
-	    -- Examine the mtime of the interface file. If it is newer than the
-	    -- stored version (in stDecodedModules), or if there is no stored version,
-	    -- read and decode it. Otherwise use the stored version.
-            let ifile = filePath $ toIFile file
-	    t            <- liftIO $ getModificationTime ifile
-	    mm           <- getDecodedModule x
-	    (cached, mi) <- case mm of
-		      Just (mi, mt) ->
-			 if mt < t
-			 then do dropDecodedModule x
-				 reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
-				 (,) False <$> readInterface ifile
-			 else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
-				 return (True, Just mi)
-		      Nothing ->
-			 do reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
-			    (,) False <$> readInterface ifile
+      isCached file = do
+        let ifile = filePath $ toIFile file
+        exist <- liftIO $ doesFileExist ifile
+        if not exist
+          then return False
+          else do
+            t  <- liftIO $ getModificationTime ifile
+            mm <- getDecodedModule x
+            return $ case mm of
+              Just (mi, mt) | mt >= t -> True
+              _                       -> False
 
-	    -- Check that it's the right version
-	    case mi of
-		Nothing	-> do
-		    reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
-		    typeCheck file
-		Just i	-> do
+      skip file = do
+        -- Examine the mtime of the interface file. If it is newer than the
+        -- stored version (in stDecodedModules), or if there is no stored version,
+        -- read and decode it. Otherwise use the stored version.
+        let ifile = filePath $ toIFile file
+        t            <- liftIO $ getModificationTime ifile
+        mm           <- getDecodedModule x
+        (cached, mi) <- case mm of
+          Just (mi, mt) ->
+            if mt < t
+            then do dropDecodedModule x
+                    reportSLn "import.iface" 5 $ "  file is newer, re-reading " ++ ifile
+                    (,) False <$> readInterface ifile
+            else do reportSLn "import.iface" 5 $ "  using stored version of " ++ ifile
+                    return (True, Just mi)
+          Nothing -> do
+            reportSLn "import.iface" 5 $ "  no stored version, reading " ++ ifile
+            (,) False <$> readInterface ifile
 
-		    reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
+        -- Check that it's the right version
+        case mi of
+          Nothing	-> do
+            reportSLn "import.iface" 5 $ "  bad interface, re-type checking"
+            typeCheck file
+          Just i	-> do
 
-		    ts <- map snd <$> mapM getInterface (iImportedModules i)
+            reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-		    -- If any of the imports are newer we need to retype check
-		    if any (> t) ts
-			then do
-			    -- liftIO close	-- Close the interface file. See above.
-			    typeCheck file
-			else do
-			    reportSLn "" 1 $
-                              "Skipping " ++ render (pretty x) ++
-                                " (" ++ (if cached then "cached" else ifile) ++ ")."
-                            -- We set the pragma options of the skipped file here,
-                            -- because if the top-level file is skipped we want the
-                            -- pragmas to apply to interactive commands in the UI.
-                            mapM_ setOptionsFromPragma (iPragmaOptions i)
-			    return (False, (i, Right t))
+            ts <- map snd <$> mapM getInterface (iImportedModules i)
 
-	typeCheck file =
-          let ret a = do
-               reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ "."
-               return a
-          in do
-	    -- Do the type checking.
-            reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
-            if includeStateChanges then do
-              r <- createInterface file x
+            -- If any of the imports are newer we need to retype check
+            if any (> t) ts
+              then do
+                -- liftIO close	-- Close the interface file. See above.
+                typeCheck file
+              else do
+                unless cached $ reportSLn "" 1 $
+                  "Skipping " ++ render (pretty x) ++
+                    " (" ++ ifile ++ ")."
+                -- We set the pragma options of the skipped file here,
+                -- because if the top-level file is skipped we want the
+                -- pragmas to apply to interactive commands in the UI.
+                mapM_ setOptionsFromPragma (iPragmaOptions i)
+                return (False, (i, Right t))
 
-              -- Merge the signature with the signature for imported
-              -- things.
-              sig <- getSignature
-              addImportedThings sig Map.empty Set.empty
-              setSignature emptySignature
+      typeCheck file =
+        let ret a = do
+              reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ "."
+              return a
+        in do
+          -- Do the type checking.
+          reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
+          if includeStateChanges then do
+            r <- createInterface file x
 
-              ret (True, r)
-             else do
-              ms       <- getImportPath
-              mf       <- stModuleToSource <$> get
-              vs       <- getVisitedModules
-              ds       <- getDecodedModules
-              opts     <- stPersistentOptions <$> get
-              isig     <- getImportedSignature
-              ibuiltin <- gets stImportedBuiltins
-              -- Every interface is treated in isolation.
-              r <- liftIO $ runTCM $
-                     withImportPath ms $ do
-                       setDecodedModules ds
-                       setCommandLineOptions opts
-                       modify $ \s -> s { stModuleToSource = mf }
-                       setVisitedModules vs
-                       addImportedThings isig ibuiltin Set.empty
+            -- Merge the signature with the signature for imported
+            -- things.
+            sig <- getSignature
+            addImportedThings sig Map.empty Set.empty
+            setSignature emptySignature
 
-                       r <- createInterface file x
+            ret (True, r)
+           else do
+            ms       <- getImportPath
+            mf       <- stModuleToSource <$> get
+            vs       <- getVisitedModules
+            ds       <- getDecodedModules
+            opts     <- stPersistentOptions <$> get
+            isig     <- getImportedSignature
+            ibuiltin <- gets stImportedBuiltins
+            -- Every interface is treated in isolation.
+            r <- liftIO $ runTCM $
+                   withImportPath ms $ do
+                     setDecodedModules ds
+                     setCommandLineOptions opts
+                     modify $ \s -> s { stModuleToSource = mf }
+                     setVisitedModules vs
+                     addImportedThings isig ibuiltin Set.empty
 
-                       mf        <- stModuleToSource <$> get
-                       vs        <- getVisitedModules
-                       ds        <- getDecodedModules
-                       isig      <- getImportedSignature
-                       ibuiltin  <- gets stImportedBuiltins
-                       hsImports <- getHaskellImports
-                       return (r, do
-                         modify $ \s -> s { stModuleToSource = mf }
-                         setVisitedModules vs
-                         setDecodedModules ds
+                     createInterface file x
 
-                         addImportedThings isig ibuiltin hsImports)
+                     mf        <- stModuleToSource <$> get
+                     ds        <- getDecodedModules
+                     return $ do
+                        modify $ \s -> s { stModuleToSource = mf }
+                        setDecodedModules ds
+                        case r of
+                          (i, Right t) -> storeDecodedModule i t
+                          _            -> return ()
 
-              case r of
-                  Left err               -> throwError err
-                  Right (result, update) -> do
-                    update
-                    ret (False, result)
+            case r of
+                Left err               -> throwError err
+                Right update -> do
+                  update
+                  r <- skip file
+                  ret r
+
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
@@ -476,7 +492,8 @@ createInterface file mname = do
      then do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
-      t <- writeInterface (filePath $ toIFile file) i
+      let ifile = filePath $ toIFile file
+      t  <- writeInterface ifile i
       return (i, Right t)
      else
       return (i, Left $ Warnings termErrs unsolvedMetas unsolvedConstraints)
