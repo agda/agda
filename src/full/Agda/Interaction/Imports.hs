@@ -342,7 +342,7 @@ getInterface' x includeStateChanges =
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty
 
-                     createInterface file x
+                     r <- createInterface file x
 
                      mf        <- stModuleToSource <$> get
                      ds        <- getDecodedModules
