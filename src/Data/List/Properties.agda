@@ -22,8 +22,8 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; _≗_; refl)
 import Relation.Binary.EqReasoning as EqR
 
-open RawMonadPlus List.monadPlus
 private
+  open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
   module LM {a} {A : Set a} = Monoid (List.monoid A)
 
 ∷-injective : ∀ {a} {A : Set a} {x y xs ys} →
@@ -48,7 +48,7 @@ right-identity-unique []       refl = refl
 right-identity-unique (x ∷ xs) eq   =
   right-identity-unique xs (proj₂ (∷-injective eq))
 
-left-identity-unique : ∀ {A : Set} {xs} (ys : List A) →
+left-identity-unique : ∀ {a} {A : Set a} {xs} (ys : List A) →
                        xs ≡ ys ++ xs → ys ≡ []
 left-identity-unique               []       _  = refl
 left-identity-unique {xs = []}     (y ∷ ys) ()
@@ -331,10 +331,10 @@ reverse-++-commute (x ∷ xs) ys = begin
 
 module Monad where
 
-  left-zero : {A B : Set} (f : A → List B) → (∅ >>= f) ≡ ∅
+  left-zero : ∀ {ℓ} {A B : Set ℓ} (f : A → List B) → (∅ >>= f) ≡ ∅
   left-zero f = refl
 
-  right-zero : {A B : Set} (xs : List A) →
+  right-zero : ∀ {ℓ} {A B : Set ℓ} (xs : List A) →
                (xs >>= const ∅) ≡ (∅ ∶ List B)
   right-zero []       = refl
   right-zero (x ∷ xs) = right-zero xs
@@ -346,7 +346,8 @@ module Monad where
       (xs >>= λ x → f x ∣ g x) ≢ ((xs >>= f) ∣ (xs >>= g))
     not-left-distributive ()
 
-  right-distributive : {A B : Set} (xs ys : List A) (f : A → List B) →
+  right-distributive : ∀ {ℓ} {A B : Set ℓ}
+                       (xs ys : List A) (f : A → List B) →
                        (xs ∣ ys >>= f) ≡ ((xs >>= f) ∣ (ys >>= f))
   right-distributive []       ys f = refl
   right-distributive (x ∷ xs) ys f = begin
@@ -355,16 +356,16 @@ module Monad where
     (f x ∣ (xs >>= f)) ∣ (ys >>= f)  ∎
     where open P.≡-Reasoning
 
-  left-identity : {A B : Set} (x : A) (f : A → List B) →
+  left-identity : ∀ {ℓ} {A B : Set ℓ} (x : A) (f : A → List B) →
                   (return x >>= f) ≡ f x
-  left-identity x f = proj₂ LM.identity (f x)
+  left-identity {ℓ} x f = proj₂ (LM.identity {a = ℓ}) (f x)
 
-  right-identity : {A : Set} (xs : List A) →
+  right-identity : ∀ {a} {A : Set a} (xs : List A) →
                    (xs >>= return) ≡ xs
   right-identity []       = refl
   right-identity (x ∷ xs) = P.cong (_∷_ x) (right-identity xs)
 
-  associative : {A B C : Set}
+  associative : ∀ {ℓ} {A B C : Set ℓ}
                 (xs : List A) (f : A → List B) (g : B → List C) →
                 (xs >>= λ x → f x >>= g) ≡ (xs >>= f >>= g)
   associative []       f g = refl
@@ -374,7 +375,7 @@ module Monad where
     (f x ∣ (xs >>= f) >>= g)                ∎
     where open P.≡-Reasoning
 
-  cong : ∀ {A B : Set} {xs₁ xs₂} {f₁ f₂ : A → List B} →
+  cong : ∀ {ℓ} {A B : Set ℓ} {xs₁ xs₂} {f₁ f₂ : A → List B} →
          xs₁ ≡ xs₂ → f₁ ≗ f₂ → (xs₁ >>= f₁) ≡ (xs₂ >>= f₂)
   cong {xs₁ = xs} refl f₁≗f₂ = P.cong concat (map-cong f₁≗f₂ xs)
 
@@ -392,12 +393,12 @@ module Applicative where
 
     -- A variant of flip map.
 
-    pam : {A B : Set} → List A → (A → B) → List B
+    pam : ∀ {ℓ} {A B : Set ℓ} → List A → (A → B) → List B
     pam xs f = xs >>= return ∘ f
 
   -- ∅ is a left zero for _⊛_.
 
-  left-zero : ∀ {A B} xs → (∅ ∶ List (A → B)) ⊛ xs ≡ ∅
+  left-zero : ∀ {ℓ} {A B : Set ℓ} xs → (∅ ∶ List (A → B)) ⊛ xs ≡ ∅
   left-zero xs = begin
     ∅ ⊛ xs          ≡⟨ refl ⟩
     (∅ >>= pam xs)  ≡⟨ Monad.left-zero (pam xs) ⟩
@@ -405,18 +406,18 @@ module Applicative where
 
   -- ∅ is a right zero for _⊛_.
 
-  right-zero : ∀ {A B} (fs : List (A → B)) → fs ⊛ ∅ ≡ ∅
-  right-zero fs = begin
+  right-zero : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) → fs ⊛ ∅ ≡ ∅
+  right-zero {ℓ} fs = begin
     fs ⊛ ∅            ≡⟨ refl ⟩
     (fs >>= pam ∅)    ≡⟨ (Monad.cong (refl {x = fs}) λ f →
-                          Monad.left-zero (return ∘ f)) ⟩
+                          Monad.left-zero (return {ℓ = ℓ} ∘ f)) ⟩
     (fs >>= λ _ → ∅)  ≡⟨ Monad.right-zero fs ⟩
     ∅                 ∎
 
   -- _⊛_ distributes over _∣_ from the right.
 
   right-distributive :
-    ∀ {A B} (fs₁ fs₂ : List (A → B)) xs →
+    ∀ {ℓ} {A B : Set ℓ} (fs₁ fs₂ : List (A → B)) xs →
     (fs₁ ∣ fs₂) ⊛ xs ≡ (fs₁ ⊛ xs ∣ fs₂ ⊛ xs)
   right-distributive fs₁ fs₂ xs = begin
     (fs₁ ∣ fs₂) ⊛ xs                     ≡⟨ refl ⟩
@@ -435,7 +436,7 @@ module Applicative where
 
   -- Applicative functor laws.
 
-  identity : ∀ {A} (xs : List A) → return id ⊛ xs ≡ xs
+  identity : ∀ {a} {A : Set a} (xs : List A) → return id ⊛ xs ≡ xs
   identity xs = begin
     return id ⊛ xs          ≡⟨ refl ⟩
     (return id >>= pam xs)  ≡⟨ Monad.left-identity id (pam xs) ⟩
@@ -444,7 +445,7 @@ module Applicative where
 
   private
 
-    pam-lemma : {A B C : Set}
+    pam-lemma : ∀ {ℓ} {A B C : Set ℓ}
                 (xs : List A) (f : A → B) (fs : B → List C) →
                 (pam xs f >>= fs) ≡ (xs >>= λ x → fs (f x))
     pam-lemma xs f fs = begin
@@ -453,13 +454,14 @@ module Applicative where
       (xs >>= λ x → fs (f x))             ∎
 
   composition :
-    ∀ {A B C} (fs : List (B → C)) (gs : List (A → B)) xs →
+    ∀ {ℓ} {A B C : Set ℓ}
+    (fs : List (B → C)) (gs : List (A → B)) xs →
     return _∘′_ ⊛ fs ⊛ gs ⊛ xs ≡ fs ⊛ (gs ⊛ xs)
-  composition fs gs xs = begin
+  composition {ℓ} fs gs xs = begin
     return _∘′_ ⊛ fs ⊛ gs ⊛ xs                      ≡⟨ refl ⟩
     (return _∘′_ >>= pam fs >>= pam gs >>= pam xs)  ≡⟨ Monad.cong (Monad.cong (Monad.left-identity _∘′_ (pam fs))
-                                                                              (λ _ → refl))
-                                                                  (λ _ → refl) ⟩
+                                                                              (λ f → refl {x = pam gs f}))
+                                                                  (λ fg → refl {x = pam xs fg}) ⟩
     (pam fs _∘′_ >>= pam gs >>= pam xs)             ≡⟨ Monad.cong (pam-lemma fs _∘′_ (pam gs)) (λ _ → refl) ⟩
     ((fs >>= λ f → pam gs (_∘′_ f)) >>= pam xs)     ≡⟨ P.sym $ Monad.associative fs (λ f → pam gs (_∘′_ f)) (pam xs) ⟩
     (fs >>= λ f → pam gs (_∘′_ f) >>= pam xs)       ≡⟨ (Monad.cong (refl {x = fs}) λ f →
@@ -472,7 +474,7 @@ module Applicative where
     (fs >>= pam (gs >>= pam xs))                    ≡⟨ refl ⟩
     fs ⊛ (gs ⊛ xs)                                  ∎
 
-  homomorphism : ∀ {A B : Set} (f : A → B) x →
+  homomorphism : ∀ {ℓ} {A B : Set ℓ} (f : A → B) x →
                  return f ⊛ return x ≡ return (f x)
   homomorphism f x = begin
     return f ⊛ return x            ≡⟨ refl ⟩
@@ -480,7 +482,7 @@ module Applicative where
     pam (return x) f               ≡⟨ Monad.left-identity x (return ∘ f) ⟩
     return (f x)                   ∎
 
-  interchange : ∀ {A B} (fs : List (A → B)) {x} →
+  interchange : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {x} →
                 fs ⊛ return x ≡ return (λ f → f x) ⊛ fs
   interchange fs {x} = begin
     fs ⊛ return x                    ≡⟨ refl ⟩
