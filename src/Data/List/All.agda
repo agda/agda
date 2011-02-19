@@ -1,15 +1,16 @@
 ------------------------------------------------------------------------
 -- Lists where all elements satisfy a given property
 ------------------------------------------------------------------------
+
 {-# OPTIONS --universe-polymorphism #-}
 
 module Data.List.All where
 
-open import Level
-open import Function
 open import Data.List as List hiding (map; all)
 open import Data.List.Any as Any using (here; there)
 open Any.Membership-≡ using (_∈_; _⊆_)
+open import Function
+open import Level
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using () renaming (_⊆_ to _⋐_)
@@ -19,17 +20,20 @@ open import Relation.Binary.PropositionalEquality
 
 infixr 5 _∷_
 
-data All {p a} {A : Set a} (P : A → Set p) : List A → Set (p ⊔ a) where
+data All {a p} {A : Set a}
+         (P : A → Set p) : List A → Set (p ⊔ a) where
   []  : All P []
   _∷_ : ∀ {x xs} (px : P x) (pxs : All P xs) → All P (x ∷ xs)
 
-head : ∀ {p a} {A : Set a} {P : A → Set p} {x xs} → All P (x ∷ xs) → P x
+head : ∀ {a p} {A : Set a} {P : A → Set p} {x xs} →
+       All P (x ∷ xs) → P x
 head (px ∷ pxs) = px
 
-tail : ∀ {p a} {A : Set a} {P : A → Set p} {x xs} → All P (x ∷ xs) → All P xs
+tail : ∀ {a p} {A : Set a} {P : A → Set p} {x xs} →
+       All P (x ∷ xs) → All P xs
 tail (px ∷ pxs) = pxs
 
-lookup : ∀ {p a} {A : Set a} {P : A → Set p} {xs : List A} →
+lookup : ∀ {a p} {A : Set a} {P : A → Set p} {xs : List A} →
          All P xs → (∀ {x : A} → x ∈ xs → P x)
 lookup []         ()
 lookup (px ∷ pxs) (here refl)  = px
@@ -45,7 +49,7 @@ map : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} →
 map g []         = []
 map g (px ∷ pxs) = g px ∷ map g pxs
 
-all : ∀ {p a} {A : Set a} {P : A → Set p} →
+all : ∀ {a p} {A : Set a} {P : A → Set p} →
       (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
 all p []       = yes []
 all p (x ∷ xs) with p x

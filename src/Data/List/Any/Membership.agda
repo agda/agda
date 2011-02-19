@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Properties related to list membership
 ------------------------------------------------------------------------
+
 {-# OPTIONS --universe-polymorphism #-}
 
 -- List membership is defined in Data.List.Any. This module does not
@@ -23,7 +24,7 @@ open import Function.Inverse.TypeIsomorphisms
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
-open import Data.Nat as Nat hiding (_⊔_)
+open import Data.Nat as Nat
 import Data.Nat.Properties as NatProp
 open import Data.Product as Prod
 open import Data.Sum as Sum
@@ -38,9 +39,9 @@ open import Relation.Nullary
 open import Relation.Nullary.Negation
 
 open Any.Membership-≡
-open RawMonad List.monad
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
+  open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
 
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
@@ -48,34 +49,35 @@ private
 map-∈⇿ : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} {y xs} →
          (∃ λ x → x ∈ xs × y ≡ f x) ⇿ y ∈ List.map f xs
 map-∈⇿ {a} {b} {f = f} {y} {xs} =
-  (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ {a} {b} ⟩
-  Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ {a} {b} {b} ⟩
+  (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ {a = a} {p = b} ⟩
+  Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ {a = a} {b = b} {p = b} ⟩
   y ∈ List.map f xs           ∎
   where open Inv.EquationalReasoning
 
 concat-∈⇿ : ∀ {a} {A : Set a} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
 concat-∈⇿ {a} {x = x} {xss} =
-  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong {_} {a} {a} {a} {a} Inv.id $ ×⊎.*-comm _ _ ⟩
-  (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ {a} {a} ⟩
-  Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ {a} {a} ⟩
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong {a₁ = a} {b₁ = a} {b₂ = a} Inv.id $ ×⊎.*-comm _ _ ⟩
+  (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ {a = a} {p = a} ⟩
+  Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ {a = a} {p = a} ⟩
   x ∈ concat xss                ∎
   where open Inv.EquationalReasoning
 
->>=-∈⇿ : ∀ {A B : Set} {xs} {f : A → List B} {y} →
+>>=-∈⇿ : ∀ {ℓ} {A B : Set ℓ} {xs} {f : A → List B} {y} →
          (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
->>=-∈⇿ {xs = xs} {f} {y} =
-  (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ ⟩
-  Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ ⟩
+>>=-∈⇿ {ℓ} {xs = xs} {f} {y} =
+  (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
+  Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f)              ∎
   where open Inv.EquationalReasoning
 
-⊛-∈⇿ : ∀ {A B : Set} (fs : List (A → B)) {xs y} →
+⊛-∈⇿ : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
-⊛-∈⇿ fs {xs} {y} =
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong Inv.id (∃∃⇿∃∃ _) ⟩
-  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong Inv.id ((_ ∎) ⟨ ×⊎.*-cong ⟩ Any⇿) ⟩
-  (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ ⟩
+⊛-∈⇿ {ℓ} fs {xs} {y} =
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ} Inv.id (∃∃⇿∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
+  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ}
+                                                         Inv.id ((_ ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any⇿ {a = ℓ} {p = ℓ}) ⟩
+  (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
   y ∈ fs ⊛ xs                                  ∎
   where open Inv.EquationalReasoning
@@ -127,19 +129,20 @@ _++-mono_ xs₁⊆ys₁ xs₂⊆ys₂ =
 concat-mono : ∀ {a} {A : Set a} {xss yss : List (List A)} →
               xss ⊆ yss → concat xss ⊆ concat yss
 concat-mono {a} xss⊆yss =
-  _⟨$⟩_ (Inverse.to $ concat-∈⇿ {a}) ∘
+  _⟨$⟩_ (Inverse.to $ concat-∈⇿ {a = a}) ∘
   Prod.map id (Prod.map id xss⊆yss) ∘
-  _⟨$⟩_ (Inverse.from $ concat-∈⇿ {a})
+  _⟨$⟩_ (Inverse.from $ concat-∈⇿ {a = a})
 
->>=-mono : ∀ {A B : Set} (f g : A → List B) {xs ys} →
+>>=-mono : ∀ {ℓ} {A B : Set ℓ} (f g : A → List B) {xs ys} →
            xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
            (xs >>= f) ⊆ (ys >>= g)
->>=-mono f g xs⊆ys f⊆g =
-  _⟨$⟩_ (Inverse.to >>=-∈⇿) ∘
+>>=-mono {ℓ} f g xs⊆ys f⊆g =
+  _⟨$⟩_ (Inverse.to $ >>=-∈⇿ {ℓ = ℓ}) ∘
   Prod.map id (Prod.map xs⊆ys f⊆g) ∘
-  _⟨$⟩_ (Inverse.from >>=-∈⇿)
+  _⟨$⟩_ (Inverse.from $ >>=-∈⇿ {ℓ = ℓ})
 
-_⊛-mono_ : {A B : Set} {fs gs : List (A → B)} {xs ys : List A} →
+_⊛-mono_ : ∀ {ℓ} {A B : Set ℓ}
+             {fs gs : List (A → B)} {xs ys : List A} →
            fs ⊆ gs → xs ⊆ ys → (fs ⊛ xs) ⊆ (gs ⊛ ys)
 _⊛-mono_ {fs = fs} {gs} fs⊆gs xs⊆ys =
   _⟨$⟩_ (Inverse.to $ ⊛-∈⇿ gs) ∘
@@ -153,16 +156,17 @@ xs₁⊆ys₁ ⊗-mono xs₂⊆ys₂ =
   Prod.map xs₁⊆ys₁ xs₂⊆ys₂ ∘
   _⟨$⟩_ (Inverse.from ⊗-∈⇿)
 
-any-mono : {a : Level} {A : Set a} (p : A → Bool) →
+any-mono : ∀ {a} {A : Set a} (p : A → Bool) →
            ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
 any-mono {a} p xs⊆ys =
-  _⟨$⟩_ (Equivalent.to $ any⇔ {a}) ∘
+  _⟨$⟩_ (Equivalent.to $ any⇔ {a = a}) ∘
   mono xs⊆ys ∘
-  _⟨$⟩_ (Equivalent.from $ any⇔ {a})
+  _⟨$⟩_ (Equivalent.from $ any⇔ {a = a})
 
-map-with-∈-mono : 
-  {a b : Level} {A : Set a} {B : Set b} {xs : List A} {f : ∀ {x} → x ∈ xs → B}
-              {ys : List A} {g : ∀ {x} → x ∈ ys → B}
+map-with-∈-mono :
+  ∀ {a b} {A : Set a} {B : Set b}
+    {xs : List A} {f : ∀ {x} → x ∈ xs → B}
+    {ys : List A} {g : ∀ {x} → x ∈ ys → B}
   (xs⊆ys : xs ⊆ ys) → (∀ {x} → f {x} ≗ g ∘ xs⊆ys) →
   map-with-∈ xs f ⊆ map-with-∈ ys g
 map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {x} =
@@ -180,11 +184,12 @@ map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {x} =
 -- Only a finite number of distinct elements can be members of a
 -- given list.
 
-finite : {a : Level} {A : Set a} (f : Inj.Injection (P.setoid ℕ) (P.setoid A)) →
+finite : ∀ {a} {A : Set a}
+         (f : Inj.Injection (P.setoid ℕ) (P.setoid A)) →
          ∀ xs → ¬ (∀ i → Inj.Injection.to f ⟨$⟩ i ∈ xs)
-finite     inj []       ∈[]   with ∈[] zero
+finite         inj []       ∈[]   with ∈[] zero
 ... | ()
-finite {a} {A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
+finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
   where
   open Inj.Injection inj
 
@@ -236,4 +241,7 @@ finite {a} {A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
     ... | tri> _ _ (j≤i , _) | tri≈ _ i≡k _       = ⊥-elim (lemma (subst (_≤_ j) i≡k j≤i) $ sym $ injective eq)
     ... | tri> _ _ (j≤i , _) | tri> _ _ (k≤i , _) =                                               injective eq
 
-    inj′ = record { to = →-to-⟶ {_} {a} {a} f; injective = injective′ }
+    inj′ = record
+      { to        = →-to-⟶ {B = P.setoid A} f
+      ; injective = injective′
+      }

@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Properties relating All to various list functions
 ------------------------------------------------------------------------
+
 {-# OPTIONS --universe-polymorphism #-}
 
 module Data.List.All.Properties where
@@ -19,20 +20,23 @@ open import Relation.Unary using () renaming (_⊆_ to _⋐_)
 
 -- Functions can be shifted between the predicate and the list.
 
-All-map : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
+All-map : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
+            {f : A → B} {xs} →
           All (P ∘ f) xs → All P (List.map f xs)
 All-map []       = []
 All-map (p ∷ ps) = p ∷ All-map ps
 
-map-All : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {f : A → B} {xs} →
+map-All : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
+            {f : A → B} {xs} →
           All P (List.map f xs) → All (P ∘ f) xs
 map-All {xs = []}    []       = []
 map-All {xs = _ ∷ _} (p ∷ ps) = p ∷ map-All ps
 
 -- A variant of All.map.
 
-gmap : ∀ {a b p q} {A : Set a} {B : Set b} {P : A → Set p} {Q : B → Set q}
-       {f : A → B} →
+gmap : ∀ {a b p q}
+         {A : Set a} {B : Set b} {P : A → Set p} {Q : B → Set q}
+         {f : A → B} →
        P ⋐ Q ∘ f → All P ⋐ All Q ∘ List.map f
 gmap g = All-map ∘ All.map g
 

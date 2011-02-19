@@ -4,4 +4,3 @@
 ^dist($|/)
 ^html($|/)
 ^Everything\.agda$
-dist

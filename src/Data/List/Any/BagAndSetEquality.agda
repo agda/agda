@@ -1,6 +1,7 @@
 ------------------------------------------------------------------------
 -- Properties related to bag and set equality
 ------------------------------------------------------------------------
+
 {-# OPTIONS --universe-polymorphism #-}
 
 -- Bag and set equality are defined in Data.List.Any.
@@ -23,25 +24,25 @@ open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE
 open import Function.Inverse as Inv using (_⇿_; module Inverse)
 open import Function.Inverse.TypeIsomorphisms
+open import Level
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; _with-≡_)
 open import Relation.Nullary
-open import Level
 
 open Any.Membership-≡
-open RawMonad List.monad
 private
-  module ListMonoid {a} {A : Set a} = Monoid (List.monoid A)
-  module Eq {a k} {A : Set a} = Setoid ([ k ]-Equality A)
+  module Eq {k a} {A : Set a} = Setoid ([ k ]-Equality A)
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
+  open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
+  module ListMonoid {a} {A : Set a} = Monoid (List.monoid A)
 
 -- _++_ and [] form a commutative monoid, with either bag or set
 -- equality as the underlying equality.
 
-commutativeMonoid : {a : Level} → Kind → Set a → CommutativeMonoid _ _
+commutativeMonoid : ∀ {a} → Kind → Set a → CommutativeMonoid _ _
 commutativeMonoid {a} k A = record
   { Carrier             = List A
   ; _≈_                 = λ xs ys → xs ≈[ k ] ys
@@ -51,16 +52,16 @@ commutativeMonoid {a} k A = record
     { isSemigroup = record
       { isEquivalence = Eq.isEquivalence
       ; assoc         = λ xs ys zs →
-                          Eq.reflexive {a} {k} $ ListMonoid.assoc xs ys zs
+                          Eq.reflexive (ListMonoid.assoc xs ys zs)
       ; ∙-cong        = λ {xs₁ xs₂ xs₃ xs₄} xs₁≈xs₂ xs₃≈xs₄ {x} →
-                          x ∈ xs₁ ++ xs₃       ⇿⟨ sym $ ++⇿ {a} {a} ⟩
+                          x ∈ xs₁ ++ xs₃       ⇿⟨ sym $ ++⇿ {a = a} {p = a} ⟩
                           (x ∈ xs₁ ⊎ x ∈ xs₃)  ≈⟨ xs₁≈xs₂ ⟨ ×⊎.+-cong ⟩ xs₃≈xs₄ ⟩
-                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ {a} {a} ⟩
+                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ {a = a} {p = a} ⟩
                           x ∈ xs₂ ++ xs₄       ∎
       }
     ; identityˡ = λ xs {x} → x ∈ xs ∎
     ; comm      = λ xs ys {x} →
-                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ {a} {a} xs ys ⟩
+                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ {a = a} {p = a} xs ys ⟩
                     x ∈ ys ++ xs  ∎
     }
   }
@@ -69,7 +70,7 @@ commutativeMonoid {a} k A = record
 -- The only list which is bag or set equal to the empty list is the
 -- empty list itself.
 
-empty-unique : ∀ {k} {A : Set} {xs : List A} →
+empty-unique : ∀ {k a} {A : Set a} {xs : List A} →
                xs ≈[ k ] [] → xs ≡ []
 empty-unique {xs = []}    _    = P.refl
 empty-unique {xs = _ ∷ _} ∷≈[]
@@ -78,23 +79,23 @@ empty-unique {xs = _ ∷ _} ∷≈[]
 
 -- _++_ is idempotent (under set equality).
 
-++-idempotent : {a : Level} {A : Set a} →
+++-idempotent : ∀ {a} {A : Set a} →
                 Idempotent (λ (xs ys : List A) → xs ≈[ set ] ys) _++_
 ++-idempotent {a} xs {x} =
-  x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++⇿ {a} {a} ))
-                                 (_⟨$⟩_ (Inverse.to $ ++⇿ {a} {a}) ∘ inj₁) ⟩
+  x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++⇿ {a = a} {p = a}))
+                                 (_⟨$⟩_ (Inverse.to $ ++⇿ {a = a} {p = a}) ∘ inj₁) ⟩
   x ∈ xs        ∎
   where open Inv.EquationalReasoning
 
 -- List.map is a congruence.
 
-map-cong : ∀ {a b} {k} {A : Set a} {B : Set b} {f₁ f₂ : A → B} {xs₁ xs₂} →
+map-cong : ∀ {ℓ k} {A B : Set ℓ} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
            List.map f₁ xs₁ ≈[ k ] List.map f₂ xs₂
-map-cong {a} {b} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
-  x ∈ List.map f₁ xs₁       ⇿⟨ sym $ map⇿ {a} {b} {b} ⟩
+map-cong {ℓ} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
+  x ∈ List.map f₁ xs₁       ⇿⟨ sym $ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
   Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
-  Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ {a} {b} {b} ⟩
+  Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
   x ∈ List.map f₂ xs₂       ∎
   where
   open Inv.EquationalReasoning
@@ -114,27 +115,27 @@ map-cong {a} {b} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ 
 concat-cong : ∀ {a k} {A : Set a} {xss₁ xss₂ : List (List A)} →
               xss₁ ≈[ k ] xss₂ → concat xss₁ ≈[ k ] concat xss₂
 concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
-  x ∈ concat xss₁         ⇿⟨ sym $ concat⇿ {a} {a} ⟩
+  x ∈ concat xss₁         ⇿⟨ sym $ concat⇿ {a = a} {p = a} ⟩
   Any (Any (_≡_ x)) xss₁  ≈⟨ Any-cong (λ _ → _ ∎) xss₁≈xss₂ ⟩
-  Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ {a} {a} ⟩
+  Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ {a = a} {p = a} ⟩
   x ∈ concat xss₂         ∎
   where open Inv.EquationalReasoning
 
 -- The list monad's bind is a congruence.
 
->>=-cong : ∀ {k} {A B : Set} {xs₁ xs₂} {f₁ f₂ : A → List B} →
+>>=-cong : ∀ {ℓ k} {A B : Set ℓ} {xs₁ xs₂} {f₁ f₂ : A → List B} →
            xs₁ ≈[ k ] xs₂ → (∀ x → f₁ x ≈[ k ] f₂ x) →
            (xs₁ >>= f₁) ≈[ k ] (xs₂ >>= f₂)
->>=-cong {xs₁ = xs₁} {xs₂} {f₁} {f₂} xs₁≈xs₂ f₁≈f₂ {x} =
-  x ∈ (xs₁ >>= f₁)          ⇿⟨ sym >>=⇿ ⟩
+>>=-cong {ℓ} {xs₁ = xs₁} {xs₂} {f₁} {f₂} xs₁≈xs₂ f₁≈f₂ {x} =
+  x ∈ (xs₁ >>= f₁)          ⇿⟨ sym $ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   Any (λ y → x ∈ f₁ y) xs₁  ≈⟨ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟩
-  Any (λ y → x ∈ f₂ y) xs₂  ⇿⟨ >>=⇿ ⟩
+  Any (λ y → x ∈ f₂ y) xs₂  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   x ∈ (xs₂ >>= f₂)          ∎
   where open Inv.EquationalReasoning
 
 -- _⊛_ is a congruence.
 
-⊛-cong : ∀ {k A B} {fs₁ fs₂ : List (A → B)} {xs₁ xs₂} →
+⊛-cong : ∀ {ℓ k} {A B : Set ℓ} {fs₁ fs₂ : List (A → B)} {xs₁ xs₂} →
          fs₁ ≈[ k ] fs₂ → xs₁ ≈[ k ] xs₂ → fs₁ ⊛ xs₁ ≈[ k ] fs₂ ⊛ xs₂
 ⊛-cong fs₁≈fs₂ xs₁≈xs₂ =
   >>=-cong fs₁≈fs₂ λ f →
@@ -144,32 +145,34 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
 
 -- _⊗_ is a congruence.
 
-⊗-cong : ∀ {k A B} {xs₁ xs₂ : List A} {ys₁ ys₂ : List B} →
+⊗-cong : ∀ {ℓ k} {A B : Set ℓ} {xs₁ xs₂ : List A} {ys₁ ys₂ : List B} →
          xs₁ ≈[ k ] xs₂ → ys₁ ≈[ k ] ys₂ →
          (xs₁ ⊗ ys₁) ≈[ k ] (xs₂ ⊗ ys₂)
-⊗-cong xs₁≈xs₂ ys₁≈ys₂ =
-  ⊛-cong (⊛-cong (Eq.refl {x = [ _,_ ]}) xs₁≈xs₂) ys₁≈ys₂
+⊗-cong {ℓ} xs₁≈xs₂ ys₁≈ys₂ =
+  ⊛-cong (⊛-cong (Eq.refl {x = [ _,_ {a = ℓ} {b = ℓ} ]})
+                 xs₁≈xs₂)
+         ys₁≈ys₂
 
 -- The list monad's bind distributes from the left over _++_.
 
 >>=-left-distributive :
-  ∀ {A B : Set} (xs : List A) {f g : A → List B} →
+  ∀ {ℓ} {A B : Set ℓ} (xs : List A) {f g : A → List B} →
   (xs >>= λ x → f x ++ g x) ≈[ bag ] (xs >>= f) ++ (xs >>= g)
->>=-left-distributive xs {f} {g} {y} =
-  y ∈ (xs >>= λ x → f x ++ g x)                      ⇿⟨ sym >>=⇿ ⟩
-  Any (λ x → y ∈ f x ++ g x) xs                      ⇿⟨ sym (Any-cong (λ _ → ++⇿) (_ ∎)) ⟩
-  Any (λ x → y ∈ f x ⊎ y ∈ g x) xs                   ⇿⟨ sym ⊎⇿ ⟩
-  (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ⇿⟨ >>=⇿ ⟨ ×⊎.+-cong ⟩ >>=⇿ ⟩
-  (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ⇿⟨ ++⇿ ⟩
+>>=-left-distributive {ℓ} xs {f} {g} {y} =
+  y ∈ (xs >>= λ x → f x ++ g x)                      ⇿⟨ sym $ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+  Any (λ x → y ∈ f x ++ g x) xs                      ⇿⟨ sym (Any-cong (λ _ → ++⇿ {a = ℓ} {p = ℓ}) (_ ∎)) ⟩
+  Any (λ x → y ∈ f x ⊎ y ∈ g x) xs                   ⇿⟨ sym $ ⊎⇿ {a = ℓ} {p = ℓ} {q = ℓ} ⟩
+  (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟨ ×⊎.+-cong {ℓ = ℓ} ⟩ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+  (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ⇿⟨ ++⇿ {a = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f) ++ (xs >>= g)                       ∎
   where open Inv.EquationalReasoning
 
 -- The same applies to _⊛_.
 
 ⊛-left-distributive :
-  ∀ {A B} (fs : List (A → B)) xs₁ xs₂ →
+  ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) xs₁ xs₂ →
   fs ⊛ (xs₁ ++ xs₂) ≈[ bag ] (fs ⊛ xs₁) ++ (fs ⊛ xs₂)
-⊛-left-distributive fs xs₁ xs₂ = begin
+⊛-left-distributive {B = B} fs xs₁ xs₂ = begin
   fs ⊛ (xs₁ ++ xs₂)                         ≡⟨ P.refl ⟩
   (fs >>= λ f → xs₁ ++ xs₂ >>= return ∘ f)  ≡⟨ (LP.Monad.cong (P.refl {x = fs}) λ f →
                                                 LP.Monad.right-distributive xs₁ xs₂ (return ∘ f)) ⟩
@@ -180,7 +183,7 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   (fs >>= λ f → xs₂ >>= return ∘ f)         ≡⟨ P.refl ⟩
 
   (fs ⊛ xs₁) ++ (fs ⊛ xs₂)                  ∎
-  where open EqR ([ bag ]-Equality _)
+  where open EqR ([ bag ]-Equality B)
 
 private
 
@@ -188,7 +191,7 @@ private
   -- necessarily set equal.
 
   ¬-drop-cons :
-    ∀ {A : Set} {x : A} →
+    ∀ {a} {A : Set a} {x : A} →
     ¬ (∀ {xs ys} → x ∷ xs ≈[ set ] x ∷ ys → xs ≈[ set ] ys)
   ¬-drop-cons {x = x} drop-cons
     with FE.Equivalent.to x≈[] ⟨$⟩ here P.refl
@@ -202,9 +205,9 @@ private
 
 -- However, the corresponding property does hold for bag equality.
 
-drop-cons : ∀ {A : Set} {x : A} {xs ys} →
+drop-cons : ∀ {a} {A : Set a} {x : A} {xs ys} →
             x ∷ xs ≈[ bag ] x ∷ ys → xs ≈[ bag ] ys
-drop-cons {A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
+drop-cons {A = A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
   z ∈ xs                                      ⇿⟨ lemma xs ⟩
   (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)  ⇿⟨ Σ.⇿ x∷xs≈x∷ys′ x∷xs≈x∷ys′-preserves-There ⟩
   (∃ λ (z∈x∷ys : z ∈ x ∷ ys) → There z∈x∷ys)  ⇿⟨ sym $ lemma ys ⟩
@@ -312,7 +315,7 @@ drop-cons {A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
         Inverse.from x∷xs≈x∷ys ⟨$⟩ (Inverse.to x∷xs≈x∷ys ⟨$⟩ there z∈)     ≡⟨ P.cong (_⟨$⟩_ (Inverse.from x∷xs≈x∷ys)) eq ⟩
         Inverse.from x∷xs≈x∷ys ⟨$⟩ here P.refl                             ≡⟨ P.cong (_⟨$⟩_ (Inverse.from x∷xs≈x∷ys)) (P.sym eq′) ⟩
         Inverse.from x∷xs≈x∷ys ⟨$⟩ (Inverse.to x∷xs≈x∷ys ⟨$⟩ here P.refl)  ≡⟨ Inverse.left-inverse-of x∷xs≈x∷ys _ ⟩
-        here P.refl                                                        □
+        Any.here {xs = xs} (P.refl {x = x})                                □
     ... | ()
 
     from : ∀ {z} (z∈x∷xs : z ∈ x ∷ xs) →
