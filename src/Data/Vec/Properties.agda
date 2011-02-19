@@ -69,15 +69,22 @@ lookup-morphism i = record
   lookup-⊛ zero    (f ∷ fs) (x ∷ xs) = refl
   lookup-⊛ (suc i) (f ∷ fs) (x ∷ xs) = lookup-⊛ i fs xs
 
+-- tabulate is an inverse of flip lookup.
+
+lookup∘tabulate : ∀ {a n} {A : Set a} (f : Fin n → A) (i : Fin n) →
+                  lookup i (tabulate f) ≡ f i
+lookup∘tabulate f zero    = refl
+lookup∘tabulate f (suc i) = lookup∘tabulate (f ∘ suc) i
+
+tabulate∘lookup : ∀ {a n} {A : Set a} (xs : Vec A n) →
+                  tabulate (flip lookup xs) ≡ xs
+tabulate∘lookup []       = refl
+tabulate∘lookup (x ∷ xs) = PropEq.cong (_∷_ x) $ tabulate∘lookup xs
+
 -- If you look up an index in allFin n, then you get the index.
 
 lookup-allFin : ∀ {n} (i : Fin n) → lookup i (allFin n) ≡ i
-lookup-allFin         zero    = refl
-lookup-allFin {suc n} (suc i) = begin
-  lookup i (map suc (allFin n))  ≡⟨ Morphism.op-<$> (lookup-morphism i) suc _ ⟩
-  suc (lookup i (allFin n))      ≡⟨ PropEq.cong suc (lookup-allFin i) ⟩
-  suc i                          ∎
-  where open ≡-Reasoning
+lookup-allFin = lookup∘tabulate id
 
 -- Various lemmas relating lookup and _++_.
 
@@ -129,16 +136,33 @@ map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
 map-∘ f g []       = refl
 map-∘ f g (x ∷ xs) = PropEq.cong (_∷_ (f (g x))) (map-∘ f g xs)
 
+-- tabulate can be expressed using map and allFin.
+
+tabulate-∘ : ∀ {n a b} {A : Set a} {B : Set b}
+             (f : A → B) (g : Fin n → A) →
+             tabulate (f ∘ g) ≡ map f (tabulate g)
+tabulate-∘ {zero}  f g = refl
+tabulate-∘ {suc n} f g =
+  PropEq.cong (_∷_ (f (g zero))) (tabulate-∘ f (g ∘ suc))
+
+tabulate-allFin : ∀ {n a} {A : Set a} (f : Fin n → A) →
+                  tabulate f ≡ map f (allFin n)
+tabulate-allFin f = tabulate-∘ f id
+
+-- The positive case of allFin can be expressed recursively using map.
+
+allFin-map : ∀ n → allFin (suc n) ≡ zero ∷ map suc (allFin n)
+allFin-map n = PropEq.cong (_∷_ zero) $ tabulate-∘ suc id
+
 -- If you look up every possible index, in increasing order, then you
 -- get back the vector you started with.
 
 map-lookup-allFin : ∀ {a} {A : Set a} {n} (xs : Vec A n) →
                     map (λ x → lookup x xs) (allFin n) ≡ xs
-map-lookup-allFin             []       = refl
-map-lookup-allFin {n = suc n} (x ∷ xs) = PropEq.cong (_∷_ x) (begin
-  map (λ y → lookup y (x ∷ xs)) (map suc (allFin n))  ≡⟨ PropEq.sym $ map-∘ (λ y → lookup y (x ∷ xs)) suc (allFin n) ⟩
-  map (λ y → lookup y xs) (allFin n)                  ≡⟨ map-lookup-allFin xs ⟩
-  xs                                                  ∎)
+map-lookup-allFin {n = n} xs = begin
+  map (λ x → lookup x xs) (allFin n) ≡⟨ PropEq.sym $ tabulate-∘ (λ x → lookup x xs) id ⟩
+  tabulate (λ x → lookup x xs)       ≡⟨ tabulate∘lookup xs ⟩
+  xs                                 ∎
   where open ≡-Reasoning
 
 -- sum commutes with _++_.

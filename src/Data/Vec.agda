@@ -11,6 +11,7 @@ open import Data.Nat
 open import Data.Fin using (Fin; zero; suc)
 open import Data.List as List using (List)
 open import Data.Product using (∃; ∃₂; _×_; _,_)
+open import Function
 open import Level
 open import Relation.Binary.PropositionalEquality
 
@@ -193,9 +194,17 @@ _⋎_ : ∀ {a m n} {A : Set a} →
 []       ⋎ ys = ys
 (x ∷ xs) ⋎ ys = x ∷ (ys ⋎ xs)
 
+-- A lookup function.
+
 lookup : ∀ {a n} {A : Set a} → Fin n → Vec A n → A
 lookup zero    (x ∷ xs) = x
 lookup (suc i) (x ∷ xs) = lookup i xs
+
+-- An inverse of flip lookup.
+
+tabulate : ∀ {n a} {A : Set a} → (Fin n → A) → Vec A n
+tabulate {zero}  f = []
+tabulate {suc n} f = f zero ∷ tabulate (f ∘ suc)
 
 -- Update.
 
@@ -208,7 +217,9 @@ _[_]≔_ : ∀ {a n} {A : Set a} → Vec A n → Fin n → A → Vec A n
 
 -- Generates a vector containing all elements in Fin n. This function
 -- is not placed in Data.Fin because Data.Vec depends on Data.Fin.
+--
+-- The implementation was suggested by Conor McBride ("Fwd: how to
+-- count 0..n-1", http://thread.gmane.org/gmane.comp.lang.agda/2554).
 
 allFin : ∀ n → Vec (Fin n) n
-allFin zero    = []
-allFin (suc n) = zero ∷ map suc (allFin n)
+allFin _ = tabulate id
