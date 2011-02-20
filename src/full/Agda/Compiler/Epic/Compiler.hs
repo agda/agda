@@ -47,9 +47,11 @@ compilerMain inter = do
             case code of
                 Nothing -> __IMPOSSIBLE__
                 Just c  -> runEpic (iModuleName inter) c
-        ExitFailure _ -> internalError $
-           "Agda can't find epic support, usually `cabal install epic' will be enough. "
-           ++ "Look in the README for more information."
+        ExitFailure _ -> internalError $ unlines
+           [ "Agda cannot find the Epic compiler."
+           , "This can perhaps be fixed by running `cabal install epic'."
+           , "See the README for more information."
+           ]
 
 
 -- | Before running the compiler, we need to store some things in the state,
@@ -100,7 +102,7 @@ compileModule sig = do
     compileDefns defs
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
---   exists.
+--   exist.
 setEpicDir :: Interface -> Compile (TCMT IO) ()
 setEpicDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
