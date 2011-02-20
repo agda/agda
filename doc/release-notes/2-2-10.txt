@@ -193,3 +193,6 @@ Tools
 * Hyperlinks for top-level module names now point to the start of the
   module rather than to the declaration of the module name. This
   applies both to the Emacs mode and to the output of agda --html.
+
+* The Emacs mode can compile using either the MAlonzo or the Epic
+  backend. The variable agda2-backend controls which backend is used.

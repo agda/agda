@@ -85,6 +85,13 @@ the root of the current project."
   :type '(repeat directory)
   :group 'agda2)
 
+(defcustom agda2-backend
+  "MAlonzo"
+  "The backend which is used to compile Agda programs."
+  :type '(choice (const "MAlonzo")
+                 (const "Epic"))
+  :group 'agda2)
+
 (defcustom agda2-ghci-options
   (list (concat "-package Agda-" agda2-version))
   "Options set in GHCi before loading `agda2-toplevel-module'.
@@ -561,9 +568,12 @@ the returned list, with last stripped."
             ))
 
 (defun agda2-compile ()
-  "Compile the current module."
+  "Compile the current module.
+
+The variable `agda2-backend' determines which backend is used."
   (interactive)
   (agda2-go t t "cmd_compile"
+            agda2-backend
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))

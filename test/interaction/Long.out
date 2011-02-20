@@ -231,3 +231,17 @@ Unsolved metas at the following locations:
   Long.agda:34,7-11")
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*Error*"
+                 "
+Unsolved metas at the following locations:
+  Long.agda:21,16-17
+  Long.agda:22,16-17
+  Long.agda:27,9-13
+  Long.agda:28,7-11
+  Long.agda:31,7-11
+  Long.agda:33,13-17
+  Long.agda:34,7-11")
+agda2_mode_code (agda2-status-action "")
+*** Exception: ExitFailure 1

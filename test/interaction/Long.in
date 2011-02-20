@@ -1,7 +1,7 @@
 top_command (cmd_write_highlighting_info currentFile "./highlighting.tmp")
 top_command (cmd_load currentFile [])
 top_command (cmd_write_highlighting_info currentFile "./highlighting.tmp")
-top_command (cmd_compile currentFile [])
+top_command (cmd_compile MAlonzo currentFile [])
 top_command cmd_constraints
 top_command (cmd_load currentFile [])
 top_command cmd_constraints
@@ -33,4 +33,5 @@ top_command (cmd_compute_toplevel False "eval throw")
 top_command (cmd_compute_toplevel True "s′ n")
 top_command (cmd_compute_toplevel True "s′ z")
 top_command (cmd_show_module_contents_toplevel "D")
-top_command (cmd_compile currentFile [])
+top_command (cmd_compile MAlonzo currentFile [])
+top_command (cmd_compile Epic currentFile [])

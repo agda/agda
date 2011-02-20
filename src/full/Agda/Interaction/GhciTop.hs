@@ -95,6 +95,7 @@ import qualified Agda.Interaction.Imports as Imp
 
 import Agda.Termination.TermCheck
 
+import qualified Agda.Compiler.Epic.Compiler as Epic
 import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 
 import qualified Agda.Auto.Auto as Auto
@@ -349,17 +350,23 @@ cmd_load' file includes unsolvedOK cmd =
 
     return $ Just $ iModuleName (fst ok)
 
--- | @cmd_compile m includes@ compiles the module in file @m@, using
--- @includes@ as the include directories.
+-- | Available backends.
 
-cmd_compile :: FilePath -> [FilePath] -> Interaction
-cmd_compile file includes =
+data Backend = MAlonzo | Epic
+
+-- | @cmd_compile b m includes@ compiles the module in file @m@ using
+-- the backend @b@, using @includes@ as the include directories.
+
+cmd_compile :: Backend -> FilePath -> [FilePath] -> Interaction
+cmd_compile b file includes =
   cmd_load' file includes False (\(i, mw) ->
     case mw of
       Nothing -> do
-        MAlonzo.compilerMain i
+        case b of
+          MAlonzo -> MAlonzo.compilerMain i
+          Epic    -> Epic.compilerMain i
         display_info "*Compilation result*"
-                   "The module was successfully compiled."
+                     "The module was successfully compiled."
       Just w ->
         display_info errorTitle $ unlines
           [ "You can only compile modules without unsolved metavariables"
