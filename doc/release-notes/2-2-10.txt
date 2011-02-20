@@ -82,9 +82,9 @@ Language
         elem : A
         .certificate : P elem
 
-  they are generated automatically, if the option
+  they are generated automatically, unless the option
 
-    --irrelevant-projections
+    --no-irrelevant-projections
 
   is supplied.  Irrelevant projections are highly experimental.
 
