@@ -59,7 +59,7 @@ flag epic
   default: False
   manual:  True
   description:
-    Install the dependencies used by the Epic backend.
+    Install the Epic compiler.
 
 library
   hs-source-dirs:   src/full
