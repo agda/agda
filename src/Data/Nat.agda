@@ -93,13 +93,13 @@ _+_ : ℕ → ℕ → ℕ
 zero  + n = n
 suc m + n = suc (m + n)
 
+{-# BUILTIN NATPLUS _+_ #-}
+
 -- Argument-swapping addition. Used by Data.Vec._⋎_.
 
 _+⋎_ : ℕ → ℕ → ℕ
 zero  +⋎ n = n
 suc m +⋎ n = suc (n +⋎ m)
-
-{-# BUILTIN NATPLUS _+_ #-}
 
 _∸_ : ℕ → ℕ → ℕ
 m     ∸ zero  = m
