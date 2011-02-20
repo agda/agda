@@ -1,7 +1,7 @@
 module README where
 
 ------------------------------------------------------------------------
--- The Agda standard library, version 0.5
+-- The Agda standard library
 --
 -- Author: Nils Anders Danielsson, with contributions from
 -- Jean-Philippe Bernardy, Peter Berry, Samuel Bronson, Daniel Brown,
@@ -10,9 +10,10 @@ module README where
 -- Pouillard and Andrés Sicard-Ramírez
 ------------------------------------------------------------------------
 
--- This version of the library has been tested using Agda 2.2.10.
+-- Note that the development version of the library often requires the
+-- latest development version of Agda.
 
--- Note that no guarantees are currently made about forwards or
+-- Note also that no guarantees are currently made about forwards or
 -- backwards compatibility, the library is still at an experimental
 -- stage.
 
