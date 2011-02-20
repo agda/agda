@@ -118,11 +118,13 @@ insertTele :: MonadTCM m
                           --   is nothing if we only want to delete a binding.
             -> Term       -- ^ Term to replace at pos
             -> Telescope  -- ^ The telescope `tele` where everything is at
-            -> Compile m ( Telescope -- ^ Resulting telescope
-                         , ( Type -- ^ The type at pos in tele
-                           , Type -- ^ The return Type of the inserted type
+            -> Compile m ( Telescope
+                         , ( Type
+                           , Type
                            )
                          )
+                -- ^ Returns (resulting telescope, the type at pos in tele, the
+                --   return type of the inserted type).
 insertTele 0 ins term (ExtendTel t to) = do
     t' <- lift $ normalise t
     let Def st arg = unEl . unArg $ t'
