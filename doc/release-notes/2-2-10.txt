@@ -7,20 +7,22 @@ Important changes since 2.2.8:
 Language
 --------
 
-* The flag --without-K makes pattern matching more restricted. If the
-  flag is activated, then Agda only accepts certain case-splits: if
-  the type of the variable to be split is D pars ixs, where D is a
-  data (or record) type, pars stands for the parameters, and ixs the
-  indices, then the following requirements must be satisfied:
+* New flag: --without-K.
+
+  This flag makes pattern matching more restricted. If the flag is
+  activated, then Agda only accepts certain case-splits. If the type
+  of the variable to be split is D pars ixs, where D is a data (or
+  record) type, pars stands for the parameters, and ixs the indices,
+  then the following requirements must be satisfied:
 
   * The indices ixs must be applications of constructors to distinct
     variables.
 
   * These variables must not be free in pars.
 
-  The intended use of --without-K is to enable experiments with a
-  propositional equality without the K rule. Let us define propositional
-  equality as follows:
+  The intended purpose of --without-K is to enable experiments with a
+  propositional equality without the K rule. Let us define
+  propositional equality as follows:
 
     data _≡_ {A : Set} : A → A → Set where
       refl : ∀ x → x ≡ x
@@ -52,43 +54,52 @@ Language
 
 * Irrelevant declarations.
 
-  Prefixing the type signature of a postulate or a function marks
-  this identifier as irrelevant which means it can only be refered
-  to in irrelevant positions or in other irrelevant declarations.
+  Postulates and functions can be marked as irrelevant by prefixing
+  the name with a dot when the name is declared. Example:
 
     postulate
       .irrelevant : {A : Set} → .A → A
 
-  This axiom can be used for instance to define a projection from
-  an irrelevant record field.
+  Irrelevant names may only be used in irrelevant positions or in
+  definitions of things which have been declared irrelevant.
+
+  The axiom irrelevant above can be used to define a projection from
+  an irrelevant record field:
 
     data Subset (A : Set) (P : A → Set) : Set where
-      _#_ : (elem : A) → .(P elem) → Subset A P
+      _#_ : (a : A) → .(P a) → Subset A P
 
-    .certificate : ∀ {A P} → (x : Subset A P) → P (elem x)
+    elem : ∀ {A P} → Subset A P → A
+    elem (a # p) = a
+
+    .certificate : ∀ {A P} (x : Subset A P) → P (elem x)
     certificate (a # p) = irrelevant p
 
-  Right to = we are in relevant position, so we cannot directly put p
-  there.  However, since certificate is declared irrelevant, it can
-  use other irrelevant declarations, in particular the axiom irrelevant,
-  whose argument p is now in irrelevant position.
+  The right-hand side of certificate is relevant, so we cannot define
 
-  The above axiom justifies irrelevant projections, hence for record
-  defintitions like
+    certificate (a # p) = p
+
+  (because p is irrelevant). However, certificate is declared to be
+  irrelevant, so it can use the axiom irrelevant. Furthermore the
+  first argument of the axiom is irrelevant, which means that
+  irrelevant p is well-formed.
+
+  As shown above the axiom irrelevant justifies irrelevant
+  projections. Previously no projections were generated for irrelevant
+  record fields, such as the field certificate in the following
+  record type:
 
     record Subset (A : Set) (P : A → Set) : Set where
       constructor _#_
       field
-        elem : A
+        elem         : A
         .certificate : P elem
 
-  they are generated automatically, unless the option
+  Now projections are generated automatically for irrelevant fields
+  (unless the flag --no-irrelevant-projections is used). Note that
+  irrelevant projections are highly experimental.
 
-    --no-irrelevant-projections
-
-  is supplied.  Irrelevant projections are highly experimental.
-
-* Termination checker recognizes projections.
+* Termination checker recognises projections.
 
   Projections now preserve sizes, both in patterns and expressions.
   Example:
@@ -119,6 +130,10 @@ Language
 Tools
 -----
 
+* Hyperlinks for top-level module names now point to the start of the
+  module rather than to the declaration of the module name. This
+  applies both to the Emacs mode and to the output of agda --html.
+
 * Most occurrences of record field names are now highlighted as
   "fields". Previously many occurrences were highlighted as
   "functions".
@@ -128,71 +143,72 @@ Tools
 
 * Epic compiler backend.
 
-  A new backend for Agda to compile to Epic has been created. Epic is a language
-  used by Idris and Epigram made by Edwin Brady. Almost all of Agda should work
-  when using this backend, but it needs more testing. It should be noted that
-  this is very much experimental code.
+  A new compiler backend is being implemented. This backend makes use
+  of Edwin Brady's language Epic
+  (http://www.cs.st-andrews.ac.uk/~eb/epic.php) and its compiler. The
+  backend should handle most Agda code, but is still at an
+  experimental stage: more testing is needed, and some things written
+  below may not be entirely true.
 
-  There is a new pragma for giving the Epic code for postulated definitions.
-  The Epic code given can then contain the definition itself, or use a foreign
-  call to call a C function. The pragma is {-# COMPILED_EPIC def code #-} and
-  works similar to the COMPILED pragma but instead of expecting Haskell code,
-  it expects Epic code. The code includes function arguments, return
-  type and the function body. Note that def is the name of an Agda definition,
-  which will be translated to a valid Epic name automatically.
+  The Epic compiler can be invoked from the command line using the
+  flag --epic:
 
-  The Epic backend supports Agda's primitive pragma for primitive functions that
-  are defined (with the same name) in the AgdaPrelude.e
-  (Agda/src/data/EpicInclude/) file.
+    agda --epic --epic-flag=<EPIC-FLAG> --compile-dir=<DIR> <FILE>.agda
 
-  Usage:
-  > agda --epic --epic-flag=<EPIC-FLAG> --compile-dir=<DIR> <FILE>.agda
+  The --epic-flag flag can be given multiple times; each flag is given
+  verbatim to the Epic compiler (in the given order). The resulting
+  executable is named after the main module and placed in the
+  directory specified by the --compile-dir flag (default: the project
+  root). Intermediate files are placed in a subdirectory called Epic.
 
-  A new directory, Epic, will be created in the compile-dir (default: the
-  project root), containing the file main.e with the Epic source code. The
-  compiler will also do a system call running the Epic compiler on that file,
-  passing any epic-flags to Epic in the order of their appearance.
+  The backend requires that there is a definition named main. This
+  definition should be a value of type IO Unit, but at the moment this
+  is not checked (so it is easy to produce a program which segfaults).
+  Currently the backend represents actions of type IO A as functions
+  from Unit to A, and main is applied to the unit value.
 
-  The compilation requires a definition of main, which should be of type IO Unit.
-  Currently IO A actions are represented in Epic as functions from Unit to A.
-  Because of this the main function is applied a single unit.
+  The Epic compiler compiles via C, not Haskell, so the pragmas
+  related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
+  not used by the Epic backend. Instead there is a new pragma
+  COMPILED_EPIC. This pragma is used to give Epic code for postulated
+  definitions (Epic code can in turn call C code). The form of the
+  pragma is {-# COMPILED_EPIC def code #-}, where def is the name of
+  an Agda postulate and code is some Epic code which should include
+  the function arguments, return type and function body. As an example
+  the IO monad can be defined as follows:
 
-  Here follows how to define the IO monad:
     postulate
-      IO : Set → Set
-      return  : ∀ {A} → A → IO A
-      _>>=_   : ∀ {A B} → IO A → (A → IO B) → IO B
+      IO     : Set → Set
+      return : ∀ {A} → A → IO A
+      _>>=_  : ∀ {A B} → IO A → (A → IO B) → IO B
 
-    {-# COMPILED_EPIC return (u1 : Unit, a : Any) -> Any = ioreturn(a) #-}
-    {-# COMPILED_EPIC _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any = iobind(x,f) #-}
+    {-# COMPILED_EPIC return (u : Unit, a : Any) -> Any =
+                        ioreturn(a) #-}
+    {-# COMPILED_EPIC
+          _>>=_ (u1 : Unit, u2 : Unit, x : Any, f : Any) -> Any =
+            iobind(x,f) #-}
 
-  ioreturn and iobind are Epic functions defined in AgdaPrelude.e which is
-  always included. This is how IO is defined in the standard library
-  (IO.Primitive). We only need to add the new COMPILED_EPIC pragmas.
+  Here ioreturn and iobind are Epic functions which are defined in the
+  file AgdaPrelude.e which is always included.
 
-  The backend supports the {-# BUILTIN #-} pragma, which can be used e.g. to get
-  Natural numbers and their operations to be represented more efficiently as
-  BigInts and operations on them in Epic.
+  By default the backend will remove so-called forced constructor
+  arguments (and case-splitting on forced variables will be
+  rewritten). This optimisation can be disabled by using the flag
+  --no-forcing.
 
-  By default the backend will remove forced constructor arguments. Pattern matching
-  on forced variables will be rewritten so that it doesn't use the forced variable.
-  This optmization can be disabled by using the flag --no-forcing.
+  All data types which look like unary natural numbers after forced
+  constructor arguments have been removed (i.e. types with two
+  constructors, one nullary and one with a single recursive argument)
+  will be represented as "BigInts". This applies to the standard Fin
+  type, for instance.
 
-  All types that looks like Nats after forced constructor arguments have been
-  removed - i.e. if they have two constructors: one with no arguments and one
-  with a recursive argument - will be represented as BigInts. This applies to
-  the standard Fin type for example.
+  The backend supports Agda's primitive functions and the BUILTIN
+  pragmas. If the BUILTIN pragmas for unary natural numbers are used,
+  then some operations, like addition and multiplication, will use
+  more efficient "BigInt" operations.
 
-  Compilation using Epic requires a few libraries. Particularly gcc, the Boehm
-  garbage collector and the GNU MP library. For more information, check out
-  Epic's homepage: http://www.cs.st-andrews.ac.uk/~eb/epic.php
-
-Tools
------
-
-* Hyperlinks for top-level module names now point to the start of the
-  module rather than to the declaration of the module name. This
-  applies both to the Emacs mode and to the output of agda --html.
+  If you want to make use of the Epic backend you need to install some
+  dependencies, see the README.
 
 * The Emacs mode can compile using either the MAlonzo or the Epic
   backend. The variable agda2-backend controls which backend is used.
