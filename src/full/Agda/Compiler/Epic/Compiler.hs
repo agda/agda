@@ -122,14 +122,15 @@ runEpic code = do
     liftIO $ copyFile (dataDir </> "EpicInclude" </> "AgdaPrelude" <.> "e")
                       (curDir </> "AgdaPrelude" <.> "e")
     liftIO $ writeFile ("main" <.> "e") code'
-    let epicCommand = unwords
-          [ "epic"
-          , "-keepc"
-          , "-checking 0"
+    let epic        = "epic"
+        epicCommand =
+          [ "-keepc"
+          , "-checking", "0"
           -- , "-trace"
-          , "-i " ++ (dataDir </> "EpicInclude" </> "stdagda" <.> "c")
+          , "-i", dataDir </> "EpicInclude" </> "stdagda" <.> "c"
           , "main" <.> "e"
-          ] ++ " " ++ unwords epicflags
-    lift $ reportSLn "" 1 $ "calling: " ++ epicCommand
-    _ <- liftIO $ system epicCommand
+          ] ++ epicflags
+    lift $ reportSLn "" 1 $
+      "calling: " ++ unwords (epic : epicCommand)
+    _ <- liftIO $ rawSystem epic epicCommand
     return ()
