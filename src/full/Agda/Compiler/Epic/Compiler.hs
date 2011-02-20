@@ -46,7 +46,7 @@ compilerMain inter = do
             code <- compileModule =<< lift (gets stImports)
             case code of
                 Nothing -> __IMPOSSIBLE__
-                Just c  -> runEpic c
+                Just c  -> runEpic (iModuleName inter) c
         ExitFailure _ -> internalError $
            "Agda can't find epic support, usually `cabal install epic' will be enough. "
            ++ "Look in the README for more information."
@@ -111,9 +111,12 @@ setEpicDir mainI = do
     liftIO $ createDirectoryIfMissing False "Epic"
     liftIO $ setCurrentDirectory $ compileDir </> "Epic"
 
--- | Make a program from EpicCode in the current directory
-runEpic :: MonadTCM m => EpicCode -> Compile m ()
-runEpic code = do
+-- | Make a program from the given Epic code.
+--
+-- The program is written to the file @../m@, where m is the last
+-- component of the given module name.
+runEpic :: MonadTCM m => ModuleName -> EpicCode -> Compile m ()
+runEpic m code = do
     nam <- getMain
     epicflags <- optEpicFlags <$> lift commandLineOptions
     let code' = "include \"AgdaPrelude.e\"\n" ++ code ++ "main() -> Unit = init() ; " ++ nam ++ "(unit)"
@@ -122,13 +125,18 @@ runEpic code = do
     liftIO $ copyFile (dataDir </> "EpicInclude" </> "AgdaPrelude" <.> "e")
                       (curDir </> "AgdaPrelude" <.> "e")
     liftIO $ writeFile ("main" <.> "e") code'
-    let epic        = "epic"
+
+    let outputName  = case mnameToList m of
+          [] -> __IMPOSSIBLE__
+          ms -> last ms
+        epic        = "epic"
         epicCommand =
           [ "-keepc"
           , "-checking", "0"
           -- , "-trace"
           , "-i", dataDir </> "EpicInclude" </> "stdagda" <.> "c"
           , "main" <.> "e"
+          , "-o", ".." </> show outputName
           ] ++ epicflags
     lift $ reportSLn "" 1 $
       "calling: " ++ unwords (epic : epicCommand)

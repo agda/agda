@@ -127,12 +127,12 @@ malonzo : compiler/main.agda
 epic : compiler/main.agda
 	@$(echo) "Testing the Epic backend"
 	@$(agda) --ignore-interfaces --epic --compile-dir=compiler -icompiler $<
-	@./compiler/Epic/a.out
+	@./compiler/main
         # Compilation works also if the code has already been type
         # checked.
-	@rm -rf compiler/Epic
+	@rm -rf compiler/main compiler/Epic
 	@$(agda) --epic --compile-dir=compiler -icompiler $<
-	@./compiler/Epic/a.out
+	@./compiler/main
 	@$(echo) "ok"
 
 relocatable-interfaces : relocatable/originals/*.agda
