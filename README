@@ -7,8 +7,8 @@ Table of contents:
 * Installing Agda
 * Configuring the Emacs mode
 * Prerequisites
+* Installing the Epic backend's dependencies
 * Installing a suitable version of Emacs under Windows
-* Installing the Epic backend
 
 ------------------------------------------------------------------------
 Installing Agda
@@ -134,6 +134,55 @@ it should suffice to run
 as root to get the correct files installed.
 
 ------------------------------------------------------------------------
+Installing the Epic backend's dependencies
+------------------------------------------------------------------------
+
+The Epic backend is experimental and requires that the Epic program is
+installed. You can install this program by giving the epic flag to
+cabal:
+
+* When installing from Hackage:
+
+    cabal update
+    cabal install Agda -fepic
+    cabal install Agda-executable
+    agda-mode setup
+
+* When installing using a source tar ball, following the instructions
+  in 2a) above:
+
+    cabal update
+    cabal install -fepic
+    agda-mode setup
+    cd src/main
+    cabal install
+
+* When installing using a source tar ball, following the instructions
+  in 2b) above:
+
+    make CABAL_OPTIONS="--global -fepic" install
+
+  (The Makefile specifies CABAL_OPTIONS=--global by default; feel free
+  to omit --global.)
+
+You can also install Epic directly:
+
+  cabal install epic
+
+Note that Epic depends on other software:
+
+  The Boehm garbage collector:
+    http://www.hpl.hp.com/personal/Hans_Boehm/gc/
+  The GNU Multiple Precision Arithmetic Library:
+    http://gmplib.org/
+  GCC, the GNU Compiler Collection:
+    http://gcc.gnu.org/
+
+For more information about Epic:
+
+  http://www.cs.st-andrews.ac.uk/~eb/epic.php
+
+------------------------------------------------------------------------
 Installing a suitable version of Emacs under Windows
 ------------------------------------------------------------------------
 
@@ -251,52 +300,3 @@ when installing Emacs under Windows.
        M-x view-hello-file
 
    You should see all the characters without white-boxes.
-
-------------------------------------------------------------------------
-Installing the Epic backend
-------------------------------------------------------------------------
-
-The Epic backend is experimental and requires that the Epic program is
-installed. You can install this program by giving the epic flag to
-cabal:
-
-* When installing from Hackage:
-
-    cabal update
-    cabal install Agda -fepic
-    cabal install Agda-executable
-    agda-mode setup
-
-* When installing using a source tar ball, following the instructions
-  in 2a) above:
-
-    cabal update
-    cabal install -fepic
-    agda-mode setup
-    cd src/main
-    cabal install
-
-* When installing using a source tar ball, following the instructions
-  in 2b) above:
-
-    make CABAL_OPTIONS="--global -fepic" install
-
-  (The Makefile specifies CABAL_OPTIONS=--global by default; feel free
-  to omit --global.)
-
-You can also install Epic directly:
-
-  cabal install epic
-
-Note that Epic depends on other software:
-
-  The Boehm garbage collector:
-    http://www.hpl.hp.com/personal/Hans_Boehm/gc/
-  The GNU Multiple Precision Arithmetic Library:
-    http://gmplib.org/
-  GCC, the GNU Compiler Collection:
-    http://gcc.gnu.org/
-
-For more information about Epic:
-
-  http://www.cs.st-andrews.ac.uk/~eb/epic.php
