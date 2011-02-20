@@ -1,5 +1,5 @@
 name:            Agda
-version:         2.2.10
+version:         2.2.11
 cabal-version:   >= 1.8 && < 2
 build-type:      Simple
 license:         OtherLicense
@@ -48,11 +48,6 @@ data-files:         Agda.css
 source-repository head
   type:     darcs
   location: http://code.haskell.org/Agda/
-
-source-repository this
-  type:     darcs
-  location: http://code.haskell.org/Agda/
-  tag:      2.2.10
 
 flag use-locale
   description:

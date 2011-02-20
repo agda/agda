@@ -1,5 +1,5 @@
 name:            Agda-executable
-version:         2.2.10
+version:         2.2.11
 cabal-version:   >= 1.8 && < 2
 build-type:      Simple
 license:         OtherLicense
@@ -20,14 +20,9 @@ source-repository head
   type:     darcs
   location: http://code.haskell.org/Agda/
 
-source-repository this
-  type:     darcs
-  location: http://code.haskell.org/Agda/
-  tag:      2.2.10
-
 executable agda
   main-is:       Main.hs
-  build-depends: Agda == 2.2.10,
+  build-depends: Agda == 2.2.11,
                  -- Nothing is used from the following package, except
                  -- for the prelude.
                  base >= 3 && < 6
