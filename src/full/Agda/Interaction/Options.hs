@@ -19,6 +19,7 @@ module Agda.Interaction.Options
 
 import Control.Monad            ( when )
 import Control.Monad.Error	( MonadError(..) )
+import Data.Maybe (isJust)
 import Data.List		( isSuffixOf )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
@@ -66,6 +67,7 @@ data CommandLineOptions =
               -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
 	    , optGenerateHTML         :: Bool
+	    , optDependencyGraph      :: Maybe FilePath
 	    , optHTMLDir              :: FilePath
 	    , optCSSFile              :: Maybe FilePath
 	    , optIgnoreInterfaces     :: Bool
@@ -127,6 +129,7 @@ defaultOptions =
             , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
 	    , optGenerateHTML         = False
+	    , optDependencyGraph      = Nothing
 	    , optHTMLDir              = defaultHTMLDir
 	    , optCSSFile              = Nothing
 	    , optIgnoreInterfaces     = False
@@ -180,6 +183,8 @@ checkOpts opts
       Left "Choose at most one: compiler/interactive mode.\n"
   | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
+  | not (atMostOne [isJust . optDependencyGraph, optInteractive]) =
+      Left "Choose at most one: Dependency graph generator or interactive mode.\n"
   | not (atMostOne [ optUniversePolymorphism . p
                    , not . optUniverseCheck . p
                    ]) =
@@ -231,6 +236,7 @@ ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
 epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s]}
 
 htmlFlag      o = return $ o { optGenerateHTML = True }
+dependencyGraphFlag f o = return $ o { optDependencyGraph  = Just f }
 htmlDirFlag d o = return $ o { optHTMLDir      = d }
 cssFlag     f o = return $ o { optCSSFile      = Just f }
 
@@ -280,6 +286,8 @@ standardOptions =
 		    "generate Vim highlighting files"
     , Option []	    ["html"] (NoArg htmlFlag)
 		    "generate HTML files with highlighted source code"
+    , Option []	    ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
+		    "generate a Dot file with a module dependency graph"
     , Option []	    ["html-dir"] (ReqArg htmlDirFlag "DIR")
                     ("directory in which HTML files are placed (default: " ++
                      defaultHTMLDir ++ ")")

@@ -37,6 +37,7 @@ import Agda.Interaction.Options
 import Agda.Interaction.Monad
 import Agda.Interaction.GhciTop ()      -- to make sure it compiles
 import qualified Agda.Interaction.Imports as Imp
+import qualified Agda.Interaction.Highlighting.Dot as Dot
 import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecker
@@ -133,6 +134,9 @@ runAgda = do
 
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML $ iModuleName i
+
+          whenM (isJust . optDependencyGraph <$> commandLineOptions) $
+            Dot.generateDot $ i
 
           return result
 

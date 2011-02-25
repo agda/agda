@@ -117,6 +117,7 @@ library
                     Agda.Interaction.CommandLine.CommandLine
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile
+                    Agda.Interaction.Highlighting.Dot
                     Agda.Interaction.Highlighting.Emacs
                     Agda.Interaction.Highlighting.Generate
                     Agda.Interaction.Highlighting.HTML
