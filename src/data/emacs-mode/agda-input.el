@@ -527,6 +527,29 @@ order for the change to take effect."
                                                ⍜⍝⍞⍟⍠⍡⍢⍣⍤⍥⍦⍧⍨⍩⍪⍫⍬⍭⍮
                                                ⍯⍰⍱⍲⍳⍴⍵⍶⍷⍸⍹⍺⎕"))
 
+  ;; Some combining characters.
+  ;;
+  ;; The following combining characters also have (other)
+  ;; translations:
+  ;; ̀ ́ ̂ ̃ ̄ ̆ ̇ ̈ ̋ ̌ ̣ ̧ ̱
+
+  ("^--" . ,(agda-input-to-string-list"̅̿"))
+  ("_--" . ,(agda-input-to-string-list"̲̳"))
+  ("^~"  . ,(agda-input-to-string-list"̃͌"))
+  ("_~"  .  (                         "̰"))
+  ("^."  . ,(agda-input-to-string-list"̇̈⃛⃜"))
+  ("_."  . ,(agda-input-to-string-list"̣̤"))
+  ("^l"  . ,(agda-input-to-string-list"⃖⃐⃔"))
+  ("^l-" .  (                         "⃖"))
+  ("^r"  . ,(agda-input-to-string-list"⃗⃑⃕"))
+  ("^r-" .  (                         "⃗"))
+  ("^lr" .  (                         "⃡"))
+  ("_lr" .  (                         "͍"))
+  ("^^"  . ,(agda-input-to-string-list"̂̑͆"))
+  ("_^"  . ,(agda-input-to-string-list"̭̯̪"))
+  ("^v"  . ,(agda-input-to-string-list"̌̆"))
+  ("_v"  . ,(agda-input-to-string-list"̬̮̺"))
+
   ;; Shorter forms of many greek letters plus ƛ.
 
   ("Ga"  . ("α"))  ("GA"  . ("Α"))
