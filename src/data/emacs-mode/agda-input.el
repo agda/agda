@@ -41,6 +41,13 @@ removing all space and newline characters."
             (list (string c))))
    (string-to-list s)))
 
+(defun agda-input-character-range (from to)
+  "A string consisting of the characters from FROM to TO."
+  (let (seq)
+    (dotimes (i (1+ (- to from)))
+      (setq seq (cons (+ from i) seq)))
+    (concat (nreverse seq))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions used to tweak translation pairs
 
