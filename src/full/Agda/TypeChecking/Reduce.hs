@@ -62,6 +62,7 @@ instance Instantiate Term where
     case mi of
       InstV a                        -> instantiate $ a `apply` args
       Open                           -> return t
+      OpenIFS                        -> return t
       BlockedConst _                 -> return t
       PostponedTypeCheckingProblem _ -> return t
       InstS _                        -> __IMPOSSIBLE__
@@ -75,6 +76,7 @@ instance Instantiate a => Instantiate (Blocked a) where
     case mi of
       InstV _                        -> notBlocked <$> instantiate u
       Open                           -> return v
+      OpenIFS                        -> return v
       BlockedConst _                 -> return v
       PostponedTypeCheckingProblem _ -> return v
       InstS _                        -> __IMPOSSIBLE__
@@ -93,6 +95,7 @@ instance Instantiate Sort where
                     Sort s -> return s
                     _      -> __IMPOSSIBLE__
 		Open                           -> return s
+		OpenIFS                        -> return s
 		InstV{}                        -> __IMPOSSIBLE__
 		BlockedConst{}                 -> __IMPOSSIBLE__
                 PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
@@ -135,6 +138,7 @@ instance Instantiate Constraint where
   instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
   instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
   instantiate (UnBlock m)          = return $ UnBlock m
+  instantiate (FindInScope m)      = return $ FindInScope m
   instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
@@ -369,6 +373,7 @@ instance Reduce Constraint where
   reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
   reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
   reduce (UnBlock m)          = return $ UnBlock m
+  reduce (FindInScope m)      = return $ FindInScope m
   reduce (IsEmpty t)          = IsEmpty <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
@@ -456,6 +461,7 @@ instance Normalise Constraint where
   normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
   normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
   normalise (UnBlock m)          = return $ UnBlock m
+  normalise (FindInScope m)      = return $ FindInScope m
   normalise (IsEmpty t)          = IsEmpty <$> normalise t
 
 instance Normalise Pattern where
@@ -567,6 +573,7 @@ instance InstantiateFull Constraint where
     SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
     Guarded c cs       -> uncurry Guarded <$> instantiateFull (c,cs)
     UnBlock m          -> return $ UnBlock m
+    FindInScope m      -> return $ FindInScope m
     IsEmpty t          -> IsEmpty <$> instantiateFull t
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where

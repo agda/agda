@@ -263,6 +263,7 @@ instance (ToConcrete a1 c1, ToConcrete a2 c2, ToConcrete a3 c3) =>
 
 instance ToConcrete a c => ToConcrete (Arg a) (Arg c) where
     toConcrete (Arg h@Hidden    r x) = Arg h r <$> toConcreteCtx TopCtx x
+    toConcrete (Arg h@ImplicitFromScope    r x) = Arg h r <$> toConcreteCtx TopCtx x
     toConcrete (Arg h@NotHidden r x) = Arg h r <$> toConcrete x
 
     bindToConcrete (Arg h r x) ret = bindToConcreteCtx (hiddenArgumentCtx h) x $ ret . Arg h r
@@ -362,6 +363,7 @@ instance ToConcrete A.Expr C.Expr where
         where
             addDot a e = if (argRelevance a == Irrelevant) then Dot (getRange a) e else e
             mkArg (Arg Hidden    r e) = HiddenArg (getRange e) (unnamed e)
+            mkArg (Arg ImplicitFromScope    r e) = ImplicitFromScopeArg (getRange e) (unnamed e)
             mkArg (Arg NotHidden r e) = e
 
     toConcrete (A.Set i 0)  = return $ C.Set (getRange i)

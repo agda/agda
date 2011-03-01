@@ -72,6 +72,7 @@ notAModuleExpr e            = typeError $ NotAModuleExpr e
 notAnExpression e           = typeError $ NotAnExpression e
 notAValidLetBinding d       = typeError $ NotAValidLetBinding d
 nothingAppliedToHiddenArg e = typeError $ NothingAppliedToHiddenArg e
+nothingAppliedToImplicitFromScopeArg e = typeError $ NothingAppliedToImplicitFromScopeArg e
 
 -- Debugging
 
@@ -389,11 +390,13 @@ instance ToAbstract OldModuleName A.ModuleName where
 -- | Peel off 'C.HiddenArg' and represent it as an 'NamedArg'.
 mkNamedArg :: C.Expr -> NamedArg C.Expr
 mkNamedArg (C.HiddenArg _ e) = Arg Hidden    Relevant e
+mkNamedArg (C.ImplicitFromScopeArg _ e) = Arg ImplicitFromScope    Relevant e
 mkNamedArg e                 = Arg NotHidden Relevant $ unnamed e
 
 -- | Peel off 'C.HiddenArg' and represent it as an 'Arg', throwing away any name.
 mkArg' :: Relevance -> C.Expr -> Arg C.Expr
 mkArg' r (C.HiddenArg _ e) = Arg Hidden    r $ namedThing e
+mkArg' r (C.ImplicitFromScopeArg _ e) = Arg ImplicitFromScope    r $ namedThing e
 mkArg' r e                 = Arg NotHidden r e
 
 -- | By default, arguments are @Relevant@.
@@ -480,6 +483,7 @@ instance ToAbstract C.Expr A.Expr where
 
   -- Malplaced hidden argument
       C.HiddenArg _ _ -> nothingAppliedToHiddenArg e
+      C.ImplicitFromScopeArg _ _ -> nothingAppliedToImplicitFromScopeArg e
 
   -- Lambda
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
@@ -1093,6 +1097,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     -- Removed when parsing
     toAbstract (HiddenP _ _) = __IMPOSSIBLE__
+    toAbstract (ImplicitFromScopeP _ _) = __IMPOSSIBLE__
     toAbstract (RawAppP _ _) = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatSource r $ const p)

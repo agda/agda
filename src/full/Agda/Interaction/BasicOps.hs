@@ -210,7 +210,7 @@ data OutputForm a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputForm a b) [OutputForm a b]
       | Assign b a | TypedAssign b a a
-      | IsEmptyType a
+      | IsEmptyType a | FindInScopeOF b
 
 -- | A subset of 'OutputForm'.
 
@@ -234,6 +234,7 @@ outputFormId o = case o of
   Assign i _           -> i
   TypedAssign i _ _    -> i
   IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+  FindInScopeOF _      -> __IMPOSSIBLE__
 
 instance Functor (OutputForm a) where
     fmap f (OfType e t)           = OfType (f e) t
@@ -249,6 +250,7 @@ instance Functor (OutputForm a) where
     fmap f (Assign m e)           = Assign (f m) e
     fmap f (TypedAssign m e a)    = TypedAssign (f m) e a
     fmap f (IsEmptyType a)        = IsEmptyType a
+    fmap f (FindInScopeOF s)      = FindInScopeOF $ f s
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
@@ -275,8 +277,19 @@ instance Reify Constraint (OutputForm Expr Expr) where
             m' <- reify (MetaV m [])
             return $ TypedAssign m' e a
           Open{}  -> __IMPOSSIBLE__
+          OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
+    reify (FindInScope m) = do
+      mi <- mvInstantiation <$> lookupMeta m
+      case mi of
+        BlockedConst{} -> __IMPOSSIBLE__
+        PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
+        Open{} -> __IMPOSSIBLE__
+        OpenIFS -> do m' <- reify (MetaV m [])
+                      return $ FindInScopeOF m' -- IFSTODO
+        InstS{} -> __IMPOSSIBLE__
+        InstV{} -> __IMPOSSIBLE__
     reify (IsEmpty a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String
@@ -297,6 +310,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " : " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
+    show (FindInScopeOF s)      = "Find in Scope: " ++ show s
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -320,6 +334,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
+    toConcrete (FindInScopeOF s) = FindInScopeOF <$> toConcrete s
 
 instance (Pretty a, Pretty b) => Pretty (OutputForm' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t
@@ -375,6 +390,7 @@ getSolvedInteractionPoints = do
           InstV{}                        -> sol (MetaV m args)
           InstS{}                        -> sol (Sort $ MetaS m args)
           Open{}                         -> unsol
+          OpenIFS{}                         -> unsol
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 

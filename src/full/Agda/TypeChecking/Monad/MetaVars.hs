@@ -145,6 +145,7 @@ getInstantiatedMetas = do
     return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isInst mi ]
     where
 	isInst Open                             = False
+	isInst OpenIFS                          = False
 	isInst (BlockedConst _)                 = False
         isInst (PostponedTypeCheckingProblem _) = False
 	isInst (InstV _)                        = True
@@ -156,6 +157,7 @@ getOpenMetas = do
     return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpen mi ]
     where
 	isOpen Open                             = True
+	isOpen OpenIFS                          = True
 	isOpen (BlockedConst _)                 = True
         isOpen (PostponedTypeCheckingProblem _) = True
 	isOpen (InstV _)                        = False

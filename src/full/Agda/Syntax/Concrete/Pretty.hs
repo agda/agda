@@ -38,6 +38,7 @@ underscore = text "_"
 
 pHidden :: Pretty a => Hiding -> a -> Doc
 pHidden Hidden	    = braces' . pretty
+pHidden ImplicitFromScope	    = braces . braces' . pretty
 pHidden NotHidden   = pretty
 
 pRelevance :: Pretty a => Relevance -> a -> Doc
@@ -115,11 +116,13 @@ instance Pretty Expr where
 	      pretty e : map ((text "|" <+>) . pretty) es
 
 	    HiddenArg _ e -> braces' $ pretty e
+	    ImplicitFromScopeArg _ e -> braces $ braces' $ pretty e
 	    Lam _ bs e ->
 		sep [ lambda <+> fsep (map pretty bs) <+> arrow
 		    , nest 2 $ pretty e
 		    ]
             AbsurdLam _ NotHidden -> lambda <+> text "()"
+            AbsurdLam _ ImplicitFromScope -> lambda <+> text "()"
             AbsurdLam _ Hidden -> lambda <+> text "{}"
 	    Fun _ e1 e2 ->
 		sep [ pretty e1 <+> arrow
@@ -166,6 +169,7 @@ instance Pretty TypedBindings where
 	where
 	    bracks = case h of
 			Hidden	    -> braces'
+			ImplicitFromScope	    -> braces . braces'
 			NotHidden   -> parens
 
 
@@ -347,6 +351,7 @@ instance Pretty Pattern where
 		    prOp []	     es       = map pretty es
 	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
 	    HiddenP _ p	       -> braces' $ pretty p
+	    ImplicitFromScopeP _ p	       -> braces' $ braces' $ pretty p
 	    ParenP _ p	       -> parens $ pretty p
 	    WildP _	       -> underscore
 	    AsP _ x p	       -> pretty x <> text "@" <> pretty p

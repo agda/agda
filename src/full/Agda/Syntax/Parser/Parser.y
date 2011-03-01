@@ -109,6 +109,8 @@ import Agda.Utils.TestHelpers
     '|'		{ TokSymbol SymBar $$ }
     '('		{ TokSymbol SymOpenParen $$ }
     ')'		{ TokSymbol SymCloseParen $$ }
+    '{{'	{ TokSymbol SymDoubleOpenBrace $$ }
+    '}}'	{ TokSymbol SymDoubleCloseBrace $$ }
     '{'		{ TokSymbol SymOpenBrace $$ }
     '}'		{ TokSymbol SymCloseBrace $$ }
     vopen	{ TokSymbol SymOpenVirtualBrace $$ }
@@ -201,6 +203,8 @@ Token
     | '|'	    { TokSymbol SymBar $1 }
     | '('	    { TokSymbol SymOpenParen $1 }
     | ')'	    { TokSymbol SymCloseParen $1 }
+    | '{{'	    { TokSymbol SymDoubleOpenBrace $1 }
+    | '}}'	    { TokSymbol SymDoubleCloseBrace $1 }
     | '{'	    { TokSymbol SymOpenBrace $1 }
     | '}'	    { TokSymbol SymCloseBrace $1 }
     | vopen	    { TokSymbol SymOpenVirtualBrace $1 }
@@ -302,6 +306,8 @@ HiddenIds :: { [Arg Name] }
 HiddenIds
     : Id HiddenIds               { defaultArg $1 : $2 }
     | Id	                 { [defaultArg $1] }
+    | '{{' SpaceIds '}}' HiddenIds { map (Arg ImplicitFromScope Relevant) $2 ++ $4 }
+    | '{{' SpaceIds '}}'         { map (Arg ImplicitFromScope Relevant) $2 }
     | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
     | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
 -}
@@ -324,10 +330,14 @@ ArgIds :: { [Arg Name] }
 ArgIds
     : MaybeDottedId ArgIds          { $1 : $2 }
     | MaybeDottedId                 { [$1] }
+    | '{{' MaybeDottedIds '}}' ArgIds { map makeImplicitFromScope $2 ++ $4 }
+    | '{{' MaybeDottedIds '}}'        { map makeImplicitFromScope $2 }
     | '{' MaybeDottedIds '}' ArgIds { map hide $2 ++ $4 }
     | '{' MaybeDottedIds '}'        { map hide $2 }
     | '.' '{' SpaceIds '}' ArgIds   { map (Arg Hidden Irrelevant) $3 ++ $5 }
     | '.' '{' SpaceIds '}'          { map (Arg Hidden Irrelevant) $3 }
+    | '.' '{{' SpaceIds '}}' ArgIds   { map (Arg ImplicitFromScope Irrelevant) $3 ++ $5 }
+    | '.' '{{' SpaceIds '}}'          { map (Arg ImplicitFromScope Irrelevant) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -474,6 +484,8 @@ Expr3
     | 'Set'				{ Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
+    | '{{' Expr '}}'			{ ImplicitFromScopeArg (fuseRange $1 $3) (unnamed $2) }
+    | '{{' Id '=' Expr '}}'		{ ImplicitFromScopeArg (fuseRange $1 $5) (named (show $2) $4) }
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
@@ -518,10 +530,20 @@ TypedBindingss
 -- Andreas, 2011-04-07: or .(x1 .. xn : A) or .{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '(' TBind ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
-    | '{' TBind '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
-    | '.' '(' TBind ')' { TypedBindings (fuseRange $2 $4) (Arg NotHidden Irrelevant $3) }
-    | '.' '{' TBind '}' { TypedBindings (fuseRange $2 $4) (Arg Hidden    Irrelevant $3) }
+    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
+    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
+
+
+-- A semicolon separated list of TypedBindings
+TBinds :: { [TypedBinding] }
+TBinds : TBind		   { [$1] }
+       | TBind ';' TBinds2 { $1 : $3 }
+
+TBinds2 :: { [TypedBinding] }
+TBinds2 : TBinds	   { $1 }
+	| Expr ';' TBinds2 { TNoBind $1 : $3 }
+	| Expr		   { [TNoBind $1] }
+
 
 -- x1 .. xn:A
 TBind :: { TypedBinding }
@@ -1183,6 +1205,7 @@ exprToPattern e =
 	Dot r e			-> return $ DotP r e
 	Lit l			-> return $ LitP l
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
+	ImplicitFromScopeArg r e		-> ImplicitFromScopeP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
 	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
 	_			->

@@ -31,6 +31,7 @@ data Symbol
 	| SymColon | SymArrow | SymEqual | SymLambda
 	| SymUnderscore	| SymQuestionMark   | SymAs
 	| SymOpenParen	      | SymCloseParen
+	| SymDoubleOpenBrace  | SymDoubleCloseBrace
 	| SymOpenBrace	      | SymCloseBrace
 	| SymOpenVirtualBrace | SymCloseVirtualBrace
 	| SymOpenPragma	      | SymClosePragma | SymEllipsis

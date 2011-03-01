@@ -36,6 +36,9 @@ addConstraints cs = modify $ \st -> st { stConstraints = cs ++ stConstraints st 
 
 -- | Create a new constraint.
 buildConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
-buildConstraint c = do
+buildConstraint = liftM return . buildConstraint'
+
+buildConstraint' :: MonadTCM tcm => Constraint -> tcm ConstraintClosure
+buildConstraint' c = do
     cl <- buildClosure c
-    return [cl]
+    return cl

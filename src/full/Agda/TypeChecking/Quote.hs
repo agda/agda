@@ -31,6 +31,7 @@ quoteTerm v = do
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden = true
+      quoteHiding ImplicitFromScope = error "quoting ImplicitFromScope args not yet supported..."
       quoteHiding NotHidden = false
       list [] = nil
       list (a : as) = cons @@ a @@ list as

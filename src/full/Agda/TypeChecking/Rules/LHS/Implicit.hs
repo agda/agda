@@ -38,13 +38,14 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
   [] -> do
     i <- insImp dummy tel
     case i of
-      Just n	-> return $ replicate n implicitP
+      Just []   -> __IMPOSSIBLE__
+      Just hs	-> return $ implicitPs hs
       Nothing	-> return []
   p : ps -> do
     i <- insImp p tel
     case i of
-      Just 0	-> __IMPOSSIBLE__
-      Just n	-> insertImplicitPatterns (replicate n implicitP ++ p : ps) tel
+      Just []	-> __IMPOSSIBLE__
+      Just hs	-> insertImplicitPatterns (implicitPs hs ++ p : ps) tel
       Nothing	-> (p :) <$> insertImplicitPatterns ps (absBody tel')
   where
     dummy = defaultArg $ unnamed ()
@@ -55,4 +56,5 @@ insertImplicitPatterns ps tel@(ExtendTel _ tel') = case ps of
       ImpInsert n    -> return $ Just n
       NoInsertNeeded -> return Nothing
 
-    implicitP = Arg Hidden Relevant . unnamed . A.ImplicitP . PatRange $ noRange
+    implicitPs [] = []
+    implicitPs (h : hs) = (Arg h Relevant $ unnamed $ A.ImplicitP $ PatRange $ noRange) : implicitPs hs

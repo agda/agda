@@ -20,6 +20,7 @@ data ExprView e
     | AppV e (NamedArg e)
     | OpAppV Name [e]
     | HiddenArgV (Named String e)
+    | ImplicitFromScopeArgV (Named String e)
     | LamV [LamBinding] e
     | ParenV e
 --    deriving (Show)
@@ -170,7 +171,7 @@ nonfixP op p = (do
 appP :: IsExpr e => ReadP e e -> ReadP e e -> ReadP e e
 appP top p = do
     h  <- p
-    es <- many (nothidden +++ hidden)
+    es <- many (nothidden +++ hidden +++ implicitFromScope)
     return $ foldl app h es
     where
 
@@ -179,11 +180,19 @@ appP top p = do
 	isHidden (HiddenArgV _) = True
 	isHidden _	       = False
 
+	isImplicitFromScope (ImplicitFromScopeArgV _) = True
+	isImplicitFromScope _	       = False
+
 	nothidden = Arg NotHidden Relevant . unnamed <$> do
 	    e <- p
 	    case exprView e of
 		HiddenArgV _ -> pfail
+		ImplicitFromScopeArgV _ -> pfail
 		_	     -> return e
+
+	implicitFromScope = do
+	    ImplicitFromScopeArgV e <- exprView <$> satisfy (isImplicitFromScope . exprView)
+	    return $ Arg ImplicitFromScope Relevant e
 
 	hidden = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)

@@ -178,6 +178,8 @@ tokens :-
 <0,code> "->"		{ symbol SymArrow }
 <0,code> "\"		{ symbol SymLambda }
 <0,code> "@"		{ symbol SymAs }
+<0,code> "{{"		{ symbol SymDoubleOpenBrace }
+<0,code> "}}"		{ symbol SymDoubleCloseBrace }
 <0,code> "{"		{ symbol SymOpenBrace }	    -- you can't use braces for layout
 <0,code> "}"		{ symbol SymCloseBrace }
 

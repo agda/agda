@@ -226,6 +226,7 @@ data Constraint = ValueCmp Comparison Type Term Term
 		| UnBlock MetaId
 		| Guarded Constraint Constraints
                 | IsEmpty Type
+                | FindInScope MetaId
   deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
@@ -294,10 +295,10 @@ data Frozen
     deriving (Eq, Show)
 
 data MetaInstantiation
-	= InstV Term         -- ^ solved by term
-	| InstS Term         -- ^ solved by @Lam .. Sort s@
-	| Open               -- ^ unsolved
-	| BlockedConst Term  -- ^ solution blocked by unsolved constraints
+	= InstV Term
+	| InstS Term  -- should be Lam .. Sort s
+	| Open
+	| BlockedConst Term
         | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
     deriving (Typeable)
 
@@ -305,6 +306,7 @@ instance Show MetaInstantiation where
   show (InstV t) = "InstV (" ++ show t ++ ")"
   show (InstS s) = "InstS (" ++ show s ++ ")"
   show Open      = "Open"
+  show OpenIFS   = "OpenIFS"
   show (BlockedConst t) = "BlockedConst (" ++ show t ++ ")"
   show (PostponedTypeCheckingProblem{}) = "PostponedTypeCheckingProblem (...)"
 
@@ -915,12 +917,15 @@ data TypeError
 	| NotAnExpression C.Expr
 	| NotAValidLetBinding D.NiceDeclaration
 	| NothingAppliedToHiddenArg C.Expr
+	| NothingAppliedToImplicitFromScopeArg C.Expr
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]
 	| NoParseForLHS C.Pattern
 	| AmbiguousParseForLHS C.Pattern [C.Pattern]
     -- Usage errors
+    -- Implicit From Scope errors
+        | IFSNoCandidateInScope Type
           deriving (Typeable)
 
 instance Show TypeError where

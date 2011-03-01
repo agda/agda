@@ -224,6 +224,7 @@ instance IsExpr Expr where
         App _ e1 e2     -> AppV e1 e2
         OpApp r d es    -> OpAppV d es
         HiddenArg _ e   -> HiddenArgV e
+        ImplicitFromScopeArg _ e   -> ImplicitFromScopeArgV e
         Paren _ e       -> ParenV e
         Lam _ bs    e   -> LamV bs e
         _               -> OtherV e
@@ -232,6 +233,7 @@ instance IsExpr Expr where
         AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
         OpAppV d es   -> OpApp (fuseRange d es) d es
         HiddenArgV e  -> HiddenArg (getRange e) e
+        ImplicitFromScopeArgV e  -> ImplicitFromScopeArg (getRange e) e
         ParenV e      -> Paren (getRange e) e
         LamV bs e     -> Lam (fuseRange bs e) bs e
         OtherV e      -> e
@@ -242,6 +244,7 @@ instance IsExpr Pattern where
         AppP e1 e2       -> AppV e1 e2
         OpAppP r d es    -> OpAppV d es
         HiddenP _ e      -> HiddenArgV e
+        ImplicitFromScopeP _ e      -> ImplicitFromScopeArgV e
         ParenP _ e       -> ParenV e
         _                -> OtherV e
     unExprView e = case e of
@@ -249,6 +252,7 @@ instance IsExpr Pattern where
         AppV e1 e2       -> AppP e1 e2
         OpAppV d es      -> OpAppP (fuseRange d es) d es
         HiddenArgV e     -> HiddenP (getRange e) e
+        ImplicitFromScopeArgV e     -> ImplicitFromScopeP (getRange e) e
         ParenV e         -> ParenP (getRange e) e
         LamV _ _         -> __IMPOSSIBLE__
         OtherV e         -> e
@@ -264,6 +268,7 @@ parsePattern prs p = case p of
     RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
     OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
+    ImplicitFromScopeP _ _      -> fail "bad implicit argument"
     AsP r x p        -> AsP r x <$> parsePattern prs p
     DotP r e         -> return $ DotP r e
     ParenP r p       -> fullParen' <$> parsePattern prs p
@@ -309,6 +314,7 @@ parseLHS top p = do
             ParenP _ p       -> appView p
             RawAppP _ _      -> __IMPOSSIBLE__
             HiddenP _ _      -> __IMPOSSIBLE__
+            ImplicitFromScopeP _ _      -> __IMPOSSIBLE__
             _                -> [p]
 
 parseApplication :: [Expr] -> ScopeM Expr
@@ -342,11 +348,13 @@ fullParen' e = case exprView e of
     LocalV _     -> e
     OtherV _     -> e
     HiddenArgV _ -> e
+    ImplicitFromScopeArgV _ -> e
     ParenV _     -> e
     AppV e1 (Arg h r e2) -> par $ unExprView $ AppV (fullParen' e1) (Arg h r e2')
         where
             e2' = case h of
                 Hidden    -> e2
+                ImplicitFromScope    -> e2
                 NotHidden -> fullParen' <$> e2
     OpAppV x es -> par $ unExprView $ OpAppV x $ map fullParen' es
     LamV bs e -> par $ unExprView $ LamV bs (fullParen e)
@@ -377,6 +385,7 @@ paren _   e@(Absurd _)         = return $ \p -> e
 paren _   e@(ETel _)           = return $ \p -> e
 paren _   e@(RawApp _ _)       = __IMPOSSIBLE__
 paren _   e@(HiddenArg _ _)    = __IMPOSSIBLE__
+paren _   e@(ImplicitFromScopeArg _ _)    = __IMPOSSIBLE__
 paren _   e@(QuoteGoal _ _ _)  = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Quote _)          = return $ \p -> e
 

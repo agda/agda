@@ -804,7 +804,7 @@ traceCallE call m = do
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
 --   make this happen. Returns @t0'@ and any constraints that have to be
---   solve for everything to be well-formed.
+--   solved for everything to be well-formed.
 --   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type, Constraints)
@@ -814,16 +814,21 @@ checkArguments exh r [] t0 t1 =
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
 	case funView $ unEl t0' of -- TODO: clean
-	    FunV (Arg Hidden rel a) _ | notHPi $ unEl t1'  -> do
+	    FunV (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
+	    FunV (Arg ImplicitFromScope rel a) _ | notHPi ImplicitFromScope $ unEl t1'  -> do
+		(v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+		let arg = Arg ImplicitFromScope rel v
+		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
+		return (arg : vs, t0'', (c : cs))
 	    _ -> return ([], t0', [])
     where
-	notHPi (Pi  (Arg Hidden _ _) _) = False
-	notHPi (Fun (Arg Hidden _ _) _) = False
-	notHPi _		        = True
+	notHPi h (Pi  (Arg h' _ _) _) | h == h' = False
+	notHPi h (Fun (Arg h' _ _) _) | h == h' = False
+	notHPi _ _		        = True
 
 checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
@@ -836,6 +841,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
           e' <- return $ namedThing e
           case (h, funView $ unEl t0') of
               (NotHidden, FunV (Arg Hidden rel a) _) -> insertUnderscore rel
+              (NotHidden, FunV (Arg ImplicitFromScope rel a) _) -> insertIFSUnderscore rel a
               (Hidden, FunV (Arg Hidden rel a) _)
                   | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore rel
               (_, FunV (Arg h' rel a) _) | h == h' -> do
@@ -851,6 +857,10 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                   lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
+	insertIFSUnderscore rel a = do (v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+                                       let arg = Arg ImplicitFromScope rel v
+                                       (vs, t0'', cs) <- checkArguments exh r args0 (piApply t0 [arg]) t1
+                                       return (arg : vs, t0'', c : cs)
 	insertUnderscore rel = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo

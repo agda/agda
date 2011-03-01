@@ -398,6 +398,7 @@ instance ShrinkC Char Char where
 
 instance ShrinkC Hiding Hiding where
   shrinkC _ Hidden    = [NotHidden]
+  shrinkC _ ImplicitFromScope    = [ImplicitFromScope]
   shrinkC _ NotHidden = []
   noShrink = id
 

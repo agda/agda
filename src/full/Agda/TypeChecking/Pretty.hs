@@ -164,8 +164,10 @@ instance PrettyTCM Constraint where
                                    ]
                     ]
               Open{}  -> __IMPOSSIBLE__
+              OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
+	FindInScope m   -> sep [ text $ "Find in scope " ++ (show m) ]
         IsEmpty t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
 
@@ -201,6 +203,7 @@ instance PrettyTCM PrettyContext where
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
+              par ImplicitFromScope    = P.braces . P.braces
 {-
               rel Irrelevant x = P.text "." P.<> x
               rel Relevant x   = x
