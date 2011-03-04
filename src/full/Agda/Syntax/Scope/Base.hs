@@ -381,8 +381,12 @@ addModuleToScope acc x m s = mergeScope s s1
 
 -- | Apply an 'ImportDirective' to a scope.
 applyImportDirective :: ImportDirective -> Scope -> Scope
-applyImportDirective dir s = mergeScope usedOrHidden renamed
+applyImportDirective dir s = removeWithImplicits $ mergeScope usedOrHidden renamed
   where
+    removeWithImplicits :: Scope -> Scope
+    removeWithImplicits = filterScope (const True) (/= withImplicitsModName)
+    withImplicitsModName :: C.Name
+    withImplicitsModName = C.Name noRange [Id "WithImplicits"]
     usedOrHidden = useOrHide (hideLHS (renaming dir) $ usingOrHiding dir) s
     renamed	 = rename (renaming dir) $ useOrHide useRenamedThings s
 
