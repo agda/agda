@@ -13,6 +13,9 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
+
 quoteTerm :: Term -> TCM Term
 quoteTerm v = do
   false <- primFalse
