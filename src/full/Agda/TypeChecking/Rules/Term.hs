@@ -813,13 +813,14 @@ checkArguments exh r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
-	case funView $ unEl t0' of -- TODO: clean
+	case funView $ unEl t0' of
 	    FunV (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
 	    FunV (Arg ImplicitFromScope rel a) _ | notHPi ImplicitFromScope $ unEl t1'  -> do
+                reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		(v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
 		let arg = Arg ImplicitFromScope rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
@@ -858,6 +859,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do (v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+                                       reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
                                        let arg = Arg ImplicitFromScope rel v
                                        (vs, t0'', cs) <- checkArguments exh r args0 (piApply t0 [arg]) t1
                                        return (arg : vs, t0'', c : cs)
