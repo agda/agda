@@ -12,12 +12,14 @@ import Data.List as List
 import Data.Set as Set
 import Data.Maybe (catMaybes)
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -144,32 +146,58 @@ solveConstraint (FindInScope m)      = do
     let j = mvJudgement mv
     case j of
       IsSort{} -> __IMPOSSIBLE__
-      HasType _ t -> do
-        reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope judgement: " ++ show j)
+      HasType _ tj -> do
+        reportSLn "tc.constr.findInScope" 15 $ "findInScope judgement: " ++ show j
+        ctx <- getContextVars
+        ctxArgs <- getContextArgs
+        reportSLn "tc.constr.findInScope" 15 $ "findInScope ctx args: " ++ show ctxArgs
+        reportSLn "tc.constr.findInScope" 15 $ "old t: " ++ show tj
+        let t = tj `piApply` ctxArgs
+        reportSLn "tc.constr.findInScope" 15 $ "new t: " ++ show t
+        let candsP1 = [(term, t) | (term, t, ImplicitFromScope) <- ctx]
+        reportSLn "tc.constr.findInScope" 15 $ "candsP1:" ++ show candsP1
+        let candsP2 = [(term, t) | (term, t, h) <- ctx, h /= ImplicitFromScope]
+        reportSDoc "tc.constr.findInScope" 15 $ text $ "candsP2:" ++ show candsP2
         let scopeInfo = getMetaScope mv
         --reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope scope: " ++ show scopeInfo)
         let ns = everythingInScope scopeInfo
-        reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope namespace: " ++ show ns)
+        --reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope namespace: " ++ show ns)
         let nsList = Map.toList $ nsNames ns
-        cands <- mapM checkCandidate $ nsList >>= snd -- we don't care if one concrete name resolves to multiple abstract names, we just try them all
-        case catMaybes cands of
-          [] -> do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
-                   typeError $ IFSNoCandidateInScope t
-          [n] -> do reportSDoc "tc.constr.findInScope" 15 $ text $ "one candidate found for type '" ++ show t ++ "': '" ++ show n ++ "'"
-                    t' <- typeOfConst n
-                    cs <- leqType t t'
-                    assignTerm m (Def n [])
-                    return cs
-          _ -> do reportSDoc "tc.constr.findInScope" 15 $ text "still more than one candidate..."
-                  buildConstraint $ FindInScope m -- IFSTODO
-        where
-          checkCandidate :: (MonadTCM tcm) => AbstractName -> tcm (Maybe QName)
-          checkCandidate an =
-            liftTCM $ flip catchError (\err -> return Nothing) $
-            do restoreStateTCMT $ -- prey that nothing below performs direct IO (except for logging and such, I guess)
-                 do t' <- typeOfConst $ anameName an
-                    noConstraints $ leqType t t'
-               return $ Just $ anameName an
+        let candsP3Names = nsList >>= snd -- we don't care if one concrete name resolves to multiple abstract names, we just try them all
+        candsP3Types <- mapM (typeOfConst . anameName) candsP3Names
+        let candsP3 = [(Def (anameName an) [], t) |
+                       (an, t) <- zip candsP3Names candsP3Types]
+        let cands = [candsP1, candsP2, candsP3]
+        cands <- mapM (filterM (checkCandidateType t . snd)) cands
+        let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm Constraints
+            iterCands [] = do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
+                              typeError $ IFSNoCandidateInScope t
+            iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $ "no candidates found at p=" ++ show p ++ ", trying next p..."
+                                          iterCands cs
+            iterCands ((p, [(term, t')]):_) =
+              do reportSDoc "tc.constr.findInScope" 15 $ text $
+                   "one candidate at p=" ++ show p ++ " found for type '" ++
+                   show t ++ "': '" ++ show term ++ "'"
+                 cs <- leqType t t'
+                 assignTerm m term
+                 return cs
+            iterCands ((p, _):_) = do reportSDoc "tc.constr.findInScope" 15 $ text $ "still more than one candidate at p=" ++ show p ++ "..."
+                                      buildConstraint $ FindInScope m
+        iterCands (zip [1..3] cands)
+      where
+          getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
+          getContextVars = do ctx <- getContext
+                              terms <- getContextTerms
+                              return [(term, snd $ unArg e, argHiding e) |
+                                      (e, term) <- zip ctx terms ]
+          checkCandidateType :: (MonadTCM tcm) => Type -> Type -> tcm Bool
+          checkCandidateType t t' =
+            liftTCM $ flip catchError (\err -> return False) $ do
+              restoreStateTCMT $
+                 -- domi: we assume that nothing below performs direct IO (except
+                 -- for logging and such, I guess)
+                 noConstraints $ leqType t t'
+              return True
 
 restoreStateTCMT :: (Monad m) => TCMT m a -> TCMT m a
 restoreStateTCMT (TCM m) = TCM $ \s e -> do (r, s') <- m s e
