@@ -385,6 +385,9 @@ data DisplayForm = Display Nat [Term] DisplayTerm
   deriving (Typeable, Data, Show)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args
+                 | DCon QName [Arg DisplayTerm]
+                 | DDef QName [Arg DisplayTerm]
+                 | DDot Term
 		 | DTerm Term
   deriving (Typeable, Data, Show)
 

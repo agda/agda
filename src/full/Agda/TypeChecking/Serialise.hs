@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110217 * 10 + 0
+currentInterfaceVersion = 20110305 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -543,11 +543,17 @@ instance EmbPrj CtxId where
   value n = CtxId `fmap` value n
 
 instance EmbPrj DisplayTerm where
-  icode (DTerm    a  ) = icode1' a
-  icode (DWithApp a b) = icode2' a b
-  value = vcase valu where valu [a]    = valu1 DTerm a
-                           valu [a, b] = valu2 DWithApp a b
-                           valu _      = malformed
+  icode (DTerm    a  ) = icode1 0 a
+  icode (DDot     a  ) = icode1 1 a
+  icode (DCon     a b) = icode2 2 a b
+  icode (DDef     a b) = icode2 3 a b
+  icode (DWithApp a b) = icode2 4 a b
+  value = vcase valu where valu [0, a]    = valu1 DTerm a
+                           valu [1, a]    = valu1 DDot a
+                           valu [2, a, b] = valu2 DCon a b
+                           valu [3, a, b] = valu2 DDef a b
+                           valu [4, a, b] = valu2 DWithApp a b
+                           valu _         = malformed
 
 instance EmbPrj MutualId where
   icode (MutId a) = icode a

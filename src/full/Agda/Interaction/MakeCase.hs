@@ -79,7 +79,8 @@ makeCase hole rng s = withInteractionId hole $ do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
-      [ text "context =" <+> (prettyTCM =<< getContextTelescope)
+      [ text "f       =" <+> prettyTCM f
+      , text "context =" <+> (prettyTCM =<< getContextTelescope)
       , text "tel     =" <+> prettyTCM tel
       , text "perm    =" <+> text (show perm)
       , text "ps      =" <+> text (show ps)

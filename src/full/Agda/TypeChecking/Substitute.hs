@@ -121,6 +121,9 @@ instance Apply ClauseBody where
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
+  apply (DDot v)           args = DDot  $ apply v args
+  apply (DCon c vs)        args = DCon c $ vs ++ map (fmap DTerm) args
+  apply (DDef c vs)        args = DDef c $ vs ++ map (fmap DTerm) args
   apply (DWithApp v args') args = DWithApp v $ args' ++ args
 
 instance Apply t => Apply [t] where
@@ -344,8 +347,14 @@ instance Subst t => Subst (Blocked t) where
 
 instance Subst DisplayTerm where
   substs us      (DTerm v)        = DTerm $ substs us v
+  substs us      (DDot v)         = DDot  $ substs us v
+  substs us      (DCon c vs)      = DCon c $ substs us vs
+  substs us      (DDef c vs)      = DDef c $ substs us vs
   substs us      (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
   substUnder n u (DTerm v)        = DTerm $ substUnder n u v
+  substUnder n u (DDot  v)        = DDot  $ substUnder n u v
+  substUnder n u (DCon c vs)      = DCon c $ substUnder n u vs
+  substUnder n u (DDef c vs)      = DDef c $ substUnder n u vs
   substUnder n u (DWithApp vs ws) = uncurry DWithApp $ substUnder n u (vs, ws)
 
 instance Subst a => Subst (Tele a) where
@@ -443,6 +452,9 @@ instance Raise DisplayForm where
 instance Raise DisplayTerm where
   raiseFrom m k (DWithApp xs ys) = uncurry DWithApp $ raiseFrom m k (xs, ys)
   raiseFrom m k (DTerm v)        = DTerm $ raiseFrom m k v
+  raiseFrom m k (DDot  v)        = DDot  $ raiseFrom m k v
+  raiseFrom m k (DCon c vs)      = DCon c $ raiseFrom m k vs
+  raiseFrom m k (DDef c vs)      = DDef c $ raiseFrom m k vs
 
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)

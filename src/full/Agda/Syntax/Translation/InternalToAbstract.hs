@@ -92,6 +92,9 @@ instance Reify MetaId Expr where
 instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reify v
+    DDot  v -> reify v
+    DCon c vs -> curry apps (A.Con (AmbQ [c])) =<< reify vs
+    DDef f vs -> curry apps (A.Def f) =<< reify vs
     DWithApp us vs -> do
       us <- reify us
       let wapp [e] = e
@@ -125,11 +128,19 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
     okDisplayForm (DWithApp (d : ds) []) =
       okDisplayForm d && all okDisplayTerm ds
     okDisplayForm (DTerm (I.Def f vs)) = all okArg vs
-    okDisplayForm _ = True -- False
+    okDisplayForm (DDef f vs) = all okDArg vs
+    okDisplayForm DDot{} = False
+    okDisplayForm DCon{} = False
+    okDisplayForm DTerm{} = True -- False?
+    okDisplayForm DWithApp{} = True -- False?
 
     okDisplayTerm (DTerm v) = okTerm v
+    okDisplayTerm DDot{} = True
+    okDisplayTerm DCon{} = True
+    okDisplayTerm DDef{} = False
     okDisplayTerm _ = False
 
+    okDArg = okDisplayTerm . unArg
     okArg = okTerm . unArg
 
     okTerm (I.Var _ []) = True
@@ -138,12 +149,10 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
     okTerm _            = True -- False
 
     flattenWith (DWithApp (d : ds) []) = case flattenWith d of
-      (f, vs, ds') -> (f, vs, ds' ++ map unDTerm ds)
-    flattenWith (DTerm (I.Def f vs)) = (f, vs, [])
+      (f, vs, ds') -> (f, vs, ds' ++ ds)
+    flattenWith (DDef f vs) = (f, vs, [])
+    flattenWith (DTerm (I.Def f vs)) = (f, map (fmap DTerm) vs, [])
     flattenWith _ = __IMPOSSIBLE__
-
-    unDTerm (DTerm v) = v
-    unDTerm _ = __IMPOSSIBLE__
 
     displayLHS ps wps d = case flattenWith d of
       (f, vs, ds) -> do
@@ -154,10 +163,13 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
 
-        -- TODO: dot variables
-        termToPat (I.Var n []) = return $ ps !! fromIntegral n
-        termToPat (I.Con c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
-        termToPat (I.Def _ []) = return $ A.WildP info
+        termToPat :: DisplayTerm -> TCM A.Pattern
+        termToPat (DTerm (I.Var n [])) = return $ ps !! fromIntegral n
+        termToPat (DCon c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
+        termToPat (DDot v) = A.DotP info <$> reify v
+        termToPat (DDef _ []) = return $ A.WildP info
+        termToPat (DTerm (I.Con c vs)) = A.ConP info (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs
+        termToPat (DTerm (I.Def _ [])) = return $ A.WildP info
         termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
 
 -- Level literals should be expanded.

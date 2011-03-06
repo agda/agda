@@ -604,6 +604,9 @@ instance InstantiateFull DisplayForm where
 
 instance InstantiateFull DisplayTerm where
   instantiateFull (DTerm v)	   = DTerm <$> instantiateFull v
+  instantiateFull (DDot  v)	   = DDot  <$> instantiateFull v
+  instantiateFull (DCon c vs)	   = DCon c <$> instantiateFull vs
+  instantiateFull (DDef c vs)	   = DDef c <$> instantiateFull vs
   instantiateFull (DWithApp vs ws) = uncurry DWithApp <$> instantiateFull (vs, ws)
 
 instance InstantiateFull Defn where

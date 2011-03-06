@@ -200,8 +200,8 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
   let wild = Def (qualify (mnameFromList []) x) []
 
   let top = genericLength topArgs
-      vs = topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
-      dt = DWithApp (map DTerm $ Def f vs : withArgs) []
+      vs = map (fmap DTerm) topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
+      dt = DWithApp (DDef f vs : map DTerm withArgs) []
       withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
       pats = genericReplicate (n + size delta1 + size delta2 + top) (Var 0 [])
 
@@ -215,6 +215,7 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
       , text "delta1 =" <+> prettyTCM delta1
       , text "delta2 =" <+> prettyTCM delta2
       , text "perm   =" <+> text (show perm)
+      , text "qs     =" <+> text (show qs)
       , text "dt     =" <+> prettyTCM dt
       , text "raw    =" <+> text (show display)
       , text "qsToTm =" <+> prettyTCM (patsToTerms qs)
@@ -250,7 +251,7 @@ WITH reverseP IS, AS IT SHOULD:
   dt   = (@2 ⟶ @1) ﹔ (@0 ⟶ @4) | @3
 -}
 
-patsToTerms :: [Arg Pattern] -> [Arg Term]
+patsToTerms :: [Arg Pattern] -> [Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0
   where
     mapMr f xs = reverse <$> mapM f (reverse xs)
@@ -261,18 +262,18 @@ patsToTerms ps = evalState (toTerms ps) 0
       put (i + 1)
       return i
 
-    toTerms :: [Arg Pattern] -> State Nat [Arg Term]
+    toTerms :: [Arg Pattern] -> State Nat [Arg DisplayTerm]
     toTerms ps = mapMr toArg ps
 
-    toArg :: Arg Pattern -> State Nat (Arg Term)
+    toArg :: Arg Pattern -> State Nat (Arg DisplayTerm)
     toArg = T.mapM toTerm
 
-    toTerm :: Pattern -> State Nat Term
+    toTerm :: Pattern -> State Nat DisplayTerm
     toTerm p = case p of
-      VarP _      -> var >>= \i -> return $ Var i []
-      DotP t      -> return t
-      ConP c _ ps -> Con c <$> toTerms ps
-      LitP l      -> return $ Lit l
+      VarP _      -> var >>= \i -> return $ DTerm (Var i [])
+      DotP t      -> return $ DDot t
+      ConP c _ ps -> DCon c <$> toTerms ps
+      LitP l      -> return $ DTerm (Lit l)
 
 data ConPos = Here
             | ArgPat Int ConPos
