@@ -163,14 +163,47 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
 
+        len = genericLength ps
+
         termToPat :: DisplayTerm -> TCM A.Pattern
         termToPat (DTerm (I.Var n [])) = return $ ps !! fromIntegral n
         termToPat (DCon c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
-        termToPat (DDot v) = A.DotP info <$> reify v
+        termToPat (DDot v) = A.DotP info <$> termToExpr v
         termToPat (DDef _ []) = return $ A.WildP info
         termToPat (DTerm (I.Con c vs)) = A.ConP info (AmbQ [c]) <$> mapM (argToPat . fmap DTerm) vs
         termToPat (DTerm (I.Def _ [])) = return $ A.WildP info
         termToPat v = A.DotP info <$> reify v -- __IMPOSSIBLE__
+
+        argsToExpr = mapM (traverse termToExpr)
+
+        -- TODO: restructure this to avoid having to repeat the code for reify
+        termToExpr :: Term -> TCM A.Expr
+        termToExpr (I.Var n [])
+          | n < len = return $ patToTerm $ ps !! fromIntegral n
+        termToExpr (I.Con c vs) =
+          curry apps (A.Con (AmbQ [c])) =<< argsToExpr vs
+        termToExpr (I.Def f vs) = 
+          curry apps (A.Def f) =<< argsToExpr vs
+        termToExpr (I.Var n vs) =
+          apps =<< (,) <$> reify (I.Var (n - len) []) <*> argsToExpr vs
+        termToExpr _ = return $ A.Underscore minfo
+          
+        minfo = MetaInfo noRange emptyScopeInfo Nothing
+        einfo = ExprRange noRange
+        app = foldl (App einfo)
+
+        patToTerm :: A.Pattern -> A.Expr
+        patToTerm (A.VarP x)      = A.Var x
+        patToTerm (A.ConP _ c ps) =
+          A.Con c `app` map (fmap (fmap patToTerm)) ps
+        patToTerm (A.DefP _ f ps) =
+          A.Def f `app` map (fmap (fmap patToTerm)) ps
+        patToTerm (A.WildP _)     = A.Underscore minfo
+        patToTerm (A.AsP _ _ p)   = patToTerm p
+        patToTerm (A.DotP _ e)    = e
+        patToTerm (A.AbsurdP _)   = A.Underscore minfo  -- TODO: could this happen?
+        patToTerm (A.LitP l)      = A.Lit l
+        patToTerm (A.ImplicitP _) = A.Underscore minfo
 
 -- Level literals should be expanded.
 
