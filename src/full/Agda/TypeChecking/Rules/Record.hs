@@ -26,6 +26,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
+import Data.Map (Map)
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -33,9 +35,11 @@ import Agda.Utils.Impossible
 -- * Records
 ---------------------------------------------------------------------------
 
-checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
+checkRecDef :: Info.DefInfo -> QName ->
+               (ModuleName, Map QName QName, Map ModuleName ModuleName) ->
+               Maybe A.Constructor ->
                [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
-checkRecDef i name con ps contel fields =
+checkRecDef i name (mIFS, renD, renM) con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
@@ -58,9 +62,13 @@ checkRecDef i name con ps contel fields =
 			   [ Arg h r (Var i [])
 			   | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
 			   ]
-	  tel'		 = telFromList $ htel ++ [defaultArg ("r", rect)]
-          extWithR ret   = underAbstraction (defaultArg rect) (Abs "r" ()) $ \_ -> ret
+	  telh' h	 = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
+	  tel'		 = telh' NotHidden
+	  telIFS	 = telh' ImplicitFromScope
+          extWithRH h ret   = underAbstraction (Arg h Relevant rect) (Abs "r" ()) $ \_ -> ret
+          extWithR = extWithRH NotHidden
           ext (Arg h r (x, t)) = addCtx x (Arg h r t)
+          extHide (Arg h r (x, t)) = addCtx x (Arg Hidden r t)
 
       let getName :: A.Declaration -> [Arg QName]
           getName (A.Field _ x arg)    = [fmap (const x) arg]
@@ -97,16 +105,6 @@ checkRecDef i name con ps contel fields =
                                 , recArgOccurrences = []
                                 }
 
-      addConstant conName $
-        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
-             Constructor { conPars   = 0
-                         , conSrcCon = conName
-                         , conData   = name
-                         , conHsCode = Nothing
-                         , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = Inductive
-                         }
-
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
@@ -124,6 +122,26 @@ checkRecDef i name con ps contel fields =
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
           checkRecordProjections m conName tel' (raise 1 ftel) fields
+
+      escapeContext (size tel) $ flip (foldr extHide) ctx $ extWithRH ImplicitFromScope $ do
+        -- check the WithImplicits module macro
+        allArgs <- getContextArgs
+        let argsIFS = take (size tel + 1) allArgs
+        let unhide :: Arg a -> Arg a
+            unhide a = a { argHiding = NotHidden }
+        let args = init argsIFS ++ [unhide $ last argsIFS]
+        applySection mIFS telIFS m args renD renM
+        return ()
+
+      addConstant conName $
+        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
+             Constructor { conPars   = 0
+                         , conSrcCon = conName
+                         , conData   = name
+                         , conHsCode = Nothing
+                         , conAbstr  = Info.defAbstract conInfo
+                         , conInd    = Inductive
+                         }
 
       -- Check that the fields fit inside the sort
       let dummy = Var 0 []  -- We're only interested in the sort here

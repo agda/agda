@@ -519,7 +519,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
       mkTel _ _            = __IMPOSSIBLE__
 --      mkTel n t            = error $ "mkTel " ++ show n ++ " " ++ show t
 
-  toConcrete (TypeAndDef (Axiom _ _ x t) (RecDef  i _ c bs _ cs)) =
+  toConcrete (TypeAndDef (Axiom _ _ x t) (RecDef  i _ _ c bs _ cs)) =
     withAbstractPrivate i $
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0

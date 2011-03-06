@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, CPP #-}
+{-# LANGUAGE DeriveDataTypeable, CPP, FlexibleInstances #-}
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
     producing internal syntax ("Agda.Syntax.Internal").
@@ -88,9 +88,13 @@ data Definition
 	= FunDef     DefInfo QName [Clause]
 	| DataDef    DefInfo QName [LamBinding] [Constructor]
 	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName (Maybe Constructor) [LamBinding] Expr [Declaration]
+	| RecDef     DefInfo QName (ModuleName, Map QName QName, Map ModuleName ModuleName)
+                     (Maybe Constructor) [LamBinding] Expr [Declaration]
 	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
+            -- domi: the third argument (type (ModuleName, Ren A.QName, Ren ModuleName))
+            --   contains the name of the for the WithImplicits module, and the
+            --   of the normal record module contents to it
         | ScopedDef ScopeInfo Definition
   deriving (Typeable, Data, Show)
 
@@ -245,7 +249,7 @@ instance HasRange Declaration where
 instance HasRange Definition where
     getRange (FunDef  i _ _    )   = getRange i
     getRange (DataDef i _ _ _  )   = getRange i
-    getRange (RecDef  i _ _ _ _ _) = getRange i
+    getRange (RecDef  i _ _ _ _ _ _) = getRange i
     getRange (ScopedDef _ d)       = getRange d
 
 instance HasRange (Pattern' e) where
@@ -326,10 +330,13 @@ instance KillRange Declaration where
   killRange (Open       i x           ) = killRange2 Open       i x
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
 
+instance KillRange (ModuleName, Map QName QName, Map ModuleName ModuleName) where
+  killRange (m, rD, rM) = killRange1 (\a b c -> (a, b, c)) m rD rM
+
 instance KillRange Definition where
   killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
   killRange (DataDef i a b c)     = killRange4 DataDef i a b c
-  killRange (RecDef  i a b c d e) = killRange6 RecDef  i a b c d e
+  killRange (RecDef  i a b c d e f) = killRange7 RecDef  i a b c d e f
   killRange (ScopedDef s a)       = killRange1 (ScopedDef s) a
 
 instance KillRange e => KillRange (Pattern' e) where
@@ -378,8 +385,10 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
   allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
   allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
   allNamesD (ScopedDef _ def)        = allNamesD def
-  allNamesD (RecDef _ q c _ _ decls) =
+  allNamesD (RecDef _ q _ c _ _ decls) =
     q <| Fold.foldMap allNames c >< Fold.foldMap allNames decls
+    --IFSTODO: do something with WithImplicits module name here?
+    -- Guess not, since it is not done for Apply either (see below)
 
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><

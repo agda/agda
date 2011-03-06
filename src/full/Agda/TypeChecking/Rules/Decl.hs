@@ -209,7 +209,7 @@ checkDefinition d =
     case d of
 	A.FunDef i x cs          -> abstract (Info.defAbstract i) $ checkFunDef NotDelayed i x cs
 	A.DataDef i x ps cs      -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
-	A.RecDef i x c ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x c ps tel cs
+	A.RecDef i x mIFS c ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x mIFS c ps tel cs
         A.ScopedDef scope d      -> setScope scope >> checkDefinition d
     where
 	-- Concrete definitions cannot use information about abstract things.

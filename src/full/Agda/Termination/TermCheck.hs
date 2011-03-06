@@ -78,7 +78,7 @@ termDecl d = case d of
     A.Field {}            -> return []
     A.Primitive {}        -> return []
     A.Definition _ _ ds
-      | [A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
+      | [A.RecDef _ r _ _ _ _ rds] <- unscopeDefs ds
                           -> do
         let m = mnameFromList $ qnameToList r
         setScopeFromDefs ds
@@ -186,7 +186,7 @@ termMutual i ts ds = if names == [] then return [] else
   where
   getName (A.FunDef i x cs)       = [x]
   getName (A.ScopedDef _ d)       = getName d
-  getName (A.RecDef _ _ _ _ _ ds) = concatMap getNameD ds
+  getName (A.RecDef _ _ _ _ _ _ ds) = concatMap getNameD ds
   getName _                       = []
 
   getNameD (A.Definition _ _ ds) = concatMap getName ds
