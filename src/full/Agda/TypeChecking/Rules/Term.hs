@@ -227,17 +227,17 @@ checkExpr e t =
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambdaOrHole e)
-	    , FunV (Arg Hidden rel _) _ <- funView (unEl t) -> do
+	    , FunV (Arg Hidden _ _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden rel x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
                       Just pos -> posToRange pos pos
 
                 hiddenLambdaOrHole (A.AbsurdLam _ Hidden)                                  = True
-		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _ _) _)			   = True
+		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg Hidden _ _))) _) = True
 		hiddenLambdaOrHole (A.QuestionMark _)					   = True
 		hiddenLambdaOrHole _							   = False
@@ -840,12 +840,9 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
         NotBlocked t0' -> do
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
-          case (h, funView $ unEl t0') of
-              (NotHidden, FunV (Arg Hidden rel a) _) -> insertUnderscore rel
-              (NotHidden, FunV (Arg ImplicitFromScope rel a) _) -> insertIFSUnderscore rel a
-              (Hidden, FunV (Arg Hidden rel a) _)
-                  | not $ sameName (nameOf e) (nameInPi $ unEl t0') -> insertUnderscore rel
-              (_, FunV (Arg h' rel a) _) | h == h' -> do
+          case (funView $ unEl t0') of
+              (FunV (Arg h' rel a) _) |
+                h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
                   (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
@@ -854,8 +851,9 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                                  if argRelevance arg == Irrelevant then
                                    arg { unArg = DontCare }
                                   else arg
-              (Hidden, FunV (Arg NotHidden _ _) _) ->
-                  lift $ typeError $ WrongHidingInApplication t0'
+              (FunV (Arg ImplicitFromScope rel a) _) -> insertIFSUnderscore rel a
+              (FunV (Arg Hidden rel a) _) -> insertUnderscore rel
+              (FunV (Arg NotHidden _ _) _) -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do (v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
