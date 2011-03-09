@@ -576,6 +576,7 @@ LamBinds
   | TypedBindings		{ [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
+  | '{{' '}}'                   { [Left ImplicitFromScope] }
 
 
 ForallBindings :: { [LamBinding] }
@@ -601,6 +602,8 @@ TypedUntypedBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
+    : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
+    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
 {-
     : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
