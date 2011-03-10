@@ -129,7 +129,7 @@ private
 ------------------------------------------------------------------------
 -- The countdown data structure
 
--- If counted ⊕_n is inhabited then there are at most n values of type
+-- If counted ⊕ n is inhabited then there are at most n values of type
 -- Elem which are not members of counted (up to _≈_). You can read the
 -- symbol _⊕_ as partitioning Elem into two parts: counted and
 -- uncounted.
