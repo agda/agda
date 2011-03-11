@@ -20,7 +20,8 @@ open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (module Equivalent)
 import Function.Injection as Inj
 open import Function.Inverse as Inv using (_⇿_; module Inverse)
-open import Function.Inverse.TypeIsomorphisms
+import Function.Related as Related
+open import Function.Related.TypeIsomorphisms
 open import Data.List as List
 open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
@@ -52,7 +53,7 @@ map-∈⇿ {a} {b} {f = f} {y} {xs} =
   (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ {a = a} {p = b} ⟩
   Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ {a = a} {b = b} {p = b} ⟩
   y ∈ List.map f xs           ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 concat-∈⇿ : ∀ {a} {A : Set a} {x : A} {xss} →
             (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
@@ -61,7 +62,7 @@ concat-∈⇿ {a} {x = x} {xss} =
   (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ {a = a} {p = a} ⟩
   Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ {a = a} {p = a} ⟩
   x ∈ concat xss                ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 >>=-∈⇿ : ∀ {ℓ} {A B : Set ℓ} {xs} {f : A → List B} {y} →
          (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
@@ -69,7 +70,7 @@ concat-∈⇿ {a} {x = x} {xss} =
   (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
   Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f)              ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 ⊛-∈⇿ : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {xs y} →
        (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
@@ -80,7 +81,7 @@ concat-∈⇿ {a} {x = x} {xss} =
   (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
   Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
   y ∈ fs ⊛ xs                                  ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 ⊗-∈⇿ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
        (x ∈ xs × y ∈ ys) ⇿ (x , y) ∈ (xs ⊗ ys)
@@ -89,7 +90,7 @@ concat-∈⇿ {a} {x = x} {xss} =
   Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ⇿⟨ Any-cong helper (_ ∎) ⟩
   (x , y) ∈ (xs ⊗ ys)              ∎
   where
-  open Inv.EquationalReasoning
+  open Related.EquationalReasoning
 
   helper : (p : A × B) → (x ≡ proj₁ p × y ≡ proj₂ p) ⇿ (x , y) ≡ p
   helper (x′ , y′) = record

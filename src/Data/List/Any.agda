@@ -11,8 +11,7 @@ open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv using (module Equivalent)
-open import Function.Inverse as Inv
-  using (module Inverse)
+open import Function.Related as Related
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
@@ -167,11 +166,11 @@ module Membership-≡ where
 
   -- Set and bag equality.
 
-  open Inv public
+  open Related public
     using (Kind) renaming (equivalent to set; inverse to bag)
 
   [_]-Equality : Kind → ∀ {a} → Set a → Setoid _ _
-  [ k ]-Equality A = Inv.InducedEquivalence₂ k (_∈_ {A = A})
+  [ k ]-Equality A = Related.InducedEquivalence₂ k (_∈_ {A = A})
 
   infix 4 _≈[_]_
 
@@ -182,7 +181,7 @@ module Membership-≡ where
 
   bag-=⇒set-= : ∀ {a} {A : Set a} {xs ys : List A} →
                 xs ≈[ bag ] ys → xs ≈[ set ] ys
-  bag-=⇒set-= xs≈ys = Inv.⇿⇒ xs≈ys
+  bag-=⇒set-= xs≈ys = ⇿⇒ xs≈ys
 
   -- "Equational" reasoning for _⊆_.
 
@@ -202,7 +201,7 @@ module Membership-≡ where
     _≈⟨_⟩_ : ∀ {k a} {A : Set a} xs {ys zs : List A} →
              xs ≈[ k ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
     xs ≈⟨ xs≈ys ⟩ ys≈zs =
-      xs ⊆⟨ _⟨$⟩_ (Equivalent.to (Inv.⇒⇔ xs≈ys)) ⟩ ys≈zs
+      xs ⊆⟨ _⟨$⟩_ (Equivalent.to (⇒⇔ xs≈ys)) ⟩ ys≈zs
 
 ------------------------------------------------------------------------
 -- Another function

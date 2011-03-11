@@ -23,7 +23,8 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE
 open import Function.Inverse as Inv using (_⇿_; module Inverse)
-open import Function.Inverse.TypeIsomorphisms
+open import Function.Related as Related
+open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR
@@ -65,7 +66,7 @@ commutativeMonoid {a} k A = record
                     x ∈ ys ++ xs  ∎
     }
   }
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- The only list which is bag or set equal to the empty list is the
 -- empty list itself.
@@ -74,7 +75,7 @@ empty-unique : ∀ {k a} {A : Set a} {xs : List A} →
                xs ≈[ k ] [] → xs ≡ []
 empty-unique {xs = []}    _    = P.refl
 empty-unique {xs = _ ∷ _} ∷≈[]
-  with FE.Equivalent.to (Inv.⇒⇔ ∷≈[]) ⟨$⟩ here P.refl
+  with FE.Equivalent.to (⇒⇔ ∷≈[]) ⟨$⟩ here P.refl
 ... | ()
 
 -- _++_ is idempotent (under set equality).
@@ -85,7 +86,7 @@ empty-unique {xs = _ ∷ _} ∷≈[]
   x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++⇿ {a = a} {p = a}))
                                  (_⟨$⟩_ (Inverse.to $ ++⇿ {a = a} {p = a}) ∘ inj₁) ⟩
   x ∈ xs        ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- List.map is a congruence.
 
@@ -94,11 +95,11 @@ map-cong : ∀ {ℓ k} {A B : Set ℓ} {f₁ f₂ : A → B} {xs₁ xs₂} →
            List.map f₁ xs₁ ≈[ k ] List.map f₂ xs₂
 map-cong {ℓ} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
   x ∈ List.map f₁ xs₁       ⇿⟨ sym $ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
-  Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (Inv.⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
+  Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
   Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
   x ∈ List.map f₂ xs₂       ∎
   where
-  open Inv.EquationalReasoning
+  open Related.EquationalReasoning
 
   helper : ∀ y → x ≡ f₁ y ⇿ x ≡ f₂ y
   helper y = record
@@ -119,7 +120,7 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   Any (Any (_≡_ x)) xss₁  ≈⟨ Any-cong (λ _ → _ ∎) xss₁≈xss₂ ⟩
   Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ {a = a} {p = a} ⟩
   x ∈ concat xss₂         ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- The list monad's bind is a congruence.
 
@@ -131,7 +132,7 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   Any (λ y → x ∈ f₁ y) xs₁  ≈⟨ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟩
   Any (λ y → x ∈ f₂ y) xs₂  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   x ∈ (xs₂ >>= f₂)          ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- _⊛_ is a congruence.
 
@@ -141,7 +142,7 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   >>=-cong fs₁≈fs₂ λ f →
   >>=-cong xs₁≈xs₂ λ x →
   _ ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- _⊗_ is a congruence.
 
@@ -165,7 +166,7 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟨ ×⊎.+-cong {ℓ = ℓ} ⟩ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
   (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ⇿⟨ ++⇿ {a = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f) ++ (xs >>= g)                       ∎
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 -- The same applies to _⊛_.
 
@@ -213,7 +214,7 @@ drop-cons {A = A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
   (∃ λ (z∈x∷ys : z ∈ x ∷ ys) → There z∈x∷ys)  ⇿⟨ sym $ lemma ys ⟩
   z ∈ ys                                      ∎
   where
-  open Inv.EquationalReasoning
+  open Related.EquationalReasoning
 
   -- Inhabited for there but not here.
 

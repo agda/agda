@@ -9,7 +9,8 @@ module Data.Container where
 open import Data.Product as Prod hiding (map)
 open import Function renaming (id to ⟨id⟩; _∘_ to _⟨∘⟩_)
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse as Inv using (_⇿_; module Inverse)
+open import Function.Inverse using (_⇿_; module Inverse)
+import Function.Related as Related
 open import Level
 open import Relation.Binary using (Setoid; module Setoid)
 open import Relation.Binary.PropositionalEquality as P
@@ -257,11 +258,11 @@ x ∈ xs = ◇ (_≡_ x) xs
 -- equivalent definitions of bag and set equality, see
 -- Data.Container.AlternativeBagAndSetEquality.
 
-open Inv public
+open Related public
   using (Kind) renaming (inverse to bag; equivalent to set)
 
 [_]-Equality : ∀ {ℓ} → Kind → Container ℓ → Set ℓ → Setoid ℓ ℓ
-[ k ]-Equality C X = Inv.InducedEquivalence₂ k (_∈_ {C = C} {X = X})
+[ k ]-Equality C X = Related.InducedEquivalence₂ k (_∈_ {C = C} {X = X})
 
 infix 4 _≈[_]_
 

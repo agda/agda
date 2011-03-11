@@ -15,10 +15,11 @@ open import Function.Equivalence as Eq
   using (Equivalent; _⇔_; module Equivalent)
   renaming (_∘_ to _⟨∘⟩_)
 open import Function.Inverse as Inv
-  using (Inverse; _⇿_; module Inverse; Isomorphism)
+  using (Inverse; _⇿_; module Inverse)
   renaming (_∘_ to _⟪∘⟫_)
 open import Function.LeftInverse
   using (_LeftInverseOf_; _RightInverseOf_)
+open import Function.Related as Related using (Related)
 open import Function.Surjection using (_↠_; module Surjection)
 import Relation.Binary as B
 open import Relation.Binary.Indexed as I using (_at_)
@@ -267,7 +268,7 @@ cong : ∀ {k a₁ a₂ b₁ b₂}
          {A₁ : Set a₁} {A₂ : Set a₂}
          {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
        (A₁⇿A₂ : _⇿_ A₁ A₂) →
-       (∀ {x} → Isomorphism k (B₁ x) (B₂ (Inverse.to A₁⇿A₂ ⟨$⟩ x))) →
-       Isomorphism k (Σ A₁ B₁) (Σ A₂ B₂)
-cong {k = Inv.equivalent} = ⇔′ ∘ Inverse.surjection
-cong {k = Inv.inverse}    = ⇿
+       (∀ {x} → Related k (B₁ x) (B₂ (Inverse.to A₁⇿A₂ ⟨$⟩ x))) →
+       Related k (Σ A₁ B₁) (Σ A₂ B₂)
+cong {k = Related.equivalent} = ⇔′ ∘ Inverse.surjection
+cong {k = Related.inverse}    = ⇿

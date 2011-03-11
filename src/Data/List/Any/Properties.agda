@@ -21,11 +21,10 @@ open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent)
-open import Function.Inverse as Inv
-  using (Isomorphism; _⇿_; module Inverse)
-open import Function.Inverse.TypeIsomorphisms
+open import Function.Equivalence as Eq using (_⇔_; module Equivalent)
+open import Function.Inverse as Inv using (_⇿_; module Inverse)
+open import Function.Related as Related
+open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
@@ -35,7 +34,7 @@ open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _�
 import Relation.Binary.Sigma.Pointwise as Σ
 
 open Any.Membership-≡
-open Inv.EquationalReasoning
+open Related.EquationalReasoning
 private
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
   open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
@@ -121,8 +120,8 @@ Any⇿ {P = P} {xs} = record
 -- Any is a congruence
 
 Any-cong : ∀ {k ℓ} {A : Set ℓ} {P₁ P₂ : A → Set ℓ} {xs₁ xs₂ : List A} →
-           (∀ x → Isomorphism k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
-           Isomorphism k (Any P₁ xs₁) (Any P₂ xs₂)
+           (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
+           Related k (Any P₁ xs₁) (Any P₂ xs₂)
 Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
   Any P₁ xs₁                ⇿⟨ sym $ Any⇿ {P = P₁} ⟩
   (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
@@ -576,7 +575,7 @@ private
 
 any⇔ : ∀ {a} {A : Set a} {p : A → Bool} {xs} →
        Any (T ∘ p) xs ⇔ T (any p xs)
-any⇔ = equivalent (any⁺ _) (any⁻ _ _)
+any⇔ = Eq.equivalent (any⁺ _) (any⁻ _ _)
 
 ------------------------------------------------------------------------
 -- _++_ is commutative

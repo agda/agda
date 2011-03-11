@@ -1,10 +1,11 @@
 ------------------------------------------------------------------------
--- Various basic type isomorphisms
+-- Basic lemmas showing that various types are related (isomorphic or
+-- equivalent)
 ------------------------------------------------------------------------
 
 {-# OPTIONS --universe-polymorphism #-}
 
-module Function.Inverse.TypeIsomorphisms where
+module Function.Related.TypeIsomorphisms where
 
 open import Algebra
 import Algebra.FunctionProperties as FP
@@ -15,10 +16,9 @@ open import Data.Unit
 open import Level
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent)
-open import Function.Inverse as Inv
-  using (Kind; Isomorphism; _⇿_; module Inverse)
+open import Function.Equivalence as Eq using (_⇔_; module Equivalent)
+open import Function.Inverse using (_⇿_; module Inverse)
+open import Function.Related as Related
 open import Relation.Binary
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P using (_≡_; _≗_)
@@ -31,28 +31,26 @@ open import Relation.Nullary
 ×-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
 ×-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = Isomorphism k
+  ; _≈_                 = Related k
   ; _∙_                 = _×_
   ; ε                   = Lift ⊤
   ; isCommutativeMonoid = record
     { isSemigroup   = record
-      { isEquivalence = Setoid.isEquivalence $
-                          Inv.Isomorphism-setoid k ℓ
-      ; assoc         = λ A B C → Inv.⇿⇒ $ assoc A B C
+      { isEquivalence = Setoid.isEquivalence $ Related.setoid k ℓ
+      ; assoc         = λ A B C → ⇿⇒ $ assoc A B C
       ; ∙-cong        = ×-cong k
       }
-    ; identityˡ = λ A → Inv.⇿⇒ $ left-identity A
-    ; comm      = λ A B → Inv.⇿⇒ $ comm A B
+    ; identityˡ = λ A → ⇿⇒ $ left-identity A
+    ; comm      = λ A B → ⇿⇒ $ comm A B
     }
   }
   where
   open FP _⇿_
 
   ×-cong : ∀ k {A B C D : Set ℓ} →
-           Isomorphism k A B → Isomorphism k C D →
-           Isomorphism k (A × C) (B × D)
-  ×-cong Inv.equivalent = _×-⇔_
-  ×-cong Inv.inverse    = _×-⇿_
+           Related k A B → Related k C D → Related k (A × C) (B × D)
+  ×-cong equivalent = _×-⇔_
+  ×-cong inverse    = _×-⇿_
 
   left-identity : LeftIdentity (Lift {ℓ = ℓ} ⊤) _×_
   left-identity _ = record
@@ -87,28 +85,26 @@ open import Relation.Nullary
 ⊎-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
 ⊎-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = Isomorphism k
+  ; _≈_                 = Related k
   ; _∙_                 = _⊎_
   ; ε                   = Lift ⊥
   ; isCommutativeMonoid = record
     { isSemigroup   = record
-      { isEquivalence = Setoid.isEquivalence $
-                          Inv.Isomorphism-setoid k ℓ
-      ; assoc         = λ A B C → Inv.⇿⇒ $ assoc A B C
+      { isEquivalence = Setoid.isEquivalence $ Related.setoid k ℓ
+      ; assoc         = λ A B C → ⇿⇒ $ assoc A B C
       ; ∙-cong        = ⊎-cong k
       }
-    ; identityˡ = λ A → Inv.⇿⇒ $ left-identity A
-    ; comm      = λ A B → Inv.⇿⇒ $ comm A B
+    ; identityˡ = λ A → ⇿⇒ $ left-identity A
+    ; comm      = λ A B → ⇿⇒ $ comm A B
     }
   }
   where
   open FP _⇿_
 
   ⊎-cong : ∀ k {A B C D : Set ℓ} →
-           Isomorphism k A B → Isomorphism k C D →
-           Isomorphism k (A ⊎ C) (B ⊎ D)
-  ⊎-cong Inv.equivalent = _⊎-⇔_
-  ⊎-cong Inv.inverse    = _⊎-⇿_
+           Related k A B → Related k C D → Related k (A ⊎ C) (B ⊎ D)
+  ⊎-cong equivalent = _⊎-⇔_
+  ⊎-cong inverse    = _⊎-⇿_
 
   left-identity : LeftIdentity (Lift ⊥) (_⊎_ {a = ℓ} {b = ℓ})
   left-identity A = record
@@ -162,7 +158,7 @@ open import Relation.Nullary
 ×⊎-CommutativeSemiring : Kind → (ℓ : Level) → CommutativeSemiring _ _
 ×⊎-CommutativeSemiring k ℓ = record
   { Carrier               = Set ℓ
-  ; _≈_                   = Isomorphism k
+  ; _≈_                   = Related k
   ; _+_                   = _⊎_
   ; _*_                   = _×_
   ; 0#                    = Lift ⊥
@@ -172,8 +168,8 @@ open import Relation.Nullary
                                 ⊎-CommutativeMonoid k ℓ
     ; *-isCommutativeMonoid = isCommutativeMonoid $
                                 ×-CommutativeMonoid k ℓ
-    ; distribʳ              = λ A B C → Inv.⇿⇒ $ right-distrib A B C
-    ; zeroˡ                 = λ A → Inv.⇿⇒ $ left-zero A
+    ; distribʳ              = λ A B C → ⇿⇒ $ right-distrib A B C
+    ; zeroˡ                 = λ A → ⇿⇒ $ left-zero A
     }
   }
   where
@@ -263,9 +259,9 @@ A⇔B →-cong-⇔ C⇔D = record
   ∀ {a b c d} →
   P.Extensionality a c → P.Extensionality b d →
   ∀ {k} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  Isomorphism k A B → Isomorphism k C D → Isomorphism k (A → C) (B → D)
-→-cong extAC extBD {Inv.equivalent} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
-→-cong extAC extBD {Inv.inverse}    A⇿B C⇿D = record
+  Related k A B → Related k C D → Related k (A → C) (B → D)
+→-cong extAC extBD {equivalent} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
+→-cong extAC extBD {inverse}    A⇿B C⇿D = record
   { to         = Equivalent.to   A→C⇔B→D
   ; from       = Equivalent.from A→C⇔B→D
   ; inverse-of = record
@@ -283,7 +279,7 @@ A⇔B →-cong-⇔ C⇔D = record
   }
   where
   open P.≡-Reasoning
-  A→C⇔B→D = Inv.⇿⇒ A⇿B →-cong-⇔ Inv.⇿⇒ C⇿D
+  A→C⇔B→D = ⇿⇒ A⇿B →-cong-⇔ ⇿⇒ C⇿D
 
 ------------------------------------------------------------------------
 -- ¬_ preserves isomorphisms
@@ -291,31 +287,30 @@ A⇔B →-cong-⇔ C⇔D = record
 ¬-cong-⇔ : ∀ {a b} {A : Set a} {B : Set b} →
            A ⇔ B → (¬ A) ⇔ (¬ B)
 ¬-cong-⇔ A⇔B = A⇔B →-cong-⇔ (⊥ ∎)
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 ¬-cong : ∀ {a b} →
          P.Extensionality a zero → P.Extensionality b zero →
          ∀ {k} {A : Set a} {B : Set b} →
-         Isomorphism k A B → Isomorphism k (¬ A) (¬ B)
+         Related k A B → Related k (¬ A) (¬ B)
 ¬-cong extA extB A≈B = →-cong extA extB A≈B (⊥ ∎)
-  where open Inv.EquationalReasoning
+  where open Related.EquationalReasoning
 
 ------------------------------------------------------------------------
 -- _⇔_ preserves _⇔_
 
 -- The type of the following proof is a bit more general.
 
-Isomorphism-cong :
+Related-cong :
   ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  Isomorphism k A B → Isomorphism k C D →
-  Isomorphism k A C ⇔ Isomorphism k B D
-Isomorphism-cong {A = A} {B} {C} {D} A≈B C≈D =
-  equivalent (λ A≈C → B  ≈⟨ sym A≈B ⟩
-                      A  ≈⟨ A≈C ⟩
-                      C  ≈⟨ C≈D ⟩
-                      D  ∎)
-             (λ B≈D → A  ≈⟨ A≈B ⟩
-                      B  ≈⟨ B≈D ⟩
-                      D  ≈⟨ sym C≈D ⟩
-                      C  ∎)
-  where open Inv.EquationalReasoning
+  Related k A B → Related k C D → Related k A C ⇔ Related k B D
+Related-cong {A = A} {B} {C} {D} A≈B C≈D =
+  Eq.equivalent (λ A≈C → B  ≈⟨ sym A≈B ⟩
+                         A  ≈⟨ A≈C ⟩
+                         C  ≈⟨ C≈D ⟩
+                         D  ∎)
+                (λ B≈D → A  ≈⟨ A≈B ⟩
+                         B  ≈⟨ B≈D ⟩
+                         D  ≈⟨ sym C≈D ⟩
+                         C  ∎)
+  where open Related.EquationalReasoning
