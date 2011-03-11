@@ -254,9 +254,7 @@ x ∈ xs = ◇ (_≡_ x) xs
 -- Bag and set equality. Two containers xs and ys are equal when
 -- viewed as sets if, whenever x ∈ xs, we also have x ∈ ys, and vice
 -- versa. They are equal when viewed as bags if, additionally, the
--- sets x ∈ xs and x ∈ ys have the same size. For alternative but
--- equivalent definitions of bag and set equality, see
--- Data.Container.AlternativeBagAndSetEquality.
+-- sets x ∈ xs and x ∈ ys have the same size.
 
 open Related public
   using (Kind) renaming (inverse to bag; equivalent to set)
