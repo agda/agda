@@ -390,6 +390,9 @@ order for the change to take effect."
   ("d-|"  . ("↧"))  ("dd-" . ("↡"))
   ("ud-|" . ("↨"))
 
+  ("l->" . ("↢"))
+  ("r->" . ("↣"))
+
   ("dz" . ("↯"))
 
   ;; Ellipsis.
