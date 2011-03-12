@@ -32,6 +32,7 @@ open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect; _with-≡_)
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
+open import Relation.Binary.Sum
 
 open Any.Membership-≡
 open Related.EquationalReasoning
@@ -397,6 +398,15 @@ return⇿ {P = P} = record
     ; right-inverse-of = return⁺∘return⁻
     }
   }
+
+-- _∷_.
+
+∷↔ : ∀ {a p} {A : Set a} (P : A → Set p) {x xs} →
+     (P x ⊎ Any P xs) ↔ Any P (x ∷ xs)
+∷↔ P {x} {xs} =
+  (P x         ⊎ Any P xs)  ↔⟨ return↔ {P = P} ⊎-cong (Any P xs ∎) ⟩
+  (Any P [ x ] ⊎ Any P xs)  ↔⟨ ++↔ {P = P} {xs = [ x ]} ⟩
+  Any P (x ∷ xs)            ∎
 
 -- concat.
 

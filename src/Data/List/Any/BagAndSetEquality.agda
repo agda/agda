@@ -88,6 +88,17 @@ empty-unique {xs = _ ∷ _} ∷≈[]
   x ∈ xs        ∎
   where open Related.EquationalReasoning
 
+-- _∷_ is a congruence.
+
+∷-cong : ∀ {a k} {A : Set a} {x₁ x₂ : A} {xs₁ xs₂} →
+         x₁ ≡ x₂ → xs₁ ≈[ k ] xs₂ → x₁ ∷ xs₁ ≈[ k ] x₂ ∷ xs₂
+∷-cong {x₂ = x} {xs₁} {xs₂} P.refl xs₁≈xs₂ {y} =
+  y ∈ x ∷ xs₁        ↔⟨ sym $ ∷↔ (_≡_ y) ⟩
+  (y ≡ x ⊎ y ∈ xs₁)  ≈⟨ (y ≡ x ∎) ⊎-cong xs₁≈xs₂ ⟩
+  (y ≡ x ⊎ y ∈ xs₂)  ↔⟨ ∷↔ (_≡_ y) ⟩
+  y ∈ x ∷ xs₂        ∎
+  where open Related.EquationalReasoning
+
 -- List.map is a congruence.
 
 map-cong : ∀ {ℓ k} {A B : Set ℓ} {f₁ f₂ : A → B} {xs₁ xs₂} →
