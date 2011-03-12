@@ -10,7 +10,7 @@ open import Data.Nat hiding (_⊔_)
 open import Data.Product as Prod
 open import Data.Vec
 open import Function
-open import Function.Equivalence using (_⇔_; equivalent)
+open import Function.Equivalence using (_⇔_; equivalence)
 open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
@@ -95,7 +95,7 @@ right-inverse (suc n) f = λ x → right-inverse n (f x)
 
 uncurry-∀ⁿ : ∀ n {a ℓ} {A : Set a} {P : N-ary n A (Set ℓ)} →
              ∀ⁿ n P ⇔ (∀ (xs : Vec A n) → P $ⁿ xs)
-uncurry-∀ⁿ n {a} {ℓ} {A} = equivalent (⇒ n) (⇐ n)
+uncurry-∀ⁿ n {a} {ℓ} {A} = equivalence (⇒ n) (⇐ n)
   where
   ⇒ : ∀ n {P : N-ary n A (Set ℓ)} →
       ∀ⁿ n P → (∀ (xs : Vec A n) → P $ⁿ xs)
@@ -111,7 +111,7 @@ uncurry-∀ⁿ n {a} {ℓ} {A} = equivalent (⇒ n) (⇐ n)
 
 uncurry-∃ⁿ : ∀ n {a ℓ} {A : Set a} {P : N-ary n A (Set ℓ)} →
              ∃ⁿ n P ⇔ (∃ λ (xs : Vec A n) → P $ⁿ xs)
-uncurry-∃ⁿ n {a} {ℓ} {A} = equivalent (⇒ n) (⇐ n)
+uncurry-∃ⁿ n {a} {ℓ} {A} = equivalence (⇒ n) (⇐ n)
   where
   ⇒ : ∀ n {P : N-ary n A (Set ℓ)} →
       ∃ⁿ n P → (∃ λ (xs : Vec A n) → P $ⁿ xs)

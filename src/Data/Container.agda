@@ -9,10 +9,11 @@ module Data.Container where
 open import Data.Product as Prod hiding (map)
 open import Function renaming (id to ⟨id⟩; _∘_ to _⟨∘⟩_)
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Inverse using (_⇿_; module Inverse)
+open import Function.Inverse using (_↔_; module Inverse)
 import Function.Related as Related
 open import Level
-open import Relation.Binary using (Setoid; module Setoid)
+open import Relation.Binary
+  using (Setoid; module Setoid; Preorder; module Preorder)
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; refl)
 open import Relation.Unary using (_⊆_)
@@ -207,7 +208,7 @@ module Morphism where
 record _⊸_ {c} (C₁ C₂ : Container c) : Set c where
   field
     shape⊸    : Shape C₁ → Shape C₂
-    position⊸ : ∀ {s} → Position C₂ (shape⊸ s) ⇿ Position C₁ s
+    position⊸ : ∀ {s} → Position C₂ (shape⊸ s) ↔ Position C₁ s
 
   morphism : C₁ ⇒ C₂
   morphism = record
@@ -251,19 +252,29 @@ _∈_ : ∀ {c} {C : Container c} {X : Set c} →
       X → ⟦ C ⟧ X → Set c
 x ∈ xs = ◇ (_≡_ x) xs
 
--- Bag and set equality. Two containers xs and ys are equal when
--- viewed as sets if, whenever x ∈ xs, we also have x ∈ ys, and vice
--- versa. They are equal when viewed as bags if, additionally, the
--- sets x ∈ xs and x ∈ ys have the same size.
+-- Bag and set equality and related preorders. Two containers xs and
+-- ys are equal when viewed as sets if, whenever x ∈ xs, we also have
+-- x ∈ ys, and vice versa. They are equal when viewed as bags if,
+-- additionally, the sets x ∈ xs and x ∈ ys have the same size.
 
 open Related public
-  using (Kind) renaming (inverse to bag; equivalent to set)
+  using (Kind; Symmetric-kind)
+  renaming ( implication         to subset
+           ; reverse-implication to superset
+           ; equivalence         to set
+           ; injection           to subbag
+           ; reverse-injection   to superbag
+           ; bijection           to bag
+           )
 
-[_]-Equality : ∀ {ℓ} → Kind → Container ℓ → Set ℓ → Setoid ℓ ℓ
+[_]-Order : ∀ {ℓ} → Kind → Container ℓ → Set ℓ → Preorder ℓ ℓ ℓ
+[ k ]-Order C X = Related.InducedPreorder₂ k (_∈_ {C = C} {X = X})
+
+[_]-Equality : ∀ {ℓ} → Symmetric-kind → Container ℓ → Set ℓ → Setoid ℓ ℓ
 [ k ]-Equality C X = Related.InducedEquivalence₂ k (_∈_ {C = C} {X = X})
 
 infix 4 _≈[_]_
 
 _≈[_]_ : ∀ {c} {C : Container c} {X : Set c} →
          ⟦ C ⟧ X → Kind → ⟦ C ⟧ X → Set c
-xs ≈[ k ] ys = Setoid._≈_ ([ k ]-Equality _ _) xs ys
+_≈[_]_ {C = C} {X} xs k ys = Preorder._∼_ ([ k ]-Order C X) xs ys

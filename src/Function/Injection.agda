@@ -11,6 +11,7 @@ open import Level
 open import Relation.Binary
 open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
+import Relation.Binary.PropositionalEquality as P
 
 -- Injective functions.
 
@@ -29,6 +30,13 @@ record Injection {f₁ f₂ t₁ t₂}
   field
     to        : From ⟶ To
     injective : Injective to
+
+-- The set of all injections from one set to another.
+
+infix 3 _↣_
+
+_↣_ : ∀ {f t} → Set f → Set t → Set _
+From ↣ To = Injection (P.setoid From) (P.setoid To)
 
 -- Identity and composition.
 

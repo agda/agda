@@ -22,7 +22,7 @@ import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Relation.Binary
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (_⇔_; module Equivalent)
+open import Function.Equivalence using (_⇔_; module Equivalence)
 open import Data.Product
 
 ------------------------------------------------------------------------
@@ -261,7 +261,7 @@ replace-equality {_≈′_} ≈⇔≈′ = record
     ; ∧-complementʳ         = λ x → to ⟨$⟩ ∧-complementʳ x
     ; ¬-cong                = λ i≈j → to ⟨$⟩ ¬-cong (from ⟨$⟩ i≈j)
     }
-  } where open module E {x y} = Equivalent (≈⇔≈′ {x} {y})
+  } where open module E {x y} = Equivalence (≈⇔≈′ {x} {y})
 
 ------------------------------------------------------------------------
 -- (⊕, ∧, id, ⊥, ⊤) is a commutative ring

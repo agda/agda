@@ -12,7 +12,7 @@ open import Data.Product as Prod hiding (Σ) renaming (_×_ to _⟨×⟩_)
 open import Data.Sum renaming (_⊎_ to _⟨⊎⟩_)
 open import Data.Unit using (⊤)
 open import Function as F hiding (id; const) renaming (_∘_ to _⟨∘⟩_)
-open import Function.Inverse using (_⇿_)
+open import Function.Inverse using (_↔_)
 open import Level
 open import Relation.Binary.PropositionalEquality as P
   using (_≗_; refl)
@@ -82,7 +82,7 @@ const[ X ]⟶ C = Π {I = X} (F.const C)
 
 module Identity where
 
-  correct : ∀ {c} {X : Set c} → ⟦ id ⟧ X ⇿ F.id X
+  correct : ∀ {c} {X : Set c} → ⟦ id ⟧ X ↔ F.id X
   correct {c} = record
     { to         = P.→-to-⟶ {a  = c} λ xs → proj₂ xs _
     ; from       = P.→-to-⟶ {b₁ = c} λ x → (_ , λ _ → x)
@@ -94,7 +94,7 @@ module Identity where
 
 module Constant (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
-  correct : ∀ {ℓ} (X : Set ℓ) {Y} → ⟦ const X ⟧ Y ⇿ F.const X Y
+  correct : ∀ {ℓ} (X : Set ℓ) {Y} → ⟦ const X ⟧ Y ↔ F.const X Y
   correct X {Y} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -114,7 +114,7 @@ module Constant (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 module Composition where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
-            ⟦ C₁ ∘ C₂ ⟧ X ⇿ (⟦ C₁ ⟧ ⟨∘⟩ ⟦ C₂ ⟧) X
+            ⟦ C₁ ∘ C₂ ⟧ X ↔ (⟦ C₁ ⟧ ⟨∘⟩ ⟦ C₂ ⟧) X
   correct C₁ C₂ {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -133,7 +133,7 @@ module Composition where
 module Product (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
-            ⟦ C₁ × C₂ ⟧ X ⇿ (⟦ C₁ ⟧ X ⟨×⟩ ⟦ C₂ ⟧ X)
+            ⟦ C₁ × C₂ ⟧ X ↔ (⟦ C₁ ⟧ X ⟨×⟩ ⟦ C₂ ⟧ X)
   correct {c} C₁ C₂ {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -156,7 +156,7 @@ module Product (ext : ∀ {ℓ} → P.Extensionality ℓ ℓ) where
 module IndexedProduct where
 
   correct : ∀ {c I} (C : I → Container c) {X : Set c} →
-            ⟦ Π C ⟧ X ⇿ (∀ i → ⟦ C i ⟧ X)
+            ⟦ Π C ⟧ X ↔ (∀ i → ⟦ C i ⟧ X)
   correct {I = I} C {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -175,7 +175,7 @@ module IndexedProduct where
 module Sum where
 
   correct : ∀ {c} (C₁ C₂ : Container c) {X : Set c} →
-            ⟦ C₁ ⊎ C₂ ⟧ X ⇿ (⟦ C₁ ⟧ X ⟨⊎⟩ ⟦ C₂ ⟧ X)
+            ⟦ C₁ ⊎ C₂ ⟧ X ↔ (⟦ C₁ ⟧ X ⟨⊎⟩ ⟦ C₂ ⟧ X)
   correct C₁ C₂ {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -199,7 +199,7 @@ module Sum where
 module IndexedSum where
 
   correct : ∀ {c I} (C : I → Container c) {X : Set c} →
-            ⟦ Σ C ⟧ X ⇿ (∃ λ i → ⟦ C i ⟧ X)
+            ⟦ Σ C ⟧ X ↔ (∃ λ i → ⟦ C i ⟧ X)
   correct {I = I} C {X} = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -218,5 +218,5 @@ module IndexedSum where
 module ConstantExponentiation where
 
   correct : ∀ {c X} (C : Container c) {Y : Set c} →
-            ⟦ const[ X ]⟶ C ⟧ Y ⇿ (X → ⟦ C ⟧ Y)
+            ⟦ const[ X ]⟶ C ⟧ Y ↔ (X → ⟦ C ⟧ Y)
   correct C = IndexedProduct.correct (F.const C)

@@ -13,7 +13,7 @@ open import Data.Nat using (ℕ; zero; suc; _+_)
 open import Data.Product as Prod hiding (map)
 open import Data.Sum hiding (map)
 open import Function
-open import Function.Equivalence using (_⇔_; equivalent)
+open import Function.Equivalence using (_⇔_; equivalence)
 open import Level
 open import Relation.Binary as B hiding (Rel)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
@@ -861,7 +861,7 @@ module AlternativeEquality {a ℓ} where
   -- equivalence).
 
   correct : ∀ {S k x y} → RelP S k x y ⇔ Rel (Eq S) k x y
-  correct = equivalent sound complete
+  correct = equivalence sound complete
 
 ------------------------------------------------------------------------
 -- Example

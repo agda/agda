@@ -1,6 +1,6 @@
 ------------------------------------------------------------------------
 -- Basic lemmas showing that various types are related (isomorphic or
--- equivalent)
+-- equivalent or…)
 ------------------------------------------------------------------------
 
 {-# OPTIONS --universe-polymorphism #-}
@@ -16,8 +16,8 @@ open import Data.Unit
 open import Level
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence as Eq using (_⇔_; module Equivalent)
-open import Function.Inverse using (_⇿_; module Inverse)
+open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
+open import Function.Inverse using (_↔_; module Inverse)
 open import Function.Related as Related
 open import Relation.Binary
 open import Relation.Binary.Product.Pointwise
@@ -28,29 +28,25 @@ open import Relation.Nullary
 ------------------------------------------------------------------------
 -- ⊥, ⊤, _×_ and _⊎_ form a commutative semiring
 
-×-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
+×-CommutativeMonoid : Symmetric-kind → (ℓ : Level) →
+                      CommutativeMonoid _ _
 ×-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = Related k
+  ; _≈_                 = Related ⌊ k ⌋
   ; _∙_                 = _×_
   ; ε                   = Lift ⊤
   ; isCommutativeMonoid = record
     { isSemigroup   = record
       { isEquivalence = Setoid.isEquivalence $ Related.setoid k ℓ
-      ; assoc         = λ A B C → ⇿⇒ $ assoc A B C
-      ; ∙-cong        = ×-cong k
+      ; assoc         = λ A B C → ↔⇒ $ assoc A B C
+      ; ∙-cong        = _×-cong_
       }
-    ; identityˡ = λ A → ⇿⇒ $ left-identity A
-    ; comm      = λ A B → ⇿⇒ $ comm A B
+    ; identityˡ = λ A → ↔⇒ $ left-identity A
+    ; comm      = λ A B → ↔⇒ $ comm A B
     }
   }
   where
-  open FP _⇿_
-
-  ×-cong : ∀ k {A B C D : Set ℓ} →
-           Related k A B → Related k C D → Related k (A × C) (B × D)
-  ×-cong equivalent = _×-⇔_
-  ×-cong inverse    = _×-⇿_
+  open FP _↔_
 
   left-identity : LeftIdentity (Lift {ℓ = ℓ} ⊤) _×_
   left-identity _ = record
@@ -82,29 +78,25 @@ open import Relation.Nullary
       }
     }
 
-⊎-CommutativeMonoid : Kind → (ℓ : Level) → CommutativeMonoid _ _
+⊎-CommutativeMonoid : Symmetric-kind → (ℓ : Level) →
+                      CommutativeMonoid _ _
 ⊎-CommutativeMonoid k ℓ = record
   { Carrier             = Set ℓ
-  ; _≈_                 = Related k
+  ; _≈_                 = Related ⌊ k ⌋
   ; _∙_                 = _⊎_
   ; ε                   = Lift ⊥
   ; isCommutativeMonoid = record
     { isSemigroup   = record
       { isEquivalence = Setoid.isEquivalence $ Related.setoid k ℓ
-      ; assoc         = λ A B C → ⇿⇒ $ assoc A B C
-      ; ∙-cong        = ⊎-cong k
+      ; assoc         = λ A B C → ↔⇒ $ assoc A B C
+      ; ∙-cong        = _⊎-cong_
       }
-    ; identityˡ = λ A → ⇿⇒ $ left-identity A
-    ; comm      = λ A B → ⇿⇒ $ comm A B
+    ; identityˡ = λ A → ↔⇒ $ left-identity A
+    ; comm      = λ A B → ↔⇒ $ comm A B
     }
   }
   where
-  open FP _⇿_
-
-  ⊎-cong : ∀ k {A B C D : Set ℓ} →
-           Related k A B → Related k C D → Related k (A ⊎ C) (B ⊎ D)
-  ⊎-cong equivalent = _⊎-⇔_
-  ⊎-cong inverse    = _⊎-⇿_
+  open FP _↔_
 
   left-identity : LeftIdentity (Lift ⊥) (_⊎_ {a = ℓ} {b = ℓ})
   left-identity A = record
@@ -155,10 +147,11 @@ open import Relation.Nullary
     inv : ∀ {A B} → swap ∘ swap {A} {B} ≗ id
     inv = [ (λ _ → P.refl) , (λ _ → P.refl) ]
 
-×⊎-CommutativeSemiring : Kind → (ℓ : Level) → CommutativeSemiring _ _
+×⊎-CommutativeSemiring : Symmetric-kind → (ℓ : Level) →
+                         CommutativeSemiring _ _
 ×⊎-CommutativeSemiring k ℓ = record
   { Carrier               = Set ℓ
-  ; _≈_                   = Related k
+  ; _≈_                   = Related ⌊ k ⌋
   ; _+_                   = _⊎_
   ; _*_                   = _×_
   ; 0#                    = Lift ⊥
@@ -168,13 +161,13 @@ open import Relation.Nullary
                                 ⊎-CommutativeMonoid k ℓ
     ; *-isCommutativeMonoid = isCommutativeMonoid $
                                 ×-CommutativeMonoid k ℓ
-    ; distribʳ              = λ A B C → ⇿⇒ $ right-distrib A B C
-    ; zeroˡ                 = λ A → ⇿⇒ $ left-zero A
+    ; distribʳ              = λ A B C → ↔⇒ $ right-distrib A B C
+    ; zeroˡ                 = λ A → ↔⇒ $ left-zero A
     }
   }
   where
   open CommutativeMonoid
-  open FP _⇿_
+  open FP _↔_
 
   left-zero : LeftZero (Lift ⊥) (_×_ {a = ℓ} {b = ℓ})
   left-zero A = record
@@ -206,9 +199,9 @@ open import Relation.Nullary
 ------------------------------------------------------------------------
 -- Some reordering lemmas
 
-ΠΠ⇿ΠΠ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
-        ((x : A) (y : B) → P x y) ⇿ ((y : B) (x : A) → P x y)
-ΠΠ⇿ΠΠ _ = record
+ΠΠ↔ΠΠ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
+        ((x : A) (y : B) → P x y) ↔ ((y : B) (x : A) → P x y)
+ΠΠ↔ΠΠ _ = record
   { to         = P.→-to-⟶ λ f x y → f y x
   ; from       = P.→-to-⟶ λ f y x → f x y
   ; inverse-of = record
@@ -217,9 +210,9 @@ open import Relation.Nullary
     }
   }
 
-∃∃⇿∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
-        (∃₂ λ x y → P x y) ⇿ (∃₂ λ y x → P x y)
-∃∃⇿∃∃ {a} {b} {p} _ = record
+∃∃↔∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
+        (∃₂ λ x y → P x y) ↔ (∃₂ λ y x → P x y)
+∃∃↔∃∃ {a} {b} {p} _ = record
   { to         = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; from       = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; inverse-of = record
@@ -231,9 +224,9 @@ open import Relation.Nullary
 ------------------------------------------------------------------------
 -- Implicit and explicit function spaces are isomorphic
 
-Π⇿Π : ∀ {a b} {A : Set a} {B : A → Set b} →
-      ((x : A) → B x) ⇿ ({x : A} → B x)
-Π⇿Π = record
+Π↔Π : ∀ {a b} {A : Set a} {B : A → Set b} →
+      ((x : A) → B x) ↔ ({x : A} → B x)
+Π↔Π = record
   { to         = P.→-to-⟶ λ f {x} → f x
   ; from       = P.→-to-⟶ λ f x → f {x}
   ; inverse-of = record
@@ -243,46 +236,46 @@ open import Relation.Nullary
   }
 
 ------------------------------------------------------------------------
--- _→_ preserves isomorphisms
+-- _→_ preserves the symmetric relations
 
 _→-cong-⇔_ :
   ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
   A ⇔ B → C ⇔ D → (A → C) ⇔ (B → D)
 A⇔B →-cong-⇔ C⇔D = record
   { to   = P.→-to-⟶ λ f x →
-             Equivalent.to   C⇔D ⟨$⟩ f (Equivalent.from A⇔B ⟨$⟩ x)
+             Equivalence.to   C⇔D ⟨$⟩ f (Equivalence.from A⇔B ⟨$⟩ x)
   ; from = P.→-to-⟶ λ f x →
-             Equivalent.from C⇔D ⟨$⟩ f (Equivalent.to   A⇔B ⟨$⟩ x)
+             Equivalence.from C⇔D ⟨$⟩ f (Equivalence.to   A⇔B ⟨$⟩ x)
   }
 
 →-cong :
   ∀ {a b c d} →
   P.Extensionality a c → P.Extensionality b d →
   ∀ {k} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  Related k A B → Related k C D → Related k (A → C) (B → D)
-→-cong extAC extBD {equivalent} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
-→-cong extAC extBD {inverse}    A⇿B C⇿D = record
-  { to         = Equivalent.to   A→C⇔B→D
-  ; from       = Equivalent.from A→C⇔B→D
+  A ≈[ ⌊ k ⌋ ] B → C ≈[ ⌊ k ⌋ ] D → (A → C) ≈[ ⌊ k ⌋ ] (B → D)
+→-cong extAC extBD {equivalence} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
+→-cong extAC extBD {bijection}   A↔B C↔D = record
+  { to         = Equivalence.to   A→C⇔B→D
+  ; from       = Equivalence.from A→C⇔B→D
   ; inverse-of = record
     { left-inverse-of  = λ f → extAC λ x → begin
-        Inverse.from C⇿D ⟨$⟩ (Inverse.to C⇿D ⟨$⟩
-          f (Inverse.from A⇿B ⟨$⟩ (Inverse.to A⇿B ⟨$⟩ x)))  ≡⟨ Inverse.left-inverse-of C⇿D _ ⟩
-        f (Inverse.from A⇿B ⟨$⟩ (Inverse.to A⇿B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.left-inverse-of A⇿B x ⟩
+        Inverse.from C↔D ⟨$⟩ (Inverse.to C↔D ⟨$⟩
+          f (Inverse.from A↔B ⟨$⟩ (Inverse.to A↔B ⟨$⟩ x)))  ≡⟨ Inverse.left-inverse-of C↔D _ ⟩
+        f (Inverse.from A↔B ⟨$⟩ (Inverse.to A↔B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.left-inverse-of A↔B x ⟩
         f x                                                 ∎
     ; right-inverse-of = λ f → extBD λ x → begin
-        Inverse.to C⇿D ⟨$⟩ (Inverse.from C⇿D ⟨$⟩
-          f (Inverse.to A⇿B ⟨$⟩ (Inverse.from A⇿B ⟨$⟩ x)))  ≡⟨ Inverse.right-inverse-of C⇿D _ ⟩
-        f (Inverse.to A⇿B ⟨$⟩ (Inverse.from A⇿B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.right-inverse-of A⇿B x ⟩
+        Inverse.to C↔D ⟨$⟩ (Inverse.from C↔D ⟨$⟩
+          f (Inverse.to A↔B ⟨$⟩ (Inverse.from A↔B ⟨$⟩ x)))  ≡⟨ Inverse.right-inverse-of C↔D _ ⟩
+        f (Inverse.to A↔B ⟨$⟩ (Inverse.from A↔B ⟨$⟩ x))     ≡⟨ P.cong f $ Inverse.right-inverse-of A↔B x ⟩
         f x                                                 ∎
     }
   }
   where
   open P.≡-Reasoning
-  A→C⇔B→D = ⇿⇒ A⇿B →-cong-⇔ ⇿⇒ C⇿D
+  A→C⇔B→D = ↔⇒ A↔B →-cong-⇔ ↔⇒ C↔D
 
 ------------------------------------------------------------------------
--- ¬_ preserves isomorphisms
+-- ¬_ preserves the symmetric relations
 
 ¬-cong-⇔ : ∀ {a b} {A : Set a} {B : Set b} →
            A ⇔ B → (¬ A) ⇔ (¬ B)
@@ -292,7 +285,7 @@ A⇔B →-cong-⇔ C⇔D = record
 ¬-cong : ∀ {a b} →
          P.Extensionality a zero → P.Extensionality b zero →
          ∀ {k} {A : Set a} {B : Set b} →
-         Related k A B → Related k (¬ A) (¬ B)
+         A ≈[ ⌊ k ⌋ ] B → (¬ A) ≈[ ⌊ k ⌋ ] (¬ B)
 ¬-cong extA extB A≈B = →-cong extA extB A≈B (⊥ ∎)
   where open Related.EquationalReasoning
 
@@ -303,14 +296,14 @@ A⇔B →-cong-⇔ C⇔D = record
 
 Related-cong :
   ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  Related k A B → Related k C D → Related k A C ⇔ Related k B D
+  A ≈[ ⌊ k ⌋ ] B → C ≈[ ⌊ k ⌋ ] D → (A ≈[ ⌊ k ⌋ ] C) ⇔ (B ≈[ ⌊ k ⌋ ] D)
 Related-cong {A = A} {B} {C} {D} A≈B C≈D =
-  Eq.equivalent (λ A≈C → B  ≈⟨ sym A≈B ⟩
-                         A  ≈⟨ A≈C ⟩
-                         C  ≈⟨ C≈D ⟩
-                         D  ∎)
-                (λ B≈D → A  ≈⟨ A≈B ⟩
-                         B  ≈⟨ B≈D ⟩
-                         D  ≈⟨ sym C≈D ⟩
-                         C  ∎)
+  Eq.equivalence (λ A≈C → B  ≈⟨ sym A≈B ⟩
+                          A  ≈⟨ A≈C ⟩
+                          C  ≈⟨ C≈D ⟩
+                          D  ∎)
+                 (λ B≈D → A  ≈⟨ A≈B ⟩
+                          B  ≈⟨ B≈D ⟩
+                          D  ≈⟨ sym C≈D ⟩
+                          C  ∎)
   where open Related.EquationalReasoning

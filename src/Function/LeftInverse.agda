@@ -12,8 +12,9 @@ import Relation.Binary.EqReasoning as EqReasoning
 open import Relation.Binary
 open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
-open import Function.Equivalence using (Equivalent)
+open import Function.Equivalence using (Equivalence)
 open import Function.Injection using (Injective; Injection)
+import Relation.Binary.PropositionalEquality as P
 
 -- Left and right inverses.
 
@@ -51,8 +52,8 @@ record LeftInverse {f₁ f₂ t₁ t₂}
   injection : Injection From To
   injection = record { to = to; injective = injective }
 
-  equivalent : Equivalent From To
-  equivalent = record
+  equivalence : Equivalence From To
+  equivalence = record
     { to   = to
     ; from = from
     }
@@ -62,6 +63,14 @@ record LeftInverse {f₁ f₂ t₁ t₂}
 RightInverse : ∀ {f₁ f₂ t₁ t₂}
                (From : Setoid f₁ f₂) (To : Setoid t₁ t₂) → Set _
 RightInverse From To = LeftInverse To From
+
+-- The set of all left inverses from one set to another. (Read A ↞ B
+-- as "surjection from B to A".)
+
+infix 3 _↞_
+
+_↞_ : ∀ {f t} → Set f → Set t → Set _
+From ↞ To = LeftInverse (P.setoid From) (P.setoid To)
 
 -- Identity and composition.
 

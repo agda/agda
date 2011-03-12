@@ -73,7 +73,7 @@ _++_ : ∀ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} {x y z} →
 
 equivalent : ∀ {a ℓ} {A : Set a} {_∼_ : Rel A ℓ} {x y} →
              Plus _∼_ x y ⇔ Plus′ _∼_ x y
-equivalent {_∼_ = _∼_} = Equiv.equivalent complete sound
+equivalent {_∼_ = _∼_} = Equiv.equivalence complete sound
   where
   complete : Plus _∼_ ⇒ Plus′ _∼_
   complete [ x∼y ]             = [ x∼y ]

@@ -31,8 +31,8 @@ A ^ suc (suc n) = A × A ^ suc n
 
 -- Conversions.
 
-⇿Vec : ∀ {a} {A : Set a} n → A ^ n ⇿ Vec A n
-⇿Vec n = record
+↔Vec : ∀ {a} {A : Set a} n → A ^ n ↔ Vec A n
+↔Vec n = record
   { to         = P.→-to-⟶ (toVec n)
   ; from       = P.→-to-⟶ fromVec
   ; inverse-of = record

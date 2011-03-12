@@ -112,9 +112,9 @@ indexedSetoid B = record
     }
   }
 
-≡⇿≅ : ∀ {a b} {A : Set a} (B : A → Set b) {x : A} →
+≡↔≅ : ∀ {a b} {A : Set a} (B : A → Set b) {x : A} →
       Inverse (PropEq.setoid (B x)) (indexedSetoid B at x)
-≡⇿≅ B = record
+≡↔≅ B = record
   { to         = record { _⟨$⟩_ = id; cong = ≡-to-≅ }
   ; from       = record { _⟨$⟩_ = id; cong = ≅-to-≡ }
   ; inverse-of = record

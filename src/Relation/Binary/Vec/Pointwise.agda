@@ -14,7 +14,7 @@ import Data.Vec.Properties as VecProp
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv
-  using (_⇔_; module Equivalent)
+  using (_⇔_; module Equivalence)
 open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
@@ -44,7 +44,7 @@ private
 
   equivalent : ∀ {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
                Pointwise _∼_ xs ys ⇔ Pointwise′ _∼_ xs ys
-  equivalent {_∼_} = Equiv.equivalent (to _ _) from
+  equivalent {_∼_} = Equiv.equivalence (to _ _) from
     where
     to : ∀ {n} (xs ys : Vec A n) →
          Pointwise _∼_ xs ys → Pointwise′ _∼_ xs ys
@@ -104,8 +104,8 @@ private
   Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
                 Pointwise _≡_ xs ys ⇔ xs ≡ ys
   Pointwise-≡ =
-    Equiv.equivalent
-      (to ∘ _⟨$⟩_ (Equivalent.to equivalent))
+    Equiv.equivalence
+      (to ∘ _⟨$⟩_ (Equivalence.to equivalent))
       (λ xs≡ys → P.subst (Pointwise _≡_ _) xs≡ys (refl P.refl))
     where
     to : ∀ {n} {xs ys : Vec A n} → Pointwise′ _≡_ xs ys → xs ≡ ys
@@ -126,9 +126,9 @@ private
           Reflexive _∼_ →
           Pointwise (Plus _∼_) xs ys → Plus (Pointwise _∼_) xs ys
   ∙⁺⇒⁺∙ {_∼_} x∼x =
-    Plus.map (_⟨$⟩_ (Equivalent.from equivalent)) ∘
+    Plus.map (_⟨$⟩_ (Equivalence.from equivalent)) ∘
     helper ∘
-    _⟨$⟩_ (Equivalent.to equivalent)
+    _⟨$⟩_ (Equivalence.to equivalent)
     where
     helper : ∀ {n} {xs ys : Vec A n} →
              Pointwise′ (Plus _∼_) xs ys → Plus (Pointwise′ _∼_) xs ys
@@ -139,7 +139,7 @@ private
       y ∷ ys  ∎
       where
       xs∼xs : Pointwise′ _∼_ xs xs
-      xs∼xs = Equivalent.to equivalent ⟨$⟩ refl x∼x
+      xs∼xs = Equivalence.to equivalent ⟨$⟩ refl x∼x
 
 open Dummy public
 
@@ -180,9 +180,9 @@ private
          Pointwise (Plus _R_) xs ys →
          Plus (Pointwise _R_) xs ys)
   counterexample ∙⁺⇒⁺∙ =
-    ¬ix⁺∙jz (Equivalent.to Plus.equivalent ⟨$⟩
-               Plus.map (_⟨$⟩_ (Equivalent.to equivalent))
-                 (∙⁺⇒⁺∙ (Equivalent.from equivalent ⟨$⟩ ix∙⁺jz)))
+    ¬ix⁺∙jz (Equivalence.to Plus.equivalent ⟨$⟩
+               Plus.map (_⟨$⟩_ (Equivalence.to equivalent))
+                 (∙⁺⇒⁺∙ (Equivalence.from equivalent ⟨$⟩ ix∙⁺jz)))
 
 -- Map.
 

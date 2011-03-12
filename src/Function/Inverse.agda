@@ -60,14 +60,14 @@ record Inverse {f₁ f₂ t₁ t₂}
     }
 
   open Bijection bijection public
-    using (equivalent; surjective; surjection; right-inverse)
+    using (equivalence; surjective; surjection; right-inverse)
 
 -- The set of all inverses between two sets.
 
-infix 3 _⇿_
+infix 3 _↔_
 
-_⇿_ : ∀ {f t} → Set f → Set t → Set _
-From ⇿ To = Inverse (P.setoid From) (P.setoid To)
+_↔_ : ∀ {f t} → Set f → Set t → Set _
+From ↔ To = Inverse (P.setoid From) (P.setoid To)
 
 -- If two setoids are in bijective correspondence, then there is an
 -- inverse between them.
@@ -159,13 +159,3 @@ sym inv = record
     ; right-inverse-of = left-inverse-of
     }
   } where open Inverse inv
-
--- For fixed universe levels we can construct a setoid.
-
-setoid : (s₁ s₂ : Level) → Setoid (suc (s₁ ⊔ s₂)) (s₁ ⊔ s₂)
-setoid s₁ s₂ = record
-  { Carrier       = Setoid s₁ s₂
-  ; _≈_           = Inverse
-  ; isEquivalence =
-      record {refl = id; sym = sym; trans = flip _∘_}
-  }

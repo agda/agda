@@ -10,15 +10,18 @@ open import Data.Product as Prod
 open import Data.Sum
 open import Data.Unit using (⊤)
 open import Function
-open import Function.Equality as F using (_⟨$⟩_)
+open import Function.Equality as F using (_⟶_; _⟨$⟩_)
 open import Function.Equivalence as Eq
-  using (Equivalent; _⇔_; module Equivalent)
-  renaming (_∘_ to _⟨∘⟩_)
+  using (Equivalence; _⇔_; module Equivalence)
+open import Function.Injection as Inj
+  using (Injection; _↣_; module Injection)
 open import Function.Inverse as Inv
-  using (Inverse; _⇿_; module Inverse)
-  renaming (_∘_ to _⟪∘⟫_)
-open import Function.LeftInverse
-  using (_LeftInverseOf_; _RightInverseOf_)
+  using (Inverse; _↔_; module Inverse)
+open import Function.LeftInverse as LeftInv
+  using (LeftInverse; _↞_; _LeftInverseOf_; module LeftInverse)
+open import Function.Related
+open import Function.Surjection as Surj
+  using (Surjection; _↠_; module Surjection)
 open import Level
 open import Relation.Nullary.Product
 open import Relation.Binary
@@ -248,11 +251,11 @@ s₁ ×-strictPartialOrder s₂ = record
   } where open StrictPartialOrder
 
 ------------------------------------------------------------------------
--- Some properties related to equivalences and inverses
+-- Some properties related to "relatedness"
 
-×-Rel⇿≡ : ∀ {a b} {A : Set a} {B : Set b} →
+×-Rel↔≡ : ∀ {a b} {A : Set a} {B : Set b} →
           Inverse (P.setoid A ×-setoid P.setoid B) (P.setoid (A × B))
-×-Rel⇿≡ {A = A} {B} = record
+×-Rel↔≡ {A = A} {B} = record
   { to         = record { _⟨$⟩_ = id; cong = to-cong   }
   ; from       = record { _⟨$⟩_ = id; cong = from-cong }
   ; inverse-of = record
@@ -273,71 +276,151 @@ s₁ ×-strictPartialOrder s₂ = record
   from-cong : P._≡_ ⇒ (P._≡_ ×-Rel P._≡_)
   from-cong P.refl = (P.refl , P.refl)
 
-_×-equivalent_ :
-  ∀ {a₁ a₂ b₁ b₂ c₁ c₂ d₁ d₂}
-    {A : Setoid a₁ a₂} {B : Setoid b₁ b₂}
-    {C : Setoid c₁ c₂} {D : Setoid d₁ d₂} →
-  Equivalent A B → Equivalent C D →
-  Equivalent (A ×-setoid C) (B ×-setoid D)
-_×-equivalent_ {A = A} {B} {C} {D} A⇔B C⇔D = record
-  { to   = record { _⟨$⟩_ = to;   cong = λ {x y} → to-cong   {x} {y} }
-  ; from = record { _⟨$⟩_ = from; cong = λ {x y} → from-cong {x} {y} }
+_×-⟶_ :
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
+  A ⟶ B → C ⟶ D → (A ×-setoid C) ⟶ (B ×-setoid D)
+_×-⟶_ {A = A} {B} {C} {D} f g = record
+  { _⟨$⟩_ = fg
+  ; cong  = fg-cong
   }
   where
   open Setoid (A ×-setoid C) using () renaming (_≈_ to _≈AC_)
   open Setoid (B ×-setoid D) using () renaming (_≈_ to _≈BD_)
 
-  to = Prod.map (_⟨$⟩_ (Equivalent.to A⇔B))
-                (_⟨$⟩_ (Equivalent.to C⇔D))
+  fg = Prod.map (_⟨$⟩_ f) (_⟨$⟩_ g)
 
-  to-cong : _≈AC_ =[ to ]⇒ _≈BD_
-  to-cong (_∼₁_ , _∼₂_) =
-    (F.cong (Equivalent.to A⇔B) _∼₁_ , F.cong (Equivalent.to C⇔D) _∼₂_)
+  fg-cong : _≈AC_ =[ fg ]⇒ _≈BD_
+  fg-cong (_∼₁_ , _∼₂_) = (F.cong f _∼₁_ , F.cong g _∼₂_)
 
-  from = Prod.map (_⟨$⟩_ (Equivalent.from A⇔B))
-                  (_⟨$⟩_ (Equivalent.from C⇔D))
-
-  from-cong : _≈BD_ =[ from ]⇒ _≈AC_
-  from-cong (_∼₁_ , _∼₂_) =
-    (F.cong (Equivalent.from A⇔B) _∼₁_ ,
-     F.cong (Equivalent.from C⇔D) _∼₂_)
+_×-equivalence_ :
+  ∀ {a₁ a₂ b₁ b₂ c₁ c₂ d₁ d₂}
+    {A : Setoid a₁ a₂} {B : Setoid b₁ b₂}
+    {C : Setoid c₁ c₂} {D : Setoid d₁ d₂} →
+  Equivalence A B → Equivalence C D →
+  Equivalence (A ×-setoid C) (B ×-setoid D)
+_×-equivalence_ {A = A} {B} {C} {D} A⇔B C⇔D = record
+  { to   = to   A⇔B ×-⟶ to   C⇔D
+  ; from = from A⇔B ×-⟶ from C⇔D
+  } where open Equivalence
 
 _×-⇔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
         A ⇔ B → C ⇔ D → (A × C) ⇔ (B × D)
 _×-⇔_ {A = A} {B} {C} {D} A⇔B C⇔D =
-  Inverse.equivalent (×-Rel⇿≡ {A = B} {B = D}) ⟨∘⟩
-  A⇔B ×-equivalent C⇔D ⟨∘⟩
-  Eq.sym (Inverse.equivalent (×-Rel⇿≡ {A = A} {B = C}))
+  Inverse.equivalence (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
+  A⇔B ×-equivalence C⇔D ⟨∘⟩
+  Eq.sym (Inverse.equivalence (×-Rel↔≡ {A = A} {B = C}))
+  where open Eq using () renaming (_∘_ to _⟨∘⟩_)
 
-_×-inverse_ :
-  ∀ {a₁ a₂ b₁ b₂ c₁ c₂ d₁ d₂}
-    {A : Setoid a₁ a₂} {B : Setoid b₁ b₂}
-    {C : Setoid c₁ c₂} {D : Setoid d₁ d₂} →
-  Inverse A B → Inverse C D → Inverse (A ×-setoid C) (B ×-setoid D)
-A⇿B ×-inverse C⇿D = record
-  { to         = Equivalent.to   eq
-  ; from       = Equivalent.from eq
-  ; inverse-of = record
-    { left-inverse-of  = left
-    ; right-inverse-of = right
+_×-injection_ :
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
+  Injection A B → Injection C D →
+  Injection (A ×-setoid C) (B ×-setoid D)
+A↣B ×-injection C↣D = record
+  { to        = to A↣B ×-⟶ to C↣D
+  ; injective = Prod.map (injective A↣B) (injective C↣D)
+  } where open Injection
+
+_×-↣_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ↣ B → C ↣ D → (A × C) ↣ (B × D)
+_×-↣_ {A = A} {B} {C} {D} A↣B C↣D =
+  Inverse.injection (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
+  A↣B ×-injection C↣D ⟨∘⟩
+  Inverse.injection (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
+  where open Inj using () renaming (_∘_ to _⟨∘⟩_)
+
+_×-left-inverse_ :
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
+  LeftInverse A B → LeftInverse C D →
+  LeftInverse (A ×-setoid C) (B ×-setoid D)
+A↞B ×-left-inverse C↞D = record
+  { to              = Equivalence.to eq
+  ; from            = Equivalence.from eq
+  ; left-inverse-of = left
+  }
+  where
+  open LeftInverse
+  eq = LeftInverse.equivalence A↞B ×-equivalence
+       LeftInverse.equivalence C↞D
+
+  left : Equivalence.from eq LeftInverseOf Equivalence.to eq
+  left (x , y) = ( left-inverse-of A↞B x
+                 , left-inverse-of C↞D y
+                 )
+
+_×-↞_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ↞ B → C ↞ D → (A × C) ↞ (B × D)
+_×-↞_ {A = A} {B} {C} {D} A↞B C↞D =
+  Inverse.left-inverse (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
+  A↞B ×-left-inverse C↞D ⟨∘⟩
+  Inverse.left-inverse (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
+  where open LeftInv using () renaming (_∘_ to _⟨∘⟩_)
+
+_×-surjection_ :
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
+  Surjection A B → Surjection C D →
+  Surjection (A ×-setoid C) (B ×-setoid D)
+A↠B ×-surjection C↠D = record
+  { to         = LeftInverse.from inv
+  ; surjective = record
+    { from             = LeftInverse.to inv
+    ; right-inverse-of = LeftInverse.left-inverse-of inv
     }
   }
   where
-  eq = Inverse.equivalent A⇿B ×-equivalent Inverse.equivalent C⇿D
+  open Surjection
+  inv = right-inverse A↠B ×-left-inverse right-inverse C↠D
 
-  left : Equivalent.from eq LeftInverseOf Equivalent.to eq
-  left (x , y) = ( Inverse.left-inverse-of A⇿B x
-                 , Inverse.left-inverse-of C⇿D y
-                 )
+_×-↠_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ↠ B → C ↠ D → (A × C) ↠ (B × D)
+_×-↠_ {A = A} {B} {C} {D} A↠B C↠D =
+  Inverse.surjection (×-Rel↔≡ {A = B} {B = D}) ⟨∘⟩
+  A↠B ×-surjection C↠D ⟨∘⟩
+  Inverse.surjection (Inv.sym (×-Rel↔≡ {A = A} {B = C}))
+  where open Surj using () renaming (_∘_ to _⟨∘⟩_)
 
-  right : Equivalent.from eq RightInverseOf Equivalent.to eq
-  right (x , y) = ( Inverse.right-inverse-of A⇿B x
-                  , Inverse.right-inverse-of C⇿D y
-                  )
+_×-inverse_ :
+  ∀ {s₁ s₂ s₃ s₄ s₅ s₆ s₇ s₈}
+    {A : Setoid s₁ s₂} {B : Setoid s₃ s₄}
+    {C : Setoid s₅ s₆} {D : Setoid s₇ s₈} →
+  Inverse A B → Inverse C D → Inverse (A ×-setoid C) (B ×-setoid D)
+A↔B ×-inverse C↔D = record
+  { to         = Surjection.to   surj
+  ; from       = Surjection.from surj
+  ; inverse-of = record
+    { left-inverse-of  = LeftInverse.left-inverse-of inv
+    ; right-inverse-of = Surjection.right-inverse-of surj
+    }
+  }
+  where
+  open Inverse
+  surj = Inverse.surjection   A↔B ×-surjection
+         Inverse.surjection   C↔D
+  inv  = Inverse.left-inverse A↔B ×-left-inverse
+         Inverse.left-inverse C↔D
 
-_×-⇿_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-        A ⇿ B → C ⇿ D → (A × C) ⇿ (B × D)
-_×-⇿_ {A = A} {B} {C} {D} A⇿B C⇿D =
-  ×-Rel⇿≡ {A = B} {B = D} ⟪∘⟫
-  A⇿B ×-inverse C⇿D ⟪∘⟫
-  Inv.sym (×-Rel⇿≡ {A = A} {B = C})
+_×-↔_ : ∀ {a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+        A ↔ B → C ↔ D → (A × C) ↔ (B × D)
+_×-↔_ {A = A} {B} {C} {D} A↔B C↔D =
+  ×-Rel↔≡ {A = B} {B = D} ⟨∘⟩
+  A↔B ×-inverse C↔D ⟨∘⟩
+  Inv.sym (×-Rel↔≡ {A = A} {B = C})
+  where open Inv using () renaming (_∘_ to _⟨∘⟩_)
+
+_×-cong_ : ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
+           A ≈[ k ] B → C ≈[ k ] D → (A × C) ≈[ k ] (B × D)
+_×-cong_ {implication}         = λ f g →      Prod.map        f         g
+_×-cong_ {reverse-implication} = λ f g → lam (Prod.map (app-← f) (app-← g))
+_×-cong_ {equivalence}         = _×-⇔_
+_×-cong_ {injection}           = _×-↣_
+_×-cong_ {reverse-injection}   = λ f g → lam (app-↢ f ×-↣ app-↢ g)
+_×-cong_ {left-inverse}        = _×-↞_
+_×-cong_ {surjection}          = _×-↠_
+_×-cong_ {bijection}           = _×-↔_

@@ -21,7 +21,7 @@ open import Relation.Binary
 import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (_⇔_; module Equivalent)
+open import Function.Equivalence using (_⇔_; module Equivalence)
 open import Data.Product
 
 ∨-∧-distrib : _∨_ DistributesOver _∧_
@@ -82,4 +82,4 @@ replace-equality {_≈′_} ≈⇔≈′ = record
     { isLattice    = Lattice.isLattice (L.replace-equality ≈⇔≈′)
     ; ∨-∧-distribʳ = λ x y z → to ⟨$⟩ ∨-∧-distribʳ x y z
     }
-  } where open module E {x y} = Equivalent (≈⇔≈′ {x} {y})
+  } where open module E {x y} = Equivalence (≈⇔≈′ {x} {y})

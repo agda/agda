@@ -9,7 +9,7 @@ open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent)
+  using (_⇔_; equivalence; module Equivalence)
 open import Algebra
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver
@@ -267,25 +267,25 @@ not-¬ {false} refl ()
 
 ⇔→≡ : {b₁ b₂ b : Bool} → b₁ ≡ b ⇔ b₂ ≡ b → b₁ ≡ b₂
 ⇔→≡ {true } {true }         hyp = refl
-⇔→≡ {true } {false} {true } hyp = sym (Equivalent.to hyp ⟨$⟩ refl)
-⇔→≡ {true } {false} {false} hyp = Equivalent.from hyp ⟨$⟩ refl
-⇔→≡ {false} {true } {true } hyp = Equivalent.from hyp ⟨$⟩ refl
-⇔→≡ {false} {true } {false} hyp = sym (Equivalent.to hyp ⟨$⟩ refl)
+⇔→≡ {true } {false} {true } hyp = sym (Equivalence.to hyp ⟨$⟩ refl)
+⇔→≡ {true } {false} {false} hyp = Equivalence.from hyp ⟨$⟩ refl
+⇔→≡ {false} {true } {true } hyp = Equivalence.from hyp ⟨$⟩ refl
+⇔→≡ {false} {true } {false} hyp = sym (Equivalence.to hyp ⟨$⟩ refl)
 ⇔→≡ {false} {false}         hyp = refl
 
 T-≡ : ∀ {b} → T b ⇔ b ≡ true
-T-≡ {false} = equivalent (λ ())       (λ ())
-T-≡ {true}  = equivalent (const refl) (const _)
+T-≡ {false} = equivalence (λ ())       (λ ())
+T-≡ {true}  = equivalence (const refl) (const _)
 
 T-∧ : ∀ {b₁ b₂} → T (b₁ ∧ b₂) ⇔ (T b₁ × T b₂)
-T-∧ {true}  {true}  = equivalent (const (_ , _)) (const _)
-T-∧ {true}  {false} = equivalent (λ ())          proj₂
-T-∧ {false} {_}     = equivalent (λ ())          proj₁
+T-∧ {true}  {true}  = equivalence (const (_ , _)) (const _)
+T-∧ {true}  {false} = equivalence (λ ())          proj₂
+T-∧ {false} {_}     = equivalence (λ ())          proj₁
 
 T-∨ : ∀ {b₁ b₂} → T (b₁ ∨ b₂) ⇔ (T b₁ ⊎ T b₂)
-T-∨ {true}  {b₂}    = equivalent inj₁ (const _)
-T-∨ {false} {true}  = equivalent inj₂ (const _)
-T-∨ {false} {false} = equivalent inj₁ [ id , id ]
+T-∨ {true}  {b₂}    = equivalence inj₁ (const _)
+T-∨ {false} {true}  = equivalence inj₂ (const _)
+T-∨ {false} {false} = equivalence inj₁ [ id , id ]
 
 proof-irrelevance : ∀ {b} (p q : T b) → p ≡ q
 proof-irrelevance {true}  _  _  = refl

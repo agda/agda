@@ -17,9 +17,9 @@ open import Data.Bool
 open import Data.Empty
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence using (module Equivalent)
+open import Function.Equivalence using (module Equivalence)
 import Function.Injection as Inj
-open import Function.Inverse as Inv using (_⇿_; module Inverse)
+open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
 open import Data.List as List
@@ -47,52 +47,52 @@ private
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
 
-map-∈⇿ : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} {y xs} →
-         (∃ λ x → x ∈ xs × y ≡ f x) ⇿ y ∈ List.map f xs
-map-∈⇿ {a} {b} {f = f} {y} {xs} =
-  (∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Any⇿ {a = a} {p = b} ⟩
-  Any (λ x → y ≡ f x) xs      ⇿⟨ map⇿ {a = a} {b = b} {p = b} ⟩
+map-∈↔ : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} {y xs} →
+         (∃ λ x → x ∈ xs × y ≡ f x) ↔ y ∈ List.map f xs
+map-∈↔ {a} {b} {f = f} {y} {xs} =
+  (∃ λ x → x ∈ xs × y ≡ f x)  ↔⟨ Any↔ {a = a} {p = b} ⟩
+  Any (λ x → y ≡ f x) xs      ↔⟨ map↔ {a = a} {b = b} {p = b} ⟩
   y ∈ List.map f xs           ∎
   where open Related.EquationalReasoning
 
-concat-∈⇿ : ∀ {a} {A : Set a} {x : A} {xss} →
-            (∃ λ xs → x ∈ xs × xs ∈ xss) ⇿ x ∈ concat xss
-concat-∈⇿ {a} {x = x} {xss} =
-  (∃ λ xs → x ∈ xs × xs ∈ xss)  ⇿⟨ Σ.cong {a₁ = a} {b₁ = a} {b₂ = a} Inv.id $ ×⊎.*-comm _ _ ⟩
-  (∃ λ xs → xs ∈ xss × x ∈ xs)  ⇿⟨ Any⇿ {a = a} {p = a} ⟩
-  Any (Any (_≡_ x)) xss         ⇿⟨ concat⇿ {a = a} {p = a} ⟩
+concat-∈↔ : ∀ {a} {A : Set a} {x : A} {xss} →
+            (∃ λ xs → x ∈ xs × xs ∈ xss) ↔ x ∈ concat xss
+concat-∈↔ {a} {x = x} {xss} =
+  (∃ λ xs → x ∈ xs × xs ∈ xss)  ↔⟨ Σ.cong {a₁ = a} {b₁ = a} {b₂ = a} Inv.id $ ×⊎.*-comm _ _ ⟩
+  (∃ λ xs → xs ∈ xss × x ∈ xs)  ↔⟨ Any↔ {a = a} {p = a} ⟩
+  Any (Any (_≡_ x)) xss         ↔⟨ concat↔ {a = a} {p = a} ⟩
   x ∈ concat xss                ∎
   where open Related.EquationalReasoning
 
->>=-∈⇿ : ∀ {ℓ} {A B : Set ℓ} {xs} {f : A → List B} {y} →
-         (∃ λ x → x ∈ xs × y ∈ f x) ⇿ y ∈ (xs >>= f)
->>=-∈⇿ {ℓ} {xs = xs} {f} {y} =
-  (∃ λ x → x ∈ xs × y ∈ f x)  ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
-  Any (Any (_≡_ y) ∘ f) xs    ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+>>=-∈↔ : ∀ {ℓ} {A B : Set ℓ} {xs} {f : A → List B} {y} →
+         (∃ λ x → x ∈ xs × y ∈ f x) ↔ y ∈ (xs >>= f)
+>>=-∈↔ {ℓ} {xs = xs} {f} {y} =
+  (∃ λ x → x ∈ xs × y ∈ f x)  ↔⟨ Any↔ {a = ℓ} {p = ℓ} ⟩
+  Any (Any (_≡_ y) ∘ f) xs    ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f)              ∎
   where open Related.EquationalReasoning
 
-⊛-∈⇿ : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {xs y} →
-       (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ⇿ y ∈ fs ⊛ xs
-⊛-∈⇿ {ℓ} fs {xs} {y} =
-  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ⇿⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ} Inv.id (∃∃⇿∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
-  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ⇿⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ}
-                                                         Inv.id ((_ ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any⇿ {a = ℓ} {p = ℓ}) ⟩
-  (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
-  Any (λ f → Any (_≡_ y ∘ f) xs) fs            ⇿⟨ ⊛⇿ ⟩
+⊛-∈↔ : ∀ {ℓ} {A B : Set ℓ} (fs : List (A → B)) {xs y} →
+       (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x) ↔ y ∈ fs ⊛ xs
+⊛-∈↔ {ℓ} fs {xs} {y} =
+  (∃₂ λ f x → f ∈ fs × x ∈ xs × y ≡ f x)       ↔⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
+  (∃ λ f → f ∈ fs × ∃ λ x → x ∈ xs × y ≡ f x)  ↔⟨ Σ.cong {a₁ = ℓ} {b₁ = ℓ} {b₂ = ℓ}
+                                                         Inv.id ((_ ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
+  (∃ λ f → f ∈ fs × Any (_≡_ y ∘ f) xs)        ↔⟨ Any↔ {a = ℓ} {p = ℓ} ⟩
+  Any (λ f → Any (_≡_ y ∘ f) xs) fs            ↔⟨ ⊛↔ ⟩
   y ∈ fs ⊛ xs                                  ∎
   where open Related.EquationalReasoning
 
-⊗-∈⇿ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
-       (x ∈ xs × y ∈ ys) ⇿ (x , y) ∈ (xs ⊗ ys)
-⊗-∈⇿ {A} {B} {xs} {ys} {x} {y} =
-  (x ∈ xs × y ∈ ys)                ⇿⟨ ⊗⇿′ ⟩
-  Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ⇿⟨ Any-cong helper (_ ∎) ⟩
+⊗-∈↔ : ∀ {A B : Set} {xs ys} {x : A} {y : B} →
+       (x ∈ xs × y ∈ ys) ↔ (x , y) ∈ (xs ⊗ ys)
+⊗-∈↔ {A} {B} {xs} {ys} {x} {y} =
+  (x ∈ xs × y ∈ ys)                ↔⟨ ⊗↔′ ⟩
+  Any (_≡_ x ⟨×⟩ _≡_ y) (xs ⊗ ys)  ↔⟨ Any-cong helper (_ ∎) ⟩
   (x , y) ∈ (xs ⊗ ys)              ∎
   where
   open Related.EquationalReasoning
 
-  helper : (p : A × B) → (x ≡ proj₁ p × y ≡ proj₂ p) ⇿ (x , y) ≡ p
+  helper : (p : A × B) → (x ≡ proj₁ p × y ≡ proj₂ p) ↔ (x , y) ≡ p
   helper (x′ , y′) = record
     { to         = P.→-to-⟶ (uncurry $ P.cong₂ _,_)
     ; from       = P.→-to-⟶ < P.cong proj₁ , P.cong proj₂ >
@@ -109,60 +109,60 @@ concat-∈⇿ {a} {x = x} {xss} =
 mono : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
        xs ⊆ ys → Any P xs → Any P ys
 mono xs⊆ys =
-  _⟨$⟩_ (Inverse.to Any⇿) ∘′
+  _⟨$⟩_ (Inverse.to Any↔) ∘′
   Prod.map id (Prod.map xs⊆ys id) ∘
-  _⟨$⟩_ (Inverse.from Any⇿)
+  _⟨$⟩_ (Inverse.from Any↔)
 
 map-mono : ∀ {a b} {A : Set a} {B : Set b} (f : A → B) {xs ys} →
            xs ⊆ ys → List.map f xs ⊆ List.map f ys
 map-mono f xs⊆ys =
-  _⟨$⟩_ (Inverse.to map-∈⇿) ∘
+  _⟨$⟩_ (Inverse.to map-∈↔) ∘
   Prod.map id (Prod.map xs⊆ys id) ∘
-  _⟨$⟩_ (Inverse.from map-∈⇿)
+  _⟨$⟩_ (Inverse.from map-∈↔)
 
 _++-mono_ : ∀ {a} {A : Set a} {xs₁ xs₂ ys₁ ys₂ : List A} →
             xs₁ ⊆ ys₁ → xs₂ ⊆ ys₂ → xs₁ ++ xs₂ ⊆ ys₁ ++ ys₂
 _++-mono_ xs₁⊆ys₁ xs₂⊆ys₂ =
-  _⟨$⟩_ (Inverse.to ++⇿) ∘
+  _⟨$⟩_ (Inverse.to ++↔) ∘
   Sum.map xs₁⊆ys₁ xs₂⊆ys₂ ∘
-  _⟨$⟩_ (Inverse.from ++⇿)
+  _⟨$⟩_ (Inverse.from ++↔)
 
 concat-mono : ∀ {a} {A : Set a} {xss yss : List (List A)} →
               xss ⊆ yss → concat xss ⊆ concat yss
 concat-mono {a} xss⊆yss =
-  _⟨$⟩_ (Inverse.to $ concat-∈⇿ {a = a}) ∘
+  _⟨$⟩_ (Inverse.to $ concat-∈↔ {a = a}) ∘
   Prod.map id (Prod.map id xss⊆yss) ∘
-  _⟨$⟩_ (Inverse.from $ concat-∈⇿ {a = a})
+  _⟨$⟩_ (Inverse.from $ concat-∈↔ {a = a})
 
 >>=-mono : ∀ {ℓ} {A B : Set ℓ} (f g : A → List B) {xs ys} →
            xs ⊆ ys → (∀ {x} → f x ⊆ g x) →
            (xs >>= f) ⊆ (ys >>= g)
 >>=-mono {ℓ} f g xs⊆ys f⊆g =
-  _⟨$⟩_ (Inverse.to $ >>=-∈⇿ {ℓ = ℓ}) ∘
+  _⟨$⟩_ (Inverse.to $ >>=-∈↔ {ℓ = ℓ}) ∘
   Prod.map id (Prod.map xs⊆ys f⊆g) ∘
-  _⟨$⟩_ (Inverse.from $ >>=-∈⇿ {ℓ = ℓ})
+  _⟨$⟩_ (Inverse.from $ >>=-∈↔ {ℓ = ℓ})
 
 _⊛-mono_ : ∀ {ℓ} {A B : Set ℓ}
              {fs gs : List (A → B)} {xs ys : List A} →
            fs ⊆ gs → xs ⊆ ys → (fs ⊛ xs) ⊆ (gs ⊛ ys)
 _⊛-mono_ {fs = fs} {gs} fs⊆gs xs⊆ys =
-  _⟨$⟩_ (Inverse.to $ ⊛-∈⇿ gs) ∘
+  _⟨$⟩_ (Inverse.to $ ⊛-∈↔ gs) ∘
   Prod.map id (Prod.map id (Prod.map fs⊆gs (Prod.map xs⊆ys id))) ∘
-  _⟨$⟩_ (Inverse.from $ ⊛-∈⇿ fs)
+  _⟨$⟩_ (Inverse.from $ ⊛-∈↔ fs)
 
 _⊗-mono_ : {A B : Set} {xs₁ ys₁ : List A} {xs₂ ys₂ : List B} →
            xs₁ ⊆ ys₁ → xs₂ ⊆ ys₂ → (xs₁ ⊗ xs₂) ⊆ (ys₁ ⊗ ys₂)
 xs₁⊆ys₁ ⊗-mono xs₂⊆ys₂ =
-  _⟨$⟩_ (Inverse.to ⊗-∈⇿) ∘
+  _⟨$⟩_ (Inverse.to ⊗-∈↔) ∘
   Prod.map xs₁⊆ys₁ xs₂⊆ys₂ ∘
-  _⟨$⟩_ (Inverse.from ⊗-∈⇿)
+  _⟨$⟩_ (Inverse.from ⊗-∈↔)
 
 any-mono : ∀ {a} {A : Set a} (p : A → Bool) →
            ∀ {xs ys} → xs ⊆ ys → T (any p xs) → T (any p ys)
 any-mono {a} p xs⊆ys =
-  _⟨$⟩_ (Equivalent.to $ any⇔ {a = a}) ∘
+  _⟨$⟩_ (Equivalence.to $ any⇔ {a = a}) ∘
   mono xs⊆ys ∘
-  _⟨$⟩_ (Equivalent.from $ any⇔ {a = a})
+  _⟨$⟩_ (Equivalence.from $ any⇔ {a = a})
 
 map-with-∈-mono :
   ∀ {a b} {A : Set a} {B : Set b}
@@ -171,12 +171,12 @@ map-with-∈-mono :
   (xs⊆ys : xs ⊆ ys) → (∀ {x} → f {x} ≗ g ∘ xs⊆ys) →
   map-with-∈ xs f ⊆ map-with-∈ ys g
 map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {x} =
-  _⟨$⟩_ (Inverse.to map-with-∈⇿) ∘
+  _⟨$⟩_ (Inverse.to map-with-∈↔) ∘
   Prod.map id (Prod.map xs⊆ys (λ {x∈xs} x≡fx∈xs → begin
     x               ≡⟨ x≡fx∈xs ⟩
     f x∈xs          ≡⟨ f≈g x∈xs ⟩
     g (xs⊆ys x∈xs)  ∎)) ∘
-  _⟨$⟩_ (Inverse.from map-with-∈⇿)
+  _⟨$⟩_ (Inverse.from map-with-∈↔)
   where open P.≡-Reasoning
 
 ------------------------------------------------------------------------

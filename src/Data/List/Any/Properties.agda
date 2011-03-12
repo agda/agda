@@ -21,13 +21,14 @@ open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence as Eq using (_⇔_; module Equivalent)
-open import Function.Inverse as Inv using (_⇿_; module Inverse)
-open import Function.Related as Related
+open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
+open import Function.Inverse as Inv using (_↔_; module Inverse)
+open import Function.Related as Related using (Related)
 open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
+open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; inspect; _with-≡_)
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
@@ -102,9 +103,9 @@ private
 
 -- Any can be expressed using _∈_.
 
-Any⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
-       (∃ λ x → x ∈ xs × P x) ⇿ Any P xs
-Any⇿ {P = P} {xs} = record
+Any↔ : ∀ {a p} {A : Set a} {P : A → Set p} {xs} →
+       (∃ λ x → x ∈ xs × P x) ↔ Any P xs
+Any↔ {P = P} {xs} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ (find {P = P})
   ; inverse-of = record
@@ -123,39 +124,39 @@ Any⇿ {P = P} {xs} = record
 Any-cong : ∀ {k ℓ} {A : Set ℓ} {P₁ P₂ : A → Set ℓ} {xs₁ xs₂ : List A} →
            (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
            Related k (Any P₁ xs₁) (Any P₂ xs₂)
-Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁⇿P₂ xs₁≈xs₂ =
-  Any P₁ xs₁                ⇿⟨ sym $ Any⇿ {P = P₁} ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ⟨ ×⊎.*-cong ⟩ P₁⇿P₂ _) ⟩
-  (∃ λ x → x ∈ xs₂ × P₂ x)  ⇿⟨ Any⇿ {P = P₂} ⟩
+Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
+  Any P₁ xs₁                ↔⟨ sym $ Any↔ {P = P₁} ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
+  (∃ λ x → x ∈ xs₂ × P₂ x)  ↔⟨ Any↔ {P = P₂} ⟩
   Any P₂ xs₂                ∎
 
 ------------------------------------------------------------------------
 -- Swapping
 
--- Nested occurrences of Any can sometimes be swapped. See also ×⇿.
+-- Nested occurrences of Any can sometimes be swapped. See also ×↔.
 
 swap : ∀ {ℓ} {A B : Set ℓ} {P : A → B → Set ℓ} {xs ys} →
-       Any (λ x → Any (P x) ys) xs ⇿ Any (λ y → Any (flip P y) xs) ys
+       Any (λ x → Any (P x) ys) xs ↔ Any (λ y → Any (flip P y) xs) ys
 swap {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (P x) ys) xs                ⇿⟨ sym $ Any⇿ {a = ℓ} {p = ℓ} ⟩
-  (∃ λ x → x ∈ xs × Any (P x) ys)            ⇿⟨ sym $ Σ.cong Inv.id (λ {x} → (x ∈ xs ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any⇿ {a = ℓ} {p = ℓ}) ⟩
-  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ⇿⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃⇿∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
-  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ ∃∃⇿∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _ ⟩
-  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ⇿⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
-    (x ∈ xs × y ∈ ys × P x y)                     ⇿⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
-    ((x ∈ xs × y ∈ ys) × P x y)                   ⇿⟨ ×⊎.*-comm (x ∈ xs) (y ∈ ys) ⟨ ×⊎.*-cong ⟩ (P x y ∎) ⟩
-    ((y ∈ ys × x ∈ xs) × P x y)                   ⇿⟨ ×⊎.*-assoc _ _ _ ⟩
+  Any (λ x → Any (P x) ys) xs                ↔⟨ sym $ Any↔ {a = ℓ} {p = ℓ} ⟩
+  (∃ λ x → x ∈ xs × Any (P x) ys)            ↔⟨ sym $ Σ.cong Inv.id (λ {x} → (x ∈ xs ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
+  (∃ λ x → x ∈ xs × ∃ λ y → y ∈ ys × P x y)  ↔⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
+  (∃₂ λ x y → x ∈ xs × y ∈ ys × P x y)       ↔⟨ ∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _ ⟩
+  (∃₂ λ y x → x ∈ xs × y ∈ ys × P x y)       ↔⟨ Σ.cong Inv.id (λ {y} → Σ.cong Inv.id (λ {x} →
+    (x ∈ xs × y ∈ ys × P x y)                     ↔⟨ sym $ ×⊎.*-assoc _ _ _ ⟩
+    ((x ∈ xs × y ∈ ys) × P x y)                   ↔⟨ ×⊎.*-comm (x ∈ xs) (y ∈ ys) ⟨ ×⊎.*-cong ⟩ (P x y ∎) ⟩
+    ((y ∈ ys × x ∈ xs) × P x y)                   ↔⟨ ×⊎.*-assoc _ _ _ ⟩
     (y ∈ ys × x ∈ xs × P x y)                     ∎)) ⟩
-  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ⇿⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃⇿∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
-  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ⇿⟨ Σ.cong Inv.id (λ {y} → (y ∈ ys ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any⇿ {a = ℓ} {p = ℓ}) ⟩
-  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ⇿⟨ Any⇿ {a = ℓ} {p = ℓ} ⟩
+  (∃₂ λ y x → y ∈ ys × x ∈ xs × P x y)       ↔⟨ Σ.cong {a₁ = ℓ} Inv.id (∃∃↔∃∃ {a = ℓ} {b = ℓ} {p = ℓ} _) ⟩
+  (∃ λ y → y ∈ ys × ∃ λ x → x ∈ xs × P x y)  ↔⟨ Σ.cong Inv.id (λ {y} → (y ∈ ys ∎) ⟨ ×⊎.*-cong {ℓ = ℓ} ⟩ Any↔ {a = ℓ} {p = ℓ}) ⟩
+  (∃ λ y → y ∈ ys × Any (flip P y) xs)       ↔⟨ Any↔ {a = ℓ} {p = ℓ} ⟩
   Any (λ y → Any (flip P y) xs) ys           ∎
 
 ------------------------------------------------------------------------
 -- Lemmas relating Any to ⊥
 
-⊥⇿Any⊥ : ∀ {a} {A : Set a} {xs : List A} → ⊥ ⇿ Any (const ⊥) xs
-⊥⇿Any⊥ {A = A} = record
+⊥↔Any⊥ : ∀ {a} {A : Set a} {xs : List A} → ⊥ ↔ Any (const ⊥) xs
+⊥↔Any⊥ {A = A} = record
   { to         = P.→-to-⟶ (λ ())
   ; from       = P.→-to-⟶ (λ p → from p)
   ; inverse-of = record
@@ -168,8 +169,8 @@ swap {ℓ} {P = P} {xs} {ys} =
   from (here ())
   from (there p) = from p
 
-⊥⇿Any[] : ∀ {a} {A : Set a} {P : A → Set} → ⊥ ⇿ Any P []
-⊥⇿Any[] = record
+⊥↔Any[] : ∀ {a} {A : Set a} {P : A → Set} → ⊥ ↔ Any P []
+⊥↔Any[] = record
   { to         = P.→-to-⟶ (λ ())
   ; from       = P.→-to-⟶ (λ ())
   ; inverse-of = record
@@ -183,9 +184,9 @@ swap {ℓ} {P = P} {xs} {ys} =
 
 -- Sums commute with Any (for a fixed list).
 
-⊎⇿ : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} {xs} →
-     (Any P xs ⊎ Any Q xs) ⇿ Any (λ x → P x ⊎ Q x) xs
-⊎⇿ {P = P} {Q} = record
+⊎↔ : ∀ {a p q} {A : Set a} {P : A → Set p} {Q : A → Set q} {xs} →
+     (Any P xs ⊎ Any Q xs) ↔ Any (λ x → P x ⊎ Q x) xs
+⊎↔ {P = P} {Q} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
@@ -218,10 +219,10 @@ swap {ℓ} {P = P} {xs} {ys} =
 
 -- Products "commute" with Any.
 
-×⇿ : {A B : Set} {P : A → Set} {Q : B → Set}
+×↔ : {A B : Set} {P : A → Set} {Q : B → Set}
      {xs : List A} {ys : List B} →
-     (Any P xs × Any Q ys) ⇿ Any (λ x → Any (λ y → P x × Q y) ys) xs
-×⇿ {P = P} {Q} {xs} {ys} = record
+     (Any P xs × Any Q ys) ↔ Any (λ x → Any (λ y → P x × Q y) ys) xs
+×↔ {P = P} {Q} {xs} {ys} = record
   { to         = P.→-to-⟶ to
   ; from       = P.→-to-⟶ from
   ; inverse-of = record
@@ -304,10 +305,10 @@ private
   map⁻∘map⁺ P (here  p) = refl
   map⁻∘map⁺ P (there p) = P.cong there (map⁻∘map⁺ P p)
 
-map⇿ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
+map↔ : ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p}
          {f : A → B} {xs} →
-       Any (P ∘ f) xs ⇿ Any P (List.map f xs)
-map⇿ {P = P} {f = f} = record
+       Any (P ∘ f) xs ↔ Any P (List.map f xs)
+map↔ {P = P} {f = f} = record
   { to         = P.→-to-⟶ $ map⁺ {P = P} {f = f}
   ; from       = P.→-to-⟶ $ map⁻ {P = P} {f = f}
   ; inverse-of = record
@@ -354,9 +355,9 @@ private
   ++⁻∘++⁺ (x ∷ xs) {ys} (inj₁ (there p)) rewrite ++⁻∘++⁺ xs {ys} (inj₁ p) = refl
   ++⁻∘++⁺ (x ∷ xs)      (inj₂ p)         rewrite ++⁻∘++⁺ xs      (inj₂ p) = refl
 
-++⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
-      (Any P xs ⊎ Any P ys) ⇿ Any P (xs ++ ys)
-++⇿ {P = P} {xs = xs} = record
+++↔ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
+      (Any P xs ⊎ Any P ys) ↔ Any P (xs ++ ys)
+++↔ {P = P} {xs = xs} = record
   { to         = P.→-to-⟶ [ ++⁺ˡ {P = P}, ++⁺ʳ {P = P} xs ]′
   ; from       = P.→-to-⟶ $ ++⁻ {P = P} xs
   ; inverse-of = record
@@ -388,9 +389,9 @@ private
                     return⁻ {P = P} (return⁺ p) ≡ p
   return⁻∘return⁺ P p = refl
 
-return⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
-          P x ⇿ Any P (return x)
-return⇿ {P = P} = record
+return↔ : ∀ {a p} {A : Set a} {P : A → Set p} {x} →
+          P x ↔ Any P (return x)
+return↔ {P = P} = record
   { to         = P.→-to-⟶ $ return⁺ {P = P}
   ; from       = P.→-to-⟶ $ return⁻ {P = P}
   ; inverse-of = record
@@ -454,9 +455,9 @@ private
     rewrite concat⁻∘++⁺ʳ xs xss (concat⁺ p) =
       P.cong there $ concat⁻∘concat⁺ p
 
-concat⇿ : ∀ {a p} {A : Set a} {P : A → Set p} {xss} →
-          Any (Any P) xss ⇿ Any P (concat xss)
-concat⇿ {P = P} {xss = xss} = record
+concat↔ : ∀ {a p} {A : Set a} {P : A → Set p} {xss} →
+          Any (Any P) xss ↔ Any P (concat xss)
+concat↔ {P = P} {xss = xss} = record
   { to         = P.→-to-⟶ $ concat⁺ {P = P}
   ; from       = P.→-to-⟶ $ concat⁻ {P = P} xss
   ; inverse-of = record
@@ -467,22 +468,22 @@ concat⇿ {P = P} {xss = xss} = record
 
 -- _>>=_.
 
->>=⇿ : ∀ {ℓ p} {A B : Set ℓ} {P : B → Set p} {xs} {f : A → List B} →
-       Any (Any P ∘ f) xs ⇿ Any P (xs >>= f)
->>=⇿ {P = P} {xs} {f} =
-  Any (Any P ∘ f) xs           ⇿⟨ map⇿ {P = Any P} {f = f} ⟩
-  Any (Any P) (List.map f xs)  ⇿⟨ concat⇿ {P = P} ⟩
+>>=↔ : ∀ {ℓ p} {A B : Set ℓ} {P : B → Set p} {xs} {f : A → List B} →
+       Any (Any P ∘ f) xs ↔ Any P (xs >>= f)
+>>=↔ {P = P} {xs} {f} =
+  Any (Any P ∘ f) xs           ↔⟨ map↔ {P = Any P} {f = f} ⟩
+  Any (Any P) (List.map f xs)  ↔⟨ concat↔ {P = P} ⟩
   Any P (xs >>= f)             ∎
 
 -- _⊛_.
 
-⊛⇿ : ∀ {ℓ} {A B : Set ℓ} {P : B → Set ℓ}
+⊛↔ : ∀ {ℓ} {A B : Set ℓ} {P : B → Set ℓ}
        {fs : List (A → B)} {xs : List A} →
-     Any (λ f → Any (P ∘ f) xs) fs ⇿ Any P (fs ⊛ xs)
-⊛⇿ {ℓ} {P = P} {fs} {xs} =
-  Any (λ f → Any (P ∘ f) xs) fs               ⇿⟨ Any-cong (λ _ → Any-cong (λ _ → return⇿ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
-  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ⇿⟨ Any-cong (λ _ → >>=⇿ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
-  Any (λ f → Any P (xs >>= return ∘ f)) fs    ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+     Any (λ f → Any (P ∘ f) xs) fs ↔ Any P (fs ⊛ xs)
+⊛↔ {ℓ} {P = P} {fs} {xs} =
+  Any (λ f → Any (P ∘ f) xs) fs               ↔⟨ Any-cong (λ _ → Any-cong (λ _ → return↔ {a = ℓ} {p = ℓ}) (_ ∎)) (_ ∎) ⟩
+  Any (λ f → Any (Any P ∘ return ∘ f) xs) fs  ↔⟨ Any-cong (λ _ → >>=↔ {ℓ = ℓ} {p = ℓ}) (_ ∎) ⟩
+  Any (λ f → Any P (xs >>= return ∘ f)) fs    ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
   Any P (fs ⊛ xs)                             ∎
 
 -- An alternative introduction rule for _⊛_.
@@ -491,35 +492,35 @@ concat⇿ {P = P} {xss = xss} = record
       {fs : List (A → B)} {xs} →
       Any (P ⟨→⟩ Q) fs → Any P xs → Any Q (fs ⊛ xs)
 ⊛⁺′ {ℓ} pq p =
-  Inverse.to (⊛⇿ {ℓ = ℓ}) ⟨$⟩
+  Inverse.to (⊛↔ {ℓ = ℓ}) ⟨$⟩
     Any.map (λ pq → Any.map (λ {x} → pq {x}) p) pq
 
 -- _⊗_.
 
-⊗⇿ : ∀ {ℓ} {A B : Set ℓ} {P : A × B → Set ℓ}
+⊗↔ : ∀ {ℓ} {A B : Set ℓ} {P : A × B → Set ℓ}
        {xs : List A} {ys : List B} →
-     Any (λ x → Any (λ y → P (x , y)) ys) xs ⇿ Any P (xs ⊗ ys)
-⊗⇿ {ℓ} {P = P} {xs} {ys} =
-  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ⇿⟨ return⇿ {a = ℓ} {p = ℓ} ⟩
-  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ⇿⟨ ⊛⇿ ⟩
-  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ⇿⟨ ⊛⇿ ⟩
+     Any (λ x → Any (λ y → P (x , y)) ys) xs ↔ Any P (xs ⊗ ys)
+⊗↔ {ℓ} {P = P} {xs} {ys} =
+  Any (λ x → Any (λ y → P (x , y)) ys) xs                             ↔⟨ return↔ {a = ℓ} {p = ℓ} ⟩
+  Any (λ _,_ → Any (λ x → Any (λ y → P (x , y)) ys) xs) (return _,_)  ↔⟨ ⊛↔ ⟩
+  Any (λ x, → Any (P ∘ x,) ys) (_,_ <$> xs)                           ↔⟨ ⊛↔ ⟩
   Any P (xs ⊗ ys)                                                     ∎
 
-⊗⇿′ : {A B : Set} {P : A → Set} {Q : B → Set}
+⊗↔′ : {A B : Set} {P : A → Set} {Q : B → Set}
       {xs : List A} {ys : List B} →
-      (Any P xs × Any Q ys) ⇿ Any (P ⟨×⟩ Q) (xs ⊗ ys)
-⊗⇿′ {P = P} {Q} {xs} {ys} =
-  (Any P xs × Any Q ys)                    ⇿⟨ ×⇿ ⟩
-  Any (λ x → Any (λ y → P x × Q y) ys) xs  ⇿⟨ ⊗⇿ ⟩
+      (Any P xs × Any Q ys) ↔ Any (P ⟨×⟩ Q) (xs ⊗ ys)
+⊗↔′ {P = P} {Q} {xs} {ys} =
+  (Any P xs × Any Q ys)                    ↔⟨ ×↔ ⟩
+  Any (λ x → Any (λ y → P x × Q y) ys) xs  ↔⟨ ⊗↔ ⟩
   Any (P ⟨×⟩ Q) (xs ⊗ ys)                  ∎
 
 -- map-with-∈.
 
-map-with-∈⇿ :
+map-with-∈↔ :
   ∀ {a b p} {A : Set a} {B : Set b} {P : B → Set p} {xs : List A}
     {f : ∀ {x} → x ∈ xs → B} →
-  (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) ⇿ Any P (map-with-∈ xs f)
-map-with-∈⇿ {A = A} {B} {P} = record
+  (∃₂ λ x (x∈xs : x ∈ xs) → P (f x∈xs)) ↔ Any P (map-with-∈ xs f)
+map-with-∈↔ {A = A} {B} {P} = record
   { to         = P.→-to-⟶ (map-with-∈⁺ _)
   ; from       = P.→-to-⟶ (map-with-∈⁻ _ _)
   ; inverse-of = record
@@ -569,7 +570,7 @@ private
 
   any⁺ : ∀ {a} {A : Set a} (p : A → Bool) {xs} →
          Any (T ∘ p) xs → T (any p xs)
-  any⁺ p (here  px)          = Equivalent.from T-∨ ⟨$⟩ inj₁ px
+  any⁺ p (here  px)          = Equivalence.from T-∨ ⟨$⟩ inj₁ px
   any⁺ p (there {x = x} pxs) with p x
   ... | true  = _
   ... | false = any⁺ p pxs
@@ -578,14 +579,14 @@ private
          T (any p xs) → Any (T ∘ p) xs
   any⁻ p []       ()
   any⁻ p (x ∷ xs) px∷xs with inspect (p x)
-  any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalent.from T-≡ ⟨$⟩ eq)
+  any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalence.from T-≡ ⟨$⟩ eq)
   any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
   any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
     there (any⁻ p xs pxs)
 
 any⇔ : ∀ {a} {A : Set a} {p : A → Bool} {xs} →
        Any (T ∘ p) xs ⇔ T (any p xs)
-any⇔ = Eq.equivalent (any⁺ _) (any⁻ _ _)
+any⇔ = Eq.equivalence (any⁺ _) (any⁻ _ _)
 
 ------------------------------------------------------------------------
 -- _++_ is commutative
@@ -613,9 +614,9 @@ private
     rewrite ++⁻∘++⁺ ys {ys =     xs} (inj₁ p)
           | ++⁻∘++⁺ ys {ys = x ∷ xs} (inj₁ p) = P.refl
 
-++⇿++ : ∀ {a p} {A : Set a} {P : A → Set p} xs ys →
-        Any P (xs ++ ys) ⇿ Any P (ys ++ xs)
-++⇿++ {P = P} xs ys = record
+++↔++ : ∀ {a p} {A : Set a} {P : A → Set p} xs ys →
+        Any P (xs ++ ys) ↔ Any P (ys ++ xs)
+++↔++ {P = P} xs ys = record
   { to         = P.→-to-⟶ $ ++-comm {P = P} xs ys
   ; from       = P.→-to-⟶ $ ++-comm {P = P} ys xs
   ; inverse-of = record

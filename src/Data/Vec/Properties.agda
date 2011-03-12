@@ -16,7 +16,7 @@ import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
 open import Function
-open import Function.Inverse using (_⇿_)
+open import Function.Inverse using (_↔_)
 open import Level
 open import Relation.Binary
 
@@ -257,9 +257,9 @@ proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
 
 -- _[_]=_ can be expressed using lookup and _≡_.
 
-[]=⇿lookup : ∀ {a n i} {A : Set a} {x} {xs : Vec A n} →
-             xs [ i ]= x ⇿ lookup i xs ≡ x
-[]=⇿lookup {i = i} {x = x} {xs} = record
+[]=↔lookup : ∀ {a n i} {A : Set a} {x} {xs : Vec A n} →
+             xs [ i ]= x ↔ lookup i xs ≡ x
+[]=↔lookup {i = i} {x = x} {xs} = record
   { to         = PropEq.→-to-⟶ to
   ; from       = PropEq.→-to-⟶ (from i xs)
   ; inverse-of = record

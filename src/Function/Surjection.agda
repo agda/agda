@@ -9,7 +9,7 @@ module Function.Surjection where
 open import Level
 open import Function.Equality as F
   using (_⟶_) renaming (_∘_ to _⟪∘⟫_)
-open import Function.Equivalence using (Equivalent)
+open import Function.Equivalence using (Equivalence)
 open import Function.Injection           hiding (id; _∘_)
 open import Function.LeftInverse as Left hiding (id; _∘_)
 open import Data.Product
@@ -50,11 +50,24 @@ record Surjection {f₁ f₂ t₁ t₂}
   injection : Injection To From
   injection = LeftInverse.injection right-inverse
 
-  equivalent : Equivalent From To
-  equivalent = record
+  equivalence : Equivalence From To
+  equivalence = record
     { to   = to
     ; from = from
     }
+
+-- Right inverses can be turned into surjections.
+
+fromRightInverse :
+  ∀ {f₁ f₂ t₁ t₂} {From : Setoid f₁ f₂} {To : Setoid t₁ t₂} →
+  RightInverse From To → Surjection From To
+fromRightInverse r = record
+  { to         = from
+  ; surjective = record
+    { from             = to
+    ; right-inverse-of = left-inverse-of
+    }
+  } where open LeftInverse r
 
 -- The set of all surjections from one set to another.
 

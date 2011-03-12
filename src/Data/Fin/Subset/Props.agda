@@ -16,7 +16,7 @@ open import Data.Vec hiding (_∈_)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
-  using (_⇔_; equivalent; module Equivalent)
+  using (_⇔_; equivalence; module Equivalence)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
@@ -65,7 +65,7 @@ Empty-unique {p = inside  ∷ .⊥} ¬∃∈ | P.refl =
 
 x∈⁅y⁆⇔x≡y : ∀ {n} {x y : Fin n} → x ∈ ⁅ y ⁆ ⇔ x ≡ y
 x∈⁅y⁆⇔x≡y {x = x} {y} =
-  equivalent (to y) (λ x≡y → P.subst (λ y → x ∈ ⁅ y ⁆) x≡y (x∈⁅x⁆ x))
+  equivalence (to y) (λ x≡y → P.subst (λ y → x ∈ ⁅ y ⁆) x≡y (x∈⁅x⁆ x))
   where
 
   to : ∀ {n x} (y : Fin n) → x ∈ ⁅ y ⁆ → x ≡ y
@@ -81,8 +81,8 @@ x∈⁅y⁆⇔x≡y {x = x} {y} =
 ------------------------------------------------------------------------
 -- A property involving _∪_
 
-∪⇿⊎ : ∀ {n} {p₁ p₂ : Subset n} {x} → x ∈ p₁ ∪ p₂ ⇔ (x ∈ p₁ ⊎ x ∈ p₂)
-∪⇿⊎ = equivalent (to _ _) from
+∪⇔⊎ : ∀ {n} {p₁ p₂ : Subset n} {x} → x ∈ p₁ ∪ p₂ ⇔ (x ∈ p₁ ⊎ x ∈ p₂)
+∪⇔⊎ = equivalence (to _ _) from
   where
   to : ∀ {n} (p₁ p₂ : Subset n) {x} → x ∈ p₁ ∪ p₂ → x ∈ p₁ ⊎ x ∈ p₂
   to []             []             ()
@@ -118,7 +118,7 @@ module NaturalPoset where
   -- _⊆_ is equivalent to the natural lattice order.
 
   orders-equivalent : ∀ {n} {p₁ p₂ : Subset n} → p₁ ⊆ p₂ ⇔ p₁ ≤ p₂
-  orders-equivalent = equivalent (to _ _) (from _ _)
+  orders-equivalent = equivalence (to _ _) (from _ _)
     where
     to : ∀ {n} (p₁ p₂ : Subset n) → p₁ ⊆ p₂ → p₁ ≤ p₂
     to []             []             p₁⊆p₂ = P.refl
@@ -151,4 +151,4 @@ poset n = record
   where
   open NaturalPoset
   open module E {p₁ p₂} =
-    Equivalent (orders-equivalent {n = n} {p₁ = p₁} {p₂ = p₂})
+    Equivalence (orders-equivalent {n = n} {p₁ = p₁} {p₂ = p₂})

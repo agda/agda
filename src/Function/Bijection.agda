@@ -53,7 +53,7 @@ record Bijection {f₁ f₂ t₁ t₂}
     ; surjective = surjective
     }
 
-  open Surjection surjection public using (equivalent; right-inverse)
+  open Surjection surjection public using (equivalence; right-inverse)
 
   left-inverse : LeftInverse From To
   left-inverse = record

@@ -10,8 +10,8 @@ open import Data.Empty
 open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
-open import Function.Equivalence as Equiv using (module Equivalent)
-open import Function.Related as Related
+open import Function.Equivalence as Equiv using (module Equivalence)
+open import Function.Related as Related hiding (_≈[_]_)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
@@ -164,24 +164,34 @@ module Membership-≡ where
   ⊆-preorder A = Ind.InducedPreorder₂ (PropEq.setoid (List A)) _∈_
                                       (PropEq.subst (_∈_ _))
 
-  -- Set and bag equality.
+  -- Set and bag equality and related preorders.
 
   open Related public
-    using (Kind) renaming (equivalent to set; inverse to bag)
+    using (Kind; Symmetric-kind)
+    renaming ( implication         to subset
+             ; reverse-implication to superset
+             ; equivalence         to set
+             ; injection           to subbag
+             ; reverse-injection   to superbag
+             ; bijection           to bag
+             )
 
-  [_]-Equality : Kind → ∀ {a} → Set a → Setoid _ _
+  [_]-Order : Kind → ∀ {a} → Set a → Preorder _ _ _
+  [ k ]-Order A = Related.InducedPreorder₂ k (_∈_ {A = A})
+
+  [_]-Equality : Symmetric-kind → ∀ {a} → Set a → Setoid _ _
   [ k ]-Equality A = Related.InducedEquivalence₂ k (_∈_ {A = A})
 
   infix 4 _≈[_]_
 
   _≈[_]_ : ∀ {a} {A : Set a} → List A → Kind → List A → Set _
-  _≈[_]_ {A = A} xs k ys = Setoid._≈_ ([ k ]-Equality A) xs ys
+  _≈[_]_ {A = A} xs k ys = Preorder._∼_ ([ k ]-Order A) xs ys
 
-  -- Bag equality implies set equality.
+  -- Bag equality implies the other relations.
 
-  bag-=⇒set-= : ∀ {a} {A : Set a} {xs ys : List A} →
-                xs ≈[ bag ] ys → xs ≈[ set ] ys
-  bag-=⇒set-= xs≈ys = ⇿⇒ xs≈ys
+  bag-=⇒ : ∀ {k a} {A : Set a} {xs ys : List A} →
+           xs ≈[ bag ] ys → xs ≈[ k ] ys
+  bag-=⇒ xs≈ys = ↔⇒ xs≈ys
 
   -- "Equational" reasoning for _⊆_.
 
@@ -199,9 +209,8 @@ module Membership-≡ where
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
     _≈⟨_⟩_ : ∀ {k a} {A : Set a} xs {ys zs : List A} →
-             xs ≈[ k ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
-    xs ≈⟨ xs≈ys ⟩ ys≈zs =
-      xs ⊆⟨ _⟨$⟩_ (Equivalent.to (⇒⇔ xs≈ys)) ⟩ ys≈zs
+             xs ≈[ ⌊ k ⌋→ ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
+    xs ≈⟨ xs≈ys ⟩ ys≈zs = xs ⊆⟨ ⇒→ xs≈ys ⟩ ys≈zs
 
 ------------------------------------------------------------------------
 -- Another function

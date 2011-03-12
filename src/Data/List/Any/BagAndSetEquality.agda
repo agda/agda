@@ -22,8 +22,8 @@ open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 import Function.Equivalence as FE
-open import Function.Inverse as Inv using (_⇿_; module Inverse)
-open import Function.Related as Related
+open import Function.Inverse as Inv using (_↔_; module Inverse)
+open import Function.Related as Related using (↔⇒; ⌊_⌋; ⌊_⌋→; ⇒→)
 open import Function.Related.TypeIsomorphisms
 open import Level
 open import Relation.Binary
@@ -31,62 +31,19 @@ import Relation.Binary.EqReasoning as EqR
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; _with-≡_)
+open import Relation.Binary.Sum
 open import Relation.Nullary
 
 open Any.Membership-≡
 private
-  module Eq {k a} {A : Set a} = Setoid ([ k ]-Equality A)
+  module Eq  {k a} {A : Set a} = Setoid ([ k ]-Equality A)
+  module Ord {k a} {A : Set a} = Preorder ([ k ]-Order A)
   module ×⊎ {k ℓ} = CommutativeSemiring (×⊎-CommutativeSemiring k ℓ)
   open module ListMonad {ℓ} = RawMonad (List.monad {ℓ = ℓ})
   module ListMonoid {a} {A : Set a} = Monoid (List.monoid A)
 
--- _++_ and [] form a commutative monoid, with either bag or set
--- equality as the underlying equality.
-
-commutativeMonoid : ∀ {a} → Kind → Set a → CommutativeMonoid _ _
-commutativeMonoid {a} k A = record
-  { Carrier             = List A
-  ; _≈_                 = λ xs ys → xs ≈[ k ] ys
-  ; _∙_                 = _++_
-  ; ε                   = []
-  ; isCommutativeMonoid = record
-    { isSemigroup = record
-      { isEquivalence = Eq.isEquivalence
-      ; assoc         = λ xs ys zs →
-                          Eq.reflexive (ListMonoid.assoc xs ys zs)
-      ; ∙-cong        = λ {xs₁ xs₂ xs₃ xs₄} xs₁≈xs₂ xs₃≈xs₄ {x} →
-                          x ∈ xs₁ ++ xs₃       ⇿⟨ sym $ ++⇿ {a = a} {p = a} ⟩
-                          (x ∈ xs₁ ⊎ x ∈ xs₃)  ≈⟨ xs₁≈xs₂ ⟨ ×⊎.+-cong ⟩ xs₃≈xs₄ ⟩
-                          (x ∈ xs₂ ⊎ x ∈ xs₄)  ⇿⟨ ++⇿ {a = a} {p = a} ⟩
-                          x ∈ xs₂ ++ xs₄       ∎
-      }
-    ; identityˡ = λ xs {x} → x ∈ xs ∎
-    ; comm      = λ xs ys {x} →
-                    x ∈ xs ++ ys  ⇿⟨ ++⇿++ {a = a} {p = a} xs ys ⟩
-                    x ∈ ys ++ xs  ∎
-    }
-  }
-  where open Related.EquationalReasoning
-
--- The only list which is bag or set equal to the empty list is the
--- empty list itself.
-
-empty-unique : ∀ {k a} {A : Set a} {xs : List A} →
-               xs ≈[ k ] [] → xs ≡ []
-empty-unique {xs = []}    _    = P.refl
-empty-unique {xs = _ ∷ _} ∷≈[]
-  with FE.Equivalent.to (⇒⇔ ∷≈[]) ⟨$⟩ here P.refl
-... | ()
-
--- _++_ is idempotent (under set equality).
-
-++-idempotent : ∀ {a} {A : Set a} →
-                Idempotent (λ (xs ys : List A) → xs ≈[ set ] ys) _++_
-++-idempotent {a} xs {x} =
-  x ∈ xs ++ xs  ≈⟨ FE.equivalent ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++⇿ {a = a} {p = a}))
-                                 (_⟨$⟩_ (Inverse.to $ ++⇿ {a = a} {p = a}) ∘ inj₁) ⟩
-  x ∈ xs        ∎
-  where open Related.EquationalReasoning
+------------------------------------------------------------------------
+-- Congruence lemmas
 
 -- _∷_ is a congruence.
 
@@ -105,14 +62,14 @@ map-cong : ∀ {ℓ k} {A B : Set ℓ} {f₁ f₂ : A → B} {xs₁ xs₂} →
            f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
            List.map f₁ xs₁ ≈[ k ] List.map f₂ xs₂
 map-cong {ℓ} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
-  x ∈ List.map f₁ xs₁       ⇿⟨ sym $ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
-  Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (⇿⇒ ∘ helper) xs₁≈xs₂ ⟩
-  Any (λ y → x ≡ f₂ y) xs₂  ⇿⟨ map⇿ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
+  x ∈ List.map f₁ xs₁       ↔⟨ sym $ map↔ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
+  Any (λ y → x ≡ f₁ y) xs₁  ≈⟨ Any-cong (↔⇒ ∘ helper) xs₁≈xs₂ ⟩
+  Any (λ y → x ≡ f₂ y) xs₂  ↔⟨ map↔ {a = ℓ} {b = ℓ} {p = ℓ} ⟩
   x ∈ List.map f₂ xs₂       ∎
   where
   open Related.EquationalReasoning
 
-  helper : ∀ y → x ≡ f₁ y ⇿ x ≡ f₂ y
+  helper : ∀ y → x ≡ f₁ y ↔ x ≡ f₂ y
   helper y = record
     { to         = P.→-to-⟶ (λ x≡f₁y → P.trans x≡f₁y (        f₁≗f₂ y))
     ; from       = P.→-to-⟶ (λ x≡f₂y → P.trans x≡f₂y (P.sym $ f₁≗f₂ y))
@@ -122,14 +79,26 @@ map-cong {ℓ} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x
       }
     }
 
+-- _++_ is a congruence.
+
+++-cong : ∀ {a k} {A : Set a} {xs₁ xs₂ ys₁ ys₂ : List A} →
+          xs₁ ≈[ k ] xs₂ → ys₁ ≈[ k ] ys₂ →
+          xs₁ ++ ys₁ ≈[ k ] xs₂ ++ ys₂
+++-cong {a} {xs₁ = xs₁} {xs₂} {ys₁} {ys₂} xs₁≈xs₂ ys₁≈ys₂ {x} =
+  x ∈ xs₁ ++ ys₁       ↔⟨ sym $ ++↔ {a = a} {p = a} ⟩
+  (x ∈ xs₁ ⊎ x ∈ ys₁)  ≈⟨ xs₁≈xs₂ ⊎-cong ys₁≈ys₂ ⟩
+  (x ∈ xs₂ ⊎ x ∈ ys₂)  ↔⟨ ++↔ {a = a} {p = a} ⟩
+  x ∈ xs₂ ++ ys₂       ∎
+  where open Related.EquationalReasoning
+
 -- concat is a congruence.
 
 concat-cong : ∀ {a k} {A : Set a} {xss₁ xss₂ : List (List A)} →
               xss₁ ≈[ k ] xss₂ → concat xss₁ ≈[ k ] concat xss₂
 concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
-  x ∈ concat xss₁         ⇿⟨ sym $ concat⇿ {a = a} {p = a} ⟩
+  x ∈ concat xss₁         ↔⟨ sym $ concat↔ {a = a} {p = a} ⟩
   Any (Any (_≡_ x)) xss₁  ≈⟨ Any-cong (λ _ → _ ∎) xss₁≈xss₂ ⟩
-  Any (Any (_≡_ x)) xss₂  ⇿⟨ concat⇿ {a = a} {p = a} ⟩
+  Any (Any (_≡_ x)) xss₂  ↔⟨ concat↔ {a = a} {p = a} ⟩
   x ∈ concat xss₂         ∎
   where open Related.EquationalReasoning
 
@@ -139,9 +108,9 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
            xs₁ ≈[ k ] xs₂ → (∀ x → f₁ x ≈[ k ] f₂ x) →
            (xs₁ >>= f₁) ≈[ k ] (xs₂ >>= f₂)
 >>=-cong {ℓ} {xs₁ = xs₁} {xs₂} {f₁} {f₂} xs₁≈xs₂ f₁≈f₂ {x} =
-  x ∈ (xs₁ >>= f₁)          ⇿⟨ sym $ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+  x ∈ (xs₁ >>= f₁)          ↔⟨ sym $ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
   Any (λ y → x ∈ f₁ y) xs₁  ≈⟨ Any-cong (λ x → f₁≈f₂ x) xs₁≈xs₂ ⟩
-  Any (λ y → x ∈ f₂ y) xs₂  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
+  Any (λ y → x ∈ f₂ y) xs₂  ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
   x ∈ (xs₂ >>= f₂)          ∎
   where open Related.EquationalReasoning
 
@@ -161,9 +130,56 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
          xs₁ ≈[ k ] xs₂ → ys₁ ≈[ k ] ys₂ →
          (xs₁ ⊗ ys₁) ≈[ k ] (xs₂ ⊗ ys₂)
 ⊗-cong {ℓ} xs₁≈xs₂ ys₁≈ys₂ =
-  ⊛-cong (⊛-cong (Eq.refl {x = [ _,_ {a = ℓ} {b = ℓ} ]})
+  ⊛-cong (⊛-cong (Ord.refl {x = [ _,_ {a = ℓ} {b = ℓ} ]})
                  xs₁≈xs₂)
          ys₁≈ys₂
+
+------------------------------------------------------------------------
+-- Other properties
+
+-- _++_ and [] form a commutative monoid, with either bag or set
+-- equality as the underlying equality.
+
+commutativeMonoid : ∀ {a} → Symmetric-kind → Set a →
+                    CommutativeMonoid _ _
+commutativeMonoid {a} k A = record
+  { Carrier             = List A
+  ; _≈_                 = λ xs ys → xs ≈[ ⌊ k ⌋ ] ys
+  ; _∙_                 = _++_
+  ; ε                   = []
+  ; isCommutativeMonoid = record
+    { isSemigroup = record
+      { isEquivalence = Eq.isEquivalence
+      ; assoc         = λ xs ys zs →
+                          Eq.reflexive (ListMonoid.assoc xs ys zs)
+      ; ∙-cong        = ++-cong
+      }
+    ; identityˡ = λ xs {x} → x ∈ xs ∎
+    ; comm      = λ xs ys {x} →
+                    x ∈ xs ++ ys  ↔⟨ ++↔++ {a = a} {p = a} xs ys ⟩
+                    x ∈ ys ++ xs  ∎
+    }
+  }
+  where open Related.EquationalReasoning
+
+-- The only list which is bag or set equal to the empty list (or a
+-- subset or subbag of the list) is the empty list itself.
+
+empty-unique : ∀ {k a} {A : Set a} {xs : List A} →
+               xs ≈[ ⌊ k ⌋→ ] [] → xs ≡ []
+empty-unique {xs = []}    _    = P.refl
+empty-unique {xs = _ ∷ _} ∷≈[] with ⇒→ ∷≈[] (here P.refl)
+... | ()
+
+-- _++_ is idempotent (under set equality).
+
+++-idempotent : ∀ {a} {A : Set a} →
+                Idempotent (λ (xs ys : List A) → xs ≈[ set ] ys) _++_
+++-idempotent {a} xs {x} =
+  x ∈ xs ++ xs  ≈⟨ FE.equivalence ([ id , id ]′ ∘ _⟨$⟩_ (Inverse.from $ ++↔ {a = a} {p = a}))
+                                  (_⟨$⟩_ (Inverse.to $ ++↔ {a = a} {p = a}) ∘ inj₁) ⟩
+  x ∈ xs        ∎
+  where open Related.EquationalReasoning
 
 -- The list monad's bind distributes from the left over _++_.
 
@@ -171,11 +187,11 @@ concat-cong {a} {xss₁ = xss₁} {xss₂} xss₁≈xss₂ {x} =
   ∀ {ℓ} {A B : Set ℓ} (xs : List A) {f g : A → List B} →
   (xs >>= λ x → f x ++ g x) ≈[ bag ] (xs >>= f) ++ (xs >>= g)
 >>=-left-distributive {ℓ} xs {f} {g} {y} =
-  y ∈ (xs >>= λ x → f x ++ g x)                      ⇿⟨ sym $ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
-  Any (λ x → y ∈ f x ++ g x) xs                      ⇿⟨ sym (Any-cong (λ _ → ++⇿ {a = ℓ} {p = ℓ}) (_ ∎)) ⟩
-  Any (λ x → y ∈ f x ⊎ y ∈ g x) xs                   ⇿⟨ sym $ ⊎⇿ {a = ℓ} {p = ℓ} {q = ℓ} ⟩
-  (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ⇿⟨ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟨ ×⊎.+-cong {ℓ = ℓ} ⟩ >>=⇿ {ℓ = ℓ} {p = ℓ} ⟩
-  (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ⇿⟨ ++⇿ {a = ℓ} {p = ℓ} ⟩
+  y ∈ (xs >>= λ x → f x ++ g x)                      ↔⟨ sym $ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
+  Any (λ x → y ∈ f x ++ g x) xs                      ↔⟨ sym (Any-cong (λ _ → ++↔ {a = ℓ} {p = ℓ}) (_ ∎)) ⟩
+  Any (λ x → y ∈ f x ⊎ y ∈ g x) xs                   ↔⟨ sym $ ⊎↔ {a = ℓ} {p = ℓ} {q = ℓ} ⟩
+  (Any (λ x → y ∈ f x) xs ⊎ Any (λ x → y ∈ g x) xs)  ↔⟨ >>=↔ {ℓ = ℓ} {p = ℓ} ⟨ ×⊎.+-cong {ℓ = ℓ} ⟩ >>=↔ {ℓ = ℓ} {p = ℓ} ⟩
+  (y ∈ (xs >>= f) ⊎ y ∈ (xs >>= g))                  ↔⟨ ++↔ {a = ℓ} {p = ℓ} ⟩
   y ∈ (xs >>= f) ++ (xs >>= g)                       ∎
   where open Related.EquationalReasoning
 
@@ -206,7 +222,7 @@ private
     ∀ {a} {A : Set a} {x : A} →
     ¬ (∀ {xs ys} → x ∷ xs ≈[ set ] x ∷ ys → xs ≈[ set ] ys)
   ¬-drop-cons {x = x} drop-cons
-    with FE.Equivalent.to x≈[] ⟨$⟩ here P.refl
+    with FE.Equivalence.to x≈[] ⟨$⟩ here P.refl
     where
     x,x≈x :  (x ∷ x ∷ []) ≈[ set ] [ x ]
     x,x≈x = ++-idempotent [ x ]
@@ -220,9 +236,9 @@ private
 drop-cons : ∀ {a} {A : Set a} {x : A} {xs ys} →
             x ∷ xs ≈[ bag ] x ∷ ys → xs ≈[ bag ] ys
 drop-cons {A = A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
-  z ∈ xs                                      ⇿⟨ lemma xs ⟩
-  (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)  ⇿⟨ Σ.⇿ x∷xs≈x∷ys′ x∷xs≈x∷ys′-preserves-There ⟩
-  (∃ λ (z∈x∷ys : z ∈ x ∷ ys) → There z∈x∷ys)  ⇿⟨ sym $ lemma ys ⟩
+  z ∈ xs                                      ↔⟨ lemma xs ⟩
+  (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)  ↔⟨ Σ.↔ x∷xs≈x∷ys′ x∷xs≈x∷ys′-preserves-There ⟩
+  (∃ λ (z∈x∷ys : z ∈ x ∷ ys) → There z∈x∷ys)  ↔⟨ sym $ lemma ys ⟩
   z ∈ ys                                      ∎
   where
   open Related.EquationalReasoning
@@ -242,7 +258,7 @@ drop-cons {A = A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
 
   -- An isomorphism.
 
-  lemma : ∀ xs → z ∈ xs ⇿ (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)
+  lemma : ∀ xs → z ∈ xs ↔ (∃ λ (z∈x∷xs : z ∈ x ∷ xs) → There z∈x∷xs)
   lemma xs = record
     { to         = P.→-to-⟶ to
     ; from       = P.→-to-⟶ from
@@ -301,7 +317,7 @@ drop-cons {A = A} {x} {xs} {ys} x∷xs≈x∷ys {z} =
 
   x∷xs≈x∷ys′-preserves-There :
     ∀ {z} {z∈x∷xs : z ∈ x ∷ xs} →
-    There z∈x∷xs ⇿ There (Inverse.to x∷xs≈x∷ys′ ⟨$⟩ z∈x∷xs)
+    There z∈x∷xs ↔ There (Inverse.to x∷xs≈x∷ys′ ⟨$⟩ z∈x∷xs)
   x∷xs≈x∷ys′-preserves-There {z∈x∷xs = z∈x∷xs} = record
     { to         = P.→-to-⟶ $ to   z∈x∷xs
     ; from       = P.→-to-⟶ $ from z∈x∷xs
