@@ -50,6 +50,7 @@ data TCState =
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
 	 , stConstraints       :: Constraints
+	 , stTakenConstraints  :: Constraints
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
@@ -91,6 +92,7 @@ initState =
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stConstraints       = []
+	 , stTakenConstraints       = []
 	 , stSignature	       = emptySignature
 	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty

@@ -149,7 +149,7 @@ solveConstraint (FindInScope m)      = do
       HasType _ tj -> do
         ctx <- getContextVars
         ctxArgs <- getContextArgs
-        let t = tj `piApply` ctxArgs
+        t <- normalise $ tj `piApply` ctxArgs
         reportSLn "tc.constr.findInScope" 15 $ "findInScope t: " ++ show t
         let candsP1 = [(term, t) | (term, t, ImplicitFromScope) <- ctx]
         let candsP2 = [(term, t) | (term, t, h) <- ctx, h /= ImplicitFromScope]
@@ -163,11 +163,12 @@ solveConstraint (FindInScope m)      = do
         let candsP3 = [(Def (anameName an) [], t) |
                        (an, t) <- zip candsP3Names candsP3Types]
         let cands = [candsP1, candsP2, candsP3]
-        cands <- mapM (filterM (checkCandidateType t . snd)) cands
+        cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
         let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm Constraints
             iterCands [] = do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
                               typeError $ IFSNoCandidateInScope t
-            iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $ "no candidates found at p=" ++ show p ++ ", trying next p..."
+            iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $
+                                            "no candidates found at p=" ++ show p ++ ", trying next p..."
                                           iterCands cs
             iterCands ((p, [(term, t')]):_) =
               do reportSDoc "tc.constr.findInScope" 15 $ text (
@@ -175,10 +176,13 @@ solveConstraint (FindInScope m)      = do
                    prettyTCM t <+> text "': '" <+> prettyTCM term <+>
                    text "', of type '" <+> prettyTCM t' <+> text "'."
                  cs <- leqType t t'
-                 assignTerm m term
+                 tel <- getContextTelescope
+                 assignTerm m (teleLam tel term)
                  return cs
-            iterCands ((p, _):_) = do reportSDoc "tc.constr.findInScope" 15 $ text $ "still more than one candidate at p=" ++ show p ++ "..."
-                                      buildConstraint $ FindInScope m
+            iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
+                                         text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
+                                         prettyTCM (List.map fst cs)
+                                       buildConstraint $ FindInScope m
         iterCands (zip [1..3] cands)
       where
         getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
@@ -187,14 +191,27 @@ solveConstraint (FindInScope m)      = do
           let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
           types <- mapM typeOfBV ids
           return $ [ (Var i [], t, h) | (Arg h _ _, i, t) <- zip3 ctx [0..] types ]
-        checkCandidateType :: (MonadTCM tcm) => Type -> Type -> tcm Bool
-        checkCandidateType t t' =
+        checkCandidateForMeta :: (MonadTCM tcm) => MetaId -> Type -> Term -> Type -> tcm Bool
+        checkCandidateForMeta m t term t' =
           liftTCM $ flip catchError (\err -> return False) $ do
-            restoreStateTCMT $
+            reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta t: " ++ show t ++ "; t':" ++ show t' ++ "; term: " ++ show term ++ "."
+            restoreStateTCMT $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)
                noConstraints $ leqType t t'
+               tel <- getContextTelescope
+               assignTerm m (teleLam tel term)
+               -- make a pass over constraints, to detect cases where some are made
+               -- unsolvable by the assignment, but don't do this for FindInScope's
+               -- to prevent loops. We currently also ignore UnBlock constraints
+               -- to be on the safe side.
+               cs <- getTakenConstraints
+               solveConstraints (List.filter isSimpleConstraint cs)
             return True
+        isSimpleConstraint :: ConstraintClosure -> Bool
+        isSimpleConstraint (Closure _ _ _ (FindInScope{})) = False
+        isSimpleConstraint (Closure _ _ _ (UnBlock{})) = False
+        isSimpleConstraint _ = True
 
 restoreStateTCMT :: (Monad m) => TCMT m a -> TCMT m a
 restoreStateTCMT (TCM m) = TCM $ \s e -> do (r, s') <- m s e

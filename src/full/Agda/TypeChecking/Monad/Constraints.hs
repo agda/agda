@@ -3,6 +3,7 @@ module Agda.TypeChecking.Monad.Constraints where
 
 import Control.Monad.State
 import Data.Map as Map
+import Data.List
 
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Signature
@@ -24,8 +25,11 @@ lookupConstraint i =
 takeConstraints :: MonadTCM tcm => tcm Constraints
 takeConstraints =
     do	cs <- getConstraints
-	modify $ \s -> s { stConstraints = [] }
+	modify $ \s -> s { stConstraints = [], stTakenConstraints = cs ++ stTakenConstraints s}
 	return cs
+
+getTakenConstraints :: MonadTCM tcm => tcm Constraints
+getTakenConstraints = gets stTakenConstraints
 
 withConstraint :: MonadTCM tcm => (Constraint -> tcm a) -> ConstraintClosure -> tcm a
 withConstraint = flip enterClosure
