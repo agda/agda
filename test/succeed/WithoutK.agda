@@ -52,3 +52,19 @@ data D : Set where
 
 f : ∀ {x y z} → x ≡ y → c₂ y c₀ ≡ c₂ c₀ z → x ≡ z
 f x≡y (refl .(c₂ c₀ c₀)) = x≡y
+
+-- The indices can contain literals.
+
+data ℕ : Set where
+  zero : ℕ
+  suc  : (n : ℕ) → ℕ
+
+{-# BUILTIN NATURAL ℕ    #-}
+{-# BUILTIN ZERO    zero #-}
+{-# BUILTIN SUC     suc  #-}
+
+g : 2 ≡ 3 → 3 ≡ 5
+g ()
+
+h : ∀ {n} → 2 ≡ suc n → n ≡ 1
+h refl = refl

@@ -245,7 +245,8 @@ instance PrettyTCM TypeError where
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
             IndicesNotConstructorApplications is ->
-              fsep (pwords "The following indices are not constructors applied to variables:")
+              fsep (pwords "The following indices are not constructors" ++
+                    pwords "(or literals) applied to variables:")
               $$ nest 2 (vcat $ map prettyTCM is)
             IndexVariablesNotDistinct is ->
               fsep (pwords "The variables in the following indices are not distinct:")

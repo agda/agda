@@ -7,6 +7,8 @@ Important changes since 2.2.10:
 Language
 --------
 
+* When the --without-K flag is used literals are now treated as
+  constructors.
 
 Tools
 -----

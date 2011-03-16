@@ -151,8 +151,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
 
--- | Checks that the indices are constructors applied to distinct
--- variables which do not occur free in the parameters.
+-- | Checks that the indices are constructors (or literals) applied to
+-- distinct variables which do not occur free in the parameters.
 
 wellFormedIndices
   :: MonadTCM tcm
@@ -171,12 +171,13 @@ wellFormedIndices pars ixs = do
     []          -> return ()
     (v , _) : _ -> typeError $ IndexFreeInParameter v pars
   where
-  -- | If the term consists solely of constructors applied to
-  -- variables, then the variables are returned, and otherwise
-  -- nothing.
+  -- | If the term consists solely of constructors (or literals)
+  -- applied to variables, then the variables are returned, and
+  -- otherwise nothing.
   constructorApplication :: Term -> Maybe [Nat]
   constructorApplication (Var x [])   = Just [x]
   constructorApplication (Con c args) = constructorApplications args
+  constructorApplication (Lit {})     = Just []
   constructorApplication _            = Nothing
 
   constructorApplications :: [Arg Term] -> Maybe [Nat]
