@@ -1,0 +1,3 @@
+IrrelevantRecordField.agda:9,16-17
+variable a is declared irrelevant, so it cannot be used here
+when checking that the expression a has type .A
