@@ -71,6 +71,17 @@ makeRelevant a = if argRelevance a == Irrelevant
                   then a { argRelevance = Relevant }
                   else a
 
+-- | Compose two relevance flags.
+--   This function is used to update the relevance information
+--   on pattern variables @a@ after a match against something @rel@.
+applyRelevance :: Relevance -> Arg a -> Arg a
+applyRelevance Irrelevant a | argRelevance a == Relevant =
+  a { argRelevance = Irrelevant }
+applyRelevance Forced a | argRelevance a == Relevant =
+  a { argRelevance = Forced }
+applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
+                         -- already Forced or Irrelevant
+
 -- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
 --

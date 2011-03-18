@@ -438,16 +438,11 @@ checkLeftHandSide c ps a ret = do
 -}
 
             -- Andreas 2010-09-07  propagate relevance info to new vars
+            {- OLD CODE, does not account for forcing
             gamma' <- return $ if rel == Irrelevant then
                                 fmap makeIrrelevant gamma'
-                               else gamma'
-            -- Ulf's patch
-            --   fixed minor issue with preserving relevance information is LHSs
-            --   ulfn@chalmers.se**20110217104116
-            -- changed this line to the following, but this lets one extract
-            -- irrelevant components of a constructor by matching:
-            --
-            -- gamma' <- return $ fmap (\a -> a { argRelevance = rel }) gamma'
+                               else gamma' -}
+            gamma' <- return $ fmap (applyRelevance rel) gamma'
 {-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
               [ text "gamma' =" <+> text (show gamma')
