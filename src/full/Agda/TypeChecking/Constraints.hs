@@ -198,7 +198,7 @@ solveConstraint (FindInScope m)      = do
             restoreStateTCMT $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)
-               noConstraints $ leqType t t'
+               csT <- leqType t t'
                tel <- getContextTelescope
                assignTerm m (teleLam tel term)
                -- make a pass over constraints, to detect cases where some are made
@@ -206,7 +206,7 @@ solveConstraint (FindInScope m)      = do
                -- to prevent loops. We currently also ignore UnBlock constraints
                -- to be on the safe side.
                cs <- getTakenConstraints
-               solveConstraints (List.filter isSimpleConstraint cs)
+               solveConstraints (List.filter isSimpleConstraint cs ++ csT)
             return True
         isSimpleConstraint :: ConstraintClosure -> Bool
         isSimpleConstraint (Closure _ _ _ (FindInScope{})) = False
