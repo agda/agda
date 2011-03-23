@@ -160,8 +160,9 @@ solveConstraint (FindInScope m)      = do
         --  unambiguously)
         let candsP3Names = nsList >>= snd
         candsP3Types <- mapM (typeOfConst . anameName) candsP3Names
-        let candsP3 = [(Def (anameName an) [], t) |
-                       (an, t) <- zip candsP3Names candsP3Types]
+        candsP3FV <- mapM (freeVarsToApply . anameName) candsP3Names
+        let candsP3 = [(Def (anameName an) vs, t) |
+                       (an, t, vs) <- zip3 candsP3Names candsP3Types candsP3FV]
         let cands = [candsP1, candsP2, candsP3]
         cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
         let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm Constraints
