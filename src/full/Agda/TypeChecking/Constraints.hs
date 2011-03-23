@@ -183,7 +183,7 @@ solveConstraint (FindInScope m)      = do
                                          text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
                                          prettyTCM (List.map fst cs)
                                        buildConstraint $ FindInScope m
-        iterCands (zip [1..3] cands)
+        iterCands [(1,concat cands)]
       where
         getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
         getContextVars = do
