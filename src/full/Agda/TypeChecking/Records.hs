@@ -187,10 +187,20 @@ etaContractRecord r c args = do
 
 isSingletonRecord ::
   MonadTCM tcm => QName -> Args -> tcm (Either MetaId Bool)
-isSingletonRecord r ps =
+isSingletonRecord = isSingletonRecord' False
+
+isSingletonRecordModuloRelevance ::
+  MonadTCM tcm => QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecordModuloRelevance = isSingletonRecord' True
+
+isSingletonRecord' ::
+  MonadTCM tcm => Bool -> QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecord' regardIrrelevance r ps =
   check =<< ((`apply` ps) <$> getRecordFieldTypes r)
   where
   check EmptyTel            = return (Right True)
+  check (ExtendTel arg tel) | regardIrrelevance && argRelevance arg == Irrelevant =
+    underAbstraction arg tel check
   check (ExtendTel arg tel) = do
     TelV _ t <- telView $ unArg arg
     t <- reduceB $ unEl t
@@ -199,7 +209,7 @@ isSingletonRecord r ps =
       NotBlocked (MetaV m _) -> return (Left m)
       NotBlocked (Def r ps)  ->
         ifM (not <$> isRecord r) (return $ Right False) $ do
-          isRec <- isSingletonRecord r ps
+          isRec <- isSingletonRecord' regardIrrelevance r ps
           case isRec of
             Left _      -> return isRec
             Right False -> return isRec

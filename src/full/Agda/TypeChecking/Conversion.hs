@@ -93,21 +93,24 @@ compareTerm cmp a m n =
               m <- reduceB m
               n <- reduceB n
               case (m, n) of
-                _ | isMeta m || isMeta n -> -- || (isNeutral m && isNeutral n) ->
+                _ | isMeta m || isMeta n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
+
                 _ | isNeutral m && isNeutral n -> do
                     -- Andreas 2011-03-23: (fixing issue 396)
                     -- if we are dealing with a singleton record,
                     -- we can succeed immediately
-                    isSing <- isSingletonRecord r ps
+                    isSing <- isSingletonRecordModuloRelevance r ps
                     case isSing of
                       Right True -> return []
+                      -- do not eta-expand if comparing two neutrals
                       _ -> compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
                   compareArgs [] (telePi_ tel $ sort Prop) m' n'
+
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
   where
