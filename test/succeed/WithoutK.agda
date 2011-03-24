@@ -67,4 +67,4 @@ g : 2 ≡ 3 → 3 ≡ 5
 g ()
 
 h : ∀ {n} → 2 ≡ suc n → n ≡ 1
-h refl = refl
+h (refl .2) = refl _
