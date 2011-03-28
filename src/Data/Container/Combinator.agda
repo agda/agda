@@ -23,19 +23,19 @@ open import Relation.Binary.PropositionalEquality as P
 -- Identity.
 
 id : ∀ {c} → Container c
-id = Lift ⊤ ◃ F.const (Lift ⊤)
+id = Lift ⊤ ▷ F.const (Lift ⊤)
 
 -- Constant.
 
 const : ∀ {c} → Set c → Container c
-const X = X ◃ F.const (Lift ⊥)
+const X = X ▷ F.const (Lift ⊥)
 
 -- Composition.
 
 infixr 9 _∘_
 
 _∘_ : ∀ {c} → Container c → Container c → Container c
-C₁ ∘ C₂ = ⟦ C₁ ⟧ (Shape C₂) ◃ ◇ (Position C₂)
+C₁ ∘ C₂ = ⟦ C₁ ⟧ (Shape C₂) ▷ ◇ (Position C₂)
 
 -- Product. (Note that, up to isomorphism, this is a special case of
 -- indexed product.)
@@ -44,13 +44,13 @@ infixr 2 _×_
 
 _×_ : ∀ {c} → Container c → Container c → Container c
 C₁ × C₂ =
-  (Shape C₁ ⟨×⟩ Shape C₂) ◃
+  (Shape C₁ ⟨×⟩ Shape C₂) ▷
   uncurry (λ s₁ s₂ → Position C₁ s₁ ⟨⊎⟩ Position C₂ s₂)
 
 -- Indexed product.
 
 Π : ∀ {c} {I : Set c} → (I → Container c) → Container c
-Π C = (∀ i → Shape (C i)) ◃ λ s → ∃ λ i → Position (C i) (s i)
+Π C = (∀ i → Shape (C i)) ▷ λ s → ∃ λ i → Position (C i) (s i)
 
 -- Sum. (Note that, up to isomorphism, this is a special case of
 -- indexed sum.)
@@ -58,12 +58,12 @@ C₁ × C₂ =
 infixr 1 _⊎_
 
 _⊎_ : ∀ {c} → Container c → Container c → Container c
-C₁ ⊎ C₂ = (Shape C₁ ⟨⊎⟩ Shape C₂) ◃ [ Position C₁ , Position C₂ ]
+C₁ ⊎ C₂ = (Shape C₁ ⟨⊎⟩ Shape C₂) ▷ [ Position C₁ , Position C₂ ]
 
 -- Indexed sum.
 
 Σ : ∀ {c} {I : Set c} → (I → Container c) → Container c
-Σ C = (∃ λ i → Shape (C i)) ◃ λ s → Position (C (proj₁ s)) (proj₂ s)
+Σ C = (∃ λ i → Shape (C i)) ▷ λ s → Position (C (proj₁ s)) (proj₂ s)
 
 -- Constant exponentiation. (Note that this is a special case of
 -- indexed product.)

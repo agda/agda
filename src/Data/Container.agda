@@ -24,10 +24,10 @@ open import Relation.Unary using (_⊆_)
 -- A container is a set of shapes, and for every shape a set of
 -- positions.
 
-infix 5 _◃_
+infix 5 _▷_
 
 record Container (ℓ : Level) : Set (suc ℓ) where
-  constructor _◃_
+  constructor _▷_
   field
     Shape    : Set ℓ
     Position : Shape → Set ℓ
