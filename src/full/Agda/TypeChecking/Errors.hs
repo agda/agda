@@ -142,7 +142,7 @@ errorString err = case err of
     NotLeqSort{}                             -> "NotLeqSort"
     NotStrictlyPositive{}                    -> "NotStrictlyPositive"
     NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
-    NothingAppliedToImplicitFromScopeArg{}              -> "NothingAppliedToImplicitFromScopeArg"
+    NothingAppliedToImplicitFromScopeArg{}   -> "NothingAppliedToImplicitFromScopeArg"
     OverlappingProjects {}                   -> "OverlappingProjects"
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
@@ -559,7 +559,7 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg (Arg ImplicitFromScope r x)    = braces $ braces $ showPat 0 x
+            showArg (Arg ImplicitFromScope r x)    = dbraces $ showPat 0 x
             showArg (Arg Hidden r x)    = braces $ showPat 0 x
             showArg (Arg NotHidden r x) = showPat 1 x
 

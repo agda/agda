@@ -94,7 +94,7 @@ data Definition
             --   and the optional name is the constructor's name.
             -- domi: the third argument (type (ModuleName, Ren A.QName, Ren ModuleName))
             --   contains the name of the for the WithImplicits module, and the
-            --   of the normal record module contents to it
+            --   mappings of the normal record module contents to it
         | ScopedDef ScopeInfo Definition
   deriving (Typeable, Data, Show)
 

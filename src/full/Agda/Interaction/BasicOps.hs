@@ -281,15 +281,8 @@ instance Reify Constraint (OutputForm Expr Expr) where
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
     reify (FindInScope m) = do
-      mi <- mvInstantiation <$> lookupMeta m
-      case mi of
-        BlockedConst{} -> __IMPOSSIBLE__
-        PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
-        Open{} -> __IMPOSSIBLE__
-        OpenIFS -> do m' <- reify (MetaV m [])
-                      return $ FindInScopeOF m' -- IFSTODO
-        InstS{} -> __IMPOSSIBLE__
-        InstV{} -> __IMPOSSIBLE__
+      m' <- reify (MetaV m [])
+      return $ FindInScopeOF m' -- IFSTODO
     reify (IsEmpty a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String

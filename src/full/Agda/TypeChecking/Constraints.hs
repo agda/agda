@@ -10,7 +10,6 @@ import Control.Applicative
 import Data.Map as Map
 import Data.List as List
 import Data.Set as Set
-import Data.Maybe (catMaybes)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal

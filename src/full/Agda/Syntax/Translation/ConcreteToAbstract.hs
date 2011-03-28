@@ -27,7 +27,7 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Data.Typeable
 import Data.Traversable (mapM)
-import Data.List ((\\), nub)
+import Data.List ((\\), nub, init)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
@@ -766,7 +766,7 @@ instance ToAbstract NiceDefinition Definition where
       where
         extendName (C.Name r nps) ext = C.Name r $ case head $ reverse nps of
           Hole -> nps ++ [Id ext]
-          (Id s) -> reverse (tail (reverse nps)) ++ [Id $ s ++ ext]
+          (Id s) -> init nps ++ [Id $ s ++ ext]
         extendName NoName{} ext = __IMPOSSIBLE__
 
 -- The only reason why we return a list is that open declarations disappears.
