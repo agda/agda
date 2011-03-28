@@ -485,7 +485,7 @@ instance PrettyTCM TypeError where
 		pwords "a function expecting an implicit argument."
 	    NothingAppliedToImplicitFromScopeArg e	-> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
-		pwords "a function expecting an implicit argument."
+		pwords "a function expecting a non-canonical implicit argument."
 	    NoParseForApplication es -> fsep $
 		pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es]
 	    AmbiguousParseForApplication es es' -> fsep (

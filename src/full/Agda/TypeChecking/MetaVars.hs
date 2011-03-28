@@ -155,40 +155,25 @@ newTypeMeta s = El s <$> newValueMeta (sort s)
 newTypeMeta_ ::  MonadTCM tcm => tcm Type
 newTypeMeta_  = newTypeMeta =<< newSortMeta
 
--- | Create a new "implicit from scope" metavariable,
---   possibly η-expanding in the process.
+-- | Create a new "implicit from scope" metavariable
 newIFSMeta ::  MonadTCM tcm => Type -> tcm (Term, ConstraintClosure)
 newIFSMeta t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newIFSMetaCtx (telePi_ tel t) vs
 
-newIFSMetaCtx :: MonadTCM tcm => Type -> Args -> tcm (Term, ConstraintClosure)
-newIFSMetaCtx t ctx = do
-  (m@(MetaV i _), c) <- newIFSMetaCtx' t ctx
-  m' <- instantiateFull m
-  return (m', c)
-
--- | Create a new value meta without η-expanding.
-newIFSMeta' :: MonadTCM tcm => Type -> tcm (Term, ConstraintClosure)
-newIFSMeta' t = do
-  vs  <- getContextArgs
-  tel <- getContextTelescope
-  newIFSMetaCtx' (telePi_ tel t) vs
-
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm (Term, ConstraintClosure)
-newIFSMetaCtx' t vs = do
+newIFSMetaCtx :: MonadTCM tcm => Type -> Args -> tcm (Term, ConstraintClosure)
+newIFSMetaCtx t vs = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
       perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t) -- IFSTODO:
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ text "new meta:"
+    [ text "new ifs meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  etaExpandMetaSafe x
   c <- buildConstraint' $ FindInScope x
   return (MetaV x vs, c)
 
