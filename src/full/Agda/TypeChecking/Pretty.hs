@@ -43,6 +43,7 @@ d1 <> d2   = (P.<>) <$> d1 <*> d2
 d1 <+> d2  = (P.<+>) <$> d1 <*> d2
 nest n d   = P.nest n <$> d
 braces d   = P.braces <$> d
+dbraces d  = P.dbraces <$> d
 brackets d = P.brackets <$> d
 parens d   = P.parens <$> d
 
