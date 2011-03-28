@@ -61,6 +61,8 @@ module README where
 --     Input/output-related functions.
 -- • Level
 --     Universe levels.
+-- • Record
+--     An encoding of record types with manifest fields and "with".
 -- • Reflection
 --     Support for reflection.
 -- • Relation
@@ -245,6 +247,10 @@ import IO
 -- operations and properties are defined, and how they can be used:
 
 import README.Nat
+
+-- An example showing how the Record module can be used.
+
+import README.Record
 
 ------------------------------------------------------------------------
 -- Core modules
