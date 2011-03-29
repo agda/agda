@@ -9,9 +9,10 @@
 -- all seem to be reasonably efficient. The memoised backtracking
 -- parser is even faster (possibly asymptotically more efficient); on
 -- the other hand it makes the code constructing the parser a bit more
--- complicated. ReadP is too slow for these grammars. Note that
--- applying one of the continuation transformers to, say, AmbExTrie2
--- makes it a lot slower (in this context, anyway).
+-- complicated. ReadP and incremental-parser are too slow for these
+-- grammars. Note that applying one of the continuation transformers
+-- to, say, AmbExTrie2 makes it a lot slower (in this context,
+-- anyway).
 --
 -- Note that if the best parsers used here are not fast enough, then
 -- we can apply another optimisation: pruning the graph, keeping only
@@ -33,6 +34,7 @@ import qualified AmbTrie
 import qualified AmbExTrie
 import qualified AmbExTrie2
 import qualified ContTrans
+import qualified Incremental
 import qualified StackContTrans
 import qualified SlowParser
 import qualified Standard
@@ -68,6 +70,7 @@ parser  7 = P Standard.parse
 parser  8 = P Memoised.parse
 parser  9 = P (ContTrans.parse Memoised.parse)
 parser 10 = P (StackContTrans.parse Memoised.parse)
+parser 11 = P Incremental.parse
 parser  _ = error "No more parser combinator libraries."
 
 ------------------------------------------------------------------------
