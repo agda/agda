@@ -2,8 +2,7 @@
 -- Precedence graphs
 ------------------------------------------------------------------------
 
-{-# OPTIONS_GHC -fglasgow-exts #-} -- LiberalTypeSynonyms does not work.
-{-# LANGUAGE FlexibleContexts, LiberalTypeSynonyms #-}
+{-# LANGUAGE FlexibleContexts, Rank2Types #-}
 
 module PrecedenceGraph
     -- * Precedence graphs.

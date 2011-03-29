@@ -1,0 +1,15 @@
+name:            benchmarks
+version:         0.0
+cabal-version:   >= 1.8
+build-type:      Simple
+description:     Some benchmarks
+
+executable mixfix-benchmarks
+  hs-source-dirs:   .
+  main-is:          Test.hs
+  build-depends:    base >= 4.2 && < 4.4,
+                    QuickCheck == 2.4.*,
+                    mtl == 2.0.*,
+                    fgl == 5.4.*,
+                    containers == 0.4.*,
+                    ghc-prim == 0.2.*

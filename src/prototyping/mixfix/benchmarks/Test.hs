@@ -37,6 +37,7 @@ import qualified StackContTrans
 import qualified SlowParser
 import qualified Standard
 import qualified Memoised
+import Control.Monad.Identity
 import Control.Monad.State hiding (lift)
 import Parser (Parser)
 import System.Environment
@@ -98,10 +99,10 @@ main = do
 -- Example precedence graph
 
 lift :: (s -> (a, s)) -> State s a
-lift = State
+lift f = StateT (Identity . f)
 
 lift0 :: (s -> s) -> State s ()
-lift0 f = State (\x -> ((), f x))
+lift0 f = StateT (\x -> Identity ((), f x))
 
 unrelated'    op fix     = lift  $ unrelated    op fix
 bindsAs'      op fix n   = lift0 $ bindsAs      op fix n
