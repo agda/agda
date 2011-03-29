@@ -27,10 +27,6 @@ record Monoid (t : Set) : Set where
     plusT : t → t → t
   test : Bool
   test = false
-  --module test {a : Bool} = testMod a
-  
-
---module WI {t : Set} {{r : Monoid t}} = Monoid r
 
 or : Bool → Bool → Bool
 or true _ = true
@@ -40,33 +36,25 @@ or false false = false
 aT : Monoid T
 aT = record { zeroT = tt; plusT = λ _ _ → tt }
 
--- testMonoid : {t : Set} → {{tM : Monoid t}} → t → t
--- testMonoid {{tM}} t = let open Monoid tM in plusT t zeroT
+testMonoid : {t : Set} → {{tM : Monoid t}} → t → t
+testMonoid {{tM}} t = let open Monoid tM in plusT t zeroT
 
 aBool : Monoid Bool
 aBool = record { zeroT = false; plusT = or }
 
--- test : Bool
--- test = testMonoid false
+test : Bool
+test = testMonoid false
 
--- imp : {a : Bool} → Bool
--- imp {b} = b
-
--- imp' : {a : Bool} → Bool
--- -- imp' = imp 
--- -- imp' = λ {a} → imp {a}
--- imp' {a} = imp {a}
-
---test2 : {t : Set} → {{tM : Monoid t}} → t
---test2 {t} {{tM}} = Monoid.WithImplicits.zeroT {t} 
+test2 : {t : Set} → {{tM : Monoid t}} → t
+test2 = MonoidWithImplicits.zeroT 
 
 open MonoidWithImplicits
 
 test3 : T
 test3 = zeroT 
 
--- test4 : {{bM : Monoid Bool}} → Bool
--- test4 {{bM}} = Monoid.WithImplicits.zeroT 
+test4 : Bool
+test4 = MonoidWithImplicits.zeroT 
 
 ⋯ : {A : Set} → {{v : A}} → A
 ⋯ {{v}} = v

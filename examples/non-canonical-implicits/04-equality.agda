@@ -46,13 +46,7 @@ module WithImplicits' {A} {{eqA : Eq A}} = Eq eqA using (eq)
 eqBool : Eq Bool
 eqBool = record { eq = primEqBool }
 
--- eq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
--- eq {{eqT}} = Eq.eq eqT
 open EqWithImplicits
-
-
--- test2 : ∀ {a ℓ} {A : Set a} {_≈_} → {{ide : IsDecEquivalence {a} {ℓ} {A} _≈_}} → Reflexive _≈_
--- test2 {a} {ℓ} {A} {_≈_} {{ide}} = IsDecEquivalence.WithImplicits.refl {a} {ℓ} {A} {_≈_} {{ide}}
 
 neq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
 neq a b = not $ eq a b

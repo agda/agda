@@ -18,13 +18,10 @@ open import Function using (_$_)
 open import Level using (zero; Level)
 --open import Data.Unit hiding (_≟_)
 open import Data.Bool using (if_then_else_)
-open import Data.Nat using (ℕ; _≟_; _+_; suc)
+open import Data.Nat using (ℕ; _≟_; _+_; suc; _*_)
 open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Data.List using (List; _∷_; []; [_]; null) renaming (monad to listMonad)
 --open import Data.Product
-
-open module RawMonadWithImplicits {f} {M : Set f → Set f}
-                {{Mon : RawMonad M}} = RawMonad {f} {M} Mon
 
 stateMonad = StateMonad ℕ
 --pmonad : RawMonad {zero} _⊥
@@ -36,11 +33,20 @@ nToList : ℕ → List ℕ
 nToList 0 = [ 0 ]
 nToList (suc n) = n ∷ nToList n
 
--- test2 : ℕ → (List ℕ) ⊥
--- testw k =  let open RawMonad partialityMonad
---               open RawMonad lmonad using () renaming (_>>=_ to _l>>=_) in
---           do x ← return [ k ] then
---           if ⌊ k ≟ 4 ⌋ then return (x l>>= nToList) else never
+test′ : ℕ → (List ℕ) ⊥
+test′ k = let open RawMonad partialityMonad in
+          do x ← return (k ∷ k + 1 ∷ []) then
+          return x
+
+test2′ : ℕ → (List ℕ) ⊥
+test2′ k =  let open RawMonad partialityMonad
+                open RawMonad lmonad using () renaming (_>>=_ to _l>>=_) in
+            do x ← return [ k ] then
+            if ⌊ k ≟ 4 ⌋ then return (x l>>= nToList) else never
+
+open module RawMonadWithImplicits {f} {M : Set f → Set f}
+                {{Mon : RawMonad M}} = RawMonad {f} {M} Mon
+
 test1 : ℕ → ℕ ⊥
 test1 k =  do x ← return k then
            if ⌊ x ≟ 4 ⌋ then return 10 else never
@@ -48,17 +54,10 @@ test1 k =  do x ← return k then
 test2 : ℕ → (List ℕ) ⊥
 test2 k =  do x ← return [ k ] then
            if ⌊ k ≟ 4 ⌋ then return (x >>= nToList) else never 
--- test : ℕ → ℕ ⊥
--- test k = let open RawMonad partialityMonad in
---          do x ← return (k ∷ k + 1 ∷ []) then
---          return $ x >>= nToList
--- test' : ℕ → (List ℕ) ⊥
--- test' k = do x ← return (k ∷ k + 1 ∷ []) then
---           if null x then never else return (x >>= nToList)
--- test : ℕ → ℕ ⊥
--- test k = do x ← return k then 
---          if ⌊ x ≟ 4 ⌋ then return 10 else never
+test' : ℕ → (List ℕ) ⊥
+test' k = do x ← return (k ∷ k + 1 ∷ []) then
+          if null x then never else return (x >>= nToList)
           
--- test2 : List ℕ
--- test2 = do x ← 1 ∷ 2 ∷ 3 ∷ [] then
---         return $ x + 1
+test3 : List ℕ
+test3 = do x ← 1 ∷ 2 ∷ 3 ∷ [] then
+        return $ x + 1
