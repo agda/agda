@@ -33,3 +33,22 @@ mutual
 
 foo : D
 foo = c₂ _ (λ y → c₁)
+
+{- 2011-04-05 Andreas
+
+This test case and the explanation is no longer up to date.  
+What happens is
+
+  _2 y : Unit  
+
+is solved by eta-expansion
+
+  _2 = λ y -> record {}
+
+and then 
+
+  _1 = unit₂ (record {})
+
+is in solved form.
+
+-}
