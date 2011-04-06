@@ -115,9 +115,9 @@ checkTelescope (b : tel) s ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings :: A.TypedBindings -> Sort -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings (A.TypedBindings i (Arg h rel bs)) s ret =
-    thread (checkTypedBinding h s) bs $ \bss ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel (concat bss)
+checkTypedBindings (A.TypedBindings i (Arg h rel b)) s ret =
+    checkTypedBinding h s b $ \bs ->
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
 checkTypedBinding :: Hiding -> Sort -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding h s (A.TBind i xs e) ret = do
@@ -143,9 +143,9 @@ checkTelescope_ (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ (A.TypedBindings i (Arg h rel bs)) ret =
-    thread (checkTypedBinding_ h) bs $ \bss ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel (concat bss)
+checkTypedBindings_ (A.TypedBindings i (Arg h rel b)) ret =
+    checkTypedBinding_ h b $ \bs ->
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
 checkTypedBinding_ :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding_ h (A.TBind i xs e) ret = do

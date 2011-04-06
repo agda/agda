@@ -161,12 +161,13 @@ instance Pretty LamBinding where
     pretty (DomainFull b)   = pretty b
 
 instance Pretty TypedBindings where
-    pretty (TypedBindings _ (Arg h rel bs)) =
-	pRelevance rel $ bracks $ fsep $ punctuate semi $ map pretty bs
+    pretty (TypedBindings _ (Arg h rel b)) =
+	pRelevance rel $ bracks $ pretty b
 	where
 	    bracks = case h of
 			Hidden	    -> braces'
 			NotHidden   -> parens
+
 
 instance Pretty TypedBinding where
     pretty (TNoBind e) = pretty e
@@ -176,12 +177,13 @@ instance Pretty TypedBinding where
 	    ]
 
 smashTel :: Telescope -> Telescope
-smashTel (TypedBindings r (Arg h  rel  [TBind r' xs e]) :
-          TypedBindings _ (Arg h' rel' [TBind _  ys e']) : tel)
+smashTel (TypedBindings r (Arg h  rel  (TBind r' xs e)) :
+          TypedBindings _ (Arg h' rel' (TBind _  ys e')) : tel)
   | h == h' && rel == rel' && show e == show e' =
-    smashTel (TypedBindings r (Arg h rel [TBind r' (xs ++ ys) e]) : tel)
+    smashTel (TypedBindings r (Arg h rel (TBind r' (xs ++ ys) e)) : tel)
 smashTel (b : tel) = b : smashTel tel
 smashTel [] = []
+
 
 instance Pretty RHS where
     pretty (RHS e)   = text "=" <+> pretty e

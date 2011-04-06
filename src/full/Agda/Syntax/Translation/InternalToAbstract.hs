@@ -257,7 +257,7 @@ instance Reify Term Expr where
       I.Pi a b       -> do
         Arg h r a <- reify a
         (x,b)     <- reify b
-        return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r [TBind noRange [x] a]] b
+        return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Fun a b    -> uncurry (A.Fun $ exprInfo)
                       <$> reify (a,b)
       I.Sort s     -> reify s
@@ -499,7 +499,7 @@ instance Reify I.Telescope A.Telescope where
     Arg h rel e <- reify arg
     (x,bs)  <- reify $ betterName tel
     let r = getRange e
-    return $ TypedBindings r (Arg h rel [TBind r [x] e]) : bs
+    return $ TypedBindings r (Arg h rel (TBind r [x] e)) : bs
     where
       betterName (Abs "_" x) = Abs "z" x
       betterName (Abs s   x) = Abs s   x

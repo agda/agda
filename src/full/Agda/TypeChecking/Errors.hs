@@ -645,7 +645,7 @@ instance PrettyTCM Call where
 	      where
 		bind :: C.LamBinding -> C.TypedBindings
 		bind (C.DomainFull b) = b
-		bind (C.DomainFree h x) = C.TypedBindings r $ Arg h Relevant [C.TBind r [x] (C.Underscore r Nothing)]
+		bind (C.DomainFree h x) = C.TypedBindings r $ Arg h Relevant (C.TBind r [x] (C.Underscore r Nothing))
 		  where r = getRange x
 
                 name (D.Axiom _ _ _ _ _ n _) = n

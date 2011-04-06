@@ -95,14 +95,15 @@ data Pattern
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding BoundName -- ^ . @x@ or @{x}@
-	| DomainFull TypedBindings    -- ^ . @(xs:e,..,ys:e')@ or @{xs:e,..,ys:e'}@
+--	= DomainFree Hiding Relevance BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
+	| DomainFull TypedBindings              -- ^ . @(xs : e)@ or @{xs : e}@
     deriving (Typeable, Data)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
-data TypedBindings = TypedBindings !Range (Arg [TypedBinding])
-	-- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
+data TypedBindings = TypedBindings !Range (Arg TypedBinding)
+	-- ^ . @(xs : e)@ or @{xs : e}@
     deriving (Typeable, Data)
 
 

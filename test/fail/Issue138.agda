@@ -1,3 +1,4 @@
+-- records not allowed in mutual blocks
 
 module Issue138 where
 

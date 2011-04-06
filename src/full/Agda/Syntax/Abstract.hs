@@ -105,8 +105,8 @@ data LamBinding
   deriving (Typeable, Data, Show)
 
 -- | Typed bindings with hiding information.
-data TypedBindings = TypedBindings Range (Arg [TypedBinding])
-	    -- ^ . @(xs:e;..;ys:e')@ or @{xs:e;..;ys:e'}@
+data TypedBindings = TypedBindings Range (Arg TypedBinding)
+	    -- ^ . @(xs : e)@ or @{xs : e}@
   deriving (Typeable, Data, Show)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and

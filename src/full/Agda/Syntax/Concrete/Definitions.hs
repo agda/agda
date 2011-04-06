@@ -281,8 +281,8 @@ niceDeclarations ds = do
                                 ]
                               where
                                 f = fixity x fixs
-                                binding (TypedBindings _ (Arg h rel bs)) =
-                                    concatMap (bind h) bs
+                                binding (TypedBindings _ (Arg h rel b)) =
+                                    bind h b
                                 bind h (TBind _ xs _) =
                                     map (DomainFree h) xs
                                 bind h (TNoBind e) =
@@ -390,7 +390,7 @@ niceDeclarations ds = do
             isRecord _	  = False
 
             checkMutual nd@(NiceDef _ _ _ ds)
-              | any isRecord ds = throwError $ NotAllowedInMutual nd
+--              | any isRecord ds = throwError $ NotAllowedInMutual nd
               | otherwise       = return ()
             checkMutual d = throwError $ NotAllowedInMutual d
 

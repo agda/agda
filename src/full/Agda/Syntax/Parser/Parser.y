@@ -344,6 +344,13 @@ BId :: { Name }
 BId : Id    { $1 }
     | '_'   { Name (getRange $1) [Hole] }
 
+-- A binding variable. Can be '_'
+MaybeDottedBId :: { (Relevance, Name) }
+MaybeDottedBId
+    : BId        { (Relevant  , $1) }
+    | '.' BId    { (Irrelevant, $2) }
+
+
 
 -- Space separated list of binding identifiers. Used in fixity
 -- declarations infixl 100 + -
@@ -351,6 +358,18 @@ SpaceBIds :: { [Name] }
 SpaceBIds
     : BId SpaceBIds { $1 : $2 }
     | BId	    { [$1] }
+
+{- DOES PRODUCE REDUCE/REDUCE CONFLICTS!
+-- Space-separated list of binding identifiers. Used in dependent
+-- function spaces: (x y z : Nat) -> ...
+-- (Used to be comma-separated; hence the name)
+-- QUESTION: Should this be replaced by SpaceBIds above?
+--CommaBIds :: { [(Relevance,Name)] }
+CommaBIds :: { [Name] }
+CommaBIds
+    : CommaBIds BId { $1 ++ [$2] }  -- SWITCHING DOES NOT HELP
+    | BId	    { [$1] }
+-}
 
 -- Space-separated list of binding identifiers. Used in dependent
 -- function spaces: (x y z : Nat) -> ...
@@ -490,23 +509,11 @@ TypedBindingss
     | TypedBindings		   { [$1] }
 
 
--- A typed binding is either (x1 .. xn:A;..;y1 .. ym:B) or {x1 .. xn:A;..;y1 .. ym:B}.
+-- A typed binding is either (x1 .. xn : A) or {y1 .. ym : B}.
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
-    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
-
-
--- A semicolon separated list of TypedBindings
-TBinds :: { [TypedBinding] }
-TBinds : TBind		   { [$1] }
-       | TBind ';' TBinds2 { $1 : $3 }
-
-TBinds2 :: { [TypedBinding] }
-TBinds2 : TBinds	   { $1 }
-	| Expr ';' TBinds2 { TNoBind $1 : $3 }
-	| Expr		   { [TNoBind $1] }
-
+    : '(' TBind ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
+    | '{' TBind '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
 
 -- x1 .. xn:A
 TBind :: { TypedBinding }
@@ -566,7 +573,11 @@ DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
     : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
-
+{-
+    : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
+    | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $1]  }
+    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
+-}
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -1074,7 +1085,7 @@ forallPi bs e = Pi (map addType bs) e
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBindings
 addType (DomainFull b)	 = b
-addType (DomainFree h x) = TypedBindings r $ Arg h Relevant [TBind r [x] $ Underscore r Nothing]
+addType (DomainFree h x) = TypedBindings r $ Arg h Relevant $ TBind r [x] $ Underscore r Nothing
   where r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names
