@@ -182,12 +182,12 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
           | n < len = return $ patToTerm $ ps !! fromIntegral n
         termToExpr (I.Con c vs) =
           curry apps (A.Con (AmbQ [c])) =<< argsToExpr vs
-        termToExpr (I.Def f vs) = 
+        termToExpr (I.Def f vs) =
           curry apps (A.Def f) =<< argsToExpr vs
         termToExpr (I.Var n vs) =
           apps =<< (,) <$> reify (I.Var (n - len) []) <*> argsToExpr vs
         termToExpr _ = return $ A.Underscore minfo
-          
+
         minfo = MetaInfo noRange emptyScopeInfo Nothing
         einfo = ExprRange noRange
         app = foldl (App einfo)
@@ -252,7 +252,8 @@ instance Reify Term Expr where
             apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
       I.Lam h b    -> do
         (x,e) <- reify b
-        return $ A.Lam exprInfo (DomainFree h x) e
+        return $ A.Lam exprInfo (DomainFree h Relevant x) e
+        -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
       I.Lit l        -> reify l
       I.Pi a b       -> do
         Arg h r a <- reify a

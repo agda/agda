@@ -177,6 +177,7 @@ errorString err = case err of
     WrongHidingInApplication{}               -> "WrongHidingInApplication"
     WrongHidingInLHS{}                       -> "WrongHidingInLHS"
     WrongHidingInLambda{}                    -> "WrongHidingInLambda"
+    WrongIrrelevanceInLambda{}               -> "WrongIrrelevanceInLambda"
     WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
 
 instance PrettyTCM TCErr where
@@ -226,6 +227,8 @@ instance PrettyTCM TypeError where
 		fwords "Found an implicit argument where an explicit argument was expected"
 	    WrongHidingInLambda t -> do
 		fwords "Found an implicit lambda where an explicit lambda was expected"
+	    WrongIrrelevanceInLambda t -> do
+		fwords "Found an irrelevant lambda where a relevant lambda was expected"
 	    WrongHidingInApplication t -> do
 		fwords "Found an implicit application where an explicit application was expected"
             NotInductive t -> fsep $
@@ -645,7 +648,7 @@ instance PrettyTCM Call where
 	      where
 		bind :: C.LamBinding -> C.TypedBindings
 		bind (C.DomainFull b) = b
-		bind (C.DomainFree h x) = C.TypedBindings r $ Arg h Relevant (C.TBind r [x] (C.Underscore r Nothing))
+		bind (C.DomainFree h rel x) = C.TypedBindings r $ Arg h rel (C.TBind r [x] (C.Underscore r Nothing))
 		  where r = getRange x
 
                 name (D.Axiom _ _ _ _ _ n _) = n

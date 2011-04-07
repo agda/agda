@@ -331,10 +331,10 @@ instance ToConcrete A.Expr C.Expr where
                     e  <- toConcreteCtx TopCtx e
                     return $ C.Lam (getRange i) bs e
         where
-            lamView (A.Lam _ b@(A.DomainFree _ _) e) =
+            lamView (A.Lam _ b@(A.DomainFree _ _ _) e) =
                 case lamView e of
                     ([], e)                        -> ([b], e)
-                    (bs@(A.DomainFree _ _ : _), e) -> (b:bs, e)
+                    (bs@(A.DomainFree _ _ _ : _), e) -> (b:bs, e)
                     _                              -> ([b], e)
             lamView (A.Lam _ b@(A.DomainFull _) e) =
                 case lamView e of
@@ -399,7 +399,7 @@ instance ToConcrete A.Expr C.Expr where
 -- Binder instances -------------------------------------------------------
 
 instance ToConcrete A.LamBinding C.LamBinding where
-    bindToConcrete (A.DomainFree h x) ret = bindToConcrete x $ ret . C.DomainFree h . mkBoundName_
+    bindToConcrete (A.DomainFree h rel x) ret = bindToConcrete x $ ret . C.DomainFree h rel . mkBoundName_
     bindToConcrete (A.DomainFull b)   ret = bindToConcrete b $ ret . C.DomainFull
 
 instance ToConcrete A.TypedBindings C.TypedBindings where

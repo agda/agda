@@ -228,7 +228,7 @@ generateSyntaxInfo file mErr top termErrs = do
       getLet A.LetOpen{}           = mempty
 
       getLam :: A.LamBinding -> File
-      getLam (A.DomainFree _ x) = bound x
+      getLam (A.DomainFree _ _ x) = bound x
       getLam (A.DomainFull {})  = mempty
 
       getTyped :: A.TypedBinding -> File

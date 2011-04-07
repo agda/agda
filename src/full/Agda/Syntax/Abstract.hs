@@ -100,7 +100,8 @@ type Constructor    = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
-	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
+--	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
+	= DomainFree Hiding Relevance Name  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
   deriving (Typeable, Data, Show)
 
@@ -196,8 +197,8 @@ instance Traversable Pattern' where
 	ImplicitP i -> pure $ ImplicitP i
 
 instance HasRange LamBinding where
-    getRange (DomainFree _ x) = getRange x
-    getRange (DomainFull b)   = getRange b
+    getRange (DomainFree _ _ x) = getRange x
+    getRange (DomainFull b)     = getRange b
 
 instance HasRange TypedBindings where
     getRange (TypedBindings r _) = r
@@ -276,8 +277,8 @@ instance HasRange LetBinding where
     getRange (LetOpen  i _           ) = getRange i
 
 instance KillRange LamBinding where
-  killRange (DomainFree h x) = killRange1 (DomainFree h) x
-  killRange (DomainFull b)   = killRange1 DomainFull b
+  killRange (DomainFree h r x) = killRange1 (DomainFree h r) x
+  killRange (DomainFull b)     = killRange1 DomainFull b
 
 instance KillRange TypedBindings where
   killRange (TypedBindings r b) = TypedBindings (killRange r) (killRange b)

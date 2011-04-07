@@ -1,0 +1,3 @@
+IrrelevantTelescopeRecord.agda:7,11-12
+variable A is declared irrelevant, so it cannot be used here
+when checking that the expression A has type _4

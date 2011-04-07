@@ -557,8 +557,8 @@ instance ToAbstract C.Expr A.Expr where
       C.Quote r -> return $ A.Quote (ExprRange r)
 
 instance ToAbstract C.LamBinding A.LamBinding where
-  toAbstract (C.DomainFree h x) = A.DomainFree h <$> toAbstract (NewName x)
-  toAbstract (C.DomainFull tb)  = A.DomainFull <$> toAbstract tb
+  toAbstract (C.DomainFree h rel x) = A.DomainFree h rel <$> toAbstract (NewName x)
+  toAbstract (C.DomainFull tb)      = A.DomainFull <$> toAbstract tb
 
 instance ToAbstract C.TypedBindings A.TypedBindings where
   toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
@@ -673,12 +673,12 @@ instance ToAbstract LetDef [A.LetBinding] where
             letToAbstract _ = notAValidLetBinding d
 
             -- Named patterns not allowed in let definitions
-            lambda e (Arg h r (Named Nothing (A.VarP x))) = return $ A.Lam i (A.DomainFree h x) e
+            lambda e (Arg h rel (Named Nothing (A.VarP x))) = return $ A.Lam i (A.DomainFree h rel x) e
                 where
                     i = ExprRange (fuseRange x e)
-            lambda e (Arg h r (Named Nothing (A.WildP i))) =
+            lambda e (Arg h rel (Named Nothing (A.WildP i))) =
                 do  x <- freshNoName (getRange i)
-                    return $ A.Lam i' (A.DomainFree h x) e
+                    return $ A.Lam i' (A.DomainFree h rel x) e
                 where
                     i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d

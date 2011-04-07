@@ -128,7 +128,8 @@ rebuild (name,_,syn) r es = do
                           _ -> fail $ "more than one expression for hole " ++ show n
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding
-rebuildBinding (LocalV name) = return $ DomainFree NotHidden (mkBoundName_ name)
+rebuildBinding (LocalV name) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
+  -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
 rebuildBinding _ = fail "variable name expected"
 
 ($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e

@@ -375,6 +375,11 @@ CommaBIds
 -- function spaces: (x y z : Nat) -> ...
 -- (Used to be comma-separated; hence the name)
 -- QUESTION: Should this be replaced by SpaceBIds above?
+-- Andreas, 2011-04-07 the trick avoids reduce/reduce conflicts
+-- when parsing  (x y z : A) -> B
+-- at point (x y  it is not clear whether x y is an application or
+-- a variable list. We could be parsing (x y z) -> B
+-- with ((x y) z) being a type.
 CommaBIds :: { [Name] }
 CommaBIds : Application {%
     let getName (Ident (QName x)) = Just x
@@ -509,11 +514,14 @@ TypedBindingss
     | TypedBindings		   { [$1] }
 
 
--- A typed binding is either (x1 .. xn : A) or {y1 .. ym : B}.
+-- A typed binding is either (x1 .. xn : A) or {y1 .. ym : B}
+-- Andreas, 2011-04-07: or .(x1 .. xn : A) or .{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
     : '(' TBind ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
     | '{' TBind '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
+    | '.' '(' TBind ')' { TypedBindings (fuseRange $2 $4) (Arg NotHidden Irrelevant $3) }
+    | '.' '{' TBind '}' { TypedBindings (fuseRange $2 $4) (Arg Hidden    Irrelevant $3) }
 
 -- x1 .. xn:A
 TBind :: { TypedBinding }
@@ -571,13 +579,14 @@ TypedUntypedBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
+{-
     : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
-{-
-    : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
-    | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $1]  }
-    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
 -}
+    : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
+    | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
+    | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
+    | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -1085,7 +1094,7 @@ forallPi bs e = Pi (map addType bs) e
 -- | Converts lambda bindings to typed bindings.
 addType :: LamBinding -> TypedBindings
 addType (DomainFull b)	 = b
-addType (DomainFree h x) = TypedBindings r $ Arg h Relevant $ TBind r [x] $ Underscore r Nothing
+addType (DomainFree h rel x) = TypedBindings r $ Arg h rel $ TBind r [x] $ Underscore r Nothing
   where r = getRange x
 
 -- | Check that an import directive doesn't contain repeated names

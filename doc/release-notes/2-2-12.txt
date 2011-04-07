@@ -10,6 +10,38 @@ Language
 * When the --without-K flag is used literals are now treated as
   constructors.
 
+* Dependent irrelevant function types.
+
+  Non-dependent function types .A -> B are completed by their dependent
+  counterpart.
+ 
+    .(x y : A) -> B    .{x y z : A} -> B
+    forall x .y -> B   forall x .{y} {z} .v -> B
+
+  A declaration
+
+    f : .(x : A) -> B
+    f x = t 
+
+  means that x is irrelevant in t and in B.  This is possible e.g. if
+  B : .A -> Set.  Dependent irrelevance allows us to define the eliminator
+  for the Squash type:
+    
+    record Squash (A : Set) : Set where
+      constructor squash
+      field
+        .proof : A
+    
+    ElimSq = {A : Set}(P : Squash A -> Set)
+             (ih : .(a : A) -> P (squash a)) -> 
+             (a- : Squash A) -> P a-
+    elimSq : ElimSq
+    elimSq P ih (squash a) = ih a
+
+  Note that this would not type-check with (ih : (a : A) -> P (squash a)).    
+
+* Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
+
 Tools
 -----
 

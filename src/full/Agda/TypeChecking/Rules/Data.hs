@@ -184,20 +184,21 @@ checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 -- | Bind the parameters of a datatype. The bindings should be domain free.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
 bindParameters [] a ret = ret EmptyTel a
-bindParameters (A.DomainFree h x : ps) (El _ (Pi (Arg h' Relevant a) b)) ret
-    | h /= h'	=
+bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
+  -- Andreas, 2011-04-07 ignore relevance information in binding?!
+    | h /= h' =
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
-    arg = Arg h Relevant a
-bindParameters (A.DomainFree h x : ps) (El _ (Fun (Arg h' Relevant a) b)) ret
+    arg = Arg h rel' a
+bindParameters (A.DomainFree h rel x : ps) (El _ (Fun (Arg h' rel' a) b)) ret
     | h /= h'	=
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (raise 1 b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
-    arg = Arg h Relevant a
+    arg = Arg h rel' a
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 

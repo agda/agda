@@ -116,17 +116,17 @@ checkTelescope (b : tel) s ret =
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings :: A.TypedBindings -> Sort -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings (A.TypedBindings i (Arg h rel b)) s ret =
-    checkTypedBinding h s b $ \bs ->
+    checkTypedBinding h rel s b $ \bs ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
-checkTypedBinding :: Hiding -> Sort -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding h s (A.TBind i xs e) ret = do
+checkTypedBinding :: Hiding -> Relevance -> Sort -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding h rel s (A.TBind i xs e) ret = do
     t <- isType e s
-    addCtxs xs (Arg h Relevant t) $ ret $ mkTel xs t
+    addCtxs xs (Arg h rel t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding h s (A.TNoBind e) ret = do
+checkTypedBinding h rel s (A.TNoBind e) ret = do
     t <- isType e s
     ret [("_",t)]
 
@@ -144,17 +144,17 @@ checkTelescope_ (b : tel) ret =
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings_ (A.TypedBindings i (Arg h rel b)) ret =
-    checkTypedBinding_ h b $ \bs ->
+    checkTypedBinding_ h rel b $ \bs ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
-checkTypedBinding_ :: Hiding -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding_ h (A.TBind i xs e) ret = do
+checkTypedBinding_ :: Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding_ h rel (A.TBind i xs e) ret = do
     t <- isType_ e
-    addCtxs xs (Arg h Relevant t) $ ret $ mkTel xs t
+    addCtxs xs (Arg h rel t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding_ h (A.TNoBind e) ret = do
+checkTypedBinding_ h rel (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
@@ -227,17 +227,17 @@ checkExpr e t =
 
 	-- Insert hidden lambda if appropriate
 	_   | not (hiddenLambdaOrHole e)
-	    , FunV (Arg Hidden _ _) _ <- funView (unEl t) -> do
+	    , FunV (Arg Hidden rel _) _ <- funView (unEl t) -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden rel x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
                       Just pos -> posToRange pos pos
 
                 hiddenLambdaOrHole (A.AbsurdLam _ Hidden)                                  = True
-		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
+		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _ _) _)			   = True
 		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg Hidden _ _))) _) = True
 		hiddenLambdaOrHole (A.QuestionMark _)					   = True
 		hiddenLambdaOrHole _							   = False
@@ -389,24 +389,28 @@ checkExpr e t =
                 return (teleLam tel v, cs)
 	    blockTerm t v (return cs)
 
-	A.Lam i (A.DomainFree h x) e0 -> do
+	A.Lam i (A.DomainFree h rel x) e0 -> do
 	    -- (t',cs) <- forcePi h (show x) t
             t <- reduceB t
             case t of
               Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
               NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
               NotBlocked t' -> case funView $ unEl t' of
-		FunV arg0@(Arg h' r a) _
-		    | h == h' -> do
+		FunV arg0@(Arg h' rel' a) _
+                  -- Andreas, 2011-04-07 if lambda has explicit irrelevance
+                  --   marker, it needs to coincide with relevance of fun.type
+                    | rel == Irrelevant && rel' == Relevant ->
+                        typeError $ WrongIrrelevanceInLambda t'
+		    | h /= h' ->
+			typeError $ WrongHidingInLambda t'
+		    | otherwise -> do
 			v <- addCtx x arg0 $ do
-                              let arg = Arg h r (Var 0 [])
+                              let arg = Arg h rel' (Var 0 [])
                                   tb  = raise 1 t' `piApply` [arg]
                               v <- checkExpr e0 tb
                               return $ Lam h $ Abs (show x) v
 			-- blockTerm t v (return cs)
                         return v
-		    | otherwise ->
-			typeError $ WrongHidingInLambda t'
 		_   -> typeError $ ShouldBePi t'
 
 	A.QuestionMark i -> do

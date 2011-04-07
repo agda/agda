@@ -807,6 +807,8 @@ data TypeError
 	    -- ^ Expected a non-hidden function and found a hidden lambda.
 	| WrongHidingInApplication Type
 	    -- ^ A function is applied to a hidden argument where a non-hidden was expected.
+	| WrongIrrelevanceInLambda Type
+	    -- ^ Expected a relevant function and found an irrelevant lambda.
 	| NotInductive Term
           -- ^ The term does not correspond to an inductive data type.
 	| UninstantiatedDotPattern A.Expr

@@ -157,8 +157,8 @@ instance Pretty BoundName where
   pretty = pretty . boundName
 
 instance Pretty LamBinding where
-    pretty (DomainFree h x) = pHidden h (pretty x)
-    pretty (DomainFull b)   = pretty b
+    pretty (DomainFree h r x) = pRelevance r $ pHidden h $ pretty x
+    pretty (DomainFull b)     = pretty b
 
 instance Pretty TypedBindings where
     pretty (TypedBindings _ (Arg h rel b)) =

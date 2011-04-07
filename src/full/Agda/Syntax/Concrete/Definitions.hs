@@ -282,11 +282,11 @@ niceDeclarations ds = do
                               where
                                 f = fixity x fixs
                                 binding (TypedBindings _ (Arg h rel b)) =
-                                    bind h b
-                                bind h (TBind _ xs _) =
-                                    map (DomainFree h) xs
-                                bind h (TNoBind e) =
-                                    [ DomainFree h $ mkBoundName_ (noName (getRange e)) ]
+                                    bind h rel b
+                                bind h rel (TBind _ xs _) =
+                                    map (DomainFree h rel) xs
+                                bind h rel (TNoBind e) =
+                                    [ DomainFree h rel $ mkBoundName_ (noName (getRange e)) ]
 
 
 

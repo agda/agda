@@ -787,7 +787,7 @@ instance LowerMeta SC.Expr where
       SC.Quote r        -> SC.Quote r
 
 instance LowerMeta SC.LamBinding where
-  lowerMeta b@(SC.DomainFree _ _) = b
+  lowerMeta b@(SC.DomainFree _ _ _) = b
   lowerMeta (SC.DomainFull tb)    = SC.DomainFull (lowerMeta tb)
 
 instance LowerMeta SC.TypedBindings where

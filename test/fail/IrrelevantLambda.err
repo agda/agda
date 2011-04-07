@@ -1,0 +1,3 @@
+IrrelevantLambda.agda:8,5-16
+Found an irrelevant lambda where a relevant lambda was expected
+when checking that the expression λ .x → P x has type _6 → Set
