@@ -1,5 +1,5 @@
 
--- Records are not allowed in mutual blocks.
+-- Records are allowed in mutual blocks.
 module RecordInMutual where
 
 mutual
