@@ -78,7 +78,7 @@ data Pragma = OptionsPragma [String]
             | EtaPragma QName
   deriving (Typeable, Data, Show)
 
-data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info name type defn
+data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
                 | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Data, Show)

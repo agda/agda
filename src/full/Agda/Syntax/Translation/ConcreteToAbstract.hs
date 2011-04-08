@@ -638,8 +638,10 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceDef _ c [C.Axiom _ _ _ _ rel x t] [C.FunDef _ _ _ _ _ _ [cl]] ->
-                do  e <- letToAbstract cl
+            NiceDef _ c [C.Axiom _ _ _ abstract rel x t] [C.FunDef _ _ _ _ abstract' _ [cl]] ->
+                do  when (abstract == AbstractDef || abstract' == AbstractDef) $ do
+                      typeError $ GenericError $ "abstract not allowed in let expressions"
+                    e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName x)
                     return [ A.LetBind (LetRange $ getRange c) rel x t e ]

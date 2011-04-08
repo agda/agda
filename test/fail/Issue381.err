@@ -1,0 +1,3 @@
+Issue381.agda:9,8-31
+abstract not allowed in let expressions
+when scope checking let abstract y = x in y
