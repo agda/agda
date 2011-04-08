@@ -160,10 +160,7 @@ cabal:
 * When installing using a source tar ball, following the instructions
   in 2b) above:
 
-    make CABAL_OPTIONS="--global -fepic" install
-
-  (The Makefile specifies CABAL_OPTIONS=--global by default; feel free
-  to omit --global.)
+    make CABAL_OPTIONS=-fepic install
 
 You can also install Epic directly:
 
