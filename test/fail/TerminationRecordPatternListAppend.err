@@ -1,0 +1,4 @@
+TerminationRecordPatternListAppend.agda:39,42-48
+Unit !=< T (isCons l) of type Set
+when checking that the expression head l has type
+T true → _59 l l' l l'

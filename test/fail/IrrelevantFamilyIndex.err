@@ -1,0 +1,3 @@
+IrrelevantFamilyIndex.agda:21,13-19
+_ != _ of type Nat
+when checking that the pattern zero n has type Fin _

@@ -1,0 +1,6 @@
+
+The name of the top level module does not match the file name. The
+module MutualBlockInLet should be defined in one of the following
+files:
+  MutualBlockInLet.agda
+  MutualBlockInLet.lagda

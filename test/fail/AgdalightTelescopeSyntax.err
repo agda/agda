@@ -1,0 +1,3 @@
+AgdalightTelescopeSyntax.agda:6,15-15
+AgdalightTelescopeSyntax.agda:6,15:
+Parse error ;<ERROR> z : B x) -> A -- this is Agda...
