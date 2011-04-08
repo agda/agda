@@ -1,0 +1,5 @@
+Issue332.agda:4,1-5
+Don't know how to parse id x. Could mean any one of:
+  id x
+  id x
+when scope checking the left-hand side id x in the definition of id
