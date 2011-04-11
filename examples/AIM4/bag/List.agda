@@ -37,7 +37,7 @@ module List where
     right (memberPreservesEq {a} xy zs xzs)
 
   private
-    noCopies' : (a : Datoid) -> (x y : El a) -> Either (datoidRel a x y) _
+    noCopies' : (a : Datoid) -> (x y : El a) -> Dec (datoidRel a x y) 
               -> Nat -> Nat
     noCopies' _ _ _ (left _)  n = suc n
     noCopies' _ _ _ (right _) n = n
@@ -55,7 +55,7 @@ module List where
     delete'
       : (a : Datoid)
       -> (x y : El a)
-      -> Either (datoidRel a x y) _
+      -> Dec (datoidRel a x y)
       -> (ys delXYs : List (El a))
       -> List (El a)
     delete' _ _ _ (left _)  ys _      = ys

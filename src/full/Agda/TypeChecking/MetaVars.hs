@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, RelaxedPolyRec #-}
+{-# LANGUAGE CPP, RelaxedPolyRec, GeneralizedNewtypeDeriving #-}
 
 module Agda.TypeChecking.MetaVars where
 
@@ -79,52 +79,58 @@ isEtaExpandable x = do
       BlockedConst{}                 -> False
       PostponedTypeCheckingProblem{} -> False
 
+-- * Performing the assignment
+
 class HasMeta t where
     metaInstance :: MonadTCM tcm => t -> tcm MetaInstantiation
     metaVariable :: MetaId -> Args -> t
+
+-- | Performing the meta variable assignment.
+--
+--   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
+--   should point to something 'Open' or a 'BlockedConst'.
+--   Further, the meta variable may not be 'Frozen'.
+(=:) :: (MonadTCM tcm, HasMeta t, KillRange t, Show t) =>
+        MetaId -> t -> tcm ()
+x =: t = do
+    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
+    whenM (isFrozen x) __IMPOSSIBLE__  -- verify (new) invariant
+    i <- metaInstance (killRange t)
+    modifyMetaStore $ ins x i
+    etaExpandListeners x
+    wakeupConstraints
+    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
+  where
+    ins x i store = Map.adjust (inst i) x store
+    inst i mv = mv { mvInstantiation = i }
+
+-- ** Instance for terms.
 
 instance HasMeta Term where
     metaInstance = return . InstV
     metaVariable = MetaV
 
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
+assignTerm = (=:)
+
+-- ** Instance for sorts.
+
 instance HasMeta Sort where
     metaInstance = return . InstS . Sort
     metaVariable = MetaS
 
--- TODO
+-- | A wrapper for sorts represented as terms.
+newtype SortTerm = SortTerm { unSortTerm :: Term }
+    deriving (Eq, Ord, Show, KillRange)
+
+instance HasMeta SortTerm where
+    metaInstance = return . InstS . unSortTerm
+    metaVariable x vs = SortTerm (MetaV x vs)
+
 (=:=) :: (MonadTCM tcm) => MetaId -> Term -> tcm ()
-x =:= t = do
-    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
-    store <- getMetaStore
-    modify $ \st -> st { stMetaStore = ins x (InstS $ killRange t) store }
-    etaExpandListeners x
-    wakeupConstraints
-    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
-  where
-    ins x i store = Map.adjust (inst i) x store
-    inst i mv = mv { mvInstantiation = i }
+x =:= t = x =: (SortTerm t)
 
--- | The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
---   should point to something 'Open' or a 'BlockedConst'.
-(=:) :: (MonadTCM tcm, HasMeta t, KillRange t, Show t) =>
-        MetaId -> t -> tcm ()
-x =: t = do
-    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
-    i <- metaInstance (killRange t)
-    store <- getMetaStore
-    modify $ \st -> st { stMetaStore = ins x i store }
-    etaExpandListeners x
-    wakeupConstraints
-    reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
-  where
-    ins x i store = Map.adjust (inst i) x store
-    inst i mv = mv { mvInstantiation = i }
 
-assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
-assignTerm = (=:)
-
-assignSort :: MonadTCM tcm => MetaId -> Sort -> tcm ()
-assignSort = (=:)
 
 newSortMeta :: MonadTCM tcm => tcm Sort
 newSortMeta =
@@ -316,8 +322,14 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   let args	 = [ Arg h r $ Var i []
 		   | (i, Arg h r _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
-  bb <- reduceB b
+  bb <- reduceB b  -- the target in the type @a@ of @m@
   case unEl <$> bb of
+    -- if the target type of @m@ is a meta variable @x@ itself
+    -- (@NonBlocked (MetaV{})@),
+    -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
+    -- eta expand now, we have to postpone this.  Once @x@ is
+    -- instantiated, we can continue eta-expanding m.  This is realized
+    -- by adding @m@ to the listeners of @x@.
     Blocked x _               -> listenToMeta m x
     NotBlocked (MetaV x _)    -> listenToMeta m x
     NotBlocked lvl@(Def r ps) ->
@@ -382,7 +394,7 @@ handleAbort h m = liftTCM $
               -- reportSLn "tc.meta.assign" 50 "handleAbort: Some exception"
               throwError e
 
--- | Assign to an open metavar.
+-- | Assign to an open metavar which may not be frozen.
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
@@ -396,6 +408,9 @@ assignV t x args v =
         case v of
           Sort Inf  -> typeError $ GenericError "Setω is not a valid type."
           _         -> return ()
+
+        -- We don't instantiate frozen mvars
+        whenM (isFrozen x) patternViolation
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
@@ -485,6 +500,9 @@ assignS x args s =
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
 
+        -- We don't instantiate frozen mvars
+        whenM (isFrozen x) patternViolation
+
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
@@ -562,6 +580,10 @@ assignS x args s =
 
         noPolyAssign x s =
           handleAbort (equalSort (MetaS x []) s) $ do
+
+            -- We don't instantiate frozen mvars
+            whenM (isFrozen x) patternViolation
+
             Sort s <- occursCheck x [] (Sort s)
             x =: s
             return []

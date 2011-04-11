@@ -37,3 +37,10 @@ withEnv env m = local (const env) m
 -- | Get the current environmnet
 getEnv :: MonadTCM tcm => tcm TCEnv
 getEnv = ask
+
+-- | Leave the top level to type check local things.
+leaveTopLevel :: MonadTCM tcm => tcm a -> tcm a
+leaveTopLevel = local $ \ env -> env { envTopLevel = False }
+
+onTopLevel :: MonadTCM tcm => tcm Bool
+onTopLevel = asks envTopLevel

@@ -25,6 +25,7 @@ import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism
 import Agda.TypeChecking.Free
 
 import Agda.Utils.Fresh
+import Agda.Utils.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -49,7 +50,9 @@ noConstraints m = do
     unless (List.null cs) $ typeError $ UnsolvedConstraints cs
     return ()
 
--- | Guard constraint
+-- | @guardConstraint cs c@ tries to solve constraints @cs@ first.
+--   If successful, it moves on to solve @c@, otherwise it returns
+--   a @Guarded c cs@.
 guardConstraint :: MonadTCM tcm => tcm Constraints -> Constraint -> tcm Constraints
 guardConstraint m c = do
     cs <- solveConstraints =<< m
@@ -104,7 +107,8 @@ solveConstraint (SortCmp cmp s1 s2)  = compareSort cmp s1 s2
 solveConstraint (LevelCmp cmp a b)   = compareLevel cmp a b
 solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
 solveConstraint (IsEmpty t)          = isEmptyTypeC t
-solveConstraint (UnBlock m)          = do
+solveConstraint (UnBlock m)          =
+  ifM (isFrozen m) (buildConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of

@@ -226,7 +226,9 @@ module Nat where
     r zero    = tt
     r (suc n) = r n
 
-    rf = \x -> eqnat (r x)
+    -- reflexivity of EqNat
+    rf : (n : Nat) -> EqNat n n 
+    rf = \ x -> eqnat (r x)
 
     s : (x y : Nat) -> eqNat x y -> eqNat y x
     s  zero    zero   _ = tt
@@ -234,6 +236,8 @@ module Nat where
     s zero    (suc _) ()
     s (suc _) zero    ()
 
+    -- symmetry of EqNat
+    sy : (x y : Nat) -> EqNat x y -> EqNat y x
     sy = \x y h -> eqnat (s x y (uneqnat h))
 
     t : (x y z : Nat) -> eqNat x y -> eqNat y z -> eqNat x z
@@ -243,6 +247,8 @@ module Nat where
     t (suc _)  zero    _      () _
     t (suc _) (suc _)  zero   _  ()
 
+    -- transitivity of EqNat
+    tr : (x y z : Nat) -> EqNat x y -> EqNat y z -> EqNat x z
     tr = \x y z xy yz -> eqnat (t x y z (uneqnat xy) (uneqnat yz))
 
   NAT : Setoid

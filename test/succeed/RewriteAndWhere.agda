@@ -1,7 +1,7 @@
 
 module RewriteAndWhere where
 
-data _≡_ {A}(x : A) : A → Set where
+data _≡_ {A : Set}(x : A) : A → Set where
   refl : x ≡ x
 
 {-# BUILTIN EQUALITY _≡_ #-}
@@ -29,6 +29,7 @@ mutual
 
   good₂ : (a b : ℕ) → a ≡ b → b ≡ a
   good₂ a b eq = aux a b a eq
+
 
 bad : (a b : ℕ) → a ≡ b → b ≡ a
 bad a b eq rewrite eq = foo

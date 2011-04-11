@@ -103,7 +103,7 @@ module Equiv where
       right (not (\xy -> nxy1 (fst xy)))
 
     dec' :  {a b : Set} -> (da : DecidableEquiv a) -> (db : DecidableEquiv b)
-         -> (x y : Pair a b) -> Either (pairEq da db x y) _
+         -> (x y : Pair a b) -> Either (pairEq da db x y) (Not (pairEq da db x y))
     dec' a b (pair x1 x2) (pair y1 y2) =
       dec'' {_} {_} {a} {b} (decRel a x1 y1) (decRel b x2 y2)
 

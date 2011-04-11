@@ -1,4 +1,5 @@
-
+-- Modified: Andreas, 2011-04-11 freezing metas
+ 
 module Issue151 where
 
 record A : Set₁ where
@@ -22,12 +23,11 @@ foo a p (b .a .p) (c .a .p)  = Set
 postulate
   D : A → Set
   d : (a : A) → D a
-  test : (a : A) → _
 
 -- The following definition generates a constraint
 --   α record{ El = A.El a } == D a
 -- on the metavariable above. To solve this the constraint
 -- solver has to eta contract the record to see that the
 -- left hand side is a proper Miller pattern.
-bar : (a : A) → D a
-bar a = test record{ El = A.El a }
+bar : (test : (a : A) -> _) -> (a : A) → D a
+bar test a = test record{ El = A.El a }

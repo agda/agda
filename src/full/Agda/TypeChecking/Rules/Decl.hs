@@ -43,13 +43,14 @@ import Agda.Utils.Impossible
 
 -- | Type check a sequence of declarations.
 checkDecls :: [A.Declaration] -> TCM ()
-checkDecls ds = mapM_ checkDecl ds
-
+checkDecls ds = do
+  mapM_ checkDecl ds
+  whenM onTopLevel unfreezeMetas
 
 -- | Type check a single declaration.
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
-    case d of
+    leaveTopLevelConditionally d $ case d of
 	A.Axiom i rel x e            -> checkAxiom i rel x e
         A.Field{}                    -> typeError FieldOutsideRecord
 	A.Primitive i x e	     -> checkPrimitive i x e
@@ -63,7 +64,13 @@ checkDecl d = do
 	    -- open is just an artifact from the concrete syntax
             -- retained for highlighting purposes
     solveSizeConstraints
-
+    whenM onTopLevel freezeMetas
+    where
+      leaveTopLevelConditionally d =
+        case d of
+          A.Section{}    -> id
+          A.ScopedDecl{} -> id
+          _              -> leaveTopLevel
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()

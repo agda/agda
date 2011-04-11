@@ -21,9 +21,12 @@ max (suc n) (suc m) = suc (max n m)
 data ↓ {a b} (A : Set a) : Set a where
   [_] : (x : A) → ↓ A
 
--- Shouldn't instantiate the level of Σ to a
-data Σ {a b} (A : Set a) (B : A → Set b) : Set _ where
-  _,_ : (x : A) (y : B x) → Σ A B
+mutual -- avoid freezing
 
-instantiateToMax : ∀ {a b}(A : Set a)(B : A → Set b) → Set (max a b)
-instantiateToMax = Σ
+  -- Shouldn't instantiate the level of Σ to a
+  data Σ {a b} (A : Set a) (B : A → Set b) : Set _ where
+    _,_ : (x : A) (y : B x) → Σ A B
+  
+  instantiateToMax : ∀ {a b}(A : Set a)(B : A → Set b) → Set (max a b)
+  instantiateToMax = Σ
+    

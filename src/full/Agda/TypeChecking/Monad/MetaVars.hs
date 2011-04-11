@@ -31,6 +31,9 @@ import Agda.Utils.Impossible
 getMetaStore :: MonadTCM tcm => tcm MetaStore
 getMetaStore = gets stMetaStore
 
+modifyMetaStore :: MonadTCM tcm => (MetaStore -> MetaStore) -> tcm ()
+modifyMetaStore f = modify (\ st -> st { stMetaStore = f $ stMetaStore st })
+
 -- | Lookup a meta variable
 lookupMeta :: MonadTCM tcm => MetaId -> tcm MetaVariable
 lookupMeta m =
@@ -114,7 +117,7 @@ newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority -> Per
             Judgement Type a -> tcm MetaId
 newMeta' inst mi p perm j = do
   x <- fresh
-  let mv = MetaVar mi p perm (fmap (const x) j) inst Set.empty
+  let mv = MetaVar mi p perm (fmap (const x) j) inst Set.empty Instantiable
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 
@@ -176,3 +179,19 @@ getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 clearMetaListeners :: MonadTCM tcm => MetaId -> tcm ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
+
+-- | Freeze all meta variables.
+freezeMetas :: MonadTCM tcm => tcm ()
+freezeMetas = modifyMetaStore $ Map.map freeze where
+  freeze :: MetaVariable -> MetaVariable
+  freeze mvar = mvar { mvFrozen = Frozen }
+
+unfreezeMetas :: MonadTCM tcm => tcm ()
+unfreezeMetas = modifyMetaStore $ Map.map unfreeze where
+  unfreeze :: MetaVariable -> MetaVariable
+  unfreeze mvar = mvar { mvFrozen = Instantiable }
+
+isFrozen :: MonadTCM tcm => MetaId -> tcm Bool
+isFrozen x = do
+  mvar <- lookupMeta x
+  return $ mvFrozen mvar == Frozen

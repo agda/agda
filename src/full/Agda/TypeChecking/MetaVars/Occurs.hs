@@ -173,6 +173,7 @@ killArgs kills _
   | not (or kills) = return False  -- nothing to kill
 killArgs kills m = do
   mv <- lookupMeta m
+  if mvFrozen mv == Frozen then return False else do
   case mvJudgement mv of
     IsSort _    -> return False
     HasType _ a -> do
@@ -208,6 +209,7 @@ killedType ((arg, kill) : kills) b
 performKill :: [Arg Bool] -> MetaId -> Type -> TCM ()
 performKill kills m a = do
   mv <- lookupMeta m
+  when (mvFrozen mv == Frozen) __IMPOSSIBLE__
   let perm = Perm (size kills)
              [ i | (i, Arg _ _ False) <- zip [0..] (reverse kills) ]
   m' <- newMeta (mvInfo mv) (mvPriority mv) perm (HasType undefined a)

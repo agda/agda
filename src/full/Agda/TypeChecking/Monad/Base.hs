@@ -279,15 +279,25 @@ data MetaVariable =
                   --   ones it does not depend on
 		, mvJudgement	  :: Judgement Type MetaId
 		, mvInstantiation :: MetaInstantiation
-		, mvListeners	  :: Set MetaId	  -- ^ metavariables interested in what happens to this guy
+		, mvListeners	  :: Set MetaId -- ^ meta variables scheduled for eta-expansion but blocked by this one
+                , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
 		}
     deriving (Typeable)
 
+-- | Frozen meta variable cannot be instantiated by unification.
+--   This serves to prevent the completion of a definition by its use
+--   outside of the current block.
+--   (See issues 118, 288, 399).
+data Frozen
+  = Frozen        -- ^ Do not instantiate.
+  | Instantiable
+    deriving (Eq, Show)
+
 data MetaInstantiation
-	= InstV Term
-	| InstS Term  -- should be Lam .. Sort s
-	| Open
-	| BlockedConst Term
+	= InstV Term         -- ^ solved by term
+	| InstS Term         -- ^ solved by @Lam .. Sort s@
+	| Open               -- ^ unsolved
+	| BlockedConst Term  -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
     deriving (Typeable)
 
@@ -310,8 +320,8 @@ instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
 instance SetRange MetaVariable where
-  setRange r (MetaVar mi p perm j inst ls) =
-    MetaVar (mi {clValue = r}) p perm j inst ls
+  setRange r (MetaVar mi p perm j inst ls frozen) =
+    MetaVar (mi {clValue = r}) p perm j inst ls frozen
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
@@ -685,6 +695,9 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
+          , envTopLevel            :: Bool
+                -- ^ Are we at the top level when checking a declaration?
+                --   In this case, we will freeze metas afterwards.
           , envIrrelevant          :: Bool
                 -- ^ Are we checking an irrelevant argument?
                 -- Then top-level irrelevant declarations are enabled.
@@ -720,6 +733,7 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
+                , envTopLevel            = True
                 , envIrrelevant          = False
                 , envReplace             = True
                 , envDisplayFormsEnabled = True

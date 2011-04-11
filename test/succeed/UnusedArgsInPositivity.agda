@@ -1,4 +1,7 @@
-{-# OPTIONS --guardedness-preserving-type-constructors --universe-polymorphism #-}
+-- Modified: Andreas, 2011-04-11 freezing metas, removed unused uni.poly
+
+{-# OPTIONS --guardedness-preserving-type-constructors #-}
+
 module UnusedArgsInPositivity where
 
 open import Coinduction
@@ -20,9 +23,7 @@ module Ex₁ where
 
 module Ex₂ where
 
-  open import Common.Level
-
-  data Maybe A : Set where
+  data Maybe (A : Set) : Set where
 
   data Rec (A : ∞ Set) : Set where
     fold : ♭ A → Rec A
@@ -55,7 +56,7 @@ of El.
 -}
 
 module Ex₃ where
-  data D A : Set where
+  data D (A : Set) : Set where
     d : D A
 
   data E : Set where

@@ -90,3 +90,6 @@ module Prelude where
   iffRight : {a b : Set} -> (a <-> b) -> (b -> a)
   iffRight (iff _ r) = r
 
+  Dec : (A : Set) -> Set
+  Dec A = Either A (Not A)
+ 
