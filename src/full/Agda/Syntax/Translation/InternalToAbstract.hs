@@ -351,7 +351,10 @@ stripImplicits ps wps =
         varOrDot A.ImplicitP{} = True
         varOrDot _             = False
 
-
+-- | @dotVars ps@ gives all the variables inside of dot patterns of @ps@
+--   It is only invoked for patternish things. (Ulf O-tone!)
+--   Use it for printing l.h.sides: which of the implicit arguments
+--   have to be made explicit.
 class DotVars a where
   dotVars :: a -> Set Name
 
@@ -369,7 +372,7 @@ instance (DotVars a, DotVars b) => DotVars (a, b) where
 
 instance DotVars A.Pattern where
   dotVars p = case p of
-    A.VarP _      -> Set.empty
+    A.VarP _      -> Set.empty   -- do not add pattern vars
     A.ConP _ _ ps -> dotVars ps
     A.DefP _ _ ps -> dotVars ps
     A.DotP _ e    -> dotVars e
@@ -379,10 +382,13 @@ instance DotVars A.Pattern where
     A.ImplicitP _ -> Set.empty
     A.AsP _ _ p   -> dotVars p
 
+-- | Getting all(!) variables of an expression.
+--   It should only get free ones, but it does not matter to include
+--   the bound ones.
 instance DotVars A.Expr where
   dotVars e = case e of
     A.ScopedExpr _ e -> dotVars e
-    A.Var x          -> Set.singleton x
+    A.Var x          -> Set.singleton x -- add any expression variable
     A.Def _          -> Set.empty
     A.Con _          -> Set.empty
     A.Lit _          -> Set.empty
