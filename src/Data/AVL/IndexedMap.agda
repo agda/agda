@@ -21,7 +21,7 @@ open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
 open import Category.Functor
-open RawFunctor Maybe.functor
+open RawFunctor (Maybe.functor {f = zero})
 
 -- Key/value pairs.
 

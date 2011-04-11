@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 -- Decorated star-lists
 ------------------------------------------------------------------------
-
+{-# OPTIONS --show-implicit #-}
 module Data.Star.Decoration where
 
 open import Data.Star
@@ -12,7 +12,7 @@ open import Level
 
 -- A predicate on relation "edges" (think of the relation as a graph).
 
-EdgePred : ∀ {I} → Rel I zero → Set₁
+EdgePred : ∀ {I : Set} → Rel I zero → Set₁
 EdgePred T = ∀ {i j} → T i j → Set
 
 data NonEmptyEdgePred {I : Set}

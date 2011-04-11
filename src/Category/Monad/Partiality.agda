@@ -376,7 +376,7 @@ private
 
   -- Map.
 
-  map : ∀ {_∼′_ k} →
+  map : ∀ {_∼′_ : A → A → Set a} {k} →
         _∼′_ ⇒ _∼_ → Equality.Rel _∼′_ k ⇒ Equality.Rel _∼_ k
   map ∼′⇒∼ (now x∼y)    = now (∼′⇒∼ x∼y)
   map ∼′⇒∼ (later  x∼y) = later (♯ map ∼′⇒∼ (♭ x∼y))
@@ -596,8 +596,8 @@ module Workaround {a} where
   module Correct where
 
     private
-      open module Eq {A} = Equality  {A = A} _≡_
-      open module R  {A} = Reasoning {A = A} P.isEquivalence
+      open module Eq {A : Set a} = Equality  {A = A} _≡_
+      open module R  {A : Set a} = Reasoning (P.isEquivalence {A = A})
 
     now-hom : ∀ {A} (x : A) → ⟦ now x ⟧P ≅ now x
     now-hom x = now x ∎

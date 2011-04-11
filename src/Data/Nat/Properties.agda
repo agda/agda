@@ -19,7 +19,7 @@ open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; _≢_; refl; sym; cong; cong₂)
 open PropEq.≡-Reasoning
-import Algebra.FunctionProperties as P; open P _≡_
+import Algebra.FunctionProperties as P; open P (_≡_ {A = ℕ})
 open import Data.Product
 
 ------------------------------------------------------------------------

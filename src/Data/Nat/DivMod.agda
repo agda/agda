@@ -4,7 +4,7 @@
 
 module Data.Nat.DivMod where
 
-open import Data.Nat
+open import Data.Nat as Nat
 open import Data.Nat.Properties
 open SemiringSolver
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
@@ -20,7 +20,7 @@ open import Function
 
 private
 
-  lem₁ : ∀ m k → _
+  lem₁ : ∀ (m k : ℕ) → Nat.suc m ≡ suc (toℕ (Fin.inject+ k (fromℕ m)) + 0)
   lem₁ m k = cong suc $ begin
     m
       ≡⟨ sym $ Fin.to-from m ⟩
@@ -34,7 +34,7 @@ private
   lem₂ : ∀ n → _
   lem₂ = solve 1 (λ n → con 1 :+ n  :=  con 1 :+ (n :+ con 0)) refl
 
-  lem₃ : ∀ n k q r eq → _
+  lem₃ : ∀ n k q (r : Fin n) eq → suc n + k ≡ toℕ r + suc q * n
   lem₃ n k q r eq = begin
       suc n + k
         ≡⟨ solve 2 (λ n k → con 1 :+ n :+ k  :=  n :+ (con 1 :+ k))

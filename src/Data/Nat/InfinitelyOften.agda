@@ -4,6 +4,7 @@
 
 module Data.Nat.InfinitelyOften where
 
+import Level
 open import Algebra
 open import Category.Monad
 open import Data.Empty
@@ -16,7 +17,7 @@ open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Negation
 open import Relation.Unary using (_∪_; _⊆_)
-open RawMonad ¬¬-Monad
+open RawMonad (¬¬-Monad {p = Level.zero})
 private
   module NatLattice = DistributiveLattice NatProp.distributiveLattice
 

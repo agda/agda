@@ -60,7 +60,7 @@ prove ρ e₁ e₂ hyp = begin
 
 -- Applies the function to all possible "variables".
 
-close : ∀ {A} n → N-ary n (Expr n) A → A
+close : ∀ {A : Set e} n → N-ary n (Expr n) A → A
 close n f = f $ⁿ Vec.map var (allFin n)
 
 -- A variant of prove which should in many cases be easier to use,

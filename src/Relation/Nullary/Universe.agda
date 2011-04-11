@@ -42,13 +42,13 @@ data PropF : Set₁ where
 mutual
 
   setoid : PropF → {P : Set} → Setoid zero zero
-  setoid Id {P}    = PropEq.setoid P
-  setoid (K P)     = PropEq.setoid P
-  setoid (F₁ ∨ F₂) = setoid F₁ ⊎-setoid setoid F₂
-  setoid (F₁ ∧ F₂) = setoid F₁ ×-setoid setoid F₂
-  setoid (P₁ ⇒ F₂) = FunS.≡-setoid P₁
-                         (Setoid.indexedSetoid (setoid F₂))
-  setoid (¬¬ F) {P} = Always-setoid (¬ ¬ ⟦ F ⟧ P)
+  setoid Id        {P} = PropEq.setoid P
+  setoid (K P)         = PropEq.setoid P
+  setoid (F₁ ∨ F₂) {P} = (setoid F₁ {P}) ⊎-setoid (setoid F₂ {P})
+  setoid (F₁ ∧ F₂) {P} = (setoid F₁ {P}) ×-setoid (setoid F₂ {P})
+  setoid (P₁ ⇒ F₂) {P} = FunS.≡-setoid P₁
+                           (Setoid.indexedSetoid (setoid F₂ {P}))
+  setoid (¬¬ F)    {P} = Always-setoid (¬ ¬ ⟦ F ⟧ P)
 
   ⟦_⟧ : PropF → (Set → Set)
   ⟦ F ⟧ P = Setoid.Carrier (setoid F {P})
@@ -108,7 +108,7 @@ sequence {AF} A extract-⊥ sequence-⇒ = helper
 
 -- Some lemmas about double negation.
 
-open RawMonad ¬¬-Monad
+open RawMonad (¬¬-Monad {p = zero})
 
 ¬¬-pull : ∀ F {P} → ⟦ F ⟧ (¬ ¬ P) → ¬ ¬ ⟦ F ⟧ P
 ¬¬-pull = sequence rawIApplicative

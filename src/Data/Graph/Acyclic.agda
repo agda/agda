@@ -8,6 +8,7 @@
 
 module Data.Graph.Acyclic where
 
+import Level
 open import Data.Nat as Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin
@@ -281,7 +282,7 @@ private
 -- losing all sharing).
 
 data Tree N E : Set where
-  node : (label : N) (successors : List (E × Tree N E)) → Tree N E
+  node : (label : N) (successors : List {a = Level.zero} (E × Tree N E)) → Tree N E
 
 toTree : ∀ {N E n} → Graph N E n → Fin n → Tree N E
 toTree {N} {E} g i = <-rec Pred expand _ (g [ i ])

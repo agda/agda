@@ -17,7 +17,7 @@ import Algebra.RingSolver.AlmostCommutativeRing as ACR
 open import Relation.Binary.PropositionalEquality
   hiding (proof-irrelevance)
 open ≡-Reasoning
-import Algebra.FunctionProperties as P; open P _≡_
+import Algebra.FunctionProperties as P; open P (_≡_ {A = Bool})
 open import Data.Product
 open import Data.Sum
 open import Data.Empty

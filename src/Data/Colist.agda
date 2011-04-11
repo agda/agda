@@ -27,7 +27,7 @@ import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.PropositionalEquality using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
-open RawMonad ¬¬-Monad
+open RawMonad (¬¬-Monad {p = zero})
 
 ------------------------------------------------------------------------
 -- The type
