@@ -244,7 +244,7 @@ generateSyntaxInfo file mErr top termErrs = do
       getPattern _             = mempty
 
       getFieldDecl :: A.Definition -> File
-      getFieldDecl (A.RecDef _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
+      getFieldDecl (A.RecDef _ _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
         extractField (A.Field _ x _)     = field (concreteQualifier x)
@@ -323,12 +323,12 @@ nameKinds mErr decls = do
                                    (Map.unions $
                                     map (\q -> Map.singleton q (Constructor SC.Inductive)) $
                                     map getAxiomName cs)
-  getDef (A.RecDef  _ q _ c _ _ _) = Map.singleton q Record `union`
-                                     case c of
-                                       Nothing -> Map.empty
-                                       Just (A.Axiom _ _ q _) ->
-                                         Map.singleton q (Constructor SC.Inductive)
-                                       Just _ -> __IMPOSSIBLE__
+  getDef (A.RecDef  _ q c _ _ _) = Map.singleton q Record `union`
+                                   case c of
+                                     Nothing -> Map.empty
+                                     Just (A.Axiom _ _ q _) ->
+                                       Map.singleton q (Constructor SC.Inductive)
+                                     Just _ -> __IMPOSSIBLE__
   getDef (A.ScopedDef {})        = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind

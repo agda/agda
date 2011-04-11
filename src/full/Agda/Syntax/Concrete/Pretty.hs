@@ -126,7 +126,7 @@ instance Pretty Expr where
 		    , nest 2 $ pretty e
 		    ]
             AbsurdLam _ NotHidden -> lambda <+> text "()"
-            AbsurdLam _ ImplicitFromScope -> lambda <+> text "()"
+            AbsurdLam _ ImplicitFromScope -> lambda <+> text "{{}}"
             AbsurdLam _ Hidden -> lambda <+> text "{}"
 	    Fun _ e1 e2 ->
 		sep [ pretty e1 <+> arrow

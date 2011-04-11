@@ -27,7 +27,7 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Data.Typeable
 import Data.Traversable (mapM)
-import Data.List ((\\), nub, init)
+import Data.List ((\\), nub)
 import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
@@ -753,21 +753,8 @@ instance ToAbstract NiceDefinition Definition where
             return afields
           bindModule p x m
           c' <- mapM (toAbstract . ConstrDecl m) c
-          let xIFS = extendName x "WithImplicits"
-          mIFS <- toAbstract $ NewModuleName $ xIFS
-          (renD, renM) <- withCurrentModule mIFS $ do
-            s <- getNamedScope m
-            (s', (renM, renD)) <- copyScope mIFS s
-            modifyCurrentScope $ const s'
-            return (renD, renM)
-          bindModule p xIFS mIFS
           printScope "rec" 15 "record complete"
-          return $ A.RecDef (mkDefInfo x f p a r) x' (mIFS, renD, renM) c' pars contel afields
-      where
-        extendName (C.Name r nps) ext = C.Name r $ case head $ reverse nps of
-          Hole -> nps ++ [Id ext]
-          (Id s) -> init nps ++ [Id $ s ++ ext]
-        extendName NoName{} ext = __IMPOSSIBLE__
+          return $ A.RecDef (mkDefInfo x f p a r) x' c' pars contel afields
 
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.

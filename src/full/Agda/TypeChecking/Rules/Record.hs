@@ -26,8 +26,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 
-import Data.Map (Map)
-
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -35,11 +33,9 @@ import Agda.Utils.Impossible
 -- * Records
 ---------------------------------------------------------------------------
 
-checkRecDef :: Info.DefInfo -> QName ->
-               (ModuleName, Map QName QName, Map ModuleName ModuleName) ->
-               Maybe A.Constructor ->
+checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
                [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
-checkRecDef i name (mIFS, renD, renM) con ps contel fields =
+checkRecDef i name con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
@@ -123,15 +119,15 @@ checkRecDef i name (mIFS, renD, renM) con ps contel fields =
         withCurrentModule m $
           checkRecordProjections m conName tel' (raise 1 ftel) fields
 
-      escapeContext (size tel) $ flip (foldr extHide) ctx $ extWithRH ImplicitFromScope $ do
-        -- check the WithImplicits module macro
-        allArgs <- getContextArgs
-        let argsIFS = take (size tel + 1) allArgs
-        let unhide :: Arg a -> Arg a
-            unhide a = a { argHiding = NotHidden }
-        let args = init argsIFS ++ [unhide $ last argsIFS]
-        applySection mIFS telIFS m args renD renM
-        return ()
+      -- escapeContext (size tel) $ flip (foldr extHide) ctx $ extWithRH ImplicitFromScope $ do
+      --   -- check the WithImplicits module macro
+      --   allArgs <- getContextArgs
+      --   let argsIFS = take (size tel + 1) allArgs
+      --   let unhide :: Arg a -> Arg a
+      --       unhide a = a { argHiding = NotHidden }
+      --   let args = init argsIFS ++ [unhide $ last argsIFS]
+      --   applySection mIFS telIFS m args renD renM
+      --   return ()
 
       addConstant conName $
         Defn Relevant conName contype (defaultDisplayForm conName) 0 $

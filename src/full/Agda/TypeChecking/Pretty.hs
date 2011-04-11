@@ -204,7 +204,7 @@ instance PrettyTCM PrettyContext where
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
-              par ImplicitFromScope    = P.braces . P.braces
+              par ImplicitFromScope    = P.dbraces
 {-
               rel Irrelevant x = P.text "." P.<> x
               rel Relevant x   = x

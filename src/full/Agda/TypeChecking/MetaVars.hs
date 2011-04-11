@@ -168,7 +168,7 @@ newIFSMetaCtx t vs = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
       perm = idP (size tel)
-  x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t) -- IFSTODO:
+  x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
