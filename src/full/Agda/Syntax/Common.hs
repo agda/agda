@@ -64,7 +64,7 @@ defaultArg :: a -> Arg a
 defaultArg = Arg NotHidden Relevant
 
 isHiddenArg :: Arg a -> Bool
-isHiddenArg arg = argHiding arg == Hidden
+isHiddenArg arg = argHiding arg /= NotHidden
 
 makeIrrelevant :: Arg a -> Arg a
 makeIrrelevant a = a { argRelevance = Irrelevant }
