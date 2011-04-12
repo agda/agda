@@ -7,8 +7,8 @@
 module Relation.Binary.Vec.Pointwise where
 
 open import Category.Applicative.Indexed
-open import Data.Nat
 open import Data.Fin
+open import Data.Nat
 open import Data.Plus as Plus hiding (equivalent; map)
 open import Data.Vec as Vec hiding ([_]; map)
 import Data.Vec.Properties as VecProp
@@ -178,7 +178,6 @@ private
   ¬ix⁺∙jz [ iRj ∷ () ∷ [] ]
   ¬ix⁺∙jz ((iRj ∷ xRy ∷ []) ∷ [ () ∷ yRz ∷ [] ])
   ¬ix⁺∙jz ((iRj ∷ xRy ∷ []) ∷ (() ∷ yRz ∷ []) ∷ _)
-
 
   counterexample :
     ¬ (∀ {n} {xs ys : Vec D n} →

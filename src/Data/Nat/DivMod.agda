@@ -20,7 +20,8 @@ open import Function
 
 private
 
-  lem₁ : ∀ (m k : ℕ) → Nat.suc m ≡ suc (toℕ (Fin.inject+ k (fromℕ m)) + 0)
+  lem₁ : (m k : ℕ) →
+         Nat.suc m ≡ suc (toℕ (Fin.inject+ k (fromℕ m)) + 0)
   lem₁ m k = cong suc $ begin
     m
       ≡⟨ sym $ Fin.to-from m ⟩

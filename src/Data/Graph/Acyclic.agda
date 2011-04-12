@@ -8,7 +8,6 @@
 
 module Data.Graph.Acyclic where
 
-import Level
 open import Data.Nat as Nat using (ℕ; zero; suc; _<′_)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin
@@ -16,14 +15,14 @@ open import Data.Fin as Fin
 open import Data.Fin.Props as FP using (_≟_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Data.Maybe
-open import Function
 open import Data.Empty
 open import Data.Unit using (⊤; tt)
 open import Data.Vec as Vec using (Vec; []; _∷_)
 open import Data.List as List using (List; []; _∷_)
+open import Function
+open import Induction.Nat
 open import Relation.Nullary
 open import Relation.Binary.PropositionalEquality
-open import Induction.Nat
 
 ------------------------------------------------------------------------
 -- A lemma
@@ -281,8 +280,8 @@ private
 -- Expands the subgraph induced by a given node into a tree (thus
 -- losing all sharing).
 
-data Tree N E : Set where
-  node : (label : N) (successors : List {a = Level.zero} (E × Tree N E)) → Tree N E
+data Tree (N E : Set) : Set where
+  node : (label : N) (successors : List (E × Tree N E)) → Tree N E
 
 toTree : ∀ {N E n} → Graph N E n → Fin n → Tree N E
 toTree {N} {E} g i = <-rec Pred expand _ (g [ i ])

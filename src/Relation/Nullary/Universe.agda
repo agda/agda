@@ -41,20 +41,20 @@ data PropF : Set₁ where
 
 mutual
 
-  setoid : PropF → {P : Set} → Setoid zero zero
-  setoid Id        {P} = PropEq.setoid P
-  setoid (K P)         = PropEq.setoid P
-  setoid (F₁ ∨ F₂) {P} = (setoid F₁ {P}) ⊎-setoid (setoid F₂ {P})
-  setoid (F₁ ∧ F₂) {P} = (setoid F₁ {P}) ×-setoid (setoid F₂ {P})
-  setoid (P₁ ⇒ F₂) {P} = FunS.≡-setoid P₁
-                           (Setoid.indexedSetoid (setoid F₂ {P}))
-  setoid (¬¬ F)    {P} = Always-setoid (¬ ¬ ⟦ F ⟧ P)
+  setoid : PropF → Set → Setoid zero zero
+  setoid Id        P = PropEq.setoid P
+  setoid (K P)     _ = PropEq.setoid P
+  setoid (F₁ ∨ F₂) P = (setoid F₁ P) ⊎-setoid (setoid F₂ P)
+  setoid (F₁ ∧ F₂) P = (setoid F₁ P) ×-setoid (setoid F₂ P)
+  setoid (P₁ ⇒ F₂) P = FunS.≡-setoid P₁
+                         (Setoid.indexedSetoid (setoid F₂ P))
+  setoid (¬¬ F)    P = Always-setoid (¬ ¬ ⟦ F ⟧ P)
 
   ⟦_⟧ : PropF → (Set → Set)
-  ⟦ F ⟧ P = Setoid.Carrier (setoid F {P})
+  ⟦ F ⟧ P = Setoid.Carrier (setoid F P)
 
 ⟨_⟩_≈_ : (F : PropF) {P : Set} → Rel (⟦ F ⟧ P) zero
-⟨_⟩_≈_ F = Setoid._≈_ (setoid F)
+⟨_⟩_≈_ F = Setoid._≈_ (setoid F _)
 
 -- ⟦ F ⟧ is functorial.
 
