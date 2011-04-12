@@ -76,13 +76,13 @@ termDecl d = case d of
     A.Axiom {}            -> return []
     A.Field {}            -> return []
     A.Primitive {}        -> return []
-    A.Definition _ _ ds
+    A.Definition _ ds
       | [A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
                           -> do
         let m = mnameFromList $ qnameToList r
         setScopeFromDefs ds
         termSection m rds
-    A.Definition i ts ds  -> termMutual i ts ds
+    A.Definition i ds  -> termMutual i ds
     A.Section _ x _ ds    -> termSection x ds
     A.Apply {}            -> return []
     A.Import {}           -> return []
@@ -109,8 +109,8 @@ collectCalls f (a : as) = do c1 <- f a
                              return (c1 `Term.union` c2)
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
-termMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM Result
-termMutual i ts ds = if names == [] then return [] else
+termMutual :: Info.DeclInfo -> [A.Definition] -> TCM Result
+termMutual i ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
@@ -191,7 +191,7 @@ termMutual i ts ds = if names == [] then return [] else
   getName (A.RecDef _ _ _ _ _ ds) = concatMap getNameD ds
   getName _                       = []
 
-  getNameD (A.Definition _ _ ds) = concatMap getName ds
+  getNameD (A.Definition _ ds) = concatMap getName ds
   getNameD (A.Section _ _ _ ds)  = concatMap getNameD ds
   getNameD (A.ScopedDecl _ ds)   = concatMap getNameD ds
   getNameD _                     = []

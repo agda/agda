@@ -326,6 +326,7 @@ nameKinds mErr decls = do
                                        Map.singleton q (Constructor SC.Inductive)
                                      Just _ -> __IMPOSSIBLE__
   getDef (A.ScopedDef {})        = Map.empty
+  getDef (A.TypeDef d)          = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate

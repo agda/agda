@@ -57,7 +57,7 @@ checkDecl d = do
 	A.Axiom i rel x e            -> checkAxiom i rel x e
         A.Field{}                    -> typeError FieldOutsideRecord
 	A.Primitive i x e	     -> checkPrimitive i x e
-	A.Definition i ts ds	     -> checkMutual i ts ds
+	A.Definition i ds	     -> checkMutual i ds
 	A.Section i x tel ds	     -> checkSection i x tel ds
 	A.Apply i x modapp rd rm     -> checkSectionApplication i x modapp rd rm
 	A.Import i x		     -> checkImport i x
@@ -192,9 +192,6 @@ checkPragma r p =
 checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
-  -- issue 418 to prevent instantiation of metas with abstract things,
-  -- freeze metas before checking the definitions
-  when (anyAbstract ds) $ freezeMetas
   mapM_ checkDefinition ds
   checkStrictlyPositive =<< currentMutualBlock
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
@@ -223,9 +220,9 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 checkDefinition :: A.Definition -> TCM ()
 checkDefinition d =
     case d of
-	A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
-	A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
-	A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
+	A.FunDef i x cs          -> abstract (Info.defAbstract i) $ checkFunDef NotDelayed i x cs
+	A.DataDef i x ps cs      -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
+	A.RecDef i x c ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x c ps tel cs
         A.ScopedDef scope d      -> setScope scope >> checkDefinition d
     where
         check x i m = do

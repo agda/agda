@@ -690,7 +690,7 @@ instance ToAbstract (TopLevel [C.Declaration]) TopLevelInfo where
           return $ TopLevelInfo (ds' ++ ds) scope scope0
         _ -> __IMPOSSIBLE__
 
-
+-- | runs Syntax.Concrete.Definitions.niceDeclarations on main module
 niceDecls :: [C.Declaration] -> ScopeM [NiceDeclaration]
 niceDecls ds = case runNice $ niceDeclarations ds of
   Left e   -> throwError $ TCErr Nothing $ Exception (getRange e) (show e)
@@ -709,7 +709,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceDef _ c [C.Axiom _ _ _ abstract rel x t] [C.FunDef _ _ _ _ abstract' _ [cl]] ->
+            NiceMutual _ c [C.TypeDef (C.Axiom _ _ _ abstract rel x t), C.FunDef _ _ _ _ abstract' _ [cl]] ->
                 do  when (abstract == AbstractDef || abstract' == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
@@ -763,7 +763,8 @@ instance ToAbstract LetDef [A.LetBinding] where
 instance ToAbstract NiceDefinition Definition where
 
     toAbstract d = annotateDefn $ case d of
-
+    -- Type signatures
+      C.TypeDef d -> A.TypeDef <$> toAbstract d
     -- Function definitions
       C.FunDef r ds f p a x cs ->
         traceCall (ScopeCheckDefinition d) $ do
@@ -858,9 +859,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceDef r cs ts ds -> do
-      (ts', ds') <- toAbstract (ts, ds)
-      return [ Definition (DeclInfo C.noName_ r) ts' ds' ]
+    NiceMutual r cs ds -> do
+      ds' <- toAbstract ds
+      return [ Definition (DeclInfo C.noName_ r) ds' ]
                           -- TODO: what does the info mean here?
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.

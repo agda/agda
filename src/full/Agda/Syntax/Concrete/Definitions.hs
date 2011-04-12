@@ -16,6 +16,7 @@ import Control.Applicative
 import Data.Generics (Typeable, Data)
 import qualified Data.Map as Map
 import Control.Monad.Error
+import Control.Monad.Reader
 import Data.List
 import Data.Maybe
 import qualified Data.Traversable as Trav
@@ -45,7 +46,8 @@ data NiceDeclaration
             -- ^ Axioms and functions can be declared irrelevant.
         | NiceField Range Fixity' Access IsAbstract Name (Arg Expr)
 	| PrimitiveFunction Range Fixity' Access IsAbstract Name Expr
-	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
+--	| NiceDef Range [Declaration] [NiceTypeSignature] [NiceDefinition]
+	| NiceMutual Range [Declaration] [NiceDefinition]
 	    -- ^ A bunch of mutually recursive functions\/datatypes.
 	    --   The last two lists have the same length. The first list is the
 	    --   concrete declarations these definitions came from.
@@ -61,8 +63,9 @@ instance Show NiceDeclaration where
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= FunDef  Range [Declaration] Fixity' Access IsAbstract Name [Clause]
-	| DataDef Range Fixity' Access IsAbstract Name [LamBinding] [NiceConstructor]
+	= TypeDef NiceTypeSignature -- ^ type signature
+	| FunDef  Range [Declaration] Fixity' Access IsAbstract Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
+        | DataDef Range Fixity' Access IsAbstract Name [LamBinding] [NiceConstructor]
 	| RecDef Range Fixity' Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
           -- ^ The 'NiceConstructor' has a dummy type field (the
           --   record constructor type has not been computed yet).
@@ -89,6 +92,7 @@ data DeclarationException
 	| UnknownNamesInFixityDecl [Name]
         | Codata Range
 	| DeclarationPanic String
+        | AmbiguousFunClauses LHS [Name] -- ^ in a mutual block, a clause could belong to any of the @[Name]@ type signatures
     deriving (Typeable)
 
 instance HasRange DeclarationException where
@@ -96,6 +100,7 @@ instance HasRange DeclarationException where
     getRange (MissingDefinition x)	   = getRange x
     getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)	   = getRange x
+    getRange (AmbiguousFunClauses lhs xs)  = getRange lhs
     getRange (NotAllowedInMutual x)	   = getRange x
     getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
     getRange (Codata r)                    = r
@@ -104,7 +109,7 @@ instance HasRange DeclarationException where
 instance HasRange NiceDeclaration where
     getRange (Axiom r _ _ _ _ _ _)	       = r
     getRange (NiceField r _ _ _ _ _)	       = r
-    getRange (NiceDef r _ _ _)		       = r
+    getRange (NiceMutual r _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
     getRange (NiceModuleMacro r _ _ _ _ _ _)   = r
     getRange (NiceOpen r _ _)		       = r
@@ -116,6 +121,8 @@ instance HasRange NiceDefinition where
   getRange (FunDef r _ _ _ _ _ _)   = r
   getRange (DataDef r _ _ _ _ _ _)  = r
   getRange (RecDef r _ _ _ _ _ _ _) = r
+  getRange (TypeDef (Axiom r _ _ _ _ _ _))     = r
+  getRange (TypeDef _)             = __IMPOSSIBLE__
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -134,6 +141,9 @@ instance Show DeclarationException where
     pwords "Missing with-clauses for function" ++ [pretty x]
   show (MissingTypeSignature x) = show $ fsep $
     pwords "Missing type signature for left hand side" ++ [pretty x]
+  show (AmbiguousFunClauses lhs xs) = show $ fsep $
+    pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
+    pwords "it could belong to any of:" ++ map pretty xs
   show (UnknownNamesInFixityDecl xs) = show $ fsep $
     pwords "Names out of scope in fixity declarations:" ++ map pretty xs
   show (NotAllowedInMutual nd) = show $ fsep $
@@ -141,7 +151,8 @@ instance Show DeclarationException where
     where
       decl (Axiom{})		 = "Postulates"
       decl (NiceField{})         = "Fields"
-      decl (NiceDef{})		 = "Record types"
+--      decl (NiceDef{})		 = "Record types"
+      decl (NiceMutual{})        = "Mutual blocks"
       decl (NiceModule{})	 = "Modules"
       decl (NiceModuleMacro{})   = "Modules"
       decl (NiceOpen{})		 = "Open declarations"
@@ -157,10 +168,47 @@ instance Show DeclarationException where
     The niceifier
  --------------------------------------------------------------------------}
 
-type Nice = Either DeclarationException
+data InMutual
+  = InMutual    -- ^ we are nicifying a mutual block
+  | NotInMutual -- ^ we are nicifying decls not in a mutual block
+    deriving (Eq, Show)
+
+data NiceEnv = NiceEnv
+  { inMutual :: InMutual -- ^ we are in a mutual block?
+  , loneSigs :: [Name]   -- ^ lone type signatures that wait for their fun.clauses
+  }
+
+initNiceEnv :: NiceEnv
+initNiceEnv = NiceEnv
+  { inMutual = NotInMutual
+  , loneSigs = []
+  }
+
+type Nice = ReaderT NiceEnv (Either DeclarationException)
+
+enterMutual :: Nice a -> Nice a
+enterMutual = local $ \ niceEnv -> niceEnv { inMutual = InMutual }
+
+{-
+inMutualM :: Nice Bool
+inMutualM = asks inMutual
+-}
+
+addLoneSig :: Name -> Nice a -> Nice a
+addLoneSig x = local $ \ niceEnv -> niceEnv { loneSigs = x : loneSigs niceEnv }
+
+removeLoneSig :: Name -> Nice a -> Nice a
+removeLoneSig x = local $ \ niceEnv -> niceEnv { loneSigs = delete x $ loneSigs niceEnv }
+
+checkLoneSigsReturn :: a -> Nice a
+checkLoneSigsReturn a = do
+  xs <- asks loneSigs
+  case xs of
+    []    -> return a
+    (x:_) -> throwError $ MissingDefinition x
 
 runNice :: Nice a -> Either DeclarationException a
-runNice = id
+runNice nice = nice `runReaderT` initNiceEnv
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
@@ -202,6 +250,10 @@ niceDeclarations ds = do
 	  Module{}				       -> []
 	  Pragma{}				       -> []
 
+        niceFix fixs ds = do
+	  fixs <- plusFixities fixs =<< fixities ds
+          nice fixs ds
+
 	nice _ []	 = return []
 	nice fixs (d:ds) =
 	    case d of
@@ -215,13 +267,13 @@ niceDeclarations ds = do
 			  d <- mkFunDef rel fixs x (Just t) ds0
                           return $ d : ds1
 
-		cl@(FunClause lhs@(LHS p [] _ _) _ _)
+		(cl@(FunClause lhs@(LHS p [] _ _) _ _), NotInMutual)
                   | IdentP (QName x) <- noSingletonRawAppP p
                                   -> do
 		      ds <- nice fixs ds
 		      d <- mkFunDef Relevant fixs x Nothing [cl] -- fun def without type signature is relevant
                       return $ d : ds
-                FunClause lhs _ _ -> throwError $ MissingTypeSignature lhs
+                (FunClause lhs _ _, NotInMutual) -> throwError $ MissingTypeSignature lhs
 
 		_   -> liftM2 (++) nds (nice fixs ds)
 		    where
@@ -234,7 +286,7 @@ niceDeclarations ds = do
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
                                         (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
-			      d <- mkMutual r [d] =<< nice fixs ds
+			      d <- mkMutual r [d] =<< niceFix fixs ds
 			      return [d]
 
 			    Abstract r ds -> do
@@ -265,19 +317,20 @@ niceDeclarations ds = do
 			  where
 			    dataOrRec mkDef niceD r x tel t cs = do
                               ds <- niceD fixs cs
-                              return $
-                                [ NiceDef r [d]
-                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant
-                                          x (Pi tel t)
-                                  ]
+                              return $ [ NiceMutual r [d] [ TypeDef (Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant x (Pi tel t)), mkDef (getRange t) f PublicAccess ConcreteDef x (concatMap binding tel) ds ] ]
+
+--                             return $ [ NiceDef r [d]
+--                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant
+--                                          x (Pi tel t)
+--                                  ]
                                   -- Setting the range to the range of t makes sense
                                   -- since the only errors you get at the level of the
                                   -- definitions are the type not ending in a sort.
-                                  [ mkDef (getRange t) f PublicAccess ConcreteDef x
-                                          (concatMap binding tel)
-                                          ds
-                                  ]
-                                ]
+--                                  [ mkDef (getRange t) f PublicAccess ConcreteDef x
+--                                          (concatMap binding tel)
+--                                          ds
+--                                  ]
+--                                ]
                               where
                                 f = fixity x fixs
                                 binding (TypedBindings _ (Arg h rel b)) =
@@ -310,11 +363,15 @@ niceDeclarations ds = do
 	mkFunDef rel fixs x mt ds0 = do
           cs <- mkClauses x $ expandEllipsis ds0
           return $
-	    NiceDef (fuseRange x ds0)
-		    (TypeSig rel x t : ds0)
-		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t ]
-		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs
-		    ]
+            NiceMutual (fuseRange x ds0)
+                       (TypeSig rel x t : ds0)
+                      [ TypeDef (Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t) ,
+                        FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs ]
+--	    NiceDef (fuseRange x ds0)
+--		    (TypeSig rel x t : ds0)
+--		    [ Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t ]
+--		    [ FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs
+--		    ]
 	    where
 	      f = fixity x fixs
 	      t = case mt of
@@ -376,25 +433,30 @@ niceDeclarations ds = do
 		-- it's part of the current definition
 	isFunClauseOf _ _ = False
 
-	-- Make a mutual declaration
+	-- Make a mutual declaration from a list of mutual declarations
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> Nice NiceDeclaration
 	mkMutual r cs ds = do
             mapM_ checkMutual ds
-            setConcrete cs <$> foldM smash (NiceDef r [] [] []) ds
+            setConcrete cs <$> foldM smash (NiceMutual r [] []) ds
 	  where
-            setConcrete cs (NiceDef r _ ts ds)  = NiceDef r cs ts ds
+            setConcrete :: [Declaration] -> NiceDeclaration -> NiceDeclaration
+            setConcrete cs (NiceMutual r _ ds)  = NiceMutual r cs ds
             setConcrete cs d		    = __IMPOSSIBLE__
 
-            isRecord RecDef{} = True
-            isRecord _	  = False
+--            isRecord RecDef{} = True
+--            isRecord _	  = False
 
-            checkMutual nd@(NiceDef _ _ _ ds)
+            checkMutual :: NiceDeclaration -> Nice ()
+            checkMutual nd@(NiceMutual _ _ ds)
+-- Andreas, April 2011 accidentially submitted a patch which allows
+-- records def. in mutual blocks -- but it was already demanded by the public.
 --              | any isRecord ds = throwError $ NotAllowedInMutual nd
               | otherwise       = return ()
             checkMutual d = throwError $ NotAllowedInMutual d
 
-            smash nd@(NiceDef r0 _ ts0 ds0) (NiceDef r1 _ ts1 ds1) =
-              return $ NiceDef (fuseRange r0 r1) [] (ts0 ++ ts1) (ds0 ++ ds1)
+            smash :: NiceDeclaration -> NiceDeclaration -> Nice NiceDeclaration
+            smash nd@(NiceMutual r0 _ ds0) (NiceMutual r1 _ ds1) =
+              return $ NiceMutual (fuseRange r0 r1) [] (ds0 ++ ds1)
             smash _ _ = __IMPOSSIBLE__
 
 	-- Make a declaration abstract
@@ -403,8 +465,7 @@ niceDeclarations ds = do
 		Axiom r f a _ rel x e		    -> Axiom r f a AbstractDef rel x e
 		NiceField r f a _ x e		    -> NiceField r f a AbstractDef x e
 		PrimitiveFunction r f a _ x e	    -> PrimitiveFunction r f a AbstractDef x e
-		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
-								 (map mkAbstractDef ds)
+		NiceMutual r cs ds		    -> NiceMutual r cs (map mkAbstractDef ds)
 		NiceModule r a _ x tel ds	    -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
 		NiceModuleMacro r a _ x ma op is    -> NiceModuleMacro r a AbstractDef x ma op is
 		NicePragma _ _			    -> d
@@ -413,6 +474,7 @@ niceDeclarations ds = do
 
 	mkAbstractDef d =
 	    case d of
+                TypeDef d                -> TypeDef (mkAbstract d)
 		FunDef r ds f a _ x cs   -> FunDef r ds f a AbstractDef x (map mkAbstractClause cs)
 		DataDef r f a _ x ps cs  -> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 		RecDef r f a _ x c ps cs -> RecDef r f a AbstractDef x (mkAbstract <$> c) ps $ map mkAbstract cs
@@ -430,8 +492,7 @@ niceDeclarations ds = do
 		Axiom r f _ a rel x e		    -> Axiom r f PrivateAccess a rel x e
 		NiceField r f _ a x e		    -> NiceField r f PrivateAccess a x e
 		PrimitiveFunction r f _ a x e	    -> PrimitiveFunction r f PrivateAccess a x e
-		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
-								    (map mkPrivateDef ds)
+		NiceMutual r cs ds		    -> NiceMutual r cs (map mkPrivateDef ds)
 		NiceModule r _ a x tel ds	    -> NiceModule r PrivateAccess a x tel ds
 		NiceModuleMacro r _ a x ma op is    -> NiceModuleMacro r PrivateAccess a x ma op is
 		NicePragma _ _			    -> d
@@ -440,6 +501,7 @@ niceDeclarations ds = do
 
 	mkPrivateDef d =
 	    case d of
+                TypeDef d -> TypeDef (mkPrivate d)
 		FunDef r ds f _ a x cs   -> FunDef r ds f PrivateAccess a x (map mkPrivateClause cs)
 		DataDef r f _ a x ps cs  -> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
 		RecDef r f _ a x c ps cs -> RecDef r f PrivateAccess a x (mkPrivate <$> c) ps cs
@@ -490,7 +552,7 @@ notSoNiceDeclarations = concatMap notNice
     notNice (Axiom _ _ _ _ rel x e)               = [TypeSig rel x e]
     notNice (NiceField _ _ _ _ x argt)            = [Field x argt]
     notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig Relevant x e]]
-    notNice (NiceDef _ ds _ _)                    = ds
+    notNice (NiceMutual _ ds _)                   = ds
     notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]
     notNice (NiceModuleMacro r _ _ x ma o dir)    = [ModuleMacro r x ma o dir]
     notNice (NiceOpen r x dir)                    = [Open r x dir]

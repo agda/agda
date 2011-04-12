@@ -511,6 +511,40 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
+instance ToConcrete Definition [C.Declaration] where
+  toConcrete (FunDef i _ cs) =
+    withAbstractPrivate i $ do
+     cs' <- toConcrete cs
+     return $ concat cs'
+
+  toConcrete (DataDef i x bs cs) =
+    withAbstractPrivate i $
+    bindToConcrete bs $ \tel' -> do
+      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      return [ C.Data (getRange i) Inductive x' (map help tel') (C.Underscore noRange Nothing) cs' ]
+      where
+      help :: C.LamBinding -> C.TypedBindings
+      help (C.DomainFull t) = t
+      help (C.DomainFree h r n) =
+        C.TypedBindings noRange
+                        (Arg h r (C.TBind noRange [n] (C.Underscore noRange Nothing)))
+
+  toConcrete (RecDef  i x c bs _ cs) =
+    withAbstractPrivate i $
+    bindToConcrete bs $ \tel' -> do
+      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      return [ C.Record (getRange i) x' Nothing (map help tel') (C.Underscore noRange Nothing) cs' ]
+    where
+    help :: C.LamBinding -> C.TypedBindings
+    help (C.DomainFull t) = t
+    help (C.DomainFree h r n) =
+      C.TypedBindings noRange
+                      (Arg h r (C.TBind noRange [n] (C.Underscore noRange Nothing)))
+
+
+  toConcrete (ScopedDef scope def) = withScope scope $ toConcrete def
+  toConcrete (TypeDef d) = toConcrete d
+
 instance ToConcrete TypeAndDef [C.Declaration] where
   -- We don't do withInfixDecl here. It's done at the declaration level.
 
@@ -617,20 +651,38 @@ instance ToConcrete A.Declaration [C.Declaration] where
       return [C.Primitive (getRange i) [C.TypeSig Relevant x' t']]
         -- Primitives are always relevant.
 
-  toConcrete (Definition i ts ds) = do
-      ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
-      withInfixDecls ixs' $ do
-        ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
-        return [mutual (getRange i) ds']
-      where
-          ixs = map getInfoAndName ts
-          is  = map fst ixs
-          getInfoAndName (A.Axiom i _ x _)        = (i,x)
-          getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
-          getInfoAndName _                        = __IMPOSSIBLE__
+  toConcrete (Definition i ds) =
+      mutual (getRange i) . concat <$> toConcrete ds
+{-
+      do
+    ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
+    withInfixDecls ixs' $ do
+      ds' <- concat <$> toConcrete ds
+      return [mutual (getRange i) ds']-}
+    where {-
+        ixs = map getInfoAndName ds
+        is  = map fst ixs
+        getInfoAndName (A.Axiom i _ x _)        = (i,x)
+        getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
+        getInfoAndName _                        = __IMPOSSIBLE__ -}
 
-          mutual r [d] = d
-          mutual r ds  = C.Mutual r ds
+        mutual r [d] = [d]
+        mutual r ds  = [C.Mutual r ds]
+
+--  toConcrete (Definition i ts ds) = do
+--      ixs' <- map (id -*- unsafeQNameToName) <$> toConcrete (map (DontTouchMe -*- id) ixs)
+--      withInfixDecls ixs' $ do
+--        ds' <- concat <$> toConcrete (zipWith TypeAndDef ts ds)
+--        return [mutual (getRange i) ds']
+--      where
+--          ixs = map getInfoAndName ts
+--          is  = map fst ixs
+--          getInfoAndName (A.Axiom i _ x _)        = (i,x)
+--          getInfoAndName (A.ScopedDecl scope [d]) = getInfoAndName d
+--          getInfoAndName _                        = __IMPOSSIBLE__
+
+--          mutual r [d] = d
+--          mutual r ds  = C.Mutual r ds
 
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x

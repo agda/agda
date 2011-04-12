@@ -61,7 +61,7 @@ data Declaration
 	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
-	| Definition DeclInfo [TypeSignature] [Definition] -- ^ a bunch of mutually recursive definitions
+	| Definition DeclInfo [Definition] -- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
 	| Apply	     ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
@@ -99,6 +99,7 @@ data Definition
 	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
         | ScopedDef ScopeInfo Definition
+        | TypeDef TypeSignature
   deriving (Typeable, Data, Show)
 
 -- | Only 'Axiom's.
@@ -202,7 +203,7 @@ instance HasRange Expr where
 instance HasRange Declaration where
     getRange (Axiom      i _ _ _       ) = getRange i
     getRange (Field      i _ _         ) = getRange i
-    getRange (Definition i _ _	       ) = getRange i
+    getRange (Definition i _           ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
     getRange (Apply	 i _ _ _ _     ) = getRange i
     getRange (Import     i _	       ) = getRange i
@@ -212,6 +213,8 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
+    getRange (TypeDef (Axiom i _ _ _)) = getRange i
+    getRange (TypeDef d)           = __IMPOSSIBLE__
     getRange (FunDef  i _ _    )   = getRange i
     getRange (DataDef i _ _ _  )   = getRange i
     getRange (RecDef  i _ _ _ _ _) = getRange i
@@ -287,7 +290,7 @@ instance KillRange Relevance where
 instance KillRange Declaration where
   killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
-  killRange (Definition i a b         ) = killRange3 Definition i a b
+  killRange (Definition i a           ) = killRange2 Definition i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
   killRange (Apply      i a b c d     ) = killRange3 Apply      i a b c d
    -- the last two arguments of Apply are name maps, so nothing to kill
@@ -302,6 +305,7 @@ instance KillRange ModuleApplication where
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
 
 instance KillRange Definition where
+  killRange (TypeDef a)           = killRange1 TypeDef a
   killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
   killRange (DataDef i a b c)     = killRange4 DataDef i a b c
   killRange (RecDef  i a b c d e) = killRange6 RecDef  i a b c d e
@@ -348,9 +352,10 @@ allNames :: Declaration -> Seq QName
 allNames (Axiom     _ _ q _)   = Seq.singleton q
 allNames (Field     _   q _)   = Seq.singleton q
 allNames (Primitive _   q _)   = Seq.singleton q
-allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
+allNames (Definition _ defs) = Fold.foldMap allNamesD defs
   where
   allNamesD :: Definition -> Seq QName
+  allNamesD (TypeDef d)              = allNames d
   allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
   allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
   allNamesD (ScopedDef _ def)        = allNamesD def
