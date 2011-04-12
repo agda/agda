@@ -3,10 +3,10 @@ module README where
 ------------------------------------------------------------------------
 -- The Agda standard library
 --
--- Author: Nils Anders Danielsson, with contributions from
--- Jean-Philippe Bernardy, Peter Berry, Samuel Bronson, Daniel Brown,
--- Liang-Ting Chen, Dominique Devriese, Dan Doel, Simon Foster, Patrik
--- Jansson, Darin Morrison, Shin-Cheng Mu, Ulf Norell, Nicolas
+-- Author: Nils Anders Danielsson, with contributions from Andreas
+-- Abel, Jean-Philippe Bernardy, Peter Berry, Samuel Bronson, Daniel
+-- Brown, Liang-Ting Chen, Dominique Devriese, Dan Doel, Simon Foster,
+-- Patrik Jansson, Darin Morrison, Shin-Cheng Mu, Ulf Norell, Nicolas
 -- Pouillard and Andrés Sicard-Ramírez
 ------------------------------------------------------------------------
 
