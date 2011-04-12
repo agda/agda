@@ -42,74 +42,9 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
-Meta Variables and Unification
-------------------------------
-
-* Unsolved meta variables of a declaration now are frozen after type checking
-  meaning they cannot be instantiated by following declarations.  For example
-
-    one : Nat
-    one = _
-
-    bla : one ≡ suc zero
-    bla = refl
-
-  leads to an error now.  Up to 2.2.10, it lead to instantiation of _ to
-  (suc zero).  If you want the old behavior back, put the two declarations
-  into a mutual block; metas are only frozen at the end of a mutual block.
-
-  Before entering interactive editing, all metas are unfrozen, such that
-  the user can fill holes interactively.  Note that type checking for 
-  interactively given terms is not perfect, so, Agda might refuse to reload
-  a file even though it did not complain during interactive construction.
-  This is because certain checks (positivity, termination, precise scoping)
-  are only invoked upon reload, not upon give.
-
-* Occurrence checker distinguishes rigid and strongly rigid
-  occurrences. [Reed, LFMTP 2009; Abel Pientka, TLCA 2011]
-  
-  This solves issue 291.  The emptyness checker now accepts this:
-
-    h : (n : Nat) -> n ≡ suc n -> Nat
-    h n ()
-
-  Internally, this generates a constraint _1 = suc _1 where a meta
-  occurs strongly rigid, i.e., on a constructor path from the root,
-  in its own defining term tree.  This is never solvable.
-
-  Weakly rigid recursive occurrences may have a solution.
-  [Issue 405, Jason Reed's PhD thesis, page 106]
-
-    test : (k : Nat) -> 
-       let X : (Nat -> Nat) -> Nat
-           X = _ 
-       in (f : Nat -> Nat) -> X f ≡ suc (f (X (\ x -> k)))
-    test k f = refl
-
-  The constraint _1 k f = suc (f (_1 k (λ x → k))) has solution
-  _1 k f = suc (f (suc k)) despite the recursive occurrence; yet it is
-  not strong, not directly under constructor suc, but under bound
-  variable f.  Now Agda correctly displays yellow instead of an error.
-
-* Equation constraints involving the same meta in the head now trigger
-  pruning.  Example:
-
-    same : let X : A -> A -> A -> A × A
-               X = _
-           in {x y z : A} -> X x y y ≡ (x , y)
-                           × X x x y ≡ X x y y
-    same = refl , refl
-
-  The second equation implies that X cannot depend on its second
-  argument. After pruning, the first equation is linear and can
-  be solved.  [Pientka, PhD, Sec. 3.1.2; Abel Pientka, TLCA 2011]
-
 Tools
 -----
 
 * Using the --dependency-graph=FILE flag, it is now possible to generate a Dot
   file containing a graph over module dependencies. The generated file will
   be saved to the file FILE, which can be rendered using a tool like dot.
-
-* The "make install" command no longer installs Agda globally (by
-  default).
