@@ -46,7 +46,7 @@ module WithImplicits' {A} {{eqA : Eq A}} = Eq eqA using (eq)
 eqBool : Eq Bool
 eqBool = record { eq = primEqBool }
 
-open EqWithImplicits
+open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
 neq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
 neq a b = not $ eq a b

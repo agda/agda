@@ -5,11 +5,11 @@
 
 module 05-equality-std1 where
 
-open import Relation.Binary using (IsDecEquivalence; Reflexive; module DecSetoid; module IsDecEquivalenceWithImplicits)
+open import Relation.Binary using (IsDecEquivalence; module IsDecEquivalence; Reflexive; module DecSetoid)
 open import Data.Bool using (false; true; decSetoid)
 open DecSetoid decSetoid using (isDecEquivalence)
 
-open IsDecEquivalenceWithImplicits using (_≟_)
+open module IsDecEquivalenceWithImplicits {a ℓ} {A : Set a} {_≈_ : A → A → Set ℓ} {{ide : IsDecEquivalence _≈_}} = IsDecEquivalence ide
 
 test = false ≟ true
 

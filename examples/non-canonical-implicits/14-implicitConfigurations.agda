@@ -31,7 +31,7 @@ withModulus :
 withModulus modulus f = unMkM $
   f {theOnlyToken} {{  record { modulus = modulus }  }} 
 
-open ModulusWithImplicits
+open module ModulusWithImplicits {s : Token} {A : Set} {{mod : Modulus s A}} = Modulus mod
 
 normalize : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} → 
             A → M s A

@@ -45,6 +45,8 @@ aBool = record { zeroT = false; plusT = or }
 test : Bool
 test = testMonoid false
 
+module MonoidWithImplicits {t : Set} {{monT : Monoid t}} = Monoid monT
+
 test2 : {t : Set} → {{tM : Monoid t}} → t
 test2 = MonoidWithImplicits.zeroT 
 

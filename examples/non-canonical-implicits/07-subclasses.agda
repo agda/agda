@@ -35,7 +35,7 @@ primLtNat _ _ = false
 
 neq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
 neq a b = not $ eq a b
-  where open EqWithImplicits
+  where open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
 record Ord₁ (A : Set) : Set where
   field _<_ : A → A → Bool
@@ -73,8 +73,8 @@ ord₄Nat = record { _<_ = primLtNat }
 
 
 module test₁ where
-  open Ord₁WithImplicits
-  open EqWithImplicits
+  open module Ord₁WithImplicits {t : Set} {{ordT : Ord₁ t}} = Ord₁ ordT
+  open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
   eqNat = eqA
 
@@ -86,8 +86,8 @@ module test₁ where
     where eqA' = eqA
 
 module test₂ where
-  open Ord₂WithImplicits
-  open EqWithImplicits
+  open module Ord₂WithImplicits {t : Set} {eqT : Eq t} {{ordT : Ord₂ eqT}} = Ord₂ ordT
+  open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
   eqNat = record { eq = primEqNat }
 
@@ -99,8 +99,8 @@ module test₂ where
 
 
 module test₃ where
-  open Ord₃WithImplicits
-  open EqWithImplicits renaming (eq to eq')
+  open module Ord₃WithImplicits {t : Set} {{ordT : Ord₃ t}} = Ord₃ ordT
+  open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT renaming (eq to eq')
 
   test₁ = 5 < 3
   test₂ = eq 5 3
@@ -109,8 +109,8 @@ module test₃ where
   test₄ a b = a < b ∨ eq a b 
 
 module test₄ where
-  open Ord₄WithImplicits
-  open EqWithImplicits renaming (eq to eq')
+  open module Ord₄WithImplicits {t : Set} {eqT : Eq t} {{ordT : Ord₄ eqT}} = Ord₄ ordT
+  open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT renaming (eq to eq')
 
   test₁ = 5 < 3
   test₂ = eq 5 3
@@ -119,8 +119,8 @@ module test₄ where
   test₄ a b = a < b ∨ eq a b 
 
 module test₄′ where
-  open Ord₄WithImplicits hiding (eq)
-  open EqWithImplicits 
+  open module Ord₄WithImplicits {t : Set} {eqT : Eq t} {{ordT : Ord₄ eqT}} = Ord₄ ordT hiding (eq)
+  open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
   eqNat = record { eq = primEqNat }
 
