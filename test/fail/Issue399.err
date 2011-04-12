@@ -1,0 +1,7 @@
+Issue399.agda:5,1-56
+Failed to find source of module Data.Maybe in any of the following
+locations:
+  Data/Maybe.agda
+  Data/Maybe.lagda
+when scope checking the declaration
+  open import Data.Maybe using (Maybe; just; nothing)
