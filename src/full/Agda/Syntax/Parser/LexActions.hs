@@ -75,6 +75,8 @@ lexToken =
 postToken :: Token -> Token
 postToken (TokId (r, "\x03bb")) = TokSymbol SymLambda r
 postToken (TokId (r, "\x2192")) = TokSymbol SymArrow r
+postToken (TokId (r, "\x2983")) = TokSymbol SymDoubleOpenBrace r
+postToken (TokId (r, "\x2984")) = TokSymbol SymDoubleCloseBrace r
 postToken (TokId (r, "\x2200")) = TokKeyword KwForall r
 postToken (TokId (r, s))
   | set == "Set" && all isSub n = TokSetN (r, readSubscript n)

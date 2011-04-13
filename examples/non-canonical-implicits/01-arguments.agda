@@ -11,7 +11,7 @@ data A : Set where
   mkA : A
   mkA2 : T → A
 
-giveA : {{a : A}} → A
+giveA : ⦃ a : A ⦄ → A
 giveA {{a}} = a
 
 test : A → T
