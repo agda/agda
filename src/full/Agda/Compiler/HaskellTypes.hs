@@ -118,8 +118,8 @@ haskellType = liftTCM . fromType
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
           if 0 `freeIn` absBody b
-          then underAbstraction a b $ \b -> 
-            hsForall <$> getHsVar 0 <*> 
+          then underAbstraction a b $ \b ->
+            hsForall <$> getHsVar 0 <*>
               (hsFun <$> fromType (unArg a) <*> fromType b)
           else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
         Con{}      -> err
