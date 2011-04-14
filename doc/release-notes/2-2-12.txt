@@ -42,6 +42,26 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
+* Unsolved meta variables of a declaration now are frozen after type checking
+  meaning they cannot be instantiated by following declarations.  For example
+
+    one : Nat
+    one = _
+
+    bla : one ≡ suc zero
+    bla = refl
+
+  leads to an error now.  Up to 2.2.10, it lead to instantiation of _ to
+  (suc zero).  If you want the old behavior back, put the two declarations
+  into a mutual block; metas are only frozen at the end of a mutual block.
+
+  Before entering interactive editing, all metas are unfrozen, such that
+  the user can fill holes interactively.  Note that type checking for 
+  interactively given terms is not perfect, so, Agda might refuse to reload
+  a file even though it did not complain during interactive construction.
+  This is because certain checks (positivity, termination, precise scoping)
+  are only invoked upon reload, not upon give.
+
 Tools
 -----
 
