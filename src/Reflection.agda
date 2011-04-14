@@ -6,12 +6,13 @@ module Reflection where
 
 open import Data.Bool as Bool using (Bool); open Bool.Bool
 open import Data.List using (List); open Data.List.List
-open import Data.Nat as Nat using (ℕ)
+open import Data.Nat using (ℕ) renaming (_≟_ to _≟-ℕ_)
 open import Function
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.PropositionalEquality.TrustMe
 open import Relation.Nullary
+open import Relation.Nullary.Decidable as Dec
 
 ------------------------------------------------------------------------
 -- Names
@@ -47,34 +48,58 @@ s₁ ≟-Name s₂ with s₁ == s₂
 -- Is the argument implicit? (Here true stands for implicit and false
 -- for explicit.)
 
-Implicit? = Bool
+data Implicit? : Set where
+  implicit explicit : Implicit?
+
+{-# BUILTIN HIDING  Implicit?  #-}
+{-# BUILTIN HIDDEN  implicit   #-}
+{-# BUILTIN VISIBLE explicit   #-}
+
+data Relevant? : Set where
+  relevant irrelevant forced : Relevant?
+
+{-# BUILTIN RELEVANCE  Relevant?  #-}
+{-# BUILTIN RELEVANT   relevant   #-}
+{-# BUILTIN IRRELEVANT irrelevant #-}
+{-# BUILTIN FORCED     forced     #-}
 
 -- Arguments.
 
 data Arg A : Set where
-  arg : (im? : Implicit?) (x : A) → Arg A
+  arg : (im? : Implicit?) (r? : Relevant?) (x : A) → Arg A
 
 {-# BUILTIN ARG    Arg #-}
 {-# BUILTIN ARGARG arg #-}
 
 -- Terms.
 
-data Term : Set where
-  -- Variable applied to arguments.
-  var     : (x : ℕ) (args : List (Arg Term)) → Term
-  -- Constructor applied to arguments.
-  con     : (c : Name) (args : List (Arg Term)) → Term
-  -- Identifier applied to arguments.
-  def     : (f : Name) (args : List (Arg Term)) → Term
-  -- Explicit or implicit λ abstraction.
-  lam     : (im? : Implicit?) (t : Term) → Term
-  -- Pi-type.
-  pi      : (t₁ : Arg Term) (t₂ : Term) → Term
-  -- An arbitrary sort (Set, for instance).
-  sort    : Term
-  -- Anything.
-  unknown : Term
+mutual
+  data Term : Set where
+    -- Variable applied to arguments.
+    var     : (x : ℕ) (args : List (Arg Term)) → Term
+    -- Constructor applied to arguments.
+    con     : (c : Name) (args : List (Arg Term)) → Term
+    -- Identifier applied to arguments.
+    def     : (f : Name) (args : List (Arg Term)) → Term
+    -- Explicit or implicit λ abstraction.
+    lam     : (im? : Implicit?) (t : Term) → Term
+    -- Pi-type.
+    pi      : (t₁ : Arg Type) (t₂ : Type) → Term
+    -- An arbitrary sort (Set, for instance).
+    sort    : Sort → Term
+    -- Anything else.
+    unknown : Term
 
+  data Type : Set where
+    el : (s : Sort) (t : Term) → Type
+
+  data Sort : Set where
+    set     : (t : Term) → Sort
+    lit     : (n : ℕ) → Sort
+    unknown : Sort
+
+{-# BUILTIN AGDASORT            Sort    #-}
+{-# BUILTIN AGDATYPE            Type    #-}
 {-# BUILTIN AGDATERM            Term    #-}
 {-# BUILTIN AGDATERMVAR         var     #-}
 {-# BUILTIN AGDATERMCON         con     #-}
@@ -83,6 +108,10 @@ data Term : Set where
 {-# BUILTIN AGDATERMPI          pi      #-}
 {-# BUILTIN AGDATERMSORT        sort    #-}
 {-# BUILTIN AGDATERMUNSUPPORTED unknown #-}
+{-# BUILTIN AGDATYPEEL          el      #-}
+{-# BUILTIN AGDASORTSET         set     #-}
+{-# BUILTIN AGDASORTLIT         lit     #-}
+{-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 ------------------------------------------------------------------------
 -- Term equality is decidable
@@ -91,13 +120,17 @@ data Term : Set where
 
 private
 
-  arg₁ : ∀ {A im? im?′} {x x′ : A} →
-         arg im? x ≡ arg im?′ x′ → im? ≡ im?′
+  arg₁ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
+         arg im? r? x ≡ arg im?′ r?′ x′ → im? ≡ im?′
   arg₁ refl = refl
 
-  arg₂ : ∀ {A im? im?′} {x x′ : A} →
-         arg im? x ≡ arg im?′ x′ → x ≡ x′
+  arg₂ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
+         arg im? r? x ≡ arg im?′ r?′ x′ → r? ≡ r?′
   arg₂ refl = refl
+
+  arg₃ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
+         arg im? r? x ≡ arg im?′ r?′ x′ → x ≡ x′
+  arg₃ refl = refl
 
   cons₁ : ∀ {A : Set} {x y} {xs ys : List A} → x ∷ xs ≡ y ∷ ys → x ≡ y
   cons₁ refl = refl
@@ -135,88 +168,119 @@ private
   pi₂ : ∀ {t₁ t₁′ t₂ t₂′} → pi t₁ t₂ ≡ pi t₁′ t₂′ → t₂ ≡ t₂′
   pi₂ refl = refl
 
+  sort₁ : ∀ {x y} → sort x ≡ sort y → x ≡ y
+  sort₁ refl = refl
+
+  set₁ : ∀ {x y} → set x ≡ set y → x ≡ y
+  set₁ refl = refl
+
+  lit₁ : ∀ {x y} → lit x ≡ lit y → x ≡ y
+  lit₁ refl = refl
+
+  el₁ : ∀ {s s′ t t′} → el s t ≡ el s′ t′ → s ≡ s′
+  el₁ refl = refl
+
+  el₂ : ∀ {s s′ t t′} → el s t ≡ el s′ t′ → t ≡ t′
+  el₂ refl = refl
+
+_≟-Implicit?_ : Decidable (_≡_ {A = Implicit?})
+implicit ≟-Implicit? implicit = yes refl
+explicit ≟-Implicit? explicit = yes refl
+implicit ≟-Implicit? explicit = no λ()
+explicit ≟-Implicit? implicit = no λ()
+
+_≟-Relevant?_ : Decidable (_≡_ {A = Relevant?})
+relevant   ≟-Relevant? relevant   = yes refl
+irrelevant ≟-Relevant? irrelevant = yes refl
+forced     ≟-Relevant? forced     = yes refl
+relevant   ≟-Relevant? irrelevant = no λ()
+relevant   ≟-Relevant? forced     = no λ()
+irrelevant ≟-Relevant? relevant   = no λ()
+irrelevant ≟-Relevant? forced     = no λ()
+forced     ≟-Relevant? relevant   = no λ()
+forced     ≟-Relevant? irrelevant = no λ()
+
 mutual
+  infix 4 _≟_ _≟-Args_ _≟-ArgType_
 
-  infix 4 _≟-Arg_ _≟-Args_ _≟_
+  -- We have to specialise the Arg and List equality decisions to please the termination checker...
 
-  _≟-Arg_ : Decidable (_≡_ {A = Arg Term})
-  arg e a ≟-Arg arg e′ a′ with Bool._≟_ e e′ | a ≟ a′
-  arg e a ≟-Arg arg .e .a | yes refl | yes refl = yes refl
-  arg e a ≟-Arg arg e′ a′ | no  e≢e′ | _        = no (e≢e′ ∘ arg₁)
-  arg e a ≟-Arg arg e′ a′ | _        | no a≢a′  = no (a≢a′ ∘ arg₂)
+  _≟-ArgTerm_ : Decidable (_≡_ {A = Arg Term})
+  arg e r a ≟-ArgTerm arg e′ r′ a′
+    = Dec.map₃′ (cong₃ arg) arg₁ arg₂ arg₃ (e ≟-Implicit? e′) (r ≟-Relevant? r′) (a ≟ a′)
+
+  _≟-ArgType_ : Decidable (_≡_ {A = Arg Type})
+  arg e r a ≟-ArgType arg e′ r′ a′
+    = Dec.map₃′ (cong₃ arg) arg₁ arg₂ arg₃ (e ≟-Implicit? e′) (r ≟-Relevant? r′) (a ≟-Type a′)
 
   _≟-Args_ : Decidable (_≡_ {A = List (Arg Term)})
-  []         ≟-Args []           = yes refl
-  (a ∷ args) ≟-Args (a′ ∷ args′) with a ≟-Arg a′ | args ≟-Args args′
-  (a ∷ args) ≟-Args (.a ∷ .args) | yes refl | yes refl      = yes refl
-  (a ∷ args) ≟-Args (a′ ∷ args′) | no a≢a′  | _             = no (a≢a′ ∘ cons₁)
-  (a ∷ args) ≟-Args (a′ ∷ args′) | _        | no args≢args′ = no (args≢args′ ∘ cons₂)
-  []         ≟-Args (_ ∷ _)      = no λ()
-  (_ ∷ _)    ≟-Args []           = no λ()
+  []       ≟-Args []         = yes refl
+  (x ∷ xs) ≟-Args (y ∷ ys)  = Dec.map₂′ (cong₂ _∷_) cons₁ cons₂ (x ≟-ArgTerm y) (xs ≟-Args ys)
+  []       ≟-Args (_ ∷ _)    = no λ()
+  (_ ∷ _)  ≟-Args []         = no λ()
 
   _≟_ : Decidable (_≡_ {A = Term})
-  var x args ≟ var x′ args′ with Nat._≟_ x x′ | args ≟-Args args′
-  var x args ≟ var .x .args | yes refl | yes refl      = yes refl
-  var x args ≟ var x′ args′ | no x≢x′  | _             = no (x≢x′ ∘ var₁)
-  var x args ≟ var x′ args′ | _        | no args≢args′ = no (args≢args′ ∘ var₂)
-  con c args ≟ con c′ args′ with c ≟-Name c′ | args ≟-Args args′
-  con c args ≟ con .c .args | yes refl | yes refl      = yes refl
-  con c args ≟ con c′ args′ | no c≢c′  | _             = no (c≢c′ ∘ con₁)
-  con c args ≟ con c′ args′ | _        | no args≢args′ = no (args≢args′ ∘ con₂)
-  def f args ≟ def f′ args′ with f ≟-Name f′ | args ≟-Args args′
-  def f args ≟ def .f .args | yes refl | yes refl      = yes refl
-  def f args ≟ def f′ args′ | no f≢f′  | _             = no (f≢f′ ∘ def₁)
-  def f args ≟ def f′ args′ | _        | no args≢args′ = no (args≢args′ ∘ def₂)
-  lam im? t  ≟ lam im?′ t′  with Bool._≟_ im? im?′ | t ≟ t′
-  lam im? t  ≟ lam .im? .t  | yes refl    | yes refl = yes refl
-  lam im? t  ≟ lam im?′ t′  | no im?≢im?′ | _        = no (im?≢im?′ ∘ lam₁)
-  lam im? t  ≟ lam im?′ t′  | _           | no t≢t′  = no (t≢t′ ∘ lam₂)
-  pi t₁ t₂   ≟ pi t₁′ t₂′   with t₁ ≟-Arg t₁′ | t₂ ≟ t₂′
-  pi t₁ t₂   ≟ pi .t₁ .t₂   | yes refl  | yes refl  = yes refl
-  pi t₁ t₂   ≟ pi t₁′ t₂′   | no t₁≢t₁′ | _         = no (t₁≢t₁′ ∘ pi₁)
-  pi t₁ t₂   ≟ pi t₁′ t₂′   | _         | no t₂≢t₂′ = no (t₂≢t₂′ ∘ pi₂)
-  sort       ≟ sort         = yes refl
+  var x args ≟ var x′ args′ = Dec.map₂′ (cong₂ var) var₁ var₂ (x ≟-ℕ x′) (args ≟-Args args′)
+  con c args ≟ con c′ args′ = Dec.map₂′ (cong₂ con) con₁ con₂ (c ≟-Name c′) (args ≟-Args args′)
+  def f args ≟ def f′ args′ = Dec.map₂′ (cong₂ def) def₁ def₂ (f ≟-Name f′) (args ≟-Args args′)
+  lam im? t  ≟ lam im?′ t′  = Dec.map₂′ (cong₂ lam) lam₁ lam₂ (im? ≟-Implicit? im?′) (t ≟ t′)
+  pi t₁ t₂   ≟ pi t₁′ t₂′  = Dec.map₂′ (cong₂ pi)  pi₁  pi₂  (t₁ ≟-ArgType t₁′) (t₂ ≟-Type t₂′)
+  sort s     ≟ sort s′      = Dec.map′ (cong sort) sort₁ (s ≟-Sort s′)
   unknown    ≟ unknown      = yes refl
 
   var x args ≟ con c args′  = no λ()
   var x args ≟ def f args′  = no λ()
   var x args ≟ lam im? t    = no λ()
   var x args ≟ pi t₁ t₂     = no λ()
-  var x args ≟ sort         = no λ()
+  var x args ≟ sort _       = no λ()
   var x args ≟ unknown      = no λ()
   con c args ≟ var x args′  = no λ()
   con c args ≟ def f args′  = no λ()
   con c args ≟ lam im? t    = no λ()
   con c args ≟ pi t₁ t₂     = no λ()
-  con c args ≟ sort         = no λ()
+  con c args ≟ sort _       = no λ()
   con c args ≟ unknown      = no λ()
   def f args ≟ var x args′  = no λ()
   def f args ≟ con c args′  = no λ()
   def f args ≟ lam im? t    = no λ()
   def f args ≟ pi t₁ t₂     = no λ()
-  def f args ≟ sort         = no λ()
+  def f args ≟ sort _       = no λ()
   def f args ≟ unknown      = no λ()
   lam im? t  ≟ var x args   = no λ()
   lam im? t  ≟ con c args   = no λ()
   lam im? t  ≟ def f args   = no λ()
   lam im? t  ≟ pi t₁ t₂     = no λ()
-  lam im? t  ≟ sort         = no λ()
+  lam im? t  ≟ sort _       = no λ()
   lam im? t  ≟ unknown      = no λ()
   pi t₁ t₂   ≟ var x args   = no λ()
   pi t₁ t₂   ≟ con c args   = no λ()
   pi t₁ t₂   ≟ def f args   = no λ()
   pi t₁ t₂   ≟ lam im? t    = no λ()
-  pi t₁ t₂   ≟ sort         = no λ()
+  pi t₁ t₂   ≟ sort _       = no λ()
   pi t₁ t₂   ≟ unknown      = no λ()
-  sort       ≟ var x args   = no λ()
-  sort       ≟ con c args   = no λ()
-  sort       ≟ def f args   = no λ()
-  sort       ≟ lam im? t    = no λ()
-  sort       ≟ pi t₁ t₂     = no λ()
-  sort       ≟ unknown      = no λ()
+  sort _     ≟ var x args   = no λ()
+  sort _     ≟ con c args   = no λ()
+  sort _     ≟ def f args   = no λ()
+  sort _     ≟ lam im? t    = no λ()
+  sort _     ≟ pi t₁ t₂     = no λ()
+  sort _     ≟ unknown      = no λ()
   unknown    ≟ var x args   = no λ()
   unknown    ≟ con c args   = no λ()
   unknown    ≟ def f args   = no λ()
   unknown    ≟ lam im? t    = no λ()
   unknown    ≟ pi t₁ t₂     = no λ()
-  unknown    ≟ sort         = no λ()
+  unknown    ≟ sort _       = no λ()
+
+  _≟-Type_ : Decidable (_≡_ {A = Type})
+  el s t ≟-Type el s′ t′ = Dec.map₂′ (cong₂ el) el₁ el₂ (s ≟-Sort s′) (t ≟ t′)
+
+  _≟-Sort_ : Decidable (_≡_ {A = Sort})
+  set t   ≟-Sort set t′  = Dec.map′ (cong set) set₁ (t ≟ t′)
+  lit n   ≟-Sort lit n′  = Dec.map′ (cong lit) lit₁ (n ≟-ℕ n′)
+  unknown ≟-Sort unknown = yes refl
+  set _   ≟-Sort lit _   = no λ()
+  set _   ≟-Sort unknown = no λ()
+  lit _   ≟-Sort set _   = no λ()
+  lit _   ≟-Sort unknown = no λ()
+  unknown ≟-Sort set _   = no λ()
+  unknown ≟-Sort lit _   = no λ()
