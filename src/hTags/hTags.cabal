@@ -1,13 +1,17 @@
 name: hTags
-version: 0.1
+version: 0.1.1
 cabal-version: >= 1.2 && < 2
 author: Ulf Norell, Nils Anders Danielsson
 build-type: Simple
+tested-with: GHC == 6.12.3, GHC == 7.0.3
 
 executable hTags
   main-is:       Main.hs
-  build-depends: ghc >= 6.12 && < 6.14,
-                 base >= 4,
+  if impl(ghc == 6.12.*)
+    build-depends: ghc == 6.12.*
+  if impl(ghc >= 7.0)
+    build-depends: ghc >= 7.0 && < 7.1
+  build-depends: base >= 4,
                  filepath >= 1.1 && < 2,
                  directory >= 1.0 && < 2,
                  process >= 1.0 && < 2,

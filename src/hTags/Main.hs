@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
@@ -45,7 +46,12 @@ fileLoc file = mkSrcLoc (mkZFastString file) 1 0
 filePState :: DynFlags -> FilePath -> IO PState
 filePState dflags file = do
   buf <- hGetStringBuffer file
+#if __GLASGOW_HASKELL__ == 612
   return $ mkPState buf (fileLoc file) dflags
+#endif
+#if __GLASGOW_HASKELL__ >= 700
+  return $ mkPState dflags buf (fileLoc file)
+#endif
 
 pMod :: P (Located (HsModule RdrName))
 pMod = P.parseModule
