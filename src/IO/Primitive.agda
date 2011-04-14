@@ -14,6 +14,7 @@ open import Foreign.Haskell
 postulate
   IO : Set → Set
 
+{-# BUILTIN       IO IO #-}
 {-# COMPILED_TYPE IO IO #-}
 
 infixl 1 _>>=_
