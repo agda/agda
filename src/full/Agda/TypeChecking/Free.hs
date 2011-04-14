@@ -6,8 +6,11 @@ module Agda.TypeChecking.Free
     , Free
     , freeVars
     , allVars
+    , rigidVars
     , freeIn
     , freeInIgnoringSorts
+    , Occurrence(..)
+    , occurrence
     ) where
 
 import qualified Data.Set as Set
@@ -19,41 +22,82 @@ import Agda.Syntax.Internal
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-data FreeVars = FV { rigidVars	  :: Set Nat
-		   , flexibleVars :: Set Nat
-		   }
+-- | The distinction between rigid and strongly rigid occurrences comes from:
+--   Jason C. Reed, PhD thesis, 2009, page 96 (see also his LFMTP 2009 paper)
+--
+-- The main idea is that x = t(x) is unsolvable if x occurs strongly rigidly
+-- in t.  It might have a solution if the occurrence is not strongly rigid, e.g.
+--
+--   x = \f -> suc (f (x (\ y -> k)))  has  x = \f -> suc (f (suc k))
+--
+-- [Jason C. Reed, PhD thesis, page 106]
+
+data FreeVars = FV
+  { stronglyRigidVars :: Set Nat -- ^ variables at top and under constructors
+  , weaklyRigidVars   :: Set Nat -- ^ ord. rigid variables, e.g., in arguments of variables
+  , flexibleVars      :: Set Nat -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
+  }
+
+rigidVars :: FreeVars -> Set Nat
+rigidVars fv = Set.union (stronglyRigidVars fv) (weaklyRigidVars fv)
 
 allVars :: FreeVars -> Set Nat
 allVars fv = Set.union (rigidVars fv) (flexibleVars fv)
 
+data Occurrence
+  = NoOccurrence
+  | StronglyRigid
+  | WeaklyRigid
+  | Flexible
+  deriving (Eq,Show)
+
+occurrence :: Nat -> FreeVars -> Occurrence
+occurrence x fv | x `Set.member` stronglyRigidVars fv = StronglyRigid
+occurrence x fv | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
+occurrence x fv | x `Set.member` flexibleVars      fv = Flexible
+occurrence _ _ = NoOccurrence
+
+-- | Mark variables as flexible.  Useful when traversing arguments of metas.
 flexible :: FreeVars -> FreeVars
 flexible fv =
-    FV { rigidVars    = Set.empty
-       , flexibleVars = allVars fv
+    FV { stronglyRigidVars = Set.empty
+       , weaklyRigidVars   = Set.empty
+       , flexibleVars      = allVars fv
        }
 
+-- | Mark rigid variables as non-strongly.  Useful when traversion arguments of variables.
+weakly :: FreeVars -> FreeVars
+weakly fv = fv
+  { stronglyRigidVars = Set.empty
+  , weaklyRigidVars   = rigidVars fv
+  }
+
+-- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
-union (FV rv1 fv1) (FV rv2 fv2) = FV (Set.union rv1 rv2) (Set.union fv1 fv2)
+union (FV sv1 rv1 fv1) (FV sv2 rv2 fv2) =
+  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
 empty :: FreeVars
-empty = FV Set.empty Set.empty
+empty = FV Set.empty Set.empty Set.empty
 
 mapFV :: (Nat -> Nat) -> FreeVars -> FreeVars
-mapFV f (FV rv fv) = FV (Set.map f rv) (Set.map f fv)
+mapFV f (FV sv rv fv) = FV (Set.map f sv) (Set.map f rv) (Set.map f fv)
 
 delete :: Nat -> FreeVars -> FreeVars
-delete x (FV rv fv) = FV (Set.delete x rv) (Set.delete x fv)
+delete x (FV sv rv fv) =
+  FV (Set.delete x sv) (Set.delete x rv) (Set.delete x fv)
 
+-- | A single (strongly) rigid variable.
 singleton :: Nat -> FreeVars
-singleton x = FV { rigidVars	= Set.singleton x
-		 , flexibleVars = Set.empty
+singleton x = FV { stronglyRigidVars = Set.singleton x
+		 , weaklyRigidVars   = Set.singleton x
+		 , flexibleVars      = Set.empty
 		 }
 
--- | Doesn't go inside solved metas, but collects the variables from a
--- metavariable application @X ts@ as @flexibleVars@.
+-- * Collecting free variables.
 
 class Free a where
   freeVars' :: FreeConf -> a -> FreeVars
@@ -63,15 +107,17 @@ data FreeConf = FreeConf
     -- ^ Ignore free variables in sorts.
   }
 
+-- | Doesn't go inside solved metas, but collects the variables from a
+-- metavariable application @X ts@ as @flexibleVars@.
 freeVars :: Free a => a -> FreeVars
 freeVars = freeVars' FreeConf{ fcIgnoreSorts = False }
 
 instance Free Term where
   freeVars' conf t = case t of
-    Var n ts   -> singleton n `union` freeVars' conf ts
+    Var n ts   -> singleton n `union` weakly (freeVars' conf ts)
     Lam _ t    -> freeVars' conf t
     Lit _      -> empty
-    Def _ ts   -> freeVars' conf ts
+    Def _ ts   -> weakly $ freeVars' conf ts
     Con _ ts   -> freeVars' conf ts
     Pi a b     -> freeVars' conf (a,b)
     Fun a b    -> freeVars' conf (a,b)
@@ -88,11 +134,11 @@ instance Free Sort where
     | otherwise          = case s of
       Type a     -> freeVars' conf a
       Suc s      -> freeVars' conf s
-      Lub s1 s2  -> freeVars' conf (s1, s2)
+      Lub s1 s2  -> weakly $ freeVars' conf (s1, s2)
       Prop       -> empty
       Inf        -> empty
       MetaS _ ts -> flexible $ freeVars' conf ts
-      DLub s1 s2 -> freeVars' conf (s1, s2)
+      DLub s1 s2 -> weakly $ freeVars' conf (s1, s2)
 
 instance Free a => Free [a] where
   freeVars' conf xs = unions $ map (freeVars' conf) xs

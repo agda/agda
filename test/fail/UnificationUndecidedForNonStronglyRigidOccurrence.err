@@ -1,0 +1,4 @@
+UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,1-9
+n ≡ f n should be empty, but that's not obvious to me
+when checking that the clause i f n () has type
+(f : Nat → Nat) (n : Nat) → n ≡ f n → Nat

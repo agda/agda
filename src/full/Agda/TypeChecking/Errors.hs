@@ -277,7 +277,7 @@ instance PrettyTCM TypeError where
               pwords "The arguments to " ++ [prettyTCM m] ++ pwords "does not fit the telescope" ++
 	      [prettyTCM tel]
             ShouldBeEmpty t [] -> fsep $
-		[prettyTCM t] ++ pwords "should be empty, but it isn't obvious that it is."
+		[prettyTCM t] ++ pwords "should be empty, but that's not obvious to me"
 	    ShouldBeEmpty t ps -> fsep (
 		[prettyTCM t] ++
                 pwords "should be empty, but the following constructor patterns are valid:"

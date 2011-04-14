@@ -43,6 +43,7 @@ data Equality = Equal Type Term Term
 type Sub = Map Nat Term
 
 data UnifyException = ConstructorMismatch Type Term Term
+                    | StronglyRigidOccurrence Type Term Term
                     | GenericUnifyException String
 
 instance Error UnifyException where
@@ -95,12 +96,24 @@ takeEqualities = U $ do
 -- | Includes flexible occurrences, metas need to be solved. TODO: relax?
 --   TODO: later solutions may remove flexible occurences
 occursCheck :: Nat -> Term -> Type -> Unify ()
-occursCheck i u a
-  | i `freeIn` u = do
-    reportSDoc "tc.lhs.unify" 20 $ prettyTCM (Var i []) <+> text "occurs in" <+> prettyTCM u
-    typeError $ UnequalTerms CmpEq (Var i []) u a
-  | otherwise	 = return ()
+occursCheck i u a = do
+  let fv = freeVars u
+      v  = Var i []
+  case occurrence i fv of
+    -- Andreas, 2011-04-14
+    -- a strongly rigid recursive occurrences signals unsolvability
+    StronglyRigid -> do
+      reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs strongly rigidly in" <+> prettyTCM u
+      throwException $ StronglyRigidOccurrence a v u
 
+    NoOccurrence  -> return ()
+
+    -- any other recursive occurrence leads to unclear situation
+    _             -> do
+      reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs in" <+> prettyTCM u
+      typeError $ UnequalTerms CmpEq v u a
+
+-- | Assignment with preceding occurs check.
 (|->) :: Nat -> (Term, Type) -> Unify ()
 i |-> (u, a) = do
   occursCheck i u a
@@ -162,9 +175,11 @@ unifyIndices flex a us vs = liftTCM $ do
                       unifyArgs a us vs >> recheckConstraints
 
     case r of
-      Left (ConstructorMismatch a u v)  -> return $ NoUnify a u v
-      Left (GenericUnifyException err)  -> fail err
-      Right _                           -> do
+      Left (ConstructorMismatch     a u v)  -> return $ NoUnify a u v
+      -- Andreas 2011-04-14:
+      Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
+      Left (GenericUnifyException     err)  -> fail err
+      Right _                               -> do
         checkEqualities $ substs (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]

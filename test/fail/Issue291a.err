@@ -1,0 +1,4 @@
+Issue291a.agda:14,1-7
+♭ u ≡ runit u should be empty, but that's not obvious to me
+when checking that the clause j u () has type
+(u : ∞ RUnit) → ♭ u ≡ runit u → Set

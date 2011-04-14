@@ -1,0 +1,5 @@
+Issue291b.agda:14,1-7
+u ≡ runit (.Issue291b.♯-0 u) should be empty, but that's not
+obvious to me
+when checking that the clause j u () has type
+(u : RUnit) → u ≡ runit (.Issue291b.♯-0 u) → Set

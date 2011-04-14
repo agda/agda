@@ -23,12 +23,16 @@ isEmptyTypeC t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
   case unEl <$> tb of
+    -- if t is blocked or a meta, we cannot decide emptyness now. postpone
     NotBlocked MetaV{} -> buildConstraint (IsEmpty t)
     Blocked{}          -> buildConstraint (IsEmpty t)
     _                  -> do
+    -- from the current context xs:ts, create a pattern list
+    -- xs _ : ts t and try to split on _ (the last variable)
       tel0 <- getContextTelescope
-      let tel = telFromList $ telToList tel0 ++ [defaultArg ("_", t)]
-          ps  = [ Arg h r $ VarP x | Arg h r (x, _) <- telToList tel ]
+      let gamma = telToList tel0 ++ [defaultArg ("_", t)]
+          ps    = [ Arg h r $ VarP x | Arg h r (x, _) <- gamma ]
+          tel   = telFromList gamma
 
       r <- split Inductive tel (idP $ size tel) ps 0
 
