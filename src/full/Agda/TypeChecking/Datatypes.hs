@@ -33,6 +33,15 @@ isDatatype d = do
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
 
+-- | Check if a name refers to a datatype or a record.
+isDataOrRecordType :: MonadTCM tcm => QName -> tcm Bool
+isDataOrRecordType d = do
+  def <- getConstInfo d
+  case theDef def of
+    Datatype{} -> return True
+    Record{}   -> return True
+    _          -> return False
+
 data DatatypeInfo = DataInfo
   { datatypeName   :: QName
   , datatypeParTel :: Telescope

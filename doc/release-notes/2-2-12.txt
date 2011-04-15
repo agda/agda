@@ -62,6 +62,32 @@ Language
   This is because certain checks (positivity, termination, precise scoping)
   are only invoked upon reload, not upon give.
 
+* Occurrence checker distinguishes rigid and strongly rigid
+  occurrences. [Reed, LFMTP 2009; Abel Pientka, TLCA 2011]
+  
+  This solves issue 291.  The emptyness checker now accepts this:
+
+    h : (n : Nat) -> n ≡ suc n -> Nat
+    h n ()
+
+  Internally, this generates a constraint _1 = suc _1 where a meta
+  occurs strongly rigid, i.e., on a constructor path from the root,
+  in its own defining term tree.  This is never solvable.
+
+  Weakly rigid recursive occurrences may have a solution.
+  [Issue 405, Jason Reed's PhD thesis, page 106]
+
+    test : (k : Nat) -> 
+       let X : (Nat -> Nat) -> Nat
+           X = _ 
+       in (f : Nat -> Nat) -> X f ≡ suc (f (X (\ x -> k)))
+    test k f = refl
+
+  The constraint _1 k f = suc (f (_1 k (λ x → k))) has solution
+  _1 k f = suc (f (suc k)) despite the recursive occurrence; yet it is
+  not strong, not directly under constructor suc, but under bound
+  variable f.  Now Agda correctly displays yellow instead of an error.
+
 Tools
 -----
 

@@ -375,16 +375,23 @@ etaExpandBlocked (Blocked m t)  = do
     Blocked m' _ | m /= m' -> etaExpandBlocked t
     _                      -> return t
 
+{- UNUSED
+-- | @abortAssign@ saves the @TCState@ in @s@ and passes it via exception
+--   @AbortAssign s@ to the @handleAbort@ which restores the state.
 abortAssign :: MonadTCM tcm => tcm a
 abortAssign =
-    do	s <- get
+    do	s <- get -- save the state
 	liftTCM $ throwError $ TCErr Nothing $ AbortAssign s
 
+-- | @handleAbort h m@ handles an @AbortAssign s@ error in @m@ by
+--   restoring the TCState to @s@ and then calling @h@.
+--   @PatternErr@ is passed through.
 handleAbort :: MonadTCM tcm => TCM a -> TCM a -> tcm a
 handleAbort h m = liftTCM $
     m `catchError_` \e ->
 	case errError e of
-	    AbortAssign s -> do put s; h
+	    AbortAssign s -> do put s -- restore the state
+                                h     -- continue with handler @h@
             PatternErr{}  -> do
               -- Andreas, 2010-09-17 uncommenting the reportSLn statements
               -- breaks something.  Why?
@@ -393,14 +400,19 @@ handleAbort h m = liftTCM $
 	    _		  -> do
               -- reportSLn "tc.meta.assign" 50 "handleAbort: Some exception"
               throwError e
+-}
 
 -- | Assign to an open metavar which may not be frozen.
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
+--   Assignment is aborted by throwing a @PatternErr@ via a call to
+--   @patternViolation@.  This error is caught by @catchConstraint@
+--   during equality checking (@compareAtom@) and leads to
+--   restoration of the original constraints.
 assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
-assignV t x args v =
-    handleAbort handler $ do
+assignV t x args v = do
+    -- handleAbort handler $ do  -- 2011-04-14 Andreas: UNUSED
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
 
@@ -432,7 +444,7 @@ assignV t x args v =
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM v
 
-        -- Andreas, 2010-10-15 I want to see whether rhd is blocked
+        -- Andreas, 2010-10-15 I want to see whether rhs is blocked
         reportSDoc "tc.meta.assign" 25 $ do
           v0 <- reduceB v
           case v0 of
@@ -487,16 +499,18 @@ assignV t x args v =
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
+{- UNUSED
 	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
 	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalTerm t (MetaV x args) v
+-}
 
 -- TODO: Unify with assignV
 assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
 assignS x args s =
-  ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $
-    handleAbort handler $ do
+  ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $ do
+    -- handleAbort handler $ do  -- UNUSED
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
 
@@ -573,13 +587,15 @@ assignS x args s =
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg
               -- we will end up here, but never look at the result
 
+{- UNUSED
 	handler :: MonadTCM tcm => tcm Constraints
 	handler = do
 	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
 	    equalSort (MetaS x args) s
+-}
 
-        noPolyAssign x s =
-          handleAbort (equalSort (MetaS x []) s) $ do
+        noPolyAssign x s = do
+          -- handleAbort (equalSort (MetaS x []) s) $ do -- UNUSED
 
             -- We don't instantiate frozen mvars
             whenM (isFrozen x) patternViolation

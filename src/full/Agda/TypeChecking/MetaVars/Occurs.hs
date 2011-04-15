@@ -12,9 +12,10 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Monad
@@ -24,12 +25,25 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
-data OccursCtx = Flex | Rigid
+data OccursCtx
+  = Flex          -- ^ we are in arguments of a meta
+  | Rigid         -- ^ we are not in arguments of a meta but a bound var
+  | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
   deriving (Eq, Show)
 
+-- | Leave the strongly rigid position.
+weakly :: OccursCtx -> OccursCtx
+weakly StronglyRigid = Rigid
+weakly ctx = ctx
+
+strongly :: OccursCtx -> OccursCtx
+strongly Rigid = StronglyRigid
+strongly ctx = ctx
+
 abort :: OccursCtx -> TypeError -> TCM ()
-abort Flex  _   = patternViolation
-abort Rigid err = typeError err
+abort Flex  _   = patternViolation -- throws a PatternErr, which leads to delayed constraint
+abort Rigid err = patternViolation -- typeError err
+abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 
 -- | Extended occurs check.
 class Occurs t where
@@ -46,7 +60,7 @@ occursCheck m xs v = liftTCM $ do
     Sort (MetaS m' _) | m == m' -> patternViolation
     _                           ->
                               -- Produce nicer error messages
-      occurs Rigid m xs v `catchError` \err -> case errError err of
+      occurs StronglyRigid m xs v `catchError` \err -> case errError err of
         TypeError _ cl -> case clValue cl of
           MetaOccursInItself{} ->
             typeError . GenericError . show =<<
@@ -83,21 +97,21 @@ instance Occurs Term where
     where
       occurs' ctx v = case v of
         Var i vs   -> do         -- abort Rigid turns this error into PatternErr
-          unless (i `elem` xs) $ abort ctx $ MetaCannotDependOn m xs i
-          Var i <$> occ vs
-        Lam h f	    -> Lam h <$> occ f
+          unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
+          Var i <$> occ (weakly ctx) vs
+        Lam h f	    -> Lam h <$> occ ctx f
         Lit l	    -> return v
         DontCare    -> return v
-        Def c vs    -> Def c <$> occ vs
-        Con c vs    -> Con c <$> occ vs
-        Pi a b	    -> uncurry Pi <$> occ (a,b)
-        Fun a b	    -> uncurry Fun <$> occ (a,b)
-        Sort s	    -> Sort <$> occ s
+        Def d vs    -> Def d <$> occDef d ctx vs
+        Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
+        Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
+        Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
+        Sort s	    -> Sort <$> occ ctx s
         MetaV m' vs -> do
             -- Check for loop
             when (m == m') $ abort ctx $ MetaOccursInItself m
 
-            -- The arguments are in a flexible position
+            -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs Flex m xs vs) `catchError` \err -> do
               reportSDoc "tc.meta.kill" 25 $ vcat
                 [ text $ "error during flexible occurs check, we are " ++ show ctx
@@ -105,8 +119,8 @@ instance Occurs Term where
                 ]
               case errError err of
                 -- On pattern violations try to remove offending
-                -- flexible occurrences (if in a rigid context)
-                PatternErr{} | ctx == Rigid -> do
+                -- flexible occurrences (if not already in a flexible context)
+                PatternErr{} | ctx /= Flex -> do
                   let kills = map (hasBadRigid xs) $ map unArg vs
                   reportSLn "tc.meta.kill" 20 $
                     "oops, pattern violation for " ++ show m' ++ "\n" ++
@@ -125,11 +139,16 @@ instance Occurs Term where
                         ]
                       ok <- killArgs kills m'
                       if ok
-                        then occurs Rigid m xs =<< instantiate (MetaV m' vs)
+                        -- after successful pruning, restart occurs check
+                        then occurs ctx m xs =<< instantiate (MetaV m' vs)
                         else throwError err
                 _ -> throwError err
         where
-          occ x = occurs ctx m xs x
+          occ ctx v = occurs ctx m xs v
+          -- a data or record type constructor propagates strong occurrences
+          -- since e.g. x = List x is unsolvable
+          occDef d ctx v = ifM (isDataOrRecordType d) (occ ctx v)
+                                 (occ (weakly ctx) v)
 
 instance Occurs Type where
   occurs ctx m xs (El s v) = uncurry El <$> occurs ctx m xs (s,v)
@@ -141,9 +160,9 @@ instance Occurs Sort where
       MetaS m' args -> do
         when (m == m') $ abort ctx $ MetaOccursInItself m
         MetaS m' <$> occurs Flex m xs args
-      Lub s1 s2  -> uncurry Lub <$> occurs ctx m xs (s1,s2)
-      DLub s1 s2 -> uncurry DLub <$> occurs ctx m xs (s1, s2)
-      Suc s      -> Suc <$> occurs ctx m xs s
+      Lub s1 s2  -> uncurry Lub  <$> occurs (weakly ctx) m xs (s1,s2)
+      DLub s1 s2 -> uncurry DLub <$> occurs (weakly ctx) m xs (s1,s2)
+      Suc s      -> Suc  <$> occurs ctx m xs s
       Type a     -> Type <$> occurs ctx m xs a
       Prop       -> return s'
       Inf        -> return s'

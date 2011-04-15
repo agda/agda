@@ -936,7 +936,7 @@ data TCErr' = TypeError TCState (Closure TypeError)
 	    | Exception Range String
             | IOException Range E.IOException
 	    | PatternErr  TCState -- ^ for pattern violations
-	    | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations
+	    {- | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
   deriving (Typeable)
 
 -- | Type-checking errors, potentially paired with relevant syntax
@@ -962,14 +962,14 @@ instance Show TCErr' where
     show (Exception r s) = show r ++ ": " ++ s
     show (IOException r e) = show r ++ ": " ++ show e
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
-    show (AbortAssign _) = "Abort assignment (you shouldn't see this)"
+    {- show (AbortAssign _) = "Abort assignment (you shouldn't see this)" -- UNUSED -}
 
 instance HasRange TCErr' where
     getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
     getRange (PatternErr s)    = noRange
-    getRange (AbortAssign s)   = noRange
+    {- getRange (AbortAssign s)   = noRange -- UNUSED -}
 
 instance HasRange TCErr where
     getRange = getRange . errError

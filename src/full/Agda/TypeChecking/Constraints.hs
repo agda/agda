@@ -30,7 +30,7 @@ import Agda.Utils.Monad
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
--- | Catch pattern violation errors and adds a constraint.
+-- | Catches pattern violation errors and adds a constraint.
 --
 catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constraints
 catchConstraint c v = liftTCM $

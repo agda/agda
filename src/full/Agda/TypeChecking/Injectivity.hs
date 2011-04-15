@@ -199,7 +199,7 @@ useInjectivity cmp a u v = do
           Exception   {} -> throwError err
           IOException {} -> throwError err
           PatternErr  {} -> fallBack
-          AbortAssign {} -> fallBack
+          {- AbortAssign {} -> fallBack -- UNUSED -}
 
     nextMeta = do
       m : ms <- get

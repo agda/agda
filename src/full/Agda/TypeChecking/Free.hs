@@ -117,7 +117,10 @@ instance Free Term where
     Var n ts   -> singleton n `union` weakly (freeVars' conf ts)
     Lam _ t    -> freeVars' conf t
     Lit _      -> empty
-    Def _ ts   -> weakly $ freeVars' conf ts
+    Def _ ts   -> weakly $ freeVars' conf ts  -- because we are not in TCM
+      -- we cannot query whether we are dealing with a data/record (strongly r.)
+      -- or a definition by pattern matching (weakly rigid)
+      -- thus, we approximate, losing that x = List x is unsolvable
     Con _ ts   -> freeVars' conf ts
     Pi a b     -> freeVars' conf (a,b)
     Fun a b    -> freeVars' conf (a,b)

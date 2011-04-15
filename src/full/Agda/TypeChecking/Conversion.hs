@@ -166,6 +166,7 @@ compareTel cmp tel1 tel2 =
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 5 "compareAtom" $
+    -- if a PatternErr is thrown, rebuild constraint!
     catchConstraint (ValueCmp cmp t m n) $ do
       -- constructorForm changes literal to constructors
       -- Andreas: what happens if I cut out the eta expansion here?
@@ -177,6 +178,8 @@ compareAtom cmp t m n =
       reportSDoc "tc.conv.atom" 10 $ fsep
 	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
       case (mb, nb) of
+        -- equate two metas x and y.  if y is the younger meta,
+        -- try first y := x and then x := y
         (NotBlocked (MetaV x xArgs), NotBlocked (MetaV y yArgs))
             | x == y -> if   sameVars xArgs yArgs
                         then return []
@@ -212,14 +215,17 @@ compareAtom cmp t m n =
                     undoRollback
                     return cs
 
+        -- one side a meta, the other an unblocked term
 	(NotBlocked (MetaV x xArgs), _) -> assignV t x xArgs n
 	(_, NotBlocked (MetaV x xArgs)) -> assignV t x xArgs m
+
         (Blocked{}, Blocked{})	-> do
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
                 then return []	-- Check syntactic equality for blocked terms
                 else buildConstraint $ ValueCmp cmp t m n
+
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> case (m, n) of
