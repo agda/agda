@@ -201,7 +201,7 @@ unifyIndices flex a us vs = liftTCM $ do
       a <- reduce a
       case funView $ unEl a of
 	FunV b _  -> do
-	  unify (unArg b) u v
+	  unless (argRelevance b == Irrelevant) $ unify (unArg b) u v
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__

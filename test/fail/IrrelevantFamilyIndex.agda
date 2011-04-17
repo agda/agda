@@ -14,17 +14,27 @@ data Fin : .Nat -> Set where
 t : Fin zero
 t = zero zero
 
+-- the following is ok, since Fin _ is really just Nat
+toNat : Fin zero -> Nat
+toNat (zero _)  = zero
+toNat (suc _ i) = suc (toNat i)
+
 data Pos : Nat -> Set where
   pos : (n : Nat) -> Pos (suc n)
 
 f : (n : Nat) -> Fin n -> Pos n
 f .(suc n) (zero n)  = pos n
 f .(suc n) (suc n i) = pos n
--- this does not check,  as expected
+-- cannot infer value of dot pattern
 
 {-
 f : (n : Nat) -> Fin n -> Pos n
 f .(suc _) (zero _)  = pos _
 f .(suc _) (suc _ _) = pos _
+
+f' : (n : Nat) -> Fin n -> Pos n
+f' _ (zero _)  = pos _
+f' _ (suc _ _) = pos _
 -}
+
 

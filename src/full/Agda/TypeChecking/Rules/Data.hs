@@ -233,8 +233,10 @@ fitsIn t s = do
 constructs :: Int -> Type -> QName -> TCM ()
 constructs nofPars t q = constrT 0 t
     where
+        constrT :: Nat -> Type -> TCM ()
 	constrT n (El s v) = constr n s v
 
+        constr :: Nat -> Sort -> Term -> TCM ()
 	constr n s v = do
 	    v <- reduce v
 	    case v of
@@ -248,13 +250,25 @@ constructs nofPars t q = constrT 0 t
 
 	bad t = typeError $ ShouldEndInApplicationOfTheDatatype t
 
-	checkParams n vs = zipWithM_ sameVar (map unArg vs) ps
+	checkParams n vs = zipWithM_ sameVar vs ps
 	    where
 		ps = reverse [ i | (i,_) <- zip [n..] vs ]
 
-		sameVar v i = do
+		sameVar arg i
+                  | argRelevance arg == Irrelevant = return ()
+		  | otherwise = do
 		    t <- typeOfBV i
-		    addConstraints =<< equalTerm t v (Var i [])
+		    addConstraints =<< equalTerm t (unArg arg) (Var i [])
+
+{- Andreas, 2011-04-15 the following does not work since t does not include parameter telescope
+        checkParams :: Nat -> QName -> Args -> TCM ()
+	checkParams n d vs = do
+            t <- typeOfConst d
+            addNewConstraints =<< equalArgs t vs ps
+	    where
+                ps :: Args
+		ps = reverse [ defaultArg (Var i []) | (i,_) <- zip [n..] vs ]
+-}
 
 
 -- | Force a type to be a specific datatype.

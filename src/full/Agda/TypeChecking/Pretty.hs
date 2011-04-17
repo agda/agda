@@ -125,7 +125,7 @@ instance PrettyTCM Constraint where
                 [ sep [ prettyTCM u
                       , nest 2 $ text "~~" <+> prettyTCM v
                       , nest 2 $ text (show cmp)
-                      ] | (cmp, u, v) <- zip3 cmps us vs
+                      ] | (cmp, u, v) <- zip3 (cmps ++ repeat Invariant) us vs
                 ]
               , nest 2 $ text ":" <+> prettyTCM t
               ]
