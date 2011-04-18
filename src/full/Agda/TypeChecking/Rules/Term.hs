@@ -226,21 +226,23 @@ checkExpr e t =
     case e of
 
 	-- Insert hidden lambda if appropriate
-	_   | not (hiddenLambdaOrHole e)
-	    , FunV (Arg Hidden _ _) _ <- funView (unEl t) -> do
+	_   | FunV (Arg h rel _) _ <- funView (unEl t)
+            , not (hiddenLambdaOrHole h e)
+            , h /= NotHidden                          -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree Hidden x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree h rel x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
                       Just pos -> posToRange pos pos
 
-                hiddenLambdaOrHole (A.AbsurdLam _ Hidden)                                  = True
-		hiddenLambdaOrHole (A.Lam _ (A.DomainFree Hidden _) _)			   = True
-		hiddenLambdaOrHole (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg Hidden _ _))) _) = True
-		hiddenLambdaOrHole (A.QuestionMark _)					   = True
-		hiddenLambdaOrHole _							   = False
+                hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
+		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree h' _ _) _) | h == h'       = True
+		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg h' _ _))) _)
+                  | h == h'                                                            = True
+		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
+		hiddenLambdaOrHole _ _						       = False
 
 	-- Variable or constant application
            -- Subcase: ambiguous constructor

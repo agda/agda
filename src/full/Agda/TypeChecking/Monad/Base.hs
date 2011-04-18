@@ -297,10 +297,11 @@ data Frozen
     deriving (Eq, Show)
 
 data MetaInstantiation
-	= InstV Term
-	| InstS Term  -- should be Lam .. Sort s
-	| Open
-	| BlockedConst Term
+	= InstV Term         -- ^ solved by term
+	| InstS Term         -- ^ solved by @Lam .. Sort s@
+	| Open               -- ^ unsolved
+	| OpenIFS            -- ^ open, to be instantiated as "implicit from scope"
+	| BlockedConst Term  -- ^ solution blocked by unsolved constraints
         | PostponedTypeCheckingProblem (Closure (A.Expr, Type, TCM Bool))
     deriving (Typeable)
 

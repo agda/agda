@@ -530,19 +530,12 @@ TypedBindingss
 -- Andreas, 2011-04-07: or .(x1 .. xn : A) or .{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '(' TBinds ')' { TypedBindings (fuseRange $1 $3) (Arg NotHidden Relevant $2) }
-    | '{' TBinds '}' { TypedBindings (fuseRange $1 $3) (Arg Hidden    Relevant $2) }
-
-
--- A semicolon separated list of TypedBindings
-TBinds :: { [TypedBinding] }
-TBinds : TBind		   { [$1] }
-       | TBind ';' TBinds2 { $1 : $3 }
-
-TBinds2 :: { [TypedBinding] }
-TBinds2 : TBinds	   { $1 }
-	| Expr ';' TBinds2 { TNoBind $1 : $3 }
-	| Expr		   { [TNoBind $1] }
+    : '.' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         Irrelevant $3) }
+    | '.' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            Irrelevant $3) }
+    | '.' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Irrelevant $3) }
+    | '(' TBind ')'        { TypedBindings (fuseRange $1 $3) (Arg NotHidden         Relevant $2) }
+    | '{{' TBind '}}'      { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Relevant $2) }
+    | '{' TBind '}'        { TypedBindings (fuseRange $1 $3) (Arg Hidden            Relevant $2) }
 
 
 -- x1 .. xn:A
@@ -602,16 +595,12 @@ TypedUntypedBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
-    : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
-    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
-{-
-    : BId		{ [DomainFree NotHidden $ mkBoundName_ $1]  }
-    | '{' CommaBIds '}' { map (DomainFree Hidden . mkBoundName_) $2 }
--}
     : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
+    | '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Relevant . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Irrelevant . mkBoundName_) $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports
