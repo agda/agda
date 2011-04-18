@@ -78,6 +78,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
       p <- lift $ expandLitPattern p
       case asView $ namedThing $ unArg p of
+
+        -- Case: literal pattern
 	(xs, p@(A.LitP lit))  -> do
           -- Note that, in the presence of --without-K, this branch is
           -- based on the assumption that the types of literals are
@@ -98,9 +100,13 @@ splitProblem (Problem ps (perm, qs) tel) = do
 		    (fmap (LitFocus lit q i) a)
 		    (fmap (Problem ps ()) tel)
 	    else keepGoing
+
+        -- Case: constructor pattern
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
 	  a' <- reduce $ unArg a
 	  case unEl a' of
+
+            -- Subcase: split type is a Def
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
               unless (defIsRecord def) $
@@ -143,7 +149,9 @@ splitProblem (Problem ps (perm, qs) tel) = do
 				 xs
 				 (fmap (Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
+            -- Subcase: split type is not a Def
 	    _	-> keepGoing
+        -- Case: neither literal nor constructor pattern
 	p -> keepGoing
       where
 	keepGoing = do

@@ -15,6 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.MetaVars
+import Agda.TypeChecking.MetaVars.Occurs (killArgs)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Constraints
@@ -47,6 +48,16 @@ sameVars xs ys = and $ zipWith same xs ys
     where
 	same (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = n == m
 	same _ _				       = False
+
+-- | @intersectVars us vs@ checks whether all relevant elements in @us@ and @vs@
+--   are variables, and if yes, returns a prune list which says @True@ for
+--   arguments which are different and can be pruned.
+intersectVars :: Args -> Args -> Maybe [Bool]
+intersectVars = zipWithM areVars where
+    -- ignore irrelevant args
+    areVars u v | argRelevance u == Irrelevant        = Just False -- do not prune
+    areVars (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = Just $ n /= m -- prune different vars
+    areVars _ _                                       = Nothing
 
 equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
 equalTerm = compareTerm CmpEq
@@ -175,12 +186,30 @@ compareAtom cmp t m n =
       nb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB n
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
+
+          checkSyntacticEquality = do
+            n <- normalise n    -- is this what we want?
+            m <- normalise m
+            if m == n
+                then return []	-- Check syntactic equality for blocked terms
+                else buildConstraint $ ValueCmp cmp t m n
+
       reportSDoc "tc.conv.atom" 10 $ fsep
 	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
       case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
         (NotBlocked (MetaV x xArgs), NotBlocked (MetaV y yArgs))
+            | x == y ->
+              case intersectVars xArgs yArgs of
+                -- all relevant arguments are variables
+                Just kills -> do
+                  killedAll <- killArgs kills x
+                  if killedAll then return [] else checkSyntacticEquality
+                -- not all relevant arguments are variables
+                Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
+                                -- (same as for blocked terms)
+{-
             | x == y -> if   sameVars xArgs yArgs
                         then return []
                         else do -- Check syntactic equality on meta-variables
@@ -190,6 +219,7 @@ compareAtom cmp t m n =
                           if m == n
                             then return []
                             else buildConstraint (ValueCmp cmp t m n)
+-}
             | otherwise -> do
                 [p1, p2] <- mapM getMetaPriority [x,y]
                 -- instantiate later meta variables first
@@ -219,12 +249,15 @@ compareAtom cmp t m n =
 	(NotBlocked (MetaV x xArgs), _) -> assignV t x xArgs n
 	(_, NotBlocked (MetaV x xArgs)) -> assignV t x xArgs m
 
-        (Blocked{}, Blocked{})	-> do
+        (Blocked{}, Blocked{})	-> checkSyntacticEquality
+{-
+            do
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
                 then return []	-- Check syntactic equality for blocked terms
                 else buildConstraint $ ValueCmp cmp t m n
+-}
 
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n

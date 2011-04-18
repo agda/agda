@@ -187,6 +187,9 @@ hasBadRigid xs v =
     (rigidVars $ freeVars v)
     (Set.fromList xs)
 
+-- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
+--   Pruning is carried out whenever > 0 arguments can be pruned.
+--   @True@ is only returned if all arguments could be pruned.
 killArgs :: [Bool] -> MetaId -> TCM Bool
 killArgs kills _
   | not (or kills) = return False  -- nothing to kill
@@ -200,6 +203,7 @@ killArgs kills m = do
       let args         = zip (telToList tel) (kills ++ repeat False)
           (kills', a') = killedType args b
       dbg kills' a a'
+      -- If there is any prunable argument, perform the pruning
       when (any unArg kills') $ performKill (reverse kills') m a'
       -- Only successful if all occurrences were killed
       return (map unArg kills' == kills)
@@ -214,6 +218,11 @@ killArgs kills m = do
           ]
         ]
 
+-- | @killedType [((x1,a1),k1),...,((xn,an),kn)] b = ([k'1,...k'n],t')@
+--   (ignoring @Arg@).  Let @t' = (xs:as) -> b@.
+--   Invariant: @k'i==True@ iff $ki==True@ and pruning the @i@th argument form
+--   type @@ is possible without creating unbound variables.
+--   @t'@ is type @t@ after pruning all @k'i==True@.
 killedType :: [(Arg (String, Type), Bool)] -> Type -> ([Arg Bool], Type)
 killedType [] b = ([], b)
 killedType ((arg, kill) : kills) b

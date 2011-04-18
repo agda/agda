@@ -42,6 +42,9 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
+Meta Variables and Unification
+------------------------------
+
 * Unsolved meta variables of a declaration now are frozen after type checking
   meaning they cannot be instantiated by following declarations.  For example
 
@@ -87,6 +90,19 @@ Language
   _1 k f = suc (f (suc k)) despite the recursive occurrence; yet it is
   not strong, not directly under constructor suc, but under bound
   variable f.  Now Agda correctly displays yellow instead of an error.
+
+* Equation constraints involving the same meta in the head now trigger
+  pruning.  Example:
+
+    same : let X : A -> A -> A -> A × A
+               X = _
+           in {x y z : A} -> X x y y ≡ (x , y)
+                           × X x x y ≡ X x y y
+    same = refl , refl
+
+  The second equation implies that X cannot depend on its second
+  argument. After pruning, the first equation is linear and can
+  be solved.  [Pientka, PhD, Sec. 3.1.2; Abel Pientka, TLCA 2011]
 
 Tools
 -----
