@@ -355,8 +355,9 @@ allNames (Primitive _   q _)   = Seq.singleton q
 allNames (Definition _ defs) = Fold.foldMap allNamesD defs
   where
   allNamesD :: Definition -> Seq QName
-  allNamesD (TypeDef d)              = allNames d
+  allNamesD (FunSig d)               = allNames d
   allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
+  allNamesD (DataSig _ q _)          = Seq.singleton q
   allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
   allNamesD (ScopedDef _ def)        = allNamesD def
   allNamesD (RecDef _ q c _ _ decls) =

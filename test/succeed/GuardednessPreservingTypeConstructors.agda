@@ -69,10 +69,12 @@ data Label : Set where
 
 mutual
 
-  U : Set
+  U  : Set
+  U′ : Label → Set
+  El : U → Set
+
   U = Σ Label U′
 
-  U′ : Label → Set
   U′ ′0 = ⊤
   U′ ′1 = ⊤
   U′ ′2 = ⊤
@@ -80,7 +82,6 @@ mutual
   U′ ′π = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
   U′ ′w = Rec (♯ (Σ[ a ∶ U ] (El a → U)))
 
-  El : U → Set
   El (′0 , _)            = ⊥
   El (′1 , _)            = ⊤
   El (′2 , _)            = Bool

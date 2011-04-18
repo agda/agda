@@ -48,6 +48,10 @@ data GenPart = BindHole Int  -- ^ Argument is the position of the hole (with bin
              | IdPart String
   deriving (Data, Typeable, Show, Eq)
 
+-- | Get a flat list of identifier parts of a notation.
+stringParts :: Notation -> [String]
+stringParts gs = [ x | IdPart x <- gs ]
+
 -- | Target argument position of a part (Nothing if it is not a hole)
 holeTarget (BindHole n) = Just n
 holeTarget (NormalHole n) = Just n

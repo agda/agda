@@ -314,7 +314,9 @@ nameKinds mErr decls = do
   getAxiomName _                 = __IMPOSSIBLE__
 
   getDef :: A.Definition -> Map A.QName NameKind
+  getDef (A.FunSig d)            = Map.empty
   getDef (A.FunDef  _ q _)       = Map.singleton q Function
+  getDef (A.DataSig _ q _)       = Map.singleton q Datatype
   getDef (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
                                    (Map.unions $
                                     map (\q -> Map.singleton q (Constructor SC.Inductive)) $
@@ -326,7 +328,6 @@ nameKinds mErr decls = do
                                        Map.singleton q (Constructor SC.Inductive)
                                      Just _ -> __IMPOSSIBLE__
   getDef (A.ScopedDef {})        = Map.empty
-  getDef (A.TypeDef d)          = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate

@@ -255,6 +255,16 @@ instance Pretty Declaration where
 		sep [ pretty lhs
 		    , nest 2 $ pretty rhs
 		    ] $$ nest 2 (pretty wh)
+	    DataSig _ ind x tel e ->
+		sep [ hsep  [ pretty ind
+			    , pretty x
+			    , fcat (map pretty tel)
+			    ]
+		    , nest 2 $ hsep
+			    [ text ":"
+			    , pretty e
+			    ]
+		    ]
 	    Data _ ind x tel e cs ->
 		sep [ hsep  [ pretty ind
 			    , pretty x
@@ -266,6 +276,16 @@ instance Pretty Declaration where
 			    , text "where"
 			    ]
 		    ] $$ nest 2 (vcat $ map pretty cs)
+	    RecordSig _ x tel e ->
+		sep [ hsep  [ text "record"
+			    , pretty x
+			    , fcat (map pretty tel)
+			    ]
+		    , nest 2 $ hsep
+			    [ text ":"
+			    , pretty e
+			    ]
+		    ]
 	    Record _ x con tel e cs ->
 		sep [ hsep  [ text "record"
 			    , pretty x

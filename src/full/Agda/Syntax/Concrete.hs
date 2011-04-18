@@ -32,6 +32,8 @@ module Agda.Syntax.Concrete
     , Pragma(..)
     , Module
     , topLevelModuleName
+    -- * Pattern tools
+    , patternHead, patternNames
     )
     where
 
@@ -232,7 +234,9 @@ data Declaration
 	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
         | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
+	| DataSig     !Range Induction Name [TypedBindings] Expr -- ^ lone data signature in mutual block
 	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
+	| RecordSig   !Range Name [TypedBindings] Expr -- ^ lone record signature in mutual block
 	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
@@ -306,6 +310,45 @@ appView (RawApp _ (e:es)) = AppView e $ map arg es
 appView e = AppView e []
 
 {--------------------------------------------------------------------------
+    Patterns
+ --------------------------------------------------------------------------}
+
+-- | Get the leftmost symbol in a pattern.
+patternHead :: Pattern -> Maybe Name
+patternHead p =
+  case p of
+    IdentP x             -> return $ unqualify x
+    AppP p p'            -> patternHead p
+    RawAppP _ []         -> __IMPOSSIBLE__
+    RawAppP _ (p:_)      -> patternHead p
+    OpAppP _ name ps     -> return $ name
+    HiddenP _ (namedPat) -> patternHead (namedThing namedPat)
+    ParenP _ p           -> patternHead p
+    WildP _              -> Nothing
+    AbsurdP _            -> Nothing
+    AsP _ x p            -> patternHead p
+    DotP{}               -> Nothing
+    LitP (LitQName _ x)  -> Nothing -- return $ unqualify x -- does not compile
+    LitP _               -> Nothing
+
+-- | Get all the identifiers in a pattern in left-to-right order.
+patternNames :: Pattern -> [Name]
+patternNames p =
+  case p of
+    IdentP x             -> [unqualify x]
+    AppP p p'            -> concatMap patternNames [p, namedThing $ unArg p']
+    RawAppP _ ps         -> concatMap patternNames  ps
+    OpAppP _ name ps     -> name : concatMap patternNames ps
+    HiddenP _ (namedPat) -> patternNames (namedThing namedPat)
+    ParenP _ p           -> patternNames p
+    WildP _              -> []
+    AbsurdP _            -> []
+    AsP _ x p            -> patternNames p
+    DotP{}               -> []
+    LitP _               -> []
+
+
+{--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
 
@@ -377,7 +420,9 @@ instance HasRange Declaration where
     getRange (TypeSig _ x t)	       = fuseRange x t
     getRange (Field x t)               = fuseRange x t
     getRange (FunClause lhs rhs wh)    = fuseRange lhs rhs `fuseRange` wh
+    getRange (DataSig r _ _ _ _)       = r
     getRange (Data r _ _ _ _ _)	       = r
+    getRange (RecordSig r _ _ _)       = r
     getRange (Record r _ _ _ _ _)      = r
     getRange (Mutual r _)	       = r
     getRange (Abstract r _)	       = r

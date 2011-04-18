@@ -32,6 +32,9 @@ data Arg A : Set where
 {-# BUILTIN ARGARG arg #-}
 
 mutual
+
+  Args : Set
+
   data Term : Set where
     var     : ℕ → Args → Term
     con     : QName → Args → Term

@@ -512,38 +512,56 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
 instance ToConcrete Definition [C.Declaration] where
-  toConcrete (FunDef i _ cs) =
+  toConcrete (A.FunDef i _ cs) =
     withAbstractPrivate i $ do
      cs' <- toConcrete cs
      return $ concat cs'
 
-  toConcrete (DataDef i x bs cs) =
+  toConcrete (A.DataSig i x bs) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
-      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) Inductive x' (map help tel') (C.Underscore noRange Nothing) cs' ]
-      where
-      help :: C.LamBinding -> C.TypedBindings
-      help (C.DomainFull t) = t
-      help (C.DomainFree h r n) =
-        C.TypedBindings noRange
-                        (Arg h r (C.TBind noRange [n] (C.Underscore noRange Nothing)))
+      x' <- unsafeQNameToName <$> toConcrete x
+      return [ C.DataSig (getRange i) Inductive x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) ]
 
-  toConcrete (RecDef  i x c bs _ cs) =
+  toConcrete (A.DataDef i x bs cs) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' Nothing (map help tel') (C.Underscore noRange Nothing) cs' ]
+      return [ C.Data (getRange i) Inductive x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) cs' ]
+
+  toConcrete (A.RecSig i x bs _) =
+    withAbstractPrivate i $
+    bindToConcrete bs $ \tel' -> do
+      x' <- unsafeQNameToName <$> toConcrete x
+      return [ C.RecordSig (getRange i) x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) ]
+
+  toConcrete (A.RecDef  i x c bs _ cs) =
+    withAbstractPrivate i $
+    bindToConcrete bs $ \tel' -> do
+      (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
+      return [ C.Record (getRange i) x' Nothing (telToTypedBindingss tel') (C.Underscore noRange Nothing) cs' ]
+{-
     where
     help :: C.LamBinding -> C.TypedBindings
     help (C.DomainFull t) = t
     help (C.DomainFree h r n) =
       C.TypedBindings noRange
                       (Arg h r (C.TBind noRange [n] (C.Underscore noRange Nothing)))
-
+-}
 
   toConcrete (ScopedDef scope def) = withScope scope $ toConcrete def
-  toConcrete (TypeDef d) = toConcrete d
+  toConcrete (FunSig d) = toConcrete d
+
+-- | Helper function used in instance @ToConcrete Definition@.
+telToTypedBindingss :: [C.LamBinding] -> [C.TypedBindings]
+telToTypedBindingss = map lamBindingToTypedBindings where
+
+  lamBindingToTypedBindings :: C.LamBinding -> C.TypedBindings
+  lamBindingToTypedBindings b =
+    case b of
+      C.DomainFull t     -> t
+      C.DomainFree h r n -> C.TypedBindings noRange $
+        Arg h r $ C.TBind noRange [n] $ C.Underscore noRange Nothing
 
 instance ToConcrete TypeAndDef [C.Declaration] where
   -- We don't do withInfixDecl here. It's done at the declaration level.

@@ -61,6 +61,9 @@ nameParts :: Name -> [NamePart]
 nameParts (Name _ ps)  = ps
 nameParts (NoName _ _) = [Hole]
 
+nameStringParts :: Name -> [String]
+nameStringParts n = [ s | Id s <- nameParts n ]
+
 -- | @qualify A.B x == A.B.x@
 qualify :: QName -> Name -> QName
 qualify (QName m) x	= Qual m (QName x)

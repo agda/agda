@@ -845,7 +845,9 @@ Declaration
     | Fields        { $1   }
     | FunClause	    { [$1] }
     | Data	    { [$1] }
+    | DataSig	    { [$1] }  -- lone data type signature in mutual block
     | Record	    { [$1] }
+    | RecordSig	    { [$1] }  -- lone record signature in mutual block
     | Infix	    { [$1] }
     | Mutual	    { [$1] }
     | Abstract	    { [$1] }
@@ -900,12 +902,30 @@ Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
 	    Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 (map addType $3) $5 $7 }
 
+  -- New cases when we already had a DataSig.  Then one can omit the sort. 
+     | 'data' Id TypedUntypedBindings 'where'
+	    Constructors	{ Data (getRange ($1, $4, $5)) Inductive $2 (map addType $3) (Underscore (getRange $2) Nothing) $5 }
+     | 'codata' Id TypedUntypedBindings 'where'
+	    Constructors	{ Data (getRange ($1, $4, $5)) CoInductive $2 (map addType $3) (Underscore (getRange $2) Nothing) $5 }
+
+-- Data type signature. Found in mutual blocks.
+DataSig :: { Declaration }
+DataSig : 'data' Id TypedUntypedBindings ':' Expr
+  { DataSig (fuseRange $1 $5) Inductive $2 (map addType $3) $5 }
 
 -- Record declarations.
 Record :: { Declaration }
 Record : 'record' Id TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
          { Record (getRange ($1, $6, $7)) $2 (fst $7) (map addType $3) $5 (snd $7) }
+       | 'record' Id TypedUntypedBindings 'where'
+	    RecordDeclarations
+         { Record (getRange ($1, $4, $5)) $2 (fst $5) (map addType $3) (Underscore (getRange $2) Nothing) (snd $5) }
+
+-- Record type signature. In mutual blocks.
+RecordSig :: { Declaration }
+RecordSig : 'record' Id TypedUntypedBindings ':' Expr
+  { RecordSig (fuseRange $1 $5) $2 (map addType $3) $5 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { Name }

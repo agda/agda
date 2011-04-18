@@ -21,6 +21,8 @@ import Data.List
 import Data.Maybe
 import qualified Data.Traversable as Trav
 
+import Debug.Trace
+
 import Agda.Syntax.Concrete
 import Agda.Syntax.Common
 import Agda.Syntax.Position
@@ -28,6 +30,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty
 import Agda.Utils.Pretty
+import Agda.Utils.List (mhead, isSublistOf)
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -63,7 +66,7 @@ instance Show NiceDeclaration where
 
 -- | A definition without its type signature.
 data NiceDefinition
-	= TypeDef NiceTypeSignature -- ^ type signature
+	= FunSig NiceTypeSignature -- ^ type signature
 	| FunDef  Range [Declaration] Fixity' Access IsAbstract Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' Access IsAbstract Name [LamBinding] [NiceConstructor]
 	| RecDef Range Fixity' Access IsAbstract Name (Maybe NiceConstructor) [LamBinding] [NiceDeclaration]
@@ -121,8 +124,8 @@ instance HasRange NiceDefinition where
   getRange (FunDef r _ _ _ _ _ _)   = r
   getRange (DataDef r _ _ _ _ _ _)  = r
   getRange (RecDef r _ _ _ _ _ _ _) = r
-  getRange (TypeDef (Axiom r _ _ _ _ _ _))     = r
-  getRange (TypeDef _)             = __IMPOSSIBLE__
+  getRange (FunSig (Axiom r _ _ _ _ _ _))     = r
+  getRange (FunSig _)             = __IMPOSSIBLE__
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -233,9 +236,11 @@ niceDeclarations ds = do
 	  TypeSig _ x _				       -> [x]
           Field x _                                    -> [x]
 	  FunClause (LHS p [] _ _) _ _
-            | IdentP (QName x) <- noSingletonRawAppP p -> [x]
+            | IdentP (QName x) <- removeSingletonRawAppP p -> [x]
 	  FunClause{}				       -> []
+	  DataSig _ _ x _ _			       -> [x]
 	  Data _ _ x _ _ cs			       -> x : concatMap declaredNames cs
+	  RecordSig _ x _ _			       -> [x]
 	  Record _ x c _ _ _			       -> x : maybeToList c
 	  Infix _ _				       -> []
           Syntax _ _                                   -> []
@@ -268,7 +273,7 @@ niceDeclarations ds = do
                           return $ d : ds1
 
 		(cl@(FunClause lhs@(LHS p [] _ _) _ _), NotInMutual)
-                  | IdentP (QName x) <- noSingletonRawAppP p
+                  | IdentP (QName x) <- removeSingletonRawAppP p
                                   -> do
 		      ds <- nice fixs ds
 		      d <- mkFunDef Relevant fixs x Nothing [cl] -- fun def without type signature is relevant
@@ -279,8 +284,11 @@ niceDeclarations ds = do
 		    where
 			nds = case d of
                             Field x t                     -> return $ niceAxioms fixs [ d ]
+			    DataSig r CoInductive x tel t -> throwError (Codata r)
 			    Data r CoInductive x tel t cs -> throwError (Codata r)
+			    DataSig r Inductive   x tel t -> __IMPOSSIBLE__ -- TODO!
 			    Data r Inductive   x tel t cs -> dataOrRec DataDef niceAx r x tel t cs
+			    RecordSig r x tel t           -> __IMPOSSIBLE__ -- TODO!
 			    Record r x c tel t cs         -> do
                               let c' = (\c -> niceAxiom fixs (TypeSig Relevant c t)) <$> c -- constructor is always relevant
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
@@ -317,7 +325,7 @@ niceDeclarations ds = do
 			  where
 			    dataOrRec mkDef niceD r x tel t cs = do
                               ds <- niceD fixs cs
-                              return $ [ NiceMutual r [d] [ TypeDef (Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant x (Pi tel t)), mkDef (getRange t) f PublicAccess ConcreteDef x (concatMap binding tel) ds ] ]
+                              return $ [ NiceMutual r [d] [ FunSig (Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant x (Pi tel t)), mkDef (getRange t) f PublicAccess ConcreteDef x (concatMap binding tel) ds ] ]
 
 --                             return $ [ NiceDef r [d]
 --                                  [ Axiom (fuseRange x t) f PublicAccess ConcreteDef Relevant
@@ -365,7 +373,7 @@ niceDeclarations ds = do
           return $
             NiceMutual (fuseRange x ds0)
                        (TypeSig rel x t : ds0)
-                      [ TypeDef (Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t) ,
+                      [ FunSig (Axiom (fuseRange x t) f PublicAccess ConcreteDef rel x t) ,
                         FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs ]
 --	    NiceDef (fuseRange x ds0)
 --		    (TypeSig rel x t : ds0)
@@ -422,16 +430,49 @@ niceDeclarations ds = do
           (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
         mkClauses _ _ = __IMPOSSIBLE__
 
-	noSingletonRawAppP (RawAppP _ [p]) = noSingletonRawAppP p
-	noSingletonRawAppP p		   = p
+        -- for finding clauses for a type sig in mutual blocks
+        couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
+        couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _) = True
+	couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _) =
+          let
+          pns        = patternNames p
+          xStrings   = nameStringParts x
+          patStrings = concatMap nameStringParts $ patternNames p
+          in
+          trace ("x = " ++ show x) $
+          trace ("pns = " ++ show pns) $
+          trace ("mFixity = " ++ show mFixity) $
+          case (mhead pns, mFixity) of
+            -- first identifier in the patterns is the fun.symbol?
+            (Just y, _) | x == y -> True
+            -- are the parts of x contained in p
+            _ | xStrings `isSublistOf` patStrings -> True
+            -- looking for a mixfix fun.symb
+            (_, Just fix) ->
+               let notStrings = stringParts (theNotation fix)
+               in  trace ("notStrings = " ++ show notStrings) $
+                   trace ("patStrings = " ++ show patStrings) $
+                   notStrings `isSublistOf` patStrings
+            -- not a notation, not first id: give up
+            _ -> False
+	couldBeFunClauseOf _ _ _ = False
 
+        -- @isFunClauseOf@ is for non-mutual blocks where clauses must follow the
+        -- type sig immediately
+        isFunClauseOf :: Name -> Declaration -> Bool
         isFunClauseOf x (FunClause Ellipsis{} _ _) = True
-	isFunClauseOf x (FunClause (LHS p _ _ _) _ _) = case noSingletonRawAppP p of
+	isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
+         -- p is the whole left hand side, excluding "with" patterns and clauses
+          case removeSingletonRawAppP p of
 	    IdentP (QName q)	-> x == q
 	    _			-> True
 		-- more complicated lhss must come with type signatures, so we just assume
 		-- it's part of the current definition
 	isFunClauseOf _ _ = False
+
+        removeSingletonRawAppP :: Pattern -> Pattern
+        removeSingletonRawAppP (RawAppP _ [p]) = removeSingletonRawAppP p
+        removeSingletonRawAppP p	       = p
 
 	-- Make a mutual declaration from a list of mutual declarations
 	mkMutual :: Range -> [Declaration] -> [NiceDeclaration] -> Nice NiceDeclaration
@@ -474,7 +515,7 @@ niceDeclarations ds = do
 
 	mkAbstractDef d =
 	    case d of
-                TypeDef d                -> TypeDef (mkAbstract d)
+                FunSig d                -> FunSig (mkAbstract d)
 		FunDef r ds f a _ x cs   -> FunDef r ds f a AbstractDef x (map mkAbstractClause cs)
 		DataDef r f a _ x ps cs  -> DataDef r f a AbstractDef x ps $ map mkAbstract cs
 		RecDef r f a _ x c ps cs -> RecDef r f a AbstractDef x (mkAbstract <$> c) ps $ map mkAbstract cs
@@ -501,7 +542,7 @@ niceDeclarations ds = do
 
 	mkPrivateDef d =
 	    case d of
-                TypeDef d -> TypeDef (mkPrivate d)
+                FunSig d -> FunSig (mkPrivate d)
 		FunDef r ds f _ a x cs   -> FunDef r ds f PrivateAccess a x (map mkPrivateClause cs)
 		DataDef r f _ a x ps cs  -> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
 		RecDef r f _ a x c ps cs -> RecDef r f PrivateAccess a x (mkPrivate <$> c) ps cs

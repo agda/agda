@@ -709,7 +709,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ c [C.TypeDef (C.Axiom _ _ _ abstract rel x t), C.FunDef _ _ _ _ abstract' _ [cl]] ->
+            NiceMutual _ c [C.FunSig (C.Axiom _ _ _ abstract rel x t), C.FunDef _ _ _ _ abstract' _ [cl]] ->
                 do  when (abstract == AbstractDef || abstract' == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
@@ -764,7 +764,7 @@ instance ToAbstract NiceDefinition Definition where
 
     toAbstract d = annotateDefn $ case d of
     -- Type signatures
-      C.TypeDef d -> A.TypeDef <$> toAbstract d
+      C.FunSig d -> A.FunSig <$> toAbstract d
     -- Function definitions
       C.FunDef r ds f p a x cs ->
         traceCall (ScopeCheckDefinition d) $ do

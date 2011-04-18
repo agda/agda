@@ -14,12 +14,17 @@ import Data.List
 import Data.Maybe
 import qualified Data.Set as Set
 
-#include "../undefined.h"
-import Agda.Utils.Impossible
-
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
 mhead (x:_) = Just x
+
+-- | Sublist relation.
+isSublistOf :: Eq a => [a] -> [a] -> Bool
+isSublistOf []       ys = True
+isSublistOf (x : xs) ys =
+  case dropWhile (x /=) ys of
+    []     -> False
+    (_:ys) -> isSublistOf xs ys
 
 type Prefix a = [a]
 type Suffix a = [a]

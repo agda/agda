@@ -824,8 +824,12 @@ instance LowerMeta SC.Declaration where
       TypeSig rel n e1              -> TypeSig rel n (lowerMeta e1)
       SC.Field n e1                 -> SC.Field n (lowerMeta e1)
       FunClause lhs rhs whcl        -> FunClause lhs (lowerMeta rhs) (lowerMeta whcl)
+      SC.DataSig r ind n tel e1     -> SC.DataSig r ind n
+                                         (lowerMeta tel) (lowerMeta e1)
       Data r ind n tel e1 cs        -> Data r ind n
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
+      SC.RecordSig r n tel e1       -> SC.RecordSig r n
+                                         (lowerMeta tel) (lowerMeta e1)
       SC.Record r n c tel e1 cs     -> SC.Record r n c
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _                     -> d

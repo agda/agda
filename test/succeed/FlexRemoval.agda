@@ -24,11 +24,12 @@ data Unit₂ : Set where
 
 mutual
 
+ D₂ : Unit₂ → Set
+
  data D : Set where
    c₁ : D
    c₂ : (x : Unit₂) → (Unit → D₂ x) → D
 
- D₂ : Unit₂ → Set
  D₂ (unit₂ x) = D
 
 foo : D
