@@ -42,6 +42,175 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
+* Non-canonical implicit arguments.
+
+  A new type of hidden function arguments is added, indicated by
+  double accolades. This new feature is inspired upon Scala implicits
+  and Agda's existing implicit arguments. Example:
+
+    a : A
+    f : {{a : A}} → B a
+  
+  Instead of the double accolades, you can also use unicode symbols
+  "LEFT WHITE CURLY BRACKET" (⦃, "\{{" in emacs) and "RIGHT WHITE
+  CURLY BRACKET" (⦄, "\}}" in emacs), but then they must be surrounded
+  by spaces.
+
+  This new type of arguments behaves similarly to existing implicit
+  arguments, except for one important aspect: resolution of not
+  explicitly provided non-canonical implicit arguments. For example,
+  if we call
+
+    test = f
+
+  then Agda will notice that f's non-canonical implicit argument was
+  not explicitly provided and will infer it. Agda will consider all
+  definitions in scope at the call-site, as well as all variables in
+  the context. If only one of these is of the required type, then it
+  will be used for the not provided non-canonical implicit argument.
+
+  This feature can be used as a simple, elegant and powerful
+  alternative to Haskell type classes. If we define
+
+    record Eq (t : Set) where
+      field equal : t → t → Bool
+
+  then we can define the following projection:
+
+    equal : {t : Set} → {{eqT : Eq t}} → t → t → Bool
+    equal {{eqT}} = Eq.equal eqT
+
+  which we can use similarly to Haskell class methods:
+
+    test = equal false false ∨ equal 3 4
+
+  In order for this definition of test to type-check, we need
+  "instances" of Eq for Bool's and ℕ's in scope:
+
+    eqBool : Eq Bool
+    eqBool = record { equal = primEqBool }
+
+    eqℕ : Eq ℕ
+    eqℕ = record { equal = primEqℕ }
+
+  Note that instead of defining equal, we can do this using a module
+  macro:
+
+    open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+
+  This will bring in scope equivalents of all the record module
+  functions that take the record as a non-canonical implicit argument,
+  like our definition of equal above. Using this technique, all
+  existing record types in Agda can now be used in a type-class-like
+  way. 
+
+  Non-canonical implicit arguments resolution is not recursive. For
+  example, if we have the following "parameterised instance":
+
+    listEq : {t : Set} → Eq t → Eq (List t)
+    listEq {t} eqT = record { equal = eqListT } where
+      eqListT : List t → List t → Bool
+      eqListT [] [] = true
+      eqListT (a ∷ as) (b ∷ bs) = equal a b ∧ eqListT as bs
+      eqListT _ _ = false
+
+  Then we still need to explicitly guide Agda by bringing in scope the
+  correct application of this parameterised instance:
+    
+    test' = equal (1 ∷ 2 ∷ []) (3 ∷ 4 ∷ [])
+      where eqListT = listEq eqℕ
+
+  This non-recursive "instance search" is a deliberate choice to avoid
+  introducing a Prolog-like computational model in Agda, as has
+  happened and been exploited in languages like Haskell and Scala. Our
+  resolution algorithm is less powerful, but simple and predictable,
+  but requires help from the user in certain situations.
+
+  Finally, it turns out that apart from the recursive instance search,
+  our mechanism provides equivalents to most of the features of
+  Haskell and Coq type classes and Scala's implicits. Some examples
+  are:
+    * associated type families
+    * constraint families
+    * named instances
+    * type classes with value parameters
+    * local instances
+    * abstraction over type classes
+    * first-class ad-hoc polymorphic functions
+    * not limited to records
+    * usable with existing records
+    
+  More details about non-canonical implicit arguments can be found on
+  the following website. There is (among other things) a link to a
+  draft paper with many details and examples:
+  
+    http://people.cs.kuleuven.be/~dominique.devriese/agda-non-canonical-implicits/
+  
+  Additionally, some more examples can be found in
+  examples/non-canonical-implicits in the Agda repository.
+
+Meta Variables and Unification
+------------------------------
+
+* Unsolved meta variables of a declaration now are frozen after type checking
+  meaning they cannot be instantiated by following declarations.  For example
+
+    one : Nat
+    one = _
+
+    bla : one ≡ suc zero
+    bla = refl
+
+  leads to an error now.  Up to 2.2.10, it lead to instantiation of _ to
+  (suc zero).  If you want the old behavior back, put the two declarations
+  into a mutual block; metas are only frozen at the end of a mutual block.
+
+  Before entering interactive editing, all metas are unfrozen, such that
+  the user can fill holes interactively.  Note that type checking for 
+  interactively given terms is not perfect, so, Agda might refuse to reload
+  a file even though it did not complain during interactive construction.
+  This is because certain checks (positivity, termination, precise scoping)
+  are only invoked upon reload, not upon give.
+
+* Occurrence checker distinguishes rigid and strongly rigid
+  occurrences. [Reed, LFMTP 2009; Abel Pientka, TLCA 2011]
+  
+  This solves issue 291.  The emptyness checker now accepts this:
+
+    h : (n : Nat) -> n ≡ suc n -> Nat
+    h n ()
+
+  Internally, this generates a constraint _1 = suc _1 where a meta
+  occurs strongly rigid, i.e., on a constructor path from the root,
+  in its own defining term tree.  This is never solvable.
+
+  Weakly rigid recursive occurrences may have a solution.
+  [Issue 405, Jason Reed's PhD thesis, page 106]
+
+    test : (k : Nat) -> 
+       let X : (Nat -> Nat) -> Nat
+           X = _ 
+       in (f : Nat -> Nat) -> X f ≡ suc (f (X (\ x -> k)))
+    test k f = refl
+
+  The constraint _1 k f = suc (f (_1 k (λ x → k))) has solution
+  _1 k f = suc (f (suc k)) despite the recursive occurrence; yet it is
+  not strong, not directly under constructor suc, but under bound
+  variable f.  Now Agda correctly displays yellow instead of an error.
+
+* Equation constraints involving the same meta in the head now trigger
+  pruning.  Example:
+
+    same : let X : A -> A -> A -> A × A
+               X = _
+           in {x y z : A} -> X x y y ≡ (x , y)
+                           × X x x y ≡ X x y y
+    same = refl , refl
+
+  The second equation implies that X cannot depend on its second
+  argument. After pruning, the first equation is linear and can
+  be solved.  [Pientka, PhD, Sec. 3.1.2; Abel Pientka, TLCA 2011]
+
 Tools
 -----
 
