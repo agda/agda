@@ -678,12 +678,13 @@ compareTerm' suc (Lit l) p = do
   case t of
     Lit _ -> return Term.unknown
     _     -> compareTerm' suc t p
+-- Andreas, 2011-04-19 give subterm priority over matrix order
+compareTerm' _ t@Con{} (ConDBP c ps)
+  | any (isSubTerm t) ps = decreaseFromConstructor c
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
-compareTerm' _ t@Con{} (ConDBP c ps)
-  | any (isSubTerm t) ps = decreaseFromConstructor c
 -- new cases for counting constructors / projections
 -- register also increase
 compareTerm' suc (Def s ts) p | Just s == suc = do
