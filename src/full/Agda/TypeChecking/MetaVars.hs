@@ -33,7 +33,7 @@ import Agda.TypeChecking.EtaContract
 
 import Agda.TypeChecking.MetaVars.Occurs
 
-import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import {-# SOURCE #-} Agda.TypeChecking.Conversion -- SOURCE NECESSARY
 
 import Agda.Utils.Fresh
 import Agda.Utils.List
@@ -399,33 +399,6 @@ etaExpandBlocked (Blocked m t)  = do
     Blocked m' _ | m /= m' -> etaExpandBlocked t
     _                      -> return t
 
-{- UNUSED
--- | @abortAssign@ saves the @TCState@ in @s@ and passes it via exception
---   @AbortAssign s@ to the @handleAbort@ which restores the state.
-abortAssign :: MonadTCM tcm => tcm a
-abortAssign =
-    do	s <- get -- save the state
-	liftTCM $ throwError $ TCErr Nothing $ AbortAssign s
-
--- | @handleAbort h m@ handles an @AbortAssign s@ error in @m@ by
---   restoring the TCState to @s@ and then calling @h@.
---   @PatternErr@ is passed through.
-handleAbort :: MonadTCM tcm => TCM a -> TCM a -> tcm a
-handleAbort h m = liftTCM $
-    m `catchError_` \e ->
-	case errError e of
-	    AbortAssign s -> do put s -- restore the state
-                                h     -- continue with handler @h@
-            PatternErr{}  -> do
-              -- Andreas, 2010-09-17 uncommenting the reportSLn statements
-              -- breaks something.  Why?
-              -- reportSLn "tc.meta.assign" 50 "handleAbort: Pattern violation!"
-              throwError e
-	    _		  -> do
-              -- reportSLn "tc.meta.assign" 50 "handleAbort: Some exception"
-              throwError e
--}
-
 -- | Assign to an open metavar which may not be frozen.
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
@@ -436,17 +409,17 @@ handleAbort h m = liftTCM $
 --   restoration of the original constraints.
 assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
 assignV t x args v = do
-    -- handleAbort handler $ do  -- 2011-04-14 Andreas: UNUSED
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
 
+        mvar <- lookupMeta x  -- information associated with meta x
         v <- normalise v
         case v of
           Sort Inf  -> typeError $ GenericError "Setω is not a valid type."
           _         -> return ()
 
         -- We don't instantiate frozen mvars
-        whenM (isFrozen x) patternViolation
+        when (mvFrozen mvar == Frozen) patternViolation
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
@@ -463,7 +436,7 @@ assignV t x args v = do
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
                  , text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
                  ]
-	ids <- checkArgs x args fvs
+	ids <- checkArgs args fvs
 
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM v
@@ -478,10 +451,9 @@ assignV t x args v = do
 	-- Check that the x doesn't occur in the right hand side
 	v <- liftTCM $ occursCheck x (map unArg ids) v
 
-	verboseS "tc.conv.assign" 30 $ do
+	verboseS "tc.meta.assign" 30 $ do
 	  let n = size v
 	  when (n > 200) $ do
-	    r <- getMetaRange x
 	    d <- sep [ text "size" <+> text (show n)
 		     , nest 2 $ text "type" <+> prettyTCM t
 		     , nest 2 $ text "term" <+> prettyTCM v
@@ -497,18 +469,39 @@ assignV t x args v = do
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel  <- getContextTelescope
-	    args <- map defaultArg <$> getContextTerms
-	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
-		v'    = raise (size ids) (abstract tel v) `apply` iargs
+	    tel   <- getContextTelescope
+	    gamma <- map defaultArg <$> getContextTerms
+	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse gamma
+		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
+        {- OLD CODE
+        -- Andreas, 2011-04-18 why construct tel' from ids instead of
+        -- taking the meta var tel?
 	let extTel (Arg h r i) m = do
 	      tel <- m
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
 	      return $ ExtendTel (Arg h r t) (Abs (show x) tel)
 	tel' <- foldr extTel (return EmptyTel) ids
+        -}
+
+        -- Andreas, 2011-04-18 to work with irrelevant parameters DontCare
+        -- we need to construct tel' from the type of the meta variable
+        -- (no longer from ids which may not be the complete variable list
+        -- any more)
+        t <- case mvJudgement mvar of
+                  HasType _ t -> return t
+                  IsSort _    -> __IMPOSSIBLE__
+	reportSDoc "tc.meta.assign" 25 $ text "type of meta =" <+> prettyTCM t
+	reportSDoc "tc.meta.assign" 30 $ text "type of meta =" <+> text (show t)
+
+        TelV tel0 core0 <- telViewM t
+        let n = length args
+	reportSDoc "tc.meta.assign" 30 $ text "tel0  =" <+> prettyTCM tel0
+	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
+        when (size tel0 < n) __IMPOSSIBLE__
+        let tel' = telFromList $ take n $ telToList tel0
 
 	reportSDoc "tc.meta.assign" 15 $
 	  text "final instantiation:" <+> prettyTCM (abstract tel' v')
@@ -519,27 +512,22 @@ assignV t x args v = do
 	escapeContext n $ x =: killRange (abstract tel' v')
 	return []
     where
+        rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
-
-{- UNUSED
-	handler :: MonadTCM tcm => tcm Constraints
-	handler = do
-	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
-	    equalTerm t (MetaV x args) v
--}
 
 -- TODO: Unify with assignV
 assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
 assignS x args s =
   ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $ do
-    -- handleAbort handler $ do  -- UNUSED
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
 
+        mvar <- lookupMeta x
+
         -- We don't instantiate frozen mvars
-        whenM (isFrozen x) patternViolation
+        when (mvFrozen mvar == Frozen) patternViolation
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
@@ -558,7 +546,7 @@ assignS x args s =
             reportSLn "tc.meta.assign" 10 "negative variables!"
             patternViolation
 
-	ids <- checkArgs x args (allVars fvs)
+	ids <- checkArgs args (allVars fvs)
 
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM s
@@ -566,10 +554,9 @@ assignS x args s =
 	-- Check that the x doesn't occur in the right hand side
 	v <- liftTCM $ occursCheck x (map unArg ids) (Sort s)
 
-	verboseS "tc.conv.assign" 30 $ do
+	verboseS "tc.meta.assign" 30 $ do
 	  let n = size v
 	  when (n > 200) $ do
-	    r <- getMetaRange x
 	    d <- sep [ text "size" <+> text (show n)
 		     , nest 2 $ text "sort" <+> prettyTCM v
 		     ]
@@ -584,18 +571,39 @@ assignS x args s =
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel  <- getContextTelescope
-	    args <- map defaultArg <$> getContextTerms
-	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse args
-		v'    = raise (size ids) (abstract tel v) `apply` iargs
+	    tel   <- getContextTelescope
+	    gamma <- map defaultArg <$> getContextTerms
+	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse gamma
+		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
+        -- Andreas, 2011-04-18 why construct tel' from ids instead of
+        -- taking the meta var tel? -- SEE BELOW
 	let extTel (Arg h r i) m = do
 	      tel <- m
 	      t	  <- typeOfBV i
 	      x	  <- nameOfBV i
 	      return $ ExtendTel (Arg h r t) (Abs (show x) tel)
 	tel' <- foldr extTel (return EmptyTel) ids
+
+{- NEW CODE, DOES NOT WORK YET for sorts
+        -- Andreas, 2011-04-18 to work with irrelevant parameters DontCare
+        -- we need to construct tel' from the type of the meta variable
+        -- (no longer from ids which may not be the complete variable list
+        -- any more)
+        t <- case mvJudgement mvar of
+                  HasType a t -> __IMPOSSIBLE__ -- TODO: is that right
+                  IsSort s    -> __IMPOSSIBLE__ -- TODO: what to put here??
+	reportSDoc "tc.meta.assign" 25 $ text "type of meta =" <+> prettyTCM t
+	reportSDoc "tc.meta.assign" 30 $ text "type of meta =" <+> text (show t)
+
+        TelV tel0 core0 <- telViewM t
+        let n = length args
+	reportSDoc "tc.meta.assign" 30 $ text "tel0  =" <+> prettyTCM tel0
+	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)
+        when (size tel0 < n) __IMPOSSIBLE__
+        let tel' = telFromList $ take n $ telToList tel0
+-}
 
 	reportSDoc "tc.meta.assign" 15 $
 	  text "final instantiation:" <+> prettyTCM (abstract tel' v')
@@ -606,21 +614,13 @@ assignS x args s =
 	escapeContext n $ x =:= killRange (abstract tel' v')
 	return []
     where
+        rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg
               -- we will end up here, but never look at the result
 
-{- UNUSED
-	handler :: MonadTCM tcm => tcm Constraints
-	handler = do
-	    reportSLn "tc.meta.assign" 10 $ "Oops. Undo " ++ show x ++ " := ..."
-	    equalSort (MetaS x args) s
--}
-
         noPolyAssign x s = do
-          -- handleAbort (equalSort (MetaS x []) s) $ do -- UNUSED
-
             -- We don't instantiate frozen mvars
             whenM (isFrozen x) patternViolation
 
@@ -639,27 +639,48 @@ type FVs = Set Nat
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 --
-checkArgs :: MonadTCM tcm => MetaId -> Args -> FVs -> tcm [Arg Nat]
-checkArgs x args fvs = do
+checkArgs :: MonadTCM tcm => Args -> FVs -> tcm [Arg Nat]
+checkArgs args fvs = do
   args <- instantiateFull args
   case validParameters args fvs of
     Just ids -> return $ reverse ids
     Nothing  -> patternViolation
 
+{- OLD CODE
 -- | Check that the parameters to a meta variable are distinct variables.
 -- Andreas, 2010-09-24: Allow non-linear variables that do not appear in @FVs@.
 validParameters :: Monad m => Args -> FVs -> m [Arg Nat]
 validParameters args fvs
-    | all isVar args && distinct (filter (flip Set.member fvs) $ map unArg vars)
+    | all isVar args && distinct (map unArg $ filter freeAndRelevant vars)
                 = return $ reverse vars
     | otherwise	= fail "invalid parameters"
     where
 	vars = [ Arg h r i | Arg h r (Var i []) <- args ]
-
+        freeAndRelevant (Arg h r i) = r /= Irrelevant && i `Set.member` fvs
 
 isVar :: Arg Term -> Bool
 isVar (Arg _ _ (Var _ [])) = True
-isVar _			 = False
+isVar _			   = False
+-}
+
+-- | Check that the parameters to a meta variable are distinct variables.
+-- Andreas, 2010-09-24: Allow non-linear variables that do not appear in @FVs@.
+-- Andreas, 2011-04-19: Allow irrelevant terms as parameters.
+validParameters :: Args -> FVs -> Maybe [Arg Nat]
+validParameters args fvs = do
+  vars <- allVarOrIrrelevant args
+  if distinct (filter (`Set.member` fvs) $ map unArg vars) then return vars
+   else Nothing
+
+-- | filter out irrelevant args and check that all others are variables.
+--   Return the reversed list of variables.
+allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
+allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
+  isVarOrIrrelevant vars arg =
+    case arg of
+      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
+      Arg h r (Var i []) -> return $ Arg h r i : vars
+      _                  -> Nothing
 
 
 updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm ()

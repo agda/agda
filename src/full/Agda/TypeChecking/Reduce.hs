@@ -679,6 +679,8 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull = mapM instantiateFull
 
+-- | @telViewM t@ is like @telView' t@, but it reduces @t@ to expose
+--   function type constructors.
 telViewM :: MonadTCM tcm => Type -> tcm TelView
 telViewM t = do
   t <- reduce t
