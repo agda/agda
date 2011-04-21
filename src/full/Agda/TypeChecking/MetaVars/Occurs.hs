@@ -121,6 +121,9 @@ instance Occurs Term where
                 -- On pattern violations try to remove offending
                 -- flexible occurrences (if not already in a flexible context)
                 PatternErr{} | ctx /= Flex -> do
+                      reportSLn "tc.meta.kill" 20 $
+                        "oops, pattern violation for " ++ show m'
+{-
                   let kills = map (hasBadRigid xs) $ map unArg vs
                   reportSLn "tc.meta.kill" 20 $
                     "oops, pattern violation for " ++ show m' ++ "\n" ++
@@ -138,6 +141,8 @@ instance Occurs Term where
                           ]
                         ]
                       ok <- killArgs kills m'
+-}
+                      ok <- prune m' vs xs
                       if ok
                         -- after successful pruning, restart occurs check
                         then occurs ctx m xs =<< instantiate (MetaV m' vs)
@@ -179,8 +184,33 @@ instance (Occurs a, Occurs b) => Occurs (a,b) where
 instance Occurs a => Occurs [a] where
   occurs ctx m xs ys = mapM (occurs ctx m xs) ys
 
--- Getting rid of flexible occurrences --
+-- * Getting rid of flexible occurrences
 
+-- | @prune m' vs xs@ attempts to remove all arguments from @vs@ whose
+--   free variables are not contained in @xs@.
+--   If successful, @m'@ is solved by the new, pruned meta variable and we
+--   return @True@ else @False@.
+prune :: MonadTCM tcm => MetaId -> Args -> [Nat] -> tcm Bool
+prune m' vs xs = liftTCM $ do
+  let kills = map (hasBadRigid xs) $ map unArg vs
+  reportSLn "tc.meta.kill" 20 $
+    "attempting to prune meta " ++ show m' ++ "\n" ++
+    "  kills: " ++ show kills
+  if not (or kills)
+    then return False -- nothing to kill
+    else do
+      reportSDoc "tc.meta.kill" 10 $ vcat
+        [ text "attempting kills"
+        , nest 2 $ vcat
+          [ text "m'    =" <+> text (show m')
+          , text "xs    =" <+> text (show xs)
+          , text "vs    =" <+> prettyList (map prettyTCM vs)
+          , text "kills =" <+> text (show kills)
+          ]
+        ]
+      killArgs kills m'
+
+-- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
 hasBadRigid :: [Nat] -> Term -> Bool
 hasBadRigid xs v =
   not $ Set.isSubsetOf

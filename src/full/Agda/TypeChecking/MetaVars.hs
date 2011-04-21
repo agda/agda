@@ -458,15 +458,31 @@ assignV t x args v = do
 		     ]
 	    liftIO $ LocIO.print d
 
-	-- Check that the arguments are distinct variables
+	-- Check that the arguments are variables
+	ids <- checkAllVars args
+
+        -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
         -- free in v
         let fvs = allVars $ freeVars v
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-	ids <- checkArgs args fvs
+        unless (distinct $ filter (`Set.member` fvs) ids) $ do
+          -- non-linear lhs: we cannot solve, but prune
+          ok <- prune x args $ Set.toList fvs
+          -- if ok then return [] else
+          patternViolation
 
+{- Andreas, 2011-04-21 this does not work
+        if not (distinct $ filter (`Set.member` fvs) ids) then do
+          -- non-linear lhs: we cannot solve, but prune
+          ok <- prune x args $ Set.toList fvs
+          if ok then return [] else patternViolation
+
+        else do
+-}
+        -- we are linear, so we can solve!
 	reportSDoc "tc.meta.assign" 15 $
 	    text "preparing to instantiate: " <+> prettyTCM v
 
@@ -479,7 +495,7 @@ assignV t x args v = do
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel   <- getContextTelescope
 	    gamma <- map defaultArg <$> getContextTerms
-	    let iargs = reverse $ zipWith (rename $ reverse $ map unArg ids) [0..] $ reverse gamma
+	    let iargs = reverse $ zipWith (rename ids) [0..] $ reverse gamma
 		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
@@ -524,6 +540,31 @@ assignV t x args v = do
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
+
+type FVs = Set Nat
+
+-- | Check that arguments to a metavar are in pattern fragment.
+--   Assumes all arguments already in whnf.
+--   Parameters are represented as @Var@s so @checkArgs@ really
+--     checks that all args are @Var@s and returns the
+--     list of corresponding indices for each arg.
+--   Linearity has to be checked separately.
+--
+--   @reverse@ is necessary because we are directly abstracting over this list @ids@.
+checkAllVars :: MonadTCM tcm => Args -> tcm [Nat]
+checkAllVars args = do
+  args <- instantiateFull args
+  maybe patternViolation (return . map unArg) $ allVarOrIrrelevant args
+
+-- | filter out irrelevant args and check that all others are variables.
+--   Return the reversed list of variables.
+allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
+allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
+  isVarOrIrrelevant vars arg =
+    case arg of
+      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
+      Arg h r (Var i []) -> return $ Arg h r i : vars
+      _                  -> Nothing
 
 -- TODO: Unify with assignV
 assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
@@ -636,8 +677,6 @@ assignS x args s =
             x =: s
             return []
 
-type FVs = Set Nat
-
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.
 --   Parameters are represented as @Var@s so @checkArgs@ really
@@ -654,23 +693,6 @@ checkArgs args fvs = do
     Just ids -> return $ reverse ids
     Nothing  -> patternViolation
 
-{- OLD CODE
--- | Check that the parameters to a meta variable are distinct variables.
--- Andreas, 2010-09-24: Allow non-linear variables that do not appear in @FVs@.
-validParameters :: Monad m => Args -> FVs -> m [Arg Nat]
-validParameters args fvs
-    | all isVar args && distinct (map unArg $ filter freeAndRelevant vars)
-                = return $ reverse vars
-    | otherwise	= fail "invalid parameters"
-    where
-	vars = [ Arg h r i | Arg h r (Var i []) <- args ]
-        freeAndRelevant (Arg h r i) = r /= Irrelevant && i `Set.member` fvs
-
-isVar :: Arg Term -> Bool
-isVar (Arg _ _ (Var _ [])) = True
-isVar _			   = False
--}
-
 -- | Check that the parameters to a meta variable are distinct variables.
 -- Andreas, 2010-09-24: Allow non-linear variables that do not appear in @FVs@.
 -- Andreas, 2011-04-19: Allow irrelevant terms as parameters.
@@ -679,16 +701,6 @@ validParameters args fvs = do
   vars <- allVarOrIrrelevant args
   if distinct (filter (`Set.member` fvs) $ map unArg vars) then return vars
    else Nothing
-
--- | filter out irrelevant args and check that all others are variables.
---   Return the reversed list of variables.
-allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
-allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
-  isVarOrIrrelevant vars arg =
-    case arg of
-      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
-      Arg h r (Var i []) -> return $ Arg h r i : vars
-      _                  -> Nothing
 
 
 updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm ()

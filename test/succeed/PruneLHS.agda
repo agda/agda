@@ -1,5 +1,6 @@
+-- {-# OPTIONS -v tc.meta:20 #-}
 -- Andreas, 2011-04-21
-module DontPruneLHS where
+module PruneLHS where
 
 data _≡_ {A : Set}(a : A) : A -> Set where
   refl : a ≡ a
@@ -12,6 +13,5 @@ test : let X : Bool -> Bool -> Bool -> Bool
           (({x y : Bool} -> X x y x ≡ x) ->
            ({x y : Bool} -> X x x y ≡ x) -> C) -> C
 test C k = k refl refl
--- this should not be solved by unification
--- the first equation does NOT imply that X does not depend on its second argument
--- neither can anything be deduced from the second equation
+-- by the first equation, X cannot depend its second argument
+-- by the second equation, X cannot depend on its third argument
