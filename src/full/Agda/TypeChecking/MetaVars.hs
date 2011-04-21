@@ -6,10 +6,10 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Generics
-import Data.Map (Map)
-import Data.Set (Set)
 import Data.List as List hiding (sort)
+import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Agda.Utils.IO.Locale as LocIO
 
@@ -424,33 +424,31 @@ assignV t x args v = do
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
-	-- Check that the arguments are distinct variables
-        -- Andreas, 2010-09-24: Herein, ignore the variables which are not
-        -- free in v
-        let fvs = allVars $ freeVars v
+        -- Andreas, 2010-10-15 I want to see whether rhs is blocked
+        reportSDoc "tc.meta.assign" 25 $ do
+          v0 <- reduceB v
+          case v0 of
+            Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
+            NotBlocked{} -> text "r.h.s. not blocked"
+
+        -- Andreas, 2011-04-21 do the occurs check first
+        -- e.g. _1 x (suc x) = suc (_2 x y)
+        -- even though the lhs is not a pattern, we can prune the y from _2
+        let fvsL = Set.toList $ allVars $ freeVars args
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
                 pr _          = text ".."
             in vcat
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
-                 , text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+                 , text "fvars lhs:" <+> sep (map (text . show) fvsL)
                  ]
-	ids <- checkArgs args fvs
-
-	reportSDoc "tc.meta.assign" 15 $
-	    text "preparing to instantiate: " <+> prettyTCM v
-
-        -- Andreas, 2010-10-15 I want to see whether rhs is blocked
-        reportSDoc "tc.meta.assign" 25 $ do
-          v0 <- reduceB v
-          case v0 of
-            Blocked m0 _ -> text "blocked on:" <+> prettyTCM m0
-            NotBlocked{} -> text "not blocked"
 
 	-- Check that the x doesn't occur in the right hand side
-	v <- liftTCM $ occursCheck x (map unArg ids) v
+        -- Prune mvars on rhs such that they can only depend on fvsL
+	v <- liftTCM $ occursCheck x fvsL v
 
+	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 	verboseS "tc.meta.assign" 30 $ do
 	  let n = size v
 	  when (n > 200) $ do
@@ -460,7 +458,17 @@ assignV t x args v = do
 		     ]
 	    liftIO $ LocIO.print d
 
-	reportSLn "tc.meta.assign" 15 "passed occursCheck"
+	-- Check that the arguments are distinct variables
+        -- Andreas, 2010-09-24: Herein, ignore the variables which are not
+        -- free in v
+        let fvs = allVars $ freeVars v
+        reportSDoc "tc.meta.assign" 20 $
+          text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
+
+	ids <- checkArgs args fvs
+
+	reportSDoc "tc.meta.assign" 15 $
+	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
 	v' <- do
