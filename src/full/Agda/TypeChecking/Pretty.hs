@@ -89,7 +89,7 @@ instance PrettyTCM ClauseBody where
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
   prettyTCM (HasType a t) = prettyTCM a <+> text ":" <+> prettyTCM t
-  prettyTCM (IsSort a)    = text "Sort" <+> prettyTCM a
+  prettyTCM (IsSort  a t) = text "Sort" <+> prettyTCM a <+> text ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
   prettyTCM = text . show

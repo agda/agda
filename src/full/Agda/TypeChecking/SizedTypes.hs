@@ -194,9 +194,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
   verboseS "tc.size.solve" 20 $ do
     let meta (m, _) = do
           j <- mvJudgement <$> lookupMeta m
-          reportSDoc "" 0 $ case j of
-            HasType _ t -> text (show m) <+> text ":" <+> prettyTCM t
-            IsSort _    -> text (show m) <+> text "sort"
+          reportSDoc "" 0 $ prettyTCM j
     mapM_ meta metas
 
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
@@ -232,7 +230,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
               , nest 2 $ prettyTCM v
               ]
 
-            m =: v
+            assignTerm m v
 
       mapM_ inst $ Map.toList sol
 

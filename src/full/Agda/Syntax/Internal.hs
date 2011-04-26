@@ -47,6 +47,10 @@ data Term = Var Nat Args
 data Type = El Sort Term
   deriving (Typeable, Data, Eq, Ord, Show)
 
+-- | Top sort (Set\omega).
+topSort :: Type
+topSort = El Inf (Sort Inf)
+
 data Sort = Type Term   -- A term of type Level
 	  | Prop  -- ignore me
 	  | Lub Sort Sort

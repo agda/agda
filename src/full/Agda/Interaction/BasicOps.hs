@@ -71,7 +71,7 @@ parseExprIn ii rng s = do
     concreteToAbstract (clScope mi) e
 
 giveExpr :: MetaId -> Expr -> TCM Expr
--- When translater from internal to abstract is given, this function might return
+-- When translator from internal to abstract is given, this function might return
 -- the expression returned by the type checker.
 giveExpr mi e =
     do  mv <- lookupMeta mi
@@ -88,7 +88,7 @@ giveExpr mi e =
 			  addConstraints =<< equalTerm t' v (v' `apply` ctx)
 			_	 -> updateMeta mi v
 		    reify v
-		 IsSort _ -> __IMPOSSIBLE__
+		 IsSort{} -> __IMPOSSIBLE__
 
 give :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
 give ii mr e = liftTCM $ do
@@ -344,7 +344,7 @@ instance ToConcrete MetaId C.Expr where
 
 judgToOutputForm :: Judgement a c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
-judgToOutputForm (IsSort s)    = JustSort s
+judgToOutputForm (IsSort  s t) = JustSort s
 
 --- Printing Operations
 getConstraint :: Int -> TCM (OutputForm Expr Expr)
@@ -405,7 +405,7 @@ typeOfMetaMI norm mi =
           ]
         ]
       OfType i <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
-    rewriteJudg mv (IsSort i) = return $ JustSort i
+    rewriteJudg mv (IsSort i t) = return $ JustSort i
 
 
 typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputForm Expr InteractionId)

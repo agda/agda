@@ -523,4 +523,4 @@ instance (Reify i1 a1, Reify i2 a2) => Reify (i1,i2) (a1,a2) where
 instance (Reify t t', Reify a a')
          => Reify (Judgement t a) (Judgement t' a') where
     reify (HasType i t) = HasType <$> reify i <*> reify t
-    reify (IsSort i) = IsSort <$> reify i
+    reify (IsSort  i t) = IsSort  <$> reify i <*> reify t

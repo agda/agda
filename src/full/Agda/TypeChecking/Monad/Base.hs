@@ -246,28 +246,30 @@ data Open a = OpenThing [CtxId] a
 
 ---------------------------------------------------------------------------
 -- * Judgements
+--
+-- Used exclusively for typing of meta variables.
 ---------------------------------------------------------------------------
 
 data Judgement t a
-	= HasType a t
-	| IsSort  a
+	= HasType { jMetaId :: a, jMetaType :: t }
+	| IsSort  { jMetaId :: a, jMetaType :: t } -- Andreas, 2011-04-26: type needed for higher-order sort metas
     deriving (Typeable, Data)
 
 instance (Show t, Show a) => Show (Judgement t a) where
     show (HasType a t) = show a ++ " : " ++ show t
-    show (IsSort  a)   = show a ++ " sort"
+    show (IsSort  a t) = show a ++ " :sort " ++ show t
 
 instance Functor (Judgement t) where
     fmap f (HasType x t) = HasType (f x) t
-    fmap f (IsSort  x)	 = IsSort (f x)
+    fmap f (IsSort  x t) = IsSort  (f x) t
 
 instance Foldable (Judgement t) where
     foldr f z (HasType x _) = f x z
-    foldr f z (IsSort  x)   = f x z
+    foldr f z (IsSort  x _) = f x z
 
 instance Traversable (Judgement t) where
     traverse f (HasType x t) = flip HasType t <$> f x
-    traverse f (IsSort  x)   = IsSort <$> f x
+    traverse f (IsSort  x t) = flip IsSort  t <$> f x
 
 ---------------------------------------------------------------------------
 -- ** Meta variables

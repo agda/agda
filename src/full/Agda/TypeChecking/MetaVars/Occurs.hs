@@ -226,9 +226,12 @@ killArgs kills _
 killArgs kills m = do
   mv <- lookupMeta m
   if mvFrozen mv == Frozen then return False else do
+{- Andreas 2011-04-26, allow pruning in MetaS
   case mvJudgement mv of
     IsSort _    -> return False
     HasType _ a -> do
+-}
+      let a = jMetaType $ mvJudgement mv
       TelV tel b <- telView' <$> instantiateFull a
       let args         = zip (telToList tel) (kills ++ repeat False)
           (kills', a') = killedType args b
