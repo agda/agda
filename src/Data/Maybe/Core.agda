@@ -1,7 +1,8 @@
-{-# OPTIONS --universe-polymorphism #-}
 ------------------------------------------------------------------------
 -- The Maybe type
 ------------------------------------------------------------------------
+
+{-# OPTIONS --universe-polymorphism #-}
 
 -- The definitions in this file are reexported by Data.Maybe.
 

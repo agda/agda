@@ -8,4 +8,4 @@ type AgdaEither a b c d = Either c d
 
 data AgdaEmpty
 
-data AgdaStream a = Cons a (AgdaStream a) 
+data AgdaStream a = Cons a (AgdaStream a)
