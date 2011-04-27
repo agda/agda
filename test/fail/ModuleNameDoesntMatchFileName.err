@@ -2,5 +2,7 @@
 The name of the top level module does not match the file name. The
 module Mmmmmmmmmmmmmmmmmmmmm should be defined in one of the
 following files:
+  ../Mmmmmmmmmmmmmmmmmmmmm.agda
+  ../Mmmmmmmmmmmmmmmmmmmmm.lagda
   Mmmmmmmmmmmmmmmmmmmmm.agda
   Mmmmmmmmmmmmmmmmmmmmm.lagda

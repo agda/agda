@@ -48,7 +48,7 @@ debug :
 
 $(allout) : %.err : %.agda
 	@echo "$*.agda"
-	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
+	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $< > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
 				 then sed -e 's/[^ (]*test.fail.//g;s/:[[:digit:]]\+:$$//' $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
@@ -60,7 +60,7 @@ $(allout) : %.err : %.agda
 
 $(allstems) : % : %.err
 	@echo "$*.agda"
-	@if $(agda) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
+	@if $(agda) -i. -i.. -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi) $*.agda \
 		 > $*.tmp.2; \
 		then echo "Unexpected success"; rm -f $*.tmp.2; false; \
     else sed -e 's/[^ (]*test.fail.//g;s/\\/\//g;s/:[[:digit:]]\+:$$//' $*.tmp.2 > $*.tmp; \

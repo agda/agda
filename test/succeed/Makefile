@@ -20,7 +20,7 @@ alllagda=$(patsubst %.lagda,%.test,$(shell find . -name "*.lagda"))
 default : all
 all : $(allagda) $(alllagda)
 
-RUN_AGDA = $(AGDA_BIN) --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
+RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
 %.test : %.agda
 	@echo $<

@@ -2,10 +2,15 @@
 
 module Issue399 where
 
-open import Data.Maybe     using (Maybe; just; nothing)
-open import Data.List      using (List; []; [_]; _++_)
-open import Data.Nat       using (ℕ)
+open import Common.Prelude renaming (Nat to ℕ)
 
+data Maybe (A : Set) : Set where
+  nothing : Maybe A
+  just    : A → Maybe A
+
+_++_ : {A : Set} → List A → List A → List A
+[]       ++ ys = ys
+(x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
 record MyMonadPlus m : Set₁ where
    field mzero : {a : Set} → m a → List a
@@ -23,7 +28,7 @@ record MyMonadPlus m : Set₁ where
 
 mymaybemzero : {a : Set} → Maybe a → List a
 mymaybemzero nothing = []
-mymaybemzero (just x) = [ x ]
+mymaybemzero (just x) = x ∷ []
 
 mymaybemplus : {a : Set} → Maybe a → Maybe a → List a
 mymaybemplus x y = (mymaybemzero x) ++ (mymaybemzero y)
