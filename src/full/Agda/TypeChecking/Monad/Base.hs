@@ -532,6 +532,10 @@ notReduced x = MaybeRed NotReduced x
 reduced :: Blocked a -> MaybeReduced a
 reduced b = MaybeRed (Reduced $ fmap (const ()) b) (ignoreBlocking b)
 
+instance Functor (Reduced no) where
+  fmap f (NoReduction  x) = NoReduction x
+  fmap f (YesReduction x) = YesReduction (f x)
+
 data PrimFun = PrimFun
 	{ primFunName		:: QName
 	, primFunArity		:: Arity
