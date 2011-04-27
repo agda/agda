@@ -103,13 +103,13 @@ n ∣0 = divides 0 refl
 
 -- 0 only divides 0.
 
-0∣0 : ∀ {n} → 0 ∣ n → n ≡ 0
-0∣0 {n} 0∣n = P.antisym (n ∣0) 0∣n
+0∣⇒≡0 : ∀ {n} → 0 ∣ n → n ≡ 0
+0∣⇒≡0 {n} 0∣n = P.antisym (n ∣0) 0∣n
 
 -- Only 1 divides 1.
 
-1∣1 : ∀ {n} → n ∣ 1 → n ≡ 1
-1∣1 {n} n∣1 = P.antisym n∣1 (1∣ n)
+∣1⇒≡1 : ∀ {n} → n ∣ 1 → n ≡ 1
+∣1⇒≡1 {n} n∣1 = P.antisym n∣1 (1∣ n)
 
 -- If i divides m and n, then i divides their sum.
 
@@ -196,7 +196,7 @@ nonZeroDivisor-lemma m (suc q) r r≢zero d =
 
 _∣?_ : Decidable _∣_
 zero  ∣? zero                         = yes (0 ∣0)
-zero  ∣? suc n                        = no ((λ ()) ∘′ 0∣0)
+zero  ∣? suc n                        = no ((λ ()) ∘′ 0∣⇒≡0)
 suc m ∣? n                            with n divMod suc m
 suc m ∣? .(q * suc m)                 | result q zero    =
   yes $ divides q refl

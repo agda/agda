@@ -65,7 +65,7 @@ sym c = c ∘ swap
 -- Everything is coprime to 1.
 
 1-coprimeTo : ∀ m → Coprime 1 m
-1-coprimeTo m = 1∣1 ∘ proj₁
+1-coprimeTo m = ∣1⇒≡1 ∘ proj₁
 
 -- Nothing except for 1 is coprime to 0.
 
