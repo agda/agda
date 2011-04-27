@@ -211,7 +211,7 @@ std-lib :
 		 http://www.cse.chalmers.se/~nad/repos/lib/
 
 up-to-date-std-lib : std-lib
-	@(cd std-lib && darcs pull -a && make Everything.agda)
+	@(cd std-lib && darcs pull -a && make setup)
 
 library-test : up-to-date-std-lib
 	@echo "======================================================================"
