@@ -38,6 +38,9 @@ data Colist {a} (A : Set a) : Set a where
   []  : Colist A
   _∷_ : (x : A) (xs : ∞ (Colist A)) → Colist A
 
+{-# IMPORT Data.FFI #-}
+{-# COMPILED_DATA Colist Data.FFI.AgdaList [] (:) #-}
+
 data Any {a p} {A : Set a} (P : A → Set p) :
          Colist A → Set (a ⊔ p) where
   here  : ∀ {x xs} (px  : P x)          → Any P (x ∷ xs)

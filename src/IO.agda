@@ -10,7 +10,6 @@ open import Coinduction
 open import Data.Unit
 open import Data.String
 open import Data.Colist
-import Foreign.Haskell as Haskell
 import IO.Primitive as Prim
 
 ------------------------------------------------------------------------
@@ -71,18 +70,14 @@ mapM′ f (x ∷ xs) = ♯ f x >> ♯ mapM′ f (♭ xs)
 -- version 3) the functions use ISO-8859-1.
 
 getContents : IO Costring
-getContents =
-  ♯ lift Prim.getContents >>= λ s →
-  ♯ return (Haskell.toColist s)
+getContents = lift Prim.getContents
 
 readFile : String → IO Costring
-readFile f =
-  ♯ lift (Prim.readFile f) >>= λ s →
-  ♯ return (Haskell.toColist s)
+readFile f = lift (Prim.readFile f)
 
 writeFile∞ : String → Costring → IO ⊤
 writeFile∞ f s =
-  ♯ lift (Prim.writeFile f (Haskell.fromColist s)) >>
+  ♯ lift (Prim.writeFile f s) >>
   ♯ return _
 
 writeFile : String → String → IO ⊤
@@ -90,7 +85,7 @@ writeFile f s = writeFile∞ f (toCostring s)
 
 appendFile∞ : String → Costring → IO ⊤
 appendFile∞ f s =
-  ♯ lift (Prim.appendFile f (Haskell.fromColist s)) >>
+  ♯ lift (Prim.appendFile f s) >>
   ♯ return _
 
 appendFile : String → String → IO ⊤
@@ -98,7 +93,7 @@ appendFile f s = appendFile∞ f (toCostring s)
 
 putStr∞ : Costring → IO ⊤
 putStr∞ s =
-  ♯ lift (Prim.putStr (Haskell.fromColist s)) >>
+  ♯ lift (Prim.putStr s) >>
   ♯ return _
 
 putStr : String → IO ⊤
@@ -106,7 +101,7 @@ putStr s = putStr∞ (toCostring s)
 
 putStrLn∞ : Costring → IO ⊤
 putStrLn∞ s =
-  ♯ lift (Prim.putStrLn (Haskell.fromColist s)) >>
+  ♯ lift (Prim.putStrLn s) >>
   ♯ return _
 
 putStrLn : String → IO ⊤

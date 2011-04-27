@@ -4,7 +4,7 @@
 
 module IO.Primitive where
 
-open import Data.String hiding (Costring)
+open import Data.String
 open import Data.Char
 open import Foreign.Haskell
 
@@ -33,9 +33,6 @@ postulate
 -- then the functions use the character encoding specified by the
 -- locale. For older versions of the library (going back to at least
 -- version 3) the functions use ISO-8859-1.
-
-private
-  Costring = Colist Char
 
 postulate
   getContents : IO Costring
