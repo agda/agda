@@ -9,6 +9,7 @@ postulate
   IO   : Set → Set
   printBool : Bool → IO Unit
 
+{-# BUILTIN IO IO #-}
 {-# COMPILED_TYPE IO IO #-}
 {-# COMPILED_TYPE Unit () #-}
 {-# COMPILED printBool print #-}

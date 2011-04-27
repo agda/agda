@@ -31,7 +31,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
 import Agda.TypeChecking.Rules.Record  ( checkRecDef )
 import Agda.TypeChecking.Rules.Def     ( checkFunDef )
-import Agda.TypeChecking.Rules.Builtin ( bindBuiltin, bindBuiltinType1 )
+import Agda.TypeChecking.Rules.Builtin ( bindBuiltin )
 
 import Agda.Compiler.HaskellTypes
 
@@ -112,9 +112,6 @@ checkPragma r p =
             Axiom{} -> addHaskellType x hs
             _       -> typeError $ GenericError
                         "COMPILED_TYPE directive only works on postulates."
-          -- TODO: hack
-          when (hs == builtinIO) $
-            bindBuiltinType1 builtinIO (A.Def x)
         A.CompiledDataPragma x hs hcs -> do
           def <- getConstInfo x
           -- Check that the pragma appears in the same module

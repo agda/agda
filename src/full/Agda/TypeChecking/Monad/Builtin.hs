@@ -114,7 +114,6 @@ primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
-
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
 builtinZero         = "ZERO"
@@ -159,16 +158,3 @@ builtinAgdaTermCon      = "AGDATERMCON"
 builtinAgdaTermPi       = "AGDATERMPI"
 builtinAgdaTermSort     = "AGDATERMSORT"
 builtinAgdaTermUnsupported = "AGDATERMUNSUPPORTED"
-
-builtinTypes :: [String]
-builtinTypes =
-    [ builtinInteger
-    , builtinFloat
-    , builtinChar
-    , builtinString
-    , builtinBool
-    , builtinNat
-    , builtinLevel
-    , builtinQName
-    , builtinAgdaTerm
-    ]

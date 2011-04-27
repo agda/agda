@@ -671,6 +671,16 @@ instance HasRange Call where
 -- ** Builtin things
 ---------------------------------------------------------------------------
 
+data BuiltinDescriptor = BuiltinData (TCM Type) [String]
+                       | BuiltinDataCons (TCM Type)
+                       | BuiltinPrim String (Term -> TCM ())
+                       | BuiltinPostulate (TCM Type)
+                       | BuiltinUnknown (Maybe (TCM Type)) (Term -> TCM ())
+
+data BuiltinInfo =
+   BuiltinInfo { builtinName :: String
+               , builtinDesc :: BuiltinDescriptor }
+
 type BuiltinThings pf = Map String (Builtin pf)
 
 data Builtin pf
