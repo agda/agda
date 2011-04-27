@@ -22,6 +22,14 @@ module README where
 -- --include-path flag or by customising the Emacs mode variable
 -- agda2-include-dirs (M-x customize-group RET agda2 RET).
 
+-- To compile the library using the MAlonzo compiler you first need to
+-- install some supporting Haskell code, for instance as follows:
+--
+--   cd ffi
+--   cabal install
+--
+-- At the moment the library does not support the Epic compiler.
+
 -- Contributions to this library are welcome (but to avoid wasted work
 -- it is suggested that you discuss large changes before implementing
 -- them). Please send contributions in the form of darcs patches (run
