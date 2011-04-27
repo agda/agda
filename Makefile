@@ -218,7 +218,7 @@ library-test : up-to-date-std-lib
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"
 	@(cd std-lib && \
-          time ../$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
+          time $(PWD)/$(AGDA_BIN) -i. -isrc README.agda $(AGDA_TEST_FLAGS) \
             +RTS -s)
 
 compiler-test : up-to-date-std-lib
