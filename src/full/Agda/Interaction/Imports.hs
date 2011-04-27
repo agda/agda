@@ -63,7 +63,7 @@ mergeInterface i = do
 	builtin = Map.toList $ iBuiltin i
 	prim	= [ x | (_,Prim x) <- builtin ]
 	bi	= Map.fromList [ (x,Builtin t) | (x,Builtin t) <- builtin ]
-    bs <- getBuiltinThings
+    bs <- gets stBuiltinThings
     reportSLn "import.iface.merge" 10 $ "Merging interface"
     reportSLn "import.iface.merge" 20 $
       "  Current builtins " ++ show (Map.keys bs) ++ "\n" ++

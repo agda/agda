@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
+import Data.Functor
 import Control.Monad.State
 import qualified Data.Map as Map
 
@@ -8,16 +9,17 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
-getBuiltinThings :: MonadTCM tcm => tcm (BuiltinThings PrimFun)
-getBuiltinThings = gets stBuiltinThings
+getBuiltinThing :: MonadTCM tcm => String -> tcm (Maybe (Builtin PrimFun))
+getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
+                    (Map.lookup b <$> gets stImportedBuiltins)
 
 setBuiltinThings :: MonadTCM tcm => BuiltinThings PrimFun -> tcm ()
 setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
 
 bindBuiltinName :: MonadTCM tcm => String -> Term -> tcm ()
 bindBuiltinName b x = do
-	builtin <- getBuiltinThings
-	case Map.lookup b builtin of
+	builtin <- getBuiltinThing b
+	case builtin of
 	    Just (Builtin y) -> typeError $ DuplicateBuiltinBinding b y x
 	    Just (Prim _)    -> typeError $ NoSuchBuiltinName b
 	    Nothing	     -> modify $ \st ->
@@ -40,15 +42,15 @@ getBuiltin x = do
 
 getBuiltin' :: MonadTCM tcm => String -> tcm (Maybe Term)
 getBuiltin' x = do
-    builtin <- getBuiltinThings
-    case Map.lookup x builtin of
+    builtin <- getBuiltinThing x
+    case builtin of
 	Just (Builtin t) -> return $ Just (killRange t)
 	_		 -> return Nothing
 
 getPrimitive :: MonadTCM tcm => String -> tcm PrimFun
 getPrimitive x = do
-    builtin <- getBuiltinThings
-    case Map.lookup x builtin of
+    builtin <- getBuiltinThing x
+    case builtin of
 	Just (Prim pf) -> return pf
 	_	       -> typeError $ NoSuchPrimitiveFunction x
 
