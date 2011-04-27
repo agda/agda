@@ -1,0 +1,36 @@
+\documentclass{article}
+
+\usepackage{hcar}
+
+\begin{document}
+
+\begin{hcarentry}[section,updated]{Agda}
+\label{agda}
+\report{Nils Anders Danielsson}%05/11
+\status{actively developed}
+\participants{Ulf Norell, Andreas Abel, and many others}
+\makeheader
+
+Agda is a dependently typed functional programming language (developed
+using Haskell). A central feature of Agda is inductive families, i.e.\
+GADTs which can be indexed by \emph{values} and not just types. The
+language also supports coinductive types, parameterized modules, and
+mixfix operators, and comes with an \emph{interactive} interface---the
+type checker can assist you in the development of your code.
+
+A lot of work remains in order for Agda to become a full-fledged
+programming language (good libraries, mature compilers, documentation,
+etc.), but already in its current state it can provide lots of fun as
+a platform for experiments in dependently typed programming.
+
+In February version 2.2.10 was released. This release includes a new
+compiler backend, implemented by Daniel Gustafsson and Olle
+Fredriksson. The backend incorporates several new optimisations, based
+on work by Edwin Brady and others, and work is in progress to add even
+more optimisations.
+
+\FurtherReading
+  The Agda Wiki: \url{http://wiki.portal.chalmers.se/agda/}
+\end{hcarentry}
+
+\end{document}
