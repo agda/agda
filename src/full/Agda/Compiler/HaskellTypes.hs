@@ -33,6 +33,9 @@ hsKFun k l = "(" ++ k ++ " -> " ++ l ++ ")"
 hsFun :: HaskellKind -> HaskellKind -> HaskellKind
 hsFun a b = "(" ++ a ++ " -> " ++ b ++ ")"
 
+hsUnit :: HaskellType
+hsUnit = "()"
+
 hsVar :: Name -> HaskellType
 hsVar x = "x" ++ concatMap encode (show x)
   where
@@ -66,9 +69,11 @@ getHsType :: MonadTCM tcm => QName -> tcm HaskellType
 getHsType x = do
   d <- theDef <$> getConstInfo x
   case d of
-    Axiom{ axHsDef = Just (HsType t) } -> return t
-    Datatype{ dataHsType = Just t }    -> return t
-    _                                  -> notAHaskellType (El Prop $ Def x [])
+    Axiom{ axHsDef = Just (HsType t) }   -> return t
+    Axiom{ axHsDef = Just (HsDefn t c) } -> return hsUnit
+    Datatype{ dataHsType = Just t }      -> return t
+    Constructor{ conHsCode = Just c }    -> return hsUnit
+    _                                    -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: MonadTCM tcm => Nat -> tcm HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
@@ -122,9 +127,9 @@ haskellType = liftTCM . fromType
             hsForall <$> getHsVar 0 <*>
               (hsFun <$> fromType (unArg a) <*> fromType b)
           else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
-        Con{}      -> err
+        Con c args -> hsApp <$> getHsType c <*> fromArgs args
         Lam{}      -> err
-        Lit{}      -> err
-        Sort{}     -> return "()"
+        Lit{}      -> return hsUnit
+        Sort{}     -> return hsUnit
         MetaV{}    -> err
         DontCare   -> err
