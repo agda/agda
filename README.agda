@@ -6,8 +6,8 @@ module README where
 -- Author: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Jean-Philippe Bernardy, Peter Berry, Samuel Bronson, Daniel
 -- Brown, Liang-Ting Chen, Dominique Devriese, Dan Doel, Simon Foster,
--- Patrik Jansson, Darin Morrison, Shin-Cheng Mu, Ulf Norell, Nicolas
--- Pouillard and Andrés Sicard-Ramírez
+-- Patrik Jansson, Alan Jeffrey, Darin Morrison, Shin-Cheng Mu, Ulf
+-- Norell, Nicolas Pouillard and Andrés Sicard-Ramírez
 ------------------------------------------------------------------------
 
 -- Note that the development version of the library often requires the
