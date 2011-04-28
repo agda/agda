@@ -52,6 +52,7 @@ data Expr
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^
         | Quote ExprInfo                     -- ^
+        | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
         | DontCare                           -- ^ for printing DontCare from Syntax.Internal
   deriving (Typeable, Data, Show)
 
@@ -228,6 +229,7 @@ instance HasRange Expr where
     getRange (ScopedExpr _ e)	= getRange e
     getRange (QuoteGoal _ _ e)	= getRange e
     getRange (Quote i)  	= getRange i
+    getRange (Unquote i)  	= getRange i
     getRange (DontCare)         = noRange
 
 instance HasRange Declaration where
@@ -308,6 +310,7 @@ instance KillRange Expr where
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
   killRange (Quote i)        = killRange1 Quote i
+  killRange (Unquote i)      = killRange1 Unquote i
   killRange (DontCare)       = DontCare
 
 instance KillRange Relevance where

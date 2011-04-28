@@ -92,6 +92,9 @@ inNameSpace = case inScopeTag :: InScopeTag a of
   NameTag   -> nsNames
   ModuleTag -> nsModules
 
+instance KillRange ScopeInfo where
+  killRange m = m
+
 instance InScope AbstractName where
   inScopeTag = NameTag
 

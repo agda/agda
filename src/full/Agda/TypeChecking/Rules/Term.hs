@@ -327,7 +327,9 @@ checkExpr e t =
           ty <- qNameType
           blockTerm t (quoteName x) $ leqType ty t
 
+	  | A.Unquote _ <- unScope q -> __IMPOSSIBLE__ -- not supported yet
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
+        A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e

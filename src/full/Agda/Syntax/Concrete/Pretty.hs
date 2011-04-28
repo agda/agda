@@ -159,6 +159,7 @@ instance Pretty Expr where
             QuoteGoal _ x e -> sep [text "quoteGoal" <+> pretty x <+> text "in",
                                     nest 2 $ pretty e]
             Quote _ -> text "quote"
+	    Unquote _ -> text "unquote"
 
 instance Pretty BoundName where
   pretty = pretty . boundName

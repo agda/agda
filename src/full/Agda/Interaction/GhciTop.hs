@@ -786,6 +786,7 @@ instance LowerMeta SC.Expr where
       SC.ImplicitFromScopeArg r e	-> SC.ImplicitFromScopeArg r (lowerMeta e)
       SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)
       SC.Quote r        -> SC.Quote r
+      SC.Unquote r      -> SC.Unquote r
 
 instance LowerMeta SC.LamBinding where
   lowerMeta b@(SC.DomainFree _ _ _) = b

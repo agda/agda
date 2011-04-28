@@ -91,6 +91,7 @@ import Agda.Utils.TestHelpers
     'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quote'         { TokKeyword KwQuote $$ }
+    'unquote'       { TokKeyword KwUnquote $$ }
 
     setN	{ TokSetN $$ }
     tex		{ TokTeX $$ }
@@ -185,6 +186,7 @@ Token
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
+    | 'unquote'       { TokKeyword KwUnquote $1 }
 
     | setN	    { TokSetN $1 }
     | tex	    { TokTeX $1 }
@@ -483,6 +485,7 @@ Expr3
     | 'Prop'				{ Prop (getRange $1) }
     | 'Set'				{ Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
+    | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{{' Expr '}}'			{ ImplicitFromScopeArg (fuseRange $1 $3) (unnamed $2) }
     | '{{' Id '=' Expr '}}'		{ ImplicitFromScopeArg (fuseRange $1 $5) (named (show $2) $4) }

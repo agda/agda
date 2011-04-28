@@ -407,6 +407,7 @@ instance DotVars A.Expr where
     A.ETel _         -> __IMPOSSIBLE__
     A.QuoteGoal {}   -> __IMPOSSIBLE__
     A.Quote {}       -> __IMPOSSIBLE__
+    A.Unquote {}     -> __IMPOSSIBLE__
     A.DontCare       -> __IMPOSSIBLE__  -- Set.empty
 
 instance DotVars TypedBindings where
