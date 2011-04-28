@@ -139,7 +139,8 @@ solveConstraint (UnBlock m)          =
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
-solveConstraint (FindInScope m)      = do
+solveConstraint (FindInScope m)      =
+  ifM (isFrozen m) (buildConstraint $ FindInScope m) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
     mv <- lookupMeta m
     let j = mvJudgement mv

@@ -24,9 +24,9 @@ open import Data.List using (List; _∷_; []; [_]; null) renaming (monad to list
 --open import Data.Product
 
 stateMonad = StateMonad ℕ
---pmonad : RawMonad {zero} _⊥
+pmonad : RawMonad {zero} _⊥
 pmonad = partialityMonad 
---lmonad : RawMonad {zero} List 
+lmonad : RawMonad {zero} List 
 lmonad = listMonad 
 
 nToList : ℕ → List ℕ
