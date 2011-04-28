@@ -4,6 +4,7 @@ module TestQuote where
 
 open import Common.Reflect
 open import Common.Prelude
+open import Common.Level
 
 _==_ : Term → Term → Bool
 def x [] == def y [] = primQNameEquality x y

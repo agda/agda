@@ -563,7 +563,7 @@ checkExpr e t =
           case metas of
             _:_ -> postponeTypeCheckingProblem e0 t' $ and <$> mapM isInstantiatedMeta metas
             []  -> do
-              quoted <- quoteType t'
+              quoted <- quoteTerm (unEl t')
               tmType <- agdaTermType
               (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType_ ty t'

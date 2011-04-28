@@ -68,7 +68,11 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     -- builtins for reflection:
     primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
-    primAgdaTermSort, primAgdaTermUnsupported
+    primAgdaTermSort, primAgdaTermUnsupported,
+    primAgdaType, primAgdaTypeEl,
+    primHiding, primHidden, primVisible,
+    primRelvance, primRelevant, primIrrelevant, primForced,
+    primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -106,6 +110,19 @@ primLevelMax     = getBuiltin builtinLevelMax
 primQName        = getBuiltin builtinQName
 primArg          = getBuiltin builtinArg
 primArgArg       = getBuiltin builtinArgArg
+primAgdaSort     = getBuiltin builtinAgdaSort
+primAgdaType     = getBuiltin builtinAgdaType
+primAgdaTypeEl   = getBuiltin builtinAgdaTypeEl
+primHiding       = getBuiltin builtinHiding
+primHidden       = getBuiltin builtinHidden
+primVisible      = getBuiltin builtinVisible
+primRelvance     = getBuiltin builtinRelevance
+primRelevant     = getBuiltin builtinRelevant
+primIrrelevant   = getBuiltin builtinIrrelevant
+primForced       = getBuiltin builtinForced
+primAgdaSortSet  = getBuiltin builtinAgdaSortSet
+primAgdaSortLit  = getBuiltin builtinAgdaSortLit
+primAgdaSortUnsupported = getBuiltin builtinAgdaSortUnsupported
 primAgdaTerm         = getBuiltin builtinAgdaTerm
 primAgdaTermVar      = getBuiltin builtinAgdaTermVar
 primAgdaTermLam      = getBuiltin builtinAgdaTermLam
@@ -148,6 +165,19 @@ builtinLevel        = "LEVEL"
 builtinLevelZero    = "LEVELZERO"
 builtinLevelSuc     = "LEVELSUC"
 builtinQName        = "QNAME"
+builtinAgdaSort     = "AGDASORT"
+builtinAgdaSortSet  = "AGDASORTSET"
+builtinAgdaSortLit  = "AGDASORTLIT"
+builtinAgdaSortUnsupported = "AGDASORTUNSUPPORTED"
+builtinAgdaType     = "AGDATYPE"
+builtinAgdaTypeEl   = "AGDATYPEEL"
+builtinHiding       = "HIDING"
+builtinHidden       = "HIDDEN"
+builtinVisible      = "VISIBLE"
+builtinRelevance    = "RELEVANCE"
+builtinRelevant     = "RELEVANT"
+builtinIrrelevant   = "IRRELEVANT"
+builtinForced       = "FORCED"
 builtinArg          = "ARG"
 builtinArgArg       = "ARGARG"
 builtinAgdaTerm         = "AGDATERM"

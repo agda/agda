@@ -46,12 +46,16 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinString             |-> BuiltinPostulate tset)
   , (builtinQName              |-> BuiltinPostulate tset)
   , (builtinIO                 |-> BuiltinPostulate (tset --> tset))
+  , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
+  , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
                                      [builtinAgdaTermVar, builtinAgdaTermLam
                                      ,builtinAgdaTermDef, builtinAgdaTermCon
                                      ,builtinAgdaTermPi, builtinAgdaTermSort
                                      ,builtinAgdaTermUnsupported])
   , (builtinEquality           |-> BuiltinData (hPi "A" tset (tv0 --> tv0 --> tset)) [builtinRefl])
+  , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinVisible])
+  , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant, builtinForced])
   , (builtinRefl               |-> BuiltinDataCons (hPi "A" tset (hPi "x" tv0 (el (primEquality <#> v1 <@> v0 <@> v0)))))
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
@@ -61,17 +65,26 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinLevelSuc           |-> BuiltinDataCons (tlevel --> tlevel))
   , (builtinTrue               |-> BuiltinDataCons tbool)
   , (builtinFalse              |-> BuiltinDataCons tbool)
-  , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (tbool --> tv0 --> targ tv0)))
+  , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (thiding --> trelevance --> tv0 --> targ tv0)))
+  , (builtinAgdaTypeEl         |-> BuiltinDataCons (tsort --> tterm --> ttype))
   , (builtinAgdaTermVar        |-> BuiltinDataCons (tnat --> targs --> tterm))
-  , (builtinAgdaTermLam        |-> BuiltinDataCons (tbool --> tterm --> tterm))
+  , (builtinAgdaTermLam        |-> BuiltinDataCons (thiding --> tterm --> tterm))
   , (builtinAgdaTermDef        |-> BuiltinDataCons (tqname --> targs --> tterm))
   , (builtinAgdaTermCon        |-> BuiltinDataCons (tqname --> targs --> tterm))
-  , (builtinAgdaTermPi         |-> BuiltinDataCons (targ tterm --> tterm --> tterm))
-  , (builtinAgdaTermSort       |-> BuiltinDataCons tterm)
+  , (builtinAgdaTermPi         |-> BuiltinDataCons (targ ttype --> ttype --> tterm))
+  , (builtinAgdaTermSort       |-> BuiltinDataCons (tsort --> tterm))
   , (builtinAgdaTermUnsupported|-> BuiltinDataCons tterm)
+  , (builtinHidden             |-> BuiltinDataCons thiding)
+  , (builtinVisible            |-> BuiltinDataCons thiding)
+  , (builtinRelevant           |-> BuiltinDataCons trelevance)
+  , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
+  , (builtinForced             |-> BuiltinDataCons trelevance)
   , (builtinSize               |-> BuiltinPostulate tset)
   , (builtinSizeSuc            |-> BuiltinPostulate (tsize --> tsize))
   , (builtinSizeInf            |-> BuiltinPostulate tsize)
+  , (builtinAgdaSortSet        |-> BuiltinDataCons (tterm --> tsort))
+  , (builtinAgdaSortLit        |-> BuiltinDataCons (tnat --> tsort))
+  , (builtinAgdaSortUnsupported|-> BuiltinDataCons tsort)
   , (builtinNatPlus            |-> BuiltinPrim "primNatPlus" verifyPlus)
   , (builtinNatMinus           |-> BuiltinPrim "primNatMinus" verifyMinus)
   , (builtinNatTimes           |-> BuiltinPrim "primNatTimes" verifyTimes)
@@ -102,6 +115,10 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         tlevel     = el primLevel
         tsize      = el primSize
         tbool      = el primBool
+        thiding    = el primHiding
+        trelevance = el primRelvance
+        ttype      = el primAgdaType
+        tsort      = el primAgdaSort
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) choice -> do

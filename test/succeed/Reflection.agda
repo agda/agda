@@ -17,8 +17,20 @@ primitive primTrustMe : {A : Set}{x y : A} → x ≡ y
 
 open import Common.Level
 
+argᵛʳ : ∀{A} → A → Arg A
+argᵛʳ = arg visible relevant
+
+argʰʳ : ∀{A} → A → Arg A
+argʰʳ = arg hidden relevant
+
+el₀ : Term → Type
+el₀ = el (lit 0)
+
+el₁ : Term → Type
+el₁ = el (lit 1)
+
 unCheck : Term → Term
-unCheck (def x (_ ∷ _ ∷ arg _ t ∷ [])) = t
+unCheck (def x (_ ∷ _ ∷ arg _ _ t ∷ [])) = t
 unCheck t = unknown
 
 mutual
@@ -33,17 +45,17 @@ mutual
 
 test₁ : Check ({A : Set} → A → A)
 test₁ = quoteGoal t in
-        t is pi (arg true sort) (pi (arg false (var 0 [])) (var 1 []))
+        t is pi (argʰʳ (el₁ (sort (lit 0)))) (el₀ (pi (argᵛʳ (el₀ (var 0 []))) (el₀ (var 1 []))))
         of course
 
 test₂ : (X : Set) → Check (λ (x : X) → x)
 test₂ X = quoteGoal t in
-          t is lam false (var 0 []) of course
+          t is lam visible (var 0 []) of course
 
 infixr 40 _`∷_
 
 _`∷_ : Term → Term → Term
-x `∷ xs = con (quote _∷_) (arg false x ∷ arg false xs ∷ [])
+x `∷ xs = con (quote _∷_) (argᵛʳ x ∷ argᵛʳ xs ∷ [])
 `[]     = con (quote []) []
 `true   = con (quote true) []
 `false  = con (quote false) []
@@ -53,7 +65,7 @@ test₃ = quoteGoal t in
         t is `true `∷ `false `∷ `[] of course
 
 `List : Term → Term
-`List A = def (quote List) (arg false A ∷ [])
+`List A = def (quote List) (argᵛʳ A ∷ [])
 `Nat    = def (quote Nat) []
 
 test₄ : Check (List Nat)
