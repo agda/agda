@@ -44,7 +44,7 @@ data Expr
         | AbsurdLam ExprInfo Hiding
         | Pi   ExprInfo Telescope Expr	     -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
-        | Set  ExprInfo Nat		     -- ^
+        | Set  ExprInfo Nat		     -- ^ Set, Set1, Set2, ...
         | Prop ExprInfo			     -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
         | ETel Telescope                     -- ^ only used when printing telescopes

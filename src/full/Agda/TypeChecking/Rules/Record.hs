@@ -17,6 +17,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
@@ -33,6 +34,18 @@ import Agda.Utils.Impossible
 -- * Records
 ---------------------------------------------------------------------------
 
+-- | @checkRecDef i name con ps contel fields@
+--
+--     [@name@]    Record type identifier.
+--
+--     [@con@]     Maybe constructor name and info.
+--
+--     [@ps@]      Record parameters.
+--
+--     [@contel@]  Approximate type of constructor (@fields@ -> Set).
+--
+--     [@fields@]  List of field signatures.
+--
 checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
                [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
 checkRecDef i name con ps contel fields =
@@ -52,33 +65,42 @@ checkRecDef i name con ps contel fields =
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope
-      let m = qnameToMName name
-	  htel		 = map hide $ telToList tel
-	  rect		 = El s $ Def name $ reverse
-			   [ Arg h r (Var i [])
-			   | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
-			   ]
-	  telh' h	 = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
-	  tel'		 = telh' NotHidden
-	  telIFS	 = telh' ImplicitFromScope
-          extWithRH h ret   = underAbstraction (Arg h Relevant rect) (Abs "r" ()) $ \_ -> ret
-          extWithR = extWithRH NotHidden
-          ext (Arg h r (x, t)) = addCtx x (Arg h r t)
+      let m               = qnameToMName name
+          -- make record parameters hidden and non-stricts irrelevant
+	  htel		  = map hideAndRelParams $ telToList tel
+          -- record type (name applied to parameters)
+	  rect		  = El s $ Def name $ reverse
+			    [ Arg h r (Var i [])
+			    | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
+			    ]
+	  telh' h	  = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
+	  tel'		  = telh' NotHidden
+	  telIFS	  = telh' ImplicitFromScope
+          extWithRH h ret = underAbstraction (Arg h Relevant rect) (Abs "r" ()) $ \_ -> ret
+          extWithR        = extWithRH NotHidden
+          ext     (Arg h r (x, t)) = addCtx x (Arg h r t)
+{- UNUSED
           extHide (Arg h r (x, t)) = addCtx x (Arg Hidden r t)
+-}
 
       let getName :: A.Declaration -> [Arg QName]
           getName (A.Field _ x arg)    = [fmap (const x) arg]
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
-      ctx <- (reverse . map hide . take (size tel)) <$> getContext
 
-      -- We have to rebind the parameters to make them hidden
-      -- Check the field telescope
+      -- Generate type of constructor from field telescope @contel@,
+      -- which is the approximate constructor type (target missing).
+
+      -- Check and evaluate field types.
+      reportSDoc "tc.rec" 15 $ text "checking fields"
+      -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
+      -- Put in @rect@ as correct target of constructor type.
       let TelV ftel _ = telView' contype
       let contype = telePi ftel (raise (size ftel) rect)
 
+      -- Obtain name of constructor (if present).
       (hasNamedCon, conName, conInfo) <- case con of
         Just (A.Axiom i _ c _) -> return (True, c, i)
         Just _                 -> __IMPOSSIBLE__
@@ -87,6 +109,8 @@ checkRecDef i name con ps contel fields =
           c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
           return (False, c, i)
 
+      -- Add record type to signature.
+      reportSDoc "tc.rec" 15 $ text "adding record type to signature"
       addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
@@ -100,6 +124,16 @@ checkRecDef i name con ps contel fields =
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }
+
+      {- Andreas, 2011-04-27 WRONG because field types are checked again
+         and then non-stricts should not yet be irrelevant
+
+      -- make record parameters hidden and non-stricts irrelevant
+      -- ctx <- (reverse . map hideAndRelParams . take (size tel)) <$> getContext
+      -}
+
+      -- make record parameters hidden
+      ctx <- (reverse . map hide . take (size tel)) <$> getContext
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
@@ -147,15 +181,17 @@ checkRecDef i name con ps contel fields =
 
       return ()
 
-{-| @checkRecordProjections q tel ftel s vs n fs@:
-    @m@: name of the generated module
-    @q@: name of the record
-    @tel@: parameters
-    @s@: sort of the record
-    @ftel@: telescope of fields
-    @vs@: values of previous fields (should have one free variable, which is
-	  the record)
-    @fs@: the fields to be checked
+{-| @checkRecordProjections m q tel ftel fs@.
+
+    [@m@    ]  name of the generated module
+
+    [@q@    ]  name of the record
+
+    [@tel@  ]  parameters
+
+    [@ftel@ ]  telescope of fields
+
+    [@fs@   ]  the fields to be checked
 -}
 checkRecordProjections ::
   ModuleName -> QName -> Telescope -> Telescope ->
@@ -182,8 +218,9 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 	  , text "t     =" <+> prettyTCM t
 	  ]
 	]
+      -- Andreas, 2011-04-27 work on rhs of ':'
+      -- WRONG: t <- workOnTypes $ isType_ t
       t <- isType_ t
-
 
       -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
       -- in fact, tel includes the variable of record type as last one

@@ -22,6 +22,7 @@ irrFilter (T.El _ term) = case term of
     isRel arg = case argRelevance arg of
       Relevant   -> True
       Irrelevant -> False
+      NonStrict  -> False -- can never be executed
       Forced     -> False -- It can be inferred
 
 -- | Remove irrelevant arguments from constructors and branches

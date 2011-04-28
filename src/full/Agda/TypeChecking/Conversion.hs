@@ -28,6 +28,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.UniversePolymorphism
 
@@ -75,10 +76,10 @@ equalType = compareType CmpEq
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareTerm cmp a m n =
-  verboseBracket "tc.conv.term" 5 "compareTerm" $
+  verboseBracket "tc.conv.term" 20 "compareTerm" $
   catchConstraint (ValueCmp cmp a m n) $ do
     a'       <- reduce a
-    reportSDoc "tc.conv.term" 10 $ fsep
+    reportSDoc "tc.conv.term" 30 $ fsep
       [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
     proofIrr <- proofIrrelevance
     isSize   <- isSizeType a'
@@ -146,7 +147,7 @@ compareTerm cmp a m n =
 
 compareTel :: MonadTCM tcm => Comparison -> Telescope -> Telescope -> tcm Constraints
 compareTel cmp tel1 tel2 =
-  verboseBracket "tc.conv.tel" 5 "compareTel" $
+  verboseBracket "tc.conv.tel" 20 "compareTel" $
   catchConstraint (TelCmp cmp tel1 tel2) $ case (tel1, tel2) of
     (EmptyTel, EmptyTel) -> return []
     (EmptyTel, _)        -> bad
@@ -176,7 +177,7 @@ compareTel cmp tel1 tel2 =
 --
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom cmp t m n =
-    verboseBracket "tc.conv.atom" 5 "compareAtom" $
+    verboseBracket "tc.conv.atom" 20 "compareAtom" $
     -- if a PatternErr is thrown, rebuild constraint!
     catchConstraint (ValueCmp cmp t m n) $ do
       -- constructorForm changes literal to constructors
@@ -194,7 +195,7 @@ compareAtom cmp t m n =
                 then return []	-- Check syntactic equality for blocked terms
                 else buildConstraint $ ValueCmp cmp t m n
 
-      reportSDoc "tc.conv.atom" 10 $ fsep
+      reportSDoc "tc.conv.atom" 30 $ fsep
 	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
       case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
@@ -274,7 +275,7 @@ compareAtom cmp t m n =
 		compareArgs [] a iArgs jArgs
 	    (Def x xArgs, Def y yArgs) | x == y -> do
                 pol <- getPolarity' cmp x
-		reportSDoc "tc.conv.atom" 20 $
+		reportSDoc "tc.conv.atom" 40 $
 		  text "compareArgs" <+> sep
                     [ sep [ prettyTCM xArgs
 			  , prettyTCM yArgs
@@ -346,7 +347,7 @@ compareArgs _ _ [] [] = return []
 compareArgs _ _ [] (_:_) = __IMPOSSIBLE__
 compareArgs _ _ (_:_) [] = __IMPOSSIBLE__
 compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
-    verboseBracket "tc.conv.args" 5 "compareArgs" $ do
+    verboseBracket "tc.conv.args" 20 "compareArgs" $ do
     let (pol, pols) = nextPolarity pols0
     a <- reduce a
     catchConstraint (ArgsCmp pols0 a (arg1 : args1) (arg2 : args2)) $ do
@@ -359,7 +360,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
           ]
     case funView (unEl a) of
 	FunV (Arg _ r b) _ -> do
-	    reportSDoc "tc.conv.args" 10 $
+	    reportSDoc "tc.conv.args" 30 $
               sep [ text "compareArgs" <+> parens (text $ show pol ++ " " ++ show r)
                   , nest 2 $ sep [ prettyTCM arg1
                                  , text "~~" <+> prettyTCM arg2
@@ -373,7 +374,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
             cs1 <- case r of
                     Forced     -> return []
                     Irrelevant -> return [] -- Andreas: ignore irr. func. args.
-                    Relevant   -> cmp (unArg arg1) (unArg arg2)
+                    _          -> cmp (unArg arg1) (unArg arg2)
             -- mlvl <- mlevel
 	    case (cs1, unEl a) of
                                 -- We can safely ignore sort annotations here
@@ -383,7 +384,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
 		(_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
                                                   -- && Just lvl' /= mlvl
 		    -> do
-                        reportSDoc "tc.conv.args" 15 $ sep
+                        reportSDoc "tc.conv.args" 35 $ sep
                           [ text "aborting compareArgs" <+> parens (text $ show pol)
                           , nest 2 $ fsep
                               [ prettyTCM arg1
@@ -394,7 +395,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                           ]
                         patternViolation
 		_   -> do
-                    reportSDoc "tc.conv.args" 15 $ sep
+                    reportSDoc "tc.conv.args" 35 $ sep
                       [ text "compareArgs" <+> parens (text $ show pol)
                       , nest 2 $ sep
                         [ prettyTCM args1
@@ -409,15 +410,18 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
 -- | Equality on Types
 compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
-    verboseBracket "tc.conv.type" 5 "compareType" $
+    verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
-	reportSDoc "tc.conv.type" 9 $ vcat
+	reportSDoc "tc.conv.type" 50 $ vcat
           [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
+-- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
+-- for solving sort and level metas
+--        let cs1 = []
 	cs1 <- compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
                   TypeError _ _ -> do
-                    reportSDoc "tc.conv.type" 10 $ vcat
+                    reportSDoc "tc.conv.type" 30 $ vcat
                       [ text "sort comparison failed"
                       , nest 2 $ vcat
                         [ text "s1 =" <+> prettyTCM s1
@@ -434,7 +438,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 	cs2 <- compareTerm cmp (sort s1) a1 a2
         cs  <- solveConstraints $ cs1 ++ cs2
         unless (null cs) $
-          reportSDoc "tc.conv.type" 9 $
+          reportSDoc "tc.conv.type" 50 $
             text "   --> " <+> prettyTCM cs
 	return cs
 
@@ -458,7 +462,7 @@ leqSort s1 s2 =
   ifM typeInType (return []) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
-        reportSDoc "tc.conv.sort" 10 $
+        reportSDoc "tc.conv.sort" 30 $
           sep [ text "leqSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                               , prettyTCM s2 ]
@@ -500,7 +504,7 @@ leqSort s1 s2 =
 
 leqLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
 leqLevel a b = liftTCM $ do
-  reportSDoc "tc.conv.nat" 10 $
+  reportSDoc "tc.conv.nat" 30 $
     text "compareLevel" <+>
       sep [ prettyTCM a <+> text "=<"
           , prettyTCM b ]
@@ -509,7 +513,7 @@ leqLevel a b = liftTCM $ do
   leqView n m
   where
     leqView n@(Max as) m@(Max bs) = do
-      reportSDoc "tc.conv.nat" 10 $
+      reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
@@ -521,7 +525,7 @@ leqLevel a b = liftTCM $ do
           sequence [ choice [ leqPlusView a b | b <- bs ] | a <- as ]
           return []
     leqPlusView n m = do
-      reportSDoc "tc.conv.nat" 10 $
+      reportSDoc "tc.conv.nat" 30 $
         text "comparePlusView" <+>
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
@@ -568,7 +572,7 @@ equalLevel a b = do
           $ check a b as bs
   where
     check a b as bs = do
-      reportSDoc "tc.conv.nat" 20 $
+      reportSDoc "tc.conv.nat" 40 $
         sep [ text "equalLevel"
             , nest 2 $ sep [ prettyTCM a <+> text "=="
                            , prettyTCM b
@@ -673,7 +677,7 @@ equalSort s1 s2 =
   ifM typeInType (return []) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
-        reportSDoc "tc.conv.sort" 10 $
+        reportSDoc "tc.conv.sort" 30 $
           sep [ text "equalSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=="
                               , prettyTCM s2 ]

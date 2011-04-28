@@ -19,6 +19,7 @@ import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Substitute
+-- import Agda.TypeChecking.Pretty -- LEADS TO import cycle
 
 import Agda.Utils.Monad
 import Agda.Utils.Fresh
@@ -117,7 +118,10 @@ newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority -> Per
             Judgement Type a -> tcm MetaId
 newMeta' inst mi p perm j = do
   x <- fresh
-  let mv = MetaVar mi p perm (fmap (const x) j) inst Set.empty Instantiable
+  let j' = fmap (const x) j  -- fill the identifier part of the judgement
+      mv = MetaVar mi p perm j' inst Set.empty Instantiable
+  -- printing not available (import cycle)
+  -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 

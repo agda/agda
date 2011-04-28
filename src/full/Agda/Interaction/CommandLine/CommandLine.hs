@@ -245,9 +245,8 @@ evalTerm s =
 	return Continue
     where
 	evalInCurrent e = do
-	  t <- newTypeMeta_
-	  v <- checkExpr e t
-	  v' <- normalise v
+	  (v,t) <- inferExpr e
+	  v'    <- normalise v
 	  return v'
 
 
@@ -261,7 +260,7 @@ typeOf s =
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) =
     actOnMeta s $ \i e ->
-    do	e1  <- typeInMeta i Normalised e
+    do	e1 <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e
 	liftIO . LocIO.putStrLn =<< showA e1
 typeIn _ = liftIO $ LocIO.putStrLn ":typeIn meta expr"

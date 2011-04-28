@@ -39,6 +39,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
@@ -73,9 +74,13 @@ isType e s =
 isType_ :: A.Expr -> TCM Type
 isType_ e =
     traceCall (IsType_ e) $ do
-    s <- newSortMeta
+    s <- workOnTypes $ newSortMeta
     isType e s
 
+leqType_ :: MonadTCM tcm => Type -> Type -> tcm Constraints
+leqType_ t t' = workOnTypes $ leqType t t'
+
+{- UNUSED
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 
@@ -98,12 +103,13 @@ forcePi h name (El s t) =
                 cs <- equalType (El s t') ty
                 ty' <- reduce ty
                 return (ty', cs)
-
+-}
 
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------
 
+{- UNUSED
 -- | Type check a telescope. Binds the variables defined by the telescope.
 checkTelescope :: A.Telescope -> Sort -> (Telescope -> TCM a) -> TCM a
 checkTelescope [] s ret = ret EmptyTel
@@ -129,7 +135,7 @@ checkTypedBinding h rel s (A.TBind i xs e) ret = do
 checkTypedBinding h rel s (A.TNoBind e) ret = do
     t <- isType e s
     ret [("_",t)]
-
+-}
 
 -- | Type check a telescope. Binds the variables defined by the telescope.
 checkTelescope_ :: A.Telescope -> (Telescope -> TCM a) -> TCM a
@@ -139,7 +145,45 @@ checkTelescope_ (b : tel) ret =
     checkTelescope_ tel   $ \tel2 ->
 	ret $ abstract tel1 tel2
 
+-- | Check a typed binding and extends the context with the bound variables.
+--   The telescope passed to the continuation is valid in the original context.
+checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings_ = checkTypedBindings LOPi
 
+data LamOrPi = LamOP | LOPi deriving (Eq,Show)
+
+-- | Check a typed binding and extends the context with the bound variables.
+--   The telescope passed to the continuation is valid in the original context.
+--
+--   Parametrized by a flag wether we check a typed lambda or a Pi.
+--   This flag is needed for irrelevance.
+checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
+    checkTypedBinding lamOrPi h rel b $ \bs ->
+    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
+
+checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
+    t <- modEnv lamOrPi $ isType_ e
+    -- Andreas, 2011-04-26 irrelevant function arguments may appear
+    -- non-strictly in the codomain type
+    addCtxs xs (Arg h (modRel lamOrPi rel) t) $ ret $ mkTel xs t
+    where
+        -- if we are checking a typed lambda, we resurrect before we check the
+        -- types, but do not modify the new context entries
+        -- otherwise, if we are checking a pi, we do not resurrect, but
+        -- modify the new context entries
+        modEnv LamOP = workOnTypes
+        modEnv LOPi  = id
+        modRel LamOP = id
+        modRel LOPi  = irrToNonStrict
+	mkTel [] t     = []
+	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
+checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
+    t <- isType_ e
+    ret [("_",t)]
+
+{- OLD CODE
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
@@ -150,14 +194,16 @@ checkTypedBindings_ (A.TypedBindings i (Arg h rel b)) ret =
 checkTypedBinding_ :: Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding_ h rel (A.TBind i xs e) ret = do
     t <- isType_ e
-    addCtxs xs (Arg h rel t) $ ret $ mkTel xs t
+    -- Andreas, 2011-04-26 irrelevant function arguments may appear
+    -- non-strictly in the codomain type
+    addCtxs xs (Arg h (irrToNonStrict rel) t) $ ret $ mkTel xs t
     where
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
 checkTypedBinding_ h rel (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
-
+-}
 
 ---------------------------------------------------------------------------
 -- * Literal
@@ -166,7 +212,7 @@ checkTypedBinding_ h rel (A.TNoBind e) ret = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
     t' <- litType lit
-    v  <- blockTerm t (Lit lit) $ leqType t' t
+    v  <- blockTerm t (Lit lit) $ leqType_ t' t
     return v
 
 litType :: Literal -> TCM Type
@@ -303,18 +349,24 @@ checkExpr e t =
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
+        -- check |- Set l : t  (requires universe polymorphism)
         A.App i s (Arg NotHidden r l)
           | A.Set _ 0 <- unScope s ->
           ifM (not <$> hasUniversePolymorphism)
               (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
           $ do
             lvl <- primLevel
+            -- allow NonStrict variables when checking level
+            --   Set : (NonStrict) Level -> Set\omega
+            n   <- applyRelevanceToContext NonStrict $
+                     checkExpr (namedThing l) (El (mkType 0) lvl)
+            -- check that Set (l+1) <= t
+            reportSDoc "tc.univ.poly" 10 $
+              text "checking Set " <+> prettyTCM n <+>
+              text "against" <+> prettyTCM t
             suc <- do s <- primLevelSuc
                       return $ \x -> s `apply` [defaultArg x]
-            n   <- checkExpr (namedThing l) (El (mkType 0) lvl)
-            reportSDoc "tc.univ.poly" 10 $
-              text "checking Set " <+> prettyTCM n <+> text "against" <+> prettyTCM t
-            blockTerm t (Sort $ Type n) $ leqType (sort $ Type $ suc n) t
+            blockTerm t (Sort $ Type n) $ leqType_ (sort $ Type $ suc n) t
 
         A.App i q (Arg NotHidden r e)
           | A.Quote _ <- unScope q -> do
@@ -325,7 +377,7 @@ checkExpr e t =
               quoted _                  = typeError $ GenericError $ "quote: not a defined name"
           x <- quoted (namedThing e)
           ty <- qNameType
-          blockTerm t (quoteName x) $ leqType ty t
+          blockTerm t (quoteName x) $ leqType_ ty t
 
 	  | A.Unquote _ <- unScope q -> __IMPOSSIBLE__ -- not supported yet
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
@@ -334,7 +386,7 @@ checkExpr e t =
 	A.App i e arg -> do
 	    (v0, t0)	 <- inferExpr e
 	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
-	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType t1 t
+	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType_ t1 t
 
         A.AbsurdLam i h -> do
           t <- reduceB =<< instantiateFull t
@@ -354,7 +406,7 @@ checkExpr e t =
                   aux <- qualify top <$> freshName (getRange i) name
                   -- if we are in irrelevant position, the helper function
                   -- is added as irrelevant
-                  rel <- irrelevant <$> asks envIrrelevant
+                  rel <- asks envRelevance
                   reportSDoc "tc.term.absurd" 10 $ vcat
                     [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
                     , nest 2 $ text "of type" <+> prettyTCM t'
@@ -385,10 +437,25 @@ checkExpr e t =
             metas (MetaV m _) = [m]
             metas _           = []
 
+{- Andreas, 2011-04-27 DOES NOT WORK
+   -- a telescope is not for type checking abstract syn
+
 	A.Lam i (A.DomainFull b) e -> do
-	    (v, cs) <- checkTypedBindings_ b $ \tel -> do
-	        t1 <- newTypeMeta_
-                cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
+            -- check the types, get the telescope with unchanged relevance
+	    (tel, t1, cs) <- workOnTypes $ checkTypedBindings_ b $ \tel -> do
+	       t1 <- newTypeMeta_
+               cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
+               return (tel, t1, cs)
+            -- check the body under the unchanged telescope
+            v <- addCtxTel tel $ do teleLam tel <$> checkExpr e t1
+	    blockTerm t v (return cs)
+-}
+	A.Lam i (A.DomainFull b) e -> do
+	    (v, cs) <- checkTypedBindings LamOP b $ \tel -> do
+                (t1, cs) <- workOnTypes $ do
+	          t1 <- newTypeMeta_
+                  cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
+                  return (t1, cs)
                 v <- checkExpr e t1
                 return (teleLam tel v, cs)
 	    blockTerm t v (return cs)
@@ -403,7 +470,7 @@ checkExpr e t =
 		FunV arg0@(Arg h' rel' a) _
                   -- Andreas, 2011-04-07 if lambda has explicit irrelevance
                   --   marker, it needs to coincide with relevance of fun.type
-                    | rel == Irrelevant && rel' == Relevant ->
+                    | rel == Irrelevant && rel' /= Irrelevant ->
                         typeError $ WrongIrrelevanceInLambda t'
 		    | h /= h' ->
 			typeError $ WrongHidingInLambda t'
@@ -431,25 +498,25 @@ checkExpr e t =
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
                     return $ telePi_ tel t
-            s  <- return $ getSort t'
+            let s = getSort t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
               vcat [ text ("reduced to omega:")
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-	    blockTerm t (unEl t') $ leqType (sort s) t
+	    blockTerm t (unEl t') $ leqType_ (sort s) t
 	A.Fun _ (Arg h r a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    let s = getSort a' `sLub` getSort b'
-	    blockTerm t (Fun (Arg h r a') b') $ leqType (sort s) t
+	    blockTerm t (Fun (Arg h r a') b') $ leqType_ (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  blockTerm t (Sort (mkType n)) $ leqType (sort $ mkType $ n + 1) t
+	  blockTerm t (Sort (mkType n)) $ leqType_ (sort $ mkType $ n + 1) t
 	A.Prop _     -> do
           typeError $ GenericError "Prop is no longer supported"
           -- s <- ifM typeInType (return $ mkType 0) (return Prop)
-	  -- blockTerm t (Sort Prop) $ leqType (sort $ mkType 1) t
+	  -- blockTerm t (Sort Prop) $ leqType_ (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
 	  t <- reduce t
@@ -499,13 +566,13 @@ checkExpr e t =
               quoted <- quoteType t'
               tmType <- agdaTermType
               (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
-              blockTerm t' v $ leqType ty t'
+              blockTerm t' v $ leqType_ ty t'
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)
 inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
-  when (argRelevance a == Irrelevant) $
+  when (unusableRelevance $ argRelevance a) $
     typeError $ VariableIsIrrelevant x
   return (apply u, unArg a)
 inferHead (HeadDef x) = do
@@ -535,9 +602,14 @@ inferDef mkTerm x =
     traceCall (InferDef (getRange x) x) $ do
     d  <- instantiateDef =<< getConstInfo x
     -- irrelevant defs are only allowed in irrelevant position
-    when (defRelevance d == Irrelevant) $ do
-      irr <- asks envIrrelevant
-      unless irr $ typeError $ DefinitionIsIrrelevant x
+    let drel = defRelevance d
+    when (drel /= Relevant) $ do
+      rel <- asks envRelevance
+      reportSDoc "tc.irr" 50 $ vcat
+        [ text "declaration relevance =" <+> text (show drel)
+        , text "context     relevance =" <+> text (show rel)
+        ]
+      unless (drel `moreRelevant` rel) $ typeError $ DefinitionIsIrrelevant x
     vs <- freeVarsToApply x
     verboseS "tc.term.def" 10 $ do
       ds <- mapM prettyTCM vs
@@ -719,10 +791,11 @@ checkHeadApplication e t hd args = do
             [ text "checking" <+>
               prettyTCM fType <+> text "?<=" <+> prettyTCM eType
             ]
-          cs1 <- addCtxTel eTel $ leqType fType eType
+          workOnTypes $ do
+            cs1 <- addCtxTel eTel $ leqType fType eType
 
-          cs2 <- compareTel CmpLeq eTel fTel
-          return $ cs1 ++ cs2
+            cs2 <- compareTel CmpLeq eTel fTel
+            return $ cs1 ++ cs2
 
     HeadDef c | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
@@ -746,7 +819,7 @@ checkHeadApplication e t hd args = do
       tel <- getContextTelescope
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
-      rel <- irrelevant <$> asks envIrrelevant
+      rel <- asks envRelevance
       addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing Nothing)
 
       -- Define and type check the fresh function.
@@ -786,7 +859,7 @@ checkHeadApplication e t hd args = do
   defaultResult = do
     (f, t0) <- inferHead hd
     checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
-      blockTerm t (f vs) $ (cs ++) <$> leqType t1 t
+      blockTerm t (f vs) $ (cs ++) <$> leqType_ t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
 
@@ -895,11 +968,12 @@ checkArguments_ exh r args tel = do
       Left _              -> __IMPOSSIBLE__
 
 
--- | Infer the type of an expression. Implemented by checking agains a meta
+-- | Infer the type of an expression. Implemented by checking against a meta
 --   variable.
 inferExpr :: A.Expr -> TCM (Term, Type)
 inferExpr e = do
-    t <- newTypeMeta_
+    -- Andreas, 2011-04-27
+    t <- workOnTypes $ newTypeMeta_
     v <- checkExpr e t
     return (v,t)
 

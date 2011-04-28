@@ -51,6 +51,9 @@ pRelevance Relevant   a = pretty a
 pRelevance Irrelevant a =
   let d = pretty a
   in  if render d == "_" then d else text "." <> d
+pRelevance NonStrict a =
+  let d = pretty a
+  in  if render d == "_" then d else text ".." <> d
 
 {- UNUSED
 -- | Use for printing non-dependent function types
@@ -88,6 +91,7 @@ instance Pretty Relevance where
   pretty Forced     = empty
   pretty Relevant   = empty
   pretty Irrelevant = text "."
+  pretty NonStrict  = text ".."
 
 instance Pretty Induction where
   pretty Inductive = text "data"

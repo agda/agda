@@ -1,0 +1,3 @@
+IrrelevantLevelToSet.agda:14,15-16
+variable i is declared irrelevant, so it cannot be used here
+when checking that the expression i has type Level

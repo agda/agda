@@ -189,6 +189,7 @@ library
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
+                    Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Occurs

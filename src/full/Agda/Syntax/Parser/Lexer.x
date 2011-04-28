@@ -167,6 +167,7 @@ tokens :-
 
 -- Special symbols
 <0,code> "..."		{ symbol SymEllipsis }
+<0,code> ".."		{ symbol SymDotDot }
 <0,code> "."		{ symbol SymDot }
 <0,code> ";"		{ symbol SymSemi }
 <0,code> ":"		{ symbol SymColon }

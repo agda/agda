@@ -719,9 +719,10 @@ data TCEnv =
           , envTopLevel            :: Bool
                 -- ^ Are we at the top level when checking a declaration?
                 --   In this case, we will freeze metas afterwards.
-          , envIrrelevant          :: Bool
-                -- ^ Are we checking an irrelevant argument?
+          , envRelevance           :: Relevance
+                -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
+                -- Other value: @Relevant@, then only relevant decls. are avail.
           , envReplace             :: Bool
                 -- ^ Coinductive constructor applications @c args@ get
                 -- replaced by a function application @f tel@, where
@@ -755,7 +756,7 @@ initEnv = TCEnv { envContext	         = []
 		, envMutualBlock         = Nothing
 		, envAbstractMode        = AbstractMode
                 , envTopLevel            = True
-                , envIrrelevant          = False
+                , envRelevance           = Relevant
                 , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True

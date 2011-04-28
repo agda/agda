@@ -24,6 +24,7 @@ import qualified Agda.TypeChecking.Monad.Context as Context
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecker
 
 import Agda.Interaction.BasicOps
@@ -122,7 +123,8 @@ makeAbstractClause f cl = do
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do
   (v, _) <- -- Andreas, 2010-09-21 allow splitting on irrelevant (record) vars
-            Context.wakeIrrelevantVars $
+--            Context.wakeIrrelevantVars $
+            applyRelevanceToContext Irrelevant $
               inferExpr e
   case v of
     Var n _ -> return n

@@ -178,8 +178,7 @@ refineExact ii e =
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
 evalInCurrent e =
-    do  t <- newTypeMeta_
-	v <- checkExpr e t
+    do  (v, t) <- inferExpr e
 	v' <- {- etaContract =<< -} normalise v
 	reify v'
 

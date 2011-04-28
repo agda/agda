@@ -21,13 +21,26 @@ import Agda.Utils.Fresh
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Modify the 'ctxEntry' field of a 'ContextEntry'.
+modifyContextEntry :: (Arg (Name, Type) -> Arg (Name, Type)) -> ContextEntry -> ContextEntry
+modifyContextEntry f ce = ce { ctxEntry = f (ctxEntry ce) }
+
+-- | Modify all 'ContextEntry's.
+modifyContextEntries :: (Arg (Name, Type) -> Arg (Name, Type)) -> Context -> Context
+modifyContextEntries f = map (modifyContextEntry f)
+
+-- | Modify a 'Context' in a computation.
+modifyContext :: MonadTCM tcm => (Context -> Context) -> tcm a -> tcm a
+modifyContext f = local $ \ e -> e { envContext = f (envContext e) }
+
 mkContextEntry :: MonadTCM tcm => Arg (Name, Type) -> tcm ContextEntry
 mkContextEntry x = do
   i <- fresh
   return $ Ctx i x
 
--- | add a variable to the context
+-- | @addCtx x arg cont@ add a variable to the context.
 --
+--   Chooses an unused 'Name'.
 addCtx :: MonadTCM tcm => Name -> Arg Type -> tcm a -> tcm a
 addCtx x a ret = do
   ctx <- map (nameConcrete . fst . unArg) <$> getContext
@@ -99,20 +112,6 @@ addLetBinding rel x v t0 ret = do
     let t = Arg NotHidden rel t0
     vt <- makeOpen (v, t)
     flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
-
--- | Wake up irrelevant variables and make them relevant.  For instance,
---   in an irrelevant function argument otherwise irrelevant variables
---   may be used, so they are awoken before type checking the argument.
-wakeIrrelevantVars :: MonadTCM tcm => tcm a -> tcm a
-wakeIrrelevantVars = local $ \ e -> e
-   { envContext = map wakeVar (envContext e) -- enable local  irr. defs
-   , envIrrelevant = True                    -- enable global irr. defs
-   }
-  where wakeVar ce = ce { ctxEntry = makeRelevant (ctxEntry ce) }
-
-applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
-applyRelevanceToContext Irrelevant cont = wakeIrrelevantVars cont
-applyRelevanceToContext _          cont = cont
 
 -- | get type of bound variable (i.e. deBruijn index)
 --

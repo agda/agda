@@ -22,6 +22,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
+import Agda.TypeChecking.Irrelevance
 
 import Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -127,7 +128,7 @@ checkDataDef i name ps cs =
 	cname _			   = __IMPOSSIBLE__ -- constructors are axioms
 
 	hideTel  EmptyTel		  = EmptyTel
-	hideTel (ExtendTel (Arg _ r t) tel) = ExtendTel (Arg Hidden r t) $ hideTel <$> tel
+	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
 	splitType (El _ (Fun _ b)) = ((+ 1) -*- raise 1) <$> splitType b
@@ -143,16 +144,31 @@ checkConstructor d tel nofIxs s (A.ScopedDecl scope [con]) = do
   checkConstructor d tel nofIxs s con
 checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
     traceCall (CheckConstructor d tel s con) $ do
+{- WRONG
+      -- Andreas, 2011-04-26: the following happens to the right of ':'
+      -- we may use irrelevant arguments in a non-strict way in types
+      t' <- workOnTypes $ do
+-}
+        -- check that the type of the constructor is well-formed
         debugEnter c e
 	t <- isType_ e
+        -- check that the type of the constructor ends in the data type
 	n <- size <$> getContextTelescope
         debugEndsIn t d n
 	constructs n t d
+        -- check that the sort (universe level) of the constructor type
+        -- is contained in the sort of the data type
+        -- (to avoid impredicative existential types)
         debugFitsIn s
 	t `fitsIn` s
+        -- check which constructor arguments are determined by the type ('forcing')
         t' <- addForcingAnnotations t
         debugAdd c t'
-	escapeContext (size tel)
+{-
+        return t'
+-}
+        -- add parameters to constructor type and put into signature
+        escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0
 	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive
@@ -255,6 +271,7 @@ constructs nofPars t q = constrT 0 t
 		ps = reverse [ i | (i,_) <- zip [n..] vs ]
 
 		sameVar arg i
+                  -- skip irrelevant parameters
                   | argRelevance arg == Irrelevant = return ()
 		  | otherwise = do
 		    t <- typeOfBV i

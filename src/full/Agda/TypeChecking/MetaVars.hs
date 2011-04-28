@@ -29,6 +29,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 
 import Agda.TypeChecking.MetaVars.Occurs
@@ -128,13 +129,19 @@ newSortMetaCtx vs =
     tel <- getContextTelescope
     let t = telePi_ tel topSort
     x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
+    reportSDoc "tc.meta.new" 50 $
+      text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ MetaS x vs
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
 
 newTypeMeta_ ::  MonadTCM tcm => tcm Type
-newTypeMeta_  = newTypeMeta =<< newSortMeta
+newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
+-- TODO: (this could be made work with new uni-poly)
+-- Andreas, 2011-04-27: If a type meta gets solved, than we do not have to check
+-- that it has a sort.  The sort comes from the solution.
+-- newTypeMeta_  = newTypeMeta Inf
 
 -- | Create a new "implicit from scope" metavariable
 newIFSMeta ::  MonadTCM tcm => Type -> tcm (Term, ConstraintClosure)
@@ -496,7 +503,7 @@ assign assigningSort x args v = do
         else do
 -}
         -- we are linear, so we can solve!
-	reportSDoc "tc.meta.assign" 15 $
+	reportSDoc "tc.meta.assign" 25 $
 	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
@@ -517,7 +524,7 @@ assign assigningSort x args v = do
         -- (no longer from ids which may not be the complete variable list
         -- any more)
         let t = jMetaType $ mvJudgement mvar
-	reportSDoc "tc.meta.assign" 25 $ text "type of meta =" <+> prettyTCM t
+	reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
 --	reportSDoc "tc.meta.assign" 30 $ text "type of meta =" <+> text (show t)
 
         TelV tel0 core0 <- telViewM t
@@ -540,6 +547,7 @@ assign assigningSort x args v = do
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
+--	    Nothing -> fmap (const DontCare) arg	-- we will end up here, but never look at the result
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
 type FVs = Set Nat
@@ -563,8 +571,9 @@ allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
 allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars arg =
     case arg of
-      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
       Arg h r (Var i []) -> return $ Arg h r i : vars
+      -- Andreas, 2011-04-27 keep irrelevant variables
+      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
       _                  -> Nothing
 
 

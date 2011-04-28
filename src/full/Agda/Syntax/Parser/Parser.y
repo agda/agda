@@ -98,6 +98,7 @@ import Agda.Utils.TestHelpers
     comment	{ TokComment $$ }
 
     '...'	{ TokSymbol SymEllipsis $$ }
+    '..'	{ TokSymbol SymDotDot $$ }
     '.'		{ TokSymbol SymDot $$ }
     ';'		{ TokSymbol SymSemi $$ }
     ':'		{ TokSymbol SymColon $$ }
@@ -193,6 +194,7 @@ Token
     | comment	    { TokComment $1 }
 
     | '...'	    { TokSymbol SymEllipsis $1 }
+    | '..'	    { TokSymbol SymDotDot $1 }
     | '.'	    { TokSymbol SymDot $1 }
     | ';'	    { TokSymbol SymSemi $1 }
     | ':'	    { TokSymbol SymColon $1 }
@@ -330,16 +332,20 @@ MaybeDottedIds
 -- be surrounded by braces or dotted.
 ArgIds :: { [Arg Name] }
 ArgIds
-    : MaybeDottedId ArgIds          { $1 : $2 }
-    | MaybeDottedId                 { [$1] }
+    : MaybeDottedId ArgIds            { $1 : $2 }
+    | MaybeDottedId                   { [$1] }
     | '{{' MaybeDottedIds '}}' ArgIds { map makeImplicitFromScope $2 ++ $4 }
     | '{{' MaybeDottedIds '}}'        { map makeImplicitFromScope $2 }
-    | '{' MaybeDottedIds '}' ArgIds { map hide $2 ++ $4 }
-    | '{' MaybeDottedIds '}'        { map hide $2 }
-    | '.' '{' SpaceIds '}' ArgIds   { map (Arg Hidden Irrelevant) $3 ++ $5 }
-    | '.' '{' SpaceIds '}'          { map (Arg Hidden Irrelevant) $3 }
+    | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
+    | '{' MaybeDottedIds '}'          { map hide $2 }
+    | '.' '{' SpaceIds '}' ArgIds     { map (Arg Hidden Irrelevant) $3 ++ $5 }
+    | '.' '{' SpaceIds '}'            { map (Arg Hidden Irrelevant) $3 }
     | '.' '{{' SpaceIds '}}' ArgIds   { map (Arg ImplicitFromScope Irrelevant) $3 ++ $5 }
     | '.' '{{' SpaceIds '}}'          { map (Arg ImplicitFromScope Irrelevant) $3 }
+    | '..' '{' SpaceIds '}' ArgIds    { map (Arg Hidden NonStrict) $3 ++ $5 }
+    | '..' '{' SpaceIds '}'           { map (Arg Hidden NonStrict) $3 }
+    | '..' '{{' SpaceIds '}}' ArgIds  { map (Arg ImplicitFromScope NonStrict) $3 ++ $5 }
+    | '..' '{{' SpaceIds '}}'         { map (Arg ImplicitFromScope NonStrict) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -361,6 +367,7 @@ MaybeDottedBId :: { (Relevance, Name) }
 MaybeDottedBId
     : BId        { (Relevant  , $1) }
     | '.' BId    { (Irrelevant, $2) }
+    | '..' BId   { (NonStrict, $2) }
 
 
 
@@ -529,13 +536,17 @@ TypedBindingss
     | TypedBindings		   { [$1] }
 
 
--- A typed binding is either (x1 .. xn : A) or {y1 .. ym : B}
--- Andreas, 2011-04-07: or .(x1 .. xn : A) or .{y1 .. ym : B}
+-- A typed binding is either (x1 .. xn : A) or   {y1 .. ym : B}
+-- Andreas, 2011-04-07: or  .(x1 .. xn : A) or  .{y1 .. ym : B}
+-- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
     : '.' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         Irrelevant $3) }
     | '.' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            Irrelevant $3) }
     | '.' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Irrelevant $3) }
+    | '..' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         NonStrict $3) }
+    | '..' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            NonStrict $3) }
+    | '..' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope NonStrict $3) }
     | '(' TBind ')'        { TypedBindings (fuseRange $1 $3) (Arg NotHidden         Relevant $2) }
     | '{{' TBind '}}'      { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Relevant $2) }
     | '{' TBind '}'        { TypedBindings (fuseRange $1 $3) (Arg Hidden            Relevant $2) }
@@ -600,10 +611,13 @@ DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
     : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
+    | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
     | '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Relevant . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
     | '.' '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Irrelevant . mkBoundName_) $3 }
+    | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope NonStrict . mkBoundName_) $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports

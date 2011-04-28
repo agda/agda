@@ -24,22 +24,35 @@ data Hiding  = Hidden | ImplicitFromScope | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | A function argument can be relevant or irrelevant.
+--   See 'Agda.TypeChecking.Irrelevance'.
 data Relevance
   = Relevant    -- ^ the argument is (possibly) relevant at compile-time
+  | NonStrict   -- ^ the argument may never flow into evaluation position.
+                --   Therefore, it is irrelevant at run-time.
+                --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime
   | Forced      -- ^ the argument can be skipped during equality checking
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Typeable, Data, Show, Eq)
 
--- | For comparing @Relevance@ ignoring @Forced@.
-ignoreForced :: Relevance -> Relevance
-ignoreForced Forced     = Relevant
-ignoreForced Relevant   = Relevant
-ignoreForced Irrelevant = Irrelevant
+instance Ord Relevance where
+  (<=) = moreRelevant
 
--- | @Relevance@ from @Bool@.
-irrelevant :: Bool -> Relevance
-irrelevant True  = Irrelevant
-irrelevant False = Relevant
+-- | Information ordering.
+-- @Relevant `moreRelevant` Forced `moreRelevant` NonStrict `moreRelevant` Irrelevant@
+moreRelevant :: Relevance -> Relevance -> Bool
+moreRelevant r r' =
+  case (r, r') of
+    -- top
+    (_, Irrelevant) -> True
+    (Irrelevant, _) -> False
+    -- bottom
+    (Relevant, _)   -> True
+    (_, Relevant)   -> False
+    -- second bottom
+    (Forced, _)     -> True
+    (_, Forced)     -> False
+    -- remaining case
+    (NonStrict,NonStrict) -> True
 
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
@@ -65,25 +78,6 @@ defaultArg = Arg NotHidden Relevant
 
 isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg /= NotHidden
-
-makeIrrelevant :: Arg a -> Arg a
-makeIrrelevant a = a { argRelevance = Irrelevant }
-
-makeRelevant :: Arg a -> Arg a
-makeRelevant a = if argRelevance a == Irrelevant
-                  then a { argRelevance = Relevant }
-                  else a
-
--- | Compose two relevance flags.
---   This function is used to update the relevance information
---   on pattern variables @a@ after a match against something @rel@.
-applyRelevance :: Relevance -> Arg a -> Arg a
-applyRelevance Irrelevant a | argRelevance a == Relevant =
-  a { argRelevance = Irrelevant }
-applyRelevance Forced a | argRelevance a == Relevant =
-  a { argRelevance = Forced }
-applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
-                         -- already Forced or Irrelevant
 
 -- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
@@ -119,6 +113,7 @@ instance Show a => Show (Arg a) where
         showH NotHidden  s = "(" ++ s ++ ")"
         showH ImplicitFromScope  s = "{{" ++ s ++ "}}"
         showR Irrelevant s = "." ++ s
+        showR NonStrict  s = "?" ++ s
         showR Forced     s = "!" ++ s
         showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
 

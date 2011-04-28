@@ -40,6 +40,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.CompiledClause

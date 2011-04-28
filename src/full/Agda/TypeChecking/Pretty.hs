@@ -106,6 +106,7 @@ instance PrettyTCM A.Expr where
 
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."
+  prettyTCM NonStrict  = text ".."
   prettyTCM Relevant   = empty
   prettyTCM Forced     = empty
 
@@ -205,11 +206,6 @@ instance PrettyTCM PrettyContext where
               par NotHidden = P.parens
               par Hidden    = P.braces
               par ImplicitFromScope    = P.dbraces
-{-
-              rel Irrelevant x = P.text "." P.<> x
-              rel Relevant x   = x
-              rel Forced   x   = x
--}
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

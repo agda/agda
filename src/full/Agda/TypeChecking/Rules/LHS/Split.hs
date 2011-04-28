@@ -27,6 +27,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
+import Agda.TypeChecking.Irrelevance
 
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -86,7 +87,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (argRelevance a == Irrelevant) $
+          when (unusableRelevance $ argRelevance a) $
             typeError $ SplitOnIrrelevant p a
 	  b <- lift $ litType lit
 	  ok <- lift $ do
@@ -110,7 +111,8 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	    Def d vs	-> do
 	      def <- theDef <$> getConstInfo d
               unless (defIsRecord def) $
-                when (argRelevance a == Irrelevant) $
+                -- cannot split on irrelevant or non-strict things
+                when (unusableRelevance $ argRelevance a) $
                   typeError $ SplitOnIrrelevant p a
               let mp = case def of
                         Datatype{dataPars = np} -> Just np

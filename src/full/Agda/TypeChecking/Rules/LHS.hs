@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute hiding (Substitution)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive (constructorForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import Agda.TypeChecking.Telescope (renamingR, teleArgs)
@@ -438,10 +439,6 @@ checkLeftHandSide c ps a ret = do
 -}
 
             -- Andreas 2010-09-07  propagate relevance info to new vars
-            {- OLD CODE, does not account for forcing
-            gamma' <- return $ if rel == Irrelevant then
-                                fmap makeIrrelevant gamma'
-                               else gamma' -}
             gamma' <- return $ fmap (applyRelevance rel) gamma'
 {-
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
