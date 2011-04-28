@@ -2,6 +2,8 @@
 -- Primitive IO: simple bindings to Haskell types and functions
 ------------------------------------------------------------------------
 
+{-# OPTIONS --universe-polymorphism #-}
+
 module IO.Primitive where
 
 open import Data.String
@@ -12,19 +14,21 @@ open import Foreign.Haskell
 -- The IO monad
 
 postulate
-  IO : Set → Set
+  IO : ∀ {ℓ} → Set ℓ → Set ℓ
 
-{-# BUILTIN       IO IO #-}
-{-# COMPILED_TYPE IO IO #-}
+{-# IMPORT IO.FFI #-}
+{-# COMPILED_TYPE IO IO.FFI.AgdaIO #-}
+{-# BUILTIN IO IO #-}
 
 infixl 1 _>>=_
 
 postulate
-  return : ∀ {A} → A → IO A
-  _>>=_  : ∀ {A B} → IO A → (A → IO B) → IO B
+  return : ∀ {a} {A : Set a} → A → IO A
+  _>>=_  : ∀ {a b} {A : Set a} {B : Set b} → IO A → (A → IO B) → IO B
 
-{-# COMPILED return (\_ -> return :: a -> IO a) #-}
-{-# COMPILED _>>=_  (\_ _ -> (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILED return (\_ _ -> return :: a -> IO a) #-}
+{-# COMPILED _>>=_  (\_ _ _ _ ->
+                        (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 
 ------------------------------------------------------------------------
 -- Simple lazy IO

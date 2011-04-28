@@ -2,7 +2,7 @@
 -- IO
 ------------------------------------------------------------------------
 
-{-# OPTIONS --no-termination-check #-}
+{-# OPTIONS --universe-polymorphism --no-termination-check #-}
 
 module IO where
 
@@ -10,7 +10,9 @@ open import Coinduction
 open import Data.Unit
 open import Data.String
 open import Data.Colist
+open import Function
 import IO.Primitive as Prim
+open import Level
 
 ------------------------------------------------------------------------
 -- The IO monad
@@ -24,18 +26,18 @@ import IO.Primitive as Prim
 
 infixl 1 _>>=_ _>>_
 
-data IO : Set → Set₁ where
-  lift   : ∀ {A} (m : Prim.IO A) → IO A
-  return : ∀ {A} (x : A) → IO A
-  _>>=_  : ∀ {A B} (m : ∞ (IO A)) (f : (x : A) → ∞ (IO B)) → IO B
-  _>>_   : ∀ {A B} (m₁ : ∞ (IO A)) (m₂ : ∞ (IO B)) → IO B
+data IO {a} (A : Set a) : Set (suc a) where
+  lift   : (m : Prim.IO A) → IO A
+  return : (x : A) → IO A
+  _>>=_  : {B : Set a} (m : ∞ (IO B)) (f : (x : B) → ∞ (IO A)) → IO A
+  _>>_   : {B : Set a} (m₁ : ∞ (IO B)) (m₂ : ∞ (IO A)) → IO A
 
 -- The use of abstract ensures that the run function will not be
 -- unfolded infinitely by the type checker.
 
 abstract
 
-  run : ∀ {A} → IO A → Prim.IO A
+  run : ∀ {a} {A : Set a} → IO A → Prim.IO A
   run (lift m)   = m
   run (return x) = Prim.return x
   run (m  >>= f) = Prim._>>=_ (run (♭ m )) λ x → run (♭ (f x))
@@ -44,21 +46,27 @@ abstract
 ------------------------------------------------------------------------
 -- Utilities
 
--- Because IO A lives in Set₁ I hesitate to define sequence, which
--- would require defining a Set₁ variant of Colist.
+sequence : ∀ {a} {A : Set a} → Colist (IO A) → IO (Colist A)
+sequence []       = return []
+sequence (c ∷ cs) = ♯ c                  >>= λ x  →
+                    ♯ (♯ sequence (♭ cs) >>= λ xs →
+                    ♯ return (x ∷ ♯ xs))
 
-mapM : {A B : Set} → (A → IO B) → Colist A → IO (Colist B)
-mapM f []       = return []
-mapM f (x ∷ xs) = ♯ f x              >>= λ y  →
-                  ♯ (♯ mapM f (♭ xs) >>= λ ys →
-                  ♯ return (y ∷ ♯ ys))
+-- The reason for not defining sequence′ in terms of sequence is
+-- efficiency (the unused results could cause unnecessary memory use).
 
--- The reason for not defining mapM′ in terms of mapM is efficiency
--- (the unused results could cause unnecessary memory use).
+sequence′ : ∀ {a} {A : Set a} → Colist (IO A) → IO (Lift ⊤)
+sequence′ []       = return _
+sequence′ (c ∷ cs) = ♯ c                   >>
+                     ♯ (♯ sequence′ (♭ cs) >>
+                     ♯ return _)
 
-mapM′ : {A B : Set} → (A → IO B) → Colist A → IO ⊤
-mapM′ f []       = return _
-mapM′ f (x ∷ xs) = ♯ f x >> ♯ mapM′ f (♭ xs)
+mapM : ∀ {a b} {A : Set a} {B : Set b} →
+       (A → IO B) → Colist A → IO (Colist B)
+mapM f = sequence ∘ map f
+
+mapM′ : {A B : Set} → (A → IO B) → Colist A → IO (Lift ⊤)
+mapM′ f = sequence′ ∘ map f
 
 ------------------------------------------------------------------------
 -- Simple lazy IO
