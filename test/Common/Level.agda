@@ -12,6 +12,9 @@ data Level : Set where
 {-# BUILTIN LEVELZERO zero  #-}
 {-# BUILTIN LEVELSUC  suc   #-}
 
+{-# IMPORT Common.FFI #-}
+{-# COMPILED_DATA Level Common.FFI.Level Common.FFI.Zero Common.FFI.Suc #-}
+
 infixl 6 _⊔_
 
 _⊔_ : Level -> Level -> Level

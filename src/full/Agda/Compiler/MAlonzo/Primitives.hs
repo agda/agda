@@ -24,7 +24,7 @@ checkTypeOfMain :: QName -> Type -> TCM ()
 checkTypeOfMain q ty
   | show (qnameName q) /= "main" = return ()
   | otherwise = do
-    Def io [] <- primIO
+    Def io _ <- primIO
     ty <- normalise ty
     case unEl ty of
       Def d _ | d == io -> return ()
