@@ -240,6 +240,8 @@ reduceCon c = do
 -- If it succeeds, it continues @k@ with the returned results.  If it fails,
 -- it registers a postponed typechecking problem and returns the resulting new
 -- meta variable.
+--
+-- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
   (Args -> Type -> Constraints -> TCM Term) -> TCM Term
@@ -247,7 +249,11 @@ checkArguments' exph r args t0 t e k = do
   z <- runErrorT $ checkArguments exph r args t0 t
   case z of
     Right (vs, t1, cs) -> k vs t1 cs
+      -- vs = evaluated args
+      -- t1 = remaining type (needs to be subtype of t)
+      -- cs = new constraints
     Left t0            -> postponeTypeCheckingProblem e t (unblockedTester t0)
+      -- if unsuccessful, postpone checking e : t until t0 unblocks
 
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
@@ -383,11 +389,15 @@ checkExpr e t =
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
-	A.App i e arg -> do
-	    (v0, t0)	 <- inferExpr e
+        -- application is handled in spine fashion (see above, appView)
+	A.App i f arg -> __IMPOSSIBLE__
+
+{- Andreas, 2011-04-28 DEAD CASE, never used, must be stale code
+	A.App i f arg -> do
+	    (v0, t0)	 <- inferExpr f
 	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
 	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType_ t1 t
-
+-}
         A.AbsurdLam i h -> do
           t <- reduceB =<< instantiateFull t
           case t of
@@ -880,8 +890,10 @@ traceCallE call m = do
 
 -- | Check a list of arguments: @checkArgs args t0 t1@ checks that
 --   @t0 = Delta -> t0'@ and @args : Delta@. Inserts hidden arguments to
---   make this happen. Returns @t0'@ and any constraints that have to be
---   solved for everything to be well-formed.
+--   make this happen.  Returns the evaluated arguments @vs@, the remaining
+--   type @t0'@ (which should be a subtype of @t1@) and any constraints @cs@
+--   that have to be solved for everything to be well-formed.
+--
 --   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type, Constraints)

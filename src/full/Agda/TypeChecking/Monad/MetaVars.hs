@@ -114,6 +114,8 @@ judgementInteractionId ii =
 newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> tcm MetaId
 newMeta = newMeta' Open
 
+-- | Generate a new meta variable with some instantiation given.
+--   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
 newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
             Judgement Type a -> tcm MetaId
 newMeta' inst mi p perm j = do

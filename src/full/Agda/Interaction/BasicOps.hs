@@ -300,7 +300,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
     show (Guard o os)           = show o ++ "  if  " ++ show os
     show (Assign m e)           = show m ++ " := " ++ show e
-    show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " : " ++ show a
+    show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
     show (FindInScopeOF s)      = "Find in Scope: " ++ show s
 

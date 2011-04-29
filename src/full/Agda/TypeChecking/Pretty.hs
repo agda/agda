@@ -161,7 +161,7 @@ instance PrettyTCM Constraint where
                     ]
               PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, a, _) ->
                 sep [ text (show m) <+> text ":="
-                    , nest 2 $ sep [ prettyA e <+> text ":"
+                    , nest 2 $ sep [ prettyA e <+> text ":?"
                                    , prettyTCM a
                                    ]
                     ]

@@ -270,7 +270,9 @@ blockTerm t v m = do
 	    addConstraints c
 	    return $ MetaV x vs
 
--- | Auxiliary function to create a postponed type checking problem.
+-- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
+--
+--   Auxiliary function to create a postponed type checking problem.
 unblockedTester :: MonadTCM tcm => Type -> tcm Bool
 unblockedTester t = do
   t <- reduceB $ unEl t
@@ -279,10 +281,16 @@ unblockedTester t = do
     NotBlocked MetaV{} -> return False
     _                  -> return True
 
+-- | Create a postponed type checking problem @e : t@ that waits for type @t@
+--   to unblock (become instantiated or its constraints resolved).
 postponeTypeCheckingProblem_ :: MonadTCM tcm => A.Expr -> Type -> tcm Term
 postponeTypeCheckingProblem_ e t = do
   postponeTypeCheckingProblem e t (unblockedTester t)
 
+-- | Create a postponed type checking problem @e : t@ that waits for conditon
+--   @unblock@.  A new meta is created in the current context that has as
+--   instantiation the postponed type checking problem.  An 'UnBlock' constraint
+--   is added for this meta, which links to this meta.
 postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> TCM Bool -> tcm Term
 postponeTypeCheckingProblem e t unblock = do
   i   <- createMetaInfo
