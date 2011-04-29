@@ -40,13 +40,12 @@ primEqBool false = not
 
 record Eq (A : Set) : Set where
   field eq : A → A → Bool
-module WithImplicits' {A} {{eqA : Eq A}} = Eq eqA using (eq)
 
 
 eqBool : Eq Bool
 eqBool = record { eq = primEqBool }
 
-open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+open Eq {{...}}
 
 neq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
 neq a b = not $ eq a b

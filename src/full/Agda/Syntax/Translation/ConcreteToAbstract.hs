@@ -164,14 +164,39 @@ recordConstructorType fields = build fs
     build (d : fs)                     = C.Let noRange (notSoNiceDeclarations [d]) $ build fs
     build []                           = C.SetN noRange 0 -- todo: nicer
 
-checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
-    notPublicWithoutOpen open dir
+checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
+  withCurrentModule m0 $ do
+    (m, args) <- case appView e of
+      AppView (Ident m) args -> return (m, args)
+      _                      -> notAModuleExpr e
 
     tel' <- toAbstract tel
-    (m0,m1,args') <- toAbstract ( NewModuleName x
-                                , OldModuleName m
-                                , args
-                                )
+    (m1,args') <- toAbstract (OldModuleName m
+                             , args
+                             )
+    s  <- getNamedScope m1
+    (s', (renM, renD)) <- copyScope m0 =<< getNamedScope m1
+    s' <- applyImportDirectiveM (C.QName x) dir' s'
+    modifyCurrentScope $ const s'
+    printScope "mod.inst" 20 "copied source module"
+    reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
+    return ((A.SectionApp tel' m1 args'), renD, renM)
+checkModuleApplication (C.RecordModuleIFS _ rec) m0 x dir' =
+  withCurrentModule m0 $ do
+    m1 <- toAbstract $ OldModuleName rec
+    s <- getNamedScope m1
+    (s', (renM, renD)) <- copyScope m0 s
+    s' <- applyImportDirectiveM rec dir' s'
+    modifyCurrentScope $ const s'
+
+    printScope "mod.inst" 20 "copied record module"
+    return ((A.RecordModuleIFS m1), renD, renM)
+
+checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
+    notPublicWithoutOpen open dir
+
+    m0 <- toAbstract (NewModuleName x)
+
     printScope "mod.inst" 20 "module macro"
 
     -- If we're opening, the import directive is applied to the open,
@@ -180,14 +205,7 @@ checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
                 DontOpen  -> dir
                 DoOpen    -> defaultImportDir
 
-    (renD, renM) <- withCurrentModule m0 $ do
-      s  <- getNamedScope m1
-      (s', (renM, renD)) <- copyScope m0 =<< getNamedScope m1
-      s' <- applyImportDirectiveM (C.QName x) dir' s'
-      modifyCurrentScope $ const s'
-      printScope "mod.inst" 20 "copied source module"
-      reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
-      return (renD, renM)
+    (modapp', renD, renM) <- checkModuleApplication modapp m0 x dir'
     bindModule p x m0
     printScope "mod.inst.copy.after" 20 "after copying"
     case open of
@@ -196,7 +214,7 @@ checkModuleMacro apply r p x tel m args open dir = withLocalVars $ do
     printScope "mod.inst" 20 $ show open
     stripNoNames
     printScope "mod.inst" 10 $ "after stripping"
-    return [ apply info (m0 `withRangesOf` [x]) tel' m1 args' renD renM ]
+    return [ apply info (m0 `withRangesOf` [x]) modapp' renD renM ]
   where
     info = ModuleInfo
              { minfoRange  = r
@@ -666,9 +684,8 @@ instance ToAbstract LetDef [A.LetBinding] where
                                 m
                      ]
 
-            NiceModuleMacro r p a x tel e open dir | not (C.publicOpen dir) -> case appView e of
-              AppView (Ident m) args -> checkModuleMacro LetApply r p x tel m args open dir
-              _                      -> notAModuleExpr e
+            NiceModuleMacro r p a x modapp open dir | not (C.publicOpen dir) ->
+              checkModuleMacro LetApply r p x modapp open dir
 
             _   -> notAValidLetBinding d
         where
@@ -806,9 +823,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
 
-    NiceModuleMacro r p a x tel e open dir -> case appView e of
-      AppView (Ident m) args -> checkModuleMacro Apply r p x tel m args open dir
-      _                      -> notAModuleExpr e
+    NiceModuleMacro r p a x modapp open dir ->
+      checkModuleMacro Apply r p x modapp open dir
 
     NiceOpen r x dir -> do
       m <- toAbstract (OldModuleName x)

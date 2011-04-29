@@ -18,6 +18,7 @@ module Agda.Syntax.Concrete
     , Telescope -- (..)
       -- * Declarations
     , Declaration(..)
+    , ModuleApplication(..)
     , TypeSignature
     , Constructor
     , Field
@@ -229,9 +230,13 @@ data Declaration
 	| Primitive   !Range [TypeSignature]
 	| Open        !Range QName ImportDirective
 	| Import      !Range QName (Maybe AsName) OpenShortHand ImportDirective
-	| ModuleMacro !Range  Name [TypedBindings] Expr OpenShortHand ImportDirective
+	| ModuleMacro !Range  Name ModuleApplication OpenShortHand ImportDirective
 	| Module      !Range QName [TypedBindings] [Declaration]
 	| Pragma      Pragma
+    deriving (Typeable, Data)
+
+data ModuleApplication = SectionApp Range [TypedBindings] Expr
+                       | RecordModuleIFS Range QName
     deriving (Typeable, Data)
 
 data OpenShortHand = DoOpen | DontOpen
@@ -343,6 +348,10 @@ instance HasRange WhereClause where
   getRange (AnyWhere ds)    = getRange ds
   getRange (SomeWhere _ ds) = getRange ds
 
+instance HasRange ModuleApplication where
+  getRange (SectionApp r _ _) = r
+  getRange (RecordModuleIFS r _) = r
+
 instance HasRange Declaration where
     getRange (TypeSig _ x t)	       = fuseRange x t
     getRange (Field x t)               = fuseRange x t
@@ -352,7 +361,7 @@ instance HasRange Declaration where
     getRange (Mutual r _)	       = r
     getRange (Abstract r _)	       = r
     getRange (Open r _ _)	       = r
-    getRange (ModuleMacro r _ _ _ _ _) = r
+    getRange (ModuleMacro r _ _ _ _)   = r
     getRange (Import r _ _ _ _)	       = r
     getRange (Private r _)	       = r
     getRange (Postulate r _)	       = r

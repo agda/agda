@@ -878,22 +878,38 @@ Open : 'open' ModuleName OpenArgs ImportDirective {
     } in
     case es of
     { []  -> Open r m dir
-    ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2) []
-                           (RawApp (fuseRange m es) (Ident m : es)) DoOpen dir
+	; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
+			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+			     DoOpen dir
                        ]
     }
+  }
+  | 'open' ModuleName '{{' '...' '}}' ImportDirective {
+    let r = getRange ($1, $2, $3, $4) in
+    Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
+    	      	(RecordModuleIFS r $2) DoOpen $6
+        ]
   }
 
 OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }
          | Expr3 OpenArgs { $1 : $2 }
 
+ModuleApplication :: { [TypedBindings] -> Parser ModuleApplication }
+ModuleApplication : ModuleName '{{' '...' '}}' { (\ts ->
+		    if null ts then return $ RecordModuleIFS (getRange ($1, $4)) $1
+		    else parseError "No bindings allowed for record module with non-canonical implicits" )
+		    }
+		  | ModuleName OpenArgs {
+		    (\ts -> return $ SectionApp (getRange ($1, $2)) ts (RawApp (fuseRange $1 $2) (Ident $1 : $2)) ) }
+
+
 -- Module instantiation
 ModuleMacro :: { Declaration }
-ModuleMacro : 'module' Id TypedUntypedBindings '=' Expr ImportDirective
-		    { ModuleMacro (getRange ($1, $5, $6)) $2 (map addType $3) $5 DontOpen $6 }
-	    | 'open' 'module' Id TypedUntypedBindings '=' Expr ImportDirective
-		    { ModuleMacro (getRange ($1, $6, $7)) $3 (map addType $4) $6 DoOpen $7 }
+ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
+		    {% do {ma <- $5 (map addType $3); return $ ModuleMacro (getRange ($1, ma, $6)) $2 ma DontOpen $6 } }
+	    | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
+		    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, ma, $7)) $3 ma DoOpen $7 } }
 
 -- Import
 Import :: { Declaration }

@@ -14,7 +14,7 @@ record Eq (A : Set) : Set where
 length : String → ℕ
 length = List.length ∘ toList
 
-open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+open Eq {{...}}
 
 eqℕ : Eq ℕ
 eqℕ = record { eq = λ x x' → ⌊ x ℕ≟ x' ⌋ } 

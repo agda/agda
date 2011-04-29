@@ -633,9 +633,9 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when termination checking the definition of" ++ [prettyTCM f]
 	SetRange r _ ->
 	    fsep $ pwords "when doing something at" ++ [text $ show r]
-        CheckSectionApplication _ m1 ptel m2 args _ -> fsep $
+        CheckSectionApplication _ m1 modapp _ -> fsep $
           pwords "when checking the module application" ++
-          [prettyA $ A.Apply info m1 ptel m2 args Map.empty Map.empty]
+          [prettyA $ A.Apply info m1 modapp Map.empty Map.empty]
           where
             info = A.ModuleInfo noRange noRange Nothing Nothing Nothing
 
@@ -667,7 +667,7 @@ instance PrettyTCM Call where
 		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig Relevant x e]
 		D.NiceDef r ds _ _		       -> C.Mutual r ds
 		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []
-		D.NiceModuleMacro r _ _ x tel e op dir -> C.ModuleMacro r x tel e op dir
+		D.NiceModuleMacro r _ _ x ma op dir    -> C.ModuleMacro r x ma op dir
 		D.NiceOpen r x dir		       -> C.Open r x dir
 		D.NiceImport r x as op dir	       -> C.Import r x as op dir
 		D.NicePragma _ p		       -> C.Pragma p

@@ -427,18 +427,15 @@ instance ToConcrete LetBinding [C.Declaration] where
                 , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                               e C.NoWhere
                 ]
-    bindToConcrete (LetApply i x tel y es _ _) ret = do
+    bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
-      y' <- toConcrete y
-      bindToConcrete tel $ \tel -> do
-      es' <- toConcrete es
-      let r = fuseRange y' es'
+      modapp <- toConcrete modapp
+      let r = getRange modapp
           open = maybe DontOpen id $ minfoOpenShort i
           dir  = maybe (ImportDirective r (Hiding []) [] False) id $ minfoDirective i
       -- This is no use since toAbstract LetDefs is in localToAbstract.
       local (openModule' x dir id) $
-        ret [ C.ModuleMacro (getRange i) x' tel
-                  (foldl (C.App r) (C.Ident y') es') open dir ]
+        ret [ C.ModuleMacro (getRange i) x' modapp open dir ]
     bindToConcrete (LetOpen i x) ret = do
       x' <- toConcrete x
       let dir = maybe defaultImportDir id $ minfoDirective i
@@ -561,6 +558,17 @@ instance ToConcrete A.Clause [C.Declaration] where
           -- no code for it, but GHC 7's completeness checker spotted
           -- that the case was not covered.
 
+instance ToConcrete A.ModuleApplication C.ModuleApplication where
+  toConcrete (A.SectionApp tel y es) = do
+    y  <- toConcrete y
+    bindToConcrete tel $ \tel -> do
+    es <- toConcrete es
+    let r = fuseRange y es
+    return $ C.SectionApp r tel (foldl (C.App r) (C.Ident y) es)
+  toConcrete (A.RecordModuleIFS rec) = do
+    rec <- toConcrete rec
+    return $ C.RecordModuleIFS (getRange rec) rec
+
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
     withScope scope $ toConcrete ds
@@ -608,18 +616,13 @@ instance ToConcrete A.Declaration [C.Declaration] where
     ds <- toConcrete ds
     return [ C.Module (getRange i) x tel ds ]
 
-  toConcrete (A.Apply i x tel y es _ _) = do
+  toConcrete (A.Apply i x modapp _ _) = do
     x  <- unsafeQNameToName <$> toConcrete x
-    y  <- toConcrete y
-    bindToConcrete tel $ \tel -> do
-    es <- toConcrete es
-    let r = fuseRange y es
+    modapp <- toConcrete modapp
+    let r = getRange modapp
         open = maybe DontOpen id $ minfoOpenShort i
         dir  = maybe (ImportDirective r (Hiding []) [] False) id $ minfoDirective i
-    return [ C.ModuleMacro (getRange i) x tel
-                (foldl (C.App r) (C.Ident y) es) open
-                                                 dir
-           ]
+    return [ C.ModuleMacro (getRange i) x modapp open dir ]
 
   toConcrete (A.Import i x) = do
     x <- toConcrete x

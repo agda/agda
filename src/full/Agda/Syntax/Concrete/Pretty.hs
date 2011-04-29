@@ -283,14 +283,18 @@ instance Pretty Declaration where
 		     , fcat (map pretty tel)
 		     , text "where"
 		     ] $$ nest 2 (vcat $ map pretty ds)
-	    ModuleMacro _ x [] e DoOpen i | isNoName x ->
+	    ModuleMacro _ x (SectionApp _ [] e) DoOpen i | isNoName x ->
 		sep [ pretty DoOpen
                     , nest 2 $ pretty e
                     , nest 4 $ pretty i
                     ]
-	    ModuleMacro _ x tel e open i ->
+	    ModuleMacro _ x (SectionApp _ tel e) open i ->
 		sep [ pretty open <+> text "module" <+> pretty x <+> fcat (map pretty tel)
 		    , nest 2 $ text "=" <+> pretty e <+> pretty i
+		    ]
+	    ModuleMacro _ x (RecordModuleIFS _ rec) open i ->
+		sep [ pretty open <+> text "module" <+> pretty x
+		    , nest 2 $ text "=" <+> pretty rec <+> text "{{...}}"
 		    ]
 	    Open _ x i	-> hsep [ text "open", pretty x, pretty i ]
 	    Import _ x rn open i   ->

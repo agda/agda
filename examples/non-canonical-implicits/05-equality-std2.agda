@@ -9,7 +9,7 @@ module 05-equality-std2 where
 open import Relation.Binary 
 open import Data.Bool hiding (_≟_)
 
-open DecSetoidWithImplicits
+open DecSetoid {{...}}
 
 test = isDecEquivalence
 test2 = false ≟ false

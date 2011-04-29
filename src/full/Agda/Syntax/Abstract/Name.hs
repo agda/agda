@@ -123,6 +123,9 @@ qnameFromList xs = QName (mnameFromList $ init xs) (last xs)
 qnameToMName :: QName -> ModuleName
 qnameToMName = mnameFromList . qnameToList
 
+mnameToQName :: ModuleName -> QName
+mnameToQName = qnameFromList . mnameToList
+
 showQNameId :: QName -> String
 showQNameId q = show ns ++ "@" ++ show m
   where

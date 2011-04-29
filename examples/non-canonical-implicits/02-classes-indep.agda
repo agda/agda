@@ -45,18 +45,16 @@ aBool = record { zeroT = false; plusT = or }
 test : Bool
 test = testMonoid false
 
-module MonoidWithImplicits {t : Set} {{monT : Monoid t}} = Monoid monT
+open Monoid {{...}}
 
 test2 : {t : Set} → {{tM : Monoid t}} → t
-test2 = MonoidWithImplicits.zeroT 
-
-open MonoidWithImplicits
+test2 = zeroT 
 
 test3 : T
 test3 = zeroT 
 
 test4 : Bool
-test4 = MonoidWithImplicits.zeroT 
+test4 = zeroT 
 
 ⋯ : {A : Set} → {{v : A}} → A
 ⋯ {{v}} = v

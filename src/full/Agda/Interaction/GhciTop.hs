@@ -823,9 +823,13 @@ instance LowerMeta SC.Declaration where
       SC.Open _ _ _                 -> d
       SC.Import _ _ _ _ _           -> d
       SC.Pragma _                   -> d
-      ModuleMacro r n tel e1 op dir -> ModuleMacro r n
-                                         (lowerMeta tel) (lowerMeta e1) op dir
+      ModuleMacro r n modapp op dir -> ModuleMacro r n
+                                         (lowerMeta modapp) op dir
       SC.Module r qn tel ds         -> SC.Module r qn (lowerMeta tel) (lowerMeta ds)
+
+instance LowerMeta SC.ModuleApplication where
+  lowerMeta (SC.SectionApp r tel e) = SC.SectionApp r (lowerMeta tel) (lowerMeta e)
+  lowerMeta (SC.RecordModuleIFS r rec) = SC.RecordModuleIFS r rec
 
 instance LowerMeta SC.WhereClause where
   lowerMeta SC.NoWhere		= SC.NoWhere

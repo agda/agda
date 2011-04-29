@@ -41,7 +41,7 @@ primEqBool false = not
 eqBool : Eq Bool
 eqBool = record { eq = primEqBool }
 
-open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+open Eq {{...}}
 
 test = eq (true ∷ false ∷ true ∷ []) (true ∷ false ∷ [])
   where listBoolEq = listEq eqBool

@@ -56,7 +56,7 @@ checkDecl d = do
 	A.Primitive i x e	     -> checkPrimitive i x e
 	A.Definition i ts ds	     -> checkMutual i ts ds
 	A.Section i x tel ds	     -> checkSection i x tel ds
-	A.Apply i x tel m args rd rm -> checkSectionApplication i x tel m args rd rm
+	A.Apply i x modapp rd rm     -> checkSectionApplication i x modapp rd rm
 	A.Import i x		     -> checkImport i x
 	A.Pragma i p		     -> checkPragma i p
 	A.ScopedDecl scope ds	     -> setScope scope >> checkDecls ds
@@ -254,10 +254,16 @@ checkModuleArity m tel args = check tel args
 
 -- | Check an application of a section.
 checkSectionApplication ::
-  Info.ModuleInfo -> ModuleName -> A.Telescope -> ModuleName -> [NamedArg A.Expr] ->
+  Info.ModuleInfo -> ModuleName -> A.ModuleApplication ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
-checkSectionApplication i m1 ptel m2 args rd rm =
-  traceCall (CheckSectionApplication (getRange i) m1 ptel m2 args) $
+checkSectionApplication i m1 modapp rd rm =
+  traceCall (CheckSectionApplication (getRange i) m1 modapp) $
+  checkSectionApplication' i m1 modapp rd rm
+
+checkSectionApplication' ::
+  Info.ModuleInfo -> ModuleName -> A.ModuleApplication ->
+  Map QName QName -> Map ModuleName ModuleName -> TCM ()
+checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   checkTelescope_ ptel $ \ptel -> do
   tel <- lookupSection m2
   vs  <- freeVarsToApply $ qnameFromList $ mnameToList m2
@@ -282,6 +288,27 @@ checkSectionApplication i m1 ptel m2 args rd rm =
     ]
   args <- instantiateFull $ vs ++ ts
   applySection m1 ptel m2 args rd rm
+checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
+  let name = mnameToQName x
+  def <- getConstInfo name
+  let t = defType def
+      (TelV tel st) = telView' t
+      (El _ (Sort s)) = st
+      htel = map hide $ telToList tel
+      rect = El s $ Def name $ reverse
+              [ Arg h r (Var i [])
+              | (i, Arg h r _) <- zip [0..] $ reverse $ telToList tel
+              ]
+      telh' h	 = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
+      telIFS	 = telh' ImplicitFromScope
+
+  addCtxTel telIFS $ do
+    allArgs <- getContextArgs
+    let argsIFS = reverse $ take (size telIFS) (reverse allArgs)
+        unhide :: Arg a -> Arg a
+        unhide a = a { argHiding = NotHidden }
+        args = init argsIFS ++ [unhide $ last argsIFS]
+    applySection m1 telIFS x args rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

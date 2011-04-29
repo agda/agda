@@ -62,12 +62,16 @@ data Declaration
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
 	| Definition DeclInfo [TypeSignature] [Definition] -- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
-	| Apply	     ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
+	| Apply	     ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
+  deriving (Typeable, Data, Show)
+
+data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
+                       | RecordModuleIFS ModuleName
   deriving (Typeable, Data, Show)
 
 data Pragma = OptionsPragma [String]
@@ -80,7 +84,7 @@ data Pragma = OptionsPragma [String]
   deriving (Typeable, Data, Show)
 
 data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
-                | LetApply ModuleInfo ModuleName [TypedBindings] ModuleName [NamedArg Expr] (Map QName QName) (Map ModuleName ModuleName)
+                | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Data, Show)
 
@@ -237,7 +241,7 @@ instance HasRange Declaration where
     getRange (Field      i _ _         ) = getRange i
     getRange (Definition i _ _	       ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
-    getRange (Apply	 i _ _ _ _ _ _ ) = getRange i
+    getRange (Apply	 i _ _ _ _     ) = getRange i
     getRange (Import     i _	       ) = getRange i
     getRange (Primitive  i _ _	       ) = getRange i
     getRange (Pragma	 i _	       ) = getRange i
@@ -275,7 +279,7 @@ instance HasRange RHS where
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
-    getRange (LetApply i _ _ _ _ _ _ ) = getRange i
+    getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
 
 instance KillRange LamBinding where
@@ -321,13 +325,17 @@ instance KillRange Declaration where
   killRange (Field      i a b         ) = killRange3 Field      i a b
   killRange (Definition i a b         ) = killRange3 Definition i a b
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
-  killRange (Apply      i a b c d e f ) = killRange5 Apply      i a b c d e f
+  killRange (Apply      i a b c d     ) = killRange3 Apply      i a b c d
    -- the last two arguments of Apply are name maps, so nothing to kill
   killRange (Import     i a           ) = killRange2 Import     i a
   killRange (Primitive  i a b         ) = killRange3 Primitive  i a b
   killRange (Pragma     i a           ) = Pragma (killRange i) a
   killRange (Open       i x           ) = killRange2 Open       i x
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
+
+instance KillRange ModuleApplication where
+  killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
+  killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
 
 instance KillRange Definition where
   killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
@@ -360,7 +368,7 @@ instance KillRange RHS where
 
 instance KillRange LetBinding where
   killRange (LetBind  i rel a b c   ) = killRange5 LetBind  i rel a b c
-  killRange (LetApply i a b c d e f ) = killRange5 LetApply i a b c d e f
+  killRange (LetApply i a b c d     ) = killRange3 LetApply i a b c d
   killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
 
 ------------------------------------------------------------------------

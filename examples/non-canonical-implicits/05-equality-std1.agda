@@ -9,7 +9,7 @@ open import Relation.Binary using (IsDecEquivalence; module IsDecEquivalence; Re
 open import Data.Bool using (false; true; decSetoid)
 open DecSetoid decSetoid using (isDecEquivalence)
 
-open module IsDecEquivalenceWithImplicits {a ℓ} {A : Set a} {_≈_ : A → A → Set ℓ} {{ide : IsDecEquivalence _≈_}} = IsDecEquivalence ide
+open module IsDecEquivalenceWithImplicits = IsDecEquivalence {{...}} using (_≟_)
 
 test = false ≟ true
 

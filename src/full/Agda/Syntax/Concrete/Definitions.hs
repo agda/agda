@@ -50,7 +50,7 @@ data NiceDeclaration
 	    --   The last two lists have the same length. The first list is the
 	    --   concrete declarations these definitions came from.
 	| NiceModule Range Access IsAbstract QName Telescope [Declaration]
-	| NiceModuleMacro Range Access IsAbstract Name Telescope Expr OpenShortHand ImportDirective
+	| NiceModuleMacro Range Access IsAbstract Name ModuleApplication OpenShortHand ImportDirective
 	| NiceOpen Range QName ImportDirective
 	| NiceImport Range QName (Maybe AsName) OpenShortHand ImportDirective
 	| NicePragma Range Pragma
@@ -103,7 +103,7 @@ instance HasRange NiceDeclaration where
     getRange (NiceField r _ _ _ _ _)	       = r
     getRange (NiceDef r _ _ _)		       = r
     getRange (NiceModule r _ _ _ _ _)	       = r
-    getRange (NiceModuleMacro r _ _ _ _ _ _ _) = r
+    getRange (NiceModuleMacro r _ _ _ _ _ _)   = r
     getRange (NiceOpen r _ _)		       = r
     getRange (NiceImport r _ _ _ _)	       = r
     getRange (NicePragma r _)		       = r
@@ -251,8 +251,8 @@ niceDeclarations ds = do
 			    Module r x tel ds	-> return
 				[ NiceModule r PublicAccess ConcreteDef x tel ds ]
 
-			    ModuleMacro r x tel e op is -> return
-				[ NiceModuleMacro r PublicAccess ConcreteDef x tel e op is ]
+			    ModuleMacro r x modapp op is -> return
+				[ NiceModuleMacro r PublicAccess ConcreteDef x modapp op is ]
 
 			    Infix _ _		-> return []
 			    Syntax _ _		-> return []
@@ -407,7 +407,7 @@ niceDeclarations ds = do
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkAbstract ts)
 								 (map mkAbstractDef ds)
 		NiceModule r a _ x tel ds	    -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
-		NiceModuleMacro r a _ x tel e op is -> NiceModuleMacro r a AbstractDef x tel e op is
+		NiceModuleMacro r a _ x ma op is    -> NiceModuleMacro r a AbstractDef x ma op is
 		NicePragma _ _			    -> d
 		NiceOpen _ _ _			    -> d
 		NiceImport _ _ _ _ _		    -> d
@@ -434,7 +434,7 @@ niceDeclarations ds = do
 		NiceDef r cs ts ds		    -> NiceDef r cs (map mkPrivate ts)
 								    (map mkPrivateDef ds)
 		NiceModule r _ a x tel ds	    -> NiceModule r PrivateAccess a x tel ds
-		NiceModuleMacro r _ a x tel e op is -> NiceModuleMacro r PrivateAccess a x tel e op is
+		NiceModuleMacro r _ a x ma op is    -> NiceModuleMacro r PrivateAccess a x ma op is
 		NicePragma _ _			    -> d
 		NiceOpen _ _ _			    -> d
 		NiceImport _ _ _ _ _		    -> d
@@ -491,7 +491,7 @@ notSoNiceDeclarations = concatMap notNice
     notNice (PrimitiveFunction r _ _ _ x e)       = [Primitive r [TypeSig Relevant x e]]
     notNice (NiceDef _ ds _ _)                    = ds
     notNice (NiceModule r _ _ x tel ds)           = [Module r x tel ds]
-    notNice (NiceModuleMacro r _ _ x tel e o dir) = [ModuleMacro r x tel e o dir]
+    notNice (NiceModuleMacro r _ _ x ma o dir)    = [ModuleMacro r x ma o dir]
     notNice (NiceOpen r x dir)                    = [Open r x dir]
     notNice (NiceImport r x as o dir)             = [Import r x as o dir]
     notNice (NicePragma _ p)                      = [Pragma p]
