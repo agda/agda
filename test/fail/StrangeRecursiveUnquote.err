@@ -1,0 +1,4 @@
+StrangeRecursiveUnquote.agda:12,13-26
+Unable to unquote the term (f n) of type Term. Reason: not a
+constructor.
+when checking that the expression unquote (f n) has type Term

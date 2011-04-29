@@ -13,6 +13,15 @@ data Nat : Set where
 {-# BUILTIN SUC     suc  #-}
 {-# BUILTIN ZERO    zero #-}
 
+_+_ : Nat → Nat → Nat
+zero  + n = n
+suc m + n = suc (m + n)
+
+_∸_ : Nat → Nat → Nat
+m     ∸ zero  = m
+zero  ∸ _     = zero
+suc m ∸ suc n = m ∸ n
+
 data List A : Set where
   [] : List A
   _∷_ : A → List A → List A

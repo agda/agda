@@ -25,6 +25,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
+import Agda.Syntax.Translation.InternalToAbstract (reify)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -385,7 +386,10 @@ checkExpr e t =
           ty <- qNameType
           blockTerm t (quoteName x) $ leqType_ ty t
 
-	  | A.Unquote _ <- unScope q -> __IMPOSSIBLE__ -- not supported yet
+	  | A.Unquote _ <- unScope q ->
+	     do e1 <- checkExpr (namedThing e) =<< el primAgdaTerm
+	        e2 <- unquote e1
+                checkTerm e2 t
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
@@ -988,6 +992,10 @@ inferExpr e = do
     t <- workOnTypes $ newTypeMeta_
     v <- checkExpr e t
     return (v,t)
+
+checkTerm :: Term -> Type -> TCM Term
+checkTerm tm ty = do atm <- reify tm
+                     checkExpr atm ty
 
 ---------------------------------------------------------------------------
 -- * Let bindings

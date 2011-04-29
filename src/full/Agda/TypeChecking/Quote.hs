@@ -10,6 +10,7 @@ import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 
@@ -97,3 +98,148 @@ agdaTermType = El (mkType 0) <$> primAgdaTerm
 
 qNameType :: MonadTCM tcm => tcm Type
 qNameType = El (mkType 0) <$> primQName
+
+isCon :: QName -> TCM Term -> TCM Bool
+isCon con tm = do t <- tm
+                  case t of
+                    Con con' _ -> return (con == con')
+                    _ -> return False
+
+unquoteFailedGeneric :: String -> TCM a
+unquoteFailedGeneric msg = typeError . GenericError $ "Unable to unquote the " ++ msg
+
+unquoteFailed :: String -> String -> Term -> TCM a
+unquoteFailed kind msg t = do doc <- prettyTCM t
+                              unquoteFailedGeneric $ "term (" ++ show doc ++ ") of type " ++ kind ++ ".\nReason: " ++ msg ++ "."
+
+class Unquote a where
+  unquote :: Term -> TCM a
+
+unquoteH :: Unquote a => Arg Term -> TCM a
+unquoteH (Arg Hidden Relevant x) = unquote x
+unquoteH _                       = unquoteFailedGeneric "argument. It should be `hidden'."
+
+unquoteN :: Unquote a => Arg Term -> TCM a
+unquoteN (Arg NotHidden Relevant x) = unquote x
+unquoteN _                          = unquoteFailedGeneric "argument. It should be `visible'"
+
+choice :: Monad m => [(m Bool, m a)] -> m a -> m a
+choice [] dflt = dflt
+choice ((mb, mx) : mxs) dflt = do b <- mb
+                                  if b then mx else choice mxs dflt
+
+instance Unquote a => Unquote (Arg a) where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [hid,rel,x] -> do
+        choice
+          [(c `isCon` primArgArg, Arg <$> unquoteN hid <*> unquoteN rel <*> unquoteN x)]
+          (unquoteFailed "Arg" "arity 3 and not the `arg' constructor" t)
+      _ -> unquoteFailed "Arg" "not of arity 3" t
+
+instance Unquote Integer where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Lit (LitInt _ n) -> return n
+      _ -> unquoteFailed "Integer" "not a literal integer" t
+
+instance Unquote a => Unquote [a] where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [x,xs] -> do
+        choice
+          [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
+          (unquoteFailed "List" "arity 2 and not the `∷' constructor" t)
+      Con c [] -> do
+        choice
+          [(c `isCon` primNil, return [])]
+          (unquoteFailed "List" "arity 0 and not the `[]' constructor" t)
+      _ -> unquoteFailed "List" "neither `[]' nor `∷'" t
+
+instance Unquote Hiding where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [] -> do
+        choice
+          [(c `isCon` primHidden,  return Hidden)
+          ,(c `isCon` primVisible, return NotHidden)]
+          (unquoteFailed "Hiding" "neither `hidden' nor `visible'" t)
+      _ -> unquoteFailed "Hiding" "arity is not 0" t
+
+instance Unquote Relevance where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [] -> do
+        choice
+          [(c `isCon` primRelevant,   return Relevant)
+          ,(c `isCon` primIrrelevant, return Irrelevant)]
+          (unquoteFailed "Relevance" "neither `relevant' nor `irrelevant'" t)
+      _ -> unquoteFailed "Relevance" "arity is not 0" t
+
+instance Unquote QName where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Lit (LitQName _ x) -> return x
+      _                  -> unquoteFailed "QName" "not a literal qname value" t
+
+instance Unquote a => Unquote (Abs a) where
+  unquote t = do x <- freshNoName_
+                 Abs (show x) <$> unquote t
+
+instance Unquote Sort where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [] -> do
+        choice
+          [(c `isCon` primAgdaSortUnsupported, unquoteFailed "Sort" "unsupported sort" t)]
+          (unquoteFailed "Sort" "arity 0 and not the `unsupported' constructor" t)
+      Con c [u] -> do
+        choice
+          [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
+          ,(c `isCon` primAgdaSortLit, Type . Lit . LitLevel noRange <$> unquoteN u)]
+          (unquoteFailed "Sort" "arity 1 and not the `set' or the `lit' constructors" t)
+      _ -> unquoteFailed "Sort" "not of arity 0 nor 1" t
+
+instance Unquote Type where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [s, u] -> do
+        choice
+          [(c `isCon` primAgdaTypeEl, El <$> unquoteN s <*> unquoteN u)]
+          (unquoteFailed "Type" "arity 2 and not the `el' constructor" t)
+      _ -> unquoteFailed "Type" "not of arity 2" t
+
+instance Unquote Term where
+  unquote t = do
+    t <- reduce t
+    case t of
+      Con c [] ->
+        choice
+          [(c `isCon` primAgdaTermUnsupported, unquoteFailed "Term" "unsupported term" t)]
+          (unquoteFailed "Term" "arity 0 and not the `unsupported' constructor" t)
+
+      Con c [x] -> do
+        choice
+          [(c `isCon` primAgdaTermSort, Sort <$> unquoteN x)]
+          (unquoteFailed "Term" "arity 1 and not the `sort' constructor" t)
+
+      Con c [x,y] ->
+        choice
+          [(c `isCon` primAgdaTermVar, Var <$> unquoteN x <*> unquoteN y)
+          ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
+          ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
+          ,(c `isCon` primAgdaTermLam, Lam <$> unquoteN x <*> unquoteN y)
+          ,(c `isCon` primAgdaTermPi,  Pi  <$> unquoteN x <*> unquoteN y)]
+          (unquoteFailed "Term" "arity 2 and none of Var, Con, Def, Lam, Pi" t)
+
+      Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t
+      Lit{} -> unquoteFailed "Term" "unexpected literal" t
+      _ -> unquoteFailed "Term" "not a constructor" t
