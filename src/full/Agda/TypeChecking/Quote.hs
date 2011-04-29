@@ -47,6 +47,7 @@ quotingKit = do
       quoteHiding NotHidden = visible
       quoteRelevance Relevant   = relevant
       quoteRelevance Irrelevant = irrelevant
+      quoteRelevance NonStrict  = __IMPOSSIBLE__ -- Andreas, 2011-04-29 TODO!!
       quoteRelevance Forced     = forced
       quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
       quoteLit _                = unsupported
