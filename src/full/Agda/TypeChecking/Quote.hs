@@ -23,6 +23,7 @@ quotingKit = do
   visible <- primVisible
   relevant <- primRelevant
   irrelevant <- primIrrelevant
+  nonStrict <- primNonStrict
   forced <- primForced
   nil <- primNil
   cons <- primCons
@@ -48,7 +49,7 @@ quotingKit = do
       quoteHiding NotHidden = visible
       quoteRelevance Relevant   = relevant
       quoteRelevance Irrelevant = irrelevant
-      quoteRelevance NonStrict  = __IMPOSSIBLE__ -- Andreas, 2011-04-29 TODO!!
+      quoteRelevance NonStrict  = nonStrict
       quoteRelevance Forced     = forced
       quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
       quoteLit _                = unsupported
@@ -177,8 +178,9 @@ instance Unquote Relevance where
       Con c [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
-          ,(c `isCon` primIrrelevant, return Irrelevant)]
-          (unquoteFailed "Relevance" "neither `relevant' nor `irrelevant'" t)
+          ,(c `isCon` primIrrelevant, return Irrelevant)
+          ,(c `isCon` primNonStrict,  return NonStrict)]
+          (unquoteFailed "Relevance" "neither `relevant', `irrelevant' nor `nonStrict'" t)
       _ -> unquoteFailed "Relevance" "arity is not 0" t
 
 instance Unquote QName where
