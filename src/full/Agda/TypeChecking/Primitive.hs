@@ -25,6 +25,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Quote (quoteType)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -261,6 +262,20 @@ primTrustMe = do
             `catchError` \_ -> return (NoReduction $ map notReduced [t, a, b])
         _ -> __IMPOSSIBLE__
 
+primQNameType :: MonadTCM tcm => tcm PrimitiveImpl
+primQNameType = do
+  dEl <- primAgdaTypeEl
+  t <- el primQName --> el primAgdaType
+
+  --NP: reduce?
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+    case ts of
+      [Arg NotHidden r (Lit (LitQName _ qn))]
+           -> do t <- typeOfConst qn
+                 e <- quoteType t
+                 redReturn e
+      _ -> __IMPOSSIBLE__
+
 -- Tying the knot
 mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
 	      (a -> b) -> tcm PrimitiveImpl
@@ -462,6 +477,8 @@ primitiveFunctions = Map.fromList
     , "primStringEquality"  |-> mkPrimFun2 ((==) :: Rel Str)
     , "primShowString"	    |-> mkPrimFun1 (Str . show . pretty . LitString noRange . unStr)
 
+    -- Reflection
+    , "primQNameType"       |-> primQNameType
     -- Other stuff
     , "primTrustMe"         |-> primTrustMe
     , "primQNameEquality"  |-> mkPrimFun2 ((==) :: Rel QName)
