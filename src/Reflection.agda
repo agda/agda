@@ -56,10 +56,11 @@ data Implicit? : Set where
 {-# BUILTIN VISIBLE explicit   #-}
 
 data Relevant? : Set where
-  relevant irrelevant forced : Relevant?
+  relevant nonStrict irrelevant forced : Relevant?
 
 {-# BUILTIN RELEVANCE  Relevant?  #-}
 {-# BUILTIN RELEVANT   relevant   #-}
+{-# BUILTIN NONSTRICT  nonStrict  #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
 {-# BUILTIN FORCED     forced     #-}
 
@@ -112,6 +113,36 @@ mutual
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+postulate
+  FunDef    : Set
+  DataDef   : Set
+  RecordDef : Set
+
+{-# BUILTIN AGDAFUNDEF    FunDef  #-}
+{-# BUILTIN AGDADATADEF   DataDef #-}
+{-# BUILTIN AGDARECORDDEF RecordDef #-}
+
+data Definition : Set where
+  funDef          : FunDef    → Definition
+  dataDef         : DataDef   → Definition
+  recordDef       : RecordDef → Definition
+  dataConstructor : Definition
+  axiom           : Definition
+  prim            : Definition
+
+{-# BUILTIN AGDADEFINITION                Definition      #-}
+{-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
+{-# BUILTIN AGDADEFINITIONDATADEF         dataDef         #-}
+{-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
+{-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
+{-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
+{-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
+
+primitive
+  primQNameType        : QName → Type
+  primQNameDefinition  : QName → Definition
+  primDataConstructors : DataDef → List QName
 
 ------------------------------------------------------------------------
 -- Term equality is decidable
@@ -192,13 +223,20 @@ explicit ≟-Implicit? implicit = no λ()
 _≟-Relevant?_ : Decidable (_≡_ {A = Relevant?})
 relevant   ≟-Relevant? relevant   = yes refl
 irrelevant ≟-Relevant? irrelevant = yes refl
+nonStrict  ≟-Relevant? nonStrict  = yes refl
 forced     ≟-Relevant? forced     = yes refl
+relevant   ≟-Relevant? nonStrict  = no λ()
 relevant   ≟-Relevant? irrelevant = no λ()
 relevant   ≟-Relevant? forced     = no λ()
 irrelevant ≟-Relevant? relevant   = no λ()
+irrelevant ≟-Relevant? nonStrict  = no λ()
 irrelevant ≟-Relevant? forced     = no λ()
 forced     ≟-Relevant? relevant   = no λ()
+forced     ≟-Relevant? nonStrict  = no λ()
 forced     ≟-Relevant? irrelevant = no λ()
+nonStrict  ≟-Relevant? relevant   = no λ()
+nonStrict  ≟-Relevant? irrelevant = no λ()
+nonStrict  ≟-Relevant? forced     = no λ()
 
 mutual
   infix 4 _≟_ _≟-Args_ _≟-ArgType_
