@@ -50,7 +50,7 @@ Language
 
     a : A
     f : {{a : A}} → B a
-  
+
   Instead of the double accolades, you can also use unicode symbols
   "LEFT WHITE CURLY BRACKET" (⦃, "\{{" in emacs) and "RIGHT WHITE
   CURLY BRACKET" (⦄, "\}}" in emacs), but then they must be surrounded
@@ -102,7 +102,7 @@ Language
   functions that take the record as a non-canonical implicit argument,
   like our definition of equal above. Using this technique, all
   existing record types in Agda can now be used in a type-class-like
-  way. 
+  way.
 
   Non-canonical implicit arguments resolution is not recursive. For
   example, if we have the following "parameterised instance":
@@ -116,7 +116,7 @@ Language
 
   Then we still need to explicitly guide Agda by bringing in scope the
   correct application of this parameterised instance:
-    
+
     test' = equal (1 ∷ 2 ∷ []) (3 ∷ 4 ∷ [])
       where eqListT = listEq eqℕ
 
@@ -139,13 +139,13 @@ Language
     * first-class ad-hoc polymorphic functions
     * not limited to records
     * usable with existing records
-    
+
   More details about non-canonical implicit arguments can be found on
   the following website. There is (among other things) a link to a
   draft paper with many details and examples:
-  
+
     http://people.cs.kuleuven.be/~dominique.devriese/agda-non-canonical-implicits/
-  
+
   Additionally, some more examples can be found in
   examples/non-canonical-implicits in the Agda repository.
 
@@ -166,7 +166,7 @@ Meta Variables and Unification
   into a mutual block; metas are only frozen at the end of a mutual block.
 
   Before entering interactive editing, all metas are unfrozen, such that
-  the user can fill holes interactively.  Note that type checking for 
+  the user can fill holes interactively.  Note that type checking for
   interactively given terms is not perfect, so, Agda might refuse to reload
   a file even though it did not complain during interactive construction.
   This is because certain checks (positivity, termination, precise scoping)
@@ -174,7 +174,7 @@ Meta Variables and Unification
 
 * Occurrence checker distinguishes rigid and strongly rigid
   occurrences. [Reed, LFMTP 2009; Abel Pientka, TLCA 2011]
-  
+
   This solves issue 291.  The emptyness checker now accepts this:
 
     h : (n : Nat) -> n ≡ suc n -> Nat
@@ -187,9 +187,9 @@ Meta Variables and Unification
   Weakly rigid recursive occurrences may have a solution.
   [Issue 405, Jason Reed's PhD thesis, page 106]
 
-    test : (k : Nat) -> 
+    test : (k : Nat) ->
        let X : (Nat -> Nat) -> Nat
-           X = _ 
+           X = _
        in (f : Nat -> Nat) -> X f ≡ suc (f (X (\ x -> k)))
     test k f = refl
 
