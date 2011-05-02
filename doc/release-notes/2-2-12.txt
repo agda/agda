@@ -159,7 +159,7 @@ Language
   examples/instance-arguments in the Agda repository.
 
 * The reflection API as been extended to mirror features like irrelevance,
-  and universe polymorphism.
+  universe polymorphism and to access some definitions.
 
     data Hiding : Set where
       hidden visible : Hiding
@@ -181,11 +181,29 @@ Language
       pi      : Arg Type → Type → Term
       sort    : Sort → Term
 
-* A new primitive has been added as well:
+    -- these will be records at some point
+    postulate
+      FunDef    : Set
+      DataDef   : Set
+      RecordDef : Set
+
+    data Definition : Set where
+      funDef          : FunDef    → Definition
+      dataDef         : DataDef   → Definition
+      recordDef       : RecordDef → Definition
+      dataConstructor : Definition
+      axiom           : Definition
+      prim            : Definition
+
+* New primitives has been added as well:
 
   primitive
     -- Returns the type of a given defined name
-    primQNameType : QName → Type
+    primQNameType        : QName → Type
+    -- Returns the definition of a given defined name
+    primQNameDefinition  : QName → Definition
+    -- Given a data-type definition returns the list of its data constructors
+    primDataConstructors : DataDef → List QName
 
   Example:
     primQNameType (quote ℕ.zero) ≡ def (quote ℕ) []

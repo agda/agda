@@ -95,6 +95,21 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinNatEquals          |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess            |-> BuiltinPrim "primNatLess" verifyLess)
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
+  , (builtinAgdaFunDef                |-> BuiltinPostulate tset) -- internally this is QName
+  , (builtinAgdaDataDef               |-> BuiltinPostulate tset) -- internally this is QName
+  , (builtinAgdaRecordDef             |-> BuiltinPostulate tset) -- internally this is QName
+  , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef
+                                                           ,builtinAgdaDefinitionDataDef
+                                                           ,builtinAgdaDefinitionDataConstructor
+                                                           ,builtinAgdaDefinitionRecordDef
+                                                           ,builtinAgdaDefinitionPostulate
+                                                           ,builtinAgdaDefinitionPrimitive])
+  , (builtinAgdaDefinitionFunDef          |-> BuiltinDataCons (tfun --> tdefn))
+  , (builtinAgdaDefinitionDataDef         |-> BuiltinDataCons (tdtype --> tdefn))
+  , (builtinAgdaDefinitionDataConstructor |-> BuiltinDataCons tdefn)
+  , (builtinAgdaDefinitionRecordDef       |-> BuiltinDataCons (trec --> tdefn))
+  , (builtinAgdaDefinitionPostulate       |-> BuiltinDataCons tdefn)
+  , (builtinAgdaDefinitionPrimitive       |-> BuiltinDataCons tdefn)
   ]
   where
         (|->) = (,)
@@ -121,6 +136,10 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         trelevance = el primRelvance
         ttype      = el primAgdaType
         tsort      = el primAgdaSort
+        tdefn      = el primAgdaDefinition
+        tfun       = el primAgdaFunDef
+        tdtype     = el primAgdaDataDef
+        trec       = el primAgdaRecordDef
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) choice -> do

@@ -1,6 +1,7 @@
 
 module Common.Reflect where
 
+open import Common.Level
 open import Common.Prelude renaming (Nat to ℕ)
 
 postulate QName : Set
@@ -69,3 +70,36 @@ mutual
 {-# BUILTIN AGDASORTSET         set     #-}
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
+
+postulate
+  FunDef    : Set
+  DataDef   : Set
+  RecordDef : Set
+
+{-# BUILTIN AGDAFUNDEF          FunDef  #-}
+{-# BUILTIN AGDADATADEF         DataDef #-}
+{-# BUILTIN AGDARECORDDEF       RecordDef #-}
+
+data Definition : Set where
+  funDef          : FunDef    → Definition
+  dataDef         : DataDef   → Definition
+  recordDef       : RecordDef → Definition
+  dataConstructor : Definition
+  axiom           : Definition
+  prim            : Definition
+
+{-# BUILTIN AGDADEFINITION                Definition      #-}
+{-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
+{-# BUILTIN AGDADEFINITIONDATADEF         dataDef         #-}
+{-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
+{-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
+{-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
+{-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
+
+primitive
+  primQNameType         : QName → Type
+  primQNameDefinition   : QName → Definition
+--primFunClauses        : FunDef → List Clause
+  primDataConstructors  : DataDef   → List QName
+--primRecordConstructor : RecordDef → QName
+--primRecordFields      : RecordDef → List QName

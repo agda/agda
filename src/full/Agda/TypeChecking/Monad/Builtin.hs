@@ -72,7 +72,10 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
     primRelvance, primRelevant, primIrrelevant, primNonStrict, primForced,
-    primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported
+    primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
+    primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
+    primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
+    primAgdaFunDef, primAgdaDataDef, primAgdaRecordDef
     :: MonadTCM tcm => tcm Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
@@ -133,6 +136,16 @@ primAgdaTermCon      = getBuiltin builtinAgdaTermCon
 primAgdaTermPi       = getBuiltin builtinAgdaTermPi
 primAgdaTermSort     = getBuiltin builtinAgdaTermSort
 primAgdaTermUnsupported     = getBuiltin builtinAgdaTermUnsupported
+primAgdaFunDef                    = getBuiltin builtinAgdaFunDef
+primAgdaDataDef                   = getBuiltin builtinAgdaDataDef
+primAgdaRecordDef                 = getBuiltin builtinAgdaRecordDef
+primAgdaDefinitionFunDef          = getBuiltin builtinAgdaDefinitionFunDef
+primAgdaDefinitionDataDef         = getBuiltin builtinAgdaDefinitionDataDef
+primAgdaDefinitionRecordDef       = getBuiltin builtinAgdaDefinitionRecordDef
+primAgdaDefinitionDataConstructor = getBuiltin builtinAgdaDefinitionDataConstructor
+primAgdaDefinitionPostulate       = getBuiltin builtinAgdaDefinitionPostulate
+primAgdaDefinitionPrimitive       = getBuiltin builtinAgdaDefinitionPrimitive
+primAgdaDefinition                = getBuiltin builtinAgdaDefinition
 builtinNat          = "NATURAL"
 builtinSuc          = "SUC"
 builtinZero         = "ZERO"
@@ -192,3 +205,13 @@ builtinAgdaTermCon      = "AGDATERMCON"
 builtinAgdaTermPi       = "AGDATERMPI"
 builtinAgdaTermSort     = "AGDATERMSORT"
 builtinAgdaTermUnsupported = "AGDATERMUNSUPPORTED"
+builtinAgdaFunDef                    = "AGDAFUNDEF"
+builtinAgdaDataDef                   = "AGDADATADEF"
+builtinAgdaRecordDef                 = "AGDARECORDDEF"
+builtinAgdaDefinitionFunDef          = "AGDADEFINITIONFUNDEF"
+builtinAgdaDefinitionDataDef         = "AGDADEFINITIONDATADEF"
+builtinAgdaDefinitionRecordDef       = "AGDADEFINITIONRECORDDEF"
+builtinAgdaDefinitionDataConstructor = "AGDADEFINITIONDATACONSTRUCTOR"
+builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
+builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
+builtinAgdaDefinition                = "AGDADEFINITION"

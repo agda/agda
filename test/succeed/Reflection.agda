@@ -1,7 +1,7 @@
 {-# OPTIONS --universe-polymorphism #-}
 module Reflection where
 
-open import Common.Prelude
+open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Reflect
 
 data _≡_ {A : Set}(x : A) : A → Set where
@@ -15,7 +15,6 @@ data Id {A : Set}(x : A) : (B : Set) → B → Set where
 
 primitive
   primTrustMe : {A : Set}{x y : A} → x ≡ y
-  primQNameType : QName → Type
 
 open import Common.Level
 
@@ -74,7 +73,7 @@ test₃ = quoteGoal t in
 
 `List : Term → Term
 `List A = def (quote List) (argᵛʳ A ∷ [])
-`Nat    = def (quote Nat) []
+`ℕ      = def (quote ℕ) []
 
 `Term : Term
 `Term = def (quote Term) []
@@ -83,9 +82,9 @@ test₃ = quoteGoal t in
 `Sort : Term
 `Sort = def (quote Sort) []
 
-test₄ : Check (List Nat)
+test₄ : Check (List ℕ)
 test₄ = quoteGoal t in
-        t is `List `Nat of course
+        t is `List `ℕ of course
 
 test₅ : primQNameType (quote Term) ≡ set₀
 test₅ = refl
@@ -94,5 +93,36 @@ test₅ = refl
 test₆ : unEl (primQNameType (quote set₀)) ≡ `Type
 test₆ = refl
 
-test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `Nat)) (el₀ `Sort))
+test₇ : primQNameType (quote Sort.lit) ≡ el₀ (pi (argᵛʳ (el₀ `ℕ)) (el₀ `Sort))
 test₇ = refl
+
+mutual
+  ℕdef : DataDef
+  ℕdef = _
+
+  test₈ : dataDef ℕdef ≡ primQNameDefinition (quote ℕ)
+  test₈ = refl
+
+test₉ : primDataConstructors ℕdef ≡ quote ℕ.zero ∷ quote ℕ.suc ∷ []
+test₉ = refl
+
+test₁₀ : primQNameDefinition (quote ℕ.zero) ≡ dataConstructor
+test₁₀ = refl
+
+postulate
+  a : ℕ
+
+test₁₁ : primQNameDefinition (quote a) ≡ axiom
+test₁₁ = refl
+
+test₁₂ : primQNameDefinition (quote primQNameDefinition) ≡ prim
+test₁₂ = refl
+
+record Unit : Set where
+
+mutual
+  UnitDef : RecordDef
+  UnitDef = _
+
+  test₁₃ : recordDef UnitDef ≡ primQNameDefinition (quote Unit)
+  test₁₃ = refl

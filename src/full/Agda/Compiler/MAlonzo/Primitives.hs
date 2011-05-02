@@ -183,7 +183,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primStringEquality" |-> rel "(==)" "String"
   , "primShowString"     |-> return "(show :: String -> String)"
 
-  -- QNames
+  -- Reflection
   , "primQNameEquality" |-> rel "(==)" "String"
 
   -- Trust me

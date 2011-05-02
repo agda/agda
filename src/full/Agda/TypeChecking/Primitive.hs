@@ -25,7 +25,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Quote (quoteType)
+import Agda.TypeChecking.Quote (quoteType, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -91,6 +91,7 @@ instance PrimTerm Str	  where primTerm _ = primString
 instance PrimTerm Nat	  where primTerm _ = primNat
 instance PrimTerm Lvl     where primTerm _ = primLevel
 instance PrimTerm QName   where primTerm _ = primQName
+instance PrimTerm Type    where primTerm _ = primAgdaType
 
 instance PrimTerm a => PrimTerm [a] where
     primTerm _ = list (primTerm (undefined :: a))
@@ -116,6 +117,9 @@ instance ToTerm Bool where
 	true  <- primTrue
 	false <- primFalse
 	return $ \b -> if b then true else false
+
+instance ToTerm Type where
+    toTerm = snd <$> quotingKit
 
 -- | @buildList A ts@ builds a list of type @List A@. Assumes that the terms
 --   @ts@ all have type @A@.
@@ -232,7 +236,7 @@ redBind ma f k = do
 	NoReduction x	-> return $ NoReduction $ f x
 	YesReduction y	-> k y
 
-redReturn :: MonadTCM tcm => a -> tcm (Reduced a' a)
+redReturn :: Monad tcm => a -> tcm (Reduced a' a)
 redReturn = return . YesReduction
 
 fromReducedTerm :: MonadTCM tcm => (Term -> Maybe a) -> tcm (FromTermFunction a)
@@ -263,18 +267,47 @@ primTrustMe = do
         _ -> __IMPOSSIBLE__
 
 primQNameType :: MonadTCM tcm => tcm PrimitiveImpl
-primQNameType = do
-  dEl <- primAgdaTypeEl
-  t <- el primQName --> el primAgdaType
+primQNameType = mkPrimFun1TCM (el primQName --> el primAgdaType) typeOfConst
 
-  --NP: reduce?
+primQNameDefinition :: MonadTCM tcm => tcm PrimitiveImpl
+primQNameDefinition = do
+  let argQName qn = [defaultArg (Lit (LitQName noRange qn))]
+      app mt xs = do t <- mt
+                     return $ apply t xs
+
+      con qn Function{}    = app primAgdaDefinitionFunDef    (argQName qn)
+      con qn Datatype{}    = app primAgdaDefinitionDataDef   (argQName qn)
+      con qn Record{}      = app primAgdaDefinitionRecordDef (argQName qn)
+      con _  Axiom{}       = app primAgdaDefinitionPostulate []
+      con _  Primitive{}   = app primAgdaDefinitionPrimitive []
+      con _  Constructor{} = app primAgdaDefinitionDataConstructor []
+
+  unquoteQName <- fromTerm
+  t <- el primQName --> el primAgdaDefinition
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
     case ts of
-      [Arg NotHidden r (Lit (LitQName _ qn))]
-           -> do t <- typeOfConst qn
-                 e <- quoteType t
-                 redReturn e
+      [v] -> liftTCM $
+        redBind (unquoteQName v)
+            (\v' -> [v']) $ \x ->
+        redReturn =<< con x . theDef =<< getConstInfo x
       _ -> __IMPOSSIBLE__
+
+primDataConstructors :: MonadTCM tcm => tcm PrimitiveImpl
+primDataConstructors = mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
+                                     (fmap (dataCons . theDef) . getConstInfo)
+
+mkPrimFun1TCM :: (MonadTCM tcm, FromTerm a, ToTerm b) => tcm Type -> (a -> TCM b) -> tcm PrimitiveImpl
+mkPrimFun1TCM mt f = do
+    toA   <- fromTerm
+    fromB <- toTerm
+    t     <- mt
+    return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ts ->
+      case ts of
+        [v] -> liftTCM $
+          redBind (toA v)
+              (\v' -> [v']) $ \x ->
+          redReturn . fromB =<< f x
+        _ -> __IMPOSSIBLE__
 
 -- Tying the knot
 mkPrimFun1 :: (MonadTCM tcm, PrimType a, PrimType b, FromTerm a, ToTerm b) =>
@@ -479,6 +512,9 @@ primitiveFunctions = Map.fromList
 
     -- Reflection
     , "primQNameType"       |-> primQNameType
+    , "primQNameDefinition" |-> primQNameDefinition
+    , "primDataConstructors"|-> primDataConstructors
+
     -- Other stuff
     , "primTrustMe"         |-> primTrustMe
     , "primQNameEquality"  |-> mkPrimFun2 ((==) :: Rel QName)
