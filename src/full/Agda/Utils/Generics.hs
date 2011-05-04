@@ -1,9 +1,20 @@
 {-# LANGUAGE Rank2Types #-}
-{-| Contains some generic utility functions.
+{-| Contains some generic utility functions and reexports certain
+    definitions from "Data.Generics".
 -}
-module Agda.Utils.Generics where
+module Agda.Utils.Generics
+  ( module Data.Generics
+  , isString
+  , everythingBut
+  , everywhereBut'
+  , everywhereButM'
+  ) where
 
+-- The explicit import list is included in order to support several
+-- versions of syb; one version of syb contains a definition named
+-- everythingBut.
 import Data.Generics
+  (GenericQ, mkQ, extQ, gmapQ, GenericT, gmapT, GenericM, gmapM)
 
 isString :: GenericQ Bool
 isString = mkQ False (const True :: String -> Bool)

@@ -37,7 +37,6 @@ import Control.Monad.Trans
 import Control.Monad.State
 import Control.Applicative
 import Data.Monoid
-import Data.Generics
 import Data.Function
 import Agda.Utils.Generics
 import Agda.Utils.FileName
