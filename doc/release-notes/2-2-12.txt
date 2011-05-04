@@ -48,6 +48,9 @@ Language
   double accolades. This new feature is inspired upon Scala implicits
   and Agda's existing implicit arguments. Example:
 
+  postulate
+    A : Set
+    B : A → Set
     a : A
     f : {{a : A}} → B a
 
@@ -93,16 +96,19 @@ Language
     eqℕ : Eq ℕ
     eqℕ = record { equal = primEqℕ }
 
-  Note that instead of defining equal, we can do this using a module
-  macro:
+  Note that instead of defining equal, we can do this using a new type
+  of module macro:
 
-    open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+    open Eq {{...}}
 
   This will bring in scope equivalents of all the record module
   functions that take the record as a non-canonical implicit argument,
   like our definition of equal above. Using this technique, all
   existing record types in Agda can now be used in a type-class-like
-  way.
+  way. Note that the above syntax is actually equivalent to the
+  following:
+
+    open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
   Non-canonical implicit arguments resolution is not recursive. For
   example, if we have the following "parameterised instance":
