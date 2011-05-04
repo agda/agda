@@ -12,6 +12,8 @@ open import Relation.Nullary
 
 -- Some properties which are preserved by _×_.
 
+infixr 2 _×-dec_
+
 _×-dec_ : ∀ {p q} {P : Set p} {Q : Set q} →
           Dec P → Dec Q → Dec (P × Q)
 yes p ×-dec yes q = yes (p , q)
