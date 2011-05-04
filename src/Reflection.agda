@@ -139,10 +139,20 @@ data Definition : Set where
 {-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
 {-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
 
-primitive
-  primQNameType        : QName → Type
-  primQNameDefinition  : QName → Definition
-  primDataConstructors : DataDef → List QName
+private
+  primitive
+    primQNameType        : Name → Type
+    primQNameDefinition  : Name → Definition
+    primDataConstructors : DataDef → List Name
+
+typeOf : Name → Type
+typeOf = primQNameType
+
+defOf : Name → Definition
+defOf = primQNameDefinition
+
+constructorsOf : DataDef → List Name
+constructorsOf = primDataConstructors
 
 ------------------------------------------------------------------------
 -- Term equality is decidable
