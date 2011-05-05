@@ -101,10 +101,13 @@ Language
     open Eq {{...}}
 
   This will bring in scope equivalents of all the record module
-  functions that take the record as a non-canonical implicit argument,
+  functions that take the record as an instance argument,
   like our definition of equal above. Using this technique, all
   existing record types in Agda can now be used in a type-class-like
-  way.
+  way. Note that the above syntax is actually equivalent to the
+  following:
+
+    open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
 
   Instance arguments resolution is not recursive. For example, if we
   have the following "parameterised instance":

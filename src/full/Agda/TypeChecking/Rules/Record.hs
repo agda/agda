@@ -153,16 +153,6 @@ checkRecDef i name con ps contel fields =
         withCurrentModule m $
           checkRecordProjections m conName tel' (raise 1 ftel) fields
 
-      -- escapeContext (size tel) $ flip (foldr extHide) ctx $ extWithRH ImplicitFromScope $ do
-      --   -- check the WithImplicits module macro
-      --   allArgs <- getContextArgs
-      --   let argsIFS = take (size tel + 1) allArgs
-      --   let unhide :: Arg a -> Arg a
-      --       unhide a = a { argHiding = NotHidden }
-      --   let args = init argsIFS ++ [unhide $ last argsIFS]
-      --   applySection mIFS telIFS m args renD renM
-      --   return ()
-
       addConstant conName $
         Defn Relevant conName contype (defaultDisplayForm conName) 0 $
              Constructor { conPars   = 0
