@@ -98,7 +98,7 @@ Language
   Note that instead of defining equal, we can do this using a new type
   of module macro:
 
-    open Eq {{...}}
+    module EqWithImplicits = Eq {{...}}
 
   This will bring in scope equivalents of all the record module
   functions that take the record as an instance argument,
@@ -108,6 +108,10 @@ Language
   following:
 
     open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
+
+  You can also do the following:
+  
+    open Eq {{...}}
 
   Instance arguments resolution is not recursive. For example, if we
   have the following "parameterised instance":
