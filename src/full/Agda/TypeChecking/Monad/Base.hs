@@ -937,7 +937,7 @@ data TypeError
 	| NotAnExpression C.Expr
 	| NotAValidLetBinding D.NiceDeclaration
 	| NothingAppliedToHiddenArg C.Expr
-	| NothingAppliedToImplicitFromScopeArg C.Expr
+	| NothingAppliedToInstanceArg C.Expr
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]

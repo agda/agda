@@ -912,10 +912,10 @@ checkArguments exh r [] t0 t1 =
 		let arg = Arg Hidden rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'',cs)
-	    FunV (Arg ImplicitFromScope rel a) _ | notHPi ImplicitFromScope $ unEl t1'  -> do
+	    FunV (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
                 reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		(v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
-		let arg = Arg ImplicitFromScope rel v
+		let arg = Arg Instance rel v
 		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'', (c : cs))
 	    _ -> return ([], t0', [])
@@ -944,14 +944,14 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                                  if argRelevance arg == Irrelevant then
                                    arg { unArg = DontCare }
                                   else arg
-              (FunV (Arg ImplicitFromScope rel a) _) -> insertIFSUnderscore rel a
+              (FunV (Arg Instance rel a) _) -> insertIFSUnderscore rel a
               (FunV (Arg Hidden rel a) _) -> insertUnderscore rel
               (FunV (Arg NotHidden _ _) _) -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do (v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
                                        reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
-                                       let arg = Arg ImplicitFromScope rel v
+                                       let arg = Arg Instance rel v
                                        (vs, t0'', cs) <- checkArguments exh r args0 (piApply t0 [arg]) t1
                                        return (arg : vs, t0'', c : cs)
 	insertUnderscore rel = do

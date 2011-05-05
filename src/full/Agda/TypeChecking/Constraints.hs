@@ -151,8 +151,8 @@ solveConstraint (FindInScope m)      =
         ctxArgs <- getContextArgs
         t <- normalise $ tj `piApply` ctxArgs
         reportSLn "tc.constr.findInScope" 15 $ "findInScope t: " ++ show t
-        let candsP1 = [(term, t) | (term, t, ImplicitFromScope) <- ctx]
-        let candsP2 = [(term, t) | (term, t, h) <- ctx, h /= ImplicitFromScope]
+        let candsP1 = [(term, t) | (term, t, Instance) <- ctx]
+        let candsP2 = [(term, t) | (term, t, h) <- ctx, h /= Instance]
         let scopeInfo = getMetaScope mv
         let ns = everythingInScope scopeInfo
         let nsList = Map.toList $ nsNames ns

@@ -42,7 +42,7 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
-* Non-canonical implicit arguments.
+* Instance arguments.
 
   A new type of hidden function arguments is added, indicated by
   double accolades. This new feature is inspired upon Scala implicits
@@ -61,16 +61,15 @@ Language
 
   This new type of arguments behaves similarly to existing implicit
   arguments, except for one important aspect: resolution of not
-  explicitly provided non-canonical implicit arguments. For example,
-  if we call
+  explicitly provided instance arguments. For example, if we call
 
     test = f
 
-  then Agda will notice that f's non-canonical implicit argument was
-  not explicitly provided and will infer it. Agda will consider all
-  definitions in scope at the call-site, as well as all variables in
-  the context. If only one of these is of the required type, then it
-  will be used for the not provided non-canonical implicit argument.
+  then Agda will notice that f's instance argument was not explicitly
+  provided and will infer it. Agda will consider all definitions in
+  scope at the call-site, as well as all variables in the context. If
+  only one of these is of the required type, then it will be used for
+  the not provided instance argument.
 
   This feature can be used as a simple, elegant and powerful
   alternative to Haskell type classes. If we define
@@ -105,13 +104,10 @@ Language
   functions that take the record as a non-canonical implicit argument,
   like our definition of equal above. Using this technique, all
   existing record types in Agda can now be used in a type-class-like
-  way. Note that the above syntax is actually equivalent to the
-  following:
+  way.
 
-    open module EqWithImplicits {t : Set} {{eqT : Eq t}} = Eq eqT
-
-  Non-canonical implicit arguments resolution is not recursive. For
-  example, if we have the following "parameterised instance":
+  Instance arguments resolution is not recursive. For example, if we
+  have the following "parameterised instance":
 
     listEq : {t : Set} → Eq t → Eq (List t)
     listEq {t} eqT = record { equal = eqListT } where
@@ -146,14 +142,14 @@ Language
     * not limited to records
     * usable with existing records
 
-  More details about non-canonical implicit arguments can be found on
-  the following website. There is (among other things) a link to a
-  draft paper with many details and examples:
+  More details about instance arguments can be found on the following
+  website. There is (among other things) a link to a draft paper with
+  many details and examples:
 
-    http://people.cs.kuleuven.be/~dominique.devriese/agda-non-canonical-implicits/
+    http://people.cs.kuleuven.be/~dominique.devriese/agda-instance-arguments/
 
   Additionally, some more examples can be found in
-  examples/non-canonical-implicits in the Agda repository.
+  examples/instance-arguments in the Agda repository.
 
 Meta Variables and Unification
 ------------------------------

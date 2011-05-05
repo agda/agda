@@ -452,10 +452,10 @@ instance EmbPrj Agda.Syntax.Common.Induction where
 instance EmbPrj Agda.Syntax.Common.Hiding where
   icode Hidden    = icode0 0
   icode NotHidden = icode0 1
-  icode ImplicitFromScope = icode0 2
+  icode Instance  = icode0 2
   value = vcase valu where valu [0] = valu0 Hidden
                            valu [1] = valu0 NotHidden
-                           valu [2] = valu0 ImplicitFromScope
+                           valu [2] = valu0 Instance
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Common.Relevance where

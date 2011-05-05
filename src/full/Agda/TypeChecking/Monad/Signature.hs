@@ -171,7 +171,7 @@ addDisplayForms x = do
 			      _		-> "_"
 			    hid NotHidden s = s
 			    hid Hidden    s = "{" ++ s ++ "}"
-			    hid ImplicitFromScope    s = "{{" ++ s ++ "}}"
+			    hid Instance  s = "{{" ++ s ++ "}}"
 		      Just (m, v) -> "not a def body"
 	      reportSLn "tc.section.apply.display" 30 $ "no display form from" ++ show x ++ " because " ++ reason
 	      return ()

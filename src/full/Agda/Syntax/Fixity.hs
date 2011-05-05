@@ -73,7 +73,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 hiddenArgumentCtx :: Hiding -> Precedence
 hiddenArgumentCtx NotHidden = ArgumentCtx
 hiddenArgumentCtx Hidden    = TopCtx
-hiddenArgumentCtx ImplicitFromScope    = TopCtx
+hiddenArgumentCtx Instance  = TopCtx
 
 -- | Do we need to bracket an operator application of the given fixity
 --   in a context with the given precedence.

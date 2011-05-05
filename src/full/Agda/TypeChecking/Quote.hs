@@ -45,7 +45,7 @@ quotingKit = do
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
-      quoteHiding ImplicitFromScope = __IMPOSSIBLE__ -- quoting ImplicitFromScope args not yet supported...
+      quoteHiding Instance = __IMPOSSIBLE__ -- quoting Instance args not yet supported...
       quoteHiding NotHidden = visible
       quoteRelevance Relevant   = relevant
       quoteRelevance Irrelevant = irrelevant

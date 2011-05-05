@@ -205,7 +205,7 @@ instance PrettyTCM PrettyContext where
             where
               par NotHidden = P.parens
               par Hidden    = P.braces
-              par ImplicitFromScope    = P.dbraces
+              par Instance  = P.dbraces
 
 instance PrettyTCM Context where
   prettyTCM = prettyTCM . PrettyContext

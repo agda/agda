@@ -236,21 +236,21 @@ checkModuleArity m tel args = check tel args
     check EmptyTel (_:_)     = bad
     check (ExtendTel (Arg h _ _) (Abs y tel)) args0@(Arg h' _ (Named name _) : args) =
       case (h, h', name) of
-        (ImplicitFromScope, NotHidden, _) -> check tel args0
-        (ImplicitFromScope, Hidden, _) -> bad
-        (ImplicitFromScope, ImplicitFromScope, Nothing) -> check tel args
-        (ImplicitFromScope, ImplicitFromScope, Just x)
+        (Instance, NotHidden, _) -> check tel args0
+        (Instance, Hidden, _) -> bad
+        (Instance, Instance, Nothing) -> check tel args
+        (Instance, Instance, Just x)
           | x == y                -> check tel args
           | otherwise             -> check tel args0
         (Hidden, NotHidden, _)    -> check tel args0
-        (Hidden, ImplicitFromScope, _)    -> bad
+        (Hidden, Instance, _)    -> bad
         (Hidden, Hidden, Nothing) -> check tel args
         (Hidden, Hidden, Just x)
           | x == y                -> check tel args
           | otherwise             -> check tel args0
         (NotHidden, NotHidden, _) -> check tel args
         (NotHidden, Hidden, _)    -> bad
-        (NotHidden, ImplicitFromScope, _)    -> bad
+        (NotHidden, Instance, _)    -> bad
 
 -- | Check an application of a section.
 checkSectionApplication ::

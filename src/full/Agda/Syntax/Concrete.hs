@@ -58,7 +58,7 @@ data Expr
 	| OpApp !Range Name [Expr]	       -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
-	| ImplicitFromScopeArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
+	| InstanceArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
         | AbsurdLam !Range Hiding              -- ^ ex: @\\ ()@
 	| Fun !Range Expr Expr                 -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
@@ -86,7 +86,7 @@ data Pattern
 	| RawAppP !Range [Pattern]
 	| OpAppP !Range Name [Pattern]
 	| HiddenP !Range (Named String Pattern)
-	| ImplicitFromScopeP !Range (Named String Pattern)
+	| InstanceP !Range (Named String Pattern)
 	| ParenP !Range Pattern
 	| WildP !Range
 	| AbsurdP !Range
@@ -318,7 +318,7 @@ instance HasRange Expr where
 	    Dot r _		-> r
 	    Absurd r		-> r
 	    HiddenArg r _	-> r
-	    ImplicitFromScopeArg r _	-> r
+	    InstanceArg r _	-> r
 	    Rec r _		-> r
             ETel tel            -> getRange tel
             QuoteGoal r _ _     -> r
@@ -418,5 +418,5 @@ instance HasRange Pattern where
     getRange (AbsurdP r)	= r
     getRange (LitP l)		= getRange l
     getRange (HiddenP r _)	= r
-    getRange (ImplicitFromScopeP r _)	= r
+    getRange (InstanceP r _)	= r
     getRange (DotP r _)		= r

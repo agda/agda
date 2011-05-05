@@ -20,7 +20,7 @@ import Agda.Utils.Impossible
 data Induction = Inductive | CoInductive
   deriving (Typeable, Data, Show, Eq, Ord)
 
-data Hiding  = Hidden | ImplicitFromScope | NotHidden
+data Hiding  = Hidden | Instance | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | A function argument can be relevant or irrelevant.
@@ -67,8 +67,8 @@ data Arg e  = Arg
 instance Eq a => Eq (Arg a) where
   Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
 
-makeImplicitFromScope :: Arg a -> Arg a
-makeImplicitFromScope a = a { argHiding = ImplicitFromScope }
+makeInstance :: Arg a -> Arg a
+makeInstance a = a { argHiding = Instance }
 
 hide :: Arg a -> Arg a
 hide a = a { argHiding = Hidden }
@@ -111,7 +111,7 @@ instance Show a => Show (Arg a) where
       where
         showH Hidden     s = "{" ++ s ++ "}"
         showH NotHidden  s = "(" ++ s ++ ")"
-        showH ImplicitFromScope  s = "{{" ++ s ++ "}}"
+        showH Instance   s = "{{" ++ s ++ "}}"
         showR Irrelevant s = "." ++ s
         showR NonStrict  s = "?" ++ s
         showR Forced     s = "!" ++ s

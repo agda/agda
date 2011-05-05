@@ -142,7 +142,7 @@ errorString err = case err of
     NotLeqSort{}                             -> "NotLeqSort"
     NotStrictlyPositive{}                    -> "NotStrictlyPositive"
     NothingAppliedToHiddenArg{}              -> "NothingAppliedToHiddenArg"
-    NothingAppliedToImplicitFromScopeArg{}   -> "NothingAppliedToImplicitFromScopeArg"
+    NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
     OverlappingProjects {}                   -> "OverlappingProjects"
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
@@ -483,9 +483,9 @@ instance PrettyTCM TypeError where
 	    NothingAppliedToHiddenArg e	-> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
 		pwords "a function expecting an implicit argument."
-	    NothingAppliedToImplicitFromScopeArg e	-> fsep $
+	    NothingAppliedToInstanceArg e -> fsep $
 		[pretty e] ++ pwords "cannot appear by itself. It needs to be the argument to" ++
-		pwords "a function expecting a non-canonical implicit argument."
+		pwords "a function expecting an instance argument."
 	    NoParseForApplication es -> fsep $
 		pwords "Could not parse the application" ++ [pretty $ C.RawApp noRange es]
 	    AmbiguousParseForApplication es es' -> fsep (
@@ -559,8 +559,8 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
-            showArg (Arg ImplicitFromScope r x)    = dbraces $ showPat 0 x
             showArg (Arg Hidden r x)    = braces $ showPat 0 x
+            showArg (Arg Instance r x)  = dbraces $ showPat 0 x
             showArg (Arg NotHidden r x) = showPat 1 x
 
             showPat _ (I.VarP _)        = text "_"

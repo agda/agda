@@ -75,7 +75,7 @@ checkRecDef i name con ps contel fields =
 			    ]
 	  telh' h	  = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
 	  tel'		  = telh' NotHidden
-	  telIFS	  = telh' ImplicitFromScope
+	  telIFS	  = telh' Instance
           extWithRH h ret = underAbstraction (Arg h Relevant rect) (Abs "r" ()) $ \_ -> ret
           extWithR        = extWithRH NotHidden
           ext     (Arg h r (x, t)) = addCtx x (Arg h r t)
@@ -152,6 +152,16 @@ checkRecDef i name con ps contel fields =
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
           checkRecordProjections m conName tel' (raise 1 ftel) fields
+
+      -- escapeContext (size tel) $ flip (foldr extHide) ctx $ extWithRH ImplicitFromScope $ do
+      --   -- check the WithImplicits module macro
+      --   allArgs <- getContextArgs
+      --   let argsIFS = take (size tel + 1) allArgs
+      --   let unhide :: Arg a -> Arg a
+      --       unhide a = a { argHiding = NotHidden }
+      --   let args = init argsIFS ++ [unhide $ last argsIFS]
+      --   applySection mIFS telIFS m args renD renM
+      --   return ()
 
       addConstant conName $
         Defn Relevant conName contype (defaultDisplayForm conName) 0 $

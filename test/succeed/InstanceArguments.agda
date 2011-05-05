@@ -37,6 +37,6 @@ testRec₁ = record { v = testV₁ }
 testRec₂ : Rec testT₂
 testRec₂ = record { v = testV₂ }
 
--- needs constraint checking in non-canonical implicits resolution
+-- needs constraint checking in instance argument resolution
 test : testT₂
 test = v

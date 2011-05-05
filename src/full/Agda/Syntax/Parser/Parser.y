@@ -310,8 +310,8 @@ HiddenIds :: { [Arg Name] }
 HiddenIds
     : Id HiddenIds               { defaultArg $1 : $2 }
     | Id	                 { [defaultArg $1] }
-    | '{{' SpaceIds '}}' HiddenIds { map (Arg ImplicitFromScope Relevant) $2 ++ $4 }
-    | '{{' SpaceIds '}}'         { map (Arg ImplicitFromScope Relevant) $2 }
+    | '{{' SpaceIds '}}' HiddenIds { map (Arg Instance Relevant) $2 ++ $4 }
+    | '{{' SpaceIds '}}'         { map (Arg Instance Relevant) $2 }
     | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
     | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
 -}
@@ -334,18 +334,18 @@ ArgIds :: { [Arg Name] }
 ArgIds
     : MaybeDottedId ArgIds            { $1 : $2 }
     | MaybeDottedId                   { [$1] }
-    | '{{' MaybeDottedIds '}}' ArgIds { map makeImplicitFromScope $2 ++ $4 }
-    | '{{' MaybeDottedIds '}}'        { map makeImplicitFromScope $2 }
+    | '{{' MaybeDottedIds '}}' ArgIds { map makeInstance $2 ++ $4 }
+    | '{{' MaybeDottedIds '}}'        { map makeInstance $2 }
     | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
     | '{' MaybeDottedIds '}'          { map hide $2 }
     | '.' '{' SpaceIds '}' ArgIds     { map (Arg Hidden Irrelevant) $3 ++ $5 }
     | '.' '{' SpaceIds '}'            { map (Arg Hidden Irrelevant) $3 }
-    | '.' '{{' SpaceIds '}}' ArgIds   { map (Arg ImplicitFromScope Irrelevant) $3 ++ $5 }
-    | '.' '{{' SpaceIds '}}'          { map (Arg ImplicitFromScope Irrelevant) $3 }
+    | '.' '{{' SpaceIds '}}' ArgIds   { map (Arg Instance Irrelevant) $3 ++ $5 }
+    | '.' '{{' SpaceIds '}}'          { map (Arg Instance Irrelevant) $3 }
     | '..' '{' SpaceIds '}' ArgIds    { map (Arg Hidden NonStrict) $3 ++ $5 }
     | '..' '{' SpaceIds '}'           { map (Arg Hidden NonStrict) $3 }
-    | '..' '{{' SpaceIds '}}' ArgIds  { map (Arg ImplicitFromScope NonStrict) $3 ++ $5 }
-    | '..' '{{' SpaceIds '}}'         { map (Arg ImplicitFromScope NonStrict) $3 }
+    | '..' '{{' SpaceIds '}}' ArgIds  { map (Arg Instance NonStrict) $3 ++ $5 }
+    | '..' '{{' SpaceIds '}}'         { map (Arg Instance NonStrict) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -494,8 +494,8 @@ Expr3
     | 'quote'                           { Quote (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr '}}'			{ ImplicitFromScopeArg (fuseRange $1 $3) (unnamed $2) }
-    | '{{' Id '=' Expr '}}'		{ ImplicitFromScopeArg (fuseRange $1 $5) (named (show $2) $4) }
+    | '{{' Expr '}}'			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }
+    | '{{' Id '=' Expr '}}'		{ InstanceArg (fuseRange $1 $5) (named (show $2) $4) }
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
@@ -543,12 +543,12 @@ TypedBindings :: { TypedBindings }
 TypedBindings
     : '.' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         Irrelevant $3) }
     | '.' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            Irrelevant $3) }
-    | '.' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Irrelevant $3) }
+    | '.' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg Instance Irrelevant $3) }
     | '..' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         NonStrict $3) }
     | '..' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            NonStrict $3) }
-    | '..' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope NonStrict $3) }
+    | '..' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg Instance NonStrict $3) }
     | '(' TBind ')'        { TypedBindings (fuseRange $1 $3) (Arg NotHidden         Relevant $2) }
-    | '{{' TBind '}}'      { TypedBindings (fuseRange $1 $3) (Arg ImplicitFromScope Relevant $2) }
+    | '{{' TBind '}}'      { TypedBindings (fuseRange $1 $3) (Arg Instance Relevant $2) }
     | '{' TBind '}'        { TypedBindings (fuseRange $1 $3) (Arg Hidden            Relevant $2) }
 
 
@@ -583,7 +583,7 @@ LamBinds
   | TypedBindings		{ [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
-  | '{{' '}}'                   { [Left ImplicitFromScope] }
+  | '{{' '}}'                   { [Left Instance] }
 
 
 ForallBindings :: { [LamBinding] }
@@ -613,11 +613,11 @@ DomainFreeBinding
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
-    | '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Relevant . mkBoundName_) $2 }
+    | '{{' CommaBIds '}}' { map (DomainFree Instance Relevant . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope Irrelevant . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds '}}' { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds '}}' { map (DomainFree ImplicitFromScope NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds '}}' { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -1230,7 +1230,7 @@ exprToPattern e =
 	Dot r e			-> return $ DotP r e
 	Lit l			-> return $ LitP l
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
-	ImplicitFromScopeArg r e		-> ImplicitFromScopeP r <$> T.mapM exprToPattern e
+	InstanceArg r e		-> InstanceP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
 	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
 	_			->
