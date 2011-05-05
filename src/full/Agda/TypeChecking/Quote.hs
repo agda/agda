@@ -20,6 +20,7 @@ import Agda.Utils.Impossible
 quotingKit :: MonadTCM tcm => tcm ((Term -> Term), (Type -> Term))
 quotingKit = do
   hidden <- primHidden
+  instanceH <- primInstance
   visible <- primVisible
   relevant <- primRelevant
   irrelevant <- primIrrelevant
@@ -45,7 +46,7 @@ quotingKit = do
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
-      quoteHiding Instance = __IMPOSSIBLE__ -- quoting Instance args not yet supported...
+      quoteHiding Instance  = instanceH
       quoteHiding NotHidden = visible
       quoteRelevance Relevant   = relevant
       quoteRelevance Irrelevant = irrelevant
@@ -167,6 +168,7 @@ instance Unquote Hiding where
       Con c [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
+          ,(c `isCon` primInstance, return Instance)
           ,(c `isCon` primVisible, return NotHidden)]
           (unquoteFailed "Hiding" "neither `hidden' nor `visible'" t)
       _ -> unquoteFailed "Hiding" "arity is not 0" t

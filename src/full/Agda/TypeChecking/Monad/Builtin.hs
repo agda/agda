@@ -70,7 +70,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
     primAgdaTermSort, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
-    primHiding, primHidden, primVisible,
+    primHiding, primHidden, primInstance, primVisible,
     primRelvance, primRelevant, primIrrelevant, primNonStrict, primForced,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported
     :: MonadTCM tcm => tcm Term
@@ -115,6 +115,7 @@ primAgdaType     = getBuiltin builtinAgdaType
 primAgdaTypeEl   = getBuiltin builtinAgdaTypeEl
 primHiding       = getBuiltin builtinHiding
 primHidden       = getBuiltin builtinHidden
+primInstance     = getBuiltin builtinInstance
 primVisible      = getBuiltin builtinVisible
 primRelvance     = getBuiltin builtinRelevance
 primRelevant     = getBuiltin builtinRelevant
@@ -174,6 +175,7 @@ builtinAgdaType     = "AGDATYPE"
 builtinAgdaTypeEl   = "AGDATYPEEL"
 builtinHiding       = "HIDING"
 builtinHidden       = "HIDDEN"
+builtinInstance     = "INSTANCE"
 builtinVisible      = "VISIBLE"
 builtinRelevance    = "RELEVANCE"
 builtinRelevant     = "RELEVANT"
