@@ -7,12 +7,14 @@ module Reflection where
 open import Data.Bool as Bool using (Bool); open Bool.Bool
 open import Data.List using (List); open Data.List.List
 open import Data.Nat using (ℕ) renaming (_≟_ to _≟-ℕ_)
+open import Data.Product
 open import Function
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Binary.PropositionalEquality.TrustMe
 open import Relation.Nullary
 open import Relation.Nullary.Decidable as Dec
+open import Relation.Nullary.Product
 
 ------------------------------------------------------------------------
 -- Names
@@ -45,29 +47,34 @@ s₁ ≟-Name s₂ with s₁ == s₂
 ------------------------------------------------------------------------
 -- Terms
 
--- Is the argument implicit? (Here true stands for implicit and false
--- for explicit.)
+-- Is the argument visible (explicit), hidden (implicit), or an
+-- instance argument?
 
-data Implicit? : Set where
-  implicit explicit : Implicit?
+data Visibility : Set where
+  visible hidden instance : Visibility
 
-{-# BUILTIN HIDING  Implicit?  #-}
-{-# BUILTIN HIDDEN  implicit   #-}
-{-# BUILTIN VISIBLE explicit   #-}
+{-# BUILTIN HIDING   Visibility #-}
+{-# BUILTIN VISIBLE  visible    #-}
+{-# BUILTIN HIDDEN   hidden     #-}
+{-# BUILTIN INSTANCE instance   #-}
 
-data Relevant? : Set where
-  relevant nonStrict irrelevant forced : Relevant?
+-- Arguments can be relevant or irrelevant. (The forced and non-strict
+-- constructors do not correspond to any surface syntax, and should
+-- probably be removed.)
 
-{-# BUILTIN RELEVANCE  Relevant?  #-}
+data Relevance : Set where
+  relevant irrelevant forced non-strict : Relevance
+
+{-# BUILTIN RELEVANCE  Relevance  #-}
 {-# BUILTIN RELEVANT   relevant   #-}
-{-# BUILTIN NONSTRICT  nonStrict  #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
 {-# BUILTIN FORCED     forced     #-}
+{-# BUILTIN NONSTRICT  non-strict #-}
 
 -- Arguments.
 
 data Arg A : Set where
-  arg : (im? : Implicit?) (r? : Relevant?) (x : A) → Arg A
+  arg : (v : Visibility) (r : Relevance) (x : A) → Arg A
 
 {-# BUILTIN ARG    Arg #-}
 {-# BUILTIN ARGARG arg #-}
@@ -82,11 +89,11 @@ mutual
     con     : (c : Name) (args : List (Arg Term)) → Term
     -- Identifier applied to arguments.
     def     : (f : Name) (args : List (Arg Term)) → Term
-    -- Explicit or implicit λ abstraction.
-    lam     : (im? : Implicit?) (t : Term) → Term
+    -- Different kinds of λ-abstraction.
+    lam     : (v : Visibility) (t : Term) → Term
     -- Pi-type.
     pi      : (t₁ : Arg Type) (t₂ : Type) → Term
-    -- An arbitrary sort (Set, for instance).
+    -- A sort.
     sort    : Sort → Term
     -- Anything else.
     unknown : Term
@@ -95,8 +102,11 @@ mutual
     el : (s : Sort) (t : Term) → Type
 
   data Sort : Set where
+    -- A Set of a given (possibly neutral) level.
     set     : (t : Term) → Sort
+    -- A Set of a given concrete level.
     lit     : (n : ℕ) → Sort
+    -- Anything else.
     unknown : Sort
 
 {-# BUILTIN AGDASORT            Sort    #-}
@@ -115,44 +125,47 @@ mutual
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
 postulate
-  FunDef    : Set
-  DataDef   : Set
-  RecordDef : Set
+  -- Function definition.
+  Function    : Set
+  -- Data type definition.
+  Data-type   : Set
+  -- Record type definition.
+  Record : Set
 
-{-# BUILTIN AGDAFUNDEF    FunDef  #-}
-{-# BUILTIN AGDADATADEF   DataDef #-}
-{-# BUILTIN AGDARECORDDEF RecordDef #-}
+{-# BUILTIN AGDAFUNDEF    Function  #-}
+{-# BUILTIN AGDADATADEF   Data-type #-}
+{-# BUILTIN AGDARECORDDEF Record    #-}
 
 data Definition : Set where
-  funDef          : FunDef    → Definition
-  dataDef         : DataDef   → Definition
-  recordDef       : RecordDef → Definition
-  dataConstructor : Definition
-  axiom           : Definition
-  prim            : Definition
+  function     : Function  → Definition
+  data-type    : Data-type → Definition
+  record′      : Record    → Definition
+  constructor′ : Definition
+  axiom        : Definition
+  primitive′   : Definition
 
-{-# BUILTIN AGDADEFINITION                Definition      #-}
-{-# BUILTIN AGDADEFINITIONFUNDEF          funDef          #-}
-{-# BUILTIN AGDADEFINITIONDATADEF         dataDef         #-}
-{-# BUILTIN AGDADEFINITIONRECORDDEF       recordDef       #-}
-{-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR dataConstructor #-}
-{-# BUILTIN AGDADEFINITIONPOSTULATE       axiom           #-}
-{-# BUILTIN AGDADEFINITIONPRIMITIVE       prim            #-}
+{-# BUILTIN AGDADEFINITION                Definition   #-}
+{-# BUILTIN AGDADEFINITIONFUNDEF          function     #-}
+{-# BUILTIN AGDADEFINITIONDATADEF         data-type    #-}
+{-# BUILTIN AGDADEFINITIONRECORDDEF       record′      #-}
+{-# BUILTIN AGDADEFINITIONDATACONSTRUCTOR constructor′ #-}
+{-# BUILTIN AGDADEFINITIONPOSTULATE       axiom        #-}
+{-# BUILTIN AGDADEFINITIONPRIMITIVE       primitive′   #-}
 
 private
   primitive
     primQNameType        : Name → Type
     primQNameDefinition  : Name → Definition
-    primDataConstructors : DataDef → List Name
+    primDataConstructors : Data-type → List Name
 
-typeOf : Name → Type
-typeOf = primQNameType
+type : Name → Type
+type = primQNameType
 
-defOf : Name → Definition
-defOf = primQNameDefinition
+definition : Name → Definition
+definition = primQNameDefinition
 
-constructorsOf : DataDef → List Name
-constructorsOf = primDataConstructors
+constructors : Data-type → List Name
+constructors = primDataConstructors
 
 ------------------------------------------------------------------------
 -- Term equality is decidable
@@ -161,16 +174,21 @@ constructorsOf = primDataConstructors
 
 private
 
-  arg₁ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
-         arg im? r? x ≡ arg im?′ r?′ x′ → im? ≡ im?′
+  cong₂′ : ∀ {A B C : Set} (f : A → B → C) {x y u v} →
+          x ≡ y × u ≡ v → f x u ≡ f y v
+  cong₂′ f = uncurry (cong₂ f)
+
+  cong₃′ : ∀ {A B C D : Set} (f : A → B → C → D) {x y u v r s} →
+           x ≡ y × u ≡ v × r ≡ s → f x u r ≡ f y v s
+  cong₃′ f (refl , refl , refl) = refl
+
+  arg₁ : ∀ {A v v′ r r′} {x x′ : A} → arg v r x ≡ arg v′ r′ x′ → v ≡ v′
   arg₁ refl = refl
 
-  arg₂ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
-         arg im? r? x ≡ arg im?′ r?′ x′ → r? ≡ r?′
+  arg₂ : ∀ {A v v′ r r′} {x x′ : A} → arg v r x ≡ arg v′ r′ x′ → r ≡ r′
   arg₂ refl = refl
 
-  arg₃ : ∀ {A im? im?′ r? r?′} {x x′ : A} →
-         arg im? r? x ≡ arg im?′ r?′ x′ → x ≡ x′
+  arg₃ : ∀ {A v v′ r r′} {x x′ : A} → arg v r x ≡ arg v′ r′ x′ → x ≡ x′
   arg₃ refl = refl
 
   cons₁ : ∀ {A : Set} {x y} {xs ys : List A} → x ∷ xs ≡ y ∷ ys → x ≡ y
@@ -197,10 +215,10 @@ private
   def₂ : ∀ {f f′ args args′} → def f args ≡ def f′ args′ → args ≡ args′
   def₂ refl = refl
 
-  lam₁ : ∀ {im? im?′ t t′} → lam im? t ≡ lam im?′ t′ → im? ≡ im?′
+  lam₁ : ∀ {v v′ t t′} → lam v t ≡ lam v′ t′ → v ≡ v′
   lam₁ refl = refl
 
-  lam₂ : ∀ {im? im?′ t t′} → lam im? t ≡ lam im?′ t′ → t ≡ t′
+  lam₂ : ∀ {v v′ t t′} → lam v t ≡ lam v′ t′ → t ≡ t′
   lam₂ refl = refl
 
   pi₁ : ∀ {t₁ t₁′ t₂ t₂′} → pi t₁ t₂ ≡ pi t₁′ t₂′ → t₁ ≡ t₁′
@@ -224,103 +242,112 @@ private
   el₂ : ∀ {s s′ t t′} → el s t ≡ el s′ t′ → t ≡ t′
   el₂ refl = refl
 
-_≟-Implicit?_ : Decidable (_≡_ {A = Implicit?})
-implicit ≟-Implicit? implicit = yes refl
-explicit ≟-Implicit? explicit = yes refl
-implicit ≟-Implicit? explicit = no λ()
-explicit ≟-Implicit? implicit = no λ()
+_≟-Visibility_ : Decidable (_≡_ {A = Visibility})
+visible  ≟-Visibility visible  = yes refl
+hidden   ≟-Visibility hidden   = yes refl
+instance ≟-Visibility instance = yes refl
+visible  ≟-Visibility hidden   = no λ()
+visible  ≟-Visibility instance = no λ()
+hidden   ≟-Visibility visible  = no λ()
+hidden   ≟-Visibility instance = no λ()
+instance ≟-Visibility visible  = no λ()
+instance ≟-Visibility hidden   = no λ()
 
-_≟-Relevant?_ : Decidable (_≡_ {A = Relevant?})
-relevant   ≟-Relevant? relevant   = yes refl
-irrelevant ≟-Relevant? irrelevant = yes refl
-nonStrict  ≟-Relevant? nonStrict  = yes refl
-forced     ≟-Relevant? forced     = yes refl
-relevant   ≟-Relevant? nonStrict  = no λ()
-relevant   ≟-Relevant? irrelevant = no λ()
-relevant   ≟-Relevant? forced     = no λ()
-irrelevant ≟-Relevant? relevant   = no λ()
-irrelevant ≟-Relevant? nonStrict  = no λ()
-irrelevant ≟-Relevant? forced     = no λ()
-forced     ≟-Relevant? relevant   = no λ()
-forced     ≟-Relevant? nonStrict  = no λ()
-forced     ≟-Relevant? irrelevant = no λ()
-nonStrict  ≟-Relevant? relevant   = no λ()
-nonStrict  ≟-Relevant? irrelevant = no λ()
-nonStrict  ≟-Relevant? forced     = no λ()
+_≟-Relevance_ : Decidable (_≡_ {A = Relevance})
+relevant   ≟-Relevance relevant   = yes refl
+irrelevant ≟-Relevance irrelevant = yes refl
+forced     ≟-Relevance forced     = yes refl
+non-strict ≟-Relevance non-strict = yes refl
+relevant   ≟-Relevance irrelevant = no λ()
+relevant   ≟-Relevance forced     = no λ()
+relevant   ≟-Relevance non-strict = no λ()
+irrelevant ≟-Relevance relevant   = no λ()
+irrelevant ≟-Relevance forced     = no λ()
+irrelevant ≟-Relevance non-strict = no λ()
+forced     ≟-Relevance relevant   = no λ()
+forced     ≟-Relevance irrelevant = no λ()
+forced     ≟-Relevance non-strict = no λ()
+non-strict ≟-Relevance relevant   = no λ()
+non-strict ≟-Relevance irrelevant = no λ()
+non-strict ≟-Relevance forced     = no λ()
 
 mutual
   infix 4 _≟_ _≟-Args_ _≟-ArgType_
 
-  -- We have to specialise the Arg and List equality decisions to please the termination checker...
-
   _≟-ArgTerm_ : Decidable (_≡_ {A = Arg Term})
-  arg e r a ≟-ArgTerm arg e′ r′ a′
-    = Dec.map₃′ (cong₃ arg) arg₁ arg₂ arg₃ (e ≟-Implicit? e′) (r ≟-Relevant? r′) (a ≟ a′)
+  arg e r a ≟-ArgTerm arg e′ r′ a′ =
+    Dec.map′ (cong₃′ arg)
+             < arg₁ , < arg₂ , arg₃ > >
+             (e ≟-Visibility e′ ×-dec r ≟-Relevance r′ ×-dec a ≟ a′)
 
   _≟-ArgType_ : Decidable (_≡_ {A = Arg Type})
-  arg e r a ≟-ArgType arg e′ r′ a′
-    = Dec.map₃′ (cong₃ arg) arg₁ arg₂ arg₃ (e ≟-Implicit? e′) (r ≟-Relevant? r′) (a ≟-Type a′)
+  arg e r a ≟-ArgType arg e′ r′ a′ =
+    Dec.map′ (cong₃′ arg)
+             < arg₁ , < arg₂ , arg₃ > >
+             (e ≟-Visibility e′ ×-dec
+              r ≟-Relevance r′  ×-dec
+              a ≟-Type a′)
 
   _≟-Args_ : Decidable (_≡_ {A = List (Arg Term)})
-  []       ≟-Args []         = yes refl
-  (x ∷ xs) ≟-Args (y ∷ ys)  = Dec.map₂′ (cong₂ _∷_) cons₁ cons₂ (x ≟-ArgTerm y) (xs ≟-Args ys)
-  []       ≟-Args (_ ∷ _)    = no λ()
-  (_ ∷ _)  ≟-Args []         = no λ()
+  []       ≟-Args []       = yes refl
+  (x ∷ xs) ≟-Args (y ∷ ys) = Dec.map′ (cong₂′ _∷_) < cons₁ , cons₂ > (x ≟-ArgTerm y ×-dec xs ≟-Args ys)
+  []       ≟-Args (_ ∷ _)  = no λ()
+  (_ ∷ _)  ≟-Args []       = no λ()
 
   _≟_ : Decidable (_≡_ {A = Term})
-  var x args ≟ var x′ args′ = Dec.map₂′ (cong₂ var) var₁ var₂ (x ≟-ℕ x′) (args ≟-Args args′)
-  con c args ≟ con c′ args′ = Dec.map₂′ (cong₂ con) con₁ con₂ (c ≟-Name c′) (args ≟-Args args′)
-  def f args ≟ def f′ args′ = Dec.map₂′ (cong₂ def) def₁ def₂ (f ≟-Name f′) (args ≟-Args args′)
-  lam im? t  ≟ lam im?′ t′  = Dec.map₂′ (cong₂ lam) lam₁ lam₂ (im? ≟-Implicit? im?′) (t ≟ t′)
-  pi t₁ t₂   ≟ pi t₁′ t₂′  = Dec.map₂′ (cong₂ pi)  pi₁  pi₂  (t₁ ≟-ArgType t₁′) (t₂ ≟-Type t₂′)
-  sort s     ≟ sort s′      = Dec.map′ (cong sort) sort₁ (s ≟-Sort s′)
+  var x args ≟ var x′ args′ = Dec.map′ (cong₂′ var) < var₁ , var₂ > (x ≟-ℕ x′          ×-dec args ≟-Args args′)
+  con c args ≟ con c′ args′ = Dec.map′ (cong₂′ con) < con₁ , con₂ > (c ≟-Name c′       ×-dec args ≟-Args args′)
+  def f args ≟ def f′ args′ = Dec.map′ (cong₂′ def) < def₁ , def₂ > (f ≟-Name f′       ×-dec args ≟-Args args′)
+  lam v t    ≟ lam v′ t′    = Dec.map′ (cong₂′ lam) < lam₁ , lam₂ > (v ≟-Visibility v′ ×-dec t ≟ t′)
+  pi t₁ t₂   ≟ pi t₁′ t₂′   = Dec.map′ (cong₂′ pi)  < pi₁  , pi₂  > (t₁ ≟-ArgType t₁′  ×-dec t₂ ≟-Type t₂′)
+  sort s     ≟ sort s′      = Dec.map′ (cong sort)  sort₁           (s ≟-Sort s′)
   unknown    ≟ unknown      = yes refl
 
-  var x args ≟ con c args′  = no λ()
-  var x args ≟ def f args′  = no λ()
-  var x args ≟ lam im? t    = no λ()
-  var x args ≟ pi t₁ t₂     = no λ()
-  var x args ≟ sort _       = no λ()
-  var x args ≟ unknown      = no λ()
-  con c args ≟ var x args′  = no λ()
-  con c args ≟ def f args′  = no λ()
-  con c args ≟ lam im? t    = no λ()
-  con c args ≟ pi t₁ t₂     = no λ()
-  con c args ≟ sort _       = no λ()
-  con c args ≟ unknown      = no λ()
-  def f args ≟ var x args′  = no λ()
-  def f args ≟ con c args′  = no λ()
-  def f args ≟ lam im? t    = no λ()
-  def f args ≟ pi t₁ t₂     = no λ()
-  def f args ≟ sort _       = no λ()
-  def f args ≟ unknown      = no λ()
-  lam im? t  ≟ var x args   = no λ()
-  lam im? t  ≟ con c args   = no λ()
-  lam im? t  ≟ def f args   = no λ()
-  lam im? t  ≟ pi t₁ t₂     = no λ()
-  lam im? t  ≟ sort _       = no λ()
-  lam im? t  ≟ unknown      = no λ()
-  pi t₁ t₂   ≟ var x args   = no λ()
-  pi t₁ t₂   ≟ con c args   = no λ()
-  pi t₁ t₂   ≟ def f args   = no λ()
-  pi t₁ t₂   ≟ lam im? t    = no λ()
-  pi t₁ t₂   ≟ sort _       = no λ()
-  pi t₁ t₂   ≟ unknown      = no λ()
-  sort _     ≟ var x args   = no λ()
-  sort _     ≟ con c args   = no λ()
-  sort _     ≟ def f args   = no λ()
-  sort _     ≟ lam im? t    = no λ()
-  sort _     ≟ pi t₁ t₂     = no λ()
-  sort _     ≟ unknown      = no λ()
-  unknown    ≟ var x args   = no λ()
-  unknown    ≟ con c args   = no λ()
-  unknown    ≟ def f args   = no λ()
-  unknown    ≟ lam im? t    = no λ()
-  unknown    ≟ pi t₁ t₂     = no λ()
-  unknown    ≟ sort _       = no λ()
+  var x args ≟ con c args′ = no λ()
+  var x args ≟ def f args′ = no λ()
+  var x args ≟ lam v t     = no λ()
+  var x args ≟ pi t₁ t₂    = no λ()
+  var x args ≟ sort _      = no λ()
+  var x args ≟ unknown     = no λ()
+  con c args ≟ var x args′ = no λ()
+  con c args ≟ def f args′ = no λ()
+  con c args ≟ lam v t     = no λ()
+  con c args ≟ pi t₁ t₂    = no λ()
+  con c args ≟ sort _      = no λ()
+  con c args ≟ unknown     = no λ()
+  def f args ≟ var x args′ = no λ()
+  def f args ≟ con c args′ = no λ()
+  def f args ≟ lam v t     = no λ()
+  def f args ≟ pi t₁ t₂    = no λ()
+  def f args ≟ sort _      = no λ()
+  def f args ≟ unknown     = no λ()
+  lam v t    ≟ var x args  = no λ()
+  lam v t    ≟ con c args  = no λ()
+  lam v t    ≟ def f args  = no λ()
+  lam v t    ≟ pi t₁ t₂    = no λ()
+  lam v t    ≟ sort _      = no λ()
+  lam v t    ≟ unknown     = no λ()
+  pi t₁ t₂   ≟ var x args  = no λ()
+  pi t₁ t₂   ≟ con c args  = no λ()
+  pi t₁ t₂   ≟ def f args  = no λ()
+  pi t₁ t₂   ≟ lam v t     = no λ()
+  pi t₁ t₂   ≟ sort _      = no λ()
+  pi t₁ t₂   ≟ unknown     = no λ()
+  sort _     ≟ var x args  = no λ()
+  sort _     ≟ con c args  = no λ()
+  sort _     ≟ def f args  = no λ()
+  sort _     ≟ lam v t     = no λ()
+  sort _     ≟ pi t₁ t₂    = no λ()
+  sort _     ≟ unknown     = no λ()
+  unknown    ≟ var x args  = no λ()
+  unknown    ≟ con c args  = no λ()
+  unknown    ≟ def f args  = no λ()
+  unknown    ≟ lam v t     = no λ()
+  unknown    ≟ pi t₁ t₂    = no λ()
+  unknown    ≟ sort _      = no λ()
 
   _≟-Type_ : Decidable (_≡_ {A = Type})
-  el s t ≟-Type el s′ t′ = Dec.map₂′ (cong₂ el) el₁ el₂ (s ≟-Sort s′) (t ≟ t′)
+  el s t ≟-Type el s′ t′ = Dec.map′ (cong₂′ el) < el₁ , el₂ > (s ≟-Sort s′ ×-dec t ≟ t′)
 
   _≟-Sort_ : Decidable (_≡_ {A = Sort})
   set t   ≟-Sort set t′  = Dec.map′ (cong set) set₁ (t ≟ t′)
