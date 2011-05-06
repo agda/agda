@@ -9,11 +9,12 @@ postulate QName : Set
 primitive primQNameEquality : QName → QName → Bool
 
 data Hiding : Set where
-  hidden visible : Hiding
+  hidden visible instance : Hiding
 
-{-# BUILTIN HIDING  Hiding  #-}
-{-# BUILTIN HIDDEN  hidden  #-}
-{-# BUILTIN VISIBLE visible #-}
+{-# BUILTIN HIDING   Hiding   #-}
+{-# BUILTIN HIDDEN   hidden   #-}
+{-# BUILTIN VISIBLE  visible  #-}
+{-# BUILTIN INSTANCE instance #-}
 
 -- relevant    the argument is (possibly) relevant at compile-time
 -- nonStrict   the argument may never flow into evaluation position.
