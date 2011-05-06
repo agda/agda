@@ -285,6 +285,53 @@ Meta Variables and Unification
   argument. After pruning, the first equation is linear and can
   be solved.  [Pientka, PhD, Sec. 3.1.2; Abel Pientka, TLCA 2011]
 
+* The reflection API as been extended to mirror features like irrelevance,
+  and universe polymorphism.
+
+    data Hiding : Set where
+      hidden visible : Hiding
+
+    data Relevance : Set where
+      relevant nonStrict irrelevant forced : Relevance
+
+    data Type : Set where
+      el : Sort -> Term -> Type
+
+    data Sort : Set where
+      lit : Nat -> Sort
+      set : Term -> Sort
+      unsupported : Sort
+
+    -- pi and sort constructors have been updated
+    data Term : Set where
+      ...
+      pi      : Arg Type → Type → Term
+      sort    : Sort → Term
+
+* A new primitive has been added as well:
+
+  primitive
+    -- Returns the type of a given defined name
+    primQNameType : QName → Type
+
+  Example:
+    primQNameType (quote ℕ.zero) ≡ def (quote ℕ) []
+
+* A new construct as been introduce to inject mechanically defined terms, namely `unquote'.
+  The `unquote' construct extends the syntax of Agda terms and is applied to an Agda term.
+  This inner term have the type Term (from the reflection API). Once type-checked this inner
+  term is reduced to a Term value and treated as if user wrote such a term. Thus the resulting
+  term is spliced at this program point and type-checking continue on this new term. Example:
+
+    test : unquote (def (quote ℕ) []) ≡ ℕ
+    test = refl
+
+    id : (A : Set) → A → A
+    id = unquote (lamᵛ (lamᵛ (var 0 [])))
+
+    test-id : id ≡ (λ A (x : A) → x)
+    test-id = refl
+
 Tools
 -----
 
