@@ -300,7 +300,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
               | (i, Arg h r _) <- zip [0..] $ reverse $ telToList tel
               ]
       telh' h	 = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
-      telIFS	 = telh' ImplicitFromScope
+      telIFS	 = telh' Instance
 
   addCtxTel telIFS $ do
     allArgs <- getContextArgs
