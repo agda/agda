@@ -1,5 +1,3 @@
-NotAModuleExpr.agda:5,1-21
-The right-hand side of a module definition must have the form 'M e1
-.. en' where M is a module name. The expression λ x → x doesn't.
-when scope checking the declaration
-  module Bad = λ x → x
+NotAModuleExpr.agda:5,14-14
+NotAModuleExpr.agda:5,14:
+Parse error \<ERROR> x -> x ...
