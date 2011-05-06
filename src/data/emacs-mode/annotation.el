@@ -82,7 +82,7 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   (incf start annotations-offset)
   (incf end annotations-offset)
   (when (and (<= (point-min) start)
-             (<= start end)
+             (< start end)
              (<= end (point-max)))
     (let ((faces (delq nil
                        (mapcar (lambda (ann)
@@ -104,9 +104,16 @@ bounds for the current (possibly narrowed) buffer, or END < START."
         (add-to-list 'props 'mouse-face)
         (add-to-list 'props 'help-echo))
       (when props
-        (add-text-properties start end
-                             `(annotation-annotated   t
-                               annotation-annotations ,props))))))
+        (let ((pos start)
+              mid)
+          (while (< pos end)
+            (setq mid (next-single-property-change pos
+                         'annotation-annotations nil end))
+            (let* ((old-props (get-text-property pos 'annotation-annotations))
+                   (all-props (union old-props props)))
+              (add-text-properties pos mid
+                 `(annotation-annotated t annotation-annotations ,all-props))
+              (setq pos mid))))))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both the undo data and the modification bit."
