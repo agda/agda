@@ -1,4 +1,4 @@
-module NonCanonicalImplicitsAmbiguous where
+module InstanceArgumentsAmbiguous where
 
 postulate A B : Set
           f : {{a : A}} → B

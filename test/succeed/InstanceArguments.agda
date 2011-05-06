@@ -1,4 +1,4 @@
-module NonCanonicalImplicits where
+module InstanceArguments where
 
 postulate A₁ A₂ B : Set
           f₁ : {{a : A₁}} → B
