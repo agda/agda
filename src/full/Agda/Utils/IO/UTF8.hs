@@ -4,6 +4,7 @@
 
 module Agda.Utils.IO.UTF8
   ( readTextFile
+  , Agda.Utils.IO.UTF8.hPutStr
   , Agda.Utils.IO.UTF8.writeFile
   ) where
 
@@ -30,14 +31,26 @@ readTextFile file = convertLineEndings <$> do
   UTF8.readFile file
 #endif
 
+-- | Writes UTF8-encoded text to the handle, which should be opened
+-- for writing and in text mode. The native convention for line
+-- endings is used.
+
+hPutStr :: IO.Handle -> String -> IO ()
+#if MIN_VERSION_base(4,2,0)
+hPutStr h s = do
+  IO.hSetEncoding h IO.utf8
+  IO.hPutStr h s
+#else
+hPutStr = UTF8.hPutStr
+#endif
+
 -- | Writes a UTF8-encoded text file. The native convention for line
 -- endings is used.
 
 writeFile :: FilePath -> String -> IO ()
 #if MIN_VERSION_base(4,2,0)
 writeFile file s = IO.withFile file IO.WriteMode $ \h -> do
-  IO.hSetEncoding h IO.utf8
-  IO.hPutStr h s
+  hPutStr h s
 #else
 writeFile = UTF8.writeFile
 #endif
