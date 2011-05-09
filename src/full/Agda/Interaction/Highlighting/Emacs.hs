@@ -10,7 +10,6 @@ module Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
-import Agda.Interaction.Highlighting.Generate
 import Agda.Syntax.Abstract (QName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
