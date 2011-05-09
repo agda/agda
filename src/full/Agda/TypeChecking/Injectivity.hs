@@ -35,7 +35,9 @@ import Agda.Utils.Impossible
 -- | Reduce simple (single clause) definitions.
 reduceHead :: Term -> TCM (Blocked Term)
 reduceHead v = ignoreAbstractMode $ do
+  -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
+  reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
   case v of
     Def f args -> do
       def <- theDef <$> getConstInfo f
@@ -155,9 +157,10 @@ useInjectivity cmp a u v = do
   where
     fallBack = buildConstraint $ ValueCmp cmp a u v
 
+    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM Constraints
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
-      Nothing                     -> typeError $ UnequalTerms cmp u v a
+      Nothing -> typeError $ UnequalTerms cmp u v a
       Just (Clause{ clauseTel  = tel
                   , clausePerm = perm
                   , clausePats = ps }) -> do -- instArgs args ps
@@ -187,13 +190,26 @@ useInjectivity cmp a u v = do
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args
           cs  <- compareArgs pol ftype margs args'
-          unless (null cs) patternViolation
+{- Andreas, 2011-05-09 allow unsolved constraints as long as progress
+          unless (null cs) $ do
+            reportSDoc "tc.inj.invert" 30 $
+              text "aborting inversion; remaining constraints" <+> prettyTCM cs
+            patternViolation
+-}
           -- Check that we made progress, i.e. the head symbol
           -- of the original term should be a constructor.
-          h <- headSymbol =<< reduce org
+          org <- reduce org
+          h <- headSymbol org
           case h of
-            Just h  -> compareTerm cmp a u v
-            Nothing -> patternViolation
+            Just h  -> (cs ++) <$> compareTerm cmp a u v
+            Nothing -> do
+             reportSDoc "tc.inj.invert" 30 $ vcat
+               [ text "aborting inversion;" <+> prettyTCM org
+               , text "plainly," <+> text (show org)
+               , text "has TermHead" <+> text (show h)
+               , text "which does not expose a constructor"
+               ]
+             patternViolation
         `catchError` \err -> case errError err of
           TypeError   {} -> throwError err
           Exception   {} -> throwError err

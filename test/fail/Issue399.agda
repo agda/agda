@@ -2,7 +2,7 @@
 
 module Issue399 where
 
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude
 
 data Maybe (A : Set) : Set where
   nothing : Maybe A

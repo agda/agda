@@ -92,11 +92,13 @@ compareTerm cmp a m n =
         a | Just a == mlvl -> equalLevel m n
         Pi a _    -> equalFun (a,a') m n
         Fun a _   -> equalFun (a,a') m n
+{- Andreas, 2011-05-09 at unknown type, compare atomic
         MetaV x _ -> do
           (m,n) <- normalise (m,n)
           if m == n
             then return []
             else buildConstraint (ValueCmp cmp a m n)
+-}
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
           isrec <- isEtaRecord r

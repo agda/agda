@@ -239,8 +239,14 @@ killArgs kills m = do
       -- If there is any prunable argument, perform the pruning
       when (any unArg kills') $ performKill (reverse kills') m a'
       -- Only successful if all occurrences were killed
-      return (map unArg kills' == kills)
+      -- Andreas, 2011-05-09 more precisely, check that at least
+      -- the in 'kills' prescribed kills were carried out
+      -- OLD CODE: return (map unArg kills' == kills)
+      return $ and $ zipWith implies kills $ map unArg kills'
   where
+    implies :: Bool -> Bool -> Bool
+    implies False _ = True
+    implies True  x = x
     dbg kills' a a' =
       reportSDoc "tc.meta.kill" 10 $ vcat
         [ text "after kill analysis"

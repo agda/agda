@@ -393,15 +393,16 @@ checkExpr e t =
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
+{- Andreas, 2011-05-09 I thought the A.App case below is dead, but it ain't
         -- application is handled in spine fashion (see above, appView)
 	A.App i f arg -> __IMPOSSIBLE__
-
-{- Andreas, 2011-04-28 DEAD CASE, never used, must be stale code
+-}
+-- NOT DEAD! [ Andreas, 2011-04-28 DEAD CASE, never used, must be stale code]
 	A.App i f arg -> do
 	    (v0, t0)	 <- inferExpr f
 	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
 	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType_ t1 t
--}
+
         A.AbsurdLam i h -> do
           t <- reduceB =<< instantiateFull t
           case t of
