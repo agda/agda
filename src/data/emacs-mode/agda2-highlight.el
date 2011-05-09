@@ -356,12 +356,14 @@ table). The face `font-lock-comment-face' is used for comments.")
   (font-lock-mode 0)
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-load (file)
-  "Load syntax highlighting information from FILE."
+(defun agda2-highlight-load (file &optional keep)
+  "Load syntax highlighting information from FILE.
+Old syntax highlighting information is first removed, unless KEEP
+is non-nil."
   (let ((coding-system-for-read 'utf-8)
         ;; Ignore read-only status, otherwise this function may fail.
         (inhibit-read-only t))
-    (annotation-load-file file (lambda (anns) t)
+    (annotation-load-file file (lambda (anns) (not keep))
                           "Click mouse-2 to jump to definition")))
 
 (defun agda2-highlight-clear nil
