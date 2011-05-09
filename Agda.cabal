@@ -115,6 +115,7 @@ library
                     Agda.Packaging.Monad
                     Agda.Packaging.Types
                     Agda.Interaction.CommandLine.CommandLine
+                    Agda.Interaction.EmacsCommand
                     Agda.Interaction.Exceptions
                     Agda.Interaction.FindFile
                     Agda.Interaction.Highlighting.Dot

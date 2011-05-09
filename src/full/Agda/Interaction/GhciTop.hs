@@ -42,7 +42,6 @@ import Agda.Utils.String
 import Agda.Utils.FileName
 import qualified Agda.Utils.Trie as Trie
 import Agda.Utils.Tuple
-import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
 import Control.Monad.Error
@@ -83,6 +82,7 @@ import Agda.Syntax.Translation.AbstractToConcrete hiding (withScope)
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Abstract.Name
 
+import Agda.Interaction.EmacsCommand
 import Agda.Interaction.Exceptions
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
@@ -279,7 +279,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
       case f of
         Just (f, _) | f === current -> do
           is <- theInteractionPoints <$> liftIO (readIORef theState)
-          liftIO $ LocIO.putStrLn $ response $
+          liftIO $ putResponse $
             L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
         _ -> return ()
 
@@ -434,8 +434,7 @@ give_gen' give_ref mk_newtxt ii rng s = do
   liftIO $ modifyIORef theState $ \s ->
              s { theInteractionPoints =
                    replace ii iis (theInteractionPoints s) }
-  liftIO $ LocIO.putStrLn $ response $
-             L [A "agda2-give-action", showNumIId ii, newtxt]
+  liftIO $ putResponse $ L [A "agda2-give-action", showNumIId ii, newtxt]
   command cmd_metas
   return Nothing
   where
@@ -472,7 +471,7 @@ cmd_auto ii rng s = Interaction Dependent $ do
     mapM_ (\(ii, s) -> do
       liftIO $ modifyIORef theState $ \s ->
         s { theInteractionPoints = filter (/= ii) (theInteractionPoints s) }
-      liftIO $ LocIO.putStrLn $ response $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
+      liftIO $ putResponse $ L [A "agda2-give-action", showNumIId ii, A $ quote s]
      ) xs
     case msg of
      Nothing -> command cmd_metas >> return ()
@@ -482,7 +481,7 @@ cmd_auto ii rng s = Interaction Dependent $ do
     case msg of
      Nothing -> return ()
      Just msg -> display_info "*Auto*" msg
-    liftIO $ LocIO.putStrLn $ response $
+    liftIO $ putResponse $
      Cons (A "last")
           (L [ A "agda2-make-case-action",
                Q $ L $ List.map (A . quote) cs
@@ -655,15 +654,14 @@ showStatus s = intercalate "," $ catMaybes [checked, showImpl]
 
 displayStatus :: Status -> IO ()
 displayStatus s =
-  LocIO.putStrLn $ response $
-    L [A "agda2-status-action", A (quote $ showStatus s)]
+  putResponse $ L [A "agda2-status-action", A (quote $ showStatus s)]
 
 -- | @display_info' header content@ displays @content@ (with header
 -- @header@) in some suitable way.
 
 display_info' :: String -> String -> IO ()
 display_info' bufname content =
-  LocIO.putStrLn $ response $
+  putResponse $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
@@ -682,23 +680,6 @@ display_info bufname content = do
 
 display_infoD :: String -> Doc -> TCM ()
 display_infoD bufname content = display_info bufname (render content)
-
--- | Formats a response command.
-
-response :: Lisp String -> String
-response l = show (text "agda2_mode_code" <+> pretty l)
-
-data Lisp a = A a | L [Lisp a] | Q (Lisp a) | Cons (Lisp a) (Lisp a)
-
-instance Pretty a => Pretty (Lisp a) where
-  pretty (A a )     = pretty a
-  pretty (L xs)     = parens (sep (List.map pretty xs))
-  pretty (Q x)      = text "'" <> pretty x
-  pretty (Cons a b) = parens (pretty a <+> text "." <+> pretty b)
-
-instance Pretty String where pretty = text
-
-instance Pretty a => Show (Lisp a) where show = show . pretty
 
 showNumIId = A . tail . show
 
@@ -725,7 +706,7 @@ cmd_make_case ii rng s = Interaction Dependent $ do
   cs <- makeCase ii rng s
   B.withInteractionId ii $ do
     pcs <- mapM prettyA cs
-    liftIO $ LocIO.putStrLn $ response $
+    liftIO $ putResponse $
       Cons (A "last")
            (L [ A "agda2-make-case-action"
               , Q $ L $ List.map (A . quote . render) pcs
@@ -736,7 +717,7 @@ cmd_make_case ii rng s = Interaction Dependent $ do
 cmd_solveAll :: Interaction
 cmd_solveAll = Interaction Dependent $ do
   out <- getInsts
-  liftIO $ LocIO.putStrLn $ response $
+  liftIO $ putResponse $
     Cons (A "last")
          (L [ A "agda2-solveAll-action"
             , Q . L $ concatMap prn out
@@ -950,7 +931,7 @@ tellEmacsToJumpToError r = do
     Nothing                                    -> return ()
     Just (Pn { srcFile = Nothing })            -> return ()
     Just (Pn { srcFile = Just f, posPos = p }) ->
-      LocIO.putStrLn $ response $
+      putResponse $
         L [ A "annotation-goto"
           , Q $ L [A (quote $ filePath f), A ".", A (show p)]
           ]
