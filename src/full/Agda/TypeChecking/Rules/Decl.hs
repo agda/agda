@@ -204,11 +204,17 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 checkDefinition :: A.Definition -> TCM ()
 checkDefinition d =
     case d of
-	A.FunDef i x cs          -> abstract (Info.defAbstract i) $ checkFunDef NotDelayed i x cs
-	A.DataDef i x ps cs      -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
-	A.RecDef i x c ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x c ps tel cs
+	A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
+	A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
+	A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
         A.ScopedDef scope d      -> setScope scope >> checkDefinition d
     where
+        check x i m = do
+          reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
+          r <- abstract (Info.defAbstract i) m
+          reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
+          return r
+
 	-- Concrete definitions cannot use information about abstract things.
 	abstract ConcreteDef = inConcreteMode
 	abstract AbstractDef = inAbstractMode
