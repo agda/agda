@@ -98,7 +98,9 @@ checkRecDef i name con ps contel fields =
       contype <- killRange <$> (instantiateFull =<< isType_ contel)
       -- Put in @rect@ as correct target of constructor type.
       let TelV ftel _ = telView' contype
-      let contype = telePi ftel (raise (size ftel) rect)
+      -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
+      -- even names of non-dependent fields in constructor type (Issue 322).
+      let contype = telePi_ ftel (raise (size ftel) rect)
 
       -- Obtain name of constructor (if present).
       (hasNamedCon, conName, conInfo) <- case con of
