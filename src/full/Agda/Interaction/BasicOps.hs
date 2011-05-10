@@ -258,7 +258,7 @@ instance Reify Constraint (OutputForm Expr Expr) where
                                                 <*> mapM (reify . unArg) v
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
-    reify (TelCmp  cmp t t')     = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
+    reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
     reify (Guarded c cs) = do
 	o  <- reify c

@@ -800,7 +800,9 @@ checkHeadApplication e t hd args = do
           -- first.
 
           when (size eTel > size fTel) $
-            compareTel CmpLeq eTel fTel >> return () -- This will fail!
+            typeError $ UnequalTypes CmpLeq t1 t -- switch because of contravariance
+            -- Andreas, 2011-05-10 report error about types rather  telescopes
+            -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
           reportSDoc "tc.term.con" 10 $ vcat
             [ text "checking" <+>
@@ -809,7 +811,7 @@ checkHeadApplication e t hd args = do
           workOnTypes $ do
             cs1 <- addCtxTel eTel $ leqType fType eType
 
-            cs2 <- compareTel CmpLeq eTel fTel
+            cs2 <- compareTel t t1 CmpLeq eTel fTel
             return $ cs1 ++ cs2
 
     HeadDef c | Just c == (nameOfSharp <$> kit) -> do

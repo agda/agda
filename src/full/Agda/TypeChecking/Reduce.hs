@@ -134,7 +134,7 @@ instance Instantiate Constraint where
     return $ ArgsCmp cmp t as bs
   instantiate (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate (u,v)
   instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
-  instantiate (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> instantiate (a,b)
+  instantiate (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate (tela,telb)
   instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
   instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
   instantiate (UnBlock m)          = return $ UnBlock m
@@ -369,7 +369,7 @@ instance Reduce Constraint where
     return $ ArgsCmp cmp t us vs
   reduce (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> reduce (u,v)
   reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
-  reduce (TelCmp  cmp a b)    = uncurry (TelCmp cmp)  <$> reduce (a,b)
+  reduce (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce (tela,telb)
   reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
   reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
   reduce (UnBlock m)          = return $ UnBlock m
@@ -457,7 +457,7 @@ instance Normalise Constraint where
     return $ ArgsCmp cmp t u v
   normalise (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> normalise (u,v)
   normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
-  normalise (TelCmp cmp a b)     = uncurry (TelCmp cmp)  <$> normalise (a,b)
+  normalise (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise (tela,telb)
   normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
   normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
   normalise (UnBlock m)          = return $ UnBlock m
@@ -569,7 +569,7 @@ instance InstantiateFull Constraint where
       return $ ArgsCmp cmp t u v
     LevelCmp cmp u v   -> uncurry (LevelCmp cmp) <$> instantiateFull (u,v)
     TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
-    TelCmp cmp a b     -> uncurry (TelCmp cmp)  <$> instantiateFull (a,b)
+    TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull (tela,telb)
     SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
     Guarded c cs       -> uncurry Guarded <$> instantiateFull (c,cs)
     UnBlock m          -> return $ UnBlock m

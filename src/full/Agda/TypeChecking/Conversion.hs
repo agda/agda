@@ -147,10 +147,13 @@ compareTerm cmp a m n =
         suggest (Pi _ (Abs x _)) = x
         suggest _		 = __IMPOSSIBLE__
 
-compareTel :: MonadTCM tcm => Comparison -> Telescope -> Telescope -> tcm Constraints
-compareTel cmp tel1 tel2 =
+-- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
+--   and complains that @t2 `cmp` t1@ failed if not.
+compareTel :: MonadTCM tcm => Type -> Type ->
+  Comparison -> Telescope -> Telescope -> tcm Constraints
+compareTel t1 t2 cmp tel1 tel2 =
   verboseBracket "tc.conv.tel" 20 "compareTel" $
-  catchConstraint (TelCmp cmp tel1 tel2) $ case (tel1, tel2) of
+  catchConstraint (TelCmp t1 t2 cmp tel1 tel2) $ case (tel1, tel2) of
     (EmptyTel, EmptyTel) -> return []
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
@@ -161,7 +164,7 @@ compareTel cmp tel1 tel2 =
               arg            = Var 0 []
           name <- freshName_ (suggest (absName tel1) (absName tel2))
           cs   <- compareType cmp a1 a2
-          let c = TelCmp cmp (absApp tel1' arg) (absApp tel2' arg)
+          let c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
 
 	  let dependent = 0 `freeIn` absBody tel2
 
@@ -173,7 +176,9 @@ compareTel cmp tel1 tel2 =
             suggest "_" y = y
             suggest  x  _ = x
   where
-    bad = typeError $ UnequalTelescopes cmp tel1 tel2
+    -- Andreas, 2011-05-10 better report message about types
+    bad = typeError $ UnequalTypes cmp t2 t1 -- switch t2 and t1 because of contravariance!
+--    bad = typeError $ UnequalTelescopes cmp tel1 tel2
 
 -- | Syntax directed equality on atomic values
 --

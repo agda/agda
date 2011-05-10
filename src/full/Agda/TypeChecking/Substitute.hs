@@ -513,6 +513,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     s1 = getSort $ unArg u
     s2 = fmap getSort b
 
+-- | Dependent least upper bound, to assign a level to expressions
+--   like @forall i -> Set i@.
+--
+--   @dLub s1 \i.s2 = \omega@ if @i@ appears in the rigid variables of @s2@.
 dLub :: Sort -> Abs Sort -> Sort
 dLub s1 s2
   | 0 `Set.member` rv = Inf

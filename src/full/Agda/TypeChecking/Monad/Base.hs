@@ -219,16 +219,17 @@ buildClosure x = liftTCM $ do
 
 type ConstraintClosure = Closure Constraint
 
-data Constraint = ValueCmp Comparison Type Term Term
-                | ArgsCmp [Polarity] Type Args Args
-		| TypeCmp Comparison Type Type
-                | TelCmp Comparison Telescope Telescope
-		| SortCmp Comparison Sort Sort
-                | LevelCmp Comparison Term Term
-		| UnBlock MetaId
-		| Guarded Constraint Constraints
-                | IsEmpty Type
-                | FindInScope MetaId
+data Constraint
+  = ValueCmp Comparison Type Term Term
+  | ArgsCmp [Polarity] Type Args Args
+  | TypeCmp Comparison Type Type
+  | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
+  | SortCmp Comparison Sort Sort
+  | LevelCmp Comparison Term Term
+  | UnBlock MetaId
+  | Guarded Constraint Constraints
+  | IsEmpty Type
+  | FindInScope MetaId
   deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
