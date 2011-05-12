@@ -142,8 +142,8 @@ instance Occurs Term where
                         ]
                       ok <- killArgs kills m'
 -}
-                      ok <- prune m' vs xs
-                      if ok
+                      killResult <- prune m' vs xs
+                      if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
                         then occurs ctx m xs =<< instantiate (MetaV m' vs)
                         else throwError err
@@ -190,25 +190,27 @@ instance Occurs a => Occurs [a] where
 --   free variables are not contained in @xs@.
 --   If successful, @m'@ is solved by the new, pruned meta variable and we
 --   return @True@ else @False@.
-prune :: MonadTCM tcm => MetaId -> Args -> [Nat] -> tcm Bool
+prune :: MonadTCM tcm => MetaId -> Args -> [Nat] -> tcm PruneResult
 prune m' vs xs = liftTCM $ do
   let kills = map (hasBadRigid xs) $ map unArg vs
+  reportSDoc "tc.meta.kill" 10 $ vcat
+    [ text "attempting kills"
+    , nest 2 $ vcat
+      [ text "m'    =" <+> text (show m')
+      , text "xs    =" <+> text (show xs)
+      , text "vs    =" <+> prettyList (map prettyTCM vs)
+      , text "kills =" <+> text (show kills)
+      ]
+    ]
+{- Andreas, 2011-05-11 REDUNDANT CODE
   reportSLn "tc.meta.kill" 20 $
     "attempting to prune meta " ++ show m' ++ "\n" ++
     "  kills: " ++ show kills
   if not (or kills)
     then return False -- nothing to kill
     else do
-      reportSDoc "tc.meta.kill" 10 $ vcat
-        [ text "attempting kills"
-        , nest 2 $ vcat
-          [ text "m'    =" <+> text (show m')
-          , text "xs    =" <+> text (show xs)
-          , text "vs    =" <+> prettyList (map prettyTCM vs)
-          , text "kills =" <+> text (show kills)
-          ]
-        ]
-      killArgs kills m'
+-}
+  killArgs kills m'
 
 -- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
 hasBadRigid :: [Nat] -> Term -> Bool
@@ -217,15 +219,22 @@ hasBadRigid xs v =
     (rigidVars $ freeVars v)
     (Set.fromList xs)
 
+data PruneResult
+  = NothingToPrune   -- ^ the kill list is empty or only @False@s
+  | PrunedNothing    -- ^ there is no possible kill (because of type dep.)
+  | PrunedSomething  -- ^ managed to kill some args in the list
+  | PrunedEverything -- ^ all prescribed kills where performed
+    deriving (Eq, Show)
+
 -- | @killArgs [k1,...,kn] X@ prunes argument @i@ from metavar @X@ if @ki==True@.
 --   Pruning is carried out whenever > 0 arguments can be pruned.
 --   @True@ is only returned if all arguments could be pruned.
-killArgs :: [Bool] -> MetaId -> TCM Bool
+killArgs :: [Bool] -> MetaId -> TCM PruneResult
 killArgs kills _
-  | not (or kills) = return False  -- nothing to kill
+  | not (or kills) = return NothingToPrune  -- nothing to kill
 killArgs kills m = do
   mv <- lookupMeta m
-  if mvFrozen mv == Frozen then return False else do
+  if mvFrozen mv == Frozen then return PrunedNothing else do
 {- Andreas 2011-04-26, allow pruning in MetaS
   case mvJudgement mv of
     IsSort _    -> return False
@@ -237,12 +246,15 @@ killArgs kills m = do
           (kills', a') = killedType args b
       dbg kills' a a'
       -- If there is any prunable argument, perform the pruning
-      when (any unArg kills') $ performKill (reverse kills') m a'
-      -- Only successful if all occurrences were killed
-      -- Andreas, 2011-05-09 more precisely, check that at least
-      -- the in 'kills' prescribed kills were carried out
-      -- OLD CODE: return (map unArg kills' == kills)
-      return $ and $ zipWith implies kills $ map unArg kills'
+      if not (any unArg kills') then return PrunedNothing else do
+        performKill (reverse kills') m a'
+        -- Only successful if all occurrences were killed
+        -- Andreas, 2011-05-09 more precisely, check that at least
+        -- the in 'kills' prescribed kills were carried out
+        -- OLD CODE: return (map unArg kills' == kills)
+        return $ if (and $ zipWith implies kills $ map unArg kills')
+                   then PrunedEverything
+                   else PrunedSomething
   where
     implies :: Bool -> Bool -> Bool
     implies False _ = True
@@ -251,7 +263,9 @@ killArgs kills m = do
       reportSDoc "tc.meta.kill" 10 $ vcat
         [ text "after kill analysis"
         , nest 2 $ vcat
-          [ text "kills'  =" <+> text (show kills')
+          [ text "metavar =" <+> prettyTCM m
+          , text "kills   =" <+> text (show kills)
+          , text "kills'  =" <+> text (show kills')
           , text "oldType =" <+> prettyTCM a
           , text "newType =" <+> prettyTCM a'
           ]

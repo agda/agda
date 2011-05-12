@@ -15,7 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.MetaVars
-import Agda.TypeChecking.MetaVars.Occurs (killArgs)
+import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Constraints
@@ -195,12 +195,14 @@ compareAtom cmp t m n =
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
 
+          postpone = buildConstraint $ ValueCmp cmp t m n
+
           checkSyntacticEquality = do
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
                 then return []	-- Check syntactic equality for blocked terms
-                else buildConstraint $ ValueCmp cmp t m n
+                else postpone
 
       reportSDoc "tc.conv.atom" 30 $ fsep
 	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
@@ -212,8 +214,14 @@ compareAtom cmp t m n =
               case intersectVars xArgs yArgs of
                 -- all relevant arguments are variables
                 Just kills -> do
-                  killedAll <- killArgs kills x
-                  if killedAll then return [] else checkSyntacticEquality
+                  -- kills is a list with 'True' for each different var
+                  killResult <- killArgs kills x
+                  case killResult of
+                    NothingToPrune   -> return []
+                    PrunedEverything -> return []
+                    PrunedNothing    -> postpone
+                    PrunedSomething  -> postpone
+                    -- OLD CODE: if killedAll then return [] else checkSyntacticEquality
                 -- not all relevant arguments are variables
                 Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)

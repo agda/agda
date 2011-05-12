@@ -498,8 +498,11 @@ assign assigningSort x args v = do
 
         unless (distinct $ filter (`Set.member` fvs) ids) $ do
           -- non-linear lhs: we cannot solve, but prune
-          ok <- prune x args $ Set.toList fvs
-          -- if ok then return [] else
+          killResult <- prune x args $ Set.toList fvs
+          reportSDoc "tc.meta.assign" 10 $
+            text "pruning" <+> prettyTCM x <+> (text $
+              if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
+               else "failed")
           patternViolation
 
 {- Andreas, 2011-04-21 this does not work
@@ -542,8 +545,8 @@ assign assigningSort x args v = do
         when (size tel0 < n) __IMPOSSIBLE__
         let tel' = telFromList $ take n $ telToList tel0
 
-	reportSDoc "tc.meta.assign" 15 $
-	  text "final instantiation:" <+> prettyTCM (abstract tel' v')
+	reportSDoc "tc.meta.assign" 10 $
+	  text "solving" <+> prettyTCM x <+> text ":=" <+> prettyTCM (abstract tel' v')
 
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
