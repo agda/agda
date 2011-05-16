@@ -478,8 +478,8 @@ order for the change to take effect."
 
   ;; Parentheses.
 
-  ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢"))
-  (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣"))
+  ("(" . ,(agda-input-to-string-list "([{⁅⁽₍〈⎴⟅⟦⟨⟪⦃〈《「『【〔〖〚︵︷︹︻︽︿﹁﹃﹙﹛﹝（［｛｢"))
+  (")" . ,(agda-input-to-string-list ")]}⁆⁾₎〉⎵⟆⟧⟩⟫⦄〉》」』】〕〗〛︶︸︺︼︾﹀﹂﹄﹚﹜﹞）］｝｣"))
 
   ("[[" . ("⟦"))
   ("]]" . ("⟧"))
@@ -489,6 +489,12 @@ order for the change to take effect."
   (">>" . ("⟫"))
   ("{{" . ("⦃"))
   ("}}" . ("⦄"))
+
+  ("(b" . ("⟅"))
+  (")b" . ("⟆"))
+
+  ("lbag" . ("⟅"))
+  ("rbag" . ("⟆"))
 
   ;; Primes.
 
