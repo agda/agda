@@ -8,9 +8,9 @@ module Data.Star.Nat where
 
 open import Data.Star
 open import Data.Unit
+open import Function
 open import Relation.Binary
 open import Relation.Binary.Simple
-open import Function
 
 -- Natural numbers.
 
@@ -23,12 +23,12 @@ zero : ℕ
 zero = ε
 
 suc : ℕ → ℕ
-suc = _◅_ tt
+suc = _◅_ _
 
 -- The length of a star-list.
 
 length : ∀ {i t} {I : Set i} {T : Rel I t} {i j} → Star T i j → ℕ
-length = gmap (const tt) (const tt)
+length = gmap (const _) (const _)
 
 -- Arithmetic.
 
