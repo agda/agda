@@ -122,11 +122,11 @@ Any↔ {P = P} {xs} = record
 -- Any is a congruence
 
 Any-cong : ∀ {k ℓ} {A : Set ℓ} {P₁ P₂ : A → Set ℓ} {xs₁ xs₂ : List A} →
-           (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
+           (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ∼[ k ] xs₂ →
            Related k (Any P₁ xs₁) (Any P₂ xs₂)
 Any-cong {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
   Any P₁ xs₁                ↔⟨ sym $ Any↔ {P = P₁} ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ∼⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ↔⟨ Any↔ {P = P₂} ⟩
   Any P₂ xs₂                ∎
 

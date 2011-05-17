@@ -273,8 +273,8 @@ open Related public
 [_]-Equality : ∀ {ℓ} → Symmetric-kind → Container ℓ → Set ℓ → Setoid ℓ ℓ
 [ k ]-Equality C X = Related.InducedEquivalence₂ k (_∈_ {C = C} {X = X})
 
-infix 4 _≈[_]_
+infix 4 _∼[_]_
 
-_≈[_]_ : ∀ {c} {C : Container c} {X : Set c} →
+_∼[_]_ : ∀ {c} {C : Container c} {X : Set c} →
          ⟦ C ⟧ X → Kind → ⟦ C ⟧ X → Set c
-_≈[_]_ {C = C} {X} xs k ys = Preorder._∼_ ([ k ]-Order C X) xs ys
+_∼[_]_ {C = C} {X} xs k ys = Preorder._∼_ ([ k ]-Order C X) xs ys

@@ -415,7 +415,7 @@ _×-↔_ {A = A} {B} {C} {D} A↔B C↔D =
   where open Inv using () renaming (_∘_ to _⟨∘⟩_)
 
 _×-cong_ : ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-           A ≈[ k ] B → C ≈[ k ] D → (A × C) ≈[ k ] (B × D)
+           A ∼[ k ] B → C ∼[ k ] D → (A × C) ∼[ k ] (B × D)
 _×-cong_ {implication}         = λ f g →      Prod.map        f         g
 _×-cong_ {reverse-implication} = λ f g → lam (Prod.map (app-← f) (app-← g))
 _×-cong_ {equivalence}         = _×-⇔_

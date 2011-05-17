@@ -11,7 +11,7 @@ open import Data.Fin
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv using (module Equivalence)
-open import Function.Related as Related hiding (_≈[_]_)
+open import Function.Related as Related hiding (_∼[_]_)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level
@@ -182,15 +182,15 @@ module Membership-≡ where
   [_]-Equality : Symmetric-kind → ∀ {a} → Set a → Setoid _ _
   [ k ]-Equality A = Related.InducedEquivalence₂ k (_∈_ {A = A})
 
-  infix 4 _≈[_]_
+  infix 4 _∼[_]_
 
-  _≈[_]_ : ∀ {a} {A : Set a} → List A → Kind → List A → Set _
-  _≈[_]_ {A = A} xs k ys = Preorder._∼_ ([ k ]-Order A) xs ys
+  _∼[_]_ : ∀ {a} {A : Set a} → List A → Kind → List A → Set _
+  _∼[_]_ {A = A} xs k ys = Preorder._∼_ ([ k ]-Order A) xs ys
 
   -- Bag equality implies the other relations.
 
   bag-=⇒ : ∀ {k a} {A : Set a} {xs ys : List A} →
-           xs ≈[ bag ] ys → xs ≈[ k ] ys
+           xs ∼[ bag ] ys → xs ∼[ k ] ys
   bag-=⇒ xs≈ys = ↔⇒ xs≈ys
 
   -- "Equational" reasoning for _⊆_.
@@ -201,16 +201,16 @@ module Membership-≡ where
       open module PR {a} {A : Set a} = PreR (⊆-preorder A) public
         renaming (_∼⟨_⟩_ to _⊆⟨_⟩_; _≈⟨_⟩_ to _≡⟨_⟩_)
 
-    infixr 2 _≈⟨_⟩_
+    infixr 2 _∼⟨_⟩_
     infix  1 _∈⟨_⟩_
 
     _∈⟨_⟩_ : ∀ {a} {A : Set a} x {xs ys : List A} →
              x ∈ xs → xs IsRelatedTo ys → x ∈ ys
     x ∈⟨ x∈xs ⟩ xs⊆ys = (begin xs⊆ys) x∈xs
 
-    _≈⟨_⟩_ : ∀ {k a} {A : Set a} xs {ys zs : List A} →
-             xs ≈[ ⌊ k ⌋→ ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
-    xs ≈⟨ xs≈ys ⟩ ys≈zs = xs ⊆⟨ ⇒→ xs≈ys ⟩ ys≈zs
+    _∼⟨_⟩_ : ∀ {k a} {A : Set a} xs {ys zs : List A} →
+             xs ∼[ ⌊ k ⌋→ ] ys → ys IsRelatedTo zs → xs IsRelatedTo zs
+    xs ∼⟨ xs≈ys ⟩ ys≈zs = xs ⊆⟨ ⇒→ xs≈ys ⟩ ys≈zs
 
 ------------------------------------------------------------------------
 -- Another function

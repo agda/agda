@@ -20,7 +20,7 @@ open import Function.LeftInverse as LeftInv
   using (LeftInverse; _↞_; module LeftInverse;
          _LeftInverseOf_; _RightInverseOf_)
 open import Function.Related as Related
-  using (_≈[_]_; lam; app-←; app-↢)
+  using (_∼[_]_; lam; app-←; app-↢)
 open import Function.Surjection as Surj
   using (Surjection; _↠_; module Surjection)
 import Relation.Binary as B
@@ -422,10 +422,10 @@ private
     ∀ {k a₁ a₂ b₁ b₂}
       {A₁ : Set a₁} {A₂ : Set a₂} {B₁ : A₁ → Set b₁} (B₂ : A₂ → Set b₂)
     (A₁↔A₂ : _↔_ A₁ A₂) →
-    (∀ {x} → B₁ x ≈[ k ] B₂ (Inverse.to A₁↔A₂ ⟨$⟩ x)) →
-    ∀ {x} → B₁ (Inverse.from A₁↔A₂ ⟨$⟩ x) ≈[ k ] B₂ x
+    (∀ {x} → B₁ x ∼[ k ] B₂ (Inverse.to A₁↔A₂ ⟨$⟩ x)) →
+    ∀ {x} → B₁ (Inverse.from A₁↔A₂ ⟨$⟩ x) ∼[ k ] B₂ x
   swap-coercions {k} {B₁ = B₁} B₂ A₁↔A₂ eq {x} =
-    B₁ (Inverse.from A₁↔A₂ ⟨$⟩ x)                         ≈⟨ eq ⟩
+    B₁ (Inverse.from A₁↔A₂ ⟨$⟩ x)                         ∼⟨ eq ⟩
     B₂ (Inverse.to A₁↔A₂ ⟨$⟩ (Inverse.from A₁↔A₂ ⟨$⟩ x))  ↔⟨ B.Setoid.reflexive (Related.setoid Related.bijection _)
                                                                (P.cong B₂ $ Inverse.right-inverse-of A₁↔A₂ x) ⟩
     B₂ x                                                  ∎
@@ -435,8 +435,8 @@ cong : ∀ {k a₁ a₂ b₁ b₂}
          {A₁ : Set a₁} {A₂ : Set a₂}
          {B₁ : A₁ → Set b₁} {B₂ : A₂ → Set b₂}
        (A₁↔A₂ : _↔_ A₁ A₂) →
-       (∀ {x} → B₁ x ≈[ k ] B₂ (Inverse.to A₁↔A₂ ⟨$⟩ x)) →
-       Σ A₁ B₁ ≈[ k ] Σ A₂ B₂
+       (∀ {x} → B₁ x ∼[ k ] B₂ (Inverse.to A₁↔A₂ ⟨$⟩ x)) →
+       Σ A₁ B₁ ∼[ k ] Σ A₂ B₂
 cong {Related.implication}                   = λ A₁↔A₂ → Prod.map (_⟨$⟩_ (Inverse.to A₁↔A₂))
 cong {Related.reverse-implication} {B₂ = B₂} = λ A₁↔A₂ B₁←B₂ → lam (Prod.map (_⟨$⟩_ (Inverse.from A₁↔A₂))
                                                                              (app-← (swap-coercions B₂ A₁↔A₂ B₁←B₂)))

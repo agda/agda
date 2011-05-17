@@ -54,11 +54,11 @@ private
 
 cong : ∀ {k c} {C : Container c}
          {X : Set c} {P₁ P₂ : X → Set c} {xs₁ xs₂ : ⟦ C ⟧ X} →
-       (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ≈[ k ] xs₂ →
+       (∀ x → Related k (P₁ x) (P₂ x)) → xs₁ ∼[ k ] xs₂ →
        Related k (◇ P₁ xs₁) (◇ P₂ xs₂)
 cong {C = C} {P₁ = P₁} {P₂} {xs₁} {xs₂} P₁↔P₂ xs₁≈xs₂ =
   ◇ P₁ xs₁                  ↔⟨ ↔∈ C ⟩
-  (∃ λ x → x ∈ xs₁ × P₁ x)  ≈⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
+  (∃ λ x → x ∈ xs₁ × P₁ x)  ∼⟨ Σ.cong Inv.id (xs₁≈xs₂ ×-cong P₁↔P₂ _) ⟩
   (∃ λ x → x ∈ xs₂ × P₂ x)  ↔⟨ sym (↔∈ C) ⟩
   ◇ P₂ xs₂                  ∎
 
@@ -175,11 +175,11 @@ map↔∘ _ _ _ = Inv.id
 
 map-cong : ∀ {k c} {C : Container c} {X Y : Set c}
              {f₁ f₂ : X → Y} {xs₁ xs₂ : ⟦ C ⟧ X} →
-           f₁ ≗ f₂ → xs₁ ≈[ k ] xs₂ →
-           C.map f₁ xs₁ ≈[ k ] C.map f₂ xs₂
+           f₁ ≗ f₂ → xs₁ ∼[ k ] xs₂ →
+           C.map f₁ xs₁ ∼[ k ] C.map f₂ xs₂
 map-cong {c = c} {C} {f₁ = f₁} {f₂} {xs₁} {xs₂} f₁≗f₂ xs₁≈xs₂ {x} =
   x ∈ C.map f₁ xs₁        ↔⟨ map↔∘ C (_≡_ x) f₁ ⟩
-  ◇ (λ y → x ≡ f₁ y) xs₁  ≈⟨ cong {xs₁ = xs₁} {xs₂ = xs₂} (Related.↔⇒ ∘ helper) xs₁≈xs₂ ⟩
+  ◇ (λ y → x ≡ f₁ y) xs₁  ∼⟨ cong {xs₁ = xs₁} {xs₂ = xs₂} (Related.↔⇒ ∘ helper) xs₁≈xs₂ ⟩
   ◇ (λ y → x ≡ f₂ y) xs₂  ↔⟨ sym (map↔∘ C (_≡_ x) f₂) ⟩
   x ∈ C.map f₂ xs₂        ∎
   where
@@ -240,7 +240,7 @@ remove-linear {xs = xs} P m = record
 
 linear-identity :
   ∀ {c} {C : Container c} {X} {xs : ⟦ C ⟧ X} (m : C ⊸ C) →
-  ⟪ m ⟫⊸ xs ≈[ bag ] xs
+  ⟪ m ⟫⊸ xs ∼[ bag ] xs
 linear-identity {xs = xs} m {x} =
   x ∈ ⟪ m ⟫⊸ xs  ↔⟨ remove-linear (_≡_ x) m ⟩
   x ∈        xs  ∎

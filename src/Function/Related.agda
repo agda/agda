@@ -21,7 +21,7 @@ import Relation.Binary.PropositionalEquality as P
 ------------------------------------------------------------------------
 -- Wrapper types
 
--- Synonyms which are used to make _≈[_]_ below "constructor-headed"
+-- Synonyms which are used to make _∼[_]_ below "constructor-headed"
 -- (which implies that Agda can deduce the universe code from an
 -- expression matching any of the right-hand sides).
 
@@ -57,27 +57,27 @@ data Kind : Set where
 -- interpreted as Inverse rather than Bijection; the two types are
 -- equivalent.
 
-infix 4 _≈[_]_
+infix 4 _∼[_]_
 
-_≈[_]_ : ∀ {ℓ₁ ℓ₂} → Set ℓ₁ → Kind → Set ℓ₂ → Set _
-A ≈[ implication         ] B = A → B
-A ≈[ reverse-implication ] B = A ← B
-A ≈[ equivalence         ] B = Equivalence (P.setoid A) (P.setoid B)
-A ≈[ injection           ] B = Injection   (P.setoid A) (P.setoid B)
-A ≈[ reverse-injection   ] B = A ↢ B
-A ≈[ left-inverse        ] B = LeftInverse (P.setoid A) (P.setoid B)
-A ≈[ surjection          ] B = Surjection  (P.setoid A) (P.setoid B)
-A ≈[ bijection           ] B = Inverse     (P.setoid A) (P.setoid B)
+_∼[_]_ : ∀ {ℓ₁ ℓ₂} → Set ℓ₁ → Kind → Set ℓ₂ → Set _
+A ∼[ implication         ] B = A → B
+A ∼[ reverse-implication ] B = A ← B
+A ∼[ equivalence         ] B = Equivalence (P.setoid A) (P.setoid B)
+A ∼[ injection           ] B = Injection   (P.setoid A) (P.setoid B)
+A ∼[ reverse-injection   ] B = A ↢ B
+A ∼[ left-inverse        ] B = LeftInverse (P.setoid A) (P.setoid B)
+A ∼[ surjection          ] B = Surjection  (P.setoid A) (P.setoid B)
+A ∼[ bijection           ] B = Inverse     (P.setoid A) (P.setoid B)
 
 -- A non-infix synonym.
 
 Related : Kind → ∀ {ℓ₁ ℓ₂} → Set ℓ₁ → Set ℓ₂ → Set _
-Related k A B = A ≈[ k ] B
+Related k A B = A ∼[ k ] B
 
 -- The bijective equality implies any kind of relatedness.
 
 ↔⇒ : ∀ {k x y} {X : Set x} {Y : Set y} →
-     X ≈[ bijection ] Y → X ≈[ k ] Y
+     X ∼[ bijection ] Y → X ∼[ k ] Y
 ↔⇒ {implication}         = _⟨$⟩_ ∘ Inverse.to
 ↔⇒ {reverse-implication} = lam ∘′ _⟨$⟩_ ∘ Inverse.from
 ↔⇒ {equivalence}         = Inverse.equivalence
@@ -122,7 +122,7 @@ data Forward-kind : Set where
 
 -- The function.
 
-⇒→ : ∀ {k x y} {X : Set x} {Y : Set y} → X ≈[ ⌊ k ⌋→ ] Y → X → Y
+⇒→ : ∀ {k x y} {X : Set x} {Y : Set y} → X ∼[ ⌊ k ⌋→ ] Y → X → Y
 ⇒→ {implication}  = id
 ⇒→ {equivalence}  = _⟨$⟩_ ∘ Equivalence.to
 ⇒→ {injection}    = _⟨$⟩_ ∘ Injection.to
@@ -148,7 +148,7 @@ data Backward-kind : Set where
 
 -- The function.
 
-⇒← : ∀ {k x y} {X : Set x} {Y : Set y} → X ≈[ ⌊ k ⌋← ] Y → Y → X
+⇒← : ∀ {k x y} {X : Set x} {Y : Set y} → X ∼[ ⌊ k ⌋← ] Y → Y → X
 ⇒← {reverse-implication} = app-←
 ⇒← {equivalence}         = _⟨$⟩_ ∘ Equivalence.from
 ⇒← {reverse-injection}   = _⟨$⟩_ ∘ Injection.to ∘ app-↢
@@ -173,7 +173,7 @@ data Equivalence-kind : Set where
 -- The functions.
 
 ⇒⇔ : ∀ {k x y} {X : Set x} {Y : Set y} →
-     X ≈[ ⌊ k ⌋⇔ ] Y → X ≈[ equivalence ] Y
+     X ∼[ ⌊ k ⌋⇔ ] Y → X ∼[ equivalence ] Y
 ⇒⇔ {equivalence}  = id
 ⇒⇔ {left-inverse} = LeftInverse.equivalence
 ⇒⇔ {surjection}   = Surjection.equivalence
@@ -216,7 +216,7 @@ bijection           op = bijection
 -- opposite kind.
 
 reverse : ∀ {k a b} {A : Set a} {B : Set b} →
-          A ≈[ k ] B → B ≈[ k op ] A
+          A ∼[ k ] B → B ∼[ k op ] A
 reverse {implication}         = lam
 reverse {reverse-implication} = app-←
 reverse {equivalence}         = Eq.sym
@@ -265,19 +265,19 @@ module EquationalReasoning where
   sym {bijection}   = Inv.sym
 
   infix  2 _∎
-  infixr 2 _≈⟨_⟩_ _↔⟨_⟩_
+  infixr 2 _∼⟨_⟩_ _↔⟨_⟩_
 
-  _≈⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
-           X ≈[ k ] Y → Y ≈[ k ] Z → X ≈[ k ] Z
-  _ ≈⟨ X≈Y ⟩ Y≈Z = trans X≈Y Y≈Z
+  _∼⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
+           X ∼[ k ] Y → Y ∼[ k ] Z → X ∼[ k ] Z
+  _ ∼⟨ X↝Y ⟩ Y↝Z = trans X↝Y Y↝Z
 
   -- Isomorphisms can be combined with any other kind of relatedness.
 
   _↔⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
-           X ↔ Y → Y ≈[ k ] Z → X ≈[ k ] Z
-  X ↔⟨ X↔Y ⟩ Y⇔Z = X ≈⟨ ↔⇒ X↔Y ⟩ Y⇔Z
+           X ↔ Y → Y ∼[ k ] Z → X ∼[ k ] Z
+  X ↔⟨ X↔Y ⟩ Y⇔Z = X ∼⟨ ↔⇒ X↔Y ⟩ Y⇔Z
 
-  _∎ : ∀ {k x} (X : Set x) → X ≈[ k ] X
+  _∎ : ∀ {k x} (X : Set x) → X ∼[ k ] X
   X ∎ = refl
 
 -- For a symmetric kind and a fixed universe level we can construct a
@@ -288,7 +288,7 @@ setoid k ℓ = record
   { Carrier       = Set ℓ
   ; _≈_           = Related ⌊ k ⌋
   ; isEquivalence =
-      record {refl = _ ∎; sym = sym; trans = _≈⟨_⟩_ _}
+      record {refl = _ ∎; sym = sym; trans = _∼⟨_⟩_ _}
   } where open EquationalReasoning
 
 -- For an arbitrary kind and a fixed universe level we can construct a
@@ -302,7 +302,7 @@ preorder k ℓ = record
   ; isPreorder = record
     { isEquivalence = Setoid.isEquivalence (setoid bijection ℓ)
     ; reflexive     = ↔⇒
-    ; trans         = _≈⟨_⟩_ _
+    ; trans         = _∼⟨_⟩_ _
     }
   } where open EquationalReasoning
 
@@ -314,7 +314,7 @@ preorder k ℓ = record
 
 InducedRelation₁ : Kind → ∀ {a s} {A : Set a} →
                    (A → Set s) → A → A → Set _
-InducedRelation₁ k S = λ x y → S x ≈[ k ] S y
+InducedRelation₁ k S = λ x y → S x ∼[ k ] S y
 
 InducedPreorder₁ : Kind → ∀ {a s} {A : Set a} →
                    (A → Set s) → Preorder _ _ _
@@ -342,7 +342,7 @@ InducedEquivalence₁ k S = record
 
 InducedRelation₂ : Kind → ∀ {a b s} {A : Set a} {B : Set b} →
                    (A → B → Set s) → B → B → Set _
-InducedRelation₂ k _S_ = λ x y → ∀ {z} → (z S x) ≈[ k ] (z S y)
+InducedRelation₂ k _S_ = λ x y → ∀ {z} → (z S x) ∼[ k ] (z S y)
 
 InducedPreorder₂ : Kind → ∀ {a b s} {A : Set a} {B : Set b} →
                    (A → B → Set s) → Preorder _ _ _
@@ -356,7 +356,7 @@ InducedPreorder₂ k _S_ = record
                         Setoid.reflexive (setoid bijection _) $
                         P.cong (_S_ z) x≡y
 
-    ; trans         = λ i≈j j≈k → trans i≈j j≈k
+    ; trans         = λ i↝j j↝k → trans i↝j j↝k
     }
   } where open Preorder (preorder _ _)
 
@@ -367,7 +367,7 @@ InducedEquivalence₂ k _S_ = record
   { _≈_           = InducedRelation₂ ⌊ k ⌋ _S_
   ; isEquivalence = record
     { refl  = refl
-    ; sym   = λ i≈j → sym i≈j
-    ; trans = λ i≈j j≈k → trans i≈j j≈k
+    ; sym   = λ i↝j → sym i↝j
+    ; trans = λ i↝j j↝k → trans i↝j j↝k
     }
   } where open Setoid (setoid _ _)

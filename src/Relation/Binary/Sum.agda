@@ -548,7 +548,7 @@ _⊎-↔_ {A = A} {B} {C} {D} A↔B C↔D =
   where open Inv using () renaming (_∘_ to _⟨∘⟩_)
 
 _⊎-cong_ : ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-           A ≈[ k ] B → C ≈[ k ] D → (A ⊎ C) ≈[ k ] (B ⊎ D)
+           A ∼[ k ] B → C ∼[ k ] D → (A ⊎ C) ∼[ k ] (B ⊎ D)
 _⊎-cong_ {implication}         = Sum.map
 _⊎-cong_ {reverse-implication} = λ f g → lam (Sum.map (app-← f) (app-← g))
 _⊎-cong_ {equivalence}         = _⊎-⇔_

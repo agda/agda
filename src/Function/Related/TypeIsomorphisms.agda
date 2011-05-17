@@ -252,7 +252,7 @@ A⇔B →-cong-⇔ C⇔D = record
   ∀ {a b c d} →
   P.Extensionality a c → P.Extensionality b d →
   ∀ {k} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  A ≈[ ⌊ k ⌋ ] B → C ≈[ ⌊ k ⌋ ] D → (A → C) ≈[ ⌊ k ⌋ ] (B → D)
+  A ∼[ ⌊ k ⌋ ] B → C ∼[ ⌊ k ⌋ ] D → (A → C) ∼[ ⌊ k ⌋ ] (B → D)
 →-cong extAC extBD {equivalence} A⇔B C⇔D = A⇔B →-cong-⇔ C⇔D
 →-cong extAC extBD {bijection}   A↔B C↔D = record
   { to         = Equivalence.to   A→C⇔B→D
@@ -285,7 +285,7 @@ A⇔B →-cong-⇔ C⇔D = record
 ¬-cong : ∀ {a b} →
          P.Extensionality a zero → P.Extensionality b zero →
          ∀ {k} {A : Set a} {B : Set b} →
-         A ≈[ ⌊ k ⌋ ] B → (¬ A) ≈[ ⌊ k ⌋ ] (¬ B)
+         A ∼[ ⌊ k ⌋ ] B → (¬ A) ∼[ ⌊ k ⌋ ] (¬ B)
 ¬-cong extA extB A≈B = →-cong extA extB A≈B (⊥ ∎)
   where open Related.EquationalReasoning
 
@@ -296,14 +296,14 @@ A⇔B →-cong-⇔ C⇔D = record
 
 Related-cong :
   ∀ {k a b c d} {A : Set a} {B : Set b} {C : Set c} {D : Set d} →
-  A ≈[ ⌊ k ⌋ ] B → C ≈[ ⌊ k ⌋ ] D → (A ≈[ ⌊ k ⌋ ] C) ⇔ (B ≈[ ⌊ k ⌋ ] D)
+  A ∼[ ⌊ k ⌋ ] B → C ∼[ ⌊ k ⌋ ] D → (A ∼[ ⌊ k ⌋ ] C) ⇔ (B ∼[ ⌊ k ⌋ ] D)
 Related-cong {A = A} {B} {C} {D} A≈B C≈D =
-  Eq.equivalence (λ A≈C → B  ≈⟨ sym A≈B ⟩
-                          A  ≈⟨ A≈C ⟩
-                          C  ≈⟨ C≈D ⟩
+  Eq.equivalence (λ A≈C → B  ∼⟨ sym A≈B ⟩
+                          A  ∼⟨ A≈C ⟩
+                          C  ∼⟨ C≈D ⟩
                           D  ∎)
-                 (λ B≈D → A  ≈⟨ A≈B ⟩
-                          B  ≈⟨ B≈D ⟩
-                          D  ≈⟨ sym C≈D ⟩
+                 (λ B≈D → A  ∼⟨ A≈B ⟩
+                          B  ∼⟨ B≈D ⟩
+                          D  ∼⟨ sym C≈D ⟩
                           C  ∎)
   where open Related.EquationalReasoning
