@@ -127,6 +127,23 @@ checkRecDef i name con ps contel fields =
                                 , recArgOccurrences = []
                                 }
 
+      -- Add record constructor to signature
+      -- Andreas, 2011-05-19 moved this here, it was below the record module
+      --   creation
+      addConstant conName $
+        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
+             Constructor { conPars   = 0
+                         , conSrcCon = conName
+                         , conData   = name
+                         , conHsCode = Nothing
+                         , conAbstr  = Info.defAbstract conInfo
+                         , conInd    = Inductive
+                         }
+
+      -- Check that the fields fit inside the sort
+      let dummy = Var 0 []  -- We're only interested in the sort here
+      telePi ftel (El s dummy) `fitsIn` s
+
       {- Andreas, 2011-04-27 WRONG because field types are checked again
          and then non-stricts should not yet be irrelevant
 
@@ -155,19 +172,7 @@ checkRecDef i name con ps contel fields =
         withCurrentModule m $
           checkRecordProjections m conName tel' (raise 1 ftel) fields
 
-      addConstant conName $
-        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
-             Constructor { conPars   = 0
-                         , conSrcCon = conName
-                         , conData   = name
-                         , conHsCode = Nothing
-                         , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = Inductive
-                         }
-
-      -- Check that the fields fit inside the sort
-      let dummy = Var 0 []  -- We're only interested in the sort here
-      telePi ftel (El s dummy) `fitsIn` s
+      -- Andreas, 2011-05-19 here was the code "Add record constr..."
 
       computePolarity name
 
