@@ -48,7 +48,7 @@ const x = λ _ → x
 
 flip : ∀ {a b c} {A : Set a} {B : Set b} {C : A → B → Set c} →
        ((x : A) (y : B) → C x y) → ((y : B) (x : A) → C x y)
-flip f = λ x y → f y x
+flip f = λ y x → f x y
 
 -- Note that _$_ is right associative, like in Haskell. If you want a
 -- left associative infix application operator, use
