@@ -431,7 +431,17 @@ assignS x args s =
 assign :: MonadTCM tcm => Bool -> MetaId -> Args -> Term -> tcm Constraints
 assign assigningSort x args v = do
         mvar <- lookupMeta x  -- information associated with meta x
+
+        -- Andreas, 2011-05-20 TODO!
+        -- full normalization  (which also happens during occurs check)
+        -- is too expensive! (see Issue 415)
+        -- need to do something cheaper, especially if
+        -- we are dealing with a Miller pattern that can be solved
+        -- immediately!
+        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: normalizing v = " ++ (show v)
         v <- normalise v
+        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: finished normalizing v = " ++ (show v)
+
         unless assigningSort $
           case v of
             Sort Inf  -> typeError $ GenericError "Setω is not a valid type."
@@ -444,6 +454,7 @@ assign assigningSort x args v = do
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
 
         -- Andreas, 2010-10-15 I want to see whether rhs is blocked
+        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
         reportSDoc "tc.meta.assign" 25 $ do
           v0 <- reduceB v
           case v0 of

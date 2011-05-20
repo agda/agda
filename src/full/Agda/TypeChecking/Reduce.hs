@@ -26,6 +26,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
@@ -292,6 +293,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             ar  = primFunArity pf
             def = primFunImplementation pf
 
+    -- reduceNormal :: MonadTCM tcm => Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> tcm (Blocked Term)
     reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
         case def of
           _ | Delayed <- delayed,
@@ -305,7 +307,16 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                             (\cc -> appDef v0 cc args1) mcc
                 case ev of
                   NoReduction  v -> return    $ v `apply` args2
-                  YesReduction v -> keepGoing $ v `apply` args2
+                  YesReduction v -> do
+                    let v' = v `apply` args2
+                    reportSDoc "tc.reduce" 90 $ vcat
+                      [ text "*** reduced definition: " <+> prettyTCM f
+                      ]
+                    reportSDoc "tc.reduce" 100 $ vcat
+                      [ text "*** continuing with"
+                      , prettyTCM v'
+                      ]
+                    keepGoing $ v'
             | otherwise	-> defaultResult -- partial application
       where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
