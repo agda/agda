@@ -7,4 +7,3 @@ import Agda.TypeChecking.Monad.Base ( TCM )
 import Data.Map                     ( Map )
 
 scopeCheckImport :: ModuleName -> TCM (ModuleName, Map ModuleName Scope)
-

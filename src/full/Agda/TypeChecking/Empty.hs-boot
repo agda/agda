@@ -6,4 +6,3 @@ import Agda.Syntax.Internal (Type)
 
 isEmptyType :: MonadTCM tcm => Type -> tcm ()
 isEmptyTypeC :: MonadTCM tcm => Type -> tcm Constraints
-

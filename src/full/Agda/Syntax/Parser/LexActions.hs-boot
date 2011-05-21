@@ -27,4 +27,3 @@ literal    :: Read a => (Range -> a -> Literal) -> LexAction Token
 followedBy    :: Char -> LexPredicate
 eof           :: LexPredicate
 inState       :: LexState -> LexPredicate
-

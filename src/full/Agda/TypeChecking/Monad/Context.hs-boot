@@ -7,4 +7,3 @@ import Agda.TypeChecking.Monad.Base
 
 getContext   :: MonadTCM tcm => tcm [Arg (Name, Type)]
 getContextId :: MonadTCM tcm => tcm [CtxId]
-

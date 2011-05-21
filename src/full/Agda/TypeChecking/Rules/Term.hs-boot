@@ -6,4 +6,3 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
 checkExpr :: A.Expr -> Type -> TCM Term
-
