@@ -26,6 +26,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Forcing
 
 import Agda.TypeChecking.Rules.Term
@@ -307,25 +308,29 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
   applySection m1 ptel m2 args rd rm
 checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   let name = mnameToQName x
-  def <- getConstInfo name
-  let t = defType def
-      (TelV tel st) = telView' t
-      (El _ (Sort s)) = st
-      htel = map hide $ telToList tel
-      rect = El s $ Def name $ reverse
-              [ Arg h r (Var i [])
-              | (i, Arg h r _) <- zip [0..] $ reverse $ telToList tel
-              ]
-      telh' h	 = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
-      telIFS	 = telh' Instance
+  tel' <- lookupSection x
+  vs <- freeVarsToApply name
+  let tel = tel' `apply` vs
+  case tel of
+    EmptyTel -> typeError $ GenericError $ show name ++ " is not a parameterised section."
+    _ -> return ()
+  let telInst :: Telescope
+      telInst = instFinal tel
+      instFinal :: Telescope -> Telescope
+      instFinal (ExtendTel (Arg h r t) (Abs n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
+      instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
+      instFinal EmptyTel = __IMPOSSIBLE__
+      args = teleArgs tel
+  reportSDoc "tc.section.apply" 20 $ vcat
+    [ sep [ text "applySection", prettyTCM name, text "{{...}}" ]
+    , nest 2 $ text "tel:" <+> prettyTCM tel
+    , nest 2 $ text "telInst:" <+> prettyTCM telInst
+    , nest 2 $ text "args:" <+> text (show args)
+    ]
 
-  addCtxTel telIFS $ do
-    allArgs <- getContextArgs
-    let argsIFS = reverse $ take (size telIFS) (reverse allArgs)
-        unhide :: Arg a -> Arg a
-        unhide a = a { argHiding = NotHidden }
-        args = init argsIFS ++ [unhide $ last argsIFS]
-    applySection m1 telIFS x args rd rm
+  addCtxTel telInst $ do
+    vs <- freeVarsToApply name
+    applySection m1 telInst x (vs ++ args) rd rm
 
 -- | Type check an import declaration. Actually doesn't do anything, since all
 --   the work is done when scope checking.

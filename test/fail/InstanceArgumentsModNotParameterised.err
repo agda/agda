@@ -1,0 +1,4 @@
+InstanceArgumentsModNotParameterised.agda:14,1-13
+InstanceArgumentsModNotParameterised.C is not a parameterised
+section.
+when checking the module application module _ = C {{...}}
