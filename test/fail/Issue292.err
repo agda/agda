@@ -1,0 +1,4 @@
+Issue292.agda:36,1-23
+true2 ≅ true should be empty, but that's not obvious to me
+when checking that the clause ¬pbool2 (true2 , ()) has type
+¬ P Bool2

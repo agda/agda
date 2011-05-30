@@ -18,7 +18,7 @@ import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
-import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -83,6 +83,10 @@ checkEqualities :: [Equality] -> TCM ()
 checkEqualities eqs = noConstraints $ concat <$> mapM checkEq eqs
   where
     checkEq (Equal a s t) = equalTerm a s t
+
+-- | Force equality now instead of postponing it using 'addEquality'.
+checkEquality :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
+checkEquality a u v = noConstraints $ equalTerm a u v
 
 addEquality :: Type -> Term -> Term -> Unify ()
 addEquality a u v = U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
@@ -246,7 +250,9 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyAtom :: Type -> Term -> Term -> Unify ()
     unifyAtom a u v =
       case (u, v) of
-	(Var i us, Var j vs) | i == j  -> addEquality a u v
+        -- Andreas, 2011-05-30
+        -- Force equality now rather than postponing it with addEquality
+	(Var i us, Var j vs) | i == j  -> checkEquality a u v
 	(Var i [], v) | flexible i -> i |->> (v, a)
 	(u, Var j []) | flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
@@ -268,6 +274,17 @@ unifyIndices flex a us vs = liftTCM $ do
               if inj && ok
                 then unifyArgs (defType def) us vs
                 else addEquality a u v
+{- Andreas: checkEquality breaks Data.Vec.Equality
+   we need an injectivity test for data types, Vec A n is injective!
+                else checkEquality a u v
+                -- Andreas: force equality now instead of postponing
+                -- We do not want to end up in a heterogeneous situation,
+                -- where u and v have different types
+-}
+          -- Andreas, 2011-05-30: if heads disagree, abort
+          -- but do not raise "mismatch" because otherwise type constructors
+          -- would be distinct
+          | otherwise -> typeError $ UnequalTerms CmpEq u v a
         (Lit l1, Lit l2)
           | l1 == l2  -> return ()
           | otherwise -> constructorMismatch a u v
@@ -289,6 +306,8 @@ unifyIndices flex a us vs = liftTCM $ do
                    ]
             if ok then unify a u v
                   else addEquality a u v
+        -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
+        -- because there are definitions blocked by flexibles that need postponement
 	_  -> addEquality a u v
 
     -- The contexts are transient when unifying, so we should just instantiate to

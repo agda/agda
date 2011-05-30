@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.lhs.unify:50 #-}
 module Issue81 where
 
 data ⊥ : Set where

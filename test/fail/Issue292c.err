@@ -1,0 +1,4 @@
+Issue292c.agda:41,1-23
+unit2 ≅ unit1 should be empty, but that's not obvious to me
+when checking that the clause ¬pbool2 (unit2 , ()) has type
+¬ P (D false)
