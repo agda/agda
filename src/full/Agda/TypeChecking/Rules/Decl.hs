@@ -190,11 +190,9 @@ checkPragma r p =
 checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
-{- TODO?
   -- issue 418 to prevent instantiation of metas with abstract things,
   -- freeze metas before checking the definitions
   when (anyAbstract ds) $ freezeMetas
--}
   mapM_ checkDefinition ds
   checkStrictlyPositive =<< currentMutualBlock
 
