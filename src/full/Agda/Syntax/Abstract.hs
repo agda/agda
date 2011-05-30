@@ -417,3 +417,26 @@ allNames (ScopedDecl _ decls)  = Fold.foldMap allNames decls
 axiomName :: Declaration -> QName
 axiomName (Axiom _ _ q _) = q
 axiomName _             = __IMPOSSIBLE__
+
+-- | Are we in an abstract block?
+--
+--   In that case some definition is abstract.
+class AnyAbstract a where
+  anyAbstract :: a -> Bool
+
+instance AnyAbstract Definition where
+  anyAbstract (FunDef i _ _)       = defAbstract i == AbstractDef
+  anyAbstract (DataDef i _ _ _)    = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (ScopedDef _ ds)     = anyAbstract ds
+
+instance AnyAbstract a => AnyAbstract [a] where
+  anyAbstract = Fold.any anyAbstract
+
+instance AnyAbstract Declaration where
+  anyAbstract (Axiom i _ _ _)     = defAbstract i == AbstractDef
+  anyAbstract (Field i _ _)       = defAbstract i == AbstractDef
+  anyAbstract (Definition _ _ ds) = anyAbstract ds
+  anyAbstract (ScopedDecl _ ds)   = anyAbstract ds
+  anyAbstract (Section _ _ _ ds)  = anyAbstract ds
+  anyAbstract _                   = __IMPOSSIBLE__

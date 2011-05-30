@@ -8,6 +8,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Agda.Utils.IO.Locale as LocIO
 
+import Agda.Syntax.Abstract (AnyAbstract(..))
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
@@ -45,7 +46,8 @@ import Agda.Utils.Impossible
 checkDecls :: [A.Declaration] -> TCM ()
 checkDecls ds = do
   mapM_ checkDecl ds
-  whenM onTopLevel unfreezeMetas
+  -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
+  -- whenM onTopLevel unfreezeMetas
 
 -- | Type check a single declaration.
 checkDecl :: A.Declaration -> TCM ()
@@ -65,6 +67,9 @@ checkDecl d = do
             -- retained for highlighting purposes
     solveSizeConstraints
     whenM onTopLevel freezeMetas
+{- Andreas, 2011-05-31 freeze metas of abstract type signatures? Issue 418
+      when (anyAbstract d) $ freezeMetas
+-}
     where
       leaveTopLevelConditionally d =
         case d of
@@ -74,7 +79,7 @@ checkDecl d = do
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
-checkAxiom _ rel x e = do
+checkAxiom i rel x e = do
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text "checked axiom"
@@ -84,7 +89,8 @@ checkAxiom _ rel x e = do
   -- t <- addForcingAnnotations t
   addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing Nothing)
   solveSizeConstraints
-
+  -- Andreas, 2011-05-31, that freezing below is probably wrong:
+  -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
 
 -- | Type check a primitive function declaration.
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
@@ -183,6 +189,11 @@ checkPragma r p =
 checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
 checkMutual i ts ds = inMutualBlock $ do
   mapM_ checkTypeSignature ts
+{- TODO?
+  -- issue 418 to prevent instantiation of metas with abstract things,
+  -- freeze metas before checking the definitions
+  when (anyAbstract ds) $ freezeMetas
+-}
   mapM_ checkDefinition ds
   checkStrictlyPositive =<< currentMutualBlock
 

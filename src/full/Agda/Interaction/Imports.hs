@@ -443,6 +443,7 @@ createInterface file mname = do
     termErrs <- catchError (do
       -- Type checking.
       checkDecls (topLevelDecls topLevel)
+      unfreezeMetas
 
       -- Termination checking.
       termErrs <- ifM (optTerminationCheck <$> pragmaOptions)
