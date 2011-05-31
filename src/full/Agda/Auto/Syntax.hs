@@ -49,6 +49,7 @@ type Nat = Int
 
 
 data FMode = Hidden
+           | Instance
            | NotHidden
  deriving Eq
 

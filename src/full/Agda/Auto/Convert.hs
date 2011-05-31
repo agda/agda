@@ -426,9 +426,10 @@ fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
 -- ---------------------------------------------
 
 cnvh C.NotHidden = NotHidden
-cnvh C.Instance = __IMPOSSIBLE__ -- "auto not yet supported for implicit from scope arguments"
+cnvh C.Instance = Instance
 cnvh C.Hidden = Hidden
 icnvh NotHidden = C.NotHidden
+icnvh Instance = C.Instance
 icnvh Hidden = C.Hidden
 
 -- ---------------------------------------------
