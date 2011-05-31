@@ -305,6 +305,11 @@ SpaceIds
     : Id SpaceIds { $1 : $2 }
     | Id	  { [$1] }
 
+DoubleCloseBrace :: { Range }
+DoubleCloseBrace
+  : '}}' { getRange $1 }
+| '}' '}' {% if posPos (fromJust (rEnd (getRange $2))) - posPos (fromJust (rStart (getRange $1))) > 2 then parseError "Expecting '}}', found separated '}'s." else return $ fuseRange (getRange $1) (getRange ($2)) }
+
 {- UNUSED
 -- Space separated list of one or more identifiers, some of which may
 -- be surrounded by braces.
@@ -312,8 +317,8 @@ HiddenIds :: { [Arg Name] }
 HiddenIds
     : Id HiddenIds               { defaultArg $1 : $2 }
     | Id	                 { [defaultArg $1] }
-    | '{{' SpaceIds '}}' HiddenIds { map (Arg Instance Relevant) $2 ++ $4 }
-    | '{{' SpaceIds '}}'         { map (Arg Instance Relevant) $2 }
+    | '{{' SpaceIds DoubleCloseBrace HiddenIds { map (Arg Instance Relevant) $2 ++ $4 }
+    | '{{' SpaceIds DoubleCloseBrace         { map (Arg Instance Relevant) $2 }
     | '{' SpaceIds '}' HiddenIds { map (Arg Hidden Relevant) $2 ++ $4 }
     | '{' SpaceIds '}'           { map (Arg Hidden Relevant) $2 }
 -}
@@ -336,18 +341,18 @@ ArgIds :: { [Arg Name] }
 ArgIds
     : MaybeDottedId ArgIds            { $1 : $2 }
     | MaybeDottedId                   { [$1] }
-    | '{{' MaybeDottedIds '}}' ArgIds { map makeInstance $2 ++ $4 }
-    | '{{' MaybeDottedIds '}}'        { map makeInstance $2 }
+    | '{{' MaybeDottedIds DoubleCloseBrace ArgIds { map makeInstance $2 ++ $4 }
+    | '{{' MaybeDottedIds DoubleCloseBrace        { map makeInstance $2 }
     | '{' MaybeDottedIds '}' ArgIds   { map hide $2 ++ $4 }
     | '{' MaybeDottedIds '}'          { map hide $2 }
     | '.' '{' SpaceIds '}' ArgIds     { map (Arg Hidden Irrelevant) $3 ++ $5 }
     | '.' '{' SpaceIds '}'            { map (Arg Hidden Irrelevant) $3 }
-    | '.' '{{' SpaceIds '}}' ArgIds   { map (Arg Instance Irrelevant) $3 ++ $5 }
-    | '.' '{{' SpaceIds '}}'          { map (Arg Instance Irrelevant) $3 }
+    | '.' '{{' SpaceIds DoubleCloseBrace ArgIds   { map (Arg Instance Irrelevant) $3 ++ $5 }
+    | '.' '{{' SpaceIds DoubleCloseBrace          { map (Arg Instance Irrelevant) $3 }
     | '..' '{' SpaceIds '}' ArgIds    { map (Arg Hidden NonStrict) $3 ++ $5 }
     | '..' '{' SpaceIds '}'           { map (Arg Hidden NonStrict) $3 }
-    | '..' '{{' SpaceIds '}}' ArgIds  { map (Arg Instance NonStrict) $3 ++ $5 }
-    | '..' '{{' SpaceIds '}}'         { map (Arg Instance NonStrict) $3 }
+    | '..' '{{' SpaceIds DoubleCloseBrace ArgIds  { map (Arg Instance NonStrict) $3 ++ $5 }
+    | '..' '{{' SpaceIds DoubleCloseBrace         { map (Arg Instance NonStrict) $3 }
 
 QId :: { QName }
 QId : q_id  {% mkQName $1 }
@@ -496,8 +501,8 @@ Expr3
     | 'quote'                           { Quote (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr '}}'			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }
-    | '{{' Id '=' Expr '}}'		{ InstanceArg (fuseRange $1 $5) (named (show $2) $4) }
+    | '{{' Expr DoubleCloseBrace			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }
+    | '{{' Id '=' Expr DoubleCloseBrace		{ InstanceArg (fuseRange $1 $5) (named (show $2) $4) }
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
@@ -545,12 +550,12 @@ TypedBindings :: { TypedBindings }
 TypedBindings
     : '.' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         Irrelevant $3) }
     | '.' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            Irrelevant $3) }
-    | '.' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg Instance Irrelevant $3) }
+    | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (fuseRange $1 $3) (Arg Instance Irrelevant $3) }
     | '..' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         NonStrict $3) }
     | '..' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            NonStrict $3) }
-    | '..' '{{' TBind '}}'  { TypedBindings (fuseRange $1 $3) (Arg Instance NonStrict $3) }
+    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (fuseRange $1 $3) (Arg Instance NonStrict $3) }
     | '(' TBind ')'        { TypedBindings (fuseRange $1 $3) (Arg NotHidden         Relevant $2) }
-    | '{{' TBind '}}'      { TypedBindings (fuseRange $1 $3) (Arg Instance Relevant $2) }
+    | '{{' TBind DoubleCloseBrace      { TypedBindings (fuseRange $1 $3) (Arg Instance Relevant $2) }
     | '{' TBind '}'        { TypedBindings (fuseRange $1 $3) (Arg Hidden            Relevant $2) }
 
 
@@ -585,7 +590,7 @@ LamBinds
   | TypedBindings		{ [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
-  | '{{' '}}'                   { [Left Instance] }
+  | '{{' DoubleCloseBrace                   { [Left Instance] }
 
 
 ForallBindings :: { [LamBinding] }
@@ -615,11 +620,11 @@ DomainFreeBinding
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
-    | '{{' CommaBIds '}}' { map (DomainFree Instance Relevant . mkBoundName_) $2 }
+    | '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Relevant . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
-    | '.' '{{' CommaBIds '}}' { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds '}}' { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
 
 {--------------------------------------------------------------------------
     Modules and imports
@@ -886,7 +891,7 @@ Open : 'open' ModuleName OpenArgs ImportDirective {
                        ]
     }
   }
-  | 'open' ModuleName '{{' '...' '}}' ImportDirective {
+  | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange ($1, $2, $3, $4) in
     Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
     	      	(RecordModuleIFS r $2) DoOpen $6
@@ -898,7 +903,7 @@ OpenArgs : {- empty -}    { [] }
          | Expr3 OpenArgs { $1 : $2 }
 
 ModuleApplication :: { [TypedBindings] -> Parser ModuleApplication }
-ModuleApplication : ModuleName '{{' '...' '}}' { (\ts ->
+ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
 		    if null ts then return $ RecordModuleIFS (getRange ($1, $4)) $1
 		    else parseError "No bindings allowed for record module with non-canonical implicits" )
 		    }
