@@ -44,7 +44,7 @@ import Agda.Compiler.MAlonzo.Primitives ( repl )
 import Agda.Compiler.JS.LambdaC
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
-    modName, curriedLambda, curriedApply, fix, emp, record )
+    modName, curriedLambda, curriedApply, fix, emp, record, subst )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
 import Agda.Compiler.JS.Pretty ( pretty )
 
@@ -165,7 +165,7 @@ defn ls t (Function { funClauses = cls }) = do
     -- Everything else we translate
     Nothing -> do
       cs <- mapM clause cls
-      return (lambda (numPars cls) cs)
+      return (lambda cs)
 defn ls t (Primitive {}) =
   return Undefined
 defn ls t (Datatype {}) =
@@ -196,10 +196,25 @@ numPars (Clauses _ c : _) = genericLength (clausePats c)
 clause :: Clauses -> TCM Case
 clause (Clauses _ c) = do
   ps <- mapM (pattern . unArg) (clausePats c)
+  (av,bv,es) <- return (mapping (map unArg (clausePats c)))
   e <- body (clauseBody c)
-  return (Case ps e)
+  return (Case ps (subst av es e))
 
--- Not doing literal patterns
+-- Mapping from Agda variables to JS variables in a pattern.
+-- If mapping ps = (av,bv,es) then av is the number of Agda variables,
+-- bv is the number of JS variables, and es is a list of expressions,
+-- where es[i] is the JS variable corresponding to Agda variable i.
+
+mapping :: [Pattern] -> (Nat,Nat,[Exp])
+mapping = foldr mapping' (0,0,[])
+
+mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
+mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
+mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
+mapping' (ConP _ _ ps) (av,bv,es) = foldr mapping' (av,bv+1,es) (map unArg ps)
+mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
+
+-- Not doing literal patterns yet
 
 pattern :: Pattern -> TCM Patt
 pattern (ConP q _ ps) = do
@@ -226,8 +241,6 @@ tag q = do
 
 visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
-
--- Should keep track of the binding between Agda vars and JS vars
 
 body :: ClauseBody -> TCM Exp
 body (Body e)         = term e

@@ -62,7 +62,8 @@ map m f e              = e
 -- Shifting
 
 shift :: Nat -> Exp -> Exp
-shift n = map 0 f where
+shift 0 e = e
+shift n e = map 0 f e where
   f :: Nat -> LocalId -> Exp
   f m (LocalId i) | i < m     = Local (LocalId i)
   f m (LocalId i) | otherwise = Local (LocalId (i + n))
@@ -70,7 +71,8 @@ shift n = map 0 f where
 -- Substitution
 
 subst :: Nat -> [Exp] -> Exp -> Exp
-subst n es = map 0 f where
+subst 0 es e = e
+subst n es e = map 0 f e where
   f :: Nat -> LocalId -> Exp
   f m (LocalId i) | i < m       = Local (LocalId i)
   f m (LocalId i) | (i - m) < n = shift m (genericIndex (es ++ repeat Undefined) (i - m))
