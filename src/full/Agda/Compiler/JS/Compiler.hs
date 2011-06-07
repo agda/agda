@@ -211,7 +211,7 @@ mapping = foldr mapping' (0,0,[])
 mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
 mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
 mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
-mapping' (ConP _ _ ps) (av,bv,es) = foldr mapping' (av,bv+1,es) (map unArg ps)
+mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where (av',bv',es') = foldr mapping' (av,bv,es) (map unArg ps)
 mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 
 -- Not doing literal patterns yet
