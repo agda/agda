@@ -54,6 +54,7 @@ abstract
     subst (BoundedVec a) lemma
             (bVec {m = suc m} xs)
     where
+    lemma : n + (1 + m) ≡ 1 + (n + m)
     lemma = solve 2 (λ m n → n :+ (con 1 :+ m)  :=  con 1 :+ (n :+ m))
                     refl m n
 
@@ -66,7 +67,9 @@ abstract
   fromList {a = a} xs =
     subst (BoundedVec a) lemma
             (bVec {m = zero} (Vec.fromList xs))
-    where lemma = solve 1 (λ m → m :+ con 0  :=  m) refl _
+    where
+    lemma : List.length xs + 0 ≡ List.length xs
+    lemma = solve 1 (λ m → m :+ con 0  :=  m) refl _
 
   toList : ∀ {a n} → BoundedVec a n → List a
   toList (bVec xs) = Vec.toList xs
