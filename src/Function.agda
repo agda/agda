@@ -9,6 +9,7 @@ module Function where
 open import Level
 
 infixr 9 _∘_ _∘′_
+infixl 8 _ˢ_
 infixl 1 _on_
 infixl 1 _⟨_⟩_
 infixr 0 _-[_]-_ _$_
@@ -45,6 +46,17 @@ id x = x
 
 const : ∀ {a b} {A : Set a} {B : Set b} → A → B → A
 const x = λ _ → x
+
+-- The S combinator. (Written infix as in Conor McBride's paper
+-- "Outrageous but Meaningful Coincidences: Dependent type-safe syntax
+-- and evaluation".)
+
+_ˢ_ : ∀ {a b c}
+        {A : Set a} {B : A → Set b} {C : (x : A) → B x → Set c} →
+      ((x : A) (y : B x) → C x y) →
+      (g : (x : A) → B x) →
+      ((x : A) → C x (g x))
+f ˢ g = λ x → f x (g x)
 
 flip : ∀ {a b c} {A : Set a} {B : Set b} {C : A → B → Set c} →
        ((x : A) (y : B) → C x y) → ((y : B) (x : A) → C x y)
