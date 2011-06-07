@@ -61,6 +61,12 @@ flag epic
   description:
     Install the Epic compiler.
 
+flag js
+  default: False
+  manual:  True
+  description:
+    Install the ECMAScript compiler.
+
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
@@ -105,6 +111,10 @@ library
                     Agda.Compiler.Epic.LambdaLift
                     Agda.Compiler.Epic.NatDetection
                     Agda.Compiler.Epic.Primitive
+                    Agda.Compiler.JS.Case
+                    Agda.Compiler.JS.Compiler
+                    Agda.Compiler.JS.LambdaC
+                    Agda.Compiler.JS.Pretty
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode
                     Agda.Compiler.MAlonzo.Misc

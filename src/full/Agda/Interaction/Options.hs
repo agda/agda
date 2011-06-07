@@ -63,6 +63,7 @@ data CommandLineOptions =
 	    , optRunTests             :: Bool
 	    , optCompile              :: Bool
 	    , optEpicCompile          :: Bool
+	    , optJSCompile            :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
 	    , optGenerateVimFile      :: Bool
@@ -126,6 +127,7 @@ defaultOptions =
 	    , optRunTests             = False
 	    , optCompile              = False
 	    , optEpicCompile          = False
+	    , optJSCompile            = False
             , optCompileDir           = Nothing
 	    , optGenerateVimFile      = False
 	    , optGenerateHTML         = False
@@ -179,7 +181,7 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne [optInteractive, optCompile, optEpicCompile]) =
+  | not (atMostOne [optInteractive, optCompile, optEpicCompile, optJSCompile]) =
       Left "Choose at most one: compiler/interactive mode.\n"
   | not (atMostOne [optGenerateHTML, optInteractive]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
@@ -231,6 +233,7 @@ interactiveFlag  o = return $ o { optInteractive    = True
 		                }
 compileFlag      o = return $ o { optCompile    = True }
 compileEpicFlag  o = return $ o { optEpicCompile = True}
+compileJSFlag    o = return $ o { optJSCompile = True}
 compileDirFlag f o = return $ o { optCompileDir = Just f }
 ghcFlag        f o = return $ o { optGhcFlags   = f : optGhcFlags o }
 epicFlagsFlag  s o = return $ o { optEpicFlags  = optEpicFlags o ++ [s]}
@@ -274,6 +277,7 @@ standardOptions =
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
+    , Option []     ["js"] (NoArg compileJSFlag) "compile program using the JS backend"
     , Option []     ["compile-dir"] (ReqArg compileDirFlag "DIR")
 		    ("directory for compiler output (default: the project root)")
     , Option []     ["ghc-flag"] (ReqArg ghcFlag "GHC-FLAG")

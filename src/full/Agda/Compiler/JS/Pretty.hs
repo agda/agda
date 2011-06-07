@@ -1,0 +1,97 @@
+module Agda.Compiler.JS.Pretty where
+
+import Prelude hiding ( null )
+import Data.List ( intercalate )
+import Data.Map ( Map, toAscList, null )
+
+import Agda.Syntax.Common ( Nat )
+
+import Agda.Compiler.JS.LambdaC
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
+    modName, curriedLambda, curriedApply, fix, emp, record )
+
+-- Pretty-print a lambda-calculus expression as ECMAScript.
+
+-- Since ECMAScript is C-like rather than Haskell-like, it's easier to
+-- do the pretty-printing directly than use the Pretty library, which
+-- assumes Haskell-like indentation.
+
+br :: Int -> String
+br i = "\n" ++ take (2*i) (repeat ' ')
+
+unescape :: Char -> String
+unescape '\\'     = "\\"
+unescape '\n'     = "\\n"
+unescape '\r'     = "\\r"
+unescape '\x2028' = "\\u2028"
+unescape '\x2029' = "\\u2029"
+unescape c        = [c]
+
+unescapes :: String -> String
+unescapes s = concat (map unescape s)
+
+-- pretty n i e pretty-prints e, under n levels of de Bruijn binding,
+-- with i levels of indentation.
+
+class Pretty a where
+    pretty :: Nat -> Int -> a -> String
+
+instance (Pretty a, Pretty b) => Pretty (a,b) where
+  pretty n i (x,y) = pretty n i x ++ ": " ++ pretty n (i+1) y
+
+-- Pretty-print collections
+
+class Pretties a where
+    pretties :: Nat -> Int -> a -> [String]
+
+instance Pretty a => Pretties [a] where
+  pretties n i = map (pretty n i)
+
+instance (Pretty a, Pretty b) => Pretties (Map a b) where
+  pretties n i o = pretties n i (toAscList o)
+
+-- Pretty print identifiers
+
+instance Pretty LocalId where
+  pretty n i (LocalId x) = "x" ++ show (n - x - 1)
+
+instance Pretty GlobalId where
+  pretty n i (GlobalId m) = intercalate "_" m
+
+instance Pretty MemberId where
+  pretty n i (MemberId s) = "\"" ++ unescapes s ++ "\""
+
+-- Pretty print expressions
+
+instance Pretty Exp where
+  pretty n i (Self)                 = "exports"
+  pretty n i (Local x)              = pretty n i x
+  pretty n i (Global m)             = pretty n i m
+  pretty n i (Undefined)            = "undefined"
+  pretty n i (String s)             = "\"" ++ unescapes s ++ "\""
+  pretty n i (Char c)               = "\"" ++ unescape c ++ "\""
+  pretty n i (Integer x)            = show x
+  pretty n i (Double x)             = show x
+  pretty n i (Lambda x e)           =
+    "function (" ++
+      intercalate ", " (pretties (n+x) i (map LocalId [x-1, x-2 .. 0])) ++
+    ") {" ++ br (i+1) ++
+    "return " ++ pretty (n+x) (i+1) e ++ ";" ++ br i ++ "}"
+  pretty n i (Object o) | null o    = "{}"
+  pretty n i (Object o) | otherwise =
+    "{" ++ br (i+1) ++ intercalate ("," ++ br (i+1)) (pretties n i o) ++ br i ++ "}"
+  pretty n i (Apply f es)        = pretty n i f ++ "(" ++ intercalate ", " (pretties n i es) ++ ")"
+  pretty n i (Lookup e l)        = pretty n i e ++ "[" ++ pretty n i l ++ "]"
+
+modname :: GlobalId -> String
+modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
+
+moddec :: GlobalId -> String
+moddec m = "var " ++ pretty 0 0 m ++ " = require (" ++ modname m ++ ");"
+
+instance Pretty Module where
+  pretty n i (Module m is e) =
+    "module.id = " ++ modname m ++ ";" ++ br i ++
+    intercalate (br i) (map moddec is) ++ br i ++
+    "exports = " ++ pretty n i e ++ ";" ++ br i
