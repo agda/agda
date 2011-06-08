@@ -91,6 +91,7 @@ checkDataDef i name ps cs =
                                    , dataAbstr          = Info.defAbstract i
                                    , dataPolarity       = []
                                    , dataArgOccurrences = []
+                                   , dataJSDef          = Nothing
                                    }
 
 	    escapeContext (size tel) $ do
@@ -171,7 +172,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         escapeContext (size tel)
 	    $ addConstant c
 	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0
-	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive
+	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive Nothing
   where
     debugEnter c e =
       reportSDoc "tc.data.con" 5 $ vcat

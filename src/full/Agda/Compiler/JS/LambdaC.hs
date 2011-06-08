@@ -24,7 +24,8 @@ data Exp =
   Lambda Nat Exp |
   Object (Map MemberId Exp) |
   Apply Exp [Exp] |
-  Lookup Exp MemberId
+  Lookup Exp MemberId |
+  FFI String
   deriving (Show)
 
 -- Local identifiers are named by De Bruijn indices.

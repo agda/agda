@@ -444,6 +444,7 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     , funProjection     = Nothing
+                                    , funJSDef          = Nothing
                                     }
                   blockTerm t' (Def aux []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
@@ -837,7 +838,7 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing Nothing)
+      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing Nothing Nothing)
 
       -- Define and type check the fresh function.
       ctx <- getContext

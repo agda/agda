@@ -14,15 +14,12 @@ var visitor = {
     "ε": function () {},
     "_,_": function (ts,us) { ts(visitor); us(visitor); },
     "assert": function (b,ok,msg) { 
-	b({
-	    "true": function () {
-		print("OK " + msg);
-	    },
-	    "false": function () { 
-		print("FAIL " + msg); 
-		java.lang.System.exit(1); 
-	    }
-	});
+	if (b) {
+ 	    print("OK " + msg);
+	} else {
+	    print("FAIL " + msg); 
+	    java.lang.System.exit(1); 
+	}
     }
 };
 eval(readFile(arguments[0]));

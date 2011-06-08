@@ -353,8 +353,9 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             let cls = defClauses info
                 a   = defAbstract info
                 mcc = defCompiled info
+                js  = defJSDef info
             bindPrimitive pfname $ pf { primFunName = qx }
-            addConstant qx $ info { theDef = Primitive a pfname (Just cls) mcc }
+            addConstant qx $ info { theDef = Primitive a pfname (Just cls) mcc js }
 
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v

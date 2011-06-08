@@ -425,6 +425,7 @@ data Definition = Defn
 type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
+type JSCode      = String
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
@@ -442,6 +443,7 @@ data Occurrence = Positive | Negative | Unused
 data Defn = Axiom
             { axHsDef   :: Maybe HaskellRepresentation
             , axEpDef   :: Maybe EpicCode
+            , axJSDef   :: Maybe JSCode
             }
 	  | Function
             { funClauses        :: [Clauses]
@@ -458,6 +460,7 @@ data Defn = Axiom
               --   Start counting with 1, because 0 means that it is already
               --   applied to the record. (Can happen in module instantiation.)
               --   This information is used in the termination checker.
+            , funJSDef          :: Maybe JSCode
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
@@ -470,6 +473,7 @@ data Defn = Axiom
             , dataArgOccurrences :: [Occurrence]
             , dataHsType         :: Maybe HaskellType
             , dataAbstr          :: IsAbstract
+            , dataJSDef          :: Maybe JSCode
             }
 	  | Record
             { recPars           :: Nat
@@ -483,6 +487,7 @@ data Defn = Axiom
             , recArgOccurrences :: [Occurrence]
             , recEtaEquality    :: Bool
             , recAbstr          :: IsAbstract
+            , recJSDef          :: Maybe JSCode
             }
 	  | Constructor
             { conPars   :: Nat         -- nof parameters
@@ -491,6 +496,7 @@ data Defn = Axiom
             , conHsCode :: Maybe (HaskellType, HaskellCode) -- used by the compiler
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
+            , conJSDef  :: Maybe JSCode
             }
             -- ^ Note that, currently, the sharp constructor is
             --   represented as a definition ('Def'), but if you look
@@ -502,6 +508,7 @@ data Defn = Axiom
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
+            , primJSDef    :: Maybe JSCode
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
@@ -556,6 +563,14 @@ defCompiled Defn{theDef = Function{funCompiled = cc}} = Just cc
 defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 
+defJSDef :: Definition -> Maybe JSCode
+defJSDef Defn{theDef = Axiom      {axJSDef   = js}} = js
+defJSDef Defn{theDef = Function   {funJSDef  = js}} = js
+defJSDef Defn{theDef = Datatype   {dataJSDef = js}} = js
+defJSDef Defn{theDef = Record     {recJSDef  = js}} = js
+defJSDef Defn{theDef = Constructor{conJSDef  = js}} = js
+defJSDef Defn{theDef = Primitive  {primJSDef = js}} = js
+
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
   deriving (Typeable, Data, Show, Eq)
@@ -573,7 +588,6 @@ defAbstract d = case theDef d of
     Record{recAbstr = a}      -> a
     Constructor{conAbstr = a} -> a
     Primitive{primAbstr = a}  -> a
-
 
 ---------------------------------------------------------------------------
 -- ** Injectivity

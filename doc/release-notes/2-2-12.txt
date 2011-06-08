@@ -313,11 +313,6 @@ Tools
   Each source <FILE>.agda is compiled to an ECMAScript target
   jAgda/<FILE>.js.
 
-  The ECMAScript compiler does not compile to Haskell, so the pragmas
-  related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
-  not used by the ECMAScript backend. A replacement FFI is still under
-  development.
-
   Note that ECMAScript is a strict rather than lazy language. Since
   Agda programs are total, this should not impact program semantics,
   but it may impact their space or time usage.
@@ -351,3 +346,31 @@ Tools
   Agda modules are translated to ECMAScript modules, following the common.js
   module specification.  An Agda module "Foo.Bar" is translated to an ECMAScript
   module "jAgda.Foo.Bar".
+
+  The ECMAScript compiler does not compile to Haskell, so the pragmas
+  related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
+  not used by the ECMAScript backend. Instead, there is a COMPILED_JS
+  pragma which may be applied to any declaration.  For postulates,
+  primitives, functions and values, it gives the ECMAScript code to be
+  emitted by the compiler.  For datatypes, it gives a function which
+  is applied to a value of that type, and a visitor object.  For
+  example, a binding of natural numbers to ECMAScript integers
+  (ignoring overflow errors) is:
+
+    data Nat : Set where
+      zero : Nat
+      suc  : Nat → Nat
+
+    {-# COMPILED_JS Nat function (x,v) { 
+        if (x < 1) { return v.zero(); } else { return v.suc(x-1); } 
+      } #-}
+    {-# COMPILED_JS zero 0 #-}
+    {-# COMPILED_JS suc function (x) { return (x+1); } #-}
+
+    _+_ : Nat → Nat → Nat
+    zero  + n = n
+    suc m + n = suc (m + n)
+
+    {-# COMPILED_JS _+_ function (x) { return function (y) { return x+y; }; } #-}
+
+  

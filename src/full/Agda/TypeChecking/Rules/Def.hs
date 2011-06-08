@@ -133,6 +133,7 @@ checkFunDef delayed i name cs =
                             , funPolarity       = []
                             , funArgOccurrences = []
                             , funProjection     = Nothing
+                            , funJSDef          = Nothing
                             }
         computePolarity name
         reportSDoc "tc.def.fun" 10 $ do
@@ -370,7 +371,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing Nothing)
+  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing Nothing Nothing)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep

@@ -250,6 +250,7 @@ data Pragma = OptionsPragma     !Range [String]
             | CompiledTypePragma !Range QName String
             | CompiledPragma    !Range QName String
             | CompiledEpicPragma !Range QName String
+            | CompiledJSPragma  !Range QName String
             | ImportPragma      !Range String
               -- ^ Invariant: The string must be a valid Haskell
               -- module name.
@@ -386,6 +387,7 @@ instance HasRange Pragma where
     getRange (CompiledTypePragma r _ _)   = r
     getRange (CompiledPragma r _ _)       = r
     getRange (CompiledEpicPragma r _ _)   = r
+    getRange (CompiledJSPragma r _ _)     = r
     getRange (ImportPragma r _)           = r
     getRange (ImpossiblePragma r)         = r
     getRange (EtaPragma r _)              = r

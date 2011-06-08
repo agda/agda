@@ -7,7 +7,7 @@ import Data.Map ( Map, toAscList, null )
 import Agda.Syntax.Common ( Nat )
 
 import Agda.Compiler.JS.LambdaC
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,FFI),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
     modName, curriedLambda, curriedApply, fix, emp, record )
 
@@ -81,8 +81,9 @@ instance Pretty Exp where
   pretty n i (Object o) | null o    = "{}"
   pretty n i (Object o) | otherwise =
     "{" ++ br (i+1) ++ intercalate ("," ++ br (i+1)) (pretties n i o) ++ br i ++ "}"
-  pretty n i (Apply f es)        = pretty n i f ++ "(" ++ intercalate ", " (pretties n i es) ++ ")"
-  pretty n i (Lookup e l)        = pretty n i e ++ "[" ++ pretty n i l ++ "]"
+  pretty n i (Apply f es)           = pretty n i f ++ "(" ++ intercalate ", " (pretties n i es) ++ ")"
+  pretty n i (Lookup e l)           = pretty n i e ++ "[" ++ pretty n i l ++ "]"
+  pretty n i (FFI e)                = "(" ++ e ++ ")"
 
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""

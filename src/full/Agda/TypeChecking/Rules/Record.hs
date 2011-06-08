@@ -125,6 +125,7 @@ checkRecDef i name con ps contel fields =
                                 , recEtaEquality    = True
                                 , recPolarity       = []
                                 , recArgOccurrences = []
+                                , recJSDef          = Nothing
                                 }
 
       -- Add record constructor to signature
@@ -138,6 +139,7 @@ checkRecDef i name con ps contel fields =
                          , conHsCode = Nothing
                          , conAbstr  = Info.defAbstract conInfo
                          , conInd    = Inductive
+                         , conJSDef  = Nothing
                          }
 
       -- Check that the fields fit inside the sort
@@ -295,6 +297,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funArgOccurrences = map (const Unused) hps ++ [Negative]
                      , funProjection     = Just (size hps + 1)
                        -- index of the record argument, start counting with 1
+                     , funJSDef          = Nothing
                      }
         computePolarity projname
 

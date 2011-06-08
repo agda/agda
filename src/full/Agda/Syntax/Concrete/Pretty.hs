@@ -324,6 +324,8 @@ instance Pretty Pragma where
       hsep $ [text "COMPILED_DATA", pretty x] ++ map text (hs : hcs)
     pretty (CompiledEpicPragma _ x e) =
       hsep [ text "COMPILED_EPIC", pretty x, text e ]
+    pretty (CompiledJSPragma _ x e) =
+      hsep [ text "COMPILED_JS", pretty x, text e ]
     pretty (ImportPragma _ i) =
       hsep $ [text "IMPORT", text i]
     pretty (ImpossiblePragma _) =

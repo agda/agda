@@ -115,6 +115,7 @@ bindBuiltinSharp e =
                   , dataArgOccurrences = [Unused, Positive]
                   , dataHsType         = Nothing
                   , dataAbstr          = ConcreteDef
+                  , dataJSDef          = Nothing
                   }
               }
     addConstant sharp $
@@ -125,6 +126,7 @@ bindBuiltinSharp e =
                     , conHsCode = Nothing
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
+                    , conJSDef  = Nothing
                     }
                 }
     return sharpE
@@ -175,6 +177,7 @@ bindBuiltinFlat e =
                      {- flat is a projection, but in the termination checker
                         it destroys the (inductive) structural ordering.
                         Thus, we do not register it as a projection. -}
+                   , funJSDef = Nothing
                    }
                 }
     return flatE

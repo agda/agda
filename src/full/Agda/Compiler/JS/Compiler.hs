@@ -30,8 +30,11 @@ import Agda.TypeChecking.Monad
     Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
     iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
     ignoreAbstractMode, miInterface, getVisitedModules,
-    defType, funClauses, funProjection, dataPars, dataIxs, dataClause, dataCons,
-    conPars, conData, conSrcCon, recClause, recCon, recFields, recPars, recNamedCon, primClauses )
+    defType, axJSDef, funClauses, funProjection, funJSDef,
+    dataPars, dataIxs, dataClause, dataCons, dataJSDef,
+    conPars, conData, conSrcCon, conJSDef,
+    recClause, recCon, recFields, recPars, recNamedCon, recJSDef,
+    primClauses, primJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
@@ -42,7 +45,7 @@ import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
 import Agda.Compiler.MAlonzo.Primitives ( repl )
 
 import Agda.Compiler.JS.LambdaC
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,FFI),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
     modName, curriedLambda, curriedApply, fix, emp, record, subst )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
@@ -151,8 +154,12 @@ definition (q,d) = do
   return (ls, e)
 
 defn :: [MemberId] -> Type -> Defn -> TCM Exp
+defn ls t (Axiom { axJSDef = Just e }) =
+  return (FFI e)
 defn ls t (Axiom {}) =
   return Undefined
+defn ls t (Function { funJSDef = Just e }) =
+  return (FFI e)
 defn ls t (Function { funProjection = Just i, funClauses = cls }) =
   return (curriedLambda (numPars cls)
     (Lookup (Local (LocalId 0)) (last ls)))
@@ -166,10 +173,14 @@ defn ls t (Function { funClauses = cls }) = do
     Nothing -> do
       cs <- mapM clause cls
       return (lambda cs)
+defn ls t (Primitive { primJSDef = Just e }) =
+  return (FFI e)
 defn ls t (Primitive {}) =
   return Undefined
 defn ls t (Datatype {}) =
   return emp
+defn ls t (Constructor { conJSDef = Just e }) =
+  return (FFI e)
 defn ls t (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
@@ -231,11 +242,12 @@ tag q = do
     (Constructor { conData = p }) -> do
       d <- getConstInfo p
       case theDef d of
-        (Datatype { dataCons = qs }) -> do
+        (Datatype { dataCons = qs, dataJSDef = Just e }) -> do
           ls <- mapM visitorName qs
-          return (Tag l ls)
-        (Record {}) ->
-          return (Tag l [])
+          return (Tag l ls (\ x xs -> Apply (FFI e) (x:xs)))
+        (Datatype { dataCons = qs, dataJSDef = Nothing }) -> do
+          ls <- mapM visitorName qs
+          return (Tag l ls Apply)
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 

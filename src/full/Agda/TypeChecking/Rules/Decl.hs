@@ -88,7 +88,7 @@ checkAxiom i rel x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing Nothing)
+  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing Nothing Nothing)
   solveSizeConstraints
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
@@ -103,7 +103,7 @@ checkPrimitive i x e =
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
     addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 $
-                Primitive (Info.defAbstract i) s Nothing Nothing)
+                Primitive (Info.defAbstract i) s Nothing Nothing Nothing)
     where
 	nameString (Name _ x _ _) = show x
 
@@ -175,6 +175,8 @@ checkPragma r p =
               --reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show x ++ ": " ++ ty
               addEpicCode x ep
             _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates."
+        A.CompiledJSPragma x ep ->
+          addJSCode x ep
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
         A.EtaPragma r -> modifySignature eta
           where

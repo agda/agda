@@ -77,7 +77,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110426 * 10 + 0
+currentInterfaceVersion = 20110608 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -600,20 +600,20 @@ instance EmbPrj Occurrence where
     valu _   = malformed
 
 instance EmbPrj Defn where
-  icode (Axiom       a b)                   = icode2 0 a b
-  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
-  icode (Datatype    a b c d e f g h i j)   = icode10 2 a b c d e f g h i j
-  icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
-  icode (Constructor a b c d e f)           = icode6 4 a b c d e f
-  icode (Primitive   a b c d)               = icode4 5 a b c d
+  icode (Axiom       a b c)                   = icode3 0 a b c
+  icode (Function    a b c d e f g h i)       = icode9 1 a b c d e f g h i
+  icode (Datatype    a b c d e f g h i j k)   = icode11 2 a b c d e f g h i j k
+  icode (Record      a b c d e f g h i j k l) = icode12 3 a b c d e f g h i j k l
+  icode (Constructor a b c d e f g)           = icode7 4 a b c d e f g
+  icode (Primitive   a b c d e)               = icode5 5 a b c d e
   value = vcase valu where
-    valu [0, a, b]                            = valu2 Axiom       a b
-    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
-    valu [2, a, b, c, d, e, f, g, h, i, j]    = valu10 Datatype   a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
-    valu [4, a, b, c, d, e, f]                = valu6 Constructor a b c d e f
-    valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
-    valu _                                    = malformed
+    valu [0, a, b, c]                            = valu3 Axiom       a b c
+    valu [1, a, b, c, d, e, f, g, h, i]          = valu9 Function    a b c d e f g h i
+    valu [2, a, b, c, d, e, f, g, h, i, j, k]    = valu11 Datatype   a b c d e f g h i j k
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record     a b c d e f g h i j k l
+    valu [4, a, b, c, d, e, f, g]                = valu7 Constructor a b c d e f g
+    valu [5, a, b, c, d, e]                      = valu5 Primitive   a b c d e
+    valu _                                       = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
   icode (Branches a b c) = icode3' a b c
@@ -853,6 +853,7 @@ icode8  tag a b c d e f g h       = icodeN . (tag :) =<< sequence [icode a, icod
 icode9  tag a b c d e f g h i     = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
 icode10 tag a b c d e f g h i j   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
+icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 
 icode0'                        = icodeN []
 icode1'  a                     = icodeN =<< sequence [icode a]
@@ -866,19 +867,21 @@ icode8'  a b c d e f g h       = icodeN =<< sequence [icode a, icode b, icode c,
 icode9'  a b c d e f g h i     = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i]
 icode10' a b c d e f g h i j   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
+icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 
-valu0  z                       = return z
-valu1  z a                     = valu0 z                      `ap` value a
-valu2  z a b                   = valu1 z a                    `ap` value b
-valu3  z a b c                 = valu2 z a b                  `ap` value c
-valu4  z a b c d               = valu3 z a b c                `ap` value d
-valu5  z a b c d e             = valu4 z a b c d              `ap` value e
-valu6  z a b c d e f           = valu5 z a b c d e            `ap` value f
-valu7  z a b c d e f g         = valu6 z a b c d e f          `ap` value g
-valu8  z a b c d e f g h       = valu7 z a b c d e f g        `ap` value h
-valu9  z a b c d e f g h i     = valu8 z a b c d e f g h      `ap` value i
-valu10 z a b c d e f g h i j   = valu9 z a b c d e f g h i    `ap` value j
-valu11 z a b c d e f g h i j k = valu10 z a b c d e f g h i j `ap` value k
+valu0  z                         = return z
+valu1  z a                       = valu0 z                        `ap` value a
+valu2  z a b                     = valu1 z a                      `ap` value b
+valu3  z a b c                   = valu2 z a b                    `ap` value c
+valu4  z a b c d                 = valu3 z a b c                  `ap` value d
+valu5  z a b c d e               = valu4 z a b c d                `ap` value e
+valu6  z a b c d e f             = valu5 z a b c d e              `ap` value f
+valu7  z a b c d e f g           = valu6 z a b c d e f            `ap` value g
+valu8  z a b c d e f g h         = valu7 z a b c d e f g          `ap` value h
+valu9  z a b c d e f g h i       = valu8 z a b c d e f g h        `ap` value i
+valu10 z a b c d e f g h i j     = valu9 z a b c d e f g h i      `ap` value j
+valu11 z a b c d e f g h i j k   = valu10 z a b c d e f g h i j   `ap` value k
+valu12 z a b c d e f g h i j k l = valu11 z a b c d e f g h i j k `ap` value l
 
 -- | Creates an empty dictionary.
 
