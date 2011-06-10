@@ -13,6 +13,7 @@ open import Level
 open import Relation.Binary
 import Relation.Binary.Indexed as I
 open import Relation.Binary.Consequences
+open import Relation.Binary.HeterogeneousEquality.Core as H using (_≅_)
 
 -- Some of the definitions can be found in the following modules:
 
@@ -126,6 +127,12 @@ module ≡-Reasoning where
       open EqR (setoid A) public
         hiding (_≡⟨_⟩_) renaming (_≈⟨_⟩_ to _≡⟨_⟩_)
   open Dummy public
+
+  infixr 2 _≅⟨_⟩_
+
+  _≅⟨_⟩_ : ∀ {a} {A : Set a} (x : A) {y z : A} →
+           x ≅ y → y IsRelatedTo z → x IsRelatedTo z
+  _ ≅⟨ x≅y ⟩ y≡z = _ ≡⟨ H.≅-to-≡ x≅y ⟩ y≡z
 
 ------------------------------------------------------------------------
 -- Definition of functional extensionality

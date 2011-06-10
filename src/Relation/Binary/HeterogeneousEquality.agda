@@ -17,13 +17,14 @@ open import Relation.Binary.Indexed as I using (_at_)
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
+import Relation.Binary.HeterogeneousEquality.Core as Core
+
 ------------------------------------------------------------------------
 -- Heterogeneous equality
 
-infix 4 _≅_ _≇_
+infix 4 _≇_
 
-data _≅_ {a} {A : Set a} (x : A) : ∀ {b} {B : Set b} → B → Set where
-  refl : x ≅ x
+open Core public using (_≅_; refl)
 
 -- Nonequality.
 
@@ -36,8 +37,7 @@ x ≇ y = ¬ x ≅ y
 ≡-to-≅ : ∀ {a} {A : Set a} {x y : A} → x ≡ y → x ≅ y
 ≡-to-≅ refl = refl
 
-≅-to-≡ : ∀ {a} {A : Set a} {x y : A} → x ≅ y → x ≡ y
-≅-to-≡ refl = refl
+open Core public using (≅-to-≡)
 
 ------------------------------------------------------------------------
 -- Some properties
