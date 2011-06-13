@@ -305,10 +305,22 @@ SpaceIds
     : Id SpaceIds { $1 : $2 }
     | Id	  { [$1] }
 
+-- When looking for a double closed brace, we accept either a single token '}}'
+-- (which is what the unicode character "RIGHT WHITE CURLY BRACKET" is
+-- postprocessed into in LexActions.hs), but also two consecutive tokens '}'
+-- (which a string '}}' is lexed to).  This small hack allows us to keep
+-- "record { a = record { }}" working. In the second case, we check that the two
+-- tokens '}' are immediately consecutive.
 DoubleCloseBrace :: { Range }
 DoubleCloseBrace
   : '}}' { getRange $1 }
-| '}' '}' {% if posPos (fromJust (rEnd (getRange $2))) - posPos (fromJust (rStart (getRange $1))) > 2 then parseError "Expecting '}}', found separated '}'s." else return $ fuseRange (getRange $1) (getRange ($2)) }
+  | '}' '}' {%
+      if posPos (fromJust (rEnd (getRange $2))) -
+	 posPos (fromJust (rStart (getRange $1))) > 2
+      then parseErrorAt (fromJust (rStart (getRange $2)))
+	 "Expecting '}}', found separated '}'s."
+      else return $ fuseRange (getRange $1) (getRange ($2))
+    }
 
 {- UNUSED
 -- Space separated list of one or more identifiers, some of which may
