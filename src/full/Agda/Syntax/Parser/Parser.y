@@ -369,13 +369,14 @@ BId :: { Name }
 BId : Id    { $1 }
     | '_'   { Name (getRange $1) [Hole] }
 
+{- UNUSED
 -- A binding variable. Can be '_'
 MaybeDottedBId :: { (Relevance, Name) }
 MaybeDottedBId
     : BId        { (Relevant  , $1) }
     | '.' BId    { (Irrelevant, $2) }
     | '..' BId   { (NonStrict, $2) }
-
+-}
 
 
 -- Space separated list of binding identifiers. Used in fixity
