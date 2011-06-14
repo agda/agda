@@ -335,8 +335,8 @@ Tools
   exports = { 
     "empty?": function (x0) { return function (x1) {
       return x1({
-        "[]": function () { return exports["true"]; }
-        "_∷_": function (x2,x3) { return exports["false"]; }
+        "[]": function () { return true; }
+        "_∷_": function (x2,x3) { return false; }
       });
     }; }
   ... }
@@ -365,7 +365,7 @@ Tools
         if (x < 1) { return v.zero(); } else { return v.suc(x-1); } 
       } #-}
     {-# COMPILED_JS zero 0 #-}
-    {-# COMPILED_JS suc function (x) { return (x+1); } #-}
+    {-# COMPILED_JS suc function (x) { return x+1; } #-}
 
     _+_ : Nat → Nat → Nat
     zero  + n = n
@@ -373,4 +373,13 @@ Tools
 
     {-# COMPILED_JS _+_ function (x) { return function (y) { return x+y; }; } #-}
 
-  
+  To allow FFI code to be optimized, the ECMAScript in a COMPILED_JS
+  declaration is parsed, using a simple parser that recognizes a pure
+  functional subset of ECMAScript, consisting of functions, function
+  applications, return, if-statements, if-expressions,
+  side-effect-free binary operators (no precedence, left associative),
+  side-effect-free prefix operators, objects (where all member names
+  are quoted), field accesses, and string and integer literals.
+  Modules may be imported using the require("<module-id>") syntax: any
+  impure code, or code outside this fragment, can be placed in a
+  module and imported.

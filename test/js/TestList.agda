@@ -24,6 +24,7 @@ _        ≟ -        = false
 [ff] = false ∷ []
 [tt,ff] = true ∷ [ff]
 [ff,tt] = false ∷ [tt]
+[ff,tt,ff] = false ∷ [tt,ff]
 
 tests : Tests
 tests _ = (
@@ -32,6 +33,7 @@ tests _ = (
     assert (([] ++ [tt]) ≟ [tt]) "[]++[tt]=[tt]" ,
     assert (([tt] ++ []) ≟ [tt]) "[tt]++[]=[tt]" ,
     assert (([tt] ++ [ff]) ≟ [tt,ff]) "[tt]++[ff]=[tt,ff]" ,
+    assert (([ff,tt] ++ [ff]) ≟ [ff,tt,ff]) "[ff,tt]++[ff]=[ff,tt,ff]" ,
     assert (not (([ff] ++ [tt]) ≟ [tt,ff])) "[ff]++[tt]≠[tt,ff]" ,
     assert (not (([tt] ++ [tt]) ≟ [tt,ff])) "[tt]++[tt]≠[tt,ff]" ,
     assert (reverse [tt,ff] ≟ [ff,tt]) "rev[tt,ff]=[ff,tt]" ,

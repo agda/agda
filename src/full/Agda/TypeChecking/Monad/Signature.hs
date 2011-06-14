@@ -16,6 +16,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 
+import qualified Agda.Compiler.JS.Parser as JS
+
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
@@ -118,24 +120,27 @@ addEpicCode q epDef =
       def{theDef = ax{axEpDef = Just $ epDef}}
     addEp def = def
 
-addJSCode :: MonadTCM tcm => QName -> JSCode -> tcm ()
+addJSCode :: MonadTCM tcm => QName -> String -> tcm ()
 addJSCode q jsDef =
-  -- TODO: sanity checking
-  modifySignature $ \sig -> sig
-  { sigDefinitions = Map.adjust addJS q $ sigDefinitions sig }
+  case JS.parse jsDef of
+    Left e ->
+      modifySignature $ \sig -> sig
+      { sigDefinitions = Map.adjust (addJS (Just e)) q $ sigDefinitions sig }
+    Right s ->
+      typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
-    addJS def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axJSDef = Just $ jsDef}}
-    addJS def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funJSDef = Just $ jsDef}}
-    addJS def@Defn{theDef = dat@Datatype{}} =
-      def{theDef = dat{dataJSDef = Just $ jsDef}}
-    addJS def@Defn{theDef = rec@Record{}} =
-      def{theDef = rec{recJSDef = Just $ jsDef}}
-    addJS def@Defn{theDef = con@Constructor{}} =
-      def{theDef = con{conJSDef = Just $ jsDef}}
-    addJS def@Defn{theDef = prim@Primitive{}} =
-      def{theDef = prim{primJSDef = Just $ jsDef}}
+    addJS e def@Defn{theDef = ax@Axiom{}} =
+      def{theDef = ax{axJSDef = e}}
+    addJS e def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funJSDef = e}}
+    addJS e def@Defn{theDef = dat@Datatype{}} =
+      def{theDef = dat{dataJSDef = e}}
+    addJS e def@Defn{theDef = rec@Record{}} =
+      def{theDef = rec{recJSDef = e}}
+    addJS e def@Defn{theDef = con@Constructor{}} =
+      def{theDef = con{conJSDef = e}}
+    addJS e def@Defn{theDef = prim@Primitive{}} =
+      def{theDef = prim{primJSDef = e}}
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss

@@ -58,6 +58,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
+import qualified Agda.Compiler.JS.Syntax as JS
 import qualified Agda.Interaction.Highlighting.Range   as HR
 import qualified Agda.Interaction.Highlighting.Precise as HP
 import Agda.Interaction.FindFile
@@ -77,7 +78,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110608 * 10 + 0
+currentInterfaceVersion = 20110613 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -576,6 +577,53 @@ instance EmbPrj HaskellRepresentation where
     valu [0, a]    = valu1 HsType a
     valu [1, a, b] = valu2 HsDefn a b
     valu _         = malformed
+
+instance EmbPrj JS.Exp where
+  icode (JS.Self)         = icode0 0
+  icode (JS.Local i)      = icode1 1 i
+  icode (JS.Global i)     = icode1 2 i
+  icode (JS.Undefined)    = icode0 3
+  icode (JS.String s)     = icode1 4 s
+  icode (JS.Char c)       = icode1 5 c
+  icode (JS.Integer n)    = icode1 6 n
+  icode (JS.Double d)     = icode1 7 d
+  icode (JS.Lambda n e)   = icode2 8 n e
+  icode (JS.Object o)     = icode1 9 o
+  icode (JS.Apply e es)   = icode2 10 e es
+  icode (JS.Lookup e l)   = icode2 11 e l
+  icode (JS.If e f g)     = icode3 12 e f g
+  icode (JS.BinOp e op f) = icode3 13 e op f
+  icode (JS.PreOp op e)   = icode2 14 op e
+  icode (JS.Const i)      = icode1 15 i
+  value = vcase valu where valu [0]           = valu0 JS.Self
+                           valu [1,  a]       = valu1 JS.Local a
+                           valu [2,  a]       = valu1 JS.Global a
+                           valu [3]           = valu0 JS.Undefined
+                           valu [4,  a]       = valu1 JS.String a
+                           valu [5,  a]       = valu1 JS.Char a
+                           valu [6,  a]       = valu1 JS.Integer a
+                           valu [7,  a]       = valu1 JS.Double a
+                           valu [8,  a, b]    = valu2 JS.Lambda a b
+                           valu [9,  a]       = valu1 JS.Object a
+                           valu [10, a, b]    = valu2 JS.Apply a b
+                           valu [11, a, b]    = valu2 JS.Lookup a b
+                           valu [12, a, b, c] = valu3 JS.If a b c
+                           valu [13, a, b, c] = valu3 JS.BinOp a b c
+                           valu [14, a, b]    = valu2 JS.PreOp a b
+                           valu [15, a]       = valu1 JS.Const a
+                           valu _             = malformed
+
+instance EmbPrj JS.LocalId where
+  icode (JS.LocalId l) = icode l
+  value n = JS.LocalId `fmap` value n
+
+instance EmbPrj JS.GlobalId where
+  icode (JS.GlobalId l) = icode l
+  value n = JS.GlobalId `fmap` value n
+
+instance EmbPrj JS.MemberId where
+  icode (JS.MemberId l) = icode l
+  value n = JS.MemberId `fmap` value n
 
 instance EmbPrj Polarity where
   icode Covariant     = icode0 0

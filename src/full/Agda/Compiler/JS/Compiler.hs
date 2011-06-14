@@ -30,7 +30,7 @@ import Agda.TypeChecking.Monad
     Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
     iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
     ignoreAbstractMode, miInterface, getVisitedModules,
-    defType, axJSDef, funClauses, funProjection, funJSDef,
+    defType, defJSDef, axJSDef, funClauses, funProjection, funJSDef,
     dataPars, dataIxs, dataClause, dataCons, dataJSDef,
     conPars, conData, conSrcCon, conJSDef,
     recClause, recCon, recFields, recPars, recNamedCon, recJSDef,
@@ -44,10 +44,12 @@ import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
 import Agda.Compiler.MAlonzo.Primitives ( repl )
 
-import Agda.Compiler.JS.LambdaC
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,FFI),
+import Agda.Compiler.JS.Syntax
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
-    modName, curriedLambda, curriedApply, fix, emp, record, subst )
+    modName )
+import Agda.Compiler.JS.Substitution
+  ( curriedLambda, curriedApply, fix, emp, object, subst, apply )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
 import Agda.Compiler.JS.Pretty ( pretty )
 
@@ -144,7 +146,7 @@ curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (iImportedModules <$> curIF)
   es <- mapM definition =<< (toList <$> curDefs)
-  return (Module m is (fix (record es)))
+  return (Module m is (fix (object es)))
 
 definition :: (QName,Definition) -> TCM ([MemberId],Exp)
 definition (q,d) = do
@@ -155,11 +157,11 @@ definition (q,d) = do
 
 defn :: [MemberId] -> Type -> Defn -> TCM Exp
 defn ls t (Axiom { axJSDef = Just e }) =
-  return (FFI e)
+  return e
 defn ls t (Axiom {}) =
   return Undefined
 defn ls t (Function { funJSDef = Just e }) =
-  return (FFI e)
+  return e
 defn ls t (Function { funProjection = Just i, funClauses = cls }) =
   return (curriedLambda (numPars cls)
     (Lookup (Local (LocalId 0)) (last ls)))
@@ -174,13 +176,13 @@ defn ls t (Function { funClauses = cls }) = do
       cs <- mapM clause cls
       return (lambda cs)
 defn ls t (Primitive { primJSDef = Just e }) =
-  return (FFI e)
+  return e
 defn ls t (Primitive {}) =
   return Undefined
 defn ls t (Datatype {}) =
   return emp
 defn ls t (Constructor { conJSDef = Just e }) =
-  return (FFI e)
+  return e
 defn ls t (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
@@ -220,9 +222,10 @@ mapping :: [Pattern] -> (Nat,Nat,[Exp])
 mapping = foldr mapping' (0,0,[])
 
 mapping' :: Pattern -> (Nat,Nat,[Exp]) -> (Nat,Nat,[Exp])
-mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
-mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, es ++ [Local (LocalId bv)])
-mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where (av',bv',es') = foldr mapping' (av,bv,es) (map unArg ps)
+mapping' (VarP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
+mapping' (DotP _)      (av,bv,es) = (av+1, bv+1, Local (LocalId bv) : es)
+mapping' (ConP _ _ ps) (av,bv,es) = (av',bv'+1,es') where
+  (av',bv',es') = foldr mapping' (av,bv,es) (map unArg ps)
 mapping' (LitP _)      (av,bv,es) = (av, bv+1, es)
 
 -- Not doing literal patterns yet
@@ -244,7 +247,7 @@ tag q = do
       case theDef d of
         (Datatype { dataCons = qs, dataJSDef = Just e }) -> do
           ls <- mapM visitorName qs
-          return (Tag l ls (\ x xs -> Apply (FFI e) (x:xs)))
+          return (Tag l ls (\ x xs -> apply e (x:xs)))
         (Datatype { dataCons = qs, dataJSDef = Nothing }) -> do
           ls <- mapM visitorName qs
           return (Tag l ls Apply)
@@ -261,25 +264,42 @@ body (NoBind e)       = body e
 body (NoBody)         = return Undefined
 
 term :: Term -> TCM Exp
-term (Var   i as)         = return (Local (LocalId i))
+term (Var   i as)         = do
+  e <- return (Local (LocalId i))
+  es <- args as
+  return (curriedApply e es)
 term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
 term (Lit   l)            = return (literal l)
 term (Def q as) = do
-  Defn { defType = t } <- getConstInfo q
-  s <- isSingleton t
-  case s of
-    -- Inline and eta-expand singleton types
-    Just e ->
-      return (curriedLambda (arity t) e)
+  d <- getConstInfo q
+  case defJSDef d of
+    -- Inline functions with an FFI definition
+    Just e -> do
+      es <- args as
+      return (curriedApply e es)
+    Nothing -> do
+      s <- isSingleton (defType d)
+      case s of
+        -- Inline and eta-expand singleton types
+        Just e ->
+          return (curriedLambda (arity (defType d)) e)
+        -- Everything else we leave non-inline
+        Nothing -> do
+          e <- qname q
+          es <- args as
+          return (curriedApply e es)
+term (Con q as) = do
+  d <- getConstInfo q
+  case defJSDef d of
+    -- Inline functions with an FFI definition
+    Just e -> do
+      es <- args as
+      return (curriedApply e es)
     -- Everything else we leave non-inline
     Nothing -> do
       e <- qname q
       es <- args as
       return (curriedApply e es)
-term (Con q as) = do
-  e <- qname q
-  es <- args as
-  return (curriedApply e es)
 term (Pi    _ _)          = return (String "*")
 term (Fun   _ _)          = return (String "*")
 term (Sort  _)            = return (String "*")
@@ -289,8 +309,8 @@ term (DontCare)           = return (Undefined)
 -- Check to see if a type is a singleton, and if so, return its only
 -- member.  Singleton types are of the form T1 -> ... -> Tn -> T where
 -- T is either a record with no fields, a datatype with one
--- no-argument constructor, or (since this is a type-erasing
--- translation) Set.
+-- no-argument constructor, a datatype with no constructors,
+-- or (since this is a type-erasing translation) Set.
 
 isSingleton :: Type -> TCM (Maybe Exp)
 isSingleton t = case unEl t of
@@ -300,6 +320,8 @@ isSingleton t = case unEl t of
   Def q as       -> do
     d <- getConstInfo q
     case (theDef d) of
+      Datatype { dataPars = np, dataCons = [] } ->
+        return (Just Undefined)
       Datatype { dataPars = np, dataCons = [p] } -> do
         c <- getConstInfo p
         case (arity (defType c) == np) of

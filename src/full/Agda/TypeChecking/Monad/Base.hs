@@ -33,6 +33,8 @@ import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 
+import qualified Agda.Compiler.JS.Syntax as JS
+
 import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
@@ -425,7 +427,7 @@ data Definition = Defn
 type HaskellCode = String
 type HaskellType = String
 type EpicCode    = String
-type JSCode      = String
+type JSCode      = JS.Exp
 
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode

@@ -6,19 +6,23 @@ module TestBool where
 not : Bool → Bool
 not true  = false
 not false = true
+{-# COMPILED_JS not function (x) { return !x; } #-}
 
 _∧_ : Bool → Bool → Bool
 true  ∧ x = x
 false ∧ x = false
+{-# COMPILED_JS _∧_ function (x) { return function (y) { return x && y; }; } #-}
 
 _∨_ : Bool → Bool → Bool
 true  ∨ x = true
 false ∨ x = x
+{-# COMPILED_JS _∨_ function (x) { return function (y) { return x || y; }; } #-}
 
 _↔_ : Bool → Bool → Bool
 true  ↔ true  = true
 false ↔ false = true
 _     ↔ _     = false
+{-# COMPILED_JS _↔_ function (x) { return function (y) { return x === y; }; } #-}
 
 tests : Tests
 tests _ = (

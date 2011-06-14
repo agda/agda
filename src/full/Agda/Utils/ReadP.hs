@@ -39,6 +39,7 @@ module Agda.Utils.ReadP
 
   -- * Parse
   parse,      -- :: ReadP tok a -> [tok] -> [a]
+  parse',     -- :: ReadP tok a -> [tok] -> Either a [tok]
 
   -- * Other operations
   pfail,      -- :: ReadP a
@@ -394,6 +395,20 @@ readS_to_P :: ReadS a -> ReadP Char a
 --   parser, and therefore a possible inefficiency.
 readS_to_P r =
   R (\k -> Look (\s -> final [bs'' | (a,s') <- r s, bs'' <- run (k a) s']))
+
+-- ---------------------------------------------------------------------------
+-- A variant on parse which returns either a result, or the unparseable text.
+
+run' :: P t a -> [t] -> Either a [t]
+run' (Get f)           (c:s) = run' (f c) s
+run' (Look f)          s     = run' (f s) s
+run' (Result x _)      _     = Left x
+run' (Final ((x,_):_)) _     = Left x
+run' _                 s     = Right s
+
+parse' :: ReadP t a -> [t] -> Either a [t]
+parse' p ts = case complete p of
+    R f	-> run' (f return) ts
 
 -- ---------------------------------------------------------------------------
 -- QuickCheck properties that hold for the combinators

@@ -113,7 +113,9 @@ library
                     Agda.Compiler.Epic.Primitive
                     Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
-                    Agda.Compiler.JS.LambdaC
+                    Agda.Compiler.JS.Syntax
+                    Agda.Compiler.JS.Substitution
+                    Agda.Compiler.JS.Parser
                     Agda.Compiler.JS.Pretty
                     Agda.Compiler.MAlonzo.Compiler
                     Agda.Compiler.MAlonzo.Encode

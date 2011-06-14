@@ -13,9 +13,9 @@ data Nat : Set where
 {-# BUILTIN SUC     suc  #-}
 {-# BUILTIN ZERO    zero #-}
 
-{-# COMPILED_JS     Nat function (x,v) { if (x < 1) { return v.zero(); } else { return v.suc(x-1); } } #-}
+{-# COMPILED_JS     Nat function (x,v) { return (x < 1? v.zero(): v.suc(x-1)); } #-}
 {-# COMPILED_JS     zero 0 #-}
-{-# COMPILED_JS     suc function (x) { return (x+1); } #-}
+{-# COMPILED_JS     suc function (x) { return x+1; } #-}
 
 _+_ : Nat → Nat → Nat
 zero  + n = n
@@ -49,6 +49,6 @@ data Bool : Set where
 
 {-# COMPILED_DATA Bool Bool True False #-}
 
-{-# COMPILED_JS Bool function (x,v) { if (x) { return v["true"](); } else { return v["false"](); } } #-}
+{-# COMPILED_JS Bool function (x,v) { return (x? v["true"](): v["false"]()); } #-}
 {-# COMPILED_JS true true #-}
 {-# COMPILED_JS false false #-}

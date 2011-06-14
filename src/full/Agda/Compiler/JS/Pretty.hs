@@ -6,10 +6,9 @@ import Data.Map ( Map, toAscList, null )
 
 import Agda.Syntax.Common ( Nat )
 
-import Agda.Compiler.JS.LambdaC
-  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,FFI),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
-    modName, curriedLambda, curriedApply, fix, emp, record )
+import Agda.Compiler.JS.Syntax
+  ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PreOp,Const),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module) )
 
 -- Pretty-print a lambda-calculus expression as ECMAScript.
 
@@ -76,14 +75,25 @@ instance Pretty Exp where
   pretty n i (Lambda x e)           =
     "function (" ++
       intercalate ", " (pretties (n+x) i (map LocalId [x-1, x-2 .. 0])) ++
-    ") {" ++ br (i+1) ++
-    "return " ++ pretty (n+x) (i+1) e ++ ";" ++ br i ++ "}"
+    ") " ++ block (n+x) i e
   pretty n i (Object o) | null o    = "{}"
   pretty n i (Object o) | otherwise =
     "{" ++ br (i+1) ++ intercalate ("," ++ br (i+1)) (pretties n i o) ++ br i ++ "}"
   pretty n i (Apply f es)           = pretty n i f ++ "(" ++ intercalate ", " (pretties n i es) ++ ")"
   pretty n i (Lookup e l)           = pretty n i e ++ "[" ++ pretty n i l ++ "]"
-  pretty n i (FFI e)                = "(" ++ e ++ ")"
+  pretty n i (If e f g)             =
+    "(" ++ pretty n i e ++ "? " ++ pretty n i f ++ ": " ++ pretty n i g ++ ")"
+  pretty n i (PreOp op e)           = "(" ++ op ++ " " ++ pretty n i e ++ ")"
+  pretty n i (BinOp e op f)         = "(" ++ pretty n i e ++ " " ++ op ++ " " ++ pretty n i f ++ ")"
+  pretty n i (Const c)              = c
+
+block :: Nat -> Int -> Exp -> String
+block n i (If e f g) = "{" ++ br (i+1) ++ block' n (i+1) (If e f g) ++ br i ++ "}"
+block n i e          = "{" ++ br (i+1) ++ "return " ++ pretty n (i+1) e ++ ";" ++ br i ++ "}"
+
+block' :: Nat -> Int -> Exp -> String
+block' n i (If e f g) = "if (" ++ pretty n i e ++ ") " ++ block n i f ++ " else " ++ block' n i g
+block' n i e          = block n i e
 
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
