@@ -255,7 +255,11 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
-        -- TODO: compute polarity for the new definition
+        oldOcc = case oldDef of
+          Function { funArgOccurrences  = os } -> os
+          Datatype { dataArgOccurrences = os } -> os
+          Record   { recArgOccurrences  = os } -> os
+          _ -> []
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } ->
                   oldDef { conPars = np - size ts, conData = copyName d }
@@ -271,7 +275,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                            , funDelayed        = NotDelayed
                            , funInv            = NotInjective
                            , funPolarity       = []
-                           , funArgOccurrences = []
+                           , funArgOccurrences = drop (length ts) oldOcc
                            , funAbstr          = ConcreteDef
                            , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
                            , funJSDef          = Nothing
