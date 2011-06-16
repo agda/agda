@@ -184,7 +184,11 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primShowString"     |-> return "(show :: String -> String)"
 
   -- Reflection
-  , "primQNameEquality" |-> rel "(==)" "String"
+  , "primQNameEquality"   |-> rel "(==)" "MAlonzo.RTE.QName () ()"
+  , "primQNameType"       |-> return "MAlonzo.RTE.qnameType"
+  , "primQNameDefinition" |-> return "MAlonzo.RTE.qnameDefinition"
+
+  , "primDataConstructors" |-> return "(error \"primDataConstructors: not implemented\")"
 
   -- Trust me
   , ("primTrustMe"       , Right <$> do

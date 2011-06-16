@@ -339,6 +339,7 @@ literal l = case l of
   LitInt    _ _   -> do toN <- bltQual "NATURAL" mazIntegerToNat
                         return $ HS.Var toN `HS.App` typed "Integer"
   LitFloat  _ _   -> return $ typed "Double"
+  LitQName  _ x   -> litqname x
   _               -> return $ l'
   where l'    = HS.Lit $ hslit l
         typed = HS.ExpTypeSig dummy l' . HS.TyCon . rtmQual
@@ -349,7 +350,17 @@ hslit l = case l of LitInt    _ x -> HS.Int    x
                     LitFloat  _ x -> HS.Frac   (toRational x)
                     LitString _ x -> HS.String x
                     LitChar   _ x -> HS.Char   x
-                    LitQName  _ x -> HS.String (show x)
+                    LitQName  _ x -> __IMPOSSIBLE__
+
+litqname :: QName -> TCM HS.Exp
+litqname x = return $
+  HS.Con (HS.Qual mazRTE $ HS.Ident "QName") `HS.App`
+  HS.Lit (HS.Int n) `HS.App`
+  HS.Lit (HS.Int m) `HS.App`
+  (rtmError "primQNameType: not implemented") `HS.App`
+  (rtmError "primQNameDefinition: not implemented")
+  where
+    NameId n m = nameId $ qnameName x
 
 condecl :: QName -> TCM (Nat, HS.ConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
@@ -439,6 +450,11 @@ rteModule = ok $ parse $ unlines
   , "{-# INLINE [1] mazCoerce #-}"
   , "mazCoerce = Unsafe.Coerce.unsafeCoerce"
   , "{-# RULES \"coerce-id\" forall (x :: a) . mazCoerce x = x #-}"
+  , ""
+  , "-- Builtin QNames, the third field is for the type."
+  , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b }"
+  , "instance Eq (QName a b) where"
+  , "  QName a b _ _ == QName c d _ _ = (a, b) == (c, d)"
   ]
   where
     parse = HS.parseWithMode
