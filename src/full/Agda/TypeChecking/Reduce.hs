@@ -28,6 +28,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.CompiledClause
 import {-# SOURCE #-} Agda.TypeChecking.Pretty
 
+import {-# SOURCE #-} Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
@@ -405,7 +406,7 @@ instance Normalise Sort where
         Lub s1 s2  -> sLub <$> normalise s1 <*> normalise s2
         DLub s1 s2 -> dLub <$> normalise s1 <*> normalise s2
         Prop       -> return s
-        Type s'    -> Type <$> normalise s'
+        Type s'    -> Type <$> (normalise =<< unLevelView =<< levelView s')
         MetaS m as -> MetaS m <$> normalise as
         Inf        -> return Inf
 

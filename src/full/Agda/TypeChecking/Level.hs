@@ -121,7 +121,8 @@ levelView a = do
   msuc <- maybePrimCon primLevelSuc
   mzer <- maybePrimCon primLevelZero
   mmax <- maybePrimDef primLevelMax
-  let view a =
+  let view a = do
+        a <- reduce a
         case a of
           Con s [arg]
             | Just s == msuc -> inc <$> view (unArg arg)
@@ -131,7 +132,7 @@ levelView a = do
           Def m [arg1, arg2]
             | Just m == mmax -> lub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
-  view =<< normalise a
+  view a
   where
     mkAtom a = do
       b <- reduceB a
