@@ -9,4 +9,3 @@ data PlusView
 
 unLevelView :: MonadTCM tcm => LevelView -> tcm Term
 levelView :: MonadTCM tcm => Term -> tcm LevelView
-
