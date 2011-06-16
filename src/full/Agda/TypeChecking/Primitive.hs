@@ -29,6 +29,7 @@ import Agda.TypeChecking.Quote (quoteType, quotingKit)
 import Agda.TypeChecking.Pretty ()  -- instances only
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Level
 
 import Agda.Utils.Monad
 import Agda.Utils.Pretty (pretty)
@@ -296,6 +297,32 @@ primDataConstructors :: MonadTCM tcm => tcm PrimitiveImpl
 primDataConstructors = mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
                                      (fmap (dataCons . theDef) . getConstInfo)
 
+mkPrimLevelMax :: MonadTCM tcm => tcm PrimitiveImpl
+mkPrimLevelMax = do
+  t <- primType (max :: Op Lvl)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> liftTCM $ do
+    a <- reduceB a
+    b <- reduceB b
+    case (unArg $ ignoreBlocking a, unArg $ ignoreBlocking b) of
+      (Lit (LitLevel r i), Lit (LitLevel _ j)) -> redReturn $ Lit $ LitLevel r (max i j)
+      (Var x [], Var y []) | x == y            -> redReturn $ Var x []
+      (Def x [], Def y []) | x == y            -> redReturn $ Def x []
+      _                                        -> return $ NoReduction $ map reduced [a, b]
+  {- This version is even smarter, but a bit too slow..
+    let argA x = fmap (const x) a
+        argB y = fmap (const y) b
+    av@(Max as) <- levelView (unArg a)
+    bv@(Max bs) <- levelView (unArg b)
+    let ab@(Max cs) = levelViewMax av bv
+    if length cs < length as + length bs
+      then redReturn =<< unLevelView ab
+      else do
+        a <- unLevelView av
+        b <- unLevelView bv
+        -- TODO: notBlocked might not be true
+        return $ NoReduction $ map reduced [notBlocked $ argA a, notBlocked $ argB b]
+  -}
+
 mkPrimFun1TCM :: (MonadTCM tcm, FromTerm a, ToTerm b) => tcm Type -> (a -> TCM b) -> tcm PrimitiveImpl
 mkPrimFun1TCM mt f = do
     toA   <- fromTerm
@@ -470,7 +497,7 @@ primitiveFunctions = Map.fromList
         in mkPrimFun4 aux
     , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
-    , "primLevelMax"	    |-> mkPrimFun2 (max			    :: Op Lvl)
+    , "primLevelMax"	    |-> mkPrimLevelMax
 
     -- Floating point functions
     , "primIntegerToFloat"  |-> mkPrimFun1 (fromIntegral :: Integer -> Double)

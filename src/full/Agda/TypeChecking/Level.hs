@@ -130,7 +130,7 @@ levelView a = do
             | Just z == mzer -> return $ closed 0
           Lit (LitLevel _ n)   -> return $ closed n
           Def m [arg1, arg2]
-            | Just m == mmax -> lub <$> view (unArg arg1) <*> view (unArg arg2)
+            | Just m == mmax -> levelViewMax <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
   view a
   where
@@ -143,13 +143,16 @@ levelView a = do
 
     atom a = Max [Plus 0 a]
 
-    closed n = maxim [ClosedLevel n]
+    closed n = Max [ClosedLevel n | n > 0]
 
     inc (Max as) = Max $ map inc' as
       where
         inc' (ClosedLevel n) = ClosedLevel $ n + 1
         inc' (Plus n a)    = Plus (n + 1) a
 
+levelViewMax :: LevelView -> LevelView -> LevelView
+levelViewMax (Max as) (Max bs) = maxim $ as ++ bs
+  where
     maxim as = Max $ ns ++ List.sort bs
       where
         ns = case [ n | ClosedLevel n <- as, n > 0 ] of
@@ -164,5 +167,3 @@ levelView a = do
           | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
           where
             ns = [ m | Plus m a'  <- bs, a == a', m > n ]
-
-    lub (Max as) (Max bs) = maxim $ as ++ bs
