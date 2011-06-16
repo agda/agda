@@ -21,6 +21,9 @@ run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 					 echo "let top_command = top_command' currentFile" ) \
 				 | cat - $*.in | ghc --interactive -v0 | sed -e 's"$(pwd)""g'
 
+cleanup_Issue373 = rm -rf Issue373 MAlonzo
+cleanup_Long = rm -f highlighting.tmp
+
 %.test : %.in %.agda
 	@$(run_test)
 
@@ -49,4 +52,5 @@ $(Tests) : %.cmp : %.out
 			rm -f $*.tmp; \
 			false; \
 	 fi
+	@$(cleanup_$*)
 

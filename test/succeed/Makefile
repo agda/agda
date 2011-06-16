@@ -22,13 +22,19 @@ all : $(allagda) $(alllagda)
 
 RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e $*.flags ]; then cat $*.flags; fi)
 
+cleanup_Issue296							= rm -rf MAlonzo Issue296
+cleanup_Issue326							= rm -rf MAlonzo Issue326
+cleanup_UniversePolymorphicIO = rm -rf MAlonzo UniversePolymorphicIO
+
 %.test : %.agda
 	@echo $<
 	@$(RUN_AGDA) $<
+	@$(cleanup_$*)
 
 %.test : %.lagda
 	@echo $<
 	@$(RUN_AGDA) $<
+	@$(cleanup_$*)
 
 clean :
 	-rm *~
