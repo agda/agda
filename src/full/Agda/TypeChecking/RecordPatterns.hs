@@ -83,7 +83,7 @@ translateRecordPatterns clause = do
       -- Permutation taking the new variable and dot patterns to the
       -- new telescope.
       newPerm = adjustForDotPatterns $
-                  reorderTel $ map (maybe dummy snd) newTel'
+                  reorderTel_ $ map (maybe dummy snd) newTel'
         where
         -- It is important that dummy does not mention any variable
         -- (see the definition of reorderTel).

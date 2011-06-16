@@ -80,7 +80,16 @@ instantiateTel s tel = liftTCM $ do
     text "tel3 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel3)
 
   -- p : Permutation (Γσ -> Γσ~)
-  let p = reorderTel tel3
+  p <- case reorderTel tel3 of
+    Nothing -> inContext [] $ do
+      xs <- mapM freshName_ names3
+      addCtxs xs (Arg NotHidden Relevant prop) $ do
+        err <- sep [ text "Recursive telescope in left hand side:"
+                   , fsep [ parens (prettyTCM x <+> text ":" <+> prettyTCM t)
+                          | (x, t) <- zip xs tel3 ]
+                   ]
+        typeError $ GenericError $ show err
+    Just p  -> return p
 
   reportSLn "tc.lhs.inst" 10 $ "p   = " ++ show p
 

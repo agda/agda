@@ -41,7 +41,7 @@ prop_flattenTelInv conf =
 prop_reorderTelStable :: TermConfiguration -> Property
 prop_reorderTelStable conf =
   forAll (genC conf) $ \tel ->
-  reorderTel (flattenTel tel) == idP (size tel)
+  reorderTel (flattenTel tel) == Just (idP (size tel))
 
 -- | The result of splitting a telescope is well-scoped.
 prop_splitTelescopeScope :: TermConfiguration -> Property

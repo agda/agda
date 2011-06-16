@@ -1,0 +1,3 @@
+Issue280.agda:8,19-26
+Recursive telescope in left hand side: (M : M c → Set) (c : M c)
+when checking that the pattern model c has type PreModel C M C

@@ -48,13 +48,16 @@ flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 
 -- | Order a flattened telescope in the correct dependeny order: Γ ->
 --   Permutation (Γ -> Γ~)
-reorderTel :: [Arg Type] -> Permutation
-reorderTel tel = case topoSort comesBefore tel' of
-  Nothing -> __IMPOSSIBLE__
-  Just p  -> p
+reorderTel :: [Arg Type] -> Maybe Permutation
+reorderTel tel = topoSort comesBefore tel'
   where
     tel' = reverse $ zip [0..] $ reverse tel
     (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unArg a) -- a tiny bit unsafe
+
+reorderTel_ :: [Arg Type] -> Permutation
+reorderTel_ tel = case reorderTel tel of
+  Nothing -> __IMPOSSIBLE__
+  Just p  -> p
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
@@ -107,7 +110,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 
     ts1   = permuteTel perm0 ts0
 
-    perm1 = reorderTel ts1
+    perm1 = reorderTel_ ts1
 
     ts2   = permuteTel perm1 ts1
 
