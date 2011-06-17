@@ -500,12 +500,26 @@ checkExpr e t =
                         return v
 		_   -> typeError $ ShouldBePi t'
 
-	A.QuestionMark i -> do
-	    setScope (A.metaScope i)
-	    newQuestionMark  t
-	A.Underscore i   -> do
-	    setScope (A.metaScope i)
-	    newValueMeta t
+	A.QuestionMark i ->
+          case A.metaNumber i of
+            Nothing -> do
+              setScope (A.metaScope i)
+              newQuestionMark t
+            -- Rechecking an existing metavariable
+            Just n -> do
+              let v = MetaV (MetaId n) []
+              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              blockTerm t v $ leqType t' t
+	A.Underscore i   ->
+          case A.metaNumber i of
+            Nothing -> do
+              setScope (A.metaScope i)
+              newValueMeta t
+            -- Rechecking an existing metavariable
+            Just n -> do
+              let v = MetaV (MetaId n) []
+              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              blockTerm t v $ leqType t' t
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
