@@ -525,7 +525,7 @@ leqLevel a b = liftTCM $ do
           , prettyTCM b ]
   n <- levelView a
   m <- levelView b
-  leqView n m
+  catchConstraint (LevelCmp CmpLeq (Level n) (Level m)) $ leqView n m
   where
     leqView n@(Max as) m@(Max bs) = do
       reportSDoc "tc.conv.nat" 30 $
@@ -578,16 +578,16 @@ leqLevel a b = liftTCM $ do
 
 equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
 equalLevel a b = do
-  lvl    <- primLevel
+  reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
   Max as <- levelView a
   Max bs <- levelView b
   a <- unLevelView (Max as)
   b <- unLevelView (Max bs)
-  liftTCM $ catchConstraint (ValueCmp CmpEq (El (mkType 0) lvl) a b)
-          $ check a b as bs
+  liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
+    check a b as bs
   where
     check a b as bs = do
-      reportSDoc "tc.conv.nat" 40 $
+      reportSDoc "tc.conv.level" 40 $
         sep [ text "equalLevel"
             , nest 2 $ sep [ prettyTCM a <+> text "=="
                            , prettyTCM b
@@ -697,6 +697,8 @@ equalSort s1 s2 =
           sep [ text "equalSort"
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=="
                               , prettyTCM s2 ]
+              , nest 2 $ fsep [ text (show s1) <+> text "=="
+                              , text (show s2) ]
               ]
 	case (s1,s2) of
 

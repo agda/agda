@@ -72,7 +72,8 @@ unLevelView :: MonadTCM tcm => Level -> tcm Term
 unLevelView nv = return $ Level nv
 
 reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
-reallyUnLevelView nv = case nv of
+reallyUnLevelView nv =
+  case nv of
     Max []              -> return $ Lit $ LitLevel noRange 0
     Max [ClosedLevel n] -> return $ Lit $ LitLevel noRange n
     Max [Plus 0 a]      -> return $ unLevelAtom a
@@ -103,6 +104,7 @@ maybePrimDef prim = liftTCM $ do
 
 levelView :: MonadTCM tcm => Term -> tcm Level
 levelView a = do
+  reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
   msuc <- maybePrimCon primLevelSuc
   mzer <- maybePrimCon primLevelZero
   mmax <- maybePrimDef primLevelMax
@@ -118,7 +120,9 @@ levelView a = do
           Def m [arg1, arg2]
             | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
-  view a
+  v <- view a
+  reportSLn "tc.level.view" 50 $ "  view: " ++ show v ++ "}"
+  return v
   where
     mkAtom a = do
       b <- reduceB a

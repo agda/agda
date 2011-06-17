@@ -48,11 +48,18 @@ etaOnce v = ignoreAbstractMode $ eta v
     eta t@(Lam h b) = do
       imp <- shouldEtaContractImplicit
       case binAppView (absBody b) of
-        App u (Arg h' r (Var 0 []))
-          | allowed imp h' && not (freeIn 0 u) ->
+        App u (Arg h' r v)
+          | isVar0 v && allowed imp h' && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
         _ -> return t
       where
+        isVar0 (Var 0 [])               = True
+        isVar0 (Level (Max [Plus 0 l])) = case l of
+          NeutralLevel v   -> isVar0 v
+          UnreducedLevel v -> isVar0 v
+          BlockedLevel{}   -> False
+          MetaLevel{}      -> False
+        isVar0 _ = False
         allowed imp h' = h == h' && (imp || h == NotHidden)
     eta t@(Con c args) = do
       r <- getConstructorData c

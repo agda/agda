@@ -205,16 +205,16 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         patToTerm (A.LitP l)      = A.Lit l
         patToTerm (A.ImplicitP _) = A.Underscore minfo
 
--- Level literals should be expanded.
+-- Level literals should be expanded. Why? Not doing it now.
 
 instance Reify Literal Expr where
-  reify (LitLevel r n) = do
-    levelZero <- primLevelZero
-    levelSuc  <- levelSucFunction
-    reify $ fold levelSuc levelZero n
-    where
-    fold s z n | n < 0     = __IMPOSSIBLE__
-               | otherwise = foldr (.) id (genericReplicate n s) z
+  reify l@(LitLevel r n) = return (A.Lit l)
+--     levelZero <- primLevelZero
+--     levelSuc  <- levelSucFunction
+--     reify $ fold levelSuc levelZero n
+--     where
+--     fold s z n | n < 0     = __IMPOSSIBLE__
+--                | otherwise = foldr (.) id (genericReplicate n s) z
   reify l@(LitInt    {}) = return (A.Lit l)
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
@@ -472,7 +472,9 @@ instance Reify Sort Expr where
     reify s =
         do  s <- instantiateFull s
             case s of
-                I.Type (I.Lit (LitLevel _ n)) -> return $ A.Set exprInfo n
+                I.Type (I.Lit (LitLevel _ n))              -> return $ A.Set exprInfo n
+                I.Type (I.Level (I.Max []))                -> return $ A.Set exprInfo 0
+                I.Type (I.Level (I.Max [I.ClosedLevel n])) -> return $ A.Set exprInfo n
                 I.Type a -> do
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0)
