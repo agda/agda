@@ -6,7 +6,7 @@
 -- The changes are:
 
 --  1) ReadP is parameterised over the token type (hard-wired to 'Char' in the library).
---  2) Added a 'parse' function to run a parser.
+--  2) Added the functions 'parse' and 'parse'' which run parsers.
 --  3) Removed Read instances.
 
 -- Module      :  "Text.ParserCombinators.ReadP"
