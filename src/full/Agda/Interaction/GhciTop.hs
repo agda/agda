@@ -62,7 +62,6 @@ import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
-import Agda.TypeChecking.Serialise (encodeFile)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
