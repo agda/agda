@@ -667,6 +667,7 @@ equalLevel a b = do
         subtr _ (Plus _ BlockedLevel{}) = postpone
         subtr _ (Plus _ MetaLevel{})    = postpone
         subtr _ (Plus _ NeutralLevel{}) = postpone
+        subtr _ (Plus _ UnreducedLevel{}) = __IMPOSSIBLE__
 
         isNeutral (Plus _ NeutralLevel{}) = True
         isNeutral _                       = False

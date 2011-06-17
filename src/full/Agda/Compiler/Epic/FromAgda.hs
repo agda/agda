@@ -18,6 +18,7 @@ import qualified Agda.Syntax.Internal as T
 import qualified Agda.Syntax.Literal  as TL
 import qualified Agda.TypeChecking.CompiledClause as CC
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Level (reallyUnLevelView)
 import qualified Agda.TypeChecking.Substitute as S
 
 import Agda.Compiler.Epic.AuxAST
@@ -206,6 +207,7 @@ substTerm env term = case term of
        name <- newName
        Lam name <$> substTerm (name : env) (absBody te)
     T.Lit l -> Lit <$> substLit l
+    T.Level l -> substTerm env =<< lift (reallyUnLevelView l)
     T.Def q args -> do
       let name = unqname q
       del <- getDelayed q

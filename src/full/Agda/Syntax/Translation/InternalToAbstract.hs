@@ -255,6 +255,7 @@ instance Reify Term Expr where
         return $ A.Lam exprInfo (DomainFree h Relevant x) e
         -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
       I.Lit l        -> reify l
+      I.Level l      -> reify =<< reallyUnLevelView l
       I.Pi a b       -> do
         Arg h r a <- reify a
         (x,b)     <- reify b

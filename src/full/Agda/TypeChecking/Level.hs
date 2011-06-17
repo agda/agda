@@ -17,30 +17,11 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
-newtype LevelView = Max [PlusView]
-  deriving (Show)
-
-data PlusView = ClosedLevel Integer
-              | Plus Integer LevelAtom
-  deriving (Show, Eq)
-
-data LevelAtom = MetaLevel MetaId Args
-             | BlockedLevel Term
-             | NeutralLevel Term
-  deriving (Show, Eq, Ord)
-
-instance Ord PlusView where
-  compare ClosedLevel{} Plus{}            = LT
-  compare Plus{} ClosedLevel{}            = GT
-  compare (ClosedLevel n) (ClosedLevel m) = compare n m
-  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
-
-
 data LevelKit = LevelKit
-  { levelType  :: Term
-  , levelSuc   :: Term -> Term
-  , levelMax   :: Term -> Term -> Term
-  , levelZero  :: Term
+  { lvlType  :: Term
+  , lvlSuc   :: Term -> Term
+  , lvlMax   :: Term -> Term -> Term
+  , lvlZero  :: Term
   , typeName :: QName
   , sucName  :: QName
   , maxName  :: QName
@@ -60,13 +41,13 @@ builtinLevelKit = liftTCM $ do
     max@(Def m []) <- primLevelMax
     let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
-      { levelType = level
-      , levelSuc = \a -> suc @@ a
-      , levelMax = \a b -> max @@ a @@ b
-      , levelZero = zero
+      { lvlType  = level
+      , lvlSuc   = \a -> suc @@ a
+      , lvlMax   = \a b -> max @@ a @@ b
+      , lvlZero  = zero
       , typeName = l
-      , sucName = s
-      , maxName = m
+      , sucName  = s
+      , maxName  = m
       , zeroName = z
       }
   `catchError` \_ -> return Nothing
@@ -82,20 +63,24 @@ requireLevels = do
     Just k  -> return k
 
 unLevelAtom :: LevelAtom -> Term
-unLevelAtom (MetaLevel x as) = MetaV x as
-unLevelAtom (BlockedLevel a) = a
-unLevelAtom (NeutralLevel a) = a
+unLevelAtom (MetaLevel x as)   = MetaV x as
+unLevelAtom (BlockedLevel _ a) = a
+unLevelAtom (NeutralLevel a)   = a
+unLevelAtom (UnreducedLevel a) = a
 
-unLevelView :: MonadTCM tcm => LevelView -> tcm Term
-unLevelView nv = case nv of
-    Max []            -> return $ Lit $ LitLevel noRange 0
+unLevelView :: MonadTCM tcm => Level -> tcm Term
+unLevelView nv = return $ Level nv
+
+reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
+reallyUnLevelView nv = case nv of
+    Max []              -> return $ Lit $ LitLevel noRange 0
     Max [ClosedLevel n] -> return $ Lit $ LitLevel noRange n
-    Max [Plus 0 a]    -> return $ unLevelAtom a
-    Max [a]           -> do
+    Max [Plus 0 a]      -> return $ unLevelAtom a
+    Max [a]             -> do
       suc <- primLevelSuc
       return $ unPlusV (\n -> suc `apply` [defaultArg n]) a
     Max as -> do
-      Just LevelKit{ levelSuc = suc, levelMax = max } <- builtinLevelKit
+      Just LevelKit{ lvlSuc = suc, lvlMax = max } <- builtinLevelKit
       return $ case map (unPlusV suc) as of
         [a] -> a
         []  -> __IMPOSSIBLE__
@@ -116,7 +101,7 @@ maybePrimDef prim = liftTCM $ do
     return (Just f)
   `catchError` \_ -> return Nothing
 
-levelView :: MonadTCM tcm => Term -> tcm LevelView
+levelView :: MonadTCM tcm => Term -> tcm Level
 levelView a = do
   msuc <- maybePrimCon primLevelSuc
   mzer <- maybePrimCon primLevelZero
@@ -124,13 +109,14 @@ levelView a = do
   let view a = do
         a <- reduce a
         case a of
+          Level l -> return l
           Con s [arg]
             | Just s == msuc -> inc <$> view (unArg arg)
           Con z []
             | Just z == mzer -> return $ closed 0
-          Lit (LitLevel _ n)   -> return $ closed n
+          Lit (LitLevel _ n) -> return $ closed n
           Def m [arg1, arg2]
-            | Just m == mmax -> levelViewMax <$> view (unArg arg1) <*> view (unArg arg2)
+            | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a
   view a
   where
@@ -139,7 +125,7 @@ levelView a = do
       return $ case b of
         NotBlocked (MetaV m as) -> atom $ MetaLevel m as
         NotBlocked a            -> atom $ NeutralLevel a
-        Blocked _ a             -> atom $ BlockedLevel a
+        Blocked m a             -> atom $ BlockedLevel m a
 
     atom a = Max [Plus 0 a]
 
@@ -150,20 +136,5 @@ levelView a = do
         inc' (ClosedLevel n) = ClosedLevel $ n + 1
         inc' (Plus n a)    = Plus (n + 1) a
 
-levelViewMax :: LevelView -> LevelView -> LevelView
-levelViewMax (Max as) (Max bs) = maxim $ as ++ bs
-  where
-    maxim as = Max $ ns ++ List.sort bs
-      where
-        ns = case [ n | ClosedLevel n <- as, n > 0 ] of
-          []  -> []
-          ns  -> [ClosedLevel $ maximum ns]
-        bs = subsume [ b | b@Plus{} <- as ]
-
-        subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
-        subsume [] = []
-        subsume (Plus n a : bs)
-          | not $ null ns = subsume bs
-          | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
-          where
-            ns = [ m | Plus m a'  <- bs, a == a', m > n ]
+levelLub :: Level -> Level -> Level
+levelLub (Max as) (Max bs) = levelMax $ as ++ bs

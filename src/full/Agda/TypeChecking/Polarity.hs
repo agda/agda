@@ -153,6 +153,7 @@ instance HasPolarity Term where
               | otherwise -> polarities i ts
     Lam _ t    -> polarities i t
     Lit _      -> return []
+    Level l    -> polarities i l
     Def x ts   -> do
       pols <- getPolarity x
       let compose p ps = map (composePol p) ps
@@ -163,3 +164,17 @@ instance HasPolarity Term where
     Sort _     -> return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
     DontCare   -> return []
+
+instance HasPolarity Level where
+  polarities i (Max as) = polarities i as
+
+instance HasPolarity PlusLevel where
+  polarities i ClosedLevel{} = return []
+  polarities i (Plus _ l) = polarities i l
+
+instance HasPolarity LevelAtom where
+  polarities i l = case l of
+    MetaLevel _ vs   -> map (const Invariant) <$> polarities i l
+    BlockedLevel _ v -> polarities i v
+    NeutralLevel v   -> polarities i v
+    UnreducedLevel v -> polarities i v

@@ -37,11 +37,11 @@ typeOfInf :: TCM Type
 typeOfInf = do
   kit <- requireLevels
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (levelType kit))
-               (Abs "a" $ El (Type (levelSuc kit (Var 0 [])))
-                             (Pi (argN $ El (Type (levelSuc kit (Var 0 [])))
+    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
+               (Abs "a" $ El (Type (lvlSuc kit (Var 0 [])))
+                             (Pi (argN $ El (Type (lvlSuc kit (Var 0 [])))
                                             (Sort (Type (Var 0 []))))
-                                 (Abs "A" $ El (Type (levelSuc kit (Var 1 [])))
+                                 (Abs "A" $ El (Type (lvlSuc kit (Var 1 [])))
                                                (Sort (Type (Var 1 [])))))))
 
 -- | The type of @&#x266f_@.
@@ -54,9 +54,9 @@ typeOfSharp = do
                   _       -> __IMPOSSIBLE__)
          <$> primInf
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (levelType kit))
-               (Abs "a" $ El (Lub (Type (levelSuc kit (Var 0 []))) (Type (Var 0 [])))
-                             (Pi (argH $ El (Type (levelSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
+    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
+               (Abs "a" $ El (Lub (Type (lvlSuc kit (Var 0 []))) (Type (Var 0 [])))
+                             (Pi (argH $ El (Type (lvlSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
                                  (Abs "A" $ El (Type (Var 1 []))
                                                (Pi (argN $ El (Type (Var 1 [])) (Var 0 []))
                                                    (Abs "x" $ El (Type (Var 2 []))
@@ -72,9 +72,9 @@ typeOfFlat = do
                   _       -> __IMPOSSIBLE__)
          <$> primInf
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (levelType kit))
-               (Abs "a" $ El (Lub (Type (levelSuc kit (Var 0 []))) (Type (Var 0 [])))
-                             (Pi (argH $ El (Type (levelSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
+    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
+               (Abs "a" $ El (Lub (Type (lvlSuc kit (Var 0 []))) (Type (Var 0 [])))
+                             (Pi (argH $ El (Type (lvlSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
                                  (Abs "A" $ El (Type (Var 1 []))
                                                (Fun (argN $ El (Type (Var 1 []))
                                                                (Def inf [argH (Var 1 []), argN (Var 0 [])]))

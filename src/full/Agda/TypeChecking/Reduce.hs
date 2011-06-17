@@ -68,8 +68,25 @@ instance Instantiate Term where
       BlockedConst _                 -> return t
       PostponedTypeCheckingProblem _ -> return t
       InstS _                        -> __IMPOSSIBLE__
+  instantiate (Level l) = Level <$> instantiate l
   instantiate (Sort s) = Sort <$> instantiate s
   instantiate t = return t
+
+instance Instantiate Level where
+  instantiate (Max as) = levelMax <$> instantiate as
+
+instance Instantiate PlusLevel where
+  instantiate l@ClosedLevel{} = return l
+  instantiate (Plus n a) = Plus n <$> instantiate a
+
+instance Instantiate LevelAtom where
+  instantiate l = case l of
+    MetaLevel m vs -> do
+      v <- instantiate (MetaV m vs)
+      case v of
+        MetaV m vs -> return $ MetaLevel m vs
+        _          -> return $ UnreducedLevel v
+    _ -> return l
 
 instance Instantiate a => Instantiate (Blocked a) where
   instantiate v@NotBlocked{} = return v
@@ -197,6 +214,30 @@ instance Reduce Sort where
             MetaS m as -> MetaS m <$> reduce as
             Inf        -> return Inf
 
+instance Reduce Level where
+  reduce  (Max as) = levelMax <$> mapM reduce as
+  reduceB (Max as) = fmap levelMax . traverse id <$> traverse reduceB as
+
+instance Reduce PlusLevel where
+  reduceB l@ClosedLevel{} = return $ notBlocked l
+  reduceB (Plus n l) = fmap (Plus n) <$> reduceB l
+
+instance Reduce LevelAtom where
+  reduceB l = case l of
+    MetaLevel m vs   -> fromTm (MetaV m vs)
+    NeutralLevel v   -> return $ NotBlocked $ NeutralLevel v
+    BlockedLevel m v ->
+      ifM (isInstantiatedMeta m) (fromTm v) (return $ Blocked m $ BlockedLevel m v)
+    UnreducedLevel v -> fromTm v
+    where
+      fromTm v = do
+        bv <- reduceB v
+        case bv of
+          Blocked m v             -> return $ Blocked m  $ BlockedLevel m v
+          NotBlocked (MetaV m vs) -> return $ NotBlocked $ MetaLevel m vs
+          NotBlocked v            -> return $ NotBlocked $ NeutralLevel v
+
+
 instance Reduce t => Reduce (Abs t) where
   reduce b = Abs (absName b) <$> underAbstraction_ b reduce
 
@@ -228,6 +269,7 @@ instance Reduce Term where
 		    v <- unfoldDefinition False reduceB (Con c []) c args
 		    traverse reduceNat v
 		Sort s	   -> fmap Sort <$> reduceB s
+                Level l    -> fmap Level <$> reduceB l
 		Pi _ _	   -> return $ notBlocked v
 		Fun _ _    -> return $ notBlocked v
 		Lit _	   -> return $ notBlocked v
@@ -422,11 +464,28 @@ instance Normalise Term where
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
+                Level l     -> Level <$> normalise l
 		Lam h b	    -> Lam h <$> normalise b
 		Sort s	    -> Sort <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
 		Fun a b     -> uncurry Fun <$> normalise (a,b)
                 DontCare    -> return v
+
+instance Normalise Level where
+  normalise (Max as) = levelMax <$> normalise as
+
+instance Normalise PlusLevel where
+  normalise l@ClosedLevel{} = return l
+  normalise (Plus n l) = Plus n <$> normalise l
+
+instance Normalise LevelAtom where
+  normalise l = do
+    l <- reduce l
+    case l of
+      MetaLevel m vs   -> MetaLevel m <$> normalise vs
+      BlockedLevel m v -> BlockedLevel m <$> normalise v
+      NeutralLevel v   -> NeutralLevel <$> normalise v
+      UnreducedLevel{} -> __IMPOSSIBLE__    -- I hope
 
 instance Normalise ClauseBody where
     normalise (Body   t) = Body   <$> normalise t
@@ -531,11 +590,33 @@ instance InstantiateFull Term where
           Def f vs    -> Def f <$> instantiateFull vs
           MetaV x vs  -> MetaV x <$> instantiateFull vs
           Lit _	      -> return v
+          Level l     -> Level <$> instantiateFull l
           Lam h b     -> Lam h <$> instantiateFull b
           Sort s      -> Sort <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
           Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
           DontCare    -> return v
+
+instance InstantiateFull Level where
+  instantiateFull (Max as) = levelMax <$> instantiateFull as
+
+instance InstantiateFull PlusLevel where
+  instantiateFull l@ClosedLevel{} = return l
+  instantiateFull (Plus n l) = Plus n <$> instantiateFull l
+
+instance InstantiateFull LevelAtom where
+  instantiateFull l = case l of
+    MetaLevel m vs -> do
+      v <- instantiateFull (MetaV m vs)
+      case v of
+        MetaV m vs -> return $ MetaLevel m vs
+        _          -> return $ UnreducedLevel v
+    NeutralLevel v -> NeutralLevel <$> instantiateFull v
+    BlockedLevel m v ->
+      ifM (isInstantiatedMeta m)
+          (UnreducedLevel <$> instantiateFull v)
+          (BlockedLevel m <$> instantiateFull v)
+    UnreducedLevel v -> UnreducedLevel <$> instantiateFull v
 
 instance InstantiateFull Pattern where
     instantiateFull v@VarP{}       = return v

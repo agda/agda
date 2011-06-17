@@ -269,6 +269,7 @@ instance ComputeOccurrences Term where
     Fun a b      -> occursAs LeftOfArrow (occurrences vars a) >+<
                     occurrences vars b
     Lam _ b      -> occurrences vars b
+    Level l      -> occurrences vars l
     Lit{}        -> Map.empty
     Sort{}       -> Map.empty
     DontCare     -> Map.empty
@@ -278,6 +279,20 @@ instance ComputeOccurrences Term where
       (!) vs i
         | i < length vs = vs !! i
         | otherwise     = error $ show vs ++ " ! " ++ show i ++ "  (" ++ show v ++ ")"
+
+instance ComputeOccurrences Level where
+  occurrences vars (Max as) = occurrences vars as
+
+instance ComputeOccurrences PlusLevel where
+  occurrences vars ClosedLevel{} = Map.empty
+  occurrences vars (Plus _ l) = occurrences vars l
+
+instance ComputeOccurrences LevelAtom where
+  occurrences vars l = case l of
+    MetaLevel _ vs   -> occursAs MetaArg $ occurrences vars vs
+    BlockedLevel _ v -> occurrences vars v
+    NeutralLevel v   -> occurrences vars v
+    UnreducedLevel v -> occurrences vars v
 
 instance ComputeOccurrences Type where
   occurrences vars (El _ v) = occurrences vars v

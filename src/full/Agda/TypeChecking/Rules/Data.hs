@@ -325,6 +325,7 @@ isCoinductive t = do
     Var   {} -> return Nothing
     Lam   {} -> __IMPOSSIBLE__
     Lit   {} -> __IMPOSSIBLE__
+    Level {} -> __IMPOSSIBLE__
     Con   {} -> __IMPOSSIBLE__
     Pi    {} -> return (Just False)
     Fun   {} -> return (Just False)

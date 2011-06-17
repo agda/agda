@@ -129,6 +129,7 @@ haskellType = liftTCM . fromType
           else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
         Con c args -> hsApp <$> getHsType c <*> fromArgs args
         Lam{}      -> err
+        Level{}    -> err
         Lit{}      -> return hsUnit
         Sort{}     -> return hsUnit
         MetaV{}    -> err

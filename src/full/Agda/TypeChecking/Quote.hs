@@ -39,6 +39,7 @@ quotingKit = do
   setLit <- primAgdaSortLit
   unsupportedSort <- primAgdaSortUnsupported
   sucLevel <- primLevelSuc
+  zeroLevel <- primLevelZero
   lub <- primLevelMax
   el <- primAgdaTypeEl
   Con z _ <- primZero
@@ -80,10 +81,21 @@ quotingKit = do
                           @@ quoteType (absBody u)
       quote (Fun t u) = pi @@ quoteArg quoteType t
                            @@ quoteType (raise 1 u) -- do we want a raiseFrom here?
+      quote (Level l) = quoteLevel l
       quote (Lit lit) = quoteLit lit
       quote (Sort s)  = sort @@ quoteSort s
       quote MetaV{}   = unsupported
       quote DontCare  = unsupported -- could be exposed at some point but we have to take care
+      quoteLevel (Max []) = zeroLevel
+      quoteLevel (Max as) = foldr1 (\a b -> lub @@ a @@ b) $ map quotePlusLevel as
+      quotePlusLevel (ClosedLevel n) = levelPlus n zeroLevel
+      quotePlusLevel (Plus n l) = levelPlus n (quoteAtomLevel l)
+      quoteAtomLevel MetaLevel{} = unsupported
+      quoteAtomLevel (NeutralLevel v) = quote v
+      quoteAtomLevel (BlockedLevel _ v) = quote v
+      quoteAtomLevel (UnreducedLevel v) = quote v
+      levelPlus 0 l = l
+      levelPlus n l = sucLevel @@ levelPlus (n - 1) l
   return (quote, quoteType)
 
 quoteName :: QName -> Term

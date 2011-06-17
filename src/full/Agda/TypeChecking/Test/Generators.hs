@@ -450,6 +450,7 @@ instance ShrinkC Term Term where
     Con d args   -> map unArg args ++
 		    (uncurry Con <$> shrinkC conf (ConName d, NoType args))
     Lit l	 -> Lit <$> shrinkC conf l
+    Level l      -> [] -- TODO
     Lam h b      -> killAbs b : (uncurry Lam <$> shrinkC conf (h, b))
     Pi a b       -> unEl (unArg a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))
@@ -482,6 +483,7 @@ instance KillVar Term where
     Def c args		   -> Def c	  $ killVar i args
     Con c args		   -> Con c	  $ killVar i args
     Lit l		   -> Lit l
+    Level l                -> Level l -- TODO
     Sort s		   -> Sort s
     Lam h b		   -> Lam h	  $ killVar i b
     Pi a b		   -> uncurry Pi  $ killVar i (a, b)

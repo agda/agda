@@ -125,6 +125,7 @@ instance Free Term where
     Pi a b     -> freeVars' conf (a,b)
     Fun a b    -> freeVars' conf (a,b)
     Sort s     -> freeVars' conf s
+    Level l    -> freeVars' conf l
     MetaV _ ts -> flexible $ freeVars' conf ts
     DontCare   -> empty
 
@@ -142,6 +143,20 @@ instance Free Sort where
       Inf        -> empty
       MetaS _ ts -> flexible $ freeVars' conf ts
       DLub s1 s2 -> weakly $ freeVars' conf (s1, s2)
+
+instance Free Level where
+  freeVars' conf (Max as) = freeVars' conf as
+
+instance Free PlusLevel where
+  freeVars' conf ClosedLevel{} = empty
+  freeVars' conf (Plus _ l)    = freeVars' conf l
+
+instance Free LevelAtom where
+  freeVars' conf l = case l of
+    MetaLevel _ vs   -> flexible $ freeVars' conf vs
+    NeutralLevel v   -> freeVars' conf v
+    BlockedLevel _ v -> freeVars' conf v
+    UnreducedLevel v -> freeVars' conf v
 
 instance Free a => Free [a] where
   freeVars' conf xs = unions $ map (freeVars' conf) xs

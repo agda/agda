@@ -31,6 +31,7 @@ instance AbstractTerm Term where
     Pi a b      -> uncurry Pi $ absT (a, b)
     Fun a b      -> uncurry Fun $ absT (a, b)
     Lit l       -> Lit l
+    Level l     -> Level $ absT l
     Sort s      -> Sort $ absT s
     MetaV m vs  -> MetaV m $ absT vs
     DontCare    -> DontCare
@@ -50,6 +51,20 @@ instance AbstractTerm Sort where
     Inf        -> Inf
     DLub s1 s2 -> DLub (absS s1) (absS s2)
     where absS x = abstractTerm u x
+
+instance AbstractTerm Level where
+  abstractTerm u (Max as) = Max $ abstractTerm u as
+
+instance AbstractTerm PlusLevel where
+  abstractTerm u l@ClosedLevel{} = l
+  abstractTerm u (Plus n l) = Plus n $ abstractTerm u l
+
+instance AbstractTerm LevelAtom where
+  abstractTerm u l = case l of
+    MetaLevel m vs   -> MetaLevel m    $ abstractTerm u vs
+    NeutralLevel v   -> NeutralLevel   $ abstractTerm u v
+    BlockedLevel _ v -> UnreducedLevel $ abstractTerm u v -- abstracting might remove the blockage
+    UnreducedLevel v -> UnreducedLevel $ abstractTerm u v
 
 instance AbstractTerm a => AbstractTerm (Arg a) where
   abstractTerm = fmap . abstractTerm

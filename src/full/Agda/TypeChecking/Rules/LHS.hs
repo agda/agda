@@ -205,6 +205,7 @@ noShadowingOfConstructors c problem =
       -- error in code which has already passed the type checker.
       Lam   {} -> __IMPOSSIBLE__
       Lit   {} -> __IMPOSSIBLE__
+      Level {} -> __IMPOSSIBLE__
       Con   {} -> __IMPOSSIBLE__
       DontCare -> __IMPOSSIBLE__
 

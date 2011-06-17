@@ -313,7 +313,7 @@ mkPrimLevelMax = do
         argB y = fmap (const y) b
     av@(Max as) <- levelView (unArg a)
     bv@(Max bs) <- levelView (unArg b)
-    let ab@(Max cs) = levelViewMax av bv
+    let ab@(Max cs) = levelMax av bv
     if length cs < length as + length bs
       then redReturn =<< unLevelView ab
       else do

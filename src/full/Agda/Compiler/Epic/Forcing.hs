@@ -89,13 +89,25 @@ n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Var i as -> i == n || recs as
    Lam _ ab -> (n+1) `isInTerm` absBody ab
    Lit _    -> False
+   Level l  -> isInLevel n l
    Def _ as -> recs as
    Con _ as -> recs as
    Pi a b   -> n `isInTerm` unEl (unArg a) || (n+1) `isInTerm` unEl (absBody b)
    Fun a b  -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Sort sor -> False -- ?
-   MetaV meta as -> False -- can't occur?
+   MetaV meta as -> recs as
    DontCare -> False
+
+isInLevel :: Nat -> Level -> Bool
+isInLevel n (Max as) = any (isInPlus n) as
+  where
+    isInPlus _ ClosedLevel{} = False
+    isInPlus n (Plus _ l) = isInAtom n l
+    isInAtom n l = case l of
+      MetaLevel _ as -> any (isInTerm n . unArg) as
+      NeutralLevel v -> isInTerm n v
+      BlockedLevel _ v -> isInTerm n v
+      UnreducedLevel v -> isInTerm n v
 
 {- |
 insertTele i xs t tele

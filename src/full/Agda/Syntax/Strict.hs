@@ -24,6 +24,7 @@ instance Strict Term where
 	Con _ ts   -> force ts
 	Lam _ t    -> force t
 	Lit _	   -> 0
+        Level _    -> 0   -- TODO
 	Pi a b	   -> force (a,b)
 	Fun a b    -> force (a,b)
 	Sort s	   -> force s

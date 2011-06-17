@@ -21,10 +21,11 @@ import Agda.Syntax.Internal
     Clauses(Clauses), Clause(Clause),
     Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind,NoBind),
-    Term(Var,Lam,Lit,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
+    Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
     toTopLevelModuleName, mnameToList, qnameName, absBody,
     translatedClause, clausePats, clauseBody, arity, unEl )
 import Agda.Syntax.Literal ( Literal(LitInt,LitLevel,LitFloat,LitString,LitChar,LitQName) )
+import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
   ( TCM, Definition(Defn), Definitions, Interface,
     Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
@@ -270,6 +271,7 @@ term (Var   i as)         = do
   return (curriedApply e es)
 term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
 term (Lit   l)            = return (literal l)
+term (Level l)            = term =<< reallyUnLevelView l
 term (Def q as) = do
   d <- getConstInfo q
   case defJSDef d of

@@ -100,6 +100,7 @@ instance Occurs Term where
           unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
           Var i <$> occ (weakly ctx) vs
         Lam h f	    -> Lam h <$> occ ctx f
+        Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
         DontCare    -> return v
         Def d vs    -> Def d <$> occDef d ctx vs
@@ -154,6 +155,24 @@ instance Occurs Term where
           -- since e.g. x = List x is unsolvable
           occDef d ctx v = ifM (isDataOrRecordType d) (occ ctx v)
                                  (occ (weakly ctx) v)
+
+instance Occurs Level where
+  occurs ctx m xs (Max as) = Max <$> occurs ctx m xs as
+
+instance Occurs PlusLevel where
+  occurs ctx m xs l@ClosedLevel{} = return l
+  occurs ctx m xs (Plus n l) = Plus n <$> occurs ctx m xs l
+
+instance Occurs LevelAtom where
+  occurs ctx m xs l = do
+    l <- reduce l
+    case l of
+      MetaLevel m' args -> do
+        when (m == m') $ abort ctx $ MetaOccursInItself m
+        MetaLevel m' <$> occurs Flex m xs args
+      NeutralLevel v   -> NeutralLevel <$> occurs ctx m xs v
+      BlockedLevel m v -> BlockedLevel m <$> occurs Flex m xs v
+      UnreducedLevel{} -> __IMPOSSIBLE__
 
 instance Occurs Type where
   occurs ctx m xs (El s v) = uncurry El <$> occurs ctx m xs (s,v)

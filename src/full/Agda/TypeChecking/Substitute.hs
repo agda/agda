@@ -36,7 +36,8 @@ instance Apply Term where
             Con c args'   -> Con c (args' ++ args)
             Lam _ u       -> absApp u (unArg a) `apply` args0
             MetaV x args' -> MetaV x (args' ++ args)
-            Lit l         -> __IMPOSSIBLE__
+            Lit{}         -> __IMPOSSIBLE__
+            Level{}       -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
             Fun _ _       -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
@@ -280,6 +281,7 @@ instance Subst Term where
             Con c vs   -> Con c $ substs us vs
             MetaV x vs -> MetaV x $ substs us vs
             Lit l      -> Lit l
+            Level l    -> Level $ substs us l
             Pi a b     -> uncurry Pi $ substs us (a,b)
             Fun a b    -> uncurry Fun $ substs us (a,b)
             Sort s     -> Sort $ substs us s
@@ -298,6 +300,7 @@ instance Subst Term where
             Def c vs   -> Def c $ substUnder n u vs
             Con c vs   -> Con c $ substUnder n u vs
             MetaV x vs -> MetaV x $ substUnder n u vs
+            Level l    -> Level $ substUnder n u l
             Lit l      -> Lit l
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
             Fun a b    -> uncurry Fun $ substUnder n u (a,b)
@@ -328,6 +331,26 @@ instance Subst Sort where
       Inf        -> Inf
       DLub s1 s2 -> DLub (sub s1) (sub s2)
       where sub x = substUnder n u x
+
+instance Subst Level where
+  substs us (Max as) = Max $ substs us as
+  substUnder n u (Max as) = Max $ substUnder n u as
+
+instance Subst PlusLevel where
+  substs us l@ClosedLevel{} = l
+  substs us (Plus n l) = Plus n $ substs us l
+  substUnder n u l@ClosedLevel{} = l
+  substUnder n u (Plus m l) = Plus m $ substUnder n u l
+
+instance Subst LevelAtom where
+  substs us      (MetaLevel m vs)   = MetaLevel m    $ substs us vs
+  substs us      (BlockedLevel m v) = BlockedLevel m $ substs us v
+  substs us      (NeutralLevel v)   = UnreducedLevel $ substs us v
+  substs us      (UnreducedLevel v) = UnreducedLevel $ substs us v
+  substUnder n u (MetaLevel m vs)   = MetaLevel m    $ substUnder n u vs
+  substUnder n u (BlockedLevel m v) = BlockedLevel m $ substUnder n u v
+  substUnder n u (NeutralLevel v)   = UnreducedLevel $ substUnder n u v
+  substUnder n u (UnreducedLevel v) = UnreducedLevel $ substUnder n u v
 
 instance Subst Pattern where
   substs us p = case p of
@@ -411,6 +434,7 @@ instance Raise Term where
             Def c vs        -> Def c $ rf vs
             Con c vs        -> Con c $ rf vs
             MetaV x vs      -> MetaV x $ rf vs
+            Level l         -> Level $ rf l
             Lit l           -> Lit l
             Pi a b          -> uncurry Pi $ rf (a,b)
             Fun a b         -> uncurry Fun $ rf (a,b)
@@ -432,6 +456,20 @@ instance Raise Sort where
       Inf        -> Inf
       DLub s1 s2 -> DLub (rf s1) (rf s2)
       where rf x = raiseFrom m k x
+
+instance Raise Level where
+  raiseFrom m k (Max as) = Max $ raiseFrom m k as
+
+instance Raise PlusLevel where
+  raiseFrom m k l@ClosedLevel{} = l
+  raiseFrom m k (Plus n l) = Plus n $ raiseFrom m k l
+
+instance Raise LevelAtom where
+  raiseFrom m k l = case l of
+    MetaLevel n vs   -> MetaLevel n $ raiseFrom m k vs
+    NeutralLevel v   -> NeutralLevel $ raiseFrom m k v
+    BlockedLevel n v -> BlockedLevel n $ raiseFrom m k v
+    UnreducedLevel v -> UnreducedLevel $ raiseFrom m k v
 
 -- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern
 instance Raise Pattern where

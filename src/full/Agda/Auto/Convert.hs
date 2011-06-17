@@ -21,6 +21,7 @@ import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImportedSignature)
 import Agda.Utils.Permutation (Permutation(Perm), idP, permute, takeP)
 import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
+import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
@@ -358,6 +359,7 @@ tomyExp t@(I.Lit{}) = do
  case t of
   I.Lit{} -> throwError $ strMsg "Auto: Literals in terms are not supported"
   _ -> tomyExp t
+tomyExp (I.Level l) = tomyExp =<< lift (reallyUnLevelView l)
 tomyExp (I.Def name as) = do
  c <- getConst False name TMAll
  as' <- tomyExps as
@@ -412,6 +414,7 @@ fmExp :: I.MetaId -> I.Term -> Bool
 fmExp m (I.Var _ as) = fmExps m as
 fmExp m (I.Lam _ (I.Abs _ b)) = fmExp m b
 fmExp m (I.Lit _) = False
+fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m as
 fmExp m (I.Con _ as) = fmExps m as
 fmExp m (I.Pi x (I.Abs _ y)) = fmType m (C.unArg x) || fmType m y
@@ -422,6 +425,14 @@ fmExp m (I.DontCare) = False
 
 fmExps m [] = False
 fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
+
+fmLevel :: I.MetaId -> I.PlusLevel -> Bool
+fmLevel m I.ClosedLevel{} = False
+fmLevel m (I.Plus _ l) = case l of
+  I.MetaLevel m' _   -> m == m'
+  I.NeutralLevel v   -> fmExp m v
+  I.BlockedLevel _ v -> fmExp m v
+  I.UnreducedLevel v -> fmExp m v
 
 -- ---------------------------------------------
 
@@ -693,6 +704,7 @@ findClauseDeep m = do
       I.Var _ as -> findMetas as
       I.Lam _ b -> findMeta (I.absBody b)
       I.Lit{} -> False
+      I.Level (I.Max as) -> any (fmLevel m) as
       I.Def _ as -> findMetas as
       I.Con _ as -> findMetas as
       I.Pi it ot -> findMetat (C.unArg it) || findMetat (I.absBody ot)

@@ -46,6 +46,7 @@ instance TermLike Term where
     Pi a b   -> f $ uncurry Pi $ traverseTerm f (a, b)
     Fun a b  -> f $ uncurry Fun $ traverseTerm f (a, b)
     MetaV m xs -> f $ MetaV m $ traverseTerm f xs
+    Level l    -> f $ Level $ traverseTerm f l
     Lit _    -> f t
     Sort _   -> f t
     DontCare -> f t
@@ -58,6 +59,7 @@ instance TermLike Term where
     Pi a b   -> f =<< uncurry Pi <$> traverseTermM f (a, b)
     Fun a b  -> f =<< uncurry Fun <$> traverseTermM f (a, b)
     MetaV m xs -> f =<< MetaV m <$> traverseTermM f xs
+    Level l    -> f =<< Level <$> traverseTermM f l
     Lit _    -> f t
     Sort _   -> f t
     DontCare -> f t
@@ -70,9 +72,42 @@ instance TermLike Term where
     Pi a b     -> foldTerm f (a, b)
     Fun a b    -> foldTerm f (a, b)
     MetaV m xs -> foldTerm f xs
+    Level l    -> foldTerm f l
     Lit _      -> mempty
     Sort _     -> mempty
     DontCare   -> mempty
+
+instance TermLike Level where
+  traverseTerm f  (Max as) = Max $ traverseTerm f as
+  traverseTermM f (Max as) = Max <$> traverseTermM f as
+  foldTerm f      (Max as) = foldTerm f as
+
+instance TermLike PlusLevel where
+  traverseTerm f l = case l of
+    ClosedLevel{} -> l
+    Plus n l      -> Plus n $ traverseTerm f l
+  traverseTermM f l = case l of
+    ClosedLevel{} -> return l
+    Plus n l      -> Plus n <$> traverseTermM f l
+  foldTerm f ClosedLevel{} = mempty
+  foldTerm f (Plus _ l)    = foldTerm f l
+
+instance TermLike LevelAtom where
+  traverseTerm f l = case l of
+    MetaLevel m vs   -> MetaLevel m $ traverseTerm f vs
+    NeutralLevel v   -> NeutralLevel $ traverseTerm f v
+    BlockedLevel m v -> BlockedLevel m $ traverseTerm f v
+    UnreducedLevel v -> UnreducedLevel $ traverseTerm f v
+  traverseTermM f l = case l of
+    MetaLevel m vs   -> MetaLevel m <$> traverseTermM f vs
+    NeutralLevel v   -> NeutralLevel <$> traverseTermM f v
+    BlockedLevel m v -> BlockedLevel m <$> traverseTermM f v
+    UnreducedLevel v -> UnreducedLevel <$> traverseTermM f v
+  foldTerm f l = case l of
+    MetaLevel m vs   -> foldTerm f vs
+    NeutralLevel v   -> foldTerm f v
+    BlockedLevel _ v -> foldTerm f v
+    UnreducedLevel v -> foldTerm f v
 
 instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t

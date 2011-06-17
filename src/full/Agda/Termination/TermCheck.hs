@@ -44,6 +44,7 @@ import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Signature (isProjection)
 import Agda.TypeChecking.Primitive (constructorForm)
+import Agda.TypeChecking.Level (reallyUnLevelView)
 
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
@@ -591,6 +592,9 @@ termTerm conf names f pats0 t0 = do
 
             -- Erased proof.
             DontCare -> return Term.empty
+
+            -- Level
+            Level l -> loop pats guarded =<< reallyUnLevelView l
 
          where
          -- Should function and Π type constructors be treated as

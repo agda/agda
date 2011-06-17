@@ -11,6 +11,7 @@ import Data.Generics (Typeable, Data)
 import Data.Foldable
 import Data.Traversable
 import Data.Function
+import qualified Data.List as List
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -39,6 +40,7 @@ data Term = Var Nat Args
 	  | Pi (Arg Type) (Abs Type)
 	  | Fun (Arg Type) Type
 	  | Sort Sort
+          | Level Level
 	  | MetaV MetaId Args
           | DontCare               -- ^ nuked irrelevant and other stuff
   deriving (Typeable, Data, Eq, Ord, Show)
@@ -62,6 +64,25 @@ data Sort = Type Term   -- A term of type Level
             --   the whole thing should reduce to Inf, otherwise
             --   it's the normal Lub
   deriving (Typeable, Data, Eq, Ord, Show)
+
+newtype Level = Max [PlusLevel]
+  deriving (Show, Typeable, Data, Eq, Ord)
+
+data PlusLevel = ClosedLevel Integer
+               | Plus Integer LevelAtom
+  deriving (Show, Eq, Typeable, Data)
+
+data LevelAtom = MetaLevel MetaId Args
+               | BlockedLevel MetaId Term
+               | NeutralLevel Term
+               | UnreducedLevel Term
+  deriving (Show, Eq, Ord, Typeable, Data)
+
+instance Ord PlusLevel where
+  compare ClosedLevel{} Plus{}            = LT
+  compare Plus{} ClosedLevel{}            = GT
+  compare (ClosedLevel n) (ClosedLevel m) = compare n m
+  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
@@ -96,6 +117,7 @@ instance Sized Term where
     Def _ vs   -> 1 + Prelude.sum (map size vs)
     Con _ vs   -> 1 + Prelude.sum (map size vs)
     MetaV _ vs -> 1 + Prelude.sum (map size vs)
+    Level l    -> size l
     Lam _ f    -> 1 + size f
     Lit _      -> 1
     Pi a b     -> 1 + size a + size b
@@ -106,6 +128,19 @@ instance Sized Term where
 instance Sized Type where
   size = size . unEl
 
+instance Sized Level where
+  size (Max as) = 1 + Prelude.sum (map size as)
+
+instance Sized PlusLevel where
+  size (ClosedLevel _) = 1
+  size (Plus _ a) = size a
+
+instance Sized LevelAtom where
+  size (MetaLevel _ vs) = 1 + Prelude.sum (map size vs)
+  size (BlockedLevel _ v) = size v
+  size (NeutralLevel v) = size v
+  size (UnreducedLevel v) = size v
+
 instance KillRange Term where
   killRange v = case v of
     Var i vs   -> killRange1 (Var i) vs
@@ -114,10 +149,24 @@ instance KillRange Term where
     MetaV m vs -> killRange1 (MetaV m) vs
     Lam h f    -> killRange2 Lam h f
     Lit l      -> killRange1 Lit l
+    Level l    -> killRange1 Level l
     Pi a b     -> killRange2 Pi a b
     Fun a b    -> killRange2 Fun a b
     Sort s     -> killRange1 Sort s
     DontCare   -> DontCare
+
+instance KillRange Level where
+  killRange (Max as) = killRange1 Max as
+
+instance KillRange PlusLevel where
+  killRange l@ClosedLevel{} = l
+  killRange (Plus n l) = killRange1 (Plus n) l
+
+instance KillRange LevelAtom where
+  killRange (MetaLevel n as)   = killRange1 (MetaLevel n) as
+  killRange (BlockedLevel m v) = killRange1 (BlockedLevel m) v
+  killRange (NeutralLevel v)   = killRange1 NeutralLevel v
+  killRange (UnreducedLevel v) = killRange1 UnreducedLevel v
 
 instance KillRange Type where
   killRange (El s v) = killRange2 El s v
@@ -367,6 +416,34 @@ sLub _ Inf = Inf
 sLub s1 s2
     | s1 == s2	= s1
     | otherwise	= Lub s1 s2
+
+levelMax :: [PlusLevel] -> Level
+levelMax as0 = Max $ ns ++ List.sort bs
+  where
+    as = Prelude.concatMap expand as0
+    ns = case [ n | ClosedLevel n <- as, n > 0 ] of
+      []  -> []
+      ns  -> [ClosedLevel $ Prelude.maximum ns]
+    bs = subsume [ b | b@Plus{} <- as ]
+
+    expand l@ClosedLevel{} = [l]
+    expand (Plus n l) = map (plus n) $ expandAtom l
+
+    expandAtom (BlockedLevel _ (Level (Max as))) = as
+    expandAtom (NeutralLevel   (Level (Max as))) = as
+    expandAtom (UnreducedLevel (Level (Max as))) = as
+    expandAtom l                                 = [Plus 0 l]
+
+    plus n (ClosedLevel m) = ClosedLevel (n + m)
+    plus n (Plus m l)      = Plus (n + m) l
+
+    subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
+    subsume [] = []
+    subsume (Plus n a : bs)
+      | not $ null ns = subsume bs
+      | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
+      where
+        ns = [ m | Plus m a'  <- bs, a == a', m > n ]
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines

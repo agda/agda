@@ -78,7 +78,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110613 * 10 + 0
+currentInterfaceVersion = 20110617 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -491,6 +491,7 @@ instance EmbPrj I.Term where
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = __IMPOSSIBLE__
   icode (DontCare    ) = icode0 8
+  icode (Level    a  ) = icode1 9 a
   value = vcase valu where valu [0, a, b] = valu2 Var   a b
                            valu [1, a, b] = valu2 Lam   a b
                            valu [2, a]    = valu1 Lit   a
@@ -500,7 +501,29 @@ instance EmbPrj I.Term where
                            valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
                            valu [8]       = valu0 DontCare
+                           valu [9, a]    = valu1 Level a
                            valu _         = malformed
+
+instance EmbPrj Level where
+  icode (Max a) = icode1' a
+  value = vcase valu where valu [a] = valu1 Max a
+                           valu _   = malformed
+
+instance EmbPrj PlusLevel where
+  icode (ClosedLevel a) = icode1 0 a
+  icode (Plus a b)      = icode2 1 a b
+  value = vcase valu where valu [0, a]    = valu1 ClosedLevel a
+                           valu [1, a, b] = valu2 Plus a b
+                           valu _         = malformed
+
+instance EmbPrj LevelAtom where
+  icode (NeutralLevel a)   = icode1 0 a
+  icode (UnreducedLevel a) = icode1 1 a
+  icode MetaLevel{}        = __IMPOSSIBLE__
+  icode BlockedLevel{}     = __IMPOSSIBLE__
+  value = vcase valu where valu [0, a] = valu1 NeutralLevel a
+                           valu [1, a] = valu1 UnreducedLevel a
+                           valu _      = malformed
 
 instance EmbPrj I.Sort where
   icode (Type  a  ) = icode1 0 a

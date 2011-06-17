@@ -37,6 +37,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import qualified Agda.Utils.IO.Locale as LocIO
@@ -322,6 +323,7 @@ term tm0 = case tm0 of
   Lit   l    -> lift $ literal l
   Def   q as -> (`apps` as) . HS.Var =<< lift (xhqn "d" q)
   Con   q as -> (`apps` as) . HS.Con =<< lift (conhqn q)
+  Level l    -> term =<< lift (reallyUnLevelView l)
   Pi    _ _  -> return HS.unit_con
   Fun   _ _  -> return HS.unit_con
   Sort  _    -> return HS.unit_con
