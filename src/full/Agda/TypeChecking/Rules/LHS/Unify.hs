@@ -20,6 +20,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Conversion -- equalTerm
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute hiding (Substitution)
@@ -277,6 +278,12 @@ unifyIndices flex a us vs = liftTCM $ do
               a' <- dataOrRecordType c a
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
+        (Level l, v) -> do
+            u <- liftTCM $ reallyUnLevelView l
+            unifyAtom a u v
+        (u, Level l) -> do
+            v <- liftTCM $ reallyUnLevelView l
+            unifyAtom a u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
 	(Def d us, Def d' vs)
           | d == d' -> do
