@@ -150,7 +150,7 @@ stripWithClausePatterns gamma qs perm ps = do
 
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])
-            Defn _ _ ct _ _ Constructor{conPars = np}  <- getConstInfo c
+            Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConstInfo c
             let ct' = ct `apply` genericTake np us
             TelV tel' _ <- telView ct'
 

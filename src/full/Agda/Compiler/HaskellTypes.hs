@@ -67,13 +67,11 @@ notAHaskellType a = do
 
 getHsType :: MonadTCM tcm => QName -> tcm HaskellType
 getHsType x = do
-  d <- theDef <$> getConstInfo x
+  d <- compiledHaskell . defCompiledRep <$> getConstInfo x
   case d of
-    Axiom{ axHsDef = Just (HsType t) }   -> return t
-    Axiom{ axHsDef = Just (HsDefn t c) } -> return hsUnit
-    Datatype{ dataHsType = Just t }      -> return t
-    Constructor{ conHsCode = Just c }    -> return hsUnit
-    _                                    -> notAHaskellType (El Prop $ Def x [])
+    Just (HsType t)   -> return t
+    Just (HsDefn t c) -> return hsUnit
+    _                 -> notAHaskellType (El Prop $ Def x [])
 
 getHsVar :: MonadTCM tcm => Nat -> tcm HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
@@ -90,11 +88,10 @@ haskellKind a = do
     Pi a b  -> hsKFun <$> haskellKind (unArg a) <*> underAbstraction a b haskellKind
     Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
     Def d _ -> do
-      d <- theDef <$> getConstInfo d
+      d <- compiledHaskell . defCompiledRep <$> getConstInfo d
       case d of
-        Axiom{ axHsDef = Just (HsType t) } -> return hsStar
-        Datatype{ dataHsType = Just t }    -> return hsStar
-        _                                  -> notAHaskellKind a
+        Just (HsType t) -> return hsStar
+        _               -> notAHaskellKind a
     _       -> notAHaskellKind a
 
 -- | Note that @Inf a b@, where @Inf@ is the INFINITY builtin, is
@@ -111,6 +108,7 @@ haskellType = liftTCM . fromType
     fromType = fromTerm . unEl
     fromTerm v = do
       v   <- reduce v
+      reportSLn "compile.haskell.type" 50 $ "toHaskellType " ++ show v
       kit <- liftTCM coinductionKit
       let err = notAHaskellType (El Prop v)
       case v of
@@ -129,7 +127,7 @@ haskellType = liftTCM . fromType
           else hsFun <$> fromType (unArg a) <*> fromType (absApp b __IMPOSSIBLE__)
         Con c args -> hsApp <$> getHsType c <*> fromArgs args
         Lam{}      -> err
-        Level{}    -> err
+        Level{}    -> return hsUnit
         Lit{}      -> return hsUnit
         Sort{}     -> return hsUnit
         MetaV{}    -> err

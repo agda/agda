@@ -99,7 +99,7 @@ assignTerm' assigningSort x t = do
     wakeupConstraints
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
   where
-    metaInstance = if assigningSort then InstS else InstV
+    metaInstance = InstV -- if assigningSort then InstS else InstV
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
 
@@ -120,7 +120,7 @@ newSortMeta =
   -- else (no universe polymorphism)
   $ do i <- createMetaInfo
        x <- newMeta i normalMetaPriority (idP 0) (IsSort () topSort)
-       return $ MetaS x []
+       return $ Type $ Max [Plus 0 $ MetaLevel x []]
 
 newSortMetaCtx :: MonadTCM tcm => Args -> tcm Sort
 newSortMetaCtx vs =
@@ -131,7 +131,7 @@ newSortMetaCtx vs =
     x   <- newMeta i normalMetaPriority (idP 0) (IsSort () t)
     reportSDoc "tc.meta.new" 50 $
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
-    return $ MetaS x vs
+    return $ Type $ Max [Plus 0 $ MetaLevel x vs]
 
 newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
@@ -360,7 +360,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
                   liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
-                noConstraints $ assignV b m args u  -- should never produce any constraints
+                noConstraints $ assignV m args u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
          else if SingletonRecords `elem` kinds then do
@@ -377,7 +377,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
         if tt && Just lvl == mlvl
          then do
           reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
-          noConstraints $ assignV b m args (Lit $ LitLevel noRange 0)
+          noConstraints $ assignV m args (Level $ Max [])
          else
           return ()
     _ -> return ()
@@ -406,8 +406,8 @@ etaExpandBlocked (Blocked m t)  = do
 --   during equality checking (@compareAtom@) and leads to
 --   restoration of the original constraints.
 
-assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
-assignV t x args v = do
+assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
+assignV x args v = do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
         assign False x args v
@@ -416,7 +416,7 @@ assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
 assignS x args s =
   ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $ do
 	reportSDoc "tc.meta.assign" 10 $ do
-	  text "sort" <+> prettyTCM (MetaS x args) <+> text ":=" <+> prettyTCM s
+	  text "sort" <+> prettyTCM (Type $ Max [Plus 0 $ MetaLevel x args]) <+> text ":=" <+> prettyTCM s
         assign True x args (Sort s)
     where
         noPolyAssign x s = do
@@ -610,7 +610,7 @@ updateMeta mI t =
 	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
 	    where
 		updV (HasType _ t) v =
-		  assignV (t `piApply` args) mI args v
+		  assignV mI args v
 		updV _ _	     = __IMPOSSIBLE__
 
 		updS s = assignS mI args s

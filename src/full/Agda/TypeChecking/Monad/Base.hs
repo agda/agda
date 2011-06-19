@@ -227,7 +227,7 @@ data Constraint
   | TypeCmp Comparison Type Type
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
   | SortCmp Comparison Sort Sort
-  | LevelCmp Comparison Term Term
+  | LevelCmp Comparison Level Level
   | UnBlock MetaId
   | Guarded Constraint Constraints
   | IsEmpty Type
@@ -415,12 +415,13 @@ defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
 data Definition = Defn
-  { defRelevance :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
-  , defName      :: QName
-  , defType      :: Type	      -- ^ Type of the lifted definition.
-  , defDisplay   :: [Open DisplayForm]
-  , defMutual    :: MutualId
-  , theDef	 :: Defn
+  { defRelevance   :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
+  , defName        :: QName
+  , defType        :: Type	      -- ^ Type of the lifted definition.
+  , defDisplay     :: [Open DisplayForm]
+  , defMutual      :: MutualId
+  , defCompiledRep :: CompiledRepresentation
+  , theDef         :: Defn
   }
     deriving (Typeable, Data, Show)
 
@@ -437,16 +438,22 @@ data HaskellRepresentation
 data Polarity = Covariant | Contravariant | Invariant
   deriving (Typeable, Data, Show, Eq)
 
+data CompiledRepresentation = CompiledRep
+  { compiledHaskell :: Maybe HaskellRepresentation
+  , compiledEpic    :: Maybe EpicCode
+  , compiledJS      :: Maybe JSCode
+  }
+  deriving (Typeable, Data, Show)
+
+noCompiledRep :: CompiledRepresentation
+noCompiledRep = CompiledRep Nothing Nothing Nothing
+
 -- | 'Positive' means strictly positive and 'Negative' means not strictly
 -- positive.
 data Occurrence = Positive | Negative | Unused
   deriving (Typeable, Data, Show, Eq, Ord)
 
 data Defn = Axiom
-            { axHsDef   :: Maybe HaskellRepresentation
-            , axEpDef   :: Maybe EpicCode
-            , axJSDef   :: Maybe JSCode
-            }
 	  | Function
             { funClauses        :: [Clauses]
             , funCompiled       :: CompiledClauses
@@ -462,7 +469,6 @@ data Defn = Axiom
               --   Start counting with 1, because 0 means that it is already
               --   applied to the record. (Can happen in module instantiation.)
               --   This information is used in the termination checker.
-            , funJSDef          :: Maybe JSCode
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
@@ -473,9 +479,7 @@ data Defn = Axiom
             , dataSort           :: Sort
             , dataPolarity       :: [Polarity]
             , dataArgOccurrences :: [Occurrence]
-            , dataHsType         :: Maybe HaskellType
             , dataAbstr          :: IsAbstract
-            , dataJSDef          :: Maybe JSCode
             }
 	  | Record
             { recPars           :: Nat
@@ -489,16 +493,13 @@ data Defn = Axiom
             , recArgOccurrences :: [Occurrence]
             , recEtaEquality    :: Bool
             , recAbstr          :: IsAbstract
-            , recJSDef          :: Maybe JSCode
             }
 	  | Constructor
             { conPars   :: Nat         -- nof parameters
 	    , conSrcCon :: QName       -- original constructor (this might be in a module instance)
 	    , conData   :: QName       -- name of datatype or record type
-            , conHsCode :: Maybe (HaskellType, HaskellCode) -- used by the compiler
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
-            , conJSDef  :: Maybe JSCode
             }
             -- ^ Note that, currently, the sharp constructor is
             --   represented as a definition ('Def'), but if you look
@@ -510,7 +511,6 @@ data Defn = Axiom
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
-            , primJSDef    :: Maybe JSCode
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
@@ -566,12 +566,7 @@ defCompiled Defn{theDef = Primitive{primCompiled = mcc}} = mcc
 defCompiled _ = Nothing
 
 defJSDef :: Definition -> Maybe JSCode
-defJSDef Defn{theDef = Axiom      {axJSDef   = js}} = js
-defJSDef Defn{theDef = Function   {funJSDef  = js}} = js
-defJSDef Defn{theDef = Datatype   {dataJSDef = js}} = js
-defJSDef Defn{theDef = Record     {recJSDef  = js}} = js
-defJSDef Defn{theDef = Constructor{conJSDef  = js}} = js
-defJSDef Defn{theDef = Primitive  {primJSDef = js}} = js
+defJSDef = compiledJS . defCompiledRep
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
@@ -584,7 +579,7 @@ defDelayed _                                       = NotDelayed
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of
-    Axiom{}                   -> AbstractDef
+    Axiom{}                   -> ConcreteDef
     Function{funAbstr = a}    -> a
     Datatype{dataAbstr = a}   -> a
     Record{recAbstr = a}      -> a
@@ -823,8 +818,10 @@ data Occ = OccCon { occDatatype	:: QName
                      , occClause   :: Int
                      , occPosition :: OccPos
                      }
+  deriving (Show)
 
 data OccPos = NonPositively | ArgumentTo Nat QName
+  deriving (Show)
 
 data TypeError
 	= InternalError String
@@ -963,10 +960,10 @@ data TypeError
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type
-          deriving (Typeable)
+          deriving (Typeable, Show)
 
-instance Show TypeError where
-  show _ = "<TypeError>" -- TODO: more info?
+-- instance Show TypeError where
+--   show _ = "<TypeError>" -- TODO: more info?
 
 instance Error TypeError where
     noMsg  = strMsg ""

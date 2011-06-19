@@ -4,22 +4,22 @@
 
 module Common.Level where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : (i : Level) → Level
+  _⊔_   : Level -> Level -> Level
 
 {-# IMPORT Common.FFI #-}
-{-# COMPILED_DATA Level Common.FFI.Level Common.FFI.Zero Common.FFI.Suc #-}
+{-# COMPILED_TYPE Level Common.FFI.Level #-}
+{-# COMPILED lzero Common.FFI.Zero #-}
+{-# COMPILED lsuc Common.FFI.Suc #-}
+
+{-# BUILTIN LEVEL     Level #-}
+{-# BUILTIN LEVELZERO lzero  #-}
+{-# BUILTIN LEVELSUC  lsuc   #-}
+{-# BUILTIN LEVELMAX  _⊔_ #-}
 
 infixl 6 _⊔_
 
-_⊔_ : Level -> Level -> Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
 
-{-# BUILTIN LEVELMAX _⊔_ #-}

@@ -4,13 +4,14 @@ module AutoMisc where
 
 -- prelude
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : (i : Level) → Level
 
 {-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+{-# BUILTIN LEVELZERO lzero  #-}
+{-# BUILTIN LEVELSUC  lsuc   #-}
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set where
   refl : x ≡ x

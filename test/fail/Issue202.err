@@ -1,5 +1,5 @@
 Issue202.agda:8,31-36
-Cannot instantiate the metavariable _1 to Set ℓ since universe
+Cannot instantiate the metavariable _1 to ℓ since universe
 polymorphism is not enabled (use the --universe-polymorphism flag
 to enable)
-when checking that the expression Foo ℓ has type _1
+when checking that the expression Foo ℓ has type Set _1

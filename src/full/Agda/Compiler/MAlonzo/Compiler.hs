@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.Compiler.MAlonzo.Compiler where
 
@@ -126,12 +126,15 @@ definitions defs = do
 
 definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
-definition kit (Defn Forced     _ _  _ _ _) = __IMPOSSIBLE__
-definition kit (Defn NonStrict  _ _  _ _ _) = __IMPOSSIBLE__
-definition kit (Defn Irrelevant _ _  _ _ _) = return []
-definition kit (Defn Relevant   q ty _ _ d) = do
+definition kit (Defn Forced     _ _  _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn NonStrict  _ _  _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn Irrelevant _ _  _ _ _ _) = return []
+definition kit (Defn Relevant   q ty _ _ compiled d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
+
+    _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->
+      return $ fbWithType ty (fakeExp hs)
 
     -- Special treatment of coinductive builtins.
     Datatype{} | Just q == (nameOfInf <$> kit) -> do
@@ -173,16 +176,16 @@ definition kit (Defn Relevant   q ty _ _ d) = do
                                (HS.BDecls [])]
         ]
 
-    Axiom{ axHsDef = Just (HsDefn ty hs) } -> return $ fbWithType ty (fakeExp hs)
     Axiom{}                                -> return $ fb axiomErr
     Function{ funClauses =        cls } -> function cls
     Primitive{ primClauses = Just cls } -> function cls
     Primitive{ primClauses = Nothing, primName = s } -> fb <$> primBody s
-    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Just ty } -> do
+    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs }
+      | Just (HsType ty) <- compiledHaskell compiled -> do
       ccs <- concat <$> mapM checkConstructorType cs
       cov <- checkCover q ty np cs
       return $ tvaldecl q (dataInduction d) 0 (np + ni) [] (Just __IMPOSSIBLE__) ++ ccs ++ cov
-    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs, dataHsType = Nothing } -> do
+    Datatype{ dataPars = np, dataIxs = ni, dataClause = cl, dataCons = cs } -> do
       (ars, cds) <- unzip <$> mapM condecl cs
       return $ tvaldecl q (dataInduction d) (maximum (np:ars) - np) (np + ni) cds cl
     Constructor{} -> return []
@@ -212,7 +215,7 @@ definition kit (Defn Relevant   q ty _ _ d) = do
 
 checkConstructorType :: QName -> TCM [HS.Decl]
 checkConstructorType q = do
-  Constructor{ conHsCode = Just (ty, hs) } <- theDef <$> getConstInfo q
+  Just (HsDefn ty hs) <- compiledHaskell . defCompiledRep <$> getConstInfo q
   return [ HS.TypeSig dummy [unqhname "check" q] $ fakeType ty
          , HS.FunBind [HS.Match dummy (unqhname "check" q) [] Nothing
                                 (HS.UnGuardedRhs $ fakeExp hs) (HS.BDecls [])]
@@ -223,7 +226,7 @@ checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
         a <- constructorArity c
-        Just (_, hsc) <- conHsCode . theDef <$> getConstInfo c
+        Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
         return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.Tuple []) (HS.BDecls [])
   cs <- mapM makeClause cs
@@ -348,7 +351,6 @@ literal l = case l of
 
 hslit :: Literal -> HS.Literal
 hslit l = case l of LitInt    _ x -> HS.Int    x
-                    LitLevel  _ x -> HS.Int    x
                     LitFloat  _ x -> HS.Frac   (toRational x)
                     LitString _ x -> HS.String x
                     LitChar   _ x -> HS.Char   x
@@ -366,7 +368,7 @@ litqname x = return $
 
 condecl :: QName -> TCM (Nat, HS.ConDecl)
 condecl q = getConstInfo q >>= \d -> case d of
-  Defn _ _ ty _ _ (Constructor {conPars = np}) -> do
+  Defn{ defType = ty, theDef = Constructor {conPars = np} } -> do
     ar <- arity <$> normalise ty
     return $ (ar, cdecl q (ar - np))
   _ -> mazerror $ "condecl:" ++ gshow' (q, d)

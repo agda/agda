@@ -1,3 +1,3 @@
 NaturalAndLevelDifferent.agda:8,1-26
-NATURAL and LEVEL have to be different types.
+The argument to BUILTIN LEVEL must be a postulated name
 when checking the pragma BUILTIN LEVEL ℕ

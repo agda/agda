@@ -1,4 +1,11 @@
-Issue399.agda:39,37-49
-Set₁ != Set
-when checking that the expression mymaybemzero has type
-_25 _72 → List .a
+
+Unsolved metas at the following locations:
+  Issue399.agda:15,20-21
+  Issue399.agda:16,30-42
+  Issue399.agda:16,30-33
+  Issue399.agda:17,30-33
+  Issue399.agda:17,36-48
+  Issue399.agda:17,36-39
+  Issue399.agda:38,32-37
+  Issue399.agda:39,37-49
+  Issue399.agda:40,38-50

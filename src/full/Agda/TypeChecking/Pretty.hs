@@ -75,6 +75,7 @@ instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM DisplayTerm where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM NamedClause where prettyTCM x = prettyA =<< reify x
+instance PrettyTCM Level where prettyTCM x = prettyA =<< reify (Level x)
 
 instance PrettyTCM ClauseBody where
   prettyTCM b = do

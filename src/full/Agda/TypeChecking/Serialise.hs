@@ -78,7 +78,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110617 * 10 + 0
+currentInterfaceVersion = 20110619 * 10 + 0
 
 type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
 
@@ -528,15 +528,10 @@ instance EmbPrj LevelAtom where
 instance EmbPrj I.Sort where
   icode (Type  a  ) = icode1 0 a
   icode Prop        = icode0 1
-  icode (Lub   a b) = icode2 2 a b
-  icode (Suc   a  ) = icode1 3 a
-  icode (MetaS a b) = __IMPOSSIBLE__
   icode Inf         = icode0 4
   icode (DLub a b)  = icode2 5 a b
   value = vcase valu where valu [0, a]    = valu1 Type  a
                            valu [1]       = valu0 Prop
-                           valu [2, a, b] = valu2 Lub   a b
-                           valu [3, a]    = valu1 Suc   a
                            valu [4]       = valu0 Inf
                            valu [5, a, b] = valu2 DLub a b
                            valu _         = malformed
@@ -546,13 +541,11 @@ instance EmbPrj Agda.Syntax.Literal.Literal where
   icode (LitFloat  a b) = icode2 1 a b
   icode (LitString a b) = icode2 2 a b
   icode (LitChar   a b) = icode2 3 a b
-  icode (LitLevel  a b) = icode2 4 a b
   icode (LitQName  a b) = icode2 5 a b
   value = vcase valu where valu [0, a, b] = valu2 LitInt    a b
                            valu [1, a, b] = valu2 LitFloat  a b
                            valu [2, a, b] = valu2 LitString a b
                            valu [3, a, b] = valu2 LitChar   a b
-                           valu [4, a, b] = valu2 LitLevel  a b
                            valu [5, a, b] = valu2 LitQName  a b
                            valu _         = malformed
 
@@ -588,9 +581,9 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icode (Defn rel a b c d e) = icode6' rel a b c d e
-  value = vcase valu where valu [rel, a, b, c, d, e] = valu6 Defn rel a b c d e
-                           valu _                    = malformed
+  icode (Defn rel a b c d e f) = icode7' rel a b c d e f
+  value = vcase valu where valu [rel, a, b, c, d, e, f] = valu7 Defn rel a b c d e f
+                           valu _                       = malformed
 
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1 0 a
@@ -670,21 +663,26 @@ instance EmbPrj Occurrence where
     valu [2] = valu0 Unused
     valu _   = malformed
 
+instance EmbPrj CompiledRepresentation where
+  icode (CompiledRep a b c) = icode3' a b c
+  value = vcase valu where valu [a, b, c] = valu3 CompiledRep a b c
+                           valu _         = malformed
+
 instance EmbPrj Defn where
-  icode (Axiom       a b c)                   = icode3 0 a b c
-  icode (Function    a b c d e f g h i)       = icode9 1 a b c d e f g h i
-  icode (Datatype    a b c d e f g h i j k)   = icode11 2 a b c d e f g h i j k
-  icode (Record      a b c d e f g h i j k l) = icode12 3 a b c d e f g h i j k l
-  icode (Constructor a b c d e f g)           = icode7 4 a b c d e f g
-  icode (Primitive   a b c d e)               = icode5 5 a b c d e
+  icode Axiom                               = icode0 0
+  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
+  icode (Datatype    a b c d e f g h i)     = icode9 2 a b c d e f g h i
+  icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
+  icode (Constructor a b c d e)             = icode5 4 a b c d e
+  icode (Primitive   a b c d)               = icode4 5 a b c d
   value = vcase valu where
-    valu [0, a, b, c]                            = valu3 Axiom       a b c
-    valu [1, a, b, c, d, e, f, g, h, i]          = valu9 Function    a b c d e f g h i
-    valu [2, a, b, c, d, e, f, g, h, i, j, k]    = valu11 Datatype   a b c d e f g h i j k
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record     a b c d e f g h i j k l
-    valu [4, a, b, c, d, e, f, g]                = valu7 Constructor a b c d e f g
-    valu [5, a, b, c, d, e]                      = valu5 Primitive   a b c d e
-    valu _                                       = malformed
+    valu [0]                                  = valu0 Axiom
+    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
+    valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
+    valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
+    valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
+    valu _                                    = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
   icode (Branches a b c) = icode3' a b c

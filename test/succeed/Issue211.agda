@@ -7,22 +7,7 @@
 -- going.
 module Issue211 where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-
-infixl 6 _⊔_
-
-_⊔_ : Level -> Level -> Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
-{-# BUILTIN LEVELMAX _⊔_ #-}
+open import Common.Level
 
 infixr 4 _,_
 infixr 3 _×_
@@ -50,7 +35,7 @@ ex₃ = ((λ d → d) , (λ (d : D₁) → d) , (λ (d : D₁) → d))
 -- Does not work:
 
 ex₄ : Level × (D₁ → D₁) × (D₁ → D₁)
-ex₄ = zero , (λ d → d) , (λ d → d)
+ex₄ = lzero , (λ d → d) , (λ d → d)
 
 ex₅ : (D₁ → D₁) × (D₁ → D₁) × (D₁ → D₁)
 ex₅ = (λ (d : _) → d) , (λ (d : _) → d) , (λ (d : _) → d)

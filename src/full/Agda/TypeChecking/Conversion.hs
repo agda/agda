@@ -30,7 +30,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
-import Agda.TypeChecking.UniversePolymorphism
+-- import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Utils.Monad
 
@@ -38,6 +38,9 @@ import Agda.TypeChecking.Monad.Debug
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+mlevel :: MonadTCM tcm => tcm (Maybe Term)
+mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
 nextPolarity []       = (Invariant, [])
 nextPolarity (p : ps) = (p, ps)
@@ -89,7 +92,10 @@ compareTerm cmp a m n =
       Prop | proofIrr -> return []
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
-        a | Just a == mlvl -> equalLevel m n
+        a | Just a == mlvl -> do
+          a <- levelView m
+          b <- levelView n
+          equalLevel a b
         Pi a _    -> equalFun (a,a') m n
         Fun a _   -> equalFun (a,a') m n
 {- Andreas, 2011-05-09 at unknown type, compare atomic
@@ -242,8 +248,8 @@ compareAtom cmp t m n =
                 let (solve1, solve2)
                       | (p1,x) > (p2,y) = (l,r)
                       | otherwise	    = (r,l)
-                      where l = assignV t x xArgs n
-                            r = assignV t y yArgs m
+                      where l = assignV x xArgs n
+                            r = assignV y yArgs m
                     try m fallback = do
                       cs <- m
                       case cs of
@@ -262,8 +268,8 @@ compareAtom cmp t m n =
                     return cs
 
         -- one side a meta, the other an unblocked term
-	(NotBlocked (MetaV x xArgs), _) -> assignV t x xArgs n
-	(_, NotBlocked (MetaV x xArgs)) -> assignV t x xArgs m
+	(NotBlocked (MetaV x xArgs), _) -> assignV x xArgs n
+	(_, NotBlocked (MetaV x xArgs)) -> assignV x xArgs m
 
         (Blocked{}, Blocked{})	-> checkSyntacticEquality
 {-
@@ -484,48 +490,29 @@ leqSort s1 s2 =
               ]
 	case (s1,s2) of
 
-            -- New universe polymorphism
---             (Type a  , Type b  )             -> compareLevel CmpLeq a b
-
-	    (Type (Lit (LitLevel _ n)), Type (Lit (LitLevel _ m)))
-              | n <= m    -> return []
-	      | otherwise -> notLeq s1 s2
             (Type a, Type b) -> leqLevel a b
 
 	    (Prop    , Prop    )	     -> return []
 	    (Type _  , Prop    )	     -> notLeq s1 s2
-	    (Suc _   , Prop    )	     -> notLeq s1 s2
 
 	    (Prop    , Type _  )	     -> return []
 
-	    (Suc s   , Type (Lit (LitLevel _ n)))
-              | 1 <= n    -> leqSort s (mkType $ n - 1)
-	    (Suc s   , Type b  ) -> notLeq s1 s2  -- TODO
-            (Suc s1  , Suc s2  ) -> leqSort s1 s2 -- TODO: not what we want for Prop(?)
-	    (_	     , Suc _   )	     -> equalSort s1 s2
-
-	    (Lub a b , _       )	     -> liftM2 (++) (leqSort a s2) (leqSort b s2)
-	    (_	     , Lub _ _ )	     -> equalSort s1 s2
-
-	    (MetaS{} , _       )	     -> equalSort s1 s2
-	    (_	     , MetaS{} )	     -> equalSort s1 s2
-            (Inf     , Inf     )             -> return []
-            (Inf     , _       )             -> notLeq s1 s2
             (_       , Inf     )             -> return []
+            (Inf     , _       )             -> equalSort s1 s2
             (DLub{}  , _       )             -> equalSort s1 s2
             (_       , DLub{}  )             -> equalSort s1 s2
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
-leqLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
+leqLevel :: MonadTCM tcm => Level -> Level -> tcm Constraints
 leqLevel a b = liftTCM $ do
   reportSDoc "tc.conv.nat" 30 $
     text "compareLevel" <+>
       sep [ prettyTCM a <+> text "=<"
           , prettyTCM b ]
-  n <- levelView a
-  m <- levelView b
-  catchConstraint (LevelCmp CmpLeq (Level n) (Level m)) $ leqView n m
+  a <- reduce a
+  b <- reduce b
+  catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
   where
     leqView n@(Max as) m@(Max bs) = do
       reportSDoc "tc.conv.nat" 30 $
@@ -545,6 +532,7 @@ leqLevel a b = liftTCM $ do
           sep [ text (show n) <+> text "=<"
               , text (show m) ]
       case (n, m) of
+
         -- Both closed
         (ClosedLevel n, ClosedLevel m)
           | n <= m -> ok
@@ -555,9 +543,21 @@ leqLevel a b = liftTCM $ do
             lvl <- primLevel
             equalTerm (El (mkType 0) lvl) a b
 
+        -- Same meta
+        (Plus n (MetaLevel x _), Plus m (MetaLevel y _))
+          | n <= m && x == y -> ok
+
         -- closed ≤ any
         (ClosedLevel n, Plus m _)
           | n <= m -> ok
+
+        -- meta ≤ 0
+        (Plus n (MetaLevel x vs), ClosedLevel m)
+          | m == n -> assignV x vs (Level (Max []))
+
+        -- meta ≤ neutral
+        (Plus n (MetaLevel x vs), Plus m (NeutralLevel v))
+          | m == n -> assignV x vs v
 
         -- Any blocked or meta
         (Plus _ BlockedLevel{}, _) -> postpone
@@ -576,25 +576,24 @@ leqLevel a b = liftTCM $ do
 --         PatternErr{} -> choice ms
 --         _            -> throwError e
 
-equalLevel :: MonadTCM tcm => Term -> Term -> tcm Constraints
+equalLevel :: MonadTCM tcm => Level -> Level -> tcm Constraints
 equalLevel a b = do
   reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
-  Max as <- levelView a
-  Max bs <- levelView b
-  a <- unLevelView (Max as)
-  b <- unLevelView (Max bs)
+  a <- reduce a
+  b <- reduce b
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
-    check a b as bs
+    check a b
   where
-    check a b as bs = do
+    check a@(Max as) b@(Max bs) = do
       reportSDoc "tc.conv.level" 40 $
         sep [ text "equalLevel"
-            , nest 2 $ sep [ prettyTCM a <+> text "=="
-                           , prettyTCM b
-                           ]
-            , nest 2 $ sep [ text (show (Max as)) <+> text "=="
-                           , text (show (Max bs))
-                           ]
+            , vcat [ nest 2 $ sep [ prettyTCM a <+> text "=="
+                                  , prettyTCM b
+                                  ]
+                   , nest 2 $ sep [ text (show (Max as)) <+> text "=="
+                                  , text (show (Max bs))
+                                  ]
+                   ]
             ]
       let a === b   = do
             lvl <- getLvl
@@ -602,15 +601,13 @@ equalLevel a b = do
           as =!= bs = do a <- unLevelView (Max as)
                          b <- unLevelView (Max bs)
                          a === b
+      as <- return $ closed0 as
+      bs <- return $ closed0 bs
       case (as, bs) of
         _ | List.sort as == List.sort bs -> ok
           | any isBlocked (as ++ bs) -> do
               lvl <- getLvl
-              liftTCM $ useInjectivity CmpEq lvl a b
-
-        -- 0 == any
-        ([], _) -> wrap $ concat <$> sequence [ as =!= [b] | b <- bs ]
-        (_, []) -> wrap $ concat <$> sequence [ [a] =!= bs | a <- as ]
+              liftTCM $ useInjectivity CmpEq lvl (Level a) (Level b)
 
         -- closed == closed
         ([ClosedLevel n], [ClosedLevel m])
@@ -620,6 +617,10 @@ equalLevel a b = do
         -- closed == neutral
         ([ClosedLevel{}], _) | any isNeutral bs -> notok
         (_, [ClosedLevel{}]) | any isNeutral as -> notok
+
+        -- Same meta
+        ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
+          | n == m && x == y -> ok
 
         -- meta == any
         ([Plus n (MetaLevel x as)], _)
@@ -644,14 +645,19 @@ equalLevel a b = do
       where
         ok       = return []
         notok    = typeError $ UnequalSorts (Type a) (Type b)
-        postpone = patternViolation
+        postpone = do
+          reportSLn "tc.conv.level" 30 $ "postponing: " ++ show a ++ " == " ++ show b
+          patternViolation
+
+        closed0 [] = [ClosedLevel 0]
+        closed0 as = as
 
         getLvl = El (mkType 0) <$> primLevel
 
         meta n x as bs = do
+          reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
-          lvl <- getLvl
-          assignV lvl x as =<< unLevelView (Max bs')
+          assignV x as =<< unLevelView (Max bs')
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->
@@ -695,72 +701,31 @@ equalSort s1 s2 =
         (s1,s2) <- reduce (s1,s2)
         reportSDoc "tc.conv.sort" 30 $
           sep [ text "equalSort"
-              , nest 2 $ fsep [ prettyTCM s1 <+> text "=="
-                              , prettyTCM s2 ]
-              , nest 2 $ fsep [ text (show s1) <+> text "=="
-                              , text (show s2) ]
+              , vcat [ nest 2 $ fsep [ prettyTCM s1 <+> text "=="
+                                     , prettyTCM s2 ]
+                     , nest 2 $ fsep [ text (show s1) <+> text "=="
+                                     , text (show s2) ]
+                     ]
               ]
 	case (s1,s2) of
 
-            -- New universe polymorphism
---             (Type a, Type b) -> compareLevel CmpEq a b
-
-            (Type (Lit n), Type (Lit m))
-              | n == m           -> return []
-              | otherwise        -> notEq s1 s2
             (Type a  , Type b  ) -> equalLevel a b
-
-	    (MetaS x us , MetaS y vs) -> do
-              s1 <- normalise s1
-              s2 <- normalise s2
-              if s1 == s2 then return []
-			  else do
-		[p1, p2] <- mapM getMetaPriority [x, y]
-		if p1 >= p2 then assignS x us s2
-			    else assignS y vs s1
-	    (MetaS x vs, _       ) -> assignS x vs s2
-	    (_	     , MetaS{} ) -> equalSort s2 s1
 
 	    (Prop    , Prop    ) -> return []
 	    (Type _  , Prop    ) -> notEq s1 s2
 	    (Prop    , Type _  ) -> notEq s1 s2
 
-	    (Suc s   , Prop    ) -> notEq s1 s2
-	    (Suc s   , Type (Lit (LitLevel _ 0))) -> notEq s1 s2
-	    (Suc s   , Type (Lit (LitLevel _ 1))) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Suc s   , Type (Lit (LitLevel _ n))) -> equalSort s (mkType $ n - 1)
-	    (Prop    , Suc s   ) -> notEq s1 s2
-	    (Type (Lit (LitLevel _ 0))  , Suc s   ) -> notEq s1 s2
-	    (Type (Lit (LitLevel _ 1))  , Suc s   ) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Type (Lit (LitLevel _ n))  , Suc s   ) -> equalSort (mkType $ n - 1) s
-            (Suc s1  , Suc s2  ) -> equalSort s1 s2 -- TODO: not what we want for Prop(?)
-	    (_	     , Suc _   ) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (Suc _   , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
-
             (Inf     , Inf     )             -> return []
+            (Inf     , Type (Max as@(_:_)))  -> concat <$> mapM (isInf $ notEq s1 s2) as
+            (Type (Max as@(_:_)), Inf)       -> concat <$> mapM (isInf $ notEq s1 s2) as
             (Inf     , _       )             -> notEq s1 s2
             (_       , Inf     )             -> notEq s1 s2
-            (s0@(Type (Lit (LitLevel _ 0))), Lub s1 s2) -> do
-              cs1 <- equalSort s0 s1
-              cs2 <- equalSort s0 s2
-              return $ cs1 ++ cs2
-            (Lub s1 s2, s0@(Type (Lit (LitLevel _ 0)))) -> do
-              cs1 <- equalSort s1 s0
-              cs2 <- equalSort s2 s0
-              return $ cs1 ++ cs2
-            (Lub{}   , Lub{}   ) -> do
-              (s1, s2) <- normalise (s1, s2)
-              if s1 == s2
-                then return []
-                else buildConstraint (SortCmp CmpEq s1 s2)
-	    (Lub _ _ , _       ) -> buildConstraint (SortCmp CmpEq s1 s2)
-	    (_	     , Lub _ _ ) -> buildConstraint (SortCmp CmpEq s1 s2)
 
-            (DLub s1 s2, s0@(Type (Lit (LitLevel _ 0)))) -> do
+            (DLub s1 s2, s0@(Type (Max []))) -> do
               cs1 <- equalSort s1 s0
               cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s2 s0
               return $ cs1 ++ cs2
-            (s0@(Type (Lit (LitLevel _ 0))), DLub s1 s2) -> do
+            (s0@(Type (Max [])), DLub s1 s2) -> do
               cs1 <- equalSort s0 s1
               cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s0 s2
               return $ cs1 ++ cs2
@@ -768,3 +733,9 @@ equalSort s1 s2 =
             (_       , DLub{}  )             -> buildConstraint (SortCmp CmpEq s1 s2)
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
+
+        isInf notok ClosedLevel{} = notok
+        isInf notok (Plus _ l) = case l of
+          MetaLevel x vs          -> assign True x vs (Sort Inf)
+          NeutralLevel (Sort Inf) -> return []
+          _                       -> notok

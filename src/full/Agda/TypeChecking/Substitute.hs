@@ -56,7 +56,7 @@ instance Subst a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn rel x t df m d) args = Defn rel x (piApply t args) df m (apply d args)
+    apply (Defn rel x t df m c d) args = Defn rel x (piApply t args) df m c (apply d args)
 
 instance Apply Defn where
   apply d args = case d of
@@ -183,7 +183,7 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn rel x t df m d) = Defn rel x (abstract tel t) df m (abstract tel d)
+    abstract tel (Defn rel x t df m c d) = Defn rel x (abstract tel t) df m c (abstract tel d)
 
 instance Abstract Defn where
   abstract tel d = case d of
@@ -315,9 +315,6 @@ instance Subst Sort where
     substs us s = case s of
       Type n     -> Type $ sub n
       Prop       -> Prop
-      Suc s      -> Suc $ sub s
-      Lub s1 s2  -> Lub (sub s1) (sub s2)
-      MetaS m as -> MetaS m (sub as)
       Inf        -> Inf
       DLub s1 s2 -> DLub (sub s1) (sub s2)
       where sub x = substs us x
@@ -325,9 +322,6 @@ instance Subst Sort where
     substUnder n u s = case s of
       Type n     -> Type $ sub n
       Prop       -> Prop
-      Suc s      -> Suc $ sub s
-      Lub s1 s2  -> Lub (sub s1) (sub s2)
-      MetaS m as -> MetaS m (sub as)
       Inf        -> Inf
       DLub s1 s2 -> DLub (sub s1) (sub s2)
       where sub x = substUnder n u x
@@ -450,9 +444,6 @@ instance Raise Sort where
     raiseFrom m k s = case s of
       Type n     -> Type $ rf n
       Prop       -> Prop
-      Suc s      -> Suc $ rf s
-      Lub s1 s2  -> Lub (rf s1) (rf s2)
-      MetaS m as -> MetaS m (rf as)
       Inf        -> Inf
       DLub s1 s2 -> DLub (rf s1) (rf s2)
       where rf x = raiseFrom m k x

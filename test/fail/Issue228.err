@@ -1,3 +1,3 @@
-Issue228.agda:10,1-32
-The builtin LEVEL must be a datatype with 2 constructors
-when checking the pragma BUILTIN LEVEL Level
+Issue228.agda:30,5-18
+Set (suc zero ⊔ ∞) != Set
+when checking that the expression Large × Small has type Set

@@ -2,7 +2,8 @@
 
 module Issue248 where
 
-data Level : Set where
+postulate
+  Level : Set
   zero : Level
   suc  : Level → Level
 

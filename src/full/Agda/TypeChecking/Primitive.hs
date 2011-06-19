@@ -40,15 +40,16 @@ import Agda.Utils.Impossible
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: MonadTCM tcm => Term -> tcm Term
 constructorForm v = case v of
-    Lit (LitInt r n)   -> cons primZero primSuc (LitInt r) n
-    Lit (LitLevel r n) -> cons primLevelZero primLevelSuc (LitLevel r) n
-    _                  -> return v
+    Lit (LitInt r n)            -> cons primZero primSuc (Lit . LitInt r) n
+--     Level (Max [])              -> primLevelZero
+--     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
+    _                           -> return v
   where
     cons pZero pSuc lit n
       | n == 0  = pZero
       | n > 0   = do
         s <- pSuc
-        return $ s `apply` [defaultArg $ Lit $ lit $ n - 1]
+        return $ s `apply` [defaultArg $ lit $ n - 1]
       | otherwise	= return v
 
 ---------------------------------------------------------------------------
@@ -107,7 +108,7 @@ class ToTerm a where
 
 instance ToTerm Integer where toTerm = return $ Lit . LitInt noRange
 instance ToTerm Nat	where toTerm = return $ Lit . LitInt noRange . unNat
-instance ToTerm Lvl	where toTerm = return $ Lit . LitLevel noRange . unLvl
+instance ToTerm Lvl	where toTerm = return $ Level . Max . (:[]) . ClosedLevel . unLvl
 instance ToTerm Double  where toTerm = return $ Lit . LitFloat noRange
 instance ToTerm Char	where toTerm = return $ Lit . LitChar noRange
 instance ToTerm Str	where toTerm = return $ Lit . LitString noRange . unStr
@@ -156,9 +157,9 @@ instance FromTerm Nat where
 	_	   -> Nothing
 
 instance FromTerm Lvl where
-    fromTerm = fromLiteral $ \l -> case l of
-	LitLevel _ n -> Just $ Lvl n
-	_	     -> Nothing
+    fromTerm = fromReducedTerm $ \l -> case l of
+	Level (Max [ClosedLevel n]) -> Just $ Lvl n
+	_                           -> Nothing
 
 instance FromTerm Double where
     fromTerm = fromLiteral $ \l -> case l of
@@ -297,31 +298,25 @@ primDataConstructors :: MonadTCM tcm => tcm PrimitiveImpl
 primDataConstructors = mkPrimFun1TCM (el primAgdaDataDef --> el (list primQName))
                                      (fmap (dataCons . theDef) . getConstInfo)
 
+mkPrimLevelZero :: MonadTCM tcm => tcm PrimitiveImpl
+mkPrimLevelZero = do
+  t <- primType (undefined :: Lvl)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 0 $ \_ -> redReturn $ Level $ Max []
+
+mkPrimLevelSuc :: MonadTCM tcm => tcm PrimitiveImpl
+mkPrimLevelSuc = do
+  t <- primType (id :: Lvl -> Lvl)
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 1 $ \ ~[a] -> liftTCM $ do
+    l <- levelView $ unArg a
+    redReturn $ Level $ levelSuc l
+
 mkPrimLevelMax :: MonadTCM tcm => tcm PrimitiveImpl
 mkPrimLevelMax = do
   t <- primType (max :: Op Lvl)
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 2 $ \ ~[a, b] -> liftTCM $ do
-    a <- reduceB a
-    b <- reduceB b
-    case (unArg $ ignoreBlocking a, unArg $ ignoreBlocking b) of
-      (Lit (LitLevel r i), Lit (LitLevel _ j)) -> redReturn $ Lit $ LitLevel r (max i j)
-      (Var x [], Var y []) | x == y            -> redReturn $ Var x []
-      (Def x [], Def y []) | x == y            -> redReturn $ Def x []
-      _                                        -> return $ NoReduction $ map reduced [a, b]
-  {- This version is even smarter, but a bit too slow..
-    let argA x = fmap (const x) a
-        argB y = fmap (const y) b
-    av@(Max as) <- levelView (unArg a)
-    bv@(Max bs) <- levelView (unArg b)
-    let ab@(Max cs) = levelMax av bv
-    if length cs < length as + length bs
-      then redReturn =<< unLevelView ab
-      else do
-        a <- unLevelView av
-        b <- unLevelView bv
-        -- TODO: notBlocked might not be true
-        return $ NoReduction $ map reduced [notBlocked $ argA a, notBlocked $ argB b]
-  -}
+    Max as <- levelView $ unArg a
+    Max bs <- levelView $ unArg b
+    redReturn $ Level $ levelMax $ as ++ bs
 
 mkPrimFun1TCM :: (MonadTCM tcm, FromTerm a, ToTerm b) => tcm Type -> (a -> TCM b) -> tcm PrimitiveImpl
 mkPrimFun1TCM mt f = do
@@ -497,6 +492,8 @@ primitiveFunctions = Map.fromList
         in mkPrimFun4 aux
     , "primNatEquality"	    |-> mkPrimFun2 ((==)		    :: Rel Nat)
     , "primNatLess"	    |-> mkPrimFun2 ((<)			    :: Rel Nat)
+    , "primLevelZero"	    |-> mkPrimLevelZero
+    , "primLevelSuc"	    |-> mkPrimLevelSuc
     , "primLevelMax"	    |-> mkPrimLevelMax
 
     -- Floating point functions

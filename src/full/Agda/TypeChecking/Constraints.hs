@@ -177,7 +177,7 @@ solveConstraint (FindInScope m)      =
                    prettyTCM t <+> text "': '" <+> prettyTCM term <+>
                    text "', of type '" <+> prettyTCM t' <+> text "'."
                  cs <- leqType t t'
-                 assignV t m ctxArgs term
+                 assignV m ctxArgs term
                  return cs
             iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
                                          text ("still more than one candidate at p=" ++ show p ++ ": ") <+>

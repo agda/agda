@@ -238,8 +238,9 @@ hasCompiledData :: [String] -> TCM Bool
 hasCompiledData (s:_) = toB =<< getBuiltin s where
   toB (Con q _)         = do
     def <- getConstInfo =<< ignoreAbstractMode (canonicalName q)
-    return $ case theDef def of Constructor{conHsCode = Just _} -> True
-                                _                               -> False
+    return $ case compiledHaskell $ defCompiledRep def of
+      Just{}  -> True
+      Nothing -> False
   toB (Lam _ (Abs _ t)) = toB t
   toB _                 = return False
 hasCompiledData _    = return False

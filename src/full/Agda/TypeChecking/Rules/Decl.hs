@@ -88,7 +88,7 @@ checkAxiom i rel x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn rel x t (defaultDisplayForm x) 0 $ Axiom Nothing Nothing Nothing)
+  addConstant x (Defn rel x t (defaultDisplayForm x) 0 noCompiledRep Axiom)
   solveSizeConstraints
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
@@ -102,8 +102,8 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s $ pf { primFunName = x }
-    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 $
-                Primitive (Info.defAbstract i) s Nothing Nothing Nothing)
+    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 noCompiledRep $
+                Primitive (Info.defAbstract i) s Nothing Nothing)
     where
 	nameString (Name _ x _ _) = show x
 

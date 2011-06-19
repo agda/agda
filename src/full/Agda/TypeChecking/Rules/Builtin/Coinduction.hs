@@ -31,18 +31,20 @@ import Agda.Utils.Permutation
 
 #include "../../../undefined.h"
 
+varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
+
 -- | The type of @&#x221e@.
 
 typeOfInf :: TCM Type
 typeOfInf = do
   kit <- requireLevels
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
-               (Abs "a" $ El (Type (lvlSuc kit (Var 0 [])))
-                             (Pi (argN $ El (Type (lvlSuc kit (Var 0 [])))
-                                            (Sort (Type (Var 0 []))))
-                                 (Abs "A" $ El (Type (lvlSuc kit (Var 1 [])))
-                                               (Sort (Type (Var 1 [])))))))
+    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
+               (Abs "a" $ El (sSuc $ varSort 0)
+                             (Pi (argN $ El (sSuc $ varSort 0)
+                                            (Sort $ varSort 0))
+                                 (Abs "A" $ El (sSuc $ varSort 1)
+                                               (Sort $ varSort 1)))))
 
 -- | The type of @&#x266f_@.
 
@@ -54,12 +56,12 @@ typeOfSharp = do
                   _       -> __IMPOSSIBLE__)
          <$> primInf
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
-               (Abs "a" $ El (Lub (Type (lvlSuc kit (Var 0 []))) (Type (Var 0 [])))
-                             (Pi (argH $ El (Type (lvlSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
-                                 (Abs "A" $ El (Type (Var 1 []))
-                                               (Pi (argN $ El (Type (Var 1 [])) (Var 0 []))
-                                                   (Abs "x" $ El (Type (Var 2 []))
+    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
+               (Abs "a" $ El (sSuc $ varSort 0)
+                             (Pi (argH $ El (sSuc $ varSort 0) (Sort $ varSort 0))
+                                 (Abs "A" $ El (varSort 1)
+                                               (Pi (argN $ El (varSort 1) (Var 0 []))
+                                                   (Abs "x" $ El (varSort 2)
                                                                  (Def inf [argH (Var 2 []), argN (Var 1 [])])))))))
 
 -- | The type of @&#x266d@.
@@ -72,13 +74,13 @@ typeOfFlat = do
                   _       -> __IMPOSSIBLE__)
          <$> primInf
   return $
-    El Inf (Pi (argH $ El (Type (Lit (LitLevel noRange 0))) (lvlType kit))
-               (Abs "a" $ El (Lub (Type (lvlSuc kit (Var 0 []))) (Type (Var 0 [])))
-                             (Pi (argH $ El (Type (lvlSuc kit (Var 0 []))) (Sort (Type (Var 0 []))))
-                                 (Abs "A" $ El (Type (Var 1 []))
-                                               (Fun (argN $ El (Type (Var 1 []))
+    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
+               (Abs "a" $ El (sSuc $ varSort 0)
+                             (Pi (argH $ El (sSuc $ varSort 0) (Sort $ varSort 0))
+                                 (Abs "A" $ El (varSort 1)
+                                               (Fun (argN $ El (varSort 1)
                                                                (Def inf [argH (Var 1 []), argN (Var 0 [])]))
-                                                    (El (Type (Var 1 [])) (Var 0 [])))))))
+                                                    (El (varSort 1) (Var 0 [])))))))
 
 -- | Binds the INFINITY builtin, but does not change the type's
 -- definition.
@@ -110,12 +112,10 @@ bindBuiltinSharp e =
                   , dataInduction      = CoInductive
                   , dataClause         = Nothing
                   , dataCons           = [sharp]
-                  , dataSort           = Type (Var 1 [])
+                  , dataSort           = varSort 1
                   , dataPolarity       = [Invariant, Invariant]
                   , dataArgOccurrences = [Unused, Positive]
-                  , dataHsType         = Nothing
                   , dataAbstr          = ConcreteDef
-                  , dataJSDef          = Nothing
                   }
               }
     addConstant sharp $
@@ -123,10 +123,8 @@ bindBuiltinSharp e =
                     { conPars   = 2
                     , conSrcCon = sharp
                     , conData   = defName infDefn
-                    , conHsCode = Nothing
                     , conAbstr  = ConcreteDef
                     , conInd    = CoInductive
-                    , conJSDef  = Nothing
                     }
                 }
     return sharpE
@@ -148,10 +146,10 @@ bindBuiltinFlat e =
               <$> primSharp
     kit    <- requireLevels
     let clause = Clause { clauseRange = noRange
-                        , clauseTel   = ExtendTel (argH (El (Type (Lit (LitLevel noRange 0))) (Def (typeName kit) [])))
-                                                  (Abs "a" (ExtendTel (argH (El (Type (Con (sucName kit) [argN (Var 0 [])]))
-                                                                                (Sort (Type (Var 0 [])))))
-                                                                      (Abs "A" (ExtendTel (argN (El (Type (Var 1 [])) (Var 0 [])))
+                        , clauseTel   = ExtendTel (argH (El (mkType 0) (Def (typeName kit) [])))
+                                                  (Abs "a" (ExtendTel (argH (El (sSuc $ varSort 0)
+                                                                                (Sort $ varSort 0)))
+                                                                      (Abs "A" (ExtendTel (argN (El (varSort 1) (Var 0 [])))
                                                                                           (Abs "x" EmptyTel)))))
                         , clausePerm  = idP 3
                         , clausePats  = [ argH (VarP "a")
@@ -177,7 +175,6 @@ bindBuiltinFlat e =
                      {- flat is a projection, but in the termination checker
                         it destroys the (inductive) structural ordering.
                         Thus, we do not register it as a projection. -}
-                   , funJSDef = Nothing
                    }
                 }
     return flatE

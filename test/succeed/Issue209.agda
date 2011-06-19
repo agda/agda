@@ -2,19 +2,15 @@
 
 module Issue209 where
 
-data Level : Set where
+postulate
+  Level : Set
   zero : Level
   suc  : Level → Level
+  _⊔_ : Level -> Level -> Level
 
 {-# BUILTIN LEVEL     Level #-}
 {-# BUILTIN LEVELZERO zero  #-}
 {-# BUILTIN LEVELSUC  suc   #-}
-
-_⊔_ : Level -> Level -> Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
 {-# BUILTIN LEVELMAX _⊔_ #-}
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set where

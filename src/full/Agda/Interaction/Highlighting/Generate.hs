@@ -150,7 +150,6 @@ generateSyntaxInfo file mErr top termErrs = do
       tokenToFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)
       tokenToFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
       tokenToFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
-      tokenToFile (T.TokLiteral (L.LitLevel  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
       tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r

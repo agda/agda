@@ -1,19 +1,15 @@
 {-# OPTIONS --universe-polymorphism #-}
 module UniversePolymorphism where
 
-data Level : Set where
-  zero : Level
-  suc  : Level → Level
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : Level → Level
+  max : Level → Level → Level
 
 {-# BUILTIN LEVEL Level #-}
-{-# BUILTIN LEVELZERO zero #-}
-{-# BUILTIN LEVELSUC suc #-}
-
-max : Level → Level → Level
-max zero m = m
-max (suc n) zero = suc n
-max (suc n) (suc m) = suc (max n m)
-
+{-# BUILTIN LEVELZERO lzero #-}
+{-# BUILTIN LEVELSUC lsuc #-}
 {-# BUILTIN LEVELMAX max #-}
 
 data Nat : Set where
@@ -79,5 +75,5 @@ nil = _ , []
 cons : ∀ {a}{A : Set a} → A → List A → List A
 cons x (_ , xs) = _ , x ∷ xs
 
-AnyList : ∀ {i} → Set (suc i)
+AnyList : ∀ {i} → Set (lsuc i)
 AnyList {i} = Σ (Set i) (List {i})

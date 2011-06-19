@@ -34,7 +34,10 @@ fromAgda msharp defs = catMaybes <$> mapM (translateDefn msharp) defs
 
 -- | Translate an Agda definition to an Epic function where applicable
 translateDefn :: MonadTCM m => Maybe T.Term -> (QName, Definition) -> Compile m (Maybe Fun)
-translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
+translateDefn msharp (n, defini) =
+  let n' = unqname n
+      epDef = compiledEpic $ defCompiledRep defini
+  in case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
         vars <- replicateM (fromIntegral $ dataPars d + dataIxs d) newName
         return . return $ Fun True n' ("datatype: " ++ show n) vars UNIT
@@ -59,7 +62,7 @@ translateDefn msharp (n, defini) = let n' = unqname n in case theDef defini of
         vars <- replicateM (fromIntegral $ recPars r) newName
         return . return $ Fun True n' ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_EPIC pragmas
-        case axEpDef a of
+        case epDef of
             Nothing -> return . return $ EpicFun n' ("AXIOM_UNDEFINED: " ++ show n)
                 $ "() -> Any = lazy(error \"Axiom " ++ show n ++ " used but has no computation\")"
             Just x  -> return . return $ EpicFun n' ("COMPILED_EPIC: " ++ show n) x
@@ -228,7 +231,6 @@ substTerm env term = case term of
 substLit :: MonadTCM m => TL.Literal -> Compile m Lit
 substLit lit = case lit of
   TL.LitInt    _ i -> return $ LInt i
-  TL.LitLevel  _ i -> return $ LInt i
   TL.LitString _ s -> return $ LString s
   TL.LitChar   _ c -> return $ LChar c
   TL.LitFloat  _ f -> return $ LFloat f

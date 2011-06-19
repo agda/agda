@@ -1,18 +1,15 @@
 module Common.Level where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : (i : Level) → Level
+  _⊔_   : Level -> Level -> Level
 
 {-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+{-# BUILTIN LEVELZERO lzero #-}
+{-# BUILTIN LEVELSUC  lsuc  #-}
+{-# BUILTIN LEVELMAX  _⊔_   #-}
 
 infixl 6 _⊔_
 
-_⊔_ : Level -> Level -> Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
-{-# BUILTIN LEVELMAX _⊔_ #-}

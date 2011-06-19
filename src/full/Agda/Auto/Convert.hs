@@ -379,8 +379,7 @@ tomyExp (I.Fun (C.Arg hid _ x) y) = do
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) False x' (Abs NoId (weaken 0 y'))
-tomyExp (I.Sort (I.Type (I.Lit (I.LitLevel _ l)))) = return $ NotM $ Sort $ Set $ fromIntegral l
-tomyExp (I.Sort (I.MetaS _ _)) = throwError $ strMsg "Auto: Searching for a type of arbitrary set level is not supported"
+tomyExp (I.Sort (I.Type (I.Max [I.ClosedLevel l]))) = return $ NotM $ Sort $ Set $ fromIntegral l
 tomyExp (I.Sort _) = return $ NotM $ Sort UnknownSort
 tomyExp t@I.MetaV{} = do
  t <- lift $ instantiate t

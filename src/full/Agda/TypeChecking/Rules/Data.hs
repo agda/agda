@@ -87,15 +87,13 @@ checkDataDef i name ps cs =
                                    , dataClause         = Nothing
                                    , dataCons           = []     -- Constructors are added later
 				   , dataSort           = s
-                                   , dataHsType         = Nothing
                                    , dataAbstr          = Info.defAbstract i
                                    , dataPolarity       = []
                                    , dataArgOccurrences = []
-                                   , dataJSDef          = Nothing
                                    }
 
 	    escapeContext (size tel) $ do
-	      addConstant name ( Defn Relevant name t (defaultDisplayForm name) 0 dataDef )
+	      addConstant name ( Defn Relevant name t (defaultDisplayForm name) 0 noCompiledRep dataDef )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
@@ -119,7 +117,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature with its constructors. It was previously
 	-- added without them.
-	addConstant name (Defn Relevant name t (defaultDisplayForm name) 0 $
+	addConstant name (Defn Relevant name t (defaultDisplayForm name) 0 noCompiledRep $
                             dataDef { dataCons = map cname cs }
 			 )
         computePolarity name
@@ -171,8 +169,8 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         -- add parameters to constructor type and put into signature
         escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0
-	    $ Constructor (size tel) c d Nothing (Info.defAbstract i) Inductive Nothing
+	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0 noCompiledRep
+	    $ Constructor (size tel) c d (Info.defAbstract i) Inductive
   where
     debugEnter c e =
       reportSDoc "tc.data.con" 5 $ vcat
@@ -299,7 +297,7 @@ forceData d (El s0 t) = liftTCM $ do
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
 	MetaV m vs	    -> do
-	    Defn _ _ t _ _ Datatype{dataSort = s} <- getConstInfo d
+	    Defn {defType = t, theDef = Datatype{dataSort = s}} <- getConstInfo d
 	    ps <- newArgsMeta t
 	    noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
 	    reduce $ El s0 t'

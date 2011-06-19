@@ -90,11 +90,7 @@ addHaskellCode q hsTy hsDef =
   modifySignature $ \sig -> sig
   { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
   where
-    addHs def@Defn{theDef = con@Constructor{}} =
-      def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
-    addHs def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axHsDef = Just $ HsDefn hsTy hsDef}}
-    addHs def = def
+    addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsDefn hsTy hsDef } }
 
 addHaskellType :: MonadTCM tcm => QName -> HaskellType -> tcm ()
 addHaskellType q hsTy =
@@ -102,11 +98,7 @@ addHaskellType q hsTy =
   modifySignature $ \sig -> sig
   { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
   where
-    addHs def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axHsDef = Just $ HsType hsTy}}
-    addHs def@Defn{theDef = d@Datatype{}} =
-      def{theDef = d{dataHsType = Just hsTy}}
-    addHs def = def
+    addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsType hsTy } }
 
 addEpicCode :: MonadTCM tcm => QName -> EpicCode -> tcm ()
 addEpicCode q epDef =
@@ -116,9 +108,7 @@ addEpicCode q epDef =
   where
     --addEp def@Defn{theDef = con@Constructor{}} =
       --def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
-    addEp def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axEpDef = Just $ epDef}}
-    addEp def = def
+    addEp def = def { defCompiledRep = (defCompiledRep def) { compiledEpic = Just epDef } }
 
 addJSCode :: MonadTCM tcm => QName -> String -> tcm ()
 addJSCode q jsDef =
@@ -129,18 +119,7 @@ addJSCode q jsDef =
     Right s ->
       typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
-    addJS e def@Defn{theDef = ax@Axiom{}} =
-      def{theDef = ax{axJSDef = e}}
-    addJS e def@Defn{theDef = fun@Function{}} =
-      def{theDef = fun{funJSDef = e}}
-    addJS e def@Defn{theDef = dat@Datatype{}} =
-      def{theDef = dat{dataJSDef = e}}
-    addJS e def@Defn{theDef = rec@Record{}} =
-      def{theDef = rec{recJSDef = e}}
-    addJS e def@Defn{theDef = con@Constructor{}} =
-      def{theDef = con{conJSDef = e}}
-    addJS e def@Defn{theDef = prim@Primitive{}} =
-      def{theDef = prim{primJSDef = e}}
+    addJS e def = def{defCompiledRep = (defCompiledRep def){compiledJS = e}}
 
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
@@ -250,7 +229,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn (defRelevance d) y t [] (-1) def  -- TODO: mutual block?
+	nd y = Defn (defRelevance d) y t [] (-1) noCompiledRep def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon = case oldDef of
 	  Constructor{} -> True
@@ -278,7 +257,6 @@ applySection new ptel old ts rd rm = liftTCM $ do
                            , funArgOccurrences = drop (length ts) oldOcc
                            , funAbstr          = ConcreteDef
                            , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
-                           , funJSDef          = Nothing
                            }
                   where maybeNum = case oldDef of
                                      Function { funProjection = mn } -> mn
@@ -488,8 +466,8 @@ makeAbstract :: Definition -> Maybe Definition
 makeAbstract d = do def <- makeAbs $ theDef d
 		    return d { theDef = def }
     where
-	makeAbs Datatype   {dataAbstr = AbstractDef} = Just $ Axiom Nothing Nothing Nothing
-	makeAbs Function   {funAbstr  = AbstractDef} = Just $ Axiom Nothing Nothing Nothing
+	makeAbs Datatype   {dataAbstr = AbstractDef} = Just Axiom
+	makeAbs Function   {funAbstr  = AbstractDef} = Just Axiom
 	makeAbs Constructor{conAbstr  = AbstractDef} = Nothing
 	makeAbs d                                    = Just d
 

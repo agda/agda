@@ -24,18 +24,18 @@ import Agda.Syntax.Internal
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
     toTopLevelModuleName, mnameToList, qnameName, absBody,
     translatedClause, clausePats, clauseBody, arity, unEl )
-import Agda.Syntax.Literal ( Literal(LitInt,LitLevel,LitFloat,LitString,LitChar,LitQName) )
+import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
   ( TCM, Definition(Defn), Definitions, Interface,
-    Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
+    JSCode, Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
     iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
     ignoreAbstractMode, miInterface, getVisitedModules,
-    defType, defJSDef, axJSDef, funClauses, funProjection, funJSDef,
-    dataPars, dataIxs, dataClause, dataCons, dataJSDef,
-    conPars, conData, conSrcCon, conJSDef,
-    recClause, recCon, recFields, recPars, recNamedCon, recJSDef,
-    primClauses, primJSDef )
+    defType, funClauses, funProjection,
+    dataPars, dataIxs, dataClause, dataCons,
+    conPars, conData, conSrcCon,
+    recClause, recCon, recFields, recPars, recNamedCon,
+    primClauses, defJSDef )
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
@@ -153,20 +153,20 @@ definition :: (QName,Definition) -> TCM ([MemberId],Exp)
 definition (q,d) = do
   (_,ls) <- global q
   d <- instantiateFull d
-  e <- defn ls (defType d) (theDef d)
+  e <- defn ls (defType d) (defJSDef d) (theDef d)
   return (ls, e)
 
-defn :: [MemberId] -> Type -> Defn -> TCM Exp
-defn ls t (Axiom { axJSDef = Just e }) =
+defn :: [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
+defn ls t (Just e) Axiom =
   return e
-defn ls t (Axiom {}) =
+defn ls t Nothing Axiom =
   return Undefined
-defn ls t (Function { funJSDef = Just e }) =
+defn ls t (Just e) (Function {}) =
   return e
-defn ls t (Function { funProjection = Just i, funClauses = cls }) =
+defn ls t _ (Function { funProjection = Just i, funClauses = cls }) =
   return (curriedLambda (numPars cls)
     (Lookup (Local (LocalId 0)) (last ls)))
-defn ls t (Function { funClauses = cls }) = do
+defn ls t _ (Function { funClauses = cls }) = do
   s <- isSingleton t
   case s of
     -- Inline and eta-expand expressions of singleton type
@@ -176,15 +176,15 @@ defn ls t (Function { funClauses = cls }) = do
     Nothing -> do
       cs <- mapM clause cls
       return (lambda cs)
-defn ls t (Primitive { primJSDef = Just e }) =
+defn ls t (Just e) (Primitive {}) =
   return e
-defn ls t (Primitive {}) =
+defn ls t _ (Primitive {}) =
   return Undefined
-defn ls t (Datatype {}) =
+defn ls t _ (Datatype {}) =
   return emp
-defn ls t (Constructor { conJSDef = Just e }) =
+defn ls t (Just e) (Constructor {}) =
   return e
-defn ls t (Constructor { conData = p, conPars = nc }) = do
+defn ls t _ (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
   case theDef d of
@@ -196,7 +196,7 @@ defn ls t (Constructor { conData = p, conPars = nc }) = do
       return (curriedLambda (np + 1)
         (Apply (Lookup (Local (LocalId 0)) (last ls))
           [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-defn ls t (Record {}) =
+defn ls t _ (Record {}) =
   return emp
 
 -- Number of params in a function declaration
@@ -245,11 +245,11 @@ tag q = do
   case theDef c of
     (Constructor { conData = p }) -> do
       d <- getConstInfo p
-      case theDef d of
-        (Datatype { dataCons = qs, dataJSDef = Just e }) -> do
+      case (defJSDef d, theDef d) of
+        (Just e, Datatype { dataCons = qs }) -> do
           ls <- mapM visitorName qs
           return (Tag l ls (\ x xs -> apply e (x:xs)))
-        (Datatype { dataCons = qs, dataJSDef = Nothing }) -> do
+        (Nothing, Datatype { dataCons = qs }) -> do
           ls <- mapM visitorName qs
           return (Tag l ls Apply)
         _ -> __IMPOSSIBLE__
@@ -344,7 +344,6 @@ qname q = do
 
 literal :: Literal -> Exp
 literal (LitInt    _ x) = Integer x
-literal (LitLevel  _ x) = Integer x
 literal (LitFloat  _ x) = Double  x
 literal (LitString _ x) = String  x
 literal (LitChar   _ x) = Char    x

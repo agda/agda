@@ -4,22 +4,7 @@
 -- Andreas, 2011-04-27 universe levels can be made irrelevant
 module IrrelevantLevel where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-
-infixl 6 _⊔_
-
-_⊔_ : Level -> Level -> Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
-{-# BUILTIN LEVELMAX _⊔_ #-}
+open import Common.Level
 
 postulate 
   Lst : .(i : Level)(A : Set i) -> Set i

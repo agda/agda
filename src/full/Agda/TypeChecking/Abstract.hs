@@ -45,9 +45,6 @@ instance AbstractTerm Sort where
   abstractTerm u s = case s of
     Type n     -> Type $ absS n
     Prop       -> Prop
-    Suc s      -> Suc $ absS s
-    Lub s1 s2  -> Lub (absS s1) (absS s2)
-    MetaS m as -> MetaS m (absS as)
     Inf        -> Inf
     DLub s1 s2 -> DLub (absS s1) (absS s2)
     where absS x = abstractTerm u x

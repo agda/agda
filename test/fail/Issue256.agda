@@ -2,13 +2,7 @@
 
 module Issue256 where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+open import Imports.Level
 
 const : ∀ {a b} {A : Set a} {B : Set b} → A → B → A
 const x = λ _ → x

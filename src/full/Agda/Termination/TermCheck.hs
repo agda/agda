@@ -417,17 +417,14 @@ termTerm conf names f pats0 t0 = do
        loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Sort -> TCM Calls
        loopSort pats s = do
          case s of
-           Type t -> loop pats Term.unknown t
+           Type (Max [])              -> return Term.empty
+           Type (Max [ClosedLevel _]) -> return Term.empty
+           Type t -> loop pats Term.unknown (Level t)
            Prop   -> return Term.empty
            Inf    -> return Term.empty
-           Lub s1 s2 -> liftM2 Term.union
-             (loopSort pats s1)
-             (loopSort pats s2)
            DLub s1 (Abs x s2) -> liftM2 Term.union
              (loopSort pats s1)
              (loopSort (map liftDBP pats) s2)
-           Suc s -> loopSort pats s
-           MetaS _ _ -> return Term.empty  -- see comment on MetaV below
 
        loopType :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Type -> TCM Calls
        loopType pats guarded (El s t) = liftM2 Term.union

@@ -1,9 +1,10 @@
 {-# OPTIONS --universe-polymorphism #-}
 
--- Should result in unsolved constraints.
+-- Should fail with S i != i
 module Issue216 where
 
-data Level : Set where
+postulate
+  Level : Set
   O : Level
   S : Level → Level
 

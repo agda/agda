@@ -4,10 +4,10 @@ module Issue229 where
 
 open import Common.Level
 
-data Works a b : Set (suc a ⊔ suc b) where
+data Works a b : Set (lsuc a ⊔ lsuc b) where
   w : (A : Set a)(B : Set b) → Works a b
 
-record Doesn'tWork a b : Set (suc a ⊔ suc b) where
+record Doesn'tWork a b : Set (lsuc a ⊔ lsuc b) where
   field
     A : Set a
     B : Set b

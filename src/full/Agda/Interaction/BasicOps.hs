@@ -380,7 +380,7 @@ getSolvedInteractionPoints = do
             unsol = return []
         case mvInstantiation mv of
           InstV{}                        -> sol (MetaV m args)
-          InstS{}                        -> sol (Sort $ MetaS m args)
+          InstS{}                        -> sol (Level $ Max [Plus 0 $ MetaLevel m args])
           Open{}                         -> unsol
           OpenIFS{}                         -> unsol
           BlockedConst{}                 -> unsol

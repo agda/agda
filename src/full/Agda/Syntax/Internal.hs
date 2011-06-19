@@ -53,11 +53,8 @@ data Type = El Sort Term
 topSort :: Type
 topSort = El Inf (Sort Inf)
 
-data Sort = Type Term   -- A term of type Level
+data Sort = Type Level
 	  | Prop  -- ignore me
-	  | Lub Sort Sort
-	  | Suc Sort
-	  | MetaS MetaId Args
           | Inf
           | DLub Sort (Abs Sort)
             -- ^ if the free variable occurs in the second sort
@@ -176,10 +173,7 @@ instance KillRange Sort where
     Prop       -> Prop
     Inf        -> Inf
     Type a     -> killRange1 Type a
-    Suc s      -> killRange1 Suc s
-    Lub s1 s2  -> killRange2 Lub s1 s2
     DLub s1 s2 -> killRange2 DLub s1 s2
-    MetaS x as -> killRange1 (MetaS x) as
 
 instance KillRange a => KillRange (Tele a) where
   killRange = fmap killRange
@@ -380,7 +374,7 @@ set n  = sort $ mkType n
 prop   = sort Prop
 sort s = El (sSuc s) $ Sort s
 
-mkType n = Type $ Lit $ LitLevel noRange n
+mkType n = Type $ Max [ClosedLevel n | n > 0]
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
@@ -394,28 +388,29 @@ unEl (El _ t) = t
 
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
-sSuc Prop                      = mkType 1
-sSuc (Type (Lit (LitLevel _ n))) = mkType (n + 1)
-sSuc Inf                       = Inf
-sSuc s                         = Suc s
+sSuc Prop            = mkType 1
+sSuc Inf             = Inf
+sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
+sSuc (Type l)        = Type $ levelSuc l
 
 sLub :: Sort -> Sort -> Sort
-sLub (Type (Lit (LitLevel _ 0))) Prop                      = Prop   -- (x:A) -> B prop if A type0, B prop [x:A]
-sLub (Type (Lit (LitLevel _ n))) Prop                      = mkType n
-sLub Prop (Type (Lit (LitLevel _ n)))                      = mkType n
-sLub (Type (Lit (LitLevel _ n))) (Type (Lit (LitLevel _ m))) = mkType $ max n m
-sLub (Suc a) (Suc b) = Suc (sLub a b)
-sLub (Type (Lit (LitLevel _ n))) (Suc a)
-  | n > 0     = sSuc (mkType (n - 1) `sLub` a)
-  | otherwise = Suc a
-sLub (Suc a) (Type (Lit (LitLevel _ n)))
-  | n > 0     = sSuc (a `sLub` mkType (n - 1))
-  | otherwise = Suc a
+sLub s Prop = s
+sLub Prop s = s
 sLub Inf _ = Inf
 sLub _ Inf = Inf
-sLub s1 s2
-    | s1 == s2	= s1
-    | otherwise	= Lub s1 s2
+sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
+sLub (DLub a b) c = DLub (sLub a c) b
+sLub a (DLub b c) = DLub (sLub a b) c
+
+lvlView :: Term -> Level
+lvlView (Level l)       = l
+lvlView (Sort (Type l)) = l
+lvlView v               = Max [Plus 0 $ UnreducedLevel v]
+
+levelSuc (Max []) = Max [ClosedLevel 1]
+levelSuc (Max as) = Max $ map inc as
+  where inc (ClosedLevel n) = ClosedLevel (n + 1)
+        inc (Plus n l)      = Plus (n + 1) l
 
 levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs
@@ -423,16 +418,24 @@ levelMax as0 = Max $ ns ++ List.sort bs
     as = Prelude.concatMap expand as0
     ns = case [ n | ClosedLevel n <- as, n > 0 ] of
       []  -> []
-      ns  -> [ClosedLevel $ Prelude.maximum ns]
+      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > leastB ]
     bs = subsume [ b | b@Plus{} <- as ]
+    leastB | null bs   = 0
+           | otherwise = Prelude.minimum [ n | Plus n _ <- bs ]
 
     expand l@ClosedLevel{} = [l]
-    expand (Plus n l) = map (plus n) $ expandAtom l
+    expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
 
-    expandAtom (BlockedLevel _ (Level (Max as))) = as
-    expandAtom (NeutralLevel   (Level (Max as))) = as
-    expandAtom (UnreducedLevel (Level (Max as))) = as
-    expandAtom l                                 = [Plus 0 l]
+    expand0 [] = [ClosedLevel 0]
+    expand0 as = as
+
+    expandAtom (BlockedLevel _ (Level (Max as)))       = as
+    expandAtom (NeutralLevel   (Level (Max as)))       = as
+    expandAtom (UnreducedLevel (Level (Max as)))       = as
+    expandAtom (BlockedLevel _ (Sort (Type (Max as)))) = as
+    expandAtom (NeutralLevel   (Sort (Type (Max as)))) = as
+    expandAtom (UnreducedLevel (Sort (Type (Max as)))) = as
+    expandAtom l                                       = [Plus 0 l]
 
     plus n (ClosedLevel m) = ClosedLevel (n + m)
     plus n (Plus m l)      = Plus (n + m) l

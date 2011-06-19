@@ -44,6 +44,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 
 import Agda.Utils.Fresh
@@ -218,7 +219,6 @@ checkLiteral lit t = do
 
 litType :: Literal -> TCM Type
 litType l = case l of
-    LitLevel _ _  -> el <$> primLevel
     LitInt _ _	  -> el <$> primNat
     LitFloat _ _  -> el <$> primFloat
     LitChar _ _   -> el <$> primChar
@@ -365,15 +365,13 @@ checkExpr e t =
             lvl <- primLevel
             -- allow NonStrict variables when checking level
             --   Set : (NonStrict) Level -> Set\omega
-            n   <- applyRelevanceToContext NonStrict $
-                     checkExpr (namedThing l) (El (mkType 0) lvl)
+            n   <- levelView =<< applyRelevanceToContext NonStrict
+                                  (checkExpr (namedThing l) (El (mkType 0) lvl))
             -- check that Set (l+1) <= t
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
               text "against" <+> prettyTCM t
-            suc <- do s <- primLevelSuc
-                      return $ \x -> s `apply` [defaultArg x]
-            blockTerm t (Sort $ Type n) $ leqType_ (sort $ Type $ suc n) t
+            blockTerm t (Sort $ Type n) $ leqType_ (sort $ sSuc $ Type n) t
 
         A.App i q (Arg NotHidden r e)
           | A.Quote _ <- unScope q -> do
@@ -426,7 +424,7 @@ checkExpr e t =
                     [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
-                  addConstant aux $ Defn rel aux t' (defaultDisplayForm aux) 0
+                  addConstant aux $ Defn rel aux t' (defaultDisplayForm aux) 0 noCompiledRep
                                   $ Function
                                     { funClauses        =
                                         [Clauses Nothing
@@ -444,7 +442,6 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     , funProjection     = Nothing
-                                    , funJSDef          = Nothing
                                     }
                   blockTerm t' (Def aux []) $ return cs'
                 | otherwise -> typeError $ WrongHidingInLambda t'
@@ -538,7 +535,7 @@ checkExpr e t =
 	A.Fun _ (Arg h r a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
-	    let s = getSort a' `sLub` getSort b'
+	    s <- reduce $ getSort a' `sLub` getSort b'
 	    blockTerm t (Fun (Arg h r a') b') $ leqType_ (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
@@ -852,7 +849,7 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn rel c' t (defaultDisplayForm c') i $ Axiom Nothing Nothing Nothing)
+      addConstant c' (Defn rel c' t (defaultDisplayForm c') i noCompiledRep $ Axiom)
 
       -- Define and type check the fresh function.
       ctx <- getContext

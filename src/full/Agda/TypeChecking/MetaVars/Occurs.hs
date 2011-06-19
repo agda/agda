@@ -56,8 +56,9 @@ occursCheck m xs v = liftTCM $ do
   v <- instantiate v
   case v of
     -- Don't fail if trying to instantiate to just itself
-    MetaV m' _        | m == m' -> patternViolation
-    Sort (MetaS m' _) | m == m' -> patternViolation
+    MetaV m' _ | m == m' -> patternViolation
+    Level (Max [Plus 0 (MetaLevel m' _)])
+               | m == m' -> patternViolation
     _                           ->
                               -- Produce nicer error messages
       occurs StronglyRigid m xs v `catchError` \err -> case errError err of
@@ -181,12 +182,7 @@ instance Occurs Sort where
   occurs ctx m xs s = do
     s' <- reduce s
     case s' of
-      MetaS m' args -> do
-        when (m == m') $ abort ctx $ MetaOccursInItself m
-        MetaS m' <$> occurs Flex m xs args
-      Lub s1 s2  -> uncurry Lub  <$> occurs (weakly ctx) m xs (s1,s2)
       DLub s1 s2 -> uncurry DLub <$> occurs (weakly ctx) m xs (s1,s2)
-      Suc s      -> Suc  <$> occurs ctx m xs s
       Type a     -> Type <$> occurs ctx m xs a
       Prop       -> return s'
       Inf        -> return s'

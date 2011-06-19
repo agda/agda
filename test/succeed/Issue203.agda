@@ -2,19 +2,15 @@
 
 module Issue203 where
 
-data Level : Set where
+postulate
+  Level : Set
   zero : Level
   suc  : Level → Level
+  max : Level → Level → Level
 
 {-# BUILTIN LEVEL Level #-}
 {-# BUILTIN LEVELZERO zero #-}
 {-# BUILTIN LEVELSUC suc #-}
-
-max : Level → Level → Level
-max zero m = m
-max (suc n) zero = suc n
-max (suc n) (suc m) = suc (max n m)
-
 {-# BUILTIN LEVELMAX max #-}
 
 -- Should work but give unsolved metas (type of b)

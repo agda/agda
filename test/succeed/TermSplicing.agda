@@ -137,29 +137,30 @@ module ReflectLibrary where
   ``Level = el₀ `Level
 
   `sucLevel : Term → Term
-  `sucLevel = def`ⁿʳ (quote Level.suc) 1
+  `sucLevel = def`ⁿʳ (quote lsuc) 1
 
   sucSort : Sort → Sort
   sucSort s = set (`sucLevel (sort s))
 
   ℕ→Level : ℕ → Level
-  ℕ→Level zero    = zero
-  ℕ→Level (suc n) = suc (ℕ→Level n)
+  ℕ→Level zero    = lzero
+  ℕ→Level (suc n) = lsuc (ℕ→Level n)
 
-  Level→ℕ : Level → ℕ
-  Level→ℕ zero    = zero
-  Level→ℕ (suc n) = suc (Level→ℕ n)
+  -- Can't match on Levels anymore
+--   Level→ℕ : Level → ℕ
+--   Level→ℕ zero    = zero
+--   Level→ℕ (suc n) = suc (Level→ℕ n)
 
   setLevel : Level → Sort
-  setLevel ℓ = lit (Level→ℕ ℓ)
+  setLevel ℓ = lit 0 -- (Level→ℕ ℓ)
 
   _==_ : QName → QName → Bool
   _==_ = primQNameEquality
 
   decodeSort : Sort → Maybe Level
-  decodeSort (set (con c [])) = when (quote Level.zero == c) (just zero)
+  decodeSort (set (con c [])) = when (quote lzero == c) (just lzero)
   decodeSort (set (con c (arg visible relevant s ∷ [])))
-    = when (quote Level.suc == c) (mapMaybe suc (decodeSort (set s)))
+    = when (quote lsuc == c) (mapMaybe lsuc (decodeSort (set s)))
   decodeSort (set (sort s)) = decodeSort s
   decodeSort (set _) = nothing
   decodeSort (lit n) = just (ℕ→Level n)

@@ -104,21 +104,9 @@ instance Instantiate Type where
     instantiate (El s t) = El <$> instantiate s <*> instantiate t
 
 instance Instantiate Sort where
-    instantiate s = case s of
-	MetaS x as -> do
-	    mi <- mvInstantiation <$> lookupMeta x
-	    case mi of
-		InstS s'                       -> do
-                  v <- instantiate (s' `apply` as)
-                  case v of
-                    Sort s -> return s
-                    _      -> __IMPOSSIBLE__
-		Open                           -> return s
-		OpenIFS                        -> return s
-		InstV{}                        -> __IMPOSSIBLE__
-		BlockedConst{}                 -> __IMPOSSIBLE__
-                PostponedTypeCheckingProblem{} -> __IMPOSSIBLE__
-        _ -> return s
+  instantiate s = case s of
+    Type l -> Type <$> instantiate l
+    _      -> return s
 
 instance Instantiate t => Instantiate (Abs t) where
   instantiate = traverse instantiate
@@ -184,26 +172,12 @@ instance Reduce Type where
 
 instance Reduce Sort where
     reduce s = {-# SCC "reduce<Sort>" #-}
-      ifM (not <$> hasUniversePolymorphism) (red sSuc sLub s)
-      $ liftTCM $ do
-        suc  <- do sc <- primLevelSuc
-                   return $ \x -> case x of
-                                    Type n -> Type (sc `apply` [Arg NotHidden Relevant n])
-                                    _      -> sSuc x
-          `catchError` \_ -> return sSuc
-        lub <- do mx <- primLevelMax
-                  return $ \x y -> case (x, y) of
-                    (Type n, Type m) -> Type (mx `apply` List.map (Arg NotHidden Relevant) [n, m])
-                    _                -> sLub x y
-          `catchError` \_ -> return sLub
-        -- need to instantiate all meta to know if we need a DLub or a Lub
-        red suc lub =<< instantiateFull s
+      ifM (not <$> hasUniversePolymorphism) (red s)
+      $ red =<< instantiateFull s
       where
-        red suc lub s = do
+        red s = do
           s <- instantiate s
           case s of
-            Suc s'     -> suc <$> reduce s'
-            Lub s1 s2  -> lub <$> reduce s1 <*> reduce s2
             DLub s1 s2 -> do
               s <- dLub <$> reduce s1 <*> reduce s2
               case s of
@@ -211,7 +185,6 @@ instance Reduce Sort where
                 _       -> reduce s   -- TODO: not so nice
             Prop       -> return s
             Type s'    -> Type <$> reduce s'
-            MetaS m as -> MetaS m <$> reduce as
             Inf        -> return Inf
 
 instance Reduce Level where
@@ -257,47 +230,41 @@ instance (Reduce a, Reduce b,Reduce c) => Reduce (a,b,c) where
     reduce (x,y,z) = (,,) <$> reduce x <*> reduce y <*> reduce z
 
 instance Reduce Term where
-    reduceB v =
-	{-# SCC "reduce<Term>" #-}
-	do  v <- instantiate v
-	    case v of
-		MetaV x args -> notBlocked . MetaV x <$> reduce args
-		Def f args   -> unfoldDefinition False reduceB (Def f []) f args
-		Con c args   -> do
-                    -- Constructors can reduce when they come from an
-                    -- instantiated module.
-		    v <- unfoldDefinition False reduceB (Con c []) c args
-		    traverse reduceNat v
-		Sort s	   -> fmap Sort <$> reduceB s
-                Level l    -> fmap Level <$> reduceB l
-		Pi _ _	   -> return $ notBlocked v
-		Fun _ _    -> return $ notBlocked v
-		Lit _	   -> return $ notBlocked v
-		Var _ _    -> return $ notBlocked v
-		Lam _ _    -> return $ notBlocked v
-		DontCare   -> return $ notBlocked v
-	where
-            -- NOTE: reduceNat can traverse the entire term.
-	    reduceNat v@(Con c []) = do
-		mz  <- getBuiltin' builtinZero
-                mlz <- getBuiltin' builtinLevelZero
-		case v of
-                  _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
-                    | Just v == mlz -> return $ Lit $ LitLevel (getRange c) 0
-		  _		    -> return v
-	    reduceNat v@(Con c [Arg NotHidden Relevant w]) = do
-		ms  <- getBuiltin' builtinSuc
-                mls <- getBuiltin' builtinLevelSuc
-		case v of
-                  _ | Just (Con c []) == ms ||
-                      Just (Con c []) == mls -> inc <$> reduce w
-		  _	                     -> return v
-                  where
-                    inc w = case w of
-                      Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
-                      Lit (LitLevel r n) -> Lit (LitLevel (fuseRange c r) $ n + 1)
-                      _                  -> Con c [Arg NotHidden Relevant w]
-	    reduceNat v = return v
+  reduceB v = {-# SCC "reduce<Term>" #-} do
+    v <- instantiate v
+    case v of
+      MetaV x args -> notBlocked . MetaV x <$> reduce args
+      Def f args   -> unfoldDefinition False reduceB (Def f []) f args
+      Con c args   -> do
+          -- Constructors can reduce when they come from an
+          -- instantiated module.
+          v <- unfoldDefinition False reduceB (Con c []) c args
+          traverse reduceNat v
+      Sort s   -> fmap Sort <$> reduceB s
+      Level l  -> fmap Level <$> reduceB l
+      Pi _ _   -> return $ notBlocked v
+      Fun _ _  -> return $ notBlocked v
+      Lit _    -> return $ notBlocked v
+      Var _ _  -> return $ notBlocked v
+      Lam _ _  -> return $ notBlocked v
+      DontCare -> return $ notBlocked v
+    where
+      -- NOTE: reduceNat can traverse the entire term.
+      reduceNat v@(Con c []) = do
+        mz  <- getBuiltin' builtinZero
+        case v of
+          _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
+          _		    -> return v
+      reduceNat v@(Con c [Arg NotHidden Relevant w]) = do
+        ms  <- getBuiltin' builtinSuc
+        case v of
+          _ | Just (Con c []) == ms -> inc <$> reduce w
+          _	                    -> return v
+          where
+            inc w = case w of
+              Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
+              _                -> Con c [Arg NotHidden Relevant w]
+      reduceNat v = return v
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
@@ -444,12 +411,9 @@ instance Normalise Sort where
     normalise s = do
       s <- reduce s
       case s of
-        Suc s'     -> sSuc <$> normalise s'
-        Lub s1 s2  -> sLub <$> normalise s1 <*> normalise s2
         DLub s1 s2 -> dLub <$> normalise s1 <*> normalise s2
         Prop       -> return s
-        Type s'    -> Type <$> (normalise =<< unLevelView =<< levelView s')
-        MetaS m as -> MetaS m <$> normalise as
+        Type s     -> Type <$> normalise s
         Inf        -> return Inf
 
 instance Normalise Type where
@@ -568,11 +532,8 @@ instance InstantiateFull Sort where
     instantiateFull s = do
 	s <- instantiate s
 	case s of
-	    MetaS x as -> MetaS x <$> instantiateFull as
 	    Type n     -> Type <$> instantiateFull n
 	    Prop       -> return s
-	    Suc s      -> sSuc <$> instantiateFull s
-	    Lub s1 s2  -> sLub <$> instantiateFull s1 <*> instantiateFull s2
 	    DLub s1 s2 -> dLub <$> instantiateFull s1 <*> instantiateFull s2
             Inf        -> return s
 
@@ -692,9 +653,9 @@ instance InstantiateFull Char where
     instantiateFull = return
 
 instance InstantiateFull Definition where
-    instantiateFull (Defn rel x t df i d) = do
+    instantiateFull (Defn rel x t df i c d) = do
       (t, (df, d)) <- instantiateFull (t, (df, d))
-      return $ Defn rel x t df i d
+      return $ Defn rel x t df i c d
 
 instance InstantiateFull a => InstantiateFull (Open a) where
   instantiateFull (OpenThing n a) = OpenThing n <$> instantiateFull a

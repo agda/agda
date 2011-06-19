@@ -4,24 +4,7 @@
 
 module FrozenMVar2 where
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-
--- Maximum.
-
-infixl 6 _⊔_
-
-_⊔_ : Level → Level → Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
-{-# BUILTIN LEVELMAX _⊔_ #-}
+open import Imports.Level
 
 data _≡_ {a} {A : Set a} (x : A) : A → Set a where
   refl : x ≡ x

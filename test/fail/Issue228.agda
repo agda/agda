@@ -2,25 +2,20 @@
 
 module Issue228 where
 
-data Level : Set where
+postulate
+  Level : Set
   zero : Level
   suc  : Level → Level
   ∞    : Level
+  _⊔_  : Level → Level → Level
 
 {-# BUILTIN LEVEL     Level #-}
 {-# BUILTIN LEVELZERO zero  #-}
 {-# BUILTIN LEVELSUC  suc   #-}
+{-# BUILTIN LEVELMAX  _⊔_   #-}
 
 infixl 6 _⊔_
 
-_⊔_ : Level → Level → Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-∞     ⊔ _     = zero
-_     ⊔ ∞     = zero
-
-{-# BUILTIN LEVELMAX _⊔_ #-}
 
 data _×_ {a b} (A : Set a) (B : Set b) : Set (a ⊔ b) where
   _,_ : A → B → A × B

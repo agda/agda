@@ -116,10 +116,12 @@ xhqn s q = xqual q (unqhname s q)
 -- always use the original name for a constructor even when it's redefined.
 conhqn :: QName -> TCM HS.QName
 conhqn q = do
-    cq   <- canonicalName q
-    defn <- theDef <$> getConstInfo cq
-    case defn of Constructor{conHsCode = Just (_, hs)} -> return $ HS.UnQual $ HS.Ident hs
-                 _                                     -> xhqn "C" cq
+    cq  <- canonicalName q
+    def <- getConstInfo cq
+    hsr <- compiledHaskell . defCompiledRep <$> getConstInfo cq
+    case (compiledHaskell (defCompiledRep def), theDef def) of
+      (Just (HsDefn _ hs), Constructor{}) -> return $ HS.UnQual $ HS.Ident hs
+      _                                   -> xhqn "C" cq
 
 -- qualify name s by the module of builtin b
 bltQual :: String -> String -> TCM HS.QName

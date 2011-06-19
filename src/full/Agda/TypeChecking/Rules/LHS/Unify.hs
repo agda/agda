@@ -353,7 +353,7 @@ unifyIndices flex a us vs = liftTCM $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
                 newArgsMetaCtx b' tel us
-            noConstraints $ assignV a m us (v' `apply` margs)
+            noConstraints $ assignV m us (v' `apply` margs)
             return True
           `catchError` \_ -> return False
 

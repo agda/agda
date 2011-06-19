@@ -123,7 +123,7 @@ checkFunDef delayed i name cs =
               ]
 
         -- Add the definition
-        addConstant name $ Defn rel name t (defaultDisplayForm name) 0
+        addConstant name $ Defn rel name t (defaultDisplayForm name) 0 noCompiledRep
                          $ Function
                             { funClauses        = cs
                             , funCompiled       = cc
@@ -133,7 +133,6 @@ checkFunDef delayed i name cs =
                             , funPolarity       = []
                             , funArgOccurrences = []
                             , funProjection     = Nothing
-                            , funJSDef          = Nothing
                             }
         computePolarity name
         reportSDoc "tc.def.fun" 10 $ do
@@ -371,7 +370,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn Relevant aux auxType [df] 0 $ Axiom Nothing Nothing Nothing)
+  addConstant aux (Defn Relevant aux auxType [df] 0 noCompiledRep Axiom)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep

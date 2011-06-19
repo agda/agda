@@ -36,8 +36,8 @@ levelSucFunction = do
 builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
     level@(Def l []) <- primLevel
-    zero@(Con z []) <- primLevelZero
-    suc@(Con s []) <- primLevelSuc
+    zero@(Def z []) <- primLevelZero
+    suc@(Def s []) <- primLevelSuc
     max@(Def m []) <- primLevelMax
     let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
@@ -74,21 +74,21 @@ unLevelView nv = return $ Level nv
 reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
 reallyUnLevelView nv =
   case nv of
-    Max []              -> return $ Lit $ LitLevel noRange 0
-    Max [ClosedLevel n] -> return $ Lit $ LitLevel noRange n
+    Max []              -> primLevelZero
     Max [Plus 0 a]      -> return $ unLevelAtom a
     Max [a]             -> do
+      zer <- primLevelZero
       suc <- primLevelSuc
-      return $ unPlusV (\n -> suc `apply` [defaultArg n]) a
+      return $ unPlusV zer (\n -> suc `apply` [defaultArg n]) a
     Max as -> do
-      Just LevelKit{ lvlSuc = suc, lvlMax = max } <- builtinLevelKit
-      return $ case map (unPlusV suc) as of
+      Just LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } <- builtinLevelKit
+      return $ case map (unPlusV zer suc) as of
         [a] -> a
         []  -> __IMPOSSIBLE__
         as  -> foldr1 max as
   where
-    unPlusV suc (ClosedLevel n) = Lit (LitLevel noRange n)
-    unPlusV suc (Plus n a)    = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
+    unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
+    unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
 maybePrimCon :: MonadTCM tcm => TCM Term -> tcm (Maybe QName)
 maybePrimCon prim = liftTCM $ do
@@ -116,7 +116,6 @@ levelView a = do
             | Just s == msuc -> inc <$> view (unArg arg)
           Con z []
             | Just z == mzer -> return $ closed 0
-          Lit (LitLevel _ n) -> return $ closed n
           Def m [arg1, arg2]
             | Just m == mmax -> levelLub <$> view (unArg arg1) <*> view (unArg arg2)
           _                  -> mkAtom a

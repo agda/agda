@@ -8,4 +8,4 @@ assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
 
 etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
 
-assignV :: MonadTCM tcm => Type -> MetaId -> Args -> Term -> tcm Constraints
+assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints

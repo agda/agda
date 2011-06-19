@@ -24,7 +24,7 @@ instance Strict Term where
 	Con _ ts   -> force ts
 	Lam _ t    -> force t
 	Lit _	   -> 0
-        Level _    -> 0   -- TODO
+        Level l    -> force l
 	Pi a b	   -> force (a,b)
 	Fun a b    -> force (a,b)
 	Sort s	   -> force s
@@ -38,11 +38,22 @@ instance Strict Sort where
     force s = case s of
 	Type n     -> force n
 	Prop       -> 0
-	Lub s1 s2  -> force (s1,s2)
-	Suc s      -> force s
-	MetaS _ as -> force as
         Inf        -> 0
         DLub s1 s2 -> force (s1, s2)
+
+instance Strict Level where
+  force (Max as) = force as
+
+instance Strict PlusLevel where
+  force ClosedLevel{} = 0
+  force (Plus _ l) = force l
+
+instance Strict LevelAtom where
+  force l = case l of
+    MetaLevel _ vs   -> force vs
+    NeutralLevel v   -> force v
+    BlockedLevel _ v -> force v
+    UnreducedLevel v -> force v
 
 instance Strict ClauseBody where
     force (Body t)   = force t

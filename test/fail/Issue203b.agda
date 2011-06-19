@@ -3,20 +3,7 @@
 -- Should give some unsolved metas
 module Issue203b where
 
-data Level : Set where
-  zero : Level
-  suc  : Level → Level
-
-{-# BUILTIN LEVEL Level #-}
-{-# BUILTIN LEVELZERO zero #-}
-{-# BUILTIN LEVELSUC suc #-}
-
-max : Level → Level → Level
-max zero m = m
-max (suc n) zero = suc n
-max (suc n) (suc m) = suc (max n m)
-
-{-# BUILTIN LEVELMAX max #-}
+open import Imports.Level
 
 -- Should work but give unsolved metas (type of b)
 data ↓ {a b} (A : Set a) : Set a where

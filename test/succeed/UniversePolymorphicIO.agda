@@ -19,4 +19,4 @@ postulate
 {-# COMPILED _>>=_  (\_ _ _ _ ->
                         (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
 
-main = return zero
+main = return lzero

@@ -39,7 +39,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinArg                |-> BuiltinData (tset --> tset) [builtinArgArg])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
-  , (builtinLevel              |-> BuiltinData tset [builtinLevelZero, builtinLevelSuc])
+  , (builtinLevel              |-> BuiltinPostulate tset)
   , (builtinInteger            |-> BuiltinPostulate tset)
   , (builtinFloat              |-> BuiltinPostulate tset)
   , (builtinChar               |-> BuiltinPostulate tset)
@@ -61,8 +61,6 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
   , (builtinZero               |-> BuiltinDataCons tnat)
   , (builtinSuc                |-> BuiltinDataCons (tnat --> tnat))
-  , (builtinLevelZero          |-> BuiltinDataCons tlevel)
-  , (builtinLevelSuc           |-> BuiltinDataCons (tlevel --> tlevel))
   , (builtinTrue               |-> BuiltinDataCons tbool)
   , (builtinFalse              |-> BuiltinDataCons tbool)
   , (builtinArgArg             |-> BuiltinDataCons (hPi "A" tset (thiding --> trelevance --> tv0 --> targ tv0)))
@@ -94,6 +92,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinNatModSucAux       |-> BuiltinPrim "primNatModSucAux" verifyModSucAux)
   , (builtinNatEquals          |-> BuiltinPrim "primNatEquality" verifyEquals)
   , (builtinNatLess            |-> BuiltinPrim "primNatLess" verifyLess)
+  , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
+  , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
   , (builtinAgdaFunDef                |-> BuiltinPostulate tset) -- internally this is QName
   , (builtinAgdaDataDef               |-> BuiltinPostulate tset) -- internally this is QName
@@ -129,7 +129,6 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         tterm      = el primAgdaTerm
         tqname     = el primQName
         tnat       = el primNat
-        tlevel     = el primLevel
         tsize      = el primSize
         tbool      = el primBool
         thiding    = el primHiding
@@ -233,16 +232,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
             (suc n < suc m) === (n < m)
             (zero  < suc m) === true
 
-        verifyMax maxV =
-            verify' primLevel primLevelZero primLevelSuc ["n","m"] $
-              \(@@) zero suc (==) choice -> do
-                let m = Var 0 []
-                    n = Var 1 []
-                    max x y = maxV @@ x @@ y
-
-                max zero (suc n)    == suc n
-                max (suc n) zero    == suc n
-                max (suc n) (suc m) == suc (max n m)
+        verifyMax maxV = return ()  -- TODO: make max a postulate
 
         verify xs = verify' primNat primZero primSuc xs
 
@@ -353,9 +343,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             let cls = defClauses info
                 a   = defAbstract info
                 mcc = defCompiled info
-                js  = defJSDef info
             bindPrimitive pfname $ pf { primFunName = qx }
-            addConstant qx $ info { theDef = Primitive a pfname (Just cls) mcc js }
+            addConstant qx $ info { theDef = Primitive a pfname (Just cls) mcc }
 
             -- needed? yes, for checking equations for mul
             bindBuiltinName s v

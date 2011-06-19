@@ -5,20 +5,7 @@
 
 module LevelLiterals where
 
-data Level : Set where
-  zero : Level
-  suc  : Level → Level
-
-{-# BUILTIN LEVEL Level #-}
-{-# BUILTIN LEVELZERO zero #-}
-{-# BUILTIN LEVELSUC suc #-}
-
-max : Level → Level → Level
-max zero m = m
-max (suc n) zero = suc n
-max (suc n) (suc m) = suc (max n m)
-
-{-# BUILTIN LEVELMAX max #-}
+open import Imports.Level
 
 data ⊥ : Set₁ where
 

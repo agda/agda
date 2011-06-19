@@ -205,16 +205,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         patToTerm (A.LitP l)      = A.Lit l
         patToTerm (A.ImplicitP _) = A.Underscore minfo
 
--- Level literals should be expanded. Why? Not doing it now.
-
 instance Reify Literal Expr where
-  reify l@(LitLevel r n) = return (A.Lit l)
---     levelZero <- primLevelZero
---     levelSuc  <- levelSucFunction
---     reify $ fold levelSuc levelZero n
---     where
---     fold s z n | n < 0     = __IMPOSSIBLE__
---                | otherwise = foldr (.) id (genericReplicate n s) z
   reify l@(LitInt    {}) = return (A.Lit l)
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
@@ -255,7 +246,7 @@ instance Reify Term Expr where
         return $ A.Lam exprInfo (DomainFree h Relevant x) e
         -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
       I.Lit l        -> reify l
-      I.Level l      -> reify =<< reallyUnLevelView l
+      I.Level l      -> reify l
       I.Pi a b       -> do
         Arg h r a <- reify a
         (x,b)     <- reify b
@@ -443,7 +434,6 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         if Set.member "()" vars
           then return $ A.DotP i $ A.Underscore mi
           else lift $ A.DotP i <$> reify v
-      I.LitP (LitLevel {}) -> __IMPOSSIBLE__
       I.LitP l             -> return (A.LitP l)
       I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
@@ -472,30 +462,25 @@ instance Reify Sort Expr where
     reify s =
         do  s <- instantiateFull s
             case s of
-                I.Type (I.Lit (LitLevel _ n))              -> return $ A.Set exprInfo n
-                I.Type (I.Level (I.Max []))                -> return $ A.Set exprInfo 0
-                I.Type (I.Level (I.Max [I.ClosedLevel n])) -> return $ A.Set exprInfo n
+                I.Type (I.Max [])                -> return $ A.Set exprInfo 0
+                I.Type (I.Max [I.ClosedLevel n]) -> return $ A.Set exprInfo n
                 I.Type a -> do
                   a <- reify a
                   return $ A.App exprInfo (A.Set exprInfo 0)
                                           (defaultArg (unnamed a))
                 I.Prop       -> return $ A.Prop exprInfo
-                I.MetaS x as -> apps =<< reify (x, as)
-                I.Suc s      ->
-                    do  suc <- freshName_ "suc" -- TODO: hack
-                        e   <- reify s
-                        return $ A.App exprInfo (A.Var suc) (defaultArg $ unnamed e)
                 I.Inf       -> A.Var <$> freshName_ "Setω"
                 I.DLub s1 s2 -> do
                   lub <- freshName_ "dLub" -- TODO: hack
                   (e1,e2) <- reify (s1, I.Lam NotHidden $ fmap Sort s2)
                   let app x y = A.App exprInfo x (defaultArg $ unnamed y)
                   return $ A.Var lub `app` e1 `app` e2
-                I.Lub s1 s2 ->
-                    do  lub <- freshName_ "\\/" -- TODO: hack
-                        (e1,e2) <- reify (s1,s2)
-                        let app x y = A.App exprInfo x (defaultArg $ unnamed y)
-                        return $ A.Var lub `app` e1 `app` e2
+
+instance Reify Level Expr where
+  reify l = liftTCM $ (reify =<< reallyUnLevelView l)
+    `catchError` \e -> do
+      reportSLn "tc.reify.level" 1 $ "Failed to reify " ++ show l ++ "\n  error: " ++ show e
+      return $ A.Lit (LitString noRange $ show l)
 
 instance Reify i a => Reify (Abs i) (Name, a) where
     reify (Abs s v) =

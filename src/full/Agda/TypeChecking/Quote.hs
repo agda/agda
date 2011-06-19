@@ -56,13 +56,12 @@ quotingKit = do
       quoteLit _                = unsupported
       -- We keep no ranges in the quoted term, so the equality on terms
       -- is only on the structure.
-      quoteSortLevelTerm (Lit (LitLevel _ n)) = setLit @@ Lit (LitInt noRange n)
-      quoteSortLevelTerm t                    = set @@ quote t
+      quoteSortLevelTerm (Max [])              = setLit @@ Lit (LitInt noRange 0)
+      quoteSortLevelTerm (Max [ClosedLevel n]) = setLit @@ Lit (LitInt noRange n)
+      quoteSortLevelTerm (Max [Plus 0 (NeutralLevel v)]) = set @@ quote v
+      quoteSortLevelTerm _                     = unsupported
       quoteSort (Type t)    = quoteSortLevelTerm t
-      quoteSort (Lub s1 s2) = lub @@ quoteSort s1 @@ quoteSort s2
-      quoteSort (Suc s)     = sucLevel @@ quoteSort s
       quoteSort Prop        = unsupportedSort
-      quoteSort MetaS{}     = unsupportedSort
       quoteSort Inf         = unsupportedSort
       quoteSort DLub{}      = unsupportedSort
       quoteType (El s t) = el @@ quoteSort s @@ quote t
@@ -80,7 +79,7 @@ quotingKit = do
                           @@ quoteType (absBody u)
       quote (Fun t u) = pi @@ quoteArg quoteType t
                            @@ quoteType (raise 1 u) -- do we want a raiseFrom here?
-      quote (Level l) = unsupported
+      quote (Level _) = unsupported
       quote (Lit lit) = quoteLit lit
       quote (Sort s)  = sort @@ quoteSort s
       quote MetaV{}   = unsupported
@@ -208,9 +207,12 @@ instance Unquote Sort where
       Con c [u] -> do
         choice
           [(c `isCon` primAgdaSortSet, Type <$> unquoteN u)
-          ,(c `isCon` primAgdaSortLit, Type . Lit . LitLevel noRange <$> unquoteN u)]
+          ,(c `isCon` primAgdaSortLit, Type . levelMax . (:[]) . ClosedLevel <$> unquoteN u)]
           (unquoteFailed "Sort" "arity 1 and not the `set' or the `lit' constructors" t)
       _ -> unquoteFailed "Sort" "not of arity 0 nor 1" t
+
+instance Unquote Level where
+  unquote l = Max . (:[]) . Plus 0 . UnreducedLevel <$> unquote l
 
 instance Unquote Type where
   unquote t = do

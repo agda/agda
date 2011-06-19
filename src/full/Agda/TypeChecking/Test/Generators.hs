@@ -383,7 +383,6 @@ instance ShrinkC ConName QName where
 instance ShrinkC Literal Literal where
   shrinkC _ (LitInt _ 0) = []
   shrinkC conf l	 = LitInt noRange 0 : case l of
-      LitLevel  r n -> LitLevel  r <$> shrink n
       LitInt    r n -> LitInt    r <$> shrink n
       LitString r s -> LitString r <$> shrinkC conf s
       LitChar   r c -> LitChar   r <$> shrinkC conf c
@@ -420,10 +419,7 @@ instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
 instance ShrinkC Sort Sort where
   shrinkC conf Prop = []
   shrinkC conf s = Prop : case s of
-    Type n     -> Type <$> shrinkC conf n
-    Lub s1 s2  -> s1 : s2 : (uncurry Lub <$> shrinkC conf (s1, s2))
-    Suc s      -> s : (Suc <$> shrinkC conf s)
-    MetaS m _  -> []
+    Type n     -> [] -- No Level instance yet -- Type <$> shrinkC conf n
     Prop       -> __IMPOSSIBLE__
     Inf        -> []
     DLub s1 s2 -> __IMPOSSIBLE__

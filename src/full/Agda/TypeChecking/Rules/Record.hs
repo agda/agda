@@ -113,7 +113,7 @@ checkRecDef i name con ps contel fields =
 
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ text "adding record type to signature"
-      addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0
+      addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = conName
@@ -125,21 +125,18 @@ checkRecDef i name con ps contel fields =
                                 , recEtaEquality    = True
                                 , recPolarity       = []
                                 , recArgOccurrences = []
-                                , recJSDef          = Nothing
                                 }
 
       -- Add record constructor to signature
       -- Andreas, 2011-05-19 moved this here, it was below the record module
       --   creation
       addConstant conName $
-        Defn Relevant conName contype (defaultDisplayForm conName) 0 $
+        Defn Relevant conName contype (defaultDisplayForm conName) 0 noCompiledRep $
              Constructor { conPars   = 0
                          , conSrcCon = conName
                          , conData   = name
-                         , conHsCode = Nothing
                          , conAbstr  = Info.defAbstract conInfo
                          , conInd    = Inductive
-                         , conJSDef  = Nothing
                          }
 
       -- Check that the fields fit inside the sort
@@ -287,7 +284,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0
+	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause2]
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed
@@ -297,7 +294,6 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funArgOccurrences = map (const Unused) hps ++ [Negative]
                      , funProjection     = Just (size hps + 1)
                        -- index of the record argument, start counting with 1
-                     , funJSDef          = Nothing
                      }
         computePolarity projname
 

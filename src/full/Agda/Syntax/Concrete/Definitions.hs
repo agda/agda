@@ -56,6 +56,9 @@ data NiceDeclaration
 	| NicePragma Range Pragma
     deriving (Typeable, Data)
 
+instance Show NiceDeclaration where
+  show _ = "{NiceDeclaration}"
+
 -- | A definition without its type signature.
 data NiceDefinition
 	= FunDef  Range [Declaration] Fixity' Access IsAbstract Name [Clause]
