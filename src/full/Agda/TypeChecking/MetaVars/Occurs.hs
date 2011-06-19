@@ -169,8 +169,8 @@ instance Occurs LevelAtom where
     l <- reduce l
     case l of
       MetaLevel m' args -> do
-        when (m == m') $ abort ctx $ MetaOccursInItself m
-        MetaLevel m' <$> occurs Flex m xs args
+        MetaV m' args <- occurs ctx m xs (MetaV m' args)
+        return $ MetaLevel m' args
       NeutralLevel v   -> NeutralLevel <$> occurs ctx m xs v
       BlockedLevel m v -> BlockedLevel m <$> occurs Flex m xs v
       UnreducedLevel{} -> __IMPOSSIBLE__

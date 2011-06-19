@@ -621,6 +621,10 @@ equalLevel a b = do
         ([ClosedLevel{}], _) | any isNeutral bs -> notok
         (_, [ClosedLevel{}]) | any isNeutral as -> notok
 
+        -- 0 == any
+        ([ClosedLevel 0], bs@(_:_:_)) -> concat <$> sequence [ equalLevel (Max []) (Max [b]) | b <- bs ]
+        (as@(_:_:_), [ClosedLevel 0]) -> concat <$> sequence [ equalLevel (Max [a]) (Max []) | a <- as ]
+
         -- Same meta
         ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
           | n == m && x == y -> ok
