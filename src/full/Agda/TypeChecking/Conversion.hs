@@ -193,11 +193,14 @@ compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 20 "compareAtom" $
     -- if a PatternErr is thrown, rebuild constraint!
     catchConstraint (ValueCmp cmp t m n) $ do
+      let unLevel (Level l) = reallyUnLevelView l
+          unLevel v = return v
       -- constructorForm changes literal to constructors
       -- Andreas: what happens if I cut out the eta expansion here?
       -- Answer: Triggers issue 245, does not resolve 348
-      mb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB m
-      nb <- traverse constructorForm =<< etaExpandBlocked =<< reduceB n
+      mb <- traverse unLevel =<< traverse constructorForm =<< etaExpandBlocked =<< reduceB m
+      nb <- traverse unLevel =<< traverse constructorForm =<< etaExpandBlocked =<< reduceB n
+
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
 
@@ -578,9 +581,9 @@ leqLevel a b = liftTCM $ do
 
 equalLevel :: MonadTCM tcm => Level -> Level -> tcm Constraints
 equalLevel a b = do
-  reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
   a <- reduce a
   b <- reduce b
+  reportSLn "tc.conv.level" 50 $ "equalLevel (" ++ show a ++ ") (" ++ show b ++ ")"
   liftTCM $ catchConstraint (LevelCmp CmpEq a b) $
     check a b
   where
