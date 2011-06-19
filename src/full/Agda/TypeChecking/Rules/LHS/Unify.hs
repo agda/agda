@@ -268,6 +268,14 @@ unifyIndices flex a us vs = liftTCM $ do
 	    , nest 2 $ text ":" <+> prettyTCM a
 	    ]
       case (u, v) of
+        -- Ulf, 2011-06-19
+        -- We don't want to worry about levels here.
+        (Level l, v) -> do
+            u <- liftTCM $ reallyUnLevelView l
+            unifyAtom a u v
+        (u, Level l) -> do
+            v <- liftTCM $ reallyUnLevelView l
+            unifyAtom a u v
         -- Andreas, 2011-05-30
         -- Force equality now rather than postponing it with addEquality
 	(Var i us, Var j vs) | i == j  -> checkEquality a u v
@@ -278,12 +286,6 @@ unifyIndices flex a us vs = liftTCM $ do
               a' <- dataOrRecordType c a
               unifyArgs a' us vs
           | otherwise -> constructorMismatch a u v
-        (Level l, v) -> do
-            u <- liftTCM $ reallyUnLevelView l
-            unifyAtom a u v
-        (u, Level l) -> do
-            v <- liftTCM $ reallyUnLevelView l
-            unifyAtom a u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
 	(Def d us, Def d' vs)
           | d == d' -> do
