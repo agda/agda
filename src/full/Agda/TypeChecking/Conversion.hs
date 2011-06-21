@@ -475,10 +475,7 @@ leqType = compareType CmpLeq
 
 compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints
 compareSort CmpEq  = equalSort
-compareSort CmpLeq = leqSort
-  -- TODO: change to leqSort when we have better constraint solving
-  --       or not? might not be needed if we get universe polymorphism
-  --       leqSort is still used when checking datatype declarations though
+compareSort CmpLeq = equalSort
 
 -- | Check that the first sort is less or equal to the second.
 leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
@@ -517,64 +514,97 @@ leqLevel a b = liftTCM $ do
   b <- reduce b
   catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
   where
-    leqView n@(Max as) m@(Max bs) = do
+    cseq ms = concat <$> sequence ms
+    leqView a@(Max as) b@(Max bs) = do
       reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
-          sep [ text (show n) <+> text "=<"
-              , text (show m) ]
-      case (as, bs) of
-        (_, [])  -> concat <$> sequence [ leqPlusView a (ClosedLevel 0) | a <- as ]
-        (_, [b]) -> concat <$> sequence [ leqPlusView a b | a <- as ]
-        _        -> do
-          -- Each a needs to be less than at least one of the b's
-          sequence [ choice [ leqPlusView a b | b <- bs ] | a <- as ]
-          return []
-    leqPlusView n m = do
-      reportSDoc "tc.conv.nat" 30 $
-        text "comparePlusView" <+>
-          sep [ text (show n) <+> text "=<"
-              , text (show m) ]
-      case (n, m) of
+          sep [ text (show a) <+> text "=<"
+              , text (show b) ]
+      wrap $ case (as, bs) of
 
-        -- Both closed
-        (ClosedLevel n, ClosedLevel m)
-          | n <= m -> ok
+        -- same term
+        _ | as == bs -> ok
 
-        -- Both neutral
-        (Plus n (NeutralLevel a), Plus m (NeutralLevel b))
-          | n <= m -> do
-            lvl <- primLevel
-            equalTerm (El (mkType 0) lvl) a b
+        -- 0 ≤ any
+        ([], _) -> ok
 
-        -- Same meta
-        (Plus n (MetaLevel x _), Plus m (MetaLevel y _))
-          | n <= m && x == y -> ok
+        -- as ≤ 0
+        (as, [])  -> cseq [ equalLevel (Max [a]) (Max []) | a <- as ]
 
-        -- closed ≤ any
-        (ClosedLevel n, Plus m _)
-          | n <= m -> ok
+        -- as ≤ [b]
+        (as@(_:_:_), [b]) -> cseq [ leqView (Max [a]) (Max [b]) | a <- as ]
 
-        -- meta ≤ 0
-        (Plus n (MetaLevel x vs), ClosedLevel m)
-          | m == n -> assignV x vs (Level (Max []))
+        -- reduce constants
+        (as, bs) | minN > 0 -> leqView (Max $ map (subtr minN) as) (Max $ map (subtr minN) bs)
+          where
+            ns = map constant as
+            ms = map constant bs
+            minN = minimum (ns ++ ms)
 
-        -- meta ≤ neutral
-        (Plus n (MetaLevel x vs), Plus m (NeutralLevel v))
-          | m == n -> assignV x vs v
+        -- remove subsumed
+        (as, bs)
+          | not $ null dups -> leqView (Max $ as \\ dups) (Max bs)
+          where
+            dups = [ a | a@(Plus m l) <- as, Just n <- [findN l], m <= n ]
+            findN a = case [ n | Plus n b <- bs, b == a ] of
+                        [n] -> Just n
+                        _   -> Nothing
 
-        -- Any blocked or meta
-        (Plus _ BlockedLevel{}, _) -> postpone
-        (_, Plus _ BlockedLevel{}) -> postpone
-        (Plus _ MetaLevel{}, _)    -> postpone
-        (_, Plus _ MetaLevel{})    -> postpone
+        -- closed ≤ bs
+        ([ClosedLevel n], bs)
+          | n <= minimum (map constant bs) -> ok
 
-        _ -> notok
-    ok       = return []
-    notok    = typeError $ NotLeqSort (Type a) (Type b)
-    postpone = patternViolation
+        -- as ≤ neutral
+        (as, bs)
+          | neutralB && maxA > maxB -> notok
+          | neutralB && any (\a -> neutral a && not (isInB a)) as -> notok
+          | neutralB && neutralA -> maybeok $ all (\a -> constant a <= findN a) as
+          where
+            maxA = maximum $ map constant as
+            maxB = maximum $ map constant bs
+            neutralA = all neutral as
+            neutralB = all neutral bs
+            isInB a = elem (unneutral a) $ map unneutral bs
+            findN a = case [ n | b@(Plus n _) <- bs, unneutral b == unneutral a ] of
+                        [n] -> n
+                        _   -> __IMPOSSIBLE__
 
-    choice []     = patternViolation
-    choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
+        -- [a] ≤ [neutral]
+        ([a@(Plus n _)], [b@(Plus m NeutralLevel{})])
+          | m == n -> equalLevel (Max [a]) (Max [b])
+
+        -- anything else
+        _ -> postpone
+      where
+        ok       = return []
+        notok    = typeError $ NotLeqSort (Type a) (Type b)
+        postpone = patternViolation
+
+        wrap m = catchError m $ \e ->
+          case errError e of
+            TypeError{} -> notok
+            _           -> throwError e
+
+        maybeok True = ok
+        maybeok False = notok
+
+        neutral (Plus _ NeutralLevel{}) = True
+        neutral _                       = False
+
+        meta (Plus _ MetaLevel{}) = True
+        meta _                    = False
+
+        unneutral (Plus _ (NeutralLevel v)) = v
+        unneutral _ = __IMPOSSIBLE__
+
+        constant (ClosedLevel n) = n
+        constant (Plus n _)      = n
+
+        subtr m (ClosedLevel n) = ClosedLevel (n - m)
+        subtr m (Plus n l)      = Plus (n - m) l
+
+--     choice []     = patternViolation
+--     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
 --       case errError e of
 --         PatternErr{} -> choice ms
 --         _            -> throwError e

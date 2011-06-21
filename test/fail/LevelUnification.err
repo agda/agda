@@ -1,0 +1,3 @@
+LevelUnification.agda:13,20-24
+a != b of type Level
+when checking that the pattern refl has type x ≡ y
