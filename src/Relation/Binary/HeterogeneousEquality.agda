@@ -14,8 +14,7 @@ open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences
 open import Relation.Binary.Indexed as I using (_at_)
-open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality as P using (_≡_; refl)
 
 import Relation.Binary.HeterogeneousEquality.Core as Core
 
@@ -67,7 +66,7 @@ subst-removable P refl z = refl
 
 ≡-subst-removable : ∀ {a p} {A : Set a}
                     (P : A → Set p) {x y} (eq : x ≡ y) z →
-                    PropEq.subst P eq z ≅ z
+                    P.subst P eq z ≅ z
 ≡-subst-removable P refl z = refl
 
 cong : ∀ {a b} {A : Set a} {B : A → Set b} {x y}
@@ -113,7 +112,7 @@ indexedSetoid B = record
   }
 
 ≡↔≅ : ∀ {a b} {A : Set a} (B : A → Set b) {x : A} →
-      Inverse (PropEq.setoid (B x)) (indexedSetoid B at x)
+      Inverse (P.setoid (B x)) (indexedSetoid B at x)
 ≡↔≅ B = record
   { to         = record { _⟨$⟩_ = id; cong = ≡-to-≅ }
   ; from       = record { _⟨$⟩_ = id; cong = ≅-to-≡ }
@@ -145,7 +144,7 @@ isPreorder = record
 isPreorder-≡ : ∀ {a} {A : Set a} →
                IsPreorder {A = A} _≡_ (λ x y → x ≅ y)
 isPreorder-≡ = record
-  { isEquivalence = PropEq.isEquivalence
+  { isEquivalence = P.isEquivalence
   ; reflexive     = reflexive
   ; trans         = trans
   }
@@ -201,3 +200,25 @@ module ≅-Reasoning where
 
   _∎ : ∀ {a} {A : Set a} (x : A) → x IsRelatedTo x
   _∎ _ = relTo refl
+
+------------------------------------------------------------------------
+-- Functional extensionality
+
+-- A form of functional extensionality for _≅_.
+
+Extensionality : (a b : Level) → Set _
+Extensionality a b =
+  {A : Set a} {B₁ B₂ : A → Set b}
+  {f₁ : (x : A) → B₁ x} {f₂ : (x : A) → B₂ x} →
+  (∀ x → B₁ x ≡ B₂ x) → (∀ x → f₁ x ≅ f₂ x) → f₁ ≅ f₂
+
+-- This form of extensionality follows from extensionality for _≡_.
+
+≡-ext-to-≅-ext : ∀ {ℓ₁ ℓ₂} →
+  P.Extensionality ℓ₁ (suc ℓ₂) → Extensionality ℓ₁ ℓ₂
+≡-ext-to-≅-ext           ext B₁≡B₂ f₁≅f₂ with ext B₁≡B₂
+≡-ext-to-≅-ext {ℓ₁} {ℓ₂} ext B₁≡B₂ f₁≅f₂ | P.refl =
+  ≡-to-≅ $ ext′ (≅-to-≡ ∘ f₁≅f₂)
+  where
+  ext′ : P.Extensionality ℓ₁ ℓ₂
+  ext′ = P.extensionality-for-lower-levels ℓ₁ (suc ℓ₂) ext
