@@ -2,14 +2,7 @@
 
 module Issue248 where
 
-postulate
-  Level : Set
-  zero : Level
-  suc  : Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+open import Common.Level
 
 data ⊥ : Set where
 
