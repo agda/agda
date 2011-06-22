@@ -68,9 +68,6 @@ unLevelAtom (BlockedLevel _ a) = a
 unLevelAtom (NeutralLevel a)   = a
 unLevelAtom (UnreducedLevel a) = a
 
-unLevelView :: MonadTCM tcm => Level -> tcm Term
-unLevelView nv = return $ Level nv
-
 reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
 reallyUnLevelView nv =
   case nv of

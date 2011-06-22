@@ -631,9 +631,7 @@ equalLevel a b = do
       let a === b   = do
             lvl <- getLvl
             equalAtom lvl a b
-          as =!= bs = do a <- unLevelView (Max as)
-                         b <- unLevelView (Max bs)
-                         a === b
+          as =!= bs = levelTm (Max as) === levelTm (Max bs)
       as <- return $ closed0 as
       bs <- return $ closed0 bs
       case (as, bs) of
@@ -694,7 +692,7 @@ equalLevel a b = do
         meta n x as bs = do
           reportSLn "tc.meta.level" 50 $ "meta " ++ show as ++ " " ++ show bs
           bs' <- mapM (subtr n) bs
-          assignV x as =<< unLevelView (Max bs')
+          assignV x as $ levelTm (Max bs')
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->

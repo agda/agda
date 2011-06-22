@@ -68,8 +68,8 @@ instance Instantiate Term where
       BlockedConst _                 -> return t
       PostponedTypeCheckingProblem _ -> return t
       InstS _                        -> __IMPOSSIBLE__
-  instantiate (Level l) = Level <$> instantiate l
-  instantiate (Sort s) = Sort <$> instantiate s
+  instantiate (Level l) = levelTm <$> instantiate l
+  instantiate (Sort s) = sortTm <$> instantiate s
   instantiate t = return t
 
 instance Instantiate Level where
@@ -105,7 +105,7 @@ instance Instantiate Type where
 
 instance Instantiate Sort where
   instantiate s = case s of
-    Type l -> Type <$> instantiate l
+    Type l -> levelSort <$> instantiate l
     _      -> return s
 
 instance Instantiate t => Instantiate (Abs t) where
@@ -184,7 +184,7 @@ instance Reduce Sort where
                 DLub{}  -> return s
                 _       -> reduce s   -- TODO: not so nice
             Prop       -> return s
-            Type s'    -> Type <$> reduce s'
+            Type s'    -> levelSort <$> reduce s'
             Inf        -> return Inf
 
 instance Reduce Level where
@@ -240,8 +240,8 @@ instance Reduce Term where
           -- instantiated module.
           v <- unfoldDefinition False reduceB (Con c []) c args
           traverse reduceNat v
-      Sort s   -> fmap Sort <$> reduceB s
-      Level l  -> fmap Level <$> reduceB l
+      Sort s   -> fmap sortTm <$> reduceB s
+      Level l  -> fmap levelTm <$> reduceB l
       Pi _ _   -> return $ notBlocked v
       Fun _ _  -> return $ notBlocked v
       Lit _    -> return $ notBlocked v
@@ -413,7 +413,7 @@ instance Normalise Sort where
       case s of
         DLub s1 s2 -> dLub <$> normalise s1 <*> normalise s2
         Prop       -> return s
-        Type s     -> Type <$> normalise s
+        Type s     -> levelSort <$> normalise s
         Inf        -> return Inf
 
 instance Normalise Type where
@@ -428,9 +428,9 @@ instance Normalise Term where
 		Def f vs    -> Def f <$> normalise vs
 		MetaV x vs  -> MetaV x <$> normalise vs
 		Lit _	    -> return v
-                Level l     -> Level <$> normalise l
+                Level l     -> levelTm <$> normalise l
 		Lam h b	    -> Lam h <$> normalise b
-		Sort s	    -> Sort <$> normalise s
+		Sort s	    -> sortTm <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
 		Fun a b     -> uncurry Fun <$> normalise (a,b)
                 DontCare    -> return v
@@ -532,7 +532,7 @@ instance InstantiateFull Sort where
     instantiateFull s = do
 	s <- instantiate s
 	case s of
-	    Type n     -> Type <$> instantiateFull n
+	    Type n     -> levelSort <$> instantiateFull n
 	    Prop       -> return s
 	    DLub s1 s2 -> dLub <$> instantiateFull s1 <*> instantiateFull s2
             Inf        -> return s
@@ -551,9 +551,9 @@ instance InstantiateFull Term where
           Def f vs    -> Def f <$> instantiateFull vs
           MetaV x vs  -> MetaV x <$> instantiateFull vs
           Lit _	      -> return v
-          Level l     -> Level <$> instantiateFull l
+          Level l     -> levelTm <$> instantiateFull l
           Lam h b     -> Lam h <$> instantiateFull b
-          Sort s      -> Sort <$> instantiateFull s
+          Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
           Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
           DontCare    -> return v

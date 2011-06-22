@@ -386,6 +386,38 @@ getSort (El s _) = s
 unEl :: Type -> Term
 unEl (El _ t) = t
 
+sortTm :: Sort -> Term
+sortTm (Type l) = Sort $ levelSort l
+sortTm s        = Sort s
+
+levelSort :: Level -> Sort
+levelSort (Max as)
+  | List.any isInf as = Inf
+  where
+    isInf ClosedLevel{}        = False
+    isInf (Plus _ l)           = infAtom l
+    infAtom (NeutralLevel a)   = infTm a
+    infAtom (UnreducedLevel a) = infTm a
+    infAtom MetaLevel{}        = False
+    infAtom BlockedLevel{}     = False
+    infTm (Sort Inf)           = True
+    infTm _                    = False
+levelSort l =
+  case levelTm l of
+    Sort s -> s
+    _      -> Type l
+
+levelTm :: Level -> Term
+levelTm l =
+  case l of
+    Max [Plus 0 l] -> unAtom l
+    _              -> Level l
+  where
+    unAtom (MetaLevel x vs)   = MetaV x vs
+    unAtom (NeutralLevel v)   = v
+    unAtom (UnreducedLevel v) = v
+    unAtom (BlockedLevel _ v) = v
+
 -- | Get the next higher sort.
 sSuc :: Sort -> Sort
 sSuc Prop            = mkType 1
