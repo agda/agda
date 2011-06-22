@@ -60,22 +60,17 @@ mutual
             (a : (r : Record Sig) → A r) →
             Signature s
 
-  -- Record is a data type to ensure that the signature can be
+  -- Record is a record type to ensure that the signature can be
   -- inferred from a value of type Record Sig.
 
-  data Record {s} (Sig : Signature s) : Set s where
-    rec : (r : Record-fun Sig) → Record Sig
+  record Record {s} (Sig : Signature s) : Set s where
+    constructor rec
+    field fun : Record-fun Sig
 
   Record-fun : ∀ {s} → Signature s → Set s
   Record-fun ∅             = Lift ⊤
   Record-fun (Sig , ℓ ∶ A) =          Σ (Record Sig) A
   Record-fun (Sig , ℓ ≔ a) = Manifest-Σ (Record Sig) a
-
--- A projection function for Record. (Unfortunately Agda as of version
--- 2.2.10 does not allow us to turn Record into a record type.)
-
-rec-fun : ∀ {s} {Sig : Signature s} → Record Sig → Record-fun Sig
-rec-fun (rec r) = r
 
 ------------------------------------------------------------------------
 -- Variants of Signature and Record
@@ -113,11 +108,9 @@ mutual
 
   Rec⇒Rec′ : ∀ {s} (Sig : Signature′ s) →
              Record (Sig′⇒Sig Sig) → Record′ Sig
-  Rec⇒Rec′ ∅             r = rec-fun r
-  Rec⇒Rec′ (Sig , ℓ ∶ A) r = (Rec⇒Rec′ _ (Σ.proj₁ r′) , Σ.proj₂ r′)
-                                   where r′ = rec-fun r
-  Rec⇒Rec′ (Sig , ℓ ≔ a) r = (Rec⇒Rec′ _ (Manifest-Σ.proj₁ r′) ,)
-                             where r′ = rec-fun r
+  Rec⇒Rec′ ∅             (rec r) = r
+  Rec⇒Rec′ (Sig , ℓ ∶ A) (rec r) = (Rec⇒Rec′ _ (Σ.proj₁ r) , Σ.proj₂ r)
+  Rec⇒Rec′ (Sig , ℓ ≔ a) (rec r) = (Rec⇒Rec′ _ (Manifest-Σ.proj₁ r) ,)
 
 mutual
 
@@ -185,26 +178,26 @@ infixl 5 _∣_
 
 _∣_ : ∀ {s} {Sig : Signature s} → Record Sig →
       (ℓ : Label) {ℓ∈ : ℓ ∈ Sig} → Restricted Sig ℓ ℓ∈
-_∣_ {Sig = ∅}            r ℓ {}
-_∣_ {Sig = Sig , ℓ′ ∶ A} r ℓ with ℓ ≟ ℓ′
-... | yes _ = Σ.proj₁ (rec-fun r)
-... | no  _ = Σ.proj₁ (rec-fun r) ∣ ℓ
-_∣_ {Sig = Sig , ℓ′ ≔ a} r ℓ with ℓ ≟ ℓ′
-... | yes _ = Manifest-Σ.proj₁ (rec-fun r)
-... | no  _ = Manifest-Σ.proj₁ (rec-fun r) ∣ ℓ
+_∣_ {Sig = ∅}            r       ℓ {}
+_∣_ {Sig = Sig , ℓ′ ∶ A} (rec r) ℓ with ℓ ≟ ℓ′
+... | yes _ = Σ.proj₁ r
+... | no  _ = Σ.proj₁ r ∣ ℓ
+_∣_ {Sig = Sig , ℓ′ ≔ a} (rec r) ℓ with ℓ ≟ ℓ′
+... | yes _ = Manifest-Σ.proj₁ r
+... | no  _ = Manifest-Σ.proj₁ r ∣ ℓ
 
 infixl 5 _·_
 
 _·_ : ∀ {s} {Sig : Signature s} (r : Record Sig)
       (ℓ : Label) {ℓ∈ : ℓ ∈ Sig} →
       Proj Sig ℓ {ℓ∈} (r ∣ ℓ)
-_·_ {Sig = ∅}            r ℓ {}
-_·_ {Sig = Sig , ℓ′ ∶ A} r ℓ with ℓ ≟ ℓ′
-... | yes _ = Σ.proj₂ (rec-fun r)
-... | no  _ = Σ.proj₁ (rec-fun r) · ℓ
-_·_ {Sig = Sig , ℓ′ ≔ a} r ℓ with ℓ ≟ ℓ′
-... | yes _ = Manifest-Σ.proj₂ (rec-fun r)
-... | no  _ = Manifest-Σ.proj₁ (rec-fun r) · ℓ
+_·_ {Sig = ∅}            r       ℓ {}
+_·_ {Sig = Sig , ℓ′ ∶ A} (rec r) ℓ with ℓ ≟ ℓ′
+... | yes _ = Σ.proj₂ r
+... | no  _ = Σ.proj₁ r · ℓ
+_·_ {Sig = Sig , ℓ′ ≔ a} (rec r) ℓ with ℓ ≟ ℓ′
+... | yes _ = Manifest-Σ.proj₂ r
+... | no  _ = Manifest-Σ.proj₁ r · ℓ
 
 ------------------------------------------------------------------------
 -- With
@@ -229,12 +222,9 @@ mutual
               {a : (r : Restricted Sig ℓ ℓ∈) → Proj Sig ℓ r} →
               Record (Sig With ℓ ≔ a) → Record Sig
   drop-With {Sig = ∅} {ℓ∈ = ()}      r
-  drop-With {Sig = Sig , ℓ′ ∶ A} {ℓ} r with ℓ ≟ ℓ′
-  ... | yes _ = rec (proj₁ (rec-fun r) , proj₂ (rec-fun r))
-                where open Manifest-Σ
-  ... | no  _ = rec ( drop-With (Σ.proj₁ (rec-fun r))
-                    , Σ.proj₂ (rec-fun r)
-                    )
-  drop-With {Sig = Sig , ℓ′ ≔ a} {ℓ} r with ℓ ≟ ℓ′
-  ... | yes _ = rec (Manifest-Σ.proj₁ (rec-fun r) ,)
-  ... | no  _ = rec (drop-With (Manifest-Σ.proj₁ (rec-fun r)) ,)
+  drop-With {Sig = Sig , ℓ′ ∶ A} {ℓ} (rec r) with ℓ ≟ ℓ′
+  ... | yes _ = rec (Manifest-Σ.proj₁ r , Manifest-Σ.proj₂ r)
+  ... | no  _ = rec (drop-With (Σ.proj₁ r) , Σ.proj₂ r)
+  drop-With {Sig = Sig , ℓ′ ≔ a} {ℓ} (rec r) with ℓ ≟ ℓ′
+  ... | yes _ = rec (Manifest-Σ.proj₁ r ,)
+  ... | no  _ = rec (drop-With (Manifest-Σ.proj₁ r) ,)
