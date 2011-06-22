@@ -2,7 +2,7 @@
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
-import Control.Applicative
+import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
@@ -133,7 +133,14 @@ makeSubstitution sub = map val [0..]
 ureduce :: Term -> Unify Term
 ureduce u = doEtaContractImplicit $ do
   rho <- onSub makeSubstitution
-  liftTCM $ etaContract =<< reduce (substs rho u)
+  liftTCM $ etaContract =<< normalise (substs rho u)
+-- Andreas, 2011-06-22, fix related to issue 423
+-- To make eta contraction work better, I switched reduce to normalise.
+-- I hope the performance penalty is not big (since we are dealing with
+-- l.h.s. terms only).
+-- A systematic solution would make unification type-directed and
+-- eta-insensitive...
+--   liftTCM $ etaContract =<< reduce (substs rho u)
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
@@ -190,6 +197,9 @@ unifyIndices flex a us vs = liftTCM $ do
   `catchError` \err -> return $ DontKnow err
   where
     flexible i = i `elem` flex
+
+    flexibleTerm (Var i []) = flexible i
+    flexibleTerm _          = False
 
     unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
@@ -248,7 +258,14 @@ unifyIndices flex a us vs = liftTCM $ do
                 else unifyAtom a u v
 
     unifyAtom :: Type -> Term -> Term -> Unify ()
-    unifyAtom a u v =
+    unifyAtom a u v = do
+      reportSDoc "tc.lhs.unify" 15 $
+	sep [ text "unifyAtom"
+	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
+            , nest 2 $ text "=?="
+	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
+	    , nest 2 $ text ":" <+> prettyTCM a
+	    ]
       case (u, v) of
         -- Andreas, 2011-05-30
         -- Force equality now rather than postponing it with addEquality
