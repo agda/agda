@@ -16,7 +16,7 @@ open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv
   using (_⇔_; module Equivalence)
-open import Level
+import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
@@ -154,7 +154,7 @@ private
   data D : Set where
     i j x y z : D
 
-  data _R_ : Rel D lzero where
+  data _R_ : Rel D Level.zero where
     iRj : i R j
     xRy : x R y
     yRz : y R z

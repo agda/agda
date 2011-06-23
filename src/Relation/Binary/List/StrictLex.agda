@@ -15,7 +15,7 @@ open import Function
 open import Data.Product
 open import Data.Sum
 open import Data.List
-open import Level renaming (lzero to zero)
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.Consequences

@@ -12,7 +12,7 @@ import Data.Integer.Properties as ℤ
 open import Data.Nat.Divisibility as ℕDiv using (_∣_)
 import Data.Nat.Coprimality as C
 open import Data.Nat as ℕ renaming (_*_ to _ℕ*_)
-open import Level
+import Level
 open import Relation.Nullary.Decidable
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -69,7 +69,7 @@ private
 
 infix 4 _≃_
 
-_≃_ : Rel ℚ lzero
+_≃_ : Rel ℚ Level.zero
 p ≃ q = P.numerator ℤ* Q.denominator ≡
         Q.numerator ℤ* P.denominator
   where module P = ℚ p; module Q = ℚ q

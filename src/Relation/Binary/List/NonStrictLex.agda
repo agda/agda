@@ -14,7 +14,7 @@ open import Function
 open import Data.Unit using (⊤; tt)
 open import Data.Product
 open import Data.List
-open import Level renaming (lzero to zero)
+open import Level
 open import Relation.Nullary
 open import Relation.Binary
 

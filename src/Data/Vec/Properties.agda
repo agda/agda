@@ -17,7 +17,6 @@ open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
 open import Function
 open import Function.Inverse using (_↔_)
-open import Level
 open import Relation.Binary
 
 module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where

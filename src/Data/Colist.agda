@@ -21,13 +21,13 @@ open import Data.BoundedVec.Inefficient as BVec
 open import Data.Product using (_,_)
 open import Data.Sum     using (_⊎_; inj₁; inj₂)
 open import Function
-open import Level
+open import Level using (_⊔_)
 open import Relation.Binary
 import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.PropositionalEquality using (_≡_)
 open import Relation.Nullary
 open import Relation.Nullary.Negation
-open RawMonad (¬¬-Monad {p = lzero})
+open RawMonad (¬¬-Monad {p = Level.zero})
 
 ------------------------------------------------------------------------
 -- The type

@@ -19,7 +19,6 @@ open import Data.Product as Prod
 open import Data.Empty
 open import Function
 import Function.Equivalence as Eq
-open import Level hiding (Lift)
 open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Nullary

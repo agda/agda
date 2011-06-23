@@ -11,7 +11,7 @@ open import Data.Product as Prod
 open import Data.Vec
 open import Function
 open import Function.Equivalence using (_⇔_; equivalence)
-open import Level
+open import Level using (Level; _⊔_)
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary.Decidable

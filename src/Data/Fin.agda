@@ -13,7 +13,7 @@ open import Data.Nat as Nat
   renaming ( _+_ to _N+_; _∸_ to _N∸_
            ; _≤_ to _N≤_; _≥_ to _N≥_; _<_ to _N<_; _≤?_ to _N≤?_)
 open import Function
-open import Level hiding (lift)
+import Level
 open import Relation.Nullary.Decidable
 open import Relation.Binary
 
@@ -162,10 +162,10 @@ pred (suc i) = inject₁ i
 
 infix 4 _≤_ _<_
 
-_≤_ : ∀ {n} → Rel (Fin n) lzero
+_≤_ : ∀ {n} → Rel (Fin n) Level.zero
 _≤_ = _N≤_ on toℕ
 
-_<_ : ∀ {n} → Rel (Fin n) lzero
+_<_ : ∀ {n} → Rel (Fin n) Level.zero
 _<_ = _N<_ on toℕ
 
 data _≺_ : ℕ → ℕ → Set where

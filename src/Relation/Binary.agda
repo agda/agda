@@ -9,7 +9,7 @@ module Relation.Binary where
 open import Data.Product
 open import Data.Sum
 open import Function
-open import Level renaming (lsuc to suc)
+open import Level
 import Relation.Binary.PropositionalEquality.Core as PropEq
 open import Relation.Binary.Consequences
 open import Relation.Binary.Core as Core using (_≡_)

@@ -48,7 +48,7 @@ mutual
 
   infixl 5 _,_∶_ _,_≔_
 
-  data Signature s : Set (lsuc s) where
+  data Signature s : Set (suc s) where
     ∅     : Signature s
     _,_∶_ : (Sig : Signature s)
             (ℓ : Label)
@@ -80,7 +80,7 @@ mutual
 
 mutual
 
-  data Signature′ s : Set (lsuc s) where
+  data Signature′ s : Set (suc s) where
     ∅     : Signature′ s
     _,_∶_ : (Sig : Signature′ s)
             (ℓ : Label)
@@ -141,7 +141,7 @@ infix 4 _∈_
 
 _∈_ : ∀ {s} → Label → Signature s → Set
 ℓ ∈ Sig =
-  foldr (λ ℓ′ → if ⌊ ℓ ≟ ℓ′ ⌋ then const {b = lsuc lzero} ⊤ else id) ⊥ (labels Sig)
+  foldr (λ ℓ′ → if ⌊ ℓ ≟ ℓ′ ⌋ then (λ _ → ⊤) else id) ⊥ (labels Sig)
 
 ------------------------------------------------------------------------
 -- Projections

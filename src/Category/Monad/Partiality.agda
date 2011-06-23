@@ -14,7 +14,7 @@ open import Data.Product as Prod hiding (map)
 open import Data.Sum hiding (map)
 open import Function
 open import Function.Equivalence using (_⇔_; equivalence)
-open import Level
+open import Level using (_⊔_)
 open import Relation.Binary as B hiding (Rel)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
@@ -424,8 +424,7 @@ private
 
   -- Never is a left and right "zero" of bind.
 
-  -- I had to specify the level of B. See test/fail/LevelConstraints.agda.
-  left-zero : ∀ {B : Set a} (f : B → A ⊥) → let open M in
+  left-zero : {B : Set a} (f : B → A ⊥) → let open M in
               (never >>= f) ≅ never
   left-zero f = later (♯ left-zero f)
 
@@ -558,14 +557,14 @@ module Workaround {a} where
 
   infixl 1 _>>=_
 
-  data _⊥P : Set a → Set (lsuc a) where
+  data _⊥P : Set a → Set (Level.suc a) where
     now   : ∀ {A} (x : A) → A ⊥P
     later : ∀ {A} (x : ∞ (A ⊥P)) → A ⊥P
     _>>=_ : ∀ {A B} (x : A ⊥P) (f : A → B ⊥P) → B ⊥P
 
   private
 
-    data _⊥W : Set a → Set (lsuc a) where
+    data _⊥W : Set a → Set (Level.suc a) where
       now   : ∀ {A} (x : A) → A ⊥W
       later : ∀ {A} (x : A ⊥P) → A ⊥W
 
@@ -654,7 +653,7 @@ module AlternativeEquality {a ℓ} where
     _∣_≈P_ : ∀ S → B.Rel (El S ⊥) _
     _∣_≈P_ = flip RelP (other weak)
 
-    data RelP S : Kind → B.Rel (El S ⊥) (lsuc (a ⊔ ℓ)) where
+    data RelP S : Kind → B.Rel (El S ⊥) (Level.suc (a ⊔ ℓ)) where
 
       -- Congruences.
 
@@ -722,7 +721,7 @@ module AlternativeEquality {a ℓ} where
 
     -- Proof WHNFs.
 
-    data RelW S : Kind → B.Rel (El S ⊥) (lsuc (a ⊔ ℓ)) where
+    data RelW S : Kind → B.Rel (El S ⊥) (Level.suc (a ⊔ ℓ)) where
       now    : ∀ {k x y} (xRy : x ⟨ Eq S ⟩ y)                 → RelW S k         (now   x) (now   y)
       later  : ∀ {k x y} (x∼y : RelP S k         (♭ x) (♭ y)) → RelW S k         (later x) (later y)
       laterʳ : ∀   {x y} (x≈y : RelW S (other weak) x  (♭ y)) → RelW S (other weak)     x  (later y)

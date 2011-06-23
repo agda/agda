@@ -18,7 +18,7 @@ open Universe.Universe Uni
 open import Data.Product as Prod
 open import Data.Unit
 open import Function
-open import Level
+open import Level using (Level; _⊔_; Lift)
 
 ------------------------------------------------------------------------
 -- Contexts and "types"

@@ -6,7 +6,7 @@ open import Level
 open import Relation.Binary
 
 module Data.AVL.Sets
-         (OrderedKeySet : StrictTotalOrder lzero lzero lzero) where
+         (OrderedKeySet : StrictTotalOrder zero zero zero) where
 
 import Data.AVL as AVL
 open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)
@@ -17,7 +17,7 @@ open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
 open import Category.Functor
-open RawFunctor (Maybe.functor {f = lzero})
+open RawFunctor (Maybe.functor {f = zero})
 
 -- The set type. (Note that Set is a reserved word.)
 

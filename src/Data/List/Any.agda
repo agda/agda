@@ -14,7 +14,7 @@ open import Function.Equivalence as Equiv using (module Equivalence)
 open import Function.Related as Related hiding (_∼[_]_)
 open import Data.List as List using (List; []; _∷_)
 open import Data.Product as Prod using (∃; _×_; _,_)
-open import Level
+open import Level using (Level; _⊔_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
 open import Relation.Unary using () renaming (_⊆_ to _⋐_)

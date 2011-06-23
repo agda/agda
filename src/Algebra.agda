@@ -11,7 +11,7 @@ open import Relation.Binary
 open import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Function
-open import Level renaming (lsuc to suc)
+open import Level
 
 ------------------------------------------------------------------------
 -- Semigroups, (commutative) monoids and (abelian) groups

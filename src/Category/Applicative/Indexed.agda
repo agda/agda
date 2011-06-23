@@ -12,7 +12,7 @@ module Category.Applicative.Indexed where
 open import Category.Functor
 open import Data.Product
 open import Function
-open import Level renaming (lsuc to suc)
+open import Level
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 IFun : ∀ {i} → Set i → (ℓ : Level) → Set _

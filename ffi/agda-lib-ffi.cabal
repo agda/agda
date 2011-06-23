@@ -10,4 +10,3 @@ library
                     base >= 0 && <= 99999999999
   exposed-modules:  Data.FFI
                     IO.FFI
-                    Level.FFI

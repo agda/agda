@@ -34,7 +34,7 @@ open import Data.Nat using (ℕ; suc; zero) renaming (_+_ to _ℕ-+_)
 open import Data.Fin as Fin using (Fin; zero; suc)
 open import Data.Vec
 open import Function hiding (type-signature)
-open import Level
+open import Level using (_⊔_)
 
 infix  9 _↑ :-_ -‿NF_
 infixr 9 _:^_ _^-NF_ _:↑_

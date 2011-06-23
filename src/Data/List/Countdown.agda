@@ -3,10 +3,10 @@
 -- of elements /not/ in a given list
 ------------------------------------------------------------------------
 
-open import Level
+import Level
 open import Relation.Binary
 
-module Data.List.Countdown (D : DecSetoid lzero lzero) where
+module Data.List.Countdown (D : DecSetoid Level.zero Level.zero) where
 
 open import Data.Empty
 open import Data.Fin using (Fin; zero; suc)

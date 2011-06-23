@@ -8,7 +8,7 @@ open import Data.Product as Prod hiding (map)
 open import Level
 
 module Data.AVL.IndexedMap
-         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key) lzero}
+         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key) zero}
          (isOrderedKeySet : IsStrictTotalOrder _≈_ _<_)
          -- Equal keys must have equal indices.
          (indicesEqual : _≈_ =[ proj₁ ]⇒ _≡_)
@@ -21,7 +21,7 @@ open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
 open import Category.Functor
-open RawFunctor (Maybe.functor {f = lzero})
+open RawFunctor (Maybe.functor {f = zero})
 
 -- Key/value pairs.
 

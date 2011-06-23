@@ -6,12 +6,13 @@
 -- invariant is not statically enforced in the current implementation,
 -- just the balance invariant.
 
-open import Level
+import Level
 open import Relation.Binary
 
-module Data.AVL (OrderedKeySet : StrictTotalOrder lzero lzero lzero)
-                (Value : StrictTotalOrder.Carrier OrderedKeySet → Set)
-                where
+module Data.AVL
+  (OrderedKeySet : StrictTotalOrder Level.zero Level.zero Level.zero)
+  (Value : StrictTotalOrder.Carrier OrderedKeySet → Set)
+  where
 
 open import Data.Nat hiding (compare)
 open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)

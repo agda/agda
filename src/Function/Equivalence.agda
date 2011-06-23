@@ -9,7 +9,7 @@ module Function.Equivalence where
 open import Function using (flip)
 open import Function.Equality as F
   using (_⟶_; _⟨$⟩_) renaming (_∘_ to _⟪∘⟫_)
-open import Level renaming (lsuc to suc)
+open import Level
 open import Relation.Binary
 import Relation.Binary.PropositionalEquality as P
 

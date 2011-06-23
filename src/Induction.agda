@@ -13,7 +13,7 @@
 
 module Induction where
 
-open import Level renaming (lsuc to suc)
+open import Level
 open import Relation.Unary
 
 -- A RecStruct describes the allowed structure of recursion. The

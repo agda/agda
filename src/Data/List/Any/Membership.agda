@@ -29,7 +29,6 @@ open import Data.Nat as Nat
 import Data.Nat.Properties as NatProp
 open import Data.Product as Prod
 open import Data.Sum as Sum
-open import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; _≗_)

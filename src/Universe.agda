@@ -10,7 +10,7 @@ open import Level
 
 -- Universes.
 
-record Universe u e : Set (lsuc (u ⊔ e)) where
+record Universe u e : Set (suc (u ⊔ e)) where
   field
     -- Codes.
     U : Set u

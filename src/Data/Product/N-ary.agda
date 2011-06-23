@@ -17,7 +17,7 @@ open import Data.Product
 open import Data.Unit
 open import Data.Vec
 open import Function.Inverse
-open import Level
+open import Level using (Lift; lift)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 -- N-ary product.
