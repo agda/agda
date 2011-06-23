@@ -49,7 +49,7 @@ instantiateTel s tel = liftTCM $ do
     ]
 
   -- s' : Substitution Γσ
-  let s' = rename psR s
+  let s' = renameP psR s
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
     text "s'   =" <+> fsep (punctuate comma $ map (maybe (text "_") prettyTCM) s')

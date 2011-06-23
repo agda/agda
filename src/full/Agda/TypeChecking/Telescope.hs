@@ -22,9 +22,10 @@ import Agda.Utils.Tuple
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- TODO: use rename instead of substs
 -- | The permutation should permute the corresponding telescope. (left-to-right list)
-rename :: Subst t => Permutation -> t -> t
-rename p = substs (renaming p)
+renameP :: Subst t => Permutation -> t -> t
+renameP p = substs (renaming p)
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renaming π) : Term Γ -> Term Δ@
 renaming :: Permutation -> [Term]
@@ -106,7 +107,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     isC   = [0..n - 1] \\ is
     perm0 = Perm n $ is ++ isC
 
-    permuteTel p ts = rename (reverseP p) (permute p ts)
+    permuteTel p ts = renameP (reverseP p) (permute p ts)
 
     ts1   = permuteTel perm0 ts0
 

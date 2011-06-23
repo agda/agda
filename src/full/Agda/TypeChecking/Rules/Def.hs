@@ -282,13 +282,13 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                       v    = Def aux $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
-                  t' <- return $ rename (reverseP perm') t'
+                  t' <- return $ renameP (reverseP perm') t'
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
                     let var = flip Var []
                         -- We know that as does not depend on Δ₂
                         rho = replicate (size delta2) __IMPOSSIBLE__ ++ map var [0..]
-                    return $ substs rho $ rename (reverseP perm') (vs, as)
+                    return $ substs rho $ renameP (reverseP perm') (vs, as)
 
                   reportSDoc "tc.with.top" 20 $ vcat
                     [ text "    with arguments" <+> prettyList (map prettyTCM vs)

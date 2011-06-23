@@ -281,10 +281,10 @@ instance Subst Term where
             Con c vs   -> Con c $ substs us vs
             MetaV x vs -> MetaV x $ substs us vs
             Lit l      -> Lit l
-            Level l    -> Level $ substs us l
+            Level l    -> levelTm $ substs us l
             Pi a b     -> uncurry Pi $ substs us (a,b)
             Fun a b    -> uncurry Fun $ substs us (a,b)
-            Sort s     -> Sort $ substs us s
+            Sort s     -> sortTm $ substs us s
             DontCare   -> DontCare
         where
             []     !!! n = __IMPOSSIBLE__
@@ -300,11 +300,11 @@ instance Subst Term where
             Def c vs   -> Def c $ substUnder n u vs
             Con c vs   -> Con c $ substUnder n u vs
             MetaV x vs -> MetaV x $ substUnder n u vs
-            Level l    -> Level $ substUnder n u l
+            Level l    -> levelTm $ substUnder n u l
             Lit l      -> Lit l
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
             Fun a b    -> uncurry Fun $ substUnder n u (a,b)
-            Sort s     -> Sort $ substUnder n u s
+            Sort s     -> sortTm $ substUnder n u s
             DontCare   -> DontCare
 
 instance Subst Type where
@@ -313,14 +313,14 @@ instance Subst Type where
 
 instance Subst Sort where
     substs us s = case s of
-      Type n     -> Type $ sub n
+      Type n     -> levelSort $ sub n
       Prop       -> Prop
       Inf        -> Inf
       DLub s1 s2 -> DLub (sub s1) (sub s2)
       where sub x = substs us x
 
     substUnder n u s = case s of
-      Type n     -> Type $ sub n
+      Type n     -> levelSort $ sub n
       Prop       -> Prop
       Inf        -> Inf
       DLub s1 s2 -> DLub (sub s1) (sub s2)
@@ -417,6 +417,7 @@ absApp (Abs _ v) u = subst u v
 -- | Add @k@ to index of each open variable in @x@.
 class Raise t where
     raiseFrom :: Nat -> Nat -> t -> t
+    renameFrom :: Nat -> (Nat -> Nat) -> t -> t
 
 instance Raise Term where
     raiseFrom m k v =
@@ -437,8 +438,27 @@ instance Raise Term where
         where
             rf x = raiseFrom m k x
 
+    renameFrom m k v =
+        case v of
+            Var i vs
+                | i < m     -> Var i $ rf vs
+                | otherwise -> Var (k (i - m) + m) $ rf vs
+            Lam h m         -> Lam h $ rf m
+            Def c vs        -> Def c $ rf vs
+            Con c vs        -> Con c $ rf vs
+            MetaV x vs      -> MetaV x $ rf vs
+            Level l         -> Level $ rf l
+            Lit l           -> Lit l
+            Pi a b          -> uncurry Pi $ rf (a,b)
+            Fun a b         -> uncurry Fun $ rf (a,b)
+            Sort s          -> Sort $ rf s
+            DontCare        -> DontCare
+        where
+            rf x = renameFrom m k x
+
 instance Raise Type where
     raiseFrom m k (El s t) = raiseFrom m k s `El` raiseFrom m k t
+    renameFrom m k (El s t) = renameFrom m k s `El` renameFrom m k t
 
 instance Raise Sort where
     raiseFrom m k s = case s of
@@ -448,12 +468,22 @@ instance Raise Sort where
       DLub s1 s2 -> DLub (rf s1) (rf s2)
       where rf x = raiseFrom m k x
 
+    renameFrom m k s = case s of
+      Type n     -> Type $ rf n
+      Prop       -> Prop
+      Inf        -> Inf
+      DLub s1 s2 -> DLub (rf s1) (rf s2)
+      where rf x = renameFrom m k x
+
 instance Raise Level where
   raiseFrom m k (Max as) = Max $ raiseFrom m k as
+  renameFrom m k (Max as) = Max $ renameFrom m k as
 
 instance Raise PlusLevel where
   raiseFrom m k l@ClosedLevel{} = l
   raiseFrom m k (Plus n l) = Plus n $ raiseFrom m k l
+  renameFrom m k l@ClosedLevel{} = l
+  renameFrom m k (Plus n l) = Plus n $ renameFrom m k l
 
 instance Raise LevelAtom where
   raiseFrom m k l = case l of
@@ -461,6 +491,11 @@ instance Raise LevelAtom where
     NeutralLevel v   -> NeutralLevel $ raiseFrom m k v
     BlockedLevel n v -> BlockedLevel n $ raiseFrom m k v
     UnreducedLevel v -> UnreducedLevel $ raiseFrom m k v
+  renameFrom m k l = case l of
+    MetaLevel n vs   -> MetaLevel n $ renameFrom m k vs
+    NeutralLevel v   -> NeutralLevel $ renameFrom m k v
+    BlockedLevel n v -> BlockedLevel n $ renameFrom m k v
+    UnreducedLevel v -> UnreducedLevel $ renameFrom m k v
 
 -- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern
 instance Raise Pattern where
@@ -469,14 +504,23 @@ instance Raise Pattern where
       ConP c mt ps -> ConP c (raiseFrom m k mt) (raiseFrom m k ps)
       VarP x -> p
       LitP l -> p
+    renameFrom m k p = case p of
+      DotP t -> DotP $ renameFrom m k t
+      ConP c mt ps -> ConP c (renameFrom m k mt) (renameFrom m k ps)
+      VarP x -> p
+      LitP l -> p
 
 instance Raise a => Raise (Tele a) where
     raiseFrom m k EmptyTel          = EmptyTel
     raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
+    renameFrom m k EmptyTel          = EmptyTel
+    renameFrom m k (ExtendTel a tel) = uncurry ExtendTel $ renameFrom m k (a, tel)
 
 instance Raise DisplayForm where
   raiseFrom m k (Display n ps v) = Display n (raiseFrom (m + 1) k ps)
                                              (raiseFrom (m + n) k v)
+  renameFrom m k (Display n ps v) = Display n (renameFrom (m + 1) k ps)
+                                             (renameFrom (m + n) k v)
 
 instance Raise DisplayTerm where
   raiseFrom m k (DWithApp xs ys) = uncurry DWithApp $ raiseFrom m k (xs, ys)
@@ -484,30 +528,45 @@ instance Raise DisplayTerm where
   raiseFrom m k (DDot  v)        = DDot  $ raiseFrom m k v
   raiseFrom m k (DCon c vs)      = DCon c $ raiseFrom m k vs
   raiseFrom m k (DDef c vs)      = DDef c $ raiseFrom m k vs
+  renameFrom m k (DWithApp xs ys) = uncurry DWithApp $ renameFrom m k (xs, ys)
+  renameFrom m k (DTerm v)        = DTerm $ renameFrom m k v
+  renameFrom m k (DDot  v)        = DDot  $ renameFrom m k v
+  renameFrom m k (DCon c vs)      = DCon c $ renameFrom m k vs
+  renameFrom m k (DDef c vs)      = DDef c $ renameFrom m k vs
 
 instance Raise t => Raise (Abs t) where
     raiseFrom m k = fmap (raiseFrom (m + 1) k)
+    renameFrom m k = fmap (renameFrom (m + 1) k)
 
 instance Raise t => Raise (Arg t) where
     raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
 
 instance Raise t => Raise (Blocked t) where
     raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
 
 instance Raise t => Raise [t] where
     raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
 
 instance Raise t => Raise (Maybe t) where
     raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
 
 instance Raise v => Raise (Map k v) where
     raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
 
 instance (Raise a, Raise b) => Raise (a,b) where
     raiseFrom m k (x,y) = (raiseFrom m k x, raiseFrom m k y)
+    renameFrom m k (x,y) = (renameFrom m k x, renameFrom m k y)
 
 raise :: Raise t => Nat -> t -> t
 raise = raiseFrom 0
+
+rename :: Raise t => (Nat -> Nat) -> t -> t
+rename = renameFrom 0
 
 data TelView = TelV Telescope Type
 

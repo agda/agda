@@ -62,6 +62,7 @@ instance Subst AsBinding where
 
 instance Raise AsBinding where
   raiseFrom m k (AsB x v a) = uncurry (AsB x) $ raiseFrom m k (v, a)
+  renameFrom m k (AsB x v a) = uncurry (AsB x) $ renameFrom m k (v, a)
 
 instance PrettyTCM AsBinding where
   prettyTCM (AsB x v a) =

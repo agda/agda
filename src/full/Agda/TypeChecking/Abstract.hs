@@ -69,10 +69,12 @@ instance AbstractTerm a => AbstractTerm (Arg a) where
 instance AbstractTerm a => AbstractTerm [a] where
   abstractTerm = fmap . abstractTerm
 
-instance (Subst a, AbstractTerm a) => AbstractTerm (Abs a) where
-  abstractTerm u (Abs x v) = Abs x $ swap $ abstractTerm (raise 1 u) v
+instance (Raise a, AbstractTerm a) => AbstractTerm (Abs a) where
+  abstractTerm u (Abs x v) = Abs x $ rename swap $ abstractTerm (raise 1 u) v
     where
-      swap = substs $ [Var 1 [], Var 0 []] ++ [Var i [] | i <- [2..]]
+      swap 0 = 1
+      swap 1 = 0
+      swap i = i
 
 instance (AbstractTerm a, AbstractTerm b) => AbstractTerm (a, b) where
   abstractTerm u (x, y) = (abstractTerm u x, abstractTerm u y)
