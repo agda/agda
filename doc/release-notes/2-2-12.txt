@@ -7,6 +7,21 @@ Important changes since 2.2.10:
 Language
 --------
 
+* Universe levels are no longer defined as a data type.
+
+  The basic level combinators can be introduced in the following way:
+
+  postulate
+    Level : Set
+    zero  : Level
+    suc   : Level → Level
+    max   : Level → Level → Level
+
+  {-# BUILTIN LEVEL     Level #-}
+  {-# BUILTIN LEVELZERO zero  #-}
+  {-# BUILTIN LEVELSUC  suc   #-}
+  {-# BUILTIN LEVELMAX  max   #-}
+
 * When the --without-K flag is used literals are now treated as
   constructors.
 
