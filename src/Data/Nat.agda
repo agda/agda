@@ -12,7 +12,7 @@ open import Function.Injection
   using (Injection; module Injection)
 open import Data.Sum
 open import Data.Empty
-open import Level using (zero)
+open import Level using (lzero)
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -34,17 +34,17 @@ data ℕ : Set where
 
 infix 4 _≤_ _<_ _≥_ _>_
 
-data _≤_ : Rel ℕ zero where
+data _≤_ : Rel ℕ lzero where
   z≤n : ∀ {n}                 → zero  ≤ n
   s≤s : ∀ {m n} (m≤n : m ≤ n) → suc m ≤ suc n
 
-_<_ : Rel ℕ zero
+_<_ : Rel ℕ lzero
 m < n = suc m ≤ n
 
-_≥_ : Rel ℕ zero
+_≥_ : Rel ℕ lzero
 m ≥ n = n ≤ m
 
-_>_ : Rel ℕ zero
+_>_ : Rel ℕ lzero
 m > n = n < m
 
 -- The following, alternative definition of _≤_ is more suitable for
@@ -56,13 +56,13 @@ data _≤′_ (m : ℕ) : ℕ → Set where
   ≤′-refl :                         m ≤′ m
   ≤′-step : ∀ {n} (m≤′n : m ≤′ n) → m ≤′ suc n
 
-_<′_ : Rel ℕ zero
+_<′_ : Rel ℕ lzero
 m <′ n = suc m ≤′ n
 
-_≥′_ : Rel ℕ zero
+_≥′_ : Rel ℕ lzero
 m ≥′ n = n ≤′ m
 
-_>′_ : Rel ℕ zero
+_>′_ : Rel ℕ lzero
 m >′ n = n <′ m
 
 ------------------------------------------------------------------------
@@ -166,7 +166,7 @@ suc m ≤? suc n with m ≤? n
 -- A comparison view. Taken from "View from the left"
 -- (McBride/McKinna); details may differ.
 
-data Ordering : Rel ℕ zero where
+data Ordering : Rel ℕ lzero where
   less    : ∀ m k → Ordering m (suc (m + k))
   equal   : ∀ m   → Ordering m m
   greater : ∀ m k → Ordering (suc (m + k)) m

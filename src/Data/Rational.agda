@@ -69,7 +69,7 @@ private
 
 infix 4 _≃_
 
-_≃_ : Rel ℚ zero
+_≃_ : Rel ℚ lzero
 p ≃ q = P.numerator ℤ* Q.denominator ≡
         Q.numerator ℤ* P.denominator
   where module P = ℚ p; module Q = ℚ q

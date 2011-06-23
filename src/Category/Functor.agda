@@ -11,7 +11,7 @@ module Category.Functor where
 open import Function
 open import Level
 
-record RawFunctor {ℓ} (F : Set ℓ → Set ℓ) : Set (suc ℓ) where
+record RawFunctor {ℓ} (F : Set ℓ → Set ℓ) : Set (lsuc ℓ) where
   infixl 4 _<$>_ _<$_
 
   field

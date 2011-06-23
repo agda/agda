@@ -6,7 +6,7 @@
 open import Level
 open import Relation.Binary
 
-module Data.List.Countdown (D : DecSetoid zero zero) where
+module Data.List.Countdown (D : DecSetoid lzero lzero) where
 
 open import Data.Empty
 open import Data.Fin using (Fin; zero; suc)

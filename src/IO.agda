@@ -12,7 +12,7 @@ open import Data.String
 open import Data.Colist
 open import Function
 import IO.Primitive as Prim
-open import Level
+open import Level renaming (lsuc to suc)
 
 ------------------------------------------------------------------------
 -- The IO monad

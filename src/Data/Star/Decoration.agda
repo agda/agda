@@ -8,7 +8,7 @@ open import Data.Star
 open import Relation.Binary
 open import Function
 open import Data.Unit
-open import Level
+open import Level renaming (lzero to zero)
 
 -- A predicate on relation "edges" (think of the relation as a graph).
 

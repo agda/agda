@@ -11,7 +11,7 @@ open import Function
 open import Data.Unit
 open import Data.Product
 open import Data.Sum
-open import Level
+open import Level renaming (lsuc to suc; lzero to zero)
 open import Relation.Nullary
 
 ------------------------------------------------------------------------

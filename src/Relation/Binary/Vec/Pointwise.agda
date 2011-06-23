@@ -154,7 +154,7 @@ private
   data D : Set where
     i j x y z : D
 
-  data _R_ : Rel D zero where
+  data _R_ : Rel D lzero where
     iRj : i R j
     xRy : x R y
     yRz : y R z

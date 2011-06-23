@@ -10,7 +10,7 @@ module Category.Monad.Indexed where
 
 open import Category.Applicative.Indexed
 open import Function
-open import Level
+open import Level renaming (lsuc to suc)
 
 record RawIMonad {i f} {I : Set i} (M : IFun I f) :
                  Set (i ⊔ suc f) where

@@ -9,7 +9,7 @@
 open import Level
 open import Relation.Binary
 
-module Data.AVL (OrderedKeySet : StrictTotalOrder zero zero zero)
+module Data.AVL (OrderedKeySet : StrictTotalOrder lzero lzero lzero)
                 (Value : StrictTotalOrder.Carrier OrderedKeySet → Set)
                 where
 

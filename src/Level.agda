@@ -8,27 +8,25 @@ module Level where
 
 -- Levels.
 
-data Level : Set where
-  zero : Level
-  suc  : (i : Level) → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : (i : Level) → Level
+  _⊔_ : Level → Level → Level
 
 {-# IMPORT Level.FFI #-}
-{-# COMPILED_DATA Level Level.FFI.Level Level.FFI.Zero Level.FFI.Suc #-}
+{-# COMPILED_TYPE Level Level.FFI.Level #-}
+{-# COMPILED lzero Level.FFI.Zero #-}
+{-# COMPILED lsuc Level.FFI.Suc #-}
+
+{-# BUILTIN LEVEL     Level #-}
+{-# BUILTIN LEVELZERO lzero  #-}
+{-# BUILTIN LEVELSUC  lsuc   #-}
+{-# BUILTIN LEVELMAX _⊔_ #-}
 
 -- Maximum.
 
 infixl 6 _⊔_
-
-_⊔_ : Level → Level → Level
-zero  ⊔ j     = j
-suc i ⊔ zero  = suc i
-suc i ⊔ suc j = suc (i ⊔ j)
-
-{-# BUILTIN LEVELMAX _⊔_ #-}
 
 -- Lifting.
 

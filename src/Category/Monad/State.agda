@@ -13,7 +13,7 @@ open import Category.Monad.Indexed
 open import Data.Product
 open import Data.Unit
 open import Function
-open import Level
+open import Level renaming (lsuc to suc)
 
 ------------------------------------------------------------------------
 -- Indexed state monads

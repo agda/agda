@@ -13,7 +13,7 @@ open import Data.Empty
 open import Data.Product as Prod hiding (swap)
 open import Data.Sum as Sum
 open import Data.Unit
-open import Level
+open import Level renaming (lzero to zero)
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Eq using (_⇔_; module Equivalence)
@@ -213,13 +213,18 @@ open import Relation.Nullary
 ∃∃↔∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
         (∃₂ λ x y → P x y) ↔ (∃₂ λ y x → P x y)
 ∃∃↔∃∃ {a} {b} {p} _ = record
-  { to         = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
-  ; from       = P.→-to-⟶ {a = ℓ} λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
+  -- I had to introduce the swap function to get levels to solve.
+  -- See test/fail/LevelConstraints.agda.
+  { to         = P.→-to-⟶ (swap {a}{b})
+  ; from       = P.→-to-⟶ (swap {b}{a})
   ; inverse-of = record
     { left-inverse-of  = λ _ → P.refl
     ; right-inverse-of = λ _ → P.refl
     }
-  } where ℓ = p ⊔ (b ⊔ a)
+  } where swap : ∀ {a b}{A : Set a}{B : Set b}{P : A → B → Set p} →
+                  (∃ λ x → ∃ λ y → P x y) → (∃ λ y → ∃ λ x → P x y)
+          swap (x , y , prf) = (y , x , prf)
+
 
 ------------------------------------------------------------------------
 -- Implicit and explicit function spaces are isomorphic

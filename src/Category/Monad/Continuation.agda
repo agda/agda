@@ -12,7 +12,7 @@ open import Category.Monad
 open import Category.Monad.Identity
 open import Category.Monad.Indexed
 open import Function
-open import Level
+open import Level renaming (lsuc to suc)
 
 ------------------------------------------------------------------------
 -- Delimited continuation monads

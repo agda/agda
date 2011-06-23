@@ -169,10 +169,10 @@ private
 -- The classical statements of excluded middle and double-negation
 -- elimination.
 
-Excluded-Middle : (ℓ : Level) → Set (suc ℓ)
+Excluded-Middle : (ℓ : Level) → Set (lsuc ℓ)
 Excluded-Middle p = {P : Set p} → Dec P
 
-Double-Negation-Elimination : (ℓ : Level) → Set (suc ℓ)
+Double-Negation-Elimination : (ℓ : Level) → Set (lsuc ℓ)
 Double-Negation-Elimination p = {P : Set p} → Stable P
 
 private

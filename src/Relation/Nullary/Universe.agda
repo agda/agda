@@ -21,7 +21,7 @@ import Function.Equality as FunS
 open import Data.Empty
 open import Category.Applicative
 open import Category.Monad
-open import Level
+open import Level renaming (lsuc to suc)
 
 infix  5 ¬¬_
 infixr 4 _⇒_

@@ -177,7 +177,7 @@ private
   -- an equivalence relation with two equivalence classes, one with
   -- all inhabited sets and the other with all uninhabited sets).
 
-  sequence⁻¹ : ∀ {F A} {P : A → Set} → RawFunctor F →
+  sequence⁻¹ : ∀ {F}{A} {P : A → Set} → RawFunctor F →
                F (∀ i → P i) → ∀ i → F (P i)
   sequence⁻¹ RF F∀iPi i = (λ f → f i) <$> F∀iPi
     where open RawFunctor RF

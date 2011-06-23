@@ -13,7 +13,7 @@ open import Algebra.Structures
 open import Algebra.FunctionProperties
 import Algebra.Morphism as Morphism
 open import Function
-open import Level
+open import Level renaming (lsuc to suc)
 
 ------------------------------------------------------------------------
 -- Definitions

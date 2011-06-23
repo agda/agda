@@ -10,7 +10,7 @@
 module Relation.Binary.Indexed.Core where
 
 open import Function
-open import Level
+open import Level renaming (lsuc to suc)
 import Relation.Binary.Core as B
 import Relation.Binary.Core as P
 

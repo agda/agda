@@ -11,7 +11,7 @@ open import Function renaming (id to ⟨id⟩; _∘_ to _⟨∘⟩_)
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Inverse using (_↔_; module Inverse)
 import Function.Related as Related
-open import Level
+open import Level renaming (lsuc to suc)
 open import Relation.Binary
   using (Setoid; module Setoid; Preorder; module Preorder)
 open import Relation.Binary.PropositionalEquality as P
@@ -114,7 +114,9 @@ module Map where
              (xs : ⟦ C ⟧ X.Carrier) → Eq X._≈_ (map ⟨id⟩ xs) xs
   identity {C = C} X xs = Setoid.refl (setoid C X)
 
-  composition : ∀ {c} {C : Container c} {X Y} Z →
+  -- I needed to put in the level of Y here. See test/fail/LevelConstraints.agda
+  -- on why it's not solved.
+  composition : ∀ {c} {C : Container c} {X Y : Set c} Z →
                 let module Z = Setoid Z in
                 (f : Y → Z.Carrier) (g : X → Y) (xs : ⟦ C ⟧ X) →
                 Eq Z._≈_ (map f (map g xs)) (map (f ⟨∘⟩ g) xs)

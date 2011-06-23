@@ -12,7 +12,7 @@ module Algebra.Structures where
 import Algebra.FunctionProperties as FunctionProperties
 open import Data.Product
 open import Function
-open import Level hiding (zero)
+open import Level
 import Relation.Binary.EqReasoning as EqR
 
 open FunctionProperties using (Op₁; Op₂)
