@@ -347,7 +347,7 @@ Tools
 
   and a function which tests a list for emptyness is:
 
-  exports = { 
+  exports = {
     "empty?": function (x0) { return function (x1) {
       return x1({
         "[]": function () { return true; }
@@ -355,7 +355,7 @@ Tools
       });
     }; }
   ... }
-  
+
   Agda records are translated to ECMAScript objects, preserving field names.
 
   Agda modules are translated to ECMAScript modules, following the common.js
@@ -376,8 +376,8 @@ Tools
       zero : Nat
       suc  : Nat → Nat
 
-    {-# COMPILED_JS Nat function (x,v) { 
-        if (x < 1) { return v.zero(); } else { return v.suc(x-1); } 
+    {-# COMPILED_JS Nat function (x,v) {
+        if (x < 1) { return v.zero(); } else { return v.suc(x-1); }
       } #-}
     {-# COMPILED_JS zero 0 #-}
     {-# COMPILED_JS suc function (x) { return x+1; } #-}
