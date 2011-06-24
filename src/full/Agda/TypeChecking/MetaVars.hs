@@ -442,10 +442,9 @@ assign assigningSort x args v = do
         v <- normalise v
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: finished normalizing v = " ++ (show v)
 
-        unless assigningSort $
-          case v of
-            Sort Inf  -> typeError $ GenericError "Setω is not a valid type."
-            _         -> return ()
+        case (v, mvJudgement mvar) of
+            (Sort Inf, HasType{}) -> typeError $ GenericError "Setω is not a valid type."
+            _                     -> return ()
 
         -- We don't instantiate frozen mvars
         when (mvFrozen mvar == Frozen) patternViolation
