@@ -62,17 +62,23 @@ instance Apply Defn where
   apply d args = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = mn } ->
+            , funProjection = mn, funArgOccurrences = occ } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
         , funProjection = fmap (nonNeg . \ n -> n - size args) mn
+        , funArgOccurrences = drop (length args) occ
         } where nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
-    Datatype{ dataPars = np, dataClause = cl } ->
-      d { dataPars = np - size args, dataClause = apply cl args }
-    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel } ->
+    Datatype{ dataPars = np, dataClause = cl
+            , dataArgOccurrences = occ } ->
+      d { dataPars = np - size args, dataClause = apply cl args
+        , dataArgOccurrences = drop (length args) occ
+        }
+    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
+          , recArgOccurrences = occ } ->
       d { recPars = np - size args, recConType = apply t args
         , recClause = apply cl args, recTel = apply tel args
+        , recArgOccurrences = drop (length args) occ
         }
     Constructor{ conPars = np } ->
       d { conPars = np - size args }
@@ -189,17 +195,22 @@ instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = mn } ->
+            , funProjection = mn, funArgOccurrences = occ } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
         , funInv = abstract tel inv
         , funProjection = fmap ((+) (size tel)) mn
           -- index of record arg shifts back by number of new args
+        , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
-    Datatype{ dataPars = np, dataClause = cl } ->
-      d { dataPars = np + size tel, dataClause = abstract tel cl }
-    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel' } ->
+    Datatype{ dataPars = np, dataClause = cl, dataArgOccurrences = occ } ->
+      d { dataPars = np + size tel, dataClause = abstract tel cl
+        , dataArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+        }
+    Record{ recPars = np, recConType = t, recClause = cl, recTel = tel'
+          , recArgOccurrences = occ } ->
       d { recPars = np + size tel, recConType = abstract tel t
         , recClause = abstract tel cl, recTel = abstract tel tel'
+        , recArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
     Constructor{ conPars = np } ->
       d { conPars = np + size tel }

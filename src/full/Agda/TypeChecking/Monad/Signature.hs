@@ -234,19 +234,22 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
-        oldOcc = case oldDef of
+        getOcc d = case d of
           Function { funArgOccurrences  = os } -> os
           Datatype { dataArgOccurrences = os } -> os
           Record   { recArgOccurrences  = os } -> os
           _ -> []
+        oldOcc = getOcc oldDef
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } ->
                   oldDef { conPars = np - size ts, conData = copyName d }
                 Datatype{ dataPars = np, dataCons = cs } ->
-                  oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs }
+                  oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs
+                         , dataArgOccurrences = drop (length ts) oldOcc }
                 Record{ recPars = np, recConType = t, recTel = tel } ->
                   oldDef { recPars = np - size ts, recClause = Just cl
                          , recConType = apply t ts, recTel = apply tel ts
+                         , recArgOccurrences = drop (length ts) oldOcc
                          }
 		_ ->
                   Function { funClauses        = [cl2]
