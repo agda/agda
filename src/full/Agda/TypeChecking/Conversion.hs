@@ -399,14 +399,14 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                     Forced     -> return []
                     Irrelevant -> return [] -- Andreas: ignore irr. func. args.
                     _          -> cmp (unArg arg1) (unArg arg2)
-            -- mlvl <- mlevel
+            mlvl <- mlevel
 	    case (cs1, unEl a) of
                                 -- We can safely ignore sort annotations here
                                 -- (except it's not, we risk leaving unsolved sorts)
-                                -- We're also ignoring levels which isn't quite as
-                                -- safe (it would be if we disallowed matching on levels?)
+                                -- We're also ignoring levels since we don't allow
+                                -- matching on levels
 		(_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
-                                                  -- && Just lvl' /= mlvl
+                                                    && Just lvl' /= mlvl
 		    -> do
                         reportSDoc "tc.conv.args" 35 $ sep
                           [ text "aborting compareArgs" <+> parens (text $ show pol)
