@@ -10,6 +10,10 @@ import Agda.Utils.SemiRing
 
 -- Only one edge between any two nodes.
 newtype Graph n e = Graph { unGraph :: Map n (Map n e) }
+  deriving (Eq)
+
+instance Functor (Graph n) where
+  fmap f (Graph g) = Graph $ fmap (fmap f) g
 
 edges :: Ord n => Graph n e -> [(n, n, e)]
 edges g = concatMap onNode $ Map.assocs $ unGraph g
@@ -53,9 +57,14 @@ growGraph g = foldr union g $ map newEdges $ edges g
         Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
         Nothing -> empty
 
-transitiveClosure :: (SemiRing e, Ord n) => Graph n e -> Graph n e
-transitiveClosure g = iterate growGraph g !! n
-  where n = Set.size $ nodes g
+transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n e -> Graph n e
+transitiveClosure g = loop g
+  where -- n = Set.size $ nodes g
+    loop g | g == g'   = g
+           | otherwise = loop g'
+      where
+        g' = growGraph g
+
 
 findPath :: (SemiRing e, Ord n) => (e -> Bool) -> n -> n -> Graph n e -> Maybe e
 findPath good a b g = case filter good $ allPaths good a b g of

@@ -35,6 +35,7 @@ checkStrictlyPositive mi = do
   qs <- lookupMutualBlock mi
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   g  <- buildOccurrenceGraph qs
+  let gstar = Graph.transitiveClosure $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
                                " E=" ++ show (length $ Graph.edges g)
@@ -42,7 +43,7 @@ checkStrictlyPositive mi = do
     [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
     , nest 2 $ prettyGraph g
     ]
-  mapM_ (setArgs g) $ Set.toList qs
+  mapM_ (setArgs gstar) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "set args"
   whenM positivityCheckEnabled $
     mapM_ (checkPos g) $ Set.toList qs
@@ -60,6 +61,7 @@ checkStrictlyPositive mi = do
             [prettyTCM how]
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
+    occ (Edge o _) = o
     isNegative (Edge o _) = o == Negative
 
     isDatatype q = do
@@ -84,10 +86,11 @@ checkStrictlyPositive mi = do
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
-          findOcc i = case Graph.allPaths isNegative (ArgNode q i) (DefNode q) g of
-            []                     -> Unused -- Unused is not good for datatypes (why not? let's do it anyway!)
-            es | any isNegative es -> Negative
-               | otherwise         -> Positive
+          findOcc i = case Graph.lookup (ArgNode q i) (DefNode q) g of
+              Nothing -> Unused
+              Just Negative -> Negative
+              Just Positive -> Positive
+              Just Unused   -> Unused
           args = map findOcc [0..nArgs - 1]
       reportSDoc "tc.pos.args" 10 $ sep
         [ text "args of" <+> prettyTCM q <+> text "="
@@ -229,8 +232,6 @@ class ComputeOccurrences a where
 
 instance ComputeOccurrences Clause where
   occurrences vars (Clause{ clausePats = ps, clauseBody = body }) =
-    -- We don't treat pattern matching as something dangerous
-    -- concatOccurs (zipWith match [0..] ps) >+<
     walk vars (patItems ps) body
     where
       walk _    _         NoBody     = Map.empty
@@ -246,7 +247,8 @@ instance ComputeOccurrences Clause where
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i (VarP _) = [Just (AnArg i)]
-      patItem i p        = replicate (nVars p) (Just (AnArg i)) -- Nothing
+      patItem i p        = replicate (nVars p) Nothing -- (Just (AnArg i))
+        -- if we're pattern matching it's not something the positivity checker needs to worry about
 
       nVars p = case p of
         VarP{}      -> 1
