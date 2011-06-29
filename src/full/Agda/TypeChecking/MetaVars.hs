@@ -447,7 +447,9 @@ assign assigningSort x args v = do
             _                     -> return ()
 
         -- We don't instantiate frozen mvars
-        when (mvFrozen mvar == Frozen) patternViolation
+        when (mvFrozen mvar == Frozen) $ do
+          reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
+          patternViolation
 
 	-- We don't instantiate blocked terms
 	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
