@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances #-}
 
 module Tags where
 
@@ -137,18 +137,21 @@ instance TagName name => HasTags (HsModule name) where
 
 instance TagName name => HasTags (HsDecl name) where
   tags d = case d of
-    TyClD d    -> tags d
-    ValD d     -> tags d
-    SigD d     -> tags d
-    ForD d     -> tags d
-    DocD _     -> []
-    SpliceD{}  -> []
-    RuleD{}    -> []
-    DefD{}     -> []
-    InstD{}    -> []
-    DerivD{}   -> []
-    WarningD{} -> []
-    AnnD{}     -> []
+    TyClD d       -> tags d
+    ValD d        -> tags d
+    SigD d        -> tags d
+    ForD d        -> tags d
+    DocD _        -> []
+    SpliceD{}     -> []
+    RuleD{}       -> []
+    DefD{}        -> []
+    InstD{}       -> []
+    DerivD{}      -> []
+    WarningD{}    -> []
+    AnnD{}        -> []
+#if MIN_VERSION_ghc(7,0,0)
+    QuasiQuoteD{} -> []
+#endif
 
 instance TagName name => HasTags (TyClDecl name) where
   tags d = tagsLN (tcdLName d) ++
