@@ -18,11 +18,11 @@ showInBase : (base : ℕ)
              {base≥2 : True (2 ≤? base)}
              {base≤16 : True (base ≤? 16)} →
              ℕ → String
-showInBase base {base≥2} {base≤16} =
-  String.fromList ∘
-  map (showDigit {base≤16 = base≤16}) ∘
-  reverse ∘
-  theDigits base {base≥2 = base≥2}
+showInBase base {base≥2} {base≤16} n =
+  String.fromList $
+  map (showDigit {base≤16 = base≤16}) $
+  reverse $
+  theDigits base {base≥2 = base≥2} n
 
 -- show n is a string containing the decimal expansion of n (starting
 -- with the most significant digit).
