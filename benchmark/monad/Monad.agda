@@ -7,12 +7,13 @@ open import Relation.Binary.OrderMorphism
 open import Relation.Binary.PropositionalEquality
 import Relation.Binary.Props.StrictTotalOrder as STOProps
 open import Data.Product
+open import Level
 
 module Monad
 
   -- Input string positions.
 
-  {Position : Set} {_<P_ : Rel Position _}
+  {Position : Set} {_<P_ : Rel Position zero}
   (posOrdered : IsStrictTotalOrder _≡_ _<P_)
 
   -- Input strings.
@@ -34,7 +35,7 @@ module Monad
                                   ; isStrictTotalOrder = posOrdered })
              MonoFun = PosPoset ⇒-Poset PosPoset in
          MonoFun -> Result -> Set}
-  {_≈_ _<_ : Rel (∃₂ Key) _}
+  {_≈_ _<_ : Rel (∃₂ Key) zero}
   (keyOrdered : IsStrictTotalOrder _≈_ _<_)
 
   -- Furthermore the underlying equality needs to be strong enough.

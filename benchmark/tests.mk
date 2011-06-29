@@ -1,6 +1,6 @@
 
 # Tests in categories
-cat			 = categories/Categories.agda -icategories --ignore-interfaces +RTS -K32M -RTS
+cat			 = categories/Categories.agda -icategories --ignore-interfaces -v0 +RTS -K32M -RTS
 catTests = cat
 
 # Tests in ac
@@ -19,9 +19,16 @@ cwf = cwf/CwF.agda --ignore-interfaces -icwf -v0
 cwfTests = cwf
 
 # Parsing monad
-monad = monad/Monad.agda -i../std-lib/src -imonad
+monad = monad/Monad.agda -i../std-lib/src -imonad -v0
 monadTests = monad
 
+#misc
+misc = misc/$1.agda -imisc --ignore-interfaces -v0
+functor = $(call misc,Functor)
+latemeta = $(call misc,LateMetaVariableInstantiation)
+polyfunctor = $(call misc,UniversePolymorphicFunctor)
+miscTests = functor latemeta polyfunctor
+
 # All tests
-allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests)
+allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests)
 

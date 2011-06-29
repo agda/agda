@@ -173,7 +173,7 @@ mutual
   _<<_ {Σ A₁ F₁}{Σ A₂ F₂} p (x , y) = eqΣ-inv₁ p << x , F₁=F₂ << y
     where
       abstract
-        F₁=F₂ : F₁ ! (_ << x) =S= F₂ ! x
+        F₁=F₂ : F₁ ! (eqΣ-inv₁ p << x) =S= F₂ ! x
         F₁=F₂ = famEqCodom (eqΣ-inv₂ p) _ _ (=El=-sym (cast-id _)) 
 
   _>>_ : {A B : Setoid} -> Fam A -> A =S= B -> Fam B
