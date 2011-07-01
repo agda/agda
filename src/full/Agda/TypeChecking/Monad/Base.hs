@@ -511,6 +511,8 @@ data Defn = Axiom
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
+              -- ^ 'Nothing' for primitive functions, @'Just'
+              -- something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
     deriving (Typeable, Data, Show)
