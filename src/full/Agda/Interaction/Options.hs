@@ -90,7 +90,6 @@ data PragmaOptions = PragmaOptions
   , optTerminationCheck          :: Bool
   , optTerminationDepth          :: Int
   , optCompletenessCheck         :: Bool
-  , optUnreachableCheck          :: Bool
   , optUniverseCheck             :: Bool
   , optSizedTypes                :: Bool
   , optInjectiveTypeConstructors :: Bool
@@ -152,7 +151,6 @@ defaultPragmaOptions = PragmaOptions
   , optTerminationCheck          = True
   , optTerminationDepth          = 0    -- this is the cutoff value
   , optCompletenessCheck         = True
-  , optUnreachableCheck          = True
   , optUniverseCheck             = True
   , optSizedTypes                = False
   , optInjectiveTypeConstructors = False
@@ -218,7 +216,6 @@ vimFlag                      o = return $ o { optGenerateVimFile           = Tru
 noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
 dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
 dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = False }
-noUnreachableCheckFlag       o = return $ o { optUnreachableCheck          = False }
 dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False }
 sizedTypes                   o = return $ o { optSizedTypes                = True  }
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
@@ -328,8 +325,6 @@ pragmaOptions =
 		    "allow termination checker to count decrease/increase upto N (default N=1)"
     , Option []	    ["no-coverage-check"] (NoArg dontCompletenessCheckFlag)
 		    "do not warn about possibly incomplete pattern matches"
-    , Option []	    ["no-unreachable-check"] (NoArg noUnreachableCheckFlag)
-		    "do not warn about unreachable function clauses"
     , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
 		    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)

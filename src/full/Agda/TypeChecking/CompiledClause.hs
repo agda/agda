@@ -50,7 +50,8 @@ compile cs = case nextSplit cs of
   Just n  -> Case n $ fmap compile $ splitOn n cs
   Nothing -> case map getBody cs of
     [Just (m, t)] -> Done m t
-    _             -> Fail
+    [Nothing]     -> Fail
+    _             -> __IMPOSSIBLE__
   where
     getBody (_, b) = body b
     body (Bind b)   = inc $ body (absBody b)

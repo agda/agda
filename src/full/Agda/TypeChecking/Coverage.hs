@@ -122,13 +122,12 @@ checkCoverage f = do
           _   ->
             setCurrentRange (getRange cs) $
               typeError $ CoverageFailure f pss
-      whenM (optUnreachableCheck <$> pragmaOptions) $
-        case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
-          []  -> return ()
-          is  -> do
-            let unreached = map ((cs !!) . fromIntegral) is
-            setCurrentRange (getRange unreached) $
-              typeError $ UnreachableClauses f (map clausePats unreached)
+      case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
+        []  -> return ()
+        is  -> do
+          let unreached = map ((cs !!) . fromIntegral) is
+          setCurrentRange (getRange unreached) $
+            typeError $ UnreachableClauses f (map clausePats unreached)
     _             -> __IMPOSSIBLE__
 
 -- | Check that the list of clauses covers the given split clause.

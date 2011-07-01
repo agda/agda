@@ -398,3 +398,5 @@ Tools
   Modules may be imported using the require("<module-id>") syntax: any
   impure code, or code outside this fragment, can be placed in a
   module and imported.
+
+* The --no-unreachable-check flag has been removed.
