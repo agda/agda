@@ -50,8 +50,8 @@ open import Relation.Nullary
 
   left-identity : LeftIdentity (Lift {ℓ = ℓ} ⊤) _×_
   left-identity _ = record
-    { to         = P.→-to-⟶ $ proj₂ {a = ℓ} {b = ℓ}
-    ; from       = P.→-to-⟶ {b₁ = ℓ} λ y → _ , y
+    { to         = P.→-to-⟶ proj₂
+    ; from       = P.→-to-⟶ λ y → _ , y
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
@@ -60,8 +60,8 @@ open import Relation.Nullary
 
   assoc : Associative _×_
   assoc _ _ _ = record
-    { to         = P.→-to-⟶ {a = ℓ} {b₁ = ℓ} λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
-    ; from       = P.→-to-⟶ {a = ℓ} {b₁ = ℓ} λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
+    { to         = P.→-to-⟶ λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
+    ; from       = P.→-to-⟶ λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
@@ -70,8 +70,8 @@ open import Relation.Nullary
 
   comm : Commutative _×_
   comm _ _ = record
-    { to         = P.→-to-⟶ $ Prod.swap {a = ℓ} {b = ℓ}
-    ; from       = P.→-to-⟶ $ Prod.swap {a = ℓ} {b = ℓ}
+    { to         = P.→-to-⟶ Prod.swap
+    ; from       = P.→-to-⟶ Prod.swap
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
@@ -100,36 +100,24 @@ open import Relation.Nullary
 
   left-identity : LeftIdentity (Lift ⊥) (_⊎_ {a = ℓ} {b = ℓ})
   left-identity A = record
-    { to         = P.→-to-⟶ to
-    ; from       = P.→-to-⟶ from
+    { to         = P.→-to-⟶ [ (λ ()) ∘′ lower , id ]
+    ; from       = P.→-to-⟶ inj₂
     ; inverse-of = record
       { right-inverse-of = λ _ → P.refl
       ; left-inverse-of  =
           [ ⊥-elim {Whatever = _ ≡ _} ∘ lower , (λ _ → P.refl) ]
       }
     }
-    where
-    to : Lift {ℓ = ℓ} ⊥ ⊎ A → A
-    to = [ (λ ()) ∘′ lower , id ]
-
-    from : A → Lift {ℓ = ℓ} ⊥ ⊎ A
-    from = inj₂
 
   assoc : Associative _⊎_
   assoc A B C = record
-    { to         = P.→-to-⟶ to
-    ; from       = P.→-to-⟶ from
+    { to         = P.→-to-⟶ [ [ inj₁ , inj₂ ∘ inj₁ ] , inj₂ ∘ inj₂ ]
+    ; from       = P.→-to-⟶ [ inj₁ ∘ inj₁ , [ inj₁ ∘ inj₂ , inj₂ ] ]
     ; inverse-of = record
       { left-inverse-of  = [ [ (λ _ → P.refl) , (λ _ → P.refl) ] , (λ _ → P.refl) ]
       ; right-inverse-of = [ (λ _ → P.refl) , [ (λ _ → P.refl) , (λ _ → P.refl) ] ]
       }
     }
-    where
-    to : (A ⊎ B) ⊎ C → A ⊎ (B ⊎ C)
-    to = [ [ inj₁ , inj₂ ∘ inj₁ ] , inj₂ ∘ inj₂ ]
-
-    from : A ⊎ (B ⊎ C) → (A ⊎ B) ⊎ C
-    from = [ inj₁ ∘ inj₁ , [ inj₁ ∘ inj₂ , inj₂ ] ]
 
   comm : Commutative _⊎_
   comm _ _ = record
@@ -171,7 +159,7 @@ open import Relation.Nullary
 
   left-zero : LeftZero (Lift ⊥) (_×_ {a = ℓ} {b = ℓ})
   left-zero A = record
-    { to         = P.→-to-⟶ $ proj₁ {a = ℓ} {b = ℓ}
+    { to         = P.→-to-⟶ proj₁
     ; from       = P.→-to-⟶ (⊥-elim ∘′ lower)
     ; inverse-of = record
       { left-inverse-of  = λ p → ⊥-elim (lower $ proj₁ p)
@@ -181,7 +169,7 @@ open import Relation.Nullary
 
   right-distrib : _×_ DistributesOverʳ _⊎_
   right-distrib A B C = record
-    { to         = P.→-to-⟶ to
+    { to         = P.→-to-⟶ $ uncurry [ curry inj₁ , curry inj₂ ]
     ; from       = P.→-to-⟶ from
     ; inverse-of = record
       { right-inverse-of = [ (λ _ → P.refl) , (λ _ → P.refl) ]
@@ -190,9 +178,6 @@ open import Relation.Nullary
       }
     }
     where
-    to : (B ⊎ C) × A → B × A ⊎ C × A
-    to = uncurry [ curry inj₁ , curry inj₂ ]
-
     from : B × A ⊎ C × A → (B ⊎ C) × A
     from = [ Prod.map inj₁ id , Prod.map inj₂ id ]
 
@@ -213,17 +198,13 @@ open import Relation.Nullary
 ∃∃↔∃∃ : ∀ {a b p} {A : Set a} {B : Set b} (P : A → B → Set p) →
         (∃₂ λ x y → P x y) ↔ (∃₂ λ y x → P x y)
 ∃∃↔∃∃ {a} {b} {p} _ = record
-  { to         = P.→-to-⟶ $ swap {a} {b}
-  ; from       = P.→-to-⟶ $ swap {b} {a}
+  { to         = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
+  ; from       = P.→-to-⟶ λ p → (proj₁ (proj₂ p) , proj₁ p , proj₂ (proj₂ p))
   ; inverse-of = record
     { left-inverse-of  = λ _ → P.refl
     ; right-inverse-of = λ _ → P.refl
     }
   }
-  where
-  swap : ∀ {a b} {A : Set a} {B : Set b} {P : A → B → Set p} →
-         (∃₂ λ x y → P x y) → (∃₂ λ y x → P x y)
-  swap (x , y , p) = (y , x , p)
 
 ------------------------------------------------------------------------
 -- Implicit and explicit function spaces are isomorphic
