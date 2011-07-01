@@ -53,14 +53,8 @@ private
 
   Eq⇒≡ : ∀ {c} {C : Container c} {X : Set c} {xs ys : ⟦ C ⟧ X} →
          P.Extensionality c c → Eq _≡_ xs ys → xs ≡ ys
-  Eq⇒≡ {C = C} {X} ext (s≡s′ , f≈f′) = helper s≡s′ f≈f′
-    where
-    helper : {s s′ : Shape C} (eq : s ≡ s′) →
-             {f  : Position C s  → X}
-             {f′ : Position C s′ → X} →
-             (∀ p → f p ≡ f′ (P.subst (Position C) eq p)) →
-             _≡_ {A = ⟦ C ⟧ X} (s , f) (s′ , f′)
-    helper refl f≈f′ = P.cong (_,_ _) (ext f≈f′)
+  Eq⇒≡ {xs = s , f} {ys = .s , f′} ext (refl , f≈f′) =
+    P.cong (_,_ s) (ext f≈f′)
 
 setoid : ∀ {ℓ} → Container ℓ → Setoid ℓ ℓ → Setoid ℓ ℓ
 setoid C X = record
@@ -78,26 +72,11 @@ setoid C X = record
   _≈_ = Eq X._≈_
 
   sym : {xs ys : ⟦ C ⟧ X.Carrier} → xs ≈ ys → ys ≈ xs
-  sym (eq , f) = helper eq f
-    where
-    helper : {s s′ : Shape C} (eq : s ≡ s′) →
-             {f  : Position C s  → X.Carrier}
-             {f′ : Position C s′ → X.Carrier} →
-             (∀ p → X._≈_ (f p) (f′ $ P.subst (Position C) eq p)) →
-             (s′ , f′) ≈ (s , f)
-    helper refl eq = (refl , X.sym ⟨∘⟩ eq)
+  sym {_ , _} {._ , _} (refl , f) = (refl , X.sym ⟨∘⟩ f)
 
   trans : ∀ {xs ys : ⟦ C ⟧ X.Carrier} zs → xs ≈ ys → ys ≈ zs → xs ≈ zs
-  trans zs (eq₁ , f₁) (eq₂ , f₂) = helper eq₁ eq₂ (proj₂ zs) f₁ f₂
-    where
-    helper : {s s′ s″ : Shape C} (eq₁ : s ≡ s′) (eq₂ : s′ ≡ s″) →
-             {f  : Position C s  → X.Carrier}
-             {f′ : Position C s′ → X.Carrier} →
-             (f″ : Position C s″ → X.Carrier) →
-             (∀ p → X._≈_ (f  p) (f′ $ P.subst (Position C) eq₁ p)) →
-             (∀ p → X._≈_ (f′ p) (f″ $ P.subst (Position C) eq₂ p)) →
-             (s , f) ≈ (s″ , f″)
-    helper refl refl _ eq₁ eq₂ = (refl , λ p → X.trans (eq₁ p) (eq₂ p))
+  trans {_ , _} {._ , _} (._ , _) (refl , f₁) (refl , f₂) =
+    (refl , λ p → X.trans (f₁ p) (f₂ p))
 
 ------------------------------------------------------------------------
 -- Functoriality

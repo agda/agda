@@ -255,7 +255,7 @@ s₁ ×-strictPartialOrder s₂ = record
 
 ×-Rel↔≡ : ∀ {a b} {A : Set a} {B : Set b} →
           Inverse (P.setoid A ×-setoid P.setoid B) (P.setoid (A × B))
-×-Rel↔≡ {A = A} {B} = record
+×-Rel↔≡ = record
   { to         = record { _⟨$⟩_ = id; cong = to-cong   }
   ; from       = record { _⟨$⟩_ = id; cong = from-cong }
   ; inverse-of = record
@@ -265,13 +265,7 @@ s₁ ×-strictPartialOrder s₂ = record
   }
   where
   to-cong : (P._≡_ ×-Rel P._≡_) ⇒ P._≡_
-  to-cong (eq₁ , eq₂) = helper eq₁ eq₂
-    where
-    open P using (_≡_)
-
-    helper : {x x′ : A} {y y′ : B} →
-             x ≡ x′ → y ≡ y′ → _≡_ {A = A × B} (x , y) (x′ , y′)
-    helper P.refl P.refl = P.refl
+  to-cong {i = (x , y)} {j = (.x , .y)} (P.refl , P.refl) = P.refl
 
   from-cong : P._≡_ ⇒ (P._≡_ ×-Rel P._≡_)
   from-cong P.refl = (P.refl , P.refl)
