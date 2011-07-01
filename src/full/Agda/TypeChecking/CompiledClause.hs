@@ -25,8 +25,12 @@ data Case c = Branches { conBranches    :: QName   :-> c
 
 data CompiledClauses
   = Case Int (Case CompiledClauses)
+    -- ^ @Case n bs@ stands for a match on the @n@-th argument
+    -- (counting from zero) with @bs@ as the case branches.
   | Done Int Term
+    -- ^ @Done n b@ stands for the body @b@ under @n@ 'Bind'ers.
   | Fail
+    -- ^ Absurd case.
   deriving (Typeable, Data)
 
 -- | Note that it is the /translated/ clauses which are compiled, not
