@@ -43,7 +43,7 @@ translateDefn msharp (n, defini) =
         return . return $ Fun True n' ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         irrF <- gets irrFilters
-        let len   = length . clausePats . translatedClause . head .  funClauses $ f
+        let len   = length . clausePats . head .  funClauses $ f
             toEta = fromIntegral (arity (defType defini)) - len
             ccs   = reverseCCBody $ funCompiled f
         forcing <- lift $ gets (optForcing . stPersistentOptions)

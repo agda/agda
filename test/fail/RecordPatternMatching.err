@@ -1,5 +1,0 @@
-RecordPatternMatching.agda:18,1-33
-Not supported: Dot patterns inside record patterns, unless
-accompanied by data type patterns
-when checking that the clause Foo (x , y) (.x , y′) refl = Set has
-type {A : Set} (p₁ p₂ : A × A) → proj₁ p₁ ≡ proj₁ p₂ → Set₁

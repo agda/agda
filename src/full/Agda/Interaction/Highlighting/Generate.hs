@@ -399,8 +399,7 @@ generateConstructorInfo modMap file kinds decls = do
       NotDelayed -> return Seq.empty
 
       Delayed -> do
-        clauses <- R.instantiateFull $ map I.originalClause $
-                     defClauses def
+        clauses <- R.instantiateFull $ defClauses def
         case clauses of
           [I.Clause{ I.clauseBody = body }] -> case getRHS body of
             Just (I.Def c args) -> do

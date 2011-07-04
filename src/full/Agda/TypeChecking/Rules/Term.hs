@@ -427,13 +427,12 @@ checkExpr e t =
                   addConstant aux $ Defn rel aux t' (defaultDisplayForm aux) 0 noCompiledRep
                                   $ Function
                                     { funClauses        =
-                                        [Clauses Nothing
-                                                 (Clause { clauseRange = getRange e
-                                                         , clauseTel   = EmptyTel
-                                                         , clausePerm  = Perm 0 []
-                                                         , clausePats  = [Arg h Relevant $ VarP "()"]
-                                                         , clauseBody  = NoBody
-                                                         })
+                                        [Clause { clauseRange = getRange e
+                                                , clauseTel   = EmptyTel
+                                                , clausePerm  = Perm 0 []
+                                                , clausePats  = [Arg h Relevant $ VarP "()"]
+                                                , clauseBody  = NoBody
+                                                }
                                         ]
                                     , funCompiled       = Fail
                                     , funDelayed        = NotDelayed

@@ -88,10 +88,6 @@ instance Apply Defn where
 instance Apply PrimFun where
     apply (PrimFun x ar def) args   = PrimFun x (ar - size args) $ \vs -> def (args ++ vs)
 
-instance Apply Clauses where
-    apply (Clauses c tc) args =
-      Clauses (apply c args) (apply tc args)
-
 instance Apply Clause where
     apply (Clause r tel perm ps b) args =
       Clause r (apply tel args) (apply perm args)
@@ -220,10 +216,6 @@ instance Abstract Defn where
 instance Abstract PrimFun where
     abstract tel (PrimFun x ar def) = PrimFun x (ar + n) $ \ts -> def $ genericDrop n ts
         where n = size tel
-
-instance Abstract Clauses where
-  abstract tel (Clauses c tc) =
-    Clauses (abstract tel c) (abstract tel tc)
 
 instance Abstract Clause where
   abstract tel (Clause r tel' perm ps b) =

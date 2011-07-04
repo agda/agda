@@ -33,8 +33,16 @@ import Agda.Utils.Impossible
 -- projection functions. Does not remove record constructor patterns
 -- which have sub-patterns containing non-record constructor or
 -- literal patterns.
+--
+-- If the input clause contains dot patterns inside record patterns,
+-- then the translation may yield clauses which are not type-correct.
+-- However, we believe that it is safe to use the output as input to
+-- 'Agda.TypeChecking.CompiledClause.Compile.compileClauses'. Perhaps
+-- it would be better to perform record pattern translation on the
+-- compiled clauses instead, but the code below has already been
+-- implemented and seems to work.
 
-translateRecordPatterns :: MonadTCM tcm => Clause -> tcm Clauses
+translateRecordPatterns :: MonadTCM tcm => Clause -> tcm Clause
 translateRecordPatterns clause = do
   -- ps: New patterns, in left-to-right order, in the context of the
   -- old RHS.
@@ -132,10 +140,7 @@ translateRecordPatterns clause = do
         ]
       ]
 
-  return $ Clauses { translatedClause    = c
-                   , maybeOriginalClause =
-                       if all isLeft cs then Nothing else Just clause
-                   }
+  return c
 
 ------------------------------------------------------------------------
 -- Record pattern monad
@@ -231,9 +236,6 @@ projections (RecCon _ args) =
 
 -- | Converts a record tree to a single pattern along with information
 -- about the deleted pattern variables.
---
--- Raises an error if the tree contains dot patterns inside record
--- patterns.
 
 removeTree :: RecordTree -> RecPatM (Pattern, Subst, Changes)
 removeTree tree = do
@@ -243,18 +245,9 @@ removeTree tree = do
 
       count k = genericLength $ filter ((== k) . snd) ps
 
-      dotPatternInside = case tree of
-        Leaf {}   -> False
-        RecCon {} -> any ((== DotPat) . snd) ps
-
-  if dotPatternInside then
-    typeError $ NotSupported $
-      "Dot patterns inside record patterns, " ++
-      "unless accompanied by data type patterns"
-   else
-    return $ case tree of
-      Leaf p     -> (p,   s, [Left p])
-      RecCon t _ -> (pat, s, [Right (count, "r", t)])
+  return $ case tree of
+    Leaf p     -> (p,   s, [Left p])
+    RecCon t _ -> (pat, s, [Right (count, "r", t)])
 
 ------------------------------------------------------------------------
 -- Translation of patterns

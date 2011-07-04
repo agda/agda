@@ -26,7 +26,7 @@ import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- leads to cyclicity
-import Agda.TypeChecking.CompiledClause
+import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
 
 import Agda.Utils.Monad
@@ -148,7 +148,7 @@ addDisplayForms x = do
   add args x x []
   where
     add args top x ps = do
-      cs <- map originalClause . defClauses <$> getConstInfo x
+      cs <- defClauses <$> getConstInfo x
       case cs of
 	[ Clause{ clauseBody = b } ]
 	  | Just (m, Def y vs) <- strip b
@@ -221,7 +221,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 	Nothing -> return ()  -- if it's not in the renaming it was private and
 			      -- we won't need it
 	Just y	-> do
-	  addConstant y (nd y)
+	  addConstant y =<< nd y
           computePolarity y  -- AA: Polarity.sizePolarity needs also constructor names
 	  -- Set display form for the old name if it's not a constructor.
 	  unless (isCon || size ptel > 0) $ do
@@ -229,7 +229,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
       where
 	t  = defType d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn (defRelevance d) y t [] (-1) noCompiledRep def  -- TODO: mutual block?
+	nd y = Defn (defRelevance d) y t [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon = case oldDef of
 	  Constructor{} -> True
@@ -241,26 +241,28 @@ applySection new ptel old ts rd rm = liftTCM $ do
           _ -> []
         oldOcc = getOcc oldDef
 	def  = case oldDef of
-                Constructor{ conPars = np, conData = d } ->
+                Constructor{ conPars = np, conData = d } -> return $
                   oldDef { conPars = np - size ts, conData = copyName d }
-                Datatype{ dataPars = np, dataCons = cs } ->
+                Datatype{ dataPars = np, dataCons = cs } -> return $
                   oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs
                          , dataArgOccurrences = drop (length ts) oldOcc }
-                Record{ recPars = np, recConType = t, recTel = tel } ->
+                Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars = np - size ts, recClause = Just cl
                          , recConType = apply t ts, recTel = apply tel ts
                          , recArgOccurrences = drop (length ts) oldOcc
                          }
-		_ ->
-                  Function { funClauses        = [cl2]
-                           , funCompiled       = cc
-                           , funDelayed        = NotDelayed
-                           , funInv            = NotInjective
-                           , funPolarity       = []
-                           , funArgOccurrences = drop (length ts) oldOcc
-                           , funAbstr          = ConcreteDef
-                           , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
-                           }
+		_ -> do
+                  cc <- compileClauses True [cl]
+                  return $ Function
+                    { funClauses        = [cl]
+                    , funCompiled       = cc
+                    , funDelayed        = NotDelayed
+                    , funInv            = NotInjective
+                    , funPolarity       = []
+                    , funArgOccurrences = drop (length ts) oldOcc
+                    , funAbstr          = ConcreteDef
+                    , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
+                    }
                   where maybeNum = case oldDef of
                                      Function { funProjection = mn } -> mn
                                      _                               -> Nothing
@@ -271,8 +273,6 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , clausePats  = []
                     , clauseBody  = Body $ Def x ts
                     }
-        cl2 = Clauses Nothing cl
-        cc  = compileClauses [cl2]
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
     copySec ts (x, sec) = case Map.lookup x rm of

@@ -105,16 +105,24 @@ C (_ , _) = Set
 data P : ⊥ → ⊥ → Set where
   p : (x y : ⊥) → P x y
 
-Foo : (x : ⊥) → P x x → P x x → Set₁
-Foo .x _ (p x .x) = Set
-
--- Record patterns containing dot patterns are not supported. Unless
--- they also contain data type patterns.
-
-D : (p₁ p₂ : B) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
-D (x , y) (.x , unit) refl = Set
+Bar : (x : ⊥) → P x x → P x x → Set₁
+Bar .x _ (p x .x) = Set
 
 -- Another example which used to trigger a bug:
 
 G : (Σ ⊥ λ x → Σ ⊥ λ y → x ≡ y) → Set₁
 G (x , (.x , refl)) = Set
+
+-- Record patterns containing dot patterns are supported.
+
+Foo : (p₁ p₂ : B) → proj₁ p₁ ≡ proj₁ p₂ → Unit
+Foo (x , y) (.x , y′) refl = unit
+
+Foo-eval : (p : B) → Foo p p refl ≡ unit
+Foo-eval _ = refl
+
+-- Record patterns containing dot patterns as well as data type
+-- patterns are also supported.
+
+D : (p₁ p₂ : B) → proj₁ p₁ ≡ proj₁ p₂ → Set₁
+D (x , y) (.x , unit) refl = Set

@@ -455,7 +455,7 @@ data Occurrence = Positive | Negative | Unused
 
 data Defn = Axiom
 	  | Function
-            { funClauses        :: [Clauses]
+            { funClauses        :: [Clause]
             , funCompiled       :: CompiledClauses
             , funInv            :: FunctionInverse
             , funPolarity       :: [Polarity]
@@ -507,7 +507,7 @@ data Defn = Axiom
 	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String
-            , primClauses :: Maybe [Clauses]
+            , primClauses :: Maybe [Clause]
               -- ^ 'Nothing' for primitive functions, @'Just'
               -- something@ for builtin functions.
             , primCompiled :: Maybe CompiledClauses
@@ -555,11 +555,11 @@ data PrimFun = PrimFun
 	}
     deriving (Typeable)
 
-defClauses :: Definition -> [Clauses]
+defClauses :: Definition -> [Clause]
 defClauses Defn{theDef = Function{funClauses = cs}}        = cs
 defClauses Defn{theDef = Primitive{primClauses = Just cs}} = cs
-defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [Clauses Nothing c]
-defClauses Defn{theDef = Record{recClause = Just c}}       = [Clauses Nothing c]
+defClauses Defn{theDef = Datatype{dataClause = Just c}}    = [c]
+defClauses Defn{theDef = Record{recClause = Just c}}       = [c]
 defClauses _                                               = []
 
 defCompiled :: Definition -> Maybe CompiledClauses

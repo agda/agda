@@ -27,7 +27,7 @@ getArity x = do
   def <- theDef <$> getConstInfo x
   case def of
     Axiom{}                                 -> return 0
-    Function{ funClauses = c : _ }          -> return $ genericLength (clausePats $ translatedClause c)
+    Function{ funClauses = c : _ }          -> return $ genericLength (clausePats c)
     Function{ funClauses = [] }             -> return 0
     Datatype{ dataPars = np, dataIxs = ni } -> return np
     Record{ recPars = n }                   -> return n

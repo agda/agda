@@ -22,6 +22,9 @@ Language
   {-# BUILTIN LEVELSUC  suc   #-}
   {-# BUILTIN LEVELMAX  max   #-}
 
+* Record patterns which do not contain data type patterns, but which
+  do contain dot patterns, are no longer rejected.
+
 * When the --without-K flag is used literals are now treated as
   constructors.
 

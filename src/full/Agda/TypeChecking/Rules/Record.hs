@@ -18,7 +18,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
-import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import Agda.TypeChecking.Rules.Term ( isType_ )
@@ -275,8 +275,12 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                           , clausePats  = hps ++ [conp]
                           , clauseBody  = body
                           }
-          clause2 = Clauses Nothing clause
-          cc      = compileClauses [clause2]
+
+            -- Record patterns should /not/ be translated when the
+            -- projection functions are defined. Record pattern
+            -- translation is defined in terms of projection
+            -- functions.
+      cc <- compileClauses False [clause]
 
       reportSDoc "tc.cc" 10 $ do
         sep [ text "compiled clauses of " <+> prettyTCM projname
@@ -285,7 +289,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 
       escapeContext (size tel) $ do
 	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0 noCompiledRep
-          $ Function { funClauses        = [clause2]
+          $ Function { funClauses        = [clause]
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective

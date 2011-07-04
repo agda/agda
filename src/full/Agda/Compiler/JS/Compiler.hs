@@ -18,12 +18,11 @@ import Agda.Syntax.Common ( Nat, Arg, unArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Internal
   ( Name, Args, Type, ModuleName(MName), QName(QName),
-    Clauses(Clauses), Clause(Clause),
-    Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
+    Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind,NoBind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
     toTopLevelModuleName, mnameToList, qnameName, absBody,
-    translatedClause, clausePats, clauseBody, arity, unEl )
+    clausePats, clauseBody, arity, unEl )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
@@ -201,14 +200,14 @@ defn ls t _ (Record {}) =
 
 -- Number of params in a function declaration
 
-numPars :: [Clauses] -> Nat
-numPars []                  = 0
-numPars (Clauses _ c : _) = genericLength (clausePats c)
+numPars :: [Clause] -> Nat
+numPars []      = 0
+numPars (c : _) = genericLength (clausePats c)
 
 -- One clause in a function definition
 
-clause :: Clauses -> TCM Case
-clause (Clauses _ c) = do
+clause :: Clause -> TCM Case
+clause c = do
   ps <- mapM (pattern . unArg) (clausePats c)
   (av,bv,es) <- return (mapping (map unArg (clausePats c)))
   e <- body (clauseBody c)

@@ -42,8 +42,7 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.SizedTypes
-import Agda.TypeChecking.RecordPatterns
-import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope_, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
@@ -90,12 +89,11 @@ checkFunDef delayed i name cs =
         cs <- mapM check cs
 
         -- Check that all clauses have the same number of arguments
-        unless (allEqual $ map (npats . translatedClause) cs) $
-               typeError DifferentArities
+        unless (allEqual $ map npats cs) $ typeError DifferentArities
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before rebindClause"
-              , nest 2 $ prettyTCM (map (NamedClause name . translatedClause) cs)
+              , nest 2 $ prettyTCM (map (NamedClause name) cs)
               ]
 
         -- Annotate the clauses with which arguments are actually used.
@@ -107,15 +105,15 @@ checkFunDef delayed i name cs =
         -- possibly due to missing eta-contraction!?
 
         -- Check if the function is injective
-        inv <- checkInjectivity name $ map translatedClause cs
+        inv <- checkInjectivity name cs
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before compilation"
-              , nest 2 $ prettyTCM (map (NamedClause name . translatedClause) cs)
+              , nest 2 $ prettyTCM (map (NamedClause name) cs)
               ]
 
         -- Compile the clauses
-        let cc = compileClauses cs
+        cc <- compileClauses True cs
 
         reportSDoc "tc.cc" 10 $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
@@ -174,7 +172,7 @@ data WithFunctionProblem
                      [A.Clause]     -- the given clauses for the with function
 
 -- | Type check a function clause.
-checkClause :: Type -> A.Clause -> TCM Clauses
+checkClause :: Type -> A.Clause -> TCM Clause
 checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
@@ -315,7 +313,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
           ]
         ]
 
-      translateRecordPatterns $
+      return $
         Clause { clauseRange = getRange i
                , clauseTel   = killRange delta
                , clausePerm  = perm

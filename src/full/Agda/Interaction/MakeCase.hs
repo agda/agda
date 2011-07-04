@@ -51,7 +51,7 @@ findClause m = do
   let res = do
         def <- Map.elems $ sigDefinitions sig
         Function{funClauses = cs} <- [theDef def]
-        c <- map originalClause cs
+        c <- cs
         unless (rhsIsm $ clauseBody c) []
         return (defName def, c)
   case res of
