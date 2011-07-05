@@ -1,0 +1,42 @@
+Logic: 5 metas
+Bool: 70 metas
+Nat: 21 metas
+List: 58 metas
+Fin: 88 metas
+Vec: 80 metas
+EqProof: 36 metas
+AC: 560 metas
+Example: 238 metas
+../src/main/dist/build/agda/agda -v0 -v profile:100 ac/Example.agda --ignore-interfaces -iac +RTS -slogs/.tmp 
+   1,642,300,528 bytes allocated in the heap
+     162,720,044 bytes copied during GC
+      11,310,780 bytes maximum residency (21 sample(s))
+         180,244 bytes maximum slop
+              31 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0:  3107 collections,     0 parallel,  0.48s,  0.50s elapsed
+  Generation 1:    21 collections,     0 parallel,  0.34s,  0.37s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time    3.31s  (  3.34s elapsed)
+  GC    time    0.82s  (  0.87s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time    4.13s  (  4.22s elapsed)
+
+  %GC time      19.9%  (20.7% elapsed)
+
+  Alloc rate    496,590,729 bytes per MUT second
+
+  Productivity  80.1% of total user, 78.4% of total elapsed
+
+──────────────────────────────────────────────────────────────────
+Mach kernel version:
+	 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386
+Kernel configured for up to 2 processors.
+2 processors are physically available.
+2 processors are logically available.
+Processor type: i486 (Intel 80486)
+Processors active: 0 1
+Primary memory available: 2.00 gigabytes
+Default processor set: 67 tasks, 302 threads, 2 processors
+Load average: 1.00, Mach factor: 0.99

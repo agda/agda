@@ -1,0 +1,49 @@
+Basics: 27 metas
+Pr: 178 metas
+Nom: 201 metas
+Kind: 22 metas
+Cxt: 117 metas
+Loc: 221 metas
+Term: 352 metas
+Shift: 265 metas
+Eta: 247 metas
+Inst: 327 metas
+Subst: 263 metas
+Syntacticosmos: 5 metas
+UntypedLambda: 108 metas
+Statistics
+----------
+attempted-constraints : 48
+../src/main/dist/build/agda/agda -v0 -v profile:100 Syntacticosmos/UntypedLambda.agda --ignore-interfaces -iSyntacticosmos +RTS -K32M -slogs/.tmp 
+   2,609,411,208 bytes allocated in the heap
+     403,851,104 bytes copied during GC
+      15,759,448 bytes maximum residency (41 sample(s))
+         209,936 bytes maximum slop
+              39 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0:  4926 collections,     0 parallel,  1.31s,  1.33s elapsed
+  Generation 1:    41 collections,     0 parallel,  0.96s,  1.02s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time    6.77s  (  6.93s elapsed)
+  GC    time    2.27s  (  2.35s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time    9.04s  (  9.28s elapsed)
+
+  %GC time      25.1%  (25.3% elapsed)
+
+  Alloc rate    385,377,004 bytes per MUT second
+
+  Productivity  74.9% of total user, 72.9% of total elapsed
+
+──────────────────────────────────────────────────────────────────
+Mach kernel version:
+	 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386
+Kernel configured for up to 2 processors.
+2 processors are physically available.
+2 processors are logically available.
+Processor type: i486 (Intel 80486)
+Processors active: 0 1
+Primary memory available: 2.00 gigabytes
+Default processor set: 67 tasks, 304 threads, 2 processors
+Load average: 1.06, Mach factor: 0.97
