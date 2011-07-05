@@ -1,0 +1,6 @@
+
+20110629: after new level representation and optimised positivity check
+          (used interface file for monad example)
+
+20110701: actually type checking the monad example
+
