@@ -133,7 +133,8 @@ solveConstraint (UnBlock m)          =
       -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
       -- somehow they pop up in the context of sized types
       --
-      -- already solved metavariables: no constraints left (Ulf, is that correct?)
+      -- already solved metavariables: should only happen for size
+      -- metas (not sure why it does, Andreas?)
       InstV{} -> return []
       InstS{} -> return []
       -- Open (whatever that means)

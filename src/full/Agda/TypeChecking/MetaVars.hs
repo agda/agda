@@ -89,8 +89,8 @@ isEtaExpandable x = do
 --   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
-assignTerm' :: MonadTCM tcm => Bool -> MetaId -> Term -> tcm ()
-assignTerm' assigningSort x t = do
+assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
+assignTerm x t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
     whenM (isFrozen x) __IMPOSSIBLE__  -- verify (new) invariant
     let i = metaInstance (killRange t)
@@ -99,17 +99,9 @@ assignTerm' assigningSort x t = do
     wakeupConstraints
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
   where
-    metaInstance = InstV -- if assigningSort then InstS else InstV
+    metaInstance = InstV
     ins x i store = Map.adjust (inst i) x store
     inst i mv = mv { mvInstantiation = i }
-
-assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
-assignTerm = assignTerm' False
-
-{- UNUSED
-assignSort :: MonadTCM tcm => MetaId -> Sort -> tcm ()
-assignSort x s = assignTerm' True x (Sort s)
--}
 
 -- * Creating meta variables.
 
@@ -410,26 +402,24 @@ assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
 assignV x args v = do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
-        assign False x args v
+        assign x args v
 
 assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
 assignS x args s =
   ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $ do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "sort" <+> prettyTCM (Type $ Max [Plus 0 $ MetaLevel x args]) <+> text ":=" <+> prettyTCM s
-        assign True x args (Sort s)
+        assign x args (Sort s)
     where
         noPolyAssign x s = do
             -- We don't instantiate frozen mvars
             whenM (isFrozen x) patternViolation
-            assignTerm' True x =<< occursCheck x [] (Sort s)
---            Sort s <- occursCheck x [] (Sort s)
---            x =: s
+            assignTerm x =<< occursCheck x [] (Sort s)
             return []
 
 -- | @assign sort? x vs v@
-assign :: MonadTCM tcm => Bool -> MetaId -> Args -> Term -> tcm Constraints
-assign assigningSort x args v = do
+assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
+assign x args v = do
         mvar <- lookupMeta x  -- information associated with meta x
 
         -- Andreas, 2011-05-20 TODO!
@@ -563,8 +553,7 @@ assign assigningSort x args v = do
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
 	n <- size <$> getContextTelescope
---	escapeContext n $ x =: killRange (abstract tel' v')
-	escapeContext n $ assignTerm' assigningSort x $ killRange (abstract tel' v')
+	escapeContext n $ assignTerm x $ killRange (abstract tel' v')
 	return []
     where
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term

@@ -771,6 +771,6 @@ equalSort s1 s2 =
 
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
-          MetaLevel x vs          -> assign True x vs (Sort Inf)
+          MetaLevel x vs          -> assign x vs (Sort Inf)
           NeutralLevel (Sort Inf) -> return []
           _                       -> notok
