@@ -52,6 +52,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
+import Agda.Utils.Fresh
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
@@ -444,6 +445,11 @@ createInterface file mname = do
       -- Type checking.
       checkDecls (topLevelDecls topLevel)
       unfreezeMetas
+
+      -- Count number of metas
+      verboseS "profile.metas" 10 $ do
+        MetaId n <- fresh
+        reportSLn "" 0 $ show (pretty mname) ++ ": " ++ show n ++ " metas"
 
       -- Termination checking.
       termErrs <- ifM (optTerminationCheck <$> pragmaOptions)
