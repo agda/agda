@@ -24,12 +24,12 @@ data Statistics = Stats
       , memoryInUse   :: MegaBytes
       , totalTime     :: Seconds
       , numberOfMetas :: Metas
+      , attemptedConstraints :: Integer
       }
 
 instance Show Statistics where
-  show (Stats _ mem time meta) =
-    printf "%5.2fs - %4dMB - %5d metas" time mem meta
-    -- concat [ show time, "s - ", show mem, "MB - ", show meta, " metas" ]
+  show (Stats _ mem time meta cs) =
+    printf "%5.2fs - %4dMB - %5d metas - %5d constraints" time mem meta cs
 
 noStats = Stats "true" 0 0
 
@@ -43,6 +43,9 @@ notP p = do
 -- Greedy version of many
 many' :: ReadP a -> ReadP [a]
 many' p = many p <* notP p
+
+orElse :: ReadP a -> ReadP a -> ReadP a
+orElse p q = p +++ (notP p *> q)
 
 lineP :: ReadP String
 lineP = do
@@ -89,6 +92,11 @@ collectionP = do
 statsP :: ReadP Statistics
 statsP = do
   numberOfMetas <- sum <$> many' metaP
+  attemptedConstraints <- do
+      string "Statistics\n"
+      lineP
+      string "attempted-constraints :" *> integerP <* lineP
+    `orElse` pure 0
   command <- lineP
   many lineP
   memoryInUse <- skipSpaces *> megaBytesP <* skipSpaces <* string "total memory" <* lineP
@@ -101,6 +109,7 @@ statsP = do
     , memoryInUse
     , totalTime
     , numberOfMetas
+    , attemptedConstraints
     }
 
 file = "logs/ulf-norells-macbook-pro-20081126-12.59/syntax1"

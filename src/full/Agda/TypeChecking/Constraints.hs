@@ -89,7 +89,7 @@ solveConstraints cs = do
     reportSDoc "tc.constr.solve" 60 $
       sep [ text "{ solving", nest 2 $ prettyTCM cs ]
     n  <- length <$> getInstantiatedMetas
-    cs0 <- return cs
+    verboseS "profile.constraints" 10 $ liftTCM $ tickN "attempted-constraints" (countConstraints cs)
     cs <- concat <$> mapM (withConstraint solveConstraint) cs
     n' <- length <$> getInstantiatedMetas
     reportSDoc "tc.constr.solve" 70 $
@@ -101,6 +101,10 @@ solveConstraints cs = do
 	else return cs
     reportSLn "tc.constr.solve" 60 $ "solved constraints }"
     return cs
+  where
+    countConstraints = sum . List.map (count . clValue)
+    count (Guarded c cs) = count c + countConstraints cs
+    count _ = 1
 
 solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
