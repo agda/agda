@@ -6,6 +6,7 @@ import System.Directory
 import Text.ParserCombinators.ReadP
 import Data.Char
 import Text.PrettyPrint hiding (char)
+import Text.Printf
 
 instance Applicative ReadP where
   pure = return
@@ -16,15 +17,32 @@ type MegaBytes = Integer
 type Seconds = Float
 type Percent = Float
 type BytesPerSecond = Bytes
+type Metas = Integer
 
 data Statistics = Stats
       { command       :: String
       , memoryInUse   :: MegaBytes
       , totalTime     :: Seconds
+      , numberOfMetas :: Metas
       }
-  deriving Show
+
+instance Show Statistics where
+  show (Stats _ mem time meta) =
+    printf "%5.2fs - %4dMB - %5d metas" time mem meta
+    -- concat [ show time, "s - ", show mem, "MB - ", show meta, " metas" ]
 
 noStats = Stats "true" 0 0
+
+notP :: ReadP a -> ReadP ()
+notP p = do
+  s <- look
+  case readP_to_S p s of
+    []  -> return ()
+    _   -> pfail
+
+-- Greedy version of many
+many' :: ReadP a -> ReadP [a]
+many' p = many p <* notP p
 
 lineP :: ReadP String
 lineP = do
@@ -56,6 +74,9 @@ timeP = floatP <* char 's'
 percentP :: ReadP Percent
 percentP = floatP <* char '%'
 
+metaP :: ReadP Metas
+metaP = munch (/= ':') *> string ":" *> integerP <* string " metas" <* lineP
+
 collectionP :: ReadP (Integer, Seconds)
 collectionP = do
   n <- integerP
@@ -67,6 +88,7 @@ collectionP = do
 
 statsP :: ReadP Statistics
 statsP = do
+  numberOfMetas <- sum <$> many' metaP
   command <- lineP
   many lineP
   memoryInUse <- skipSpaces *> megaBytesP <* skipSpaces <* string "total memory" <* lineP
@@ -78,6 +100,7 @@ statsP = do
     { command
     , memoryInUse
     , totalTime
+    , numberOfMetas
     }
 
 file = "logs/ulf-norells-macbook-pro-20081126-12.59/syntax1"
@@ -140,11 +163,15 @@ stats goodLog goodCase attrs = do
     printStat l = do
       putStrLn $ logDir l
       cs <- filter (goodCase . fst) <$> readLogs l
-      print $ vcat $ map prAttrs cs
-    prAttrs (c, s) = nest 2 $ text c <+> vcat (map (prAttr s) attrs)
-    prAttr s (Attr name f) =
-      text name <> text ":" <+> text (show (f s))
+      let w = maximum $ 0 : [ length name | (name, _) <- cs ]
+      print $ vcat $ map (prAttrs w) cs
+    prAttrs w (c, s) = nest 2 $ text (pad c) <+> vcat (map (prAttr s) attrs)
+      where
+        pad s = s ++ replicate (w - length s) ' ' ++ ":"
+    prAttr s (Attr name f) = text (show (f s))
 
 time = stats (const True) (const True) [Attr "time" totalTime]
 mem  = stats (const True) (const True) [Attr "space" memoryInUse]
+
+summary = stats (const True) (const True) [Attr "stats" id]
 

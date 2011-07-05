@@ -22,14 +22,20 @@ endif
 logDir = $(LOG_DIR)/$(TAG)
 logFiles = $(patsubst %,$(logDir)/%,$(allTests))
 
-all : $(logDir) $(logFiles)
+verbose = -v0 -v profile:100
+
+all : clean $(logDir) $(logFiles)
 
 $(logDir) :
 	@mkdir -p $@
 
 $(LOG_DIR)/$(TAG)/% :
 	@echo Running benchmark $*
-	@$(AGDA_BIN) $($*) +RTS -s$@
+	@$(AGDA_BIN) $(verbose) $($*) +RTS -slogs/.tmp > $@
+	@cat logs/.tmp >> $@
+	@rm logs/.tmp
 	@echo "──────────────────────────────────────────────────────────────────" >> $@
 	@$(INFO) >> $@
 
+clean :
+	@find . -name '*.agdai' -exec rm {} \;
