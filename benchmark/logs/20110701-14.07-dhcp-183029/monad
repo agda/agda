@@ -1,0 +1,34 @@
+Monad: 286 metas
+../src/main/dist/build/agda/agda -v0 -v profile:100 monad/Monad.agda -i../std-lib/src -imonad +RTS -slogs/.tmp 
+   9,560,999,932 bytes allocated in the heap
+   1,696,104,712 bytes copied during GC
+     166,837,248 bytes maximum residency (15 sample(s))
+       2,455,504 bytes maximum slop
+             418 MB total memory in use (0 MB lost due to fragmentation)
+
+  Generation 0: 18162 collections,     0 parallel,  4.83s,  4.90s elapsed
+  Generation 1:    15 collections,     0 parallel,  3.08s,  3.55s elapsed
+
+  INIT  time    0.00s  (  0.00s elapsed)
+  MUT   time   28.11s  ( 28.29s elapsed)
+  GC    time    7.91s  (  8.45s elapsed)
+  EXIT  time    0.00s  (  0.00s elapsed)
+  Total time   36.02s  ( 36.74s elapsed)
+
+  %GC time      22.0%  (23.0% elapsed)
+
+  Alloc rate    340,129,578 bytes per MUT second
+
+  Productivity  78.0% of total user, 76.5% of total elapsed
+
+──────────────────────────────────────────────────────────────────
+Mach kernel version:
+	 Darwin Kernel Version 10.8.0: Tue Jun  7 16:33:36 PDT 2011; root:xnu-1504.15.3~1/RELEASE_I386
+Kernel configured for up to 2 processors.
+2 processors are physically available.
+2 processors are logically available.
+Processor type: i486 (Intel 80486)
+Processors active: 0 1
+Primary memory available: 2.00 gigabytes
+Default processor set: 63 tasks, 298 threads, 2 processors
+Load average: 1.06, Mach factor: 0.92
