@@ -35,6 +35,7 @@ displayForm c vs = do
       [ "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
       , "matches     : " ++ show (matches dfs vs)
+      , "result      : " ++ show (foldr (const . Just) Nothing $ matches dfs vs)
       ]
     return $ foldr (const . Just) Nothing $ matches dfs vs -- ++ matches nfdfs us
   `catchError` \_ -> return Nothing
