@@ -9,7 +9,7 @@ import Relation.Binary.Props.StrictTotalOrder as STOProps
 open import Data.Product
 open import Level
 
-module Monad where
+module MonadPostulates where
 
 postulate
   -- Input string positions.

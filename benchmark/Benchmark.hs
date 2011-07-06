@@ -30,7 +30,7 @@ data Statistics = Stats
 
 instance Show Statistics where
   show (Stats _ mem time meta cs) =
-    printf "%5.2fs - %4dMB - %5d metas - %5d constraints" time mem meta cs
+    printf "%6.2fs - %4dMB - %5d metas - %5d constraints" time mem meta cs
 
 noStats = Stats "true" 0 0
 

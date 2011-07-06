@@ -20,7 +20,8 @@ cwfTests = cwf
 
 # Parsing monad
 monad = monad/Monad.agda -i../std-lib/src -imonad
-monadTests = monad
+monadpostulate = monad/MonadPostulates.agda -i../std-lib/src -imonad
+monadTests = monad monadpostulate
 
 #misc
 misc = misc/$1.agda -imisc --ignore-interfaces
