@@ -417,7 +417,7 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
                               , text "--->" <+> prettyTCM cs1
                               ]
                           ]
-                        patternViolation
+                        buildConstraint (Guarded (ArgsCmp pols (piApply a [arg1]) args1 args2) cs1)
 		_   -> do
                     reportSDoc "tc.conv.args" 35 $ sep
                       [ text "compareArgs" <+> parens (text $ show pol)
