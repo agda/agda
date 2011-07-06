@@ -612,7 +612,7 @@ newtype MutualId = MutId Int32
 -- ** Statistics
 ---------------------------------------------------------------------------
 
-type Statistics = Map String Int
+type Statistics = Map String Integer
 
 ---------------------------------------------------------------------------
 -- ** Trace

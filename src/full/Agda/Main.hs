@@ -125,16 +125,6 @@ runAgda = do
             Just _  -> return Nothing
             Nothing -> return $ Just i
 
-          -- Print stats
-          stats <- Map.toList <$> getStatistics
-          case stats of
-            []      -> return ()
-            _       -> liftIO $ do
-              LocIO.putStrLn "Statistics"
-              LocIO.putStrLn "----------"
-              mapM_ (\ (s,n) -> LocIO.putStrLn $ s ++ " : " ++ show n) $
-                sortBy (\x y -> compare (snd x) (snd y)) stats
-
           whenM (optGenerateHTML <$> commandLineOptions) $
             generateHTML $ iModuleName i
 

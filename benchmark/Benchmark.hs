@@ -7,6 +7,7 @@ import Text.ParserCombinators.ReadP
 import Data.Char
 import Text.PrettyPrint hiding (char)
 import Text.Printf
+import Data.Monoid
 
 instance Applicative ReadP where
   pure = return
@@ -89,14 +90,22 @@ collectionP = do
   lineP
   return (n, t)
 
+data Ticks = Metas Integer | Constraints Integer
+
+tickP =
+  t Metas       "metas" +++
+  t Constraints "attempted-constraints"
+  where
+    t c s = c <$ string ("  " ++ s ++ " = ") <*> integerP <* lineP
+
+ticksP =
+  string "Ticks for " *> lineP *> many' tickP
+
 statsP :: ReadP Statistics
 statsP = do
-  numberOfMetas <- sum <$> many' metaP
-  attemptedConstraints <- do
-      string "Statistics\n"
-      lineP
-      string "attempted-constraints :" *> integerP <* lineP
-    `orElse` pure 0
+  ticks <- concat <$> many' ticksP
+  let numberOfMetas        = sum [ n | Metas n <- ticks ]
+      attemptedConstraints = sum [ n | Constraints n <- ticks ]
   command <- lineP
   many lineP
   memoryInUse <- skipSpaces *> megaBytesP <* skipSpaces <* string "total memory" <* lineP

@@ -11,7 +11,7 @@ import Agda.TypeChecking.Monad.Base
 tick :: String -> TCM ()
 tick x = tickN x 1
 
-tickN :: String -> Int -> TCM ()
+tickN :: String -> Integer -> TCM ()
 tickN x n = modify $ \s ->
   let st' = inc $ stStatistics s in
   force st' `seq` s { stStatistics = st' }

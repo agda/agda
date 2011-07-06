@@ -449,7 +449,7 @@ createInterface file mname = do
       -- Count number of metas
       verboseS "profile.metas" 10 $ do
         MetaId n <- fresh
-        reportSLn "" 0 $ show (pretty mname) ++ ": " ++ show n ++ " metas"
+        tickN "metas" n
 
       -- Termination checking.
       termErrs <- ifM (optTerminationCheck <$> pragmaOptions)
@@ -482,6 +482,15 @@ createInterface file mname = do
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
+
+    -- Print stats
+    stats <- Map.toList <$> getStatistics
+    case stats of
+      []      -> return ()
+      _       -> reportS "profile" 1 $ unlines $
+        [ "Ticks for " ++ show (pretty mname) ] ++
+        [ "  " ++ s ++ " = " ++ show n
+        | (s, n) <- sortBy (compare `on` snd) stats ]
 
     -- Check if there are unsolved meta-variables...
     unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
