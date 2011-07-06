@@ -1,25 +1,26 @@
-LateMetaVariableInstantiation: 27 metas
+Ticks for LateMetaVariableInstantiation
+  metas = 27
 ../src/main/dist/build/agda/agda -v0 -v profile:100 misc/LateMetaVariableInstantiation.agda -imisc --ignore-interfaces +RTS -slogs/.tmp 
-      19,460,332 bytes allocated in the heap
-       1,170,064 bytes copied during GC
+      19,462,884 bytes allocated in the heap
+       1,170,476 bytes copied during GC
           78,744 bytes maximum residency (1 sample(s))
-          43,876 bytes maximum slop
+          47,300 bytes maximum slop
                2 MB total memory in use (0 MB lost due to fragmentation)
 
   Generation 0:    36 collections,     0 parallel,  0.01s,  0.01s elapsed
-  Generation 1:     1 collections,     0 parallel,  0.01s,  0.01s elapsed
+  Generation 1:     1 collections,     0 parallel,  0.00s,  0.01s elapsed
 
   INIT  time    0.00s  (  0.00s elapsed)
-  MUT   time    0.04s  (  0.07s elapsed)
-  GC    time    0.01s  (  0.02s elapsed)
+  MUT   time    0.04s  (  0.05s elapsed)
+  GC    time    0.01s  (  0.01s elapsed)
   EXIT  time    0.00s  (  0.00s elapsed)
-  Total time    0.06s  (  0.08s elapsed)
+  Total time    0.05s  (  0.06s elapsed)
 
-  %GC time      20.5%  (21.1% elapsed)
+  %GC time      18.0%  (22.8% elapsed)
 
-  Alloc rate    425,911,711 bytes per MUT second
+  Alloc rate    434,652,820 bytes per MUT second
 
-  Productivity  78.3% of total user, 53.3% of total elapsed
+  Productivity  80.7% of total user, 71.2% of total elapsed
 
 ──────────────────────────────────────────────────────────────────
 Mach kernel version:
@@ -30,5 +31,5 @@ Kernel configured for up to 2 processors.
 Processor type: i486 (Intel 80486)
 Processors active: 0 1
 Primary memory available: 2.00 gigabytes
-Default processor set: 67 tasks, 301 threads, 2 processors
-Load average: 1.21, Mach factor: 0.94
+Default processor set: 68 tasks, 305 threads, 2 processors
+Load average: 1.10, Mach factor: 0.89
