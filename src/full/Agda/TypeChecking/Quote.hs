@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 module Agda.TypeChecking.Quote where
 
