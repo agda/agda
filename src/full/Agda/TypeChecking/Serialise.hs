@@ -23,6 +23,7 @@ module Agda.TypeChecking.Serialise
   )
   where
 
+import Control.Applicative
 import qualified Control.Exception as E
 import Control.Monad
 import Control.Monad.Reader
@@ -32,8 +33,8 @@ import Data.Array.IArray
 import Data.Bits (shiftR)
 import Data.Word
 import Data.ByteString.Lazy as L
-import Data.HashTable (HashTable)
-import qualified Data.HashTable as H
+import Data.Hashable
+import qualified Data.HashTable.IO as H
 import Data.Int (Int32, Int64)
 import Data.IORef
 import Data.Map (Map)
@@ -80,7 +81,18 @@ import Agda.Utils.Impossible
 currentInterfaceVersion :: Word64
 currentInterfaceVersion = 20110629 * 10 + 0
 
-type Node = [Int32] -- constructor tag (maybe omitted) and arg indices
+-- | Constructor tag (maybe omitted) and argument indices.
+
+type Node = [Int32]
+
+-- | The type of hashtables used in this module.
+--
+-- A very limited amount of testing indicates that 'H.CuckooHashTable'
+-- is somewhat slower than 'H.BasicHashTable', and that
+-- 'H.LinearHashTable' and the hashtables from "Data.Hashtable" are
+-- much slower.
+
+type HashTable k v = H.BasicHashTable k v
 
 data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , stringD   :: !(HashTable String  Int32)
@@ -142,7 +154,8 @@ encode a = do
       nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
       return $ B.encode currentInterfaceVersion `L.append`
                G.compress (B.encode (root, nL, sL, iL, dL))
-  where l = fmap (List.map fst . List.sortBy (compare `on` snd)) . H.toList
+  where
+  l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
 -- | Decodes something. The result depends on the include path.
 --
@@ -174,7 +187,7 @@ decode s = do
        else do
 
         st <- St (ar nL) (ar sL) (ar iL) (ar dL)
-                <$> liftIO (H.new (==) hashInt2)
+                <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runErrorT (value r)) st
         return (Just (modFile st), case r of
@@ -867,7 +880,8 @@ instance EmbPrj Interface where
 
 
 
-icodeX :: (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
+icodeX :: (Eq k, Hashable k) =>
+          (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
           k -> S Int32
 icodeX dict counter key = do
   d     <- asks dict
@@ -955,27 +969,12 @@ emptyDict :: SourceToModule
              -- later encountered.
           -> IO Dict
 emptyDict fileMod = Dict
-  <$> H.new (==) hashNode
-  <*> H.new (==) H.hashString
-  <*> H.new (==) (H.hashInt . fromIntegral)
-  <*> H.new (==) (H.hashInt . floor)
+  <$> H.new
+  <*> H.new
+  <*> H.new
+  <*> H.new
   <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0
   <*> return fileMod
-
-hashNode :: Node -> Int32
-hashNode is = List.foldl' f golden is
-   where f m c = fromIntegral c * magic + hashInt32 m
-         magic  = 0xdeadbeef
-         golden :: Int32
-         golden = 1013904242
-         hashInt32 x = mulHi x golden + x
-         mulHi :: Int32 -> Int32 -> Int32
-         mulHi a b = fromIntegral (r `shiftR` 32)
-             where r :: Int64
-                   r = fromIntegral a * fromIntegral b
-
-hashInt2 :: (Int32, Int32) -> Int32
-hashInt2 (ix, rep) = hashNode [ix , rep]
