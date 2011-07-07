@@ -300,7 +300,7 @@ termToDBP :: DBPConf -> Term -> TCM DeBruijnPat
 termToDBP conf t
   | not $ useDotPatterns conf = return $ unusedVar
   | otherwise                 = do
-    t <- constructorForm t
+    t <- stripProjections =<< constructorForm t
     case t of
       Var i []    -> return $ VarDBP i
       Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
@@ -659,11 +659,52 @@ subPatterns p = case p of
   LitDBP _    -> []
 
 compareTerm :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
-compareTerm suc t p = compareTerm' suc t p
+compareTerm suc t p = do
+  t <- stripAllProjections t
+  compareTerm' suc t p
+
 {-
 compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
   where
     cmp p' = (Term..*.) Term.lt (compareTerm' t p')
+-}
+
+-- | Remove projections until a term is no longer a projection.
+stripProjections :: Term -> TCM Term
+stripProjections t@(Def qn ts) = do
+  isProj <- isProjection qn
+  case isProj of
+    Just n | length ts >= n, n >= 1 -> stripProjections $ unArg $ ts !! (n - 1)
+    _ -> return t
+stripProjections t = return t
+
+-- | Remove all projections from an algebraic term (not going under binders).
+class StripAllProjections a where
+  stripAllProjections :: a -> TCM a
+
+instance StripAllProjections a => StripAllProjections (Arg a) where
+  stripAllProjections (Arg h r a) = Arg h r <$> stripAllProjections a
+
+instance StripAllProjections a => StripAllProjections [a] where
+  stripAllProjections = mapM stripAllProjections
+
+instance StripAllProjections Term where
+  stripAllProjections t = do
+    t <- stripProjections t
+    case t of
+      Con c ts -> Con c <$> stripAllProjections ts
+      Def d ts -> Def d <$> stripAllProjections ts
+      _ -> return t
+
+{-
+-- | Remove all projections from an algebraic term (not going under binders).
+stripAllProjections :: Term -> TCM Term
+stripAllProjections t = do
+  t <- stripProjections t
+  case t of
+    Con c ts -> Con c <$> mapM stripAllProjections ts
+    Def d ts -> Def d <$> mapM stripAllProjections ts
+    _ -> return t
 -}
 
 -- | compareTerm t dbpat
@@ -690,6 +731,7 @@ compareTerm' suc (Def s ts) (ConDBP s' ps)
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     return $ decr (-1) .*. infimum os
+{- Andreas 2011-07-07 Projections are now being removed in a preprocess
 -- projections are size preserving
 compareTerm' suc (Def qn ts) p = do
     isProj <- isProjection qn
@@ -699,10 +741,12 @@ compareTerm' suc (Def qn ts) p = do
         compareTerm' suc (unArg (ts !! (n - 1))) p
       -- not a projection or underapplied:
       _ -> return Term.unknown
+-}
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     oc <- increaseFromConstructor c
     return $ if (null os) then Term.unknown else oc .*. infimum os
+compareTerm' suc t p | isSubTerm t p = return Term.le
 compareTerm' _ _ _ = return Term.unknown
 
 -- TODO: isSubTerm should compute a size difference (Term.Order)

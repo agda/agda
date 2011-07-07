@@ -31,3 +31,18 @@ data D : Set where
 g : D → D
 g (c₃ (c₂ x) y) = g (c₂ x)
 g _ = c₁
+
+{- Andreas, 2011-07-07 subterm is not complete
+   does not work with postulates or definitions
+
+postulate
+  i : {A : Set} → A → A
+
+data NAT : N → Set where
+  Zero : NAT zero
+  Suc  : ∀ n → NAT (i n) → NAT (suc (i n))
+
+h : (n : N) -> NAT n -> Set
+h .zero Zero = N
+h .(suc (i n)) (Suc n m) = h (i n) (i m)
+-}
