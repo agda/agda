@@ -227,7 +227,7 @@ Language
   Example:
     primQNameType (quote ℕ.zero) ≡ def (quote ℕ) []
 
-* A new construct as been introduce to inject mechanically defined terms, namely `unquote'.
+* A new construct has been introduced to inject mechanically defined terms, namely `unquote'.
   The `unquote' construct extends the syntax of Agda terms and is applied to an Agda term.
   This inner term have the type Term (from the reflection API). Once type-checked this inner
   term is reduced to a Term value and treated as if user wrote such a term. Thus the resulting
@@ -241,6 +241,46 @@ Language
 
     test-id : id ≡ (λ A (x : A) → x)
     test-id = refl
+
+* Pattern matching lambdas.
+
+  Anonymous pattern matching functions can be defined with the syntax
+
+    \ { p11 .. p1n -> e1 ; ... ; pm1 .. pmn -> em }
+
+  Internally, this is translated into a function definition
+
+    .extlam p11 .. p1n = e1
+    ...
+    .extlam pm1 .. pmn = em
+
+  This means that anonymous pattern matching functions are generative, as they will be
+  translated to different function definitions. For example, refl will not be accepted as
+  an inhabitant of the type
+
+    (λ { true -> true ; false -> false }) ≡ (λ { true -> true ; false -> false }) 
+
+  as this internally gets translated to extlam1 ≡ extlam2.
+
+  Currently, `where' and `with' expressions are not allowed for anonymous pattern matching
+  functions.
+
+  Examples:
+
+    and : Bool -> Bool -> Bool
+    and = λ { true x → x ; false _ → false }
+
+    xor : Bool -> Bool -> Bool
+    xor = \ { true  true  -> false ; 
+              false false -> false ;
+              _     _     -> true  }
+   
+    fst : {A : Set}{B : A -> Set} -> (x : Σ A B) -> A
+    fst = λ { (a , b) -> a }
+
+    snd : {A : Set}{B : A -> Set} -> (x : Σ A B) -> B (fst x)
+    snd = λ { (a , b) -> b }
+
 
 Meta Variables and Unification
 ------------------------------

@@ -42,6 +42,7 @@ data Expr
 	| WithApp ExprInfo Expr [Expr]	     -- ^ with application
         | Lam  ExprInfo LamBinding Expr	     -- ^
         | AbsurdLam ExprInfo Hiding
+        | ExtendedLam ExprInfo DefInfo QName [Clause]
         | Pi   ExprInfo Telescope Expr	     -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
         | Set  ExprInfo Nat		     -- ^ Set, Set1, Set2, ...
@@ -224,6 +225,7 @@ instance HasRange Expr where
     getRange (WithApp i _ _)	= getRange i
     getRange (Lam i _ _)	= getRange i
     getRange (AbsurdLam i _)    = getRange i
+    getRange (ExtendedLam i _ _ _)  = getRange i
     getRange (Pi i _ _)		= getRange i
     getRange (Fun i _ _)	= getRange i
     getRange (Set i _)		= getRange i
@@ -305,6 +307,7 @@ instance KillRange Expr where
   killRange (WithApp i e es) = killRange3 WithApp i e es
   killRange (Lam i b e)      = killRange3 Lam i b e
   killRange (AbsurdLam i h)  = killRange1 AbsurdLam i h
+  killRange (ExtendedLam i name di pes) = killRange4 ExtendedLam i name di pes --(\_ -> ExtendedLam i def {-name di si-}) i pes
   killRange (Pi i a b)       = killRange3 Pi i a b
   killRange (Fun i a b)      = killRange3 Fun i a b
   killRange (Set i n)        = Set (killRange i) n

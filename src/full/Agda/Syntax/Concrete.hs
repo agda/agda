@@ -61,6 +61,7 @@ data Expr
 	| InstanceArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
 	| Lam !Range [LamBinding] Expr	       -- ^ ex: @\\x {y} -> e@ or @\\(x:A){y:B} -> e@
         | AbsurdLam !Range Hiding              -- ^ ex: @\\ ()@
+        | ExtendedLam !Range [(LHS,RHS,WhereClause)]       -- ^ ex: @\\ { p11 .. p1a -> e1 ; .. ; pn1 .. pnz -> en }@
 	| Fun !Range Expr Expr                 -- ^ ex: @e -> e@ or @.e -> e@ (NYI: @{e} -> e@)
 	| Pi Telescope Expr		       -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set !Range			       -- ^ ex: @Set@
@@ -137,7 +138,11 @@ type Telescope = [TypedBindings]
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS Pattern [Pattern] [RewriteEqn] [WithExpr]
+data LHS = LHS { lhsOriginalPattern :: Pattern
+               , lhsWithPattern     :: [Pattern]
+               , lhsRewriteEqn      :: [RewriteEqn]
+               , lhsWithExpr        :: [WithExpr]
+               }
          -- ^ original pattern, with-patterns, rewrite equations and with-expressions
          | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
          -- ^ new with-patterns, rewrite equations and with-expressions
@@ -308,6 +313,7 @@ instance HasRange Expr where
             WithApp r _ _       -> r
 	    Lam r _ _		-> r
             AbsurdLam r _       -> r
+            ExtendedLam r _       -> r
 	    Fun r _ _		-> r
 	    Pi b e		-> fuseRange b e
 	    Set r		-> r

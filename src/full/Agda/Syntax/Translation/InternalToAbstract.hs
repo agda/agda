@@ -219,9 +219,18 @@ instance Reify Term Expr where
       I.Var n vs   -> do
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
-      I.Def x vs   -> reifyDisplayForm x vs $ do
+      I.Def x@(QName _ name) vs   -> reifyDisplayForm x vs $ do
           n <- getDefFreeVars x
-          reifyApp (A.Def x) $ genericDrop n vs
+          if (isPrefixOf extendlambdaname $ show name)
+            then do
+             reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
+             info <- getConstInfo x
+             cls <- mapM (reify . (NamedClause x)) $ defClauses info
+             -- Karim: Currently Abs2Conc does not require a DefInfo thus we
+             -- use undefined.
+             reifyApp (A.ExtendedLam exprInfo undefined x cls) $ genericDrop n vs
+            else
+             reifyApp (A.Def x) $ genericDrop n vs
       I.Con x vs   -> do
         isR <- isGeneratedRecordConstructor x
         case isR of
@@ -362,6 +371,11 @@ instance DotVars a => DotVars [a] where
 instance (DotVars a, DotVars b) => DotVars (a, b) where
   dotVars (x, y) = Set.union (dotVars x) (dotVars y)
 
+
+instance DotVars A.Clause where
+  dotVars (A.Clause _ rhs []) = dotVars rhs
+  dotVars (A.Clause _ rhs (_:_)) = __IMPOSSIBLE__ -- cannot contain where clauses?
+
 instance DotVars A.Pattern where
   dotVars p = case p of
     A.VarP _      -> Set.empty   -- do not add pattern vars
@@ -390,6 +404,7 @@ instance DotVars A.Expr where
     A.WithApp _ e es -> dotVars (e, es)
     A.Lam _ _ e      -> dotVars e
     A.AbsurdLam _ _  -> Set.empty
+    A.ExtendedLam _ _ _ cs -> dotVars cs
     A.Pi _ tel e     -> dotVars (tel, e)
     A.Fun _ a b      -> dotVars (a, b)
     A.Set _ _        -> Set.empty
@@ -401,6 +416,12 @@ instance DotVars A.Expr where
     A.Quote {}       -> __IMPOSSIBLE__
     A.Unquote {}     -> __IMPOSSIBLE__
     A.DontCare       -> __IMPOSSIBLE__  -- Set.empty
+
+instance DotVars RHS where
+  dotVars (RHS e) = dotVars e
+  dotVars AbsurdRHS = Set.empty
+  dotVars (WithRHS _ es clauses) = __IMPOSSIBLE__ -- NZ
+  dotVars (RewriteRHS _ es rhs _) = __IMPOSSIBLE__ -- NZ
 
 instance DotVars TypedBindings where
   dotVars (TypedBindings _ bs) = dotVars bs

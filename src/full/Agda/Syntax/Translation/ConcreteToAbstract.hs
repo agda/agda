@@ -39,6 +39,7 @@ import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
 import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pretty
+import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
@@ -46,7 +47,7 @@ import Agda.Syntax.Scope.Monad
 import Agda.Syntax.Strict
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), TCErr'(..))
+                                     TCErr(..), TCErr'(..), extendlambdaname)
 import Agda.TypeChecking.Monad.Trace (traceCall, traceCallCPS, setCurrentRange)
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Options
@@ -516,6 +517,36 @@ instance ToAbstract C.Expr A.Expr where
               where
                   mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
             [] -> __IMPOSSIBLE__
+
+  -- Extended Lambda
+      C.ExtendedLam r cs -> do
+        m <- getCurrentModule
+        cname <- nextlamname r 0 extendlambdaname
+        name  <- freshAbstractName_ cname
+        reportSLn "toabstract.extendlambda" 10 $ "new extended lambda name: " ++ show name
+        let qname = A.qualify m name
+        bindName PrivateAccess DefName cname qname
+        let insertApp (C.RawAppP r es) = C.RawAppP r ((IdentP (C.QName cname)) : es)
+            insertApp (C.IdentP q) = C.RawAppP (getRange q) ((IdentP (C.QName cname)) : [C.IdentP q])
+            insertApp _ = __IMPOSSIBLE__
+            insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
+            insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' PrivateAccess ConcreteDef cname
+                               (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
+                                      C.Clause cname (insertHead lhs) rhs wh []) cs))
+        case scdef of
+          (A.ScopedDef si (A.FunDef di qname' cs)) -> do
+            setScope si
+            return $ A.ExtendedLam (ExprRange r) di qname' cs
+          _ -> __IMPOSSIBLE__
+          where
+            nextlamname :: Range -> Int -> String -> ScopeM C.Name
+            nextlamname r i s = do
+              let cname_pre = C.Name r [Id $ s ++ show i]
+              rn <- resolveName (C.QName cname_pre)
+              case rn of
+                UnknownName -> return $ cname_pre
+                _           -> nextlamname r (i+1) s
 
 -- Irrelevant non-dependent function type
 

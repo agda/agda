@@ -420,13 +420,33 @@ CommaBIds
 -- a variable list. We could be parsing (x y z) -> B
 -- with ((x y) z) being a type.
 CommaBIds :: { [Name] }
-CommaBIds : Application {%
+CommaBIds : CommaBIdAndAbsurds {
+    case $1 of
+      Left ns -> ns
+      Right _ -> fail $ "expected sequence of bound identifiers, not absurd pattern"
+    }
+{-
     let getName (Ident (QName x)) = Just x
 	getName (Underscore r _)  = Just (Name r [Hole])
 	getName _		  = Nothing
     in
     case partition isJust $ map getName $1 of
 	(good, []) -> return $ map fromJust good
+	_	   -> fail $ "expected sequence of bound identifiers"
+-}
+
+CommaBIdAndAbsurds :: { Either [Name] [Expr] }
+CommaBIdAndAbsurds : Application {%
+    let getName (Ident (QName x)) = Just x
+	getName (Underscore r _)  = Just (Name r [Hole])
+	getName _		  = Nothing
+
+        isAbsurd (Absurd _) = True
+        isAbsurd _          = False
+    in
+    if isJust $ find isAbsurd $1 then return $ Right $1 else
+    case partition isJust $ map getName $1 of
+	(good, []) -> return $ Left $ map fromJust good
 	_	   -> fail $ "expected sequence of bound identifiers"
     }
 
@@ -490,9 +510,15 @@ Application
 -- Level 2: Lambdas and lets
 Expr2
     : '\\' LamBindings Expr	   { Lam (fuseRange $1 $3) $2 $3 }
-    | '\\' AbsurdLamBindings       { let (bs, h) = $2; r = fuseRange $1 bs in
-                                     if null bs then AbsurdLam r h else
-                                     Lam r bs (AbsurdLam r h)
+    | '\\'  '{' LamClauses '}'     { ExtendedLam (fuseRange $1 (fuseRange $2 $4)) (reverse $3) }
+    | '\\' AbsurdLamBindings       {% case $2 of
+                                       Left (bs, h) -> if null bs then return $ AbsurdLam r h else
+                                                       return $ Lam r bs (AbsurdLam r h)
+                                                         where r = fuseRange $1 bs
+    				       Right es -> do -- it is of the form @\ { p1 ... () }@
+                                                     p <- exprToLHS (RawApp (getRange es) es);
+                                                     return $ ExtendedLam (fuseRange $1 es)
+                                                                     [(p [] [], AbsurdRHS, NoWhere)]
                                    }
     | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
     | Expr3			   { $1 }
@@ -583,27 +609,73 @@ LamBindings
   : LamBinds '->' {%
       case last $1 of
         Left _  -> parseError "Absurd lambda cannot have a body."
-        _       -> return [ b | Right b <- $1 ]
+	_       -> return [ b | Right b <- $1 ]
       }
 
-AbsurdLamBindings :: { ([LamBinding], Hiding) }
+AbsurdLamBindings :: { Either ([LamBinding], Hiding) [Expr] }
 AbsurdLamBindings
-  : LamBinds {%
-    case last $1 of
-      Right _ -> parseError "Missing body for lambda"
-      Left h  -> return ([ b | Right b <- init $1], h)
+  : LamBindsAbsurd {%
+    case $1 of
+      Left lb -> case last lb of
+                   Right _ -> parseError "Missing body for lambda"
+                   Left h  -> return $ Left ([ b | Right b <- init lb], h)
+      Right es -> return $ Right es
     }
 
 -- absurd lambda is represented by Left hiding
 LamBinds :: { [Either Hiding LamBinding] }
 LamBinds
-  : DomainFreeBinding LamBinds	{ map Right $1 ++ $2 }
-  | TypedBindings LamBinds	{ Right (DomainFull $1) : $2 }
-  | DomainFreeBinding		{ map Right $1 }
+  : DomainFreeBinding LamBinds  { map Right $1 ++ $2 }
+  | TypedBindings LamBinds      { Right (DomainFull $1) : $2 }
+  | DomainFreeBinding           { map Right $1 }
   | TypedBindings		{ [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
   | '{{' DoubleCloseBrace                   { [Left Instance] }
+
+-- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
+LamBindsAbsurd :: { Either [Either Hiding LamBinding] [Expr] }
+LamBindsAbsurd
+  : DomainFreeBinding LamBinds	{ Left $ map Right $1 ++ $2 }
+  | TypedBindings LamBinds	{ Left $ Right (DomainFull $1) : $2 }
+  | DomainFreeBindingAbsurd   	{ case $1 of
+                                    Left lb -> Left $ map Right lb
+                                    Right es -> Right es }
+  | TypedBindings		{ Left [Right $ DomainFull $1] }
+  | '(' ')'                     { Left [Left NotHidden] }
+  | '{' '}'                     { Left [Left Hidden] }
+  | '{{' '}}'                   { Left [Left Instance] }
+
+-- FNF, 2011-05-05: No where clauses in extended lambdas for now
+NonAbsurdLamClause :: { (LHS,RHS,WhereClause) }
+NonAbsurdLamClause
+  : Application3 '->' Expr {% do
+      p <- exprToLHS (RawApp (getRange $1) $1) ;
+      return (p [] [], RHS $3, NoWhere)
+	}
+
+AbsurdLamClause :: { (LHS,RHS,WhereClause) }
+AbsurdLamClause
+-- FNF, 2011-05-09: By being more liberal here, we avoid shift/reduce and reduce/reduce errors.
+-- Later stages such as scope checking will complain if we let something through which we should not
+  : Application {% do
+      p <- exprToLHS (RawApp (getRange $1) $1);
+      return (p [] [], AbsurdRHS, NoWhere)
+	}
+
+LamClause :: { (LHS,RHS,WhereClause) }
+LamClause
+  : NonAbsurdLamClause { $1 }
+  | AbsurdLamClause { $1 }
+
+-- Parses all extended lambda clauses except for a single absurd clause, which is taken care of
+-- in AbsurdLambda
+LamClauses :: { [(LHS,RHS,WhereClause)] }
+LamClauses
+   : LamClauses semi LamClause { $3 : $1 }
+   | AbsurdLamClause semi LamClause { [$3, $1] }
+   | NonAbsurdLamClause { [$1] }
+--   | {- empty -} { [] }
 
 
 ForallBindings :: { [LamBinding] }
@@ -629,7 +701,11 @@ TypedUntypedBindings
 -- A domain free binding is either x or {x1 .. xn}
 DomainFreeBinding :: { [LamBinding] }
 DomainFreeBinding
-    : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
+  : DomainFreeBindingAbsurd { case $1 of
+                             Left lbs -> lbs
+                             Right _ -> fail "expected sequence of bound identifiers, not absurd pattern"
+                          }
+{-    : BId		{ [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
     | '.' BId		{ [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
     | '..' BId		{ [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIds '}' { map (DomainFree Hidden Relevant . mkBoundName_) $2 }
@@ -638,6 +714,23 @@ DomainFreeBinding
     | '.' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds '}}' { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+  -}
+
+-- A domain free binding is either x or {x1 .. xn}
+DomainFreeBindingAbsurd :: { Either [LamBinding] [Expr]}
+DomainFreeBindingAbsurd
+    : BId		{ Left [DomainFree NotHidden Relevant $ mkBoundName_ $1]  }
+    | '.' BId		{ Left [DomainFree NotHidden Irrelevant $ mkBoundName_ $2]  }
+    | '..' BId		{ Left [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
+    | '{' CommaBIdAndAbsurds '}'
+         { either (Left . map (DomainFree Hidden Relevant . mkBoundName_)) Right $2 }
+    | '{{' CommaBIds '}}' { Left $ map (DomainFree Instance Relevant . mkBoundName_) $2 }
+    | '.' '{' CommaBIds '}' { Left $ map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
+    | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
+    | '..' '{' CommaBIds '}' { Left $ map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+
 
 {--------------------------------------------------------------------------
     Modules and imports

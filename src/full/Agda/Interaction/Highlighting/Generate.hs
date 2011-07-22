@@ -44,7 +44,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
 import Data.Sequence (Seq, (><))
-import Data.List ((\\))
+import Data.List ((\\), isPrefixOf)
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
 
@@ -177,7 +177,9 @@ generateSyntaxInfo file mErr top termErrs = do
                         decls
       where
       getName :: A.QName -> Seq A.AmbiguousQName
-      getName n = Seq.singleton (A.AmbQ [n])
+      getName n | isPrefixOf extendlambdaname $ show $ A.qnameName n = mempty
+                | otherwise                                          = Seq.singleton (A.AmbQ [n])
+
 
       getAmbiguous :: A.AmbiguousQName -> Seq A.AmbiguousQName
       getAmbiguous = Seq.singleton

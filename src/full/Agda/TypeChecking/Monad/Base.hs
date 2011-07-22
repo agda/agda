@@ -69,6 +69,7 @@ data TCState =
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
 	 , stStatistics	       :: Statistics
+         , stExtLambdaTele     :: Map QName (Int , Int)
 	 , stMutualBlocks      :: Map MutualId (Set QName)
 	 , stLocalBuiltins     :: BuiltinThings PrimFun
          , stImportedBuiltins  :: BuiltinThings PrimFun
@@ -106,6 +107,7 @@ initState =
 	 , stPersistentOptions = defaultOptions
 	 , stPragmaOptions     = optPragmaOptions $ defaultOptions
 	 , stStatistics	       = Map.empty
+         , stExtLambdaTele     = Map.empty
 	 , stMutualBlocks      = Map.empty
 	 , stLocalBuiltins     = Map.empty
 	 , stImportedBuiltins  = Map.empty
@@ -1113,3 +1115,9 @@ runTCM m = (Right <$> runTCM' m) `E.catch` (return . Left)
 
 runTCM' :: Monad m => TCMT m a -> m a
 runTCM' m = liftM fst (unTCM m initState initEnv)
+
+
+
+
+-- | Base name for extended lambda patterns
+extendlambdaname = ".extendedlambda"

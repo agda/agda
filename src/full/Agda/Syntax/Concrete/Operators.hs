@@ -366,6 +366,7 @@ paren _   e@(App _ _ _)        = return $ \p -> mparen (appBrackets p) e
 paren f   e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
 paren _   e@(Lam _ _ _)        = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(AbsurdLam _ _)    = return $ \p -> mparen (lamBrackets p) e
+paren _   e@(ExtendedLam _ _)    = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Fun _ _ _)        = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Pi _ _)           = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Let _ _ _)        = return $ \p -> mparen (lamBrackets p) e

@@ -626,6 +626,22 @@ Assumes that <clause> = {!<var>!} is on one line."
     (goto-char p1))
   (agda2-load))
 
+(defun agda2-make-case-action-extendlam (newcls)
+  "Replace definition of extended lambda with new clauses NEWCLS and reload."
+  (agda2-forget-all-goals);; we reload later anyway.
+  (let* ((p (+ (re-search-backward "\\({[^!]\\)\\|;") 1))
+         cl)
+    (goto-char p)
+    (delete-region p (- (re-search-forward "\\([^!]}\\)\\|;") 1))
+    (goto-char p)
+    (insert "  ")
+    (goto-char (+ p 1))
+    (while (setq cl (pop newcls))
+      (insert cl)
+      (if newcls (insert " ; ")))
+    (goto-char p))
+  (agda2-load))
+
 (defun agda2-status-action (status)
   "Display the string STATUS in the current buffer's mode line.
 \(precondition: the current buffer has to use the Agda mode as the

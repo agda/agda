@@ -702,16 +702,35 @@ nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
 cmd_make_case :: GoalCommand
 cmd_make_case ii rng s = Interaction Dependent $ do
-  cs <- makeCase ii rng s
+  (casectxt , cs) <- makeCase ii rng s
   B.withInteractionId ii $ do
-    pcs <- mapM prettyA cs
+    hidden <- showImplicitArguments
+    pcs <- mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
     liftIO $ putResponse $
       Cons (A "last")
-           (L [ A "agda2-make-case-action"
-              , Q $ L $ List.map (A . quote . render) pcs
+           (L [ A (emacscmd casectxt)
+              , Q $ L $ List.map (A . quote . (extlam_dropName casectxt) . render) pcs
               ])
   return Nothing
-  where render = renderStyle (style { mode = OneLineMode })
+  where
+    render = renderStyle (style { mode = OneLineMode })
+    emacscmd :: CaseContext -> String
+    emacscmd FunctionDef = "agda2-make-case-action"
+    emacscmd (ExtendedLambda _ _) = "agda2-make-case-action-extendlam"
+
+    -- Drops pattern added to extended lambda functions when lambda lifting them
+    extlam_dropLLifted :: CaseContext -> Bool -> SA.Clause -> SA.Clause
+    extlam_dropLLifted FunctionDef _ x = x
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info name nps ps) rhs decl)
+      = let n = if hidden then h else nh
+        in
+         (SA.Clause (SA.LHS info name (drop n nps) ps) rhs decl)
+
+    -- very dirty hack, string manipulation by dropping the function name
+    -- and replacing " = " with " -> "
+    extlam_dropName :: CaseContext -> String -> String
+    extlam_dropName FunctionDef x = x
+    extlam_dropName (ExtendedLambda _ _) x = unwords $ map (\ y -> if y == "=" then "→" else y) $ drop 1 $ words x
 
 cmd_solveAll :: Interaction
 cmd_solveAll = Interaction Dependent $ do
@@ -746,6 +765,7 @@ instance LowerMeta SC.Expr where
       SC.WithApp r e es	   -> SC.WithApp r (lowerMeta e) (lowerMeta es)
       SC.Lam r bs e1       -> SC.Lam r (lowerMeta bs) (go e1)
       SC.AbsurdLam r h     -> SC.AbsurdLam r h
+      SC.ExtendedLam r cs  -> SC.ExtendedLam r cs
       SC.Fun r ae1 e2      -> SC.Fun r (lowerMeta ae1) (go e2)
       SC.Pi tb e1          -> SC.Pi (lowerMeta tb) (go e1)
       SC.Set _             -> e

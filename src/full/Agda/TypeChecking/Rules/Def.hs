@@ -65,16 +65,19 @@ import Agda.Utils.Impossible
 -- * Definitions by pattern matching
 ---------------------------------------------------------------------------
 
--- | Type check a definition by pattern matching. The first argument
--- specifies whether the clauses are delayed or not.
 checkFunDef :: Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
-checkFunDef delayed i name cs =
-
-    traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
+checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         t    <- typeOfConst name
         rel  <- relOfConst name
+        checkFunDef' t rel delayed i name cs
 
+-- | Type check a definition by pattern matching. The first argument
+-- specifies whether the clauses are delayed or not.
+checkFunDef' :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
+checkFunDef' t rel delayed i name cs =
+
+    traceCall (CheckFunDef (getRange i) (qnameName name) cs) $ do   -- TODO!! (qnameName)
         reportSDoc "tc.def.fun" 10 $
           sep [ text "checking body of" <+> prettyTCM name
               , nest 2 $ text ":" <+> prettyTCM t

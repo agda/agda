@@ -4,6 +4,7 @@ module Agda.TypeChecking.Monad.State where
 import Control.Applicative
 import Control.Monad.State
 import Data.Set (Set)
+import Data.Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
@@ -30,6 +31,17 @@ setScope scope = liftTCM $ modify $ \s -> s { stScope = scope }
 -- | Get the current scope.
 getScope :: MonadTCM tcm => tcm ScopeInfo
 getScope = liftTCM $ gets stScope
+
+-- | Sets stExtLambdaTele .
+setExtLambdaTele :: MonadTCM tcm => Map QName (Int , Int) -> tcm ()
+setExtLambdaTele tele = liftTCM $ modify $ \s -> s { stExtLambdaTele = tele }
+
+-- | Get stExtLambdaTele.
+getExtLambdaTele :: MonadTCM tcm => tcm (Map QName (Int , Int))
+getExtLambdaTele = liftTCM $ gets stExtLambdaTele
+
+addExtLambdaTele :: MonadTCM tcm => QName -> (Int , Int) -> tcm ()
+addExtLambdaTele id x = getExtLambdaTele >>= setExtLambdaTele . (insert id x)
 
 -- | Modify the current scope.
 modifyScope :: MonadTCM tcm => (ScopeInfo -> ScopeInfo) -> tcm ()

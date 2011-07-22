@@ -1,0 +1,15 @@
+top_command (cmd_load currentFile [])
+
+-- Case splitting with lambda lifted definition, hidden arguments
+goal_command 2 cmd_make_case "x'"
+top_command (cmd_load currentFile [])
+top_command (showImplicitArgs True)
+goal_command 2 cmd_make_case "x'"
+
+
+-- Case splitting with lambda lifted definition
+goal_command 1 cmd_make_case "x"
+
+-- Case splitting for nested extended lambdas
+goal_command 0 cmd_make_case "y"
+

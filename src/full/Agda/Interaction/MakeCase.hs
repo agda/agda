@@ -35,6 +35,8 @@ import Agda.Utils.Permutation
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+data CaseContext = FunctionDef | ExtendedLambda Int Int
+                 deriving (Eq)
 -- | Find the clause whose right hand side is the given meta
 -- BY SEARCHING THE WHOLE SIGNATURE. Returns
 -- the original clause, before record patterns have been translated
@@ -45,7 +47,7 @@ import Agda.Utils.Impossible
 -- thrown away earlier.  (shutter with disgust).
 -- This code fails for record rhs because they have been eta-expanded,
 -- so the MVar is gone.
-findClause :: MetaId -> TCM (QName, Clause)
+findClause :: MetaId -> TCM (CaseContext, QName, Clause)
 findClause m = do
   sig <- getImportedSignature
   let res = do
@@ -63,7 +65,10 @@ findClause m = do
         ]
       reportSDoc "interaction.case" 20 $ vcat $ map (text . show) (Map.elems $ sigDefinitions sig)  -- you asked for it!
       typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
-    [r] -> return r
+    [(n,c)] | isPrefixOf extendlambdaname $ show $ A.qnameName n -> do
+                                               Just (h , nh) <- Map.lookup n <$> getExtLambdaTele
+                                               return (ExtendedLambda h nh , n , c)
+            | otherwise                                          -> return (FunctionDef , n , c)
     _   -> __IMPOSSIBLE__
   where
     rhsIsm (Bind b)   = rhsIsm $ absBody b
@@ -73,10 +78,10 @@ findClause m = do
       MetaV m' _  -> m == m'
       _           -> False
 
-makeCase :: InteractionId -> Range -> String -> TCM [A.Clause]
+makeCase :: InteractionId -> Range -> String -> TCM (CaseContext , [A.Clause])
 makeCase hole rng s = withInteractionId hole $ do
   meta        <- lookupInteractionId hole
-  (f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
+  (casectxt, f, clause@(Clause{ clauseTel = tel, clausePerm = perm, clausePats = ps })) <- findClause meta
   reportSDoc "interaction.case" 10 $ vcat
     [ text "splitting clause:"
     , nest 2 $ vcat
@@ -89,10 +94,10 @@ makeCase hole rng s = withInteractionId hole $ do
     ]
   var         <- deBruijnIndex =<< parseExprIn hole rng s
   z           <- splitClauseWithAbs clause var
-  case z of
+  (case z of
     Left err        -> typeError . GenericError . show =<< prettyTCM err
-    Right (Left cl) -> (:[]) <$> makeAbsurdClause f cl
-    Right (Right c) -> mapM (makeAbstractClause f) c
+    Right (Left cl) -> ((:[]) <$> makeAbsurdClause f cl)
+    Right (Right c) -> (mapM (makeAbstractClause f) c)) >>= (\ x -> return (casectxt , x))
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do

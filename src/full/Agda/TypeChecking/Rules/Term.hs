@@ -17,7 +17,10 @@ import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
 import Agda.Syntax.Concrete.Pretty () -- only Pretty instances
+import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Common
+import Agda.Syntax.Translation.AbstractToConcrete
+import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Generic
@@ -53,7 +56,7 @@ import Agda.Utils.Permutation
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTypeC)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -291,6 +294,7 @@ checkExpr e t =
                       Just pos -> posToRange pos pos
 
                 hiddenLambdaOrHole h (A.AbsurdLam _ h') | h == h'                      = True
+                hiddenLambdaOrHole h (A.ExtendedLam _ _ _ _)                           = False
 		hiddenLambdaOrHole h (A.Lam _ (A.DomainFree h' _ _) _) | h == h'       = True
 		hiddenLambdaOrHole h (A.Lam _ (A.DomainFull (A.TypedBindings _ (Arg h' _ _))) _)
                   | h == h'                                                            = True
@@ -448,6 +452,39 @@ checkExpr e t =
           where
             metas (MetaV m _) = [m]
             metas _           = []
+        A.ExtendedLam i di qname cs -> do
+             t <- reduceB =<< instantiateFull t
+             case t of
+               Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+               NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+               NotBlocked t -> do
+                 j   <- currentMutualBlock
+                 rel <- asks envRelevance
+                 addConstant qname (Defn rel qname t (defaultDisplayForm qname) j noCompiledRep Axiom)
+                 reportSDoc "tc.term.exlam" 50 $ text "extended lambda's implementation \"" <> prettyTCM qname <>
+                                                 text "\" has type: " $$ prettyTCM t -- <+>
+--                                                 text " where clauses: " <+> text (show cs)
+                 abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
+                 tel <- getContextTelescope
+                 addExtLambdaTele qname (counthidden tel , countnothidden tel)
+                 reduce $ (Def qname [] `apply` (mkArgs tel))
+          where
+	    -- Concrete definitions cannot use information about abstract things.
+	    abstract ConcreteDef = inConcreteMode
+	    abstract AbstractDef = inAbstractMode
+            mkArgs :: Telescope -> Args
+            mkArgs EmptyTel = []
+            mkArgs (ExtendTel arg (Abs x tel)) = raise 1 (mkArgs tel) ++ [defaultArg $ Var 0 []]
+
+            metas (MetaV m _) = [m]
+            metas _           = []
+
+            counthidden :: Telescope -> Int
+            counthidden t = length $ filter (\ (Arg h r a) -> h == Hidden ) $ teleArgs t
+
+            countnothidden :: Telescope -> Int
+            countnothidden t = length $ filter (\ (Arg h r a) -> h == NotHidden ) $ teleArgs t
+
 
 {- Andreas, 2011-04-27 DOES NOT WORK
    -- a telescope is not for type checking abstract syn

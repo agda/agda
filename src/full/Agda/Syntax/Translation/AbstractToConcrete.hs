@@ -343,7 +343,14 @@ instance ToConcrete A.Expr C.Expr where
                     (bs@(A.DomainFull _ : _), e)   -> (b:bs, e)
                     _                              -> ([b], e)
             lamView e = ([], e)
-
+    toConcrete (A.ExtendedLam i di qname cs) = do
+          decls <- mapM toConcrete cs
+          let removeApp (C.RawAppP r (lam:es)) = C.RawAppP r es
+              removeApp (C.AppP p np) = namedThing $ unArg np
+              removeApp _ = __IMPOSSIBLE__
+          let decl2clause (C.FunClause lhs rhs wh) = (lhs {lhsOriginalPattern = removeApp $ lhsOriginalPattern lhs},rhs,wh)
+              decl2clause _ = __IMPOSSIBLE__
+          return $ C.ExtendedLam (getRange i) (map decl2clause (concat decls))
     toConcrete (A.Pi _ [] e) = toConcrete e
     toConcrete t@(A.Pi i _ _)  = case piTel t of
       (tel, e) ->
