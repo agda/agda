@@ -349,10 +349,11 @@ ignoreBlocking :: Blocked a -> a
 ignoreBlocking (Blocked _ x) = x
 ignoreBlocking (NotBlocked x) = x
 
-set0   = set 0
-set n  = sort $ mkType n
-prop   = sort Prop
-sort s = El (sSuc s) $ Sort s
+set0      = set 0
+set n     = sort $ mkType n
+prop      = sort Prop
+sort s    = El (sSuc s) $ Sort s
+varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
 
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 

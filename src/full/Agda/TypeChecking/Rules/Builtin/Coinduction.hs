@@ -31,8 +31,6 @@ import Agda.Utils.Permutation
 
 #include "../../../undefined.h"
 
-varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
-
 -- | The type of @&#x221e@.
 
 typeOfInf :: TCM Type
@@ -41,10 +39,8 @@ typeOfInf = do
   return $
     El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
                (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argN $ El (sSuc $ varSort 0)
-                                            (Sort $ varSort 0))
-                                 (Abs "A" $ El (sSuc $ varSort 1)
-                                               (Sort $ varSort 1)))))
+                             (Pi (argN $ sort $ varSort 0)
+                                 (Abs "A" $ sort $ varSort 1))))
 
 -- | The type of @&#x266f_@.
 
@@ -58,7 +54,7 @@ typeOfSharp = do
   return $
     El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
                (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argH $ El (sSuc $ varSort 0) (Sort $ varSort 0))
+                             (Pi (argH $ sort $ varSort 0)
                                  (Abs "A" $ El (varSort 1)
                                                (Pi (argN $ El (varSort 1) (Var 0 []))
                                                    (Abs "x" $ El (varSort 2)
@@ -76,7 +72,7 @@ typeOfFlat = do
   return $
     El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
                (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argH $ El (sSuc $ varSort 0) (Sort $ varSort 0))
+                             (Pi (argH $ sort $ varSort 0)
                                  (Abs "A" $ El (varSort 1)
                                                (Fun (argN $ El (varSort 1)
                                                                (Def inf [argH (Var 1 []), argN (Var 0 [])]))
@@ -147,8 +143,7 @@ bindBuiltinFlat e =
     kit    <- requireLevels
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (argH (El (mkType 0) (Def (typeName kit) [])))
-                                                  (Abs "a" (ExtendTel (argH (El (sSuc $ varSort 0)
-                                                                                (Sort $ varSort 0)))
+                                                  (Abs "a" (ExtendTel (argH $ sort $ varSort 0)
                                                                       (Abs "A" (ExtendTel (argN (El (varSort 1) (Var 0 [])))
                                                                                           (Abs "x" EmptyTel)))))
                         , clausePerm  = idP 3
