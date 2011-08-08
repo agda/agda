@@ -126,3 +126,8 @@ mutual
 
   test₁₃ : recordDef UnitDef ≡ primQNameDefinition (quote Unit)
   test₁₃ = refl
+
+test₁₄ : Check 1
+test₁₄ = quoteGoal t in
+           t is con (quote ℕ.suc) (argᵛʳ (con (quote ℕ.zero) []) ∷ [])
+           of course
