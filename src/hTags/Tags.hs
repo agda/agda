@@ -65,11 +65,18 @@ showETags = concatMap showFile
 
     showTag (NoLoc _)   = Nothing
     showTag (Tag t f p) = Just $
-      take (column p) (lineMap ! line p) ++ t ++ "\x7f" ++
+      take col (lineMap ! line p) ++ t ++ "\x7f" ++
       t ++ "\x01" ++
       show (line p) ++ ",0"
       -- I don't know what the last offset is used for, so I have set
       -- it to 0. This seems to work.
+      where
+      col =
+#if MIN_VERSION_ghc(7,0,0)
+        column p - 1
+#else
+        column p
+#endif
 
 instance Show Tag where
   show (Tag t f p) = intercalate "\t" [t, f, show (line p)]
