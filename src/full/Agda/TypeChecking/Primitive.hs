@@ -412,10 +412,11 @@ a --> b = do
 
 gpi :: MonadTCM tcm => Hiding -> Relevance -> String -> tcm Type -> tcm Type -> tcm Type
 gpi h r name a b = do
-    a' <- a
-    x  <- freshName_ name
-    b' <- addCtx x (Arg h r a') b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg h r a') (Abs name b')
+  a <- a
+  x <- freshName_ name
+  b <- addCtx x (Arg h r a) b
+  return $ El (getSort a `dLub` Abs name (getSort b))
+              (Pi (Arg h r a) (Abs name b))
 
 hPi, nPi :: MonadTCM tcm => String -> tcm Type -> tcm Type -> tcm Type
 hPi = gpi Hidden Relevant
