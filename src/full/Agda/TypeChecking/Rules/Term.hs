@@ -269,6 +269,8 @@ checkExpr e t =
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
 	  , nest 2 $ text "at " <+> (text . show =<< getCurrentRange)
 	  ]
+    reportSDoc "tc.term.expr.top.detailed" 80 $
+      text "Checking" <+> fsep [ prettyTCM e, text ":", text (show t) ]
     t <- reduce t
     reportSDoc "tc.term.expr.top" 15 $
         text "    --> " <+> prettyTCM t
