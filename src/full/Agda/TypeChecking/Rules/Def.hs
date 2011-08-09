@@ -209,11 +209,6 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                          Con reflCon [] -> reflCon
                          _              -> __IMPOSSIBLE__
                      (rewriteType,rewriteFrom,rewriteTo) <- case t' of
-                         El _Set0 (Def equality' [Arg Hidden Relevant rewriteType,
-                                                  Arg NotHidden Relevant rewriteFrom, Arg NotHidden Relevant rewriteTo])
-                            | equality' == equality ->
-                              return (rewriteType, rewriteFrom, rewriteTo)
-                         -- Universe polymorphic equality
                          El _Set0 (Def equality' [_level, Arg Hidden Relevant rewriteType,
                                                   Arg NotHidden Relevant rewriteFrom, Arg NotHidden Relevant rewriteTo])
                             | equality' == equality ->
