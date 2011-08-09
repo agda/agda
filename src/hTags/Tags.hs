@@ -65,18 +65,33 @@ showETags = concatMap showFile
 
     showTag (NoLoc _)   = Nothing
     showTag (Tag t f p) = Just $
-      take col (lineMap ! line p) ++ t ++ "\x7f" ++
+      take' (column p) (lineMap ! line p) ++ t ++ "\x7f" ++
       t ++ "\x01" ++
       show (line p) ++ ",0"
       -- I don't know what the last offset is used for, so I have set
       -- it to 0. This seems to work.
-      where
-      col =
+
 #if MIN_VERSION_ghc(7,0,0)
-        column p - 1
+    take' = tabAwareTake 0
 #else
-        column p
+    -- GHC 6 ignores tab characters when computing column numbers.
+    take' = take
 #endif
+
+    -- A variant of take which is aware of tab characters. Uses tab
+    -- size 8, and only recognises the ordinary ASCII horizontal tab
+    -- ('\t'). The first argument is the position of the first
+    -- character. Tabs are only expanded into spaces if necessary.
+    tabAwareTake pos n s | n <= 0 = ""
+    tabAwareTake pos n ""         = ""
+    tabAwareTake pos n (c : s)
+      | c /= '\t'    = c : tabAwareTake (pos + 1) (n - 1) s
+      | stepSize > n = replicate n ' '
+      | otherwise    = c : tabAwareTake nextTabStop (n - stepSize) s
+      where
+      tabSize     = 8
+      nextTabStop = (pos `div` tabSize + 1) * tabSize
+      stepSize    = nextTabStop - pos
 
 instance Show Tag where
   show (Tag t f p) = intercalate "\t" [t, f, show (line p)]
@@ -86,7 +101,15 @@ srcLocTag :: SrcLoc -> Tag -> Tag
 srcLocTag l (NoLoc t) = Tag t
                             (unpackFS $ srcLocFile l)
                             (Pos { line   = srcLocLine l
+#if MIN_VERSION_ghc(7,0,0)
+                                   -- GHC 7 counts columns starting
+                                   -- from 1.
+                                 , column = srcLocCol l - 1
+#else
+                                   -- GHC 6 counts columns starting
+                                   -- from 0.
                                  , column = srcLocCol l
+#endif
                                  })
 srcLocTag _ t@Tag{}   = t
 
