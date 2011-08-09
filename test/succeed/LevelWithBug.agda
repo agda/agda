@@ -24,7 +24,7 @@ data List {a}(A : Set a) : Set a where
   [] : List A
   _∷_ : A → List A → List A
 
-data _≡_ {a}{A : Set a}(x : A) : A → Set where
+data _≡_ {a}{A : Set a}(x : A) : A → Set a where
   refl : x ≡ x
 
 {-# BUILTIN EQUALITY _≡_ #-}

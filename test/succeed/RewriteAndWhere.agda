@@ -1,13 +1,8 @@
-
 module RewriteAndWhere where
 
-data _≡_ {A : Set}(x : A) : A → Set where
-  refl : x ≡ x
+open import Common.Equality
 
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
-
-sym : ∀ {A}{a b : A} → a ≡ b → b ≡ a
+sym : {A : Set}{a b : A} → a ≡ b → b ≡ a
 sym refl = refl
 
 data ℕ : Set where

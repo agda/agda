@@ -4,7 +4,7 @@ module Reflection where
 open import Common.Prelude renaming (Nat to ℕ)
 open import Common.Reflect
 
-data _≡_ {A : Set}(x : A) : A → Set where
+data _≡_ {a}{A : Set a}(x : A) : A → Set a where
   refl : x ≡ x
 
 {-# BUILTIN EQUALITY _≡_ #-}
@@ -14,7 +14,7 @@ data Id {A : Set}(x : A) : (B : Set) → B → Set where
   course : Id x A x
 
 primitive
-  primTrustMe : {A : Set}{x y : A} → x ≡ y
+  primTrustMe : ∀{a}{A : Set a}{x y : A} → x ≡ y
 
 open import Common.Level
 

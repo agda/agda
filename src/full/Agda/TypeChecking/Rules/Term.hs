@@ -553,7 +553,7 @@ checkExpr e t =
             -- Rechecking an existing metavariable
             Just n -> do
               let v = MetaV (MetaId n) []
-              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
 
 	A.Lit lit    -> checkLiteral lit t

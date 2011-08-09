@@ -253,19 +253,25 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
     Lit lit -> f lit
     _	    -> Nothing
 
--- trustMe : {A : Set}{a b : A} -> a ≡ b
+-- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: MonadTCM tcm => tcm PrimitiveImpl
 primTrustMe = do
   refl <- primRefl
-  t    <- hPi "A" tset $ hPi "a" (el $ var 0) $ hPi "b" (el $ var 1) $
-          el (primEquality <#> var 2 <@> var 1 <@> var 0)
-  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 3 $ \ts ->
+  t    <- hPi "a" (el primLevel) $
+          hPi "A" (return $ sort $ varSort 0) $
+          hPi "x" (El (varSort 1) <$> var 0) $
+          hPi "y" (El (varSort 2) <$> var 1) $
+          El (varSort 3) <$>
+            primEquality <#> var 3 <#> var 2 <@> var 1 <@> var 0
+  return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
       case ts of
-        [t, a, b] -> liftTCM $ do
-              noConstraints $ equalTerm (El (mkType 0) $ unArg t) (unArg a) (unArg b)
-              rf <- return refl -- <#> return (unArg t) <#> return (unArg a)
+        [a, t, x, y] -> liftTCM $ do
+              noConstraints $
+                equalTerm (El (Type $ lvlView $ unArg a) (unArg t))
+                          (unArg x) (unArg y)
+              rf <- return refl
               redReturn rf
-            `catchError` \_ -> return (NoReduction $ map notReduced [t, a, b])
+            `catchError` \_ -> return (NoReduction $ map notReduced [a, t, x, y])
         _ -> __IMPOSSIBLE__
 
 primQNameType :: MonadTCM tcm => tcm PrimitiveImpl

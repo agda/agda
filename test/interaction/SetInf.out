@@ -1,0 +1,7 @@
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action
+                 "*All Goals*"
+                 "_7 : Setω  [ at SetInf.agda:5,14-19 ]
+")
+agda2_mode_code (agda2-goals-action '())

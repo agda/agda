@@ -53,10 +53,17 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                                      ,builtinAgdaTermDef, builtinAgdaTermCon
                                      ,builtinAgdaTermPi, builtinAgdaTermSort
                                      ,builtinAgdaTermUnsupported])
-  , (builtinEquality           |-> BuiltinData (hPi "A" tset (tv0 --> tv0 --> tset)) [builtinRefl])
+  , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
+                                                hPi "A" (return $ sort $ varSort 0) $
+                                                (El (varSort 1) <$> var 0) -->
+                                                (El (varSort 1) <$> var 0) -->
+                                                return (sort $ varSort 1))
+                                               [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinNonStrict, builtinIrrelevant, builtinForced])
-  , (builtinRefl               |-> BuiltinDataCons (hPi "A" tset (hPi "x" tv0 (el (primEquality <#> v1 <@> v0 <@> v0)))))
+  , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
+                                                    hPi "x" (El (varSort 1) <$> var 0) $
+                                                    El (varSort 2) <$> primEquality <#> var 2 <#> var 1 <@> var 0 <@> var 0))
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
   , (builtinZero               |-> BuiltinDataCons tnat)

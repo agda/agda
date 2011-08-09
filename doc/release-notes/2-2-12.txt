@@ -22,6 +22,10 @@ Language
   {-# BUILTIN LEVELSUC  suc   #-}
   {-# BUILTIN LEVELMAX  max   #-}
 
+* The BUILTIN equality is now required to be universe-polymorphic.
+
+* trustMe is now universe-polymorphic.
+
 * Record patterns which do not contain data type patterns, but which
   do contain dot patterns, are no longer rejected.
 

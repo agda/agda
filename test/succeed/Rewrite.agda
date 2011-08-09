@@ -1,14 +1,8 @@
 module Rewrite where
 
-data _≡_ {A : Set}(x : A) : A -> Set where
-  refl : x ≡ x
+open import Common.Equality
 
-infix 2 _≡_
-
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
-
-sym : ∀ {A}{x y : A} → x ≡ y → y ≡ x
+sym : {A : Set}{x y : A} → x ≡ y → y ≡ x
 sym refl = refl
 
 data Nat : Set where
@@ -28,7 +22,7 @@ plus-suc zero    m = refl
 plus-suc (suc n) m rewrite plus-suc n m = refl
 
 -- Proving things about functions using rewrite
-data IsRefl {A}{x : A} : ∀ {y} → x ≡ y → Set where
+data IsRefl {A : Set}{x : A} : ∀ {y} → x ≡ y → Set where
   isRefl : IsRefl refl
 
 plus-suc-isrefl : ∀ {n m} → IsRefl (plus-suc n m)

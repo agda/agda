@@ -1,13 +1,7 @@
 
 module Rewrite where
 
-data _≡_ {A : Set}(x : A) : A → Set where
-  refl : x ≡ x
-
-infix 2 _≡_
-
-{-# BUILTIN EQUALITY _≡_ #-}
-{-# BUILTIN REFL refl #-}
+open import Common.Equality
 
 data _≈_ {A : Set}(x : A) : A → Set where
   refl : ∀ {y} → x ≈ y

@@ -1,11 +1,5 @@
 {-# OPTIONS --universe-polymorphism #-}
 
--- The builtin equality will be the polymorphic equality
--- instantiated to Set. Rewrite should work for that.
--- Of course, it would be nice to have rewrite for the
--- polymorphic equality directly, but that requires further
--- work.
-
 module RewriteAndUniversePolymorphism where
 
 postulate
@@ -27,7 +21,7 @@ data ℕ : Set where
 
 infix 4 _≡_
 
-data _≡_ {a}{A : Set a} (x : A) : A → Set where
+data _≡_ {a}{A : Set a} (x : A) : A → Set a where
   refl : x ≡ x
 
 {-# BUILTIN EQUALITY _≡_ #-}

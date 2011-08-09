@@ -1,11 +1,7 @@
 
 module Issue237 where
 
-data _≡_ {A : Set} (x : A) : A → Set where
-  refl : x ≡ x
-
-{-# BUILTIN EQUALITY _≡_  #-}
-{-# BUILTIN REFL     refl #-}
+open import Common.Equality
 
 data Unit : Set where
   unit : Unit
