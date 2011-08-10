@@ -100,7 +100,7 @@ infix 4 ===
 instance Arbitrary AbsolutePath where
   arbitrary = mk . take 3 . map (take 2) <$>
                 listOf (listOf1 (elements "a1"))
-    where mk ps = AbsolutePath (joinPath $ rootPath : ps)
+    where mk ps = mkAbsolute (joinPath $ rootPath : ps)
 
 ------------------------------------------------------------------------
 -- All tests
