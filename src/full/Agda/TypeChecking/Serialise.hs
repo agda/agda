@@ -314,7 +314,7 @@ instance EmbPrj TopLevelModuleName where
 
 instance EmbPrj a => EmbPrj [a] where
   icode xs = icodeN =<< mapM icode xs
-  value = vcase $ mapM value
+  value = vcase (mapM value)
 --   icode []       = icode0'
 --   icode (x : xs) = icode2' x xs
 --   value = vcase valu where valu []      = valu0 []
@@ -907,8 +907,9 @@ icodeX dict counter key = do
 
 icodeN = icodeX nodeD nodeC
 
+{-# INLINE vcase #-}
 vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
-vcase valu ix = do
+vcase valu = \ix -> do
     memo <- gets nodeMemo
     (aTyp, maybeU) <- liftIO $ do
       let aTyp = TypeRep' $ typeOf (undefined :: a)
