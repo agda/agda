@@ -16,8 +16,6 @@ import Data.Map (Map)
 import Data.List
 import Data.Maybe
 
-import Agda.Interaction.Monad
-
 import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToConcrete
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open)

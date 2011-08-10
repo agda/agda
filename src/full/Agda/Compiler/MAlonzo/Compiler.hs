@@ -26,7 +26,6 @@ import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
 import Agda.Interaction.FindFile
 import Agda.Interaction.Imports
-import Agda.Interaction.Monad
 import Agda.Interaction.Options
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as CN

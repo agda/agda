@@ -87,7 +87,6 @@ import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.MakeCase
 import qualified Agda.Interaction.BasicOps as B
-import qualified Agda.Interaction.CommandLine.CommandLine as CL
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Generate
 import qualified Agda.Interaction.Imports as Imp

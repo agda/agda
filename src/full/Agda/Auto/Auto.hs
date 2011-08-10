@@ -31,7 +31,6 @@ import qualified Agda.Syntax.Internal as I
 import Agda.Syntax.Common
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete (abstractToConcrete, abstractToConcrete_, makeEnv, runAbsToCon, toConcrete)
-import Agda.Interaction.Monad
 import Agda.Interaction.BasicOps hiding (refine)
 import Agda.Interaction.MakeCase (findClause)
 import Agda.TypeChecking.Reduce (normalise)

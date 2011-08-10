@@ -14,7 +14,6 @@ import System.IO
 import System.Time
 
 import Agda.Interaction.Imports
-import Agda.Interaction.Monad
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Internal
