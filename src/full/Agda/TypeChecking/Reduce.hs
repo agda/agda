@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, PatternGuards, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, PatternGuards,
+             TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.TypeChecking.Reduce where
 

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverlappingInstances,
              TypeSynonymInstances,
+             FlexibleInstances,
              IncoherentInstances,
              ExistentialQuantification,
              ScopedTypeVariables,
@@ -106,7 +107,17 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 }
 
 data U    = forall a . Typeable a => U !a
-type Memo = HashTable (Int32, Int32) U    -- (node index, type rep key)
+type Memo = HashTable (Int32, TypeRep') U    -- (node index, type rep)
+
+-- | A newtype is used to avoid introducing an orphan instance of
+-- Hashable.
+newtype TypeRep' = TypeRep' { unTypeRep' :: TypeRep }
+  deriving Eq
+
+-- | With direct access to the internals of 'TypeRep' this instance
+-- could presumably be improved.
+instance Hashable TypeRep' where
+  hash = hash . show . unTypeRep'
 
 data St = St
   { nodeE     :: !(Array Int32 Node)
@@ -900,24 +911,15 @@ vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu ix = do
     memo <- gets nodeMemo
     (aTyp, maybeU) <- liftIO $ do
-      aTyp   <- typeRepKey $ typeOf (undefined :: a)
-      -- The following tests try to ensure that conversion to Int32
-      -- won't truncate the key. The tests can perhaps give erroneous
-      -- results if Int is "larger" than Int64.
-      when ((convert aTyp :: Int64) > convert (maxBound :: Int32)) __IMPOSSIBLE__
-      when ((convert aTyp :: Int64) < convert (minBound :: Int32)) __IMPOSSIBLE__
-      let aTyp' = convert aTyp :: Int32
-      maybeU <- H.lookup memo (ix, aTyp')
-      return (aTyp', maybeU)
+      let aTyp = TypeRep' $ typeOf (undefined :: a)
+      maybeU <- H.lookup memo (ix, aTyp)
+      return (aTyp, maybeU)
     case maybeU of
       Just (U u) -> maybe malformed return (cast u)
       Nothing    -> do
           v <- valu . (! ix) =<< gets nodeE
           liftIO $ H.insert memo (ix, aTyp) (U v)
           return v
-    where
-    convert :: (Integral b, Integral c) => b -> c
-    convert = fromInteger . toInteger
 
 icode0  tag                       = icodeN [tag]
 icode1  tag a                     = icodeN . (tag :) =<< sequence [icode a]

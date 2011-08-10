@@ -1,4 +1,5 @@
-{-# LANGUAGE TypeSynonymInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances,
+             MultiParamTypeClasses #-}
 module Agda.Interaction.Monad where
 
 import Agda.TypeChecking.Monad

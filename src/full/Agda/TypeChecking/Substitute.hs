@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity

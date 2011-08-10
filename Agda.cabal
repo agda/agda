@@ -34,7 +34,7 @@ description:
   Note also that this library does not follow the package versioning
   policy, because the library is only intended to be used by the Emacs
   mode and the Agda-executable package.
-tested-with:        GHC == 6.12.3, GHC == 7.0.4
+tested-with:        GHC == 6.12.3, GHC == 7.2.1
 extra-source-files: src/full/Agda/undefined.h
                     README
                     doc/release-notes/*.txt
@@ -70,7 +70,7 @@ flag js
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
-    build-depends:  base >= 4.2 && < 4.4
+    build-depends:  base >= 4.2 && < 4.5
   else
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
@@ -80,7 +80,7 @@ library
                     QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.12,
                     containers >= 0.1 && < 0.5,
-                    pretty == 1.0.*,
+                    pretty >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2,
                     old-time == 1.0.*,
                     bytestring >= 0.9.0.1 && < 0.10,
@@ -299,7 +299,12 @@ library
                     Agda.Auto.CaseSplit
   other-modules:    Paths_Agda
   if true
-    ghc-options:    -w -Werror
+    ghc-options:    -w
+                    -- -Werror has been disabled temporarily. The
+                    -- Paths_Agda module, which is generated
+                    -- automatically by Cabal, gives rise to a
+                    -- warning under GHC 7.2.1 (at least when
+                    -- Cabal 1.10.1.0 is used).
                     -fwarn-deprecated-flags
                     -fwarn-dodgy-foreign-imports
                     -fwarn-dodgy-imports
@@ -313,6 +318,8 @@ library
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
                     -fwarn-wrong-do-bind
+  if impl(ghc >= 7.2)
+    ghc-options:    -fwarn-identities
   ghc-prof-options: -auto-all
 
 executable agda-mode
@@ -320,7 +327,7 @@ executable agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
   if flag(use-locale)
-    build-depends:  base >= 4.2 && < 4.4
+    build-depends:  base >= 4.2 && < 4.5
   else
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*

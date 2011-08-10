@@ -285,7 +285,7 @@ tomyPat p = case C.unArg p of
   def <- lift $ getConstInfo n
   cc <- lift $ liftIO $ readIORef c
   let Just npar = fst $ cdorigin cc
-  return $ PatConApp c (replicate (fromIntegral npar) PatExp ++ pats')
+  return $ PatConApp c (replicate npar PatExp ++ pats')
  I.LitP _ -> throwError $ strMsg "Auto: Literals in patterns are not supported"
 
 tomyBody (I.Body t) = do
@@ -550,7 +550,7 @@ constructPats cmap mainm clause = do
         (ns', ps') <- cnvps ns ps
         cc <- liftIO $ readIORef c2
         let Just npar = fst $ cdorigin cc
-        return (ns', HI hid (CSPatConApp c2 (replicate (fromIntegral npar) (HI Hidden CSOmittedArg) ++ ps')))
+        return (ns', HI hid (CSPatConApp c2 (replicate npar (HI Hidden CSOmittedArg) ++ ps')))
        I.DotP t -> do
         (t2, _) <- runStateT (tomyExp t) (S {sConsts = (cmap, []), sMetas = initMapS, sEqs = initMapS, sCurMeta = Nothing, sMainMeta = mainm})
         return (ns, HI hid (CSPatExp t2))
@@ -623,7 +623,7 @@ frommyClause (ids, pats, mrhs) = do
                r n = I.Bind $ I.Abs "h" $ r (n - 1)
                e'' = r ({-length ids + -}nv)
            return e''
- return $ I.Clause SP.noRange tel (Perm (fromIntegral $ nv{- + length ids-}) (map fromIntegral perm)) ps body
+ return $ I.Clause SP.noRange tel (Perm (nv{- + length ids-}) perm) ps body
 
 contains_constructor :: [CSPat O] -> Bool
 contains_constructor = any f

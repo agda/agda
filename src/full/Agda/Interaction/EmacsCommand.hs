@@ -2,7 +2,7 @@
 -- | Low-level code for instructing Emacs to do things
 ------------------------------------------------------------------------
 
-{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.Interaction.EmacsCommand
   ( Lisp(..)
