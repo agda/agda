@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 
 module Tags where
 
@@ -98,19 +98,23 @@ instance Show Tag where
   show (NoLoc t)   = unwords [t, ".", "0"]
 
 srcLocTag :: SrcLoc -> Tag -> Tag
-srcLocTag l (NoLoc t) = Tag t
-                            (unpackFS $ srcLocFile l)
-                            (Pos { line   = srcLocLine l
-#if MIN_VERSION_ghc(7,0,0)
-                                   -- GHC 7 counts columns starting
-                                   -- from 1.
-                                 , column = srcLocCol l - 1
+#if MIN_VERSION_ghc(7,2,1)
+srcLocTag UnhelpfulLoc{} t         = t
+srcLocTag (RealSrcLoc l) (NoLoc t) =
 #else
-                                   -- GHC 6 counts columns starting
-                                   -- from 0.
-                                 , column = srcLocCol l
+srcLocTag l              (NoLoc t) =
 #endif
-                                 })
+  Tag t
+      (unpackFS $ srcLocFile l)
+      (Pos { line   = srcLocLine l
+#if MIN_VERSION_ghc(7,0,0)
+             -- GHC 7 counts columns starting from 1.
+           , column = srcLocCol l - 1
+#else
+             -- GHC 6 counts columns starting from 0.
+           , column = srcLocCol l
+#endif
+           })
 srcLocTag _ t@Tag{}   = t
 
 class TagName a where
@@ -182,6 +186,14 @@ instance TagName name => HasTags (HsDecl name) where
 #if MIN_VERSION_ghc(7,0,0)
     QuasiQuoteD{} -> []
 #endif
+#if MIN_VERSION_ghc(7,2,1)
+    VectD d       -> tags d
+
+instance TagName name => HasTags (VectDecl name) where
+  tags d = case d of
+    HsVect l _ -> tagsLN l
+    HsNoVect l -> tagsLN l
+#endif
 
 instance TagName name => HasTags (TyClDecl name) where
   tags d = tagsLN (tcdLName d) ++
@@ -212,7 +224,6 @@ instance TagName name => HasTags (HsBind name) where
 instance TagName name => HasTags (Pat name) where
   tags p = case p of
     VarPat x               -> tagsN x
-    VarPatOut x _          -> tagsN x
     LazyPat p              -> tags p
     AsPat x p              -> tags (fmap Name x, p)
     ParPat p               -> tags p
@@ -225,8 +236,11 @@ instance TagName name => HasTags (Pat name) where
     NPlusKPat x _ _ _      -> tagsLN x
     SigPatIn p _           -> tags p
     SigPatOut p _          -> tags p
-    CoPat{}                -> []
+#if !(MIN_VERSION_ghc(7,2,1))
+    VarPatOut x _          -> tagsN x
     TypePat{}              -> []
+#endif
+    CoPat{}                -> []
     NPat{}                 -> []
     LitPat{}               -> []
     WildPat{}              -> []
@@ -247,12 +261,17 @@ instance HasTags arg => HasTags (HsRecField name arg) where
 
 instance TagName name => HasTags (Sig name) where
   tags d = case d of
-    TypeSig x _   -> tagsLN x
-    FixSig{}      -> []
-    InlineSig{}   -> []
-    SpecSig{}     -> []
-    SpecInstSig{} -> []
-    IdSig{}       -> []
+#if MIN_VERSION_ghc(7,2,1)
+    GenericSig x _ -> concatMap tagsLN x
+    TypeSig x _    -> concatMap tagsLN x
+#else
+    TypeSig x _    -> tagsLN x
+#endif
+    FixSig{}       -> []
+    InlineSig{}    -> []
+    SpecSig{}      -> []
+    SpecInstSig{}  -> []
+    IdSig{}        -> []
 
 instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of

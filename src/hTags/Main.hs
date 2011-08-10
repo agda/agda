@@ -1,5 +1,4 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 
 module Main where
 
@@ -24,10 +23,16 @@ import Lexer
 import DriverPipeline
 import FastString
 import DriverPhases
+import ErrUtils
 import StringBuffer
 import SrcLoc
 import Outputable
+#if MIN_VERSION_ghc(7,2,1)
+import DynFlags (opt_P, sOpt_P)
+import GhcMonad (GhcT(..), Ghc(..))
+#else
 import HscTypes (GhcT(..), Ghc(..))
+#endif
 
 import Tags
 
@@ -40,17 +45,22 @@ instance MonadIO m => MonadIO (GhcT m) where
 instance MonadIO Ghc where
   liftIO m = Ghc $ \_ -> m
 
+#if MIN_VERSION_ghc(7,2,1)
+fileLoc :: FilePath -> RealSrcLoc
+fileLoc file = mkRealSrcLoc (mkZFastString file) 1 0
+#else
 fileLoc :: FilePath -> SrcLoc
 fileLoc file = mkSrcLoc (mkZFastString file) 1 0
+#endif
 
 filePState :: DynFlags -> FilePath -> IO PState
 filePState dflags file = do
   buf <- hGetStringBuffer file
-#if __GLASGOW_HASKELL__ == 612
-  return $ mkPState buf (fileLoc file) dflags
-#endif
-#if __GLASGOW_HASKELL__ >= 700
-  return $ mkPState dflags buf (fileLoc file)
+  return $
+#if MIN_VERSION_ghc(7,0,0)
+    mkPState dflags buf (fileLoc file)
+#else
+    mkPState buf (fileLoc file) dflags
 #endif
 
 pMod :: P (Located (HsModule RdrName))
@@ -59,21 +69,20 @@ pMod = P.parseModule
 parse :: PState -> P a -> ParseResult a
 parse st p = unP p st
 
-debug = liftIO . hPutStrLn stderr
-
 goFile :: FilePath -> Ghc [Tag]
 goFile file = do
   env <- getSession
-  (dflags, srcFile) <- preprocess env (file, Just $ Cpp HsSrcFile)
+  (dflags, srcFile) <-
+#if MIN_VERSION_ghc(7,2,1)
+    liftIO $
+#endif
+      preprocess env (file, Just $ Cpp HsSrcFile)
   st <- liftIO $ filePState dflags srcFile
   case parse st pMod of
-    POk _ m   -> return $ removeDuplicates $ tags $ unLoc m
-    PFailed loc err -> do
-      let file = unpackFS $ srcLocFile $ srcSpanStart loc
-          line = srcSpanStartLine loc
-      debug $ file ++ ":" ++ show line
-      debug $ show $ err defaultDumpStyle
-      liftIO $ exitWith $ ExitFailure 1
+    POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
+    PFailed loc err -> liftIO $ do
+      printError loc err
+      exitWith $ ExitFailure 1
 
 runCmd :: String -> IO String
 runCmd cmd = do
@@ -90,9 +99,19 @@ main = do
             top : _ <- lines <$> runCmd "ghc --print-libdir"
             ts <- runGhc (Just top) $ do
               dynFlags <- getSessionDynFlags
-              setSessionDynFlags $ dynFlags { opt_P =
-                concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
-                opt_P dynFlags }
+              setSessionDynFlags $
+                dynFlags {
+#if MIN_VERSION_ghc(7,2,1)
+                  settings = (settings dynFlags) { sOpt_P
+#else
+                                                   opt_P
+#endif
+                      = concatMap (\i -> [i, "-include"]) (optIncludes opts) ++
+                        opt_P dynFlags
+#if MIN_VERSION_ghc(7,2,1)
+                    }
+#endif
+                  }
               mapM (\f -> liftM2 ((,,) f) (liftIO $ readFile f)
                                           (goFile f)) $
                          optFiles opts
