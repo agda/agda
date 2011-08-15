@@ -182,7 +182,7 @@ tokens :-
 <0,code> "->"		{ symbol SymArrow }
 <0,code> "\"		{ symbol SymLambda }
 <0,code> "@"		{ symbol SymAs }
-<0,code> "{{"		{ symbol SymDoubleOpenBrace }
+<0,code> "{{" /[^!]		{ symbol SymDoubleOpenBrace }
 -- We don't lex '}}' into a SymDoubleCloseBrace. Instead, we lex it as
 -- two SymCloseBrace's. When the parser is looking for a double
 -- closing brace, it will also accept two SymCloseBrace's, after
