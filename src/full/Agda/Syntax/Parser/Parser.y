@@ -645,7 +645,7 @@ LamBindsAbsurd
   | TypedBindings		{ Left [Right $ DomainFull $1] }
   | '(' ')'                     { Left [Left NotHidden] }
   | '{' '}'                     { Left [Left Hidden] }
-  | '{{' '}}'                   { Left [Left Instance] }
+  | '{{' DoubleCloseBrace                   { Left [Left Instance] }
 
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
 NonAbsurdLamClause :: { (LHS,RHS,WhereClause) }
@@ -715,7 +715,7 @@ DomainFreeBinding
     | '.' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
     | '..' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
-    | '..' '{{' CommaBIds '}}' { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
+    | '..' '{{' CommaBIds DoubleCloseBrace { map (DomainFree Instance NonStrict . mkBoundName_) $3 }
   -}
 
 -- A domain free binding is either x or {x1 .. xn}
@@ -726,7 +726,7 @@ DomainFreeBindingAbsurd
     | '..' BId		{ Left [DomainFree NotHidden NonStrict $ mkBoundName_ $2]  }
     | '{' CommaBIdAndAbsurds '}'
          { either (Left . map (DomainFree Hidden Relevant . mkBoundName_)) Right $2 }
-    | '{{' CommaBIds '}}' { Left $ map (DomainFree Instance Relevant . mkBoundName_) $2 }
+    | '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance Relevant . mkBoundName_) $2 }
     | '.' '{' CommaBIds '}' { Left $ map (DomainFree Hidden Irrelevant . mkBoundName_) $3 }
     | '.' '{{' CommaBIds DoubleCloseBrace { Left $ map (DomainFree Instance Irrelevant . mkBoundName_) $3 }
     | '..' '{' CommaBIds '}' { Left $ map (DomainFree Hidden NonStrict . mkBoundName_) $3 }
