@@ -8,8 +8,6 @@
 
 module 02-classes-indep where
 
-import Data.Empty as E
-
 data T : Set where
   tt : T
 

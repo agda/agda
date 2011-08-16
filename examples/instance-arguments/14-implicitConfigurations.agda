@@ -1,7 +1,5 @@
 module 14-implicitConfigurations where
 
-open import Function
-
 postulate
   Integral : Set → Set
   add : ∀ {A} {{ intA : Integral A }} → A → A → A
@@ -28,22 +26,22 @@ private postulate theOnlyToken : Token
 withModulus :
   ∀ {A} → {{ intA : Integral A }} → (modulus : A) →
   (∀ {s} → {{ mod : Modulus s A }} → M s A) → A
-withModulus modulus f = unMkM $
-  f {theOnlyToken} {{  record { modulus = modulus }  }} 
+withModulus modulus f = unMkM
+  (f {theOnlyToken} {{  record { modulus = modulus }  }})
 
 open Modulus {{...}}
 
 normalize : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} → 
             A → M s A
-normalize a = MkM $ mod modulus a
+normalize a = MkM (mod modulus a)
 
 _+_ : ∀ {s A} {{intA : Integral A}} {{mod : Modulus s A}} → 
       M s A → M s A → M s A
-(MkM a) + (MkM b) = normalize $ add a b
+(MkM a) + (MkM b) = normalize (add a b)
 
 _*_ : ∀ {s A} → {{intA : Integral A}} → {{mod : Modulus s A}} → 
       M s A → M s A → M s A
-(MkM a) * (MkM b) = normalize $ mul a b
+(MkM a) * (MkM b) = normalize (mul a b)
 
 test₁ : N
 test₁ = withModulus two (let o = MkM one in (o + o)*(o + o))

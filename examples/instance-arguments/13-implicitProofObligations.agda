@@ -33,10 +33,11 @@ _div′_ : (dividend divisor : ℕ) {{ ≢0 : divisor ≢ 0 }} → ℕ
 a div′ b with a divMod′ b
 a div′ b | (q , _) = q
 
-test : {d≢0 : False (d ≟ 0)} → ℕ
-test = 5 div d
-test2 : {{d≢0 : d ≢ 0}} → ℕ
-test2 = 5 div′ d
+--Agda can't resolve hiddens
+-- test : {d≢0 : False (d ≟ 0)} → ℕ
+-- test = 5 div d
+-- test2 : {{d≢0 : d ≢ 0}} → ℕ
+-- test2 = 5 div′ d
 
 test3 = 5 div 2
 test4 = 5 div′ 2

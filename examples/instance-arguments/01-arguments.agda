@@ -2,8 +2,6 @@
 
 module 01-arguments where
 
-import Data.Empty as E
-
 data T : Set where
   tt : T
 
@@ -29,6 +27,6 @@ test5 = id
 ⋯ : {A : Set} → {{a : A}} → A
 ⋯ {{a}} = a
 
-giveA' : {{a : A}} → A
-giveA' = ⋯
+--giveA' : {{a : A}} → A
+--giveA' = ⋯
 

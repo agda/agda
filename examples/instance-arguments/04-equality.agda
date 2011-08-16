@@ -10,9 +10,6 @@
 
 module 04-equality where
 
-import Data.Empty as E
-open import Function using (_$_)
-
 data Bool : Set where
   true : Bool
   false : Bool
@@ -48,7 +45,7 @@ eqBool = record { eq = primEqBool }
 open Eq {{...}}
 
 neq : {t : Set} → {{eqT : Eq t}} → t → t → Bool
-neq a b = not $ eq a b
+neq a b = not (eq a b)
 
 test = eq false false
 
