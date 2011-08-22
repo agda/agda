@@ -303,6 +303,28 @@ checkExpr e t =
 		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
 		hiddenLambdaOrHole _ _						       = False
 
+        -- a meta variable without arguments: type check directly for efficiency
+	A.QuestionMark i ->
+          case A.metaNumber i of
+            Nothing -> do
+              setScope (A.metaScope i)
+              newQuestionMark t
+            -- Rechecking an existing metavariable
+            Just n -> do
+              let v = MetaV (MetaId n) []
+              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              blockTerm t v $ leqType t' t
+	A.Underscore i   ->
+          case A.metaNumber i of
+            Nothing -> do
+              setScope (A.metaScope i)
+              newValueMeta t
+            -- Rechecking an existing metavariable
+            Just n -> do
+              let v = MetaV (MetaId n) []
+              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              blockTerm t v $ leqType t' t
+
 	-- Variable or constant application
            -- Subcase: ambiguous constructor
 	_   | Application (HeadCon cs@(_:_:_)) args <- appView e -> do
@@ -543,8 +565,10 @@ checkExpr e t =
             -- Rechecking an existing metavariable
             Just n -> do
               let v = MetaV (MetaId n) []
-              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+--              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
+
 	A.Underscore i   ->
           case A.metaNumber i of
             Nothing -> do
@@ -553,6 +577,7 @@ checkExpr e t =
             -- Rechecking an existing metavariable
             Just n -> do
               let v = MetaV (MetaId n) []
+--              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
               t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
 
@@ -633,6 +658,20 @@ checkExpr e t =
               (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType_ ty t'
 
+inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
+inferMeta newMeta i =
+  case A.metaNumber i of
+    Nothing -> do
+      setScope (A.metaScope i)
+      t <- workOnTypes $ newTypeMeta_
+      v <- newMeta t
+      return (apply v, t)
+    -- Rechecking an existing metavariable
+    Just n -> do
+      let v = MetaV (MetaId n)
+      HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+      return (v, t')
+
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
 inferHead :: Head -> TCM (Args -> Term, Type)
 inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
@@ -661,6 +700,8 @@ inferHead (HeadCon [c]) = do
   -- So when applying the constructor throw away the parameters.
   return (apply u . genericDrop n, a)
 inferHead (HeadCon _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
+inferHead (HeadQM i)  = inferMeta newQuestionMark i
+inferHead (HeadUnd i) = inferMeta newValueMeta i
 
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
@@ -922,6 +963,8 @@ checkHeadApplication e t hd args = do
     HeadCon _  -> __IMPOSSIBLE__
     HeadVar {} -> defaultResult
     HeadDef {} -> defaultResult
+    HeadUnd {} -> defaultResult
+    HeadQM {} -> defaultResult
   where
   defaultResult = do
     (f, t0) <- inferHead hd

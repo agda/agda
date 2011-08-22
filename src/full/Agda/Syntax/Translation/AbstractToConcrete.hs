@@ -720,7 +720,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 
-data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
+data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName | HdUnd MetaInfo | HdQM MetaInfo
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
 tryToRecoverOpApp e def = recoverOpApp bracket C.OpApp view e def
@@ -733,6 +733,8 @@ tryToRecoverOpApp e def = recoverOpApp bracket C.OpApp view e def
     mkHd (HeadCon (c:_)) = HdCon c
     mkHd (HeadCon [])    = __IMPOSSIBLE__
     mkHd (HeadDef f)     = HdDef f
+    mkHd (HeadUnd m)     = HdUnd m
+    mkHd (HeadQM  m)     = HdQM m
 
 tryToRecoverOpAppP :: A.Pattern -> AbsToCon C.Pattern -> AbsToCon C.Pattern
 tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
@@ -758,6 +760,8 @@ recoverOpApp bracket opApp view e mdefault = case view e of
           doCName (theFixity $ nameFixity n) x args'
         HdDef qn -> doQName qn args'
         HdCon qn -> doQName qn args'
+        HdUnd m  -> mdefault
+        HdQM m   -> mdefault
     | otherwise -> mdefault
   where
 

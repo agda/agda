@@ -14,6 +14,8 @@ data AppView = Application Head [NamedArg Expr]
 data Head = HeadVar Name     -- ^ A variable.
 	  | HeadDef QName    -- ^ A defined symbol (except constructor).
 	  | HeadCon [QName]  -- ^ A constructor which could belong to any of the data types in the list.
+          | HeadUnd MetaInfo -- ^ A meta variable
+          | HeadQM MetaInfo  -- ^ A question-mark (meta var for interaction)
 
 appView :: Expr -> AppView
 appView e =
@@ -21,6 +23,8 @@ appView e =
 	Var x	       -> Application (HeadVar x) []
 	Def x	       -> Application (HeadDef x) []
 	Con (AmbQ x)   -> Application (HeadCon x) []
+        Underscore m   -> Application (HeadUnd m) []
+        QuestionMark m -> Application (HeadQM  m) []
 	App i e1 arg   -> apply i (appView e1) arg
 	ScopedExpr _ e -> appView e
 	_	       -> NonApplication e
@@ -34,6 +38,8 @@ headToExpr :: Head -> Expr
 headToExpr (HeadVar x)  = Var x
 headToExpr (HeadDef f)  = Def f
 headToExpr (HeadCon cs) = Con (AmbQ cs)
+headToExpr (HeadUnd m)  = Underscore m
+headToExpr (HeadQM  m)  = QuestionMark m
 
 unAppView :: AppView -> Expr
 unAppView (NonApplication e) = e
@@ -44,3 +50,5 @@ instance HasRange Head where
     getRange (HeadVar x) = getRange x
     getRange (HeadDef x) = getRange x
     getRange (HeadCon x) = getRange x
+    getRange (HeadUnd m) = getRange m
+    getRange (HeadQM  m) = getRange m
