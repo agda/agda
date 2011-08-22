@@ -479,7 +479,7 @@ termTerm conf names f pats0 t0 = do
                isProj <- isProjection g
                let unguards = repeat Term.unknown
                let guards = maybe unguards -- not a proj. ==> unguarded
-                              (\ n -> take (n - 1) unguards ++ guarded : unguards)
+                              (\ (_, n) -> take (n - 1) unguards ++ guarded : unguards)
                                 -- proj. => preserve g. of princ. arg. (counting starts with 1)
                               isProj
                -- collect calls in the arguments of this call
@@ -674,7 +674,7 @@ stripProjections :: Term -> TCM Term
 stripProjections t@(Def qn ts) = do
   isProj <- isProjection qn
   case isProj of
-    Just n | length ts >= n, n >= 1 -> stripProjections $ unArg $ ts !! (n - 1)
+    Just (_, n) | length ts >= n, n >= 1 -> stripProjections $ unArg $ ts !! (n - 1)
     _ -> return t
 stripProjections t = return t
 

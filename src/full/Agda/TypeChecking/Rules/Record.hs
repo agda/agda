@@ -296,7 +296,8 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
                      , funArgOccurrences = map (const Unused) hps ++ [Negative]
-                     , funProjection     = Just (size hps + 1)
+                     , funProjection     = Just (q, size hps + 1)
+                       -- name of the record type and
                        -- index of the record argument, start counting with 1
                      }
         computePolarity projname

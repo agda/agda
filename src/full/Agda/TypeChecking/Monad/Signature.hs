@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.Monad.Signature where
 
+import Control.Arrow ((***))
 import Control.Monad.State
 import Control.Monad.Reader
 import Data.Set (Set)
@@ -252,7 +253,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , funPolarity       = []
                     , funArgOccurrences = drop (length ts) oldOcc
                     , funAbstr          = ConcreteDef
-                    , funProjection     = fmap (nonNeg . \ n -> n - size ts) maybeNum
+                    , funProjection     = fmap (id *** nonNeg . \ n -> n - size ts) maybeNum
                     }
                   where maybeNum = case oldDef of
                                      Function { funProjection = mn } -> mn
@@ -509,7 +510,7 @@ sortOfConst q =
 	    _			   -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Is it the name of a record projection?
-isProjection :: MonadTCM tcm => QName -> tcm (Maybe Int)
+isProjection :: MonadTCM tcm => QName -> tcm (Maybe (QName, Int))
 isProjection qn = do
   def <- theDef <$> getConstInfo qn
   case def of

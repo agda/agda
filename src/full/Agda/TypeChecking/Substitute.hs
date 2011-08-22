@@ -3,6 +3,7 @@ module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity
 import Control.Monad.Reader
+import Control.Arrow ((***))
 import Data.List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -66,7 +67,7 @@ instance Apply Defn where
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
-        , funProjection = fmap (nonNeg . \ n -> n - size args) mn
+        , funProjection = fmap (id *** (nonNeg . \ n -> n - size args)) mn
         , funArgOccurrences = drop (length args) occ
         } where nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
     Datatype{ dataPars = np, dataClause = cl
@@ -194,7 +195,7 @@ instance Abstract Defn where
             , funProjection = mn, funArgOccurrences = occ } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
         , funInv = abstract tel inv
-        , funProjection = fmap ((+) (size tel)) mn
+        , funProjection = fmap (id *** (size tel +)) mn
           -- index of record arg shifts back by number of new args
         , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
