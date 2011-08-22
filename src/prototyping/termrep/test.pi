@@ -1,0 +1,43 @@
+
+-- Leibniz equality
+Eq : [A : Set] -> (x y : A) -> Set
+   = \ A x y -> (P : A -> Set) -> P x -> P y
+
+refl : [A : Set] -> [x : A] -> Eq x x
+     = \ P px -> px
+
+sym' : [A : Set] -> (x y : A) -> Eq x y -> Eq y x
+     = \ x y eqxy P py -> eqxy (\z -> P z -> P x) (\px -> px) py
+
+sym : [A : Set] -> [x y : A] -> Eq x y -> Eq y x = sym' _ _
+
+-- Categories
+Cat : Set
+    = (Obj   : Set)
+    * (Arr   : Obj -> Obj -> Set)
+    * (id    : (A : Obj) -> Arr A A)
+    * (comp  : (A B C : Obj) -> Arr B C -> Arr A B -> Arr A C)
+    * (idl   : (A B : Obj) -> (f : Arr A B) -> Eq (comp A B B (id B) f) f)
+    * (idr   : (A B : Obj) -> (f : Arr A B) -> Eq (comp A A B f (id A)) f)
+    * (assoc : (A B C D : Obj) -> (f : Arr C D) -> (g : Arr B C) -> (h : Arr A B) ->
+               Eq (comp A B D (comp B C D f g) h)
+                  (comp A C D f (comp A B C g h)))
+    * One
+
+-- Projections
+Obj : Cat -> Set = fst
+Arr : (Z : Cat) -> Obj Z -> Obj Z -> Set
+  = \Z -> fst (snd Z)
+id  : (Z : Cat) -> [A : Obj Z] -> Arr Z A A
+  = \Z -> fst (snd (snd Z)) _
+comp : (Z : Cat) -> [A B C : Obj Z] -> Arr Z B C -> Arr Z A B -> Arr Z A C
+  = \Z -> fst (snd (snd (snd Z))) _ _ _
+idl : (Z : Cat) -> [A B : Obj Z] -> (f : Arr Z A B) -> Eq (comp Z (id Z) f) f
+  = \Z -> fst (snd (snd (snd (snd Z)))) _ _
+idr   : (Z : Cat) -> [A B : Obj Z] -> (f : Arr Z A B) -> Eq (comp Z f (id Z)) f
+  = \Z -> fst (snd (snd (snd (snd (snd Z))))) _ _
+assoc : (Z : Cat) -> [A B C D : Obj Z] -> (f : Arr Z C D) -> (g : Arr Z B C) -> (h : Arr Z A B) ->
+        Eq (comp Z (comp Z f g) h)
+           (comp Z f (comp Z g h))
+  = \Z -> fst (snd (snd (snd (snd (snd (snd Z)))))) _ _ _ _
+

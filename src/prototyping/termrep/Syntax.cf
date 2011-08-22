@@ -1,0 +1,31 @@
+
+Prog. Program ::= Decls ;
+
+layout toplevel;
+layout "let";
+
+Cons. Decls ::= Decl ";" Decls ;
+Unit. Decls ::= Decl ";";
+
+Def. Decl ::= Ident ":" Expr "=" Expr;
+Ax.  Decl ::= Ident ":" Expr;
+separator nonempty Decl ";";
+
+terminator nonempty Ident "";
+
+Lam.   Expr  ::= "\\" Expr1 "->" Expr;
+Pi.    Expr  ::= "(" Expr1 ":" Expr ")" "->" Expr;
+ImpPi. Expr  ::= "[" Expr1 ":" Expr "]" "->" Expr;
+Sigma. Expr  ::= "(" Expr1 ":" Expr ")" "*" Expr;
+Let.   Expr  ::= "let" "{" [Decl] "}" "in" Expr;
+Fun.   Expr  ::= Expr1 "->" Expr;
+_.     Expr  ::= Expr1;
+App.   Expr1 ::= Expr1 Expr2;
+_.     Expr1 ::= Expr2;
+Meta.  Expr2 ::= "_";
+Var.   Expr2 ::= Ident;
+Paren. Expr2 ::= "(" Expr ")";
+
+comment "--";
+comment "{-" "-}";
+

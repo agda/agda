@@ -70,3 +70,4 @@ examples/compiler/main$
 test/fail/customised/MAlonzo$
 examples/compiler/Epic$
 test/interaction/MAlonzo$
+prototyping/termrep/(bug|Main|Syntax/((Abs|ErrM|Layout|Lex|Par|Print|Skel|Test)\.hs|Par\.y|Lex.x|Doc\.(tex|txt)))$
