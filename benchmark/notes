@@ -4,6 +4,10 @@
 
 20110701: actually type checking the monad example
 
-20110706: (15.00) better precision in ArgsCmp constraints (avoiding rechecking
+20110706: (15:00) better precision in ArgsCmp constraints (avoiding rechecking
           the first arguments)
+
+20110822: (13:30) switched compareArgs to compareElim (without getting rid of
+          projection arguments). 1 second faster on monad and 1.5 seconds
+          faster on monadpostulate, not sure why.
 
