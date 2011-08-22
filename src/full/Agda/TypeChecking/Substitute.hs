@@ -60,16 +60,29 @@ instance Apply Definition where
     apply (Defn rel x t df m c d) args = Defn rel x (piApply t args) df m c (apply d args)
 
 instance Apply Defn where
+  apply d [] = d
   apply d args = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = mn, funArgOccurrences = occ } ->
+            , funProjection = Nothing, funArgOccurrences = occ } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
-        , funProjection = fmap (id *** (nonNeg . \ n -> n - size args)) mn
         , funArgOccurrences = drop (length args) occ
-        } where nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
+        }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funProjection = Just (r, n), funArgOccurrences = occ }
+      | m < n  -> d { funProjection = Just (r, n - m) }
+      | m == n ->
+        d { funClauses        = apply cs args'
+          , funCompiled       = apply cc args'
+          , funInv            = apply inv args'
+          , funProjection     = Just (r, 0)
+          , funArgOccurrences = drop 1 occ
+          }
+      | otherwise -> __IMPOSSIBLE__
+      where args' = [last args]
+            m = size args
     Datatype{ dataPars = np, dataClause = cl
             , dataArgOccurrences = occ } ->
       d { dataPars = np - size args, dataClause = apply cl args
@@ -192,13 +205,14 @@ instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = mn, funArgOccurrences = occ } ->
+            , funProjection = Nothing, funArgOccurrences = occ } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
         , funInv = abstract tel inv
-        , funProjection = fmap (id *** (size tel +)) mn
-          -- index of record arg shifts back by number of new args
         , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
+    Function{ funClauses = cs, funCompiled = cc, funInv = inv
+            , funProjection = Just (r, n), funArgOccurrences = occ } ->
+      d { funProjection = Just (r, n + size tel) }
     Datatype{ dataPars = np, dataClause = cl, dataArgOccurrences = occ } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl
         , dataArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence

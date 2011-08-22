@@ -133,7 +133,7 @@ etaExpandRecord r pars u = do
       -- WARNING: do not use etaExpandRecord to expand MetaVars!!
       let proj (Arg h Irrelevant _) = Arg h Irrelevant DontCare
           proj (Arg h rel x)        = Arg h rel $
-            Def x $ map hide pars ++ [defaultArg u]
+            Def x [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
@@ -154,10 +154,10 @@ etaContractRecord r c args = do
         -- skip irrelevant record fields by returning DontCare
         case (argRelevance a, unArg a) of
           (Irrelevant, _) -> return $ Just DontCare
-          -- if @a@ is the record field name applied to (npars+1) args,
+          -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
-          (_, Def y args) | unArg ax == y && genericLength args == npars + 1
-                         -> return (Just $ unArg $ last args)
+          (_, Def y [arg]) | unArg ax == y
+                         -> return (Just $ unArg arg)
           _              -> return Nothing
       fallBack = return (Con c args)
   case compare (length args) (length xs) of

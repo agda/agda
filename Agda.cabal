@@ -198,6 +198,7 @@ library
                     Agda.TypeChecking.Coverage.Match
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DisplayForm
+                    Agda.TypeChecking.Eliminators
                     Agda.TypeChecking.Empty
                     Agda.TypeChecking.EtaContract
                     Agda.TypeChecking.Errors

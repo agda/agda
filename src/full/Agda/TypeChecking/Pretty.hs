@@ -14,6 +14,7 @@ import qualified Agda.Syntax.Abstract.Pretty as P
 import qualified Agda.Syntax.Concrete.Pretty as P
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Eliminators
 
 import qualified Agda.Utils.Pretty as P
 import Agda.Utils.Impossible
@@ -106,6 +107,10 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x
 
+instance PrettyTCM Elim where
+  prettyTCM (Apply v) = text "$" <+> prettyTCM v
+  prettyTCM (Proj f)  = text "." <> prettyTCM f
+
 instance PrettyTCM A.Expr where
     prettyTCM = prettyA
 
@@ -127,6 +132,11 @@ instance PrettyTCM Constraint where
 		      ]
 		, nest 2 $ text ":" <+> prettyTCM ty
 		]
+        ElimCmp cmps t v us vs ->
+          sep [ sep [ prettyTCM (unElim v us)
+                    , nest 2 $ text "~~" <+> prettyTCM (unElim v vs)
+                    ]
+              , text "at head type" <+> prettyTCM t ]
         ArgsCmp cmps t us vs ->
           sep [ prettyList
                 [ sep [ prettyTCM u

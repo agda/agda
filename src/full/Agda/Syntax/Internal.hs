@@ -49,6 +49,9 @@ data Term = Var Nat Args
 data Type = El Sort Term
   deriving (Typeable, Data, Eq, Ord, Show)
 
+data Elim = Apply (Arg Term) | Proj QName -- ^ name of a record projection
+  deriving (Eq, Ord, Show)
+
 -- | Top sort (Set\omega).
 topSort :: Type
 topSort = El Inf (Sort Inf)

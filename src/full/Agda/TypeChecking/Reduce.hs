@@ -109,6 +109,10 @@ instance Instantiate Sort where
     Type l -> levelSort <$> instantiate l
     _      -> return s
 
+instance Instantiate Elim where
+  instantiate (Apply v) = Apply <$> instantiate v
+  instantiate (Proj f)  = pure $ Proj f
+
 instance Instantiate t => Instantiate (Abs t) where
   instantiate = traverse instantiate
 
@@ -140,6 +144,8 @@ instance Instantiate Constraint where
   instantiate (ArgsCmp cmp t as bs) = do
     (t, as, bs) <- instantiate (t, as, bs)
     return $ ArgsCmp cmp t as bs
+  instantiate (ElimCmp cmp t v as bs) =
+    ElimCmp cmp <$> instantiate t <*> instantiate v <*> instantiate as <*> instantiate bs
   instantiate (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate (u,v)
   instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
   instantiate (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate (tela,telb)
@@ -187,6 +193,10 @@ instance Reduce Sort where
             Prop       -> return s
             Type s'    -> levelSort <$> reduce s'
             Inf        -> return Inf
+
+instance Reduce Elim where
+  reduce (Apply v) = Apply <$> reduce v
+  reduce (Proj f)  = pure $ Proj f
 
 instance Reduce Level where
   reduce  (Max as) = levelMax <$> mapM reduce as
@@ -387,6 +397,8 @@ instance Reduce Constraint where
   reduce (ArgsCmp cmp t us vs) = do
     (t,us,vs) <- reduce (t,us,vs)
     return $ ArgsCmp cmp t us vs
+  reduce (ElimCmp cmp t v as bs) =
+    ElimCmp cmp <$> reduce t <*> reduce v <*> reduce as <*> reduce bs
   reduce (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> reduce (u,v)
   reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
   reduce (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce (tela,telb)
@@ -433,6 +445,10 @@ instance Normalise Term where
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
 		Fun a b     -> uncurry Fun <$> normalise (a,b)
                 DontCare    -> return v
+
+instance Normalise Elim where
+  normalise (Apply v) = Apply <$> normalise v
+  normalise (Proj f)  = pure $ Proj f
 
 instance Normalise Level where
   normalise (Max as) = levelMax <$> normalise as
@@ -489,6 +505,8 @@ instance Normalise Constraint where
   normalise (ArgsCmp cmp t u v) = do
     (t,u,v) <- normalise (t,u,v)
     return $ ArgsCmp cmp t u v
+  normalise (ElimCmp cmp t v as bs) =
+    ElimCmp cmp <$> normalise t <*> normalise v <*> normalise as <*> normalise bs
   normalise (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> normalise (u,v)
   normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
   normalise (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise (tela,telb)
@@ -620,6 +638,8 @@ instance InstantiateFull Constraint where
     ArgsCmp cmp t u v -> do
       (t,u,v) <- instantiateFull (t,u,v)
       return $ ArgsCmp cmp t u v
+    ElimCmp cmp t v as bs ->
+      ElimCmp cmp <$> instantiateFull t <*> instantiateFull v <*> instantiateFull as <*> instantiateFull bs
     LevelCmp cmp u v   -> uncurry (LevelCmp cmp) <$> instantiateFull (u,v)
     TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull (tela,telb)
@@ -628,6 +648,10 @@ instance InstantiateFull Constraint where
     UnBlock m          -> return $ UnBlock m
     FindInScope m      -> return $ FindInScope m
     IsEmpty t          -> IsEmpty <$> instantiateFull t
+
+instance InstantiateFull Elim where
+  instantiateFull (Apply v) = Apply <$> instantiateFull v
+  instantiateFull (Proj f)  = pure $ Proj f
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
     instantiateFull = traverse instantiateFull

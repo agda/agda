@@ -30,6 +30,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
 
 import Agda.Utils.Monad
@@ -297,37 +298,50 @@ compareAtom cmp t m n =
 		a <- typeOfBV i
                 -- Variables are invariant in their arguments
 		compareArgs [] a iArgs jArgs
-	    (Def x xArgs, Def y yArgs) | x == y -> do
-                pol <- getPolarity' cmp x
-		reportSDoc "tc.conv.atom" 40 $
-		  text "compareArgs" <+> sep
-                    [ sep [ prettyTCM xArgs
-			  , prettyTCM yArgs
-			  ]
-                    , nest 2 $ text (show pol)
-                    ]
-		a <- defType <$> getConstInfo x
-		compareArgs pol a xArgs yArgs
+            (Def{}, Def{}) -> do
+              ev1 <- elimView m
+              ev2 <- elimView n
+              case (ev1, ev2) of
+                (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
+                (ConElim x els1, ConElim y els2) | x == y -> cmpElim (conType x t) (Con x []) els1 els2
+                (DefElim x els1, DefElim y els2) | x == y ->
+                  cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
+                (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
+                (_, MetaElim{}) -> __IMPOSSIBLE__
+                _ -> typeError $ UnequalTerms cmp m n t
+                where
+                  polarities (Def x _) = getPolarity' cmp x
+                  polarities _         = return []
+                  cmpElim t v els1 els2 = do
+                    a   <- t
+                    pol <- polarities v
+                    reportSDoc "tc.conv.elim" 10 $
+                      text "compareElim" <+> vcat
+                        [ text "a    =" <+> prettyTCM a
+                        , text "v    =" <+> prettyTCM v
+                        , text "els1 =" <+> prettyTCM els1
+                        , text "els2 =" <+> prettyTCM els2
+                        ]
+                    compareElims pol a v els1 els2
 	    (Con x xArgs, Con y yArgs)
 		| x == y -> do
-		    -- The type is a datatype or a record.
-		    Def d args <- reduce $ unEl t
-		    -- Get the number of parameters to the datatype (or record)
-                    npars <- do
-                      def <- theDef <$> getConstInfo d
-                      case def of
-		        Datatype{dataPars = npars} -> return npars
-                        Record{recPars = npars}    -> return npars
-                        _                          -> __IMPOSSIBLE__
-		    -- The type to compare the arguments at is obtained by
-		    -- instantiating the parameters.
-		    a <- defType <$> getConstInfo x
-		    let a' = piApply a (genericTake npars args)
+                    -- Get the type of the constructor instantiated to the datatype parameters.
+                    a' <- conType x t
                     -- Constructors are invariant in their arguments
                     -- (could be covariant).
                     compareArgs [] a' xArgs yArgs
             _ -> typeError $ UnequalTerms cmp m n t
     where
+        conType c (El _ (Def d args)) = do
+          npars <- do
+            def <- theDef <$> getConstInfo d
+            return $ case def of Datatype{dataPars = n} -> n
+                                 Record{recPars = n}    -> n
+                                 _                      -> __IMPOSSIBLE__
+          a <- defType <$> getConstInfo c
+          return $ piApply a (genericTake npars args)
+        conType _ _ = __IMPOSSIBLE__
+
 	equalFun (FunV arg1@(Arg h1 r1 a1) t1) (FunV (Arg h2 r2 a2) t2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
@@ -362,7 +376,56 @@ compareAtom cmp t m n =
 			name _		      = __IMPOSSIBLE__
 	equalFun _ _ = __IMPOSSIBLE__
 
-
+-- | Type-directed equality on eliminator spines
+compareElims :: MonadTCM tcm => [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> tcm Constraints
+compareElims _ _ _ [] [] = return []
+compareElims _ _ _ [] (_:_) = __IMPOSSIBLE__
+compareElims _ _ _ (_:_) [] = __IMPOSSIBLE__
+compareElims _ _ _ (Apply{} : _) (Proj{} : _) = __IMPOSSIBLE__
+compareElims _ _ _ (Proj{} : _) (Apply{} : _) = __IMPOSSIBLE__
+compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
+  verboseBracket "tc.conv.args" 20 "compare Apply" $ do
+  let (pol, pols) = nextPolarity pols0
+  a <- reduce a
+  catchConstraint (ElimCmp pols0 a v els01 els02) $ do
+  case funView (unEl a) of
+    FunV (Arg _ r b) _ -> do
+      let cmp x y = case pol of
+                      Invariant     -> compareTerm CmpEq  b x y
+                      Covariant     -> compareTerm CmpLeq b x y
+                      Contravariant -> compareTerm CmpLeq b y x
+      cs1 <- case r of
+              Forced     -> return []
+              Irrelevant -> return [] -- Andreas: ignore irr. func. args.
+              _          -> cmp (unArg arg1) (unArg arg2)
+      mlvl <- mlevel
+      case (cs1, unEl a) of
+                          -- We can safely ignore sort annotations here
+                          -- We're also ignoring levels since we don't allow
+                          -- matching on levels
+        (_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
+                                            && Just lvl' /= mlvl ->
+          buildConstraint (Guarded (ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2) cs1)
+        _   ->
+          (cs1 ++) <$> compareElims pols (piApply a [arg1]) (apply v [arg1]) els1 els2
+    _ -> patternViolation
+compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
+  | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
+  | otherwise = do
+    a <- reduce a
+    case unEl a of
+      Def r us -> do
+        let (pol, _) = nextPolarity pols
+        ft <- defType <$> getConstInfo f
+        let arg = Arg NotHidden Relevant v  -- TODO: not necessarily relevant?
+        let c = piApply ft (us ++ [arg])
+        (cmp, els1, els2) <- return $ case pol of
+              Invariant     -> (CmpEq, els1, els2)
+              Covariant     -> (CmpLeq, els1, els2)
+              Contravariant -> (CmpLeq, els2, els2)
+        pols' <- getPolarity' cmp f
+        compareElims pols' c (Def f [arg]) els1 els2
+      _ -> __IMPOSSIBLE__
 
 -- | Type-directed equality on argument lists
 --
@@ -383,53 +446,26 @@ compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
           , nest 2 $ text ":" <+> prettyTCM a
           ]
     case funView (unEl a) of
-	FunV (Arg _ r b) _ -> do
-	    reportSDoc "tc.conv.args" 30 $
-              sep [ text "compareArgs" <+> parens (text $ show pol ++ " " ++ show r)
-                  , nest 2 $ sep [ prettyTCM arg1
-                                 , text "~~" <+> prettyTCM arg2
-                                 , text ":" <+> prettyTCM b
-                                 ]
-                  ]
-            let cmp x y = case pol of
-                            Invariant     -> compareTerm CmpEq b x y
-                            Covariant     -> compareTerm CmpLeq b x y
-                            Contravariant -> compareTerm CmpLeq b y x
-            cs1 <- case r of
-                    Forced     -> return []
-                    Irrelevant -> return [] -- Andreas: ignore irr. func. args.
-                    _          -> cmp (unArg arg1) (unArg arg2)
-            mlvl <- mlevel
-	    case (cs1, unEl a) of
-                                -- We can safely ignore sort annotations here
-                                -- (except it's not, we risk leaving unsolved sorts)
-                                -- We're also ignoring levels since we don't allow
-                                -- matching on levels
-		(_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
-                                                    && Just lvl' /= mlvl
-		    -> do
-                        reportSDoc "tc.conv.args" 35 $ sep
-                          [ text "aborting compareArgs" <+> parens (text $ show pol)
-                          , nest 2 $ fsep
-                              [ prettyTCM arg1
-                              , text "~~" <+> prettyTCM arg2
-                              , text ":" <+> prettyTCM b
-                              , text "--->" <+> prettyTCM cs1
-                              ]
-                          ]
-                        buildConstraint (Guarded (ArgsCmp pols (piApply a [arg1]) args1 args2) cs1)
-		_   -> do
-                    reportSDoc "tc.conv.args" 35 $ sep
-                      [ text "compareArgs" <+> parens (text $ show pol)
-                      , nest 2 $ sep
-                        [ prettyTCM args1
-                        , text "~~" <+> prettyTCM args2
-                        , text ":" <+> prettyTCM (piApply a [arg1])
-                        ]
-                      ]
-		    cs2 <- compareArgs pols (piApply a [arg1]) args1 args2
-		    return $ cs1 ++ cs2
-        _   -> patternViolation
+      FunV (Arg _ r b) _ -> do
+        let cmp x y = case pol of
+                        Invariant     -> compareTerm CmpEq b x y
+                        Covariant     -> compareTerm CmpLeq b x y
+                        Contravariant -> compareTerm CmpLeq b y x
+        cs1 <- case r of
+                Forced     -> return []
+                Irrelevant -> return [] -- Andreas: ignore irr. func. args.
+                _          -> cmp (unArg arg1) (unArg arg2)
+        mlvl <- mlevel
+        case (cs1, unEl a) of
+                    -- We can safely ignore sort annotations here
+                    -- We're also ignoring levels since we don't allow
+                    -- matching on levels
+          (_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
+                                                && Just lvl' /= mlvl ->
+            buildConstraint (Guarded (ArgsCmp pols (piApply a [arg1]) args1 args2) cs1)
+          _   ->
+            (cs1 ++) <$> compareArgs pols (piApply a [arg1]) args1 args2
+      _   -> patternViolation
 
 -- | Equality on Types
 compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints

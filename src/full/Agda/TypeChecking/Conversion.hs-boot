@@ -7,6 +7,7 @@ import Agda.TypeChecking.Monad
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
 compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Args -> Args -> tcm Constraints
+compareElims :: MonadTCM tcm => [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> tcm Constraints
 compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
 compareTel  :: MonadTCM tcm => Type -> Type -> Comparison -> Telescope -> Telescope -> tcm Constraints
 compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints

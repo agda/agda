@@ -680,8 +680,24 @@ inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
     typeError $ VariableIsIrrelevant x
   return (apply u, unArg a)
 inferHead (HeadDef x) = do
-  (u, a) <- inferDef Def x
-  return (apply u, a)
+  proj <- isProjection x
+  case proj of
+    Nothing -> do
+      (u, a) <- inferDef Def x
+      return (apply u, a)
+    Just{} -> do
+      Just (r, n) <- funProjection . theDef <$> (instantiateDef =<< getConstInfo x)
+      m <- getDefFreeVars x
+      reportSDoc "tc.term.proj" 10 $ sep
+        [ text "building projection" <+> prettyTCM x
+        , nest 2 $ parens (text "n =" <+> text (show n))
+        , nest 2 $ parens (text "m =" <+> text (show m)) ]
+      let args [] = []
+          args vs | n == 0    = [last vs]
+                  | otherwise = []
+          n' = max 0 (n - 1)
+      (u, a) <- inferDef (\f vs -> Def f $ args vs) x
+      return (apply u . genericDrop n', a)
 inferHead (HeadCon [c]) = do
 
   -- Constructors are polymorphic internally so when building the constructor

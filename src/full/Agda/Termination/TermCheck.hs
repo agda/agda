@@ -671,10 +671,10 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 
 -- | Remove projections until a term is no longer a projection.
 stripProjections :: Term -> TCM Term
-stripProjections t@(Def qn ts) = do
+stripProjections t@(Def qn ts@(~(r : _))) = do
   isProj <- isProjection qn
   case isProj of
-    Just (_, n) | length ts >= n, n >= 1 -> stripProjections $ unArg $ ts !! (n - 1)
+    Just (_, n) | length ts >= n, n >= 1 -> stripProjections $ unArg r
     _ -> return t
 stripProjections t = return t
 

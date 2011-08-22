@@ -157,7 +157,7 @@ checkRecDef i name con ps contel fields =
 	reportSDoc "tc.rec.def" 10 $ sep
 	  [ text "record section:"
 	  , nest 2 $ sep
-            [ prettyTCM m <+> (prettyTCM =<< getContextTelescope)
+            [ prettyTCM m <+> (inContext [] . prettyTCM =<< getContextTelescope)
             , fsep $ punctuate comma $ map (text . show . getName) fields
             ]
 	  ]
@@ -169,7 +169,7 @@ checkRecDef i name con ps contel fields =
         -- Check the types of the fields
         -- ftel <- checkRecordFields m name tel s [] (size fields) fields
         withCurrentModule m $
-          checkRecordProjections m conName tel' (raise 1 ftel) fields
+          checkRecordProjections m name conName tel' (raise 1 ftel) fields
 
       -- Andreas, 2011-05-19 here was the code "Add record constr..."
 
@@ -177,11 +177,13 @@ checkRecDef i name con ps contel fields =
 
       return ()
 
-{-| @checkRecordProjections m q tel ftel fs@.
+{-| @checkRecordProjections m r q tel ftel fs@.
 
     [@m@    ]  name of the generated module
 
-    [@q@    ]  name of the record
+    [@r@    ]  name of the record type
+
+    [@q@    ]  name of the record constructor
 
     [@tel@  ]  parameters
 
@@ -190,9 +192,9 @@ checkRecDef i name con ps contel fields =
     [@fs@   ]  the fields to be checked
 -}
 checkRecordProjections ::
-  ModuleName -> QName -> Telescope -> Telescope ->
+  ModuleName -> QName -> QName -> Telescope -> Telescope ->
   [A.Declaration] -> TCM ()
-checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
+checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
   where
 
     checkProjs :: Telescope -> Telescope -> [A.Declaration] -> TCM ()
@@ -208,7 +210,7 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
       reportSDoc "tc.rec.proj" 5 $ sep
 	[ text "checking projection"
 	, nest 2 $ vcat
-	  [ text "top   =" <+> (prettyTCM =<< getContextTelescope)
+	  [ text "top   =" <+> (inContext [] . prettyTCM =<< getContextTelescope)
 	  , text "ftel1 =" <+> prettyTCM ftel1
 	  , text "ftel2 =" <+> addCtxTel ftel1 (underAbstraction_ ftel2 prettyTCM)
 	  , text "t     =" <+> prettyTCM t
@@ -244,17 +246,19 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 
       reportSDoc "tc.rec.proj" 10 $ sep
 	[ text "adding projection"
-	, nest 2 $ prettyTCM projname <+> text ":" <+> prettyTCM finalt
+	, nest 2 $ prettyTCM projname <+> text ":" <+> inContext [] (prettyTCM finalt)
 	]
 
       -- The body should be
       --  P.xi {tel} (r _ .. x .. _) = x
+      -- Ulf, 2011-08-22: actually we're dropping the parameters from the
+      -- projection functions so the body is now
+      --  P.xi (r _ .. x .. _) = x
 
       let -- Andreas, 2010-09-09: comment for existing code
           -- split the telescope into parameters (ptel) and the type or the record
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
-          hps	 = map (fmap $ VarP . fst) $ ptel
 	  conp	 = defaultArg
 		 $ ConP q (Just (fmap snd rt))
                    $ zipWith3 Arg
@@ -263,16 +267,15 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
 			      [ VarP "x" | _ <- [1..size ftel] ]
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
-	  body	 = nobind (size ptel)
-		 $ nobind (size ftel1)
+	  body	 = nobind (size ftel1)
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
 		 $ Body $ Var (size ftel2) []
-          cltel  = (telFromList ptel) `abstract` ftel
+          cltel  = ftel
 	  clause = Clause { clauseRange = getRange info
                           , clauseTel   = killRange cltel
-                          , clausePerm  = idP $ size ptel + size ftel
-                          , clausePats  = hps ++ [conp]
+                          , clausePerm  = idP $ size ftel
+                          , clausePats  = [conp]
                           , clauseBody  = body
                           }
 
@@ -295,10 +298,10 @@ checkRecordProjections m q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
-                     , funArgOccurrences = map (const Unused) hps ++ [Negative]
-                     , funProjection     = Just (q, size hps + 1)
+                     , funArgOccurrences = [Negative]
+                     , funProjection     = Just (r, size ptel + 1)
                        -- name of the record type and
-                       -- index of the record argument, start counting with 1
+                       -- index of the record argument (in the type), start counting with 1
                      }
         computePolarity projname
 

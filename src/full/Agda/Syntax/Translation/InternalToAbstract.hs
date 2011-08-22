@@ -220,7 +220,13 @@ instance Reify Term Expr where
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
       I.Def x@(QName _ name) vs   -> reifyDisplayForm x vs $ do
-          n <- getDefFreeVars x
+          def <- theDef <$> getConstInfo x
+          n <- case def of
+                 Function{ funProjection = Just (r, _) } -> do
+                   Record{recPars = np} <- theDef <$> getConstInfo r
+                   n <- getDefFreeVars x
+                   return (n - np)
+                 _ -> getDefFreeVars x
           if (isPrefixOf extendlambdaname $ show name)
             then do
              reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x

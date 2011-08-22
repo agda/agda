@@ -329,8 +329,8 @@ recordTree (ConP c (Just t) ps) = do
           rDef <- theDef <$> getConstInfo r
           case rDef of
             Record { recFields = fields } -> do
-              let proj p = \s t ->
-                    Def (unArg p) (substs s (map hide args) ++ [defaultArg t])
+              let proj p = \_ t ->
+                    Def (unArg p) [defaultArg t]
               return $ Right $ RecCon t $ zip (map proj fields) ts
             _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
