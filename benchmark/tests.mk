@@ -1,7 +1,9 @@
 
 # Tests in categories
-cat			 = categories/Categories.agda -icategories --ignore-interfaces +RTS -K32M -RTS
-catTests = cat
+catBenchmark = categories/$1.agda -icategories --ignore-interfaces +RTS -K32M -RTS
+cat			 = $(call catBenchmark,Categories)
+prim		 = $(call catBenchmark,Primitive)
+catTests = cat prim
 
 # Tests in ac
 ac1			= ac/AC.agda --ignore-interfaces -iac
@@ -24,11 +26,11 @@ monadpostulate = monad/MonadPostulates.agda -i../std-lib/src -imonad
 monadTests = monad monadpostulate
 
 #misc
-misc = misc/$1.agda -imisc --ignore-interfaces
-functor = $(call misc,Functor)
-latemeta = $(call misc,LateMetaVariableInstantiation)
+misc				= misc/$1.agda -imisc --ignore-interfaces
+functor			= $(call misc,Functor)
+latemeta		= $(call misc,LateMetaVariableInstantiation)
 polyfunctor = $(call misc,UniversePolymorphicFunctor)
-miscTests = functor latemeta polyfunctor
+miscTests		= functor latemeta polyfunctor
 
 # All tests
 allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests)
