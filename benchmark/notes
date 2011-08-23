@@ -11,3 +11,10 @@
           projection arguments). 1 second faster on monad and 1.5 seconds
           faster on monadpostulate, not sure why.
 
+20110823: Got rid of projection arguments. Cut the monad examples in half, but
+          no effect on prim which is kind of odd since ... oh we're using a
+          datatype in prim. Changing that to a record and rerunning.
+
+20110823: (08:00) Sigma record in prim and added all projections instead of
+          just the first three.
+
