@@ -73,6 +73,10 @@ localScope m = do
 
 -- | Set the top-level module. This affects the global module id of freshly
 --   generated names.
+
+-- TODO: Is the hash-function collision-free? If not, then the
+-- implementation of 'setTopLevelModule' should be changed.
+
 setTopLevelModule :: MonadTCM tcm => C.QName -> tcm ()
 setTopLevelModule x =
   modify $ \s -> s
