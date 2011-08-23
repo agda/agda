@@ -251,19 +251,25 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , funDelayed        = NotDelayed
                     , funInv            = NotInjective
                     , funPolarity       = []
-                    , funArgOccurrences = drop (length ts) oldOcc
+                    , funArgOccurrences = drop (length ts') oldOcc
                     , funAbstr          = ConcreteDef
-                    , funProjection     = fmap (id *** nonNeg . \ n -> n - size ts) maybeNum
+                    , funProjection     = Nothing -- fmap (id *** nonNeg . \ n -> n - size ts) maybeNum
                     }
                   where maybeNum = case oldDef of
                                      Function { funProjection = mn } -> mn
                                      _                               -> Nothing
                         nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
+        ts' | null ts   = []
+            | otherwise = case oldDef of
+                Function{funProjection = Just (_, n)}
+                  | size ts == n -> [last ts]
+                  | otherwise    -> []
+                _ -> ts
 	cl = Clause { clauseRange = getRange $ defClauses d
                     , clauseTel   = EmptyTel
                     , clausePerm  = idP 0
                     , clausePats  = []
-                    , clauseBody  = Body $ Def x ts
+                    , clauseBody  = Body $ Def x ts'
                     }
 
     copySec :: Args -> (ModuleName, Section) -> TCM ()
