@@ -19,7 +19,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Substitute hiding (Subst)
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.Utils.Either
 import Agda.Utils.List
@@ -49,9 +49,7 @@ translateRecordPatterns clause = do
 
   -- s: Partial substitution taking the old pattern variables
   -- (including dot patterns; listed from left to right) to terms in
-  -- the context of the new RHS. The terms are functions expecting a
-  -- substitution taking things in the old telescope's context to the
-  -- context of the new RHS.
+  -- the context of the new RHS.
 
   -- cs: List of changes, with types in the context of the old
   -- telescope.
@@ -61,15 +59,20 @@ translateRecordPatterns clause = do
   let -- Number of variables + dot patterns in new clause.
       noNewPatternVars = size cs
 
+      s'   = reverse s
+      rest = [ Var i [] | i <- [noNewPatternVars..] ]
+
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
-      rhsSubst = map (\t -> t rhsSubst') (reverse s) ++
-                 [ Var i [] | i <- [noNewPatternVars..] ]
+      rhsSubst = s' ++ rest
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.
-      rhsSubst' = permute (reverseP $ clausePerm clause) init ++ rest
-        where (init, rest) = genericSplitAt (size s) rhsSubst
+      rhsSubst' = permute (reverseP $ clausePerm clause) s' ++ rest
+      -- TODO: Is it OK to replace the definition above with the
+      -- following one?
+      --
+      --   rhsSubst' = permute (clausePerm clause) s ++ rest
 
       -- The old telescope, flattened and in textual left-to-right
       -- order (i.e. the type signature for the variable which occurs
@@ -185,14 +188,6 @@ nextVar = RecPatM $ do
 data Kind = VarPat | DotPat
   deriving Eq
 
--- | Substitutions (with a twist).
---
--- Some parts of the terms building up the substitution need to have a
--- substitution applied to them (in fact, a variant of the
--- substitution itself), so a functional representation is used.
-
-type Subst = [Substitution -> Term]
-
 -- | @'Left' p@ means that a variable (corresponding to the pattern
 -- @p@, a variable or dot pattern) should be kept unchanged. @'Right'
 -- (n, x, t)@ means that @n 'VarPat'@ variables, and @n 'DotPat'@ dot
@@ -207,41 +202,38 @@ data RecordTree
   = Leaf Pattern
     -- ^ Corresponds to variable and dot patterns; contains the
     -- original pattern.
-  | RecCon (Arg Type) [(Substitution -> Term -> Term, RecordTree)]
+  | RecCon (Arg Type) [(Term -> Term, RecordTree)]
     -- ^ @RecCon t args@ stands for a record constructor application:
     -- @t@ is the type of the application, and the list contains a
-    -- projection function (parametrised on a substitution) and a tree
-    -- for every argument.
+    -- projection function and a tree for every argument.
 
 ------------------------------------------------------------------------
 -- Record pattern trees
 
--- | @projections t@ returns a projection (parametrised on a
--- substitution) for every non-dot leaf pattern in @t@. The term is
--- the composition of the projection functions from the leaf to the
--- root. The substitution is used to build the individual projection
--- functions.
+-- | @projections t@ returns a projection for every non-dot leaf
+-- pattern in @t@. The term is the composition of the projection
+-- functions from the leaf to the root.
 --
 -- Every term is tagged with its origin: a variable pattern or a dot
 -- pattern.
 
-projections :: RecordTree -> [(Substitution -> Term -> Term, Kind)]
-projections (Leaf (DotP{})) = [(flip const, DotPat)]
-projections (Leaf (VarP{})) = [(flip const, VarPat)]
+projections :: RecordTree -> [(Term -> Term, Kind)]
+projections (Leaf (DotP{})) = [(id, DotPat)]
+projections (Leaf (VarP{})) = [(id, VarPat)]
 projections (Leaf _)        = __IMPOSSIBLE__
 projections (RecCon _ args) =
-  concatMap (\(p, t) -> map (\(t, k) -> (\s -> t s . p s, k))
+  concatMap (\(p, t) -> map (\(p', k) -> (p' . p, k))
                             (projections t))
             args
 
 -- | Converts a record tree to a single pattern along with information
 -- about the deleted pattern variables.
 
-removeTree :: RecordTree -> RecPatM (Pattern, Subst, Changes)
+removeTree :: RecordTree -> RecPatM (Pattern, Substitution, Changes)
 removeTree tree = do
   (pat, x) <- nextVar
   let ps = projections tree
-      s  = map (\(p, _) -> \s -> p s x) ps
+      s  = map (\(p, _) -> p x) ps
 
       count k = genericLength $ filter ((== k) . snd) ps
 
@@ -275,7 +267,7 @@ removeTree tree = do
 --
 -- This function assumes that literals are never of record type.
 
-translatePattern :: Pattern -> RecPatM (Pattern, Subst, Changes)
+translatePattern :: Pattern -> RecPatM (Pattern, Substitution, Changes)
 translatePattern (ConP c Nothing ps) = do
   (ps, s, cs) <- translatePatterns ps
   return (ConP c Nothing ps, s, cs)
@@ -291,7 +283,7 @@ translatePattern p@LitP{} = return (p, [], [])
 -- | 'translatePattern' lifted to lists of arguments.
 
 translatePatterns ::
-  [Arg Pattern] -> RecPatM ([Arg Pattern], Subst, Changes)
+  [Arg Pattern] -> RecPatM ([Arg Pattern], Substitution, Changes)
 translatePatterns ps = do
   (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . unArg) ps
   return (ps' `withArgsFrom` ps, concat ss, concat cs)
@@ -312,7 +304,7 @@ translatePatterns ps = do
 
 recordTree ::
   Pattern ->
-  RecPatM (Either (RecPatM (Pattern, Subst, Changes)) RecordTree)
+  RecPatM (Either (RecPatM (Pattern, Substitution, Changes)) RecordTree)
 recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
 recordTree (ConP c (Just t) ps) = do
   rs <- mapM (recordTree . unArg) ps
@@ -329,8 +321,7 @@ recordTree (ConP c (Just t) ps) = do
           rDef <- theDef <$> getConstInfo r
           case rDef of
             Record { recFields = fields } -> do
-              let proj p = \_ t ->
-                    Def (unArg p) [defaultArg t]
+              let proj p = \t -> Def (unArg p) [defaultArg t]
               return $ Right $ RecCon t $ zip (map proj fields) ts
             _ -> __IMPOSSIBLE__
         _ -> __IMPOSSIBLE__
