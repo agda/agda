@@ -253,12 +253,13 @@ applySection new ptel old ts rd rm = liftTCM $ do
                     , funPolarity       = []
                     , funArgOccurrences = drop (length ts') oldOcc
                     , funAbstr          = ConcreteDef
-                    , funProjection     = Nothing -- fmap (id *** nonNeg . \ n -> n - size ts) maybeNum
+                    , funProjection     = proj
                     }
-                  where maybeNum = case oldDef of
-                                     Function { funProjection = mn } -> mn
-                                     _                               -> Nothing
-                        nonNeg n = if n >= 0 then n else __IMPOSSIBLE__
+                  where
+                    proj = case oldDef of
+                      Function{funProjection = Just (r, n)}
+                        | size ts < n -> Just (r, n - size ts)
+                      _ -> Nothing
         ts' | null ts   = []
             | otherwise = case oldDef of
                 Function{funProjection = Just (_, n)}
