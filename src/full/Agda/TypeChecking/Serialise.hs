@@ -80,7 +80,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110822 * 10 + 1
+currentInterfaceVersion = 20110823 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -153,86 +153,129 @@ class Typeable a => EmbPrj a where
   icode :: a -> S Int32
   value :: Int32 -> R a
 
--- | Encodes something. To ensure relocatability file paths in
+-- | Encodes an interface. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encode :: EmbPrj a => a -> TCM ByteString
-encode a = do
-    fileMod <- sourceToModule
-    liftIO $ do
-      newD@(Dict nD sD iD dD _ _ _ _ _) <- emptyDict fileMod
-      root <- runReaderT (icode a) newD
-      nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
-      return $ B.encode currentInterfaceVersion `L.append`
-               G.compress (B.encode (root, nL, sL, iL, dL))
-  where
-  l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
+encode :: Interface -> TCM ByteString
+encode i = do
+  fileMod <- sourceToModule
 
--- | Decodes something. The result depends on the include path.
+  let enc x = do
+        newD@(Dict nD sD iD dD _ _ _ _ _) <- emptyDict fileMod
+        root <- runReaderT (icode x) newD
+        nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
+        return $ B.encode (root, nL, sL, iL, dL)
+        where
+        l h = List.map fst . List.sortBy (compare `on` snd) <$>
+                H.toList h
+
+  liftIO $ do
+      b1 <- enc i1
+      let b2 = B.encode (List.genericLength i2 :: Integer)
+      bs <- mapM enc i2
+      return $ B.encode currentInterfaceVersion `L.append`
+               G.compress (L.concat (b1 : b2 : bs))
+  where
+  i1 = i { iSignature = (iSignature i) { sigDefinitions = M.empty } }
+  i2 = M.toAscList $ sigDefinitions $ iSignature i
+
+-- | State used in one part of the decoder.
+
+data DecoderState = DecoderState
+  { modFile' :: !ModuleToSource
+    -- ^ Maps module names to file names.
+  , string   :: !ByteString
+    -- ^ The undecoded portion of the string.
+  }
+
+-- | Monad used in one part of the decoder.
+
+type DecoderMonad = ErrorT String (StateT DecoderState IO)
+
+-- | Decodes an interface. The result depends on the include path.
 --
 -- Returns 'Nothing' if the input does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decode :: EmbPrj a => ByteString -> TCM (Maybe a)
+decode :: ByteString -> TCM (Maybe Interface)
 decode s = do
   mf   <- stModuleToSource <$> get
   incs <- getIncludeDirs
+
+  let binaryDecode :: B.Binary a => DecoderMonad a
+      binaryDecode = do
+        s <- string <$> get
+        (x, s, _) <- return $ B.runGetState B.get s 0
+        modify $ \st -> st { string = s }
+        return x
+
+      dec :: EmbPrj a => DecoderMonad a
+      dec = do
+        (r, nL, sL, iL, dL) <- binaryDecode
+
+        let ar l = listArray (0, List.genericLength l - 1) l
+
+        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
+                <$> liftIO H.new
+                <*> (modFile' <$> get)
+                <*> return incs
+
+        (r, st) <- liftIO $ runStateT (runErrorT (value r)) st
+
+        modify $ \st -> st { modFile' = modFile' st }
+
+        case r of
+          Left  _ -> mzero
+          Right x -> return x
 
   -- Note that B.runGetState and G.decompress can raise errors if the
   -- input is malformed. The decoder is (intended to be) strict enough
   -- to ensure that all such errors can be caught by the handler here.
 
-  (mf, x) <- liftIO $ E.handle (\(E.ErrorCall {}) -> noResult) $ do
+  let st = DecoderState { modFile' = mf, string = s }
+      h (E.ErrorCall {}) = return (mzero, st)
 
-    (ver, s, _) <- return $ B.runGetState B.get s 0
-    if ver /= currentInterfaceVersion
-     then noResult
-     else do
+  (r, st) <- liftIO $ E.handle h $ flip runStateT st $ runErrorT $ do
 
-      ((r, nL, sL, iL, dL), s, _) <-
-        return $ B.runGetState B.get (G.decompress s) 0
-      if s /= L.empty
-         -- G.decompress seems to throw away garbage at the end, so
-         -- the then branch is possibly dead code.
-       then noResult
-       else do
+    ver <- binaryDecode
+    when (ver /= currentInterfaceVersion) mzero
 
-        st <- St (ar nL) (ar sL) (ar iL) (ar dL)
-                <$> liftIO H.new
-                <*> return mf <*> return incs
-        (r, st) <- runStateT (runErrorT (value r)) st
-        return (Just (modFile st), case r of
-          Left  _ -> Nothing
-          Right x -> Just x)
+    modify $ \st -> st { string = G.decompress $ string st }
 
-  case mf of
-    Nothing -> return ()
-    Just mf -> modify $ \s -> s { stModuleToSource = mf }
+    i1 <- dec
+    n  <- binaryDecode
+    i2 <- sequence $ List.genericReplicate (n :: Integer) dec
 
-  return x
+    -- G.decompress seems to throw away garbage at the end, so the
+    -- following test may not trigger as often as it could.
+    s <- string <$> get
+    unless (L.null s) mzero
 
-  where
-  ar l = listArray (0, List.genericLength l - 1) l
+    return i1 { iSignature =
+                  (iSignature i1) { sigDefinitions =
+                                      M.fromAscList i2 } }
 
-  noResult = return (Nothing, Nothing)
+  modify $ \s -> s { stModuleToSource = modFile' st }
 
--- | Encodes something. To ensure relocatability file paths in
+  case r of
+    Left  _ -> return Nothing
+    Right i -> return (Just i)
+
+-- | Encodes an 'Interface'. To ensure relocatability file paths in
 -- positions are replaced with module names.
 
-encodeFile :: EmbPrj a
-           => FilePath
+encodeFile :: FilePath
               -- ^ The encoded data is written to this file.
-           -> a
-              -- ^ Something.
+           -> Interface
            -> TCM ()
 encodeFile f x = liftIO . L.writeFile f =<< encode x
 
--- | Decodes something. The result depends on the include path.
+-- | Decodes an 'Interface'. The result depends on the include path.
 --
 -- Returns 'Nothing' if the file does not start with the right magic
 -- number or some other decoding error is encountered.
 
-decodeFile :: EmbPrj a => FilePath -> TCM (Maybe a)
+decodeFile :: FilePath -> TCM (Maybe Interface)
 decodeFile f = decode =<< liftIO (L.readFile f)
 
 
