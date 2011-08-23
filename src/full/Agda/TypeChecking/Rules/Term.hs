@@ -312,8 +312,10 @@ checkExpr e t =
             -- Rechecking an existing metavariable
             Just n -> do
               let v = MetaV (MetaId n) []
-              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+--              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
+
 	A.Underscore i   ->
           case A.metaNumber i of
             Nothing -> do
@@ -322,7 +324,8 @@ checkExpr e t =
             -- Rechecking an existing metavariable
             Just n -> do
               let v = MetaV (MetaId n) []
-              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+--              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
 
 	-- Variable or constant application
@@ -556,30 +559,6 @@ checkExpr e t =
 			-- blockTerm t v (return cs)
                         return v
 		_   -> typeError $ ShouldBePi t'
-
-	A.QuestionMark i ->
-          case A.metaNumber i of
-            Nothing -> do
-              setScope (A.metaScope i)
-              newQuestionMark t
-            -- Rechecking an existing metavariable
-            Just n -> do
-              let v = MetaV (MetaId n) []
---              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
-              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-              blockTerm t v $ leqType t' t
-
-	A.Underscore i   ->
-          case A.metaNumber i of
-            Nothing -> do
-              setScope (A.metaScope i)
-              newValueMeta t
-            -- Rechecking an existing metavariable
-            Just n -> do
-              let v = MetaV (MetaId n) []
---              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
-              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-              blockTerm t v $ leqType t' t
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
