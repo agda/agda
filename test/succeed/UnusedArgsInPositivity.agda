@@ -4,7 +4,7 @@
 
 module UnusedArgsInPositivity where
 
-open import Coinduction
+open import Common.Coinduction
 
 module Ex₁ where
   data Unit : Set where

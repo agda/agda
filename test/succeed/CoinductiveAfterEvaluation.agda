@@ -1,6 +1,6 @@
 module CoinductiveAfterEvaluation where
 
-open import Coinduction
+open import Common.Coinduction
 
 data Functor : Set where
   Id : Functor

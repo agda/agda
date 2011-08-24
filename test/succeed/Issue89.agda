@@ -2,7 +2,7 @@
 
 module Issue89 where
 
-open import Coinduction renaming (∞ to ∞_)
+open import Common.Coinduction renaming (∞ to ∞_)
 
 ------------------------------------------------------------------------
 -- Streams

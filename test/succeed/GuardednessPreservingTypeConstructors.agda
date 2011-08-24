@@ -2,7 +2,7 @@
 
 module GuardednessPreservingTypeConstructors where
 
-open import Coinduction
+open import Common.Coinduction
 
 -- Preliminaries.
 

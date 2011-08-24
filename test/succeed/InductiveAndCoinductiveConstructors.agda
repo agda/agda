@@ -1,6 +1,6 @@
 module InductiveAndCoinductiveConstructors where
 
-open import Coinduction
+open import Common.Coinduction
 
 record ⊤ : Set where
 

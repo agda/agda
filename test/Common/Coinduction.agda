@@ -1,6 +1,6 @@
 {-# OPTIONS --universe-polymorphism #-}
 
-module Coinduction where
+module Common.Coinduction where
 
 open import Common.Level
 
