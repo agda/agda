@@ -201,8 +201,7 @@ rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 data OutputForm a b
       = OfType b a | CmpInType Comparison a b b
-                   | CmpTerms [Polarity] a [b] [b]
-                   | CmpElim [Polarity] a b b
+                   | CmpElim [Polarity] a [b] [b]
       | JustType b | CmpTypes Comparison b b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
@@ -221,9 +220,8 @@ outputFormId :: OutputForm a b -> b
 outputFormId o = case o of
   OfType i _           -> i
   CmpInType _ _ i _    -> i
-  CmpTerms _ _ (i:_) _ -> i
-  CmpTerms _ _ [] _    -> __IMPOSSIBLE__
-  CmpElim _ _ i _      -> i
+  CmpElim _ _ (i:_) _  -> i
+  CmpElim _ _ [] _     -> __IMPOSSIBLE__
   JustType i           -> i
   CmpLevels _ i _      -> i
   CmpTypes _ i _       -> i
@@ -241,8 +239,7 @@ instance Functor (OutputForm a) where
     fmap f (JustType e)           = JustType (f e)
     fmap f (JustSort e)           = JustSort (f e)
     fmap f (CmpInType cmp t e e') = CmpInType cmp t (f e) (f e')
-    fmap f (CmpTerms cmp t e e')  = CmpTerms cmp t (map f e) (map f e')
-    fmap f (CmpElim cmp t e e')   = CmpElim cmp t (f e) (f e')
+    fmap f (CmpElim cmp t e e')   = CmpElim cmp t (map f e) (map f e')
     fmap f (CmpTypes cmp e e')    = CmpTypes cmp (f e) (f e')
     fmap f (CmpLevels cmp e e')   = CmpLevels cmp (f e) (f e')
     fmap f (CmpTeles cmp e e')    = CmpTeles cmp (f e) (f e')
@@ -255,11 +252,9 @@ instance Functor (OutputForm a) where
 
 instance Reify Constraint (OutputForm Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
-    reify (ElimCmp cmp t v es1 es2) = CmpElim cmp <$> reify t <*> reify (unElim v es1)
-                                                              <*> reify (unElim v es2)
-    reify (ArgsCmp cmp t u v)    = CmpTerms cmp <$> reify t
-                                                <*> mapM (reify . unArg) u
-                                                <*> mapM (reify . unArg) v
+    reify (ElimCmp cmp t v es1 es2) =
+      CmpElim cmp <$> reify t <*> reify es1
+                              <*> reify es2
     reify (LevelCmp cmp t t')    = CmpLevels cmp <$> reify t <*> reify t'
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
     reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
@@ -297,8 +292,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (JustType e)           = "Type " ++ show e
     show (JustSort e)           = "Sort " ++ show e
     show (CmpInType cmp t e e') = show e ++ showComparison cmp ++ show e' ++ " : " ++ show t
-    show (CmpTerms cmp t e e')  = show e ++ "~~" ++ show e' ++ " : " ++ show t
-    show (CmpElim cmp t e e')   = show e ++ "==" ++ show e' ++ " at head type " ++ show t
+    show (CmpElim cmp t e e')   = show e ++ " == " ++ show e' ++ " : " ++ show t
     show (CmpTypes  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpLevels cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
@@ -317,8 +311,6 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (CmpInType cmp t e e') =
       CmpInType cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx ArgumentCtx e
                                                <*> toConcreteCtx ArgumentCtx e'
-    toConcrete (CmpTerms cmp t e e') =
-      CmpTerms cmp <$> toConcreteCtx TopCtx t <*> mapM toConcrete e <*> mapM toConcrete e'
     toConcrete (CmpElim cmp t e e') =
       CmpElim cmp <$> toConcreteCtx TopCtx t <*> toConcreteCtx TopCtx e <*> toConcreteCtx TopCtx e'
     toConcrete (CmpTypes cmp e e') = CmpTypes cmp <$> toConcreteCtx ArgumentCtx e

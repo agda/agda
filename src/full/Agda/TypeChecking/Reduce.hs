@@ -141,9 +141,6 @@ instance Instantiate Constraint where
   instantiate (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate (t,u,v)
     return $ ValueCmp cmp t u v
-  instantiate (ArgsCmp cmp t as bs) = do
-    (t, as, bs) <- instantiate (t, as, bs)
-    return $ ArgsCmp cmp t as bs
   instantiate (ElimCmp cmp t v as bs) =
     ElimCmp cmp <$> instantiate t <*> instantiate v <*> instantiate as <*> instantiate bs
   instantiate (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> instantiate (u,v)
@@ -394,9 +391,6 @@ instance Reduce Constraint where
   reduce (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce (t,u,v)
     return $ ValueCmp cmp t u v
-  reduce (ArgsCmp cmp t us vs) = do
-    (t,us,vs) <- reduce (t,us,vs)
-    return $ ArgsCmp cmp t us vs
   reduce (ElimCmp cmp t v as bs) =
     ElimCmp cmp <$> reduce t <*> reduce v <*> reduce as <*> reduce bs
   reduce (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> reduce (u,v)
@@ -502,9 +496,6 @@ instance Normalise Constraint where
   normalise (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise (t,u,v)
     return $ ValueCmp cmp t u v
-  normalise (ArgsCmp cmp t u v) = do
-    (t,u,v) <- normalise (t,u,v)
-    return $ ArgsCmp cmp t u v
   normalise (ElimCmp cmp t v as bs) =
     ElimCmp cmp <$> normalise t <*> normalise v <*> normalise as <*> normalise bs
   normalise (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> normalise (u,v)
@@ -635,9 +626,6 @@ instance InstantiateFull Constraint where
     ValueCmp cmp t u v -> do
       (t,u,v) <- instantiateFull (t,u,v)
       return $ ValueCmp cmp t u v
-    ArgsCmp cmp t u v -> do
-      (t,u,v) <- instantiateFull (t,u,v)
-      return $ ArgsCmp cmp t u v
     ElimCmp cmp t v as bs ->
       ElimCmp cmp <$> instantiateFull t <*> instantiateFull v <*> instantiateFull as <*> instantiateFull bs
     LevelCmp cmp u v   -> uncurry (LevelCmp cmp) <$> instantiateFull (u,v)

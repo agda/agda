@@ -70,9 +70,6 @@ equalTerm = compareTerm CmpEq
 equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
 equalAtom = compareAtom CmpEq
 
-equalArgs :: MonadTCM tcm => Type -> Args -> Args -> tcm Constraints
-equalArgs = compareArgs []
-
 equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
 equalType = compareType CmpEq
 
@@ -130,7 +127,8 @@ compareTerm cmp a m n =
                   (tel, m') <- etaExpandRecord r ps $ ignoreBlocking m
                   (_  , n') <- etaExpandRecord r ps $ ignoreBlocking n
                   -- No subtyping on record terms
-                  compareArgs [] (telePi_ tel $ sort Prop) m' n'
+                  c <- getRecordConstructor r
+                  compareArgs [] (telePi_ tel $ sort Prop) (Con c []) m' n'
 
             else compareAtom cmp a' m n
         _ -> compareAtom cmp a' m n
@@ -297,7 +295,7 @@ compareAtom cmp t m n =
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
                 -- Variables are invariant in their arguments
-		compareArgs [] a iArgs jArgs
+		compareArgs [] a (Var i []) iArgs jArgs
             (Def{}, Def{}) -> do
               ev1 <- elimView m
               ev2 <- elimView n
@@ -329,7 +327,7 @@ compareAtom cmp t m n =
                     a' <- conType x t
                     -- Constructors are invariant in their arguments
                     -- (could be covariant).
-                    compareArgs [] a' xArgs yArgs
+                    compareArgs [] a' (Con x []) xArgs yArgs
             _ -> typeError $ UnequalTerms cmp m n t
     where
         conType c (El _ (Def d args)) = do
@@ -429,43 +427,9 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
 
 -- | Type-directed equality on argument lists
 --
-compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Args -> Args -> tcm Constraints
-compareArgs _ _ [] [] = return []
-compareArgs _ _ [] (_:_) = __IMPOSSIBLE__
-compareArgs _ _ (_:_) [] = __IMPOSSIBLE__
-compareArgs pols0 a (arg1 : args1) (arg2 : args2) =
-    verboseBracket "tc.conv.args" 20 "compareArgs" $ do
-    let (pol, pols) = nextPolarity pols0
-    a <- reduce a
-    catchConstraint (ArgsCmp pols0 a (arg1 : args1) (arg2 : args2)) $ do
-    reportSDoc "tc.conv.args" 30 $
-      sep [ text "compareArgs"
-          , nest 2 $ sep [ prettyTCM (arg1 : args1)
-                         , prettyTCM (arg2 : args2)
-                         ]
-          , nest 2 $ text ":" <+> prettyTCM a
-          ]
-    case funView (unEl a) of
-      FunV (Arg _ r b) _ -> do
-        let cmp x y = case pol of
-                        Invariant     -> compareTerm CmpEq b x y
-                        Covariant     -> compareTerm CmpLeq b x y
-                        Contravariant -> compareTerm CmpLeq b y x
-        cs1 <- case r of
-                Forced     -> return []
-                Irrelevant -> return [] -- Andreas: ignore irr. func. args.
-                _          -> cmp (unArg arg1) (unArg arg2)
-        mlvl <- mlevel
-        case (cs1, unEl a) of
-                    -- We can safely ignore sort annotations here
-                    -- We're also ignoring levels since we don't allow
-                    -- matching on levels
-          (_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
-                                                && Just lvl' /= mlvl ->
-            buildConstraint (Guarded (ArgsCmp pols (piApply a [arg1]) args1 args2) cs1)
-          _   ->
-            (cs1 ++) <$> compareArgs pols (piApply a [arg1]) args1 args2
-      _   -> patternViolation
+compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Term -> Args -> Args -> tcm Constraints
+compareArgs pol a v args1 args2 =
+  compareElims pol a v (map Apply args1) (map Apply args2)
 
 -- | Equality on Types
 compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints

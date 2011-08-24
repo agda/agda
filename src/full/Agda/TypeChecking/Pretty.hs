@@ -133,19 +133,10 @@ instance PrettyTCM Constraint where
 		, nest 2 $ text ":" <+> prettyTCM ty
 		]
         ElimCmp cmps t v us vs ->
-          sep [ sep [ prettyTCM (unElim v us)
-                    , nest 2 $ text "~~" <+> prettyTCM (unElim v vs)
+          sep [ sep [ prettyTCM us
+                    , nest 2 $ text "~~" <+> prettyTCM vs
                     ]
-              , text "at head type" <+> prettyTCM t ]
-        ArgsCmp cmps t us vs ->
-          sep [ prettyList
-                [ sep [ prettyTCM u
-                      , nest 2 $ text "~~" <+> prettyTCM v
-                      , nest 2 $ text (show cmp)
-                      ] | (cmp, u, v) <- zip3 (cmps ++ repeat Invariant) us vs
-                ]
-              , nest 2 $ text ":" <+> prettyTCM t
-              ]
+              , text ":" <+> prettyTCM t ]
 	LevelCmp cmp a b ->
 	    sep [ prettyTCM a
 		, prettyTCM cmp <+> prettyTCM b

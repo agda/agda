@@ -225,7 +225,6 @@ type ConstraintClosure = Closure Constraint
 
 data Constraint
   = ValueCmp Comparison Type Term Term
-  | ArgsCmp [Polarity] Type Args Args
   | ElimCmp [Polarity] Type Term [Elim] [Elim]
   | TypeCmp Comparison Type Type
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
@@ -290,7 +289,7 @@ data MetaVariable =
                   --   ones it does not depend on
 		, mvJudgement	  :: Judgement Type MetaId
 		, mvInstantiation :: MetaInstantiation
-		, mvListeners	  :: Set MetaId -- ^ meta variables scheduled for eta-expansion but blocked by this one
+		, mvListeners	  :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
 		}
     deriving (Typeable)

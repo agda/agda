@@ -135,7 +135,7 @@ useInjectivity cmp a u v = do
           , nest 2 $ text "and type" <+> prettyTCM a
           ]
         pol <- getPolarity' cmp f
-        compareArgs pol a fArgs gArgs
+        compareArgs pol a (Def f []) fArgs gArgs
       | otherwise -> fallBack
     (Inv f args inv, NoInv) -> do
       a <- defType <$> getConstInfo f
@@ -189,7 +189,7 @@ useInjectivity cmp a u v = do
           -- The clause might not give as many patterns as there
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args
-          cs  <- compareArgs pol ftype margs args'
+          cs  <- compareArgs pol ftype org margs args'
 {- Andreas, 2011-05-09 allow unsolved constraints as long as progress
           unless (null cs) $ do
             reportSDoc "tc.inj.invert" 30 $

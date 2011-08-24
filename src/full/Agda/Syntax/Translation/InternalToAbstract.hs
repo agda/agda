@@ -272,6 +272,14 @@ instance Reify Term Expr where
       I.MetaV x vs -> apps =<< reify (x,vs)
       I.DontCare   -> return A.DontCare
 
+instance Reify Elim Expr where
+  reify e = case e of
+    I.Apply v -> appl "apply" <$> reify v
+    I.Proj f  -> appl "proj"  <$> reify (defaultArg $ I.Def f [])
+    where
+      appl :: String -> Arg Expr -> Expr
+      appl s v = A.App exprInfo (A.Lit (LitString noRange s)) $ fmap unnamed v
+
 data NamedClause = NamedClause QName I.Clause
 -- Named clause does not need 'Recursion' flag since I.Clause has it
 -- data NamedClause = NamedClause QName Recursion I.Clause

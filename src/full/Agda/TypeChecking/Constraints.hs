@@ -67,7 +67,6 @@ guardConstraint m c = do
 	isNB SortCmp{}        = True
         isNB LevelCmp{}       = True
 	isNB ValueCmp{}       = False
-        isNB ArgsCmp{}        = False
         isNB ElimCmp{}        = False
 	isNB TypeCmp{}        = False
 	isNB TelCmp{}         = False
@@ -109,7 +108,6 @@ solveConstraints cs = do
 
 solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
 solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
-solveConstraint (ArgsCmp cmp a u v)  = compareArgs cmp a u v
 solveConstraint (ElimCmp cmp a e u v) = compareElims cmp a e u v
 solveConstraint (TypeCmp cmp a b)    = compareType cmp a b
 solveConstraint (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb
