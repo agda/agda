@@ -531,12 +531,13 @@ termTerm conf names f pats0 t0 = do
          case t of
 
             -- Constructed value.
-            Con c args ->
-              constructor c Inductive $ zip args (repeat True)
+            Con c args
+              | Just c == sharp conf ->
+                constructor c CoInductive $ zip args (repeat True)
+              | otherwise ->
+                constructor c Inductive $ zip args (repeat True)
 
             Def g args0
-              | Just g == sharp conf ->
-                constructor g CoInductive $ zip args0 (repeat True)
               | guardingTypeConstructors conf -> do
                 gDef <- theDef <$> getConstInfo g
                 case gDef of

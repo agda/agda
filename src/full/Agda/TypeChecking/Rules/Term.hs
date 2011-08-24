@@ -864,11 +864,12 @@ checkConstructorApplication org t c args = do
 -- not be any need to insert hidden lambdas.
 checkHeadApplication :: A.Expr -> Type -> A.Head -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
-  replacing <- envReplace <$> ask
   kit       <- coinductionKit
-  if not replacing
-   then local (\e -> e { envReplace = True }) defaultResult
-   else case hd of
+  case hd of
+    HeadCon [c] | Just c == (nameOfSharp <$> kit) -> do
+      -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
+      -- but the sharp we generate in the body of the wrapper is a Con.
+      defaultResult
     HeadCon [c] -> do
       (f, t0) <- inferHead hd
       reportSDoc "tc.term.con" 5 $ vcat
@@ -932,7 +933,7 @@ checkHeadApplication e t hd args = do
           pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
                        reverse ctx
           clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
-                            (A.RHS $ unAppView (A.Application hd args))
+                            (A.RHS $ unAppView (A.Application (HeadCon [c]) args))
                             []
 
       reportSDoc "tc.term.expr.coind" 15 $ vcat $
@@ -946,8 +947,7 @@ checkHeadApplication e t hd args = do
           , nest 2 $ prettyA clause <> text "."
           ]
 
-      local (\e -> e { envReplace = False }) $
-        escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
+      escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
 
       reportSDoc "tc.term.expr.coind" 15 $ do
         def <- theDef <$> getConstInfo c'

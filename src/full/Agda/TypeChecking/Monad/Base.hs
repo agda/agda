@@ -504,9 +504,6 @@ data Defn = Axiom
 	    , conAbstr  :: IsAbstract
             , conInd    :: Induction   -- ^ Inductive or coinductive?
             }
-            -- ^ Note that, currently, the sharp constructor is
-            --   represented as a definition ('Def'), but if you look
-            --   up the name you will get a @Constructor@.
 	  | Primitive
             { primAbstr :: IsAbstract
             , primName  :: String
@@ -740,15 +737,6 @@ data TCEnv =
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
                 -- Other value: @Relevant@, then only relevant decls. are avail.
-          , envReplace             :: Bool
-                -- ^ Coinductive constructor applications @c args@ get
-                -- replaced by a function application @f tel@, where
-                -- tel corresponds to the current telescope and @f@ is
-                -- defined as @f tel = c args@. The initial occurrence
-                -- of @c@ in the body of @f@ should not be replaced by
-                -- yet another function application, though. To avoid
-                -- that this happens the @envReplace@ flag is set to
-                -- 'False' when @f@ is checked.
           , envDisplayFormsEnabled :: Bool
                 -- ^ Sometimes we want to disable display forms.
           , envReifyInteractionPoints :: Bool
@@ -774,7 +762,6 @@ initEnv = TCEnv { envContext	         = []
 		, envAbstractMode        = AbstractMode
                 , envTopLevel            = True
                 , envRelevance           = Relevant
-                , envReplace             = True
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True
                 , envEtaContractImplicit    = True

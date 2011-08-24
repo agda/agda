@@ -404,7 +404,7 @@ generateConstructorInfo modMap file kinds decls = do
         clauses <- R.instantiateFull $ defClauses def
         case clauses of
           [I.Clause{ I.clauseBody = body }] -> case getRHS body of
-            Just (I.Def c args) -> do
+            Just (I.Con c args) -> do
               s <- everything' (liftM2 (><)) query args
               return $ Seq.singleton c >< s
 
