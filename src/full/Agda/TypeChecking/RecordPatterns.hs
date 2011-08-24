@@ -317,7 +317,7 @@ recordTree (ConP c (Just t) ps) = do
     Right ts -> do
       t <- reduce t
       case t of
-        Arg { unArg = El _ (Def r args) } -> do
+        Arg { unArg = El _ (Def r _) } -> do
           rDef <- theDef <$> getConstInfo r
           case rDef of
             Record { recFields = fields } -> do
