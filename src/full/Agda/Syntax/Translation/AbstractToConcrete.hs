@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, PatternGuards, MultiParamTypeClasses, FunctionalDependencies,
              TypeSynonymInstances, FlexibleInstances, UndecidableInstances,
-             OverlappingInstances
+             OverlappingInstances,
+             IncoherentInstances
   #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
