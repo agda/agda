@@ -79,7 +79,7 @@ nothingAppliedToInstanceArg e = typeError $ NothingAppliedToInstanceArg e
 
 printLocals :: Int -> String -> ScopeM ()
 printLocals v s = verboseS "scope.top" v $ do
-  locals <- scopeLocals <$> getScope
+  locals <- getLocalVars
   reportSLn "" 0 $ s ++ " " ++ show locals
 
 printScope :: String -> Int -> String -> ScopeM ()
@@ -750,6 +750,7 @@ instance ToAbstract NiceDefinition Definition where
     -- Function definitions
       C.FunDef r ds f p a x cs ->
         traceCall (ScopeCheckDefinition d) $ do
+          printLocals 10 $ "checking def " ++ show x
           (x',cs') <- toAbstract (OldName x,cs)
           return $ A.FunDef (mkDefInfo x f p a r) x' cs'
 
@@ -1084,7 +1085,7 @@ instance ToAbstract LeftHandSide A.LHS where
         p <- parseLHS (Just top) lhs
         printLocals 10 "before lhs:"
         let (x, ps) = lhsArgs p
-        x    <- toAbstract (OldName x)
+        x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
         wps  <- toAbstract =<< mapM (parseLHS Nothing) wps
         checkPatternLinearity (map (namedThing . unArg) args ++ wps)
