@@ -1,6 +1,6 @@
 InductiveAndCoinductiveConstructors.agda:62,25-66
-.InductiveAndCoinductiveConstructors.♯-3 xs ls !=
-.InductiveAndCoinductiveConstructors.♯-2 xs ls of type
+.InductiveAndCoinductiveConstructors.♯-4 xs ls !=
+.InductiveAndCoinductiveConstructors.♯-3 xs ls of type
 ∞ (WHNF (stream (stream unit)))
 when checking that the expression
 lemma xs (↓ ♯ (ls ≺ snd (label xs ls))) has type

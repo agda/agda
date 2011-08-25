@@ -171,17 +171,17 @@ getOpenMetas = do
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.
-listenToMeta :: MonadTCM tcm => MetaId -> MetaId -> tcm ()
+listenToMeta :: MonadTCM tcm => Listener -> MetaId -> tcm ()
 listenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.insert l $ mvListeners mv }
 
 -- | Unregister a listener.
-unlistenToMeta :: MonadTCM tcm => MetaId -> MetaId -> tcm ()
+unlistenToMeta :: MonadTCM tcm => Listener -> MetaId -> tcm ()
 unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
 -- | Get the listeners to a meta.
-getMetaListeners :: MonadTCM tcm => MetaId -> tcm [MetaId]
+getMetaListeners :: MonadTCM tcm => MetaId -> tcm [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
 clearMetaListeners :: MonadTCM tcm => MetaId -> tcm ()

@@ -241,26 +241,37 @@ newQuestionMark t = do
 -- | Construct a blocked constant if there are constraints.
 blockTerm :: MonadTCM tcm => Type -> Term -> tcm Constraints -> tcm Term
 blockTerm t v m = do
-    cs <- solveConstraints =<< m
-    if List.null cs
-	then return v
-	else do
-	    i	  <- createMetaInfo
-	    vs	  <- getContextArgs
-	    tel   <- getContextTelescope
-	    x	  <- newMeta' (BlockedConst $ abstract tel v)
-                              i lowMetaPriority (idP $ size tel)
-                              (HasType () $ telePi_ tel t)
-			    -- we don't instantiate blocked terms
-	    c <- escapeContext (size tel) $ guardConstraint (return cs) (UnBlock x)
-            verboseS "tc.meta.blocked" 20 $ do
-                dx  <- prettyTCM (MetaV x [])
-                dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
-                dcs <- mapM prettyTCM cs
-                liftIO $ LocIO.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
-                liftIO $ LocIO.putStrLn $ "     by " ++ show dcs
-	    addConstraints c
-	    return $ MetaV x vs
+  cs <- solveConstraints =<< m
+  if List.null cs
+    then return v
+    else do
+      i   <- createMetaInfo
+      vs  <- getContextArgs
+      tel <- getContextTelescope
+      x   <- newMeta' (BlockedConst $ abstract tel v)
+                      i lowMetaPriority (idP $ size tel)
+                      (HasType () $ telePi_ tel t)
+                      -- we don't instantiate blocked terms
+      escapeContext (size tel) $ addConstraints =<< guardConstraint (return cs) (UnBlock x)
+      verboseS "tc.meta.blocked" 20 $ do
+        dx  <- prettyTCM (MetaV x [])
+        dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
+        dcs <- mapM prettyTCM cs
+        liftIO $ LocIO.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
+        liftIO $ LocIO.putStrLn $ "     by " ++ show dcs
+      inst <- isInstantiatedMeta x
+      case inst of
+        True  -> instantiate (MetaV x vs)
+        False -> do
+          -- We don't return the blocked term instead create a fresh metavariable
+          -- that we compare against the blocked term once it's unblocked. This way
+          -- blocked terms can be instantiated before they are unblocked, thus making
+          -- constraint solving a bit more robust against instantiation order.
+          v   <- newValueMeta t
+          i   <- liftTCM (fresh :: TCM Integer)
+          cmp <- buildConstraint (ValueCmp CmpEq t v (MetaV x vs))
+          listenToMeta (CheckConstraint i cmp) x
+          return v
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
@@ -297,11 +308,17 @@ postponeTypeCheckingProblem e t unblock = do
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
 etaExpandListeners m = do
-  ms <- getMetaListeners m
+  ls <- getMetaListeners m
   clearMetaListeners m	-- we don't really have to do this
+  mapM_ wakeupListener ls
+
+-- | Wake up a meta listener and let it do its thing
+wakeupListener :: MonadTCM tcm => Listener -> tcm ()
   -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
-  mapM_ etaExpandMetaSafe ms
---  mapM_ (etaExpandMeta allMetaKinds) ms
+wakeupListener (EtaExpand x)          = etaExpandMetaSafe x
+wakeupListener (CheckConstraint _ cs) = do
+  reportSDoc "tc.meta.blocked" 20 $ text "waking boxed constraint" <+> prettyTCM cs
+  addConstraints =<< solveConstraints cs
 
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
 etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
@@ -342,8 +359,8 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     -- eta expand now, we have to postpone this.  Once @x@ is
     -- instantiated, we can continue eta-expanding m.  This is realized
     -- by adding @m@ to the listeners of @x@.
-    Blocked x _               -> listenToMeta m x
-    NotBlocked (MetaV x _)    -> listenToMeta m x
+    Blocked x _               -> listenToMeta (EtaExpand m) x
+    NotBlocked (MetaV x _)    -> listenToMeta (EtaExpand m) x
     NotBlocked lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
@@ -358,7 +375,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
          else if SingletonRecords `elem` kinds then do
           singleton <- isSingletonRecord r ps
           case singleton of
-            Left x      -> listenToMeta m x
+            Left x      -> listenToMeta (EtaExpand m) x
             Right False -> return ()
             Right True  -> expand
          else

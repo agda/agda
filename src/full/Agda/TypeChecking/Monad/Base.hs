@@ -294,6 +294,21 @@ data MetaVariable =
 		}
     deriving (Typeable)
 
+data Listener = EtaExpand MetaId
+              | CheckConstraint Nat Constraints
+  deriving (Typeable)
+
+instance Eq Listener where
+  EtaExpand       x   == EtaExpand       y   = x == y
+  CheckConstraint x _ == CheckConstraint y _ = x == y
+  _ == _ = False
+
+instance Ord Listener where
+  EtaExpand       x   `compare` EtaExpand       y   = x `compare` y
+  CheckConstraint x _ `compare` CheckConstraint y _ = x `compare` y
+  EtaExpand{} `compare` CheckConstraint{} = LT
+  CheckConstraint{} `compare` EtaExpand{} = Prelude.GT
+
 -- | Frozen meta variable cannot be instantiated by unification.
 --   This serves to prevent the completion of a definition by its use
 --   outside of the current block.
