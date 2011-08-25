@@ -18,3 +18,5 @@
 20110823: (08:00) Sigma record in prim and added all projections instead of
           just the first three.
 
+20110825: Allow instantiation of blocked terms, and short-cut instantiation of
+          metas.
