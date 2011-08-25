@@ -282,7 +282,6 @@ checkExpr e t =
 
     e <- scopedExpr e
     case e of
-
 	-- Insert hidden lambda if appropriate
 	_   | FunV (Arg h rel _) _ <- funView (unEl t)
             , not (hiddenLambdaOrHole h e)
@@ -328,63 +327,6 @@ checkExpr e t =
               t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
               blockTerm t v $ leqType t' t
 
-	-- Variable or constant application
-           -- Subcase: ambiguous constructor
-	_   | Application (HeadCon cs@(_:_:_)) args <- appView e -> do
-                -- First we should figure out which constructor we want.
-                reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
-
-                -- Get the datatypes of the various constructors
-                let getData Constructor{conData = d} = d
-                    getData _                        = __IMPOSSIBLE__
-                reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
-                -- We use the reduced constructor when disambiguating, but
-                -- the original constructor for type checking. This is important
-                -- since they may have different types (different parameters).
-                -- See issue 279.
-                cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
-                reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
-                reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
-                dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
-
-                -- Type error
-                let badCon t = typeError $ DoesNotConstructAnElementOf
-                                            (fst $ head cs) t
-
-                -- Lets look at the target type at this point
-                let getCon = do
-                      TelV _ t1 <- telView t
-                      t1 <- reduceB $ unEl t1
-                      reportSDoc "tc.check.term.con" 40 $ nest 2 $
-                        text "target type: " <+> prettyTCM t1
-                      case t1 of
-                        NotBlocked (Def d _) -> do
-                          let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
-                                c:_ -> do
-                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
-                                  return (Just c)
-                                []  -> badCon (Def d [])
-                          defn <- theDef <$> getConstInfo d
-                          case defn of
-                            Datatype{} -> dataOrRec
-                            Record{}   -> dataOrRec
-                            _ -> badCon (ignoreBlocking t1)
-                        NotBlocked (MetaV _ _)  -> return Nothing
-                        Blocked{} -> return Nothing
-                        _ -> badCon (ignoreBlocking t1)
-                let unblock = isJust <$> getCon
-                mc <- getCon
-                case mc of
-                  Just c  -> checkConstructorApplication e t c args
-                  Nothing -> postponeTypeCheckingProblem e t unblock
-
-              -- Subcase: non-ambiguous constructor
-            | Application (HeadCon [c]) args <- appView e ->
-                checkConstructorApplication e t c args
-              -- Subcase: defined symbol or variable.
-            | Application hd args <- appView e ->
-                checkHeadApplication e t hd args
-
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
         -- check |- Set l : t  (requires universe polymorphism)
@@ -421,16 +363,6 @@ checkExpr e t =
                 checkTerm e2 t
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
-
-{- Andreas, 2011-05-09 I thought the A.App case below is dead, but it ain't
-        -- application is handled in spine fashion (see above, appView)
-	A.App i f arg -> __IMPOSSIBLE__
--}
--- NOT DEAD! [ Andreas, 2011-04-28 DEAD CASE, never used, must be stale code]
-	A.App i f arg -> do
-	    (v0, t0)	 <- inferExpr f
-	    checkArguments' ExpandLast (getRange e) [arg] t0 t e $ \vs t1 cs ->
-	      blockTerm t (apply v0 vs) $ (cs ++) <$> leqType_ t1 t
 
         A.AbsurdLam i h -> do
           t <- reduceB =<< instantiateFull t
@@ -611,12 +543,6 @@ checkExpr e t =
               postponeTypeCheckingProblem_ e t
 	    _         -> typeError $ ShouldBeRecordType t
 
-	A.Var _    -> __IMPOSSIBLE__
-	A.Def _    -> __IMPOSSIBLE__
-	A.Con _    -> __IMPOSSIBLE__
-
-        A.ETel _   -> __IMPOSSIBLE__
-
 	A.DontCare -> -- can happen in the context of with functions
                       return DontCare
                       -- __IMPOSSIBLE__
@@ -637,6 +563,66 @@ checkExpr e t =
               (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
               blockTerm t' v $ leqType_ ty t'
 
+        A.ETel _   -> __IMPOSSIBLE__
+
+	-- Application
+           -- Subcase: ambiguous constructor
+	_   | Application (A.Con (AmbQ cs@(_:_:_))) args <- appView e -> do
+                -- First we should figure out which constructor we want.
+                reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
+
+                -- Get the datatypes of the various constructors
+                let getData Constructor{conData = d} = d
+                    getData _                        = __IMPOSSIBLE__
+                reportSLn "tc.check.term" 40 $ "  ranges before: " ++ show (getRange cs)
+                -- We use the reduced constructor when disambiguating, but
+                -- the original constructor for type checking. This is important
+                -- since they may have different types (different parameters).
+                -- See issue 279.
+                cs  <- zip cs . zipWith setRange (map getRange cs) <$> mapM reduceCon cs
+                reportSLn "tc.check.term" 40 $ "  ranges after: " ++ show (getRange cs)
+                reportSLn "tc.check.term" 40 $ "  reduced: " ++ show cs
+                dcs <- mapM (\(c0, c1) -> (getData /\ const c0) . theDef <$> getConstInfo c1) cs
+
+                -- Type error
+                let badCon t = typeError $ DoesNotConstructAnElementOf
+                                            (fst $ head cs) t
+
+                -- Lets look at the target type at this point
+                let getCon = do
+                      TelV _ t1 <- telView t
+                      t1 <- reduceB $ unEl t1
+                      reportSDoc "tc.check.term.con" 40 $ nest 2 $
+                        text "target type: " <+> prettyTCM t1
+                      case t1 of
+                        NotBlocked (Def d _) -> do
+                          let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
+                                c:_ -> do
+                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                                  return (Just c)
+                                []  -> badCon (Def d [])
+                          defn <- theDef <$> getConstInfo d
+                          case defn of
+                            Datatype{} -> dataOrRec
+                            Record{}   -> dataOrRec
+                            _ -> badCon (ignoreBlocking t1)
+                        NotBlocked (MetaV _ _)  -> return Nothing
+                        Blocked{} -> return Nothing
+                        _ -> badCon (ignoreBlocking t1)
+                let unblock = isJust <$> getCon
+                mc <- getCon
+                case mc of
+                  Just c  -> checkConstructorApplication e t c args
+                  Nothing -> postponeTypeCheckingProblem e t unblock
+
+              -- Subcase: non-ambiguous constructor
+            | Application (A.Con (AmbQ [c])) args <- appView e ->
+                checkConstructorApplication e t c args
+              -- Subcase: defined symbol or variable.
+            | Application hd args <- appView e ->
+                checkHeadApplication e t hd args
+
+
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i =
   case A.metaNumber i of
@@ -652,13 +638,13 @@ inferMeta newMeta i =
       return (v, t')
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
-inferHead :: Head -> TCM (Args -> Term, Type)
-inferHead (HeadVar x) = do -- traceCall (InferVar x) $ do
+inferHead :: A.Expr -> TCM (Args -> Term, Type)
+inferHead (A.Var x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
   when (unusableRelevance $ argRelevance a) $
     typeError $ VariableIsIrrelevant x
   return (apply u, unArg a)
-inferHead (HeadDef x) = do
+inferHead (A.Def x) = do
   proj <- isProjection x
   case proj of
     Nothing -> do
@@ -677,7 +663,7 @@ inferHead (HeadDef x) = do
           n' = max 0 (n - 1)
       (u, a) <- inferDef (\f vs -> Def f $ args vs) x
       return (apply u . genericDrop n', a)
-inferHead (HeadCon [c]) = do
+inferHead (A.Con (AmbQ [c])) = do
 
   -- Constructors are polymorphic internally so when building the constructor
   -- term we should throw away arguments corresponding to parameters.
@@ -694,9 +680,11 @@ inferHead (HeadCon [c]) = do
 
   -- So when applying the constructor throw away the parameters.
   return (apply u . genericDrop n, a)
-inferHead (HeadCon _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
-inferHead (HeadQM i)  = inferMeta newQuestionMark i
-inferHead (HeadUnd i) = inferMeta newValueMeta i
+inferHead (A.Con _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
+inferHead (A.QuestionMark i)  = inferMeta newQuestionMark i
+inferHead (A.Underscore i) = inferMeta newValueMeta i
+inferHead e = do (term, t) <- inferExpr e
+                 return (apply term, t)
 
 inferDef :: (QName -> Args -> Term) -> QName -> TCM (Term, Type)
 inferDef mkTerm x =
@@ -799,7 +787,7 @@ checkConstructorApplication org t c args = do
   --    indices
 -}
   where
-    checkHead t args = checkHeadApplication org t (HeadCon [c]) args
+    checkHead t args = checkHeadApplication org t (A.Con (AmbQ [c])) args
 
     -- Split the arguments to a constructor into those corresponding
     -- to parameters and those that don't. Dummy underscores are inserted
@@ -862,7 +850,7 @@ checkConstructorApplication org t c args = do
 --
 -- Precondition: The head @hd@ has to be unambiguous, and there should
 -- not be any need to insert hidden lambdas.
-checkHeadApplication :: A.Expr -> Type -> A.Head -> [NamedArg A.Expr] -> TCM Term
+checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Term
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   case hd of
@@ -870,7 +858,7 @@ checkHeadApplication e t hd args = do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
       -- but the sharp we generate in the body of the wrapper is a Con.
       defaultResult
-    HeadCon [c] -> do
+    A.Con (AmbQ [c]) -> do
       (f, t0) <- inferHead hd
       reportSDoc "tc.term.con" 5 $ vcat
         [ text "checkHeadApplication inferred" <+>
@@ -901,7 +889,7 @@ checkHeadApplication e t hd args = do
             cs2 <- compareTel t t1 CmpLeq eTel fTel
             return $ cs1 ++ cs2
 
-    HeadDef c | Just c == (nameOfSharp <$> kit) -> do
+    (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
       lets <- envLetBindings <$> ask
       unless (Map.null lets) $
@@ -955,11 +943,8 @@ checkHeadApplication e t hd args = do
           text "."
 
       return e'
-    HeadCon _  -> __IMPOSSIBLE__
-    HeadVar {} -> defaultResult
-    HeadDef {} -> defaultResult
-    HeadUnd {} -> defaultResult
-    HeadQM {} -> defaultResult
+    A.Con _  -> __IMPOSSIBLE__
+    _ -> defaultResult
   where
   defaultResult = do
     (f, t0) <- inferHead hd
