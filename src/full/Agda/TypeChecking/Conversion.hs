@@ -76,7 +76,30 @@ equalType = compareType CmpEq
 -- | Type directed equality on values.
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
-compareTerm cmp a m n =
+  -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
+compareTerm cmp a u v = do
+  (u, v) <- instantiate (u, v)
+  let fallback = compareTerm' cmp a u v
+  case (u, v) of
+    (u@(MetaV x us), v@(MetaV y vs)) -> solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+      where
+        (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
+                         | otherwise = (assign y vs u, assign x us v)
+    (u@(MetaV x us), v) -> assign x us v `orelse` fallback
+    (u, v@(MetaV y vs)) -> assign y vs u `orelse` fallback
+    _                   -> fallback
+  where
+    assign x us v = do
+      reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
+                                         , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
+      ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
+    s `orelse` h = do
+      cs <- liftTCM (s `catchError` \_ -> return [__IMPOSSIBLE__])
+      case cs of
+        [] -> return []
+        _  -> h
+
+compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $
   catchConstraint (ValueCmp cmp a m n) $ do
     a'       <- reduce a
