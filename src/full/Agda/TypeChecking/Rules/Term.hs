@@ -807,38 +807,6 @@ checkConstructorApplication org t c args = do
 
     dummyUnderscore = Arg Hidden Relevant (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
 
---   TelV _ (El _ (Def d dargs)) <- telView t
---   condef  <- getConstInfo c
---   let pars = map unArg $ genericTake (conPars $ theDef condef) dargs
---   (_, contype) <- inferHead (HeadCon [c])
---   TelV contel _ <- telView contype
---   let args' = insertParams contel pars args
---   reportSDoc "tc.term.con" 10 $ vcat
---     [ text "Checking constructor application"
---     , nest 2 $ vcat
---       [ text "args  =" <+> prettyList (map prettyA args)
---       , text "args' =" <+> prettyList (map prettyA args')
---       ]
---     ]
---   checkHeadApplication org t (HeadCon [c]) args'
---   where
---     insertParams :: Telescope -> [Term] -> [NamedArg A.Expr] -> [NamedArg A.Expr]
---     insertParams _ [] args = args
---     insertParams (ExtendTel a tel) (p:ps) (arg:args)
---       | argHiding arg == NotHidden ||
---         notElem argname [Nothing, telname] =
---           Arg Hidden (unnamed $ A.TypeChecked p) :
---           insertParams (absBody tel) ps (arg:args)
---       | otherwise =
---           arg : insertParams (absBody tel) ps args
---       where
---         argname = nameOf (unArg arg)
---         telname = Just (absName tel)
---     insertParams (ExtendTel a tel) (p:ps) [] =
---           Arg Hidden (unnamed $ A.TypeChecked p) :
---           insertParams (absBody tel) ps []
---     insertParams EmptyTel (_:_) _ = __IMPOSSIBLE__
-
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
 -- type-checked term is returned.
@@ -854,7 +822,7 @@ checkHeadApplication :: A.Expr -> Type -> A.Expr -> [NamedArg A.Expr] -> TCM Ter
 checkHeadApplication e t hd args = do
   kit       <- coinductionKit
   case hd of
-    HeadCon [c] | Just c == (nameOfSharp <$> kit) -> do
+    A.Con (AmbQ [c]) | Just c == (nameOfSharp <$> kit) -> do
       -- Type checking # generated #-wrapper. The # that the user can write will be a Def,
       -- but the sharp we generate in the body of the wrapper is a Con.
       defaultResult
@@ -921,7 +889,7 @@ checkHeadApplication e t hd args = do
           pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
                        reverse ctx
           clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
-                            (A.RHS $ unAppView (A.Application (HeadCon [c]) args))
+                            (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args))
                             []
 
       reportSDoc "tc.term.expr.coind" 15 $ vcat $
