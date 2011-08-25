@@ -1,4 +1,4 @@
 UnifyWithIrrelevantArgument.agda:10,12-16
 Cannot instantiate the metavariable _14 to x since it contains the
-variable x which _14 cannot depend on
+variable x which is not in scope of the metavariable
 when checking that the expression refl has type _14 A _ ≡ x

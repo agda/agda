@@ -1,4 +1,4 @@
 MetaCannotDependOn.agda:13,21-23
 Cannot instantiate the metavariable _21 to Vec n Nat since it
-contains the variable n which _21 cannot depend on
+contains the variable n which is not in scope of the metavariable
 when checking that the expression xs has type Vec n Nat

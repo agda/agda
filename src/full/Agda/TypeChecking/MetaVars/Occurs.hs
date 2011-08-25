@@ -31,6 +31,17 @@ data OccursCtx
   | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
   deriving (Eq, Show)
 
+data UnfoldStrategy = YesUnfold | NoUnfold
+  deriving (Eq, Show)
+
+defArgs :: UnfoldStrategy -> OccursCtx -> OccursCtx
+defArgs NoUnfold  _   = Flex
+defArgs YesUnfold ctx = weakly ctx
+
+unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
+unfold NoUnfold  v = NotBlocked <$> instantiate v
+unfold YesUnfold v = reduceB v
+
 -- | Leave the strongly rigid position.
 weakly :: OccursCtx -> OccursCtx
 weakly StronglyRigid = Rigid
@@ -47,7 +58,7 @@ abort StronglyRigid err = typeError err -- here, throw an uncatchable error (uns
 
 -- | Extended occurs check.
 class Occurs t where
-  occurs :: OccursCtx -> MetaId -> [Nat] -> t -> TCM t
+  occurs :: UnfoldStrategy -> OccursCtx -> MetaId -> [Nat] -> t -> TCM t
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
@@ -61,7 +72,9 @@ occursCheck m xs v = liftTCM $ do
                | m == m' -> patternViolation
     _                           ->
                               -- Produce nicer error messages
-      occurs StronglyRigid m xs v `catchError` \err -> case errError err of
+      -- First try without normalising the term
+      occurs NoUnfold  StronglyRigid m xs v `catchError` \_ ->
+      occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
         TypeError _ cl -> case clValue cl of
           MetaOccursInItself{} ->
             typeError . GenericError . show =<<
@@ -82,15 +95,15 @@ occursCheck m xs v = liftTCM $ do
                    , prettyTCM v
                    , text "since it contains the variable"
                    , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , text $ "which " ++ show m ++ " cannot depend on"
+                   , text $ "which is not in scope of the metavariable"
                    ]
             )
           _ -> throwError err
         _ -> throwError err
 
 instance Occurs Term where
-  occurs ctx m xs v = do
-    v <- reduceB v
+  occurs red ctx m xs v = do
+    v <- unfold red v
     case v of
       -- Don't fail on blocked terms or metas
       Blocked _ v  -> occurs' Flex v
@@ -114,7 +127,7 @@ instance Occurs Term where
             when (m == m') $ abort ctx $ MetaOccursInItself m
 
             -- The arguments of a meta are in a flexible position
-            (MetaV m' <$> occurs Flex m xs vs) `catchError` \err -> do
+            (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
               reportSDoc "tc.meta.kill" 25 $ vcat
                 [ text $ "error during flexible occurs check, we are " ++ show ctx
                 , text $ show (errError err)
@@ -147,57 +160,61 @@ instance Occurs Term where
                       killResult <- prune m' vs xs
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
-                        then occurs ctx m xs =<< instantiate (MetaV m' vs)
+                        then occurs red ctx m xs =<< instantiate (MetaV m' vs)
                         else throwError err
                 _ -> throwError err
         where
-          occ ctx v = occurs ctx m xs v
+          occ ctx v = occurs red ctx m xs v
           -- a data or record type constructor propagates strong occurrences
           -- since e.g. x = List x is unsolvable
           occDef d ctx v = ifM (isDataOrRecordType d) (occ ctx v)
-                                 (occ (weakly ctx) v)
+                                 (occ (defArgs red ctx) v)
 
 instance Occurs Level where
-  occurs ctx m xs (Max as) = Max <$> occurs ctx m xs as
+  occurs red ctx m xs (Max as) = Max <$> occurs red ctx m xs as
 
 instance Occurs PlusLevel where
-  occurs ctx m xs l@ClosedLevel{} = return l
-  occurs ctx m xs (Plus n l) = Plus n <$> occurs ctx m xs l
+  occurs red ctx m xs l@ClosedLevel{} = return l
+  occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx m xs l
 
 instance Occurs LevelAtom where
-  occurs ctx m xs l = do
-    l <- reduce l
+  occurs red ctx m xs l = do
+    l <- case red of
+           YesUnfold -> reduce l
+           NoUnfold  -> instantiate l
     case l of
       MetaLevel m' args -> do
-        MetaV m' args <- occurs ctx m xs (MetaV m' args)
+        MetaV m' args <- occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
-      NeutralLevel v   -> NeutralLevel <$> occurs ctx m xs v
-      BlockedLevel m v -> BlockedLevel m <$> occurs Flex m xs v
-      UnreducedLevel{} -> __IMPOSSIBLE__
+      NeutralLevel v   -> NeutralLevel   <$> occurs red ctx m xs v
+      BlockedLevel m v -> BlockedLevel m <$> occurs red Flex m xs v
+      UnreducedLevel v -> UnreducedLevel <$> occurs red ctx m xs v
 
 instance Occurs Type where
-  occurs ctx m xs (El s v) = uncurry El <$> occurs ctx m xs (s,v)
+  occurs red ctx m xs (El s v) = uncurry El <$> occurs red ctx m xs (s,v)
 
 instance Occurs Sort where
-  occurs ctx m xs s = do
-    s' <- reduce s
+  occurs red ctx m xs s = do
+    s' <- case red of
+            YesUnfold -> reduce s
+            NoUnfold  -> instantiate s
     case s' of
-      DLub s1 s2 -> uncurry DLub <$> occurs (weakly ctx) m xs (s1,s2)
-      Type a     -> Type <$> occurs ctx m xs a
+      DLub s1 s2 -> uncurry DLub <$> occurs red (weakly ctx) m xs (s1,s2)
+      Type a     -> Type <$> occurs red ctx m xs a
       Prop       -> return s'
       Inf        -> return s'
 
 instance Occurs a => Occurs (Abs a) where
-  occurs ctx m xs (Abs s x) = Abs s <$> occurs ctx m (0 : map (1+) xs) x
+  occurs red ctx m xs (Abs s x) = Abs s <$> occurs red ctx m (0 : map (1+) xs) x
 
 instance Occurs a => Occurs (Arg a) where
-  occurs ctx m xs (Arg h r x) = Arg h r <$> occurs ctx m xs x
+  occurs red ctx m xs (Arg h r x) = Arg h r <$> occurs red ctx m xs x
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
-  occurs ctx m xs (x,y) = (,) <$> occurs ctx m xs x <*> occurs ctx m xs y
+  occurs red ctx m xs (x,y) = (,) <$> occurs red ctx m xs x <*> occurs red ctx m xs y
 
 instance Occurs a => Occurs [a] where
-  occurs ctx m xs ys = mapM (occurs ctx m xs) ys
+  occurs red ctx m xs ys = mapM (occurs red ctx m xs) ys
 
 -- * Getting rid of flexible occurrences
 

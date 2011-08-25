@@ -445,9 +445,13 @@ assign x args v = do
         -- need to do something cheaper, especially if
         -- we are dealing with a Miller pattern that can be solved
         -- immediately!
-        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: normalizing v = " ++ (show v)
-        v <- normalise v
-        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: finished normalizing v = " ++ (show v)
+        -- Ulf, 2011-08-25
+        -- Just instantiating the top-level meta, which is cheaper. The occurs
+        -- check will first try without unfolding any definitions (treating
+        -- arguments to definitions as flexible), if that fails it tries again
+        -- with full unfolding.
+        v <- instantiate v
+        reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
 
         case (v, mvJudgement mvar) of
             (Sort Inf, HasType{}) -> typeError $ GenericError "Setω is not a valid type."
