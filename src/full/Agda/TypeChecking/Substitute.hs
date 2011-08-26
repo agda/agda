@@ -515,6 +515,20 @@ instance Raise LevelAtom where
     BlockedLevel n v -> BlockedLevel n $ renameFrom m k v
     UnreducedLevel v -> UnreducedLevel $ renameFrom m k v
 
+instance Raise ClauseBody where
+  raiseFrom m k b = case b of
+    Body v   -> Body $ rf v
+    NoBody   -> NoBody
+    Bind b   -> Bind $ rf b
+    NoBind b -> NoBind $ rf b
+    where rf x = raiseFrom m k x
+  renameFrom m k b = case b of
+    Body v   -> Body $ rf v
+    NoBody   -> NoBody
+    Bind b   -> Bind $ rf b
+    NoBind b -> NoBind $ rf b
+    where rf x = renameFrom m k x
+
 -- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern
 instance Raise Pattern where
     raiseFrom m k p = case p of
