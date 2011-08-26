@@ -606,6 +606,37 @@ pred-mono : pred Preserves _≤_ ⟶ _≤_
 pred-mono z≤n      = z≤n
 pred-mono (s≤s le) = le
 
+*-distrib-∸ʳ : _*_ DistributesOverʳ _∸_
+*-distrib-∸ʳ a zero c =
+   begin (0 ∸ c) * a  ≡⟨ cong₂ _*_ (0∸n≡0 c) refl ⟩
+         zero         ≡⟨ sym (0∸n≡0 (c * a)) ⟩
+         zero ∸ c * a ∎
+*-distrib-∸ʳ a (suc b) zero = begin a + b * a ∎
+*-distrib-∸ʳ a (suc b) (suc c) =
+   begin (b ∸ c) * a             ≡⟨ *-distrib-∸ʳ a b c ⟩
+         b * a ∸ c * a           ≡⟨ sym (a+b∸a+c≡b∸c a (b * a) (c * a)) ⟩
+         a + b * a ∸ (a + c * a) ∎
+    
+  where
+  a+b∸a+c≡b∸c : ∀ a b c → a + b ∸ (a + c) ≡ b ∸ c
+  a+b∸a+c≡b∸c zero b c = refl
+  a+b∸a+c≡b∸c (suc a) b c = a+b∸a+c≡b∸c a b c
+
+≰⇒> : _≰_ ⇒ _>_
+≰⇒> {zero} z≰n with z≰n z≤n
+... | ()
+≰⇒> {suc n} {zero} _ = s≤s z≤n
+≰⇒> {suc a} {suc b} a≰b = s≤s (≰⇒> (a≰b ∘ s≤s))
+
+-‿mono : ∀ a b c → a + b ≤ a + c → b ≤ c
+-‿mono zero b c le = le
+-‿mono (suc n) b c (s≤s m≤n) = -‿mono n b c m≤n
+
+div-mono : ∀ a b c → b * suc a ≤ c * suc a → b ≤ c
+div-mono _ zero _ _ = z≤n
+div-mono a (suc _) zero ()
+div-mono a (suc b) (suc c) (s≤s m≤n) = s≤s (div-mono a b c (-‿mono a (b * suc a) (c * suc a) m≤n))
+
 _+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
   n₁      ≤⟨ n₁≤n₂ ⟩

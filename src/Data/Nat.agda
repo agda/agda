@@ -47,6 +47,9 @@ m ≥ n = n ≤ m
 _>_ : Rel ℕ Level.zero
 m > n = n < m
 
+_≰_ : Rel ℕ Level.zero
+a ≰ b = ¬ a ≤ b 
+
 -- The following, alternative definition of _≤_ is more suitable for
 -- well-founded induction (see Induction.Nat).
 
