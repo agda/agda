@@ -634,7 +634,7 @@ inferMeta newMeta i =
     -- Rechecking an existing metavariable
     Just n -> do
       let v = MetaV (MetaId n)
-      HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
+      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
       return (v, t')
 
 -- | Infer the type of a head thing (variable, function symbol, or constructor)
