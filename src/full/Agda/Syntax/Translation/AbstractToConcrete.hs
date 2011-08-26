@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP, PatternGuards, MultiParamTypeClasses, FunctionalDependencies,
-             TypeSynonymInstances, FlexibleInstances, UndecidableInstances,
-             OverlappingInstances,
-             IncoherentInstances
+             TypeSynonymInstances, FlexibleInstances, UndecidableInstances
   #-}
 
 {-| The translation of abstract syntax to concrete syntax has two purposes.
@@ -455,11 +453,12 @@ data AsWhereDecls = AsWhereDecls [A.Declaration]
 instance ToConcrete AsWhereDecls WhereClause where
   bindToConcrete (AsWhereDecls []) ret = ret C.NoWhere
   bindToConcrete (AsWhereDecls ds@[Section _ am _ _]) ret = do
-    ds' <- toConcrete ds
+    ds' <- concat <$> toConcrete ds
     cm  <- unqualify <$> lookupModule am
     let wh' = (if isNoName cm then AnyWhere else SomeWhere cm) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
-  bindToConcrete (AsWhereDecls ds) ret = ret . AnyWhere =<< toConcrete ds
+  bindToConcrete (AsWhereDecls ds) ret =
+    ret . AnyWhere . concat =<< toConcrete ds
 
 openModule' :: A.ModuleName -> ImportDirective -> (Scope -> Scope) -> Env -> Env
 openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
@@ -475,9 +474,6 @@ openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
 
 -- Declaration instances --------------------------------------------------
 
-instance ToConcrete [A.Declaration] [C.Declaration] where
-    toConcrete ds = concat <$> mapM toConcrete ds
-
 instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e) = do
       e <- toConcrete e
@@ -488,7 +484,7 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
       cs <- toConcrete cs
       return (C.AbsurdRHS, [], es, concat cs)
     toConcrete (A.RewriteRHS _ eqs rhs wh) = do
-      wh <- toConcrete wh
+      wh <- concat <$> toConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
@@ -579,7 +575,7 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
 
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
-    withScope scope $ toConcrete ds
+    withScope scope (concat <$> toConcrete ds)
 
   toConcrete (Axiom i rel x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -621,7 +617,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
-    ds <- toConcrete ds
+    ds <- concat <$> toConcrete ds
     return [ C.Module (getRange i) x tel ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do

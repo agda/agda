@@ -54,7 +54,7 @@ checkRecDef i name con ps contel fields =
       [ text "checking record def" <+> prettyTCM name
       , nest 2 $ text "ps ="     <+> prettyList (map prettyA ps)
       , nest 2 $ text "contel =" <+> prettyA contel
-      , nest 2 $ text "fields =" <+> prettyA fields
+      , nest 2 $ text "fields =" <+> prettyA (map Constr fields)
       ]
     -- get type of record
     t <- instantiateFull =<< typeOfConst name
