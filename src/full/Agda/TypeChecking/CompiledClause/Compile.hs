@@ -12,8 +12,8 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
-import Agda.Utils.List
 import Agda.TypeChecking.Pretty
+import Agda.Utils.List
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
@@ -97,12 +97,13 @@ expandCatchAlls n cs = case cs of
                . filter (not . isCatchAll)
                . map (nth . fst) $ cs
 
-    expand ps b q = case q of
-      ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
-                       substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
-        where m = fromIntegral $ length qs'
-      LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
-      _ -> __IMPOSSIBLE__
+    expand ps b q =
+      case q of
+        ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
+                         substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
+          where m = fromIntegral $ length qs'
+        LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
+        _ -> __IMPOSSIBLE__
       where
         (ps0, _, ps1) = extractNthElement' n ps
 
@@ -115,9 +116,10 @@ expandCatchAlls n cs = case cs of
         var x = defaultArg $ Var x []
 
 substBody :: Int -> Integer -> Term -> ClauseBody -> ClauseBody
+substBody _ _ _ NoBody = NoBody
 substBody 0 m v b = case b of
   NoBind b -> foldr (.) id (genericReplicate m NoBind) b
-  Bind   b -> foldr (.) id (genericReplicate m (Bind . Abs "_")) $ subst v (absBody $ raise (m - 1) b)
+  Bind   b -> foldr (.) id (genericReplicate m (Bind . Abs "_")) $ subst v (absBody $ raise m b)
   _        -> __IMPOSSIBLE__
 substBody n m v b = case b of
   NoBind b -> NoBind $ substBody (n - 1) m v b
