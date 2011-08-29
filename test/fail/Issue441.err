@@ -1,0 +1,3 @@
+
+No binding for builtin thing LEVELMAX, use {-# BUILTIN LEVELMAX
+name #-} to bind it to 'name'

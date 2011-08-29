@@ -54,12 +54,11 @@ builtinLevelKit = liftTCM $ do
 
 -- | Raises an error if no level kit is available.
 
-requireLevels :: TCM LevelKit
+requireLevels :: MonadTCM tcm => tcm LevelKit
 requireLevels = do
   mKit <- builtinLevelKit
   case mKit of
-    Nothing -> typeError $ GenericError $
-      "Some or all of the LEVEL builtins have not been defined."
+    Nothing -> sequence_ [primLevel, primLevelZero, primLevelSuc, primLevelMax] >> __IMPOSSIBLE__
     Just k  -> return k
 
 unLevelAtom :: LevelAtom -> Term
@@ -78,7 +77,7 @@ reallyUnLevelView nv =
       suc <- primLevelSuc
       return $ unPlusV zer (\n -> suc `apply` [defaultArg n]) a
     Max as -> do
-      Just LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } <- builtinLevelKit
+      LevelKit{ lvlZero = zer, lvlSuc = suc, lvlMax = max } <- requireLevels
       return $ case map (unPlusV zer suc) as of
         [a] -> a
         []  -> __IMPOSSIBLE__
