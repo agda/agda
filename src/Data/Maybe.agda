@@ -39,6 +39,17 @@ maybe j n nothing  = n
 maybe′ : ∀ {a b} {A : Set a} {B : Set b} → (A → B) → B → Maybe A → B
 maybe′ = maybe
 
+-- A safe variant of "fromJust". If the value is nothing, then the
+-- return type is the unit type.
+
+From-just : ∀ {a} (A : Set a) → Maybe A → Set a
+From-just A (just _) = A
+From-just A nothing  = Lift ⊤
+
+from-just : ∀ {a} {A : Set a} (x : Maybe A) → From-just A x
+from-just (just x) = x
+from-just nothing  = _
+
 ------------------------------------------------------------------------
 -- Maybe monad
 
