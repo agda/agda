@@ -7,7 +7,7 @@ import Agda.Syntax.Abstract
 import Agda.Syntax.Info
 
 data AppView = Application Expr [NamedArg Expr]
-	     -- | NonApplication Expr
+	     -- NonApplication Expr
 	     --    -- ^ TODO: if we allow beta-redexes (which we currently do) there could be one here.
              -- 2011-08-24, Dominique: removed..
 

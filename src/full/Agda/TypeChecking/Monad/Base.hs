@@ -982,7 +982,7 @@ data TCErr' = TypeError TCState (Closure TypeError)
 	    | Exception Range String
             | IOException Range E.IOException
 	    | PatternErr  TCState -- ^ for pattern violations
-	    {- | AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
+	    {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
   deriving (Typeable)
 
 -- | Type-checking errors, potentially paired with relevant syntax
