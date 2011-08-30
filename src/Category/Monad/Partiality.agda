@@ -233,8 +233,8 @@ private
       now-trans : ∀ {k x y} {v : A} →
                   Rel k x y → Rel k y (now v) → Rel k x (now v)
       now-trans (now    x∼y) (now    y∼z) = now (trans-∼        x∼y   y∼z)
-      now-trans         x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
       now-trans (laterˡ x∼y)         y∼z  = laterˡ (now-trans   x∼y   y∼z)
+      now-trans         x∼ly (laterˡ y∼z) = now-trans (laterʳ⁻¹ x∼ly) y∼z
 
       mutual
 
