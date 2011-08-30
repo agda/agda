@@ -20,3 +20,5 @@
 
 20110825: Allow instantiation of blocked terms, and short-cut instantiation of
           metas.
+
+20110830: New computer.
