@@ -26,11 +26,12 @@ monadpostulate = monad/MonadPostulates.agda -i../std-lib/src -imonad
 monadTests = monad monadpostulate
 
 #misc
-misc				= misc/$1.agda -imisc --ignore-interfaces
-functor			= $(call misc,Functor)
-latemeta		= $(call misc,LateMetaVariableInstantiation)
-polyfunctor = $(call misc,UniversePolymorphicFunctor)
-miscTests		= functor latemeta polyfunctor
+misc				 = misc/$1.agda -imisc --ignore-interfaces
+functor			 = $(call misc,Functor)
+latemeta		 = $(call misc,LateMetaVariableInstantiation)
+polyfunctor  = $(call misc,UniversePolymorphicFunctor)
+patternmatch = $(call misc,HeapExplosion)
+miscTests		 = functor latemeta polyfunctor patternmatch
 
 # All tests
 allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests)

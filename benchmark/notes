@@ -22,3 +22,6 @@
           metas.
 
 20110830: New computer.
+
+20110830: (18:00) Added patternmatch test case. Needs abnormal amounts of
+          memory. No idea why.
