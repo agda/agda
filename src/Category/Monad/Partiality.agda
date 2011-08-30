@@ -18,7 +18,6 @@ open import Level using (_⊔_)
 open import Relation.Binary as B hiding (Rel)
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
-open import Relation.Nullary.Decidable hiding (map)
 open import Relation.Nullary.Negation
 
 ------------------------------------------------------------------------
@@ -75,22 +74,16 @@ data Kind : Set where
   strong : Kind
   other  : (k : OtherKind) → Kind
 
--- Kind equality is decidable.
+-- Kinds with equality.
 
-_≟-Kind_ : Decidable (_≡_ {A = Kind})
-_≟-Kind_ strong       strong       = yes P.refl
-_≟-Kind_ strong       (other k)    = no λ()
-_≟-Kind_ (other k)    strong       = no λ()
-_≟-Kind_ (other geq)  (other geq)  = yes P.refl
-_≟-Kind_ (other geq)  (other weak) = no λ()
-_≟-Kind_ (other weak) (other geq)  = no λ()
-_≟-Kind_ (other weak) (other weak) = yes P.refl
+data EqualityKind : Set where
+  strong weak : EqualityKind
 
--- A predicate which is satisfied only for equalities. Note that, for
--- concrete inputs, this predicate evaluates to ⊤ or ⊥.
+-- Forgetful map.
 
-Equality : Kind → Set
-Equality k = False (k ≟-Kind other geq)
+⌊_⌋ : EqualityKind → Kind
+⌊ strong ⌋ = strong
+⌊ weak   ⌋ = other weak
 
 ------------------------------------------------------------------------
 -- Equality/ordering
@@ -218,12 +211,11 @@ private
 
     -- Symmetry.
 
-    sym : Symmetric _∼_ → ∀ {k} → Equality k → Symmetric (Rel k)
-    sym sym-∼ eq (now x∼y)           = now (sym-∼ x∼y)
-    sym sym-∼ eq (later         x∼y) = later (♯ sym sym-∼ eq (♭ x∼y))
-    sym sym-∼ eq (laterʳ        x≈y) = laterˡ  (sym sym-∼ eq    x≈y )
-    sym sym-∼ eq (laterˡ {weak} x≈y) = laterʳ  (sym sym-∼ eq    x≈y )
-    sym sym-∼ () (laterˡ {geq}  x≳y)
+    sym : Symmetric _∼_ → ∀ {k} → Symmetric (Rel ⌊ k ⌋)
+    sym sym-∼ {weak} (laterˡ x≈y) = laterʳ  (sym sym-∼    x≈y )
+    sym sym-∼ {weak} (laterʳ x≈y) = laterˡ  (sym sym-∼    x≈y )
+    sym sym-∼        (later  x∼y) = later (♯ sym sym-∼ (♭ x∼y))
+    sym sym-∼        (now    x∼y) = now (sym-∼ x∼y)
 
     -- Transitivity.
 
@@ -275,17 +267,16 @@ private
 
   -- The two equalities are equivalence relations.
 
-  setoid : IsEquivalence _∼_ →
-           (k : Kind) {eq : Equality k} → Setoid _ _
-  setoid equiv k {eq} = record
+  setoid : IsEquivalence _∼_ → EqualityKind → Setoid _ _
+  setoid equiv k = record
     { Carrier       = A ⊥
-    ; _≈_           = Rel k
+    ; _≈_           = Rel ⌊ k ⌋
     ; isEquivalence = record
       { refl  = Pre.refl
-      ; sym   = Equivalence.sym (IsEquivalence.sym equiv) eq
+      ; sym   = Equivalence.sym (IsEquivalence.sym equiv)
       ; trans = Pre.trans
       }
-    } where module Pre = Preorder (preorder′ equiv k)
+    } where module Pre = Preorder (preorder′ equiv ⌊ k ⌋)
 
   -- The order is a partial order, with strong equality as the
   -- underlying equality.
@@ -320,8 +311,8 @@ private
   module Reasoning (isEquivalence : IsEquivalence _∼_) where
 
     private
-      module Pre {k}  = Preorder (preorder′ isEquivalence k)
-      module S {k eq} = Setoid (setoid isEquivalence k {eq})
+      module Pre {k} = Preorder (preorder′ isEquivalence k)
+      module S   {k} = Setoid (setoid isEquivalence k)
 
     infix  2 _∎
     infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
@@ -336,9 +327,8 @@ private
     _≈⟨_⟩_ : ∀ x {y z : A ⊥} → x ≈ y → y ≈ z → x ≈ z
     _ ≈⟨ x≈y ⟩ y≈z = Pre.trans x≈y y≈z
 
-    sym : ∀ {k} {eq : Equality k} {x y : A ⊥} →
-          Rel k x y → Rel k y x
-    sym {eq = eq} = S.sym {eq = eq}
+    sym : ∀ {k} {x y : A ⊥} → Rel ⌊ k ⌋ x y → Rel ⌊ k ⌋ y x
+    sym = S.sym
 
     _∎ : ∀ {k} (x : A ⊥) → Rel k x x
     x ∎ = Pre.refl
@@ -681,7 +671,7 @@ module AlternativeEquality {a ℓ} where
       -- various things.
 
       _∎      : ∀ {k} x → RelP S k x x
-      sym     : ∀ {k x y} {eq : Equality k} (x∼y : RelP S k x y) → RelP S k y x
+      sym     : ∀ {k x y} (x∼y : RelP S ⌊ k ⌋ x y) → RelP S ⌊ k ⌋ y x
       _≅⟨_⟩_  : ∀ {k} x {y z} (x≅y : S ∣ x ≅P y) (y∼z : RelP S k y z) → RelP S k x z
       _≳⟨_⟩_  : let open Equality (Eq S) in
                 ∀     x {y z} (x≳y :     x ≳  y) (y≳z : S ∣ y ≳P z) → S ∣ x ≳P z
@@ -750,12 +740,11 @@ module AlternativeEquality {a ℓ} where
     reflW {S} (now   x) = now (Setoid.refl S)
     reflW     (later x) = later (♭ x ∎)
 
-    symW : ∀ {S k x y} → Equality k → RelW S k x y → RelW S k y x
-    symW {S} eq (now           xRy) = now (Setoid.sym S xRy)
-    symW     eq (later         x≈y) = later  (sym {eq = eq} x≈y)
-    symW     eq (laterʳ        x≈y) = laterˡ (symW      eq  x≈y)
-    symW     eq (laterˡ {weak} x≈y) = laterʳ (symW      eq  x≈y)
-    symW     () (laterˡ {geq}  x≈y)
+    symW : ∀ {S k x y} → RelW S ⌊ k ⌋ x y → RelW S ⌊ k ⌋ y x
+    symW {k = weak} (laterˡ x≈y) = laterʳ (symW x≈y)
+    symW {k = weak} (laterʳ x≈y) = laterˡ (symW x≈y)
+    symW            (later  x≈y) = later  (sym  x≈y)
+    symW {S}        (now    xRy) = now (Setoid.sym S xRy)
 
     trans≅W : ∀ {S x y z} →
               RelW S strong x y → RelW S strong y z → RelW S strong x z
@@ -771,13 +760,28 @@ module AlternativeEquality {a ℓ} where
 
     -- Strong equality programs can be turned into WHNFs.
 
-    whnf≅ : ∀ {S x y} → S ∣ x ≅P y → RelW S strong x y
-    whnf≅ (now xRy)         = now xRy
-    whnf≅ (later x≅y)       = later (♭ x≅y)
-    whnf≅ (x₁≅x₂ >>= f₁≅f₂) = whnf≅ x₁≅x₂ >>=W λ xRy → whnf≅ (f₁≅f₂ xRy)
-    whnf≅ (x ∎)             = reflW x
-    whnf≅ (sym x≅y)         = symW _ (whnf≅ x≅y)
-    whnf≅ (x ≅⟨ x≅y ⟩ y≅z)  = trans≅W (whnf≅ x≅y) (whnf≅ y≅z)
+    mutual
+
+      whnf≅ : ∀ {S x y} → S ∣ x ≅P y → RelW S strong x y
+      whnf≅ x≅y = whnf≅′ x≅y P.refl
+
+      whnf≅′ : ∀ {S k x y} →
+               RelP S k x y → k ≡ strong → RelW S strong x y
+      whnf≅′ (now xRy)          P.refl = now xRy
+      whnf≅′ (later x≅y)        P.refl = later (♭ x≅y)
+      whnf≅′ (x₁≅x₂ >>= f₁≅f₂)  P.refl = whnf≅ x₁≅x₂ >>=W λ xRy →
+                                         whnf≅ (f₁≅f₂ xRy)
+      whnf≅′ (x ∎)              P.refl = reflW x
+      whnf≅′ (sym {strong} x≅y) P.refl = symW (whnf≅ x≅y)
+      whnf≅′ (x ≅⟨ x≅y ⟩ y≅z)   P.refl = trans≅W (whnf≅ x≅y) (whnf≅ y≅z)
+      whnf≅′ (laterʳ _)         ()
+      whnf≅′ (laterˡ _)         ()
+      whnf≅′ (sym {weak} _)     ()
+      whnf≅′ (_ ≳⟨ _ ⟩  _)      ()
+      whnf≅′ (_ ≳⟨ _ ⟩≅ _)      ()
+      whnf≅′ (_ ≳⟨ _ ⟩≈ _)      ()
+      whnf≅′ (_ ≈⟨ _ ⟩≅ _)      ()
+      whnf≅′ (_ ≈⟨ _ ⟩≲ _)      ()
 
     -- More transitivity lemmas.
 
@@ -803,16 +807,28 @@ module AlternativeEquality {a ℓ} where
 
     -- Order programs can be turned into WHNFs.
 
-    whnf≳ : ∀ {S x y} → S ∣ x ≳P y → RelW S (other geq) x y
-    whnf≳ (now xRy)           = now xRy
-    whnf≳ (later  x∼y)        = later (♭ x∼y)
-    whnf≳ (laterˡ x≲y)        = laterˡ (whnf≳ x≲y)
-    whnf≳ (x₁∼x₂ >>= f₁∼f₂)   = whnf≳ x₁∼x₂ >>=W λ xRy → whnf≳ (f₁∼f₂ xRy)
-    whnf≳ (x ∎)               = reflW x
-    whnf≳ (sym {eq = ()} x≅y)
-    whnf≳ (x ≅⟨ x≅y ⟩  y≳z)   = trans≅∼W (whnf≅ x≅y) (whnf≳ y≳z)
-    whnf≳ (x ≳⟨ x≳y ⟩  y≳z)   = trans≳-W        x≳y  (whnf≳ y≳z)
-    whnf≳ (x ≳⟨ x≳y ⟩≅ y≅z)   = trans∼≅W (whnf≳ x≳y) (whnf≅ y≅z)
+    mutual
+
+      whnf≳ : ∀ {S x y} → S ∣ x ≳P y → RelW S (other geq) x y
+      whnf≳ x≳y = whnf≳′ x≳y P.refl
+
+      whnf≳′ : ∀ {S k x y} →
+               RelP S k x y → k ≡ other geq → RelW S (other geq) x y
+      whnf≳′ (now xRy)         P.refl = now xRy
+      whnf≳′ (later  x∼y)      P.refl = later (♭ x∼y)
+      whnf≳′ (laterˡ x≲y)      P.refl = laterˡ (whnf≳ x≲y)
+      whnf≳′ (x₁∼x₂ >>= f₁∼f₂) P.refl = whnf≳ x₁∼x₂ >>=W λ xRy →
+                                        whnf≳ (f₁∼f₂ xRy)
+      whnf≳′ (x ∎)             P.refl = reflW x
+      whnf≳′ (x ≅⟨ x≅y ⟩  y≳z) P.refl = trans≅∼W (whnf≅ x≅y) (whnf≳ y≳z)
+      whnf≳′ (x ≳⟨ x≳y ⟩  y≳z) P.refl = trans≳-W        x≳y  (whnf≳ y≳z)
+      whnf≳′ (x ≳⟨ x≳y ⟩≅ y≅z) P.refl = trans∼≅W (whnf≳ x≳y) (whnf≅ y≅z)
+      whnf≳′ (laterʳ _)        ()
+      whnf≳′ (sym {strong} _)  ()
+      whnf≳′ (sym {weak}   _)  ()
+      whnf≳′ (_ ≳⟨ _ ⟩≈ _)     ()
+      whnf≳′ (_ ≈⟨ _ ⟩≅ _)     ()
+      whnf≳′ (_ ≈⟨ _ ⟩≲ _)     ()
 
     -- Another transitivity lemma.
 
@@ -834,13 +850,13 @@ module AlternativeEquality {a ℓ} where
     whnf (laterˡ x∼y)        = laterˡ (whnf x∼y)
     whnf (x₁∼x₂ >>= f₁∼f₂)   = whnf x₁∼x₂ >>=W λ xRy → whnf (f₁∼f₂ xRy)
     whnf (x ∎)               = reflW x
-    whnf (sym {eq = eq} x≈y) = symW eq (whnf x≈y)
+    whnf (sym x≈y)           = symW (whnf x≈y)
     whnf (x ≅⟨ x≅y ⟩  y∼z)   = trans≅∼W (whnf x≅y) (whnf y∼z)
     whnf (x ≳⟨ x≳y ⟩  y≳z)   = trans≳-W       x≳y  (whnf y≳z)
     whnf (x ≳⟨ x≳y ⟩≅ y≅z)   = trans∼≅W (whnf x≳y) (whnf y≅z)
     whnf (x ≳⟨ x≳y ⟩≈ y≈z)   = trans≳≈W (whnf x≳y) (whnf y≈z)
     whnf (x ≈⟨ x≈y ⟩≅ y≅z)   = trans∼≅W (whnf x≈y) (whnf y≅z)
-    whnf (x ≈⟨ x≈y ⟩≲ y≲z)   = symW _ (trans≳≈W (whnf y≲z) (symW _ (whnf x≈y)))
+    whnf (x ≈⟨ x≈y ⟩≲ y≲z)   = symW (trans≳≈W (whnf y≲z) (symW (whnf x≈y)))
 
   mutual
 
