@@ -233,8 +233,8 @@ instance Reify Term Expr where
              info <- getConstInfo x
              cls <- mapM (reify . (NamedClause x)) $ defClauses info
              -- Karim: Currently Abs2Conc does not require a DefInfo thus we
-             -- use undefined.
-             reifyApp (A.ExtendedLam exprInfo undefined x cls) $ genericDrop n vs
+             -- use __IMPOSSIBLE__.
+             reifyApp (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) $ genericDrop n vs
             else
              reifyApp (A.Def x) $ genericDrop n vs
       I.Con x vs   -> do

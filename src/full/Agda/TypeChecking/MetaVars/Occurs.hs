@@ -325,7 +325,8 @@ performKill kills m a = do
   when (mvFrozen mv == Frozen) __IMPOSSIBLE__
   let perm = Perm (size kills)
              [ i | (i, Arg _ _ False) <- zip [0..] (reverse kills) ]
-  m' <- newMeta (mvInfo mv) (mvPriority mv) perm (HasType undefined a)
+  m' <- newMeta (mvInfo mv) (mvPriority mv) perm
+                (HasType __IMPOSSIBLE__ a)
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
   let vars = reverse [ Arg h r (Var i []) | (i, Arg h r False) <- zip [0..] kills ]
