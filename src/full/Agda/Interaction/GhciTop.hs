@@ -171,7 +171,7 @@ ioTCM_ m = do
     Left err -> do
       Right doc <- runTCM $ prettyTCM err
       putStrLn $ render doc
-      return $ undefined
+      return __IMPOSSIBLE__
 {-
   Right (x, s) <- runTCM $ do
     put $ theTCState tcs
