@@ -30,7 +30,7 @@ misc				 = misc/$1.agda -imisc --ignore-interfaces
 functor			 = $(call misc,Functor)
 latemeta		 = $(call misc,LateMetaVariableInstantiation)
 polyfunctor  = $(call misc,UniversePolymorphicFunctor)
-patternmatch = $(call misc,HeapExplosion)
+patternmatch = $(call misc,Coverage)
 miscTests		 = functor latemeta polyfunctor patternmatch
 
 # All tests

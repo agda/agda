@@ -25,3 +25,10 @@
 
 20110830: (18:00) Added patternmatch test case. Needs abnormal amounts of
           memory. No idea why.
+
+20110901: Removed a clause from the patternmatch case. The reason it requires
+          so much memory is coverage checking. It's expected with the current
+          algorithm. It could potentially be improved by separating coverage
+          checking from unreachability checking, but this isn't really a
+          problem in practise. GHC checks both completeness and overlap
+          instantly, so it is possible.

@@ -1,4 +1,4 @@
-module HeapExplosion where
+module Coverage where
 
 infixr 40 _::_
 data List (A : Set) : Set where
@@ -16,7 +16,7 @@ f (c3 a (c1 b) (c1 c2)) (c1 (c1 c)) d (c1 (c1 (c1 e))) = a :: b :: c :: d :: e :
 f (c3 (c4 c2 a) (c1 b) (c1 c)) d (c1 (c1 e)) (c1 (c1 (c1 f))) = a :: b :: c :: d :: e :: f :: []
 f a b (c1 c) (c3 d (c1 e) (c1 f)) = a :: b :: c :: d :: e :: f :: []
 f (c3 (c4 a c2) b (c1 c)) (c1 d) (c1 (c1 (c1 e))) (c1 (c1 (c1 f))) = a :: b :: c :: d :: e :: f :: []
-f (c3 a (c1 b) c) (c1 (c1 (c1 d))) (c1 (c1 (c1 e))) f = a :: b :: c :: d :: e :: f :: []
+-- f (c3 a (c1 b) c) (c1 (c1 (c1 d))) (c1 (c1 (c1 e))) f = a :: b :: c :: d :: e :: f :: []
 -- f a b (c1 (c1 c)) (c1 (c1 (c1 c2))) = a :: b :: c :: []
 f a b c d = a :: b :: c :: d :: []
 
