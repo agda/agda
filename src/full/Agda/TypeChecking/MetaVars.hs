@@ -9,8 +9,6 @@ import Data.Generics
 import Data.List as List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
-import qualified Data.Set as Set
 import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Common
@@ -41,6 +39,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import qualified Agda.Utils.VarSet as Set
 
 import Agda.TypeChecking.Monad.Debug
 
@@ -583,7 +582,7 @@ assign x args v = do
 --	    Nothing -> fmap (const DontCare) arg	-- we will end up here, but never look at the result
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
-type FVs = Set Nat
+type FVs = Set.VarSet
 
 -- | Check that arguments to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf.

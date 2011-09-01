@@ -3,8 +3,6 @@
 module Agda.TypeChecking.Telescope where
 
 import Control.Applicative
-import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.List
 
 import Agda.Syntax.Common
@@ -18,6 +16,8 @@ import Agda.TypeChecking.Free
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.VarSet (VarSet)
+import qualified Agda.Utils.VarSet as Set
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -93,7 +93,7 @@ data SplitTel = SplitTel
 
 -- | Split a telescope into the part that defines the given variables and the
 --   part that doesn't.
-splitTelescope :: Set Nat -> Telescope -> SplitTel
+splitTelescope :: VarSet -> Telescope -> SplitTel
 splitTelescope fv tel = SplitTel tel1 tel2 perm
   where
     names = teleNames tel

@@ -8,7 +8,6 @@ module Agda.TypeChecking.Test.Generators where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.State
-import qualified Data.Set as Set
 import qualified Data.List as List (sort, nub)
 import Agda.Utils.QuickCheck hiding (Args)
 
@@ -23,6 +22,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.TestHelpers
 import Agda.Utils.Monad
 import Agda.Utils.QuickCheck hiding (Args)
+import qualified Agda.Utils.VarSet as Set
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

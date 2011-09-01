@@ -13,8 +13,8 @@ module Agda.TypeChecking.Free
     , occurrence
     ) where
 
-import qualified Data.Set as Set
-import Data.Set (Set)
+import qualified Agda.Utils.VarSet as Set
+import Agda.Utils.VarSet (VarSet)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -33,15 +33,15 @@ import Agda.Utils.Impossible
 -- [Jason C. Reed, PhD thesis, page 106]
 
 data FreeVars = FV
-  { stronglyRigidVars :: Set Nat -- ^ variables at top and under constructors
-  , weaklyRigidVars   :: Set Nat -- ^ ord. rigid variables, e.g., in arguments of variables
-  , flexibleVars      :: Set Nat -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
+  { stronglyRigidVars :: VarSet -- ^ variables at top and under constructors
+  , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables
+  , flexibleVars      :: VarSet -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
   }
 
-rigidVars :: FreeVars -> Set Nat
+rigidVars :: FreeVars -> VarSet
 rigidVars fv = Set.union (stronglyRigidVars fv) (weaklyRigidVars fv)
 
-allVars :: FreeVars -> Set Nat
+allVars :: FreeVars -> VarSet
 allVars fv = Set.union (rigidVars fv) (flexibleVars fv)
 
 data Occurrence
@@ -52,10 +52,11 @@ data Occurrence
   deriving (Eq,Show)
 
 occurrence :: Nat -> FreeVars -> Occurrence
-occurrence x fv | x `Set.member` stronglyRigidVars fv = StronglyRigid
-occurrence x fv | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
-occurrence x fv | x `Set.member` flexibleVars      fv = Flexible
-occurrence _ _ = NoOccurrence
+occurrence x fv
+  | x `Set.member` stronglyRigidVars fv = StronglyRigid
+  | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
+  | x `Set.member` flexibleVars      fv = Flexible
+  | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
 flexible :: FreeVars -> FreeVars
@@ -83,12 +84,11 @@ unions = foldr union empty
 empty :: FreeVars
 empty = FV Set.empty Set.empty Set.empty
 
-mapFV :: (Nat -> Nat) -> FreeVars -> FreeVars
-mapFV f (FV sv rv fv) = FV (Set.map f sv) (Set.map f rv) (Set.map f fv)
-
 delete :: Nat -> FreeVars -> FreeVars
-delete x (FV sv rv fv) =
-  FV (Set.delete x sv) (Set.delete x rv) (Set.delete x fv)
+delete n (FV sv rv fv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv)
+
+subtractFV :: Nat -> FreeVars -> FreeVars
+subtractFV n (FV sv rv fv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv)
 
 -- | A single (strongly) rigid variable.
 singleton :: Nat -> FreeVars
@@ -165,7 +165,7 @@ instance Free a => Free (Arg a) where
   freeVars' conf = freeVars' conf . unArg
 
 instance Free a => Free (Abs a) where
-  freeVars' conf (Abs _ b) = mapFV (subtract 1) $ delete 0 $ freeVars' conf b
+  freeVars' conf (Abs _ b) = subtractFV 1 $ delete 0 $ freeVars' conf b
 
 instance Free a => Free (Tele a) where
   freeVars' conf EmptyTel	   = empty

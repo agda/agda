@@ -638,11 +638,8 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
 --
 --   @dLub s1 \i.s2 = \omega@ if @i@ appears in the rigid variables of @s2@.
 dLub :: Sort -> Abs Sort -> Sort
-dLub s1 s2
-  | 0 `Set.member` rv = Inf
-  | 0 `Set.member` fv = DLub s1 s2
-  | otherwise         = sLub s1 (absApp s2 __IMPOSSIBLE__)
-  where
-    vs = freeVars (absBody s2)
-    fv = flexibleVars vs
-    rv = rigidVars vs
+dLub s1 s2 = case occurrence 0 $ freeVars (absBody s2) of
+  Flexible      -> DLub s1 s2
+  NoOccurrence  -> sLub s1 (absApp s2 __IMPOSSIBLE__)
+  StronglyRigid -> Inf
+  WeaklyRigid   -> Inf

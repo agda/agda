@@ -5,7 +5,6 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
-import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -21,6 +20,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import qualified Agda.Utils.VarSet as Set
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"

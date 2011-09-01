@@ -1,6 +1,6 @@
 module Agda.TypeChecking.Tests where
 
-import qualified Data.Set as Set
+import qualified Agda.Utils.VarSet as Set
 import Agda.Utils.QuickCheck
 
 import Agda.Syntax.Internal

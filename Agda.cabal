@@ -260,6 +260,7 @@ library
                     Agda.TypeChecking.Tests
                     Agda.TypeChecking.UniversePolymorphism
                     Agda.TypeChecking.With
+                    Agda.Utils.VarSet
                     Agda.Utils.Char
                     Agda.Utils.Either
                     Agda.Utils.FileName
