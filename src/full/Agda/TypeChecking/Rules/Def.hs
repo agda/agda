@@ -172,6 +172,7 @@ data WithFunctionProblem
                      Type           -- type of the right hand side
                      [Arg Pattern]  -- parent patterns
                      Permutation    -- permutation reordering the variables in the parent pattern
+                     Permutation    -- final permutation (including permutation for the parent clause)
                      [A.Clause]     -- the given clauses for the with function
 
 -- | Type check a function clause.
@@ -267,15 +268,22 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                     , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
                     , text "vs     =" <+> prettyTCM vs
                     , text "as     =" <+> prettyTCM as
+                    , text "perm'  =" <+> text (show perm')
+                    , text "perm   =" <+> text (show perm)
+                    , text "fPerm  =" <+> text (show finalPerm)
                     ]
 
                   -- Create the body of the original function
                   ctx <- getContextTelescope
                   let n    = size ctx
                       m    = size delta
+                      -- All the context variables
                       us   = [ Arg h r (Var i []) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
+                      -- First the variables bound outside this definition
                       (us0, us1') = genericSplitAt (n - m) us
+                      -- Then permute the rest and grab those needed to for the with arguments
                       (us1, us2)  = genericSplitAt (size delta1) $ permute perm' us1'
+                      -- Now stuff the with arguments in between and finish with the remaining variables
                       v    = Def aux $ us0 ++ us1 ++ (map defaultArg vs0) ++ us2
 
                   -- We need Δ₁Δ₂ ⊢ t'
@@ -297,7 +305,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                     , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
                     ]
 
-                  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps finalPerm cs)
+                  return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' finalPerm cs)
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with
 
@@ -324,7 +332,7 @@ checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWi
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()
-checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = do
+checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm cs) = do
 
   reportSDoc "tc.with.top" 10 $ vcat
     [ text "checkWithFunction"
@@ -336,6 +344,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
       , text "vs     =" <+> addCtxTel delta1 (prettyTCM vs)
       , text "b      =" <+> prettyTCM b
       , text "qs     =" <+> text (show qs)
+      , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)
       ]
     ]
@@ -343,7 +352,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm cs) = 
   -- Add the type of the auxiliary function to the signature
 
   -- With display forms are closed
-  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm
+  df <- makeClosed <$> withDisplayForm f aux delta1 delta2 (size as) qs perm'
 
   reportSLn "tc.with.top" 20 "created with display form"
 

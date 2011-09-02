@@ -1,0 +1,4 @@
+top_command (cmd_load currentFile [])
+
+-- Case split
+goal_command 0 cmd_make_case "n"

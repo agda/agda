@@ -201,16 +201,19 @@ stripWithClausePatterns gamma qs perm ps = do
 --   applications of the with function as applications to the original function.
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
 withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
-withDisplayForm f aux delta1 delta2 n qs perm = do
+withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
   x <- freshNoName_
   let wild = Def (qualify (mnameFromList []) x) []
 
   let top = genericLength topArgs
-      vs = map (fmap DTerm) topArgs ++ raiseFrom (size delta2) n (substs (sub wild) $ patsToTerms qs)
+      vs = map (fmap DTerm) topArgs ++ (substs (sub ys wild) $ patsToTerms qs)
       dt = DWithApp (DDef f vs : map DTerm withArgs) []
       withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
       pats = genericReplicate (n + size delta1 + size delta2 + top) (Var 0 [])
+      -- Building the arguments to the with function
+      (ys0, ys1) = splitAt (size delta1) (permute perm $ map Just [m - 1, m - 2..0])
+      ys = reverse $ ys0 ++ genericReplicate n Nothing ++ ys1
 
   let display = Display (n + size delta1 + size delta2 + top) pats dt
 
@@ -221,42 +224,31 @@ withDisplayForm f aux delta1 delta2 n qs perm = do
       , text "aux    =" <+> text (show aux)
       , text "delta1 =" <+> prettyTCM delta1
       , text "delta2 =" <+> prettyTCM delta2
+      , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
+      , text "top    =" <+> prettyTCM topArgs
       , text "qs     =" <+> text (show qs)
       , text "dt     =" <+> prettyTCM dt
+      , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
       , text "qsToTm =" <+> prettyTCM (patsToTerms qs)
-      , text "sub qs =" <+> prettyTCM (substs (sub wild) $ patsToTerms qs)
+      , text "sub qs =" <+> prettyTCM (substs (sub ys wild) $ patsToTerms qs)
       ]
     ]
 
   return display
   where
     var i = Var i []
-    sub wild = map term [0..] -- m - 1]
+    sub rho wild = map term [0..] -- m - 1]
       where
-        Perm m xs = reverseP perm
-        -- Perm m xs = perm    -- thinking required.. but ignored
-                            -- dropping the reverse seems to work better
-                            -- Andreas, 2010-09-09: I DISAGREE.
-        term i = case findIndex (i ==) xs of
+        -- thinking required.. but ignored
+        -- dropping the reverse seems to work better
+        -- Andreas, 2010-09-09: I DISAGREE.
+        -- Ulf, 2011-09-02: Thinking done. Neither was correct.
+        -- We had the wrong permutation and we used it incorrectly. Should work now.
+        term i = case findIndex (Just i ==) rho of
           Nothing -> wild
           Just j  -> Var (fromIntegral j) []
-
-{- example (test/fail/Issue295.agda)
-
-  aux  = aux d w a b c
-  delta1 = d
-  delta2 = a b c
-  perm = x0,x1,x2,x3 -> x3,x0,x1,x2
-  perm = a,b,c,d -> d,a,b,c
-WIHOUT reverseP IS:
-  dt   = (@0 ⟶ @4) ﹔ (@2 ⟶ @1) | @3
-  dt   = (c ⟶ d) ﹔ (a ⟶ b) | w
-WITH reverseP IS, AS IT SHOULD:
-  dt   = (a ⟶ b) ﹔ (c ⟶ d) | w
-  dt   = (@2 ⟶ @1) ﹔ (@0 ⟶ @4) | @3
--}
 
 patsToTerms :: [Arg Pattern] -> [Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0
