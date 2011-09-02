@@ -64,67 +64,72 @@ class Occurs t where
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MonadTCM tcm => MetaId -> [Nat] -> Term -> tcm Term
 occursCheck m xs v = liftTCM $ do
-  v <- instantiate v
-  case v of
-    -- Don't fail if trying to instantiate to just itself
-    MetaV m' _ | m == m' -> patternViolation
-    Level (Max [Plus 0 (MetaLevel m' _)])
-               | m == m' -> patternViolation
-    _                           ->
-                              -- Produce nicer error messages
-      -- First try without normalising the term
-      occurs NoUnfold  StronglyRigid m xs v `catchError` \_ ->
-      occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
-        TypeError _ cl -> case clValue cl of
-          MetaOccursInItself{} ->
-            typeError . GenericError . show =<<
-              fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
-                   , prettyTCM v
-                   ]
-          MetaCannotDependOn _ _ i ->
-            ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
-            ( typeError . GenericError . show =<<
-              fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
-                   , prettyTCM v
-                   , text "since universe polymorphism is not enabled"
-                   , text "(use the --universe-polymorphism flag to enable)"
-                   ]
-            )
-            ( typeError . GenericError . show =<<
-              fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
-                   , prettyTCM v
-                   , text "since it contains the variable"
-                   , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                   , text $ "which is not in scope of the metavariable"
-                   ]
-            )
-          _ -> throwError err
-        _ -> throwError err
+  let bailOnSelf v = do
+        v <- instantiate v
+        case v of
+          -- Don't fail if trying to instantiate to just itself
+          MetaV m' _ | m == m' -> patternViolation
+          Level (Max [Plus 0 (MetaLevel m' _)])
+                     | m == m' -> patternViolation
+          _ -> return v
 
-instance Occurs Term where
-  occurs red ctx m xs v = do
-    v <- unfold red v
-    case v of
-      -- Don't fail on blocked terms or metas
-      Blocked _ v  -> occurs' Flex v
-      NotBlocked v -> occurs' ctx v
-    where
-      occurs' ctx v = case v of
-        Var i vs   -> do         -- abort Rigid turns this error into PatternErr
-          unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
-          Var i <$> occ (weakly ctx) vs
-        Lam h f	    -> Lam h <$> occ ctx f
-        Level l     -> Level <$> occ ctx l
-        Lit l	    -> return v
-        DontCare    -> return v
-        Def d vs    -> Def d <$> occDef d ctx vs
-        Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
-        Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
-        Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
-        Sort s	    -> Sort <$> occ ctx s
-        MetaV m' vs -> do
-            -- Check for loop
-            when (m == m') $ abort ctx $ MetaOccursInItself m
+  v <- bailOnSelf v
+  -- First try without normalising the term
+  occurs NoUnfold  StronglyRigid m xs v `catchError` \_ -> do
+  occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
+                          -- Produce nicer error messages
+    TypeError _ cl -> case clValue cl of
+      MetaOccursInItself{} ->
+        typeError . GenericError . show =<<
+          fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
+               , prettyTCM =<< instantiateFull v
+               ]
+      MetaCannotDependOn _ _ i ->
+        ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
+        ( typeError . GenericError . show =<<
+          fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+               , prettyTCM v
+               , text "since universe polymorphism is not enabled"
+               , text "(use the --universe-polymorphism flag to enable)"
+               ]
+        )
+        ( typeError . GenericError . show =<<
+            fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+                 , prettyTCM v
+                 , text "since it contains the variable"
+                 , enterClosure cl $ \_ -> prettyTCM (Var i [])
+                 , text $ "which is not in scope of the metavariable"
+                 ]
+          )
+        _ -> throwError err
+      _ -> throwError err
+
+  instance Occurs Term where
+    occurs red ctx m xs v = do
+      v <- unfold red v
+      case v of
+        -- Don't fail on blocked terms or metas
+        Blocked _ v  -> occurs' Flex v
+        NotBlocked v -> occurs' ctx v
+      where
+        occurs' ctx v = case v of
+          Var i vs   -> do         -- abort Rigid turns this error into PatternErr
+            unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
+            Var i <$> occ (weakly ctx) vs
+          Lam h f	    -> Lam h <$> occ ctx f
+          Level l     -> Level <$> occ ctx l
+          Lit l	    -> return v
+          DontCare    -> return v
+          Def d vs    -> Def d <$> occDef d ctx vs
+          Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
+          Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
+          Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
+          Sort s	    -> Sort <$> occ ctx s
+          MetaV m' vs -> do
+              -- Check for loop
+              --   don't fail hard on this, since we might still be on the top-level
+              --   after some killing (Issue 442)
+              when (m == m') $ patternViolation
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
