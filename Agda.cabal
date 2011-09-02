@@ -208,6 +208,7 @@ library
                     Agda.TypeChecking.Injectivity
                     Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
+                    Agda.TypeChecking.LevelConstraints
                     Agda.TypeChecking.MetaVars
                     Agda.TypeChecking.MetaVars.Occurs
                     Agda.TypeChecking.Monad.Base

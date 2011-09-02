@@ -103,9 +103,9 @@ compareTerm cmp a u v = do
         _  -> h
 
 compareTerm' cmp a m n =
-  verboseBracket "tc.conv.term" 20 "compareTerm" $
-  catchConstraint (ValueCmp cmp a m n) $ do
-    a'       <- reduce a
+  verboseBracket "tc.conv.term" 20 "compareTerm" $ do
+  a' <- reduce a
+  catchConstraint (ValueCmp cmp a' m n) $ do
     reportSDoc "tc.conv.term" 30 $ fsep
       [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
     proofIrr <- proofIrrelevance

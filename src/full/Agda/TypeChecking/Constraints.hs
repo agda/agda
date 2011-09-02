@@ -19,6 +19,7 @@ import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.LevelConstraints
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -90,7 +91,7 @@ solveConstraints cs = do
       sep [ text "{ solving", nest 2 $ prettyTCM cs ]
     n  <- length <$> getInstantiatedMetas
     verboseS "profile.constraints" 10 $ liftTCM $ tickN "attempted-constraints" (countConstraints cs)
-    cs <- concat <$> mapM (withConstraint solveConstraint) cs
+    cs <- concat <$> mapM (withConstraint solveConstraint) (simplifyLevelConstraints cs)
     n' <- length <$> getInstantiatedMetas
     reportSDoc "tc.constr.solve" 70 $
       sep [ text "new constraints", nest 2 $ prettyTCM cs
