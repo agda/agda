@@ -55,7 +55,7 @@ install-lib :
 	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
 
 install-prof-lib :
-	$(CABAL_CMD) install --enable-library-profiling $(CABAL_OPTIONS)
+	$(CABAL_CMD) install --enable-library-profiling --disable-documentation $(CABAL_OPTIONS)
 
 install-bin : install-lib
 	cd src/main && $(CABAL_CMD) install $(CABAL_OPTIONS)
