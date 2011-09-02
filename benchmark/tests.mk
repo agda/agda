@@ -33,6 +33,13 @@ polyfunctor  = $(call misc,UniversePolymorphicFunctor)
 patternmatch = $(call misc,Coverage)
 miscTests		 = functor latemeta polyfunctor patternmatch
 
+#proj
+proj = proj/$1.agda -iproj --ignore-interfaces
+record = $(call proj,Record)
+data   = $(call proj,Data)
+nested = $(call proj,Nested)
+projTests = record data nested
+
 # All tests
-allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests)
+allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests) $(projTests)
 

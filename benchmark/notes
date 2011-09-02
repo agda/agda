@@ -32,3 +32,9 @@
           checking from unreachability checking, but this isn't really a
           problem in practise. GHC checks both completeness and overlap
           instantly, so it is possible.
+
+20110901: (12:30) Set.mapMonotonic instead of Set.map when lowering sets of
+          free variables under a binder.
+
+20110901: (13:30) New projection benchmarks (record, data and nested) to test
+          eliminator detection for projection-like functions.
