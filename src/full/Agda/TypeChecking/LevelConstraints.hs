@@ -32,4 +32,3 @@ inequalities (LevelCmp CmpEq (Max [a]) (Max [b, c]))
   | a == b = [c :=< b]
   | a == c = [b :=< c]
 inequalities _ = []
-
