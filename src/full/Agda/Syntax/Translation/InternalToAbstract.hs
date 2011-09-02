@@ -488,7 +488,7 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         tick
         if Set.member "()" vars
           then return $ A.DotP i $ A.Underscore mi
-          else lift $ A.DotP i <$> reify v
+          else return $ A.DotP i t
       I.LitP l             -> return (A.LitP l)
       I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
