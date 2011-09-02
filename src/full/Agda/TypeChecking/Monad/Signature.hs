@@ -95,7 +95,10 @@ makeProjection x = inContext [] $ do
     -- Constructor-headed functions can't be projection-like (at the moment). The reason
     -- for this is that invoking constructor-headedness will circumvent the inference of
     -- the dropped arguments.
-    def@Function{funProjection = Nothing, funClauses = cls, funInv = NotInjective} -> do
+    -- Nor can abstract definitions be projection-like since they won't reduce
+    -- outside the abstract block.
+    def@Function{funProjection = Nothing, funClauses = cls, funInv = NotInjective,
+                 funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj (candidateArgs [] (unEl $ defType defn))
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ show ps0
