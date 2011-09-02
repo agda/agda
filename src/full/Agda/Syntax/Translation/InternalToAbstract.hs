@@ -16,6 +16,7 @@
 module Agda.Syntax.Translation.InternalToAbstract where
 
 import Prelude hiding (mapM_, mapM)
+import Control.Applicative
 import Control.Arrow
 import Control.Monad.State hiding (mapM_, mapM)
 import Control.Monad.Error hiding (mapM_, mapM)
@@ -47,6 +48,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -219,24 +221,42 @@ instance Reify Term Expr where
       I.Var n vs   -> do
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
-      I.Def x@(QName _ name) vs   -> reifyDisplayForm x vs $ do
-          def <- theDef <$> getConstInfo x
-          n <- case def of
-                 Function{ funProjection = Just (r, _) } -> do
-                   Record{recPars = np} <- theDef <$> getConstInfo r
-                   n <- getDefFreeVars x
-                   return (n - np)
-                 _ -> getDefFreeVars x
-          if (isPrefixOf extendlambdaname $ show name)
-            then do
-             reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
-             info <- getConstInfo x
-             cls <- mapM (reify . (NamedClause x)) $ defClauses info
-             -- Karim: Currently Abs2Conc does not require a DefInfo thus we
-             -- use __IMPOSSIBLE__.
-             reifyApp (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) $ genericDrop n vs
-            else
-             reifyApp (A.Def x) $ genericDrop n vs
+      I.Def x@(QName _ name) vs -> reifyDisplayForm x vs $ do
+        mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+        (pad, vs) <-
+          case mdefn of
+            Nothing -> (,) [] <$> (flip genericDrop vs <$> getDefFreeVars x)
+            Just defn -> do
+              let def = theDef defn
+              n <- case def of
+                    Function{ funProjection = Just (_, np) } ->
+                      ifM showImplicitArguments (getDefFreeVars x) $
+                      return (fromIntegral np - 1)
+                    _ -> getDefFreeVars x
+              pad <- case def of
+                      Function{ funProjection = Just (_, np) } -> do
+                        TelV tel _ <- telView (defType defn)
+                        scope <- getScope
+                        let as       = take (np - 1) $ telToList tel
+                            whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
+                        -- reportSLn "tc.reify.proj" 50 $ "tel of " ++ show x ++ ":\n  " ++ show tel
+                        -- reportSLn "tc.reify.proj" 50 $ "args = " ++ show vs
+                        return $ map (fmap $ const whocares) as
+                      _ -> return []
+              -- reportSLn "tc.reify.proj" 40 $ "dropping " ++ show n ++ " args from " ++ show x ++ " (padded with " ++ show (length pad) ++ ")"
+              return (genericDrop n pad, genericDrop (max 0 (n - size pad)) vs)
+        df <- displayFormsEnabled
+        if df && isPrefixOf extendlambdaname (show name)
+          then do
+           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
+           info <- getConstInfo x
+           cls <- mapM (reify . (NamedClause x)) $ defClauses info
+           -- Karim: Currently Abs2Conc does not require a DefInfo thus we
+           -- use __IMPOSSIBLE__.
+           reifyApp (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) vs
+          else
+           let apps = foldl (\e a -> A.App exprInfo e (fmap unnamed a)) in
+           reifyApp (A.Def x `apps` pad) vs
       I.Con x vs   -> do
         isR <- isGeneratedRecordConstructor x
         case isR of
