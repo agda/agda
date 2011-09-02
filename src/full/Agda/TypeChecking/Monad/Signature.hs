@@ -25,6 +25,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Free (freeIn)
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- leads to cyclicity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
@@ -84,6 +85,81 @@ addConstant q d = liftTCM $ do
 
     hideTel  EmptyTel		      = EmptyTel
     hideTel (ExtendTel (Arg _ r t) tel) = ExtendTel (Arg Hidden r t) $ hideTel <$> tel
+
+-- | Turn a definition into a projection if it looks like a projection.
+makeProjection :: QName -> TCM ()
+makeProjection x = inContext [] $ do
+  reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
+  defn <- getConstInfo x
+  case theDef defn of
+    def@Function{funProjection = Nothing, funClauses = cls} -> do
+      ps <- filterM validProj (candidateArgs [] (unEl $ defType defn))
+      reportSLn "tc.proj.like" 30 $ if null ps then "  no candidates found"
+                                               else "  candidates: " ++ show ps
+      ps <- return $ filter (checkOccurs cls . snd) ps
+      case reverse ps of
+        []         -> return ()
+        (d, n) : _ -> do
+          reportSLn "tc.proj.like" 10 $ show (defName defn) ++ " is projection like in argument " ++
+                                        show n ++ " for type " ++ show d
+          let cls' = map (rewriteClause n) cls
+          cc <- compileClauses True cls'
+          let mapInv f NotInjective  = NotInjective
+              mapInv f (Inverse inv) = Inverse (f inv)
+              newDef = def
+                       { funProjection     = Just (d, fromIntegral n + 1)
+                       , funClauses        = cls'
+                       , funCompiled       = cc
+                       , funInv            = mapInv (Map.map $ rewriteClause n) $ funInv def
+                       , funArgOccurrences = drop n $ funArgOccurrences def
+                       , funPolarity       = drop n $ funPolarity def
+                       }
+          addConstant x $ defn{ theDef     = newDef
+                              , defDisplay = [] }
+    _ -> return ()
+  where
+    validProj (_, 0) = return False
+    validProj (d, _) = do
+      defn <- theDef <$> getConstInfo d
+      return $ case defn of
+        Datatype{} -> True
+        Record{}   -> True
+        Axiom{}    -> True
+        _          -> False
+
+    rewriteClause n cl@Clause{clausePerm = Perm m p} =
+      cl{ clausePerm = Perm (m - fromIntegral n) $ map (subtract $ fromIntegral n) $ drop n p
+        , clauseTel  = telFromList $ drop n $ telToList $ clauseTel cl
+        , clausePats = drop n $ clausePats cl
+        , clauseBody = dropB n $ clauseBody cl
+        }
+      where
+        dropB 0 b          = b
+        dropB _ NoBody     = NoBody
+        dropB n (Bind b)   = dropB (n - 1) (absBody b)
+        dropB n (NoBind b) = dropB (n - 1) b
+        dropB n Body{}     = __IMPOSSIBLE__
+
+    checkOccurs cls n = all (nonOccur n) cls
+
+    nonOccur n Clause{clausePerm = Perm _ p, clauseBody = b} =
+      take n p == [0..fromIntegral n - 1] &&
+      checkBody n b
+
+    checkBody 0 _          = True
+    checkBody _ NoBody     = True
+    checkBody n (NoBind b) = checkBody (n - 1) b
+    checkBody n (Bind b)   = not (0 `freeIn` absBody b) && checkBody (n - 1) (absBody b)
+    checkBody _ Body{}     = __IMPOSSIBLE__
+
+    candidateArgs vs (Fun (Arg _ _ (El _ (Def d us))) _)
+      | vs == map unArg us = [(d, length vs)]
+    candidateArgs vs (Pi (Arg r h (El _ (Def d us))) b)
+      | vs == map unArg us = (d, length vs) : candidateRec vs b
+    candidateArgs vs (Pi _ b) = candidateRec vs b
+    candidateArgs _ _ = []
+
+    candidateRec vs b = candidateArgs (Var (size vs) [] : vs) (unEl $ absBody b)
 
 addHaskellCode :: MonadTCM tcm => QName -> HaskellType -> HaskellCode -> tcm ()
 addHaskellCode q hsTy hsDef =
@@ -214,6 +290,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
 			      -- we won't need it
 	Just y	-> do
 	  addConstant y =<< nd y
+          makeProjection y
           computePolarity y  -- AA: Polarity.sizePolarity needs also constructor names
 	  -- Set display form for the old name if it's not a constructor.
 	  unless (isCon || size ptel > 0) $ do
@@ -245,16 +322,18 @@ applySection new ptel old ts rd rm = liftTCM $ do
                          }
 		_ -> do
                   cc <- compileClauses True [cl]
-                  return $ Function
-                    { funClauses        = [cl]
-                    , funCompiled       = cc
-                    , funDelayed        = NotDelayed
-                    , funInv            = NotInjective
-                    , funPolarity       = []
-                    , funArgOccurrences = drop (length ts') oldOcc
-                    , funAbstr          = ConcreteDef
-                    , funProjection     = proj
-                    }
+                  let newDef = Function
+                        { funClauses        = [cl]
+                        , funCompiled       = cc
+                        , funDelayed        = NotDelayed
+                        , funInv            = NotInjective
+                        , funPolarity       = []
+                        , funArgOccurrences = drop (length ts') oldOcc
+                        , funAbstr          = ConcreteDef
+                        , funProjection     = proj
+                        }
+                  reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
+                  return newDef
                   where
                     proj = case oldDef of
                       Function{funProjection = Just (r, n)}
@@ -263,8 +342,8 @@ applySection new ptel old ts rd rm = liftTCM $ do
         ts' | null ts   = []
             | otherwise = case oldDef of
                 Function{funProjection = Just (_, n)}
-                  | size ts == n -> [last ts]
-                  | otherwise    -> []
+                  | n == 0       -> __IMPOSSIBLE__
+                  | otherwise    -> drop (n - 1) ts
                 _ -> ts
 	cl = Clause { clauseRange = getRange $ defClauses d
                     , clauseTel   = EmptyTel

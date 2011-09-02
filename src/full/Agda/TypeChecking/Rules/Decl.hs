@@ -197,6 +197,12 @@ checkMutual i ts ds = inMutualBlock $ do
   when (anyAbstract ds) $ freezeMetas
   mapM_ checkDefinition ds
   checkStrictlyPositive =<< currentMutualBlock
+  let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
+      unScope d = [d]
+  case concatMap unScope ts of
+    -- Non-mutual definitions can be considered for projection likeness
+    [A.Axiom _ _ x _] -> makeProjection x
+    _   -> return ()
 
 
 -- | Type check the type signature of an inductive or recursive definition.

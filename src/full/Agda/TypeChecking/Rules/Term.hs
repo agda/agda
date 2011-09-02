@@ -651,16 +651,17 @@ inferHead (A.Def x) = do
       (u, a) <- inferDef Def x
       return (apply u, a)
     Just{} -> do
-      Just (r, n) <- funProjection . theDef <$> (instantiateDef =<< getConstInfo x)
+      Just (r, n) <- funProjection . theDef <$> getConstInfo x
+      cxt <- size <$> freeVarsToApply x
       m <- getDefFreeVars x
       reportSDoc "tc.term.proj" 10 $ sep
         [ text "building projection" <+> prettyTCM x
+        , nest 2 $ parens (text "ctx =" <+> text (show cxt))
         , nest 2 $ parens (text "n =" <+> text (show n))
         , nest 2 $ parens (text "m =" <+> text (show m)) ]
-      let args [] = []
-          args vs | n == 0    = [last vs]
-                  | otherwise = []
-          n' = max 0 (n - 1)
+      let args | n == 0    = __IMPOSSIBLE__
+               | otherwise = drop (n - 1)
+          n' = max 0 (n - 1 - cxt)
       (u, a) <- inferDef (\f vs -> Def f $ args vs) x
       return (apply u . genericDrop n', a)
 inferHead (A.Con (AmbQ [c])) = do

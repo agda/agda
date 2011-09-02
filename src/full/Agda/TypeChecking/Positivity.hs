@@ -320,8 +320,9 @@ computeOccurrences :: QName -> TCM Occurrences
 computeOccurrences q = do
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
-    Function{funClauses = cs} -> do
-      n  <- arity <$> instantiateFull (defType def)
+    Function{funClauses = cs, funProjection = proj} -> do
+      let dropped = maybe 0 (fromIntegral . subtract 1 . snd) proj
+      n  <- subtract dropped . arity <$> instantiateFull (defType def)
       cs <- map (etaExpandClause n) <$> instantiateFull cs
       return
         $ concatOccurs

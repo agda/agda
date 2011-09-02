@@ -73,14 +73,13 @@ instance Apply Defn where
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just (r, n), funArgOccurrences = occ }
       | m < n  -> d { funProjection = Just (r, n - m) }
-      | m == n ->
+      | otherwise ->
         d { funClauses        = apply cs args'
           , funCompiled       = apply cc args'
           , funInv            = apply inv args'
           , funProjection     = Just (r, 0)
           , funArgOccurrences = drop 1 occ
           }
-      | otherwise -> __IMPOSSIBLE__
       where args' = [last args]
             m = size args
     Datatype{ dataPars = np, dataClause = cl

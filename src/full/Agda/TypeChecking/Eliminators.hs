@@ -28,9 +28,7 @@ elimView v = case v of
       Nothing -> DefElim f `app` vs
       Just{}  -> do
         case vs of
-          rv : vs' -> do
-            unless (argHiding rv == NotHidden) __IMPOSSIBLE__
-            elim (Proj f : map Apply vs') <$> elimView (unArg rv)
+          rv : vs' -> elim (Proj f : map Apply vs') <$> elimView (unArg rv)
           [] -> __IMPOSSIBLE__
             -- elimView should only be called from the conversion checker
             -- with properly saturated applications
