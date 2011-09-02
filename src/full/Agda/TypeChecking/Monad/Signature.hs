@@ -96,10 +96,11 @@ makeProjection x = inContext [] $ do
     -- for this is that invoking constructor-headedness will circumvent the inference of
     -- the dropped arguments.
     def@Function{funProjection = Nothing, funClauses = cls, funInv = NotInjective} -> do
-      ps <- filterM validProj (candidateArgs [] (unEl $ defType defn))
-      reportSLn "tc.proj.like" 30 $ if null ps then "  no candidates found"
-                                               else "  candidates: " ++ show ps
-      ps <- return $ filter (checkOccurs cls . snd) ps
+      ps0 <- filterM validProj (candidateArgs [] (unEl $ defType defn))
+      reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
+                                                else "  candidates: " ++ show ps0
+      ps <- return $ filter (checkOccurs cls . snd) ps0
+      when (not (null ps0) && null ps) $ reportSLn "tc.proj.like" 50 $ "  occurs check failed\n    clauses = " ++ show cls
       case reverse ps of
         []         -> return ()
         (d, n) : _ -> do

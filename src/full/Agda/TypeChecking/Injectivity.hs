@@ -75,6 +75,17 @@ headSymbol v = ignoreAbstractMode $ do
     _       -> return Nothing
 
 checkInjectivity :: QName -> [Clause] -> TCM FunctionInverse
+checkInjectivity f cs
+  | pointLess cs = return NotInjective
+  where
+    -- Is it pointless to use injectivity for this function?
+    pointLess []      = True
+    pointLess (_:_:_) = False
+    pointLess [Clause{clausePats = ps}] = all (noMatch . unArg) ps
+      where noMatch ConP{} = False
+            noMatch LitP{} = False
+            noMatch VarP{} = True
+            noMatch DotP{} = True
 checkInjectivity f cs = do
   reportSLn "tc.inj.check" 40 $ "Checking injectivity of " ++ show f
   es <- concat <$> mapM entry cs
