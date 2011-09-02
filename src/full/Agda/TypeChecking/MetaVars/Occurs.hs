@@ -101,35 +101,35 @@ occursCheck m xs v = liftTCM $ do
                  , text $ "which is not in scope of the metavariable"
                  ]
           )
-        _ -> throwError err
       _ -> throwError err
+    _ -> throwError err
 
-  instance Occurs Term where
-    occurs red ctx m xs v = do
-      v <- unfold red v
-      case v of
-        -- Don't fail on blocked terms or metas
-        Blocked _ v  -> occurs' Flex v
-        NotBlocked v -> occurs' ctx v
-      where
-        occurs' ctx v = case v of
-          Var i vs   -> do         -- abort Rigid turns this error into PatternErr
-            unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
-            Var i <$> occ (weakly ctx) vs
-          Lam h f	    -> Lam h <$> occ ctx f
-          Level l     -> Level <$> occ ctx l
-          Lit l	    -> return v
-          DontCare    -> return v
-          Def d vs    -> Def d <$> occDef d ctx vs
-          Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
-          Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
-          Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
-          Sort s	    -> Sort <$> occ ctx s
-          MetaV m' vs -> do
-              -- Check for loop
-              --   don't fail hard on this, since we might still be on the top-level
-              --   after some killing (Issue 442)
-              when (m == m') $ patternViolation
+instance Occurs Term where
+  occurs red ctx m xs v = do
+    v <- unfold red v
+    case v of
+      -- Don't fail on blocked terms or metas
+      Blocked _ v  -> occurs' Flex v
+      NotBlocked v -> occurs' ctx v
+    where
+      occurs' ctx v = case v of
+        Var i vs   -> do         -- abort Rigid turns this error into PatternErr
+          unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
+          Var i <$> occ (weakly ctx) vs
+        Lam h f	    -> Lam h <$> occ ctx f
+        Level l     -> Level <$> occ ctx l
+        Lit l	    -> return v
+        DontCare    -> return v
+        Def d vs    -> Def d <$> occDef d ctx vs
+        Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
+        Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
+        Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
+        Sort s	    -> Sort <$> occ ctx s
+        MetaV m' vs -> do
+            -- Check for loop
+            --   don't fail hard on this, since we might still be on the top-level
+            --   after some killing (Issue 442)
+            when (m == m') $ patternViolation
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
