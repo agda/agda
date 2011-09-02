@@ -92,7 +92,10 @@ makeProjection x = inContext [] $ do
   reportSLn "tc.proj.like" 30 $ "Considering " ++ show x ++ " for projection likeness"
   defn <- getConstInfo x
   case theDef defn of
-    def@Function{funProjection = Nothing, funClauses = cls} -> do
+    -- Constructor-headed functions can't be projection-like (at the moment). The reason
+    -- for this is that invoking constructor-headedness will circumvent the inference of
+    -- the dropped arguments.
+    def@Function{funProjection = Nothing, funClauses = cls, funInv = NotInjective} -> do
       ps <- filterM validProj (candidateArgs [] (unEl $ defType defn))
       reportSLn "tc.proj.like" 30 $ if null ps then "  no candidates found"
                                                else "  candidates: " ++ show ps

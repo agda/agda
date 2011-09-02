@@ -79,6 +79,9 @@ compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constra
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
 compareTerm cmp a u v = do
   (u, v) <- instantiate (u, v)
+  reportSDoc "tc.conv.term" 10 $ sep [ text "compareTerm"
+                                     , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
+                                     , nest 2 $ text ":" <+> prettyTCM a ]
   let fallback = compareTerm' cmp a u v
   case (u, v) of
     (u@(MetaV x us), v@(MetaV y vs)) -> solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
