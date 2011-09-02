@@ -1,3 +1,4 @@
-StronglyRigidOccurrence.agda:11,8-12
-Refuse to construct infinite term by instantiating _16 to suc _16
-when checking that the expression refl has type _16 ≡ suc _16
+
+Unsolved metas at the following locations:
+  StronglyRigidOccurrence.agda:10,25-26
+  StronglyRigidOccurrence.agda:11,8-12
