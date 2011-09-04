@@ -442,10 +442,12 @@ CommaBIdAndAbsurds : Application {%
 	getName (Underscore r _)  = Just (Name r [Hole])
 	getName _		  = Nothing
 
-        isAbsurd (Absurd _) = True
-        isAbsurd _          = False
+        containsAbsurd (Absurd _) = True
+        containsAbsurd (Paren _ expr)    = containsAbsurd expr
+        containsAbsurd (RawApp _ exprs)    = any containsAbsurd exprs
+        containsAbsurd _          = False
     in
-    if isJust $ find isAbsurd $1 then return $ Right $1 else
+    if isJust $ find containsAbsurd $1 then return $ Right $1 else
     case partition isJust $ map getName $1 of
 	(good, []) -> return $ Left $ map fromJust good
 	_	   -> fail $ "expected sequence of bound identifiers"

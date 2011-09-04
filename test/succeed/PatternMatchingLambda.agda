@@ -76,3 +76,9 @@ postulate
   P : ({x : Bool} -> Bool) -> Set
   p : P (λ {x} → x)
 
+--Issue 446: Absurd clauses can appear inside more complex expressions
+data Box (A : Set) : Set where
+  box : A → Box A
+
+foo : {A : Set} → Box Void → A
+foo = λ { (box ()) }
