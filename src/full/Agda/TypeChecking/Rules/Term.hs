@@ -540,11 +540,33 @@ checkExpr e t =
                               tel
 	      blockTerm t (Con con args) $ return cs
             MetaV _ _ -> do
-              reportSDoc "tc.term.expr.rec" 10 $ sep
-                [ text "Postponing type checking of"
-                , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
-                ]
-              postponeTypeCheckingProblem_ e t
+              let fields = map fst fs
+              rs <- findPossibleRecords fields
+              case rs of
+                  -- If there are no records with the right fields we might as well fail right away.
+                [] -> case fs of
+                  []       -> typeError $ GenericError "There are no records in scope"
+                  [(f, _)] -> typeError $ GenericError $ "There is no known record with the field " ++ show f
+                  _        -> typeError $ GenericError $ "There is no known record with the fields " ++ unwords (map show fields)
+                  -- If there's only one record with the appropriate fields, go with that.
+                [r] -> do
+                  def <- getConstInfo r
+                  vs  <- newArgsMeta (defType def)
+                  let target = piApply (defType def) vs
+                      s      = case unEl target of
+                                 Level l -> Type l
+                                 Sort s  -> s
+                                 _       -> __IMPOSSIBLE__
+                      inferred = El s $ Def r vs
+                  v <- checkExpr e inferred
+                  blockTerm t v $ leqType_ t inferred
+                  -- If there are more than one possible record we postpone
+                _:_:_ -> do
+                  reportSDoc "tc.term.expr.rec" 10 $ sep
+                    [ text "Postponing type checking of"
+                    , nest 2 $ prettyA e <+> text ":" <+> prettyTCM t
+                    ]
+                  postponeTypeCheckingProblem_ e t
 	    _         -> typeError $ ShouldBeRecordType t
 
 	A.DontCare -> -- can happen in the context of with functions

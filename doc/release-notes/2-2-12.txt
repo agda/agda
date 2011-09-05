@@ -348,6 +348,18 @@ Meta Variables and Unification
   argument. After pruning, the first equation is linear and can
   be solved.  [Pientka, PhD, Sec. 3.1.2; Abel Pientka, TLCA 2011]
 
+* Record types can now be inferred.
+
+  If there is a unique known record type with fields matching the fields in a
+  record expression, the type of the expression will be inferred to the record
+  type applied to unknown parameters.
+
+  If there is no known record with the given fields the type checker will
+  give an error instead of producing lots of yellow.
+
+  Note that "known" record refers to any record in any imported module, not
+  just records in scope.
+
 Tools
 -----
 

@@ -506,7 +506,7 @@ data Defn = Axiom
             , recNamedCon       :: Bool
             , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [Arg A.QName]
-            , recTel            :: Telescope
+            , recTel            :: Telescope            -- ^ The record field telescope
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
             , recEtaEquality    :: Bool

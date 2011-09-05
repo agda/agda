@@ -6,6 +6,9 @@ import Control.Applicative
 import Control.Arrow ((***))
 import Control.Monad
 import Data.List
+import qualified Data.Map as Map
+import qualified Data.Set as Set
+import Data.Function
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete.Name as C
@@ -64,6 +67,18 @@ getRecordDef r = do
 getRecordFieldNames :: MonadTCM tcm => QName -> tcm [Arg C.Name]
 getRecordFieldNames r =
   map (fmap (nameConcrete . qnameName)) . recFields <$> getRecordDef r
+
+-- | Find all records with at least the given fields.
+findPossibleRecords :: MonadTCM tcm => [C.Name] -> tcm [QName]
+findPossibleRecords fields = do
+  defs <- (Map.union `on` sigDefinitions) <$> getSignature <*> getImportedSignature
+  let possible def = case theDef def of
+        Record{ recFields = fs } -> Set.isSubsetOf given inrecord
+          where inrecord = Set.fromList $ map (nameConcrete . qnameName . unArg) fs
+        _ -> False
+  return [ defName d | d <- Map.elems defs, possible d ]
+  where
+    given = Set.fromList fields
 
 -- | Get the field types of a record.
 getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope

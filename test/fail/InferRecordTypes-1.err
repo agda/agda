@@ -1,0 +1,3 @@
+InferRecordTypes-1.agda:5,7-17
+There are no records in scope
+when checking that the expression record { } has type _1
