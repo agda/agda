@@ -202,10 +202,6 @@ niceDeclarations ds = do
 	  Module{}				       -> []
 	  Pragma{}				       -> []
 
-        niceFix fixs ds = do
-	  fixs <- plusFixities fixs =<< fixities ds
-          nice fixs ds
-
 	nice _ []	 = return []
 	nice fixs (d:ds) =
 	    case d of
@@ -238,14 +234,14 @@ niceDeclarations ds = do
                               dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c')
                                         (const niceDeclarations) r x tel t cs
 			    Mutual r ds -> do
-			      d <- mkMutual r [d] =<< niceFix fixs ds
+			      d <- mkMutual r [d] =<< nice fixs ds
 			      return [d]
 
 			    Abstract r ds -> do
-			      map mkAbstract <$> niceFix fixs ds
+			      map mkAbstract <$> nice fixs ds
 
 			    Private _ ds -> do
-			      map mkPrivate <$> niceFix fixs ds
+			      map mkPrivate <$> nice fixs ds
 
 			    Postulate _ ds -> return $ niceAxioms fixs ds
 
@@ -480,10 +476,12 @@ plusFixities m1 m2
 --   declaration.
 fixities :: [Declaration] -> Nice (Map.Map Name Fixity')
 fixities (d:ds) = case d of
-  Syntax x syn -> do fs <- fixities ds
-                     plusFixities fs (Map.singleton x (Fixity' noFixity syn))
-  Infix f xs -> plusFixities (Map.fromList [ (x,Fixity' f noNotation) | x <- xs ]) =<< fixities ds
-  _          -> fixities ds
+  Syntax x syn   -> plusFixities (Map.singleton x (Fixity' noFixity syn)) =<< fixities ds
+  Infix f xs     -> plusFixities (Map.fromList [ (x,Fixity' f noNotation) | x <- xs ]) =<< fixities ds
+  Mutual _ ds'   -> fixities (ds' ++ ds)
+  Abstract _ ds' -> fixities (ds' ++ ds)
+  Private _ ds'  -> fixities (ds' ++ ds)
+  _              -> fixities ds
 fixities [] = return $ Map.empty
 
 notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
