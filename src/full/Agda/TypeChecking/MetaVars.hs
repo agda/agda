@@ -472,6 +472,8 @@ assign x args v = do
             Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
             NotBlocked{} -> text "r.h.s. not blocked"
 
+        args <- instantiate args
+
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
         -- even though the lhs is not a pattern, we can prune the y from _2
