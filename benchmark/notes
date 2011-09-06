@@ -40,3 +40,9 @@
           eliminator detection for projection-like functions.
 
 20110902: Implemented projection detection.
+
+20110906: New state monad implementation (IORef s -> m a)
+
+20110907: (01:00) Pushing types into constructor applications.
+          (03:00) Treating (\x -> x) as (\(x : _) -> x). Note increase in
+          number of metas.
