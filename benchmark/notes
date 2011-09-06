@@ -44,5 +44,11 @@
 20110906: New state monad implementation (IORef s -> m a)
 
 20110907: (01:00) Pushing types into constructor applications.
+
           (03:00) Treating (\x -> x) as (\(x : _) -> x). Note increase in
           number of metas.
+
+          (03:26) Pushing types into lambdas, helps a little, but not as much
+          as we would like: For cwf we had 2794 metas before the (\x -> x)
+          change, 3242 after, and 3038 after this fix.
+
