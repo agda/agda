@@ -82,17 +82,15 @@ isType_ e =
     s <- workOnTypes $ newSortMeta
     isType e s
 
--- | Check that an expression is a type which is equal to a given type. Actually
---   that's not true. It just uses the given type as a hint to instantiate
---   metas in the expression. It will be checked somewhere else that it really
---   has the right value.
-isTypeEqualTo :: A.Expr -> Type -> TCM Type
-isTypeEqualTo (A.ScopedExpr _ e) t = isTypeEqualTo e t
-isTypeEqualTo e@(A.Underscore i) t =
-  case A.metaNumber i of
-    Nothing -> return t
-    Just{}  -> isType_ e
-isTypeEqualTo e t = isType_ e
+-- | Check that an expression is a type which is equal to a given type.
+isTypeEqualTo :: A.Expr -> Type -> TCM (Type, Constraints)
+isTypeEqualTo e t = case e of
+  A.ScopedExpr _ e -> isTypeEqualTo e t
+  A.Underscore i | A.metaNumber i == Nothing -> return (t, [])
+  e -> do
+    t' <- isType e (getSort t)
+    cs <- leqType_ t t'
+    return (t', cs)
 
 leqType_ :: MonadTCM tcm => Type -> Type -> tcm Constraints
 leqType_ t t' = workOnTypes $ leqType t t'
@@ -165,7 +163,7 @@ checkTelescope_ (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ = checkTypedBindings PiNotLam Nothing
+checkTypedBindings_ = checkTypedBindings PiNotLam
 
 data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 
@@ -173,24 +171,15 @@ data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 --   The telescope passed to the continuation is valid in the original context.
 --
 --   Parametrized by a flag wether we check a typed lambda or a Pi. This flag
---   is needed for irrelevance. If we're checking a lambda we might have a type
---   getting pushed in.
-checkTypedBindings :: LamOrPi -> Maybe Type -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi mt (A.TypedBindings i (Arg h rel b)) ret =
-    checkTypedBinding lamOrPi mt h rel b $ \bs ->
+--   is needed for irrelevance.
+checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
+    checkTypedBinding lamOrPi h rel b $ \bs ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
-checkTypedBinding :: LamOrPi -> Maybe Type -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding lamOrPi mt h rel (A.TBind i xs e) ret = do
-    let ma = case unEl <$> mt of
-               _ | length xs /= 1 -> Nothing
-               Just (Pi arg _)    -> mkArg arg
-               Just (Fun arg _)   -> mkArg arg
-               _ -> Nothing
-          where mkArg (Arg h' rel' a) | h == h' && rel == rel' = Just a
-                                      | otherwise              = Nothing
-
-    t <- modEnv lamOrPi $ maybe (isType_ e) (isTypeEqualTo e) ma
+checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
+    t <- modEnv lamOrPi $ isType_ e
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     addCtxs xs (Arg h (modRel lamOrPi rel) t) $ ret $ mkTel xs t
@@ -205,9 +194,48 @@ checkTypedBinding lamOrPi mt h rel (A.TBind i xs e) ret = do
         modRel PiNotLam = irrToNonStrict
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding lamOrPi mt h rel (A.TNoBind e) ret = do
+checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
+
+-- | Type check a lambda expression. Not finished.
+checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
+checkLambda (Arg _ _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
+checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
+  TelV tel btyp <- telViewUpTo (length xs) target
+  if size tel < size xs || length xs /= 1
+    then dontUseTargetType
+    else useTargetType tel btyp
+  where
+    dontUseTargetType = do
+      verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
+      argsT   <- workOnTypes $ Arg h r <$> isType_ typ
+      (v, cs) <- addCtxs xs argsT $ do
+        let tel = telFromList $ mkTel xs argsT
+        (t1, cs) <- workOnTypes $ do
+          t1 <- newTypeMeta_
+          cs <- escapeContext (size xs) $ leqType (telePi tel t1) target
+          return (t1, cs)
+        v <- checkExpr body t1
+        return (teleLam tel v, cs)
+      blockTerm target v $ return cs
+
+    useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
+        verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
+        unless (argHiding    arg == h) $ typeError $ WrongHidingInLambda target
+        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
+        (argT, cs) <- isTypeEqualTo typ (unArg arg)
+        v <- addCtx x (Arg h r argT) $ checkExpr body btyp
+        blockTerm target (Lam h $ Abs (show $ nameConcrete x) v) $ return cs
+      where
+        [x] = xs
+    useTargetType _ _ = __IMPOSSIBLE__
+
+
+    mkTel []       t = []
+    mkTel (x : xs) t = ((,) s <$> t) : mkTel xs (raise 1 t)
+      where s = show $ nameConcrete x
+
 
 {- OLD CODE
 -- | Check a typed binding and extends the context with the bound variables.
@@ -309,7 +337,7 @@ checkExpr e t =
             , h /= NotHidden                          -> do
 		x <- freshName r (argName t)
                 reportSLn "tc.term.expr.impl" 15 $ "Inserting implicit lambda"
-		checkExpr (A.Lam (A.ExprRange $ getRange e) (A.DomainFree h rel x) e) t
+		checkExpr (A.Lam (A.ExprRange $ getRange e) (domainFree h rel x) e) t
 	    where
 		r = case rStart $ getRange e of
                       Nothing  -> noRange
@@ -483,17 +511,19 @@ checkExpr e t =
             v <- addCtxTel tel $ do teleLam tel <$> checkExpr e t1
 	    blockTerm t v (return cs)
 -}
-	A.Lam i (A.DomainFull b) e -> do
-	    (v, cs) <- checkTypedBindings LamNotPi (Just t) b $ \tel -> do
-                (t1, cs) <- workOnTypes $ do
-	          t1 <- newTypeMeta_
-                  cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
-                  return (t1, cs)
-                v <- checkExpr e t1
-                return (teleLam tel v, cs)
-	    blockTerm t v (return cs)
+	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
 
-	A.Lam i (A.DomainFree h rel x) e0 -> __IMPOSSIBLE__
+        -- 	A.Lam i (A.DomainFull b) e -> do
+        -- 	    (v, cs) <- checkTypedBindings LamNotPi b $ \tel -> do
+        --         (t1, cs) <- workOnTypes $ do
+        -- 	          t1 <- newTypeMeta_
+        --           cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
+        --           return (t1, cs)
+        --         v <- checkExpr e t1
+        --         return (teleLam tel v, cs)
+        -- 	    blockTerm t v (return cs)
+
+	A.Lam i (A.DomainFree h rel x) e0 -> checkExpr (A.Lam i (domainFree h rel x) e0) t
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
@@ -647,6 +677,11 @@ checkExpr e t =
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args
 
+domainFree h rel x =
+  A.DomainFull $ A.TypedBindings r $ Arg h rel $ A.TBind r [x] $ A.Underscore info
+  where
+    r = getRange x
+    info = A.MetaInfo{ A.metaRange = r, A.metaScope = emptyScopeInfo, A.metaNumber = Nothing }
 
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i =
