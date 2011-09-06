@@ -514,6 +514,42 @@ instance Raise LevelAtom where
     BlockedLevel n v -> BlockedLevel n $ renameFrom m k v
     UnreducedLevel v -> UnreducedLevel $ renameFrom m k v
 
+instance Raise Constraint where
+  raiseFrom m k c = case c of
+    ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
+    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
+    TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
+    SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
+    LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
+    Guarded c cs             -> Guarded (rf c) cs
+    IsEmpty a                -> IsEmpty (rf a)
+    FindInScope{}            -> c
+    UnBlock{}                -> c
+    where
+      rf x = raiseFrom m k x
+  renameFrom m k c = case c of
+    ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
+    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
+    TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
+    SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
+    LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
+    Guarded c cs             -> Guarded (rf c) cs
+    IsEmpty a                -> IsEmpty (rf a)
+    FindInScope{}            -> c
+    UnBlock{}                -> c
+    where
+      rf x = renameFrom m k x
+
+instance Raise Elim where
+  raiseFrom m k e = case e of
+    Apply v -> Apply (raiseFrom m k v)
+    Proj{}  -> e
+  renameFrom m k e = case e of
+    Apply v -> Apply (renameFrom m k v)
+    Proj{}  -> e
+
 instance Raise ClauseBody where
   raiseFrom m k b = case b of
     Body v   -> Body $ rf v
