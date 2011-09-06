@@ -246,7 +246,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   reportSDoc "tc.with.top" 5 $
                     text "TC.Rules.Def.checkclause reached A.WithRHS"
                   reportSDoc "tc.with.top" 30 $
-                    text (show c)
+                    prettyA c
                   -- Infer the types of the with expressions
                   vas <- mapM inferExpr es
                   (vs0, as) <- instantiateFull (unzip vas)
