@@ -738,10 +738,42 @@ inferDef mkTerm x =
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
 checkConstructorApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication org t c args = do
-  checkHead t args
+checkConstructorApplication org t c args
+  | hiddenArg = fallback
+  | otherwise = do
+    cdef  <- getConstInfo c
+    let Constructor{conData = d} = theDef cdef
+    case unEl t of -- Only fully applied constructors get special treatment
+      Def d' vs | d' == d -> do
+        def <- theDef <$> getConstInfo d
+        let npars = case def of
+                      Datatype{ dataPars = n } -> Just n
+                      Record{ recPars = n }    -> Just n
+                      _                        -> Nothing
+        flip (maybe fallback) npars $ \n -> do
+        let ps    = genericTake n vs
+            ctype = defType cdef
+        reportSDoc "tc.term.con" 20 $ vcat
+          [ text "special checking of constructor application of" <+> prettyTCM c
+          , nest 2 $ vcat [ text "ps     =" <+> prettyTCM ps
+                          , text "ctype  =" <+> prettyTCM ctype ] ]
+        let ctype' = ctype `piApply` ps
+        reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
+        checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' cs -> do
+        reportSDoc "tc.term.com" 20 $ nest 2 $ vcat
+          [ text "us     =" <+> prettyTCM us
+          , text "t'     =" <+> prettyTCM t' ]
+        blockTerm t (Con c us) $ (cs ++) <$> leqType_ t' t
+      _ -> fallback
   where
-    checkHead t args = checkHeadApplication org t (A.Con (AmbQ [c])) args
+    fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
+
+    -- Check if there are explicitly given hidden arguments,
+    -- in which case we fall back to default type checking.
+    -- We could work harder, but let's not for now.
+    hiddenArg = case args of
+      Arg Hidden _ _ : _ -> True
+      _                  -> False
 
     -- Split the arguments to a constructor into those corresponding
     -- to parameters and those that don't. Dummy underscores are inserted

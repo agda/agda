@@ -198,7 +198,7 @@ id : (A : Set) → A → A
 id = unquote (lamᵛ (lamᵛ (var 0 [])))
 
 idBox : Box ({A : Set} → A → A)
-idBox = box (unquote (lamʰ (lamᵛ (var 0 []))))
+idBox = box (unquote (lamᵛ (var 0 [])))
 
 -- builds a pair
 _`,_ : Term → Term → Term
@@ -324,7 +324,7 @@ proj₃⁵ : unquote (Proj 3 5)
 proj₃⁵ _ _ x _ _ = x
 
 proj₃⁵′ : Box (unquote (Proj 3 5))
-proj₃⁵′ = box (unquote (projFull 3 5))
+proj₃⁵′ = box (unquote (proj 3 5))
 
 proj₂⁷ : unquote (Proj 2 7)
 proj₂⁷ = unquote (proj 2 7)

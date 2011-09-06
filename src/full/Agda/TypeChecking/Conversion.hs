@@ -483,7 +483,10 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                     -- Throw the original error if the above doesn't
                     -- give an error (for instance, due to pending
                     -- constraints).
-                    throwError err
+                    -- Or just ignore it... We run into this with irrelevant levels
+                    -- which may show up in sort constraints, causing them to fail.
+                    -- In this case it's safe to ignore the error (?)
+                    -- throwError err
                   _             -> throwError err
 	cs2 <- compareTerm cmp (sort s1) a1 a2
         cs  <- solveConstraints $ cs1 ++ cs2
