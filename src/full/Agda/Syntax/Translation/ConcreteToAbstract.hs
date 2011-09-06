@@ -508,6 +508,7 @@ instance ToAbstract C.Expr A.Expr where
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
 
       e0@(C.Lam r bs e) -> do
+        -- localToAbstract (map makeDomainFull bs) $ \bs ->
         localToAbstract bs $ \bs ->
           case bs of
             b:bs' -> do
@@ -614,6 +615,11 @@ instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree h rel x) = A.DomainFree h rel <$> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)      = A.DomainFull <$> toAbstract tb
 
+makeDomainFull :: C.LamBinding -> C.LamBinding
+makeDomainFull b@C.DomainFull{} = b
+makeDomainFull (C.DomainFree h rel x) =
+  C.DomainFull $ C.TypedBindings r $ Arg h rel $ C.TBind r [x] $ C.Underscore r Nothing
+  where r = getRange x
 instance ToAbstract C.TypedBindings A.TypedBindings where
   toAbstract (C.TypedBindings r bs) = A.TypedBindings r <$> toAbstract bs
 
