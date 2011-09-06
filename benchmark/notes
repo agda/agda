@@ -52,3 +52,5 @@
           as we would like: For cwf we had 2794 metas before the (\x -> x)
           change, 3242 after, and 3038 after this fix.
 
+          (04:48) Taking better care of types in lambdas. Metas for cwf now
+          down to 2834, so almost what we had before.
