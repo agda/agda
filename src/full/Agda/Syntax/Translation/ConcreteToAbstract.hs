@@ -508,8 +508,7 @@ instance ToAbstract C.Expr A.Expr where
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
 
       e0@(C.Lam r bs e) -> do
-        -- localToAbstract (map makeDomainFull bs) $ \bs ->
-        localToAbstract bs $ \bs ->
+        localToAbstract (map makeDomainFull bs) $ \bs ->
           case bs of
             b:bs' -> do
               e        <- toAbstractCtx TopCtx e

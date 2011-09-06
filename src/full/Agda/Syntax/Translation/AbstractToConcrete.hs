@@ -329,7 +329,7 @@ instance ToConcrete A.Expr C.Expr where
         bracket lamBrackets
         $ case lamView e of
             (bs, e) ->
-                bindToConcrete bs $ \bs -> do
+                bindToConcrete (map makeDomainFree bs) $ \bs -> do
                     e  <- toConcreteCtx TopCtx e
                     return $ C.Lam (getRange i) bs e
         where
@@ -406,6 +406,16 @@ instance ToConcrete A.Expr C.Expr where
 
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
+
+makeDomainFree :: A.LamBinding -> A.LamBinding
+makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg h rel (A.TBind _ [x] t)))) =
+  case unScope t of
+    A.Underscore MetaInfo{metaNumber = Nothing} -> A.DomainFree h rel x
+    _ -> b
+  where
+    unScope (A.ScopedExpr _ e) = unScope e
+    unScope e = e
+makeDomainFree b = b
 
 -- Binder instances -------------------------------------------------------
 

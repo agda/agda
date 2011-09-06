@@ -1,3 +1,4 @@
 IrrelevantLambda.agda:8,5-16
-Found an irrelevant lambda where a relevant lambda was expected
+.(x : _9) → _11 x != _6 → Set because one is a relevant function
+type and the other is an irrelevant function type
 when checking that the expression λ .x → P x has type _6 → Set

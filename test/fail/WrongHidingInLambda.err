@@ -1,4 +1,5 @@
 WrongHidingInLambda.agda:5,5-16
-Found an implicit lambda where an explicit lambda was expected
+{A : _6} → _8 != (A : Set) → A → A because one is an implicit
+function type and the other is an explicit function type
 when checking that the expression λ {A} x → x has type
 (A : Set) → A → A
