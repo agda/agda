@@ -54,3 +54,6 @@
 
           (04:48) Taking better care of types in lambdas. Metas for cwf now
           down to 2834, so almost what we had before.
+
+          (05:33) Removed all 'abstract's from the cwf benchmark. Very little
+          difference! 3.1s -> 3.7s and 43MB -> 61MB.

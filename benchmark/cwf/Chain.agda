@@ -11,15 +11,14 @@ infix 3 proof_
 infixl 2 _≡_by_
 infix 1 _qed
 
-abstract
-  data _∼_ {a b : U}(x : T a)(y : T b) : Set where
-    prf : x == y -> x ∼ y
+data _∼_ {a b : U}(x : T a)(y : T b) : Set where
+  prf : x == y -> x ∼ y
 
-  proof_ : {a : U}(x : T a) -> x ∼ x
-  proof x = prf (refl x)
+proof_ : {a : U}(x : T a) -> x ∼ x
+proof x = prf (refl x)
 
-  _≡_by_ : {a b c : U}{x : T a}{y : T b} -> x ∼ y -> (z : T c) -> y == z -> x ∼ z
-  prf p ≡ z by q = prf (trans _ _ _ p q)
+_≡_by_ : {a b c : U}{x : T a}{y : T b} -> x ∼ y -> (z : T c) -> y == z -> x ∼ z
+prf p ≡ z by q = prf (trans _ _ _ p q)
 
-  _qed : {a b : U}{x : T a}{y : T b} -> x ∼ y -> x == y
-  prf p qed = p
+_qed : {a b : U}{x : T a}{y : T b} -> x ∼ y -> x == y
+prf p qed = p
