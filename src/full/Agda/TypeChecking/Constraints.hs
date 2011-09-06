@@ -201,7 +201,7 @@ solveConstraint (FindInScope m)      =
         checkCandidateForMeta m t term t' =
           liftTCM $ flip catchError (\err -> return False) $ do
             reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta t: " ++ show t ++ "; t':" ++ show t' ++ "; term: " ++ show term ++ "."
-            restoreStateTCMT $ do
+            localState $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)
                csT <- leqType t t'
@@ -219,6 +219,9 @@ solveConstraint (FindInScope m)      =
         isSimpleConstraint (Closure _ _ _ (UnBlock{})) = False
         isSimpleConstraint _ = True
 
-restoreStateTCMT :: (Monad m) => TCMT m a -> TCMT m a
-restoreStateTCMT (TCM m) = TCM $ \s e -> do (r, s') <- m s e
-                                            return (r, s)
+localState :: MonadState s m => m a -> m a
+localState m = do
+  s <- get
+  x <- m
+  put s
+  return x
