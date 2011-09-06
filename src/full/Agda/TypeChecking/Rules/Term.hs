@@ -82,6 +82,18 @@ isType_ e =
     s <- workOnTypes $ newSortMeta
     isType e s
 
+-- | Check that an expression is a type which is equal to a given type. Actually
+--   that's not true. It just uses the given type as a hint to instantiate
+--   metas in the expression. It will be checked somewhere else that it really
+--   has the right value.
+isTypeEqualTo :: A.Expr -> Type -> TCM Type
+isTypeEqualTo (A.ScopedExpr _ e) t = isTypeEqualTo e t
+isTypeEqualTo e@(A.Underscore i) t =
+  case A.metaNumber i of
+    Nothing -> return t
+    Just{}  -> isType_ e
+isTypeEqualTo e t = isType_ e
+
 leqType_ :: MonadTCM tcm => Type -> Type -> tcm Constraints
 leqType_ t t' = workOnTypes $ leqType t t'
 
@@ -153,23 +165,32 @@ checkTelescope_ (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ = checkTypedBindings PiNotLam
+checkTypedBindings_ = checkTypedBindings PiNotLam Nothing
 
 data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 --
---   Parametrized by a flag wether we check a typed lambda or a Pi.
---   This flag is needed for irrelevance.
-checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
-    checkTypedBinding lamOrPi h rel b $ \bs ->
+--   Parametrized by a flag wether we check a typed lambda or a Pi. This flag
+--   is needed for irrelevance. If we're checking a lambda we might have a type
+--   getting pushed in.
+checkTypedBindings :: LamOrPi -> Maybe Type -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
+checkTypedBindings lamOrPi mt (A.TypedBindings i (Arg h rel b)) ret =
+    checkTypedBinding lamOrPi mt h rel b $ \bs ->
     ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
 
-checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
-    t <- modEnv lamOrPi $ isType_ e
+checkTypedBinding :: LamOrPi -> Maybe Type -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
+checkTypedBinding lamOrPi mt h rel (A.TBind i xs e) ret = do
+    let ma = case unEl <$> mt of
+               _ | length xs /= 1 -> Nothing
+               Just (Pi arg _)    -> mkArg arg
+               Just (Fun arg _)   -> mkArg arg
+               _ -> Nothing
+          where mkArg (Arg h' rel' a) | h == h' && rel == rel' = Just a
+                                      | otherwise              = Nothing
+
+    t <- modEnv lamOrPi $ maybe (isType_ e) (isTypeEqualTo e) ma
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
     addCtxs xs (Arg h (modRel lamOrPi rel) t) $ ret $ mkTel xs t
@@ -184,7 +205,7 @@ checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
         modRel PiNotLam = irrToNonStrict
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
+checkTypedBinding lamOrPi mt h rel (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
@@ -463,7 +484,7 @@ checkExpr e t =
 	    blockTerm t v (return cs)
 -}
 	A.Lam i (A.DomainFull b) e -> do
-	    (v, cs) <- checkTypedBindings LamNotPi b $ \tel -> do
+	    (v, cs) <- checkTypedBindings LamNotPi (Just t) b $ \tel -> do
                 (t1, cs) <- workOnTypes $ do
 	          t1 <- newTypeMeta_
                   cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
