@@ -493,29 +493,7 @@ checkExpr e t =
                 return (teleLam tel v, cs)
 	    blockTerm t v (return cs)
 
-	A.Lam i (A.DomainFree h rel x) e0 -> do
-	    -- (t',cs) <- forcePi h (show x) t
-            t <- reduceB t
-            case t of
-              Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-              NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-              NotBlocked t' -> case funView $ unEl t' of
-		FunV arg0@(Arg h' rel' a) _
-                  -- Andreas, 2011-04-07 if lambda has explicit irrelevance
-                  --   marker, it needs to coincide with relevance of fun.type
-                    | rel == Irrelevant && rel' /= Irrelevant ->
-                        typeError $ WrongIrrelevanceInLambda t'
-		    | h /= h' ->
-			typeError $ WrongHidingInLambda t'
-		    | otherwise -> do
-			v <- addCtx x arg0 $ do
-                              let arg = Arg h rel' (Var 0 [])
-                                  tb  = raise 1 t' `piApply` [arg]
-                              v <- checkExpr e0 tb
-                              return $ Lam h $ Abs (show x) v
-			-- blockTerm t v (return cs)
-                        return v
-		_   -> typeError $ ShouldBePi t'
+	A.Lam i (A.DomainFree h rel x) e0 -> __IMPOSSIBLE__
 
 	A.Lit lit    -> checkLiteral lit t
 	A.Let i ds e -> checkLetBindings ds $ checkExpr e t
