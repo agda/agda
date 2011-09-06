@@ -38,3 +38,5 @@
 
 20110901: (13:30) New projection benchmarks (record, data and nested) to test
           eliminator detection for projection-like functions.
+
+20110902: Implemented projection detection.
