@@ -153,9 +153,9 @@ checkTelescope_ (b : tel) ret =
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
 checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ = checkTypedBindings LOPi
+checkTypedBindings_ = checkTypedBindings PiNotLam
 
-data LamOrPi = LamOP | LOPi deriving (Eq,Show)
+data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 
 -- | Check a typed binding and extends the context with the bound variables.
 --   The telescope passed to the continuation is valid in the original context.
@@ -178,10 +178,10 @@ checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamOP = workOnTypes
-        modEnv LOPi  = id
-        modRel LamOP = id
-        modRel LOPi  = irrToNonStrict
+        modEnv LamNotPi = workOnTypes
+        modEnv PiNotLam = id
+        modRel LamNotPi = id
+        modRel PiNotLam = irrToNonStrict
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
 checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
@@ -463,7 +463,7 @@ checkExpr e t =
 	    blockTerm t v (return cs)
 -}
 	A.Lam i (A.DomainFull b) e -> do
-	    (v, cs) <- checkTypedBindings LamOP b $ \tel -> do
+	    (v, cs) <- checkTypedBindings LamNotPi b $ \tel -> do
                 (t1, cs) <- workOnTypes $ do
 	          t1 <- newTypeMeta_
                   cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
