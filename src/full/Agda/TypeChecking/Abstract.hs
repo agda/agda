@@ -39,7 +39,7 @@ instance AbstractTerm Term where
       absT x = abstractTerm u x
 
 instance AbstractTerm Type where
-  abstractTerm u (El s v) = El s $ abstractTerm u v
+  abstractTerm u (El s v) = El (abstractTerm u s) (abstractTerm u v)
 
 instance AbstractTerm Sort where
   abstractTerm u s = case s of
