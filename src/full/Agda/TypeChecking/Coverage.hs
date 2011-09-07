@@ -369,7 +369,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     return (telFromList tel1, telFromList tel2)
 
   -- Get the type of the variable
-  t <- normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
+  t <- inContextOfT $ normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -379,16 +379,16 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
     -- There is always a variable at the given hole.
     let (hix, (VarP s, hps)) = holes !! fromIntegral x
-    debugHoleAndType s hps t
+    debugHoleAndType delta1 delta2 s hps t
 
     return (hps, hix)
 
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
-  (d, pars, ixs, cons) <- isDatatype ind t
+  (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
   whenM (optWithoutK <$> pragmaOptions) $
-    Split.wellFormedIndices pars ixs
+    inContextOfT $ Split.wellFormedIndices pars ixs
 
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
@@ -408,21 +408,25 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   where
 
+    inContextOfT = escapeContext (fromIntegral x + 1)
+
     -- Debug printing
     debugInit tel perm x ps =
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Rules.LHS.Coverage.split': split"
         , nest 2 $ vcat
-          [ text "tel  =" <+> prettyTCM tel
-          , text "perm =" <+> text (show perm)
-          , text "x    =" <+> text (show x)
-          , text "ps   =" <+> text (show ps)
+          [ text "tel     =" <+> prettyTCM tel
+          , text "perm    =" <+> text (show perm)
+          , text "x       =" <+> text (show x)
+          , text "ps      =" <+> text (show ps)
           ]
         ]
 
-    debugHoleAndType s hps t =
+    debugHoleAndType delta1 delta2 s hps t =
       reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
-        [ text "p   =" <+> text s
-        , text "hps =" <+> text (show hps)
-        , text "t   =" <+> prettyTCM t
+        [ text "p      =" <+> text s
+        , text "hps    =" <+> text (show hps)
+        , text "delta1 =" <+> prettyTCM delta1
+        , text "delta2 =" <+> prettyTCM delta2
+        , text "t      =" <+> inContextOfT (prettyTCM t)
         ]
