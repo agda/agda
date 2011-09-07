@@ -2,7 +2,7 @@
 
 module Issue286 where
 
-open import Level
+open import Common.Level
 
 data Bool : Set where
   true false : Bool
