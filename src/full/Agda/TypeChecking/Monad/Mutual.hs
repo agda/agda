@@ -53,7 +53,7 @@ lookupMutualBlock mi = do
   mb <- gets stMutualBlocks
   case Map.lookup mi mb of
     Just qs -> return qs
-    Nothing -> fail $ "No such mutual block: " ++ show mi
+    Nothing -> return Set.empty -- can end up here if we ask for the current mutual block and there is none
 
 findMutualBlock :: MonadTCM tcm => QName -> tcm (Set QName)
 findMutualBlock f = do
