@@ -919,7 +919,7 @@ data TypeError
 	| IncompletePatternMatching Term Args -- can only happen if coverage checking is switched off
         | CoverageFailure QName [[Arg Pattern]]
         | UnreachableClauses QName [[Arg Pattern]]
-        | CoverageCantSplitOn QName
+        | CoverageCantSplitOn QName Telescope Args Args
         | CoverageCantSplitType Type
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]

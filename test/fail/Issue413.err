@@ -1,0 +1,8 @@
+Issue413.agda:14,1-29
+Cannot decide whether there should be a case for the constructor
+isℕ, since the unification gets stuck on unifying the inferred
+indices
+  [ℕ]
+with the expected indices
+  [Bool]
+when checking the definition of g

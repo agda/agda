@@ -520,8 +520,12 @@ instance PrettyTCM TypeError where
                       then return ps
                       else return ps  -- TODO: remove implicit arguments which aren't constructors
 
-            CoverageCantSplitOn c -> fsep $
-              pwords "Cannot split on the constructor" ++ [prettyTCM c]
+            CoverageCantSplitOn c tel cIxs gIxs -> addCtxTel tel $ vcat
+              [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
+                       pwords "since the unification gets stuck on unifying the inferred indices"
+              , nest 2 $ prettyTCM cIxs
+              , fsep $ pwords "with the expected indices"
+              , nest 2 $ prettyTCM gIxs ]
 
             CoverageCantSplitType a -> fsep $
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]

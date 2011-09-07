@@ -74,12 +74,11 @@ instance PrettyTCM SplitError where
       pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
       pwords "because it has no constructor"
     CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
-      [ fsep $ pwords "Cannot pattern match on constructor" ++ [prettyTCM c <> text ","] ++
-               pwords "since the inferred indices"
+      [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
+               pwords "since the unification gets stuck on unifying the inferred indices"
       , nest 2 $ prettyTCM cIxs
-      , fsep $ pwords "cannot be unified with the expected indices"
+      , fsep $ pwords "with the expected indices"
       , nest 2 $ prettyTCM gIxs
-      , fsep $ pwords "for some" ++ punctuate comma (map prettyTCM flex)
       ]
     GenericSplitError s -> fsep $
       pwords "Split failed:" ++ pwords s
@@ -153,12 +152,12 @@ cover cs (SClause tel perm ps _) = do
       r <- split Inductive tel perm ps x
       case r of
         Left err  -> case err of
-          CantSplit c _ _ _ _   -> typeError $ CoverageCantSplitOn c
-          NotADatatype a        -> typeError $ CoverageCantSplitType a
-          IrrelevantDatatype a  -> typeError $ CoverageCantSplitType a
-          CoinductiveDatatype a -> typeError $ CoverageCantSplitType a
-          NoRecordConstructor a -> typeError $ CoverageCantSplitType a
-          GenericSplitError s   -> fail $ "failed to split: " ++ s
+          CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
+          NotADatatype a          -> typeError $ CoverageCantSplitType a
+          IrrelevantDatatype a    -> typeError $ CoverageCantSplitType a
+          CoinductiveDatatype a   -> typeError $ CoverageCantSplitType a
+          NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
+          GenericSplitError s     -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
 -- | Check that a type is a non-irrelevant datatype or a record with
