@@ -227,22 +227,14 @@ Token
     | literal	    { TokLiteral $1 }
 
 {--------------------------------------------------------------------------
-    TeX
- --------------------------------------------------------------------------}
-
-TeX :: { () }
-TeX : {- empty -} { () }
-    | tex TeX	  { () }
-
-{--------------------------------------------------------------------------
     Top level
  --------------------------------------------------------------------------}
 
 File :: { ([Pragma], [Declaration]) }
-File : File1 TeX  { $1 }
+File : File1 { $1 }
 
-File1 : TopLevel		 { ([], $1) }
-      | TeX TopLevelPragma File1 { let (ps,m) = $3 in ($2 : ps, m) }
+File1 : TopLevel             { ([], $1) }
+      | TopLevelPragma File1 { let (ps,m) = $2 in ($1 : ps, m) }
 
 
 {--------------------------------------------------------------------------
@@ -269,8 +261,8 @@ close : vclose  { () }
 -- brace, so we don't have to distinguish between the two semi colons. You can't
 -- use a virtual semi colon in a block started by a concrete brace, but this is
 -- simply because the lexer will not generate virtual semis in this case.
-semi : ';'	  { $1 }
-     | TeX vsemi  { $2 }
+semi : ';'    { $1 }
+     | vsemi  { $1 }
 
 
 -- Enter the 'imp_dir' lex state, where we can parse the keywords 'using',
@@ -1041,9 +1033,9 @@ Module : 'module' Id TypedUntypedBindings 'where' Declarations0
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
-TopLevel : TeX TopModule       { [$2] }
-	 | TeX Import TopLevel { $2 : $3 }
-	 | TeX Open   TopLevel { $2 : $3 }
+TopLevel : TopModule       { [$1] }
+	 | Import TopLevel { $1 : $2 }
+	 | Open   TopLevel { $1 : $2 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
@@ -1128,66 +1120,66 @@ ImpossiblePragma :: { Pragma }
 -- for every signature.
 TypeSignatures :: { [TypeSignature] }
 TypeSignatures
-    : TeX vopen TypeSignatures1 TeX close   { reverse $3 }
+    : vopen TypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
 TypeSignatures1 :: { [TypeSignature] }
 TypeSignatures1
-    : TypeSignatures1 semi TeX TypeSigs { reverse $4 ++ $1 }
-    | TeX TypeSigs			{ reverse $2 }
+    : TypeSignatures1 semi TypeSigs { reverse $3 ++ $1 }
+    | TypeSigs                      { reverse $1 }
 
 -- A variant of TypeSignatures which allows the irrelevance annotation (dot).
 RelTypeSignatures :: { [TypeSignature] }
 RelTypeSignatures
-    : TeX vopen RelTypeSignatures1 TeX close   { reverse $3 }
+    : vopen RelTypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
 RelTypeSignatures1 :: { [TypeSignature] }
 RelTypeSignatures1
-    : RelTypeSignatures1 semi TeX RelTypeSigs { reverse $4 ++ $1 }
-    | TeX RelTypeSigs			      { reverse $2 }
+    : RelTypeSignatures1 semi RelTypeSigs { reverse $3 ++ $1 }
+    | RelTypeSigs                         { reverse $1 }
 
 -- A variant of TypeSignatures which uses ArgTypeSigs instead of
 -- TypeSigs.
 ArgTypeSignatures :: { [Arg TypeSignature] }
 ArgTypeSignatures
-    : TeX vopen ArgTypeSignatures1 TeX close   { reverse $3 }
+    : vopen ArgTypeSignatures1 close   { reverse $2 }
 
 -- Inside the layout block.
 ArgTypeSignatures1 :: { [Arg TypeSignature] }
 ArgTypeSignatures1
-    : ArgTypeSignatures1 semi TeX ArgTypeSigs { reverse $4 ++ $1 }
-    | TeX ArgTypeSigs		              { reverse $2 }
+    : ArgTypeSignatures1 semi ArgTypeSigs { reverse $3 ++ $1 }
+    | ArgTypeSigs                         { reverse $1 }
 
 -- Constructors are type signatures. But constructor lists can be empty.
 Constructors :: { [Constructor] }
 Constructors
-    : TeX vopen TeX close { [] }
-    | TypeSignatures	  { $1 }
+    : vopen close    { [] }
+    | TypeSignatures { $1 }
 
 -- Record declarations, including an optional record constructor name.
 RecordDeclarations :: { (Maybe Name, [Declaration]) }
 RecordDeclarations
-    : TeX vopen                                              TeX close { (Nothing, []) }
-    | TeX vopen TeX RecordConstructorName                    TeX close { (Just $4, []) }
-    | TeX vopen TeX RecordConstructorName semi Declarations1 TeX close { (Just $4, reverse $6) }
-    | TeX vopen                                Declarations1 TeX close { (Nothing, reverse $3) }
+    : vopen                                          close { (Nothing, []) }
+    | vopen RecordConstructorName                    close { (Just $2, []) }
+    | vopen RecordConstructorName semi Declarations1 close { (Just $2, reverse $4) }
+    | vopen                            Declarations1 close { (Nothing, reverse $2) }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }
 Declarations
-    : TeX vopen Declarations1 TeX close { reverse $3 }
+    : vopen Declarations1 close { reverse $2 }
 
 -- Arbitrary declarations
 Declarations0 :: { [Declaration] }
 Declarations0
-    : TeX vopen TeX close  { [] }
+    : vopen close  { [] }
     | Declarations { $1 }
 
 Declarations1 :: { [Declaration] }
 Declarations1
-    : Declarations1 semi TeX Declaration { reverse $4 ++ $1 }
-    | TeX Declaration			 { reverse $2 }
+    : Declarations1 semi Declaration { reverse $3 ++ $1 }
+    | Declaration                    { reverse $1 }
 
 
 {

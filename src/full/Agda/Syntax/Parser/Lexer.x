@@ -57,10 +57,11 @@ $white_nonl  = $white_notab # \n
 tokens :-
 
 -- Lexing literate files
-<tex>	 $white_nonl* \\ "begin{code}" $white_nonl* $ { end_ }
-<tex>	 .* $		            { withInterval TokTeX }
-<tex>	 .+		            { withInterval TokTeX }
+<tex> $white_nonl* \\ "begin{code}" $white_nonl* $ { end_ }
+<tex> .+ / { keepComments } { withInterval TokTeX }
+<tex>	 .+		            ;
 <tex>    \n                         ;
+<tex> () / { eof } { end_ }
 <bol_,layout_>
   \\ "end{code}" / { inState code } { begin_ tex }
   -- \end{code} should only be recognized if the bottom of the stack is <code>

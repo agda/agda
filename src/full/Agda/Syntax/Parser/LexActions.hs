@@ -95,7 +95,7 @@ newInput inp inp' len =
 	c:s'	-> inp' { lexInput    = s'
 			, lexPrevChar = c
 			}
-	[]	-> __IMPOSSIBLE__
+	[]	-> inp' { lexInput = [] }   -- we do get empty tokens moving between states
 
 -- | Alex can't handle unicode characters. To solve this we translate all
 --   Unicode (non-ASCII) identifiers to @z@, all Unicode operator
