@@ -140,5 +140,11 @@ lem-β A B v u = eqInΠ refl \x y x=y ->
 -- lem-η : {Γ : Cxt}(A : Type Γ)(B : Type (Γ ▷ A))
 --         (v : Term Γ (Pi A B)) →
 --         v == lam (app (A / wk A) (B / lift A (wk A)) (sym (lem-Pi-/ A B (wk A)) ◄ v /ˢ wk A) (vz A))
--- lem-η A B v = {!!}
-
+-- lem-η {Γ} A B (ƛ f pf) =
+--   eqInΠ =S=-refl λ γ δ γ=δ →
+--   proof f γ ≡ ƛ (_#_ (f γ)) (λ _ _ → #-cong-R (f γ)) by η (f γ)
+--             ≡ _ by eqInΠ (!-cong-R A (sym γ=δ)) (λ x y x=y →
+--     proof f γ # x
+--       ≡ (_ << (_ << f (_ << δ))) # y by {!!}
+--     qed)
+--   qed
