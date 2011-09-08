@@ -146,7 +146,7 @@ module Equality {a ℓ} {A : Set a} -- The "return type".
 private
  module Dummy {a ℓ} {A : Set a} {_∼_ : A → A → Set ℓ} where
 
-  open Equality _∼_
+  open Equality _∼_ using (Rel; _≅_; _≳_; _≲_; _≈_; _⇓[_]_; _⇑[_])
   open Equality.Rel
 
   -- All relations include strong equality.
