@@ -652,10 +652,13 @@ checkExpr e t =
                       case t1 of
                         NotBlocked (Def d _) -> do
                           let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
-                                c:_ -> do
+                                [c] -> do
                                   reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
                                   return (Just c)
                                 []  -> badCon (Def d [])
+                                cs  -> typeError $ GenericError $
+                                        "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
+                                        "): " ++ unwords (map show cs)
                           defn <- theDef <$> getConstInfo d
                           case defn of
                             Datatype{} -> dataOrRec
