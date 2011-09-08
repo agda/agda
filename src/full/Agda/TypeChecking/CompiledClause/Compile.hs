@@ -111,6 +111,7 @@ expandCatchAlls n cs = case cs of
         countVars = sum . map (count . unArg)
         count VarP{}        = 1
         count (ConP _ _ ps) = countVars ps
+        count DotP{}        = 1   -- dot patterns are treated as variables in the clauses
         count _             = 0
 
         var x = defaultArg $ Var x []
