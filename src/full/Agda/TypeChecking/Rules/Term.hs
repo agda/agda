@@ -797,7 +797,7 @@ checkConstructorApplication org t c args
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
         checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' cs -> do
-        reportSDoc "tc.term.com" 20 $ nest 2 $ vcat
+        reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
           [ text "us     =" <+> prettyTCM us
           , text "t'     =" <+> prettyTCM t' ]
         blockTerm t (Con c us) $ (cs ++) <$> leqType_ t' t

@@ -1,0 +1,3 @@
+Issue452.agda:24,1-7
+D true tt should be empty, but that's not obvious to me
+when checking that the clause foo () has type D true tt → ⊥

@@ -37,8 +37,23 @@ import Agda.TypeChecking.Rules.LHS.Problem
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
 
-newtype Unify a = U { unUnify :: ExceptionT UnifyException (StateT UnifyState TCM) a }
-  deriving (Monad, MonadIO, Functor, Applicative, MonadReader TCEnv, MonadException UnifyException)
+newtype Unify a = U { unUnify :: ReaderT UnifyEnv (ExceptionT UnifyException (StateT UnifyState TCM)) a }
+  deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException)
+
+instance MonadReader TCEnv Unify where
+  ask = U $ ReaderT $ \ _ -> ask
+  local cont (U (ReaderT f)) = U $ ReaderT $ \ a -> local cont (f a)
+
+data UnifyMayPostpone = MayPostpone | MayNotPostpone
+
+type UnifyEnv = UnifyMayPostpone
+emptyUEnv   = MayPostpone
+
+noPostponing :: Unify a -> Unify a
+noPostponing (U (ReaderT f)) = U . ReaderT . const $ f MayNotPostpone
+
+askPostpone :: Unify UnifyMayPostpone
+askPostpone = U . ReaderT $ return
 
 data Equality = Equal Type Term Term
 type Sub = Map Nat Term
@@ -60,12 +75,18 @@ emptyUState = USt Map.empty []
 constructorMismatch :: Type -> Term -> Term -> Unify a
 constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 
+{-
+instance MonadReader TCEnv Unify where
+  ask           = U . lift  $ ask
+  local k (U m) = U . lift . lift . lift $ local k m
+-}
+
 instance MonadState TCState Unify where
-  get = U . lift . lift $ get
-  put = U . lift . lift . put
+  get = U . lift . lift . lift $ get
+  put = U . lift . lift . lift . put
 
 instance MonadTCM Unify where
-  liftTCM = U . lift . lift
+  liftTCM = U . lift . lift . lift
 
 instance Subst Equality where
   substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
@@ -90,7 +111,11 @@ checkEquality :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
 checkEquality a u v = noConstraints $ equalTerm a u v
 
 addEquality :: Type -> Term -> Term -> Unify ()
-addEquality a u v = U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
+addEquality a u v = do
+   p <- askPostpone
+   case p of
+     MayPostpone ->  U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
+     MayNotPostpone -> checkEquality a u v
 
 takeEqualities :: Unify [Equality]
 takeEqualities = U $ do
@@ -183,7 +208,7 @@ unifyIndices flex a us vs = liftTCM $ do
           , nest 2 $ prettyList $ map prettyTCM vs
           , nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
           ]
-    (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . unUnify $
+    (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . flip runReaderT emptyUEnv . unUnify $
                       unifyArgs a us vs >> recheckConstraints
 
     case r of
@@ -216,11 +241,19 @@ unifyIndices flex a us vs = liftTCM $ do
       a <- reduce a
       case funView $ unEl a of
 	FunV b _  -> do
+          -- Andreas, Ulf, 2011-09-08 (AIM XVI)
+          -- in case of dependent function type, we cannot postpone
+          -- unification of u and v, otherwise us or vs might be ill-typed
+          let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (argRelevance b == Irrelevant) $ unify (unArg b) u v
+	  unless (argRelevance b == Irrelevant) $
+            (if dep then noPostponing else id) $
+              unify (unArg b) u v
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
+      where dependent (Pi a b) = 0 `freeIn` absBody b
+            dependent _        = False
 
     recheckConstraints :: Unify ()
     recheckConstraints = mapM_ unifyEquality =<< takeEqualities

@@ -34,6 +34,11 @@ instance (Monad m, Error err) => MonadException err (ExceptionT err m) where
       Left err  -> runExceptionT $ h err
       Right x   -> return $ Right x
 
+instance (Monad m, MonadException err m) => MonadException err (ReaderT r m) where
+  throwException = lift . throwException
+  catchException m h = ReaderT $ \ r ->
+    catchException (m `runReaderT` r) (\ err -> h err `runReaderT` r)
+
 instance MonadTrans (ExceptionT err) where
   lift = ExceptionT . liftM Right
 
