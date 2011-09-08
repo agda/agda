@@ -111,6 +111,7 @@ makeProjection x = inContext [] $ do
                                         show n ++ " for type " ++ show d
           let cls' = map (rewriteClause n) cls
           cc <- compileClauses True cls'
+          reportSLn "tc.proj.like" 20 $ "  rewrote clauses to\n    " ++ show cc
           let mapInv f NotInjective  = NotInjective
               mapInv f (Inverse inv) = Inverse (f inv)
               newDef = def

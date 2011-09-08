@@ -13,8 +13,8 @@ data G : Nat -> Nat -> Set where
  s : (n m : Nat) -> G n m
 
 mul : (l m n : Nat) -> G m n -> G l m -> G l n
-mul a b .b (I .b) x = x
-mul a .a b x (I .a) = x
+mul a b .b (I .b)   x         = x
+mul a .a b x        (I .a)    = x
 mul a b c (s .b .c) (s .a .b) = s a c
 
 postulate

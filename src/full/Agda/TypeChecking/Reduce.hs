@@ -322,16 +322,19 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                 ev <- maybe (appDef' v0 cls args1)
                             (\cc -> appDef v0 cc args1) mcc
                 case ev of
-                  NoReduction  v -> return    $ v `apply` args2
+                  NoReduction  v -> do
+                    let v' = v `apply` args2
+                    reportSDoc "tc.reduce" 90 $ vcat
+                      [ text "*** tried to reduce " <+> prettyTCM f
+                      , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
+                      , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
+                    return v'
                   YesReduction v -> do
                     let v' = v `apply` args2
                     reportSDoc "tc.reduce" 90 $ vcat
                       [ text "*** reduced definition: " <+> prettyTCM f
                       ]
-                    reportSDoc "tc.reduce" 100 $ vcat
-                      [ text "*** continuing with"
-                      , prettyTCM v'
-                      ]
+                    reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v'
                     keepGoing $ v'
             | otherwise	-> defaultResult -- partial application
       where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
