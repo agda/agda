@@ -11,7 +11,7 @@ open import Data.Nat using (suc)
 open import Function
 open import Level using (_⊔_)
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 module Equality {s₁ s₂} (S : Setoid s₁ s₂) where
 
@@ -32,8 +32,8 @@ module Equality {s₁ s₂} (S : Setoid s₁ s₂) where
   length-equal : ∀ {n¹} {xs¹ : Vec A n¹}
                    {n²} {xs² : Vec A n²} →
                  xs¹ ≈ xs² → n¹ ≡ n²
-  length-equal []-cong        = PropEq.refl
-  length-equal (_ ∷-cong eq₂) = PropEq.cong suc $ length-equal eq₂
+  length-equal []-cong        = P.refl
+  length-equal (_ ∷-cong eq₂) = P.cong suc $ length-equal eq₂
 
   refl : ∀ {n} (xs : Vec A n) → xs ≈ xs
   refl []       = []-cong
@@ -79,21 +79,13 @@ module DecidableEquality {d₁ d₂} (D : DecSetoid d₁ d₂) where
     helper : ¬ (x ∷ xs ≈ y ∷ ys)
     helper (x≊y ∷-cong _) = ¬x≊y x≊y
 
-module HeterogeneousEquality {a} {A : Set a} where
+module PropositionalEquality {a} {A : Set a} where
 
-  open import Relation.Binary.HeterogeneousEquality as HetEq
-    using (_≅_)
-  open Equality (PropEq.setoid A)
+  open Equality (P.setoid A)
 
-  to-≅ : ∀ {n m} {xs : Vec A n} {ys : Vec A m} →
-         xs ≈ ys → xs ≅ ys
-  to-≅ []-cong                      = HetEq.refl
-  to-≅ (PropEq.refl ∷-cong xs¹≈xs²) with length-equal xs¹≈xs²
-  ... | PropEq.refl = HetEq.cong (_∷_ _) $ to-≅ xs¹≈xs²
+  to-≡ : ∀ {n} {xs ys : Vec A n} → xs ≈ ys → xs ≡ ys
+  to-≡ []-cong                 = P.refl
+  to-≡ (P.refl ∷-cong xs¹≈xs²) = P.cong (_∷_ _) $ to-≡ xs¹≈xs²
 
-  from-≅ : ∀ {n m} {xs : Vec A n} {ys : Vec A m} →
-           xs ≅ ys → xs ≈ ys
-  from-≅ {xs = []}     {ys = []}       _          = refl _
-  from-≅ {xs = x ∷ xs} {ys = .x ∷ .xs} HetEq.refl = refl _
-  from-≅ {xs = _ ∷ _}  {ys = []}       ()
-  from-≅ {xs = []}     {ys = _ ∷ _}    ()
+  from-≡ : ∀ {n} {xs ys : Vec A n} → xs ≡ ys → xs ≈ ys
+  from-≡ P.refl = refl _

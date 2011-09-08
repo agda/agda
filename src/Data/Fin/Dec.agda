@@ -11,7 +11,7 @@ import Data.Bool as Bool
 open import Data.Nat hiding (_<_)
 open import Data.Vec hiding (_∈_)
 open import Data.Vec.Equality as VecEq
-  using () renaming (module HeterogeneousEquality to HetVecEq)
+  using () renaming (module PropositionalEquality to PropVecEq)
 open import Data.Fin
 open import Data.Fin.Subset
 open import Data.Fin.Subset.Props
@@ -169,6 +169,5 @@ infix 4 _⊆?_
 _⊆?_ : ∀ {n} → Decidable (_⊆_ {n = n})
 p₁ ⊆? p₂ =
   Dec.map (Eq.sym NaturalPoset.orders-equivalent) $
-  Dec.map′ H.≅-to-≡ H.≡-to-≅ $
-  Dec.map′ HetVecEq.to-≅ HetVecEq.from-≅ $
+  Dec.map′ PropVecEq.to-≡ PropVecEq.from-≡ $
   VecEq.DecidableEquality._≟_ Bool.decSetoid p₁ (p₁ ∩ p₂)
