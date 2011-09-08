@@ -91,3 +91,13 @@ type-signature : ∀ {a} (A : Set a) → A → A
 type-signature A x = x
 
 syntax type-signature A x = x ∶ A
+
+-- A case expression (to be used with pattern-matching lambdas, see
+-- README.Case).
+
+infix 0 case_return_of_
+
+case_return_of_ :
+  ∀ {a b} {A : Set a}
+  (x : A) (B : A → Set b) → ((x : A) → B x) → B x
+case x return B of f = f x

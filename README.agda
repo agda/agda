@@ -260,6 +260,10 @@ import README.Nat
 
 import README.Record
 
+-- An example showing how the case expression can be used.
+
+import README.Case
+
 ------------------------------------------------------------------------
 -- Core modules
 ------------------------------------------------------------------------
