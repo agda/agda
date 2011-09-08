@@ -225,20 +225,31 @@ ioTCM current highlightingFile cmd = infoOnException $ do
            st <- get
            return (Right (x, st))
          ) (\e -> do
-           s <- prettyError e
-           return (Left (s, e))
+           mods <- stDecodedModules <$> get
+           s    <- prettyError e
+           return (Left (mods, s, e))
          )
 
-  -- Update the state.
+  -- Upon success: update the state. Upon failure: update the decoded
+  -- modules (if possible), and, for independent commands, the current
+  -- file.
   case r of
     Right (Right (m, st')) ->
       modifyIORef theState $ \s ->
-        s { theTCState   = st'
+        s { theTCState = st'
           }
-    _ | isIndependent cmd ->
+    Right (Left (mods, _, _)) -> do
       modifyIORef theState $ \s ->
-        s { theCurrentFile = Nothing }
-    _ -> return ()
+        s { theTCState = (theTCState s) { stDecodedModules = mods }
+          }
+    Left _ -> return ()
+  when (isIndependent cmd) $
+    case r of
+      Right (Right _) -> return ()
+      _               ->
+        modifyIORef theState $ \s ->
+          s { theCurrentFile = Nothing
+            }
 
   -- Write out syntax highlighting info.
   case highlightingFile of
@@ -258,8 +269,8 @@ ioTCM current highlightingFile cmd = infoOnException $ do
               return ( iHighlighting $ miInterface mi
                      , stModuleToSource st'
                      )
-            Right (Left (s, e)) -> errHi e (Just s)
-            Left e              -> errHi e Nothing
+            Right (Left (_ , s, e)) -> errHi e (Just s)
+            Left e                  -> errHi e Nothing
 
   -- If an error was encountered, display an error message and exit
   -- with an error code; otherwise, inform Emacs about the buffer's
@@ -269,10 +280,10 @@ ioTCM current highlightingFile cmd = infoOnException $ do
                              optShowImplicit $ stPragmaOptions st
                          }
   case r of
-    Right (Left (s, e)) -> displayErrorAndExit errStatus (getRange e) s
-    Left e              -> displayErrorAndExit errStatus (getRange e) $
-                             tcErrString e
-    Right (Right _)     -> do
+    Right (Left (_, s, e)) -> displayErrorAndExit errStatus (getRange e) s
+    Left e                 -> displayErrorAndExit errStatus (getRange e) $
+                                tcErrString e
+    Right (Right _)        -> do
       f <- theCurrentFile <$> readIORef theState
       case f of
         Just (f, _) | f === current -> do

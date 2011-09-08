@@ -334,7 +334,9 @@ getInterface' x includeStateChanges =
             opts     <- stPersistentOptions <$> get
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
-            -- Every interface is treated in isolation.
+            -- Every interface is treated in isolation. Note: Changes
+            -- to stDecodedModules are not preserved if an error is
+            -- encountered in an imported module.
             r <- liftIO $ runTCM $
                    withImportPath ms $ do
                      setDecodedModules ds

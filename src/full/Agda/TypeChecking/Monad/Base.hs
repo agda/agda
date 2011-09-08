@@ -1048,8 +1048,18 @@ class ( Applicative tcm, MonadIO tcm
 instance MonadError TCErr (TCMT IO) where
   throwError = liftIO . throwIO
   catchError m h = TCM $ \r e -> do
-    s <- liftIO (readIORef r)
-    unTCM m r e `E.catch` \err -> liftIO (writeIORef r s) >> unTCM (h err) r e
+    oldState <- liftIO (readIORef r)
+    unTCM m r e `E.catch` \err -> do
+      -- Reset the state, but do not forget changes to the
+      -- stDecodedModules component. TODO: If we need to preserve
+      -- several components, put them in a "persistent state"
+      -- component. In that case, remember to update
+      -- Agda.Interaction.GhciTop.ioTCM as well.
+      liftIO $ do
+        newState <- readIORef r
+        writeIORef r $ oldState { stDecodedModules =
+                                    stDecodedModules newState }
+      unTCM (h err) r e
 
 -- | Preserve the state of the failing computation.
 catchError_ :: TCM a -> (TCErr -> TCM a) -> TCM a
