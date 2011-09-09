@@ -1,0 +1,4 @@
+Inference-of-implicit-function-space.agda:18,32-33
+A ⇔ A should be a function type, but it isn't
+when checking that {x = x} are valid arguments to a function of
+type A ⇔ A
