@@ -40,5 +40,8 @@ pbool = unit1 , refl
 ¬pbool2 : ¬ P (D false)
 ¬pbool2 ( unit2 , () )
 
--- Now we can show that D true ≠ D false
--- but they are isomorphic
+{- expected error
+unit2 ≅ unit1 should be empty, but that's not obvious to me
+when checking that the clause ¬pbool2 (unit2 , ()) has type
+¬ P (D false)
+-}

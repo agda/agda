@@ -1,4 +1,5 @@
-{-# OPTIONS -v tc.lhs.unify:50 #-}
+-- Fixed on AIM XIV 2011-09-09 AA, UN
+-- {-# OPTIONS -v tc.lhs.unify:50 #-}
 module Issue292b where
 
 data ⊥ : Set where
@@ -36,5 +37,8 @@ pbool = tt , refl
 ¬pbool2 : ¬ P (D false)
 ¬pbool2 ( ff , () )
 
--- Now we can show that D true ≠ D false
--- but they are isomorphic 
+{- expected error
+ff ≅ tt should be empty, but that's not obvious to me
+when checking that the clause ¬pbool2 (ff , ()) has type
+¬ P (D false)
+-}
