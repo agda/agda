@@ -274,7 +274,7 @@ instance ComputeOccurrences Term where
     Level l      -> occurrences vars l
     Lit{}        -> Map.empty
     Sort{}       -> Map.empty
-    DontCare     -> Map.empty
+    DontCare _   -> Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     where
       -- Apparently some development version of GHC chokes if the
       -- following line is replaced by vs ! i.

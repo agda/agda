@@ -19,17 +19,17 @@ class Strict a where
 
 instance Strict Term where
     force t = case t of
-	Var _ ts   -> force ts
-	Def _ ts   -> force ts
-	Con _ ts   -> force ts
-	Lam _ t    -> force t
-	Lit _	   -> 0
-        Level l    -> force l
-	Pi a b	   -> force (a,b)
-	Fun a b    -> force (a,b)
-	Sort s	   -> force s
-	MetaV _ ts -> force ts
-        DontCare   -> 0
+	Var _ ts    -> force ts
+	Def _ ts    -> force ts
+	Con _ ts    -> force ts
+	Lam _ t     -> force t
+	Lit _	    -> 0
+        Level l     -> force l
+	Pi a b	    -> force (a,b)
+	Fun a b     -> force (a,b)
+	Sort s	    -> force s
+	MetaV _ ts  -> force ts
+        DontCare mt -> force mt
 
 instance Strict Type where
     force (El s t) = force (s,t)
@@ -81,6 +81,9 @@ instance Strict a => Strict (Arg a) where
 
 instance Strict a => Strict [a] where
     force = sum . map force
+
+instance Strict a => Strict (Maybe a) where
+    force = maybe 0 force
 
 instance Strict a => Strict (Abs a) where
     force = force . absBody

@@ -136,7 +136,7 @@ occursCheck i u a = do
       reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs strongly rigidly in" <+> prettyTCM u
       throwException $ StronglyRigidOccurrence a v u
 
-    NoOccurrence  -> return ()
+    NoOccurrence  -> return ()  -- this includes irrelevant occurrences!
 
     -- any other recursive occurrence leads to unclear situation
     _             -> do

@@ -42,9 +42,24 @@ data Term = Var Nat Args
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
-          | DontCare               -- ^ nuked irrelevant and other stuff
-  deriving (Typeable, Data, Eq, Ord, Show)
--- Andreas 2010-09-21: @DontCare@ replaces the hack @Sort Prop@
+          | DontCare (Maybe Term)  -- ^ (maybe nuked) irrelevant and other stuff
+  deriving (Typeable, Data, Ord, Show)
+-- Andreas 2010-09-21: @DontCare Nothing@ replaces the hack @Sort Prop@
+
+-- | Syntactic equality, ignores stuff below @DontCare@.
+instance Eq Term where
+  Var x vs   == Var x' vs'   = x == x' && vs == vs'
+  Lam h v    == Lam h' v'    = h == h' && v  == v'
+  Lit l      == Lit l'       = l == l'
+  Def x vs   == Def x' vs'   = x == x' && vs == vs'
+  Con x vs   == Con x' vs'   = x == x' && vs == vs'
+  Pi a b     == Pi a' b'     = a == a' && b == b'
+  Fun a b    == Fun a' b'    = a == a' && b == b'
+  Sort s     == Sort s'      = s == s'
+  Level l    == Level l'     = l == l'
+  MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
+  DontCare _ == DontCare _   = True
+  _          == _            = False
 
 data Type = El Sort Term
   deriving (Typeable, Data, Eq, Ord, Show)
@@ -113,17 +128,17 @@ instance Applicative Blocked where
 
 instance Sized Term where
   size v = case v of
-    Var _ vs   -> 1 + Prelude.sum (map size vs)
-    Def _ vs   -> 1 + Prelude.sum (map size vs)
-    Con _ vs   -> 1 + Prelude.sum (map size vs)
-    MetaV _ vs -> 1 + Prelude.sum (map size vs)
-    Level l    -> size l
-    Lam _ f    -> 1 + size f
-    Lit _      -> 1
-    Pi a b     -> 1 + size a + size b
-    Fun a b    -> 1 + size a + size b
-    Sort s     -> 1
-    DontCare   -> 1
+    Var _ vs    -> 1 + Prelude.sum (map size vs)
+    Def _ vs    -> 1 + Prelude.sum (map size vs)
+    Con _ vs    -> 1 + Prelude.sum (map size vs)
+    MetaV _ vs  -> 1 + Prelude.sum (map size vs)
+    Level l     -> size l
+    Lam _ f     -> 1 + size f
+    Lit _       -> 1
+    Pi a b      -> 1 + size a + size b
+    Fun a b     -> 1 + size a + size b
+    Sort s      -> 1
+    DontCare mv -> size mv
 
 instance Sized Type where
   size = size . unEl
@@ -143,17 +158,17 @@ instance Sized LevelAtom where
 
 instance KillRange Term where
   killRange v = case v of
-    Var i vs   -> killRange1 (Var i) vs
-    Def c vs   -> killRange2 Def c vs
-    Con c vs   -> killRange2 Con c vs
-    MetaV m vs -> killRange1 (MetaV m) vs
-    Lam h f    -> killRange2 Lam h f
-    Lit l      -> killRange1 Lit l
-    Level l    -> killRange1 Level l
-    Pi a b     -> killRange2 Pi a b
-    Fun a b    -> killRange2 Fun a b
-    Sort s     -> killRange1 Sort s
-    DontCare   -> DontCare
+    Var i vs    -> killRange1 (Var i) vs
+    Def c vs    -> killRange2 Def c vs
+    Con c vs    -> killRange2 Con c vs
+    MetaV m vs  -> killRange1 (MetaV m) vs
+    Lam h f     -> killRange2 Lam h f
+    Lit l       -> killRange1 Lit l
+    Level l     -> killRange1 Level l
+    Pi a b      -> killRange2 Pi a b
+    Fun a b     -> killRange2 Fun a b
+    Sort s      -> killRange1 Sort s
+    DontCare mv -> killRange1 DontCare mv
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as

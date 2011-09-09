@@ -34,7 +34,7 @@ instance AbstractTerm Term where
     Level l     -> Level $ absT l
     Sort s      -> Sort $ absT s
     MetaV m vs  -> MetaV m $ absT vs
-    DontCare    -> DontCare
+    DontCare mv -> DontCare $ absT mv
     where
       absT x = abstractTerm u x
 
@@ -67,6 +67,9 @@ instance AbstractTerm a => AbstractTerm (Arg a) where
   abstractTerm = fmap . abstractTerm
 
 instance AbstractTerm a => AbstractTerm [a] where
+  abstractTerm = fmap . abstractTerm
+
+instance AbstractTerm a => AbstractTerm (Maybe a) where
   abstractTerm = fmap . abstractTerm
 
 instance (Raise a, AbstractTerm a) => AbstractTerm (Abs a) where

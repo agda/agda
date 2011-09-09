@@ -333,7 +333,7 @@ term tm0 = case tm0 of
   Fun   _ _  -> return HS.unit_con
   Sort  _    -> return HS.unit_con
   MetaV _ _  -> mazerror "hit MetaV"
-  DontCare   -> return $ rtmError $ "hit DontCare"
+  DontCare _ -> return $ rtmError $ "hit DontCare"
   where apps =  foldM (\h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().

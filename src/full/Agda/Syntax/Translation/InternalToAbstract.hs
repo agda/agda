@@ -290,7 +290,11 @@ instance Reify Term Expr where
                       <$> reify (a,b)
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
-      I.DontCare   -> return A.DontCare
+      I.DontCare _  -> return A.DontCare
+{- Andreas, 2011-09-09
+      I.DontCare Nothing  -> return A.DontCare
+      I.DontCare (Just v) -> reify v  -- leads to paradox error msg in test/fail/UnifyWithIrrelevantArgument
+-}
 
 instance Reify Elim Expr where
   reify e = case e of

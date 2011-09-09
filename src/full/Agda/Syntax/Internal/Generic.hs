@@ -27,6 +27,11 @@ instance TermLike a => TermLike [a] where
   traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
+instance TermLike a => TermLike (Maybe a) where
+  traverseTerm f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
+
 instance (TermLike a, TermLike b) => TermLike (a, b) where
   traverseTerm f (x, y) = (traverseTerm f x, traverseTerm f y)
   traverseTermM f (x, y) = (,) <$> traverseTermM f x <*> traverseTermM f y
@@ -39,43 +44,43 @@ instance TermLike a => TermLike (Abs a) where
 
 instance TermLike Term where
   traverseTerm f t = case t of
-    Var i xs -> f $ Var i $ traverseTerm f xs
-    Def c xs -> f $ Def c $ traverseTerm f xs
-    Con c xs -> f $ Con c $ traverseTerm f xs
-    Lam h b  -> f $ Lam h $ traverseTerm f b
-    Pi a b   -> f $ uncurry Pi $ traverseTerm f (a, b)
-    Fun a b  -> f $ uncurry Fun $ traverseTerm f (a, b)
-    MetaV m xs -> f $ MetaV m $ traverseTerm f xs
-    Level l    -> f $ Level $ traverseTerm f l
-    Lit _    -> f t
-    Sort _   -> f t
-    DontCare -> f t
+    Var i xs    -> f $ Var i $ traverseTerm f xs
+    Def c xs    -> f $ Def c $ traverseTerm f xs
+    Con c xs    -> f $ Con c $ traverseTerm f xs
+    Lam h b     -> f $ Lam h $ traverseTerm f b
+    Pi a b      -> f $ uncurry Pi $ traverseTerm f (a, b)
+    Fun a b     -> f $ uncurry Fun $ traverseTerm f (a, b)
+    MetaV m xs  -> f $ MetaV m $ traverseTerm f xs
+    Level l     -> f $ Level $ traverseTerm f l
+    Lit _       -> f t
+    Sort _      -> f t
+    DontCare mv -> f $ DontCare $ traverseTerm f mv
 
   traverseTermM f t = case t of
-    Var i xs -> f =<< Var i <$> traverseTermM f xs
-    Def c xs -> f =<< Def c <$> traverseTermM f xs
-    Con c xs -> f =<< Con c <$> traverseTermM f xs
-    Lam h b  -> f =<< Lam h <$> traverseTermM f b
-    Pi a b   -> f =<< uncurry Pi <$> traverseTermM f (a, b)
-    Fun a b  -> f =<< uncurry Fun <$> traverseTermM f (a, b)
-    MetaV m xs -> f =<< MetaV m <$> traverseTermM f xs
-    Level l    -> f =<< Level <$> traverseTermM f l
-    Lit _    -> f t
-    Sort _   -> f t
-    DontCare -> f t
+    Var i xs    -> f =<< Var i <$> traverseTermM f xs
+    Def c xs    -> f =<< Def c <$> traverseTermM f xs
+    Con c xs    -> f =<< Con c <$> traverseTermM f xs
+    Lam h b     -> f =<< Lam h <$> traverseTermM f b
+    Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
+    Fun a b     -> f =<< uncurry Fun <$> traverseTermM f (a, b)
+    MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
+    Level l     -> f =<< Level <$> traverseTermM f l
+    Lit _       -> f t
+    Sort _      -> f t
+    DontCare mv -> f =<< DontCare <$> traverseTermM f mv
 
   foldTerm f t = f t `mappend` case t of
-    Var i xs   -> foldTerm f xs
-    Def c xs   -> foldTerm f xs
-    Con c xs   -> foldTerm f xs
-    Lam h b    -> foldTerm f b
-    Pi a b     -> foldTerm f (a, b)
-    Fun a b    -> foldTerm f (a, b)
-    MetaV m xs -> foldTerm f xs
-    Level l    -> foldTerm f l
-    Lit _      -> mempty
-    Sort _     -> mempty
-    DontCare   -> mempty
+    Var i xs    -> foldTerm f xs
+    Def c xs    -> foldTerm f xs
+    Con c xs    -> foldTerm f xs
+    Lam h b     -> foldTerm f b
+    Pi a b      -> foldTerm f (a, b)
+    Fun a b     -> foldTerm f (a, b)
+    MetaV m xs  -> foldTerm f xs
+    Level l     -> foldTerm f l
+    Lit _       -> mempty
+    Sort _      -> mempty
+    DontCare mv -> foldTerm f mv
 
 instance TermLike Level where
   traverseTerm f  (Max as) = Max $ traverseTerm f as

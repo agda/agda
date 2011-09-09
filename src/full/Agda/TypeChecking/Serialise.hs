@@ -514,7 +514,7 @@ instance EmbPrj I.Term where
   icode (Fun      a b) = icode2 6 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = __IMPOSSIBLE__
-  icode (DontCare    ) = icode0 8
+  icode (DontCare _  ) = icode0 8
   icode (Level    a  ) = icode1 9 a
   value = vcase valu where valu [0, a, b] = valu2 Var   a b
                            valu [1, a, b] = valu2 Lam   a b
@@ -524,7 +524,7 @@ instance EmbPrj I.Term where
                            valu [5, a, b] = valu2 Pi    a b
                            valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
-                           valu [8]       = valu0 DontCare
+                           valu [8]       = valu0 $ DontCare Nothing
                            valu [9, a]    = valu1 Level a
                            valu _         = malformed
 

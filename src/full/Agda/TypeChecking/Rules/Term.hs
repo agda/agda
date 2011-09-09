@@ -599,7 +599,7 @@ checkExpr e t =
 	    _         -> typeError $ ShouldBeRecordType t
 
 	A.DontCare -> -- can happen in the context of with functions
-                      return DontCare
+                      return $ DontCare Nothing
                       -- __IMPOSSIBLE__
 
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
@@ -1009,7 +1009,8 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                   return (nukeIfIrrelevant arg : us, t0'', cs')
                          where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
-                                   arg { unArg = DontCare }
+   -- Andreas, 2011-09-09 keep irr. args. until after termination checking
+                                   arg { unArg = DontCare $ Just $ unArg arg }
                                   else arg
               (FunV (Arg Instance rel a) _) -> insertIFSUnderscore rel a
               (FunV (Arg Hidden rel a) _) -> insertUnderscore rel

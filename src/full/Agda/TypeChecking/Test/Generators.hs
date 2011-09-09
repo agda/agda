@@ -436,9 +436,9 @@ instance ShrinkC Type Type where
   noShrink = id
 
 instance ShrinkC Term Term where
-  shrinkC conf (DontCare)  = []
+  shrinkC conf (DontCare _)  = []
   shrinkC conf (Sort Prop) = []
-  shrinkC conf t	   = filter validType $ DontCare : case t of
+  shrinkC conf t	   = filter validType $ DontCare Nothing : case t of
     Var i args   -> map unArg args ++
 		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
     Def d args   -> map unArg args ++
@@ -454,7 +454,7 @@ instance ShrinkC Term Term where
 		    (uncurry Fun <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
-    DontCare     -> __IMPOSSIBLE__
+    DontCare _   -> __IMPOSSIBLE__
     where
       validType t
 	| not (tcIsType conf) = True
@@ -473,7 +473,7 @@ class KillVar a where
 
 instance KillVar Term where
   killVar i t = case t of
-    Var j args | j == i	   -> DontCare
+    Var j args | j == i	   -> DontCare Nothing
 	       | j >  i	   -> Var (j - 1) $ killVar i args
 	       | otherwise -> Var j	  $ killVar i args
     Def c args		   -> Def c	  $ killVar i args
@@ -485,7 +485,7 @@ instance KillVar Term where
     Pi a b		   -> uncurry Pi  $ killVar i (a, b)
     Fun a b		   -> uncurry Fun $ killVar i (a, b)
     MetaV m args	   -> MetaV m	  $ killVar i args
-    DontCare               -> DontCare
+    DontCare mv            -> DontCare    $ killVar i mv
 
 instance KillVar Type where
   killVar i (El s t) = El s $ killVar i t
@@ -502,6 +502,9 @@ instance KillVar a => KillVar (Abs a) where
 
 instance KillVar a => KillVar [a] where
   killVar i = map (killVar i)
+
+instance KillVar a => KillVar (Maybe a) where
+  killVar i = fmap (killVar i)
 
 instance (KillVar a, KillVar b) => KillVar (a, b) where
   killVar i (x, y) = (killVar i x, killVar i y)

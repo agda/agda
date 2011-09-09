@@ -18,3 +18,7 @@ instance Sized (Map k a) where
 
 instance Sized (Set a) where
   size = fromIntegral . Set.size
+
+instance Sized a => Sized (Maybe a) where
+  size Nothing  = 1
+  size (Just a) = size a

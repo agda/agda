@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.meta:20 #-}
 module UnifyWithIrrelevantArgument where
 
 data _≡_ {A : Set}(a : A) : A -> Set where

@@ -42,7 +42,7 @@ instance Apply Term where
             Pi _ _        -> __IMPOSSIBLE__
             Fun _ _       -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
-            DontCare      -> __IMPOSSIBLE__
+            DontCare _    -> __IMPOSSIBLE__
 
 instance Apply Type where
   apply = piApply
@@ -292,17 +292,17 @@ subst u t = substUnder 0 u t
 instance Subst Term where
     substs us t =
         case t of
-            Var i vs   -> (us !!! i) `apply` substs us vs
-            Lam h m    -> Lam h $ substs us m
-            Def c vs   -> Def c $ substs us vs
-            Con c vs   -> Con c $ substs us vs
-            MetaV x vs -> MetaV x $ substs us vs
-            Lit l      -> Lit l
-            Level l    -> levelTm $ substs us l
-            Pi a b     -> uncurry Pi $ substs us (a,b)
-            Fun a b    -> uncurry Fun $ substs us (a,b)
-            Sort s     -> sortTm $ substs us s
-            DontCare   -> DontCare
+            Var i vs    -> (us !!! i) `apply` substs us vs
+            Lam h m     -> Lam h $ substs us m
+            Def c vs    -> Def c $ substs us vs
+            Con c vs    -> Con c $ substs us vs
+            MetaV x vs  -> MetaV x $ substs us vs
+            Lit l       -> Lit l
+            Level l     -> levelTm $ substs us l
+            Pi a b      -> uncurry Pi $ substs us (a,b)
+            Fun a b     -> uncurry Fun $ substs us (a,b)
+            Sort s      -> sortTm $ substs us s
+            DontCare mv -> DontCare $ substs us mv
         where
             []     !!! n = __IMPOSSIBLE__
             (x:xs) !!! 0 = x
@@ -322,7 +322,7 @@ instance Subst Term where
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
             Fun a b    -> uncurry Fun $ substUnder n u (a,b)
             Sort s     -> sortTm $ substUnder n u s
-            DontCare   -> DontCare
+            DontCare mv -> DontCare $ substUnder n u mv
 
 instance Subst Type where
     substs us (El s t) = substs us s `El` substs us t
@@ -451,7 +451,7 @@ instance Raise Term where
             Pi a b          -> uncurry Pi $ rf (a,b)
             Fun a b         -> uncurry Fun $ rf (a,b)
             Sort s          -> Sort $ rf s
-            DontCare        -> DontCare
+            DontCare mv     -> DontCare $ rf mv
         where
             rf x = raiseFrom m k x
 
@@ -469,7 +469,7 @@ instance Raise Term where
             Pi a b          -> uncurry Pi $ rf (a,b)
             Fun a b         -> uncurry Fun $ rf (a,b)
             Sort s          -> Sort $ rf s
-            DontCare        -> DontCare
+            DontCare mv     -> DontCare $ rf mv
         where
             rf x = renameFrom m k x
 

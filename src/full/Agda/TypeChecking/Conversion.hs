@@ -421,7 +421,8 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
       cs1 <- case r of
               Forced     -> return []
               Irrelevant -> return [] -- Andreas: ignore irr. func. args.
-              _          -> cmp (unArg arg1) (unArg arg2)
+              _          -> applyRelevanceToContext r $
+                              cmp (unArg arg1) (unArg arg2)
       mlvl <- mlevel
       case (cs1, unEl a) of
                           -- We can safely ignore sort annotations here

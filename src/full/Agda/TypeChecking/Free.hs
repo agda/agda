@@ -6,6 +6,7 @@ module Agda.TypeChecking.Free
     , Free
     , freeVars
     , allVars
+    , relevantVars
     , rigidVars
     , freeIn
     , freeInIgnoringSorts
@@ -36,13 +37,19 @@ data FreeVars = FV
   { stronglyRigidVars :: VarSet -- ^ variables at top and under constructors
   , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables
   , flexibleVars      :: VarSet -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
+  , irrelevantVars    :: VarSet -- ^ variables under a @DontCare@, i.e., in irrelevant positions
   }
 
 rigidVars :: FreeVars -> VarSet
 rigidVars fv = Set.union (stronglyRigidVars fv) (weaklyRigidVars fv)
 
+-- | @allVars fv@ includes irrelevant variables.
 allVars :: FreeVars -> VarSet
-allVars fv = Set.union (rigidVars fv) (flexibleVars fv)
+allVars fv = Set.unions [rigidVars fv, flexibleVars fv, irrelevantVars fv]
+
+-- | All but the irrelevant variables.
+relevantVars :: FreeVars -> VarSet
+relevantVars fv = Set.unions [rigidVars fv, flexibleVars fv]
 
 data Occurrence
   = NoOccurrence
@@ -51,6 +58,7 @@ data Occurrence
   | Flexible
   deriving (Eq,Show)
 
+-- | @occurrence x fv@ ignores irrelevant variables in @fv@
 occurrence :: Nat -> FreeVars -> Occurrence
 occurrence x fv
   | x `Set.member` stronglyRigidVars fv = StronglyRigid
@@ -61,9 +69,9 @@ occurrence x fv
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
 flexible :: FreeVars -> FreeVars
 flexible fv =
-    FV { stronglyRigidVars = Set.empty
+    fv { stronglyRigidVars = Set.empty
        , weaklyRigidVars   = Set.empty
-       , flexibleVars      = allVars fv
+       , flexibleVars      = relevantVars fv
        }
 
 -- | Mark rigid variables as non-strongly.  Useful when traversion arguments of variables.
@@ -73,28 +81,35 @@ weakly fv = fv
   , weaklyRigidVars   = rigidVars fv
   }
 
+-- | Mark all free variables as irrelevant.
+irrelevantly :: FreeVars -> FreeVars
+irrelevantly fv = empty { irrelevantVars = allVars fv }
+
 -- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
-union (FV sv1 rv1 fv1) (FV sv2 rv2 fv2) =
-  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2)
+union (FV sv1 rv1 fv1 iv1) (FV sv2 rv2 fv2 iv2) =
+  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
 empty :: FreeVars
-empty = FV Set.empty Set.empty Set.empty
+empty = FV Set.empty Set.empty Set.empty Set.empty
 
+-- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv rv fv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv)
+delete n (FV sv rv fv iv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv)
 
+-- | @subtractFV n fv@ subtracts $n$ from each free variable in @fv@.
 subtractFV :: Nat -> FreeVars -> FreeVars
-subtractFV n (FV sv rv fv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv)
+subtractFV n (FV sv rv fv iv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv)
 
 -- | A single (strongly) rigid variable.
 singleton :: Nat -> FreeVars
 singleton x = FV { stronglyRigidVars = Set.singleton x
-		 , weaklyRigidVars   = Set.singleton x
+		 , weaklyRigidVars   = Set.empty -- WAS: Set.singleton x
 		 , flexibleVars      = Set.empty
+                 , irrelevantVars    = Set.empty
 		 }
 
 -- * Collecting free variables.
@@ -127,7 +142,7 @@ instance Free Term where
     Sort s     -> freeVars' conf s
     Level l    -> freeVars' conf l
     MetaV _ ts -> flexible $ freeVars' conf ts
-    DontCare   -> empty
+    DontCare mt -> irrelevantly $ freeVars' conf mt
 
 instance Free Type where
   freeVars' conf (El s t) = freeVars' conf (s, t)
@@ -156,7 +171,10 @@ instance Free LevelAtom where
     UnreducedLevel v -> freeVars' conf v
 
 instance Free a => Free [a] where
-  freeVars' conf xs = unions $ map (freeVars' conf) xs
+  freeVars' conf = unions . map (freeVars' conf)
+
+instance Free a => Free (Maybe a) where
+  freeVars' conf = maybe empty (freeVars' conf)
 
 instance (Free a, Free b) => Free (a,b) where
   freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y

@@ -71,7 +71,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- something irrelevant will just continue matching against
           -- irrelevant stuff
 		(m, vs) <- matchPatterns ps $
-                  repeat $ Arg NotHidden Irrelevant $ DontCare
+                  repeat $ Arg NotHidden Irrelevant $ DontCare Nothing
 		return (m, Arg h Irrelevant $ Con c vs)
 
 matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =

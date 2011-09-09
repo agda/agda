@@ -131,4 +131,4 @@ haskellType = liftTCM . fromType
         Lit{}      -> return hsUnit
         Sort{}     -> return hsUnit
         MetaV{}    -> err
-        DontCare   -> err
+        DontCare{} -> err

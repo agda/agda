@@ -2,7 +2,7 @@
 -- | Var field implementation of sets of (small) natural numbers.
 module Agda.Utils.VarSet
   ( VarSet
-  , union, member, empty, delete, singleton, fromList, toList, isSubsetOf
+  , union, unions, member, empty, delete, singleton, fromList, toList, isSubsetOf
   , Agda.Utils.VarSet.subtract
   )
   where

@@ -477,7 +477,7 @@ assign x args v = do
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
         -- even though the lhs is not a pattern, we can prune the y from _2
-        let fvsL = Set.toList $ allVars $ freeVars args
+        let fvsL = Set.toList $ relevantVars $ freeVars args
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
@@ -516,7 +516,7 @@ assign x args v = do
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
         -- free in v
-        let fvs = allVars $ fvs'
+        let fvs = relevantVars $ fvs'
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
@@ -581,7 +581,6 @@ assign x args v = do
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
---	    Nothing -> fmap (const DontCare) arg	-- we will end up here, but never look at the result
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 
 type FVs = Set.VarSet

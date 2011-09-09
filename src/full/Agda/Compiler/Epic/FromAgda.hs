@@ -225,7 +225,7 @@ substTerm env term = case term of
     T.Fun _ _ -> return UNIT
     T.Sort _  -> return UNIT
     T.MetaV _ _ -> return UNIT
-    T.DontCare  -> return UNIT
+    T.DontCare _ -> return UNIT
 
 -- | Translate Agda literals to our AUX definition
 substLit :: MonadTCM m => TL.Literal -> Compile m Lit

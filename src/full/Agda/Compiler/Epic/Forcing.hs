@@ -96,7 +96,7 @@ n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Fun a b  -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Sort sor -> False -- ?
    MetaV meta as -> recs as
-   DontCare -> False
+   DontCare _ -> False
 
 isInLevel :: Nat -> Level -> Bool
 isInLevel n (Max as) = any (isInPlus n) as

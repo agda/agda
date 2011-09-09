@@ -84,7 +84,7 @@ quotingKit = do
       quote (Lit lit) = quoteLit lit
       quote (Sort s)  = sort @@ quoteSort s
       quote MetaV{}   = unsupported
-      quote DontCare  = unsupported -- could be exposed at some point but we have to take care
+      quote DontCare{} = unsupported -- could be exposed at some point but we have to take care
   return (quote, quoteType)
 
 quoteName :: QName -> Term

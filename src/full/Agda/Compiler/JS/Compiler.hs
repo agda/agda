@@ -305,7 +305,7 @@ term (Pi    _ _)          = return (String "*")
 term (Fun   _ _)          = return (String "*")
 term (Sort  _)            = return (String "*")
 term (MetaV _ _)          = return (Undefined)
-term (DontCare)           = return (Undefined)
+term (DontCare _)         = return (Undefined)
 
 -- Check to see if a type is a singleton, and if so, return its only
 -- member.  Singleton types are of the form T1 -> ... -> Tn -> T where

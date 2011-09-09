@@ -255,7 +255,7 @@ instance Reduce Term where
       Lit _    -> return $ notBlocked v
       Var _ _  -> return $ notBlocked v
       Lam _ _  -> return $ notBlocked v
-      DontCare -> return $ notBlocked v
+      DontCare _ -> return $ notBlocked v
     where
       -- NOTE: reduceNat can traverse the entire term.
       reduceNat v@(Con c []) = do
@@ -441,7 +441,7 @@ instance Normalise Term where
 		Sort s	    -> sortTm <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
 		Fun a b     -> uncurry Fun <$> normalise (a,b)
-                DontCare    -> return v
+                DontCare _  -> return v
 
 instance Normalise Elim where
   normalise (Apply v) = Apply <$> normalise v
@@ -567,7 +567,7 @@ instance InstantiateFull Term where
           Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
           Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
-          DontCare    -> return v
+          DontCare _  -> return v
 
 instance InstantiateFull Level where
   instantiateFull (Max as) = levelMax <$> instantiateFull as
