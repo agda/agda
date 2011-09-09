@@ -26,9 +26,12 @@ cleanup_Issue296							= rm -rf MAlonzo Issue296
 cleanup_Issue326							= rm -rf MAlonzo Issue326
 cleanup_UniversePolymorphicIO = rm -rf MAlonzo UniversePolymorphicIO
 
+check_UniversePolymorphicIO = ./checkOutput ./UniversePolymorphicIO ok
+
 %.test : %.agda
 	@echo $<
 	@$(RUN_AGDA) $<
+	@$(check_$*)
 	@$(cleanup_$*)
 
 %.test : %.lagda
