@@ -90,7 +90,10 @@ solveConstraints cs = do
     reportSDoc "tc.constr.solve" 60 $
       sep [ text "{ solving", nest 2 $ prettyTCM cs ]
     n  <- length <$> getInstantiatedMetas
-    verboseS "profile.constraints" 10 $ liftTCM $ tickN "attempted-constraints" (countConstraints cs)
+    verboseS "profile.constraints" 10 $ liftTCM $ do
+      let m = countConstraints cs
+      tickN   "attempted-constraints" m
+      tickMax "max-open-constraints"  m
     cs <- concat <$> mapM (withConstraint solveConstraint) (simplifyLevelConstraints cs)
     n' <- length <$> getInstantiatedMetas
     reportSDoc "tc.constr.solve" 70 $

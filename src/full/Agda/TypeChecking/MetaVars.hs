@@ -93,6 +93,7 @@ assignTerm x t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
     whenM (isFrozen x) __IMPOSSIBLE__  -- verify (new) invariant
     let i = metaInstance (killRange t)
+    verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
     etaExpandListeners x
     wakeupConstraints
