@@ -132,9 +132,13 @@ splitProblem (Problem ps (perm, qs) tel) = do
                             _                       -> __IMPOSSIBLE__
                       cs0 <- cons <$> getConstInfo d'
                       case [ c | (c, c') <- zip cs cs', elem c' cs0 ] of
-                        c : _ -> return c   -- if there are more than one they will
-                                            -- all have the same canonical form
+                        [c]   -> return c
                         []    -> typeError $ ConstructorPatternInWrongDatatype (head cs) d
+                        cs    -> -- if there are more than one we give up (they might have different types)
+                          typeError $ GenericError $
+                            "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++ "):" ++
+                            unwords (map show cs)
+
 		  let (pars, ixs) = genericSplitAt np vs
 		  reportSDoc "tc.lhs.split" 10 $
 		    vcat [ sep [ text "splitting on"

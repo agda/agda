@@ -416,8 +416,7 @@ checkLeftHandSide c ps a ret = do
               ]
 
             Con c' [] <- constructorForm =<< normalise (Con c [])
-            c <- return $ c' `withRangeOf` c
-
+            c  <- return $ c' `withRangeOf` c
             ca <- defType <$> getConstInfo c
 
             reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
@@ -426,7 +425,7 @@ checkLeftHandSide c ps a ret = do
               ]
 
             -- Lookup the type of the constructor at the given parameters
-            a <- (`piApply` vs) . defType <$> getConstInfo c
+            let a = ca `piApply` vs
 
             -- It will end in an application of the datatype
             TelV gamma' ca@(El _ (Def d' us)) <- telView a

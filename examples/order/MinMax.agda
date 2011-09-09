@@ -100,8 +100,8 @@ module DistributivityA {A : Set}(Ord : DecidableOrder A) where
 
       left : min x (max y z) ≤ max (min x y) (min x z)
       left with max y z | case-max′ y z
-      ... | .z | geq _ = max-right _ _
-      ... | .y | leq _ = max-left _ _
+      ... | .z | Min.geq _ = max-right _ _
+      ... | .y | Min.leq _ = max-left _ _
 
       right : max (min x y) (min x z) ≤ min x (max y z)
 --      right with max (min x y) (min x z) | case-max′ (min x y) (min x z)
