@@ -86,12 +86,18 @@ fix mode f = do
 transform :: Text -> Text
 transform =
   Text.unlines .
-  removeFinalEmptyLines .
+  removeFinalEmptyLinesExceptOne .
   map removeTrailingWhitespace .
   Text.lines
   where
-  removeFinalEmptyLines =
-    reverse . dropWhile Text.null . reverse
+  removeFinalEmptyLinesExceptOne =
+    reverse . dropWhile1 Text.null . reverse
 
   removeTrailingWhitespace =
     Text.dropWhileEnd Char.isSpace
+
+-- | 'dropWhile' except keep the first of the dropped elements
+dropWhile1 p [] = []
+dropWhile1 p (x:xs)
+  | p x       = x : dropWhile p xs
+  | otherwise = x : xs
