@@ -116,8 +116,8 @@ definitions defs = do
 -- @
 --   type Infinity a b = b
 --
---   sharp :: forall a. () -> forall b. () -> b -> b
---   sharp _ _ x = x
+--   sharp :: a -> a
+--   sharp x = x
 --
 --   flat :: forall a. () -> forall b. () -> b -> b
 --   flat _ _ x = x
@@ -155,9 +155,9 @@ definition kit (Defn Relevant   q ty _ _ compiled d) = do
           x     = ihname "x" 0
       return $
         [ HS.TypeSig dummy [sharp] $ fakeType $
-            "forall a. () -> forall b. () -> b -> b"
+            "forall a. a -> a"
         , HS.FunBind [HS.Match dummy sharp
-                               [HS.PWildCard, HS.PWildCard, HS.PVar x]
+                               [HS.PVar x]
                                Nothing
                                (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                (HS.BDecls [])]
@@ -323,7 +323,11 @@ term tm0 = case tm0 of
                               local (1+) (term $ absBody at)
   Lit   l    -> lift $ literal l
   Def   q as -> (`apps` as) . HS.Var =<< lift (xhqn "d" q)
-  Con   q as -> (`apps` as) . HS.Con =<< lift (conhqn q)
+  Con   q as -> do
+    kit <- lift coinductionKit
+    if Just q == (nameOfSharp <$> kit)
+      then (`apps` as) . HS.Var =<< lift (xhqn "d" q)
+      else (`apps` as) . HS.Con =<< lift (conhqn q)
   Level l    -> term =<< lift (reallyUnLevelView l)
   Pi    _ _  -> return HS.unit_con
   Fun   _ _  -> return HS.unit_con
