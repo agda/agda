@@ -104,8 +104,7 @@ open import Relation.Nullary
     ; from       = P.→-to-⟶ inj₂
     ; inverse-of = record
       { right-inverse-of = λ _ → P.refl
-      ; left-inverse-of  =
-          [ ⊥-elim {Whatever = _ ≡ _} ∘ lower , (λ _ → P.refl) ]
+      ; left-inverse-of  = [ ⊥-elim ∘ lower , (λ _ → P.refl) ]
       }
     }
 
