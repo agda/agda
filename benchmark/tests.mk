@@ -40,6 +40,11 @@ data   = $(call proj,Data)
 nested = $(call proj,Nested)
 projTests = record data nested
 
+#std-lib
+stdlib = std-lib/$1.agda -istd-lib -i../std-lib/src
+any = $(call stdlib,Any)
+stdlibTests = any
+
 # All tests
-allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests) $(projTests)
+allTests = $(catTests) $(acTests) $(syntaxTests) $(cwfTests) $(monadTests) $(miscTests) $(projTests) $(stdlibTests)
 

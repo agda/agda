@@ -59,3 +59,6 @@
           difference! 3.1s -> 3.7s and 43MB -> 61MB.
 
 20110908: Fixed issues 311, 450 and 451.
+
+20110909: Minor improvement of FreeVars.singleton and added
+          Data.List.Any.Properties as a benchmark.

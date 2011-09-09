@@ -21,16 +21,18 @@ type BytesPerSecond = Bytes
 type Metas = Integer
 
 data Statistics = Stats
-      { command       :: String
-      , memoryInUse   :: MegaBytes
-      , totalTime     :: Seconds
-      , numberOfMetas :: Metas
+      { command              :: String
+      , memoryInUse          :: MegaBytes
+      , totalTime            :: Seconds
+      , numberOfMetas        :: Metas
       , attemptedConstraints :: Integer
+      , maxMetas             :: Integer
+      , maxConstraints       :: Integer
       }
 
 instance Show Statistics where
-  show (Stats _ mem time meta cs) =
-    printf "%6.2fs - %4dMB - %5d metas - %5d constraints" time mem meta cs
+  show (Stats _ mem time meta cs maxMeta maxCs) =
+    printf "%6.2fs - %4dMB - %5d (%3d) metas - %5d (%3d) constraints" time mem meta maxMeta cs maxCs
 
 noStats = Stats "true" 0 0
 
@@ -90,11 +92,13 @@ collectionP = do
   lineP
   return (n, t)
 
-data Ticks = Metas Integer | Constraints Integer
+data Ticks = Metas Integer | Constraints Integer | MaxMetas Integer | MaxConstraints Integer
 
 tickP =
-  t Metas       "metas" +++
-  t Constraints "attempted-constraints"
+  t Metas          "metas" +++
+  t Constraints    "attempted-constraints" +++
+  t MaxMetas       "max-open-metas" +++
+  t MaxConstraints "max-open-constraints"
   where
     t c s = c <$ string ("  " ++ s ++ " = ") <*> integerP <* lineP
 
@@ -106,6 +110,8 @@ statsP = do
   ticks <- concat <$> many' ticksP
   let numberOfMetas        = sum [ n | Metas n <- ticks ]
       attemptedConstraints = sum [ n | Constraints n <- ticks ]
+      maxMetas             = maximum $ 0 : [ n | MaxMetas n <- ticks ]
+      maxConstraints       = maximum $ 0 : [ n | MaxConstraints n <- ticks ]
   command <- lineP
   many lineP
   memoryInUse <- skipSpaces *> megaBytesP <* skipSpaces <* string "total memory" <* lineP
@@ -119,6 +125,8 @@ statsP = do
     , totalTime
     , numberOfMetas
     , attemptedConstraints
+    , maxMetas
+    , maxConstraints
     }
 
 file = "logs/ulf-norells-macbook-pro-20081126-12.59/syntax1"
