@@ -11,6 +11,8 @@ sym' : [A : Set] -> (x y : A) -> Eq x y -> Eq y x
 
 sym : [A : Set] -> [x y : A] -> Eq x y -> Eq y x = sym' _ _
 
+foo : _ = pair
+
 -- Categories
 Cat : Set
     = (Obj   : Set)

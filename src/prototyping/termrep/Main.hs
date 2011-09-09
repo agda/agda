@@ -17,6 +17,7 @@ import Syntax.Pretty
 
 import Types.Check
 import Types.Monad
+import Terms.None
 
 import Syntax.ErrM
 
@@ -36,13 +37,18 @@ run :: Verbosity -> ParseFun Program -> String -> IO ()
 run v p s = let ts = myLLexer s in case p ts of
            Bad s    -> do putStrLn "\nParse              Failed...\n"
                           putStrLn s
-           Ok  tree -> do putStrLn "\nParse Successful!"
-                          case runScope (checkProg tree) of
-                            Left err -> putStrLn $ "\nScope error: " ++ err
-                            Right x  -> print (pretty x)
-
-
-
+           Ok  tree -> do
+            putStrLn "\nParse Successful!"
+            case runScope (checkProg tree) of
+              Left err -> putStrLn $ "\nScope error: " ++ err
+              Right x  -> do
+                putStrLn "Desugared"
+                print (pretty x)
+                putStrLn "Type checking"
+                r <- runTC None (infer x)
+                case r of
+                  Left err -> putStrLn $ "\nType error:\n" ++ err
+                  Right _  -> return ()
 
 showTree :: (Show a, Print a) => Int -> a -> IO ()
 showTree v tree

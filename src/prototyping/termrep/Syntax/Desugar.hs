@@ -25,10 +25,11 @@ runScope m = runReaderT m []
 
 primitives' :: [Name]
 primitives' =
-  [ "Set", "Zero", "One", "Two", "tt", "true", "false", "absurd", "if", "fst", "snd" ]
+  [ "Set", "Zero", "One", "Two", "tt", "true", "false", "absurd", "if", "fst", "snd", "pair" ]
 
 primScheme "fst"    = [Explicit 1]
 primScheme "snd"    = [Explicit 1]
+primScheme "pair"   = [Explicit 2]
 primScheme "absurd" = [Implicit 1]
 primScheme _        = []
 
