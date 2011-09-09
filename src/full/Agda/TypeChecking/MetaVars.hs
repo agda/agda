@@ -421,19 +421,6 @@ assignV x args v = do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
         assign x args v
 
-assignS :: MonadTCM tcm => MetaId -> Args -> Sort -> tcm Constraints
-assignS x args s =
-  ifM (not <$> hasUniversePolymorphism) (noPolyAssign x s) $ do
-	reportSDoc "tc.meta.assign" 10 $ do
-	  text "sort" <+> prettyTCM (Type $ Max [Plus 0 $ MetaLevel x args]) <+> text ":=" <+> prettyTCM s
-        assign x args (Sort s)
-    where
-        noPolyAssign x s = do
-            -- We don't instantiate frozen mvars
-            whenM (isFrozen x) patternViolation
-            assignTerm x =<< occursCheck x [] (Sort s)
-            return []
-
 -- | @assign sort? x vs v@
 assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
 assign x args v = do
@@ -445,7 +432,7 @@ assign x args v = do
         -- need to do something cheaper, especially if
         -- we are dealing with a Miller pattern that can be solved
         -- immediately!
-        -- Ulf, 2011-08-25
+        -- Ulf, 2011-08-25 DONE!
         -- Just instantiating the top-level meta, which is cheaper. The occurs
         -- check will first try without unfolding any definitions (treating
         -- arguments to definitions as flexible), if that fails it tries again
@@ -462,8 +449,8 @@ assign x args v = do
           reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
           patternViolation
 
-	-- We don't instantiate blocked terms
-	whenM (isBlockedTerm x) patternViolation	-- TODO: not so nice
+	-- We never get blocked terms here anymore. TODO: we actually do. why?
+	whenM (isBlockedTerm x) patternViolation
 
         -- Andreas, 2010-10-15 I want to see whether rhs is blocked
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -505,19 +492,10 @@ assign x args v = do
 	-- Check that the arguments are variables
 	ids <- checkAllVars args
 
-        let fvs' = freeVars v
-        -- Andreas, 2011-04-26: The following piece of code is from assignS
-        -- I do not know why it is there.
-        -- BEGIN  "-- TODO Hack"
-        when (any (< 0) $ Set.toList (flexibleVars fvs')) $ do
-            reportSLn "tc.meta.assign" 10 "negative variables!"
-            patternViolation
-        -- END
-
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
         -- free in v
-        let fvs = relevantVars $ fvs'
+        let fvs = relevantVars $ freeVars v
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
@@ -611,18 +589,11 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
       _                  -> Nothing
 
 
-updateMeta :: (MonadTCM tcm, Data a, Occurs a, Abstract a) => MetaId -> a -> tcm ()
-updateMeta mI t =
-    do	mv <- lookupMeta mI
-	withMetaInfo (getMetaInfo mv) $
-	    do	args <- getContextArgs
-		cs <- upd mI args (mvJudgement mv) t
-		unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
-    where
-	upd mI args j t = (__IMPOSSIBLE__ `mkQ` updV j `extQ` updS) t
-	    where
-		updV (HasType _ t) v =
-		  assignV mI args v
-		updV _ _	     = __IMPOSSIBLE__
+updateMeta :: (MonadTCM tcm) => MetaId -> Term -> tcm ()
+updateMeta mI v = do
+    mv <- lookupMeta mI
+    withMetaInfo (getMetaInfo mv) $ do
+      args <- getContextArgs
+      cs <- assignV mI args v
+      unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
 
-		updS s = assignS mI args s
