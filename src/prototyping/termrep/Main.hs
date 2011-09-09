@@ -15,6 +15,9 @@ import qualified Syntax.Abstract as A
 import Syntax.Desugar
 import Syntax.Pretty
 
+import Types.Check
+import Types.Monad
+
 import Syntax.ErrM
 
 type ParseFun a = [Token] -> Err a
