@@ -19,7 +19,7 @@ check e t = case A.elimView e of
     (v, t') <- infer e
     checkElims v t' t els
   A.NoElim e    -> case e of
-    
+
     A.Lam x e -> error "Lam"
 
     A.Let d e -> error "Let"
