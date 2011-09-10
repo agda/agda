@@ -186,6 +186,7 @@ succeed :
 	@echo "======================================================================"
 	@echo "===================== Suite of successfull tests ====================="
 	@echo "======================================================================"
+	@chmod +x test/succeed/checkOutput
 	@$(MAKE) -C test/succeed
 
 interaction :
