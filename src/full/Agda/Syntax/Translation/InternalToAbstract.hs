@@ -541,23 +541,25 @@ instance Reify Level Expr where
       reportSLn "tc.reify.level" 1 $ "Failed to reify " ++ show l ++ "\n  error: " ++ show e
       return $ A.Lit (LitString noRange $ show l)
 
-instance Reify i a => Reify (Abs i) (Name, a) where
-    reify (Abs s v) =
-        do  x <- freshName_ s
-            e <- addCtx x (defaultArg $ sort I.Prop) -- type doesn't matter
-                 $ reify v
-            return (x,e)
+instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
+  reify (Abs s v) = do
+
+    -- If the bound variable is free in the body, then the name "_" is
+    -- replaced by "z".
+    s <- return $ if s == "_" && 0 `freeIn` v then "z" else s
+
+    x <- freshName_ s
+    e <- addCtx x (defaultArg $ sort I.Prop) -- type doesn't matter
+         $ reify v
+    return (x,e)
 
 instance Reify I.Telescope A.Telescope where
   reify EmptyTel = return []
   reify (ExtendTel arg tel) = do
     Arg h rel e <- reify arg
-    (x,bs)  <- reify $ betterName tel
+    (x,bs)  <- reify tel
     let r = getRange e
     return $ TypedBindings r (Arg h rel (TBind r [x] e)) : bs
-    where
-      betterName (Abs "_" x) = Abs "z" x
-      betterName (Abs s   x) = Abs s   x
 
 instance Reify i a => Reify (Arg i) (Arg a) where
     reify = traverse reify
