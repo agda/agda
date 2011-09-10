@@ -11,7 +11,7 @@ import Agda.Utils.Size
 simplifyLevelConstraints :: Constraints -> Constraints
 simplifyLevelConstraints cs = simplify lcs ++ other
   where
-    (lcs, other) = partition (isLevelConstraint . theConstraint . clValue) cs
+    (lcs, other) = partition (isLevelConstraint . clValue) cs
 
     isLevelConstraint LevelCmp{} = True
     isLevelConstraint _          = False
@@ -20,9 +20,9 @@ simplify lcs = map simpl lcs
   where
     leqs = concatMap (inequalities . unClosure) lcs
 
-    simpl c = case inequalities $ unClosure c of
+    simpl c = case inequalities (unClosure c) of
       [a :=< b] | elem (b :=< a) leqs ->
-        c { clValue = (clValue c) { theConstraint = LevelCmp CmpEq (Max [a']) (Max [b']) } }
+        c { clValue = LevelCmp CmpEq (Max [a']) (Max [b']) }
         where
           n        = size $ envContext $ clEnv c
           (a', b') = raiseFrom (-n) n (a, b)
@@ -30,7 +30,7 @@ simplify lcs = map simpl lcs
 
     -- Unclosure converts deBruijn indices to deBruijn levels to
     -- enable comparing constraints under different contexts
-    unClosure cl = raise (-size (envContext $ clEnv cl)) $ theConstraint $ clValue cl
+    unClosure cl = raise (-size (envContext $ clEnv cl)) $ clValue cl
 
 data Leq = PlusLevel :=< PlusLevel
   deriving Eq

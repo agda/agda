@@ -243,7 +243,7 @@ getEqs = do
  eqs <- getConstraints
  let r = mapM (\eqc -> do
           neqc <- norm eqc
-          case MB.theConstraint $ MB.clValue neqc of
+          case MB.clValue neqc of
            MB.ValueCmp ineq _ i e -> do
             ei <- etaContract i
             ee <- etaContract e

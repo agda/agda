@@ -1,12 +1,10 @@
 
 module Agda.TypeChecking.Monad.Constraints where
 
-import Control.Applicative
 import Control.Monad.State
 import Data.Map as Map
 import Data.List
 
-import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Env
@@ -34,17 +32,17 @@ getTakenConstraints :: MonadTCM tcm => tcm Constraints
 getTakenConstraints = gets stTakenConstraints
 
 withConstraint :: MonadTCM tcm => (Constraint -> tcm a) -> ConstraintClosure -> tcm a
-withConstraint f = flip enterClosure (f . theConstraint)
+withConstraint = flip enterClosure
 
 -- | Add new constraints
 addConstraints :: MonadTCM tcm => Constraints -> tcm ()
 addConstraints cs = modify $ \st -> st { stConstraints = cs ++ stConstraints st }
 
 -- | Create a new constraint.
-buildConstraint :: MonadTCM tcm => [MetaId] -> Constraint -> tcm Constraints
-buildConstraint xs c = (:[]) <$> buildConstraint' xs c
+buildConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
+buildConstraint = liftM return . buildConstraint'
 
-buildConstraint' :: MonadTCM tcm => [MetaId] -> Constraint -> tcm ConstraintClosure
-buildConstraint' xs c = do
-    cl <- buildClosure (ConstraintWithMetas c xs)
+buildConstraint' :: MonadTCM tcm => Constraint -> tcm ConstraintClosure
+buildConstraint' c = do
+    cl <- buildClosure c
     return cl

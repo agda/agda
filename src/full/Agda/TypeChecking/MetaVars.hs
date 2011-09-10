@@ -154,7 +154,7 @@ newIFSMetaCtx t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  c <- buildConstraint' [] $ FindInScope x
+  c <- buildConstraint' $ FindInScope x
   return (MetaV x vs, c)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
@@ -269,7 +269,7 @@ blockTerm t v m = do
           -- constraint solving a bit more robust against instantiation order.
           v   <- newValueMeta t
           i   <- liftTCM (fresh :: TCM Integer)
-          cmp <- buildConstraint [] (ValueCmp CmpEq t v (MetaV x vs))
+          cmp <- buildConstraint (ValueCmp CmpEq t v (MetaV x vs))
           listenToMeta (CheckConstraint i cmp) x
           return v
 
@@ -302,7 +302,7 @@ postponeTypeCheckingProblem e t unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
-  addConstraints =<< buildConstraint [] (UnBlock m)
+  addConstraints =<< buildConstraint (UnBlock m)
   MetaV m <$> getContextArgs
 
 -- | Eta expand metavariables listening on the current meta.
@@ -410,8 +410,8 @@ etaExpandBlocked (Blocked m t)  = do
 --   First check that metavar args are in pattern fragment.
 --     Then do extended occurs check on given thing.
 --
---   Assignment is aborted by throwing a @AbortCheck@ via a call to
---   @abortCheck@.  This error is caught by @catchConstraint@
+--   Assignment is aborted by throwing a @PatternErr@ via a call to
+--   @patternViolation@.  This error is caught by @catchConstraint@
 --   during equality checking (@compareAtom@) and leads to
 --   restoration of the original constraints.
 
@@ -447,10 +447,10 @@ assign x args v = do
         -- We don't instantiate frozen mvars
         when (mvFrozen mvar == Frozen) $ do
           reportSLn "tc.meta.assign" 25 $ "aborting: meta is frozen!"
-          abortCheck []
+          patternViolation
 
 	-- We never get blocked terms here anymore. TODO: we actually do. why?
-	whenM (isBlockedTerm x) $ abortCheck []
+	whenM (isBlockedTerm x) patternViolation
 
         -- Andreas, 2010-10-15 I want to see whether rhs is blocked
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: I want to see whether rhs is blocked"
@@ -506,13 +506,13 @@ assign x args v = do
             text "pruning" <+> prettyTCM x <+> (text $
               if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
                else "failed")
-          abortCheck []
+          patternViolation
 
 {- Andreas, 2011-04-21 this does not work
         if not (distinct $ filter (`Set.member` fvs) ids) then do
           -- non-linear lhs: we cannot solve, but prune
           ok <- prune x args $ Set.toList fvs
-          if ok then return [] else abortCheck []
+          if ok then return [] else patternViolation
 
         else do
 -}
@@ -575,7 +575,7 @@ type FVs = Set.VarSet
 checkAllVars :: MonadTCM tcm => Args -> tcm [Nat]
 checkAllVars args = do
   args <- instantiateFull args
-  maybe (abortCheck []) (return . map unArg) $ allVarOrIrrelevant args
+  maybe patternViolation (return . map unArg) $ allVarOrIrrelevant args
 
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.

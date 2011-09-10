@@ -137,9 +137,6 @@ instance Instantiate a => Instantiate (Closure a) where
 instance Instantiate Telescope where
   instantiate tel = return tel
 
-instance Instantiate ConstraintWithMetas where
-  instantiate (ConstraintWithMetas c xs) = flip ConstraintWithMetas xs <$> instantiate c
-
 instance Instantiate Constraint where
   instantiate (ValueCmp cmp t u v) = do
     (t,u,v) <- instantiate (t,u,v)
@@ -393,9 +390,6 @@ instance Reduce a => Reduce (Closure a) where
 instance Reduce Telescope where
   reduce tel = return tel
 
-instance Reduce ConstraintWithMetas where
-  reduce (ConstraintWithMetas c xs) = flip ConstraintWithMetas xs <$> reduce c
-
 instance Reduce Constraint where
   reduce (ValueCmp cmp t u v) = do
     (t,u,v) <- reduce (t,u,v)
@@ -500,9 +494,6 @@ instance Normalise a => Normalise (Closure a) where
 instance Normalise a => Normalise (Tele a) where
   normalise EmptyTel        = return EmptyTel
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
-
-instance Normalise ConstraintWithMetas where
-  normalise (ConstraintWithMetas c xs) = flip ConstraintWithMetas xs <$> normalise c
 
 instance Normalise Constraint where
   normalise (ValueCmp cmp t u v) = do
@@ -632,9 +623,6 @@ instance InstantiateFull a => InstantiateFull (Closure a) where
     instantiateFull cl = do
 	x <- enterClosure cl instantiateFull
 	return $ cl { clValue = x }
-
-instance InstantiateFull ConstraintWithMetas where
-  instantiateFull (ConstraintWithMetas c xs) = flip ConstraintWithMetas xs <$> instantiateFull c
 
 instance InstantiateFull Constraint where
   instantiateFull c = case c of

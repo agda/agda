@@ -124,9 +124,6 @@ instance PrettyTCM Comparison where
   prettyTCM CmpEq  = text "=="
   prettyTCM CmpLeq = text "=<"
 
-instance PrettyTCM ConstraintWithMetas where
-  prettyTCM (ConstraintWithMetas c xs) = prettyTCM c
-
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
 	ValueCmp cmp ty s t ->
