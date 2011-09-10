@@ -27,24 +27,3 @@ compareLevel CmpEq  u v = equalLevel u v
 isLevelConstraint LevelCmp{} = True
 isLevelConstraint _          = False
 
-warshallConstraint :: Constraint -> TCM [W.Constraint]
-warshallConstraint (LevelCmp cmp a b) = do
-  -- produce constraints
-  return []
-warshallConstraint _ = __IMPOSSIBLE__
-
-solveLevelConstraints :: TCM ()
-solveLevelConstraints = do
-  cs <- takeConstraints
-  let (lcs, rest) = partition (isLevelConstraint . clValue) cs
-
-  lcs <- concat <$> mapM warshallConstraint (map clValue lcs)
-
-  let msol = W.solve lcs
-
-  case msol of
-    Nothing  -> typeError $ GenericError "Bad universe levels! No further information provided. You suck!"
-    Just sol -> do
-      -- do something interesting with the solution
-      addConstraints rest
-      return ()

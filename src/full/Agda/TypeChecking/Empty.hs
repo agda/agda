@@ -24,8 +24,8 @@ isEmptyTypeC t = do
   let t = ignoreBlocking tb
   case unEl <$> tb of
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
-    NotBlocked MetaV{} -> buildConstraint (IsEmpty t)
-    Blocked{}          -> buildConstraint (IsEmpty t)
+    NotBlocked MetaV{} -> buildConstraint [] (IsEmpty t)
+    Blocked{}          -> buildConstraint [] (IsEmpty t)
     _                  -> do
     -- from the current context xs:ts, create a pattern list
     -- xs _ : ts t and try to split on _ (the last variable)

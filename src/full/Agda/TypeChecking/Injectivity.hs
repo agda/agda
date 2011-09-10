@@ -166,7 +166,7 @@ useInjectivity cmp a u v = do
       invert v g a inv args =<< headSymbol u
     (NoInv, NoInv)          -> fallBack
   where
-    fallBack = buildConstraint $ ValueCmp cmp a u v
+    fallBack = buildConstraint [] $ ValueCmp cmp a u v
 
     invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM Constraints
     invert _ _ a inv args Nothing  = fallBack
@@ -205,7 +205,7 @@ useInjectivity cmp a u v = do
           unless (null cs) $ do
             reportSDoc "tc.inj.invert" 30 $
               text "aborting inversion; remaining constraints" <+> prettyTCM cs
-            patternViolation
+            abortCheck []
 -}
           -- Check that we made progress, i.e. the head symbol
           -- of the original term should be a constructor.
@@ -220,13 +220,12 @@ useInjectivity cmp a u v = do
                , text "has TermHead" <+> text (show h)
                , text "which does not expose a constructor"
                ]
-             patternViolation
+             abortCheck []
         `catchError` \err -> case errError err of
           TypeError   {} -> throwError err
           Exception   {} -> throwError err
           IOException {} -> throwError err
-          PatternErr  {} -> fallBack
-          {- AbortAssign {} -> fallBack -- UNUSED -}
+          AbortCheck  {} -> fallBack
 
     nextMeta = do
       m : ms <- get

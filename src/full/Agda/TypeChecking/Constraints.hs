@@ -40,8 +40,8 @@ catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constrai
 catchConstraint c v = liftTCM $
    catchError_ v $ \err ->
    case errError err of
-       PatternErr s -> put s >> buildConstraint c
-       _	    -> throwError err
+       AbortCheck xs -> buildConstraint xs c
+       _	     -> throwError err
 
 -- | Try to solve the constraints to be added.
 addNewConstraints :: MonadTCM tcm => Constraints -> tcm ()
@@ -62,9 +62,9 @@ guardConstraint m c = do
     cs <- solveConstraints =<< m
     case List.partition isNonBlocking cs of
 	(scs, []) -> (scs ++) <$> solveConstraint c
-	(scs, cs) -> (scs ++) <$> buildConstraint (Guarded c cs)
+	(scs, cs) -> (scs ++) <$> buildConstraint [] (Guarded c cs)
     where
-	isNonBlocking = isNB . clValue
+	isNonBlocking = isNB . theConstraint . clValue
 	isNB SortCmp{}        = True
         isNB LevelCmp{}       = True
 	isNB ValueCmp{}       = False
@@ -106,7 +106,7 @@ solveConstraints cs = do
     reportSLn "tc.constr.solve" 60 $ "solved constraints }"
     return cs
   where
-    countConstraints = sum . List.map (count . clValue)
+    countConstraints = sum . List.map (count . theConstraint . clValue)
     count (Guarded c cs) = count c + countConstraints cs
     count _ = 1
 
@@ -120,7 +120,7 @@ solveConstraint (LevelCmp cmp a b)   = compareLevel cmp a b
 solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
 solveConstraint (IsEmpty t)          = isEmptyTypeC t
 solveConstraint (UnBlock m)          =
-  ifM (isFrozen m) (buildConstraint $ UnBlock m) $ do
+  ifM (isFrozen m) (buildConstraint [] $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
@@ -132,7 +132,7 @@ solveConstraint (UnBlock m)          =
       PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t, unblock) -> do
         b <- liftTCM unblock
         if not b
-          then buildConstraint $ UnBlock m
+          then buildConstraint [] $ UnBlock m
           else do
             tel <- getContextTelescope
             v   <- liftTCM $ checkExpr e t
@@ -149,7 +149,7 @@ solveConstraint (UnBlock m)          =
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint (FindInScope m)      =
-  ifM (isFrozen m) (buildConstraint $ FindInScope m) $ do
+  ifM (isFrozen m) (buildConstraint [] $ FindInScope m) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
     mv <- lookupMeta m
     let j = mvJudgement mv
@@ -191,7 +191,7 @@ solveConstraint (FindInScope m)      =
             iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
                                          text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
                                          prettyTCM (List.map fst cs)
-                                       buildConstraint $ FindInScope m
+                                       buildConstraint [] $ FindInScope m
         iterCands [(1,concat cands)]
       where
         getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
@@ -218,9 +218,10 @@ solveConstraint (FindInScope m)      =
                solveConstraints (List.filter isSimpleConstraint cs ++ csT)
             return True
         isSimpleConstraint :: ConstraintClosure -> Bool
-        isSimpleConstraint (Closure _ _ _ (FindInScope{})) = False
-        isSimpleConstraint (Closure _ _ _ (UnBlock{})) = False
-        isSimpleConstraint _ = True
+        isSimpleConstraint = isSimple . theConstraint . clValue
+        isSimple FindInScope{} = False
+        isSimple UnBlock{}     = False
+        isSimple _             = True
 
 localState :: MonadState s m => m a -> m a
 localState m = do

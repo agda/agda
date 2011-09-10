@@ -52,8 +52,8 @@ strongly Rigid = StronglyRigid
 strongly ctx = ctx
 
 abort :: OccursCtx -> TypeError -> TCM ()
-abort Flex  _   = patternViolation -- throws a PatternErr, which leads to delayed constraint
-abort Rigid err = patternViolation -- typeError err
+abort Flex  _   = abortCheck [] -- this leads to delayed constraint
+abort Rigid err = abortCheck []
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 
 -- | Extended occurs check.
@@ -68,9 +68,9 @@ occursCheck m xs v = liftTCM $ do
         v <- instantiate v
         case v of
           -- Don't fail if trying to instantiate to just itself
-          MetaV m' _ | m == m' -> patternViolation
+          MetaV m' _ | m == m' -> abortCheck []
           Level (Max [Plus 0 (MetaLevel m' _)])
-                     | m == m' -> patternViolation
+                     | m == m' -> abortCheck []
           _ -> return v
 
   v <- bailOnSelf v
@@ -113,7 +113,7 @@ instance Occurs Term where
       NotBlocked v -> occurs' ctx v
     where
       occurs' ctx v = case v of
-        Var i vs   -> do         -- abort Rigid turns this error into PatternErr
+        Var i vs   -> do         -- abort Rigid turns this error into AbortCheck
           unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
           Var i <$> occ (weakly ctx) vs
         Lam h f	    -> Lam h <$> occ ctx f
@@ -129,7 +129,7 @@ instance Occurs Term where
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
             --   after some killing (Issue 442)
-            when (m == m') $ patternViolation
+            when (m == m') $ abortCheck []
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
@@ -140,7 +140,7 @@ instance Occurs Term where
               case errError err of
                 -- On pattern violations try to remove offending
                 -- flexible occurrences (if not already in a flexible context)
-                PatternErr{} | ctx /= Flex -> do
+                AbortCheck{} | ctx /= Flex -> do
                       reportSLn "tc.meta.kill" 20 $
                         "oops, pattern violation for " ++ show m'
 {-

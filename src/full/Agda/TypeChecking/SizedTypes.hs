@@ -51,7 +51,7 @@ compareSizes cmp u v = do
     (_,      SizeSuc u, SizeSuc v) -> compareSizes cmp u v
     (CmpLeq, _,         _)         ->
       ifM (trivial u v) (return []) $
-        buildConstraint $ ValueCmp CmpLeq size u v
+        buildConstraint [] $ ValueCmp CmpLeq size u v
     _                              -> compareAtom cmp size u v
 
 trivial :: MonadTCM tcm => Term -> Term -> tcm Bool
@@ -72,11 +72,12 @@ getSizeConstraints :: MonadTCM tcm => tcm [SizeConstraint]
 getSizeConstraints = do
   cs   <- getConstraints
   size <- sizeType
-  let sizeConstraints cl@(Closure{ clValue = ValueCmp CmpLeq s _ _ })
-        | s == size = [cl]
-      sizeConstraints cl@(Closure{ clValue = Guarded _ cs }) =
-        concatMap sizeConstraints cs
-      sizeConstraints _ = []
+  let sizeConstraints cl = sizeCs $ theConstraint $ clValue cl
+        where
+          sizeCs (ValueCmp CmpLeq s _ _)
+            | s == size = [cl]
+          sizeCs (Guarded _ cs) = concatMap sizeConstraints cs
+          sizeCs _ = []
   scs <- mapM computeSizeConstraint $ concatMap sizeConstraints cs
   return [ c | Just c <- scs ]
 
@@ -114,17 +115,17 @@ instance Show SizeConstraint where
 computeSizeConstraint :: MonadTCM tcm => ConstraintClosure -> tcm (Maybe SizeConstraint)
 computeSizeConstraint cl = liftTCM $
   enterClosure cl $ \c ->
-    case c of
+    case theConstraint c of
       ValueCmp CmpLeq _ u v -> do
           (a, n) <- sizeExpr u
           (b, m) <- sizeExpr v
           return $ Just $ Leq a (m - n) b
         `catchError` \err -> case errError err of
-          PatternErr _ -> return Nothing
+          AbortCheck _ -> return Nothing
           _            -> throwError err
       _ -> __IMPOSSIBLE__
 
--- | Throws a 'patternViolation' if the term isn't a proper size expression.
+-- | Throws a 'abortCheck' if the term isn't a proper size expression.
 sizeExpr :: MonadTCM tcm => Term -> tcm (SizeExpr, Int)
 sizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
@@ -134,7 +135,7 @@ sizeExpr u = do
     SizeSuc u -> do
       (e, n) <- sizeExpr u
       return (e, n + 1)
-    SizeInf -> patternViolation
+    SizeInf -> abortCheck []
     OtherSize u -> case u of
       Var i []  -> do
         cxt <- getContextId
@@ -143,7 +144,7 @@ sizeExpr u = do
         | all isVar args && distinct args -> do
           cxt <- getContextId
           return (SizeMeta m [ cxt !! fromIntegral i | Arg _ _ (Var i []) <- args ], 0)
-      _ -> patternViolation
+      _ -> abortCheck []
   where
     isVar (Arg _ _ (Var _ [])) = True
     isVar _ = False

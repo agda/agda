@@ -222,7 +222,13 @@ buildClosure x = liftTCM $ do
 -- ** Constraints
 ---------------------------------------------------------------------------
 
-type ConstraintClosure = Closure Constraint
+type ConstraintClosure = Closure ConstraintWithMetas
+
+data ConstraintWithMetas = ConstraintWithMetas
+  { theConstraint      :: Constraint
+  , constraintBlockers :: [MetaId]
+  }
+  deriving (Typeable, Show)
 
 data Constraint
   = ValueCmp Comparison Type Term Term
@@ -982,8 +988,9 @@ instance Error TypeError where
 data TCErr' = TypeError TCState (Closure TypeError)
 	    | Exception Range String
             | IOException Range E.IOException
-	    | PatternErr  TCState -- ^ for pattern violations
-	    {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
+	    | AbortCheck [MetaId]   -- ^ abort the current check and generate a constraint that's
+                                    --   to be rechecked on instantiation of any of the given metas
+                                    --   (no metas means always recheck)
   deriving (Typeable)
 
 -- | Type-checking errors, potentially paired with relevant syntax
@@ -1008,15 +1015,13 @@ instance Show TCErr' where
     show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
     show (IOException r e) = show r ++ ": " ++ show e
-    show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
-    {- show (AbortAssign _) = "Abort assignment (you shouldn't see this)" -- UNUSED -}
+    show AbortCheck{}      = "Abort check (you shouldn't see this)"
 
 instance HasRange TCErr' where
     getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
-    getRange (PatternErr s)    = noRange
-    {- getRange (AbortAssign s)   = noRange -- UNUSED -}
+    getRange AbortCheck{}      = noRange
 
 instance HasRange TCErr where
     getRange = getRange . errError
@@ -1113,10 +1118,8 @@ instance MonadIO m => MonadIO (TCMT m) where
       handleIOException r e = throwIO $ TCErr Nothing $ IOException r e
       handleException   r s = throwIO $ TCErr Nothing $ Exception r s
 
-patternViolation :: MonadTCM tcm => tcm a
-patternViolation = liftTCM $ do
-    s <- get
-    throwError $ TCErr Nothing $ PatternErr s
+abortCheck :: MonadTCM tcm => [MetaId] -> tcm a
+abortCheck xs = liftTCM $ throwError $ TCErr Nothing $ AbortCheck xs
 
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s

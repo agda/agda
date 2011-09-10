@@ -95,7 +95,7 @@ compareTerm cmp a u v = do
     assign x us v = do
       reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
                                          , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
-      ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
+      ifM (isInstantiatedMeta x) (abortCheck []) (assignV x us v)
     s `orelse` h = do
       cs <- liftTCM (s `catchError` \_ -> return [__IMPOSSIBLE__])
       case cs of
@@ -229,7 +229,7 @@ compareAtom cmp t m n =
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
 
-          postpone = buildConstraint $ ValueCmp cmp t m n
+          postpone = buildConstraint [] $ ValueCmp cmp t m n
 
           checkSyntacticEquality = do
             n <- normalise n    -- is this what we want?
@@ -268,7 +268,7 @@ compareAtom cmp t m n =
                           n <- normalise n
                           if m == n
                             then return []
-                            else buildConstraint (ValueCmp cmp t m n)
+                            else buildConstraint [] (ValueCmp cmp t m n)
 -}
             | otherwise -> do
                 [p1, p2] <- mapM getMetaPriority [x,y]
@@ -306,7 +306,7 @@ compareAtom cmp t m n =
             m <- normalise m
             if m == n
                 then return []	-- Check syntactic equality for blocked terms
-                else buildConstraint $ ValueCmp cmp t m n
+                else buildConstraint [] $ ValueCmp cmp t m n
 -}
 
         (Blocked{}, _)    -> useInjectivity cmp t m n
@@ -430,10 +430,10 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
                           -- matching on levels
         (_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
                                             && Just lvl' /= mlvl ->
-          buildConstraint (Guarded (ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2) cs1)
+          buildConstraint [] (Guarded (ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2) cs1)
         _   ->
           (cs1 ++) <$> compareElims pols (piApply a [arg1]) (apply v [arg1]) els1 els2
-    _ -> patternViolation
+    _ -> abortCheck []
 compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
   | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
   | otherwise = do
@@ -608,7 +608,7 @@ leqLevel a b = liftTCM $ do
       where
         ok       = return []
         notok    = typeError $ NotLeqSort (Type a) (Type b)
-        postpone = patternViolation
+        postpone = abortCheck []
 
         wrap m = catchError m $ \e ->
           case errError e of
@@ -633,7 +633,7 @@ leqLevel a b = liftTCM $ do
         subtr m (ClosedLevel n) = ClosedLevel (n - m)
         subtr m (Plus n l)      = Plus (n - m) l
 
---     choice []     = patternViolation
+--     choice []     = abortCheck []
 --     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
 --       case errError e of
 --         PatternErr{} -> choice ms
@@ -712,7 +712,7 @@ equalLevel a b = do
         notok    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
           reportSLn "tc.conv.level" 30 $ "postponing: " ++ show a ++ " == " ++ show b
-          patternViolation
+          abortCheck []
 
         closed0 [] = [ClosedLevel 0]
         closed0 as = as
@@ -794,8 +794,8 @@ equalSort s1 s2 =
               cs1 <- equalSort s0 s1
               cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s0 s2
               return $ cs1 ++ cs2
-            (DLub{}  , _       )             -> buildConstraint (SortCmp CmpEq s1 s2)
-            (_       , DLub{}  )             -> buildConstraint (SortCmp CmpEq s1 s2)
+            (DLub{}  , _       )             -> buildConstraint [] (SortCmp CmpEq s1 s2)
+            (_       , DLub{}  )             -> buildConstraint [] (SortCmp CmpEq s1 s2)
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
 
