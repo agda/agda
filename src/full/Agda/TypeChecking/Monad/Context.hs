@@ -51,6 +51,12 @@ addCtx x a ret = do
   where
     notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
 
+-- | Turns the string into a name and adds it to the context.
+addCtxString :: MonadTCM tcm => String -> Arg Type -> tcm a -> tcm a
+addCtxString s a m = do
+  x <- freshName_ s
+  addCtx x a m
+
 -- | Change the context
 inContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
 inContext xs ret = do

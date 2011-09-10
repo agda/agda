@@ -374,8 +374,9 @@ termClause :: DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
 termClause use names name (Clause { clauseTel  = tel
                                   , clausePerm = perm
                                   , clausePats = argPats'
-                                  , clauseBody = body }) = do
-    argPats' <- addCtxTel tel $ normalise argPats'
+                                  , clauseBody = body }) =
+  addCtxTel tel $ do
+    argPats' <- normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'
     dbs <- stripBinds use (nVars - 1) (map unArg argPats) body
@@ -423,7 +424,7 @@ termTerm conf names f pats0 t0 = do
            Inf    -> return Term.empty
            DLub s1 (Abs x s2) -> liftM2 Term.union
              (loopSort pats s1)
-             (loopSort (map liftDBP pats) s2)
+             (addCtxString x __IMPOSSIBLE__ $ loopSort (map liftDBP pats) s2)
 
        loopType :: (?cutoff :: Int) => [DeBruijnPat] -> Order -> Type -> TCM Calls
        loopType pats guarded (El s t) = liftM2 Term.union
@@ -560,15 +561,20 @@ termTerm conf names f pats0 t0 = do
               fun = function g args0
 
             -- Abstraction. Preserves guardedness.
-            Lam h (Abs x t) -> loop (map liftDBP pats) guarded t
+            Lam h (Abs x t) -> addCtxString x (Arg { argHiding    = h
+                                                   , argRelevance = __IMPOSSIBLE__
+                                                   , unArg        = __IMPOSSIBLE__
+                                                   }) $
+              loop (map liftDBP pats) guarded t
 
             -- Neutral term. Destroys guardedness.
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
 
             -- Dependent function space.
-            Pi a (Abs _ b) ->
+            Pi a (Abs x b) ->
                do g1 <- loopType pats Term.unknown (unArg a)
-                  g2 <- loopType (map liftDBP pats) piArgumentGuarded b
+                  g2 <- addCtxString x a $
+                        loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- Non-dependent function space.
