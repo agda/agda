@@ -1,2 +1,6 @@
 
-Termination checking failed for the following functions: loop.
+Termination checking failed for the following functions:
+  loop
+Problematic calls:
+  loop
+    (at TerminationNoArgs.agda:4,8-12)

@@ -1,2 +1,8 @@
 
-Termination checking failed for the following functions: f, f'.
+Termination checking failed for the following functions:
+  f, f'
+Problematic calls:
+  f (isCons (_.tl h t)) (_.tl h t) refl
+    (at TerminationRecordPatternCoerce.agda:44,32-33)
+  f' (isCons (_.tl b' h t p)) (_.tl b' h t p) refl
+    (at TerminationRecordPatternCoerce.agda:56,27-29)

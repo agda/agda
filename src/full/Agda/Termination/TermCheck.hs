@@ -19,7 +19,6 @@ import Data.Map (Map)
 import qualified Data.Maybe as Maybe
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Text.PrettyPrint (Doc)
 
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
@@ -55,15 +54,12 @@ import Agda.Utils.Monad (thread, (<$>), ifM)
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-type Calls = Term.CallGraph (Set R.Range)
+type Calls = Term.CallGraph (Set CallInfo)
 type MutualNames = [QName]
 
--- | The result of termination checking a module is a list of
--- problematic mutual blocks (represented by the names of the
--- functions in the block), along with the ranges for the problematic
--- call sites (call site paths).
+-- | The result of termination checking a module.
 
-type Result = [([A.QName], [R.Range])]
+type Result = [TerminationError]
 
 -- | Termination check a sequence of declarations.
 termDecls :: [A.Declaration] -> TCM Result
@@ -176,10 +172,13 @@ termMutual i ts ds = if names == [] then return [] else
                    ]
                  return $ Term.terminates calls2
      case r of
-       Left  errDesc -> do
-         let callSites = Set.toList errDesc
-         return [(names, callSites)] -- TODO: this could be changed to
-                                     -- [(allNames, callSites)]
+       Left calls -> do
+         return [TerminationError
+                   { termErrFunctions = names
+                     -- TODO: This could be changed to allNames.
+                   , termErrCalls     = Set.toList calls
+                   }
+                ]
        Right _ -> do
          reportSLn "term.warn.yes" 2
                      (show (names) ++ " does termination check")
@@ -517,15 +516,17 @@ termTerm conf names f pats0 t0 = do
                             , nest 2 $ text ("call matrix (with guardeness): " ++ show matrix')
                             ])
 
+                     doc <- prettyTCM (Def g args0)
                      return
                        (Term.insert
                          (Term.Call { Term.source = fInd
                                     , Term.target = toInteger gInd'
                                     , Term.cm     = makeCM ncols nrows matrix'
                                     })
-                         -- Note that only the base part of the
-                         -- name is collected here.
-                         (Set.fromList $ fst $ R.getRangesA g)
+                         (Set.singleton
+                            (CallInfo { callInfoRange = getRange g
+                                      , callInfoCall  = show doc
+                                      }))
                          calls)
 
 

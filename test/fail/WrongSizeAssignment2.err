@@ -1,2 +1,6 @@
 
-Termination checking failed for the following functions: f.
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f {i} (suc {i} (lift {i} x))
+    (at WrongSizeAssignment2.agda:25,7-8)

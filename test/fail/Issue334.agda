@@ -1,5 +1,5 @@
 -- 2010-10-04
--- termination checker no longer counts stripping off a record constructor 
+-- termination checker no longer counts stripping off a record constructor
 -- as decrease
 module Issue334 where
 

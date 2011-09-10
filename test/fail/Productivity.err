@@ -1,3 +1,13 @@
 
 Termination checking failed for the following functions:
-expr, term, factor.
+  expr, term, factor
+Problematic calls:
+  .Productivity.♯-10
+  .Productivity.♯-12
+  .Productivity.♯-9
+  term
+    (at Productivity.agda:36,14-18)
+  factor
+    (at Productivity.agda:37,14-20)
+  expr
+    (at Productivity.agda:38,47-51)

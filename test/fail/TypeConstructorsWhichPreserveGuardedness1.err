@@ -1,2 +1,10 @@
 
-Termination checking failed for the following functions: ℕ, ℕ, ℕ′.
+Termination checking failed for the following functions:
+  ℕ, ℕ, ℕ′
+Problematic calls:
+  .TypeConstructorsWhichPreserveGuardedness1.ℕ₁.♯-0
+  ℕ (at TypeConstructorsWhichPreserveGuardedness1.agda:26,18-19)
+  .TypeConstructorsWhichPreserveGuardedness1.ℕ₂.♯-1
+  ℕ′
+    (at TypeConstructorsWhichPreserveGuardedness1.agda:50,24-26)
+  ℕ (at TypeConstructorsWhichPreserveGuardedness1.agda:54,23-24)

@@ -1,2 +1,7 @@
 
-Termination checking failed for the following functions: f.
+Termination checking failed for the following functions:
+  f
+Problematic calls:
+  f (suc (suc n)) | zero
+  f (suc n)
+    (at TerminationWithInsufficientDepth.agda:13,11-12)

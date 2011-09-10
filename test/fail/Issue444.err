@@ -1,2 +1,6 @@
 
-Termination checking failed for the following functions: false.
+Termination checking failed for the following functions:
+  false
+Problematic calls:
+  false
+    (at Issue444.agda:12,18-23)

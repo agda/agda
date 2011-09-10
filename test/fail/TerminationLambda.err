@@ -1,6 +1,6 @@
 
 Termination checking failed for the following functions:
-  bad
+  F
 Problematic calls:
-  bad (suc y) x
-    (at SizedTypesVarSwap.agda:19,17-20)
+  F (Id A)
+    (at TerminationLambda.agda:9,11-12)

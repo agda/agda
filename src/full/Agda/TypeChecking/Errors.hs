@@ -203,10 +203,18 @@ instance PrettyTCM TypeError where
 	    NotSupported s -> fwords $ "Not supported: " ++ s
 	    CompilationError s -> sep [fwords "Compilation error:", text s]
 	    GenericError s   -> fwords s
-	    TerminationCheckFailed because -> fsep $
-	      pwords "Termination checking failed for the following functions:" ++
-              [ fsep (punctuate comma (map (text . show . qnameName)
-                                           (concatMap fst because))) <> text "." ]
+	    TerminationCheckFailed because ->
+              fwords "Termination checking failed for the following functions:"
+              $$ (nest 2 $
+                    fsep (punctuate comma (map (text . show . qnameName)
+                                               (concatMap termErrFunctions because))))
+              $$ fwords "Problematic calls:"
+              $$ (nest 2 $ vcat $
+                    map (\c -> let call = text (callInfoCall c) in
+                               case show (callInfoRange c) of
+                                 "" -> call
+                                 r  -> call $$ nest 2 (text "(at" <+> text r <> text ")"))
+                        (concatMap termErrCalls because))
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 	    DataMustEndInSort t -> fsep $

@@ -1,2 +1,5 @@
 
-Termination checking failed for the following functions: ℕ.
+Termination checking failed for the following functions:
+  ℕ
+Problematic calls:
+  ℕ (at TypeConstructorsWhichPreserveGuardedness2.agda:14,9-10)

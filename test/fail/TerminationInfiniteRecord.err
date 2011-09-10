@@ -1,2 +1,6 @@
 
-Termination checking failed for the following functions: elimEmpty.
+Termination checking failed for the following functions:
+  elimEmpty
+Problematic calls:
+  elimEmpty e
+    (at TerminationInfiniteRecord.agda:11,23-32)

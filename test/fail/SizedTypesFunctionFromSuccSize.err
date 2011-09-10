@@ -1,2 +1,6 @@
 
-Termination checking failed for the following functions: bad.
+Termination checking failed for the following functions:
+  bad
+Problematic calls:
+  bad zero
+    (at SizedTypesFunctionFromSuccSize.agda:19,14-17)

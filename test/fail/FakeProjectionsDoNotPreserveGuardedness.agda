@@ -34,8 +34,8 @@ postulate
 
 -- Products
 
-infixr 4 _,_ 
-infixr 2 _×_ 
+infixr 4 _,_
+infixr 2 _×_
 
 -- fake product with projections
 postulate

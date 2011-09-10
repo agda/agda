@@ -4,11 +4,13 @@
   #-}
 module Agda.TypeChecking.Monad.Base where
 
+import Control.Arrow
 import Control.Exception as E
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Applicative
+import Data.Function
 import Data.Int
 import Data.Map as Map
 import Data.Set as Set
@@ -40,6 +42,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
+import Agda.Utils.Pretty
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -831,15 +834,35 @@ data Occ = OccCon { occDatatype	:: QName
 data OccPos = NonPositively | ArgumentTo Nat QName
   deriving (Show)
 
+-- | Information about a call.
+
+data CallInfo = CallInfo
+  { callInfoRange :: Range
+    -- ^ Range of the head identifier.
+  , callInfoCall :: String
+    -- ^ Formatted representation of the call.
+    --
+    -- ('Doc' would perhaps be better here, but 'Doc' doesn't come
+    -- with an 'Ord' instance.)
+  } deriving (Eq, Ord, Typeable, Show)
+
+-- | Information about a mutual block which did not pass the
+-- termination checker.
+
+data TerminationError = TerminationError
+  { termErrFunctions :: [QName]
+    -- ^ The functions which failed to check. (May not include
+    -- automatically generated functions.)
+  , termErrCalls :: [CallInfo]
+    -- ^ The problematic call sites.
+  } deriving (Typeable, Show)
+
 data TypeError
 	= InternalError String
 	| NotImplemented String
 	| NotSupported String
         | CompilationError String
-	| TerminationCheckFailed [([QName], [R.Range])]
-          -- ^ Parameterised on functions which failed to termination
-          --   check (grouped if they are mutual), along with ranges
-          --   for problematic call sites.
+	| TerminationCheckFailed [TerminationError]
 	| PropMustBeSingleton
 	| DataMustEndInSort Term
 	| ShouldEndInApplicationOfTheDatatype Type

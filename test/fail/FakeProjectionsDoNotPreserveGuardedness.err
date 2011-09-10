@@ -1,3 +1,9 @@
 
 Termination checking failed for the following functions:
-repeat, repeat'.
+  repeat, repeat'
+Problematic calls:
+  .FakeProjectionsDoNotPreserveGuardedness.♯-0 a
+  repeat' a
+    (at FakeProjectionsDoNotPreserveGuardedness.agda:57,25-32)
+  repeat a
+    (at FakeProjectionsDoNotPreserveGuardedness.agda:60,21-27)

@@ -6,6 +6,7 @@ module Agda.Interaction.Imports where
 
 import Prelude hiding (catch)
 
+import Control.Arrow
 import Control.Monad.Error
 import Control.Monad.State
 import qualified Control.Exception as E
@@ -153,7 +154,7 @@ alreadyVisited x getIface = do
 -- Invariant: The fields are never empty at the same time.
 
 data Warnings = Warnings
-  { terminationProblems   :: [([QName], [R.Range])]
+  { terminationProblems   :: [TerminationError]
     -- ^ Termination checking problems are not reported if
     -- 'optTerminationCheck' is 'False'.
   , unsolvedMetaVariables :: [Range]
@@ -458,8 +459,8 @@ createInterface file mname = do
                       (termDecls $ topLevelDecls topLevel)
                       (return [])
       mapM_ (\e -> reportSLn "term.warn.no" 2
-                     (show (fst e) ++
-                      " does NOT pass the termination checker."))
+                     (show (termErrFunctions e) ++
+                      " do(es) NOT pass the termination checker."))
             termErrs
       return termErrs
       ) (\e -> do

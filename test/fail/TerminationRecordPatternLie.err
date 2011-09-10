@@ -1,2 +1,8 @@
 
-Termination checking failed for the following functions: f, g.
+Termination checking failed for the following functions:
+  f, g
+Problematic calls:
+  f (t lie)
+    (at TerminationRecordPatternLie.agda:35,18-19)
+  g (tail l lie)
+    (at TerminationRecordPatternLie.agda:39,7-8)

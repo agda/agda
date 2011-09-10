@@ -890,7 +890,7 @@ checkHeadApplication e t hd args = do
       -- The name of the fresh function.
       i <- fresh :: TCM Integer
       let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
-      c' <- liftM2 qualify currentModule (freshName_ name)
+      c' <- liftM2 qualify (killRange <$> currentModule) (freshName_ name)
 
       -- The application of the fresh function to the relevant
       -- arguments.

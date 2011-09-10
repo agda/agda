@@ -80,20 +80,17 @@ generateErrorFile r s =
 -- | Generates syntax highlighting information.
 
 generateSyntaxInfo
-  :: AbsolutePath           -- ^ The module to highlight.
-  -> Maybe TCErr            -- ^ 'Nothing' if the module has been
-                            --   successfully type checked (perhaps
-                            --   with warnings), otherwise the
-                            --   offending error.
-                            --
-                            --   Precondition: The range of the error
-                            --   must match the file name given in the
-                            --   previous argument.
-  -> CA.TopLevelInfo        -- ^ The abstract syntax of the module.
-  -> [([A.QName], [Range])] -- ^ Functions which failed to termination
-                            --   check (grouped if they are mutual),
-                            --   along with ranges for problematic
-                            --   call sites.
+  :: AbsolutePath          -- ^ The module to highlight.
+  -> Maybe TCErr           -- ^ 'Nothing' if the module has been
+                           --   successfully type checked (perhaps
+                           --   with warnings), otherwise the
+                           --   offending error.
+                           --
+                           --   Precondition: The range of the error
+                           --   must match the file name given in the
+                           --   previous argument.
+  -> CA.TopLevelInfo       -- ^ The abstract syntax of the module.
+  -> [M.TerminationError]  -- ^ Termination checking problems.
   -> TCM HighlightingInfo
 generateSyntaxInfo file mErr top termErrs = do
   reportSLn "import.iface.create" 15  $
@@ -167,9 +164,9 @@ generateSyntaxInfo file mErr top termErrs = do
       where
       m            = mempty { otherAspects = [TerminationProblem] }
       functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
-                     concatMap fst termErrs
-      callSites    = Fold.foldMap (\r -> singleton r m) $
-                     concatMap snd termErrs
+                     concatMap M.termErrFunctions termErrs
+      callSites    = Fold.foldMap (\r -> several (rToR r) m) $
+                     concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
     -- All names mentioned in the syntax tree (not bound variables).
     names = everything' (><) (Seq.empty `mkQ`  getName
