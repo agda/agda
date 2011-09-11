@@ -113,7 +113,6 @@ data Pattern
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
---	= DomainFree Hiding BoundName -- ^ . @x@ or @{x}@
 	= DomainFree Hiding Relevance BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
 	| DomainFull TypedBindings              -- ^ . @(xs : e)@ or @{xs : e}@
     deriving (Typeable, Data)

@@ -107,7 +107,6 @@ type Constructor    = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
---	= DomainFree Hiding Name    -- ^ . @x@ or @{x}@
 	= DomainFree Hiding Relevance Name  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
   deriving (Typeable, Data, Show)
