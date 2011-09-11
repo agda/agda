@@ -58,18 +58,14 @@ data Visibility : Set where
 {-# BUILTIN HIDDEN   hidden     #-}
 {-# BUILTIN INSTANCE instance   #-}
 
--- Arguments can be relevant or irrelevant. (The forced and non-strict
--- constructors do not correspond to any surface syntax, and should
--- probably be removed.)
+-- Arguments can be relevant or irrelevant.
 
 data Relevance : Set where
-  relevant irrelevant forced non-strict : Relevance
+  relevant irrelevant : Relevance
 
 {-# BUILTIN RELEVANCE  Relevance  #-}
 {-# BUILTIN RELEVANT   relevant   #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
-{-# BUILTIN FORCED     forced     #-}
-{-# BUILTIN NONSTRICT  non-strict #-}
 
 -- Arguments.
 
@@ -256,20 +252,8 @@ instance ≟-Visibility hidden   = no λ()
 _≟-Relevance_ : Decidable (_≡_ {A = Relevance})
 relevant   ≟-Relevance relevant   = yes refl
 irrelevant ≟-Relevance irrelevant = yes refl
-forced     ≟-Relevance forced     = yes refl
-non-strict ≟-Relevance non-strict = yes refl
 relevant   ≟-Relevance irrelevant = no λ()
-relevant   ≟-Relevance forced     = no λ()
-relevant   ≟-Relevance non-strict = no λ()
 irrelevant ≟-Relevance relevant   = no λ()
-irrelevant ≟-Relevance forced     = no λ()
-irrelevant ≟-Relevance non-strict = no λ()
-forced     ≟-Relevance relevant   = no λ()
-forced     ≟-Relevance irrelevant = no λ()
-forced     ≟-Relevance non-strict = no λ()
-non-strict ≟-Relevance relevant   = no λ()
-non-strict ≟-Relevance irrelevant = no λ()
-non-strict ≟-Relevance forced     = no λ()
 
 mutual
   infix 4 _≟_ _≟-Args_ _≟-ArgType_
