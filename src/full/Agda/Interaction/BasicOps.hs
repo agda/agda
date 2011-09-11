@@ -44,6 +44,7 @@ import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Eliminators (unElim)
 import qualified Agda.TypeChecking.Pretty as TP
 
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Pretty
 import Agda.Utils.Permutation
@@ -555,10 +556,13 @@ atTopLevel m = do
       case r of
         Nothing -> __IMPOSSIBLE__
         Just mi -> do
+          let scope = iInsideScope $ miInterface mi
           tel <- lookupSection current
           M.withCurrentModule current $
-            withScope_ (iInsideScope $ miInterface mi) $
-              addCtxTel tel $
+            withScope_ scope $
+              addContext (zipWith' (fmap . (,))
+                                   (map snd $ scopeLocals scope)
+                                   (map (fmap snd) $ telToList tel)) $
                 m
 
 -- | Returns the contents of the given module.

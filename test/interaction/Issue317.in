@@ -1,0 +1,7 @@
+top_command (cmd_load currentFile [])
+
+-- Should be "Set → Set".
+top_command (cmd_infer_toplevel Normalised "F")
+
+-- Should be "F A".
+top_command (cmd_compute_toplevel False "F A")

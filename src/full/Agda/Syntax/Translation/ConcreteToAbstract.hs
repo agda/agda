@@ -648,12 +648,12 @@ scopeCheckModule r x qm tel ds = do
     -- pushScope m
     -- qm <- getCurrentModule
     printScope "module" 20 $ "inside module " ++ show x
-    ds <- withLocalVars $ do
-            tel <- toAbstract tel
-            (:[]) . A.Section info (qm `withRangesOfQ` x) tel <$>
-              toAbstract ds
-    scope <- getScope
-    return (scope, ds)
+    withLocalVars $ do
+      tel   <- toAbstract tel
+      ds    <- (:[]) . A.Section info (qm `withRangesOfQ` x) tel <$>
+                 toAbstract ds
+      scope <- getScope
+      return (scope, ds)
 
   -- Binding is done by the caller
   printScope "module" 20 $ "after module " ++ show x
