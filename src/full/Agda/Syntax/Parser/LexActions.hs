@@ -97,11 +97,11 @@ newInput inp inp' len =
 			}
 	[]	-> inp' { lexInput = [] }   -- we do get empty tokens moving between states
 
--- | Alex can't handle unicode characters. To solve this we translate all
---   Unicode (non-ASCII) identifiers to @z@, all Unicode operator
---   characters to @+@, and all whitespace characters (except for @\t@
---   and @\n@) to ' '. It is important that there aren't any keywords
---   containing @z@, @+@ or @ @.
+-- | Alex 2 can't handle unicode characters. To solve this we
+--   translate all Unicode (non-ASCII) identifiers to @z@, all Unicode
+--   operator characters to @+@, and all whitespace characters (except
+--   for @\t@ and @\n@) to ' '. It is important that there aren't any
+--   keywords containing @z@, @+@ or @ @.
 foolAlex :: AlexInput -> AlexInput
 foolAlex inp = inp { lexInput = map fool $ lexInput inp }
     where

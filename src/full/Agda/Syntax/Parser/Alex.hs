@@ -6,7 +6,7 @@ module Agda.Syntax.Parser.Alex
     ( -- * Alex requirements
       AlexInput(..)
     , alexInputPrevChar
-    , alexGetChar
+    , alexGetChar, alexGetByte
       -- * Lex actions
     , LexAction, LexPredicate
     , (.&&.), (.||.), not'
@@ -16,7 +16,9 @@ module Agda.Syntax.Parser.Alex
     )
     where
 
+import Control.Arrow
 import Control.Monad.State
+import Data.Word
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser.Monad
@@ -36,6 +38,8 @@ alexInputPrevChar :: AlexInput -> Char
 alexInputPrevChar = lexPrevChar
 
 -- | Lex a character. No surprises.
+--
+-- This function is used by Alex 2.
 alexGetChar :: AlexInput -> Maybe (Char, AlexInput)
 alexGetChar (AlexInput { lexInput = []  }) = Nothing
 alexGetChar (AlexInput { lexInput = c:s, lexPos = p }) =
@@ -45,6 +49,15 @@ alexGetChar (AlexInput { lexInput = c:s, lexPos = p }) =
 		 , lexPrevChar	= c
 		 }
 	 )
+
+-- | A variant of 'alexGetChar'.
+--
+-- This function is used by Alex 3.
+alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
+alexGetByte ai =
+  -- Note that we ensure that every character presented to Alex fits
+  -- in seven bits.
+  (fromIntegral . fromEnum *** id) <$> alexGetChar ai
 
 {--------------------------------------------------------------------------
     Monad operations
