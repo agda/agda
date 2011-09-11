@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, CPP #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -14,12 +14,11 @@ import Control.Monad.State
 import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
-import Data.Traversable
+import Data.Traversable hiding (sequence)
 import Data.Foldable
 import Data.Monoid
 
-#include "../undefined.h"
-import Agda.Utils.Impossible
+import Agda.Utils.List
 
 -- Monads -----------------------------------------------------------------
 
@@ -69,10 +68,7 @@ thread f (x:xs) ret =
 
 -- | Requires both lists to have the same lengths.
 zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
-zipWithM' f []	     []	      = return []
-zipWithM' f (x : xs) (y : ys) = liftM2 (:) (f x y) (zipWithM' f xs ys)
-zipWithM' f []	     (_ : _)  = {- ' -} __IMPOSSIBLE__
-zipWithM' f (_ : _)  []	      = {- ' -} __IMPOSSIBLE__
+zipWithM' f xs ys = sequence (zipWith' f xs ys)
 
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 
 {-| Utitlity functions on lists.
 -}
@@ -12,6 +13,9 @@ import Data.Function
 import Data.List
 import Data.Maybe
 import qualified Data.Set as Set
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
@@ -142,6 +146,20 @@ prop_genericElemIndex x xs =
   classify (x `elem` xs) "members" $
     genericElemIndex x xs == elemIndex x xs
 
+-- | Requires both lists to have the same length.
+
+zipWith' :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith' f []        []      = []
+zipWith' f (x : xs) (y : ys) = f x y : zipWith' f xs ys
+zipWith' f []       (_ : _)  = {- ' -} __IMPOSSIBLE__
+zipWith' f (_ : _)  []       = {- ' -} __IMPOSSIBLE__
+
+prop_zipWith' :: (Integer -> Integer -> Integer) -> Property
+prop_zipWith' f =
+  forAll natural $ \n ->
+    forAll (two $ vector n) $ \(xs, ys) ->
+      zipWith' f xs ys == zipWith f xs ys
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -151,4 +169,5 @@ tests = runTests "Agda.Utils.List"
   , quickCheck' prop_groupBy'
   , quickCheck' prop_extractNthElement
   , quickCheck' prop_genericElemIndex
+  , quickCheck' prop_zipWith'
   ]
