@@ -380,7 +380,8 @@ instance KillRange LetBinding where
 
 -- | Extracts all the names which are declared in a 'Declaration'.
 -- This does not include open public or let expressions, but it does
--- include local modules and where clauses.
+-- include local modules, where clauses and the names of extended
+-- lambdas.
 
 allNames :: Declaration -> Seq QName
 allNames (Axiom     _ _ q _)   = Seq.singleton q
@@ -400,12 +401,58 @@ allNames (Definition _ _ defs) = Fold.foldMap allNamesD defs
                                    Fold.foldMap allNames decls
 
   allNamesR :: RHS -> Seq QName
-  allNamesR RHS {}                = Seq.empty
+  allNamesR (RHS e)               = allNamesE e
   allNamesR AbsurdRHS {}          = Seq.empty
   allNamesR (WithRHS q _ cls)     = q <| Fold.foldMap allNamesC cls
   allNamesR (RewriteRHS qs _ rhs cls) =
     Seq.fromList qs >< allNamesR rhs
                     >< Fold.foldMap allNames cls
+
+  allNamesE :: Expr -> Seq QName
+  allNamesE Var {}                  = Seq.empty
+  allNamesE Def {}                  = Seq.empty
+  allNamesE Con {}                  = Seq.empty
+  allNamesE Lit {}                  = Seq.empty
+  allNamesE QuestionMark {}         = Seq.empty
+  allNamesE Underscore {}           = Seq.empty
+  allNamesE (App _ e1 e2)           = Fold.foldMap allNamesE [e1, namedThing (unArg e2)]
+  allNamesE (WithApp _ e es)        = Fold.foldMap allNamesE (e : es)
+  allNamesE (Lam _ b e)             = allNamesLam b >< allNamesE e
+  allNamesE AbsurdLam {}            = Seq.empty
+  allNamesE (ExtendedLam _ _ q cls) = q <| Fold.foldMap allNamesC cls
+  allNamesE (Pi _ tel e)            = Fold.foldMap allNamesBinds tel ><
+                                                allNamesE e
+  allNamesE (Fun _ (Arg _ _ e1) e2) = Fold.foldMap allNamesE [e1, e2]
+  allNamesE Set {}                  = Seq.empty
+  allNamesE Prop {}                 = Seq.empty
+  allNamesE (Let _ lbs e)           = Fold.foldMap allNamesLet lbs ><
+                                                allNamesE e
+  allNamesE ETel {}                 = __IMPOSSIBLE__
+  allNamesE (Rec _ fields)          = Fold.foldMap allNamesE (map snd fields)
+  allNamesE (ScopedExpr _ e)        = allNamesE e
+  allNamesE (QuoteGoal _ _ e)       = allNamesE e
+  allNamesE Quote {}                = Seq.empty
+  allNamesE Unquote {}              = Seq.empty
+  allNamesE DontCare {}             = Seq.empty
+
+  allNamesLam :: LamBinding -> Seq QName
+  allNamesLam DomainFree {}      = Seq.empty
+  allNamesLam (DomainFull binds) = allNamesBinds binds
+
+  allNamesBinds :: TypedBindings -> Seq QName
+  allNamesBinds (TypedBindings _ (Arg _ _ (TBind _ _ e))) = allNamesE e
+  allNamesBinds (TypedBindings _ (Arg _ _ (TNoBind e)))   = allNamesE e
+
+  allNamesLet :: LetBinding -> Seq QName
+  allNamesLet (LetBind _ _ _ e1 e2)  = Fold.foldMap allNamesE [e1, e2]
+  allNamesLet (LetApply _ _ app _ _) = allNamesApp app
+  allNamesLet LetOpen {}             = Seq.empty
+
+  allNamesApp :: ModuleApplication -> Seq QName
+  allNamesApp (SectionApp bindss _ es) = Fold.foldMap allNamesBinds bindss ><
+                                         Fold.foldMap allNamesE (map (namedThing . unArg) es)
+  allNamesApp RecordModuleIFS {}       = Seq.empty
+
 allNames (Section _ _ _ decls) = Fold.foldMap allNames decls
 allNames Apply {}              = Seq.empty
 allNames Import {}             = Seq.empty
