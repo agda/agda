@@ -51,6 +51,11 @@ addCtx x a ret = do
   where
     notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
 
+-- | N-ary variant of @addCtx@.
+addContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
+addContext ctx m =
+  foldr (\arg -> addCtx (fst $ unArg arg) (fmap snd arg)) m ctx
+
 -- | Turns the string into a name and adds it to the context.
 addCtxString :: MonadTCM tcm => String -> Arg Type -> tcm a -> tcm a
 addCtxString s a m = do
