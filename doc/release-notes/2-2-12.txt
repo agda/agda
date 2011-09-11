@@ -262,7 +262,7 @@ Language
   translated to different function definitions. For example, refl will not be accepted as
   an inhabitant of the type
 
-    (λ { true -> true ; false -> false }) ≡ (λ { true -> true ; false -> false }) 
+    (λ { true -> true ; false -> false }) ≡ (λ { true -> true ; false -> false })
 
   as this internally gets translated to extlam1 ≡ extlam2.
 
@@ -275,10 +275,10 @@ Language
     and = λ { true x → x ; false _ → false }
 
     xor : Bool -> Bool -> Bool
-    xor = \ { true  true  -> false ; 
+    xor = \ { true  true  -> false ;
               false false -> false ;
               _     _     -> true  }
-   
+
     fst : {A : Set}{B : A -> Set} -> (x : Σ A B) -> A
     fst = λ { (a , b) -> a }
 
