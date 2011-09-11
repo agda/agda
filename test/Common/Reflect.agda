@@ -17,19 +17,13 @@ data Hiding : Set where
 {-# BUILTIN INSTANCE instance #-}
 
 -- relevant    the argument is (possibly) relevant at compile-time
--- nonStrict   the argument may never flow into evaluation position.
---             Therefore, it is irrelevant at run-time.
---             It is treated relevantly during equality checking.
 -- irrelevant  the argument is irrelevant at compile- and runtime
--- forced      the argument can be skipped during equality checking
 data Relevance : Set where
-  relevant nonStrict irrelevant forced : Relevance
+  relevant irrelevant : Relevance
 
 {-# BUILTIN RELEVANCE  Relevance  #-}
 {-# BUILTIN RELEVANT   relevant   #-}
-{-# BUILTIN NONSTRICT  nonStrict  #-}
 {-# BUILTIN IRRELEVANT irrelevant #-}
-{-# BUILTIN FORCED     forced     #-}
 
 data Arg A : Set where
   arg : Hiding → Relevance → A → Arg A

@@ -25,8 +25,6 @@ quotingKit = do
   visible <- primVisible
   relevant <- primRelevant
   irrelevant <- primIrrelevant
-  nonStrict <- primNonStrict
-  forced <- primForced
   nil <- primNil
   cons <- primCons
   arg <- primArgArg
@@ -51,8 +49,8 @@ quotingKit = do
       quoteHiding NotHidden = visible
       quoteRelevance Relevant   = relevant
       quoteRelevance Irrelevant = irrelevant
-      quoteRelevance NonStrict  = nonStrict
-      quoteRelevance Forced     = forced
+      quoteRelevance NonStrict  = relevant
+      quoteRelevance Forced     = relevant
       quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
       quoteLit _                = unsupported
       -- We keep no ranges in the quoted term, so the equality on terms
@@ -181,9 +179,8 @@ instance Unquote Relevance where
       Con c [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
-          ,(c `isCon` primIrrelevant, return Irrelevant)
-          ,(c `isCon` primNonStrict,  return NonStrict)]
-          (unquoteFailed "Relevance" "neither `relevant', `irrelevant' nor `nonStrict'" t)
+          ,(c `isCon` primIrrelevant, return Irrelevant)]
+          (unquoteFailed "Relevance" "neither `relevant' or `irrelevant'" t)
       _ -> unquoteFailed "Relevance" "arity is not 0" t
 
 instance Unquote QName where

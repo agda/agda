@@ -71,7 +71,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaTermSort, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
-    primRelvance, primRelevant, primIrrelevant, primNonStrict, primForced,
+    primRelvance, primRelevant, primIrrelevant,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -123,8 +123,6 @@ primVisible      = getBuiltin builtinVisible
 primRelvance     = getBuiltin builtinRelevance
 primRelevant     = getBuiltin builtinRelevant
 primIrrelevant   = getBuiltin builtinIrrelevant
-primNonStrict    = getBuiltin builtinNonStrict
-primForced       = getBuiltin builtinForced
 primAgdaSortSet  = getBuiltin builtinAgdaSortSet
 primAgdaSortLit  = getBuiltin builtinAgdaSortLit
 primAgdaSortUnsupported = getBuiltin builtinAgdaSortUnsupported
@@ -193,8 +191,6 @@ builtinVisible      = "VISIBLE"
 builtinRelevance    = "RELEVANCE"
 builtinRelevant     = "RELEVANT"
 builtinIrrelevant   = "IRRELEVANT"
-builtinNonStrict    = "NONSTRICT"
-builtinForced       = "FORCED"
 builtinArg          = "ARG"
 builtinArgArg       = "ARGARG"
 builtinAgdaTerm         = "AGDATERM"

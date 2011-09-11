@@ -188,7 +188,7 @@ Language
       hidden instance visible : Hiding
 
     data Relevance : Set where
-      relevant nonStrict irrelevant forced : Relevance
+      relevant irrelevant : Relevance
 
     data Type : Set where
       el : Sort -> Term -> Type
