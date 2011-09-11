@@ -96,6 +96,10 @@ instance Pretty Induction where
   pretty Inductive = text "data"
   pretty CoInductive = text "codata"
 
+instance Pretty (OpApp Expr) where
+  pretty (Ordinary e) = pretty e
+  pretty (SyntaxBindingLambda r bs e) = pretty (Lam r bs e)
+
 instance Pretty Expr where
     pretty e =
 	case e of

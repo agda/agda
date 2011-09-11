@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.GhciTop
@@ -797,6 +797,11 @@ instance LowerMeta SC.Expr where
       SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)
       SC.Quote r        -> SC.Quote r
       SC.Unquote r      -> SC.Unquote r
+
+instance LowerMeta (OpApp SC.Expr) where
+  lowerMeta (Ordinary e) = Ordinary $ lowerMeta e
+  lowerMeta (SyntaxBindingLambda r bs e) = SyntaxBindingLambda r (lowerMeta bs) (lowerMeta e)
+
 
 instance LowerMeta SC.LamBinding where
   lowerMeta b@(SC.DomainFree _ _ _) = b

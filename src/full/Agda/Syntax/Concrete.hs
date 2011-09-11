@@ -8,6 +8,7 @@
 module Agda.Syntax.Concrete
     ( -- * Expressions
       Expr(..)
+    , OpApp(..), fromOrdinary
     , module Agda.Syntax.Concrete.Name
     , appView, AppView(..)
       -- * Bindings
@@ -47,6 +48,19 @@ import Agda.Syntax.Concrete.Name
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
+data OpApp e
+        = SyntaxBindingLambda !Range [LamBinding] e -- ^ an abstraction inside a special syntax declaration (see Issue 358 why we introduce this).
+        | Ordinary e
+    deriving (Typeable, Data)
+
+fromOrdinary :: e -> OpApp e -> e
+fromOrdinary d (Ordinary e) = e
+fromOrdinary d _            = d
+
+instance Functor OpApp where
+   fmap f (Ordinary x) = Ordinary (f x)
+   fmap f (SyntaxBindingLambda r bs e) = SyntaxBindingLambda r bs (f e)
+
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr
 	= Ident QName			       -- ^ ex: @x@
@@ -55,7 +69,7 @@ data Expr
 	| Underscore !Range (Maybe Nat)	       -- ^ ex: @_@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-	| OpApp !Range Name [Expr]	       -- ^ ex: @e + e@
+	| OpApp !Range Name [OpApp Expr]       -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| InstanceArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -299,6 +313,11 @@ appView e = AppView e []
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
+
+instance HasRange e => HasRange (OpApp e) where
+    getRange e = case e of
+        Ordinary e -> getRange e
+        SyntaxBindingLambda r _ _ -> r
 
 instance HasRange Expr where
     getRange e =

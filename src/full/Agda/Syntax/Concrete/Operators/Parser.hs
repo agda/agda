@@ -18,7 +18,7 @@ data ExprView e
     = LocalV Name
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV Name [e]
+    | OpAppV Name [OpApp e]
     | HiddenArgV (Named String e)
     | InstanceArgV (Named String e)
     | LamV [LamBinding] e
@@ -113,19 +113,19 @@ opP p nsyn@(_,_,syn) = do
 -- | Given a name with a syntax spec, and a list of parsed expressions
 -- fitting it, rebuild the expression.
 -- Note that this function must not parse any input (as guaranteed by the type)
-rebuild :: forall a e. IsExpr e => NewNotation -> Range -> [e] -> ReadP a e
+rebuild :: forall symbol e. IsExpr e => NewNotation -> Range -> [e] -> ReadP symbol e
 rebuild (name,_,syn) r es = do
   exprs <- mapM findExprFor [0..lastHole]
   return $ unExprView $ OpAppV (setRange r name) exprs
   where filledHoles = zip es (filter isAHole syn)
         lastHole = maximum [t | Just t <- map holeTarget syn]
-        findExprFor :: Int -> ReadP a e
-        findExprFor n = case  [ e | (e,NormalHole m) <- filledHoles, m == n] of
+        findExprFor :: Int -> ReadP a (OpApp e)
+        findExprFor n = case [e | (e,NormalHole m) <- filledHoles, m == n] of
                           [] -> fail $ "no expression for hole " ++ show n
-                          [x] -> case [ e | (e,BindHole m) <- filledHoles, m == n] of
-                                   [] -> return x -- no variable to bind
+                          [x] -> case [e | (e,BindHole m) <- filledHoles, m == n] of
+                                   [] -> return (Ordinary x) -- no variable to bind
                                    vars -> do bs <- mapM rebuildBinding $ map exprView vars
-                                              return $ unExprView $ LamV bs x
+                                              return $ SyntaxBindingLambda (fuseRange bs x) bs x
                           _ -> fail $ "more than one expression for hole " ++ show n
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding

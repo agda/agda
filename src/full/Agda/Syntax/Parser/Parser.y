@@ -34,7 +34,6 @@ import Agda.Syntax.Literal
 import Agda.Utils.Monad
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
-
 }
 
 %name tokensParser Tokens
@@ -1346,10 +1345,14 @@ exprToPattern e =
 	HiddenArg r e		-> HiddenP r <$> T.mapM exprToPattern e
 	InstanceArg r e		-> InstanceP r <$> T.mapM exprToPattern e
 	RawApp r es		-> RawAppP r <$> mapM exprToPattern es
-	OpApp r x es		-> OpAppP r x <$> mapM exprToPattern es
+	OpApp r x es		-> OpAppP r x <$> mapM opAppExprToPattern es
 	_			->
           let Just pos = rStart $ getRange e in
           parseErrorAt pos $ "Not a valid pattern: " ++ show e
+
+opAppExprToPattern :: OpApp Expr -> Parser Pattern
+opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "syntax binding lambda cannot appear in a pattern"
+opAppExprToPattern (Ordinary e) = exprToPattern e
 
 {--------------------------------------------------------------------------
     Tests

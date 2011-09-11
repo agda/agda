@@ -444,6 +444,23 @@ toAbstractDot prec e = do
         e <- toAbstractCtx prec e
         return (e, False)
 
+toAbstractOpArg :: Precedence -> OpApp C.Expr -> ScopeM A.Expr
+toAbstractOpArg ctx (Ordinary e) = toAbstractCtx ctx e
+toAbstractOpArg ctx (SyntaxBindingLambda r bs e) = toAbstractLam r bs e ctx
+
+toAbstractLam :: Range -> [C.LamBinding] -> C.Expr -> Precedence -> ScopeM A.Expr
+toAbstractLam r bs e ctx = do
+        localToAbstract (map makeDomainFull bs) $ \bs ->
+          case bs of
+            b:bs' -> do
+              e        <- toAbstractCtx ctx e
+              let info = ExprRange r
+              return $ A.Lam info b $ foldr mkLam e bs'
+              where
+                  mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
+            [] -> __IMPOSSIBLE__
+
+
 instance ToAbstract C.Expr A.Expr where
   toAbstract e =
     traceCall (ScopeCheckExpr e) $ annotateExpr $ case e of
@@ -507,16 +524,7 @@ instance ToAbstract C.Expr A.Expr where
   -- Lambda
       C.AbsurdLam r h -> return $ A.AbsurdLam (ExprRange r) h
 
-      e0@(C.Lam r bs e) -> do
-        localToAbstract (map makeDomainFull bs) $ \bs ->
-          case bs of
-            b:bs' -> do
-              e        <- toAbstractCtx TopCtx e
-              let info = ExprRange r
-              return $ A.Lam info b $ foldr mkLam e bs'
-              where
-                  mkLam b e = A.Lam (ExprRange $ fuseRange b e) b e
-            [] -> __IMPOSSIBLE__
+      C.Lam r bs e -> toAbstractLam r bs e TopCtx
 
   -- Extended Lambda
       C.ExtendedLam r cs -> do
@@ -1169,7 +1177,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.Name -> [C.Expr] -> ScopeM A.Expr
+toAbstractOpApp :: C.Name -> [OpApp C.Expr] -> ScopeM A.Expr
 toAbstractOpApp op@(C.NoName _ _) es = __IMPOSSIBLE__
 toAbstractOpApp op@(C.Name _ _) es = do
     f  <- getFixity (C.QName op)
@@ -1182,7 +1190,7 @@ toAbstractOpApp op@(C.Name _ _) es = do
 
         left f (IdPart _ : xs) es = inside f xs es
         left f (_ : xs) (e : es) = do
-            e  <- toAbstractCtx (LeftOperandCtx f) e
+            e  <- toAbstractOpArg (LeftOperandCtx f) e
             es <- inside f xs es
             return (e : es)
         left f (_  : _)  [] = __IMPOSSIBLE__
@@ -1191,7 +1199,7 @@ toAbstractOpApp op@(C.Name _ _) es = do
         inside f [x]          es       = right f x es
         inside f (IdPart _ : xs) es       = inside f xs es
         inside f (_  : xs) (e : es) = do
-            e  <- toAbstractCtx InsideOperandCtx e
+            e  <- toAbstractOpArg InsideOperandCtx e
             es <- inside f xs es
             return (e : es)
         inside _ (_ : _) [] = __IMPOSSIBLE__
@@ -1199,6 +1207,7 @@ toAbstractOpApp op@(C.Name _ _) es = do
 
         right _ (IdPart _)  [] = return []
         right f _          [e] = do
-            e <- toAbstractCtx (RightOperandCtx f) e
+            e <- toAbstractOpArg (RightOperandCtx f) e
             return [e]
         right _ _     _  = __IMPOSSIBLE__
+
