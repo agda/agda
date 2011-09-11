@@ -865,6 +865,10 @@ If there is any to load."
                     (agda2-string-quote highlighting)))
       (delete-file highlighting))))
 
+(defun agda2-literate-p ()
+  "Is the current buffer a literate Agda buffer?"
+  (equal (file-name-extension (buffer-name)) "lagda"))
+
 (defun agda2-goals-action (goals)
   "Annotates the goals in the current buffer with text properties.
 GOALS is a list of the buffer's goal numbers, in the order in
@@ -874,9 +878,10 @@ because the two highlighting mechanisms interact in unfortunate
 ways."
   (agda2-forget-all-goals)
   (agda2-let
-      (stk
+      ((literate (agda2-literate-p))
+       stk
        top)
-      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--" nil t))
+      ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|\\\\begin{code}\\|\\\\end{code}" nil t))
        (is-lone-questionmark ()
           (save-excursion
             (save-match-data
@@ -885,24 +890,33 @@ ways."
                  "\\(.[{(]\\|.\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
        (make(p)  (agda2-make-goal p (point) (pop goals)))
        (inside-comment() (and stk (null     (car stk))))
-       (inside-goal()    (and stk (integerp (car stk)))))
+       (inside-goal()    (and stk (integerp (car stk))))
+       (outside-code()   (and stk (eq (car stk) 'outside)))
+       (inside-code()    (not (outside-code))))
     (save-excursion
+      ;; In literate mode we should start out in the "outside of code"
+      ;; state.
+      (if literate (push 'outside stk))
       (goto-char (point-min))
       (while (and goals (delims))
         (labels ((c (s) (equal s (match-string 0))))
           (cond
-           ((c "--") (when (not stk)              (end-of-line)))
-           ((c "{-") (when (not (inside-goal))    (push nil           stk)))
-           ((c "{!") (when (not (inside-comment)) (push (- (point) 2) stk)))
-           ((c "-}") (when (inside-comment) (pop stk)))
-           ((c "!}") (when (inside-goal)
-                       (setq top (pop stk))
-                       (unless stk (make top))))
-           ((c "?")  (progn
-                       (when (and (not stk) (is-lone-questionmark))
-                         (delete-char -1)
-                         (insert "{!!}")
-                         (make (- (point) 4)))))))))))
+           ((c "\\begin{code}") (when (outside-code)               (pop stk)))
+           ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
+           ((c "--")            (when (not stk)                    (end-of-line)))
+           ((c "{-")            (when (and (inside-code)
+                                           (not (inside-goal)))    (push nil           stk)))
+           ((c "-}")            (when (inside-comment)             (pop stk)))
+           ((c "{!")            (when (and (inside-code)
+                                           (not (inside-comment))) (push (- (point) 2) stk)))
+           ((c "!}")            (when (inside-goal)
+                                  (setq top (pop stk))
+                                  (unless stk (make top))))
+           ((c "?")             (progn
+                                  (when (and (not stk) (is-lone-questionmark))
+                                    (delete-char -1)
+                                    (insert "{!!}")
+                                    (make (- (point) 4)))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
