@@ -33,6 +33,8 @@ import Agda.Utils.Impossible
 --
 -- [Jason C. Reed, PhD thesis, page 106]
 
+-- | Free variables of a term, (disjointly) partitioned into strongly and
+--   and weakly rigid variables, flexible variables and irrelevant variables.
 data FreeVars = FV
   { stronglyRigidVars :: VarSet -- ^ variables at top and under constructors
   , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables

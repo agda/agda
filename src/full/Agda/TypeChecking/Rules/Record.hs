@@ -59,6 +59,25 @@ checkRecDef i name con ps contel fields =
     -- get type of record
     t <- instantiateFull =<< typeOfConst name
     bindParameters ps t $ \tel t0 -> do
+
+      -- Generate type of constructor from field telescope @contel@,
+      -- which is the approximate constructor type (target missing).
+
+      -- Check and evaluate field types.
+      reportSDoc "tc.rec" 15 $ text "checking fields"
+      -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
+      contype <- killRange <$> (instantiateFull =<< isType_ contel)
+
+      -- compute the field telescope
+      let TelV ftel _ = telView' contype
+
+          -- A record is irrelevant if all of its fields are.
+          -- In this case, the associated module parameter will be irrelevant.
+          -- See issue 392.
+          recordRelevance = minimum $ Irrelevant : (map argRelevance $ telToList ftel)
+
+      -- Compute correct type of constructor
+
       -- t = tel -> t0 where t0 must be a sort s
       t0' <- normalise t0
       s <- case unEl t0' of
@@ -73,31 +92,17 @@ checkRecDef i name con ps contel fields =
 			    [ Arg h r (Var i [])
 			    | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
 			    ]
-	  telh' h	  = telFromList $ htel ++ [Arg h Relevant ("r", rect)]
+	  telh' h	  = telFromList $ htel ++ [Arg h recordRelevance ("r", rect)]
 	  tel'		  = telh' NotHidden
 	  telIFS	  = telh' Instance
-          extWithRH h ret = underAbstraction (Arg h Relevant rect) (Abs "r" ()) $ \_ -> ret
+          extWithRH h ret = underAbstraction (Arg h recordRelevance rect) (Abs "r" ()) $ \_ -> ret
           extWithR        = extWithRH NotHidden
           ext     (Arg h r (x, t)) = addCtx x (Arg h r t)
 {- UNUSED
           extHide (Arg h r (x, t)) = addCtx x (Arg Hidden r t)
 -}
 
-      let getName :: A.Declaration -> [Arg QName]
-          getName (A.Field _ x arg)    = [fmap (const x) arg]
-	  getName (A.ScopedDecl _ [f]) = getName f
-	  getName _		       = []
-
-
-      -- Generate type of constructor from field telescope @contel@,
-      -- which is the approximate constructor type (target missing).
-
-      -- Check and evaluate field types.
-      reportSDoc "tc.rec" 15 $ text "checking fields"
-      -- WRONG: contype <- workOnTypes $ killRange <$> (instantiateFull =<< isType_ contel)
-      contype <- killRange <$> (instantiateFull =<< isType_ contel)
       -- Put in @rect@ as correct target of constructor type.
-      let TelV ftel _ = telView' contype
       -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
       -- even names of non-dependent fields in constructor type (Issue 322).
       let contype = telePi_ ftel (raise (size ftel) rect)
@@ -113,6 +118,12 @@ checkRecDef i name con ps contel fields =
 
       -- Add record type to signature.
       reportSDoc "tc.rec" 15 $ text "adding record type to signature"
+
+      let getName :: A.Declaration -> [Arg QName]
+          getName (A.Field _ x arg)    = [fmap (const x) arg]
+	  getName (A.ScopedDecl _ [f]) = getName f
+	  getName _		       = []
+
       addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing

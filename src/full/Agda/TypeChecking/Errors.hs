@@ -300,12 +300,12 @@ instance PrettyTCM TypeError where
 	    NotAProperTerm ->
 		fwords "Found a malformed term"
             SplitOnIrrelevant p t -> fsep $
-                pwords "cannot pattern match" ++ [prettyA p] ++
+                pwords "Cannot pattern match" ++ [prettyA p] ++
                 pwords "against irrelevant type" ++ [prettyTCM t]
             DefinitionIsIrrelevant x -> fsep $
-                text "identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+                text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
             VariableIsIrrelevant x -> fsep $
-                text "variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+                text "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
  	    UnequalTerms cmp s t a -> fsep $
 		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
                 where

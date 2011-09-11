@@ -1,3 +1,3 @@
 IrrelevantTelescope.agda:6,10-11
-variable A is declared irrelevant, so it cannot be used here
+Variable A is declared irrelevant, so it cannot be used here
 when checking that the expression A has type Set _4

@@ -252,7 +252,7 @@ unifyIndices flex a us vs = liftTCM $ do
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
-      where dependent (Pi a b) = 0 `freeIn` absBody b
+      where dependent (Pi b c) = 0 `freeIn` absBody c
             dependent _        = False
 
     recheckConstraints :: Unify ()

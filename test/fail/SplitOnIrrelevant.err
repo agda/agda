@@ -1,4 +1,4 @@
 SplitOnIrrelevant.agda:9,1-17
-cannot pattern match true against irrelevant type Bool
+Cannot pattern match true against irrelevant type Bool
 when checking that the clause not true = false has type
 .Bool → Bool

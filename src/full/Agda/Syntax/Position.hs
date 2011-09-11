@@ -305,7 +305,9 @@ fuseIntervals :: Interval -> Interval -> Interval
 fuseIntervals x y = Interval { iStart = head ps, iEnd = last ps }
     where ps = sort [iStart x, iStart y, iEnd x, iEnd y]
 
--- | Finds a range which covers the arguments.
+-- | @fuseRanges r r'@ unions the ranges @r@ and @r'@.
+--
+--   Meaning it finds the least range @r0@ that covers @r@ and @r'@.
 fuseRanges :: Range -> Range -> Range
 fuseRanges (Range is) (Range js) = Range (helper is js)
   where
