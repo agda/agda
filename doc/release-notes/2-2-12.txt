@@ -363,6 +363,10 @@ Meta Variables and Unification
 Tools
 -----
 
+* Projection functions are highlighted as functions instead of as
+  fields. Field names (in record definitions and record values) are
+  still highlighted as fields.
+
 * Using the --dependency-graph=FILE flag, it is now possible to generate a Dot
   file containing a graph over module dependencies. The generated file will
   be saved to the file FILE, which can be rendered using a tool like dot.
