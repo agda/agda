@@ -25,7 +25,7 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
-import Agda.TypeChecking.Monad.Constraints (lookupConstraint, getConstraints)
+import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 import Agda.TypeChecking.Substitute (piApply, raise)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
@@ -240,7 +240,7 @@ getMeta name = do
 
 getEqs :: MB.TCM [(Bool, I.Term, I.Term)]
 getEqs = do
- eqs <- getConstraints
+ eqs <- getAllConstraints
  let r = mapM (\eqc -> do
           neqc <- norm eqc
           case MB.clValue neqc of

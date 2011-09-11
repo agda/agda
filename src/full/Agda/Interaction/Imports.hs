@@ -502,7 +502,7 @@ createInterface file mname = do
       typeError $ UnsolvedMetas unsolvedMetas
 
     -- ...or unsolved constraints
-    unsolvedConstraints <- getConstraints
+    unsolvedConstraints <- getAllConstraints
     unless (null unsolvedConstraints || unsolvedOK) $
       typeError $ UnsolvedConstraints unsolvedConstraints
 

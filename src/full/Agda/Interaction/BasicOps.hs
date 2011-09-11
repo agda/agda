@@ -42,6 +42,7 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Eliminators (unElim)
+import Agda.TypeChecking.Constraints (addConstraints)
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.List
@@ -345,17 +346,9 @@ judgToOutputForm :: Judgement a c -> OutputForm a c
 judgToOutputForm (HasType e t) = OfType e t
 judgToOutputForm (IsSort  s t) = JustSort s
 
---- Printing Operations
-getConstraint :: Int -> TCM (OutputForm Expr Expr)
-getConstraint ci =
-    do  cc <- lookupConstraint ci
-        cc <- reduce cc
-        withConstraint reify cc
-
-
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do
-    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< reduce =<< M.getConstraints
+    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< reduce =<< M.getAllConstraints
     ss <- mapM toOutputForm =<< getSolvedInteractionPoints
     return $ ss ++ cs
   where

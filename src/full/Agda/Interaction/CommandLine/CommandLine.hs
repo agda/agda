@@ -133,11 +133,6 @@ loadFile reload [file] =
 loadFile _ _ = liftIO $ LocIO.putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
-showConstraints [c] =
-    do	i  <- readM c
-	cc <- normalise =<< lookupConstraint i
-	d  <- prettyTCM $ clValue cc
-	liftIO $ LocIO.print d
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
 	liftIO $ LocIO.putStrLn $ unlines (List.map show cs)
@@ -222,7 +217,7 @@ refineMeta _ = liftIO $ LocIO.putStrLn $ ": refine" ++ " metaid expr"
 
 
 retryConstraints :: TCM ()
-retryConstraints = liftTCM wakeupConstraints
+retryConstraints = liftTCM wakeupConstraints_
 
 
 evalIn :: [String] -> TCM ()

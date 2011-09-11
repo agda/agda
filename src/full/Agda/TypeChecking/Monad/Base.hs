@@ -55,8 +55,8 @@ data TCState =
     TCSt { stFreshThings       :: FreshThings
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
-	 , stConstraints       :: Constraints
-	 , stTakenConstraints  :: Constraints
+	 , stAwakeConstraints    :: Constraints
+	 , stSleepingConstraints :: Constraints
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
@@ -98,8 +98,8 @@ initState =
     TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0) 0 0
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
-	 , stConstraints       = []
-	 , stTakenConstraints       = []
+	 , stAwakeConstraints    = []
+	 , stSleepingConstraints = []
 	 , stSignature	       = emptySignature
 	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty
@@ -744,6 +744,8 @@ data TCEnv =
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
 	  , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
+          , envSolvingConstraints  :: Bool
+                -- ^ Are we currently in the process of solving active constraints?
 	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -778,6 +780,7 @@ initEnv = TCEnv { envContext	         = []
                 , envAnonymousModules    = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
+                , envSolvingConstraints  = False
 		, envAbstractMode        = AbstractMode
                 , envTopLevel            = True
                 , envRelevance           = Relevant

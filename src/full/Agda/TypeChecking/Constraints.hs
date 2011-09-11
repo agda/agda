@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
+import Agda.TypeChecking.MetaVars.Mention
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
@@ -40,12 +41,16 @@ catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constrai
 catchConstraint c v = liftTCM $
    catchError_ v $ \err ->
    case errError err of
+        -- Not putting s (which should really be the what's already there) makes things go
+        -- a lot slower (+20% total time on standard library). How is that possible??
        PatternErr s -> put s >> buildConstraint c
        _	    -> throwError err
 
--- | Try to solve the constraints to be added.
-addNewConstraints :: MonadTCM tcm => Constraints -> tcm ()
-addNewConstraints cs = do addConstraints cs; wakeupConstraints
+addConstraints :: MonadTCM tcm => Constraints -> tcm ()
+addConstraints cs = addConstraints' =<< simpl =<< instantiateFull cs
+  where
+    simpl :: MonadTCM tcm => Constraints -> tcm Constraints
+    simpl cs = simplifyLevelConstraints cs <$> getAllConstraints
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: MonadTCM tcm => tcm Constraints -> tcm ()
@@ -76,13 +81,26 @@ guardConstraint m c = do
 	isNB FindInScope{}    = True
         isNB IsEmpty{}        = False
 
--- | We ignore the constraint ids and (as in Agda) retry all constraints every time.
---   We probably generate very few constraints.
-wakeupConstraints :: MonadTCM tcm => tcm ()
-wakeupConstraints = do
-    cs <- takeConstraints
-    cs <- solveConstraints cs
-    addConstraints cs
+-- | Wake up the constraints depending on the given meta.
+wakeupConstraints :: MonadTCM tcm => MetaId -> tcm ()
+wakeupConstraints x = do
+  wakeConstraints (const True) -- (mentionsMeta x)
+  solveAwakeConstraints
+
+-- | Wake up all constraints.
+wakeupConstraints_ :: MonadTCM tcm => tcm ()
+wakeupConstraints_ = do
+  wakeConstraints (const True)
+  solveAwakeConstraints
+
+solveAwakeConstraints :: MonadTCM tcm => tcm ()
+solveAwakeConstraints = unlessM isSolvingConstraints $ nowSolvingConstraints solve
+  where
+    solve = do
+      mc <- takeAwakeConstraint
+      flip (maybe $ return ()) mc $ \c -> do
+        addConstraints =<< withConstraint solveConstraint c
+        solve
 
 solveConstraints :: MonadTCM tcm => Constraints -> tcm Constraints
 solveConstraints [] = return []
@@ -94,7 +112,7 @@ solveConstraints cs = do
       let m = countConstraints cs
       tickN   "attempted-constraints" m
       tickMax "max-open-constraints"  m
-    cs <- concat <$> mapM (withConstraint solveConstraint) (simplifyLevelConstraints cs)
+    cs <- concat <$> mapM (withConstraint solveConstraint) (simplifyLevelConstraints cs cs)
     n' <- length <$> getInstantiatedMetas
     reportSDoc "tc.constr.solve" 70 $
       sep [ text "new constraints", nest 2 $ prettyTCM cs
@@ -214,7 +232,7 @@ solveConstraint (FindInScope m)      =
                -- unsolvable by the assignment, but don't do this for FindInScope's
                -- to prevent loops. We currently also ignore UnBlock constraints
                -- to be on the safe side.
-               cs <- getTakenConstraints
+               cs <- getAllConstraints
                solveConstraints (List.filter isSimpleConstraint cs ++ csT)
             return True
         isSimpleConstraint :: ConstraintClosure -> Bool

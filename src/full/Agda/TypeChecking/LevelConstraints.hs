@@ -8,17 +8,18 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
 
-simplifyLevelConstraints :: Constraints -> Constraints
-simplifyLevelConstraints cs = simplify lcs ++ other
+simplifyLevelConstraints :: Constraints -> Constraints -> Constraints
+simplifyLevelConstraints new old = simplify lcs oldlcs ++ other
   where
-    (lcs, other) = partition (isLevelConstraint . clValue) cs
+    oldlcs = filter (isLevelConstraint . clValue) old
+    (lcs, other) = partition (isLevelConstraint . clValue) new
 
     isLevelConstraint LevelCmp{} = True
     isLevelConstraint _          = False
 
-simplify lcs = map simpl lcs
+simplify lcs oldlcs = map simpl lcs
   where
-    leqs = concatMap (inequalities . unClosure) lcs
+    leqs = concatMap (inequalities . unClosure) oldlcs
 
     simpl c = case inequalities (unClosure c) of
       [a :=< b] | elem (b :=< a) leqs ->

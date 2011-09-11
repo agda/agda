@@ -96,7 +96,7 @@ assignTerm x t = do
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
     etaExpandListeners x
-    wakeupConstraints
+    wakeupConstraints x
     reportSLn "tc.meta.assign" 20 $ "completed assignment of " ++ show x
   where
     metaInstance = InstV
@@ -318,7 +318,8 @@ wakeupListener :: MonadTCM tcm => Listener -> tcm ()
 wakeupListener (EtaExpand x)          = etaExpandMetaSafe x
 wakeupListener (CheckConstraint _ cs) = do
   reportSDoc "tc.meta.blocked" 20 $ text "waking boxed constraint" <+> prettyTCM cs
-  addConstraints =<< solveConstraints cs
+  addAwakeConstraints cs
+  solveAwakeConstraints
 
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
 etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
@@ -419,10 +420,11 @@ assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
 assignV x args v = do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
-        assign x args v
+        liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints
+        return []
 
 -- | @assign sort? x vs v@
-assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
+assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
 assign x args v = do
         mvar <- lookupMeta x  -- information associated with meta x
 
@@ -555,7 +557,7 @@ assign x args v = do
 	-- are top-level so we do the assignment at top-level.
 	n <- size <$> getContextTelescope
 	escapeContext n $ assignTerm x $ killRange (abstract tel' v')
-	return []
+	return ()
     where
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of

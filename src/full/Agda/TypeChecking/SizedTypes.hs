@@ -70,7 +70,7 @@ trivial u v = liftTCM $ do
 -- | Find the size constraints.
 getSizeConstraints :: MonadTCM tcm => tcm [SizeConstraint]
 getSizeConstraints = do
-  cs   <- getConstraints
+  cs   <- getAllConstraints
   size <- sizeType
   let sizeConstraints cl@(Closure{ clValue = ValueCmp CmpLeq s _ _ })
         | s == size = [cl]
