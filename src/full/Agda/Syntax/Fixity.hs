@@ -93,14 +93,18 @@ opBrackets _ WithArgCtx             = False
 opBrackets _ WithFunCtx             = False
 opBrackets _ _			    = True
 
--- | Does a lambda-like thing (lambda, let or pi) need brackets in the given
---   context. A peculiar thing with lambdas is that they don't need brackets
---   in a right operand context. For instance: @m >>= \x -> m'@ is a valid
---   infix application.
+-- | Does a lambda-like thing (lambda, let or pi) need brackets in the
+-- given context? A peculiar thing with lambdas is that they don't
+-- need brackets in certain right operand contexts. However, we insert
+-- brackets anyway, for the following reasons:
+--
+-- * Clarity.
+--
+-- * Sometimes brackets are needed. Example: @m₁ >>= (λ x → x) >>= m₂@
+--   (here @_>>=_@ is left associative).
 lamBrackets :: Precedence -> Bool
-lamBrackets TopCtx		= False
-lamBrackets (RightOperandCtx _) = False
-lamBrackets _			= True
+lamBrackets TopCtx = False
+lamBrackets _	   = True
 
 -- | Does a function application need brackets?
 appBrackets :: Precedence -> Bool
