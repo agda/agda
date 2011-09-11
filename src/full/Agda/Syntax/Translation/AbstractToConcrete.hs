@@ -167,7 +167,9 @@ bindName x ret = do
 
 -- | General bracketing function.
 bracket' ::    (e -> e)             -- ^ the bracketing function
-            -> (Precedence -> Bool) -- ^ do we need brackets
+            -> (Precedence -> Bool) -- ^ Should we bracket things
+                                    --   which have the given
+                                    --   precedence?
             -> e -> AbsToCon e
 bracket' paren needParen e =
     do  p <- currentPrecedence
