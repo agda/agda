@@ -657,6 +657,13 @@ in the buffer's mode line."
     (insert text)
     (set-syntax-table agda2-mode-syntax-table)
     (set-input-method "Agda")
+
+    ;; Support for jumping to positions mentioned in the text.
+    (set (make-local-variable 'compilation-error-regexp-alist)
+         '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
+            1 (2 . 5) (3 . 6))))
+    (compilation-minor-mode 1)
+
     (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)

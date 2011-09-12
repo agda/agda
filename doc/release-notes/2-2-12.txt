@@ -367,6 +367,9 @@ Tools
   fields. Field names (in record definitions and record values) are
   still highlighted as fields.
 
+* Support for jumping to positions mentioned in the information
+  buffer.
+
 * Using the --dependency-graph=FILE flag, it is now possible to generate a Dot
   file containing a graph over module dependencies. The generated file will
   be saved to the file FILE, which can be rendered using a tool like dot.
