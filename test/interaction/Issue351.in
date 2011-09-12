@@ -1,0 +1,7 @@
+top_command (cmd_load currentFile [])
+
+-- Should be "A ≡ Set".
+top_command (cmd_infer_toplevel Normalised "unfold-A")
+
+-- Should be "A ≡ Set".
+top_command (cmd_infer_toplevel Instantiated "unfold-A")

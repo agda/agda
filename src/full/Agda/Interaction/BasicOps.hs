@@ -546,7 +546,7 @@ introTactic ii = do
 -- of the top-level module.
 
 atTopLevel :: TCM a -> TCM a
-atTopLevel m = do
+atTopLevel m = inConcreteMode $ do
   mCurrent <- stCurrentModule <$> get
   case mCurrent of
     Nothing      -> typeError $
