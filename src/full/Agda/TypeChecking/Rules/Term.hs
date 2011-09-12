@@ -54,7 +54,7 @@ import Agda.Utils.Fresh
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyTypeC)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Def (checkFunDef,checkFunDef')
 
@@ -83,16 +83,15 @@ isType_ e =
     isType e s
 
 -- | Check that an expression is a type which is equal to a given type.
-isTypeEqualTo :: A.Expr -> Type -> TCM (Type, Constraints)
+isTypeEqualTo :: A.Expr -> Type -> TCM Type
 isTypeEqualTo e t = case e of
   A.ScopedExpr _ e -> isTypeEqualTo e t
-  A.Underscore i | A.metaNumber i == Nothing -> return (t, [])
+  A.Underscore i | A.metaNumber i == Nothing -> return t
   e -> do
     t' <- isType e (getSort t)
-    cs <- leqType_ t t'
-    return (t', cs)
+    t' <$ leqType_ t t'
 
-leqType_ :: MonadTCM tcm => Type -> Type -> tcm Constraints
+leqType_ :: MonadTCM tcm => Type -> Type -> tcm ()
 leqType_ t t' = workOnTypes $ leqType t t'
 
 {- UNUSED
@@ -210,23 +209,23 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
     dontUseTargetType = do
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
       argsT   <- workOnTypes $ Arg h r <$> isType_ typ
-      (v, cs) <- addCtxs xs argsT $ do
+      blockTerm target $ addCtxs xs argsT $ do
         let tel = telFromList $ mkTel xs argsT
         (t1, cs) <- workOnTypes $ do
           t1 <- newTypeMeta_
           cs <- escapeContext (size xs) $ leqType (telePi tel t1) target
           return (t1, cs)
         v <- checkExpr body t1
-        return (teleLam tel v, cs)
-      blockTerm target v $ return cs
+        return $ teleLam tel v
 
     useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         unless (argHiding    arg == h) $ typeError $ WrongHidingInLambda target
         unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
-        (argT, cs) <- isTypeEqualTo typ (unArg arg)
-        v <- addCtx x (Arg h r argT) $ checkExpr body btyp
-        blockTerm target (Lam h $ Abs (show $ nameConcrete x) v) $ return cs
+        blockTerm target $ do
+          argT <- isTypeEqualTo typ (unArg arg)
+          v    <- addCtx x (Arg h r argT) $ checkExpr body btyp
+          return $ Lam h $ Abs (show $ nameConcrete x) v
       where
         [x] = xs
     useTargetType _ _ = __IMPOSSIBLE__
@@ -265,9 +264,8 @@ checkTypedBinding_ h rel (A.TNoBind e) ret = do
 
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
-    t' <- litType lit
-    v  <- blockTerm t (Lit lit) $ leqType_ t' t
-    return v
+  t' <- litType lit
+  blockTerm t $ Lit lit <$ leqType_ t' t
 
 litType :: Literal -> TCM Type
 litType l = case l of
@@ -297,11 +295,11 @@ reduceCon c = do
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
   ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
-  (Args -> Type -> Constraints -> TCM Term) -> TCM Term
+  (Args -> Type -> TCM Term) -> TCM Term
 checkArguments' exph r args t0 t e k = do
   z <- runErrorT $ checkArguments exph r args t0 t
   case z of
-    Right (vs, t1, cs) -> k vs t1 cs
+    Right (vs, t1) -> k vs t1
       -- vs = evaluated args
       -- t1 = remaining type (needs to be subtype of t)
       -- cs = new constraints
@@ -356,29 +354,8 @@ checkExpr e t =
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
-	A.QuestionMark i ->
-          case A.metaNumber i of
-            Nothing -> do
-              setScope (A.metaScope i)
-              newQuestionMark t
-            -- Rechecking an existing metavariable
-            Just n -> do
-              let v = MetaV (MetaId n) []
---              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
-              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-              blockTerm t v $ leqType t' t
-
-	A.Underscore i   ->
-          case A.metaNumber i of
-            Nothing -> do
-              setScope (A.metaScope i)
-              newValueMeta t
-            -- Rechecking an existing metavariable
-            Just n -> do
-              let v = MetaV (MetaId n) []
---              HasType _ t' <- mvJudgement <$> lookupMeta (MetaId n)
-              t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-              blockTerm t v $ leqType t' t
+	A.QuestionMark i -> checkMeta newQuestionMark t i
+	A.Underscore i   -> checkMeta newValueMeta t i
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -397,7 +374,7 @@ checkExpr e t =
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
               text "against" <+> prettyTCM t
-            blockTerm t (Sort $ Type n) $ leqType_ (sort $ sSuc $ Type n) t
+            blockTerm t $ Sort (Type n) <$ leqType_ (sort $ sSuc $ Type n) t
 
         A.App i q (Arg NotHidden r e)
           | A.Quote _ <- unScope q -> do
@@ -408,7 +385,7 @@ checkExpr e t =
               quoted _                  = typeError $ GenericError $ "quote: not a defined name"
           x <- quoted (namedThing e)
           ty <- qNameType
-          blockTerm t (quoteName x) $ leqType_ ty t
+          blockTerm t $ quoteName x <$ leqType_ ty t
 
 	  | A.Unquote _ <- unScope q ->
 	     do e1 <- checkExpr (namedThing e) =<< el primAgdaTerm
@@ -427,8 +404,8 @@ checkExpr e t =
                 | h == h' && not (null $ foldTerm metas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
-                | h == h' -> do
-                  cs' <- isEmptyTypeC a
+                | h == h' -> blockTerm t' $ do
+                  isEmptyType a
                   -- Add helper function
                   top <- currentModule
                   let name = "absurd"
@@ -458,7 +435,7 @@ checkExpr e t =
                                     , funArgOccurrences = [Unused]
                                     , funProjection     = Nothing
                                     }
-                  blockTerm t' (Def aux []) $ return cs'
+                  return (Def aux [])
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
           where
@@ -538,15 +515,15 @@ checkExpr e t =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-	    blockTerm t (unEl t') $ leqType_ (sort s) t
+	    blockTerm t $ unEl t' <$ leqType_ (sort s) t
 	A.Fun _ (Arg h r a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    blockTerm t (Fun (Arg h r a') b') $ leqType_ (sort s) t
+	    blockTerm t $ Fun (Arg h r a') b' <$ leqType_ (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  blockTerm t (Sort (mkType n)) $ leqType_ (sort $ mkType $ n + 1) t
+	  blockTerm t $ Sort (mkType n) <$ leqType_ (sort $ mkType $ n + 1) t
 	A.Prop _     -> do
           typeError $ GenericError "Prop is no longer supported"
           -- s <- ifM typeInType (return $ mkType 0) (return Prop)
@@ -564,10 +541,11 @@ checkExpr e t =
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
-	      (args, cs) <- checkArguments_ ExpandLast (getRange e)
-			      (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
-                              tel
-	      blockTerm t (Con con args) $ return cs
+              blockTerm t $ do
+                args <- checkArguments_ ExpandLast (getRange e)
+                          (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
+                          tel
+	        return $ Con con args
             MetaV _ _ -> do
               let fields = map fst fs
               rs <- findPossibleRecords fields
@@ -588,7 +566,7 @@ checkExpr e t =
                                  _       -> __IMPOSSIBLE__
                       inferred = El s $ Def r vs
                   v <- checkExpr e inferred
-                  blockTerm t v $ leqType_ t inferred
+                  blockTerm t $ v <$ leqType_ t inferred
                   -- If there are more than one possible record we postpone
                 _:_:_ -> do
                   reportSDoc "tc.term.expr.rec" 10 $ sep
@@ -615,8 +593,8 @@ checkExpr e t =
             []  -> do
               quoted <- quoteTerm (unEl t')
               tmType <- agdaTermType
-              (v,ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
-              blockTerm t' v $ leqType_ ty t'
+              (v, ty) <- addLetBinding Relevant x quoted tmType (inferExpr e)
+              blockTerm t' $ v <$ leqType_ ty t'
 
         A.ETel _   -> __IMPOSSIBLE__
 
@@ -685,6 +663,18 @@ domainFree h rel x =
   where
     r = getRange x
     info = A.MetaInfo{ A.metaRange = r, A.metaScope = emptyScopeInfo, A.metaNumber = Nothing }
+
+checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
+checkMeta newMeta t i = do
+  case A.metaNumber i of
+    Nothing -> do
+      setScope (A.metaScope i)
+      newMeta t
+    -- Rechecking an existing metavariable
+    Just n -> do
+      let v = MetaV (MetaId n) []
+      t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
+      blockTerm t $ v <$ leqType t' t
 
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i =
@@ -796,11 +786,12 @@ checkConstructorApplication org t c args
                           , text "ctype  =" <+> prettyTCM ctype ] ]
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-        checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' cs -> do
-        reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
-          [ text "us     =" <+> prettyTCM us
-          , text "t'     =" <+> prettyTCM t' ]
-        blockTerm t (Con c us) $ (cs ++) <$> leqType_ t' t
+        blockTerm t $ checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' -> do
+          reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
+            [ text "us     =" <+> prettyTCM us
+            , text "t'     =" <+> prettyTCM t' ]
+          leqType_ t' t
+          return (Con c us)
       _ -> fallback
   where
     fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
@@ -855,30 +846,28 @@ checkHeadApplication e t hd args = do
         [ text "checkHeadApplication inferred" <+>
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
-      checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs -> do
+      blockTerm t $ checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
         TelV fTel fType <- telViewUpTo (size eTel) t1
-        blockTerm t (f vs) $ (cs ++) <$> do
-          -- We know that the target type of the constructor (fType)
-          -- does not depend on fTel so we can compare fType and eType
-          -- first.
+        -- We know that the target type of the constructor (fType)
+        -- does not depend on fTel so we can compare fType and eType
+        -- first.
 
-          when (size eTel > size fTel) $
-            typeError $ UnequalTypes CmpLeq t1 t -- switch because of contravariance
-            -- Andreas, 2011-05-10 report error about types rather  telescopes
-            -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
+        when (size eTel > size fTel) $
+          typeError $ UnequalTypes CmpLeq t1 t -- switch because of contravariance
+          -- Andreas, 2011-05-10 report error about types rather  telescopes
+          -- compareTel CmpLeq eTel fTel >> return () -- This will fail!
 
-          reportSDoc "tc.term.con" 10 $ vcat
-            [ text "checking" <+>
-              prettyTCM fType <+> text "?<=" <+> prettyTCM eType
-            ]
-          workOnTypes $ do
-            cs1 <- addCtxTel eTel $ leqType fType eType
-
-            cs2 <- compareTel t t1 CmpLeq eTel fTel
-            return $ cs1 ++ cs2
+        reportSDoc "tc.term.con" 10 $ vcat
+          [ text "checking" <+>
+            prettyTCM fType <+> text "?<=" <+> prettyTCM eType
+          ]
+        workOnTypes $ do
+          addCtxTel eTel $ leqType fType eType
+          compareTel t t1 CmpLeq eTel fTel
+        return (f vs)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
@@ -939,8 +928,8 @@ checkHeadApplication e t hd args = do
   where
   defaultResult = do
     (f, t0) <- inferHead hd
-    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 cs ->
-      blockTerm t (f vs) $ (cs ++) <$> leqType_ t1 t
+    blockTerm t $ checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 ->
+      f vs <$ leqType_ t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
 
@@ -967,8 +956,8 @@ traceCallE call m = do
 --
 --   TODO: doesn't do proper blocking of terms
 checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
-                  ErrorT Type TCM (Args, Type, Constraints)
-checkArguments DontExpandLast _ [] t0 t1 = return ([], t0, [])
+                  ErrorT Type TCM (Args, Type)
+checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
 checkArguments exh r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
@@ -977,15 +966,15 @@ checkArguments exh r [] t0 t1 =
 	    FunV (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
-		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
-		return (arg : vs, t0'',cs)
+		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
+		return (arg : vs, t0'')
 	    FunV (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
                 reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
-		(v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+		v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
 		let arg = Arg Instance rel v
-		(vs, t0'',cs) <- checkArguments exh r [] (piApply t0' [arg]) t1'
-		return (arg : vs, t0'', (c : cs))
-	    _ -> return ([], t0', [])
+		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
+		return (arg : vs, t0'')
+	    _ -> return ([], t0')
     where
 	notHPi h (Pi  (Arg h' _ _) _) | h == h' = False
 	notHPi h (Fun (Arg h' _ _) _) | h == h' = False
@@ -1005,8 +994,8 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                 h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
-                  (us, t0'', cs') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
-                  return (nukeIfIrrelevant arg : us, t0'', cs')
+                  (us, t0'') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
+                  return (nukeIfIrrelevant arg : us, t0'')
                          where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
    -- Andreas, 2011-09-09 keep irr. args. until after termination checking
@@ -1017,11 +1006,11 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
               (FunV (Arg NotHidden _ _) _) -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
-	insertIFSUnderscore rel a = do (v, c) <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
                                        reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
                                        let arg = Arg Instance rel v
-                                       (vs, t0'', cs) <- checkArguments exh r args0 (piApply t0 [arg]) t1
-                                       return (arg : vs, t0'', c : cs)
+                                       (vs, t0'') <- checkArguments exh r args0 (piApply t0 [arg]) t1
+                                       return (arg : vs, t0'')
 	insertUnderscore rel = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo
@@ -1044,12 +1033,12 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
 
 
 -- | Check that a list of arguments fits a telescope.
-checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM (Args, Constraints)
+checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
     z <- runErrorT $ checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
     case z of
-      Right (args, _, cs) -> return (args, cs)
-      Left _              -> __IMPOSSIBLE__
+      Right (args, _) -> return args
+      Left _          -> __IMPOSSIBLE__
 
 
 -- | Infer the type of an expression. Implemented by checking against a meta

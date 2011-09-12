@@ -124,6 +124,9 @@ instance PrettyTCM Comparison where
   prettyTCM CmpEq  = text "=="
   prettyTCM CmpLeq = text "=<"
 
+instance PrettyTCM ProblemConstraint where
+  prettyTCM (PConstr pid c) = brackets (text $ show pid) <+> prettyTCM c
+
 instance PrettyTCM Constraint where
     prettyTCM c = case c of
 	ValueCmp cmp ty s t ->
@@ -153,9 +156,9 @@ instance PrettyTCM Constraint where
 	    sep [ prettyTCM s1
 		, prettyTCM cmp <+> prettyTCM s2
 		]
-	Guarded c cs ->
+	Guarded c pid ->
 	    sep [ prettyTCM c
-		, nest 2 $ brackets $ sep $ punctuate comma $ map prettyTCM cs
+		, nest 2 $ brackets $ text "blocked on problem" <+> text (show pid)
 		]
 	UnBlock m   -> do
 	    -- BlockedConst t <- mvInstantiation <$> lookupMeta m

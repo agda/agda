@@ -303,8 +303,7 @@ checkSectionApplication' i m1 (A.SectionApp ptel m2 args) rd rm =
     , nest 2 $ text "tel''=" <+> prettyTCM tel''
     , nest 2 $ text "eta  =" <+> prettyTCM etaTel
     ]
-  (ts, cs)  <- checkArguments_ DontExpandLast (getRange i) args tel''
-  noConstraints $ return cs
+  ts <- noConstraints $ checkArguments_ DontExpandLast (getRange i) args tel''
   reportSDoc "tc.section.apply" 20 $ vcat
     [ sep [ text "applySection", prettyTCM m1, text "=", prettyTCM m2, fsep $ map prettyTCM (vs ++ ts) ]
     , nest 2 $ text "  defs:" <+> text (show rd)

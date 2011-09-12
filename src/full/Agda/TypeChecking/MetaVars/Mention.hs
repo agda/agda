@@ -24,7 +24,7 @@ instance MentionsMeta Term where
     Sort s       -> mm s
     Level l      -> mm l
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
-    MetaV y args -> x == y || mm args
+    MetaV y args -> x == y || mm args   -- TODO: we really only have to look one level deep at meta args
     where
       mm v = mentionsMeta x v
 
@@ -81,6 +81,9 @@ instance MentionsMeta a => MentionsMeta (Tele a) where
   mentionsMeta x EmptyTel = False
   mentionsMeta x (ExtendTel a b) = mentionsMeta x (a, b)
 
+instance MentionsMeta ProblemConstraint where
+  mentionsMeta x = mentionsMeta x . theConstraint
+
 instance MentionsMeta Constraint where
   mentionsMeta x c = case c of
     ValueCmp _ t u v    -> mm (t, u, v)
@@ -89,7 +92,7 @@ instance MentionsMeta Constraint where
     TypeCmp _ a b       -> mm (a, b)
     TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
-    Guarded _ cs        -> mm cs  -- no need to look in the guarded constraint
+    Guarded c _         -> mm c
     UnBlock _           -> True   -- shouldn't get here, but if we do we'd better wake this one
     FindInScope m       -> m == x
     IsEmpty t           -> mm t

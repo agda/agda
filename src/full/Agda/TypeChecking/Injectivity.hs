@@ -130,7 +130,7 @@ functionInverse v = case v of
 data InvView = Inv QName Args (Map TermHead Clause)
              | NoInv
 
-useInjectivity :: Comparison -> Type -> Term -> Term -> TCM Constraints
+useInjectivity :: Comparison -> Type -> Term -> Term -> TCM ()
 useInjectivity cmp a u v = do
   uinv <- functionInverse u
   vinv <- functionInverse v
@@ -166,9 +166,9 @@ useInjectivity cmp a u v = do
       invert v g a inv args =<< headSymbol u
     (NoInv, NoInv)          -> fallBack
   where
-    fallBack = buildConstraint $ ValueCmp cmp a u v
+    fallBack = addConstraint $ ValueCmp cmp a u v
 
-    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM Constraints
+    invert :: Term -> QName -> Type -> Map TermHead Clause -> Args -> Maybe TermHead -> TCM ()
     invert _ _ a inv args Nothing  = fallBack
     invert org f ftype inv args (Just h) = case Map.lookup h inv of
       Nothing -> typeError $ UnequalTerms cmp u v a
@@ -200,7 +200,7 @@ useInjectivity cmp a u v = do
           -- The clause might not give as many patterns as there
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args
-          cs  <- compareArgs pol ftype org margs args'
+          compareArgs pol ftype org margs args'
 {- Andreas, 2011-05-09 allow unsolved constraints as long as progress
           unless (null cs) $ do
             reportSDoc "tc.inj.invert" 30 $
@@ -212,7 +212,7 @@ useInjectivity cmp a u v = do
           org <- reduce org
           h <- headSymbol org
           case h of
-            Just h  -> (cs ++) <$> compareTerm cmp a u v
+            Just h  -> compareTerm cmp a u v
             Nothing -> do
              reportSDoc "tc.inj.invert" 30 $ vcat
                [ text "aborting inversion;" <+> prettyTCM org
@@ -233,6 +233,7 @@ useInjectivity cmp a u v = do
       put ms
       return m
 
+    dotP :: Monad m => Term -> StateT [Term] (ReaderT Substitution m) Term
     dotP v = do
       sub <- ask
       return $ substs sub v

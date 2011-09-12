@@ -17,6 +17,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Constraints
 import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -26,7 +27,7 @@ import Agda.Utils.Size
 #include "../undefined.h"
 
 -- | Compare two sizes. Only with --sized-types.
-compareSizes :: MonadTCM tcm => Comparison -> Term -> Term -> tcm Constraints
+compareSizes :: MonadTCM tcm => Comparison -> Term -> Term -> tcm ()
 compareSizes cmp u v = do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ text "Comparing sizes"
@@ -44,15 +45,15 @@ compareSizes cmp u v = do
   s2   <- sizeView v
   size <- sizeType
   case (cmp, s1, s2) of
-    (CmpLeq, _,         SizeInf)   -> return []
+    (CmpLeq, _,         SizeInf)   -> return ()
     (CmpLeq, SizeInf,   _)         -> compareSizes CmpEq u v
     (CmpEq,  SizeSuc u, SizeInf)   -> compareSizes CmpEq u v
     (_,      SizeInf,   SizeSuc v) -> compareSizes CmpEq u v
     (_,      SizeSuc u, SizeSuc v) -> compareSizes cmp u v
     (CmpLeq, _,         _)         ->
-      ifM (trivial u v) (return []) $
-        buildConstraint $ ValueCmp CmpLeq size u v
-    _                              -> compareAtom cmp size u v
+      ifM (trivial u v) (return ()) $
+        addConstraint $ ValueCmp CmpLeq size u v
+    _ -> compareAtom cmp size u v
 
 trivial :: MonadTCM tcm => Term -> Term -> tcm Bool
 trivial u v = liftTCM $ do
@@ -74,10 +75,8 @@ getSizeConstraints = do
   size <- sizeType
   let sizeConstraints cl@(Closure{ clValue = ValueCmp CmpLeq s _ _ })
         | s == size = [cl]
-      sizeConstraints cl@(Closure{ clValue = Guarded _ cs }) =
-        concatMap sizeConstraints cs
       sizeConstraints _ = []
-  scs <- mapM computeSizeConstraint $ concatMap sizeConstraints cs
+  scs <- mapM computeSizeConstraint $ concatMap (sizeConstraints . theConstraint) cs
   return [ c | Just c <- scs ]
 
 getSizeMetas :: MonadTCM tcm => tcm [(MetaId, Int)]
@@ -111,7 +110,7 @@ instance Show SizeConstraint where
     | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
     | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
 
-computeSizeConstraint :: MonadTCM tcm => ConstraintClosure -> tcm (Maybe SizeConstraint)
+computeSizeConstraint :: MonadTCM tcm => Closure Constraint -> tcm (Maybe SizeConstraint)
 computeSizeConstraint cl = liftTCM $
   enterClosure cl $ \c ->
     case c of

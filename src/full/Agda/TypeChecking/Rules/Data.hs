@@ -234,8 +234,7 @@ fitsIn t s = do
   case funView $ unEl t of
     FunV arg@(Arg h r a) _ -> do
       let s' = getSort a
-      cs <- s' `leqSort` s
-      addConstraints cs
+      s' `leqSort` s
       x <- freshName_ (argName t)
       let v  = Arg h r $ Var 0 []
           t' = piApply (raise 1 t) [v]
@@ -274,18 +273,7 @@ constructs nofPars t q = constrT 0 t
                   | argRelevance arg == Irrelevant = return ()
 		  | otherwise = do
 		    t <- typeOfBV i
-		    addConstraints =<< equalTerm t (unArg arg) (Var i [])
-
-{- Andreas, 2011-04-15 the following does not work since t does not include parameter telescope
-        checkParams :: Nat -> QName -> Args -> TCM ()
-	checkParams n d vs = do
-            t <- typeOfConst d
-            addNewConstraints =<< equalArgs t vs ps
-	    where
-                ps :: Args
-		ps = reverse [ defaultArg (Var i []) | (i,_) <- zip [n..] vs ]
--}
-
+		    equalTerm t (unArg arg) (Var i [])
 
 -- | Force a type to be a specific datatype.
 forceData :: MonadTCM tcm => QName -> Type -> tcm Type

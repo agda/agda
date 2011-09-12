@@ -25,7 +25,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive (constructorForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty (isReallyEmptyType)
 import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
 import Agda.TypeChecking.Rules.Term (checkExpr)
@@ -211,7 +211,7 @@ noShadowingOfConstructors c problem =
       DontCare{} -> __IMPOSSIBLE__
 
 -- | Check that a dot pattern matches it's instantiation.
-checkDotPattern :: DotPatternInst -> TCM Constraints
+checkDotPattern :: DotPatternInst -> TCM ()
 checkDotPattern (DPI e v a) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
@@ -223,7 +223,6 @@ checkDotPattern (DPI e v a) =
   u <- checkExpr e a
   -- Should be ok to do noConstraints here
   noConstraints $ equalTerm a u v
-  return []
 
 -- | Bind the variables in a left hand side. Precondition: the patterns should
 --   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
@@ -238,7 +237,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP _   -> do
-      isEmptyType $ unArg a
+      isReallyEmptyType $ unArg a
       bindDummy (absName tel)
     _             -> __IMPOSSIBLE__
     where
@@ -330,8 +329,7 @@ checkLeftHandSide c ps a ret = do
     reportSDoc "tc.lhs.top" 10 $ nest 2 $ text "type  = " <+> prettyTCM b'
 
     -- Check dot patterns
-    cs <- concat <$> mapM checkDotPattern dpi
-    noConstraints $ solveConstraints cs
+    mapM_ checkDotPattern dpi
 
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm

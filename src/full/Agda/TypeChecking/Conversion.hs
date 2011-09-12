@@ -64,18 +64,18 @@ intersectVars = zipWithM areVars where
     areVars (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = Just $ n /= m -- prune different vars
     areVars _ _                                       = Nothing
 
-equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
+equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
 equalTerm = compareTerm CmpEq
 
-equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm Constraints
+equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
 equalAtom = compareAtom CmpEq
 
-equalType :: MonadTCM tcm => Type -> Type -> tcm Constraints
+equalType :: MonadTCM tcm => Type -> Type -> tcm ()
 equalType = compareType CmpEq
 
 -- | Type directed equality on values.
 --
-compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
+compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
 compareTerm cmp a u v = do
   (u, v) <- instantiate (u, v)
@@ -96,11 +96,7 @@ compareTerm cmp a u v = do
       reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
                                          , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
-    s `orelse` h = do
-      cs <- liftTCM (s `catchError` \_ -> return [__IMPOSSIBLE__])
-      case cs of
-        [] -> return []
-        _  -> h
+    orelse = whenConstraints
 
 compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $ do
@@ -113,7 +109,7 @@ compareTerm' cmp a m n =
     s        <- reduce $ getSort a'
     mlvl     <- mlevel
     case s of
-      Prop | proofIrr -> return []
+      Prop | proofIrr -> return ()
       _    | isSize   -> compareSizes cmp m n
       _               -> case unEl a' of
         a | Just a == mlvl -> do
@@ -126,8 +122,8 @@ compareTerm' cmp a m n =
         MetaV x _ -> do
           (m,n) <- normalise (m,n)
           if m == n
-            then return []
-            else buildConstraint (ValueCmp cmp a m n)
+            then return ()
+            else addConstraint (ValueCmp cmp a m n)
 -}
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
@@ -146,7 +142,7 @@ compareTerm' cmp a m n =
                     -- we can succeed immediately
                     isSing <- isSingletonRecordModuloRelevance r ps
                     case isSing of
-                      Right True -> return []
+                      Right True -> return ()
                       -- do not eta-expand if comparing two neutrals
                       _ -> compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
                 _ -> do
@@ -181,11 +177,11 @@ compareTerm' cmp a m n =
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
 --   and complains that @t2 `cmp` t1@ failed if not.
 compareTel :: MonadTCM tcm => Type -> Type ->
-  Comparison -> Telescope -> Telescope -> tcm Constraints
+  Comparison -> Telescope -> Telescope -> tcm ()
 compareTel t1 t2 cmp tel1 tel2 =
   verboseBracket "tc.conv.tel" 20 "compareTel" $
   catchConstraint (TelCmp t1 t2 cmp tel1 tel2) $ case (tel1, tel2) of
-    (EmptyTel, EmptyTel) -> return []
+    (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
     (ExtendTel arg1@(Arg h1 r1 a1) tel1, ExtendTel arg2@(Arg h2 r2 a2) tel2)
@@ -194,15 +190,15 @@ compareTel t1 t2 cmp tel1 tel2 =
           let (tel1', tel2') = raise 1 (tel1, tel2)
               arg            = Var 0 []
           name <- freshName_ (suggest (absName tel1) (absName tel2))
-          cs   <- compareType cmp a1 a2
+          let checkArg = escapeContext 1 $ compareType cmp a1 a2
           let c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
 
 	  let dependent = 0 `freeIn` absBody tel2
 
-          if dependent
-	    then addCtx name arg1 $ guardConstraint (return cs) c
-	    else do cs' <- addCtx name arg1 $ solveConstraint c
-		    return $ cs ++ cs'
+          addCtx name arg1 $
+            if dependent
+	    then guardConstraint c checkArg
+	    else checkArg >> solveConstraint_ c
           where
             suggest "_" y = y
             suggest  x  _ = x
@@ -213,7 +209,7 @@ compareTel t1 t2 cmp tel1 tel2 =
 
 -- | Syntax directed equality on atomic values
 --
-compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm Constraints
+compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
 compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 20 "compareAtom" $
     -- if a PatternErr is thrown, rebuild constraint!
@@ -229,17 +225,19 @@ compareAtom cmp t m n =
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
 
-          postpone = buildConstraint $ ValueCmp cmp t m n
+          postpone = addConstraint $ ValueCmp cmp t m n
 
           checkSyntacticEquality = do
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
-                then return []	-- Check syntactic equality for blocked terms
+                then return ()	-- Check syntactic equality for blocked terms
                 else postpone
 
-      reportSDoc "tc.conv.atom" 30 $ fsep
-	[ text "compareAtom", prettyTCM mb, prettyTCM cmp, prettyTCM nb, text ":", prettyTCM t ]
+      reportSDoc "tc.conv.atom" 30 $
+	text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
+                                    , prettyTCM nb
+                                    , text ":" <+> prettyTCM t ]
       case (mb, nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
@@ -251,24 +249,24 @@ compareAtom cmp t m n =
                   -- kills is a list with 'True' for each different var
                   killResult <- killArgs kills x
                   case killResult of
-                    NothingToPrune   -> return []
-                    PrunedEverything -> return []
+                    NothingToPrune   -> return ()
+                    PrunedEverything -> return ()
                     PrunedNothing    -> postpone
                     PrunedSomething  -> postpone
-                    -- OLD CODE: if killedAll then return [] else checkSyntacticEquality
+                    -- OLD CODE: if killedAll then return () else checkSyntacticEquality
                 -- not all relevant arguments are variables
                 Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)
 {-
             | x == y -> if   sameVars xArgs yArgs
-                        then return []
+                        then return ()
                         else do -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)
                           m <- normalise m
                           n <- normalise n
                           if m == n
-                            then return []
-                            else buildConstraint (ValueCmp cmp t m n)
+                            then return ()
+                            else addConstraint (ValueCmp cmp t m n)
 -}
             | otherwise -> do
                 [p1, p2] <- mapM getMetaPriority [x,y]
@@ -278,22 +276,16 @@ compareAtom cmp t m n =
                       | otherwise	    = (r,l)
                       where l = assignV x xArgs n
                             r = assignV y yArgs m
-                    try m fallback = do
-                      cs <- m
-                      case cs of
-                        []	-> return []
-                        _	-> fallback cs
 
                 -- First try the one with the highest priority. If that doesn't
                 -- work, try the low priority one. If that doesn't work either,
                 -- go with the first version.
+                -- TODO: why rollback?
                 rollback <- return . put =<< get
-                try solve1 $ \cs -> do
+                whenConstraints solve1 $ do
                   undoRollback <- return . put =<< get
                   rollback
-                  try solve2 $ \_ -> do
-                    undoRollback
-                    return cs
+                  whenConstraints solve2 $ undoRollback
 
         -- one side a meta, the other an unblocked term
 	(NotBlocked (MetaV x xArgs), _) -> assignV x xArgs n
@@ -305,8 +297,8 @@ compareAtom cmp t m n =
             n <- normalise n    -- is this what we want?
             m <- normalise m
             if m == n
-                then return []	-- Check syntactic equality for blocked terms
-                else buildConstraint $ ValueCmp cmp t m n
+                then return ()	-- Check syntactic equality for blocked terms
+                else addConstraint $ ValueCmp cmp t m n
 -}
 
         (Blocked{}, _)    -> useInjectivity cmp t m n
@@ -317,7 +309,7 @@ compareAtom cmp t m n =
 
 	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
-	    (Lit l1, Lit l2) | l1 == l2 -> return []
+	    (Lit l1, Lit l2) | l1 == l2 -> return ()
 	    (Var i iArgs, Var j jArgs) | i == j -> do
 		a <- typeOfBV i
                 -- Variables are invariant in their arguments
@@ -370,24 +362,26 @@ compareAtom cmp t m n =
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
 	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
-	    | otherwise = do
-		    let (ty1',ty2') = raise 1 (ty1,ty2)
-			arg	    = Arg h1 r1 (Var 0 [])
-		    name <- freshName_ (suggest t1 t2)
-		    cs   <- compareType cmp a2 a1
-		    let c = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
+	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
+                reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
+                  [ text "t1 =" <+> prettyTCM t1
+                  , text "t2 =" <+> prettyTCM t2 ]
+                let (ty1',ty2') = raise 1 (ty1,ty2)
+                    arg	    = Arg h1 r1 (Var 0 [])
+                name <- freshName_ (suggest t1 t2)
+                let checkArg = escapeContext 1 $ compareType cmp a2 a1
+                    c        = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
 
-		    -- We only need to require a1 == a2 if t2 is a dependent function type.
-		    -- If it's non-dependent it doesn't matter what we add to the context.
-		    let dependent = case t2 of
-					Pi _ _	-> True
-					Fun _ _	-> False
-					_	-> __IMPOSSIBLE__
-		    if dependent
-			then addCtx name arg1 $ guardConstraint (return cs) c
-			else do
-			    cs' <- addCtx name arg1 $ solveConstraint c
-			    return $ cs ++ cs'
+                -- We only need to require a1 == a2 if t2 is a dependent function type.
+                -- If it's non-dependent it doesn't matter what we add to the context.
+                let dependent = case t2 of
+                                    Pi _ (Abs _ b) -> 0 `freeIn` b
+                                    Fun _ _        -> False
+                                    _              -> __IMPOSSIBLE__
+                addCtx name arg1 $
+                  if dependent
+                  then guardConstraint c checkArg
+                  else checkArg >> solveConstraint_ c
 	    where
 		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
 		ty2 = El (getSort a2) t2
@@ -401,39 +395,50 @@ compareAtom cmp t m n =
 	equalFun _ _ = __IMPOSSIBLE__
 
 -- | Type-directed equality on eliminator spines
-compareElims :: MonadTCM tcm => [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> tcm Constraints
-compareElims _ _ _ [] [] = return []
+compareElims :: MonadTCM tcm => [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> tcm ()
+compareElims _ _ _ [] [] = return ()
 compareElims _ _ _ [] (_:_) = __IMPOSSIBLE__
 compareElims _ _ _ (_:_) [] = __IMPOSSIBLE__
 compareElims _ _ _ (Apply{} : _) (Proj{} : _) = __IMPOSSIBLE__
 compareElims _ _ _ (Proj{} : _) (Apply{} : _) = __IMPOSSIBLE__
 compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
-  verboseBracket "tc.conv.args" 20 "compare Apply" $ do
+  verboseBracket "tc.conv.elim" 20 "compare Apply" $ do
+  reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
+    [ text "a    =" <+> prettyTCM a
+    , text "v    =" <+> prettyTCM v
+    , text "els1 =" <+> prettyTCM els01
+    , text "els2 =" <+> prettyTCM els02
+    ]
   let (pol, pols) = nextPolarity pols0
-  a <- reduce a
+  ab <- reduceB a
+  let a = ignoreBlocking ab
   catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-  case funView (unEl a) of
-    FunV (Arg _ r b) _ -> do
+  case funView . unEl <$> ab of
+    Blocked{}                       -> patternViolation
+    NotBlocked (NoFunV MetaV{})     -> patternViolation
+    NotBlocked (FunV (Arg _ r b) _) -> do
       let cmp x y = case pol of
                       Invariant     -> compareTerm CmpEq  b x y
                       Covariant     -> compareTerm CmpLeq b x y
                       Contravariant -> compareTerm CmpLeq b y x
-      cs1 <- case r of
-              Forced     -> return []
-              Irrelevant -> return [] -- Andreas: ignore irr. func. args.
-              _          -> applyRelevanceToContext r $
-                              cmp (unArg arg1) (unArg arg2)
       mlvl <- mlevel
-      case (cs1, unEl a) of
-                          -- We can safely ignore sort annotations here
-                          -- We're also ignoring levels since we don't allow
-                          -- matching on levels
-        (_:_, Pi (Arg _ _ (El _ lvl')) c) | 0 `freeInIgnoringSorts` absBody c
-                                            && Just lvl' /= mlvl ->
-          buildConstraint (Guarded (ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2) cs1)
-        _   ->
-          (cs1 ++) <$> compareElims pols (piApply a [arg1]) (apply v [arg1]) els1 els2
-    _ -> patternViolation
+      let checkArg = case r of
+            Forced     -> return ()
+            Irrelevant -> return () -- Andreas: ignore irr. func. args.
+            _          -> applyRelevanceToContext r $
+                            cmp (unArg arg1) (unArg arg2)
+          dependent = case unEl a of
+            Pi (Arg _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
+                                          && Just lvl' /= mlvl
+            _ -> False
+
+          theRest = ElimCmp pols (piApply a [arg1]) (apply v [arg1]) els1 els2
+
+      if dependent
+        then guardConstraint theRest checkArg
+        else checkArg >> solveConstraint_ theRest
+
+    _ -> __IMPOSSIBLE__
 compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
   | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
   | otherwise = do
@@ -454,23 +459,24 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
 
 -- | Type-directed equality on argument lists
 --
-compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Term -> Args -> Args -> tcm Constraints
+compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Term -> Args -> Args -> tcm ()
 compareArgs pol a v args1 args2 =
   compareElims pol a v (map Apply args1) (map Apply args2)
 
 -- | Equality on Types
-compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm Constraints
+compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
 	reportSDoc "tc.conv.type" 50 $ vcat
-          [ hsep [ text "compareType", prettyTCM ty1, prettyTCM cmp, prettyTCM ty2 ]
+          [ text "compareType" <+> sep [ prettyTCM ty1 <+> prettyTCM cmp
+                                       , prettyTCM ty2 ]
           , hsep [ text "   sorts:", prettyTCM s1, text " and ", prettyTCM s2 ]
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
 --        let cs1 = []
-	cs1 <- compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
+	compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
                   TypeError _ _ -> do
                     reportSDoc "tc.conv.type" 30 $ vcat
                       [ text "sort comparison failed"
@@ -480,7 +486,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                         ]
                       ]
                     -- This error will probably be more informative
-                    compareTerm cmp (sort s1) a1 a2
+                    -- compareTerm cmp (sort s1) a1 a2
                     -- Throw the original error if the above doesn't
                     -- give an error (for instance, due to pending
                     -- constraints).
@@ -489,28 +495,24 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                     -- In this case it's safe to ignore the error (?)
                     -- throwError err
                   _             -> throwError err
-	cs2 <- compareTerm cmp (sort s1) a1 a2
-        cs  <- solveConstraints $ cs1 ++ cs2
-        unless (null cs) $
-          reportSDoc "tc.conv.type" 50 $
-            text "   --> " <+> prettyTCM cs
-	return cs
+	compareTerm cmp (sort s1) a1 a2
+	return ()
 
-leqType :: MonadTCM tcm => Type -> Type -> tcm Constraints
+leqType :: MonadTCM tcm => Type -> Type -> tcm ()
 leqType = compareType CmpLeq
 
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
 
-compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm Constraints
+compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm ()
 compareSort CmpEq  = equalSort
 compareSort CmpLeq = equalSort
 
 -- | Check that the first sort is less or equal to the second.
-leqSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
+leqSort :: MonadTCM tcm => Sort -> Sort -> tcm ()
 leqSort s1 s2 =
-  ifM typeInType (return []) $
+  ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
     do	(s1,s2) <- reduce (s1,s2)
         reportSDoc "tc.conv.sort" 30 $
@@ -522,19 +524,19 @@ leqSort s1 s2 =
 
             (Type a, Type b) -> leqLevel a b
 
-	    (Prop    , Prop    )	     -> return []
+	    (Prop    , Prop    )	     -> return ()
 	    (Type _  , Prop    )	     -> notLeq s1 s2
 
-	    (Prop    , Type _  )	     -> return []
+	    (Prop    , Type _  )	     -> return ()
 
-            (_       , Inf     )             -> return []
+            (_       , Inf     )             -> return ()
             (Inf     , _       )             -> equalSort s1 s2
             (DLub{}  , _       )             -> equalSort s1 s2
             (_       , DLub{}  )             -> equalSort s1 s2
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
-leqLevel :: MonadTCM tcm => Level -> Level -> tcm Constraints
+leqLevel :: MonadTCM tcm => Level -> Level -> tcm ()
 leqLevel a b = liftTCM $ do
   reportSDoc "tc.conv.nat" 30 $
     text "compareLevel" <+>
@@ -544,7 +546,6 @@ leqLevel a b = liftTCM $ do
   b <- reduce b
   catchConstraint (LevelCmp CmpLeq a b) $ leqView a b
   where
-    cseq ms = concat <$> sequence ms
     leqView a@(Max as) b@(Max bs) = do
       reportSDoc "tc.conv.nat" 30 $
         text "compareLevelView" <+>
@@ -559,10 +560,10 @@ leqLevel a b = liftTCM $ do
         ([], _) -> ok
 
         -- as ≤ 0
-        (as, [])  -> cseq [ equalLevel (Max [a]) (Max []) | a <- as ]
+        (as, [])  -> sequence_ [ equalLevel (Max [a]) (Max []) | a <- as ]
 
         -- as ≤ [b]
-        (as@(_:_:_), [b]) -> cseq [ leqView (Max [a]) (Max [b]) | a <- as ]
+        (as@(_:_:_), [b]) -> sequence_ [ leqView (Max [a]) (Max [b]) | a <- as ]
 
         -- reduce constants
         (as, bs) | minN > 0 -> leqView (Max $ map (subtr minN) as) (Max $ map (subtr minN) bs)
@@ -606,7 +607,7 @@ leqLevel a b = liftTCM $ do
         -- anything else
         _ -> postpone
       where
-        ok       = return []
+        ok       = return ()
         notok    = typeError $ NotLeqSort (Type a) (Type b)
         postpone = patternViolation
 
@@ -639,7 +640,7 @@ leqLevel a b = liftTCM $ do
 --         PatternErr{} -> choice ms
 --         _            -> throwError e
 
-equalLevel :: MonadTCM tcm => Level -> Level -> tcm Constraints
+equalLevel :: MonadTCM tcm => Level -> Level -> tcm ()
 equalLevel a b = do
   a <- reduce a
   b <- reduce b
@@ -680,8 +681,8 @@ equalLevel a b = do
         (_, [ClosedLevel{}]) | any isNeutral as -> notok
 
         -- 0 == any
-        ([ClosedLevel 0], bs@(_:_:_)) -> concat <$> sequence [ equalLevel (Max []) (Max [b]) | b <- bs ]
-        (as@(_:_:_), [ClosedLevel 0]) -> concat <$> sequence [ equalLevel (Max [a]) (Max []) | a <- as ]
+        ([ClosedLevel 0], bs@(_:_:_)) -> sequence_ [ equalLevel (Max []) (Max [b]) | b <- bs ]
+        (as@(_:_:_), [ClosedLevel 0]) -> sequence_ [ equalLevel (Max [a]) (Max []) | a <- as ]
 
         -- Same meta
         ([Plus n (MetaLevel x _)], [Plus m (MetaLevel y _)])
@@ -708,7 +709,7 @@ equalLevel a b = do
         _ -> postpone
 
       where
-        ok       = return []
+        ok       = return ()
         notok    = typeError $ UnequalSorts (Type a) (Type b)
         postpone = do
           reportSLn "tc.conv.level" 30 $ "postponing: " ++ show a ++ " == " ++ show b
@@ -759,9 +760,9 @@ equalLevel a b = do
 
 
 -- | Check that the first sort equal to the second.
-equalSort :: MonadTCM tcm => Sort -> Sort -> tcm Constraints
+equalSort :: MonadTCM tcm => Sort -> Sort -> tcm ()
 equalSort s1 s2 =
-  ifM typeInType (return []) $
+  ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do
         (s1,s2) <- reduce (s1,s2)
         reportSDoc "tc.conv.sort" 30 $
@@ -776,31 +777,29 @@ equalSort s1 s2 =
 
             (Type a  , Type b  ) -> equalLevel a b
 
-	    (Prop    , Prop    ) -> return []
+	    (Prop    , Prop    ) -> return ()
 	    (Type _  , Prop    ) -> notEq s1 s2
 	    (Prop    , Type _  ) -> notEq s1 s2
 
-            (Inf     , Inf     )             -> return []
-            (Inf     , Type (Max as@(_:_)))  -> concat <$> mapM (isInf $ notEq s1 s2) as
-            (Type (Max as@(_:_)), Inf)       -> concat <$> mapM (isInf $ notEq s1 s2) as
+            (Inf     , Inf     )             -> return ()
+            (Inf     , Type (Max as@(_:_)))  -> mapM_ (isInf $ notEq s1 s2) as
+            (Type (Max as@(_:_)), Inf)       -> mapM_ (isInf $ notEq s1 s2) as
             (Inf     , _       )             -> notEq s1 s2
             (_       , Inf     )             -> notEq s1 s2
 
             (DLub s1 s2, s0@(Type (Max []))) -> do
-              cs1 <- equalSort s1 s0
-              cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s2 s0
-              return $ cs1 ++ cs2
+              equalSort s1 s0
+              underAbstraction_ s2 $ \s2 -> equalSort s2 s0
             (s0@(Type (Max [])), DLub s1 s2) -> do
-              cs1 <- equalSort s0 s1
-              cs2 <- underAbstraction_ s2 $ \s2 -> equalSort s0 s2
-              return $ cs1 ++ cs2
-            (DLub{}  , _       )             -> buildConstraint (SortCmp CmpEq s1 s2)
-            (_       , DLub{}  )             -> buildConstraint (SortCmp CmpEq s1 s2)
+              equalSort s0 s1
+              underAbstraction_ s2 $ \s2 -> equalSort s0 s2
+            (DLub{}  , _       )             -> addConstraint (SortCmp CmpEq s1 s2)
+            (_       , DLub{}  )             -> addConstraint (SortCmp CmpEq s1 s2)
     where
 	notEq s1 s2 = typeError $ UnequalSorts s1 s2
 
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
           MetaLevel x vs          -> assignV x vs (Sort Inf)
-          NeutralLevel (Sort Inf) -> return []
+          NeutralLevel (Sort Inf) -> return ()
           _                       -> notok

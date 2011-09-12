@@ -15,17 +15,17 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 -- | Make sure that a type is empty.
-isEmptyType :: MonadTCM tcm => Type -> tcm ()
-isEmptyType t = noConstraints $ isEmptyTypeC t
+isReallyEmptyType :: MonadTCM tcm => Type -> tcm ()
+isReallyEmptyType t = noConstraints $ isEmptyType t
 
-isEmptyTypeC :: MonadTCM tcm => Type -> tcm Constraints
-isEmptyTypeC t = do
+isEmptyType :: MonadTCM tcm => Type -> tcm ()
+isEmptyType t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
   case unEl <$> tb of
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
-    NotBlocked MetaV{} -> buildConstraint (IsEmpty t)
-    Blocked{}          -> buildConstraint (IsEmpty t)
+    NotBlocked MetaV{} -> addConstraint (IsEmpty t)
+    Blocked{}          -> addConstraint (IsEmpty t)
     _                  -> do
     -- from the current context xs:ts, create a pattern list
     -- xs _ : ts t and try to split on _ (the last variable)
@@ -38,5 +38,5 @@ isEmptyTypeC t = do
 
       case r of
         Left err  -> typeError $ ShouldBeEmpty t []
-        Right []  -> return []
+        Right []  -> return ()
         Right cs  -> typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) cs

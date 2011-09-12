@@ -136,14 +136,14 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- newTypeMeta_  = newTypeMeta Inf
 
 -- | Create a new "implicit from scope" metavariable
-newIFSMeta ::  MonadTCM tcm => Type -> tcm (Term, ConstraintClosure)
+newIFSMeta ::  MonadTCM tcm => Type -> tcm Term
 newIFSMeta t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newIFSMetaCtx (telePi_ tel t) vs
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: MonadTCM tcm => Type -> Args -> tcm (Term, ConstraintClosure)
+newIFSMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
 newIFSMetaCtx t vs = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
@@ -154,8 +154,8 @@ newIFSMetaCtx t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  c <- buildConstraint' $ FindInScope x
-  return (MetaV x vs, c)
+  addConstraint $ FindInScope x
+  return (MetaV x vs)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta ::  MonadTCM tcm => Type -> tcm Term
@@ -239,39 +239,34 @@ newQuestionMark t = do
   return m
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: MonadTCM tcm => Type -> Term -> tcm Constraints -> tcm Term
-blockTerm t v m = do
-  cs <- solveConstraints =<< m
-  if List.null cs
-    then return v
-    else do
-      i   <- createMetaInfo
-      vs  <- getContextArgs
-      tel <- getContextTelescope
-      x   <- newMeta' (BlockedConst $ abstract tel v)
-                      i lowMetaPriority (idP $ size tel)
-                      (HasType () $ telePi_ tel t)
-                      -- we don't instantiate blocked terms
-      escapeContext (size tel) $ addConstraints =<< guardConstraint (return cs) (UnBlock x)
-      verboseS "tc.meta.blocked" 20 $ do
-        dx  <- prettyTCM (MetaV x [])
-        dv  <- escapeContext (size tel) $ prettyTCM $ abstract tel v
-        dcs <- mapM prettyTCM cs
-        liftIO $ LocIO.putStrLn $ "blocked " ++ show dx ++ " := " ++ show dv
-        liftIO $ LocIO.putStrLn $ "     by " ++ show dcs
-      inst <- isInstantiatedMeta x
-      case inst of
-        True  -> instantiate (MetaV x vs)
-        False -> do
-          -- We don't return the blocked term instead create a fresh metavariable
-          -- that we compare against the blocked term once it's unblocked. This way
-          -- blocked terms can be instantiated before they are unblocked, thus making
-          -- constraint solving a bit more robust against instantiation order.
-          v   <- newValueMeta t
-          i   <- liftTCM (fresh :: TCM Integer)
-          cmp <- buildConstraint (ValueCmp CmpEq t v (MetaV x vs))
-          listenToMeta (CheckConstraint i cmp) x
-          return v
+blockTerm :: MonadTCM tcm => Type -> tcm Term -> tcm Term
+blockTerm t blocker =
+  ifNoConstraints blocker return $ \pid v -> do
+    i   <- createMetaInfo
+    vs  <- getContextArgs
+    tel <- getContextTelescope
+    x   <- newMeta' (BlockedConst $ abstract tel v)
+                    i lowMetaPriority (idP $ size tel)
+                    (HasType () $ telePi_ tel t)
+                    -- we don't instantiate blocked terms
+    escapeContext (size tel) $ addConstraint (Guarded (UnBlock x) pid)
+    reportSDoc "tc.meta.blocked" 20 $ vcat
+      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> escapeContext (size tel) (prettyTCM $ abstract tel v)
+      , text "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
+    inst <- isInstantiatedMeta x
+    case inst of
+      True  -> instantiate (MetaV x vs)
+      False -> do
+        -- We don't return the blocked term instead create a fresh metavariable
+        -- that we compare against the blocked term once it's unblocked. This way
+        -- blocked terms can be instantiated before they are unblocked, thus making
+        -- constraint solving a bit more robust against instantiation order.
+        v   <- newValueMeta t
+        i   <- liftTCM (fresh :: TCM Integer)
+        -- This constraint is woken up when unblocking, so it doesn't need a problem id.
+        cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x vs))
+        listenToMeta (CheckConstraint i cmp) x
+        return v
 
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
@@ -302,7 +297,7 @@ postponeTypeCheckingProblem e t unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
-  addConstraints =<< buildConstraint (UnBlock m)
+  addConstraint (UnBlock m)
   MetaV m <$> getContextArgs
 
 -- | Eta expand metavariables listening on the current meta.
@@ -315,10 +310,10 @@ etaExpandListeners m = do
 -- | Wake up a meta listener and let it do its thing
 wakeupListener :: MonadTCM tcm => Listener -> tcm ()
   -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
-wakeupListener (EtaExpand x)          = etaExpandMetaSafe x
-wakeupListener (CheckConstraint _ cs) = do
-  reportSDoc "tc.meta.blocked" 20 $ text "waking boxed constraint" <+> prettyTCM cs
-  addAwakeConstraints cs
+wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
+wakeupListener (CheckConstraint _ c) = do
+  reportSDoc "tc.meta.blocked" 20 $ text "waking boxed constraint" <+> prettyTCM c
+  addAwakeConstraints [c]
   solveAwakeConstraints
 
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
@@ -416,12 +411,11 @@ etaExpandBlocked (Blocked m t)  = do
 --   during equality checking (@compareAtom@) and leads to
 --   restoration of the original constraints.
 
-assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm Constraints
+assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
 assignV x args v = do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
         liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints
-        return []
 
 -- | @assign sort? x vs v@
 assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
@@ -596,6 +590,5 @@ updateMeta mI v = do
     mv <- lookupMeta mI
     withMetaInfo (getMetaInfo mv) $ do
       args <- getContextArgs
-      cs <- assignV mI args v
-      unless (List.null cs) $ fail $ "failed to update meta " ++ show mI
+      noConstraints $ assignV mI args v
 

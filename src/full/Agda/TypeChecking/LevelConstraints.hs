@@ -1,5 +1,5 @@
 
-module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraints ) where
+module Agda.TypeChecking.LevelConstraints ( simplifyLevelConstraint ) where
 
 import Data.List
 
@@ -8,30 +8,20 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
 
-simplifyLevelConstraints :: Constraints -> Constraints -> Constraints
-simplifyLevelConstraints new old = simplify lcs oldlcs ++ other
+simplifyLevelConstraint :: Integer -> Constraint -> Constraints -> Constraint
+simplifyLevelConstraint n new old =
+  case inequalities new of
+    [a :=< b] | elem (b :=< a) leqs -> LevelCmp CmpEq (Max [a']) (Max [b'])
+      where
+        (a', b') = raiseFrom (-n) n (a, b)
+    _ -> new
   where
-    oldlcs = filter (isLevelConstraint . clValue) old
-    (lcs, other) = partition (isLevelConstraint . clValue) new
-
-    isLevelConstraint LevelCmp{} = True
-    isLevelConstraint _          = False
-
-simplify lcs oldlcs = map simpl lcs
-  where
-    leqs = concatMap (inequalities . unClosure) oldlcs
-
-    simpl c = case inequalities (unClosure c) of
-      [a :=< b] | elem (b :=< a) leqs ->
-        c { clValue = LevelCmp CmpEq (Max [a']) (Max [b']) }
-        where
-          n        = size $ envContext $ clEnv c
-          (a', b') = raiseFrom (-n) n (a, b)
-      _ -> c
+    leqs = concatMap (inequalities . unClosure) old
 
     -- Unclosure converts deBruijn indices to deBruijn levels to
     -- enable comparing constraints under different contexts
-    unClosure cl = raise (-size (envContext $ clEnv cl)) $ clValue cl
+    unClosure c = raise (-size (envContext $ clEnv cl)) $ clValue cl
+      where cl = theConstraint c
 
 data Leq = PlusLevel :=< PlusLevel
   deriving Eq

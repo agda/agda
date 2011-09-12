@@ -243,7 +243,7 @@ getEqs = do
  eqs <- getAllConstraints
  let r = mapM (\eqc -> do
           neqc <- norm eqc
-          case MB.clValue neqc of
+          case MB.clValue $ MB.theConstraint neqc of
            MB.ValueCmp ineq _ i e -> do
             ei <- etaContract i
             ee <- etaContract e
@@ -252,9 +252,7 @@ getEqs = do
             I.El _ ei <- etaContract i
             I.El _ ee <- etaContract e
             return [(tomyIneq ineq, ee, ei)]
-           MB.Guarded (MB.UnBlock _) cs -> do
-            eqs' <- r cs
-            return $ concat eqs'
+           MB.Guarded (MB.UnBlock _) pid -> return []
            _ -> return []
          )
  eqs' <- r eqs

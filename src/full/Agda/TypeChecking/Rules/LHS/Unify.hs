@@ -170,7 +170,7 @@ modSub :: (Sub -> Sub) -> Unify ()
 modSub f = U $ modify $ \s -> s { uniSub = f $ uniSub s }
 
 checkEqualities :: [Equality] -> TCM ()
-checkEqualities eqs = noConstraints $ concat <$> mapM checkEq eqs
+checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
   where
     checkEq (Equal (Hom a) s t) = equalTerm a s t
     checkEq (Equal (Het{}) s t) = typeError $ GenericError $ "heterogeneous equality"

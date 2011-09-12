@@ -37,54 +37,64 @@ import Agda.Utils.Impossible
 
 -- | Catches pattern violation errors and adds a constraint.
 --
-catchConstraint :: MonadTCM tcm => Constraint -> TCM Constraints -> tcm Constraints
+catchConstraint :: MonadTCM tcm => Constraint -> TCM () -> tcm ()
 catchConstraint c v = liftTCM $
    catchError_ v $ \err ->
    case errError err of
         -- Not putting s (which should really be the what's already there) makes things go
         -- a lot slower (+20% total time on standard library). How is that possible??
-       PatternErr s -> put s >> buildConstraint c
+        -- The problem is most likely that there are internal catchErrors which forgets the
+        -- state. catchError should preserve the state on pattern violations.
+       PatternErr s -> put s >> addConstraint c
        _	    -> throwError err
 
-addConstraints :: MonadTCM tcm => Constraints -> tcm ()
-addConstraints cs = addConstraints' =<< simpl =<< instantiateFull cs
+addConstraint :: MonadTCM tcm => Constraint -> tcm ()
+addConstraint c = do
+    reportSDoc "tc.constr.add" 20 $ text "adding constraint" <+> prettyTCM c
+    c' <- simpl =<< instantiateFull c
+    when (c /= c') $ reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
+    addConstraint' c'
   where
-    simpl :: MonadTCM tcm => Constraints -> tcm Constraints
-    simpl cs = simplifyLevelConstraints cs <$> getAllConstraints
+    simpl :: MonadTCM tcm => Constraint -> tcm Constraint
+    simpl c = do
+      n <- genericLength <$> getContext
+      simplifyLevelConstraint n c <$> getAllConstraints
 
 -- | Don't allow the argument to produce any constraints.
-noConstraints :: MonadTCM tcm => tcm Constraints -> tcm ()
-noConstraints m = do
-    cs <- solveConstraints =<< m
-    unless (List.null cs) $ typeError $ UnsolvedConstraints cs
-    return ()
+noConstraints :: MonadTCM tcm => tcm a -> tcm a
+noConstraints problem = do
+  pid <- fresh
+  x  <- solvingProblem pid problem
+  cs <- getConstraintsForProblem pid
+  unless (List.null cs) $ typeError $ UnsolvedConstraints cs 
+  return x
+
+ifNoConstraints :: MonadTCM tcm => tcm a -> (a -> tcm b) -> (ProblemId -> a -> tcm b) -> tcm b
+ifNoConstraints check ifNo ifCs = do
+  pid <- fresh
+  x <- solvingProblem pid check
+  ifM (isProblemSolved pid) (ifNo x) (ifCs pid x)
+
+ifNoConstraints_ :: MonadTCM tcm => tcm () -> tcm a -> (ProblemId -> tcm a) -> tcm a
+ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ -> ifCs pid)
 
 -- | @guardConstraint cs c@ tries to solve constraints @cs@ first.
 --   If successful, it moves on to solve @c@, otherwise it returns
 --   a @Guarded c cs@.
-guardConstraint :: MonadTCM tcm => tcm Constraints -> Constraint -> tcm Constraints
-guardConstraint m c = do
-    cs <- solveConstraints =<< m
-    case List.partition isNonBlocking cs of
-	(scs, []) -> (scs ++) <$> solveConstraint c
-	(scs, cs) -> (scs ++) <$> buildConstraint (Guarded c cs)
-    where
-	isNonBlocking = isNB . clValue
-	isNB SortCmp{}        = True
-        isNB LevelCmp{}       = True
-	isNB ValueCmp{}       = False
-        isNB ElimCmp{}        = False
-	isNB TypeCmp{}        = False
-	isNB TelCmp{}         = False
-	isNB (Guarded c _)    = isNB c
-	isNB UnBlock{}        = False
-	isNB FindInScope{}    = True
-        isNB IsEmpty{}        = False
+guardConstraint :: MonadTCM tcm => Constraint -> tcm () -> tcm ()
+guardConstraint c blocker =
+  ifNoConstraints_ blocker (solveConstraint_ c) (addConstraint . Guarded c)
+
+whenConstraints :: MonadTCM tcm => tcm () -> tcm () -> tcm ()
+whenConstraints action handler =
+  ifNoConstraints_ action (return ()) $ \pid -> do
+    stealConstraints pid
+    handler
 
 -- | Wake up the constraints depending on the given meta.
 wakeupConstraints :: MonadTCM tcm => MetaId -> tcm ()
 wakeupConstraints x = do
-  wakeConstraints (const True) -- (mentionsMeta x)
+  wakeConstraints (mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
@@ -94,51 +104,38 @@ wakeupConstraints_ = do
   solveAwakeConstraints
 
 solveAwakeConstraints :: MonadTCM tcm => tcm ()
-solveAwakeConstraints = unlessM isSolvingConstraints $ nowSolvingConstraints solve
+solveAwakeConstraints = do
+    verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
+    unlessM isSolvingConstraints $ nowSolvingConstraints solve
   where
     solve = do
+      reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
+                                             , text . show . length =<< getAwakeConstraints
+                                             , text "remaining." ]
       mc <- takeAwakeConstraint
       flip (maybe $ return ()) mc $ \c -> do
-        addConstraints =<< withConstraint solveConstraint c
+        withConstraint solveConstraint c
         solve
 
-solveConstraints :: MonadTCM tcm => Constraints -> tcm Constraints
-solveConstraints [] = return []
-solveConstraints cs = do
-    reportSDoc "tc.constr.solve" 60 $
-      sep [ text "{ solving", nest 2 $ prettyTCM cs ]
-    n  <- length <$> getInstantiatedMetas
-    verboseS "profile.constraints" 10 $ liftTCM $ do
-      let m = countConstraints cs
-      tickN   "attempted-constraints" m
-      tickMax "max-open-constraints"  m
-    cs <- concat <$> mapM (withConstraint solveConstraint) (simplifyLevelConstraints cs cs)
-    n' <- length <$> getInstantiatedMetas
-    reportSDoc "tc.constr.solve" 70 $
-      sep [ text "new constraints", nest 2 $ prettyTCM cs
-          , nest 2 $ text $ "progress: " ++ show n' ++ " --> " ++ show n
-          ]
-    cs <- if (n' > n)
-	then solveConstraints cs -- Go again if we made progress
-	else return cs
-    reportSLn "tc.constr.solve" 60 $ "solved constraints }"
-    return cs
-  where
-    countConstraints = sum . List.map (count . clValue)
-    count (Guarded c cs) = count c + countConstraints cs
-    count _ = 1
+solveConstraint :: MonadTCM tcm => Constraint -> tcm ()
+solveConstraint c = do
+    verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
+    verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
+      reportSDoc "tc.constr.solve" 20 $ prettyTCM c
+      solveConstraint_ c
 
-solveConstraint :: MonadTCM tcm => Constraint -> tcm Constraints
-solveConstraint (ValueCmp cmp a u v) = compareTerm cmp a u v
-solveConstraint (ElimCmp cmp a e u v) = compareElims cmp a e u v
-solveConstraint (TypeCmp cmp a b)    = compareType cmp a b
-solveConstraint (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb
-solveConstraint (SortCmp cmp s1 s2)  = compareSort cmp s1 s2
-solveConstraint (LevelCmp cmp a b)   = compareLevel cmp a b
-solveConstraint (Guarded c cs)       = guardConstraint (return cs) c
-solveConstraint (IsEmpty t)          = isEmptyTypeC t
-solveConstraint (UnBlock m)          =
-  ifM (isFrozen m) (buildConstraint $ UnBlock m) $ do
+solveConstraint_ (ValueCmp cmp a u v)       = compareTerm cmp a u v
+solveConstraint_ (ElimCmp cmp a e u v)      = compareElims cmp a e u v
+solveConstraint_ (TypeCmp cmp a b)          = compareType cmp a b
+solveConstraint_ (TelCmp a b cmp tela telb) = compareTel a b cmp tela telb
+solveConstraint_ (SortCmp cmp s1 s2)        = compareSort cmp s1 s2
+solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
+solveConstraint_ c0@(Guarded c pid)         = do
+  ifM (isProblemSolved pid) (solveConstraint_ c)
+                            (addConstraint c0)
+solveConstraint_ (IsEmpty t)                = isEmptyType t
+solveConstraint_ (UnBlock m)                =
+  ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m
     reportSDoc "tc.constr.unblock" 15 $ text ("unblocking a metavar yields the constraint: " ++ show inst)
     case inst of
@@ -146,28 +143,26 @@ solveConstraint (UnBlock m)          =
         reportSDoc "tc.constr.blocked" 15 $
           text ("blocked const " ++ show m ++ " :=") <+> prettyTCM t
         assignTerm m t
-        return []
       PostponedTypeCheckingProblem cl -> enterClosure cl $ \(e, t, unblock) -> do
         b <- liftTCM unblock
         if not b
-          then buildConstraint $ UnBlock m
+          then addConstraint $ UnBlock m
           else do
             tel <- getContextTelescope
             v   <- liftTCM $ checkExpr e t
             assignTerm m $ teleLam tel v
-            return []
       -- Andreas, 2009-02-09, the following were IMPOSSIBLE cases
       -- somehow they pop up in the context of sized types
       --
       -- already solved metavariables: should only happen for size
       -- metas (not sure why it does, Andreas?)
-      InstV{} -> return []
-      InstS{} -> return []
+      InstV{} -> return ()
+      InstS{} -> return ()
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
-solveConstraint (FindInScope m)      =
-  ifM (isFrozen m) (buildConstraint $ FindInScope m) $ do
+solveConstraint_ (FindInScope m)      =
+  ifM (isFrozen m) (addConstraint $ FindInScope m) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
     mv <- lookupMeta m
     let j = mvJudgement mv
@@ -192,7 +187,7 @@ solveConstraint (FindInScope m)      =
                        (an, t, vs) <- zip3 candsP3Names candsP3Types candsP3FV]
         let cands = [candsP1, candsP2, candsP3]
         cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
-        let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm Constraints
+        let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm ()
             iterCands [] = do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
                               typeError $ IFSNoCandidateInScope t
             iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $
@@ -203,13 +198,12 @@ solveConstraint (FindInScope m)      =
                    "one candidate at p=" ++ show p ++ " found for type '") <+>
                    prettyTCM t <+> text "': '" <+> prettyTCM term <+>
                    text "', of type '" <+> prettyTCM t' <+> text "'."
-                 cs <- leqType t t'
+                 leqType t t'
                  assignV m ctxArgs term
-                 return cs
             iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
                                          text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
                                          prettyTCM (List.map fst cs)
-                                       buildConstraint $ FindInScope m
+                                       addConstraint $ FindInScope m
         iterCands [(1,concat cands)]
       where
         getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
@@ -225,20 +219,20 @@ solveConstraint (FindInScope m)      =
             localState $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)
-               csT <- leqType t t'
+               leqType t t'
                tel <- getContextTelescope
                assignTerm m (teleLam tel term)
                -- make a pass over constraints, to detect cases where some are made
                -- unsolvable by the assignment, but don't do this for FindInScope's
                -- to prevent loops. We currently also ignore UnBlock constraints
                -- to be on the safe side.
-               cs <- getAllConstraints
-               solveConstraints (List.filter isSimpleConstraint cs ++ csT)
+               wakeConstraints (isSimpleConstraint . clValue . theConstraint)
+               solveAwakeConstraints
             return True
-        isSimpleConstraint :: ConstraintClosure -> Bool
-        isSimpleConstraint (Closure _ _ _ (FindInScope{})) = False
-        isSimpleConstraint (Closure _ _ _ (UnBlock{})) = False
-        isSimpleConstraint _ = True
+        isSimpleConstraint :: Constraint -> Bool
+        isSimpleConstraint FindInScope{} = False
+        isSimpleConstraint UnBlock{}     = False
+        isSimpleConstraint _             = True
 
 localState :: MonadState s m => m a -> m a
 localState m = do

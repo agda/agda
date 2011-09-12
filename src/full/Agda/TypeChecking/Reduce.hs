@@ -147,7 +147,7 @@ instance Instantiate Constraint where
   instantiate (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> instantiate (a,b)
   instantiate (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> instantiate (tela,telb)
   instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
-  instantiate (Guarded c cs)       = uncurry Guarded <$> instantiate (c,cs)
+  instantiate (Guarded c pid)      = Guarded <$> instantiate c <*> pure pid
   instantiate (UnBlock m)          = return $ UnBlock m
   instantiate (FindInScope m)      = return $ FindInScope m
   instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
@@ -400,7 +400,7 @@ instance Reduce Constraint where
   reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
   reduce (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce (tela,telb)
   reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
-  reduce (Guarded c cs)       = uncurry Guarded <$> reduce (c,cs)
+  reduce (Guarded c pid)      = Guarded <$> reduce c <*> pure pid
   reduce (UnBlock m)          = return $ UnBlock m
   reduce (FindInScope m)      = return $ FindInScope m
   reduce (IsEmpty t)          = IsEmpty <$> reduce t
@@ -495,6 +495,9 @@ instance Normalise a => Normalise (Tele a) where
   normalise EmptyTel        = return EmptyTel
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
 
+instance Normalise ProblemConstraint where
+  normalise (PConstr pid c) = PConstr pid <$> normalise c
+
 instance Normalise Constraint where
   normalise (ValueCmp cmp t u v) = do
     (t,u,v) <- normalise (t,u,v)
@@ -505,7 +508,7 @@ instance Normalise Constraint where
   normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
   normalise (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise (tela,telb)
   normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
-  normalise (Guarded c cs)       = uncurry Guarded <$> normalise (c,cs)
+  normalise (Guarded c pid)      = Guarded <$> normalise c <*> pure pid
   normalise (UnBlock m)          = return $ UnBlock m
   normalise (FindInScope m)      = return $ FindInScope m
   normalise (IsEmpty t)          = IsEmpty <$> normalise t
@@ -635,7 +638,7 @@ instance InstantiateFull Constraint where
     TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull (tela,telb)
     SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
-    Guarded c cs       -> uncurry Guarded <$> instantiateFull (c,cs)
+    Guarded c pid      -> Guarded <$> instantiateFull c <*> pure pid
     UnBlock m          -> return $ UnBlock m
     FindInScope m      -> return $ FindInScope m
     IsEmpty t          -> IsEmpty <$> instantiateFull t

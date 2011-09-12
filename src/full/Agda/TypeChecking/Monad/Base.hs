@@ -88,6 +88,7 @@ data FreshThings =
 	      , fMutual	     :: MutualId
 	      , fName	     :: NameId
 	      , fCtx	     :: CtxId
+              , fProblem     :: ProblemId
               , fInteger     :: Integer
                 -- ^ Can be used for various things.
 	      }
@@ -95,7 +96,7 @@ data FreshThings =
 
 initState :: TCState
 initState =
-    TCSt { stFreshThings       = Fresh 0 0 0 (NameId 0 0) 0 0
+    TCSt { stFreshThings       = (Fresh 0 0 0 (NameId 0 0) 0 0 0) { fProblem = 1 }
 	 , stMetaStore	       = Map.empty
 	 , stInteractionPoints = Map.empty
 	 , stAwakeConstraints    = []
@@ -150,6 +151,16 @@ instance HasFresh Integer FreshThings where
     nextFresh s = (i, s { fInteger = succ i })
 	where
 	    i = fInteger s
+
+newtype ProblemId = ProblemId Nat
+  deriving (Typeable, Data, Eq, Ord, Enum, Real, Integral, Num)
+
+instance Show ProblemId where
+  show (ProblemId n) = show n
+
+instance HasFresh ProblemId FreshThings where
+  nextFresh s = (i, s { fProblem = succ i })
+    where i = fProblem s
 
 instance HasFresh i FreshThings => HasFresh i TCState where
     nextFresh s = ((,) $! i) $! s { stFreshThings = f }
@@ -225,7 +236,13 @@ buildClosure x = liftTCM $ do
 -- ** Constraints
 ---------------------------------------------------------------------------
 
-type ConstraintClosure = Closure Constraint
+type Constraints = [ProblemConstraint]
+
+data ProblemConstraint = PConstr
+  { constraintProblem :: ProblemId
+  , theConstraint     :: Closure Constraint
+  }
+  deriving (Typeable, Show)
 
 data Constraint
   = ValueCmp Comparison Type Term Term
@@ -235,15 +252,13 @@ data Constraint
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
   | UnBlock MetaId
-  | Guarded Constraint Constraints
+  | Guarded Constraint ProblemId
   | IsEmpty Type
   | FindInScope MetaId
-  deriving (Typeable, Show)
+  deriving (Typeable, Eq, Show)
 
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable, Show)
-
-type Constraints = [ConstraintClosure]
 
 ---------------------------------------------------------------------------
 -- * Open things
@@ -299,7 +314,7 @@ data MetaVariable =
     deriving (Typeable)
 
 data Listener = EtaExpand MetaId
-              | CheckConstraint Nat Constraints
+              | CheckConstraint Nat ProblemConstraint
   deriving (Typeable)
 
 instance Eq Listener where
@@ -648,7 +663,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | IsType_ A.Expr (Maybe Type)
 	  | InferVar Name (Maybe (Term, Type))
 	  | InferDef Range QName (Maybe (Term, Type))
-	  | CheckArguments Range [NamedArg A.Expr] Type Type (Maybe (Args, Type, Constraints))
+	  | CheckArguments Range [NamedArg A.Expr] Type Type (Maybe (Args, Type))
 	  | CheckDataDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckRecDef Range Name [A.LamBinding] [A.Constructor] (Maybe ())
 	  | CheckConstructor QName Telescope Sort A.Constructor (Maybe ())
@@ -746,6 +761,7 @@ data TCEnv =
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
+          , envActiveProblems      :: [ProblemId]
 	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
 		--   or the body of a non-abstract definition this is true.
@@ -781,6 +797,7 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
                 , envSolvingConstraints  = False
+                , envActiveProblems      = [0]
 		, envAbstractMode        = AbstractMode
                 , envTopLevel            = True
                 , envRelevance           = Relevant

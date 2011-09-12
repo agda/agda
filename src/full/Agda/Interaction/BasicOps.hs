@@ -3,11 +3,8 @@
   #-}
 
 module Agda.Interaction.BasicOps where
-{- TODO: The operations in this module should return Expr and not String,
-         for this we need to write a translator from Internal to Abstract syntax.
--}
 
-
+import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
@@ -42,7 +39,6 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Eliminators (unElim)
-import Agda.TypeChecking.Constraints (addConstraints)
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.List
@@ -85,8 +81,7 @@ giveExpr mi e =
 		    let t' = t `piApply` ctx
 		    v	<- checkExpr e t'
 		    case mvInstantiation mv of
-			InstV v' ->
-			  addConstraints =<< equalTerm t' v (v' `apply` ctx)
+			InstV v' -> equalTerm t' v (v' `apply` ctx)
 			_	 -> updateMeta mi v
 		    reify v
 		 IsSort{} -> __IMPOSSIBLE__
@@ -208,7 +203,7 @@ data OutputForm a b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputForm a b) [OutputForm a b]
+      | Guard (OutputForm a b) ProblemId
       | Assign b a | TypedAssign b a a
       | IsEmptyType a | FindInScopeOF b
 
@@ -246,7 +241,7 @@ instance Functor (OutputForm a) where
     fmap f (CmpLevels cmp e e')   = CmpLevels cmp (f e) (f e')
     fmap f (CmpTeles cmp e e')    = CmpTeles cmp (f e) (f e')
     fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
-    fmap f (Guard o os)           = Guard (fmap f o) (fmap (fmap f) os)
+    fmap f (Guard o pid)          = Guard (fmap f o) pid
     fmap f (Assign m e)           = Assign (f m) e
     fmap f (TypedAssign m e a)    = TypedAssign (f m) e a
     fmap f (IsEmptyType a)        = IsEmptyType a
@@ -261,10 +256,9 @@ instance Reify Constraint (OutputForm Expr Expr) where
     reify (TypeCmp cmp t t')     = CmpTypes cmp <$> reify t <*> reify t'
     reify (TelCmp a b cmp t t')  = CmpTeles cmp <$> (ETel <$> reify t) <*> (ETel <$> reify t')
     reify (SortCmp cmp s s')     = CmpSorts cmp <$> reify s <*> reify s'
-    reify (Guarded c cs) = do
+    reify (Guarded c pid) = do
 	o  <- reify c
-	os <- mapM (withConstraint reify) cs
-	return $ Guard o os
+	return $ Guard o pid
     reify (UnBlock m) = do
         mi <- mvInstantiation <$> lookupMeta m
         case mi of
@@ -322,7 +316,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (CmpTeles cmp e e') = CmpTeles cmp <$> toConcrete e <*> toConcrete e'
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx ArgumentCtx e
                                                   <*> toConcreteCtx ArgumentCtx e'
-    toConcrete (Guard o os) = Guard <$> toConcrete o <*> toConcrete os
+    toConcrete (Guard o pid) = Guard <$> toConcrete o <*> pure pid
     toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
@@ -348,7 +342,7 @@ judgToOutputForm (IsSort  s t) = JustSort s
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do
-    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< reduce =<< M.getAllConstraints
+    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< M.getAllConstraints
     ss <- mapM toOutputForm =<< getSolvedInteractionPoints
     return $ ss ++ cs
   where
