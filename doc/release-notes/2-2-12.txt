@@ -377,6 +377,68 @@ Tools
 * The "make install" command no longer installs Agda globally (by
   default).
 
+* Haskell compiler universe polymorphic FFI.
+
+  The translation of Agda types and kinds into Haskell now supports
+  universe-polymorphic postulates.  The core change is that the translation
+  of function types was:
+
+    T[[ Pi (x : A) B ]] =
+      if A has a Haskell kind
+      then forall x . Unit ->  T[[ B ]]
+      else if x in fv B
+      then undef
+      else T[[ A ]] ->  T[[ B ]]
+
+  and is now:
+
+    T[[ Pi (x : A) B ]] =
+      if x in fv B
+      then forall x . T[[ A ]] -> T[[ B ]]  -- Note: T[[A]] not Unit
+      else T[[ A ]] -> T[[ B ]]
+
+  and the translation of constants (postulates, constructors and literals) was:
+
+    T[[ k As ]] =
+      if COMPILED_TYPE k T
+      then T T[[ As ]]
+      else undef
+
+  and is now:
+
+    T[[ k As ]] =
+      if COMPILED_TYPE k T
+      then T T[[ As ]]
+      else if COMPILED k E
+      then Unit
+      else undef
+
+  For example, on universe polymorphic IO (assuming Level is bound to Int) we 
+  get:
+
+   postulate
+     IO : {a : Level} -> (b : Set a) -> (Set a)
+     return : {a : Level} -> {b : Set a} -> b -> (IO b)
+     _>>=_ : {a b : Level} -> {c : Set a} -> {d : Set b} ->
+       (IO c) -> (c -> (IO d)) -> (IO d)
+
+   {-# COMPILED_TYPE IO AgdaIO #-}
+   {-# COMPILED return (\_ _ -> return) #-}
+   {-# COMPILED _>>=_ (\_ _ _ _ -> (>>=)) #-}
+
+  where type AgdaIO a b = IO b.  This typechecks because:
+
+   (\_ _ -> return)
+     : forall a -> Int -> forall b -> Unit -> b -> (AgdaIO a b)
+     = T [[ {a : Level} -> {b : Set a} -> b -> (IO {a} b) ]]
+
+   (\_ _ _ _ -> (>>=))
+     : forall a -> Int -> forall b -> Int ->
+         forall c -> Unit -> forall d -> Unit ->
+           (AgdaIO a c) -> (c -> (AgdaIO b d)) -> (AgdaIO b d)
+     = T [[ {a b : Level} -> {c : Set a} -> {d : Set b} ->
+              (IO {a} c) -> (c -> (IO {b} d)) -> (IO {b} d) ]]
+
 * ECMAScript compiler backend.
 
   A new compiler backend is being implemented, targetting ECMAScript
