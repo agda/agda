@@ -1,4 +1,4 @@
-module Issue351 where
+module Issue417 where
 
 data _≡_ (A : Set₁) : Set₁ → Set₂ where
   refl : A ≡ A
