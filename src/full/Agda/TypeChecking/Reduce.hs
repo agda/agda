@@ -747,7 +747,7 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
 --   function type constructors.
 telViewM :: MonadTCM tcm => Type -> tcm TelView
 telViewM t = do
-  t <- reduce t
+  t <- reduce t -- also instantiates meta if in head position
   case unEl t of
     Pi a (Abs x b) -> absV a x <$> telViewM b
     Fun a b	   -> absV a "_" <$> telViewM (raise 1 b)

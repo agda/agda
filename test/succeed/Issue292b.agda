@@ -36,8 +36,8 @@ pbool = tt , refl
 
 ¬pbool2 : ¬ P (D false)
 ¬pbool2 ( ff , () )
-
-{- expected error
+-- Andreas, 2011-09-13 fix of fix: should work again
+{- WAS: expected error
 ff ≅ tt should be empty, but that's not obvious to me
 when checking that the clause ¬pbool2 (ff , ()) has type
 ¬ P (D false)

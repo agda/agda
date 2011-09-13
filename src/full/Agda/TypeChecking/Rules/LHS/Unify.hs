@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances,
+    GeneralizedNewtypeDeriving,
+    DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
@@ -6,14 +8,19 @@ import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
+import Control.Monad.Writer
 
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
-import Data.Traversable (traverse)
+
+import Data.Generics (Typeable, Data)
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable,traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
@@ -36,9 +43,10 @@ import Agda.TypeChecking.Rules.LHS.Problem
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.Size
 
-newtype Unify a = U { unUnify :: ReaderT UnifyEnv (ExceptionT UnifyException (StateT UnifyState TCM)) a }
-  deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException)
+newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }
+  deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException, MonadWriter UnifyOutput)
 
 instance MonadReader TCEnv Unify where
   ask = U $ ReaderT $ \ _ -> ask
@@ -55,12 +63,61 @@ noPostponing (U (ReaderT f)) = U . ReaderT . const $ f MayNotPostpone
 askPostpone :: Unify UnifyMayPostpone
 askPostpone = U . ReaderT $ return
 
-data Equality = Equal Type Term Term
+-- | Output the result of unification (success or maybe).
+type UnifyOutput = Unifiable
+
+emptyUOutput :: UnifyOutput
+emptyUOutput = mempty
+
+-- | Were two terms unifiable or did we have to postpone some equation such that we are not sure?
+data Unifiable
+  = Definitely  -- ^ Unification succeeded.
+  | Possibly    -- ^ Unification did not fail, but we had to postpone a part.
+
+-- | Conjunctive monoid.
+instance Monoid Unifiable where
+  mempty = Definitely
+  mappend Definitely Definitely = Definitely
+  mappend _ _ = Possibly
+
+-- | Tell that something could not be unified right now,
+--   so the unification succeeds only 'Possibly'.
+reportPostponing :: Unify ()
+reportPostponing = tell Possibly
+
+{-
+-- | Check whether unification proceeded without postponement.
+listenResult :: Unify () -> Unify UnifyOutput
+listenResult m = snd <$> listen m
+-}
+
+-- | Check whether unification proceeded without postponement.
+ifClean :: Unify () -> Unify a -> Unify a -> Unify a
+ifClean m t e = do
+  ok <- snd <$> listen m
+  case ok of
+    Definitely -> t
+    Possibly ->   e
+
+{-
+-- | Check whether unification proceeded without postponement.
+ifClean :: Unify a -> (a -> Unify b) -> (a -> Unify b) -> Unify b
+ifClean m t e = do
+  (ok, a) <- listen m
+  case ok of
+    Definitely -> t a
+    Possibly ->   e a
+-}
+
+data Equality = Equal TypeHH Term Term
 type Sub = Map Nat Term
 
-data UnifyException = ConstructorMismatch Type Term Term
-                    | StronglyRigidOccurrence Type Term Term
-                    | GenericUnifyException String
+data UnifyException
+  = ConstructorMismatch Type Term Term
+  | StronglyRigidOccurrence Type Term Term
+  | GenericUnifyException String
+  | TypeMismatch TypeHH Term Term -- ^ not valid type or different-shape types
+  | HeterogeneousButNoMismatch
 
 instance Error UnifyException where
   noMsg  = strMsg ""
@@ -75,6 +132,17 @@ emptyUState = USt Map.empty []
 constructorMismatch :: Type -> Term -> Term -> Unify a
 constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 
+constructorMismatchHH :: TypeHH -> Term -> Term -> Unify a
+constructorMismatchHH aHH = constructorMismatch (leftHH aHH)
+  -- do not report heterogenity
+{-
+constructorMismatchHH (Hom a) u v = constructorMismatch a u v
+constructorMismatchHH (Het a1 a2) u v = constructorMismatch a1 u v
+-}
+
+typeMismatch :: TypeHH -> Term -> Term -> Unify a
+typeMismatch aHH u v = throwException $ TypeMismatch aHH u v
+
 {-
 instance MonadReader TCEnv Unify where
   ask           = U . lift  $ ask
@@ -82,11 +150,11 @@ instance MonadReader TCEnv Unify where
 -}
 
 instance MonadState TCState Unify where
-  get = U . lift . lift . lift $ get
-  put = U . lift . lift . lift . put
+  get = U . lift . lift . lift . lift $ get
+  put = U . lift . lift . lift . lift . put
 
 instance MonadTCM Unify where
-  liftTCM = U . lift . lift . lift
+  liftTCM = U . lift . lift . lift . lift
 
 instance Subst Equality where
   substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
@@ -104,18 +172,70 @@ modSub f = U $ modify $ \s -> s { uniSub = f $ uniSub s }
 checkEqualities :: [Equality] -> TCM ()
 checkEqualities eqs = noConstraints $ concat <$> mapM checkEq eqs
   where
-    checkEq (Equal a s t) = equalTerm a s t
+    checkEq (Equal (Hom a) s t) = equalTerm a s t
+    checkEq (Equal (Het{}) s t) = typeError $ GenericError $ "heterogeneous equality"
 
 -- | Force equality now instead of postponing it using 'addEquality'.
 checkEquality :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
 checkEquality a u v = noConstraints $ equalTerm a u v
 
+-- | Try equality.  If constraints remain, postpone (enter unsafe mode).
+--   Heterogeneous equalities cannot be tried nor reawakened,
+--   so we can throw them away and flag "dirty".
+checkEqualityHH :: TypeHH -> Term -> Term -> Unify ()
+checkEqualityHH (Hom a) u v = do
+    ok <- liftTCM $ do null <$> equalTerm a u v  -- no constraints left
+            `catchError` \ err -> return False
+    if ok then return () else addEquality a u v
+checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
+    addEqualityHH aHH u v -- postpone, enter "dirty" mode
+{-
+checkEqualityHH (Het a1 a2) u v = noConstraints $ do
+  equalType a1 a2
+  equalTerm a1 u v
+-}
+{-
+checkEqualityHH :: MonadTCM tcm => TypeHH -> Term -> Term -> tcm ()
+checkEqualityHH aHH u v = do
+  a  <- forceHom aHH
+  cs <- equalTerm a u v
+  if null cs then return () else addEquality a u v
+-}
+
+
+-- | Check whether heterogeneous situation is really homogeneous.
+--   If not, give up.
+forceHom :: MonadTCM tcm => TypeHH -> tcm Type
+forceHom (Hom a) = return a
+forceHom (Het a1 a2) = do
+  noConstraints $ equalType a1 a2
+  return a1
+
+addEquality :: Type -> Term -> Term -> Unify ()
+addEquality a = addEqualityHH (Hom a)
+
+addEqualityHH :: TypeHH -> Term -> Term -> Unify ()
+addEqualityHH aHH u v = do
+  reportPostponing
+  U $ modify $ \s -> s { uniConstr = Equal aHH u v : uniConstr s }
+
+{-
+addEquality :: Type -> Term -> Term -> Unify ()
+addEquality a u v = do
+  reportPostponing
+  U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
+-}
+
+{-
 addEquality :: Type -> Term -> Term -> Unify ()
 addEquality a u v = do
    p <- askPostpone
    case p of
-     MayPostpone ->  U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
+     MayPostpone ->  do
+       reportPostponing
+       U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
      MayNotPostpone -> checkEquality a u v
+-}
 
 takeEqualities :: Unify [Equality]
 takeEqualities = U $ do
@@ -187,16 +307,107 @@ flattenSubstitution s = foldr instantiate s is
       where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
 	    var j = Var j []
 
-data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
+data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow (Maybe TCErr)
+
+-- | Are we in a homogeneous (one type) or heterogeneous (two types) situation?
+data HomHet a
+  = Hom a    -- ^ homogeneous
+  | Het a a  -- ^ heterogeneous
+  deriving (Typeable, Data, Show, Eq, Ord, Functor, Foldable, Traversable)
+
+isHom :: HomHet a -> Bool
+isHom Hom{} = True
+isHom Het{} = False
+
+fromHom :: HomHet a -> a
+fromHom (Hom a) = a
+fromHom (Het{}) = __IMPOSSIBLE__
+
+leftHH :: HomHet a -> a
+leftHH (Hom a) = a
+leftHH (Het a1 a2) = a1
+
+rightHH :: HomHet a -> a
+rightHH (Hom a) = a
+rightHH (Het a1 a2) = a2
+
+instance (Raise a) => Raise (HomHet a) where
+  raiseFrom n m  = fmap (raiseFrom n m)
+  renameFrom n f = fmap (renameFrom n f)
+
+instance (Subst a) => Subst (HomHet a) where
+  substUnder n u = fmap (substUnder n u)
+  substs us      = fmap (substs us)
+
+instance (PrettyTCM a) => PrettyTCM (HomHet a) where
+  prettyTCM (Hom a) = prettyTCM a
+  prettyTCM (Het a1 a2) = prettyTCM a1 <+> text "||" <+> prettyTCM a2
+
+type TermHH    = HomHet Term
+type TypeHH    = HomHet Type
+--type FunViewHH = FunV TypeHH
+type TelHH     = Tele (Arg TypeHH)
+type TelViewHH = TelV TypeHH
+
+absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
+absAppHH (Abs _ t) u = substHH u t
+
+substHH :: SubstHH t tHH => TermHH -> t -> tHH
+substHH = substUnderHH 0
+
+-- | @substHH u t@ substitutes @u@ for the 0th variable in @t@.
+class SubstHH t tHH where
+  substUnderHH :: Nat -> TermHH -> t -> tHH
+
+instance (Free a, Subst a) => SubstHH (HomHet a) (HomHet a) where
+  substUnderHH n (Hom u) t = fmap (substUnder n u) t
+  substUnderHH n (Het u1 u2) (Hom t) =
+    if n `relevantIn` t then Het (substUnder n u1 t) (substUnder n u2 t)
+     else Hom (substUnder n u1 t)
+  substUnderHH n (Het u1 u2) (Het t1 t2) = Het (substUnder n u1 t1) (substUnder n u2 t2)
+
+instance SubstHH Term (HomHet Term) where
+  substUnderHH n uHH t = fmap (\ u -> substUnder n u t) uHH
+
+instance SubstHH Type (HomHet Type) where
+  substUnderHH n uHH (El s t) = fmap (\ u -> El s $ substUnder n u t) uHH
+-- fmap $ fmap (\ (El s v) -> El s $ substUnderHH n u v)
+  -- we ignore sorts in substitution, since they do not contain
+  -- terms we can match on
+
+instance SubstHH a b => SubstHH (Arg a) (Arg b) where
+  substUnderHH n u = fmap $ substUnderHH n u
+
+instance SubstHH a b => SubstHH (Abs a) (Abs b) where
+  substUnderHH n u = fmap $ substUnderHH (n+1) u
+
+instance SubstHH a b => SubstHH (Tele a) (Tele b) where
+  substUnderHH n u = fmap $ substUnderHH n u
+
+{-
+instance SubstHH a => SubstHH (Arg a) (HomHet (Argwhere
+  substUnderHH n u (Arg h r t) = fmap (Arg h r) $ substUnderHH n u t
+
+instance SubstHH a => SubstHH (Abs a) where
+  substUnderHH n u (Abs x t) = fmap (Abs x) $ substUnderHH (n+1) u t
+
+instance SubstHH a => SubstHH (Tele a) where
+  substUnderHH n u EmptyTel = fmap $ substUnderHH n u
+-}
 
 -- | Unify indices.
 unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm Substitution
 unifyIndices_ flex a us vs = liftTCM $ do
   r <- unifyIndices flex a us vs
   case r of
-    Unifies sub   -> return sub
-    DontKnow err  -> throwError err
-    NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
+    Unifies sub         -> return sub
+    DontKnow Nothing    -> typeError $ GenericError $ "unification failed due to postponed problems"
+    DontKnow (Just err) -> throwError err
+    NoUnify a u v       -> typeError $ UnequalTerms CmpEq u v a
+
+dontKnow :: UnificationResult
+dontKnow = DontKnow Nothing
+-- $ GenericError $ "unification failed due to postponed problems"
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
@@ -208,10 +419,16 @@ unifyIndices flex a us vs = liftTCM $ do
           , nest 2 $ prettyList $ map prettyTCM vs
           , nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
           ]
-    (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . flip runReaderT emptyUEnv . unUnify $
-                      unifyArgs a us vs >> recheckConstraints
+    (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . runWriterT . flip runReaderT emptyUEnv . unUnify $ do
+        ifClean (unifyArgs a us vs)
+          -- clean: continue unifying
+          (recheckConstraints)
+          -- dirty: just check equalities to trigger error message
+          (recheckEqualities) -- (throwException HeterogeneousButNoMismatch)
 
     case r of
+      Left (HeterogeneousButNoMismatch)     -> return $ dontKnow
+      Left (TypeMismatch          aHH u v)  -> return $ dontKnow
       Left (ConstructorMismatch     a u v)  -> return $ NoUnify a u v
       -- Andreas 2011-04-14:
       Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
@@ -220,13 +437,74 @@ unifyIndices flex a us vs = liftTCM $ do
         checkEqualities $ substs (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
-  `catchError` \err -> return $ DontKnow err
+  `catchError` \err -> return $ DontKnow $ Just err
   where
     flexible i = i `elem` flex
 
     flexibleTerm (Var i []) = flexible i
     flexibleTerm _          = False
 
+    {- Andreas, 2011-09-12
+       We unify constructors in heterogeneous situations, as long
+       as the two types have the same shape (construct the same datatype).
+     -}
+
+    unifyConstructorArgs ::
+         TypeHH  -- ^ The type of the constructor, instantiated to the parameters.
+                 --   Possibly heterogeneous, since pars of lhs and rhs might differ.
+      -> [Arg Term]  -- ^ the arguments of the constructor (lhs)
+      -> [Arg Term]  -- ^ the arguments of the constructor (rhs)
+      -> Unify ()
+    unifyConstructorArgs a12 [] [] = return ()
+    unifyConstructorArgs a12 vs1 vs2 = do
+      let n = genericLength vs1
+      -- since c vs1 and c vs2 have same-shaped type
+      -- vs1 and vs2 must have same length
+      when (n /= genericLength vs2) $ __IMPOSSIBLE__
+      TelV tel12 _ <- telViewUpToHH n a12
+      -- if the length of tel12 is not n, then something is wrong
+      -- e.g. a12 is not a same-shaped pair of types
+      when (n /= size tel12) $ __IMPOSSIBLE__
+      unifyConArgs tel12 vs1 vs2
+
+    unifyConArgs ::
+         TelHH  -- ^ The telescope(s) of the constructor args    [length = n].
+      -> [Arg Term]  -- ^ the arguments of the constructor (lhs) [length = n].
+      -> [Arg Term]  -- ^ the arguments of the constructor (rhs) [length = n].
+      -> Unify ()
+    unifyConArgs _ (_ : _) [] = __IMPOSSIBLE__
+    unifyConArgs _ [] (_ : _) = __IMPOSSIBLE__
+    unifyConArgs _ []      [] = return ()
+    unifyConArgs EmptyTel _ _ = __IMPOSSIBLE__
+    unifyConArgs tel0@(ExtendTel a@(Arg _ rel bHH) tel) us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
+      reportSDoc "tc.lhs.unify" 15 $ sep
+        [ text "unifyConArgs"
+	-- , nest 2 $ parens (prettyTCM tel0)
+	, nest 2 $ prettyList $ map prettyTCM us0
+	, nest 2 $ prettyList $ map prettyTCM vs0
+        ]
+      -- Andreas, Ulf, 2011-09-08 (AIM XVI)
+      -- in case of dependent function type, we cannot postpone
+      -- unification of u and v, otherwise us or vs might be ill-typed
+      -- skip irrelevant parts
+      uHH <- if (rel == Irrelevant) then return $ Hom u else
+               ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
+{-             do
+               res <- listenResult $ unifyHH b u v
+               case res of
+                 Definitely -> return $ Hom u
+                 Possibly -> return $ Het u v
+-}
+      uHH <- traverse ureduce uHH
+      unifyConArgs (tel `absAppHH` uHH) us vs
+
+
+{-
+    unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
+    unifyArgs a = unifyArgsHH (Hom a)
+-}
+
+    -- | Used for arguments of a 'Def', not 'Con'.
     unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
@@ -252,14 +530,21 @@ unifyIndices flex a us vs = liftTCM $ do
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
-      where dependent (Pi b c) = 0 `freeIn` absBody c
+      where dependent (Pi b c) = 0 `relevantIn` absBody c
             dependent _        = False
 
+    -- | Check using conversion check.
+    recheckEqualities :: Unify ()
+    recheckEqualities = do
+      eqs <- takeEqualities
+      liftTCM $ checkEqualities eqs
+
+    -- | Check using unifier.
     recheckConstraints :: Unify ()
     recheckConstraints = mapM_ unifyEquality =<< takeEqualities
 
     unifyEquality :: Equality -> Unify ()
-    unifyEquality (Equal a u v) = unify a u v
+    unifyEquality (Equal aHH u v) = unifyHH aHH u v
 
     i |->> x = do
       i |-> x
@@ -276,7 +561,109 @@ unifyIndices flex a us vs = liftTCM $ do
         (SizeInf, SizeSuc v) -> unify sz u v
         _                    -> unifyAtom sz u v
 
-    -- TODO: eta for records here
+    -- | Possibly heterogeneous unification (but at same-shaped types).
+    --   In het. situations, we only search for a mismatch!
+    --
+    -- TODO: eta for records!
+    unifyHH :: TypeHH -> Term -> Term -> Unify ()
+    unifyHH aHH u v = do
+      u <- constructorForm =<< ureduce u
+      v <- constructorForm =<< ureduce v
+      reportSDoc "tc.lhs.unify" 15 $
+	sep [ text "unifyHH"
+	    , nest 2 $ parens $ prettyTCM u
+	    , nest 2 $ parens $ prettyTCM v
+	    , nest 2 $ text ":" <+> prettyTCM aHH
+	    ]
+      -- obtain the (== Size) function
+      isSizeName <- isSizeNameTest
+
+      -- check whether types have the same shape
+      sh <- shapeViewHH aHH
+      case sh of
+        ElseSh  -> typeMismatch aHH u v  -- not a type or not same types
+
+        DefSh d -> if isSizeName d then unifySizes u v
+                                   else unifyAtomHH aHH u v
+        _ -> unifyAtomHH aHH u v
+
+    unifyAtomHH :: TypeHH -> Term -> Term -> Unify ()
+    unifyAtomHH aHH u v = do
+      let homogeneous = isHom aHH
+          a = fromHom aHH  -- ^ use only if 'homogeneous' holds!
+      reportSDoc "tc.lhs.unify" 15 $
+	sep [ text "unifyAtom"
+	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
+            , nest 2 $ text "=?="
+	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
+	    , nest 2 $ text ":" <+> prettyTCM aHH
+	    ]
+      case (u, v) of
+        -- Ulf, 2011-06-19
+        -- We don't want to worry about levels here.
+        (Level l, v) -> do
+            u <- liftTCM $ reallyUnLevelView l
+            unifyAtomHH aHH u v
+        (u, Level l) -> do
+            v <- liftTCM $ reallyUnLevelView l
+            unifyAtomHH aHH u v
+	(Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
+	(Var i [], v) | homogeneous && flexible i -> i |->> (v, a)
+	(u, Var j []) | homogeneous && flexible j -> j |->> (u, a)
+	(Con c us, Con c' vs)
+          | c == c' -> do
+              r <- dataOrRecordTypeHH c aHH
+              case r of
+                Just a'HH -> unifyConstructorArgs a'HH us vs
+                Nothing   -> typeMismatch aHH u v
+          | otherwise -> constructorMismatchHH aHH u v
+        -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
+	(Def d us, Def d' vs)
+          | d == d' -> do
+              -- d must be a data, record or axiom
+              def <- getConstInfo d
+              let ok = case theDef def of
+                    Datatype{} -> True
+                    Record{}   -> True
+                    Axiom{}    -> True
+                    _          -> False
+              inj <- optInjectiveTypeConstructors <$> pragmaOptions
+              if inj && ok
+                then unifyArgs (defType def) us vs
+                else checkEqualityHH aHH u v
+          -- Andreas, 2011-05-30: if heads disagree, abort
+          -- but do not raise "mismatch" because otherwise type constructors
+          -- would be distinct
+          | otherwise -> typeError $ UnequalTerms CmpEq u v a
+        (Lit l1, Lit l2)
+          | l1 == l2  -> return ()
+          | otherwise -> constructorMismatchHH aHH u v
+
+        -- We can instantiate metas if the other term is inert (constructor application)
+        -- Andreas, 2011-09-13: test/succeed/IndexInference needs this feature.
+        (MetaV m us, v) | homogeneous -> do
+            ok <- liftTCM $ instMeta a m us v
+            reportSDoc "tc.lhs.unify" 40 $
+              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
+                   , nest 2 $ sep [ prettyTCM u, text ":=", prettyTCM =<< normalise u ]
+                   ]
+            if ok then unify a u v
+                  else addEquality a u v
+        (u, MetaV m vs) | homogeneous -> do
+            ok <- liftTCM $ instMeta a m vs u
+            reportSDoc "tc.lhs.unify" 40 $
+              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
+                   , nest 2 $ sep [ prettyTCM v, text ":=", prettyTCM =<< normalise v ]
+                   ]
+            if ok then unify a u v
+                  else addEquality a u v
+        -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
+        -- because there are definitions blocked by flexibles that need postponement
+	_  -> checkEqualityHH aHH u v
+
+    unify :: Type -> Term -> Term -> Unify ()
+    unify a = unifyHH (Hom a)
+{-
     unify :: Type -> Term -> Term -> Unify ()
     unify a u v = do
       u <- constructorForm =<< ureduce u
@@ -290,7 +677,12 @@ unifyIndices flex a us vs = liftTCM $ do
       isSize <- isSizeType a
       if isSize then unifySizes u v
                 else unifyAtom a u v
+-}
 
+    unifyAtom :: Type -> Term -> Term -> Unify ()
+    unifyAtom a = unifyAtomHH (Hom a)
+
+{-
     unifyAtom :: Type -> Term -> Term -> Unify ()
     unifyAtom a u v = do
       reportSDoc "tc.lhs.unify" 15 $
@@ -368,7 +760,7 @@ unifyIndices flex a us vs = liftTCM $ do
         -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
         -- because there are definitions blocked by flexibles that need postponement
 	_  -> addEquality a u v
-
+-}
     -- The contexts are transient when unifying, so we should just instantiate to
     -- constructor heads and generate fresh metas for the arguments. Beware of
     -- constructors that aren't fully applied.
@@ -402,9 +794,12 @@ unifyIndices flex a us vs = liftTCM $ do
     inertApplication :: Type -> Term -> TCM (Maybe (Term, Type, Args))
     inertApplication a v =
       case v of
+        Con c vs -> fmap (\ b -> (Con c [], b, vs)) <$> dataOrRecordType c a
+{-
         Con c vs -> do
           b <- dataOrRecordType c a
           return $ Just (Con c [], b, vs)
+-}
         Def d vs -> do
           def <- getConstInfo d
           let ans = Just (Def d [], defType def, vs)
@@ -422,6 +817,7 @@ unifyIndices flex a us vs = liftTCM $ do
 -- Precondition: The type has to correspond to an application of the
 -- given constructor.
 
+{-
 dataOrRecordType :: MonadTCM tcm
                  => QName -- ^ Constructor name.
                  -> Type -> tcm Type
@@ -434,3 +830,139 @@ dataOrRecordType c a = do
     Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
     _		           -> __IMPOSSIBLE__
   return (a' `apply` genericTake n args)
+-}
+dataOrRecordType :: MonadTCM tcm
+  => QName -- ^ Constructor name.
+  -> Type  -- ^ Type of constructor application (must end in data/record).
+  -> tcm (Maybe Type) -- ^ Type of constructor, applied to pars.
+dataOrRecordType c a = fmap snd <$> dataOrRecordType' c a
+
+dataOrRecordType' :: MonadTCM tcm
+  => QName -- ^ Constructor name.
+  -> Type  -- ^ Type of constructor application (must end in data/record).
+  -> tcm (Maybe (QName, -- ^ Name of data/record type.
+                 Type))  -- ^ Type of constructor, applied to pars.
+dataOrRecordType' c a = do
+  -- The telescope ends with a datatype or a record.
+  TelV _ (El _ (Def d args)) <- telView a
+  def <- theDef <$> getConstInfo d
+  r <- case def of
+    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConstInfo c
+    Record  {recPars  = n} -> Just . ((,) n) <$> getRecordConstructorType d
+    _		           -> return Nothing
+  return $ fmap (\ (n, a') -> (d, a' `apply` genericTake n args)) r
+
+-- | Heterogeneous situation.
+--   @a1@ and @a2@ need to end in same datatype/record.
+dataOrRecordTypeHH :: MonadTCM tcm
+  => QName      -- ^ Constructor name.
+  -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
+  -> tcm (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
+dataOrRecordTypeHH c (Hom a) = fmap Hom <$> dataOrRecordType c a
+dataOrRecordTypeHH c (Het a1 a2) = do
+  r1 <- dataOrRecordType' c a1
+  r2 <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
+  return $ case (r1, r2) of
+    (Just (d1, b1), Just (d2, b2)) | d1 == d2 -> Just $ Het b1 b2
+    _ -> Nothing
+
+{-
+dataOrRecordType' :: MonadTCM tcm
+  => QName -- ^ Constructor name.
+  -> Type  -- ^ Type of constructor application (must end in data/record).
+  -> tcm (QName, -- ^ Name of data/record type.
+          Type)  -- ^ Type of constructor, applied to pars.
+dataOrRecordType' c a = do
+  -- The telescope ends with a datatype or a record.
+  TelV _ (El _ (Def d args)) <- telView a
+  def <- theDef <$> getConstInfo d
+  (n, a')  <- case def of
+    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
+    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
+    _		           -> __IMPOSSIBLE__
+  return (d, a' `apply` genericTake n args)
+-}
+
+{-
+-- | Heterogeneous situation.
+--   @a1@ and @a2@ need to end in same datatype/record.
+dataOrRecordTypeHH :: MonadTCM tcm
+  => QName      -- ^ Constructor name.
+  -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
+  -> tcm TypeHH -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
+dataOrRecordTypeHH c (Hom a) = Hom <$> dataOrRecordType c a
+dataOrRecordTypeHH c (Het a1 a2) = do
+  (d1, b1) <- dataOrRecordType' c a1
+  (d2, b2) <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
+  when (d1 /= d2) $ __IMPOSSIBLE__    -- a1 and a2 have same shape!
+  return $ Het b1 b2
+-}
+
+-- | Views an expression (pair) as type shape.  Fails if not same shape.
+data ShapeView a
+  = PiSh (Arg a) (Abs a)
+  | FunSh (Arg a) a
+  | DefSh QName   -- ^ data/record
+  | VarSh Nat     -- ^ neutral type
+  | LitSh Literal -- ^ built-in type
+  | SortSh
+  | MetaSh        -- ^ some meta
+  | ElseSh        -- ^ not a type or not definitely same shape
+  deriving (Typeable, Data, Show, Eq, Ord, Functor)
+
+shapeView :: MonadTCM tcm => Type -> tcm (ShapeView Type)
+shapeView t = do
+  t <- reduce t  -- also instantiates meta in head position
+  return $ case unEl t of
+    Pi a (Abs x b) -> PiSh a (Abs x b)
+    Fun a b        -> FunSh a b
+    Def d vs       -> DefSh d
+    Var x vs       -> VarSh x
+    Lit l          -> LitSh l
+    Sort s         -> SortSh
+    MetaV m vs     -> MetaSh
+    _              -> ElseSh
+
+shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (ShapeView TypeHH)
+shapeViewHH (Hom a) = fmap Hom <$> shapeView a
+shapeViewHH (Het a1 a2) = do
+  sh1 <- shapeView a1
+  sh2 <- shapeView a2
+  case (sh1, sh2) of
+
+    (PiSh (Arg h1 r1 a1) (Abs x1 b1), PiSh (Arg h2 r2 a2) (Abs x2 b2))
+      | h1 == h2 && x1 == x2 ->
+      return $ PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs x1 (Het b1 b2))
+
+    (FunSh (Arg h1 r1 a1) b1, FunSh (Arg h2 r2 a2) b2)
+      | h1 == h2 ->
+      return $ FunSh (Arg h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
+
+    (DefSh d1, DefSh d2) | d1 == d2 ->
+      return $ DefSh d1
+
+    (VarSh x1, VarSh x2) | x1 == x2 ->
+      return $ VarSh x1
+
+    (LitSh l1, LitSh l2) | l1 == l2 ->
+      return $ LitSh l1
+
+    (SortSh, SortSh) ->
+      return $ SortSh
+
+    _ -> return $ ElseSh  -- not types, or metas, or not same shape
+
+
+
+-- | @telViewUpToHH n t@ takes off the first @n@ function types of @t@.
+-- Takes off all if $n < 0$.
+telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
+telViewUpToHH 0 t = return $ TelV EmptyTel t
+telViewUpToHH n t = do
+  sh <- shapeViewHH t
+  case sh of
+    PiSh a (Abs x b) -> absV a x   <$> telViewUpToHH (n-1) b
+    FunSh a b	     -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)
+    _		     -> return $ TelV EmptyTel t
+  where
+    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

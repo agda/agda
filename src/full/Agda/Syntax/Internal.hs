@@ -340,10 +340,19 @@ argName = argN . unEl
 -- * Views
 ---------------------------------------------------------------------------
 
+-- | Viewing an expression as a function type.
 data FunView
-	= FunV (Arg Type) Term	-- ^ second arg is the entire type ('Pi' or 'Fun').
-	| NoFunV Term
+  = FunV (Arg Type) Term -- ^ First arg is domain, second arg is the entire type ('Pi' or 'Fun').
+  | NoFunV Term          -- ^ Expression is not a function type.
 
+{- Andreas, 2011-09-12: DOES NOT WORK, NEED TO MAKE Type a Functor
+type FunView = FunV Term
+data FunV a
+  = FunV (Arg (Type a)) a -- ^ First arg is domain, second arg is the entire type ('Pi' or 'Fun').
+  | NoFunV a              -- ^ Expression is not a function type.
+-}
+
+-- | Computing the function type view (non-normalizing!),
 funView :: Term -> FunView
 funView t@(Pi  arg _) = FunV arg t
 funView t@(Fun arg _) = FunV arg t

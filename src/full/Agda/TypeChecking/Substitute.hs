@@ -1,9 +1,12 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
+    DeriveDataTypeable, DeriveFunctor #-}
 module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Arrow ((***))
+
+import Data.Generics (Typeable, Data)
 import Data.List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -635,7 +638,11 @@ raise = raiseFrom 0
 rename :: Raise t => (Nat -> Nat) -> t -> t
 rename = renameFrom 0
 
-data TelView = TelV Telescope Type
+data TelV a = TelV (Tele (Arg a)) a
+  deriving (Typeable, Data, Show, Eq, Ord, Functor)
+
+type TelView = TelV Type
+-- data TelView = TelV Telescope Type
 
 telView' :: Type -> TelView
 telView' t = case unEl t of

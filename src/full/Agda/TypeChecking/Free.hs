@@ -10,6 +10,7 @@ module Agda.TypeChecking.Free
     , rigidVars
     , freeIn
     , freeInIgnoringSorts
+    , relevantIn
     , Occurrence(..)
     , occurrence
     ) where
@@ -203,3 +204,6 @@ freeIn v t = v `Set.member` allVars (freeVars t)
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts v t =
   v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
+
+relevantIn :: Free a => Nat -> a -> Bool
+relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)

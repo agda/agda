@@ -1,6 +1,7 @@
 
 module Agda.TypeChecking.Monad.SizedTypes where
 
+import Control.Applicative
 import Control.Monad.Error
 
 import Agda.Interaction.Options
@@ -13,6 +14,11 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Monad
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
+
+isSizeType :: MonadTCM tcm => Type -> tcm Bool
+isSizeType v = isSizeTypeTest <*> pure v
+
+{- ORIGINAL CODE
 isSizeType :: MonadTCM tcm => Type -> tcm Bool
 isSizeType (El _ v) = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return False) $
@@ -22,6 +28,21 @@ isSizeType (El _ v) = liftTCM $
       return $ x == size
     _ -> return False
   `catchError` \_ -> return False
+-}
+
+isSizeNameTest :: MonadTCM tcm => tcm (QName -> Bool)
+isSizeNameTest = liftTCM $
+  ifM (not . optSizedTypes <$> pragmaOptions) (return $ const False) $ do
+    Def size [] <- primSize
+    return (size ==)
+  `catchError` \_ -> return $ const False
+
+isSizeTypeTest :: MonadTCM tcm => tcm (Type -> Bool)
+isSizeTypeTest = do
+  testName <- isSizeNameTest
+  let testType (El _ (Def d [])) = testName d
+      testType _                 = False
+  return testType
 
 sizeType :: MonadTCM tcm => tcm Type
 sizeType = El (mkType 0) <$> primSize

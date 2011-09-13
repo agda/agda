@@ -2,6 +2,7 @@
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap
 --   onto TCM and still be a MonadTCM (which isn't possible with ErrorT).
+--   Also, it does not require the silly Error instance for the err type.
 
 module Agda.TypeChecking.Monad.Exception where
 
@@ -9,6 +10,7 @@ import Control.Applicative
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Reader
+import Control.Monad.Writer
 import Agda.TypeChecking.Monad.Base
 
 newtype ExceptionT err m a = ExceptionT { runExceptionT :: m (Either err a) }
@@ -38,6 +40,11 @@ instance (Monad m, MonadException err m) => MonadException err (ReaderT r m) whe
   throwException = lift . throwException
   catchException m h = ReaderT $ \ r ->
     catchException (m `runReaderT` r) (\ err -> h err `runReaderT` r)
+
+instance (Monad m, MonadException err m, Monoid w) => MonadException err (WriterT w m) where
+  throwException = lift . throwException
+  catchException m h = WriterT $
+    catchException (runWriterT m) (\ err -> runWriterT $ h err)
 
 instance MonadTrans (ExceptionT err) where
   lift = ExceptionT . liftM Right
