@@ -33,6 +33,8 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
+import Agda.Interaction.Highlighting.Generate
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
@@ -352,7 +354,7 @@ checkExpr e t =
         unScope e                      = e
 
     e <- scopedExpr e
-    case e of
+    t <- case e of
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Arg h rel _) _ <- unEl t
             , not (hiddenLambdaOrHole h e)
@@ -731,6 +733,14 @@ checkExpr e t =
               -- Subcase: defined symbol or variable.
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args
+
+    -- TODO: Only when invoked from the Emacs mode, and some flag has
+    -- been turned on. Maybe not for every subexpression.
+    highlightAsTypeChecked e
+
+    -- reportSDoc "tc.term.expr.top" 5 $ text "Checked" <+> prettyTCM e <+> text "."
+
+    return t
 
 domainFree h rel x =
   A.DomainFull $ A.TypedBindings r $ Arg h rel $ A.TBind r [x] $ A.Underscore info

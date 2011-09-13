@@ -5,13 +5,16 @@
 module Agda.Interaction.Highlighting.Generate
   ( generateSyntaxInfo
   , generateErrorInfo
+  , highlightAsTypeChecked
   , Agda.Interaction.Highlighting.Generate.tests
   )
   where
 
 import Agda.Interaction.FindFile
+import Agda.Interaction.Highlighting.Emacs   hiding (tests)
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
+import Agda.Interaction.EmacsCommand
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad.Options (reportSLn)
@@ -40,6 +43,7 @@ import Data.Monoid
 import Data.Function
 import Agda.Utils.Generics
 import Agda.Utils.FileName
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -47,9 +51,31 @@ import Data.Sequence (Seq, (><))
 import Data.List ((\\), isPrefixOf)
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
+import System.Directory
+import System.IO
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
+
+-- | Highlights the given thing as having been type-checked.
+--
+-- TODO: Only for the current module, etc.
+
+highlightAsTypeChecked :: (P.HasRange r, MonadTCM tcm) => r -> tcm ()
+highlightAsTypeChecked x
+  | null file = return ()
+  | otherwise = liftIO $ do
+      dir    <- getTemporaryDirectory
+      (f, h) <- openTempFile dir "agda"
+      UTF8.hPutStr h $
+        showHighlightingInfo $ Just (file, __IMPOSSIBLE__)
+      hClose h
+      putResponse $
+        L [A "agda2-highlight-load", A (show f), Q (A "keep")]
+  where
+  file = compress $
+         several (rToR $ P.getRange x) $
+         mempty { otherAspects = [TypeChecked] }
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and an optional string. The error range is

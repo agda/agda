@@ -293,6 +293,12 @@ buffers until you have restarted Emacs."
   "The face used for incomplete patterns. (Currently unused.)"
   :group 'agda2-highlight)
 
+(defface agda2-highlight-typechecked-face
+  '((t (:background "pale green"
+        :foreground "black")))
+  "The face used for code which has just been type checked."
+  :group 'agda2-highlight)
+
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (string                 . agda2-highlight-string-face)
@@ -314,7 +320,8 @@ buffers until you have restarted Emacs."
     (error                  . agda2-highlight-error-face)
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
-    (incompletepattern      . agda2-highlight-incomplete-pattern-face))
+    (incompletepattern      . agda2-highlight-incomplete-pattern-face)
+    (typechecked            . agda2-highlight-typechecked-face))
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
@@ -339,6 +346,8 @@ The aspects currently recognised are the following:
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
+`typechecked'            Used for incremental highlighting of code as
+                           it is being type-checked.
 `unsolvedmeta'           Unsolved meta variables.
 
 The following aspect is ignored:

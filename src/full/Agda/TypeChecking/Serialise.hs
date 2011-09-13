@@ -855,6 +855,7 @@ instance EmbPrj HP.OtherAspect where
   icode HP.UnsolvedMeta       = icode0 2
   icode HP.TerminationProblem = icode0 3
   icode HP.IncompletePattern  = icode0 4
+  icode HP.TypeChecked        = icode0 5
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
@@ -862,6 +863,7 @@ instance EmbPrj HP.OtherAspect where
     valu [2] = valu0 HP.UnsolvedMeta
     valu [3] = valu0 HP.TerminationProblem
     valu [4] = valu0 HP.IncompletePattern
+    valu [5] = valu0 HP.TypeChecked
     valu _   = malformed
 
 instance EmbPrj HP.MetaInfo where
