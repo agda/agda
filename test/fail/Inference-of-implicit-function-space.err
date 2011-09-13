@@ -1,4 +1,6 @@
-Inference-of-implicit-function-space.agda:18,32-33
-A ⇔ A should be a function type, but it isn't
-when checking that {x = x} are valid arguments to a function of
-type A ⇔ A
+
+Unsolved metas at the following locations:
+  Inference-of-implicit-function-space.agda:18,27-40
+  Inference-of-implicit-function-space.agda:18,22-41
+  Inference-of-implicit-function-space.agda:18,32-33
+  Inference-of-implicit-function-space.agda:18,32-40

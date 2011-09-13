@@ -154,7 +154,7 @@ newIFSMetaCtx t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  addConstraint $ FindInScope x
+  solveConstraint_ $ FindInScope x
   return (MetaV x vs)
 
 -- | Create a new metavariable, possibly η-expanding in the process.

@@ -397,7 +397,7 @@ cmd_metas = Interaction Dependent $ do -- CL.showMetas []
   hms <- B.typesOfHiddenMetas B.Normalised
   if not $ null ims && null hms
     then do
-      di <- mapM (\i -> B.withInteractionId (B.outputFormId i) (showATop i)) ims
+      di <- mapM (\i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)) ims
       dh <- mapM showA' hms
       display_info "*All Goals*" $ unlines $ di ++ dh
       return Nothing
@@ -414,7 +414,7 @@ cmd_metas = Interaction Dependent $ do -- CL.showMetas []
     metaId _ = __IMPOSSIBLE__
     showA' m = do
       r <- getMetaRange (metaId m)
-      d <- B.withMetaId (B.outputFormId m) (showATop m)
+      d <- B.withMetaId (B.outputFormId $ B.OutputForm 0 m) (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
 -- | If the range is 'noRange', then the string comes from the

@@ -50,14 +50,26 @@ catchConstraint c v = liftTCM $
 
 addConstraint :: MonadTCM tcm => Constraint -> tcm ()
 addConstraint c = do
-    reportSDoc "tc.constr.add" 20 $ text "adding constraint" <+> prettyTCM c
+    pids <- asks envActiveProblems
+    reportSDoc "tc.constr.add" 20 $ hsep
+      [ text "adding constraint"
+      , text (show pids)
+      , prettyTCM c ]
     c' <- simpl =<< instantiateFull c
-    when (c /= c') $ reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
-    addConstraint' c'
+    if (c /= c')
+      then do
+        reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
+        solveConstraint_ c'
+      else addConstraint' c'
   where
     simpl :: MonadTCM tcm => Constraint -> tcm Constraint
     simpl c = do
       n <- genericLength <$> getContext
+      let isLvl LevelCmp{} = True
+          isLvl _          = False
+      cs <- getAllConstraints
+      let lvls = List.filter (isLvl . clValue . theConstraint) cs
+      when (not $ List.null lvls) $ reportSDoc "tc.constr.add" 40 $ text "  simplifying using" <+> prettyTCM lvls
       simplifyLevelConstraint n c <$> getAllConstraints
 
 -- | Don't allow the argument to produce any constraints.
@@ -66,7 +78,7 @@ noConstraints problem = do
   pid <- fresh
   x  <- solvingProblem pid problem
   cs <- getConstraintsForProblem pid
-  unless (List.null cs) $ typeError $ UnsolvedConstraints cs 
+  unless (List.null cs) $ typeError $ UnsolvedConstraints cs
   return x
 
 ifNoConstraints :: MonadTCM tcm => tcm a -> (a -> tcm b) -> (ProblemId -> a -> tcm b) -> tcm b
@@ -121,7 +133,8 @@ solveConstraint :: MonadTCM tcm => Constraint -> tcm ()
 solveConstraint c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
-      reportSDoc "tc.constr.solve" 20 $ prettyTCM c
+      pids <- asks envActiveProblems
+      reportSDoc "tc.constr.solve" 20 $ text (show pids) <+> prettyTCM c
       solveConstraint_ c
 
 solveConstraint_ (ValueCmp cmp a u v)       = compareTerm cmp a u v
@@ -215,7 +228,7 @@ solveConstraint_ (FindInScope m)      =
         checkCandidateForMeta :: (MonadTCM tcm) => MetaId -> Type -> Term -> Type -> tcm Bool
         checkCandidateForMeta m t term t' =
           liftTCM $ flip catchError (\err -> return False) $ do
-            reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta t: " ++ show t ++ "; t':" ++ show t' ++ "; term: " ++ show term ++ "."
+            reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
             localState $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)

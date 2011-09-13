@@ -77,14 +77,16 @@ equalType = compareType CmpEq
 --
 compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
-compareTerm cmp a u v = do
+compareTerm cmp a u v = liftTCM $ do
   (u, v) <- instantiate (u, v)
   reportSDoc "tc.conv.term" 10 $ sep [ text "compareTerm"
                                      , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
                                      , nest 2 $ text ":" <+> prettyTCM a ]
   let fallback = compareTerm' cmp a u v
   case (u, v) of
-    (u@(MetaV x us), v@(MetaV y vs)) -> solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+    (u@(MetaV x us), v@(MetaV y vs))
+      | x /= y    -> solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+      | otherwise -> fallback
       where
         (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
                          | otherwise = (assign y vs u, assign x us v)
@@ -96,8 +98,11 @@ compareTerm cmp a u v = do
       reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
                                          , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
-    orelse = whenConstraints
+    m `orelse` h = m `catchError_` \err -> case errError err of
+                    PatternErr s -> put s >> h
+                    _            -> h
 
+compareTerm' :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
 compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $ do
   a' <- reduce a

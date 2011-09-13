@@ -11,9 +11,8 @@ import Agda.Utils.Size
 simplifyLevelConstraint :: Integer -> Constraint -> Constraints -> Constraint
 simplifyLevelConstraint n new old =
   case inequalities new of
-    [a :=< b] | elem (b :=< a) leqs -> LevelCmp CmpEq (Max [a']) (Max [b'])
-      where
-        (a', b') = raiseFrom (-n) n (a, b)
+    [a :=< b] | elem (b' :=< a') leqs -> LevelCmp CmpEq (Max [a]) (Max [b])
+      where (a', b') = raise (-n) (a, b)
     _ -> new
   where
     leqs = concatMap (inequalities . unClosure) old

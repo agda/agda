@@ -93,8 +93,10 @@ instance MentionsMeta Constraint where
     TelCmp a b _ u v    -> mm ((a, b), (u, v))
     SortCmp _ a b       -> mm (a, b)
     Guarded c _         -> mm c
-    UnBlock _           -> True   -- shouldn't get here, but if we do we'd better wake this one
-    FindInScope m       -> m == x
+    UnBlock _           -> True   -- this might be a postponed typechecking
+                                  -- problem and we don't have a handle on
+                                  -- what metas it depends on
+    FindInScope m       -> True   -- this needs to be woken up for any meta
     IsEmpty t           -> mm t
     where
       mm v = mentionsMeta x v

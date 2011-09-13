@@ -12,6 +12,7 @@ import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Closure
+import Agda.TypeChecking.Monad.Options
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
@@ -28,6 +29,7 @@ currentProblem = asks $ head' . envActiveProblems
 stealConstraints :: MonadTCM tcm => ProblemId -> tcm ()
 stealConstraints pid = do
   current <- currentProblem
+  reportSLn "tc.constr.steal" 50 $ "problem " ++ show current ++ " is stealing problem " ++ show pid ++ "'s constraints!"
   let rename pc@(PConstr pid' c) | pid' == pid = PConstr current c
                                  | otherwise   = pc
   -- We should never steal from an active problem.
@@ -36,10 +38,16 @@ stealConstraints pid = do
                    , stSleepingConstraints = List.map rename $ stSleepingConstraints s }
 
 solvingProblem :: MonadTCM tcm => ProblemId -> tcm a -> tcm a
-solvingProblem pid m = do
+solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
-  whenM (isProblemSolved pid) $ wakeConstraints ((pid ==) . constraintProblem)
+  ifM (isProblemSolved pid) (do
+      reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
+      wakeConstraints (blockedOn pid . clValue . theConstraint)
+    ) (reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was not solved.")
   return x
+  where
+    blockedOn pid (Guarded _ pid') = pid == pid'
+    blockedOn _ _ = False
 
 isProblemSolved :: MonadTCM tcm => ProblemId -> tcm Bool
 isProblemSolved pid =
@@ -54,11 +62,14 @@ getAwakeConstraints :: MonadTCM tcm => tcm Constraints
 getAwakeConstraints = gets stAwakeConstraints
 
 wakeConstraints :: MonadTCM tcm => (ProblemConstraint-> Bool) -> tcm ()
-wakeConstraints wake = modify $ \s ->
-  let (wakeup, sleepin) = List.partition wake (stSleepingConstraints s) in
-  s { stSleepingConstraints = sleepin
-    , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
-    }
+wakeConstraints wake = do
+  sleepers <- gets stSleepingConstraints
+  reportSLn "tc.constr.wake" 50 $ "considering waking sleepers " ++ show (List.map constraintProblem sleepers)
+  modify $ \s ->
+    let (wakeup, sleepin) = List.partition wake sleepers in
+    s { stSleepingConstraints = sleepin
+      , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
+      }
 
 takeAwakeConstraint :: MonadTCM tcm => tcm (Maybe ProblemConstraint)
 takeAwakeConstraint = do
@@ -76,7 +87,9 @@ withConstraint :: MonadTCM tcm => (Constraint -> tcm a) -> ProblemConstraint -> 
 withConstraint f (PConstr pid c) = do
   -- We should preserve the problem stack
   pids <- asks envActiveProblems
-  enterClosure c $ \c -> local (\e -> e { envActiveProblems = pid : pids }) (f c)
+  enterClosure c $ \c ->
+    local (\e -> e { envActiveProblems = pids }) $
+    solvingProblem pid (f c)
 
 buildProblemConstraint :: MonadTCM tcm => ProblemId -> Constraint -> tcm ProblemConstraint
 buildProblemConstraint pid c = PConstr pid <$> buildClosure c

@@ -541,11 +541,11 @@ checkExpr e t =
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
 	      es   <- orderFields r meta xs fs
 	      let tel = ftel `apply` vs
-              blockTerm t $ do
-                args <- checkArguments_ ExpandLast (getRange e)
-                          (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
-                          tel
-	        return $ Con con args
+              args <- checkArguments_ ExpandLast (getRange e)
+                        (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
+                        tel
+              -- Don't need to block here!
+	      return $ Con con args
             MetaV _ _ -> do
               let fields = map fst fs
               rs <- findPossibleRecords fields
@@ -786,12 +786,11 @@ checkConstructorApplication org t c args
                           , text "ctype  =" <+> prettyTCM ctype ] ]
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-        blockTerm t $ checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' -> do
+        checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
-          leqType_ t' t
-          return (Con c us)
+          blockTerm t $ Con c us <$ leqType_ t' t
       _ -> fallback
   where
     fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
@@ -846,7 +845,7 @@ checkHeadApplication e t hd args = do
         [ text "checkHeadApplication inferred" <+>
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
-      blockTerm t $ checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 -> do
+      checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
@@ -864,10 +863,9 @@ checkHeadApplication e t hd args = do
           [ text "checking" <+>
             prettyTCM fType <+> text "?<=" <+> prettyTCM eType
           ]
-        workOnTypes $ do
+        blockTerm t $ f vs <$ workOnTypes (do
           addCtxTel eTel $ leqType fType eType
-          compareTel t t1 CmpLeq eTel fTel
-        return (f vs)
+          compareTel t t1 CmpLeq eTel fTel)
 
     (A.Def c) | Just c == (nameOfSharp <$> kit) -> do
       -- TODO: Handle coinductive constructors under lets.
@@ -928,8 +926,8 @@ checkHeadApplication e t hd args = do
   where
   defaultResult = do
     (f, t0) <- inferHead hd
-    blockTerm t $ checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 ->
-      f vs <$ leqType_ t1 t
+    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 ->
+      blockTerm t $ f vs <$ leqType_ t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
 

@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances,
-             UndecidableInstances
+             UndecidableInstances, DeriveFunctor
   #-}
 
 module Agda.Interaction.BasicOps where
@@ -196,58 +196,51 @@ rewrite HeadNormal   t = {- etaContract =<< -} reduce t
 rewrite Normalised   t = {- etaContract =<< -} normalise t
 
 
-data OutputForm a b
+data OutputForm a b = OutputForm ProblemId (OutputConstraint a b)
+  deriving (Functor)
+
+data OutputConstraint a b
       = OfType b a | CmpInType Comparison a b b
                    | CmpElim [Polarity] a [b] [b]
       | JustType b | CmpTypes Comparison b b
                    | CmpLevels Comparison b b
                    | CmpTeles Comparison b b
       | JustSort b | CmpSorts Comparison b b
-      | Guard (OutputForm a b) ProblemId
+      | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a
       | IsEmptyType a | FindInScopeOF b
+  deriving (Functor)
 
--- | A subset of 'OutputForm'.
+-- | A subset of 'OutputConstraint'.
 
-data OutputForm' a b = OfType' { ofName :: b
-                               , ofExpr :: a
-                               }
+data OutputConstraint' a b = OfType' { ofName :: b
+                                     , ofExpr :: a
+                                     }
 
 outputFormId :: OutputForm a b -> b
-outputFormId o = case o of
-  OfType i _           -> i
-  CmpInType _ _ i _    -> i
-  CmpElim _ _ (i:_) _  -> i
-  CmpElim _ _ [] _     -> __IMPOSSIBLE__
-  JustType i           -> i
-  CmpLevels _ i _      -> i
-  CmpTypes _ i _       -> i
-  CmpTeles _ i _       -> i
-  JustSort i           -> i
-  CmpSorts _ i _       -> i
-  Guard o _            -> outputFormId o
-  Assign i _           -> i
-  TypedAssign i _ _    -> i
-  IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
-  FindInScopeOF _      -> __IMPOSSIBLE__
+outputFormId (OutputForm _ o) = out o
+  where
+    out o = case o of
+      OfType i _           -> i
+      CmpInType _ _ i _    -> i
+      CmpElim _ _ (i:_) _  -> i
+      CmpElim _ _ [] _     -> __IMPOSSIBLE__
+      JustType i           -> i
+      CmpLevels _ i _      -> i
+      CmpTypes _ i _       -> i
+      CmpTeles _ i _       -> i
+      JustSort i           -> i
+      CmpSorts _ i _       -> i
+      Guard o _            -> out o
+      Assign i _           -> i
+      TypedAssign i _ _    -> i
+      IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+      FindInScopeOF _      -> __IMPOSSIBLE__
 
-instance Functor (OutputForm a) where
-    fmap f (OfType e t)           = OfType (f e) t
-    fmap f (JustType e)           = JustType (f e)
-    fmap f (JustSort e)           = JustSort (f e)
-    fmap f (CmpInType cmp t e e') = CmpInType cmp t (f e) (f e')
-    fmap f (CmpElim cmp t e e')   = CmpElim cmp t (map f e) (map f e')
-    fmap f (CmpTypes cmp e e')    = CmpTypes cmp (f e) (f e')
-    fmap f (CmpLevels cmp e e')   = CmpLevels cmp (f e) (f e')
-    fmap f (CmpTeles cmp e e')    = CmpTeles cmp (f e) (f e')
-    fmap f (CmpSorts cmp e e')    = CmpSorts cmp (f e) (f e')
-    fmap f (Guard o pid)          = Guard (fmap f o) pid
-    fmap f (Assign m e)           = Assign (f m) e
-    fmap f (TypedAssign m e a)    = TypedAssign (f m) e a
-    fmap f (IsEmptyType a)        = IsEmptyType a
-    fmap f (FindInScopeOF s)      = FindInScopeOF $ f s
+instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
+  reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm pid <$> reify c)
 
-instance Reify Constraint (OutputForm Expr Expr) where
+instance Reify Constraint (OutputConstraint Expr Expr) where
     reify (ValueCmp cmp t u v)   = CmpInType cmp <$> reify t <*> reify u <*> reify v
     reify (ElimCmp cmp t v es1 es2) =
       CmpElim cmp <$> reify t <*> reify es1
@@ -284,6 +277,10 @@ showComparison CmpEq  = " = "
 showComparison CmpLeq = " =< "
 
 instance (Show a,Show b) => Show (OutputForm a b) where
+  show (OutputForm 0   c) = show c
+  show (OutputForm pid c) = "[" ++ show pid ++ "] " ++ show c
+
+instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (OfType e t)           = show e ++ " : " ++ show t
     show (JustType e)           = "Type " ++ show e
     show (JustSort e)           = "Sort " ++ show e
@@ -293,7 +290,7 @@ instance (Show a,Show b) => Show (OutputForm a b) where
     show (CmpLevels cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpTeles  cmp t t')   = show t ++ showComparison cmp ++ show t'
     show (CmpSorts cmp s s')    = show s ++ showComparison cmp ++ show s'
-    show (Guard o os)           = show o ++ "  if  " ++ show os
+    show (Guard o pid)          = show o ++ " [blocked by problem " ++ show pid ++ "]"
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
@@ -301,6 +298,10 @@ instance (Show a,Show b) => Show (OutputForm a b) where
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
+    toConcrete (OutputForm pid c) = OutputForm pid <$> toConcrete c
+
+instance (ToConcrete a c, ToConcrete b d) =>
+         ToConcrete (OutputConstraint a b) (OutputConstraint c d) where
     toConcrete (OfType e t) = OfType <$> toConcrete e <*> toConcreteCtx TopCtx t
     toConcrete (JustType e) = JustType <$> toConcrete e
     toConcrete (JustSort e) = JustSort <$> toConcrete e
@@ -317,17 +318,17 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (CmpSorts cmp e e') = CmpSorts cmp <$> toConcreteCtx ArgumentCtx e
                                                   <*> toConcreteCtx ArgumentCtx e'
     toConcrete (Guard o pid) = Guard <$> toConcrete o <*> pure pid
-    toConcrete (Assign m e) = Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
+    toConcrete (Assign m e) = noTakenNames $ Assign <$> toConcrete m <*> toConcreteCtx TopCtx e
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
     toConcrete (FindInScopeOF s) = FindInScopeOF <$> toConcrete s
 
-instance (Pretty a, Pretty b) => Pretty (OutputForm' a b) where
+instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t
 
 instance (ToConcrete a c, ToConcrete b d) =>
-            ToConcrete (OutputForm' a b) (OutputForm' c d) where
+            ToConcrete (OutputConstraint' a b) (OutputConstraint' c d) where
   toConcrete (OfType' e t) = OfType' <$> toConcrete e <*> toConcreteCtx TopCtx t
 
 --ToDo: Move somewhere else
@@ -336,13 +337,16 @@ instance ToConcrete InteractionId C.Expr where
 instance ToConcrete MetaId C.Expr where
     toConcrete (MetaId i) = return $ C.Underscore noRange (Just i)
 
-judgToOutputForm :: Judgement a c -> OutputForm a c
+judgToOutputForm :: Judgement a c -> OutputConstraint a c
 judgToOutputForm (HasType e t) = OfType e t
 judgToOutputForm (IsSort  s t) = JustSort s
 
 getConstraints :: TCM [OutputForm C.Expr C.Expr]
 getConstraints = liftTCM $ do
-    cs <- mapM (withConstraint (abstractToConcrete_ <.> reify)) =<< M.getAllConstraints
+    cs <- M.getAllConstraints
+    cs <- forM cs $ \c -> do
+            cl <- reify c
+            enterClosure cl abstractToConcrete_
     ss <- mapM toOutputForm =<< getSolvedInteractionPoints
     return $ ss ++ cs
   where
@@ -350,7 +354,7 @@ getConstraints = liftTCM $ do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
         let m = QuestionMark $ MetaInfo noRange emptyScopeInfo (Just $ fromIntegral ii)
-        abstractToConcrete_ $ Assign m e
+        abstractToConcrete_ $ OutputForm 0 $ Assign m e
 
 getSolvedInteractionPoints :: TCM [(InteractionId, MetaId, Expr)]
 getSolvedInteractionPoints = do
@@ -373,7 +377,7 @@ getSolvedInteractionPoints = do
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
-typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputForm Expr MetaId)
+typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr MetaId)
 typeOfMetaMI norm mi =
      do mv <- lookupMeta mi
 	withMetaInfo (getMetaInfo mv) $
@@ -394,17 +398,17 @@ typeOfMetaMI norm mi =
     rewriteJudg mv (IsSort i t) = return $ JustSort i
 
 
-typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputForm Expr InteractionId)
+typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputConstraint Expr InteractionId)
 typeOfMeta norm ii =
      do mi <- lookupInteractionId ii
         out <- typeOfMetaMI norm mi
         return $ fmap (\_ -> ii) out
 
-typesOfVisibleMetas :: Rewrite -> TCM [OutputForm Expr InteractionId]
+typesOfVisibleMetas :: Rewrite -> TCM [OutputConstraint Expr InteractionId]
 typesOfVisibleMetas norm =
   liftTCM $ mapM (typeOfMeta norm) =<< getInteractionPoints
 
-typesOfHiddenMetas :: Rewrite -> TCM [OutputForm Expr MetaId]
+typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr MetaId]
 typesOfHiddenMetas norm = liftTCM $ do
   is    <- getInteractionMetas
   store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore
@@ -416,7 +420,7 @@ typesOfHiddenMetas norm = liftTCM $ do
 
 -- Gives a list of names and corresponding types.
 
-contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputForm' Expr Name]
+contextOfMeta :: InteractionId -> Rewrite -> TCM [OutputConstraint' Expr Name]
 contextOfMeta ii norm = do
   info <- getMetaInfo <$> (lookupMeta =<< lookupInteractionId ii)
   let localVars = map ctxEntry . envContext . clEnv $ info

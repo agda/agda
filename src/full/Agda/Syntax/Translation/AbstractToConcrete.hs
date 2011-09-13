@@ -19,6 +19,7 @@ module Agda.Syntax.Translation.AbstractToConcrete
     , makeEnv
     , abstractToConcrete
     , AbsToCon, TypeAndDef, DontTouchMe, Env
+    , noTakenNames
     ) where
 
 import Control.Applicative
@@ -82,6 +83,9 @@ withPrecedence p = local $ \e ->
 
 withScope :: ScopeInfo -> AbsToCon a -> AbsToCon a
 withScope scope = local $ \e -> e { currentScope = scope }
+
+noTakenNames :: AbsToCon a -> AbsToCon a
+noTakenNames = local $ \e -> e { takenNames = Set.empty }
 
 -- The Monad --------------------------------------------------------------
 
