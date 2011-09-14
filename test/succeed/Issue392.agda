@@ -33,7 +33,7 @@ record R2 : Set2 where
     field
       Carrier       : Set c
       _≈_           : Rel Carrier ℓ
-      isEquivalence : IsEquivalence _≈_
+      .isEquivalence : IsEquivalence _≈_
 
     open IsEquivalence isEquivalence public
 -}

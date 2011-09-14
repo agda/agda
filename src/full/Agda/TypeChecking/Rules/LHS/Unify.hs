@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances,
+{-# LANGUAGE CPP, MultiParamTypeClasses, FlexibleInstances, TupleSections,
     GeneralizedNewtypeDeriving,
     DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
@@ -381,19 +381,12 @@ instance SubstHH a b => SubstHH (Arg a) (Arg b) where
 instance SubstHH a b => SubstHH (Abs a) (Abs b) where
   substUnderHH n u = fmap $ substUnderHH (n+1) u
 
+instance (SubstHH a a', SubstHH b b') => SubstHH (a,b) (a',b') where
+    substUnderHH n u (x,y) = (substUnderHH n u x, substUnderHH n u y)
+
 instance SubstHH a b => SubstHH (Tele a) (Tele b) where
-  substUnderHH n u = fmap $ substUnderHH n u
-
-{-
-instance SubstHH a => SubstHH (Arg a) (HomHet (Argwhere
-  substUnderHH n u (Arg h r t) = fmap (Arg h r) $ substUnderHH n u t
-
-instance SubstHH a => SubstHH (Abs a) where
-  substUnderHH n u (Abs x t) = fmap (Abs x) $ substUnderHH (n+1) u t
-
-instance SubstHH a => SubstHH (Tele a) where
-  substUnderHH n u EmptyTel = fmap $ substUnderHH n u
--}
+  substUnderHH n u  EmptyTel         = EmptyTel
+  substUnderHH n u (ExtendTel t tel) = uncurry ExtendTel $ substUnderHH n u (t, tel)
 
 -- | Unify indices.
 unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm Substitution
@@ -457,6 +450,13 @@ unifyIndices flex a us vs = liftTCM $ do
       -> Unify ()
     unifyConstructorArgs a12 [] [] = return ()
     unifyConstructorArgs a12 vs1 vs2 = do
+      reportSDoc "tc.lhs.unify" 15 $ sep
+        [ text "unifyConstructorArgs"
+	-- , nest 2 $ parens (prettyTCM tel0)
+	, nest 2 $ prettyList $ map prettyTCM vs1
+	, nest 2 $ prettyList $ map prettyTCM vs2
+        , nest 2 $ text "constructor type:" <+> prettyTCM a12
+        ]
       let n = genericLength vs1
       -- since c vs1 and c vs2 have same-shaped type
       -- vs1 and vs2 must have same length
@@ -482,6 +482,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	-- , nest 2 $ parens (prettyTCM tel0)
 	, nest 2 $ prettyList $ map prettyTCM us0
 	, nest 2 $ prettyList $ map prettyTCM vs0
+	, nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text "..."
         ]
       -- Andreas, Ulf, 2011-09-08 (AIM XVI)
       -- in case of dependent function type, we cannot postpone
@@ -579,7 +580,7 @@ unifyIndices flex a us vs = liftTCM $ do
       isSizeName <- isSizeNameTest
 
       -- check whether types have the same shape
-      sh <- shapeViewHH aHH
+      (aHH, sh) <- shapeViewHH aHH
       case sh of
         ElseSh  -> typeMismatch aHH u v  -- not a type or not same types
 
@@ -910,10 +911,11 @@ data ShapeView a
   | ElseSh        -- ^ not a type or not definitely same shape
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
-shapeView :: MonadTCM tcm => Type -> tcm (ShapeView Type)
+-- | Return the reduced type and its shape.
+shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
 shapeView t = do
   t <- reduce t  -- also instantiates meta in head position
-  return $ case unEl t of
+  return . (t,) $ case unEl t of
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Fun a b        -> FunSh a b
     Def d vs       -> DefSh d
@@ -923,35 +925,29 @@ shapeView t = do
     MetaV m vs     -> MetaSh
     _              -> ElseSh
 
-shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (ShapeView TypeHH)
-shapeViewHH (Hom a) = fmap Hom <$> shapeView a
+-- | Return the reduced type(s) and the common shape.
+shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
+shapeViewHH (Hom a) = do
+  (a, sh) <- shapeView a
+  return (Hom a, fmap Hom sh)
 shapeViewHH (Het a1 a2) = do
-  sh1 <- shapeView a1
-  sh2 <- shapeView a2
-  case (sh1, sh2) of
+  (a1, sh1) <- shapeView a1
+  (a2, sh2) <- shapeView a2
+  return . (Het a1 a2,) $ case (sh1, sh2) of
 
     (PiSh (Arg h1 r1 a1) (Abs x1 b1), PiSh (Arg h2 r2 a2) (Abs x2 b2))
       | h1 == h2 && x1 == x2 ->
-      return $ PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs x1 (Het b1 b2))
+      PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs x1 (Het b1 b2))
 
     (FunSh (Arg h1 r1 a1) b1, FunSh (Arg h2 r2 a2) b2)
       | h1 == h2 ->
-      return $ FunSh (Arg h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
+      FunSh (Arg h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
 
-    (DefSh d1, DefSh d2) | d1 == d2 ->
-      return $ DefSh d1
-
-    (VarSh x1, VarSh x2) | x1 == x2 ->
-      return $ VarSh x1
-
-    (LitSh l1, LitSh l2) | l1 == l2 ->
-      return $ LitSh l1
-
-    (SortSh, SortSh) ->
-      return $ SortSh
-
-    _ -> return $ ElseSh  -- not types, or metas, or not same shape
-
+    (DefSh d1, DefSh d2) | d1 == d2 -> DefSh d1
+    (VarSh x1, VarSh x2) | x1 == x2 -> VarSh x1
+    (LitSh l1, LitSh l2) | l1 == l2 -> LitSh l1
+    (SortSh, SortSh)                -> SortSh
+    _ -> ElseSh  -- not types, or metas, or not same shape
 
 
 -- | @telViewUpToHH n t@ takes off the first @n@ function types of @t@.
@@ -959,7 +955,7 @@ shapeViewHH (Het a1 a2) = do
 telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
 telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
-  sh <- shapeViewHH t
+  (t, sh) <- shapeViewHH t
   case sh of
     PiSh a (Abs x b) -> absV a x   <$> telViewUpToHH (n-1) b
     FunSh a b	     -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)
