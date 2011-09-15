@@ -250,11 +250,13 @@ prune m' vs xs = liftTCM $ do
   killArgs kills m'
 
 -- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
+--   Actually we can only prune if a bad variable is in the head. See issue 458.
 hasBadRigid :: [Nat] -> Term -> Bool
-hasBadRigid xs v =
-  not $ Set.isSubsetOf
-    (rigidVars $ freeVars v)
-    (Set.fromList xs)
+hasBadRigid xs (Var v _) = notElem v xs
+hasBadRigid xs _         = False
+  -- not $ Set.isSubsetOf
+  --   (rigidVars $ freeVars v)
+  --   (Set.fromList xs)
 
 data PruneResult
   = NothingToPrune   -- ^ the kill list is empty or only @False@s
