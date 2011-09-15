@@ -267,10 +267,7 @@ telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
 -- Definitions
 --
 
--- | A clause is a list of patterns and the clause body should @Bind@ or
--- @NoBind@ in the order the variables occur in the patterns. The @NoBind@
--- constructor is an optimisation to avoid substituting for variables that
--- aren't used. (Note: This optimisation has been disabled.)
+-- | A clause is a list of patterns and the clause body should @Bind@.
 --
 --  The telescope contains the types of the pattern variables and the
 --  permutation is how to get from the order the variables occur in
@@ -289,9 +286,7 @@ data Clause = Clause
   deriving (Typeable, Data, Show)
 data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
-		| NoBind ClauseBody
-		| NoBody    -- ^ for absurd clauses.  A @NoBody@ is never
-                            -- preceded by any @Bind@ or @NoBind@.
+		| NoBody    -- ^ for absurd clauses.
   deriving (Typeable, Data, Show)
 
 instance HasRange Clause where

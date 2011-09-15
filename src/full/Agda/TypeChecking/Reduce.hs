@@ -368,15 +368,12 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
         hasBody (Body _)	 = True
         hasBody NoBody		 = False
         hasBody (Bind (Abs _ b)) = hasBody b
-        hasBody (NoBind b)	 = hasBody b
 
         app []		 (Body v')	     = v'
         app (arg : args) (Bind (Abs _ body)) = {-# SCC "instRHS" #-} app args $ subst arg body -- CBN
-        app (_   : args) (NoBind body)	     = app args body
         app  _		  NoBody	     = __IMPOSSIBLE__
         app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
         app []		 (Bind _)	     = __IMPOSSIBLE__
-        app []		 (NoBind _)	     = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -463,7 +460,6 @@ instance Normalise LevelAtom where
 instance Normalise ClauseBody where
     normalise (Body   t) = Body   <$> normalise t
     normalise (Bind   b) = Bind   <$> normalise b
-    normalise (NoBind b) = NoBind <$> normalise b
     normalise  NoBody	 = return NoBody
 
 instance Normalise t => Normalise (Abs t) where
@@ -599,7 +595,6 @@ instance InstantiateFull Pattern where
 instance InstantiateFull ClauseBody where
     instantiateFull (Body   t) = Body   <$> instantiateFull t
     instantiateFull (Bind   b) = Bind   <$> instantiateFull b
-    instantiateFull (NoBind b) = NoBind <$> instantiateFull b
     instantiateFull  NoBody    = return NoBody
 
 instance InstantiateFull t => InstantiateFull (Abs t) where

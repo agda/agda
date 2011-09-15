@@ -145,7 +145,6 @@ makeProjection x = inContext [] $ do
         dropB 0 b          = b
         dropB _ NoBody     = NoBody
         dropB n (Bind b)   = dropB (n - 1) (absBody b)
-        dropB n (NoBind b) = dropB (n - 1) b
         dropB n Body{}     = __IMPOSSIBLE__
 
     checkOccurs cls n = all (nonOccur n) cls
@@ -167,7 +166,6 @@ makeProjection x = inContext [] $ do
 
     checkBody 0 _          = True
     checkBody _ NoBody     = True
-    checkBody n (NoBind b) = checkBody (n - 1) b
     checkBody n (Bind b)   = not (0 `freeIn` absBody b) && checkBody (n - 1) (absBody b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 
@@ -267,7 +265,6 @@ addDisplayForms x = do
 	      return ()
     strip (Body v)   = return (0, v)
     strip  NoBody    = Nothing
-    strip (NoBind b) = Nothing
     strip (Bind b)   = do
       (n, v) <- strip $ absBody b
       return (n + 1, v)
@@ -404,7 +401,6 @@ canonicalName x = do
     extract (Body (Def x _)) = x
     extract (Body _)	     = __IMPOSSIBLE__
     extract (Bind (Abs _ b)) = extract b
-    extract (NoBind b)	     = extract b
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.

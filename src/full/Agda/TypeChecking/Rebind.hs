@@ -15,16 +15,3 @@ import Agda.Utils.Impossible
 --   Also normalises the body in the process. Or not. Disabled.
 rebindClause :: Clause -> TCM Clause
 rebindClause = return
-{-
-rebindClause (Clause tel perm ps rec b) = return $ Clause tel perm ps rec b
-  do
-    b <- instantiateFull b
-    return $ Clause ps $ rebind b
-    where
-	rebind (Body t) = Body t
-	rebind (Bind b)
-	    | 0 `freeIn` absBody b  = Bind $ fmap rebind b
-	    | otherwise		    = NoBind $ b `absApp` __IMPOSSIBLE__
-	rebind (NoBind b) = NoBind $ rebind b
-	rebind  NoBody	  = NoBody
--}

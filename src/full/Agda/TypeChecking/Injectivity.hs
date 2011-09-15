@@ -110,7 +110,6 @@ checkInjectivity f cs = do
           h <- headSymbol v
           return [(h, c)]
 
-    rhs (NoBind b) = rhs b
     rhs (Bind b)   = underAbstraction_ b rhs
     rhs (Body v)   = return $ Just v
     rhs NoBody     = return Nothing

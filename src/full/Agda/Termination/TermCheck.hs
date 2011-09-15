@@ -334,12 +334,8 @@ stripCoConstructors conf p = case p of
 -}
 stripBind :: DBPConf -> Nat -> Pattern -> ClauseBody -> TCM (Maybe (Nat, DeBruijnPat, ClauseBody))
 stripBind _ _ _ NoBody            = return Nothing
-stripBind conf i (VarP x) (NoBind b) = return $ Just (i, unusedVar, b)
 stripBind conf i (VarP x) (Bind b)   = return $ Just (i - 1, VarDBP i, absBody b)
 stripBind conf i (VarP x) (Body b)   = __IMPOSSIBLE__
-stripBind conf i (DotP t) (NoBind b) = do
-  t <- termToDBP conf t
-  return $ Just (i, t, b)
 stripBind conf i (DotP t) (Bind b)   = do
   t <- termToDBP conf t
   return $ Just (i - 1, t, absBody b)
@@ -390,7 +386,6 @@ termClause use names name (Clause { clauseTel  = tel
   where
     nVars = boundVars body
     boundVars (Bind b)   = 1 + boundVars (absBody b)
-    boundVars (NoBind b) = boundVars b
     boundVars NoBody     = 0
     boundVars (Body _)   = 0
 

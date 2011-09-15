@@ -86,9 +86,6 @@ instance PrettyTCM ClauseBody where
     where
       walk NoBody = return ([], P.text "()")
       walk (Body v) = (,) [] <$> prettyTCM v
-      walk (NoBind b) = do
-        (bs, v) <- walk b
-        return (text "." : bs, v)
       walk (Bind b) = do
         (bs, v) <- underAbstraction_ b walk
         return (text (absName b) : bs, v)

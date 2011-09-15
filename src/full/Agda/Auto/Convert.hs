@@ -295,11 +295,6 @@ tomyBody (I.Bind (I.Abs _ b)) = do
  return $ case res of
   Nothing -> Nothing
   Just (b', i) -> Just (b', i + 1)
-tomyBody (I.NoBind b) = do
- res <- tomyBody b
- return $ case res of
-  Nothing -> Nothing
-  Just (b', i) -> Just (weaken i b', i + 1)
 tomyBody I.NoBody = return Nothing
 
 weaken :: Int -> MExp O -> MExp O
@@ -634,7 +629,6 @@ contains_constructor = any f
 etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
 etaContractBody (I.NoBody) = return I.NoBody
 etaContractBody (I.Body b) = etaContract b >>= \b -> return (I.Body b)
-etaContractBody (I.NoBind b) = etaContractBody b >>= \b -> return (I.NoBind b)
 etaContractBody (I.Bind (I.Abs id b)) = etaContractBody b >>= \b -> return (I.Bind (I.Abs id b))
 
 
@@ -692,7 +686,6 @@ findClauseDeep m = do
     peelbinds d f = r
      where r b = case b of
                   I.Bind b -> r $ I.absBody b
-                  I.NoBind b -> r b
                   I.NoBody -> d
                   I.Body e -> f e
     findMeta e =

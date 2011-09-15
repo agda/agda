@@ -72,7 +72,6 @@ findClause m = do
     _   -> __IMPOSSIBLE__
   where
     rhsIsm (Bind b)   = rhsIsm $ absBody b
-    rhsIsm (NoBind b) = rhsIsm b
     rhsIsm NoBody     = False
     rhsIsm (Body e)   = case e of
       MetaV m' _  -> m == m'

@@ -260,7 +260,6 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
                            (HS.UnGuardedRhs rhs) (HS.BDecls [])
   bvars (Body _)          _ = []
   bvars (Bind (Abs _ b')) n = HS.PVar (ihname "v" n) : bvars b' (n + 1)
-  bvars (NoBind      b' ) n = HS.PWildCard           : bvars b' n -- WHY NOT: bvars b' n  -- PRODDUCES head [] exception
   bvars NoBody            _ = repeat HS.PWildCard -- ?
 
   isCon (Arg _ _ ConP{}) = True
@@ -309,7 +308,6 @@ clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = runReaderT (go b0) 0 where
   go (Body   tm       ) = hsCast <$> term tm
   go (Bind   (Abs _ b)) = local (1+) $ go b
-  go (NoBind b        ) = go b
   go NoBody             = return $ rtmError $ "Impossible Clause Body"
 
 -- | Extract Agda term to Haskell expression.

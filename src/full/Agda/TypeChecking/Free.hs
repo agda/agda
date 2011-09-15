@@ -195,7 +195,6 @@ instance Free a => Free (Tele a) where
 instance Free ClauseBody where
   freeVars' conf (Body t)   = freeVars' conf t
   freeVars' conf (Bind b)   = freeVars' conf b
-  freeVars' conf (NoBind b) = freeVars' conf b
   freeVars' conf  NoBody    = empty
 
 freeIn :: Free a => Nat -> a -> Bool

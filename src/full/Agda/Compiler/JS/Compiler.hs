@@ -19,7 +19,7 @@ import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Internal
   ( Name, Args, Type, ModuleName(MName), QName(QName),
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
-    ClauseBody(Body,NoBody,Bind,NoBind),
+    ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
     toTopLevelModuleName, mnameToList, qnameName, absBody,
     clausePats, clauseBody, arity, unEl )
@@ -260,7 +260,6 @@ visitorName q = do (m,ls) <- global q; return (last ls)
 body :: ClauseBody -> TCM Exp
 body (Body e)         = term e
 body (Bind (Abs _ e)) = body e
-body (NoBind e)       = body e
 body (NoBody)         = return Undefined
 
 term :: Term -> TCM Exp

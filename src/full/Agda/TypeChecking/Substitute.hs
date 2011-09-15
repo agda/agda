@@ -134,7 +134,6 @@ instance Apply FunctionInverse where
 instance Apply ClauseBody where
     apply  b               []       = b
     apply (Bind (Abs _ b)) (a:args) = subst (unArg a) b `apply` args
-    apply (NoBind b)       (_:args) = b `apply` args
     apply (Body _)         (_:_)    = __IMPOSSIBLE__
     apply  NoBody           _       = NoBody
 
@@ -423,11 +422,9 @@ instance (Subst a, Subst b) => Subst (a,b) where
 instance Subst ClauseBody where
     substs us (Body t)        = Body $ substs us t
     substs us (Bind b)        = Bind $ substs us b
-    substs us (NoBind b)      = NoBind $ substs us b
     substs _   NoBody         = NoBody
     substUnder n u (Body t)   = Body $ substUnder n u t
     substUnder n u (Bind b)   = Bind $ substUnder n u b
-    substUnder n u (NoBind b) = NoBind $ substUnder n u b
     substUnder _ _   NoBody   = NoBody
 
 -- | Instantiate an abstraction
@@ -558,13 +555,11 @@ instance Raise ClauseBody where
     Body v   -> Body $ rf v
     NoBody   -> NoBody
     Bind b   -> Bind $ rf b
-    NoBind b -> NoBind $ rf b
     where rf x = raiseFrom m k x
   renameFrom m k b = case b of
     Body v   -> Body $ rf v
     NoBody   -> NoBody
     Bind b   -> Bind $ rf b
-    NoBind b -> NoBind $ rf b
     where rf x = renameFrom m k x
 
 -- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern

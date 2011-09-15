@@ -362,7 +362,6 @@ translateBody (Right (n, x, _) : rest) s b      =
   Bind $ Abs x $ translateBody rest s $ dropBinds n' b
   where n' = sum $ map n [VarPat, DotPat]
 translateBody (Left _ : rest) s (Bind b)   = Bind $ fmap (translateBody rest s) b
-translateBody (Left _ : rest) s (NoBind b) = NoBind $ translateBody rest s b
 translateBody []              s (Body t)   = Body $ substs s t
 translateBody _               _ _          = __IMPOSSIBLE__
 
@@ -379,14 +378,11 @@ permToSubst (Perm n is) =
     Nothing -> __IMPOSSIBLE__
     Just k  -> Var k []
 
--- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' or
--- 'NoBind' from @b@.
+-- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
 --
--- Precondition: @b@ has to start with @n@ occurrences of 'Bind' or
--- 'NoBind'.
+-- Precondition: @b@ has to start with @n@ occurrences of 'Bind'.
 
 dropBinds :: Nat -> ClauseBody -> ClauseBody
 dropBinds n b          | n == 0 = b
 dropBinds n (Bind b)   | n > 0  = dropBinds (pred n) (absBody b)
-dropBinds n (NoBind b) | n > 0  = dropBinds (pred n) b
 dropBinds _ _                   = __IMPOSSIBLE__

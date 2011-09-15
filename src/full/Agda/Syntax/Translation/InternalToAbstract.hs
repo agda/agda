@@ -311,7 +311,6 @@ data NamedClause = NamedClause QName I.Clause
 instance Reify ClauseBody RHS where
   reify NoBody     = return AbsurdRHS
   reify (Body v)   = RHS <$> reify v
-  reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
 stripImplicits :: [NamedArg A.Pattern] -> [A.Pattern] ->

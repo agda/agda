@@ -237,9 +237,7 @@ instance ComputeOccurrences Clause where
       walk _    _         NoBody     = Map.empty
       walk vars []        (Body v)   = occurrences vars v
       walk vars (i : pis) (Bind b)   = walk (i : vars) pis $ absBody b
-      walk vars (_ : pis) (NoBind b) = walk vars pis b
       walk _    []        Bind{}     = __IMPOSSIBLE__
-      walk _    []        NoBind{}   = __IMPOSSIBLE__
       walk _    (_ : _)   Body{}     = __IMPOSSIBLE__
 
       match i (Arg _ _ VarP{}) = Map.empty
@@ -367,7 +365,6 @@ etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
     vars = reverse [ defaultArg $ Var i [] | i <- [0..m - 1] ]
 
     liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
-    liftBody m (NoBind b) = NoBind $ liftBody m b
     liftBody m NoBody     = bind m NoBody
     liftBody m (Body v)   = bind m $ Body $ raise m v `apply` vars
 

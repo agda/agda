@@ -58,7 +58,6 @@ instance Strict LevelAtom where
 instance Strict ClauseBody where
     force (Body t)   = force t
     force (Bind b)   = force b
-    force (NoBind b) = force b
     force  NoBody    = 0
 
 instance Strict C.Expr where

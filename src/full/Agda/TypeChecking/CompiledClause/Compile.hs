@@ -43,7 +43,6 @@ compile cs = case nextSplit cs of
   where
     getBody (_, b) = body b
     body (Bind b)   = inc $ body (absBody b)
-    body (NoBind b) = body b
     body (Body t)   = Just (0, t)
     body NoBody     = Nothing
     inc Nothing       = Nothing
@@ -116,10 +115,8 @@ expandCatchAlls n cs = case cs of
 substBody :: Int -> Integer -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
 substBody 0 m v b = case b of
-  NoBind b -> foldr (.) id (genericReplicate m NoBind) b
   Bind   b -> foldr (.) id (genericReplicate m (Bind . Abs "_")) $ subst v (absBody $ raise m b)
   _        -> __IMPOSSIBLE__
 substBody n m v b = case b of
-  NoBind b -> NoBind $ substBody (n - 1) m v b
   Bind b   -> Bind $ fmap (substBody (n - 1) m v) b
   _        -> __IMPOSSIBLE__
