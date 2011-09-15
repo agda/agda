@@ -98,7 +98,9 @@ compareTerm cmp a u v = liftTCM $ do
       reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
                                          , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
-    m `orelse` h = m `catchError_` \err -> case errError err of
+    -- Should be ok with catchError_ but catchError is much safer since we don't
+    -- rethrow errors.
+    m `orelse` h = m `catchError` \err -> case errError err of
                     PatternErr s -> put s >> h
                     _            -> h
 
@@ -282,15 +284,13 @@ compareAtom cmp t m n =
                       where l = assignV x xArgs n
                             r = assignV y yArgs m
 
+                    try m h = m `catchError_` \err -> case errError err of
+                      PatternErr s -> put s >> h
+                      _            -> throwError err
+
                 -- First try the one with the highest priority. If that doesn't
-                -- work, try the low priority one. If that doesn't work either,
-                -- go with the first version.
-                -- TODO: why rollback?
-                rollback <- return . put =<< get
-                whenConstraints solve1 $ do
-                  undoRollback <- return . put =<< get
-                  rollback
-                  whenConstraints solve2 $ undoRollback
+                -- work, try the low priority one.
+                try solve1 solve2
 
         -- one side a meta, the other an unblocked term
 	(NotBlocked (MetaV x xArgs), _) -> assignV x xArgs n

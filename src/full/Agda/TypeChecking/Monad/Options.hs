@@ -243,12 +243,11 @@ reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
 reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
 reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
 
-verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm a -> tcm a
-verboseBracket k n s m = do
+verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> TCM a -> tcm a
+verboseBracket k n s m = liftTCM $ do
   v <- hasVerbosity k n
   if not v then m
            else do
     liftIO $ LocIO.putStrLn $ "{ " ++ s
-    x <- m
-    liftIO $ LocIO.putStrLn "}"
+    x <- m `finally` liftIO (LocIO.putStrLn "}")
     return x

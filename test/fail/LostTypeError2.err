@@ -1,0 +1,4 @@
+LostTypeError2.agda:25,5-34
+x != y of type A
+when checking that the expression wrap _ (λ a → P _) (box x) Px has
+type Wrap Box (λ a → P a) (box y)

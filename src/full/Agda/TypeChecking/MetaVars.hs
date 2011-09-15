@@ -239,9 +239,14 @@ newQuestionMark t = do
   return m
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: MonadTCM tcm => Type -> tcm Term -> tcm Term
-blockTerm t blocker =
-  ifNoConstraints blocker return $ \pid v -> do
+blockTerm :: MonadTCM tcm => Type -> TCM Term -> tcm Term
+blockTerm t blocker = do
+  (pid, v) <- newProblem blocker
+  blockTermOnProblem t v pid
+
+blockTermOnProblem :: MonadTCM tcm => Type -> Term -> ProblemId -> tcm Term
+blockTermOnProblem t v pid =
+  ifM (isProblemSolved pid) (return v) $ do
     i   <- createMetaInfo
     vs  <- getContextArgs
     tel <- getContextTelescope
@@ -456,7 +461,9 @@ assign x args v = do
             Blocked m0 _ -> text "r.h.s. blocked on:" <+> prettyTCM m0
             NotBlocked{} -> text "r.h.s. not blocked"
 
-        args <- instantiate args
+        -- Normalise and eta contract the arguments to the meta. These are
+        -- usually small, and simplifying might let us instantiate more metas.
+        args <- etaContract =<< normalise args
 
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
@@ -569,9 +576,13 @@ type FVs = Set.VarSet
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
 checkAllVars :: MonadTCM tcm => Args -> tcm [Nat]
-checkAllVars args = do
-  args <- instantiateFull args
-  maybe patternViolation (return . map unArg) $ allVarOrIrrelevant args
+checkAllVars args =
+  case allVarOrIrrelevant args of
+    Nothing -> do
+      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
+                                            , text "  aborting assignment" ]
+      patternViolation
+    Just is -> return $ map unArg is
 
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.

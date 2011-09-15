@@ -55,7 +55,9 @@ addConstraint c = do
       [ text "adding constraint"
       , text (show pids)
       , prettyTCM c ]
-    c' <- simpl =<< instantiateFull c
+    -- Need to reduce to reveal possibly blocking metas
+    c <- reduce =<< instantiateFull c
+    c' <- simpl c
     if (c /= c')
       then do
         reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
@@ -73,31 +75,42 @@ addConstraint c = do
       simplifyLevelConstraint n c <$> getAllConstraints
 
 -- | Don't allow the argument to produce any constraints.
-noConstraints :: MonadTCM tcm => tcm a -> tcm a
-noConstraints problem = do
-  pid <- fresh
-  x  <- solvingProblem pid problem
+noConstraints :: MonadTCM tcm => TCM a -> tcm a
+noConstraints problem = liftTCM $ do
+  (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
   unless (List.null cs) $ typeError $ UnsolvedConstraints cs
   return x
 
-ifNoConstraints :: MonadTCM tcm => tcm a -> (a -> tcm b) -> (ProblemId -> a -> tcm b) -> tcm b
-ifNoConstraints check ifNo ifCs = do
+-- | Create a fresh problem for the given action.
+newProblem :: MonadTCM tcm => TCM a -> tcm (ProblemId, a)
+newProblem action = do
   pid <- fresh
-  x <- solvingProblem pid check
+  -- Don't get distracted by other constraints while working on the problem
+  x <- liftTCM $ nowSolvingConstraints $ solvingProblem pid action
+  -- Now we can check any woken constraints
+  solveAwakeConstraints
+  return (pid, x)
+
+newProblem_ :: MonadTCM tcm => TCM () -> tcm ProblemId
+newProblem_ action = fst <$> newProblem action
+
+ifNoConstraints :: MonadTCM tcm => TCM a -> (a -> tcm b) -> (ProblemId -> a -> tcm b) -> tcm b
+ifNoConstraints check ifNo ifCs = do
+  (pid, x) <- newProblem check
   ifM (isProblemSolved pid) (ifNo x) (ifCs pid x)
 
-ifNoConstraints_ :: MonadTCM tcm => tcm () -> tcm a -> (ProblemId -> tcm a) -> tcm a
+ifNoConstraints_ :: MonadTCM tcm => TCM () -> tcm a -> (ProblemId -> tcm a) -> tcm a
 ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ -> ifCs pid)
 
 -- | @guardConstraint cs c@ tries to solve constraints @cs@ first.
 --   If successful, it moves on to solve @c@, otherwise it returns
 --   a @Guarded c cs@.
-guardConstraint :: MonadTCM tcm => Constraint -> tcm () -> tcm ()
+guardConstraint :: MonadTCM tcm => Constraint -> TCM () -> tcm ()
 guardConstraint c blocker =
   ifNoConstraints_ blocker (solveConstraint_ c) (addConstraint . Guarded c)
 
-whenConstraints :: MonadTCM tcm => tcm () -> tcm () -> tcm ()
+whenConstraints :: MonadTCM tcm => TCM () -> tcm () -> tcm ()
 whenConstraints action handler =
   ifNoConstraints_ action (return ()) $ \pid -> do
     stealConstraints pid

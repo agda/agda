@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Agda.TypeChecking.Monad.Constraints where
 
+import Control.Arrow ((&&&))
 import Control.Applicative
 import Control.Monad.State
 import Control.Monad.Reader
@@ -37,8 +38,8 @@ stealConstraints pid = do
   modify $ \s -> s { stAwakeConstraints    = List.map rename $ stAwakeConstraints s
                    , stSleepingConstraints = List.map rename $ stSleepingConstraints s }
 
-solvingProblem :: MonadTCM tcm => ProblemId -> tcm a -> tcm a
-solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
+solvingProblem :: MonadTCM tcm => ProblemId -> TCM a -> tcm a
+solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ liftTCM $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
   ifM (isProblemSolved pid) (do
       reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
@@ -64,9 +65,10 @@ getAwakeConstraints = gets stAwakeConstraints
 wakeConstraints :: MonadTCM tcm => (ProblemConstraint-> Bool) -> tcm ()
 wakeConstraints wake = do
   sleepers <- gets stSleepingConstraints
-  reportSLn "tc.constr.wake" 50 $ "considering waking sleepers " ++ show (List.map constraintProblem sleepers)
+  let (wakeup, sleepin) = List.partition wake sleepers
+  reportSLn "tc.constr.wake" 50 $ "waking up         " ++ show (List.map constraintProblem wakeup) ++ "\n" ++
+                                  "  still sleeping: " ++ show (List.map constraintProblem sleepin)
   modify $ \s ->
-    let (wakeup, sleepin) = List.partition wake sleepers in
     s { stSleepingConstraints = sleepin
       , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
       }
@@ -83,12 +85,12 @@ takeAwakeConstraint = do
 getAllConstraints :: MonadTCM tcm => tcm Constraints
 getAllConstraints = gets $ \s -> stAwakeConstraints s ++ stSleepingConstraints s
 
-withConstraint :: MonadTCM tcm => (Constraint -> tcm a) -> ProblemConstraint -> tcm a
-withConstraint f (PConstr pid c) = do
-  -- We should preserve the problem stack
-  pids <- asks envActiveProblems
+withConstraint :: MonadTCM tcm => (Constraint -> TCM a) -> ProblemConstraint -> tcm a
+withConstraint f (PConstr pid c) = liftTCM $ do
+  -- We should preserve the problem stack and the isSolvingConstraint flag
+  (pids, isSolving) <- asks $ envActiveProblems &&& envSolvingConstraints
   enterClosure c $ \c ->
-    local (\e -> e { envActiveProblems = pids }) $
+    local (\e -> e { envActiveProblems = pids, envSolvingConstraints = isSolving }) $
     solvingProblem pid (f c)
 
 buildProblemConstraint :: MonadTCM tcm => ProblemId -> Constraint -> tcm ProblemConstraint

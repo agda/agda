@@ -197,7 +197,7 @@ checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
     t <- isType_ e
     ret [("_",t)]
 
--- | Type check a lambda expression. Not finished.
+-- | Type check a lambda expression.
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
 checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
@@ -207,25 +207,37 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
     else useTargetType tel btyp
   where
     dontUseTargetType = do
+      -- Checking λ (xs : argsT) → body : target
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
-      argsT   <- workOnTypes $ Arg h r <$> isType_ typ
-      blockTerm target $ addCtxs xs argsT $ do
-        let tel = telFromList $ mkTel xs argsT
-        (t1, cs) <- workOnTypes $ do
-          t1 <- newTypeMeta_
-          cs <- escapeContext (size xs) $ leqType (telePi tel t1) target
-          return (t1, cs)
-        v <- checkExpr body t1
-        return $ teleLam tel v
+
+      -- First check that argsT is a valid type
+      argsT <- workOnTypes $ Arg h r <$> isType_ typ
+
+      -- In order to have as much type information as possible when checking
+      -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
+      -- is inconclusive we need to block the resulting term so we create a
+      -- fresh problem for the check.
+      t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
+      let tel = telFromList $ mkTel xs argsT
+      pid <- newProblem_ $ leqType (telePi tel t1) target
+
+      -- Now check body : ?t₁
+      v <- addCtxs xs argsT $ checkExpr body t1
+
+      -- Block on the type comparison
+      blockTermOnProblem target (teleLam tel v) pid
 
     useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         unless (argHiding    arg == h) $ typeError $ WrongHidingInLambda target
         unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
-        blockTerm target $ do
-          argT <- isTypeEqualTo typ (unArg arg)
-          v    <- addCtx x (Arg h r argT) $ checkExpr body btyp
-          return $ Lam h $ Abs (show $ nameConcrete x) v
+        -- We only need to block the final term on the argument type
+        -- comparison. The body will be blocked if necessary. We still want to
+        -- compare the argument types first, so we spawn a new problem for that
+        -- check.
+        (pid, argT) <- newProblem $ isTypeEqualTo typ (unArg arg)
+        v <- addCtx x (Arg h r argT) $ checkExpr body btyp
+        blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
     useTargetType _ _ = __IMPOSSIBLE__

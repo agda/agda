@@ -107,11 +107,11 @@ applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
 
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
-workOnTypes :: MonadTCM tcm => tcm a -> tcm a
+workOnTypes :: MonadTCM tcm => TCM a -> tcm a
 workOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes'
 
-workOnTypes' :: MonadTCM tcm => tcm a -> tcm a
-workOnTypes' = modifyContext $ modifyContextEntries $ modifyArgRelevance $ irrToNonStrict
+workOnTypes' :: MonadTCM tcm => TCM a -> tcm a
+workOnTypes' = liftTCM . modifyContext (modifyContextEntries $ modifyArgRelevance $ irrToNonStrict)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

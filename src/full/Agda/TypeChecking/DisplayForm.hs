@@ -20,7 +20,7 @@ import Agda.Utils.Impossible
 displayForm :: QName -> Args -> TCM (Maybe DisplayTerm)
 displayForm c vs = do
     odfs  <- defDisplay <$> getConstInfo c
-    unless (null odfs) $ verboseS "tc.display.top" 30 $ do
+    unless (null odfs) $ verboseS "tc.display.top" 100 $ do
       n <- getContextId
       let fvs = map (\(OpenThing n _) -> n) odfs
       reportSLn "" 0 $ "displayForm: context = " ++ show n ++ ", dfs = " ++ show fvs
@@ -31,7 +31,7 @@ displayForm c vs = do
     let matches dfs vs = [ m | Just m <- map (flip matchDisplayForm vs) dfs, inScope scope m ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
-    unless (null odfs) $ reportSLn "tc.display.top" 20 $ unlines
+    unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
       [ "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
       , "matches     : " ++ show (matches dfs vs)
