@@ -168,11 +168,8 @@ class Reduce t where
     reduceB t = notBlocked <$> reduce t
 
 instance Reduce Type where
-    reduce (El s t) = El <$> reduce s <*> reduce t
-    reduceB (El s t) = do
-      s <- reduce s
-      t <- reduceB t
-      return (El s <$> t)
+    reduce  (El s t) = El s <$> reduce t
+    reduceB (El s t) = fmap (El s) <$> reduceB t
 
 instance Reduce Sort where
     reduce s = {-# SCC "reduce<Sort>" #-}
