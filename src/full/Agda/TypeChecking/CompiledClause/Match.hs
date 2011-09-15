@@ -28,15 +28,16 @@ type Stack = [(CompiledClauses, MaybeReducedArgs, Args -> Args)]
 
 match :: CompiledClauses -> MaybeReducedArgs -> (Args -> Args) -> Stack -> TCM (Reduced (Blocked Args) Term)
 match Fail args patch stack = return $ NoReduction $ NotBlocked (patch $ map ignoreReduced args)
-match (Done n t) args _ _
+match (Done hs t) args _ _
   | m < n     = return $ YesReduction $ substs (reverse $ toTm args)
-                                      $ foldr (.) id (replicate (n - m) lam) t
+                                      $ foldr lam t (drop m hs)
   | otherwise = return $ YesReduction $ substs (reverse $ toTm args0) t `apply` map ignoreReduced args1
   where
-    m              = genericLength args
+    n              = length hs
+    m              = length args
     toTm           = map (unArg . ignoreReduced)
     (args0, args1) = splitAt n args
-    lam t          = Lam NotHidden (Abs "x" t)
+    lam h t        = Lam h (Abs "x" t)
 match (Case n bs) args patch stack =
   case genericSplitAt n args of
     (_, []) -> return $ NoReduction $ NotBlocked $ patch $ map ignoreReduced args

@@ -112,10 +112,11 @@ instance Apply Clause where
 instance Apply CompiledClauses where
   apply cc args = case cc of
     Fail     -> Fail
-    Done m t
-      | m >= len  -> Done (m - len) (substs ([ Var (fromIntegral i) []
-                                             | i <- [0..m - len - 1]] ++
-                                             map unArg args) t)
+    Done hs t
+      | length hs >= len -> Done (drop len hs)
+                                 (substs ([ Var (fromIntegral i) []
+                                          | i <- [0..length hs - len - 1]] ++
+                                          map unArg args) t)
       | otherwise -> __IMPOSSIBLE__
     Case n bs
       | n >= len  -> Case (n - len) (apply bs args)
@@ -240,7 +241,7 @@ instance Abstract Clause where
 
 instance Abstract CompiledClauses where
   abstract tel Fail = Fail
-  abstract tel (Done m t) = Done (m + fromIntegral (size tel)) t
+  abstract tel (Done hs t) = Done (map argHiding (telToList tel) ++ hs) t
   abstract tel (Case n bs) =
     Case (n + fromIntegral (size tel)) (abstract tel bs)
 

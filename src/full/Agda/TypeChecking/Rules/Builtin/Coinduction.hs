@@ -158,7 +158,7 @@ bindBuiltinFlat e =
     addConstant flat $
       flatDefn { theDef = Function
                    { funClauses        = [clause]
-                   , funCompiled       = Case 2 (Branches (Map.singleton sharp (Done 3 (Var 0 [])))
+                   , funCompiled       = Case 2 (Branches (Map.singleton sharp (Done [Hidden, Hidden, NotHidden] (Var 0 [])))
                                                           Map.empty
                                                           Nothing)
                    , funInv            = NotInjective

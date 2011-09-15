@@ -37,16 +37,14 @@ compile cs = case nextSplit cs of
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just (m, t) :_ -> Done m t
-    Nothing : _    -> Fail
-    []             -> __IMPOSSIBLE__
+    Just t : _  -> Done (map argHiding $ fst $ head cs) t
+    Nothing : _ -> Fail
+    []          -> __IMPOSSIBLE__
   where
     getBody (_, b) = body b
-    body (Bind b)   = inc $ body (absBody b)
-    body (Body t)   = Just (0, t)
+    body (Bind b)   = body (absBody b)
+    body (Body t)   = Just t
     body NoBody     = Nothing
-    inc Nothing       = Nothing
-    inc (Just (n, t)) = Just (n + 1, t)
 
 nextSplit :: Cls -> Maybe Int
 nextSplit [] = __IMPOSSIBLE__

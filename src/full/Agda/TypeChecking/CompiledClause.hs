@@ -6,6 +6,7 @@ import Data.Map (Map)
 import Data.Monoid
 import Data.Generics
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Utils.Pretty
@@ -22,8 +23,10 @@ data CompiledClauses
   = Case Int (Case CompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
-  | Done Int Term
-    -- ^ @Done n b@ stands for the body @b@ under @n@ 'Bind'ers.
+  | Done [Hiding] Term
+    -- ^ @Done hs b@ stands for the body @b@ where the hiding of the
+    --   free variables is @hs@. This is needed to build lambdas on the
+    --   right hand side for partial applications which can still reduce.
   | Fail
     -- ^ Absurd case.
   deriving (Typeable, Data)
@@ -60,7 +63,7 @@ instance Pretty a => Pretty (Case a) where
              | (x, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
-  pretty (Done m t)  = text ("done[" ++ show m ++ "]") <+> text (show t)
+  pretty (Done hs t)  = text ("done" ++ show hs) <+> text (show t)
   pretty Fail        = text "fail"
   pretty (Case n bs) =
     sep [ text ("case " ++ show n ++ " of")

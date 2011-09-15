@@ -119,7 +119,7 @@ reverseCCBody cc = case cc of
     CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case n $ CC.Branches (M.map reverseCCBody cbr)
                                                         (M.map reverseCCBody lbr)
                                                         (fmap  reverseCCBody cabr)
-    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [0..])) t)
+    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take (length i) [0..])) t)
     CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
