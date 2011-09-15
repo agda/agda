@@ -41,7 +41,7 @@ instance Monoid Match where
     -- equivalence to case-trees.
     DontKnow m `mappend` _		  = DontKnow m
 
-matchPatterns :: MonadTCM tcm => [Arg Pattern] -> [Arg Term] -> tcm (Match, [Arg Term])
+matchPatterns :: [Arg Pattern] -> [Arg Term] -> TCM (Match, [Arg Term])
 matchPatterns ps vs = do
     reportSDoc "tc.match" 50 $
       vcat [ text "matchPatterns"
@@ -52,7 +52,7 @@ matchPatterns ps vs = do
     (ms,vs) <- unzip <$> zipWithM' matchPattern ps vs
     return (mconcat ms, vs)
 
-matchPattern :: MonadTCM tcm => Arg Pattern -> Arg Term -> tcm (Match, Arg Term)
+matchPattern :: Arg Pattern -> Arg Term -> TCM (Match, Arg Term)
 matchPattern (Arg h' _  (VarP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
 matchPattern (Arg _  _  (DotP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
 matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do

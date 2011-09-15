@@ -16,10 +16,10 @@ import Agda.Utils.Impossible
 
 #include "../../undefined.h"
 
-noMutualBlock :: MonadTCM tcm => tcm a -> tcm a
+noMutualBlock :: TCM a -> TCM a
 noMutualBlock = local $ \e -> e { envMutualBlock = Nothing }
 
-inMutualBlock :: MonadTCM tcm => tcm a -> tcm a
+inMutualBlock :: TCM a -> TCM a
 inMutualBlock m = do
   mi <- asks envMutualBlock
   case mi of
@@ -30,7 +30,7 @@ inMutualBlock m = do
     Just _  -> m
 
 -- | Set the mutual block for a definition
-setMutualBlock :: MonadTCM tcm => MutualId -> QName -> tcm ()
+setMutualBlock :: MutualId -> QName -> TCM ()
 setMutualBlock i x = do
   modify $ \s -> s { stMutualBlocks = Map.insertWith Set.union i (Set.singleton x) $ stMutualBlocks s
 		   , stSignature    = (stSignature s)
@@ -41,21 +41,21 @@ setMutualBlock i x = do
     setMutId x i = flip Map.adjust x $ \defn -> defn { defMutual = i }
 
 -- | Get all mutual blocks
-getMutualBlocks :: MonadTCM tcm => tcm [Set QName]
+getMutualBlocks :: TCM [Set QName]
 getMutualBlocks = gets $ Map.elems . stMutualBlocks
 
 -- | Get the current mutual block.
-currentMutualBlock :: MonadTCM tcm => tcm MutualId
+currentMutualBlock :: TCM MutualId
 currentMutualBlock = maybe fresh return =<< asks envMutualBlock
 
-lookupMutualBlock :: MonadTCM tcm => MutualId -> tcm (Set QName)
+lookupMutualBlock :: MutualId -> TCM (Set QName)
 lookupMutualBlock mi = do
   mb <- gets stMutualBlocks
   case Map.lookup mi mb of
     Just qs -> return qs
     Nothing -> return Set.empty -- can end up here if we ask for the current mutual block and there is none
 
-findMutualBlock :: MonadTCM tcm => QName -> tcm (Set QName)
+findMutualBlock :: QName -> TCM (Set QName)
 findMutualBlock f = do
   bs <- getMutualBlocks
   case filter (Set.member f) bs of

@@ -104,12 +104,12 @@ splitProblem (Problem ps (perm, qs) tel) = do
 
         -- Case: constructor pattern
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
-	  a' <- reduce $ unArg a
+	  a' <- liftTCM $ reduce $ unArg a
 	  case unEl a' of
 
             -- Subcase: split type is a Def
 	    Def d vs	-> do
-	      def <- theDef <$> getConstInfo d
+	      def <- liftTCM $ theDef <$> getConstInfo d
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
                 when (unusableRelevance $ argRelevance a) $
@@ -121,7 +121,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
               case mp of
                 Nothing -> keepGoing
                 Just np ->
-		  traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
+		  liftTCM $ traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
@@ -169,10 +169,9 @@ splitProblem (Problem ps (perm, qs) tel) = do
 -- distinct variables which do not occur free in the parameters.
 
 wellFormedIndices
-  :: MonadTCM tcm
-  => [Arg Term] -- ^ Parameters.
+  :: [Arg Term] -- ^ Parameters.
   -> [Arg Term] -- ^ Indices.
-  -> tcm ()
+  -> TCM ()
 wellFormedIndices pars ixs = do
   pars <- normalise pars
   ixs  <- normalise ixs

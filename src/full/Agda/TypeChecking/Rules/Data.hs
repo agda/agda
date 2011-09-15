@@ -276,7 +276,7 @@ constructs nofPars t q = constrT 0 t
 		    equalTerm t (unArg arg) (Var i [])
 
 -- | Force a type to be a specific datatype.
-forceData :: MonadTCM tcm => QName -> Type -> tcm Type
+forceData :: QName -> Type -> TCM Type
 forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
     d  <- canonicalName d
@@ -294,7 +294,7 @@ forceData d (El s0 t) = liftTCM $ do
 -- | Is the type coinductive? Returns 'Nothing' if the answer cannot
 -- be determined.
 
-isCoinductive :: MonadTCM tcm => Type -> tcm (Maybe Bool)
+isCoinductive :: Type -> TCM (Maybe Bool)
 isCoinductive t = do
   El _ t <- normalise t
   case t of

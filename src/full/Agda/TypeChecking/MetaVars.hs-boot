@@ -1,11 +1,9 @@
 
 module Agda.TypeChecking.MetaVars where
 
-import Agda.Syntax.Internal	       ( MetaId, Term, Sort, Type, Args )
-import Agda.TypeChecking.Monad.Base ( MonadTCM, Constraints )
+import Agda.Syntax.Internal	    ( MetaId, Term, Sort, Type, Args )
+import Agda.TypeChecking.Monad.Base ( TCM )
 
-assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
-
-etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
-
-assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
+assignTerm        :: MetaId -> Term -> TCM ()
+etaExpandMetaSafe :: MetaId -> TCM ()
+assignV           :: MetaId -> Args -> Term -> TCM ()

@@ -608,10 +608,7 @@ checkLeftHandSide c ps a ret = do
 
 -- Ensures that we are not performing pattern matching on codata.
 
-noPatternMatchingOnCodata
-  :: MonadTCM tcm
-  => [Arg Pattern]
-  -> tcm ()
+noPatternMatchingOnCodata :: [Arg Pattern] -> TCM ()
 noPatternMatchingOnCodata = mapM_ (check . unArg)
   where
   check (VarP {})   = return ()

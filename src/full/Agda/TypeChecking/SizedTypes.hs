@@ -27,7 +27,7 @@ import Agda.Utils.Size
 #include "../undefined.h"
 
 -- | Compare two sizes. Only with --sized-types.
-compareSizes :: MonadTCM tcm => Comparison -> Term -> Term -> tcm ()
+compareSizes :: Comparison -> Term -> Term -> TCM ()
 compareSizes cmp u v = do
   reportSDoc "tc.conv.size" 10 $ vcat
     [ text "Comparing sizes"
@@ -55,7 +55,7 @@ compareSizes cmp u v = do
         addConstraint $ ValueCmp CmpLeq size u v
     _ -> compareAtom cmp size u v
 
-trivial :: MonadTCM tcm => Term -> Term -> tcm Bool
+trivial :: Term -> Term -> TCM Bool
 trivial u v = liftTCM $ do
     a <- sizeExpr u
     b <- sizeExpr v
@@ -69,7 +69,7 @@ trivial u v = liftTCM $ do
   `catchError` \_ -> return False
 
 -- | Find the size constraints.
-getSizeConstraints :: MonadTCM tcm => tcm [SizeConstraint]
+getSizeConstraints :: TCM [SizeConstraint]
 getSizeConstraints = do
   cs   <- getAllConstraints
   size <- sizeType
@@ -79,7 +79,7 @@ getSizeConstraints = do
   scs <- mapM computeSizeConstraint $ concatMap (sizeConstraints . theConstraint) cs
   return [ c | Just c <- scs ]
 
-getSizeMetas :: MonadTCM tcm => tcm [(MetaId, Int)]
+getSizeMetas :: TCM [(MetaId, Int)]
 getSizeMetas = do
   ms <- getOpenMetas
   sz <- sizeType
@@ -110,7 +110,7 @@ instance Show SizeConstraint where
     | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
     | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
 
-computeSizeConstraint :: MonadTCM tcm => Closure Constraint -> tcm (Maybe SizeConstraint)
+computeSizeConstraint :: Closure Constraint -> TCM (Maybe SizeConstraint)
 computeSizeConstraint cl = liftTCM $
   enterClosure cl $ \c ->
     case c of
@@ -124,7 +124,7 @@ computeSizeConstraint cl = liftTCM $
       _ -> __IMPOSSIBLE__
 
 -- | Throws a 'patternViolation' if the term isn't a proper size expression.
-sizeExpr :: MonadTCM tcm => Term -> tcm (SizeExpr, Int)
+sizeExpr :: Term -> TCM (SizeExpr, Int)
 sizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
@@ -153,7 +153,7 @@ flexibleVariables (Leq a _ b) = flex a ++ flex b
     flex (Rigid _)       = []
     flex (SizeMeta m xs) = [(m, xs)]
 
-haveSizedTypes :: MonadTCM tcm => tcm Bool
+haveSizedTypes :: TCM Bool
 haveSizedTypes = liftTCM $ do
     Def _ [] <- primSize
     Def _ [] <- primSizeInf
@@ -161,7 +161,7 @@ haveSizedTypes = liftTCM $ do
     optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
 
-solveSizeConstraints :: MonadTCM tcm => tcm ()
+solveSizeConstraints :: TCM ()
 solveSizeConstraints = whenM haveSizedTypes $ do
   cs <- getSizeConstraints
   ms <- getSizeMetas

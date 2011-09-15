@@ -225,7 +225,7 @@ instance Show a => Show (Closure a) where
 instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
-buildClosure :: MonadTCM tcm => a -> tcm (Closure a)
+buildClosure :: a -> TCM (Closure a)
 buildClosure x = liftTCM $ do
     env   <- ask
     sig   <- gets stSignature
@@ -585,7 +585,7 @@ instance Functor (Reduced no) where
 data PrimFun = PrimFun
 	{ primFunName		:: QName
 	, primFunArity		:: Arity
-	, primFunImplementation :: MonadTCM tcm => [Arg Term] -> tcm (Reduced MaybeReducedArgs Term)
+	, primFunImplementation :: [Arg Term] -> TCM (Reduced MaybeReducedArgs Term)
 	}
     deriving (Typeable)
 
@@ -1113,6 +1113,7 @@ catchError_ m h = TCM $ \r e ->
   unTCM m r e
   `E.catch` \err -> unTCM (h err) r e
 
+{-# SPECIALIZE INLINE mapTCMT :: (forall a. IO a -> IO a) -> TCM a -> TCM a #-}
 mapTCMT :: (forall a. m a -> n a) -> TCMT m a -> TCMT n a
 mapTCMT f (TCM m) = TCM $ \s e -> f (m s e)
 
@@ -1121,6 +1122,8 @@ pureTCM f = TCM $ \r e -> do
   s <- liftIO $ readIORef r
   return (f s e)
 
+{-# SPECIALIZE instance MonadTCM TCM #-}
+{-# INLINE liftTCM #-}
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 
@@ -1159,7 +1162,7 @@ instance MonadIO m => MonadIO (TCMT m) where
       handleIOException r e = throwIO $ TCErr Nothing $ IOException r e
       handleException   r s = throwIO $ TCErr Nothing $ Exception r s
 
-patternViolation :: MonadTCM tcm => tcm a
+patternViolation :: TCM a
 patternViolation = liftTCM $ do
     s <- get
     throwError $ TCErr Nothing $ PatternErr s

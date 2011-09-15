@@ -1,8 +1,8 @@
 
 module Agda.TypeChecking.Empty where
 
-import Agda.TypeChecking.Monad (MonadTCM)
+import Agda.TypeChecking.Monad (TCM)
 import Agda.Syntax.Internal (Type)
 
-isReallyEmptyType :: MonadTCM tcm => Type -> tcm ()
-isEmptyType       :: MonadTCM tcm => Type -> tcm ()
+isReallyEmptyType :: Type -> TCM ()
+isEmptyType       :: Type -> TCM ()

@@ -15,11 +15,11 @@ import Agda.Utils.Monad
 
 -- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
 
-isSizeType :: MonadTCM tcm => Type -> tcm Bool
+isSizeType :: Type -> TCM Bool
 isSizeType v = isSizeTypeTest <*> pure v
 
 {- ORIGINAL CODE
-isSizeType :: MonadTCM tcm => Type -> tcm Bool
+isSizeType :: Type -> TCM Bool
 isSizeType (El _ v) = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return False) $
   case v of
@@ -30,24 +30,24 @@ isSizeType (El _ v) = liftTCM $
   `catchError` \_ -> return False
 -}
 
-isSizeNameTest :: MonadTCM tcm => tcm (QName -> Bool)
+isSizeNameTest :: TCM (QName -> Bool)
 isSizeNameTest = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return $ const False) $ do
     Def size [] <- primSize
     return (size ==)
   `catchError` \_ -> return $ const False
 
-isSizeTypeTest :: MonadTCM tcm => tcm (Type -> Bool)
+isSizeTypeTest :: TCM (Type -> Bool)
 isSizeTypeTest = do
   testName <- isSizeNameTest
   let testType (El _ (Def d [])) = testName d
       testType _                 = False
   return testType
 
-sizeType :: MonadTCM tcm => tcm Type
+sizeType :: TCM Type
 sizeType = El (mkType 0) <$> primSize
 
-sizeSuc :: MonadTCM tcm => tcm (Maybe QName)
+sizeSuc :: TCM (Maybe QName)
 sizeSuc = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ do
     Def x [] <- primSizeSuc
@@ -59,7 +59,7 @@ data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 -- | Compute the size view of a term. The argument should be 'reduce'd.
 --   Precondition: sized types are enabled.
-sizeView :: MonadTCM tcm => Term -> tcm SizeView
+sizeView :: Term -> TCM SizeView
 sizeView v = do
   Def inf [] <- primSizeInf
   Def suc [] <- primSizeSuc
@@ -69,7 +69,7 @@ sizeView v = do
     _                    -> return $ OtherSize v
 
 -- | Turn a size view into a term.
-unSizeView :: MonadTCM tcm => SizeView -> tcm Term
+unSizeView :: SizeView -> TCM Term
 unSizeView SizeInf       = primSizeInf
 unSizeView (SizeSuc v)   = flip apply [Arg NotHidden Relevant v] <$> primSizeSuc
 unSizeView (OtherSize v) = return v

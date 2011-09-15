@@ -77,7 +77,7 @@ interaction prompt cmds eval = loop
 		    Just _ ->
 			do  go =<< liftTCM (eval $ fromJust ms)
 	    `catchError` \e ->
-		do  s <- prettyError e
+		do  s <- liftTCM $ prettyError e
 		    liftIO $ LocIO.putStrLn s
 		    loop
 

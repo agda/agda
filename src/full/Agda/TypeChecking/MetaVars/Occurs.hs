@@ -62,7 +62,7 @@ class Occurs t where
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck :: MonadTCM tcm => MetaId -> [Nat] -> Term -> tcm Term
+occursCheck :: MetaId -> [Nat] -> Term -> TCM Term
 occursCheck m xs v = liftTCM $ do
   let bailOnSelf v = do
         v <- instantiate v
@@ -227,7 +227,7 @@ instance Occurs a => Occurs [a] where
 --   free variables are not contained in @xs@.
 --   If successful, @m'@ is solved by the new, pruned meta variable and we
 --   return @True@ else @False@.
-prune :: MonadTCM tcm => MetaId -> Args -> [Nat] -> tcm PruneResult
+prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
 prune m' vs xs = liftTCM $ do
   let kills = map (hasBadRigid xs) $ map unArg vs
   reportSDoc "tc.meta.kill" 10 $ vcat

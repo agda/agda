@@ -9,14 +9,14 @@ import Agda.Syntax.Position
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
-getBuiltinThing :: MonadTCM tcm => String -> tcm (Maybe (Builtin PrimFun))
+getBuiltinThing :: String -> TCM (Maybe (Builtin PrimFun))
 getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)
                     (Map.lookup b <$> gets stImportedBuiltins)
 
-setBuiltinThings :: MonadTCM tcm => BuiltinThings PrimFun -> tcm ()
+setBuiltinThings :: BuiltinThings PrimFun -> TCM ()
 setBuiltinThings b = modify $ \s -> s { stLocalBuiltins = b }
 
-bindBuiltinName :: MonadTCM tcm => String -> Term -> tcm ()
+bindBuiltinName :: String -> Term -> TCM ()
 bindBuiltinName b x = do
 	builtin <- getBuiltinThing b
 	case builtin of
@@ -27,27 +27,27 @@ bindBuiltinName b x = do
                     Map.insert b (Builtin x) $ stLocalBuiltins st
                  }
 
-bindPrimitive :: MonadTCM tcm => String -> PrimFun -> tcm ()
+bindPrimitive :: String -> PrimFun -> TCM ()
 bindPrimitive b pf = do
   builtin <- gets stLocalBuiltins
   setBuiltinThings $ Map.insert b (Prim pf) builtin
 
 
-getBuiltin :: MonadTCM tcm => String -> tcm Term
+getBuiltin :: String -> TCM Term
 getBuiltin x = do
     mt <- getBuiltin' x
     case mt of
         Nothing -> typeError $ NoBindingForBuiltin x
         Just t  -> return t
 
-getBuiltin' :: MonadTCM tcm => String -> tcm (Maybe Term)
+getBuiltin' :: String -> TCM (Maybe Term)
 getBuiltin' x = do
     builtin <- getBuiltinThing x
     case builtin of
 	Just (Builtin t) -> return $ Just (killRange t)
 	_		 -> return Nothing
 
-getPrimitive :: MonadTCM tcm => String -> tcm PrimFun
+getPrimitive :: String -> TCM PrimFun
 getPrimitive x = do
     builtin <- getBuiltinThing x
     case builtin of
@@ -76,7 +76,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
     primAgdaFunDef, primAgdaDataDef, primAgdaRecordDef
-    :: MonadTCM tcm => tcm Term
+    :: TCM Term
 primInteger      = getBuiltin builtinInteger
 primFloat        = getBuiltin builtinFloat
 primChar         = getBuiltin builtinChar

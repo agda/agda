@@ -29,35 +29,35 @@ import Agda.Utils.Permutation
 import Agda.Utils.Impossible
 
 -- | Get the meta store.
-getMetaStore :: MonadTCM tcm => tcm MetaStore
+getMetaStore :: TCM MetaStore
 getMetaStore = gets stMetaStore
 
-modifyMetaStore :: MonadTCM tcm => (MetaStore -> MetaStore) -> tcm ()
+modifyMetaStore :: (MetaStore -> MetaStore) -> TCM ()
 modifyMetaStore f = modify (\ st -> st { stMetaStore = f $ stMetaStore st })
 
 -- | Lookup a meta variable
-lookupMeta :: MonadTCM tcm => MetaId -> tcm MetaVariable
+lookupMeta :: MetaId -> TCM MetaVariable
 lookupMeta m =
     do	mmv <- Map.lookup m <$> getMetaStore
 	case mmv of
 	    Just mv -> return mv
 	    _	    -> fail $ "no such meta variable " ++ show m
 
-updateMetaVar :: MonadTCM tcm => MetaId -> (MetaVariable -> MetaVariable) -> tcm ()
+updateMetaVar :: MetaId -> (MetaVariable -> MetaVariable) -> TCM ()
 updateMetaVar m f =
   modify $ \st -> st { stMetaStore = Map.adjust f m $ stMetaStore st }
 
-getMetaPriority :: MonadTCM tcm => MetaId -> tcm MetaPriority
+getMetaPriority :: MetaId -> TCM MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
 
-isSortMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isSortMeta :: MetaId -> TCM Bool
 isSortMeta m = do
   mv <- lookupMeta m
   return $ case mvJudgement mv of
     HasType{} -> False
     IsSort{}  -> True
 
-isInstantiatedMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isInstantiatedMeta :: MetaId -> TCM Bool
 isInstantiatedMeta m = do
   mv <- lookupMeta m
   return $ case mvInstantiation mv of
@@ -65,59 +65,59 @@ isInstantiatedMeta m = do
     InstS{} -> True
     _       -> False
 
-createMetaInfo :: MonadTCM tcm => tcm MetaInfo
+createMetaInfo :: TCM MetaInfo
 createMetaInfo =
     do  r <- getCurrentRange
 	buildClosure r
 
-updateMetaVarRange :: MonadTCM tcm => MetaId -> Range -> tcm ()
+updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
 
-addInteractionPoint :: MonadTCM tcm => InteractionId -> MetaId -> tcm ()
+addInteractionPoint :: InteractionId -> MetaId -> TCM ()
 addInteractionPoint ii mi =
     modify $ \s -> s { stInteractionPoints =
 			Map.insert ii mi $ stInteractionPoints s
 		     }
 
 
-removeInteractionPoint :: MonadTCM tcm => InteractionId -> tcm ()
+removeInteractionPoint :: InteractionId -> TCM ()
 removeInteractionPoint ii =
     modify $ \s -> s { stInteractionPoints =
 			Map.delete ii $ stInteractionPoints s
 		     }
 
 
-getInteractionPoints :: MonadTCM tcm => tcm [InteractionId]
+getInteractionPoints :: TCM [InteractionId]
 getInteractionPoints = Map.keys <$> gets stInteractionPoints
 
-getInteractionMetas :: MonadTCM tcm => tcm [MetaId]
+getInteractionMetas :: TCM [MetaId]
 getInteractionMetas = Map.elems <$> gets stInteractionPoints
 
 -- | Does the meta variable correspond to an interaction point?
 
-isInteractionMeta :: MonadTCM tcm => MetaId -> tcm Bool
+isInteractionMeta :: MetaId -> TCM Bool
 isInteractionMeta m = fmap (m `elem`) getInteractionMetas
 
-lookupInteractionId :: MonadTCM tcm => InteractionId -> tcm MetaId
+lookupInteractionId :: InteractionId -> TCM MetaId
 lookupInteractionId ii =
     do  mmi <- Map.lookup ii <$> gets stInteractionPoints
 	case mmi of
 	    Just mi -> return mi
 	    _	    -> fail $ "no such interaction point: " ++ show ii
 
-judgementInteractionId :: MonadTCM tcm => InteractionId -> tcm (Judgement Type MetaId)
+judgementInteractionId :: InteractionId -> TCM (Judgement Type MetaId)
 judgementInteractionId ii =
     do  mi <- lookupInteractionId ii
         mvJudgement <$> lookupMeta mi
 
 -- | Generate new meta variable.
-newMeta :: MonadTCM tcm => MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> tcm MetaId
+newMeta :: MetaInfo -> MetaPriority -> Permutation -> Judgement Type a -> TCM MetaId
 newMeta = newMeta' Open
 
 -- | Generate a new meta variable with some instantiation given.
 --   For instance, the instantiation could be a 'PostponedTypeCheckingProblem'.
-newMeta' :: MonadTCM tcm => MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
-            Judgement Type a -> tcm MetaId
+newMeta' :: MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
+            Judgement Type a -> TCM MetaId
 newMeta' inst mi p perm j = do
   x <- fresh
   let j' = fmap (const x) j  -- fill the identifier part of the judgement
@@ -127,25 +127,25 @@ newMeta' inst mi p perm j = do
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }
   return x
 
-getInteractionRange :: MonadTCM tcm => InteractionId -> tcm Range
+getInteractionRange :: InteractionId -> TCM Range
 getInteractionRange ii = do
     mi <- lookupInteractionId ii
     getMetaRange mi
 
-getMetaRange :: MonadTCM tcm => MetaId -> tcm Range
+getMetaRange :: MetaId -> TCM Range
 getMetaRange mi = getRange <$> lookupMeta mi
 
 
-getInteractionScope :: MonadTCM tcm => InteractionId -> tcm ScopeInfo
+getInteractionScope :: InteractionId -> TCM ScopeInfo
 getInteractionScope ii =
     do mi <- lookupInteractionId ii
        mv <- lookupMeta mi
        return $ getMetaScope mv
 
-withMetaInfo :: MonadTCM tcm => MetaInfo -> tcm a -> tcm a
+withMetaInfo :: MetaInfo -> TCM a -> TCM a
 withMetaInfo mI m = enterClosure mI $ \r -> setCurrentRange r m
 
-getInstantiatedMetas :: MonadTCM tcm => tcm [MetaId]
+getInstantiatedMetas :: TCM [MetaId]
 getInstantiatedMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isInst mi ]
@@ -157,7 +157,7 @@ getInstantiatedMetas = do
 	isInst (InstV _)                        = True
 	isInst (InstS _)                        = True
 
-getOpenMetas :: MonadTCM tcm => tcm [MetaId]
+getOpenMetas :: TCM [MetaId]
 getOpenMetas = do
     store <- getMetaStore
     return [ i | (i, MetaVar{ mvInstantiation = mi }) <- Map.assocs store, isOpen mi ]
@@ -171,35 +171,35 @@ getOpenMetas = do
 
 -- | @listenToMeta l m@: register @l@ as a listener to @m@. This is done
 --   when the type of l is blocked by @m@.
-listenToMeta :: MonadTCM tcm => Listener -> MetaId -> tcm ()
+listenToMeta :: Listener -> MetaId -> TCM ()
 listenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.insert l $ mvListeners mv }
 
 -- | Unregister a listener.
-unlistenToMeta :: MonadTCM tcm => Listener -> MetaId -> tcm ()
+unlistenToMeta :: Listener -> MetaId -> TCM ()
 unlistenToMeta l m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.delete l $ mvListeners mv }
 
 -- | Get the listeners to a meta.
-getMetaListeners :: MonadTCM tcm => MetaId -> tcm [Listener]
+getMetaListeners :: MetaId -> TCM [Listener]
 getMetaListeners m = Set.toList . mvListeners <$> lookupMeta m
 
-clearMetaListeners :: MonadTCM tcm => MetaId -> tcm ()
+clearMetaListeners :: MetaId -> TCM ()
 clearMetaListeners m =
   updateMetaVar m $ \mv -> mv { mvListeners = Set.empty }
 
 -- | Freeze all meta variables.
-freezeMetas :: MonadTCM tcm => tcm ()
+freezeMetas :: TCM ()
 freezeMetas = modifyMetaStore $ Map.map freeze where
   freeze :: MetaVariable -> MetaVariable
   freeze mvar = mvar { mvFrozen = Frozen }
 
-unfreezeMetas :: MonadTCM tcm => tcm ()
+unfreezeMetas :: TCM ()
 unfreezeMetas = modifyMetaStore $ Map.map unfreeze where
   unfreeze :: MetaVariable -> MetaVariable
   unfreeze mvar = mvar { mvFrozen = Instantiable }
 
-isFrozen :: MonadTCM tcm => MetaId -> tcm Bool
+isFrozen :: MetaId -> TCM Bool
 isFrozen x = do
   mvar <- lookupMeta x
   return $ mvFrozen mvar == Frozen

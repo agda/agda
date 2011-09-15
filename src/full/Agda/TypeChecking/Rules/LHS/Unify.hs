@@ -178,7 +178,7 @@ checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
     checkEq (Equal (Het a1 a2) s t) = typeError $ HeterogeneousEquality s a1 t a2
 
 -- | Force equality now instead of postponing it using 'addEquality'.
-checkEquality :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
+checkEquality :: Type -> Term -> Term -> TCM ()
 checkEquality a u v = noConstraints $ equalTerm a u v
 
 -- | Try equality.  If constraints remain, postpone (enter unsafe mode).
@@ -207,7 +207,7 @@ checkEqualityHH aHH u v = do
 
 -- | Check whether heterogeneous situation is really homogeneous.
 --   If not, give up.
-forceHom :: MonadTCM tcm => TypeHH -> tcm Type
+forceHom :: TypeHH -> TCM Type
 forceHom (Hom a) = return a
 forceHom (Het a1 a2) = do
   noConstraints $ equalType a1 a2
@@ -255,21 +255,21 @@ occursCheck i u a = do
     -- Andreas, 2011-04-14
     -- a strongly rigid recursive occurrences signals unsolvability
     StronglyRigid -> do
-      reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs strongly rigidly in" <+> prettyTCM u
+      liftTCM $ reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs strongly rigidly in" <+> prettyTCM u
       throwException $ StronglyRigidOccurrence a v u
 
     NoOccurrence  -> return ()  -- this includes irrelevant occurrences!
 
     -- any other recursive occurrence leads to unclear situation
     _             -> do
-      reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs in" <+> prettyTCM u
+      liftTCM $ reportSDoc "tc.lhs.unify" 20 $ prettyTCM v <+> text "occurs in" <+> prettyTCM u
       typeError $ UnequalTerms CmpEq v u a
 
 -- | Assignment with preceding occurs check.
 (|->) :: Nat -> (Term, Type) -> Unify ()
 i |-> (u, a) = do
   occursCheck i u a
-  reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
+  liftTCM $ reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
   modSub $ Map.insert i (killRange u)
 
 makeSubstitution :: Sub -> [Term]
@@ -458,7 +458,7 @@ unifyIndices flex a us vs = liftTCM $ do
       -> Unify ()
     unifyConstructorArgs a12 [] [] = return ()
     unifyConstructorArgs a12 vs1 vs2 = do
-      reportSDoc "tc.lhs.unify" 15 $ sep
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConstructorArgs"
 	-- , nest 2 $ parens (prettyTCM tel0)
 	, nest 2 $ prettyList $ map prettyTCM vs1
@@ -485,7 +485,7 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConArgs _ []      [] = return ()
     unifyConArgs EmptyTel _ _ = __IMPOSSIBLE__
     unifyConArgs tel0@(ExtendTel a@(Arg _ rel bHH) tel) us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
-      reportSDoc "tc.lhs.unify" 15 $ sep
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConArgs"
 	-- , nest 2 $ parens (prettyTCM tel0)
 	, nest 2 $ prettyList $ map prettyTCM us0
@@ -519,13 +519,13 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyArgs _ [] [] = return ()
     unifyArgs a us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
-      reportSDoc "tc.lhs.unify" 15 $ sep
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyArgs"
 	, nest 2 $ parens (prettyTCM a)
 	, nest 2 $ prettyList $ map prettyTCM us0
 	, nest 2 $ prettyList $ map prettyTCM vs0
         ]
-      a <- ureduce a  -- Q: reduce sufficient?
+      a <- reduce a
       case funView $ unEl a of
 	FunV b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
@@ -561,9 +561,9 @@ unifyIndices flex a us vs = liftTCM $ do
 
     unifySizes :: Term -> Term -> Unify ()
     unifySizes u v = do
-      sz <- sizeType
-      su <- sizeView u
-      sv <- sizeView v
+      sz <- liftTCM sizeType
+      su <- liftTCM $ sizeView u
+      sv <- liftTCM $ sizeView v
       case (su, sv) of
         (SizeSuc u, SizeSuc v) -> unify sz u v
         (SizeSuc u, SizeInf) -> unify sz u v
@@ -576,16 +576,16 @@ unifyIndices flex a us vs = liftTCM $ do
     -- TODO: eta for records!
     unifyHH :: TypeHH -> Term -> Term -> Unify ()
     unifyHH aHH u v = do
-      u <- constructorForm =<< ureduce u
-      v <- constructorForm =<< ureduce v
-      reportSDoc "tc.lhs.unify" 15 $
+      u <- liftTCM . constructorForm =<< ureduce u
+      v <- liftTCM . constructorForm =<< ureduce v
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyHH"
 	    , nest 2 $ parens $ prettyTCM u
 	    , nest 2 $ parens $ prettyTCM v
 	    , nest 2 $ text ":" <+> prettyTCM aHH
 	    ]
       -- obtain the (== Size) function
-      isSizeName <- isSizeNameTest
+      isSizeName <- liftTCM isSizeNameTest
 
       -- check whether types have the same shape
       (aHH, sh) <- shapeViewHH aHH
@@ -603,7 +603,7 @@ unifyIndices flex a us vs = liftTCM $ do
             Het a1 a2 | a1 == a2 -> (Hom a1, True, a1) -- BRITTLE: just checking syn.eq.
             _                    -> (aHH0, False, __IMPOSSIBLE__)
            -- ^ use @a@ only if 'homogeneous' holds!
-      reportSDoc "tc.lhs.unify" 15 $
+      liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyAtom"
 	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
             , nest 2 $ text "=?="
@@ -624,7 +624,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	(u, Var j []) | homogeneous && flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
-              r <- dataOrRecordTypeHH c aHH
+              r <- liftTCM $ dataOrRecordTypeHH c aHH
               case r of
                 Just a'HH -> unifyConstructorArgs a'HH us vs
                 Nothing   -> typeMismatch aHH u v
@@ -639,7 +639,7 @@ unifyIndices flex a us vs = liftTCM $ do
                     Record{}   -> True
                     Axiom{}    -> True
                     _          -> False
-              inj <- optInjectiveTypeConstructors <$> pragmaOptions
+              inj <- liftTCM $ optInjectiveTypeConstructors <$> pragmaOptions
               if inj && ok
                 then unifyArgs (defType def) us vs
                 else checkEqualityHH aHH u v
@@ -655,7 +655,7 @@ unifyIndices flex a us vs = liftTCM $ do
         -- Andreas, 2011-09-13: test/succeed/IndexInference needs this feature.
         (MetaV m us, v) | homogeneous -> do
             ok <- liftTCM $ instMeta a m us v
-            reportSDoc "tc.lhs.unify" 40 $
+            liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
                    , nest 2 $ sep [ prettyTCM u, text ":=", prettyTCM =<< normalise u ]
                    ]
@@ -663,7 +663,7 @@ unifyIndices flex a us vs = liftTCM $ do
                   else addEquality a u v
         (u, MetaV m vs) | homogeneous -> do
             ok <- liftTCM $ instMeta a m vs u
-            reportSDoc "tc.lhs.unify" 40 $
+            liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
                    , nest 2 $ sep [ prettyTCM v, text ":=", prettyTCM =<< normalise v ]
                    ]
@@ -828,16 +828,31 @@ unifyIndices flex a us vs = liftTCM $ do
 --
 -- Precondition: The type has to correspond to an application of the
 -- given constructor.
+
+{-
+dataOrRecordType :: MonadTCM tcm
+                 => QName -- ^ Constructor name.
+                 -> Type -> tcm Type
+dataOrRecordType c a = do
+  -- The telescope ends with a datatype or a record.
+  TelV _ (El _ (Def d args)) <- telView a
+  def <- theDef <$> getConstInfo d
+  (n, a')  <- case def of
+    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
+    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
+    _		           -> __IMPOSSIBLE__
+  return (a' `apply` genericTake n args)
+-}
 dataOrRecordType :: MonadTCM tcm
   => QName -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> tcm (Maybe Type) -- ^ Type of constructor, applied to pars.
+  -> TCM (Maybe Type) -- ^ Type of constructor, applied to pars.
 dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordType' c a
 
-dataOrRecordType' :: MonadTCM tcm
-  => QName -- ^ Constructor name.
+dataOrRecordType' ::
+     QName -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> tcm (Maybe (QName, -- ^ Name of data/record type.
+  -> TCM (Maybe (QName, -- ^ Name of data/record type.
                  Type,  -- ^ Type of constructor, to be applied to ...
                  Args))  -- ^ ... these parameters
 dataOrRecordType' c a = do
@@ -852,10 +867,10 @@ dataOrRecordType' c a = do
 
 -- | Heterogeneous situation.
 --   @a1@ and @a2@ need to end in same datatype/record.
-dataOrRecordTypeHH :: MonadTCM tcm
-  => QName      -- ^ Constructor name.
+dataOrRecordTypeHH ::
+     QName      -- ^ Constructor name.
   -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
-  -> tcm (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
+  -> TCM (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
 dataOrRecordTypeHH c (Hom a) = fmap Hom <$> dataOrRecordType c a
 dataOrRecordTypeHH c (Het a1 a2) = do
   r1 <- dataOrRecordType' c a1
@@ -920,10 +935,9 @@ data ShapeView a
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
 -- | Return the reduced type and its shape.
--- shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
-shapeView :: Type -> Unify (Type, ShapeView Type)
+shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
 shapeView t = do
-  t <- ureduce t  -- also instantiates meta in head position -- Q: reduce sufficient?
+  t <- reduce t  -- also instantiates meta in head position
   return . (t,) $ case unEl t of
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Fun a b        -> FunSh a b
@@ -935,8 +949,7 @@ shapeView t = do
     _              -> ElseSh
 
 -- | Return the reduced type(s) and the common shape.
--- shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
-shapeViewHH :: TypeHH -> Unify (TypeHH, ShapeView TypeHH)
+shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
 shapeViewHH (Hom a) = do
   (a, sh) <- shapeView a
   return (Hom a, fmap Hom sh)
@@ -962,8 +975,7 @@ shapeViewHH (Het a1 a2) = do
 
 -- | @telViewUpToHH n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if $n < 0$.
---telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
-telViewUpToHH :: Int -> TypeHH -> Unify TelViewHH
+telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
 telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
   (t, sh) <- shapeViewHH t

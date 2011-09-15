@@ -131,7 +131,7 @@ checkCoverage f = do
 
 -- | Check that the list of clauses covers the given split clause.
 --   Returns the missing cases.
-cover :: MonadTCM tcm => [Clause] -> SplitClause -> tcm (Set Nat, [[Arg Pattern]])
+cover :: [Clause] -> SplitClause -> TCM (Set Nat, [[Arg Pattern]])
 cover cs (SClause tel perm ps _) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -168,10 +168,10 @@ isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
               tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
   let t = unArg at
-  t' <- normalise t
+  t' <- liftTCM $ normalise t
   case unEl t' of
     Def d args -> do
-      def <- theDef <$> getConstInfo d
+      def <- liftTCM $ theDef <$> getConstInfo d
       case def of
         Datatype{dataPars = np, dataCons = cs, dataInduction = i}
           | i == CoInductive && ind /= CoInductive ->
@@ -192,16 +192,16 @@ computeNeighbourhood :: Telescope -> Telescope -> Permutation -> QName -> Args -
 computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
   -- Get the type of the datatype
-  dtype <- normalise =<< (`piApply` pars) . defType <$> getConstInfo d
+  dtype <- liftTCM $ normalise =<< (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
-  Con con [] <- constructorForm =<< normalise (Con con [])
+  Con con [] <- liftTCM $ constructorForm =<< normalise (Con con [])
 
   -- Get the type of the constructor
-  ctype <- defType <$> getConstInfo con
+  ctype <- liftTCM $ defType <$> getConstInfo con
 
   -- Lookup the type of the constructor at the given parameters
-  TelV gamma (El _ (Def _ cixs)) <- telView (ctype `piApply` pars)
+  TelV gamma (El _ (Def _ cixs)) <- liftTCM $ telView (ctype `piApply` pars)
 
   debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
 
@@ -257,7 +257,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
       -- Apply the unifying substitution to Θ
       -- We get ρ' : Θ' -> Θ
       --        π  : Θ' -> Θ
-      (theta', iperm, rho', _) <- instantiateTel sub' theta
+      (theta', iperm, rho', _) <- liftTCM $ instantiateTel sub' theta
       debugTel "theta'" theta'
       debugShow "iperm" iperm
 
@@ -280,7 +280,7 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
   where
     debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix =
-      reportSDoc "tc.cover.split.con" 20 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ vcat
         [ text "computeNeighbourhood"
         , nest 2 $ vcat
           [ text "con    =" <+> prettyTCM con
@@ -297,34 +297,34 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
         ]
 
     debugNoUnify =
-      reportSLn "tc.cover.split.con" 20 "  Constructor impossible!"
+      liftTCM $ reportSLn "tc.cover.split.con" 20 "  Constructor impossible!"
 
     debugCantSplit =
-      reportSLn "tc.cover.split.con" 20 "  Bad split!"
+      liftTCM $ reportSLn "tc.cover.split.con" 20 "  Bad split!"
 
     debugSubst s sub =
-      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text (s ++ " =") <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) sub)
         ]
 
     debugTel s tel =
-      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text (s ++ " =") <+> prettyTCM tel
         ]
 
     debugShow s x =
-      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text (s ++ " =") <+> text (show x)
         ]
 
     debugPlugged ps ps' =
-      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text "ps     =" <+> text (show ps)
         , text "ps'    =" <+> text (show ps')
         ]
 
     debugFinal tel perm ps =
-      reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
+      liftTCM $ reportSDoc "tc.cover.split.con" 20 $ nest 2 $ vcat
         [ text "rtel   =" <+> prettyTCM tel
         , text "rperm  =" <+> text (show perm)
         , text "rps    =" <+> text (show ps)
@@ -339,12 +339,11 @@ splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClaus
 splitClauseWithAbs c x =
   split' Inductive (clauseTel c) (clausePerm c) (clausePats c) x
 
-split :: MonadTCM tcm
-      => Induction
+split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
       -> Telescope -> Permutation -> [Arg Pattern] -> Nat
-      -> tcm (Either SplitError Covering)
+      -> TCM (Either SplitError Covering)
 split ind tel perm ps x = do
   r <- split' ind tel perm ps x
   return $ case r of
@@ -352,12 +351,11 @@ split ind tel perm ps x = do
     Right (Left _)  -> Right []
     Right (Right c) -> Right c
 
-split' :: MonadTCM tcm
-       => Induction
+split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
        -> Telescope -> Permutation -> [Arg Pattern] -> Nat
-       -> tcm (Either SplitError (Either SplitClause Covering))
+       -> TCM (Either SplitError (Either SplitClause Covering))
 split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
@@ -368,7 +366,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     return (telFromList tel1, telFromList tel2)
 
   -- Get the type of the variable
-  t <- inContextOfT $ normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
+  t <- inContextOfT $ liftTCM $ normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -386,7 +384,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
-  whenM (optWithoutK <$> pragmaOptions) $
+  liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
     inContextOfT $ Split.wellFormedIndices pars ixs
 
   -- Compute the neighbourhoods for the constructors
@@ -407,11 +405,12 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   where
 
+    inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = escapeContext (fromIntegral x + 1)
 
     -- Debug printing
     debugInit tel perm x ps =
-      reportSDoc "tc.cover.top" 10 $ vcat
+      liftTCM $ reportSDoc "tc.cover.top" 10 $ vcat
         [ text "TypeChecking.Rules.LHS.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
@@ -422,7 +421,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
         ]
 
     debugHoleAndType delta1 delta2 s hps t =
-      reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
+      liftTCM $ reportSDoc "tc.cover.top" 10 $ nest 2 $ vcat $
         [ text "p      =" <+> text s
         , text "hps    =" <+> text (show hps)
         , text "delta1 =" <+> prettyTCM delta1

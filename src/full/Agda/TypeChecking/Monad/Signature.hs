@@ -40,25 +40,25 @@ import Agda.Utils.Pretty
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-modifySignature :: MonadTCM tcm => (Signature -> Signature) -> tcm ()
+modifySignature :: (Signature -> Signature) -> TCM ()
 modifySignature f = modify $ \s -> s { stSignature = f $ stSignature s }
 
-modifyImportedSignature :: MonadTCM tcm => (Signature -> Signature) -> tcm ()
+modifyImportedSignature :: (Signature -> Signature) -> TCM ()
 modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
 
-getSignature :: MonadTCM tcm => tcm Signature
+getSignature :: TCM Signature
 getSignature = liftTCM $ gets stSignature
 
-getImportedSignature :: MonadTCM tcm => tcm Signature
+getImportedSignature :: TCM Signature
 getImportedSignature = liftTCM $ gets stImports
 
-setSignature :: MonadTCM tcm => Signature -> tcm ()
+setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig
 
-setImportedSignature :: MonadTCM tcm => Signature -> tcm ()
+setImportedSignature :: Signature -> TCM ()
 setImportedSignature sig = liftTCM $ modify $ \s -> s { stImports = sig }
 
-withSignature :: MonadTCM tcm => Signature -> tcm a -> tcm a
+withSignature :: Signature -> TCM a -> TCM a
 withSignature sig m =
     do	sig0 <- getSignature
 	setSignature sig
@@ -67,7 +67,7 @@ withSignature sig m =
         return r
 
 -- | Add a constant to the signature. Lifts the definition to top level.
-addConstant :: MonadTCM tcm => QName -> Definition -> tcm ()
+addConstant :: QName -> Definition -> TCM ()
 addConstant q d = liftTCM $ do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
@@ -180,7 +180,7 @@ makeProjection x = inContext [] $ do
 
     candidateRec vs b = candidateArgs (Var (size vs) [] : vs) (unEl $ absBody b)
 
-addHaskellCode :: MonadTCM tcm => QName -> HaskellType -> HaskellCode -> tcm ()
+addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
@@ -188,7 +188,7 @@ addHaskellCode q hsTy hsDef =
   where
     addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsDefn hsTy hsDef } }
 
-addHaskellType :: MonadTCM tcm => QName -> HaskellType -> tcm ()
+addHaskellType :: QName -> HaskellType -> TCM ()
 addHaskellType q hsTy =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
@@ -196,7 +196,7 @@ addHaskellType q hsTy =
   where
     addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsType hsTy } }
 
-addEpicCode :: MonadTCM tcm => QName -> EpicCode -> tcm ()
+addEpicCode :: QName -> EpicCode -> TCM ()
 addEpicCode q epDef =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
@@ -206,7 +206,7 @@ addEpicCode q epDef =
       --def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
     addEp def = def { defCompiledRep = (defCompiledRep def) { compiledEpic = Just epDef } }
 
-addJSCode :: MonadTCM tcm => QName -> String -> tcm ()
+addJSCode :: QName -> String -> TCM ()
 addJSCode q jsDef =
   case JS.parse jsDef of
     Left e ->
@@ -223,7 +223,7 @@ unionSignatures ss = foldr unionSignature emptySignature ss
     unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (Map.union b d)
 
 -- | Add a section to the signature.
-addSection :: MonadTCM tcm => ModuleName -> Nat -> tcm ()
+addSection :: ModuleName -> Nat -> TCM ()
 addSection m fv = do
   tel <- getContextTelescope
   let sec = Section tel fv
@@ -231,7 +231,7 @@ addSection m fv = do
 
 -- | Lookup a section. If it doesn't exist that just means that the module
 --   wasn't parameterised.
-lookupSection :: MonadTCM tcm => ModuleName -> tcm Telescope
+lookupSection :: ModuleName -> TCM Telescope
 lookupSection m = do
   sig  <- sigSections <$> getSignature
   isig <- sigSections <$> getImportedSignature
@@ -273,8 +273,8 @@ addDisplayForms x = do
       return (n + 1, v)
 
 applySection ::
-  MonadTCM tcm => ModuleName -> Telescope -> ModuleName -> Args ->
-  Map QName QName -> Map ModuleName ModuleName -> tcm ()
+  ModuleName -> Telescope -> ModuleName -> Args ->
+  Map QName QName -> Map ModuleName ModuleName -> TCM ()
 applySection new ptel old ts rd rm = liftTCM $ do
   sig  <- getSignature
   isig <- getImportedSignature
@@ -380,7 +380,7 @@ applySection new ptel old ts rd rm = liftTCM $ do
       where
 	tel = secTelescope sec
 
-addDisplayForm :: MonadTCM tcm => QName -> DisplayForm -> tcm ()
+addDisplayForm :: QName -> DisplayForm -> TCM ()
 addDisplayForm x df = do
   d <- makeOpen df
   modifyImportedSignature (add d)
@@ -391,7 +391,7 @@ addDisplayForm x df = do
 	addDf def = def { defDisplay = df : defDisplay def }
 	defs	  = sigDefinitions sig
 
-canonicalName :: MonadTCM tcm => QName -> tcm QName
+canonicalName :: QName -> TCM QName
 canonicalName x = do
   def <- theDef <$> getConstInfo x
   case def of
@@ -408,7 +408,7 @@ canonicalName x = do
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.
-whatInduction :: MonadTCM tcm => QName -> tcm Induction
+whatInduction :: QName -> TCM Induction
 whatInduction c = do
   def <- theDef <$> getConstInfo c
   case def of
@@ -435,6 +435,7 @@ singleConstructorType q = do
 
 -- | Lookup the definition of a name. The result is a closed thing, all free
 --   variables have been abstracted over.
+{-# SPECIALIZE getConstInfo :: QName -> TCM Definition #-}
 getConstInfo :: MonadTCM tcm => QName -> tcm Definition
 getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
   let defs  = sigDefinitions $ stSignature st
@@ -467,7 +468,7 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
         init' xs = init xs
 
 -- | Look up the polarity of a definition.
-getPolarity :: MonadTCM tcm => QName -> tcm [Polarity]
+getPolarity :: QName -> TCM [Polarity]
 getPolarity q = liftTCM $ do
   defn <- theDef <$> getConstInfo q
   case defn of
@@ -476,12 +477,12 @@ getPolarity q = liftTCM $ do
     Record{ recPolarity    = p } -> return p
     _                            -> return []
 
-getPolarity' :: MonadTCM tcm => Comparison -> QName -> tcm [Polarity]
+getPolarity' :: Comparison -> QName -> TCM [Polarity]
 getPolarity' CmpEq _  = return []
 getPolarity' CmpLeq q = getPolarity q
 
 -- | Set the polarity of a definition.
-setPolarity :: MonadTCM tcm => QName -> [Polarity] -> tcm ()
+setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = liftTCM $ do
   modifySignature setP
   where
@@ -495,7 +496,7 @@ setPolarity q pol = liftTCM $ do
           _          -> d
 	defs	  = sigDefinitions sig
 
-getArgOccurrence :: MonadTCM tcm => QName -> Nat -> tcm Occurrence
+getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- theDef <$> getConstInfo d
   return $ case def of
@@ -507,7 +508,7 @@ getArgOccurrence d i = do
   where
     look i os = (os ++ repeat Negative) !! fromIntegral i
 
-setArgOccurrences :: MonadTCM tcm => QName -> [Occurrence] -> tcm ()
+setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os = liftTCM $
   modifySignature setO
   where
@@ -524,7 +525,7 @@ setArgOccurrences d os = liftTCM $
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.
-getSecFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
+getSecFreeVars :: ModuleName -> TCM Nat
 getSecFreeVars m = do
   sig  <- sigSections <$> getSignature
   isig <- sigSections <$> getImportedSignature
@@ -535,23 +536,23 @@ getSecFreeVars m = do
 
 -- | Compute the number of free variables of a module. This is the sum of
 --   the free variables of its sections.
-getModuleFreeVars :: MonadTCM tcm => ModuleName -> tcm Nat
+getModuleFreeVars :: ModuleName -> TCM Nat
 getModuleFreeVars m = sum <$> ((:) <$> getAnonymousVariables m <*> mapM getSecFreeVars ms)
   where
     ms = map mnameFromList . inits . mnameToList $ m
 
 -- | Compute the number of free variables of a defined name. This is the sum of
 --   the free variables of the sections it's contained in.
-getDefFreeVars :: MonadTCM tcm => QName -> tcm Nat
+getDefFreeVars :: QName -> TCM Nat
 getDefFreeVars q = getModuleFreeVars (qnameModule q)
 
 -- | Compute the context variables to apply a definition to.
-freeVarsToApply :: MonadTCM tcm => QName -> tcm Args
+freeVarsToApply :: QName -> TCM Args
 freeVarsToApply x = genericTake <$> getDefFreeVars x <*> getContextArgs
 
 -- | Instantiate a closed definition with the correct part of the current
 --   context.
-instantiateDef :: MonadTCM tcm => Definition -> tcm Definition
+instantiateDef :: Definition -> TCM Definition
 instantiateDef d = do
   vs  <- freeVarsToApply $ defName d
   verboseS "tc.sig.inst" 30 $ do
@@ -572,21 +573,21 @@ makeAbstract d = do def <- makeAbs $ theDef d
 	makeAbs d                                    = Just d
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
-inAbstractMode :: MonadTCM tcm => tcm a -> tcm a
+inAbstractMode :: TCM a -> TCM a
 inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode }
 
 -- | Not in abstract mode. All abstract definitions are opaque.
-inConcreteMode :: MonadTCM tcm => tcm a -> tcm a
+inConcreteMode :: TCM a -> TCM a
 inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
-ignoreAbstractMode :: MonadTCM tcm => tcm a -> tcm a
+ignoreAbstractMode :: TCM a -> TCM a
 ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode }
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not
 --   declared abstract as well, but for those 'makeAbstract' will have no effect.
-treatAbstractly :: MonadTCM tcm => QName -> tcm Bool
+treatAbstractly :: QName -> TCM Bool
 treatAbstractly q = treatAbstractly' q <$> ask
 
 treatAbstractly' :: QName -> TCEnv -> Bool
@@ -599,15 +600,15 @@ treatAbstractly' q env = case envAbstractMode env of
     m	    = qnameModule q
 
 -- | get type of a constant
-typeOfConst :: MonadTCM tcm => QName -> tcm Type
+typeOfConst :: QName -> TCM Type
 typeOfConst q = defType <$> (instantiateDef =<< getConstInfo q)
 
 -- | get relevance of a constant
-relOfConst :: MonadTCM tcm => QName -> tcm Relevance
+relOfConst :: QName -> TCM Relevance
 relOfConst q = defRelevance <$> getConstInfo q
 
 -- | The name must be a datatype.
-sortOfConst :: MonadTCM tcm => QName -> tcm Sort
+sortOfConst :: QName -> TCM Sort
 sortOfConst q =
     do	d <- theDef <$> getConstInfo q
 	case d of
@@ -615,7 +616,7 @@ sortOfConst q =
 	    _			   -> fail $ "Expected " ++ show q ++ " to be a datatype."
 
 -- | Is it the name of a record projection?
-isProjection :: MonadTCM tcm => QName -> tcm (Maybe (QName, Int))
+isProjection :: QName -> TCM (Maybe (QName, Int))
 isProjection qn = do
   def <- theDef <$> getConstInfo qn
   case def of

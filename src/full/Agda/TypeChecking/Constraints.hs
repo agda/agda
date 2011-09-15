@@ -37,7 +37,7 @@ import Agda.Utils.Impossible
 
 -- | Catches pattern violation errors and adds a constraint.
 --
-catchConstraint :: MonadTCM tcm => Constraint -> TCM () -> tcm ()
+catchConstraint :: Constraint -> TCM () -> TCM ()
 catchConstraint c v = liftTCM $
    catchError_ v $ \err ->
    case errError err of
@@ -48,7 +48,7 @@ catchConstraint c v = liftTCM $
        PatternErr s -> put s >> addConstraint c
        _	    -> throwError err
 
-addConstraint :: MonadTCM tcm => Constraint -> tcm ()
+addConstraint :: Constraint -> TCM ()
 addConstraint c = do
     pids <- asks envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
@@ -64,7 +64,7 @@ addConstraint c = do
         solveConstraint_ c'
       else addConstraint' c'
   where
-    simpl :: MonadTCM tcm => Constraint -> tcm Constraint
+    simpl :: Constraint -> TCM Constraint
     simpl c = do
       n <- genericLength <$> getContext
       let isLvl LevelCmp{} = True
@@ -75,7 +75,7 @@ addConstraint c = do
       simplifyLevelConstraint n c <$> getAllConstraints
 
 -- | Don't allow the argument to produce any constraints.
-noConstraints :: MonadTCM tcm => TCM a -> tcm a
+noConstraints :: TCM a -> TCM a
 noConstraints problem = liftTCM $ do
   (pid, x) <- newProblem problem
   cs <- getConstraintsForProblem pid
@@ -83,7 +83,7 @@ noConstraints problem = liftTCM $ do
   return x
 
 -- | Create a fresh problem for the given action.
-newProblem :: MonadTCM tcm => TCM a -> tcm (ProblemId, a)
+newProblem :: TCM a -> TCM (ProblemId, a)
 newProblem action = do
   pid <- fresh
   -- Don't get distracted by other constraints while working on the problem
@@ -92,43 +92,43 @@ newProblem action = do
   solveAwakeConstraints
   return (pid, x)
 
-newProblem_ :: MonadTCM tcm => TCM () -> tcm ProblemId
+newProblem_ :: TCM () -> TCM ProblemId
 newProblem_ action = fst <$> newProblem action
 
-ifNoConstraints :: MonadTCM tcm => TCM a -> (a -> tcm b) -> (ProblemId -> a -> tcm b) -> tcm b
+ifNoConstraints :: TCM a -> (a -> TCM b) -> (ProblemId -> a -> TCM b) -> TCM b
 ifNoConstraints check ifNo ifCs = do
   (pid, x) <- newProblem check
   ifM (isProblemSolved pid) (ifNo x) (ifCs pid x)
 
-ifNoConstraints_ :: MonadTCM tcm => TCM () -> tcm a -> (ProblemId -> tcm a) -> tcm a
+ifNoConstraints_ :: TCM () -> TCM a -> (ProblemId -> TCM a) -> TCM a
 ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ -> ifCs pid)
 
 -- | @guardConstraint cs c@ tries to solve constraints @cs@ first.
 --   If successful, it moves on to solve @c@, otherwise it returns
 --   a @Guarded c cs@.
-guardConstraint :: MonadTCM tcm => Constraint -> TCM () -> tcm ()
+guardConstraint :: Constraint -> TCM () -> TCM ()
 guardConstraint c blocker =
   ifNoConstraints_ blocker (solveConstraint_ c) (addConstraint . Guarded c)
 
-whenConstraints :: MonadTCM tcm => TCM () -> tcm () -> tcm ()
+whenConstraints :: TCM () -> TCM () -> TCM ()
 whenConstraints action handler =
   ifNoConstraints_ action (return ()) $ \pid -> do
     stealConstraints pid
     handler
 
 -- | Wake up the constraints depending on the given meta.
-wakeupConstraints :: MonadTCM tcm => MetaId -> tcm ()
+wakeupConstraints :: MetaId -> TCM ()
 wakeupConstraints x = do
   wakeConstraints (mentionsMeta x)
   solveAwakeConstraints
 
 -- | Wake up all constraints.
-wakeupConstraints_ :: MonadTCM tcm => tcm ()
+wakeupConstraints_ :: TCM ()
 wakeupConstraints_ = do
   wakeConstraints (const True)
   solveAwakeConstraints
 
-solveAwakeConstraints :: MonadTCM tcm => tcm ()
+solveAwakeConstraints :: TCM ()
 solveAwakeConstraints = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
     unlessM isSolvingConstraints $ nowSolvingConstraints solve
@@ -142,7 +142,7 @@ solveAwakeConstraints = do
         withConstraint solveConstraint c
         solve
 
-solveConstraint :: MonadTCM tcm => Constraint -> tcm ()
+solveConstraint :: Constraint -> TCM ()
 solveConstraint c = do
     verboseS "profile.constraints" 10 $ liftTCM $ tick "attempted-constraints"
     verboseBracket "tc.constr.solve" 20 "solving constraint" $ do
@@ -213,7 +213,7 @@ solveConstraint_ (FindInScope m)      =
                        (an, t, vs) <- zip3 candsP3Names candsP3Types candsP3FV]
         let cands = [candsP1, candsP2, candsP3]
         cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
-        let iterCands :: MonadTCM tcm => [(Int, [(Term, Type)])] -> tcm ()
+        let iterCands :: [(Int, [(Term, Type)])] -> TCM ()
             iterCands [] = do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
                               typeError $ IFSNoCandidateInScope t
             iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $
@@ -232,13 +232,13 @@ solveConstraint_ (FindInScope m)      =
                                        addConstraint $ FindInScope m
         iterCands [(1,concat cands)]
       where
-        getContextVars :: MonadTCM tcm => tcm [(Term, Type, Hiding)]
+        getContextVars :: TCM [(Term, Type, Hiding)]
         getContextVars = do
           ctx <- getContext
           let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
           types <- mapM typeOfBV ids
           return $ [ (Var i [], t, h) | (Arg h _ _, i, t) <- zip3 ctx [0..] types ]
-        checkCandidateForMeta :: (MonadTCM tcm) => MetaId -> Type -> Term -> Type -> tcm Bool
+        checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
         checkCandidateForMeta m t term t' =
           liftTCM $ flip catchError (\err -> return False) $ do
             reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."

@@ -20,14 +20,14 @@ import Agda.Utils.Impossible
 #include "../../undefined.h"
 
 -- | Get the current problem
-currentProblem :: MonadTCM tcm => tcm ProblemId
+currentProblem :: TCM ProblemId
 currentProblem = asks $ head' . envActiveProblems
   where
     head' []    = {- ' -} __IMPOSSIBLE__
     head' (x:_) = x
 
 -- | Steal all constraints belonging to the given problem and add them to the current problem.
-stealConstraints :: MonadTCM tcm => ProblemId -> tcm ()
+stealConstraints :: ProblemId -> TCM ()
 stealConstraints pid = do
   current <- currentProblem
   reportSLn "tc.constr.steal" 50 $ "problem " ++ show current ++ " is stealing problem " ++ show pid ++ "'s constraints!"
@@ -38,7 +38,7 @@ stealConstraints pid = do
   modify $ \s -> s { stAwakeConstraints    = List.map rename $ stAwakeConstraints s
                    , stSleepingConstraints = List.map rename $ stSleepingConstraints s }
 
-solvingProblem :: MonadTCM tcm => ProblemId -> TCM a -> tcm a
+solvingProblem :: ProblemId -> TCM a -> TCM a
 solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ liftTCM $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
   ifM (isProblemSolved pid) (do
@@ -50,19 +50,19 @@ solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem 
     blockedOn pid (Guarded _ pid') = pid == pid'
     blockedOn _ _ = False
 
-isProblemSolved :: MonadTCM tcm => ProblemId -> tcm Bool
+isProblemSolved :: ProblemId -> TCM Bool
 isProblemSolved pid =
   (&&) <$> (notElem pid <$> asks envActiveProblems)
        <*> (all ((/= pid) . constraintProblem) <$> getAllConstraints)
 
-getConstraintsForProblem :: MonadTCM tcm => ProblemId -> tcm Constraints
+getConstraintsForProblem :: ProblemId -> TCM Constraints
 getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> getAllConstraints
 
 -- | Get the awake constraints
-getAwakeConstraints :: MonadTCM tcm => tcm Constraints
+getAwakeConstraints :: TCM Constraints
 getAwakeConstraints = gets stAwakeConstraints
 
-wakeConstraints :: MonadTCM tcm => (ProblemConstraint-> Bool) -> tcm ()
+wakeConstraints :: (ProblemConstraint-> Bool) -> TCM ()
 wakeConstraints wake = do
   sleepers <- gets stSleepingConstraints
   let (wakeup, sleepin) = List.partition wake sleepers
@@ -73,7 +73,7 @@ wakeConstraints wake = do
       , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
       }
 
-takeAwakeConstraint :: MonadTCM tcm => tcm (Maybe ProblemConstraint)
+takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
 takeAwakeConstraint = do
   cs <- getAwakeConstraints
   case cs of
@@ -82,10 +82,10 @@ takeAwakeConstraint = do
       modify $ \s -> s { stAwakeConstraints = cs }
       return (Just c)
 
-getAllConstraints :: MonadTCM tcm => tcm Constraints
+getAllConstraints :: TCM Constraints
 getAllConstraints = gets $ \s -> stAwakeConstraints s ++ stSleepingConstraints s
 
-withConstraint :: MonadTCM tcm => (Constraint -> TCM a) -> ProblemConstraint -> tcm a
+withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
 withConstraint f (PConstr pid c) = liftTCM $ do
   -- We should preserve the problem stack and the isSolvingConstraint flag
   (pids, isSolving) <- asks $ envActiveProblems &&& envSolvingConstraints
@@ -93,14 +93,14 @@ withConstraint f (PConstr pid c) = liftTCM $ do
     local (\e -> e { envActiveProblems = pids, envSolvingConstraints = isSolving }) $
     solvingProblem pid (f c)
 
-buildProblemConstraint :: MonadTCM tcm => ProblemId -> Constraint -> tcm ProblemConstraint
+buildProblemConstraint :: ProblemId -> Constraint -> TCM ProblemConstraint
 buildProblemConstraint pid c = PConstr pid <$> buildClosure c
 
-buildConstraint :: MonadTCM tcm => Constraint -> tcm ProblemConstraint
+buildConstraint :: Constraint -> TCM ProblemConstraint
 buildConstraint c = flip buildProblemConstraint c =<< currentProblem
 
 -- | Add new a constraint
-addConstraint' :: MonadTCM tcm => Constraint -> tcm ()
+addConstraint' :: Constraint -> TCM ()
 addConstraint' c = do
     pc <- build
     modify $ \s -> s { stSleepingConstraints = pc : stSleepingConstraints s }
@@ -119,13 +119,13 @@ addConstraint' c = do
     isBlocking IsEmpty{}     = True
 
 -- | Add already awake constraints
-addAwakeConstraints :: MonadTCM tcm => Constraints -> tcm ()
+addAwakeConstraints :: Constraints -> TCM ()
 addAwakeConstraints cs = modify $ \s -> s { stAwakeConstraints = cs ++ stAwakeConstraints s }
 
 -- | Start solving constraints
-nowSolvingConstraints :: MonadTCM tcm => tcm a -> tcm a
+nowSolvingConstraints :: TCM a -> TCM a
 nowSolvingConstraints = local $ \e -> e { envSolvingConstraints = True }
 
-isSolvingConstraints :: MonadTCM tcm => tcm Bool
+isSolvingConstraints :: TCM Bool
 isSolvingConstraints = asks envSolvingConstraints
 

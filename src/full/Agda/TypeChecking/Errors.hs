@@ -39,7 +39,7 @@ import Agda.Utils.Impossible
 -- * Top level function
 ---------------------------------------------------------------------------
 
-prettyError :: MonadTCM tcm => TCErr -> tcm String
+prettyError :: TCErr -> TCM String
 prettyError err = liftTCM $ liftM show $
     prettyTCM err
     `catchError` \err' -> text "panic: error when printing error!" $$ prettyTCM err'
@@ -53,17 +53,17 @@ prettyError err = liftTCM $ liftM show $
 -- * Helpers
 ---------------------------------------------------------------------------
 
-sayWhere :: (MonadTCM tcm, HasRange a) => a -> tcm Doc -> tcm Doc
+sayWhere :: HasRange a => a -> TCM Doc -> TCM Doc
 sayWhere x d = text (show $ getRange x) $$ d
 
-sayWhen :: MonadTCM tcm => Range -> Maybe (Closure Call) -> tcm Doc -> tcm Doc
+sayWhen :: Range -> Maybe (Closure Call) -> TCM Doc -> TCM Doc
 sayWhen r Nothing   m = sayWhere r m
 sayWhen r (Just cl) m = sayWhere r (m $$ prettyTCM cl)
 
-panic :: MonadTCM tcm => String -> tcm Doc
+panic :: String -> TCM Doc
 panic s = fwords $ "Panic: " ++ s
 
-nameWithBinding :: MonadTCM tcm => QName -> tcm Doc
+nameWithBinding :: QName -> TCM Doc
 nameWithBinding q =
   sep [ prettyTCM q, text "bound at", text (show r) ]
   where

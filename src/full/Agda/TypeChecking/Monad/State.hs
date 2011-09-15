@@ -19,38 +19,38 @@ import Agda.Utils.Hash
 -- | Resets the type checking state. The persistent command line
 -- options are preserved.
 
-resetState :: MonadTCM tcm => tcm ()
+resetState :: TCM ()
 resetState = liftTCM $ do
     opts <- stPersistentOptions <$> get
     put $ initState { stPersistentOptions = opts }
 
 -- | Set the current scope.
-setScope :: MonadTCM tcm => ScopeInfo -> tcm ()
+setScope :: ScopeInfo -> TCM ()
 setScope scope = liftTCM $ modify $ \s -> s { stScope = scope }
 
 -- | Get the current scope.
-getScope :: MonadTCM tcm => tcm ScopeInfo
+getScope :: TCM ScopeInfo
 getScope = liftTCM $ gets stScope
 
 -- | Sets stExtLambdaTele .
-setExtLambdaTele :: MonadTCM tcm => Map QName (Int , Int) -> tcm ()
+setExtLambdaTele :: Map QName (Int , Int) -> TCM ()
 setExtLambdaTele tele = liftTCM $ modify $ \s -> s { stExtLambdaTele = tele }
 
 -- | Get stExtLambdaTele.
-getExtLambdaTele :: MonadTCM tcm => tcm (Map QName (Int , Int))
+getExtLambdaTele :: TCM (Map QName (Int , Int))
 getExtLambdaTele = liftTCM $ gets stExtLambdaTele
 
-addExtLambdaTele :: MonadTCM tcm => QName -> (Int , Int) -> tcm ()
+addExtLambdaTele :: QName -> (Int , Int) -> TCM ()
 addExtLambdaTele id x = getExtLambdaTele >>= setExtLambdaTele . (insert id x)
 
 -- | Modify the current scope.
-modifyScope :: MonadTCM tcm => (ScopeInfo -> ScopeInfo) -> tcm ()
+modifyScope :: (ScopeInfo -> ScopeInfo) -> TCM ()
 modifyScope f = do
   s <- getScope
   setScope $ f s
 
 -- | Run a computation in a local scope.
-withScope :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm (a, ScopeInfo)
+withScope :: ScopeInfo -> TCM a -> TCM (a, ScopeInfo)
 withScope s m = do
   s' <- getScope
   setScope s
@@ -60,11 +60,11 @@ withScope s m = do
   return (x, s'')
 
 -- | Same as 'withScope', but discard the scope from the computation.
-withScope_ :: MonadTCM tcm => ScopeInfo -> tcm a -> tcm a
+withScope_ :: ScopeInfo -> TCM a -> TCM a
 withScope_ s m = fst <$> withScope s m
 
 -- | Discard any changes to the scope by a computation.
-localScope :: MonadTCM tcm => tcm a -> tcm a
+localScope :: TCM a -> TCM a
 localScope m = do
   scope <- getScope
   x <- m
@@ -77,7 +77,7 @@ localScope m = do
 -- TODO: Is the hash-function collision-free? If not, then the
 -- implementation of 'setTopLevelModule' should be changed.
 
-setTopLevelModule :: MonadTCM tcm => C.QName -> tcm ()
+setTopLevelModule :: C.QName -> TCM ()
 setTopLevelModule x =
   modify $ \s -> s
     { stFreshThings = (stFreshThings s)
@@ -87,7 +87,7 @@ setTopLevelModule x =
 
 -- | Use a different top-level module for a computation. Used when generating
 --   names for imported modules.
-withTopLevelModule :: MonadTCM tcm => C.QName -> tcm a -> tcm a
+withTopLevelModule :: C.QName -> TCM a -> TCM a
 withTopLevelModule x m = do
   next <- gets $ fName . stFreshThings
   setTopLevelModule x
@@ -96,10 +96,10 @@ withTopLevelModule x m = do
   return y
 
 -- | Tell the compiler to import the given Haskell module.
-addHaskellImport :: MonadTCM tcm => String -> tcm ()
+addHaskellImport :: String -> TCM ()
 addHaskellImport i =
   modify $ \s -> s { stHaskellImports = Set.insert i $ stHaskellImports s }
 
 -- | Get the Haskell imports.
-getHaskellImports :: MonadTCM tcm => tcm (Set String)
+getHaskellImports :: TCM (Set String)
 getHaskellImports = gets stHaskellImports

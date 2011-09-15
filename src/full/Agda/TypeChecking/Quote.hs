@@ -18,7 +18,7 @@ import Agda.TypeChecking.Substitute
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-quotingKit :: MonadTCM tcm => tcm ((Term -> Term), (Type -> Term))
+quotingKit :: TCM ((Term -> Term), (Type -> Term))
 quotingKit = do
   hidden <- primHidden
   instanceH <- primInstance
@@ -88,16 +88,16 @@ quotingKit = do
 quoteName :: QName -> Term
 quoteName x = Lit (LitQName noRange x)
 
-quoteTerm :: MonadTCM tcm => Term -> tcm Term
+quoteTerm :: Term -> TCM Term
 quoteTerm v = ($v) . fst <$> quotingKit
 
-quoteType :: MonadTCM tcm => Type -> tcm Term
+quoteType :: Type -> TCM Term
 quoteType v = ($v) . snd <$> quotingKit
 
-agdaTermType :: MonadTCM tcm => tcm Type
+agdaTermType :: TCM Type
 agdaTermType = El (mkType 0) <$> primAgdaTerm
 
-qNameType :: MonadTCM tcm => tcm Type
+qNameType :: TCM Type
 qNameType = El (mkType 0) <$> primQName
 
 isCon :: QName -> TCM Term -> TCM Bool

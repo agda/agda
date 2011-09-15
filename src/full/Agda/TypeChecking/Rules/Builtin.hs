@@ -126,7 +126,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         tv0 = el v0
         tv1 = el v1
 
-        arg :: MonadTCM tcm => tcm Term -> tcm Term
+        arg :: TCM Term -> TCM Term
         arg t = primArg <@> t
 
         targ x     = el (arg (fmap unEl x))

@@ -107,17 +107,17 @@ applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
 
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
-workOnTypes :: MonadTCM tcm => TCM a -> tcm a
+workOnTypes :: TCM a -> TCM a
 workOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes'
 
-workOnTypes' :: MonadTCM tcm => TCM a -> tcm a
+workOnTypes' :: TCM a -> TCM a
 workOnTypes' = liftTCM . modifyContext (modifyContextEntries $ modifyArgRelevance $ irrToNonStrict)
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
-applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
+applyRelevanceToContext :: Relevance -> TCM a -> TCM a
 applyRelevanceToContext rel =
   case rel of
     Relevant -> id
@@ -132,14 +132,14 @@ applyRelevanceToContext rel =
 -- | Wake up irrelevant variables and make them relevant.  For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
-wakeIrrelevantVars :: MonadTCM tcm => tcm a -> tcm a
+wakeIrrelevantVars :: TCM a -> TCM a
 wakeIrrelevantVars = local $ \ e -> e
    { envContext = map wakeVar (envContext e) -- enable local  irr. defs
    , envIrrelevant = True                    -- enable global irr. defs
    }
   where wakeVar ce = ce { ctxEntry = makeRelevant (ctxEntry ce) }
 
-applyRelevanceToContext :: MonadTCM tcm => Relevance -> tcm a -> tcm a
+applyRelevanceToContext :: Relevance -> TCM a -> TCM a
 applyRelevanceToContext Irrelevant cont = wakeIrrelevantVars cont
 applyRelevanceToContext _          cont = cont
 -}

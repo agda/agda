@@ -42,7 +42,7 @@ import Agda.Utils.Impossible
 -- compiled clauses instead, but the code below has already been
 -- implemented and seems to work.
 
-translateRecordPatterns :: MonadTCM tcm => Clause -> tcm Clause
+translateRecordPatterns :: Clause -> TCM Clause
 translateRecordPatterns clause = do
   -- ps: New patterns, in left-to-right order, in the context of the
   -- old RHS.
@@ -162,8 +162,8 @@ newtype RecPatM a = RecPatM (TCMT (ReaderT Nat (StateT Nat IO)) a)
 
 -- | Runs a computation in the 'RecPatM' monad.
 
-runRecPatM :: MonadTCM tcm => RecPatM a -> tcm a
-runRecPatM (RecPatM m) = liftTCM $
+runRecPatM :: RecPatM a -> TCM a
+runRecPatM (RecPatM m) =
   mapTCMT (\m -> do
              (x, noVars) <- mfix $ \ ~(_, noVars) ->
                               runStateT (runReaderT m noVars) 0
@@ -314,7 +314,7 @@ recordTree (ConP c (Just t) ps) = do
         (ps', ss, cs) <- unzip3 <$> mapM (either id removeTree) rs
         return (ConP c (Just t) (ps' `withArgsFrom` ps),
                 concat ss, concat cs)
-    Right ts -> do
+    Right ts -> liftTCM $ do
       t <- reduce t
       case t of
         Arg { unArg = El _ (Def r _) } -> do

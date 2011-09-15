@@ -21,31 +21,35 @@ interestingCall cl = case clValue cl of
     _			      -> True
 
 -- | Record a function call in the trace.
+{-# SPECIALIZE traceCall :: (Maybe r -> Call) -> TCM a -> TCM a #-}
 traceCall :: MonadTCM tcm => (Maybe r -> Call) -> tcm a -> tcm a
 traceCall mkCall m = do
   let call = mkCall Nothing
       r | getRange call /= noRange = const $ getRange call
         | otherwise                = id
-  cl <- buildClosure call
+  cl <- liftTCM $ buildClosure call
   let trace | interestingCall cl = local $ \e -> e { envRange = r (envRange e)
                                                    , envCall  = Just cl }
             | otherwise          = local $ \e -> e { envRange = r (envRange e) }
   trace m
 
+{-# SPECIALIZE traceCall_ :: (Maybe () -> Call) -> TCM r -> TCM r #-}
 traceCall_ :: MonadTCM tcm => (Maybe () -> Call) -> tcm r -> tcm r
 traceCall_ mkCall = traceCall (mkCall . fmap (const ()))
 
+{-# SPECIALIZE traceCallCPS :: (Maybe r -> Call) -> (r -> TCM a) -> ((r -> TCM a) -> TCM b) -> TCM b #-}
 traceCallCPS :: MonadTCM tcm => (Maybe r -> Call) -> (r -> tcm a) -> ((r -> tcm a) -> tcm b) -> tcm b
 traceCallCPS mkCall ret cc = traceCall mkCall (cc ret)
 
+{-# SPECIALIZE traceCallCPS_ :: (Maybe () -> Call) -> TCM a -> (TCM a -> TCM b) -> TCM b #-}
 traceCallCPS_ :: MonadTCM tcm => (Maybe () -> Call) -> tcm a -> (tcm a -> tcm b) -> tcm b
 traceCallCPS_ mkCall ret cc =
     traceCallCPS mkCall (const ret) (\k -> cc $ k ())
 
-getCurrentRange :: MonadTCM tcm => tcm Range
+getCurrentRange :: TCM Range
 getCurrentRange = envRange <$> ask
 
-setCurrentRange :: MonadTCM tcm => Range -> tcm a -> tcm a
+setCurrentRange :: Range -> TCM a -> TCM a
 setCurrentRange r
   | r == noRange = id
   | otherwise    = traceCall (SetRange r)

@@ -15,10 +15,10 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 
 -- | Make sure that a type is empty.
-isReallyEmptyType :: MonadTCM tcm => Type -> tcm ()
+isReallyEmptyType :: Type -> TCM ()
 isReallyEmptyType t = noConstraints $ isEmptyType t
 
-isEmptyType :: MonadTCM tcm => Type -> tcm ()
+isEmptyType :: Type -> TCM ()
 isEmptyType t = do
   tb <- reduceB t
   let t = ignoreBlocking tb

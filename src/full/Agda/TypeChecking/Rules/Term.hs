@@ -91,14 +91,14 @@ isTypeEqualTo e t = case e of
     t' <- isType e (getSort t)
     t' <$ leqType_ t t'
 
-leqType_ :: MonadTCM tcm => Type -> Type -> tcm ()
+leqType_ :: Type -> Type -> TCM ()
 leqType_ t t' = workOnTypes $ leqType t t'
 
 {- UNUSED
 -- | Force a type to be a Pi. Instantiates if necessary. The 'Hiding' is only
 --   used when instantiating a meta variable.
 
-forcePi :: MonadTCM tcm => Hiding -> String -> Type -> tcm (Type, Constraints)
+forcePi :: Hiding -> String -> Type -> TCM (Type, Constraints)
 forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of
@@ -294,7 +294,7 @@ litType l = case l of
 ---------------------------------------------------------------------------
 
 -- TODO: move somewhere suitable
-reduceCon :: MonadTCM tcm => QName -> tcm QName
+reduceCon :: QName -> TCM QName
 reduceCon c = do
   Con c [] <- constructorForm =<< reduce (Con c [])
   return c
@@ -979,7 +979,7 @@ checkArguments exh r [] t0 t1 =
 		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
 	    FunV (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
-                reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
+                lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
 		let arg = Arg Instance rel v
 		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
@@ -1017,7 +1017,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
-                                       reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
+                                       lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
                                        let arg = Arg Instance rel v
                                        (vs, t0'') <- checkArguments exh r args0 (piApply t0 [arg]) t1
                                        return (arg : vs, t0'')

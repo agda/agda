@@ -43,7 +43,7 @@ import Agda.Syntax.Abstract.Views as AV
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
-import Agda.TypeChecking.Monad.Base  (MonadTCM)
+import Agda.TypeChecking.Monad.Base  (TCM)
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad hiding (bracket)
@@ -92,7 +92,7 @@ noTakenNames = local $ \e -> e { takenNames = Set.empty }
 -- | We make the translation monadic for modularity purposes.
 type AbsToCon = Reader Env
 
-runAbsToCon :: MonadTCM tcm => AbsToCon a -> tcm a
+runAbsToCon :: AbsToCon a -> TCM a
 runAbsToCon m = do
   scope <- getScope
   return $ runReader m (makeEnv scope)
@@ -100,7 +100,7 @@ runAbsToCon m = do
 abstractToConcrete :: ToConcrete a c => Env -> a -> c
 abstractToConcrete flags a = runReader (toConcrete a) flags
 
-abstractToConcreteCtx :: (MonadTCM tcm, ToConcrete a c) => Precedence -> a -> tcm c
+abstractToConcreteCtx :: ToConcrete a c => Precedence -> a -> TCM c
 abstractToConcreteCtx ctx x = do
   scope <- getScope
   let scope' = scope { scopePrecedence = ctx }
@@ -108,7 +108,7 @@ abstractToConcreteCtx ctx x = do
   where
     scope = (currentScope defaultEnv) { scopePrecedence = ctx }
 
-abstractToConcrete_ :: (MonadTCM tcm, ToConcrete a c) => a -> tcm c
+abstractToConcrete_ :: ToConcrete a c => a -> TCM c
 abstractToConcrete_ x = do
   scope <- getScope
   return $ abstractToConcrete (makeEnv scope) x

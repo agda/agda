@@ -7,8 +7,8 @@ import Agda.Syntax.Common (Arg)
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad
 
-isRecord :: MonadTCM tcm => QName -> tcm Bool
-isEtaRecord :: MonadTCM tcm => QName -> tcm Bool
-getRecordFieldNames :: MonadTCM tcm => QName -> tcm [Arg C.Name]
-etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
-isGeneratedRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
+isRecord :: QName -> TCM Bool
+isEtaRecord :: QName -> TCM Bool
+getRecordFieldNames :: QName -> TCM [Arg C.Name]
+etaContractRecord :: QName -> QName -> Args -> TCM Term
+isGeneratedRecordConstructor :: QName -> TCM Bool

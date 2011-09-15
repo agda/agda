@@ -55,7 +55,7 @@ findIdx :: Eq a => [a] -> a -> Maybe Int
 findIdx vs v = findIndex (==v) (reverse vs)
 
 -- | Check whether a meta variable is a place holder for a blocked term.
-isBlockedTerm :: MonadTCM tcm => MetaId -> tcm Bool
+isBlockedTerm :: MetaId -> TCM Bool
 isBlockedTerm x = do
     reportSLn "tc.meta.blocked" 12 $ "is " ++ show x ++ " a blocked term? "
     i <- mvInstantiation <$> lookupMeta x
@@ -70,7 +70,7 @@ isBlockedTerm x = do
       if r then "  yes, because " ++ show i else "  no"
     return r
 
-isEtaExpandable :: MonadTCM tcm => MetaId -> tcm Bool
+isEtaExpandable :: MetaId -> TCM Bool
 isEtaExpandable x = do
     i <- mvInstantiation <$> lookupMeta x
     return $ case i of
@@ -88,7 +88,7 @@ isEtaExpandable x = do
 --   The instantiation should not be an 'InstV' or 'InstS' and the 'MetaId'
 --   should point to something 'Open' or a 'BlockedConst'.
 --   Further, the meta variable may not be 'Frozen'.
-assignTerm :: MonadTCM tcm => MetaId -> Term -> tcm ()
+assignTerm :: MetaId -> Term -> TCM ()
 assignTerm x t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
     whenM (isFrozen x) __IMPOSSIBLE__  -- verify (new) invariant
@@ -105,7 +105,7 @@ assignTerm x t = do
 
 -- * Creating meta variables.
 
-newSortMeta :: MonadTCM tcm => tcm Sort
+newSortMeta :: TCM Sort
 newSortMeta =
   ifM typeInType (return $ mkType 0) $
   ifM hasUniversePolymorphism (newSortMetaCtx =<< getContextArgs)
@@ -114,7 +114,7 @@ newSortMeta =
        x <- newMeta i normalMetaPriority (idP 0) (IsSort () topSort)
        return $ Type $ Max [Plus 0 $ MetaLevel x []]
 
-newSortMetaCtx :: MonadTCM tcm => Args -> tcm Sort
+newSortMetaCtx :: Args -> TCM Sort
 newSortMetaCtx vs =
   ifM typeInType (return $ mkType 0) $ do
     i   <- createMetaInfo
@@ -125,10 +125,10 @@ newSortMetaCtx vs =
       text "new sort meta" <+> prettyTCM x <+> text ":" <+> prettyTCM t
     return $ Type $ Max [Plus 0 $ MetaLevel x vs]
 
-newTypeMeta :: MonadTCM tcm => Sort -> tcm Type
+newTypeMeta :: Sort -> TCM Type
 newTypeMeta s = El s <$> newValueMeta (sort s)
 
-newTypeMeta_ ::  MonadTCM tcm => tcm Type
+newTypeMeta_ ::  TCM Type
 newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- TODO: (this could be made work with new uni-poly)
 -- Andreas, 2011-04-27: If a type meta gets solved, than we do not have to check
@@ -136,14 +136,14 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- newTypeMeta_  = newTypeMeta Inf
 
 -- | Create a new "implicit from scope" metavariable
-newIFSMeta ::  MonadTCM tcm => Type -> tcm Term
+newIFSMeta ::  Type -> TCM Term
 newIFSMeta t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newIFSMetaCtx (telePi_ tel t) vs
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
+newIFSMetaCtx :: Type -> Args -> TCM Term
 newIFSMetaCtx t vs = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
@@ -158,26 +158,26 @@ newIFSMetaCtx t vs = do
   return (MetaV x vs)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta ::  MonadTCM tcm => Type -> tcm Term
+newValueMeta ::  Type -> TCM Term
 newValueMeta t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx (telePi_ tel t) vs
 
-newValueMetaCtx :: MonadTCM tcm => Type -> Args -> tcm Term
+newValueMetaCtx :: Type -> Args -> TCM Term
 newValueMetaCtx t ctx = do
   m@(MetaV i _) <- newValueMetaCtx' t ctx
   instantiateFull m
 
 -- | Create a new value meta without η-expanding.
-newValueMeta' :: MonadTCM tcm => Type -> tcm Term
+newValueMeta' :: Type -> TCM Term
 newValueMeta' t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newValueMetaCtx' (telePi_ tel t) vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: MonadTCM tcm => Type -> Args -> tcm Term
+newValueMetaCtx' :: Type -> Args -> TCM Term
 newValueMetaCtx' t vs = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
@@ -191,16 +191,16 @@ newValueMetaCtx' t vs = do
   etaExpandMetaSafe x
   return $ MetaV x vs
 
-newTelMeta :: MonadTCM tcm => Telescope -> tcm Args
+newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
 
-newArgsMeta :: MonadTCM tcm => Type -> tcm Args
+newArgsMeta :: Type -> TCM Args
 newArgsMeta t = do
   args <- getContextArgs
   tel  <- getContextTelescope
   newArgsMetaCtx t tel args
 
-newArgsMetaCtx :: MonadTCM tcm => Type -> Telescope -> Args -> tcm Args
+newArgsMetaCtx :: Type -> Telescope -> Args -> TCM Args
 newArgsMetaCtx (El s tm) tel ctx = do
   tm <- reduce tm
   case funView tm of
@@ -218,20 +218,20 @@ newArgsMetaCtx (El s tm) tel ctx = do
 
 -- | Create a metavariable of record type. This is actually one metavariable
 --   for each field.
-newRecordMeta :: MonadTCM tcm => QName -> Args -> tcm Term
+newRecordMeta :: QName -> Args -> TCM Term
 newRecordMeta r pars = do
   args <- getContextArgs
   tel  <- getContextTelescope
   newRecordMetaCtx r pars tel args
 
-newRecordMetaCtx :: MonadTCM tcm => QName -> Args -> Telescope -> Args -> tcm Term
+newRecordMetaCtx :: QName -> Args -> Telescope -> Args -> TCM Term
 newRecordMetaCtx r pars tel ctx = do
   ftel	 <- flip apply pars <$> getRecordFieldTypes r
   fields <- newArgsMetaCtx (telePi_ ftel $ sort Prop) tel ctx
   con    <- getRecordConstructor r
   return $ Con con fields
 
-newQuestionMark :: MonadTCM tcm => Type -> tcm Term
+newQuestionMark :: Type -> TCM Term
 newQuestionMark t = do
   m@(MetaV x _) <- newValueMeta' t
   ii		<- fresh
@@ -239,12 +239,12 @@ newQuestionMark t = do
   return m
 
 -- | Construct a blocked constant if there are constraints.
-blockTerm :: MonadTCM tcm => Type -> TCM Term -> tcm Term
+blockTerm :: Type -> TCM Term -> TCM Term
 blockTerm t blocker = do
   (pid, v) <- newProblem blocker
   blockTermOnProblem t v pid
 
-blockTermOnProblem :: MonadTCM tcm => Type -> Term -> ProblemId -> tcm Term
+blockTermOnProblem :: Type -> Term -> ProblemId -> TCM Term
 blockTermOnProblem t v pid =
   ifM (isProblemSolved pid) (return v) $ do
     i   <- createMetaInfo
@@ -276,7 +276,7 @@ blockTermOnProblem t v pid =
 -- | @unblockedTester t@ returns @False@ if @t@ is a meta or a blocked term.
 --
 --   Auxiliary function to create a postponed type checking problem.
-unblockedTester :: MonadTCM tcm => Type -> tcm Bool
+unblockedTester :: Type -> TCM Bool
 unblockedTester t = do
   t <- reduceB $ unEl t
   case t of
@@ -286,7 +286,7 @@ unblockedTester t = do
 
 -- | Create a postponed type checking problem @e : t@ that waits for type @t@
 --   to unblock (become instantiated or its constraints resolved).
-postponeTypeCheckingProblem_ :: MonadTCM tcm => A.Expr -> Type -> tcm Term
+postponeTypeCheckingProblem_ :: A.Expr -> Type -> TCM Term
 postponeTypeCheckingProblem_ e t = do
   postponeTypeCheckingProblem e t (unblockedTester t)
 
@@ -294,7 +294,7 @@ postponeTypeCheckingProblem_ e t = do
 --   @unblock@.  A new meta is created in the current context that has as
 --   instantiation the postponed type checking problem.  An 'UnBlock' constraint
 --   is added for this meta, which links to this meta.
-postponeTypeCheckingProblem :: MonadTCM tcm => A.Expr -> Type -> TCM Bool -> tcm Term
+postponeTypeCheckingProblem :: A.Expr -> Type -> TCM Bool -> TCM Term
 postponeTypeCheckingProblem e t unblock = do
   i   <- createMetaInfo
   tel <- getContextTelescope
@@ -306,14 +306,14 @@ postponeTypeCheckingProblem e t unblock = do
   MetaV m <$> getContextArgs
 
 -- | Eta expand metavariables listening on the current meta.
-etaExpandListeners :: MonadTCM tcm => MetaId -> tcm ()
+etaExpandListeners :: MetaId -> TCM ()
 etaExpandListeners m = do
   ls <- getMetaListeners m
   clearMetaListeners m	-- we don't really have to do this
   mapM_ wakeupListener ls
 
 -- | Wake up a meta listener and let it do its thing
-wakeupListener :: MonadTCM tcm => Listener -> tcm ()
+wakeupListener :: Listener -> TCM ()
   -- Andreas 2010-10-15: do not expand record mvars, lazyness needed for irrelevance
 wakeupListener (EtaExpand x)         = etaExpandMetaSafe x
 wakeupListener (CheckConstraint _ c) = do
@@ -322,7 +322,7 @@ wakeupListener (CheckConstraint _ c) = do
   solveAwakeConstraints
 
 -- | Do safe eta-expansions for meta (@SingletonRecords,Levels@).
-etaExpandMetaSafe :: MonadTCM tcm => MetaId -> tcm ()
+etaExpandMetaSafe :: MetaId -> TCM ()
 etaExpandMetaSafe = etaExpandMeta [SingletonRecords,Levels]
 
 -- | Various kinds of metavariables.
@@ -343,7 +343,7 @@ allMetaKinds = [minBound .. maxBound]
 
 -- | Eta expand a metavariable, if it is of the specified kind.
 --   Don't do anything if the metavariable is a blocked term.
-etaExpandMeta :: MonadTCM tcm => [MetaKind] -> MetaId -> tcm ()
+etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ show m) $ do
   meta       <- lookupMeta m
@@ -395,8 +395,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
 
-etaExpandBlocked
-  :: (MonadTCM tcm, Reduce t) => Blocked t -> tcm (Blocked t)
+etaExpandBlocked :: Reduce t => Blocked t -> TCM (Blocked t)
 etaExpandBlocked t@NotBlocked{} = return t
 etaExpandBlocked (Blocked m t)  = do
   etaExpandMeta [Records] m
@@ -416,14 +415,14 @@ etaExpandBlocked (Blocked m t)  = do
 --   during equality checking (@compareAtom@) and leads to
 --   restoration of the original constraints.
 
-assignV :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
+assignV :: MetaId -> Args -> Term -> TCM ()
 assignV x args v = do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
         liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints
 
 -- | @assign sort? x vs v@
-assign :: MonadTCM tcm => MetaId -> Args -> Term -> tcm ()
+assign :: MetaId -> Args -> Term -> TCM ()
 assign x args v = do
         mvar <- lookupMeta x  -- information associated with meta x
 
@@ -575,7 +574,7 @@ type FVs = Set.VarSet
 --   Linearity has to be checked separately.
 --
 --   @reverse@ is necessary because we are directly abstracting over this list @ids@.
-checkAllVars :: MonadTCM tcm => Args -> tcm [Nat]
+checkAllVars :: Args -> TCM [Nat]
 checkAllVars args =
   case allVarOrIrrelevant args of
     Nothing -> do
@@ -596,7 +595,7 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
       _                  -> Nothing
 
 
-updateMeta :: (MonadTCM tcm) => MetaId -> Term -> tcm ()
+updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do
     mv <- lookupMeta mI
     withMetaInfo (getMetaInfo mv) $ do

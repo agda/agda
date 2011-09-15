@@ -18,12 +18,9 @@ import Agda.Utils.List
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
-compileClauses
-  :: MonadTCM tcm
-  => Bool
-     -- ^ Translate record patterns?
-  -> [Clause]
-  -> tcm CompiledClauses
+compileClauses ::
+  Bool -- ^ Translate record patterns?
+  -> [Clause] -> TCM CompiledClauses
 compileClauses translate cs = do
   cs <- if translate then
           mapM translateRecordPatterns cs

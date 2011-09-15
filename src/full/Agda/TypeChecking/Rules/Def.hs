@@ -662,7 +662,7 @@ checkLHS ps t ret = do
             liftIO $ LocIO.putStr $ unlines $ reverse ds
 -}
 
-actualConstructor :: MonadTCM tcm => QName -> tcm QName
+actualConstructor :: QName -> TCM QName
 actualConstructor c = do
     v <- constructorForm =<< normalise (Con c [])
     case v of

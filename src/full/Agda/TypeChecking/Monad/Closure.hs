@@ -7,7 +7,7 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Trace
 
-enterClosure :: MonadTCM tcm => Closure a -> (a -> tcm b) -> tcm b
+enterClosure :: Closure a -> (a -> TCM b) -> TCM b
 enterClosure (Closure sig env scope x) k =
     withScope_ scope
     $ withEnv env

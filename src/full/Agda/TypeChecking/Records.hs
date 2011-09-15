@@ -29,7 +29,7 @@ import Agda.Utils.Impossible
 
 -- | Order the fields of a record construction.
 --   Use the second argument for missing fields.
-orderFields :: MonadTCM tcm => QName -> a -> [C.Name] -> [(C.Name, a)] -> tcm [a]
+orderFields :: QName -> a -> [C.Name] -> [(C.Name, a)] -> TCM [a]
 orderFields r def xs fs = do
   shouldBeNull (ys \\ nub ys) $ DuplicateFields . nub
   shouldBeNull (ys \\ xs)     $ TooManyFields r
@@ -56,7 +56,7 @@ recordModule = mnameFromList . qnameToList
 
 -- | Get the definition for a record. Throws an exception if the name
 --   does not refer to a record.
-getRecordDef :: MonadTCM tcm => QName -> tcm Defn
+getRecordDef :: QName -> TCM Defn
 getRecordDef r = do
   def <- theDef <$> getConstInfo r
   case def of
@@ -64,12 +64,12 @@ getRecordDef r = do
     _        -> typeError $ ShouldBeRecordType (El Prop $ Def r [])
 
 -- | Get the field names of a record.
-getRecordFieldNames :: MonadTCM tcm => QName -> tcm [Arg C.Name]
+getRecordFieldNames :: QName -> TCM [Arg C.Name]
 getRecordFieldNames r =
   map (fmap (nameConcrete . qnameName)) . recFields <$> getRecordDef r
 
 -- | Find all records with at least the given fields.
-findPossibleRecords :: MonadTCM tcm => [C.Name] -> tcm [QName]
+findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
   defs <- (Map.union `on` sigDefinitions) <$> getSignature <*> getImportedSignature
   let possible def = case theDef def of
@@ -81,20 +81,20 @@ findPossibleRecords fields = do
     given = Set.fromList fields
 
 -- | Get the field types of a record.
-getRecordFieldTypes :: MonadTCM tcm => QName -> tcm Telescope
+getRecordFieldTypes :: QName -> TCM Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
 -- | Get the type of the record constructor.
-getRecordConstructorType :: MonadTCM tcm => QName -> tcm Type
+getRecordConstructorType :: QName -> TCM Type
 getRecordConstructorType r = recConType <$> getRecordDef r
 
 -- | Returns the given record type's constructor name (with an empty
 -- range).
-getRecordConstructor :: MonadTCM tcm => QName -> tcm QName
+getRecordConstructor :: QName -> TCM QName
 getRecordConstructor r = killRange <$> recCon <$> getRecordDef r
 
 -- | Check if a name refers to a record.
-isRecord :: MonadTCM tcm => QName -> tcm Bool
+isRecord :: QName -> TCM Bool
 isRecord r = do
   def <- theDef <$> getConstInfo r
   return $ case def of
@@ -102,7 +102,7 @@ isRecord r = do
     _        -> False
 
 -- | Check if a name refers to an eta expandable record.
-isEtaRecord :: MonadTCM tcm => QName -> tcm Bool
+isEtaRecord :: QName -> TCM Bool
 isEtaRecord r = do
   def <- theDef <$> getConstInfo r
   return $ case def of
@@ -110,7 +110,7 @@ isEtaRecord r = do
     _                            -> False
 
 -- | Check if a name refers to a record constructor.
-isRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
+isRecordConstructor :: QName -> TCM Bool
 isRecordConstructor c = do
   def <- theDef <$> getConstInfo c
   case def of
@@ -118,7 +118,7 @@ isRecordConstructor c = do
     _                          -> return False
 
 -- | Check if a constructor name is the internally generated record constructor.
-isGeneratedRecordConstructor :: MonadTCM tcm => QName -> tcm Bool
+isGeneratedRecordConstructor :: QName -> TCM Bool
 isGeneratedRecordConstructor c = do
   def <- theDef <$> getConstInfo c
   case def of
@@ -136,7 +136,7 @@ isGeneratedRecordConstructor c = do
 
     and @r : R@, @etaExpand R [] r@ is @[R.x r, R.y r, DontCare]@
 -}
-etaExpandRecord :: MonadTCM tcm => QName -> Args -> Term -> tcm (Telescope, Args)
+etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
 etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel } <- getRecordDef r
   let tel' = apply tel pars
@@ -161,7 +161,7 @@ etaExpandRecord r pars u = do
     hide a = a { argHiding = Hidden }
 
 -- | The fields should be eta contracted already.
-etaContractRecord :: MonadTCM tcm => QName -> QName -> Args -> tcm Term
+etaContractRecord :: QName -> QName -> Args -> TCM Term
 etaContractRecord r c args = do
   Record{ recPars = npars, recFields = xs } <- getRecordDef r
   let check a ax = do
@@ -202,16 +202,13 @@ etaContractRecord r c args = do
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
 
-isSingletonRecord ::
-  MonadTCM tcm => QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecord :: QName -> Args -> TCM (Either MetaId Bool)
 isSingletonRecord = isSingletonRecord' False
 
-isSingletonRecordModuloRelevance ::
-  MonadTCM tcm => QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecordModuloRelevance :: QName -> Args -> TCM (Either MetaId Bool)
 isSingletonRecordModuloRelevance = isSingletonRecord' True
 
-isSingletonRecord' ::
-  MonadTCM tcm => Bool -> QName -> Args -> tcm (Either MetaId Bool)
+isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId Bool)
 isSingletonRecord' regardIrrelevance r ps =
   check =<< ((`apply` ps) <$> getRecordFieldTypes r)
   where

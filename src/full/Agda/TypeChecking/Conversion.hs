@@ -40,7 +40,7 @@ import Agda.TypeChecking.Monad.Debug
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-mlevel :: MonadTCM tcm => tcm (Maybe Term)
+mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
 
 nextPolarity []       = (Invariant, [])
@@ -64,18 +64,18 @@ intersectVars = zipWithM areVars where
     areVars (Arg _ _ (Var n [])) (Arg _ _ (Var m [])) = Just $ n /= m -- prune different vars
     areVars _ _                                       = Nothing
 
-equalTerm :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
+equalTerm :: Type -> Term -> Term -> TCM ()
 equalTerm = compareTerm CmpEq
 
-equalAtom :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
+equalAtom :: Type -> Term -> Term -> TCM ()
 equalAtom = compareAtom CmpEq
 
-equalType :: MonadTCM tcm => Type -> Type -> tcm ()
+equalType :: Type -> Type -> TCM ()
 equalType = compareType CmpEq
 
 -- | Type directed equality on values.
 --
-compareTerm :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
+compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
 compareTerm cmp a u v = liftTCM $ do
   (u, v) <- instantiate (u, v)
@@ -104,7 +104,7 @@ compareTerm cmp a u v = liftTCM $ do
                     PatternErr s -> put s >> h
                     _            -> h
 
-compareTerm' :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
+compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
   verboseBracket "tc.conv.term" 20 "compareTerm" $ do
   a' <- reduce a
@@ -183,8 +183,8 @@ compareTerm' cmp a m n =
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
 --   and complains that @t2 `cmp` t1@ failed if not.
-compareTel :: MonadTCM tcm => Type -> Type ->
-  Comparison -> Telescope -> Telescope -> tcm ()
+compareTel :: Type -> Type ->
+  Comparison -> Telescope -> Telescope -> TCM ()
 compareTel t1 t2 cmp tel1 tel2 =
   verboseBracket "tc.conv.tel" 20 "compareTel" $
   catchConstraint (TelCmp t1 t2 cmp tel1 tel2) $ case (tel1, tel2) of
@@ -216,7 +216,7 @@ compareTel t1 t2 cmp tel1 tel2 =
 
 -- | Syntax directed equality on atomic values
 --
-compareAtom :: MonadTCM tcm => Comparison -> Type -> Term -> Term -> tcm ()
+compareAtom :: Comparison -> Type -> Term -> Term -> TCM ()
 compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 20 "compareAtom" $
     -- if a PatternErr is thrown, rebuild constraint!
@@ -400,7 +400,7 @@ compareAtom cmp t m n =
 	equalFun _ _ = __IMPOSSIBLE__
 
 -- | Type-directed equality on eliminator spines
-compareElims :: MonadTCM tcm => [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> tcm ()
+compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
 compareElims _ _ _ [] [] = return ()
 compareElims _ _ _ [] (_:_) = __IMPOSSIBLE__
 compareElims _ _ _ (_:_) [] = __IMPOSSIBLE__
@@ -464,12 +464,12 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
 
 -- | Type-directed equality on argument lists
 --
-compareArgs :: MonadTCM tcm => [Polarity] -> Type -> Term -> Args -> Args -> tcm ()
+compareArgs :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
 compareArgs pol a v args1 args2 =
   compareElims pol a v (map Apply args1) (map Apply args2)
 
 -- | Equality on Types
-compareType :: MonadTCM tcm => Comparison -> Type -> Type -> tcm ()
+compareType :: Comparison -> Type -> Type -> TCM ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
     verboseBracket "tc.conv.type" 20 "compareType" $
     catchConstraint (TypeCmp cmp ty1 ty2) $ do
@@ -503,19 +503,19 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 	compareTerm cmp (sort s1) a1 a2
 	return ()
 
-leqType :: MonadTCM tcm => Type -> Type -> tcm ()
+leqType :: Type -> Type -> TCM ()
 leqType = compareType CmpLeq
 
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
 
-compareSort :: MonadTCM tcm => Comparison -> Sort -> Sort -> tcm ()
+compareSort :: Comparison -> Sort -> Sort -> TCM ()
 compareSort CmpEq  = equalSort
 compareSort CmpLeq = equalSort
 
 -- | Check that the first sort is less or equal to the second.
-leqSort :: MonadTCM tcm => Sort -> Sort -> tcm ()
+leqSort :: Sort -> Sort -> TCM ()
 leqSort s1 s2 =
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpLeq s1 s2) $
@@ -541,7 +541,7 @@ leqSort s1 s2 =
     where
 	notLeq s1 s2 = typeError $ NotLeqSort s1 s2
 
-leqLevel :: MonadTCM tcm => Level -> Level -> tcm ()
+leqLevel :: Level -> Level -> TCM ()
 leqLevel a b = liftTCM $ do
   reportSDoc "tc.conv.nat" 30 $
     text "compareLevel" <+>
@@ -645,7 +645,7 @@ leqLevel a b = liftTCM $ do
 --         PatternErr{} -> choice ms
 --         _            -> throwError e
 
-equalLevel :: MonadTCM tcm => Level -> Level -> tcm ()
+equalLevel :: Level -> Level -> TCM ()
 equalLevel a b = do
   a <- reduce a
   b <- reduce b
@@ -765,7 +765,7 @@ equalLevel a b = do
 
 
 -- | Check that the first sort equal to the second.
-equalSort :: MonadTCM tcm => Sort -> Sort -> tcm ()
+equalSort :: Sort -> Sort -> TCM ()
 equalSort s1 s2 =
   ifM typeInType (return ()) $
     catchConstraint (SortCmp CmpEq s1 s2) $ do

@@ -58,7 +58,7 @@ import Agda.Utils.Size
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-apps :: MonadTCM tcm => (Expr, [Arg Expr]) -> tcm Expr
+apps :: (Expr, [Arg Expr]) -> TCM Expr
 apps (e, []) = return e
 apps (e, arg : args) | isHiddenArg arg =
     do  showImp <- showImplicitArguments
@@ -70,11 +70,11 @@ apps (e, arg:args)          =
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
-reifyApp :: MonadTCM tcm => Expr -> [Arg Term] -> tcm Expr
+reifyApp :: Expr -> [Arg Term] -> TCM Expr
 reifyApp e vs = curry apps e =<< reify vs
 
 class Reify i a | i -> a where
-    reify :: MonadTCM tcm => i -> tcm a
+    reify :: i -> TCM a
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) = liftTCM $ do
@@ -104,7 +104,7 @@ instance Reify DisplayTerm Expr where
           wapp [] = __IMPOSSIBLE__
       reifyApp (wapp us) vs
 
-reifyDisplayForm :: MonadTCM tcm => QName -> Args -> tcm A.Expr -> tcm A.Expr
+reifyDisplayForm :: QName -> Args -> TCM A.Expr -> TCM A.Expr
 reifyDisplayForm x vs fallback = do
   enabled <- displayFormsEnabled
   if enabled
@@ -314,8 +314,8 @@ instance Reify ClauseBody RHS where
   reify (NoBind b) = reify b
   reify (Bind b)   = reify $ absBody b  -- the variables should already be bound
 
-stripImplicits :: MonadTCM tcm => [NamedArg A.Pattern] -> [A.Pattern] ->
-                  tcm ([NamedArg A.Pattern], [A.Pattern])
+stripImplicits :: [NamedArg A.Pattern] -> [A.Pattern] ->
+                  TCM ([NamedArg A.Pattern], [A.Pattern])
 stripImplicits ps wps =
   ifM showImplicitArguments (return (ps, wps)) $ do
   let vars = dotVars (ps, wps)
@@ -468,8 +468,7 @@ instance DotVars TypedBinding where
   dotVars (TBind _ _ e) = dotVars e
   dotVars (TNoBind e)   = dotVars e
 
-reifyPatterns :: MonadTCM tcm =>
-  I.Telescope -> Permutation -> [Arg I.Pattern] -> tcm [NamedArg A.Pattern]
+reifyPatterns :: I.Telescope -> Permutation -> [Arg I.Pattern] -> TCM [NamedArg A.Pattern]
 reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
   where
     reifyArgs as = map (fmap unnamed) <$> mapM reifyArg as

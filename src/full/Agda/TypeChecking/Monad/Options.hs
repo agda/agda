@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 
 -- | Sets the pragma options.
 
-setPragmaOptions :: MonadTCM tcm => PragmaOptions -> tcm ()
+setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
   clo <- commandLineOptions
   case checkOpts (clo { optPragmaOptions = opts }) of
@@ -43,7 +43,7 @@ setPragmaOptions opts = do
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
 
-setCommandLineOptions :: MonadTCM tcm => CommandLineOptions -> tcm ()
+setCommandLineOptions :: CommandLineOptions -> TCM ()
 setCommandLineOptions opts =
   case checkOpts opts of
     Left err   -> __IMPOSSIBLE__
@@ -60,18 +60,18 @@ setCommandLineOptions opts =
 
 -- | Returns the pragma options which are currently in effect.
 
-pragmaOptions :: MonadTCM tcm => tcm PragmaOptions
+pragmaOptions :: TCM PragmaOptions
 pragmaOptions = liftTCM $ gets stPragmaOptions
 
 -- | Returns the command line options which are currently in effect.
 
-commandLineOptions :: MonadTCM tcm => tcm CommandLineOptions
+commandLineOptions :: TCM CommandLineOptions
 commandLineOptions = liftTCM $ do
   p  <- gets stPragmaOptions
   cl <- gets stPersistentOptions
   return $ cl { optPragmaOptions = p }
 
-setOptionsFromPragma :: MonadTCM tcm => OptionsPragma -> tcm ()
+setOptionsFromPragma :: OptionsPragma -> TCM ()
 setOptionsFromPragma ps = do
     opts <- commandLineOptions
     case parsePragmaOptions ps opts of
@@ -79,43 +79,44 @@ setOptionsFromPragma ps = do
 	Right opts' -> setPragmaOptions opts'
 
 -- | Disable display forms.
-enableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
+enableDisplayForms :: TCM a -> TCM a
 enableDisplayForms =
   local $ \e -> e { envDisplayFormsEnabled = True }
 
 -- | Disable display forms.
-disableDisplayForms :: MonadTCM tcm => tcm a -> tcm a
+disableDisplayForms :: TCM a -> TCM a
 disableDisplayForms =
   local $ \e -> e { envDisplayFormsEnabled = False }
 
 -- | Check if display forms are enabled.
-displayFormsEnabled :: MonadTCM tcm => tcm Bool
+displayFormsEnabled :: TCM Bool
 displayFormsEnabled = asks envDisplayFormsEnabled
 
 -- | Don't eta contract implicit
-dontEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
+dontEtaContractImplicit :: TCM a -> TCM a
 dontEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = False }
 
 -- | Do eta contract implicit
+{-# SPECIALIZE doEtaContractImplicit :: TCM a -> TCM a #-}
 doEtaContractImplicit :: MonadTCM tcm => tcm a -> tcm a
 doEtaContractImplicit = local $ \e -> e { envEtaContractImplicit = True }
 
-shouldEtaContractImplicit :: MonadTCM tcm => tcm Bool
+shouldEtaContractImplicit :: TCM Bool
 shouldEtaContractImplicit = asks envEtaContractImplicit
 
 -- | Don't reify interaction points
-dontReifyInteractionPoints :: MonadTCM tcm => tcm a -> tcm a
+dontReifyInteractionPoints :: TCM a -> TCM a
 dontReifyInteractionPoints =
   local $ \e -> e { envReifyInteractionPoints = False }
 
-shouldReifyInteractionPoints :: MonadTCM tcm => tcm Bool
+shouldReifyInteractionPoints :: TCM Bool
 shouldReifyInteractionPoints = asks envReifyInteractionPoints
 
 -- | Gets the include directories.
 --
 -- Precondition: 'optIncludeDirs' must be @'Right' something@.
 
-getIncludeDirs :: MonadTCM tcm => tcm [AbsolutePath]
+getIncludeDirs :: TCM [AbsolutePath]
 getIncludeDirs = do
   incs <- optIncludeDirs <$> commandLineOptions
   case incs of
@@ -140,12 +141,11 @@ data RelativeTo
 -- An empty list is interpreted as @["."]@.
 
 setIncludeDirs
-  :: MonadTCM tcm
-  => [FilePath]
+  :: [FilePath]
   -- ^ New include directories.
   -> RelativeTo
   -- ^ How should relative paths be interpreted?
-  -> tcm ()
+  -> TCM ()
 setIncludeDirs incs relativeTo = do
   opts <- commandLineOptions
   let oldIncs = optIncludeDirs opts
@@ -172,33 +172,33 @@ setIncludeDirs incs relativeTo = do
 
   check
 
-setInputFile :: MonadTCM tcm => FilePath -> tcm ()
+setInputFile :: FilePath -> TCM ()
 setInputFile file =
     do	opts <- commandLineOptions
 	setCommandLineOptions $
           opts { optInputFile = Just file }
 
 -- | Should only be run if 'hasInputFile'.
-getInputFile :: MonadTCM tcm => tcm AbsolutePath
+getInputFile :: TCM AbsolutePath
 getInputFile =
     do	mf <- optInputFile <$> commandLineOptions
 	case mf of
 	    Just file -> liftIO $ absolute file
 	    Nothing   -> __IMPOSSIBLE__
 
-hasInputFile :: MonadTCM tcm => tcm Bool
+hasInputFile :: TCM Bool
 hasInputFile = isJust <$> optInputFile <$> commandLineOptions
 
-proofIrrelevance :: MonadTCM tcm => tcm Bool
+proofIrrelevance :: TCM Bool
 proofIrrelevance = optProofIrrelevance <$> pragmaOptions
 
-hasUniversePolymorphism :: MonadTCM tcm => tcm Bool
+hasUniversePolymorphism :: TCM Bool
 hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 
-showImplicitArguments :: MonadTCM tcm => tcm Bool
+showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
-setShowImplicitArguments :: MonadTCM tcm => Bool -> tcm a -> tcm a
+setShowImplicitArguments :: Bool -> TCM a -> TCM a
 setShowImplicitArguments showImp ret = do
   opts <- pragmaOptions
   let imp = optShowImplicit opts
@@ -208,21 +208,21 @@ setShowImplicitArguments showImp ret = do
   setPragmaOptions $ opts { optShowImplicit = imp }
   return x
 
-ignoreInterfaces :: MonadTCM tcm => tcm Bool
+ignoreInterfaces :: TCM Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
 
-positivityCheckEnabled :: MonadTCM tcm => tcm Bool
+positivityCheckEnabled :: TCM Bool
 positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 
-typeInType :: MonadTCM tcm => tcm Bool
+typeInType :: TCM Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
-getVerbosity :: MonadTCM tcm => tcm (Trie String Int)
+getVerbosity :: TCM (Trie String Int)
 getVerbosity = optVerbose <$> pragmaOptions
 
 type VerboseKey = String
 
-hasVerbosity :: MonadTCM tcm => VerboseKey -> Int -> tcm Bool
+hasVerbosity :: VerboseKey -> Int -> TCM Bool
 hasVerbosity k n | n < 0     = __IMPOSSIBLE__
                  | otherwise = do
     t <- getVerbosity
@@ -231,19 +231,19 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
     return (n <= m)
 
 -- | Precondition: The level must be non-negative.
-verboseS :: MonadTCM tcm => VerboseKey -> Int -> tcm () -> tcm ()
+verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
 verboseS k n action = whenM (hasVerbosity k n) action
 
-reportS :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportS :: VerboseKey -> Int -> String -> TCM ()
 reportS k n s = verboseS k n $ liftIO $ LocIO.putStr s
 
-reportSLn :: MonadTCM tcm => VerboseKey -> Int -> String -> tcm ()
+reportSLn :: VerboseKey -> Int -> String -> TCM ()
 reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
 
-reportSDoc :: MonadTCM tcm => VerboseKey -> Int -> tcm Doc -> tcm ()
+reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
 reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
 
-verboseBracket :: MonadTCM tcm => VerboseKey -> Int -> String -> TCM a -> tcm a
+verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
 verboseBracket k n s m = liftTCM $ do
   v <- hasVerbosity k n
   if not v then m
