@@ -39,7 +39,7 @@ stealConstraints pid = do
                    , stSleepingConstraints = List.map rename $ stSleepingConstraints s }
 
 solvingProblem :: ProblemId -> TCM a -> TCM a
-solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ liftTCM $ do
+solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem " ++ show pid) $ do
   x <- local (\e -> e { envActiveProblems = pid : envActiveProblems e }) m
   ifM (isProblemSolved pid) (do
       reportSLn "tc.constr.solve" 50 $ "problem " ++ show pid ++ " was solved!"
@@ -86,7 +86,7 @@ getAllConstraints :: TCM Constraints
 getAllConstraints = gets $ \s -> stAwakeConstraints s ++ stSleepingConstraints s
 
 withConstraint :: (Constraint -> TCM a) -> ProblemConstraint -> TCM a
-withConstraint f (PConstr pid c) = liftTCM $ do
+withConstraint f (PConstr pid c) = do
   -- We should preserve the problem stack and the isSolvingConstraint flag
   (pids, isSolving) <- asks $ envActiveProblems &&& envSolvingConstraints
   enterClosure c $ \c ->

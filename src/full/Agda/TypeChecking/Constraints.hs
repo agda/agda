@@ -87,7 +87,7 @@ newProblem :: TCM a -> TCM (ProblemId, a)
 newProblem action = do
   pid <- fresh
   -- Don't get distracted by other constraints while working on the problem
-  x <- liftTCM $ nowSolvingConstraints $ solvingProblem pid action
+  x <- nowSolvingConstraints $ solvingProblem pid action
   -- Now we can check any woken constraints
   solveAwakeConstraints
   return (pid, x)

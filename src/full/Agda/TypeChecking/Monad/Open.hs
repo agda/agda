@@ -43,6 +43,6 @@ getOpen (OpenThing ctx x) = do
   return $ raise (genericLength ctx' - genericLength ctx) x
 
 tryOpen :: Raise a => Open a -> TCM (Maybe a)
-tryOpen o = liftTCM $
+tryOpen o =
   (Just <$> getOpen o)
   `catchError` \_ -> return Nothing

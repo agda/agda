@@ -56,7 +56,7 @@ compareSizes cmp u v = do
     _ -> compareAtom cmp size u v
 
 trivial :: Term -> Term -> TCM Bool
-trivial u v = liftTCM $ do
+trivial u v = do
     a <- sizeExpr u
     b <- sizeExpr v
     reportSDoc "tc.conv.size" 15 $
@@ -111,7 +111,7 @@ instance Show SizeConstraint where
     | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
 
 computeSizeConstraint :: Closure Constraint -> TCM (Maybe SizeConstraint)
-computeSizeConstraint cl = liftTCM $
+computeSizeConstraint cl =
   enterClosure cl $ \c ->
     case c of
       ValueCmp CmpLeq _ u v -> do
@@ -154,7 +154,7 @@ flexibleVariables (Leq a _ b) = flex a ++ flex b
     flex (SizeMeta m xs) = [(m, xs)]
 
 haveSizedTypes :: TCM Bool
-haveSizedTypes = liftTCM $ do
+haveSizedTypes = do
     Def _ [] <- primSize
     Def _ [] <- primSizeInf
     Def _ [] <- primSizeSuc

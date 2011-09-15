@@ -20,25 +20,25 @@ import Agda.Utils.Hash
 -- options are preserved.
 
 resetState :: TCM ()
-resetState = liftTCM $ do
+resetState = do
     opts <- stPersistentOptions <$> get
     put $ initState { stPersistentOptions = opts }
 
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()
-setScope scope = liftTCM $ modify $ \s -> s { stScope = scope }
+setScope scope = modify $ \s -> s { stScope = scope }
 
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
-getScope = liftTCM $ gets stScope
+getScope = gets stScope
 
 -- | Sets stExtLambdaTele .
 setExtLambdaTele :: Map QName (Int , Int) -> TCM ()
-setExtLambdaTele tele = liftTCM $ modify $ \s -> s { stExtLambdaTele = tele }
+setExtLambdaTele tele = modify $ \s -> s { stExtLambdaTele = tele }
 
 -- | Get stExtLambdaTele.
 getExtLambdaTele :: TCM (Map QName (Int , Int))
-getExtLambdaTele = liftTCM $ gets stExtLambdaTele
+getExtLambdaTele = gets stExtLambdaTele
 
 addExtLambdaTele :: QName -> (Int , Int) -> TCM ()
 addExtLambdaTele id x = getExtLambdaTele >>= setExtLambdaTele . (insert id x)

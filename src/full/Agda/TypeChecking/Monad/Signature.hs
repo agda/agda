@@ -47,16 +47,16 @@ modifyImportedSignature :: (Signature -> Signature) -> TCM ()
 modifyImportedSignature f = modify $ \s -> s { stImports = f $ stImports s }
 
 getSignature :: TCM Signature
-getSignature = liftTCM $ gets stSignature
+getSignature = gets stSignature
 
 getImportedSignature :: TCM Signature
-getImportedSignature = liftTCM $ gets stImports
+getImportedSignature = gets stImports
 
 setSignature :: Signature -> TCM ()
 setSignature sig = modifySignature $ const sig
 
 setImportedSignature :: Signature -> TCM ()
-setImportedSignature sig = liftTCM $ modify $ \s -> s { stImports = sig }
+setImportedSignature sig = modify $ \s -> s { stImports = sig }
 
 withSignature :: Signature -> TCM a -> TCM a
 withSignature sig m =
@@ -68,7 +68,7 @@ withSignature sig m =
 
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
-addConstant q d = liftTCM $ do
+addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = killRange $ case theDef d of
@@ -275,7 +275,7 @@ addDisplayForms x = do
 applySection ::
   ModuleName -> Telescope -> ModuleName -> Args ->
   Map QName QName -> Map ModuleName ModuleName -> TCM ()
-applySection new ptel old ts rd rm = liftTCM $ do
+applySection new ptel old ts rd rm = do
   sig  <- getSignature
   isig <- getImportedSignature
   let ss = getOld partOfOldM sigSections    [sig, isig]
@@ -469,7 +469,7 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
 
 -- | Look up the polarity of a definition.
 getPolarity :: QName -> TCM [Polarity]
-getPolarity q = liftTCM $ do
+getPolarity q = do
   defn <- theDef <$> getConstInfo q
   case defn of
     Function{ funPolarity  = p } -> return p
@@ -483,7 +483,7 @@ getPolarity' CmpLeq q = getPolarity q
 
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
-setPolarity q pol = liftTCM $ do
+setPolarity q pol = do
   modifySignature setP
   where
     setP sig = sig { sigDefinitions = Map.adjust setPx q defs }
@@ -509,7 +509,7 @@ getArgOccurrence d i = do
     look i os = (os ++ repeat Negative) !! fromIntegral i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
-setArgOccurrences d os = liftTCM $
+setArgOccurrences d os =
   modifySignature setO
   where
     setO sig = sig { sigDefinitions = Map.adjust setOx d defs }

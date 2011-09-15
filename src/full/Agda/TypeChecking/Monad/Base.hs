@@ -226,7 +226,7 @@ instance HasRange a => HasRange (Closure a) where
     getRange = getRange . clValue
 
 buildClosure :: a -> TCM (Closure a)
-buildClosure x = liftTCM $ do
+buildClosure x = do
     env   <- ask
     sig   <- gets stSignature
     scope <- gets stScope
@@ -1122,8 +1122,7 @@ pureTCM f = TCM $ \r e -> do
   s <- liftIO $ readIORef r
   return (f s e)
 
-{-# SPECIALIZE instance MonadTCM TCM #-}
-{-# INLINE liftTCM #-}
+{-# RULES "liftTCM/id" liftTCM = id #-}
 instance MonadIO m => MonadTCM (TCMT m) where
     liftTCM = mapTCMT liftIO
 
@@ -1163,7 +1162,7 @@ instance MonadIO m => MonadIO (TCMT m) where
       handleException   r s = throwIO $ TCErr Nothing $ Exception r s
 
 patternViolation :: TCM a
-patternViolation = liftTCM $ do
+patternViolation = do
     s <- get
     throwError $ TCErr Nothing $ PatternErr s
 

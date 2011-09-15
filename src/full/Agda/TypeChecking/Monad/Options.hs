@@ -61,12 +61,12 @@ setCommandLineOptions opts =
 -- | Returns the pragma options which are currently in effect.
 
 pragmaOptions :: TCM PragmaOptions
-pragmaOptions = liftTCM $ gets stPragmaOptions
+pragmaOptions = gets stPragmaOptions
 
 -- | Returns the command line options which are currently in effect.
 
 commandLineOptions :: TCM CommandLineOptions
-commandLineOptions = liftTCM $ do
+commandLineOptions = do
   p  <- gets stPragmaOptions
   cl <- gets stPersistentOptions
   return $ cl { optPragmaOptions = p }
@@ -155,8 +155,8 @@ setIncludeDirs incs relativeTo = do
       root <- liftIO (absolute =<< getCurrentDirectory)
       return (root, return ())
     ProjectRoot f -> do
-      m <- liftTCM $ moduleName' f
-      return (projectRoot f m, liftTCM $ checkModuleName m f)
+      m <- moduleName' f
+      return (projectRoot f m, checkModuleName m f)
 
   modify $ \s -> s { stPersistentOptions =
     (stPersistentOptions s) { optIncludeDirs =
@@ -244,7 +244,7 @@ reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
 reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
 
 verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
-verboseBracket k n s m = liftTCM $ do
+verboseBracket k n s m = do
   v <- hasVerbosity k n
   if not v then m
            else do
