@@ -184,7 +184,7 @@ checkEquality a u v = noConstraints $ equalTerm a u v
 --   so we can throw them away and flag "dirty".
 checkEqualityHH :: TypeHH -> Term -> Term -> Unify ()
 checkEqualityHH (Hom a) u v = do
-    ok <- liftTCM $ do null <$> equalTerm a u v  -- no constraints left
+    ok <- liftTCM $ noConstraints (True <$ equalTerm a u v)  -- no constraints left
             `catchError` \ err -> return False
     if ok then return () else addEquality a u v
 checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
