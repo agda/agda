@@ -173,7 +173,7 @@ checkEqualities :: [Equality] -> TCM ()
 checkEqualities eqs = noConstraints $ mapM_ checkEq eqs
   where
     checkEq (Equal (Hom a) s t) = equalTerm a s t
-    checkEq (Equal (Het{}) s t) = typeError $ GenericError $ "heterogeneous equality"
+    checkEq (Equal (Het a1 a2) s t) = typeError $ HeterogeneousEquality s a1 t a2
 
 -- | Force equality now instead of postponing it using 'addEquality'.
 checkEquality :: MonadTCM tcm => Type -> Term -> Term -> tcm ()
@@ -589,9 +589,12 @@ unifyIndices flex a us vs = liftTCM $ do
         _ -> unifyAtomHH aHH u v
 
     unifyAtomHH :: TypeHH -> Term -> Term -> Unify ()
-    unifyAtomHH aHH u v = do
-      let homogeneous = isHom aHH
-          a = fromHom aHH  -- ^ use only if 'homogeneous' holds!
+    unifyAtomHH aHH0 u v = do
+      let (aHH, homogeneous, a) = case aHH0 of
+            Hom a                -> (aHH0, True, a)
+            Het a1 a2 | a1 == a2 -> (Hom a1, True, a1) -- BRITTLE: just checking syn.eq.
+            _                    -> (aHH0, False, __IMPOSSIBLE__)
+           -- ^ use @a@ only if 'homogeneous' holds!
       reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyAtom"
 	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
@@ -817,21 +820,49 @@ unifyIndices flex a us vs = liftTCM $ do
 --
 -- Precondition: The type has to correspond to an application of the
 -- given constructor.
-
-{-
 dataOrRecordType :: MonadTCM tcm
-                 => QName -- ^ Constructor name.
-                 -> Type -> tcm Type
-dataOrRecordType c a = do
+  => QName -- ^ Constructor name.
+  -> Type  -- ^ Type of constructor application (must end in data/record).
+  -> tcm (Maybe Type) -- ^ Type of constructor, applied to pars.
+dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordType' c a
+
+dataOrRecordType' :: MonadTCM tcm
+  => QName -- ^ Constructor name.
+  -> Type  -- ^ Type of constructor application (must end in data/record).
+  -> tcm (Maybe (QName, -- ^ Name of data/record type.
+                 Type,  -- ^ Type of constructor, to be applied to ...
+                 Args))  -- ^ ... these parameters
+dataOrRecordType' c a = do
   -- The telescope ends with a datatype or a record.
   TelV _ (El _ (Def d args)) <- telView a
   def <- theDef <$> getConstInfo d
-  (n, a')  <- case def of
-    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
-    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
-    _		           -> __IMPOSSIBLE__
-  return (a' `apply` genericTake n args)
--}
+  r <- case def of
+    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConstInfo c
+    Record  {recPars  = n} -> Just . ((,) n) <$> getRecordConstructorType d
+    _		           -> return Nothing
+  return $ fmap (\ (n, a') -> (d, a', genericTake n args)) r
+
+-- | Heterogeneous situation.
+--   @a1@ and @a2@ need to end in same datatype/record.
+dataOrRecordTypeHH :: MonadTCM tcm
+  => QName      -- ^ Constructor name.
+  -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
+  -> tcm (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
+dataOrRecordTypeHH c (Hom a) = fmap Hom <$> dataOrRecordType c a
+dataOrRecordTypeHH c (Het a1 a2) = do
+  r1 <- dataOrRecordType' c a1
+  r2 <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
+  return $ case (r1, r2) of
+    (Just (d1, b1, pars1), Just (d2, b2, pars2)) | d1 == d2 -> Just $
+        -- Andreas, 2011-09-15 if no parameters, we can stay homogeneous
+        if null pars1 && null pars2 then Hom b1
+         -- if parameters, go heterogeneous
+         -- TODO: make this smarter, because parameters could be equal!
+         else Het (b1 `apply` pars1) (b2 `apply` pars2)
+    _ -> Nothing
+
+
+{-
 dataOrRecordType :: MonadTCM tcm
   => QName -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
@@ -866,37 +897,6 @@ dataOrRecordTypeHH c (Het a1 a2) = do
   return $ case (r1, r2) of
     (Just (d1, b1), Just (d2, b2)) | d1 == d2 -> Just $ Het b1 b2
     _ -> Nothing
-
-{-
-dataOrRecordType' :: MonadTCM tcm
-  => QName -- ^ Constructor name.
-  -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> tcm (QName, -- ^ Name of data/record type.
-          Type)  -- ^ Type of constructor, applied to pars.
-dataOrRecordType' c a = do
-  -- The telescope ends with a datatype or a record.
-  TelV _ (El _ (Def d args)) <- telView a
-  def <- theDef <$> getConstInfo d
-  (n, a')  <- case def of
-    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
-    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
-    _		           -> __IMPOSSIBLE__
-  return (d, a' `apply` genericTake n args)
--}
-
-{-
--- | Heterogeneous situation.
---   @a1@ and @a2@ need to end in same datatype/record.
-dataOrRecordTypeHH :: MonadTCM tcm
-  => QName      -- ^ Constructor name.
-  -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
-  -> tcm TypeHH -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
-dataOrRecordTypeHH c (Hom a) = Hom <$> dataOrRecordType c a
-dataOrRecordTypeHH c (Het a1 a2) = do
-  (d1, b1) <- dataOrRecordType' c a1
-  (d2, b2) <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
-  when (d1 /= d2) $ __IMPOSSIBLE__    -- a1 and a2 have same shape!
-  return $ Het b1 b2
 -}
 
 -- | Views an expression (pair) as type shape.  Fails if not same shape.

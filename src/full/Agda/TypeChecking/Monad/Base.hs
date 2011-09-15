@@ -935,6 +935,9 @@ data TypeError
 	| UnequalHiding Type Type
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort
+        | HeterogeneousEquality Term Type Term Type
+            -- ^ We ended up with an equality constraint where the terms
+            --   have different types.  This is not supported.
 	| NotLeqSort Sort Sort
 	| MetaCannotDependOn MetaId [Nat] Nat
 	    -- ^ The arguments are the meta variable, the parameters it can

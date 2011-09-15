@@ -169,6 +169,7 @@ errorString err = case err of
     UnequalTerms{}                           -> "UnequalTerms"
     UnequalTypes{}                           -> "UnequalTypes"
     UnequalTelescopes{}                      -> "UnequalTelescopes"
+    HeterogeneousEquality{}                  -> "HeterogeneousEquality"
     UnexpectedWithPatterns{}                 -> "UnexpectedWithPatterns"
     UninstantiatedDotPattern{}               -> "UninstantiatedDotPattern"
     UninstantiatedModule{}                   -> "UninstantiatedModule"
@@ -326,6 +327,10 @@ instance PrettyTCM TypeError where
                 where
                   f CmpEq  = text "!="
                   f CmpLeq = text "!=<"
+	    HeterogeneousEquality u a v b -> fsep $
+                pwords "Refuse to solve heterogeneous constraint" ++
+                [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
+                [prettyTCM v] ++ pwords ":" ++ [prettyTCM b]
 	    UnequalRelevance a b -> fsep $
 		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
 -- Andreas 2010-09-21 to reveal Forced annotations, print also uglily
