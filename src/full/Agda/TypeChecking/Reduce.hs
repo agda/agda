@@ -312,28 +312,22 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
           _ | Delayed <- delayed,
               not unfoldDelayed -> defaultResult
           [] -> defaultResult -- no definition for head
-          cls@(Clause{ clausePats = ps } : _)
-            | length ps <= length args -> do
-                let (args1,args2') = splitAt (length ps) args
-                    args2 = map ignoreReduced args2'
-                ev <- maybe (appDef' v0 cls args1)
-                            (\cc -> appDef v0 cc args1) mcc
-                case ev of
-                  NoReduction  v -> do
-                    let v' = v `apply` args2
-                    reportSDoc "tc.reduce" 90 $ vcat
-                      [ text "*** tried to reduce " <+> prettyTCM f
-                      , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
-                      , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
-                    return v'
-                  YesReduction v -> do
-                    let v' = v `apply` args2
-                    reportSDoc "tc.reduce" 90 $ vcat
-                      [ text "*** reduced definition: " <+> prettyTCM f
-                      ]
-                    reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v'
-                    keepGoing $ v'
-            | otherwise	-> defaultResult -- partial application
+          cls -> do
+            ev <- maybe (appDef' v0 cls args)
+                        (\cc -> appDef v0 cc args) mcc
+            case ev of
+              NoReduction v -> do
+                reportSDoc "tc.reduce" 90 $ vcat
+                  [ text "*** tried to reduce " <+> prettyTCM f
+                  , text "    args    " <+> prettyTCM (map (unArg . ignoreReduced) args)
+                  , text "    stuck on" <+> prettyTCM (ignoreBlocking v) ]
+                return v
+              YesReduction v -> do
+                reportSDoc "tc.reduce" 90 $ vcat
+                  [ text "*** reduced definition: " <+> prettyTCM f
+                  ]
+                reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v
+                keepGoing v
       where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
     -- Apply a defined function to it's arguments.
@@ -346,8 +340,19 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
         NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
 
     appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-    appDef' v cls args = {-# SCC "appDef" #-} do
-      goCls cls (map ignoreReduced args) where
+    appDef' _ [] _ = {- ' -} __IMPOSSIBLE__
+    appDef' v cls@(Clause {clausePats = ps} : _) args
+      | m < n     = return $ NoReduction $ notBlocked $ v `apply` map ignoreReduced args
+      | otherwise = do
+        let (args0, args1) = splitAt n args
+        r <- goCls cls (map ignoreReduced args0)
+        case r of
+          YesReduction u -> return $ YesReduction $ u `apply` map ignoreReduced args1
+          NoReduction v  -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
+      where
+
+        n = genericLength ps
+        m = genericLength args
 
         goCls :: [Clause] -> Args -> TCM (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args
