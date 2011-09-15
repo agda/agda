@@ -525,7 +525,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	, nest 2 $ prettyList $ map prettyTCM us0
 	, nest 2 $ prettyList $ map prettyTCM vs0
         ]
-      a <- reduce a
+      a <- ureduce a  -- Q: reduce sufficient?
       case funView $ unEl a of
 	FunV b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
@@ -828,23 +828,8 @@ unifyIndices flex a us vs = liftTCM $ do
 --
 -- Precondition: The type has to correspond to an application of the
 -- given constructor.
-
-{-
-dataOrRecordType :: MonadTCM tcm
-                 => QName -- ^ Constructor name.
-                 -> Type -> tcm Type
-dataOrRecordType c a = do
-  -- The telescope ends with a datatype or a record.
-  TelV _ (El _ (Def d args)) <- telView a
-  def <- theDef <$> getConstInfo d
-  (n, a')  <- case def of
-    Datatype{dataPars = n} -> ((,) n) . defType <$> getConstInfo c
-    Record  {recPars  = n} -> ((,) n) <$> getRecordConstructorType d
-    _		           -> __IMPOSSIBLE__
-  return (a' `apply` genericTake n args)
--}
-dataOrRecordType :: MonadTCM tcm
-  => QName -- ^ Constructor name.
+dataOrRecordType
+  :: QName -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
   -> TCM (Maybe Type) -- ^ Type of constructor, applied to pars.
 dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordType' c a
@@ -935,9 +920,9 @@ data ShapeView a
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
 -- | Return the reduced type and its shape.
-shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
+shapeView :: Type -> Unify (Type, ShapeView Type)
 shapeView t = do
-  t <- reduce t  -- also instantiates meta in head position
+  t <- ureduce t  -- also instantiates meta in head position -- Q: reduce sufficient?
   return . (t,) $ case unEl t of
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Fun a b        -> FunSh a b
@@ -949,7 +934,7 @@ shapeView t = do
     _              -> ElseSh
 
 -- | Return the reduced type(s) and the common shape.
-shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
+shapeViewHH :: TypeHH -> Unify (TypeHH, ShapeView TypeHH)
 shapeViewHH (Hom a) = do
   (a, sh) <- shapeView a
   return (Hom a, fmap Hom sh)
@@ -975,7 +960,7 @@ shapeViewHH (Het a1 a2) = do
 
 -- | @telViewUpToHH n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if $n < 0$.
-telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
+telViewUpToHH :: Int -> TypeHH -> Unify TelViewHH
 telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
   (t, sh) <- shapeViewHH t
