@@ -891,20 +891,25 @@ instance EmbPrj Interface where
 
 
 
+{-# SPECIALIZE icodeX :: (Dict -> HashTable [Int32] Int32) ->
+                         (Dict -> IORef Int32) -> [Int32] -> S Int32 #-}
 icodeX :: (Eq k, Hashable k) =>
           (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
           k -> S Int32
 icodeX dict counter key = do
-  d     <- asks dict
-  c     <- asks counter
-  fresh <- lift $ readIORef c
-  mi    <- lift $ H.lookup d key
+  d <- asks dict
+  c <- asks counter
+  liftIO $ do
+  mi    <- H.lookup d key
   case mi of
     Just i  -> return i
-    Nothing -> do lift $ H.insert d key fresh
-                  lift $ writeIORef c (fresh + 1)
-                  return fresh
+    Nothing -> do
+      fresh <- readIORef c
+      H.insert d key fresh
+      writeIORef c $! fresh + 1
+      return fresh
 
+icodeN :: [Int32] -> S Int32
 icodeN = icodeX nodeD nodeC
 
 {-# INLINE vcase #-}
