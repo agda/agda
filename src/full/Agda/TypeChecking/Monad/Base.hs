@@ -1136,9 +1136,10 @@ instance MonadTrans TCMT where
 {-# SPECIALIZE instance Monad TCM #-}
 instance MonadIO m => Monad (TCMT m) where
     return x = TCM $ \_ _ -> return x
-    m >>= k = TCM $ \r e -> do
-                x <- unTCM m r e
-                unTCM (k x) r e
+    TCM m >>= k = TCM $ \r e -> do
+        x <- m r e
+        let TCM m' = k x in m' r e
+    TCM m1 >> TCM m2 = TCM $ \r e -> m1 r e >> m2 r e
     fail    = internalError
 
 instance MonadIO m => Functor (TCMT m) where
