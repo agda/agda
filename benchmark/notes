@@ -63,6 +63,7 @@
 20110909: Minor improvement of FreeVars.singleton and added
           Data.List.Any.Properties as a benchmark.
 
-20110910: ??
+20110910: Can't remember.
 
-20110911: Restructured when constraints are solved.
+20110915: New constraint handling machinery.
+
