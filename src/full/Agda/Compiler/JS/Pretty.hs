@@ -2,13 +2,15 @@ module Agda.Compiler.JS.Pretty where
 
 import Prelude hiding ( null )
 import Data.List ( intercalate )
+import Data.Set ( toList )
 import Data.Map ( Map, toAscList, null )
 
 import Agda.Syntax.Common ( Nat )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PreOp,Const),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module) )
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module), 
+    globals )
 
 -- Pretty-print a lambda-calculus expression as ECMAScript.
 
@@ -103,6 +105,8 @@ moddec m = "var " ++ pretty 0 0 m ++ " = require (" ++ modname m ++ ");"
 
 instance Pretty Module where
   pretty n i (Module m is e) =
-    "module.id = " ++ modname m ++ ";" ++ br i ++
-    intercalate (br i) (map moddec is) ++ br i ++
-    "exports = " ++ pretty n i e ++ ";" ++ br i
+    "define([" ++ intercalate "," (map modname js) ++ "]," ++
+    "function(" ++ intercalate "," (pretties n i js) ++ ") {" ++ br (i+1) ++
+    "var exports = " ++ pretty n (i+2) e ++ ";" ++ br (i+1) ++
+    "return exports;" ++ br i ++
+    "});" where js = toList (globals e)

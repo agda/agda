@@ -3,7 +3,8 @@
 module Agda.Compiler.JS.Syntax where
 
 import Data.Generics ( Data, Typeable )
-import Data.Map ( Map )
+import Data.Map ( Map, fold )
+import Data.Set ( Set, empty, singleton, union )
 
 import Agda.Syntax.Common ( Nat )
 
@@ -23,7 +24,6 @@ data Exp =
   Object (Map MemberId Exp) |
   Apply Exp [Exp] |
   Lookup Exp MemberId |
-  -- The remainder of the syntax is for use in the FFI
   If Exp Exp Exp |
   BinOp Exp String Exp |
   PreOp String Exp |
@@ -51,3 +51,14 @@ data Module = Module { modName :: GlobalId, imports :: [GlobalId], export :: Exp
 
 -- Note that modules are allowed to be recursive, via the Self expression,
 -- which is bound to the exported module.
+
+globals :: Exp -> Set GlobalId
+globals (Global i) = singleton i
+globals (Lambda n e) = globals e
+globals (Object o) = fold (union . globals) empty o
+globals (Apply e es) = foldr (union . globals) (globals e) es
+globals (Lookup e l) = globals e
+globals (If e f g) = globals e `union` globals f `union` globals g
+globals (BinOp e op f) = globals e `union` globals f
+globals (PreOp op e) = globals e
+globals _ = empty
