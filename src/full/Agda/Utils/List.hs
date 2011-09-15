@@ -160,6 +160,18 @@ prop_zipWith' f =
     forAll (two $ vector n) $ \(xs, ys) ->
       zipWith' f xs ys == zipWith f xs ys
 
+-- | Efficient version of nub that sorts the list first. The tag function is
+--   assumed to be cheap. If it isn't pair up the elements with their tags and
+--   call uniqBy fst (or snd).
+uniqBy :: Ord b => (a -> b) -> [a] -> [a]
+uniqBy tag =
+  map head
+  . groupBy ((==) `on` tag)
+  . sortBy (compare `on` tag)
+
+prop_uniqBy :: [Integer] -> Bool
+prop_uniqBy xs = sort (nub xs) == uniqBy id xs
+
 ------------------------------------------------------------------------
 -- All tests
 
@@ -170,4 +182,5 @@ tests = runTests "Agda.Utils.List"
   , quickCheck' prop_extractNthElement
   , quickCheck' prop_genericElemIndex
   , quickCheck' prop_zipWith'
+  , quickCheck' prop_uniqBy
   ]

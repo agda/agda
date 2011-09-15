@@ -65,5 +65,6 @@
 
 20110910: Can't remember.
 
-20110915: New constraint handling machinery.
+20110915: (07.38) New constraint handling machinery.
+          (08.47) No more quadratic nubbing in localNames
 

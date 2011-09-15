@@ -39,10 +39,12 @@ import Agda.Syntax.Scope.Monad
 import Agda.TypeChecking.Monad.Base (typeError, TypeError(..))
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Statistics
 
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
+import Agda.Utils.List
 
 import Debug.Trace
 
@@ -80,7 +82,7 @@ localNames :: ScopeM ([Name], [NewNotation])
 localNames = do
   defs   <- getDefinedNames [DefName, ConName]
   locals <- scopeLocals <$> getScope
-  return $ split $ nubBy ((==) `on` fst) $ map localOp locals ++ defs
+  return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
     localOp (x, y) = (x, A.nameFixity y)
     split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
