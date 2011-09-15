@@ -160,8 +160,10 @@ instance Subst Equality where
   substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
   substUnder n u (Equal a s t) = Equal (substUnder n u a) (substUnder n u s) (substUnder n u t)
 
+{- UNUSED
 getSub :: Unify Sub
 getSub = U $ gets uniSub
+-}
 
 onSub :: (Sub -> a) -> Unify a
 onSub f = U $ gets $ f . uniSub
@@ -276,10 +278,13 @@ makeSubstitution sub = map val [0..]
     val i = maybe (Var i []) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
-ureduce :: Term -> Unify Term
-ureduce u = doEtaContractImplicit $ do
-  rho <- onSub makeSubstitution
-  liftTCM $ etaContract =<< normalise (substs rho u)
+class UReduce t where
+  ureduce :: t -> Unify t
+
+instance UReduce Term where
+  ureduce u = doEtaContractImplicit $ do
+    rho <- onSub makeSubstitution
+    liftTCM $ etaContract =<< normalise (substs rho u)
 -- Andreas, 2011-06-22, fix related to issue 423
 -- To make eta contraction work better, I switched reduce to normalise.
 -- I hope the performance penalty is not big (since we are dealing with
@@ -287,6 +292,9 @@ ureduce u = doEtaContractImplicit $ do
 -- A systematic solution would make unification type-directed and
 -- eta-insensitive...
 --   liftTCM $ etaContract =<< reduce (substs rho u)
+
+instance UReduce Type where
+  ureduce (El s t) = El s <$> ureduce t
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
@@ -517,7 +525,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	, nest 2 $ prettyList $ map prettyTCM us0
 	, nest 2 $ prettyList $ map prettyTCM vs0
         ]
-      a <- reduce a
+      a <- ureduce a  -- Q: reduce sufficient?
       case funView $ unEl a of
 	FunV b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
@@ -912,9 +920,10 @@ data ShapeView a
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
 -- | Return the reduced type and its shape.
-shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
+-- shapeView :: MonadTCM tcm => Type -> tcm (Type, ShapeView Type)
+shapeView :: Type -> Unify (Type, ShapeView Type)
 shapeView t = do
-  t <- reduce t  -- also instantiates meta in head position
+  t <- ureduce t  -- also instantiates meta in head position -- Q: reduce sufficient?
   return . (t,) $ case unEl t of
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Fun a b        -> FunSh a b
@@ -926,7 +935,8 @@ shapeView t = do
     _              -> ElseSh
 
 -- | Return the reduced type(s) and the common shape.
-shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
+-- shapeViewHH :: MonadTCM tcm => TypeHH -> tcm (TypeHH, ShapeView TypeHH)
+shapeViewHH :: TypeHH -> Unify (TypeHH, ShapeView TypeHH)
 shapeViewHH (Hom a) = do
   (a, sh) <- shapeView a
   return (Hom a, fmap Hom sh)
@@ -952,7 +962,8 @@ shapeViewHH (Het a1 a2) = do
 
 -- | @telViewUpToHH n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if $n < 0$.
-telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
+--telViewUpToHH :: MonadTCM tcm => Int -> TypeHH -> tcm TelViewHH
+telViewUpToHH :: Int -> TypeHH -> Unify TelViewHH
 telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
   (t, sh) <- shapeViewHH t
