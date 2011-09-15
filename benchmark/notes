@@ -67,4 +67,5 @@
 
 20110915: (07.38) New constraint handling machinery.
           (08.47) No more quadratic nubbing in localNames
-
+          (09.14) Don't reduce sorts when reducing types
+          (13.11) Got rid of most MonadTCMs
