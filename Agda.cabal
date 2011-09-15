@@ -67,6 +67,13 @@ flag js
   description:
     Install the ECMAScript compiler.
 
+flag debug
+  default: False
+  manual: True
+  description:
+    Switch on some extra debug output from GHC.
+
+
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
@@ -326,6 +333,8 @@ library
     ghc-options:    -fwarn-identities
   ghc-prof-options: -auto-all
 
+  if flag(debug)
+    ghc-options:    -ddump-simpl-stats
 executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
