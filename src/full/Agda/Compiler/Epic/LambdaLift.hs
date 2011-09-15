@@ -10,13 +10,13 @@ import qualified Data.Set as S
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 
-import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Base (TCM)
 
 -- | LL makes it possible to emit new functions when we encounter a lambda
 type LL = WriterT [Fun]
 
 -- | lambda lift all the functions
-lambdaLift :: MonadTCM m => [Fun] -> Compile m [Fun]
+lambdaLift :: [Fun] -> Compile TCM [Fun]
 lambdaLift fs = do
   concat <$> sequence
     [do (f', lifts) <- runWriterT (lambdaLiftFun f)
@@ -24,12 +24,12 @@ lambdaLift fs = do
     | f <- fs]
 
 -- | λ lift a function, this is in a LL (Writer monad)
-lambdaLiftFun :: MonadTCM m => Fun -> LL (Compile m) Fun
+lambdaLiftFun :: Fun -> LL (Compile TCM) Fun
 lambdaLiftFun (Fun i name c vs e) = Fun i name c vs <$> lambdaLiftExpr e
 lambdaLiftFun f@(EpicFun _ _ _)   = return f
 
 -- | λ lift an expression, put all the new definitions in the writer monad
-lambdaLiftExpr :: MonadTCM m => Expr -> LL (Compile m) Expr
+lambdaLiftExpr :: Expr -> LL (Compile TCM) Expr
 lambdaLiftExpr expr = case expr of
     Var _    -> return expr
     Lit _    -> return expr

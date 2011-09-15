@@ -27,22 +27,22 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-empty, comma :: MonadTCM tcm => tcm Doc
+empty, comma :: TCM Doc
 
 empty	   = return P.empty
 comma	   = return P.comma
 pretty x   = return $ P.pretty x
 prettyA x  = P.prettyA x
-text :: MonadTCM tcm => String -> tcm Doc
+text :: String -> TCM Doc
 text s	   = return $ P.text s
 pwords s   = map return $ P.pwords s
 fwords s   = return $ P.fwords s
-sep, fsep, hsep, vcat :: MonadTCM tcm => [tcm Doc] -> tcm Doc
+sep, fsep, hsep, vcat :: [TCM Doc] -> TCM Doc
 sep ds	   = P.sep <$> sequence ds
 fsep ds    = P.fsep <$> sequence ds
 hsep ds    = P.hsep <$> sequence ds
 vcat ds    = P.vcat <$> sequence ds
-($$), (<>), (<+>) :: MonadTCM tcm => tcm Doc -> tcm Doc -> tcm Doc
+($$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
 d1 $$ d2   = (P.$$) <$> d1 <*> d2
 d1 <> d2   = (P.<>) <$> d1 <*> d2
 d1 <+> d2  = (P.<+>) <$> d1 <*> d2
@@ -64,7 +64,7 @@ punctuate d ds = zipWith (<>) ds (replicate n d ++ [empty])
 ---------------------------------------------------------------------------
 
 class PrettyTCM a where
-    prettyTCM :: MonadTCM tcm => a -> tcm Doc
+    prettyTCM :: a -> TCM Doc
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
     prettyTCM cl = enterClosure cl prettyTCM

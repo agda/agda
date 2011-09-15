@@ -8,12 +8,12 @@ import Agda.TypeChecking.Monad
 import Agda.Utils.Pretty (Doc)
 import qualified Agda.Utils.Pretty as P
 
-text                  :: MonadTCM tcm => String             -> tcm Doc
-sep, fsep, hsep, vcat :: MonadTCM tcm => [tcm Doc]          -> tcm Doc
-($$), (<>), (<+>)     :: MonadTCM tcm => tcm Doc -> tcm Doc -> tcm Doc
+text                  :: String             -> TCM Doc
+sep, fsep, hsep, vcat :: [TCM Doc]          -> TCM Doc
+($$), (<>), (<+>)     :: TCM Doc -> TCM Doc -> TCM Doc
 
 class PrettyTCM a where
-    prettyTCM :: MonadTCM tcm => a -> tcm Doc
+    prettyTCM :: a -> TCM Doc
 
 instance PrettyTCM a => PrettyTCM (Closure a) where
 instance PrettyTCM a => PrettyTCM [a] where

@@ -238,7 +238,7 @@ checkCover q ty n cs = do
          ]
 
 -- | Move somewhere else!
-constructorArity :: MonadTCM tcm => QName -> tcm Nat
+constructorArity :: QName -> TCM Nat
 constructorArity q = do
   def <- getConstInfo q
   a <- normalise $ defType def

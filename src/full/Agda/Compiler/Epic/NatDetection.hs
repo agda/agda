@@ -20,7 +20,7 @@ import Agda.Compiler.Epic.CompileState hiding (conPars)
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
-getNatish :: MonadTCM m => Compile m [(IrrFilter,[QName])]
+getNatish :: Compile TCM [(IrrFilter,[QName])]
 getNatish = do
   sig <- lift (gets (sigDefinitions . stImports))
   let defs = M.toList sig

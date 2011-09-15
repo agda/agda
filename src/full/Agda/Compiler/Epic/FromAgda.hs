@@ -29,11 +29,11 @@ import Agda.Compiler.Epic.Forcing
 import Agda.Utils.Impossible
 
 -- | Convert from Agda's internal representation to our auxiliary AST.
-fromAgda :: MonadTCM m => Maybe T.Term -> [(QName, Definition)] -> Compile m [Fun]
+fromAgda :: Maybe T.Term -> [(QName, Definition)] -> Compile TCM [Fun]
 fromAgda msharp defs = catMaybes <$> mapM (translateDefn msharp) defs
 
 -- | Translate an Agda definition to an Epic function where applicable
-translateDefn :: MonadTCM m => Maybe T.Term -> (QName, Definition) -> Compile m (Maybe Fun)
+translateDefn :: Maybe T.Term -> (QName, Definition) -> Compile TCM (Maybe Fun)
 translateDefn msharp (n, defini) =
   let n' = unqname n
       epDef = compiledEpic $ defCompiledRep defini
@@ -86,7 +86,7 @@ translateDefn msharp (n, defini) =
         vars <- replicateM arit newName
         return $ Fun True name (sh primname) vars (comb primname (map Var vars))
 
-    etaExpand :: MonadTCM m => Int -> Fun -> Compile m Fun
+    etaExpand :: Int -> Fun -> Compile TCM Fun
     etaExpand num fun = do
         names <- replicateM num newName
         return $ fun
@@ -152,17 +152,16 @@ reverseCCBody cc = case cc of
 --   we have to add the catchAllBranch to each inner case (here we are calling
 --   it omniDefault). To avoid code duplication it is first bound by a let
 --   expression.
-compileClauses :: MonadTCM m
-               => QName
+compileClauses :: QName
                -> Int -- ^ Number of arguments in the definition
-               -> CC.CompiledClauses -> Compile m Fun
+               -> CC.CompiledClauses -> Compile TCM Fun
 compileClauses name nargs c = do
     let n' = unqname name
     vars <- replicateM nargs newName
     e    <- compileClauses' vars Nothing c
     return $ Fun False n' ("function: " ++ show name) vars e
   where
-    compileClauses' :: MonadTCM m => [Var] -> Maybe Var -> CC.CompiledClauses -> Compile m Expr
+    compileClauses' :: [Var] -> Maybe Var -> CC.CompiledClauses -> Compile TCM Expr
     compileClauses' env omniDefault cc = case cc of
         CC.Case n nc -> case length env <= n of
            True -> __IMPOSSIBLE__
@@ -175,8 +174,8 @@ compileClauses name nargs c = do
         CC.Done _ t -> substTerm ({- reverse -} env) t
         CC.Fail     -> return IMPOSSIBLE
 
-    compileCase :: MonadTCM m => [Var] -> Maybe Var -> Int -> CC.Case CC.CompiledClauses
-                -> Compile m [Branch]
+    compileCase :: [Var] -> Maybe Var -> Int -> CC.Case CC.CompiledClauses
+                -> Compile TCM [Branch]
     compileCase env omniDefault casedvar nc = do
         cb <- if M.null (CC.conBranches nc)
            -- Lit branch
@@ -201,7 +200,7 @@ compileClauses name nargs c = do
 -- | Translate the actual Agda terms, with an environment of all the bound variables
 --   from patternmatching. Agda terms are in de Bruijn so we just check the new
 --   names in the position.
-substTerm :: MonadTCM m => [Var] -> T.Term -> Compile m Expr
+substTerm :: [Var] -> T.Term -> Compile TCM Expr
 substTerm env term = case term of
     T.Var ind args -> case length env <= fromIntegral ind of
         True  -> __IMPOSSIBLE__
@@ -228,7 +227,7 @@ substTerm env term = case term of
     T.DontCare _ -> return UNIT
 
 -- | Translate Agda literals to our AUX definition
-substLit :: MonadTCM m => TL.Literal -> Compile m Lit
+substLit :: TL.Literal -> Compile TCM Lit
 substLit lit = case lit of
   TL.LitInt    _ i -> return $ LInt i
   TL.LitString _ s -> return $ LString s

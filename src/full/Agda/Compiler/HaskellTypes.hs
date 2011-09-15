@@ -53,19 +53,19 @@ hsApp d as = "(" ++ unwords (d : as) ++ ")"
 hsForall :: String -> HaskellType -> HaskellType
 hsForall x a = "(forall " ++ x ++ ". " ++ a ++ ")"
 
-notAHaskellKind :: MonadTCM tcm => Type -> tcm a
+notAHaskellKind :: Type -> TCM a
 notAHaskellKind a = do
   err <- fsep $ pwords "The type" ++ [prettyTCM a] ++
                 pwords "cannot be translated to a Haskell kind."
   typeError $ GenericError $ show err
 
-notAHaskellType :: MonadTCM tcm => Type -> tcm a
+notAHaskellType :: Type -> TCM a
 notAHaskellType a = do
   err <- fsep $ pwords "The type" ++ [prettyTCM a] ++
                 pwords "cannot be translated to a Haskell type."
   typeError $ GenericError $ show err
 
-getHsType :: MonadTCM tcm => QName -> tcm HaskellType
+getHsType :: QName -> TCM HaskellType
 getHsType x = do
   d <- compiledHaskell . defCompiledRep <$> getConstInfo x
   case d of
@@ -73,14 +73,14 @@ getHsType x = do
     Just (HsDefn t c) -> return hsUnit
     _                 -> notAHaskellType (El Prop $ Def x [])
 
-getHsVar :: MonadTCM tcm => Nat -> tcm HaskellCode
+getHsVar :: Nat -> TCM HaskellCode
 getHsVar i = hsVar <$> nameOfBV i
 
 isHaskellKind :: Type -> TCM Bool
 isHaskellKind a =
   (const True <$> haskellKind a) `catchError` \_ -> return False
 
-haskellKind :: MonadTCM tcm => Type -> tcm HaskellKind
+haskellKind :: Type -> TCM HaskellKind
 haskellKind a = do
   a <- reduce a
   case unEl a of
@@ -101,7 +101,7 @@ haskellKind a = do
 -- Note that if @haskellType@ supported universe polymorphism then the
 -- special treatment of INFINITY might not be needed.
 
-haskellType :: MonadTCM tcm => Type -> tcm HaskellType
+haskellType :: Type -> TCM HaskellType
 haskellType = liftTCM . fromType
   where
     fromArgs = mapM (fromTerm . unArg)

@@ -15,7 +15,7 @@ import qualified Data.Set as S
 import Agda.Compiler.Epic.AuxAST
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (MonadTCM, internalError, defType, theDef, getConstInfo)
+import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo)
 import qualified Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.Reduce
 
@@ -54,7 +54,7 @@ initCompileState = CompileState
 -- | Compiler monad
 type Compile = StateT CompileState
 
-epicError :: MonadTCM m => String -> Compile m a
+epicError :: String -> Compile TCM a
 epicError = lift . internalError
 
 -- | Create a name which can be used in Epic code from a QName.
@@ -65,10 +65,10 @@ unqname qn = case nameId $ qnameName qn of
 
 -- * State modifiers
 
-getDelayed :: MonadTCM m => QName -> Compile m Bool
+getDelayed :: QName -> Compile TCM Bool
 getDelayed q = fromMaybe False <$> gets (M.lookup q . defDelayed)
 
-putDelayed :: Monad m => QName -> Bool -> Compile m ()
+putDelayed :: QName -> Bool -> Compile TCM ()
 putDelayed q d = modify $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
 
 newName :: Monad m => Compile m Var
@@ -79,41 +79,41 @@ newName = do
 
 -- | Add a data declaration by giving a list of its constructors.
 --   Tags will be created and saved.
-addDataDecl :: Monad m => [QName] -> Compile m ()
+addDataDecl :: [QName] -> Compile TCM ()
 addDataDecl ts = modify
     $ \s -> s { dataDecls = M.union (M.fromList $ zip ts [0..]) (dataDecls s)}
 
-getConstrTag :: Monad m => QName -> Compile m Tag
+getConstrTag :: QName -> Compile TCM Tag
 getConstrTag con = gets $ fromMaybe __IMPOSSIBLE__
                         . M.lookup con
                         . dataDecls
 
-addDefName :: Monad m => QName -> Compile m ()
+addDefName :: QName -> Compile TCM ()
 addDefName q = do
     modify $ \s -> s {definitions = S.insert (unqname q) $ definitions s }
     when ("main" == show (qnameName q)) (putMain q) -- hax
 
-topBindings :: Monad m => Compile m (Set Var)
+topBindings :: Compile TCM (Set Var)
 topBindings = gets definitions
 
-getConPar :: MonadTCM m => QName -> Compile m Int
+getConPar :: QName -> Compile TCM Int
 getConPar n = fromMaybe __IMPOSSIBLE__ <$> M.lookup n <$> gets conPars
 
-putConPar :: Monad m => QName -> Int -> Compile m ()
+putConPar :: QName -> Int -> Compile TCM ()
 putConPar n p = modify $ \s -> s { conPars = M.insert n p (conPars s) }
 
-putMain :: Monad m => QName -> Compile m ()
+putMain :: QName -> Compile TCM ()
 putMain m = modify $ \s -> s { mainName = Just m }
 
-getMain :: MonadTCM m => Compile m Var
+getMain :: Compile TCM Var
 getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< gets mainName
 
-getIrrFilter :: Monad m => QName -> Compile m IrrFilter
+getIrrFilter :: QName -> Compile TCM IrrFilter
 getIrrFilter q = gets $ fromMaybe __IMPOSSIBLE__
                       . M.lookup q
                       . irrFilters
 
-putIrrFilter :: Monad m => QName -> IrrFilter -> Compile m ()
+putIrrFilter :: QName -> IrrFilter -> Compile TCM ()
 putIrrFilter n f = modify $ \s -> s {irrFilters = M.insert n f $ irrFilters s}
 
 replaceAt :: Int -- ^ replace at
@@ -125,7 +125,7 @@ replaceAt n xs inserts = let (as, _:bs) = splitAt n xs in as ++ inserts ++ bs
 
 -- | Copy pasted from MAlonzo, HAHA!!!
 --   Move somewhere else!
-constructorArity :: (MonadTCM tcm, Num a) => QName -> tcm a
+constructorArity :: Num a => QName -> TCM a
 constructorArity q = do
   def <- getConstInfo q
   a <- normalise $ defType def

@@ -38,11 +38,11 @@ binAppView t = case t of
     app f [] = noApp
     app f xs = App (f $ init xs) (last xs)
 
-etaContract :: (MonadTCM tcm, TermLike a) => a -> tcm a
+etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
   where
 
-etaOnce :: (MonadTCM tcm) => Term -> tcm Term
+etaOnce :: Term -> TCM Term
 etaOnce v = ignoreAbstractMode $ eta v
   where
     eta t@(Lam h b) = do

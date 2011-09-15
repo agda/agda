@@ -8,7 +8,7 @@ import Agda.Compiler.Epic.CompileState
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Internal as T
-import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Base (TCM)
 
 
 -- | Check which arguments are forced and create an IrrFilter
@@ -26,17 +26,17 @@ irrFilter (T.El _ term) = case term of
       Forced     -> False -- It can be inferred
 
 -- | Remove irrelevant arguments from constructors and branches
-constrIrr :: MonadTCM m => [Fun] -> Compile m [Fun]
+constrIrr :: [Fun] -> Compile TCM [Fun]
 constrIrr fs = mapM irrFun fs
 
-irrFun :: MonadTCM m => Fun -> Compile m Fun
+irrFun :: Fun -> Compile TCM Fun
 irrFun (Fun inline name comment args expr) =
     Fun inline name comment args <$> irrExpr expr
 irrFun e@(EpicFun{}) = return e
 
 -- | Remove all arguments to constructors that we don't need to store in an
 --   expression.
-irrExpr :: MonadTCM m => Expr -> Compile m Expr
+irrExpr :: Expr -> Compile TCM Expr
 irrExpr expr = case expr of
     Var v        -> return $ Var v
     Lit l        -> return $ Lit l
@@ -55,7 +55,7 @@ irrExpr expr = case expr of
 
 -- | Remove all the arguments that doesn't need to be stored in the constructor
 --   For the branch
-irrBranch :: MonadTCM m => Branch -> Compile m Branch
+irrBranch :: Branch -> Compile TCM Branch
 irrBranch br = case br of
     Branch  tag name vars e -> do
         ir <- getIrrFilter name

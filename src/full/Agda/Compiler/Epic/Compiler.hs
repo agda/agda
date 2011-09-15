@@ -57,7 +57,7 @@ compilerMain inter = do
 -- | Before running the compiler, we need to store some things in the state,
 --   namely constructor tags, constructor irrelevancies and the delayed field
 --   in functions (for coinduction).
-initialAnalysis :: MonadTCM m => Compile m ()
+initialAnalysis :: Compile TCM ()
 initialAnalysis = do
   defs <- M.toList <$> lift (gets (sigDefinitions . stImports))
   forM_ defs $ \(q, def) -> do
@@ -77,7 +77,7 @@ initialAnalysis = do
       _ -> return ()
 
 -- | Perform the chain of compilation stages, from definitions to epic code
-compileDefns :: MonadTCM m => [(QName, Definition)] -> Compile m (Maybe EpicCode)
+compileDefns :: [(QName, Definition)] -> Compile TCM (Maybe EpicCode)
 compileDefns defs = do
     -- We need to handle sharp (coinduction) differently, so we get it here.
     msharp <- lift $ getBuiltin' builtinSharp
@@ -96,7 +96,7 @@ compileDefns defs = do
              else return ds
 
 -- | Compile all definitions from a signature
-compileModule :: MonadTCM m => Signature -> Compile m (Maybe EpicCode)
+compileModule :: Signature -> Compile TCM (Maybe EpicCode)
 compileModule sig = do
     let defs = M.toList $ sigDefinitions sig
     compileDefns defs
@@ -117,7 +117,7 @@ setEpicDir mainI = do
 --
 -- The program is written to the file @../m@, where m is the last
 -- component of the given module name.
-runEpic :: MonadTCM m => ModuleName -> EpicCode -> Compile m ()
+runEpic :: ModuleName -> EpicCode -> Compile TCM ()
 runEpic m code = do
     nam <- getMain
     epicflags <- optEpicFlags <$> lift commandLineOptions

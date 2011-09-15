@@ -17,7 +17,7 @@ import Agda.Utils.Impossible
 
 -- | Get the name of the datatype constructed by a given constructor.
 --   Precondition: The argument must refer to a constructor
-getConstructorData :: MonadTCM tcm => QName -> tcm QName
+getConstructorData :: QName -> TCM QName
 getConstructorData c = do
   def <- getConstInfo c
   case theDef def of
@@ -25,7 +25,7 @@ getConstructorData c = do
     _                        -> __IMPOSSIBLE__
 
 -- | Check if a name refers to a datatype or a record with a named constructor.
-isDatatype :: MonadTCM tcm => QName -> tcm Bool
+isDatatype :: QName -> TCM Bool
 isDatatype d = do
   def <- getConstInfo d
   case theDef def of
@@ -34,7 +34,7 @@ isDatatype d = do
     _                            -> return False
 
 -- | Check if a name refers to a datatype or a record.
-isDataOrRecordType :: MonadTCM tcm => QName -> tcm Bool
+isDataOrRecordType :: QName -> TCM Bool
 isDataOrRecordType d = do
   def <- getConstInfo d
   case theDef def of
@@ -52,7 +52,7 @@ data DatatypeInfo = DataInfo
 
 -- | Get the name and parameters from a type if it's a datatype or record type
 --   with a named constructor.
-getDatatypeInfo :: MonadTCM tcm => Type -> tcm (Maybe DatatypeInfo)
+getDatatypeInfo :: Type -> TCM (Maybe DatatypeInfo)
 getDatatypeInfo t = do
   t <- reduce t
   case unEl t of

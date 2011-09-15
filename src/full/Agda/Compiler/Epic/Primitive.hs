@@ -32,7 +32,7 @@ data PrimTransform = PrimTF
 
 -- | Change constructors and cases on builtins and natish datatypes to use
 --   primitive data
-primitivise :: MonadTCM m => [Fun] -> Compile m [Fun]
+primitivise :: [Fun] -> Compile TCM [Fun]
 primitivise funs = do
     ptfs   <- getBuiltins
     natish <- getNatish
@@ -40,7 +40,7 @@ primitivise funs = do
     (++ lists) <$> mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
 
 -- | Create primitive functions if list constructors are marked as builtins
-primLists :: MonadTCM m => Compile m [Fun]
+primLists :: Compile TCM [Fun]
 primLists = do
     mnil  <- lift $ getBuiltin' builtinNil
     mcons <- lift $ getBuiltin' builtinCons
@@ -75,7 +75,7 @@ primLists = do
                  ]
       _                     -> return []
 -- | Build transforms using the names of builtins
-getBuiltins :: MonadTCM m => Compile m [PrimTransform]
+getBuiltins :: Compile TCM [PrimTransform]
 getBuiltins =
     catMaybes <$> sequence
       [ [builtinZero, builtinSuc  ]         ~> natPrimTF [True]
@@ -146,14 +146,14 @@ boolPrimTF [true, false] = PrimTF
 boolPrimTF _ = __IMPOSSIBLE__
 
 -- | Change all the primitives in the function using the PrimTransform
-primFun :: MonadTCM m => [PrimTransform] -> Fun -> Compile m Fun
+primFun :: [PrimTransform] -> Fun -> Compile TCM Fun
 primFun ptfs (Fun i n c args e) =
     Fun i n c args <$> primExpr ptfs e
 primFun _ e@(EpicFun {}) = return e
 
 
 -- | Change all the primitives in an expression using PrimTransform
-primExpr :: MonadTCM m => [PrimTransform] -> Expr -> Compile m Expr
+primExpr :: [PrimTransform] -> Expr -> Compile TCM Expr
 primExpr prim ex = case ex of
     Var{}    -> return ex
     Lit{}    -> return ex
@@ -195,7 +195,7 @@ primExpr prim ex = case ex of
         Default _       -> Nothing
 
     -- | Change all primitives in a branch
-    primBranch :: MonadTCM m => Branch -> Compile m Branch
+    primBranch :: Branch -> Compile TCM Branch
     primBranch br = do
         e' <- primExpr prim (brExpr br)
         return br {brExpr = e'}

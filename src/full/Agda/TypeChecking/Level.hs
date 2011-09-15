@@ -28,12 +28,12 @@ data LevelKit = LevelKit
   , zeroName :: QName
   }
 
-levelSucFunction :: MonadTCM tcm => tcm (Term -> Term)
+levelSucFunction :: TCM (Term -> Term)
 levelSucFunction = do
   suc <- primLevelSuc
   return $ \a -> suc `apply` [defaultArg a]
 
-builtinLevelKit :: MonadTCM tcm => tcm (Maybe LevelKit)
+builtinLevelKit :: TCM (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
     level@(Def l []) <- primLevel
     zero@(Def z []) <- primLevelZero
@@ -54,7 +54,7 @@ builtinLevelKit = liftTCM $ do
 
 -- | Raises an error if no level kit is available.
 
-requireLevels :: MonadTCM tcm => tcm LevelKit
+requireLevels :: TCM LevelKit
 requireLevels = do
   mKit <- builtinLevelKit
   case mKit of
@@ -67,7 +67,7 @@ unLevelAtom (BlockedLevel _ a) = a
 unLevelAtom (NeutralLevel a)   = a
 unLevelAtom (UnreducedLevel a) = a
 
-reallyUnLevelView :: MonadTCM tcm => Level -> tcm Term
+reallyUnLevelView :: Level -> TCM Term
 reallyUnLevelView nv =
   case nv of
     Max []              -> primLevelZero
@@ -86,19 +86,19 @@ reallyUnLevelView nv =
     unPlusV zer suc (ClosedLevel n) = foldr (.) id (genericReplicate n suc) zer
     unPlusV _   suc (Plus n a)      = foldr (.) id (genericReplicate n suc) (unLevelAtom a)
 
-maybePrimCon :: MonadTCM tcm => TCM Term -> tcm (Maybe QName)
+maybePrimCon :: TCM Term -> TCM (Maybe QName)
 maybePrimCon prim = liftTCM $ do
     Con c [] <- prim
     return (Just c)
   `catchError` \_ -> return Nothing
 
-maybePrimDef :: MonadTCM tcm => TCM Term -> tcm (Maybe QName)
+maybePrimDef :: TCM Term -> TCM (Maybe QName)
 maybePrimDef prim = liftTCM $ do
     Def f [] <- prim
     return (Just f)
   `catchError` \_ -> return Nothing
 
-levelView :: MonadTCM tcm => Term -> tcm Level
+levelView :: Term -> TCM Level
 levelView a = do
   reportSLn "tc.level.view" 50 $ "{ levelView " ++ show a
   msuc <- maybePrimCon primLevelSuc

@@ -19,7 +19,7 @@ import Data.Maybe
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 
-import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Base (TCM)
 
 data Relevancy
   = Irr
@@ -52,7 +52,7 @@ data ErasureState = ErasureState
 type Erasure = StateT ErasureState
 
 -- | Try to find as many unused variables as possible
-erasure :: MonadTCM m => [Fun] -> Compile m [Fun]
+erasure :: [Fun] -> Compile TCM [Fun]
 erasure fs = do
     rels <- flip evalStateT (ErasureState M.empty M.empty) $ do
         mapM_ initiate fs
@@ -61,7 +61,7 @@ erasure fs = do
     fmap concat $ mapM (\f -> check f (M.lookup f rels)) fs
   where
     -- | Perform the worker//wrapper transform
-    check :: MonadTCM m => Fun -> Maybe [Relevancy] -> Compile m [Fun]
+    check :: Fun -> Maybe [Relevancy] -> Compile TCM [Fun]
     -- If the function is already marked as to inline we don't need to create a
     -- new function. Also If all arguments are relevant there is nothing to do.
     check f (Just rs) | any isIrr rs && not (funInline f) = do

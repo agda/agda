@@ -127,7 +127,7 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
 -- | A safe variant of telView.
 
 OLD CODE:
-telView :: MonadTCM tcm => Type -> tcm TelView
+telView :: Type -> TCM TelView
 telView t = do
   t <- reduce t
   case unEl t of
@@ -137,12 +137,12 @@ telView t = do
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 -}
-telView :: MonadTCM tcm => Type -> tcm TelView
+telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
 
 -- | @telViewUpTo n t@ takes off the first @n@ function types of @t@.
 -- Takes off all if $n < 0$.
-telViewUpTo :: MonadTCM tcm => Int -> Type -> tcm TelView
+telViewUpTo :: Int -> Type -> TCM TelView
 telViewUpTo 0 t = return $ TelV EmptyTel t
 telViewUpTo n t = do
   t <- reduce t
@@ -155,7 +155,7 @@ telViewUpTo n t = do
 
 -- | A safe variant of piApply.
 
-piApplyM :: MonadTCM tcm => Type -> Args -> tcm Type
+piApplyM :: Type -> Args -> TCM Type
 piApplyM t []           = return t
 piApplyM t (arg : args) = do
   t <- reduce t

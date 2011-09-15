@@ -33,19 +33,19 @@ import Agda.Utils.Impossible
 --   Note that this works on CompiledClauses where the term's variable indexes
 --   have been reversed, which means that the case variables match the variables
 --   in the term.
-removeForced :: MonadTCM m => CompiledClauses -> Type -> Compile m CompiledClauses
+removeForced :: CompiledClauses -> Type -> Compile TCM CompiledClauses
 removeForced cc typ = do
   TelV tele _ <- lift $ telView typ
   remForced cc tele
 
 -- | Returns the type of a constructor given its name
-constrType :: MonadTCM m => QName -> Compile m Type
+constrType :: QName -> Compile TCM Type
 constrType q = do
     map <- lift (gets (sigDefinitions . stImports))
     return $ maybe __IMPOSSIBLE__ defType (M.lookup q map)
 
 -- | Returns how many parameters a datatype has
-dataParameters :: MonadTCM m => QName -> Compile m Nat
+dataParameters :: QName -> Compile TCM Nat
 dataParameters name = do
     m <- lift (gets (sigDefinitions . stImports))
     return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (M.lookup name m)
@@ -56,13 +56,13 @@ dataParameters name = do
     defnPars _                         = 0 -- Not so sure about this.
 
 -- | Is variable n used in a CompiledClause?
-isIn :: MonadTCM m => Nat -> CompiledClauses -> Compile m Bool
+isIn :: Nat -> CompiledClauses -> Compile TCM Bool
 n `isIn` Case i brs | n == fromIntegral i = return True
                     | otherwise = n `isInCase` (fromIntegral i, brs)
 n `isIn` Done _ t = return $ n `isInTerm` t
 n `isIn` Fail     = return $ False
 
-isInCase :: MonadTCM m => Nat -> (Nat, Case CompiledClauses) -> Compile m Bool
+isInCase :: Nat -> (Nat, Case CompiledClauses) -> Compile TCM Bool
 n `isInCase` (i, Branches { conBranches    = cbrs
                           , litBranches    = lbrs
                           , catchAllBranch = cabr}) = do
@@ -124,13 +124,12 @@ becomes
 we raise the type since we have added xs' new bindings before Gamma, and as can
 only bind to Gamma.
 -}
-insertTele :: MonadTCM m
-            => Int        -- ^ ABS `pos` in tele
+insertTele ::  Int        -- ^ ABS `pos` in tele
             -> Maybe Type -- ^ If Just, it is the type to insert patterns from
                           --   is nothing if we only want to delete a binding.
             -> Term       -- ^ Term to replace at pos
             -> Telescope  -- ^ The telescope `tele` where everything is at
-            -> Compile m ( Telescope
+            -> Compile TCM ( Telescope
                          , ( Type
                            , Type
                            )
@@ -167,7 +166,7 @@ insertTele n ins term (ExtendTel x xs) = do
 
 mkCon c n = Con c [ defaultArg $ Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
-unifyI :: MonadTCM m => Telescope -> [Nat] -> Type -> Args -> Args -> Compile m [Maybe Term]
+unifyI :: Telescope -> [Nat] -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
 
 takeTele 0 _ = EmptyTel
@@ -175,10 +174,10 @@ takeTele n (ExtendTel t ts) = ExtendTel t ts {absBody = takeTele (n-1) (absBody 
 takeTele _ _ = __IMPOSSIBLE__
 
 -- | Remove forced variables cased on in the current top-level case in the CompiledClauses
-remForced :: MonadTCM m
-     => CompiledClauses -- ^ Remove cases on forced variables in this
+remForced ::
+        CompiledClauses -- ^ Remove cases on forced variables in this
      -> Telescope       -- ^ The current context we are in
-     -> Compile m CompiledClauses
+     -> Compile TCM CompiledClauses
 remForced ccOrig tele = case ccOrig of
     Case n brs -> do
         -- Get all constructor branches
@@ -257,9 +256,8 @@ modifyM f = get >>= f >>= put -- (>>= put) . (get >>=)
 
 -- | replaceForced (tpos, tele) forcedVars (cc, unification)
 --   For each forceVar dig out the corresponding case and continue to remForced.
-replaceForced :: MonadTCM m
-              => (Nat, Telescope) -> [Nat] -> (CompiledClauses, [Maybe Term])
-              -> Compile m CompiledClauses
+replaceForced :: (Nat, Telescope) -> [Nat] -> (CompiledClauses, [Maybe Term])
+              -> Compile TCM CompiledClauses
 replaceForced (telPos, tele) forcedVars (cc, unif) = do
     let origSt = FoldState
                   { clauseToFix  = cc
@@ -281,7 +279,7 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
         caseVar : Absolute
         telePos : Absolute
     -}
-    termToBranch :: MonadTCM m => Nat -> Term -> Nat -> StateT FoldState (Compile m) ()
+    termToBranch :: Nat -> Term -> Nat -> StateT FoldState (Compile TCM) ()
     termToBranch caseVar caseTerm forcedVar = case caseTerm of
         Var i _ | i == forcedVar -> do
             telPos <- gets telePos
@@ -350,7 +348,7 @@ raiseFromCC from add  cc = case cc of
 
 -- | Substitute with the Substitution, this will adjust with the new bindings in the
 --   CompiledClauses
-substCC :: MonadTCM m => [Nat] -> CompiledClauses -> StateT FoldState (Compile m) CompiledClauses
+substCC :: [Nat] -> CompiledClauses -> StateT FoldState (Compile TCM) CompiledClauses
 substCC ss cc = case cc of
     Done i t -> do
         return $ Done i (substs (map (flip Var []) ({-reverse $ take i -} ss)) t)

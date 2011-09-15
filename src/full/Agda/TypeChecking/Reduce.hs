@@ -38,14 +38,14 @@ import Agda.Utils.Monad
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
-traceFun :: MonadTCM tcm => String -> tcm a -> tcm a
+traceFun :: String -> TCM a -> TCM a
 traceFun s m = do
   reportSLn "tc.inst" 100 $ "[ " ++ s
   x <- m
   reportSLn "tc.inst" 100 $ "]"
   return x
 
-traceFun' :: (Show a, MonadTCM tcm) => String -> tcm a -> tcm a
+traceFun' :: Show a => String -> TCM a -> TCM a
 traceFun' s m = do
   reportSLn "tc.inst" 100 $ "[ " ++ s
   x <- m
@@ -57,7 +57,7 @@ traceFun' s m = do
 --   Doesn't do any reduction, and preserves blocking tags (when blocking meta
 --   is uninstantiated).
 class Instantiate t where
-    instantiate :: MonadTCM tcm => t -> tcm t
+    instantiate :: t -> TCM t
 
 instance Instantiate Term where
   instantiate t@(MetaV x args) = do
@@ -161,8 +161,8 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 --
 
 class Reduce t where
-    reduce  :: MonadTCM tcm => t -> tcm t
-    reduceB :: MonadTCM tcm => t -> tcm (Blocked t)
+    reduce  :: t -> TCM t
+    reduceB :: t -> TCM (Blocked t)
 
     reduce  t = ignoreBlocking <$> reduceB t
     reduceB t = notBlocked <$> reduce t
@@ -273,9 +273,9 @@ instance Reduce Term where
 
 -- | If the first argument is 'True', then a single delayed clause may
 -- be unfolded.
-unfoldDefinition :: MonadTCM tcm =>
-  Bool -> (Term -> tcm (Blocked Term)) ->
-  Term -> QName -> Args -> tcm (Blocked Term)
+unfoldDefinition ::
+  Bool -> (Term -> TCM (Blocked Term)) ->
+  Term -> QName -> Args -> TCM (Blocked Term)
 unfoldDefinition unfoldDelayed keepGoing v0 f args =
   {-# SCC "reduceDef" #-} do
   info <- getConstInfo f
@@ -306,7 +306,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             ar  = primFunArity pf
             def = primFunImplementation pf
 
-    -- reduceNormal :: MonadTCM tcm => Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> tcm (Blocked Term)
+    -- reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
     reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
         case def of
           _ | Delayed <- delayed,
@@ -338,18 +338,18 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
 
     -- Apply a defined function to it's arguments.
     --   The original term is the first argument applied to the third.
-    appDef :: MonadTCM tcm => Term -> CompiledClauses -> MaybeReducedArgs -> tcm (Reduced (Blocked Term) Term)
+    appDef :: Term -> CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
     appDef v cc args = liftTCM $ do
       r <- matchCompiled cc args
       case r of
         YesReduction t    -> return $ YesReduction t
         NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
 
-    appDef' :: MonadTCM tcm => Term -> [Clause] -> MaybeReducedArgs -> tcm (Reduced (Blocked Term) Term)
+    appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
     appDef' v cls args = {-# SCC "appDef" #-} do
       goCls cls (map ignoreReduced args) where
 
-        goCls :: MonadTCM tcm => [Clause] -> Args -> tcm (Reduced (Blocked Term) Term)
+        goCls :: [Clause] -> Args -> TCM (Reduced (Blocked Term) Term)
         goCls [] args = typeError $ IncompletePatternMatching v args
         goCls (cl@(Clause { clausePats = pats
                           , clauseBody = body }) : cls) args = do
@@ -410,7 +410,7 @@ instance (Ord k, Reduce e) => Reduce (Map k e) where
 ---------------------------------------------------------------------------
 
 class Normalise t where
-    normalise :: MonadTCM tcm => t -> tcm t
+    normalise :: t -> TCM t
 
 instance Normalise Sort where
     normalise s = do
@@ -534,7 +534,7 @@ instance Normalise a => Normalise (Maybe a) where
 -- How can we express this? We need higher order classes!
 
 class InstantiateFull t where
-    instantiateFull :: MonadTCM tcm => t -> tcm t
+    instantiateFull :: t -> TCM t
 
 instance InstantiateFull Name where
     instantiateFull = return
@@ -745,7 +745,7 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
 
 -- | @telViewM t@ is like @telView' t@, but it reduces @t@ to expose
 --   function type constructors.
-telViewM :: MonadTCM tcm => Type -> tcm TelView
+telViewM :: Type -> TCM TelView
 telViewM t = do
   t <- reduce t -- also instantiates meta if in head position
   case unEl t of
