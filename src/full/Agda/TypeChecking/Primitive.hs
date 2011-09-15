@@ -256,21 +256,24 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
-  refl <- primRefl
   t    <- hPi "a" (el primLevel) $
           hPi "A" (return $ sort $ varSort 0) $
           hPi "x" (El (varSort 1) <$> var 0) $
           hPi "y" (El (varSort 2) <$> var 1) $
           El (varSort 3) <$>
             primEquality <#> var 3 <#> var 2 <@> var 1 <@> var 0
+  Con rf [] <- primRefl
+  n         <- conPars . theDef <$> getConstInfo rf
+  let refl x | n == 2    = Con rf [Arg Hidden Forced x]
+             | n == 3    = Con rf []
+             | otherwise = __IMPOSSIBLE__
   return $ PrimImpl t $ PrimFun __IMPOSSIBLE__ 4 $ \ts ->
       case ts of
         [a, t, x, y] -> liftTCM $ do
               noConstraints $
                 equalTerm (El (Type $ lvlView $ unArg a) (unArg t))
                           (unArg x) (unArg y)
-              rf <- return refl
-              redReturn rf
+              redReturn (refl $ unArg x)
             `catchError` \_ -> return (NoReduction $ map notReduced [a, t, x, y])
         _ -> __IMPOSSIBLE__
 
