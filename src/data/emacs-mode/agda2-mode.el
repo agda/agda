@@ -89,7 +89,8 @@ the root of the current project."
   "MAlonzo"
   "The backend which is used to compile Agda programs."
   :type '(choice (const "MAlonzo")
-                 (const "Epic"))
+                 (const "Epic")
+                 (const "JS"))
   :group 'agda2)
 
 (defcustom agda2-ghci-options
