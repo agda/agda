@@ -161,6 +161,8 @@ data IsInfix = InfixDef | PrefixDef
 
 -- | Access modifier.
 data Access = PrivateAccess | PublicAccess
+            | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
+                             --   Used for qualified constructors.
     deriving (Typeable, Data, Show, Eq, Ord)
 
 -- | Abstract or concrete

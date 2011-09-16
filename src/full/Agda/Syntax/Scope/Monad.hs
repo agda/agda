@@ -128,14 +128,10 @@ modifyCurrentScopeM f = do
 modifyCurrentNameSpace :: NameSpaceId -> (NameSpace -> NameSpace) -> ScopeM ()
 modifyCurrentNameSpace acc f = modifyCurrentScope action
   where
-    action s = s { scopePublic   = pub $ scopePublic  s
-                 , scopePrivate  = pri $ scopePrivate s
-                 , scopeImported = imp $ scopeImported s
-                 }
-    (pub, pri, imp) = case acc of
-      PublicNS   -> (f, id, id)
-      PrivateNS  -> (id, f, id)
-      ImportedNS -> (id, id, f)
+    action s = s { scopeNameSpaces = [ (nsid, f' nsid ns) | (nsid, ns) <- scopeNameSpaces s ] }
+
+    f' a | a == acc  = f
+         | otherwise = id
 
 setContextPrecedence :: Precedence -> ScopeM ()
 setContextPrecedence p = modifyScopeInfo $ \s -> s { scopePrecedence = p }
@@ -301,14 +297,16 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
     old  = scopeName s
 
     copyM :: NameSpaceId -> ModulesInScope -> WSM ModulesInScope
-    copyM ImportedNS ms = return ms
-    copyM PrivateNS  _  = return Map.empty
-    copyM PublicNS   ms = traverse (mapM $ onMod renMod) ms
+    copyM ImportedNS      ms = return ms
+    copyM PrivateNS       _  = return Map.empty
+    copyM PublicNS        ms = traverse (mapM $ onMod renMod) ms
+    copyM OnlyQualifiedNS ms = traverse (mapM $ onMod renMod) ms
 
     copyD :: NameSpaceId -> NamesInScope -> WSM NamesInScope
-    copyD ImportedNS ds = return ds
-    copyD PrivateNS  _  = return Map.empty
-    copyD PublicNS   ds = traverse (mapM $ onName renName) ds
+    copyD ImportedNS      ds = return ds
+    copyD PrivateNS       _  = return Map.empty
+    copyD PublicNS        ds = traverse (mapM $ onName renName) ds
+    copyD OnlyQualifiedNS ds = traverse (mapM $ onName renName) ds
 
     onMod f m = do
       x <- f $ amodName m
@@ -404,7 +402,7 @@ openModule_ cm dir = do
   m <- amodName <$> resolveModule cm
   let ns = namespace current m
   s <- setScopeAccess ns <$>
-        (applyImportDirectiveM cm dir . restrictPrivate =<< getNamedScope m)
+        (applyImportDirectiveM cm dir . removeOnlyQualified . restrictPrivate =<< getNamedScope m)
   checkForClashes (scopeNameSpace ns s)
   modifyCurrentScope (`mergeScope` s)
   where

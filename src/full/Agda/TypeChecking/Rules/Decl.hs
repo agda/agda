@@ -214,6 +214,7 @@ checkTypeSignature (A.Axiom i rel x e) =
     case Info.defAccess i of
 	PublicAccess  -> inConcreteMode $ checkAxiom i rel x e
 	PrivateAccess -> inAbstractMode $ checkAxiom i rel x e
+        OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
 

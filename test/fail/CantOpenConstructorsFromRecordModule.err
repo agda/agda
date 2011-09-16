@@ -1,0 +1,5 @@
+CantOpenConstructorsFromRecordModule.agda:14,7-10
+Not in scope:
+  foo
+  at CantOpenConstructorsFromRecordModule.agda:14,7-10
+when scope checking foo

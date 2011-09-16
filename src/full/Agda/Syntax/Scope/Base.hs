@@ -20,6 +20,7 @@ import Agda.Syntax.Concrete
   (ImportDirective(..), UsingOrHiding(..), ImportedName(..), Renaming(..))
 import qualified Agda.Utils.Map as Map
 import Agda.Utils.Tuple
+import Agda.Utils.List
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -29,30 +30,23 @@ import Agda.Utils.Impossible
 -- | A scope is a named collection of names partitioned into public and private
 --   names.
 data Scope = Scope
-      { scopeName     :: A.ModuleName
-      , scopeParents  :: [A.ModuleName]
-      , scopePrivate  :: NameSpace
-      , scopePublic   :: NameSpace
-      , scopeImported :: NameSpace -- ^ public opened names
-      , scopeImports  :: Map C.QName A.ModuleName
+      { scopeName          :: A.ModuleName
+      , scopeParents       :: [A.ModuleName]
+      , scopeNameSpaces    :: [(NameSpaceId, NameSpace)]
+      , scopeImports       :: Map C.QName A.ModuleName
       }
   deriving (Typeable, Data)
 
-data NameSpaceId = PrivateNS | PublicNS | ImportedNS
-  deriving (Typeable, Data, Eq)
+data NameSpaceId = PrivateNS | PublicNS | ImportedNS | OnlyQualifiedNS
+  deriving (Typeable, Data, Eq, Bounded, Enum)
 
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess  = PublicNS
 localNameSpace PrivateAccess = PrivateNS
-
-importedNameSpace :: Access -> NameSpaceId
-importedNameSpace PublicAccess  = ImportedNS
-importedNameSpace PrivateAccess = PrivateNS
+localNameSpace OnlyQualified = OnlyQualifiedNS
 
 scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
-scopeNameSpace PublicNS   = scopePublic
-scopeNameSpace PrivateNS  = scopePrivate
-scopeNameSpace ImportedNS = scopeImported
+scopeNameSpace ns s = maybe __IMPOSSIBLE__ id $ lookup ns $ scopeNameSpaces s
 
 -- | The complete information about the scope at a particular program point
 --   includes the scope stack, the local variables, and the context precedence.
@@ -149,19 +143,24 @@ blockOfLines _  [] = []
 blockOfLines hd ss = hd : map ("  "++) ss
 
 instance Show Scope where
-  show (Scope { scopeName = name, scopeParents = parents, scopeImports = imps
-              , scopePublic = pub, scopePrivate = pri, scopeImported = imp }) =
+  show (scope @ Scope { scopeName = name, scopeParents = parents, scopeImports = imps }) =
     unlines $
       [ "* scope " ++ show name ] ++ ind (
-         blockOfLines "public"   (lines $ show pub)
-      ++ blockOfLines "imported" (lines $ show imp)
-      ++ blockOfLines "private"  (lines $ show pri)
+        concat [ blockOfLines (show nsid) (lines $ show $ scopeNameSpace nsid scope)
+               | nsid <- [minBound..maxBound] ]
       ++ blockOfLines "imports"  (case Map.keys imps of
                                     [] -> []
                                     ks -> [ show ks ]
                                  )
       )
     where ind = map ("  " ++)
+
+instance Show NameSpaceId where
+  show nsid = case nsid of
+    PublicNS        -> "public"
+    PrivateNS       -> "private"
+    ImportedNS      -> "imported"
+    OnlyQualifiedNS -> "only-qualified"
 
 instance Show NameSpace where
   show (NameSpace names mods) =
@@ -230,12 +229,10 @@ mapNameSpaceM fd fm ns = do
 
 -- | The empty scope.
 emptyScope :: Scope
-emptyScope = Scope { scopeName	   = noModuleName
-                   , scopeParents  = []
-		   , scopePublic   = emptyNameSpace
-		   , scopePrivate  = emptyNameSpace
-                   , scopeImported = emptyNameSpace
-                   , scopeImports  = Map.empty
+emptyScope = Scope { scopeName	     = noModuleName
+                   , scopeParents    = []
+		   , scopeNameSpaces = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
+                   , scopeImports    = Map.empty
 		   }
 
 -- | The empty scope info.
@@ -252,10 +249,7 @@ mapScope :: (NameSpaceId -> NamesInScope   -> NamesInScope  ) ->
 	    (NameSpaceId -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope
 mapScope fd fm s =
-  s { scopePrivate  = mapNS PrivateNS  $ scopePrivate  s
-    , scopePublic   = mapNS PublicNS   $ scopePublic   s
-    , scopeImported = mapNS ImportedNS $ scopeImported s
-    }
+  s { scopeNameSpaces = [ (nsid, mapNS nsid ns) | (nsid, ns) <- scopeNameSpaces s ] }
   where
     mapNS acc = mapNameSpace (fd acc) (fm acc)
 
@@ -266,21 +260,19 @@ mapScope_ :: (NamesInScope   -> NamesInScope  ) ->
 mapScope_ fd fm = mapScope (const fd) (const fm)
 
 -- | Map monadic functions over the names and modules in a scope.
-mapScopeM :: Monad m =>
+mapScopeM :: (Functor m, Monad m) =>
   (NameSpaceId -> NamesInScope   -> m NamesInScope  ) ->
   (NameSpaceId -> ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
 mapScopeM fd fm s = do
-  pri <- mapNS PrivateNS  $ scopePrivate  s
-  pub <- mapNS PublicNS   $ scopePublic   s
-  imp <- mapNS ImportedNS $ scopeImported s
-  return $ s { scopePrivate = pri, scopePublic = pub, scopeImported = imp }
+  nss <- sequence [ (,) nsid <$> mapNS nsid ns | (nsid, ns) <- scopeNameSpaces s ]
+  return $ s { scopeNameSpaces = nss }
   where
     mapNS acc = mapNameSpaceM (fd acc) (fm acc)
 
 -- | Same as 'mapScopeM' but applies the same function to both the public and
 --   private name spaces.
-mapScopeM_ :: Monad m =>
+mapScopeM_ :: (Functor m, Monad m) =>
   (NamesInScope   -> m NamesInScope  ) ->
   (ModulesInScope -> m ModulesInScope) ->
   Scope -> m Scope
@@ -292,12 +284,15 @@ zipScope :: (NameSpaceId -> NamesInScope   -> NamesInScope   -> NamesInScope  ) 
 	    (NameSpaceId -> ModulesInScope -> ModulesInScope -> ModulesInScope) ->
 	    Scope -> Scope -> Scope
 zipScope fd fm s1 s2 =
-  s1 { scopePrivate  = zipNS PrivateNS  (scopePrivate  s1) (scopePrivate  s2)
-     , scopePublic   = zipNS PublicNS   (scopePublic   s1) (scopePublic   s2)
-     , scopeImported = zipNS ImportedNS (scopeImported s1) (scopeImported s2)
+  s1 { scopeNameSpaces = [ (nsid, zipNS nsid ns1 ns2)
+                         | ((nsid, ns1), (nsid', ns2)) <- zipWith' (,) (scopeNameSpaces s1) (scopeNameSpaces s2)
+                         , assert (nsid == nsid')
+                         ]
      , scopeImports  = Map.union (scopeImports s1) (scopeImports s2)
      }
   where
+    assert True  = True
+    assert False = __IMPOSSIBLE__
     zipNS acc = zipNameSpace (fd acc) (fm acc)
 
 -- | Same as 'zipScope' but applies the same function to both the public and
@@ -314,20 +309,20 @@ filterScope pd pm = mapScope_ (Map.filterKeys pd) (Map.filterKeys pm)
 
 -- | Return all names in a scope.
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
-allNamesInScope = namesInScope [scopePublic, scopeImported, scopePrivate]
+allNamesInScope = namesInScope [minBound..maxBound]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
-exportedNamesInScope = namesInScope [scopePublic, scopeImported]
+exportedNamesInScope = namesInScope [PublicNS, ImportedNS, OnlyQualifiedNS]
 
-namesInScope :: InScope a => [Scope -> NameSpace] -> Scope -> ThingsInScope a
-namesInScope fs s =
-  foldr1 mergeNames [ inNameSpace (f s) | f <- fs ]
+namesInScope :: InScope a => [NameSpaceId] -> Scope -> ThingsInScope a
+namesInScope ids s =
+  foldr1 mergeNames [ inNameSpace (scopeNameSpace nsid s) | nsid <- ids ]
 
 allThingsInScope :: Scope -> NameSpace
-allThingsInScope = thingsInScope [scopePublic, scopeImported, scopePrivate]
+allThingsInScope = thingsInScope [minBound..maxBound]
 
-thingsInScope :: [Scope -> NameSpace] -> Scope -> NameSpace
+thingsInScope :: [NameSpaceId] -> Scope -> NameSpace
 thingsInScope fs s =
   NameSpace { nsNames   = namesInScope fs s
             , nsModules = namesInScope fs s
@@ -348,15 +343,13 @@ mergeScopes ss = foldr1 mergeScope ss
 -- | Move all names in a scope to the given name space (except never move from
 --   Imported to Public).
 setScopeAccess :: NameSpaceId -> Scope -> Scope
-setScopeAccess a s = s { scopeImported = ns ImportedNS
-		       , scopePrivate  = ns PrivateNS
-                       , scopePublic   = ns PublicNS
+setScopeAccess a s = s { scopeNameSpaces = [ (nsid, ns nsid) | (nsid, _) <- scopeNameSpaces s ]
 		       }
   where
     zero  = emptyNameSpace
     one   = allThingsInScope s
-    imp   = thingsInScope [scopeImported] s
-    noimp = thingsInScope [scopePublic, scopePrivate] s
+    imp   = thingsInScope [ImportedNS] s
+    noimp = thingsInScope [PublicNS, PrivateNS, OnlyQualifiedNS] s
 
     ns b = case (a, b) of
       (PublicNS, PublicNS)   -> noimp
@@ -364,12 +357,17 @@ setScopeAccess a s = s { scopeImported = ns ImportedNS
       _ | a == b             -> one
         | otherwise          -> zero
 
+setNameSpace :: NameSpaceId -> NameSpace -> Scope -> Scope
+setNameSpace nsid ns s =
+  s { scopeNameSpaces = [ (nsid', if nsid == nsid' then ns else ns')
+                        | (nsid', ns') <- scopeNameSpaces s ] }
+
 -- | Add names to a scope.
 addNamesToScope :: NameSpaceId -> C.Name -> [AbstractName] -> Scope -> Scope
 addNamesToScope acc x ys s = mergeScope s s1
   where
-    s1 = setScopeAccess acc $ emptyScope
-	 { scopePublic = emptyNameSpace { nsNames = Map.singleton x ys } }
+    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
+    ns = emptyNameSpace { nsNames = Map.singleton x ys }
 
 -- | Add a name to a scope.
 addNameToScope :: NameSpaceId -> C.Name -> AbstractName -> Scope -> Scope
@@ -379,8 +377,8 @@ addNameToScope acc x y s = addNamesToScope acc x [y] s
 addModuleToScope :: NameSpaceId -> C.Name -> AbstractModule -> Scope -> Scope
 addModuleToScope acc x m s = mergeScope s s1
   where
-    s1 = setScopeAccess acc $ emptyScope
-	 { scopePublic = emptyNameSpace { nsModules = Map.singleton x [m] } }
+    s1 = setScopeAccess acc $ setNameSpace PublicNS ns emptyScope
+    ns = emptyNameSpace { nsModules = Map.singleton x [m] }
 
 -- | Apply an 'ImportDirective' to a scope.
 applyImportDirective :: ImportDirective -> Scope -> Scope
@@ -434,7 +432,11 @@ renameCanonicalNames renD renM = mapScope_ renameD renameM
 
 -- | Restrict the private name space of a scope
 restrictPrivate :: Scope -> Scope
-restrictPrivate s = s { scopePrivate = emptyNameSpace, scopeImports = Map.empty }
+restrictPrivate s = setNameSpace PrivateNS emptyNameSpace $ s { scopeImports = Map.empty }
+
+-- | Remove names that can only be used qualified (when opening a scope)
+removeOnlyQualified :: Scope -> Scope
+removeOnlyQualified s = setNameSpace OnlyQualifiedNS emptyNameSpace s
 
 -- | Get the public parts of the public modules of a scope
 publicModules :: ScopeInfo -> Map A.ModuleName Scope
