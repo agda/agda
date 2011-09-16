@@ -9,7 +9,7 @@ import Agda.Syntax.Common ( Nat )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PreOp,Const),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module), 
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
     globals )
 
 -- Pretty-print a lambda-calculus expression as ECMAScript.
