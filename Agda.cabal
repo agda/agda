@@ -304,11 +304,6 @@ library
   other-modules:    Paths_Agda
   if true
     ghc-options:    -w
-                    -- -Werror has been disabled temporarily. The
-                    -- Paths_Agda module, which is generated
-                    -- automatically by Cabal, gives rise to a
-                    -- warning under GHC 7.2.1 (at least when
-                    -- Cabal 1.10.1.0 is used).
                     -fwarn-deprecated-flags
                     -fwarn-dodgy-foreign-imports
                     -fwarn-dodgy-imports
@@ -319,6 +314,11 @@ library
                     -fwarn-missing-methods
                     -fwarn-overlapping-patterns
                     -fwarn-warnings-deprecations
+  -- Work-around for Paths_Agda warnings with ghc-7.2.1.
+  if impl(ghc < 7.2.1)
+    ghc-options:    -Werror
+  if impl(ghc > 7.2.1)
+    ghc-options:    -Werror
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
                     -fwarn-wrong-do-bind
