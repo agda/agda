@@ -274,19 +274,3 @@ patsToTerms ps = evalState (toTerms ps) 0
       DotP t      -> return $ DDot t
       ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)
-
-data ConPos = Here
-            | ArgPat Int ConPos
-
-updateWithConstructorRanges ::
-  [Telescope] -> [Arg Pattern] -> A.RHS -> [Arg Pattern]
-updateWithConstructorRanges tel ps A.RHS{}            = ps
-updateWithConstructorRanges tel ps A.AbsurdRHS{}      = ps
-updateWithConstructorRanges tel ps (A.WithRHS _ _ cs) = ps
-updateWithConstructorRanges tel ps A.RewriteRHS{}     = ps
-
-constructorsInClauses :: ConPos -> [A.Clause] -> [Range]
-constructorsInClauses pos cs = concatMap (constructorsInClause pos) cs
-
-constructorsInClause :: ConPos -> A.Clause -> [Range]
-constructorsInClause pos (A.Clause (A.LHS _ _ ps wps) rhs _) = []
