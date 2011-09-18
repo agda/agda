@@ -36,6 +36,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -190,7 +191,7 @@ definition kit (Defn Relevant   q ty _ _ compiled d) = do
     Constructor{} -> return []
     Record{ recClause = cl, recCon = c, recFields = flds } -> do
       let noFields = genericLength flds
-      ar <- arity <$> normalise ty
+      let ar = arity ty
       cd <- snd <$> condecl c
 --       cd <- case c of
 --         Nothing -> return $ cdecl q noFields
@@ -223,7 +224,7 @@ checkCover :: QName -> HaskellType -> Nat -> [QName] -> TCM [HS.Decl]
 checkCover q ty n cs = do
   let tvs = [ "a" ++ show i | i <- [1..n] ]
       makeClause c = do
-        a <- constructorArity c
+        (a, _) <- conArityAndPars c
         Just (HsDefn _ hsc) <- compiledHaskell . defCompiledRep <$> getConstInfo c
         let pat = HS.PApp (HS.UnQual $ HS.Ident hsc) $ genericReplicate a HS.PWildCard
         return $ HS.Alt dummy pat (HS.UnGuardedAlt $ HS.Tuple []) (HS.BDecls [])
@@ -238,13 +239,13 @@ checkCover q ty n cs = do
          ]
 
 -- | Move somewhere else!
-constructorArity :: QName -> TCM Nat
-constructorArity q = do
+conArityAndPars :: QName -> TCM (Nat, Nat)
+conArityAndPars q = do
   def <- getConstInfo q
-  a <- normalise $ defType def
-  case theDef def of
-    Constructor{ conPars = np } -> return $ arity a - np
-    _ -> fail $ "constructorArity: non constructor: " ++ show q
+  TelV tel _ <- telViewM $ defType def
+  let Constructor{ conPars = np } = theDef def
+      n = genericLength (telToList tel)
+  return (n - np, np)
 
 clause :: QName -> (Nat, Bool, Clause) -> TCM HS.Decl
 clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
@@ -367,11 +368,9 @@ litqname x = return $
     NameId n m = nameId $ qnameName x
 
 condecl :: QName -> TCM (Nat, HS.ConDecl)
-condecl q = getConstInfo q >>= \d -> case d of
-  Defn{ defType = ty, theDef = Constructor {conPars = np} } -> do
-    ar <- arity <$> normalise ty
-    return $ (ar, cdecl q (ar - np))
-  _ -> mazerror $ "condecl:" ++ gshow' (q, d)
+condecl q = do
+  (ar, np) <- conArityAndPars q
+  return $ (ar + np, cdecl q ar)
 
 cdecl :: QName -> Nat -> HS.ConDecl
 cdecl q n = HS.ConDecl (unqhname "C" q)
