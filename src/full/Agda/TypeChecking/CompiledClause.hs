@@ -23,10 +23,11 @@ data CompiledClauses
   = Case Int (Case CompiledClauses)
     -- ^ @Case n bs@ stands for a match on the @n@-th argument
     -- (counting from zero) with @bs@ as the case branches.
-  | Done [Hiding] Term
-    -- ^ @Done hs b@ stands for the body @b@ where the hiding of the
-    --   free variables is @hs@. This is needed to build lambdas on the
-    --   right hand side for partial applications which can still reduce.
+  | Done [Arg String] Term
+    -- ^ @Done xs b@ stands for the body @b@ where the @xs@ contains hiding
+    --   and name suggestions for the free variables. This is needed to build
+    --   lambdas on the right hand side for partial applications which can
+    --   still reduce.
   | Fail
     -- ^ Absurd case.
   deriving (Typeable, Data)

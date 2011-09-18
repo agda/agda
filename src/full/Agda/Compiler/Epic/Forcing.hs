@@ -338,7 +338,7 @@ raiseFromCC from add  cc = case cc of
                                            Branches (M.map rec cbr)
                                                     (M.map rec lbr)
                                                     (fmap  rec cabr)
-    Done i t -> Done (i ++ genericReplicate add NotHidden) $ raiseFrom from add t
+    Done i t -> Done (i ++ genericReplicate add (defaultArg "x")) $ raiseFrom from add t
     Fail     -> Fail
   where
     rec = raiseFromCC from add

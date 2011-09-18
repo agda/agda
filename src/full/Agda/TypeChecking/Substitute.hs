@@ -241,7 +241,7 @@ instance Abstract Clause where
 
 instance Abstract CompiledClauses where
   abstract tel Fail = Fail
-  abstract tel (Done hs t) = Done (map argHiding (telToList tel) ++ hs) t
+  abstract tel (Done xs t) = Done (map (fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
     Case (n + fromIntegral (size tel)) (abstract tel bs)
 

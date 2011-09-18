@@ -37,10 +37,14 @@ compile cs = case nextSplit cs of
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t : _  -> Done (map argHiding $ fst $ head cs) t
+    Just t : _  -> Done (map (fmap name) $ fst $ head cs) t
     Nothing : _ -> Fail
     []          -> __IMPOSSIBLE__
   where
+    name (VarP x) = x
+    name (DotP _) = "_"
+    name ConP{} = __IMPOSSIBLE__
+    name LitP{} = __IMPOSSIBLE__
     getBody (_, b) = body b
     body (Bind b)   = body (absBody b)
     body (Body t)   = Just t

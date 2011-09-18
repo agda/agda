@@ -158,9 +158,13 @@ bindBuiltinFlat e =
     addConstant flat $
       flatDefn { theDef = Function
                    { funClauses        = [clause]
-                   , funCompiled       = Case 2 (Branches (Map.singleton sharp (Done [Hidden, Hidden, NotHidden] (Var 0 [])))
-                                                          Map.empty
-                                                          Nothing)
+                   , funCompiled       =
+                      let hid   = Arg Hidden Relevant
+                          nohid = defaultArg in
+                      Case 2 (Branches (Map.singleton sharp
+                                 (Done [hid "a", hid "A", nohid "x"] (Var 0 [])))
+                               Map.empty
+                               Nothing)
                    , funInv            = NotInjective
                    , funPolarity       = [Invariant, Invariant, Invariant]
                    , funArgOccurrences = [Unused, Unused, Positive]
