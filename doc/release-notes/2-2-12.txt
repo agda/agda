@@ -64,6 +64,17 @@ Language
 
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
+* Under-applied functions can still reduce.
+
+  Previously if you defined
+
+    id : {A : Set} -> A -> A
+    id x = x
+
+  id would not reduce by itself. This has been changed so that id now reduces
+  to \ x -> x. Usually you can't tell the difference, but in conjunction with
+  'with' this can be important. See issue 365 for an example.
+
 * Instance arguments.
 
   A new type of hidden function arguments is added, indicated by
