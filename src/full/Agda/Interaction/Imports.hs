@@ -210,7 +210,7 @@ getInterface' x includeStateChanges =
   bracket (stPragmaOptions <$> get)
           (unless includeStateChanges . setPragmaOptions) $ \_ -> do
    -- Forget the pragma options (locally).
-   setCommandLineOptions . stPersistentOptions =<< get
+   setCommandLineOptions . stPersistentOptions . stPersistent =<< get
 
    alreadyVisited x $ addImportCycleCheck x $ do
     file <- findFile x  -- requires source to exist
@@ -332,7 +332,7 @@ getInterface' x includeStateChanges =
             mf       <- stModuleToSource <$> get
             vs       <- getVisitedModules
             ds       <- getDecodedModules
-            opts     <- stPersistentOptions <$> get
+            opts     <- stPersistentOptions . stPersistent <$> get
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             -- Every interface is treated in isolation. Note: Changes

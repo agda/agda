@@ -16,13 +16,17 @@ import Agda.TypeChecking.Monad.Base
 
 import Agda.Utils.Hash
 
--- | Resets the type checking state. The persistent command line
--- options are preserved.
+-- | Resets the non-persistent part of the type checking state.
 
 resetState :: TCM ()
 resetState = do
-    opts <- stPersistentOptions <$> get
-    put $ initState { stPersistentOptions = opts }
+    pers <- stPersistent <$> get
+    put $ initState { stPersistent = pers }
+
+-- | Resets all of the type checking state.
+
+resetAllState :: TCM ()
+resetAllState = put initState
 
 -- | Set the current scope.
 setScope :: ScopeInfo -> TCM ()

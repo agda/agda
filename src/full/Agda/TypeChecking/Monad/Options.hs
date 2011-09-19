@@ -33,12 +33,14 @@ setPragmaOptions opts = do
     Left err   -> __IMPOSSIBLE__
     Right opts -> do
       modify $ \s -> s { stPragmaOptions = (optPragmaOptions opts) }
+
 -- | Sets the command line options (both persistent and pragma options
 -- are updated).
 --
 -- Relative include directories are made absolute with respect to the
--- current working directory. If the include directories have changed,
--- then the state is reset.
+-- current working directory. If the include directories have changed
+-- (and were previously @'Right' something@), then the state is reset
+-- (completely) .
 --
 -- An empty list of relative include directories (@'Left' []@) is
 -- interpreted as @["."]@.
@@ -54,8 +56,10 @@ setCommandLineOptions opts =
           setIncludeDirs is CurrentDir
           getIncludeDirs
       modify $ \s ->
-        s { stPersistentOptions = opts { optIncludeDirs = Right incs }
-          , stPragmaOptions     = optPragmaOptions opts
+        s { stPersistent = (stPersistent s) {
+              stPersistentOptions = opts { optIncludeDirs = Right incs }
+            }
+          , stPragmaOptions = optPragmaOptions opts
           }
 
 -- | Returns the pragma options which are currently in effect.
@@ -67,8 +71,8 @@ pragmaOptions = gets stPragmaOptions
 
 commandLineOptions :: TCM CommandLineOptions
 commandLineOptions = do
-  p  <- gets stPragmaOptions
-  cl <- gets stPersistentOptions
+  p  <- stPragmaOptions <$> get
+  cl <- stPersistentOptions . stPersistent <$> get
   return $ cl { optPragmaOptions = p }
 
 setOptionsFromPragma :: OptionsPragma -> TCM ()
@@ -136,7 +140,9 @@ data RelativeTo
 -- | Makes the given directories absolute and stores them as include
 -- directories.
 --
--- If the include directories have changed, then the state is reset.
+-- If the include directories change (and they were previously
+-- @'Right' something@), then the state is reset (completely, except
+-- for the include directories).
 --
 -- An empty list is interpreted as @["."]@.
 
@@ -158,16 +164,25 @@ setIncludeDirs incs relativeTo = do
       m <- moduleName' f
       return (projectRoot f m, checkModuleName m f)
 
-  modify $ \s -> s { stPersistentOptions =
-    (stPersistentOptions s) { optIncludeDirs =
-      Right $ map (mkAbsolute . (filePath root </>)) $
-        case incs of
-          [] -> ["."]
-          _  -> incs } }
+  let setIncs incs = modify $ \s ->
+        s { stPersistent =
+          (stPersistent s) { stPersistentOptions =
+            (stPersistentOptions $ stPersistent s)
+              { optIncludeDirs = Right incs
+            }
+          }
+        }
+
+  setIncs (map (mkAbsolute . (filePath root </>)) $
+             case incs of
+               [] -> ["."]
+               _  -> incs)
 
   incs <- getIncludeDirs
   case oldIncs of
-    Right incs' | incs' /= incs -> resetState
+    Right incs' | incs' /= incs -> do
+      resetAllState
+      setIncs incs
     _                           -> return ()
 
   check

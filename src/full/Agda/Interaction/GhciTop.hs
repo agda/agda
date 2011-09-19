@@ -204,9 +204,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
   current <- absolute current
 
   -- Read the state.
-  State { theTCState     = st
-        , theCurrentFile = f
-        } <- readIORef theState
+  State { theTCState = st } <- readIORef theState
 
   -- Run the computation.
   r <- runTCM $ catchError (do
@@ -226,22 +224,22 @@ ioTCM current highlightingFile cmd = infoOnException $ do
            st <- get
            return (Right (x, st))
          ) (\e -> do
-           mods <- stDecodedModules <$> get
+           pers <- stPersistent <$> get
            s    <- prettyError e
-           return (Left (mods, s, e))
+           return (Left (pers, s, e))
          )
 
-  -- Upon success: update the state. Upon failure: update the decoded
-  -- modules (if possible), and, for independent commands, the current
+  -- Upon success: update the state. Upon failure: update the
+  -- persistent state, and, for independent commands, the current
   -- file.
   case r of
     Right (Right (m, st')) ->
       modifyIORef theState $ \s ->
         s { theTCState = st'
           }
-    Right (Left (mods, _, _)) -> do
+    Right (Left (pers, _, _)) -> do
       modifyIORef theState $ \s ->
-        s { theTCState = (theTCState s) { stDecodedModules = mods }
+        s { theTCState = (theTCState s) { stPersistent = pers }
           }
     Left _ -> return ()
   when (isIndependent cmd) $
@@ -325,7 +323,7 @@ cmd_load' file includes unsolvedOK cmd =
     -- All options (except for the verbosity setting) are reset when a
     -- file is reloaded, including the choice of whether or not to
     -- display implicit arguments. (At this point the include
-    -- directories have already been reset, so they are preserved.)
+    -- directories have already been set, so they are preserved.)
     opts <- commandLineOptions
     setCommandLineOptions $
       defaultOptions { optIncludeDirs   = optIncludeDirs opts
@@ -337,9 +335,9 @@ cmd_load' file includes unsolvedOK cmd =
                      }
 
     -- Reset the state, preserving options and decoded modules. Note
-    -- that Imp.typeCheck resets the decoded modules if the include
-    -- directories have changed.
-    preserveDecodedModules resetState
+    -- that if the include directories have changed, then the decoded
+    -- modules are reset when cmd_load' is run by ioTCM.
+    resetState
 
     ok <- Imp.typeCheck f
 

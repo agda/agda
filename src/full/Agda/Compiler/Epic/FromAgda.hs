@@ -46,7 +46,7 @@ translateDefn msharp (n, defini) =
         let len   = length . clausePats . head .  funClauses $ f
             toEta = fromIntegral (arity (defType defini)) - len
             ccs   = reverseCCBody $ funCompiled f
-        forcing <- lift $ gets (optForcing . stPersistentOptions)
+        forcing <- lift $ gets (optForcing . stPersistentOptions . stPersistent)
         funComp <- if forcing
                     then removeForced ccs (defType defini)
                     else return ccs

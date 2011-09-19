@@ -56,28 +56,30 @@ getVisitedModule :: C.TopLevelModuleName
 getVisitedModule x = gets $ Map.lookup x . stVisitedModules
 
 getDecodedModules :: TCM DecodedModules
-getDecodedModules = gets stDecodedModules
+getDecodedModules = stDecodedModules . stPersistent <$> get
 
 setDecodedModules :: DecodedModules -> TCM ()
-setDecodedModules ms = modify $ \s -> s { stDecodedModules = ms }
-
-preserveDecodedModules :: TCM a -> TCM a
-preserveDecodedModules tcm = do ms <- getDecodedModules
-                                a  <- tcm
-                                setDecodedModules ms
-                                return a
+setDecodedModules ms = modify $ \s ->
+  s { stPersistent = (stPersistent s) { stDecodedModules = ms } }
 
 getDecodedModule :: C.TopLevelModuleName -> TCM (Maybe (Interface, ClockTime))
-getDecodedModule x = gets $ Map.lookup x . stDecodedModules
+getDecodedModule x = Map.lookup x . stDecodedModules . stPersistent <$> get
 
 storeDecodedModule :: Interface -> ClockTime -> TCM ()
 storeDecodedModule i t = modify $ \s ->
-  s { stDecodedModules =
-        Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
-          stDecodedModules s }
+  s { stPersistent =
+        (stPersistent s) { stDecodedModules =
+          Map.insert (toTopLevelModuleName $ iModuleName i) (i, t) $
+            (stDecodedModules $ stPersistent s)
+        }
+  }
 
 dropDecodedModule :: C.TopLevelModuleName -> TCM ()
-dropDecodedModule x = modify $ \s -> s { stDecodedModules = Map.delete x $ stDecodedModules s }
+dropDecodedModule x = modify $ \s ->
+  s { stPersistent = (stPersistent s) { stDecodedModules =
+                       Map.delete x $ stDecodedModules $ stPersistent s
+                     }
+  }
 
 withImportPath :: [C.TopLevelModuleName] -> TCM a -> TCM a
 withImportPath path = local $ \e -> e { envImportPath = path }

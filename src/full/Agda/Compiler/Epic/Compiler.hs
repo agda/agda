@@ -91,7 +91,7 @@ compileDefns defs = do
        else return . return . unlines . map prettyEpicFun $ emits
   where
     irr ds = do
-        f <- lift $ gets (optForcing . stPersistentOptions)
+        f <- lift $ gets (optForcing . stPersistentOptions . stPersistent)
         if f then CIrr.constrIrr ds
              else return ds
 
@@ -107,7 +107,8 @@ setEpicDir :: Interface -> Compile (TCMT IO) ()
 setEpicDir mainI = do
     let tm = toTopLevelModuleName $ iModuleName mainI
     f <- lift $ findFile tm
-    compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) . optCompileDir . stPersistentOptions)
+    compileDir' <- lift $ gets (fromMaybe (filePath $ CN.projectRoot f tm) .
+                                  optCompileDir . stPersistentOptions . stPersistent)
     compileDir <- liftIO $ canonicalizePath compileDir'
     liftIO $ setCurrentDirectory compileDir
     liftIO $ createDirectoryIfMissing False "Epic"
