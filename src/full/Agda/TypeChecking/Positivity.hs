@@ -71,18 +71,10 @@ checkStrictlyPositive mi = do
         Record  {recClause  = Nothing} -> True
         _ -> False
 
-    getArity q = do
-      def <- theDef <$> getConstInfo q
-      return $ case def of
-        Function{ funClauses = c : _ } -> size $ clausePats c
-        Datatype{ dataPars = n }       -> n
-        Record{ recPars = n }          -> n
-        _                              -> 0
-
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
       reportSDoc "tc.pos.args" 5 $ text "checking args of" <+> prettyTCM q
-      n <- getArity q
+      n <- getDefArity =<< getConstInfo q
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
@@ -97,6 +89,14 @@ checkStrictlyPositive mi = do
         , nest 2 $ prettyList $ map (text . show) args
         ]
       setArgOccurrences q args
+
+getDefArity def = case theDef def of
+  Function{ funClauses = cs, funProjection = proj } -> do
+    let dropped = maybe 0 (fromIntegral . subtract 1 . snd) proj
+    subtract dropped . arity <$> instantiateFull (defType def)
+  Datatype{ dataPars = n } -> return n
+  Record{ recPars = n }    -> return n
+  _                        -> return 0
 
 -- Specification of occurrences -------------------------------------------
 
@@ -319,9 +319,8 @@ computeOccurrences :: QName -> TCM Occurrences
 computeOccurrences q = do
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
-    Function{funClauses = cs, funProjection = proj} -> do
-      let dropped = maybe 0 (fromIntegral . subtract 1 . snd) proj
-      n  <- subtract dropped . arity <$> instantiateFull (defType def)
+    Function{funClauses = cs} -> do
+      n  <- getDefArity def
       cs <- map (etaExpandClause n) <$> instantiateFull cs
       return
         $ concatOccurs
