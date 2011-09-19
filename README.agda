@@ -28,7 +28,8 @@ module README where
 --   cd ffi
 --   cabal install
 --
--- At the moment the library does not support the Epic compiler.
+-- Currently the library does not support the Epic or JavaScript
+-- compiler backends.
 
 -- Contributions to this library are welcome (but to avoid wasted work
 -- it is suggested that you discuss large changes before implementing
