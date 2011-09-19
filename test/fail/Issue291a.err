@@ -1,4 +1,8 @@
 Issue291a.agda:14,1-7
-♭ u ≡ runit u should be empty, but that's not obvious to me
-when checking that the clause j u () has type
-(u : ∞ RUnit) → ♭ u ≡ runit u → Set
+Cannot decide whether there should be a case for the constructor
+refl, since the unification gets stuck on unifying the inferred
+indices
+  [♭ u]
+with the expected indices
+  [runit u]
+when checking that ♭ u ≡ runit u has no constructors

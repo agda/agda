@@ -1,4 +1,8 @@
 Issue292.agda:36,1-23
-true2 ≅ true should be empty, but that's not obvious to me
-when checking that the clause ¬pbool2 (true2 , ()) has type
-¬ P Bool2
+Cannot decide whether there should be a case for the constructor
+refl, since the unification gets stuck on unifying the inferred
+indices
+  [{Bool2}, true2]
+with the expected indices
+  [{Bool}, true]
+when checking that true2 ≅ true has no constructors

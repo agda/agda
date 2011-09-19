@@ -1,5 +1,8 @@
 Issue291b.agda:14,1-7
-u ≡ runit (.Issue291b.♯-0 u) should be empty, but that's not
-obvious to me
-when checking that the clause j u () has type
-(u : RUnit) → u ≡ runit (.Issue291b.♯-0 u) → Set
+Cannot decide whether there should be a case for the constructor
+refl, since the unification gets stuck on unifying the inferred
+indices
+  [u]
+with the expected indices
+  [runit (.Issue291b.♯-0 u)]
+when checking that u ≡ runit (.Issue291b.♯-0 u) has no constructors

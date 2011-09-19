@@ -37,6 +37,8 @@ isEmptyType t = do
       r <- split Inductive tel (idP $ size tel) ps 0
 
       case r of
-        Left err  -> typeError $ ShouldBeEmpty t []
+        Left err  -> case err of
+          CantSplit c tel us vs _ -> traceCall (CheckIsEmpty t) $ typeError $ CoverageCantSplitOn c tel us vs
+          _                       -> typeError $ ShouldBeEmpty t []
         Right []  -> return ()
         Right cs  -> typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) cs

@@ -533,7 +533,7 @@ instance PrettyTCM TypeError where
                       then return ps
                       else return ps  -- TODO: remove implicit arguments which aren't constructors
 
-            CoverageCantSplitOn c tel cIxs gIxs -> addCtxTel tel $ vcat
+            CoverageCantSplitOn c tel cIxs gIxs -> inContext [] $ addCtxTel tel $ vcat
               [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
                        pwords "since the unification gets stuck on unifying the inferred indices"
               , nest 2 $ prettyTCM cIxs
@@ -635,6 +635,8 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	InferDef _ x _ ->
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
+        CheckIsEmpty t _ ->
+            fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has no constructors"
 	ScopeCheckExpr e _ ->
 	    fsep $ pwords "when scope checking" ++ [pretty e]
 	ScopeCheckDeclaration d _ ->

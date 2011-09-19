@@ -1,3 +1,7 @@
 Issue452.agda:24,1-7
-D true tt should be empty, but that's not obvious to me
-when checking that the clause foo () has type D true tt → ⊥
+Cannot decide whether there should be a case for the constructor d,
+since the unification gets stuck on unifying the inferred indices
+  [id true, _26]
+with the expected indices
+  [true, tt]
+when checking that D true tt has no constructors

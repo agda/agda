@@ -1,4 +1,8 @@
 UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,1-9
-n ≡ f n should be empty, but that's not obvious to me
-when checking that the clause i f n () has type
-(f : Nat → Nat) (n : Nat) → n ≡ f n → Nat
+Cannot decide whether there should be a case for the constructor
+refl, since the unification gets stuck on unifying the inferred
+indices
+  [n]
+with the expected indices
+  [f n]
+when checking that n ≡ f n has no constructors

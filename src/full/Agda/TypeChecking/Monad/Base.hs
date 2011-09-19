@@ -670,6 +670,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
+          | CheckIsEmpty Type (Maybe ())
           | CheckSectionApplication Range ModuleName A.ModuleApplication (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
@@ -714,6 +715,7 @@ instance HasRange Call where
     getRange (TermFunDef i _ _ _)                  = getRange i
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _)     = r
+    getRange (CheckIsEmpty _ _)                    = noRange
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

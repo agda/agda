@@ -1,4 +1,8 @@
 Issue292c.agda:41,1-23
-unit2 ≅ unit1 should be empty, but that's not obvious to me
-when checking that the clause ¬pbool2 (unit2 , ()) has type
-¬ P (D false)
+Cannot decide whether there should be a case for the constructor
+refl, since the unification gets stuck on unifying the inferred
+indices
+  [{Unit2}, unit2]
+with the expected indices
+  [{Unit1}, unit1]
+when checking that unit2 ≅ unit1 has no constructors
