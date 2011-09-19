@@ -16,6 +16,7 @@ import Agda.Utils.Impossible
 
 data ExprView e
     = LocalV Name
+    | WildV e
     | OtherV e
     | AppV e (NamedArg e)
     | OpAppV Name [OpApp e]
@@ -129,8 +130,10 @@ rebuild (name,_,syn) r es = do
                           _ -> fail $ "more than one expression for hole " ++ show n
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding
-rebuildBinding (LocalV name) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
   -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
+rebuildBinding (LocalV name) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
+rebuildBinding (WildV e)     =
+  return $ DomainFree NotHidden Relevant (mkBoundName_ $ Name noRange [Hole])
 rebuildBinding _ = fail "variable name expected"
 
 ($$$) :: (e -> ReadP a e) -> ReadP a e -> ReadP a e

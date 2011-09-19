@@ -229,6 +229,7 @@ instance IsExpr Expr where
         InstanceArg _ e -> InstanceArgV e
         Paren _ e       -> ParenV e
         Lam _ bs    e   -> LamV bs e
+        Underscore{}    -> WildV e
         _               -> OtherV e
     unExprView e = case e of
         LocalV x      -> Ident (QName x)
@@ -238,6 +239,7 @@ instance IsExpr Expr where
         InstanceArgV e -> InstanceArg (getRange e) e
         ParenV e      -> Paren (getRange e) e
         LamV bs e     -> Lam (fuseRange bs e) bs e
+        WildV e       -> e
         OtherV e      -> e
 
 
@@ -249,6 +251,7 @@ instance IsExpr Pattern where
         HiddenP _ e      -> HiddenArgV e
         InstanceP _ e    -> InstanceArgV e
         ParenP _ e       -> ParenV e
+        WildP{}          -> WildV e
         _                -> OtherV e
     unExprView e = case e of
         LocalV x         -> IdentP (QName x)
@@ -260,6 +263,7 @@ instance IsExpr Pattern where
         InstanceArgV e   -> InstanceP (getRange e) e
         ParenV e         -> ParenP (getRange e) e
         LamV _ _         -> __IMPOSSIBLE__
+        WildV e          -> e
         OtherV e         -> e
 
 
@@ -353,6 +357,7 @@ fullParen e = case exprView $ fullParen' e of
 fullParen' :: IsExpr e => e -> e
 fullParen' e = case exprView e of
     LocalV _     -> e
+    WildV _      -> e
     OtherV _     -> e
     HiddenArgV _ -> e
     InstanceArgV _ -> e
