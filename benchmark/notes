@@ -69,3 +69,6 @@
           (08.47) No more quadratic nubbing in localNames
           (09.14) Don't reduce sorts when reducing types
           (13.11) Got rid of most MonadTCMs
+
+20110909: Positivity checker needs to look at pattern matching.
+
