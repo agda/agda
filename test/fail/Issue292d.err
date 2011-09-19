@@ -1,0 +1,8 @@
+Issue292d.agda:33,1-13
+Cannot decide whether there should be a case for the constructor
+d₂, since the unification gets stuck on unifying the inferred
+indices
+  [i₂]
+with the expected indices
+  [i₁]
+when checking the definition of Bad

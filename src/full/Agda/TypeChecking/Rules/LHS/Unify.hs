@@ -421,7 +421,7 @@ unifyIndices flex a us vs = liftTCM $ do
           , nest 2 $ text "context: " <+> (prettyTCM =<< getContextTelescope)
           ]
     (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . runWriterT . flip runReaderT emptyUEnv . unUnify $ do
-        ifClean (unifyArgs a us vs)
+        ifClean (unifyConstructorArgs (Hom a) us vs)
           -- clean: continue unifying
           (recheckConstraints)
           -- dirty: just check equalities to trigger error message
@@ -646,7 +646,7 @@ unifyIndices flex a us vs = liftTCM $ do
           -- Andreas, 2011-05-30: if heads disagree, abort
           -- but do not raise "mismatch" because otherwise type constructors
           -- would be distinct
-          | otherwise -> typeError $ UnequalTerms CmpEq u v a
+          | otherwise -> checkEqualityHH aHH u v -- typeError $ UnequalTerms CmpEq u v a
         (Lit l1, Lit l2)
           | l1 == l2  -> return ()
           | otherwise -> constructorMismatchHH aHH u v
