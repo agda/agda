@@ -245,8 +245,9 @@ instance ComputeOccurrences Clause where
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i (VarP _) = [Just (AnArg i)]
-      patItem i p        = replicate (nVars p) Nothing -- (Just (AnArg i))
+      patItem i p        = replicate (nVars p) (Just (AnArg i))
         -- if we're pattern matching it's not something the positivity checker needs to worry about
+        -- Actually it is: see issue 464
 
       nVars p = case p of
         VarP{}      -> 1
