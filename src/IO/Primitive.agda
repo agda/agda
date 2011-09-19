@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Primitive IO: simple bindings to Haskell types and functions
 ------------------------------------------------------------------------
 

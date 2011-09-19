@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Record types with manifest fields and "with", based on Randy
 -- Pollack's "Dependently Typed Records in Type Theory"
 ------------------------------------------------------------------------

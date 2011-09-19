@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- A universe of proposition functors, along with some properties
 ------------------------------------------------------------------------
 

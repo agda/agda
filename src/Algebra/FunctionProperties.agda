@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Properties of functions, such as associativity and commutativity
 ------------------------------------------------------------------------
 

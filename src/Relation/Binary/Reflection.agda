@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Helpers intended to ease the development of "tactics" which use
 -- proof by reflection
 ------------------------------------------------------------------------

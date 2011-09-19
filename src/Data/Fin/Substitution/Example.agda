@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- An example of how Data.Fin.Substitution can be used: a definition
 -- of substitution for the untyped λ-calculus, along with some lemmas
 ------------------------------------------------------------------------

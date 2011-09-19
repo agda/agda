@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- The reflexive transitive closures of McBride, Norell and Jansson
 ------------------------------------------------------------------------
 

@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Basic lemmas showing that various types are related (isomorphic or
 -- equivalent or…)
 ------------------------------------------------------------------------

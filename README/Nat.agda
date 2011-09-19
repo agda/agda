@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Some examples showing where the natural numbers and some related
 -- operations and properties are defined, and how they can be used
 ------------------------------------------------------------------------

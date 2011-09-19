@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Natural numbers with fast addition (for use together with
 -- DifferenceVec)
 ------------------------------------------------------------------------

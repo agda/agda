@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Convenient syntax for "equational reasoning" using a preorder
 ------------------------------------------------------------------------
 

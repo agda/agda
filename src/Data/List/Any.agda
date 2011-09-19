@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Lists where at least one element satisfies a given property
 ------------------------------------------------------------------------
 

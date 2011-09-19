@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Instantiates the ring solver with two copies of the same ring
 ------------------------------------------------------------------------
 

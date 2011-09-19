@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Commutative semirings with some additional structure ("almost"
 -- commutative rings), used by the ring solver
 ------------------------------------------------------------------------

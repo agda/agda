@@ -58,7 +58,7 @@ extractHeader mod = fmap (extract . lines) $ readFile mod
   where
   delimiter = all (== '-')
 
-  extract (d1 : ss)
+  extract (d1 : "-- The Agda standard library" : "--" : ss)
     | delimiter d1
     , (info, d2 : rest) <- span ("-- " `List.isPrefixOf`) ss
     , delimiter d2

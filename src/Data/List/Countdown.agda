@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- A data structure which keeps track of an upper bound on the number
 -- of elements /not/ in a given list
 ------------------------------------------------------------------------

@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Some defined operations (multiplication by natural number and
 -- exponentiation)
 ------------------------------------------------------------------------

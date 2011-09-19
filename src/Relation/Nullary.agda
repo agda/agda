@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Operations on nullary relations (like negation and decidability)
 ------------------------------------------------------------------------
 

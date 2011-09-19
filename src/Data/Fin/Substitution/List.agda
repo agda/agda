@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Application of substitutions to lists, along with various lemmas
 ------------------------------------------------------------------------
 

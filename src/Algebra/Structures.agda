@@ -1,4 +1,6 @@
 ------------------------------------------------------------------------
+-- The Agda standard library
+--
 -- Some algebraic structures (not packed up with sets, operations,
 -- etc.)
 ------------------------------------------------------------------------
