@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -51,15 +51,11 @@ import Agda.Utils.Impossible
 data OpApp e
         = SyntaxBindingLambda !Range [LamBinding] e -- ^ an abstraction inside a special syntax declaration (see Issue 358 why we introduce this).
         | Ordinary e
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Functor)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
 fromOrdinary d _            = d
-
-instance Functor OpApp where
-   fmap f (Ordinary x) = Ordinary (f x)
-   fmap f (SyntaxBindingLambda r bs e) = SyntaxBindingLambda r bs (f e)
 
 -- | Concrete expressions. Should represent exactly what the user wrote.
 data Expr

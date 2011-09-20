@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, CPP #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, CPP #-}
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
     producing internal syntax ("Agda.Syntax.Internal").
@@ -155,52 +155,13 @@ data Pattern' e	= VarP Name
 		| AbsurdP PatInfo
 		| LitP Literal
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' Expr
 
 {--------------------------------------------------------------------------
     Instances
  --------------------------------------------------------------------------}
-
-instance Functor Pattern' where
-    fmap f p = case p of
-	VarP x	    -> VarP x
-	ConP i c ps -> ConP i c $ (fmap . fmap . fmap . fmap) f ps
-	DefP i c ps -> DefP i c $ (fmap . fmap . fmap . fmap) f ps
-	LitP l	    -> LitP l
-	AsP i x p   -> AsP i x $ fmap f p
-	DotP i e    -> DotP i (f e)
-	AbsurdP i   -> AbsurdP i
-	WildP i	    -> WildP i
-	ImplicitP i -> ImplicitP i
-
--- foldr should really take its arguments in a different order!
-instance Foldable Pattern' where
-    foldr f z p = case p of
-	VarP _	    -> z
-	ConP _ _ ps -> (foldrF . foldrF . foldrF . foldrF) f ps z
-	DefP _ _ ps -> (foldrF . foldrF . foldrF . foldrF) f ps z
-	LitP _	    -> z
-	AsP _ _ p   -> foldr f z p
-	DotP _ e    -> f e z
-	AbsurdP _   -> z
-	WildP _	    -> z
-	ImplicitP _ -> z
-	where
-	    foldrF f = flip (foldr f)
-
-instance Traversable Pattern' where
-    traverse f p = case p of
-	VarP x	    -> pure $ VarP x
-	ConP i c ps -> ConP i c <$> (traverse . traverse . traverse . traverse) f ps
-	DefP i c ps -> DefP i c <$> (traverse . traverse . traverse . traverse) f ps
-	LitP l	    -> pure $ LitP l
-	AsP i x p   -> AsP i x <$> traverse f p
-	DotP i e    -> DotP i <$> f e
-	AbsurdP i   -> pure $ AbsurdP i
-	WildP i	    -> pure $ WildP i
-	ImplicitP i -> pure $ ImplicitP i
 
 instance HasRange LamBinding where
     getRange (DomainFree _ _ x) = getRange x

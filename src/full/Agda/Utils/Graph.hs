@@ -1,4 +1,4 @@
-
+{-# LANGUAGE DeriveFunctor #-}
 module Agda.Utils.Graph where
 
 import qualified Data.Map as Map
@@ -10,10 +10,7 @@ import Agda.Utils.SemiRing
 
 -- Only one edge between any two nodes.
 newtype Graph n e = Graph { unGraph :: Map n (Map n e) }
-  deriving (Eq)
-
-instance Functor (Graph n) where
-  fmap f (Graph g) = Graph $ fmap (fmap f) g
+  deriving (Eq, Functor)
 
 edges :: Ord n => Graph n e -> [(n, n, e)]
 edges g = concatMap onNode $ Map.assocs $ unGraph g

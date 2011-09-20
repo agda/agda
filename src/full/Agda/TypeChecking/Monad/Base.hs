@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, ExistentialQuantification, FlexibleContexts, Rank2Types,
              TypeSynonymInstances, MultiParamTypeClasses, FlexibleInstances,
-             UndecidableInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving
+             UndecidableInstances, DeriveDataTypeable, GeneralizedNewtypeDeriving,
+             DeriveFunctor, DeriveFoldable, DeriveTraversable
   #-}
 module Agda.TypeChecking.Monad.Base where
 
@@ -286,23 +287,11 @@ data Open a = OpenThing [CtxId] a
 data Judgement t a
 	= HasType { jMetaId :: a, jMetaType :: t }
 	| IsSort  { jMetaId :: a, jMetaType :: t } -- Andreas, 2011-04-26: type needed for higher-order sort metas
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Functor, Foldable, Traversable)
 
 instance (Show t, Show a) => Show (Judgement t a) where
     show (HasType a t) = show a ++ " : " ++ show t
     show (IsSort  a t) = show a ++ " :sort " ++ show t
-
-instance Functor (Judgement t) where
-    fmap f (HasType x t) = HasType (f x) t
-    fmap f (IsSort  x t) = IsSort  (f x) t
-
-instance Foldable (Judgement t) where
-    foldr f z (HasType x _) = f x z
-    foldr f z (IsSort  x _) = f x z
-
-instance Traversable (Judgement t) where
-    traverse f (HasType x t) = flip HasType t <$> f x
-    traverse f (IsSort  x t) = flip IsSort  t <$> f x
 
 ---------------------------------------------------------------------------
 -- ** Meta variables
@@ -568,16 +557,14 @@ newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Data)
 
 data Reduced no yes = NoReduction no | YesReduction yes
-    deriving (Typeable)
+    deriving (Typeable, Functor)
 
 data IsReduced = NotReduced | Reduced (Blocked ())
 data MaybeReduced a = MaybeRed
   { isReduced     :: IsReduced
   , ignoreReduced :: a
   }
-
-instance Functor MaybeReduced where
-  fmap f (MaybeRed r x) = MaybeRed r (f x)
+  deriving (Functor)
 
 type MaybeReducedArgs = [MaybeReduced (Arg Term)]
 
@@ -586,10 +573,6 @@ notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked a -> MaybeReduced a
 reduced b = MaybeRed (Reduced $ fmap (const ()) b) (ignoreBlocking b)
-
-instance Functor (Reduced no) where
-  fmap f (NoReduction  x) = NoReduction x
-  fmap f (YesReduction x) = YesReduction (f x)
 
 data PrimFun = PrimFun
 	{ primFunName		:: QName
@@ -745,19 +728,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
-    deriving (Typeable, Data, Show)
-
-instance Functor Builtin where
-    fmap f (Builtin t) = Builtin t
-    fmap f (Prim x)    = Prim $ f x
-
-instance Foldable Builtin where
-    foldr f z (Builtin t) = z
-    foldr f z (Prim x)    = f x z
-
-instance Traversable Builtin where
-    traverse f (Builtin t) = pure $ Builtin t
-    traverse f (Prim x)    = Prim <$> f x
+    deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------------------------
 -- * Type checking environment

@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, CPP, DeriveDataTypeable #-}
+{-# LANGUAGE TypeOperators, CPP, DeriveDataTypeable, DeriveFunctor #-}
 module Agda.TypeChecking.CompiledClause where
 
 import qualified Data.Map as Map
@@ -17,7 +17,7 @@ data Case c = Branches { conBranches    :: QName   :-> c
                        , litBranches    :: Literal :-> c
                        , catchAllBranch :: Maybe c
                        }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Functor)
 
 data CompiledClauses
   = Case Int (Case CompiledClauses)
@@ -35,9 +35,6 @@ data CompiledClauses
 litCase l x = Branches Map.empty (Map.singleton l x) Nothing
 conCase c x = Branches (Map.singleton c x) Map.empty Nothing
 catchAll x  = Branches Map.empty Map.empty (Just x)
-
-instance Functor Case where
-  fmap f (Branches cs ls m) = Branches (fmap f cs) (fmap f ls) (fmap f m)
 
 instance Monoid m => Monoid (Case m) where
   mempty = Branches Map.empty Map.empty Nothing

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveFunctor #-}
 
 module Agda.TypeChecking.Coverage.Match where
 
@@ -43,11 +43,7 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
 --   variable is blocking the match. If a dot pattern is blocking a match
 --   we're screwed.
 data Match a = Yes a | No | Block (Maybe Nat)
-
-instance Functor Match where
-  fmap f (Yes a)   = Yes (f a)
-  fmap f No        = No
-  fmap f (Block x) = Block x
+  deriving (Functor)
 
 instance Monoid a => Monoid (Match a) where
   mempty                    = Yes mempty

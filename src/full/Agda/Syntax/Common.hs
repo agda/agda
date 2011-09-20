@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, FlexibleInstances, DeriveDataTypeable,
+             DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {-| Some common syntactic entities are defined in this module.
 -}
@@ -62,7 +63,7 @@ data Arg e  = Arg
   { argHiding    :: Hiding
   , argRelevance :: Relevance
   , unArg :: e
-  } deriving (Typeable, Data, Ord)
+  } deriving (Typeable, Data, Ord, Functor, Foldable, Traversable)
 
 instance Eq a => Eq (Arg a) where
   Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
@@ -88,15 +89,6 @@ withArgsFrom :: [a] -> [Arg b] -> [Arg a]
 xs `withArgsFrom` args =
   zipWith (\x arg -> fmap (const x) arg) xs args
 
-instance Functor Arg where
-    fmap f a = a { unArg = f (unArg a) }
-
-instance Foldable Arg where
-    foldr f z a = f (unArg a) z
-
-instance Traversable Arg where
-    traverse f (Arg h r x) = Arg h r <$> f x
-
 instance HasRange a => HasRange (Arg a) where
     getRange = getRange . unArg
 
@@ -121,22 +113,13 @@ data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
 	  }
-    deriving (Eq, Ord, Typeable, Data)
+    deriving (Eq, Ord, Typeable, Data, Functor, Foldable, Traversable)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
 
 named :: name -> a -> Named name a
 named = Named . Just
-
-instance Functor (Named name) where
-    fmap f (Named n x) = Named n $ f x
-
-instance Foldable (Named name) where
-    foldr f z (Named _ x) = f x z
-
-instance Traversable (Named name) where
-    traverse f (Named n x) = Named n <$> f x
 
 instance HasRange a => HasRange (Named name a) where
     getRange = getRange . namedThing

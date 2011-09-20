@@ -1,3 +1,5 @@
+{-# LANGUAGE StandaloneDeriving, DeriveFunctor #-}
+
 module Agda.Interaction.Options
     ( CommandLineOptions(..)
     , PragmaOptions(..)
@@ -39,13 +41,8 @@ isLiterate file = ".lagda" `isSuffixOf` file
 
 -- OptDescr is a Functor --------------------------------------------------
 
-instance Functor OptDescr where
-    fmap f (Option short long arg descr) = Option short long (fmap f arg) descr
-
-instance Functor ArgDescr where
-    fmap f (NoArg x)	= NoArg (f x)
-    fmap f (ReqArg p s) = ReqArg (f . p) s
-    fmap f (OptArg p s) = OptArg (f . p) s
+deriving instance Functor OptDescr
+deriving instance Functor ArgDescr
 
 type Verbosity = Trie String Int
 

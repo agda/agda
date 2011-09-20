@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving,
+             DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -102,24 +103,12 @@ instance Ord PlusLevel where
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
                | NotBlocked t
-    deriving (Typeable, Data, Eq, Ord)
+    deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
 
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x
   showsPrec p (NotBlocked x) = showsPrec p x
-
-instance Functor Blocked where
-  fmap f (Blocked m t) = Blocked m $ f t
-  fmap f (NotBlocked t) = NotBlocked $ f t
-
-instance Foldable Blocked where
-  foldr f z (Blocked _ x) = f x z
-  foldr f z (NotBlocked x) = f x z
-
-instance Traversable Blocked where
-  traverse f (Blocked m t)  = Blocked m <$> f t
-  traverse f (NotBlocked t) = NotBlocked <$> f t
 
 instance Applicative Blocked where
   pure = notBlocked
@@ -216,13 +205,9 @@ type Args = [Arg Term]
 --   and so on.
 data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Typeable, Data, Show, Eq, Ord, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Arg Type)
-
-instance Functor Tele where
-  fmap f  EmptyTel         = EmptyTel
-  fmap f (ExtendTel a tel) = ExtendTel (f a) (fmap (fmap f) tel)
 
 instance Sized (Tele a) where
   size  EmptyTel	 = 0
@@ -232,7 +217,7 @@ instance Sized (Tele a) where
 data Abs a = Abs { absName :: String
 		 , absBody :: a
 		 }
-  deriving (Typeable, Data)
+  deriving (Typeable, Data, Functor, Foldable, Traversable)
 
 instance Eq a => Eq (Abs a) where
   (==) = (==) `on` absBody
@@ -243,15 +228,6 @@ instance Ord a => Ord (Abs a) where
 instance Show a => Show (Abs a) where
   showsPrec p (Abs x a) = showParen (p > 0) $
     showString "Abs " . shows x . showString " " . showsPrec 10 a
-
-instance Functor Abs where
-  fmap f (Abs x t) = Abs x $ f t
-
-instance Foldable Abs where
-  foldr f z (Abs _ t) = f t z
-
-instance Traversable Abs where
-  traverse f (Abs x t) = Abs x <$> f t
 
 instance Sized a => Sized (Abs a) where
   size = size . absBody
