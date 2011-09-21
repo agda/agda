@@ -117,8 +117,6 @@ data UnifyException
   = ConstructorMismatch Type Term Term
   | StronglyRigidOccurrence Type Term Term
   | GenericUnifyException String
-  | TypeMismatch TypeHH Term Term -- ^ not valid type or different-shape types
-  | HeterogeneousButNoMismatch
 
 instance Error UnifyException where
   noMsg  = strMsg ""
@@ -140,9 +138,6 @@ constructorMismatchHH aHH = constructorMismatch (leftHH aHH)
 constructorMismatchHH (Hom a) u v = constructorMismatch a u v
 constructorMismatchHH (Het a1 a2) u v = constructorMismatch a1 u v
 -}
-
-typeMismatch :: TypeHH -> Term -> Term -> Unify a
-typeMismatch aHH u v = throwException $ TypeMismatch aHH u v
 
 {-
 instance MonadReader TCEnv Unify where
@@ -324,7 +319,7 @@ flattenSubstitution s = foldr instantiate s is
       where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
 	    var j = Var j []
 
-data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow (Maybe TCErr)
+data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 
 -- | Are we in a homogeneous (one type) or heterogeneous (two types) situation?
 data HomHet a
@@ -420,14 +415,9 @@ unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term
 unifyIndices_ flex a us vs = liftTCM $ do
   r <- unifyIndices flex a us vs
   case r of
-    Unifies sub         -> return sub
-    DontKnow Nothing    -> typeError $ GenericError $ "unification failed due to postponed problems"
-    DontKnow (Just err) -> throwError err
-    NoUnify a u v       -> typeError $ UnequalTerms CmpEq u v a
-
-dontKnow :: UnificationResult
-dontKnow = DontKnow Nothing
--- $ GenericError $ "unification failed due to postponed problems"
+    Unifies sub   -> return sub
+    DontKnow err  -> throwError err
+    NoUnify a u v -> typeError $ UnequalTerms CmpEq u v a
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
@@ -443,13 +433,11 @@ unifyIndices flex a us vs = liftTCM $ do
     (r, USt s eqs) <- flip runStateT emptyUState . runExceptionT . runWriterT . flip runReaderT emptyUEnv . unUnify $ do
         ifClean (unifyConstructorArgs (Hom a) us vs)
           -- clean: continue unifying
-          (recheckConstraints)
+          recheckConstraints
           -- dirty: just check equalities to trigger error message
-          (recheckEqualities) -- (throwException HeterogeneousButNoMismatch)
+          recheckEqualities
 
     case r of
-      Left (HeterogeneousButNoMismatch)     -> return $ dontKnow
-      Left (TypeMismatch          aHH u v)  -> return $ dontKnow
       Left (ConstructorMismatch     a u v)  -> return $ NoUnify a u v
       -- Andreas 2011-04-14:
       Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
@@ -458,7 +446,7 @@ unifyIndices flex a us vs = liftTCM $ do
         checkEqualities $ substs (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
-  `catchError` \err -> return $ DontKnow $ Just err
+  `catchError` \err -> return $ DontKnow err
   where
     flexible i = i `elem` flex
 
@@ -657,7 +645,7 @@ unifyIndices flex a us vs = liftTCM $ do
               r <- ureduce =<< liftTCM (dataOrRecordTypeHH c aHH)
               case r of
                 Just a'HH -> unifyConstructorArgs a'HH us vs
-                Nothing   -> typeMismatch aHH u v
+                Nothing   -> checkEqualityHH aHH u v
           | otherwise -> constructorMismatchHH aHH u v
         -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
 	(Def d us, Def d' vs)
