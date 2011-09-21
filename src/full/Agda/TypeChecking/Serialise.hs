@@ -260,6 +260,11 @@ instance EmbPrj Double where
   icode   = icodeX doubleD doubleC
   value i = (! i) `fmap` gets doubleE
 
+instance EmbPrj () where
+  icode () = icode0'
+  value = vcase valu where valu [] = valu0 ()
+                           valu _  = malformed
+
 instance (EmbPrj a, EmbPrj b) => EmbPrj (a, b) where
   icode (a, b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 (,) a b
@@ -278,10 +283,10 @@ instance EmbPrj a => EmbPrj (Maybe a) where
                            valu _   = malformed
 
 instance EmbPrj Bool where
-  icode True  = icode0 0
-  icode False = icode0 1
-  value = vcase valu where valu [0] = valu0 True
-                           valu [1] = valu0 False
+  icode True  = icode0'
+  icode False = icode0 0
+  value = vcase valu where valu []  = valu0 True
+                           valu [0] = valu0 False
                            valu _   = malformed
 
 instance EmbPrj AbsolutePath where
@@ -346,10 +351,10 @@ instance EmbPrj HR.Range where
 
 instance EmbPrj C.Name where
   icode (C.NoName a b) = icode2 0 a b
-  icode (C.Name r xs)  = icode2 1 r xs
-  value = vcase valu where valu [0, a, b]  = valu2 C.NoName a b
-                           valu [1, r, xs] = valu2 C.Name   r xs
-                           valu _          = malformed
+  icode (C.Name r xs)  = icode2' r xs
+  value = vcase valu where valu [0, a, b] = valu2 C.NoName a b
+                           valu [r, xs]   = valu2 C.Name   r xs
+                           valu _         = malformed
 
 instance EmbPrj NamePart where
   icode Hole   = icode0'
@@ -371,11 +376,11 @@ instance EmbPrj Scope where
                            valu _            = malformed
 
 instance EmbPrj NameSpaceId where
-  icode PublicNS        = icode0 0
+  icode PublicNS        = icode0'
   icode PrivateNS       = icode0 1
   icode ImportedNS      = icode0 2
   icode OnlyQualifiedNS = icode0 3
-  value = vcase valu where valu [0] = valu0 PublicNS
+  value = vcase valu where valu []  = valu0 PublicNS
                            valu [1] = valu0 PrivateNS
                            valu [2] = valu0 ImportedNS
                            valu [3] = valu0 OnlyQualifiedNS
@@ -383,10 +388,10 @@ instance EmbPrj NameSpaceId where
 
 instance EmbPrj Access where
   icode PrivateAccess = icode0 0
-  icode PublicAccess  = icode0 1
+  icode PublicAccess  = icode0'
   icode OnlyQualified = icode0 2
   value = vcase valu where valu [0] = valu0 PrivateAccess
-                           valu [1] = valu0 PublicAccess
+                           valu []  = valu0 PublicAccess
                            valu [2] = valu0 OnlyQualified
                            valu _   = malformed
 
@@ -405,19 +410,19 @@ instance EmbPrj AbstractModule where
   value n = AbsModule `fmap` value n
 
 instance EmbPrj KindOfName where
-  icode DefName = icode0 0
+  icode DefName = icode0'
   icode ConName = icode0 1
-  value = vcase valu where valu [0] = valu0 DefName
+  value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity where
   icode (LeftAssoc  a b) = icode2 0 a b
   icode (RightAssoc a b) = icode2 1 a b
-  icode (NonAssoc   a b) = icode2 2 a b
+  icode (NonAssoc   a b) = icode2' a b
   value = vcase valu where valu [0, a, b] = valu2 LeftAssoc  a b
                            valu [1, a, b] = valu2 RightAssoc a b
-                           valu [2, a, b] = valu2 NonAssoc   a b
+                           valu [a, b]    = valu2 NonAssoc   a b
                            valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Fixity.Fixity' where
@@ -428,10 +433,10 @@ instance EmbPrj Agda.Syntax.Fixity.Fixity' where
 instance EmbPrj GenPart where
     icode (BindHole a)   = icode1 0 a
     icode (NormalHole a) = icode1 1 a
-    icode (IdPart a)     = icode1 2 a
+    icode (IdPart a)     = icode1' a
     value = vcase valu where valu [0, a] = valu1 BindHole a
                              valu [1, a] = valu1 NormalHole a
-                             valu [2, a] = valu1 IdPart a
+                             valu [a]    = valu1 IdPart a
                              valu _      = malformed
 
 instance EmbPrj A.QName where
@@ -481,27 +486,27 @@ instance (EmbPrj a) => EmbPrj (Agda.Syntax.Common.Arg a) where
                            valu _         = malformed
 
 instance EmbPrj Agda.Syntax.Common.Induction where
-  icode Inductive   = icode0 0
+  icode Inductive   = icode0'
   icode CoInductive = icode0 1
-  value = vcase valu where valu [0] = valu0 Inductive
+  value = vcase valu where valu []  = valu0 Inductive
                            valu [1] = valu0 CoInductive
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Common.Hiding where
   icode Hidden    = icode0 0
-  icode NotHidden = icode0 1
+  icode NotHidden = icode0'
   icode Instance  = icode0 2
   value = vcase valu where valu [0] = valu0 Hidden
-                           valu [1] = valu0 NotHidden
+                           valu []  = valu0 NotHidden
                            valu [2] = valu0 Instance
                            valu _   = malformed
 
 instance EmbPrj Agda.Syntax.Common.Relevance where
-  icode Relevant   = icode0 0
+  icode Relevant   = icode0'
   icode Irrelevant = icode0 1
   icode Forced     = icode0 2
   icode NonStrict  = icode0 3
-  value = vcase valu where valu [0] = valu0 Relevant
+  value = vcase valu where valu []  = valu0 Relevant
                            valu [1] = valu0 Irrelevant
                            valu [2] = valu0 Forced
                            valu [3] = valu0 NonStrict
@@ -549,39 +554,38 @@ instance EmbPrj Level where
                            valu _   = malformed
 
 instance EmbPrj PlusLevel where
-  icode (ClosedLevel a) = icode1 0 a
-  icode (Plus a b)      = icode2 1 a b
-  value = vcase valu where valu [0, a]    = valu1 ClosedLevel a
-                           valu [1, a, b] = valu2 Plus a b
-                           valu _         = malformed
+  icode (ClosedLevel a) = icode1' a
+  icode (Plus a b)      = icode2' a b
+  value = vcase valu where valu [a]    = valu1 ClosedLevel a
+                           valu [a, b] = valu2 Plus a b
+                           valu _      = malformed
 
 instance EmbPrj LevelAtom where
-  icode (NeutralLevel a)   = icode1 0 a
+  icode (NeutralLevel a)   = icode1' a
   icode (UnreducedLevel a) = icode1 1 a
   icode MetaLevel{}        = __IMPOSSIBLE__
   icode BlockedLevel{}     = __IMPOSSIBLE__
-  value = vcase valu where valu [0, a] = valu1 NeutralLevel a
+  value = vcase valu where valu [a]    = valu1 NeutralLevel a
                            valu [1, a] = valu1 UnreducedLevel a
                            valu _      = malformed
 
 instance EmbPrj I.Sort where
-  icode (Type  a  ) = icode1 0 a
-  icode Prop        = icode0 1
-  icode Inf         = icode0 4
-  icode (DLub a b)  = icode2 5 a b
-  value = vcase valu where valu [0, a]    = valu1 Type  a
-                           valu [1]       = valu0 Prop
-                           valu [4]       = valu0 Inf
-                           valu [5, a, b] = valu2 DLub a b
-                           valu _         = malformed
+  icode (Type  a  ) = icode1' a
+  icode Prop        = icode1 1 ()
+  icode Inf         = icode1 4 ()
+  icode (DLub a b)  = __IMPOSSIBLE__
+  value = vcase valu where valu [a]    = valu1 Type  a
+                           valu [1, _] = valu0 Prop
+                           valu [4, _] = valu0 Inf
+                           valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Literal.Literal where
-  icode (LitInt    a b) = icode2 0 a b
+  icode (LitInt    a b) = icode2' a b
   icode (LitFloat  a b) = icode2 1 a b
   icode (LitString a b) = icode2 2 a b
   icode (LitChar   a b) = icode2 3 a b
   icode (LitQName  a b) = icode2 5 a b
-  value = vcase valu where valu [0, a, b] = valu2 LitInt    a b
+  value = vcase valu where valu [a, b]    = valu2 LitInt    a b
                            valu [1, a, b] = valu2 LitFloat  a b
                            valu [2, a, b] = valu2 LitString a b
                            valu [3, a, b] = valu2 LitChar   a b
@@ -603,12 +607,12 @@ instance EmbPrj CtxId where
   value n = CtxId `fmap` value n
 
 instance EmbPrj DisplayTerm where
-  icode (DTerm    a  ) = icode1 0 a
+  icode (DTerm    a  ) = icode1' a
   icode (DDot     a  ) = icode1 1 a
   icode (DCon     a b) = icode2 2 a b
   icode (DDef     a b) = icode2 3 a b
   icode (DWithApp a b) = icode2 4 a b
-  value = vcase valu where valu [0, a]    = valu1 DTerm a
+  value = vcase valu where valu [a]       = valu1 DTerm a
                            valu [1, a]    = valu1 DDot a
                            valu [2, a, b] = valu2 DCon a b
                            valu [3, a, b] = valu2 DDef a b
@@ -625,13 +629,13 @@ instance EmbPrj Definition where
                            valu _                       = malformed
 
 instance EmbPrj HaskellRepresentation where
-  icode (HsType a)   = icode1 0 a
-  icode (HsDefn a b) = icode2 1 a b
+  icode (HsType a)   = icode1' a
+  icode (HsDefn a b) = icode2' a b
 
   value = vcase valu where
-    valu [0, a]    = valu1 HsType a
-    valu [1, a, b] = valu2 HsDefn a b
-    valu _         = malformed
+    valu [a]    = valu1 HsType a
+    valu [a, b] = valu2 HsDefn a b
+    valu _      = malformed
 
 instance EmbPrj JS.Exp where
   icode (JS.Self)         = icode0 0
@@ -681,23 +685,23 @@ instance EmbPrj JS.MemberId where
   value n = JS.MemberId `fmap` value n
 
 instance EmbPrj Polarity where
-  icode Covariant     = icode0 0
+  icode Covariant     = icode0'
   icode Contravariant = icode0 1
   icode Invariant     = icode0 2
 
   value = vcase valu where
-    valu [0] = valu0 Covariant
+    valu []  = valu0 Covariant
     valu [1] = valu0 Contravariant
     valu [2] = valu0 Invariant
     valu _   = malformed
 
 instance EmbPrj Occurrence where
-  icode Positive = icode0 0
+  icode Positive = icode0'
   icode Negative = icode0 1
   icode Unused   = icode0 2
 
   value = vcase valu where
-    valu [0] = valu0 Positive
+    valu []  = valu0 Positive
     valu [1] = valu0 Negative
     valu [2] = valu0 Unused
     valu _   = malformed
@@ -708,20 +712,20 @@ instance EmbPrj CompiledRepresentation where
                            valu _         = malformed
 
 instance EmbPrj Defn where
-  icode Axiom                               = icode0 0
-  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
-  icode (Datatype    a b c d e f g h i)     = icode9 2 a b c d e f g h i
-  icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
-  icode (Constructor a b c d e)             = icode5 4 a b c d e
-  icode (Primitive   a b c d)               = icode4 5 a b c d
+  icode Axiom                               = icode0'
+  icode (Function    a b c d e f g h)       = icode8' a b c d e f g h
+  icode (Datatype    a b c d e f g h i)     = icode9' a b c d e f g h i
+  icode (Record      a b c d e f g h i j k) = icode11' a b c d e f g h i j k
+  icode (Constructor a b c d e)             = icode5' a b c d e
+  icode (Primitive   a b c d)               = icode4' a b c d
   value = vcase valu where
-    valu [0]                                  = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
-    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
-    valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
-    valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
-    valu _                                    = malformed
+    valu []                                = valu0 Axiom
+    valu [a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
+    valu [a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
+    valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
+    valu [a, b, c, d, e]                   = valu5 Constructor a b c d e
+    valu [a, b, c, d]                      = valu4 Primitive   a b c d
+    valu _                                 = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
   icode (Branches a b c) = icode3' a b c
@@ -731,13 +735,13 @@ instance EmbPrj a => EmbPrj (Case a) where
     valu _         = malformed
 
 instance EmbPrj CompiledClauses where
-  icode Fail       = icode0 0
-  icode (Done a b) = icode2 1 a b
+  icode Fail       = icode0'
+  icode (Done a b) = icode2' a b
   icode (Case a b) = icode2 2 a b
 
   value = vcase valu where
-    valu [0]       = valu0 Fail
-    valu [1, a, b] = valu2 Done a b
+    valu []        = valu0 Fail
+    valu [a, b]    = valu2 Done a b
     valu [2, a, b] = valu2 Case a b
     valu _         = malformed
 
@@ -749,19 +753,19 @@ instance EmbPrj FunctionInverse where
                            valu _   = malformed
 
 instance EmbPrj TermHead where
-  icode SortHead    = icode0 0
+  icode SortHead    = icode0'
   icode PiHead      = icode0 1
   icode (ConHead a) = icode1 2 a
-  value = vcase valu where valu [0]    = return SortHead
-                           valu [1]    = return PiHead
+  value = vcase valu where valu []     = valu0 SortHead
+                           valu [1]    = valu0 PiHead
                            valu [2, a] = valu1 ConHead a
                            valu _      = malformed
 
 instance EmbPrj Agda.Syntax.Common.IsAbstract where
   icode AbstractDef = icode0 0
-  icode ConcreteDef = icode0 1
+  icode ConcreteDef = icode0'
   value = vcase valu where valu [0] = valu0 AbstractDef
-                           valu [1] = valu0 ConcreteDef
+                           valu []  = valu0 ConcreteDef
                            valu _   = malformed
 
 instance EmbPrj I.Clause where
@@ -771,40 +775,40 @@ instance EmbPrj I.Clause where
 
 instance EmbPrj I.ClauseBody where
   icode (Body   a) = icode1 0 a
-  icode (Bind   a) = icode1 1 a
+  icode (Bind   a) = icode1' a
   icode NoBody     = icode0'
   value = vcase valu where valu [0, a] = valu1 Body   a
-                           valu [1, a] = valu1 Bind   a
+                           valu [a]    = valu1 Bind   a
                            valu []     = valu0 NoBody
                            valu _      = malformed
 
 instance EmbPrj Delayed where
   icode Delayed    = icode0 0
-  icode NotDelayed = icode0 1
+  icode NotDelayed = icode0'
   value = vcase valu where valu [0] = valu0 Delayed
-                           valu [1] = valu0 NotDelayed
+                           valu []  = valu0 NotDelayed
                            valu _   = malformed
 
 instance EmbPrj I.Pattern where
-  icode (VarP a    ) = icode1 0 a
-  icode (ConP a b c) = icode3 1 a b c
+  icode (VarP a    ) = icode1' a
+  icode (ConP a b c) = icode3' a b c
   icode (LitP a    ) = icode1 2 a
   icode (DotP a    ) = icode1 3 a
-  value = vcase valu where valu [0, a]       = valu1 VarP a
-                           valu [1, a, b, c] = valu3 ConP a b c
-                           valu [2, a]       = valu1 LitP a
-                           valu [3, a]       = valu1 DotP a
-                           valu _            = malformed
+  value = vcase valu where valu [a]       = valu1 VarP a
+                           valu [a, b, c] = valu3 ConP a b c
+                           valu [2, a]    = valu1 LitP a
+                           valu [3, a]    = valu1 DotP a
+                           valu _         = malformed
 
 instance EmbPrj a => EmbPrj (Builtin a) where
-  icode (Prim    a) = icode1 0 a
+  icode (Prim    a) = icode1' a
   icode (Builtin a) = icode1 1 a
-  value = vcase valu where valu [0, a] = valu1 Prim    a
+  value = vcase valu where valu [a]    = valu1 Prim    a
                            valu [1, a] = valu1 Builtin a
                            valu _      = malformed
 
 instance EmbPrj HP.NameKind where
-  icode HP.Bound           = icode0 0
+  icode HP.Bound           = icode0'
   icode (HP.Constructor a) = icode1 1 a
   icode HP.Datatype        = icode0 2
   icode HP.Field           = icode0 3
@@ -815,7 +819,7 @@ instance EmbPrj HP.NameKind where
   icode HP.Record          = icode0 8
 
   value = vcase valu where
-    valu [0]     = valu0 HP.Bound
+    valu []      = valu0 HP.Bound
     valu [1 , a] = valu1 HP.Constructor a
     valu [2]     = valu0 HP.Datatype
     valu [3]     = valu0 HP.Field
@@ -831,7 +835,7 @@ instance EmbPrj HP.Aspect where
   icode HP.Keyword       = icode0 1
   icode HP.String        = icode0 2
   icode HP.Number        = icode0 3
-  icode HP.Symbol        = icode0 4
+  icode HP.Symbol        = icode0'
   icode HP.PrimitiveType = icode0 5
   icode (HP.Name mk b)   = icode2 6 mk b
 
@@ -840,21 +844,21 @@ instance EmbPrj HP.Aspect where
     valu [1]        = valu0 HP.Keyword
     valu [2]        = valu0 HP.String
     valu [3]        = valu0 HP.Number
-    valu [4]        = valu0 HP.Symbol
+    valu []         = valu0 HP.Symbol
     valu [5]        = valu0 HP.PrimitiveType
     valu [6, mk, b] = valu2 HP.Name mk b
     valu _          = malformed
 
 instance EmbPrj HP.OtherAspect where
   icode HP.Error              = icode0 0
-  icode HP.DottedPattern      = icode0 1
+  icode HP.DottedPattern      = icode0'
   icode HP.UnsolvedMeta       = icode0 2
   icode HP.TerminationProblem = icode0 3
   icode HP.IncompletePattern  = icode0 4
 
   value = vcase valu where
     valu [0] = valu0 HP.Error
-    valu [1] = valu0 HP.DottedPattern
+    valu []  = valu0 HP.DottedPattern
     valu [2] = valu0 HP.UnsolvedMeta
     valu [3] = valu0 HP.TerminationProblem
     valu [4] = valu0 HP.IncompletePattern
@@ -868,7 +872,7 @@ instance EmbPrj HP.MetaInfo where
     valu _            = malformed
 
 instance EmbPrj Precedence where
-  icode TopCtx                 = icode0 0
+  icode TopCtx                 = icode0'
   icode FunctionSpaceDomainCtx = icode0 1
   icode (LeftOperandCtx a)     = icode1 2 a
   icode (RightOperandCtx a)    = icode1 3 a
@@ -880,7 +884,7 @@ instance EmbPrj Precedence where
   icode DotPatternCtx          = icode0 9
   value = vcase valu
     where
-    valu [0]    = valu0 TopCtx
+    valu []     = valu0 TopCtx
     valu [1]    = valu0 FunctionSpaceDomainCtx
     valu [2, a] = valu1 LeftOperandCtx a
     valu [3, a] = valu1 RightOperandCtx a
