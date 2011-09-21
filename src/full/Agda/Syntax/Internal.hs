@@ -183,7 +183,7 @@ type Args = [Arg Term]
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
-	    | ExtendTel a (Abs (Tele a))
+	    | ExtendTel a (Abs (Tele a))  -- ^ Abs is never NoAbs.
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Arg Type)

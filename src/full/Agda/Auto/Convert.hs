@@ -101,8 +101,8 @@ tomy imi icns typs = do
        let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) typ
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
-           contyp npar (I.ExtendTel it (I.Abs v tel))   = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
-           contyp npar (I.ExtendTel it (I.NoAbs x tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.NoAbs x (contyp npar tel)))
+           contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
+           contyp npar (I.ExtendTel it I.NoAbs{})     = __IMPOSSIBLE__
        contyp' <- tomyType $ contyp 0 tel
        cc <- lift $ liftIO $ readIORef c
        let Datatype [con] [] = cdcont cc

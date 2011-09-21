@@ -325,10 +325,9 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
   let telInst :: Telescope
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
+      instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
       instFinal (ExtendTel (Arg h r t) (Abs   n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
-      instFinal (ExtendTel (Arg h r t) (NoAbs n EmptyTel)) = ExtendTel (Arg Instance r t) (NoAbs n EmptyTel)
       instFinal (ExtendTel arg (Abs   n tel)) = ExtendTel arg (Abs n (instFinal tel))
-      instFinal (ExtendTel arg (NoAbs n tel)) = ExtendTel arg (NoAbs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel
   reportSDoc "tc.section.apply" 20 $ vcat
