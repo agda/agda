@@ -101,8 +101,8 @@ tomy imi icns typs = do
        let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) typ
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
-           contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
-           contyp npar (I.ExtendTel it (I.NoAbs tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.NoAbs (contyp npar tel)))
+           contyp npar (I.ExtendTel it (I.Abs v tel))   = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
+           contyp npar (I.ExtendTel it (I.NoAbs x tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.NoAbs x (contyp npar tel)))
        contyp' <- tomyType $ contyp 0 tel
        cc <- lift $ liftIO $ readIORef c
        let Datatype [con] [] = cdcont cc
@@ -298,7 +298,7 @@ tomyBody (I.Bind (I.Abs _ b)) = do
  return $ case res of
   Nothing -> Nothing
   Just (b', i) -> Just (b', i + 1)
-tomyBody (I.Bind (I.NoAbs b)) = tomyBody b
+tomyBody (I.Bind (I.NoAbs _ b)) = tomyBody b
 tomyBody I.NoBody = return Nothing
 
 weaken :: Int -> MExp O -> MExp O
@@ -636,7 +636,7 @@ etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
 etaContractBody (I.NoBody) = return I.NoBody
 etaContractBody (I.Body b) = etaContract b >>= \b -> return (I.Body b)
 etaContractBody (I.Bind (I.Abs id b)) = etaContractBody b >>= \b -> return (I.Bind (I.Abs id b))
-etaContractBody (I.Bind (I.NoAbs b))  = I.Bind . I.NoAbs <$> etaContractBody b
+etaContractBody (I.Bind (I.NoAbs x b))  = I.Bind . I.NoAbs x <$> etaContractBody b
 
 
 -- ---------------------------------

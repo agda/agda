@@ -402,8 +402,8 @@ instance ShrinkC Hiding Hiding where
   noShrink = id
 
 instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
-  shrinkC conf (NoAbs x) = NoAbs <$> shrinkC conf x
-  shrinkC conf (Abs s x) = Abs s <$> shrinkC (extendConf conf) x
+  shrinkC conf (NoAbs s x) = NoAbs s <$> shrinkC conf x
+  shrinkC conf (Abs   s x) = Abs s <$> shrinkC (extendConf conf) x
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
@@ -467,8 +467,8 @@ instance ShrinkC Term Term where
   noShrink = id
 
 killAbs :: KillVar a => Abs a -> a
-killAbs (Abs _ x) = killVar 0 x
-killAbs (NoAbs x) = x
+killAbs (Abs   _ x) = killVar 0 x
+killAbs (NoAbs _ x) = x
 
 class KillVar a where
   killVar :: Nat -> a -> a

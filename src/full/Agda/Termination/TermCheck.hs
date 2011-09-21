@@ -418,8 +418,8 @@ termTerm conf names f pats0 t0 = do
            Type t -> loop pats Term.unknown (Level t)
            Prop   -> return Term.empty
            Inf    -> return Term.empty
-           DLub s1 (NoAbs s2) -> Term.union <$> loopSort pats s1 <*> loopSort pats s2
-           DLub s1 (Abs x s2) -> liftM2 Term.union
+           DLub s1 (NoAbs x s2) -> Term.union <$> loopSort pats s1 <*> loopSort pats s2
+           DLub s1 (Abs x s2)   -> liftM2 Term.union
              (loopSort pats s1)
              (addCtxString x __IMPOSSIBLE__ $ loopSort (map liftDBP pats) s2)
 
@@ -565,7 +565,7 @@ termTerm conf names f pats0 t0 = do
                                                    , unArg        = __IMPOSSIBLE__
                                                    }) $
               loop (map liftDBP pats) guarded t
-            Lam h (NoAbs t) -> loop pats guarded t
+            Lam h (NoAbs _ t) -> loop pats guarded t
 
             -- Neutral term. Destroys guardedness.
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
@@ -578,7 +578,7 @@ termTerm conf names f pats0 t0 = do
                   return $ g1 `Term.union` g2
 
             -- Non-dependent function space.
-            Pi a (NoAbs b) ->
+            Pi a (NoAbs _ b) ->
                do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2

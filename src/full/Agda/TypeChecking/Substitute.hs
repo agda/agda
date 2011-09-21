@@ -135,11 +135,11 @@ instance Apply FunctionInverse where
   apply (Inverse inv) args = Inverse $ apply inv args
 
 instance Apply ClauseBody where
-    apply  b               []       = b
-    apply (Bind (Abs _ b)) (a:args) = subst (unArg a) b `apply` args
-    apply (Bind (NoAbs b)) (_:args) = b `apply` args
-    apply (Body _)         (_:_)    = __IMPOSSIBLE__
-    apply  NoBody           _       = NoBody
+    apply  b                 []       = b
+    apply (Bind (Abs   _ b)) (a:args) = subst (unArg a) b `apply` args
+    apply (Bind (NoAbs _ b)) (_:args) = b `apply` args
+    apply (Body _)           (_:_)    = __IMPOSSIBLE__
+    apply  NoBody             _       = NoBody
 
 instance Apply DisplayTerm where
   apply (DTerm v)          args = DTerm $ apply v args
@@ -404,10 +404,10 @@ instance Subst a => Subst (Tele a) where
   substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
 
 instance Subst a => Subst (Abs a) where
-    substs us      (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
-    substs us      (NoAbs t) = NoAbs $ substs us t
-    substUnder n u (Abs x t) = Abs x $ substUnder (n + 1) u t
-    substUnder n u (NoAbs t) = NoAbs $ substUnder n u t
+    substs us      (Abs   x t) = Abs   x $ substs (Var 0 [] : raise 1 us) t
+    substs us      (NoAbs x t) = NoAbs x $ substs us t
+    substUnder n u (Abs   x t) = Abs   x $ substUnder (n + 1) u t
+    substUnder n u (NoAbs x t) = NoAbs x $ substUnder n u t
 
 instance Subst a => Subst (Arg a) where
     substs us      = fmap (substs us)
@@ -699,12 +699,12 @@ dLub s1 s2 = case occurrence 0 $ freeVars (absBody s2) of
 
 -- | Instantiate an abstraction
 absApp :: Subst t => Abs t -> Term -> t
-absApp (Abs _ v) u = subst u v
-absApp (NoAbs v) _ = v
+absApp (Abs   _ v) u = subst u v
+absApp (NoAbs _ v) _ = v
 
 absBody :: Raise t => Abs t -> t
-absBody (Abs _ v) = v
-absBody (NoAbs v) = raise 1 v
+absBody (Abs   _ v) = v
+absBody (NoAbs _ v) = raise 1 v
 
 deriving instance (Raise a, Eq a) => Eq (Tele a)
 deriving instance (Raise a, Ord a) => Ord (Tele a)

@@ -540,7 +540,7 @@ instance Reify Level Expr where
       return $ A.Lit (LitString noRange $ show l)
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
-  reify (NoAbs v) = (,) <$> freshName_ "_" <*> reify v
+  reify (NoAbs x v) = (,) <$> freshName_ x <*> reify v
   reify (Abs s v) = do
 
     -- If the bound variable is free in the body, then the name "_" is

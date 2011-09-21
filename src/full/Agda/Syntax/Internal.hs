@@ -194,23 +194,23 @@ instance Sized (Tele a) where
 
 -- | The body has (at least) one free variable.
 data Abs a = Abs String a
-           | NoAbs a
+           | NoAbs String a
   deriving (Typeable, Data, Functor, Foldable, Traversable)
 
 -- | Danger: doesn't shift variables properly
 unAbs :: Abs a -> a
-unAbs (Abs _ v) = v
-unAbs (NoAbs v) = v
+unAbs (Abs   _ v) = v
+unAbs (NoAbs _ v) = v
 
 absName :: Abs a -> String
-absName (Abs x _) = x
-absName (NoAbs _) = "_"
+absName (Abs   x _) = x
+absName (NoAbs x _) = x
 
 instance Show a => Show (Abs a) where
   showsPrec p (Abs x a) = showParen (p > 0) $
     showString "Abs " . shows x . showString " " . showsPrec 10 a
-  showsPrec p (NoAbs a) = showParen (p > 0) $
-    showString "NoAbs " . showsPrec 10 a
+  showsPrec p (NoAbs x a) = showParen (p > 0) $
+    showString "NoAbs " . shows x . showString " " . showsPrec 10 a
 
 instance Sized a => Sized (Abs a) where
   size = size . unAbs

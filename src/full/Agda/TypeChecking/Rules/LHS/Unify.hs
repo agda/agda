@@ -367,8 +367,8 @@ type TelHH     = Tele (Arg TypeHH)
 type TelViewHH = TelV TypeHH
 
 absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
-absAppHH (Abs _ t) u = substHH u t
-absAppHH (NoAbs t) u = trivialHH t
+absAppHH (Abs   _ t) u = substHH u t
+absAppHH (NoAbs _ t) u = trivialHH t
 
 substHH :: SubstHH t tHH => TermHH -> t -> tHH
 substHH = substUnderHH 0

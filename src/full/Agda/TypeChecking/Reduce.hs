@@ -218,7 +218,7 @@ instance Reduce LevelAtom where
 
 instance (Raise t, Reduce t) => Reduce (Abs t) where
   reduce b@(Abs x _) = Abs x <$> underAbstraction_ b reduce
-  reduce (NoAbs v)   = NoAbs <$> reduce v
+  reduce (NoAbs x v) = NoAbs x <$> reduce v
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
@@ -470,7 +470,7 @@ instance Normalise ClauseBody where
 
 instance (Raise t, Normalise t) => Normalise (Abs t) where
     normalise a@(Abs x _) = Abs x <$> underAbstraction_ a normalise
-    normalise (NoAbs v)   = NoAbs <$> normalise v
+    normalise (NoAbs x v) = NoAbs x <$> normalise v
 
 instance Normalise t => Normalise (Arg t) where
     normalise = traverse normalise
@@ -606,7 +606,7 @@ instance InstantiateFull ClauseBody where
 
 instance (Raise t, InstantiateFull t) => InstantiateFull (Abs t) where
     instantiateFull a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull
-    instantiateFull (NoAbs a)   = NoAbs <$> instantiateFull a
+    instantiateFull (NoAbs x a) = NoAbs x <$> instantiateFull a
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
     instantiateFull = traverse instantiateFull

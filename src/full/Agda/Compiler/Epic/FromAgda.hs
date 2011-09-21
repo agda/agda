@@ -208,7 +208,7 @@ substTerm env term = case term of
     T.Lam _ (Abs _ te) -> do
        name <- newName
        Lam name <$> substTerm (name : env) te
-    T.Lam _ (NoAbs te) -> do
+    T.Lam _ (NoAbs _ te) -> do
        name <- newName
        Lam name <$> substTerm env te
     T.Lit l -> Lit <$> substLit l

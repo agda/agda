@@ -73,8 +73,8 @@ instance AbstractTerm a => AbstractTerm (Maybe a) where
   abstractTerm = fmap . abstractTerm
 
 instance (Raise a, AbstractTerm a) => AbstractTerm (Abs a) where
-  abstractTerm u (NoAbs v) = NoAbs $ abstractTerm u v
-  abstractTerm u (Abs x v) = Abs x $ rename swap $ abstractTerm (raise 1 u) v
+  abstractTerm u (NoAbs x v) = NoAbs x $ abstractTerm u v
+  abstractTerm u (Abs   x v) = Abs x $ rename swap $ abstractTerm (raise 1 u) v
     where
       swap 0 = 1
       swap 1 = 0
