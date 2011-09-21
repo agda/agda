@@ -1,4 +1,4 @@
-InductiveAndCoinductiveConstructors.agda:62,25-66
+InductiveAndCoinductiveConstructors.agda:63,25-66
 .InductiveAndCoinductiveConstructors.♯-4 xs ls !=
 .InductiveAndCoinductiveConstructors.♯-3 xs ls of type
 ∞ (WHNF (stream (stream unit)))

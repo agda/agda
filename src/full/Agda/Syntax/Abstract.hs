@@ -21,6 +21,7 @@ import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Info
 import Agda.Syntax.Common
+import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Literal
@@ -69,7 +70,16 @@ data Declaration
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-  deriving (Typeable, Data, Show)
+        deriving (Typeable, Data, Show)
+
+class GetDefInfo a where
+  getDefInfo :: a -> Maybe DefInfo
+
+instance GetDefInfo Declaration where
+  getDefInfo (Axiom i _ _ _) = Just i
+  getDefInfo (Field i _ _) = Just i
+  getDefInfo (Primitive i _ _) = Just i
+  getDefInfo _ = Nothing
 
 data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
                        | RecordModuleIFS ModuleName
@@ -92,15 +102,27 @@ data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info 
 
 -- | A definition without its type signature.
 data Definition
-	= FunDef     DefInfo QName [Clause]
-	| DataDef    DefInfo QName [LamBinding] [Constructor]
-	    -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-	| RecDef     DefInfo QName (Maybe Constructor) [LamBinding] Expr [Declaration]
-	    -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
-            --   and the optional name is the constructor's name.
-        | ScopedDef ScopeInfo Definition
-        | TypeDef TypeSignature
+  = FunSig     TypeSignature -- ^ lone type signature in mutual block
+  | FunDef     DefInfo QName [Clause]
+  | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
+      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+  | DataDef    DefInfo QName [LamBinding] [Constructor]
+      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+  | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
+  | RecDef     DefInfo QName (Maybe QName) [LamBinding] Expr [Declaration]
+      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+      --   and the optional name is the constructor's name.
+  | ScopedDef ScopeInfo Definition
   deriving (Typeable, Data, Show)
+
+instance GetDefInfo Definition where
+  getDefInfo (FunSig s) = getDefInfo s
+  getDefInfo (FunDef i _ _) = Just i
+  getDefInfo (DataSig i _ _ _) = Just i
+  getDefInfo (DataDef i _ _ _) = Just i
+  getDefInfo (RecSig i _ _ _) = Just i
+  getDefInfo (RecDef i _ _ _ _ _) = Just i
+  getDefInfo (ScopedDef _ d) = getDefInfo d
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -213,12 +235,14 @@ instance HasRange Declaration where
     getRange (ScopedDecl _ d	       ) = getRange d
 
 instance HasRange Definition where
-    getRange (TypeDef (Axiom i _ _ _)) = getRange i
-    getRange (TypeDef d)           = __IMPOSSIBLE__
-    getRange (FunDef  i _ _    )   = getRange i
-    getRange (DataDef i _ _ _  )   = getRange i
-    getRange (RecDef  i _ _ _ _ _) = getRange i
-    getRange (ScopedDef _ d)       = getRange d
+    getRange (FunSig (Axiom i _ _ _)) = getRange i
+    getRange (FunSig d              ) = __IMPOSSIBLE__
+    getRange (FunDef  i _ _         ) = getRange i
+    getRange (DataSig i _ _ _       ) = getRange i
+    getRange (DataDef i _ _ _       ) = getRange i
+    getRange (RecSig  i _ _ _       ) = getRange i
+    getRange (RecDef  i _ _ _ _ _   ) = getRange i
+    getRange (ScopedDef _ d         ) = getRange d
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x
@@ -305,11 +329,16 @@ instance KillRange ModuleApplication where
   killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
 
 instance KillRange Definition where
-  killRange (TypeDef a)           = killRange1 TypeDef a
-  killRange (FunDef  i a b    )   = killRange3 FunDef  i a b
-  killRange (DataDef i a b c)     = killRange4 DataDef i a b c
-  killRange (RecDef  i a b c d e) = killRange6 RecDef  i a b c d e
-  killRange (ScopedDef s a)       = killRange1 (ScopedDef s) a
+  killRange (FunSig  a           ) = killRange1 FunSig a
+  killRange (FunDef  i a b       ) = killRange3 FunDef  i a b
+  killRange (DataSig i a b c     ) = killRange3 DataSig i a b c
+  killRange (DataDef i a b c     ) = killRange4 DataDef i a b c
+  killRange (RecSig  i a b c     ) = killRange4 RecSig  i a b c
+  killRange (RecDef  i a b c d e ) = killRange6 RecDef  i a b c d e
+  killRange (ScopedDef s a       ) = killRange1 (ScopedDef s) a
+
+instance KillRange x => KillRange (ThingWithFixity x) where
+  killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
 instance KillRange e => KillRange (Pattern' e) where
   killRange (VarP x)      = killRange1 VarP x
@@ -357,11 +386,12 @@ allNames (Definition _ defs) = Fold.foldMap allNamesD defs
   allNamesD :: Definition -> Seq QName
   allNamesD (FunSig d)               = allNames d
   allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
-  allNamesD (DataSig _ q _)          = Seq.singleton q
+  allNamesD (DataSig _ q _ _)        = Seq.singleton q
   allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
   allNamesD (ScopedDef _ def)        = allNamesD def
+  allNamesD (RecSig _ q _ _)         = Seq.singleton q
   allNamesD (RecDef _ q c _ _ decls) =
-    q <| Fold.foldMap allNames c >< Fold.foldMap allNames decls
+    q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
 
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><
@@ -446,6 +476,9 @@ instance AnyAbstract Definition where
   anyAbstract (DataDef i _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecDef i _ _ _ _ _) = defAbstract i == AbstractDef
   anyAbstract (ScopedDef _ ds)     = anyAbstract ds
+  anyAbstract (FunSig d)           = anyAbstract d
+  anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
+  anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
 
 instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
@@ -453,7 +486,8 @@ instance AnyAbstract a => AnyAbstract [a] where
 instance AnyAbstract Declaration where
   anyAbstract (Axiom i _ _ _)     = defAbstract i == AbstractDef
   anyAbstract (Field i _ _)       = defAbstract i == AbstractDef
-  anyAbstract (Definition _ _ ds) = anyAbstract ds
+  anyAbstract (Definition _ ds)   = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)   = anyAbstract ds
   anyAbstract (Section _ _ _ ds)  = anyAbstract ds
   anyAbstract _                   = __IMPOSSIBLE__
+

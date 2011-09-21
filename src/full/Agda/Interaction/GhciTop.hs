@@ -818,6 +818,10 @@ instance LowerMeta SC.RHS where
     lowerMeta (SC.RHS e)    = SC.RHS (lowerMeta e)
     lowerMeta  SC.AbsurdRHS = SC.AbsurdRHS
 
+instance LowerMeta (Maybe SC.Expr) where
+    lowerMeta (Just e) = Just (lowerMeta e)
+    lowerMeta Nothing  = Nothing
+
 instance LowerMeta SC.Declaration where
   lowerMeta = go where
     go d = case d of

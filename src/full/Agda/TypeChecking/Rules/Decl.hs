@@ -189,16 +189,22 @@ checkPragma r p =
                 defs	  = sigDefinitions sig
 
 -- | Type check a bunch of mutual inductive recursive definitions.
-checkMutual :: Info.DeclInfo -> [A.TypeSignature] -> [A.Definition] -> TCM ()
-checkMutual i ts ds = inMutualBlock $ do
-  mapM_ checkTypeSignature ts
+checkMutual :: Info.DeclInfo -> [A.Definition] -> TCM ()
+checkMutual i ds = inMutualBlock $ do
   mapM_ checkDefinition ds
+-- Andreas, 2011-09-14 moved this to checkDefinition
+  -- issue 418 to prevent instantiation of metas with abstract things,
+  -- freeze metas before checking the definitions
+--  when (anyAbstract ds) $ freezeMetas
+
   checkStrictlyPositive =<< currentMutualBlock
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
       unScope d = [d]
-  case concatMap unScope ts of
+      unScopeDef (A.ScopedDef _ d) = unScopeDef d
+      unScopeDef d = [d]
+  case [ x | A.FunSig d <- concatMap unScopeDef ds, A.Axiom _ _ x _ <- unScope d ] of
     -- Non-mutual definitions can be considered for projection likeness
-    [A.Axiom _ _ x _] -> makeProjection x
+    [x] -> makeProjection x
     _   -> return ()
 
 
@@ -218,12 +224,17 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 -- | Check an inductive or recursive definition. Assumes the type has has been
 --   checked and added to the signature.
 checkDefinition :: A.Definition -> TCM ()
-checkDefinition d =
+checkDefinition d = do
     case d of
-	A.FunDef i x cs          -> abstract (Info.defAbstract i) $ checkFunDef NotDelayed i x cs
-	A.DataDef i x ps cs      -> abstract (Info.defAbstract i) $ checkDataDef i x ps cs
-	A.RecDef i x c ps tel cs -> abstract (Info.defAbstract i) $ checkRecDef i x c ps tel cs
+	A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
+	A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
+	A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
+        A.FunSig d               -> checkTypeSignature d
+	A.DataSig i x ps t       -> checkAxiom i Relevant x t
+	A.RecSig i x ps t        -> checkAxiom i Relevant x t
         A.ScopedDef scope d      -> setScope scope >> checkDefinition d
+    -- Andreas, 2011-09-14 refixing issue 418: freeze metas after abstract defs.
+    when (fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef) $ freezeMetas
     where
         check x i m = do
           reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."

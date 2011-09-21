@@ -3,8 +3,11 @@
 module RecordInMutual where
 
 mutual
+  record B : Set
+
   record A : Set where
     field x : B
-  record B : Set where
+
+  record B where
     field x : A
 

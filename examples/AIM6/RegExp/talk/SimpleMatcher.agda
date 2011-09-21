@@ -33,6 +33,8 @@ private
 -- is terminating). To prove completeness more work is necessary.
 
 mutual
+  matches-⊙¿ : forall xs₁ xs₂ re₁ re₂
+               -> Maybe (xs₁ ++ xs₂ ∈‿⟦ re₁ ⊙ re₂ ⟧)
 
   _∈‿⟦_⟧¿ : (xs : [ carrier ]) -> (re : RegExp) -> Maybe (xs ∈‿⟦ re ⟧)
   []     ∈‿⟦ ε ⟧¿         = just matches-ε
@@ -52,8 +54,6 @@ mutual
   x ∷ xs ∈‿⟦ re ⋆ ⟧¿      | nothing = nothing
   _      ∈‿⟦ _ ⟧¿         = nothing
 
-  matches-⊙¿ : forall xs₁ xs₂ re₁ re₂
-               -> Maybe (xs₁ ++ xs₂ ∈‿⟦ re₁ ⊙ re₂ ⟧)
   matches-⊙¿ xs₁ xs₂ re₁ re₂ with xs₁ ∈‿⟦ re₁ ⟧¿ | xs₂ ∈‿⟦ re₂ ⟧¿
   matches-⊙¿ xs₁ xs₂ re₁ re₂ | just m₁ | just m₂ = just (matches-⊙ m₁ m₂)
   matches-⊙¿ xs₁ [] re₁ re₂ | _ | _ = nothing

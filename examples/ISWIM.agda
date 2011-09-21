@@ -80,12 +80,13 @@ module Semantics (R : Set) where
   infixl 40 _||_
 
   mutual
+    ⟦_⟧type : Type -> Set
+
     ⟦_⟧type' : Type -> Set
     ⟦ nat    ⟧type' = Nat
     ⟦ bool   ⟧type' = Bool
     ⟦ σ ─→ τ ⟧type' = ⟦ σ ⟧type' -> ⟦ τ ⟧type
 
-    ⟦_⟧type : Type -> Set
     ⟦ τ ⟧type = C ⟦ τ ⟧type'
 
     data ⟦_⟧ctx : Context -> Set where

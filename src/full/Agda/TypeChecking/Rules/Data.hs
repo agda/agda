@@ -74,9 +74,11 @@ checkDataDef i name ps cs =
             reportSDoc "tc.data.sort" 20 $ vcat
               [ text "checking datatype" <+> prettyTCM name
               , nest 2 $ vcat
-                [ text "type:   " <+> prettyTCM t0
+                [ text "type (parameters instantiated):   " <+> prettyTCM t0
+                , text "type (full):   " <+> prettyTCM t
                 , text "sort:   " <+> prettyTCM s
                 , text "indices:" <+> text (show nofIxs)
+                , text "params:"  <+> text (show ps)
                 ]
               ]
 

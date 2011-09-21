@@ -115,6 +115,8 @@ lookup (Γ , σ) (suc n)         | outofscope = outofscope
 infix 20 _⊢_∋_ _⊢_∈
 
 mutual
+  _⊢_∈ : (Γ : Ctx)(e : Expr) -> Infer Γ e
+
   _⊢_∋_ : (Γ : Ctx)(τ : Type)(e : Expr) -> Check Γ τ e
   Γ ⊢ ι       ∋ ƛʳ e = bad
   Γ ⊢ (σ ⟶ τ) ∋ ƛʳ e with Γ , σ ⊢ τ ∋ e
@@ -126,7 +128,7 @@ mutual
   Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t  | nothing   = bad
   Γ ⊢ τ ∋ e | no = bad
 
-  _⊢_∈ : (Γ : Ctx)(e : Expr) -> Infer Γ e
+
   Γ ⊢ varʳ i         ∈ with lookup Γ i
   Γ ⊢ varʳ .(⌊ x ⌋ˣ) ∈ | found τ x  = yes τ (var x)
   Γ ⊢ varʳ _         ∈ | outofscope = no

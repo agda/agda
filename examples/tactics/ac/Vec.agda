@@ -14,11 +14,13 @@ data Cons (A As : Set) : Set where
   vcons : A -> As -> Cons A As
 
 mutual
+  data Vec (n : Nat)(A : Set) : Set
+
   Vec' : Nat -> Set -> Set
   Vec' zero    A = Nil
   Vec' (suc n) A = Cons A (Vec n A)
 
-  data Vec (n : Nat)(A : Set) : Set where
+  data Vec n A where
     vec : Vec' n A -> Vec n A
 
 ε : {A : Set} -> Vec zero A

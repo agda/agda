@@ -14,6 +14,10 @@ import Data.List
 import Data.Maybe
 import qualified Data.Set as Set
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
+
+-- | Head function (safe).
 mhead :: [a] -> Maybe a
 mhead []    = Nothing
 mhead (x:_) = Just x

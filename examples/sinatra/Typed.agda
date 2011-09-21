@@ -32,17 +32,22 @@ infixr 80 _⟶_
 infix 100 [_]_
 
 mutual
+  data VTy : Set
+
   data CTy : Set where
     _⟶_  : VTy -> CTy -> CTy
     [_]_ : Effect -> VTy -> CTy
 
-  data VTy : Set where
+  data VTy where
     ⟨_⟩   : CTy -> VTy
     TyCon : Name -> VTy
 
 Cxt = List VTy
 
 mutual
+  data ExC : Effect -> Cxt -> CTy -> Set
+  data InV : Effect -> Cxt -> VTy -> Set
+
   data InC : Cxt -> CTy -> Set where
 
     ƛ_  : forall {V C Γ} ->
@@ -54,7 +59,9 @@ mutual
     inV : forall {M Γ V} ->
           InV M Γ V -> InC Γ ([ M ] V)
 
-  data InV : Effect -> Cxt -> VTy -> Set where
+  InDs : Effect -> Cxt -> List Name -> Set
+
+  data InV where
 
     ⟪_⟫ : forall {M Γ C} -> InC Γ C -> InV M Γ ⟨ C ⟩
 
@@ -63,10 +70,9 @@ mutual
     con : forall {M Γ D args} ->
           args ∈ Datatype D -> InDs M Γ args -> InV M Γ (TyCon D)
 
-  InDs : Effect -> Cxt -> List Name -> Set
   InDs M Γ = Box (\D -> InV M Γ (TyCon D))
 
-  data ExC : Effect -> Cxt -> CTy -> Set where
+  data ExC where
 
     var : forall {M Γ V} -> V ∈ Γ -> ExC M Γ ([ M ] V)
 
@@ -74,38 +80,45 @@ mutual
           ExC M Γ (V ⟶ C) -> InV M Γ V -> ExC M Γ C
 
 mutual
+  Els : _
+
   data El : Name -> Set where
     el : forall {args D} -> args ∈ Datatype D -> Els args -> El D
 
   Els = Box El
 
 mutual
+  VTy⟦_⟧ : VTy -> Set
+
   CTy⟦_⟧ : CTy -> Set
   CTy⟦ V ⟶ C   ⟧ = VTy⟦ V ⟧ -> CTy⟦ C ⟧
   CTy⟦ [ M ] V ⟧ = Monad M VTy⟦ V ⟧
 
-  VTy⟦_⟧ : VTy -> Set
+
   VTy⟦ ⟨ C ⟩   ⟧ = CTy⟦ C ⟧
   VTy⟦ TyCon D ⟧ = El D
 
 Env = Box VTy⟦_⟧
 
 mutual
+  inC⟦_⟧ : forall {Γ C} -> InC Γ C -> Env Γ -> CTy⟦ C ⟧
+
+  inDs⟦_⟧ : forall {M Γ Ds} ->
+            InDs M Γ Ds -> Env Γ -> Monad M (Els Ds)
+
   inV⟦_⟧ : forall {M Γ V} -> InV M Γ V -> Env Γ -> Monad M VTy⟦ V ⟧
   inV⟦ ⟪ c ⟫    ⟧ ρ = return (inC⟦ c ⟧ ρ)
   inV⟦ ⟦ c ⟧    ⟧ ρ = inC⟦ c ⟧ ρ
   inV⟦ con x Ds ⟧ ρ = return (el x) <*> inDs⟦ Ds ⟧ ρ
 
-  inDs⟦_⟧ : forall {M Γ Ds} ->
-            InDs M Γ Ds -> Env Γ -> Monad M (Els Ds)
   inDs⟦ ⟨⟩     ⟧ ρ = return ⟨⟩
   inDs⟦ Ds ◃ v ⟧ ρ = return _◃_ <*> inDs⟦ Ds ⟧ ρ <*> inV⟦ v ⟧ ρ
 
-  inC⟦_⟧ : forall {Γ C} -> InC Γ C -> Env Γ -> CTy⟦ C ⟧
+  exC⟦_⟧ : forall {M Γ C} -> ExC M Γ C -> Env Γ -> Monad M CTy⟦ C ⟧
+
   inC⟦ ƛ c     ⟧ ρ = \v -> inC⟦ c ⟧ (ρ ◃ v)
   inC⟦ exC c m ⟧ ρ = morph m _ =<< exC⟦ c ⟧ ρ
   inC⟦ inV v   ⟧ ρ = inV⟦ v ⟧ ρ
 
-  exC⟦_⟧ : forall {M Γ C} -> ExC M Γ C -> Env Γ -> Monad M CTy⟦ C ⟧
   exC⟦ var x ⟧ ρ = return (return (ρ ! x))
   exC⟦ f • s ⟧ ρ = exC⟦ f ⟧ ρ <*> inV⟦ s ⟧ ρ

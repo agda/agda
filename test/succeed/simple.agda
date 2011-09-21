@@ -40,11 +40,12 @@ module TestList where
 module EvenOdd where
 
   mutual
+    data Odd : Set
     data Even : Set where
       evenZero : Even
       evenSuc  : Odd -> Even
 
-    data Odd : Set where
+    data Odd where
       oddSuc : Even -> Odd
 
 module Monad where

@@ -10,8 +10,6 @@ The index A is free in the following parameters:
   D A
 when checking that the expression ? has type Set")
 agda2_mode_code (annotation-goto
-                 '("Issue388.agda"
-                   .
-                   191))
+                 '("Issue388.agda" . 191))
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1

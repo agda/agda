@@ -14,12 +14,13 @@ data FSuc (A : Set) : Set where
   fs : A -> FSuc A
 
 mutual
+  data Fin (n : Nat) : Set
 
   Fin' : Nat -> Set
   Fin' zero    = FZero
   Fin' (suc n) = FSuc (Fin n)
 
-  data Fin (n : Nat) : Set where
+  data Fin n where
     fin : Fin' n -> Fin n
 
 fzero : {n : Nat} -> Fin (suc n)

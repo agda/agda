@@ -61,6 +61,9 @@ prettyWithRelevance :: Pretty a => Arg a -> Doc
 prettyWithRelevance a = pRelevance (argRelevance a) a
 -}
 
+instance Pretty (ThingWithFixity Name) where
+    pretty (ThingWithFixity n _) = pretty n
+
 instance Pretty Name where
     pretty = text . show
 
@@ -265,7 +268,7 @@ instance Pretty Declaration where
 			    , pretty e
 			    ]
 		    ]
-	    Data _ ind x tel e cs ->
+	    Data _ ind x tel (Just e) cs ->
 		sep [ hsep  [ pretty ind
 			    , pretty x
 			    , fcat (map pretty tel)
@@ -275,6 +278,13 @@ instance Pretty Declaration where
 			    , pretty e
 			    , text "where"
 			    ]
+		    ] $$ nest 2 (vcat $ map pretty cs)
+	    Data _ ind x tel Nothing cs ->
+		sep [ hsep  [ pretty ind
+			    , pretty x
+			    , fcat (map pretty tel)
+			    ]
+		    , nest 2 $ text "where"
 		    ] $$ nest 2 (vcat $ map pretty cs)
 	    RecordSig _ x tel e ->
 		sep [ hsep  [ text "record"
@@ -286,7 +296,7 @@ instance Pretty Declaration where
 			    , pretty e
 			    ]
 		    ]
-	    Record _ x con tel e cs ->
+	    Record _ x con tel (Just e) cs ->
 		sep [ hsep  [ text "record"
 			    , pretty x
 			    , fcat (map pretty tel)
@@ -299,7 +309,17 @@ instance Pretty Declaration where
 		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
                                               con ++
                                         map pretty cs)
-	    Infix f xs	->
+	    Record _ x con tel Nothing cs ->
+		sep [ hsep  [ text "record"
+			    , pretty x
+			    , fcat (map pretty tel)
+			    ]
+		    , nest 2 $ text "where"
+		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
+                                              con ++
+                                        map pretty cs)
+
+            Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
             Syntax n xs -> text "syntax" <+> pretty n <+> text "..."
 	    Mutual _ ds	    -> namedBlock "mutual" ds

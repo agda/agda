@@ -35,6 +35,9 @@ mutual
 
   Args : Set
 
+  data Type : Set
+  data Sort : Set
+
   data Term : Set where
     var     : ℕ → Args → Term
     con     : QName → Args → Term
@@ -46,10 +49,10 @@ mutual
 
   Args = List (Arg Term)
 
-  data Type : Set where
+  data Type where
     el : Sort → Term → Type
 
-  data Sort : Set where
+  data Sort where
     set     : Term → Sort
     lit     : ℕ → Sort
     unknown : Sort

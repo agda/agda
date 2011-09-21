@@ -46,7 +46,7 @@ import Agda.Utils.Impossible
 --
 --     [@fields@]  List of field signatures.
 --
-checkRecDef :: Info.DefInfo -> QName -> Maybe A.Constructor ->
+checkRecDef :: Info.DefInfo -> QName -> Maybe A.QName -> --Maybe A.Constructor ->
                [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
 checkRecDef i name con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
@@ -109,9 +109,8 @@ checkRecDef i name con ps contel fields =
 
       -- Obtain name of constructor (if present).
       (hasNamedCon, conName, conInfo) <- case con of
-        Just (A.Axiom i _ c _) -> return (True, c, i)
-        Just _                 -> __IMPOSSIBLE__
-        Nothing                -> do
+        Just c  -> return (True, c, i)
+        Nothing -> do
           m <- killRange <$> currentModule
           c <- qualify m <$> freshName_ "recCon-NOT-PRINTED"
           return (False, c, i)

@@ -1,10 +1,12 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {-| Definitions for fixity and precedence levels.
 -}
 module Agda.Syntax.Fixity where
 
 import Data.Generics (Typeable, Data)
+import Data.Foldable
+import Data.Traversable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -18,6 +20,7 @@ data Fixity' = Fixity'
      theNotation :: Notation}
   deriving (Typeable, Data, Show, Eq)
 
+data ThingWithFixity x = ThingWithFixity x Fixity' deriving (Functor,Foldable,Traversable,Typeable,Data,Show)
 -- | All the notation information related to a name.
 type NewNotation = (Name, Fixity, Notation)
 

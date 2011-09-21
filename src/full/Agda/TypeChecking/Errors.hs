@@ -662,14 +662,16 @@ instance PrettyTCM Call where
 	    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (argHiding a)) a
 
 	    simpleDef d = case d of
+              D.NiceRecSig r f a ia x ls t -> [ C.RecordSig r x (map bind ls) t ]
+              D.NiceDataSig r f a ia x ls t -> [ C.DataSig r Inductive x (map bind ls) t ]
               D.FunSig d -> [simpleDecl d]
 	      D.FunDef _ ds _ _ _ _ _	 -> ds
 	      D.DataDef r fx p a d bs cs ->
-		[ C.Data r Inductive d (map bind bs) (C.Underscore noRange Nothing)
+		[ C.Data r Inductive d (map bind bs) Nothing
 		    $ map simpleDecl cs
 		]
 	      D.RecDef r fx p a d c bs cs ->
-		[ C.Record r d (name <$> c) (map bind bs) (C.Underscore noRange Nothing)
+		[ C.Record r d (fmap (\(ThingWithFixity c _) -> c) c)  (map bind bs) Nothing
 		    $ map simpleDecl cs
 		]
 	      where

@@ -45,11 +45,11 @@ module ℕ₂ where
     ′suc  : ℕC
 
   mutual
+    ℕ′ : ℕC → Set
 
     ℕ : Set
     ℕ = ∃ λ (c : ℕC) → ℕ′ c
 
-    ℕ′ : ℕC → Set
     ℕ′ ′zero = ⊤
     ℕ′ ′suc  = Rec (♯ ℕ)
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 
 {-| The concrete syntax is a raw representation of the program text
     without any desugaring at all.  This is what the parser produces.
@@ -31,6 +31,7 @@ module Agda.Syntax.Concrete
     , RHS(..), WhereClause(..)
     , Pragma(..)
     , Module
+    , ThingWithFixity(..)
     , topLevelModuleName
     -- * Pattern tools
     , patternHead, patternNames
@@ -38,7 +39,8 @@ module Agda.Syntax.Concrete
     where
 
 import Data.Generics (Typeable, Data)
-
+import Data.Foldable hiding (concatMap)
+import Data.Traversable
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -230,14 +232,15 @@ type Field	 = TypeSignature
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
 -}
+
 data Declaration
 	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
         | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
 	| DataSig     !Range Induction Name [TypedBindings] Expr -- ^ lone data signature in mutual block
-	| Data        !Range Induction Name [TypedBindings] Expr [Constructor]
+	| Data        !Range Induction Name [TypedBindings] (Maybe Expr) [Constructor]
 	| RecordSig   !Range Name [TypedBindings] Expr -- ^ lone record signature in mutual block
-	| Record      !Range Name (Maybe Name) [TypedBindings] Expr [Declaration]
+	| Record      !Range Name (Maybe Name) [TypedBindings] (Maybe Expr) [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name
@@ -330,6 +333,8 @@ patternHead p =
     DotP{}               -> Nothing
     LitP (LitQName _ x)  -> Nothing -- return $ unqualify x -- does not compile
     LitP _               -> Nothing
+    InstanceP _ (namedPat) -> patternHead (namedThing namedPat)
+
 
 -- | Get all the identifiers in a pattern in left-to-right order.
 patternNames :: Pattern -> [Name]
@@ -346,7 +351,7 @@ patternNames p =
     AsP _ x p            -> patternNames p
     DotP{}               -> []
     LitP _               -> []
-
+    InstanceP _ (namedPat) -> patternNames (namedThing namedPat)
 
 {--------------------------------------------------------------------------
     Instances

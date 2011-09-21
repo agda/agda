@@ -316,17 +316,17 @@ nameKinds mErr decls = do
   getDef :: A.Definition -> Map A.QName NameKind
   getDef (A.FunSig d)            = Map.empty
   getDef (A.FunDef  _ q _)       = Map.singleton q Function
-  getDef (A.DataSig _ q _)       = Map.singleton q Datatype
+  getDef (A.DataSig _ q _ _)       = Map.singleton q Datatype
   getDef (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
                                    (Map.unions $
                                     map (\q -> Map.singleton q (Constructor SC.Inductive)) $
                                     map getAxiomName cs)
-  getDef (A.RecDef  _ q c _ _ _) = Map.singleton q Record `union`
+  getDef (A.RecSig _ q _ _)      = Map.singleton q Record
+  getDef (A.RecDef _ q c _ _ _)  = Map.singleton q Record `union`
                                    case c of
                                      Nothing -> Map.empty
-                                     Just (A.Axiom _ _ q _) ->
+                                     Just q ->
                                        Map.singleton q (Constructor SC.Inductive)
-                                     Just _ -> __IMPOSSIBLE__
   getDef (A.ScopedDef {})        = Map.empty
 
   getDecl :: A.Declaration -> Map A.QName NameKind

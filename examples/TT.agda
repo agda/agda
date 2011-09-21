@@ -79,11 +79,11 @@ module Fin where
     fsuc'  : A -> Suc A
 
   mutual
+    Fin' : Nat -> Set
 
     data Fin (n : Nat) : Set where
       finI : Fin' n -> Fin n
 
-    Fin' : Nat -> Set
     Fin'  zero   = Zero
     Fin' (suc n) = Suc (Fin n)
 
@@ -128,11 +128,11 @@ module Vec where
     cons' : A -> As -> Cons A As
 
   mutual
+    Vec' : Set -> Nat -> Set
 
     data Vec (A : Set)(n : Nat) : Set where
       vecI : Vec' A n -> Vec A n
 
-    Vec' : Set -> Nat -> Set
     Vec' A  zero   = Nil
     Vec' A (suc n) = Cons A (Vec A n)
 
@@ -266,43 +266,60 @@ module Typed where
     infix  5  _==_
 
     -- Contexts ---------------------------------------------------------------
+    data CSuc (n : Nat) : Set
 
     Context' : Nat -> Set
     Context' zero    = Nil
     Context' (suc n) = CSuc n
 
-    data CSuc (n : Nat) : Set where
+    data Context (n : Nat) : Set
+    data Type {n : Nat}(Γ : Context n) : Set
+
+    data CSuc n where
       ext : (Γ : Context n) -> Type Γ -> Context' (suc n)
 
-    data Context (n : Nat) : Set where
+    data Context n where
       ctxI : Context' n -> Context n
 
     -- Types ------------------------------------------------------------------
+    _&_ : {n : Nat}(Γ : Context n) -> Type Γ -> Context (suc n)
+    data Term {n : Nat}(Γ : Context n)(A : Type Γ) : Set
 
-    data Type {n : Nat}(Γ : Context n) : Set where
+    data Type {n} Γ where
       SET : Type Γ
       Pi  : (A : Type Γ) -> Type (Γ & A) -> Type Γ
       El  : Term Γ SET -> Type Γ
 
-    _&_ : {n : Nat}(Γ : Context n) -> Type Γ -> Context (suc n)
+
     Γ & A = ctxI (ext Γ A)
 
     -- Variables --------------------------------------------------------------
+    data VarSuc {n : Nat}(Γ : Context n)(B : Type Γ)(A : Type (Γ & B)) : Set
 
     Var' : {n : Nat}(Γ : Context n) -> Type Γ -> Set
     Var' {zero}   Γ              A = Zero
     Var' {suc n} (ctxI (ext Γ B)) A = VarSuc Γ B A
 
-    data VarSuc {n : Nat}(Γ : Context n)(B : Type Γ)(A : Type (Γ & B)) : Set where
+    _==_ : {n : Nat}{Γ : Context n} -> Type Γ -> Type Γ -> Set
+    data Ren {n m : Nat}(Γ : Context n)(Δ : Context m) : Set
+
+    rename : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Ren Γ Δ -> Type Γ -> Type Δ
+    upR : {n : Nat}{Γ : Context n}{A : Type Γ} -> Ren Γ (Γ & A)
+    data Var {n : Nat}(Γ : Context n)(A : Type Γ) : Set
+
+    data VarSuc {n} Γ B A where
       vzero_ : A == rename upR B -> Var' (Γ & B) A
       vsuc_  : (C : Type Γ) -> A == rename upR C -> Var Γ C -> Var' (Γ & B) A
 
-    data Var {n : Nat}(Γ : Context n)(A : Type Γ) : Set where
+    data Var {n} Γ A where
       varI : Var' Γ A -> Var Γ A
 
     -- Terms ------------------------------------------------------------------
+    data Sub {n m : Nat}(Γ : Context n)(Δ : Context m) : Set
+    subst : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Sub Γ Δ -> Type Γ -> Type Δ
+    down : {n : Nat}{Γ : Context n}{A : Type Γ} -> Term Γ A -> Sub (Γ & A) Γ
 
-    data Term {n : Nat}(Γ : Context n)(A : Type Γ) : Set where
+    data Term {n} Γ A where
       var : (x : Var Γ A) -> Term Γ A
       app : {B : Type Γ}{C : Type (Γ & B)} -> Term Γ (Pi B C) -> (t : Term Γ B) ->
             A == subst (down t) C -> Term Γ A
@@ -319,38 +336,49 @@ module Typed where
     _!!_ {suc _} (ctxI (ext Γ A)) (finI (fsuc' i)) = rename upR (Γ !! i)
 
     -- Renamings --------------------------------------------------------------
+    data ConsRen {n m : Nat}(Γ : Context n)(A : Type Γ)(Δ : Context m) : Set
 
     Ren' : {n m : Nat} -> Context n -> Context m -> Set
     Ren' {zero}  {m} (ctxI nil')      Δ = Nil
     Ren' {suc n} {m} (ctxI (ext Γ A)) Δ = ConsRen Γ A Δ
 
-    data ConsRen {n m : Nat}(Γ : Context n)(A : Type Γ)(Δ : Context m) : Set where
+    data ConsRen {n m} Γ A Δ where
       extRen' : (ρ : Ren Γ Δ) -> Var Δ (rename ρ A) -> Ren' (Γ & A) Δ
 
-    data Ren {n m : Nat}(Γ : Context n)(Δ : Context m) : Set where
+    data Ren {n m} Γ Δ where
       renI : Ren' Γ Δ -> Ren Γ Δ
 
     -- Performing renamings ---------------------------------------------------
+    rename' : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Ren Γ Δ -> Type Γ -> Type Δ
 
-    rename : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Ren Γ Δ -> Type Γ -> Type Δ
     rename ρ SET = SET
     rename ρ A  = rename' ρ A
 
-    rename' : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Ren Γ Δ -> Type Γ -> Type Δ
+    liftR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
+            (ρ : Ren Γ Δ) -> Ren (Γ & A) (Δ & rename ρ A)
+    renameTerm : {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ}
+                 (ρ : Ren Γ Δ) -> Term Γ A -> Term Δ (rename ρ A)
+
     rename' ρ SET      = SET
     rename' ρ (Pi A B) = Pi (rename ρ A) (rename (liftR ρ) B)
     rename' ρ (El t)   = El (renameTerm ρ t)
 
-    renameTerm : {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ}
-                 (ρ : Ren Γ Δ) -> Term Γ A -> Term Δ (rename ρ A)
+    lookupR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m}
+              (ρ : Ren Γ Δ)(x : Var Γ A) -> Var Δ (rename ρ A)
+    cong : {n m : Nat}{Γ : Context n}{Δ : Context m}(f : Type Γ -> Type Δ)
+           {A B : Type Γ} -> A == B -> f A == f B
+    _trans_ : {n : Nat}{Γ : Context n}{A B C : Type Γ} -> A == B -> B == C -> A == C
+    renameSubstCommute :
+      {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ}{B : Type (Γ & A)}
+      {ρ : Ren Γ Δ}{t : Term Γ A} ->
+      rename ρ (subst (down t) B) == subst (down (renameTerm ρ t)) (rename (liftR ρ) B)
+
     renameTerm ρ (var x)      = var (lookupR ρ x)
     renameTerm {_}{_}{_}{_}{A} ρ (app{_}{C} s t eq) =
         app (renameTerm ρ s) (renameTerm ρ t)
             (cong (rename ρ) eq  trans  renameSubstCommute)
     renameTerm ρ (lam t eq)   = lam (renameTerm (liftR ρ) t) (cong (rename ρ) eq)
 
-    lookupR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m}
-              (ρ : Ren Γ Δ)(x : Var Γ A) -> Var Δ (rename ρ A)
     lookupR {zero} _ (varI ())
     lookupR {suc n} {_} {ctxI (ext Γ B)} {A} {Δ}
             (renI (extRen' ρ z)) (varI (vzero_ eq)) = {!!}
@@ -363,52 +391,52 @@ module Typed where
              (ρ : Ren Γ Δ) -> Var Δ (rename ρ A) -> Ren (Γ & A) Δ
     extRen ρ x = renI (extRen' ρ x)
 
-    liftR : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
-            (ρ : Ren Γ Δ) -> Ren (Γ & A) (Δ & rename ρ A)
+    _coR_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Ren Δ Θ -> Ren Γ Δ -> Ren Γ Θ
+
     liftR {_}{_}{_}{A} ρ = extRen (upR coR ρ) (varI {!!})
 
     idR : {n : Nat} {Γ : Context n} -> Ren Γ Γ
     idR = {!!}
 
-    _coR_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Ren Δ Θ -> Ren Γ Δ -> Ren Γ Θ
     _coR_ = {!!}
 
-    upR : {n : Nat}{Γ : Context n}{A : Type Γ} -> Ren Γ (Γ & A)
     upR = {!!}
 
     -- Substitutions ----------------------------------------------------------
+    data ConsSub {n m : Nat}(Γ : Context n)(A : Type Γ)(Δ : Context m) : Set
 
     Sub' : {n m : Nat} -> Context n -> Context m -> Set
     Sub' {zero}  {m} (ctxI nil')      Δ = Nil
     Sub' {suc n} {m} (ctxI (ext Γ A)) Δ = ConsSub Γ A Δ
 
-    data ConsSub {n m : Nat}(Γ : Context n)(A : Type Γ)(Δ : Context m) : Set where
+    data ConsSub {n m} Γ A Δ  where
       extSub' : (σ : Sub Γ Δ) -> Term Δ (subst σ A) -> Sub' (Γ & A) Δ
 
-    data Sub {n m : Nat}(Γ : Context n)(Δ : Context m) : Set where
+    data Sub {n m} Γ Δ where
       subI : Sub' Γ Δ -> Sub Γ Δ
 
     -- Performing substitution ------------------------------------------------
+    subst' : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Sub Γ Δ -> Type Γ -> Type Δ
 
-    subst : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Sub Γ Δ -> Type Γ -> Type Δ
     subst σ SET              = SET
     subst σ A        = subst' σ A
 
-    subst' : {n m : Nat}{Γ : Context n}{Δ : Context m} -> Sub Γ Δ -> Type Γ -> Type Δ
+    liftS : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
+            (σ : Sub Γ Δ) -> Sub (Γ & A) (Δ & subst σ A)
+
+    substTerm : {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ} ->
+                (σ : Sub Γ Δ) -> Term Γ A -> Term Δ (subst σ A)
+
     subst' σ (Pi A B) = Pi (subst σ A) (subst (liftS σ) B)
     subst' σ (El t)   = El (substTerm σ t)
     subst' σ SET      = SET
 
-    substTerm : {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ} ->
-                (σ : Sub Γ Δ) -> Term Γ A -> Term Δ (subst σ A)
     substTerm σ (var x)             = {!!}
     substTerm σ (app s t eq) = {!!}
     substTerm σ (lam t eq)   = {!!}
 
     -- Building substitutions -------------------------------------------------
 
-    liftS : {n m : Nat}{Γ : Context n}{A : Type Γ}{Δ : Context m} ->
-            (σ : Sub Γ Δ) -> Sub (Γ & A) (Δ & subst σ A)
     liftS {_}{_}{_}{A} σ = {!!} -- extSub (upS ∘ σ) (var fzero (substCompose upS σ A))
       -- Works with hidden args to substCompose when inlined in subst 
       -- but not here. Weird.
@@ -424,7 +452,14 @@ module Typed where
     idS {zero}  {ctxI nil'}      = topS
     idS {suc _} {ctxI (ext Γ A)} = {!!} -- extSub upS (var fzero refl)
 
+    convert : {n : Nat}{Γ : Context n}{A B : Type Γ} -> A == B -> Term Γ B -> Term Γ A
+
     _∘_ : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p} -> Sub Δ Θ -> Sub Γ Δ -> Sub Γ Θ
+
+    substCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
+                   (σ : Sub Δ Θ)(δ : Sub Γ Δ)(A : Type Γ) -> 
+                   subst (σ ∘ δ) A == subst σ (subst δ A)
+
     _∘_ {zero} {_}{_} {ctxI nil'}      _  _                 = topS
     _∘_ {suc _}{_}{_} {ctxI (ext Γ A)} σ (subI (extSub' δ t)) =
       extSub (σ ∘ δ) (convert (substCompose σ δ A) (substTerm σ t))
@@ -432,25 +467,22 @@ module Typed where
     upS : {n : Nat}{Γ : Context n}{A : Type Γ} -> Sub Γ (Γ & A)
     upS = {!!}
 
-    down : {n : Nat}{Γ : Context n}{A : Type Γ} -> Term Γ A -> Sub (Γ & A) Γ
+    substId : {n : Nat}{Γ : Context n}{A : Type Γ} -> subst idS A == A
+
     down t = extSub idS (convert substId t)
 
     -- Convertibility ---------------------------------------------------------
 
-    _==_ : {n : Nat}{Γ : Context n} -> Type Γ -> Type Γ -> Set
+
     A == B = {!!}
 
     refl : {n : Nat}{Γ : Context n}{A : Type Γ} -> A == A
     refl = {!!}
 
-    cong : {n m : Nat}{Γ : Context n}{Δ : Context m}(f : Type Γ -> Type Δ)
-           {A B : Type Γ} -> A == B -> f A == f B
     cong f eq = {!!}
 
-    _trans_ : {n : Nat}{Γ : Context n}{A B C : Type Γ} -> A == B -> B == C -> A == C
     ab trans bc = {!!}
 
-    convert : {n : Nat}{Γ : Context n}{A B : Type Γ} -> A == B -> Term Γ B -> Term Γ A
     convert eq t = {!!}
 
     -- Properties -------------------------------------------------------------
@@ -463,18 +495,10 @@ module Typed where
                     rename (σ coR δ) A == rename σ (rename δ A)
     renameCompose σ δ A = {!!}
 
-    substId : {n : Nat}{Γ : Context n}{A : Type Γ} -> subst idS A == A
     substId = {!!}
 
-    substCompose : {n m p : Nat}{Γ : Context n}{Δ : Context m}{Θ : Context p}
-                   (σ : Sub Δ Θ)(δ : Sub Γ Δ)(A : Type Γ) -> 
-                   subst (σ ∘ δ) A == subst σ (subst δ A)
     substCompose σ δ A = {!!}
 
-    renameSubstCommute :
-      {n m : Nat}{Γ : Context n}{Δ : Context m}{A : Type Γ}{B : Type (Γ & A)}
-      {ρ : Ren Γ Δ}{t : Term Γ A} ->
-      rename ρ (subst (down t) B) == subst (down (renameTerm ρ t)) (rename (liftR ρ) B)
     renameSubstCommute = {!!}
 
 

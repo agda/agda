@@ -10,10 +10,10 @@ data Two : Bool -> Set where
   suc  : Two false -> Two true
 
 mutual
+  D′ : forall b -> Two b -> Set
   data D : Set where
     d : forall u -> D′ true u -> D
 
-  D′ : forall b -> Two b -> Set
   D′ ._ zero    = D
   D′ ._ (suc n) = D′ _ n -> Bool
 

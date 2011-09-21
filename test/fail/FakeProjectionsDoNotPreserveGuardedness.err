@@ -4,6 +4,6 @@ Termination checking failed for the following functions:
 Problematic calls:
   .FakeProjectionsDoNotPreserveGuardedness.♯-0 a
   repeat' a
-    (at FakeProjectionsDoNotPreserveGuardedness.agda:57,25-32)
+    (at FakeProjectionsDoNotPreserveGuardedness.agda:58,25-32)
   repeat a
-    (at FakeProjectionsDoNotPreserveGuardedness.agda:60,21-27)
+    (at FakeProjectionsDoNotPreserveGuardedness.agda:61,21-27)

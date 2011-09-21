@@ -6,11 +6,12 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 mutual
+  data Foo (A : Set) : Set
 
   F : Nat -> Set
   F zero    = Nat
   F (suc n) = Foo (F n)
 
-  data Foo (A : Set) : Set where
+  data Foo A where
     fooI1 : F (suc zero)
 

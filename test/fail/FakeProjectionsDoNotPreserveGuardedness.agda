@@ -52,9 +52,10 @@ data Stream (A : Set) : Set where
   _∷_ : (x : A) (xs : ∞ (Stream A)) → Stream A
 
 mutual
+  repeat' : {A : Set}(a : A) → A × ∞ (Stream A)
 
   repeat : {A : Set}(a : A) → Stream A
   repeat a = a ∷ proj₂ (repeat' a)
 
-  repeat' : {A : Set}(a : A) → A × ∞ (Stream A)
+
   repeat' a = a , ♯ repeat a

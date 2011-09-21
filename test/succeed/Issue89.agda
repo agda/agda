@@ -26,11 +26,12 @@ infixr 5 _⋎_
 infix  4 ↓_
 
 mutual
+  data StreamProg (A : Set) : Set1
 
   data Stream′ A : Set1 where
     _≺_ : (x : A) (xs : ∞ (StreamProg A)) -> Stream′ A
 
-  data StreamProg (A : Set) : Set1 where
+  data StreamProg A where
     ↓_  : (xs : Stream′ A) -> StreamProg A
     _∞  : (x : A) -> StreamProg A
     _⋎_ : (xs ys : StreamProg A) -> StreamProg A
@@ -48,11 +49,12 @@ P⇒′ (xs ⋎ ys) with P⇒′ xs
 P⇒′ (xs ⋎ ys) | xs′ = head′ xs′ ≺ ♯ (ys ⋎ tail′ xs′)
 
 mutual
+  P⇒ : forall {A} -> StreamProg A -> Stream A
 
   ′⇒ : forall {A} -> Stream′ A -> Stream A
   ′⇒ (x ≺ xs) = x ≺ ♯ P⇒ (♭ xs)
 
-  P⇒ : forall {A} -> StreamProg A -> Stream A
+
   P⇒ xs = ′⇒ (P⇒′ xs)
 
 ------------------------------------------------------------------------

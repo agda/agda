@@ -30,11 +30,11 @@ G : ∀ {i} → Box (∞ (P i)) → I
 G [ x ] = _
 
 mutual
+  g : ∀ {i} (x : Box (∞ (P i))) → Box (∞ (P (G x)))
 
   f : ∀ {i} (x : P i) → P (F x)
   f (c x) = c (g x)
 
-  g : ∀ {i} (x : Box (∞ (P i))) → Box (∞ (P (G x)))
   g [ x ] = [ ♯ f (♭ x) ]
 
 -- The code above type checks, but the termination checker should

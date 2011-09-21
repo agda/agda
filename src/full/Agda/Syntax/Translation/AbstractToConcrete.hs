@@ -511,35 +511,43 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
 
 data TypeAndDef = TypeAndDef A.TypeSignature A.Definition
 
+instance ToConcrete (Maybe A.QName) (Maybe C.Name) where
+  toConcrete Nothing = return Nothing
+  toConcrete (Just x) = do
+    x' <- toConcrete (qnameName x)
+    return $ Just x'
+
 instance ToConcrete Definition [C.Declaration] where
   toConcrete (A.FunDef i _ cs) =
     withAbstractPrivate i $ do
      cs' <- toConcrete cs
      return $ concat cs'
 
-  toConcrete (A.DataSig i x bs) =
+  toConcrete (A.DataSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      return [ C.DataSig (getRange i) Inductive x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) ]
+      t' <- toConcrete t
+      return [ C.DataSig (getRange i) Inductive x' tel' t' ]
 
   toConcrete (A.DataDef i x bs cs) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) Inductive x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) cs' ]
+      return [ C.Data (getRange i) Inductive x' (telToTypedBindingss tel') Nothing cs' ]
 
-  toConcrete (A.RecSig i x bs _) =
+  toConcrete (A.RecSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      return [ C.RecordSig (getRange i) x' (telToTypedBindingss tel') (C.Underscore noRange Nothing) ]
+      t' <- toConcrete t
+      return [ C.RecordSig (getRange i) x' tel' t' ]
 
-  toConcrete (A.RecDef  i x c bs _ cs) =
+  toConcrete (A.RecDef  i x c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' Nothing (telToTypedBindingss tel') (C.Underscore noRange Nothing) cs' ]
+      return [ C.Record (getRange i) x' Nothing (telToTypedBindingss tel') Nothing cs' ]
 {-
     where
     help :: C.LamBinding -> C.TypedBindings
@@ -584,7 +592,7 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Data (getRange i) Inductive x' tel' t' cs' ]
+      return [ C.Data (getRange i) Inductive x' tel' (Just t') cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel n (ScopedExpr _ t) = mkTel n t
@@ -598,9 +606,8 @@ instance ToConcrete TypeAndDef [C.Declaration] where
     bindToConcrete tel $ \tel' -> do
       t'       <- toConcreteCtx TopCtx t0
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      c'       <- Trav.mapM (\d -> unsafeQNameToName <$>
-                                     toConcrete (axiomName d)) c
-      return [ C.Record (getRange i) x' c' tel' t' cs' ]
+      c'       <- Trav.mapM (\d -> unsafeQNameToName <$> toConcrete d) c
+      return [ C.Record (getRange i) x' c' tel' (Just t') cs' ]
     where
       (tel, t0) = mkTel (length bs) t
       mkTel n (A.ScopedExpr _ t) = mkTel n t
