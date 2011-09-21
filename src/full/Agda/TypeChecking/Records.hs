@@ -109,6 +109,11 @@ isEtaRecord r = do
     Record{recEtaEquality = eta} -> eta
     _                            -> False
 
+-- | Check if a type is an eta expandable record and return the record identifier and the parameters.
+isEtaRecordType :: Type -> TCM (Maybe (QName, Args))
+isEtaRecordType (El _ (Def d ps)) = ifM (isEtaRecord d) (return $ Just (d, ps)) (return Nothing)
+isEtaRecordType _ = return Nothing
+
 -- | Check if a name refers to a record constructor.
 isRecordConstructor :: QName -> TCM Bool
 isRecordConstructor c = do

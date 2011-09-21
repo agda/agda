@@ -365,6 +365,15 @@ absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
 absAppHH (Abs   _ t) u = substHH u t
 absAppHH (NoAbs _ t) u = trivialHH t
 
+class ApplyHH t where
+  applyHH :: t -> HomHet Args -> HomHet t
+
+instance ApplyHH Term where
+  applyHH t = fmap (apply t)
+
+instance ApplyHH Type where
+  applyHH (El s t) args = fmap (El s) $ applyHH t args
+
 substHH :: SubstHH t tHH => TermHH -> t -> tHH
 substHH = substUnderHH 0
 
@@ -621,6 +630,9 @@ unifyIndices flex a us vs = liftTCM $ do
             Het a1 a2 | a1 == a2 -> (Hom a1, True, a1) -- BRITTLE: just checking syn.eq.
             _                    -> (aHH0, False, __IMPOSSIBLE__)
            -- ^ use @a@ only if 'homogeneous' holds!
+
+          fallback = checkEqualityHH aHH u v
+
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyAtom"
 	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
@@ -687,9 +699,31 @@ unifyIndices flex a us vs = liftTCM $ do
                    ]
             if ok then unify a u v
                   else addEquality a u v
+
+	(Con c us, _) -> do
+           md <- isEtaRecordTypeHH aHH
+           case md of
+             Just (d, parsHH) -> do
+               (tel, vs) <- liftTCM $ etaExpandRecord d (rightHH parsHH) v
+               b <- liftTCM $ getRecordConstructorType d
+               bHH <- ureduce (b `applyHH` parsHH)
+               unifyConstructorArgs bHH us vs
+             Nothing -> fallback
+
+	(_, Con c vs) -> do
+           md <- isEtaRecordTypeHH aHH
+           case md of
+             Just (d, parsHH) -> do
+               (tel, us) <- liftTCM $ etaExpandRecord d (leftHH parsHH) u
+               b <- liftTCM $ getRecordConstructorType d
+               bHH <- ureduce (b `applyHH` parsHH)
+               unifyConstructorArgs bHH us vs
+             Nothing -> fallback
+
         -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
         -- because there are definitions blocked by flexibles that need postponement
-	_  -> checkEqualityHH aHH u v
+	_  -> fallback
+
 
     unify :: Type -> Term -> Term -> Unify ()
     unify a = unifyHH (Hom a)
@@ -886,6 +920,16 @@ dataOrRecordTypeHH c (Het a1 a2) = do
          -- TODO: make this smarter, because parameters could be equal!
          else Het (b1 `apply` pars1) (b2 `apply` pars2)
     _ -> Nothing
+
+-- | Return record type identifier if argument is a record type.
+isEtaRecordTypeHH :: MonadTCM tcm => TypeHH -> tcm (Maybe (QName, HomHet Args))
+isEtaRecordTypeHH (Hom a) = fmap (\ (d, ps) -> (d, Hom ps)) <$> liftTCM (isEtaRecordType a)
+isEtaRecordTypeHH (Het a1 a2) = do
+  m1 <- liftTCM $ isEtaRecordType a1
+  m2 <- liftTCM $ isEtaRecordType a2
+  case (m1, m2) of
+    (Just (d1, as1), Just (d2, as2)) | d1 == d2 -> return $ Just (d1, Het as1 as2)
+    _ -> return Nothing
 
 
 {-
