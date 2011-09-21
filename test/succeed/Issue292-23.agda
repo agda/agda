@@ -1,6 +1,6 @@
 -- Andreas, 2011-09-21, reported by Nisse
 -- {-# OPTIONS -v tc.lhs.unify:25 #-}
-module Issue292i where
+module Issue292-23 where
 
 data ⊤ : Set where
   tt : ⊤

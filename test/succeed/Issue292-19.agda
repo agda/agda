@@ -1,5 +1,5 @@
 
-module Issue292h where
+module Issue292-19 where
 
 postulate
   I     : Set

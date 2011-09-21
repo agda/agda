@@ -1,6 +1,6 @@
 -- Fixed on AIM XIV 2011-09-09 AA, UN
 -- {-# OPTIONS -v tc.lhs.unify:50 #-}
-module Issue292b where
+module Issue292 where
 
 data ⊥ : Set where
 

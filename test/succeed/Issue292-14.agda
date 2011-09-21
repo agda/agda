@@ -1,7 +1,7 @@
 -- 2011-09-14 posted by Nisse
 -- Andreas: this failed since SubstHH for Telescopes was wrong.
 -- {-# OPTIONS --show-implicit -v tc.lhs.unify:15 #-}
-module Issue292d where
+module Issue292-14 where
 
 data D : Set where
   d : D

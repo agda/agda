@@ -1,6 +1,6 @@
 -- 2011-09-15 posted by Nisse, variant of Issue292e
 -- {-# OPTIONS --show-implicit -v tc.lhs.unify:15 #-}
-module Issue292f where
+module Issue292-16b where
 
 data _≡_ {A : Set} (x : A) : A → Set where
   refl : x ≡ x
