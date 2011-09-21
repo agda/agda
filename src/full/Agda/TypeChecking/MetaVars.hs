@@ -302,8 +302,14 @@ postponeTypeCheckingProblem e t unblock = do
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
+  -- Create the meta that we actually return
+  v   <- newValueMeta t
+  i   <- liftTCM (fresh :: TCM Integer)
+  vs  <- getContextArgs
+  cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m vs))
+  listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
-  MetaV m <$> getContextArgs
+  return v
 
 -- | Eta expand metavariables listening on the current meta.
 etaExpandListeners :: MetaId -> TCM ()
