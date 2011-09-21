@@ -14,6 +14,7 @@ import Data.Maybe
 
 import Agda.TypeChecking.Monad
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Substitute
 import Agda.Syntax.Common
 
 import Agda.Compiler.Epic.CompileState hiding (conPars)

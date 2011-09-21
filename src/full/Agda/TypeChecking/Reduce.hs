@@ -216,8 +216,9 @@ instance Reduce LevelAtom where
           NotBlocked v            -> return $ NotBlocked $ NeutralLevel v
 
 
-instance Reduce t => Reduce (Abs t) where
-  reduce b = Abs (absName b) <$> underAbstraction_ b reduce
+instance (Raise t, Reduce t) => Reduce (Abs t) where
+  reduce b@(Abs x _) = Abs x <$> underAbstraction_ b reduce
+  reduce (NoAbs v)   = NoAbs <$> reduce v
 
 -- Lists are never blocked
 instance Reduce t => Reduce [t] where
@@ -370,15 +371,15 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                       app args' body)
                   | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
 
-        hasBody (Body _)	 = True
-        hasBody NoBody		 = False
-        hasBody (Bind (Abs _ b)) = hasBody b
+        hasBody (Body _) = True
+        hasBody NoBody   = False
+        hasBody (Bind b) = hasBody (unAbs b)
 
-        app []		 (Body v')	     = v'
-        app (arg : args) (Bind (Abs _ body)) = {-# SCC "instRHS" #-} app args $ subst arg body -- CBN
-        app  _		  NoBody	     = __IMPOSSIBLE__
-        app (_ : _)	 (Body _)	     = __IMPOSSIBLE__
-        app []		 (Bind _)	     = __IMPOSSIBLE__
+        app []		 (Body v') = v'
+        app (arg : args) (Bind b)  = app args $ absApp b arg -- CBN
+        app  _		  NoBody   = __IMPOSSIBLE__
+        app (_ : _)	 (Body _)  = __IMPOSSIBLE__
+        app []		 (Bind _)  = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
@@ -467,8 +468,9 @@ instance Normalise ClauseBody where
     normalise (Bind   b) = Bind   <$> normalise b
     normalise  NoBody	 = return NoBody
 
-instance Normalise t => Normalise (Abs t) where
-    normalise a = Abs (absName a) <$> underAbstraction_ a normalise
+instance (Raise t, Normalise t) => Normalise (Abs t) where
+    normalise a@(Abs x _) = Abs x <$> underAbstraction_ a normalise
+    normalise (NoAbs v)   = NoAbs <$> normalise v
 
 instance Normalise t => Normalise (Arg t) where
     normalise = traverse normalise
@@ -489,7 +491,7 @@ instance Normalise a => Normalise (Closure a) where
 	x <- enterClosure cl normalise
 	return $ cl { clValue = x }
 
-instance Normalise a => Normalise (Tele a) where
+instance (Raise a, Normalise a) => Normalise (Tele a) where
   normalise EmptyTel        = return EmptyTel
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
 
@@ -602,8 +604,9 @@ instance InstantiateFull ClauseBody where
     instantiateFull (Bind   b) = Bind   <$> instantiateFull b
     instantiateFull  NoBody    = return NoBody
 
-instance InstantiateFull t => InstantiateFull (Abs t) where
-    instantiateFull a = Abs (absName a) <$> underAbstraction_ a instantiateFull
+instance (Raise t, InstantiateFull t) => InstantiateFull (Abs t) where
+    instantiateFull a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull
+    instantiateFull (NoAbs a)   = NoAbs <$> instantiateFull a
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
     instantiateFull = traverse instantiateFull
@@ -659,7 +662,7 @@ instance InstantiateFull Signature where
 instance InstantiateFull Section where
   instantiateFull (Section tel n) = flip Section n <$> instantiateFull tel
 
-instance InstantiateFull a => InstantiateFull (Tele a) where
+instance (Raise a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull EmptyTel = return EmptyTel
   instantiateFull (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull (a, b)
 

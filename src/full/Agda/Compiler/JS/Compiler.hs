@@ -21,8 +21,9 @@ import Agda.Syntax.Internal
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
-    toTopLevelModuleName, mnameToList, qnameName, absBody,
-    clausePats, clauseBody, arity, unEl )
+    toTopLevelModuleName, mnameToList, qnameName,
+    clausePats, clauseBody, arity, unEl, unAbs )
+import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
 import Agda.TypeChecking.Monad
@@ -258,9 +259,9 @@ visitorName :: QName -> TCM MemberId
 visitorName q = do (m,ls) <- global q; return (last ls)
 
 body :: ClauseBody -> TCM Exp
-body (Body e)         = term e
-body (Bind (Abs _ e)) = body e
-body (NoBody)         = return Undefined
+body (Body e) = term e
+body (Bind b) = body (unAbs b)
+body (NoBody) = return Undefined
 
 term :: Term -> TCM Exp
 term (Var   i as)         = do

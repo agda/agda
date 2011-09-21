@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
-    DeriveDataTypeable, DeriveFunctor #-}
+    DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
 module Agda.TypeChecking.Substitute where
 
 import Control.Monad.Identity
@@ -8,6 +8,8 @@ import Control.Arrow ((***))
 
 import Data.Generics (Typeable, Data)
 import Data.List hiding (sort)
+import qualified Data.List as List
+import Data.Function
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -135,6 +137,7 @@ instance Apply FunctionInverse where
 instance Apply ClauseBody where
     apply  b               []       = b
     apply (Bind (Abs _ b)) (a:args) = subst (unArg a) b `apply` args
+    apply (Bind (NoAbs b)) (_:args) = b `apply` args
     apply (Body _)         (_:_)    = __IMPOSSIBLE__
     apply  NoBody           _       = NoBody
 
@@ -250,7 +253,7 @@ instance Abstract a => Abstract (Case a) where
     Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
 
 telVars EmptyTel                    = []
-telVars (ExtendTel arg (Abs x tel)) = fmap (const $ VarP x) arg : telVars tel
+telVars (ExtendTel arg tel) = fmap (const $ VarP $ absName tel) arg : telVars (unAbs tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
@@ -402,7 +405,9 @@ instance Subst a => Subst (Tele a) where
 
 instance Subst a => Subst (Abs a) where
     substs us      (Abs x t) = Abs x $ substs (Var 0 [] : raise 1 us) t
+    substs us      (NoAbs t) = NoAbs $ substs us t
     substUnder n u (Abs x t) = Abs x $ substUnder (n + 1) u t
+    substUnder n u (NoAbs t) = NoAbs $ substUnder n u t
 
 instance Subst a => Subst (Arg a) where
     substs us      = fmap (substs us)
@@ -428,14 +433,14 @@ instance Subst ClauseBody where
     substUnder n u (Bind b)   = Bind $ substUnder n u b
     substUnder _ _   NoBody   = NoBody
 
--- | Instantiate an abstraction
-absApp :: Subst t => Abs t -> Term -> t
-absApp (Abs _ v) u = subst u v
-
 -- | Add @k@ to index of each open variable in @x@.
 class Raise t where
     raiseFrom :: Nat -> Nat -> t -> t
     renameFrom :: Nat -> (Nat -> Nat) -> t -> t
+
+instance Raise () where
+  raiseFrom  _ _ _ = ()
+  renameFrom _ _ _ = ()
 
 instance Raise Term where
     raiseFrom m k v =
@@ -640,6 +645,13 @@ data TelV a = TelV (Tele (Arg a)) a
 type TelView = TelV Type
 -- data TelView = TelV Telescope Type
 
+telFromList :: [Arg (String, Type)] -> Telescope
+telFromList = foldr (\(Arg h r (x, a)) -> ExtendTel (Arg h r a) . Abs x) EmptyTel
+
+telToList :: Telescope -> [Arg (String, Type)]
+telToList EmptyTel = []
+telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBody tel)
+
 telView' :: Type -> TelView
 telView' t = case unEl t of
   Pi a (Abs x b)  -> absV a x $ telView' b
@@ -681,3 +693,146 @@ dLub s1 s2 = case occurrence 0 $ freeVars (absBody s2) of
   NoOccurrence  -> sLub s1 (absApp s2 __IMPOSSIBLE__)
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
+
+-- Functions on abstractions ----------------------------------------------
+--   and things we couldn't do before we could define 'absBody'
+
+-- | Instantiate an abstraction
+absApp :: Subst t => Abs t -> Term -> t
+absApp (Abs _ v) u = subst u v
+absApp (NoAbs v) _ = v
+
+absBody :: Raise t => Abs t -> t
+absBody (Abs _ v) = v
+absBody (NoAbs v) = raise 1 v
+
+deriving instance (Raise a, Eq a) => Eq (Tele a)
+deriving instance (Raise a, Ord a) => Ord (Tele a)
+
+deriving instance Eq Sort
+deriving instance Ord Sort
+deriving instance Eq Type
+deriving instance Ord Type
+deriving instance Ord Term
+deriving instance Eq Level
+deriving instance Ord Level
+deriving instance Eq PlusLevel
+deriving instance Eq LevelAtom
+deriving instance Ord LevelAtom
+deriving instance Eq Elim
+deriving instance Ord Elim
+
+deriving instance Eq Constraint
+
+instance Ord PlusLevel where
+  compare ClosedLevel{} Plus{}            = LT
+  compare Plus{} ClosedLevel{}            = GT
+  compare (ClosedLevel n) (ClosedLevel m) = compare n m
+  -- Compare on the atom first. Makes most sense for levelMax.
+  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
+
+-- | Syntactic equality, ignores stuff below @DontCare@.
+instance Eq Term where
+  Var x vs   == Var x' vs'   = x == x' && vs == vs'
+  Lam h v    == Lam h' v'    = h == h' && v  == v'
+  Lit l      == Lit l'       = l == l'
+  Def x vs   == Def x' vs'   = x == x' && vs == vs'
+  Con x vs   == Con x' vs'   = x == x' && vs == vs'
+  Pi a b     == Pi a' b'     = a == a' && b == b'
+  Fun a b    == Fun a' b'    = a == a' && b == b'
+  Sort s     == Sort s'      = s == s'
+  Level l    == Level l'     = l == l'
+  MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
+  DontCare _ == DontCare _   = True
+  _          == _            = False
+
+instance (Raise a, Eq a) => Eq (Abs a) where
+  (==) = (==) `on` absBody
+
+instance (Raise a, Ord a) => Ord (Abs a) where
+  compare = compare `on` absBody
+
+-- Level stuff ------------------------------------------------------------
+
+sLub :: Sort -> Sort -> Sort
+sLub s Prop = s
+sLub Prop s = s
+sLub Inf _ = Inf
+sLub _ Inf = Inf
+sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
+sLub (DLub a b) c = DLub (sLub a c) b
+sLub a (DLub b c) = DLub (sLub a b) c
+
+lvlView :: Term -> Level
+lvlView (Level l)       = l
+lvlView (Sort (Type l)) = l
+lvlView v               = Max [Plus 0 $ UnreducedLevel v]
+
+levelMax :: [PlusLevel] -> Level
+levelMax as0 = Max $ ns ++ List.sort bs
+  where
+    as = Prelude.concatMap expand as0
+    ns = case [ n | ClosedLevel n <- as, n > 0 ] of
+      []  -> []
+      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > leastB ]
+    bs = subsume [ b | b@Plus{} <- as ]
+    leastB | null bs   = 0
+           | otherwise = Prelude.minimum [ n | Plus n _ <- bs ]
+
+    expand l@ClosedLevel{} = [l]
+    expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
+
+    expand0 [] = [ClosedLevel 0]
+    expand0 as = as
+
+    expandAtom (BlockedLevel _ (Level (Max as)))       = as
+    expandAtom (NeutralLevel   (Level (Max as)))       = as
+    expandAtom (UnreducedLevel (Level (Max as)))       = as
+    expandAtom (BlockedLevel _ (Sort (Type (Max as)))) = as
+    expandAtom (NeutralLevel   (Sort (Type (Max as)))) = as
+    expandAtom (UnreducedLevel (Sort (Type (Max as)))) = as
+    expandAtom l                                       = [Plus 0 l]
+
+    plus n (ClosedLevel m) = ClosedLevel (n + m)
+    plus n (Plus m l)      = Plus (n + m) l
+
+    subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
+    subsume [] = []
+    subsume (Plus n a : bs)
+      | not $ null ns = subsume bs
+      | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
+      where
+        ns = [ m | Plus m a'  <- bs, a == a', m > n ]
+
+sortTm :: Sort -> Term
+sortTm (Type l) = Sort $ levelSort l
+sortTm s        = Sort s
+
+levelSort :: Level -> Sort
+levelSort (Max as)
+  | List.any isInf as = Inf
+  where
+    isInf ClosedLevel{}        = False
+    isInf (Plus _ l)           = infAtom l
+    infAtom (NeutralLevel a)   = infTm a
+    infAtom (UnreducedLevel a) = infTm a
+    infAtom MetaLevel{}        = False
+    infAtom BlockedLevel{}     = False
+    infTm (Sort Inf)           = True
+    infTm _                    = False
+levelSort l =
+  case levelTm l of
+    Sort s -> s
+    _      -> Type l
+
+levelTm :: Level -> Term
+levelTm l =
+  case l of
+    Max [Plus 0 l] -> unAtom l
+    _              -> Level l
+  where
+    unAtom (MetaLevel x vs)   = MetaV x vs
+    unAtom (NeutralLevel v)   = v
+    unAtom (UnreducedLevel v) = v
+    unAtom (BlockedLevel _ v) = v
+

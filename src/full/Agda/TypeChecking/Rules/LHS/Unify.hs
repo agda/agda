@@ -4,6 +4,7 @@
 
 module Agda.TypeChecking.Rules.LHS.Unify where
 
+import Control.Arrow ((***), (&&&))
 import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
@@ -367,6 +368,7 @@ type TelViewHH = TelV TypeHH
 
 absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
 absAppHH (Abs _ t) u = substHH u t
+absAppHH (NoAbs t) u = trivialHH t
 
 substHH :: SubstHH t tHH => TermHH -> t -> tHH
 substHH = substUnderHH 0
@@ -374,6 +376,7 @@ substHH = substUnderHH 0
 -- | @substHH u t@ substitutes @u@ for the 0th variable in @t@.
 class SubstHH t tHH where
   substUnderHH :: Nat -> TermHH -> t -> tHH
+  trivialHH    :: t -> tHH
 
 instance (Free a, Subst a) => SubstHH (HomHet a) (HomHet a) where
   substUnderHH n (Hom u) t = fmap (substUnder n u) t
@@ -381,28 +384,35 @@ instance (Free a, Subst a) => SubstHH (HomHet a) (HomHet a) where
     if n `relevantIn` t then Het (substUnder n u1 t) (substUnder n u2 t)
      else Hom (substUnder n u1 t)
   substUnderHH n (Het u1 u2) (Het t1 t2) = Het (substUnder n u1 t1) (substUnder n u2 t2)
+  trivialHH = id
 
 instance SubstHH Term (HomHet Term) where
   substUnderHH n uHH t = fmap (\ u -> substUnder n u t) uHH
+  trivialHH = Hom
 
 instance SubstHH Type (HomHet Type) where
   substUnderHH n uHH (El s t) = fmap (\ u -> El s $ substUnder n u t) uHH
 -- fmap $ fmap (\ (El s v) -> El s $ substUnderHH n u v)
   -- we ignore sorts in substitution, since they do not contain
   -- terms we can match on
+  trivialHH = Hom
 
 instance SubstHH a b => SubstHH (Arg a) (Arg b) where
   substUnderHH n u = fmap $ substUnderHH n u
+  trivialHH = fmap trivialHH
 
 instance SubstHH a b => SubstHH (Abs a) (Abs b) where
   substUnderHH n u = fmap $ substUnderHH (n+1) u
+  trivialHH = fmap trivialHH
 
 instance (SubstHH a a', SubstHH b b') => SubstHH (a,b) (a',b') where
     substUnderHH n u (x,y) = (substUnderHH n u x, substUnderHH n u y)
+    trivialHH = trivialHH *** trivialHH
 
 instance SubstHH a b => SubstHH (Tele a) (Tele b) where
   substUnderHH n u  EmptyTel         = EmptyTel
   substUnderHH n u (ExtendTel t tel) = uncurry ExtendTel $ substUnderHH n u (t, tel)
+  trivialHH = fmap trivialHH
 
 -- | Unify indices.
 unifyIndices_ :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm Substitution

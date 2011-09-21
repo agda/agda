@@ -10,6 +10,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size

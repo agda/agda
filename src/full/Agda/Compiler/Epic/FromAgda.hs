@@ -205,9 +205,12 @@ substTerm env term = case term of
     T.Var ind args -> case length env <= fromIntegral ind of
         True  -> __IMPOSSIBLE__
         False -> apps (env !! fromIntegral ind) <$> mapM (substTerm env . unArg) args
-    T.Lam _ te -> do
+    T.Lam _ (Abs _ te) -> do
        name <- newName
-       Lam name <$> substTerm (name : env) (absBody te)
+       Lam name <$> substTerm (name : env) te
+    T.Lam _ (NoAbs te) -> do
+       name <- newName
+       Lam name <$> substTerm env te
     T.Lit l -> Lit <$> substLit l
     T.Level l -> substTerm env =<< lift (reallyUnLevelView l)
     T.Def q args -> do

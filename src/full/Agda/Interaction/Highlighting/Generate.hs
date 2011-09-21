@@ -413,7 +413,7 @@ generateConstructorInfo modMap file kinds decls = do
     where
       getRHS (I.Body v)   = Just v
       getRHS I.NoBody     = Nothing
-      getRHS (I.Bind b)   = getRHS (I.absBody b)
+      getRHS (I.Bind b)   = getRHS (I.unAbs b)
 
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.

@@ -259,7 +259,9 @@ checkModuleArity m tel args = check tel args
 
     check eta []             = return eta
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Arg h _ _) (Abs y tel)) args0@(Arg h' _ (Named name _) : args) =
+    check (ExtendTel (Arg h _ _) btel) args0@(Arg h' _ (Named name _) : args) =
+      let y   = absName btel
+          tel = absBody btel in
       case (h, h', name) of
         (Instance, NotHidden, _) -> check tel args0
         (Instance, Hidden, _) -> bad
@@ -324,7 +326,9 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel (Arg h r t) (Abs n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
+      instFinal (ExtendTel (Arg h r t) (NoAbs EmptyTel)) = ExtendTel (Arg Instance r t) (NoAbs EmptyTel)
       instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
+      instFinal (ExtendTel arg (NoAbs tel)) = ExtendTel arg (NoAbs (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel
   reportSDoc "tc.section.apply" 20 $ vcat

@@ -41,6 +41,10 @@ data SplitError	    = NothingToSplit
 
 type ProblemPart = Problem' ()
 
+instance Raise (Problem' p) where
+  raiseFrom  m k p = p { problemTel = raiseFrom  m k $  problemTel p }
+  renameFrom m k p = p { problemTel = renameFrom m k $  problemTel p }
+
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
 type Problem	 = Problem' (Permutation, [Arg Pattern])

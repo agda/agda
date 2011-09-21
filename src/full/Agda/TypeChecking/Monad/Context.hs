@@ -75,8 +75,8 @@ inContext xs ret = do
   flip local ret $ \e -> e { envContext = ctx }
 
 -- | Go under an abstraction.
-{-# SPECIALIZE underAbstraction :: Arg Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: MonadTCM tcm => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction :: Raise a => Arg Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction :: (Raise a, MonadTCM tcm) => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction t a k = do
     xs <- map (nameConcrete . fst . unArg) <$> getContext
     x <- freshName_ $ realName $ absName a
@@ -88,8 +88,8 @@ underAbstraction t a k = do
     realName s   = s
 
 -- | Go under an abstract without worrying about the type to add to the context.
-{-# SPECIALIZE underAbstraction_ :: Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: MonadTCM tcm => Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction_ :: Raise a => Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction_ :: (Raise a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction (Arg NotHidden Relevant $ sort Prop)
 
 -- | Add a telescope to the context.

@@ -8,6 +8,7 @@ import Agda.Compiler.Epic.CompileState
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Internal as T
+import qualified Agda.TypeChecking.Substitute as T
 import Agda.TypeChecking.Monad.Base (TCM)
 
 

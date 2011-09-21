@@ -44,29 +44,14 @@ data Term = Var Nat Args
           | Level Level
 	  | MetaV MetaId Args
           | DontCare (Maybe Term)  -- ^ (maybe nuked) irrelevant and other stuff
-  deriving (Typeable, Data, Ord, Show)
+  deriving (Typeable, Data, Show)
 -- Andreas 2010-09-21: @DontCare Nothing@ replaces the hack @Sort Prop@
 
--- | Syntactic equality, ignores stuff below @DontCare@.
-instance Eq Term where
-  Var x vs   == Var x' vs'   = x == x' && vs == vs'
-  Lam h v    == Lam h' v'    = h == h' && v  == v'
-  Lit l      == Lit l'       = l == l'
-  Def x vs   == Def x' vs'   = x == x' && vs == vs'
-  Con x vs   == Con x' vs'   = x == x' && vs == vs'
-  Pi a b     == Pi a' b'     = a == a' && b == b'
-  Fun a b    == Fun a' b'    = a == a' && b == b'
-  Sort s     == Sort s'      = s == s'
-  Level l    == Level l'     = l == l'
-  MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
-  DontCare _ == DontCare _   = True
-  _          == _            = False
-
 data Type = El Sort Term
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Data, Show)
 
 data Elim = Apply (Arg Term) | Proj QName -- ^ name of a record projection
-  deriving (Eq, Ord, Show)
+  deriving (Show)
 
 -- | Top sort (Set\omega).
 topSort :: Type
@@ -79,26 +64,20 @@ data Sort = Type Level
             -- ^ if the free variable occurs in the second sort
             --   the whole thing should reduce to Inf, otherwise
             --   it's the normal Lub
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Data, Show)
 
 newtype Level = Max [PlusLevel]
-  deriving (Show, Typeable, Data, Eq, Ord)
+  deriving (Show, Typeable, Data)
 
 data PlusLevel = ClosedLevel Integer
                | Plus Integer LevelAtom
-  deriving (Show, Eq, Typeable, Data)
+  deriving (Show, Typeable, Data)
 
 data LevelAtom = MetaLevel MetaId Args
                | BlockedLevel MetaId Term
                | NeutralLevel Term
                | UnreducedLevel Term
-  deriving (Show, Eq, Ord, Typeable, Data)
-
-instance Ord PlusLevel where
-  compare ClosedLevel{} Plus{}            = LT
-  compare Plus{} ClosedLevel{}            = GT
-  compare (ClosedLevel n) (ClosedLevel m) = compare n m
-  compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
+  deriving (Show, Typeable, Data)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
@@ -205,7 +184,7 @@ type Args = [Arg Term]
 --   and so on.
 data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))
-  deriving (Typeable, Data, Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Arg Type)
 
@@ -214,30 +193,27 @@ instance Sized (Tele a) where
   size (ExtendTel _ tel) = 1 + size tel
 
 -- | The body has (at least) one free variable.
-data Abs a = Abs { absName :: String
-		 , absBody :: a
-		 }
+data Abs a = Abs String a
+           | NoAbs a
   deriving (Typeable, Data, Functor, Foldable, Traversable)
 
-instance Eq a => Eq (Abs a) where
-  (==) = (==) `on` absBody
+-- | Danger: doesn't shift variables properly
+unAbs :: Abs a -> a
+unAbs (Abs _ v) = v
+unAbs (NoAbs v) = v
 
-instance Ord a => Ord (Abs a) where
-  compare = compare `on` absBody
+absName :: Abs a -> String
+absName (Abs x _) = x
+absName (NoAbs _) = "_"
 
 instance Show a => Show (Abs a) where
   showsPrec p (Abs x a) = showParen (p > 0) $
     showString "Abs " . shows x . showString " " . showsPrec 10 a
+  showsPrec p (NoAbs a) = showParen (p > 0) $
+    showString "NoAbs " . showsPrec 10 a
 
 instance Sized a => Sized (Abs a) where
-  size = size . absBody
-
-telFromList :: [Arg (String, Type)] -> Telescope
-telFromList = foldr (\(Arg h r (x, a)) -> ExtendTel (Arg h r a) . Abs x) EmptyTel
-
-telToList :: Telescope -> [Arg (String, Type)]
-telToList EmptyTel = []
-telToList (ExtendTel arg (Abs x tel)) = fmap ((,) x) arg : telToList tel
+  size = size . unAbs
 
 --
 -- Definitions
@@ -353,6 +329,18 @@ prop      = sort Prop
 sort s    = El (sSuc s) $ Sort s
 varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
 
+-- | Get the next higher sort.
+sSuc :: Sort -> Sort
+sSuc Prop            = mkType 1
+sSuc Inf             = Inf
+sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
+sSuc (Type l)        = Type $ levelSuc l
+
+levelSuc (Max []) = Max [ClosedLevel 1]
+levelSuc (Max as) = Max $ map inc as
+  where inc (ClosedLevel n) = ClosedLevel (n + 1)
+        inc (Plus n l)      = Plus (n + 1) l
+
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
 teleLam :: Telescope -> Term -> Term
@@ -364,100 +352,6 @@ getSort (El s _) = s
 
 unEl :: Type -> Term
 unEl (El _ t) = t
-
-sortTm :: Sort -> Term
-sortTm (Type l) = Sort $ levelSort l
-sortTm s        = Sort s
-
-levelSort :: Level -> Sort
-levelSort (Max as)
-  | List.any isInf as = Inf
-  where
-    isInf ClosedLevel{}        = False
-    isInf (Plus _ l)           = infAtom l
-    infAtom (NeutralLevel a)   = infTm a
-    infAtom (UnreducedLevel a) = infTm a
-    infAtom MetaLevel{}        = False
-    infAtom BlockedLevel{}     = False
-    infTm (Sort Inf)           = True
-    infTm _                    = False
-levelSort l =
-  case levelTm l of
-    Sort s -> s
-    _      -> Type l
-
-levelTm :: Level -> Term
-levelTm l =
-  case l of
-    Max [Plus 0 l] -> unAtom l
-    _              -> Level l
-  where
-    unAtom (MetaLevel x vs)   = MetaV x vs
-    unAtom (NeutralLevel v)   = v
-    unAtom (UnreducedLevel v) = v
-    unAtom (BlockedLevel _ v) = v
-
--- | Get the next higher sort.
-sSuc :: Sort -> Sort
-sSuc Prop            = mkType 1
-sSuc Inf             = Inf
-sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
-sSuc (Type l)        = Type $ levelSuc l
-
-sLub :: Sort -> Sort -> Sort
-sLub s Prop = s
-sLub Prop s = s
-sLub Inf _ = Inf
-sLub _ Inf = Inf
-sLub (Type (Max as)) (Type (Max bs)) = Type $ levelMax (as ++ bs)
-sLub (DLub a b) c = DLub (sLub a c) b
-sLub a (DLub b c) = DLub (sLub a b) c
-
-lvlView :: Term -> Level
-lvlView (Level l)       = l
-lvlView (Sort (Type l)) = l
-lvlView v               = Max [Plus 0 $ UnreducedLevel v]
-
-levelSuc (Max []) = Max [ClosedLevel 1]
-levelSuc (Max as) = Max $ map inc as
-  where inc (ClosedLevel n) = ClosedLevel (n + 1)
-        inc (Plus n l)      = Plus (n + 1) l
-
-levelMax :: [PlusLevel] -> Level
-levelMax as0 = Max $ ns ++ List.sort bs
-  where
-    as = Prelude.concatMap expand as0
-    ns = case [ n | ClosedLevel n <- as, n > 0 ] of
-      []  -> []
-      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > leastB ]
-    bs = subsume [ b | b@Plus{} <- as ]
-    leastB | null bs   = 0
-           | otherwise = Prelude.minimum [ n | Plus n _ <- bs ]
-
-    expand l@ClosedLevel{} = [l]
-    expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
-
-    expand0 [] = [ClosedLevel 0]
-    expand0 as = as
-
-    expandAtom (BlockedLevel _ (Level (Max as)))       = as
-    expandAtom (NeutralLevel   (Level (Max as)))       = as
-    expandAtom (UnreducedLevel (Level (Max as)))       = as
-    expandAtom (BlockedLevel _ (Sort (Type (Max as)))) = as
-    expandAtom (NeutralLevel   (Sort (Type (Max as)))) = as
-    expandAtom (UnreducedLevel (Sort (Type (Max as)))) = as
-    expandAtom l                                       = [Plus 0 l]
-
-    plus n (ClosedLevel m) = ClosedLevel (n + m)
-    plus n (Plus m l)      = Plus (n + m) l
-
-    subsume (ClosedLevel{} : _) = __IMPOSSIBLE__
-    subsume [] = []
-    subsume (Plus n a : bs)
-      | not $ null ns = subsume bs
-      | otherwise     = Plus n a : subsume [ b | b@(Plus _ a') <- bs, a /= a' ]
-      where
-        ns = [ m | Plus m a'  <- bs, a == a', m > n ]
 
 impossibleTerm :: String -> Int -> Term
 impossibleTerm file line = Lit $ LitString noRange $ unlines

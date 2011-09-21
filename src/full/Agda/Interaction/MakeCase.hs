@@ -24,6 +24,7 @@ import qualified Agda.TypeChecking.Monad.Context as Context
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecker
 
@@ -71,7 +72,7 @@ findClause m = do
             | otherwise                                          -> return (FunctionDef , n , c)
     _   -> __IMPOSSIBLE__
   where
-    rhsIsm (Bind b)   = rhsIsm $ absBody b
+    rhsIsm (Bind b)   = rhsIsm $ unAbs b
     rhsIsm NoBody     = False
     rhsIsm (Body e)   = case e of
       MetaV m' _  -> m == m'

@@ -211,6 +211,7 @@ instance Occurs Sort where
 
 instance Occurs a => Occurs (Abs a) where
   occurs red ctx m xs (Abs s x) = Abs s <$> occurs red ctx m (0 : map (1+) xs) x
+  occurs red ctx m xs (NoAbs x) = NoAbs <$> occurs red ctx m xs x
 
 instance Occurs a => Occurs (Arg a) where
   occurs red ctx m xs (Arg h r x) = Arg h r <$> occurs red ctx m xs x

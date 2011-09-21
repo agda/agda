@@ -157,12 +157,12 @@ insertTele 0 ins term (ExtendTel t to) = do
     -- bindings need to be preserved
     (+:+) :: Telescope -> Telescope -> Telescope
     EmptyTel       +:+ t2 = t2
-    ExtendTel t t1 +:+ t2 = ExtendTel t t1 {absBody = absBody t1 +:+ {-raise 1-} t2 }
+    ExtendTel t t1 +:+ t2 = ExtendTel t (Abs (absName t1) $ absBody t1 +:+ {-raise 1-} t2)
 -- This case is impossible since we are trying to split a variable outside the tele
 insertTele n ins term EmptyTel = __IMPOSSIBLE__
 insertTele n ins term (ExtendTel x xs) = do
     (xs', typ) <- insertTele (n - 1) ins term (absBody xs)
-    return (ExtendTel x xs {absBody = xs'} , typ)
+    return (ExtendTel x (Abs (absName xs) xs'), typ)
 
 mkCon c n = Con c [ defaultArg $ Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
@@ -170,7 +170,7 @@ unifyI :: Telescope -> [Nat] -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
 
 takeTele 0 _ = EmptyTel
-takeTele n (ExtendTel t ts) = ExtendTel t ts {absBody = takeTele (n-1) (absBody ts) }
+takeTele n (ExtendTel t ts) = ExtendTel t $ Abs (absName ts) $ takeTele (n-1) (absBody ts)
 takeTele _ _ = __IMPOSSIBLE__
 
 -- | Remove forced variables cased on in the current top-level case in the CompiledClauses

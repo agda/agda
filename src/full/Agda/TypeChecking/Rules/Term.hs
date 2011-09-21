@@ -474,8 +474,10 @@ checkExpr e t =
 	    abstract ConcreteDef = inConcreteMode
 	    abstract AbstractDef = inAbstractMode
             mkArgs :: Telescope -> Args
-            mkArgs EmptyTel = []
-            mkArgs (ExtendTel arg (Abs x tel)) = raise 1 (mkArgs tel) ++ [defaultArg $ Var 0 []]
+            mkArgs tel = map arg [n - 1, n - 2..0]
+              where
+                n     = size tel
+                arg i = defaultArg (Var i [])
 
             metas (MetaV m _) = [m]
             metas _           = []

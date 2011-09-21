@@ -303,7 +303,8 @@ instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
   occurrences vars (ExtendTel a b) = occurrences vars (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
-  occurrences vars = occurrences (Nothing : vars) . absBody
+  occurrences vars (Abs _ b) = occurrences (Nothing : vars) b
+  occurrences vars (NoAbs b) = occurrences vars b
 
 instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
   occurrences vars = occurrences vars . unArg

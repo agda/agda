@@ -12,6 +12,7 @@ module Agda.Termination.TermCheck
     , Result, DeBruijnPat
     ) where
 
+import Control.Applicative
 import Control.Monad.Error
 import Data.List as List
 import qualified Data.Map as Map
@@ -44,6 +45,7 @@ import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Signature (isProjection)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
+import Agda.TypeChecking.Substitute
 
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
@@ -416,6 +418,7 @@ termTerm conf names f pats0 t0 = do
            Type t -> loop pats Term.unknown (Level t)
            Prop   -> return Term.empty
            Inf    -> return Term.empty
+           DLub s1 (NoAbs s2) -> Term.union <$> loopSort pats s1 <*> loopSort pats s2
            DLub s1 (Abs x s2) -> liftM2 Term.union
              (loopSort pats s1)
              (addCtxString x __IMPOSSIBLE__ $ loopSort (map liftDBP pats) s2)
@@ -562,6 +565,7 @@ termTerm conf names f pats0 t0 = do
                                                    , unArg        = __IMPOSSIBLE__
                                                    }) $
               loop (map liftDBP pats) guarded t
+            Lam h (NoAbs t) -> loop pats guarded t
 
             -- Neutral term. Destroys guardedness.
             Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
@@ -574,6 +578,11 @@ termTerm conf names f pats0 t0 = do
                   return $ g1 `Term.union` g2
 
             -- Non-dependent function space.
+            Pi a (NoAbs b) ->
+               do g1 <- loopType pats Term.unknown (unArg a)
+                  g2 <- loopType pats piArgumentGuarded b
+                  return $ g1 `Term.union` g2
+
             Fun a b ->
                do g1 <- loopType pats Term.unknown (unArg a)
                   g2 <- loopType pats piArgumentGuarded b

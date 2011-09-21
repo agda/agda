@@ -53,7 +53,7 @@ instance MentionsMeta Sort where
     DLub s1 s2 -> mentionsMeta x (s1, s2)
 
 instance MentionsMeta t => MentionsMeta (Abs t) where
-  mentionsMeta x = mentionsMeta x . absBody
+  mentionsMeta x = mentionsMeta x . unAbs
 
 instance MentionsMeta t => MentionsMeta (Arg t) where
   mentionsMeta x = mentionsMeta x . unArg

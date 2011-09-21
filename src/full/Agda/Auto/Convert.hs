@@ -5,6 +5,7 @@ module Agda.Auto.Convert where
 import Agda.Utils.Impossible
 #include "../undefined.h"
 
+import Control.Applicative hiding (getConst, Const(..))
 import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -27,6 +28,7 @@ import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
 import Agda.TypeChecking.Substitute (piApply, raise)
+import qualified Agda.TypeChecking.Substitute as I (absBody)
 import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Primitive (constructorForm)
@@ -100,6 +102,7 @@ tomy imi icns typs = do
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
+           contyp npar (I.ExtendTel it (I.NoAbs tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.NoAbs (contyp npar tel)))
        contyp' <- tomyType $ contyp 0 tel
        cc <- lift $ liftIO $ readIORef c
        let Datatype [con] [] = cdcont cc
@@ -295,6 +298,7 @@ tomyBody (I.Bind (I.Abs _ b)) = do
  return $ case res of
   Nothing -> Nothing
   Just (b', i) -> Just (b', i + 1)
+tomyBody (I.Bind (I.NoAbs b)) = tomyBody b
 tomyBody I.NoBody = return Nothing
 
 weaken :: Int -> MExp O -> MExp O
@@ -343,9 +347,9 @@ tomyExp :: I.Term -> TOM (MExp O)
 tomyExp (I.Var v as) = do
  as' <- tomyExps as
  return $ NotM $ App Nothing (NotM OKVal) (Var $ fromIntegral v) as'
-tomyExp (I.Lam hid (I.Abs name b)) = do
- b' <- tomyExp b
- return $ NotM $ Lam (cnvh hid) (Abs (Id name) b')
+tomyExp (I.Lam hid b) = do
+ b' <- tomyExp (I.absBody b)
+ return $ NotM $ Lam (cnvh hid) (Abs (Id $ I.absName b) b')
 tomyExp t@(I.Lit{}) = do
  t <- lift $ constructorForm t
  case t of
@@ -363,7 +367,9 @@ tomyExp (I.Con name as) = do
  cc <- lift $ liftIO $ readIORef c
  let Just npar = fst $ cdorigin cc
  return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-tomyExp (I.Pi (C.Arg hid _ x) (I.Abs name y)) = do
+tomyExp (I.Pi (C.Arg hid _ x) b) = do
+ let y    = I.absBody b
+     name = I.absName b
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
@@ -403,12 +409,12 @@ fmType m (I.El _ t) = fmExp m t
 
 fmExp :: I.MetaId -> I.Term -> Bool
 fmExp m (I.Var _ as) = fmExps m as
-fmExp m (I.Lam _ (I.Abs _ b)) = fmExp m b
+fmExp m (I.Lam _ b) = fmExp m (I.unAbs b)
 fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m as
 fmExp m (I.Con _ as) = fmExps m as
-fmExp m (I.Pi x (I.Abs _ y)) = fmType m (C.unArg x) || fmType m y
+fmExp m (I.Pi x y)  = fmType m (C.unArg x) || fmType m (I.unAbs y)
 fmExp m (I.Fun x y) = fmType m (C.unArg x) || fmType m y
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
@@ -630,6 +636,7 @@ etaContractBody :: I.ClauseBody -> MB.TCM I.ClauseBody
 etaContractBody (I.NoBody) = return I.NoBody
 etaContractBody (I.Body b) = etaContract b >>= \b -> return (I.Body b)
 etaContractBody (I.Bind (I.Abs id b)) = etaContractBody b >>= \b -> return (I.Bind (I.Abs id b))
+etaContractBody (I.Bind (I.NoAbs b))  = I.Bind . I.NoAbs <$> etaContractBody b
 
 
 -- ---------------------------------

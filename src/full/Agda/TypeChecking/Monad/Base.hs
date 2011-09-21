@@ -265,7 +265,7 @@ data Constraint
   | Guarded Constraint ProblemId
   | IsEmpty Type
   | FindInScope MetaId
-  deriving (Typeable, Eq, Show)
+  deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
   deriving (Eq, Typeable, Show)

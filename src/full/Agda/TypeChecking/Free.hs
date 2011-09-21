@@ -187,6 +187,7 @@ instance Free a => Free (Arg a) where
 
 instance Free a => Free (Abs a) where
   freeVars' conf (Abs _ b) = subtractFV 1 $ delete 0 $ freeVars' conf b
+  freeVars' conf (NoAbs b) = freeVars' conf b
 
 instance Free a => Free (Tele a) where
   freeVars' conf EmptyTel	   = empty

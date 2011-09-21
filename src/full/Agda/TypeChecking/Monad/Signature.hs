@@ -397,10 +397,10 @@ canonicalName x = do
     Datatype{dataClause = Just (Clause{ clauseBody = body })} -> canonicalName $ extract body
     _                                                         -> return x
   where
-    extract NoBody	     = __IMPOSSIBLE__
+    extract NoBody           = __IMPOSSIBLE__
     extract (Body (Def x _)) = x
-    extract (Body _)	     = __IMPOSSIBLE__
-    extract (Bind (Abs _ b)) = extract b
+    extract (Body _)         = __IMPOSSIBLE__
+    extract (Bind b)         = extract (unAbs b)
 
 -- | Can be called on either a (co)datatype, a record type or a
 --   (co)constructor.

@@ -261,6 +261,7 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
                            (HS.UnGuardedRhs rhs) (HS.BDecls [])
   bvars (Body _)          _ = []
   bvars (Bind (Abs _ b')) n = HS.PVar (ihname "v" n) : bvars b' (n + 1)
+  bvars (Bind (NoAbs b))  n = HS.PWildCard : bvars b n
   bvars NoBody            _ = repeat HS.PWildCard -- ?
 
   isCon (Arg _ _ ConP{}) = True
@@ -307,9 +308,10 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
 
 clausebody :: ClauseBody -> TCM HS.Exp
 clausebody b0 = runReaderT (go b0) 0 where
-  go (Body   tm       ) = hsCast <$> term tm
-  go (Bind   (Abs _ b)) = local (1+) $ go b
-  go NoBody             = return $ rtmError $ "Impossible Clause Body"
+  go (Body tm       ) = hsCast <$> term tm
+  go (Bind (Abs _ b)) = local (1+) $ go b
+  go (Bind (NoAbs b)) = go b
+  go NoBody           = return $ rtmError $ "Impossible Clause Body"
 
 -- | Extract Agda term to Haskell expression.
 --   Irrelevant arguments are extracted as @()@.

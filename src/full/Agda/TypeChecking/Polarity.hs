@@ -136,7 +136,8 @@ instance HasPolarity a => HasPolarity (Arg a) where
   polarities i = polarities i . unArg
 
 instance HasPolarity a => HasPolarity (Abs a) where
-  polarities i = polarities (i + 1) . absBody
+  polarities i (Abs _ b) = polarities (i + 1) b
+  polarities i (NoAbs v) = polarities i v
 
 instance HasPolarity a => HasPolarity [a] where
   polarities i xs = concat <$> mapM (polarities i) xs

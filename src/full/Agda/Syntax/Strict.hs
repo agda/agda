@@ -85,7 +85,7 @@ instance Strict a => Strict (Maybe a) where
     force = maybe 0 force
 
 instance Strict a => Strict (Abs a) where
-    force = force . absBody
+    force = force . unAbs
 
 instance Strict Token where
   -- TODO: This is just a dummy instance. Why can't we just use the
