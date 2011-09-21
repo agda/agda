@@ -654,9 +654,9 @@ telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBod
 
 telView' :: Type -> TelView
 telView' t = case unEl t of
-  Pi a (Abs x b)  -> absV a x $ telView' b
-  Fun a b         -> absV a "_" $ telView' (raise 1 b)
-  _               -> TelV EmptyTel t
+  Pi a b  -> absV a (absName b) $ telView' (absBody b)
+  Fun a b -> absV a "_" $ telView' (raise 1 b)
+  _       -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
@@ -670,8 +670,8 @@ telePi (ExtendTel u tel) t = el $ fn u b
     s2 = fmap getSort b
 
     fn a b
-      | 0 `freeIn` absBody b = Pi a b
-      | otherwise            = Fun a $ absApp b __IMPOSSIBLE__
+      | isBinderUsed b = Pi a b
+      | otherwise      = Fun a $ absApp b __IMPOSSIBLE__
 
 -- | Everything will be a pi.
 telePi_ :: Telescope -> Type -> Type
@@ -688,9 +688,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
 --
 --   @dLub s1 \i.s2 = \omega@ if @i@ appears in the rigid variables of @s2@.
 dLub :: Sort -> Abs Sort -> Sort
-dLub s1 s2 = case occurrence 0 $ freeVars (absBody s2) of
-  Flexible      -> DLub s1 s2
-  NoOccurrence  -> sLub s1 (absApp s2 __IMPOSSIBLE__)
+dLub s1 (NoAbs _ s2) = sLub s1 s2
+dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
+  Flexible      -> DLub s1 b
+  NoOccurrence  -> sLub s1 (absApp b __IMPOSSIBLE__)
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
 
@@ -705,6 +706,10 @@ absApp (NoAbs _ v) _ = v
 absBody :: Raise t => Abs t -> t
 absBody (Abs   _ v) = v
 absBody (NoAbs _ v) = raise 1 v
+
+mkAbs :: (Subst a, Free a) => String -> a -> Abs a
+mkAbs x v | 0 `freeIn` v = Abs x v
+          | otherwise    = NoAbs x (subst __IMPOSSIBLE__ v)
 
 deriving instance (Raise a, Eq a) => Eq (Tele a)
 deriving instance (Raise a, Ord a) => Ord (Tele a)

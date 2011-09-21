@@ -200,7 +200,7 @@ compareTel t1 t2 cmp tel1 tel2 =
           let checkArg = escapeContext 1 $ compareType cmp a1 a2
           let c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
 
-	  let dependent = 0 `freeIn` absBody tel2
+	  let dependent = isBinderUsed tel2
 
           addCtx name arg1 $
             if dependent
@@ -380,9 +380,9 @@ compareAtom cmp t m n =
                 -- We only need to require a1 == a2 if t2 is a dependent function type.
                 -- If it's non-dependent it doesn't matter what we add to the context.
                 let dependent = case t2 of
-                                    Pi _ (Abs _ b) -> 0 `freeIn` b
-                                    Fun _ _        -> False
-                                    _              -> __IMPOSSIBLE__
+                                    Pi _ b  -> isBinderUsed b
+                                    Fun _ _ -> False
+                                    _       -> __IMPOSSIBLE__
                 addCtx name arg1 $
                   if dependent
                   then guardConstraint c checkArg

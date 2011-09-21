@@ -120,7 +120,7 @@ haskellType = liftTCM . fromType
         Def d args -> hsApp <$> getHsType d <*> fromArgs args
         Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
-          if 0 `freeIn` absBody b
+          if isBinderUsed b
           then underAbstraction a b $ \b ->
             hsForall <$> getHsVar 0 <*>
               (hsFun <$> fromType (unArg a) <*> fromType b)

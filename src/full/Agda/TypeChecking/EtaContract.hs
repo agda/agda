@@ -45,9 +45,9 @@ etaContract = traverseTermM etaOnce
 etaOnce :: Term -> TCM Term
 etaOnce v = ignoreAbstractMode $ eta v
   where
-    eta t@(Lam h b) = do
+    eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
-      case binAppView (absBody b) of
+      case binAppView b of
         App u (Arg h' r v)
           | isVar0 v && allowed imp h' && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u

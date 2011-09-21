@@ -8,7 +8,7 @@ module Agda.TypeChecking.Free
     , allVars
     , relevantVars
     , rigidVars
-    , freeIn
+    , freeIn, isBinderUsed
     , freeInIgnoringSorts
     , relevantIn
     , Occurrence(..)
@@ -207,3 +207,8 @@ freeInIgnoringSorts v t =
 
 relevantIn :: Free a => Nat -> a -> Bool
 relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
+
+-- | Is the variable bound by the abstraction actually used?
+isBinderUsed :: Free a => Abs a -> Bool
+isBinderUsed NoAbs{}   = False
+isBinderUsed (Abs _ x) = 0 `freeIn` x

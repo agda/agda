@@ -25,7 +25,7 @@ import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Env
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
-import Agda.TypeChecking.Free (freeIn)
+import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- leads to cyclicity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
@@ -166,7 +166,7 @@ makeProjection x = inContext [] $ do
 
     checkBody 0 _          = True
     checkBody _ NoBody     = True
-    checkBody n (Bind b)   = not (0 `freeIn` absBody b) && checkBody (n - 1) (absBody b)
+    checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 
     candidateArgs vs (Fun (Arg _ _ (El _ (Def d us))) _)
