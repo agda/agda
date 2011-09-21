@@ -1,4 +1,3 @@
-LostTypeError.agda:23,7-36
+LostTypeError.agda:23,34-36
 x != y of type A
-when checking that the expression wrap _ (λ a → P _) (box x) px has
-type Wrap Box P (box y)
+when checking that the expression px has type P (box y)
