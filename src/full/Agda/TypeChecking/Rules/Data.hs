@@ -130,7 +130,6 @@ checkDataDef i name ps cs =
 	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
-	splitType (El _ (Fun _ b)) = ((+ 1) -*- raise 1) <$> splitType b
 	splitType (El _ (Sort s))  = return (0, s)
 	splitType (El _ t)	   = typeError $ DataMustEndInSort t
 
@@ -207,13 +206,6 @@ bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
     arg = Arg h rel' a
-bindParameters (A.DomainFree h rel x : ps) (El _ (Fun (Arg h' rel' a) b)) ret
-    | h /= h'	=
-	__IMPOSSIBLE__
-    | otherwise = addCtx x arg $ bindParameters ps (raise 1 b) $ \tel s ->
-		    ret (ExtendTel arg $ Abs (show x) tel) s
-  where
-    arg = Arg h rel' a
 bindParameters _ _ _ = __IMPOSSIBLE__
 
 
@@ -254,9 +246,9 @@ constructs nofPars t q = constrT 0 t
 	constr n s v = do
 	    v <- reduce v
 	    case v of
+		Pi _ (NoAbs _ b) -> constrT n b
 		Pi a b	-> underAbstraction a b $ \t ->
 			   constrT (n + 1) t
-		Fun _ b -> constrT n b
 		Def d vs
 		    | d == q -> checkParams n =<< reduce (take nofPars vs)
 						    -- we only check the parameters
@@ -314,7 +306,6 @@ isCoinductive t = do
     Level {} -> __IMPOSSIBLE__
     Con   {} -> __IMPOSSIBLE__
     Pi    {} -> return (Just False)
-    Fun   {} -> return (Just False)
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
     DontCare{} -> __IMPOSSIBLE__

@@ -45,7 +45,6 @@ instance Apply Term where
             Lit{}         -> __IMPOSSIBLE__
             Level{}       -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
-            Fun _ _       -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
             DontCare _    -> __IMPOSSIBLE__
 
@@ -182,7 +181,6 @@ instance Abstract Permutation where
 piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = absApp b (unArg a) `piApply` args
-piApply (El _ (Fun _ b)) (_:args) = b `piApply` args
 piApply _ _                       = __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
@@ -306,7 +304,6 @@ instance Subst Term where
             Lit l       -> Lit l
             Level l     -> levelTm $ substs us l
             Pi a b      -> uncurry Pi $ substs us (a,b)
-            Fun a b     -> uncurry Fun $ substs us (a,b)
             Sort s      -> sortTm $ substs us s
             DontCare mv -> DontCare $ substs us mv
         where
@@ -326,7 +323,6 @@ instance Subst Term where
             Level l    -> levelTm $ substUnder n u l
             Lit l      -> Lit l
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
-            Fun a b    -> uncurry Fun $ substUnder n u (a,b)
             Sort s     -> sortTm $ substUnder n u s
             DontCare mv -> DontCare $ substUnder n u mv
 
@@ -455,7 +451,6 @@ instance Raise Term where
             Level l         -> Level $ rf l
             Lit l           -> Lit l
             Pi a b          -> uncurry Pi $ rf (a,b)
-            Fun a b         -> uncurry Fun $ rf (a,b)
             Sort s          -> Sort $ rf s
             DontCare mv     -> DontCare $ rf mv
         where
@@ -473,7 +468,6 @@ instance Raise Term where
             Level l         -> Level $ rf l
             Lit l           -> Lit l
             Pi a b          -> uncurry Pi $ rf (a,b)
-            Fun a b         -> uncurry Fun $ rf (a,b)
             Sort s          -> Sort $ rf s
             DontCare mv     -> DontCare $ rf mv
         where
@@ -606,8 +600,10 @@ instance Raise DisplayTerm where
   renameFrom m k (DDef c vs)      = DDef c $ renameFrom m k vs
 
 instance Raise t => Raise (Abs t) where
-    raiseFrom m k = fmap (raiseFrom (m + 1) k)
-    renameFrom m k = fmap (renameFrom (m + 1) k)
+    raiseFrom m k (Abs x v)   = Abs x $ raiseFrom (m + 1) k v
+    raiseFrom m k (NoAbs x v) = NoAbs x $ raiseFrom m k v
+    renameFrom m k (Abs x v)   = Abs x $ renameFrom (m + 1) k v
+    renameFrom m k (NoAbs x v) = NoAbs x $ renameFrom m k v
 
 instance Raise t => Raise (Arg t) where
     raiseFrom m k = fmap (raiseFrom m k)
@@ -655,23 +651,18 @@ telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBod
 telView' :: Type -> TelView
 telView' t = case unEl t of
   Pi a b  -> absV a (absName b) $ telView' (absBody b)
-  Fun a b -> absV a "_" $ telView' (raise 1 b)
   _       -> TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
 telePi :: Telescope -> Type -> Type
 telePi  EmptyTel         t = t
-telePi (ExtendTel u tel) t = el $ fn u b
+telePi (ExtendTel u tel) t = el $ Pi u (reAbs b)
   where
     el = El (dLub s1 s2)
     b = fmap (flip telePi t) tel
     s1 = getSort $ unArg u
     s2 = fmap getSort b
-
-    fn a b
-      | isBinderUsed b = Pi a b
-      | otherwise      = Fun a $ absApp b __IMPOSSIBLE__
 
 -- | Everything will be a pi.
 telePi_ :: Telescope -> Type -> Type
@@ -707,9 +698,13 @@ absBody :: Raise t => Abs t -> t
 absBody (Abs   _ v) = v
 absBody (NoAbs _ v) = raise 1 v
 
-mkAbs :: (Subst a, Free a) => String -> a -> Abs a
+mkAbs :: (Raise a, Free a) => String -> a -> Abs a
 mkAbs x v | 0 `freeIn` v = Abs x v
-          | otherwise    = NoAbs x (subst __IMPOSSIBLE__ v)
+          | otherwise    = NoAbs x (raise (-1) v)
+
+reAbs :: (Raise a, Free a) => Abs a -> Abs a
+reAbs (NoAbs x v) = NoAbs x v
+reAbs (Abs x v)   = mkAbs x v
 
 deriving instance (Raise a, Eq a) => Eq (Tele a)
 deriving instance (Raise a, Ord a) => Ord (Tele a)
@@ -722,7 +717,6 @@ deriving instance Ord Term
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
-deriving instance Eq LevelAtom
 deriving instance Ord LevelAtom
 deriving instance Eq Elim
 deriving instance Ord Elim
@@ -736,6 +730,9 @@ instance Ord PlusLevel where
   -- Compare on the atom first. Makes most sense for levelMax.
   compare (Plus n a) (Plus m b)           = compare (a,n) (b,m)
 
+instance Eq LevelAtom where
+  (==) = (==) `on` unLevelAtom
+
 -- | Syntactic equality, ignores stuff below @DontCare@.
 instance Eq Term where
   Var x vs   == Var x' vs'   = x == x' && vs == vs'
@@ -744,7 +741,6 @@ instance Eq Term where
   Def x vs   == Def x' vs'   = x == x' && vs == vs'
   Con x vs   == Con x' vs'   = x == x' && vs == vs'
   Pi a b     == Pi a' b'     = a == a' && b == b'
-  Fun a b    == Fun a' b'    = a == a' && b == b'
   Sort s     == Sort s'      = s == s'
   Level l    == Level l'     = l == l'
   MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
@@ -752,10 +748,14 @@ instance Eq Term where
   _          == _            = False
 
 instance (Raise a, Eq a) => Eq (Abs a) where
-  (==) = (==) `on` absBody
+  NoAbs _ a == NoAbs _ b = a == b
+  Abs   _ a == Abs   _ b = a == b
+  a         == b         = absBody a == absBody b
 
 instance (Raise a, Ord a) => Ord (Abs a) where
-  compare = compare `on` absBody
+  NoAbs _ a `compare` NoAbs _ b = a `compare` b
+  Abs   _ a `compare` Abs   _ b = a `compare` b
+  a         `compare` b         = absBody a `compare` absBody b
 
 -- Level stuff ------------------------------------------------------------
 
@@ -833,11 +833,11 @@ levelSort l =
 levelTm :: Level -> Term
 levelTm l =
   case l of
-    Max [Plus 0 l] -> unAtom l
+    Max [Plus 0 l] -> unLevelAtom l
     _              -> Level l
-  where
-    unAtom (MetaLevel x vs)   = MetaV x vs
-    unAtom (NeutralLevel v)   = v
-    unAtom (UnreducedLevel v) = v
-    unAtom (BlockedLevel _ v) = v
+
+unLevelAtom (MetaLevel x vs)   = MetaV x vs
+unLevelAtom (NeutralLevel v)   = v
+unLevelAtom (UnreducedLevel v) = v
+unLevelAtom (BlockedLevel _ v) = v
 

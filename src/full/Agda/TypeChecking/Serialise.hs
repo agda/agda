@@ -531,7 +531,6 @@ instance EmbPrj I.Term where
   icode (Def      a b) = icode2 3 a b
   icode (Con      a b) = icode2 4 a b
   icode (Pi       a b) = icode2 5 a b
-  icode (Fun      a b) = icode2 6 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = __IMPOSSIBLE__
   icode (DontCare _  ) = icode0 8
@@ -542,7 +541,6 @@ instance EmbPrj I.Term where
                            valu [3, a, b] = valu2 Def   a b
                            valu [4, a, b] = valu2 Con   a b
                            valu [5, a, b] = valu2 Pi    a b
-                           valu [6, a, b] = valu2 Fun   a b
                            valu [7, a]    = valu1 Sort  a
                            valu [8]       = valu0 $ DontCare Nothing
                            valu [9, a]    = valu1 Level a

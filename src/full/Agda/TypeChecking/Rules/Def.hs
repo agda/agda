@@ -3,6 +3,7 @@
 module Agda.TypeChecking.Rules.Def where
 
 import Prelude hiding (mapM)
+import Control.Arrow ((***), (&&&))
 import Control.Applicative
 import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
@@ -201,11 +202,14 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                 A.RewriteRHS (qname:names) (eq:eqs) rhs wh -> do
                      (proof,t) <- inferExpr eq
                      t' <- reduce =<< instantiateFull t
-                     equality <- primEquality >>= \eq -> return $ case eq of
-                        Lam Hidden (Abs _ (Lam Hidden (Abs _ (Def equality _)))) -> equality
-                        Lam Hidden (Abs _ (Def equality _))                      -> equality
-                        Def equality _                                           -> equality
-                        _                                                        -> __IMPOSSIBLE__
+                     equality <- primEquality >>= \eq ->
+                      let lamV (Lam h b) = ((h:) *** id) $ lamV (unAbs b)
+                          lamV v         = ([], v) in
+                      return $ case lamV eq of
+                        ([Hidden, Hidden], Def equality _) -> equality
+                        ([Hidden],         Def equality _) -> equality
+                        ([],               Def equality _) -> equality
+                        _                                  -> __IMPOSSIBLE__
                      reflCon <- primRefl >>= \refl -> return $ case refl of
                          Con reflCon [] -> reflCon
                          _              -> __IMPOSSIBLE__

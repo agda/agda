@@ -61,12 +61,6 @@ requireLevels = do
     Nothing -> sequence_ [primLevel, primLevelZero, primLevelSuc, primLevelMax] >> __IMPOSSIBLE__
     Just k  -> return k
 
-unLevelAtom :: LevelAtom -> Term
-unLevelAtom (MetaLevel x as)   = MetaV x as
-unLevelAtom (BlockedLevel _ a) = a
-unLevelAtom (NeutralLevel a)   = a
-unLevelAtom (UnreducedLevel a) = a
-
 reallyUnLevelView :: Level -> TCM Term
 reallyUnLevelView nv =
   case nv of

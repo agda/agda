@@ -26,7 +26,6 @@ instance Strict Term where
 	Lit _	    -> 0
         Level l     -> force l
 	Pi a b	    -> force (a,b)
-	Fun a b     -> force (a,b)
 	Sort s	    -> force s
 	MetaV _ ts  -> force ts
         DontCare mt -> force mt

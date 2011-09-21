@@ -252,7 +252,6 @@ instance GenC Term where
 	, (sortF, Sort <$> genC conf)
 	, (lamF,  genLam)
 	, (piF,	  genPi)
-	, (funF,  genFun)
 	]
     where
       defs    = tcDefinedNames conf
@@ -276,16 +275,12 @@ instance GenC Term where
 	    | otherwise = freq (lamFreq  . termFreqs)
       sortF = freq (sortFreq . termFreqs)
       piF   = freq (piFreq   . termFreqs)
-      funF  = freq (funFreq  . termFreqs)
 
       genLam :: Gen Term
       genLam = Lam <$> genC conf <*> genC (isntTypeConf $ decrConf conf)
 
       genPi :: Gen Term
       genPi = uncurry Pi <$> genC conf
-
-      genFun :: Gen Term
-      genFun = uncurry Fun <$> genC conf
 
       genVar, genDef, genCon :: Gen Args -> Gen Term
       genVar args = Var <$> elements vars <*> args
@@ -451,8 +446,6 @@ instance ShrinkC Term Term where
     Lam h b      -> killAbs b : (uncurry Lam <$> shrinkC conf (h, b))
     Pi a b       -> unEl (unArg a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))
-    Fun a b      -> unEl (unArg a) : unEl b :
-		    (uncurry Fun <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
     DontCare _   -> __IMPOSSIBLE__
@@ -485,7 +478,6 @@ instance KillVar Term where
     Sort s		   -> Sort s
     Lam h b		   -> Lam h	  $ killVar i b
     Pi a b		   -> uncurry Pi  $ killVar i (a, b)
-    Fun a b		   -> uncurry Fun $ killVar i (a, b)
     MetaV m args	   -> MetaV m	  $ killVar i args
     DontCare mv            -> DontCare    $ killVar i mv
 

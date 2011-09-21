@@ -123,7 +123,6 @@ instance Occurs Term where
         Def d vs    -> Def d <$> occDef d ctx vs
         Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
-        Fun a b	    -> uncurry Fun <$> occ ctx (a,b)
         Sort s	    -> Sort <$> occ ctx s
         MetaV m' vs -> do
             -- Check for loop

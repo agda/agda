@@ -92,8 +92,8 @@ n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Level l  -> isInLevel n l
    Def _ as -> recs as
    Con _ as -> recs as
+   Pi a (NoAbs _ b) -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Pi a b   -> n `isInTerm` unEl (unArg a) || (n+1) `isInTerm` unEl (absBody b)
-   Fun a b  -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Sort sor -> False -- ?
    MetaV meta as -> recs as
    DontCare _ -> False

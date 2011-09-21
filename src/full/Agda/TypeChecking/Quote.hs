@@ -76,8 +76,6 @@ quotingKit = do
       quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
       quote (Pi t u) = pi @@ quoteArg quoteType t
                           @@ quoteType (absBody u)
-      quote (Fun t u) = pi @@ quoteArg quoteType t
-                           @@ quoteType (raise 1 u) -- do we want a raiseFrom here?
       quote (Level _) = unsupported
       quote (Lit lit) = quoteLit lit
       quote (Sort s)  = sort @@ quoteSort s

@@ -230,8 +230,8 @@ repl subs = go where
 
 pconName :: String -> TCM String
 pconName s = toS =<< getBuiltin s where
-  toS (Con q _)         = prettyPrint <$> conhqn q
-  toS (Lam _ (Abs _ t)) = toS t
+  toS (Con q _) = prettyPrint <$> conhqn q
+  toS (Lam _ t) = toS (unAbs t)
   toS _ = mazerror $ "pconName" ++ s
 
 hasCompiledData :: [String] -> TCM Bool
@@ -241,8 +241,8 @@ hasCompiledData (s:_) = toB =<< getBuiltin s where
     return $ case compiledHaskell $ defCompiledRep def of
       Just{}  -> True
       Nothing -> False
-  toB (Lam _ (Abs _ t)) = toB t
-  toB _                 = return False
+  toB (Lam _ t) = toB (unAbs t)
+  toB _         = return False
 hasCompiledData _    = return False
 
 

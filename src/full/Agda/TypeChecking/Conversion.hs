@@ -124,7 +124,6 @@ compareTerm' cmp a m n =
           b <- levelView n
           equalLevel a b
         Pi a _    -> equalFun (a,a') m n
-        Fun a _   -> equalFun (a,a') m n
 {- Andreas, 2011-05-09 at unknown type, compare atomic
         MetaV x _ -> do
           (m,n) <- normalise (m,n)
@@ -177,9 +176,8 @@ compareTerm' cmp a m n =
         p	= fmap (const $ Var 0 []) a
         (m',n') = raise 1 (m,n) `apply` [p]
         t'	= raise 1 t `piApply` [p]
-        suggest (Fun _ _)	 = "x"
-        suggest (Pi _ (Abs x _)) = x
-        suggest _		 = __IMPOSSIBLE__
+        suggest (Pi _ b) = absName b
+        suggest _	 = __IMPOSSIBLE__
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
 --   and complains that @t2 `cmp` t1@ failed if not.
@@ -381,7 +379,6 @@ compareAtom cmp t m n =
                 -- If it's non-dependent it doesn't matter what we add to the context.
                 let dependent = case t2 of
                                     Pi _ b  -> isBinderUsed b
-                                    Fun _ _ -> False
                                     _       -> __IMPOSSIBLE__
                 addCtx name arg1 $
                   if dependent
@@ -394,9 +391,8 @@ compareAtom cmp t m n =
 				    []	-> "_"
 				    x:_	-> x
 		    where
-			name (Pi _ (Abs x _)) = [x]
-			name (Fun _ _)	      = []
-			name _		      = __IMPOSSIBLE__
+			name (Pi _ b) = filter (/= "_") [absName b]
+			name _        = __IMPOSSIBLE__
 	equalFun _ _ = __IMPOSSIBLE__
 
 -- | Type-directed equality on eliminator spines

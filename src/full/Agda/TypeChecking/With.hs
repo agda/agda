@@ -44,10 +44,11 @@ withFunctionType delta1 vs as delta2 b = {-dontEtaContractImplicit $-} do
     b  <- etaContract =<< normalise (telePi_ delta2 b)
     reportSDoc "tc.with.abstract" 40 $
       sep [ text "abstracting"
-          , nest 2 $ vcat
+          , nest 2 $ vcat $
             [ text "vs = " <+> prettyTCM vs
             , text "as = " <+> prettyTCM as
-            , text "b  = " <+> prettyTCM b ] ]
+            , text "b  = " <+> prettyTCM b ]
+          ]
     reportSLn "tc.with.abstract" 50 $ "  raw vs = " ++ show vs ++ "\n  raw b  = " ++ show b
     return (zip vs as, b)
   return $ telePi_ delta1 $ foldr (uncurry piAbstractTerm) b vas

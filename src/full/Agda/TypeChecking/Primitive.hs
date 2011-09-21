@@ -416,7 +416,7 @@ infixr 4 -->
 a --> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Fun (defaultArg a') b'
+    return $ El (getSort a' `sLub` getSort b') $ Pi (defaultArg a') (NoAbs "_" b')
 
 gpi :: Hiding -> Relevance -> String -> TCM Type -> TCM Type -> TCM Type
 gpi h r name a b = do

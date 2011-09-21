@@ -249,7 +249,6 @@ instance Reduce Term where
       Sort s   -> fmap sortTm <$> reduceB s
       Level l  -> fmap levelTm <$> reduceB l
       Pi _ _   -> return $ notBlocked v
-      Fun _ _  -> return $ notBlocked v
       Lit _    -> return $ notBlocked v
       Var _ _  -> return $ notBlocked v
       Lam _ _  -> return $ notBlocked v
@@ -440,7 +439,6 @@ instance Normalise Term where
 		Lam h b	    -> Lam h <$> normalise b
 		Sort s	    -> sortTm <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
-		Fun a b     -> uncurry Fun <$> normalise (a,b)
                 DontCare _  -> return v
 
 instance Normalise Elim where
@@ -569,7 +567,6 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull b
           Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
-          Fun a b     -> uncurry Fun <$> instantiateFull (a,b)
           DontCare _  -> return v
 
 instance InstantiateFull Level where
@@ -752,8 +749,7 @@ telViewM :: Type -> TCM TelView
 telViewM t = do
   t <- reduce t -- also instantiates meta if in head position
   case unEl t of
-    Pi a (Abs x b) -> absV a x <$> telViewM b
-    Fun a b	   -> absV a "_" <$> telViewM (raise 1 b)
-    _		   -> return $ TelV EmptyTel t
+    Pi a b -> absV a (absName b) <$> telViewM (absBody b)
+    _      -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

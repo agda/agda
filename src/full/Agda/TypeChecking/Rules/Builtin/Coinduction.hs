@@ -74,9 +74,9 @@ typeOfFlat = do
                (Abs "a" $ El (sSuc $ varSort 0)
                              (Pi (argH $ sort $ varSort 0)
                                  (Abs "A" $ El (varSort 1)
-                                               (Fun (argN $ El (varSort 1)
+                                               (Pi  (argN $ El (varSort 1)
                                                                (Def inf [argH (Var 1 []), argN (Var 0 [])]))
-                                                    (El (varSort 1) (Var 0 [])))))))
+                                                    (NoAbs "_" $ El (varSort 1) (Var 0 [])))))))
 
 -- | Binds the INFINITY builtin, but does not change the type's
 -- definition.

@@ -161,7 +161,6 @@ instance HasPolarity Term where
       concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
     Con _ ts   -> polarities i ts
     Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
-    Fun a b    -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort _     -> return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
     DontCare _ -> return []

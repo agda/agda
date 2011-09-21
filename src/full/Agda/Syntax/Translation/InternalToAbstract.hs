@@ -282,12 +282,12 @@ instance Reify Term Expr where
         -- Andreas, 2011-04-07 we do not need relevance information at internal Lambda
       I.Lit l        -> reify l
       I.Level l      -> reify l
-      I.Pi a b       -> do
-        Arg h r a <- reify a
-        (x,b)     <- reify b
-        return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
-      I.Fun a b    -> uncurry (A.Fun $ exprInfo)
-                      <$> reify (a,b)
+      I.Pi a b       -> case b of
+        NoAbs _ b -> uncurry (A.Fun $ exprInfo) <$> reify (a,b)
+        b         -> do
+          Arg h r a <- reify a
+          (x, b)    <- reify b
+          return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
       I.DontCare _  -> return A.DontCare

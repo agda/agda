@@ -169,14 +169,13 @@ makeProjection x = inContext [] $ do
     checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 
-    candidateArgs vs (Fun (Arg _ _ (El _ (Def d us))) _)
-      | vs == map unArg us = [(d, length vs)]
     candidateArgs vs (Pi (Arg r h (El _ (Def d us))) b)
       | vs == map unArg us = (d, length vs) : candidateRec vs b
     candidateArgs vs (Pi _ b) = candidateRec vs b
     candidateArgs _ _ = []
 
-    candidateRec vs b = candidateArgs (Var (size vs) [] : vs) (unEl $ absBody b)
+    candidateRec vs NoAbs{} = []
+    candidateRec vs b       = candidateArgs (Var (size vs) [] : vs) (unEl $ absBody b)
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef =

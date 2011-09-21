@@ -20,7 +20,7 @@ import Agda.Syntax.Internal
   ( Name, Args, Type, ModuleName(MName), QName(QName),
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind),
-    Term(Var,Lam,Lit,Level,Def,Con,Pi,Fun,Sort,MetaV,DontCare),
+    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare),
     toTopLevelModuleName, mnameToList, qnameName,
     clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.TypeChecking.Substitute ( absBody )
@@ -302,7 +302,6 @@ term (Con q as) = do
       es <- args as
       return (curriedApply e es)
 term (Pi    _ _)          = return (String "*")
-term (Fun   _ _)          = return (String "*")
 term (Sort  _)            = return (String "*")
 term (MetaV _ _)          = return (Undefined)
 term (DontCare _)         = return (Undefined)
@@ -315,8 +314,7 @@ term (DontCare _)         = return (Undefined)
 
 isSingleton :: Type -> TCM (Maybe Exp)
 isSingleton t = case unEl t of
-  Pi _ (Abs _ b) -> isSingleton b
-  Fun _       b  -> isSingleton b
+  Pi _ b         -> isSingleton (unAbs b)
   Sort _         -> return (Just (String "*"))
   Def q as       -> do
     d <- getConstInfo q

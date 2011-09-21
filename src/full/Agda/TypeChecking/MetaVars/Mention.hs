@@ -20,7 +20,6 @@ instance MentionsMeta Term where
     Def _ args   -> mm args
     Con _ args   -> mm args
     Pi a b       -> mm (a, b)
-    Fun a b      -> mm (a, b)
     Sort s       -> mm s
     Level l      -> mm l
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints

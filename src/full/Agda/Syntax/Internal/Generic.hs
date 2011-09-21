@@ -49,7 +49,6 @@ instance TermLike Term where
     Con c xs    -> f $ Con c $ traverseTerm f xs
     Lam h b     -> f $ Lam h $ traverseTerm f b
     Pi a b      -> f $ uncurry Pi $ traverseTerm f (a, b)
-    Fun a b     -> f $ uncurry Fun $ traverseTerm f (a, b)
     MetaV m xs  -> f $ MetaV m $ traverseTerm f xs
     Level l     -> f $ Level $ traverseTerm f l
     Lit _       -> f t
@@ -62,7 +61,6 @@ instance TermLike Term where
     Con c xs    -> f =<< Con c <$> traverseTermM f xs
     Lam h b     -> f =<< Lam h <$> traverseTermM f b
     Pi a b      -> f =<< uncurry Pi <$> traverseTermM f (a, b)
-    Fun a b     -> f =<< uncurry Fun <$> traverseTermM f (a, b)
     MetaV m xs  -> f =<< MetaV m <$> traverseTermM f xs
     Level l     -> f =<< Level <$> traverseTermM f l
     Lit _       -> f t
@@ -75,7 +73,6 @@ instance TermLike Term where
     Con c xs    -> foldTerm f xs
     Lam h b     -> foldTerm f b
     Pi a b      -> foldTerm f (a, b)
-    Fun a b     -> foldTerm f (a, b)
     MetaV m xs  -> foldTerm f xs
     Level l     -> foldTerm f l
     Lit _       -> mempty

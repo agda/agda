@@ -29,7 +29,6 @@ binAppView t = case t of
   Level _    -> noApp   -- could be an application, but let's not eta contract levels
   Lam _ _    -> noApp
   Pi _ _     -> noApp
-  Fun _ _    -> noApp
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp

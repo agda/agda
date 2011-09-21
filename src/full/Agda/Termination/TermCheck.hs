@@ -583,11 +583,6 @@ termTerm conf names f pats0 t0 = do
                   g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
-            Fun a b ->
-               do g1 <- loopType pats Term.unknown (unArg a)
-                  g2 <- loopType pats piArgumentGuarded b
-                  return $ g1 `Term.union` g2
-
             -- Literal.
             Lit l -> return Term.empty
 

@@ -103,7 +103,6 @@ forcePi h name (El s t) =
     do	t' <- reduce t
 	case t' of
 	    Pi _ _	-> return (El s t', [])
-	    Fun _ _	-> return (El s t', [])
             _           -> do
                 sa <- newSortMeta
                 sb <- newSortMeta
@@ -534,7 +533,7 @@ checkExpr e t =
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    blockTerm t $ Fun (Arg h r a') b' <$ leqType_ (sort s) t
+	    blockTerm t $ Pi (Arg h r a') (NoAbs "_" b') <$ leqType_ (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  blockTerm t $ Sort (mkType n) <$ leqType_ (sort $ mkType $ n + 1) t
@@ -989,7 +988,6 @@ checkArguments exh r [] t0 t1 =
 	    _ -> return ([], t0')
     where
 	notHPi h (Pi  (Arg h' _ _) _) | h == h' = False
-	notHPi h (Fun (Arg h' _ _) _) | h == h' = False
 	notHPi _ _		        = True
 
 checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
@@ -1040,7 +1038,6 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
 	sameName n1	 n2 = n1 == n2
 
 	nameInPi (Pi _ b)  = Just $ absName b
-	nameInPi (Fun _ _) = Nothing
 	nameInPi _	   = __IMPOSSIBLE__
 
 

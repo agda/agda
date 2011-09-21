@@ -267,8 +267,6 @@ instance ComputeOccurrences Term where
     MetaV _ args -> occursAs MetaArg $ occurrences vars args
     Pi a b       -> occursAs LeftOfArrow (occurrences vars a) >+<
                     occurrences vars b
-    Fun a b      -> occursAs LeftOfArrow (occurrences vars a) >+<
-                    occurrences vars b
     Lam _ b      -> occurrences vars b
     Level l      -> occurrences vars l
     Lit{}        -> Map.empty

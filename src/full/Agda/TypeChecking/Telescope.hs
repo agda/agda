@@ -123,20 +123,6 @@ splitTelescope fv tel = SplitTel tel1 tel2 perm
     m         = genericLength $ takeWhile (`notElem` is) (reverse js)
     (tel1, tel2) = telFromList -*- telFromList $ genericSplitAt (n - m) $ telToList tel'
 
-{- Andreas 2010-10-01: this comment seems stale.  Where is the unsafe variant?
--- | A safe variant of telView.
-
-OLD CODE:
-telView :: Type -> TCM TelView
-telView t = do
-  t <- reduce t
-  case unEl t of
-    Pi a (Abs x b) -> absV a x   <$> telView b
-    Fun a b	   -> absV a "_" <$> telView (raise 1 b)
-    _		   -> return $ TelV EmptyTel t
-  where
-    absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
--}
 telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
 
@@ -147,9 +133,8 @@ telViewUpTo 0 t = return $ TelV EmptyTel t
 telViewUpTo n t = do
   t <- reduce t
   case unEl t of
-    Pi a (Abs x b) -> absV a x   <$> telViewUpTo (n-1) b
-    Fun a b	   -> absV a "_" <$> telViewUpTo (n-1) (raise 1 b)
-    _		   -> return $ TelV EmptyTel t
+    Pi a b -> absV a (absName b) <$> telViewUpTo (n - 1) (absBody b)
+    _      -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
@@ -161,5 +146,4 @@ piApplyM t (arg : args) = do
   t <- reduce t
   case (t, arg) of
     (El _ (Pi  _ b), arg) -> absApp b (unArg arg) `piApplyM` args
-    (El _ (Fun _ b), _  ) -> b `piApplyM` args
     _                     -> __IMPOSSIBLE__

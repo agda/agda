@@ -39,7 +39,6 @@ data Term = Var Nat Args
 	  | Def QName Args
 	  | Con QName Args
 	  | Pi (Arg Type) (Abs Type)
-	  | Fun (Arg Type) Type
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
@@ -104,7 +103,6 @@ instance Sized Term where
     Lam _ f     -> 1 + size f
     Lit _       -> 1
     Pi a b      -> 1 + size a + size b
-    Fun a b     -> 1 + size a + size b
     Sort s      -> 1
     DontCare mv -> size mv
 
@@ -134,7 +132,6 @@ instance KillRange Term where
     Lit l       -> killRange1 Lit l
     Level l     -> killRange1 Level l
     Pi a b      -> killRange2 Pi a b
-    Fun a b     -> killRange2 Fun a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
 
@@ -268,18 +265,15 @@ instance Show MetaId where
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
-arity t =
-    case unEl t of
-	Pi  _ (Abs _ b) -> 1 + arity b
-	Fun _	     b	-> 1 + arity b
-	_		-> 0
+arity t = case unEl t of
+  Pi  _ b -> 1 + arity (unAbs b)
+  _       -> 0
 
 -- | Suggest a name for the first argument of a function of the given type.
 argName :: Type -> String
 argName = argN . unEl
     where
 	argN (Pi _ b)  = "." ++ absName b
-	argN (Fun _ _) = ".x"
 	argN _	  = __IMPOSSIBLE__
 
 
@@ -302,7 +296,6 @@ data FunV a
 -- | Computing the function type view (non-normalizing!),
 funView :: Term -> FunView
 funView t@(Pi  arg _) = FunV arg t
-funView t@(Fun arg _) = FunV arg t
 funView t	      = NoFunV t
 
 ---------------------------------------------------------------------------

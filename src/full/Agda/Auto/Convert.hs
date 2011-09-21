@@ -98,7 +98,7 @@ tomy imi icns typs = do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it (I.Abs _ typ))) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) typ
+       let pars n (I.El _ (I.Pi it typ)) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) (I.unAbs typ)
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
@@ -373,10 +373,6 @@ tomyExp (I.Pi (C.Arg hid _ x) b) = do
  x' <- tomyType x
  y' <- tomyType y
  return $ NotM $ Pi Nothing (cnvh hid) (Agda.TypeChecking.Free.freeIn 0 y) x' (Abs (Id name) y')
-tomyExp (I.Fun (C.Arg hid _ x) y) = do
- x' <- tomyType x
- y' <- tomyType y
- return $ NotM $ Pi Nothing (cnvh hid) False x' (Abs NoId (weaken 0 y'))
 tomyExp (I.Sort (I.Type (I.Max [I.ClosedLevel l]))) = return $ NotM $ Sort $ Set $ fromIntegral l
 tomyExp (I.Sort _) = return $ NotM $ Sort UnknownSort
 tomyExp t@I.MetaV{} = do
@@ -415,7 +411,6 @@ fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m as
 fmExp m (I.Con _ as) = fmExps m as
 fmExp m (I.Pi x y)  = fmType m (C.unArg x) || fmType m (I.unAbs y)
-fmExp m (I.Fun x y) = fmType m (C.unArg x) || fmType m y
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
@@ -703,8 +698,7 @@ findClauseDeep m = do
       I.Level (I.Max as) -> any (fmLevel m) as
       I.Def _ as -> findMetas as
       I.Con _ as -> findMetas as
-      I.Pi it ot -> findMetat (C.unArg it) || findMetat (I.absBody ot)
-      I.Fun it ot -> findMetat (C.unArg it) || findMetat ot
+      I.Pi it ot -> findMetat (C.unArg it) || findMetat (I.unAbs ot)
       I.Sort{} -> False
       I.MetaV m' _  -> m == m'
       I.DontCare _ -> False
@@ -728,8 +722,8 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
    case ft 0 0 Just ctyp ttyp of
     Just n -> Just (n, narg)
     Nothing -> case ctyp of
-     I.El _ (I.Pi _ ot) -> tr (narg + 1) (na + 1) (I.absBody ot)
-     I.El _ (I.Fun _ ot) -> tr (narg + 1) na ot
+     I.El _ (I.Pi _ (I.Abs _ ot)) -> tr (narg + 1) (na + 1) ot
+     I.El _ (I.Pi _ (I.NoAbs _ ot)) -> tr (narg + 1) na ot
      _ -> Nothing
    where
     ft nl n c (I.El _ e1) (I.El _ e2) = f nl n c e1 e2
@@ -749,9 +743,6 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Pi (C.Arg hid1 rel1 it1) ot1, I.Pi (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
-      (I.Fun (C.Arg hid1 rel1 it1) ot1, I.Fun (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft nl n c ot1 ot2) it1 it2
-      (I.Fun (C.Arg hid1 rel1 it1) ot1, I.Pi (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (raise 1 ot1) (I.absBody ot2)) it1 it2
-      (I.Pi (C.Arg hid1 rel1 it1) ot1, I.Fun (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (raise 1 ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of

@@ -196,7 +196,6 @@ noShadowingOfConstructors c problem =
           Primitive   {} -> __IMPOSSIBLE__
       Var   {} -> return ()
       Pi    {} -> return ()
-      Fun   {} -> return ()
       Sort  {} -> return ()
       MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be

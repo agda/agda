@@ -86,7 +86,6 @@ haskellKind a = do
   case unEl a of
     Sort _  -> return hsStar
     Pi a b  -> hsKFun <$> haskellKind (unArg a) <*> underAbstraction a b haskellKind
-    Fun a b -> hsKFun <$> haskellKind (unArg a) <*> haskellKind b
     Def d _ -> do
       d <- compiledHaskell . defCompiledRep <$> getConstInfo d
       case d of
@@ -118,7 +117,6 @@ haskellType = liftTCM . fromType
             [a, b] -> fromTerm (unArg b)
             _      -> err
         Def d args -> hsApp <$> getHsType d <*> fromArgs args
-        Fun a b    -> hsFun <$> fromType (unArg a) <*> fromType b
         Pi a b ->
           if isBinderUsed b
           then underAbstraction a b $ \b ->

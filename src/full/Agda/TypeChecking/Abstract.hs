@@ -14,7 +14,7 @@ import Agda.Utils.Impossible
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)
   where
-    fun a b = El s $ Pi (Arg NotHidden Relevant a) $ Abs "w" b
+    fun a b = El s $ Pi (Arg NotHidden Relevant a) $ mkAbs "w" b
       where s = (sLub `on` getSort) a b
 
 class AbstractTerm a where
@@ -29,7 +29,6 @@ instance AbstractTerm Term where
     Def c vs    -> Def c $ absT vs
     Con c vs    -> Con c $ absT vs
     Pi a b      -> uncurry Pi $ absT (a, b)
-    Fun a b      -> uncurry Fun $ absT (a, b)
     Lit l       -> Lit l
     Level l     -> Level $ absT l
     Sort s      -> Sort $ absT s

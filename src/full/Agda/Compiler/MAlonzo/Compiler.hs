@@ -331,7 +331,6 @@ term tm0 = case tm0 of
       else (`apps` as) . HS.Con =<< lift (conhqn q)
   Level l    -> term =<< lift (reallyUnLevelView l)
   Pi    _ _  -> return HS.unit_con
-  Fun   _ _  -> return HS.unit_con
   Sort  _    -> return HS.unit_con
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare _ -> return $ rtmError $ "hit DontCare"

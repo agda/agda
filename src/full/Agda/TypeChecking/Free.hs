@@ -141,7 +141,6 @@ instance Free Term where
       -- thus, we approximate, losing that x = List x is unsolvable
     Con _ ts   -> freeVars' conf ts
     Pi a b     -> freeVars' conf (a,b)
-    Fun a b    -> freeVars' conf (a,b)
     Sort s     -> freeVars' conf s
     Level l    -> freeVars' conf l
     MetaV _ ts -> flexible $ freeVars' conf ts

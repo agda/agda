@@ -42,8 +42,9 @@ forcedVariables t = case t of
     ifM (isInj d)
         (forcedArgs vs)
         (return [])
-  Fun a b -> (++) <$> forcedVariables (unEl $ unArg a)
-                  <*> forcedVariables (unEl b)
+  Pi a (NoAbs _ b) ->
+    (++) <$> forcedVariables (unEl $ unArg a)
+         <*> forcedVariables (unEl b)
   Pi a b -> (++) <$> forcedVariables (unEl $ unArg a)
                  <*> (underBinder <$> forcedVariables (unEl $ absBody b))
   -- Sorts?
@@ -65,7 +66,6 @@ force xs t = aux 0 t
     m = maximum (-1:xs)
     aux i t | i > m = t
     aux i t = case t of
-      El s (Fun a b) -> El s $ Fun (upd a) (aux (i + 1) b)
       El s (Pi  a b) -> El s $ Pi  (upd a) (fmap (aux (i + 1)) b)
       _ -> __IMPOSSIBLE__
       where

@@ -402,7 +402,8 @@ instance SubstHH a b => SubstHH (Arg a) (Arg b) where
   trivialHH = fmap trivialHH
 
 instance SubstHH a b => SubstHH (Abs a) (Abs b) where
-  substUnderHH n u = fmap $ substUnderHH (n+1) u
+  substUnderHH n u (Abs   x v) = Abs x $ substUnderHH (n + 1) u v
+  substUnderHH n u (NoAbs x v) = NoAbs x $ substUnderHH n u v
   trivialHH = fmap trivialHH
 
 instance (SubstHH a a', SubstHH b b') => SubstHH (a,b) (a',b') where
@@ -954,8 +955,8 @@ shapeView t = do
 --  t <- liftTCM $ reduce t  -- DO NOT REDUCE!
 -- --  t <- ureduce t  -- BUG!! substitutes bound variables in telescope!
   return . (t,) $ case unEl t of
+    Pi a (NoAbs _ b) -> FunSh a b
     Pi a (Abs x b) -> PiSh a (Abs x b)
-    Fun a b        -> FunSh a b
     Def d vs       -> DefSh d
     Var x vs       -> VarSh x
     Lit l          -> LitSh l
@@ -973,9 +974,9 @@ shapeViewHH (Het a1 a2) = do
   (a2, sh2) <- shapeView a2
   return . (Het a1 a2,) $ case (sh1, sh2) of
 
-    (PiSh (Arg h1 r1 a1) (Abs x1 b1), PiSh (Arg h2 r2 a2) (Abs x2 b2))
-      | h1 == h2 && x1 == x2 ->
-      PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs x1 (Het b1 b2))
+    (PiSh (Arg h1 r1 a1) b1, PiSh (Arg h2 r2 a2) b2)
+      | h1 == h2 ->
+      PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs (absName b1) (Het (absBody b1) (absBody b2)))
 
     (FunSh (Arg h1 r1 a1) b1, FunSh (Arg h2 r2 a2) b2)
       | h1 == h2 ->
@@ -995,8 +996,8 @@ telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
   (t, sh) <- shapeViewHH =<< liftTCM (traverse reduce t)
   case sh of
-    PiSh a (Abs x b) -> absV a x   <$> telViewUpToHH (n-1) b
-    FunSh a b	     -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)
-    _		     -> return $ TelV EmptyTel t
+    PiSh a b  -> absV a (absName b) <$> telViewUpToHH (n-1) (absBody b)
+    FunSh a b -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)
+    _         -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t

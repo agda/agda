@@ -224,7 +224,6 @@ substTerm env term = case term of
         let con = unqname q
         apps con <$> mapM (substTerm env . unArg) args
     T.Pi _ _ -> return UNIT
-    T.Fun _ _ -> return UNIT
     T.Sort _  -> return UNIT
     T.MetaV _ _ -> return UNIT
     T.DontCare _ -> return UNIT

@@ -51,13 +51,11 @@ nrRel = sum . map (const 1) . filter id
 -- | Check if argument n is recursive
 isRec :: Int -> Type -> QName -> Bool
 isRec 0 (El _ t) dat = case t of
-    Fun arg _ -> argIsDef (unArg arg) dat
     Pi  arg _ -> argIsDef (unArg arg) dat
-    _       -> False
+    _         -> False
 isRec n (El _ t) dat = case t of
-    Pi  _ ab  -> isRec (n - 1) (absBody ab) dat
-    Fun _ typ -> isRec (n - 1) typ           dat
-    _           -> False
+    Pi  _ ab  -> isRec (n - 1) (unAbs ab) dat
+    _         -> False
 
 argIsDef :: Type -> QName -> Bool
 argIsDef (El _ t) dat = case t of

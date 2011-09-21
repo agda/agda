@@ -69,7 +69,6 @@ headSymbol v = ignoreAbstractMode $ do
     Con c _ -> return (Just $ ConHead c)
     Sort _  -> return (Just SortHead)
     Pi _ _  -> return (Just PiHead)
-    Fun _ _ -> return (Just PiHead)
     Lit _   -> return Nothing -- handle literal heads as well? can't think of
                               -- any examples where it would be useful...
     _       -> return Nothing

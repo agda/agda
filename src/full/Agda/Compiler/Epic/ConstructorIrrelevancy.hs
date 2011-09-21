@@ -16,7 +16,6 @@ import Agda.TypeChecking.Monad.Base (TCM)
 irrFilter :: T.Type -> IrrFilter
 irrFilter (T.El _ term) = case term of
     T.Pi  arg ab  -> isRel arg : irrFilter (T.absBody ab)
-    T.Fun arg typ -> isRel arg : irrFilter typ
     _ -> []
   where
     isRel :: Arg T.Type -> Bool

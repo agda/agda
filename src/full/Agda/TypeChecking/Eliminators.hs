@@ -44,7 +44,6 @@ elimView v = do
     Lit{}      -> noElim
     Level{}    -> noElim
     Sort{}     -> noElim
-    Fun{}      -> noElim
     Pi{}       -> noElim
     DontCare{} -> noElim
     where

@@ -150,8 +150,8 @@ checkPragma r p =
                           underPars n a = do
                             a <- reduce a
                             case unEl a of
+                              Pi a (NoAbs _ b) -> underPars (n - 1) b
                               Pi a b  -> underAbstraction a b $ underPars (n - 1)
-                              Fun a b -> underPars (n - 1) b
                               _       -> __IMPOSSIBLE__
                       ty <- underPars np $ defType def
                       reportSLn "tc.pragma.compile" 10 $ "Haskell type for " ++ show c ++ ": " ++ ty
@@ -326,8 +326,8 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-      instFinal (ExtendTel (Arg h r t) (Abs   n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
-      instFinal (ExtendTel arg (Abs   n tel)) = ExtendTel arg (Abs n (instFinal tel))
+      instFinal (ExtendTel (Arg h r t) (Abs n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
+      instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel
   reportSDoc "tc.section.apply" 20 $ vcat
