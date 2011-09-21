@@ -618,7 +618,7 @@ unifyIndices flex a us vs = liftTCM $ do
       -- check whether types have the same shape
       (aHH, sh) <- shapeViewHH =<< ureduce aHH
       case sh of
-        ElseSh  -> typeMismatch aHH u v  -- not a type or not same types
+        ElseSh  -> checkEqualityHH aHH u v -- not a type or not same types
 
         DefSh d -> if isSizeName d then unifySizes u v
                                    else unifyAtomHH aHH u v
