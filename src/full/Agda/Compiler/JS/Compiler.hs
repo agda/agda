@@ -159,14 +159,23 @@ definition (q,d) = do
 defn :: [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
 defn ls t (Just e) Axiom =
   return e
-defn ls t Nothing Axiom =
-  return Undefined
+defn ls t Nothing Axiom = do
+  t <- normalise t
+  s <- isSingleton t
+  case s of
+    -- Inline and eta-expand postulates of singleton type
+    Just e ->
+      return (curriedLambda (arity t) e)
+    -- Everything else we leave undefined
+    Nothing ->   
+      return Undefined
 defn ls t (Just e) (Function {}) =
   return e
 defn ls t _ (Function { funProjection = Just i, funClauses = cls }) =
   return (curriedLambda (numPars cls)
     (Lookup (Local (LocalId 0)) (last ls)))
 defn ls t _ (Function { funClauses = cls }) = do
+  t <- normalise t
   s <- isSingleton t
   case s of
     -- Inline and eta-expand expressions of singleton type
@@ -279,11 +288,12 @@ term (Def q as) = do
       es <- args as
       return (curriedApply e es)
     Nothing -> do
-      s <- isSingleton (defType d)
+      t <- normalise (defType d)
+      s <- isSingleton t
       case s of
         -- Inline and eta-expand singleton types
         Just e ->
-          return (curriedLambda (arity (defType d)) e)
+          return (curriedLambda (arity t) e)
         -- Everything else we leave non-inline
         Nothing -> do
           e <- qname q
