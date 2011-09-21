@@ -296,6 +296,14 @@ instance UReduce Term where
 instance UReduce Type where
   ureduce (El s t) = El s <$> ureduce t
 
+instance UReduce t => UReduce (HomHet t) where
+  ureduce (Hom t)     = Hom <$> ureduce t
+  ureduce (Het t1 t2) = Het <$> ureduce t1 <*> ureduce t2
+
+instance UReduce t => UReduce (Maybe t) where
+  ureduce Nothing = return Nothing
+  ureduce (Just t) = Just <$> ureduce t
+
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
 --   TODO: can this be expressed using makeSubstitution and substs?
@@ -412,6 +420,7 @@ dontKnow = DontKnow Nothing
 
 unifyIndices :: MonadTCM tcm => FlexibleVars -> Type -> [Arg Term] -> [Arg Term] -> tcm UnificationResult
 unifyIndices flex a us vs = liftTCM $ do
+    a <- reduce a
     reportSDoc "tc.lhs.unify" 10 $
       sep [ text "unifyIndices"
           , nest 2 $ text (show flex)
@@ -451,7 +460,7 @@ unifyIndices flex a us vs = liftTCM $ do
      -}
 
     unifyConstructorArgs ::
-         TypeHH  -- ^ The type of the constructor, instantiated to the parameters.
+         TypeHH  -- ^ The ureduced type of the constructor, instantiated to the parameters.
                  --   Possibly heterogeneous, since pars of lhs and rhs might differ.
       -> [Arg Term]  -- ^ the arguments of the constructor (lhs)
       -> [Arg Term]  -- ^ the arguments of the constructor (rhs)
@@ -492,19 +501,25 @@ unifyIndices flex a us vs = liftTCM $ do
 	, nest 2 $ prettyList $ map prettyTCM vs0
 	, nest 2 $ text "at telescope" <+> prettyTCM bHH <+> text "..."
         ]
+      liftTCM $ reportSDoc "tc.lhs.unify" 25 $
+        (text $ "tel0 = " ++ show tel0)
+
+
       -- Andreas, Ulf, 2011-09-08 (AIM XVI)
       -- in case of dependent function type, we cannot postpone
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
       uHH <- if (rel == Irrelevant) then return $ Hom u else
                ifClean (unifyHH bHH u v) (return $ Hom u) (return $ Het u v)
-{-             do
-               res <- listenResult $ unifyHH b u v
-               case res of
-                 Definitely -> return $ Hom u
-                 Possibly -> return $ Het u v
--}
+
+      liftTCM $ reportSDoc "tc.lhs.unify" 25 $
+        (text "uHH (before ureduce) =" <+> prettyTCM uHH)
+
       uHH <- traverse ureduce uHH
+
+      liftTCM $ reportSDoc "tc.lhs.unify" 25 $
+        (text "uHH (after  ureduce) =" <+> prettyTCM uHH)
+
       unifyConArgs (tel `absAppHH` uHH) us vs
 
 
@@ -574,7 +589,9 @@ unifyIndices flex a us vs = liftTCM $ do
     --   In het. situations, we only search for a mismatch!
     --
     -- TODO: eta for records!
-    unifyHH :: TypeHH -> Term -> Term -> Unify ()
+    unifyHH ::
+        TypeHH  -- ^ one or two types, need not be in (u)reduced form
+     -> Term -> Term -> Unify ()
     unifyHH aHH u v = do
       u <- liftTCM . constructorForm =<< ureduce u
       v <- liftTCM . constructorForm =<< ureduce v
@@ -588,7 +605,7 @@ unifyIndices flex a us vs = liftTCM $ do
       isSizeName <- liftTCM isSizeNameTest
 
       -- check whether types have the same shape
-      (aHH, sh) <- shapeViewHH aHH
+      (aHH, sh) <- shapeViewHH =<< ureduce aHH
       case sh of
         ElseSh  -> typeMismatch aHH u v  -- not a type or not same types
 
@@ -596,7 +613,9 @@ unifyIndices flex a us vs = liftTCM $ do
                                    else unifyAtomHH aHH u v
         _ -> unifyAtomHH aHH u v
 
-    unifyAtomHH :: TypeHH -> Term -> Term -> Unify ()
+    unifyAtomHH ::
+         TypeHH -- ^ in ureduced form
+      -> Term -> Term -> Unify ()
     unifyAtomHH aHH0 u v = do
       let (aHH, homogeneous, a) = case aHH0 of
             Hom a                -> (aHH0, True, a)
@@ -624,7 +643,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	(u, Var j []) | homogeneous && flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
-              r <- liftTCM $ dataOrRecordTypeHH c aHH
+              r <- ureduce =<< liftTCM (dataOrRecordTypeHH c aHH)
               case r of
                 Just a'HH -> unifyConstructorArgs a'HH us vs
                 Nothing   -> typeMismatch aHH u v
@@ -919,10 +938,11 @@ data ShapeView a
   | ElseSh        -- ^ not a type or not definitely same shape
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
--- | Return the reduced type and its shape.
+-- | Return the type and its shape.  Expects input in (u)reduced form.
 shapeView :: Type -> Unify (Type, ShapeView Type)
 shapeView t = do
-  t <- ureduce t  -- also instantiates meta in head position -- Q: reduce sufficient?
+--  t <- liftTCM $ reduce t  -- DO NOT REDUCE!
+-- --  t <- ureduce t  -- BUG!! substitutes bound variables in telescope!
   return . (t,) $ case unEl t of
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Fun a b        -> FunSh a b
@@ -963,7 +983,7 @@ shapeViewHH (Het a1 a2) = do
 telViewUpToHH :: Int -> TypeHH -> Unify TelViewHH
 telViewUpToHH 0 t = return $ TelV EmptyTel t
 telViewUpToHH n t = do
-  (t, sh) <- shapeViewHH t
+  (t, sh) <- shapeViewHH =<< liftTCM (traverse reduce t)
   case sh of
     PiSh a (Abs x b) -> absV a x   <$> telViewUpToHH (n-1) b
     FunSh a b	     -> absV a "_" <$> telViewUpToHH (n-1) (raise 1 b)

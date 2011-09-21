@@ -5,6 +5,8 @@
 -- (and with it eta-contraction) from definition bodies in Def.hs
 -- see Issue 361
 
+-- {-# OPTIONS -v tc.lhs.unify:25 #-}
+
 module EtaContractionDefBody where
 
 ------------------------------------------------------------------------
