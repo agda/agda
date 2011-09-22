@@ -568,7 +568,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull b
           Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
-          DontCare _  -> return v
+          DontCare v  -> DontCare <$> instantiateFull v
 
 instance InstantiateFull Level where
   instantiateFull (Max as) = levelMax <$> instantiateFull as

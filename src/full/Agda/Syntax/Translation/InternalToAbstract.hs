@@ -290,7 +290,10 @@ instance Reify Term Expr where
           return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
-      I.DontCare _  -> return A.DontCare
+      I.DontCare v ->
+        ifM showImplicitArguments
+            (reify v)
+            (return A.DontCare)
 {- Andreas, 2011-09-09
       I.DontCare Nothing  -> return A.DontCare
       I.DontCare (Just v) -> reify v  -- leads to paradox error msg in test/fail/UnifyWithIrrelevantArgument

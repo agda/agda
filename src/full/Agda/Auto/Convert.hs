@@ -468,8 +468,7 @@ frommyExp (NotM e) =
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
   Sort Type -> __IMPOSSIBLE__
-  Sort UnknownSort -> return $ I.DontCare Nothing
-  -- Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
+  Sort UnknownSort -> return $ I.Sort (I.mkType 0) -- hoping that it's thrown away
 
   AbsurdLambda hid ->
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))

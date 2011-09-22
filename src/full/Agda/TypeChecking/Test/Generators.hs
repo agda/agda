@@ -434,7 +434,7 @@ instance ShrinkC Type Type where
 instance ShrinkC Term Term where
   shrinkC conf (DontCare _)  = []
   shrinkC conf (Sort Prop) = []
-  shrinkC conf t	   = filter validType $ DontCare Nothing : case t of
+  shrinkC conf t	   = filter validType $ case t of
     Var i args   -> map unArg args ++
 		    (uncurry Var <$> shrinkC conf (VarName i, NoType args))
     Def d args   -> map unArg args ++
@@ -448,7 +448,7 @@ instance ShrinkC Term Term where
 		    (uncurry Pi <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
-    DontCare _   -> __IMPOSSIBLE__
+    DontCare _   -> []
     where
       validType t
 	| not (tcIsType conf) = True
@@ -468,7 +468,7 @@ class KillVar a where
 
 instance KillVar Term where
   killVar i t = case t of
-    Var j args | j == i	   -> DontCare Nothing
+    Var j args | j == i	   -> DontCare (Var j [])
 	       | j >  i	   -> Var (j - 1) $ killVar i args
 	       | otherwise -> Var j	  $ killVar i args
     Def c args		   -> Def c	  $ killVar i args

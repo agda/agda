@@ -594,8 +594,7 @@ termTerm conf names f pats0 t0 = do
             MetaV x args -> return Term.empty
 
             -- Erased and not-yet-erased proof.
-            DontCare Nothing  -> return Term.empty
-            DontCare (Just t) -> loop pats guarded t
+            DontCare t -> loop pats guarded t
 
             -- Level.
             Level l -> loop pats guarded =<< reallyUnLevelView l

@@ -120,7 +120,7 @@ instance Occurs Term where
         Lam h f	    -> Lam h <$> occ ctx f
         Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
-        DontCare v  -> DontCare <$> traverse (occurs red ctx m xs) v
+        DontCare v  -> DontCare <$> occurs red ctx m xs v
         Def d vs    -> Def d <$> occDef d ctx vs
         Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ ctx (a,b)

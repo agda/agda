@@ -42,7 +42,7 @@ data Term = Var Nat Args
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
-          | DontCare (Maybe Term)  -- ^ (maybe nuked) irrelevant and other stuff
+          | DontCare Term  -- ^ irrelevant stuff
   deriving (Typeable, Data, Show)
 -- Andreas 2010-09-21: @DontCare Nothing@ replaces the hack @Sort Prop@
 

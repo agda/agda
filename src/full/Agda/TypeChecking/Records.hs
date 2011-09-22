@@ -151,7 +151,7 @@ etaExpandRecord r pars u = do
       -- irrelevant fields are expanded to DontCare
       -- this is sound because etaExpandRecord is only called during conversion
       -- WARNING: do not use etaExpandRecord to expand MetaVars!!
-      let proj (Arg h Irrelevant _) = Arg h Irrelevant $ DontCare Nothing
+      let proj (Arg h Irrelevant x) = Arg h Irrelevant $ DontCare (Def x [defaultArg u])
           proj (Arg h rel x)        = Arg h rel $
             Def x [defaultArg u]
       reportSDoc "tc.record.eta" 20 $ vcat
@@ -173,7 +173,7 @@ etaContractRecord r c args = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
         case (argRelevance a, unArg a) of
-          (Irrelevant, _) -> return $ Just $ DontCare Nothing
+          (Irrelevant, v) -> return $ Just $ DontCare __IMPOSSIBLE__ -- thrown out later
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
           (_, Def y [arg]) | unArg ax == y

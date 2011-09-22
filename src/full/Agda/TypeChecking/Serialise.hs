@@ -80,7 +80,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20110921 * 10 + 1
+currentInterfaceVersion = 20110922 * 10 + 1
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -533,7 +533,7 @@ instance EmbPrj I.Term where
   icode (Pi       a b) = icode2 5 a b
   icode (Sort     a  ) = icode1 7 a
   icode (MetaV    a b) = __IMPOSSIBLE__
-  icode (DontCare _  ) = icode0 8
+  icode (DontCare a  ) = icode1 8 a
   icode (Level    a  ) = icode1 9 a
   value = vcase valu where valu [0, a, b] = valu2 Var   a b
                            valu [1, a, b] = valu2 Lam   a b
@@ -542,7 +542,7 @@ instance EmbPrj I.Term where
                            valu [4, a, b] = valu2 Con   a b
                            valu [5, a, b] = valu2 Pi    a b
                            valu [7, a]    = valu1 Sort  a
-                           valu [8]       = valu0 $ DontCare Nothing
+                           valu [8, a]    = valu1 DontCare a
                            valu [9, a]    = valu1 Level a
                            valu _         = malformed
 
