@@ -236,7 +236,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unArg arg)
         v <- addCtx x (Arg h r argT) $ checkExpr body btyp
-        blockTermOnProblem target (Lam h $ mkAbs (show $ nameConcrete x) v) pid
+        blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
     useTargetType _ _ = __IMPOSSIBLE__
