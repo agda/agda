@@ -315,10 +315,6 @@ levelSuc (Max as) = Max $ map inc as
 
 mkType n = Type $ Max [ClosedLevel n | n > 0]
 
-teleLam :: Telescope -> Term -> Term
-teleLam  EmptyTel	  t = t
-teleLam (ExtendTel u tel) t = Lam (argHiding u) $ flip teleLam t <$> tel
-
 getSort :: Type -> Sort
 getSort (El s _) = s
 

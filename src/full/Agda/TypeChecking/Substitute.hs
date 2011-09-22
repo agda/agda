@@ -674,6 +674,10 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
     s1 = getSort $ unArg u
     s2 = fmap getSort b
 
+teleLam :: Telescope -> Term -> Term
+teleLam  EmptyTel	  t = t
+teleLam (ExtendTel u tel) t = Lam (argHiding u) . reAbs $ flip teleLam t <$> tel
+
 -- | Dependent least upper bound, to assign a level to expressions
 --   like @forall i -> Set i@.
 --

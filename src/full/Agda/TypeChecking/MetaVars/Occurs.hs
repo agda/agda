@@ -339,7 +339,7 @@ performKill kills m a = do
   etaExpandMetaSafe m'
   let vars = reverse [ Arg h r (Var i []) | (i, Arg h r False) <- zip [0..] kills ]
       hs   = reverse [ argHiding a | a <- kills ]
-      lam h b = Lam h (Abs "v" b)
+      lam h b = Lam h (mkAbs "v" b)
       u       = foldr lam (MetaV m' vars) hs
   dbg m' u
   assignTerm m u
