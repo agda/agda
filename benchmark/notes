@@ -70,5 +70,7 @@
           (09.14) Don't reduce sorts when reducing types
           (13.11) Got rid of most MonadTCMs
 
-20110909: Positivity checker needs to look at pattern matching.
+20110919: Positivity checker needs to look at pattern matching.
+
+20110922: Just minor stuff.
 
