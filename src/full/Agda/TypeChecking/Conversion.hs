@@ -191,15 +191,16 @@ compareTel t1 t2 cmp tel1 tel2 =
     (_, EmptyTel)        -> bad
     (ExtendTel arg1@(Arg h1 r1 a1) tel1, ExtendTel arg2@(Arg h2 r2 a2) tel2)
       | h1 /= h2 -> bad
+        -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
+        -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
       | otherwise -> do
           let (tel1', tel2') = raise 1 (tel1, tel2)
               arg            = Var 0 []
           name <- freshName_ (suggest (absName tel1) (absName tel2))
           let checkArg = escapeContext 1 $ compareType cmp a1 a2
           let c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
-
-	  let dependent = isBinderUsed tel2
-
+          let r = max r1 r2  -- take "most irrelevant"
+              dependent = (r /= Irrelevant) && isBinderUsed tel2
           addCtx name arg1 $
             if dependent
 	    then guardConstraint c checkArg
