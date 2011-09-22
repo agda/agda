@@ -503,7 +503,9 @@ assign x args v = do
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
         -- free in v
-        let fvs = relevantVars $ freeVars v
+        -- Ulf, 2011-09-22: we need to respect irrelevant vars as well, otherwise
+        -- we'll build solutions where the irrelevant terms are not valid
+        let fvs = allVars $ freeVars v
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 

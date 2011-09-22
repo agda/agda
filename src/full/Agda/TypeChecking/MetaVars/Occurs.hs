@@ -5,6 +5,7 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
+import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -119,7 +120,7 @@ instance Occurs Term where
         Lam h f	    -> Lam h <$> occ ctx f
         Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
-        DontCare _  -> return v
+        DontCare v  -> DontCare <$> traverse (occurs red ctx m xs) v
         Def d vs    -> Def d <$> occDef d ctx vs
         Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
