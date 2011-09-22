@@ -167,7 +167,7 @@ defn q ls t Nothing Axiom = do
     Just e ->
       return (curriedLambda (arity t) e)
     -- Everything else we leave undefined
-    Nothing ->   
+    Nothing ->
       return Undefined
 defn q ls t (Just e) (Function {}) =
   return e
@@ -185,11 +185,11 @@ defn q ls t _ (Function { funProjection = proj, funClauses = cls }) = do
         case theDef d of
           -- For projections from records we use a field lookup
           Record { recFields = flds } | q `elem` map unArg flds ->
-            return (curriedLambda (numPars cls) 
+            return (curriedLambda (numPars cls)
               (Lookup (Local (LocalId 0)) (last ls)))
           _ ->
             -- For anything else we generate code
-            return (lambda cs)            
+            return (lambda cs)
       Nothing ->
         return (lambda cs)
 defn q ls t (Just e) (Primitive {}) =
@@ -206,7 +206,7 @@ defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
   case theDef d of
     Record { recFields = flds } ->
       return (curriedLambda np (Object (fromList
-        ( (last ls , Lambda 1 
+        ( (last ls , Lambda 1
              (Apply (Lookup (Local (LocalId 0)) (last ls))
                [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
         : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
