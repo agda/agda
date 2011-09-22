@@ -321,6 +321,26 @@ Language
     test-id : id ≡ (λ A (x : A) → x)
     test-id = refl
 
+* A new construct has been introduced to extend `quote' to not only names but
+  but any term to its normal form syntax using the type `Term' from the Agda
+  reflection API.
+
+    test₁ : quoteTerm (λ {A : Set} (x : A) → x)
+             ≡ lam hidden (lam visible (var 0 []))
+    test₁ = refl
+
+    -- Local variables are de Bruijn indices, do not forget to shift
+    test₂ : (λ {A : Set} (x : A) → quoteTerm x) ≡ (λ x → var 0 [])
+    test₂ = refl
+
+    -- Terms are normalized before being unquoted
+    test₃ : quoteTerm (0 + 0) ≡ con (quote zero) []
+    test₃ = refl
+
+    -- _∶_ from the Function module can help in case of ambiguities
+    test₄ : quoteTerm (zero ∶ ℕ) ≡ con (quote ℕ.zero) []
+    test₄ = refl
+
 * Pattern matching lambdas.
 
   Anonymous pattern matching functions can be defined with the syntax

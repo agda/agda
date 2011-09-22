@@ -614,6 +614,7 @@ instance ToAbstract C.Expr A.Expr where
         e' <- toAbstract e
         return $ A.QuoteGoal (ExprRange $ getRange e) x' e'
       C.Quote r -> return $ A.Quote (ExprRange r)
+      C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
 instance ToAbstract C.LamBinding A.LamBinding where

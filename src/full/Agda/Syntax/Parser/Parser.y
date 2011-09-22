@@ -92,6 +92,7 @@ import Agda.Utils.TestHelpers
     'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quote'         { TokKeyword KwQuote $$ }
+    'quoteTerm'     { TokKeyword KwQuoteTerm $$ }
     'unquote'       { TokKeyword KwUnquote $$ }
 
     setN	{ TokSetN $$ }
@@ -189,6 +190,7 @@ Token
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
+    | 'quoteTerm'     { TokKeyword KwQuoteTerm $1 }
     | 'unquote'       { TokKeyword KwUnquote $1 }
 
     | setN	    { TokSetN $1 }
@@ -534,6 +536,7 @@ Expr3
     | 'Prop'				{ Prop (getRange $1) }
     | 'Set'				{ Set (getRange $1) }
     | 'quote'                           { Quote (getRange $1) }
+    | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }

@@ -90,6 +90,7 @@ data Expr
         | ETel Telescope                       -- ^ only used for printing telescopes
         | QuoteGoal !Range Name Expr           -- ^ ex: @quoteGoal x in e@
         | Quote !Range                         -- ^ ex: @quote@, should be applied to a name
+        | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
     deriving (Typeable, Data)
 
@@ -392,6 +393,7 @@ instance HasRange Expr where
             ETel tel            -> getRange tel
             QuoteGoal r _ _     -> r
             Quote r             -> r
+            QuoteTerm r         -> r
             Unquote r           -> r
 
 -- instance HasRange Telescope where

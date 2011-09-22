@@ -401,6 +401,7 @@ paren _   e@(HiddenArg _ _)    = __IMPOSSIBLE__
 paren _   e@(InstanceArg _ _)  = __IMPOSSIBLE__
 paren _   e@(QuoteGoal _ _ _)  = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Quote _)          = return $ \p -> e
+paren _   e@(QuoteTerm _)      = return $ \p -> e
 paren _   e@(Unquote _)        = return $ \p -> e
 
 mparen :: Bool -> Expr -> Expr

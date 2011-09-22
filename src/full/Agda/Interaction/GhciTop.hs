@@ -795,8 +795,9 @@ instance LowerMeta SC.Expr where
       SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
       SC.InstanceArg r e  -> SC.InstanceArg r (lowerMeta e)
       SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)
-      SC.Quote r        -> SC.Quote r
-      SC.Unquote r      -> SC.Unquote r
+      e@SC.Quote{}      -> e
+      e@SC.QuoteTerm{}  -> e
+      e@SC.Unquote{}    -> e
 
 instance LowerMeta (OpApp SC.Expr) where
   lowerMeta (Ordinary e) = Ordinary $ lowerMeta e

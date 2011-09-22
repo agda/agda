@@ -407,11 +407,18 @@ checkExpr e t =
           ty <- qNameType
           blockTerm t $ quoteName x <$ leqType_ ty t
 
+          | A.QuoteTerm _ <- unScope q ->
+             do (et, _) <- inferExpr (namedThing e)
+                q <- quoteTerm =<< normalise et
+                ty <- el primAgdaTerm
+                blockTerm t $ q <$ leqType_ ty t
+
 	  | A.Unquote _ <- unScope q ->
 	     do e1 <- checkExpr (namedThing e) =<< el primAgdaTerm
 	        e2 <- unquote e1
                 checkTerm e2 t
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
+        A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
         A.AbsurdLam i h -> do

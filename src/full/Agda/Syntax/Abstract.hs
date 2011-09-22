@@ -54,6 +54,7 @@ data Expr
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^
         | Quote ExprInfo                     -- ^
+        | QuoteTerm ExprInfo                 -- ^
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
         | DontCare                           -- ^ for printing DontCare from Syntax.Internal
   deriving (Typeable, Data, Show)
@@ -210,6 +211,7 @@ instance HasRange Expr where
     getRange (ScopedExpr _ e)	= getRange e
     getRange (QuoteGoal _ _ e)	= getRange e
     getRange (Quote i)  	= getRange i
+    getRange (QuoteTerm i)  	= getRange i
     getRange (Unquote i)  	= getRange i
     getRange (DontCare)         = noRange
 
@@ -291,6 +293,7 @@ instance KillRange Expr where
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
   killRange (Quote i)        = killRange1 Quote i
+  killRange (QuoteTerm i)    = killRange1 QuoteTerm i
   killRange (Unquote i)      = killRange1 Unquote i
   killRange (DontCare)       = DontCare
 
@@ -407,6 +410,7 @@ allNames (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
   allNamesE (ScopedExpr _ e)        = allNamesE e
   allNamesE (QuoteGoal _ _ e)       = allNamesE e
   allNamesE Quote {}                = Seq.empty
+  allNamesE QuoteTerm {}            = Seq.empty
   allNamesE Unquote {}              = Seq.empty
   allNamesE DontCare {}             = Seq.empty
 
