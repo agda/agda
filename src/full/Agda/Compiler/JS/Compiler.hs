@@ -153,13 +153,13 @@ definition :: (QName,Definition) -> TCM ([MemberId],Exp)
 definition (q,d) = do
   (_,ls) <- global q
   d <- instantiateFull d
-  e <- defn ls (defType d) (defJSDef d) (theDef d)
+  e <- defn q ls (defType d) (defJSDef d) (theDef d)
   return (ls, e)
 
-defn :: [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
-defn ls t (Just e) Axiom =
+defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
+defn q ls t (Just e) Axiom =
   return e
-defn ls t Nothing Axiom = do
+defn q ls t Nothing Axiom = do
   t <- normalise t
   s <- isSingleton t
   case s of
@@ -169,43 +169,53 @@ defn ls t Nothing Axiom = do
     -- Everything else we leave undefined
     Nothing ->   
       return Undefined
-defn ls t (Just e) (Function {}) =
+defn q ls t (Just e) (Function {}) =
   return e
-defn ls t _ (Function { funProjection = Just i, funClauses = cls }) =
-  return (curriedLambda (numPars cls)
-    (Lookup (Local (LocalId 0)) (last ls)))
-defn ls t _ (Function { funClauses = cls }) = do
+defn q ls t _ (Function { funProjection = proj, funClauses = cls }) = do
   t <- normalise t
   s <- isSingleton t
+  cs <- mapM clause cls
   case s of
     -- Inline and eta-expand expressions of singleton type
     Just e ->
       return (curriedLambda (arity t) e)
-    -- Everything else we translate
-    Nothing -> do
-      cs <- mapM clause cls
-      return (lambda cs)
-defn ls t (Just e) (Primitive {}) =
+    Nothing -> case proj of
+      Just (p,i) -> do
+        d <- getConstInfo p
+        case theDef d of
+          -- For projections from records we use a field lookup
+          Record { recFields = flds } | q `elem` map unArg flds ->
+            return (curriedLambda (numPars cls) 
+              (Lookup (Local (LocalId 0)) (last ls)))
+          _ ->
+            -- For anything else we generate code
+            return (lambda cs)            
+      Nothing ->
+        return (lambda cs)
+defn q ls t (Just e) (Primitive {}) =
   return e
-defn ls t _ (Primitive {}) =
+defn q ls t _ (Primitive {}) =
   return Undefined
-defn ls t _ (Datatype {}) =
+defn q ls t _ (Datatype {}) =
   return emp
-defn ls t (Just e) (Constructor {}) =
+defn q ls t (Just e) (Constructor {}) =
   return e
-defn ls t _ (Constructor { conData = p, conPars = nc }) = do
+defn q ls t _ (Constructor { conData = p, conPars = nc }) = do
   np <- return (arity t - nc)
   d <- getConstInfo p
   case theDef d of
     Record { recFields = flds } ->
       return (curriedLambda np (Object (fromList
-        (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
-             [ Local (LocalId (np - i)) | i <- [1 .. np] ]))))
+        ( (last ls , Lambda 1 
+             (Apply (Lookup (Local (LocalId 0)) (last ls))
+               [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
+        : (zip [ jsMember (qnameName (unArg fld)) | fld <- flds ]
+             [ Local (LocalId (np - i)) | i <- [1 .. np] ])))))
     _ ->
       return (curriedLambda (np + 1)
         (Apply (Lookup (Local (LocalId 0)) (last ls))
           [ Local (LocalId (np - i)) | i <- [0 .. np-1] ]))
-defn ls t _ (Record {}) =
+defn q ls t _ (Record {}) =
   return emp
 
 -- Number of params in a function declaration
@@ -261,6 +271,10 @@ tag q = do
         (Nothing, Datatype { dataCons = qs }) -> do
           ls <- mapM visitorName qs
           return (Tag l ls Apply)
+        (Just e, Record {}) -> do
+          return (Tag l [l] (\ x xs -> apply e (x:xs)))
+        (Nothing, Record {}) -> do
+          return (Tag l [l] Apply)
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 
