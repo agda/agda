@@ -77,6 +77,7 @@ inContext xs ret = do
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Raise a => Arg Type -> Abs a -> (a -> TCM b) -> TCM b #-}
 underAbstraction :: (Raise a, MonadTCM tcm) => Arg Type -> Abs a -> (a -> tcm b) -> tcm b
+underAbstraction _ (NoAbs _ v) k = k v
 underAbstraction t a k = do
     xs <- map (nameConcrete . fst . unArg) <$> getContext
     x <- freshName_ $ realName $ absName a
