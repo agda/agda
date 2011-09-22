@@ -87,6 +87,7 @@ instance Instantiate LevelAtom where
       case v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
+    UnreducedLevel l -> UnreducedLevel <$> instantiate l
     _ -> return l
 
 instance Instantiate a => Instantiate (Blocked a) where
