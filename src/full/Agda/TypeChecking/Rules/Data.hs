@@ -223,8 +223,8 @@ fitsIn t s = do
   -- The line below would be simpler, but doesn't allow datatypes
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
-  case funView $ unEl t of
-    FunV arg@(Arg h r a) _ -> do
+  case unEl t of
+    Pi arg@(Arg h r a) _ -> do
       let s' = getSort a
       s' `leqSort` s
       x <- freshName_ (argName t)

@@ -549,8 +549,8 @@ unifyIndices flex a us vs = liftTCM $ do
 	, nest 2 $ prettyList $ map prettyTCM vs0
         ]
       a <- ureduce a  -- Q: reduce sufficient?
-      case funView $ unEl a of
-	FunV b _  -> do
+      case unEl a of
+	Pi b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
           -- in case of dependent function type, we cannot postpone
           -- unification of u and v, otherwise us or vs might be ill-typed
@@ -562,8 +562,9 @@ unifyIndices flex a us vs = liftTCM $ do
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
-      where dependent (Pi b c) = 0 `relevantIn` absBody c
-            dependent _        = False
+      where dependent (Pi _ NoAbs{}) = False
+            dependent (Pi b c)       = 0 `relevantIn` absBody c
+            dependent _              = False
 
     -- | Check using conversion check.
     recheckEqualities :: Unify ()

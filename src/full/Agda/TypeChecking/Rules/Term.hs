@@ -341,7 +341,7 @@ checkExpr e t =
     e <- scopedExpr e
     case e of
 	-- Insert hidden lambda if appropriate
-	_   | FunV (Arg h rel _) _ <- funView (unEl t)
+	_   | Pi (Arg h rel _) _ <- unEl t
             , not (hiddenLambdaOrHole h e)
             , h /= NotHidden                          -> do
 		x <- freshName r (argName t)
@@ -410,8 +410,8 @@ checkExpr e t =
           case t of
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-            NotBlocked t' -> case funView $ unEl t' of
-              FunV (Arg h' _ a) _
+            NotBlocked t' -> case unEl t' of
+              Pi (Arg h' _ a) _
                 | h == h' && not (null $ foldTerm metas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
@@ -973,13 +973,13 @@ checkArguments exh r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
-	case funView $ unEl t0' of
-	    FunV (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
+	case unEl t0' of
+	    Pi (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
 		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
-	    FunV (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
+	    Pi (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
                 lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
 		let arg = Arg Instance rel v
@@ -999,8 +999,8 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
         NotBlocked t0' -> do
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
-          case (funView $ unEl t0') of
-              (FunV (Arg h' rel a) _) |
+          case unEl t0' of
+              Pi (Arg h' rel a) _ |
                 h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
@@ -1011,9 +1011,9 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
    -- Andreas, 2011-09-09 keep irr. args. until after termination checking
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
-              (FunV (Arg Instance rel a) _) -> insertIFSUnderscore rel a
-              (FunV (Arg Hidden rel a) _) -> insertUnderscore rel
-              (FunV (Arg NotHidden _ _) _) -> lift $ typeError $ WrongHidingInApplication t0'
+              Pi (Arg Instance rel a) _ -> insertIFSUnderscore rel a
+              Pi (Arg Hidden rel a) _   -> insertUnderscore rel
+              Pi (Arg NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ newIFSMeta a

@@ -308,8 +308,7 @@ compareAtom cmp t m n =
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> case (m, n) of
-	    _ | f1@(FunV _ _) <- funView m
-	      , f2@(FunV _ _) <- funView n -> equalFun f1 f2
+	    (Pi{}, Pi{}) -> equalFun m n
 
 	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
 
@@ -362,7 +361,7 @@ compareAtom cmp t m n =
           return $ piApply a (genericTake npars args)
         conType _ _ = __IMPOSSIBLE__
 
-	equalFun (FunV arg1@(Arg h1 r1 a1) t1) (FunV (Arg h2 r2 a2) t2)
+	equalFun t1@(Pi arg1@(Arg h1 r1 a1) _) t2@(Pi (Arg h2 r2 a2) _)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
 	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
@@ -415,10 +414,10 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
   ab <- reduceB a
   let a = ignoreBlocking ab
   catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-  case funView . unEl <$> ab of
-    Blocked{}                       -> patternViolation
-    NotBlocked (NoFunV MetaV{})     -> patternViolation
-    NotBlocked (FunV (Arg _ r b) _) -> do
+  case unEl <$> ab of
+    Blocked{}                     -> patternViolation
+    NotBlocked MetaV{}            -> patternViolation
+    NotBlocked (Pi (Arg _ r b) _) -> do
       let cmp x y = case pol of
                       Invariant     -> compareTerm CmpEq  b x y
                       Covariant     -> compareTerm CmpLeq b x y
