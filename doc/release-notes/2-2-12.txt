@@ -7,6 +7,58 @@ Important changes since 2.2.10:
 Language
 --------
 
+* New way of definition mutually recursive things.
+
+  It is no longer necessary to use the 'mutual' keyword to define mutally
+  recursive functions or datatypes. Instead, it is enough to declare things
+  before they are used. Instead of
+
+    -- Old style
+    mutual
+      f : A
+      f = a[f, g]
+
+      g : B[f]
+      g = b[f, g]
+
+  you can now write
+
+    -- New style
+    f : A
+    g : B[f]
+    f = a[f, g]
+    g = b[f, g]
+
+  In this new style you have more freedom in choosing the order things are type
+  checked instead of type signatures always being checked before definitions.
+
+  For datatypes and records the following new syntax is used to separate the
+  declaration from the definition:
+
+    -- Declaration and definition together (as usual)
+    data Vec (A : Set) : Nat -> Set where
+      [] : Vec A zero
+      _::_ : {n : Nat} -> A -> Vec A n -> Vec A (suc n)
+
+    -- Declaration and definition separated
+    data Vec (A : Set) : Nat -> Set       -- note absence of 'where'
+
+    data Vec A where
+      [] : Vec A zero
+      _::_ : {n : Nat} -> A -> Vec A n -> Vec A (suc n)
+
+    -- And similar for records
+    record Sigma (A : Set)(B : A -> Set) : Set
+
+    record Sigma A B where
+      constructor _,_
+      field fst : A
+            snd : B fst
+
+  The new style mutual definitions don't suffer from the same restrictions as
+  the old mutual blocks: it is perfectly ok to mix arbitrary declarations, such
+  as modules and postulates, with mutually recursive functions.
+
 * Universe levels are no longer defined as a data type.
 
   The basic level combinators can be introduced in the following way:
