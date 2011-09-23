@@ -168,7 +168,7 @@ isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
               tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
   let t = unArg at
-  t' <- liftTCM $ normalise t
+  t' <- liftTCM $ reduce t
   case unEl t' of
     Def d args -> do
       def <- liftTCM $ theDef <$> getConstInfo d
@@ -192,7 +192,7 @@ computeNeighbourhood :: Telescope -> Telescope -> Permutation -> QName -> Args -
 computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
 
   -- Get the type of the datatype
-  dtype <- liftTCM $ normalise =<< (`piApply` pars) . defType <$> getConstInfo d
+  dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
   Con con [] <- liftTCM $ constructorForm =<< normalise (Con con [])
@@ -366,7 +366,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     return (telFromList tel1, telFromList tel2)
 
   -- Get the type of the variable
-  t <- inContextOfT $ liftTCM $ normalise $ typeOfVar tel x  -- Δ₁ ⊢ t
+  let t = typeOfVar tel x  -- Δ₁ ⊢ t
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
