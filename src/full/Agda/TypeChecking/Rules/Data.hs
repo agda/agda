@@ -44,7 +44,11 @@ import Agda.Utils.Impossible
 checkDataDef :: Info.DefInfo -> QName -> [A.LamBinding] -> [A.Constructor] -> TCM ()
 checkDataDef i name ps cs =
     traceCall (CheckDataDef (getRange i) (qnameName name) ps cs) $ do -- TODO!! (qnameName)
-	let npars = size ps
+	let countPars A.DomainFree{} = 1
+            countPars (A.DomainFull (A.TypedBindings _ (Arg _ _ b))) = case b of
+              A.TNoBind{}   -> 1
+              A.TBind _ xs _ -> size xs
+            npars = sum $ map countPars ps
 
         -- Add the datatype module
         addSection (qnameToMName name) 0

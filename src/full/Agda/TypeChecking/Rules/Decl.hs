@@ -66,8 +66,8 @@ checkDecl d = do
         A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
         A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
         A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
-        A.DataSig i x ps t       -> checkAxiom i Relevant x t
-        A.RecSig i x ps t        -> checkAxiom i Relevant x t
+        A.DataSig i x ps t       -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+        A.RecSig i x ps t        -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
         A.Open _ _               -> return ()
     top <- onTopLevel
     when top solveSizeConstraints

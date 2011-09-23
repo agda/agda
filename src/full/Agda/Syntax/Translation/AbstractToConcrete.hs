@@ -351,13 +351,13 @@ instance ToConcrete A.Expr C.Expr where
                     _                              -> ([b], e)
             lamView e = ([], e)
     toConcrete (A.ExtendedLam i di qname cs) = do
-          decls <- mapM toConcrete cs
+          decls <- toConcrete cs
           let removeApp (C.RawAppP r (lam:es)) = C.RawAppP r es
               removeApp (C.AppP p np) = namedThing $ unArg np
               removeApp _ = __IMPOSSIBLE__
           let decl2clause (C.FunClause lhs rhs wh) = (lhs {lhsOriginalPattern = removeApp $ lhsOriginalPattern lhs},rhs,wh)
               decl2clause _ = __IMPOSSIBLE__
-          return $ C.ExtendedLam (getRange i) (map decl2clause (concat decls))
+          return $ C.ExtendedLam (getRange i) (map decl2clause $ concat decls)
     toConcrete (A.Pi _ [] e) = toConcrete e
     toConcrete t@(A.Pi i _ _)  = case piTel t of
       (tel, e) ->
@@ -471,12 +471,20 @@ data AsWhereDecls = AsWhereDecls [A.Declaration]
 instance ToConcrete AsWhereDecls WhereClause where
   bindToConcrete (AsWhereDecls []) ret = ret C.NoWhere
   bindToConcrete (AsWhereDecls ds@[Section _ am _ _]) ret = do
-    ds' <- concat <$> toConcrete ds
+    ds' <- declsToConcrete ds
     cm  <- unqualify <$> lookupModule am
     let wh' = (if isNoName cm then AnyWhere else SomeWhere cm) $ ds'
     local (openModule' am defaultImportDir id) $ ret wh'
   bindToConcrete (AsWhereDecls ds) ret =
-    ret . AnyWhere . concat =<< toConcrete ds
+    ret . AnyWhere =<< declsToConcrete ds
+
+mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
+mergeSigAndDef (C.RecordSig _ x bs e : C.Record r y c _ Nothing fs : ds)
+  | x == y = C.Record r y c bs (Just e) fs : mergeSigAndDef ds
+mergeSigAndDef (C.DataSig _ _ x bs e : C.Data r i y _ Nothing cs : ds)
+  | x == y = C.Data r i y bs (Just e) cs : mergeSigAndDef ds
+mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
+mergeSigAndDef [] = []
 
 openModule' :: A.ModuleName -> ImportDirective -> (Scope -> Scope) -> Env -> Env
 openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
@@ -492,6 +500,9 @@ openModule' x dir restrict env = env{currentScope = sInfo{scopeModules = mods'}}
 
 -- Declaration instances --------------------------------------------------
 
+declsToConcrete :: [A.Declaration] -> AbsToCon [C.Declaration]
+declsToConcrete ds = mergeSigAndDef . concat <$> toConcrete ds
+
 instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete (A.RHS e) = do
       e <- toConcrete e
@@ -499,10 +510,10 @@ instance ToConcrete A.RHS (C.RHS, [C.Expr], [C.Expr], [C.Declaration]) where
     toConcrete A.AbsurdRHS = return (C.AbsurdRHS, [], [], [])
     toConcrete (A.WithRHS _ es cs) = do
       es <- toConcrete es
-      cs <- toConcrete cs
-      return (C.AbsurdRHS, [], es, concat cs)
+      cs <- concat <$> toConcrete cs
+      return (C.AbsurdRHS, [], es, cs)
     toConcrete (A.RewriteRHS _ eqs rhs wh) = do
-      wh <- concat <$> toConcrete wh
+      wh <- declsToConcrete wh
       (rhs, eqs', es, whs) <- toConcrete rhs
       unless (null eqs')
         __IMPOSSIBLE__
@@ -561,7 +572,7 @@ instance ToConcrete A.ModuleApplication C.ModuleApplication where
 
 instance ToConcrete A.Declaration [C.Declaration] where
   toConcrete (ScopedDecl scope ds) =
-    withScope scope (concat <$> toConcrete ds)
+    withScope scope (declsToConcrete ds)
 
   toConcrete (Axiom i rel x t) = do
     x' <- unsafeQNameToName <$> toConcrete x
@@ -586,20 +597,18 @@ instance ToConcrete A.Declaration [C.Declaration] where
         -- Primitives are always relevant.
 
   toConcrete (A.FunDef i _ cs) =
-    withAbstractPrivate i $ do
-     cs' <- toConcrete cs
-     return $ concat cs'
+    withAbstractPrivate i $ concat <$> toConcrete cs
 
   toConcrete (A.DataSig i x bs t) =
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcrete t
+      t' <- toConcreteCtx TopCtx t
       return [ C.DataSig (getRange i) Inductive x' (map C.DomainFull tel') t' ]
 
   toConcrete (A.DataDef i x bs cs) =
     withAbstractPrivate i $
-    bindToConcrete bs $ \tel' -> do
+    bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
       return [ C.Data (getRange i) Inductive x' tel' Nothing cs' ]
 
@@ -607,21 +616,21 @@ instance ToConcrete A.Declaration [C.Declaration] where
     withAbstractPrivate i $
     bindToConcrete bs $ \tel' -> do
       x' <- unsafeQNameToName <$> toConcrete x
-      t' <- toConcrete t
+      t' <- toConcreteCtx TopCtx t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
 
   toConcrete (A.RecDef  i x c bs t cs) =
     withAbstractPrivate i $
-    bindToConcrete bs $ \tel' -> do
+    bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
       return [ C.Record (getRange i) x' Nothing tel' Nothing cs' ]
 
-  toConcrete (A.Mutual i ds) = concat <$> toConcrete ds
+  toConcrete (A.Mutual i ds) = declsToConcrete ds
 
   toConcrete (A.Section i x tel ds) = do
     x <- toConcrete x
     bindToConcrete tel $ \tel -> do
-    ds <- concat <$> toConcrete ds
+    ds <- declsToConcrete ds
     return [ C.Module (getRange i) x tel ds ]
 
   toConcrete (A.Apply i x modapp _ _) = do

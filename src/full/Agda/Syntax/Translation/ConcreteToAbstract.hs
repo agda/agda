@@ -869,7 +869,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
-    NiceModule r p a (C.QName name) tel ds -> do
+    NiceModule r p a (C.QName name) tel ds ->
+      traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
       aname <- toAbstract (NewModuleName name)
       x <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
       bindModule p name aname

@@ -77,7 +77,7 @@ termDecl d = case d of
     A.Field {}            -> return []
     A.Primitive {}        -> return []
     A.Mutual _ ds
-      | [A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
+      | [A.RecSig{}, A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
                           -> do
         let m = mnameFromList $ qnameToList r
         setScopeFromDefs ds

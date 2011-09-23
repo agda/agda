@@ -353,14 +353,14 @@ niceDeclarations ds = do
                               mds <- traverse niceD mcs
                               f   <- getFixity x
                               return $
-                                 [mkSig (fuseRange x t) f PublicAccess ConcreteDef x tel (Pi (map addType tel) t) | Just t <- [mt] ] ++
-                                 [mkDef (getRange x) f PublicAccess ConcreteDef x tel ds | Just ds <- [mds] ]
+                                 [mkSig (fuseRange x t) f PublicAccess ConcreteDef x tel t | Just t <- [mt] ] ++
+                                 [mkDef (getRange x) f PublicAccess ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
                               where
-                                addType (DomainFull b)	 = b
-                                addType (DomainFree h rel x) = TypedBindings r $ Arg h rel $ TBind r [x] $ Underscore r Nothing
-                                  where r = getRange x
-
-
+                                dropType (DomainFull (TypedBindings r (Arg h rel TNoBind{}))) =
+                                  [DomainFree h rel $ mkBoundName_ $ noName r]
+                                dropType (DomainFull (TypedBindings r (Arg h rel (TBind _ xs _)))) =
+                                  map (DomainFree h rel) xs
+                                dropType b@DomainFree{} = [b]
 
         -- Translate axioms
         niceAxioms :: [TypeSignature] -> Nice [NiceDeclaration]
