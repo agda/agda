@@ -90,8 +90,7 @@ occursCheck m xs v = liftTCM $ do
         ( typeError . GenericError . show =<<
           fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
                , prettyTCM v
-               , text "since universe polymorphism is not enabled"
-               , text "(use the --universe-polymorphism flag to enable)"
+               , text "since universe polymorphism is disabled"
                ]
         )
         ( typeError . GenericError . show =<<

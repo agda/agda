@@ -1,4 +1,5 @@
 -- 2011-08-22 Andreas (reported and fixed by Dominique Devriese)
+{-# OPTIONS --no-universe-polymorphism #-}
 module Issue427 where
 
 data ⊥ : Set where

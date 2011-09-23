@@ -152,7 +152,7 @@ defaultPragmaOptions = PragmaOptions
   , optSizedTypes                = False
   , optInjectiveTypeConstructors = False
   , optGuardingTypeConstructors  = False
-  , optUniversePolymorphism      = False
+  , optUniversePolymorphism      = True
   , optWithoutK                  = False
   }
 
@@ -213,11 +213,13 @@ vimFlag                      o = return $ o { optGenerateVimFile           = Tru
 noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
 dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
 dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = False }
-dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False }
+dontUniverseCheckFlag        o = return $ o { optUniverseCheck             = False
+                                            , optUniversePolymorphism      = False }
 sizedTypes                   o = return $ o { optSizedTypes                = True  }
 injectiveTypeConstructorFlag o = return $ o { optInjectiveTypeConstructors = True  }
 guardingTypeConstructorFlag  o = return $ o { optGuardingTypeConstructors  = True  }
 universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = True  }
+noUniversePolymorphismFlag   o = return $ o { optUniversePolymorphism      = False }
 noForcingFlag                o = return $ o { optForcing                   = False }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
 
@@ -330,8 +332,10 @@ pragmaOptions =
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
                     "treat type constructors as inductive constructors when checking productivity"
+    , Option []     ["no-universe-polymorphism"] (NoArg noUniversePolymorphismFlag)
+                    "disable universe polymorphism"
     , Option []     ["universe-polymorphism"] (NoArg universePolymorphismFlag)
-                    "enable universe polymorphism (experimental feature)"
+                    "enable universe polymorphism (default)"
     , Option []     ["no-irrelevant-projections"] (NoArg noIrrelevantProjectionsFlag)
                     "disable projection of irrelevant record fields"
     , Option []     ["without-K"] (NoArg withoutKFlag)

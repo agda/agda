@@ -1,4 +1,4 @@
--- {-# OPTIONS --universe-polymorphism #-}
+{-# OPTIONS --no-universe-polymorphism #-}
 
 module Issue202 where
 
