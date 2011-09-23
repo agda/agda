@@ -1,5 +1,5 @@
 -- Now you don't need a mutual keyword anymore!
-module NewMutual where
+module Issue162 where
 
 data Odd : Set
 data Even : Set where
