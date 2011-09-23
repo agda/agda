@@ -79,6 +79,7 @@ instance GetDefInfo Declaration where
   getDefInfo (Axiom i _ _ _) = Just i
   getDefInfo (Field i _ _) = Just i
   getDefInfo (Primitive i _ _) = Just i
+  getDefInfo (ScopedDecl _ (d:_)) = getDefInfo d
   getDefInfo _ = Nothing
 
 data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]

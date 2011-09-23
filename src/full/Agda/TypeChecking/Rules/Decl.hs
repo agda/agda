@@ -192,10 +192,6 @@ checkPragma r p =
 checkMutual :: Info.DeclInfo -> [A.Definition] -> TCM ()
 checkMutual i ds = inMutualBlock $ do
   mapM_ checkDefinition ds
--- Andreas, 2011-09-14 moved this to checkDefinition
-  -- issue 418 to prevent instantiation of metas with abstract things,
-  -- freeze metas before checking the definitions
---  when (anyAbstract ds) $ freezeMetas
 
   checkStrictlyPositive =<< currentMutualBlock
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
@@ -225,6 +221,7 @@ checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 --   checked and added to the signature.
 checkDefinition :: A.Definition -> TCM ()
 checkDefinition d = do
+    d <- unScope d
     case d of
 	A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
 	A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
@@ -232,10 +229,13 @@ checkDefinition d = do
         A.FunSig d               -> checkTypeSignature d
 	A.DataSig i x ps t       -> checkAxiom i Relevant x t
 	A.RecSig i x ps t        -> checkAxiom i Relevant x t
-        A.ScopedDef scope d      -> setScope scope >> checkDefinition d
+        A.ScopedDef{}            -> __IMPOSSIBLE__
     -- Andreas, 2011-09-14 refixing issue 418: freeze metas after abstract defs.
     when (fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef) $ freezeMetas
     where
+        unScope (A.ScopedDef scope d) = setScope scope >> unScope d
+        unScope d = return d
+
         check x i m = do
           reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
           r <- abstract (Info.defAbstract i) m
