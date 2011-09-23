@@ -372,7 +372,7 @@ instance ApplyHH Term where
   applyHH t = fmap (apply t)
 
 instance ApplyHH Type where
-  applyHH (El s t) args = fmap (El s) $ applyHH t args
+  applyHH t = fmap (apply t)
 
 substHH :: SubstHH t tHH => TermHH -> t -> tHH
 substHH = substUnderHH 0
