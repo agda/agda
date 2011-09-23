@@ -124,13 +124,6 @@ compareTerm' cmp a m n =
           b <- levelView n
           equalLevel a b
         Pi a _    -> equalFun (a,a') m n
-{- Andreas, 2011-05-09 at unknown type, compare atomic
-        MetaV x _ -> do
-          (m,n) <- normalise (m,n)
-          if m == n
-            then return ()
-            else addConstraint (ValueCmp cmp a m n)
--}
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
           isrec <- isEtaRecord r
@@ -263,17 +256,6 @@ compareAtom cmp t m n =
                 -- not all relevant arguments are variables
                 Nothing -> checkSyntacticEquality -- Check syntactic equality on meta-variables
                                 -- (same as for blocked terms)
-{-
-            | x == y -> if   sameVars xArgs yArgs
-                        then return ()
-                        else do -- Check syntactic equality on meta-variables
-                                -- (same as for blocked terms)
-                          m <- normalise m
-                          n <- normalise n
-                          if m == n
-                            then return ()
-                            else addConstraint (ValueCmp cmp t m n)
--}
             | otherwise -> do
                 [p1, p2] <- mapM getMetaPriority [x,y]
                 -- instantiate later meta variables first
@@ -296,15 +278,6 @@ compareAtom cmp t m n =
 	(_, NotBlocked (MetaV x xArgs)) -> assignV x xArgs m
 
         (Blocked{}, Blocked{})	-> checkSyntacticEquality
-{-
-            do
-            n <- normalise n    -- is this what we want?
-            m <- normalise m
-            if m == n
-                then return ()	-- Check syntactic equality for blocked terms
-                else addConstraint $ ValueCmp cmp t m n
--}
-
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
         _ -> case (m, n) of
