@@ -29,11 +29,11 @@ data Stream (A : Set) : Set where
 -- intended semantics: Stream A -> Stream B
 
 mutual
-  data Trans' (A B : Set) : Set
+
   data Trans (A B : Set) : Set where
     〈_〉 : ∞ (Trans' A B) -> Trans A B
 
-  data Trans' A B where
+  data Trans' (A B : Set) : Set where
     get : (A -> Trans' A B) -> Trans' A B
     put : B -> Trans A B -> Trans' A B
 
@@ -44,16 +44,12 @@ out 〈 p 〉 = ♭ p
 
 mutual
 
-
-  -- eat' is defined by a local recursion on Trans' A B
-  eat' : forall {A B} -> Trans' A B -> Stream A -> Stream B
-
   -- eat is defined by corecursion into Stream B
   eat  : forall {A B} -> Trans A B -> Stream A -> Stream B
   eat 〈 sp 〉 as = eat' (♭ sp) as
 
-
-
+  -- eat' is defined by a local recursion on Trans' A B
+  eat' : forall {A B} -> Trans' A B -> Stream A -> Stream B
   eat' (get f) (cons a as) = eat' (f a) (♭ as)
   eat' (put b sp) as = cons b (♯ eat sp as)
 
@@ -61,13 +57,13 @@ mutual
 -- composing two stream transducers
 
 mutual
-  -- comb' preforms a local lexicographic recursion on (Trans' B C, Trans' A B)
-  comb' : forall {A B C} -> Trans' A B -> Trans' B C -> Trans' A C
 
   -- comb is defined by corecursion into Trans A B
   comb : forall {A B C} -> Trans A B -> Trans B C -> Trans A C
   comb 〈 p1 〉 〈 p2 〉 = 〈 ♯ comb' (♭ p1) (♭ p2) 〉
 
+  -- comb' preforms a local lexicographic recursion on (Trans' B C, Trans' A B)
+  comb' : forall {A B C} -> Trans' A B -> Trans' B C -> Trans' A C
   comb' (put b p1) (get f)    = comb' (out p1) (f b)
   comb' (put b p1) (put c p2) = put c (comb p1 p2)
   comb' (get f)    p2         = get (\ a -> comb' (f a) p2)

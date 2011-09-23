@@ -22,15 +22,13 @@ mutual
 
   infixl 5 _▻_
 
-  data Ctxt : Set
-  Type : Ctxt → Set
-
-  data Ctxt where
+  data Ctxt : Set where
     _▻_ : (Γ : Ctxt) (σ : Type Γ) → Ctxt
 
-  Env : Ctxt → Set
-
+  Type : Ctxt → Set
   Type Γ = Σ I (λ i → Env Γ → U i)
+
+  Env : Ctxt → Set
   Env (Γ ▻ σ) = Σ (Env Γ) λ γ → El (proj₂ σ γ)
 
 postulate

@@ -8,12 +8,11 @@ postulate
   El : U → Set
 
 mutual
-  data Ctxt : Set
-  Env : Ctxt → Set
 
-  data Ctxt where
+  data Ctxt : Set where
     _▻_ : (Γ : Ctxt) → (Env Γ → U) → Ctxt
 
+  Env : Ctxt → Set
   Env (Γ ▻ σ) = Σ (Env Γ) λ γ → El (σ γ)
 
 postulate

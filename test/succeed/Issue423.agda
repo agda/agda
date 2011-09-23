@@ -31,17 +31,14 @@ postulate
   El : U → Set
 
 mutual
-  data Ctxt : Set
-  Type : Ctxt → Set
 
-  data Ctxt where
+  data Ctxt : Set where
     _▻_ : (Γ : Ctxt) (σ : Type Γ) → Ctxt
 
-  Env : Ctxt → Set
-
+  Type : Ctxt → Set
   Type Γ = Env Γ → U
 
-
+  Env : Ctxt → Set
   Env (Γ ▻ σ) = Σ (Env Γ) λ γ → El (σ γ)
 
 postulate

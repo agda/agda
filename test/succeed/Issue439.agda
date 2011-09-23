@@ -17,26 +17,24 @@ data Tree : Set where
  node : Tree → Tree → Tree
 
 mutual
- U : Tree → Set
- El : ∀ {tr} → U tr → Set
 
+ U : Tree → Set
  U leaf           = ⊤
  U (node tr₁ tr₂) = Σ (U tr₁) λ a → El a → U tr₂
 
+ El : ∀ {tr} → U tr → Set
  El {leaf}         _       = ⊤
  El {node tr₁ tr₂} (a , b) = (x : El a) → El (b x)
 
 mutual
- data C : Set
- T : C → Set
 
- data C where
+ data C : Set where
    c : (Γ : C) → T Γ → C
 
- E : C → Set
-
+ T : C → Set
  T Γ = Σ Tree (λ tr → E Γ → U tr)
 
+ E : C → Set
  E (c Γ σ) = Σ (E Γ) λ γ → El (p₂ σ γ)
 
 postulate

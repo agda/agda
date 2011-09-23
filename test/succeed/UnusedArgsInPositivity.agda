@@ -14,12 +14,11 @@ module Ex₁ where
   unused X unit Y = Y
 
   mutual
-    El : Unit → Unit → Set
 
     data D : Set where
       d : (x : Unit) → (El x x → D) → D
 
-
+    El : Unit → Unit → Set
     El unit x = unused D x Unit
 
 module Ex₂ where
@@ -30,13 +29,12 @@ module Ex₂ where
     fold : ♭ A → Rec A
 
   mutual
-    data Data : Set
-    El : Data → Set
 
-    data Data where
+    data Data : Set where
       maybe : ∞ Data -> Data
       sigma : (A : Data) → (El A → Data) -> Data
 
+    El : Data → Set
     El (maybe A) = Rec (♯ Maybe (El (♭ {A = Data} A)))
     El (sigma A B) = El A
 

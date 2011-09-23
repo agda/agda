@@ -21,13 +21,12 @@ El (a ⊗ b)    = El a × El b
 El unit       = ⊤
 
 mutual
-  data Prog : U → Set
 
   data WHNF : U → Set where
     _≺_  : ∀ {a} → El a → Prog (stream a) → WHNF (stream a)
     _,_  : ∀ {a b} → WHNF a → WHNF b → WHNF (a ⊗ b)
 
-  data Prog where
+  data Prog : U → Set where
     ↓_  : ∀ {a} → ∞ (WHNF a) → Prog a
     fst : ∀ {a b} → Prog (a ⊗ b) → Prog a
     snd : ∀ {a b} → Prog (a ⊗ b) → Prog b
