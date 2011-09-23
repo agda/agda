@@ -90,13 +90,11 @@ eq _ = false
 mutual
 
   f : Nat -> Nat -> Nat
-
   f zero y = zero
   f (succ x) zero = zero
   f (succ x) (succ y) = (g x (succ y)) + (f  (succ (succ x)) y)
 
   g : Nat -> Nat -> Nat
-
   g zero y = zero
   g (succ x) zero = zero
   g (succ x) (succ y) = (f (succ x) (succ y)) + (g x (succ (succ y)))
@@ -105,13 +103,11 @@ mutual
 mutual
 
   badf : Nat ×  Nat -> Nat
-
   badf (zero , y) = zero
   badf (succ x , zero) = zero
   badf (succ x , succ y) = badg (x , succ y) + badf  (succ (succ x) , y)
 
   badg : Nat × Nat -> Nat
-
   badg (zero , y) = zero
   badg (succ x , zero) = zero
   badg (succ x , succ y) = badf (succ x , succ y) +  badg (x , succ (succ y))
@@ -122,13 +118,11 @@ mutual
 mutual
 
   f' : Nat -> Nat -> Nat
-
   f' zero y = zero
   f' (succ x) zero = zero
   f' (succ x) (succ y) = (g' x (succ y)) + (f'  (succ (succ x)) y)
 
   g' : Nat -> Nat -> Nat
-
   g' zero y = zero
   g' (succ x) zero = zero
   g' (succ x) (succ y) = (f' (succ x) (succ y)) + (g' x (succ y))
@@ -141,13 +135,11 @@ bla = succ (succ zero)
 mutual
 
   f'' : Nat -> Nat -> Nat
-
   f'' zero y = zero
   f'' (succ x) zero = zero
   f'' (succ x) (succ y) = (g'' x (succ y)) + (f'' bla y)
 
   g'' : Nat -> Nat -> Nat
-
   g'' zero y = zero
   g'' (succ x) zero = zero
   g'' (succ x) (succ y) = (f'' (succ x) (succ y)) + (g'' x (succ y))

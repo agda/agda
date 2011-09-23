@@ -79,42 +79,41 @@ module Semantics (R : Set) where
   infix 60 _!_
   infixl 40 _||_
 
-  mutual
-    ⟦_⟧type : Type -> Set
+  ⟦_⟧type : Type -> Set
 
-    ⟦_⟧type' : Type -> Set
-    ⟦ nat    ⟧type' = Nat
-    ⟦ bool   ⟧type' = Bool
-    ⟦ σ ─→ τ ⟧type' = ⟦ σ ⟧type' -> ⟦ τ ⟧type
+  ⟦_⟧type' : Type -> Set
+  ⟦ nat    ⟧type' = Nat
+  ⟦ bool   ⟧type' = Bool
+  ⟦ σ ─→ τ ⟧type' = ⟦ σ ⟧type' -> ⟦ τ ⟧type
 
-    ⟦ τ ⟧type = C ⟦ τ ⟧type'
+  ⟦ τ ⟧type = C ⟦ τ ⟧type'
 
-    data ⟦_⟧ctx : Context -> Set where
-      ★    : ⟦ ε ⟧ctx
-      _||_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type' -> ⟦ Γ , τ ⟧ctx
+  data ⟦_⟧ctx : Context -> Set where
+    ★    : ⟦ ε ⟧ctx
+    _||_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type' -> ⟦ Γ , τ ⟧ctx
 
-    _!_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> Var Γ τ -> ⟦ τ ⟧type'
-    ★      ! ()
-    (ρ || v) ! vz   = v
-    (ρ || v) ! vs x = ρ ! x
+  _!_ : {Γ : Context}{τ : Type} -> ⟦ Γ ⟧ctx -> Var Γ τ -> ⟦ τ ⟧type'
+  ★      ! ()
+  (ρ || v) ! vz   = v
+  (ρ || v) ! vs x = ρ ! x
 
-    ⟦_⟧ : {Γ : Context}{τ : Type} -> Expr Γ τ -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type
-    ⟦ var x   ⟧ ρ = return (ρ ! x)
-    ⟦ litNat n        ⟧ ρ = return n
-    ⟦ litBool b       ⟧ ρ = return b
-    ⟦ plus    ⟧ ρ = return \n -> return \m -> return (n + m)
-    ⟦ f ∙ e ⟧ ρ = ⟦ e ⟧ ρ >>= \v ->
-                      ⟦ f ⟧ ρ >>= \w ->
-                      w v
-    ⟦ e WHERE f ⟧ ρ = ⟦ e ⟧ (ρ || (\x -> ⟦ f ⟧ (ρ || x)))
-    ⟦ e PP f  ⟧ ρ = callcc \k ->
-                      let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
-                      in  ⟦ e ⟧ (ρ || throw)
-    ⟦ if        ⟧ ρ = return \x -> return \y -> return \z -> return (iff x y z)
-      where
-        iff : {A : Set} -> Bool -> A -> A -> A
-        iff true  x y = x
-        iff false x y = y
+  ⟦_⟧ : {Γ : Context}{τ : Type} -> Expr Γ τ -> ⟦ Γ ⟧ctx -> ⟦ τ ⟧type
+  ⟦ var x   ⟧ ρ = return (ρ ! x)
+  ⟦ litNat n        ⟧ ρ = return n
+  ⟦ litBool b       ⟧ ρ = return b
+  ⟦ plus    ⟧ ρ = return \n -> return \m -> return (n + m)
+  ⟦ f ∙ e ⟧ ρ = ⟦ e ⟧ ρ >>= \v ->
+                    ⟦ f ⟧ ρ >>= \w ->
+                    w v
+  ⟦ e WHERE f ⟧ ρ = ⟦ e ⟧ (ρ || (\x -> ⟦ f ⟧ (ρ || x)))
+  ⟦ e PP f  ⟧ ρ = callcc \k ->
+                    let throw = \x -> ⟦ f ⟧ (ρ || x) >>= k
+                    in  ⟦ e ⟧ (ρ || throw)
+  ⟦ if        ⟧ ρ = return \x -> return \y -> return \z -> return (iff x y z)
+    where
+      iff : {A : Set} -> Bool -> A -> A -> A
+      iff true  x y = x
+      iff false x y = y
 
 module Test where
 

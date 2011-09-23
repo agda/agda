@@ -48,17 +48,17 @@ plus (suc n) m = suc (plus n m)
 -- With this definition plus (suc zero) (suc zero) will reduce to suc (suc
 -- zero).
 
--- Mutually recursive function can be defined inside a 'mutual' block.
+-- When defining mutually recursive functions you have to declare functions
+-- before they can be called.
 
-mutual
+odd : Nat -> Bool
 
-  even : Nat -> Bool
-  even zero    = true
-  even (suc n) = odd n
+even : Nat -> Bool
+even zero    = true
+even (suc n) = odd n
 
-  odd : Nat -> Bool
-  odd zero    = false
-  odd (suc n) = even n
+odd zero    = false
+odd (suc n) = even n
 
 -- Agda is a monomorphic, but dependently typed, language. This means that
 -- polymorphism is simulated by having functions take type arguments. For

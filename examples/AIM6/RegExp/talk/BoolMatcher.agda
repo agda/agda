@@ -26,22 +26,21 @@ decToBool (no _)  = false
 ------------------------------------------------------------------------
 -- Regular expression matcher
 
-mutual
-  matches-⊙¿ : (xs₁ xs₂ : [ carrier ]) -> (re₁ re₂ : RegExp) -> Bool
+matches-⊙¿ : (xs₁ xs₂ : [ carrier ]) -> (re₁ re₂ : RegExp) -> Bool
 
-  _∈‿⟦_⟧¿ : (xs : [ carrier ]) -> (re : RegExp) -> Bool
-  []     ∈‿⟦ ε ⟧¿         = true
-  x ∷ [] ∈‿⟦ • ⟧¿         = true
-  x ∷ [] ∈‿⟦ sym y ⟧¿     = decToBool (x ≟ y)
-  xs     ∈‿⟦ re₁ ∣ re₂ ⟧¿ = xs ∈‿⟦ re₁ ⟧¿ ∨ xs ∈‿⟦ re₂ ⟧¿
-  xs     ∈‿⟦ re₁ ⊙ re₂ ⟧¿ = matches-⊙¿ [] xs re₁ re₂
-  []     ∈‿⟦ re ⋆ ⟧¿      = true
-  x ∷ xs ∈‿⟦ re ⋆ ⟧¿      = matches-⊙¿ (x ∷ []) xs re (re ⋆)
-  _      ∈‿⟦ _ ⟧¿         = false
+_∈‿⟦_⟧¿ : (xs : [ carrier ]) -> (re : RegExp) -> Bool
+[]     ∈‿⟦ ε ⟧¿         = true
+x ∷ [] ∈‿⟦ • ⟧¿         = true
+x ∷ [] ∈‿⟦ sym y ⟧¿     = decToBool (x ≟ y)
+xs     ∈‿⟦ re₁ ∣ re₂ ⟧¿ = xs ∈‿⟦ re₁ ⟧¿ ∨ xs ∈‿⟦ re₂ ⟧¿
+xs     ∈‿⟦ re₁ ⊙ re₂ ⟧¿ = matches-⊙¿ [] xs re₁ re₂
+[]     ∈‿⟦ re ⋆ ⟧¿      = true
+x ∷ xs ∈‿⟦ re ⋆ ⟧¿      = matches-⊙¿ (x ∷ []) xs re (re ⋆)
+_      ∈‿⟦ _ ⟧¿         = false
 
 
-  matches-⊙¿ xs₁ xs₂       re₁ re₂ with xs₁ ∈‿⟦ re₁ ⟧¿ ∨ xs₂ ∈‿⟦ re₂ ⟧¿
-  matches-⊙¿ xs₁ xs₂       re₁ re₂ | true  = true
-  matches-⊙¿ xs₁ []        re₁ re₂ | false = false
-  matches-⊙¿ xs₁ (x ∷ xs₂) re₁ re₂ | false =
-    matches-⊙¿ (xs₁ ++ x ∷ []) xs₂ re₁ re₂
+matches-⊙¿ xs₁ xs₂       re₁ re₂ with xs₁ ∈‿⟦ re₁ ⟧¿ ∨ xs₂ ∈‿⟦ re₂ ⟧¿
+matches-⊙¿ xs₁ xs₂       re₁ re₂ | true  = true
+matches-⊙¿ xs₁ []        re₁ re₂ | false = false
+matches-⊙¿ xs₁ (x ∷ xs₂) re₁ re₂ | false =
+  matches-⊙¿ (xs₁ ++ x ∷ []) xs₂ re₁ re₂

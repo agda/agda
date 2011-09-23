@@ -2,22 +2,20 @@
 
 module Mutual where
 
-mutual
-  data Odd : Set
+data Odd : Set
 
-  data Even : Set where
-    zeroE : Even
-    succE : Odd -> Even
+data Even : Set where
+  zeroE : Even
+  succE : Odd -> Even
 
-  data Odd where
-    succO : Even -> Odd
+data Odd where
+  succO : Even -> Odd
 
-mutual
-  addEO : Even -> Odd -> Odd
- 
-  addOO : Odd -> Odd -> Even
-  addOO (succO x) y = succE (addEO x y)
+addEO : Even -> Odd -> Odd
 
-  addEO zeroE y = y
-  addEO (succE x) y = succO (addOO x y)
+addOO : Odd -> Odd -> Even
+addOO (succO x) y = succE (addEO x y)
+
+addEO zeroE y = y
+addEO (succE x) y = succO (addOO x y)
 

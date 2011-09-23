@@ -114,31 +114,30 @@ lookup (Γ , σ) (suc n)         | outofscope = outofscope
 
 infix 20 _⊢_∋_ _⊢_∈
 
-mutual
-  _⊢_∈ : (Γ : Ctx)(e : Expr) -> Infer Γ e
+_⊢_∈ : (Γ : Ctx)(e : Expr) -> Infer Γ e
 
-  _⊢_∋_ : (Γ : Ctx)(τ : Type)(e : Expr) -> Check Γ τ e
-  Γ ⊢ ι       ∋ ƛʳ e = bad
-  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ e with Γ , σ ⊢ τ ∋ e
-  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ .(⌊ t ⌋) | ok t = ok (ƛ t)
-  Γ ⊢ (σ ⟶ τ) ∋ ƛʳ _        | bad  = bad
-  Γ ⊢ τ ∋ e with Γ ⊢ e ∈
-  Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t with τ ≟ σ
-  Γ ⊢ τ ∋ .(⌊ t ⌋) | yes .τ t | just refl = ok t
-  Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t  | nothing   = bad
-  Γ ⊢ τ ∋ e | no = bad
+_⊢_∋_ : (Γ : Ctx)(τ : Type)(e : Expr) -> Check Γ τ e
+Γ ⊢ ι       ∋ ƛʳ e = bad
+Γ ⊢ (σ ⟶ τ) ∋ ƛʳ e with Γ , σ ⊢ τ ∋ e
+Γ ⊢ (σ ⟶ τ) ∋ ƛʳ .(⌊ t ⌋) | ok t = ok (ƛ t)
+Γ ⊢ (σ ⟶ τ) ∋ ƛʳ _        | bad  = bad
+Γ ⊢ τ ∋ e with Γ ⊢ e ∈
+Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t with τ ≟ σ
+Γ ⊢ τ ∋ .(⌊ t ⌋) | yes .τ t | just refl = ok t
+Γ ⊢ τ ∋ .(⌊ t ⌋) | yes σ t  | nothing   = bad
+Γ ⊢ τ ∋ e | no = bad
 
 
-  Γ ⊢ varʳ i         ∈ with lookup Γ i
-  Γ ⊢ varʳ .(⌊ x ⌋ˣ) ∈ | found τ x  = yes τ (var x)
-  Γ ⊢ varʳ _         ∈ | outofscope = no
-  Γ ⊢ e₁        •ʳ e₂ ∈        with Γ ⊢ e₁ ∈
-  Γ ⊢ e₁        •ʳ e₂ ∈        | no       = no
-  Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes ι t₁ = no
-  Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes (σ ⟶ τ) t₁ with Γ ⊢ σ ∋ e₂
-  Γ ⊢ .(⌊ t₁ ⌋) •ʳ .(⌊ t₂ ⌋) ∈ | yes (σ ⟶ τ) t₁ | ok t₂ = yes τ (t₁ • t₂)
-  Γ ⊢ .(⌊ t₁ ⌋) •ʳ _         ∈ | yes (σ ⟶ τ) t₁ | bad   = no
-  Γ ⊢ ƛʳ e     ∈ = no
+Γ ⊢ varʳ i         ∈ with lookup Γ i
+Γ ⊢ varʳ .(⌊ x ⌋ˣ) ∈ | found τ x  = yes τ (var x)
+Γ ⊢ varʳ _         ∈ | outofscope = no
+Γ ⊢ e₁        •ʳ e₂ ∈        with Γ ⊢ e₁ ∈
+Γ ⊢ e₁        •ʳ e₂ ∈        | no       = no
+Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes ι t₁ = no
+Γ ⊢ .(⌊ t₁ ⌋) •ʳ e₂ ∈        | yes (σ ⟶ τ) t₁ with Γ ⊢ σ ∋ e₂
+Γ ⊢ .(⌊ t₁ ⌋) •ʳ .(⌊ t₂ ⌋) ∈ | yes (σ ⟶ τ) t₁ | ok t₂ = yes τ (t₁ • t₂)
+Γ ⊢ .(⌊ t₁ ⌋) •ʳ _         ∈ | yes (σ ⟶ τ) t₁ | bad   = no
+Γ ⊢ ƛʳ e     ∈ = no
 
 -- Proving completeness (for normal terms)
 
