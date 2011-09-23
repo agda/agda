@@ -839,7 +839,7 @@ instance ToAbstract NiceDefinition Definition where
             printScope "rec" 15 "checked fields"
             return afields
           bindModule p x m
-          c' <- mapM (toAbstract . ConstrDecl m) c
+          cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
           printScope "rec" 15 "record complete"
           return $ A.RecDef (mkDefInfo x f p a r) x' cm' pars contel afields
 
@@ -966,35 +966,34 @@ instance ToAbstract NiceDeclaration A.Declaration where
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName C.NiceDeclaration
 
-bindConstructorName m x f p = do
+bindConstructorName m x f a p rec = do
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x
   -- Bind it twice, once unqualified and once qualified
-  bindName p ConName x y
-  withCurrentModule m $ bindName PublicAccess ConName x y
+  bindName p' ConName x y
+  withCurrentModule m $ bindName p'' ConName x y
   return y
+  where
+    -- An abstract constructor is private (abstract constructor means
+    -- abstract datatype, so the constructor should not be exported).
+    p' = case a of
+           AbstractDef -> PrivateAccess
+           _           -> p
+    p'' = case (a, rec) of
+            (AbstractDef, _) -> PrivateAccess
+            (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
+            _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-    toAbstract (ConstrDecl rec m (C.Axiom r f p a rel x t)) = do -- rel==Relevant
-        t' <- toAbstractCtx TopCtx t
-        -- The abstract name is the qualified one
-        -- Bind it twice, once unqualified and once qualified
-        bindName p' ConName x y
-        withCurrentModule m $ bindName PublicAccess ConName x y
-        printScope "con" 15 "bound constructor"
-        return $ A.Axiom (mkDefInfo x f p a r) rel y t'
-        where
-            -- An abstract constructor is private (abstract constructor means
-            -- abstract datatype, so the constructor should not be exported).
-            p' = case a of
-                   AbstractDef -> PrivateAccess
-                   _           -> p
-            p'' = case (a, rec) of
-                    (AbstractDef, _) -> PrivateAccess
-                    (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
-                    _                -> PublicAccess
+  toAbstract (ConstrDecl rec m (C.Axiom r f p a rel x t)) = do -- rel==Relevant
+    t' <- toAbstractCtx TopCtx t
+    -- The abstract name is the qualified one
+    -- Bind it twice, once unqualified and once qualified
+    y <- bindConstructorName m x f a p rec
+    printScope "con" 15 "bound constructor"
+    return $ A.Axiom (mkDefInfo x f p a r) rel y t'
 
-    toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
+  toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
 instance ToAbstract C.Pragma [A.Pragma] where
     toAbstract (C.ImpossiblePragma _) = impossibleTest
