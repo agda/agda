@@ -1,9 +1,7 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?1 : Maybe Nat
 ?2 : Nat
 ?3 : D ?2
@@ -15,9 +13,7 @@ agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "
+agda2_mode_code (agda2-info-action "*Error*" "
 Unsolved metas at the following locations:
   Long.agda:21,16-17
   Long.agda:22,16-17
@@ -28,17 +24,13 @@ Unsolved metas at the following locations:
   Long.agda:34,7-11")
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "
+agda2_mode_code (agda2-info-action "*Error*" "
 Error: First load the file.")
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?1 : Maybe Nat
 ?2 : Nat
 ?3 : D ?2
@@ -51,9 +43,7 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Constraints*" "")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?1 : Maybe Nat
 ?2 : Nat
 ?3 : D ?2
@@ -62,14 +52,11 @@ agda2_mode_code (agda2-info-action
 ?6 : Maybe ?5
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
-agda2_mode_code (last . (agda2-make-case-action
-                         '("eval (val z) = ?" "eval (val (s n)) = ?")))
+agda2_mode_code (last . (agda2-make-case-action '("eval (val z) = ?" "eval (val (s n)) = ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-give-action 0 "Just ?")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?1 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?3 : D ?2
 ?4 : D z
@@ -79,15 +66,11 @@ agda2_mode_code (agda2-info-action
 ")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Intro*"
-                 "Don't know which constructor to introduce of z or s")
+agda2_mode_code (agda2-info-action "*Intro*" "Don't know which constructor to introduce of z or s")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 4 5 6))
 agda2_mode_code (agda2-give-action 4 "d")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?1 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?3 : D ?2
 ?5 : Set
@@ -105,32 +88,24 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Current Goal*" "Nat")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Goal type etc.*"
-                 "Goal: Nat
+agda2_mode_code (agda2-info-action "*Goal type etc.*" "Goal: Nat
 ————————————————————————————————————————————————————————————
 n : Nat")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Goal type etc.*"
-                 "Goal: Nat
+agda2_mode_code (agda2-info-action "*Goal type etc.*" "Goal: Nat
 Have: Nat
 ————————————————————————————————————————————————————————————
 n : Nat")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Module contents*"
-                 "Modules
+agda2_mode_code (agda2-info-action "*Module contents*" "Modules
 Names
   d : D z")
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-give-action 3 "d")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?1 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?5 : Set
 ?6 : Maybe ?5
@@ -139,9 +114,7 @@ agda2_mode_code (agda2-info-action
 agda2_mode_code (agda2-goals-action '(7 1 2 5 6))
 agda2_mode_code (agda2-give-action 6 "Just ?")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?1 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?5 : Set
 ?7 : Nat
@@ -156,9 +129,7 @@ agda2_mode_code (agda2-info-action "*Normal Form*" "s z")
 agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
 agda2_mode_code (agda2-give-action 8 "d")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?1 : Maybe Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?5 : Set
 ?7 : Nat
@@ -166,9 +137,7 @@ agda2_mode_code (agda2-info-action
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (last . (agda2-solveAll-action '(2 "z" 5 "(D z)")))
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "1,1-4
+agda2_mode_code (agda2-info-action "*Error*" "1,1-4
 Nat !=< Maybe Nat of type Set
 when checking that the expression s z has type Maybe Nat")
 agda2_mode_code (agda2-status-action "")
@@ -178,18 +147,14 @@ agda2_mode_code (agda2-info-action "*Normal Form*" "?1")
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (agda2-give-action 1 "Nothing")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?2 : Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?2 : Nat
 ?5 : Set
 ?7 : Nat
 ")
 agda2_mode_code (agda2-goals-action '(7 2 5))
 agda2_mode_code (agda2-give-action 7 "n")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?2 : Nat
+agda2_mode_code (agda2-info-action "*All Goals*" "?2 : Nat
 ?5 : Set
 ")
 agda2_mode_code (agda2-goals-action '(2 5))
@@ -199,9 +164,7 @@ agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Normal Form*" "Nothing")
 agda2_mode_code (agda2-goals-action '(2 5))
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "1,4-5
+agda2_mode_code (agda2-info-action "*Error*" "1,4-5
 Not in scope:
   n at 1,4-5
 when scope checking n")
@@ -211,16 +174,12 @@ agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Normal Form*" "s z")
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Module contents*"
-                 "Modules
+agda2_mode_code (agda2-info-action "*Module contents*" "Modules
 Names
   d : D z")
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "
+agda2_mode_code (agda2-info-action "*Error*" "
 Unsolved metas at the following locations:
   Long.agda:21,16-17
   Long.agda:22,16-17
@@ -232,9 +191,7 @@ Unsolved metas at the following locations:
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*Error*"
-                 "
+agda2_mode_code (agda2-info-action "*Error*" "
 Unsolved metas at the following locations:
   Long.agda:21,16-17
   Long.agda:22,16-17

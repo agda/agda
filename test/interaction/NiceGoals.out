@@ -1,8 +1,6 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : (x : Carrier) → x ∙ ε ≈ x
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (x : Carrier) → x ∙ ε ≈ x
 ?1 : (x : Carrier) → x ∙ ε ≈ x
 ?2 : (x : List Bool) → x ∙ ε ≈ x
 ?3 : P

@@ -27,7 +27,7 @@ data Lisp a
 instance Pretty a => Pretty (Lisp a) where
   pretty (A a )     = pretty a
   pretty (Cons a b) = parens (pretty a <+> text "." <+> pretty b)
-  pretty (L xs)     = parens (sep (map pretty xs))
+  pretty (L xs)     = parens (hsep (map pretty xs))
   pretty (Q x)      = text "'" <> pretty x
 
 instance Pretty String where pretty = text

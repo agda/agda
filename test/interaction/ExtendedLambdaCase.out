@@ -1,32 +1,24 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : Bool
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Bool
 ?1 : Bool
 ?2 : Bool
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2))
-agda2_mode_code (last . (agda2-make-case-action-extendlam
-                         '("true → ?" "false → ?")))
+agda2_mode_code (last . (agda2-make-case-action-extendlam '("true → ?" "false → ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action
-                 "*All Goals*"
-                 "?0 : Bool
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Bool
 ?1 : Bool
 ?2 : Bool
 ")
 agda2_mode_code (agda2-goals-action '(0 1 2))
 agda2_mode_code (agda2-status-action "ShowImplicit")
 agda2_mode_code (agda2-goals-action '(0 1 2))
-agda2_mode_code (last . (agda2-make-case-action-extendlam
-                         '("true → ?" "false → ?")))
+agda2_mode_code (last . (agda2-make-case-action-extendlam '("true → ?" "false → ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2))
-agda2_mode_code (last . (agda2-make-case-action-extendlam
-                         '("t true → ?" "t false → ?")))
+agda2_mode_code (last . (agda2-make-case-action-extendlam '("t true → ?" "t false → ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2))
-agda2_mode_code (last . (agda2-make-case-action-extendlam
-                         '("x true z → ?" "x false z → ?")))
+agda2_mode_code (last . (agda2-make-case-action-extendlam '("x true z → ?" "x false z → ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2))
