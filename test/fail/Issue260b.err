@@ -2,4 +2,4 @@ Issue260b.agda:5,8-9
 Duplicate definition of module R. Previous definition at
 Issue260b.agda:4,8-9
 when scope checking the definition
-  record R where
+  record R : _ where

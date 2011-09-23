@@ -6,8 +6,8 @@ Problematic calls:
   .Productivity.♯-12
   .Productivity.♯-9
   term
-    (at Productivity.agda:40,14-18)
+    (at Productivity.agda:36,14-18)
   factor
-    (at Productivity.agda:42,14-20)
+    (at Productivity.agda:37,14-20)
   expr
-    (at Productivity.agda:44,47-51)
+    (at Productivity.agda:38,47-51)

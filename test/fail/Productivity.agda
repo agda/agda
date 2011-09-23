@@ -13,11 +13,11 @@ module Productivity (char : Set) where
     _∣_ : ∞ P -> ∞ P -> P
 
   mutual
-    _+ : P -> P
-    _⋆ : P -> P
 
+    _⋆ : P -> P
     p ⋆ = ♯ ε ∣ ♯ (p +)
 
+    _+ : P -> P
     p + = ♯ p ⊛ ♯ (p ⋆)
 
   _sepBy_ : P -> P -> P
@@ -33,29 +33,13 @@ module Productivity (char : Set) where
   -- Not guarded:
 
   mutual
-    expr : _
-    term : _
-    factor : _
-
     expr   = term sepBy addOp
-
     term   = factor sepBy mulOp
- 
     factor = ♯ number ∣ ♯ (♯ (♯ sym openP ⊛ ♯ expr) ⊛ ♯ sym closeP)
 
   -- Guarded and incomprehensible:
 
   mutual
-    expr₁ : _
-    expr₂ : _
-    expr₃ : _
-
-    term₁ : _
-    term₂ : _
-    term₃ : _
-
-    factor₁ : _
-
     expr₁ = ♯ term₁ ⊛ ♯ expr₂
     expr₂ = ♯ ε ∣ ♯ expr₃
     expr₃ = ♯ (♯ addOp ⊛ ♯ term₁) ⊛ ♯ expr₂

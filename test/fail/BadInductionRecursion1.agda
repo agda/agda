@@ -5,11 +5,10 @@ data Unit : Set where
   unit : Unit
 
 mutual
-  D′ : Unit -> Set
-
   data D : Set where
     d : forall u -> (D′ u -> D′ u) -> D
 
+  D′ : Unit -> Set
   D′ unit = D
 
 _·_ : D -> D -> D

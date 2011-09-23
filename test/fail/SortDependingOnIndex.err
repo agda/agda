@@ -1,4 +1,4 @@
-SortDependingOnIndex.agda:6,6-9
+SortDependingOnIndex.agda:6,12-31
 The sort of Bad cannot depend on its indices in the type (l :
 Level) → Set l
 when checking the definition of Bad

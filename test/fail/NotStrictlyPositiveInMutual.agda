@@ -2,11 +2,9 @@
 module NotStrictlyPositiveInMutual where
 
 mutual
-  data Oops : Set
-
   data Cheat : Set where
     cheat : Oops -> Cheat
 
-  data Oops where
+  data Oops : Set where
     oops : (Cheat -> Cheat) -> Oops
 
