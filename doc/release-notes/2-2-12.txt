@@ -78,6 +78,9 @@ Language
 
 * trustMe is now universe-polymorphic.
 
+* Universe polymorphism is now enabled by default.
+  Use --no-universe-polymorphism to disable it.
+
 * Record patterns which do not contain data type patterns, but which
   do contain dot patterns, are no longer rejected.
 
