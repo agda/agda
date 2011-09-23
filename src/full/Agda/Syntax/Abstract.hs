@@ -62,13 +62,22 @@ data Declaration
 	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
-	| Definition DeclInfo [Definition] -- ^ a bunch of mutually recursive definitions
+	| Mutual     DeclInfo [Declaration]                -- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
 	| Apply	     ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
 	| Pragma     Range	Pragma
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
+        | FunDef     DefInfo QName [Clause]
+        | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
+            -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+        | DataDef    DefInfo QName [LamBinding] [Constructor]
+            -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
+        | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
+        | RecDef     DefInfo QName (Maybe QName) [LamBinding] Expr [Declaration]
+            -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
+            --   and the optional name is the constructor's name.
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
         deriving (Typeable, Data, Show)
 
@@ -80,6 +89,11 @@ instance GetDefInfo Declaration where
   getDefInfo (Field i _ _) = Just i
   getDefInfo (Primitive i _ _) = Just i
   getDefInfo (ScopedDecl _ (d:_)) = getDefInfo d
+  getDefInfo (FunDef i _ _) = Just i
+  getDefInfo (DataSig i _ _ _) = Just i
+  getDefInfo (DataDef i _ _ _) = Just i
+  getDefInfo (RecSig i _ _ _) = Just i
+  getDefInfo (RecDef i _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
 data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
@@ -100,30 +114,6 @@ data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info 
                 | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Data, Show)
-
--- | A definition without its type signature.
-data Definition
-  = FunSig     TypeSignature -- ^ lone type signature in mutual block
-  | FunDef     DefInfo QName [Clause]
-  | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
-      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-  | DataDef    DefInfo QName [LamBinding] [Constructor]
-      -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
-  | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-  | RecDef     DefInfo QName (Maybe QName) [LamBinding] Expr [Declaration]
-      -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
-      --   and the optional name is the constructor's name.
-  | ScopedDef ScopeInfo Definition
-  deriving (Typeable, Data, Show)
-
-instance GetDefInfo Definition where
-  getDefInfo (FunSig s) = getDefInfo s
-  getDefInfo (FunDef i _ _) = Just i
-  getDefInfo (DataSig i _ _ _) = Just i
-  getDefInfo (DataDef i _ _ _) = Just i
-  getDefInfo (RecSig i _ _ _) = Just i
-  getDefInfo (RecDef i _ _ _ _ _) = Just i
-  getDefInfo (ScopedDef _ d) = getDefInfo d
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -226,7 +216,7 @@ instance HasRange Expr where
 instance HasRange Declaration where
     getRange (Axiom      i _ _ _       ) = getRange i
     getRange (Field      i _ _         ) = getRange i
-    getRange (Definition i _           ) = getRange i
+    getRange (Mutual     i _           ) = getRange i
     getRange (Section    i _ _ _       ) = getRange i
     getRange (Apply	 i _ _ _ _     ) = getRange i
     getRange (Import     i _	       ) = getRange i
@@ -234,16 +224,11 @@ instance HasRange Declaration where
     getRange (Pragma	 i _	       ) = getRange i
     getRange (Open       i _           ) = getRange i
     getRange (ScopedDecl _ d	       ) = getRange d
-
-instance HasRange Definition where
-    getRange (FunSig (Axiom i _ _ _)) = getRange i
-    getRange (FunSig d              ) = __IMPOSSIBLE__
     getRange (FunDef  i _ _         ) = getRange i
     getRange (DataSig i _ _ _       ) = getRange i
     getRange (DataDef i _ _ _       ) = getRange i
     getRange (RecSig  i _ _ _       ) = getRange i
     getRange (RecDef  i _ _ _ _ _   ) = getRange i
-    getRange (ScopedDef _ d         ) = getRange d
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	   = getRange x
@@ -315,7 +300,7 @@ instance KillRange Relevance where
 instance KillRange Declaration where
   killRange (Axiom      i rel a b     ) = killRange4 Axiom      i rel a b
   killRange (Field      i a b         ) = killRange3 Field      i a b
-  killRange (Definition i a           ) = killRange2 Definition i a
+  killRange (Mutual     i a           ) = killRange2 Mutual     i a
   killRange (Section    i a b c       ) = killRange4 Section    i a b c
   killRange (Apply      i a b c d     ) = killRange3 Apply      i a b c d
    -- the last two arguments of Apply are name maps, so nothing to kill
@@ -324,19 +309,15 @@ instance KillRange Declaration where
   killRange (Pragma     i a           ) = Pragma (killRange i) a
   killRange (Open       i x           ) = killRange2 Open       i x
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
-
-instance KillRange ModuleApplication where
-  killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
-  killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
-
-instance KillRange Definition where
-  killRange (FunSig  a           ) = killRange1 FunSig a
   killRange (FunDef  i a b       ) = killRange3 FunDef  i a b
   killRange (DataSig i a b c     ) = killRange3 DataSig i a b c
   killRange (DataDef i a b c     ) = killRange4 DataDef i a b c
   killRange (RecSig  i a b c     ) = killRange4 RecSig  i a b c
   killRange (RecDef  i a b c d e ) = killRange6 RecDef  i a b c d e
-  killRange (ScopedDef s a       ) = killRange1 (ScopedDef s) a
+
+instance KillRange ModuleApplication where
+  killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
+  killRange (RecordModuleIFS a ) = killRange1 RecordModuleIFS a
 
 instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
@@ -379,21 +360,17 @@ instance KillRange LetBinding where
 -- lambdas.
 
 allNames :: Declaration -> Seq QName
-allNames (Axiom     _ _ q _)   = Seq.singleton q
-allNames (Field     _   q _)   = Seq.singleton q
-allNames (Primitive _   q _)   = Seq.singleton q
-allNames (Definition _ defs) = Fold.foldMap allNamesD defs
+allNames (Axiom     _ _ q _)      = Seq.singleton q
+allNames (Field     _   q _)      = Seq.singleton q
+allNames (Primitive _   q _)      = Seq.singleton q
+allNames (Mutual     _ defs)      = Fold.foldMap allNames defs
+allNames (DataSig _ q _ _)        = Seq.singleton q
+allNames (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
+allNames (RecSig _ q _ _)         = Seq.singleton q
+allNames (RecDef _ q c _ _ decls) =
+  q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
+allNames (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
   where
-  allNamesD :: Definition -> Seq QName
-  allNamesD (FunSig d)               = allNames d
-  allNamesD (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
-  allNamesD (DataSig _ q _ _)        = Seq.singleton q
-  allNamesD (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
-  allNamesD (ScopedDef _ def)        = allNamesD def
-  allNamesD (RecSig _ q _ _)         = Seq.singleton q
-  allNamesD (RecDef _ q c _ _ decls) =
-    q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
-
   allNamesC :: Clause -> Seq QName
   allNamesC (Clause _ rhs decls) = allNamesR rhs ><
                                    Fold.foldMap allNames decls
@@ -472,23 +449,19 @@ axiomName _             = __IMPOSSIBLE__
 class AnyAbstract a where
   anyAbstract :: a -> Bool
 
-instance AnyAbstract Definition where
-  anyAbstract (FunDef i _ _)       = defAbstract i == AbstractDef
-  anyAbstract (DataDef i _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _) = defAbstract i == AbstractDef
-  anyAbstract (ScopedDef _ ds)     = anyAbstract ds
-  anyAbstract (FunSig d)           = anyAbstract d
-  anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
-
 instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
 
 instance AnyAbstract Declaration where
   anyAbstract (Axiom i _ _ _)     = defAbstract i == AbstractDef
   anyAbstract (Field i _ _)       = defAbstract i == AbstractDef
-  anyAbstract (Definition _ ds)   = anyAbstract ds
+  anyAbstract (Mutual     _ ds)   = anyAbstract ds
   anyAbstract (ScopedDecl _ ds)   = anyAbstract ds
   anyAbstract (Section _ _ _ ds)  = anyAbstract ds
-  anyAbstract _                   = __IMPOSSIBLE__
+  anyAbstract (FunDef i _ _)       = defAbstract i == AbstractDef
+  anyAbstract (DataDef i _ _ _)    = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
+  anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
+  anyAbstract _                    = __IMPOSSIBLE__
 

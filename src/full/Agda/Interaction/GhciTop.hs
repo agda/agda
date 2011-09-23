@@ -838,7 +838,7 @@ instance LowerMeta SC.Declaration where
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _                     -> d
       Syntax _ _                     -> d
-      Mutual r ds                   -> Mutual r (lowerMeta ds)
+      SC.Mutual r ds                -> SC.Mutual r (lowerMeta ds)
       Abstract r ds                 -> Abstract r (lowerMeta ds)
       Private r ds                  -> Private r (lowerMeta ds)
       Postulate r sigs              -> Postulate r (lowerMeta sigs)

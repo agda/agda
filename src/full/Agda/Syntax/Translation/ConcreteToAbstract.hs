@@ -114,12 +114,6 @@ annotateDecls m = do
   s  <- getScope
   return $ ScopedDecl s ds
 
-annotateDefn :: ScopeM A.Definition -> ScopeM A.Definition
-annotateDefn m = do
-  d <- m
-  s <- getScope
-  return $ ScopedDef s d
-
 annotateExpr :: ScopeM A.Expr -> ScopeM A.Expr
 annotateExpr m = do
   e <- m
@@ -547,7 +541,7 @@ instance ToAbstract C.Expr A.Expr where
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
-          (A.ScopedDef si (A.FunDef di qname' cs)) -> do
+          (A.ScopedDecl si [A.FunDef di qname' cs]) -> do
             setScope si
             return $ A.ExtendedLam (ExprRange r) di qname' cs
           _ -> __IMPOSSIBLE__
@@ -703,19 +697,19 @@ newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
 
 instance ToAbstract LetDefs [A.LetBinding] where
-    toAbstract (LetDefs ds) =
-        concat <$> (toAbstract =<< map LetDef <$> niceDecls ds)
+  toAbstract (LetDefs ds) =
+    concat <$> (toAbstract =<< map LetDef <$> niceDecls ds)
 
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ c [C.FunSig (C.Axiom _ _ _ abstract rel x t), C.FunDef _ _ _ _ abstract' _ [cl]] ->
+            NiceMutual _ d@[C.FunSig _ _ _ abstract rel x t, C.FunDef _ _ _ _ abstract' _ [cl]] ->
                 do  when (abstract == AbstractDef || abstract' == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
                     t <- toAbstract t
                     x <- toAbstract (NewName x)
-                    return [ A.LetBind (LetRange $ getRange c) rel x t e ]
+                    return [ A.LetBind (LetRange $ getRange d) rel x t e ]
 
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
@@ -755,94 +749,6 @@ instance ToAbstract LetDef [A.LetBinding] where
                     i' = ExprRange (fuseRange i e)
             lambda _ _ = notAValidLetBinding d
 
--- instance ToAbstract C.Pragma [A.Pragma]
--- moved higher up to reduce the probability of line number change
--- in C.ImpossiblePragma  (test/fail/Impossible.agda)
-
--- Only constructor names are bound by definitions.
-instance ToAbstract NiceDefinition Definition where
-    toAbstract d = annotateDefn $ case d of
-      C.NiceRecSig r f a ia x ls t -> withLocalVars $ do
-          let toTypeBinding :: C.LamBinding -> C.TypedBindings
-              toTypeBinding b = case makeDomainFull b of
-                 C.DomainFull b -> b
-                 _            -> __IMPOSSIBLE__
-          ls' <- toAbstract (map toTypeBinding ls)
-          x'  <- freshAbstractQName f x
-          bindName a DefName x x'
-          t' <- toAbstract t
-          return $ A.RecSig (mkDefInfo x f a ia r) x' ls' t'
-      C.NiceDataSig r f a ia x ls t -> withLocalVars $ do
-          printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
-          let toTypeBinding :: C.LamBinding -> C.TypedBindings
-              toTypeBinding b = case makeDomainFull b of
-                 C.DomainFull b -> b
-                 _            -> __IMPOSSIBLE__
-          ls' <- toAbstract (map toTypeBinding ls)
-          x'  <- freshAbstractQName f x
-          bindName a DefName x x'
-          t' <- toAbstract t
-          return $ A.DataSig (mkDefInfo x f a ia r) x' ls' t'
-    -- Type signatures
-      C.FunSig d -> A.FunSig <$> toAbstract d
-    -- Function definitions
-      C.FunDef r ds f p a x cs ->
-        traceCall (ScopeCheckDefinition d) $ do
-          printLocals 10 $ "checking def " ++ show x
-          (x',cs') <- toAbstract (OldName x,cs)
-          return $ A.FunDef (mkDefInfo x f p a r) x' cs'
-
-    -- Data definitions
-      C.DataDef r f p a x pars cons -> withLocalVars $
-        traceCall (ScopeCheckDefinition d) $ do
-          printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
-          -- Check for duplicate constructors
-          do let cs   = map conName cons
-                 dups = nub $ cs \\ nub cs
-                 bad  = filter (`elem` dups) cs
-             unless (distinct cs) $
-               setCurrentRange (getRange bad) $
-                  typeError $ DuplicateConstructors dups
-
-          pars <- toAbstract pars
-          x'   <- toAbstract (OldName x)
-          -- Create the module for the qualified constructors
-          checkForModuleClash x -- disallow shadowing previously defined modules
-          let m = mnameFromList $ qnameToList x'
-          createModule m
-          bindModule p x m  -- make it a proper module
-          cons <- toAbstract (map (ConstrDecl NoRec m) cons)
-          -- Open the module
-          -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
-          printScope "data" 20 $ "Checked data " ++ show x
-          return $ A.DataDef (mkDefInfo x f p a r) x' pars cons
-        where
-          conName (C.Axiom _ _ _ _ _ c _) = c
-          conName _ = __IMPOSSIBLE__
-
-    -- Record definitions (mucho interesting)
-      C.RecDef r f p a x cm pars fields ->
-        traceCall (ScopeCheckDefinition d) $
-        withLocalVars $ do
-          -- Check that the generated module doesn't clash with a previously
-          -- defined module
-          checkForModuleClash x
-          pars   <- toAbstract pars
-          x'     <- toAbstract (OldName x)
-          contel <- toAbstract $ recordConstructorType fields
-          m0     <- getCurrentModule
-          let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
-          printScope "rec" 15 "before record"
-          createModule m
-          afields <- withCurrentModule m $ do
-            afields <- toAbstract fields
-            printScope "rec" 15 "checked fields"
-            return afields
-          bindModule p x m
-          cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
-          printScope "rec" 15 "record complete"
-          return $ A.RecDef (mkDefInfo x f p a r) x' cm' pars contel afields
-
 -- The only reason why we return a list is that open declarations disappears.
 -- For every other declaration we get a singleton list.
 instance ToAbstract NiceDeclaration A.Declaration where
@@ -878,10 +784,89 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r cs ds -> do
+    NiceMutual r ds -> do
       ds' <- toAbstract ds
-      return [ Definition (DeclInfo C.noName_ r) ds' ]
+      return [ A.Mutual (DeclInfo C.noName_ r) ds' ]
                           -- TODO: what does the info mean here?
+
+    C.NiceRecSig r f a ia x ls t -> withLocalVars $ do
+        let toTypeBinding :: C.LamBinding -> C.TypedBindings
+            toTypeBinding b = case makeDomainFull b of
+               C.DomainFull b -> b
+               _            -> __IMPOSSIBLE__
+        ls' <- toAbstract (map toTypeBinding ls)
+        x'  <- freshAbstractQName f x
+        bindName a DefName x x'
+        t' <- toAbstract t
+        return [ A.RecSig (mkDefInfo x f a ia r) x' ls' t' ]
+    C.NiceDataSig r f a ia x ls t -> withLocalVars $ do
+        printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
+        let toTypeBinding :: C.LamBinding -> C.TypedBindings
+            toTypeBinding b = case makeDomainFull b of
+               C.DomainFull b -> b
+               _            -> __IMPOSSIBLE__
+        ls' <- toAbstract (map toTypeBinding ls)
+        x'  <- freshAbstractQName f x
+        bindName a DefName x x'
+        t' <- toAbstract t
+        return [ A.DataSig (mkDefInfo x f a ia r) x' ls' t' ]
+  -- Type signatures
+    C.FunSig r f p a rel x t -> (:[]) <$> toAbstract (C.Axiom r f p a rel x t)
+  -- Function definitions
+    C.FunDef r ds f p a x cs -> do
+        printLocals 10 $ "checking def " ++ show x
+        (x',cs') <- toAbstract (OldName x,cs)
+        return [ A.FunDef (mkDefInfo x f p a r) x' cs' ]
+
+  -- Data definitions
+    C.DataDef r f p a x pars cons -> withLocalVars $ do
+        printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
+        -- Check for duplicate constructors
+        do let cs   = map conName cons
+               dups = nub $ cs \\ nub cs
+               bad  = filter (`elem` dups) cs
+           unless (distinct cs) $
+             setCurrentRange (getRange bad) $
+                typeError $ DuplicateConstructors dups
+
+        pars <- toAbstract pars
+        x'   <- toAbstract (OldName x)
+        -- Create the module for the qualified constructors
+        checkForModuleClash x -- disallow shadowing previously defined modules
+        let m = mnameFromList $ qnameToList x'
+        createModule m
+        bindModule p x m  -- make it a proper module
+        cons <- toAbstract (map (ConstrDecl NoRec m) cons)
+        -- Open the module
+        -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
+        printScope "data" 20 $ "Checked data " ++ show x
+        return [ A.DataDef (mkDefInfo x f p a r) x' pars cons ]
+      where
+        conName (C.Axiom _ _ _ _ _ c _) = c
+        conName _ = __IMPOSSIBLE__
+
+  -- Record definitions (mucho interesting)
+    C.RecDef r f p a x cm pars fields ->
+      withLocalVars $ do
+        -- Check that the generated module doesn't clash with a previously
+        -- defined module
+        checkForModuleClash x
+        pars   <- toAbstract pars
+        x'     <- toAbstract (OldName x)
+        contel <- toAbstract $ recordConstructorType fields
+        m0     <- getCurrentModule
+        let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
+        printScope "rec" 15 "before record"
+        createModule m
+        afields <- withCurrentModule m $ do
+          afields <- toAbstract fields
+          printScope "rec" 15 "checked fields"
+          return afields
+        bindModule p x m
+        cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
+        printScope "rec" 15 "record complete"
+        return [ A.RecDef (mkDefInfo x f p a r) x' cm' pars contel afields ]
+
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
     NiceModule r p a (C.QName name) tel ds -> do
@@ -962,6 +947,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
                            , minfoDirective = Just dir
                            })
                         m ]
+
 
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName C.NiceDeclaration

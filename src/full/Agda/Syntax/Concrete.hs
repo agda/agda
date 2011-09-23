@@ -216,7 +216,7 @@ data AsName = AsName { asName  :: Name
                        -- ^ The range of the \"as\" keyword. Retained
                        --   for highlighting purposes.
                      }
-    deriving (Typeable, Data)
+    deriving (Typeable, Data, Show)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -237,10 +237,10 @@ data Declaration
 	= TypeSig Relevance Name Expr -- ^ Axioms and functions can be irrelevant.
         | Field Name (Arg Expr) -- ^ Record field, can be hidden and/or irrelevant.
 	| FunClause LHS RHS WhereClause
-	| DataSig     !Range Induction Name [TypedBindings] Expr -- ^ lone data signature in mutual block
-	| Data        !Range Induction Name [TypedBindings] (Maybe Expr) [Constructor]
-	| RecordSig   !Range Name [TypedBindings] Expr -- ^ lone record signature in mutual block
-	| Record      !Range Name (Maybe Name) [TypedBindings] (Maybe Expr) [Declaration]
+	| DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
+	| Data        !Range Induction Name [LamBinding] (Maybe Expr) [Constructor]
+	| RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
+	| Record      !Range Name (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name

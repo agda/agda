@@ -898,34 +898,34 @@ RHS : '=' Expr	    { RHS $2 }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 (map addType $3) (Just $5) $7 }
+            Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 $3 (Just $5) $7 }
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 (map addType $3) (Just $5) $7 }
+            Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 $3 (Just $5) $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-	    Constructors	{ Data (getRange ($1, $4, $5)) Inductive $2 (map addType $3) Nothing $5 }
+	    Constructors	{ Data (getRange ($1, $4, $5)) Inductive $2 $3 Nothing $5 }
      | 'codata' Id TypedUntypedBindings 'where'
-	    Constructors	{ Data (getRange ($1, $4, $5)) CoInductive $2 (map addType $3) Nothing $5 }
+	    Constructors	{ Data (getRange ($1, $4, $5)) CoInductive $2 $3 Nothing $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
 DataSig : 'data' Id TypedUntypedBindings ':' Expr
-  { DataSig (fuseRange $1 $5) Inductive $2 (map addType $3) $5 }
+  { DataSig (fuseRange $1 $5) Inductive $2 $3 $5 }
 
 -- Record declarations.
 Record :: { Declaration }
 Record : 'record' Id TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
-         { Record (getRange ($1, $6, $7)) $2 (fst $7) (map addType $3) (Just $5) (snd $7) }
+         { Record (getRange ($1, $6, $7)) $2 (fst $7) $3 (Just $5) (snd $7) }
        | 'record' Id TypedUntypedBindings 'where'
 	    RecordDeclarations
-         { Record (getRange ($1, $4, $5)) $2 (fst $5) (map addType $3) Nothing (snd $5) }
+         { Record (getRange ($1, $4, $5)) $2 (fst $5) $3 Nothing (snd $5) }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
 RecordSig : 'record' Id TypedUntypedBindings ':' Expr
-  { RecordSig (fuseRange $1 $5) $2 (map addType $3) $5 }
+  { RecordSig (fuseRange $1 $5) $2 $3 $5 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { Name }

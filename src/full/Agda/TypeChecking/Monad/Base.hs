@@ -667,7 +667,6 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
-	  | ScopeCheckDefinition D.NiceDefinition (Maybe A.Definition)
 	  | forall a. TermFunDef Range Name [A.Clause] (Maybe a)
 	  | forall a. SetRange Range (Maybe a)	-- ^ used by 'setCurrentRange'
             -- actually, 'a' is Agda.Termination.TermCheck.CallGraph
@@ -701,7 +700,6 @@ instance HasRange Call where
     getRange (ScopeCheckExpr e _)                  = getRange e
     getRange (ScopeCheckDeclaration d _)           = getRange d
     getRange (ScopeCheckLHS _ p _)                 = getRange p
-    getRange (ScopeCheckDefinition d _)            = getRange d
     getRange (CheckDotPattern e _ _)               = getRange e
     getRange (CheckPatternShadowing c _)           = getRange c
     getRange (TermFunDef i _ _ _)                  = getRange i

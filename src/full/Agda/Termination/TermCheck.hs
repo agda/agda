@@ -76,13 +76,13 @@ termDecl d = case d of
     A.Axiom {}            -> return []
     A.Field {}            -> return []
     A.Primitive {}        -> return []
-    A.Definition _ ds
+    A.Mutual _ ds
       | [A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
                           -> do
         let m = mnameFromList $ qnameToList r
         setScopeFromDefs ds
         termSection m rds
-    A.Definition i ds  -> termMutual i ds
+    A.Mutual i ds  -> termMutual i ds
     A.Section _ x _ ds    -> termSection x ds
     A.Apply {}            -> return []
     A.Import {}           -> return []
@@ -91,15 +91,20 @@ termDecl d = case d of
         -- open is just an artifact from the concrete syntax
     A.ScopedDecl{}        -> __IMPOSSIBLE__
         -- taken care of above
+    -- These should all be wrapped in mutual blocks
+    A.FunDef{}  -> __IMPOSSIBLE__
+    A.DataSig{} -> __IMPOSSIBLE__
+    A.DataDef{} -> __IMPOSSIBLE__
+    A.RecSig{}  -> __IMPOSSIBLE__
+    A.RecDef{}  -> __IMPOSSIBLE__
   where
     setScopeFromDefs = mapM_ setScopeFromDef
-    setScopeFromDef (A.ScopedDef scope d) =
-      setScope scope >> setScopeFromDef d
+    setScopeFromDef (A.ScopedDecl scope d) = setScope scope
     setScopeFromDef _ = return ()
 
     unscopeDefs = concatMap unscopeDef
 
-    unscopeDef (A.ScopedDef _ d) = unscopeDef d
+    unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
     unscopeDef d = [d]
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
@@ -109,7 +114,7 @@ collectCalls f (a : as) = do c1 <- f a
                              return (c1 `Term.union` c2)
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
-termMutual :: Info.DeclInfo -> [A.Definition] -> TCM Result
+termMutual :: Info.DeclInfo -> [A.Declaration] -> TCM Result
 termMutual i ds = if names == [] then return [] else
   do -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
@@ -187,14 +192,11 @@ termMutual i ds = if names == [] then return [] else
          return []
   where
   getName (A.FunDef i x cs)       = [x]
-  getName (A.ScopedDef _ d)       = getName d
-  getName (A.RecDef _ _ _ _ _ ds) = concatMap getNameD ds
-  getName _                       = []
-
-  getNameD (A.Definition _ ds) = concatMap getName ds
-  getNameD (A.Section _ _ _ ds)  = concatMap getNameD ds
-  getNameD (A.ScopedDecl _ ds)   = concatMap getNameD ds
-  getNameD _                     = []
+  getName (A.RecDef _ _ _ _ _ ds) = concatMap getName ds
+  getName (A.Mutual _ ds)       = concatMap getName ds
+  getName (A.Section _ _ _ ds)  = concatMap getName ds
+  getName (A.ScopedDecl _ ds)   = concatMap getName ds
+  getName _                     = []
 
   -- the mutual names mentioned in the abstract syntax
   names = concatMap getName ds

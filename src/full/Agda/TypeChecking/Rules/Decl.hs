@@ -54,29 +54,48 @@ checkDecls ds = do
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
     leaveTopLevelConditionally d $ case d of
-	A.Axiom i rel x e            -> checkAxiom i rel x e
-        A.Field{}                    -> typeError FieldOutsideRecord
-	A.Primitive i x e	     -> checkPrimitive i x e
-	A.Definition i ds	     -> checkMutual i ds
-	A.Section i x tel ds	     -> checkSection i x tel ds
-	A.Apply i x modapp rd rm     -> checkSectionApplication i x modapp rd rm
-	A.Import i x		     -> checkImport i x
-	A.Pragma i p		     -> checkPragma i p
-	A.ScopedDecl scope ds	     -> setScope scope >> checkDecls ds
-        A.Open _ _                   -> return ()
+	A.Axiom i rel x e        -> checkAxiom i rel x e
+        A.Field{}                -> typeError FieldOutsideRecord
+	A.Primitive i x e        -> checkPrimitive i x e
+	A.Mutual i ds            -> checkMutual i ds
+	A.Section i x tel ds     -> checkSection i x tel ds
+	A.Apply i x modapp rd rm -> checkSectionApplication i x modapp rd rm
+	A.Import i x             -> checkImport i x
+	A.Pragma i p             -> checkPragma i p
+	A.ScopedDecl scope ds    -> setScope scope >> checkDecls ds
+        A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
+        A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
+        A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
+        A.DataSig i x ps t       -> checkAxiom i Relevant x t
+        A.RecSig i x ps t        -> checkAxiom i Relevant x t
+        A.Open _ _               -> return ()
+    top <- onTopLevel
+    when top solveSizeConstraints
+    -- Issue 418 fix: freeze metas for abstract things
+    when (isAbstract || top) freezeMetas
+    where
+        unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
+        unScope d = return d
+
+        check x i m = do
+          reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
+          r <- abstract (Info.defAbstract i) m
+          reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
+          return r
+
+        isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
+
+        -- Concrete definitions cannot use information about abstract things.
+        abstract ConcreteDef = inConcreteMode
+        abstract AbstractDef = inAbstractMode
 	    -- open is just an artifact from the concrete syntax
             -- retained for highlighting purposes
-    solveSizeConstraints
-    whenM onTopLevel freezeMetas
-{- Andreas, 2011-05-31 freeze metas of abstract type signatures? Issue 418
-      when (anyAbstract d) $ freezeMetas
--}
-    where
-      leaveTopLevelConditionally d =
-        case d of
-          A.Section{}    -> id
-          A.ScopedDecl{} -> id
-          _              -> leaveTopLevel
+
+        leaveTopLevelConditionally d =
+          case d of
+            A.Section{}    -> id
+            A.ScopedDecl{} -> id
+            _              -> leaveTopLevel
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
@@ -189,16 +208,14 @@ checkPragma r p =
                 defs	  = sigDefinitions sig
 
 -- | Type check a bunch of mutual inductive recursive definitions.
-checkMutual :: Info.DeclInfo -> [A.Definition] -> TCM ()
+checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM ()
 checkMutual i ds = inMutualBlock $ do
-  mapM_ checkDefinition ds
+  mapM_ checkDecl ds
 
   checkStrictlyPositive =<< currentMutualBlock
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
       unScope d = [d]
-      unScopeDef (A.ScopedDef _ d) = unScopeDef d
-      unScopeDef d = [d]
-  case [ x | A.FunSig d <- concatMap unScopeDef ds, A.Axiom _ _ x _ <- unScope d ] of
+  case [ x | A.Axiom _ _ x _ <- concatMap unScope ds ] of
     -- Non-mutual definitions can be considered for projection likeness
     [x] -> makeProjection x
     _   -> return ()
@@ -215,37 +232,6 @@ checkTypeSignature (A.Axiom i rel x e) =
 	PrivateAccess -> inAbstractMode $ checkAxiom i rel x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
-
-
--- | Check an inductive or recursive definition. Assumes the type has has been
---   checked and added to the signature.
-checkDefinition :: A.Definition -> TCM ()
-checkDefinition d = do
-    d <- unScope d
-    case d of
-	A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
-	A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
-	A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
-        A.FunSig d               -> checkTypeSignature d
-	A.DataSig i x ps t       -> checkAxiom i Relevant x t
-	A.RecSig i x ps t        -> checkAxiom i Relevant x t
-        A.ScopedDef{}            -> __IMPOSSIBLE__
-    -- Andreas, 2011-09-14 refixing issue 418: freeze metas after abstract defs.
-    when (fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef) $ freezeMetas
-    where
-        unScope (A.ScopedDef scope d) = setScope scope >> unScope d
-        unScope d = return d
-
-        check x i m = do
-          reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
-          r <- abstract (Info.defAbstract i) m
-          reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
-          return r
-
-	-- Concrete definitions cannot use information about abstract things.
-	abstract ConcreteDef = inConcreteMode
-	abstract AbstractDef = inAbstractMode
-
 
 -- | Type check a module.
 checkSection :: Info.ModuleInfo -> ModuleName -> A.Telescope -> [A.Declaration] -> TCM ()

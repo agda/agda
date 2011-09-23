@@ -215,6 +215,7 @@ instance Pretty RHS where
     pretty (RHS e)   = text "=" <+> pretty e
     pretty AbsurdRHS = empty
 
+instance Show WhereClause where show = show . pretty
 instance Pretty WhereClause where
   pretty  NoWhere = empty
   pretty (AnyWhere [Module _ x [] ds]) | isNoName (unqualify x)
@@ -225,6 +226,7 @@ instance Pretty WhereClause where
 	 , nest 2 (vcat $ map pretty ds)
 	 ]
 
+instance Show LHS where show = show . pretty
 instance Pretty LHS where
   pretty lhs = case lhs of
     LHS p ps eqs es  -> pr (pretty p) ps eqs es
@@ -242,6 +244,11 @@ instance Pretty LHS where
 
 instance Pretty [Declaration] where
   pretty = vcat . map pretty
+
+instance Show ModuleApplication where show = show . pretty
+instance Pretty ModuleApplication where
+  pretty (SectionApp _ bs e) = fsep (map pretty bs) <+> text "=" <+> pretty e
+  pretty (RecordModuleIFS _ rec) = text "=" <+> pretty rec <+> text "{{...}}"
 
 instance Pretty Declaration where
     pretty d =

@@ -240,7 +240,7 @@ generateSyntaxInfo file mErr top termErrs = do
                 (mempty { otherAspects = [DottedPattern] })
       getPattern _             = mempty
 
-      getFieldDecl :: A.Definition -> File
+      getFieldDecl :: A.Declaration -> File
       getFieldDecl (A.RecDef _ _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
@@ -285,7 +285,7 @@ nameKinds mErr decls = do
     Just _  -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-      everything' union (Map.empty `mkQ` getDef `extQ` getDecl) decls
+      everything' union (Map.empty `mkQ` getDecl) decls
   let merged = Map.union local imported
   return (\n -> Map.lookup n merged)
   where
@@ -313,33 +313,29 @@ nameKinds mErr decls = do
   getAxiomName (A.Axiom _ _ q _) = q
   getAxiomName _                 = __IMPOSSIBLE__
 
-  getDef :: A.Definition -> Map A.QName NameKind
-  getDef (A.FunSig d)            = Map.empty
-  getDef (A.FunDef  _ q _)       = Map.singleton q Function
-  getDef (A.DataSig _ q _ _)       = Map.singleton q Datatype
-  getDef (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
-                                   (Map.unions $
-                                    map (\q -> Map.singleton q (Constructor SC.Inductive)) $
-                                    map getAxiomName cs)
-  getDef (A.RecSig _ q _ _)      = Map.singleton q Record
-  getDef (A.RecDef _ q c _ _ _)  = Map.singleton q Record `union`
-                                   case c of
-                                     Nothing -> Map.empty
-                                     Just q ->
-                                       Map.singleton q (Constructor SC.Inductive)
-  getDef (A.ScopedDef {})        = Map.empty
-
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate
   getDecl (A.Field _ q _)     = Map.singleton q Field
   getDecl (A.Primitive _ q _) = Map.singleton q Primitive
-  getDecl (A.Definition {})   = Map.empty
+  getDecl (A.Mutual {})       = Map.empty
   getDecl (A.Section {})      = Map.empty
   getDecl (A.Apply {})        = Map.empty
   getDecl (A.Import {})       = Map.empty
   getDecl (A.Pragma {})       = Map.empty
   getDecl (A.ScopedDecl {})   = Map.empty
   getDecl (A.Open {})         = Map.empty
+  getDecl (A.FunDef  _ q _)       = Map.singleton q Function
+  getDecl (A.DataSig _ q _ _)       = Map.singleton q Datatype
+  getDecl (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
+                                   (Map.unions $
+                                    map (\q -> Map.singleton q (Constructor SC.Inductive)) $
+                                    map getAxiomName cs)
+  getDecl (A.RecSig _ q _ _)      = Map.singleton q Record
+  getDecl (A.RecDef _ q c _ _ _)  = Map.singleton q Record `union`
+                                   case c of
+                                     Nothing -> Map.empty
+                                     Just q ->
+                                       Map.singleton q (Constructor SC.Inductive)
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declarations.

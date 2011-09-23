@@ -642,9 +642,6 @@ instance PrettyTCM Call where
 	ScopeCheckDeclaration d _ ->
 	    fwords "when scope checking the declaration" $$
 	    nest 2 (pretty $ simpleDecl d)
-	ScopeCheckDefinition d _ ->
-	    fwords "when scope checking the definition" $$
-	    nest 2 (vcat $ map pretty $ simpleDef d)
 	ScopeCheckLHS x p _ ->
 	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
 		   pwords "in the definition of" ++ [pretty x]
@@ -661,35 +658,6 @@ instance PrettyTCM Call where
 	where
 	    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (argHiding a)) a
 
-	    simpleDef d = case d of
-              D.NiceRecSig r f a ia x ls t -> [ C.RecordSig r x (map bind ls) t ]
-              D.NiceDataSig r f a ia x ls t -> [ C.DataSig r Inductive x (map bind ls) t ]
-              D.FunSig d -> [simpleDecl d]
-	      D.FunDef _ ds _ _ _ _ _	 -> ds
-	      D.DataDef r fx p a d bs cs ->
-		[ C.Data r Inductive d (map bind bs) Nothing
-		    $ map simpleDecl cs
-		]
-	      D.RecDef r fx p a d c bs cs ->
-		[ C.Record r d (fmap (\(ThingWithFixity c _) -> c) c)  (map bind bs) Nothing
-		    $ map simpleDecl cs
-		]
-	      where
-		bind :: C.LamBinding -> C.TypedBindings
-		bind (C.DomainFull b) = b
-		bind (C.DomainFree h rel x) = C.TypedBindings r $ Arg h rel (C.TBind r [x] (C.Underscore r Nothing))
-		  where r = getRange x
+	    simpleDecl d = d'
+              where [d'] = D.notSoNiceDeclarations [d]
 
-                name (D.Axiom _ _ _ _ _ n _) = n
-                name _                     = __IMPOSSIBLE__
-
-	    simpleDecl d = case d of
-		D.Axiom _ _ _ _ rel x e		       -> C.TypeSig rel x e
-		D.NiceField _ _ _ _ x e	               -> C.Field x e
-		D.PrimitiveFunction r _ _ _ x e	       -> C.Primitive r [C.TypeSig Relevant x e]
-		D.NiceMutual r ds _ 		       -> C.Mutual r ds
-		D.NiceModule r _ _ x tel _	       -> C.Module r x tel []
-		D.NiceModuleMacro r _ _ x ma op dir    -> C.ModuleMacro r x ma op dir
-		D.NiceOpen r x dir		       -> C.Open r x dir
-		D.NiceImport r x as op dir	       -> C.Import r x as op dir
-		D.NicePragma _ p		       -> C.Pragma p

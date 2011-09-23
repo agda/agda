@@ -197,9 +197,14 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
 checkConstructor _ _ _ _ _ = __IMPOSSIBLE__ -- constructors are axioms
 
 
--- | Bind the parameters of a datatype. The bindings should be domain free.
+-- | Bind the parameters of a datatype.
 bindParameters :: [A.LamBinding] -> Type -> (Telescope -> Type -> TCM a) -> TCM a
 bindParameters [] a ret = ret EmptyTel a
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TBind _ xs _))) : bs) a ret =
+  bindParameters ([ A.DomainFree h rel x | x <- xs ] ++ bs) a ret
+bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TNoBind _))) : bs) a ret = do
+  x <- freshNoName_
+  bindParameters (A.DomainFree h rel x : bs) a ret
 bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | h /= h' =
