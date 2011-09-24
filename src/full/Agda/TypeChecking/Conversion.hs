@@ -557,7 +557,7 @@ leqLevel a b = liftTCM $ do
 
         -- closed ≤ bs
         ([ClosedLevel n], bs)
-          | n <= minimum (map constant bs) -> ok
+          | n <= maximum (map constant bs) -> ok
 
         -- as ≤ neutral
         (as, bs)
