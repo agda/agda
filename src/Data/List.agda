@@ -4,8 +4,6 @@
 -- Lists
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List where
 
 open import Data.Nat

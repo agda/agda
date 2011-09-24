@@ -5,8 +5,6 @@
 -- commutative rings), used by the ring solver
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Algebra.RingSolver.AlmostCommutativeRing where
 
 open import Relation.Binary

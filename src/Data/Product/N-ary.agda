@@ -10,8 +10,6 @@
 -- avoided: pairs are represented as pairs (x , y), not as triples
 -- (x , y , unit).
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Product.N-ary where
 
 open import Data.Nat

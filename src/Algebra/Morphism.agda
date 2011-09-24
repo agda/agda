@@ -4,8 +4,6 @@
 -- Morphisms between algebraic structures
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Algebra.Morphism where
 
 open import Relation.Binary

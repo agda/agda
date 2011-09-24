@@ -4,8 +4,6 @@
 -- Some properties imply others
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Consequences where
 
 open import Relation.Binary.Core hiding (refl)

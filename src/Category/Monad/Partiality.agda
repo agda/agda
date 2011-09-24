@@ -4,8 +4,6 @@
 -- The partiality monad
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Category.Monad.Partiality where
 
 open import Coinduction

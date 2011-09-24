@@ -4,8 +4,6 @@
 -- Sums (disjoint unions)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Sum where
 
 open import Function

@@ -4,8 +4,6 @@
 -- Properties satisfied by decidable total orders
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.Props.DecTotalOrder

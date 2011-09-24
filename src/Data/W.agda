@@ -4,8 +4,6 @@
 -- W-types
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.W where
 
 open import Level

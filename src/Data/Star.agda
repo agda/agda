@@ -4,8 +4,6 @@
 -- The reflexive transitive closures of McBride, Norell and Jansson
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- This module could be placed under Relation.Binary. However, since
 -- its primary purpose is to be used for _data_ it has been placed
 -- under Data instead.

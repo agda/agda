@@ -4,8 +4,6 @@
 -- Lists where all elements satisfy a given property
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List.All where
 
 open import Data.List as List hiding (map; all)

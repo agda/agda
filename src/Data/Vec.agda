@@ -4,8 +4,6 @@
 -- Vectors
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Vec where
 
 open import Category.Applicative

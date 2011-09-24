@@ -7,8 +7,6 @@
 
 -- For an example of how this module can be used, see README.Record.
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- The module is parametrised by the type of labels, which should come
 -- with decidable equality.
 

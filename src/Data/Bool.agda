@@ -4,8 +4,6 @@
 -- Booleans
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Bool where
 
 open import Function

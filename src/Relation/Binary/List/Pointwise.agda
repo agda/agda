@@ -4,8 +4,6 @@
 -- Pointwise lifting of relations to lists
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.List.Pointwise where
 
 open import Function

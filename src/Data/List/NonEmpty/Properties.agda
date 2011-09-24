@@ -4,8 +4,6 @@
 -- Properties of non-empty lists
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List.NonEmpty.Properties where
 
 open import Algebra

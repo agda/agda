@@ -5,8 +5,6 @@
 -- properties (or other properties not available in Data.Fin)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Fin.Props where
 
 open import Data.Fin

@@ -4,8 +4,6 @@
 -- Properties related to ◇
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Container.Any where
 
 open import Algebra

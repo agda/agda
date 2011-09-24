@@ -4,8 +4,6 @@
 -- Properties related to negation
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Nullary.Negation where
 
 open import Relation.Nullary

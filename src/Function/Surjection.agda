@@ -4,8 +4,6 @@
 -- Surjections
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Surjection where
 
 open import Level

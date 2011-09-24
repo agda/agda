@@ -4,8 +4,6 @@
 -- Conversion of < to ≤, along with a number of properties
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Possible TODO: Prove that a conversion ≤ → < → ≤ returns a
 -- relation equivalent to the original one (and similarly for
 -- < → ≤ → <).

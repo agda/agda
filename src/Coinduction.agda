@@ -4,8 +4,6 @@
 -- Basic types related to coinduction
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Coinduction where
 
 import Level

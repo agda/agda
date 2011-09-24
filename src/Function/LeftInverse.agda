@@ -4,8 +4,6 @@
 -- Left inverses
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.LeftInverse where
 
 open import Data.Product

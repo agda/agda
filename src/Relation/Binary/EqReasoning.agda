@@ -4,8 +4,6 @@
 -- Convenient syntax for equational reasoning
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Example use:
 
 -- n*0≡0 : ∀ n → n * 0 ≡ 0

@@ -4,8 +4,6 @@
 -- Many properties which hold for _∼_ also hold for _∼_ on f
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.On {a b} {A : Set a} {B : Set b}

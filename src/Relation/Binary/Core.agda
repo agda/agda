@@ -4,8 +4,6 @@
 -- Properties of homogeneous binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- This file contains some core definitions which are reexported by
 -- Relation.Binary or Relation.Binary.PropositionalEquality.
 

@@ -4,8 +4,6 @@
 -- Unary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Unary where
 
 open import Data.Empty

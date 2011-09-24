@@ -4,8 +4,6 @@
 -- Reflexive closures
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.ReflexiveClosure where
 
 open import Data.Unit

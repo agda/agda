@@ -4,8 +4,6 @@
 -- Universe levels
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Level where
 
 -- Levels.

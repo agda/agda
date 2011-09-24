@@ -4,8 +4,6 @@
 -- Functors
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Note that currently the functor laws are not included here.
 
 module Category.Functor where

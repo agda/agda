@@ -4,8 +4,6 @@
 -- Operations on and properties of decidable relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Nullary.Decidable where
 
 open import Data.Empty

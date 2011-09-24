@@ -4,8 +4,6 @@
 -- Empty type
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Empty where
 
 open import Level

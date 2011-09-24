@@ -4,8 +4,6 @@
 -- Convenient syntax for "equational reasoning" using a preorder
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- I think that the idea behind this library is originally Ulf
 -- Norell's. I have adapted it to my tastes and mixfix operators,
 -- though.

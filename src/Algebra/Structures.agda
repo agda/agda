@@ -5,8 +5,6 @@
 -- etc.)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Algebra.Structures where

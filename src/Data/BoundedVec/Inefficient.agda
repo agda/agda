@@ -4,8 +4,6 @@
 -- Bounded vectors (inefficient, concrete implementation)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Vectors of a specified maximum length.
 
 module Data.BoundedVec.Inefficient where

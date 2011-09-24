@@ -4,8 +4,6 @@
 -- Equivalence (coinhabitance)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Equivalence where
 
 open import Function using (flip)

@@ -4,8 +4,6 @@
 -- Function setoids and related constructions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Equality where
 
 open import Function as Fun using (_on_)

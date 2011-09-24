@@ -4,8 +4,6 @@
 -- Properties of functions, such as associativity and commutativity
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- This file contains some core definitions which are reexported by
 -- Algebra.FunctionProperties. They are placed here because
 -- Algebra.FunctionProperties is a parameterised module, and some of

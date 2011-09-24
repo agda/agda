@@ -4,8 +4,6 @@
 -- Some boring lemmas used by the ring solver
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Note that these proofs use all "almost commutative ring" properties
 -- except for zero and -‿cong.
 

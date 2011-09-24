@@ -4,8 +4,6 @@
 -- Some properties related to Data.Star
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Star.Properties where
 
 open import Data.Star

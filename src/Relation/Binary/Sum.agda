@@ -4,8 +4,6 @@
 -- Sums of binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Sum where
 
 open import Data.Sum as Sum

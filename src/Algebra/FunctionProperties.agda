@@ -4,8 +4,6 @@
 -- Properties of functions, such as associativity and commutativity
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- These properties can (for instance) be used to define algebraic
 -- structures.
 

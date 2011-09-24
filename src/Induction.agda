@@ -4,8 +4,6 @@
 -- An abstraction of various forms of recursion/induction
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- The idea underlying Induction.* comes from Epigram 1, see Section 4
 -- of "The view from the left" by McBride and McKinna.
 

@@ -4,8 +4,6 @@
 -- The identity monad
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Category.Monad.Identity where
 
 open import Category.Monad

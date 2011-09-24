@@ -4,8 +4,6 @@
 -- Instantiates the ring solver with two copies of the same ring
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Algebra.RingSolver.AlmostCommutativeRing
 
 module Algebra.RingSolver.Simple

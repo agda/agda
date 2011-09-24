@@ -4,8 +4,6 @@
 -- Non-empty lists
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List.NonEmpty where
 
 open import Data.Product hiding (map)

@@ -4,8 +4,6 @@
 -- Properties of homogeneous binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary where
 
 open import Data.Product

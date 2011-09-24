@@ -4,8 +4,6 @@
 -- Indexed applicative functors
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Note that currently the applicative functor laws are not included
 -- here.
 

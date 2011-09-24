@@ -4,8 +4,6 @@
 -- Transitive closures
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Plus where
 
 open import Function

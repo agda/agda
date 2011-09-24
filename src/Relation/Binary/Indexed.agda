@@ -4,8 +4,6 @@
 -- Indexed binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Indexed where
 
 import Relation.Binary as B

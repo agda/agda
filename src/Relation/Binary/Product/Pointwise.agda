@@ -4,8 +4,6 @@
 -- Pointwise products of binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Product.Pointwise where
 
 open import Data.Product as Prod

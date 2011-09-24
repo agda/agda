@@ -4,8 +4,6 @@
 -- Boolean algebra expressions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Algebra
 
 module Algebra.Props.BooleanAlgebra.Expression

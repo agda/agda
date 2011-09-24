@@ -4,8 +4,6 @@
 -- Properties satisfied by strict partial orders
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.Props.StrictTotalOrder

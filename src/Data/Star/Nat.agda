@@ -4,8 +4,6 @@
 -- Natural numbers defined in terms of Data.Star
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Star.Nat where
 
 open import Data.Star

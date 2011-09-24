@@ -4,8 +4,6 @@
 -- Properties satisfied by total orders
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.Props.TotalOrder

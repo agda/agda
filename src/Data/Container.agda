@@ -4,8 +4,6 @@
 -- Containers, based on the work of Abbott and others
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Container where
 
 open import Data.Product as Prod hiding (map)

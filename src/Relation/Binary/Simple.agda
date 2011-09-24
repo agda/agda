@@ -4,8 +4,6 @@
 -- Some simple binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Simple where
 
 open import Relation.Binary

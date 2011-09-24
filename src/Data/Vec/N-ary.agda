@@ -4,8 +4,6 @@
 -- Code for converting Vec A n → B to and from n-ary functions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Vec.N-ary where
 
 open import Data.Nat hiding (_⊔_)

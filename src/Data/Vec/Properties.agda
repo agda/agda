@@ -4,8 +4,6 @@
 -- Some Vec-related properties
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Vec.Properties where
 
 open import Algebra

@@ -4,8 +4,6 @@
 -- Some derivable properties
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Algebra
 
 module Algebra.Props.Ring {r₁ r₂} (R : Ring r₁ r₂) where

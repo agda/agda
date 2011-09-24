@@ -4,8 +4,6 @@
 -- Properties related to list membership
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- List membership is defined in Data.List.Any. This module does not
 -- treat the general variant of list membership, parametrised on a
 -- setoid, only the variant where the equality is fixed to be

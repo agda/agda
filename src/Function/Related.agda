@@ -5,8 +5,6 @@
 -- such as equivalences, surjections and bijections
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Related where
 
 open import Level

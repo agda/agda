@@ -4,8 +4,6 @@
 -- Semi-heterogeneous vector equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Vec.Equality where
 
 open import Data.Vec

@@ -4,8 +4,6 @@
 -- Coinductive lists
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Colist where
 
 open import Category.Monad

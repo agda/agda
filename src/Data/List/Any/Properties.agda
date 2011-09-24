@@ -4,8 +4,6 @@
 -- Properties related to Any
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- The other modules under Data.List.Any also contain properties
 -- related to Any.
 

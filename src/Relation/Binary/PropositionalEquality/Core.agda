@@ -4,8 +4,6 @@
 -- Propositional equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- This file contains some core definitions which are reexported by
 -- Relation.Binary.PropositionalEquality.
 

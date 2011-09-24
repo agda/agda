@@ -4,8 +4,6 @@
 -- Solver for commutative ring or semiring equalities
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Uses ideas from the Coq ring tactic. See "Proving Equalities in a
 -- Commutative Ring Done Right in Coq" by Grégoire and Mahboubi. The
 -- code below is not optimised like theirs, though.

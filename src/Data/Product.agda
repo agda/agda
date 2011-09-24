@@ -4,8 +4,6 @@
 -- Products
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Product where
 
 open import Function

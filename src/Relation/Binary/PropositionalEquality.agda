@@ -4,8 +4,6 @@
 -- Propositional (intensional) equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.PropositionalEquality where
 
 open import Function

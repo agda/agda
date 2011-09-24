@@ -4,8 +4,6 @@
 -- Convenient syntax for "equational reasoning" using a partial order
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.PartialOrderReasoning

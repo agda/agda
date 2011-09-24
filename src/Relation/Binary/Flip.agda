@@ -4,8 +4,6 @@
 -- Many properties which hold for _∼_ also hold for flip _∼_
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.Flip where

@@ -5,8 +5,6 @@
 -- (packed in records together with sets, operations, etc.)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Algebra where
 
 open import Relation.Binary

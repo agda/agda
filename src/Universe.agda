@@ -4,8 +4,6 @@
 -- Universes
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Universe where
 
 open import Data.Product

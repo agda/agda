@@ -4,8 +4,6 @@
 -- A delimited continuation monad
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Category.Monad.Continuation where
 
 open import Category.Applicative

@@ -4,8 +4,6 @@
 -- Bijections
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Bijection where
 
 open import Data.Product

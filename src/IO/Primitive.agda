@@ -4,8 +4,6 @@
 -- Primitive IO: simple bindings to Haskell types and functions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module IO.Primitive where
 
 open import Data.String

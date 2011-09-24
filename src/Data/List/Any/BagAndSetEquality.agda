@@ -4,8 +4,6 @@
 -- Properties related to bag and set equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Bag and set equality are defined in Data.List.Any.
 
 module Data.List.Any.BagAndSetEquality where

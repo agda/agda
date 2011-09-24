@@ -4,8 +4,6 @@
 -- Properties relating All to various list functions
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List.All.Properties where
 
 open import Data.Bool

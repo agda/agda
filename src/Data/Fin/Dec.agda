@@ -4,8 +4,6 @@
 -- Decision procedures for finite sets and subsets of finite sets
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Fin.Dec where
 
 open import Function

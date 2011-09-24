@@ -4,8 +4,6 @@
 -- Lexicographic products of binary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- The definition of lexicographic product used here is suitable if
 -- the left-hand relation is a strict partial order.
 

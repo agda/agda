@@ -4,8 +4,6 @@
 -- Monads
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Note that currently the monad laws are not included here.
 
 module Category.Monad where

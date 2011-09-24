@@ -4,8 +4,6 @@
 -- Pointwise lifting of relations to vectors
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Vec.Pointwise where
 
 open import Category.Applicative.Indexed

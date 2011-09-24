@@ -4,8 +4,6 @@
 -- Inverses
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Inverse where
 
 open import Level

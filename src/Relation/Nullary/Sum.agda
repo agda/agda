@@ -4,8 +4,6 @@
 -- Sums of nullary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Nullary.Sum where
 
 open import Data.Sum

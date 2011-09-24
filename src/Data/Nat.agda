@@ -4,8 +4,6 @@
 -- Natural numbers
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Nat where
 
 open import Function

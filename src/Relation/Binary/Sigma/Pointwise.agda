@@ -4,8 +4,6 @@
 -- Pointwise lifting of binary relations to sigma types
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.Sigma.Pointwise where
 
 open import Data.Product as Prod

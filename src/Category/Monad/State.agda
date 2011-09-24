@@ -4,8 +4,6 @@
 -- The state monad
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Category.Monad.State where
 
 open import Category.Applicative.Indexed

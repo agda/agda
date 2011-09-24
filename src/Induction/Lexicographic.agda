@@ -4,8 +4,6 @@
 -- Lexicographic induction
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Induction.Lexicographic where
 
 open import Induction

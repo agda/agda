@@ -4,8 +4,6 @@
 -- Well-founded induction
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Induction.WellFounded where

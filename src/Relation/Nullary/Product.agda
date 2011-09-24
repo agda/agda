@@ -4,8 +4,6 @@
 -- Products of nullary relations
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Nullary.Product where
 
 open import Data.Product

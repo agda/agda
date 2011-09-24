@@ -4,8 +4,6 @@
 -- The Maybe type
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Maybe where
 
 open import Level

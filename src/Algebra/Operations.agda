@@ -5,8 +5,6 @@
 -- exponentiation)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Algebra
 
 module Algebra.Operations {s₁ s₂} (S : Semiring s₁ s₂) where

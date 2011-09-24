@@ -5,8 +5,6 @@
 -- equivalent or…)
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Function.Related.TypeIsomorphisms where
 
 open import Algebra

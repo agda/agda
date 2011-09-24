@@ -4,8 +4,6 @@
 -- Heterogeneous equality
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.HeterogeneousEquality where
 
 open import Data.Product

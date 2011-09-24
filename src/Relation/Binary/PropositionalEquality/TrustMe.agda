@@ -4,8 +4,6 @@
 -- An equality postulate which evaluates
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Relation.Binary.PropositionalEquality.TrustMe where
 
 open import Relation.Binary.PropositionalEquality

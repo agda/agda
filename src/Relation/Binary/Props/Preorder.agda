@@ -4,8 +4,6 @@
 -- Properties satisfied by preorders
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 open import Relation.Binary
 
 module Relation.Binary.Props.Preorder

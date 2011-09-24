@@ -4,8 +4,6 @@
 -- Container combinators
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.Container.Combinator where
 
 open import Data.Container

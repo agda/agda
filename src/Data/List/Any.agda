@@ -4,8 +4,6 @@
 -- Lists where at least one element satisfies a given property
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 module Data.List.Any where
 
 open import Data.Empty

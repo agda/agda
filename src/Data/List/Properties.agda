@@ -4,8 +4,6 @@
 -- List-related properties
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- Note that the lemmas below could be generalised to work with other
 -- equalities than _≡_.
 
