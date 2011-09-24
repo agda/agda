@@ -215,9 +215,9 @@ checkMutual i ds = inMutualBlock $ do
   checkStrictlyPositive =<< currentMutualBlock
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
       unScope d = [d]
-  case [ x | A.Axiom _ _ x _ <- concatMap unScope ds ] of
+  case concatMap unScope ds of
     -- Non-mutual definitions can be considered for projection likeness
-    [x] -> makeProjection x
+    [A.Axiom _ _ x _, A.FunDef _ y _] | x == y -> makeProjection x
     _   -> return ()
 
 
