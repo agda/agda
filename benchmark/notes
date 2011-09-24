@@ -74,5 +74,7 @@
 
 20110922: Just minor stuff.
 
-20110924: New mutual syntax.
+20110924: (09.49) New mutual syntax.
+          (10.04) Avoid generating sort metas when checking isType_ of a Fun or a Pi
+          (     ) Same for isType_ of Set or Set a
 

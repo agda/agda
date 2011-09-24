@@ -12,6 +12,7 @@ import Data.List hiding (sort)
 import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Traversable (traverse)
 
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
@@ -78,9 +79,34 @@ isType e s =
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e =
-    traceCall (IsType_ e) $ do
-    s <- workOnTypes $ newSortMeta
-    isType e s
+  traceCall (IsType_ e) $
+  case e of
+    A.Fun i a b -> do
+      a <- traverse isType_ a
+      b <- isType_ b
+      return $ El (sLub (getSort $ unArg a) (getSort b)) (Pi a (NoAbs "_" b))
+    A.Pi _ tel e -> do
+      checkTelescope_ tel $ \tel -> do
+        t   <- instantiateFull =<< isType_ e
+        tel <- instantiateFull tel
+        return $ telePi tel t
+    A.Set _ n    -> do
+      n <- ifM typeInType (return 0) (return n)
+      return $ sort (mkType n)
+    A.App i s (Arg NotHidden r l)
+      | A.Set _ 0 <- unScope s ->
+      ifM (not <$> hasUniversePolymorphism)
+          (typeError $ GenericError "Use --universe-polymorphism to enable level arguments to Set")
+      $ do
+        lvl <- primLevel
+        -- allow NonStrict variables when checking level
+        --   Set : (NonStrict) Level -> Set\omega
+        n   <- levelView =<< applyRelevanceToContext NonStrict
+                              (checkExpr (namedThing l) (El (mkType 0) lvl))
+        return $ sort (Type n)
+    _ -> do
+      s <- workOnTypes $ newSortMeta
+      isType e s
 
 -- | Check that an expression is a type which is equal to a given type.
 isTypeEqualTo :: A.Expr -> Type -> TCM Type
@@ -246,29 +272,6 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
     mkTel (x : xs) t = ((,) s <$> t) : mkTel xs (raise 1 t)
       where s = show $ nameConcrete x
 
-
-{- OLD CODE
--- | Check a typed binding and extends the context with the bound variables.
---   The telescope passed to the continuation is valid in the original context.
-checkTypedBindings_ :: A.TypedBindings -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings_ (A.TypedBindings i (Arg h rel b)) ret =
-    checkTypedBinding_ h rel b $ \bs ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
-
-checkTypedBinding_ :: Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding_ h rel (A.TBind i xs e) ret = do
-    t <- isType_ e
-    -- Andreas, 2011-04-26 irrelevant function arguments may appear
-    -- non-strictly in the codomain type
-    addCtxs xs (Arg h (irrToNonStrict rel) t) $ ret $ mkTel xs t
-    where
-	mkTel [] t     = []
-	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding_ h rel (A.TNoBind e) ret = do
-    t <- isType_ e
-    ret [("_",t)]
--}
-
 ---------------------------------------------------------------------------
 -- * Literal
 ---------------------------------------------------------------------------
@@ -316,6 +319,9 @@ checkArguments' exph r args t0 t e k = do
       -- cs = new constraints
     Left t0            -> postponeTypeCheckingProblem e t (unblockedTester t0)
       -- if unsuccessful, postpone checking e : t until t0 unblocks
+
+unScope (A.ScopedExpr scope e) = unScope e
+unScope e                      = e
 
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
@@ -521,7 +527,7 @@ checkExpr e t =
 	    t' <- checkTelescope_ tel $ \tel -> do
                     t   <- instantiateFull =<< isType_ e
                     tel <- instantiateFull tel
-                    return $ telePi_ tel t
+                    return $ telePi tel t
             let s = getSort t'
             when (s == Inf) $ reportSDoc "tc.term.sort" 20 $
               vcat [ text ("reduced to omega:")
