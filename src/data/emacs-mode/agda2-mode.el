@@ -663,7 +663,18 @@ in the buffer's mode line."
     (set (make-local-variable 'compilation-error-regexp-alist)
          '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
             1 (2 . 5) (3 . 6))))
+    ;; No support for recompilation. An attempt to recompile via the
+    ;; info buffer (using "g") will (most likely) lead to a (dynamic)
+    ;; type error. (The default is to run "make -k".)
+    (set (make-local-variable 'compile-command)
+         'agda2-does-not-support-compilation-via-the-compilation-minor-mode)
     (compilation-minor-mode 1)
+
+    ;; The info buffer is read-only. Compilation minor mode introduces
+    ;; the keybindings "g" (recompile) and "q" (bury the buffer), and
+    ;; these keybindings can make it rather awkward to edit the info
+    ;; buffer. To avoid surprises we make the buffer read-only.
+    (setq buffer-read-only t)
 
     (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
