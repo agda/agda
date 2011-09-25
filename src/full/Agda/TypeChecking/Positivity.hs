@@ -258,7 +258,7 @@ instance ComputeOccurrences Clause where
 instance ComputeOccurrences Term where
   occurrences vars v = case v of
     Var i args ->
-      maybe Map.empty here (vars ! fromIntegral i)
+      maybe Map.empty here (index vars $ fromIntegral i)
       >+< occursAs VarArg (occurrences vars args)
     Def d args   ->
       here (ADef d) >+<
@@ -275,9 +275,9 @@ instance ComputeOccurrences Term where
     where
       -- Apparently some development version of GHC chokes if the
       -- following line is replaced by vs ! i.
-      (!) vs i
+      index vs i
         | i < length vs = vs !! i
-        | otherwise     = error $ show vs ++ " ! " ++ show i ++ "  (" ++ show v ++ ")"
+        | otherwise     = __IMPOSSIBLE__
 
 instance ComputeOccurrences Level where
   occurrences vars (Max as) = occurrences vars as
