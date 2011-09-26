@@ -46,7 +46,7 @@ test = testMonoid false
 open Monoid {{...}}
 
 test2 : {t : Set} → {{tM : Monoid t}} → t
-test2 = zeroT 
+test2 = zeroT
 
 test3 : T
 test3 = zeroT 
