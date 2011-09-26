@@ -236,6 +236,7 @@ niceDeclarations ds = do
     []  -> localState $ do
       put $ initNiceEnv { fixs = fixs }
       ds <- nice ds
+      checkLoneSigs
       modify $ \s -> s { loneSigs = [] }
       inferMutualBlocks ds
     xs  -> throwError $ UnknownNamesInFixityDecl xs
@@ -289,7 +290,7 @@ niceDeclarations ds = do
             cons d = fmap ((d :) *** id)
 
     nice :: [Declaration] -> Nice [NiceDeclaration]
-    nice [] = [] <$ checkLoneSigs
+    nice [] = return []
     nice (d:ds) = do
       case d of
         TypeSig rel x t -> do
