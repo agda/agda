@@ -1,7 +1,7 @@
 Issue452.agda:24,1-7
 Cannot decide whether there should be a case for the constructor d,
 since the unification gets stuck on unifying the inferred indices
-  [id true, _26]
+  [id true, _22]
 with the expected indices
   [true, tt]
 when checking that D true tt has no constructors

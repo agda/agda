@@ -137,7 +137,10 @@ checkDataDef i name ps cs =
 
 	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
 	splitType (El _ (Sort s))  = return (0, s)
-	splitType (El _ t)	   = typeError $ DataMustEndInSort t
+	splitType a                = do
+          s <- newSortMeta
+          equalType a (sort s)
+          return (0, s)
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.

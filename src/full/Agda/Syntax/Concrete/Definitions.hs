@@ -13,11 +13,11 @@ module Agda.Syntax.Concrete.Definitions
 import Control.Arrow ((***), (&&&))
 import Control.Applicative
 import Data.Generics (Typeable, Data)
-import Data.Foldable hiding (concatMap, mapM_, notElem)
+import Data.Foldable hiding (concatMap, mapM_, notElem, elem)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Monad.Error
-import Control.Monad.Reader
+import Control.Monad.State
 import Data.List
 import Data.Maybe
 import Data.Traversable (traverse)
@@ -31,6 +31,7 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Concrete.Pretty
 import Agda.Utils.Pretty
 import Agda.Utils.List (mhead, isSublistOf)
+import Agda.Utils.Monad
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -86,6 +87,7 @@ data DeclarationException
         | MissingDefinition Name
         | MissingWithClauses Name
         | MissingTypeSignature LHS
+        | MissingDataSignature Name
         | NotAllowedInMutual NiceDeclaration
         | UnknownNamesInFixityDecl [Name]
         | Codata Range
@@ -98,6 +100,7 @@ instance HasRange DeclarationException where
     getRange (MissingDefinition x)         = getRange x
     getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)      = getRange x
+    getRange (MissingDataSignature x)      = getRange x
     getRange (AmbiguousFunClauses lhs xs)  = getRange lhs
     getRange (NotAllowedInMutual x)        = getRange x
     getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
@@ -138,6 +141,8 @@ instance Show DeclarationException where
     pwords "Missing with-clauses for function" ++ [pretty x]
   show (MissingTypeSignature x) = show $ fsep $
     pwords "Missing type signature for left hand side" ++ [pretty x]
+  show (MissingDataSignature x) = show $ fsep $
+    pwords "Missing type signature for " ++ [pretty x]
   show (AmbiguousFunClauses lhs xs) = show $ fsep $
     pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
     pwords "it could belong to any of:" ++ map pretty xs
@@ -170,8 +175,11 @@ data InMutual
   | NotInMutual -- ^ we are nicifying decls not in a mutual block
     deriving (Eq, Show)
 
+data DataRecOrFun = DataName | RecName | FunName
+  deriving (Eq, Ord)
+
 data NiceEnv = NiceEnv
-  { loneSigs :: [Name]   -- ^ lone type signatures that wait for their fun.clauses
+  { loneSigs :: [(DataRecOrFun, Name)]   -- ^ lone type signatures that wait for their fun.clauses
   , fixs     :: Map Name Fixity'
   }
 
@@ -181,377 +189,402 @@ initNiceEnv = NiceEnv
   , fixs     = Map.empty
   }
 
-type Nice = ReaderT NiceEnv (Either DeclarationException)
+type Nice = StateT NiceEnv (Either DeclarationException)
 
-addLoneSig :: Name -> Nice a -> Nice a
-addLoneSig x = local $ \ niceEnv -> niceEnv { loneSigs = x : loneSigs niceEnv }
+localState :: Nice a -> Nice a
+localState m = bracket get put (const m)
 
-removeLoneSig :: Name -> Nice a -> Nice a
-removeLoneSig x = local $ \ niceEnv -> niceEnv { loneSigs = delete x $ loneSigs niceEnv }
+addLoneSig :: DataRecOrFun -> Name -> Nice ()
+addLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = (k, x) : loneSigs niceEnv }
+
+removeLoneSig :: DataRecOrFun -> Name -> Nice ()
+removeLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = delete (k, x) $ loneSigs niceEnv }
+
+hasSig :: DataRecOrFun -> Name -> Nice Bool
+hasSig k x = gets $ elem (k, x) . loneSigs
 
 noLoneSigs :: Nice Bool
-noLoneSigs = asks $ null . loneSigs
+noLoneSigs = gets $ null . loneSigs
 
 checkLoneSigs :: Nice ()
 checkLoneSigs = do
-  xs <- asks loneSigs
+  xs <- gets loneSigs
   case xs of
-    []  -> return ()
-    x:_ -> throwError $ MissingDefinition x
+    []       -> return ()
+    (_, x):_ -> throwError $ MissingDefinition x
 
 getFixity :: Name -> Nice Fixity'
-getFixity x = asks $ Map.findWithDefault defaultFixity' x . fixs
+getFixity x = gets $ Map.findWithDefault defaultFixity' x . fixs
 
 runNice :: Nice a -> Either DeclarationException a
-runNice nice = nice `runReaderT` initNiceEnv
+runNice nice = nice `evalStateT` initNiceEnv
 
-data DeclKind = LoneSig Name | LoneDef Name | OtherDecl
+data DeclKind = LoneSig DataRecOrFun Name | LoneDef DataRecOrFun Name | OtherDecl
 
-declKind (FunSig _ _ _ _ _ x _)      = LoneSig x
-declKind (NiceRecSig _ _ _ _ x _ _)  = LoneSig x
-declKind (NiceDataSig _ _ _ _ x _ _) = LoneSig x
-declKind (FunDef _ _ _ _ _ x _)      = LoneDef x
-declKind (DataDef _ _ _ _ x _ _)     = LoneDef x
-declKind (RecDef _ _ _ _ x _ _ _)    = LoneDef x
+declKind (FunSig _ _ _ _ _ x _)      = LoneSig FunName x
+declKind (NiceRecSig _ _ _ _ x _ _)  = LoneSig RecName x
+declKind (NiceDataSig _ _ _ _ x _ _) = LoneSig DataName x
+declKind (FunDef _ _ _ _ _ x _)      = LoneDef FunName x
+declKind (DataDef _ _ _ _ x _ _)     = LoneDef DataName x
+declKind (RecDef _ _ _ _ x _ _ _)    = LoneDef RecName x
 declKind _                           = OtherDecl
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
-      fixs <- fixities ds
-      case Map.keys fixs \\ concatMap declaredNames ds of
-        []  -> inferMutualBlocks =<< local (\_ -> initNiceEnv { fixs = fixs }) (nice ds)
-        xs  -> throwError $ UnknownNamesInFixityDecl xs
-    where
-        -- Compute the names defined in a declaration
-        declaredNames :: Declaration -> [Name]
-        declaredNames d = case d of
-          TypeSig _ x _                                -> [x]
-          Field x _                                    -> [x]
-          FunClause (LHS p [] _ _) _ _
-            | IdentP (QName x) <- removeSingletonRawAppP p -> [x]
-          FunClause{}                                  -> []
-          DataSig _ _ x _ _                            -> [x]
-          Data _ _ x _ _ cs                            -> x : concatMap declaredNames cs
-          RecordSig _ x _ _                            -> [x]
-          Record _ x c _ _ _                           -> x : foldMap (:[]) c
-          Infix _ _                                    -> []
-          Syntax _ _                                   -> []
-          Mutual _ ds                                  -> concatMap declaredNames ds
-          Abstract _ ds                                -> concatMap declaredNames ds
-          Private _ ds                                 -> concatMap declaredNames ds
-          Postulate _ ds                               -> concatMap declaredNames ds
-          Primitive _ ds                               -> concatMap declaredNames ds
-          Open{}                                       -> []
-          Import{}                                     -> []
-          ModuleMacro{}                                -> []
-          Module{}                                     -> []
-          Pragma{}                                     -> []
+  fixs <- fixities ds
+  case Map.keys fixs \\ concatMap declaredNames ds of
+    []  -> localState $ do
+      put $ initNiceEnv { fixs = fixs }
+      ds <- nice ds
+      modify $ \s -> s { loneSigs = [] }
+      inferMutualBlocks ds
+    xs  -> throwError $ UnknownNamesInFixityDecl xs
+  where
+    -- Compute the names defined in a declaration
+    declaredNames :: Declaration -> [Name]
+    declaredNames d = case d of
+      TypeSig _ x _                                -> [x]
+      Field x _                                    -> [x]
+      FunClause (LHS p [] _ _) _ _
+        | IdentP (QName x) <- removeSingletonRawAppP p -> [x]
+      FunClause{}                                  -> []
+      DataSig _ _ x _ _                            -> [x]
+      Data _ _ x _ _ cs                            -> x : concatMap declaredNames cs
+      RecordSig _ x _ _                            -> [x]
+      Record _ x c _ _ _                           -> x : foldMap (:[]) c
+      Infix _ _                                    -> []
+      Syntax _ _                                   -> []
+      Mutual _ ds                                  -> concatMap declaredNames ds
+      Abstract _ ds                                -> concatMap declaredNames ds
+      Private _ ds                                 -> concatMap declaredNames ds
+      Postulate _ ds                               -> concatMap declaredNames ds
+      Primitive _ ds                               -> concatMap declaredNames ds
+      Open{}                                       -> []
+      Import{}                                     -> []
+      ModuleMacro{}                                -> []
+      Module{}                                     -> []
+      Pragma{}                                     -> []
 
-        inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
-        inferMutualBlocks [] = return []
-        inferMutualBlocks (d : ds) =
-          case declKind d of
-            OtherDecl -> (d :) <$> inferMutualBlocks ds
-            LoneDef x -> __IMPOSSIBLE__
-            LoneSig x -> do
-              (ds0, ds1) <- addLoneSig x $ untilAllDefined ds
-              (NiceMutual (getRange (d : ds0)) (d : ds0) :) <$> inferMutualBlocks ds1
+    inferMutualBlocks :: [NiceDeclaration] -> Nice [NiceDeclaration]
+    inferMutualBlocks [] = return []
+    inferMutualBlocks (d : ds) =
+      case declKind d of
+        OtherDecl   -> (d :) <$> inferMutualBlocks ds
+        LoneDef _ x -> __IMPOSSIBLE__
+        LoneSig k x -> do
+          addLoneSig k x
+          (ds0, ds1) <- untilAllDefined ds
+          (NiceMutual (getRange (d : ds0)) (d : ds0) :) <$> inferMutualBlocks ds1
+      where
+        untilAllDefined ds = do
+          done <- noLoneSigs
+          if done then return ([], ds) else
+            case ds of
+              []     -> __IMPOSSIBLE__ <$ checkLoneSigs
+              d : ds -> case declKind d of
+                LoneSig k x -> addLoneSig    k x >> cons d (untilAllDefined ds)
+                LoneDef k x -> removeLoneSig k x >> cons d (untilAllDefined ds)
+                OtherDecl   -> cons d (untilAllDefined ds)
           where
-            untilAllDefined ds = do
-              done <- noLoneSigs
-              if done then return ([], ds) else
-                case ds of
-                  []     -> __IMPOSSIBLE__ <$ checkLoneSigs
-                  d : ds -> case declKind d of
-                    LoneSig x -> cons d $ addLoneSig x    $ untilAllDefined ds
-                    LoneDef x -> cons d $ removeLoneSig x $ untilAllDefined ds
-                    OtherDecl -> cons d $ untilAllDefined ds
-              where
-                cons d = fmap ((d :) *** id)
+            cons d = fmap ((d :) *** id)
 
-        nice :: [Declaration] -> Nice [NiceDeclaration]
-        nice [] = [] <$ checkLoneSigs
-        nice (d:ds) = do
-            case d of
-                TypeSig rel x t -> do
-                   fx <- getFixity x
-                   -- register x as lone type signature, to recognize clauses later
-                   ds <- addLoneSig x $ nice ds
-                   return $ FunSig (getRange d) fx PublicAccess ConcreteDef rel x t : ds
-                cl@(FunClause lhs _ _) -> do
-                  xs <- asks loneSigs
-                  -- for each type signature 'x' waiting for clauses, we try
-                  -- if we have some clauses for 'x'
-                  fixs <- asks fixs
-                  case filter (\ (x,(fits,rest)) -> not $ null fits) $
-                          map (\ x -> (x, span (couldBeFunClauseOf (Map.lookup x fixs) x) $ d : ds)) xs of
-                    -- case: clauses match none of the sigs
-                    -- treat it as a function clause without a type signature
-                    [] -> case lhs of
-                      LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
-                        ds <- nice ds
-                        d  <- mkFunDef Relevant x Nothing [cl] -- fun def without type signature is relevant
-                        return $ d ++ ds
-                      _ -> throwError $ MissingTypeSignature lhs
-                    -- case: clauses match exactly one of the sigs
-                    [(x,(fits,rest))] ->
-                       removeLoneSig x $ do
-                         cs  <- mkClauses x $ expandEllipsis fits
-                         ds1 <- nice rest
-                         fx  <- getFixity x
-                         d   <- return $ FunDef (getRange fits) fits fx PublicAccess ConcreteDef x cs
-                         return $ d : ds1
-                    -- case: clauses match more than one sigs (ambiguity)
-                    l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
+    nice :: [Declaration] -> Nice [NiceDeclaration]
+    nice [] = [] <$ checkLoneSigs
+    nice (d:ds) = do
+      case d of
+        TypeSig rel x t -> do
+           fx <- getFixity x
+           -- register x as lone type signature, to recognize clauses later
+           addLoneSig FunName x
+           ds <- nice ds
+           return $ FunSig (getRange d) fx PublicAccess ConcreteDef rel x t : ds
+        cl@(FunClause lhs _ _) -> do
+          xs <- gets $ map snd . filter ((== FunName) . fst) . loneSigs
+          -- for each type signature 'x' waiting for clauses, we try
+          -- if we have some clauses for 'x'
+          fixs <- gets fixs
+          case filter (\ (x,(fits,rest)) -> not $ null fits) $
+                  map (\ x -> (x, span (couldBeFunClauseOf (Map.lookup x fixs) x) $ d : ds)) xs of
+            -- case: clauses match none of the sigs
+            -- treat it as a function clause without a type signature
+            [] -> case lhs of
+              LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
+                ds <- nice ds
+                d  <- mkFunDef Relevant x Nothing [cl] -- fun def without type signature is relevant
+                return $ d ++ ds
+              _ -> throwError $ MissingTypeSignature lhs
+            -- case: clauses match exactly one of the sigs
+            [(x,(fits,rest))] -> do
+               removeLoneSig FunName x
+               cs  <- mkClauses x $ expandEllipsis fits
+               ds1 <- nice rest
+               fx  <- getFixity x
+               d   <- return $ FunDef (getRange fits) fits fx PublicAccess ConcreteDef x cs
+               return $ d : ds1
+            -- case: clauses match more than one sigs (ambiguity)
+            l -> throwError $ AmbiguousFunClauses lhs (map fst l) -- "ambiguous function clause; cannot assign it uniquely to one type signature"
 
-                _   -> (++) <$> nds <*> nice ds
-                    where
-                        nds = case d of
-                            Field x t                     -> niceAxioms [ d ]
-                            DataSig r CoInductive x tel t -> throwError (Codata r)
-                            Data r CoInductive x tel t cs -> throwError (Codata r)
-                            DataSig r Inductive   x tel t -> dataOrRec DataDef NiceDataSig niceAxioms r x tel (Just t) Nothing
-                            Data r Inductive x tel t cs -> dataOrRec DataDef NiceDataSig niceAxioms r x tel t (Just cs)
-                            RecordSig r x tel t           -> do
-                              fx <- getFixity x
-                              return [ NiceRecSig r fx PublicAccess ConcreteDef x tel t ]
-                            Record r x c tel t cs         -> do
-                              c <- traverse (\c -> ThingWithFixity c <$> getFixity c) c
-                              dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c) NiceRecSig
-                                        niceDeclarations r x tel t (Just cs)
-                            Mutual r ds -> do
-                              d <- mkOldMutual r =<< nice ds
-                              return [d]
-
-                            Abstract r ds -> do
-                              map mkAbstract <$> nice ds
-
-                            Private _ ds -> do
-                              map mkPrivate <$> nice ds
-
-                            Postulate _ ds -> niceAxioms ds
-
-                            Primitive _ ds -> map toPrim <$> niceAxioms ds
-
-                            Module r x tel ds   -> return
-                                [ NiceModule r PublicAccess ConcreteDef x tel ds ]
-
-                            ModuleMacro r x modapp op is -> return
-                                [ NiceModuleMacro r PublicAccess ConcreteDef x modapp op is ]
-
-                            Infix _ _           -> return []
-                            Syntax _ _          -> return []
-                            Open r x is         -> return [NiceOpen r x is]
-                            Import r x as op is -> return [NiceImport r x as op is]
-
-                            Pragma p            -> return [NicePragma (getRange p) p]
-
-                            FunClause _ _ _     -> __IMPOSSIBLE__
-                            TypeSig{}           -> __IMPOSSIBLE__
-                          where
-                            dataOrRec mkDef mkSig niceD r x tel mt mcs = do
-                              mds <- traverse niceD mcs
-                              f   <- getFixity x
-                              return $
-                                 [mkSig (fuseRange x t) f PublicAccess ConcreteDef x tel t | Just t <- [mt] ] ++
-                                 [mkDef (getRange x) f PublicAccess ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
-                              where
-                                dropType (DomainFull (TypedBindings r (Arg h rel TNoBind{}))) =
-                                  [DomainFree h rel $ mkBoundName_ $ noName r]
-                                dropType (DomainFull (TypedBindings r (Arg h rel (TBind _ xs _)))) =
-                                  map (DomainFree h rel) xs
-                                dropType b@DomainFree{} = [b]
-
-        -- Translate axioms
-        niceAxioms :: [TypeSignature] -> Nice [NiceDeclaration]
-        niceAxioms ds = mapM niceAxiom ds
-
-        niceAxiom :: TypeSignature -> Nice NiceDeclaration
-        niceAxiom d@(TypeSig rel x t) = do
+        Field x t                     -> (++) <$> niceAxioms [ d ] <*> nice ds
+        DataSig r CoInductive x tel t -> throwError (Codata r)
+        Data r CoInductive x tel t cs -> throwError (Codata r)
+        DataSig r Inductive   x tel t -> do
+          addLoneSig DataName x
+          (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel (Just t) Nothing
+               <*> nice ds
+        Data r Inductive x tel t cs -> do
+          t <- defaultTypeSig DataName x t
+          (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel t (Just cs)
+               <*> nice ds
+        RecordSig r x tel t -> do
+          addLoneSig RecName x
           fx <- getFixity x
-          return $ Axiom (getRange d) fx PublicAccess ConcreteDef rel x t
-        niceAxiom d@(Field x argt) = do
-          fx <- getFixity x
-          return $ NiceField (getRange d) fx PublicAccess ConcreteDef x argt
-        niceAxiom _ = __IMPOSSIBLE__
+          (NiceRecSig r fx PublicAccess ConcreteDef x tel t :) <$> nice ds
+        Record r x c tel t cs -> do
+          t <- defaultTypeSig RecName x t
+          c <- traverse (\c -> ThingWithFixity c <$> getFixity c) c
+          (++) <$> dataOrRec (\x1 x2 x3 x4 x5 -> RecDef x1 x2 x3 x4 x5 c) NiceRecSig
+                             niceDeclarations r x tel t (Just cs)
+               <*> nice ds
+        Mutual r ds' ->
+          (:) <$> (mkOldMutual r =<< nice ds') <*> nice ds
 
-        toPrim :: NiceDeclaration -> NiceDeclaration
-        toPrim (Axiom r f a c rel x t) = PrimitiveFunction r f a c x t
-        toPrim _                       = __IMPOSSIBLE__
+        Abstract r ds' ->
+          (++) <$> (map mkAbstract <$> nice ds') <*> nice ds
 
-        -- Create a function definition.
-        mkFunDef rel x mt ds0 = do
-          cs <- mkClauses x $ expandEllipsis ds0
-          f  <- getFixity x
-          return [ FunSig (fuseRange x t) f PublicAccess ConcreteDef rel x t
-                 , FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs ]
-            where
-              t = case mt of
-                    Just t  -> t
-                    Nothing -> Underscore (getRange x) Nothing
+        Private _ ds' -> do
+          (++) <$> (map mkPrivate <$> nice ds') <*> nice ds
+
+        Postulate _ ds' -> (++) <$> niceAxioms ds' <*> nice ds
+
+        Primitive _ ds' -> (++) <$> (map toPrim <$> niceAxioms ds') <*> nice ds
+
+        Module r x tel ds' ->
+          (NiceModule r PublicAccess ConcreteDef x tel ds' :) <$> nice ds
+
+        ModuleMacro r x modapp op is ->
+          (NiceModuleMacro r PublicAccess ConcreteDef x modapp op is :)
+            <$> nice ds
+
+        Infix _ _           -> nice ds
+        Syntax _ _          -> nice ds
+        Open r x is         -> (NiceOpen r x is :) <$> nice ds
+        Import r x as op is -> (NiceImport r x as op is :) <$> nice ds
+
+        Pragma p            -> (NicePragma (getRange p) p :) <$> nice ds
+
+    -- We could add a default type signature here, but at the moment we can't
+    -- infer the type of a record or datatype, so better to just fail here.
+    defaultTypeSig k x t@Just{} = return t
+    defaultTypeSig k x Nothing  =
+      ifM (hasSig k x)
+          (Nothing <$ removeLoneSig k x)
+          (throwError $ MissingDataSignature x)
+
+    dataOrRec mkDef mkSig niceD r x tel mt mcs = do
+      mds <- traverse niceD mcs
+      f   <- getFixity x
+      return $
+         [mkSig (fuseRange x t) f PublicAccess ConcreteDef x tel t | Just t <- [mt] ] ++
+         [mkDef (getRange x) f PublicAccess ConcreteDef x (concatMap dropType tel) ds | Just ds <- [mds] ]
+      where
+        dropType (DomainFull (TypedBindings r (Arg h rel TNoBind{}))) =
+          [DomainFree h rel $ mkBoundName_ $ noName r]
+        dropType (DomainFull (TypedBindings r (Arg h rel (TBind _ xs _)))) =
+          map (DomainFree h rel) xs
+        dropType b@DomainFree{} = [b]
+
+    -- Translate axioms
+    niceAxioms :: [TypeSignature] -> Nice [NiceDeclaration]
+    niceAxioms ds = mapM niceAxiom ds
+
+    niceAxiom :: TypeSignature -> Nice NiceDeclaration
+    niceAxiom d@(TypeSig rel x t) = do
+      fx <- getFixity x
+      return $ Axiom (getRange d) fx PublicAccess ConcreteDef rel x t
+    niceAxiom d@(Field x argt) = do
+      fx <- getFixity x
+      return $ NiceField (getRange d) fx PublicAccess ConcreteDef x argt
+    niceAxiom _ = __IMPOSSIBLE__
+
+    toPrim :: NiceDeclaration -> NiceDeclaration
+    toPrim (Axiom r f a c rel x t) = PrimitiveFunction r f a c x t
+    toPrim _                       = __IMPOSSIBLE__
+
+    -- Create a function definition.
+    mkFunDef rel x mt ds0 = do
+      cs <- mkClauses x $ expandEllipsis ds0
+      f  <- getFixity x
+      return [ FunSig (fuseRange x t) f PublicAccess ConcreteDef rel x t
+             , FunDef (getRange ds0) ds0 f PublicAccess ConcreteDef x cs ]
+        where
+          t = case mt of
+                Just t  -> t
+                Nothing -> underscore (getRange x)
+
+    underscore r = Underscore r Nothing
 
 
-        expandEllipsis :: [Declaration] -> [Declaration]
-        expandEllipsis [] = []
-        expandEllipsis (d@(FunClause Ellipsis{} _ _) : ds) =
-          d : expandEllipsis ds
-        expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _) : ds) =
+    expandEllipsis :: [Declaration] -> [Declaration]
+    expandEllipsis [] = []
+    expandEllipsis (d@(FunClause Ellipsis{} _ _) : ds) =
+      d : expandEllipsis ds
+    expandEllipsis (d@(FunClause lhs@(LHS p ps _ _) _ _) : ds) =
+      d : expand p ps ds
+      where
+        expand _ _ [] = []
+        expand p ps (FunClause (Ellipsis _ ps' eqs []) rhs wh : ds) =
+          FunClause (LHS p (ps ++ ps') eqs []) rhs wh : expand p ps ds
+        expand p ps (FunClause (Ellipsis _ ps' eqs es) rhs wh : ds) =
+          FunClause (LHS p (ps ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
+        expand p ps (d@(FunClause (LHS _ _ _ []) _ _) : ds) =
           d : expand p ps ds
-          where
-            expand _ _ [] = []
-            expand p ps (FunClause (Ellipsis _ ps' eqs []) rhs wh : ds) =
-              FunClause (LHS p (ps ++ ps') eqs []) rhs wh : expand p ps ds
-            expand p ps (FunClause (Ellipsis _ ps' eqs es) rhs wh : ds) =
-              FunClause (LHS p (ps ++ ps') eqs es) rhs wh : expand p (ps ++ ps') ds
-            expand p ps (d@(FunClause (LHS _ _ _ []) _ _) : ds) =
-              d : expand p ps ds
-            expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _) : ds) =
-              d : expand p ps ds
-            expand _ _ (_ : ds) = __IMPOSSIBLE__
-        expandEllipsis (_ : ds) = __IMPOSSIBLE__
+        expand _ _ (d@(FunClause (LHS p ps _ (_ : _)) _ _) : ds) =
+          d : expand p ps ds
+        expand _ _ (_ : ds) = __IMPOSSIBLE__
+    expandEllipsis (_ : ds) = __IMPOSSIBLE__
 
 
-        -- Turn function clauses into nice function clauses.
-        mkClauses :: Name -> [Declaration] -> Nice [Clause]
-        mkClauses _ [] = return []
-        mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) =
-          (Clause x lhs rhs wh [] :) <$> mkClauses x cs
-        mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) = do
-          when (null with) $ throwError $ MissingWithClauses x
-          wcs <- mkClauses x with
-          (Clause x lhs rhs wh wcs :) <$> mkClauses x cs'
-          where
-            (with, cs') = span subClause cs
+    -- Turn function clauses into nice function clauses.
+    mkClauses :: Name -> [Declaration] -> Nice [Clause]
+    mkClauses _ [] = return []
+    mkClauses x (FunClause lhs@(LHS _ _ _ []) rhs wh : cs) =
+      (Clause x lhs rhs wh [] :) <$> mkClauses x cs
+    mkClauses x (FunClause lhs@(LHS _ ps _ es) rhs wh : cs) = do
+      when (null with) $ throwError $ MissingWithClauses x
+      wcs <- mkClauses x with
+      (Clause x lhs rhs wh wcs :) <$> mkClauses x cs'
+      where
+        (with, cs') = span subClause cs
 
-            -- A clause is a subclause if the number of with-patterns is
-            -- greater or equal to the current number of with-patterns plus the
-            -- number of with arguments.
-            subClause (FunClause (LHS _ ps' _ _) _ _)      =
-              length ps' >= length ps + length es
-            subClause (FunClause (Ellipsis _ ps' _ _) _ _) = True
-            subClause _                                  = __IMPOSSIBLE__
-        mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) =
-          (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
-        mkClauses _ _ = __IMPOSSIBLE__
+        -- A clause is a subclause if the number of with-patterns is
+        -- greater or equal to the current number of with-patterns plus the
+        -- number of with arguments.
+        subClause (FunClause (LHS _ ps' _ _) _ _)      =
+          length ps' >= length ps + length es
+        subClause (FunClause (Ellipsis _ ps' _ _) _ _) = True
+        subClause _                                  = __IMPOSSIBLE__
+    mkClauses x (FunClause lhs@Ellipsis{} rhs wh : cs) =
+      (Clause x lhs rhs wh [] :) <$> mkClauses x cs   -- Will result in an error later.
+    mkClauses _ _ = __IMPOSSIBLE__
 
-        -- for finding clauses for a type sig in mutual blocks
-        couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
-        couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _) = True
-        couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _) =
-          let
-          pns        = patternNames p
-          xStrings   = nameStringParts x
-          patStrings = concatMap nameStringParts pns
-          in
+    -- for finding clauses for a type sig in mutual blocks
+    couldBeFunClauseOf :: Maybe Fixity' -> Name -> Declaration -> Bool
+    couldBeFunClauseOf mFixity x (FunClause Ellipsis{} _ _) = True
+    couldBeFunClauseOf mFixity x (FunClause (LHS p _ _ _) _ _) =
+      let
+      pns        = patternNames p
+      xStrings   = nameStringParts x
+      patStrings = concatMap nameStringParts pns
+      in
 --          trace ("x = " ++ show x) $
 --          trace ("pns = " ++ show pns) $
 --          trace ("xStrings = " ++ show xStrings) $
 --          trace ("patStrings = " ++ show patStrings) $
 --          trace ("mFixity = " ++ show mFixity) $
-          case (mhead pns, mFixity) of
-            -- first identifier in the patterns is the fun.symbol?
-            (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ show y) $ True
-            -- are the parts of x contained in p
-            _ | xStrings `isSublistOf` patStrings -> True -- trace ("couldBe since isSublistOf") $ True
-            -- looking for a mixfix fun.symb
-            (_, Just fix) ->  -- also matches in case of a postfix
-               let notStrings = stringParts (theNotation fix)
-               in  -- trace ("notStrings = " ++ show notStrings) $
-                   -- trace ("patStrings = " ++ show patStrings) $
-                   (not $ null notStrings) && (notStrings `isSublistOf` patStrings)
-            -- not a notation, not first id: give up
-            _ -> False -- trace ("couldBe not (case default)") $ False
-        couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
+      case (mhead pns, mFixity) of
+        -- first identifier in the patterns is the fun.symbol?
+        (Just y, _) | x == y -> True -- trace ("couldBe since y = " ++ show y) $ True
+        -- are the parts of x contained in p
+        _ | xStrings `isSublistOf` patStrings -> True -- trace ("couldBe since isSublistOf") $ True
+        -- looking for a mixfix fun.symb
+        (_, Just fix) ->  -- also matches in case of a postfix
+           let notStrings = stringParts (theNotation fix)
+           in  -- trace ("notStrings = " ++ show notStrings) $
+               -- trace ("patStrings = " ++ show patStrings) $
+               (not $ null notStrings) && (notStrings `isSublistOf` patStrings)
+        -- not a notation, not first id: give up
+        _ -> False -- trace ("couldBe not (case default)") $ False
+    couldBeFunClauseOf _ _ _ = False -- trace ("couldBe not (fun default)") $ False
 
-        -- @isFunClauseOf@ is for non-mutual blocks where clauses must follow the
-        -- type sig immediately
-        isFunClauseOf :: Name -> Declaration -> Bool
-        isFunClauseOf x (FunClause Ellipsis{} _ _) = True
-        isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
-         -- p is the whole left hand side, excluding "with" patterns and clauses
-          case removeSingletonRawAppP p of
-            IdentP (QName q)    -> x == q
-            _                   -> True
-                -- more complicated lhss must come with type signatures, so we just assume
-                -- it's part of the current definition
-        isFunClauseOf _ _ = False
+    -- @isFunClauseOf@ is for non-mutual blocks where clauses must follow the
+    -- type sig immediately
+    isFunClauseOf :: Name -> Declaration -> Bool
+    isFunClauseOf x (FunClause Ellipsis{} _ _) = True
+    isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
+     -- p is the whole left hand side, excluding "with" patterns and clauses
+      case removeSingletonRawAppP p of
+        IdentP (QName q)    -> x == q
+        _                   -> True
+            -- more complicated lhss must come with type signatures, so we just assume
+            -- it's part of the current definition
+    isFunClauseOf _ _ = False
 
-        removeSingletonRawAppP :: Pattern -> Pattern
-        removeSingletonRawAppP (RawAppP _ [p]) = removeSingletonRawAppP p
-        removeSingletonRawAppP p               = p
+    removeSingletonRawAppP :: Pattern -> Pattern
+    removeSingletonRawAppP (RawAppP _ [p]) = removeSingletonRawAppP p
+    removeSingletonRawAppP p               = p
 
-        -- Make an old style mutual block from a list of mutual declarations
-        mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
-        mkOldMutual r ds = do
-            -- Check that there aren't any missing definitions
-            case filter (`notElem` defNames) sigNames of
-              [] -> return ()
-              x:_ -> throwError $ MissingDefinition x
-            -- Check that there are no declarations that aren't allowed in old style mutual blocks
-            case [ d | (d, OtherDecl) <- zip ds $ map declKind ds ] of
-              []  -> return ()
-              d:_ -> throwError $ NotAllowedInMutual d
-            return $ NiceMutual r $ sigs ++ other
-          where
-            -- Pull type signatures to the top
-            (sigs, other) = partition isTypeSig ds
-            isTypeSig d | LoneSig{} <- declKind d = True
-            isTypeSig _ = False
+    -- Make an old style mutual block from a list of mutual declarations
+    mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
+    mkOldMutual r ds = do
+        -- Check that there aren't any missing definitions
+        case filter (`notElem` defNames) sigNames of
+          []       -> return ()
+          (_, x):_ -> throwError $ MissingDefinition x
+        -- Check that there are no declarations that aren't allowed in old style mutual blocks
+        case [ d | (d, OtherDecl) <- zip ds $ map declKind ds ] of
+          []  -> return ()
+          d:_ -> throwError $ NotAllowedInMutual d
+        return $ NiceMutual r $ sigs ++ other
+      where
+        -- Pull type signatures to the top
+        (sigs, other) = partition isTypeSig ds
+        isTypeSig d | LoneSig{} <- declKind d = True
+        isTypeSig _ = False
 
-            sigNames = [ x | LoneSig x <- map declKind ds ]
-            defNames = [ x | LoneDef x <- map declKind ds ]
+        sigNames = [ (k, x) | LoneSig k x <- map declKind ds ]
+        defNames = [ (k, x) | LoneDef k x <- map declKind ds ]
 
-        -- Make a declaration abstract
-        mkAbstract d =
-            case d of
-                Axiom r f a _ rel x e            -> Axiom r f a AbstractDef rel x e
-                NiceField r f a _ x e            -> NiceField r f a AbstractDef x e
-                PrimitiveFunction r f a _ x e    -> PrimitiveFunction r f a AbstractDef x e
-                NiceMutual r ds                  -> NiceMutual r (map mkAbstract ds)
-                NiceModule r a _ x tel ds        -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
-                NiceModuleMacro r a _ x ma op is -> NiceModuleMacro r a AbstractDef x ma op is
-                NicePragma _ _                   -> d
-                NiceOpen _ _ _                   -> d
-                NiceImport _ _ _ _ _             -> d
-                FunSig r f a _ rel x e           -> FunSig r f a AbstractDef rel x e
-                FunDef r ds f a _ x cs           -> FunDef r ds f a AbstractDef x (map mkAbstractClause cs)
-                DataDef r f a _ x ps cs          -> DataDef r f a AbstractDef x ps $ map mkAbstract cs
-                RecDef r f a _ x c ps cs         -> RecDef r f a AbstractDef x c ps $ map mkAbstract cs
-                NiceRecSig r f a _ x ls t        -> NiceRecSig r f a AbstractDef x ls t
-                NiceDataSig r f a _ x ls t       -> NiceDataSig r f a AbstractDef x ls t
+    -- Make a declaration abstract
+    mkAbstract d =
+        case d of
+            Axiom r f a _ rel x e            -> Axiom r f a AbstractDef rel x e
+            NiceField r f a _ x e            -> NiceField r f a AbstractDef x e
+            PrimitiveFunction r f a _ x e    -> PrimitiveFunction r f a AbstractDef x e
+            NiceMutual r ds                  -> NiceMutual r (map mkAbstract ds)
+            NiceModule r a _ x tel ds        -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
+            NiceModuleMacro r a _ x ma op is -> NiceModuleMacro r a AbstractDef x ma op is
+            NicePragma _ _                   -> d
+            NiceOpen _ _ _                   -> d
+            NiceImport _ _ _ _ _             -> d
+            FunSig r f a _ rel x e           -> FunSig r f a AbstractDef rel x e
+            FunDef r ds f a _ x cs           -> FunDef r ds f a AbstractDef x (map mkAbstractClause cs)
+            DataDef r f a _ x ps cs          -> DataDef r f a AbstractDef x ps $ map mkAbstract cs
+            RecDef r f a _ x c ps cs         -> RecDef r f a AbstractDef x c ps $ map mkAbstract cs
+            NiceRecSig r f a _ x ls t        -> NiceRecSig r f a AbstractDef x ls t
+            NiceDataSig r f a _ x ls t       -> NiceDataSig r f a AbstractDef x ls t
 
-        mkAbstractClause (Clause x lhs rhs wh with) =
-            Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
+    mkAbstractClause (Clause x lhs rhs wh with) =
+        Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
 
-        mkAbstractWhere  NoWhere         = NoWhere
-        mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract (getRange ds) ds]
-        mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract (getRange ds) ds]
+    mkAbstractWhere  NoWhere         = NoWhere
+    mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract (getRange ds) ds]
+    mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract (getRange ds) ds]
 
-        -- Make a declaration private
-        mkPrivate d =
-            case d of
-                Axiom r f _ a rel x e            -> Axiom r f PrivateAccess a rel x e
-                NiceField r f _ a x e            -> NiceField r f PrivateAccess a x e
-                PrimitiveFunction r f _ a x e    -> PrimitiveFunction r f PrivateAccess a x e
-                NiceMutual r ds                  -> NiceMutual r (map mkPrivate ds)
-                NiceModule r _ a x tel ds        -> NiceModule r PrivateAccess a x tel ds
-                NiceModuleMacro r _ a x ma op is -> NiceModuleMacro r PrivateAccess a x ma op is
-                NicePragma _ _                   -> d
-                NiceOpen _ _ _                   -> d
-                NiceImport _ _ _ _ _             -> d
-                FunSig r f _ a rel x e           -> FunSig r f PrivateAccess a rel x e
-                FunDef r ds f _ a x cs           -> FunDef r ds f PrivateAccess a x (map mkPrivateClause cs)
-                DataDef r f _ a x ps cs          -> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
-                RecDef r f _ a x c ps cs         -> RecDef r f PrivateAccess a x c ps cs
-                NiceRecSig r f _ a x ls t        -> NiceRecSig r f PrivateAccess a x ls t
-                NiceDataSig r f _ a x ls t       -> NiceDataSig r f PrivateAccess a x ls t
+    -- Make a declaration private
+    mkPrivate d =
+        case d of
+            Axiom r f _ a rel x e            -> Axiom r f PrivateAccess a rel x e
+            NiceField r f _ a x e            -> NiceField r f PrivateAccess a x e
+            PrimitiveFunction r f _ a x e    -> PrimitiveFunction r f PrivateAccess a x e
+            NiceMutual r ds                  -> NiceMutual r (map mkPrivate ds)
+            NiceModule r _ a x tel ds        -> NiceModule r PrivateAccess a x tel ds
+            NiceModuleMacro r _ a x ma op is -> NiceModuleMacro r PrivateAccess a x ma op is
+            NicePragma _ _                   -> d
+            NiceOpen _ _ _                   -> d
+            NiceImport _ _ _ _ _             -> d
+            FunSig r f _ a rel x e           -> FunSig r f PrivateAccess a rel x e
+            FunDef r ds f _ a x cs           -> FunDef r ds f PrivateAccess a x (map mkPrivateClause cs)
+            DataDef r f _ a x ps cs          -> DataDef r f PrivateAccess a x ps (map mkPrivate cs)
+            RecDef r f _ a x c ps cs         -> RecDef r f PrivateAccess a x c ps cs
+            NiceRecSig r f _ a x ls t        -> NiceRecSig r f PrivateAccess a x ls t
+            NiceDataSig r f _ a x ls t       -> NiceDataSig r f PrivateAccess a x ls t
 
-        mkPrivateClause (Clause x lhs rhs wh with) =
-            Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
+    mkPrivateClause (Clause x lhs rhs wh with) =
+        Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
 
-        mkPrivateWhere  NoWhere         = NoWhere
-        mkPrivateWhere (AnyWhere ds)    = AnyWhere [Private (getRange ds) ds]
-        mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
+    mkPrivateWhere  NoWhere         = NoWhere
+    mkPrivateWhere (AnyWhere ds)    = AnyWhere [Private (getRange ds) ds]
+    mkPrivateWhere (SomeWhere m ds) = SomeWhere m [Private (getRange ds) ds]
 
 -- | Add more fixities. Throw an exception for multiple fixity declarations.
 plusFixities :: Map.Map Name Fixity' -> Map.Map Name Fixity' -> Nice (Map.Map Name Fixity')
