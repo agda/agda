@@ -73,43 +73,28 @@ instance PrettyTCM AsBinding where
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns. A pattern is flexible if it
 --   is dotted or implicit.
-flexiblePatterns :: [NamedArg A.Pattern] -> TCM FlexibleVars
-flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse ps)
+flexiblePatterns :: [NamedArg A.Pattern] -> FlexibleVars
+flexiblePatterns nps = [ i | (i, p) <- zip [0..] $ reverse ps, flexible p ]
   where
     ps = map (namedThing . unArg) nps
-    flexible (A.DotP _ _)    = return True
-    flexible (A.ImplicitP _) = return True
-    flexible (A.ConP _ (A.AmbQ [c]) qs) =
-      ifM (isRecordConstructor c)
-          (and <$> mapM (flexible . namedThing . unArg) qs)
-          (return False)
-    flexible _               = return False
+    flexible (A.DotP _ _)    = True
+    flexible (A.ImplicitP _) = True
+    flexible _               = False
 
 -- | Compute the dot pattern instantiations.
-dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> TCM [DotPatternInst]
+dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> [DotPatternInst]
 dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
   where
     dpi (_ : _)  []            _       = __IMPOSSIBLE__
     dpi (_ : _)  (Just _ : _)  []      = __IMPOSSIBLE__
     -- the substitution also contains entries for module parameters, so it can
     -- be longer than the pattern
-    dpi []       _             _       = return []
+    dpi []       _             _       = []
     dpi (_ : ps) (Nothing : s) as      = dpi ps s as
     dpi (p : ps) (Just u : s) (a : as) =
       case p of
-        A.DotP _ e    -> (DPI e u a :) <$> dpi ps s as
+        A.DotP _ e    -> DPI e u a : dpi ps s as
         A.ImplicitP _ -> dpi ps s as
-        -- record pattern
-        A.ConP _ (A.AmbQ [c]) qs -> do
-          Def r vs   <- reduce (unEl a)
-          (ftel, us) <- etaExpandRecord r vs u
-          qs <- insertImplicitPatterns qs ftel
-          let instTel EmptyTel _                   = []
-              instTel (ExtendTel arg tel) (u : us) = unArg arg : instTel (absApp tel u) us
-              instTel ExtendTel{} []               = __IMPOSSIBLE__
-              bs = instTel ftel (map unArg us)
-          dpi (map (namedThing . unArg) qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
-
         _           -> __IMPOSSIBLE__
 
 instantiatePattern :: Substitution -> Permutation -> [Arg Pattern] -> [Arg Pattern]
@@ -184,7 +169,7 @@ noShadowingOfConstructors c problem =
   noShadowing (A.WildP     {}) t = return ()
   noShadowing (A.AbsurdP   {}) t = return ()
   noShadowing (A.ImplicitP {}) t = return ()
-  noShadowing (A.ConP      {}) t = return ()  -- only happens for eta expanded record patterns
+  noShadowing (A.ConP      {}) t = __IMPOSSIBLE__
   noShadowing (A.DefP      {}) t = __IMPOSSIBLE__
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = __IMPOSSIBLE__
@@ -241,8 +226,6 @@ checkDotPattern (DPI e v a) =
 -- | Bind the variables in a left hand side. Precondition: the patterns should
 --   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
 --   the same size as the pattern list.
---   There could also be 'A.ConP's resulting from eta expanded implicit record
---   patterns.
 bindLHSVars :: [NamedArg A.Pattern] -> Telescope -> TCM a -> TCM a
 bindLHSVars []       (ExtendTel _ _)   _   = __IMPOSSIBLE__
 bindLHSVars (_ : _)   EmptyTel         _   = __IMPOSSIBLE__
@@ -255,17 +238,7 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.AbsurdP _   -> do
       isReallyEmptyType $ unArg a
       bindDummy (absName tel)
-    A.ConP _ (A.AmbQ [c]) qs -> do -- eta expanded record pattern
-      Def r vs <- reduce (unEl $ unArg a)
-      ftel     <- (`apply` vs) <$> getRecordFieldTypes r
-      let n   = size ftel
-          eta = Con c [ Var i [] <$ (namedThing <$> q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
-      bindLHSVars (qs ++ ps) (ftel `abstract` absApp (raise (size ftel) tel) eta) ret
-    A.ConP{} -> __IMPOSSIBLE__
-    A.DefP{} -> __IMPOSSIBLE__
-    A.AsP{}  -> __IMPOSSIBLE__
-    A.DotP{} -> __IMPOSSIBLE__
-    A.LitP{} -> __IMPOSSIBLE__
+    _             -> __IMPOSSIBLE__
     where
       name "_" = freshNoName_
       name s   = freshName_ ("." ++ s)
@@ -364,14 +337,13 @@ checkLeftHandSide c ps a ret = do
   where
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
-    checkLHS problem sigma dpi asb = do
-      problem <- insertImplicitProblem problem  -- inserting implicits no longer preserve solvedness
-      if isSolvedProblem problem                -- since we might insert eta expanded record patterns
-        then do
-          noShadowingOfConstructors c problem
-          return (problem, sigma, dpi, asb)
-        else do
-        sp <- splitProblem problem
+    checkLHS problem sigma dpi asb
+      | isSolvedProblem problem = do
+        problem <- insertImplicitProblem problem -- inserting implicit patterns preserves solvedness
+        noShadowingOfConstructors c problem
+        return (problem, sigma, dpi, asb)
+      | otherwise               = do
+        sp <- splitProblem =<< insertImplicitProblem problem
         reportSDoc "tc.lhs.top" 20 $ text "splitting completed"
         case sp of
           Left NothingToSplit   -> nothingToSplitError problem
@@ -483,7 +455,7 @@ checkLeftHandSide c ps a ret = do
             da <- (`piApply` vs) . defType <$> getConstInfo d
 
             -- Compute the flexible variables
-            flex <- flexiblePatterns (problemInPat p0 ++ qs')
+            let flex = flexiblePatterns (problemInPat p0 ++ qs')
 
 	    reportSDoc "tc.lhs.top" 15 $ addCtxTel delta1 $
 	      sep [ text "preparing to unify"
@@ -575,13 +547,12 @@ checkLeftHandSide c ps a ret = do
 -}
             -- Compute the new dot pattern instantiations
             let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
+                newDpi = dotPatternInsts ps0' (substs rho sub) instTypes
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (substs rho sub))
               , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
               ]
-
-            newDpi <- dotPatternInsts ps0' (substs rho sub) instTypes
 
             -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
             let dpi' = substs rho dpi0 ++ newDpi

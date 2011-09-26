@@ -181,8 +181,9 @@ isDatatype ind at = do
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
-        Record{recPars = np, recCon = c} ->
-          return (d, args, [], [c])
+        Record{recPars = np, recCon = c, recNamedCon = hasCon} ->
+          if hasCon then return (d, args, [], [c])
+           else throwException $ NoRecordConstructor t
         _ -> throwException $ NotADatatype t
     _ -> throwException $ NotADatatype t
 
