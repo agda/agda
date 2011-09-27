@@ -26,20 +26,20 @@ data Stream (A : Set) : Set where
 ------------------------------------------------------------------------
 -- Some operations
 
-head : forall {A} → Stream A → A
+head : ∀ {A} → Stream A → A
 head (x ∷ xs) = x
 
-tail : forall {A} → Stream A → Stream A
+tail : ∀ {A} → Stream A → Stream A
 tail (x ∷ xs) = ♭ xs
 
 map : ∀ {A B} → (A → B) → Stream A → Stream B
 map f (x ∷ xs) = f x ∷ ♯ map f (♭ xs)
 
-zipWith : forall {A B C} →
+zipWith : ∀ {A B C} →
           (A → B → C) → Stream A → Stream B → Stream C
 zipWith _∙_ (x ∷ xs) (y ∷ ys) = (x ∙ y) ∷ ♯ zipWith _∙_ (♭ xs) (♭ ys)
 
-take : ∀ {A} (n : ℕ) → Stream A → Vec A n
+take : ∀ {A} n → Stream A → Vec A n
 take zero    xs       = []
 take (suc n) (x ∷ xs) = x ∷ take n (♭ xs)
 
@@ -47,7 +47,7 @@ drop : ∀ {A} → ℕ → Stream A → Stream A
 drop zero    xs       = xs
 drop (suc n) (x ∷ xs) = drop n (♭ xs)
 
-repeat : forall {A} → A → Stream A
+repeat : ∀ {A} → A → Stream A
 repeat x = x ∷ ♯ repeat x
 
 iterate : ∀ {A} → (A → A) → A → Stream A
@@ -65,13 +65,13 @@ mutual
   -- Takes every other element from the stream, starting with the
   -- first one.
 
-  evens : {A : Set} → Stream A → Stream A
+  evens : ∀ {A} → Stream A → Stream A
   evens (x ∷ xs) = x ∷ ♯ odds (♭ xs)
 
   -- Takes every other element from the stream, starting with the
   -- second one.
 
-  odds : {A : Set} → Stream A → Stream A
+  odds : ∀ {A} → Stream A → Stream A
   odds (x ∷ xs) = evens (♭ xs)
 
 toColist : ∀ {A} → Stream A → Colist A
@@ -94,14 +94,14 @@ _++_ : ∀ {A} → Colist A → Stream A → Stream A
 
 infix 4 _≈_
 
-data _≈_ {A} : (xs ys : Stream A) → Set where
+data _≈_ {A} : Stream A → Stream A → Set where
   _∷_ : ∀ x {xs ys} (xs≈ : ∞ (♭ xs ≈ ♭ ys)) → x ∷ xs ≈ x ∷ ys
 
 -- x ∈ xs means that x is a member of xs.
 
 infix 4 _∈_
 
-data _∈_ {A : Set} : A → Stream A → Set where
+data _∈_ {A} : A → Stream A → Set where
   here  : ∀ {x   xs}                   → x ∈ x ∷ xs
   there : ∀ {x y xs} (x∈xs : x ∈ ♭ xs) → x ∈ y ∷ xs
 
@@ -109,7 +109,7 @@ data _∈_ {A : Set} : A → Stream A → Set where
 
 infix 4 _⊑_
 
-data _⊑_ {A : Set} : Colist A → Stream A → Set where
+data _⊑_ {A} : Colist A → Stream A → Set where
   []  : ∀ {ys}                            → []     ⊑ ys
   _∷_ : ∀ x {xs ys} (p : ∞ (♭ xs ⊑ ♭ ys)) → x ∷ xs ⊑ x ∷ ys
 
@@ -128,7 +128,7 @@ setoid A = record
   }
   where
   refl : Reflexive _≈_
-  refl {x ∷ xs} = x ∷ ♯ refl
+  refl {x ∷ _} = x ∷ ♯ refl
 
   sym : Symmetric _≈_
   sym (x ∷ xs≈) = x ∷ ♯ sym (♭ xs≈)
@@ -136,7 +136,7 @@ setoid A = record
   trans : Transitive _≈_
   trans (x ∷ xs≈) (.x ∷ ys≈) = x ∷ ♯ trans (♭ xs≈) (♭ ys≈)
 
-map-cong : ∀ {A B} (f : A → B) {xs ys : Stream A} →
+map-cong : ∀ {A B} (f : A → B) {xs ys} →
            xs ≈ ys → map f xs ≈ map f ys
 map-cong f (x ∷ xs≈) = f x ∷ ♯ map-cong f (♭ xs≈)
 
