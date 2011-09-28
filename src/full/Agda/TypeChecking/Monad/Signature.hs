@@ -241,13 +241,19 @@ addDisplayForms x = do
   add args x x []
   where
     add args top x ps = do
-      cs <- defClauses <$> getConstInfo x
+      def <- getConstInfo x
+      let cs = defClauses def
+          n  = case theDef def of
+                 Function{ funProjection = Just (_, n) } -> n
+                 _ -> 0
       case cs of
 	[ Clause{ clauseBody = b } ]
 	  | Just (m, Def y vs) <- strip b -> do
 	      let ps' = raise 1 (map unArg vs) ++ ps
+                  df  = Display 0 ps' $ DTerm $ Def top (drop (n - 1) args)
 	      reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
-	      addDisplayForm y (Display 0 ps' $ DTerm $ Def top args)
+                                                ++ "\n  " ++ show df
+	      addDisplayForm y df
 	      add args top y ps'
 	_ -> do
 	      let reason = case cs of

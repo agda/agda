@@ -228,23 +228,32 @@ instance Reify Term Expr where
             Nothing -> (,) [] <$> (flip genericDrop vs <$> getDefFreeVars x)
             Just defn -> do
               let def = theDef defn
-              n <- case def of
-                    Function{ funProjection = Just (_, np) } ->
-                      ifM showImplicitArguments (getDefFreeVars x) $
-                      return (fromIntegral np - 1)
-                    _ -> getDefFreeVars x
+              -- This is tricky:
+              --  * getDefFreeVars x tells us how many arguments
+              --    are part of the local context
+              --  * some of those arguments might have been dropped
+              --    due to projection likeness
+              --  * when showImplicits is on we'd like to see the dropped
+              --    projection arguments
+
+              -- We should drop this many arguments from the local context.
+              n <- getDefFreeVars x
+              -- These are the dropped projection arguments
               pad <- case def of
                       Function{ funProjection = Just (_, np) } -> do
                         TelV tel _ <- telView (defType defn)
                         scope <- getScope
                         let as       = take (np - 1) $ telToList tel
                             whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                        -- reportSLn "tc.reify.proj" 50 $ "tel of " ++ show x ++ ":\n  " ++ show tel
-                        -- reportSLn "tc.reify.proj" 50 $ "args = " ++ show vs
                         return $ map (fmap $ const whocares) as
                       _ -> return []
-              -- reportSLn "tc.reify.proj" 40 $ "dropping " ++ show n ++ " args from " ++ show x ++ " (padded with " ++ show (length pad) ++ ")"
-              return (genericDrop n pad, genericDrop (max 0 (n - size pad)) vs)
+              -- Now pad' ++ vs' = drop n (pad ++ vs)
+              let pad' = genericDrop n pad
+                  vs'  = genericDrop (max 0 (n - size pad)) vs
+              -- If showImplicit then keep the padding otherwise ignore it
+              ifM showImplicitArguments
+                  (return (pad', vs'))
+                  (return ([], vs'))
         df <- displayFormsEnabled
         if df && isPrefixOf extendlambdaname (show name)
           then do
