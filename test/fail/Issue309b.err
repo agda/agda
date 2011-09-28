@@ -1,4 +1,4 @@
 Issue309b.agda:6,14-14
-Issue309b.agda:6,14:
-malformed syntax declaration: syntax must use holes exactly once
-f<ERROR> g : D → D g (d x) = f ...
+Issue309b.agda:6,14: malformed
+syntax declaration: syntax must use holes exactly once f<ERROR> g :
+D → D g (d x) = f ...
