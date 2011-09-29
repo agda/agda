@@ -16,7 +16,7 @@ open import Function.Inverse     as Inv     using (Inverse; _↔_)
 open import Function.LeftInverse as LeftInv using (LeftInverse)
 open import Function.Surjection  as Surj    using (Surjection)
 open import Relation.Binary
-import Relation.Binary.PropositionalEquality as P
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 ------------------------------------------------------------------------
 -- Wrapper types
@@ -86,6 +86,11 @@ Related k A B = A ∼[ k ] B
 ↔⇒ {left-inverse}        = Inverse.left-inverse
 ↔⇒ {surjection}          = Inverse.surjection
 ↔⇒ {bijection}           = id
+
+-- Actual equality also implies any kind of relatedness.
+
+≡⇒ : ∀ {k ℓ} {X Y : Set ℓ} → X ≡ Y → X ∼[ k ] Y
+≡⇒ P.refl = ↔⇒ Inv.id
 
 ------------------------------------------------------------------------
 -- Special kinds of kinds
@@ -265,7 +270,7 @@ module EquationalReasoning where
   sym {bijection}   = Inv.sym
 
   infix  2 _∎
-  infixr 2 _∼⟨_⟩_ _↔⟨_⟩_
+  infixr 2 _∼⟨_⟩_ _↔⟨_⟩_ _≡⟨_⟩_
 
   _∼⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
            X ∼[ k ] Y → Y ∼[ k ] Z → X ∼[ k ] Z
@@ -276,6 +281,10 @@ module EquationalReasoning where
   _↔⟨_⟩_ : ∀ {k x y z} (X : Set x) {Y : Set y} {Z : Set z} →
            X ↔ Y → Y ∼[ k ] Z → X ∼[ k ] Z
   X ↔⟨ X↔Y ⟩ Y⇔Z = X ∼⟨ ↔⇒ X↔Y ⟩ Y⇔Z
+
+  _≡⟨_⟩_ : ∀ {k ℓ z} (X : Set ℓ) {Y : Set ℓ} {Z : Set z} →
+           X ≡ Y → Y ∼[ k ] Z → X ∼[ k ] Z
+  X ≡⟨ X≡Y ⟩ Y⇔Z = X ∼⟨ ≡⇒ X≡Y ⟩ Y⇔Z
 
   _∎ : ∀ {k x} (X : Set x) → X ∼[ k ] X
   X ∎ = refl
