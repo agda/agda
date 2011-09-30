@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables, TupleSections #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
 module Agda.Syntax.Scope.Base where
 
+import Control.Arrow ((***), (&&&))
 import Control.Applicative
 import Data.Generics (Typeable, Data)
 import Data.List
@@ -44,6 +45,10 @@ localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess  = PublicNS
 localNameSpace PrivateAccess = PrivateNS
 localNameSpace OnlyQualified = OnlyQualifiedNS
+
+nameSpaceAccess :: NameSpaceId -> Access
+nameSpaceAccess PrivateNS = PrivateAccess
+nameSpaceAccess _         = PublicAccess
 
 scopeNameSpace :: NameSpaceId -> Scope -> NameSpace
 scopeNameSpace ns s = maybe __IMPOSSIBLE__ id $ lookup ns $ scopeNameSpaces s
@@ -187,7 +192,7 @@ instance SetRange AbstractName where
 
 -- * Operations on name and module maps.
 
-mergeNames :: InScope a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
+mergeNames :: Eq a => ThingsInScope a -> ThingsInScope a -> ThingsInScope a
 mergeNames = Map.unionWith union
 
 -- * Operations on name spaces
@@ -310,6 +315,11 @@ filterScope pd pm = mapScope_ (Map.filterKeys pd) (Map.filterKeys pm)
 -- | Return all names in a scope.
 allNamesInScope :: InScope a => Scope -> ThingsInScope a
 allNamesInScope = namesInScope [minBound..maxBound]
+
+allNamesInScope' :: InScope a => Scope -> ThingsInScope (a, Access)
+allNamesInScope' s =
+  foldr1 mergeNames [ map (, nameSpaceAccess ns) <$> namesInScope [ns] s
+                    | ns <- [minBound..maxBound] ]
 
 -- | Returns the scope's non-private names.
 exportedNamesInScope :: InScope a => Scope -> ThingsInScope a
@@ -465,8 +475,11 @@ everythingInScope scope =
     current = this : parents
 
 -- | Look up a name in the scope
-scopeLookup :: forall a. InScope a => C.QName -> ScopeInfo -> [a]
-scopeLookup q scope = nub $ findName q root ++ imports
+scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]
+scopeLookup q scope = map fst $ scopeLookup' q scope
+
+scopeLookup' :: forall a. InScope a => C.QName -> ScopeInfo -> [(a, Access)]
+scopeLookup' q scope = nubBy ((==) `on` fst) $ findName q root ++ imports
   where
     this    :: A.ModuleName
     this    = scopeCurrent scope
@@ -485,30 +498,29 @@ scopeLookup q scope = nub $ findName q root ++ imports
       (m, r) <- splitName q
       return (C.Qual x m, r)
 
-    imported :: C.QName -> [A.ModuleName]
-    imported q = maybe [] (:[]) $ Map.lookup q $ scopeImports root
+    imported :: C.QName -> [(A.ModuleName, Access)]
+    imported q = maybe [] ((:[]) . (, PublicAccess)) $ Map.lookup q $ scopeImports root
 
-    topImports :: [a]
+    topImports :: [(a, Access)]
     topImports = case tag of
       NameTag   -> []
-      ModuleTag -> map AbsModule (imported q)
+      ModuleTag -> map (AbsModule *** id) (imported q)
 
-    imports :: [a]
+    imports :: [(a, Access)]
     imports = topImports ++ do
       (m, x) <- splitName q
-      m <- imported m
-      x <- findName x (restrictPrivate $ moduleScope m)
-      return x
+      m <- fst <$> imported m
+      findName x (restrictPrivate $ moduleScope m)
 
     moduleScope :: A.ModuleName -> Scope
     moduleScope name = case Map.lookup name (scopeModules scope) of
       Nothing -> __IMPOSSIBLE__
       Just s  -> s
 
-    lookupName :: forall a. InScope a => C.Name -> Scope -> [a]
-    lookupName x s = maybe [] id $ Map.lookup x (allNamesInScope s)
+    lookupName :: forall a. InScope a => C.Name -> Scope -> [(a, Access)]
+    lookupName x s = maybe [] id $ Map.lookup x (allNamesInScope' s)
 
-    findName :: forall a. InScope a => C.QName -> Scope -> [a]
+    findName :: forall a. InScope a => C.QName -> Scope -> [(a, Access)]
     findName (C.QName x)  s = lookupName x s
     findName (C.Qual x q) s = do
         m <- nub $ mods ++ defs -- record types will appear bot as a mod and a def
@@ -516,9 +528,9 @@ scopeLookup q scope = nub $ findName q root ++ imports
         findName q (restrictPrivate s')
       where
         mods, defs :: [ModuleName]
-        mods = amodName <$> lookupName x s
+        mods = amodName . fst <$> lookupName x s
         -- Qualified constructors are qualified by their datatype rather than a module
-        defs = mnameFromList . qnameToList . anameName <$> lookupName x s
+        defs = mnameFromList . qnameToList . anameName . fst <$> lookupName x s
 
 -- * Inverse look-up
 

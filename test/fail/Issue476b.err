@@ -1,0 +1,3 @@
+Issue476b.agda:4,1-5,15
+Using abstract here has no effect. Move it to the definitions to
+make them abstract.

@@ -1,0 +1,3 @@
+Issue476a.agda:5,1-6,10
+Using private here has no effect. Move it to the type signatures to
+make the definitions private.

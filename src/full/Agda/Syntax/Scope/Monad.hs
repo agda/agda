@@ -183,7 +183,7 @@ freshAbstractQName fx x = do
 -- * Resolving names
 
 data ResolvedName = VarName A.Name
-                  | DefinedName AbstractName
+                  | DefinedName Access AbstractName
                   | ConstructorName [AbstractName]
                   | UnknownName
   deriving (Show)
@@ -195,13 +195,13 @@ resolveName x = do
   let vars = map (C.QName -*- id) $ scopeLocals scope
   case lookup x vars of
     Just y  -> return $ VarName $ y { nameConcrete = unqualify x }
-    Nothing -> case scopeLookup x scope of
+    Nothing -> case scopeLookup' x scope of
       [] -> return UnknownName
-      ds | all ((==ConName) . anameKind) ds ->
+      ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName
-               $ map (\d -> updateConcreteName d $ unqualify x) ds
-      [d] -> return $ DefinedName $ updateConcreteName d (unqualify x)
-      ds  -> typeError $ AmbiguousName x (map anameName ds)
+               $ map (\ (d, _) -> updateConcreteName d $ unqualify x) ds
+      [(d, a)] -> return $ DefinedName a $ updateConcreteName d (unqualify x)
+      ds  -> typeError $ AmbiguousName x (map (anameName . fst) ds)
   where
   updateConcreteName :: AbstractName -> C.Name -> AbstractName
   updateConcreteName d@(AbsName { anameName = an@(A.QName { qnameName = qn }) }) x =
@@ -222,7 +222,7 @@ getFixity x = do
   r <- resolveName x
   case r of
     VarName y          -> return $ nameFixity y
-    DefinedName d      -> return $ nameFixity $ qnameName $ anameName d
+    DefinedName _ d    -> return $ nameFixity $ qnameName $ anameName d
     ConstructorName ds
       | null fs        -> __IMPOSSIBLE__
       | allEqual fs    -> return $ head fs
@@ -244,7 +244,7 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
-    DefinedName d      -> typeError $ ClashingDefinition (C.QName x) $ anameName d
+    DefinedName _ d    -> typeError $ ClashingDefinition (C.QName x) $ anameName d
     VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
     ConstructorName [] -> __IMPOSSIBLE__
     ConstructorName ds

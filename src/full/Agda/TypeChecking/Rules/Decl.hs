@@ -53,6 +53,8 @@ checkDecls ds = do
 -- | Type check a single declaration.
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
+    -- Issue 418 fix: freeze metas before checking an abstract things
+    when isAbstract freezeMetas
     leaveTopLevelConditionally d $ case d of
 	A.Axiom i rel x e        -> checkAxiom i rel x e
         A.Field{}                -> typeError FieldOutsideRecord
@@ -70,9 +72,7 @@ checkDecl d = do
         A.RecSig i x ps t        -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
         A.Open _ _               -> return ()
     top <- onTopLevel
-    when top solveSizeConstraints
-    -- Issue 418 fix: freeze metas for abstract things
-    when (isAbstract || top) freezeMetas
+    when top $ solveSizeConstraints >> freezeMetas
     where
         unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
         unScope d = return d

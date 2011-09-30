@@ -327,7 +327,7 @@ instance ToAbstract OldQName A.Expr where
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
       VarName x'         -> return $ A.Var x'
-      DefinedName d      -> return $ nameExpr d
+      DefinedName _ d    -> return $ nameExpr d
       ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
       UnknownName        -> notInScope x
 
@@ -340,11 +340,11 @@ instance ToAbstract PatName APatName where
     rx <- resolveName x
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
-      (VarName y,     C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
-      (DefinedName d, C.QName x) | DefName == anameKind d -> return $ Left x
-      (UnknownName,   C.QName x)                          -> return $ Left x
-      (ConstructorName ds, _)                             -> return $ Right ds
-      _                                                   ->
+      (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
+      (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
+      (UnknownName,     C.QName x)                          -> return $ Left x
+      (ConstructorName ds, _)                               -> return $ Right ds
+      _                                                     ->
         typeError $ GenericError $
           "Cannot pattern match on " ++ show x ++ ", because it is not a constructor"
     case z of
@@ -362,8 +362,8 @@ instance ToAbstract OldName A.QName where
   toAbstract (OldName x) = do
     rx <- resolveName (C.QName x)
     case rx of
-      DefinedName d -> return $ anameName d
-      _             -> error $ show x ++ " - " ++ show rx
+      DefinedName _ d -> return $ anameName d
+      _               -> error $ show x ++ " - " ++ show rx
 
 newtype NewModuleName      = NewModuleName      C.Name
 newtype NewModuleQName     = NewModuleQName     C.QName
@@ -537,7 +537,7 @@ instance ToAbstract C.Expr A.Expr where
             insertApp _ = __IMPOSSIBLE__
             insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' PrivateAccess ConcreteDef cname
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
@@ -703,8 +703,8 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ d@[C.FunSig _ _ _ abstract rel x t, C.FunDef _ _ _ _ abstract' _ [cl]] ->
-                do  when (abstract == AbstractDef || abstract' == AbstractDef) $ do
+            NiceMutual _ d@[C.FunSig _ _ _ rel x t, C.FunDef _ _ _ abstract _ [cl]] ->
+                do  when (abstract == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
                     t <- toAbstract t
@@ -758,11 +758,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
     case d of
 
   -- Axiom
-    C.Axiom r f p a rel x t -> do
+    C.Axiom r f p rel x t -> do
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y
-      return [ A.Axiom (mkDefInfo x f p a r) rel y t' ]
+      return [ A.Axiom (mkDefInfo x f p ConcreteDef r) rel y t' ]
 
   -- Fields
     C.NiceField r f p a x t -> do
@@ -789,7 +789,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Mutual (DeclInfo C.noName_ r) ds' ]
                           -- TODO: what does the info mean here?
 
-    C.NiceRecSig r f a ia x ls t -> withLocalVars $ do
+    C.NiceRecSig r f a x ls t -> withLocalVars $ do
         let toTypeBinding :: C.LamBinding -> C.TypedBindings
             toTypeBinding b = case makeDomainFull b of
                C.DomainFull b -> b
@@ -798,8 +798,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
         t' <- toAbstract t
-        return [ A.RecSig (mkDefInfo x f a ia r) x' ls' t' ]
-    C.NiceDataSig r f a ia x ls t -> withLocalVars $ do
+        return [ A.RecSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
+    C.NiceDataSig r f a x ls t -> withLocalVars $ do
         printScope "scope.data.sig" 20 ("checking DataSig for " ++ show x)
         let toTypeBinding :: C.LamBinding -> C.TypedBindings
             toTypeBinding b = case makeDomainFull b of
@@ -809,17 +809,17 @@ instance ToAbstract NiceDeclaration A.Declaration where
         x'  <- freshAbstractQName f x
         bindName a DefName x x'
         t' <- toAbstract t
-        return [ A.DataSig (mkDefInfo x f a ia r) x' ls' t' ]
+        return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p a rel x t -> (:[]) <$> toAbstract (C.Axiom r f p a rel x t)
+    C.FunSig r f p rel x t -> (:[]) <$> toAbstract (C.Axiom r f p rel x t)
   -- Function definitions
-    C.FunDef r ds f p a x cs -> do
+    C.FunDef r ds f a x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs') <- toAbstract (OldName x,cs)
-        return [ A.FunDef (mkDefInfo x f p a r) x' cs' ]
+        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' cs' ]
 
   -- Data definitions
-    C.DataDef r f p a x pars cons -> withLocalVars $ do
+    C.DataDef r f a x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)
         -- Check for duplicate constructors
         do let cs   = map conName cons
@@ -830,29 +830,31 @@ instance ToAbstract NiceDeclaration A.Declaration where
                 typeError $ DuplicateConstructors dups
 
         pars <- toAbstract pars
-        x'   <- toAbstract (OldName x)
+        DefinedName p ax <- resolveName (C.QName x)
+        let x' = anameName ax
         -- Create the module for the qualified constructors
         checkForModuleClash x -- disallow shadowing previously defined modules
         let m = mnameFromList $ qnameToList x'
         createModule m
         bindModule p x m  -- make it a proper module
-        cons <- toAbstract (map (ConstrDecl NoRec m) cons)
+        cons <- toAbstract (map (ConstrDecl NoRec m a) cons)
         -- Open the module
         -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
         printScope "data" 20 $ "Checked data " ++ show x
-        return [ A.DataDef (mkDefInfo x f p a r) x' pars cons ]
+        return [ A.DataDef (mkDefInfo x f PublicAccess a r) x' pars cons ]
       where
-        conName (C.Axiom _ _ _ _ _ c _) = c
+        conName (C.Axiom _ _ _ _ c _) = c
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f p a x cm pars fields ->
+    C.RecDef r f a x cm pars fields ->
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
         -- defined module
         checkForModuleClash x
         pars   <- toAbstract pars
-        x'     <- toAbstract (OldName x)
+        DefinedName p ax <- resolveName (C.QName x)
+        let x' = anameName ax
         contel <- toAbstract $ recordConstructorType fields
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
@@ -865,7 +867,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindModule p x m
         cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfo x f p a r) x' cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' cm' pars contel afields ]
 
 
   -- TODO: what does an abstract module mean? The syntax doesn't allow it.
@@ -951,7 +953,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 
 data IsRecordCon = YesRec | NoRec
-data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName C.NiceDeclaration
+data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract C.NiceDeclaration
 
 bindConstructorName m x f a p rec = do
   -- The abstract name is the qualified one
@@ -972,13 +974,13 @@ bindConstructorName m x f a p rec = do
             _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl rec m (C.Axiom r f p a rel x t)) = do -- rel==Relevant
+  toAbstract (ConstrDecl rec m a (C.Axiom r f p rel x t)) = do -- rel==Relevant
     t' <- toAbstractCtx TopCtx t
     -- The abstract name is the qualified one
     -- Bind it twice, once unqualified and once qualified
     y <- bindConstructorName m x f a p rec
     printScope "con" 15 "bound constructor"
-    return $ A.Axiom (mkDefInfo x f p a r) rel y t'
+    return $ A.Axiom (mkDefInfo x f p ConcreteDef r) rel y t'
 
   toAbstract _ = __IMPOSSIBLE__    -- a constructor is always an axiom
 
