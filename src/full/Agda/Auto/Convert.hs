@@ -439,21 +439,23 @@ icnvh Hidden = C.Hidden
 
 frommy = frommyExp
 
+frommyType :: MExp O -> ErrorT String IO I.Type
 frommyType e = do
  e' <- frommyExp e
  return $ I.El (I.mkType 0) e'  -- 0 is arbitrary, sort not read by Agda when reifying
-frommyExp :: MExp O -> IO I.Term
+
+frommyExp :: MExp O -> ErrorT String IO I.Term
 frommyExp (Meta m) = do
- bind <- readIORef $ mbind m
+ bind <- lift $ readIORef $ mbind m
  case bind of
-  Nothing -> __IMPOSSIBLE__
+  Nothing -> throwError "meta not bound"
   Just e -> frommyExp (NotM e)
 frommyExp (NotM e) =
  case e of
   App _ _ (Var v) as ->
    frommyExps 0 as (I.Var (fromIntegral v) [])
   App _ _ (Const c) as -> do
-   cdef <- readIORef c
+   cdef <- lift $ readIORef c
    let (iscon, name) = cdorigin cdef
        (ndrop, h) = case iscon of {Just n -> (n, I.Con); Nothing -> (0, I.Def)}
    frommyExps ndrop as (h name [])
@@ -474,11 +476,11 @@ frommyExp (NotM e) =
    return $ I.Lam (icnvh hid) (I.Abs abslamvarname (I.Var 0 []))
 
 
-frommyExps :: Nat -> MArgList O -> I.Term -> IO I.Term
+frommyExps :: Nat -> MArgList O -> I.Term -> ErrorT String IO I.Term
 frommyExps ndrop (Meta m) trm = do
- bind <- readIORef $ mbind m
+ bind <- lift $ readIORef $ mbind m
  case bind of
-  Nothing -> __IMPOSSIBLE__
+  Nothing -> throwError "meta not bound"
   Just e -> frommyExps ndrop (NotM e) trm
 frommyExps ndrop (NotM as) trm =
  case as of
@@ -489,11 +491,11 @@ frommyExps ndrop (NotM as) trm =
    frommyExps ndrop xs (addend (C.Arg (icnvh hid) C.Relevant x') trm)
 
   ALProj eas idx hid xs -> do
-   idx <- expandbind idx
-   let c = case idx of
-            NotM c -> c
-            Meta{} -> __IMPOSSIBLE__
-   cdef <- readIORef c
+   idx <- lift $ expandbind idx
+   c <- case idx of
+            NotM c -> return c
+            Meta{} -> throwError "meta not bound"
+   cdef <- lift $ readIORef c
    let name = snd $ cdorigin cdef
    trm2 <- frommyExps 0 eas (I.Def name [])
    frommyExps 0 xs (addend (C.Arg (icnvh hid) C.Relevant trm) trm2)
@@ -552,7 +554,7 @@ constructPats cmap mainm clause = do
  return (reverse names, pats)
 
 
-frommyClause :: (CSCtx O, [CSPat O], Maybe (MExp O)) -> IO I.Clause
+frommyClause :: (CSCtx O, [CSPat O], Maybe (MExp O)) -> ErrorT String IO I.Clause
 frommyClause (ids, pats, mrhs) = do
  let ctel [] = return I.EmptyTel
      ctel (HI hid (mid, t) : ctx) = do
@@ -574,7 +576,7 @@ frommyClause (ids, pats, mrhs) = do
        --CSPatVar v -> return (length ids + nv - 1 - v : perm, nv)
        CSPatVar v -> return ((length ids - 1 - v, nv) : perm, nv + 1)
        CSPatConApp c ps -> do
-        cdef <- readIORef c
+        cdef <- lift $ readIORef c
         let (Just ndrop, _) = cdorigin cdef
         getperms ndrop ps perm nv
        CSPatExp e -> return (perm, nv + 1)
@@ -597,7 +599,7 @@ frommyClause (ids, pats, mrhs) = do
       p' <- case p of
        CSPatVar v -> return (I.VarP $ let HI _ (Id n, _) = ids !! v in n)
        CSPatConApp c ps -> do
-        cdef <- readIORef c
+        cdef <- lift $ readIORef c
         let (Just ndrop, name) = cdorigin cdef
         ps' <- cnvps ndrop ps
         return (I.ConP name Nothing ps')

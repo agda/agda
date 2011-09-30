@@ -115,10 +115,10 @@ auto ii rng argstr = liftTCM $ do
 
                        if listmode then do
                         nsol' <- readIORef nsol
-                        when (nsol' <= 10) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> modifyIORef sols (trms :)
+                        when (nsol' <= 10) $ runErrorT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> modifyIORef sols (trms :)}
                        else do
                         nsol' <- readIORef nsol
-                        when (nsol' == 1) $ mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons) >>= \trms -> writeIORef sols [trms]
+                        when (nsol' == 1) $ runErrorT (mapM (\(m, _, _, _) -> frommy (Meta m)) (Map.elems tccons)) >>= \trms -> case trms of {Left{} -> writeIORef nsol $! nsol' + 1; Right trms -> writeIORef sols [trms]}
                ticks <- liftIO $ newIORef 0
                let exsearch initprop recinfo defdfv = liftIO $ System.Timeout.timeout (timeout * 1000000) (
                     let r d = do
@@ -295,19 +295,22 @@ auto ii rng argstr = liftTCM $ do
                     in r 0)
                  case sols of
                   Just (cls : _) -> withInteractionId ii $ do
-                   cls' <- liftIO $ mapM frommyClause cls
-                   cls'' <- mapM (\(I.Clause _ tel perm ps body) ->
-                     withCurrentModule (AN.qnameModule def) $ do
-                      -- Normalise the dot patterns
-                      ps <- addCtxTel tel $ normalise ps
-                      body <- etaContractBody body
-                      liftM modifyAbstractClause $ inContext [] $ reify $ NamedClause def $ I.Clause noRange tel perm ps body
-                    ) cls'
-                   pcs <- withInteractionId ii $ mapM prettyA cls''
-                   ticks <- liftIO $ readIORef ticks
+                   cls' <- liftIO $ runErrorT (mapM frommyClause cls)
+                   case cls' of
+                    Left{} -> dispmsg "No solution found"
+                    Right cls' -> do
+                     cls'' <- mapM (\(I.Clause _ tel perm ps body) ->
+                       withCurrentModule (AN.qnameModule def) $ do
+                        -- Normalise the dot patterns
+                        ps <- addCtxTel tel $ normalise ps
+                        body <- etaContractBody body
+                        liftM modifyAbstractClause $ inContext [] $ reify $ NamedClause def $ I.Clause noRange tel perm ps body
+                      ) cls'
+                     pcs <- withInteractionId ii $ mapM prettyA cls''
+                     ticks <- liftIO $ readIORef ticks
 
 
-                   return (Right $ Left (map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs), Nothing)
+                     return (Right $ Left (map (insertAbsurdPattern . PP.renderStyle (PP.style { PP.mode = PP.OneLineMode })) pcs), Nothing)
 
                   Just [] -> dispmsg "No solution found" -- case not possible at the moment because case split doesnt care about search exhaustiveness
                   Nothing -> dispmsg $ "No solution found at time out (" ++ show timeout ++ "s)"
