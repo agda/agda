@@ -26,6 +26,22 @@ open import Relation.Binary.Sum
 open import Relation.Nullary
 
 ------------------------------------------------------------------------
+-- Σ is "associative"
+
+Σ-assoc : ∀ {a b c}
+            {A : Set a} {B : A → Set b} {C : (a : A) → B a → Set c} →
+          Σ (Σ A B) (uncurry C) ↔ Σ A (λ a → Σ (B a) (C a))
+Σ-assoc = record
+  { to         = P.→-to-⟶ λ p →
+                   proj₁ (proj₁ p) , (proj₂ (proj₁ p) , proj₂ p)
+  ; from       = P.→-to-⟶ _
+  ; inverse-of = record
+    { left-inverse-of  = λ _ → P.refl
+    ; right-inverse-of = λ _ → P.refl
+    }
+  }
+
+------------------------------------------------------------------------
 -- ⊥, ⊤, _×_ and _⊎_ form a commutative semiring
 
 ×-CommutativeMonoid : Symmetric-kind → (ℓ : Level) →
@@ -38,7 +54,7 @@ open import Relation.Nullary
   ; isCommutativeMonoid = record
     { isSemigroup   = record
       { isEquivalence = Setoid.isEquivalence $ Related.setoid k ℓ
-      ; assoc         = λ A B C → ↔⇒ $ assoc A B C
+      ; assoc         = λ _ _ _ → ↔⇒ Σ-assoc
       ; ∙-cong        = _×-cong_
       }
     ; identityˡ = λ A → ↔⇒ $ left-identity A
@@ -52,16 +68,6 @@ open import Relation.Nullary
   left-identity _ = record
     { to         = P.→-to-⟶ proj₂
     ; from       = P.→-to-⟶ λ y → _ , y
-    ; inverse-of = record
-      { left-inverse-of  = λ _ → P.refl
-      ; right-inverse-of = λ _ → P.refl
-      }
-    }
-
-  assoc : Associative _×_
-  assoc _ _ _ = record
-    { to         = P.→-to-⟶ λ t → (proj₁ (proj₁ t) , (proj₂ (proj₁ t) , proj₂ t))
-    ; from       = P.→-to-⟶ λ t → ((proj₁ t , proj₁ (proj₂ t)) , proj₂ (proj₂ t))
     ; inverse-of = record
       { left-inverse-of  = λ _ → P.refl
       ; right-inverse-of = λ _ → P.refl
