@@ -59,6 +59,15 @@ Language
   the old mutual blocks: it is perfectly ok to mix arbitrary declarations, such
   as modules and postulates, with mutually recursive functions.
 
+  When making separated declarations "private" or "abstract" you should attach the
+  private keyword to the type signature and the abstract keyword to the
+  definition. For instance, a private, abstract function can be defined as
+
+    private
+      f : A
+    abstract
+      f = e
+
 * Universe levels are no longer defined as a data type.
 
   The basic level combinators can be introduced in the following way:
