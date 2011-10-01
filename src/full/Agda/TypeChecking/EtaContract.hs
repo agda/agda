@@ -53,6 +53,7 @@ etaOnce v = ignoreAbstractMode $ eta v
         _ -> return t
       where
         isVar0 (Var 0 [])               = True
+        isVar0 (DontCare{})             = True  -- Andreas, 2011-10-01 eta-contract irrelevant functions also
         isVar0 (Level (Max [Plus 0 l])) = case l of
           NeutralLevel v   -> isVar0 v
           UnreducedLevel v -> isVar0 v
