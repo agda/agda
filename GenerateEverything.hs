@@ -18,14 +18,14 @@ main = do
     [] -> return ()
     _  -> hPutStr stderr usage >> exitFailure
 
-  header  <- readFile headerFile
+  header  <- readFileUTF8 headerFile
   modules <- filter isLibraryModule . List.sort <$>
                find always
                     (extension ==? ".agda" ||? extension ==? ".lagda")
                     srcDir
   headers <- mapM extractHeader modules
 
-  writeFile outputFile $
+  writeFileUTF8 outputFile $
     header ++ format (zip modules headers)
 
 -- | Usage info.
@@ -54,7 +54,7 @@ isLibraryModule f =
 -- | Reads a module and extracts the header.
 
 extractHeader :: FilePath -> IO [String]
-extractHeader mod = fmap (extract . lines) $ readFile mod
+extractHeader mod = fmap (extract . lines) $ readFileUTF8 mod
   where
   delimiter = all (== '-')
 
@@ -84,3 +84,18 @@ fileToMod = map slashToDot . dropExtension . makeRelative srcDir
   where
   slashToDot c | isPathSeparator c = '.'
                | otherwise         = c
+
+-- | A variant of 'readFile' which uses the 'utf8' encoding.
+
+readFileUTF8 :: FilePath -> IO String
+readFileUTF8 f = do
+  h <- openFile f ReadMode
+  hSetEncoding h utf8
+  hGetContents h
+
+-- | A variant of 'writeFile' which uses the 'utf8' encoding.
+
+writeFileUTF8 :: FilePath -> String -> IO ()
+writeFileUTF8 f s = withFile f WriteMode $ \h -> do
+  hSetEncoding h utf8
+  hPutStr h s
