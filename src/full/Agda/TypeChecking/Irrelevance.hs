@@ -6,6 +6,8 @@ module Agda.TypeChecking.Irrelevance where
 
 import Control.Monad.Reader
 
+import qualified Data.Map as Map
+
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad
@@ -124,6 +126,9 @@ applyRelevanceToContext rel =
     Forced   -> id
     _        -> local $ \ e -> e
       { envContext   = modifyContextEntries (inverseApplyRelevance rel) (envContext e)
+      , envLetBindings = Map.map
+          (fmap $ \ (t, a) -> (t, inverseApplyRelevance rel a))
+          (envLetBindings e)
                                                   -- enable local  irr. defs
       , envRelevance = rel                        -- enable global irr. defs
       }

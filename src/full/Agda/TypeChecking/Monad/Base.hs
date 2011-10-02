@@ -276,7 +276,7 @@ data Comparison = CmpEq | CmpLeq
 
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing [CtxId] a
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Data, Show, Functor)
 
 ---------------------------------------------------------------------------
 -- * Judgements
