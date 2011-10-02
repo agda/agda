@@ -46,7 +46,8 @@ instance Apply Term where
             Level{}       -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
-            DontCare _    -> __IMPOSSIBLE__
+            DontCare mv   -> DontCare $ mv `apply` args  -- Andreas, 2011-10-02
+              -- need to go under DontCare, since "with" might resurrect irrelevant term
 
 instance Apply Type where
   apply = piApply
