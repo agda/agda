@@ -255,13 +255,16 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
     useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         unless (argHiding    arg == h) $ typeError $ WrongHidingInLambda target
-        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
+        -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
+        let r' = argRelevance arg -- relevance of function type
+        when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
+--        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unArg arg)
-        v <- addCtx x (Arg h r argT) $ checkExpr body btyp
+        v <- addCtx x (Arg h r' argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
