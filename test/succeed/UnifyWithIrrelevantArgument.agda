@@ -1,3 +1,6 @@
+{-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc.meta:20 #-}
+
 module UnifyWithIrrelevantArgument where
 
 data _≡_ {A : Set}(a : A) : A -> Set where
@@ -17,4 +20,3 @@ tst1 : let X : Bool -> .Bool -> Bool
            X = _
        in  (x : Bool) -> X x true ≡ x
 tst1 x = refl
-

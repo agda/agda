@@ -44,7 +44,6 @@ data Term = Var Nat Args
 	  | MetaV MetaId Args
           | DontCare Term  -- ^ irrelevant stuff
   deriving (Typeable, Data, Show)
--- Andreas 2010-09-21: @DontCare Nothing@ replaces the hack @Sort Prop@
 
 data Type = El Sort Term
   deriving (Typeable, Data, Show)

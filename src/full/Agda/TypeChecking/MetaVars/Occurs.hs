@@ -30,6 +30,7 @@ data OccursCtx
   = Flex          -- ^ we are in arguments of a meta
   | Rigid         -- ^ we are not in arguments of a meta but a bound var
   | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
+--  | Irrelevantly  -- ^ we are in an irrelevant argument
   deriving (Eq, Show)
 
 data UnfoldStrategy = YesUnfold | NoUnfold
@@ -57,13 +58,28 @@ abort Flex  _   = patternViolation -- throws a PatternErr, which leads to delaye
 abort Rigid err = patternViolation -- typeError err
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 
+-- | Distinguish relevant and irrelevant variables in occurs check.
+type Vars = ([Nat],[Nat])
+
+goIrrelevant :: Vars -> Vars
+goIrrelevant (relVs, irrVs) = (irrVs ++ relVs, [])
+
+allowedVar :: Nat -> Vars -> Bool
+allowedVar i (relVs, irrVs) = i `elem` relVs
+
+takeRelevant :: Vars -> [Nat]
+takeRelevant = fst
+
+underAbs :: Vars -> Vars
+underAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
+
 -- | Extended occurs check.
 class Occurs t where
-  occurs :: UnfoldStrategy -> OccursCtx -> MetaId -> [Nat] -> t -> TCM t
+  occurs :: UnfoldStrategy -> OccursCtx -> MetaId -> Vars -> t -> TCM t
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
-occursCheck :: MetaId -> [Nat] -> Term -> TCM Term
+occursCheck :: MetaId -> Vars -> Term -> TCM Term
 occursCheck m xs v = liftTCM $ do
   let bailOnSelf v = do
         v <- instantiate v
@@ -114,12 +130,12 @@ instance Occurs Term where
     where
       occurs' ctx v = case v of
         Var i vs   -> do         -- abort Rigid turns this error into PatternErr
-          unless (i `elem` xs) $ abort (strongly ctx) $ MetaCannotDependOn m xs i
+          unless (i `allowedVar` xs) $ abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
           Var i <$> occ (weakly ctx) vs
         Lam h f	    -> Lam h <$> occ ctx f
         Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
-        DontCare v  -> DontCare <$> occurs red ctx m xs v
+        DontCare v  -> DontCare <$> occurs red ctx m (goIrrelevant xs) v
         Def d vs    -> Def d <$> occDef d ctx vs
         Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
@@ -161,7 +177,7 @@ instance Occurs Term where
                         ]
                       ok <- killArgs kills m'
 -}
-                      killResult <- prune m' vs xs
+                      killResult <- prune m' vs (takeRelevant xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
                         then occurs red ctx m xs =<< instantiate (MetaV m' vs)
@@ -209,7 +225,7 @@ instance Occurs Sort where
       Inf        -> return s'
 
 instance Occurs a => Occurs (Abs a) where
-  occurs red ctx m xs (Abs   s x) = Abs   s <$> occurs red ctx m (0 : map (1+) xs) x
+  occurs red ctx m xs (Abs   s x) = Abs   s <$> occurs red ctx m (underAbs xs) x
   occurs red ctx m xs (NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
 instance Occurs a => Occurs (Arg a) where

@@ -473,19 +473,28 @@ assign x args v = do
         -- Andreas, 2011-04-21 do the occurs check first
         -- e.g. _1 x (suc x) = suc (_2 x y)
         -- even though the lhs is not a pattern, we can prune the y from _2
-        let fvsL = Set.toList $ relevantVars $ freeVars args
+        let varsL = freeVars args
+        let relVL = Set.toList $ relevantVars varsL
+        let irrVL = Set.toList $ irrelevantVars varsL
+--        let fvsL  = Set.toList $ allVars $ varsL
+--        let fvsL = Set.toList $ relevantVars $ freeVars args
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
+                pr (DontCare v) = pr v
                 pr _          = text ".."
             in vcat
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
-                 , text "fvars lhs:" <+> sep (map (text . show) fvsL)
+                 , text "fvars lhs (rel):" <+> sep (map (text . show) relVL)
+                 , text "fvars lhs (irr):" <+> sep (map (text . show) irrVL)
                  ]
 
-	-- Check that the x doesn't occur in the right hand side
-        -- Prune mvars on rhs such that they can only depend on fvsL
-	v <- liftTCM $ occursCheck x fvsL v
+	-- Check that the x doesn't occur in the right hand side.
+        -- Prune mvars on rhs such that they can only depend on varsL.
+        -- Herein, distinguish relevant and irrelevant vars,
+        -- since when abstracting irrelevant lhs vars, they may only occur
+        -- irrelevantly on rhs
+	v <- liftTCM $ occursCheck x (relVL, irrVL) v
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 	verboseS "tc.meta.assign" 30 $ do
@@ -567,6 +576,8 @@ assign x args v = do
 	escapeContext n $ assignTerm x $ killRange (abstract tel' v')
 	return ()
     where
+        -- @ids@ are the lhs variables (metavar arguments)
+        -- @i@ is the variable from the context Gamma
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
@@ -597,10 +608,17 @@ allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
 allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars arg =
     case arg of
-      Arg h r (Var i []) -> return $ Arg h r i : vars
+      Arg h r (Var i []) -> return $ Arg h r i : removeIrr i vars
+      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i vars
       -- Andreas, 2011-04-27 keep irrelevant variables
       Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
       _                  -> Nothing
+  -- in case of non-linearity make sure not to count the irrelevant vars
+  addIrrIfNotPresent h i vars
+    | any (\ (Arg _ _ j) -> j == i) vars = Arg h Irrelevant (-1) : vars
+    | otherwise                          = Arg h Irrelevant i    : vars
+  removeIrr i = map (\ a@(Arg h r j) ->
+    if r == Irrelevant && i == j then Arg h Irrelevant (-1) else a)
 
 
 updateMeta :: MetaId -> Term -> TCM ()
@@ -609,4 +627,3 @@ updateMeta mI v = do
     withMetaInfo (getMetaInfo mv) $ do
       args <- getContextArgs
       noConstraints $ assignV mI args v
-
