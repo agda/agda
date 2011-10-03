@@ -178,8 +178,6 @@ instance PrettyTCM Constraint where
 	FindInScope m   -> sep [ text $ "Find in scope " ++ (show m) ]
         IsEmpty t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
-        HasOneConstructor t ->
-            sep [ text "Has exactly one constructor:", nest 2 $ prettyTCM t ]
 
 instance PrettyTCM Literal where
   prettyTCM = text . show

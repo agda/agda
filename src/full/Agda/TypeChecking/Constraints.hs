@@ -26,7 +26,6 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
-import {-# SOURCE #-} Agda.TypeChecking.OneConstructor
 import {-# SOURCE #-} Agda.TypeChecking.UniversePolymorphism
 import Agda.TypeChecking.Free
 
@@ -161,7 +160,6 @@ solveConstraint_ c0@(Guarded c pid)         = do
   ifM (isProblemSolved pid) (solveConstraint_ c)
                             (addConstraint c0)
 solveConstraint_ (IsEmpty t)                = isEmptyType t
-solveConstraint_ (HasOneConstructor t)      = hasOneConstructor t
 solveConstraint_ (UnBlock m)                =
   ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m

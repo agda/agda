@@ -152,7 +152,6 @@ errorString err = case err of
     ShouldBeASort{}                          -> "ShouldBeASort"
     ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
     ShouldBeAppliedToTheDatatypeParameters{} -> "ShouldBeAppliedToTheDatatypeParameters"
-    ShouldHaveOneConstructor{}               -> "ShouldHaveOneConstructor"
     ShouldBeEmpty{}                          -> "ShouldBeEmpty"
     ShouldBePi{}                             -> "ShouldBePi"
     ShouldBeRecordType{}                     -> "ShouldBeRecordType"
@@ -289,12 +288,6 @@ instance PrettyTCM TypeError where
             ModuleArityMismatch m tel@(ExtendTel _ _) args -> fsep $
               pwords "The arguments to " ++ [prettyTCM m] ++ pwords "does not fit the telescope" ++
 	      [prettyTCM tel]
-            ShouldHaveOneConstructor t Nothing -> fsep $
-		[prettyTCM t] ++ pwords "should have exactly one constructor, but that's not obvious to me"
-	    ShouldHaveOneConstructor t (Just ps) -> fsep (
-		[prettyTCM t] ++
-                pwords "should have exactly one constructor, but the following constructor patterns are valid:"
-              ) $$ nest 2 (vcat $ map (showPat 0) ps)
             ShouldBeEmpty t [] -> fsep $
 		[prettyTCM t] ++ pwords "should be empty, but that's not obvious to me"
 	    ShouldBeEmpty t ps -> fsep (
@@ -648,8 +641,6 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
         CheckIsEmpty t _ ->
             fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has no constructors"
-        CheckHasOneConstructor t _ ->
-            fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has exactly one constructor"
 	ScopeCheckExpr e _ ->
 	    fsep $ pwords "when scope checking" ++ [pretty e]
 	ScopeCheckDeclaration d _ ->

@@ -97,9 +97,9 @@ instance MentionsMeta Constraint where
                                   -- what metas it depends on
     FindInScope m       -> True   -- this needs to be woken up for any meta
     IsEmpty t           -> mm t
-    HasOneConstructor t -> mm t
     where
       mm v = mentionsMeta x v
 
 -- instance (Ord k, MentionsMeta e) => MentionsMeta (Map k e) where
 --   mentionsMeta = traverse mentionsMeta
+
