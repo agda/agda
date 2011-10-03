@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 
 module Agda.TypeChecking.Rules.LHS.Split where
 
@@ -21,6 +21,7 @@ import qualified Agda.Syntax.Info as A
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Rules.LHS.Problem
@@ -28,6 +29,7 @@ import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.MetaVars
 
 import Agda.Utils.List
 import Agda.Utils.Monad
@@ -77,6 +79,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
     splitP []	     _		  _			 = throwError $ NothingToSplit
     splitP ps	    []		  EmptyTel		 = __IMPOSSIBLE__
     splitP (p : ps) ((i, q) : qs) tel0@(ExtendTel a tel) = do
+      let tryAgain = splitP (p : ps) ((i, q) : qs) tel0
       p <- lift $ expandLitPattern p
       case asView $ namedThing $ unArg p of
 
@@ -106,6 +109,19 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
 	  a' <- liftTCM $ reduce $ unArg a
 	  case unEl a' of
+
+            -- Type is a meta and constructor is unambiguous,
+            -- in this case try to instantiate the meta.
+            MetaV{} | [c] <- cs -> do
+              ok <- lift $ do
+                Constructor{ conData = d } <- theDef <$> getConstInfo c
+                dt            <- defType <$> getConstInfo d
+                vs            <- newArgsMeta dt
+                El _ (Sort s) <- reduce $ apply dt vs
+                (True <$ noConstraints (equalType a' (El s $ Def d vs)))
+                  `catchError` \_ -> return False
+              if not ok then keepGoing else
+                tryAgain
 
             -- Subcase: split type is a Def
 	    Def d vs	-> do

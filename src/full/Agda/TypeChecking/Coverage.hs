@@ -147,7 +147,7 @@ cover cs (SClause tel perm ps _) = do
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (Set.fromList (i : is), [])
     No             -> return (Set.empty, [ps])
-    Block Nothing  -> fail $ "blocked by dot pattern"
+    Block Nothing  -> __IMPOSSIBLE__
     Block (Just x) -> do
       r <- split Inductive tel perm ps x
       case r of
