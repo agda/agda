@@ -837,7 +837,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         let m = mnameFromList $ qnameToList x'
         createModule m
         bindModule p x m  -- make it a proper module
-        cons <- toAbstract (map (ConstrDecl NoRec m a) cons)
+        cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
         -- Open the module
         -- openModule_ (C.QName x) defaultImportDir{ publicOpen = True }
         printScope "data" 20 $ "Checked data " ++ show x
@@ -953,7 +953,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
 
 data IsRecordCon = YesRec | NoRec
-data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract C.NiceDeclaration
+data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
 
 bindConstructorName m x f a p rec = do
   -- The abstract name is the qualified one
@@ -974,7 +974,7 @@ bindConstructorName m x f a p rec = do
             _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl rec m a (C.Axiom r f p rel x t)) = do -- rel==Relevant
+  toAbstract (ConstrDecl rec m a p (C.Axiom r f _ rel x t)) = do -- rel==Relevant
     t' <- toAbstractCtx TopCtx t
     -- The abstract name is the qualified one
     -- Bind it twice, once unqualified and once qualified
