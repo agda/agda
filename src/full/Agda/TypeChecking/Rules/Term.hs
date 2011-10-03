@@ -605,10 +605,12 @@ checkExpr e t =
                   postponeTypeCheckingProblem_ e t
 	    _         -> typeError $ ShouldBeRecordType t
 
-	A.DontCare -> -- can happen in the context of with functions
-                      -- except that should be fixed now (issue 337)
-                      __IMPOSSIBLE__
-
+	A.DontCare e -> -- can happen in the context of with functions
+          checkExpr e t
+{- Andreas, 2011-10-03 why do I get an internal error for Issue337?
+                        -- except that should be fixed now (issue 337)
+                        __IMPOSSIBLE__
+-}
 	A.ScopedExpr scope e -> setScope scope >> checkExpr e t
 
         e0@(A.QuoteGoal _ x e) -> do

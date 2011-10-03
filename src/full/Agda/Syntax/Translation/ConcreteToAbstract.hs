@@ -617,6 +617,9 @@ instance ToAbstract C.Expr A.Expr where
       C.QuoteTerm r -> return $ A.QuoteTerm (ExprRange r)
       C.Unquote r -> return $ A.Unquote (ExprRange r)
 
+  -- DontCare
+      C.DontCare e -> A.DontCare <$> toAbstract e
+
 instance ToAbstract C.LamBinding A.LamBinding where
   toAbstract (C.DomainFree h rel x) = A.DomainFree h rel <$> toAbstract (NewName x)
   toAbstract (C.DomainFull tb)      = A.DomainFull <$> toAbstract tb

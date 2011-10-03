@@ -1,5 +1,5 @@
 Issue483a.agda:18,10-14
-Cannot instantiate the metavariable _16 to abort x since it
+Cannot instantiate the metavariable _16 to abort .(x) since it
 contains the variable x which is not in scope of the metavariable
 when checking that the expression refl has type
-_≡_ {A} (_16 Set) (abort x)
+_≡_ {A} (_16 .(Set)) (abort .(x))

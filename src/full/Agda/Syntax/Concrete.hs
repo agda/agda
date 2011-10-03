@@ -92,6 +92,7 @@ data Expr
         | Quote !Range                         -- ^ ex: @quote@, should be applied to a name
         | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
+        | DontCare Expr                        -- ^ to print irrelevant things
     deriving (Typeable, Data)
 
 
@@ -395,6 +396,7 @@ instance HasRange Expr where
             Quote r             -> r
             QuoteTerm r         -> r
             Unquote r           -> r
+            DontCare{}          -> noRange
 
 -- instance HasRange Telescope where
 --     getRange (TeleBind bs) = getRange bs

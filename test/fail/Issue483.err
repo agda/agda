@@ -1,4 +1,5 @@
 Issue483.agda:17,16-20
-Cannot instantiate the metavariable _21 to resurrect _ since it
+Cannot instantiate the metavariable _21 to resurrect .(y) since it
 contains the variable y which is not in scope of the metavariable
-when checking that the expression refl has type _21 == resurrect _
+when checking that the expression refl has type
+_21 == resurrect .(y)

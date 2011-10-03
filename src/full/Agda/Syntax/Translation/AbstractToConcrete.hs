@@ -371,11 +371,12 @@ instance ToConcrete A.Expr C.Expr where
 
     toConcrete (A.Fun i a b) =
         bracket piBrackets
-        $ do a' <- toConcreteCtx FunctionSpaceDomainCtx a
+        $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
              b' <- toConcreteCtx TopCtx b
              return $ C.Fun (getRange i) (addDot a' $ mkArg a') b'
         where
-            addDot a e = if (argRelevance a == Irrelevant) then Dot (getRange a) e else e
+            irr        = argRelevance a == Irrelevant
+            addDot a e = if irr then Dot (getRange a) e else e
             mkArg (Arg Hidden    r e) = HiddenArg (getRange e) (unnamed e)
             mkArg (Arg Instance  r e) = InstanceArg (getRange e) (unnamed e)
             mkArg (Arg NotHidden r e) = e
@@ -412,7 +413,11 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
 
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
+    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteCtx TopCtx e
+{-
+    -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
+-}
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg h rel (A.TBind _ [x] t)))) =

@@ -299,10 +299,12 @@ instance Reify Term Expr where
           return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
-      I.DontCare v ->
+      I.DontCare v -> A.DontCare <$> reify v
+{- Andreas: I want to see irrelevant, but not implicit arguments
         ifM showImplicitArguments
             (reify v)
             (return A.DontCare)
+-}
 {- Andreas, 2011-09-09
       I.DontCare Nothing  -> return A.DontCare
       I.DontCare (Just v) -> reify v  -- leads to paradox error msg in test/fail/UnifyWithIrrelevantArgument
@@ -465,7 +467,7 @@ instance DotVars A.Expr where
     A.Quote {}       -> __IMPOSSIBLE__
     A.QuoteTerm {}   -> __IMPOSSIBLE__
     A.Unquote {}     -> __IMPOSSIBLE__
-    A.DontCare       -> __IMPOSSIBLE__  -- Set.empty
+    A.DontCare {}    -> __IMPOSSIBLE__  -- Set.empty
 
 instance DotVars RHS where
   dotVars (RHS e) = dotVars e

@@ -403,6 +403,7 @@ paren _   e@(QuoteGoal _ _ _)  = return $ \p -> mparen (lamBrackets p) e
 paren _   e@(Quote _)          = return $ \p -> e
 paren _   e@(QuoteTerm _)      = return $ \p -> e
 paren _   e@(Unquote _)        = return $ \p -> e
+paren _   e@(DontCare _)       = return $ \p -> e
 
 mparen :: Bool -> Expr -> Expr
 mparen True  e = Paren (getRange e) e

@@ -798,6 +798,7 @@ instance LowerMeta SC.Expr where
       e@SC.Quote{}      -> e
       e@SC.QuoteTerm{}  -> e
       e@SC.Unquote{}    -> e
+      SC.DontCare e     -> SC.DontCare (lowerMeta e)
 
 instance LowerMeta (OpApp SC.Expr) where
   lowerMeta (Ordinary e) = Ordinary $ lowerMeta e

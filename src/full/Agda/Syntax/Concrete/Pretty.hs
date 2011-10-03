@@ -178,6 +178,8 @@ instance Pretty Expr where
             Quote _ -> text "quote"
             QuoteTerm _ -> text "quoteTerm"
 	    Unquote _ -> text "unquote"
+            -- Andreas, 2011-10-03 print irrelevant things as .(e)
+            DontCare e -> text "." <> parens (pretty e)
 
 instance Pretty BoundName where
   pretty = pretty . boundName

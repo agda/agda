@@ -56,7 +56,7 @@ data Expr
         | Quote ExprInfo                     -- ^
         | QuoteTerm ExprInfo                 -- ^
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
-        | DontCare                           -- ^ for printing DontCare from Syntax.Internal
+        | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
   deriving (Typeable, Data, Show)
 
 data Declaration
@@ -213,7 +213,7 @@ instance HasRange Expr where
     getRange (Quote i)  	= getRange i
     getRange (QuoteTerm i)  	= getRange i
     getRange (Unquote i)  	= getRange i
-    getRange (DontCare)         = noRange
+    getRange (DontCare{})       = noRange
 
 instance HasRange Declaration where
     getRange (Axiom      i _ _ _       ) = getRange i
@@ -295,7 +295,7 @@ instance KillRange Expr where
   killRange (Quote i)        = killRange1 Quote i
   killRange (QuoteTerm i)    = killRange1 QuoteTerm i
   killRange (Unquote i)      = killRange1 Unquote i
-  killRange (DontCare)       = DontCare
+  killRange (DontCare e)     = DontCare e
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
