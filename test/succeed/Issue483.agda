@@ -3,7 +3,7 @@
 -- {-# OPTIONS -v tc.meta:20 #-}
 module Issue483 where
 
-data _≡_ {A : Set}(a : A) : A → Set where
+data _≡_ (a : Set) : Set → Set where
   refl : a ≡ a
 
 test : (P : .Set → Set) → 

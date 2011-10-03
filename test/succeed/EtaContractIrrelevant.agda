@@ -1,10 +1,12 @@
 -- 2011-10-01 Andreas
 module EtaContractIrrelevant where
 
-data _≡_ {A : Set}(a : A) : A → Set where
-  refl : a ≡ a
+import Common.Level
 
-subst : {A : Set}(P : A → Set){a b : A} → a ≡ b → P a → P b
+data _≡_ {a}{A : Set a}(x : A) : A → Set where
+  refl : x ≡ x
+
+subst : ∀ {a b}{A : Set a}(P : A → Set b){x y : A} → x ≡ y → P x → P y
 subst P refl x = x
 
 postulate 

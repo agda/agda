@@ -460,14 +460,17 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
                         ]
                       ]
                     -- This error will probably be more informative
-                    -- compareTerm cmp (sort s1) a1 a2
+                    compareTerm cmp (sort s1) a1 a2
                     -- Throw the original error if the above doesn't
                     -- give an error (for instance, due to pending
                     -- constraints).
                     -- Or just ignore it... We run into this with irrelevant levels
                     -- which may show up in sort constraints, causing them to fail.
-                    -- In this case it's safe to ignore the error (?)
-                    -- throwError err
+                    -- In any case it's not safe to ignore the error, for instance
+                    -- a1 might be Set and a2 a meta of type Set, in which case we
+                    -- really need the sort comparison to fail, instead of silently
+                    -- instantiating the meta.
+                    throwError err
                   _             -> throwError err
 	compareTerm cmp (sort s1) a1 a2
 	return ()

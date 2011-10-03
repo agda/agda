@@ -1,7 +1,7 @@
 -- {-# OPTIONS -v tc.univ:100 -v tc.meta:100 #-}
 --{-# OPTIONS -v tc.rec:100 #-}
-{-# OPTIONS --universe-polymorphism #-}
 -- Andreas, 2011-04-27 universe levels can be made irrelevant
+-- Ulf 2011-10-03. No they can't. How is that even consistent?
 module IrrelevantLevel where
 
 open import Common.Level
