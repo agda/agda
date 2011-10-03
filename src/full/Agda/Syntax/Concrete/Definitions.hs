@@ -545,6 +545,8 @@ niceDeclarations ds = do
 
     abstractBlock _ [] = return []
     abstractBlock r ds
+        -- hack to avoid failing on inherited abstract blocks in where clauses
+      | r == noRange           = return $ map mkAbstract ds
       | all uselessAbstract ds = throwError $ UselessAbstract r
       | otherwise              = return $ map mkAbstract ds
 
@@ -588,8 +590,8 @@ niceDeclarations ds = do
         Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
 
     mkAbstractWhere  NoWhere         = NoWhere
-    mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract (getRange ds) ds]
-    mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract (getRange ds) ds]
+    mkAbstractWhere (AnyWhere ds)    = AnyWhere [Abstract noRange ds]
+    mkAbstractWhere (SomeWhere m ds) = SomeWhere m [Abstract noRange ds]
 
     -- Make a declaration private
     mkPrivate d =
