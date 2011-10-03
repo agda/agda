@@ -23,11 +23,11 @@ simplifyLevelConstraint n new old =
       where cl = theConstraint c
 
 data Leq = PlusLevel :=< PlusLevel
-  deriving Eq
+  deriving (Show, Eq)
 
 inequalities (LevelCmp CmpEq (Max [a, b]) (Max [c]))
   | a == c = [b :=< a]
-  | b == c = [a :=< a]
+  | b == c = [a :=< b]
 inequalities (LevelCmp CmpEq (Max [a]) (Max [b, c]))
   | a == b = [c :=< b]
   | a == c = [b :=< c]

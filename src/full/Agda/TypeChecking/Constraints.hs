@@ -70,9 +70,9 @@ addConstraint c = do
       let isLvl LevelCmp{} = True
           isLvl _          = False
       cs <- getAllConstraints
-      let lvls = List.filter (isLvl . clValue . theConstraint) cs
+      lvls <- instantiateFull $ List.filter (isLvl . clValue . theConstraint) cs
       when (not $ List.null lvls) $ reportSDoc "tc.constr.add" 40 $ text "  simplifying using" <+> prettyTCM lvls
-      simplifyLevelConstraint n c <$> getAllConstraints
+      return $ simplifyLevelConstraint n c lvls
 
 -- | Don't allow the argument to produce any constraints.
 noConstraints :: TCM a -> TCM a

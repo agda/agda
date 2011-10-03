@@ -625,6 +625,9 @@ instance InstantiateFull a => InstantiateFull (Closure a) where
 	x <- enterClosure cl instantiateFull
 	return $ cl { clValue = x }
 
+instance InstantiateFull ProblemConstraint where
+  instantiateFull (PConstr p c) = PConstr p <$> instantiateFull c
+
 instance InstantiateFull Constraint where
   instantiateFull c = case c of
     ValueCmp cmp t u v -> do
