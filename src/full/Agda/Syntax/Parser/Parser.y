@@ -434,6 +434,8 @@ CommaBIdAndAbsurds : Application {%
 	getName _		  = Nothing
 
         containsAbsurd (Absurd _) = True
+        containsAbsurd (HiddenArg _ (Named _ e)) = containsAbsurd e
+        containsAbsurd (InstanceArg _ (Named _ e)) = containsAbsurd e
         containsAbsurd (Paren _ expr)    = containsAbsurd expr
         containsAbsurd (RawApp _ exprs)    = any containsAbsurd exprs
         containsAbsurd _          = False
@@ -539,8 +541,9 @@ Expr3
     | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
     | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
-    | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
     | '(' ')'				{ Absurd (fuseRange $1 $2) }
+    | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+    | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3			{ As (fuseRange $1 $3) $1 $3 }
     | '.' Expr3				{ Dot (fuseRange $1 $2) $2 }
     | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$4)) $3 }
@@ -601,18 +604,20 @@ TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) (map mkBoundName_ $1) $3 }
 LamBindings :: { [LamBinding] }
 LamBindings
   : LamBinds '->' {%
-      case last $1 of
-        Left _  -> parseError "Absurd lambda cannot have a body."
-	_       -> return [ b | Right b <- $1 ]
+      case reverse $1 of
+        Left _ : _ -> parseError "Absurd lambda cannot have a body."
+	_ : _      -> return [ b | Right b <- $1 ]
+        []         -> parsePanic "Empty LamBinds"
       }
 
 AbsurdLamBindings :: { Either ([LamBinding], Hiding) [Expr] }
 AbsurdLamBindings
   : LamBindsAbsurd {%
     case $1 of
-      Left lb -> case last lb of
-                   Right _ -> parseError "Missing body for lambda"
-                   Left h  -> return $ Left ([ b | Right b <- init lb], h)
+      Left lb -> case reverse lb of
+                   Right _ : _ -> parseError "Missing body for lambda"
+                   Left h  : _ -> return $ Left ([ b | Right b <- init lb], h)
+                   _           -> parsePanic "Empty LamBindsAbsurd"
       Right es -> return $ Right es
     }
 
@@ -625,7 +630,7 @@ LamBinds
   | TypedBindings		{ [Right $ DomainFull $1] }
   | '(' ')'                     { [Left NotHidden] }
   | '{' '}'                     { [Left Hidden] }
-  | '{{' DoubleCloseBrace                   { [Left Instance] }
+  | '{{' DoubleCloseBrace       { [Left Instance] }
 
 -- Like LamBinds, but could also parse an absurd LHS of an extended lambda @{ p1 ... () }@
 LamBindsAbsurd :: { Either [Either Hiding LamBinding] [Expr] }
@@ -638,7 +643,7 @@ LamBindsAbsurd
   | TypedBindings		{ Left [Right $ DomainFull $1] }
   | '(' ')'                     { Left [Left NotHidden] }
   | '{' '}'                     { Left [Left Hidden] }
-  | '{{' DoubleCloseBrace                   { Left [Left Instance] }
+  | '{{' DoubleCloseBrace       { Left [Left Instance] }
 
 -- FNF, 2011-05-05: No where clauses in extended lambdas for now
 NonAbsurdLamClause :: { (LHS,RHS,WhereClause) }
@@ -1373,6 +1378,8 @@ exprToPattern e =
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
 opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "syntax binding lambda cannot appear in a pattern"
 opAppExprToPattern (Ordinary e) = exprToPattern e
+
+parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
 {--------------------------------------------------------------------------
     Tests

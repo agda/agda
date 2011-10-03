@@ -370,7 +370,7 @@ checkExpr e t =
 		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
 		hiddenLambdaOrHole _ _						       = False
 
-                hiddenLHS (A.Clause (A.LHS _ _ (a : _) _) _ _) = argHiding a == Hidden
+                hiddenLHS (A.Clause (A.LHS _ _ (a : _) _) _ _) = elem (argHiding a) [Hidden, Instance]
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
