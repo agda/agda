@@ -152,6 +152,7 @@ instance Instantiate Constraint where
   instantiate (UnBlock m)          = return $ UnBlock m
   instantiate (FindInScope m)      = return $ FindInScope m
   instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
+  instantiate (HasOneConstructor t) = HasOneConstructor <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -404,6 +405,7 @@ instance Reduce Constraint where
   reduce (UnBlock m)          = return $ UnBlock m
   reduce (FindInScope m)      = return $ FindInScope m
   reduce (IsEmpty t)          = IsEmpty <$> reduce t
+  reduce (HasOneConstructor t) = HasOneConstructor <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -511,6 +513,7 @@ instance Normalise Constraint where
   normalise (UnBlock m)          = return $ UnBlock m
   normalise (FindInScope m)      = return $ FindInScope m
   normalise (IsEmpty t)          = IsEmpty <$> normalise t
+  normalise (HasOneConstructor t) = HasOneConstructor <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -643,6 +646,7 @@ instance InstantiateFull Constraint where
     UnBlock m          -> return $ UnBlock m
     FindInScope m      -> return $ FindInScope m
     IsEmpty t          -> IsEmpty <$> instantiateFull t
+    HasOneConstructor t -> HasOneConstructor <$> instantiateFull t
 
 instance InstantiateFull Elim where
   instantiateFull (Apply v) = Apply <$> instantiateFull v

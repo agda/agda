@@ -117,6 +117,7 @@ addConstraint' c = do
     isBlocking UnBlock{}     = True
     isBlocking FindInScope{} = False
     isBlocking IsEmpty{}     = True
+    isBlocking HasOneConstructor{} = True
 
 -- | Add already awake constraints
 addAwakeConstraints :: Constraints -> TCM ()
@@ -128,4 +129,3 @@ nowSolvingConstraints = local $ \e -> e { envSolvingConstraints = True }
 
 isSolvingConstraints :: TCM Bool
 isSolvingConstraints = asks envSolvingConstraints
-

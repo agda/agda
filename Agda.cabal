@@ -238,6 +238,7 @@ library
                     Agda.TypeChecking.Monad.Statistics
                     Agda.TypeChecking.Monad.Trace
                     Agda.TypeChecking.Monad
+                    Agda.TypeChecking.OneConstructor
                     Agda.TypeChecking.Patterns.Match
                     Agda.TypeChecking.Polarity
                     Agda.TypeChecking.Positivity

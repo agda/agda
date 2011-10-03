@@ -264,6 +264,7 @@ data Constraint
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Type
+  | HasOneConstructor Type -- ^ data type has exactly one constructor
   | FindInScope MetaId
   deriving (Typeable, Show)
 
@@ -662,6 +663,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
+          | CheckHasOneConstructor Type (Maybe ())
           | CheckIsEmpty Type (Maybe ())
           | CheckSectionApplication Range ModuleName A.ModuleApplication (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
@@ -706,6 +708,7 @@ instance HasRange Call where
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _)     = r
     getRange (CheckIsEmpty _ _)                    = noRange
+    getRange (CheckHasOneConstructor _ _)          = noRange
 
 ---------------------------------------------------------------------------
 -- ** Builtin things
@@ -896,6 +899,8 @@ data TypeError
 	| IlltypedPattern A.Pattern Type
 	| TooManyArgumentsInLHS Nat Type
 	| WrongNumberOfConstructorArguments QName Nat Nat
+	| ShouldHaveOneConstructor Type (Maybe [Pattern])
+          -- ^ The type should have exactly one constructor.
 	| ShouldBeEmpty Type [Pattern]
 	| ShouldBeASort Type
 	    -- ^ The given type should have been a sort.

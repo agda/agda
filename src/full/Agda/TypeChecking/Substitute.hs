@@ -525,6 +525,7 @@ instance Raise Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty a                -> IsEmpty (rf a)
+    HasOneConstructor a      -> HasOneConstructor (rf a)
     FindInScope{}            -> c
     UnBlock{}                -> c
     where
@@ -538,6 +539,7 @@ instance Raise Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty a                -> IsEmpty (rf a)
+    HasOneConstructor a      -> HasOneConstructor (rf a)
     FindInScope{}            -> c
     UnBlock{}                -> c
     where

@@ -208,7 +208,9 @@ data OutputConstraint a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a
-      | IsEmptyType a | FindInScopeOF b
+      | IsEmptyType a
+      | TypeHasOneConstructor a
+      | FindInScopeOF b
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -235,6 +237,7 @@ outputFormId (OutputForm _ o) = out o
       Assign i _           -> i
       TypedAssign i _ _    -> i
       IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
+      TypeHasOneConstructor _ -> __IMPOSSIBLE__
       FindInScopeOF _      -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
@@ -271,6 +274,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       m' <- reify (MetaV m [])
       return $ FindInScopeOF m' -- IFSTODO
     reify (IsEmpty a) = IsEmptyType <$> reify a
+    reify (HasOneConstructor a) = TypeHasOneConstructor <$> reify a
 
 showComparison :: Comparison -> String
 showComparison CmpEq  = " = "
@@ -294,6 +298,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
+    show (TypeHasOneConstructor a) = "Has exactly one constructor: " ++ show a
     show (FindInScopeOF s)      = "Find in Scope: " ++ show s
 
 instance (ToConcrete a c, ToConcrete b d) =>
@@ -322,6 +327,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
+    toConcrete (TypeHasOneConstructor a) = TypeHasOneConstructor <$> toConcreteCtx TopCtx a
     toConcrete (FindInScopeOF s) = FindInScopeOF <$> toConcrete s
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
