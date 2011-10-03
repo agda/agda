@@ -33,6 +33,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.Irrelevance
 
 import Agda.Interaction.Options
 
@@ -154,7 +155,7 @@ cover cs (SClause tel perm ps _) = do
         Left err  -> case err of
           CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
           NotADatatype a          -> typeError $ CoverageCantSplitType a
-          IrrelevantDatatype a    -> typeError $ CoverageCantSplitType a
+          IrrelevantDatatype a    -> typeError $ CoverageCantSplitIrrelevantType a
           CoinductiveDatatype a   -> typeError $ CoverageCantSplitType a
           NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
           GenericSplitError s     -> fail $ "failed to split: " ++ s
@@ -176,8 +177,10 @@ isDatatype ind at = do
         Datatype{dataPars = np, dataCons = cs, dataInduction = i}
           | i == CoInductive && ind /= CoInductive ->
               throwException $ CoinductiveDatatype t
+{- Andreas, 2011-10-03 allow some splitting on data (if only one constr. matches)
           | argRelevance at == Irrelevant ->
               throwException $ IrrelevantDatatype t
+-}
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
@@ -400,6 +403,11 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
                , scPats = plugHole absurd hps
                , scSubst = [] -- not used anyway
                }
+
+    -- Andreas, 2011-10-03
+    -- if more than one constructor matches, we cannot be irrelevant
+    (_ : _ : _) | unusableRelevance (argRelevance t) ->
+      throwException $ IrrelevantDatatype (unArg t)
 
     _   -> return $ Right ns
 

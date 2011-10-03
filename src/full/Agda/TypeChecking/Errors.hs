@@ -96,6 +96,7 @@ errorString err = case err of
     ConstructorPatternInWrongDatatype{}      -> "ConstructorPatternInWrongDatatype"
     CoverageFailure{}                        -> "CoverageFailure"
     CoverageCantSplitOn{}                    -> "CoverageCantSplitOn"
+    CoverageCantSplitIrrelevantType{}        -> "CoverageCantSplitIrrelevantType"
     CoverageCantSplitType{}                  -> "CoverageCantSplitType"
     CyclicModuleDependency{}                 -> "CyclicModuleDependency"
     DataMustEndInSort{}                      -> "DataMustEndInSort"
@@ -539,6 +540,9 @@ instance PrettyTCM TypeError where
               , nest 2 $ prettyTCM cIxs
               , fsep $ pwords "with the expected indices"
               , nest 2 $ prettyTCM gIxs ]
+
+            CoverageCantSplitIrrelevantType a -> fsep $
+              pwords "Cannot split on argument of irrelevant datatype" ++ [prettyTCM a]
 
             CoverageCantSplitType a -> fsep $
               pwords "Cannot split on argument of non-datatype" ++ [prettyTCM a]

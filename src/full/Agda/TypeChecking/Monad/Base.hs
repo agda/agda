@@ -946,6 +946,7 @@ data TypeError
         | CoverageFailure QName [[Arg Pattern]]
         | UnreachableClauses QName [[Arg Pattern]]
         | CoverageCantSplitOn QName Telescope Args Args
+        | CoverageCantSplitIrrelevantType Type
         | CoverageCantSplitType Type
     -- Positivity errors
 	| NotStrictlyPositive QName [Occ]

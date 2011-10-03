@@ -513,7 +513,7 @@ termTerm conf names f pats0 t0 = do
                                <+> hsep (map prettyTCM pats)
                             , nest 2 $ text "to" <+> prettyTCM g <+>
                                         hsep (map (parens . prettyTCM) args)
-                            , nest 2 $ text ("call matrix (with guardeness): " ++ show matrix')
+                            , nest 2 $ text ("call matrix (with guardedness): " ++ show matrix')
                             ])
 
                      doc <- prettyTCM (Def g args0)
@@ -679,7 +679,9 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 -}
 
 -- | Remove projections until a term is no longer a projection.
+--   Also, remove 'DontCare's.
 stripProjections :: Term -> TCM Term
+stripProjections (DontCare t) = stripProjections t
 stripProjections t@(Def qn ts@(~(r : _))) = do
   isProj <- isProjection qn
   case isProj of
@@ -719,7 +721,8 @@ stripAllProjections t = do
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
 compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
-compareTerm' _ (Var i _)  p              = compareVar i p
+compareTerm' _ (Var i _)      p = compareVar i p
+compareTerm' suc (DontCare t) p = compareTerm' suc t p
 compareTerm' _ (Lit l)    (LitDBP l')
   | l == l'   = return Term.le
   | otherwise = return Term.unknown
