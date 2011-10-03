@@ -2,6 +2,9 @@
 --{-# OPTIONS -v tc.rec:100 #-}
 -- Andreas, 2011-04-27 universe levels can be made irrelevant
 -- Ulf 2011-10-03. No they can't. How is that even consistent?
+-- Andreas, 2011-10-03. Yes, they can!
+--   .(i : Level)(A : Set i)   does not mean that Set i = Set j for all i,j
+-- but nl i A = nl j A  for all i,j.
 module IrrelevantLevel where
 
 open import Common.Level

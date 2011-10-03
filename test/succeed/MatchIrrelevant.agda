@@ -16,6 +16,22 @@ f : (n : Nat).(N : NAT n) -> Nat
 f zero Zero = zero
 f (suc n) (Suc .n N) = f n N
 
+-- prove the equations to test reduction
+
+data _≡_ {A : Set}(a : A) : A → Set where
+  refl : a ≡ a
+
+fzero : f zero Zero ≡ zero
+fzero = refl
+
+fsuc : (n : Nat)(N : NAT n) -> f (suc n) (Suc n N) ≡ f n N
+fsuc n N = refl
+
+{- DOES NOT YET WORK
+fzero' : (N : NAT zero) → f zero N ≡ zero
+fzero' N = refl
+-}
+
 {-
 -- should fail:
 f' : (n : Nat).(N : NAT n) -> Nat

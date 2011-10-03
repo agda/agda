@@ -40,6 +40,8 @@ import Agda.Utils.Impossible
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
 constructorForm v = case v of
+-- Andreas, 2011-10-03, the following line restores IrrelevantLevel
+    DontCare v                  -> constructorForm v
     Lit (LitInt r n)            -> cons primZero primSuc (Lit . LitInt r) n
 --     Level (Max [])              -> primLevelZero
 --     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
