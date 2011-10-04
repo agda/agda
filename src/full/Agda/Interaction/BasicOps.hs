@@ -37,6 +37,7 @@ import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
 import Agda.TypeChecking.Eliminators (unElim)
 import qualified Agda.TypeChecking.Pretty as TP
@@ -436,10 +437,12 @@ contextOfMeta ii norm = do
           return $ OfType x t'
 
 
-{-| Returns the type of the expression in the current environment -}
+-- | Returns the type of the expression in the current environment
+--   We wake up irrelevant variables just in case the user want to
+--   invoke that command in an irrelevant context.
 typeInCurrent :: Rewrite -> Expr -> TCM Expr
 typeInCurrent norm e =
-    do 	(_,t) <- inferExpr e
+    do 	(_,t) <- wakeIrrelevantVars $ inferExpr e
         v <- rewrite norm t
         reify v
 

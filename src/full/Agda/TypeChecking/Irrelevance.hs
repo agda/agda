@@ -133,11 +133,12 @@ applyRelevanceToContext rel =
       , envRelevance = rel                        -- enable global irr. defs
       }
 
-{-
 -- | Wake up irrelevant variables and make them relevant.  For instance,
 --   in an irrelevant function argument otherwise irrelevant variables
 --   may be used, so they are awoken before type checking the argument.
 wakeIrrelevantVars :: TCM a -> TCM a
+wakeIrrelevantVars = applyRelevanceToContext Irrelevant
+{-
 wakeIrrelevantVars = local $ \ e -> e
    { envContext = map wakeVar (envContext e) -- enable local  irr. defs
    , envIrrelevant = True                    -- enable global irr. defs
