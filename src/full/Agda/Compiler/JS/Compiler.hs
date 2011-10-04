@@ -302,23 +302,27 @@ term (Lit   l)            = return (literal l)
 term (Level l)            = term =<< reallyUnLevelView l
 term (Def q as) = do
   d <- getConstInfo q
-  case defJSDef d of
-    -- Inline functions with an FFI definition
-    Just e -> do
-      es <- args as
-      return (curriedApply e es)
-    Nothing -> do
-      t <- normalise (defType d)
-      s <- isSingleton t
-      case s of
-        -- Inline and eta-expand singleton types
-        Just e ->
-          return (curriedLambda (arity t) e)
-        -- Everything else we leave non-inline
-        Nothing -> do
-          e <- qname q
-          es <- args as
-          return (curriedApply e es)
+  case theDef d of
+    -- Datatypes and records are erased
+    Datatype {} -> return (String "*")
+    Record {} -> return (String "*")
+    _ -> case defJSDef d of
+      -- Inline functions with an FFI definition
+      Just e -> do
+        es <- args as
+        return (curriedApply e es)
+      Nothing -> do
+        t <- normalise (defType d)
+        s <- isSingleton t
+        case s of
+          -- Inline and eta-expand singleton types
+          Just e ->
+            return (curriedLambda (arity t) e)
+          -- Everything else we leave non-inline
+          Nothing -> do
+            e <- qname q
+            es <- args as
+            return (curriedApply e es)
 term (Con q as) = do
   d <- getConstInfo q
   case defJSDef d of
