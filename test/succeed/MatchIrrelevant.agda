@@ -1,6 +1,7 @@
 -- Andreas, 2011-10-03 
 -- allow matching on irrelevant data as long as there is at most one
 -- matching constructor
+{-# OPTIONS --experimental-irrelevance #-}
 module MatchIrrelevant where
 
 data Nat : Set where
@@ -27,7 +28,7 @@ fzero = refl
 fsuc : (n : Nat)(N : NAT n) -> f (suc n) (Suc n N) ≡ f n N
 fsuc n N = refl
 
-{- DOES NOT YET WORK
+{- DOES NOT YET WORK and probably should never work
 fzero' : (N : NAT zero) → f zero N ≡ zero
 fzero' N = refl
 -}

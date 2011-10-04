@@ -93,6 +93,7 @@ data PragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  :: Bool
   , optUniversePolymorphism      :: Bool
   , optIrrelevantProjections     :: Bool
+  , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
   , optWithoutK                  :: Bool
   }
   deriving Show
@@ -142,6 +143,7 @@ defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
   , optVerbose                   = defaultVerbosity
   , optProofIrrelevance          = False
+  , optExperimentalIrrelevance   = False
   , optIrrelevantProjections     = True
   , optAllowUnsolved             = False
   , optDisablePositivity         = False
@@ -204,6 +206,7 @@ inputFlag f o =
 versionFlag                  o = return $ o { optShowVersion               = True  }
 helpFlag                     o = return $ o { optShowHelp                  = True  }
 proofIrrelevanceFlag         o = return $ o { optProofIrrelevance          = True  }
+experimentalIrrelevanceFlag  o = return $ o { optExperimentalIrrelevance   = True  }
 noIrrelevantProjectionsFlag  o = return $ o { optIrrelevantProjections     = False }
 ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = True  }
 allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
@@ -338,6 +341,8 @@ pragmaOptions =
                     "enable universe polymorphism (default)"
     , Option []     ["no-irrelevant-projections"] (NoArg noIrrelevantProjectionsFlag)
                     "disable projection of irrelevant record fields"
+    , Option []     ["experimental-irrelevance"] (NoArg experimentalIrrelevanceFlag)
+                    "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule (maybe)"
     ]

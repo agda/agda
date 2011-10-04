@@ -126,12 +126,13 @@ splitProblem (Problem ps (perm, qs) tel) = do
             -- Subcase: split type is a Def
 	    Def d vs	-> do
 	      def <- liftTCM $ theDef <$> getConstInfo d
-{- Andreas, 2011-10-03
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
-                when (unusableRelevance $ argRelevance a) $
-                  typeError $ SplitOnIrrelevant p a
--}
+                when (unusableRelevance $ argRelevance a) $ do
+                  -- Andreas, 2011-10-04 unless allowed by option
+                  allowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
+                  unless allowed $ typeError $ SplitOnIrrelevant p a
+
               let mp = case def of
                         Datatype{dataPars = np} -> Just np
                         Record{recPars = np}    -> Just np

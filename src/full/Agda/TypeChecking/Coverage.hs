@@ -173,14 +173,14 @@ isDatatype ind at = do
   case unEl t' of
     Def d args -> do
       def <- liftTCM $ theDef <$> getConstInfo d
+      splitOnIrrelevantDataAllowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
       case def of
         Datatype{dataPars = np, dataCons = cs, dataInduction = i}
           | i == CoInductive && ind /= CoInductive ->
               throwException $ CoinductiveDatatype t
-{- Andreas, 2011-10-03 allow some splitting on data (if only one constr. matches)
-          | argRelevance at == Irrelevant ->
+          -- Andreas, 2011-10-03 allow some splitting on data (if only one constr. matches)
+          | argRelevance at == Irrelevant && not splitOnIrrelevantDataAllowed ->
               throwException $ IrrelevantDatatype t
--}
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
@@ -406,6 +406,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
+    -- (this piece of code is unreachable if --experimental-irrelevance is off)
     (_ : _ : _) | unusableRelevance (argRelevance t) ->
       throwException $ IrrelevantDatatype (unArg t)
 

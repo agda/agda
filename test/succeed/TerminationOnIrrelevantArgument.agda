@@ -2,6 +2,7 @@
 -- Defining a universe for dependent types
 -- where the El function only depends on the type code but not on its
 -- proof of well-formedness
+{-# OPTIONS --experimental-irrelevance #-}
 module TerminationOnIrrelevantArgument where
 
 data ⊥ : Set where

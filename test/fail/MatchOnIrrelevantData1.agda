@@ -1,4 +1,5 @@
 -- Andreas, 2011-10-03
+{-# OPTIONS --experimental-irrelevance #-}
 module MatchOnIrrelevantData1 where
 
 data Nat : Set where
