@@ -49,7 +49,7 @@ import Agda.Compiler.MAlonzo.Primitives ( repl )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
     modName )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, fix, emp, object, subst, apply )
@@ -153,14 +153,14 @@ curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (iImportedModules <$> curIF)
   es <- mapM definition =<< (toList <$> curDefs)
-  return (Module m is (fix (object es)))
+  return (Module m es)
 
-definition :: (QName,Definition) -> TCM ([MemberId],Exp)
+definition :: (QName,Definition) -> TCM Export
 definition (q,d) = do
   (_,ls) <- global q
   d <- instantiateFull d
   e <- defn q ls (defType d) (defJSDef d) (theDef d)
-  return (ls, e)
+  return (Export ls e)
 
 defn :: QName -> [MemberId] -> Type -> Maybe JSCode -> Defn -> TCM Exp
 defn q ls t (Just e) Axiom =

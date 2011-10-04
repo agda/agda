@@ -9,7 +9,7 @@ import Agda.Syntax.Common ( Nat )
 
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup,If,BinOp,PreOp,Const),
-    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module),
+    LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Module(Module), Export(Export),
     globals )
 
 -- Pretty-print a lambda-calculus expression as ECMAScript.
@@ -100,13 +100,13 @@ block' n i e          = block n i e
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
-moddec :: GlobalId -> String
-moddec m = "var " ++ pretty 0 0 m ++ " = require (" ++ modname m ++ ");"
+instance Pretty Export where
+  pretty n i (Export ls e) =
+    "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n i e ++ ";"
 
 instance Pretty Module where
-  pretty n i (Module m is e) =
-    "define([" ++ intercalate "," (map modname js) ++ "]," ++
-    "function(" ++ intercalate "," (pretties n i js) ++ ") {" ++ br (i+1) ++
-    "var exports = " ++ pretty n (i+2) e ++ ";" ++ br (i+1) ++
-    "return exports;" ++ br i ++
+  pretty n i (Module m e) =
+    "define([" ++ intercalate "," ("\"exports\"" : map modname js) ++ "]," ++
+    "function(" ++ intercalate "," ("exports" : pretties n i js) ++ ") {" ++ br (i+1) ++
+    intercalate (br (i+1)) (pretties n (i+2) e) ++ br i ++
     "});" where js = toList (globals e)
