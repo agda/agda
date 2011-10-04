@@ -33,7 +33,7 @@ import Agda.TypeChecking.Monad
     JSCode, Defn(Record,Datatype,Constructor,Primitive,Function,Axiom),
     iModuleName, iImportedModules, theDef, getConstInfo, typeOfConst,
     ignoreAbstractMode, miInterface, getVisitedModules,
-    defType, funClauses, funProjection,
+    defName, defType, funClauses, funProjection,
     dataPars, dataIxs, dataClause, dataCons,
     conPars, conData, conSrcCon,
     recClause, recCon, recFields, recPars, recNamedCon,
@@ -136,13 +136,13 @@ global q = do
   d <- getConstInfo q
   case d of
     Defn { theDef = Constructor { conData = p } } -> do
-      d <- getConstInfo p
-      case d of
+      e <- getConstInfo p
+      case e of
         Defn { theDef = Record { recNamedCon = False } } -> do
           (m,ls) <- global' p
           return (m, ls ++ [MemberId "record"])
-        _ -> global' q
-    _ -> global' q
+        _ -> global' (defName d)
+    _ -> global' (defName d)
 
 --------------------------------------------------
 -- Main compiling clauses
