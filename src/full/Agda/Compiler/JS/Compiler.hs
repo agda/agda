@@ -7,7 +7,7 @@ import Control.Monad.Reader ( liftIO )
 import Control.Monad.State ( get, put )
 import Data.List ( intercalate, map, filter, isPrefixOf, concat, genericDrop, genericLength )
 import Data.Map
-  ( Map, null, empty, fold, singleton, fromList, toList, toAscList, insertWith, elems  )
+  ( Map, null, empty, fold, singleton, fromList, toList, toAscList, insertWith, elems )
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( pathSeparator, splitFileName, (</>) )
 
@@ -16,13 +16,15 @@ import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
 import Agda.Syntax.Common ( Nat, Arg, unArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
+import Agda.Syntax.Abstract.Name 
+  ( ModuleName(MName), QName(QName),
+    mnameToList, qnameName, qnameModule, isInModule )
 import Agda.Syntax.Internal
-  ( Name, Args, Type, ModuleName(MName), QName(QName),
+  ( Name, Args, Type,
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind),
     Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare),
-    toTopLevelModuleName, mnameToList, qnameName,
-    clausePats, clauseBody, arity, unEl, unAbs )
+    toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
 import Agda.TypeChecking.Level ( reallyUnLevelView )
@@ -115,15 +117,19 @@ jsMember n = MemberId (show n)
 -- anonymous constructors to M.R.record.
 
 global' :: QName -> TCM (Exp,[MemberId])
-global' (QName (MName ms) n) = do
+global' q = do
   i <- iModuleName <$> curIF
-  is <- iImportedModules <$> curIF
-  seg <- return (maximum (map length (filter (`isPrefixOf` ms) (map mnameToList (i : is)))))
-  m <- return (MName (take seg ms))
-  ls <- return (map jsMember (drop seg ms ++ [n]))
-  case (m == i) of
-    True -> return (Self, ls)
-    False -> return (Global (jsMod m), ls)
+  is <- filter (isInModule q) <$> map (iModuleName . miInterface) <$> elems <$> getVisitedModules
+  case is of
+    [] -> __IMPOSSIBLE__
+    _ -> let
+        seg = maximum (map (length . mnameToList) is)
+        ms = mnameToList (qnameModule q)
+        m = MName (take seg ms)
+        ls = map jsMember (drop seg ms ++ [qnameName q])
+      in case (m == i) of
+        True -> return (Self, ls)
+        False -> return (Global (jsMod m), ls)
 
 global :: QName -> TCM (Exp,[MemberId])
 global q = do
