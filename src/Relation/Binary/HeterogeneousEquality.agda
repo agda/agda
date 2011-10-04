@@ -158,17 +158,6 @@ preorder A = record
   }
 
 ------------------------------------------------------------------------
--- The inspect idiom
-
--- See Relation.Binary.PropositionalEquality.Inspect.
-
-data Inspect {a} {A : Set a} (x : A) : Set a where
-  _with-≅_ : (y : A) (eq : y ≅ x) → Inspect x
-
-inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
-inspect x = x with-≅ refl
-
-------------------------------------------------------------------------
 -- Convenient syntax for equational reasoning
 
 module ≅-Reasoning where
