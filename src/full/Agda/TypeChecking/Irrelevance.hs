@@ -4,17 +4,16 @@
 -}
 module Agda.TypeChecking.Irrelevance where
 
+import Control.Applicative
 import Control.Monad.Reader
 
 import qualified Data.Map as Map
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 
 import Agda.TypeChecking.Monad
-{-
-import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Monad.Context
--}
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -110,10 +109,21 @@ applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
 -- | Modify the context whenever going from the l.h.s. (term side)
 --   of the typing judgement to the r.h.s. (type side).
 workOnTypes :: TCM a -> TCM a
-workOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes'
+workOnTypes cont = do
+  allowed <- optExperimentalIrrelevance <$> pragmaOptions
+  verboseBracket "tc.irr" 20 "workOnTypes" $ workOnTypes' allowed cont
 
-workOnTypes' :: TCM a -> TCM a
-workOnTypes' = liftTCM . modifyContext (modifyContextEntries $ modifyArgRelevance $ irrToNonStrict)
+-- | Call me if --experimental-irrelevance is set.
+doWorkOnTypes :: TCM a -> TCM a
+doWorkOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes' True
+
+-- | Internal workhorse, expects value of --experimental-irrelevance flag
+--   as argument.
+workOnTypes' :: Bool -> TCM a -> TCM a
+workOnTypes' allowed cont =
+  if allowed then
+    liftTCM $ modifyContext (modifyContextEntries $ modifyArgRelevance $ irrToNonStrict) cont
+   else cont
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
 --   For instance,

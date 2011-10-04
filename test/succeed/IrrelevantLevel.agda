@@ -1,3 +1,4 @@
+{-# OPTIONS --experimental-irrelevance #-}
 -- {-# OPTIONS -v tc.univ:100 -v tc.meta:100 #-}
 --{-# OPTIONS -v tc.rec:100 #-}
 -- Andreas, 2011-04-27 universe levels can be made irrelevant
@@ -7,7 +8,19 @@
 -- but nl i A = nl j A  for all i,j.
 module IrrelevantLevel where
 
-open import Common.Level
+-- open import Common.Level
+postulate
+  Level : Set
+  lzero : Level
+  lsuc  : (i : Level) → Level
+  _⊔_   : Level -> Level -> Level
+
+{-# BUILTIN LEVEL     Level #-}
+{-# BUILTIN LEVELZERO lzero  #-}
+{-# BUILTIN LEVELSUC  lsuc   #-}
+{-# BUILTIN LEVELMAX  _⊔_ #-}
+
+infixl 6 _⊔_
 
 postulate 
   Lst : .(i : Level)(A : Set i) -> Set i

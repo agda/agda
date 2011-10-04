@@ -14,6 +14,8 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (traverse)
 
+import Agda.Interaction.Options
+
 import qualified Agda.Syntax.Abstract as A
 import qualified Agda.Syntax.Abstract.Views as A
 import qualified Agda.Syntax.Info as A
@@ -203,19 +205,21 @@ checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
 
 checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
-    t <- modEnv lamOrPi $ isType_ e
     -- Andreas, 2011-04-26 irrelevant function arguments may appear
     -- non-strictly in the codomain type
-    addCtxs xs (Arg h (modRel lamOrPi rel) t) $ ret $ mkTel xs t
+    -- 2011-10-04 if flag --experimental-irrelevance is set
+    allowed <- optExperimentalIrrelevance <$> pragmaOptions
+    t <- modEnv lamOrPi allowed $ isType_ e
+    addCtxs xs (Arg h (modRel lamOrPi allowed rel) t) $ ret $ mkTel xs t
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
         -- otherwise, if we are checking a pi, we do not resurrect, but
         -- modify the new context entries
-        modEnv LamNotPi = workOnTypes
-        modEnv PiNotLam = id
-        modRel LamNotPi = id
-        modRel PiNotLam = irrToNonStrict
+        modEnv LamNotPi True = doWorkOnTypes
+        modEnv _        _    = id
+        modRel PiNotLam True = irrToNonStrict
+        modRel _        _    = id
 	mkTel [] t     = []
 	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
 checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do

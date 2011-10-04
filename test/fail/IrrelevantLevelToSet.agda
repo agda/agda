@@ -1,3 +1,4 @@
+{-# OPTIONS --experimental-irrelevance #-}
 {-# OPTIONS --universe-polymorphism #-}
 module IrrelevantLevelToSet where
 
