@@ -96,36 +96,6 @@ Language
 * When the --without-K flag is used literals are now treated as
   constructors.
 
-* Dependent irrelevant function types.
-
-  Non-dependent function types .A -> B are completed by their dependent
-  counterpart.
-
-    .(x y : A) -> B    .{x y z : A} -> B
-    forall x .y -> B   forall x .{y} {z} .v -> B
-
-  A declaration
-
-    f : .(x : A) -> B
-    f x = t
-
-  means that x is irrelevant in t and in B.  This is possible e.g. if
-  B : .A -> Set.  Dependent irrelevance allows us to define the eliminator
-  for the Squash type:
-
-    record Squash (A : Set) : Set where
-      constructor squash
-      field
-        .proof : A
-
-    ElimSq = {A : Set}(P : Squash A -> Set)
-             (ih : .(a : A) -> P (squash a)) ->
-             (a- : Squash A) -> P a-
-    elimSq : ElimSq
-    elimSq P ih (squash a) = ih a
-
-  Note that this would not type-check with (ih : (a : A) -> P (squash a)).
-
 * Unused Agdalight legacy syntax (x y : A; z v : B) for telescopes removed.
 
 * Under-applied functions can still reduce.
@@ -306,11 +276,13 @@ Language
   Example:
     primQNameType (quote ℕ.zero) ≡ def (quote ℕ) []
 
-* A new construct has been introduced to inject mechanically defined terms, namely `unquote'.
-  The `unquote' construct extends the syntax of Agda terms and is applied to an Agda term.
-  This inner term have the type Term (from the reflection API). Once type-checked this inner
-  term is reduced to a Term value and treated as if user wrote such a term. Thus the resulting
-  term is spliced at this program point and type-checking continue on this new term. Example:
+* A new construct has been introduced to inject mechanically defined
+  terms, namely `unquote'.  The `unquote' construct extends the syntax
+  of Agda terms and is applied to an Agda term.  This inner term has
+  type Term (from the reflection API).  Once type-checked, this
+  inner term is reduced to a Term value and treated as if user wrote
+  such a term. Thus, the resulting term is spliced at this program
+  point and type-checking continues with this new term.  Example:
 
     test : unquote (def (quote ℕ) []) ≡ ℕ
     test = refl
@@ -353,16 +325,16 @@ Language
     ...
     .extlam pm1 .. pmn = em
 
-  This means that anonymous pattern matching functions are generative, as they will be
-  translated to different function definitions. For example, refl will not be accepted as
-  an inhabitant of the type
+  This means that anonymous pattern matching functions are generative,
+  as they will be translated to different function definitions. For
+  example, refl will not be accepted as an inhabitant of the type
 
     (λ { true -> true ; false -> false }) ≡ (λ { true -> true ; false -> false })
 
   as this internally gets translated to extlam1 ≡ extlam2.
 
-  Currently, `where' and `with' expressions are not allowed for anonymous pattern matching
-  functions.
+  Currently, `where' and `with' expressions are not allowed for
+  anonymous pattern matching functions.
 
   Examples:
 
@@ -379,6 +351,69 @@ Language
 
     snd : {A : Set}{B : A -> Set} -> (x : Σ A B) -> B (fst x)
     snd = λ { (a , b) -> b }
+
+
+Irrelevance
+-----------
+
+* Dependent irrelevant function types.
+
+  Non-dependent function types .A -> B are completed by their dependent
+  counterpart.
+
+    .(x y : A) -> B    .{x y z : A} -> B
+    forall x .y -> B   forall x .{y} {z} .v -> B
+
+  A declaration
+
+    f : .(x : A) -> B
+    f x = t
+
+  means that x is irrelevant in t and in B.  This is possible e.g. if
+  B : .A -> Set.  Dependent irrelevance allows us to define the eliminator
+  for the Squash type:
+
+    record Squash (A : Set) : Set where
+      constructor squash
+      field
+        .proof : A
+
+    ElimSq = {A : Set}(P : Squash A -> Set)
+             (ih : .(a : A) -> P (squash a)) ->
+             (a- : Squash A) -> P a-
+    elimSq : ElimSq
+    elimSq P ih (squash a) = ih a
+
+  Note that this would not type-check with (ih : (a : A) -> P (squash a)).
+
+* Records with only irrelevant fields.  The following now works:
+
+    record IsEquivalence {a ℓ} {A : Set a}
+                         (_≈_ : Rel A ℓ) : Set (a ⊔ ℓ) where
+      field
+        .refl  : Reflexive _≈_
+        .sym   : Symmetric _≈_
+        .trans : Transitive _≈_
+  
+    record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
+      infix 4 _≈_
+      field
+        Carrier       : Set c
+        _≈_           : Rel Carrier ℓ
+        .isEquivalence : IsEquivalence _≈_
+  
+      open IsEquivalence isEquivalence public
+  
+  Before, Agda complained at the open that isEquivalence is irrelevant,
+  in conflict with the relevant record argument of module IsEquivalence.
+  Now, for all-irrelevant records like IsEquivalence, the associated
+  module will have an irrelevant record parameter.
+
+    module IsEquivalence <pars> .(r : IsEquivalence <pars>) where ...
+
+* New flag --experimental-irrelevance enables irrelevant universe levels
+  and matching on irrelevant data when only one constructor is available.
+  These features are very experimental and likely to change or disappear.
 
 
 Meta Variables and Unification
@@ -581,9 +616,9 @@ Tools
 
   Agda records are translated to ECMAScript objects, preserving field names.
 
-  Agda modules are translated to ECMAScript modules, following the common.js
-  module specification.  An Agda module "Foo.Bar" is translated to an ECMAScript
-  module "jAgda.Foo.Bar".
+  Agda modules are translated to ECMAScript modules, following the
+  common.js module specification.  An Agda module "Foo.Bar" is
+  translated to an ECMAScript module "jAgda.Foo.Bar".
 
   The ECMAScript compiler does not compile to Haskell, so the pragmas
   related to the Haskell FFI (IMPORT, COMPILED_DATA and COMPILED) are
