@@ -34,49 +34,24 @@ import Agda.Utils.Permutation
 -- | The type of @&#x221e@.
 
 typeOfInf :: TCM Type
-typeOfInf = do
-  kit <- requireLevels
-  return $
-    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
-               (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argN $ sort $ varSort 0)
-                                 (Abs "A" $ sort $ varSort 1))))
+typeOfInf = hPi "a" (el primLevel) $
+            (return . sort $ varSort 0) --> (return . sort $ varSort 0)
 
 -- | The type of @&#x266f_@.
 
 typeOfSharp :: TCM Type
-typeOfSharp = do
-  kit <- requireLevels
-  inf <- (\t -> case t of
-                  Def q _ -> q
-                  _       -> __IMPOSSIBLE__)
-         <$> primInf
-  return $
-    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
-               (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argH $ sort $ varSort 0)
-                                 (Abs "A" $ El (varSort 1)
-                                               (Pi (argN $ El (varSort 1) (Var 0 []))
-                                                   (Abs "x" $ El (varSort 2)
-                                                                 (Def inf [argH (Var 2 []), argN (Var 1 [])])))))))
+typeOfSharp = hPi "a" (el primLevel) $
+              hPi "A" (return . sort $ varSort 0) $
+              (El (varSort 1) <$> var 0) -->
+              (El (varSort 1) <$> primInf <#> var 1 <@> var 0)
 
 -- | The type of @&#x266d@.
 
 typeOfFlat :: TCM Type
-typeOfFlat = do
-  kit <- requireLevels
-  inf <- (\t -> case t of
-                  Def q _ -> q
-                  _       -> __IMPOSSIBLE__)
-         <$> primInf
-  return $
-    El Inf (Pi (argH $ El (mkType 0) (lvlType kit))
-               (Abs "a" $ El (sSuc $ varSort 0)
-                             (Pi (argH $ sort $ varSort 0)
-                                 (Abs "A" $ El (varSort 1)
-                                               (Pi  (argN $ El (varSort 1)
-                                                               (Def inf [argH (Var 1 []), argN (Var 0 [])]))
-                                                    (NoAbs "_" $ El (varSort 1) (Var 0 [])))))))
+typeOfFlat = hPi "a" (el primLevel) $
+             hPi "A" (return . sort $ varSort 0) $
+             (El (varSort 1) <$> primInf <#> var 1 <@> var 0) -->
+             (El (varSort 1) <$> var 0)
 
 -- | Binds the INFINITY builtin, but does not change the type's
 -- definition.
