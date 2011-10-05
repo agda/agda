@@ -353,6 +353,19 @@ Language
     snd = λ { (a , b) -> b }
 
 
+* A new pragma has been added: STATIC
+
+  In the Epic backend, functions marked with the STATIC pragma will be
+  normalised before compilation.  Example usage:
+
+    power : Nat -> Nat ->Nat
+    power 0       x = 1
+    power (suc n) x = power n x * x
+
+  {-# STATIC power #-}
+  An occurence of power 4 x will be rolled out to be x * x * x * x.
+
+
 Irrelevance
 -----------
 

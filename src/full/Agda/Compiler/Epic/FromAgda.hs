@@ -132,7 +132,7 @@ reverseCCBody c cc = case cc of
         $ CC.Branches (M.map (reverseCCBody c) cbr)
           (M.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
-    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) 
+    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var [])
                                (reverse $ take (length i) [fromIntegral c..])) t)
     CC.Fail     -> CC.Fail
 
