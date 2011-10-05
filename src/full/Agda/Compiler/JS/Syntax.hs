@@ -45,7 +45,7 @@ newtype MemberId = MemberId String
 
 -- The top-level compilation unit is a module, which names
 -- the GId of its exports, and a list of definitions
- 
+
 data Export = Export { expName :: [MemberId], defn :: Exp }
   deriving (Typeable, Data, Show)
 
@@ -57,13 +57,13 @@ data Module = Module { modName :: GlobalId, exports :: [Export] }
 
 class Globals a where
   globals :: a -> Set GlobalId
-  
+
 instance Globals a => Globals [a] where
   globals = foldr (union . globals) empty
 
 instance Globals a => Globals (Map k a) where
   globals = fold (union . globals) empty
-  
+
 instance Globals Exp where
   globals (Global i) = singleton i
   globals (Lambda n e) = globals e
@@ -80,4 +80,4 @@ instance Globals Export where
 
 instance Globals Module where
   globals (Module m es) = globals es
-  
+

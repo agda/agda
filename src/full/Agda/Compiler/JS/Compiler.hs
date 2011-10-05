@@ -16,7 +16,7 @@ import Agda.Interaction.Imports ( isNewerThan )
 import Agda.Interaction.Options ( optCompileDir )
 import Agda.Syntax.Common ( Nat, Arg, unArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
-import Agda.Syntax.Abstract.Name 
+import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName(QName),
     mnameToList, qnameName, qnameModule, isInModule )
 import Agda.Syntax.Internal

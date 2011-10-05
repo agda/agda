@@ -109,5 +109,5 @@ instance Pretty Module where
     "define([" ++ intercalate "," ("\"exports\"" : map modname js) ++ "]," ++
     "function(" ++ intercalate "," ("exports" : pretties n i js) ++ ") {" ++ br (i+1) ++
     intercalate (br (i+1)) (pretties n (i+2) e) ++ br i ++
-    "});" ++ br i 
+    "});" ++ br i
       where js = toList (globals e)
