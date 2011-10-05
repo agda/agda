@@ -16,11 +16,11 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Internal as SI
 import Agda.Syntax.Literal
 import Agda.Syntax.Position(noRange)
-import Agda.Syntax.Internal(Tele(..), Telescope, Term, absBody, Type, Args, QName, unEl)
+import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, Type, Args, QName, unEl)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
-import Agda.TypeChecking.Substitute (raiseFrom, raise, substs, apply, TelView(..))
+import Agda.TypeChecking.Substitute (raiseFrom, raise, substs, apply, TelV(..))
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Reduce
@@ -98,7 +98,7 @@ insertTele x 0 ins term (ExtendTel t to) = do
     report 12 $ vcat
       [ text "t' :" <+> prettyTCM t'
       , text "term:" <+> prettyTCM term
-      , text "to:"   <+> prettyTCM (absBody to)
+      , text "to:"   <+> prettyTCM (unAbs to)
       ]
     (st, arg) <- case SI.unEl . unArg $ t' of
             SI.Def st arg -> return (st, arg)
@@ -120,7 +120,7 @@ insertTele x 0 ins term (ExtendTel t to) = do
         then return ()
         else __IMPOSSIBLE__
     -- we deal with absBody to directly since we remove t
-    return ( ctele +:+  (S.subst term $ S.raiseFrom 1 (size ctele) (absBody to))
+    return ( ctele +:+  (S.subst term $ S.raiseFrom 1 (size ctele) (unAbs to))
            , (ctele, S.raise (size ctele) $ unArg t , ctyp)
            )
   where
@@ -128,12 +128,12 @@ insertTele x 0 ins term (ExtendTel t to) = do
     -- bindings need to be preserved
     (+:+) :: Telescope -> Telescope -> Telescope
     EmptyTel       +:+ t2 = t2
-    ExtendTel t t1 +:+ t2 = ExtendTel t t1 {absBody = absBody t1 +:+ {-raise 1-} t2 }
+    ExtendTel t t1 +:+ t2 = ExtendTel t (Abs (absName t1) $ unAbs t1 +:+ {-raise 1-} t2 )
 -- This case is impossible since we are trying to split a variable outside the tele
 insertTele x n ins term EmptyTel = __IMPOSSIBLE__
 insertTele er n ins term (ExtendTel x xs) = do
-    (xs', typ) <- insertTele er (n - 1) ins term (absBody xs)
-    return (ExtendTel x xs {absBody = xs'} , typ)
+    (xs', typ) <- insertTele er (n - 1) ins term (unAbs xs)
+    return (ExtendTel x $ Abs (absName xs) xs' , typ)
 
 mkCon c n = SI.Con c [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
@@ -141,7 +141,7 @@ unifyI :: Telescope -> [Nat] -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
 
 takeTele 0 _ = EmptyTel
-takeTele n (ExtendTel t ts) = ExtendTel t ts {absBody = takeTele (n-1) (absBody ts) }
+takeTele n (ExtendTel t ts) = ExtendTel t $ Abs (absName ts) $ takeTele (n-1) (unAbs ts)
 takeTele _ _ = __IMPOSSIBLE__
 
 -- | Main function for removing pattern matching on forced variables
@@ -224,10 +224,10 @@ forcedExpr vars tele expr = case expr of
                                               | (n , t) <- zip [0..] (unif ++ repeat Nothing)]
                                       in (S.substs ss tel, lower ss)
                         subT n (ExtendTel a t) = let
-                               (tb' , ss) = subT (n - 1) (absBody t)
+                               (tb' , ss) = subT (n - 1) (unAbs t)
                                a' | all isOk (take 100 ss) = S.substs ss a
                                   | True    = __IMPOSSIBLE__
-                            in (ExtendTel a t{absBody = tb'}, lower ss)
+                            in (ExtendTel a $ Abs (absName t) tb', lower ss)
                         subT _ _ = __IMPOSSIBLE__
                         (tele'''', _) = subT (n + length as) tele''
                     report 10 $ nest 2 $ vcat

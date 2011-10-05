@@ -214,7 +214,7 @@ addJSCode q jsDef =
   where
     addJS e def = def{defCompiledRep = (defCompiledRep def){compiledJS = e}}
 
-markStatic :: MonadTCM tcm => QName -> tcm ()
+markStatic :: QName -> TCM ()
 markStatic q =
   modifySignature $ \sig -> sig
   { sigDefinitions = Map.adjust mark q $ sigDefinitions sig }
@@ -361,6 +361,7 @@ applySection new ptel old ts rd rm = do
                         , funArgOccurrences = drop (length ts') oldOcc
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
+                        , funStatic         = False
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef

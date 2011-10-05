@@ -18,8 +18,9 @@ data Keyword
 	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
-        | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS
-        | KwIMPORT | KwIMPOSSIBLE | KwETA | KwQuoteGoal | KwQuote | KwUnquote | KwSyntax
+	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS
+	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwSTATIC
+	| KwQuoteGoal | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

@@ -70,7 +70,7 @@ erasure fs = do
     rem rels f@Fun{} = f { funExpr = removeUnused rels (funExpr f) }
     rem _    f       = f
     -- | Perform the worker//wrapper transform
-    check :: Fun -> Maybe [Relevancy] -> Compile TCM [Fun]
+    check :: Fun -> Maybe [Relevance] -> Compile TCM [Fun]
     -- If the function is already marked as to inline we don't need to create a
     -- new function. Also If all arguments are relevant there is nothing to do.
     check f@Fun{} (Just rs) | any isIrr rs && not (funInline f) = do
@@ -133,8 +133,7 @@ initiate f@(EpicFun {funName = name, funQName = mqname}) = case mqname of
 initialRels :: SI.Type -> Relevance -> [Relevance]
 initialRels ty rel =
     case SI.unEl ty of
-        SI.Pi  a b -> mkRel a : initialRels (SI.absBody b) rel
-        SI.Fun a b -> mkRel a : initialRels b rel
+        SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
         _       -> []
   where
     mkRel :: SC.Arg SI.Type -> Relevance

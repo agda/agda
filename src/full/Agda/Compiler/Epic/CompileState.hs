@@ -20,7 +20,7 @@ import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions)
+import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions, stPersistent)
 import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 
@@ -157,7 +157,7 @@ putMain m = modifyEI $ \s -> s { mainName = Just m }
 getMain :: Compile TCM Var
 getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< getsEI mainName
 
-lookInterface :: MonadTCM m => (EInterface -> Maybe a) -> Compile m a -> Compile m a
+lookInterface :: (EInterface -> Maybe a) -> Compile TCM a -> Compile TCM a
 lookInterface f def = do
     cur <- gets curModule
     case f cur of
@@ -184,9 +184,9 @@ getForcedArgs q = lookInterface (M.lookup q . forcedArgs) __IMPOSSIBLE__
 
 putForcedArgs :: QName -> ForcedArgs -> Compile TCM ()
 putForcedArgs n f = do
-  f' <- ifM (lift $ gets (optForcing . stPersistentOptions))
-      (return f)
-      (return $ replicate (length f) NotForced)
+  b <- lift $ gets (optForcing . stPersistentOptions . stPersistent)
+  let f' | b = f
+         | otherwise = replicate (length f) NotForced
   modifyEI $ \s -> s {forcedArgs = M.insert n f' $ forcedArgs s}
 
 replaceAt :: Int -- ^ replace at
@@ -206,7 +206,7 @@ constructorArity q = do
     _ -> internalError $ "constructorArity: non constructor: " ++ show q
 
 -- | Bind an expression to a fresh variable name
-bindExpr :: Expr -> (Var -> Compile m Expr) -> Compile TCM Expr
+bindExpr :: Expr -> (Var -> Compile TCM Expr) -> Compile TCM Expr
 bindExpr expr f = case expr of
   AuxAST.Var v -> f v
   _     -> do

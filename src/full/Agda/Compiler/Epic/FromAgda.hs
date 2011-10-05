@@ -87,14 +87,13 @@ translateDefn msharp (n, defini) =
     mkCon q tag ari = do
         let name = unqname q
         mkFunGen q (flip Con q) (const $ "constructor: " ++ show q) name tag ari
-    mkFunGen :: Monad m
-            => QName                    -- ^ Original name
+    mkFunGen :: QName                    -- ^ Original name
             -> (name -> [Expr] -> Expr) -- ^ combinator
             -> (name -> String)         -- ^ make comment
             -> Var                      -- ^ Name of the function
             -> name                     -- ^ Primitive function name
             -> Int                      -- ^ Arity ofthe function
-            -> Compile m Fun            -- ^ Result?
+            -> Compile TCM Fun            -- ^ Result?
     mkFunGen qn comb sh name primname arit = do
         vars <- replicateM arit newName
         return $ Fun True name (Just qn) (sh primname) vars (comb primname (map Var vars))
@@ -133,7 +132,8 @@ reverseCCBody c cc = case cc of
         $ CC.Branches (M.map (reverseCCBody c) cbr)
           (M.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
-    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [fromIntegral c..])) t)
+    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) 
+                               (reverse $ take (length i) [fromIntegral c..])) t)
     CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.

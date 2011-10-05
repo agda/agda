@@ -113,9 +113,9 @@ library
                     Agda.Compiler.Epic.CaseOpts
                     Agda.Compiler.Epic.Compiler
                     Agda.Compiler.Epic.CompileState
-                    Agda.Compiler.Epic.ForceConstrs
-                    Agda.Compiler.Epic.Erasure
                     Agda.Compiler.Epic.Epic
+                    Agda.Compiler.Epic.Erasure
+                    Agda.Compiler.Epic.ForceConstrs
                     Agda.Compiler.Epic.Forcing
                     Agda.Compiler.Epic.FromAgda
                     Agda.Compiler.Epic.Injection
