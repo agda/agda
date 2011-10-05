@@ -1,5 +1,3 @@
-{-# OPTIONS --universe-polymorphism #-}
-
 module Common.Equality where
 
 open import Common.Level
