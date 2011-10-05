@@ -20,7 +20,11 @@ import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
 
-import Agda.TypeChecking.Monad.Base (MonadTCM)
+import Agda.TypeChecking.Monad.Base (TCM)
+import qualified Agda.Syntax.Internal as SI
+import qualified Agda.Syntax.Common   as SC
+import Agda.TypeChecking.Monad (MonadTCM, reportSDoc)
+import Agda.TypeChecking.Pretty as P
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -66,7 +70,7 @@ erasure fs = do
     rem rels f@Fun{} = f { funExpr = removeUnused rels (funExpr f) }
     rem _    f       = f
     -- | Perform the worker//wrapper transform
-    check :: MonadTCM m => Fun -> Maybe [Relevancy] -> Compile m [Fun]
+    check :: Fun -> Maybe [Relevancy] -> Compile TCM [Fun]
     -- If the function is already marked as to inline we don't need to create a
     -- new function. Also If all arguments are relevant there is nothing to do.
     check f@Fun{} (Just rs) | any isIrr rs && not (funInline f) = do
@@ -110,7 +114,7 @@ removeUnused rels t = let rem = removeUnused rels
     IMPOSSIBLE    -> t
 
 -- | Initiate a function's relevancies
-initiate :: MonadTCM m => Fun -> Erasure (Compile m) ()
+initiate :: Fun -> Erasure (Compile TCM) ()
 initiate f@(Fun _ name mqname _ args _) = do
     let rels = replicate (length args) Irr
     modify $ \s -> s { relevancies = M.insert name rels (relevancies s)
@@ -187,7 +191,7 @@ relevant var expr = case expr of
     -- relevants v es = return . foldr (\x y -> x ||- y) Irr =<< mapM (relevant v) es
 
 -- | Try to find a fixpoint for all the functions relevance.
-step :: (MonadTCM m, Functor m) => Integer -> Erasure (Compile m) (Map Var [Relevance])
+step :: Integer -> Erasure (Compile TCM) (Map Var [Relevance])
 step nrOfLoops = do
     s  <- get
     newRels <- (M.fromList <$>) $ forM (M.toList (funs s)) $ \(v, f) -> ((,) v <$>) $ do

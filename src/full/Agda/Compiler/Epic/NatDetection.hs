@@ -25,7 +25,7 @@ import Agda.Utils.Impossible
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
-getNatish :: MonadTCM m => Compile m [(IrrFilter,[QName])]
+getNatish :: Compile TCM [(ForcedArgs, [QName])]
 getNatish = do
   sig <- lift (gets (sigDefinitions . stImports))
   let defs = M.toList sig
@@ -35,7 +35,7 @@ getNatish = do
 
       _ -> return Nothing
 
-isNatish :: MonadTCM m => QName -> Defn -> Compile m (Maybe (ForcedArgs, [QName]))
+isNatish :: QName -> Defn -> Compile TCM (Maybe (ForcedArgs, [QName]))
 isNatish q d = do -- A datatype ...
     case dataCons d of
         constrs | length constrs == 2 -> do -- with two constructors ...

@@ -49,7 +49,7 @@ import qualified Agda.Compiler.Epic.Smashing     as Smash
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-compilePrelude :: MonadTCM m => Compile m ()
+compilePrelude :: Compile TCM ()
 compilePrelude = do
     dataDir <- (</> "EpicInclude") <$> liftIO getDataDir
     pwd <- liftIO $ getCurrentDirectory
@@ -81,7 +81,7 @@ compilerMain inter = do
            , "See the README for more information."
            ]
 
-outFile :: MonadTCM m => CN.TopLevelModuleName -> Compile m FilePath
+outFile :: CN.TopLevelModuleName -> Compile TCM FilePath
 outFile mod = do
   let (dir, fn) = splitFileName . foldl1 (</>) $ CN.moduleNameParts mod
       fp  | dir == "./"  = "src" </> fn
@@ -142,9 +142,11 @@ compileModule i = do
 -- | Before running the compiler, we need to store some things in the state,
 --   namely constructor tags, constructor irrelevancies and the delayed field
 --   in functions (for coinduction).
-initialAnalysis :: MonadTCM m => Compile m ()
-initialAnalysis = do
-  defs <- M.toList <$> lift (gets (sigDefinitions . stImports))
+initialAnalysis :: Interface -> Compile TCM ()
+initialAnalysis inter = do
+  Prim.initialPrims
+  modify $ \s -> s {curModule = mempty}
+  let defs = M.toList $ sigDefinitions $ iSignature inter
   forM_ defs $ \(q, def) -> do
     addDefName q
     case theDef def of
@@ -176,29 +178,21 @@ idPrint s m x = do
   m x
 
 -- | Perform the chain of compilation stages, from definitions to epic code
-compileDefns :: MonadTCM m => [(QName, Definition)] -> Compile m (Maybe EpicCode)
+compileDefns :: [(QName, Definition)] -> Compile TCM EpicCode
 compileDefns defs = do
     -- We need to handle sharp (coinduction) differently, so we get it here.
     msharp <- lift $ getBuiltin' builtinSharp
-    emits   <- FAgda.fromAgda msharp defs
-               >>= Prim.primitivise
-               >>= irr -- CIrr.constrIrr
-               >>= Eras.erasure
-               >>= LL.lambdaLift
-    if null emits
-       then return Nothing
-       else return . return . unlines . map prettyEpicFun $ emits
-  where
-    irr ds = do
-        f <- lift $ gets (optForcing . stPersistentOptions)
-        if f then CIrr.constrIrr ds
-             else return ds
-
--- | Compile all definitions from a signature
-compileModule :: MonadTCM m => Signature -> Compile m (Maybe EpicCode)
-compileModule sig = do
-    let defs = M.toList $ sigDefinitions sig
-    compileDefns defs
+    emits   <- return defs
+               >>= idPrint "findInjection" ID.findInjection
+               >>= idPrint "fromAgda"   (FAgda.fromAgda msharp)
+               >>= idPrint "forcing"     Forcing.remForced
+               >>= idPrint "irr"         ForceC.forceConstrs
+               >>= idPrint "primitivise" Prim.primitivise
+               >>= idPrint "smash"       Smash.smash'em
+               >>= idPrint "erasure"     Eras.erasure
+               >>= idPrint "caseOpts"    COpts.caseOpts
+               >>= idPrint "done" return
+    unlines <$> mapM prettyEpicFun emits
 
 -- | Change the current directory to Epic folder, create it if it doesn't already
 --   exist.
@@ -217,19 +211,19 @@ setEpicDir mainI = do
 --
 -- The program is written to the file @../m@, where m is the last
 -- component of the given module name.
-runEpic :: MonadTCM m => ModuleName -> EpicCode -> Compile m ()
-runEpic m code = do
-    nam <- getMain
-    epicflags <- optEpicFlags <$> lift commandLineOptions
-    let code' = "include \"AgdaPrelude.e\"\n" ++ code ++ "main() -> Unit = init() ; " ++ nam ++ "(unit)"
-    dataDir <- liftIO getDataDir
-    curDir  <- liftIO getCurrentDirectory
-    liftIO $ copyFile (dataDir </> "EpicInclude" </> "AgdaPrelude" <.> "e")
-                      (curDir </> "AgdaPrelude" <.> "e")
-    liftIO $ writeFile ("main" <.> "e") code'
+runEpic :: FilePath -> [FilePath] -> EpicCode -> Compile TCM ()
+runEpic fp imports code = do
+    dataDir <- (</> "EpicInclude") <$> liftIO getDataDir
+    let imports' = unlines ["include \"" ++ imp ++ "\""
+                           | imp <- (dataDir </> "AgdaPrelude.ei")
+                                    : map (<.> "ei") imports]
+        code'    = imports' ++ code
+    liftIO $ writeFile (fp <.> "e") code'
+    callEpic True $
+        [ "-c", fp <.> "e" ]
 
 -- | Create the Epic main file, which calls the Agda main function
-runEpicMain :: MonadTCM m => Var -> [FilePath] -> ModuleName -> Compile m ()
+runEpicMain :: Var -> [FilePath] -> ModuleName -> Compile TCM ()
 runEpicMain mainName imports m = do
     dataDir <- (</> "EpicInclude") <$> liftIO getDataDir
     let imports' = (dataDir </> "AgdaPrelude") : imports
@@ -248,13 +242,13 @@ runEpicMain mainName imports m = do
 
 -- | Call epic, with a given set of flags, if the |Bool| is True then include
 -- the command line flags at the end
-callEpic :: MonadTCM m => Bool -> [String] -> Compile m ()
+callEpic :: Bool -> [String] -> Compile TCM ()
 callEpic incEFlags flags = callEpic' $ \epicFlags ->
   flags ++ if incEFlags then epicFlags else []
 
 -- | Call epic with a given set of flags, the argument function receives the flags given
 -- at the command line
-callEpic' :: MonadTCM m => ([String] -> [String]) -> Compile m ()
+callEpic' :: ([String] -> [String]) -> Compile TCM ()
 callEpic' flags = do
     epicFlags <- optEpicFlags <$> lift commandLineOptions
     dataDir   <- (</> "EpicInclude") <$> liftIO getDataDir

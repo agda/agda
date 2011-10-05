@@ -48,7 +48,7 @@ primitivise funs = do
     mapM (primFun $ ptfs ++ map (uncurry natPrimTF) natish) funs
 
 -- | Map primitive constructors to primitive tags
-initialPrims :: MonadTCM m => Compile m () -- [Fun]
+initialPrims :: Compile TCM () -- [Fun]
 initialPrims = do
   -- TODO: Natishness is calculated here and could be stored so it does not have
   --       to be recalculated in primitivise
@@ -77,41 +77,6 @@ initialPrims = do
                 zipWithM_ putConstrTag names tags
            else return ()
 
--- | Create primitive functions if list constructors are marked as builtins
-primLists :: MonadTCM m => Compile m [Fun]
-primLists = do
-    mnil  <- lift $ getBuiltin' builtinNil
-    mcons <- lift $ getBuiltin' builtinCons
-    case (mnil, mcons) of
-      (Just (T.Con nil []), Just (T.Con cons [])) -> do
-          [nilT, consT] <- mapM getConstrTag [nil, cons]
-          let fun s n = Fun
-                   { funInline  = True
-                   , funName    = "prim" ++ s
-                   , funComment = "BUILTIN " ++ s
-                   , funArgs    = []
-                   , funExpr    = Var (unqname n)
-                   }
-          return [ fun "Nil" nil
-                 , fun "Cons" cons
-                 , Fun
-                    { funInline  = False
-                    , funName    = "primListElim"
-                    , funComment = "Eliminator for Lists"
-                    , funArgs    = ["op" , "z" , "xs"]
-                    , funExpr    = Case (Var "xs")
-                        [ Branch nilT nil [] $ Var "z"
-                        , Branch consT cons ["y", "ys"] $
-                            App "op" [ Var "y"
-                                     , App "primListElim" [ Var "op"
-                                                          , Var "z"
-                                                          , Var "ys"
-                                                          ]
-                                     ]
-                        ]
-                    }
-                 ]
-      _                     -> return []
 -- | Build transforms using the names of builtins
 getBuiltins :: Compile TCM [PrimTransform]
 getBuiltins =

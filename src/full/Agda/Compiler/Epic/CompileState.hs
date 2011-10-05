@@ -20,8 +20,8 @@ import Agda.Interaction.Options
 import Agda.Syntax.Internal
 import Agda.Syntax.Concrete(TopLevelModuleName)
 import Agda.Syntax.Common
-import Agda.TypeChecking.Monad (MonadTCM, internalError, defType, theDef, getConstInfo)
-import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Monad (TCM, internalError, defType, theDef, getConstInfo, sigDefinitions, stImports, stPersistentOptions)
+import qualified Agda.TypeChecking.Monad as TM
 import Agda.TypeChecking.Reduce
 
 #include "../../undefined.h"
@@ -51,19 +51,20 @@ initCompileState = CompileState
 -- | Compiler monad
 type Compile = StateT CompileState
 
-epicError :: MonadTCM m => String -> Compile m a
+-- | When normal errors are not enough
+epicError :: String -> Compile TCM a
 epicError = lift . internalError
 
 -- | Modify the state of the current module's Epic Interface
-modifyEI :: MonadTCM m => (EInterface -> EInterface) -> Compile m ()
+modifyEI :: (EInterface -> EInterface) -> Compile TCM ()
 modifyEI f = modify $ \s -> s {curModule = f (curModule s)}
 
 -- | Get the state of the current module's Epic Interface
-getsEI :: MonadTCM m => (EInterface -> a) -> Compile m a
+getsEI :: (EInterface -> a) -> Compile TCM a
 getsEI f = gets (f . curModule)
 
 -- | Returns the type of a definition given its name
-getType :: MonadTCM m => QName -> Compile m Type
+getType :: QName -> Compile TCM Type
 getType q = do
     map <- lift (gets (sigDefinitions . stImports))
     return $ maybe __IMPOSSIBLE__ defType (M.lookup q map)
@@ -76,44 +77,82 @@ unqname qn = case nameId $ qnameName qn of
 
 -- * State modifiers
 
-getDelayed :: MonadTCM m => QName -> Compile m Bool
+resetNameSupply :: Compile TCM ()
+resetNameSupply = modify $ \s -> s {nameSupply = nameSupply initCompileState}
+
+getDelayed :: QName -> Compile TCM Bool
 getDelayed q = lookInterface (M.lookup q . defDelayed) (return False)
 
-putDelayed :: Monad m => QName -> Bool -> Compile m ()
-putDelayed q d = modify $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
+putDelayed :: QName -> Bool -> Compile TCM ()
+putDelayed q d = modifyEI $ \s -> s {defDelayed = M.insert q d (defDelayed s)}
 
-newName :: Monad m => Compile m Var
+newName :: Compile TCM Var
 newName = do
     n:ns <- gets nameSupply
     modify $ \s -> s { nameSupply = ns}
     return n
 
--- | Add a data declaration by giving a list of its constructors.
---   Tags will be created and saved.
-addDataDecl :: Monad m => [QName] -> Compile m ()
-addDataDecl ts = modify
-    $ \s -> s { dataDecls = M.union (M.fromList $ zip ts [0..]) (dataDecls s)}
+putConstrTag :: QName -> Tag -> Compile TCM ()
+putConstrTag q t = modifyEI $ \s -> s { constrTags = M.insert q t $ constrTags s }
 
-getConstrTag :: Monad m => QName -> Compile m Tag
-getConstrTag con = gets $ fromMaybe __IMPOSSIBLE__
-                        . M.lookup con
-                        . dataDecls
+assignConstrTag :: QName -> Compile TCM Tag
+assignConstrTag constr = assignConstrTag' constr []
 
-addDefName :: Monad m => QName -> Compile m ()
+assignConstrTag' :: QName -> [QName] -> Compile TCM Tag
+assignConstrTag' constr constrs = do
+    constrs <- concat <$> mapM ((getDataCon =<<) . getConData) (constr : constrs)
+    tags    <- catMaybes <$> mapM getConstrTag' constrs
+    let tag =  head $ map Tag [0..] \\ tags
+    putConstrTag constr tag
+    return tag
+
+getConData :: QName -> Compile TCM QName
+getConData con = do
+    lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
+    case M.lookup con lmap of
+        Just def -> case theDef def of
+            c@(TM.Constructor{}) -> return $ TM.conData c
+            _                 -> __IMPOSSIBLE__
+        Nothing -> __IMPOSSIBLE__
+
+getDataCon :: QName -> Compile TCM [QName]
+getDataCon con = do
+    lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
+    case M.lookup con lmap of
+        Just def -> case theDef def of
+            d@(TM.Datatype{}) -> return $ TM.dataCons d
+            r@(TM.Record{})   -> return [ TM.recCon r]
+            _                 -> __IMPOSSIBLE__
+        Nothing -> __IMPOSSIBLE__
+
+getConstrTag :: QName -> Compile TCM Tag
+getConstrTag con = lookInterface (M.lookup con . constrTags)
+                                 (assignConstrTag con)
+
+getConstrTag' :: QName -> Compile TCM (Maybe Tag)
+getConstrTag' con = do
+    cur <- gets curModule
+    case M.lookup con (constrTags cur) of
+        Just x -> return (Just x)
+        Nothing -> do
+            imps <- gets importedModules
+            return $ M.lookup con (constrTags imps)
+
+addDefName :: QName -> Compile TCM ()
 addDefName q = do
     modifyEI $ \s -> s {definitions = S.insert (unqname q) $ definitions s }
 
-topBindings :: Monad m => Compile m (Set Var)
-topBindings = gets definitions
+topBindings :: Compile TCM (Set Var)
+topBindings = S.union <$> gets (definitions . importedModules) <*> gets (definitions . curModule)
 
-getConPar :: MonadTCM m => QName -> Compile m Int
-getConPar n = fromMaybe __IMPOSSIBLE__ <$> M.lookup n <$> gets conPars
+getConArity :: QName -> Compile TCM Int
+getConArity n = lookInterface (M.lookup n . conArity) __IMPOSSIBLE__
 
-putConPar :: Monad m => QName -> Int -> Compile m ()
-putConPar n p = modify $ \s -> s { conPars = M.insert n p (conPars s) }
+putConArity :: QName -> Int -> Compile TCM ()
+putConArity n p = modifyEI $ \s -> s { conArity = M.insert n p (conArity s) }
 
-putMain :: Monad m => QName -> Compile m ()
-putMain m = modify $ \s -> s { mainName = Just m }
+putMain :: QName -> Compile TCM ()
+putMain m = modifyEI $ \s -> s { mainName = Just m }
 
 getMain :: Compile TCM Var
 getMain = maybe (epicError "Where is main? :(") (return . unqname) =<< getsEI mainName
@@ -129,13 +168,26 @@ lookInterface f def = do
                 Nothing -> def
                 Just x  -> return x
 
-getIrrFilter :: Monad m => QName -> Compile m IrrFilter
-getIrrFilter q = gets $ fromMaybe __IMPOSSIBLE__
-                      . M.lookup q
-                      . irrFilters
+constrInScope :: QName -> Compile TCM Bool
+constrInScope name = do
+    cur <- gets curModule
+    case M.lookup name (constrTags cur) of
+        Just x -> return True
+        Nothing -> do
+            imps <- gets importedModules
+            case M.lookup name (constrTags imps) of
+                Nothing -> return False
+                Just x  -> return True
 
-putIrrFilter :: Monad m => QName -> IrrFilter -> Compile m ()
-putIrrFilter n f = modify $ \s -> s {irrFilters = M.insert n f $ irrFilters s}
+getForcedArgs :: QName -> Compile TCM ForcedArgs
+getForcedArgs q = lookInterface (M.lookup q . forcedArgs) __IMPOSSIBLE__
+
+putForcedArgs :: QName -> ForcedArgs -> Compile TCM ()
+putForcedArgs n f = do
+  f' <- ifM (lift $ gets (optForcing . stPersistentOptions))
+      (return f)
+      (return $ replicate (length f) NotForced)
+  modifyEI $ \s -> s {forcedArgs = M.insert n f' $ forcedArgs s}
 
 replaceAt :: Int -- ^ replace at
           -> [a] -- ^ to replace
@@ -154,7 +206,7 @@ constructorArity q = do
     _ -> internalError $ "constructorArity: non constructor: " ++ show q
 
 -- | Bind an expression to a fresh variable name
-bindExpr :: MonadTCM m => Expr -> (Var -> Compile m Expr) -> Compile m Expr
+bindExpr :: Expr -> (Var -> Compile m Expr) -> Compile TCM Expr
 bindExpr expr f = case expr of
   AuxAST.Var v -> f v
   _     -> do

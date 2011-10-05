@@ -713,15 +713,15 @@ instance EmbPrj CompiledRepresentation where
 
 instance EmbPrj Defn where
   icode Axiom                               = icode0 0
-  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
+  icode (Function    a b c d e f g h i)     = icode9 1 a b c d e f g h i
   icode (Datatype    a b c d e f g h i)     = icode9 2 a b c d e f g h i
   icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
   icode (Constructor a b c d e)             = icode5 4 a b c d e
   icode (Primitive   a b c d)               = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                  = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
-    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
+    valu [1, a, b, c, d, e, f, g, h, i]       = valu9 Function    a b c d e f g h i
+    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype    a b c d e f g h i
     valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
     valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
     valu [5, a, b, c, d]                      = valu4 Primitive   a b c d

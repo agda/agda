@@ -50,12 +50,19 @@ translateDefn msharp (n, defini) =
         ccs  <- reverseCCBody projArgs <$> normaliseStatic (funCompiled f)
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
             toEta = fromIntegral (arity (defType defini)) - len
-            ccs   = reverseCCBody $ funCompiled f
-        forcing <- lift $ gets (optForcing . stPersistentOptions)
-        funComp <- if forcing
-                    then removeForced ccs (defType defini)
-                    else return ccs
-        return <$> (etaExpand toEta =<< compileClauses n len funComp)
+        -- forcing <- lift $ gets (optForcing . stPersistentOptions)
+        lift $ reportSDoc "epic.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
+        lift $ reportSDoc "epic.fromagda" 5 $ text "len:" <+> (text . show) len
+        lift $ reportSDoc "epic.fromagda" 5 $ text "pats:" <+> (text . show) (clausePats
+                    $ head $ funClauses f)
+        modify $ \s -> s {curFun = show n}
+        lift $ reportSDoc "epic.fromagda" 5 $ text "ccs: " <+> (text . show) ccs
+        res <- return <$> (etaExpand toEta =<< compileClauses n len ccs)
+        pres <- case res of
+          Nothing -> return Nothing
+          Just  c -> return <$> prettyEpicFun c
+        lift $ reportSDoc "" 5 $ text $ show pres -- (fmap prettyEpicFun res)
+        return res
     Constructor{} -> do -- become functions returning a constructor with their tag
         arit <- lift $ constructorArity n
         tag   <- getConstrTag n
@@ -120,12 +127,13 @@ translateDefn msharp (n, defini) =
     appBranch :: Branch -> [Var] -> Branch
     appBranch b vs = b {brExpr = brExpr b @@ vs}
 
-reverseCCBody :: CC.CompiledClauses -> CC.CompiledClauses
-reverseCCBody cc = case cc of
-    CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case n $ CC.Branches (M.map reverseCCBody cbr)
-                                                        (M.map reverseCCBody lbr)
-                                                        (fmap  reverseCCBody cabr)
-    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [0..])) t)
+reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
+reverseCCBody c cc = case cc of
+    CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
+        $ CC.Branches (M.map (reverseCCBody c) cbr)
+          (M.map (reverseCCBody c) lbr)
+          (fmap  (reverseCCBody c) cabr)
+    CC.Done i t -> CC.Done i (S.substs (map (flip T.Var []) (reverse $ take i [fromIntegral c..])) t)
     CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
