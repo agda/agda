@@ -110,11 +110,11 @@ occursCheck m xs v = liftTCM $ do
                ]
         )
         ( typeError . GenericError . show =<<
-            fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to")
+            fsep [ text ("Cannot instantiate the metavariable " ++ show m ++ " to solution")
                  , prettyTCM v
                  , text "since it contains the variable"
                  , enterClosure cl $ \_ -> prettyTCM (Var i [])
-                 , text $ "which is not in scope of the metavariable"
+                 , text $ "which is not in scope of the metavariable or irrelevant in the metavariable but relevant in the solution"
                  ]
           )
       _ -> throwError err

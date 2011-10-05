@@ -394,16 +394,16 @@ Irrelevance
         .refl  : Reflexive _≈_
         .sym   : Symmetric _≈_
         .trans : Transitive _≈_
-  
+
     record Setoid c ℓ : Set (suc (c ⊔ ℓ)) where
       infix 4 _≈_
       field
         Carrier       : Set c
         _≈_           : Rel Carrier ℓ
         .isEquivalence : IsEquivalence _≈_
-  
+
       open IsEquivalence isEquivalence public
-  
+
   Before, Agda complained at the open that isEquivalence is irrelevant,
   in conflict with the relevant record argument of module IsEquivalence.
   Now, for all-irrelevant records like IsEquivalence, the associated
@@ -415,6 +415,8 @@ Irrelevance
   and matching on irrelevant data when only one constructor is available.
   These features are very experimental and likely to change or disappear.
 
+* Irrelevant things are no longer erased internally.  This means they
+  print as ordinary terms, not as _ as before.
 
 Meta Variables and Unification
 ------------------------------

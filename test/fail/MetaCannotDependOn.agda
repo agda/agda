@@ -10,5 +10,5 @@ postulate
   f : (A : Set) -> ((n : Nat) -> A -> Vec n Nat) -> Nat
 
 err : Nat
-err = f _ (\n xs -> xs)
+err = f _ (\ n xs -> xs)
 

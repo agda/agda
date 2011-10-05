@@ -412,8 +412,9 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.QuoteTerm i) = return $ C.QuoteTerm (getRange i)
     toConcrete (A.Unquote i) = return $ C.Unquote (getRange i)
 
-    -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
-    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteCtx TopCtx e
+    -- Andreas, 2010-10-05 print irrelevant things as ordinary things
+    toConcrete (A.DontCare e) = toConcrete e
+--    toConcrete (A.DontCare e) = C.DontCare <$> toConcreteCtx TopCtx e
 {-
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
