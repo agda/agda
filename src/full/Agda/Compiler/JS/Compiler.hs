@@ -41,6 +41,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptions, reportSLn )
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
+import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Monad ( (<$>), (<*>), bracket, ifM )
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
@@ -177,7 +178,7 @@ defn q ls t Nothing Axiom = do
       return Undefined
 defn q ls t (Just e) (Function {}) =
   return e
-defn q ls t _ (Function { funProjection = proj, funClauses = cls }) = do
+defn q ls t Nothing (Function { funProjection = proj, funClauses = cls }) = do
   t <- normalise t
   s <- isSingleton t
   cs <- mapM clause cls
@@ -194,8 +195,8 @@ defn q ls t _ (Function { funProjection = proj, funClauses = cls }) = do
             return (curriedLambda (numPars cls)
               (Lookup (Local (LocalId 0)) (last ls)))
           _ ->
-            -- For anything else we generate code
-            return (lambda cs)
+            -- For anything else we generate code, after adding (i-1) dummy lambdas
+            return (dummyLambda (i-1) (lambda cs))
       Nothing ->
         return (lambda cs)
 defn q ls t (Just e) (Primitive {}) =
@@ -295,7 +296,7 @@ body (NoBody) = return Undefined
 term :: Term -> TCM Exp
 term (Var   i as)         = do
   e <- return (Local (LocalId i))
-  es <- args as
+  es <- args Nothing as
   return (curriedApply e es)
 term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
 term (Lit   l)            = return (literal l)
@@ -309,7 +310,7 @@ term (Def q as) = do
     _ -> case defJSDef d of
       -- Inline functions with an FFI definition
       Just e -> do
-        es <- args as
+        es <- args (defProjection d) as
         return (curriedApply e es)
       Nothing -> do
         t <- normalise (defType d)
@@ -321,19 +322,19 @@ term (Def q as) = do
           -- Everything else we leave non-inline
           Nothing -> do
             e <- qname q
-            es <- args as
+            es <- args (defProjection d) as
             return (curriedApply e es)
 term (Con q as) = do
   d <- getConstInfo q
   case defJSDef d of
     -- Inline functions with an FFI definition
     Just e -> do
-      es <- args as
+      es <- args Nothing as
       return (curriedApply e es)
     -- Everything else we leave non-inline
     Nothing -> do
       e <- qname q
-      es <- args as
+      es <- args Nothing as
       return (curriedApply e es)
 term (Pi    _ _)          = return (String "*")
 term (Sort  _)            = return (String "*")
@@ -365,8 +366,16 @@ isSingleton t = case unEl t of
       _ -> return (Nothing)
   _              -> return (Nothing)
 
-args :: Args -> TCM [Exp]
-args = mapM (term . unArg)
+defProjection :: Definition -> Maybe (QName, Int)
+defProjection Defn { theDef = Function { funProjection = p } } = p
+defProjection _                                                = Nothing
+
+args :: Maybe(QName, Int) -> Args -> TCM [Exp]
+args Nothing as = 
+  mapM (term . unArg) as
+args (Just (q,i)) as = do
+  es <- mapM (term . unArg) as
+  return (replicate (i-1) Undefined ++ es)
 
 qname :: QName -> TCM Exp
 qname q = do
@@ -379,6 +388,9 @@ literal (LitFloat  _ x) = Double  x
 literal (LitString _ x) = String  x
 literal (LitChar   _ x) = Char    x
 literal (LitQName  _ x) = String  (show x)
+
+dummyLambda :: Int -> Exp -> Exp
+dummyLambda n = iterate' n (Lambda 0)
 
 --------------------------------------------------
 -- Writing out an ECMAScript module
