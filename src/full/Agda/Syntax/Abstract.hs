@@ -108,6 +108,7 @@ data Pragma = OptionsPragma [String]
             | CompiledDataPragma QName String [String]
             | CompiledEpicPragma QName String
             | CompiledJSPragma QName String
+            | StaticPragma QName
             | EtaPragma QName
   deriving (Typeable, Data, Show)
 

@@ -196,6 +196,12 @@ checkPragma r p =
             _   -> typeError $ GenericError "COMPILED_EPIC directive only works on postulates."
         A.CompiledJSPragma x ep ->
           addJSCode x ep
+        A.StaticPragma x -> do
+            def <- getConstInfo x
+            case theDef def of
+                Function{} -> do
+                    markStatic x
+                _ -> typeError $ GenericError "STATIC directive only works on functions."
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
         A.EtaPragma r -> modifySignature eta
           where

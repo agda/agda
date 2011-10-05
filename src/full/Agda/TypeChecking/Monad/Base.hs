@@ -504,6 +504,8 @@ data Defn = Axiom
               --   it is already applied to the record. (Can happen in module
               --   instantiation.) This information is used in the termination
               --   checker.
+            , funStatic         :: Bool
+              -- ^ Should calls to this function be normalised at compile-time?
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
@@ -595,6 +597,9 @@ defCompiled _ = Nothing
 
 defJSDef :: Definition -> Maybe JSCode
 defJSDef = compiledJS . defCompiledRep
+
+defEpicDef :: Definition -> Maybe EpicCode
+defEpicDef = compiledEpic . defCompiledRep
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed

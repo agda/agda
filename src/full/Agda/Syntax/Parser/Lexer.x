@@ -83,6 +83,7 @@ tokens :-
 <pragma_>   "COMPILED"	        { keyword KwCOMPILED }
 <pragma_>   "COMPILED_EPIC"     { keyword KwCOMPILED_EPIC }
 <pragma_>   "COMPILED_JS"       { keyword KwCOMPILED_JS }
+<pragma_>   "STATIC"            { keyword KwSTATIC }
 <pragma_>   "IMPORT"	        { keyword KwIMPORT }
 <pragma_>   "IMPOSSIBLE"	{ keyword KwIMPOSSIBLE }
 <pragma_>   "ETA"               { keyword KwETA }

@@ -49,6 +49,8 @@ import Data.Function
 import Data.Typeable
 import qualified Codec.Compression.GZip as G
 
+import qualified Agda.Compiler.Epic.Interface as Epic
+
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
 import Agda.Syntax.Abstract.Name as A
@@ -710,20 +712,20 @@ instance EmbPrj CompiledRepresentation where
                            valu _         = malformed
 
 instance EmbPrj Defn where
-  icode Axiom                               = icode0'
-  icode (Function    a b c d e f g h)       = icode8' a b c d e f g h
-  icode (Datatype    a b c d e f g h i)     = icode9' a b c d e f g h i
-  icode (Record      a b c d e f g h i j k) = icode11' a b c d e f g h i j k
-  icode (Constructor a b c d e)             = icode5' a b c d e
-  icode (Primitive   a b c d)               = icode4' a b c d
+  icode Axiom                               = icode0 0
+  icode (Function    a b c d e f g h)       = icode8 1 a b c d e f g h
+  icode (Datatype    a b c d e f g h i)     = icode9 2 a b c d e f g h i
+  icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
+  icode (Constructor a b c d e)             = icode5 4 a b c d e
+  icode (Primitive   a b c d)               = icode4 5 a b c d
   value = vcase valu where
-    valu []                                = valu0 Axiom
-    valu [a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
-    valu [a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
-    valu [a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
-    valu [a, b, c, d, e]                   = valu5 Constructor a b c d e
-    valu [a, b, c, d]                      = valu4 Primitive   a b c d
-    valu _                                 = malformed
+    valu [0]                                  = valu0 Axiom
+    valu [1, a, b, c, d, e, f, g, h]          = valu8 Function    a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype   a b c d e f g h i
+    valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
+    valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
+    valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
+    valu _                                    = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
   icode (Branches a b c) = icode3' a b c
@@ -904,7 +906,41 @@ instance EmbPrj Interface where
   value = vcase valu where valu [a, b, c, d, e, f, g, h, i] = valu9 Interface a b c d e f g h i
                            valu _                           = malformed
 
+-- This is used for the Epic compiler backend
+instance EmbPrj Epic.EInterface where
+  icode (Epic.EInterface a b c d e f g h) = icode8' a b c d e f g h
+  value = vcase valu where
+    valu [a, b, c, d, e, f, g, h] = valu8 Epic.EInterface a b c d e f g h
+    valu _                        = malformed
 
+instance EmbPrj Epic.InjectiveFun where
+  icode (Epic.InjectiveFun a b) = icode2' a b
+  value = vcase valu where
+     valu [a,b] = valu2 Epic.InjectiveFun a b
+     valu _     = malformed
+
+instance EmbPrj Epic.Relevance where
+  icode Epic.Irr      = icode0 0
+  icode Epic.Rel      = icode0 1
+  value = vcase valu where valu [0] = valu0 Epic.Irr
+                           valu [1] = valu0 Epic.Rel
+                           valu _   = malformed
+
+instance EmbPrj Epic.Forced where
+  icode Epic.Forced    = icode0 0
+  icode Epic.NotForced = icode0 1
+  value = vcase valu where valu [0] = valu0 Epic.Forced
+                           valu [1] = valu0 Epic.NotForced
+                           valu _   = malformed
+
+instance EmbPrj Epic.Tag where
+  icode (Epic.Tag a)     = icode1 0 a
+  icode (Epic.PrimTag a) = icode1 1 a
+  value = vcase valu
+    where
+    valu [0, a] = valu1 Epic.Tag a
+    valu [1, a] = valu1 Epic.PrimTag a
+    valu _      = malformed
 
 {-# SPECIALIZE icodeX :: (Dict -> HashTable [Int32] Int32) ->
                          (Dict -> IORef Int32) -> [Int32] -> S Int32 #-}

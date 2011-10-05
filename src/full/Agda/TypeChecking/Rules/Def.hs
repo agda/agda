@@ -135,6 +135,7 @@ checkFunDef' t rel delayed i name cs =
                             , funPolarity       = []
                             , funArgOccurrences = []
                             , funProjection     = Nothing
+                            , funStatic         = False
                             }
         computePolarity name
         reportSDoc "tc.def.fun" 10 $ do

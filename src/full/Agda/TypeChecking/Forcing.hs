@@ -57,7 +57,7 @@ forcedVariables t = case t of
       return $ case theDef def of
         Datatype{} -> True
         Record{}   -> True
-        Axiom{}    -> True
+        -- Axiom{}    -> True -- Postulates are not injective in general, right? /Olle 2011-05-05
         _          -> False
 
 force :: [Nat] -> Type -> Type

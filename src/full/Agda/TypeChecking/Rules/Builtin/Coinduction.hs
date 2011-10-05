@@ -149,6 +149,7 @@ bindBuiltinFlat e =
                      {- flat is a projection, but in the termination checker
                         it destroys the (inductive) structural ordering.
                         Thus, we do not register it as a projection. -}
+                   , funStatic         = False
                    }
                 }
     return flatE

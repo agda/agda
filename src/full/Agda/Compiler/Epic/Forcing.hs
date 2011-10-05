@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, ScopedTypeVariables #-}
 module Agda.Compiler.Epic.Forcing where
 
 import Control.Applicative
@@ -6,24 +6,35 @@ import Control.Arrow (first, second)
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Trans
-import Data.List
+
+import Data.Char
+import Data.List hiding (sort)
 import qualified Data.Map as M
 import Data.Maybe
 
 import Agda.Syntax.Common
-import Agda.Syntax.Internal
-import Agda.TypeChecking.CompiledClause
+import qualified Agda.Syntax.Internal as SI
+import Agda.Syntax.Literal
+import Agda.Syntax.Position(noRange)
+import Agda.Syntax.Internal(Tele(..), Telescope, Term, absBody, Type, Args, QName, unEl)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Rules.LHS.Unify
-import Agda.TypeChecking.Substitute
-import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Rules.LHS.Instantiate
+import Agda.TypeChecking.Substitute (raiseFrom, raise, substs, apply, TelView(..))
+import qualified Agda.TypeChecking.Substitute as S
+import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.Utils.List
+import Agda.Utils.Monad
+import Agda.Utils.Permutation
 import Agda.Utils.Size
 
-import Agda.Compiler.Epic.CompileState hiding (conPars)
-import Agda.Compiler.Epic.AuxAST(pairwiseFilter)
+import Agda.Compiler.Epic.AuxAST
+import Agda.Compiler.Epic.CompileState
+import Agda.Compiler.Epic.Epic
+import Agda.Compiler.Epic.Interface
+import qualified Agda.Compiler.Epic.FromAgda as FA
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -33,21 +44,25 @@ import Agda.Utils.Impossible
 --   Note that this works on CompiledClauses where the term's variable indexes
 --   have been reversed, which means that the case variables match the variables
 --   in the term.
-removeForced :: CompiledClauses -> Type -> Compile TCM CompiledClauses
+removeForced :: MonadTCM m => CompiledClauses -> Type -> Compile m CompiledClauses
 removeForced cc typ = do
   TelV tele _ <- lift $ telView typ
   remForced cc tele
 
 -- | Returns the type of a constructor given its name
-constrType :: QName -> Compile TCM Type
+constrType :: MonadTCM m => QName -> Compile m Type
 constrType q = do
     map <- lift (gets (sigDefinitions . stImports))
     return $ maybe __IMPOSSIBLE__ defType (M.lookup q map)
 
 -- | Returns how many parameters a datatype has
 dataParameters :: QName -> Compile TCM Nat
-dataParameters name = do
-    m <- lift (gets (sigDefinitions . stImports))
+dataParameters = lift . dataParametersTCM
+
+-- | Returns how many parameters a datatype has
+dataParametersTCM :: MonadTCM m => QName -> m Nat
+dataParametersTCM name = do
+    m <- (gets (sigDefinitions . stImports))
     return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (M.lookup name m)
   where
     defnPars :: Defn -> Nat
@@ -56,13 +71,13 @@ dataParameters name = do
     defnPars _                         = 0 -- Not so sure about this.
 
 -- | Is variable n used in a CompiledClause?
-isIn :: Nat -> CompiledClauses -> Compile TCM Bool
+isIn :: MonadTCM m => Nat -> CompiledClauses -> Compile m Bool
 n `isIn` Case i brs | n == fromIntegral i = return True
                     | otherwise = n `isInCase` (fromIntegral i, brs)
 n `isIn` Done _ t = return $ n `isInTerm` t
 n `isIn` Fail     = return $ False
 
-isInCase :: Nat -> (Nat, Case CompiledClauses) -> Compile TCM Bool
+isInCase :: MonadTCM m => Nat -> (Nat, Case CompiledClauses) -> Compile m Bool
 n `isInCase` (i, Branches { conBranches    = cbrs
                           , litBranches    = lbrs
                           , catchAllBranch = cabr}) = do
@@ -83,6 +98,8 @@ n `isInCase` (i, Branches { conBranches    = cbrs
         Just cc -> n `isIn` cc
     return (cbrs' || lbrs' || cabr')
 
+report n s = do
+  lift $ reportSDoc "epic.forcing" n s
 
 isInTerm :: Nat -> Term -> Bool
 n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
@@ -92,8 +109,8 @@ n `isInTerm` term = let recs = any (isInTerm n . unArg) in case term of
    Level l  -> isInLevel n l
    Def _ as -> recs as
    Con _ as -> recs as
-   Pi a (NoAbs _ b) -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Pi a b   -> n `isInTerm` unEl (unArg a) || (n+1) `isInTerm` unEl (absBody b)
+   Fun a b  -> n `isInTerm` unEl (unArg a) || n `isInTerm` unEl b
    Sort sor -> False -- ?
    MetaV meta as -> recs as
    DontCare _ -> False
@@ -124,33 +141,46 @@ becomes
 we raise the type since we have added xs' new bindings before Gamma, and as can
 only bind to Gamma.
 -}
-insertTele ::  Int        -- ^ ABS `pos` in tele
+insertTele :: MonadTCM m
+            => Int        -- ^ ABS `pos` in tele
             -> Maybe Type -- ^ If Just, it is the type to insert patterns from
                           --   is nothing if we only want to delete a binding.
             -> Term       -- ^ Term to replace at pos
             -> Telescope  -- ^ The telescope `tele` where everything is at
-            -> Compile TCM ( Telescope
+            -> Compile m ( Telescope
                          , ( Type
                            , Type
                            )
                          )
-                -- ^ Returns (resulting telescope, the type at pos in tele, the
-                --   return type of the inserted type).
-insertTele 0 ins term (ExtendTel t to) = do
+insertTele x 0 ins term (ExtendTel t to) = do
     t' <- lift $ normalise t
-    let Def st arg = unEl . unArg $ t'
+    report 12 $ vcat
+      [ text "t' :" <+> prettyTCM t'
+      , text "term:" <+> prettyTCM term
+      , text "to:"   <+> prettyTCM (absBody to)
+      ]
+    (st, arg) <- case SI.unEl . unArg $ t' of
+            SI.Def st arg -> return (st, arg)
+            s          -> do
+              report 10 $ vcat
+                [ text "ERROR!!!"
+                , text "found: " <+> (text . show) s
+                , text "ins"     <+> (prettyTCM . fromMaybe __IMPOSSIBLE__) ins
+                ]
+              return x
     -- Apply the parameters of the type of t
     -- Because: parameters occurs in the type of constructors but are not bound by it.
     pars <- dataParameters st
-    TelV ctele ctyp <- lift $ telView $ maybe (unArg t')
-                            (`apply` take (fromIntegral pars) arg) ins
+    report 10 $ text "apply in insertTele"
+    TelV ctele ctyp <- lift $ telView =<< maybe (return $ unArg t')
+                            (`piApplyM'` take (fromIntegral pars) arg) ins
 
     () <- if length (take (fromIntegral pars) arg) == fromIntegral pars
         then return ()
         else __IMPOSSIBLE__
     -- we deal with absBody to directly since we remove t
-    return ( ctele +:+  (subst term $ raiseFrom 1 (size ctele) (absBody to))
-           , (raise (size ctele) $ unArg t , ctyp)
+    return ( ctele +:+  (S.subst term $ S.raiseFrom 1 (size ctele) (absBody to))
+           , (ctele, S.raise (size ctele) $ unArg t , ctyp)
            )
   where
     -- Append the telescope, we raise since we add a new binding and all the previous
@@ -159,12 +189,12 @@ insertTele 0 ins term (ExtendTel t to) = do
     EmptyTel       +:+ t2 = t2
     ExtendTel t t1 +:+ t2 = ExtendTel t (Abs (absName t1) $ absBody t1 +:+ {-raise 1-} t2)
 -- This case is impossible since we are trying to split a variable outside the tele
-insertTele n ins term EmptyTel = __IMPOSSIBLE__
-insertTele n ins term (ExtendTel x xs) = do
-    (xs', typ) <- insertTele (n - 1) ins term (absBody xs)
+insertTele x n ins term EmptyTel = __IMPOSSIBLE__
+insertTele er n ins term (ExtendTel x xs) = do
+    (xs', typ) <- insertTele er (n - 1) ins term (absBody xs)
     return (ExtendTel x (Abs (absName xs) xs'), typ)
 
-mkCon c n = Con c [ defaultArg $ Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
+mkCon c n = SI.Con c [ defaultArg $ SI.Var (fromIntegral i) [] | i <- [n - 1, n - 2 .. 0] ]
 
 unifyI :: Telescope -> [Nat] -> Type -> Args -> Args -> Compile TCM [Maybe Term]
 unifyI tele flex typ a1 a2 = lift $ addCtxTel tele $ unifyIndices_ flex typ a1 a2
@@ -174,10 +204,10 @@ takeTele n (ExtendTel t ts) = ExtendTel t $ Abs (absName ts) $ takeTele (n-1) (a
 takeTele _ _ = __IMPOSSIBLE__
 
 -- | Remove forced variables cased on in the current top-level case in the CompiledClauses
-remForced ::
-        CompiledClauses -- ^ Remove cases on forced variables in this
+remForced :: MonadTCM m
+     => CompiledClauses -- ^ Remove cases on forced variables in this
      -> Telescope       -- ^ The current context we are in
-     -> Compile TCM CompiledClauses
+     -> Compile m CompiledClauses
 remForced ccOrig tele = case ccOrig of
     Case n brs -> do
         -- Get all constructor branches
@@ -197,18 +227,15 @@ remForced ccOrig tele = case ccOrig of
                 then (,) constr <$> remForced cc tele'
                 else do
                     unif <- case (unEl ntyp, unEl ctyp) of
-                        (Def st a1, Def st' a2) | st == st' -> do
+                        (SI.Def st a1, SI.Def st' a2) | st == st' -> do
                             typPars <- fromIntegral <$> dataParameters st
-                            setType <- constrType st
-                            {-
-                                We are splitting on C xs
-                                we know that C : ts -> T ss ; for some T
-                                we also know from tele that we are splitting on T as
-                                we want to unify ss with as, but not taking into account
-                                the Data parameters to T.
-                            -}
-                            unifyI (takeTele (n + par) tele')
-                                   (map fromIntegral [0 .. n + par]) -- Don't unify the constructor arguments
+                            setType <- getType st
+                            report 10 $ vcat
+                              [ text "ntyp:" <+> prettyTCM ntyp
+                              , text "ctyp:" <+> prettyTCM ctyp
+                              ]
+                            unifyI (takeTele (n + length as) tele'')
+                                   (map fromIntegral $ [0 .. n + length as])
                                    (setType `apply` take typPars a1)
                                    (drop typPars a1)
                                    (drop typPars a2)
@@ -256,8 +283,9 @@ modifyM f = get >>= f >>= put -- (>>= put) . (get >>=)
 
 -- | replaceForced (tpos, tele) forcedVars (cc, unification)
 --   For each forceVar dig out the corresponding case and continue to remForced.
-replaceForced :: (Nat, Telescope) -> [Nat] -> (CompiledClauses, [Maybe Term])
-              -> Compile TCM CompiledClauses
+replaceForced :: MonadTCM m
+              => (Nat, Telescope) -> [Nat] -> (CompiledClauses, [Maybe Term])
+              -> Compile m CompiledClauses
 replaceForced (telPos, tele) forcedVars (cc, unif) = do
     let origSt = FoldState
                   { clauseToFix  = cc
@@ -279,7 +307,7 @@ replaceForced (telPos, tele) forcedVars (cc, unif) = do
         caseVar : Absolute
         telePos : Absolute
     -}
-    termToBranch :: Nat -> Term -> Nat -> StateT FoldState (Compile TCM) ()
+    termToBranch :: MonadTCM m => Nat -> Term -> Nat -> StateT FoldState (Compile m) ()
     termToBranch caseVar caseTerm forcedVar = case caseTerm of
         Var i _ | i == forcedVar -> do
             telPos <- gets telePos
@@ -338,7 +366,7 @@ raiseFromCC from add  cc = case cc of
                                            Branches (M.map rec cbr)
                                                     (M.map rec lbr)
                                                     (fmap  rec cabr)
-    Done i t -> Done (i ++ genericReplicate add (defaultArg "x")) $ raiseFrom from add t
+    Done i t -> Done (i + fromIntegral add) $ raiseFrom from add t
     Fail     -> Fail
   where
     rec = raiseFromCC from add
@@ -348,7 +376,7 @@ raiseFromCC from add  cc = case cc of
 
 -- | Substitute with the Substitution, this will adjust with the new bindings in the
 --   CompiledClauses
-substCC :: [Nat] -> CompiledClauses -> StateT FoldState (Compile TCM) CompiledClauses
+substCC :: MonadTCM m => [Nat] -> CompiledClauses -> StateT FoldState (Compile m) CompiledClauses
 substCC ss cc = case cc of
     Done i t -> do
         return $ Done i (substs (map (flip Var []) ({-reverse $ take i -} ss)) t)
@@ -374,35 +402,64 @@ substCC ss cc = case cc of
             Nothing -> return Nothing
             Just br -> Just <$> substCC ss br
 
-        return $ Case (fromIntegral (ss !! n))
-                  Branches { conBranches    = M.fromList cbs
-                           , litBranches    = M.fromList lbs
-                           , catchAllBranch = cabs
-                           }
+-- | replace the forcedVar with pattern matching from the outside.
+replaceForced :: MonadTCM m => ([Var],[Var]) -> Telescope -> [Var] -> [Maybe SI.Term] -> Expr -> Compile m Expr
+replaceForced (vars,_) tele [] _ e = forcedExpr vars tele e
+replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
+    let n = fromMaybe __IMPOSSIBLE__ $ elemIndex fvar uvars
+    mpos <- findPosition (fromIntegral n) unif
+    case mpos of
+        Nothing -> case unif !! n of
+            Nothing | fvar `notElem` fv e ->
+              replaceForced (vars, uvars) tele fvars unif e
+            Nothing -> do
+              report 10 $ vcat
+                [ text "failure comming!"
+                , text "unif" <+> (text . show) unif
+                , text "n" <+> (text . show) n
+                , text "fvar" <+> (text fvar)
+                , text "fv" <+> (text . show) (fv e)
+                ]
+              __IMPOSSIBLE__
+            Just t  -> do
+                v <- newName
+                te <- FA.substTerm uvars t
+                subst fvar v <$> replaceForced (vars, uvars)
+                                               tele fvars unif (Let v te e)
+        Just (pos , term) -> do
+            (build, v) <- buildTerm (uvars !! fromInteger pos) (fromIntegral n) term
+            build . subst fvar v <$> replaceForced (vars, uvars) tele fvars unif
+                                     e
   where
-    fi = fromIntegral
+    sub fvar v = map $ \x -> if x == fvar then v else x
 
--- | Substitute variable n for term t in the body of cc
-substCCBody :: Nat -> Term -> CompiledClauses -> CompiledClauses
-substCCBody n t cc = substsCCBody (vs [0..n - 1] ++ [t] ++ vs [n + 1..]) cc
-  where vs = map (flip Var [])
+-- | Given a term containg the forced var, dig out the variable by inserting
+-- the proper case-expressions.
+buildTerm :: MonadTCM m => Var -> Nat -> Term -> Compile m (Expr -> Expr, Var)
+buildTerm var idx (SI.Var i _) | idx == i = return (id, var)
+buildTerm var idx (SI.Con c args) = do
+    vs <- replicateM (length args) newName
+    (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
+    (fun' , v) <- buildTerm (vs !! fromInteger pos) idx arg
+    tag <- getConstrTag c
+    let fun e = casee (Var var) [Branch tag c vs e]
+    return (fun . fun' , v)
+buildTerm _ _ _ = __IMPOSSIBLE__
 
--- | Perform a substitution in the body of cc
-substsCCBody :: [Term] -> CompiledClauses -> CompiledClauses
-substsCCBody ss cc = case cc of
-    Case n brs -> Case n (substsCCBody ss <$> brs)
-    Done i t -> Done i (substs ss t)
-    Fail     -> Fail
 
 -- | Find the location where a certain Variable index is by searching the constructors
 --   aswell. i.e find a term that can be transformed into a pattern that contains the
 --   same value the index. This fails if no such term is present.
-findPosition :: Nat -> [Maybe Term] -> (Nat, Term)
-findPosition var ts = let Just n = findIndex (maybe False pred) ts
-                       in (fromIntegral n , fromJust $ ts !! n)
+findPosition :: MonadTCM m => Nat -> [Maybe SI.Term] -> Compile m (Maybe (Nat, SI.Term))
+findPosition var ts = (listToMaybe . catMaybes <$>) . forM (zip [0..] ts) $ \ (n, mt) -> do
+    ifM (maybe (return False) pred mt)
+        (return (Just (n, fromMaybe __IMPOSSIBLE__ mt)))
+        (return Nothing)
   where
-    pred :: Term -> Bool
+    pred :: MonadTCM m => Term -> Compile m Bool
     pred t = case t of
-      Var i _ | var == i -> True
-      Con _ args         -> any (pred . unArg) args
-      _                  -> False
+      SI.Var i _ | var == i -> return True
+      SI.Con c args         -> do
+          forc <- getForcedArgs c
+          or <$> mapM (pred . unArg) (notForced forc args)
+      _                  -> return False

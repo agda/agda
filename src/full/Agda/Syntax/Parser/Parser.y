@@ -90,6 +90,7 @@ import Agda.Utils.TestHelpers
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
     'COMPILED_EPIC' { TokKeyword KwCOMPILED_EPIC $$ }
     'COMPILED_JS'   { TokKeyword KwCOMPILED_JS $$ }
+    'STATIC'        { TokKeyword KwSTATIC $$ }
     'quoteGoal'     { TokKeyword KwQuoteGoal $$ }
     'quote'         { TokKeyword KwQuote $$ }
     'quoteTerm'     { TokKeyword KwQuoteTerm $$ }
@@ -186,6 +187,7 @@ Token
     | 'COMPILED_TYPE'{ TokKeyword KwCOMPILED_TYPE $1 }
     | 'COMPILED_EPIC'{ TokKeyword KwCOMPILED_EPIC $1 }
     | 'COMPILED_JS'  { TokKeyword KwCOMPILED_JS $1 }
+    | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
@@ -1084,6 +1086,7 @@ DeclarationPragma
   | CompiledTypePragma { $1 }
   | CompiledEpicPragma { $1 }
   | CompiledJSPragma   { $1 }
+  | StaticPragma       { $1 }
   | ImportPragma       { $1 }
   | ImpossiblePragma   { $1 }
   | RecordEtaPragma    { $1 }
@@ -1121,6 +1124,10 @@ CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaName PragmaStrings '#-}'
     { CompiledJSPragma (fuseRange $1 $5) $3 (unwords $4) }
 
+StaticPragma :: { Pragma }
+StaticPragma
+  : '{-#' 'STATIC' PragmaName '#-}'
+    { StaticPragma (fuseRange $1 $4) $3 }
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma

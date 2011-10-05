@@ -214,6 +214,15 @@ addJSCode q jsDef =
   where
     addJS e def = def{defCompiledRep = (defCompiledRep def){compiledJS = e}}
 
+markStatic :: MonadTCM tcm => QName -> tcm ()
+markStatic q =
+  modifySignature $ \sig -> sig
+  { sigDefinitions = Map.adjust mark q $ sigDefinitions sig }
+  where
+    mark def@Defn{theDef = fun@Function{}} =
+      def{theDef = fun{funStatic = True}}
+    mark def = def
+
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where

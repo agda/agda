@@ -1012,7 +1012,6 @@ instance ToAbstract C.Pragma [A.Pragma] where
       e <- toAbstract $ OldQName x
       y <- case e of
             A.Def x -> return x
-            -- A.Con _ -> fail "Use COMPILED_DATA_EPIC for constructors" -- TODO
             _       -> __IMPOSSIBLE__
       return [ A.CompiledEpicPragma y ep ]
     toAbstract (C.CompiledJSPragma _ x ep) = do
@@ -1023,6 +1022,12 @@ instance ToAbstract C.Pragma [A.Pragma] where
             A.Con x -> fail ("COMPILED_JS used on ambiguous name " ++ show x)
             _       -> __IMPOSSIBLE__
       return [ A.CompiledJSPragma y ep ]
+    toAbstract (C.StaticPragma _ x) = do
+        e <- toAbstract $ OldQName x
+        y <- case e of
+            A.Def x -> return x
+            _       -> __IMPOSSIBLE__
+        return [ A.StaticPragma y ]
     toAbstract (C.BuiltinPragma _ b e) = do
         e <- toAbstract e
         return [ A.BuiltinPragma b e ]

@@ -17,36 +17,49 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Substitute
 import Agda.Syntax.Common
 
-import Agda.Compiler.Epic.CompileState hiding (conPars)
+import Agda.Compiler.Epic.CompileState
+import Agda.Compiler.Epic.Interface
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
-getNatish :: Compile TCM [(IrrFilter,[QName])]
+getNatish :: MonadTCM m => Compile m [(IrrFilter,[QName])]
 getNatish = do
   sig <- lift (gets (sigDefinitions . stImports))
   let defs = M.toList sig
   fmap catMaybes $ forM defs $ \(q, def) ->
     case theDef def of
-      d@(Datatype {}) -> do -- A datatype ...
-          case dataCons d of
-              constrs | length constrs == 2 -> do -- with two constructors ...
-                  z <- zip constrs <$> mapM getIrrFilter constrs
-                  case sortBy (compare `on` nrRel . snd) z of
-                    [(cz,fz), (cs,fs)] -> do
-                      let ts = defType $ sig M.! cs
-                          nr = fromIntegral $ dataPars d
-                      return $ do
-                       guard (nrRel fz == 0) -- where one constructor has zero arguments ...
-                       guard (nrRel fs == 1) -- and the other one one argument ...
-                       guard (isRec ((fromJust $ elemIndex True fs) + nr) ts q) -- which is recursive.
-                       return (fs, [cz, cs]) -- It's natish!
-                    _ -> return Nothing
-              _       -> return Nothing
+      d@(Datatype {}) -> isNatish q d
+
       _ -> return Nothing
 
+isNatish :: MonadTCM m => QName -> Defn -> Compile m (Maybe (ForcedArgs, [QName]))
+isNatish q d = do -- A datatype ...
+    case dataCons d of
+        constrs | length constrs == 2 -> do -- with two constructors ...
+            b <- and <$> mapM constrInScope constrs
+            if b
+              then do
+                z <- zip constrs <$> mapM getForcedArgs constrs
+                case sortBy (compare `on` nrRel . snd) z of
+                  [(cz,fz), (cs,fs)] -> do
+                    sig <- lift (gets (sigDefinitions . stImports))
+                    let ts = defType $ sig M.! cs
+                        nr = fromIntegral $ dataPars d
+                    return $ do
+                     guard (nrRel fz == 0) -- where one constructor has zero arguments ...
+                     guard (nrRel fs == 1) -- and the other one one argument ...
+                     guard (isRec ((fromMaybe __IMPOSSIBLE__ $ elemIndex NotForced fs) + nr) ts q) -- which is recursive.
+                     return (fs, [cz, cs]) -- It's natish!
+                  _ -> return Nothing
+              else return Nothing
+        _       -> return Nothing
+
 -- | Count the number of relevant arguments
-nrRel :: IrrFilter -> Integer
-nrRel = sum . map (const 1) . filter id
+nrRel :: ForcedArgs -> Integer
+nrRel = sum . map (const 1) . filter (== NotForced)
 
 -- | Check if argument n is recursive
 isRec :: Int -> Type -> QName -> Bool

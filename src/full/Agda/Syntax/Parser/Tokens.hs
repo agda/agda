@@ -19,7 +19,7 @@ data Keyword
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
         | KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS
-        | KwIMPORT | KwIMPOSSIBLE | KwETA | KwQuoteGoal | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax
+        | KwIMPORT | KwIMPOSSIBLE | KwETA | KwQuoteGoal | KwQuote | KwUnquote | KwSyntax
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

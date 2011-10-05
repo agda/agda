@@ -685,6 +685,9 @@ instance ToConcrete RangeAndPragma C.Pragma where
         A.CompiledJSPragma x e -> do
           x <- toConcrete x
           return $ C.CompiledJSPragma r x e
+        A.StaticPragma x -> do
+            x <- toConcrete x
+            return $ C.StaticPragma r x
         A.EtaPragma x -> C.EtaPragma r <$> toConcrete x
 
 -- Left hand sides --------------------------------------------------------

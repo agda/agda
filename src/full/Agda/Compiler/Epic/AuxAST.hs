@@ -7,8 +7,10 @@ import qualified Data.Set as S
 
 import Agda.Syntax.Abstract.Name
 
-type Var = String
-type Tag = Int
+import Agda.Compiler.Epic.Interface
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
 
 type Comment  = String
 type Inline   = Bool
@@ -17,12 +19,14 @@ data Fun
   = Fun
       { funInline  :: Inline
       , funName    :: Var
+      , funQName   :: Maybe QName
       , funComment :: Comment
       , funArgs    :: [Var]
       , funExpr    :: Expr
       }
   | EpicFun
       { funName     :: Var
+      , funQName    :: Maybe QName
       , funComment  :: Comment
       , funEpicCode :: String --EpicCode
       }
@@ -34,6 +38,7 @@ data Lit
   | LString String
   | LFloat  Double
   deriving (Show, Ord, Eq)
+
 
 data Expr
   = Var Var
@@ -55,10 +60,57 @@ data Branch
   | Default {brExpr :: Expr}
   deriving (Show, Ord, Eq)
 
+getBrVars :: Branch -> [Var]
+getBrVars (Branch {brVars = vs}) = vs
+getBrVars _                      = []
+
+--------------------------------------------------------------------------------
+-- * Some smart constructors
+
+-- | Smart constructor for let expressions to avoid unneceessary lets
+lett :: Var -> Expr -> Expr -> Expr
+lett v (Var v') e' = subst v v' e'
+lett v e        e' = if v `elem` fv e' then Let v e e' else e'
+
+-- | Some things are pointless to make lazy
+lazy :: Expr -> Expr
+lazy (Lazy e) = Lazy e
+lazy (Lit l)  = Lit l
+lazy UNIT     = UNIT
+lazy x        = Lazy x
+
+-- | If casing on the same expression in a sub-expression, we know what branch to
+--   pick
+casee :: Expr -> [Branch] -> Expr
+casee x brs = Case x [br{brExpr = casingE br (brExpr br)} | br <- brs]
+  where
+    casingE br expr = let rec = casingE br in case expr of
+      Var v -> Var v
+      Lit l -> Lit l
+      Lam v e -> Lam v (rec e)
+      Con t n es -> Con t n (map rec es)
+      App v es   -> App v (map rec es)
+      Case e brs | expr == e -> case filter (sameCon br) brs of
+        []  -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
+        [b] -> substs (getBrVars br `zip` getBrVars b) (brExpr b)
+        _   -> __IMPOSSIBLE__
+                 | otherwise -> Case (rec e) [b {brExpr = rec (brExpr b)} | b <- brs]
+      If e1 e2 e3 -> If (rec e1) (rec e2) (rec e3)
+      Let v e1 e2 -> Let v (rec e1) (rec e2)
+      Lazy e      -> Lazy (rec e)
+      UNIT        -> UNIT
+      IMPOSSIBLE  -> IMPOSSIBLE
+    sameCon (Branch {brTag = t1}) (Branch {brTag = t2}) = t1 == t2
+    sameCon (BrInt  {brInt = i1}) (BrInt  {brInt = i2}) = i1 == i2
+    sameCon _                     _                     = False
+
 -- | Smart constructor for applications to avoid empty applications
 apps :: Var -> [Expr] -> Expr
 apps v [] = Var v
 apps v as = App v as
+
+--------------------------------------------------------------------------------
+-- * Substitution
 
 -- | Substitution
 subst :: Var  -- ^ Substitute this ...
@@ -82,6 +134,9 @@ subst var var' expr = case expr of
     Lazy e     -> Lazy (subst var var' e)
     UNIT       -> UNIT
     IMPOSSIBLE -> IMPOSSIBLE
+
+substs :: [(Var, Var)] -> Expr -> Expr
+substs ss e = foldr (uncurry subst) e ss
 
 substBranch :: Var -> Var -> Branch -> Branch
 substBranch x e br = br { brExpr = subst x e (brExpr br) }
@@ -109,9 +164,3 @@ fv = S.toList . fv'
       Branch _ _ vs e -> fv' e S.\\ S.fromList vs
       BrInt _ e       -> fv' e
       Default e       -> fv' e
-
--- | Filter a list using a list of Bools specifying what to keep.
-pairwiseFilter :: [Bool] -> [a] -> [a]
-pairwiseFilter (True :bs) (a:as) = a : pairwiseFilter bs as
-pairwiseFilter (False:bs) (_:as) = pairwiseFilter bs as
-pairwiseFilter _           _     = []

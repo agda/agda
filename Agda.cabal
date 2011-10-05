@@ -82,7 +82,7 @@ library
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
   if flag(epic)
-    build-depends:  epic >= 0.1.7 && < 0.2
+    build-depends:  epic >= 0.1.13 && < 0.2
   build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.12,
@@ -110,16 +110,20 @@ library
                     Agda.Interaction.GhciTop
                     Agda.Compiler.HaskellTypes
                     Agda.Compiler.Epic.AuxAST
+                    Agda.Compiler.Epic.CaseOpts
                     Agda.Compiler.Epic.Compiler
                     Agda.Compiler.Epic.CompileState
-                    Agda.Compiler.Epic.ConstructorIrrelevancy
+                    Agda.Compiler.Epic.ForceConstrs
                     Agda.Compiler.Epic.Erasure
                     Agda.Compiler.Epic.Epic
                     Agda.Compiler.Epic.Forcing
                     Agda.Compiler.Epic.FromAgda
-                    Agda.Compiler.Epic.LambdaLift
+                    Agda.Compiler.Epic.Injection
+                    Agda.Compiler.Epic.Interface
                     Agda.Compiler.Epic.NatDetection
                     Agda.Compiler.Epic.Primitive
+                    Agda.Compiler.Epic.Smashing
+                    Agda.Compiler.Epic.Static
                     Agda.Compiler.JS.Case
                     Agda.Compiler.JS.Compiler
                     Agda.Compiler.JS.Syntax

@@ -465,6 +465,7 @@ checkExpr e t =
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
                                     , funProjection     = Nothing
+                                    , funStatic         = False
                                     }
                   return (Def aux [])
                 | otherwise -> typeError $ WrongHidingInLambda t'
