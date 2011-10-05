@@ -74,8 +74,15 @@ $(allstems) : % : %.err
 			 cat $*.err; \
 			 echo "== New error ==="; \
 			 cat $*.tmp; \
-			 rm -f $*.tmp; rm -f $*.tmp.2; rm -f $*.tmp.3; \
-			 false; \
+			 /bin/echo -n "Accept new error [y/N]? "; \
+			 read -n 1; \
+			 echo ""; \
+			 if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
+			   then echo "Keeping old error"; false; \
+			   else echo "Replacing error, continuing..."; \
+			     mv $*.tmp $*.err; \
+			     rm -f $*.tmp.2 $*.tmp.3; true; \
+			 fi; \
 	 fi
 
 # Customised test cases.
