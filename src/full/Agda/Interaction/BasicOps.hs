@@ -112,8 +112,6 @@ addDecl d = do
 
 
 refine :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
--- If constants has a fixed arity, then it might be better to do
--- exact refinement.
 refine ii mr e =
     do  mi <- lookupInteractionId ii
         mv <- lookupMeta mi
@@ -135,42 +133,6 @@ refine ii mr e =
                       in App (ExprRange $ r) e (defaultArg $ unnamed metaVar)
                  --ToDo: The position of metaVar is not correct
                  --ToDo: The fixity of metavars is not correct -- fixed? MT
-
-{-
-refineExact :: InteractionId -> Maybe Range -> Expr -> TCM (Expr,[InteractionId])
-refineExact ii mr e =
-    do  mi <- lookupInteractionId ii
-        mv <- lookupMeta mi
-        let range = maybe (getRange mv) id mr
-        let scope = M.getMetaScope mv
-        (_,t) <- withMetaInfo (getMetaInfo mv) $ inferExpr e
-        let arityt = arity t
-
-        tryRefine 10 range scope e
-  where tryRefine :: Int -> Range -> ScopeInfo -> Expr -> TCM (Expr,[InteractionId])
-        tryRefine nrOfMetas r scope e = try nrOfMetas e
-           where try 0 e = throwError (strMsg "Can not refine")
-                 try n e = give ii (Just r) e `catchError` (\_ -> try (n-1) (appMeta e))
-                 appMeta :: Expr -> Expr
-                 appMeta e =
-                      let metaVar = QuestionMark $ Agda.Syntax.Info.MetaInfo {Agda.Syntax.Info.metaRange = r,
-                                                 Agda.Syntax.Info.metaScope = scope}
-                      in App (ExprRange $ r) NotHidden e metaVar
-                 --ToDo: The position of metaVar is not correct
-
-
-
-
-
-abstract :: InteractionId -> Maybe Range -> TCM (Expr,[InteractionId])
-abstract ii mr
-
-
-refineExact :: InteractionId -> Expr -> TCM (Expr,[InteractionId])
-refineExact ii e =
-    do
--}
-
 
 {-| Evaluate the given expression in the current environment -}
 evalInCurrent :: Expr -> TCM Expr
