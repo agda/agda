@@ -673,3 +673,89 @@ Tools
   module and imported.
 
 * The --no-unreachable-check flag has been removed.
+
+* Epic compiler update.
+
+  Some new optimisations have been implemented in the Epic backend:
+
+  - Removal of unused arguments
+
+  A worker/wrapper transform is performed so that unused arguments can be
+  removed by Epic's inliner. An example is the map function, which is
+  transformed in the following way:
+
+    map_wrap : (A B : Set) -> (A -> B) -> List A -> List B
+    map_wrap A B f xs = map_work f xs
+
+    map_work f []        = []
+    map_work f (x :: xs) = f x :: map_work f xs
+
+  If map_wrap is inlined (which it will be in any saturated call) A and B
+  disappear in the generated code.
+
+  To find the actual arguments an abstract interpretation of all functions in a
+  module is performed, which looks at function bodies to decide what variables
+  are used. Postulates get an approximation from their type:
+
+    postulate return : {A : Set} -> A -> IO A
+
+  In this example the first argument of return can be removed as it is of type
+  Set and thus cannot affect the outcome of a program at runtime.
+
+  - Injection detection
+
+  Many functions may be inefficient variants of the identity function at
+  runtime.  This is especially true after forcing. Injection detection is
+  performed to find these functions and replace them with more efficient
+  versions of the function. Example:
+
+    inject : {n : Nat} -> Fin n -> Fin (1 + n)
+    inject {suc m} fzero    = fzero
+    inject {suc m} (fsuc i) = fsuc (inject {m} i)
+
+  As forcing removes the Nat argument to both Fin constructors, this function
+  is an inefficient identity function that can be replaced with the following:
+
+    inject {_} x = x
+
+  To actually find this function, we make the induction hypothesis that inject
+  is an identity function in its second argument and look at the branches of
+  the function to decide if this holds.
+
+  Injection detection also works over datatype barriers. Example:
+
+    forget : {A : Set}{n : Nat} -> Vec A n -> List A
+    forget vnil         = lnil
+    forget (vcons x xs) = lcons x (forget xs)
+
+  Given that the constructor tags (in the compiled Epic code) for vnil and lnil
+  are the same and the tags for vcons and lcons are the same, this is also an
+  identity function and can be replaced with:
+
+    forget {_} xs = xs
+
+  To get this to apply as often as possible, constructor tags are chosen after
+  injection detection has been run, in a way to make as many functions as
+  possible injections. Sometimes it may be an advantage to have such conversion
+  functions in the same module as the definition of a datatype as constructor
+  tags are chosen per module. If Vec.agda imports List.agda the forget function
+  should be put in Vec.agda to ensure that vectors and lists get the same tags.
+  It is likely that this is the case anyway, but cannot be guaranteed (it
+  actually cannot be guaranteed either way, as another injection may be
+  prioritised, but that does not seem to happen very often).
+
+  - Smashing
+
+  This optimisation finds types whose values are inferable at runtime:
+
+    * A datatype with only one constructor where all fields are inferable is
+      itself inferable
+    * All Sets are inferable (as they have no runtime representation)
+
+  A function returning an inferable datatype can be smashed, which means that
+  it is replaced by a function which simply returns the inferred value. This
+  applies to all functions returning anything in the equality datatype (_==_),
+  which can simply return refl without computing anything.
+
+  This optimisation also helps the removal of unused arguments and makes the
+  Epic code size smaller, which in turn speeds up compilation.
