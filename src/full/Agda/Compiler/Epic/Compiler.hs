@@ -55,12 +55,8 @@ compilePrelude = do
     pwd <- liftIO $ getCurrentDirectory
     liftIO $ setCurrentDirectory dataDir
     let prelude = "AgdaPrelude"
-    b <- liftIO $ doesFileExist (prelude <.> "ei")
-    if b then return () else do
-        callEpic False
-          [ "-c"
-          , prelude <.> "e"
-          ]
+    uptodate <- liftIO $ (prelude <.> "ei") `isNewerThan` (prelude <.> "e")
+    when (not uptodate) $ callEpic False [ "-c" , prelude <.> "e" ]
     liftIO $ setCurrentDirectory pwd
 
 -- | Compile an interface into an executable using Epic
