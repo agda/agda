@@ -360,7 +360,7 @@ pragmaOptions =
     , Option []	    ["type-in-type"] (NoArg dontUniverseCheckFlag)
 		    "ignore universe levels (this makes Agda inconsistent)"
     , Option []     ["sized-types"] (NoArg sizedTypes)
-                    "use sized types (this makes Agda inconsistent)"
+                    "use sized types (inconsistent with coinduction)"
     , Option []     ["injective-type-constructors"] (NoArg injectiveTypeConstructorFlag)
                     "enable injective type constructors (makes Agda anti-classical and possibly inconsistent)"
     , Option []     ["guardedness-preserving-type-constructors"] (NoArg guardingTypeConstructorFlag)
