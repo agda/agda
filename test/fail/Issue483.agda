@@ -15,9 +15,12 @@ data D : Set where
 
 d : D
 d = c _ (λ y → refl)
+-- this should leave an unsolved meta!  An error is too harsh.
+{-
 -- Cannot instantiate the metavariable _21 to resurrect _ since it
 -- contains the variable y which is not in scope of the metavariable
 -- when checking that the expression refl has type _21 == resurrect _
+-}
 
 ¬d : D → ⊥
 ¬d (c x _) = x

@@ -475,9 +475,14 @@ assign x args v = do
         -- even though the lhs is not a pattern, we can prune the y from _2
         let varsL = freeVars args
         let relVL = Set.toList $ relevantVars varsL
-        let irrVL = Set.toList $ irrelevantVars varsL
---        let fvsL  = Set.toList $ allVars $ varsL
---        let fvsL = Set.toList $ relevantVars $ freeVars args
+        -- Andreas, 2011-10-06 only irrelevant vars that are direct
+        -- arguments to the meta, hence, can be abstracted over, may
+        -- appear on the rhs.  (test/fail/Issue483b)
+        -- let irrVL = Set.toList $ irrelevantVars varsL
+        let fromIrrVar (Arg h Irrelevant (Var i [])) = [i]
+            fromIrrVar (Arg h Irrelevant (DontCare (Var i []))) = [i]
+            fromIrrVar _ = []
+        let irrVL = concat $ map fromIrrVar args
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
@@ -493,7 +498,7 @@ assign x args v = do
         -- Prune mvars on rhs such that they can only depend on varsL.
         -- Herein, distinguish relevant and irrelevant vars,
         -- since when abstracting irrelevant lhs vars, they may only occur
-        -- irrelevantly on rhs
+        -- irrelevantly on rhs.
 	v <- liftTCM $ occursCheck x (relVL, irrVL) v
 
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"

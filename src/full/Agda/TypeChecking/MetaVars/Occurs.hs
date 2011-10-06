@@ -30,7 +30,7 @@ data OccursCtx
   = Flex          -- ^ we are in arguments of a meta
   | Rigid         -- ^ we are not in arguments of a meta but a bound var
   | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
---  | Irrelevantly  -- ^ we are in an irrelevant argument
+  | Irrel         -- ^ we are in an irrelevant argument
   deriving (Eq, Show)
 
 data UnfoldStrategy = YesUnfold | NoUnfold
@@ -54,9 +54,10 @@ strongly Rigid = StronglyRigid
 strongly ctx = ctx
 
 abort :: OccursCtx -> TypeError -> TCM ()
-abort Flex  _   = patternViolation -- throws a PatternErr, which leads to delayed constraint
-abort Rigid err = patternViolation -- typeError err
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
+abort Flex  _ = patternViolation -- throws a PatternErr, which leads to delayed constraint
+abort Rigid _ = patternViolation
+abort Irrel _ = patternViolation
 
 -- | Distinguish relevant and irrelevant variables in occurs check.
 type Vars = ([Nat],[Nat])
@@ -135,7 +136,7 @@ instance Occurs Term where
         Lam h f	    -> Lam h <$> occ ctx f
         Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
-        DontCare v  -> DontCare <$> occurs red ctx m (goIrrelevant xs) v
+        DontCare v  -> DontCare <$> occurs red Irrel m (goIrrelevant xs) v
         Def d vs    -> Def d <$> occDef d ctx vs
         Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
