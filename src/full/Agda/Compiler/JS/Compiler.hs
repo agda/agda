@@ -371,7 +371,7 @@ defProjection Defn { theDef = Function { funProjection = p } } = p
 defProjection _                                                = Nothing
 
 args :: Maybe(QName, Int) -> Args -> TCM [Exp]
-args Nothing as = 
+args Nothing as =
   mapM (term . unArg) as
 args (Just (q,i)) as = do
   es <- mapM (term . unArg) as
