@@ -1000,6 +1000,10 @@ data TypeError
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type
+    -- Safe flag errors
+        | SafeFlagPostulate C.Name
+        | SafeFlagPragma [String]
+        | SafeFlagPrimTrustMe
           deriving (Typeable, Show)
 
 -- instance Show TypeError where

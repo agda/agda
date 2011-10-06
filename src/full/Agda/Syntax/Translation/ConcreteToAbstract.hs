@@ -763,6 +763,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Axiom
     C.Axiom r f p rel x t -> do
+      clo <- commandLineOptions
+      when (optSafe clo) (typeError (SafeFlagPostulate x))
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       bindName p DefName x y

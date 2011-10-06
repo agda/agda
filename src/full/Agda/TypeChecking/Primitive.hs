@@ -12,6 +12,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Char
 
+import Agda.Interaction.Options
+
 import Agda.Syntax.Position
 import Agda.Syntax.Common hiding (Nat)
 import Agda.Syntax.Internal
@@ -258,6 +260,8 @@ fromLiteral f = fromReducedTerm $ \t -> case t of
 -- trustMe : {a : Level} {A : Set a} {x y : A} -> x ≡ y
 primTrustMe :: TCM PrimitiveImpl
 primTrustMe = do
+  clo <- commandLineOptions
+  when (optSafe clo) (typeError SafeFlagPrimTrustMe)
   t    <- hPi "a" (el primLevel) $
           hPi "A" (return $ sort $ varSort 0) $
           hPi "x" (El (varSort 1) <$> var 0) $

@@ -1,0 +1,4 @@
+SafeFlagPrimTrustMe.agda:9,4-21
+Cannot use primTrustMe with safe flag
+when checking that the type of the primitive function primTrustMe
+is Set

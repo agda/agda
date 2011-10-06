@@ -29,6 +29,8 @@ import Agda.Utils.Impossible
 setPragmaOptions :: PragmaOptions -> TCM ()
 setPragmaOptions opts = do
   clo <- commandLineOptions
+  let unsafe = unsafePragmaOptions opts
+  when (optSafe clo && not (null unsafe)) $ typeError (SafeFlagPragma unsafe)
   case checkOpts (clo { optPragmaOptions = opts }) of
     Left err   -> __IMPOSSIBLE__
     Right opts -> do

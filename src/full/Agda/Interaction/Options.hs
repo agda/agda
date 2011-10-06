@@ -13,6 +13,7 @@ module Agda.Interaction.Options
     , defaultOptions
     , defaultVerbosity
     , standardOptions_
+    , unsafePragmaOptions
     , isLiterate
     , mapFlag
     , usage
@@ -22,7 +23,7 @@ module Agda.Interaction.Options
 import Control.Monad            ( when )
 import Control.Monad.Error	( MonadError(..) )
 import Data.Maybe (isJust)
-import Data.List		( isSuffixOf )
+import Data.List		( isSuffixOf , intercalate )
 import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 				, OptDescr(..), ArgDescr(..)
 				)
@@ -73,7 +74,8 @@ data CommandLineOptions =
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
             , optEpicFlags            :: [String]
-	    }
+            , optSafe                 :: Bool
+            }
     deriving Show
 
 -- | Options which can be set in a pragma.
@@ -136,6 +138,7 @@ defaultOptions =
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
             , optEpicFlags            = []
+            , optSafe                 = False
 	    }
 
 defaultPragmaOptions :: PragmaOptions
@@ -197,6 +200,30 @@ checkOpts opts
 
   p = optPragmaOptions
 
+-- Check for unsafe pramas. Gives a list of used unsafe flags.
+
+unsafePragmaOptions :: PragmaOptions -> [String]
+unsafePragmaOptions opts =
+  [ "--allow-unsolved-metas"                     | optAllowUnsolved opts             ] ++
+  [ "--no-positivity-check"                      | optDisablePositivity opts         ] ++
+  [ "--no-termination-check"                     | not (optTerminationCheck opts)    ] ++
+  [ "--no-coverage-check"                        | not (optCompletenessCheck opts)   ] ++
+  [ "--type-in-type"                             | not (optUniverseCheck opts)       ] ++
+  [ "--sized-types"                              | optSizedTypes opts                ] ++
+  [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
+  [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
+  [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ]
+
+-- The default pragma options should be considered safe
+
+defaultPragmaOptionsSafe :: IO Bool
+defaultPragmaOptionsSafe
+    | null unsafe = return True
+    | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
+                                  ++ intercalate ", " unsafe
+                       return False
+  where unsafe = unsafePragmaOptions defaultPragmaOptions
+
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
     case optInputFile o of
@@ -205,6 +232,7 @@ inputFlag f o =
 
 versionFlag                  o = return $ o { optShowVersion               = True  }
 helpFlag                     o = return $ o { optShowHelp                  = True  }
+safeFlag                     o = return $ o { optSafe                      = True  }
 proofIrrelevanceFlag         o = return $ o { optProofIrrelevance          = True  }
 experimentalIrrelevanceFlag  o = return $ o { optExperimentalIrrelevance   = True  }
 noIrrelevantProjectionsFlag  o = return $ o { optIrrelevantProjections     = False }
@@ -302,6 +330,8 @@ standardOptions =
 		    "look for imports in DIR"
     , Option []     ["no-forcing"] (NoArg noForcingFlag)
                     "disable the forcing optimisation"
+    , Option []     ["safe"] (NoArg safeFlag)
+                    "disable postulates, unsafe OPTION pragmas and primTrustMe"
     ] ++ map (fmap lift) pragmaOptions
   where
   lift :: Flag PragmaOptions -> Flag CommandLineOptions
@@ -418,4 +448,5 @@ usage options pluginInfos progName =
 tests :: IO Bool
 tests = runTests "Agda.Interaction.Options"
   [ quickCheck' prop_defaultOptions
+  , defaultPragmaOptionsSafe
   ]

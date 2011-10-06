@@ -759,3 +759,24 @@ Tools
 
   This optimisation also helps the removal of unused arguments and makes the
   Epic code size smaller, which in turn speeds up compilation.
+
+* New flag --safe to typecheck untrusted code has been added.
+
+  It disables postulates, primTrustMe, and "unsafe" OPTION pragmas,
+  some of which are known to make Agda inconsistent.
+
+  The rejected pragmas are: --allow-unsolved-metas,
+                            --no-positivity-check,
+                            --no-termination-check,
+                            --no-coverage-check,
+                            --type-in-type,
+                            --sized-types,
+                            --injective-type-constructors,
+                            --guardedness-preserving-type-construtors and
+                            --experimental-irrelevance.
+
+  Currently, this is a rather simple check so for instance declaring
+  the Level hierarchy will not be considered safe, as the Level builtins
+  needs to be postulated. A workaround for this is to typecheck trusted
+  files in a first pass without the --safe flag, and use the produced
+  interface files when checking the remaining files with the --safe flag.

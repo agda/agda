@@ -148,6 +148,9 @@ errorString err = case err of
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
     RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
+    SafeFlagPostulate{}                      -> "SafeFlagPostulate"
+    SafeFlagPragma{}                         -> "SafeFlagPragma"
+    SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
     ShadowedModule{}                         -> "ShadowedModule"
     ShouldBeASort{}                          -> "ShouldBeASort"
     ShouldBeApplicationOf{}                  -> "ShouldBeApplicationOf"
@@ -575,6 +578,14 @@ instance PrettyTCM TypeError where
 		    com (_:_) = comma
             IFSNoCandidateInScope t -> fsep $
                 pwords "No variable of type" ++ [prettyTCM t] ++ pwords "was found in scope."
+            SafeFlagPostulate e -> fsep $
+                pwords "Cannot postulate" ++ [pretty e] ++ pwords "with safe flag"
+            SafeFlagPragma xs ->
+                let plural | length xs == 1 = ""
+                           | otherwise      = "s"
+                in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
+                          ++ map text xs ++ [fwords "with safe flag."]
+            SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
           where
             mpar n args
               | n > 0 && not (null args) = parens
