@@ -95,12 +95,12 @@ primStringToList (xs : Data) -> Data = case xs of
   | Con 1 (str : String, rest : Data) -> primListAppend(primStringToListS(str), primStringToList(rest))
   }
 
-mapToString (f : Any, l : Any) -> Any = case l of
+map (f : Any, l : Any) -> Any = case l of
   { Con 0 () -> Con 0 ()
   | Con 1 (x : Any, xs : Any) -> Con 1 (f (x), map (f, xs))
   }
 
-primStringFromList (l : Data) -> String = mapToString (charToStr, l)
+primStringFromList (l : Data) -> String = map (charToStr, l)
 
 
 strCons(i : Int , s : String) -> String =
