@@ -12,7 +12,7 @@ open import Data.Fin using (Fin; zero; suc)
 open import Data.List as List using (List)
 open import Data.Product using (∃; ∃₂; _×_; _,_)
 open import Function
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality using (_≡_; refl)
 
 ------------------------------------------------------------------------
 -- Types

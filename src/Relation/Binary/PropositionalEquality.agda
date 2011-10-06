@@ -9,6 +9,7 @@ module Relation.Binary.PropositionalEquality where
 open import Function
 open import Function.Equality using (Π; _⟶_; ≡-setoid)
 open import Data.Product
+open import Data.Unit.Core
 open import Level
 open import Relation.Binary
 import Relation.Binary.Indexed as I
@@ -94,22 +95,51 @@ _≗_ {A = A} {B} = Setoid._≈_ (A →-setoid B)
 →-to-⟶ = :→-to-Π
 
 ------------------------------------------------------------------------
--- The inspect idiom
+-- The old inspect idiom
 
--- The inspect idiom can be used when you want to pattern match on the
--- result r of some expression e, and you also need to "remember" that
--- r ≡ e.
+-- The old inspect idiom has been deprecated, and may be removed in
+-- the future. Use inspect on steroids instead.
 
-data Inspect {a} {A : Set a} (x : A) : Set a where
-  _with-≡_ : (y : A) (eq : x ≡ y) → Inspect x
+module Deprecated-inspect where
 
-inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
-inspect x = x with-≡ refl
+  -- The inspect idiom can be used when you want to pattern match on
+  -- the result r of some expression e, and you also need to
+  -- "remember" that r ≡ e.
+
+  -- The inspect idiom has a problem: sometimes you can only pattern
+  -- match on the p part of p with-≡ eq if you also pattern match on
+  -- the eq part, and then you no longer have access to the equality.
+  -- Inspect on steroids solves this problem.
+
+  data Inspect {a} {A : Set a} (x : A) : Set a where
+    _with-≡_ : (y : A) (eq : x ≡ y) → Inspect x
+
+  inspect : ∀ {a} {A : Set a} (x : A) → Inspect x
+  inspect x = x with-≡ refl
+
+  -- Example usage:
+
+  -- f x y with inspect (g x)
+  -- f x y | c z with-≡ eq = ...
+
+------------------------------------------------------------------------
+-- Inspect on steroids
+
+-- Inspect on steroids can be used when you want to pattern match on
+-- the result r of some expression e, and you also need to "remember"
+-- that r ≡ e.
+
+data Reveal_is_ {a} {A : Set a} (x : Hidden A) (y : A) : Set a where
+  [_] : (eq : reveal x ≡ y) → Reveal x is y
+
+inspect : ∀ {a b} {A : Set a} {B : A → Set b}
+          (f : (x : A) → B x) (x : A) → Reveal (hide f x) is (f x)
+inspect f x = [ refl ]
 
 -- Example usage:
 
--- f x y with inspect (g x)
--- f x y | c z with-≡ eq = ...
+-- f x y with g x | inspect g x
+-- f x y | c z | [ eq ] = ...
 
 ------------------------------------------------------------------------
 -- Convenient syntax for equational reasoning

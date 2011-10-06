@@ -24,7 +24,7 @@ open import Data.List as List using (List; []; _∷_)
 open import Function
 open import Induction.Nat
 open import Relation.Nullary
-open import Relation.Binary.PropositionalEquality
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 ------------------------------------------------------------------------
 -- A lemma
@@ -174,7 +174,7 @@ private
 
   test-nodes : nodes example ≡ (# 0 , 0) ∷ (# 1 , 1) ∷ (# 2 , 2) ∷
                                (# 3 , 3) ∷ (# 4 , 4) ∷ []
-  test-nodes = refl
+  test-nodes = P.refl
 
 -- Topological sort. Gives a vector where earlier nodes are never
 -- successors of later nodes.
@@ -198,7 +198,7 @@ private
 
   test-edges : edges example ≡ (# 1 , 10 , # 1) ∷ (# 1 , 11 , # 1) ∷
                                (# 2 , 12 , # 0) ∷ []
-  test-edges = refl
+  test-edges = P.refl
 
 -- The successors of a given node i (edge label × node number relative
 -- to i).
@@ -210,7 +210,7 @@ sucs g i = successors $ head $ g [ i ]
 private
 
   test-sucs : sucs example (# 1) ≡ (10 , # 1) ∷ (11 , # 1) ∷ []
-  test-sucs = refl
+  test-sucs = P.refl
 
 -- The predecessors of a given node i (node number relative to i ×
 -- edge label).
@@ -223,14 +223,14 @@ preds (c & g) (suc i) =
   where
   p : ∀ {E : Set} {n} (i : Fin n) → E × Fin n → Maybe (Fin′ (suc i) × E)
   p i (e , j)  with i ≟ j
-  p i (e , .i) | yes refl = just (zero , e)
-  p i (e , j)  | no _     = nothing
+  p i (e , .i) | yes P.refl = just (zero , e)
+  p i (e , j)  | no _       = nothing
 
 private
 
   test-preds : preds example (# 3) ≡
                (# 1 , 10) ∷ (# 1 , 11) ∷ (# 2 , 12) ∷ []
-  test-preds = refl
+  test-preds = P.refl
 
 ------------------------------------------------------------------------
 -- Operations
@@ -257,7 +257,7 @@ private
                  context (# 3 , 3) [] &
                  context (# 4 , 4) [] &
                  ∅)
-  test-number = refl
+  test-number = P.refl
 
 -- Reverses all the edges in the graph.
 
@@ -274,7 +274,7 @@ reverse {N} {E} g =
 private
 
   test-reverse : reverse (reverse example) ≡ example
-  test-reverse = refl
+  test-reverse = P.refl
 
 ------------------------------------------------------------------------
 -- Views
@@ -312,4 +312,4 @@ private
                     node 3 [] ∷
                     node 4 [] ∷
                     []
-  test-toForest = refl
+  test-toForest = P.refl

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 -- The Agda standard library
 --
--- The unit type
+-- Some unit types
 ------------------------------------------------------------------------
 
 module Data.Unit where
@@ -12,8 +12,12 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
 
+-- Some types and operations are defined in Data.Unit.Core.
+
+open import Data.Unit.Core public
+
 ------------------------------------------------------------------------
--- Types
+-- A unit type defined as a record type
 
 -- Note that the name of this type is "\top", not T.
 

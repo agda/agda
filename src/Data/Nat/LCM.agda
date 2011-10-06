@@ -15,7 +15,7 @@ open import Data.Nat.Coprimality as Coprime
 open import Data.Product
 open import Function
 open import Relation.Binary.PropositionalEquality as PropEq
-  using (_≡_; refl; inspect; _with-≡_)
+  using (_≡_; refl)
 open import Algebra
 open import Relation.Binary
 private

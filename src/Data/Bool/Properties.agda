@@ -16,10 +16,10 @@ open import Algebra
 open import Algebra.Structures
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
-open import Relation.Binary.PropositionalEquality
-  hiding (proof-irrelevance)
-open ≡-Reasoning
-import Algebra.FunctionProperties as P; open P (_≡_ {A = Bool})
+open import Relation.Binary.PropositionalEquality as P
+  using (_≡_; _≢_; refl)
+open P.≡-Reasoning
+import Algebra.FunctionProperties as FP; open FP (_≡_ {A = Bool})
 open import Data.Product
 open import Data.Sum
 open import Data.Empty
@@ -69,7 +69,7 @@ private
        x ∧ (y ∨ z)
                       ≡⟨ distˡ x y z ⟩
        x ∧ y ∨ x ∧ z
-                      ≡⟨ cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
+                      ≡⟨ P.cong₂ _∨_ (∧-comm x y) (∧-comm x z) ⟩
        y ∧ x ∨ z ∧ x
                       ∎
 
@@ -78,18 +78,18 @@ isCommutativeSemiring-∨-∧
 isCommutativeSemiring-∨-∧ = record
   { +-isCommutativeMonoid = record
     { isSemigroup = record
-      { isEquivalence = isEquivalence
+      { isEquivalence = P.isEquivalence
       ; assoc         = ∨-assoc
-      ; ∙-cong        = cong₂ _∨_
+      ; ∙-cong        = P.cong₂ _∨_
       }
     ; identityˡ = λ _ → refl
     ; comm      = ∨-comm
     }
   ; *-isCommutativeMonoid = record
     { isSemigroup = record
-      { isEquivalence = isEquivalence
+      { isEquivalence = P.isEquivalence
       ; assoc         = ∧-assoc
-      ; ∙-cong        = cong₂ _∧_
+      ; ∙-cong        = P.cong₂ _∧_
       }
       ; identityˡ = λ _ → refl
     ; comm      = ∧-comm
@@ -130,7 +130,7 @@ private
        x ∨ (y ∧ z)
                           ≡⟨ distˡ x y z ⟩
        (x ∨ y) ∧ (x ∨ z)
-                          ≡⟨ cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
+                          ≡⟨ P.cong₂ _∧_ (∨-comm x y) (∨-comm x z) ⟩
        (y ∨ x) ∧ (z ∨ x)
                           ∎
 
@@ -139,18 +139,18 @@ isCommutativeSemiring-∧-∨
 isCommutativeSemiring-∧-∨ = record
   { +-isCommutativeMonoid = record
     { isSemigroup = record
-      { isEquivalence = isEquivalence
+      { isEquivalence = P.isEquivalence
       ; assoc         = ∧-assoc
-      ; ∙-cong        = cong₂ _∧_
+      ; ∙-cong        = P.cong₂ _∧_
       }
     ; identityˡ = λ _ → refl
     ; comm      = ∧-comm
     }
   ; *-isCommutativeMonoid = record
     { isSemigroup = record
-      { isEquivalence = isEquivalence
+      { isEquivalence = P.isEquivalence
       ; assoc         = ∨-assoc
-      ; ∙-cong        = cong₂ _∨_
+      ; ∙-cong        = P.cong₂ _∨_
       }
     ; identityˡ = λ _ → refl
     ; comm      = ∨-comm
@@ -186,7 +186,7 @@ private
 
   not-∧-inverse : Inverse false not _∧_
   not-∧-inverse =
-    ¬x∧x≡⊥ , (λ x → ∧-comm x (not x) ⟨ trans ⟩ ¬x∧x≡⊥ x)
+    ¬x∧x≡⊥ , (λ x → ∧-comm x (not x) ⟨ P.trans ⟩ ¬x∧x≡⊥ x)
     where
     ¬x∧x≡⊥ : LeftInverse false not _∧_
     ¬x∧x≡⊥ false = refl
@@ -194,7 +194,7 @@ private
 
   not-∨-inverse : Inverse true not _∨_
   not-∨-inverse =
-    ¬x∨x≡⊤ , (λ x → ∨-comm x (not x) ⟨ trans ⟩ ¬x∨x≡⊤ x)
+    ¬x∨x≡⊤ , (λ x → ∨-comm x (not x) ⟨ P.trans ⟩ ¬x∨x≡⊤ x)
     where
     ¬x∨x≡⊤ : LeftInverse true not _∨_
     ¬x∨x≡⊤ false = refl
@@ -204,20 +204,20 @@ isBooleanAlgebra : IsBooleanAlgebra _≡_ _∨_ _∧_ not true false
 isBooleanAlgebra = record
   { isDistributiveLattice = record
       { isLattice = record
-          { isEquivalence = isEquivalence
+          { isEquivalence = P.isEquivalence
           ; ∨-comm        = ∨-comm
           ; ∨-assoc       = ∨-assoc
-          ; ∨-cong        = cong₂ _∨_
+          ; ∨-cong        = P.cong₂ _∨_
           ; ∧-comm        = ∧-comm
           ; ∧-assoc       = ∧-assoc
-          ; ∧-cong        = cong₂ _∧_
+          ; ∧-cong        = P.cong₂ _∧_
           ; absorptive    = absorptive
           }
       ; ∨-∧-distribʳ = proj₂ distrib-∨-∧
       }
   ; ∨-complementʳ = proj₂ not-∨-inverse
   ; ∧-complementʳ = proj₂ not-∧-inverse
-  ; ¬-cong        = cong not
+  ; ¬-cong        = P.cong not
   }
 
 booleanAlgebra : BooleanAlgebra _ _
@@ -237,7 +237,7 @@ private
 
   xor-is-ok : ∀ x y → x xor y ≡ (x ∨ y) ∧ not (x ∧ y)
   xor-is-ok true  y = refl
-  xor-is-ok false y = sym $ proj₂ CS.*-identity _
+  xor-is-ok false y = P.sym $ proj₂ CS.*-identity _
     where module CS = CommutativeSemiring commutativeSemiring-∨-∧
 
 commutativeRing-xor-∧ : CommutativeRing _ _
@@ -269,10 +269,10 @@ not-¬ {false} refl ()
 
 ⇔→≡ : {b₁ b₂ b : Bool} → b₁ ≡ b ⇔ b₂ ≡ b → b₁ ≡ b₂
 ⇔→≡ {true } {true }         hyp = refl
-⇔→≡ {true } {false} {true } hyp = sym (Equivalence.to hyp ⟨$⟩ refl)
+⇔→≡ {true } {false} {true } hyp = P.sym (Equivalence.to hyp ⟨$⟩ refl)
 ⇔→≡ {true } {false} {false} hyp = Equivalence.from hyp ⟨$⟩ refl
 ⇔→≡ {false} {true } {true } hyp = Equivalence.from hyp ⟨$⟩ refl
-⇔→≡ {false} {true } {false} hyp = sym (Equivalence.to hyp ⟨$⟩ refl)
+⇔→≡ {false} {true } {false} hyp = P.sym (Equivalence.to hyp ⟨$⟩ refl)
 ⇔→≡ {false} {false}         hyp = refl
 
 T-≡ : ∀ {b} → T b ⇔ b ≡ true
