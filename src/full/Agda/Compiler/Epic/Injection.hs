@@ -48,7 +48,7 @@ findInjection defs = do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
                 let ns = replicate (fromIntegral arity) (Arg NotHidden Relevant "")
                 return $ (,) q $ def {theDef = f { funCompiled = Done ns
-                                                                      (Var (fromIntegral arity - var - 1) []) } }
+                                                                      (Var (arity - var - 1) []) } }
             _                -> __IMPOSSIBLE__
 
     lift $ reportSLn "epic.injection" 10 $ "injfuns: " ++ show injFuns
