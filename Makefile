@@ -174,7 +174,7 @@ TAGS :
 
 ## Testing ###########################################################
 
-test : check-whitespace succeed fail interaction examples tests library-test compiler-test
+test : check-whitespace succeed fail interaction examples tests library-test compiler-test epic-test
 
 tests :
 	@echo "======================================================================"
@@ -230,6 +230,12 @@ compiler-test : up-to-date-std-lib
           time ../../$(AGDA_BIN) --compile -i. -i../../std-lib -i../../std-lib/src \
             Main.agda +RTS -H1G -M1.5G && \
           ./Main)
+
+epic-test :
+	@echo "======================================================================"
+	@echo "============================ Epic backend ============================"
+	@echo "======================================================================"
+	@$(MAKE) -C test/epic
 
 benchmark :
 	@$(MAKE) -C benchmark
