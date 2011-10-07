@@ -1,3 +1,4 @@
 MagicWith.agda:35,1-36,16
 fst p != w of type Nat
-when checking that the expression snd {_} {_} p has type IsZero w
+when checking that the type of the generated with function
+(p : Nat × IsZero) (w : Nat) → F w (snd {_} {_} p) is well-formed

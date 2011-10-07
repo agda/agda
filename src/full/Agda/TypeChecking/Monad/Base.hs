@@ -672,6 +672,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
           | CheckIsEmpty Type (Maybe ())
+          | CheckWithFunctionType A.Expr (Maybe ())
           | CheckSectionApplication Range ModuleName A.ModuleApplication (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
@@ -706,6 +707,7 @@ instance HasRange Call where
     getRange (CheckFunDef i _ _ _)                 = getRange i
     getRange (CheckPragma r _ _)                   = r
     getRange (CheckPrimitive i _ _ _)              = getRange i
+    getRange CheckWithFunctionType{}               = noRange
     getRange (ScopeCheckExpr e _)                  = getRange e
     getRange (ScopeCheckDeclaration d _)           = getRange d
     getRange (ScopeCheckLHS _ p _)                 = getRange p

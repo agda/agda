@@ -7,6 +7,7 @@ import Control.Arrow ((***), (&&&))
 import Control.Applicative
 import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
+import Control.Monad.Error hiding (mapM)
 import Control.Monad hiding (mapM)
 import Data.List hiding (sort)
 import Data.Traversable
@@ -373,7 +374,10 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
          , nest 2 $ prettyTCM absAuxType
          ]
   -- The ranges in the generated type are completely bogus, so we kill them.
-  auxType <- setCurrentRange (getRange cs) $ isType_ $ killRange absAuxType
+  auxType <- setCurrentRange (getRange cs) (isType_ $ killRange absAuxType)
+    `catchError` \err -> case errError err of
+      TypeError _ e -> enterClosure e $ traceCall (CheckWithFunctionType absAuxType) . typeError
+      _             -> throwError err
 
   case df of
     OpenThing _ (Display n ts dt) -> reportSDoc "tc.with.top" 20 $ text "Display" <+> fsep
