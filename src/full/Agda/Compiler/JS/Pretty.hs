@@ -22,7 +22,8 @@ br :: Int -> String
 br i = "\n" ++ take (2*i) (repeat ' ')
 
 unescape :: Char -> String
-unescape '\\'     = "\\"
+unescape '"'      = "\\\""
+unescape '\\'     = "\\\\"
 unescape '\n'     = "\\n"
 unescape '\r'     = "\\r"
 unescape '\x2028' = "\\u2028"
