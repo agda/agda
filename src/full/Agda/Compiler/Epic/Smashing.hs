@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Smash functions which return something that can be inferred
 --   (something of a type with only one element)
 

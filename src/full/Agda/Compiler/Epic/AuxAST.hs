@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Intermediate abstract syntax tree used in the compiler. Pretty close to
 --   Epic syntax.
 module Agda.Compiler.Epic.AuxAST where
