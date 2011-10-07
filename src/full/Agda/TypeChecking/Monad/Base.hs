@@ -573,8 +573,12 @@ type MaybeReducedArgs = [MaybeReduced (Arg Term)]
 notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
 
-reduced :: Blocked a -> MaybeReduced a
-reduced b = MaybeRed (Reduced $ fmap (const ()) b) (ignoreBlocking b)
+reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
+reduced b = case b of
+  NotBlocked (Arg _ _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
+  _                                -> MaybeRed (Reduced $ () <$ b)      v
+  where
+    v = ignoreBlocking b
 
 data PrimFun = PrimFun
 	{ primFunName		:: QName

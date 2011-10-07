@@ -297,15 +297,21 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             r <- def args1
             case r of
               NoReduction args1' ->
-                reduceNormal v0 f (args1' ++
-                                   map notReduced args2)
-                             delayed cls mcc
+                if null cls then
+                  return $ apply (Def f []) <$> traverse id (map mredToBlocked args1' ++ map notBlocked args2)
+                else
+                  reduceNormal v0 f (args1' ++
+                                     map notReduced args2)
+                               delayed cls mcc
               YesReduction v ->
                 keepGoing $ v `apply` args2
         where
             n	= genericLength args
             ar  = primFunArity pf
             def = primFunImplementation pf
+            mredToBlocked :: MaybeReduced a -> Blocked a
+            mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
+            mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
     -- reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
     reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
