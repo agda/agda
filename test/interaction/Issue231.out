@@ -1,0 +1,7 @@
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-status-action "")
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Set
+")
+agda2_mode_code (agda2-goals-action '(0))
+agda2_mode_code (last . (agda2-make-case-action '("lemma (x' ∷ .(x ∷ xs)) A (there p) | there {x} {xs} y = ?")))
+agda2_mode_code (agda2-goals-action '(0))
