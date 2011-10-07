@@ -80,4 +80,3 @@ instance Globals Export where
 
 instance Globals Module where
   globals (Module m es) = globals es
-
