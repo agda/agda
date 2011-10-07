@@ -305,6 +305,7 @@ applySection new ptel old ts rd rm = do
     ]
   mapM_ (copyDef ts) ds
   mapM_ (copySec ts) ss
+  mapM_ computePolarity (Map.elems rd)
   where
     getOld partOfOld fromSig sigs =
       Map.toList $ Map.filterKeys partOfOld $ Map.unions $ map fromSig sigs
@@ -321,7 +322,6 @@ applySection new ptel old ts rd rm = do
 	Just y	-> do
 	  addConstant y =<< nd y
           makeProjection y
-          computePolarity y  -- AA: Polarity.sizePolarity needs also constructor names
 	  -- Set display form for the old name if it's not a constructor.
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y

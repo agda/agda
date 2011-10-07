@@ -19,4 +19,4 @@ module M (A : Set) where
     zero : {i : Size} → SizedNat {↑ i}
     suc  : {i : Size} → SizedNat {i} → SizedNat {↑ i}
 
-open M ⊥
+module M′ = M ⊥
