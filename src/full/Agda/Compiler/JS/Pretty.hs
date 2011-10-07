@@ -2,8 +2,8 @@ module Agda.Compiler.JS.Pretty where
 
 import Prelude hiding ( null )
 import Data.List ( intercalate )
-import Data.Set ( toList )
-import Data.Map ( Map, toAscList, null )
+import Data.Set ( Set, toList, singleton, insert, member )
+import Data.Map ( Map, toAscList, empty, null )
 
 import Agda.Syntax.Common ( Nat )
 
@@ -101,14 +101,18 @@ block' n i e          = block n i e
 modname :: GlobalId -> String
 modname (GlobalId ms) = "\"" ++ intercalate "." ms ++ "\""
 
-instance Pretty Export where
-  pretty n i (Export ls e) =
-    "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n i e ++ ";"
+exports :: Nat -> Int -> Set [MemberId] -> [Export] -> String
+exports n i lss [] = ""
+exports n i lss (Export ls e : es) | member (init ls) lss =
+  "exports[" ++ intercalate "][" (pretties n i ls) ++ "] = " ++ pretty n (i+1) e ++ ";" ++ br i ++
+  exports n i (insert ls lss) es
+exports n i lss (Export ls e : es) | otherwise =
+  exports n i lss (Export (init ls) (Object empty) : Export ls e : es)
 
 instance Pretty Module where
-  pretty n i (Module m e) =
+  pretty n i (Module m es) =
     "define([" ++ intercalate "," ("\"exports\"" : map modname js) ++ "]," ++
     "function(" ++ intercalate "," ("exports" : pretties n i js) ++ ") {" ++ br (i+1) ++
-    intercalate (br (i+1)) (pretties n (i+2) e) ++ br i ++
+    exports n (i+1) (singleton []) es ++
     "});" ++ br i
-      where js = toList (globals e)
+      where js = toList (globals es)

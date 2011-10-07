@@ -18,7 +18,7 @@ import Agda.Syntax.Common ( Nat, Arg, unArg )
 import Agda.Syntax.Concrete.Name ( projectRoot )
 import Agda.Syntax.Abstract.Name
   ( ModuleName(MName), QName(QName),
-    mnameToList, qnameName, qnameModule, isInModule )
+    mnameToList, qnameName, qnameModule, isInModule, nameId )
 import Agda.Syntax.Internal
   ( Name, Args, Type,
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
@@ -109,7 +109,13 @@ jsFileName :: GlobalId -> String
 jsFileName (GlobalId ms) = intercalate "." ms ++ ".js"
 
 jsMember :: Name -> MemberId
-jsMember n = MemberId (show n)
+jsMember n =
+  -- Anonymous fields are used for where clauses,
+  -- and they're all given the concrete name "_",
+  -- so we disambiguate them using their name id.
+  case show n of
+    "_" -> MemberId ("_" ++ show (nameId n))
+    l   -> MemberId l
 
 -- Rather annoyingly, the anonymous construtor of a record R in module M
 -- is given the name M.recCon, but a named constructor C
