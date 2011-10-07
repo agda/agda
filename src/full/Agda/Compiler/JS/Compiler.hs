@@ -6,8 +6,8 @@ import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.State ( get, put )
 import Data.List ( intercalate, map, filter, isPrefixOf, concat, genericDrop, genericLength )
-import Data.Map
-  ( Map, null, empty, fold, singleton, fromList, toList, toAscList, insertWith, elems )
+import Data.Set ( Set, empty, null, insert, difference, delete )
+import Data.Map ( Map, fold, singleton, fromList, toList, toAscList, insertWith, elems )
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( pathSeparator, splitFileName, (</>) )
 
@@ -51,7 +51,7 @@ import Agda.Compiler.MAlonzo.Primitives ( repl )
 import Agda.Compiler.JS.Syntax
   ( Exp(Self,Local,Global,Undefined,String,Char,Integer,Double,Lambda,Object,Apply,Lookup),
     LocalId(LocalId), GlobalId(GlobalId), MemberId(MemberId), Export(Export), Module(Module),
-    modName )
+    modName, expName, uses )
 import Agda.Compiler.JS.Substitution
   ( curriedLambda, curriedApply, fix, emp, object, subst, apply )
 import Agda.Compiler.JS.Case ( Tag(Tag), Case(Case), Patt(VarPatt,Tagged), lambda )
@@ -151,6 +151,25 @@ global q = do
         _ -> global' (defName d)
     _ -> global' (defName d)
 
+-- Reorder a list of exports to ensure def-before-use.
+-- Note that this can diverge in the case when there is no such reordering.
+
+reorder :: [Export] -> [Export]
+reorder = reorder' empty
+
+reorder' :: Set [MemberId] -> [Export] -> [Export]
+reorder' defs [] = []
+reorder' defs (e : es) =
+  let us = uses e `difference` defs in
+  case null us of
+    True -> e : (reorder' (insert (expName e) defs) es)
+    False -> reorder' defs (insertAfter us e es)
+
+insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
+insertAfter us e []                 = [e]
+insertAfter us e (f:fs) | null us   = e : f : fs
+insertAfter us e (f:fs) | otherwise = f : insertAfter (delete (expName f) us) e fs
+
 --------------------------------------------------
 -- Main compiling clauses
 --------------------------------------------------
@@ -160,7 +179,7 @@ curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (iImportedModules <$> curIF)
   es <- mapM definition =<< (toList <$> curDefs)
-  return (Module m es)
+  return (Module m (reorder es))
 
 definition :: (QName,Definition) -> TCM Export
 definition (q,d) = do

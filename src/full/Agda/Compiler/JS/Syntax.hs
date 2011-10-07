@@ -55,6 +55,34 @@ data Module = Module { modName :: GlobalId, exports :: [Export] }
 -- Note that modules are allowed to be recursive, via the Self expression,
 -- which is bound to the exported module.
 
+-- Top-level uses of the form exports.l1....lN.
+
+class Uses a where
+  uses :: a -> Set [MemberId]
+
+instance Uses a => Uses [a] where
+  uses = foldr (union . uses) empty
+
+instance Uses a => Uses (Map k a) where
+  uses = fold (union . uses) empty
+
+instance Uses Exp where
+  uses (Object o)     = fold (union . uses) empty o
+  uses (Apply e es)   = foldr (union . uses) (uses e) es
+  uses (Lookup e l)   = uses' e [l] where
+      uses' Self         ls = singleton ls
+      uses' (Lookup e l) ls = uses' e (l : ls)
+      uses' e            ls = uses e
+  uses (If e f g)     = uses e `union` uses f `union` uses g
+  uses (BinOp e op f) = uses e `union` uses f
+  uses (PreOp op e)   = uses e
+  uses e              = empty
+
+instance Uses Export where
+  uses (Export ls e) = uses e
+
+-- All global ids
+
 class Globals a where
   globals :: a -> Set GlobalId
 
