@@ -1,0 +1,5 @@
+Issue461.agda:5,6-13
+Multiple definitions of D. Previous definition at
+Issue461.agda:4,6-7
+when scope checking the declaration
+  data D : Set
