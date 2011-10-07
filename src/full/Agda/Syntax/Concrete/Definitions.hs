@@ -573,11 +573,11 @@ niceDeclarations ds = do
             NiceField r f a _ x e            -> NiceField r f a AbstractDef x e
             PrimitiveFunction r f a _ x e    -> PrimitiveFunction r f a AbstractDef x e
             NiceMutual r ds                  -> NiceMutual r (map mkAbstract ds)
-            NiceModule r a _ x tel ds        -> NiceModule r a AbstractDef x tel [ Abstract (getRange ds) ds ]
             NiceModuleMacro r a _ x ma op is -> NiceModuleMacro r a AbstractDef x ma op is
             FunDef r ds f _ x cs             -> FunDef r ds f AbstractDef x (map mkAbstractClause cs)
             DataDef r f _ x ps cs            -> DataDef r f AbstractDef x ps $ map mkAbstract cs
             RecDef r f _ x c ps cs           -> RecDef r f AbstractDef x c ps $ map mkAbstract cs
+            NiceModule{}                     -> d
             Axiom{}                          -> d
             NicePragma{}                     -> d
             NiceOpen{}                       -> d

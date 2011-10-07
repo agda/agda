@@ -875,8 +875,6 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' cm' pars contel afields ]
 
-
-  -- TODO: what does an abstract module mean? The syntax doesn't allow it.
     NiceModule r p a (C.QName name) tel ds ->
       traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
       aname <- toAbstract (NewModuleName name)
