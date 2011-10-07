@@ -95,7 +95,7 @@ checkRecDef i name con ps contel fields =
 	  telh' h	  = telFromList $ htel ++ [Arg h recordRelevance ("r", rect)]
 	  tel'		  = telh' NotHidden
 	  telIFS	  = telh' Instance
-          extWithRH h ret = underAbstraction (Arg h recordRelevance rect) (Abs "r" ()) $ \_ -> ret
+          extWithRH h ret = underAbstraction (Arg h recordRelevance rect) (Abs "" ()) $ \_ -> ret
           extWithR        = extWithRH NotHidden
           ext     (Arg h r (x, t)) = addCtx x (Arg h r t)
 {- UNUSED

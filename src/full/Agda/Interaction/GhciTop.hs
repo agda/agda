@@ -526,7 +526,7 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   es  <- mapM (prettyATop . B.ofExpr) ctx
   ns  <- mapM (showATop   . B.ofName) ctx
   let shuffle = if rev then reverse else id
-  return $ align 10 $ shuffle $ zip ns (map (text ":" <+>) es)
+  return $ align 10 $ filter (not . null. fst) $ shuffle $ zip ns (map (text ":" <+>) es)
 
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = Interaction Dependent $ do
