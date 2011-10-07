@@ -707,12 +707,12 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ d@[C.FunSig _ _ _ rel x t, C.FunDef _ _ _ abstract _ [cl]] ->
+            NiceMutual _ d@[C.FunSig _ fx _ rel x t, C.FunDef _ _ _ abstract _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
                     t <- toAbstract t
-                    x <- toAbstract (NewName x)
+                    x <- toAbstract (NewName $ C.BName x fx)
                     return [ A.LetBind (LetRange $ getRange d) rel x t e ]
 
             -- You can't open public in a let
