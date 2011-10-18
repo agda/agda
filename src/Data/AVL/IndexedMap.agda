@@ -4,17 +4,15 @@
 -- Finite maps with indexed keys and values, based on AVL trees
 ------------------------------------------------------------------------
 
+open import Data.Product as Prod
+import Level
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
-open import Data.Product as Prod hiding (map)
-open import Level
+open import Relation.Binary.PropositionalEquality using (_≡_)
 
 module Data.AVL.IndexedMap
-         {Index : Set} {Key : Index → Set} {_≈_ _<_ : Rel (∃ Key) zero}
-         (isOrderedKeySet : IsStrictTotalOrder _≈_ _<_)
-         -- Equal keys must have equal indices.
-         (indicesEqual : _≈_ =[ proj₁ ]⇒ _≡_)
-         (Value : Index → Set)
+         {Index : Set} {Key : Index → Set} (Value : Index → Set)
+         {_<_ : Rel (∃ Key) Level.zero}
+         (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
          where
 
 import Data.AVL
@@ -23,7 +21,7 @@ open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
 open import Category.Functor
-open RawFunctor (Maybe.functor {f = zero})
+open RawFunctor (Maybe.functor {f = Level.zero})
 
 -- Key/value pairs.
 
@@ -40,15 +38,11 @@ private
   toKV : Σ[ ik ∶ ∃ Key ] Value (proj₁ ik) → KV
   toKV ((i , k) , v) = (i , k , v)
 
-private
-
-  Order : StrictTotalOrder _ _ _
-  Order = record { isStrictTotalOrder = isOrderedKeySet }
-
 -- The map type.
 
 private
-  open module AVL = Data.AVL Order (λ ik → Value (proj₁ ik))
+  open module AVL =
+    Data.AVL (λ ik → Value (proj₁ ik)) isStrictTotalOrder
     public using () renaming (Tree to Map)
 
 -- Repackaged functions.
@@ -66,10 +60,7 @@ delete : ∀ {i} → Key i → Map → Map
 delete k = AVL.delete (, k)
 
 lookup : ∀ {i} → Key i → Map → Maybe (Value i)
-lookup k m with AVL.lookup (_ , k) m
-... | nothing                    = nothing
-... | just ((i′ , k′) , v′ , eq) with indicesEqual eq
-...   | refl = just v′
+lookup k m = AVL.lookup (, k) m
 
 _∈?_ : ∀ {i} → Key i → Map → Bool
 _∈?_ k = AVL._∈?_ (, k)

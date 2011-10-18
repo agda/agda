@@ -4,14 +4,16 @@
 -- Finite sets, based on AVL trees
 ------------------------------------------------------------------------
 
-open import Level
+import Level
 open import Relation.Binary
+open import Relation.Binary.PropositionalEquality using (_≡_)
 
 module Data.AVL.Sets
-         (OrderedKeySet : StrictTotalOrder zero zero zero) where
+  {Key : Set} {_<_ : Rel Key Level.zero}
+  (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
+  where
 
 import Data.AVL as AVL
-open StrictTotalOrder OrderedKeySet renaming (Carrier to Key)
 open import Data.Unit
 open import Function
 open import Data.Product as Prod using (_×_; _,_; proj₁)
@@ -24,7 +26,7 @@ open RawFunctor (Maybe.functor {f = zero})
 -- The set type. (Note that Set is a reserved word.)
 
 private
-  open module S = AVL OrderedKeySet (const ⊤)
+  open module S = AVL (const ⊤) isStrictTotalOrder
     public using () renaming (Tree to ⟨Set⟩)
 
 -- Repackaged functions.
@@ -40,9 +42,6 @@ insert k = S.insert k _
 
 delete : Key → ⟨Set⟩ → ⟨Set⟩
 delete = S.delete
-
-lookup : Key → ⟨Set⟩ → Maybe Key
-lookup k s = proj₁ <$> S.lookup k s
 
 _∈?_ : Key → ⟨Set⟩ → Bool
 _∈?_ = S._∈?_
