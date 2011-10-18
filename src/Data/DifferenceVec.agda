@@ -13,39 +13,42 @@ import Data.Nat as N
 
 infixr 5 _∷_ _++_
 
-DiffVec : Set → Diffℕ → Set
+DiffVec : ∀ {ℓ} → Set ℓ → Diffℕ → Set ℓ
 DiffVec A m = ∀ {n} → Vec A n → Vec A (m n)
 
-[] : ∀ {A} → DiffVec A 0#
+[] : ∀ {a} {A : Set a} → DiffVec A 0#
 [] = λ k → k
 
-_∷_ : ∀ {A n} → A → DiffVec A n → DiffVec A (suc n)
+_∷_ : ∀ {a} {A : Set a} {n} → A → DiffVec A n → DiffVec A (suc n)
 x ∷ xs = λ k → V._∷_ x (xs k)
 
-[_] : ∀ {A} → A → DiffVec A 1#
+[_] : ∀ {a} {A : Set a} → A → DiffVec A 1#
 [ x ] = x ∷ []
 
-_++_ : ∀ {A m n} → DiffVec A m → DiffVec A n → DiffVec A (m + n)
+_++_ : ∀ {a} {A : Set a} {m n} →
+       DiffVec A m → DiffVec A n → DiffVec A (m + n)
 xs ++ ys = λ k → xs (ys k)
 
-toVec : ∀ {A n} → DiffVec A n → Vec A (toℕ n)
+toVec : ∀ {a} {A : Set a} {n} → DiffVec A n → Vec A (toℕ n)
 toVec xs = xs V.[]
 
 -- fromVec xs is linear in the length of xs.
 
-fromVec : ∀ {A n} → Vec A n → DiffVec A (fromℕ n)
+fromVec : ∀ {a} {A : Set a} {n} → Vec A n → DiffVec A (fromℕ n)
 fromVec xs = λ k → xs ⟨ V._++_ ⟩ k
 
-head : ∀ {A n} → DiffVec A (suc n) → A
+head : ∀ {a} {A : Set a} {n} → DiffVec A (suc n) → A
 head xs = V.head (toVec xs)
 
-tail : ∀ {A n} → DiffVec A (suc n) → DiffVec A n
+tail : ∀ {a} {A : Set a} {n} → DiffVec A (suc n) → DiffVec A n
 tail xs = λ k → V.tail (xs k)
 
-take : ∀ {a} m {n} → DiffVec a (fromℕ m + n) → DiffVec a (fromℕ m)
+take : ∀ {a} {A : Set a} m {n} →
+       DiffVec A (fromℕ m + n) → DiffVec A (fromℕ m)
 take N.zero    xs = []
 take (N.suc m) xs = head xs ∷ take m (tail xs)
 
-drop : ∀ {a} m {n} → DiffVec a (fromℕ m + n) → DiffVec a n
+drop : ∀ {a} {A : Set a} m {n} →
+       DiffVec A (fromℕ m + n) → DiffVec A n
 drop N.zero    xs = xs
 drop (N.suc m) xs = drop m (tail xs)

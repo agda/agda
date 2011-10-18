@@ -5,27 +5,29 @@
 ------------------------------------------------------------------------
 
 open import Data.Product as Prod
-import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality using (_≡_)
 
 module Data.AVL.IndexedMap
-         {Index : Set} {Key : Index → Set} (Value : Index → Set)
-         {_<_ : Rel (∃ Key) Level.zero}
-         (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
-         where
+  {i k v ℓ}
+  {Index : Set i} {Key : Index → Set k} (Value : Index → Set v)
+  {_<_ : Rel (∃ Key) ℓ}
+  (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
+  where
 
+open import Category.Functor
 import Data.AVL
-open import Function
-open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
-open import Category.Functor
-open RawFunctor (Maybe.functor {f = Level.zero})
+open import Data.Maybe as Maybe
+open import Function
+open import Level
+
+open RawFunctor (Maybe.functor {f = i ⊔ k ⊔ v ⊔ ℓ})
 
 -- Key/value pairs.
 
-KV : Set
+KV : Set (i ⊔ k ⊔ v)
 KV = ∃ λ i → Key i × Value i
 
 -- Conversions.

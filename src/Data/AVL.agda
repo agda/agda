@@ -9,13 +9,13 @@
 -- The search tree invariant is specified using the technique
 -- described by Conor McBride in his talk "Pivotal pragmatism".
 
-import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 
 module Data.AVL
-  {Key : Set} (Value : Key → Set)
-  {_<_ : Rel Key Level.zero}
+  {k v ℓ}
+  {Key : Set k} (Value : Key → Set v)
+  {_<_ : Rel Key ℓ}
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
@@ -24,10 +24,11 @@ import Data.DifferenceList as DiffList
 open import Data.Empty
 open import Data.List as List using (List)
 open import Data.Maybe
-open import Data.Nat hiding (_<_; compare)
+open import Data.Nat hiding (_<_; compare; _⊔_)
 open import Data.Product
 open import Data.Unit
 open import Function
+open import Level using (_⊔_; Lift; lift)
 
 open IsStrictTotalOrder isStrictTotalOrder
 
@@ -38,7 +39,7 @@ module Extended-key where
 
   -- The key type extended with a new minimum and maximum.
 
-  data Key⁺ : Set where
+  data Key⁺ : Set k where
     ⊥⁺ ⊤⁺ : Key⁺
     [_]   : (k : Key) → Key⁺
 
@@ -46,18 +47,18 @@ module Extended-key where
 
   infix 4 _<⁺_
 
-  _<⁺_ : Key⁺ → Key⁺ → Set
-  ⊥⁺    <⁺ [ _ ] = ⊤
-  ⊥⁺    <⁺ ⊤⁺    = ⊤
+  _<⁺_ : Key⁺ → Key⁺ → Set ℓ
+  ⊥⁺    <⁺ [ _ ] = Lift ⊤
+  ⊥⁺    <⁺ ⊤⁺    = Lift ⊤
   [ x ] <⁺ [ y ] = x < y
-  [ _ ] <⁺ ⊤⁺    = ⊤
-  _     <⁺ _     = ⊥
+  [ _ ] <⁺ ⊤⁺    = Lift ⊤
+  _     <⁺ _     = Lift ⊥
 
   -- A pair of ordering constraints.
 
   infix 4 _<_<_
 
-  _<_<_ : Key⁺ → Key → Key⁺ → Set
+  _<_<_ : Key⁺ → Key → Key⁺ → Set ℓ
   l < x < u = l <⁺ [ x ] × [ x ] <⁺ u
 
   -- _<⁺_ is transitive.
@@ -70,14 +71,14 @@ module Extended-key where
   trans⁺ ⊥⁺    {u = ⊤⁺}    _ _ = _
   trans⁺ [ _ ] {u = ⊤⁺}    _ _ = _
 
-  trans⁺ _     {m = ⊥⁺}    {u = ⊥⁺}    _ ()
-  trans⁺ _     {m = [ _ ]} {u = ⊥⁺}    _ ()
-  trans⁺ _     {m = ⊤⁺}    {u = ⊥⁺}    _ ()
-  trans⁺ [ _ ] {m = ⊥⁺}    {u = [ _ ]} () _
-  trans⁺ [ _ ] {m = ⊤⁺}    {u = [ _ ]} _ ()
-  trans⁺ ⊤⁺    {m = ⊥⁺}                () _
-  trans⁺ ⊤⁺    {m = [ _ ]}             () _
-  trans⁺ ⊤⁺    {m = ⊤⁺}                () _
+  trans⁺ _     {m = ⊥⁺}    {u = ⊥⁺}    _ (lift ())
+  trans⁺ _     {m = [ _ ]} {u = ⊥⁺}    _ (lift ())
+  trans⁺ _     {m = ⊤⁺}    {u = ⊥⁺}    _ (lift ())
+  trans⁺ [ _ ] {m = ⊥⁺}    {u = [ _ ]} (lift ()) _
+  trans⁺ [ _ ] {m = ⊤⁺}    {u = [ _ ]} _ (lift ())
+  trans⁺ ⊤⁺    {m = ⊥⁺}                (lift ()) _
+  trans⁺ ⊤⁺    {m = [ _ ]}             (lift ()) _
+  trans⁺ ⊤⁺    {m = ⊤⁺}                (lift ()) _
 
 ------------------------------------------------------------------------
 -- Types and functions which are used to keep track of height
@@ -159,7 +160,7 @@ module Height-invariants where
 
 -- Key/value pairs.
 
-KV : Set
+KV : Set (k ⊔ v)
 KV = Σ Key Value
 
 module Indexed where
@@ -172,7 +173,7 @@ module Indexed where
   --
   -- (The bal argument is the balance factor.)
 
-  data Tree (l u : Key⁺) : ℕ → Set where
+  data Tree (l u : Key⁺) : ℕ → Set (k ⊔ v ⊔ ℓ) where
     leaf : (l<u : l <⁺ u) → Tree l u 0
     node : ∀ {hˡ hʳ}
            (k : KV)
@@ -354,7 +355,7 @@ module Indexed where
 ------------------------------------------------------------------------
 -- Types and functions with hidden indices
 
-data Tree : Set where
+data Tree : Set (k ⊔ v ⊔ ℓ) where
   tree : let open Extended-key in
          ∀ {h} → Indexed.Tree ⊥⁺ ⊤⁺ h → Tree
 

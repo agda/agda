@@ -4,24 +4,25 @@
 -- Finite sets, based on AVL trees
 ------------------------------------------------------------------------
 
-import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality using (_≡_)
 
 module Data.AVL.Sets
-  {Key : Set} {_<_ : Rel Key Level.zero}
+  {k ℓ} {Key : Set k} {_<_ : Rel Key ℓ}
   (isStrictTotalOrder : IsStrictTotalOrder _≡_ _<_)
   where
 
+open import Category.Functor
 import Data.AVL as AVL
-open import Data.Unit
-open import Function
-open import Data.Product as Prod using (_×_; _,_; proj₁)
-open import Data.Maybe as Maybe
 open import Data.Bool
 open import Data.List as List using (List)
-open import Category.Functor
-open RawFunctor (Maybe.functor {f = zero})
+open import Data.Maybe as Maybe
+open import Data.Product as Prod using (_×_; _,_; proj₁)
+open import Data.Unit
+open import Function
+open import Level
+
+open RawFunctor (Maybe.functor {f = k ⊔ ℓ})
 
 -- The set type. (Note that Set is a reserved word.)
 
