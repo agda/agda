@@ -635,7 +635,7 @@ checkExpr e t =
         A.ETel _   -> __IMPOSSIBLE__
 
 	-- Application
-           -- Subcase: ambiguous constructor
+          -- Subcase: ambiguous constructor
 	_   | Application (A.Con (AmbQ cs@(_:_:_))) args <- appView e -> do
                 -- First we should figure out which constructor we want.
                 reportSLn "tc.check.term" 40 $ "Ambiguous constructor: " ++ show cs
@@ -748,11 +748,12 @@ inferHead (A.Def x) = do
         , nest 2 $ parens (text "ctx =" <+> text (show cxt))
         , nest 2 $ parens (text "n =" <+> text (show n))
         , nest 2 $ parens (text "m =" <+> text (show m)) ]
-      let args | n == 0    = __IMPOSSIBLE__
-               | otherwise = drop (n - 1)
-          n' = max 0 (n - 1 - cxt)
-      (u, a) <- inferDef (\f vs -> Def f $ args vs) x
-      return (apply u . genericDrop n', a)
+      let hs | n == 0    = __IMPOSSIBLE__
+             | otherwise = genericReplicate (n - 1) NotHidden -- TODO: hiding
+          names = [ s ++ [c] | s <- "" : names, c <- ['a'..'z'] ]
+          eta   = foldr (\(h, s) -> Lam h . NoAbs s) (Def x []) (zip hs names)
+      (u, a) <- inferDef (\f vs -> eta `apply` vs) x
+      return (apply u, a)
 inferHead (A.Con (AmbQ [c])) = do
 
   -- Constructors are polymorphic internally so when building the constructor
