@@ -467,7 +467,7 @@ instance DotVars A.Expr where
     A.Quote {}       -> __IMPOSSIBLE__
     A.QuoteTerm {}   -> __IMPOSSIBLE__
     A.Unquote {}     -> __IMPOSSIBLE__
-    A.DontCare {}    -> __IMPOSSIBLE__  -- Set.empty
+    A.DontCare v     -> dotVars v
 
 instance DotVars RHS where
   dotVars (RHS e) = dotVars e
