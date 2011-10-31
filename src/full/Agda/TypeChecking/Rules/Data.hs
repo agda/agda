@@ -23,6 +23,7 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.Term ( isType_ )
 
@@ -56,6 +57,10 @@ checkDataDef i name ps cs =
 	-- Look up the type of the datatype.
 	t <- instantiateFull =<< typeOfConst name
 
+        -- Make sure the shape of the type is visible
+        let unTelV (TelV tel a) = telePi tel a
+        t <- unTelV <$> telView t
+
 	-- The parameters are in scope when checking the constructors.
 	dataDef <- bindParameters ps t $ \tel t0 -> do
 
@@ -64,7 +69,7 @@ checkDataDef i name ps cs =
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
-            (nofIxs, s) <- splitType =<< normalise t0
+            (nofIxs, s) <- splitType t0
 
             when (any (`freeIn` s) [0..nofIxs - 1]) $ do
               err <- fsep [ text "The sort of" <+> prettyTCM name
