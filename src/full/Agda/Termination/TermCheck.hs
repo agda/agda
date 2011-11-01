@@ -469,8 +469,8 @@ termTerm conf names f pats0 t0 = do
                args2 <- mapM instantiateFull args1
 
                -- We have to reduce constructors in case they're reexported.
-               let reduceCon t@(Con _ _) = reduce t
-                   reduceCon t           = return t
+               let reduceCon (Con c vs) = (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
+                   reduceCon t          = return t
                args2 <- mapM reduceCon args2
                args  <- mapM etaContract args2
 
