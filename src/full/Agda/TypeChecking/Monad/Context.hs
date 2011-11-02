@@ -84,7 +84,7 @@ underAbstraction t a k = do
     let y = head $ filter (notTaken xs) $ iterate nextName x
     addCtx y t $ k $ absBody a
   where
-    notTaken xs x = notElem (nameConcrete x) xs
+    notTaken xs x = isNoName (nameConcrete x) || notElem (nameConcrete x) xs
     realName "_" = "y"
     realName s   = s
 

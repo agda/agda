@@ -49,6 +49,7 @@ noName r = NoName r (NameId 0 0)
 isNoName :: Name -> Bool
 isNoName (NoName _ _)    = True
 isNoName (Name _ [Hole]) = True   -- TODO: Track down where these come from
+isNoName (Name _ [])     = True
 isNoName _               = False
 
 -- | Is the name an operator?
