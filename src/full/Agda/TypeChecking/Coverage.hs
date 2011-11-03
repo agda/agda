@@ -147,9 +147,8 @@ cover cs (SClause tel perm ps _) = do
       let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (Set.fromList (i : is), [])
-    No             -> return (Set.empty, [ps])
-    Block Nothing  -> __IMPOSSIBLE__
-    Block (Just x) -> do
+    No      -> return (Set.empty, [ps])
+    Block x -> do
       r <- split Inductive tel perm ps x
       case r of
         Left err  -> case err of

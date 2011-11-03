@@ -40,9 +40,8 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     buildT _              = return WildMP
 
 -- | If matching is inconclusive (@Block@) we want to know which
---   variable is blocking the match. If a dot pattern is blocking a match
---   we're screwed.
-data Match a = Yes a | No | Block (Maybe Nat)
+--   variable is blocking the match.
+data Match a = Yes a | No | Block Nat
   deriving (Functor)
 
 instance Monoid a => Monoid (Match a) where
@@ -106,8 +105,8 @@ matchPat _    (VarP _) _ = Yes ()
 matchPat _    (DotP _) _ = Yes ()
 matchPat mlit (LitP l) q = mlit l q
 matchPat mlit (ConP c _ ps) q = case q of
-  VarMP x -> Block $ Just x
-  WildMP  -> Block Nothing
+  VarMP x -> Block x
+  WildMP  -> Yes ()
   ConMP c' qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
