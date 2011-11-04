@@ -33,6 +33,12 @@ private
          (P → ¬ Q) → Q → ¬ P
   note = flip
 
+-- If we can decide P, then we can decide its negation.
+
+¬? : ∀ {p} {P : Set p} → Dec P → Dec (¬ P)
+¬? (yes p) = no (λ ¬p → ¬p p)
+¬? (no ¬p) = yes ¬p
+
 ------------------------------------------------------------------------
 -- Quantifier juggling
 
