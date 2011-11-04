@@ -255,7 +255,7 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
        | isLast                 = []
        | otherwise              = [match (L.map HS.PVar cvs) crhs]
   cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
-  crhs = hsCast$ foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
+  crhs = hsCast$ L.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
   failrhs = rtmError $ "incomplete pattern matching: " ++ show q
   match hps rhs = HS.Match dummy (dsubname q i) hps Nothing
                            (HS.UnGuardedRhs rhs) (HS.BDecls [])

@@ -33,7 +33,7 @@ quote s = "\"" ++ concatMap escape s ++ "\""
 -- | Shows a non-negative integer using the characters ₀-₉ instead of
 -- 0-9.
 
-showIndex :: Integral i => i -> String
+showIndex :: (Show i, Integral i) => i -> String
 showIndex n =
   showIntAtBase 10 (\i -> toEnum (i + fromEnum '\x2080')) n ""
 

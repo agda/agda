@@ -134,7 +134,7 @@ instance (Ord i, Integral i, Enum i, Show i, Show b, HasZero b) => Show (Matrix 
     showString "Agda.Termination.Matrix.fromLists " . shows (size m) .
     showString " " . shows (toLists m)
 
-instance (Integral i, HasZero b, Pretty b) =>
+instance (Show i, Integral i, HasZero b, Pretty b) =>
          Pretty (Matrix i b) where
   pretty = vcat . map (hsep . map pretty) . toLists
 
@@ -142,7 +142,7 @@ instance (Arbitrary i, Num i, Integral i, Arbitrary b, HasZero b)
          => Arbitrary (Matrix i b) where
   arbitrary     = matrix =<< arbitrary
 
-instance (Ord i, Integral i, Enum i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
+instance (Show i, Ord i, Integral i, Enum i, CoArbitrary b, HasZero b) => CoArbitrary (Matrix i b) where
   coarbitrary m = coarbitrary (toLists m)
 
 
@@ -199,7 +199,7 @@ fromLists sz bs = fromIndexList sz $ zip ([ MIx i j | i <- [1..rows sz]
 
 -- | Converts a sparse matrix to a sparse list of rows
 
-toSparseRows :: (Num i, Enum i) => Matrix i b -> [(i,[(i,b)])]
+toSparseRows :: (Eq i, Num i, Enum i) => Matrix i b -> [(i,[(i,b)])]
 toSparseRows m = aux 1 [] (unM m)
   where aux i' [] []  = []
         aux i' row [] = [(i', reverse row)]
@@ -208,7 +208,7 @@ toSparseRows m = aux 1 [] (unM m)
             | otherwise = (i', reverse row) : aux i [(j,b)] m
 
 -- sparse vectors cannot have two entries in one column
-blowUpSparseVec :: (Ord i, Num i, Enum i) => b -> i -> [(i,b)] -> [b]
+blowUpSparseVec :: (Show i, Ord i, Num i, Enum i) => b -> i -> [(i,b)] -> [b]
 blowUpSparseVec zero n l = aux 1 l
   where aux i [] | i > n = []
                  | otherwise = zero : aux (i+1) []
@@ -219,7 +219,7 @@ blowUpSparseVec zero n l = aux 1 l
 
 -- | Converts a matrix to a list of row lists.
 
-toLists :: (Ord i, Integral i, Enum i, HasZero b) => Matrix i b -> [[b]]
+toLists :: (Show i, Ord i, Integral i, Enum i, HasZero b) => Matrix i b -> [[b]]
 toLists m = blowUpSparseVec emptyRow (rows sz) $
     map (\ (i,r) -> (i, blowUpSparseVec zeroElement (cols sz) r)) $ toSparseRows m
 --            [ [ maybe zeroElement id $ lookup (MIx { row = r, col = c }) (unM m)
@@ -355,7 +355,7 @@ prop_mul sz =
 --
 -- Precondition: @'square' m@.
 
-diagonal :: (Enum i, Num i, Ix i, HasZero b) => Matrix i b -> Array i b
+diagonal :: (Show i, Enum i, Num i, Ix i, HasZero b) => Matrix i b -> Array i b
 diagonal m = listArray (1, rows sz) $ blowUpSparseVec zeroElement (rows sz) $
   map (\ ((MIx i j),b) -> (i,b)) $ filter (\ ((MIx i j),b) -> i==j) (unM m)
   where sz = size m
