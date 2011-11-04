@@ -6,15 +6,17 @@
 
 module Relation.Nullary.Decidable where
 
+open import Data.Bool
 open import Data.Empty
+open import Data.Product hiding (map)
+open import Data.Unit
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence
   using (_⇔_; equivalence; module Equivalence)
-open import Data.Bool
-open import Data.Product hiding (map)
-open import Relation.Nullary
+open import Level using (Lift)
 open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 
 ⌊_⌋ : ∀ {p} {P : Set p} → Dec P → Bool
 ⌊ yes _ ⌋ = true
@@ -46,12 +48,24 @@ map′ : ∀ {p q} {P : Set p} {Q : Set q} →
        (P → Q) → (Q → P) → Dec P → Dec Q
 map′ P→Q Q→P = map (equivalence P→Q Q→P)
 
-fromYes : ∀ {p} {P : Set p} → P → Dec P → P
-fromYes _ (yes p) = p
-fromYes p (no ¬p) = ⊥-elim (¬p p)
+-- If a decision procedure returns "yes", then we can extract the
+-- proof using from-yes.
 
-fromYes-map-commute :
-  ∀ {p q} {P : Set p} {Q : Set q} {x y} (P⇔Q : P ⇔ Q) (d : Dec P) →
-  fromYes y (map P⇔Q d) ≡ Equivalence.to P⇔Q ⟨$⟩ fromYes x d
-fromYes-map-commute         _ (yes p) = refl
-fromYes-map-commute {x = p} _ (no ¬p) = ⊥-elim (¬p p)
+From-yes : ∀ {p} {P : Set p} → Dec P → Set p
+From-yes {P = P} (yes _) = P
+From-yes         (no  _) = Lift ⊤
+
+from-yes : ∀ {p} {P : Set p} (p : Dec P) → From-yes p
+from-yes (yes p) = p
+from-yes (no  _) = _
+
+-- If a decision procedure returns "no", then we can extract the proof
+-- using from-no.
+
+From-no : ∀ {p} {P : Set p} → Dec P → Set p
+From-no {P = P} (no  _) = ¬ P
+From-no         (yes _) = Lift ⊤
+
+from-no : ∀ {p} {P : Set p} (p : Dec P) → From-no p
+from-no (no ¬p) = ¬p
+from-no (yes _) = _
