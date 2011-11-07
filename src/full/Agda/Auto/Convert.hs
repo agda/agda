@@ -519,6 +519,7 @@ modifyAbstractExpr = f
   f (A.Lam i (A.DomainFree h rel n) _) | show n == abslamvarname = A.AbsurdLam i h
   f (A.Lam i b e) = A.Lam i b (f e)
   f (A.Rec i xs) = A.Rec i (map (\(n, e) -> (n, f e)) xs)
+  f (A.RecUpdate i e xs) = A.RecUpdate i (f e) (map (\(n, e) -> (n, f e)) xs)
   f (A.ScopedExpr i e) = A.ScopedExpr i (f e)
   f e = e
 

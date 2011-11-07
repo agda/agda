@@ -365,6 +365,28 @@ Language
   {-# STATIC power #-}
   An occurence of power 4 x will be rolled out to be x * x * x * x.
 
+* Record update syntax
+
+  Given a record type and a corresponding value, e.g.
+
+    record MyRecord : Set where
+      field
+        a b c : ℕ
+
+    old : MyRecord
+    old = record { a = 1; b = 2; c = 3 }
+
+  the following invocation can be used to update its fields, thus creating a
+  new one:
+
+    new : MyRecord
+    new = record old { a = 0; c = 5 }
+
+  Here, 'new' normalizes to 'record { a = 0; b = 2; c = 5 }'. Any expression
+  yielding a value of MyRecord can be used. Record updating isn't allowed to
+  change types, i.e. the resulting value must have the same type as the
+  original one, even if the fields match.
+
 
 Irrelevance
 -----------

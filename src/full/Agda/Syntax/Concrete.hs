@@ -82,6 +82,7 @@ data Expr
 	| Prop !Range			       -- ^ ex: @Prop@
 	| SetN !Range Nat		       -- ^ ex: @Set0, Set1, ..@
 	| Rec !Range [(Name, Expr)]	       -- ^ ex: @record {x = a; y = b}@
+	| RecUpdate !Range Expr [(Name, Expr)] -- ^ ex: @record e {x = a; y = b}@
 	| Let !Range [Declaration] Expr	       -- ^ ex: @let Ds in e@
 	| Paren !Range Expr		       -- ^ ex: @(e)@
 	| Absurd !Range			       -- ^ ex: @()@ or @{}@, only in patterns
@@ -392,6 +393,7 @@ instance HasRange Expr where
 	    HiddenArg r _	-> r
 	    InstanceArg r _	-> r
 	    Rec r _		-> r
+	    RecUpdate r _ _	-> r
             ETel tel            -> getRange tel
             QuoteGoal r _ _     -> r
             Quote r             -> r

@@ -397,6 +397,13 @@ instance ToConcrete A.Expr C.Expr where
         es <- toConcreteCtx TopCtx es
         return $ C.Rec (getRange i) $ zip xs es
 
+    toConcrete (A.RecUpdate i e fs) =
+      bracket appBrackets $ do
+        let (xs, es) = unzip fs
+        e <- toConcrete e
+        es <- toConcreteCtx TopCtx es
+        return $ C.RecUpdate (getRange i) e $ zip xs es
+
     toConcrete (A.ETel tel) = do
       tel <- toConcrete tel
       return $ C.ETel tel

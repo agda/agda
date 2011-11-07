@@ -51,6 +51,7 @@ data Expr
         | Let  ExprInfo [LetBinding] Expr    -- ^
         | ETel Telescope                     -- ^ only used when printing telescopes
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
+	| RecUpdate ExprInfo Expr [(C.Name, Expr)]     -- ^ record update
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
         | QuoteGoal ExprInfo Name Expr       -- ^
         | Quote ExprInfo                     -- ^
@@ -208,6 +209,7 @@ instance HasRange Expr where
     getRange (Prop i)		= getRange i
     getRange (Let i _ _)	= getRange i
     getRange (Rec i _)		= getRange i
+    getRange (RecUpdate i _ _)  = getRange i
     getRange (ETel tel)         = getRange tel
     getRange (ScopedExpr _ e)	= getRange e
     getRange (QuoteGoal _ _ e)	= getRange e
@@ -290,6 +292,7 @@ instance KillRange Expr where
   killRange (Prop i)         = killRange1 Prop i
   killRange (Let i ds e)     = killRange3 Let i ds e
   killRange (Rec i fs)       = Rec (killRange i) (map (id -*- killRange) fs)
+  killRange (RecUpdate i e fs) = RecUpdate (killRange i) (killRange e) (map (id -*- killRange) fs)
   killRange (ETel tel)       = killRange1 ETel tel
   killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
   killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
@@ -408,6 +411,7 @@ allNames (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
                                                 allNamesE e
   allNamesE ETel {}                 = __IMPOSSIBLE__
   allNamesE (Rec _ fields)          = Fold.foldMap allNamesE (map snd fields)
+  allNamesE (RecUpdate _ e fs)      = allNamesE e >< Fold.foldMap allNamesE (map snd fs)
   allNamesE (ScopedExpr _ e)        = allNamesE e
   allNamesE (QuoteGoal _ _ e)       = allNamesE e
   allNamesE Quote {}                = Seq.empty

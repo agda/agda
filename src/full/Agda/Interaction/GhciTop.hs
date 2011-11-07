@@ -792,6 +792,7 @@ instance LowerMeta SC.Expr where
       SC.RawApp r es	-> SC.RawApp r (lowerMeta es)
       SC.OpApp r x es	-> SC.OpApp r x (lowerMeta es)
       SC.Rec r fs	-> SC.Rec r (List.map (id -*- lowerMeta) fs)
+      SC.RecUpdate r e fs -> SC.RecUpdate r (lowerMeta e) (List.map (id -*- lowerMeta) fs)
       SC.HiddenArg r e	-> SC.HiddenArg r (lowerMeta e)
       SC.InstanceArg r e  -> SC.InstanceArg r (lowerMeta e)
       SC.QuoteGoal r x e  -> SC.QuoteGoal r x (lowerMeta e)

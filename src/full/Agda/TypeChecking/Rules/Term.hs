@@ -610,6 +610,34 @@ checkExpr e t =
                   postponeTypeCheckingProblem_ e t
 	    _         -> typeError $ ShouldBeRecordType t
 
+        A.RecUpdate ei recexpr fs -> do
+          case unEl t of
+            Def r vs  -> do
+              rec <- checkExpr recexpr t
+              name <- freshNoName (getRange recexpr)
+              addLetBinding Relevant name rec t $ do
+                projs <- recFields <$> getRecordDef r
+                axs <- getRecordFieldNames r
+                scope <- getScope
+                let xs = map unArg axs
+                let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
+                es <- orderFields r Nothing xs $ map (\(x, e) -> (x, Just e)) fs
+                let es' = zipWith (replaceFields name meta ei) projs es
+                checkExpr (A.Rec ei $ zip xs es') t
+            MetaV _ _ -> do
+              inferred <- inferExpr recexpr >>= reduce . snd
+              case unEl inferred of
+                MetaV _ _ -> postponeTypeCheckingProblem_ e t
+                _         -> do
+                  v <- checkExpr e inferred
+                  blockTerm t $ v <$ leqType_ t inferred
+            _         -> typeError $ ShouldBeRecordType t
+          where
+            replaceFields :: Name -> A.Expr -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> A.Expr
+            replaceFields n _ ei (Arg NotHidden _ p) Nothing  = A.App ei (A.Def p) $ defaultArg (unnamed $ A.Var n)
+            replaceFields _ m _  (Arg _         _ _) Nothing  = m
+            replaceFields _ _ _  _                   (Just e) = e
+
 	A.DontCare e -> -- can happen in the context of with functions
           checkExpr e t
 {- Andreas, 2011-10-03 why do I get an internal error for Issue337?

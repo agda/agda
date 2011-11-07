@@ -530,7 +530,12 @@ Application3
     | Expr3 Application3 { $1 : $2 }
 
 -- Level 3: Atoms
-Expr3
+Expr3Curly
+    : '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
+    | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
+    | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
+
+Expr3NoCurly
     : QId				{ Ident $1 }
     | literal				{ Lit $1 }
     | '?'				{ QuestionMark (getRange $1) Nothing }
@@ -543,16 +548,17 @@ Expr3
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
     | '{{' Expr DoubleCloseBrace			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }
     | '{{' Id '=' Expr DoubleCloseBrace		{ InstanceArg (fuseRange $1 $5) (named (show $2) $4) }
-    | '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
-    | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
     | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
     | '(' ')'				{ Absurd (fuseRange $1 $2) }
-    | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
     | Id '@' Expr3			{ As (fuseRange $1 $3) $1 $3 }
     | '.' Expr3				{ Dot (fuseRange $1 $2) $2 }
     | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$4)) $3 }
+    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$5)) $2 $4 }
 
+Expr3
+    : Expr3Curly			{ $1 }
+    | Expr3NoCurly			{ $1 }
 
 FieldAssignments :: { [(Name, Expr)] }
 FieldAssignments

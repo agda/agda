@@ -165,12 +165,12 @@ instance Pretty Expr where
 	    Dot _ e   -> text "." <> pretty e
 	    Absurd _  -> text "()"
 	    Rec _ xs  -> sep (
-	      [ text "record {" ] ++
-	      punctuate (text ";") (map pr xs)) <+> text "}"
-	      where
-		pr (x, e) = sep [ pretty x <+> text "="
-				, nest 2 $ pretty e
-				]
+	        [ text "record {" ] ++
+	        punctuate (text ";") (map recPr xs)) <+> text "}"
+	    RecUpdate _ e xs ->
+	            sep [ text "record" <+> pretty e <+> text "{" ]
+	        <+> sep (punctuate (text ";") (map recPr xs))
+	        <+> text "}"
             ETel []  -> text "()"
             ETel tel -> fsep $ map pretty tel
             QuoteGoal _ x e -> sep [text "quoteGoal" <+> pretty x <+> text "in",
@@ -180,6 +180,8 @@ instance Pretty Expr where
 	    Unquote _ -> text "unquote"
             -- Andreas, 2011-10-03 print irrelevant things as .(e)
             DontCare e -> text "." <> parens (pretty e)
+	where
+	  recPr (x, e) = sep [ pretty x <+> text "=" , nest 2 $ pretty e ]
 
 instance Pretty BoundName where
   pretty = pretty . boundName

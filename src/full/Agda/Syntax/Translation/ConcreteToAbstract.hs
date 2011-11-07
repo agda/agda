@@ -597,6 +597,13 @@ instance ToAbstract C.Expr A.Expr where
         es <- toAbstractCtx TopCtx es
         return $ A.Rec (ExprRange r) $ zip xs es
 
+  -- Record update
+      C.RecUpdate r e fs -> do
+        let (xs, es) = unzip fs
+        e <- toAbstract e
+        es <- toAbstractCtx TopCtx es
+        return $ A.RecUpdate (ExprRange r) e $ zip xs es
+
   -- Parenthesis
       C.Paren _ e -> toAbstractCtx TopCtx e
 
