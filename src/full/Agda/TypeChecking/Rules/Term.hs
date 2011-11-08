@@ -572,11 +572,22 @@ checkExpr e t =
 	      ftel   <- getRecordFieldTypes r
               con    <- getRecordConstructor r
               scope  <- getScope
+              let arg x e =
+                    case [ a | a <- axs, unArg a == x ] of
+                      [a] -> unnamed e <$ a
+                      _   -> defaultArg $ unnamed e -- we only end up here if the field names are bad
               let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
-	      es   <- orderFields r meta xs fs
+                  missingExplicits = [ (unArg a, [unnamed meta <$ a])
+                                     | a <- axs, argHiding a == NotHidden
+                                     , notElem (unArg a) (map fst fs) ]
+              -- In es omitted explicit fields are replaced by underscores
+              -- (from missingExplicits). Omitted implicit or instance fields
+              -- are still left out and inserted later by checkArguments_.
+	      es   <- concat <$> orderFields r [] xs ([ (x, [arg x e]) | (x, e) <- fs ] ++
+                                                      missingExplicits)
 	      let tel = ftel `apply` vs
               args <- checkArguments_ ExpandLast (getRange e)
-                        (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
+                        es -- (zipWith (\ax e -> fmap (const (unnamed e)) ax) axs es)
                         tel
               -- Don't need to block here!
 	      return $ Con con args
