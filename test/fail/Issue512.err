@@ -1,0 +1,5 @@
+Issue512.agda:22,1-24
+No binding for builtin thing LEVELZERO, use {-# BUILTIN LEVELZERO
+name #-} to bind it to 'name'
+when checking that the clause f x y rewrite proof = ? has type
+A → A → A

@@ -550,10 +550,7 @@ instance Reify Sort Expr where
                   return $ A.Var lub `app` e1 `app` e2
 
 instance Reify Level Expr where
-  reify l = liftTCM $ (reify =<< reallyUnLevelView l)
-    `catchError` \e -> do
-      reportSLn "tc.reify.level" 1 $ "Failed to reify " ++ show l ++ "\n  error: " ++ show e
-      return $ A.Lit (LitString noRange $ show l)
+  reify l = reify =<< reallyUnLevelView l
 
 instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
   reify (NoAbs x v) = (,) <$> freshName_ x <*> reify v
