@@ -257,6 +257,10 @@ import IO
 
 import README.Nat
 
+-- Some examples showing how the AVL tree module can be used.
+
+import README.AVL
+
 -- An example showing how the Record module can be used.
 
 import README.Record
