@@ -88,6 +88,9 @@ q₄ = refl
 q₅ : toList t₂ ≡ (1 , v₁) ∷ (2 , v₂) ∷ []
 q₅ = refl
 
+------------------------------------------------------------------------
+-- Views
+
 -- Partitioning a tree into the smallest element plus the rest, or the
 -- largest element plus the rest.
 
@@ -97,13 +100,19 @@ import Level
 
 open RawFunctor (Maybe.functor {f = Level.zero}) using (_<$>_)
 
-q₆ : Prod.map id toList <$> headTail t₂ ≡
-     just ((1 , v₁) , ((2 , v₂) ∷ []))
-q₆ = refl
+v₆ : headTail t₀ ≡ nothing
+v₆ = refl
 
-q₇ : Prod.map toList id <$> initLast t₄ ≡
+v₇ : Prod.map id toList <$> headTail t₂ ≡
+     just ((1 , v₁) , ((2 , v₂) ∷ []))
+v₇ = refl
+
+v₈ : initLast t₀ ≡ nothing
+v₈ = refl
+
+v₉ : Prod.map toList id <$> initLast t₄ ≡
      just (((1 , v₁) ∷ []) ,′ (2 , v₂))
-q₇ = refl
+v₉ = refl
 
 ------------------------------------------------------------------------
 -- Further reading
