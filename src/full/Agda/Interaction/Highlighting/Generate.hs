@@ -315,7 +315,10 @@ nameKinds mErr decls = do
 
   getDecl :: A.Declaration -> Map A.QName NameKind
   getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate
-  getDecl (A.Field _ q _)     = Map.singleton q Field
+  getDecl (A.Field _ q _)     = Map.singleton q Function
+    -- Note that the name q can be used both as a field name and as a
+    -- projection function. Highlighting of field names is taken care
+    -- of by "theRest" above, which does not use NameKinds.
   getDecl (A.Primitive _ q _) = Map.singleton q Primitive
   getDecl (A.Mutual {})       = Map.empty
   getDecl (A.Section {})      = Map.empty
