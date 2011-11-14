@@ -12,6 +12,7 @@ open import Category.Monad
 open import Category.Monad.Identity
 open import Data.Vec
 open import Data.Nat
+open import Data.Empty using (⊥-elim)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
@@ -274,3 +275,51 @@ proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
   from : ∀ {n} (i : Fin n) xs → lookup i xs ≡ x → xs [ i ]= x
   from zero    (.x ∷ _)  refl = here
   from (suc i) (_  ∷ xs) p    = there (from i xs p)
+
+
+-- Some properties of _[_]≔_
+
+[]≔-idempotent : ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x₁ x₂ : A} →
+                 (xs [ i ]≔ x₁) [ i ]≔ x₂ ≡ xs [ i ]≔ x₂
+[]≔-idempotent [] ()
+[]≔-idempotent (x ∷ xs) zero    = refl
+[]≔-idempotent (x ∷ xs) (suc i) = PropEq.cong (_∷_ x) $ []≔-idempotent xs i 
+
+[]≔-commutes : ∀ {n a} {A : Set a} (xs : Vec A n) (i i′ : Fin n) {x₁ x₂ : A} → i ≢ i′ →
+                 (xs [ i ]≔ x₁) [ i′ ]≔ x₂ ≡ (xs [ i′ ]≔ x₂) [ i ]≔ x₁
+[]≔-commutes [] () i′ i≢i′
+[]≔-commutes (x ∷ xs) zero zero i≢i′        = ⊥-elim $ i≢i′ refl
+[]≔-commutes (x ∷ xs) zero (suc i) i≢i′     = refl
+[]≔-commutes (x ∷ xs) (suc i) zero i≢i′     = refl
+[]≔-commutes (x ∷ xs) (suc i) (suc i′) i≢i′ =
+  PropEq.cong (_∷_ x) $ []≔-commutes xs i i′ (i≢i′ ∘ PropEq.cong suc)
+
+[]≔-works : ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x : A} →
+            (xs [ i ]≔ x) [ i ]= x
+[]≔-works [] ()
+[]≔-works (x ∷ xs) zero         = here
+[]≔-works (x ∷ xs) (suc i)      = there ([]≔-works xs i)
+
+[]≔-minimal : ∀ {n a} {A : Set a} (xs : Vec A n) (i i′ : Fin n) {x x′ : A} →
+              i ≢ i′ → xs [ i′ ]= x′ →
+              (xs [ i ]≔ x) [ i′ ]= x′
+[]≔-minimal [] () _ i≢i′ _
+[]≔-minimal (x′ ∷ xs) zero .zero i≢i′ here = ⊥-elim $ i≢i′ refl
+[]≔-minimal (x′ ∷ xs) (suc i) .zero i≢i′ here = here
+[]≔-minimal (y ∷ xs) zero (suc i′) i≢i′ (there loc) = there loc
+[]≔-minimal (y ∷ xs) (suc i) (suc i′) i≢i′ (there loc) =
+  there ([]≔-minimal xs i i′ (i≢i′ ∘′ PropEq.cong suc) loc)
+
+map-[]≔ : ∀ {n a b} {A : Set a} {B : Set b} 
+          (f : A → B) (xs : Vec A n) (i : Fin n) {x : A} →
+          map f (xs [ i ]≔ x) ≡ map f xs [ i ]≔ f x
+map-[]≔ f [] ()
+map-[]≔ f (x ∷ xs) zero = refl
+map-[]≔ f (x ∷ xs) (suc i) = PropEq.cong (_∷_ _) $ map-[]≔ f xs i
+
+[]≔-lookup : ∀ {a} {A : Set a} {n} (xs : Vec A n) → (i : Fin n) →
+             xs [ i ]≔ lookup i xs ≡ xs
+[]≔-lookup [] ()
+[]≔-lookup (x ∷ xs) zero = refl
+[]≔-lookup (x ∷ xs) (suc i) = PropEq.cong (_∷_ x) $ []≔-lookup xs i
+
