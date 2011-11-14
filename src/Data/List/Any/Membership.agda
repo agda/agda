@@ -23,7 +23,7 @@ open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
 open import Data.List as List
-open import Data.List.Any as Any using (Any; here; there)
+open import Data.List.Any as Any using (Any; here; there; module Membership)
 open import Data.List.Any.Properties
 open import Data.Nat as Nat
 import Data.Nat.Properties as NatProp
@@ -245,3 +245,22 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
       { to        = →-to-⟶ {B = P.setoid A} f
       ; injective = injective′
       }
+
+-- filter-⊆
+filter-⊆ : ∀ {a} {A : Set a} (p : A → Bool) →
+           (xs : List A) → filter p xs ⊆ xs
+filter-⊆ _ [] = λ ()
+filter-⊆ p (x ∷ xs) with p x
+... | true = go′ where
+    go′ : ∀ {x′} → x′ ∈ x ∷ filter p xs → x′ ∈ x ∷ xs
+    go′ (here p) = here p
+    go′ (there x∈fpxs) = there $ filter-⊆ p xs x∈fpxs
+... | false = there ∘ filter-⊆ p xs 
+
+filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) → (xs : List A) → {x : A} →
+           x ∈ xs → p x ≡ true → x ∈ filter p xs
+filter-∈ p [] () _
+filter-∈ p (x ∷ xs) {.x} (here refl) px≡t rewrite px≡t = here refl
+filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t with p x'
+filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t | true = there (filter-∈ p xs pxs px≡t)
+filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t | false = filter-∈ p xs pxs px≡t

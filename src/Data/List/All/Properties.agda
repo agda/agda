@@ -16,7 +16,9 @@ import Data.List.Any as Any
 open Any.Membership-≡
 open import Data.List.All as All using (All; []; _∷_)
 open import Data.Product
-open import Relation.Unary using () renaming (_⊆_ to _⋐_)
+open import Relation.Nullary using (Dec; yes; no)
+open import Relation.Nullary.Decidable using (⌊_⌋)
+open import Relation.Unary using (Dec₁) renaming (_⊆_ to _⋐_)
 
 -- Functions can be shifted between the predicate and the list.
 
@@ -64,3 +66,18 @@ anti-mono xs⊆ys pys = All.tabulate (All.lookup pys ∘ xs⊆ys)
 all-anti-mono : ∀ {a} {A : Set a} (p : A → Bool) {xs ys} →
                 xs ⊆ ys → T (all p ys) → T (all p xs)
 all-anti-mono p xs⊆ys = All-all p ∘ anti-mono xs⊆ys ∘ all-All p _
+
+-- filter filters...
+
+filter-correct : ∀ {a p} {A : Set a} →
+                 (P : A → Set p) → (dec : Dec₁ P) → (xs : List A) →
+                 All P (filter (⌊_⌋ ∘ dec) xs) 
+filter-correct P dec [] = []
+filter-correct P dec (x ∷ xs) with dec x
+filter-correct P dec (x ∷ xs) | yes px = px ∷ filter-correct P dec xs 
+filter-correct P dec (x ∷ xs) | no ¬px = filter-correct P dec xs
+
+All-++ : ∀ {a p} {A : Set a} {P : A → Set p} → {xs ys : List A} →
+       All P xs → All P ys → All P (xs ++ ys)
+All-++ {xs = []} [] Pys = Pys
+All-++ {xs = (x ∷ xs)} (Px ∷ Pxs) Pys = Px ∷ All-++ Pxs Pys
