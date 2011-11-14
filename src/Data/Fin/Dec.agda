@@ -36,10 +36,10 @@ suc n ∈? s ∷ p       with n ∈? p
 
 private
 
-  restrictP : ∀ {n} → (Fin (suc n) → Set) → (Fin n → Set)
+  restrictP : ∀ {p n} → (Fin (suc n) → Set p) → (Fin n → Set p)
   restrictP P f = P (suc f)
 
-  restrict : ∀ {n} {P : Fin (suc n) → Set} →
+  restrict : ∀ {p n} {P : Fin (suc n) → Set p} →
              (∀ f → Dec (P f)) →
              (∀ f → Dec (restrictP P f))
   restrict dec f = dec (suc f)
@@ -62,17 +62,18 @@ nonempty? p = any? (λ x → x ∈? p)
 
 private
 
-  restrict∈ : ∀ {n} P {Q : Fin (suc n) → Set} →
+  restrict∈ : ∀ {p q n} (P : Fin (suc n) → Set p)
+              {Q : Fin (suc n) → Set q} →
               (∀ {f} → Q f → Dec (P f)) →
               (∀ {f} → restrictP Q f → Dec (restrictP P f))
   restrict∈ _ dec {f} Qf = dec {suc f} Qf
 
-decFinSubset : ∀ {n} {P Q : Fin n → Set} →
+decFinSubset : ∀ {p q n} {P : Fin n → Set p} {Q : Fin n → Set q} →
                (∀ f → Dec (Q f)) →
                (∀ {f} → Q f → Dec (P f)) →
                Dec (∀ {f} → Q f → P f)
-decFinSubset {zero}          _    _    = yes λ{}
-decFinSubset {suc n} {P} {Q} decQ decP = helper
+decFinSubset {n = zero}          _    _    = yes λ{}
+decFinSubset {n = suc n} {P} {Q} decQ decP = helper
   where
   helper : Dec (∀ {f} → Q f → P f)
   helper with decFinSubset (restrict decQ) (restrict∈ P decP)
@@ -91,12 +92,12 @@ decFinSubset {suc n} {P} {Q} decQ decP = helper
     hlpr zero    q₀ = ⊥-elim (¬q₀ q₀)
     hlpr (suc f) qf = q⟶p qf
 
-all∈? : ∀ {n} {P : Fin n → Set} {q} →
+all∈? : ∀ {n p} {P : Fin n → Set p} {q} →
         (∀ {f} → f ∈ q → Dec (P f)) →
         Dec (∀ {f} → f ∈ q → P f)
 all∈? {q = q} dec = decFinSubset (λ f → f ∈? q) dec
 
-all? : ∀ {n} {P : Fin n → Set} →
+all? : ∀ {n p} {P : Fin n → Set p} →
        (∀ f → Dec (P f)) →
        Dec (∀ f → P f)
 all? dec with all∈? {q = ⊤} (λ {f} _ → dec f)
