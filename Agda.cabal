@@ -61,12 +61,6 @@ flag epic
   description:
     Install the Epic compiler.
 
-flag js
-  default: False
-  manual:  True
-  description:
-    Install the ECMAScript compiler.
-
 flag debug
   default: False
   manual: True
