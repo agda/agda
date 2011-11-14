@@ -34,7 +34,7 @@ description:
   Note also that this library does not follow the package versioning
   policy, because the library is only intended to be used by the Emacs
   mode and the Agda-executable package.
-tested-with:        GHC == 7.2.1
+tested-with:        GHC == 7.2.2
 extra-source-files: src/full/Agda/undefined.h
                     README
                     doc/release-notes/*.txt
@@ -318,10 +318,10 @@ library
                     -fwarn-missing-methods
                     -fwarn-overlapping-patterns
                     -fwarn-warnings-deprecations
-  -- Work-around for Paths_Agda warnings with ghc-7.2.1.
-  if impl(ghc < 7.2.1)
-    ghc-options:    -Werror
-  if impl(ghc > 7.2.1)
+  -- The Cabal-generated module Paths_Agda triggers a warning under
+  -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
+  -- used).
+  if impl(ghc < 7.2.1) || impl(ghc > 7.2.2)
     ghc-options:    -Werror
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
