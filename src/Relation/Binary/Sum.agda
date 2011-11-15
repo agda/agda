@@ -311,6 +311,20 @@ private
     }
     where open IsDecTotalOrder
 
+  _⊎-<-isStrictTotalOrder_ :
+    ∀ {ℓ₁ ℓ₁′} {≈₁ : Rel A₁ ℓ₁} {<₁ : Rel A₁ ℓ₁′}
+      {ℓ₂ ℓ₂′} {≈₂ : Rel A₂ ℓ₂} {<₂ : Rel A₂ ℓ₂′} →
+    IsStrictTotalOrder ≈₁ <₁ → IsStrictTotalOrder ≈₂ <₂ →
+    IsStrictTotalOrder (≈₁ ⊎-Rel ≈₂) (<₁ ⊎-< <₂)
+  sto₁ ⊎-<-isStrictTotalOrder sto₂ = record
+    { isEquivalence = isEquivalence sto₁ ⊎-isEquivalence
+                      isEquivalence sto₂
+    ; trans         = trans    sto₁ ⊎-transitive     trans    sto₂
+    ; compare       = compare  sto₁ ⊎-<-trichotomous compare  sto₂
+    ; <-resp-≈      = <-resp-≈ sto₁ ⊎-≈-respects₂    <-resp-≈ sto₂
+    }
+    where open IsStrictTotalOrder
+
 open Dummy public
 
 ------------------------------------------------------------------------
@@ -377,6 +391,17 @@ to₁ ⊎-<-decTotalOrder to₂ = record
   { isDecTotalOrder = isDecTotalOrder to₁ ⊎-<-isDecTotalOrder
                       isDecTotalOrder to₂
   } where open DecTotalOrder
+
+_⊎-<-strictTotalOrder_ :
+  ∀ {p₁ p₂ p₃ p₄ p₅ p₆} →
+  StrictTotalOrder p₁ p₂ p₃ → StrictTotalOrder p₄ p₅ p₆ →
+  StrictTotalOrder _ _ _
+sto₁ ⊎-<-strictTotalOrder sto₂ = record
+  { _<_                = _<_ sto₁ ⊎-< _<_ sto₂
+  ; isStrictTotalOrder = isStrictTotalOrder sto₁
+                           ⊎-<-isStrictTotalOrder
+                         isStrictTotalOrder sto₂
+  } where open StrictTotalOrder
 
 ------------------------------------------------------------------------
 -- Some properties related to "relatedness"
