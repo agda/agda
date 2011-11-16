@@ -135,7 +135,7 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?7 : Nat
 ")
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
-agda2_mode_code (last . (agda2-solveAll-action '(2 "z" 5 "(D z)")))
+agda2_mode_code (last . (agda2-solveAll-action '(2 "z" 5 "D z")))
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (agda2-info-action "*Error*" "1,1-4
 Nat !=< Maybe Nat of type Set

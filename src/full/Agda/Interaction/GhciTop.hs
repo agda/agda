@@ -63,6 +63,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
 
+import Agda.Syntax.Fixity
 import Agda.Syntax.Position
 import Agda.Syntax.Parser
 import qualified Agda.Syntax.Parser.Tokens as T
@@ -756,7 +757,7 @@ cmd_solveAll = Interaction Dependent $ do
     where
       lowr (i, m, e) = do
         mi <- getMetaInfo <$> lookupMeta m
-        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcrete_ e
+        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcreteCtx TopCtx e
         return (i, e)
   prn (ii,e)= [showNumIId ii, A $ quote $ show e]
 
