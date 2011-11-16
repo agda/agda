@@ -684,8 +684,7 @@ findClauseDeep m = do
         return (MB.defName def, c, peelbinds __IMPOSSIBLE__ toplevel $ I.clauseBody c)
   return $ case res of
     [] -> Nothing
-    [r] -> Just r
-    _ -> __IMPOSSIBLE__
+    r:_ -> Just r   -- TODO: with pattern matching lambdas we might get more than one hit, which to choose?
   where
     peelbinds d f = r
      where r b = case b of
