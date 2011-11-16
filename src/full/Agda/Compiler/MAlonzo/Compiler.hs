@@ -256,7 +256,8 @@ clause q (i, isLast, Clause{ clausePats = ps, clauseBody = b }) =
        | otherwise              = [match (L.map HS.PVar cvs) crhs]
   cvs  = L.map (ihname "v") [0 .. genericLength ps - 1]
   crhs = hsCast$ L.foldl HS.App (hsVarUQ $ dsubname q (i + 1)) (L.map hsVarUQ cvs)
-  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
+  failrhs = rtmIncompleteMatch q  -- Andreas, 2011-11-16 call to RTE instead of inlined error
+--  failrhs = rtmError $ "incomplete pattern matching: " ++ show q
   match hps rhs = HS.Match dummy (dsubname q i) hps Nothing
                            (HS.UnGuardedRhs rhs) (HS.BDecls [])
   bvars (Body _)           _ = []
@@ -459,6 +460,9 @@ rteModule = ok $ parse $ unlines
   , "data QName a b = QName { nameId, moduleId :: Integer, qnameType :: a, qnameDefinition :: b }"
   , "instance Eq (QName a b) where"
   , "  QName a b _ _ == QName c d _ _ = (a, b) == (c, d)"
+  , ""
+  , "mazIncompleteMatch :: String -> a"
+  , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
   ]
   where
     parse = HS.parseWithMode

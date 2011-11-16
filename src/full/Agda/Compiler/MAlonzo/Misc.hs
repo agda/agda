@@ -146,6 +146,11 @@ mazerror msg = error $ mazstr ++ ": " ++ msg
 -- mazCoerce = HS.Var $ HS.Qual unsafeCoerceMod (HS.Ident "unsafeCoerce")
 mazCoerce = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazCoerce"
 
+-- Andreas, 2011-11-16: error incomplete match now RTE-call
+mazIncompleteMatch = HS.Var $ HS.Qual mazRTE $ HS.Ident "mazIncompleteMatch"
+rtmIncompleteMatch :: QName -> HS.Exp
+rtmIncompleteMatch q = mazIncompleteMatch `HS.App` hsVarUQ (unqhname "name" q)
+
 mazRTE :: HS.ModuleName
 mazRTE = HS.ModuleName "MAlonzo.RTE"
 
