@@ -32,3 +32,23 @@ eq₁ = refl
 
 eq₂ : upd-p-s zero 1 (record new { s = 0 }) ≡ old
 eq₂ = refl
+
+-- Check that instance arguments are handled properly
+postulate
+  T : Nat → Set
+  t0 : T 0
+  t1 : T 1
+
+record Instance : Set where
+  field
+    n : Nat
+    {{t}} : T n
+
+r0 : Instance
+r0 = record { n = 0 }
+
+r1 : Instance
+r1 = record r0 { n = 1 }
+
+check : Instance.t r1 ≡ t1
+check = refl

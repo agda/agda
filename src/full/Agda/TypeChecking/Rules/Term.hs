@@ -631,10 +631,9 @@ checkExpr e t =
                 axs <- getRecordFieldNames r
                 scope <- getScope
                 let xs = map unArg axs
-                let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
                 es <- orderFields r Nothing xs $ map (\(x, e) -> (x, Just e)) fs
-                let es' = zipWith (replaceFields name meta ei) projs es
-                checkExpr (A.Rec ei $ zip xs es') t
+                let es' = zipWith (replaceFields name ei) projs es
+                checkExpr (A.Rec ei [ (x, e) | (x, Just e) <- zip xs es' ]) t
             MetaV _ _ -> do
               inferred <- inferExpr recexpr >>= reduce . snd
               case unEl inferred of
@@ -644,10 +643,10 @@ checkExpr e t =
                   blockTerm t $ v <$ leqType_ t inferred
             _         -> typeError $ ShouldBeRecordType t
           where
-            replaceFields :: Name -> A.Expr -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> A.Expr
-            replaceFields n _ ei (Arg NotHidden _ p) Nothing  = A.App ei (A.Def p) $ defaultArg (unnamed $ A.Var n)
-            replaceFields _ m _  (Arg _         _ _) Nothing  = m
-            replaceFields _ _ _  _                   (Just e) = e
+            replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
+            replaceFields n ei (Arg NotHidden _ p) Nothing  = Just $ A.App ei (A.Def p) $ defaultArg (unnamed $ A.Var n)
+            replaceFields _ _  (Arg _         _ _) Nothing  = Nothing
+            replaceFields _ _  _                   (Just e) = Just $ e
 
 	A.DontCare e -> -- can happen in the context of with functions
           checkExpr e t
