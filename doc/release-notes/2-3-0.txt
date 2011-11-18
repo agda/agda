@@ -385,8 +385,25 @@ Language
   Here, 'new' normalizes to 'record { a = 0; b = 2; c = 5 }'. Any expression
   yielding a value of MyRecord can be used. Record updating isn't allowed to
   change types, i.e. the resulting value must have the same type as the
-  original one, even if the fields match.
+  original one, including record parameters.
 
+  The record update syntax is expanded before type checking as follows: When
+  checking against a record type R
+
+    record old { upd-fields }
+
+  expands to
+
+    let r = old in record { new-fields }
+
+  where old is required to have type R and for each field x in R we have
+
+    - if x = e in upd-fields then x = e in new-fields, otherwise
+    - if x is an explicit field then x = R.x r in new-fields
+    - if x is an implicit or instance field it is omitted from new-fields
+
+  The effect of this is that implicit and instance fields are silently updated
+  if necessary. They can of course be updated explicitly if need be.
 
 Irrelevance
 -----------
