@@ -26,9 +26,8 @@ postulate
   return : ∀ {a} {A : Set a} → A → IO A
   _>>=_  : ∀ {a b} {A : Set a} {B : Set b} → IO A → (A → IO B) → IO B
 
-{-# COMPILED return (\_ _ -> return :: a -> IO a) #-}
-{-# COMPILED _>>=_  (\_ _ _ _ ->
-                        (>>=) :: IO a -> (a -> IO b) -> IO b) #-}
+{-# COMPILED return (\_ _ -> return)    #-}
+{-# COMPILED _>>=_  (\_ _ _ _ -> (>>=)) #-}
 
 ------------------------------------------------------------------------
 -- Simple lazy IO
