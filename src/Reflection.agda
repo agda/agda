@@ -122,17 +122,22 @@ mutual
 {-# BUILTIN AGDASORTLIT         lit     #-}
 {-# BUILTIN AGDASORTUNSUPPORTED unknown #-}
 
+------------------------------------------------------------------------
+-- Definitions
+
 postulate
   -- Function definition.
-  Function    : Set
+  Function  : Set
   -- Data type definition.
-  Data-type   : Set
+  Data-type : Set
   -- Record type definition.
-  Record : Set
+  Record    : Set
 
 {-# BUILTIN AGDAFUNDEF    Function  #-}
 {-# BUILTIN AGDADATADEF   Data-type #-}
 {-# BUILTIN AGDARECORDDEF Record    #-}
+
+-- Definitions.
 
 data Definition : Set where
   function     : Function  → Definition
@@ -156,11 +161,17 @@ private
     primQNameDefinition  : Name → Definition
     primDataConstructors : Data-type → List Name
 
+-- The type of the thing with the given name.
+
 type : Name → Type
 type = primQNameType
 
+-- The definition of the thing with the given name.
+
 definition : Name → Definition
 definition = primQNameDefinition
+
+-- The constructors of the given data type.
 
 constructors : Data-type → List Name
 constructors = primDataConstructors
