@@ -1,4 +1,4 @@
 NoPanic.agda:24,3-16
 Setω !=< Level of type Setω
-when checking that the type of the generated with function
-I (_26 {A}) (_22 {A}) → Set₁ is well-formed
+when checking that the type I (_26 {A}) (_22 {A}) → Set₁ of the
+generated with function is well-formed
