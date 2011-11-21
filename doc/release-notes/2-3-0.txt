@@ -132,14 +132,15 @@ Language
 
   Record updating is not allowed to change types: the resulting value
   must have the same type as the original one, including the record
-  parameters.
+  parameters. Thus, the type of a record update can be inferred if the type
+  of the original record can be inferred.
 
   The record update syntax is expanded before type checking. When the
   expression
 
     record old { upd-fields }
 
-  is checked against a record type R, it is expanded to                        TODO: What about inference?
+  is checked against a record type R, it is expanded to
 
     let r = old in record { new-fields },
 
@@ -239,8 +240,7 @@ Meta-variables and unification
   interactively given terms is not perfect: Agda sometimes refuses to
   load a file, even though no complaints were raised during the
   interactive construction of the file. This is because certain checks
-  (positivity, termination, precise scoping) are only invoked when a               TODO: What does "precise scoping" refer to?
-  file is loaded.
+  (for instance, positivity) are only invoked when a file is loaded.
 
 * Record types can now be inferred.
 
@@ -641,13 +641,13 @@ Reflection
   quote is restricted to names n, quoteTerm accepts terms t. The
   construction is handled in the following way:
 
-  1. The type of t is inferred. The term t must be type-correct,                  TODO: Is this description correct?
-     without any unsolved meta-variables.
+  1. The type of t is inferred. The term t must be type-correct.
 
   2. The term t is normalised.
 
   3. The construction is replaced by the Term representation (see the
-     reflection API above) of the normal form.
+     reflection API above) of the normal form. Any unsolved metavariables
+     in the term are represented by the "unknown" term constructor.
 
   Examples:
 
