@@ -101,7 +101,7 @@ instance InScope AbstractModule where
   inScopeTag = ModuleTag
 
 -- | We distinguish constructor names from other names.
-data KindOfName = ConName | DefName | PatternSynName
+data KindOfName = ConName | DefName
   deriving (Eq, Show, Typeable, Data)
 
 -- | Apart from the name, we also record whether it's a constructor or not and

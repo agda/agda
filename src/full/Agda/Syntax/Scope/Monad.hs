@@ -184,6 +184,7 @@ freshAbstractQName fx x = do
 
 data ResolvedName = VarName A.Name
                   | DefinedName Access AbstractName
+                  | FieldName AbstractName           -- ^ record fields names need to be distinguished to parse copatterns 
                   | ConstructorName [AbstractName]
                   | PatternSynResName AbstractName
                   | UnknownName
@@ -201,8 +202,6 @@ resolveName x = do
       ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName
                $ map (\ (d, _) -> updateConcreteName d $ unqualify x) ds
-      [(d, a)] | anameKind d == PatternSynName ->
-                  return $ PatternSynResName (updateConcreteName d $ unqualify x)
       [(d, a)] -> return $ DefinedName a $ updateConcreteName d (unqualify x)
       ds  -> typeError $ AmbiguousName x (map (anameName . fst) ds)
   where
@@ -226,6 +225,7 @@ getFixity x = do
   case r of
     VarName y          -> return $ nameFixity y
     DefinedName _ d    -> return $ nameFixity $ qnameName $ anameName d
+    FieldName d        -> return $ nameFixity $ qnameName $ anameName d
     ConstructorName ds
       | null fs        -> __IMPOSSIBLE__
       | allEqual fs    -> return $ head fs
@@ -248,6 +248,7 @@ bindName :: Access -> KindOfName -> C.Name -> A.QName -> ScopeM ()
 bindName acc kind x y = do
   r  <- resolveName (C.QName x)
   ys <- case r of
+    FieldName d        -> typeError $ ClashingDefinition (C.QName x) $ anameName d
     DefinedName _ d    -> typeError $ ClashingDefinition (C.QName x) $ anameName d
     VarName z          -> typeError $ ClashingDefinition (C.QName x) $ A.qualify (mnameFromList []) z
     ConstructorName [] -> __IMPOSSIBLE__
