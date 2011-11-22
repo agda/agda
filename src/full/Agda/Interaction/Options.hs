@@ -99,6 +99,7 @@ data PragmaOptions = PragmaOptions
   , optIrrelevantProjections     :: Bool
   , optExperimentalIrrelevance   :: Bool  -- ^ irrelevant levels, irrelevant data matching
   , optWithoutK                  :: Bool
+  , optCopatterns                :: Bool  -- ^ definitions by copattern matching
   }
   deriving Show
 
@@ -171,6 +172,7 @@ defaultPragmaOptions = PragmaOptions
   , optGuardingTypeConstructors  = False
   , optUniversePolymorphism      = True
   , optWithoutK                  = False
+  , optCopatterns                = False
   }
 
 -- | The default output directory for HTML.
@@ -224,7 +226,8 @@ unsafePragmaOptions opts =
   [ "--sized-types"                              | optSizedTypes opts                ] ++
   [ "--injective-type-constructors"              | optInjectiveTypeConstructors opts ] ++
   [ "--guardedness-preserving-type-constructors" | optGuardingTypeConstructors opts  ] ++
-  [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ]
+  [ "--experimental-irrelevance"                 | optExperimentalIrrelevance opts   ] ++
+  [ "--copatterns"                               | optCopatterns opts   ]
 
 -- The default pragma options should be considered safe
 
@@ -265,6 +268,7 @@ universePolymorphismFlag     o = return $ o { optUniversePolymorphism      = Tru
 noUniversePolymorphismFlag   o = return $ o { optUniversePolymorphism      = False }
 noForcingFlag                o = return $ o { optForcing                   = False }
 withoutKFlag                 o = return $ o { optWithoutK                  = True  }
+copatternsFlag               o = return $ o { optCopatterns                = True  }
 
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
@@ -387,6 +391,8 @@ pragmaOptions =
                     "enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)"
     , Option []     ["without-K"] (NoArg withoutKFlag)
                     "disable the K rule (maybe)"
+    , Option []     ["copatterns"] (NoArg copatternsFlag)
+                    "enable definitions by copattern matching"
     ]
 
 -- | Used for printing usage info.
