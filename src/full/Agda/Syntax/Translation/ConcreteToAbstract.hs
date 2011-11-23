@@ -99,7 +99,7 @@ lhsArgs p = case appView p of
         notHidden = Arg NotHidden Relevant . unnamed
         appView p = case p of
             AppP p arg    -> appView p ++ [arg]
-            OpAppP _ x ps -> mkHead (IdentP x) : map notHidden ps
+            OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
             ParenP _ p    -> appView p
             RawAppP _ _   -> __IMPOSSIBLE__
             _             -> [ mkHead p ]
@@ -319,20 +319,18 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
-    mk DefName        = Def
-    mk ConName        = Con . AmbQ . (:[])
-    mk PatternSynName = A.PatternSyn
+    mk DefName = Def
+    mk ConName = Con . AmbQ . (:[])
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
-      VarName x'          -> return $ A.Var x'
-      DefinedName _ d     -> return $ nameExpr d
-      ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
-      UnknownName         -> notInScope x
-      PatternSynResName d -> return $ nameExpr d
+      VarName x'         -> return $ A.Var x'
+      DefinedName _ d    -> return $ nameExpr d
+      ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
+      UnknownName        -> notInScope x
 
 data APatName = VarPatName A.Name
               | ConPatName [AbstractName]
@@ -759,8 +757,12 @@ instance ToAbstract LetDef [A.LetBinding] where
             _   -> notAValidLetBinding d
         where
             letToAbstract (C.Clause top clhs@(C.LHS p [] [] []) (C.RHS rhs) NoWhere []) = do
-                p    <- parseLHS (Just top) p
+{-
+                p    <- parseLHS top p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
+-}
+                LHSHead x args <- parseLHS top p
+                localToAbstract args $ \args ->
                     do  rhs <- toAbstract rhs
                         foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
             letToAbstract _ = notAValidLetBinding d
@@ -802,7 +804,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- Andreas, 2010-09-24: irrelevant fields are not in scope
         -- this ensures that projections out of irrelevant fields cannot occur
         -- Ulf: unless you turn on --irrelevant-projections
-        bindName p DefName x y
+        bindName p FldName x y
       return [ A.Field (mkDefInfo x f p a r) y t' ]
 
   -- Primitive function
@@ -1195,12 +1197,16 @@ data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
-        p <- parseLHS (Just top) lhs
+{-
+        p <- parseLHS top lhs
         printLocals 10 "before lhs:"
         let (x, ps) = lhsArgs p
+-}
+        LHSHead x ps <- parseLHS top lhs
+        printLocals 10 "before lhs:"
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
-        wps  <- toAbstract =<< mapM (parseLHS Nothing) wps
+        wps  <- toAbstract =<< mapM parsePattern wps
         checkPatternLinearity (map (namedThing . unArg) args ++ wps)
         printLocals 10 "checked pattern:"
         args <- toAbstract args -- take care of dot patterns

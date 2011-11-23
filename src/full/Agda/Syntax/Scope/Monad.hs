@@ -184,7 +184,7 @@ freshAbstractQName fx x = do
 
 data ResolvedName = VarName A.Name
                   | DefinedName Access AbstractName
-                  | FieldName AbstractName           -- ^ record fields names need to be distinguished to parse copatterns 
+                  | FieldName AbstractName           -- ^ record fields names need to be distinguished to parse copatterns
                   | ConstructorName [AbstractName]
                   | PatternSynResName AbstractName
                   | UnknownName

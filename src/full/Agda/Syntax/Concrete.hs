@@ -27,7 +27,7 @@ module Agda.Syntax.Concrete
     , Renaming(..), AsName(..)
     , defaultImportDir
     , OpenShortHand(..), RewriteEqn, WithExpr
-    , LHS(..), Pattern(..)
+    , LHS(..), Pattern(..), LHSCore(..)
     , RHS(..), WhereClause(..)
     , Pragma(..)
     , Module
@@ -166,6 +166,25 @@ data LHS = LHS { lhsOriginalPattern :: Pattern       -- ^ @f ps@
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
+
+-- | Processed (scope-checked) intermediate form of the core @f ps@ of 'LHS'.
+data LHSCore
+  = LHSHead  { definedFunctionSymbol :: Name           -- ^ @f@
+             , argPatterns :: [NamedArg Pattern]       -- ^ @ps@
+             }
+  | LHSProj  { destructor    :: QName      -- ^ record projection identifier
+             , patternsLeft  :: [NamedArg Pattern]  -- ^ side patterns
+             , focus         :: NamedArg LHSCore    -- ^ main branch
+             , patternsRight :: [NamedArg Pattern]  -- ^ side patterns
+             }
+
+{- TRASH
+lhsCoreToPattern :: LHSCore -> Pattern
+lhsCoreToPattern (LHSHead f args) = OpAppP (fuseRange f args) (unqualify f) args
+lhsCoreToPattern (LHSProj d ps1 lhscore ps2) = OpAppP (fuseRange d ps) (unqualify) ps
+  where p = lhsCoreToPattern lhscore
+        ps = ps1 ++ p : ps2
+-}
 
 data RHS = AbsurdRHS
 	 | RHS Expr
@@ -455,6 +474,10 @@ instance HasRange Declaration where
 instance HasRange LHS where
   getRange (LHS p ps eqns ws) = fuseRange p (fuseRange ps (eqns ++ ws))
   getRange (Ellipsis r _ _ _) = r
+
+instance HasRange LHSCore where
+  getRange (LHSHead f ps) = fuseRange f ps
+  getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
 
 instance HasRange RHS where
     getRange AbsurdRHS = noRange

@@ -11,7 +11,6 @@
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseLHS
-    , parsePatternSyn
     , paren
     , mparen
     ) where
@@ -28,7 +27,7 @@ import Data.Function
 
 import Agda.Syntax.Concrete.Pretty ()
 import Agda.Syntax.Common
-import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete hiding (appView)
 import Agda.Syntax.Concrete.Operators.Parser
 import qualified Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Position
@@ -84,9 +83,9 @@ getDefinedNames kinds names =
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
-localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
-localNames flat = do
-  let defs = getDefinedNames [DefName, ConName, PatternSynName] flat
+localNames :: ScopeM ([Name], [NewNotation])
+localNames = do
+  defs   <- getDefinedNames [DefName, ConName]
   locals <- scopeLocals <$> getScope
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
@@ -275,6 +274,37 @@ instance IsExpr Pattern where
         WildV e        -> e
         OtherV e       -> e
 
+{- TRASH
+instance IsExpr LHSCore where
+    exprView e = case e of
+        LHSHead f ps -> foldl AppV (LocalV f) $ map exprView ps
+        LHSProj d ps1 e ps2 -> foldl AppV (LocalV d) $
+          map exprView ps1 ++ exprView e : map exprView ps2
+    unExprView e = LHSHead f ps
+      where p :: Pattern
+            p = unExprView
+            (f, ps) = lhsArgs p
+-}
+
+-- Andreas, 2011-11-24 moved here from ConcreteToAbstract
+lhsArgs :: Pattern -> (Name, [NamedArg Pattern])
+lhsArgs p = case lhsArgs' p of
+              Just (x, args) -> (x, args)
+              Nothing        -> __IMPOSSIBLE__
+
+lhsArgs' :: Pattern -> Maybe (Name, [NamedArg Pattern])
+lhsArgs' p = case appView p of
+    Arg _ _ (Named _ (IdentP (QName x))) : ps -> Just (x, ps)
+    _                                         -> Nothing
+    where
+        mkHead    = Arg NotHidden Relevant . unnamed
+        notHidden = Arg NotHidden Relevant . unnamed
+        appView p = case p of
+            AppP p arg    -> appView p ++ [arg]
+            OpAppP _ x ps -> mkHead (IdentP $ QName x) : map notHidden ps
+            ParenP _ p    -> appView p
+            RawAppP _ _   -> __IMPOSSIBLE__
+            _             -> [ mkHead p ]
 
 
 ---------------------------------------------------------------------------
@@ -282,16 +312,16 @@ instance IsExpr Pattern where
 ---------------------------------------------------------------------------
 
 -- | Returns the list of possible parses.
-parsePattern :: ReadP Pattern Pattern -> Pattern -> [Pattern]
-parsePattern prs p = case p of
-    AppP p (Arg h r q) -> fullParen' <$> (AppP <$> parsePattern prs p <*> (Arg h r <$> traverse (parsePattern prs) q))
-    RawAppP _ ps     -> fullParen' <$> (parsePattern prs =<< parse prs ps)
-    OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePattern prs) ps
+parsePat :: ReadP Pattern Pattern -> Pattern -> [Pattern]
+parsePat prs p = case p of
+    AppP p (Arg h r q) -> fullParen' <$> (AppP <$> parsePat prs p <*> (Arg h r <$> traverse (parsePat prs) q))
+    RawAppP _ ps     -> fullParen' <$> (parsePat prs =<< parse prs ps)
+    OpAppP r d ps    -> fullParen' . OpAppP r d <$> mapM (parsePat prs) ps
     HiddenP _ _      -> fail "bad hidden argument"
     InstanceP _ _    -> fail "bad instance argument"
-    AsP r x p        -> AsP r x <$> parsePattern prs p
+    AsP r x p        -> AsP r x <$> parsePat prs p
     DotP r e         -> return $ DotP r e
-    ParenP r p       -> fullParen' <$> parsePattern prs p
+    ParenP r p       -> fullParen' <$> parsePat prs p
     WildP _          -> return p
     AbsurdP _        -> return p
     LitP _           -> return p
@@ -303,7 +333,7 @@ parsePattern prs p = case p of
 --      Assume _ * is a constructor. Then 'true *' can be parsed as either the
 --      intended _* applied to true, or as true applied to a variable *. If we
 --      check arities this problem won't appear.
-parseLHS :: Maybe Name -> Pattern -> ScopeM Pattern
+parseLHS :: Name -> Pattern -> ScopeM LHSCore
 parseLHS = parseLhsOrPatternSyn True
 
 parsePatternSyn :: Pattern -> ScopeM Pattern
@@ -319,25 +349,22 @@ parseLhsOrPatternSyn isLHS top p = do
     reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePattern patP p)
     case filter (validPattern top cons) $ parsePattern patP p of
         [p] -> return p
-        []  | isLHS     -> typeError $ NoParseForLHS p
-            | otherwise -> typeError $ NoParseForPatternSynonym p
-
-        ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
-            | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
+        []  -> typeError $ NoParseForLHS p
+        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
     where
         getNames kinds flat = map fst $ getDefinedNames kinds flat
 
-        validPattern :: Maybe Name -> [QName] -> Pattern -> Bool
+        validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
         validPattern (Just top) cons p = case appView p of
             IdentP (QName x) : ps -> x == top && all (validPat cons) ps
             _                     -> False
         validPattern Nothing cons p = validPat cons p
 
-        validPat :: [QName] -> Pattern -> Bool
+        validPat :: [Name] -> Pattern -> Bool
         validPat cons p = case appView p of
-            [_]           -> True
-            IdentP x : ps -> elem x cons && all (validPat cons) ps
-            ps            -> all (validPat cons) ps
+            [_]                   -> True
+            IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
+            ps                    -> all (validPat cons) ps
 
         appView :: Pattern -> [Pattern]
         appView p = case p of
@@ -348,6 +375,44 @@ parseLhsOrPatternSyn isLHS top p = do
             HiddenP _ _      -> __IMPOSSIBLE__
             InstanceP _ _    -> __IMPOSSIBLE__
             _                -> [p]
+-}
+
+-- | Parses a pattern.
+--   TODO: check the arities of constructors. There is a possible ambiguity with
+--   postfix constructors:
+--      Assume _ * is a constructor. Then 'true *' can be parsed as either the
+--      intended _* applied to true, or as true applied to a variable *. If we
+--      check arities this problem won't appear.
+parsePattern :: Pattern -> ScopeM Pattern
+parsePattern p = do
+    patP <- buildParser (getRange p) DontUseBoundNames
+    cons <- getNames [ConName]
+    case filter (validPat cons) $ parsePat patP p of
+        [p] -> return p
+        []  -> typeError $ NoParseForLHS p
+        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+    where
+        getNames kinds = map fst <$> getDefinedNames kinds
+
+-- | Helper function for 'parseLHS' and 'parsePattern'.
+validPat :: [Name] -> Pattern -> Bool
+validPat cons p = case appView p of
+    [_]                   -> True
+    IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
+    ps                    -> all (validPat cons) ps
+
+-- | Helper function for 'parseLHS' and 'parsePattern'.
+appView :: Pattern -> [Pattern]
+appView p = case p of
+    AppP p a         -> appView p ++ [namedThing (unArg a)]
+    OpAppP _ op ps   -> IdentP (QName op) : ps
+    ParenP _ p       -> appView p
+    RawAppP _ _      -> __IMPOSSIBLE__
+    HiddenP _ _      -> __IMPOSSIBLE__
+    InstanceP _ _    -> __IMPOSSIBLE__
+    _                -> [p]
+
+
 
 patternQNames :: Pattern -> [QName]
 patternQNames p = case p of

@@ -46,8 +46,8 @@ match _ [] = ""
 match cat ws	= "syn match " ++ cat ++ " \"" ++
 		    concat (List.intersperse "\\|" $ map escape ws) ++ "\""
 
-matches :: [String] -> [String] -> [String] -> [String] -> [String]
-matches cons icons defs idefs =
+matches :: [String] -> [String] -> [String] -> [String] -> [String] -> [String] -> [String]
+matches cons icons defs idefs flds iflds =
     map snd
     $ List.sortBy (compare `on` fst)
     $ cons' ++ defs' ++ icons' ++ idefs'
@@ -56,6 +56,8 @@ matches cons icons defs idefs =
 	icons' = foo "agdaInfixConstructor" $ classify length icons
 	defs'  = foo "agdaFunction"	    $ classify length defs
 	idefs' = foo "agdaInfixFunction"    $ classify length idefs
+	flds'  = foo "agdaProjection"	    $ classify length flds
+	iflds' = foo "agdaInfixProjection"  $ classify length iflds
 
 	classify f = List.groupBy ((==) `on` f)
 		     . List.sortBy (compare `on` f)
@@ -64,16 +66,19 @@ matches cons icons defs idefs =
 	foo cat = map (length . head /\ match cat)
 
 toVim :: NamesInScope -> String
-toVim ns = unlines $ matches mcons micons mdefs midefs
+toVim ns = unlines $ matches mcons micons mdefs midefs mflds miflds
     where
 	cons = [ x | (x, def:_) <- Map.toList ns, anameKind def == ConName ]
 	defs = [ x | (x, def:_) <- Map.toList ns, anameKind def == DefName ]
+	flds = [ x | (x, fld:_) <- Map.toList ns, anameKind fld == FldName ]
 
 	mcons = map show cons
 	mdefs = map show defs
+	mflds = map show flds
 
 	micons = concatMap parts cons
 	midefs = concatMap parts defs
+	miflds = concatMap parts flds
 
 	parts (NoName _ _) = []
 	parts (Name _ [_]) = []

@@ -1,11 +1,11 @@
 {- Implement parsing of copattern left hand sides, e.g.
 
   record Tree (A : Set) : Set where
-    field 
+    field
       label : A
       child : Bool -> Tree A
 
-  -- corecursive function defined by copattern matching 
+  -- corecursive function defined by copattern matching
   alternate : {A : Set}(a b : A) -> Tree A
   -- shallow copatterns
                child True  (alternate a b) = alternate b a
@@ -20,11 +20,11 @@
                    a
               b        b
             a   a    a   a
-           b b b b  b b b b 
+           b b b b  b b b b
                  ...
 
   Each lhs is a pattern tree with a distinct path of destructors
-  ("child", "label") from the root to the defined symbol ("alternate"). 
+  ("child", "label") from the root to the defined symbol ("alternate").
   All branches besides this distinct path are patterns.
 
 -}
@@ -33,7 +33,7 @@ module Copatterns where
 import Agda.Syntax.Concrete
 import Agda.Syntax.Concrete.Name
 
-{- The following data structure represents a lhs 
+{- The following data structure represents a lhs
    - the destructor path
    - the side patterns
    - the defined function symbol
@@ -41,16 +41,16 @@ import Agda.Syntax.Concrete.Name
 -}
 
 -- | The left hand side of an equation with copatterns.
-data LHS 
+data LHS
   = Head     { definedFunctionSymbol :: QName -- ^ @f@
              , argPatterns :: [Pattern]       -- ^ @ps@
              }
   | Destruct { destructor    :: QName      -- ^ record projection identifier
-             , patternsLeft  :: [Pattern]  -- ^ side patterns 
+             , patternsLeft  :: [Pattern]  -- ^ side patterns
              , focus         :: LHS        -- ^ main branch
              , patternsRight :: [Pattern]  -- ^ side patterns
              }
-    
+
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
 --   postfix constructors:
