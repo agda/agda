@@ -99,18 +99,18 @@ data Expr
 
 -- | Concrete patterns. No literals in patterns at the moment.
 data Pattern
-	= IdentP QName
-	| AppP Pattern (NamedArg Pattern)
-	| RawAppP !Range [Pattern]
-	| OpAppP !Range Name [Pattern]
-	| HiddenP !Range (Named String Pattern)
-	| InstanceP !Range (Named String Pattern)
-	| ParenP !Range Pattern
-	| WildP !Range
-	| AbsurdP !Range
-	| AsP !Range Name Pattern
-	| DotP !Range Expr
-	| LitP Literal
+	= IdentP QName                            -- ^ @c@ or @x@
+	| AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
+	| RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
+	| OpAppP !Range Name [Pattern]            -- ^ eg: @p => p'@ for operator @_=>_@
+	| HiddenP !Range (Named String Pattern)   -- ^ @{p}@ or @{x = p}@
+	| InstanceP !Range (Named String Pattern) -- ^ @{{p}}@ or @{{x = p}}@
+	| ParenP !Range Pattern                   -- ^ @(p)@
+	| WildP !Range                            -- ^ @_@
+	| AbsurdP !Range                          -- ^ @()@
+	| AsP !Range Name Pattern                 -- ^ @x\@p@ unused
+	| DotP !Range Expr                        -- ^ @.e@
+	| LitP Literal                            -- ^ @0@, @1@, etc.
     deriving (Typeable, Data)
 
 
