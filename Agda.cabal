@@ -66,12 +66,6 @@ flag epic
   description:
     Install the Epic compiler.
 
-flag debug
-  default: False
-  manual: True
-  description:
-    Switch on some extra debug output from GHC.
-
 library
   hs-source-dirs:   src/full
   if flag(use-locale)
@@ -326,17 +320,12 @@ library
   -- The Cabal-generated module Paths_Agda triggers a warning under
   -- GHC 7.2.1/7.2.2 (at least when certain versions of Cabal are
   -- used).
-  if impl(ghc < 7.2.1) || impl(ghc > 7.2.2)
-    ghc-options:    -Werror
   if impl(ghc >= 6.12)
     ghc-options:    -fwarn-dodgy-exports
                     -fwarn-wrong-do-bind
   if impl(ghc >= 7.2)
     ghc-options:    -fwarn-identities
   ghc-prof-options: -auto-all
-
-  if flag(debug)
-    ghc-options:    -ddump-simpl-stats
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
