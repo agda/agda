@@ -87,10 +87,10 @@ insertTele ::(QName, Args) -> Int        -- ^ ABS `pos` in tele
                           --   is nothing if we only want to delete a binding.
             -> Term       -- ^ Term to replace at pos
             -> Telescope  -- ^ The telescope `tele` where everything is at
-            -> Compile TCM ( Telescope -- ^ Resulting telescope
+            -> Compile TCM ( Telescope -- Resulting telescope
                            , ( Telescope
-                             , Type -- ^ The type at pos in tele
-                             , Type -- ^ The return Type of the inserted type
+                             , Type -- The type at pos in tele
+                             , Type -- The return Type of the inserted type
                              )
                            )
 insertTele x 0 ins term (ExtendTel t to) = do

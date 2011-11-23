@@ -630,7 +630,7 @@ unifyIndices flex a us vs = liftTCM $ do
             Hom a                -> (aHH0, True, a)
             Het a1 a2 | a1 == a2 -> (Hom a1, True, a1) -- BRITTLE: just checking syn.eq.
             _                    -> (aHH0, False, __IMPOSSIBLE__)
-           -- ^ use @a@ only if 'homogeneous' holds!
+           -- use @a@ only if 'homogeneous' holds!
 
           fallback = checkEqualityHH aHH u v
 
@@ -890,9 +890,10 @@ dataOrRecordType c a = fmap (\ (d, b, args) -> b `apply` args) <$> dataOrRecordT
 dataOrRecordType' ::
      QName -- ^ Constructor name.
   -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> TCM (Maybe (QName, -- ^ Name of data/record type.
-                 Type,  -- ^ Type of constructor, to be applied to ...
-                 Args))  -- ^ ... these parameters
+  -> TCM (Maybe (QName, Type, Args))
+           -- ^ Name of data/record type,
+           --   type of constructor to be applied, and
+           --   data/record parameters
 dataOrRecordType' c a = do
   -- The telescope ends with a datatype or a record.
   TelV _ (El _ (Def d args)) <- telView a

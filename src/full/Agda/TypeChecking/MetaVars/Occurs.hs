@@ -327,10 +327,10 @@ killArgs kills m = do
           ]
         ]
 
--- | @killedType [((x1,a1),k1),...,((xn,an),kn)] b = ([k'1,...k'n],t')@
+-- | @killedType [((x1,a1),k1)..((xn,an),kn)] b = ([k'1..k'n],t')@
 --   (ignoring @Arg@).  Let @t' = (xs:as) -> b@.
---   Invariant: @k'i==True@ iff $ki==True@ and pruning the @i@th argument form
---   type @@ is possible without creating unbound variables.
+--   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
+--   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
 killedType :: [(Arg (String, Type), Bool)] -> Type -> ([Arg Bool], Type)
 killedType [] b = ([], b)
