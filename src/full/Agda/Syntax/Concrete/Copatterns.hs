@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {- Implement parsing of copattern left hand sides, e.g.
 
   record Tree (A : Set) : Set where
@@ -27,30 +29,169 @@
   ("child", "label") from the root to the defined symbol ("alternate").
   All branches besides this distinct path are patterns.
 
--}
-module Copatterns where
-
-import Agda.Syntax.Concrete
-import Agda.Syntax.Concrete.Name
-
-{- The following data structure represents a lhs
+  Syntax.Concrete.LHSCore represents a lhs
    - the destructor path
    - the side patterns
    - the defined function symbol
    - the applied patterns
 -}
+module Agda.Syntax.Concrete.Copatterns where
 
--- | The left hand side of an equation with copatterns.
-data LHS
-  = Head     { definedFunctionSymbol :: QName -- ^ @f@
-             , argPatterns :: [Pattern]       -- ^ @ps@
-             }
-  | Destruct { destructor    :: QName      -- ^ record projection identifier
-             , patternsLeft  :: [Pattern]  -- ^ side patterns
-             , focus         :: LHS        -- ^ main branch
-             , patternsRight :: [Pattern]  -- ^ side patterns
-             }
+import Control.Applicative
+import Control.Monad
 
+import Data.Either
+import qualified Data.Traversable as Trav
+
+import Agda.Utils.Either
+import Agda.Syntax.Common
+import Agda.Syntax.Concrete
+import Agda.Syntax.Concrete.Name
+import Agda.Syntax.Concrete.Operators
+import Agda.Syntax.Position
+import Agda.Syntax.Scope.Base
+import Agda.Syntax.Scope.Monad
+
+import Agda.TypeChecking.Monad.Base (typeError, TypeError(..))
+import Agda.TypeChecking.Monad.State (getScope)
+
+#include "../../undefined.h"
+import Agda.Utils.Impossible
+
+
+-- | Parses a left-hand side, and makes sure that it defined the expected name.
+--   TODO: check the arities of constructors. There is a possible ambiguity with
+--   postfix constructors:
+--      Assume _ * is a constructor. Then 'true *' can be parsed as either the
+--      intended _* applied to true, or as true applied to a variable *. If we
+--      check arities this problem won't appear.
+
+parseLHS :: Name -> Pattern -> ScopeM LHSCore
+parseLHS top p = do
+    patP <- buildParser (getRange p) DontUseBoundNames
+    cons <- getNames [ConName]
+    flds <- getNames [FldName]
+    case [ res | p' <- parsePat patP p
+               , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
+        [(p,lhs)] -> return lhs
+        []    -> typeError $ NoParseForLHS p
+        rs  -> typeError $ AmbiguousParseForLHS p $ map (fullParen . fst) rs
+    where
+        getNames kinds = map fst <$> getDefinedNames kinds
+
+        -- validPattern returns an empty or singleton list (morally a Maybe)
+        validPattern :: PatternCheckConfig -> Pattern -> [(Pattern, LHSCore)]
+        validPattern conf p = case classifyPattern conf p of
+            Nothing -> []
+            Just (Left p) -> []
+            Just (Right lhscore) -> [(p,lhscore)]
+
+
+{-
+        appView :: Pattern -> [Pattern]
+        appView p = case p of
+            AppP p a         -> appView p ++ [namedThing (unArg a)]
+            OpAppP _ op ps   -> IdentP (QName op) : ps
+            ParenP _ p       -> appView p
+            RawAppP _ _      -> __IMPOSSIBLE__
+            HiddenP _ _      -> __IMPOSSIBLE__
+            InstanceP _ _    -> __IMPOSSIBLE__
+            _                -> [p]
+-}
+
+-- | Name sets for classifying a pattern.
+data PatternCheckConfig = PatternCheckConfig
+  { topName  :: Name   -- ^ name of defined symbol
+  , conNames :: [Name] -- ^ valid constructor names
+  , fldNames :: [Name] -- ^ valid field names
+  }
+
+type Pattern' = Either Pattern LHSCore
+
+-- | Returns zero or one classified patterns.
+classifyPattern :: PatternCheckConfig -> Pattern -> Maybe Pattern'
+classifyPattern conf p =
+  case patternAppView p of
+
+    -- case @f ps@
+    Arg _ _ (Named _ (IdentP (QName x))) : ps | x == topName conf ->
+      if all validPat ps then Just (Right (LHSHead x ps)) else Nothing
+
+    -- case @d ps@
+    Arg _ _ (Named _ (IdentP x)) : ps0 | unqualify x `elem` fldNames conf -> do
+      -- ps :: [NamedArg Pattern']
+      ps <- mapM classPat ps0
+      let (ps1, rest) = span (isLeft . namedThing . unArg) ps
+      when (null rest) Nothing -- no field pattern or def pattern found
+      let (p2:ps3) = rest
+      if all (isLeft . namedThing . unArg) ps3 then
+         Just $ Right $ -- LHSProj x (lefts ps1) p2 (lefts ps3)
+           LHSProj x (take (length ps1) ps0) (fromR p2) (drop (1 + length ps1) ps0)
+       else Nothing
+
+    _ -> if validConPattern (conNames conf) p then Just $ Left p else Nothing
+
+{-
+    -- case @c ps@
+    Arg _ _ (Named _ (IdentP x)) : ps | unqualify x `elem` conNames conf ->
+      if all validPat ps then Just (Left p) else Nothing
+
+    -- case not a valid pattern
+    _ -> Nothing
+-}
+
+  where validPat = validConPattern (conNames conf) . namedThing . unArg
+        classPat :: NamedArg Pattern -> Maybe (NamedArg Pattern')
+        classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
+        fromR :: NamedArg (Either a b) -> NamedArg b
+        fromR (Arg h r (Named n (Right b))) = Arg h r (Named n b)
+        fromR (Arg h r (Named n (Left  a))) = __IMPOSSIBLE__
+
+{-
+type NPatterns = [NamedArg Pattern]
+
+data Pattern'
+  = ConPattern Name NPatterns  -- ^ @c ps@
+  | FldPattern Name NPatterns (NamedArg Pattern') NPatterns -- ^ @d ps'@ at most one pattern in @ps'@ not a 'ConPattern'
+  | DefPattern Name NPatterns  -- ^ @f ps@
+
+isConPattern :: Pattern' -> Bool
+isConPattern (ConPattern{}) = True
+isConPattern _ = False
+
+-- | Returns zero or one classified patterns.
+classifyPattern :: PatternCheckConfig -> Pattern -> Maybe Pattern'
+classifyPattern conf p =
+  case patternAppView p of
+
+    -- case @f ps@
+    Arg _ _ (Named _ (IdentP (QName x))) : ps | x == topName conf ->
+      if all validPat ps then Just (DefPattern x ps) else Nothing
+
+    -- case @d ps@
+    Arg _ _ (Named _ (IdentP (QName x))) : ps0 | x `elem` fldNames conf -> do
+      -- ps :: [NamedArg Pattern']
+      ps <- mapM classPat ps0
+      let (ps1, rest) = span (isConPattern . namedThing . unArg) ps
+      when (null rest) Nothing -- no field pattern or def pattern found
+      let (p2:ps3) = rest
+      if all (isConPattern . namedThing . unArg) ps3 then
+         return $ FldPattern x (take (length ps1) ps0) p2 (drop (1 + length ps1) ps0)
+       else Nothing
+
+    -- case @c ps@
+    Arg _ _ (Named _ (IdentP (QName x))) : ps | x `elem` conNames conf ->
+      if all validPat ps then Just (ConPattern x ps) else Nothing
+
+    -- case not a valid pattern
+    _ -> Nothing
+
+  where validPat = validConPattern (conNames conf) . namedThing . unArg
+        classPat :: NamedArg Pattern -> Maybe (NamedArg Pattern')
+        classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
+-}
+
+{-
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
 --   postfix constructors:
@@ -91,3 +232,4 @@ parseLHS top p = do
             InstanceP _ _    -> __IMPOSSIBLE__
             _                -> [p]
 
+-}

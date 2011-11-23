@@ -32,6 +32,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
+import qualified Agda.Syntax.Concrete.Copatterns as Cop
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -343,6 +344,7 @@ instance ToAbstract PatName APatName where
     z  <- case (rx, x) of
       -- TODO: warn about shadowing
       (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
+      (FieldName d,     C.QName x)                          -> return $ Left x
       (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,     C.QName x)                          -> return $ Left x
       (ConstructorName ds, _)                               -> return $ Right (Left ds)
@@ -1202,7 +1204,11 @@ instance ToAbstract LeftHandSide A.LHS where
         printLocals 10 "before lhs:"
         let (x, ps) = lhsArgs p
 -}
-        LHSHead x ps <- parseLHS top lhs
+        res <- Cop.parseLHS top lhs
+        (x, ps) <-
+          case res of
+            LHSHead x ps -> return (x, ps)
+            LHSProj{} -> typeError $ GenericError $ "dont know what to do with copattern"
         printLocals 10 "before lhs:"
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps

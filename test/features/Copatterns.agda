@@ -6,6 +6,7 @@ record Stream (A : Set) : Set where
   field
     head : A
     tail : Stream A
+open Stream
 
 repeat : {A : Set}(a : A) -> Stream A
 head (repeat a) = a

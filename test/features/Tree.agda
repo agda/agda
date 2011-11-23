@@ -7,16 +7,17 @@ record Tree (A : Set) : Set where
   field 
     label : A
     child : Bool -> Tree A
+open Tree
 
 -- corecursive function defined by copattern matching 
 alternate : {A : Set}(a b : A) -> Tree A
--- shallow copatterns
-child True  (alternate a b) = alternate b a
-label       (alternate a b) = a
 -- deep copatterns:
-label       (child False (alternate a b)) = b
-child True  (child False (alternate a b)) = alternate a b
-child False (child False (alternate a b)) = alternate a b
+label       (child false (alternate a b)) = b
+child true  (child false (alternate a b)) = alternate a b
+child false (child false (alternate a b)) = alternate a b
+-- shallow copatterns
+child true  (alternate a b) = alternate b a
+label       (alternate a b) = a
 
 {- Delivers an infinite tree
 
