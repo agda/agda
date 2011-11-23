@@ -10,7 +10,7 @@
 
 ;;; Code:
 
-(defvar agda2-version "2.3.0"
+(defvar agda2-version "2.3.1"
   "The version of the Agda mode.
 Note that, by default, the same version of the underlying Haskell
 library is used (see `agda2-ghci-options').")
