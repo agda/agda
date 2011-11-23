@@ -154,10 +154,10 @@ type Telescope = [TypedBindings]
 
    We use fixity information to see which name is actually defined.
 -}
-data LHS = LHS { lhsOriginalPattern :: Pattern
-               , lhsWithPattern     :: [Pattern]
-               , lhsRewriteEqn      :: [RewriteEqn]
-               , lhsWithExpr        :: [WithExpr]
+data LHS = LHS { lhsOriginalPattern :: Pattern       -- ^ @f ps@
+               , lhsWithPattern     :: [Pattern]     -- ^ @| p@ (many)
+               , lhsRewriteEqn      :: [RewriteEqn]  -- ^ @rewrite e@ (many)
+               , lhsWithExpr        :: [WithExpr]    -- ^ @with e@ (many)
                }
          -- ^ original pattern, with-patterns, rewrite equations and with-expressions
          | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]

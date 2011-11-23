@@ -34,7 +34,7 @@ import Agda.Utils.Impossible
 
 data Expr
         = Var  Name			     -- ^ Bound variables
-        | Def  QName			     -- ^ Constants (i.e. axioms, functions, and datatypes)
+        | Def  QName			     -- ^ Constants (i.e. axioms, functions, projections, and datatypes)
         | Con  AmbiguousQName		     -- ^ Constructors
 	| Lit Literal			     -- ^ Literals
 	| QuestionMark MetaInfo		     -- ^ meta variable for interaction
