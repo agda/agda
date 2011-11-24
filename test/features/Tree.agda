@@ -1,3 +1,4 @@
+{-# OPTIONS --copatterns #-}
 module Tree where
 
 data Bool : Set where
@@ -12,12 +13,12 @@ open Tree
 -- corecursive function defined by copattern matching 
 alternate : {A : Set}(a b : A) -> Tree A
 -- deep copatterns:
-label       (child false (alternate a b)) = b
-child true  (child false (alternate a b)) = alternate a b
-child false (child false (alternate a b)) = alternate a b
+label (child (alternate a b) false)       = b
+child (child (alternate a b) false) true  = alternate a b
+child (child (alternate a b) false) false = alternate a b
 -- shallow copatterns
-child true  (alternate a b) = alternate b a
-label       (alternate a b) = a
+child {A = A} (alternate a b) true = alternate b a
+label {A = A} (alternate a b)      = a
 
 {- Delivers an infinite tree
 
@@ -27,6 +28,8 @@ label       (alternate a b) = a
          b b b b  b b b b 
                ...
 -}
+
+infixr 5 _::_
 
 data List (A : Set) : Set where
   []   : List A

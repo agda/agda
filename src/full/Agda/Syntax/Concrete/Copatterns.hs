@@ -58,6 +58,7 @@ import Agda.TypeChecking.Monad.State (getScope)
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- TODO: Move to Operators?
 
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
