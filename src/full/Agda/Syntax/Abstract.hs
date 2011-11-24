@@ -177,16 +177,26 @@ data LHS	= LHS
   }
   deriving (Typeable, Data, Show)
 
-data LHSCore
-  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
-             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
+-- | Parameterised over the type of dot patterns.
+data LHSCore' e
+  = LHSHead  { lhsDefName  :: QName                    -- ^ @f@
+             , lhsPats     :: [NamedArg (Pattern' e)]  -- ^ @ps@
              }
   | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
-             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
-             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
-             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
+             , lhsPatsLeft   :: [NamedArg (Pattern' e)]  -- ^ side patterns
+             , lhsFocus      :: NamedArg (LHSCore' e)    -- ^ main branch
+             , lhsPatsRight  :: [NamedArg (Pattern' e)]  -- ^ side patterns
              }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+
+type LHSCore = LHSCore' Expr
+
+lhsCoreAllPatterns :: LHSCore' e -> [Pattern' e]
+lhsCoreAllPatterns (LHSHead f ps) = map (namedThing . unArg) ps
+lhsCoreAllPatterns (LHSProj d ps1 l ps2) =
+  map (namedThing . unArg) ps1 ++
+  lhsCoreAllPatterns (namedThing $ unArg l) ++
+  map (namedThing . unArg) ps2
 
 lhsCoreToPattern :: LHSCore -> Pattern
 lhsCoreToPattern lc =
@@ -200,7 +210,18 @@ mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
 mapLHSHead f (LHSHead x ps)        = f x ps
 mapLHSHead f (LHSProj d ps1 l ps2) =
   LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
-
+{-
+data LHSCore
+  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
+             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
+             }
+  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
+             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
+             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
+             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
+             }
+  deriving (Typeable, Data, Show)
+-}
 {- UNUSED
 mapLHSHeadM :: (Monad m) => (QName -> [NamedArg Pattern] -> m LHSCore) -> LHSCore -> m LHSCore
 mapLHSHeadM f (LHSHead x ps)        = f x ps
@@ -299,7 +320,7 @@ instance HasRange (Pattern' e) where
 instance HasRange LHS where
     getRange (LHS i _ _)   = getRange i
 
-instance HasRange LHSCore where
+instance HasRange (LHSCore' e) where
     getRange (LHSHead f ps) = fuseRange f ps
     getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
 
@@ -414,7 +435,7 @@ instance KillRange e => KillRange (Pattern' e) where
 instance KillRange LHS where
   killRange (LHS i a b)   = killRange3 LHS i a b
 
-instance KillRange LHSCore where
+instance KillRange e => KillRange (LHSCore' e) where
   killRange (LHSHead a b)     = killRange2 LHSHead a b
   killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
 

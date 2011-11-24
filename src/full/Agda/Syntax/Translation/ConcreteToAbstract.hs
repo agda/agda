@@ -1204,6 +1204,25 @@ data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
+        lhscore <- Cop.parseLHS top lhs
+        printLocals 10 "before lhs:"
+        -- error if copattern parsed but no --copatterns option
+        haveCoPats <- optCopatterns <$> pragmaOptions
+        unless haveCoPats $
+          case lhscore of
+            C.LHSHead x ps -> return ()
+            C.LHSProj{} -> typeError $ NeedOptionCopatterns
+        -- scope check patterns except for dot patterns
+        lhscore <- toAbstract lhscore
+        wps  <- toAbstract =<< mapM parsePattern wps
+        checkPatternLinearity $ lhsCoreAllPatterns lhscore ++ wps
+        printLocals 10 "checked pattern:"
+        -- scope check dot patterns
+        lhscore <- toAbstract lhscore
+        wps     <- toAbstract wps
+        printLocals 10 "checked dots:"
+        return $ A.LHS (LHSRange $ getRange (lhs, wps)) lhscore wps
+{-
 {-
         p <- parseLHS top lhs
         printLocals 10 "before lhs:"
@@ -1228,6 +1247,29 @@ instance ToAbstract LeftHandSide A.LHS where
         wps  <- toAbstract wps
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) (A.LHSHead x args) wps
+-}
+
+instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
+    toAbstract = mapM toAbstract
+
+-- does not check pattern linearity
+instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
+    toAbstract (C.LHSHead x ps) = do
+        x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
+        args <- toAbstract ps
+        return $ A.LHSHead x args
+    toAbstract (C.LHSProj d ps1 l ps2) = do
+        qx <- resolveName d
+        d  <- case qx of
+                FieldName d -> return $ anameName d
+                UnknownName -> notInScope d
+                _           -> typeError $ GenericError $
+                  "head of copattern needs to be a field identifier, but "
+                  ++ show d ++ " isn't one"
+        args1 <- toAbstract ps1
+        l     <- toAbstract l
+        args2 <- toAbstract ps2
+        return $ A.LHSProj d args1 l args2
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
     toAbstract (Arg h r e) = Arg h r <$> toAbstractCtx (hiddenArgumentCtx h) e
