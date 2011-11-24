@@ -168,15 +168,17 @@ type RewriteEqn = Expr
 type WithExpr   = Expr
 
 -- | Processed (scope-checked) intermediate form of the core @f ps@ of 'LHS'.
+--   Corresponds to 'lhsOriginalPattern'.
 data LHSCore
-  = LHSHead  { definedFunctionSymbol :: Name           -- ^ @f@
-             , argPatterns :: [NamedArg Pattern]       -- ^ @ps@
+  = LHSHead  { lhsDefName  :: Name                -- ^ @f@
+             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
              }
-  | LHSProj  { destructor    :: QName      -- ^ record projection identifier
-             , patternsLeft  :: [NamedArg Pattern]  -- ^ side patterns
-             , focus         :: NamedArg LHSCore    -- ^ main branch
-             , patternsRight :: [NamedArg Pattern]  -- ^ side patterns
+  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
+             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
+             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
+             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
+  deriving (Typeable, Data)
 
 {- TRASH
 lhsCoreToPattern :: LHSCore -> Pattern

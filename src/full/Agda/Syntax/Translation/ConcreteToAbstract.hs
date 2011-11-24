@@ -763,7 +763,12 @@ instance ToAbstract LetDef [A.LetBinding] where
                 p    <- parseLHS top p
                 localToAbstract (snd $ lhsArgs p) $ \args ->
 -}
-                LHSHead x args <- parseLHS top p
+                (x, args) <- do
+                  res <- parseLHS top p
+                  case res of
+                    C.LHSHead x args -> return (x, args)
+                    C.LHSProj{} -> typeError $ GenericError $ "copatterns not allowed in let bindings"
+
                 localToAbstract args $ \args ->
                     do  rhs <- toAbstract rhs
                         foldM lambda rhs (reverse args)  -- just reverse because these DomainFree
@@ -1207,8 +1212,12 @@ instance ToAbstract LeftHandSide A.LHS where
         res <- Cop.parseLHS top lhs
         (x, ps) <-
           case res of
-            LHSHead x ps -> return (x, ps)
-            LHSProj{} -> typeError $ GenericError $ "dont know what to do with copattern"
+            C.LHSHead x ps -> return (x, ps)
+            C.LHSProj{} -> do
+              haveCoPats <- optCopatterns <$> pragmaOptions
+              if haveCoPats then
+                typeError $ GenericError $ "dont know what to do with copattern"
+               else typeError $ NeedOptionCopatterns
         printLocals 10 "before lhs:"
         x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
         args <- toAbstract ps
@@ -1218,7 +1227,7 @@ instance ToAbstract LeftHandSide A.LHS where
         args <- toAbstract args -- take care of dot patterns
         wps  <- toAbstract wps
         printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange (lhs, wps)) x args wps
+        return $ A.LHS (LHSRange $ getRange (lhs, wps)) (A.LHSHead x args) wps
 
 instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
     toAbstract (Arg h r e) = Arg h r <$> toAbstractCtx (hiddenArgumentCtx h) e

@@ -129,6 +129,7 @@ errorString err = case err of
     ModuleDefinedInOtherFile {}              -> "ModuleDefinedInOtherFile"
     ModuleDoesntExport{}                     -> "ModuleDoesntExport"
     ModuleNameDoesntMatchFileName {}         -> "ModuleNameDoesntMatchFileName"
+    NeedOptionCopatterns{}                   -> "NeedOptionCopatterns"
     NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
     NoParseForApplication{}                  -> "NoParseForApplication"
     NoParseForLHS{}                          -> "NoParseForLHS"
@@ -610,6 +611,7 @@ instance PrettyTCM TypeError where
                           ++ map text xs ++ [fwords "with safe flag."]
             SafeFlagNoTerminationCheck -> fsep (pwords "Cannot use NO_TERMINATION_CHECK pragma with safe flag.")
             SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
+            NeedOptionCopatterns -> fsep (pwords "Option --copatterns needed to enable destructor patterns")
           where
             mpar n args
               | n > 0 && not (null args) = parens

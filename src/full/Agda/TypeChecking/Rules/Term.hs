@@ -380,7 +380,7 @@ checkExpr e t =
 		hiddenLambdaOrHole _ (A.QuestionMark _)				       = True
 		hiddenLambdaOrHole _ _						       = False
 
-                hiddenLHS (A.Clause (A.LHS _ _ (a : _) _) _ _) = elem (argHiding a) [Hidden, Instance]
+                hiddenLHS (A.Clause (A.LHS _ (A.LHSHead _ (a : _)) _) _ _) = elem (argHiding a) [Hidden, Instance]
                 hiddenLHS _ = False
 
         -- a meta variable without arguments: type check directly for efficiency
@@ -1007,7 +1007,7 @@ checkHeadApplication e t hd args = do
                                PublicAccess ConcreteDef noRange
           pats   = map (\ (Dom h r (n, _)) -> Arg h r $ Named Nothing $ A.VarP n) $
                        reverse ctx
-          clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
+          clause = A.Clause (A.LHS (A.LHSRange noRange) (A.LHSHead c' pats) [])
                             (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args))
                             []
 

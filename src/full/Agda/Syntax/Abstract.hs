@@ -72,7 +72,7 @@ data Declaration
 	| Pragma     Range	Pragma
         | Open       ModuleInfo ModuleName
           -- ^ only retained for highlighting purposes
-        | FunDef     DefInfo QName [Clause]
+        | FunDef     DefInfo QName [Clause]       -- ^ sequence of function clauses
         | DataSig    DefInfo QName Telescope Expr -- ^ lone data signature
             -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
         | DataDef    DefInfo QName [LamBinding] [Constructor]
@@ -160,8 +160,54 @@ data RHS	= RHS Expr
                     --   The RHS shouldn't be another RewriteRHS
   deriving (Typeable, Data, Show)
 
-data LHS	= LHS LHSInfo QName [NamedArg Pattern] [Pattern]
+{-
+data LHS	= LHS
+  { lhsInfo     :: LHSInfo
+  , lhsDefName  :: QName               -- ^ name of function we are defining
+  , lhsPats     :: [NamedArg Pattern]  -- ^ function parameters (patterns)
+  , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
+  }
   deriving (Typeable, Data, Show)
+-}
+
+data LHS	= LHS
+  { lhsInfo     :: LHSInfo
+  , lhsCore     :: LHSCore
+  , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
+  }
+  deriving (Typeable, Data, Show)
+
+data LHSCore
+  = LHSHead  { lhsDefName  :: QName               -- ^ @f@
+             , lhsPats     :: [NamedArg Pattern]  -- ^ @ps@
+             }
+  | LHSProj  { lhsDestructor :: QName      -- ^ record projection identifier
+             , lhsPatsLeft   :: [NamedArg Pattern]  -- ^ side patterns
+             , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
+             , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
+             }
+  deriving (Typeable, Data, Show)
+
+lhsCoreToPattern :: LHSCore -> Pattern
+lhsCoreToPattern lc =
+  case lc of
+    LHSHead f aps -> DefP noInfo f aps
+    LHSProj d aps1 lhscore aps2 -> DefP noInfo d $
+      aps1 ++ fmap (fmap lhsCoreToPattern) lhscore : aps2
+  where noInfo = PatRange noRange -- TODO, preserve range!
+
+mapLHSHead :: (QName -> [NamedArg Pattern] -> LHSCore) -> LHSCore -> LHSCore
+mapLHSHead f (LHSHead x ps)        = f x ps
+mapLHSHead f (LHSProj d ps1 l ps2) =
+  LHSProj d ps1 (fmap (fmap (mapLHSHead f)) l) ps2
+
+{- UNUSED
+mapLHSHeadM :: (Monad m) => (QName -> [NamedArg Pattern] -> m LHSCore) -> LHSCore -> m LHSCore
+mapLHSHeadM f (LHSHead x ps)        = f x ps
+mapLHSHeadM f (LHSProj d ps1 l ps2) = do
+  l <- mapLHSHead f l
+  return $ LHSProj d ps1 l ps2
+-}
 
 -- | Parameterised over the type of dot patterns.
 data Pattern' e	= VarP Name
@@ -251,7 +297,11 @@ instance HasRange (Pattern' e) where
     getRange (PatternSynP i _ _) = getRange i
 
 instance HasRange LHS where
-    getRange (LHS i _ _ _) = getRange i
+    getRange (LHS i _ _)   = getRange i
+
+instance HasRange LHSCore where
+    getRange (LHSHead f ps) = fuseRange f ps
+    getRange (LHSProj d ps1 lhscore ps2) = d `fuseRange` ps1 `fuseRange` lhscore `fuseRange` ps2
 
 instance HasRange Clause where
     getRange (Clause lhs rhs ds) = getRange (lhs,rhs,ds)
@@ -362,7 +412,11 @@ instance KillRange e => KillRange (Pattern' e) where
   killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
 
 instance KillRange LHS where
-  killRange (LHS i a b c) = killRange4 LHS i a b c
+  killRange (LHS i a b)   = killRange3 LHS i a b
+
+instance KillRange LHSCore where
+  killRange (LHSHead a b)     = killRange2 LHSHead a b
+  killRange (LHSProj a b c d) = killRange4 LHSProj a b c d
 
 instance KillRange Clause where
   killRange (Clause lhs rhs ds) = killRange3 Clause lhs rhs ds

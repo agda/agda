@@ -33,19 +33,16 @@ import Agda.Utils.Impossible
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Term = Var Nat Args
-	  | Lam Hiding (Abs Term)   -- ^ terms are beta normal
+data Term = Var Nat Args             -- ^ @x vs@ neutral
+	  | Lam Hiding (Abs Term)    -- ^ terms are beta normal
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args
-	  | Pi (Dom Type) (Abs Type)
+	  | Pi (Arg Type) (Abs Type)
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
-          | DontCare Term
-            -- ^ Irrelevant stuff in relevant position, but created
-            --   in an irrelevant context.  Basically, an internal
-            --   version of the irrelevance axiom @.irrAx : .A -> A@.
+          | DontCare Term  -- ^ irrelevant stuff
   deriving (Typeable, Data, Show)
 
 -- | An unapplied variable.

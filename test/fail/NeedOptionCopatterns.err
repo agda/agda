@@ -1,0 +1,3 @@
+NeedOptionCopatterns.agda:11,1-6
+Option --copatterns needed to enable destructor patterns
+when scope checking the left-hand side bla f in the definition of f

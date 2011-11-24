@@ -26,7 +26,7 @@ import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.List hiding (sort)
-import Data.Traversable
+import Data.Traversable as Trav
 
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
@@ -116,7 +116,9 @@ reifyDisplayForm x vs fallback = do
     else fallback
 
 reifyDisplayFormP :: A.LHS -> TCM A.LHS
-reifyDisplayFormP lhs@(A.LHS i x ps wps) =
+reifyDisplayFormP lhs@(A.LHS i A.LHSProj{} wps) =
+  typeError $ NotImplemented "reifyDisplayForm for copatterns"
+reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
   ifM (not <$> displayFormsEnabled) (return lhs) $ do
     let vs = [ Arg h Relevant $ I.Var n [] | (n, h) <- zip [0..] $ map argHiding ps]
     md <- liftTCM $ displayForm x vs
@@ -160,7 +162,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
       (f, vs, ds) -> do
         ds <- mapM termToPat ds
         vs <- mapM argToPat vs
-        return $ LHS i f vs (ds ++ wps)
+        return $ LHS i (LHSHead f vs) (ds ++ wps)
       where
         info = PatRange noRange
         argToPat arg = fmap unnamed <$> traverse termToPat arg
@@ -497,17 +499,30 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
 instance Reify NamedClause A.Clause where
   reify (NamedClause f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do
     ps  <- reifyPatterns tel perm ps
-    lhs <- liftTCM $ reifyDisplayFormP $ LHS info f ps []
+    lhs <- liftTCM $ reifyDisplayFormP $ LHS info (LHSHead f ps) []
     nfv <- getDefFreeVars f
     lhs <- stripImps $ dropParams nfv lhs
     rhs <- reify body
     return $ A.Clause lhs rhs []
     where
       info = LHSRange noRange
-      dropParams n (LHS i f ps wps) = LHS i f (genericDrop n ps) wps
-      stripImps (LHS i f ps wps) = do
+      dropParams n (LHS i lhscore wps) =
+        LHS i (mapLHSHead (\ f ps -> LHSHead f (genericDrop n ps)) lhscore) wps
+      stripImps (LHS i lhscore wps) = do
+          (wps', lhscore) <- stripIs lhscore
+          return $ LHS i lhscore wps'
+        where stripIs (LHSHead f ps) = do
+                (ps, wps) <- stripImplicits ps wps
+                return (wps, LHSHead f ps)
+              stripIs (LHSProj d ps1 l ps2) = do
+                Arg h r (Named n (wps, l)) <- Trav.mapM (Trav.mapM stripIs) l
+                return (wps, LHSProj d ps1 (Arg h r (Named n l)) ps2)
+{-
+      dropParams n (LHS i (LHSHead f ps) wps) = LHS i (LHSHead f (genericDrop n ps)) wps
+      stripImps (LHS i (LHSHead f ps) wps) = do
         (ps, wps) <- stripImplicits ps wps
-        return $ LHS i f ps wps
+        return $ LHS i (LHSHead f ps) wps
+-}
 
 instance Reify Type Expr where
     reify (I.El _ t) = reify t

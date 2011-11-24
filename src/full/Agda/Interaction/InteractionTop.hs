@@ -710,10 +710,11 @@ cmd_make_case ii rng s = interaction Dependent $ do
     -- Drops pattern added to extended lambda functions when lambda lifting them
     extlam_dropLLifted :: CaseContext -> Bool -> SA.Clause -> SA.Clause
     extlam_dropLLifted FunctionDef _ x = x
-    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info name nps ps) rhs decl)
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSProj{}) ps) rhs decl) = __IMPOSSIBLE__
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSHead name nps) ps) rhs decl)
       = let n = if hidden then h else nh
         in
-         (SA.Clause (SA.LHS info name (drop n nps) ps) rhs decl)
+         (SA.Clause (SA.LHS info (SA.LHSHead name (drop n nps)) ps) rhs decl)
 
 
 cmd_solveAll :: Interaction

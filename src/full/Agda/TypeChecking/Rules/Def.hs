@@ -159,9 +159,9 @@ checkFunDef' t rel delayed i name cs =
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
 insertPatterns pats (A.WithRHS aux es cs) = A.WithRHS aux es (map insertToClause cs)
-    where insertToClause (A.Clause (A.LHS i x aps ps) rhs ds)
+    where insertToClause (A.Clause (A.LHS i lhscore ps) rhs ds)
 --              = A.Clause (A.LHS i x (aps ++ map (Arg NotHidden . unnamed) pats) (ps)) (insertPatterns pats rhs) ds
-              = A.Clause (A.LHS i x aps (pats ++ ps)) (insertPatterns pats rhs) ds
+              = A.Clause (A.LHS i lhscore (pats ++ ps)) (insertPatterns pats rhs) ds
 insertPatterns pats (A.RewriteRHS qs eqs rhs wh) = A.RewriteRHS qs eqs (insertPatterns pats rhs) wh
 insertPatterns pats rhs = rhs
 
@@ -183,7 +183,9 @@ data WithFunctionProblem
 
 -- | Type check a function clause.
 checkClause :: Type -> A.Clause -> TCM Clause
-checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
+checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
+  typeError $ NotImplemented "type checking definitions by copatterns"
+checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
@@ -238,7 +240,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                            | null eqs  = ([], wh)
                            | otherwise = (wh, [])
                          newRhs = A.WithRHS qname [rewriteFromExpr, proofExpr]
-                                  [A.Clause (A.LHS i x aps pats)
+                                  [A.Clause (A.LHS i (A.LHSHead x aps) pats)
                                     (A.RewriteRHS names eqs (insertPatterns pats rhs) inner)
                                     outer]
                          pats = [A.DotP info underscore, -- rewriteToExpr,
@@ -342,7 +344,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                , clauseBody  = body
                }
 
-checkClause t (A.Clause (A.LHS _ _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
+checkClause t (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) = typeError $ UnexpectedWithPatterns ps
 
 checkWithFunction :: WithFunctionProblem -> TCM ()
 checkWithFunction NoWithFunction = return ()

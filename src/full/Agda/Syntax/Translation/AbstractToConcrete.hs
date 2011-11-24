@@ -710,11 +710,32 @@ noImplicit (A.ImplicitP _) = False
 noImplicit _               = True
 
 instance ToConcrete A.LHS C.LHS where
-    bindToConcrete (A.LHS i x args wps) ret = do
+    bindToConcrete (A.LHS i lhscore wps) ret = do
+      bindToConcreteCtx TopCtx lhscore $ \lhs ->
+        bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
+          ret $ C.LHS lhs wps [] []
+{-
+    bindToConcrete (A.LHS i (A.LHSHead x args) wps) ret = do
       bindToConcreteCtx TopCtx (A.DefP info x args) $ \lhs ->
         bindToConcreteCtx TopCtx (noImplicitPats wps) $ \wps ->
           ret $ C.LHS lhs wps [] []
       where info = PatRange (getRange i)
+-}
+
+instance ToConcrete A.LHSCore C.Pattern where
+    bindToConcrete = bindToConcrete . lhsCoreToPattern
+{-
+    bindToConcrete (A.LHSHead x args) ret = do
+      bindToConcreteCtx TopCtx (A.DefP info x args) $ \ lhs ->
+        ret $ lhs
+      where info = PatRange noRange -- seems to be unused anyway
+    bindToConcrete (A.LHSProj d ps1 lhscore ps2) ret = do
+      d <- toConcrete d
+      bindToConcrete ps1 $ \ ps1 ->
+        bindToConcrete lhscore $ \ p ->
+          bindToConcrete ps2 $ \ ps2 ->
+            ret $ makePattern d ps1 p ps2
+  -}
 
 appBrackets' :: [arg] -> Precedence -> Bool
 appBrackets' []    _   = False

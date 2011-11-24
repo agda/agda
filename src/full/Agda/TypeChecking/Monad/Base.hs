@@ -1076,6 +1076,8 @@ data TypeError
         | SafeFlagPragma [String]
         | SafeFlagNoTerminationCheck
         | SafeFlagPrimTrustMe
+    -- Language option errors
+        | NeedOptionCopatterns
           deriving (Typeable, Show)
 
 -- instance Show TypeError where
