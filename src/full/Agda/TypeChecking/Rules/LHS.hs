@@ -26,10 +26,12 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive (constructorForm)
 import {-# SOURCE #-} Agda.TypeChecking.Empty
-import Agda.TypeChecking.Telescope (renamingR, teleArgs)
+-- Duplicate import??
+-- import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
 import Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.Problem
+import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Split
 import Agda.TypeChecking.Rules.LHS.Implicit
@@ -294,7 +296,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Dom NotHidden r (_, a)) = Dom NotHidden r (show x, a)
+    ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
     ren _ a = a
     toPats = map (namedThing . unArg)
 
@@ -310,12 +312,7 @@ checkLeftHandSide
       -> Type -> Permutation -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c ps a ret' = do
-  highlightAsTypeChecked False ps
-  let ret a b c d e f g = do
-        highlightAsTypeChecked True ps
-        ret' a b c d e f g
-
+checkLeftHandSide c ps a ret = do
   TelV tel0' b0 <- telView a
   ps <- insertImplicitPatterns ps tel0'
   unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
@@ -323,10 +320,12 @@ checkLeftHandSide c ps a ret' = do
       (as, bs) = splitAt (size ps) $ telToList tel0
       gamma    = telFromList as
       b        = telePi (telFromList bs) b0
+      -- now (gamma -> b) = a and |gamma| = |ps|
 
       -- internal patterns start as all variables
       ips      = map (argFromDom . fmap (VarP . fst)) as
 
+      -- the initial problem for starting the splitting
       problem  = Problem ps (idP $ size ps, ips) gamma
 
   reportSDoc "tc.lhs.top" 10 $
@@ -343,10 +342,16 @@ checkLeftHandSide c ps a ret' = do
 	   , text "b     =" <+> addCtxTel gamma (prettyTCM b)
 	   ]
 	 ]
+-}
+  problem <- problemFromPats ps a
+  unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS (size ps) a
+  -- let b = typeFromProblem problem
+  let (Problem _ _ gamma (ProblemRest _ b)) = problem
 
   let idsub = [ var i | i <- [0..] ]
 
-  (Problem ps (perm, qs) delta, sigma, dpi, asb) <- checkLHS problem idsub [] []
+  -- doing the splits:
+  (Problem ps (perm, qs) delta _, sigma, dpi, asb) <- checkLHS problem idsub [] []
   let b' = substs sigma b
 
   noPatternMatchingOnCodata qs
@@ -373,6 +378,7 @@ checkLeftHandSide c ps a ret' = do
         xs  = [ "h" ++ show n | n <- [0..n - 1] ]
     ret gamma delta rho xs qs b' perm
   where
+    -- the loop: split at a variable in the problem until problem is solved
     checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
                 TCM (Problem, [Term], [DotPatternInst], [AsBinding])
     checkLHS problem sigma dpi asb = do
@@ -409,7 +415,7 @@ checkLeftHandSide c ps a ret' = do
             -- Compute the new problem
             let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
                 delta'   = abstract delta1 delta2
-                problem' = Problem ps' (iperm, ip') delta'
+                problem' = Problem ps' (iperm, ip') delta' todoProblemRest
                 asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
             checkLHS problem' sigma' dpi' asb'
 
@@ -510,7 +516,7 @@ checkLeftHandSide c ps a ret' = do
             sub0 <- addCtxTel (delta1 `abstract` gamma) $
                     unifyIndices_ flex (raise (size gamma) da) (drop (size vs) us) (raise (size gamma) ws)
 
-            -- We should subsitute c ys for x in Δ₂ and sigma
+            -- We should substitute c ys for x in Δ₂ and sigma
             let ys     = teleArgs gamma
                 delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
                 rho0 = [ var i | i <- [0..size delta2 - 1] ]
@@ -619,7 +625,7 @@ checkLeftHandSide c ps a ret' = do
                 newip  = substs rho ip'
 
             -- Construct the new problem
-            let problem' = Problem ps' (iperm', newip) delta'
+            let problem' = Problem ps' (iperm', newip) delta' todoProblemRest
 
             reportSDoc "tc.lhs.top" 12 $ sep
               [ text "new problem"

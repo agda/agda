@@ -258,6 +258,7 @@ library
                     Agda.TypeChecking.Rules.LHS.Implicit
                     Agda.TypeChecking.Rules.LHS.Instantiate
                     Agda.TypeChecking.Rules.LHS.Problem
+                    Agda.TypeChecking.Rules.LHS.ProblemRest
                     Agda.TypeChecking.Rules.LHS.Split
                     Agda.TypeChecking.Rules.LHS.Unify
                     Agda.TypeChecking.Rules.Record

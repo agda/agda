@@ -27,14 +27,14 @@ import Agda.Utils.Impossible
 
 -- | Insert implicit patterns in a problem.
 insertImplicitProblem :: Problem -> TCM Problem
-insertImplicitProblem (Problem ps qs tel) = do
+insertImplicitProblem (Problem ps qs tel pr) = do
   reportSDoc "tc.lhs.imp" 15 $
     sep [ text "insertImplicits"
 	, nest 2 $ brackets $ fsep $ punctuate comma $ map prettyA ps
 	, nest 2 $ prettyTCM tel
 	]
   ps' <- insertImplicitPatterns ps tel
-  return $ Problem ps' qs tel
+  return $ Problem ps' qs tel pr
 
 -- | Insert implicit patterns in a list of patterns.
 insertImplicitPatterns :: [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]

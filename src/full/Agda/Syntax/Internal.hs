@@ -52,6 +52,10 @@ var i = Var i []
 data Type = El Sort Term
   deriving (Typeable, Data, Show)
 
+-- | A dummy type.
+typeDontCare :: Type
+typeDontCare = El Prop (Sort Prop)
+
 data Elim = Apply (Arg Term) | Proj QName -- ^ name of a record projection
   deriving (Show)
 

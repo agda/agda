@@ -14,6 +14,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 
 import Agda.TypeChecking.Rules.LHS.Problem
+-- import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Split ( asView )
 
 import Agda.Utils.Permutation
@@ -127,7 +128,7 @@ instantiateTel s tel = liftTCM $ do
 
 -- | Produce a nice error message when splitting failed
 nothingToSplitError :: Problem -> TCM a
-nothingToSplitError (Problem ps _ tel) = splitError ps tel
+nothingToSplitError (Problem ps _ tel pr) = splitError ps tel
   where
     splitError []	EmptyTel    = __IMPOSSIBLE__
     splitError (_:_)	EmptyTel    = __IMPOSSIBLE__

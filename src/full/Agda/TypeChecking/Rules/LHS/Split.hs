@@ -25,6 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Rules.LHS.Problem
+import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
@@ -68,7 +69,7 @@ expandLitPattern p = traverse (traverse expand) p
 -- | Split a problem at the first constructor of datatype type. Implicit
 --   patterns should have been inserted.
 splitProblem :: Problem -> TCM (Either SplitError SplitProblem)
-splitProblem (Problem ps (perm, qs) tel) = do
+splitProblem (Problem ps (perm, qs) tel pr) = do
     reportS "tc.lhs.split" 20 $ "initiating splitting\n"
     runErrorT $
       splitP ps (permute perm $ zip [0..] $ allHoles qs) tel
@@ -102,7 +103,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	      Split mempty
 		    xs
 		    (argFromDom $ fmap (LitFocus lit q i) a)
-		    (fmap (Problem ps ()) tel)
+		    (fmap (\ tel -> Problem ps () tel todoProblemRest) tel)
 	    else keepGoing
 
         -- Case: constructor pattern
@@ -173,14 +174,14 @@ splitProblem (Problem ps (perm, qs) tel) = do
 		  return $ Split mempty
 				 xs
 				 (argFromDom $ fmap (Focus c args (getRange p) q i d pars ixs) a)
-				 (fmap (Problem ps ()) tel)
+				 (fmap (\ tel -> Problem ps () tel todoProblemRest) tel)
             -- Subcase: split type is not a Def
 	    _	-> keepGoing
         -- Case: neither literal nor constructor pattern
 	p -> keepGoing
       where
 	keepGoing = do
-	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel)
+	  let p0 = Problem [p] () (ExtendTel a $ fmap (const EmptyTel) tel) mempty
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
 
