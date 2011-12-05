@@ -285,3 +285,13 @@ import README.Case
 -- For short descriptions of every library module, see Everything:
 
 import Everything
+
+-- Note that the Everything module is generated automatically. If you
+-- have downloaded the library from its darcs repository and want to
+-- type check README then you can (try to) construct Everything by
+-- running "cabal install && GenerateEverything".
+
+-- Note that all library sources are located under src or ffi. The
+-- modules README, README.* and Everything are not really part of the
+-- library, so these modules are located in the top-level directory
+-- instead.
