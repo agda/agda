@@ -9,11 +9,13 @@ module Data.String where
 open import Data.List as List using (_∷_; []; List)
 open import Data.Vec as Vec using (Vec)
 open import Data.Colist as Colist using (Colist)
-open import Data.Char using (Char)
+open import Data.Char as Char using (Char)
 open import Data.Bool using (Bool; true; false)
 open import Function
 open import Relation.Nullary
 open import Relation.Binary
+open import Relation.Binary.List.StrictLex as StrictLex
+import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 open import Relation.Binary.PropositionalEquality.TrustMe
 
@@ -80,3 +82,11 @@ setoid = PropEq.setoid String
 
 decSetoid : DecSetoid _ _
 decSetoid = PropEq.decSetoid _≟_
+
+-- Lexicographic ordering of strings.
+
+strictTotalOrder : StrictTotalOrder _ _ _
+strictTotalOrder =
+  On.strictTotalOrder
+    (StrictLex.<-strictTotalOrder Char.strictTotalOrder)
+    toList

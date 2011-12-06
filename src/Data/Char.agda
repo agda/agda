@@ -6,10 +6,12 @@
 
 module Data.Char where
 
-open import Data.Nat  using (ℕ)
+open import Data.Nat using (ℕ)
+import Data.Nat.Properties as NatProp
 open import Data.Bool using (Bool; true; false)
 open import Relation.Nullary
 open import Relation.Binary
+import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
 
 ------------------------------------------------------------------------
@@ -49,3 +51,8 @@ setoid = PropEq.setoid Char
 
 decSetoid : DecSetoid _ _
 decSetoid = PropEq.decSetoid _≟_
+
+-- An ordering induced by the toNat function.
+
+strictTotalOrder : StrictTotalOrder _ _ _
+strictTotalOrder = On.strictTotalOrder NatProp.strictTotalOrder toNat
