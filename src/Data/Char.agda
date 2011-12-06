@@ -13,6 +13,7 @@ open import Relation.Nullary
 open import Relation.Binary
 import Relation.Binary.On as On
 open import Relation.Binary.PropositionalEquality as PropEq using (_≡_)
+open import Relation.Binary.PropositionalEquality.TrustMe
 
 ------------------------------------------------------------------------
 -- The type
@@ -42,9 +43,8 @@ _==_ = primCharEquality
 _≟_ : Decidable {A = Char} _≡_
 s₁ ≟ s₂ with s₁ == s₂
 ... | true  = yes trustMe
-  where postulate trustMe : _
-... | false = no trustMe
-  where postulate trustMe : _
+... | false = no whatever
+  where postulate whatever : _
 
 setoid : Setoid _ _
 setoid = PropEq.setoid Char
