@@ -8,14 +8,15 @@ module Data.List.All.Properties where
 
 open import Data.Bool
 open import Data.Bool.Properties
+open import Data.List as List
+import Data.List.Any as Any; open Any.Membership-≡
+open import Data.List.All as All using (All; []; _∷_)
+open import Data.Product as Prod
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence using (module Equivalence)
-open import Data.List as List
-import Data.List.Any as Any
-open Any.Membership-≡
-open import Data.List.All as All using (All; []; _∷_)
-open import Data.Product
+open import Function.Inverse using (_↔_)
+open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary using (Dec; yes; no)
 open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
@@ -77,7 +78,37 @@ filter-correct P dec (x ∷ xs) with dec x
 filter-correct P dec (x ∷ xs) | yes px = px ∷ filter-correct P dec xs 
 filter-correct P dec (x ∷ xs) | no ¬px = filter-correct P dec xs
 
-All-++ : ∀ {a p} {A : Set a} {P : A → Set p} → {xs ys : List A} →
-       All P xs → All P ys → All P (xs ++ ys)
-All-++ {xs = []} [] Pys = Pys
-All-++ {xs = (x ∷ xs)} (Px ∷ Pxs) Pys = Px ∷ All-++ Pxs Pys
+-- All P (xs ++ ys) is isomorphic to All P xs and All P ys.
+
+private
+
+  ++⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys : List A} →
+        All P xs → All P ys → All P (xs ++ ys)
+  ++⁺ []         pys = pys
+  ++⁺ (px ∷ pxs) pys = px ∷ ++⁺ pxs pys
+
+  ++⁻ : ∀ {a p} {A : Set a} {P : A → Set p} (xs : List A) {ys} →
+        All P (xs ++ ys) → All P xs × All P ys
+  ++⁻ []       p          = [] , p
+  ++⁻ (x ∷ xs) (px ∷ pxs) = Prod.map (_∷_ px) id $ ++⁻ _ pxs
+
+  ++⁺∘++⁻ : ∀ {a p} {A : Set a} {P : A → Set p} xs {ys}
+            (p : All P (xs ++ ys)) → uncurry′ ++⁺ (++⁻ xs p) ≡ p
+  ++⁺∘++⁻ []       p          = P.refl
+  ++⁺∘++⁻ (x ∷ xs) (px ∷ pxs) = P.cong (_∷_ px) $ ++⁺∘++⁻ xs pxs
+
+  ++⁻∘++⁺ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys}
+            (p : All P xs × All P ys) → ++⁻ xs (uncurry ++⁺ p) ≡ p
+  ++⁻∘++⁺ ([]       , pys) = P.refl
+  ++⁻∘++⁺ (px ∷ pxs , pys) rewrite ++⁻∘++⁺ (pxs , pys) = P.refl
+
+++↔ : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
+      (All P xs × All P ys) ↔ All P (xs ++ ys)
+++↔ {P = P} {xs = xs} = record
+  { to         = P.→-to-⟶ $ uncurry ++⁺
+  ; from       = P.→-to-⟶ $ ++⁻ xs
+  ; inverse-of = record
+    { left-inverse-of  = ++⁻∘++⁺
+    ; right-inverse-of = ++⁺∘++⁻ xs
+    }
+  }
