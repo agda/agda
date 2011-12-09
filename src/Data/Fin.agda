@@ -102,7 +102,7 @@ inject≤ (suc i) (Nat.s≤s le) = suc (inject≤ i le)
 ------------------------------------------------------------------------
 -- Operations
 
--- Fold.
+-- Folds.
 
 fold : ∀ (T : ℕ → Set) {m} →
        (∀ {n} → T n → T (suc n)) →
@@ -110,6 +110,15 @@ fold : ∀ (T : ℕ → Set) {m} →
        Fin m → T m
 fold T f x zero    = x
 fold T f x (suc i) = f (fold T f x i)
+
+fold′ : ∀ {n t} (T : Fin (suc n) → Set t) →
+        (∀ i → T (inject₁ i) → T (suc i)) →
+        T zero →
+        ∀ i → T i
+fold′             T f x zero     = x
+fold′ {n = zero}  T f x (suc ())
+fold′ {n = suc n} T f x (suc i)  =
+  f i (fold′ (T ∘ inject₁) (f ∘ inject₁) x i)
 
 -- Lifts functions.
 
@@ -192,11 +201,3 @@ compare (suc .(inject least)) (suc .greatest) | less    greatest least =
 compare (suc .greatest) (suc .(inject least)) | greater greatest least =
                                                   greater (suc greatest) (suc least)
 compare (suc .i)        (suc .i)              | equal i = equal (suc i)
-
-induceFin : ∀ {n b} (B : Fin (suc n) → Set b) → (x : B zero) →
-            (f : (i : Fin n) → B (inject₁ i) → B (suc i)) →
-            (i : Fin (suc n)) → B i
-induceFin B b s zero = b
-induceFin {n = zero} B b s (suc ())
-induceFin {n = suc n} B b s (suc i) =
-  s i (induceFin (B ∘ inject₁) b (s ∘ inject₁) i)
