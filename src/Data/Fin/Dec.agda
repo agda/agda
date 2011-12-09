@@ -62,8 +62,8 @@ nonempty? p = any? (λ x → x ∈? p)
 
 private
 
-  restrict∈ : ∀ {p q n} (P : Fin (suc n) → Set p)
-              {Q : Fin (suc n) → Set q} →
+  restrict∈ : ∀ {p q n}
+              (P : Fin (suc n) → Set p) {Q : Fin (suc n) → Set q} →
               (∀ {f} → Q f → Dec (P f)) →
               (∀ {f} → restrictP Q f → Dec (restrictP P f))
   restrict∈ _ dec {f} Qf = dec {suc f} Qf
