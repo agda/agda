@@ -11,16 +11,20 @@ module Data.List.Properties where
 
 open import Algebra
 open import Category.Monad
+open import Data.Bool
 open import Data.List as List
+open import Data.List.All using (All; []; _∷_)
+open import Data.Maybe using (Maybe; just; nothing)
 open import Data.Nat
 open import Data.Nat.Properties
-open import Data.Bool
-open import Function
 open import Data.Product as Prod hiding (map)
-open import Data.Maybe
+open import Function
+import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; _≗_; refl)
-import Relation.Binary.EqReasoning as EqR
+open import Relation.Nullary using (yes; no)
+open import Relation.Nullary.Decidable using (⌊_⌋)
+open import Relation.Unary using (Decidable)
 
 private
   open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
@@ -235,7 +239,7 @@ span-defn p (x ∷ xs) with p x
 ... | true  = P.cong (Prod.map (_∷_ x) id) (span-defn p xs)
 ... | false = refl
 
--- Partition.
+-- Partition, filter.
 
 partition-defn : ∀ {a} {A : Set a} (p : A → Bool) →
                  partition p ≗ < filter p , filter (not ∘ p) >
@@ -244,6 +248,14 @@ partition-defn p (x ∷ xs)
  with p x | partition p xs | partition-defn p xs
 ...  | true  | (ys , zs) | eq = P.cong (Prod.map (_∷_ x) id) eq
 ...  | false | (ys , zs) | eq = P.cong (Prod.map id (_∷_ x)) eq
+
+filter-filters : ∀ {a p} {A : Set a} →
+                 (P : A → Set p) (dec : Decidable P) (xs : List A) →
+                 All P (filter (⌊_⌋ ∘ dec) xs)
+filter-filters P dec []       = []
+filter-filters P dec (x ∷ xs) with dec x
+filter-filters P dec (x ∷ xs) | yes px = px ∷ filter-filters P dec xs
+filter-filters P dec (x ∷ xs) | no ¬px = filter-filters P dec xs
 
 -- Inits, tails, and scanr.
 
