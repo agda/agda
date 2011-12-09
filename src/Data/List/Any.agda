@@ -17,8 +17,8 @@ open import Data.Product as Prod using (∃; _×_; _,_)
 open import Level using (Level; _⊔_)
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using () renaming (_⊆_ to _⋐_)
-open import Relation.Binary
+open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
+open import Relation.Binary hiding (Decidable)
 import Relation.Binary.InducedPreorders as Ind
 open import Relation.Binary.List.Pointwise as ListEq using ([]; _∷_)
 open import Relation.Binary.PropositionalEquality as PropEq
@@ -48,7 +48,7 @@ tail ¬px (there pxs) = pxs
 -- Decides Any.
 
 any : ∀ {a p} {A : Set a} {P : A → Set p} →
-      (∀ x → Dec (P x)) → (xs : List A) → Dec (Any P xs)
+      Decidable P → Decidable (Any P)
 any p []       = no λ()
 any p (x ∷ xs) with p x
 any p (x ∷ xs) | yes px = yes (here px)

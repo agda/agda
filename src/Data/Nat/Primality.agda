@@ -14,6 +14,7 @@ open import Data.Nat.Divisibility
 open import Relation.Nullary
 open import Relation.Nullary.Decidable
 open import Relation.Nullary.Negation
+open import Relation.Unary
 
 -- Definition of primality.
 
@@ -24,7 +25,7 @@ Prime (suc (suc n)) = (i : Fin n) → ¬ (2 + Fin.toℕ i ∣ 2 + n)
 
 -- Decision procedure for primality.
 
-prime? : ∀ n → Dec (Prime n)
+prime? : Decidable Prime
 prime? 0             = no λ()
 prime? 1             = no λ()
 prime? (suc (suc n)) = all? λ _ → ¬? (_ ∣? _)

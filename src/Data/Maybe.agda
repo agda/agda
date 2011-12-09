@@ -94,7 +94,7 @@ monadPlus {f} = record
 -- Equality
 
 open import Relation.Nullary
-open import Relation.Binary
+open import Relation.Binary as B
 
 data Eq {a ℓ} {A : Set a} (_≈_ : Rel A ℓ) : Rel (Maybe A) (a ⊔ ℓ) where
   just    : ∀ {x y} (x≈y : x ≈ y) → Eq _≈_ (just x) (just y)
@@ -138,7 +138,7 @@ decSetoid D = record
     }
   }
   where
-  _≟_ : Decidable (Eq (DecSetoid._≈_ D))
+  _≟_ : B.Decidable (Eq (DecSetoid._≈_ D))
   just x  ≟ just y  with DecSetoid._≟_ D x y
   just x  ≟ just y  | yes x≈y = yes (just x≈y)
   just x  ≟ just y  | no  x≉y = no (x≉y ∘ drop-just)
@@ -151,6 +151,7 @@ decSetoid D = record
 
 open import Data.Empty using (⊥)
 import Relation.Nullary.Decidable as Dec
+open import Relation.Unary as U
 
 data Any {a} {A : Set a} (P : A → Set a) : Maybe A → Set a where
   just : ∀ {x} (px : P x) → Any P (just x)
@@ -173,12 +174,10 @@ private
   drop-just-All : ∀ {A} {P : A → Set} {x} → All P (just x) → P x
   drop-just-All (just px) = px
 
-anyDec : ∀ {A} {P : A → Set} →
-         (∀ x → Dec (P x)) → (x : Maybe A) → Dec (Any P x)
+anyDec : ∀ {A} {P : A → Set} → U.Decidable P → U.Decidable (Any P)
 anyDec p nothing  = no λ()
 anyDec p (just x) = Dec.map′ just drop-just-Any (p x)
 
-allDec : ∀ {A} {P : A → Set} →
-         (∀ x → Dec (P x)) → (x : Maybe A) → Dec (All P x)
+allDec : ∀ {A} {P : A → Set} → U.Decidable P → U.Decidable (All P)
 allDec p nothing  = yes nothing
 allDec p (just x) = Dec.map′ just drop-just-All (p x)

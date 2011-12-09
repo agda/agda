@@ -133,6 +133,8 @@ _⟨→⟩_ : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b} →
         Pred A ℓ₁ → Pred B ℓ₂ → Pred (A → B) _
 (P ⟨→⟩ Q) f = P ⊆ Q ∘ f
 
-Dec₁ : ∀ {p a} {A : Set a} (P : A → Set p) → Set _
-Dec₁ P = ∀ x → Dec (P x)
+------------------------------------------------------------------------
+-- Properties of unary relations
 
+Decidable : ∀ {a p} {A : Set a} (P : A → Set p) → Set _
+Decidable P = ∀ x → Dec (P x)

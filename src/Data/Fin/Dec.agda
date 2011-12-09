@@ -19,11 +19,11 @@ open import Data.Product as Prod
 open import Data.Empty
 open import Function
 import Function.Equivalence as Eq
-open import Relation.Binary
+open import Relation.Binary as B
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using (Pred)
+open import Relation.Unary as U using (Pred)
 
 infix 4 _∈?_
 
@@ -40,13 +40,11 @@ private
   restrictP P f = P (suc f)
 
   restrict : ∀ {p n} {P : Fin (suc n) → Set p} →
-             (∀ f → Dec (P f)) →
-             (∀ f → Dec (restrictP P f))
+             U.Decidable P → U.Decidable (restrictP P)
   restrict dec f = dec (suc f)
 
 any? : ∀ {n} {P : Fin n → Set} →
-       ((f : Fin n) → Dec (P f)) →
-       Dec (∃ P)
+       U.Decidable P → Dec (∃ P)
 any? {zero}  {P} dec = no (((λ()) ∶ ¬ Fin 0) ∘ proj₁)
 any? {suc n} {P} dec with dec zero | any? (restrict dec)
 ...                  | yes p | _            = yes (_ , p)
@@ -69,7 +67,7 @@ private
   restrict∈ _ dec {f} Qf = dec {suc f} Qf
 
 decFinSubset : ∀ {p q n} {P : Fin n → Set p} {Q : Fin n → Set q} →
-               (∀ f → Dec (Q f)) →
+               U.Decidable Q →
                (∀ {f} → Q f → Dec (P f)) →
                Dec (∀ {f} → Q f → P f)
 decFinSubset {n = zero}          _    _    = yes λ{}
@@ -98,15 +96,13 @@ all∈? : ∀ {n p} {P : Fin n → Set p} {q} →
 all∈? {q = q} dec = decFinSubset (λ f → f ∈? q) dec
 
 all? : ∀ {n p} {P : Fin n → Set p} →
-       (∀ f → Dec (P f)) →
-       Dec (∀ f → P f)
+       U.Decidable P → Dec (∀ f → P f)
 all? dec with all∈? {q = ⊤} (λ {f} _ → dec f)
 ...      | yes ∀p = yes (λ f → ∀p ∈⊤)
 ...      | no ¬∀p = no  (λ ∀p → ¬∀p (λ {f} _ → ∀p f))
 
 decLift : ∀ {n} {P : Fin n → Set} →
-          (∀ x → Dec (P x)) →
-          (∀ p → Dec (Lift P p))
+          U.Decidable P → U.Decidable (Lift P)
 decLift dec p = all∈? (λ {x} _ → dec x)
 
 private
@@ -115,14 +111,11 @@ private
   restrictSP s P p = P (s ∷ p)
 
   restrictS : ∀ {n} {P : Subset (suc n) → Set} →
-              (s : Side) →
-              (∀ p → Dec (P p)) →
-              (∀ p → Dec (restrictSP s P p))
+              (s : Side) → U.Decidable P → U.Decidable (restrictSP s P)
   restrictS s dec p = dec (s ∷ p)
 
 anySubset? : ∀ {n} {P : Subset n → Set} →
-             (∀ s → Dec (P s)) →
-             Dec (∃ P)
+             U.Decidable P → Dec (∃ P)
 anySubset? {zero} {P} dec with dec []
 ... | yes P[] = yes (_ , P[])
 ... | no ¬P[] = no helper
@@ -143,7 +136,7 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 -- then we can find the smallest value for which this is the case.
 
 ¬∀⟶∃¬-smallest :
-  ∀ n {p} (P : Fin n → Set p) → (∀ i → Dec (P i)) →
+  ∀ n {p} (P : Fin n → Set p) → U.Decidable P →
   ¬ (∀ i → P i) → ∃ λ i → ¬ P i × ((j : Fin′ i) → P (inject j))
 ¬∀⟶∃¬-smallest zero    P dec ¬∀iPi = ⊥-elim (¬∀iPi (λ()))
 ¬∀⟶∃¬-smallest (suc n) P dec ¬∀iPi with dec zero
@@ -167,7 +160,7 @@ anySubset? {suc n} {P} dec with anySubset? (restrictS inside  dec)
 
 infix 4 _⊆?_
 
-_⊆?_ : ∀ {n} → Decidable (_⊆_ {n = n})
+_⊆?_ : ∀ {n} → B.Decidable (_⊆_ {n = n})
 p₁ ⊆? p₂ =
   Dec.map (Eq.sym NaturalPoset.orders-equivalent) $
   Dec.map′ PropVecEq.to-≡ PropVecEq.from-≡ $

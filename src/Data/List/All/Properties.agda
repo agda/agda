@@ -18,7 +18,7 @@ open import Data.List.All as All using (All; []; _∷_)
 open import Data.Product
 open import Relation.Nullary using (Dec; yes; no)
 open import Relation.Nullary.Decidable using (⌊_⌋)
-open import Relation.Unary using (Dec₁) renaming (_⊆_ to _⋐_)
+open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
 
 -- Functions can be shifted between the predicate and the list.
 
@@ -70,7 +70,7 @@ all-anti-mono p xs⊆ys = All-all p ∘ anti-mono xs⊆ys ∘ all-All p _
 -- filter filters...
 
 filter-correct : ∀ {a p} {A : Set a} →
-                 (P : A → Set p) → (dec : Dec₁ P) → (xs : List A) →
+                 (P : A → Set p) → (dec : Decidable P) → (xs : List A) →
                  All P (filter (⌊_⌋ ∘ dec) xs) 
 filter-correct P dec [] = []
 filter-correct P dec (x ∷ xs) with dec x

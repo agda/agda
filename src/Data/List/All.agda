@@ -13,7 +13,7 @@ open import Function
 open import Level
 open import Relation.Nullary
 import Relation.Nullary.Decidable as Dec
-open import Relation.Unary using () renaming (_⊆_ to _⋐_)
+open import Relation.Unary using (Decidable) renaming (_⊆_ to _⋐_)
 open import Relation.Binary.PropositionalEquality
 
 -- All P xs means that all elements in xs satisfy P.
@@ -50,7 +50,7 @@ map g []         = []
 map g (px ∷ pxs) = g px ∷ map g pxs
 
 all : ∀ {a p} {A : Set a} {P : A → Set p} →
-      (∀ x → Dec (P x)) → (xs : List A) → Dec (All P xs)
+      Decidable P → Decidable (All P)
 all p []       = yes []
 all p (x ∷ xs) with p x
 all p (x ∷ xs) | yes px = Dec.map′ (_∷_ px) tail (all p xs)
