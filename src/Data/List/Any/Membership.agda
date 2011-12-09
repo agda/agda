@@ -23,7 +23,7 @@ open import Function.Inverse as Inv using (_↔_; module Inverse)
 import Function.Related as Related
 open import Function.Related.TypeIsomorphisms
 open import Data.List as List
-open import Data.List.Any as Any using (Any; here; there; module Membership)
+open import Data.List.Any as Any using (Any; here; there)
 open import Data.List.Any.Properties
 open import Data.Nat as Nat
 import Data.Nat.Properties as NatProp
@@ -45,6 +45,8 @@ private
 
 ------------------------------------------------------------------------
 -- Properties relating _∈_ to various list functions
+
+-- Isomorphisms.
 
 map-∈↔ : ∀ {a b} {A : Set a} {B : Set b} {f : A → B} {y xs} →
          (∃ λ x → x ∈ xs × y ≡ f x) ↔ y ∈ List.map f xs
@@ -102,8 +104,20 @@ concat-∈↔ {a} {x = x} {xss} =
       }
     }
 
+-- Other properties.
+
+filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) (xs : List A) {x} →
+           x ∈ xs → p x ≡ true → x ∈ filter p xs
+filter-∈ p []       ()          _
+filter-∈ p (x ∷ xs) (here refl) px≡true rewrite px≡true = here refl
+filter-∈ p (y ∷ xs) (there pxs) px≡true with p y
+... | true  = there (filter-∈ p xs pxs px≡true)
+... | false =        filter-∈ p xs pxs px≡true
+
 ------------------------------------------------------------------------
--- Various functions are monotone
+-- Properties relating _∈_ to various list functions
+
+-- Various functions are monotone.
 
 mono : ∀ {a p} {A : Set a} {P : A → Set p} {xs ys} →
        xs ⊆ ys → Any P xs → Any P ys
@@ -178,6 +192,18 @@ map-with-∈-mono {f = f} {g = g} xs⊆ys f≈g {x} =
   _⟨$⟩_ (Inverse.from map-with-∈↔)
   where open P.≡-Reasoning
 
+-- Other properties.
+
+filter-⊆ : ∀ {a} {A : Set a} (p : A → Bool) →
+           (xs : List A) → filter p xs ⊆ xs
+filter-⊆ _ []       = λ ()
+filter-⊆ p (x ∷ xs) with p x | filter-⊆ p xs
+... | false | hyp = there ∘ hyp
+... | true  | hyp =
+  λ { (here  eq)      → here eq
+    ; (there ∈filter) → there (hyp ∈filter)
+    }
+
 ------------------------------------------------------------------------
 -- Other properties
 
@@ -245,22 +271,3 @@ finite {A = A} inj (x ∷ xs) ∈x∷xs = excluded-middle helper
       { to        = →-to-⟶ {B = P.setoid A} f
       ; injective = injective′
       }
-
--- filter-⊆
-filter-⊆ : ∀ {a} {A : Set a} (p : A → Bool) →
-           (xs : List A) → filter p xs ⊆ xs
-filter-⊆ _ [] = λ ()
-filter-⊆ p (x ∷ xs) with p x
-... | true = go′ where
-    go′ : ∀ {x′} → x′ ∈ x ∷ filter p xs → x′ ∈ x ∷ xs
-    go′ (here p) = here p
-    go′ (there x∈fpxs) = there $ filter-⊆ p xs x∈fpxs
-... | false = there ∘ filter-⊆ p xs 
-
-filter-∈ : ∀ {a} {A : Set a} (p : A → Bool) → (xs : List A) → {x : A} →
-           x ∈ xs → p x ≡ true → x ∈ filter p xs
-filter-∈ p [] () _
-filter-∈ p (x ∷ xs) {.x} (here refl) px≡t rewrite px≡t = here refl
-filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t with p x'
-filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t | true = there (filter-∈ p xs pxs px≡t)
-filter-∈ p (x' ∷ xs) {x} (there pxs) px≡t | false = filter-∈ p xs pxs px≡t
