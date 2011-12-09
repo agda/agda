@@ -43,8 +43,9 @@ module UsingVectorEquality {s₁ s₂} (S : Setoid s₁ s₂) where
   map-++-commute f []       = refl _
   map-++-commute f (x ∷ xs) = SS.refl ∷-cong map-++-commute f xs
 
-open import Relation.Binary.PropositionalEquality as PropEq
-open import Relation.Binary.HeterogeneousEquality as HetEq
+open import Relation.Binary.PropositionalEquality as P
+  using (_≡_; _≢_; refl; _≗_)
+open import Relation.Binary.HeterogeneousEquality using (_≅_; refl)
 
 -- lookup is an applicative functor morphism.
 
@@ -79,7 +80,7 @@ lookup∘tabulate f (suc i) = lookup∘tabulate (f ∘ suc) i
 tabulate∘lookup : ∀ {a n} {A : Set a} (xs : Vec A n) →
                   tabulate (flip lookup xs) ≡ xs
 tabulate∘lookup []       = refl
-tabulate∘lookup (x ∷ xs) = PropEq.cong (_∷_ x) $ tabulate∘lookup xs
+tabulate∘lookup (x ∷ xs) = P.cong (_∷_ x) $ tabulate∘lookup xs
 
 -- If you look up an index in allFin n, then you get the index.
 
@@ -122,19 +123,19 @@ lookup-++-+′ (x ∷ xs) ys       i       = lookup-++-+′ xs ys i
 map-cong : ∀ {a b n} {A : Set a} {B : Set b} {f g : A → B} →
            f ≗ g → _≗_ {A = Vec A n} (map f) (map g)
 map-cong f≗g []       = refl
-map-cong f≗g (x ∷ xs) = PropEq.cong₂ _∷_ (f≗g x) (map-cong f≗g xs)
+map-cong f≗g (x ∷ xs) = P.cong₂ _∷_ (f≗g x) (map-cong f≗g xs)
 
 -- map is functorial.
 
 map-id : ∀ {a n} {A : Set a} → _≗_ {A = Vec A n} (map id) id
 map-id []       = refl
-map-id (x ∷ xs) = PropEq.cong (_∷_ x) (map-id xs)
+map-id (x ∷ xs) = P.cong (_∷_ x) (map-id xs)
 
 map-∘ : ∀ {a b c n} {A : Set a} {B : Set b} {C : Set c}
         (f : B → C) (g : A → B) →
         _≗_ {A = Vec A n} (map (f ∘ g)) (map f ∘ map g)
 map-∘ f g []       = refl
-map-∘ f g (x ∷ xs) = PropEq.cong (_∷_ (f (g x))) (map-∘ f g xs)
+map-∘ f g (x ∷ xs) = P.cong (_∷_ (f (g x))) (map-∘ f g xs)
 
 -- tabulate can be expressed using map and allFin.
 
@@ -143,7 +144,7 @@ tabulate-∘ : ∀ {n a b} {A : Set a} {B : Set b}
              tabulate (f ∘ g) ≡ map f (tabulate g)
 tabulate-∘ {zero}  f g = refl
 tabulate-∘ {suc n} f g =
-  PropEq.cong (_∷_ (f (g zero))) (tabulate-∘ f (g ∘ suc))
+  P.cong (_∷_ (f (g zero))) (tabulate-∘ f (g ∘ suc))
 
 tabulate-allFin : ∀ {n a} {A : Set a} (f : Fin n → A) →
                   tabulate f ≡ map f (allFin n)
@@ -152,7 +153,7 @@ tabulate-allFin f = tabulate-∘ f id
 -- The positive case of allFin can be expressed recursively using map.
 
 allFin-map : ∀ n → allFin (suc n) ≡ zero ∷ map suc (allFin n)
-allFin-map n = PropEq.cong (_∷_ zero) $ tabulate-∘ suc id
+allFin-map n = P.cong (_∷_ zero) $ tabulate-∘ suc id
 
 -- If you look up every possible index, in increasing order, then you
 -- get back the vector you started with.
@@ -160,10 +161,10 @@ allFin-map n = PropEq.cong (_∷_ zero) $ tabulate-∘ suc id
 map-lookup-allFin : ∀ {a} {A : Set a} {n} (xs : Vec A n) →
                     map (λ x → lookup x xs) (allFin n) ≡ xs
 map-lookup-allFin {n = n} xs = begin
-  map (λ x → lookup x xs) (allFin n) ≡⟨ PropEq.sym $ tabulate-∘ (λ x → lookup x xs) id ⟩
+  map (λ x → lookup x xs) (allFin n) ≡⟨ P.sym $ tabulate-∘ (λ x → lookup x xs) id ⟩
   tabulate (λ x → lookup x xs)       ≡⟨ tabulate∘lookup xs ⟩
   xs                                 ∎
-  where open ≡-Reasoning
+  where open P.≡-Reasoning
 
 -- sum commutes with _++_.
 
@@ -172,13 +173,13 @@ sum-++-commute : ∀ {m n} (xs : Vec ℕ m) {ys : Vec ℕ n} →
 sum-++-commute []            = refl
 sum-++-commute (x ∷ xs) {ys} = begin
   x + sum (xs ++ ys)
-    ≡⟨ PropEq.cong (λ p → x + p) (sum-++-commute xs) ⟩
+    ≡⟨ P.cong (λ p → x + p) (sum-++-commute xs) ⟩
   x + (sum xs + sum ys)
-    ≡⟨ PropEq.sym (+-assoc x (sum xs) (sum ys)) ⟩
+    ≡⟨ P.sym (+-assoc x (sum xs) (sum ys)) ⟩
   sum (x ∷ xs) + sum ys
     ∎
   where
-  open ≡-Reasoning
+  open P.≡-Reasoning
   open CommutativeSemiring Nat.commutativeSemiring hiding (_+_; sym)
 
 -- foldr is a congruence.
@@ -226,10 +227,10 @@ foldr-universal B f {e} h base step (x ∷ xs) = begin
   h (x ∷ xs)
     ≡⟨ step x xs ⟩
   f x (h xs)
-    ≡⟨ PropEq.cong (f x) (foldr-universal B f h base step xs) ⟩
+    ≡⟨ P.cong (f x) (foldr-universal B f h base step xs) ⟩
   f x (foldr B f e xs)
     ∎
-  where open ≡-Reasoning
+  where open P.≡-Reasoning
 
 -- A fusion law for foldr.
 
@@ -253,18 +254,18 @@ proof-irrelevance-[]= : ∀ {a} {A : Set a} {n} {xs : Vec A n} {i x} →
                         (p q : xs [ i ]= x) → p ≡ q
 proof-irrelevance-[]= here            here             = refl
 proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
-  PropEq.cong there (proof-irrelevance-[]= xs[i]=x xs[i]=x')
+  P.cong there (proof-irrelevance-[]= xs[i]=x xs[i]=x')
 
 -- _[_]=_ can be expressed using lookup and _≡_.
 
 []=↔lookup : ∀ {a n i} {A : Set a} {x} {xs : Vec A n} →
              xs [ i ]= x ↔ lookup i xs ≡ x
 []=↔lookup {i = i} {x = x} {xs} = record
-  { to         = PropEq.→-to-⟶ to
-  ; from       = PropEq.→-to-⟶ (from i xs)
+  { to         = P.→-to-⟶ to
+  ; from       = P.→-to-⟶ (from i xs)
   ; inverse-of = record
     { left-inverse-of  = λ _ → proof-irrelevance-[]= _ _
-    ; right-inverse-of = λ _ → PropEq.proof-irrelevance _ _
+    ; right-inverse-of = λ _ → P.proof-irrelevance _ _
     }
   }
   where
@@ -276,50 +277,51 @@ proof-irrelevance-[]= (there xs[i]=x) (there xs[i]=x') =
   from zero    (.x ∷ _)  refl = here
   from (suc i) (_  ∷ xs) p    = there (from i xs p)
 
+------------------------------------------------------------------------
+-- Some properties related to _[_]≔_
 
--- Some properties of _[_]≔_
-
-[]≔-idempotent : ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x₁ x₂ : A} →
-                 (xs [ i ]≔ x₁) [ i ]≔ x₂ ≡ xs [ i ]≔ x₂
-[]≔-idempotent [] ()
+[]≔-idempotent :
+  ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x₁ x₂ : A} →
+  (xs [ i ]≔ x₁) [ i ]≔ x₂ ≡ xs [ i ]≔ x₂
+[]≔-idempotent []       ()
 []≔-idempotent (x ∷ xs) zero    = refl
-[]≔-idempotent (x ∷ xs) (suc i) = PropEq.cong (_∷_ x) $ []≔-idempotent xs i 
+[]≔-idempotent (x ∷ xs) (suc i) = P.cong (_∷_ x) $ []≔-idempotent xs i
 
-[]≔-commutes : ∀ {n a} {A : Set a} (xs : Vec A n) (i i′ : Fin n) {x₁ x₂ : A} → i ≢ i′ →
-                 (xs [ i ]≔ x₁) [ i′ ]≔ x₂ ≡ (xs [ i′ ]≔ x₂) [ i ]≔ x₁
-[]≔-commutes [] () i′ i≢i′
-[]≔-commutes (x ∷ xs) zero zero i≢i′        = ⊥-elim $ i≢i′ refl
-[]≔-commutes (x ∷ xs) zero (suc i) i≢i′     = refl
-[]≔-commutes (x ∷ xs) (suc i) zero i≢i′     = refl
-[]≔-commutes (x ∷ xs) (suc i) (suc i′) i≢i′ =
-  PropEq.cong (_∷_ x) $ []≔-commutes xs i i′ (i≢i′ ∘ PropEq.cong suc)
+[]≔-commutes :
+  ∀ {n a} {A : Set a} (xs : Vec A n) (i j : Fin n) {x y : A} →
+  i ≢ j → (xs [ i ]≔ x) [ j ]≔ y ≡ (xs [ j ]≔ y) [ i ]≔ x
+[]≔-commutes []       ()      ()      _
+[]≔-commutes (x ∷ xs) zero    zero    0≢0 = ⊥-elim $ 0≢0 refl
+[]≔-commutes (x ∷ xs) zero    (suc i) _   = refl
+[]≔-commutes (x ∷ xs) (suc i) zero    _   = refl
+[]≔-commutes (x ∷ xs) (suc i) (suc j) i≢j =
+  P.cong (_∷_ x) $ []≔-commutes xs i j (i≢j ∘ P.cong suc)
 
-[]≔-works : ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x : A} →
-            (xs [ i ]≔ x) [ i ]= x
-[]≔-works [] ()
-[]≔-works (x ∷ xs) zero         = here
-[]≔-works (x ∷ xs) (suc i)      = there ([]≔-works xs i)
+[]≔-updates : ∀ {n a} {A : Set a} (xs : Vec A n) (i : Fin n) {x : A} →
+              (xs [ i ]≔ x) [ i ]= x
+[]≔-updates []       ()
+[]≔-updates (x ∷ xs) zero    = here
+[]≔-updates (x ∷ xs) (suc i) = there ([]≔-updates xs i)
 
-[]≔-minimal : ∀ {n a} {A : Set a} (xs : Vec A n) (i i′ : Fin n) {x x′ : A} →
-              i ≢ i′ → xs [ i′ ]= x′ →
-              (xs [ i ]≔ x) [ i′ ]= x′
-[]≔-minimal [] () _ i≢i′ _
-[]≔-minimal (x′ ∷ xs) zero .zero i≢i′ here = ⊥-elim $ i≢i′ refl
-[]≔-minimal (x′ ∷ xs) (suc i) .zero i≢i′ here = here
-[]≔-minimal (y ∷ xs) zero (suc i′) i≢i′ (there loc) = there loc
-[]≔-minimal (y ∷ xs) (suc i) (suc i′) i≢i′ (there loc) =
-  there ([]≔-minimal xs i i′ (i≢i′ ∘′ PropEq.cong suc) loc)
+[]≔-minimal :
+  ∀ {n a} {A : Set a} (xs : Vec A n) (i j : Fin n) {x y : A} →
+  i ≢ j → xs [ i ]= x → (xs [ j ]≔ y) [ i ]= x
+[]≔-minimal []       ()      ()      _   _
+[]≔-minimal (x ∷ xs) .zero   zero    0≢0 here        = ⊥-elim $ 0≢0 refl
+[]≔-minimal (x ∷ xs) .zero   (suc j) _   here        = here
+[]≔-minimal (x ∷ xs) (suc i) zero    _   (there loc) = there loc
+[]≔-minimal (x ∷ xs) (suc i) (suc j) i≢j (there loc) =
+  there ([]≔-minimal xs i j (i≢j ∘ P.cong suc) loc)
 
-map-[]≔ : ∀ {n a b} {A : Set a} {B : Set b} 
+map-[]≔ : ∀ {n a b} {A : Set a} {B : Set b}
           (f : A → B) (xs : Vec A n) (i : Fin n) {x : A} →
           map f (xs [ i ]≔ x) ≡ map f xs [ i ]≔ f x
-map-[]≔ f [] ()
-map-[]≔ f (x ∷ xs) zero = refl
-map-[]≔ f (x ∷ xs) (suc i) = PropEq.cong (_∷_ _) $ map-[]≔ f xs i
+map-[]≔ f []       ()
+map-[]≔ f (x ∷ xs) zero    = refl
+map-[]≔ f (x ∷ xs) (suc i) = P.cong (_∷_ _) $ map-[]≔ f xs i
 
-[]≔-lookup : ∀ {a} {A : Set a} {n} (xs : Vec A n) → (i : Fin n) →
+[]≔-lookup : ∀ {a} {A : Set a} {n} (xs : Vec A n) (i : Fin n) →
              xs [ i ]≔ lookup i xs ≡ xs
-[]≔-lookup [] ()
-[]≔-lookup (x ∷ xs) zero = refl
-[]≔-lookup (x ∷ xs) (suc i) = PropEq.cong (_∷_ x) $ []≔-lookup xs i
-
+[]≔-lookup []       ()
+[]≔-lookup (x ∷ xs) zero    = refl
+[]≔-lookup (x ∷ xs) (suc i) = P.cong (_∷_ x) $ []≔-lookup xs i
