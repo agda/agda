@@ -20,7 +20,7 @@ sym : ∀ {a} {A : Set a} → Symmetric (_≡_ {A = A})
 sym refl = refl
 
 trans : ∀ {a} {A : Set a} → Transitive (_≡_ {A = A})
-trans refl refl = refl
+trans refl eq = eq
 
 subst : ∀ {a p} {A : Set a} → Substitutive (_≡_ {A = A}) p
 subst P refl p = p

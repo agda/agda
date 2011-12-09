@@ -50,7 +50,7 @@ sym refl = refl
 trans : ∀ {a b c} {A : Set a} {B : Set b} {C : Set c}
           {x : A} {y : B} {z : C} →
         x ≅ y → y ≅ z → x ≅ z
-trans refl refl = refl
+trans refl eq = eq
 
 subst : ∀ {a} {A : Set a} {p} → Substitutive {A = A} (λ x y → x ≅ y) p
 subst P refl p = p
