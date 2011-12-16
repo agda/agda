@@ -1,21 +1,24 @@
 ------------------------------------------------------------------------
--- Some properties about addition on integers
+-- The Agda standard library
+--
+-- Properties related to addition of integers
 ------------------------------------------------------------------------
 
 module Data.Integer.Addition.Properties where
 
 open import Algebra
+import Algebra.FunctionProperties
 open import Algebra.Structures
 open import Data.Integer hiding (suc)
-open import Relation.Binary.PropositionalEquality
-import Data.Nat.Properties as ℕ
 open import Data.Nat using (suc; zero) renaming (_+_ to _ℕ+_)
-import Algebra.FunctionProperties as P; open P (_≡_ {A = ℤ})
+import Data.Nat.Properties as ℕ
+open import Relation.Binary.PropositionalEquality
+
+open Algebra.FunctionProperties (_≡_ {A = ℤ})
+open CommutativeSemiring ℕ.commutativeSemiring
+  using (+-comm; +-assoc; +-identity)
 
 private
-
-  open CommutativeSemiring ℕ.commutativeSemiring
-      using (+-comm; +-assoc; +-identity)
 
   comm : Commutative _+_
   comm -[1+ a ] -[1+ b ] rewrite +-comm a b = refl
@@ -26,10 +29,10 @@ private
   identityˡ : LeftIdentity (+ 0) _+_
   identityˡ -[1+ _ ] = refl
   identityˡ (+   _ ) = refl
-  
+
   identityʳ : RightIdentity (+ 0) _+_
   identityʳ x rewrite comm x (+ 0) = identityˡ x
-    
+
   distribˡ-⊖-+-neg : ∀ a b c → b ⊖ c + -[1+ a ] ≡ b ⊖ (suc c ℕ+ a)
   distribˡ-⊖-+-neg _ zero    zero    = refl
   distribˡ-⊖-+-neg _ zero    (suc _) = refl
@@ -40,7 +43,8 @@ private
   distribʳ-⊖-+-neg a b c
     rewrite comm -[1+ a ] (b ⊖ c)
           | distribˡ-⊖-+-neg a b c
-          | +-comm a c = refl
+          | +-comm a c
+          = refl
 
   distribˡ-⊖-+-pos : ∀ a b c → b ⊖ c + + a ≡ b ℕ+ a ⊖ c
   distribˡ-⊖-+-pos _ zero    zero    = refl
@@ -56,10 +60,9 @@ private
           = refl
 
   assoc : Associative _+_
-
-  assoc (+ zero) y z rewrite identityˡ y       | identityˡ (y + z) = refl
-  assoc x (+ zero) z rewrite identityʳ x       | identityˡ z       = refl
-  assoc x y (+ zero) rewrite identityʳ (x + y) | identityʳ y       = refl
+  assoc (+ zero) y z rewrite identityˡ      y  | identityˡ (y + z) = refl
+  assoc x (+ zero) z rewrite identityʳ  x      | identityˡ      z  = refl
+  assoc x y (+ zero) rewrite identityʳ (x + y) | identityʳ  y      = refl
   assoc -[1+ a ]  -[1+ b ]  (+ suc c) = sym (distribʳ-⊖-+-neg a c b)
   assoc -[1+ a ]  (+ suc b) (+ suc c) = distribˡ-⊖-+-pos (suc c) b a
   assoc (+ suc a) -[1+ b ]  -[1+ c ]  = distribˡ-⊖-+-neg c a b
@@ -93,14 +96,14 @@ private
     ; assoc         = assoc
     ; ∙-cong        = cong₂ _+_
     }
-  
+
   isCommutativeMonoid : IsCommutativeMonoid _≡_ _+_ (+ 0)
   isCommutativeMonoid = record
     { isSemigroup = isSemigroup
     ; identityˡ   = identityˡ
     ; comm        = comm
     }
-  
+
 commutativeMonoid : CommutativeMonoid _ _
 commutativeMonoid = record
   { Carrier             = ℤ
