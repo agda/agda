@@ -32,7 +32,7 @@ data ℕ : Set where
 {-# BUILTIN ZERO    zero #-}
 {-# BUILTIN SUC     suc  #-}
 
-infix 4 _≤_ _<_ _≥_ _>_
+infix 4 _≤_ _<_ _≥_ _>_ _≰_ _≮_ _≱_ _≯_
 
 data _≤_ : Rel ℕ Level.zero where
   z≤n : ∀ {n}                 → zero  ≤ n
@@ -48,7 +48,16 @@ _>_ : Rel ℕ Level.zero
 m > n = n < m
 
 _≰_ : Rel ℕ Level.zero
-a ≰ b = ¬ a ≤ b 
+a ≰ b = ¬ a ≤ b
+
+_≮_ : Rel ℕ Level.zero
+a ≮ b = ¬ a < b
+
+_≱_ : Rel ℕ Level.zero
+a ≱ b = ¬ a ≥ b
+
+_≯_ : Rel ℕ Level.zero
+a ≯ b = ¬ a > b
 
 -- The following, alternative definition of _≤_ is more suitable for
 -- well-founded induction (see Induction.Nat).
