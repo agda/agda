@@ -130,7 +130,7 @@ private
         ≰sign b≰c
       | -abs b≰c
       | +‿◃ ((b ∸ c) ℕ* suc a)
-      | negative-⊖ (b≰c ∘ ℕ.div-mono a b c)
+      | negative-⊖ (b≰c ∘ ℕ.cancel-*-right-≤ b c a)
       | -‿cancel (+ (b ℕ* suc a ∸ c ℕ* suc a))
       | ℕ.*-distrib-∸ʳ (suc a) b c
       = refl
@@ -192,7 +192,7 @@ private
         ≰sign b≰c
       | -abs b≰c
       | -‿◃ ((b ∸ c) ℕ* suc a)
-      | negative-⊖ (b≰c ∘ ℕ.div-mono a b c)
+      | negative-⊖ (b≰c ∘ ℕ.cancel-*-right-≤ b c a)
       | ℕ.*-distrib-∸ʳ (suc a) b c
       = refl
 
@@ -210,7 +210,7 @@ private
   ... | no b≰a rewrite
         ≰sign b≰a
       | -abs b≰a
-      | negative-⊖ (b≰a ∘ ℕ.div-mono c b a)
+      | negative-⊖ (b≰a ∘ ℕ.cancel-*-right-≤ b a c)
       | -‿◃ ((b ∸ a) ℕ* suc c)
       | ℕ.*-distrib-∸ʳ (suc c) b a
       = refl

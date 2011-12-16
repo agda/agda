@@ -429,6 +429,12 @@ m≤m⊔n (suc m) (suc n) = s≤s $ m≤m⊔n m n
   1 + j  ≤⟨ j<k ⟩
   k      □
 
+≰⇒> : _≰_ ⇒ _>_
+≰⇒> {zero}          z≰n with z≰n z≤n
+... | ()
+≰⇒> {suc m} {zero}  _   = s≤s z≤n
+≰⇒> {suc m} {suc n} m≰n = s≤s (≰⇒> (m≰n ∘ s≤s))
+
 ------------------------------------------------------------------------
 -- (ℕ, _≡_, _<_) is a strict total order
 
@@ -493,6 +499,10 @@ m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 [m∸n]⊓[n∸m]≡0 zero (suc n)    = refl
 [m∸n]⊓[n∸m]≡0 (suc m) zero    = refl
 [m∸n]⊓[n∸m]≡0 (suc m) (suc n) = [m∸n]⊓[n∸m]≡0 m n
+
+[i+j]∸[i+k]≡j∸k : ∀ i j k → (i + j) ∸ (i + k) ≡ j ∸ k
+[i+j]∸[i+k]≡j∸k zero    j k = refl
+[i+j]∸[i+k]≡j∸k (suc i) j k = [i+j]∸[i+k]≡j∸k i j k
 
 -- TODO: Can this proof be simplified? An automatic solver which can
 -- handle ∸ would be nice...
@@ -566,6 +576,10 @@ cancel-+-left : ∀ i {j k} → i + j ≡ i + k → j ≡ k
 cancel-+-left zero    eq = eq
 cancel-+-left (suc i) eq = cancel-+-left i (cong pred eq)
 
+cancel-+-left-≤ : ∀ i {j k} → i + j ≤ i + k → j ≤ k
+cancel-+-left-≤ zero    le       = le
+cancel-+-left-≤ (suc i) (s≤s le) = cancel-+-left-≤ i le
+
 cancel-*-right : ∀ i j {k} → i * suc k ≡ j * suc k → i ≡ j
 cancel-*-right zero    zero        eq = refl
 cancel-*-right zero    (suc j)     ()
@@ -573,22 +587,32 @@ cancel-*-right (suc i) zero        ()
 cancel-*-right (suc i) (suc j) {k} eq =
   cong suc (cancel-*-right i j (cancel-+-left (suc k) eq))
 
+cancel-*-right-≤ : ∀ i j k → i * suc k ≤ j * suc k → i ≤ j
+cancel-*-right-≤ zero    _       _ _  = z≤n
+cancel-*-right-≤ (suc i) zero    _ ()
+cancel-*-right-≤ (suc i) (suc j) k le =
+  s≤s (cancel-*-right-≤ i j k (cancel-+-left-≤ (suc k) le))
+
+*-distrib-∸ʳ : _*_ DistributesOverʳ _∸_
+*-distrib-∸ʳ i zero k = begin
+  (0 ∸ k) * i  ≡⟨ cong₂ _*_ (0∸n≡0 k) refl ⟩
+  0            ≡⟨ sym $ 0∸n≡0 (k * i) ⟩
+  0 ∸ k * i    ∎
+*-distrib-∸ʳ i (suc j) zero    = begin i + j * i ∎
+*-distrib-∸ʳ i (suc j) (suc k) = begin
+  (j ∸ k) * i             ≡⟨ *-distrib-∸ʳ i j k ⟩
+  j * i ∸ k * i           ≡⟨ sym $ [i+j]∸[i+k]≡j∸k i _ _ ⟩
+  i + j * i ∸ (i + k * i) ∎
+
 im≡jm+n⇒[i∸j]m≡n
   : ∀ i j m n →
     i * m ≡ j * m + n → (i ∸ j) * m ≡ n
-im≡jm+n⇒[i∸j]m≡n i       zero    m n eq = eq
-im≡jm+n⇒[i∸j]m≡n zero    (suc j) m n eq =
-  sym $ i+j≡0⇒j≡0 (m + j * m) $ sym eq
-im≡jm+n⇒[i∸j]m≡n (suc i) (suc j) m n eq =
-  im≡jm+n⇒[i∸j]m≡n i j m n (cancel-+-left m eq')
-  where
-  eq' = begin
-    m + i * m
-      ≡⟨ eq ⟩
-    m + j * m + n
-      ≡⟨ +-assoc m (j * m) n ⟩
-    m + (j * m + n)
-      ∎
+im≡jm+n⇒[i∸j]m≡n i j m n eq = begin
+  (i ∸ j) * m            ≡⟨ *-distrib-∸ʳ m i j ⟩
+  (i * m) ∸ (j * m)      ≡⟨ cong₂ _∸_ eq (refl {x = j * m}) ⟩
+  (j * m + n) ∸ (j * m)  ≡⟨ cong₂ _∸_ (+-comm (j * m) n) (refl {x = j * m}) ⟩
+  (n + j * m) ∸ (j * m)  ≡⟨ m+n∸n≡m n (j * m) ⟩
+  n                      ∎
 
 i+1+j≢i : ∀ i {j} → i + suc j ≢ i
 i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
@@ -605,37 +629,6 @@ i+1+j≢i i eq = ¬i+1+j≤i i (reflexive eq)
 pred-mono : pred Preserves _≤_ ⟶ _≤_
 pred-mono z≤n      = z≤n
 pred-mono (s≤s le) = le
-
-*-distrib-∸ʳ : _*_ DistributesOverʳ _∸_
-*-distrib-∸ʳ a zero c =
-   begin (0 ∸ c) * a  ≡⟨ cong₂ _*_ (0∸n≡0 c) refl ⟩
-         zero         ≡⟨ sym (0∸n≡0 (c * a)) ⟩
-         zero ∸ c * a ∎
-*-distrib-∸ʳ a (suc b) zero = begin a + b * a ∎
-*-distrib-∸ʳ a (suc b) (suc c) =
-   begin (b ∸ c) * a             ≡⟨ *-distrib-∸ʳ a b c ⟩
-         b * a ∸ c * a           ≡⟨ sym (a+b∸a+c≡b∸c a (b * a) (c * a)) ⟩
-         a + b * a ∸ (a + c * a) ∎
-    
-  where
-  a+b∸a+c≡b∸c : ∀ a b c → a + b ∸ (a + c) ≡ b ∸ c
-  a+b∸a+c≡b∸c zero b c = refl
-  a+b∸a+c≡b∸c (suc a) b c = a+b∸a+c≡b∸c a b c
-
-≰⇒> : _≰_ ⇒ _>_
-≰⇒> {zero} z≰n with z≰n z≤n
-... | ()
-≰⇒> {suc n} {zero} _ = s≤s z≤n
-≰⇒> {suc a} {suc b} a≰b = s≤s (≰⇒> (a≰b ∘ s≤s))
-
--‿mono : ∀ a b c → a + b ≤ a + c → b ≤ c
--‿mono zero b c le = le
--‿mono (suc n) b c (s≤s m≤n) = -‿mono n b c m≤n
-
-div-mono : ∀ a b c → b * suc a ≤ c * suc a → b ≤ c
-div-mono _ zero _ _ = z≤n
-div-mono a (suc _) zero ()
-div-mono a (suc b) (suc c) (s≤s m≤n) = s≤s (div-mono a b c (-‿mono a (b * suc a) (c * suc a) m≤n))
 
 _+-mono_ : _+_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 _+-mono_ {zero} {m₂} {n₁} {n₂} z≤n n₁≤n₂ = start
