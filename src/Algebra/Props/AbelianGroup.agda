@@ -9,10 +9,15 @@ open import Algebra
 module Algebra.Props.AbelianGroup
          {g₁ g₂} (G : AbelianGroup g₁ g₂) where
 
-open AbelianGroup G
-import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Function
+import Algebra.Props.Group as GP
 open import Data.Product
+open import Function
+import Relation.Binary.EqReasoning as EqR
+
+open AbelianGroup G
+open EqR setoid
+
+open GP group public
 
 private
   lemma : ∀ x y → x ∙ y ∙ x ⁻¹ ≈ y

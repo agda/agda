@@ -8,10 +8,23 @@ open import Algebra
 
 module Algebra.Props.Ring {r₁ r₂} (R : Ring r₁ r₂) where
 
-open Ring R
-import Relation.Binary.EqReasoning as EqR; open EqR setoid
-open import Function
+import Algebra.Props.AbelianGroup as AGP
 open import Data.Product
+open import Function
+import Relation.Binary.EqReasoning as EqR
+
+open Ring R
+open EqR setoid
+
+open AGP +-abelianGroup public
+  renaming ( ⁻¹-involutive to -‿involutive
+           ; left-identity-unique to +-left-identity-unique
+           ; right-identity-unique to +-right-identity-unique
+           ; identity-unique to +-identity-unique
+           ; left-inverse-unique to +-left-inverse-unique
+           ; right-inverse-unique to +-right-inverse-unique
+           ; ⁻¹-∙-comm to -‿+-comm
+           )
 
 -‿*-distribˡ : ∀ x y → - x * y ≈ - (x * y)
 -‿*-distribˡ x y = begin
