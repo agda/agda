@@ -111,7 +111,7 @@ fromCommutativeRing CR = record
       { isCommutativeSemiring = isCommutativeSemiring
       ; -‿cong                = -‿cong
       ; -‿*-distribˡ          = -‿*-distribˡ
-      ; -‿+-comm              = -‿∙-comm
+      ; -‿+-comm              = ⁻¹-∙-comm
       }
   }
   where
