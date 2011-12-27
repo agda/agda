@@ -18,6 +18,9 @@ open Algebra.FunctionProperties (_≡_ {A = ℤ})
 open CommutativeSemiring ℕ.commutativeSemiring
   using (+-comm; +-assoc; +-identity)
 
+------------------------------------------------------------------------
+-- Addition and zero form a commutative monoid
+
 private
 
   comm : Commutative _+_

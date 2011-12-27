@@ -25,6 +25,9 @@ open Algebra.FunctionProperties (_≡_ {A = ℤ})
 open CommutativeSemiring ℕ.commutativeSemiring
   using (+-identity; *-comm) renaming (zero to *-zero)
 
+------------------------------------------------------------------------
+-- Multiplication and one form a commutative monoid
+
 private
 
   identityˡ : LeftIdentity (+ 1) ℤ*
