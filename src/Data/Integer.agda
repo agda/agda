@@ -128,25 +128,7 @@ _+_ : ℤ → ℤ → ℤ
 -- Subtraction.
 
 _-_ : ℤ → ℤ → ℤ
--[1+ m ] - -[1+ n ] = n ⊖ m
--[1+ m ] - +    n   = -[1+ n ℕ+ m ]
-+    m   - -[1+ n ] = + (ℕ.suc n ℕ+ m)
-+    m   - +    n   = m ⊖ n
-
-private
-
-  -- Note that the definition i - j = - j + i evaluates differently
-  -- from the definition above. For instance, the following property
-  -- would require a nontrivial proof with the alternative definition:
-
-  +-+ : ∀ m n → + m - + n ≡ m ⊖ n
-  +-+ m n = refl
-
-  -- The proof is still easy, though.
-
-  -++ : ∀ m n → - + n + + m ≡ m ⊖ n
-  -++ m ℕ.zero    = refl
-  -++ m (ℕ.suc n) = refl
+i - j = i + - j
 
 -- Successor.
 
@@ -164,7 +146,7 @@ private
 -- Predecessor.
 
 pred : ℤ → ℤ
-pred i = i - + 1
+pred i = - + 1 + i
 
 private
 
