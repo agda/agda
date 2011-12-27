@@ -253,10 +253,12 @@ import IO
 -- More documentation
 ------------------------------------------------------------------------
 
--- Some examples showing where the natural numbers and some related
--- operations and properties are defined, and how they can be used:
+-- Some examples showing where the natural numbers/integers and some
+-- related operations and properties are defined, and how they can be
+-- used:
 
 import README.Nat
+import README.Integer
 
 -- Some examples showing how the AVL tree module can be used.
 
