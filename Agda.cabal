@@ -69,7 +69,7 @@ library
     build-depends:  base == 4.1.*,
                     utf8-string == 0.3.*
   if flag(epic)
-    build-depends:  epic >= 0.1.13 && < 0.2
+    build-depends:  epic >= 0.1.13 && < 0.10
   build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.12,
