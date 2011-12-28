@@ -187,12 +187,7 @@ instance TagName name => HasTags (HsDecl name) where
     QuasiQuoteD{} -> []
 #endif
 #if MIN_VERSION_ghc(7,2,1)
-    VectD d       -> tags d
-
-instance TagName name => HasTags (VectDecl name) where
-  tags d = case d of
-    HsVect l _ -> tagsLN l
-    HsNoVect l -> tagsLN l
+    VectD{}       -> []
 #endif
 
 instance TagName name => HasTags (TyClDecl name) where
@@ -275,5 +270,10 @@ instance TagName name => HasTags (Sig name) where
 
 instance TagName name => HasTags (ForeignDecl name) where
   tags d = case d of
+#if MIN_VERSION_ghc(7,4,0)
+    ForeignImport x _ _ _ -> tagsLN x
+    ForeignExport _ _ _ _ -> []
+#else
     ForeignImport x _ _ -> tagsLN x
     ForeignExport _ _ _ -> []
+#endif

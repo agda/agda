@@ -1125,7 +1125,6 @@ instance MonadTrans TCMT where
     lift m = TCM $ \_ _ -> m
 
 -- We want a special monad implementation of fail.
-{-# SPECIALIZE instance Monad TCM #-}
 instance MonadIO m => Monad (TCMT m) where
     return x = TCM $ \_ _ -> return x
     TCM m >>= k = TCM $ \r e -> do
@@ -1133,6 +1132,8 @@ instance MonadIO m => Monad (TCMT m) where
         let TCM m' = k x in m' r e
     TCM m1 >> TCM m2 = TCM $ \r e -> m1 r e >> m2 r e
     fail    = internalError
+
+    {-# SPECIALIZE instance Monad TCM #-}
 
 instance MonadIO m => Functor (TCMT m) where
     fmap = liftM
