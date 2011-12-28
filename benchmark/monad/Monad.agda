@@ -49,7 +49,7 @@ open _⇒-Poset_
 open STOProps (record { Carrier = _ ; _≈_ = _; _<_ = _
                       ; isStrictTotalOrder = posOrdered })
 
-import Data.AVL.IndexedMap as Map renaming (Map to MemoTable)
+import IndexedMap as Map -- renaming (Map to MemoTable)
 open import Category.Monad
 open import Category.Monad.State
 import Data.List as List; open List using (List)

@@ -2,8 +2,6 @@
 -- Properties related to Any
 ------------------------------------------------------------------------
 
-{-# OPTIONS --universe-polymorphism #-}
-
 -- The other modules under Data.List.Any also contain properties
 -- related to Any.
 
@@ -30,7 +28,7 @@ open import Relation.Binary
 import Relation.Binary.HeterogeneousEquality as H
 open import Relation.Binary.Product.Pointwise
 open import Relation.Binary.PropositionalEquality as P
-  using (_≡_; refl; inspect; _with-≡_)
+  using (_≡_; refl; inspect) renaming ([_] to P[_])
 open import Relation.Unary using (_⟨×⟩_; _⟨→⟩_) renaming (_⊆_ to _⋐_)
 import Relation.Binary.Sigma.Pointwise as Σ
 open import Relation.Binary.Sum
@@ -578,11 +576,9 @@ private
   any⁻ : ∀ {a} {A : Set a} (p : A → Bool) xs →
          T (any p xs) → Any (T ∘ p) xs
   any⁻ p []       ()
-  any⁻ p (x ∷ xs) px∷xs with inspect (p x)
-  any⁻ p (x ∷ xs) px∷xs | true  with-≡ eq = here (Equivalence.from T-≡ ⟨$⟩ eq)
-  any⁻ p (x ∷ xs) px∷xs | false with-≡ eq with p x
-  any⁻ p (x ∷ xs) pxs   | false with-≡ refl | .false =
-    there (any⁻ p xs pxs)
+  any⁻ p (x ∷ xs) px∷xs with p x | inspect p x
+  any⁻ p (x ∷ xs) px∷xs | true  | P[ eq ] = here (Equivalence.from T-≡ ⟨$⟩ eq)
+  any⁻ p (x ∷ xs) px∷xs | false | _       = there (any⁻ p xs px∷xs)
 
 any⇔ : ∀ {a} {A : Set a} {p : A → Bool} {xs} →
        Any (T ∘ p) xs ⇔ T (any p xs)
