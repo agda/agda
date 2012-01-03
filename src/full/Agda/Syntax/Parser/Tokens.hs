@@ -43,7 +43,9 @@ data Token
 	= TokKeyword Keyword Interval
 	  -- Identifiers and operators
 	| TokId		(Interval, String)
-	| TokQId	[(Interval, String)] -- non empty namespace
+	| TokQId	[(Interval, String)]
+                        -- Non-empty namespace. The intervals for
+                        -- "A.B.x" correspond to "A.", "B." and "x".
 	  -- Literals
 	| TokLiteral	Literal
 	  -- Special symbols

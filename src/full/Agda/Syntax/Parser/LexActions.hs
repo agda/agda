@@ -215,7 +215,9 @@ qualified tok =
 	    [x]	-> return $ tok $ Left  x
 	    xs	-> return $ tok $ Right xs
     where
-	-- Compute the ranges for the substrings (separated by '.') of a name.
+	-- Compute the ranges for the substrings (separated by '.') of
+	-- a name. Dots are included: the intervals generated for
+	-- "A.B.x" correspond to "A.", "B." and "x".
 	mkName :: Interval -> [String] -> [(Interval, String)]
 	mkName _ []	= []
 	mkName i [x]	= [(i, x)]
@@ -223,9 +225,9 @@ qualified tok =
 	    where
 		p0 = iStart i
 		p1 = iEnd i
-		p' = movePosByString p0 x
+		p' = movePos (movePosByString p0 x) '.'
 		i0 = Interval p0 p'
-		i1 = Interval (movePos p' '.') p1
+		i1 = Interval p' p1
 
 
 {--------------------------------------------------------------------------
