@@ -528,9 +528,17 @@ callGHC i = do
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
 
+  -- In -v0 mode we throw away any progress information printed to
+  -- stdout.
+  silent <- not <$> hasVerbosity "" 1
+
   reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
   (_, _, err, p) <-
-    liftIO $ createProcess (proc compiler args){ std_err = CreatePipe }
+    liftIO $ createProcess
+               (proc compiler args)
+                 { std_err = CreatePipe
+                 , std_out = if silent then CreatePipe else Inherit
+                 }
 
   errors <- liftIO $ case err of
     Nothing  -> __IMPOSSIBLE__
