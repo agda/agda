@@ -94,7 +94,11 @@ the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-ghci-options
-  (list (concat "-package Agda-" agda2-version))
+  (list "-hide-all-packages"  ; To avoid problems if some conflicting
+                              ; package is exposed in one of the
+                              ; user's package databases.
+        "-package base"       ; To gain access to the Prelude.
+        (concat "-package Agda-" agda2-version))
   "Options set in GHCi before loading `agda2-toplevel-module'.
 Note that only dynamic options can be set using this variable."
   :type '(repeat string)
