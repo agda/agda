@@ -319,7 +319,7 @@ auto ii rng argstr = liftTCM $ do
 
             MRefine listmode -> do
              mv <- lookupMeta mi
-             let HasType _ tt = mvJudgement mv
+             let tt = jMetaType $ mvJudgement mv
                  minfo = getMetaInfo mv
              targettyp <- withMetaInfo minfo $ do
               vs <- getContextArgs

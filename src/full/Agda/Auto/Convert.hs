@@ -23,7 +23,7 @@ import Agda.TypeChecking.Monad.Signature (getConstInfo, getDefFreeVars, getImpor
 import Agda.Utils.Permutation (Permutation(Perm), idP, permute, takeP)
 import Agda.Interaction.BasicOps (rewrite, Rewrite(..))
 import Agda.TypeChecking.Level (reallyUnLevelView)
-import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv, Judgement(HasType))
+import Agda.TypeChecking.Monad.Base (mvJudgement, mvPermutation, getMetaInfo, ctxEntry, envContext, clEnv)
 import Agda.TypeChecking.Monad.MetaVars (lookupMeta, withMetaInfo)
 import Agda.TypeChecking.Monad.Context (getContextArgs)
 import Agda.TypeChecking.Monad.Constraints (getAllConstraints)
@@ -143,7 +143,7 @@ tomy imi icns typs = do
          m <- getMeta mi
          sol' <- tomyExp sol
          modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
-       let HasType _ tt = mvJudgement mv
+       let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
            localVars = map (snd . C.unArg . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
