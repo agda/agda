@@ -237,7 +237,12 @@ solveConstraint_ (FindInScope m)      =
           ctx <- getContext
           let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
           types <- mapM typeOfBV ids
-          return $ [ (Var i [], t, h) | (Arg h _ _, i, t) <- zip3 ctx [0..] types ]
+          let vars = [ (Var i [], t, h) | (Arg h _ _, i, t) <- zip3 ctx [0..] types ]
+          -- get let bindings
+          env <- asks envLetBindings
+          env <- mapM (getOpen . snd) $ Map.toList env
+          let lets = List.map (\ (v, Arg h r t) -> (v, t, h)) env
+          return $ vars ++ lets
         checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
         checkCandidateForMeta m t term t' =
           liftTCM $ flip catchError (\err -> return False) $ do
