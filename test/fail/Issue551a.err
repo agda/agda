@@ -1,0 +1,3 @@
+Issue551a.agda:15,8-16
+No variable of type A was found in scope.
+when checking that the expression implicit has type A

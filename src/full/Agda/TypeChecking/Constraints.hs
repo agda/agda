@@ -16,6 +16,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.Irrelevance (unusableRelevance)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -207,10 +208,13 @@ solveConstraint_ (FindInScope m)      =
         -- try all abstract names in scope (even ones that you can't refer to
         --  unambiguously)
         let candsP3Names = nsList >>= snd
-        candsP3Types <- mapM (typeOfConst . anameName) candsP3Names
-        candsP3FV <- mapM (freeVarsToApply . anameName) candsP3Names
+        candsP3Types <- mapM (typeOfConst     . anameName) candsP3Names
+        candsP3Rel   <- mapM (relOfConst      . anameName) candsP3Names
+        candsP3FV    <- mapM (freeVarsToApply . anameName) candsP3Names
+        rel          <- asks envRelevance
         let candsP3 = [(Def (anameName an) vs, t) |
-                       (an, t, vs) <- zip3 candsP3Names candsP3Types candsP3FV]
+                       (an, t, r, vs) <- zip4 candsP3Names candsP3Types candsP3Rel candsP3FV,
+                       r `moreRelevant` rel ]
         let cands = [candsP1, candsP2, candsP3]
         cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
         let iterCands :: [(Int, [(Term, Type)])] -> TCM ()
@@ -237,11 +241,12 @@ solveConstraint_ (FindInScope m)      =
           ctx <- getContext
           let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
           types <- mapM typeOfBV ids
-          let vars = [ (Var i [], t, h) | (Arg h _ _, i, t) <- zip3 ctx [0..] types ]
+          let vars = [ (Var i [], t, h) | (Arg h r _, i, t) <- zip3 ctx [0..] types,
+                                          not (unusableRelevance r) ]
           -- get let bindings
           env <- asks envLetBindings
           env <- mapM (getOpen . snd) $ Map.toList env
-          let lets = List.map (\ (v, Arg h r t) -> (v, t, h)) env
+          let lets = [ (v,t,h) | (v, Arg h r t) <- env, not (unusableRelevance r) ]
           return $ vars ++ lets
         checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
         checkCandidateForMeta m t term t' =
