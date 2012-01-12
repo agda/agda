@@ -725,7 +725,7 @@ instance HasRange Call where
 data BuiltinDescriptor = BuiltinData (TCM Type) [String]
                        | BuiltinDataCons (TCM Type)
                        | BuiltinPrim String (Term -> TCM ())
-                       | BuiltinPostulate (TCM Type)
+                       | BuiltinPostulate Relevance (TCM Type)
                        | BuiltinUnknown (Maybe (TCM Type)) (Term -> TCM ())
 
 data BuiltinInfo =

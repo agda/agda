@@ -1,5 +1,7 @@
 module Issue396b where
 
+import Common.Irrelevance  
+
 data A : Set where
 
 -- just an irrelevant field

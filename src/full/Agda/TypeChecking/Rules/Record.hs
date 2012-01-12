@@ -13,6 +13,7 @@ import Agda.Syntax.Position
 import qualified Agda.Syntax.Info as Info
 
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin ( primIrrAxiom )
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
@@ -264,6 +265,26 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       -- Ulf, 2011-08-22: actually we're dropping the parameters from the
       -- projection functions so the body is now
       --  P.xi (r _ .. x .. _) = x
+      -- Andreas, 2012-01-12: irrelevant projections get translated to
+      --  P.xi (r _ .. x .. _) = irrAxiom {level of t} {t} x
+      -- PROBLEM: because of dropped parameters, cannot refer to t
+
+      -- compute body modification for irrelevant projections
+      bodyMod <- do
+        case rel of
+          Relevant   -> return $ const $ id -- no modification
+
+          Irrelevant -> do
+            irrAxiom <- primIrrAxiom
+            let sortToLevel (Type l) = l
+                sortToLevel _        = Max [ClosedLevel 0] -- something random here, we don't care a lot
+                levelOfT = Level $ sortToLevel $ getSort t
+            return $ \ n x -> let -- mkArg t = Arg Hidden Relevant $ raise n t
+                                  -- ERR: Variables of t not in Scope!
+                                  mkArg t = Arg Hidden Relevant $ Sort Prop
+                              in  apply irrAxiom [mkArg levelOfT, mkArg (unEl t), Arg NotHidden Irrelevant x]
+
+          _          -> __IMPOSSIBLE__
 
       let -- Andreas, 2010-09-09: comment for existing code
           -- split the telescope into parameters (ptel) and the type or the record
@@ -280,7 +301,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
 	  body	 = nobind (size ftel1)
 		 $ Bind . Abs "x"
 		 $ nobind (size ftel2)
-		 $ Body $ Var (size ftel2) []
+		 $ Body $ bodyMod (size ftel) $ Var (size ftel2) []
           cltel  = ftel
 	  clause = Clause { clauseRange = getRange info
                           , clauseTel   = killRange cltel
@@ -288,6 +309,16 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                           , clausePats  = [conp]
                           , clauseBody  = body
                           }
+
+      reportSDoc "tc.rec.proj" 20 $ sep
+	[ text "adding projection"
+	, nest 2 $ prettyTCM projname <+> text (show clause)
+	]
+      reportSDoc "tc.rec.proj" 10 $ sep
+	[ text "adding projection"
+	, nest 2 $ prettyTCM projname <+> text (show (clausePats clause)) <+> text "=" <+>
+                     inContext [] (addCtxTel ftel (prettyTCM (clauseBody clause)))
+	]
 
             -- Record patterns should /not/ be translated when the
             -- projection functions are defined. Record pattern

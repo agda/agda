@@ -1,5 +1,6 @@
 -- Andreas, 2011-10-02
 module NotApplyingInDontCareTriggersInternalError where
+import Common.Irrelevance  
 
 postulate 
   Val : Set

@@ -65,6 +65,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
+    primIrrAxiom,
     -- builtins for reflection:
     primQName, primArg, primArgArg, primAgdaTerm, primAgdaTermVar,
     primAgdaTermLam, primAgdaTermDef, primAgdaTermCon, primAgdaTermPi,
@@ -110,6 +111,7 @@ primLevel        = getBuiltin builtinLevel
 primLevelZero    = getBuiltin builtinLevelZero
 primLevelSuc     = getBuiltin builtinLevelSuc
 primLevelMax     = getBuiltin builtinLevelMax
+primIrrAxiom     = getBuiltin builtinIrrAxiom
 primQName        = getBuiltin builtinQName
 primArg          = getBuiltin builtinArg
 primArgArg       = getBuiltin builtinArgArg
@@ -177,6 +179,7 @@ builtinLevelMax     = "LEVELMAX"
 builtinLevel        = "LEVEL"
 builtinLevelZero    = "LEVELZERO"
 builtinLevelSuc     = "LEVELSUC"
+builtinIrrAxiom     = "IRRAXIOM"
 builtinQName        = "QNAME"
 builtinAgdaSort     = "AGDASORT"
 builtinAgdaSortSet  = "AGDASORTSET"

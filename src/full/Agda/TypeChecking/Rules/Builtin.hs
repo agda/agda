@@ -20,6 +20,7 @@ import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Irrelevance
 
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
@@ -33,19 +34,22 @@ import Agda.Utils.Impossible
 -- * Checking builtin pragmas
 ---------------------------------------------------------------------------
 
+builtinPostulate :: TCM Type -> BuiltinDescriptor
+builtinPostulate = BuiltinPostulate Relevant
+
 coreBuiltins :: [BuiltinInfo]
 coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   [ (builtinList               |-> BuiltinData (tset --> tset) [builtinNil, builtinCons])
   , (builtinArg                |-> BuiltinData (tset --> tset) [builtinArgArg])
   , (builtinBool               |-> BuiltinData tset [builtinTrue, builtinFalse])
   , (builtinNat                |-> BuiltinData tset [builtinZero, builtinSuc])
-  , (builtinLevel              |-> BuiltinPostulate tset)
-  , (builtinInteger            |-> BuiltinPostulate tset)
-  , (builtinFloat              |-> BuiltinPostulate tset)
-  , (builtinChar               |-> BuiltinPostulate tset)
-  , (builtinString             |-> BuiltinPostulate tset)
-  , (builtinQName              |-> BuiltinPostulate tset)
-  , (builtinIO                 |-> BuiltinPostulate (tset --> tset))
+  , (builtinLevel              |-> builtinPostulate tset)
+  , (builtinInteger            |-> builtinPostulate tset)
+  , (builtinFloat              |-> builtinPostulate tset)
+  , (builtinChar               |-> builtinPostulate tset)
+  , (builtinString             |-> builtinPostulate tset)
+  , (builtinQName              |-> builtinPostulate tset)
+  , (builtinIO                 |-> builtinPostulate (tset --> tset))
   , (builtinAgdaSort           |-> BuiltinData tset [builtinAgdaSortSet, builtinAgdaSortLit, builtinAgdaSortUnsupported])
   , (builtinAgdaType           |-> BuiltinData tset [builtinAgdaTypeEl])
   , (builtinAgdaTerm           |-> BuiltinData tset
@@ -84,9 +88,13 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinVisible            |-> BuiltinDataCons thiding)
   , (builtinRelevant           |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
-  , (builtinSize               |-> BuiltinPostulate tset)
-  , (builtinSizeSuc            |-> BuiltinPostulate (tsize --> tsize))
-  , (builtinSizeInf            |-> BuiltinPostulate tsize)
+  , (builtinSize               |-> builtinPostulate tset)
+  , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
+  , (builtinSizeInf            |-> builtinPostulate tsize)
+  -- postulate .irrelevant : {a : Level}{A : Set a} -> .A -> A
+  , (builtinIrrAxiom           |-> BuiltinPostulate Irrelevant
+                                     (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
+                                      (El (varSort 1) <$> var 0) .--> (El (varSort 1) <$> var 0)))
   , (builtinAgdaSortSet        |-> BuiltinDataCons (tterm --> tsort))
   , (builtinAgdaSortLit        |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortUnsupported|-> BuiltinDataCons tsort)
@@ -100,9 +108,9 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinLevelZero          |-> BuiltinPrim "primLevelZero" (const $ return ()))
   , (builtinLevelSuc           |-> BuiltinPrim "primLevelSuc" (const $ return ()))
   , (builtinLevelMax           |-> BuiltinPrim "primLevelMax" verifyMax)
-  , (builtinAgdaFunDef                |-> BuiltinPostulate tset) -- internally this is QName
-  , (builtinAgdaDataDef               |-> BuiltinPostulate tset) -- internally this is QName
-  , (builtinAgdaRecordDef             |-> BuiltinPostulate tset) -- internally this is QName
+  , (builtinAgdaFunDef                |-> builtinPostulate tset) -- internally this is QName
+  , (builtinAgdaDataDef               |-> builtinPostulate tset) -- internally this is QName
+  , (builtinAgdaRecordDef             |-> builtinPostulate tset) -- internally this is QName
   , (builtinAgdaDefinition            |-> BuiltinData tset [builtinAgdaDefinitionFunDef
                                                            ,builtinAgdaDefinitionDataDef
                                                            ,builtinAgdaDefinitionDataConstructor
@@ -356,8 +364,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
 	  _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
 
-      BuiltinPostulate t -> do
-        e' <- checkExpr e =<< t
+      BuiltinPostulate rel t -> do
+        e' <- applyRelevanceToContext rel $ checkExpr e =<< t
         let err = typeError $ GenericError $
                     "The argument to BUILTIN " ++ s ++ " must be a postulated name"
         case e of

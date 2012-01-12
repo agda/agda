@@ -2,6 +2,8 @@
 
 module IrrelevantDeclaration where
 
+import Common.Irrelevance  
+
 record Subset (A : Set) (P : A -> Set) : Set where
   constructor _#_
   field

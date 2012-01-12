@@ -9,6 +9,8 @@
 module DontIgnoreIrrelevantVars where
 
 import Common.Level
+import Common.Irrelevance  
+
 
 record Category : Set₁ where
   field

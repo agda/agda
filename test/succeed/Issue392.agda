@@ -1,6 +1,8 @@
 -- Andreas, 2011-09-11
 module Issue392 where
 
+import Common.Irrelevance  
+
 -- Create an irrelevant record R1 (all fields irrelevant).
 record R1 : Set1 where
   field

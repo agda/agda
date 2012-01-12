@@ -424,6 +424,14 @@ a --> b = do
     b' <- b
     return $ El (getSort a' `sLub` getSort b') $ Pi (defaultArg a') (NoAbs "_" b')
 
+infixr 4 .-->
+
+(.-->) :: TCM Type -> TCM Type -> TCM Type
+a .--> b = do
+    a' <- a
+    b' <- b
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg NotHidden Irrelevant a') (NoAbs "_" b')
+
 gpi :: Hiding -> Relevance -> String -> TCM Type -> TCM Type -> TCM Type
 gpi h r name a b = do
   a <- a

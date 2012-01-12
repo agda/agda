@@ -1,4 +1,5 @@
 module Issue347 where
+import Common.Irrelevance  
 
 {- Dan Doel, 2010-10-09
 

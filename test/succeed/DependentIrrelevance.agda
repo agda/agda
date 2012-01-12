@@ -1,6 +1,9 @@
 -- Andreas, AIM XIII, 2011-04-07
+-- {-# OPTIONS -v tc.rec.proj:50 #-}
 module DependentIrrelevance where
-  
+
+open import Common.Irrelevance  
+
 record Squash (A : Set) : Set where
   constructor squash
   field

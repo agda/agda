@@ -1,6 +1,7 @@
 -- Andreas, 2011-04-26
 {-# OPTIONS --universe-polymorphism #-}
 module Issue411 where
+import Common.Irrelevance  
 
 record A : Set₁ where
   field

@@ -2,6 +2,8 @@
 -- example originally stolen from Andrea Vezzosi's post on the Agda list 
 
 module IrrelevantRecordFields where
+
+import Common.Irrelevance  
   
 infix 4 _≡_ 
 

@@ -2,6 +2,8 @@
 
 module DoNotEtaExpandMVarsWhenComparingAgainstRecord where
 
+open import Common.Irrelevance  
+
 data _==_ {A : Set1}(a : A) : A -> Set where
   refl : a == a
 
