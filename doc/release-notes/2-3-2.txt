@@ -7,6 +7,28 @@ Important changes since 2.3.0:
 Language
 ========
 
+* New: Built-in irrelevance axiom.
+
+    postulate
+      .irrAxiom : ∀ {a}{A : Set a} → .A → A
+    {-# BUILTIN IRRAXIOM irrAxiom #-}
+
+* Irrelevant projections require irrelevance axiom.
+
+  Record with irrelevant fields now require the built-in IRRAXIOM.
+
+    record Squash {a}(A : Set a) : Set a where
+      constructor squash
+      field
+        .unsquash : A
+
+  This will produce an irrelevant projection
+
+    .unsquash : ∀ {a}{A : Set a} → Squash A → A
+    unsquash (squash x) = irrAxiom x
+
+  Thus, Agda will check for the built-in irrAxiom to be defined.
+
 Compiler backends
 =================
 
