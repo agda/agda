@@ -71,7 +71,7 @@ primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primAgdaTermSort, primAgdaTermUnsupported,
     primAgdaType, primAgdaTypeEl,
     primHiding, primHidden, primInstance, primVisible,
-    primRelvance, primRelevant, primIrrelevant,
+    primRelevance, primRelevant, primIrrelevant,
     primAgdaSort, primAgdaSortSet, primAgdaSortLit, primAgdaSortUnsupported,
     primAgdaDefinition, primAgdaDefinitionFunDef, primAgdaDefinitionDataDef, primAgdaDefinitionRecordDef,
     primAgdaDefinitionPostulate, primAgdaDefinitionPrimitive, primAgdaDefinitionDataConstructor,
@@ -120,7 +120,7 @@ primHiding       = getBuiltin builtinHiding
 primHidden       = getBuiltin builtinHidden
 primInstance     = getBuiltin builtinInstance
 primVisible      = getBuiltin builtinVisible
-primRelvance     = getBuiltin builtinRelevance
+primRelevance    = getBuiltin builtinRelevance
 primRelevant     = getBuiltin builtinRelevant
 primIrrelevant   = getBuiltin builtinIrrelevant
 primAgdaSortSet  = getBuiltin builtinAgdaSortSet
