@@ -225,7 +225,10 @@ bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
     arg = Arg h rel' a
-bindParameters _ _ _ = __IMPOSSIBLE__
+-- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
+-- could give more parameters than declared.
+bindParameters (b : bs) t _ = typeError $ DataTooManyParameters
+
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.
