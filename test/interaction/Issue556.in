@@ -1,0 +1,13 @@
+top_command (cmd_load currentFile [])
+
+-- Should be "A".
+top_command (cmd_infer_toplevel Normalised "x")
+
+-- Should be "A".
+top_command (cmd_infer_toplevel Normalised "y")
+
+-- Should be "x".
+top_command (cmd_compute_toplevel False "x")
+
+-- Should be "x".
+top_command (cmd_compute_toplevel False "y")

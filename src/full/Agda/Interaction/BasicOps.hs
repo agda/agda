@@ -517,7 +517,7 @@ atTopLevel m = inConcreteMode $ do
           M.withCurrentModule current $
             withScope_ scope $
               addContext (zipWith' (fmap . (,))
-                                   (map snd $ scopeLocals scope)
+                                   (reverse $ map snd $ scopeLocals scope)
                                    (map (fmap snd) $ telToList tel)) $
                 m
 
