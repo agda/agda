@@ -666,25 +666,28 @@ displayStatus :: Status -> IO ()
 displayStatus s =
   putResponse $ L [A "agda2-status-action", A (quote $ showStatus s)]
 
--- | @display_info' header content@ displays @content@ (with header
--- @header@) in some suitable way.
+-- | @display_info' append header content@ displays @content@ (with
+-- header @header@) in some suitable way. If @append@ is @True@, then
+-- the content is appended to previous content (if any), otherwise any
+-- previous content is deleted.
 
-display_info' :: String -> String -> IO ()
-display_info' bufname content =
+display_info' :: Bool -> String -> String -> IO ()
+display_info' append bufname content =
   putResponse $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
+      , A (if append then "t" else "nil")
       ]
 
--- | @display_info@ does what 'display_info'' does, but additionally
--- displays some status information (see 'status' and
+-- | @display_info@ does what @'display_info'' False@ does, but
+-- additionally displays some status information (see 'status' and
 -- 'displayStatus').
 
 display_info :: String -> String -> TCM ()
 display_info bufname content = do
   liftIO . displayStatus =<< status
-  liftIO $ display_info' bufname content
+  liftIO $ display_info' False bufname content
 
 -- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
 
@@ -1024,7 +1027,7 @@ displayErrorAndExit :: Status
                        -- ^ The new status information.
                     -> Range -> String -> IO a
 displayErrorAndExit status r s = do
-  display_info' errorTitle s
+  display_info' False errorTitle s
   tellEmacsToJumpToError r
   displayStatus status
   exitWith (ExitFailure 1)

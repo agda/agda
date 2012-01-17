@@ -653,13 +653,17 @@ Assumes that <clause> = {!<var>!} is on one line."
 major mode)."
   (setq agda2-buffer-external-status status))
 
-(defun agda2-info-action (name text)
-  "Insert TEXT into the Agda info buffer, display it, and display NAME
-in the buffer's mode line."
+(defun agda2-info-action (name text &optional append)
+  "Insert TEXT into the Agda info buffer and display it.
+NAME is displayed in the buffer's mode line. If APPEND is
+non-nil, then TEXT is appended at the end of the buffer, and
+otherwise any previous text is removed before TEXT is inserted."
   (interactive)
   (with-current-buffer (get-buffer-create "*Agda information*")
-    (erase-buffer)
-    (insert text)
+    (unless append (erase-buffer))
+    (save-excursion
+      (goto-char (point-max))
+      (insert text))
     (set-syntax-table agda2-mode-syntax-table)
     (set-input-method "Agda")
 
