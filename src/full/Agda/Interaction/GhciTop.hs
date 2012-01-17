@@ -163,7 +163,7 @@ ioTCM_ m = do
   tcs <- readIORef theState
   result <- runTCM $ do
     put $ theTCState tcs
-    x <- withEnv initEnv m
+    x <- withEnv (initEnv { envEmacs = True }) m
     s <- get
     return (x, s)
   case result of
@@ -210,7 +210,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
   -- Run the computation.
   r <- runTCM $ catchError (do
            put st
-           x  <- withEnv initEnv $ do
+           x  <- withEnv (initEnv { envEmacs = True }) $ do
                    case independence cmd of
                      Dependent             -> ensureFileLoaded current
                      Independent Nothing   ->

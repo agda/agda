@@ -777,6 +777,11 @@ data TCEnv =
           , envRange :: Range
           , envCall  :: Maybe (Closure Call)
                 -- ^ what we're doing at the moment
+          , envEmacs :: Bool
+                -- ^ True when called from the Emacs mode.
+          , envModuleNestingLevel :: Integer
+                -- ^ 0 for the top-level module, 1 for modules
+                --   imported from the top-level module, and so on.
 	  }
     deriving (Typeable, Data)
 
@@ -797,6 +802,8 @@ initEnv = TCEnv { envContext	         = []
                 , envEtaContractImplicit    = True
                 , envRange                  = noRange
                 , envCall                   = Nothing
+                , envEmacs                  = False
+                , envModuleNestingLevel     = 0
 		}
 
 ---------------------------------------------------------------------------

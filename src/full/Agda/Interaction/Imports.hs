@@ -8,6 +8,7 @@ import Prelude hiding (catch)
 
 import Control.Arrow
 import Control.Monad.Error
+import Control.Monad.Reader
 import Control.Monad.State
 import qualified Control.Exception as E
 import qualified Data.Map as Map
@@ -329,6 +330,8 @@ getInterface' x includeStateChanges =
             ret (True, r)
            else do
             ms       <- getImportPath
+            emacs    <- envEmacs <$> ask
+            nesting  <- envModuleNestingLevel <$> ask
             mf       <- stModuleToSource <$> get
             vs       <- getVisitedModules
             ds       <- getDecodedModules
@@ -339,7 +342,10 @@ getInterface' x includeStateChanges =
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
             r <- liftIO $ runTCM $
-                   withImportPath ms $ do
+                   withImportPath ms $
+                   local (\e -> e { envEmacs              = emacs
+                                  , envModuleNestingLevel = nesting + 1
+                                  }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
                      modify $ \s -> s { stModuleToSource = mf }
