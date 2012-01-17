@@ -149,7 +149,7 @@ data Interaction = Interaction
     -- information will be written for the given module (by 'ioTCM').
   }
 
--- ^ Is the command independent?
+-- | Is the command independent?
 
 isIndependent :: Interaction -> Bool
 isIndependent i = case independence i of
