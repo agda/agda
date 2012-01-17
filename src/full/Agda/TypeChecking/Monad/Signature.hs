@@ -156,9 +156,13 @@ makeProjection x = inContext [] $ do
                             -- which case we can't reconstruct the dropped parameters
           , checkBody n b ]
 
-    onlyMatch n ps = all (noMatch . unArg) $ ps0 ++ drop 1 ps1
+    onlyMatch n ps = all (shallowMatch . unArg) (take 1 ps1) &&
+                       noMatches (ps0 ++ drop 1 ps1)
       where
         (ps0, ps1) = splitAt n ps
+        shallowMatch (ConP _ _ ps) = noMatches ps
+        shallowMatch _             = True
+        noMatches = all (noMatch . unArg)
         noMatch ConP{} = False
         noMatch LitP{} = False
         noMatch VarP{} = True

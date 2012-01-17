@@ -293,9 +293,15 @@ compareAtom cmp t m n =
             (Def{}, Def{}) -> do
               ev1 <- elimView m
               ev2 <- elimView n
+              reportSDoc "tc.conv.atom" 50 $
+                sep [ text $ "ev1 = " ++ show ev1
+                    , text $ "ev2 = " ++ show ev2 ]
               case (ev1, ev2) of
                 (VarElim x els1, VarElim y els2) | x == y -> cmpElim (typeOfBV x) (Var x []) els1 els2
-                (ConElim x els1, ConElim y els2) | x == y -> cmpElim (conType x t) (Con x []) els1 els2
+                (ConElim x els1, ConElim y els2) | x == y ->
+                  cmpElim (conType x t) (Con x []) els1 els2
+                  -- Andreas 2012-01-17 careful!  In the presence of
+                  -- projection eliminations, t is NOT the datatype x belongs to
                 (DefElim x els1, DefElim y els2) | x == y ->
                   cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded

@@ -14,11 +14,13 @@ import Agda.TypeChecking.Reduce
 
 #include "../undefined.h"
 
-data ElimView = VarElim Nat [Elim]
-              | DefElim QName [Elim]
-              | ConElim QName [Elim]
-              | MetaElim MetaId [Elim]
-              | NoElim Term
+data ElimView
+  = VarElim Nat [Elim]
+  | DefElim QName [Elim]
+  | ConElim QName [Elim]
+  | MetaElim MetaId [Elim]
+  | NoElim Term
+  deriving (Show)
 
 elimView :: Term -> TCM ElimView
 elimView v = do
