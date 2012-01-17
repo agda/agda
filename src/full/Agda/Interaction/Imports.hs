@@ -294,7 +294,9 @@ getInterface' x includeStateChanges =
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            ts <- map snd <$> mapM getInterface (iImportedModules i)
+            ts <- local (\e -> e { envModuleNestingLevel =
+                                     envModuleNestingLevel e + 1 }) $
+                    map snd <$> mapM getInterface (iImportedModules i)
 
             -- If any of the imports are newer we need to retype check
             if any (> t) ts
