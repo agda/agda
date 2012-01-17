@@ -780,8 +780,13 @@ data TCEnv =
           , envEmacs :: Bool
                 -- ^ True when called from the Emacs mode.
           , envModuleNestingLevel :: Integer
-                -- ^ 0 for the top-level module, 1 for modules
-                --   imported from the top-level module, and so on.
+                -- ^ This number indicates how far away from the
+                --   top-level module Agda has come when chasing
+                --   modules. The level of a given module is not
+                --   necessarily the same as the length, in the module
+                --   dependency graph, of the shortest path from the
+                --   top-level module; it depends on in which order
+                --   Agda chooses to chase dependencies.
 	  }
     deriving (Typeable, Data)
 
