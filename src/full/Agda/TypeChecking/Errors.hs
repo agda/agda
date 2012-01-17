@@ -100,7 +100,7 @@ errorString err = case err of
     CoverageCantSplitType{}                  -> "CoverageCantSplitType"
     CyclicModuleDependency{}                 -> "CyclicModuleDependency"
     DataMustEndInSort{}                      -> "DataMustEndInSort"
-    DataTooManyParameters{}                  -> "DataTooManyParameters"
+-- UNUSED:    DataTooManyParameters{}                  -> "DataTooManyParameters"
     DifferentArities                         -> "DifferentArities"
     DoesNotConstructAnElementOf{}            -> "DoesNotConstructAnElementOf"
     DuplicateBuiltinBinding{}                -> "DuplicateBuiltinBinding"
@@ -226,7 +226,9 @@ instance PrettyTCM TypeError where
 	    DataMustEndInSort t -> fsep $
 		pwords "The type of a datatype must end in a sort."
 		++ [prettyTCM t] ++ pwords "isn't a sort."
+{- UNUSED:
 	    DataTooManyParameters -> fsep $ pwords "Too many parameters given to data type."
+-}
 	    ShouldEndInApplicationOfTheDatatype t -> fsep $
 		pwords "The target of a constructor must be the datatype applied to its parameters,"
 		++ [prettyTCM t] ++ pwords "isn't"

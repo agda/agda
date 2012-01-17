@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import Control.Monad.Error
 import Control.Monad.State
-import Data.List
+import Data.List as List
 import Data.Maybe
 import Data.Traversable (traverse)
 
@@ -88,6 +88,8 @@ data DeclarationException
         | MissingWithClauses Name
         | MissingTypeSignature LHS
         | MissingDataSignature Name
+        | WrongDefinition Name DataRecOrFun DataRecOrFun
+        | WrongParameters Name
         | NotAllowedInMutual NiceDeclaration
         | UnknownNamesInFixityDecl [Name]
         | Codata Range
@@ -103,6 +105,8 @@ instance HasRange DeclarationException where
     getRange (MissingWithClauses x)        = getRange x
     getRange (MissingTypeSignature x)      = getRange x
     getRange (MissingDataSignature x)      = getRange x
+    getRange (WrongDefinition x k k')      = getRange x
+    getRange (WrongParameters x)           = getRange x
     getRange (AmbiguousFunClauses lhs xs)  = getRange lhs
     getRange (NotAllowedInMutual x)        = getRange x
     getRange (UnknownNamesInFixityDecl xs) = getRange . head $ xs
@@ -147,6 +151,11 @@ instance Show DeclarationException where
     pwords "Missing type signature for left hand side" ++ [pretty x]
   show (MissingDataSignature x) = show $ fsep $
     pwords "Missing type signature for " ++ [pretty x]
+  show (WrongDefinition x k k') = show $ fsep $ pretty x :
+    pwords ("has been declared as a " ++ show k ++
+      ", but is being defined as a " ++ show k')
+  show (WrongParameters x) = show $ fsep $
+    pwords "List of parameters does not match previous signature for" ++ [pretty x]
   show (AmbiguousFunClauses lhs xs) = show $ fsep $
     pwords "More than one matching type signature for left hand side" ++ [pretty lhs] ++
     pwords "it could belong to any of:" ++ map pretty xs
@@ -183,11 +192,29 @@ data InMutual
   | NotInMutual -- ^ we are nicifying decls not in a mutual block
     deriving (Eq, Show)
 
-data DataRecOrFun = DataName | RecName | FunName
+-- | The kind of the forward declaration, remembering the parameters.
+data DataRecOrFun
+  = DataName Params -- ^ name of a data with parameters
+  | RecName  Params -- ^ name of a record with parameters
+  | FunName         -- ^ name of a function
   deriving (Eq, Ord)
 
+type Params = [Hiding]
+
+instance Show DataRecOrFun where
+  show (DataName n) = "data type" --  "with " ++ show n ++ " visible parameters"
+  show (RecName n)  = "record type" -- "with " ++ show n ++ " visible parameters"
+  show (FunName)    = "function"
+
+sameKind :: DataRecOrFun -> DataRecOrFun -> Bool
+sameKind DataName{} DataName{} = True
+sameKind RecName{} RecName{} = True
+sameKind FunName FunName = True
+sameKind _ _ = False
+
+type LoneSigs = [(DataRecOrFun, Name)]
 data NiceEnv = NiceEnv
-  { loneSigs :: [(DataRecOrFun, Name)]   -- ^ lone type signatures that wait for their fun.clauses
+  { loneSigs :: LoneSigs -- ^ lone type signatures that wait for their definition
   , fixs     :: Map Name Fixity'
   }
 
@@ -206,17 +233,26 @@ addLoneSig :: DataRecOrFun -> Name -> Nice ()
 addLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = (k, x) : loneSigs niceEnv }
 
 removeLoneSig :: DataRecOrFun -> Name -> Nice ()
-removeLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = delete (k, x) $ loneSigs niceEnv }
+removeLoneSig k x = modify $ \ niceEnv ->
+  niceEnv { loneSigs = filter (\ (k', x') -> x /= x') $ loneSigs niceEnv }
+-- Andreas, 2012-01-17: This does not work anymore:
+-- removeLoneSig k x = modify $ \ niceEnv -> niceEnv { loneSigs = delete (k, x) $ loneSigs niceEnv }
 
+{- UNUSED
 hasSig :: DataRecOrFun -> Name -> Nice Bool
 hasSig k x = gets $ elem (k, x) . loneSigs
+-}
+
+-- | Search for forward type signature that
+getSig :: Name -> Nice (Maybe DataRecOrFun)
+getSig n = gets $ fmap fst . List.find (\ (k, x) -> x == n) . loneSigs
 
 noLoneSigs :: Nice Bool
 noLoneSigs = gets $ null . loneSigs
 
-checkLoneSigs :: Nice ()
-checkLoneSigs = do
-  xs <- gets loneSigs
+-- | Ensure that all forward declarations have been given a definition.
+checkLoneSigs :: LoneSigs -> Nice ()
+checkLoneSigs xs =
   case xs of
     []       -> return ()
     (_, x):_ -> throwError $ MissingDefinition x
@@ -229,13 +265,38 @@ runNice nice = nice `evalStateT` initNiceEnv
 
 data DeclKind = LoneSig DataRecOrFun Name | LoneDef DataRecOrFun Name | OtherDecl
 
-declKind (FunSig _ _ _ _ x _)      = LoneSig FunName x
-declKind (NiceRecSig _ _ _ x _ _)  = LoneSig RecName x
-declKind (NiceDataSig _ _ _ x _ _) = LoneSig DataName x
-declKind (FunDef _ _ _ _ x _)      = LoneDef FunName x
-declKind (DataDef _ _ _ x _ _)     = LoneDef DataName x
-declKind (RecDef _ _ _ x _ _ _)    = LoneDef RecName x
-declKind _                         = OtherDecl
+declKind (FunSig _ _ _ _ x _)         = LoneSig FunName x
+declKind (NiceRecSig _ _ _ x pars _)  = LoneSig (RecName $ parameters pars) x
+declKind (NiceDataSig _ _ _ x pars _) = LoneSig (DataName $ parameters pars) x
+declKind (FunDef _ _ _ _ x _)         = LoneDef FunName x
+declKind (DataDef _ _ _ x pars _)     = LoneDef (DataName $ parameters pars) x
+declKind (RecDef _ _ _ x _ pars _)    = LoneDef (RecName $ parameters pars) x
+declKind _                            = OtherDecl
+
+-- | Compute visible parameters of a data or record signature or definition.
+parameters :: [LamBinding] -> Params
+parameters = List.concat . List.map numP where
+  numP (DomainFree h _ _) = [h]
+  numP (DomainFull (TypedBindings _ (Arg h _ (TBind _ xs _)))) = List.replicate (length xs) h
+  numP (DomainFull (TypedBindings _ (Arg _ _ (TNoBind{})))) =  __IMPOSSIBLE__
+
+{- OLD:
+
+-- | Compute number of visible parameters of a data or record signature or definition.
+numberOfPars :: [LamBinding] -> Params
+numberOfPars = List.sum . List.map numP where
+  numP (DomainFree NotHidden _ _) = 1
+  numP (DomainFull (TypedBindings _ (Arg NotHidden _ (TBind _ xs _)))) = length xs
+  numP (DomainFull (TypedBindings _ (Arg _ _ (TNoBind{})))) =  __IMPOSSIBLE__
+  numP _ = 0  -- hidden / instance argument
+-- | Compute number of parameters of a data or record signature or definition.
+numberOfPars :: [LamBinding] -> Int
+numberOfPars = List.sum . List.map numP where
+  numP (DomainFree{}) = 1
+  numP (DomainFull (TypedBindings _ arg)) = nP $ unArg arg where
+    nP (TBind _ xs _) = length xs
+    nP (TNoBind _)    = __IMPOSSIBLE__
+-}
 
 niceDeclarations :: [Declaration] -> Nice [NiceDeclaration]
 niceDeclarations ds = do
@@ -244,7 +305,7 @@ niceDeclarations ds = do
     []  -> localState $ do
       put $ initNiceEnv { fixs = fixs }
       ds <- nice ds
-      checkLoneSigs
+      checkLoneSigs =<< gets loneSigs
       modify $ \s -> s { loneSigs = [] }
       inferMutualBlocks ds
     xs  -> throwError $ UnknownNamesInFixityDecl xs
@@ -289,7 +350,7 @@ niceDeclarations ds = do
           done <- noLoneSigs
           if done then return ([], ds) else
             case ds of
-              []     -> __IMPOSSIBLE__ <$ checkLoneSigs
+              []     -> __IMPOSSIBLE__ <$ (checkLoneSigs =<< gets loneSigs)
               d : ds -> case declKind d of
                 LoneSig k x -> addLoneSig    k x >> cons d (untilAllDefined ds)
                 LoneDef k x -> removeLoneSig k x >> cons d (untilAllDefined ds)
@@ -337,19 +398,19 @@ niceDeclarations ds = do
         DataSig r CoInductive x tel t -> throwError (Codata r)
         Data r CoInductive x tel t cs -> throwError (Codata r)
         DataSig r Inductive   x tel t -> do
-          addLoneSig DataName x
+          addLoneSig (DataName $ parameters tel) x
           (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel (Just t) Nothing
                <*> nice ds
         Data r Inductive x tel t cs -> do
-          t <- defaultTypeSig DataName x t
+          t <- defaultTypeSig (DataName $ parameters tel) x t
           (++) <$> dataOrRec DataDef NiceDataSig niceAxioms r x tel t (Just cs)
                <*> nice ds
         RecordSig r x tel t -> do
-          addLoneSig RecName x
+          addLoneSig (RecName $ parameters tel) x
           fx <- getFixity x
           (NiceRecSig r fx PublicAccess x tel t :) <$> nice ds
         Record r x c tel t cs -> do
-          t <- defaultTypeSig RecName x t
+          t <- defaultTypeSig (RecName $ parameters tel) x t
           c <- traverse (\c -> ThingWithFixity c <$> getFixity c) c
           (++) <$> dataOrRec (\x1 x2 x3 x4 -> RecDef x1 x2 x3 x4 c) NiceRecSig
                              niceDeclarations r x tel t (Just cs)
@@ -383,11 +444,20 @@ niceDeclarations ds = do
 
     -- We could add a default type signature here, but at the moment we can't
     -- infer the type of a record or datatype, so better to just fail here.
+    defaultTypeSig :: DataRecOrFun -> Name -> Maybe Expr -> Nice (Maybe Expr)
     defaultTypeSig k x t@Just{} = return t
-    defaultTypeSig k x Nothing  =
+    defaultTypeSig k x Nothing  = do
+      mk <- getSig x
+      case mk of
+        Nothing -> throwError $ MissingDataSignature x
+        Just k' | k == k'       -> Nothing <$ removeLoneSig k' x
+                | sameKind k k' -> throwError $ WrongParameters x
+                | otherwise     -> throwError $ WrongDefinition x k' k
+{- OLD CODE:
       ifM (hasSig k x)
           (Nothing <$ removeLoneSig k x)
           (throwError $ MissingDataSignature x)
+-}
 
     dataOrRec mkDef mkSig niceD r x tel mt mcs = do
       mds <- traverse niceD mcs
@@ -526,9 +596,7 @@ niceDeclarations ds = do
     mkOldMutual :: Range -> [NiceDeclaration] -> Nice NiceDeclaration
     mkOldMutual r ds = do
         -- Check that there aren't any missing definitions
-        case filter (`notElem` defNames) sigNames of
-          []       -> return ()
-          (_, x):_ -> throwError $ MissingDefinition x
+        checkLoneSigs loneNames
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
         case [ d | (d, OtherDecl) <- zip ds $ map declKind ds ] of
           []  -> return ()
@@ -540,8 +608,10 @@ niceDeclarations ds = do
         isTypeSig d | LoneSig{} <- declKind d = True
         isTypeSig _ = False
 
-        sigNames = [ (k, x) | LoneSig k x <- map declKind ds ]
-        defNames = [ (k, x) | LoneDef k x <- map declKind ds ]
+        sigNames  = [ (k, x) | LoneSig k x <- map declKind ds ]
+        defNames  = [ (k, x) | LoneDef k x <- map declKind ds ]
+        -- compute the set difference with equality just on names
+        loneNames = filter (\ (_, x) -> not (List.any (\ (_, x') -> x == x') defNames)) sigNames
 
     abstractBlock _ [] = return []
     abstractBlock r ds

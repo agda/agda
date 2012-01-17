@@ -217,7 +217,7 @@ bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TBind _ xs _))) : 
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TNoBind _))) : bs) a ret = do
   x <- freshNoName_
   bindParameters (A.DomainFree h rel x : bs) a ret
-bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
+bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | h /= h' =
 	__IMPOSSIBLE__
@@ -225,10 +225,12 @@ bindParameters (A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
 		    ret (ExtendTel arg $ Abs (show x) tel) s
   where
     arg = Arg h rel' a
+bindParameters (b : bs) t _ = __IMPOSSIBLE__
+{- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
 -- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
 -- could give more parameters than declared.
 bindParameters (b : bs) t _ = typeError $ DataTooManyParameters
-
+-}
 
 
 -- | Check that the arguments to a constructor fits inside the sort of the datatype.

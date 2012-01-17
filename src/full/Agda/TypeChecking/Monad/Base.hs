@@ -876,9 +876,11 @@ data TypeError
 	| TerminationCheckFailed [TerminationError]
 	| PropMustBeSingleton
 	| DataMustEndInSort Term
+{- UNUSED
         | DataTooManyParameters
             -- ^ In @data D xs where@ the number of parameters @xs@ does not fit the
             --   the parameters given in the forward declaraion @data D Gamma : T@.
+-}
 	| ShouldEndInApplicationOfTheDatatype Type
 	    -- ^ The target of a constructor isn't an application of its
 	    -- datatype. The 'Type' records what it does target.
