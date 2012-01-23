@@ -31,14 +31,20 @@ instance Pretty a => Pretty (Lisp a) where
   pretty (L xs)     = parens (hsep (map pretty xs))
   pretty (Q x)      = text "'" <> pretty x
 
-instance Pretty String where pretty = text
+instance Pretty String where
+  pretty = text
 
-instance Pretty a => Show (Lisp a) where show = show . pretty
+instance Pretty a => Show (Lisp a) where
+  show = show . pretty
 
 -- | Formats a response command.
 
 response :: Lisp String -> String
-response l = show (text "agda2_mode_code" <+> pretty l)
+response l =
+  map replaceNewLines $ show (text "agda2_mode_code" <+> pretty l)
+  where
+  replaceNewLines '\n' = ' '
+  replaceNewLines c    = c
 
 -- | Writes a response command to standard output.
 

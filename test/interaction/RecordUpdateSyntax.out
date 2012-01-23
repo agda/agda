@@ -1,7 +1,6 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*All Goals*" "?0 : R
-" nil)
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : R\n" nil)
 agda2_mode_code (agda2-goals-action '(0))
 agda2_mode_code (agda2-give-action 0 "record { a = tt; b = tt }")
 agda2_mode_code (agda2-status-action "")

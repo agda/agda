@@ -1,10 +1,4 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (x : Carrier) → x ∙ ε ≈ x
-?1 : (x : Carrier) → x ∙ ε ≈ x
-?2 : (x : List Bool) → x ∙ ε ≈ x
-?3 : P
-?4 : Q X
-?5 : M₁.P Set
-" nil)
+agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (x : Carrier) → x ∙ ε ≈ x\n?1 : (x : Carrier) → x ∙ ε ≈ x\n?2 : (x : List Bool) → x ∙ ε ≈ x\n?3 : P\n?4 : Q X\n?5 : M₁.P Set\n" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5))

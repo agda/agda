@@ -8,9 +8,9 @@ module Agda.Utils.String
 import Data.List
 import Numeric
 
--- | 'quote' adds double quotes around the string, and escapes double
--- quotes and backslashes within the string. This is different from
--- the behaviour of 'show':
+-- | 'quote' adds double quotes around the string, replaces newline
+-- characters with @\n@, and escapes double quotes and backslashes
+-- within the string. This is different from the behaviour of 'show':
 --
 -- @
 -- \> 'putStrLn' $ 'show' \"\\x2200\"
@@ -25,7 +25,8 @@ import Numeric
 quote :: String -> String
 quote s = "\"" ++ concatMap escape s ++ "\""
   where
-  escape c | c `elem` escapeChars = ['\\', c]
+  escape c | c == '\n'            = "\\n"
+           | c `elem` escapeChars = ['\\', c]
            | otherwise            = [c]
 
   escapeChars = "\"\\"
