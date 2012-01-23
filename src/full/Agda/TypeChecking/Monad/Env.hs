@@ -44,3 +44,10 @@ leaveTopLevel = local $ \ env -> env { envTopLevel = False }
 
 onTopLevel :: TCM Bool
 onTopLevel = asks envTopLevel
+
+-- | Increases the module nesting level by one in the given
+-- computation.
+withIncreasedModuleNestingLevel :: TCM a -> TCM a
+withIncreasedModuleNestingLevel =
+  local (\e -> e { envModuleNestingLevel =
+                     envModuleNestingLevel e + 1 })

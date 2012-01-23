@@ -266,6 +266,16 @@ getInterface' x includeStateChanges =
               Just (mi, mt) | mt >= t -> True
               _                       -> False
 
+      -- Formats the "Checking", "Finished" and "Skipping" messages.
+      chaseMsg kind file = do
+        nesting <- envModuleNestingLevel <$> ask
+        let s = genericReplicate nesting ' ' ++ kind ++
+                " " ++ render (pretty x) ++
+                case file of
+                  Nothing -> "."
+                  Just f  -> " (" ++ f ++ ")."
+        reportSLn "" 1 s
+
       skip file = do
         -- Examine the mtime of the interface file. If it is newer than the
         -- stored version (in stDecodedModules), or if there is no stored version,
@@ -294,8 +304,7 @@ getInterface' x includeStateChanges =
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            ts <- local (\e -> e { envModuleNestingLevel =
-                                     envModuleNestingLevel e + 1 }) $
+            ts <- withIncreasedModuleNestingLevel $
                     map snd <$> mapM getInterface (iImportedModules i)
 
             -- If any of the imports are newer we need to retype check
@@ -303,25 +312,25 @@ getInterface' x includeStateChanges =
               then do
                 -- liftIO close	-- Close the interface file. See above.
                 typeCheck file
-              else do
-                unless cached $ reportSLn "" 1 $
-                  "Skipping " ++ render (pretty x) ++
-                    " (" ++ ifile ++ ")."
+              else withIncreasedModuleNestingLevel $ do
+                unless cached $ chaseMsg "Skipping" (Just ifile)
                 -- We set the pragma options of the skipped file here,
                 -- because if the top-level file is skipped we want the
                 -- pragmas to apply to interactive commands in the UI.
                 mapM_ setOptionsFromPragma (iPragmaOptions i)
                 return (False, (i, Right t))
 
-      typeCheck file =
-        let ret a = do
-              reportSLn "" 1 $ "Finished " ++ render (pretty x) ++ "."
-              return a
-        in do
+      typeCheck file = do
+          let withMsgs m = do
+                chaseMsg "Checking" (Just $ filePath file)
+                x <- m
+                chaseMsg "Finished" Nothing
+                return x
+
           -- Do the type checking.
-          reportSLn "" 1 $ "Checking " ++ render (pretty x) ++ " (" ++ filePath file ++ ")."
+
           if includeStateChanges then do
-            r <- createInterface file x
+            r <- withMsgs $ createInterface file x
 
             -- Merge the signature with the signature for imported
             -- things.
@@ -329,7 +338,7 @@ getInterface' x includeStateChanges =
             addImportedThings sig Map.empty Set.empty
             setSignature emptySignature
 
-            ret (True, r)
+            return (True, r)
            else do
             ms       <- getImportPath
             emacs    <- envEmacs <$> ask
@@ -345,16 +354,15 @@ getInterface' x includeStateChanges =
             -- encountered in an imported module.
             r <- liftIO $ runTCM $
                    withImportPath ms $
-                   local (\e -> e { envEmacs              = emacs
-                                  , envModuleNestingLevel = nesting + 1
-                                  }) $ do
+                   withIncreasedModuleNestingLevel $
+                   local (\e -> e { envEmacs = emacs }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
                      modify $ \s -> s { stModuleToSource = mf }
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty
 
-                     r <- createInterface file x
+                     r <- withMsgs $ createInterface file x
 
                      mf        <- stModuleToSource <$> get
                      ds        <- getDecodedModules
@@ -373,9 +381,9 @@ getInterface' x includeStateChanges =
                   case r of
                     (_, Right _) -> do
                       r <- skip file
-                      ret r
+                      return r
                     _ ->
-                      ret (False, r)
+                      return (False, r)
 
 
 readInterface :: FilePath -> TCM (Maybe Interface)
