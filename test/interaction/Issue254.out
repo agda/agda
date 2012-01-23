@@ -1,7 +1,7 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Unit
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0))
 agda2_mode_code (last . (agda2-make-case-action '("remove zero x (cons .zero) | * = ?" "remove (suc y) x (cons .(suc y)) | * = ?")))
 agda2_mode_code (agda2-goals-action '(0))

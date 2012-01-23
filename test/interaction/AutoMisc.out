@@ -5,7 +5,7 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (n + suc m) ≡ suc (n + 
 ?2 : Σ A (λ x → Drink x → Π A Drink)
 ?3 : Vec .Y .n
 ?4 : (xs ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
 agda2_mode_code (last . (agda2-make-case-action '("lemma zero m = refl" "lemma (suc n) m = cong suc (lemma n m)")))
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4))
@@ -26,12 +26,12 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (n + suc m) ≡ suc (n + 
 ?1 : (n + m) ≡ (m + n)
 ?3 : Vec .Y .n
 ?4 : (xs ys : List .X) → (xs ++ ys) ≡ (ys ++ xs)
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 3 4))
 agda2_mode_code (last . (agda2-make-case-action '("map f [] = []" "map f (y ∷ y') = f y ∷ map f y'")))
 agda2_mode_code (agda2-goals-action '(0 1 3 4))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Auto*" "Listing disproof(s) 0-0
 0  (Fin (suc (suc zero))) (suc zero ∷ []) (zero ∷ []) (λ ())
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 3 4))

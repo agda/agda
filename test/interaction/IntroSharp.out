@@ -1,10 +1,10 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?0 : ∞ Set
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0))
 agda2_mode_code (agda2-give-action 0 "♯ ?")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Set
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(1))

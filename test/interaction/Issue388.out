@@ -1,12 +1,12 @@
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Set
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0))
 agda2_mode_code (agda2-info-action "*Error*" "Issue388.agda:11,11-16
 The index A is free in the following parameters:
   D A
-when checking that the expression ? has type Set")
+when checking that the expression ? has type Set" nil)
 agda2_mode_code (annotation-goto '("Issue388.agda" . 191))
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1

@@ -8,7 +8,7 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?4 : D z
 ?5 : Set
 ?6 : Maybe ?5
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
@@ -21,11 +21,11 @@ Unsolved metas at the following locations:
   Long.agda:28,7-11
   Long.agda:31,7-11
   Long.agda:33,13-17
-  Long.agda:34,7-11")
+  Long.agda:34,7-11" nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-info-action "*Error*" "
-Error: First load the file.")
+Error: First load the file." nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
@@ -37,10 +37,10 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?4 : D z
 ?5 : Set
 ?6 : Maybe ?5
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Constraints*" "")
+agda2_mode_code (agda2-info-action "*Constraints*" "" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
@@ -50,7 +50,7 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : Maybe Nat
 ?4 : D z
 ?5 : Set
 ?6 : Maybe ?5
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
 agda2_mode_code (last . (agda2-make-case-action '("eval (val z) = ?" "eval (val (s n)) = ?")))
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5 6))
@@ -63,10 +63,10 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?5 : Set
 ?6 : Maybe ?5
 ?7 : Nat
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 4 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Intro*" "Don't know which constructor to introduce of z or s")
+agda2_mode_code (agda2-info-action "*Intro*" "Don't know which constructor to introduce of z or s" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 4 5 6))
 agda2_mode_code (agda2-give-action 4 "d")
 agda2_mode_code (agda2-status-action "")
@@ -76,32 +76,32 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?5 : Set
 ?6 : Maybe ?5
 ?7 : Nat
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Inferred Type*" "Nat → Set")
+agda2_mode_code (agda2-info-action "*Inferred Type*" "Nat → Set" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Context*" "n : Nat")
+agda2_mode_code (agda2-info-action "*Context*" "n : Nat" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Current Goal*" "Nat")
+agda2_mode_code (agda2-info-action "*Current Goal*" "Nat" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Goal type etc.*" "Goal: Nat
 ————————————————————————————————————————————————————————————
-n : Nat")
+n : Nat" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Goal type etc.*" "Goal: Nat
 Have: Nat
 ————————————————————————————————————————————————————————————
-n : Nat")
+n : Nat" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Module contents*" "Modules
 Names
-  d : D z")
+  d : D z" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 3 5 6))
 agda2_mode_code (agda2-give-action 3 "d")
 agda2_mode_code (agda2-status-action "")
@@ -110,7 +110,7 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?5 : Set
 ?6 : Maybe ?5
 ?7 : Nat
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5 6))
 agda2_mode_code (agda2-give-action 6 "Just ?")
 agda2_mode_code (agda2-status-action "")
@@ -119,13 +119,13 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?5 : Set
 ?7 : Nat
 ?8 : ?5
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Normal Form*" "s′ z")
+agda2_mode_code (agda2-info-action "*Normal Form*" "s′ z" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Normal Form*" "s z")
+agda2_mode_code (agda2-info-action "*Normal Form*" "s z" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5 8))
 agda2_mode_code (agda2-give-action 8 "d")
 agda2_mode_code (agda2-status-action "")
@@ -133,50 +133,50 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?1 : Maybe Nat
 ?2 : Nat
 ?5 : Set
 ?7 : Nat
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (last . (agda2-solveAll-action '(2 "z" 5 "D z")))
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (agda2-info-action "*Error*" "1,1-4
 Nat !=< Maybe Nat of type Set
-when checking that the expression s z has type Maybe Nat")
+when checking that the expression s z has type Maybe Nat" nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Normal Form*" "?1")
+agda2_mode_code (agda2-info-action "*Normal Form*" "?1" nil)
 agda2_mode_code (agda2-goals-action '(7 1 2 5))
 agda2_mode_code (agda2-give-action 1 "Nothing")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?2 : Nat
 ?5 : Set
 ?7 : Nat
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(7 2 5))
 agda2_mode_code (agda2-give-action 7 "n")
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*All Goals*" "?2 : Nat
 ?5 : Set
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Inferred Type*" "Maybe Nat")
+agda2_mode_code (agda2-info-action "*Inferred Type*" "Maybe Nat" nil)
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Normal Form*" "Nothing")
+agda2_mode_code (agda2-info-action "*Normal Form*" "Nothing" nil)
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-info-action "*Error*" "1,4-5
 Not in scope:
   n at 1,4-5
-when scope checking n")
+when scope checking n" nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-info-action "*Normal Form*" "s z")
+agda2_mode_code (agda2-info-action "*Normal Form*" "s z" nil)
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Module contents*" "Modules
 Names
-  d : D z")
+  d : D z" nil)
 agda2_mode_code (agda2-goals-action '(2 5))
 agda2_mode_code (agda2-status-action "")
 agda2_mode_code (agda2-info-action "*Error*" "
@@ -187,7 +187,7 @@ Unsolved metas at the following locations:
   Long.agda:28,7-11
   Long.agda:31,7-11
   Long.agda:33,13-17
-  Long.agda:34,7-11")
+  Long.agda:34,7-11" nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1
 agda2_mode_code (agda2-status-action "")
@@ -199,6 +199,6 @@ Unsolved metas at the following locations:
   Long.agda:28,7-11
   Long.agda:31,7-11
   Long.agda:33,13-17
-  Long.agda:34,7-11")
+  Long.agda:34,7-11" nil)
 agda2_mode_code (agda2-status-action "")
 *** Exception: ExitFailure 1

@@ -6,5 +6,5 @@ agda2_mode_code (agda2-info-action "*All Goals*" "?0 : (x : Carrier) → x ∙ �
 ?3 : P
 ?4 : Q X
 ?5 : M₁.P Set
-")
+" nil)
 agda2_mode_code (agda2-goals-action '(0 1 2 3 4 5))
