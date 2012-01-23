@@ -375,7 +375,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
               inContext [] $ addCtxTel tel $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
-                  liftIO $ LocIO.putStrLn $ "eta expanding: " ++ show m ++ " --> " ++ show du
+                  reportSLn "" 0 $ "eta expanding: " ++ show m ++ " --> " ++ show du
                 noConstraints $ assignV m args u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
@@ -504,12 +504,11 @@ assign x args v = do
 	reportSLn "tc.meta.assign" 15 "passed occursCheck"
 	verboseS "tc.meta.assign" 30 $ do
 	  let n = size v
-	  when (n > 200) $ do
-	    d <- sep [ text "size" <+> text (show n)
---		     , nest 2 $ text "type" <+> prettyTCM t
-		     , nest 2 $ text "term" <+> prettyTCM v
-		     ]
-	    liftIO $ LocIO.print d
+	  when (n > 200) $ reportSDoc "" 0 $
+            sep [ text "size" <+> text (show n)
+--                , nest 2 $ text "type" <+> prettyTCM t
+                , nest 2 $ text "term" <+> prettyTCM v
+                ]
 
 	-- Check that the arguments are variables
 	ids <- checkAllVars args

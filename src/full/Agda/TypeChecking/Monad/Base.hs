@@ -6,6 +6,7 @@
 module Agda.TypeChecking.Monad.Base where
 
 import Control.Arrow
+import qualified Control.Concurrent as C
 import Control.Exception as E
 import Control.Monad.Error
 import Control.Monad.State
@@ -1195,6 +1196,29 @@ runTCM' m = do
   r <- liftIO $ newIORef initState
   unTCM m r initEnv
 
+-- | Runs the given computation in a separate thread, with /a copy/ of
+-- the current state and environment.
+--
+-- Note that Agda sometimes uses actual, mutable state. If the
+-- computation given to @forkTCM@ tries to /modify/ this state, then
+-- bad things can happen, because accesses are not mutually exclusive.
+-- The @forkTCM@ function has been added mainly to allow the thread to
+-- /read/ (a snapshot of) the current state in a convenient way.
+--
+-- Note also that exceptions which are raised in the thread are not
+-- propagated to the parent, so the thread should not do anything
+-- important.
+
+forkTCM :: TCM a -> TCM ()
+forkTCM m = do
+  s <- get
+  e <- ask
+  liftIO $ C.forkIO $ do
+    runTCM $ local (\_ -> e) $ do
+      put s
+      m
+    return ()
+  return ()
 
 
 

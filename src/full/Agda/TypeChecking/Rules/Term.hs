@@ -805,7 +805,7 @@ inferHead (A.Con (AmbQ [c])) = do
   Constructor{conPars = n} <- theDef <$> (instantiateDef =<< getConstInfo c)
 
   verboseS "tc.term.con" 7 $ do
-    liftIO $ LocIO.putStrLn $ unwords [show c, "has", show n, "parameters."]
+    reportSLn "" 0 $ unwords [show c, "has", show n, "parameters."]
 
   -- So when applying the constructor throw away the parameters.
   return (apply u . genericDrop n, a)
@@ -833,7 +833,7 @@ inferDef mkTerm x =
       ds <- mapM prettyTCM vs
       dx <- prettyTCM x
       dt <- prettyTCM $ defType d
-      liftIO $ LocIO.putStrLn $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
+      reportSLn "" 0 $ "inferred def " ++ unwords (show dx : map show ds) ++ " : " ++ show dt
     return (mkTerm x vs, defType d)
 
 -- | Check the type of a constructor application. This is easier than

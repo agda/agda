@@ -418,8 +418,8 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       dx   <- prettyTCM m
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection m
-      liftIO $ LocIO.putStrLn $ "checking where section " ++ show dx ++ " " ++ show dtel
-      liftIO $ LocIO.putStrLn $ "        actual tele: " ++ show dtel'
+      reportSLn "" 0 $ "checking where section " ++ show dx ++ " " ++ show dtel
+      reportSLn "" 0 $ "        actual tele: " ++ show dtel'
     x <- withCurrentModule m $ checkDecls ds >> ret
     return x
 checkWhere _ _ _ = __IMPOSSIBLE__
@@ -445,7 +445,7 @@ checkLHS ps t ret = do
     verbose 15 $ do
       dt  <- prettyTCM t
       dps <- mapM prettyA ps
-      liftIO $ LocIO.putStrLn $ "checking clause " ++ show dps ++ " : " ++ show dt
+      reportSLn "" 0 $ "checking clause " ++ show dps ++ " : " ++ show dt
 
     -- Save the state for later. (should this be done with the undo monad, or
     -- would that interfere with normal undo?)
@@ -465,19 +465,18 @@ checkLHS ps t ret = do
     verbose 10 $ do
         d0 <- A.showA ps0
         d1 <- A.showA ps1
-        liftIO $ do
-        LocIO.putStrLn $ "first check"
-        LocIO.putStrLn $ "  xs    = " ++ show xs
-        LocIO.putStrLn $ "  metas = " ++ show metas
-        LocIO.putStrLn $ "  ps0   = " ++ d0
-        LocIO.putStrLn $ "  ps1   = " ++ d1
+        reportSLn "" 0 $ "first check"
+        reportSLn "" 0 $ "  xs    = " ++ show xs
+        reportSLn "" 0 $ "  metas = " ++ show metas
+        reportSLn "" 0 $ "  ps0   = " ++ d0
+        reportSLn "" 0 $ "  ps1   = " ++ d1
 
     verbose 10 $ do
         is <- mapM (instantiateFull . flip MetaV []) metas
         ds <- mapM prettyTCM is
         dts <- mapM prettyTCM =<< mapM instantiateFull ts
-        liftIO $ LocIO.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
-        liftIO $ LocIO.putStrLn $ "  ts    = " ++ concat (intersperse ", " $ map show dts)
+        reportSLn "" 0 $ "  is    = " ++ concat (intersperse ", " $ map show ds)
+        reportSLn "" 0 $ "  ts    = " ++ concat (intersperse ", " $ map show dts)
 
     -- Now we forget that we ever type checked anything and type check the new
     -- pattern.
@@ -487,15 +486,15 @@ checkLHS ps t ret = do
     -- Check that the empty types are indeed empty
     mapM_ isEmptyType emptyTypes
 
-    verbose 10 $ liftIO $ do
-        LocIO.putStrLn $ "second check"
-        LocIO.putStrLn $ "  xs    = " ++ show xs
-        LocIO.putStrLn $ "  metas = " ++ show metas
+    verbose 10 $ do
+        reportSLn "" 0 $ "second check"
+        reportSLn "" 0 $ "  xs    = " ++ show xs
+        reportSLn "" 0 $ "  metas = " ++ show metas
 
     verbose 10 $ do
         is <- mapM (instantiateFull . flip MetaV []) metas
         ds <- mapM prettyTCM is
-        liftIO $ LocIO.putStrLn $ "  is    = " ++ concat (intersperse ", " $ map show ds)
+        reportSLn "" 0 $ "  is    = " ++ concat (intersperse ", " $ map show ds)
 
     -- Finally we type check the dot patterns and check that they match their
     -- instantiations.
@@ -537,8 +536,8 @@ checkLHS ps t ret = do
         verbose 20 $ do
             d <- prettyTCM ctx
             dt <- prettyTCM (substs sub a)
-            liftIO $ LocIO.putStrLn $ "context = " ++ show d
-            liftIO $ LocIO.putStrLn $ "type    = " ++ show dt
+            reportSLn "" 0 $ "context = " ++ show d
+            reportSLn "" 0 $ "type    = " ++ show dt
 
         reportLn 20 $ "finished type checking left hand side"
         ret rsub xs ps (substs sub a)
@@ -559,7 +558,7 @@ checkLHS ps t ret = do
             v <- lift $ instantiate (MetaV x [])
             lift $ verbose 6 $ do
                 d <- prettyTCM v
-                liftIO $ LocIO.putStrLn $ "new pattern for " ++ show x ++ " = " ++ show d
+                reportSLn "" 0 $ "new pattern for " ++ show x ++ " = " ++ show d
             case v of
                 -- Unsolved metas become variables
                 MetaV y _ | x == y  -> return $ A.WildP i
@@ -567,7 +566,7 @@ checkLHS ps t ret = do
                 _                   -> do
                     lift $ verbose 6 $ do
                         d <- prettyTCM =<< instantiateFull v
-                        liftIO $ LocIO.putStrLn $ show x ++ " := " ++ show d
+                        reportSLn "" 0 $ show x ++ " := " ++ show d
                     scope <- lift getScope
                     return $ A.DotP i (A.Underscore $ info scope)
                     where info s = Info.MetaInfo (getRange i) s Nothing
@@ -631,7 +630,7 @@ checkLHS ps t ret = do
                     xs   <- free t
                     verbose 20 $ do
                         d <- prettyTCM t
-                        liftIO $ LocIO.putStrLn $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
+                        reportSLn "" 0 $ "freeIn " ++ show x ++ " : " ++ show d ++ " are " ++ show xs
                     case intersect (map (fst . unArg) tel') xs of
                         [] -> return $ Arg h (x,t) : tel'
                         zs -> return $ ins zs (Arg h (x,t)) tel'
@@ -668,7 +667,7 @@ checkLHS ps t ret = do
                 par Hidden    s = "{" ++ s ++ "}"
                 par NotHidden s = "(" ++ s ++ ")"
             ds <- mapM pr ctx
-            liftIO $ LocIO.putStr $ unlines $ reverse ds
+            reportS "" 0 $ unlines $ reverse ds
 -}
 
 actualConstructor :: QName -> TCM QName

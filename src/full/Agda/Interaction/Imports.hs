@@ -108,7 +108,7 @@ scopeCheckImport x = do
     reportSLn "import.scope" 5 $ "Scope checking " ++ show x
     verboseS "import.scope" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      liftIO $ LocIO.putStrLn $
+      reportSLn "" 0 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
     i <- fst <$> getInterface x
     addImport x
@@ -399,7 +399,7 @@ readInterface file = do
   where
     handler e = case errError e of
       IOException _ e -> do
-        liftIO $ LocIO.putStrLn $ "IO exception: " ++ show e
+        reportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
                          -- TODO: What does this refer to? Please
                          -- document.
@@ -437,7 +437,7 @@ createInterface file mname = do
       "Creating interface for " ++ render (pretty mname) ++ "."
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
-      liftIO $ LocIO.putStrLn $
+      reportSLn "" 0 $
         "  visited: " ++ intercalate ", " (map (render . pretty) visited)
 
     previousHsImports <- getHaskellImports

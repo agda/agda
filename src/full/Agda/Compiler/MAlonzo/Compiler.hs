@@ -3,7 +3,6 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
-import qualified Control.Exception as E
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
@@ -15,12 +14,10 @@ import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Syntax as HS
 import System.Cmd
 import System.Directory
-import System.Exit
-import System.IO
 import System.Time
-import System.Process
 import System.FilePath hiding (normalise, (<.>))
 
+import Agda.Compiler.CallCompiler
 import Agda.Compiler.MAlonzo.Misc
 import Agda.Compiler.MAlonzo.Pretty
 import Agda.Compiler.MAlonzo.Primitives
@@ -527,31 +524,4 @@ callGHC i = do
   -- Note: Some versions of GHC use stderr for progress reports. For
   -- those versions of GHC we don't print any progress information
   -- unless an error is encountered.
-
-  -- In -v0 mode we throw away any progress information printed to
-  -- stdout.
-  silent <- not <$> hasVerbosity "" 1
-
-  reportSLn "" 1 $ "calling: " ++ L.intercalate " " (compiler : args)
-  (_, _, err, p) <-
-    liftIO $ createProcess
-               (proc compiler args)
-                 { std_err = CreatePipe
-                 , std_out = if silent then CreatePipe else Inherit
-                 }
-
-  errors <- liftIO $ case err of
-    Nothing  -> __IMPOSSIBLE__
-    Just err -> do
-      -- The handle should be in text mode.
-      hSetBinaryMode err False
-      liftIO $ LocIO.hGetContents err
-
-  exitcode <- liftIO $ do
-    -- Ensure that the output has been read before waiting for the
-    -- process.
-    E.evaluate (length errors)
-    waitForProcess p
-  case exitcode of
-    ExitFailure _ -> typeError (CompilationError errors)
-    _             -> return ()
+  callCompiler compiler args

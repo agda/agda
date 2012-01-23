@@ -19,6 +19,7 @@ import System.FilePath hiding (normalise)
 import System.Process hiding (env)
 
 import Paths_Agda
+import Agda.Compiler.CallCompiler
 import Agda.Compiler.MAlonzo.Pretty -- TODO: Move shared code to Compiler.*
 import Agda.Compiler.MAlonzo.Primitives (checkTypeOfMain)
 import Agda.Interaction.FindFile
@@ -256,10 +257,5 @@ callEpic' flags = do
           -- , "-trace"
           , "-i", dataDir </> "stdagda" <.> "c"
           ] ++ flags epicFlags
-    lift $ reportSLn "" 1 $
-      "calling: " ++ unwords (epic : epicCommand)
-    res <- liftIO $ system (unwords (epic : epicCommand))
-                  -- rawSystem epic epicCommand
-    case res of
-        ExitSuccess   -> return ()
-        ExitFailure i -> epicError $ "Epic returned " ++ show res ++ ", which should not happen. Please report this as a bug."
+
+    lift $ callCompiler epic epicCommand

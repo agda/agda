@@ -236,6 +236,16 @@ positivityCheckEnabled = not . optDisablePositivity <$> pragmaOptions
 typeInType :: TCM Bool
 typeInType = not . optUniverseCheck <$> pragmaOptions
 
+------------------------------------------------------------------------
+-- Verbosity
+
+-- Invariant (which we may or may not currently break): Debug
+-- printouts use one of the following functions:
+--
+--   reportS
+--   reportSLn
+--   reportSDoc
+
 getVerbosity :: TCM (Trie String Int)
 getVerbosity = optVerbose <$> pragmaOptions
 

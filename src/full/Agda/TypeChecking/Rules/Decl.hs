@@ -248,8 +248,8 @@ checkSection i x tel ds =
       dx   <- prettyTCM x
       dtel <- mapM prettyA tel
       dtel' <- prettyTCM =<< lookupSection x
-      liftIO $ LocIO.putStrLn $ "checking section " ++ show dx ++ " " ++ show dtel
-      liftIO $ LocIO.putStrLn $ "    actual tele: " ++ show dtel'
+      reportSLn "" 0 $ "checking section " ++ show dx ++ " " ++ show dtel
+      reportSLn "" 0 $ "    actual tele: " ++ show dtel'
     withCurrentModule x $ checkDecls ds
 
 checkModuleArity :: ModuleName -> Telescope -> [NamedArg A.Expr] -> TCM Telescope
