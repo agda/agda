@@ -156,6 +156,19 @@ isIndependent i = case independence i of
   Independent {} -> True
   Dependent   {} -> False
 
+-- | Changes the 'Interaction' so that its first action is to turn off
+-- all debug messages.
+
+makeSilent :: Interaction -> Interaction
+makeSilent i = i { command = do
+  opts <- commandLineOptions
+  TM.setCommandLineOptions $ opts
+    { optPragmaOptions =
+        (optPragmaOptions opts)
+          { optVerbose = Trie.singleton [] 0 }
+    }
+  command i }
+
 -- | Run a TCM computation in the current state. Should only
 --   be used for debugging.
 ioTCM_ :: TCM a -> IO a
@@ -221,7 +234,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
                        ex <- liftIO $ doesFileExist $ filePath current
                        setIncludeDirs is $
                          if ex then ProjectRoot current else CurrentDir
-                   command cmd
+                   command $ makeSilent cmd
            st <- get
            return (Right (x, st))
          ) (\e -> do
@@ -1062,19 +1075,6 @@ getCurrentFile = do
   case mf of
     Nothing     -> error "command: No file loaded!"
     Just (f, _) -> return (filePath f)
-
--- | Changes the 'Interaction' so that its first action is to turn off
--- all debug messages.
-
-makeSilent :: Interaction -> Interaction
-makeSilent i = i { command = do
-  opts <- commandLineOptions
-  TM.setCommandLineOptions $ opts
-    { optPragmaOptions =
-        (optPragmaOptions opts)
-          { optVerbose = Trie.singleton [] 0 }
-    }
-  command i }
 
 top_command' :: FilePath -> Interaction -> IO ()
 top_command' f cmd = ioTCM f Nothing $ makeSilent cmd
