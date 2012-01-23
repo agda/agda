@@ -210,7 +210,7 @@ solveConstraint_ (FindInScope m)      =
         let candsP3Names = nsList >>= snd
         candsP3Types <- mapM (typeOfConst     . anameName) candsP3Names
         candsP3Rel   <- mapM (relOfConst      . anameName) candsP3Names
-        candsP3FV    <- mapM (freeVarsToApply . anameName) candsP3Names
+        candsP3FV    <- mapM (constrFreeVarsToApply . anameName) candsP3Names
         rel          <- asks envRelevance
         let candsP3 = [(Def (anameName an) vs, t) |
                        (an, t, r, vs) <- zip4 candsP3Names candsP3Types candsP3Rel candsP3FV,
@@ -236,6 +236,20 @@ solveConstraint_ (FindInScope m)      =
                                        addConstraint $ FindInScope m
         iterCands [(1,concat cands)]
       where
+        constrFreeVarsToApply :: QName -> TCM Args
+        constrFreeVarsToApply n = do
+          args <- freeVarsToApply n
+          defn <- theDef <$> getConstInfo n
+          case defn of
+            -- drop parameters if it's a projection function...
+            Function{ funProjection = Just (rn,i) } -> do
+              ci <- theDef <$> getConstInfo rn
+              let rpi = case ci of Datatype { dataPars = d } -> d
+                                   Record {recPars = d } -> d
+                                   _ -> __IMPOSSIBLE__
+              let rp = fromInteger rpi
+              return $ genericTake (i - rp - 1) args ++ genericDrop (i - 1) args
+            _ -> return args
         getContextVars :: TCM [(Term, Type, Hiding)]
         getContextVars = do
           ctx <- getContext
