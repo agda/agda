@@ -30,6 +30,7 @@ import System.Console.GetOpt	(getOpt, usageInfo, ArgOrder(ReturnInOrder)
 import Agda.Utils.TestHelpers   ( runTests )
 import Agda.Utils.QuickCheck    ( quickCheck' )
 import Agda.Utils.FileName      ( AbsolutePath )
+import qualified Agda.Utils.IO.Locale as LocIO
 import Agda.Utils.Monad		( readM )
 import Agda.Utils.List               ( wordsBy )
 import Agda.Utils.String             ( indent )
@@ -219,8 +220,8 @@ unsafePragmaOptions opts =
 defaultPragmaOptionsSafe :: IO Bool
 defaultPragmaOptionsSafe
     | null unsafe = return True
-    | otherwise   = do putStrLn $ "Following pragmas are default but not safe: "
-                                  ++ intercalate ", " unsafe
+    | otherwise   = do LocIO.putStrLn $ "Following pragmas are default but not safe: "
+                                        ++ intercalate ", " unsafe
                        return False
   where unsafe = unsafePragmaOptions defaultPragmaOptions
 
