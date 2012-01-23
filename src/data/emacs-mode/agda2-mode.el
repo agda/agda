@@ -1125,6 +1125,11 @@ To do: dealing with semicolon separated decls."
   (interactive)
   (goto-char (agda2-decl-beginning)))
 
+(defun agda2-verbose (s)
+  "Does nothing.
+If Agda is run in verbose mode, then informational messages are
+wrapped in (agda2-verbose ...).")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs
 

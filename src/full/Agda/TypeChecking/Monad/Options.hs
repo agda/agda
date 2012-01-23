@@ -13,11 +13,13 @@ import System.FilePath
 import Agda.Syntax.Concrete
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
+import Agda.Interaction.EmacsCommand as Emacs
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.List
+import Agda.Utils.String
 import Agda.Utils.Trie (Trie)
 import qualified Agda.Utils.Trie as Trie
 
@@ -247,18 +249,37 @@ hasVerbosity k n | n < 0     = __IMPOSSIBLE__
 	m  = maximum $ 0 : Trie.lookupPath ks t
     return (n <= m)
 
+-- | If this command is run under the Emacs mode, then it formats the
+-- debug message in such a way that the Emacs mode can understand it.
+
+emacsifyDebugMessage :: String -- ^ The debug message.
+                     -> TCM String
+emacsifyDebugMessage s =
+  ifM (envEmacs <$> ask)
+      (return $ Emacs.response $
+         L [ A "agda2-verbose"
+           , A (quote s)
+           ])
+      (return s)
+
 -- | Precondition: The level must be non-negative.
 verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
 verboseS k n action = whenM (hasVerbosity k n) action
 
 reportS :: VerboseKey -> Int -> String -> TCM ()
-reportS k n s = verboseS k n $ liftIO $ LocIO.putStr s
+reportS k n s = verboseS k n $ do
+  s <- emacsifyDebugMessage s
+  liftIO $ LocIO.putStr s
 
 reportSLn :: VerboseKey -> Int -> String -> TCM ()
-reportSLn k n s = verboseS k n $ liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
+reportSLn k n s = verboseS k n $ do
+  s <- emacsifyDebugMessage s
+  liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
 
 reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
-reportSDoc k n d = verboseS k n $ liftIO . LocIO.print =<< d
+reportSDoc k n d = verboseS k n $ do
+  s <- emacsifyDebugMessage . show =<< d
+  liftIO $ LocIO.putStrLn s
 
 verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
 verboseBracket k n s m = do

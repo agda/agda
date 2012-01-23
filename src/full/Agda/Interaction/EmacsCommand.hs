@@ -6,6 +6,7 @@
 
 module Agda.Interaction.EmacsCommand
   ( Lisp(..)
+  , response
   , putResponse
   ) where
 
