@@ -246,6 +246,7 @@ solveConstraint_ (FindInScope m)      =
               ci <- theDef <$> getConstInfo rn
               let rpi = case ci of Datatype { dataPars = d } -> d
                                    Record {recPars = d } -> d
+                                   Axiom -> toInteger i - 1
                                    _ -> __IMPOSSIBLE__
               let rp = fromInteger rpi
               return $ genericTake (i - rp - 1) args ++ genericDrop (i - 1) args
