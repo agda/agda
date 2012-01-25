@@ -354,8 +354,9 @@ getInterface' x includeStateChanges =
             -- encountered in an imported module.
             r <- liftIO $ runTCM $
                    withImportPath ms $
-                   withIncreasedModuleNestingLevel $
-                   local (\e -> e { envEmacs = emacs }) $ do
+                   local (\e -> e { envEmacs              = emacs
+                                  , envModuleNestingLevel = nesting + 1
+                                  }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
                      modify $ \s -> s { stModuleToSource = mf }

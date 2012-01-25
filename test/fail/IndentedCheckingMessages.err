@@ -1,0 +1,12 @@
+Checking IndentedCheckingMessages (IndentedCheckingMessages.agda).
+ Checking A.M (A/M.agda).
+  Checking A.B.M (A/B/M.agda).
+  Finished A.B.M.
+ Finished A.M.
+Finished IndentedCheckingMessages.
+
+Termination checking failed for the following functions:
+  Foo
+Problematic calls:
+  Foo
+    (at IndentedCheckingMessages.agda:6,7-10)
