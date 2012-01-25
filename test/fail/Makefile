@@ -88,7 +88,7 @@ $(allstems) : % : %.err
 # Customised test cases.
 
 .PHONY:
-customised : customised/NestedProjectRoots
+customised : customised/NestedProjectRoots customised/FFI
 
 customised/NestedProjectRoots.err : %.err : %.agda
 	@echo "$*.agda"
