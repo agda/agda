@@ -240,14 +240,8 @@ instance ComputeOccurrences Clause where
       walk _    []        Bind{}     = __IMPOSSIBLE__
       walk _    (_ : _)   Body{}     = __IMPOSSIBLE__
 
-      match i (Arg _ _ VarP{}) = Map.empty
-      match i _                = Map.singleton (AnArg i) [Unknown]
-
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
-      patItem i (VarP _) = [Just (AnArg i)]
-      patItem i p        = replicate (nVars p) (Just (AnArg i))
-        -- if we're pattern matching it's not something the positivity checker needs to worry about
-        -- Actually it is: see issue 464
+      patItem i p = replicate (nVars p) (Just (AnArg i))
 
       nVars p = case p of
         VarP{}      -> 1
