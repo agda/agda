@@ -30,9 +30,9 @@ V = 0
 # which always changes error message because it mentions a line number in a 
 # Agda source file
 # 2010-09-25 reactivated
-excluded=./TwoCompilers.agda ./Issue138.agda ./RecordInMutual.agda
-#./Impossible.agda
-allagda=$(filter-out $(excluded),$(shell find . -name '*.agda' -o \( -name Imports -o -name customised \) -prune -a -name '*agda'))
+excluded=TwoCompilers.agda Issue138.agda RecordInMutual.agda
+#Impossible.agda
+allagda=$(filter-out $(excluded),$(shell ls *agda))
 allstems=$(patsubst %.agda,%,$(allagda))
 allout=$(patsubst %.agda,%.err,$(allagda))
 
