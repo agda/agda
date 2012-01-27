@@ -354,6 +354,10 @@ checkExpr e t =
         unScope e                      = e
 
     e <- scopedExpr e
+
+    highlightsOnTheFly <- (\e -> envEmacs e && envModuleNestingLevel e == 0) <$> ask
+    when highlightsOnTheFly $ highlightAsTypeChecked False e
+
     t <- case e of
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Arg h rel _) _ <- unEl t
@@ -734,9 +738,7 @@ checkExpr e t =
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args
 
-    -- TODO: Only when invoked from the Emacs mode, and some flag has
-    -- been turned on. Maybe not for every subexpression.
-    highlightAsTypeChecked e
+    when highlightsOnTheFly $ highlightAsTypeChecked True e
 
     -- reportSDoc "tc.term.expr.top" 5 $ text "Checked" <+> prettyTCM e <+> text "."
 

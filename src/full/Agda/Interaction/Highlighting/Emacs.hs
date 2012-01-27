@@ -4,12 +4,14 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( showHighlightingInfo
+  , showTCInfo
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
 import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.Highlighting.Range
+import Agda.Interaction.EmacsCommand
 import Agda.Syntax.Abstract (QName)
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
@@ -56,24 +58,21 @@ toAtoms m = map toAtom (otherAspects m) ++ toAtoms' (aspect m)
 showMetaInfo :: ModuleToSource
                 -- ^ Must contain a mapping for the definition site's
                 -- module, if any.
-             -> (Range, MetaInfo) -> String
+             -> (Range, MetaInfo) -> Lisp String
 showMetaInfo modFile (r, m) =
-     "("
-  ++ show (from r)
-  ++ " "
-  ++ show (to r)
-  ++ " ("
-  ++ concat (intersperse " " (toAtoms m))
-  ++ ")"
-  ++ (maybe " nil" ((" " ++) . quote) $ note m)
-  ++ defSite
-  ++ ")"
+    L $ ((map (A . show) [from r, to r])
+           ++
+         [L $ map A $ toAtoms m]
+           ++
+         (A $ maybe "nil" quote $ note m)
+         :
+          defSite)
   where
   defSite = case definitionSite m of
-    Nothing     -> ""
+    Nothing     -> []
     Just (m, p) -> case Map.lookup m modFile of
       Nothing -> __IMPOSSIBLE__
-      Just f  -> " (" ++ quote (filePath f) ++ " . " ++ show p ++ ")"
+      Just f  -> [Cons (A $ quote $ filePath f) (A $ show p)]
 
 -- | Shows syntax highlighting information in an Emacsy fashion.
 
@@ -81,10 +80,19 @@ showHighlightingInfo
   :: Maybe (HighlightingInfo, ModuleToSource)
      -- ^ The 'ModuleToSource' must contain a mapping for every
      -- definition site's module.
-  -> String
-showHighlightingInfo Nothing             = ""
+  -> Lisp String
+showHighlightingInfo Nothing             = L []
 showHighlightingInfo (Just (h, modFile)) =
-  "(" ++ unlines (map (showMetaInfo modFile) h) ++ ")"
+  L $ map (showMetaInfo modFile) h
+
+
+-- | Shows type checking information on the fly
+
+showTCInfo
+  :: HighlightingInfo -> [Lisp String]
+showTCInfo =
+  map (showMetaInfo __IMPOSSIBLE__)
+
 
 ------------------------------------------------------------------------
 -- All tests

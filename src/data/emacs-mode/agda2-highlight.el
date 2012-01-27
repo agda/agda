@@ -106,7 +106,13 @@ Also sets the default value of VARIABLE to GROUP."
              :background "red")
             (agda2-highlight-incomplete-pattern-face
              :foreground "black"
-             :background "purple")))
+             :background "purple")
+            (agda2-highlight-typechecks-face
+             :foreground "black"
+             :background "light steel blue")
+            (agda2-highlight-typechecked-face
+             :foreground "black"
+             :background "pale green")))
 	 ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
 		      (agda2-highlight-face-attributes
@@ -161,7 +167,13 @@ Also sets the default value of VARIABLE to GROUP."
 		       font-lock-function-name-face))
 		(cons 'agda2-highlight-error-face
 		      (agda2-highlight-face-attributes
-		       font-lock-warning-face)))))))
+		       font-lock-warning-face))
+        (cons 'agda2-highlight-typechecking-face
+              (agda2-highlight-face-attributes
+               font-lock-type-face))
+        (cons 'agda2-highlight-typechecking-face
+              (agda2-highlight-face-attributes
+               font-lock-preprocessor-face)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
@@ -293,6 +305,12 @@ buffers until you have restarted Emacs."
   "The face used for incomplete patterns. (Currently unused.)"
   :group 'agda2-highlight)
 
+(defface agda2-highlight-typechecks-face
+  '((t (:background "light steel blue"
+        :foreground "black")))
+  "The face used for code which is being type checked."
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-typechecked-face
   '((t (:background "pale green"
         :foreground "black")))
@@ -321,6 +339,7 @@ buffers until you have restarted Emacs."
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
+    (typechecks             . agda2-highlight-typechecks-face)
     (typechecked            . agda2-highlight-typechecked-face))
   "Alist mapping code aspects to the face used when displaying them.
 
@@ -346,8 +365,10 @@ The aspects currently recognised are the following:
 `string'                 Strings.
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
-`typechecked'            Used for incremental highlighting of code as
+`typechecks'             Used for incremental highlighting of code as
                            it is being type-checked.
+`typechecked'            Used for incremental highlighting of code as
+                           it has been type-checked.
 `unsolvedmeta'           Unsolved meta variables.
 
 The following aspect is ignored:
@@ -366,14 +387,30 @@ table). The face `font-lock-comment-face' is used for comments.")
   (setq annotation-bindings agda2-highlight-faces))
 
 (defun agda2-highlight-load (file &optional keep)
-  "Load syntax highlighting information from FILE.
-Old syntax highlighting information is first removed, unless KEEP
-is non-nil."
+  "Load syntax highlighting information from FILE. This function does
+nothing if FILE is emtpy."
   (let ((coding-system-for-read 'utf-8)
         ;; Ignore read-only status, otherwise this function may fail.
         (inhibit-read-only t))
-    (annotation-load-file file (lambda (anns) (not keep))
-                          "Click mouse-2 to jump to definition")))
+    (let ((cmds (with-temp-buffer
+                  (insert-file-contents file)
+                    (if (eq (point-min) (point-max))
+                        'empty-file
+                      (goto-char (point-min))
+                      (read (current-buffer))))))
+    (apply 'agda2-highlight-load-anns keep cmds))))
+
+(defun agda2-highlight-load-anns (keep &rest cmds)
+  "Load syntax highlighting information from the annotation list CMDS.
+Old syntax highlighting information is first removed, unless KEEP
+is non-nil. This function does nothing if the CMDS is empty."
+  (when (consp cmds)
+    (let ((coding-system-for-read 'utf-8)
+          ;; Ignore read-only status, otherwise this function may fail.
+          (inhibit-read-only t))
+      (apply 'annotation-load (lambda (anns) (not keep))
+                              "Click mouse-2 to jump to definition"
+                              cmds))))
 
 (defun agda2-highlight-clear nil
   "Remove all syntax highlighting added by `agda2-highlight-reload'."

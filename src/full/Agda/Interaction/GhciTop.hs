@@ -273,7 +273,7 @@ ioTCM current highlightingFile cmd = infoOnException $ do
                       ((\h -> (h, Map.empty)) <$>
                            generateErrorInfo (getRange e) s)
       UTF8.writeFile f $
-        showHighlightingInfo $
+        show $ pretty $ showHighlightingInfo $
           case r of
             Right (Right (mm, st')) -> do
               m  <- mm
@@ -964,7 +964,7 @@ cmd_compute_toplevel ignore =
 cmd_write_highlighting_info :: FilePath -> FilePath -> Interaction
 cmd_write_highlighting_info source target =
   Interaction (Independent Nothing) $ do
-    liftIO . UTF8.writeFile target . showHighlightingInfo =<< do
+    liftIO . UTF8.writeFile target . show . pretty . showHighlightingInfo =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
         False -> return Nothing

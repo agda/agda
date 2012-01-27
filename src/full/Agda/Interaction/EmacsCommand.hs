@@ -38,10 +38,11 @@ instance Pretty a => Show (Lisp a) where
   show = show . pretty
 
 -- | Formats a response command.
-
+--   Replaces '\n' with spaces to ensure that each commands is a single
+--   line.
 response :: Lisp String -> String
 response l =
-  map replaceNewLines $ show (text "agda2_mode_code" <+> pretty l)
+  map replaceNewLines $ show $ pretty l
   where
   replaceNewLines '\n' = ' '
   replaceNewLines c    = c

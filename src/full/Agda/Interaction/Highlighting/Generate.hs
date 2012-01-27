@@ -57,25 +57,19 @@ import System.IO
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
--- | Highlights the given thing as having been type-checked.
---
--- TODO: Only for the current module, etc.
+-- | Highlights the given thing as being / having been type-checked.
+--   Only used when run from 'ioTCM'
 
-highlightAsTypeChecked :: (P.HasRange r, MonadTCM tcm) => r -> tcm ()
-highlightAsTypeChecked x
+highlightAsTypeChecked :: (P.HasRange r, MonadTCM tcm) => Bool -> r -> tcm ()
+highlightAsTypeChecked typeChecked x
   | null file = return ()
-  | otherwise = liftIO $ do
-      dir    <- getTemporaryDirectory
-      (f, h) <- openTempFile dir "agda"
-      UTF8.hPutStr h $
-        showHighlightingInfo $ Just (file, __IMPOSSIBLE__)
-      hClose h
-      putResponse $
-        L [A "agda2-highlight-load", A (show f), Q (A "keep")]
+  | otherwise = liftIO $ putResponse $
+                  L (A "agda2-typechecking-emacs" : showTCInfo file)
   where
   file = compress $
-         several (rToR $ P.getRange x) $
-         mempty { otherAspects = [TypeChecked] }
+         several (rToR $ P.continuousPerLine $ P.getRange x) $
+         mempty { otherAspects = [aspect] }
+  aspect = if typeChecked then TypeChecked else TypeChecks
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and an optional string. The error range is

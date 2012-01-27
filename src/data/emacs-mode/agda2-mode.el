@@ -388,6 +388,7 @@ Special commands:
                         ;; killed, so GHCi is killed before the buffer
                         ;; is.
                         (set-buffer agda2-bufname)
+                        (remove-hook 'comint-preoutput-filter-functions 'agda2-ghci-filter)
                         (agda2-protect (comint-kill-subjob))
                         (kill-buffer agda2-bufname)))
                     ;; Make sure that the user's .ghci is not read.
@@ -410,6 +411,7 @@ Special commands:
                     (set-process-query-on-exit-flag agda2-process nil)))
   (apply 'agda2-call-ghci ":set" agda2-ghci-options)
   (agda2-call-ghci ":mod +" agda2-toplevel-module)
+  (add-hook 'comint-preoutput-filter-functions 'agda2-ghci-filter)
   (agda2-remove-annotations))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -464,35 +466,149 @@ returns the responses."
           (delete-file tempfile))))
     response))
 
+(defun agda2-ghci-filter (chunk)
+  "Filter the on-the-fly typechecking annotations away from the *ghci* buffer.
+They are treated on the side, the editing buffer being dynamically highlighted
+(depending on the value of 'agda2-highlighting-file', set in the function 'agda2-go').
+The incomplete lines (that do not end with a linefeed) of chunks are to be treated
+along with the next chunk, hence are stashed into the variable
+'agda2-ghci-chunk-incomplete' for a further treatement.
+The list of responses received from the TCM computation is dynamically updated.
+When the computation is over that is, when the GHCi prompt (without linefeed) is
+reached, the responses are executed and the highligting annotations may be reloaded,
+depending on the value of the variables set in function 'agda2-go'."
+  (let* ((lines (split-string chunk "\n"))
+         (agda2-highlighting-anns '())
+         (agda2-ghci-chunk "")
+         (tcann nil))
+    (when (consp lines)
+      (setq lines (cons (concat agda2-ghci-chunk-incomplete (car lines))
+                        (cdr lines))
+            agda2-ghci-chunk-incomplete (car (last lines)))
+      (dolist (line (butlast lines))
+        (let ((rline (read-from-string line))
+              (tcann nil))
+          (when (= (cdr rline) (length line))
+                (setq rline (car rline)
+                      tcann (string= (car-safe rline) "agda2-typechecking-emacs"))
+                (if tcann
+                    ; More efficient than a right-append, since rline is
+                    ; usually pretty short
+                    (setq agda2-highlighting-anns (append (reverse (cdr rline))
+                                                  agda2-highlighting-anns))
+                  ; All responses are S-expressions
+                  (with-current-buffer agda2-file-buffer
+                    (if (and (consp rline) (equal (car rline) 'last))
+                        (push (cdr rline) agda2-responses-latter)
+                      (push rline agda2-responses)))))
+          (unless tcann
+            (setq agda2-ghci-chunk (concat agda2-ghci-chunk line "\n")))))
+
+      (with-current-buffer agda2-file-buffer
+        (unwind-protect
+          (when agda2-highlight-flag
+            (apply 'agda2-highlight-load-anns t (reverse agda2-highlighting-anns)))))
+
+      (when (string-match comint-prompt-regexp agda2-ghci-chunk-incomplete)
+        ; The GHCi prompt has been reached that, hence the TCM computation is over.
+        (setq agda2-ghci-chunk (concat agda2-ghci-chunk agda2-ghci-chunk-incomplete)
+              agda2-buffer-external-status "")
+
+        (with-current-buffer agda2-file-buffer
+          (unwind-protect
+            ; Execute the responses
+            (let ((responses (append agda2-responses-latter agda2-responses)))
+              (when (and agda2-responses-expected (null responses))
+                (agda2-raise-ghci-error))
+              (when agda2-highlight-flag
+                (setq agda2-highlight-flag nil)
+                (agda2-highlight-load agda2-highlighting-file nil))
+                (agda2-exec-responses (reverse responses))
+              (when agda2-highlighting-temp (delete-file agda2-highlighting-file)))))))
+
+    agda2-ghci-chunk))
+
+; Desactivate highlighting if the buffer is edited during the typechecking.
+(add-hook 'first-change-hook
+  (lambda() (when (and (equal (current-buffer) agda2-file-buffer)
+                       agda2-highlight-flag)
+              (setq agda2-highlight-flag nil)
+              (message "\"%s\" has been modified. Interrupting highlighting now."
+                       agda2-file-buffer))))
+
+; The following variables are used by the filter process (comint hook
+; 'agda2-ghci-filter'). Their value is only modified by the function
+; 'agda2-go'.
+(defvar agda2-highlighting-temp nil
+  "If non-nil, the TCM computation stores (final) highlighting annotations
+into a temporary file.")
+(defvar agda2-highlighting-file nil
+  "The file name where the TCM computation stores (final) highlighting
+annotations.")
+(defvar agda2-highlight-flag nil
+  "If non-nil, shows the highlighting annotations. This flag is set to 't' at the
+beginning of `agda2-go', and set to 'nil' by the change hook.")
+(defvar agda2-responses-expected nil
+  "If this variable is set to non-nil, and no responses are received at the
+end of the TCM computation, then an error is raised.")
+(defvar agda2-ghci-chunk-incomplete ""
+  "If the chunk sent to the *ghci* buffer does not end with a linefeed, the last
+line is removed and stashed into this variable, for a further treatement.")
+(defvar agda2-responses '()
+  "The list of responses (deprived from on-the-fly highlighting annotations)
+return by TCM computation, in reverse order.")
+(defvar agda2-responses-latter '()
+  "The list of responses of the form ( last . responses ) return by TCM computation,
+in reverse order. They are to be executed after those in 'agda2-responses'.")
+(defvar agda2-file-buffer nil
+  "The buffer name of the agda file the user is editing.")
+
 (defun agda2-go (responses-expected highlight &rest args)
   "Executes commands in GHCi.
 Sends the list of strings ARGS to GHCi, waits for output and
 executes the responses, if any. If no responses are received, and
 RESPONSES-EXPECTED is non-nil, then an error is raised; otherwise
-the syntax highlighting information is reloaded (unless HIGHLIGHT
-is nil; if HIGHLIGHT is a string, then highlighting info is read
-from the corresponding file)."
-  (let* ((highlighting-temp (and highlight (not (stringp highlight))))
-         (highlighting (cond ((stringp highlight) highlight)
-                             (highlighting-temp (make-temp-file "agda2-mode")))))
-        (unwind-protect
-            (let ((responses
-                   (agda2-read-responses
-                    (apply 'agda2-call-ghci
-                           "ioTCM"
-                           (agda2-string-quote (buffer-file-name))
-                           (if highlighting-temp
-                               (concat "(Just "
-                                       (agda2-string-quote highlighting)
-                                       ")")
-                             "Nothing")
-                           "("
-                           (append args '(")"))))))
-                (when (and responses-expected (null responses))
-                  (agda2-raise-ghci-error))
-                (if highlight (agda2-highlight-load highlighting))
-                (agda2-exec-responses responses))
-          (if highlighting-temp (delete-file highlighting)))))
+the syntax agda2-highlighting information is removed then reloaded
+(unless HIGHLIGHT is nil; if HIGHLIGHT is a string, then
+agda2-highlighting info is read from the corresponding file).
+If the TCM computation outputs on-the-fly highlighting annotations, the
+corresponding code will be dynamically highlighted (unless HIGHLIGHT is nil)."
+  (make-local-variable 'agda2-highlighting-temp)
+  (make-local-variable 'agda2-highlighting-file)
+  (make-local-variable 'agda2-highlight-flag)
+  (make-local-variable 'agda2-responses-expected)
+  (make-local-variable 'agda2-responses)
+  (make-local-variable 'agda2-responses-latter)
+  (with-current-buffer agda2-buffer
+    (make-local-variable 'agda2-ghci-chunk-incomplete)
+    (setq agda2-ghci-chunk-incomplete ""))
+
+  (setq agda2-highlight-flag highlight
+        agda2-highlighting-temp (and highlight (not (stringp highlight)))
+        agda2-highlighting-file (cond ((stringp highlight) highlight)
+                                  (agda2-highlighting-temp
+                                    (make-temp-file "agda2-mode")))
+        agda2-responses '()
+        agda2-responses-latter '()
+        agda2-file-buffer (current-buffer)
+        agda2-responses-expected responses-expected)
+
+  (let*((ioTCM (list "ioTCM" (agda2-string-quote (buffer-file-name))
+                             (if agda2-highlighting-temp
+                                 (concat "(Just"
+                                         (agda2-string-quote agda2-highlighting-file)
+                                         ")")
+                               "Nothing")))
+        (args-ghci (append ioTCM (cons "(" args) '(")"))))
+    (setq agda2-buffer-external-status "[Waiting]")
+    (unwind-protect
+      ;(if highlight (agda2-highlight-clear))
+      (save-buffer)
+
+      (with-current-buffer agda2-buffer
+        (goto-char (point-max))
+        (insert (apply 'concat (agda2-intersperse " " args-ghci)))
+        (comint-send-input)))))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
   "Reads input from goal or minibuffer and sends command to Agda.
@@ -532,21 +648,6 @@ An error is raised if no responses are received."
              (format "%d" g)
              (if input-from-goal (agda2-goal-Range o) "noRange")
              (agda2-string-quote txt) args))))
-
-(defun agda2-read-responses (response)
-  "Returns a list containing the responses in the response string.
-Responses of the form (last . actual-response) are placed last in
-the returned list, with last stripped."
-  (let ((responses)
-        (former)
-        (latter))
-    (while (string-match "agda2_mode_code" response)
-      (setq response (substring response (match-end 0)))
-      (push (read response) responses))
-    (dolist (r responses (append former latter))
-      (if (and (consp r) (equal (car r) 'last))
-          (push (cdr r) latter)
-        (push r former)))))
 
 ;; Note that the following function is a security risk, since it
 ;; evaluates code without first inspecting it. The code (supposedly)
@@ -725,6 +826,7 @@ otherwise any previous text is removed before TEXT is inserted."
 (defun agda2-quit ()
   "Quit and clean up after agda2."
   (interactive)
+  (remove-hook 'comint-preoutput-filter-functions 'agda2-ghci-filter)
   (agda2-protect (progn (kill-buffer agda2-buffer)
                         (kill-buffer (current-buffer)))))
 

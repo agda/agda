@@ -130,29 +130,30 @@ bounds for the current (possibly narrowed) buffer, or END < START."
 (defun annotation-remove-annotations ()
   "Remove all text properties set by `annotation-annotate' in the current buffer.
 This function preserves the file modification stamp of the current buffer
-and does not modify the undo list.
+and does not modify the undo list. Also, all of the change hooks are temporary
+disabled.
 
 Note: This function may fail if there is read-only text in the buffer."
 
   ;; remove-text-properties fails for read-only text.
 
-  (annotation-preserve-mod-p-and-undo
-   (let ((pos (point-min))
-         pos2)
-     (while pos
-       (setq pos2 (next-single-property-change pos 'annotation-annotated))
-       (let ((props (get-text-property pos 'annotation-annotations)))
-         (when props
-           (remove-text-properties pos (or pos2 (point-max))
-              (mapcan (lambda (prop) (list prop nil))
-                      (append '(annotation-annotated annotation-annotations)
-                              props)))))
-       (setq pos pos2)))))
+  (let ((inhibit-modification-hooks t))
+    (annotation-preserve-mod-p-and-undo
+     (let ((pos (point-min))
+           pos2)
+       (while pos
+         (setq pos2 (next-single-property-change pos 'annotation-annotated))
+         (let ((props (get-text-property pos 'annotation-annotations)))
+           (when props
+             (remove-text-properties pos (or pos2 (point-max))
+                (mapcan (lambda (prop) (list prop nil))
+                        (append '(annotation-annotated annotation-annotations)
+                                props)))))
+         (setq pos pos2))))))
 
-(defun annotation-load-file (file removep &optional goto-help)
-  "Apply the annotations in FILE.
-If FILE is empty, then this function does nothing; otherwise the
-following comments apply.
+(defun annotation-load (removep goto-help &rest cmds)
+  "Apply the annotations in the current buffer, provided that
+the highlighting annotations are in the list CMDS.
 
 If (`funcall' REMOVEP anns) is non-nil, then all existing text
 properties set by `annotation-annotate' in the current buffer are
@@ -160,7 +161,7 @@ first removed. Here anns is a list containing all the
 annotations (third argument to `annotation-annotate') to be
 applied (in some order, with duplicates removed).
 
-FILE, if non-empty, should contain a list of lists (start end
+The argument CMDS should be a list of lists (start end
 anns &optional info goto). Text between start and end will be
 annotated with the annotations in the list anns (using
 `annotation-annotate'). If info and/or goto are present they will
@@ -172,28 +173,23 @@ GOTO-HELP. The intention is that the default help text should
 inform the user about the \"goto\" facility.
 
 This function preserves the file modification stamp of the
-current buffer and does not modify the undo list.
+current buffer and does not modify the undo list. Also, all of the
+change hooks are temporary disabled.
 
 Note: This function may fail if there is read-only text in the buffer."
   (annotation-preserve-mod-p-and-undo
-   (when (file-readable-p file)
-     (let ((cmds (with-temp-buffer
-                    (insert-file-contents file)
-                    (if (eq (point-min) (point-max))
-                        'empty-file
-                      (goto-char (point-min))
-                      (read (current-buffer))))))
-       (when (listp cmds)
-         (let ((anns (delete-dups
-                      (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds)))))
-           (if (funcall removep anns)
-               (annotation-remove-annotations))
-           (dolist (cmd cmds)
-             (destructuring-bind (start end anns &optional info goto) cmd
-               (let ((info (if (and (not info) (consp goto))
-                               goto-help
-                             info)))
-                 (annotation-annotate start end anns info goto))))))))))
+    (when (listp cmds)
+      (let ((anns (delete-dups
+                    (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds))))
+            (inhibit-modification-hooks t))
+        (if (funcall removep anns)
+            (annotation-remove-annotations))
+        (dolist (cmd cmds)
+          (destructuring-bind (start end anns &optional info goto) cmd
+            (let ((info (if (and (not info) (consp goto))
+                            goto-help
+                          info)))
+                  (annotation-annotate start end anns info goto))))))))
 
 (provide 'annotation)
 ;;; annotation.el ends here
