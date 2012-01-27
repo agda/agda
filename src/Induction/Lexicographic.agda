@@ -65,13 +65,11 @@ private
   -- The Ackermann function à la Rózsa Péter.
 
   ackermann : ℕ → ℕ → ℕ
-  ackermann m n = build [ N.rec-builder ⊗ N.rec-builder ]
-                        AckPred ack (m , n)
-    where
-    AckPred : ℕ × ℕ → Set
-    AckPred _ = ℕ
-
-    ack : ∀ p → (N.Rec ⊗ N.Rec) AckPred p → AckPred p
-    ack (zero  , n)     _                   = 1 + n
-    ack (suc m , zero)  (_         , ackm•) = ackm• 1
-    ack (suc m , suc n) (ack[1+m]n , ackm•) = ackm• ack[1+m]n
+  ackermann m n =
+    build [ N.rec-builder ⊗ N.rec-builder ]
+          (λ _ → ℕ)
+          (λ { (zero  , n)     _                   → 1 + n
+             ; (suc m , zero)  (_         , ackm•) → ackm• 1
+             ; (suc m , suc n) (ack[1+m]n , ackm•) → ackm• ack[1+m]n
+             })
+          (m , n)
