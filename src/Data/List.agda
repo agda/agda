@@ -207,7 +207,7 @@ span p (x ∷ xs) with p x
 break : ∀ {a} {A : Set a} → (A → Bool) → List A → (List A × List A)
 break p = span (not ∘ p)
 
-inits : ∀ {a} {A : Set a} →  List A → List (List A)
+inits : ∀ {a} {A : Set a} → List A → List (List A)
 inits []       = [] ∷ []
 inits (x ∷ xs) = [] ∷ map (_∷_ x) (inits xs)
 
