@@ -539,10 +539,10 @@ kind of error message (which cannot be parsed as a list), or
 exactly one command. Incomplete lines are stored in a
 buffer (`agda2-ghci-chunk-incomplete').
 
-Every command is run as soon as it has been parsed, unless it has
-the form \"(('last . priority) . cmd)\", in which case it is run
-by `agda2-ghci-run-last-commands' at the end, after the GHCi
-prompt has reappeared, after all non-last commands, and after all
+Every command is run by this function, unless it has the form
+\"(('last . priority) . cmd)\", in which case it is run by
+`agda2-ghci-run-last-commands' at the end, after the GHCi prompt
+has reappeared, after all non-last commands, and after all
 interactive highlighting is complete. The last commands can have
 different integer priorities; those with the lowest priority are
 executed first.
@@ -556,6 +556,10 @@ instructions in ARGS are applied to the Agda buffer, unless
 
 All commands are echoed to the *ghci* buffer, with the exception
 of the agda2-typechecking-emacs ones.
+
+The non-last commands are run in the order in which they appear,
+with the exception of the agda2-typechecking-emacs ones, which
+are run before the other non-last commands.
 
 When the prompt has been reached an error is raised if
 `agda2-responses-expected' is non-nil and no commands have
@@ -571,6 +575,9 @@ reloaded from `agda2-highlighting-file', unless
           ;; Interactive highlighting annotations found in the current
           ;; chunk (reversed).
           (highlighting-anns ())
+
+          ;; Non-last commands found in the current chunk (reversed).
+          (non-last-commands ())
 
           ;; The text that is echoed to the *ghci* buffer.
           (echoed-text ""))
@@ -612,16 +619,19 @@ reloaded from `agda2-highlighting-file', unless
                   (setq highlighting-anns
                         (append (reverse (cdr cmd)) highlighting-anns))
 
-                ;; Run the command unless it is a "last" command.
+                ;; Store the command.
                 (if (equal 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
                           agda2-last-responses)
-                  (agda2-exec-responses `(,cmd)))))))
+                  (push cmd non-last-commands))))))
 
         ;; Apply interactive highlighting annotations.
         (when agda2-highlight-in-progress
           (apply 'agda2-highlight-load-anns 'keep
                  (reverse highlighting-anns)))
+
+        ;; Run non-last commands.
+        (agda2-exec-responses (nreverse non-last-commands))
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
