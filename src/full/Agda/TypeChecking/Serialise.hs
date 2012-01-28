@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20111026 * 10 + 0
+currentInterfaceVersion = 20120127 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 

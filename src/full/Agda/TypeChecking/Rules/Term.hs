@@ -355,10 +355,15 @@ checkExpr e t =
 
     e <- scopedExpr e
 
-    highlightsOnTheFly <- (\e -> envEmacs e && envModuleNestingLevel e == 0) <$> ask
-    when highlightsOnTheFly $ highlightAsTypeChecked False e
+    let interactiveHighlight e m =
+          ifM (envInteractiveHighlighting <$> ask)
+              (do highlightAsTypeChecked False e
+                  x <- m
+                  highlightAsTypeChecked True e
+                  return x)
+              m
 
-    t <- case e of
+    interactiveHighlight e $ case e of
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Arg h rel _) _ <- unEl t
             , not (hiddenLambdaOrHole h e)
@@ -737,12 +742,6 @@ checkExpr e t =
               -- Subcase: defined symbol or variable.
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args
-
-    when highlightsOnTheFly $ highlightAsTypeChecked True e
-
-    -- reportSDoc "tc.term.expr.top" 5 $ text "Checked" <+> prettyTCM e <+> text "."
-
-    return t
 
 domainFree h rel x =
   A.DomainFull $ A.TypedBindings r $ Arg h rel $ A.TBind r [x] $ A.Underscore info

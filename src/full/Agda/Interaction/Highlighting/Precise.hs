@@ -77,11 +77,10 @@ data OtherAspect
     -- ^ When this constructor is used it is probably a good idea to
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
-    -- ^ Used for incremental highlighting of code as it is being
-    -- type-checked.
+    -- ^ Code which is being type-checked.
   | TypeChecked
-    -- ^ Used for incremental highlighting of code once it has been
-    -- type-checked.
+    -- ^ Code which has been type-checked but not yet properly
+    -- highlighted.
     deriving (Eq, Show, Enum, Bounded, Typeable, Data)
 
 -- | Meta information which can be associated with a

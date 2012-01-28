@@ -34,6 +34,7 @@ import Data.Maybe
 import Data.IORef
 import Data.Function
 import Control.Applicative
+import qualified Control.Exception as E
 
 import Agda.Utils.Fresh
 import Agda.Utils.Monad
@@ -90,6 +91,7 @@ import Agda.Interaction.MakeCase
 import qualified Agda.Interaction.BasicOps as B
 import Agda.Interaction.Highlighting.Emacs
 import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import qualified Agda.Interaction.Imports as Imp
 
 import Agda.Termination.TermCheck
@@ -204,12 +206,13 @@ ioTCM :: FilePath
          -- ^ The current file. If this file does not match
          -- 'theCurrentFile', and the 'Interaction' is not
          -- \"independent\", then an error is raised.
-      -> Maybe FilePath
-         -- ^ Syntax highlighting information will be written to this
-         -- file, if any.
+      -> Bool
+         -- ^ Should syntax highlighting information be produced? In
+         -- that case this function will generate an Emacs command
+         -- which interprets this information.
       -> Interaction
       -> IO ()
-ioTCM current highlightingFile cmd = infoOnException $ do
+ioTCM current highlighting cmd = infoOnException $ do
 #if MIN_VERSION_base(4,2,0)
   -- Ensure that UTF-8 is used for communication with the Emacs mode.
   IO.hSetEncoding IO.stdout IO.utf8
@@ -223,7 +226,10 @@ ioTCM current highlightingFile cmd = infoOnException $ do
   -- Run the computation.
   r <- runTCM $ catchError (do
            put st
-           x  <- withEnv (initEnv { envEmacs = True }) $ do
+           x  <- withEnv (initEnv
+                            { envEmacs                   = True
+                            , envInteractiveHighlighting = highlighting
+                            }) $ do
                    case independence cmd of
                      Dependent             -> ensureFileLoaded current
                      Independent Nothing   ->
@@ -265,25 +271,22 @@ ioTCM current highlightingFile cmd = infoOnException $ do
             }
 
   -- Write out syntax highlighting info.
-  case highlightingFile of
-    Nothing -> return ()
-    Just f  -> do
-      let errHi e s = errHighlighting e
-                        `mplus`
-                      ((\h -> (h, Map.empty)) <$>
-                           generateErrorInfo (getRange e) s)
-      UTF8.writeFile f $
-        show $ pretty $ showHighlightingInfo $
-          case r of
-            Right (Right (mm, st')) -> do
-              m  <- mm
-              mi <- Map.lookup (SA.toTopLevelModuleName m)
-                               (stVisitedModules st')
-              return ( iHighlighting $ miInterface mi
-                     , stModuleToSource st'
-                     )
-            Right (Left (_ , s, e)) -> errHi e (Just s)
-            Left e                  -> errHi e Nothing
+  when highlighting $ do
+    let errHi e s = errHighlighting e
+                      `mplus`
+                    ((\h -> (h, Map.empty)) <$>
+                         generateErrorInfo (getRange e) s)
+    liftIO $ tellEmacsToUpdateHighlighting $
+      case r of
+        Right (Right (mm, st')) -> do
+          m  <- mm
+          mi <- Map.lookup (SA.toTopLevelModuleName m)
+                           (stVisitedModules st')
+          return ( iHighlighting $ miInterface mi
+                 , stModuleToSource st'
+                 )
+        Right (Left (_ , s, e)) -> errHi e (Just s)
+        Left e                  -> errHi e Nothing
 
   -- If an error was encountered, display an error message and exit
   -- with an error code; otherwise, inform Emacs about the buffer's
@@ -945,14 +948,16 @@ cmd_compute_toplevel ignore =
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | @cmd_write_highlighting_info source target@ writes syntax
--- highlighting information for the module in @source@ into @target@.
+-- | @cmd_write_highlighting_info source@ writes syntax highlighting
+-- information for the module in @source@ into a freshly created
+-- temporary file, and asks Emacs to load highlighting info from this
+-- file.
 --
 -- If the module does not exist, or its module name is malformed or
 -- cannot be determined, or the module has not already been visited,
 -- or the cached info is out of date, then the representation of \"no
--- highlighting information available\" is instead written to
--- @target@.
+-- highlighting information available\" is instead written to the
+-- file.
 --
 -- This command is used to load syntax highlighting information when a
 -- new file is opened, and it would probably be annoying if jumping to
@@ -961,10 +966,10 @@ cmd_compute_toplevel ignore =
 -- command uses the current include directories, whatever they happen
 -- to be.
 
-cmd_write_highlighting_info :: FilePath -> FilePath -> Interaction
-cmd_write_highlighting_info source target =
+cmd_write_highlighting_info :: FilePath -> Interaction
+cmd_write_highlighting_info source =
   Interaction (Independent Nothing) $ do
-    liftIO . UTF8.writeFile target . show . pretty . showHighlightingInfo =<< do
+    liftIO . tellEmacsToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
         False -> return Nothing
@@ -984,6 +989,22 @@ cmd_write_highlighting_info source target =
                else
                 return Nothing
     return Nothing
+
+-- | Tell Emacs to highlight the code using the given highlighting
+-- info.
+
+tellEmacsToUpdateHighlighting ::
+  Maybe (HighlightingInfo, ModuleToSource) -> IO ()
+tellEmacsToUpdateHighlighting info = do
+  dir <- getTemporaryDirectory
+  f   <- E.bracket (IO.openTempFile dir "agda2-mode")
+                   (IO.hClose . snd) $ \ (f, h) -> do
+           UTF8.hPutStr h $ showHighlightingInfo info
+           return f
+  putResponse $
+    L [ A "agda2-highlight-load-and-delete"
+      , A (quote f)
+      ]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 
@@ -1077,10 +1098,10 @@ getCurrentFile = do
     Just (f, _) -> return (filePath f)
 
 top_command' :: FilePath -> Interaction -> IO ()
-top_command' f cmd = ioTCM f Nothing $ makeSilent cmd
+top_command' f cmd = ioTCM f False $ makeSilent cmd
 
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
   -- TODO: Test with other ranges as well.
-  ioTCM f Nothing $ makeSilent $ cmd i noRange s
+  ioTCM f False $ makeSilent $ cmd i noRange s

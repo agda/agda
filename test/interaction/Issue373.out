@@ -1,5 +1,5 @@
-agda2_mode_code (agda2-status-action "")
-agda2_mode_code (agda2-status-action "Checked")
-agda2_mode_code (agda2-info-action "*Compilation result*" "The module was successfully compiled." nil)
-agda2_mode_code (agda2-goals-action '())
+(agda2-status-action "")
+(agda2-status-action "Checked")
+(agda2-info-action "*Compilation result*" "The module was successfully compiled." nil)
+(agda2-goals-action '())
 ok

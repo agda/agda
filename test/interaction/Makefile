@@ -16,27 +16,33 @@ Tests=$(patsubst %.agda,%.cmp,$(AgdaFiles))
 
 default : $(Tests)
 
+export TMPDIR=highlighting.tmp
+
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 					 echo 'let currentFile = "$*.agda"'; \
 					 echo "let top_command = top_command' currentFile" ) \
-				 | cat - $*.in | ghc --interactive -v0 | sed -e 's"$(pwd)""g'
+				 | cat - $*.in | ghc --interactive -v0 \
+				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'
 
 cleanup_Issue373 = rm -rf Issue373 MAlonzo
-cleanup_Long = rm -f highlighting.tmp
 
 %.test : %.in %.agda
 	@$(run_test)
 
 # No recorded output
 $(OutFiles) : %.out : %.agda %.in
+	@-mkdir $(TMPDIR)
+	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
 	@echo "=== Output for $* ==="
 	@$(run_test) > $@
 	@cat $@
 	@echo "=== End of output ==="
+	@rm -rf $(TMPDIR)
 
 # Comparing output
 $(Tests) : %.cmp : %.out
+	@-mkdir $(TMPDIR)
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
@@ -53,4 +59,5 @@ $(Tests) : %.cmp : %.out
 			false; \
 	 fi
 	@$(cleanup_$*)
+	@rm -rf $(TMPDIR)
 

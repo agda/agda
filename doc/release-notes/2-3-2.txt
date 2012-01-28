@@ -35,35 +35,14 @@ Compiler backends
 Tools
 =====
 
-Interface
-=========
+* Asynchronous Emacs mode.
 
-* The Emacs interface has been made asynchronous: One has now the
-possibility to use Emacs while waiting for ioTCM computations (eg,
-type-checking). Also, terms are highlighted on the fly (in the fashion
-of Proof-General).
-  New faces have been introduced in the following face groups:
+  One can now use Emacs while a buffer is type-checked. If the buffer
+  is edited while the type-checker runs, then syntax highlighting will
+  not be updated when type-checking is complete.
 
-    - Default setting:
-        agda2-highlight-typechecks-face
-        agda2-highlight-typechecked-face
+* Interactive syntax highlighting.
 
-    - (Approximation of) Conor McBride's colour scheme:
-        agda2-highlight-typechecks-face
-        agda2-highlight-typechecked-face
-
-    - Simplified highlighting and default font-lock faces:
-        font-lock-type-face
-        font-lock-preprocessor-face
-        
-  Highlighting annotations are printed on-the-fly (as single line
-S-expressions) during a type-checking computation wrapped into `ioTCM'.
-They are filtered away from the *ghci* buffer, and terms are highlighted
-on-the-fly; Using the first of the above faces while being type-checked,
-and the second one afterwards. When getting the ghci prompt, responses
-are read and executed as before.
-  
-  Asynchronicity gives the user the possibility to edit the .agda file
-during type-checking. If he/she does so, then incremental highlighting is
-interrupted (since the file that is being type-checked / which the
-highlighting annotations refer to is prior to the modifications).
+  The syntax highlighting is updated while a buffer is type-checked.
+  This interactive highlighting is currently rather crude, it just
+  marks that a term is being type-checked, or has been type-checked.

@@ -4,7 +4,7 @@
 
 module Agda.Interaction.Highlighting.Emacs
   ( showHighlightingInfo
-  , showTCInfo
+  , lispifyHighlightingInfo
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
@@ -80,19 +80,19 @@ showHighlightingInfo
   :: Maybe (HighlightingInfo, ModuleToSource)
      -- ^ The 'ModuleToSource' must contain a mapping for every
      -- definition site's module.
-  -> Lisp String
-showHighlightingInfo Nothing             = L []
-showHighlightingInfo (Just (h, modFile)) =
+  -> String
+showHighlightingInfo Nothing             = show (L [] :: Lisp String)
+showHighlightingInfo (Just (h, modFile)) = show $
   L $ map (showMetaInfo modFile) h
 
+-- | Turns syntax highlighting information into a list of
+-- S-expressions.
+--
+-- Precondition: The 'definitionSite's in the highlighting information
+-- must be @Nothing@.
 
--- | Shows type checking information on the fly
-
-showTCInfo
-  :: HighlightingInfo -> [Lisp String]
-showTCInfo =
-  map (showMetaInfo __IMPOSSIBLE__)
-
+lispifyHighlightingInfo :: HighlightingInfo -> [Lisp String]
+lispifyHighlightingInfo = map (showMetaInfo __IMPOSSIBLE__)
 
 ------------------------------------------------------------------------
 -- All tests

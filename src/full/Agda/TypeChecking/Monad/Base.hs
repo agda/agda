@@ -780,6 +780,10 @@ data TCEnv =
                 -- ^ what we're doing at the moment
           , envEmacs :: Bool
                 -- ^ True when called from the Emacs mode.
+          , envInteractiveHighlighting :: Bool
+                -- ^ Should interactive highlighting information be
+                --   produced? This flag is set to @False@ when
+                --   imported modules are type-checked.
           , envModuleNestingLevel :: Integer
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
@@ -809,6 +813,7 @@ initEnv = TCEnv { envContext	         = []
                 , envRange                  = noRange
                 , envCall                   = Nothing
                 , envEmacs                  = False
+                , envInteractiveHighlighting = False
                 , envModuleNestingLevel     = 0
 		}
 

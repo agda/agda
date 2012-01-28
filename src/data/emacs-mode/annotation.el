@@ -116,44 +116,47 @@ bounds for the current (possibly narrowed) buffer, or END < START."
               (setq pos mid))))))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
-  "Run CODE preserving both the undo data and the modification bit."
+  "Run CODE preserving both the undo data and the modification bit.
+Modification hooks are also disabled."
   (let ((modp (make-symbol "modp")))
   `(let ((,modp (buffer-modified-p))
          ;; Don't check if the file is being modified by some other process.
          (buffer-file-name nil)
          ;; Don't record those changes on the undo-log.
-         (buffer-undo-list t))
+         (buffer-undo-list t)
+         ;; Don't run modification hooks.
+         (inhibit-modification-hooks t))
      (unwind-protect
          (progn ,@code)
        (restore-buffer-modified-p ,modp)))))
 
 (defun annotation-remove-annotations ()
-  "Remove all text properties set by `annotation-annotate' in the current buffer.
-This function preserves the file modification stamp of the current buffer
-and does not modify the undo list. Also, all of the change hooks are temporary
-disabled.
+  "Remove all text properties set by `annotation-annotate'.
+In the current buffer. This function preserves the file
+modification stamp of the current buffer, does not modify the
+undo list, and temporarily disables all modification hooks.
 
-Note: This function may fail if there is read-only text in the buffer."
+Note: This function may fail if there is read-only text in the
+buffer."
 
   ;; remove-text-properties fails for read-only text.
 
-  (let ((inhibit-modification-hooks t))
-    (annotation-preserve-mod-p-and-undo
-     (let ((pos (point-min))
-           pos2)
-       (while pos
-         (setq pos2 (next-single-property-change pos 'annotation-annotated))
-         (let ((props (get-text-property pos 'annotation-annotations)))
-           (when props
-             (remove-text-properties pos (or pos2 (point-max))
-                (mapcan (lambda (prop) (list prop nil))
-                        (append '(annotation-annotated annotation-annotations)
-                                props)))))
-         (setq pos pos2))))))
+  (annotation-preserve-mod-p-and-undo
+   (let ((pos (point-min))
+         pos2)
+     (while pos
+       (setq pos2 (next-single-property-change pos 'annotation-annotated))
+       (let ((props (get-text-property pos 'annotation-annotations)))
+         (when props
+           (remove-text-properties
+            pos (or pos2 (point-max))
+            (mapcan (lambda (prop) (list prop nil))
+                    (append '(annotation-annotated annotation-annotations)
+                            props)))))
+       (setq pos pos2)))))
 
 (defun annotation-load (removep goto-help &rest cmds)
-  "Apply the annotations in the current buffer, provided that
-the highlighting annotations are in the list CMDS.
+  "Apply highlighting annotations in CMDS in the current buffer.
 
 If (`funcall' REMOVEP anns) is non-nil, then all existing text
 properties set by `annotation-annotate' in the current buffer are
@@ -161,8 +164,8 @@ first removed. Here anns is a list containing all the
 annotations (third argument to `annotation-annotate') to be
 applied (in some order, with duplicates removed).
 
-The argument CMDS should be a list of lists (start end
-anns &optional info goto). Text between start and end will be
+The argument CMDS should be a list of lists (start end anns
+&optional info goto). Text between start and end will be
 annotated with the annotations in the list anns (using
 `annotation-annotate'). If info and/or goto are present they will
 be used as the corresponding arguments to `annotation-annotate'.
@@ -173,15 +176,15 @@ GOTO-HELP. The intention is that the default help text should
 inform the user about the \"goto\" facility.
 
 This function preserves the file modification stamp of the
-current buffer and does not modify the undo list. Also, all of the
-change hooks are temporary disabled.
+current buffer, does not modify the undo list, and temporarily
+disables all modification hooks.
 
-Note: This function may fail if there is read-only text in the buffer."
+Note: This function may fail if there is read-only text in the
+buffer."
   (annotation-preserve-mod-p-and-undo
     (when (listp cmds)
       (let ((anns (delete-dups
-                    (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds))))
-            (inhibit-modification-hooks t))
+                    (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds)))))
         (if (funcall removep anns)
             (annotation-remove-annotations))
         (dolist (cmd cmds)

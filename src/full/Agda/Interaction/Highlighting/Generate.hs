@@ -57,14 +57,20 @@ import System.IO
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
--- | Highlights the given thing as being / having been type-checked.
---   Only used when run from 'ioTCM'
+-- | Highlights the given thing as being/having been type-checked.
 
-highlightAsTypeChecked :: (P.HasRange r, MonadTCM tcm) => Bool -> r -> tcm ()
+highlightAsTypeChecked
+  :: (P.HasRange r, MonadTCM tcm)
+  => Bool
+     -- ^ Has the code been type-checked?
+  -> r
+     -- ^ The thing.
+  -> tcm ()
 highlightAsTypeChecked typeChecked x
   | null file = return ()
   | otherwise = liftIO $ putResponse $
-                  L (A "agda2-typechecking-emacs" : showTCInfo file)
+                  L (A "agda2-typechecking-emacs" :
+                     lispifyHighlightingInfo file)
   where
   file = compress $
          several (rToR $ P.continuousPerLine $ P.getRange x) $
