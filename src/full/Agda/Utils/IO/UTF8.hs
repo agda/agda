@@ -6,7 +6,6 @@ module Agda.Utils.IO.UTF8
   ( readTextFile
   , Agda.Utils.IO.UTF8.hPutStr
   , Agda.Utils.IO.UTF8.writeFile
-  , writeFileAndSync
   ) where
 
 #if MIN_VERSION_base(4,2,0)
@@ -14,13 +13,7 @@ import qualified System.IO as IO
 #else
 import qualified System.IO.UTF8 as UTF8
 #endif
-import System.FilePath
-#if defined(VERSION_unix)
-import System.Posix.Fsync
-import System.Posix.IO
-#endif
 import Control.Applicative
-import Control.Exception
 
 import Agda.Utils.Unicode
 
@@ -55,23 +48,9 @@ hPutStr = UTF8.hPutStr
 -- endings is used.
 
 writeFile :: FilePath -> String -> IO ()
+#if MIN_VERSION_base(4,2,0)
 writeFile file s = IO.withFile file IO.WriteMode $ \h -> do
   hPutStr h s
-
--- | Writes the string to the file (like 'writeFile'), and, when done
--- writing, performs an @fsync@ on the file as well as its parent
--- directory (on certain platforms).
-
-writeFileAndSync :: FilePath -> String -> IO ()
-#if defined(VERSION_unix)
-writeFileAndSync file s = do
-  IO.withFile file IO.WriteMode $ \h -> do
-    hPutStr h s
-    fsync =<< handleToFd h
-  bracket
-     (openFd (takeDirectory file) ReadOnly Nothing defaultFileFlags)
-     closeFd
-     fsync
 #else
-writeFileAndSync = writeFile
+writeFile = UTF8.writeFile
 #endif
