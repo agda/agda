@@ -422,6 +422,9 @@ Special commands:
   (with-current-buffer agda2-process-buffer
       (add-hook 'comint-preoutput-filter-functions
                 'agda2-ghci-filter
+                nil 'local)
+      (add-hook 'comint-output-filter-functions
+                'agda2-ghci-run-last-commands
                 nil 'local))
   (agda2-remove-annotations))
 
@@ -490,7 +493,8 @@ exist, then an attempt is made to restart the process."
 (make-variable-buffer-local 'agda2-ghci-chunk-incomplete)
 
 (defvar agda2-last-responses nil
-  "Response commands which should be run after other commands.")
+  "Response commands which should be run after other commands.
+The command which arrived last is stored first in the list.")
 (make-variable-buffer-local 'agda2-last-responses)
 
 (defvar agda2-file-buffer nil
@@ -534,10 +538,13 @@ buffer (`agda2-ghci-chunk-incomplete').
 
 Every command is run as soon as it has been parsed, unless it has
 the form \"(('last . priority) . cmd)\", in which case it is run
-at the end, after the GHCi prompt has reappeared, after all
-non-last commands, and after all interactive highlighting is
-complete. The last commands can have different integer
-priorities; those with the lowest priority are executed first.
+by `agda2-ghci-run-last-commands' at the end, after the GHCi
+prompt has reappeared, after all non-last commands, and after all
+interactive highlighting is complete. The last commands can have
+different integer priorities; those with the lowest priority are
+executed first.
+
+Non-last commands should not call the Agda process.
 
 Commands of the form \"(agda2-typechecking-emacs ARGS)\" are
 interpreted by this filter function; the highlighting
@@ -625,24 +632,23 @@ reloaded from `agda2-highlighting-file', unless
                 agda2-ghci-chunk-incomplete ""
                 agda2-highlight-in-progress nil)
 
-          ;; Execute the last commands in the right order.
-          ;;
-          ;; TODO: Some of these commands invoke the Agda process,
-          ;; which means that agda2-ghci-filter may be called again
-          ;; before the current instance has finished. In this case
-          ;; the "echoed text" may not actually be written to the
-          ;; *ghci* buffer (and other things—worse things—could, in
-          ;; principle, happen).
-          (agda2-exec-responses
-           (mapcar 'cdr
-                   (sort (nreverse agda2-last-responses)
-                         (lambda (x y) (<= (car x) (car y))))))
-
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
             (agda2-raise-ghci-error))))
 
-    echoed-text)))
+      echoed-text)))
+
+(defun agda2-ghci-run-last-commands (text)
+  "Execute the last commands in the right order.
+\(After the prompt has reappeared.) See `agda2-ghci-filter'. The
+TEXT argument is not used."
+  (unless agda2-in-progress
+    (with-current-buffer agda2-file-buffer
+      (let ((responses
+             (mapcar 'cdr (sort (nreverse agda2-last-responses)
+                                (lambda (x y) (<= (car x) (car y)))))))
+        (setq agda2-last-responses nil)
+        (agda2-exec-responses responses)))))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
