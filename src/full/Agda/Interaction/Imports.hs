@@ -43,6 +43,7 @@ import Agda.TypeChecking.Serialise
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecker
 
+import Agda.Interaction.EmacsCommand
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
@@ -274,7 +275,9 @@ getInterface' x includeStateChanges =
                 case file of
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
-        reportSLn "" 1 s
+        ifM (envEmacs <$> ask)
+            (liftIO $ displayRunningInfo (s ++ "\n"))
+            (reportSLn "" 1 s)
 
       skip file = do
         -- Examine the mtime of the interface file. If it is newer than the

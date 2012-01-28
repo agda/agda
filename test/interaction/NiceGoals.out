@@ -1,4 +1,7 @@
 (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-info-action "*Type-checking*" "Checking NiceGoals (NiceGoals.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished NiceGoals.\n" t)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : (x : Carrier) → x ∙ ε ≈ x\n?1 : (x : Carrier) → x ∙ ε ≈ x\n?2 : (x : List Bool) → x ∙ ε ≈ x\n?3 : P\n?4 : Q X\n?5 : M₁.P Set\n" nil)
 (agda2-goals-action '(0 1 2 3 4 5))

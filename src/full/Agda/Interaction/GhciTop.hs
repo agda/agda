@@ -356,6 +356,10 @@ cmd_load' file includes unsolvedOK cmd =
     -- modules are reset when cmd_load' is run by ioTCM.
     resetState
 
+    -- Clear the info buffer to make room for information about which
+    -- module is currently being type-checked.
+    liftIO clearRunningInfo
+
     ok <- Imp.typeCheck f
 
     -- The module type checked. If the file was not changed while the
@@ -681,20 +685,6 @@ showStatus s = intercalate "," $ catMaybes [checked, showImpl]
 displayStatus :: Status -> IO ()
 displayStatus s =
   putResponse $ L [A "agda2-status-action", A (quote $ showStatus s)]
-
--- | @display_info' append header content@ displays @content@ (with
--- header @header@) in some suitable way. If @append@ is @True@, then
--- the content is appended to previous content (if any), otherwise any
--- previous content is deleted.
-
-display_info' :: Bool -> String -> String -> IO ()
-display_info' append bufname content =
-  putResponse $
-    L [ A "agda2-info-action"
-      , A (quote bufname)
-      , A (quote content)
-      , A (if append then "t" else "nil")
-      ]
 
 -- | @display_info@ does what @'display_info'' False@ does, but
 -- additionally displays some status information (see 'status' and

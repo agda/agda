@@ -1,5 +1,5 @@
 ------------------------------------------------------------------------
--- | Low-level code for instructing Emacs to do things
+-- | Code for instructing Emacs to do things
 ------------------------------------------------------------------------
 
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
@@ -8,10 +8,14 @@ module Agda.Interaction.EmacsCommand
   ( Lisp(..)
   , response
   , putResponse
+  , display_info'
+  , clearRunningInfo
+  , displayRunningInfo
   ) where
 
 import qualified Agda.Utils.IO.Locale as LocIO
 import Agda.Utils.Pretty
+import Agda.Utils.String
 
 -- | Simple Emacs Lisp expressions.
 
@@ -51,3 +55,37 @@ response = map replaceNewLines . show . pretty
 
 putResponse :: Lisp String -> IO ()
 putResponse = LocIO.putStrLn . response
+
+-- | @display_info' append header content@ displays @content@ (with
+-- header @header@) in some suitable way. If @append@ is @True@, then
+-- the content is appended to previous content (if any), otherwise any
+-- previous content is deleted.
+
+display_info' :: Bool -> String -> String -> IO ()
+display_info' append bufname content =
+  putResponse $
+    L [ A "agda2-info-action"
+      , A (quote bufname)
+      , A (quote content)
+      , A (if append then "t" else "nil")
+      ]
+
+------------------------------------------------------------------------
+-- Running info
+
+-- | The name of the running info buffer.
+
+runningInfoBufferName :: String
+runningInfoBufferName = "*Type-checking*"
+
+-- | Clear the running info buffer.
+
+clearRunningInfo :: IO ()
+clearRunningInfo =
+  display_info' False runningInfoBufferName ""
+
+-- | Display running information about what the type-checker is up to.
+
+displayRunningInfo :: String -> IO ()
+displayRunningInfo s =
+  display_info' True runningInfoBufferName s
