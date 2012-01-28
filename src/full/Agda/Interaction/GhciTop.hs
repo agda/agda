@@ -305,7 +305,10 @@ ioTCM current highlighting cmd = infoOnException $ do
         Just (f, _) | f === current -> do
           is <- theInteractionPoints <$> liftIO (readIORef theState)
           liftIO $ putResponse $
-            L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
+            Cons (Cons (A "last") (A "1"))
+                 (L [ A "agda2-goals-action"
+                    , Q $ L $ List.map showNumIId is
+                    ])
         _ -> return ()
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
@@ -512,7 +515,7 @@ cmd_auto ii rng s = Interaction Dependent $ do
      Nothing -> return ()
      Just msg -> display_info "*Auto*" msg
     liftIO $ putResponse $
-     Cons (A "last")
+     Cons (Cons (A "last") (A "2"))
           (L [ A "agda2-make-case-action",
                Q $ L $ List.map (A . quote) cs
              ])
@@ -727,7 +730,7 @@ cmd_make_case ii rng s = Interaction Dependent $ do
     hidden <- showImplicitArguments
     pcs <- mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
     liftIO $ putResponse $
-      Cons (A "last")
+      Cons (Cons (A "last") (A "2"))
            (L [ A (emacscmd casectxt)
               , Q $ L $ List.map (A . quote . (extlam_dropName casectxt) . render) pcs
               ])
@@ -756,7 +759,7 @@ cmd_solveAll :: Interaction
 cmd_solveAll = Interaction Dependent $ do
   out <- getInsts
   liftIO $ putResponse $
-    Cons (A "last")
+    Cons (Cons (A "last") (A "2"))
          (L [ A "agda2-solveAll-action"
             , Q . L $ concatMap prn out
             ])

@@ -4,7 +4,7 @@
 (agda2-info-action "*Type-checking*" "Finished Issue388.\n" t)
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set\n" nil)
-(agda2-goals-action '(0))
+((last . 1) . (agda2-goals-action '(0)))
 (agda2-info-action "*Error*" "Issue388.agda:11,11-16\nThe index A is free in the following parameters:\n  D A\nwhen checking that the expression ? has type Set" nil)
 (annotation-goto '("Issue388.agda" . 191))
 (agda2-status-action "")

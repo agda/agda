@@ -533,9 +533,11 @@ exactly one command. Incomplete lines are stored in a
 buffer (`agda2-ghci-chunk-incomplete').
 
 Every command is run as soon as it has been parsed, unless it has
-the form \"('last . cmd)\", in which case it is run at the end,
-after the GHCi prompt has reappeared, and after all non-last
-commands.
+the form \"(('last . priority) . cmd)\", in which case it is run
+at the end, after the GHCi prompt has reappeared, after all
+non-last commands, and after all interactive highlighting is
+complete. The last commands can have different integer
+priorities; those with the lowest priority are executed first.
 
 Commands of the form \"(agda2-typechecking-emacs ARGS)\" are
 interpreted by this filter function; the highlighting
@@ -551,86 +553,96 @@ arrived. Otherwise highlighting annotations are
 reloaded from `agda2-highlighting-file', unless
 `agda2-highlighting-in-progress' is nil."
 
-  (let (;; The input lines in the current chunk.
-        (lines (split-string chunk "\n"))
+  (with-current-buffer agda2-file-buffer
 
-        ;; Interactive highlighting annotations found in the current
-        ;; chunk.
-        (highlighting-anns ())
+    (let (;; The input lines in the current chunk.
+          (lines (split-string chunk "\n"))
 
-        ;; The text that is echoed to the *ghci* buffer.
-        (echoed-text ""))
+          ;; Interactive highlighting annotations found in the current
+          ;; chunk (reversed).
+          (highlighting-anns ())
 
-    (when (consp lines)
+          ;; The text that is echoed to the *ghci* buffer.
+          (echoed-text ""))
 
-      (setq lines (cons (concat agda2-ghci-chunk-incomplete (car lines))
-                        (cdr lines))
+      (when (consp lines)
 
-            ;; Stash away the last incomplete line, if any. (Note that
-            ;; (split-string "...\n" "\n") evaluates to (... "").)
-            agda2-ghci-chunk-incomplete (car (last lines)))
+        (setq lines (cons (concat agda2-ghci-chunk-incomplete (car lines))
+                          (cdr lines))
 
-      ;; Handle every complete line.
-      (dolist (line (butlast lines))
+              ;; Stash away the last incomplete line, if any. (Note
+              ;; that (split-string "...\n" "\n") evaluates to (...
+              ;; "").)
+              agda2-ghci-chunk-incomplete (car (last lines)))
 
-        (let* (;; The command. Lines which cannot be parsed as a single
-               ;; list, without any junk, are ignored.
-               (cmd (condition-case nil
-                        (let ((result (read-from-string line)))
-                          (if (and (listp (car result))
-                                   (= (cdr result) (length line)))
-                              (car result)))
-                      (error nil)))
+        ;; Handle every complete line.
+        (dolist (line (butlast lines))
 
-               ;; Is the command an interactive highlighting command?
-               (highlighting-cmd (string= (car-safe cmd)
-                                          "agda2-typechecking-emacs")))
+          (let* (;; The command. Lines which cannot be parsed as a single
+                 ;; list, without any junk, are ignored.
+                 (cmd (condition-case nil
+                          (let ((result (read-from-string line)))
+                            (if (and (listp (car result))
+                                     (= (cdr result) (length line)))
+                                (car result)))
+                        (error nil)))
 
-          (unless highlighting-cmd
-            (setq echoed-text (concat echoed-text line "\n")))
+                 ;; Is the command an interactive highlighting command?
+                 (highlighting-cmd (equal (car-safe cmd)
+                                          'agda2-typechecking-emacs)))
 
-          (when cmd
-            (with-current-buffer agda2-file-buffer
-              (incf agda2-responses))
+            (unless highlighting-cmd
+              (setq echoed-text (concat echoed-text line "\n")))
 
-            (if highlighting-cmd
-                ;; Store the highlighting annotations.
-                (setq highlighting-anns
-                      (append (reverse (cdr cmd)) highlighting-anns))
+            (when cmd
+              (incf agda2-responses)
 
-              ;; Run the command unless it is a "last" command.
-              (with-current-buffer agda2-file-buffer
-                (if (equal (car cmd) 'last)
-                    (push (cdr cmd) agda2-last-responses)
-                  (agda2-exec-responses `(,cmd))))))))
+              (if highlighting-cmd
+                  ;; Store the highlighting annotations.
+                  (setq highlighting-anns
+                        (append (reverse (cdr cmd)) highlighting-anns))
 
-      ;; Apply interactive highlighting annotations.
-      (with-current-buffer agda2-file-buffer
+                ;; Run the command unless it is a "last" command.
+                (if (equal 'last (car-safe (car cmd)))
+                    (push (cons (cdr (car cmd)) (cdr cmd))
+                          agda2-last-responses)
+                  (agda2-exec-responses `(,cmd)))))))
+
+        ;; Apply interactive highlighting annotations.
         (when agda2-highlight-in-progress
           (apply 'agda2-highlight-load-anns 'keep
-                 (reverse highlighting-anns))))
+                 (reverse highlighting-anns)))
 
-      ;; Check if the prompt has been reached. This function assumes
-      ;; that the prompt does not include any newline characters.
-      (when (string-match comint-prompt-regexp
-                          agda2-ghci-chunk-incomplete)
+        ;; Check if the prompt has been reached. This function assumes
+        ;; that the prompt does not include any newline characters.
+        (when (string-match
+               (with-current-buffer agda2-process-buffer comint-prompt-regexp)
+               agda2-ghci-chunk-incomplete)
 
-        (setq agda2-in-progress nil)
+          (setq agda2-in-progress nil)
 
-        (setq echoed-text (concat echoed-text
-                                  agda2-ghci-chunk-incomplete)
-              agda2-ghci-chunk-incomplete "")
+          (setq echoed-text (concat echoed-text agda2-ghci-chunk-incomplete)
+                agda2-ghci-chunk-incomplete ""
+                agda2-highlight-in-progress nil)
 
-        (with-current-buffer agda2-file-buffer
-          (setq agda2-highlight-in-progress nil)
-
-          (agda2-exec-responses (reverse agda2-last-responses))
+          ;; Execute the last commands in the right order.
+          ;;
+          ;; TODO: Some of these commands invoke the Agda process,
+          ;; which means that agda2-ghci-filter may be called again
+          ;; before the current instance has finished. In this case
+          ;; the "echoed text" may not actually be written to the
+          ;; *ghci* buffer (and other things—worse things—could, in
+          ;; principle, happen).
+          (agda2-exec-responses
+           (mapcar 'cdr
+                   (sort (nreverse agda2-last-responses)
+                         (lambda (x y) (<= (car x) (car y))))))
 
           (when (and agda2-responses-expected
-                     (= agda2-responses 0))
-            (agda2-raise-ghci-error)))))
+                     (equal agda2-responses 0))
+            (agda2-raise-ghci-error))))
 
-    echoed-text))
+    echoed-text)))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
