@@ -285,7 +285,10 @@ menus.")
     map)
   "Keymap for agda2 goal menu.")
 
-(defvar agda2-process-buffer  nil
+(defvar agda2-info-buffer nil
+  "Agda information buffer.")
+
+(defvar agda2-process-buffer nil
   "Agda subprocess buffer.
 Set in `agda2-restart'.")
 
@@ -802,45 +805,60 @@ Assumes that <clause> = {!<var>!} is on one line."
 major mode)."
   (setq agda2-buffer-external-status status))
 
+(defun agda2-info-buffer nil
+  "Creates the Agda info buffer, if it does not already exist.
+The buffer is returned."
+  (unless agda2-info-buffer
+    (setq agda2-info-buffer
+          (generate-new-buffer "*Agda information*"))
+
+    (with-current-buffer agda2-info-buffer
+      (set-syntax-table agda2-mode-syntax-table)
+      (set-input-method "Agda")
+
+      ;; Support for jumping to positions mentioned in the text.
+      (set (make-local-variable 'compilation-error-regexp-alist)
+           '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
+              1 (2 . 5) (3 . 6))))
+      ;; No support for recompilation. An attempt to recompile via the
+      ;; info buffer (using "g") will (most likely) lead to a
+      ;; (dynamic) type error. (The default is to run "make -k".)
+      (set (make-local-variable 'compile-command)
+           'agda2-does-not-support-compilation-via-the-compilation-minor-mode)
+      (compilation-minor-mode 1)
+
+      ;; The info buffer is read-only. Compilation minor mode
+      ;; introduces the keybindings "g" (recompile) and "q" (bury the
+      ;; buffer), and these keybindings can make it rather awkward to
+      ;; edit the info buffer. To avoid surprises we make the buffer
+      ;; read-only.
+      (setq buffer-read-only t)))
+
+  agda2-info-buffer)
+
 (defun agda2-info-action (name text &optional append)
   "Insert TEXT into the Agda info buffer and display it.
-NAME is displayed in the buffer's mode line. If APPEND is
-non-nil, then TEXT is appended at the end of the buffer, and
-otherwise any previous text is removed before TEXT is inserted."
+NAME is displayed in the buffer's mode line.
+
+If APPEND is non-nil, then TEXT is appended at the end of the
+buffer, and point placed after this text.
+
+If APPEND is nil, then any previous text is removed before TEXT
+is inserted, and point is placed before this text."
   (interactive)
-  (with-current-buffer (get-buffer-create "*Agda information*")
+  (with-current-buffer (agda2-info-buffer)
     (unless append (erase-buffer))
     (save-excursion
       (goto-char (point-max))
       (insert text))
-    (set-syntax-table agda2-mode-syntax-table)
-    (set-input-method "Agda")
-
-    ;; Support for jumping to positions mentioned in the text.
-    (set (make-local-variable 'compilation-error-regexp-alist)
-         '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
-            1 (2 . 5) (3 . 6))))
-    ;; No support for recompilation. An attempt to recompile via the
-    ;; info buffer (using "g") will (most likely) lead to a (dynamic)
-    ;; type error. (The default is to run "make -k".)
-    (set (make-local-variable 'compile-command)
-         'agda2-does-not-support-compilation-via-the-compilation-minor-mode)
-    (compilation-minor-mode 1)
-
-    ;; The info buffer is read-only. Compilation minor mode introduces
-    ;; the keybindings "g" (recompile) and "q" (bury the buffer), and
-    ;; these keybindings can make it rather awkward to edit the info
-    ;; buffer. To avoid surprises we make the buffer read-only.
-    (setq buffer-read-only t)
-
-    (goto-char (point-min))
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
     (save-selected-window
       (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
       (fit-window-to-buffer
        nil (truncate
-            (* (frame-height) agda2-information-window-max-height))))))
+            (* (frame-height) agda2-information-window-max-height)))
+      (if append (goto-char (point-max))))))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
