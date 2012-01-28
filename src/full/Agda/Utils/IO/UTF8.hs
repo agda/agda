@@ -34,6 +34,9 @@ readTextFile file = convertLineEndings <$> do
 -- | Writes UTF8-encoded text to the handle, which should be opened
 -- for writing and in text mode. The native convention for line
 -- endings is used.
+--
+-- The handle's text encoding is not necessarily preserved, it is
+-- changed to UTF8.
 
 hPutStr :: IO.Handle -> String -> IO ()
 #if MIN_VERSION_base(4,2,0)
