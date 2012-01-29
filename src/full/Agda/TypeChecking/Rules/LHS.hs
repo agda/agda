@@ -36,6 +36,8 @@ import Agda.TypeChecking.Rules.LHS.Implicit
 import Agda.TypeChecking.Rules.LHS.Instantiate
 import Agda.TypeChecking.Rules.Data
 
+import Agda.Interaction.Highlighting.Generate
+
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Monad
@@ -277,7 +279,12 @@ checkLeftHandSide
       -> Type -> Permutation -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c ps a ret = do
+checkLeftHandSide c ps a ret' = do
+  highlightAsTypeChecked False ps
+  let ret a b c d e f g = do
+        highlightAsTypeChecked True ps
+        ret' a b c d e f g
+
   TelV tel0' b0 <- telView a
   ps <- insertImplicitPatterns ps tel0'
   unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a

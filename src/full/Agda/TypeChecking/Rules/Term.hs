@@ -336,7 +336,8 @@ unScope e                      = e
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
     verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-    traceCall (CheckExpr e t) $ localScope $ do
+    traceCall (CheckExpr e t) $ localScope $
+    highlightInteractively e $ do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
@@ -355,15 +356,7 @@ checkExpr e t =
 
     e <- scopedExpr e
 
-    let interactiveHighlight e m =
-          ifM (envInteractiveHighlighting <$> ask)
-              (do highlightAsTypeChecked False e
-                  x <- m
-                  highlightAsTypeChecked True e
-                  return x)
-              m
-
-    interactiveHighlight e $ case e of
+    case e of
 	-- Insert hidden lambda if appropriate
 	_   | Pi (Arg h rel _) _ <- unEl t
             , not (hiddenLambdaOrHole h e)

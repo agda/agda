@@ -5,6 +5,7 @@
 module Agda.Interaction.Highlighting.Generate
   ( generateSyntaxInfo
   , generateErrorInfo
+  , highlightInteractively
   , highlightAsTypeChecked
   , Agda.Interaction.Highlighting.Generate.tests
   )
@@ -38,12 +39,14 @@ import Agda.Utils.TestHelpers
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State
+import Control.Monad.Reader
 import Control.Applicative
 import Data.Monoid
 import Data.Function
 import Agda.Utils.Generics
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
+import Agda.Utils.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -57,7 +60,29 @@ import System.IO
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
+-- | Highlights the given thing first as being type-checked, and then,
+-- once the computation has finished successfully, as having been
+-- type-checked. Returns the result of the computation.
+--
+-- (The highlighting is only performed when
+-- 'envInteractiveHighlighting' is @True@.)
+
+highlightInteractively
+  :: (P.HasRange r, MonadTCM tcm)
+  => r
+     -- ^ The thing.
+  -> tcm a
+     -- ^ The computation.
+  -> tcm a
+highlightInteractively x m = do
+  highlightAsTypeChecked False x
+  result <- m
+  highlightAsTypeChecked True x
+  return result
+
 -- | Highlights the given thing as being/having been type-checked.
+--
+-- But only if 'envInteractiveHighlighting' is @True@.
 
 highlightAsTypeChecked
   :: (P.HasRange r, MonadTCM tcm)
@@ -66,11 +91,11 @@ highlightAsTypeChecked
   -> r
      -- ^ The thing.
   -> tcm ()
-highlightAsTypeChecked typeChecked x
-  | null file = return ()
-  | otherwise = liftIO $ putResponse $
-                  L (A "agda2-typechecking-emacs" :
-                     lispifyHighlightingInfo file)
+highlightAsTypeChecked typeChecked x =
+  whenM (envInteractiveHighlighting <$> ask) $
+    unless (null file) $
+      liftIO $ putResponse $
+        L (A "agda2-typechecking-emacs" : lispifyHighlightingInfo file)
   where
   file = compress $
          several (rToR $ P.continuousPerLine $ P.getRange x) $

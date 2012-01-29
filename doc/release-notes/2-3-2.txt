@@ -45,7 +45,8 @@ Tools
 
   The syntax highlighting is updated while a buffer is type-checked.
   This interactive highlighting is currently rather crude, it just
-  marks that a term is being type-checked, or has been type-checked.
+  marks that a piece of code is being type-checked, or has been
+  type-checked.
 
 * The Emacs mode now presents information about which module is
   currently being type-checked.
