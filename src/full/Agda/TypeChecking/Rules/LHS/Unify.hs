@@ -9,7 +9,7 @@ import Control.Applicative hiding (empty)
 import Control.Monad.State
 import Control.Monad.Reader
 import Control.Monad.Error
-import Control.Monad.Writer
+import Control.Monad.Writer (WriterT(..), MonadWriter(..), Monoid(..))
 
 import Data.Map (Map)
 import qualified Data.Map as Map
