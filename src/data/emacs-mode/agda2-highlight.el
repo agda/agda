@@ -306,8 +306,9 @@ buffers until you have restarted Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-typechecks-face
-  '((t (:background "light steel blue"
-        :foreground "black")))
+  '((t (:background "gold"
+        :foreground "black"
+        :box        (:line-width 1 :color "black" :style nil))))
   "The face used for code which is being type-checked."
   :group 'agda2-highlight)
 
