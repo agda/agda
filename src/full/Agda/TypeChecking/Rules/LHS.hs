@@ -312,7 +312,12 @@ checkLeftHandSide
       -> Type -> Permutation -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c ps a ret = do
+checkLeftHandSide c ps a ret' = do
+  highlightAsTypeChecked False ps
+  let ret a b c d e f g = do
+        highlightAsTypeChecked True ps
+        ret' a b c d e f g
+{- code moved to ProblemRest.problemFromPats
   TelV tel0' b0 <- telView a
   ps <- insertImplicitPatterns ps tel0'
   unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
