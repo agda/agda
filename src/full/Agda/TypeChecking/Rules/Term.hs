@@ -435,7 +435,7 @@ checkExpr e t =
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case unEl t' of
-              Pi (Arg h' _ a) _
+              Pi (Arg h' r a) _
                 | h == h' && not (null $ foldTerm metas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
@@ -458,7 +458,7 @@ checkExpr e t =
                                         [Clause { clauseRange = getRange e
                                                 , clauseTel   = EmptyTel
                                                 , clausePerm  = Perm 0 []
-                                                , clausePats  = [Arg h Relevant $ VarP "()"]
+                                                , clausePats  = [Arg h r $ VarP "()"]
                                                 , clauseBody  = NoBody
                                                 }
                                         ]
@@ -471,7 +471,11 @@ checkExpr e t =
                                     , funProjection     = Nothing
                                     , funStatic         = False
                                     }
-                  return (Def aux [])
+                  -- Andreas 2012-01-30: since aux is lifted to toplevel
+                  -- it needs to be applied to the current telescope (issue 557)
+                  tel <- getContextTelescope
+                  return $ Def aux $ teleArgs tel
+                  -- WAS: return (Def aux [])
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
           where
