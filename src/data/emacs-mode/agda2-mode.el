@@ -1306,10 +1306,17 @@ To do: dealing with semicolon separated decls."
   (interactive)
   (goto-char (agda2-decl-beginning)))
 
-(defun agda2-verbose (s)
-  "Does nothing.
-If Agda is run in verbose mode, then informational messages are
-wrapped in (agda2-verbose ...).")
+(defvar agda2-debug-buffer-name "*Agda debug*"
+  "The name of the buffer used for Agda debug messages.")
+
+(defun agda2-verbose (msg)
+  "Appends the string MSG to the `agda2-debug-buffer-name' buffer.
+Note that this buffer's contents is not erased automatically when
+a file is loaded."
+  (with-current-buffer (get-buffer-create agda2-debug-buffer-name)
+    (save-excursion
+      (goto-char (point-max))
+      (insert msg))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Comments and paragraphs

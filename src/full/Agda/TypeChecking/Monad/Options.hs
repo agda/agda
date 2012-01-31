@@ -272,30 +272,32 @@ emacsifyDebugMessage s =
            ])
       (return s)
 
+-- | Displays a debug message in a suitable way.
+displayDebugMessage :: String -> TCM ()
+displayDebugMessage s =
+  liftIO . LocIO.putStr =<< emacsifyDebugMessage s
+
 -- | Precondition: The level must be non-negative.
 verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
 verboseS k n action = whenM (hasVerbosity k n) action
 
 reportS :: VerboseKey -> Int -> String -> TCM ()
-reportS k n s = verboseS k n $ do
-  s <- emacsifyDebugMessage s
-  liftIO $ LocIO.putStr s
+reportS k n s = verboseS k n $ displayDebugMessage s
 
 reportSLn :: VerboseKey -> Int -> String -> TCM ()
 reportSLn k n s = verboseS k n $ do
-  s <- emacsifyDebugMessage s
-  liftIO $ LocIO.putStrLn s >> LocIO.stdoutFlush
+  displayDebugMessage (s ++ "\n")
+  liftIO LocIO.stdoutFlush
 
 reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
-reportSDoc k n d = verboseS k n $ do
-  s <- emacsifyDebugMessage . show =<< d
-  liftIO $ LocIO.putStrLn s
+reportSDoc k n d = verboseS k n $
+  displayDebugMessage . (++ "\n") . show =<< d
 
 verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
 verboseBracket k n s m = do
   v <- hasVerbosity k n
   if not v then m
            else do
-    liftIO $ LocIO.putStrLn $ "{ " ++ s
-    x <- m `finally` liftIO (LocIO.putStrLn "}")
+    displayDebugMessage $ "{ " ++ s ++ "\n"
+    x <- m `finally` displayDebugMessage "}\n"
     return x

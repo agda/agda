@@ -46,7 +46,7 @@ instance Pretty a => Show (Lisp a) where
 --   Replaces @'\n'@ with spaces to ensure that each command is a
 --   single line.
 response :: Lisp String -> String
-response = map replaceNewLines . show . pretty
+response = (++ "\n") . map replaceNewLines . show . pretty
   where
   replaceNewLines '\n' = ' '
   replaceNewLines c    = c
@@ -54,7 +54,7 @@ response = map replaceNewLines . show . pretty
 -- | Writes a response command to standard output.
 
 putResponse :: Lisp String -> IO ()
-putResponse = LocIO.putStrLn . response
+putResponse = LocIO.putStr . response
 
 -- | @display_info' append header content@ displays @content@ (with
 -- header @header@) in some suitable way. If @append@ is @True@, then
