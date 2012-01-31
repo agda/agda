@@ -147,8 +147,9 @@ data Interaction = Interaction
   { independence :: Independence
     -- ^ Is the command independent?
   , command :: TCM (Maybe ModuleName)
-    -- ^ If a module name is returned, then syntax highlighting
-    -- information will be written for the given module (by 'ioTCM').
+    -- ^ If a module name is returned, then 'ioTCM' will write out
+    -- syntax highlighting information for the given module (unless
+    -- 'ioTCM''s highlighting argument is @False@).
   }
 
 -- | Is the command independent?
@@ -948,9 +949,8 @@ cmd_compute_toplevel ignore =
 --
 -- If the module does not exist, or its module name is malformed or
 -- cannot be determined, or the module has not already been visited,
--- or the cached info is out of date, then the representation of \"no
--- highlighting information available\" is instead written to the
--- file.
+-- or the cached info is out of date, then no highlighting information
+-- is written.
 --
 -- This command is used to load syntax highlighting information when a
 -- new file is opened, and it would probably be annoying if jumping to
@@ -984,11 +984,12 @@ cmd_write_highlighting_info source =
     return Nothing
 
 -- | Tell Emacs to highlight the code using the given highlighting
--- info.
+-- info (unless it is @Nothing@).
 
 tellEmacsToUpdateHighlighting ::
   Maybe (HighlightingInfo, ModuleToSource) -> IO ()
-tellEmacsToUpdateHighlighting info = do
+tellEmacsToUpdateHighlighting Nothing     = return ()
+tellEmacsToUpdateHighlighting (Just info) = do
   dir <- getTemporaryDirectory
   f   <- E.bracket (IO.openTempFile dir "agda2-mode")
                    (IO.hClose . snd) $ \ (f, h) -> do

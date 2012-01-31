@@ -77,12 +77,11 @@ showMetaInfo modFile (r, m) =
 -- | Shows syntax highlighting information in an Emacsy fashion.
 
 showHighlightingInfo
-  :: Maybe (HighlightingInfo, ModuleToSource)
+  :: (HighlightingInfo, ModuleToSource)
      -- ^ The 'ModuleToSource' must contain a mapping for every
      -- definition site's module.
   -> String
-showHighlightingInfo Nothing             = show (L [] :: Lisp String)
-showHighlightingInfo (Just (h, modFile)) = show $
+showHighlightingInfo (h, modFile) = show $
   L $ map (showMetaInfo modFile) h
 
 -- | Turns syntax highlighting information into a list of
