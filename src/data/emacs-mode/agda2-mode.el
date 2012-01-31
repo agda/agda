@@ -824,26 +824,22 @@ The buffer is returned."
           (generate-new-buffer "*Agda information*"))
 
     (with-current-buffer agda2-info-buffer
-      (set-syntax-table agda2-mode-syntax-table)
-      (set-input-method "Agda")
-
+      (compilation-mode "AgdaInfo")
       ;; Support for jumping to positions mentioned in the text.
       (set (make-local-variable 'compilation-error-regexp-alist)
            '(("\\([\\\\/][^[:space:]]*\\):\\([0-9]+\\),\\([0-9]+\\)-\\(\\([0-9]+\\),\\)?\\([0-9]+\\)"
               1 (2 . 5) (3 . 6))))
-      ;; No support for recompilation. An attempt to recompile via the
-      ;; info buffer (using "g") will (most likely) lead to a
-      ;; (dynamic) type error. (The default is to run "make -k".)
+      ;; No support for recompilation. The key binding is removed, and
+      ;; attempts to run `recompile' will (hopefully) result in an
+      ;; error.
+      (let ((map (copy-keymap (current-local-map))))
+        (define-key map (kbd "g") 'undefined)
+        (use-local-map map))
       (set (make-local-variable 'compile-command)
-           'agda2-does-not-support-compilation-via-the-compilation-minor-mode)
-      (compilation-minor-mode 1)
+           'agda2-does-not-support-compilation-via-the-compilation-mode)
 
-      ;; The info buffer is read-only. Compilation minor mode
-      ;; introduces the keybindings "g" (recompile) and "q" (bury the
-      ;; buffer), and these keybindings can make it rather awkward to
-      ;; edit the info buffer. To avoid surprises we make the buffer
-      ;; read-only.
-      (setq buffer-read-only t)))
+      (set-syntax-table agda2-mode-syntax-table)
+      (set-input-method "Agda")))
 
   agda2-info-buffer)
 
