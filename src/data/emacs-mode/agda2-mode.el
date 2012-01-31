@@ -338,10 +338,12 @@ Set in `agda2-restart'.")
 ;;;###autoload
 (modify-coding-system-alist 'file "\\.l?agda\\'" 'utf-8)
 ;;;###autoload
-(define-derived-mode agda2-mode nil "Agda"
- "Major mode for Agda files.
+(eval `(define-derived-mode agda2-mode
+  ,(if (fboundp 'prog-mode) 'prog-mode)
+  "Agda"
+  "Major mode for Agda files.
 
-The following paragraph does not apply to Emacs 23.
+The following paragraph does not apply to Emacs 23 or newer.
 
   Note that when this mode is activated the default font of the
   current frame is changed to the fontset `agda2-fontset-name'.
@@ -383,7 +385,7 @@ Special commands:
  ;; including "mode: latex" is loaded chances are that the Agda mode
  ;; is activated before the LaTeX mode, and the LaTeX mode does not
  ;; seem to remove the text properties set by the Agda mode.
- (add-hook 'change-major-mode-hook 'agda2-quit nil 'local))
+ (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)))
 
 (defun agda2-restart ()
   "Kill and restart the *ghci* buffer and load `agda2-toplevel-module'."

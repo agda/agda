@@ -384,7 +384,6 @@ table). The face `font-lock-comment-face' is used for comments.")
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
-  (font-lock-mode 0)
   (setq annotation-bindings agda2-highlight-faces))
 
 (defun agda2-highlight-load (file &optional keep)
