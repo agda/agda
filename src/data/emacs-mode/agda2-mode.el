@@ -453,8 +453,7 @@ long strings (some versions of GHCi, on some systems)."
 
 (defun agda2-ghci-running nil
   "Does the GHCi buffer exist and is the GHCi process running?"
-  (and agda2-process-buffer
-       (buffer-name agda2-process-buffer)
+  (and (buffer-live-p agda2-process-buffer)
        (eq (agda2-process-status) 'run)))
 
 (defun agda2-call-ghci (wait restart &rest args)
@@ -820,7 +819,7 @@ major mode)."
 (defun agda2-info-buffer nil
   "Creates the Agda info buffer, if it does not already exist.
 The buffer is returned."
-  (unless agda2-info-buffer
+  (unless (buffer-live-p agda2-info-buffer)
     (setq agda2-info-buffer
           (generate-new-buffer "*Agda information*"))
 
