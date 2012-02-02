@@ -10,27 +10,24 @@ else
 pwd=$(shell pwd)/
 endif
 
-AgdaFiles=$(shell find . -name '*.agda')
-OutFiles=$(patsubst %.agda,%.out,$(AgdaFiles))
-Tests=$(patsubst %.agda,%.cmp,$(AgdaFiles))
+AgdaFiles=$(shell find . -name '*.agda' -o -name '*.lagda')
+OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
+Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 
 default : $(Tests)
 
 export TMPDIR=highlighting.tmp
 
 run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-					 echo 'let currentFile = "$*.agda"'; \
+					 echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
 					 echo "let top_command = top_command' currentFile" ) \
 				 | cat - $*.in | ghc --interactive -v0 \
 				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'
 
 cleanup_Issue373 = rm -rf Issue373 MAlonzo
 
-%.test : %.in %.agda
-	@$(run_test)
-
 # No recorded output
-$(OutFiles) : %.out : %.agda %.in
+$(OutFiles) : %.out : $(wildcard %.agda %.lagda) %.in
 	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
