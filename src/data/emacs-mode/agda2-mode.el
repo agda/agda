@@ -1078,7 +1078,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
 (defun agda2-highlight-reload nil
   "Loads precomputed syntax highlighting info for the current buffer.
 If there is any to load."
-  (agda2-go nil nil
+  (agda2-go nil t
             "cmd_write_highlighting_info"
             (agda2-string-quote (buffer-file-name))))
 
