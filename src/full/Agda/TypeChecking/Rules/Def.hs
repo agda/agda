@@ -376,7 +376,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   -- The ranges in the generated type are completely bogus, so we kill them.
   auxType <- setCurrentRange (getRange cs) (isType_ $ killRange absAuxType)
     `catchError` \err -> case errError err of
-      TypeError _ e -> enterClosure e $ traceCall (CheckWithFunctionType absAuxType) . typeError
+      TypeError s e -> put s >> enterClosure e (traceCall (CheckWithFunctionType absAuxType) . typeError)
       _             -> throwError err
 
   case df of
