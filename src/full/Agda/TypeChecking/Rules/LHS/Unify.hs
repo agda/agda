@@ -267,6 +267,10 @@ i |-> (u, a) = do
   occursCheck i u a
   liftTCM $ reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
   modSub $ Map.insert i (killRange u)
+  -- Apply substitution to itself (issue 552)
+  rho  <- onSub id
+  rho' <- traverse ureduce rho
+  modSub $ const rho'
 
 makeSubstitution :: Sub -> [Term]
 makeSubstitution sub = map val [0..]
@@ -1035,3 +1039,4 @@ telViewUpToHH n t = do
     _         -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+
