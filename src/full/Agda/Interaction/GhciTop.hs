@@ -1092,10 +1092,10 @@ getCurrentFile = do
     Just (f, _) -> return (filePath f)
 
 top_command' :: FilePath -> Interaction -> IO ()
-top_command' f cmd = ioTCM f False $ makeSilent cmd
+top_command' f cmd = ioTCM f False cmd
 
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
   -- TODO: Test with other ranges as well.
-  ioTCM f False $ makeSilent $ cmd i noRange s
+  ioTCM f False $ cmd i noRange s
