@@ -874,7 +874,9 @@ is inserted, and point is placed before this text."
       (fit-window-to-buffer
        nil (truncate
             (* (frame-height) agda2-information-window-max-height)))
-      (if append (goto-char (point-max))))))
+      (if append
+          (goto-char (point-max))
+        (goto-char (point-min))))))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
