@@ -643,8 +643,7 @@ reloaded from `agda2-highlighting-file', unless
           (setq agda2-in-progress nil)
 
           (setq echoed-text (concat echoed-text agda2-ghci-chunk-incomplete)
-                agda2-ghci-chunk-incomplete ""
-                agda2-highlight-in-progress nil)
+                agda2-ghci-chunk-incomplete "")
 
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
@@ -662,7 +661,8 @@ TEXT argument is not used."
              (mapcar 'cdr (sort (nreverse agda2-last-responses)
                                 (lambda (x y) (<= (car x) (car y)))))))
         (setq agda2-last-responses nil)
-        (agda2-exec-responses responses)))))
+        (agda2-exec-responses responses))
+      (setq agda2-highlight-in-progress nil))))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
@@ -671,6 +671,15 @@ This function should be used in `first-change-hook'."
     (setq agda2-highlight-in-progress nil)
     (message "\"%s\" has been modified. Interrupting highlighting."
              (buffer-name (current-buffer)))))
+
+(defun agda2-highlight-load-and-delete-action (file &optional keep)
+  "Like `agda2-highlight-load', but deletes FILE when done.
+And highlighting is only updated if `agda2-highlight-in-progress'
+is non-nil."
+  (unwind-protect
+      (if agda2-highlight-in-progress
+          (agda2-highlight-load file keep))
+    (delete-file file)))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
   "Reads input from goal or minibuffer and sends command to Agda.

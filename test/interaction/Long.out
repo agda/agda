@@ -7,7 +7,7 @@
 (agda2-info-action "*All Goals*" "?0 : Maybe Nat\n?1 : Maybe Nat\n?2 : Nat\n?3 : D ?2\n?4 : D z\n?5 : Set\n?6 : Maybe ?5\n" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
 (agda2-status-action "")
-(agda2-highlight-load-and-delete "
+(agda2-highlight-load-and-delete-action "
 ((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)

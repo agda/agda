@@ -996,7 +996,7 @@ tellEmacsToUpdateHighlighting (Just info) = do
            UTF8.hPutStr h $ showHighlightingInfo info
            return f
   putResponse $
-    L [ A "agda2-highlight-load-and-delete"
+    L [ A "agda2-highlight-load-and-delete-action"
       , A (quote f)
       ]
 

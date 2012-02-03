@@ -404,11 +404,6 @@ This function does nothing if FILE is empty."
                     (read (current-buffer))))))
       (apply 'agda2-highlight-load-anns keep cmds))))
 
-(defun agda2-highlight-load-and-delete (file &optional keep)
-  "Like `agda2-highlight-load', but deletes FILE when done."
-  (agda2-highlight-load file keep)
-  (delete-file file))
-
 (defun agda2-highlight-load-anns (keep &rest cmds)
   "Load syntax highlighting information from the annotation list CMDS.
 
