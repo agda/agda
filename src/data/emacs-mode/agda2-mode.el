@@ -418,6 +418,10 @@ Special commands:
                           mode-name "Agda GHCi")
                     (set (make-local-variable 'comint-input-sender)
                          'agda2-send)
+                    ;; Avoid the "Marker does not point anywhere"
+                    ;; message.
+                    (set (make-local-variable 'ansi-color-for-comint-mode)
+                         nil)
                     (set-buffer-file-coding-system 'utf-8)
                     (set-buffer-process-coding-system 'utf-8 'utf-8)
                     (rename-buffer agda2-bufname)
