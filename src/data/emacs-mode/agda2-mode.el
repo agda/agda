@@ -514,7 +514,8 @@ HIGHLIGHT is non-nil, then the buffer's syntax highlighting may
 be updated."
 
   (when agda2-in-progress
-    (error "Another command is currently in progress."))
+    (error "Another command is currently in progress
+\(if a command has been aborted you may want to restart Agda)"))
 
   (setq agda2-in-progress           t
         agda2-highlight-in-progress highlight
