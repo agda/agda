@@ -686,7 +686,10 @@ equalLevel a b = do
         _ | any isMeta (as ++ bs) -> postpone
 
         -- neutral/closed == neutral/closed
-        _ | all isNeutralOrClosed (as ++ bs) -> as =!= bs
+        _ | all isNeutralOrClosed (as ++ bs) ->
+          if length as == length bs
+            then zipWithM_ (\a b -> [a] =!= [b]) as bs
+            else notok
 
         -- more cases?
         _ -> postpone
