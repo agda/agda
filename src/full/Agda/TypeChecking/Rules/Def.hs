@@ -138,7 +138,10 @@ checkFunDef' t rel delayed i name cs =
                             , funProjection     = Nothing
                             , funStatic         = False
                             }
-        computePolarity name
+
+        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
+        -- computePolarity name
+
         reportSDoc "tc.def.fun" 10 $ do
           sep [ text "added " <+> prettyTCM name <+> text ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name

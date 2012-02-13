@@ -131,7 +131,8 @@ checkDataDef i name ps cs =
 	addConstant name (Defn Relevant name t (defaultDisplayForm name) 0 noCompiledRep $
                             dataDef { dataCons = map cname cs }
 			 )
-        computePolarity name
+        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
+        -- computePolarity name
     where
 	cname (A.ScopedDecl _ [d]) = cname d
 	cname (A.Axiom _ _ x _)	   = x

@@ -1,4 +1,4 @@
-{-# OPTIONS --verbose tc.proj.like:100 #-}
+-- {-# OPTIONS --verbose tc.proj.like:100 #-}
 
 -- Apparently, there can be projection like functions working on arguments of type Axiom.
 module Issue558c where

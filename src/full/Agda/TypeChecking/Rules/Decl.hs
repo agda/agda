@@ -21,6 +21,7 @@ import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Positivity
+import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
@@ -219,6 +220,11 @@ checkMutual i ds = inMutualBlock $ do
   mapM_ checkDecl ds
 
   checkStrictlyPositive =<< currentMutualBlock
+
+  -- Andreas, 2012-02-13: Polarity computation uses info from positivity
+  -- check, so it needs happen after positivity check.
+  mapM_ doComputePolarity ds
+
   let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
       unScope d = [d]
   case concatMap unScope ds of
@@ -226,6 +232,13 @@ checkMutual i ds = inMutualBlock $ do
     [A.Axiom _ _ x _, A.FunDef _ y _] | x == y -> makeProjection x
     _   -> return ()
 
+  where doComputePolarity :: A.Declaration -> TCM ()
+        doComputePolarity (A.DataSig _ n _ _) = computePolarity n
+        doComputePolarity (A.RecSig _ n _ _)  = computePolarity n
+        doComputePolarity (A.FunDef _ n _)    = computePolarity n
+        doComputePolarity (A.ScopedDecl _ ds) = mapM_ doComputePolarity ds
+        doComputePolarity (A.Mutual _ ds)     = mapM_ doComputePolarity ds
+        doComputePolarity _                   = return ()
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

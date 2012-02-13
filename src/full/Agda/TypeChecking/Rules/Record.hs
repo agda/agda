@@ -184,7 +184,8 @@ checkRecDef i name con ps contel fields =
 
       -- Andreas, 2011-05-19 here was the code "Add record constr..."
 
-      computePolarity name
+        -- Andreas 2012-02-13: postpone polarity computation until after positivity check
+        -- computePolarity name
 
       return ()
 

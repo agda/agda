@@ -1,0 +1,3 @@
+WrongPolarity.agda:23,19-28
+.size != ↑ .size of type Size
+when checking that the expression dumpNat n has type Sink Nat
