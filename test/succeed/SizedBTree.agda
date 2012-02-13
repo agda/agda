@@ -27,8 +27,8 @@ deep (node (node l r) _) = deep (node l r)
 deep2 : ∀ {i A} → BTree A {i} → BTree A {i} 
 deep2 (leaf a) = leaf a
 deep2 (node (leaf _) r) = r
-deep2 .{↑ ↑ i} (node .{↑ i} (node {i} l r) t) with deep2 (deep2 {↑ i} (node {i = i} l r))
+deep2 (node (node l r) t) with deep2 (deep2 (node l r))
 ... | leaf a = leaf a
-... | node l2 r2 = deep2 {↑ i} (node {i = i} l2 r2)
+... | node l2 r2 = deep2 (node l2 r2)
 
 -- increasing the termination count does the job!
