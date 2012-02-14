@@ -77,26 +77,34 @@ equalType = compareType CmpEq
 --
 compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
+  -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareTerm cmp a u v = liftTCM $ do
   (u, v) <- instantiate (u, v)
   reportSDoc "tc.conv.term" 10 $ sep [ text "compareTerm"
                                      , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
                                      , nest 2 $ text ":" <+> prettyTCM a ]
   let fallback = compareTerm' cmp a u v
+      unlessSubtyping cont =
+          if cmp == CmpEq then cont else do
+            -- do not short circuit size comparison!
+            isSize <- isSizeTypeTest <*> reduce a
+            if isSize then fallback else cont
   case (u, v) of
     (u@(MetaV x us), v@(MetaV y vs))
-      | x /= y    -> solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
+      | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
       | otherwise -> fallback
       where
         (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
                          | otherwise = (assign y vs u, assign x us v)
-    (u@(MetaV x us), v) -> assign x us v `orelse` fallback
-    (u, v@(MetaV y vs)) -> assign y vs u `orelse` fallback
+    (u@(MetaV x us), v) -> unlessSubtyping $ assign x us v `orelse` fallback
+    (u, v@(MetaV y vs)) -> unlessSubtyping $ assign y vs u `orelse` fallback
     _                   -> fallback
   where
     assign x us v = do
-      reportSDoc "tc.conv.term" 20 $ sep [ text "attempting shortcut"
-                                         , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v ]
+      reportSDoc "tc.conv.term.shortcut" 20 $ sep
+        [ text "attempting shortcut"
+        , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v
+        ]
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
@@ -388,6 +396,11 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
     , text "v    =" <+> prettyTCM v
     , text "els1 =" <+> prettyTCM els01
     , text "els2 =" <+> prettyTCM els02
+    ]
+  reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
+    [ text "v    =" <+> text (show v)
+    , text "arg1 =" <+> text (show arg1)
+    , text "arg2 =" <+> text (show arg2)
     ]
   let (pol, pols) = nextPolarity pols0
   ab <- reduceB a

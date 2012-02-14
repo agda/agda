@@ -1062,6 +1062,13 @@ checkArguments exh r [] t0 t1 =
 
 checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
+      lift $ reportSDoc "tc.term.args" 30 $ sep
+        [ text "checkArguments"
+--        , text "  args0 =" <+> prettyA args0
+        , text "  e     =" <+> prettyA e
+        , text "  t0    =" <+> prettyTCM t0
+        , text "  t1    =" <+> prettyTCM t1
+        ]
       t0b <- lift $ reduceB t0
       case t0b of
         Blocked{}                 -> throwError $ ignoreBlocking t0b

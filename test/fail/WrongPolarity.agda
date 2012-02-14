@@ -1,6 +1,8 @@
 -- Andreas, 2012-02-13: polarity info must be correct
 
-{-# OPTIONS --sized-types #-}
+{-# OPTIONS --sized-types --show-implicit #-} 
+-- {-# OPTIONS -v tc.size.solve:20 -v tc.conv.size:20 #-}
+-- {-# OPTIONS -v tc.polarity.set:10 -v tc.conv.term.shortcut:20 #-}
 module WrongPolarity where
 
 open import Common.Size
@@ -19,8 +21,8 @@ data Nat : {size : Size} → Set where
   suc  : {size : Size} → Nat {size} → Nat {↑ size}
 
 dumpNat : {i : Size} → Nat {i} → Sink (Nat {i})
-dumpNat zero    = dump zero
-dumpNat (suc n) = dumpNat n
--- should fail!  
--- .size != ↑ .size of type Size
+dumpNat zero        = dump zero
+dumpNat (suc {i} n) = dumpNat {i} n
+-- should fail! 
+-- i != ↑ i of type Size
 -- when checking that the expression dumpNat n has type Sink Nat

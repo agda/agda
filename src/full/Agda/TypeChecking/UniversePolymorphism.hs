@@ -26,4 +26,3 @@ compareLevel CmpEq  u v = equalLevel u v
 
 isLevelConstraint LevelCmp{} = True
 isLevelConstraint _          = False
-

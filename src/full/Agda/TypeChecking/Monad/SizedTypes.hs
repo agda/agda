@@ -28,7 +28,6 @@ isSizeType (El _ v) = liftTCM $
       return $ x == size
     _ -> return False
   `catchError` \_ -> return False
--}
 
 isSizeNameTest :: TCM (QName -> Bool)
 isSizeNameTest = liftTCM $
@@ -36,13 +35,27 @@ isSizeNameTest = liftTCM $
     Def size [] <- primSize
     return (size ==)
   `catchError` \_ -> return $ const False
+-}
+
+isSizeNameTest :: TCM (QName -> Bool)
+isSizeNameTest = ifM (optSizedTypes <$> pragmaOptions)
+  isSizeNameTestRaw
+  (return $ const False)
+
+isSizeNameTestRaw :: TCM (QName -> Bool)
+isSizeNameTestRaw = liftTCM $
+  do
+    Def size [] <- primSize
+    return (size ==)
+  `catchError` \_ -> return $ const False
 
 isSizeTypeTest :: TCM (Type -> Bool)
-isSizeTypeTest = do
-  testName <- isSizeNameTest
-  let testType (El _ (Def d [])) = testName d
-      testType _                 = False
-  return testType
+isSizeTypeTest =
+  ifM (not . optSizedTypes <$> pragmaOptions) (return $ const False) $ do
+    testName <- isSizeNameTestRaw
+    let testType (El _ (Def d [])) = testName d
+        testType _                 = False
+    return testType
 
 sizeType :: TCM Type
 sizeType = El (mkType 0) <$> primSize

@@ -845,4 +845,3 @@ unLevelAtom (MetaLevel x vs)   = MetaV x vs
 unLevelAtom (NeutralLevel v)   = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
-
