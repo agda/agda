@@ -304,7 +304,7 @@ mergeGroups n1 n2 ts = do
     let g1s = eqGroups ts !!! n1
         g2s = eqGroups ts !!! n2
         gs  = S.union g1s g2s
-    ifM (not . and <$> sequence [unifiable e1 e2 | e1 <- S.toList g1s, e2 <- S.toList g2s])
+    ifM (not <$> andM [unifiable e1 e2 | e1 <- S.toList g1s, e2 <- S.toList g2s])
         (return Nothing) $
         return $ Just $ ts
             { eqGroups    = M.delete n2 $ M.insert n1 gs (eqGroups ts)

@@ -15,7 +15,7 @@ import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
 import Data.Traversable hiding (sequence)
-import Data.Foldable
+import Data.Foldable as Fold
 import Data.Monoid
 
 import Agda.Utils.List
@@ -39,6 +39,13 @@ ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =
     do	b <- c
 	if b then m else m'
+
+-- | Lazy monadic conjunction.
+and2M :: Monad m => m Bool -> m Bool -> m Bool
+and2M ma mb = ifM ma mb (return False)
+
+andM :: Monad m => [m Bool] -> m Bool
+andM = Fold.foldl and2M (return True)
 
 forgetM :: Applicative m => m a -> m ()
 forgetM m = const () <$> m

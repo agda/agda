@@ -92,7 +92,7 @@ sizePolarity d =
 
                         return $ isPos && isLin
 
-          ifM (and <$> mapM check cons)
+          ifM (andM $ map check cons)
               (return [Covariant])
               (return [Invariant])
     _ -> return []

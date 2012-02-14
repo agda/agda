@@ -671,7 +671,7 @@ checkExpr e t =
                                        _         -> []
                                ) t'
           case metas of
-            _:_ -> postponeTypeCheckingProblem e0 t' $ and <$> mapM isInstantiatedMeta metas
+            _:_ -> postponeTypeCheckingProblem e0 t' $ andM $ map isInstantiatedMeta metas
             []  -> do
               quoted <- quoteTerm (unEl t')
               tmType <- agdaTermType

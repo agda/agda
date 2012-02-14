@@ -13,10 +13,11 @@ import Data.List
 import qualified Data.Map as M
 import Data.Maybe
 
-import Agda.TypeChecking.Monad
-import Agda.Syntax.Internal
-import Agda.TypeChecking.Substitute
 import Agda.Syntax.Common
+import Agda.Syntax.Internal
+import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Substitute
+import Agda.Utils.Monad (andM)
 
 import Agda.Compiler.Epic.CompileState
 import Agda.Compiler.Epic.Interface
@@ -40,7 +41,7 @@ isNatish :: QName -> Defn -> Compile TCM (Maybe (ForcedArgs, [QName]))
 isNatish q d = do -- A datatype ...
     case dataCons d of
         constrs | length constrs == 2 -> do -- with two constructors ...
-            b <- and <$> mapM constrInScope constrs
+            b <- andM $ map constrInScope constrs
             if b
               then do
                 z <- zip constrs <$> mapM getForcedArgs constrs

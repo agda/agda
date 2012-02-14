@@ -15,6 +15,7 @@ import Agda.Syntax.Internal(QName)
 import qualified Agda.Syntax.Internal as T
 import Agda.TypeChecking.Monad hiding (defName)
 import Agda.TypeChecking.Monad.Builtin
+import Agda.Utils.Monad (andM)
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
@@ -92,7 +93,7 @@ getBuiltins =
         if all isJust builtins
            then do
                 let names = map (defName . fromMaybe __IMPOSSIBLE__) builtins
-                b <- and <$>  mapM constrInScope names
+                b <- andM $ map constrInScope names
                 if b then return $ Just (transf names) else return Nothing
            else return Nothing
 

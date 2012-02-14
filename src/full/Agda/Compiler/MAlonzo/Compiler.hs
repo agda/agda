@@ -298,7 +298,7 @@ argpatts ps0 bvs = evalStateT (mapM pat' ps0) bvs
   irr (LitP {})   = return False
   irr (ConP q _ ps) =
     (&&) <$> singleConstructorType q
-         <*> (and <$> mapM irr' ps)
+         <*> (andM $ L.map irr' ps)
 
   -- | Irrelevant patterns are naturally irrefutable.
   irr' (Arg _ Irrelevant _) = return $ True
