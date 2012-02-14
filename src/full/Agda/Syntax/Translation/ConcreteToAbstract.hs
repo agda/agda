@@ -820,6 +820,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
                _            -> __IMPOSSIBLE__
         ls' <- toAbstract (map toTypeBinding ls)
         x'  <- freshAbstractQName f x
+        {- -- Andreas, 2012-01-16: remember number of parameters
+        bindName a (DataName (length ls)) x x' -}
         bindName a DefName x x'
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
@@ -1050,7 +1052,10 @@ instance ToAbstract C.Pragma [A.Pragma] where
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message
     toAbstract (C.Clause top lhs@(C.LHS p wps eqs with) rhs wh wcs) = withLocalVars $ do
-      let wcs' = map (expandEllipsis p wps) wcs
+-- WAS:     let wcs' = map (expandEllipsis p wps) wcs
+      -- Andreas, 2012-02-14: need to reset local vars before checking subclauses
+      vars <- getLocalVars
+      let wcs' = map (\ c -> setLocalVars vars >> do return $ expandEllipsis p wps c) wcs
       lhs' <- toAbstract (LeftHandSide top p wps)
       printLocals 10 "after lhs:"
       let (whname, whds) = case wh of
@@ -1085,9 +1090,16 @@ whereToAbstract r whname whds inner = do
   bindModule acc m am
   return (x, ds)
 
-data RightHandSide = RightHandSide [C.Expr] [C.Expr] [C.Clause] C.RHS [C.Declaration]
+data RightHandSide = RightHandSide
+  { rhsRewriteEqn :: [C.RewriteEqn]  -- ^ @rewrite e@ (many)
+  , rhsWithExpr   :: [C.WithExpr]    -- ^ @with e@ (many)
+  , rhsSubclauses :: [ScopeM C.Clause] -- ^ the subclauses spawned by a with (monadic because we need to reset the local vars before checking these clauses)
+  , rhs           :: C.RHS
+  , rhsWhereDecls :: [C.Declaration]
+  }
+
 data AbstractRHS = AbsurdRHS'
-                 | WithRHS' [A.Expr] [C.Clause]  -- ^ The with clauses haven't been translated yet
+                 | WithRHS' [A.Expr] [ScopeM C.Clause]  -- ^ The with clauses haven't been translated yet
                  | RHS' A.Expr
                  | RewriteRHS' [A.Expr] AbstractRHS [A.Declaration]
 
@@ -1110,7 +1122,7 @@ instance ToAbstract AbstractRHS A.RHS where
     return $ RewriteRHS auxs eqs rhs wh
   toAbstract (WithRHS' es cs) = do
     aux <- withFunctionName "with-"
-    A.WithRHS aux es <$> toAbstract cs
+    A.WithRHS aux es <$> do toAbstract =<< sequence cs
 
 instance ToAbstract RightHandSide AbstractRHS where
   toAbstract (RightHandSide eqs@(_:_) es cs rhs wh) = do

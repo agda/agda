@@ -26,7 +26,7 @@ module Agda.Syntax.Concrete
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , Renaming(..), AsName(..)
     , defaultImportDir
-    , OpenShortHand(..)
+    , OpenShortHand(..), RewriteEqn, WithExpr
     , LHS(..), Pattern(..)
     , RHS(..), WhereClause(..)
     , Pragma(..)
