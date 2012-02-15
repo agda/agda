@@ -82,7 +82,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120127 * 10 + 0
+currentInterfaceVersion = 20120215 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -109,17 +109,7 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 }
 
 data U    = forall a . Typeable a => U !a
-type Memo = HashTable (Int32, TypeRep') U    -- (node index, type rep)
-
--- | A newtype is used to avoid introducing an orphan instance of
--- Hashable.
-newtype TypeRep' = TypeRep' { unTypeRep' :: TypeRep }
-  deriving Eq
-
--- | With direct access to the internals of 'TypeRep' this instance
--- could presumably be improved.
-instance Hashable TypeRep' where
-  hash = hash . show . unTypeRep'
+type Memo = HashTable (Int32, TypeRep) U    -- (node index, type rep)
 
 data St = St
   { nodeE     :: !(Array Int32 Node)
@@ -972,7 +962,7 @@ vcase :: forall a . EmbPrj a => (Node -> R a) -> Int32 -> R a
 vcase valu = \ix -> do
     memo <- gets nodeMemo
     (aTyp, maybeU) <- liftIO $ do
-      let aTyp = TypeRep' $ typeOf (undefined :: a)
+      let aTyp = typeOf (undefined :: a)
       maybeU <- H.lookup memo (ix, aTyp)
       return (aTyp, maybeU)
     case maybeU of

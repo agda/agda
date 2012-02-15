@@ -85,7 +85,7 @@ library
                     process >= 1.0.1.0 && < 1.2,
                     haskeline >= 0.6.3.2 && < 0.7,
                     xhtml == 3000.2.*,
-                    hashable == 1.1.*,
+                    hashable >= 1.1.2.3 && < 1.2,
                     hashtables == 1.0.*,
                     syb >= 0.1 && < 0.4
   build-tools:      happy >= 1.15 && < 2,
