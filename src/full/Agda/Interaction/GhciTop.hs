@@ -1009,7 +1009,7 @@ tellEmacsToJumpToError r = do
     Just (Pn { srcFile = Nothing })            -> return ()
     Just (Pn { srcFile = Just f, posPos = p }) ->
       putResponse $
-        L [ A "annotation-goto"
+        L [ A "agda2-goto"
           , Q $ L [A (quote $ filePath f), A ".", A (show p)]
           ]
 
