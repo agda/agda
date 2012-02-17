@@ -217,6 +217,13 @@ checkPragma r p =
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM ()
 checkMutual i ds = inMutualBlock $ do
+
+  verboseS "tc.decl.mutual" 20 $ do
+    blockId <- currentOrFreshMutualBlock
+    reportSDoc "" 0 $ vcat $
+      (text "Checking mutual block" <+> text (show blockId) <> text ":") :
+      map (nest 2 . prettyA) ds
+
   mapM_ checkDecl ds
 
   checkStrictlyPositive =<< currentOrFreshMutualBlock
