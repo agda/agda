@@ -44,9 +44,10 @@ setMutualBlock i x = do
 getMutualBlocks :: TCM [Set QName]
 getMutualBlocks = gets $ Map.elems . stMutualBlocks
 
--- | Get the current mutual block.
-currentMutualBlock :: TCM MutualId
-currentMutualBlock = maybe fresh return =<< asks envMutualBlock
+-- | Get the current mutual block, if any, otherwise a fresh mutual
+-- block is returned.
+currentOrFreshMutualBlock :: TCM MutualId
+currentOrFreshMutualBlock = maybe fresh return =<< asks envMutualBlock
 
 lookupMutualBlock :: MutualId -> TCM (Set QName)
 lookupMutualBlock mi = do

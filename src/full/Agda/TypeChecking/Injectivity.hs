@@ -61,7 +61,7 @@ headSymbol v = ignoreAbstractMode $ do
           -- Don't treat axioms in the current mutual block
           -- as constructors (they might have definitions we
           -- don't know about yet).
-          fs <- lookupMutualBlock =<< currentMutualBlock
+          fs <- lookupMutualBlock =<< currentOrFreshMutualBlock
           if Set.member f fs
             then return Nothing
             else return (Just $ ConHead f)

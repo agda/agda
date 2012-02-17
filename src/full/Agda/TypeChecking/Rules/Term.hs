@@ -487,7 +487,7 @@ checkExpr e t =
                Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
                NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
                NotBlocked t -> do
-                 j   <- currentMutualBlock
+                 j   <- currentOrFreshMutualBlock
                  rel <- asks envRelevance
                  addConstant qname (Defn rel qname t (defaultDisplayForm qname) j noCompiledRep Axiom)
                  reportSDoc "tc.term.exlam" 50 $ text "extended lambda's implementation \"" <> prettyTCM qname <>
@@ -968,7 +968,7 @@ checkHeadApplication e t hd args = do
 
       -- Add the type signature of the fresh function to the
       -- signature.
-      i   <- currentMutualBlock
+      i   <- currentOrFreshMutualBlock
       tel <- getContextTelescope
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?

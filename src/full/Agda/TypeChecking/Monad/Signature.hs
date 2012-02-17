@@ -78,7 +78,7 @@ addConstant q d = do
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ \sig -> sig
     { sigDefinitions = Map.insertWith (+++) q d' $ sigDefinitions sig }
-  i <- currentMutualBlock
+  i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }

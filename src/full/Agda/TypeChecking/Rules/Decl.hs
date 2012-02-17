@@ -219,7 +219,7 @@ checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM ()
 checkMutual i ds = inMutualBlock $ do
   mapM_ checkDecl ds
 
-  checkStrictlyPositive =<< currentMutualBlock
+  checkStrictlyPositive =<< currentOrFreshMutualBlock
 
   -- Andreas, 2012-02-13: Polarity computation uses info from positivity
   -- check, so it needs happen after positivity check.
