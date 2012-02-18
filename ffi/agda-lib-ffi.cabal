@@ -1,12 +1,10 @@
 name:            agda-lib-ffi
-version:         0.0.1
+version:         0.0.2
 cabal-version:   >= 1.8
 build-type:      Simple
 description:     Auxiliary Haskell code used by Agda's standard library.
 
 library
-  build-depends:
-    -- Phony dependency, to avoid a bug in cabal-install.
-                    base >= 0 && <= 99999999999
+  build-depends:    base >= 3.0.3.1 && < 4.6
   exposed-modules:  Data.FFI
                     IO.FFI

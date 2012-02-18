@@ -73,17 +73,26 @@ mapM′ f = sequence′ ∘ map f
 ------------------------------------------------------------------------
 -- Simple lazy IO
 
--- Note that the semantics of these functions depends on the version
--- of the Haskell base library. If the version is 4.2.0.0 (or later?),
--- then the functions use the character encoding specified by the
--- locale. For older versions of the library (going back to at least
--- version 3) the functions use ISO-8859-1.
+-- Note that the functions below produce commands which, when
+-- executed, may raise exceptions.
+
+-- Note also that the semantics of these functions depends on the
+-- version of the Haskell base library. If the version is 4.2.0.0 (or
+-- later?), then the functions use the character encoding specified by
+-- the locale. For older versions of the library (going back to at
+-- least version 3) the functions use ISO-8859-1.
 
 getContents : IO Costring
 getContents = lift Prim.getContents
 
 readFile : String → IO Costring
 readFile f = lift (Prim.readFile f)
+
+-- Reads a finite file. Raises an exception if the file path refers to
+-- a non-physical file (like "/dev/zero").
+
+readFiniteFile : String → IO String
+readFiniteFile f = lift (Prim.readFiniteFile f)
 
 writeFile∞ : String → Costring → IO ⊤
 writeFile∞ f s =
