@@ -5,9 +5,11 @@ module Agda.Compiler.JS.Compiler where
 import Prelude hiding ( null, writeFile )
 import Control.Monad.Reader ( liftIO )
 import Control.Monad.State ( get, put )
-import Data.List ( intercalate, map, filter, isPrefixOf, concat, genericDrop, genericLength )
+import Data.List ( intercalate, map, filter, isPrefixOf, concat, genericDrop, genericLength, partition )
 import Data.Set ( Set, empty, null, insert, difference, delete )
 import Data.Map ( Map, fold, singleton, fromList, toList, toAscList, insertWith, elems )
+import qualified Data.Set as Set
+import qualified Data.Map as Map
 import System.Directory ( createDirectoryIfMissing )
 import System.FilePath ( pathSeparator, splitFileName, (</>) )
 
@@ -154,8 +156,17 @@ global q = do
 -- Reorder a list of exports to ensure def-before-use.
 -- Note that this can diverge in the case when there is no such reordering.
 
+-- Only top-level values are evaluated before definitions are added to the
+-- module, so we put those last, ordered in dependency order. There can't be
+-- any recursion between top-level values (unless termination checking has been
+-- disabled and someone's written a non-sensical program), so reordering will
+-- terminate.
+
 reorder :: [Export] -> [Export]
-reorder = reorder' empty
+reorder es = datas ++ funs ++ reorder' (Set.fromList $ map expName $ datas ++ funs) vals
+  where
+    (vs, funs)    = partition isTopLevelValue es
+    (datas, vals) = partition isEmptyObject vs
 
 reorder' :: Set [MemberId] -> [Export] -> [Export]
 reorder' defs [] = []
@@ -164,6 +175,16 @@ reorder' defs (e : es) =
   case null us of
     True -> e : (reorder' (insert (expName e) defs) es)
     False -> reorder' defs (insertAfter us e es)
+
+isTopLevelValue :: Export -> Bool
+isTopLevelValue (Export _ e) = case e of
+  Lambda{} -> False
+  _        -> True
+
+isEmptyObject :: Export -> Bool
+isEmptyObject (Export _ e) = case e of
+  Object m -> Map.null m
+  _        -> False
 
 insertAfter :: Set [MemberId] -> Export -> [Export] -> [Export]
 insertAfter us e []                 = [e]
