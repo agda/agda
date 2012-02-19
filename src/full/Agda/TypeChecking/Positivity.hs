@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleInstances, FlexibleContexts,
+             UndecidableInstances #-}
 
 -- | Check that a datatype is strictly positive.
 module Agda.TypeChecking.Positivity where
@@ -41,7 +42,12 @@ checkStrictlyPositive mi = do
                                " E=" ++ show (length $ Graph.edges g)
   reportSDoc "tc.pos.graph" 10 $ vcat
     [ text "positivity graph for" <+> prettyTCM (Set.toList qs)
-    , nest 2 $ prettyGraph g
+    , nest 2 $ prettyTCM g
+    ]
+  reportSDoc "tc.pos.graph" 50 $ vcat
+    [ text "transitive closure of positivity graph for" <+>
+      prettyTCM (Set.toList qs)
+    , nest 2 $ prettyTCM gstar
     ]
   mapM_ (setArgs gstar) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "set args"
@@ -379,16 +385,25 @@ instance PrettyTCM Node where
   prettyTCM (DefNode q)   = prettyTCM q
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
-prettyGraph g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
-  where
-    pr (n, es) = sep
-      [ prettyTCM n
-      , nest 2 $ vcat $ map prE $ Map.assocs es
-      ]
-    prE (n, Edge o w) = prO o <+> prettyTCM n <+> fsep (pwords $ show w)
-    prO Positive = text "-[+]->"
-    prO Negative = text "-[-]->"
-    prO Unused   = text "-[ ]->"
+instance PrettyTCM Occurrence where
+  prettyTCM Positive = text "-[+]->"
+  prettyTCM Negative = text "-[-]->"
+  prettyTCM Unused   = text "-[ ]->"
+
+instance PrettyTCM n => PrettyTCM (n, Edge) where
+  prettyTCM (n, Edge o w) =
+    prettyTCM o <+> prettyTCM n <+> fsep (pwords $ show w)
+
+instance PrettyTCM n => PrettyTCM (n, Occurrence) where
+  prettyTCM (n, o) = prettyTCM o <+> prettyTCM n
+
+instance (PrettyTCM n, PrettyTCM (n, e)) => PrettyTCM (Graph n e) where
+  prettyTCM g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
+    where
+      pr (n, es) = sep
+        [ prettyTCM n
+        , nest 2 $ vcat $ map prettyTCM $ Map.assocs es
+        ]
 
 data Edge = Edge Occurrence OccursWhere
   deriving (Show)
