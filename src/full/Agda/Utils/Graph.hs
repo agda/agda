@@ -54,6 +54,11 @@ growGraph g = foldr union g $ map newEdges $ edges g
         Just es -> Graph $ Map.singleton a $ Map.map (otimes w) es
         Nothing -> empty
 
+-- | Computes the transitive closure of the graph.
+--
+-- Note that this algorithm is not guaranteed to terminate for
+-- arbitrary semirings.
+
 transitiveClosure :: (Eq e, SemiRing e, Ord n) => Graph n e -> Graph n e
 transitiveClosure g = loop g
   where -- n = Set.size $ nodes g

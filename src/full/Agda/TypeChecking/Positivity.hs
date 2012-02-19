@@ -100,6 +100,10 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
+-- | These operations form a commutative semiring with 'Unused' as
+-- zero and 'Positive' as one. Furthermore both operations are
+-- idempotent.
+
 instance SemiRing Occurrence where
   oplus Negative _        = Negative
   oplus _ Negative        = Negative
@@ -388,6 +392,9 @@ prettyGraph g = vcat $ map pr $ Map.assocs $ Graph.unGraph g
 
 data Edge = Edge Occurrence OccursWhere
   deriving (Show)
+
+-- | These operations form a semiring if we quotient by the relation
+-- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
   oplus _                   e@(Edge Negative _) = e
