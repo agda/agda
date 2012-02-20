@@ -47,6 +47,13 @@ and2M ma mb = ifM ma mb (return False)
 andM :: Monad m => [m Bool] -> m Bool
 andM = Fold.foldl and2M (return True)
 
+-- | Lazy monadic disjunction.
+or2M :: Monad m => m Bool -> m Bool -> m Bool
+or2M ma mb = ifM ma (return True) mb
+
+orM :: Monad m => [m Bool] -> m Bool
+orM = Fold.foldl or2M (return False)
+
 forgetM :: Applicative m => m a -> m ()
 forgetM m = const () <$> m
 

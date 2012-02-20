@@ -1,9 +1,11 @@
 -- 2010-09-24
 -- example originally stolen from Andrea Vezzosi's post on the Agda list 
 
+{-# OPTIONS --no-irrelevant-projections #-}
+
 module IrrelevantRecordFields where
 
-import Common.Irrelevance  
+-- import Common.Irrelevance  
   
 infix 4 _≡_ 
 

@@ -9,13 +9,16 @@ Language
 
 * New: Built-in irrelevance axiom.
 
+    import Level
+
     postulate
       .irrAxiom : ∀ {a}{A : Set a} → .A → A
     {-# BUILTIN IRRAXIOM irrAxiom #-}
 
 * Irrelevant projections require irrelevance axiom.
 
-  Record with irrelevant fields now require the built-in IRRAXIOM.
+  Record with irrelevant fields now require the built-in IRRAXIOM
+  (unless --no-irrelevant-projections).
 
     record Squash {a}(A : Set a) : Set a where
       constructor squash

@@ -27,6 +27,10 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkDecl)
 
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Monad
+
+import Agda.Interaction.Options
+
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -251,10 +255,16 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       -- The type of the projection function should be
       --  {tel} -> (r : R Δ) -> t
       -- where Δ = Γ, tel is the current context
-
-
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x
+          -- the recursive call
+          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Arg h rel t)
+                                 $ Abs (show $ qnameName projname) EmptyTel)
+                                (absBody ftel2) fs
+
+      -- Andreas, 2012-02-20 do not add irrelevant projections if
+      -- disabled by --no-irrelevant-projections
+      ifM (return (rel == Irrelevant) `and2M` do not . optIrrelevantProjections <$> pragmaOptions) recurse $ do
 
       reportSDoc "tc.rec.proj" 10 $ sep
 	[ text "adding projection"
@@ -348,9 +358,13 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      }
         computePolarity projname
 
+      recurse
+{-
       checkProjs (abstract ftel1 $ ExtendTel (Arg h rel t)
                                  $ Abs (show $ qnameName projname) EmptyTel
                  ) (absBody ftel2) fs
+-}
+
     checkProjs ftel1 ftel2 (d : fs) = do
       checkDecl d
       checkProjs ftel1 ftel2 fs
