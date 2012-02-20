@@ -57,6 +57,13 @@ isSortMeta m = do
     HasType{} -> False
     IsSort{}  -> True
 
+getMetaType :: MetaId -> TCM Type
+getMetaType m = do
+  mv <- lookupMeta m
+  return $ case mvJudgement mv of
+    HasType{ jMetaType = t } -> t
+    IsSort{}  -> __IMPOSSIBLE__
+
 isInstantiatedMeta :: MetaId -> TCM Bool
 isInstantiatedMeta m = do
   mv <- lookupMeta m

@@ -175,7 +175,11 @@ instance PrettyTCM Constraint where
               OpenIFS{}  -> __IMPOSSIBLE__
               InstS{} -> __IMPOSSIBLE__
               InstV{} -> __IMPOSSIBLE__
-	FindInScope m   -> sep [ text $ "Find in scope " ++ (show m) ]
+	FindInScope m   -> do
+            t <- getMetaType m
+            sep [ text $ "Find in scope " ++ (show m) ++ " :"
+                , nest 2 $ prettyTCM t
+                ]
         IsEmpty t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
 

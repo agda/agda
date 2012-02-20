@@ -171,7 +171,7 @@ data OutputConstraint a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a
-      | IsEmptyType a | FindInScopeOF b
+      | IsEmptyType a | FindInScopeOF b a
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -198,7 +198,7 @@ outputFormId (OutputForm _ o) = out o
       Assign i _           -> i
       TypedAssign i _ _    -> i
       IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
-      FindInScopeOF _      -> __IMPOSSIBLE__
+      FindInScopeOF _ _      -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm pid <$> reify c)
@@ -232,7 +232,8 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           InstV{} -> __IMPOSSIBLE__
     reify (FindInScope m) = do
       m' <- reify (MetaV m [])
-      return $ FindInScopeOF m' -- IFSTODO
+      t <- reify =<< getMetaType m
+      return $ FindInScopeOF m' t  -- IFSTODO
     reify (IsEmpty a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String
@@ -257,7 +258,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (FindInScopeOF s)      = "Find in Scope: " ++ show s
+    show (FindInScopeOF s t)      = "Find in Scope (" ++ show s ++ " : " ++ show t ++ ")"
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -285,7 +286,7 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
-    toConcrete (FindInScopeOF s) = FindInScopeOF <$> toConcrete s
+    toConcrete (FindInScopeOF s t) = FindInScopeOF <$> toConcrete s <*> toConcrete t
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t

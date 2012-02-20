@@ -151,6 +151,7 @@ solveConstraint c = do
       reportSDoc "tc.constr.solve" 20 $ text (show pids) <+> prettyTCM c
       solveConstraint_ c
 
+solveConstraint_ :: Constraint -> TCM ()
 solveConstraint_ (ValueCmp cmp a u v)       = compareTerm cmp a u v
 solveConstraint_ (ElimCmp cmp a e u v)      = compareElims cmp a e u v
 solveConstraint_ (TypeCmp cmp a b)          = compareType cmp a b
