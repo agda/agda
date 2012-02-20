@@ -15,6 +15,7 @@ module Agda.Utils.TestHelpers
   , maybeGen
   , maybeCoGen
   , listOfElements
+  , elementsUnlessEmpty
   , two
   , three
     -- * Test driver.
@@ -104,6 +105,13 @@ positive = fmap ((+ 1) . abs . fromInteger) arbitrary
 listOfElements :: [a] -> Gen [a]
 listOfElements [] = return []
 listOfElements xs = listOf $ elements xs
+
+-- | If the given list is non-empty, then an element from the list is
+-- generated, and otherwise an arbitrary element is generated.
+
+elementsUnlessEmpty :: Arbitrary a => [a] -> Gen a
+elementsUnlessEmpty [] = arbitrary
+elementsUnlessEmpty xs = elements xs
 
 -- | Generates values of 'Maybe' type, using the given generator to
 -- generate the contents of the 'Just' constructor.
