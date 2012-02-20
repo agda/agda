@@ -21,6 +21,7 @@ import Agda.Termination.SparseMatrix          as TermSparse (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
+import Agda.Utils.Graph                       as UtilGrap   (tests)
 import Agda.Utils.List                        as UtilList   (tests)
 import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
@@ -43,6 +44,7 @@ testSuite = runTests "QuickCheck test suite:"
   , TypeChck.tests
   , UtilEith.tests
   , UtilFile.tests
+  , UtilGrap.tests
   , UtilList.tests
   , UtilWarsh.tests
   ]
