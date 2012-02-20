@@ -244,13 +244,7 @@ solveConstraint_ (FindInScope m)      =
           case defn of
             -- drop parameters if it's a projection function...
             Function{ funProjection = Just (rn,i) } -> do
-              ci <- theDef <$> getConstInfo rn
-              let rpi = case ci of Datatype { dataPars = d } -> d
-                                   Record {recPars = d } -> d
-                                   Axiom -> toInteger i - 1
-                                   _ -> __IMPOSSIBLE__
-              let rp = fromInteger rpi
-              return $ genericTake (i - rp - 1) args ++ genericDrop (i - 1) args
+              return $ genericDrop (i - 1) args
             _ -> return args
         getContextVars :: TCM [(Term, Type, Hiding)]
         getContextVars = do
