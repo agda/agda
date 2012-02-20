@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Agda.Utils.Graph where
 
+import qualified Data.Graph as Graph
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -46,6 +47,31 @@ lookup a b g = Map.lookup b =<< Map.lookup a (unGraph g)
 
 neighbours :: Ord n => n -> Graph n e -> [(n, e)]
 neighbours a g = maybe [] Map.assocs $ Map.lookup a $ unGraph g
+
+-- | The graph's strongly connected components, in reverse topological
+-- order.
+
+sccs' :: Ord n => Graph n e -> [Graph.SCC n]
+sccs' g =
+  Graph.stronglyConnComp .
+  map (\n -> (n, n, map fst $ neighbours n g)) .
+  Set.toList .
+  nodes $
+  g
+
+-- | The graph's strongly connected components, in reverse topological
+-- order.
+
+sccs :: Ord n => Graph n e -> [[n]]
+sccs = map Graph.flattenSCC . sccs'
+
+-- | Returns @True@ iff the graph is acyclic.
+
+acyclic :: Ord n => Graph n e -> Bool
+acyclic = all isAcyclic . sccs'
+  where
+  isAcyclic Graph.AcyclicSCC{} = True
+  isAcyclic Graph.CyclicSCC{}  = False
 
 growGraph :: (SemiRing e, Ord n) => Graph n e -> Graph n e
 growGraph g = foldr union g $ map newEdges $ edges g
