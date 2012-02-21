@@ -28,6 +28,7 @@ import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
 import Agda.TypeChecker
+import Agda.TypeChecking.Constraints (instanceSearch)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
@@ -171,7 +172,7 @@ data OutputConstraint a b
       | JustSort b | CmpSorts Comparison b b
       | Guard (OutputConstraint a b) ProblemId
       | Assign b a | TypedAssign b a a
-      | IsEmptyType a | FindInScopeOF b a
+      | IsEmptyType a | FindInScopeOF b a [(a,a)]
   deriving (Functor)
 
 -- | A subset of 'OutputConstraint'.
@@ -198,7 +199,7 @@ outputFormId (OutputForm _ o) = out o
       Assign i _           -> i
       TypedAssign i _ _    -> i
       IsEmptyType _        -> __IMPOSSIBLE__   -- Should never be used on IsEmpty constraints
-      FindInScopeOF _ _      -> __IMPOSSIBLE__
+      FindInScopeOF _ _ _  -> __IMPOSSIBLE__
 
 instance Reify ProblemConstraint (Closure (OutputForm Expr Expr)) where
   reify (PConstr pid cl) = enterClosure cl $ \c -> buildClosure =<< (OutputForm pid <$> reify c)
@@ -232,8 +233,11 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           InstV{} -> __IMPOSSIBLE__
     reify (FindInScope m) = do
       m' <- reify (MetaV m [])
-      t <- reify =<< getMetaType m
-      return $ FindInScopeOF m' t  -- IFSTODO
+      ctxArgs <- getContextArgs
+      (t, cands) <- instanceSearch m ctxArgs
+      t' <- reify t
+      cands' <- mapM (\(tm,ty) -> (,) <$> reify tm <*> reify ty) cands
+      return $ FindInScopeOF m' t' cands' -- IFSTODO
     reify (IsEmpty a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String
@@ -258,7 +262,9 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (FindInScopeOF s t)      = "Find in Scope (" ++ show s ++ " : " ++ show t ++ ")"
+    show (FindInScopeOF s t cs) = "Candidates in scope for (" ++ showCand (s,t) ++ "): [" ++
+                                    intercalate ", " (map showCand cs) ++ "]"
+      where showCand (tm,ty) = show tm ++ " : " ++ show ty
 
 instance (ToConcrete a c, ToConcrete b d) =>
          ToConcrete (OutputForm a b) (OutputForm c d) where
@@ -286,7 +292,9 @@ instance (ToConcrete a c, ToConcrete b d) =>
     toConcrete (TypedAssign m e a) = TypedAssign <$> toConcrete m <*> toConcreteCtx TopCtx e
                                                                   <*> toConcreteCtx TopCtx a
     toConcrete (IsEmptyType a) = IsEmptyType <$> toConcreteCtx TopCtx a
-    toConcrete (FindInScopeOF s t) = FindInScopeOF <$> toConcrete s <*> toConcrete t
+    toConcrete (FindInScopeOF s t cs) =
+      FindInScopeOF <$> toConcrete s <*> toConcrete t
+                    <*> mapM (\(tm,ty) -> (,) <$> toConcrete tm <*> toConcrete ty) cs
 
 instance (Pretty a, Pretty b) => Pretty (OutputConstraint' a b) where
   pretty (OfType' e t) = pretty e <+> text ":" <+> pretty t

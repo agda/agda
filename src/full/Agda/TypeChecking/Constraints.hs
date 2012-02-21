@@ -194,56 +194,56 @@ solveConstraint_ (UnBlock m)                =
 solveConstraint_ (FindInScope m)      =
   ifM (isFrozen m) (addConstraint $ FindInScope m) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
+    do
+      mv <- lookupMeta m
+      ctxArgs <- getContextArgs
+      (t, cands) <- instanceSearch m ctxArgs
+      reportSLn "tc.constr.findInScope" 15 $ "findInScope t: " ++ show t
+      case cands of
+        [] -> do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
+                 typeError $ IFSNoCandidateInScope t
+
+        [(term, t')] -> do reportSDoc "tc.constr.findInScope" 15 $ text (
+                             "one candidate found for type '") <+>
+                             prettyTCM t <+> text "': '" <+> prettyTCM term <+>
+                             text "', of type '" <+> prettyTCM t' <+> text "'."
+                           ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
+                           case ca of Left _ -> __IMPOSSIBLE__
+                                      Right (args, t'') -> do
+                                        leqType t'' t
+                                        assignV m ctxArgs (term `apply` args)
+                                        return ()
+        cs -> do reportSDoc "tc.constr.findInScope" 15 $
+                   text ("more than one candidate found: ") <+>
+                   prettyTCM (List.map fst cs)
+                 addConstraint $ FindInScope m
+
+instanceSearch :: MetaId -> Args -> TCM (Type, [(Term, Type)])
+instanceSearch m ctxArgs = do
     mv <- lookupMeta m
     let j = mvJudgement mv
     case j of
       IsSort{} -> __IMPOSSIBLE__
       HasType _ tj -> do
-        ctx <- getContextVars
-        ctxArgs <- getContextArgs
+        cands1 <- getContextVars
         t <- normalise $ tj `piApply` ctxArgs
-        reportSLn "tc.constr.findInScope" 15 $ "findInScope t: " ++ show t
-        let candsP1 = [(term, t) | (term, t, Instance) <- ctx]
-        let candsP2 = [(term, t) | (term, t, h) <- ctx, h /= Instance]
         let scopeInfo = getMetaScope mv
         let ns = everythingInScope scopeInfo
         let nsList = Map.toList $ nsNames ns
         -- try all abstract names in scope (even ones that you can't refer to
         --  unambiguously)
-        let candsP3Names = nsList >>= snd
-        candsP3Types <- mapM (typeOfConst     . anameName) candsP3Names
-        candsP3Rel   <- mapM (relOfConst      . anameName) candsP3Names
-        candsP3FV    <- mapM (constrFreeVarsToApply . anameName) candsP3Names
-        rel          <- asks envRelevance
-        let candsP3 = [(Def (anameName an) vs, t) |
-                       (an, t, r, vs) <- zip4 candsP3Names candsP3Types candsP3Rel candsP3FV,
-                       r `moreRelevant` rel ]
-        let cands = [candsP1, candsP2, candsP3]
-        cands <- mapM (filterM (uncurry $ checkCandidateForMeta m t )) cands
-        let iterCands :: [(Int, [(Term, Type)])] -> TCM ()
-            iterCands [] = do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
-                              typeError $ IFSNoCandidateInScope t
-            iterCands ((p, []) : cs) = do reportSDoc "tc.constr.findInScope" 15 $ text $
-                                            "no candidates found at p=" ++ show p ++ ", trying next p..."
-                                          iterCands cs
-            iterCands ((p, [(term, t')]):_) =
-              do reportSDoc "tc.constr.findInScope" 15 $ text (
-                   "one candidate at p=" ++ show p ++ " found for type '") <+>
-                   prettyTCM t <+> text "': '" <+> prettyTCM term <+>
-                   text "', of type '" <+> prettyTCM t' <+> text "'."
-                 ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
-                 case ca of Left _ -> __IMPOSSIBLE__
-                            Right (args, t'') -> do
-                              leqType t'' t
-                              assignV m ctxArgs (term `apply` args)
-                              return ()
-            iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
-                                         text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
-                                         prettyTCM (List.map fst cs)
-                                       addConstraint $ FindInScope m
-        iterCands [(1,concat cands)]
-      where
-        constrFreeVarsToApply :: QName -> TCM Args
+        let cands2Names = nsList >>= snd
+        cands2Types <- mapM (typeOfConst     . anameName) cands2Names
+        cands2Rel   <- mapM (relOfConst      . anameName) cands2Names
+        cands2FV    <- mapM (constrFreeVarsToApply . anameName) cands2Names
+        rel         <- asks envRelevance
+        let cands2 = [(Def (anameName an) vs, t) |
+                      (an, t, r, vs) <- zip4 cands2Names cands2Types cands2Rel cands2FV,
+                      r `moreRelevant` rel ]
+        let cands = cands1 ++ cands2
+        cands <- filterM (uncurry $ checkCandidateForMeta m t) cands
+        return (t, cands)
+  where constrFreeVarsToApply :: QName -> TCM Args
         constrFreeVarsToApply n = do
           args <- freeVarsToApply n
           defn <- theDef <$> getConstInfo n
@@ -252,17 +252,17 @@ solveConstraint_ (FindInScope m)      =
             Function{ funProjection = Just (rn,i) } -> do
               return $ genericDrop (i - 1) args
             _ -> return args
-        getContextVars :: TCM [(Term, Type, Hiding)]
+        getContextVars :: TCM [(Term, Type)]
         getContextVars = do
           ctx <- getContext
           let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
           types <- mapM typeOfBV ids
-          let vars = [ (Var i [], t, h) | (Arg h r _, i, t) <- zip3 ctx [0..] types,
-                                          not (unusableRelevance r) ]
+          let vars = [ (Var i [], t) | (Arg h r _, i, t) <- zip3 ctx [0..] types,
+                                       not (unusableRelevance r) ]
           -- get let bindings
           env <- asks envLetBindings
           env <- mapM (getOpen . snd) $ Map.toList env
-          let lets = [ (v,t,h) | (v, Arg h r t) <- env, not (unusableRelevance r) ]
+          let lets = [ (v,t) | (v, Arg h r t) <- env, not (unusableRelevance r) ]
           return $ vars ++ lets
         checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
         checkCandidateForMeta m t term t' =
