@@ -12,7 +12,9 @@ import Data.List as List
 import Data.Set as Set
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Internal
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
@@ -23,7 +25,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
 import Agda.TypeChecking.MetaVars.Mention
 
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, checkArguments, ExpandHidden(..), ExpandInstances(..))
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Empty
@@ -229,8 +231,12 @@ solveConstraint_ (FindInScope m)      =
                    "one candidate at p=" ++ show p ++ " found for type '") <+>
                    prettyTCM t <+> text "': '" <+> prettyTCM term <+>
                    text "', of type '" <+> prettyTCM t' <+> text "'."
-                 leqType t t'
-                 assignV m ctxArgs term
+                 ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
+                 case ca of Left _ -> __IMPOSSIBLE__
+                            Right (args, t'') -> do
+                              leqType t'' t
+                              assignV m ctxArgs (term `apply` args)
+                              return ()
             iterCands ((p, cs):_) = do reportSDoc "tc.constr.findInScope" 15 $
                                          text ("still more than one candidate at p=" ++ show p ++ ": ") <+>
                                          prettyTCM (List.map fst cs)
@@ -265,16 +271,22 @@ solveConstraint_ (FindInScope m)      =
             localState $ do
                -- domi: we assume that nothing below performs direct IO (except
                -- for logging and such, I guess)
-               leqType t t'
-               tel <- getContextTelescope
-               assignTerm m (teleLam tel term)
-               -- make a pass over constraints, to detect cases where some are made
-               -- unsolvable by the assignment, but don't do this for FindInScope's
-               -- to prevent loops. We currently also ignore UnBlock constraints
-               -- to be on the safe side.
-               wakeConstraints (isSimpleConstraint . clValue . theConstraint)
-               solveAwakeConstraints
-            return True
+              ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t
+              case ca of
+                Left _ -> return False
+                Right (args, t'') -> do
+                  leqType t'' t
+                  --tel <- getContextTelescope
+                  ctxArgs <- getContextArgs
+                  --assignTerm m (teleLam tel (term `apply` args))
+                  noConstraints $ assignV m ctxArgs (term `apply` args)
+                  -- make a pass over constraints, to detect cases where some are made
+                  -- unsolvable by the assignment, but don't do this for FindInScope's
+                  -- to prevent loops. We currently also ignore UnBlock constraints
+                  -- to be on the safe side.
+                  wakeConstraints (isSimpleConstraint . clValue . theConstraint)
+                  solveAwakeConstraints
+                  return True
         isSimpleConstraint :: Constraint -> Bool
         isSimpleConstraint FindInScope{} = False
         isSimpleConstraint UnBlock{}     = False

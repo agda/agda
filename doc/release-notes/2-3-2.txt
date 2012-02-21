@@ -7,6 +7,24 @@ Important changes since 2.3.0:
 Language
 ========
 
+* Instance arguments resolution will now consider candidates which
+  still need expect arguments. For example:
+
+    record Eq (A : Set) : Set where
+      field eq : A → A → Bool
+
+    open Eq {{...}}
+
+    eqFin : {n : ℕ} → Eq (Fin n)
+    eqFin = record { eq = primEqFin }
+
+    testFin : Bool
+    testFin = eq fin1 fin2
+
+  The type-checker will now resolve the instance argument of the eq
+  function to eqFin {_}. This is only done for implicit arguments, not
+  instance arguments, so that the instance search stays non-recursive.
+
 * New: Built-in irrelevance axiom.
 
     import Level

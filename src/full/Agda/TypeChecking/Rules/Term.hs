@@ -317,10 +317,10 @@ reduceCon c = do
 --
 -- Checks @e := ((_ : t0) args) : t@.
 checkArguments' ::
-  ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
+  ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type -> A.Expr ->
   (Args -> Type -> TCM Term) -> TCM Term
-checkArguments' exph r args t0 t e k = do
-  z <- runErrorT $ checkArguments exph r args t0 t
+checkArguments' exph expIFS r args t0 t e k = do
+  z <- runErrorT $ checkArguments exph expIFS r args t0 t
   case z of
     Right (vs, t1) -> k vs t1
       -- vs = evaluated args
@@ -869,7 +869,7 @@ checkConstructorApplication org t c args
                           , text "ctype  =" <+> prettyTCM ctype ] ]
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-        checkArguments' ExpandLast (getRange c) args ctype' t org $ \us t' -> do
+        checkArguments' ExpandLast ExpandInstanceArguments (getRange c) args ctype' t org $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
@@ -928,7 +928,7 @@ checkHeadApplication e t hd args = do
         [ text "checkHeadApplication inferred" <+>
           prettyTCM c <+> text ":" <+> prettyTCM t0
         ]
-      checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 -> do
+      checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 -> do
         TelV eTel eType <- telView t
         -- If the expected type @eType@ is a metavariable we have to make
         -- sure it's instantiated to the proper pi type
@@ -1009,10 +1009,11 @@ checkHeadApplication e t hd args = do
   where
   defaultResult = do
     (f, t0) <- inferHead hd
-    checkArguments' ExpandLast (getRange hd) args t0 t e $ \vs t1 ->
+    checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
       blockTerm t $ f vs <$ leqType_ t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
+data ExpandInstances = ExpandInstanceArguments | DontExpandInstanceArguments deriving (Eq)
 
 instance Error Type where
   strMsg _ = __IMPOSSIBLE__
@@ -1036,10 +1037,10 @@ traceCallE call m = do
 --   that have to be solved for everything to be well-formed.
 --
 --   TODO: doesn't do proper blocking of terms
-checkArguments :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Type -> Type ->
+checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type)
-checkArguments DontExpandLast _ [] t0 t1 = return ([], t0)
-checkArguments exh r [] t0 t1 =
+checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
+checkArguments exh expandIFS r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
@@ -1047,20 +1048,21 @@ checkArguments exh r [] t0 t1 =
 	    Pi (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
 		let arg = Arg Hidden rel v
-		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
+		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
-	    Pi (Arg Instance rel a) _ | notHPi Instance $ unEl t1'  -> do
+	    Pi (Arg Instance rel a) _ | expandIFS == ExpandInstanceArguments &&
+                                        (notHPi Instance $ unEl t1')  -> do
                 lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
 		let arg = Arg Instance rel v
-		(vs, t0'') <- checkArguments exh r [] (piApply t0' [arg]) t1'
+		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
 	    _ -> return ([], t0')
     where
 	notHPi h (Pi  (Arg h' _ _) _) | h == h' = False
 	notHPi _ _		        = True
 
-checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
+checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ text "checkArguments"
@@ -1081,14 +1083,15 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
                 h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
-                  (us, t0'') <- checkArguments exh (fuseRange r e) args (piApply t0' [arg]) t1
+                  (us, t0'') <- checkArguments exh expandIFS (fuseRange r e) args (piApply t0' [arg]) t1
                   return (nukeIfIrrelevant arg : us, t0'')
                          where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
    -- Andreas, 2011-09-09 keep irr. args. until after termination checking
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
-              Pi (Arg Instance rel a) _ -> insertIFSUnderscore rel a
+              Pi (Arg Instance rel a) _ | expandIFS == ExpandInstanceArguments ->
+                insertIFSUnderscore rel a
               Pi (Arg Hidden rel a) _   -> insertUnderscore rel
               Pi (Arg NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
@@ -1096,7 +1099,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
 	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
                                        lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
                                        let arg = Arg Instance rel v
-                                       (vs, t0'') <- checkArguments exh r args0 (piApply t0 [arg]) t1
+                                       (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
                                        return (arg : vs, t0'')
 	insertUnderscore rel = do
 	  scope <- lift $ getScope
@@ -1105,7 +1108,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
 		  , A.metaScope  = scope
 		  , A.metaNumber = Nothing
 		  }
-	  checkArguments exh r (Arg Hidden rel (unnamed m) : args0) t0 t1
+	  checkArguments exh expandIFS r (Arg Hidden rel (unnamed m) : args0) t0 t1
 
 	name (Named _ (A.Var x)) = show x
 	name (Named (Just x) _)    = x
@@ -1121,7 +1124,7 @@ checkArguments exh r args0@(Arg h _ e : args) t0 t1 =
 -- | Check that a list of arguments fits a telescope.
 checkArguments_ :: ExpandHidden -> Range -> [NamedArg A.Expr] -> Telescope -> TCM Args
 checkArguments_ exh r args tel = do
-    z <- runErrorT $ checkArguments exh r args (telePi tel $ sort Prop) (sort Prop)
+    z <- runErrorT $ checkArguments exh ExpandInstanceArguments r args (telePi tel $ sort Prop) (sort Prop)
     case z of
       Right (args, _) -> return args
       Left _          -> __IMPOSSIBLE__
