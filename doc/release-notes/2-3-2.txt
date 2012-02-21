@@ -57,6 +57,12 @@ Emacs mode
 * The Emacs mode now presents information about which module is
   currently being type-checked.
 
+* New global menu entry: Information about the character at point.
+
+  If this entry is selected, then information about the character at
+  point is displayed, including (in many cases) information about how
+  to type the character.
+
 * New semantics of and default value for agda2-ghci-options.
 
   This change should affect very few users.
