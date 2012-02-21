@@ -89,13 +89,15 @@ the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-ghci-options
-  (list "-hide-all-packages"  ; To avoid problems if some conflicting
+  (list "-ignore-dot-ghci"    ; Make sure that the user's .ghci is not
+                              ; read.
+        "-hide-all-packages"  ; To avoid problems if some conflicting
                               ; package is exposed in one of the
                               ; user's package databases.
         "-package base"       ; To gain access to the Prelude.
         (concat "-package Agda-" agda2-version))
-  "Options set in GHCi before loading `agda2-toplevel-module'.
-Note that only dynamic options can be set using this variable."
+  "Command-line options given to GHCi.
+These options are prepended to `haskell-ghci-program-args'."
   :type '(repeat string)
   :group 'agda2)
 
@@ -403,14 +405,8 @@ Special commands:
                           (error nil))
                         (kill-buffer agda2-bufname))
                       (error nil))
-                    ;; Make sure that the user's .ghci is not read.
-                    ;; Users can override this by adding
-                    ;; "-read-dot-ghci" to
-                    ;; `haskell-ghci-program-args'.
-                    (unless (equal (car-safe haskell-ghci-program-args)
-                                   ignore-dot-ghci)
-                      (set (make-local-variable 'haskell-ghci-program-args)
-                           (cons ignore-dot-ghci haskell-ghci-program-args)))
+                    (set (make-local-variable 'haskell-ghci-program-args)
+                         (append agda2-ghci-options haskell-ghci-program-args))
                     (haskell-ghci-start-process nil)
                     (setq agda2-process        haskell-ghci-process
                           agda2-process-buffer haskell-ghci-process-buffer
@@ -426,7 +422,6 @@ Special commands:
                     (set-buffer-process-coding-system 'utf-8 'utf-8)
                     (rename-buffer agda2-bufname)
                     (set-process-query-on-exit-flag agda2-process nil)))
-  (apply 'agda2-call-ghci 'wait nil ":set" agda2-ghci-options)
   (agda2-call-ghci 'wait nil ":mod +" agda2-toplevel-module)
   (with-current-buffer agda2-process-buffer
       (add-hook 'comint-preoutput-filter-functions

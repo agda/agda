@@ -53,3 +53,14 @@ Tools
 
 * The Emacs mode now presents information about which module is
   currently being type-checked.
+
+* New semantics of and default value for agda2-ghci-options.
+
+  This change should affect very few users.
+
+  Previously the options in agda2-ghci-options were activated using
+  GHCi's :set command, now they are instead used as command-line
+  arguments (prepended to haskell-ghci-program-args).
+
+  The default value of this option has also changed: the
+  -ignore-dot-ghci flag has been added.
