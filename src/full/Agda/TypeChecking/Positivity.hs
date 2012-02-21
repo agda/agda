@@ -29,13 +29,12 @@ import Agda.Utils.Graph (Graph)
 
 #include "../undefined.h"
 
--- | Check that the datatypes in the given mutual block
---   are strictly positive.
-checkStrictlyPositive :: MutualId -> TCM ()
-checkStrictlyPositive mi = do
-  qs <- lookupMutualBlock mi
+-- | Check that the datatypes in the mutual block containing the given
+-- declarations are strictly positive.
+checkStrictlyPositive :: Set QName -> TCM ()
+checkStrictlyPositive qs = do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
-  g  <- buildOccurrenceGraph qs
+  g <- buildOccurrenceGraph qs
   let gstar = Graph.transitiveClosure $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++

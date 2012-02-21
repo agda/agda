@@ -6,6 +6,7 @@ import Control.Monad
 import Control.Monad.Trans
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Set as Set
 import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
@@ -216,36 +217,50 @@ checkPragma r p =
 
 -- | Type check a bunch of mutual inductive recursive definitions.
 checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM ()
-checkMutual i ds = inMutualBlock $ do
+checkMutual i ds = do
+  outer <- currentOrFreshMutualBlock
+  inner <- inMutualBlock $ do
 
-  verboseS "tc.decl.mutual" 20 $ do
-    blockId <- currentOrFreshMutualBlock
-    reportSDoc "" 0 $ vcat $
-      (text "Checking mutual block" <+> text (show blockId) <> text ":") :
-      map (nest 2 . prettyA) ds
+    verboseS "tc.decl.mutual" 20 $ do
+      blockId <- currentOrFreshMutualBlock
+      reportSDoc "" 0 $ vcat $
+        (text "Checking mutual block" <+> text (show blockId) <> text ":") :
+        map (nest 2 . prettyA) ds
 
-  mapM_ checkDecl ds
+    mapM_ checkDecl ds
 
-  checkStrictlyPositive =<< currentOrFreshMutualBlock
+    currentOrFreshMutualBlock
 
-  -- Andreas, 2012-02-13: Polarity computation uses info from positivity
-  -- check, so it needs happen after positivity check.
-  mapM_ doComputePolarity ds
+  when (outer /= inner) $ do
+    -- When we are not inside another mutual block.
+    qs <- lookupMutualBlock inner
 
-  let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
-      unScope d = [d]
-  case concatMap unScope ds of
-    -- Non-mutual definitions can be considered for projection likeness
-    [A.Axiom _ _ x _, A.FunDef _ y _] | x == y -> makeProjection x
-    _   -> return ()
+    checkStrictlyPositive qs
 
-  where doComputePolarity :: A.Declaration -> TCM ()
-        doComputePolarity (A.DataSig _ n _ _) = computePolarity n
-        doComputePolarity (A.RecSig _ n _ _)  = computePolarity n
-        doComputePolarity (A.FunDef _ n _)    = computePolarity n
-        doComputePolarity (A.ScopedDecl _ ds) = mapM_ doComputePolarity ds
-        doComputePolarity (A.Mutual _ ds)     = mapM_ doComputePolarity ds
-        doComputePolarity _                   = return ()
+    -- Andreas, 2012-02-13: Polarity computation uses info from positivity
+    -- check, so it needs happen after positivity check.
+    mapM_ computePolarity =<<
+      (map fst . filter snd <$> mapM relevant (Set.toList qs))
+
+    let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
+        unScope d = [d]
+    case concatMap unScope ds of
+      -- Non-mutual definitions can be considered for projection likeness
+      [A.Axiom _ _ x _, A.FunDef _ y _] | x == y -> makeProjection x
+      _   -> return ()
+
+  where
+  -- | Do we need to compute polarity information for the definition
+  -- corresponding to the given name?
+  relevant q = do
+    def <- theDef <$> getConstInfo q
+    return (q, case def of
+      Function{}    -> True
+      Datatype{}    -> True
+      Record{}      -> True
+      Axiom{}       -> False
+      Constructor{} -> False
+      Primitive{}   -> False)
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()
