@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.constr.findInScope:50 #-}
 module 06-listEquality where
 
 infixr 5 _∷_

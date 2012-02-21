@@ -194,6 +194,38 @@ newValueMetaCtx' t vs = do
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
 
+type Condition = Arg Type -> Abs Type -> Bool
+trueCondition _ _ = True
+
+newArgsMeta :: Type -> TCM Args
+newArgsMeta = newArgsMeta' trueCondition
+
+newArgsMeta' :: Condition -> Type -> TCM Args
+newArgsMeta' condition t = do
+  args <- getContextArgs
+  tel  <- getContextTelescope
+  newArgsMetaCtx' condition t tel args
+
+newArgsMetaCtx :: Type -> Telescope -> Args -> TCM Args
+newArgsMetaCtx = newArgsMetaCtx' trueCondition
+
+newArgsMetaCtx' :: Condition -> Type -> Telescope -> Args -> TCM Args
+newArgsMetaCtx' condition (El s tm) tel ctx = do
+  tm <- reduce tm
+  case tm of
+    Pi dom@(Arg h r a) codom | condition dom codom -> do
+      arg  <- (Arg h r) <$>
+               {-
+                 -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
+                 -- Andreas, 2010-10-11 this is WRONG, see Issue 347
+                if r == Irrelevant then return DontCare else
+                -}
+                 newValueMetaCtx (telePi_ tel a) ctx
+      args <- newArgsMetaCtx' condition (El s tm `piApply` [arg]) tel ctx
+      return $ arg : args
+    _  -> return []
+
+{- OLD CODE
 newArgsMeta :: Type -> TCM Args
 newArgsMeta t = do
   args <- getContextArgs
@@ -215,6 +247,7 @@ newArgsMetaCtx (El s tm) tel ctx = do
       args <- newArgsMetaCtx (El s tm `piApply` [arg]) tel ctx
       return $ arg : args
     _  -> return []
+-}
 
 -- | Create a metavariable of record type. This is actually one metavariable
 --   for each field.
