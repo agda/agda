@@ -38,6 +38,9 @@ Compiler backends
 Tools
 =====
 
+Emacs mode
+----------
+
 * Asynchronous Emacs mode.
 
   One can now use Emacs while a buffer is type-checked. If the buffer
