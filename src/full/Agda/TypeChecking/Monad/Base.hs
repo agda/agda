@@ -759,9 +759,6 @@ data TCEnv =
 		--   or the body of a non-abstract definition this is true.
 		--   To prevent information about abstract things leaking
 		--   outside the module.
-          , envTopLevel            :: Bool
-                -- ^ Are we at the top level when checking a declaration?
-                --   In this case, we will freeze metas afterwards.
           , envRelevance           :: Relevance
                 -- ^ Are we checking an irrelevant argument? (=@Irrelevant@)
                 -- Then top-level irrelevant declarations are enabled.
@@ -805,7 +802,6 @@ initEnv = TCEnv { envContext	         = []
                 , envSolvingConstraints  = False
                 , envActiveProblems      = [0]
 		, envAbstractMode        = AbstractMode
-                , envTopLevel            = True
                 , envRelevance           = Relevant
                 , envDisplayFormsEnabled = True
                 , envReifyInteractionPoints = True

@@ -3,10 +3,13 @@
 module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.Trans
+import Data.Maybe
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Set as Set
+import Data.Set (Set)
 import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
@@ -57,11 +60,11 @@ checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
     -- Issue 418 fix: freeze metas before checking an abstract things
     when isAbstract freezeMetas
-    leaveTopLevelConditionally d $ case d of
+    case d of
 	A.Axiom i rel x e        -> checkAxiom i rel x e
         A.Field{}                -> typeError FieldOutsideRecord
 	A.Primitive i x e        -> checkPrimitive i x e
-	A.Mutual i ds            -> checkMutual i ds
+	A.Mutual i ds            -> topLevelChecks $ checkMutual i ds
 	A.Section i x tel ds     -> checkSection i x tel ds
 	A.Apply i x modapp rd rm -> checkSectionApplication i x modapp rd rm
 	A.Import i x             -> checkImport i x
@@ -69,12 +72,12 @@ checkDecl d = do
 	A.ScopedDecl scope ds    -> setScope scope >> checkDecls ds
         A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
         A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
-        A.RecDef i x c ps tel cs -> check x i $ checkRecDef i x c ps tel cs
+        A.RecDef i x c ps tel cs -> check x i $ topLevelChecks $ do
+                                      checkRecDef i x c ps tel cs
+                                      return (Set.singleton x)
         A.DataSig i x ps t       -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
         A.RecSig i x ps t        -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
         A.Open _ _               -> return ()
-    top <- onTopLevel
-    when top $ solveSizeConstraints >> freezeMetas
     where
         unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
         unScope d = return d
@@ -93,11 +96,48 @@ checkDecl d = do
 	    -- open is just an artifact from the concrete syntax
             -- retained for highlighting purposes
 
-        leaveTopLevelConditionally d =
-          case d of
-            A.Section{}    -> id
-            A.ScopedDecl{} -> id
-            _              -> leaveTopLevel
+        -- Run priorChecks, then do some final checks/computations if
+        -- we are not inside a mutual block; priorChecks should return
+        -- the names of all definitions in a mutual block (or the name
+        -- of a single non-mutual definition).
+        topLevelChecks priorChecks =
+          ifM (isJust . envMutualBlock <$> ask)
+            (priorChecks >> return ())
+            (do qs <- priorChecks
+
+                checkStrictlyPositive qs
+
+                -- Andreas, 2012-02-13: Polarity computation uses info from
+                -- positivity check, so it needs happen after positivity
+                -- check.
+                mapM_ computePolarity =<<
+                  (map fst . filter snd <$> mapM relevant (Set.toList qs))
+
+                -- Non-mutual definitions can be considered for
+                -- projection likeness
+                case Set.toList qs of
+                  [d] -> do
+                    def <- getConstInfo d
+                    case theDef def of
+                      Function{} -> makeProjection (defName def)
+                      _          -> return ()
+                  _ -> return ()
+
+                solveSizeConstraints
+                freezeMetas
+            )
+          where
+          -- | Do we need to compute polarity information for the definition
+          -- corresponding to the given name?
+          relevant q = do
+            def <- theDef <$> getConstInfo q
+            return (q, case def of
+              Function{}    -> True
+              Datatype{}    -> True
+              Record{}      -> True
+              Axiom{}       -> False
+              Constructor{} -> False
+              Primitive{}   -> False)
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
@@ -216,51 +256,21 @@ checkPragma r p =
                 defs	  = sigDefinitions sig
 
 -- | Type check a bunch of mutual inductive recursive definitions.
-checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM ()
-checkMutual i ds = do
-  outer <- currentOrFreshMutualBlock
-  inner <- inMutualBlock $ do
+--
+-- All definitions which have so far been assigned to the given mutual
+-- block are returned.
+checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM (Set QName)
+checkMutual i ds = inMutualBlock $ do
 
-    verboseS "tc.decl.mutual" 20 $ do
-      blockId <- currentOrFreshMutualBlock
-      reportSDoc "" 0 $ vcat $
-        (text "Checking mutual block" <+> text (show blockId) <> text ":") :
-        map (nest 2 . prettyA) ds
+  verboseS "tc.decl.mutual" 20 $ do
+    blockId <- currentOrFreshMutualBlock
+    reportSDoc "" 0 $ vcat $
+      (text "Checking mutual block" <+> text (show blockId) <> text ":") :
+      map (nest 2 . prettyA) ds
 
-    mapM_ checkDecl ds
+  mapM_ checkDecl ds
 
-    currentOrFreshMutualBlock
-
-  when (outer /= inner) $ do
-    -- When we are not inside another mutual block.
-    qs <- lookupMutualBlock inner
-
-    checkStrictlyPositive qs
-
-    -- Andreas, 2012-02-13: Polarity computation uses info from positivity
-    -- check, so it needs happen after positivity check.
-    mapM_ computePolarity =<<
-      (map fst . filter snd <$> mapM relevant (Set.toList qs))
-
-    let unScope (A.ScopedDecl _ ds) = concatMap unScope ds
-        unScope d = [d]
-    case concatMap unScope ds of
-      -- Non-mutual definitions can be considered for projection likeness
-      [A.Axiom _ _ x _, A.FunDef _ y _] | x == y -> makeProjection x
-      _   -> return ()
-
-  where
-  -- | Do we need to compute polarity information for the definition
-  -- corresponding to the given name?
-  relevant q = do
-    def <- theDef <$> getConstInfo q
-    return (q, case def of
-      Function{}    -> True
-      Datatype{}    -> True
-      Record{}      -> True
-      Axiom{}       -> False
-      Constructor{} -> False
-      Primitive{}   -> False)
+  lookupMutualBlock =<< currentOrFreshMutualBlock
 
 -- | Type check the type signature of an inductive or recursive definition.
 checkTypeSignature :: A.TypeSignature -> TCM ()

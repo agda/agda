@@ -38,13 +38,6 @@ withEnv env m = local (const env) m
 getEnv :: TCM TCEnv
 getEnv = ask
 
--- | Leave the top level to type check local things.
-leaveTopLevel :: TCM a -> TCM a
-leaveTopLevel = local $ \ env -> env { envTopLevel = False }
-
-onTopLevel :: TCM Bool
-onTopLevel = asks envTopLevel
-
 -- | Increases the module nesting level by one in the given
 -- computation.
 withIncreasedModuleNestingLevel :: TCM a -> TCM a

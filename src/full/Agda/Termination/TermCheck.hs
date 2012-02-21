@@ -78,11 +78,8 @@ termDecl d = case d of
     A.Primitive {}        -> return []
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
-                          -> do
-        let m = mnameFromList $ qnameToList r
-        setScopeFromDefs ds
-        termSection m rds
-    A.Mutual i ds  -> termMutual i ds
+                          -> checkRecDef ds r rds
+    A.Mutual i ds         -> termMutual i ds
     A.Section _ x _ ds    -> termSection x ds
     A.Apply {}            -> return []
     A.Import {}           -> return []
@@ -91,12 +88,12 @@ termDecl d = case d of
         -- open is just an artifact from the concrete syntax
     A.ScopedDecl{}        -> __IMPOSSIBLE__
         -- taken care of above
+    A.RecSig{}            -> return []
+    A.RecDef _ r _ _ _ ds -> checkRecDef [] r ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}  -> __IMPOSSIBLE__
     A.DataSig{} -> __IMPOSSIBLE__
     A.DataDef{} -> __IMPOSSIBLE__
-    A.RecSig{}  -> __IMPOSSIBLE__
-    A.RecDef{}  -> __IMPOSSIBLE__
   where
     setScopeFromDefs = mapM_ setScopeFromDef
     setScopeFromDef (A.ScopedDecl scope d) = setScope scope
@@ -106,6 +103,10 @@ termDecl d = case d of
 
     unscopeDef (A.ScopedDecl _ ds) = unscopeDefs ds
     unscopeDef d = [d]
+
+    checkRecDef ds r rds = do
+      setScopeFromDefs ds
+      termSection (mnameFromList $ qnameToList r) rds
 
 collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
 collectCalls f [] = return Term.empty

@@ -344,7 +344,14 @@ niceDeclarations ds = do
         LoneSig k x -> do
           addLoneSig k x
           (ds0, ds1) <- untilAllDefined ds
-          (NiceMutual (getRange (d : ds0)) (d : ds0) :) <$> inferMutualBlocks ds1
+
+          -- Record modules are, for performance reasons, not always
+          -- placed in mutual blocks.
+          let prefix = case (d, ds0) of
+                (NiceRecSig{}, [r@RecDef{}]) -> ([d, r] ++)
+                _                            ->
+                  (NiceMutual (getRange (d : ds0)) (d : ds0) :)
+          prefix <$> inferMutualBlocks ds1
       where
         untilAllDefined ds = do
           done <- noLoneSigs
