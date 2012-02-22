@@ -69,6 +69,7 @@ checkDataDef i name ps cs =
 
 	    -- The type we get from bindParameters is Θ -> s where Θ is the type of
 	    -- the indices. We count the number of indices and return s.
+            -- We check that s is a sort.
             (nofIxs, s) <- splitType t0
 
             when (any (`freeIn` s) [0..nofIxs - 1]) $ do
@@ -141,7 +142,8 @@ checkDataDef i name ps cs =
 	hideTel  EmptyTel		  = EmptyTel
 	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
 
-	splitType (El _ (Pi _ b))  = ((+ 1) -*- id) <$> splitType (absBody b)
+        splitType :: Type -> TCM (Integer, Sort)
+	splitType (El _ (Pi a b))  = ((+ 1) -*- id) <$> do addCtxString (absName b) a $ splitType (absBody b)
 	splitType (El _ (Sort s))  = return (0, s)
 	splitType a                = do
           s <- newSortMeta
@@ -218,14 +220,12 @@ bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TBind _ xs _))) : 
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TNoBind _))) : bs) a ret = do
   x <- freshNoName_
   bindParameters (A.DomainFree h rel x : bs) a ret
-bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi (Arg h' rel' a) b)) ret
+bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi arg@(Arg h' rel' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | h /= h' =
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
-  where
-    arg = Arg h rel' a
 bindParameters (b : bs) t _ = __IMPOSSIBLE__
 {- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
 -- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
