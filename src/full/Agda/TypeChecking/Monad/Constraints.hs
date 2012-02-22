@@ -73,6 +73,13 @@ wakeConstraints wake = do
       , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
       }
 
+putAllConstraintsToSleep :: TCM ()
+putAllConstraintsToSleep = do
+  awakeOnes <- gets stAwakeConstraints
+  sleepers <- gets stSleepingConstraints
+  modify $ \s -> s { stSleepingConstraints = sleepers ++ awakeOnes
+                   , stAwakeConstraints = [] }
+
 takeAwakeConstraint :: TCM (Maybe ProblemConstraint)
 takeAwakeConstraint = do
   cs <- getAwakeConstraints

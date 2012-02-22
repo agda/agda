@@ -21,6 +21,8 @@ test_files = Vec.agda Lookup.agda Binary.agda Setoid.agda \
 	instance-arguments/06-listEquality.agda \
 	instance-arguments/08-higherOrder.agda \
 	instance-arguments/14-implicitConfigurations.agda
+# the other instance-arguments examples use the standard library,
+# seemingly no way to include it during test run...
 tests	   = $(patsubst %,%.test,$(test_files))
 
 echo = $(shell which echo)

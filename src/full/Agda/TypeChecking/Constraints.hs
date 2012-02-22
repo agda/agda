@@ -53,6 +53,7 @@ catchConstraint c v = liftTCM $
 
 addConstraint :: Constraint -> TCM ()
 addConstraint c = do
+    cifs <- asks envCheckingIFSCandidates
     pids <- asks envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
       [ text "adding constraint"
@@ -66,7 +67,16 @@ addConstraint c = do
         reportSDoc "tc.constr.add" 20 $ text "  simplified:" <+> prettyTCM c'
         solveConstraint_ c'
       else addConstraint' c'
+    -- the added constraint can cause IFS constraints to be solved
+    unless (isIFSConstraint c) $
+       wakeConstraints (awakeableConstraint cifs . clValue . theConstraint)
   where
+    isIFSConstraint :: Constraint -> Bool
+    isIFSConstraint FindInScope{} = True
+    isIFSConstraint _ = False
+    awakeableConstraint :: Bool -> Constraint -> Bool
+    awakeableConstraint True = const False
+    awakeableConstraint False = isIFSConstraint
     simpl :: Constraint -> TCM Constraint
     simpl c = do
       n <- genericLength <$> getContext
@@ -132,9 +142,12 @@ wakeupConstraints_ = do
   solveAwakeConstraints
 
 solveAwakeConstraints :: TCM ()
-solveAwakeConstraints = do
+solveAwakeConstraints = solveAwakeConstraints' False
+
+solveAwakeConstraints' :: Bool -> TCM ()
+solveAwakeConstraints' force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
-    unlessM isSolvingConstraints $ nowSolvingConstraints solve
+    unlessM ((not force &&) <$> isSolvingConstraints) $ nowSolvingConstraints solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."
@@ -192,9 +205,11 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint_ (FindInScope m)      =
-  ifM (isFrozen m) (addConstraint $ FindInScope m) $ do
+  ifM (isFrozen m) (addConstraint $ FindInScope m) $
+  do
+    cifs <- asks envCheckingIFSCandidates
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
-    do
+    if cifs then addConstraint $ FindInScope m else do
       mv <- lookupMeta m
       ctxArgs <- getContextArgs
       (t, cands) <- instanceSearch m ctxArgs
@@ -218,8 +233,12 @@ solveConstraint_ (FindInScope m)      =
                    prettyTCM (List.map fst cs)
                  addConstraint $ FindInScope m
 
+nowCheckingIFSCandidates :: TCM a -> TCM a
+nowCheckingIFSCandidates =
+  local $ \s -> s { envCheckingIFSCandidates = True }
+
 instanceSearch :: MetaId -> Args -> TCM (Type, [(Term, Type)])
-instanceSearch m ctxArgs = do
+instanceSearch m ctxArgs = nowCheckingIFSCandidates $ do
     mv <- lookupMeta m
     let j = mvJudgement mv
     case j of
@@ -284,8 +303,9 @@ instanceSearch m ctxArgs = do
                   -- unsolvable by the assignment, but don't do this for FindInScope's
                   -- to prevent loops. We currently also ignore UnBlock constraints
                   -- to be on the safe side.
+                  putAllConstraintsToSleep
                   wakeConstraints (isSimpleConstraint . clValue . theConstraint)
-                  solveAwakeConstraints
+                  solveAwakeConstraints' True
                   return True
         isSimpleConstraint :: Constraint -> Bool
         isSimpleConstraint FindInScope{} = False
