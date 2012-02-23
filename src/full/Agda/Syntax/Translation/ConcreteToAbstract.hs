@@ -174,9 +174,9 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
     -- isn't properly in the record module, so copying it will lead to badness.
     let noRecConstr | null args = id
                     | otherwise = removeOnlyQualified
-    s <- applyImportDirectiveM (C.QName x) dir' s
-    (s, (renM, renD)) <- copyScope m0 (noRecConstr s)
-    modifyCurrentScope $ const s
+    (s', (renM, renD)) <- copyScope m0 . noRecConstr =<< getNamedScope m1
+    s' <- applyImportDirectiveM (C.QName x) dir' s'
+    modifyCurrentScope $ const s'
     printScope "mod.inst" 20 "copied source module"
     reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
     return ((A.SectionApp tel' m1 args'), renD, renM)
@@ -184,9 +184,10 @@ checkModuleApplication (C.RecordModuleIFS _ rec) m0 x dir' =
   withCurrentModule m0 $ do
     m1 <- toAbstract $ OldModuleName rec
     s <- getNamedScope m1
-    s <- applyImportDirectiveM rec dir' s
-    (s, (renM, renD)) <- copyScope m0 s
-    modifyCurrentScope $ const s
+    (s', (renM, renD)) <- copyScope m0 s
+    s' <- applyImportDirectiveM rec dir' s'
+    modifyCurrentScope $ const s'
+
     printScope "mod.inst" 20 "copied record module"
     return ((A.RecordModuleIFS m1), renD, renM)
 
@@ -197,21 +198,17 @@ checkModuleMacro apply r p x modapp open dir = withLocalVars $ do
 
     printScope "mod.inst" 20 "module macro"
 
-    -- If we're opening a /named/ module, the import directive is
-    -- applied to the "open", otherwise to the module itself. However,
-    -- "public" is always applied to the "open".
-    let (moduleDir, openDir) = case (open, isNoName x) of
-          (DoOpen,   False) -> (defaultImportDir, dir)
-          (DoOpen,   True)  -> ( dir { publicOpen = False }
-                               , defaultImportDir { publicOpen = publicOpen dir }
-                               )
-          (DontOpen, _)     -> (dir, defaultImportDir)
+    -- If we're opening, the import directive is applied to the open,
+    -- otherwise to the module itself.
+    let dir' = case open of
+                DontOpen  -> dir
+                DoOpen    -> defaultImportDir
 
-    (modapp', renD, renM) <- checkModuleApplication modapp m0 x moduleDir
+    (modapp', renD, renM) <- checkModuleApplication modapp m0 x dir'
     bindModule p x m0
     printScope "mod.inst.copy.after" 20 "after copying"
     case open of
-      DoOpen   -> openModule_ (C.QName x) openDir
+      DoOpen   -> openModule_ (C.QName x) dir
       DontOpen -> return ()
     printScope "mod.inst" 20 $ show open
     stripNoNames
