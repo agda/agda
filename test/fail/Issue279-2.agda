@@ -1,5 +1,4 @@
-
-module Issue279 where
+module Issue279-2 where
 
 data ⊥ : Set where
 
@@ -11,7 +10,8 @@ module M (A : Set) where
   data P : ⊤ → Set where
     tt : A → P tt
 
-open M ⊥ using (tt)
+module X = M ⊥ using (tt)
+open X
 
 good : ⊥ → M.P ⊥ tt
 good = tt

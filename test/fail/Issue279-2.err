@@ -1,0 +1,3 @@
+Issue279-2.agda:20,10-12
+the constructor tt does not construct an element of ⊥
+when checking that the expression tt has type ⊥

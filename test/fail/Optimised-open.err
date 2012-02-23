@@ -1,0 +1,79 @@
+after stripping ScopeInfo
+  current = Optimised-open
+  context = TopCtx
+  modules
+    * scope 
+    * scope Optimised-open
+      private
+        names
+          P --> [Optimised-open._.P]
+      public
+        names
+          A --> [Optimised-open.A]
+        modules
+          M₁ --> [Optimised-open.M₁]
+    * scope Optimised-open.M₁
+      public
+        names
+          P --> [Optimised-open.M₁.P]
+          X --> [Optimised-open.M₁.X]
+    * scope Optimised-open._
+      public
+        names
+          P --> [Optimised-open._.P]
+
+after stripping ScopeInfo
+  current = Optimised-open.M₂
+  context = TopCtx
+  modules
+    * scope 
+    * scope Optimised-open
+      private
+        names
+          P --> [Optimised-open._.P]
+      public
+        names
+          A --> [Optimised-open.A]
+          a --> [Optimised-open.a]
+          p --> [Optimised-open.p]
+        modules
+          M₁ --> [Optimised-open.M₁]
+    * scope Optimised-open.M₁
+      public
+        names
+          P --> [Optimised-open.M₁.P]
+          X --> [Optimised-open.M₁.X]
+    * scope Optimised-open._
+      public
+        names
+          P --> [Optimised-open._.P]
+    * scope Optimised-open.M₂
+      public
+        names
+          P′ --> [Optimised-open.M₂._.P]
+    * scope Optimised-open.M₂._
+      public
+        names
+          P′ --> [Optimised-open.M₂._.P]
+
+applying section M₁
+  ptel =
+  tel  = (A' : Set)
+  tel' = (A' : Set)
+  tel''= (A' : Set)
+  eta  =
+applySection Optimised-open._ = M₁ A
+    defs: fromList [(Optimised-open.M₁.P,Optimised-open._.P)]
+    mods: fromList []
+applying section M₁
+  ptel =
+  tel  = (A' : Set)
+  tel' = (A' : Set)
+  tel''= (A' : Set)
+  eta  =
+applySection Optimised-open.M₂._ = M₁ A
+    defs: fromList [(Optimised-open.M₁.P,Optimised-open.M₂._.P)]
+    mods: fromList []
+Optimised-open.agda:34,9-10
+(A → Set) !=< A of type Set₁
+when checking that the expression P has type A
