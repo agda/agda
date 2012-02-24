@@ -28,7 +28,6 @@ import Agda.Syntax.Fixity(Precedence(..))
 import Agda.Syntax.Parser
 
 import Agda.TypeChecker
-import Agda.TypeChecking.Constraints (instanceSearch)
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Monad as M
 import Agda.TypeChecking.MetaVars
@@ -231,10 +230,10 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
           OpenIFS{}  -> __IMPOSSIBLE__
           InstS{} -> __IMPOSSIBLE__
           InstV{} -> __IMPOSSIBLE__
-    reify (FindInScope m) = do
+    reify (FindInScope m cands) = do
       m' <- reify (MetaV m [])
       ctxArgs <- getContextArgs
-      (t, cands) <- instanceSearch m ctxArgs
+      t <- getMetaType m
       t' <- reify t
       cands' <- mapM (\(tm,ty) -> (,) <$> reify tm <*> reify ty) cands
       return $ FindInScopeOF m' t' cands' -- IFSTODO
@@ -262,7 +261,7 @@ instance (Show a,Show b) => Show (OutputConstraint a b) where
     show (Assign m e)           = show m ++ " := " ++ show e
     show (TypedAssign m e a)    = show m ++ " := " ++ show e ++ " :? " ++ show a
     show (IsEmptyType a)        = "Is empty: " ++ show a
-    show (FindInScopeOF s t cs) = "Candidates in scope for (" ++ showCand (s,t) ++ "): [" ++
+    show (FindInScopeOF s t cs) = "Resolve implicit argument " ++ showCand (s,t) ++ ". Candidates: [" ++
                                     intercalate ", " (map showCand cs) ++ "]"
       where showCand (tm,ty) = show tm ++ " : " ++ show ty
 

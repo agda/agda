@@ -265,7 +265,7 @@ data Constraint
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Type
-  | FindInScope MetaId
+  | FindInScope MetaId [(Term, Type)]
   deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
@@ -753,8 +753,6 @@ data TCEnv =
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
-          , envCheckingIFSCandidates  :: Bool
-                -- ^ Are we currently in the process of checking FindInScope candidates
           , envActiveProblems      :: [ProblemId]
 	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
@@ -802,7 +800,6 @@ initEnv = TCEnv { envContext	         = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
                 , envSolvingConstraints  = False
-                , envCheckingIFSCandidates = False
                 , envActiveProblems      = [0]
 		, envAbstractMode        = AbstractMode
                 , envRelevance           = Relevant

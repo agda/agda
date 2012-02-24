@@ -205,6 +205,7 @@ library
                     Agda.TypeChecking.Forcing
                     Agda.TypeChecking.Implicit
                     Agda.TypeChecking.Injectivity
+                    Agda.TypeChecking.InstanceArguments
                     Agda.TypeChecking.Irrelevance
                     Agda.TypeChecking.Level
                     Agda.TypeChecking.LevelConstraints

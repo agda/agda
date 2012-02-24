@@ -18,6 +18,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Scope.Base
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Errors
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Irrelevance (unusableRelevance)
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -53,7 +54,6 @@ catchConstraint c v = liftTCM $
 
 addConstraint :: Constraint -> TCM ()
 addConstraint c = do
-    cifs <- asks envCheckingIFSCandidates
     pids <- asks envActiveProblems
     reportSDoc "tc.constr.add" 20 $ hsep
       [ text "adding constraint"
@@ -69,14 +69,11 @@ addConstraint c = do
       else addConstraint' c'
     -- the added constraint can cause IFS constraints to be solved
     unless (isIFSConstraint c) $
-       wakeConstraints (awakeableConstraint cifs . clValue . theConstraint)
+       wakeConstraints (isIFSConstraint . clValue . theConstraint)
   where
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
     isIFSConstraint _ = False
-    awakeableConstraint :: Bool -> Constraint -> Bool
-    awakeableConstraint True = const False
-    awakeableConstraint False = isIFSConstraint
     simpl :: Constraint -> TCM Constraint
     simpl c = do
       n <- genericLength <$> getContext
@@ -204,117 +201,5 @@ solveConstraint_ (UnBlock m)                =
       -- Open (whatever that means)
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
-solveConstraint_ (FindInScope m)      =
-  ifM (isFrozen m) (addConstraint $ FindInScope m) $
-  do
-    cifs <- asks envCheckingIFSCandidates
-    reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope constraint: " ++ show m)
-    if cifs then addConstraint $ FindInScope m else do
-      mv <- lookupMeta m
-      ctxArgs <- getContextArgs
-      (t, cands) <- instanceSearch m ctxArgs
-      reportSLn "tc.constr.findInScope" 15 $ "findInScope t: " ++ show t
-      case cands of
-        [] -> do reportSDoc "tc.constr.findInScope" 15 $ text "not a single candidate found..."
-                 typeError $ IFSNoCandidateInScope t
+solveConstraint_ (FindInScope m cands)      = findInScope m cands
 
-        [(term, t')] -> do reportSDoc "tc.constr.findInScope" 15 $ text (
-                             "one candidate found for type '") <+>
-                             prettyTCM t <+> text "': '" <+> prettyTCM term <+>
-                             text "', of type '" <+> prettyTCM t' <+> text "'."
-                           ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
-                           case ca of Left _ -> __IMPOSSIBLE__
-                                      Right (args, t'') -> do
-                                        leqType t'' t
-                                        assignV m ctxArgs (term `apply` args)
-                                        return ()
-        cs -> do reportSDoc "tc.constr.findInScope" 15 $
-                   text ("more than one candidate found: ") <+>
-                   prettyTCM (List.map fst cs)
-                 addConstraint $ FindInScope m
-
-nowCheckingIFSCandidates :: TCM a -> TCM a
-nowCheckingIFSCandidates =
-  local $ \s -> s { envCheckingIFSCandidates = True }
-
-instanceSearch :: MetaId -> Args -> TCM (Type, [(Term, Type)])
-instanceSearch m ctxArgs = nowCheckingIFSCandidates $ do
-    mv <- lookupMeta m
-    let j = mvJudgement mv
-    case j of
-      IsSort{} -> __IMPOSSIBLE__
-      HasType _ tj -> do
-        cands1 <- getContextVars
-        t <- normalise $ tj `piApply` ctxArgs
-        let scopeInfo = getMetaScope mv
-        let ns = everythingInScope scopeInfo
-        let nsList = Map.toList $ nsNames ns
-        -- try all abstract names in scope (even ones that you can't refer to
-        --  unambiguously)
-        let cands2Names = nsList >>= snd
-        cands2Types <- mapM (typeOfConst     . anameName) cands2Names
-        cands2Rel   <- mapM (relOfConst      . anameName) cands2Names
-        cands2FV    <- mapM (constrFreeVarsToApply . anameName) cands2Names
-        rel         <- asks envRelevance
-        let cands2 = [(Def (anameName an) vs, t) |
-                      (an, t, r, vs) <- zip4 cands2Names cands2Types cands2Rel cands2FV,
-                      r `moreRelevant` rel ]
-        let cands = cands1 ++ cands2
-        cands <- filterM (uncurry $ checkCandidateForMeta m t) cands
-        return (t, cands)
-  where constrFreeVarsToApply :: QName -> TCM Args
-        constrFreeVarsToApply n = do
-          args <- freeVarsToApply n
-          defn <- theDef <$> getConstInfo n
-          case defn of
-            -- drop parameters if it's a projection function...
-            Function{ funProjection = Just (rn,i) } -> do
-              return $ genericDrop (i - 1) args
-            _ -> return args
-        getContextVars :: TCM [(Term, Type)]
-        getContextVars = do
-          ctx <- getContext
-          let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
-          types <- mapM typeOfBV ids
-          let vars = [ (Var i [], t) | (Arg h r _, i, t) <- zip3 ctx [0..] types,
-                                       not (unusableRelevance r) ]
-          -- get let bindings
-          env <- asks envLetBindings
-          env <- mapM (getOpen . snd) $ Map.toList env
-          let lets = [ (v,t) | (v, Arg h r t) <- env, not (unusableRelevance r) ]
-          return $ vars ++ lets
-        checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
-        checkCandidateForMeta m t term t' =
-          liftTCM $ flip catchError (\err -> return False) $ do
-            reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
-            localState $ do
-               -- domi: we assume that nothing below performs direct IO (except
-               -- for logging and such, I guess)
-              ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t
-              case ca of
-                Left _ -> return False
-                Right (args, t'') -> do
-                  leqType t'' t
-                  --tel <- getContextTelescope
-                  ctxArgs <- getContextArgs
-                  --assignTerm m (teleLam tel (term `apply` args))
-                  noConstraints $ assignV m ctxArgs (term `apply` args)
-                  -- make a pass over constraints, to detect cases where some are made
-                  -- unsolvable by the assignment, but don't do this for FindInScope's
-                  -- to prevent loops. We currently also ignore UnBlock constraints
-                  -- to be on the safe side.
-                  putAllConstraintsToSleep
-                  wakeConstraints (isSimpleConstraint . clValue . theConstraint)
-                  solveAwakeConstraints' True
-                  return True
-        isSimpleConstraint :: Constraint -> Bool
-        isSimpleConstraint FindInScope{} = False
-        isSimpleConstraint UnBlock{}     = False
-        isSimpleConstraint _             = True
-
-localState :: MonadState s m => m a -> m a
-localState m = do
-  s <- get
-  x <- m
-  put s
-  return x

@@ -525,7 +525,7 @@ instance Raise Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty a                -> IsEmpty (rf a)
-    FindInScope{}            -> c
+    FindInScope m cands      -> FindInScope m (map rf cands)
     UnBlock{}                -> c
     where
       rf x = raiseFrom m k x
@@ -538,7 +538,7 @@ instance Raise Constraint where
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
     IsEmpty a                -> IsEmpty (rf a)
-    FindInScope{}            -> c
+    FindInScope m cands      -> FindInScope m (rf cands)
     UnBlock{}                -> c
     where
       rf x = renameFrom m k x

@@ -43,6 +43,7 @@ import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Free
@@ -1053,7 +1054,7 @@ checkArguments exh expandIFS r [] t0 t1 =
 	    Pi (Arg Instance rel a) _ | expandIFS == ExpandInstanceArguments &&
                                         (notHPi Instance $ unEl t1')  -> do
                 lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
-		v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+		v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
 		let arg = Arg Instance rel v
 		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
@@ -1096,7 +1097,7 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
               Pi (Arg NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
-	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ newIFSMeta a
+	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
                                        lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
                                        let arg = Arg Instance rel v
                                        (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1

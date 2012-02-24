@@ -150,7 +150,7 @@ instance Instantiate Constraint where
   instantiate (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> instantiate (a,b)
   instantiate (Guarded c pid)      = Guarded <$> instantiate c <*> pure pid
   instantiate (UnBlock m)          = return $ UnBlock m
-  instantiate (FindInScope m)      = return $ FindInScope m
+  instantiate (FindInScope m args) = FindInScope m <$> mapM instantiate args
   instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
@@ -402,14 +402,14 @@ instance Reduce Constraint where
     return $ ValueCmp cmp t u v
   reduce (ElimCmp cmp t v as bs) =
     ElimCmp cmp <$> reduce t <*> reduce v <*> reduce as <*> reduce bs
-  reduce (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> reduce (u,v)
-  reduce (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> reduce (a,b)
+  reduce (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> reduce (u,v)
+  reduce (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> reduce (a,b)
   reduce (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp)  <$> reduce (tela,telb)
-  reduce (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> reduce (a,b)
-  reduce (Guarded c pid)      = Guarded <$> reduce c <*> pure pid
-  reduce (UnBlock m)          = return $ UnBlock m
-  reduce (FindInScope m)      = return $ FindInScope m
-  reduce (IsEmpty t)          = IsEmpty <$> reduce t
+  reduce (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> reduce (a,b)
+  reduce (Guarded c pid)       = Guarded <$> reduce c <*> pure pid
+  reduce (UnBlock m)           = return $ UnBlock m
+  reduce (FindInScope m cands) = FindInScope m <$> mapM reduce cands
+  reduce (IsEmpty t)           = IsEmpty <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -509,14 +509,14 @@ instance Normalise Constraint where
     return $ ValueCmp cmp t u v
   normalise (ElimCmp cmp t v as bs) =
     ElimCmp cmp <$> normalise t <*> normalise v <*> normalise as <*> normalise bs
-  normalise (LevelCmp cmp u v)   = uncurry (LevelCmp cmp) <$> normalise (u,v)
-  normalise (TypeCmp cmp a b)    = uncurry (TypeCmp cmp) <$> normalise (a,b)
+  normalise (LevelCmp cmp u v)    = uncurry (LevelCmp cmp) <$> normalise (u,v)
+  normalise (TypeCmp cmp a b)     = uncurry (TypeCmp cmp) <$> normalise (a,b)
   normalise (TelCmp a b cmp tela telb) = uncurry (TelCmp a b cmp) <$> normalise (tela,telb)
-  normalise (SortCmp cmp a b)    = uncurry (SortCmp cmp) <$> normalise (a,b)
-  normalise (Guarded c pid)      = Guarded <$> normalise c <*> pure pid
-  normalise (UnBlock m)          = return $ UnBlock m
-  normalise (FindInScope m)      = return $ FindInScope m
-  normalise (IsEmpty t)          = IsEmpty <$> normalise t
+  normalise (SortCmp cmp a b)     = uncurry (SortCmp cmp) <$> normalise (a,b)
+  normalise (Guarded c pid)       = Guarded <$> normalise c <*> pure pid
+  normalise (UnBlock m)           = return $ UnBlock m
+  normalise (FindInScope m cands) = FindInScope m <$> mapM normalise cands
+  normalise (IsEmpty t)           = IsEmpty <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -641,14 +641,14 @@ instance InstantiateFull Constraint where
       return $ ValueCmp cmp t u v
     ElimCmp cmp t v as bs ->
       ElimCmp cmp <$> instantiateFull t <*> instantiateFull v <*> instantiateFull as <*> instantiateFull bs
-    LevelCmp cmp u v   -> uncurry (LevelCmp cmp) <$> instantiateFull (u,v)
-    TypeCmp cmp a b    -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
+    LevelCmp cmp u v    -> uncurry (LevelCmp cmp) <$> instantiateFull (u,v)
+    TypeCmp cmp a b     -> uncurry (TypeCmp cmp) <$> instantiateFull (a,b)
     TelCmp a b cmp tela telb -> uncurry (TelCmp a b cmp) <$> instantiateFull (tela,telb)
-    SortCmp cmp a b    -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
-    Guarded c pid      -> Guarded <$> instantiateFull c <*> pure pid
-    UnBlock m          -> return $ UnBlock m
-    FindInScope m      -> return $ FindInScope m
-    IsEmpty t          -> IsEmpty <$> instantiateFull t
+    SortCmp cmp a b     -> uncurry (SortCmp cmp) <$> instantiateFull (a,b)
+    Guarded c pid       -> Guarded <$> instantiateFull c <*> pure pid
+    UnBlock m           -> return $ UnBlock m
+    FindInScope m cands -> FindInScope m <$> mapM instantiateFull cands
+    IsEmpty t           -> IsEmpty <$> instantiateFull t
 
 instance InstantiateFull Elim where
   instantiateFull (Apply v) = Apply <$> instantiateFull v

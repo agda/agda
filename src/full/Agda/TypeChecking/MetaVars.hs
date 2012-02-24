@@ -136,15 +136,15 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- newTypeMeta_  = newTypeMeta Inf
 
 -- | Create a new "implicit from scope" metavariable
-newIFSMeta ::  Type -> TCM Term
-newIFSMeta t = do
+newIFSMeta :: Type -> [(Term, Type)] -> TCM Term
+newIFSMeta t cands = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newIFSMetaCtx (telePi_ tel t) vs
+  newIFSMetaCtx (telePi_ tel t) vs cands
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: Type -> Args -> TCM Term
-newIFSMetaCtx t vs = do
+newIFSMetaCtx :: Type -> Args -> [(Term, Type)] -> TCM Term
+newIFSMetaCtx t vs cands = do
   i <- createMetaInfo
   let TelV tel _ = telView' t
       perm = idP (size tel)
@@ -154,7 +154,7 @@ newIFSMetaCtx t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  solveConstraint_ $ FindInScope x
+  solveConstraint_ $ FindInScope x cands
   return (MetaV x vs)
 
 -- | Create a new metavariable, possibly η-expanding in the process.

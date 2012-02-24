@@ -11,3 +11,5 @@ newArgsMeta       :: Type -> TCM Args
 assignTerm        :: MetaId -> Term -> TCM ()
 etaExpandMetaSafe :: MetaId -> TCM ()
 assignV           :: MetaId -> Args -> Term -> TCM ()
+assign 		  :: MetaId -> Args -> Term -> TCM ()
+newIFSMeta 	  :: Type -> [(Term, Type)] -> TCM Term

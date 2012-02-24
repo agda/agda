@@ -73,6 +73,16 @@ wakeConstraints wake = do
       , stAwakeConstraints    = stAwakeConstraints s ++ wakeup
       }
 
+-- danger...
+dropConstraints :: (ProblemConstraint -> Bool) -> TCM ()
+dropConstraints crit = do
+  sleepers <- gets stSleepingConstraints
+  wakers <- gets stAwakeConstraints
+  let filt = List.filter (not . crit)
+  modify $ \s -> s { stSleepingConstraints = filt sleepers
+                   , stAwakeConstraints = filt wakers
+                   }
+
 putAllConstraintsToSleep :: TCM ()
 putAllConstraintsToSleep = do
   awakeOnes <- gets stAwakeConstraints

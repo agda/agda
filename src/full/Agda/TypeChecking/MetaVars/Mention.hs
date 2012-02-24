@@ -95,7 +95,7 @@ instance MentionsMeta Constraint where
     UnBlock _           -> True   -- this might be a postponed typechecking
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on
-    FindInScope m       -> True   -- this needs to be woken up for any meta
+    FindInScope{}       -> True   -- this needs to be woken up for any meta
     IsEmpty t           -> mm t
     where
       mm v = mentionsMeta x v
