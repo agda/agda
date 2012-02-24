@@ -1,3 +1,5 @@
 SizedTypesRigidVarClash.agda:19,1-14
-Unsolvable size constraints: [X21 =< c24,c23 =< X21]
+Cannot solve size constraints
+_21 x =< .j : Size
+.i =< (_21 x) : Size
 when checking the definition of inc

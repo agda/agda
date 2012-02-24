@@ -23,6 +23,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
 import Agda.Utils.Size
+import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
 
@@ -59,24 +60,35 @@ trivial :: Term -> Term -> TCM Bool
 trivial u v = do
     a <- sizeExpr u
     b <- sizeExpr v
+    let triv = case (a, b) of
+          -- Andreas, 2012-02-24  filtering out more trivial constraints fixes
+          -- test/lib-succeed/SizeInconsistentMeta4.agda
+          ((e, n), (e', n')) -> e == e' && n <= n'
+        {-
+          ((Rigid i, n), (Rigid j, m)) -> i == j && n <= m
+          _ -> False
+        -}
     reportSDoc "tc.conv.size" 15 $
-      nest 2 $ sep [ text (show a) <+> text "<="
+      nest 2 $ sep [ if triv then text "trivial constraint" else empty
+                   , text (show a) <+> text "<="
                    , text (show b)
                    ]
-    return $ case (a, b) of
-      ((Rigid i, n), (Rigid j, m)) -> i == j && n <= m
-      _ -> False
+    return triv
   `catchError` \_ -> return False
 
 -- | Find the size constraints.
-getSizeConstraints :: TCM [SizeConstraint]
+getSizeConstraints :: TCM [Closure Constraint]
 getSizeConstraints = do
   cs   <- getAllConstraints
   size <- sizeType
   let sizeConstraints cl@(Closure{ clValue = ValueCmp CmpLeq s _ _ })
         | s == size = [cl]
       sizeConstraints _ = []
-  scs <- mapM computeSizeConstraint $ concatMap (sizeConstraints . theConstraint) cs
+  return $ concatMap (sizeConstraints . theConstraint) cs
+
+computeSizeConstraints :: [Closure Constraint] -> TCM [SizeConstraint]
+computeSizeConstraints cs =  do
+  scs <- mapM computeSizeConstraint cs
   return [ c | Just c <- scs ]
 
 getSizeMetas :: TCM [(MetaId, Int)]
@@ -96,6 +108,7 @@ getSizeMetas = do
 
 data SizeExpr = SizeMeta MetaId [CtxId]
               | Rigid CtxId
+  deriving (Eq)
 
 -- Leq a n b = (a =< b + n)
 data SizeConstraint = Leq SizeExpr Int SizeExpr
@@ -147,6 +160,8 @@ sizeExpr u = do
     isVar (Arg _ _ (Var _ [])) = True
     isVar _ = False
 
+-- | Compute list of size metavariables with their arguments
+--   appearing in a constraint.
 flexibleVariables :: SizeConstraint -> [(MetaId, [CtxId])]
 flexibleVariables (Leq a _ b) = flex a ++ flex b
   where
@@ -163,18 +178,31 @@ haveSizedTypes = do
 
 solveSizeConstraints :: TCM ()
 solveSizeConstraints = whenM haveSizedTypes $ do
-  cs <- getSizeConstraints
+  cs0 <- getSizeConstraints
+  cs <- computeSizeConstraints cs0
   ms <- getSizeMetas
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 
-  let metas0 = map mkMeta $ groupOn fst $ concatMap flexibleVariables cs
+  let -- Error for giving up
+      cannotSolve = typeError . GenericDocError =<<
+        vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
+
+      -- Ensure that each occurrence of a meta is applied to the same
+      -- arguments ("flexible variables").
+      mkMeta :: [(MetaId, [CtxId])] -> TCM (MetaId, [CtxId])
       mkMeta ms@((m, xs) : _)
-        | allEqual (map snd ms) = (m, xs)
-        | otherwise             = error $ "Inconsistent meta: " ++ show m ++ " " ++ show (map snd ms)
+        | allEqual (map snd ms) = return (m, xs)
+        | otherwise             = do
+            reportSLn "tc.size.solve" 20 $
+              "Size meta variable " ++ show m ++ " not always applied to same arguments: " ++ show (nub (map snd ms))
+            cannotSolve
       mkMeta _ = __IMPOSSIBLE__
 
-      mkFlex (m, xs) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i `elem` xs
+  metas0 <- mapM mkMeta $ groupOn fst $ concatMap flexibleVariables cs
+
+
+  let mkFlex (m, xs) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i `elem` xs
 
       mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
       mkNode (Rigid i)      = W.Rigid $ W.RVar $ fromIntegral i
@@ -197,8 +225,8 @@ solveSizeConstraints = whenM haveSizedTypes $ do
     mapM_ meta metas
 
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
-    Nothing  -> do
-      typeError $ GenericError $ "Unsolvable size constraints: " ++ show cs
+    Nothing  -> cannotSolve
+      -- typeError $ GenericError $ "Unsolvable size constraints: " ++ show cs
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
       inf <- primSizeInf

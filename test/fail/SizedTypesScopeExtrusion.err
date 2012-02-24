@@ -1,3 +1,4 @@
 SizedTypesScopeExtrusion.agda:28,1-42
-Unsolvable size constraints: [X28 =< c70]
+Cannot solve size constraints
+_28 =< i : Size
 when checking the definition of bla
