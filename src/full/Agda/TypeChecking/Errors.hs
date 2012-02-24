@@ -110,6 +110,7 @@ errorString err = case err of
     FieldOutsideRecord                       -> "FieldOutsideRecord"
     FileNotFound{}                           -> "FileNotFound"
     GenericError{}                           -> "GenericError"
+    GenericDocError{}                        -> "GenericDocError"
     IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
     IlltypedPattern{}                        -> "IlltypedPattern"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
@@ -209,6 +210,7 @@ instance PrettyTCM TypeError where
 	    NotSupported s -> fwords $ "Not supported: " ++ s
 	    CompilationError s -> sep [fwords "Compilation error:", text s]
 	    GenericError s   -> fwords s
+	    GenericDocError d   -> return d
 	    TerminationCheckFailed because ->
               fwords "Termination checking failed for the following functions:"
               $$ (nest 2 $

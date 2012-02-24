@@ -957,6 +957,7 @@ data TypeError
 	    --	 depend on and the paratemeter that it wants to depend on.
 	| MetaOccursInItself MetaId
 	| GenericError String
+	| GenericDocError Doc
         | BuiltinMustBeConstructor String A.Expr
 	| NoSuchBuiltinName String
 	| DuplicateBuiltinBinding String Term Term
