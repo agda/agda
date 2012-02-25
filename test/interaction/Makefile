@@ -52,8 +52,15 @@ $(Tests) : %.cmp : %.out
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			diff $*.out $*.tmp; \
-			rm -f $*.tmp; \
-			false; \
+			/bin/echo -n "Accept new error [y/N]? "; \
+			read -n 1; \
+			echo ""; \
+			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
+			  then echo "Keeping old output"; rm -f $*.tmp; false; \
+			  else echo "Replacing output, continuing..."; \
+			    mv $*.tmp $*.out; \
+			    true; \
+			fi; \
 	 fi
 	@$(cleanup_$*)
 	@rm -rf $(TMPDIR)
