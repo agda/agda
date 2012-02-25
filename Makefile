@@ -42,6 +42,19 @@ CABAL_CMD=cabal
 
 # Options used by cabal install.
 CABAL_OPTIONS=
+#  -f epic
+
+current : install-bin
+	Make -C test/features
+
+send :
+	darcs send -o Copatterns.bin
+	mutt -s "Copattern patch" -a Copatterns.bin -b andreas.abel@ifi.lmu.de james@cs.ioc.ee < /dev/null 
+
+send1 :
+	darcs send -o FlexArity.bin
+	mutt -s "FlexArity patch" -a FlexArity.bin -b andreas.abel@ifi.lmu.de james@cs.ioc.ee < /dev/null 
+
 
 install : update-cabal install-lib install-bin install-emacs-mode
 
@@ -214,7 +227,7 @@ std-lib :
 up-to-date-std-lib : std-lib
 	@(cd std-lib && darcs pull -a && make setup)
 
-library-test : up-to-date-std-lib
+library-test : # up-to-date-std-lib
 	@echo "======================================================================"
 	@echo "========================== Standard library =========================="
 	@echo "======================================================================"

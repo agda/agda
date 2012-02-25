@@ -159,6 +159,8 @@ isIndependent i = case independence i of
   Independent {} -> True
   Dependent   {} -> False
 
+{- UNUSED
+
 -- | Changes the 'Interaction' so that its first action is to turn off
 -- all debug messages.
 
@@ -171,6 +173,7 @@ makeSilent i = i { command = do
           { optVerbose = Trie.singleton [] 0 }
     }
   command i }
+-}
 
 -- | Run a TCM computation in the current state. Should only
 --   be used for debugging.
@@ -241,7 +244,8 @@ ioTCM current highlighting cmd = infoOnException $ do
                        ex <- liftIO $ doesFileExist $ filePath current
                        setIncludeDirs is $
                          if ex then ProjectRoot current else CurrentDir
-                   command $ makeSilent cmd
+                   command cmd  -- Andreas, 2012-02-25 SPEAK TO ME!!!
+--                   command $ makeSilent cmd
            st <- get
            return (Right (x, st))
          ) (\e -> do
