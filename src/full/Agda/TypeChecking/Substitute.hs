@@ -784,10 +784,10 @@ levelMax as0 = Max $ ns ++ List.sort bs
     as = Prelude.concatMap expand as0
     ns = case [ n | ClosedLevel n <- as, n > 0 ] of
       []  -> []
-      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > leastB ]
+      ns  -> [ ClosedLevel n | n <- [Prelude.maximum ns], n > greatestB ]
     bs = subsume [ b | b@Plus{} <- as ]
-    leastB | null bs   = 0
-           | otherwise = Prelude.minimum [ n | Plus n _ <- bs ]
+    greatestB | null bs   = 0
+              | otherwise = Prelude.maximum [ n | Plus n _ <- bs ]
 
     expand l@ClosedLevel{} = [l]
     expand (Plus n l) = map (plus n) $ expand0 $ expandAtom l
