@@ -5,9 +5,16 @@ import Data.Char
 
 data Suffix = NoSuffix | Prime Int | Index Int
 
+-- Andreas, 2012-02-25 no longer use y' y0 y1 but y1 y2 y3 ...
+nextSuffix NoSuffix  = Index 1
+nextSuffix (Prime i) = Prime $ i + 1
+nextSuffix (Index i) = Index $ i + 1
+
+{- ORIGINAL Scheme (up to AIM XV)
 nextSuffix NoSuffix  = Prime 1
 nextSuffix (Prime _) = Index 0	-- we only use single primes in generated names
 nextSuffix (Index i) = Index $ i + 1
+-}
 
 suffixView :: String -> (String, Suffix)
 suffixView s

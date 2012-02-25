@@ -189,9 +189,22 @@ isDatatype ind at = do
         _ -> throwException $ NotADatatype t
     _ -> throwException $ NotADatatype t
 
--- | @dtype == d pars ixs@
-computeNeighbourhood :: Telescope -> Telescope -> Permutation -> QName -> Args -> Args -> Nat -> OneHolePatterns -> QName -> CoverM [SplitClause]
-computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
+-- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
+--
+--   @
+--      delta1   Telescope before split point
+--      n        Name of pattern variable at split point
+--      delta2   Telescope after split point
+--      d        Name of datatype to split at
+--      pars     Data type parameters
+--      ixs      Data type indices
+--      hix      ??
+--      hps      Patterns with hole at split point
+--      con      Constructor to fit into hole
+--   @
+--   @dtype == d pars ixs@
+computeNeighbourhood :: Telescope -> String -> Telescope -> Permutation -> QName -> Args -> Args -> Nat -> OneHolePatterns -> QName -> CoverM [SplitClause]
+computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
   -- Get the type of the datatype
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
@@ -203,7 +216,14 @@ computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con = do
   ctype <- liftTCM $ defType <$> getConstInfo con
 
   -- Lookup the type of the constructor at the given parameters
-  TelV gamma (El _ (Def _ cixs)) <- liftTCM $ telView (ctype `piApply` pars)
+  TelV gamma0 (El _ (Def _ cixs)) <- liftTCM $ telView (ctype `piApply` pars)
+
+  -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
+  -- of constructor
+
+  let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
+      preserve p = p
+      gamma = telFromList . map (fmap preserve) . telToList $ gamma0
 
   debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix
 
@@ -363,12 +383,14 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   debugInit tel perm x ps
 
   -- Split the telescope at the variable
-  (delta1, delta2) <- do
-    let (tel1, _ : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (telFromList tel1, telFromList tel2)
+  (n, t, delta1, delta2) <- do
+    let (tel1, Arg h r (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, Arg h r t, telFromList tel1, telFromList tel2)
 
+{-
   -- Get the type of the variable
   let t = typeOfVar tel x  -- Δ₁ ⊢ t
+-}
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -384,13 +406,14 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   -- Check that t is a datatype or a record
   -- Andreas, 2010-09-21, isDatatype now directly throws an exception if it fails
+  -- cons = constructors of this datatype
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
   liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
     inContextOfT $ Split.wellFormedIndices pars ixs
 
   -- Compute the neighbourhoods for the constructors
-  ns <- concat <$> mapM (computeNeighbourhood delta1 delta2 perm d pars ixs hix hps) cons
+  ns <- concat <$> mapM (computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps) cons
   case ns of
     []  -> do
       let absurd = VarP "()"
