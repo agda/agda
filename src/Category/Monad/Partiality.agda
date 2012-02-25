@@ -324,7 +324,10 @@ private
       module S {k eq} = Setoid (setoid isEquivalence k {eq})
 
     infix  2 _∎
-    infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
+    infixr 2 _≡⟨_⟩_ _≅⟨_⟩_ _≳⟨_⟩_ _≈⟨_⟩_
+
+    _≡⟨_⟩_ : ∀ {k} x {y z : A ⊥} → x ≡ y → Rel k y z → Rel k x z
+    _ ≡⟨ P.refl ⟩ y∼z = y∼z
 
     _≅⟨_⟩_ : ∀ {k} x {y z : A ⊥} → x ≅ y → Rel k y z → Rel k x z
     _ ≅⟨ x≅y ⟩ y∼z = Pre.trans (≅⇒ x≅y) y∼z
@@ -637,7 +640,7 @@ module AlternativeEquality {a ℓ} where
 
   infix  4 _∣_≅P_ _∣_≳P_ _∣_≈P_
   infix  2 _∎
-  infixr 2 _≅⟨_⟩_ _≳⟨_⟩_ _≳⟨_⟩≅_ _≳⟨_⟩≈_ _≈⟨_⟩≅_ _≈⟨_⟩≲_
+  infixr 2 _≡⟨_⟩_ _≅⟨_⟩_ _≳⟨_⟩_ _≳⟨_⟩≅_ _≳⟨_⟩≈_ _≈⟨_⟩≅_ _≈⟨_⟩≲_
   infixl 1 _>>=_
 
   mutual
@@ -682,6 +685,7 @@ module AlternativeEquality {a ℓ} where
 
       _∎      : ∀ {k} x → RelP S k x x
       sym     : ∀ {k x y} {eq : Equality k} (x∼y : RelP S k x y) → RelP S k y x
+      _≡⟨_⟩_  : ∀ {k} x {y z} (x≡y : x ≡ y) (y∼z : RelP S k y z) → RelP S k x z
       _≅⟨_⟩_  : ∀ {k} x {y z} (x≅y : S ∣ x ≅P y) (y∼z : RelP S k y z) → RelP S k x z
       _≳⟨_⟩_  : let open Equality (Eq S) in
                 ∀     x {y z} (x≳y :     x ≳  y) (y≳z : S ∣ y ≳P z) → S ∣ x ≳P z
@@ -772,12 +776,13 @@ module AlternativeEquality {a ℓ} where
     -- Strong equality programs can be turned into WHNFs.
 
     whnf≅ : ∀ {S x y} → S ∣ x ≅P y → RelW S strong x y
-    whnf≅ (now xRy)         = now xRy
-    whnf≅ (later x≅y)       = later (♭ x≅y)
-    whnf≅ (x₁≅x₂ >>= f₁≅f₂) = whnf≅ x₁≅x₂ >>=W λ xRy → whnf≅ (f₁≅f₂ xRy)
-    whnf≅ (x ∎)             = reflW x
-    whnf≅ (sym x≅y)         = symW _ (whnf≅ x≅y)
-    whnf≅ (x ≅⟨ x≅y ⟩ y≅z)  = trans≅W (whnf≅ x≅y) (whnf≅ y≅z)
+    whnf≅ (now xRy)           = now xRy
+    whnf≅ (later x≅y)         = later (♭ x≅y)
+    whnf≅ (x₁≅x₂ >>= f₁≅f₂)   = whnf≅ x₁≅x₂ >>=W λ xRy → whnf≅ (f₁≅f₂ xRy)
+    whnf≅ (x ∎)               = reflW x
+    whnf≅ (sym x≅y)           = symW _ (whnf≅ x≅y)
+    whnf≅ (x ≡⟨ P.refl ⟩ y≅z) = whnf≅ y≅z
+    whnf≅ (x ≅⟨ x≅y    ⟩ y≅z) = trans≅W (whnf≅ x≅y) (whnf≅ y≅z)
 
     -- More transitivity lemmas.
 
@@ -804,15 +809,16 @@ module AlternativeEquality {a ℓ} where
     -- Order programs can be turned into WHNFs.
 
     whnf≳ : ∀ {S x y} → S ∣ x ≳P y → RelW S (other geq) x y
-    whnf≳ (now xRy)           = now xRy
-    whnf≳ (later  x∼y)        = later (♭ x∼y)
-    whnf≳ (laterˡ x≲y)        = laterˡ (whnf≳ x≲y)
-    whnf≳ (x₁∼x₂ >>= f₁∼f₂)   = whnf≳ x₁∼x₂ >>=W λ xRy → whnf≳ (f₁∼f₂ xRy)
-    whnf≳ (x ∎)               = reflW x
+    whnf≳ (now xRy)            = now xRy
+    whnf≳ (later  x∼y)         = later (♭ x∼y)
+    whnf≳ (laterˡ x≲y)         = laterˡ (whnf≳ x≲y)
+    whnf≳ (x₁∼x₂ >>= f₁∼f₂)    = whnf≳ x₁∼x₂ >>=W λ xRy → whnf≳ (f₁∼f₂ xRy)
+    whnf≳ (x ∎)                = reflW x
     whnf≳ (sym {eq = ()} x≅y)
-    whnf≳ (x ≅⟨ x≅y ⟩  y≳z)   = trans≅∼W (whnf≅ x≅y) (whnf≳ y≳z)
-    whnf≳ (x ≳⟨ x≳y ⟩  y≳z)   = trans≳-W        x≳y  (whnf≳ y≳z)
-    whnf≳ (x ≳⟨ x≳y ⟩≅ y≅z)   = trans∼≅W (whnf≳ x≳y) (whnf≅ y≅z)
+    whnf≳ (x ≡⟨ P.refl ⟩  y≳z) = whnf≳ y≳z
+    whnf≳ (x ≅⟨ x≅y    ⟩  y≳z) = trans≅∼W (whnf≅ x≅y) (whnf≳ y≳z)
+    whnf≳ (x ≳⟨ x≳y    ⟩  y≳z) = trans≳-W        x≳y  (whnf≳ y≳z)
+    whnf≳ (x ≳⟨ x≳y    ⟩≅ y≅z) = trans∼≅W (whnf≳ x≳y) (whnf≅ y≅z)
 
     -- Another transitivity lemma.
 
@@ -828,19 +834,20 @@ module AlternativeEquality {a ℓ} where
     -- All programs can be turned into WHNFs.
 
     whnf : ∀ {S k x y} → RelP S k x y → RelW S k x y
-    whnf (now xRy)           = now xRy
-    whnf (later  x∼y)        = later     (♭ x∼y)
-    whnf (laterʳ x≈y)        = laterʳ (whnf x≈y)
-    whnf (laterˡ x∼y)        = laterˡ (whnf x∼y)
-    whnf (x₁∼x₂ >>= f₁∼f₂)   = whnf x₁∼x₂ >>=W λ xRy → whnf (f₁∼f₂ xRy)
-    whnf (x ∎)               = reflW x
-    whnf (sym {eq = eq} x≈y) = symW eq (whnf x≈y)
-    whnf (x ≅⟨ x≅y ⟩  y∼z)   = trans≅∼W (whnf x≅y) (whnf y∼z)
-    whnf (x ≳⟨ x≳y ⟩  y≳z)   = trans≳-W       x≳y  (whnf y≳z)
-    whnf (x ≳⟨ x≳y ⟩≅ y≅z)   = trans∼≅W (whnf x≳y) (whnf y≅z)
-    whnf (x ≳⟨ x≳y ⟩≈ y≈z)   = trans≳≈W (whnf x≳y) (whnf y≈z)
-    whnf (x ≈⟨ x≈y ⟩≅ y≅z)   = trans∼≅W (whnf x≈y) (whnf y≅z)
-    whnf (x ≈⟨ x≈y ⟩≲ y≲z)   = symW _ (trans≳≈W (whnf y≲z) (symW _ (whnf x≈y)))
+    whnf (now xRy)            = now xRy
+    whnf (later  x∼y)         = later     (♭ x∼y)
+    whnf (laterʳ x≈y)         = laterʳ (whnf x≈y)
+    whnf (laterˡ x∼y)         = laterˡ (whnf x∼y)
+    whnf (x₁∼x₂ >>= f₁∼f₂)    = whnf x₁∼x₂ >>=W λ xRy → whnf (f₁∼f₂ xRy)
+    whnf (x ∎)                = reflW x
+    whnf (sym {eq = eq} x≈y)  = symW eq (whnf x≈y)
+    whnf (x ≡⟨ P.refl ⟩  y∼z) = whnf y∼z
+    whnf (x ≅⟨ x≅y    ⟩  y∼z) = trans≅∼W (whnf x≅y) (whnf y∼z)
+    whnf (x ≳⟨ x≳y    ⟩  y≳z) = trans≳-W       x≳y  (whnf y≳z)
+    whnf (x ≳⟨ x≳y    ⟩≅ y≅z) = trans∼≅W (whnf x≳y) (whnf y≅z)
+    whnf (x ≳⟨ x≳y    ⟩≈ y≈z) = trans≳≈W (whnf x≳y) (whnf y≈z)
+    whnf (x ≈⟨ x≈y    ⟩≅ y≅z) = trans∼≅W (whnf x≈y) (whnf y≅z)
+    whnf (x ≈⟨ x≈y    ⟩≲ y≲z) = symW _ (trans≳≈W (whnf y≲z) (symW _ (whnf x≈y)))
 
   mutual
 
