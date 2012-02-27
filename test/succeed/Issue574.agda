@@ -1,9 +1,9 @@
 -- Andreas, 2012-02-25 reported by edgmnt on behalf of xplat.
 module Issue574 where
 
-open import Level
+open import Common.Level
 
-wah : ∀ o a → Set (suc zero ⊔ (suc a ⊔ o)) → Set ((suc zero ⊔ suc a) ⊔ o)
+wah : ∀ o a → Set (lsuc lzero ⊔ (lsuc a ⊔ o)) → Set ((lsuc lzero ⊔ lsuc a) ⊔ o)
 wah o a x = x -- should succeed
 
 -- Error message was:
