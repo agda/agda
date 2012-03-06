@@ -871,6 +871,33 @@ module AlternativeEquality {a ℓ} where
   correct = equivalence sound complete
 
 ------------------------------------------------------------------------
+-- Another lemma
+
+-- Bind is "idempotent".
+
+idempotent :
+  ∀ {ℓ} {A : Set ℓ} (B : Setoid ℓ ℓ) →
+  let open M; open Setoid B using (_≈_; Carrier); open Equality _≈_ in
+  (x : A ⊥) (f : A → A → Carrier ⊥) →
+  (x >>= λ y′ → x >>= λ y″ → f y′ y″) ≳ (x >>= λ y′ → f y′ y′)
+idempotent {A = A} B x f = sound (idem x)
+  where
+  open AlternativeEquality hiding (_>>=_)
+  open M
+  open Equality.Rel using (laterˡ)
+  open Equivalence using (refl)
+
+  idem : (x : A ⊥) →
+         B ∣ (x >>= λ y′ → x >>= λ y″ → f y′ y″) ≳P
+             (x >>= λ y′ → f y′ y′)
+  idem (now   x) = f x x ∎
+  idem (later x) = later (♯ (
+    (♭ x >>= λ y′ → later x >>= λ y″ → f y′ y″)  ≳⟨ (refl P.refl {x = ♭ x} ≡->>=-cong λ _ →
+                                                     laterˡ (refl (Setoid.refl B))) ⟩
+    (♭ x >>= λ y′ →     ♭ x >>= λ y″ → f y′ y″)  ≳⟨ idem (♭ x) ⟩≅
+    (♭ x >>= λ y′ → f y′ y′)                     ∎))
+
+------------------------------------------------------------------------
 -- Example
 
 private
