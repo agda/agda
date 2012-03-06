@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Monad.Options where
 
+import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
@@ -11,6 +12,7 @@ import System.Directory
 import System.FilePath
 
 import Agda.Syntax.Concrete
+import {-# SOURCE #-} Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.State
 import Agda.Interaction.EmacsCommand as Emacs
@@ -290,8 +292,15 @@ reportSLn k n s = verboseS k n $ do
   liftIO LocIO.stdoutFlush
 
 reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
-reportSDoc k n d = verboseS k n $
-  displayDebugMessage . (++ "\n") . show =<< d
+reportSDoc k n d = verboseS k n $ do
+  displayDebugMessage . (++ "\n") . show =<< do
+    d `catchError` \ err ->
+      (\ s -> (sep $ map text
+                 [ "Printing debug message"
+                 , k  ++ ":" ++show n
+                 , "failed due to error:" ]) $$
+              (nest 2 $ text s)) <$> prettyError err
+
 
 verboseBracket :: VerboseKey -> Int -> String -> TCM a -> TCM a
 verboseBracket k n s m = do

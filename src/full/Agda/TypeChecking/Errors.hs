@@ -25,7 +25,9 @@ import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Scope.Base (ScopeInfo(..))
 
-import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Context
+import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.FileName
