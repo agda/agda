@@ -1,30 +1,60 @@
-{-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 module Agda.Utils.Suffix where
 
 import Data.Char
 
-data Suffix = NoSuffix | Prime Int | Index Int
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
--- Andreas, 2012-02-25 no longer use y' y0 y1 but y1 y2 y3 ...
-nextSuffix NoSuffix  = Index 1
-nextSuffix (Prime i) = Prime $ i + 1
-nextSuffix (Index i) = Index $ i + 1
+------------------------------------------------------------------------
+-- Subscript digits
 
-{- ORIGINAL Scheme (up to AIM XV)
-nextSuffix NoSuffix  = Prime 1
-nextSuffix (Prime _) = Index 0	-- we only use single primes in generated names
-nextSuffix (Index i) = Index $ i + 1
--}
+-- | Is the character one of the subscripts @'₀'@-@'₉'@?
+
+isSubscriptDigit :: Char -> Bool
+isSubscriptDigit c = '₀' <= c && c <= '₉'
+
+-- | Converts @'0'@-@'9'@ to @'₀'@-@'₉'@.
+--
+-- Precondition: The digit needs to be in range.
+
+toSubscriptDigit :: Char -> Char
+toSubscriptDigit d
+  | isDigit d = toEnum (fromEnum '₀' + (fromEnum d - fromEnum '0'))
+  | otherwise = __IMPOSSIBLE__
+
+-- | Converts @'₀'@-@'₉'@ to @'0'@-@'9'@.
+--
+-- Precondition: The digit needs to be in range.
+
+fromSubscriptDigit :: Char -> Char
+fromSubscriptDigit d
+  | isSubscriptDigit d =
+      toEnum (fromEnum '0' + (fromEnum d - fromEnum '₀'))
+  | otherwise          = __IMPOSSIBLE__
+
+------------------------------------------------------------------------
+-- Suffices
+
+data Suffix = NoSuffix | Prime Int | Index Int | Subscript Int
+
+nextSuffix NoSuffix      = Subscript 1
+nextSuffix (Prime i)     = Prime $ i + 1
+nextSuffix (Index i)     = Index $ i + 1
+nextSuffix (Subscript i) = Subscript $ i + 1
 
 suffixView :: String -> (String, Suffix)
 suffixView s
-    | (ps@(_:_), s') <- span (=='\'') rs = (reverse s', Prime $ length ps)
-    | (ns@(_:_), s') <- span isDigit rs	 = (reverse s', Index $ read $ reverse ns)
-    | otherwise				 = (s, NoSuffix)
-    where
-	rs = reverse s
+    | (ps@(_:_), s') <- span (=='\'') rs         = (reverse s', Prime $ length ps)
+    | (ns@(_:_), s') <- span isDigit rs          = (reverse s', Index $ read $ reverse ns)
+    | (ns@(_:_), s') <- span isSubscriptDigit rs = (reverse s',
+                                                    Subscript $ read $
+                                                      map fromSubscriptDigit $ reverse ns)
+    | otherwise                                  = (s, NoSuffix)
+    where rs = reverse s
 
 addSuffix :: String -> Suffix -> String
-addSuffix s NoSuffix = s
-addSuffix s (Prime n) = s ++ replicate n '\''
-addSuffix s (Index i) = s ++ show i
+addSuffix s NoSuffix      = s
+addSuffix s (Prime n)     = s ++ replicate n '\''
+addSuffix s (Index i)     = s ++ show i
+addSuffix s (Subscript i) = s ++ map toSubscriptDigit (show i)

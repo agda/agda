@@ -193,7 +193,7 @@ freshNoName r =
 freshNoName_ :: (MonadState s m, HasFresh NameId s) => m Name
 freshNoName_ = freshNoName noRange
 
--- | Get the next version of the concrete name. For instance, @nextName "x" = "x'"@.
+-- | Get the next version of the concrete name. For instance, @nextName "x" = "x₁"@.
 --   The name must not be a 'NoName'.
 nextName :: Name -> Name
 nextName x = x { nameConcrete = C.Name noRange $ nextSuf ps }
