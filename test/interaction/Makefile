@@ -3,6 +3,9 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
+# Enable read -n
+SHELL=bash
+
 uname:=$(shell uname)
 ifeq (NT-5,$(findstring NT-5,$(uname)))
 pwd=$(shell (cmd /c 'echo %CD%') | sed -e 's/\\/\\\\\\\\/g')\\\\

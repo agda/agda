@@ -25,6 +25,9 @@ agda=$(AGDA_BIN) $(AGDA_TEST_FLAGS)
 # Verbosity default = 0, can be overridden
 V = 0
 
+# Enable read -n
+SHELL=bash
+
 # Getting all agda files
 # Andreas 2010-09-24 skip over annoying Impossible.agde 
 # which always changes error message because it mentions a line number in a 
