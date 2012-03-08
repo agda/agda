@@ -64,7 +64,7 @@ data Declaration
 	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
 	| Field      DefInfo QName (Arg Expr)		   -- ^ record field
 	| Primitive  DefInfo QName Expr			   -- ^ primitive function
-	| Mutual     DeclInfo [Declaration]                -- ^ a bunch of mutually recursive definitions
+	| Mutual     MutualInfo [Declaration]              -- ^ a bunch of mutually recursive definitions
 	| Section    ModuleInfo ModuleName [TypedBindings] [Declaration]
 	| Apply	     ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
 	| Import     ModuleInfo ModuleName
@@ -473,4 +473,3 @@ instance AnyAbstract Declaration where
   anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
   anyAbstract _                    = __IMPOSSIBLE__
-

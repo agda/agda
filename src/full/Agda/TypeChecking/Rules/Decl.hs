@@ -259,7 +259,7 @@ checkPragma r p =
 --
 -- All definitions which have so far been assigned to the given mutual
 -- block are returned.
-checkMutual :: Info.DeclInfo -> [A.Declaration] -> TCM (Set QName)
+checkMutual :: Info.MutualInfo -> [A.Declaration] -> TCM (Set QName)
 checkMutual i ds = inMutualBlock $ do
 
   verboseS "tc.decl.mutual" 20 $ do

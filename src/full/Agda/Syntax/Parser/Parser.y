@@ -85,6 +85,7 @@ import Agda.Utils.TestHelpers
     'IMPORT'        { TokKeyword KwIMPORT $$ }
     'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $$ }
     'ETA'           { TokKeyword KwETA $$ }
+    'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $$ }
     'COMPILED'      { TokKeyword KwCOMPILED $$ }
     'COMPILED_DATA' { TokKeyword KwCOMPILED_DATA $$ }
     'COMPILED_TYPE' { TokKeyword KwCOMPILED_TYPE $$ }
@@ -190,6 +191,7 @@ Token
     | 'STATIC'       { TokKeyword KwSTATIC $1 }
     | 'IMPOSSIBLE'    { TokKeyword KwIMPOSSIBLE $1 }
     | 'ETA'           { TokKeyword KwETA $1 }
+    | 'NO_TERMINATION_CHECK' { TokKeyword KwNO_TERMINATION_CHECK $1 }
     | 'quoteGoal'     { TokKeyword KwQuoteGoal $1 }
     | 'quote'         { TokKeyword KwQuote $1 }
     | 'quoteTerm'     { TokKeyword KwQuoteTerm $1 }
@@ -1086,16 +1088,17 @@ TopLevelPragma
 
 DeclarationPragma :: { Pragma }
 DeclarationPragma
-  : BuiltinPragma      { $1 }
-  | CompiledPragma     { $1 }
-  | CompiledDataPragma { $1 }
-  | CompiledTypePragma { $1 }
-  | CompiledEpicPragma { $1 }
-  | CompiledJSPragma   { $1 }
-  | StaticPragma       { $1 }
-  | ImportPragma       { $1 }
-  | ImpossiblePragma   { $1 }
-  | RecordEtaPragma    { $1 }
+  : BuiltinPragma            { $1 }
+  | CompiledPragma           { $1 }
+  | CompiledDataPragma       { $1 }
+  | CompiledTypePragma       { $1 }
+  | CompiledEpicPragma       { $1 }
+  | CompiledJSPragma         { $1 }
+  | StaticPragma             { $1 }
+  | ImportPragma             { $1 }
+  | ImpossiblePragma         { $1 }
+  | RecordEtaPragma          { $1 }
+  | NoTerminationCheckPragma { $1 }
 
 OptionsPragma :: { Pragma }
 OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
@@ -1139,6 +1142,11 @@ RecordEtaPragma :: { Pragma }
 RecordEtaPragma
   : '{-#' 'ETA' PragmaName '#-}'
     { EtaPragma (fuseRange $1 $4) $3 }
+
+NoTerminationCheckPragma :: { Pragma }
+NoTerminationCheckPragma
+  : '{-#' 'NO_TERMINATION_CHECK' '#-}'
+    { NoTerminationCheckPragma (fuseRange $1 $3) }
 
 ImportPragma :: { Pragma }
 ImportPragma

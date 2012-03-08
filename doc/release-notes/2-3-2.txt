@@ -7,6 +7,44 @@ Important changes since 2.3.0:
 Language
 ========
 
+* New: Pragma NO_TERMINATION_CHECK to switch off termination checker
+  for individual function definitions and mutual blocks.
+
+  The pragma must precede a function definition or a mutual block.
+  Examples (see test/succeed/NoTerminationCheck.agda):
+
+  1. Skipping a single definition: before type signature.
+
+       {-# NO_TERMINATION_CHECK #-}
+       a : A
+       a = a
+
+  2. Skipping a single definition: before first clause.
+
+       b : A
+       {-# NO_TERMINATION_CHECK #-}
+       b = b
+
+  3. Skipping an old-style mutual block: Before 'mutual' keyword.
+
+       {-# NO_TERMINATION_CHECK #-}
+       mutual
+         c : A
+         c = d
+
+         d : A
+         d = c
+
+  4. Skipping a new-style mutual block: Anywhere before a type
+     signature or first function clause in the block
+
+       i : A
+       j : A
+
+       i = j
+       {-# NO_TERMINATION_CHECK #-}
+       j = i
+
 * Instance arguments resolution will now consider candidates which
   still need expect arguments. For example:
 

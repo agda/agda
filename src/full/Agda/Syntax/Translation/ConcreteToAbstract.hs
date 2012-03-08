@@ -537,7 +537,7 @@ instance ToAbstract C.Expr A.Expr where
             insertApp _ = __IMPOSSIBLE__
             insertHead (C.LHS p wps eqs with) = C.LHS (insertApp p) wps eqs with
             insertHead (C.Ellipsis r wps eqs with) = C.Ellipsis r wps eqs with
-        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef cname
+        scdef <- toAbstract (C.FunDef r [] defaultFixity' ConcreteDef True cname
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
@@ -714,7 +714,7 @@ instance ToAbstract LetDefs [A.LetBinding] where
 instance ToAbstract LetDef [A.LetBinding] where
     toAbstract (LetDef d) =
         case d of
-            NiceMutual _ d@[C.FunSig _ fx _ rel x t, C.FunDef _ _ _ abstract _ [cl]] ->
+            NiceMutual _ _ d@[C.FunSig _ fx _ rel _ x t, C.FunDef _ _ _ abstract _ _ [cl]] ->
                 do  when (abstract == AbstractDef) $ do
                       typeError $ GenericError $ "abstract not allowed in let expressions"
                     e <- letToAbstract cl
@@ -797,10 +797,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return [ A.Primitive (mkDefInfo x f p a r) y t' ]
 
   -- Definitions (possibly mutual)
-    NiceMutual r ds -> do
+    NiceMutual r termCheck ds -> do
       ds' <- toAbstract ds
-      return [ A.Mutual (DeclInfo C.noName_ r) ds' ]
-                          -- TODO: what does the info mean here?
+      return [ A.Mutual (MutualInfo termCheck r) ds' ]
 
     C.NiceRecSig r f a x ls t -> withLocalVars $ do
         let toTypeBinding :: C.LamBinding -> C.TypedBindings
@@ -826,9 +825,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p rel x t -> (:[]) <$> toAbstract (C.Axiom r f p rel x t)
+    C.FunSig r f p rel tc x t -> (:[]) <$> toAbstract (C.Axiom r f p rel x t)
   -- Function definitions
-    C.FunDef r ds f a x cs -> do
+    C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs') <- toAbstract (OldName x,cs)
         return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' cs' ]
@@ -1048,6 +1047,8 @@ instance ToAbstract C.Pragma [A.Pragma] where
       case e of
         A.Def x -> return [ A.EtaPragma x ]
         _       -> fail "Bad ETA pragma"
+    -- NO_TERMINATION_CHECK is handled by the nicifier
+    toAbstract (C.NoTerminationCheckPragma _) = __IMPOSSIBLE__
 
 instance ToAbstract C.Clause A.Clause where
     toAbstract (C.Clause top C.Ellipsis{} _ _ _) = fail "bad '...'" -- TODO: errors message

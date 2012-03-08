@@ -115,9 +115,13 @@ collectCalls f (a : as) = do c1 <- f a
                              return (c1 `Term.union` c2)
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
-termMutual :: Info.DeclInfo -> [A.Declaration] -> TCM Result
-termMutual i ds = if names == [] then return [] else
-  do -- get list of sets of mutually defined names from the TCM
+termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
+termMutual i ds = if names == [] then return [] else do
+  if not (Info.mutualTermCheck i) then do
+      reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
+      return []
+   else do
+     -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
      -- during type-checking
 

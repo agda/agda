@@ -396,6 +396,7 @@ instance Pretty Pragma where
       hsep $ [text "IMPOSSIBLE"]
     pretty (EtaPragma _ x) =
       hsep $ [text "ETA", pretty x]
+    pretty (NoTerminationCheckPragma _) = text "NO_TERMINATION_CHECK"
 
 instance Pretty Fixity where
     pretty (LeftAssoc _ n)  = text "infixl" <+> text (show n)

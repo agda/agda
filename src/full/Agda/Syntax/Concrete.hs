@@ -281,6 +281,7 @@ data Pragma = OptionsPragma     !Range [String]
               -- module name.
             | ImpossiblePragma !Range
             | EtaPragma !Range QName
+            | NoTerminationCheckPragma !Range
     deriving (Typeable, Data)
 
 ---------------------------------------------------------------------------
@@ -469,6 +470,7 @@ instance HasRange Pragma where
     getRange (ImportPragma r _)           = r
     getRange (ImpossiblePragma r)         = r
     getRange (EtaPragma r _)              = r
+    getRange (NoTerminationCheckPragma r) = r
 
 instance HasRange UsingOrHiding where
     getRange (Using xs)	    = getRange xs

@@ -138,6 +138,22 @@ instance KillRange DeclInfo where
   killRange i = i { declRange = killRange $ declRange i }
 
 {--------------------------------------------------------------------------
+    Mutual block information
+ --------------------------------------------------------------------------}
+
+data MutualInfo =
+     MutualInfo { mutualTermCheck :: Bool  -- ^ termination check (default=True)
+		, mutualRange     :: Range
+		}
+  deriving (Typeable, Data, Show)
+
+instance HasRange MutualInfo where
+  getRange = mutualRange
+
+instance KillRange MutualInfo where
+  killRange i = i { mutualRange = killRange $ mutualRange i }
+
+{--------------------------------------------------------------------------
     Left hand side information
  --------------------------------------------------------------------------}
 
