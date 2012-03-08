@@ -130,6 +130,13 @@ module Equality {a ℓ} {A : Set a} -- The "return type".
   _⇓_ : A ⊥ → A → Set _
   x ⇓ y = x ⇓[ other weak ] y
 
+  -- x ⇓ means that x terminates.
+
+  infix 4 _⇓
+
+  _⇓ : A ⊥ → Set _
+  x ⇓ = ∃ λ v → x ⇓ v
+
   -- x ⇑ means that x does not terminate.
 
   infix 4 _⇑[_] _⇑
