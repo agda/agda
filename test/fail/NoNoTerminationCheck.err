@@ -1,0 +1,5 @@
+
+Termination checking failed for the following functions:
+  g
+Problematic calls:
+  g (at NoNoTerminationCheck.agda:11,5-6)

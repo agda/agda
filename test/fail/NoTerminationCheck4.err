@@ -1,0 +1,3 @@
+NoTerminationCheck4.agda:7,1-29
+The NO_TERMINATION_CHECK pragma can only preceed a mutual block or
+a function definition.
