@@ -26,14 +26,14 @@ RUN_AGDA = time $(AGDA_BIN) -i. -i../../std-lib -i../../std-lib/src -v$(V) $(she
 
 %.test : %.agda
 	@echo $<
-	@-rm $<.agdai
+	@-rm $*.agdai
 	@$(RUN_AGDA) $<
 	@$(check_$*)
 	@$(cleanup_$*)
 
 %.test : %.lagda
 	@echo $<
-	@-rm $<.agdai
+	@-rm $*.agdai
 	@$(RUN_AGDA) $<
 	@$(cleanup_$*)
 
