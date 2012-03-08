@@ -59,7 +59,11 @@ $(Tests) : %.cmp : %.out
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
-			  then echo "Keeping old output"; rm -f $*.tmp; false; \
+			  then echo "Keeping old output"; \
+			       rm -f $*.tmp; \
+                               rm -rf $(TMPDIR); \
+			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
+			       false; \
 			  else echo "Replacing output, continuing..."; \
 			    mv $*.tmp $*.out; \
 			    true; \
@@ -67,4 +71,3 @@ $(Tests) : %.cmp : %.out
 	 fi
 	@$(cleanup_$*)
 	@rm -rf $(TMPDIR)
-
