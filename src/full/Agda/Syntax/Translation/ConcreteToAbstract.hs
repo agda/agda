@@ -180,12 +180,12 @@ checkModuleApplication (C.SectionApp _ tel e) m0 x dir' =
     printScope "mod.inst" 20 "copied source module"
     reportSLn "scope.mod.inst" 30 $ "renamings:\n  " ++ show renD ++ "\n  " ++ show renM
     return ((A.SectionApp tel' m1 args'), renD, renM)
-checkModuleApplication (C.RecordModuleIFS _ rec) m0 x dir' =
+checkModuleApplication (C.RecordModuleIFS _ recN) m0 x dir' =
   withCurrentModule m0 $ do
-    m1 <- toAbstract $ OldModuleName rec
+    m1 <- toAbstract $ OldModuleName recN
     s <- getNamedScope m1
     (s', (renM, renD)) <- copyScope m0 s
-    s' <- applyImportDirectiveM rec dir' s'
+    s' <- applyImportDirectiveM recN dir' s'
     modifyCurrentScope $ const s'
 
     printScope "mod.inst" 20 "copied record module"
@@ -967,7 +967,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
 
-bindConstructorName m x f a p rec = do
+bindConstructorName m x f a p record = do
   -- The abstract name is the qualified one
   y <- withCurrentModule m $ freshAbstractQName f x
   -- Bind it twice, once unqualified and once qualified
@@ -980,17 +980,17 @@ bindConstructorName m x f a p rec = do
     p' = case a of
            AbstractDef -> PrivateAccess
            _           -> p
-    p'' = case (a, rec) of
+    p'' = case (a, record) of
             (AbstractDef, _) -> PrivateAccess
             (_, YesRec)      -> OnlyQualified   -- record constructors aren't really in the record module
             _                -> PublicAccess
 
 instance ToAbstract ConstrDecl A.Declaration where
-  toAbstract (ConstrDecl rec m a p (C.Axiom r f _ rel x t)) = do -- rel==Relevant
+  toAbstract (ConstrDecl record m a p (C.Axiom r f _ rel x t)) = do -- rel==Relevant
     t' <- toAbstractCtx TopCtx t
     -- The abstract name is the qualified one
     -- Bind it twice, once unqualified and once qualified
-    y <- bindConstructorName m x f a p rec
+    y <- bindConstructorName m x f a p record
     printScope "con" 15 "bound constructor"
     return $ A.Axiom (mkDefInfo x f p ConcreteDef r) rel y t'
 
