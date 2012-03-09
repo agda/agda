@@ -1,0 +1,4 @@
+PatternSynonymOverapplied2.agda:11,1-13
+Arity mismatch when using pattern synonym suc'
+when scope checking the left-hand side f (suc' m n) in the
+definition of f

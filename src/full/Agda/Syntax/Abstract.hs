@@ -8,7 +8,7 @@ module Agda.Syntax.Abstract
     , module Agda.Syntax.Abstract.Name
     ) where
 
-import Prelude hiding (foldr)
+import Prelude hiding (foldl, foldr)
 import Control.Applicative
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as Seq
@@ -58,6 +58,7 @@ data Expr
         | QuoteTerm ExprInfo                 -- ^
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
         | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
+        | PatternSyn QName
   deriving (Typeable, Data, Show)
 
 data Declaration
@@ -172,6 +173,7 @@ data Pattern' e	= VarP Name
 		| AbsurdP PatInfo
 		| LitP Literal
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
+                | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' Expr
@@ -192,59 +194,61 @@ instance HasRange TypedBinding where
     getRange (TNoBind e)   = getRange e
 
 instance HasRange Expr where
-    getRange (Var x)		= getRange x
-    getRange (Def x)		= getRange x
-    getRange (Con x)		= getRange x
-    getRange (Lit l)		= getRange l
-    getRange (QuestionMark i)	= getRange i
-    getRange (Underscore  i)	= getRange i
-    getRange (App i _ _)	= getRange i
-    getRange (WithApp i _ _)	= getRange i
-    getRange (Lam i _ _)	= getRange i
-    getRange (AbsurdLam i _)    = getRange i
-    getRange (ExtendedLam i _ _ _)  = getRange i
-    getRange (Pi i _ _)		= getRange i
-    getRange (Fun i _ _)	= getRange i
-    getRange (Set i _)		= getRange i
-    getRange (Prop i)		= getRange i
-    getRange (Let i _ _)	= getRange i
-    getRange (Rec i _)		= getRange i
-    getRange (RecUpdate i _ _)  = getRange i
-    getRange (ETel tel)         = getRange tel
-    getRange (ScopedExpr _ e)	= getRange e
-    getRange (QuoteGoal _ _ e)	= getRange e
-    getRange (Quote i)  	= getRange i
-    getRange (QuoteTerm i)  	= getRange i
-    getRange (Unquote i)  	= getRange i
-    getRange (DontCare{})       = noRange
+    getRange (Var x)		   = getRange x
+    getRange (Def x)		   = getRange x
+    getRange (Con x)		   = getRange x
+    getRange (Lit l)		   = getRange l
+    getRange (QuestionMark i)	   = getRange i
+    getRange (Underscore  i)	   = getRange i
+    getRange (App i _ _)	   = getRange i
+    getRange (WithApp i _ _)	   = getRange i
+    getRange (Lam i _ _)	   = getRange i
+    getRange (AbsurdLam i _)       = getRange i
+    getRange (ExtendedLam i _ _ _) = getRange i
+    getRange (Pi i _ _)		   = getRange i
+    getRange (Fun i _ _)	   = getRange i
+    getRange (Set i _)		   = getRange i
+    getRange (Prop i)		   = getRange i
+    getRange (Let i _ _)	   = getRange i
+    getRange (Rec i _)		   = getRange i
+    getRange (RecUpdate i _ _)     = getRange i
+    getRange (ETel tel)            = getRange tel
+    getRange (ScopedExpr _ e)	   = getRange e
+    getRange (QuoteGoal _ _ e)	   = getRange e
+    getRange (Quote i)  	   = getRange i
+    getRange (QuoteTerm i)  	   = getRange i
+    getRange (Unquote i)  	   = getRange i
+    getRange (DontCare{})          = noRange
+    getRange (PatternSyn x)        = getRange x
 
 instance HasRange Declaration where
-    getRange (Axiom      i _ _ _       ) = getRange i
-    getRange (Field      i _ _         ) = getRange i
-    getRange (Mutual     i _           ) = getRange i
-    getRange (Section    i _ _ _       ) = getRange i
-    getRange (Apply	 i _ _ _ _     ) = getRange i
-    getRange (Import     i _	       ) = getRange i
-    getRange (Primitive  i _ _	       ) = getRange i
-    getRange (Pragma	 i _	       ) = getRange i
-    getRange (Open       i _           ) = getRange i
-    getRange (ScopedDecl _ d	       ) = getRange d
-    getRange (FunDef  i _ _         ) = getRange i
-    getRange (DataSig i _ _ _       ) = getRange i
-    getRange (DataDef i _ _ _       ) = getRange i
-    getRange (RecSig  i _ _ _       ) = getRange i
-    getRange (RecDef  i _ _ _ _ _   ) = getRange i
+    getRange (Axiom      i _ _ _    ) = getRange i
+    getRange (Field      i _ _      ) = getRange i
+    getRange (Mutual     i _        ) = getRange i
+    getRange (Section    i _ _ _    ) = getRange i
+    getRange (Apply	 i _ _ _ _  ) = getRange i
+    getRange (Import     i _	    ) = getRange i
+    getRange (Primitive  i _ _	    ) = getRange i
+    getRange (Pragma	 i _	    ) = getRange i
+    getRange (Open       i _        ) = getRange i
+    getRange (ScopedDecl _ d	    ) = getRange d
+    getRange (FunDef     i _ _      ) = getRange i
+    getRange (DataSig    i _ _ _    ) = getRange i
+    getRange (DataDef    i _ _ _    ) = getRange i
+    getRange (RecSig     i _ _ _    ) = getRange i
+    getRange (RecDef     i _ _ _ _ _) = getRange i
 
 instance HasRange (Pattern' e) where
-    getRange (VarP x)	   = getRange x
-    getRange (ConP i _ _)  = getRange i
-    getRange (DefP i _ _)  = getRange i
-    getRange (WildP i)	   = getRange i
-    getRange (ImplicitP i) = getRange i
-    getRange (AsP i _ _)   = getRange i
-    getRange (DotP i _)    = getRange i
-    getRange (AbsurdP i)   = getRange i
-    getRange (LitP l)	   = getRange l
+    getRange (VarP x)	         = getRange x
+    getRange (ConP i _ _)        = getRange i
+    getRange (DefP i _ _)        = getRange i
+    getRange (WildP i)	         = getRange i
+    getRange (ImplicitP i)       = getRange i
+    getRange (AsP i _ _)         = getRange i
+    getRange (DotP i _)          = getRange i
+    getRange (AbsurdP i)         = getRange i
+    getRange (LitP l)	         = getRange l
+    getRange (PatternSynP i _ _) = getRange i
 
 instance HasRange LHS where
     getRange (LHS i _ _ _) = getRange i
@@ -263,6 +267,19 @@ instance HasRange LetBinding where
     getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
 
+-- setRange for patterns applies the range to the outermost pattern constructor
+instance SetRange (Pattern' a) where
+    setRange r (VarP x)             = VarP (setRange r x)
+    setRange r (ConP _ ns as)       = ConP (PatRange r) (AmbQ $ map (setRange r) $ unAmbQ ns) as
+    setRange r (DefP _ n as)        = DefP (PatRange r) (setRange r n) as
+    setRange r (WildP _)            = WildP (PatRange r)
+    setRange r (ImplicitP _)        = ImplicitP (PatRange r)
+    setRange r (AsP _ n p)          = AsP (PatRange r) (setRange r n) p
+    setRange r (DotP _ e)           = DotP (PatRange r) e
+    setRange r (AbsurdP _)          = AbsurdP (PatRange r)
+    setRange r (LitP l)             = LitP (setRange r l)
+    setRange r (PatternSynP _ n as) = PatternSynP (PatRange r) (setRange r n) as
+
 instance KillRange LamBinding where
   killRange (DomainFree h r x) = killRange1 (DomainFree h r) x
   killRange (DomainFull b)     = killRange1 DomainFull b
@@ -275,31 +292,34 @@ instance KillRange TypedBinding where
   killRange (TNoBind e)    = killRange1 TNoBind e
 
 instance KillRange Expr where
-  killRange (Var x)          = killRange1 Var x
-  killRange (Def x)          = killRange1 Def x
-  killRange (Con x)          = killRange1 Con x
-  killRange (Lit l)          = killRange1 Lit l
-  killRange (QuestionMark i) = killRange1 QuestionMark i
-  killRange (Underscore  i)  = killRange1 Underscore i
-  killRange (App i e1 e2)    = killRange3 App i e1 e2
-  killRange (WithApp i e es) = killRange3 WithApp i e es
-  killRange (Lam i b e)      = killRange3 Lam i b e
-  killRange (AbsurdLam i h)  = killRange1 AbsurdLam i h
-  killRange (ExtendedLam i name di pes) = killRange4 ExtendedLam i name di pes --(\_ -> ExtendedLam i def {-name di si-}) i pes
-  killRange (Pi i a b)       = killRange3 Pi i a b
-  killRange (Fun i a b)      = killRange3 Fun i a b
-  killRange (Set i n)        = Set (killRange i) n
-  killRange (Prop i)         = killRange1 Prop i
-  killRange (Let i ds e)     = killRange3 Let i ds e
-  killRange (Rec i fs)       = Rec (killRange i) (map (id -*- killRange) fs)
-  killRange (RecUpdate i e fs) = RecUpdate (killRange i) (killRange e) (map (id -*- killRange) fs)
-  killRange (ETel tel)       = killRange1 ETel tel
-  killRange (ScopedExpr s e) = killRange1 (ScopedExpr s) e
-  killRange (QuoteGoal i x e)= killRange3 QuoteGoal i x e
-  killRange (Quote i)        = killRange1 Quote i
-  killRange (QuoteTerm i)    = killRange1 QuoteTerm i
-  killRange (Unquote i)      = killRange1 Unquote i
-  killRange (DontCare e)     = DontCare e
+  killRange (Var x)                = killRange1 Var x
+  killRange (Def x)                = killRange1 Def x
+  killRange (Con x)                = killRange1 Con x
+  killRange (Lit l)                = killRange1 Lit l
+  killRange (QuestionMark i)       = killRange1 QuestionMark i
+  killRange (Underscore  i)        = killRange1 Underscore i
+  killRange (App i e1 e2)          = killRange3 App i e1 e2
+  killRange (WithApp i e es)       = killRange3 WithApp i e es
+  killRange (Lam i b e)            = killRange3 Lam i b e
+  killRange (AbsurdLam i h)        = killRange1 AbsurdLam i h
+  killRange (ExtendedLam i n d ps) = killRange4 ExtendedLam i n d ps
+  killRange (Pi i a b)             = killRange3 Pi i a b
+  killRange (Fun i a b)            = killRange3 Fun i a b
+  killRange (Set i n)              = Set (killRange i) n
+  killRange (Prop i)               = killRange1 Prop i
+  killRange (Let i ds e)           = killRange3 Let i ds e
+  killRange (Rec i fs)             = Rec (killRange i) (map (id -*- killRange) fs)
+  killRange (RecUpdate i e fs)     = RecUpdate (killRange i)
+                                               (killRange e)
+                                               (map (id -*- killRange) fs)
+  killRange (ETel tel)             = killRange1 ETel tel
+  killRange (ScopedExpr s e)       = killRange1 (ScopedExpr s) e
+  killRange (QuoteGoal i x e)      = killRange3 QuoteGoal i x e
+  killRange (Quote i)              = killRange1 Quote i
+  killRange (QuoteTerm i)          = killRange1 QuoteTerm i
+  killRange (Unquote i)            = killRange1 Unquote i
+  killRange (DontCare e)           = DontCare e
+  killRange (PatternSyn x)         = killRange1 PatternSyn x
 
 instance KillRange Relevance where
   killRange rel = rel -- no range to kill
@@ -330,15 +350,16 @@ instance KillRange x => KillRange (ThingWithFixity x) where
   killRange (ThingWithFixity c f) = ThingWithFixity (killRange c) f
 
 instance KillRange e => KillRange (Pattern' e) where
-  killRange (VarP x)      = killRange1 VarP x
-  killRange (ConP i a b)  = killRange3 ConP i a b
-  killRange (DefP i a b)  = killRange3 DefP i a b
-  killRange (WildP i)     = killRange1 WildP i
-  killRange (ImplicitP i) = killRange1 ImplicitP i
-  killRange (AsP i a b)   = killRange3 AsP i a b
-  killRange (DotP i a)    = killRange2 DotP i a
-  killRange (AbsurdP i)   = killRange1 AbsurdP i
-  killRange (LitP l)      = killRange1 LitP l
+  killRange (VarP x)            = killRange1 VarP x
+  killRange (ConP i a b)        = killRange3 ConP i a b
+  killRange (DefP i a b)        = killRange3 DefP i a b
+  killRange (WildP i)           = killRange1 WildP i
+  killRange (ImplicitP i)       = killRange1 ImplicitP i
+  killRange (AsP i a b)         = killRange3 AsP i a b
+  killRange (DotP i a)          = killRange2 DotP i a
+  killRange (AbsurdP i)         = killRange1 AbsurdP i
+  killRange (LitP l)            = killRange1 LitP l
+  killRange (PatternSynP i a p) = killRange3 PatternSynP i a p
 
 instance KillRange LHS where
   killRange (LHS i a b c) = killRange4 LHS i a b c
@@ -418,6 +439,7 @@ allNames (FunDef _ q cls)         = q <| Fold.foldMap allNamesC cls
   allNamesE QuoteTerm {}            = Seq.empty
   allNamesE Unquote {}              = Seq.empty
   allNamesE DontCare {}             = Seq.empty
+  allNamesE (PatternSyn x)          = Seq.empty
 
   allNamesLam :: LamBinding -> Seq QName
   allNamesLam DomainFree {}      = Seq.empty
@@ -473,3 +495,97 @@ instance AnyAbstract Declaration where
   anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
   anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
   anyAbstract _                    = __IMPOSSIBLE__
+
+
+minfo = MetaInfo noRange emptyScopeInfo Nothing
+app   = foldl (App (ExprRange noRange))
+
+patternToExpr :: Pattern -> Expr
+patternToExpr (VarP x)            = Var x
+patternToExpr (ConP _ c ps)       =
+          Con c `app` map (fmap (fmap patternToExpr)) ps
+patternToExpr (DefP _ f ps)       =
+          Def f `app` map (fmap (fmap patternToExpr)) ps
+patternToExpr (WildP _)           = Underscore minfo
+patternToExpr (AsP _ _ p)         = patternToExpr p
+patternToExpr (DotP _ e)          = e
+patternToExpr (AbsurdP _)         = Underscore minfo  -- TODO: could this happen?
+patternToExpr (LitP l)            = Lit l
+patternToExpr (ImplicitP _)       = Underscore minfo
+patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
+
+type PatternSynDefn = ([Name], Pattern)
+type PatternSynDefns = Map QName PatternSynDefn
+
+lambdaLiftExpr :: [Name] -> Expr -> Expr
+lambdaLiftExpr []     e = e
+lambdaLiftExpr (n:ns) e = Lam (ExprRange noRange)
+                                     (DomainFree NotHidden Relevant n) $
+                                     lambdaLiftExpr ns e
+
+substPattern :: [(Name, Pattern)] -> Pattern -> Pattern
+substPattern s p = case p of
+  VarP z      -> case lookup z s of
+    Nothing -> p
+    Just x  -> x
+  ConP i q ps -> ConP i q (fmap (fmap (fmap (substPattern s))) ps)
+  WildP i     -> p
+  DotP i e    -> DotP i (substExpr (map (fmap patternToExpr) s) e)
+  AbsurdP i   -> p
+  LitP l      -> p
+  _           -> __IMPOSSIBLE__ -- Implicits (generated at TC time),
+                                -- pattern synonyms (already gone), and
+                                -- @-patterns (not supported anyways).
+
+substExpr :: [(Name, Expr)] -> Expr -> Expr
+substExpr s e = case e of
+  Var n -> case lookup n s of
+    Nothing -> e
+    Just z  -> z
+  Def _                 -> e
+  Con _	                -> e
+  Lit _                 -> e
+  QuestionMark _        -> e
+  Underscore   _        -> e
+  App  i e e'           -> App i (substExpr s e)
+                                 (fmap (fmap (substExpr s)) e')
+  WithApp i e es        -> WithApp i (substExpr s e)
+                                     (fmap (substExpr s) es)
+  Lam  i lb e           -> Lam i lb (substExpr s e)
+  AbsurdLam i h         -> e
+  ExtendedLam i di n cs -> __IMPOSSIBLE__   -- Maybe later...
+  Pi   i t e            -> Pi i (fmap (substTypedBindings s) t)
+                                (substExpr s e)
+  Fun  i ae e           -> Fun i (fmap (substExpr s) ae)
+                                 (substExpr s e)
+  Set  i n              -> e
+  Prop i                -> e
+  Let  i ls e           -> Let i (fmap (substLetBinding s) ls)
+                                 (substExpr s e)
+  ETel t                -> e
+  Rec  i nes            -> Rec i (fmap (fmap (substExpr s)) nes)
+  RecUpdate i e nes     -> RecUpdate i (substExpr s e)
+                                       (fmap (fmap (substExpr s)) nes)
+  -- XXX: Do we need to do more with ScopedExprs?
+  ScopedExpr si e       -> ScopedExpr si (substExpr s e)
+  QuoteGoal i n e       -> QuoteGoal i n (substExpr s e)
+  Quote i               -> e
+  QuoteTerm i           -> e
+  Unquote i             -> e
+  DontCare e            -> DontCare (substExpr s e)
+  PatternSyn x          -> e
+
+substLetBinding :: [(Name, Expr)] -> LetBinding -> LetBinding
+substLetBinding s lb = case lb of
+  LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
+  _                  -> lb
+
+substTypedBindings :: [(Name, Expr)] -> TypedBindings -> TypedBindings
+substTypedBindings s (TypedBindings r atb) = TypedBindings r
+    (fmap (substTypedBinding s) atb)
+
+substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
+substTypedBinding s tb = case tb of
+  TBind r ns e -> TBind r ns $ substExpr s e
+  TNoBind e    -> TNoBind $ substExpr s e
+

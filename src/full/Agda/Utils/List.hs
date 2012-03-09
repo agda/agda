@@ -169,6 +169,13 @@ prop_zipWith' f =
     forAll (two $ vector n) $ \(xs, ys) ->
       zipWith' f xs ys == zipWith f xs ys
 
+-- | Like zipWith, but returns the leftover elements of the input lists.
+zipWithTails :: (a -> b -> c) -> [a] -> [b] -> ([c], [a] , [b])
+zipWithTails f xs       []       = ([], xs, [])
+zipWithTails f []       ys       = ([], [] , ys)
+zipWithTails f (x : xs) (y : ys) = (f x y : zs , as , bs)
+  where (zs , as , bs) = zipWithTails f xs ys
+
 -- | Efficient version of nub that sorts the list first. The tag function is
 --   assumed to be cheap. If it isn't pair up the elements with their tags and
 --   call uniqBy fst (or snd).

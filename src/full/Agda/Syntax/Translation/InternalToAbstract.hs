@@ -181,7 +181,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         -- TODO: restructure this to avoid having to repeat the code for reify
         termToExpr :: Term -> TCM A.Expr
         termToExpr (I.Var n [])
-          | n < len = return $ patToTerm $ ps !! fromIntegral n
+          | n < len = return $ A.patternToExpr $ ps !! fromIntegral n
         termToExpr (I.Con c vs) =
           curry apps (A.Con (AmbQ [c])) =<< argsToExpr vs
         termToExpr (I.Def f vs) =
@@ -191,21 +191,7 @@ reifyDisplayFormP lhs@(A.LHS i x ps wps) =
         termToExpr _ = return $ A.Underscore minfo
 
         minfo = MetaInfo noRange emptyScopeInfo Nothing
-        einfo = ExprRange noRange
-        app = foldl (App einfo)
 
-        patToTerm :: A.Pattern -> A.Expr
-        patToTerm (A.VarP x)      = A.Var x
-        patToTerm (A.ConP _ c ps) =
-          A.Con c `app` map (fmap (fmap patToTerm)) ps
-        patToTerm (A.DefP _ f ps) =
-          A.Def f `app` map (fmap (fmap patToTerm)) ps
-        patToTerm (A.WildP _)     = A.Underscore minfo
-        patToTerm (A.AsP _ _ p)   = patToTerm p
-        patToTerm (A.DotP _ e)    = e
-        patToTerm (A.AbsurdP _)   = A.Underscore minfo  -- TODO: could this happen?
-        patToTerm (A.LitP l)      = A.Lit l
-        patToTerm (A.ImplicitP _) = A.Underscore minfo
 
 instance Reify Literal Expr where
   reify l@(LitInt    {}) = return (A.Lit l)
@@ -359,6 +345,7 @@ stripImplicits ps wps =
       A.LitP _      -> Set.empty
       A.ImplicitP _ -> Set.empty
       A.AsP _ _ p   -> patVars p
+      A.PatternSynP _ _ _ -> Set.empty
 
     -- Pick the "best" place to bind the variable. Best in this case
     -- is the left-most explicit binding site. But, of course we can't
@@ -393,6 +380,7 @@ stripImplicits ps wps =
           A.LitP _      -> p
           A.ImplicitP _ -> p
           A.AsP i x p   -> A.AsP i x $ stripPat p
+          A.PatternSynP _ _ _ -> p
 
         noInterestingBindings p =
           Set.null $ dvs `Set.intersection` patVars p
@@ -438,37 +426,39 @@ instance DotVars A.Pattern where
     A.LitP _      -> Set.empty
     A.ImplicitP _ -> Set.empty
     A.AsP _ _ p   -> dotVars p
+    A.PatternSynP _ _ _ -> Set.empty
 
 -- | Getting all(!) variables of an expression.
 --   It should only get free ones, but it does not matter to include
 --   the bound ones.
 instance DotVars A.Expr where
   dotVars e = case e of
-    A.ScopedExpr _ e -> dotVars e
-    A.Var x          -> Set.singleton x -- add any expression variable
-    A.Def _          -> Set.empty
-    A.Con _          -> Set.empty
-    A.Lit _          -> Set.empty
-    A.QuestionMark _ -> Set.empty
-    A.Underscore _   -> Set.empty
-    A.App _ e1 e2    -> dotVars (e1, e2)
-    A.WithApp _ e es -> dotVars (e, es)
-    A.Lam _ _ e      -> dotVars e
-    A.AbsurdLam _ _  -> Set.empty
+    A.ScopedExpr _ e       -> dotVars e
+    A.Var x                -> Set.singleton x -- add any expression variable
+    A.Def _                -> Set.empty
+    A.Con _                -> Set.empty
+    A.Lit _                -> Set.empty
+    A.QuestionMark _       -> Set.empty
+    A.Underscore _         -> Set.empty
+    A.App _ e1 e2          -> dotVars (e1, e2)
+    A.WithApp _ e es       -> dotVars (e, es)
+    A.Lam _ _ e            -> dotVars e
+    A.AbsurdLam _ _        -> Set.empty
     A.ExtendedLam _ _ _ cs -> dotVars cs
-    A.Pi _ tel e     -> dotVars (tel, e)
-    A.Fun _ a b      -> dotVars (a, b)
-    A.Set _ _        -> Set.empty
-    A.Prop _         -> Set.empty
-    A.Let _ _ _      -> __IMPOSSIBLE__
-    A.Rec _ es       -> dotVars $ map snd es
-    A.RecUpdate _ e es -> dotVars (e, map snd es)
-    A.ETel _         -> __IMPOSSIBLE__
-    A.QuoteGoal {}   -> __IMPOSSIBLE__
-    A.Quote {}       -> __IMPOSSIBLE__
-    A.QuoteTerm {}   -> __IMPOSSIBLE__
-    A.Unquote {}     -> __IMPOSSIBLE__
-    A.DontCare v     -> dotVars v
+    A.Pi _ tel e           -> dotVars (tel, e)
+    A.Fun _ a b            -> dotVars (a, b)
+    A.Set _ _              -> Set.empty
+    A.Prop _               -> Set.empty
+    A.Let _ _ _            -> __IMPOSSIBLE__
+    A.Rec _ es             -> dotVars $ map snd es
+    A.RecUpdate _ e es     -> dotVars (e, map snd es)
+    A.ETel _               -> __IMPOSSIBLE__
+    A.QuoteGoal {}         -> __IMPOSSIBLE__
+    A.Quote {}             -> __IMPOSSIBLE__
+    A.QuoteTerm {}         -> __IMPOSSIBLE__
+    A.Unquote {}           -> __IMPOSSIBLE__
+    A.DontCare v           -> dotVars v
+    A.PatternSyn n         -> Set.empty
 
 instance DotVars RHS where
   dotVars (RHS e) = dotVars e

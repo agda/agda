@@ -1,0 +1,7 @@
+PatternSynonymAmbiguousParse.agda:8,1-45
+Don't know how to parse if x then if x then x else x. Could mean
+any one of:
+  if x then (if x then x else x)
+  if x then (if x then x) else x
+when scope checking the declaration
+  pattern bad x = if x then if x then x else x

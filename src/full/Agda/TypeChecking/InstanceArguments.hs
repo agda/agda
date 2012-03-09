@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+
 module Agda.TypeChecking.InstanceArguments where
 
 import Control.Applicative

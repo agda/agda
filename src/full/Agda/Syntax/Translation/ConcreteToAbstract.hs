@@ -37,7 +37,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Info
 import Agda.Syntax.Concrete.Definitions as C
-import Agda.Syntax.Concrete.Operators
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Abstract.Pretty
 import Agda.Syntax.Fixity
@@ -134,15 +133,16 @@ checkPatternLinearity ps = case xs \\ nub xs of
     xs = concatMap vars ps
     vars :: A.Pattern' e -> [C.Name]
     vars p = case p of
-      A.VarP x        -> [nameConcrete x]
-      A.ConP _ _ args -> concatMap (vars . namedThing . unArg) args
-      A.WildP _       -> []
-      A.AsP _ x p     -> nameConcrete x : vars p
-      A.DotP _ _      -> []
-      A.AbsurdP _     -> []
-      A.LitP _        -> []
-      A.DefP _ _ args -> __IMPOSSIBLE__
-      A.ImplicitP _   -> __IMPOSSIBLE__
+      A.VarP x               -> [nameConcrete x]
+      A.ConP _ _ args        -> concatMap (vars . namedThing . unArg) args
+      A.WildP _              -> []
+      A.AsP _ x p            -> nameConcrete x : vars p
+      A.DotP _ _             -> []
+      A.AbsurdP _            -> []
+      A.LitP _               -> []
+      A.DefP _ _ args        -> __IMPOSSIBLE__
+      A.ImplicitP _          -> __IMPOSSIBLE__
+      A.PatternSynP _ _ args -> concatMap (vars . namedThing . unArg) args
 
 -- | Compute the type of the record constructor (with bogus target type)
 recordConstructorType :: [NiceDeclaration] -> C.Expr
@@ -318,21 +318,24 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
-    mk DefName = Def
-    mk ConName = Con . AmbQ . (:[])
+    mk DefName        = Def
+    mk ConName        = Con . AmbQ . (:[])
+    mk PatternSynName = A.PatternSyn
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
-      VarName x'         -> return $ A.Var x'
-      DefinedName _ d    -> return $ nameExpr d
-      ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
-      UnknownName        -> notInScope x
+      VarName x'          -> return $ A.Var x'
+      DefinedName _ d     -> return $ nameExpr d
+      ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
+      UnknownName         -> notInScope x
+      PatternSynResName d -> return $ nameExpr d
 
 data APatName = VarPatName A.Name
               | ConPatName [AbstractName]
+              | PatternSynPatName AbstractName
 
 instance ToAbstract PatName APatName where
   toAbstract (PatName x) = do
@@ -343,7 +346,8 @@ instance ToAbstract PatName APatName where
       (VarName y,       C.QName x)                          -> return $ Left x -- typeError $ RepeatedVariableInPattern y x
       (DefinedName _ d, C.QName x) | DefName == anameKind d -> return $ Left x
       (UnknownName,     C.QName x)                          -> return $ Left x
-      (ConstructorName ds, _)                               -> return $ Right ds
+      (ConstructorName ds, _)                               -> return $ Right (Left ds)
+      (PatternSynResName d, _)                              -> return $ Right (Right d)
       _                                                     ->
         typeError $ GenericError $
           "Cannot pattern match on " ++ show x ++ ", because it is not a constructor"
@@ -353,9 +357,13 @@ instance ToAbstract PatName APatName where
         p <- VarPatName <$> toAbstract (NewName x)
         printLocals 10 "bound it:"
         return p
-      Right cs -> do
-        reportSLn "scope.pat" 10 $ "it was a con: " ++ show (map anameName cs)
-        return $ ConPatName cs
+      Right (Left ds) -> do
+        reportSLn "scope.pat" 10 $ "it was a con: " ++ show (map anameName ds)
+        return $ ConPatName ds
+      Right (Right d) -> do
+        reportSLn "scope.pat" 10 $ "it was a pat syn: " ++ show (anameName d)
+        return $ PatternSynPatName d
+
 
 -- Should be a defined name.
 instance ToAbstract OldName A.QName where
@@ -963,6 +971,24 @@ instance ToAbstract NiceDeclaration A.Declaration where
                            })
                         m ]
 
+    NicePatternSyn r fx n as p -> do
+      reportSLn "scope.pat" 10 $ "found nice pattern syn: " ++ show r
+
+      isparameterised <- not . null <$> getLocalVars
+      when isparameterised $ typeError $ NotSupported
+          "pattern synonym in parameterised module"
+
+      y <- freshAbstractQName fx n
+      bindName PublicAccess PatternSynName n y
+      defn <- withLocalVars $ do
+               p'   <- killRange <$> (toAbstract =<< toAbstract =<< parsePatternSyn p)
+               as'  <- mapM (\a -> unVarName =<< resolveName (C.QName a)) as
+               return (as', p')
+      modifyPatternSyns (Map.insert y defn)
+      return []
+      where unVarName (VarName a) = return a
+            unVarName _           = typeError $ UnusedVariableInPatternSynonym
+
 
 data IsRecordCon = YesRec | NoRec
 data ConstrDecl = ConstrDecl IsRecordCon A.ModuleName IsAbstract Access C.NiceDeclaration
@@ -1175,25 +1201,48 @@ instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
 -- then the dot patterns. This is because dot patterns can refer to variables
 -- bound anywhere in the pattern.
 
-instance ToAbstract c a => ToAbstract (A.Pattern' c) (A.Pattern' a) where
-    toAbstract = mapM toAbstract
+instance ToAbstract (A.Pattern' C.Expr) (A.Pattern' A.Expr) where
+    toAbstract (A.VarP x)             = return $ A.VarP x
+    toAbstract (A.ConP i ds as)       = A.ConP i ds <$> mapM toAbstract as
+    toAbstract (A.DefP i x as)        = A.DefP i x <$> mapM toAbstract as
+    toAbstract (A.WildP i)            = return $ A.WildP i
+    toAbstract (A.AsP i x p)          = A.AsP i x <$> toAbstract p
+    toAbstract (A.DotP i e)           = A.DotP i <$> toAbstract e
+    toAbstract (A.AbsurdP i)          = return $ A.AbsurdP i
+    toAbstract (A.LitP l)             = return $ A.LitP l
+    toAbstract (A.ImplicitP i)        = return $ A.ImplicitP i
+    toAbstract (A.PatternSynP i x as) = do
+        p   <- lookupPatternSyn x
+        as' <- mapM toAbstract as
+        instPatternSyn p as'
+      where
+        instPatternSyn :: A.PatternSynDefn -> [NamedArg A.Pattern] -> ScopeM A.Pattern
+        instPatternSyn (ns, p) as
+            | length ns == length as = return $ substPattern s $ setRange (getRange i) p
+            | otherwise              = typeError $ PatternSynonymArityMismatch x
+          where
+          s = zipWith' (\n a -> (n, namedThing (unArg a))) ns as
+
 
 instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
     toAbstract p@(C.IdentP x) = do
         px <- toAbstract (PatName x)
         case px of
-            VarPatName y  -> return $ VarP y
-            ConPatName ds -> return $ ConP (PatRange (getRange p))
-                                           (AmbQ $ map anameName ds)
-                                           []
+            VarPatName y        -> return $ VarP y
+            ConPatName ds       -> return $ ConP (PatRange (getRange p))
+                                                 (AmbQ $ map anameName ds)
+                                                 []
+            PatternSynPatName d -> return $ PatternSynP (PatRange (getRange p))
+                                                        (anameName d) []
 
     toAbstract p0@(AppP p q) = do
         (p', q') <- toAbstract (p,q)
         case p' of
-            ConP _ x as -> return $ ConP info x (as ++ [q'])
-            DefP _ x as -> return $ DefP info x (as ++ [q'])
-            _           -> typeError $ InvalidPattern p0
+            ConP _ x as        -> return $ ConP info x (as ++ [q'])
+            DefP _ x as        -> return $ DefP info x (as ++ [q'])
+            PatternSynP _ x as -> return $ PatternSynP info x (as ++ [q'])
+            _                  -> typeError $ InvalidPattern p0
         where
             r = getRange p0
             info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
@@ -1202,17 +1251,21 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
         p <- toAbstract (IdentP $ C.QName op)
         ps <- toAbstract ps
         case p of
-          ConP _ x as -> return $ ConP info x (as ++ map (Arg NotHidden Relevant . unnamed) ps)
-          DefP _ x as -> return $ DefP info x (as ++ map (Arg NotHidden Relevant. unnamed) ps)
-          _           -> __IMPOSSIBLE__
+          ConP        _ x as -> return $ ConP info x
+                                    (as ++ map (Arg NotHidden Relevant . unnamed) ps)
+          DefP        _ x as -> return $ DefP info x
+                                    (as ++ map (Arg NotHidden Relevant . unnamed) ps)
+          PatternSynP _ x as -> return $ PatternSynP info x
+                                    (as ++ map (Arg NotHidden Relevant . unnamed) ps)
+          _                  -> __IMPOSSIBLE__
         where
-            r = getRange p0
+            r    = getRange p0
             info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
     -- Removed when parsing
-    toAbstract (HiddenP _ _) = __IMPOSSIBLE__
+    toAbstract (HiddenP _ _)   = __IMPOSSIBLE__
     toAbstract (InstanceP _ _) = __IMPOSSIBLE__
-    toAbstract (RawAppP _ _) = __IMPOSSIBLE__
+    toAbstract (RawAppP _ _)   = __IMPOSSIBLE__
 
     toAbstract p@(C.WildP r)    = return $ A.WildP (PatSource r $ const p)
     toAbstract (C.ParenP _ p)   = toAbstract p
@@ -1229,8 +1282,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
     toAbstract p0@(C.DotP r e) = return $ A.DotP info e
         where info = PatSource r $ \_ -> p0
     toAbstract p0@(C.AbsurdP r) = return $ A.AbsurdP info
-        where
-            info = PatSource r $ \_ -> p0
+        where info = PatSource r $ \_ -> p0
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.

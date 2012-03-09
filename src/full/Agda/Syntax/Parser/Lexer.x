@@ -157,7 +157,8 @@ tokens :-
 <0,code> quote		{ keyword KwQuote }
 <0,code> quoteTerm	{ keyword KwQuoteTerm }
 <0,code> unquote	{ keyword KwUnquote }
-<0,code> syntax         { keyword KwSyntax }
+<0,code> syntax		{ keyword KwSyntax }
+<0,code> pattern	{ keyword KwPatternSyn }
 
 -- The parser is responsible to put the lexer in the imp_dir_ state when it
 -- expects an import directive keyword. This means that if you run the

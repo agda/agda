@@ -59,6 +59,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
+import Agda.Utils.List (zipWithTails)
 
 import {-# SOURCE #-} Agda.TypeChecking.Empty (isEmptyType)
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl (checkSectionApplication)
@@ -737,6 +738,18 @@ checkExpr e t =
               -- Subcase: non-ambiguous constructor
             | Application (A.Con (AmbQ [c])) args <- appView e ->
                 checkConstructorApplication e t c args
+
+              -- Subcase: pattern synonym
+            | Application (A.PatternSyn n) args <- appView e -> do
+                (ns, p) <- lookupPatternSyn n
+                -- Expand the pattern synonym by substituting for
+                -- the arguments we have got and lambda-lifting
+                -- over the ones we haven't.
+                let (zs, ns', as) = zipWithTails (\n a -> (n, namedThing (unArg a))) ns args
+                    p'            = A.patternToExpr $ setRange (getRange n) p
+                    e'            = A.lambdaLiftExpr ns' (A.substExpr zs p') `A.app` as
+                checkExpr e' t
+
               -- Subcase: defined symbol or variable.
             | Application hd args <- appView e ->
                 checkHeadApplication e t hd args

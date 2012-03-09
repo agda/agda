@@ -11,6 +11,7 @@
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseLHS
+    , parsePatternSyn
     , paren
     , mparen
     ) where
@@ -80,7 +81,7 @@ getDefinedNames kinds = do
 --   scope.
 localNames :: ScopeM ([Name], [NewNotation])
 localNames = do
-  defs   <- getDefinedNames [DefName, ConName]
+  defs   <- getDefinedNames [DefName, ConName, PatternSynName]
   locals <- scopeLocals <$> getScope
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
@@ -150,7 +151,7 @@ notationNames (_, _, ps) = [Name noRange [Id x] | IdPart x <- ps ]
 buildParser :: forall e. IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
 buildParser r use = do
     (names, ops) <- localNames
-    cons         <- getDefinedNames [ConName]
+    cons         <- getDefinedNames [ConName, PatternSynName]
     let conparts   = Set.fromList $ concatMap notationNames $ map oldToNewNotation cons
         opsparts   = Set.fromList $ concatMap notationNames $ ops
         allParts   = Set.union conparts opsparts
@@ -288,7 +289,6 @@ parsePattern prs p = case p of
     LitP _           -> return p
     IdentP _         -> return p
 
-
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
 --   postfix constructors:
@@ -296,13 +296,22 @@ parsePattern prs p = case p of
 --      intended _* applied to true, or as true applied to a variable *. If we
 --      check arities this problem won't appear.
 parseLHS :: Maybe Name -> Pattern -> ScopeM Pattern
-parseLHS top p = do
+parseLHS = parseLhsOrPatternSyn True
+
+parsePatternSyn :: Pattern -> ScopeM Pattern
+parsePatternSyn = parseLhsOrPatternSyn False Nothing
+
+parseLhsOrPatternSyn :: Bool -> Maybe Name -> Pattern -> ScopeM Pattern
+parseLhsOrPatternSyn isLHS top p = do
     patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName]
+    cons <- getNames [ConName, PatternSynName]
     case filter (validPattern top cons) $ parsePattern patP p of
         [p] -> return p
-        []  -> typeError $ NoParseForLHS p
-        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+        []  | isLHS     -> typeError $ NoParseForLHS p
+            | otherwise -> typeError $ NoParseForPatternSynonym p
+
+        ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+            | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
     where
         getNames kinds = map fst <$> getDefinedNames kinds
 

@@ -80,6 +80,7 @@ import Agda.Utils.TestHelpers
     'Set'           { TokKeyword KwSet $$ }
     'forall'        { TokKeyword KwForall $$ }
     'syntax'        { TokKeyword KwSyntax $$ }
+    'pattern'       { TokKeyword KwPatternSyn $$ }
     'OPTIONS'       { TokKeyword KwOPTIONS $$ }
     'BUILTIN'       { TokKeyword KwBUILTIN $$ }
     'IMPORT'        { TokKeyword KwIMPORT $$ }
@@ -180,6 +181,7 @@ Token
     | 'Set'	    { TokKeyword KwSet $1 }
     | 'forall'	    { TokKeyword KwForall $1 }
     | 'syntax'      { TokKeyword KwSyntax $1 }
+    | 'pattern'     { TokKeyword KwPatternSyn $1 }
     | 'OPTIONS'	    { TokKeyword KwOPTIONS $1 }
     | 'BUILTIN'     { TokKeyword KwBUILTIN $1 }
     | 'IMPORT'      { TokKeyword KwIMPORT $1 }
@@ -878,6 +880,7 @@ Declaration
     | Module	    { [$1] }
     | Pragma	    { [$1] }
     | Syntax        { [$1] }
+    | PatternSyn    { [$1] }
 
 
 {--------------------------------------------------------------------------
@@ -993,6 +996,13 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
       Right n -> return $ Syntax $2 n
     _ -> parseError "syntax declarations are allowed only for simple names (without holes)"
 }
+
+-- Pattern synonyms.
+PatternSyn :: { Declaration }
+PatternSyn : 'pattern' SpaceIds '=' Expr {% do
+  p <- exprToPattern $4
+  return (PatternSyn (getRange ($1 , $4)) (head $2) (tail $2) p)
+  }
 
 SimpleIds :: { [String] }
 SimpleIds : SimpleId { [$1] }

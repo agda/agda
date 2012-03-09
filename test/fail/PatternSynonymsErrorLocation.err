@@ -1,0 +1,3 @@
+PatternSynonymsErrorLocation.agda:68,21-23
+A != C of type Sigma TyTag _.T
+when checking that the pattern refl has type A ≡ C

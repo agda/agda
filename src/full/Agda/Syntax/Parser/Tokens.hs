@@ -20,7 +20,7 @@ data Keyword
 	| KwOPTIONS | KwBUILTIN | KwLINE
 	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS
 	| KwIMPORT | KwIMPOSSIBLE | KwETA | KwNO_TERMINATION_CHECK | KwSTATIC
-	| KwQuoteGoal | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax
+	| KwQuoteGoal | KwQuote | KwQuoteTerm | KwUnquote | KwSyntax | KwPatternSyn
     deriving (Eq, Show)
 
 layoutKeywords :: [Keyword]

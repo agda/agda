@@ -247,6 +247,7 @@ data Declaration
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name
+        | PatternSyn  !Range Name [Name] Pattern
 	| Mutual      !Range [Declaration]
 	| Abstract    !Range [Declaration]
 	| Private     !Range [Declaration]
@@ -448,6 +449,7 @@ instance HasRange Declaration where
     getRange (Module r _ _ _)	       = r
     getRange (Infix f _)	       = getRange f
     getRange (Syntax n _)              = getRange n
+    getRange (PatternSyn r _ _ _)      = r
     getRange (Pragma p)		       = getRange p
 
 instance HasRange LHS where

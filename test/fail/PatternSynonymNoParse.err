@@ -1,0 +1,4 @@
+PatternSynonymNoParse.agda:3,1-18
+Could not parse the pattern synonym a b
+when scope checking the declaration
+  pattern f x = a b

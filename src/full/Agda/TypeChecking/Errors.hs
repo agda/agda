@@ -85,6 +85,7 @@ errorString err = case err of
     AmbiguousName{}                          -> "AmbiguousName"
     AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
     AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
+    AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
     AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
     BothWithAndRHS                           -> "BothWithAndRHS"
     BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
@@ -131,6 +132,7 @@ errorString err = case err of
     NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
     NoParseForApplication{}                  -> "NoParseForApplication"
     NoParseForLHS{}                          -> "NoParseForLHS"
+    NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
     NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
     NotInductive {}                          -> "NotInductive"
     AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
@@ -150,6 +152,7 @@ errorString err = case err of
     NothingAppliedToInstanceArg{}            -> "NothingAppliedToInstanceArg"
     OverlappingProjects {}                   -> "OverlappingProjects"
     PatternShadowsConstructor {}             -> "PatternShadowsConstructor"
+    PatternSynonymArityMismatch {}           -> "PatternSynonymArityMismatch"
     PropMustBeSingleton                      -> "PropMustBeSingleton"
     RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
     SafeFlagPostulate{}                      -> "SafeFlagPostulate"
@@ -184,6 +187,7 @@ errorString err = case err of
     UnreachableClauses{}                     -> "UnreachableClauses"
     UnsolvedConstraints{}                    -> "UnsolvedConstraints"
     UnsolvedMetas{}                          -> "UnsolvedMetas"
+    UnusedVariableInPatternSynonym           -> "UnusedVariableInPatternSynonym"
     WithClausePatternMismatch{}              -> "WithClausePatternMismatch"
     WrongHidingInApplication{}               -> "WrongHidingInApplication"
     WrongHidingInLHS{}                       -> "WrongHidingInLHS"
@@ -517,9 +521,19 @@ instance PrettyTCM TypeError where
 		    pwords "Don't know how to parse" ++ [pretty (C.RawApp noRange es) <> text "."] ++
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty es')
+            UnusedVariableInPatternSynonym -> fsep $
+                pwords "Unused variable in pattern synonym."
+            PatternSynonymArityMismatch x -> fsep $
+                pwords "Arity mismatch when using pattern synonym" ++ [prettyTCM x]
 	    NoParseForLHS p -> fsep $
 		pwords "Could not parse the left-hand side" ++ [pretty p]
+	    NoParseForPatternSynonym p -> fsep $
+		pwords "Could not parse the pattern synonym" ++ [pretty p]
 	    AmbiguousParseForLHS p ps -> fsep (
+		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
+		    pwords "Could mean any one of:"
+		) $$ nest 2 (vcat $ map pretty ps)
+	    AmbiguousParseForPatternSynonym p ps -> fsep (
 		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty ps)

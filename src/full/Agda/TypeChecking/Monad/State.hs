@@ -4,12 +4,13 @@ module Agda.TypeChecking.Monad.State where
 import Control.Applicative
 import Control.Monad.State
 import Data.Set (Set)
-import Data.Map
+import Data.Map as Map
 import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Scope.Base
 import qualified Agda.Syntax.Concrete.Name as C
+import Agda.Syntax.Abstract (PatternSynDefn, PatternSynDefns)
 import Agda.Syntax.Abstract.Name
 
 import Agda.TypeChecking.Monad.Base
@@ -35,6 +36,31 @@ setScope scope = modify $ \s -> s { stScope = scope }
 -- | Get the current scope.
 getScope :: TCM ScopeInfo
 getScope = gets stScope
+
+getPatternSyns :: TCM PatternSynDefns
+getPatternSyns = gets stPatternSyns
+
+setPatternSyns :: PatternSynDefns -> TCM ()
+setPatternSyns m = modify $ \s -> s { stPatternSyns = m }
+
+modifyPatternSyns :: (PatternSynDefns -> PatternSynDefns) -> TCM ()
+modifyPatternSyns f = do
+  s <- getPatternSyns
+  setPatternSyns $ f s
+
+getPatternSynImports :: TCM PatternSynDefns
+getPatternSynImports = gets stPatternSynImports
+
+lookupPatternSyn :: QName -> TCM PatternSynDefn
+lookupPatternSyn x = do
+    s <- getPatternSyns
+    case Map.lookup x s of
+        Just d  -> return d
+        Nothing -> do
+            si <- getPatternSynImports
+            case Map.lookup x si of
+                Just d  -> return d
+                Nothing -> typeError $ NotInScope [qnameToConcrete x]
 
 -- | Sets stExtLambdaTele .
 setExtLambdaTele :: Map QName (Int , Int) -> TCM ()

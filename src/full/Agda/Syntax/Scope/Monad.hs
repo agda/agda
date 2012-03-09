@@ -185,6 +185,7 @@ freshAbstractQName fx x = do
 data ResolvedName = VarName A.Name
                   | DefinedName Access AbstractName
                   | ConstructorName [AbstractName]
+                  | PatternSynResName AbstractName
                   | UnknownName
   deriving (Show)
 
@@ -200,6 +201,8 @@ resolveName x = do
       ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName
                $ map (\ (d, _) -> updateConcreteName d $ unqualify x) ds
+      [(d, a)] | anameKind d == PatternSynName ->
+                  return $ PatternSynResName (updateConcreteName d $ unqualify x)
       [(d, a)] -> return $ DefinedName a $ updateConcreteName d (unqualify x)
       ds  -> typeError $ AmbiguousName x (map (anameName . fst) ds)
   where
@@ -229,7 +232,8 @@ getFixity x = do
       | otherwise      -> return defaultFixity'
       where
         fs = map (nameFixity . qnameName . anameName) ds
-    UnknownName        -> __IMPOSSIBLE__
+    PatternSynResName n -> return $ nameFixity $ qnameName $ anameName n
+    UnknownName         -> __IMPOSSIBLE__
 
 -- * Binding names
 
@@ -250,7 +254,8 @@ bindName acc kind x y = do
     ConstructorName ds
       | kind == ConName && all ((==ConName) . anameKind) ds -> return [ AbsName y kind ]
       | otherwise -> typeError $ ClashingDefinition (C.QName x) $ anameName (head' ds)
-    UnknownName        -> return [AbsName y kind]
+    PatternSynResName n -> typeError $ ClashingDefinition (C.QName x) $ anameName n
+    UnknownName         -> return [AbsName y kind]
   modifyCurrentScope $ addNamesToScope (localNameSpace acc) x ys
   where
     head' []    = {- ' -} __IMPOSSIBLE__

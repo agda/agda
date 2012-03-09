@@ -426,6 +426,7 @@ instance ToConcrete A.Expr C.Expr where
     -- Andreas, 2010-09-21 abuse C.Underscore to print irrelevant things
     toConcrete (A.DontCare) = return $ C.Underscore noRange Nothing
 -}
+    toConcrete (A.PatternSyn n) = C.Ident <$> toConcrete n
 
 makeDomainFree :: A.LamBinding -> A.LamBinding
 makeDomainFree b@(A.DomainFull (A.TypedBindings r (Arg h rel (A.TBind _ [x] t)))) =
@@ -669,6 +670,7 @@ instance ToConcrete A.Declaration [C.Declaration] where
     x <- toConcrete x
     return [C.Open (getRange i) x defaultImportDir]
 
+
 data RangeAndPragma = RangeAndPragma Range A.Pragma
 
 instance ToConcrete RangeAndPragma C.Pragma where
@@ -744,6 +746,8 @@ instance ToConcrete A.Pattern C.Pattern where
         return $ C.DotP (getRange i) e
     -- just for debugging purposes (shouldn't show up in practise)
     toConcrete (A.ImplicitP i) = return $ C.IdentP (C.QName $ C.Name noRange [C.Id "(implicit)"])
+    toConcrete (A.PatternSynP i n _) = IdentP <$> toConcrete n
+
 
 -- Helpers for recovering C.OpApp ------------------------------------------
 

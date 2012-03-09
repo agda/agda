@@ -81,7 +81,7 @@ mergeInterface i = do
             Just b1 = Map.lookup b bs
             Just b2 = Map.lookup b bi
     mapM_ check (map fst $ Map.toList $ Map.intersection bs bi)
-    addImportedThings sig bi (iHaskellImports i)
+    addImportedThings sig bi (iHaskellImports i) (iPatternSyns i)
     reportSLn "import.iface.merge" 20 $
       "  Rebinding primitives " ++ show prim
     prim <- Map.fromList <$> mapM rebind prim
@@ -93,12 +93,13 @@ mergeInterface i = do
 	    return (x, Prim pf)
 
 addImportedThings ::
-  Signature -> BuiltinThings PrimFun -> Set String -> TCM ()
-addImportedThings isig ibuiltin hsImports =
+  Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
+addImportedThings isig ibuiltin hsImports patsyns =
   modify $ \st -> st
     { stImports          = unionSignatures [stImports st, isig]
     , stImportedBuiltins = Map.union (stImportedBuiltins st) ibuiltin
     , stHaskellImports   = Set.union (stHaskellImports st) hsImports
+    , stPatternSynImports = Map.union (stPatternSynImports st) patsyns
     }
 
 -- | Scope checks the given module. A proper version of the module
@@ -338,8 +339,10 @@ getInterface' x includeStateChanges =
             -- Merge the signature with the signature for imported
             -- things.
             sig <- getSignature
-            addImportedThings sig Map.empty Set.empty
+            patsyns <- getPatternSyns
+            addImportedThings sig Map.empty Set.empty patsyns
             setSignature emptySignature
+            setPatternSyns Map.empty
 
             return (True, r)
            else do
@@ -352,6 +355,7 @@ getInterface' x includeStateChanges =
             opts     <- stPersistentOptions . stPersistent <$> get
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
+            ipatsyns <- getPatternSynImports
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
@@ -364,7 +368,7 @@ getInterface' x includeStateChanges =
                      setCommandLineOptions opts
                      modify $ \s -> s { stModuleToSource = mf }
                      setVisitedModules vs
-                     addImportedThings isig ibuiltin Set.empty
+                     addImportedThings isig ibuiltin Set.empty ipatsyns
 
                      r <- withMsgs $ createInterface file x
 
@@ -563,6 +567,7 @@ buildInterface topLevel syntaxInfo previousHsImports pragmas = do
     builtin <- gets stLocalBuiltins
     ms      <- getImports
     hsImps  <- getHaskellImports
+    patsyns <- getPatternSyns
     let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
@@ -576,6 +581,7 @@ buildInterface topLevel syntaxInfo previousHsImports pragmas = do
                                                             previousHsImports
                         , iHighlighting    = syntaxInfo
                         , iPragmaOptions   = pragmas
+                        , iPatternSyns     = patsyns
 			}
     reportSLn "import.iface" 7 "  interface complete"
     return i

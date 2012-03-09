@@ -68,6 +68,7 @@ data NiceDeclaration
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
+        | NicePatternSyn Range Fixity' Name [Name] Pattern
     deriving (Typeable, Data, Show)
 
 -- | Termination check? (Default = True).
@@ -136,6 +137,7 @@ instance HasRange NiceDeclaration where
   getRange (RecDef r _ _ _ _ _ _)          = r
   getRange (NiceRecSig r _ _ _ _ _)        = r
   getRange (NiceDataSig r _ _ _ _ _)       = r
+  getRange (NicePatternSyn r _ _ _ _)      = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -332,6 +334,7 @@ niceDeclarations ds = do
       Record _ x c _ _ _                           -> x : foldMap (:[]) c
       Infix _ _                                    -> []
       Syntax _ _                                   -> []
+      PatternSyn _ x _ _                           -> [x]
       Mutual _ ds                                  -> concatMap declaredNames ds
       Abstract _ ds                                -> concatMap declaredNames ds
       Private _ ds                                 -> concatMap declaredNames ds
@@ -434,6 +437,9 @@ niceDeclarations ds = do
 
         Infix _ _           -> nice ds
         Syntax _ _          -> nice ds
+        PatternSyn r n as p -> do
+          fx <- getFixity n
+          (NicePatternSyn r fx n as p :) <$> nice ds
         Open r x is         -> (NiceOpen r x is :) <$> nice ds
         Import r x as op is -> (NiceImport r x as op is :) <$> nice ds
 
@@ -686,6 +692,7 @@ niceDeclarations ds = do
             FunSig{}                         -> d
             NiceRecSig{}                     -> d
             NiceDataSig{}                    -> d
+            NicePatternSyn _ _ _ _ _         -> d
 
     mkAbstractClause (Clause x lhs rhs wh with) =
         Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
@@ -712,6 +719,7 @@ niceDeclarations ds = do
             FunDef{}                         -> d
             DataDef{}                        -> d
             RecDef{}                         -> d
+            NicePatternSyn _ _ _ _ _         -> d
 
     mkPrivateClause (Clause x lhs rhs wh with) =
         Clause x lhs rhs (mkPrivateWhere wh) (map mkPrivateClause with)
@@ -776,3 +784,4 @@ notSoNiceDeclarations = concatMap notNice
       DataDef r _ _ x bs cs            -> [Data r Inductive x bs Nothing $ concatMap notNice cs]
       RecDef r _ _ x c bs ds           -> [Record r x (unThing <$> c) bs Nothing $ concatMap notNice ds]
         where unThing (ThingWithFixity c _) = c
+      NicePatternSyn r _ n as p        -> [PatternSyn r n as p]

@@ -1,0 +1,5 @@
+PatternSynonymOverloaded.agda:8,1-21
+Multiple definitions of ss. Previous definition at
+PatternSynonymOverloaded.agda:7,9-11
+when scope checking the declaration
+  pattern ss x = suc x

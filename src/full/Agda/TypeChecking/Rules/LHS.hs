@@ -176,6 +176,7 @@ noShadowingOfConstructors c problem =
   noShadowing (A.AsP       {}) t = __IMPOSSIBLE__
   noShadowing (A.DotP      {}) t = __IMPOSSIBLE__
   noShadowing (A.LitP      {}) t = __IMPOSSIBLE__
+  noShadowing (A.PatternSynP {}) t = __IMPOSSIBLE__
   noShadowing (A.VarP x)       t = do
     t <- normalise t
     case t of

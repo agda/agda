@@ -1,0 +1,4 @@
+PatternSynonymParameterisedModule.agda:8,3-36
+Not supported: pattern synonym in parameterised module
+when scope checking the declaration
+  pattern sss x = suc (suc (suc x))

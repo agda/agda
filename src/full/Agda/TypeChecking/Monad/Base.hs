@@ -68,6 +68,8 @@ data TCState =
            -- ^ The current module is available after it has been type
            -- checked.
 	 , stScope	       :: ScopeInfo
+         , stPatternSyns       :: A.PatternSynDefns
+         , stPatternSynImports :: A.PatternSynDefns
 	 , stPragmaOptions     :: PragmaOptions
            -- ^ Options applying to the current file. @OPTIONS@
            -- pragmas only affect this field.
@@ -117,6 +119,8 @@ initState =
 	 , stVisitedModules    = Map.empty
          , stCurrentModule     = Nothing
 	 , stScope	       = emptyScopeInfo
+	 , stPatternSyns       = Map.empty
+         , stPatternSynImports = Map.empty
 	 , stPragmaOptions     = defaultInteractionOptions
 --	 , stPragmaOptions     = optPragmaOptions $ defaultOptions
 	 , stStatistics	       = Map.empty
@@ -217,6 +221,7 @@ data Interface = Interface
         , iHighlighting    :: HighlightingInfo
         , iPragmaOptions   :: [OptionsPragma]
                               -- ^ Pragma options set in the file.
+        , iPatternSyns     :: A.PatternSynDefns
 	}
     deriving (Typeable, Data, Show)
 
@@ -1019,11 +1024,15 @@ data TypeError
 	| NotAValidLetBinding D.NiceDeclaration
 	| NothingAppliedToHiddenArg C.Expr
 	| NothingAppliedToInstanceArg C.Expr
+        | UnusedVariableInPatternSynonym
+        | PatternSynonymArityMismatch A.QName
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]
 	| NoParseForLHS C.Pattern
 	| AmbiguousParseForLHS C.Pattern [C.Pattern]
+	| NoParseForPatternSynonym C.Pattern
+	| AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type

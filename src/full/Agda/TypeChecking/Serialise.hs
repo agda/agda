@@ -53,10 +53,12 @@ import qualified Agda.Compiler.Epic.Interface as Epic
 
 import Agda.Syntax.Common
 import Agda.Syntax.Concrete.Name as C
+import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Name as A
+import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position (Position(..), Range)
+import Agda.Syntax.Position (Position(..), Range, noRange)
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity
@@ -82,7 +84,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120215 * 10 + 0
+currentInterfaceVersion = 20120308 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -404,6 +406,7 @@ instance EmbPrj AbstractModule where
 instance EmbPrj KindOfName where
   icode DefName = icode0'
   icode ConName = icode0 1
+  icode PatternSynName = icode0 2
   value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu _   = malformed
@@ -436,6 +439,10 @@ instance EmbPrj A.QName where
   value = vcase valu where valu [a, b] = valu2 A.QName a b
                            valu _      = malformed
 
+instance EmbPrj A.AmbiguousQName where
+  icode (A.AmbQ a) = icode1' a
+  value n = A.AmbQ `fmap` value n
+
 instance EmbPrj A.ModuleName where
   icode (A.MName a) = icode a
   value n = A.MName `fmap` value n
@@ -444,6 +451,134 @@ instance EmbPrj A.Name where
   icode (A.Name a b c d) = icode4' a b c d
   value = vcase valu where valu [a, b, c, d] = valu4 A.Name a b c d
                            valu _            = malformed
+
+instance (EmbPrj s, EmbPrj t) => EmbPrj (Named s t) where
+  icode (Named a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 Named a b
+                           valu _      = malformed
+
+instance EmbPrj A.Expr where
+  icode (A.Var n)               = icode1 0 n
+  icode (A.Def n)               = icode1 1 n
+  icode (A.Con ns)              = icode1 2 ns
+  icode (A.Lit l)               = icode1 3 l
+  icode (A.QuestionMark _)      = icode0 4
+  icode (A.Underscore _)        = icode0 5
+  icode (A.App _ a b)           = icode2 6 a b
+  icode (A.WithApp _ a b)       = icode2 7 a b
+  icode (A.Lam  _ a b)          = icode2 8 a b
+  icode (A.AbsurdLam _ a)       = icode1 9 a
+  icode (A.ExtendedLam _ _ _ _) = icode0 10
+  icode (A.Pi   _ a b)          = icode2 11 a b
+  icode (A.Fun  _ a b)          = icode2 12 a b
+  icode (A.Set  _ a)            = icode1 13 a
+  icode (A.Prop _)              = icode0 14
+  icode (A.Let  _ a b)          = icode2 15 a b
+  icode (A.ETel a)              = icode1 16 a
+  icode (A.Rec  _ a)            = icode1 17 a
+  icode (A.RecUpdate _ a b)     = icode2 18 a b
+  icode (A.ScopedExpr a b)      = icode2 19 a b
+  icode (A.QuoteGoal _ a b)     = icode2 20 a b
+  icode (A.Quote _)             = icode0 21
+  icode (A.QuoteTerm _)         = icode0 22
+  icode (A.Unquote _)           = icode0 23
+  icode (A.DontCare a)          = icode1 24 a
+  icode (A.PatternSyn a)        = icode1 25 a
+
+  value = vcase valu
+    where
+      valu [0, a]     = valu1 A.Var a
+      valu [1, a]     = valu1 A.Def a
+      valu [2, a]     = valu1 A.Con a
+      valu [3, a]     = valu1 A.Lit a
+      valu [4]        = valu0 (A.QuestionMark A.minfo)
+      valu [5]        = valu0 (A.Underscore A.minfo)
+      valu [6, a, b]  = valu2 (A.App i) a b
+      valu [7, a, b]  = valu2 (A.WithApp i) a b
+      valu [8, a, b]  = valu2 (A.Lam i) a b
+      valu [9, a]     = valu1 (A.AbsurdLam i) a
+      valu [10]       = throwError $ NotSupported
+                            "importing pattern synonym containing extended lambda"
+      valu [11, a, b] = valu2 (A.Pi i) a b
+      valu [12, a, b] = valu2 (A.Fun i) a b
+      valu [13, a]    = valu1 (A.Set i) a
+      valu [14]       = valu0 (A.Prop i)
+      valu [15, a, b] = valu2 (A.Let i) a b
+      valu [16, a]    = valu1 A.ETel a
+      valu [17, a]    = valu1 (A.Rec i) a
+      valu [18, a, b] = valu2 (A.RecUpdate i) a b
+      valu [19, a, b] = valu2 A.ScopedExpr a b
+      valu [20, a, b] = valu2 (A.QuoteGoal i) a b
+      valu [21]       = valu0 (A.Quote i)
+      valu [22]       = valu0 (A.QuoteTerm i)
+      valu [23]       = valu0 (A.Unquote i)
+      valu [24, a]    = valu1 A.DontCare a
+      valu [25, a]    = valu1 A.PatternSyn a
+      valu _          = malformed
+
+      i = ExprRange noRange
+
+instance EmbPrj A.Pattern where
+  icode (A.VarP a)            = icode1 0 a
+  icode (A.ConP _ a b)        = icode2 1 a b
+  icode (A.DefP _ a b)        = icode2 2 a b
+  icode (A.WildP _)           = icode0 3
+  icode (A.AsP _ a b)         = icode2 4 a b
+  icode (A.DotP _ a)          = icode1 5 a
+  icode (A.AbsurdP _)         = icode0 6
+  icode (A.LitP a)            = icode1 7 a
+  icode (A.ImplicitP _)       = icode0 8
+  icode (A.PatternSynP _ a b) = icode2 9 a b
+
+  value = vcase valu
+    where
+     valu [0, a]    = valu1 A.VarP a
+     valu [1, a, b] = valu2 (A.ConP i) a b
+     valu [2, a, b] = valu2 (A.DefP i) a b
+     valu [3]       = valu0 (A.WildP i)
+     valu [4, a, b] = valu2 (A.AsP i) a b
+     valu [5, a]    = valu1 (A.DotP i) a
+     valu [6]       = valu0 (A.AbsurdP i)
+     valu [7, a]    = valu1 (A.LitP) a
+     valu [8]       = valu0 (A.ImplicitP i)
+     valu [9, a, b] = valu2 (A.PatternSynP i) a b
+     valu _         = malformed
+
+     i = PatRange noRange
+
+instance EmbPrj A.LamBinding where
+  icode (A.DomainFree a b c) = icode3 0 a b c
+  icode (A.DomainFull a)     = icode1 1 a
+
+  value = vcase valu where valu [0, a, b, c] = valu3 A.DomainFree a b c
+                           valu [1, a]       = valu1 A.DomainFull a
+                           valu _            = malformed
+
+instance EmbPrj A.TypedBindings where
+  icode (A.TypedBindings a b) = icode2' a b
+
+  value = vcase valu where valu [a, b] = valu2 A.TypedBindings a b
+                           valu _      = malformed
+
+instance EmbPrj A.TypedBinding where
+  icode (A.TBind a b c) = icode3 0 a b c
+  icode (A.TNoBind a)   = icode1 1 a
+
+  value = vcase valu where valu [0, a, b, c] = valu3 A.TBind a b c
+                           valu [1, a]       = valu1 A.TNoBind a
+                           valu _            = malformed
+
+instance EmbPrj A.LetBinding where
+  icode (A.LetBind _ a b c d)  = icode4 0 a b c d
+  icode (A.LetApply _ _ _ _ _) = icode0 1
+  icode (A.LetOpen _ _)        = icode0 1
+
+  value = vcase valu
+    where
+      valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d
+      valu [1]             = throwError $ NotSupported
+                                 "importing pattern synonym containing let module"
+      valu _               = malformed
 
 instance EmbPrj NameId where
   icode (NameId a b) = icode2' a b
@@ -896,9 +1031,11 @@ instance EmbPrj ScopeInfo where
                            valu _            = malformed
 
 instance EmbPrj Interface where
-  icode (Interface a b c d e f g h i) = icode9' a b c d e f g h i
-  value = vcase valu where valu [a, b, c, d, e, f, g, h, i] = valu9 Interface a b c d e f g h i
-                           valu _                           = malformed
+  icode (Interface a b c d e f g h i j) = icode10' a b c d e f g h i j
+  value = vcase valu
+    where
+      valu [a, b, c, d, e, f, g, h, i, j] = valu10 Interface a b c d e f g h i j
+      valu _                              = malformed
 
 -- This is used for the Epic compiler backend
 instance EmbPrj Epic.EInterface where

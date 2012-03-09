@@ -439,6 +439,7 @@ containsAbsurdPattern p = case p of
     A.AsP _ _ p   -> containsAbsurdPattern p
     A.ConP _ _ ps -> any (containsAbsurdPattern . namedThing . unArg) ps
     A.DefP _ _ _  -> __IMPOSSIBLE__
+    A.PatternSynP _ _ _ -> False
 
 {-
 -- | Type check a left-hand side.
