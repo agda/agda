@@ -338,7 +338,7 @@ stripImplicits ps wps =
       A.LitP _      -> Set.empty
       A.ImplicitP _ -> Set.empty
       A.AsP _ _ p   -> patVars p
-      A.PatternSynP _ _ _ -> Set.empty
+      A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
 
     -- Pick the "best" place to bind the variable. Best in this case
     -- is the left-most explicit binding site. But, of course we can't
@@ -373,7 +373,7 @@ stripImplicits ps wps =
           A.LitP _      -> p
           A.ImplicitP _ -> p
           A.AsP i x p   -> A.AsP i x $ stripPat p
-          A.PatternSynP _ _ _ -> p
+          A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- p
 
         noInterestingBindings p =
           Set.null $ dvs `Set.intersection` patVars p
@@ -419,7 +419,7 @@ instance DotVars A.Pattern where
     A.LitP _      -> Set.empty
     A.ImplicitP _ -> Set.empty
     A.AsP _ _ p   -> dotVars p
-    A.PatternSynP _ _ _ -> Set.empty
+    A.PatternSynP _ _ _ -> __IMPOSSIBLE__ -- Set.empty
 
 -- | Getting all(!) variables of an expression.
 --   It should only get free ones, but it does not matter to include

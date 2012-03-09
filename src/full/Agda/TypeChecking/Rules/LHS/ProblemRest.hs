@@ -37,6 +37,7 @@ useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) .
   where
     dummy = A.WildP __IMPOSSIBLE__
     ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
+    ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a
     toPats = map (namedThing . unArg)
 

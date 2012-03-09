@@ -202,6 +202,9 @@ resolveName x = do
       ds | all ((==ConName) . anameKind . fst) ds ->
         return $ ConstructorName
                $ map (\ (d, _) -> updateConcreteName d $ unqualify x) ds
+      [(d, a)] | anameKind d == FldName -> return $ FieldName $ updateConcreteName d (unqualify x)
+      [(d, a)] | anameKind d == PatternSynName ->
+                  return $ PatternSynResName (updateConcreteName d $ unqualify x)
       [(d, a)] -> return $ DefinedName a $ updateConcreteName d (unqualify x)
       ds  -> typeError $ AmbiguousName x (map (anameName . fst) ds)
   where

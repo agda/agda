@@ -70,7 +70,7 @@ import Agda.Utils.Impossible
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
 parseLHS top p = do
     patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName]
+    cons <- getNames [ConName, PatternSynName]
     flds <- getNames [FldName]
     case [ res | p' <- parsePat patP p
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of

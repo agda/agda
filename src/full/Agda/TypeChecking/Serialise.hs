@@ -406,6 +406,8 @@ instance EmbPrj AbstractModule where
 instance EmbPrj KindOfName where
   icode DefName = icode0'
   icode ConName = icode0 1
+  icode FldName = icode0 2
+  icode PatternSynName = icode0 2
   value = vcase valu where valu []  = valu0 DefName
                            valu [1] = valu0 ConName
                            valu [2] = valu0 FldName

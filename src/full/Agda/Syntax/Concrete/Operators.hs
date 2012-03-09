@@ -11,6 +11,8 @@
 module Agda.Syntax.Concrete.Operators
     ( parseApplication
     , parseLHS
+    , parsePattern
+    , parsePatternSyn
     , paren
     , mparen
     -- exports for Copatterns
@@ -358,23 +360,18 @@ parsePat prs p = case p of
 --      intended _* applied to true, or as true applied to a variable *. If we
 --      check arities this problem won't appear.
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
-parseLHS = parseLhsOrPatternSyn True
-
-parsePatternSyn :: Pattern -> ScopeM Pattern
-parsePatternSyn = parseLhsOrPatternSyn False Nothing
-
-parseLhsOrPatternSyn :: Bool -> Maybe Name -> Pattern -> ScopeM Pattern
-parseLhsOrPatternSyn isLHS top p = do
+parseLHS top p = do
     let ms = qualifierModules $ patternQNames p
     flat <- flattenScope ms <$> getScope
     patP <- buildParser (getRange p) flat DontUseBoundNames
     let cons = getNames [ConName, PatternSynName] flat
     reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
     reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePattern patP p)
-    case filter (validPattern top cons) $ parsePattern patP p of
-        [p] -> return p
-        []  -> typeError $ NoParseForLHS p
-        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+    case [ res | p' <- parsePat patP p
+               , res <- validPattern top cons p' ] of
+        [(p,lhs)] -> return lhs
+        []    -> typeError $ NoParseForLHS p
+        rs  -> typeError $ AmbiguousParseForLHS p $ map (fullParen . fst) rs
     where
         getNames kinds flat = map fst $ getDefinedNames kinds flat
 
@@ -408,13 +405,22 @@ parseLhsOrPatternSyn isLHS top p = do
 --      intended _* applied to true, or as true applied to a variable *. If we
 --      check arities this problem won't appear.
 parsePattern :: Pattern -> ScopeM Pattern
-parsePattern p = do
+parsePattern = parsePatternOrSyn True
+
+parsePatternSyn :: Pattern -> ScopeM Pattern
+parsePatternSyn = parsePatternOrSyn False
+
+parsePatternOrSyn :: Bool -> Pattern -> ScopeM Pattern
+parsePatternOrSyn isLHS p = do
     patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName]
+    cons <- getNames [ConName, PatternSynName]
     case filter (validConPattern cons) $ parsePat patP p of
         [p] -> return p
-        []  -> typeError $ NoParseForLHS p
-        ps  -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+        []  | isLHS     -> typeError $ NoParseForLHS p
+            | otherwise -> typeError $ NoParseForPatternSynonym p
+
+        ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
+            | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
     where
         getNames kinds = map fst <$> getDefinedNames kinds
 

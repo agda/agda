@@ -242,6 +242,13 @@ instance Pretty LHS where
       pThing thing (e : es) = fsep $ (text thing <+> pretty e)
 			           : map ((text "|" <+>) . pretty) es
 
+instance Show LHSCore where show = show . pretty
+instance Pretty LHSCore where
+  pretty (LHSHead f ps) = sep $ pretty f : map (parens . pretty) ps
+  pretty (LHSProj d ps lhscore ps') = sep $
+    pretty d : map (parens . pretty) ps ++
+    parens (pretty lhscore) : map (parens . pretty) ps'
+
 instance Pretty [Declaration] where
   pretty = vcat . map pretty
 

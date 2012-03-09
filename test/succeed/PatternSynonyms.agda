@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v scope.pat:10 #-}
+-- {-# OPTIONS -v tc.lhs:10 #-}
 module PatternSynonyms where
 
 

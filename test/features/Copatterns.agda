@@ -30,3 +30,45 @@ data Nat : Set where
 
 nats : Stream Nat
 nats = iterate suc zero
+
+alternate : Stream Nat
+(      head alternate ) = zero
+(head (tail alternate)) = suc zero
+(tail (tail alternate)) = alternate
+
+record _×_ (A B : Set) : Set where
+  field
+    fst : A
+    snd : B
+open _×_
+
+build : {A S : Set} → (S → A × S) -> S -> Stream A
+head (build step s) = fst (step s)
+tail (build step s) = build step (snd (step s))
+-- build step s = mapSnd (build step) (step s)
+
+build1 : {A S : Set} → (S → A × S) -> S -> Stream A
+build1 step s = record 
+  { head = fst (step s)
+  ; tail = build1 step (snd (step s))
+  }
+
+build2 : {A S : Set} → (S → A × S) -> S -> Stream A
+build2 step s = record 
+  { head = fst p
+  ; tail = build2 step (snd p)
+  }
+  where p = step s
+
+
+mapSnd : {A B C : Set}(f : B → C) → A × B → A × C
+fst (mapSnd f p) = fst p
+snd (mapSnd f p) = f (snd p) 
+
+record Str (A : Set) : Set where
+  field
+    out : A × Str A
+open Str
+
+build' : {A S : Set} → (S → A × S) -> S -> Stream A
+out (build' step s) = mapSnd (build' step) (step s)

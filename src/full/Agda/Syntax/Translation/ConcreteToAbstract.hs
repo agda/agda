@@ -320,18 +320,22 @@ instance ToAbstract (NewName C.BoundName) A.Name where
 nameExpr :: AbstractName -> A.Expr
 nameExpr d = mk (anameKind d) $ anameName d
   where
-    mk DefName = Def
-    mk ConName = Con . AmbQ . (:[])
+    mk DefName        = Def
+    mk FldName        = Def
+    mk ConName        = Con . AmbQ . (:[])
+    mk PatternSynName = A.PatternSyn
 
 instance ToAbstract OldQName A.Expr where
   toAbstract (OldQName x) = do
     qx <- resolveName x
     reportSLn "scope.name" 10 $ "resolved " ++ show x ++ ": " ++ show qx
     case qx of
-      VarName x'         -> return $ A.Var x'
-      DefinedName _ d    -> return $ nameExpr d
-      ConstructorName ds -> return $ A.Con $ AmbQ (map anameName ds)
-      UnknownName        -> notInScope x
+      VarName x'          -> return $ A.Var x'
+      DefinedName _ d     -> return $ nameExpr d
+      FieldName     d     -> return $ nameExpr d
+      ConstructorName ds  -> return $ A.Con $ AmbQ (map anameName ds)
+      UnknownName         -> notInScope x
+      PatternSynResName d -> return $ nameExpr d
 
 data APatName = VarPatName A.Name
               | ConPatName [AbstractName]
@@ -1205,6 +1209,7 @@ instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
         lhscore <- Cop.parseLHS top lhs
+        reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but no --copatterns option
         haveCoPats <- optCopatterns <$> pragmaOptions
@@ -1214,11 +1219,13 @@ instance ToAbstract LeftHandSide A.LHS where
             C.LHSProj{} -> typeError $ NeedOptionCopatterns
         -- scope check patterns except for dot patterns
         lhscore <- toAbstract lhscore
+        reportSLn "scope.lhs" 5 $ "parsed lhs patterns: " ++ show lhscore
         wps  <- toAbstract =<< mapM parsePattern wps
         checkPatternLinearity $ lhsCoreAllPatterns lhscore ++ wps
         printLocals 10 "checked pattern:"
         -- scope check dot patterns
         lhscore <- toAbstract lhscore
+        reportSLn "scope.lhs" 5 $ "parsed lhs dot patterns: " ++ show lhscore
         wps     <- toAbstract wps
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) lhscore wps
@@ -1249,9 +1256,6 @@ instance ToAbstract LeftHandSide A.LHS where
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) (A.LHSHead x args) wps
 -}
 
-instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
-    toAbstract = mapM toAbstract
-
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where
     toAbstract (C.LHSHead x ps) = do
@@ -1276,6 +1280,16 @@ instance ToAbstract c a => ToAbstract (Arg c) (Arg a) where
 
 instance ToAbstract c a => ToAbstract (Named name c) (Named name a) where
     toAbstract (Named n e) = Named n <$> toAbstract e
+
+{- DOES NOT WORK ANYMORE with pattern synonyms
+instance ToAbstract c a => ToAbstract (A.LHSCore' c) (A.LHSCore' a) where
+    toAbstract = mapM toAbstract
+-}
+
+instance ToAbstract (A.LHSCore' C.Expr) (A.LHSCore' A.Expr) where
+    toAbstract (A.LHSHead f ps)             = A.LHSHead f <$> mapM toAbstract ps
+    toAbstract (A.LHSProj d ps lhscore ps') = A.LHSProj d <$> mapM toAbstract ps
+      <*> mapM toAbstract lhscore <*> mapM toAbstract ps'
 
 -- Patterns are done in two phases. First everything but the dot patterns, and
 -- then the dot patterns. This is because dot patterns can refer to variables
