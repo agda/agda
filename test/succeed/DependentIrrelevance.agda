@@ -2,24 +2,19 @@
 -- {-# OPTIONS -v tc.rec.proj:50 #-}
 module DependentIrrelevance where
 
-open import Common.Irrelevance  
-
-record Squash (A : Set) : Set where
-  constructor squash
-  field
-    .proof : A
+open import Common.Irrelevance
 
 ElimSq = {A : Set}(P : Squash A -> Set)
-         (ih : .(a : A) -> P (squash a)) -> 
+         (ih : .(a : A) -> P (squash a)) ->
          (a- : Squash A) -> P a-
 elimSq : ElimSq
 elimSq P ih (squash a) = ih a
 
 elimSq' : ElimSq
-elimSq' P ih a- = ih (Squash.proof a-)
+elimSq' P ih a- = ih (Squash.unsquash a-)
 
 ElimSq' = {A : Set}(P : Squash A -> Set)
-          (ih : forall .a -> P (squash a)) -> 
+          (ih : forall .a -> P (squash a)) ->
           (a- : Squash A) -> P a-
 
 record Union (A : Set)(B : .A -> Set) : Set where

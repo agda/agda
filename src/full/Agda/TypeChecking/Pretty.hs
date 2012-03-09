@@ -27,10 +27,11 @@ import Agda.Utils.Impossible
 
 type Doc = P.Doc
 
-empty, comma :: TCM Doc
+empty, comma, colon :: TCM Doc
 
 empty	   = return P.empty
 comma	   = return P.comma
+colon      = return P.colon
 pretty x   = return $ P.pretty x
 prettyA x  = P.prettyA x
 text :: String -> TCM Doc

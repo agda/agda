@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Agda.TypeChecking.InstanceArguments where
 
 import Control.Applicative
@@ -154,3 +155,17 @@ checkCandidates m t cands = localState $ do
     isIFSConstraint FindInScope{} = True
     isIFSConstraint _             = False
 
+-- | Attempt to solve irrelevant metas by instance search.
+solveIrrelevantMetas :: TCM ()
+solveIrrelevantMetas = mapM_ solveMetaIfIrrelevant =<< getOpenMetas
+
+solveMetaIfIrrelevant :: MetaId -> TCM ()
+solveMetaIfIrrelevant x = do
+  m <- lookupMeta x
+  when (mvRelevance m == Irrelevant) $ do
+    reportSDoc "tc.conv.irr" 20 $ sep
+      [ text "instance search for solution of irrelevant meta"
+      , prettyTCM x, colon, prettyTCM $ jMetaType $ mvJudgement m
+      ]
+    flip catchError (const $ return ()) $ do
+      findInScope x =<< initialIFSCandidates

@@ -33,6 +33,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Forcing
+import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
 
 import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Rules.Data    ( checkDataDef )
@@ -61,7 +62,7 @@ checkDecl d = do
     -- Issue 418 fix: freeze metas before checking an abstract things
     when isAbstract freezeMetas
     case d of
-	A.Axiom i rel x e        -> checkAxiom i rel x e
+	A.Axiom i rel x e        -> checkAxiom i True rel x e
         A.Field{}                -> typeError FieldOutsideRecord
 	A.Primitive i x e        -> checkPrimitive i x e
 	A.Mutual i ds            -> topLevelChecks $ checkMutual i ds
@@ -75,8 +76,8 @@ checkDecl d = do
         A.RecDef i x c ps tel cs -> check x i $ topLevelChecks $ do
                                       checkRecDef i x c ps tel cs
                                       return (Set.singleton x)
-        A.DataSig i x ps t       -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
-        A.RecSig i x ps t        -> checkAxiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+        A.DataSig i x ps t       -> checkAxiom i False Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+        A.RecSig i x ps t        -> checkAxiom i False Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
         A.Open _ _               -> return ()
     where
         unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
@@ -124,6 +125,7 @@ checkDecl d = do
                   _ -> return ()
 
                 solveSizeConstraints
+                solveIrrelevantMetas
                 freezeMetas
             )
           where
@@ -139,17 +141,25 @@ checkDecl d = do
               Constructor{} -> False
               Primitive{}   -> False)
 
+-- | Is the "axiom" a postulate (True) or a type signature (False).
+type Postulate = Bool
+
 -- | Type check an axiom.
-checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
-checkAxiom i rel x e = do
+checkAxiom :: Info.DefInfo -> Postulate -> Relevance -> QName -> A.Expr -> TCM ()
+checkAxiom i postulate rel x e = do
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
-    [ text "checked axiom"
+    [ text $ "checked " ++ if postulate then "postulate" else "type signature"
     , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
   addConstant x (Defn rel x t (defaultDisplayForm x) 0 noCompiledRep Axiom)
+
+  -- for top-level axioms (postulates) try to solve irrelevant metas
+  -- when postulate $
+  maybe solveIrrelevantMetas (const $ return ()) =<< asks envMutualBlock
+
   solveSizeConstraints
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
@@ -279,8 +289,8 @@ checkTypeSignature (A.ScopedDecl scope ds) = do
   mapM_ checkTypeSignature ds
 checkTypeSignature (A.Axiom i rel x e) =
     case Info.defAccess i of
-	PublicAccess  -> inConcreteMode $ checkAxiom i rel x e
-	PrivateAccess -> inAbstractMode $ checkAxiom i rel x e
+	PublicAccess  -> inConcreteMode $ checkAxiom i False rel x e
+	PrivateAccess -> inAbstractMode $ checkAxiom i False rel x e
         OnlyQualified -> __IMPOSSIBLE__
 checkTypeSignature _ = __IMPOSSIBLE__	-- type signatures are always axioms
 
