@@ -310,6 +310,7 @@ data MetaVariable =
 		, mvInstantiation :: MetaInstantiation
 		, mvListeners	  :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
+                , mvRelevance     :: Relevance
 		}
     deriving (Typeable)
 
@@ -366,8 +367,7 @@ instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
 instance SetRange MetaVariable where
-  setRange r (MetaVar mi p perm j inst ls frozen) =
-    MetaVar (mi {clValue = r}) p perm j inst ls frozen
+  setRange r m = m { mvInfo = (mvInfo m) { clValue = r }}
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0

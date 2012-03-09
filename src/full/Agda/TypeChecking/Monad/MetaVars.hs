@@ -7,6 +7,7 @@ import Control.Monad.Reader
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
+import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
@@ -49,6 +50,9 @@ updateMetaVar m f =
 
 getMetaPriority :: MetaId -> TCM MetaPriority
 getMetaPriority i = mvPriority <$> lookupMeta i
+
+getMetaRelevance :: MetaId -> TCM Relevance
+getMetaRelevance x = mvRelevance <$> lookupMeta x
 
 isSortMeta :: MetaId -> TCM Bool
 isSortMeta m = do
@@ -127,8 +131,9 @@ newMeta' :: MetaInstantiation -> MetaInfo -> MetaPriority -> Permutation ->
             Judgement Type a -> TCM MetaId
 newMeta' inst mi p perm j = do
   x <- fresh
+  rel <- asks envRelevance
   let j' = fmap (const x) j  -- fill the identifier part of the judgement
-      mv = MetaVar mi p perm j' inst Set.empty Instantiable
+      mv = MetaVar mi p perm j' inst Set.empty Instantiable rel
   -- printing not available (import cycle)
   -- reportSDoc "tc.meta.new" 50 $ text "new meta" <+> prettyTCM j'
   modify $ \st -> st { stMetaStore = Map.insert x mv $ stMetaStore st }

@@ -410,16 +410,12 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
     Blocked{}                     -> patternViolation
     NotBlocked MetaV{}            -> patternViolation
     NotBlocked (Pi (Arg _ r b) _) -> do
-      let cmp x y = case pol of
-                      Invariant     -> compareTerm CmpEq  b x y
-                      Covariant     -> compareTerm CmpLeq b x y
-                      Contravariant -> compareTerm CmpLeq b y x
       mlvl <- mlevel
-      let checkArg = case r of
+      let checkArg = applyRelevanceToContext r $ case r of
             Forced     -> return ()
-            Irrelevant -> return () -- Andreas: ignore irr. func. args.
-            _          -> applyRelevanceToContext r $
-                            cmp (unArg arg1) (unArg arg2)
+            Irrelevant -> compareIrrelevant b (unArg arg1) (unArg arg2)
+            _          -> compareWithPol pol (flip compareTerm b)
+                            (unArg arg1) (unArg arg2)
           dependent = case unEl a of
             Pi (Arg _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
                                           && Just lvl' /= mlvl
@@ -449,6 +445,41 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
         pols' <- getPolarity' cmp f
         compareElims pols' c (Def f [arg]) els1 els2
       _ -> __IMPOSSIBLE__
+
+-- | "Compare" two terms in irrelevant position.  This always succeeds.
+--   However, we can dig for solutions of irrelevant metas in the
+--   terms we compare.
+--   (Certainly not the systematic solution, that'd be proof search...)
+compareIrrelevant :: Type -> Term -> Term -> TCM ()
+compareIrrelevant a (DontCare v) w = compareIrrelevant a v w
+compareIrrelevant a v (DontCare w) = compareIrrelevant a v w
+compareIrrelevant a v w = do
+  reportSDoc "tc.conv.irr" 20 $ vcat
+    [ text "compareIrrelevant"
+    , nest 2 $ text "v =" <+> prettyTCM v
+    , nest 2 $ text "w =" <+> prettyTCM w
+    ]
+  reportSDoc "tc.conv.irr" 50 $ vcat
+    [ nest 2 $ text $ "v = " ++ show v
+    , nest 2 $ text $ "w = " ++ show w
+    ]
+  try v w $ try w v $ return ()
+  where
+    try (MetaV x vs) w fallback = do
+      mv <- lookupMeta x
+      let rel  = mvRelevance mv
+          inst = case mvInstantiation mv of
+                   InstV{} -> True
+                   InstS{} -> True
+                   _       -> False
+      if rel /= Irrelevant || inst then fallback else assignV x vs w
+    try v w fallback = fallback
+
+
+compareWithPol :: Polarity -> (Comparison -> a -> a -> b) -> a -> a -> b
+compareWithPol Invariant     cmp x y = cmp CmpEq x y
+compareWithPol Covariant     cmp x y = cmp CmpLeq x y
+compareWithPol Contravariant cmp x y = cmp CmpLeq y x
 
 -- | Type-directed equality on argument lists
 --
