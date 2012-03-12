@@ -778,12 +778,11 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Axiom
     C.Axiom r f p rel x t -> do
+      -- check that we do not postulate in --safe mode
       clo <- commandLineOptions
       when (optSafe clo) (typeError (SafeFlagPostulate x))
-      t' <- toAbstractCtx TopCtx t
-      y  <- freshAbstractQName f x
-      bindName p DefName x y
-      return [ A.Axiom (mkDefInfo x f p ConcreteDef r) rel y t' ]
+      -- check the postulate
+      toAbstractNiceAxiom d
 
   -- Fields
     C.NiceField r f p a x t -> do
@@ -833,7 +832,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         t' <- toAbstract t
         return [ A.DataSig (mkDefInfo x f a ConcreteDef r) x' ls' t' ]
   -- Type signatures
-    C.FunSig r f p rel tc x t -> (:[]) <$> toAbstract (C.Axiom r f p rel x t)
+    C.FunSig r f p rel tc x t -> toAbstractNiceAxiom (C.Axiom r f p rel x t)
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
@@ -988,6 +987,15 @@ instance ToAbstract NiceDeclaration A.Declaration where
       return []
       where unVarName (VarName a) = return a
             unVarName _           = typeError $ UnusedVariableInPatternSynonym
+
+    where
+      -- checking postulate or type sig. without checking safe flag
+      toAbstractNiceAxiom (C.Axiom r f p rel x t) = do
+        t' <- toAbstractCtx TopCtx t
+        y  <- freshAbstractQName f x
+        bindName p DefName x y
+        return [ A.Axiom (mkDefInfo x f p ConcreteDef r) rel y t' ]
+      toAbstractNiceAxiom _ = __IMPOSSIBLE__
 
 
 data IsRecordCon = YesRec | NoRec
