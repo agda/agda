@@ -157,6 +157,7 @@ errorString err = case err of
     RepeatedVariablesInPattern{}             -> "RepeatedVariablesInPattern"
     SafeFlagPostulate{}                      -> "SafeFlagPostulate"
     SafeFlagPragma{}                         -> "SafeFlagPragma"
+    SafeFlagNoTerminationCheck{}             -> "SafeFlagNoTerminationCheck"
     SafeFlagPrimTrustMe{}                    -> "SafeFlagPrimTrustMe"
     ShadowedModule{}                         -> "ShadowedModule"
     ShouldBeASort{}                          -> "ShouldBeASort"
@@ -607,6 +608,7 @@ instance PrettyTCM TypeError where
                            | otherwise      = "s"
                 in fsep $ [fwords ("Cannot set OPTION pragma" ++ plural)]
                           ++ map text xs ++ [fwords "with safe flag."]
+            SafeFlagNoTerminationCheck -> fsep (pwords "Cannot use NO_TERMINATION_CHECK pragma with safe flag.")
             SafeFlagPrimTrustMe -> fsep (pwords "Cannot use primTrustMe with safe flag")
           where
             mpar n args

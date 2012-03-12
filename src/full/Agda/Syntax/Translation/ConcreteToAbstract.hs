@@ -710,7 +710,14 @@ niceDecls ds = case runNice $ niceDeclarations ds of
   Right ds -> return ds
 
 instance ToAbstract [C.Declaration] [A.Declaration] where
-  toAbstract ds = toAbstract =<< niceDecls ds
+  toAbstract ds = do
+    -- don't allow to switch off termination checker in --safe mode
+    ds <- ifM (optSafe <$> commandLineOptions) (mapM noNoTermCheck ds) (return ds)
+    toAbstract =<< niceDecls ds
+   where
+    noNoTermCheck (C.Pragma (NoTerminationCheckPragma r)) =
+      typeError $ SafeFlagNoTerminationCheck
+    noNoTermCheck d = return d
 
 newtype LetDefs = LetDefs [C.Declaration]
 newtype LetDef = LetDef NiceDeclaration
