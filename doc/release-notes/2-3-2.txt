@@ -45,6 +45,8 @@ Language
        {-# NO_TERMINATION_CHECK #-}
        j = i
 
+  The pragma cannot be used in --safe mode.
+
 * Instance arguments resolution will now consider candidates which
   still need expect arguments. For example:
 
@@ -100,7 +102,7 @@ Language
   f : ℕ -> ℕ
   f z       = z
   f (suc z) = ss z
-  f (ss n)  = n 
+  f (ss n)  = n
 
   Pattern synonyms are implemented by substitution on the abstract
   syntax, so definitions are scope-checked but not type-checked. They
