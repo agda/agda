@@ -238,9 +238,10 @@ here :: Item -> Occurrences
 here i = Map.singleton i [Here]
 
 class ComputeOccurrences a where
-  -- | The reader monad tracks the items corresponding to the free
-  -- variables.
-  occurrences :: a -> Reader [Maybe Item] Occurrences
+  -- | The inner reader component is a set containing all declarations
+  -- in the current mutual block, the outer one is the items
+  -- corresponding to the free variables.
+  occurrences :: a -> ReaderT [Maybe Item] (Reader (Set QName)) Occurrences
 
 instance ComputeOccurrences Clause where
   occurrences (Clause{ clausePats = ps, clauseBody = body }) = do
@@ -267,10 +268,11 @@ instance ComputeOccurrences Term where
       vars <- ask
       return (maybe Map.empty here (index vars $ fromIntegral i))
       >+< (occursAs VarArg <$> occurrences args)
-    Def d args   ->
-      return (here (ADef d)) >+<
-      (concatOccurs . zipWith (occursAs . DefArg d) [0..] <$>
-         mapM occurrences args)
+    Def d args   -> do
+      muts <- lift ask
+      return (if Set.member d muts then here (ADef d) else Map.empty) >+<
+        (concatOccurs . zipWith (occursAs . DefArg d) [0..] <$>
+           mapM occurrences args)
     Con c args   -> occurrences args
     MetaV _ args -> occursAs MetaArg <$> occurrences args
     Pi a b       -> (occursAs LeftOfArrow <$> occurrences a) >+<
@@ -323,8 +325,11 @@ instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, 
   occurrences (x, y) = occurrences x >+< occurrences y
 
 -- | Compute the occurrences in a given definition.
-computeOccurrences :: QName -> TCM Occurrences
-computeOccurrences q = do
+--
+-- The first argument is the set of names in the current mutual block.
+
+computeOccurrences :: Set QName -> QName -> TCM Occurrences
+computeOccurrences muts q = do
   def <- getConstInfo q
   occursAs (InDefOf q) <$> case theDef def of
     Function{funClauses = cs} -> do
@@ -354,7 +359,8 @@ computeOccurrences q = do
     Axiom{}       -> return Map.empty
     Primitive{}   -> return Map.empty
   where
-  occurrences' vars = \x -> runReader (occurrences x) vars
+  occurrences' vars = \x ->
+    runReader (runReaderT (occurrences x) vars) muts
 
 -- | Eta expand a clause to have the given number of variables.
 --   Warning: doesn't update telescope or permutation!
@@ -432,7 +438,7 @@ buildOccurrenceGraph qs = Graph.unions <$> mapM defGraph (Set.toList qs)
   where
     defGraph :: QName -> TCM (Graph Node Edge)
     defGraph q = do
-      occs <- computeOccurrences q
+      occs <- computeOccurrences qs q
       let onItem (item, occs) = do
             es <- mapM (computeEdge qs) occs
             return $ Graph.unions $
