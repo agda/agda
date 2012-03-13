@@ -442,7 +442,8 @@ private
                (x >>= λ _ → never) ≅ never
   right-zero (later x) = later (♯ right-zero (♭ x))
   right-zero (now   x) = never≅never
-    where never≅never = later (♯ never≅never)
+    where never≅never : never ≅ never
+          never≅never = later (♯ never≅never)
 
   -- Now is a left and right identity of bind (for a reflexive
   -- underlying relation).
