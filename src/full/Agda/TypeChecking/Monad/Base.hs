@@ -59,6 +59,9 @@ data TCState =
 	 , stInteractionPoints :: InteractionPoints
 	 , stAwakeConstraints    :: Constraints
 	 , stSleepingConstraints :: Constraints
+         , stOccursCheckDefs   :: Set QName
+           -- ^ Definitions to be considered during occurs check.
+           --   Initialized to the current mutual block before the check.
 	 , stSignature	       :: Signature
 	 , stImports	       :: Signature
 	 , stImportedModules   :: Set ModuleName
@@ -112,6 +115,7 @@ initState =
 	 , stInteractionPoints = Map.empty
 	 , stAwakeConstraints    = []
 	 , stSleepingConstraints = []
+         , stOccursCheckDefs   = Set.empty
 	 , stSignature	       = emptySignature
 	 , stImports	       = emptySignature
 	 , stImportedModules   = Set.empty
@@ -561,6 +565,11 @@ data Defn = Axiom
 defIsRecord :: Defn -> Bool
 defIsRecord Record{} = True
 defIsRecord _        = False
+
+defIsDataOrRecord :: Defn -> Bool
+defIsDataOrRecord Record{}   = True
+defIsDataOrRecord Datatype{} = True
+defIsDataOrRecord _          = False
 
 newtype Fields = Fields [(C.Name, Type)]
   deriving (Typeable, Data)

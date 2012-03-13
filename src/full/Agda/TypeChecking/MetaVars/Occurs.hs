@@ -5,6 +5,11 @@ module Agda.TypeChecking.MetaVars.Occurs where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
+import Control.Monad.Reader
+import Control.Monad.State
+
+import Data.Set (Set)
+import qualified Data.Set
 import Data.Traversable (traverse)
 
 import Agda.Syntax.Common
@@ -25,6 +30,59 @@ import qualified Agda.Utils.VarSet as Set
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
+
+{- To address issue 585 (meta var occurrences in mutual defs)
+
+data B : Set where
+  inn : A -> B
+
+out : B -> A
+out (inn a) = a
+
+postulate
+  P : (y : A) (z : Unit -> B) → Set
+  p : (x : Unit -> B) → P (out (x unit)) x
+
+mutual
+  d : Unit -> B
+  d unit = inn _           -- Y
+
+  g : P (out (d unit)) d
+  g = p _             -- X
+
+-- Agda solves  d unit = inn (out (d unit))
+--
+-- out (X unit) = out (d unit) = out (inn Y) = Y
+-- X = d
+
+When doing the occurs check on d, we need to look at the definition of
+d to discover that it mentions X.
+
+To this end, we extend the state by names of definitions that have to
+be checked when they occur.  At the beginning, this is initialized
+with the names in the current mutual block.  Each time we encounter a
+name in the list during occurs check, we delete it (if check is
+successful).  This way, we do not duplicate work.
+
+-}
+
+modifyOccursCheckDefs :: (Set QName -> Set QName) -> TCM ()
+modifyOccursCheckDefs f = modify $ \ st ->
+  st { stOccursCheckDefs = f (stOccursCheckDefs st) }
+
+-- | Set the names of definitions to be looked at
+--   to the defs in the current mutual block.
+initOccursCheck :: TCM ()
+initOccursCheck = modifyOccursCheckDefs . const =<<
+  maybe (return Data.Set.empty) lookupMutualBlock =<< asks envMutualBlock
+
+-- | Is a def in the list of stuff to be checked?
+defNeedsChecking :: QName -> TCM Bool
+defNeedsChecking d = Data.Set.member d <$> gets stOccursCheckDefs
+
+-- | Remove a def from the list of defs to be looked at.
+tallyDef :: QName -> TCM ()
+tallyDef d = modifyOccursCheckDefs $ \ s -> Data.Set.delete d s
 
 data OccursCtx
   = Flex          -- ^ we are in arguments of a meta
@@ -77,6 +135,7 @@ underAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
 -- | Extended occurs check.
 class Occurs t where
   occurs :: UnfoldStrategy -> OccursCtx -> MetaId -> Vars -> t -> TCM t
+  metaOccurs :: MetaId -> t -> TCM ()  -- raise exception if meta occurs in t
 
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
@@ -92,16 +151,21 @@ occursCheck m xs v = liftTCM $ do
           _ -> return v
 
   v <- bailOnSelf v
+  -- STALE: We only need to check referenced defs once.  No need for reinitialization.
+  initOccursCheck
   -- First try without normalising the term
   occurs NoUnfold  StronglyRigid m xs v `catchError` \_ -> do
+  initOccursCheck
   occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
                           -- Produce nicer error messages
     TypeError _ cl -> case clValue cl of
+{- UNUSED
       MetaOccursInItself{} ->
         typeError . GenericError . show =<<
           fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
                , prettyTCM =<< instantiateFull v
                ]
+ -}
       MetaCannotDependOn _ _ i ->
         ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
         ( typeError . GenericError . show =<<
@@ -159,25 +223,6 @@ instance Occurs Term where
                 PatternErr{} | ctx /= Flex -> do
                       reportSLn "tc.meta.kill" 20 $
                         "oops, pattern violation for " ++ show m'
-{-
-                  let kills = map (hasBadRigid xs) $ map unArg vs
-                  reportSLn "tc.meta.kill" 20 $
-                    "oops, pattern violation for " ++ show m' ++ "\n" ++
-                    "  kills: " ++ show kills
-                  if not (or kills)
-                    then throwError err
-                    else do
-                      reportSDoc "tc.meta.kill" 10 $ vcat
-                        [ text "attempting kills"
-                        , nest 2 $ vcat
-                          [ text "m'    =" <+> text (show m')
-                          , text "xs    =" <+> text (show xs)
-                          , text "vs    =" <+> prettyList (map prettyTCM vs)
-                          , text "kills =" <+> text (show kills)
-                          ]
-                        ]
-                      ok <- killArgs kills m'
--}
                       killResult <- prune m' vs (takeRelevant xs)
                       if (killResult == PrunedEverything)
                         -- after successful pruning, restart occurs check
@@ -188,15 +233,67 @@ instance Occurs Term where
           occ ctx v = occurs red ctx m xs v
           -- a data or record type constructor propagates strong occurrences
           -- since e.g. x = List x is unsolvable
-          occDef d ctx v = ifM (isDataOrRecordType d) (occ ctx v)
-                                 (occ (defArgs red ctx) v)
+          occDef d ctx vs = do
+            def <- theDef <$> getConstInfo d
+            whenM (defNeedsChecking d) $ do
+              tallyDef d
+              metaOccurs m def
+            if (defIsDataOrRecord def) then (occ ctx vs) else (occ (defArgs red ctx) vs)
+
+  metaOccurs m v = do
+    v <- instantiate v
+    case v of
+      Var i vs   -> metaOccurs m vs
+      Lam h f    -> metaOccurs m f
+      Level l    -> metaOccurs m l
+      Lit l      -> return ()
+      DontCare v -> metaOccurs m v
+      Def d vs   -> metaOccurs m d >> metaOccurs m vs
+      Con c vs   -> metaOccurs m vs
+      Pi a b     -> metaOccurs m (a,b)
+      Sort s     -> metaOccurs m s
+      MetaV m' vs | m == m' -> patternViolation
+                  | otherwise -> metaOccurs m vs
+
+instance Occurs QName where
+  occurs red ctx m xs d = __IMPOSSIBLE__
+
+  metaOccurs m d = whenM (defNeedsChecking d) $ do
+    tallyDef d
+    metaOccurs m . theDef =<< getConstInfo d
+
+instance Occurs Defn where
+  occurs red ctx m xs def = __IMPOSSIBLE__
+
+  metaOccurs m Axiom{}                      = return ()
+  metaOccurs m Function{ funClauses = cls } = metaOccurs m cls
+  -- since a datatype is isomorphic to the sum of its constructor types
+  -- we check the constructor types
+  metaOccurs m Datatype{ dataCons = cs }    = mapM_ mocc cs
+    where mocc c = metaOccurs m . defType =<< getConstInfo c
+  metaOccurs m Record{ recConType = v }     = metaOccurs m v
+  metaOccurs m Constructor{}                = return ()
+  metaOccurs m Primitive{}                  = return ()
+
+instance Occurs Clause where
+  occurs red ctx m xs cl = __IMPOSSIBLE__
+
+  metaOccurs m (Clause { clauseBody = body }) = walk body
+    where walk NoBody   = return ()
+          walk (Body v) = metaOccurs m v
+          walk (Bind b) = underAbstraction_ b walk
 
 instance Occurs Level where
   occurs red ctx m xs (Max as) = Max <$> occurs red ctx m xs as
 
+  metaOccurs m (Max as) = metaOccurs m as
+
 instance Occurs PlusLevel where
   occurs red ctx m xs l@ClosedLevel{} = return l
   occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx m xs l
+
+  metaOccurs m ClosedLevel{} = return ()
+  metaOccurs m (Plus n l)    = metaOccurs m l
 
 instance Occurs LevelAtom where
   occurs red ctx m xs l = do
@@ -211,8 +308,19 @@ instance Occurs LevelAtom where
       BlockedLevel m v -> BlockedLevel m <$> occurs red Flex m xs v
       UnreducedLevel v -> UnreducedLevel <$> occurs red ctx m xs v
 
+  metaOccurs m l = do
+    l <- instantiate l
+    case l of
+      MetaLevel m' args -> metaOccurs m (MetaV m' args)
+      NeutralLevel v    -> metaOccurs m v
+      BlockedLevel m v  -> metaOccurs m v
+      UnreducedLevel v  -> metaOccurs m v
+
+
 instance Occurs Type where
   occurs red ctx m xs (El s v) = uncurry El <$> occurs red ctx m xs (s,v)
+
+  metaOccurs m (El s v) = metaOccurs m (s,v)
 
 instance Occurs Sort where
   occurs red ctx m xs s = do
@@ -225,18 +333,37 @@ instance Occurs Sort where
       Prop       -> return s'
       Inf        -> return s'
 
+  metaOccurs m s = do
+    s <- instantiate s
+    case s of
+      DLub s1 s2 -> metaOccurs m (s1,s2)
+      Type a     -> metaOccurs m a
+      Prop       -> return ()
+      Inf        -> return ()
+
+
+
 instance Occurs a => Occurs (Abs a) where
   occurs red ctx m xs (Abs   s x) = Abs   s <$> occurs red ctx m (underAbs xs) x
   occurs red ctx m xs (NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
+  metaOccurs m (Abs   s x) = metaOccurs m x
+  metaOccurs m (NoAbs s x) = metaOccurs m x
+
 instance Occurs a => Occurs (Arg a) where
   occurs red ctx m xs (Arg h r x) = Arg h r <$> occurs red ctx m xs x
+
+  metaOccurs m a = metaOccurs m (unArg a)
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
   occurs red ctx m xs (x,y) = (,) <$> occurs red ctx m xs x <*> occurs red ctx m xs y
 
+  metaOccurs m (x,y) = metaOccurs m x >> metaOccurs m y
+
 instance Occurs a => Occurs [a] where
   occurs red ctx m xs ys = mapM (occurs red ctx m xs) ys
+
+  metaOccurs m ys = mapM_ (metaOccurs m) ys
 
 -- * Getting rid of flexible occurrences
 
