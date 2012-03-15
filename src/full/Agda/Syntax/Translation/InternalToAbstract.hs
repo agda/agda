@@ -39,7 +39,7 @@ import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
-import Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.Reduce
 import {-# SOURCE #-} Agda.TypeChecking.Records
 import Agda.TypeChecking.DisplayForm

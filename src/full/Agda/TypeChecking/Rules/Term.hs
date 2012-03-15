@@ -385,7 +385,7 @@ checkExpr e t =
 
         -- a meta variable without arguments: type check directly for efficiency
 	A.QuestionMark i -> checkMeta newQuestionMark t i
-	A.Underscore i   -> checkMeta newValueMeta t i
+	A.Underscore i   -> checkMeta (newValueMeta RunMetaOccursCheck) t i
 
 	A.WithApp _ e es -> typeError $ NotImplemented "type checking of with application"
 
@@ -833,7 +833,7 @@ inferHead (A.Con (AmbQ [c])) = do
   return (apply u . genericDrop n, a)
 inferHead (A.Con _) = __IMPOSSIBLE__  -- inferHead will only be called on unambiguous constructors
 inferHead (A.QuestionMark i)  = inferMeta newQuestionMark i
-inferHead (A.Underscore i) = inferMeta newValueMeta i
+inferHead (A.Underscore i) = inferMeta (newValueMeta RunMetaOccursCheck) i
 inferHead e = do (term, t) <- inferExpr e
                  return (apply term, t)
 
@@ -1060,7 +1060,7 @@ checkArguments exh expandIFS r [] t0 t1 =
 	t1' <- lift $ reduce t1
 	case unEl t0' of
 	    Pi (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
-		v  <- lift $ applyRelevanceToContext rel $ newValueMeta a
+		v  <- lift $ applyRelevanceToContext rel $ newValueMeta RunMetaOccursCheck a
 		let arg = Arg Hidden rel v
 		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')

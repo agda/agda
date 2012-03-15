@@ -272,6 +272,8 @@ data Constraint
   | TelCmp Type Type Comparison Telescope Telescope -- ^ the two types are for the error message only
   | SortCmp Comparison Sort Sort
   | LevelCmp Comparison Level Level
+--  | ShortCut MetaId Term Type
+--    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | UnBlock MetaId
   | Guarded Constraint ProblemId
   | IsEmpty Type
@@ -319,7 +321,6 @@ data MetaVariable =
 		, mvInstantiation :: MetaInstantiation
 		, mvListeners	  :: Set Listener -- ^ meta variables scheduled for eta-expansion but blocked by this one
                 , mvFrozen        :: Frozen -- ^ are we past the point where we can instantiate this meta variable?
-                , mvRelevance     :: Relevance
 		}
     deriving (Typeable)
 
@@ -367,8 +368,17 @@ instance Show MetaInstantiation where
 newtype MetaPriority = MetaPriority Int
     deriving (Eq, Ord, Show)
 
--- | TODO: Not so nice.
-type MetaInfo = Closure Range
+data RunMetaOccursCheck
+  = RunMetaOccursCheck
+  | DontRunMetaOccursCheck
+  deriving (Eq, Ord, Show)
+
+-- | @MetaInfo@ is cloned from one meta to the next during pruning.
+data MetaInfo = MetaInfo
+  { miClosRange       :: Closure Range -- TODO: Not so nice.
+--  , miRelevance       :: Relevance          -- ^ Created in irrelevant position?
+  , miMetaOccursCheck :: RunMetaOccursCheck -- ^ Run the extended occurs check that goes in definitions?
+  }
 
 type MetaStore = Map MetaId MetaVariable
 
@@ -376,7 +386,9 @@ instance HasRange MetaVariable where
     getRange m = getRange $ getMetaInfo m
 
 instance SetRange MetaVariable where
-  setRange r m = m { mvInfo = (mvInfo m) { clValue = r }}
+  setRange r m = m { mvInfo = (mvInfo m)
+                     { miClosRange = (miClosRange (mvInfo m))
+                       { clValue = r }}}
 
 normalMetaPriority :: MetaPriority
 normalMetaPriority = MetaPriority 0
@@ -387,8 +399,8 @@ lowMetaPriority = MetaPriority (-10)
 highMetaPriority :: MetaPriority
 highMetaPriority = MetaPriority 10
 
-getMetaInfo :: MetaVariable -> MetaInfo
-getMetaInfo = mvInfo
+getMetaInfo :: MetaVariable -> Closure Range
+getMetaInfo = miClosRange . mvInfo
 
 getMetaScope :: MetaVariable -> ScopeInfo
 getMetaScope m = clScope $ getMetaInfo m
@@ -398,6 +410,9 @@ getMetaEnv m = clEnv $ getMetaInfo m
 
 getMetaSig :: MetaVariable -> Signature
 getMetaSig m = clSignature $ getMetaInfo m
+
+getMetaRelevance :: MetaVariable -> Relevance
+getMetaRelevance = envRelevance . getMetaEnv
 
 ---------------------------------------------------------------------------
 -- ** Interaction meta variables

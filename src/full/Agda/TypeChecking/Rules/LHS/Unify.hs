@@ -608,9 +608,10 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyHH aHH u v = do
       u <- liftTCM . constructorForm =<< ureduce u
       v <- liftTCM . constructorForm =<< ureduce v
+      aHH <- ureduce aHH
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $
 	sep [ text "unifyHH"
-	    , nest 2 $ parens $ prettyTCM u
+	    , nest 2 $ (parens $ prettyTCM u) <+> text "=?="
 	    , nest 2 $ parens $ prettyTCM v
 	    , nest 2 $ text ":" <+> prettyTCM aHH
 	    ]
@@ -618,7 +619,7 @@ unifyIndices flex a us vs = liftTCM $ do
       isSizeName <- liftTCM isSizeNameTest
 
       -- check whether types have the same shape
-      (aHH, sh) <- shapeViewHH =<< ureduce aHH
+      (aHH, sh) <- shapeViewHH aHH
       case sh of
         ElseSh  -> checkEqualityHH aHH u v -- not a type or not same types
 
@@ -845,14 +846,14 @@ unifyIndices flex a us vs = liftTCM $ do
         Just (v', b, vs) -> do
             margs <- do
               -- The new metas should have the same dependencies as the original meta
-              mi <- getMetaInfo <$> lookupMeta m
+              mv <- lookupMeta m
 
               -- Only generate metas for the arguments v' is actually applied to
               -- (in case of partial application)
               TelV tel0 _ <- telView b
               let tel = telFromList $ take (length vs) $ telToList tel0
                   b'  = telePi tel (sort Prop)
-              withMetaInfo mi $ do
+              withMetaInfo' mv $ do
                 tel <- getContextTelescope
                 -- important: create the meta in the same environment as the original meta
                 newArgsMetaCtx b' tel us

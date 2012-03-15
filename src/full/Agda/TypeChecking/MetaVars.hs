@@ -91,7 +91,9 @@ isEtaExpandable x = do
 assignTerm :: MetaId -> Term -> TCM ()
 assignTerm x t = do
     reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
-    whenM (isFrozen x) __IMPOSSIBLE__  -- verify (new) invariant
+     -- verify (new) invariants
+    whenM (isFrozen x) __IMPOSSIBLE__
+    whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
     let i = metaInstance (killRange t)
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
     modifyMetaStore $ ins x i
@@ -126,7 +128,7 @@ newSortMetaCtx vs =
     return $ Type $ Max [Plus 0 $ MetaLevel x vs]
 
 newTypeMeta :: Sort -> TCM Type
-newTypeMeta s = El s <$> newValueMeta (sort s)
+newTypeMeta s = El s <$> newValueMeta RunMetaOccursCheck (sort s)
 
 newTypeMeta_ ::  TCM Type
 newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
@@ -158,28 +160,28 @@ newIFSMetaCtx t vs cands = do
   return (MetaV x vs)
 
 -- | Create a new metavariable, possibly η-expanding in the process.
-newValueMeta ::  Type -> TCM Term
-newValueMeta t = do
+newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx (telePi_ tel t) vs
+  newValueMetaCtx b (telePi_ tel t) vs
 
-newValueMetaCtx :: Type -> Args -> TCM Term
-newValueMetaCtx t ctx = do
-  m@(MetaV i _) <- newValueMetaCtx' t ctx
+newValueMetaCtx :: RunMetaOccursCheck -> Type -> Args -> TCM Term
+newValueMetaCtx b t ctx = do
+  m@(MetaV i _) <- newValueMetaCtx' b t ctx
   instantiateFull m
 
 -- | Create a new value meta without η-expanding.
-newValueMeta' :: Type -> TCM Term
-newValueMeta' t = do
+newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
+newValueMeta' b t = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newValueMetaCtx' (telePi_ tel t) vs
+  newValueMetaCtx' b (telePi_ tel t) vs
 
 -- | Create a new value meta with specific dependencies.
-newValueMetaCtx' :: Type -> Args -> TCM Term
-newValueMetaCtx' t vs = do
-  i <- createMetaInfo
+newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
+newValueMetaCtx' b t vs = do
+  i <- createMetaInfo' b
   let TelV tel _ = telView' t
       perm = idP (size tel)
   x <- newMeta i normalMetaPriority perm (HasType () t)
@@ -220,34 +222,10 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
                 if r == Irrelevant then return DontCare else
                 -}
-                 newValueMetaCtx (telePi_ tel a) ctx
+                 newValueMetaCtx RunMetaOccursCheck (telePi_ tel a) ctx
       args <- newArgsMetaCtx' condition (El s tm `piApply` [arg]) tel ctx
       return $ arg : args
     _  -> return []
-
-{- OLD CODE
-newArgsMeta :: Type -> TCM Args
-newArgsMeta t = do
-  args <- getContextArgs
-  tel  <- getContextTelescope
-  newArgsMetaCtx t tel args
-
-newArgsMetaCtx :: Type -> Telescope -> Args -> TCM Args
-newArgsMetaCtx (El s tm) tel ctx = do
-  tm <- reduce tm
-  case tm of
-    Pi (Arg h r a) _  -> do
-      arg  <- (Arg h r) <$>
-               {-
-                 -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
-                 -- Andreas, 2010-10-11 this is WRONG, see Issue 347
-                if r == Irrelevant then return DontCare else
-                -}
-                 newValueMetaCtx (telePi_ tel a) ctx
-      args <- newArgsMetaCtx (El s tm `piApply` [arg]) tel ctx
-      return $ arg : args
-    _  -> return []
--}
 
 -- | Create a metavariable of record type. This is actually one metavariable
 --   for each field.
@@ -266,7 +244,7 @@ newRecordMetaCtx r pars tel ctx = do
 
 newQuestionMark :: Type -> TCM Term
 newQuestionMark t = do
-  m@(MetaV x _) <- newValueMeta' t
+  m@(MetaV x _) <- newValueMeta' RunMetaOccursCheck t
   ii		<- fresh
   addInteractionPoint ii x
   return m
@@ -299,7 +277,7 @@ blockTermOnProblem t v pid =
         -- that we compare against the blocked term once it's unblocked. This way
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
-        v   <- newValueMeta t
+        v   <- newValueMeta DontRunMetaOccursCheck t
         i   <- liftTCM (fresh :: TCM Integer)
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x vs))
@@ -329,17 +307,24 @@ postponeTypeCheckingProblem_ e t = do
 --   is added for this meta, which links to this meta.
 postponeTypeCheckingProblem :: A.Expr -> Type -> TCM Bool -> TCM Term
 postponeTypeCheckingProblem e t unblock = do
-  i   <- createMetaInfo
+  i   <- createMetaInfo' DontRunMetaOccursCheck
   tel <- getContextTelescope
   cl  <- buildClosure (e, t, unblock)
   m   <- newMeta' (PostponedTypeCheckingProblem cl)
                   i normalMetaPriority (idP (size tel))
          $ HasType () $ telePi_ tel t
+
   -- Create the meta that we actually return
-  v   <- newValueMeta t
-  i   <- liftTCM (fresh :: TCM Integer)
+  -- Andreas, 2012-03-15
+  -- This is an alias to the pptc meta, in order to allow pruning (issue 468)
+  -- and instantiation.
+  -- Since this meta's solution comes from user code, we do not need
+  -- to run the extended occurs check (metaOccurs) to exclude
+  -- non-terminating solutions.
   vs  <- getContextArgs
+  v   <- newValueMeta DontRunMetaOccursCheck t
   cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m vs))
+  i   <- liftTCM (fresh :: TCM Integer)
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
   return v
@@ -404,7 +389,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     NotBlocked lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
-              u <- withMetaInfo (mvInfo meta) $ newRecordMetaCtx r ps tel args
+              u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel args
               inContext [] $ addCtxTel tel $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
@@ -661,6 +646,6 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do
     mv <- lookupMeta mI
-    withMetaInfo (getMetaInfo mv) $ do
+    withMetaInfo' mv $ do
       args <- getContextArgs
       noConstraints $ assignV mI args v

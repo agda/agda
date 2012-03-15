@@ -471,7 +471,7 @@ compareIrrelevant a v w = do
   where
     try (MetaV x vs) w fallback = do
       mv <- lookupMeta x
-      let rel  = mvRelevance mv
+      let rel  = getMetaRelevance mv
           inst = case mvInstantiation mv of
                    InstV{} -> True
                    InstS{} -> True

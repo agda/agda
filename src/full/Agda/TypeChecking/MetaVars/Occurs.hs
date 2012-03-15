@@ -72,9 +72,11 @@ modifyOccursCheckDefs f = modify $ \ st ->
 
 -- | Set the names of definitions to be looked at
 --   to the defs in the current mutual block.
-initOccursCheck :: TCM ()
-initOccursCheck = modifyOccursCheckDefs . const =<<
-  maybe (return Data.Set.empty) lookupMutualBlock =<< asks envMutualBlock
+initOccursCheck :: MetaVariable -> TCM ()
+initOccursCheck mv = modifyOccursCheckDefs . const =<<
+  if (miMetaOccursCheck (mvInfo mv) == DontRunMetaOccursCheck)
+   then return Data.Set.empty
+   else maybe (return Data.Set.empty) lookupMutualBlock =<< asks envMutualBlock
 
 -- | Is a def in the list of stuff to be checked?
 defNeedsChecking :: QName -> TCM Bool
@@ -152,10 +154,11 @@ occursCheck m xs v = liftTCM $ do
 
   v <- bailOnSelf v
   -- STALE: We only need to check referenced defs once.  No need for reinitialization.
-  initOccursCheck
+  mv <- lookupMeta m
+  initOccursCheck mv
   -- First try without normalising the term
   occurs NoUnfold  StronglyRigid m xs v `catchError` \_ -> do
-  initOccursCheck
+  initOccursCheck mv
   occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
                           -- Produce nicer error messages
     TypeError _ cl -> case clValue cl of

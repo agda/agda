@@ -29,7 +29,7 @@ import Agda.Syntax.Parser
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Monad as M hiding (MetaInfo)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
@@ -432,8 +432,8 @@ withInteractionId i ret = do
 
 withMetaId :: MetaId -> TCM a -> TCM a
 withMetaId m ret = do
-  info <- lookupMeta m
-  withMetaInfo (mvInfo info) ret
+  mv <- lookupMeta m
+  withMetaInfo' mv ret
 
 -- The intro tactic
 
