@@ -65,6 +65,30 @@ Language
   function to eqFin {_}. This is only done for implicit arguments, not
   instance arguments, so that the instance search stays non-recursive.
 
+* Changed: constraint solving.  [Issue 585]
+
+  Until 2.3.0, Agda sometimes inferred values that did not pass the
+  termination checker later, or would even make Agda loop.  To prevent this,
+  the occurs check now also looks into the definitions of the current mutual
+  block, to avoid constructing recursive solutions.  As a consequence, also
+  terminating recursive solutions are no longer found automatically.
+
+  This effects a programming pattern where the recursively computed
+  type of a recursive function is left to Agda to solve.
+
+    mutual
+
+      T : D -> Set
+      T pattern1 = _
+      T pattern2 = _
+
+      f : (d : D) -> T d
+      f pattern1 = rhs1
+      f pattern2 = rhs2
+
+  This might no longer work from now on.
+  See examples test/fail/Issue585*.agda
+
 * New: Built-in irrelevance axiom.
 
     import Level
