@@ -126,6 +126,7 @@ checkDecl d = do
 
                 solveSizeConstraints
                 solveIrrelevantMetas
+                wakeupConstraints_   -- solve emptyness constraints
                 freezeMetas
             )
           where

@@ -1,4 +1,5 @@
 -- Andreas, 2012-03-15, example by Ulf
+-- {-# OPTIONS -v tc.meta:20 #-}
 module Issue479 where
 
 import Common.Level
