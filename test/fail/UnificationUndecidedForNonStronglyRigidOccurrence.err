@@ -1,8 +1,3 @@
-UnificationUndecidedForNonStronglyRigidOccurrence.agda:12,1-9
-Cannot decide whether there should be a case for the constructor
-refl, since the unification gets stuck on unifying the inferred
-indices
-  [n]
-with the expected indices
-  [f n]
-when checking that n ≡ f n has no constructors
+
+Failed to solve the following constraints:
+  [0] Is empty: n ≡ f n

@@ -25,7 +25,7 @@ import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Primitive (constructorForm)
-import {-# SOURCE #-} Agda.TypeChecking.Empty (isReallyEmptyType)
+import {-# SOURCE #-} Agda.TypeChecking.Empty
 import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
 import Agda.TypeChecking.Rules.Term (checkExpr)
@@ -239,7 +239,9 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP _   -> do
-      isReallyEmptyType $ unArg a
+      -- Andreas, 2012-03-15: allow postponement of emptyness check
+      isEmptyType $ unArg a
+      -- OLD CODE: isReallyEmptyType $ unArg a
       bindDummy (absName tel)
     _             -> __IMPOSSIBLE__
     where

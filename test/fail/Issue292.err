@@ -1,8 +1,4 @@
-Issue292.agda:36,1-23
-Cannot decide whether there should be a case for the constructor
-refl, since the unification gets stuck on unifying the inferred
-indices
-  [{Bool2}, true2]
-with the expected indices
-  [{Bool}, true]
-when checking that true2 ≅ true has no constructors
+
+Failed to solve the following constraints:
+  [0] Is empty: false2 ≅ true
+  [0] Is empty: true2 ≅ true

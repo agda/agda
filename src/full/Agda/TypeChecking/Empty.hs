@@ -23,10 +23,11 @@ isEmptyType :: Type -> TCM ()
 isEmptyType t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
+      postpone = addConstraint (IsEmpty t)
   case unEl <$> tb of
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
-    NotBlocked MetaV{} -> addConstraint (IsEmpty t)
-    Blocked{}          -> addConstraint (IsEmpty t)
+    NotBlocked MetaV{} -> postpone
+    Blocked{}          -> postpone
     _                  -> do
     -- from the current context xs:ts, create a pattern list
     -- xs _ : ts t and try to split on _ (the last variable)
@@ -35,11 +36,14 @@ isEmptyType t = do
           ps    = [ Arg h r $ VarP x | Arg h r (x, _) <- gamma ]
           tel   = telFromList gamma
 
+      dontAssignMetas $ do
       r <- split Inductive tel (idP $ size tel) ps 0
 
       case r of
         Left err  -> case err of
-          CantSplit c tel us vs _ -> traceCall (CheckIsEmpty t) $ typeError $ CoverageCantSplitOn c tel us vs
+          CantSplit c tel us vs _ -> postpone
+          -- Andreas, 2012-03-15: allow postponement of emptyness check
+          -- OLD CODE: traceCall (CheckIsEmpty t) $ typeError $ CoverageCantSplitOn c tel us vs
           _                       -> typeError $ ShouldBeEmpty t []
         Right []  -> return ()
         Right cs  -> typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) cs

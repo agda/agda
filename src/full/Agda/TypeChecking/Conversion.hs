@@ -221,6 +221,10 @@ compareAtom cmp t m n =
     verboseBracket "tc.conv.atom" 20 "compareAtom" $
     -- if a PatternErr is thrown, rebuild constraint!
     catchConstraint (ValueCmp cmp t m n) $ do
+      reportSDoc "tc.conv.atom" 50 $
+	text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
+                                    , prettyTCM n
+                                    , text ":" <+> prettyTCM t ]
       let unLevel (Level l) = reallyUnLevelView l
           unLevel v = return v
       -- constructorForm changes literal to constructors

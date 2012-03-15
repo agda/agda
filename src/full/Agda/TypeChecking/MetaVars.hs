@@ -455,7 +455,7 @@ etaExpandBlocked (Blocked m t)  = do
 --   restoration of the original constraints.
 
 assignV :: MetaId -> Args -> Term -> TCM ()
-assignV x args v = do
+assignV x args v = ifM (not <$> asks envAssignMetas) patternViolation $ do
 	reportSDoc "tc.meta.assign" 10 $ do
 	  text "term" <+> prettyTCM (MetaV x args) <+> text ":=" <+> prettyTCM v
         liftTCM $ nowSolvingConstraints (assign x args v) `finally` solveAwakeConstraints

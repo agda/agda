@@ -29,6 +29,10 @@ import Agda.Utils.Permutation
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Switch off assignment of metas.
+dontAssignMetas :: TCM a -> TCM a
+dontAssignMetas = local $ \ env -> env { envAssignMetas = False }
+
 -- | Get the meta store.
 getMetaStore :: TCM MetaStore
 getMetaStore = gets stMetaStore

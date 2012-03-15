@@ -768,6 +768,8 @@ data TCEnv =
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
           , envSolvingConstraints  :: Bool
                 -- ^ Are we currently in the process of solving active constraints?
+          , envAssignMetas         :: Bool
+            -- ^ Are we allowed to assign metas?
           , envActiveProblems      :: [ProblemId]
 	  , envAbstractMode        :: AbstractMode
 		-- ^ When checking the typesignature of a public definition
@@ -816,6 +818,7 @@ initEnv = TCEnv { envContext	         = []
 		, envMutualBlock         = Nothing
                 , envSolvingConstraints  = False
                 , envActiveProblems      = [0]
+                , envAssignMetas         = True
 		, envAbstractMode        = AbstractMode
                 , envRelevance           = Relevant
                 , envDisplayFormsEnabled = True
