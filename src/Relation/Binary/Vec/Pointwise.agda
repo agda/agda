@@ -10,16 +10,17 @@ open import Category.Applicative.Indexed
 open import Data.Fin
 open import Data.Nat
 open import Data.Plus as Plus hiding (equivalent; map)
-open import Data.Vec as Vec hiding ([_]; map)
+open import Data.Vec as Vec hiding ([_]; head; tail; map)
 import Data.Vec.Properties as VecProp
 open import Function
 open import Function.Equality using (_⟨$⟩_)
 open import Function.Equivalence as Equiv
-  using (_⇔_; module Equivalence)
+  using (_⇔_; ⇔-setoid; module Equivalence)
 import Level
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
+import Relation.Nullary.Decidable as Dec
 
 private
  module Dummy {a} where
@@ -40,6 +41,14 @@ private
     _∷_ : ∀ {n x y} {xs : Vec A n} {ys : Vec B n}
           (x∼y : x ∼ y) (xs∼ys : Pointwise′ _∼_ xs ys) →
           Pointwise′ _∼_ (x ∷ xs) (y ∷ ys)
+
+  head : ∀ {A B : Set a} {_∼_ : REL A B a} {n : ℕ} {x y xs ys} →
+    Pointwise′ _∼_ {suc n} (x ∷ xs) (y ∷ ys) → x ∼ y
+  head (x∼y ∷ xs∼ys) = x∼y
+
+  tail : ∀ {A B : Set a} {_∼_ : REL A B a} {n : ℕ} {x y xs ys} →
+    Pointwise′ _∼_ {suc n} (x ∷ xs) (y ∷ ys) → Pointwise′ _∼_ xs ys
+  tail (x∼y ∷ xs∼ys) = xs∼ys
 
   -- The two definitions are equivalent.
 
@@ -69,6 +78,20 @@ private
            Pointwise′ _∼_ xs ys → Pointwise _∼_ xs ys
     from []            = nil
     from (x∼y ∷ xs∼ys) = cons x∼y (from xs∼ys)
+
+  decidable′ : {A B : Set a} {_∼_ : REL A B a} →
+    Decidable _∼_ → {n : ℕ} → Decidable (Pointwise′ _∼_ {n})
+  decidable′ dec [] [] = yes []
+  decidable′ dec (x ∷ xs) (y ∷ ys) with dec x y
+  ... | no ¬x∼y = no (¬x∼y ∘ head)
+  ... | yes x∼y with decidable′ dec xs ys
+  ...   | no ¬xs∼ys = no (¬xs∼ys ∘ tail)
+  ...   | yes xs∼ys = yes (x∼y ∷ xs∼ys)
+
+  decidable : {A B : Set a} {_∼_ : REL A B a} →
+    Decidable _∼_ → {n : ℕ} → Decidable (Pointwise _∼_ {n})
+  decidable dec xs ys = Dec.map
+    (Setoid.sym (⇔-setoid _) equivalent) (decidable′ dec xs ys)
 
   -- Pointwise preserves reflexivity.
 
