@@ -16,6 +16,7 @@ open import Data.Empty using (⊥-elim)
 import Data.Nat.Properties as Nat
 open import Data.Fin as Fin using (Fin; zero; suc; toℕ; fromℕ)
 open import Data.Fin.Props using (_+′_)
+open import Data.Empty using (⊥-elim)
 open import Function
 open import Function.Inverse using (_↔_)
 open import Relation.Binary
@@ -117,6 +118,22 @@ lookup-++-+′ : ∀ {a} {A : Set a} {m n}
 lookup-++-+′ []       ys       zero    = refl
 lookup-++-+′ []       (y ∷ xs) (suc i) = lookup-++-+′ [] xs i
 lookup-++-+′ (x ∷ xs) ys       i       = lookup-++-+′ xs ys i
+
+-- lookup and _[_]≔_ behave as expected.
+
+lookup∘update : ∀ {a} {A : Set a} {n}
+                (i : Fin n) (xs : Vec A n) x →
+                lookup i (xs [ i ]≔ x) ≡ x
+lookup∘update zero    (_ ∷ xs) x = refl
+lookup∘update (suc i) (_ ∷ xs) x = lookup∘update i xs x
+
+lookup∘update′ : ∀ {a} {A : Set a} {n} {i j : Fin n} →
+                 i ≢ j → ∀ (xs : Vec A n) y →
+                 lookup i (xs [ j ]≔ y) ≡ lookup i xs
+lookup∘update′ {i = zero}  {zero}  i≢j      xs  y = ⊥-elim (i≢j refl)
+lookup∘update′ {i = zero}  {suc i} i≢j (x ∷ xs) y = refl
+lookup∘update′ {i = suc i} {zero}  i≢j (x ∷ xs) y = refl
+lookup∘update′ {i = suc i} {suc j} i≢j (x ∷ xs) y = lookup∘update′ (i≢j ∘ P.cong suc) xs y
 
 -- map is a congruence.
 
