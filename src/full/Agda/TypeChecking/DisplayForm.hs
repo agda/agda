@@ -5,12 +5,14 @@ module Agda.TypeChecking.DisplayForm where
 import Control.Applicative
 import Control.Monad
 import Control.Monad.Error
+import Data.Traversable hiding (mapM)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Level
 import Agda.Syntax.Scope.Base
 import Agda.Utils.Size
 
@@ -28,16 +30,18 @@ displayForm c vs = do
       xs <- mapM tryOpen odfs
       return [ df | Just df <- xs ]
     scope <- getScope
-    let matches dfs vs = [ m | Just m <- map (flip matchDisplayForm vs) dfs, inScope scope m ]
+    ms <- do
+      ms <- mapM (flip matchDisplayForm vs) dfs
+      return [ m | Just m <- ms, inScope scope m ]
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
       [ "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
-      , "matches     : " ++ show (matches dfs vs)
-      , "result      : " ++ show (foldr (const . Just) Nothing $ matches dfs vs)
+      , "matches     : " ++ show ms
+      , "result      : " ++ show (foldr (const . Just) Nothing ms)
       ]
-    return $ foldr (const . Just) Nothing $ matches dfs vs -- ++ matches nfdfs us
+    return $ foldr (const . Just) Nothing ms
   `catchError` \_ -> return Nothing
   where
     inScope _ _ = True  -- TODO: distinguish between with display forms and other display forms
@@ -49,32 +53,48 @@ displayForm c vs = do
     hd (DWithApp (d : _) _) = hd d
     hd _		    = Nothing
 
-matchDisplayForm :: DisplayForm -> Args -> Maybe DisplayTerm
+matchDisplayForm :: DisplayForm -> Args -> TCM (Maybe DisplayTerm)
 matchDisplayForm (Display n ps v) vs
-  | length ps > length vs = Nothing
+  | length ps > length vs = return Nothing
   | otherwise             = do
-    us <- match n ps $ raise 1 (map unArg vs0)
-    return $ substs (reverse us ++ ctx) v `apply` vs1
+    mus <- match n ps $ raise 1 (map unArg vs0)
+    return $ fmap (\us -> substs (reverse us ++ ctx) v `apply` vs1) mus
   where
     -- TODO: figure out the length of the context
     ctx = [ Var i [] | i <- [0..] ]
     (vs0, vs1) = splitAt (length ps) vs
 
 class Match a where
-  match :: Nat -> a -> a -> Maybe [Term]
+  match :: Nat -> a -> a -> TCM (Maybe [Term])
 
 instance Match a => Match [a] where
-  match n xs ys = concat <$> zipWithM (match n) xs ys
+  match n xs ys = fmap concat . traverse id <$> zipWithM (match n) xs ys
 
 instance Match a => Match (Arg a) where
   match n p v = match n (unArg p) (unArg v)
 
 instance Match Term where
   match n p v = case (p, v) of
-    (Var 0 [], v)                  -> return [subst __IMPOSSIBLE__ v]
+    (Var 0 [], v)                  -> return $ Just [subst __IMPOSSIBLE__ v]
     (Var i ps, Var j vs) | i == j  -> match n ps vs
     (Def c ps, Def d vs) | c == d  -> match n ps vs
     (Con c ps, Con d vs) | c == d  -> match n ps vs
-    (Lit l, Lit l')      | l == l' -> return []
-    (p, v)               | p == v  -> return []
-    _                              -> fail ""
+    (Lit l, Lit l')      | l == l' -> return $ Just []
+    (p, v)               | p == v  -> return $ Just []
+    (p, Level l)                   -> match n p =<< reallyUnLevelView l
+    (Sort ps, Sort pv)             -> match n ps pv
+    (p, Sort (Type v))             -> match n p =<< reallyUnLevelView v
+    _                              -> return Nothing
+
+instance Match Sort where
+  match n p v = case (p, v) of
+    (Type pl, Type vl) -> match n pl vl
+    _ | p == v -> return $ Just []
+    _          -> return Nothing
+
+instance Match Level where
+  match n p v = do
+    p <- reallyUnLevelView p
+    v <- reallyUnLevelView v
+    match n p v
+
