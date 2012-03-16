@@ -934,19 +934,23 @@ DataSig :: { Declaration }
 DataSig : 'data' Id TypedUntypedBindings ':' Expr
   { DataSig (fuseRange $1 $5) Inductive $2 $3 $5 }
 
+-- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
+-- following 'record' is to remove the (harmless) shift/reduce conflict
+-- introduced by record update expressions.
+
 -- Record declarations.
 Record :: { Declaration }
-Record : 'record' Id TypedUntypedBindings ':' Expr 'where'
+Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
-         { Record (getRange ($1, $6, $7)) $2 (fst $7) $3 (Just $5) (snd $7) }
-       | 'record' Id TypedUntypedBindings 'where'
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1, $6, $7)) n (fst $7) $3 (Just $5) (snd $7) }
+       | 'record' Expr3NoCurly TypedUntypedBindings 'where'
 	    RecordDeclarations
-         { Record (getRange ($1, $4, $5)) $2 (fst $5) $3 Nothing (snd $5) }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1, $4, $5)) n (fst $5) $3 Nothing (snd $5) }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
-RecordSig : 'record' Id TypedUntypedBindings ':' Expr
-  { RecordSig (fuseRange $1 $5) $2 $3 $5 }
+RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
+  {% exprToName $2 >>= \ n -> return $ RecordSig (fuseRange $1 $5) n $3 $5 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { Name }
@@ -1412,6 +1416,14 @@ exprToPattern e =
 opAppExprToPattern :: OpApp Expr -> Parser Pattern
 opAppExprToPattern (SyntaxBindingLambda _ _ _) = parseError "syntax binding lambda cannot appear in a pattern"
 opAppExprToPattern (Ordinary e) = exprToPattern e
+
+-- | Turn an expression into a name. Fails if the expression is not a
+--   valid identifier.
+exprToName :: Expr -> Parser Name
+exprToName (Ident (QName x)) = return x
+exprToName e =
+  let Just pos = rStart $ getRange e in
+  parseErrorAt pos $ "Not a valid identifier: " ++ show e
 
 parsePanic s = parseError $ "Internal parser error: " ++ s ++ ". Please report this as a bug."
 
