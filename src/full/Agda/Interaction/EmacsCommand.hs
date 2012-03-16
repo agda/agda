@@ -61,9 +61,8 @@ putResponse = LocIO.putStr . response
 -- the content is appended to previous content (if any), otherwise any
 -- previous content is deleted.
 
-display_info' :: Bool -> String -> String -> IO ()
+display_info' :: Bool -> String -> String -> Lisp String
 display_info' append bufname content =
-  putResponse $
     L [ A "agda2-info-action"
       , A (quote bufname)
       , A (quote content)
@@ -80,12 +79,13 @@ runningInfoBufferName = "*Type-checking*"
 
 -- | Clear the running info buffer.
 
-clearRunningInfo :: IO ()
+clearRunningInfo :: Lisp String
 clearRunningInfo =
-  display_info' False runningInfoBufferName ""
+    display_info' False runningInfoBufferName ""
 
 -- | Display running information about what the type-checker is up to.
 
-displayRunningInfo :: String -> IO ()
+displayRunningInfo :: String -> Lisp String
 displayRunningInfo s =
-  display_info' True runningInfoBufferName s
+    display_info' True runningInfoBufferName s
+

@@ -9,6 +9,8 @@ module Agda.Interaction.Highlighting.Precise
   , MetaInfo(..)
   , File
   , HighlightingInfo
+  , HighlightingOutput
+  , voidHighlightingOutput
   , singleton
   , several
   , smallestPos
@@ -36,6 +38,7 @@ import qualified Agda.Syntax.Common as C
 import qualified Agda.Syntax.Concrete as SC
 
 import Agda.Interaction.Highlighting.Range
+import {-# SOURCE #-} Agda.Interaction.Response (Response)
 
 ------------------------------------------------------------------------
 -- Files
@@ -115,6 +118,11 @@ smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
 -- | Syntax highlighting information for a given source file.
 
 type HighlightingInfo = CompressedFile
+
+type HighlightingOutput = Response -> IO ()
+
+voidHighlightingOutput :: HighlightingOutput
+voidHighlightingOutput _ = return ()
 
 ------------------------------------------------------------------------
 -- Creation

@@ -46,6 +46,7 @@ import Agda.TypeChecker
 import Agda.Interaction.EmacsCommand
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
+import Agda.Interaction.Response (Response(Resp_RunningInfo))
 import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import Agda.Interaction.Highlighting.Generate
 import Agda.Interaction.Highlighting.Vim
@@ -277,7 +278,7 @@ getInterface' x includeStateChanges =
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
         ifM (envEmacs <$> ask)
-            (liftIO $ displayRunningInfo (s ++ "\n"))
+            (get >>= \st -> liftIO $ stHighlightingOutput st $ Resp_RunningInfo s)
             (reportSLn "" 1 s)
 
       skip file = do

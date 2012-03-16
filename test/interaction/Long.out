@@ -15,9 +15,9 @@
 (agda2-info-action "*Error*" "\nUnsolved metas at the following locations:\n  Long.agda:21,16-17\n  Long.agda:22,16-17\n  Long.agda:27,9-13\n  Long.agda:28,7-11\n  Long.agda:31,7-11\n  Long.agda:33,13-17\n  Long.agda:34,7-11" nil)
 (agda2-status-action "")
 *** Exception: ExitFailure 1
-(agda2-info-action "*Error*" "\nError: First load the file." nil)
 (agda2-status-action "")
-*** Exception: ExitFailure 1
+(agda2-info-action "*Constraints*" "" nil)
+((last . 1) . (agda2-goals-action '(0 1 2 3 4 5 6)))
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-info-action "*Type-checking*" "Checking Long (Long.agda).\n" t)

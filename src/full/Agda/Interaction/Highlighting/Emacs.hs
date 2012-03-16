@@ -90,8 +90,9 @@ showHighlightingInfo (h, modFile) = show $
 -- Precondition: The 'definitionSite's in the highlighting information
 -- must be @Nothing@.
 
-lispifyHighlightingInfo :: HighlightingInfo -> [Lisp String]
-lispifyHighlightingInfo = map (showMetaInfo __IMPOSSIBLE__)
+lispifyHighlightingInfo :: HighlightingInfo -> Lisp String
+lispifyHighlightingInfo file =
+  L (A "agda2-typechecking-emacs" : map (showMetaInfo __IMPOSSIBLE__) file)
 
 ------------------------------------------------------------------------
 -- All tests

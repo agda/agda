@@ -2,6 +2,7 @@ top_command (cmd_write_highlighting_info currentFile)
 top_command (cmd_load currentFile [])
 top_command (cmd_write_highlighting_info currentFile)
 top_command (cmd_compile MAlonzo currentFile [])
+-- Note that the previous fail does not unload the file
 top_command cmd_constraints
 top_command (cmd_load currentFile [])
 top_command cmd_constraints

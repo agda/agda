@@ -12,6 +12,7 @@ module Agda.Interaction.Highlighting.Generate
   where
 
 import Agda.Interaction.FindFile
+import Agda.Interaction.Response (Response(Resp_HighlightingInfo))
 import Agda.Interaction.Highlighting.Emacs   hiding (tests)
 import Agda.Interaction.Highlighting.Precise hiding (tests)
 import Agda.Interaction.Highlighting.Range   hiding (tests)
@@ -94,8 +95,9 @@ highlightAsTypeChecked
 highlightAsTypeChecked typeChecked x =
   whenM (envInteractiveHighlighting <$> ask) $
     unless (null file) $
-      liftIO $ putResponse $
-        L (A "agda2-typechecking-emacs" : lispifyHighlightingInfo file)
+      liftTCM $ do
+        st <- get
+        liftIO $ stHighlightingOutput st $ Resp_HighlightingInfo file
   where
   file = compress $
          several (rToR $ P.continuousPerLine $ P.getRange x) $

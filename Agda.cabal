@@ -139,6 +139,7 @@ library
                     Agda.Interaction.Highlighting.Range
                     Agda.Interaction.Highlighting.Vim
                     Agda.Interaction.Imports
+                    Agda.Interaction.Response
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad
                     Agda.Interaction.Options
