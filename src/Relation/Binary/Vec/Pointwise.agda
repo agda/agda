@@ -22,11 +22,11 @@ open import Relation.Binary.PropositionalEquality as P using (_≡_)
 open import Relation.Nullary
 
 private
- module Dummy {a} {A : Set a} where
+ module Dummy {a} where
 
   -- Functional definition.
 
-  record Pointwise (_∼_ : Rel A a) {n} (xs ys : Vec A n) : Set a where
+  record Pointwise {A B : Set a} (_∼_ : REL A B a) {n} (xs : Vec A n) (ys : Vec B n) : Set a where
     constructor ext
     field app : ∀ i → lookup i xs ∼ lookup i ys
 
@@ -34,20 +34,20 @@ private
 
   infixr 5 _∷_
 
-  data Pointwise′ (_∼_ : Rel A a) :
-                  ∀ {n} (xs ys : Vec A n) → Set a where
+  data Pointwise′ {A B : Set a} (_∼_ : REL A B a) :
+                  ∀ {n} (xs : Vec A n) (ys : Vec B n) → Set a where
     []  : Pointwise′ _∼_ [] []
-    _∷_ : ∀ {n x y} {xs ys : Vec A n}
+    _∷_ : ∀ {n x y} {xs : Vec A n} {ys : Vec B n}
           (x∼y : x ∼ y) (xs∼ys : Pointwise′ _∼_ xs ys) →
           Pointwise′ _∼_ (x ∷ xs) (y ∷ ys)
 
   -- The two definitions are equivalent.
 
-  equivalent : ∀ {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
+  equivalent : ∀ {A B : Set a} {_∼_ : REL A B a} {n} {xs : Vec A n} {ys : Vec B n} →
                Pointwise _∼_ xs ys ⇔ Pointwise′ _∼_ xs ys
-  equivalent {_∼_} = Equiv.equivalence (to _ _) from
+  equivalent {A} {B} {_∼_} = Equiv.equivalence (to _ _) from
     where
-    to : ∀ {n} (xs ys : Vec A n) →
+    to : ∀ {n} (xs : Vec A n) (ys : Vec B n) →
          Pointwise _∼_ xs ys → Pointwise′ _∼_ xs ys
     to []       []       xs∼ys = []
     to (x ∷ xs) (y ∷ ys) xs∼ys =
@@ -57,7 +57,7 @@ private
     nil : Pointwise _∼_ [] []
     nil = ext λ()
 
-    cons : ∀ {n x y} {xs ys : Vec A n} →
+    cons : ∀ {n x y} {xs : Vec A n} {ys : Vec B n} →
            x ∼ y → Pointwise _∼_ xs ys → Pointwise _∼_ (x ∷ xs) (y ∷ ys)
     cons {x = x} {y} {xs} {ys} x∼y xs∼ys = ext helper
       where
@@ -65,34 +65,34 @@ private
       helper zero    = x∼y
       helper (suc i) = Pointwise.app xs∼ys i
 
-    from : ∀ {n} {xs ys : Vec A n} →
+    from : ∀ {n} {xs : Vec A n} {ys : Vec B n} →
            Pointwise′ _∼_ xs ys → Pointwise _∼_ xs ys
     from []            = nil
     from (x∼y ∷ xs∼ys) = cons x∼y (from xs∼ys)
 
   -- Pointwise preserves reflexivity.
 
-  refl : ∀ {_∼_ : Rel A a} {n} →
+  refl : ∀ {A : Set a} {_∼_ : Rel A a} {n} →
          Reflexive _∼_ → Reflexive (Pointwise _∼_ {n = n})
   refl rfl = ext (λ _ → rfl)
 
   -- Pointwise preserves symmetry.
 
-  sym : ∀ {_∼_ : Rel A a} {n} →
-        Symmetric _∼_ → Symmetric (Pointwise _∼_ {n = n})
+  sym : ∀ {A B : Set a} {P : REL A B a} {Q : REL B A a} {n} →
+        Sym P Q → Sym (Pointwise P) (Pointwise Q {n = n})
   sym sm xs∼ys = ext λ i → sm (Pointwise.app xs∼ys i)
 
   -- Pointwise preserves transitivity.
 
-  trans : ∀ {_∼_ : Rel A a} {n} →
-        Transitive _∼_ → Transitive (Pointwise _∼_ {n = n})
+  trans : ∀ {A B C : Set a} {P : REL A B a} {Q : REL B C a} {R : REL A C a} {n} →
+          Trans P Q R → Trans (Pointwise P) (Pointwise Q) (Pointwise R {n = n})
   trans trns xs∼ys ys∼zs = ext λ i →
     trns (Pointwise.app xs∼ys i) (Pointwise.app ys∼zs i)
 
   -- Pointwise preserves equivalences.
 
   isEquivalence :
-    ∀ {_∼_ : Rel A a} {n} →
+    ∀ {A : Set a} {_∼_ : Rel A a} {n} →
     IsEquivalence _∼_ → IsEquivalence (Pointwise _∼_ {n = n})
   isEquivalence equiv = record
     { refl  = refl  (IsEquivalence.refl  equiv)
@@ -102,9 +102,9 @@ private
 
   -- Pointwise _≡_ is equivalent to _≡_.
 
-  Pointwise-≡ : ∀ {n} {xs ys : Vec A n} →
+  Pointwise-≡ : ∀ {A : Set a} {n} {xs ys : Vec A n} →
                 Pointwise _≡_ xs ys ⇔ xs ≡ ys
-  Pointwise-≡ =
+  Pointwise-≡ {A} =
     Equiv.equivalence
       (to ∘ _⟨$⟩_ (Equivalence.to equivalent))
       (λ xs≡ys → P.subst (Pointwise _≡_ _) xs≡ys (refl P.refl))
@@ -116,17 +116,17 @@ private
   -- Pointwise and Plus commute when the underlying relation is
   -- reflexive.
 
-  ⁺∙⇒∙⁺ : ∀ {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
+  ⁺∙⇒∙⁺ : ∀ {A : Set a} {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
           Plus (Pointwise _∼_) xs ys → Pointwise (Plus _∼_) xs ys
   ⁺∙⇒∙⁺ [ ρ≈ρ′ ]             = ext (λ x → [ Pointwise.app ρ≈ρ′ x ])
   ⁺∙⇒∙⁺ (ρ ∼⁺⟨ ρ≈ρ′ ⟩ ρ′≈ρ″) =
     ext (λ x → _ ∼⁺⟨ Pointwise.app (⁺∙⇒∙⁺ ρ≈ρ′ ) x ⟩
                      Pointwise.app (⁺∙⇒∙⁺ ρ′≈ρ″) x)
 
-  ∙⁺⇒⁺∙ : ∀ {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
+  ∙⁺⇒⁺∙ : ∀ {A : Set a} {_∼_ : Rel A a} {n} {xs ys : Vec A n} →
           Reflexive _∼_ →
           Pointwise (Plus _∼_) xs ys → Plus (Pointwise _∼_) xs ys
-  ∙⁺⇒⁺∙ {_∼_} x∼x =
+  ∙⁺⇒⁺∙ {A} {_∼_} x∼x =
     Plus.map (_⟨$⟩_ (Equivalence.from equivalent)) ∘
     helper ∘
     _⟨$⟩_ (Equivalence.to equivalent)
