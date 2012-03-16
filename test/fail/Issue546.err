@@ -1,0 +1,3 @@
+Issue546.agda:16,7-9
+⊤ !=< (P i) of type Set
+when checking that the expression tt has type P i
