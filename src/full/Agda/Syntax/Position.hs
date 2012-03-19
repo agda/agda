@@ -178,6 +178,10 @@ instance KillRange a => KillRange [a] where
 instance (KillRange a, KillRange b) => KillRange (a, b) where
   killRange (x, y) = (killRange x, killRange y)
 
+instance (KillRange a, KillRange b, KillRange c) =>
+         KillRange (a, b, c) where
+  killRange (x, y, z) = killRange3 (,,) x y z
+
 instance KillRange a => KillRange (Maybe a) where
   killRange = fmap killRange
 

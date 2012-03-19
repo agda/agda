@@ -135,3 +135,11 @@ instance HasRange Fixity where
     getRange (LeftAssoc  r _)	= r
     getRange (RightAssoc r _)	= r
     getRange (NonAssoc   r _)	= r
+
+instance KillRange Fixity where
+  killRange (LeftAssoc  _ n) = LeftAssoc  noRange n
+  killRange (RightAssoc _ n) = RightAssoc noRange n
+  killRange (NonAssoc   _ n) = NonAssoc   noRange n
+
+instance KillRange Fixity' where
+  killRange (Fixity' f n) = killRange1 (flip Fixity' n) f

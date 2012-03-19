@@ -504,3 +504,139 @@ instance HasRange Pattern where
     getRange (HiddenP r _)	= r
     getRange (InstanceP r _)	= r
     getRange (DotP r _)		= r
+
+instance KillRange AsName where
+  killRange (AsName n _) = killRange1 (flip AsName noRange) n
+
+instance KillRange BoundName where
+  killRange (BName n f) = killRange2 BName n f
+
+instance KillRange Declaration where
+  killRange (TypeSig r n e)         = killRange2 (TypeSig r) n e
+  killRange (Field n a)             = killRange2 Field n a
+  killRange (FunClause l r w)       = killRange3 FunClause l r w
+  killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
+  killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
+  killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
+  killRange (Record _ n mn k e d)   = killRange5 (Record noRange) n mn k e d
+  killRange (Infix f n)             = killRange2 Infix f n
+  killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
+  killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p
+  killRange (Mutual _ d)            = killRange1 (Mutual noRange) d
+  killRange (Abstract _ d)          = killRange1 (Abstract noRange) d
+  killRange (Private _ d)           = killRange1 (Private noRange) d
+  killRange (Postulate _ t)         = killRange1 (Postulate noRange) t
+  killRange (Primitive _ t)         = killRange1 (Primitive noRange) t
+  killRange (Open _ q i)            = killRange2 (Open noRange) q i
+  killRange (Import _ q a o i)      = killRange3 (\q a -> Import noRange q a o) q a i
+  killRange (ModuleMacro _ n m o i) = killRange3 (\n m -> ModuleMacro noRange n m o) n m i
+  killRange (Module _ q t d)        = killRange3 (Module noRange) q t d
+  killRange (Pragma p)              = killRange1 Pragma p
+
+instance KillRange Expr where
+  killRange (Ident q)           = killRange1 Ident q
+  killRange (Lit l)             = killRange1 Lit l
+  killRange (QuestionMark _ n)  = QuestionMark noRange n
+  killRange (Underscore _ n)    = Underscore noRange n
+  killRange (RawApp _ e)        = killRange1 (RawApp noRange) e
+  killRange (App _ e a)         = killRange2 (App noRange) e a
+  killRange (OpApp _ n o)       = killRange2 (OpApp noRange) n o
+  killRange (WithApp _ e es)    = killRange2 (WithApp noRange) e es
+  killRange (HiddenArg _ n)     = killRange1 (HiddenArg noRange) n
+  killRange (InstanceArg _ n)   = killRange1 (InstanceArg noRange) n
+  killRange (Lam _ l e)         = killRange2 (Lam noRange) l e
+  killRange (AbsurdLam _ h)     = killRange1 (AbsurdLam noRange) h
+  killRange (ExtendedLam _ lrw) = killRange1 (ExtendedLam noRange) lrw
+  killRange (Fun _ e1 e2)       = killRange2 (Fun noRange) e1 e2
+  killRange (Pi t e)            = killRange2 Pi t e
+  killRange (Set _)             = Set noRange
+  killRange (Prop _)            = Prop noRange
+  killRange (SetN _ n)          = SetN noRange n
+  killRange (Rec _ ne)          = killRange1 (Rec noRange) ne
+  killRange (RecUpdate _ e ne)  = killRange2 (RecUpdate noRange) e ne
+  killRange (Let _ d e)         = killRange2 (Let noRange) d e
+  killRange (Paren _ e)         = killRange1 (Paren noRange) e
+  killRange (Absurd _)          = Absurd noRange
+  killRange (As _ n e)          = killRange2 (As noRange) n e
+  killRange (Dot _ e)           = killRange1 (Dot noRange) e
+  killRange (ETel t)            = killRange1 ETel t
+  killRange (QuoteGoal _ n e)   = killRange2 (QuoteGoal noRange) n e
+  killRange (Quote _)           = Quote noRange
+  killRange (QuoteTerm _)       = QuoteTerm noRange
+  killRange (Unquote _)         = Unquote noRange
+  killRange (DontCare e)        = killRange1 DontCare e
+
+instance KillRange ImportDirective where
+  killRange (ImportDirective _ u r p) =
+    killRange2 (\u r -> ImportDirective noRange u r p) u r
+
+instance KillRange ImportedName where
+  killRange (ImportedModule n) = killRange1 ImportedModule n
+  killRange (ImportedName   n) = killRange1 ImportedName   n
+
+instance KillRange LamBinding where
+  killRange (DomainFree h r b) = killRange2 (\h -> DomainFree h r) h b
+  killRange (DomainFull t)     = killRange1 DomainFull t
+
+instance KillRange LHS where
+  killRange (LHS p ps r w)     = killRange4 LHS p ps r w
+  killRange (Ellipsis _ p r w) = killRange3 (Ellipsis noRange) p r w
+
+instance KillRange ModuleApplication where
+  killRange (SectionApp _ t e)    = killRange2 (SectionApp noRange) t e
+  killRange (RecordModuleIFS _ q) = killRange1 (RecordModuleIFS noRange) q
+
+instance KillRange e => KillRange (OpApp e) where
+  killRange (SyntaxBindingLambda _ l e) = killRange2 (SyntaxBindingLambda noRange) l e
+  killRange (Ordinary e)                = killRange1 Ordinary e
+
+instance KillRange Pattern where
+  killRange (IdentP q)      = killRange1 IdentP q
+  killRange (AppP p n)      = killRange2 AppP p n
+  killRange (RawAppP _ p)   = killRange1 (RawAppP noRange) p
+  killRange (OpAppP _ n p)  = killRange2 (OpAppP noRange) n p
+  killRange (HiddenP _ n)   = killRange1 (HiddenP noRange) n
+  killRange (InstanceP _ n) = killRange1 (InstanceP noRange) n
+  killRange (ParenP _ p)    = killRange1 (ParenP noRange) p
+  killRange (WildP _)       = WildP noRange
+  killRange (AbsurdP _)     = AbsurdP noRange
+  killRange (AsP _ n p)     = killRange2 (AsP noRange) n p
+  killRange (DotP _ e)      = killRange1 (DotP noRange) e
+  killRange (LitP l)        = killRange1 LitP l
+
+instance KillRange Pragma where
+  killRange (OptionsPragma _ s)           = OptionsPragma noRange s
+  killRange (BuiltinPragma _ s e)         = killRange1 (BuiltinPragma noRange s) e
+  killRange (CompiledDataPragma _ q s ss) = killRange1 (\q -> CompiledDataPragma noRange q s ss) q
+  killRange (CompiledTypePragma _ q s)    = killRange1 (\q -> CompiledTypePragma noRange q s) q
+  killRange (CompiledPragma _ q s)        = killRange1 (\q -> CompiledPragma noRange q s) q
+  killRange (CompiledEpicPragma _ q s)    = killRange1 (\q -> CompiledEpicPragma noRange q s) q
+  killRange (CompiledJSPragma _ q s)      = killRange1 (\q -> CompiledJSPragma noRange q s) q
+  killRange (StaticPragma _ q)            = killRange1 (StaticPragma noRange) q
+  killRange (ImportPragma _ s)            = ImportPragma noRange s
+  killRange (ImpossiblePragma _)          = ImpossiblePragma noRange
+  killRange (EtaPragma _ q)               = killRange1 (EtaPragma noRange) q
+  killRange (NoTerminationCheckPragma _)  = NoTerminationCheckPragma noRange
+
+instance KillRange Renaming where
+  killRange (Renaming i n _) = killRange2 (\i n -> Renaming i n noRange) i n
+
+instance KillRange RHS where
+  killRange AbsurdRHS = AbsurdRHS
+  killRange (RHS e)   = killRange1 RHS e
+
+instance KillRange TypedBinding where
+  killRange (TBind _ b e) = killRange2 (TBind noRange) b e
+  killRange (TNoBind e)   = killRange1 TNoBind e
+
+instance KillRange TypedBindings where
+  killRange (TypedBindings _ t) = killRange1 (TypedBindings noRange) t
+
+instance KillRange UsingOrHiding where
+  killRange (Hiding i) = killRange1 Hiding i
+  killRange (Using  i) = killRange1 Using  i
+
+instance KillRange WhereClause where
+  killRange NoWhere         = NoWhere
+  killRange (AnyWhere d)    = killRange1 AnyWhere d
+  killRange (SomeWhere n d) = killRange2 SomeWhere n d
