@@ -5,6 +5,7 @@
 module Agda.TypeChecking.Positivity where
 
 import Control.Applicative hiding (empty)
+import Control.DeepSeq
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -93,7 +94,10 @@ checkStrictlyPositive qs = do
         [ text "args of" <+> prettyTCM q <+> text "="
         , nest 2 $ prettyList $ map (text . show) args
         ]
-      setArgOccurrences q args
+      -- The list args can take a long time to compute, but contains
+      -- small elements, and is stored in the interface (right?), so
+      -- it is computed deep-strictly.
+      setArgOccurrences q $!! args
 
 getDefArity def = case theDef def of
   Function{ funClauses = cs, funProjection = proj } -> do

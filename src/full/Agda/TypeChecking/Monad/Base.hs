@@ -7,6 +7,7 @@ module Agda.TypeChecking.Monad.Base where
 
 import Control.Arrow
 import qualified Control.Concurrent as C
+import Control.DeepSeq
 import Control.Exception as E
 import Control.Monad.Error
 import Control.Monad.State
@@ -514,6 +515,8 @@ noCompiledRep = CompiledRep Nothing Nothing Nothing
 -- positive.
 data Occurrence = Positive | Negative | Unused
   deriving (Typeable, Data, Show, Eq, Ord)
+
+instance NFData Occurrence
 
 data Defn = Axiom
 	  | Function
