@@ -85,8 +85,12 @@ initializeIFSMeta t = do
   newIFSMeta t cands
 
 findInScope :: MetaId -> [(Term, Type)] -> TCM ()
-findInScope m cands =
-  ifM (isFrozen m) (addConstraint $ FindInScope m cands) $ do
+findInScope m cands = whenM (findInScope' m cands) $ do
+    addConstraint $ FindInScope m cands
+
+-- Result says whether we need to add constraint
+findInScope' :: MetaId -> [(Term, Type)] -> TCM Bool
+findInScope' m cands = ifM (isFrozen m) (return True) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
     t <- getMetaTypeInContext m
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 3: t: " ++ show t
@@ -107,11 +111,11 @@ findInScope m cands =
                                       leqType t'' t
                                       ctxArgs <- getContextArgs
                                       assignV m ctxArgs (term `apply` args)
-                                      return ()
+                                      return False
       cs -> do reportSDoc "tc.constr.findInScope" 15 $
                  text ("findInScope 5: more than one candidate found: ") <+>
                  prettyTCM (List.map fst cs)
-               addConstraint $ FindInScope m cs
+               return True
 
 -- return the meta's type, applied to the current context
 getMetaTypeInContext :: MetaId -> TCM Type
@@ -169,4 +173,6 @@ solveMetaIfIrrelevant x = do
       , prettyTCM x, colon, prettyTCM $ jMetaType $ mvJudgement m
       ]
     flip catchError (const $ return ()) $ do
-      findInScope x =<< initialIFSCandidates
+      findInScope' x =<< initialIFSCandidates
+      -- do not add constraints!
+      return ()
