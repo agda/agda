@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, Rank2Types #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, Rank2Types, GeneralizedNewtypeDeriving #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.GhciTop
@@ -297,19 +297,24 @@ initCommandState = CommandState
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
 newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, MonadState, Functor)
+    deriving (Monad, Functor)
 {-
 instance Monad CommandM where
     return = CommandM . return
     a >>= f = CommandM $ unCommandM a >>= unCommandM . f
 
+instance Functor CommandM where
+    fmap f = CommandM . fmap f . unCommandM
+-}
+
+--   Can't make a derived instance of `MonadState CommandM'
+--      (even with cunning newtype deriving):
+--      `MonadState' does not have arity 1
+
 instance MonadState CommandState CommandM where
     get = CommandM get
     put = CommandM . put
 
-instance Functor CommandM where
-    fmap f = CommandM . fmap f . unCommandM
--}
 
 -- | Wrapped 'runStateT' for 'CommandM'.
 
