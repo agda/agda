@@ -37,7 +37,7 @@ import Agda.Interaction.Exceptions
 import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo, HighlightingOutput, voidHighlightingOutput)
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo, HighlightingOutput, defaultHighlightingOutput)
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
@@ -142,7 +142,7 @@ initState =
            { stPersistentOptions = defaultOptions
 	   , stDecodedModules    = Map.empty
            }
-         , stHighlightingOutput = voidHighlightingOutput
+         , stHighlightingOutput = defaultHighlightingOutput
 	 }
 
 stBuiltinThings :: TCState -> BuiltinThings PrimFun

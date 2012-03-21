@@ -10,7 +10,7 @@ module Agda.Interaction.Highlighting.Precise
   , File
   , HighlightingInfo
   , HighlightingOutput
-  , voidHighlightingOutput
+  , defaultHighlightingOutput
   , singleton
   , several
   , smallestPos
@@ -139,8 +139,8 @@ type HighlightingOutput = Response -> IO ()
 
 -- | The default 'HighlightingOutput' function.
 
-voidHighlightingOutput :: HighlightingOutput
-voidHighlightingOutput _ = return ()
+defaultHighlightingOutput :: HighlightingOutput
+defaultHighlightingOutput _ = return ()
 
 ------------------------------------------------------------------------
 -- Creation
