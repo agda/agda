@@ -9,7 +9,7 @@ module Agda.Interaction.Highlighting.Precise
   , MetaInfo(..)
   , File
   , HighlightingInfo
-  , HighlightingOutput
+  , InteractionOutputCallback
   , defaultHighlightingOutput
   , singleton
   , several
@@ -125,21 +125,21 @@ type HighlightingInfo = CompressedFile
 --   Note that the response is given in pieces and incrementally,
 --   so the user can have timely response even during long computations.
 --
---   Typical 'HighlightingOutput' functions:
+--   Typical 'InteractionOutputCallback' functions:
 --
 --    * Convert the response into a 'String' representation and
 --      print it on standard output
 --      (suitable for inter-process communication).
 --
 --    * Put the response into a mutable variable stored in the
---      closure of the 'HighlightingOutput' function.
+--      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type HighlightingOutput = Response -> IO ()
+type InteractionOutputCallback = Response -> IO ()
 
--- | The default 'HighlightingOutput' function.
+-- | The default 'InteractionOutputCallback' function.
 
-defaultHighlightingOutput :: HighlightingOutput
+defaultHighlightingOutput :: InteractionOutputCallback
 defaultHighlightingOutput _ = return ()
 
 ------------------------------------------------------------------------
