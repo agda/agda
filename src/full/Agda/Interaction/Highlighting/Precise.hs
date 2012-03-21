@@ -40,6 +40,9 @@ import qualified Agda.Syntax.Concrete as SC
 import Agda.Interaction.Highlighting.Range
 import {-# SOURCE #-} Agda.Interaction.Response (Response)
 
+#include "../../undefined.h"
+import Agda.Utils.Impossible
+
 ------------------------------------------------------------------------
 -- Files
 
@@ -137,10 +140,13 @@ type HighlightingInfo = CompressedFile
 
 type InteractionOutputCallback = Response -> IO ()
 
--- | The default 'InteractionOutputCallback' function.
+-- | The default 'InteractionOutputCallback' function
+--   is set to __IMPOSSIBLE__ because in this way
+--   it is easier to recognize that some response is lost
+--   due to an uninitialized 'InteractionOutputCallback' function.
 
 defaultHighlightingOutput :: InteractionOutputCallback
-defaultHighlightingOutput _ = return ()
+defaultHighlightingOutput = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Creation
