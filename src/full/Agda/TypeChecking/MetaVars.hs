@@ -244,7 +244,9 @@ newRecordMetaCtx r pars tel ctx = do
 
 newQuestionMark :: Type -> TCM Term
 newQuestionMark t = do
-  m@(MetaV x _) <- newValueMeta' RunMetaOccursCheck t
+  -- Do not run check for recursive occurrence of meta in definitions,
+  -- because we want to give the recursive solution interactively (Issue 589)
+  m@(MetaV x _) <- newValueMeta' DontRunMetaOccursCheck t
   ii		<- fresh
   addInteractionPoint ii x
   return m
