@@ -87,6 +87,9 @@ data TCState =
            -- includes imports from imported modules).
          , stPersistent        :: PersistentTCState
          , stHighlightingOutput  :: HighlightingOutput
+           -- ^ Callback fuction to call when there is a response
+           --   to give to the interactive frontend.
+           --   See the documentation of 'HighlightingOutput'.
 	 }
 
 -- | A part of the state which is not reverted when an error is thrown

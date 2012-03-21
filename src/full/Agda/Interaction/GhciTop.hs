@@ -119,15 +119,21 @@ import Agda.Utils.Impossible
 theState :: IORef InteractionState
 theState = unsafePerformIO $ newIORef $ emacsOutput initState
 
+-- | Redirect the output to stdout in elisp format
+--   suitable for the interactive emacs frontend.
 
 emacsOutput :: InteractionState -> InteractionState
 emacsOutput (InteractionState st cs) = InteractionState (st { stHighlightingOutput = emacsFormat }) cs
 
+-- | Convert the response (to an interactive command)
+--   to elisp expressions suitable for the interactive emacs frontend
+--   and print it to stdout.
+
 emacsFormat :: Response -> IO ()
 emacsFormat = Emacs.putResponse . lispifyResponse
 
+-- | Convert Response to an elisp value for the interactive emacs frontend.
 
--- | Convert Response to an elisp value for emacs
 lispifyResponse :: Response -> Lisp String
 lispifyResponse (Resp_HighlightingInfo file) = lispifyHighlightingInfo file
 lispifyResponse (Resp_DisplayInfo bufname content) = display_info' False bufname content
@@ -160,12 +166,14 @@ lispifyResponse (Resp_SolveAll ps) =
   where
     prn (ii,e)= [showNumIId ii, A $ quote $ show e]
 
-
+-- | Show an iteraction point identifier as an elisp expression.
+showNumIId :: InteractionId -> Lisp String
 showNumIId = A . tail . show
 
 
 -- | Run a TCM computation in the current state. Should only
 --   be used for debugging.
+
 ioTCM_ :: TCM a -> IO a
 ioTCM_ m = do
   InteractionState tcs cs <- readIORef theState
@@ -193,7 +201,7 @@ ioTCM_ m = do
 -}
 
 -- | Runs a 'TCM' computation. All calls from the Emacs mode should be
--- wrapped in this function.
+--   wrapped in this function.
 
 ioTCM :: FilePath
          -- ^ The current file. If this file does not match
@@ -234,6 +242,8 @@ data InteractionState = InteractionState
     , theCommandState :: CommandState
     }
 
+-- | Initial interaction state
+
 initState :: InteractionState
 initState = InteractionState
     { theTCState      = TM.initState
@@ -257,7 +267,7 @@ data CommandState = CommandState
   }
 
 -- | Can the command run even if the relevant file has not been loaded
--- into the state?
+--   into the state?
 
 data Independence
   = Independent (Maybe [FilePath])
@@ -266,6 +276,8 @@ data Independence
   | Dependent
     -- No.
 
+-- | Initial auxiliary interaction state
+
 initCommandState :: CommandState
 initCommandState = CommandState
   { theInteractionPoints = []
@@ -273,8 +285,20 @@ initCommandState = CommandState
   }
 
 
-newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
+-- | Monad for computing answers to interactive commands.
+--
+--   'CommandM' is a state monad with state 'InteractionState'.
+--
+--   The actual implementation of 'CommandM' adds the two componets of 'InteractionState',
+--   'TCState' and 'CommandState' separately ('TCM' contains the 'TCState' part).
+--
+--   The 'StateT' monad is in a newtype wrapper we would like to prevent
+--   the accidental use of 'lift'.
+--   Instead of 'lift' one can use 'liftCommandM', see below.
 
+newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
+    deriving (Monad, MonadState, Functor)
+{-
 instance Monad CommandM where
     return = CommandM . return
     a >>= f = CommandM $ unCommandM a >>= unCommandM . f
@@ -285,13 +309,20 @@ instance MonadState CommandState CommandM where
 
 instance Functor CommandM where
     fmap f = CommandM . fmap f . unCommandM
+-}
+
+-- | Wrapped 'runStateT' for 'CommandM'.
 
 runCommandM :: CommandM a -> CommandState -> TCM (a, CommandState)
 runCommandM = runStateT . unCommandM
 
 -- | lift a TCM action to CommandM.
--- 'stHighlightingOutput' is set to its original value
--- because it is cleared by some actions in the TCM monad.
+--
+--   'liftCommandM' is a customized form of 'lift' for 'StateT'.
+--   At the end of the lifted action 'stHighlightingOutput' is set
+--   to its original value because the value is lost during the execution
+--   of some TCM actions.
+
 liftCommandM :: TCM a -> CommandM a
 liftCommandM m = CommandM $ lift $ do
     outf <- gets stHighlightingOutput
@@ -300,6 +331,7 @@ liftCommandM m = CommandM $ lift $ do
     return a
 
 -- | Lift a TCM action transformer to a CommandM action transformer.
+
 liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
 liftCommandMT f m = do
     st <- get
@@ -307,11 +339,14 @@ liftCommandMT f m = do
     put st
     return a
 
+-- | Put a response by the callback function given by 'stHighlightingOutput'.
+
 putResponse :: Response -> CommandM ()
 putResponse x = liftCommandM $ do
     outf <- gets stHighlightingOutput
     liftIO $ outf x
 
+-- | An interactive computation.
 
 data Interaction = Interaction
   { independence :: Independence
@@ -321,6 +356,9 @@ data Interaction = Interaction
     -- syntax highlighting information for the given module (unless
     -- 'ioTCM''s highlighting argument is @False@).
   }
+
+-- | 'interaction' is similar to the 'Interaction' constructor
+--   but it drops the output of the interactive action.
 
 interaction :: Independence -> CommandM a -> Interaction
 interaction dep a = Interaction dep $ a >> return Nothing

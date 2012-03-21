@@ -17,6 +17,10 @@ import Data.Int
 
 
 -- | Responses for any interactive interface
+--
+--   Note that the response is given in pieces and incrementally,
+--   so the user can have timely response even during long computations.
+
 data Response
     = Resp_HighlightingInfo HighlightingInfo
     | Resp_Status String

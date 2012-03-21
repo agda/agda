@@ -119,7 +119,25 @@ smallestPos = fmap (fst . fst) . Map.minViewWithKey . mapping
 
 type HighlightingInfo = CompressedFile
 
+-- | Callback fuction to call when there is a response
+--   to give to the interactive frontend.
+--
+--   Note that the response is given in pieces and incrementally,
+--   so the user can have timely response even during long computations.
+--
+--   Typical 'HighlightingOutput' functions:
+--
+--    * Convert the response into a 'String' representation and
+--      print it on standard output
+--      (suitable for inter-process communication).
+--
+--    * Put the response into a mutable variable stored in the
+--      closure of the 'HighlightingOutput' function.
+--      (suitable for intra-process communication).
+
 type HighlightingOutput = Response -> IO ()
+
+-- | The default 'HighlightingOutput' function.
 
 voidHighlightingOutput :: HighlightingOutput
 voidHighlightingOutput _ = return ()
