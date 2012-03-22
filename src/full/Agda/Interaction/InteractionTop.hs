@@ -255,7 +255,7 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoO
 
   -- Write out syntax highlighting info.
   let highlight m = when highlighting $ liftIO $ do
-                        mapM_ putResp =<< tellEmacsToUpdateHighlighting m
+                        mapM_ putResp =<< tellToUpdateHighlighting m
 
   -- If an error was encountered, display an error message and return 'Nothing'.
   let handErr e tcs s s' = do
@@ -381,10 +381,9 @@ cmd_compile b file includes =
           MAlonzo -> MAlonzo.compilerMain i
           Epic    -> Epic.compilerMain i
           JS      -> JS.compilerMain i
-        display_info "*Compilation result*"
-                     "The module was successfully compiled."
+        display_info $ Info_CompilationOk
       Just w ->
-        display_info errorTitle $ unlines
+        display_info $ Info_Error $ unlines
           [ "You can only compile modules without unsolved metavariables"
           , "or termination checking problems."
           ]
@@ -392,7 +391,7 @@ cmd_compile b file includes =
 cmd_constraints :: Interaction
 cmd_constraints = interaction Dependent $ do
     cs <- map show <$> liftCommandM B.getConstraints
-    display_info "*Constraints*" (unlines cs)
+    display_info $ Info_Constraints (unlines cs)
 
 -- Show unsolved metas. If there are no unsolved metas but unsolved constraints
 -- show those instead.
@@ -405,11 +404,11 @@ cmd_metas = interaction Dependent $ do -- CL.showMetas []
     then do
       di <- liftCommandM $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)
       dh <- liftCommandM $ mapM showA' hms
-      display_info "*All Goals*" $ unlines $ di ++ dh
+      display_info $ Info_AllGoals $ unlines $ di ++ dh
     else do
       cs <- liftCommandM B.getConstraints
       if null cs
-        then display_info "*All Goals*" ""
+        then display_info $ Info_AllGoals ""
         else command cmd_constraints >> return ()
   where
     metaId (B.OfType i _) = i
@@ -458,12 +457,12 @@ cmd_intro pmLambda ii rng _ = interaction Dependent $ do
   ss <- liftCommandM $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
-      display_infoD "*Intro*" $ text "No introduction forms found."
+      display_info $ Info_Intro $ text "No introduction forms found."
     [s]   -> do
       command $ cmd_refine ii rng s
       return ()
     _:_:_ -> do
-      display_infoD "*Intro*" $
+      display_info $ Info_Intro $
         sep [ text "Don't know which constructor to introduce of"
             , let mkOr []     = []
                   mkOr [x, y] = [text x <+> text "or" <+> text y]
@@ -485,11 +484,11 @@ cmd_auto ii rng s = interaction Dependent $ do
       putResponse $ Resp_GiveAction ii (quote s)
     case msg of
      Nothing -> command cmd_metas >> return ()
-     Just msg -> display_info "*Auto*" msg
+     Just msg -> display_info $ Info_Auto msg
    Right (Left cs) -> do
     case msg of
      Nothing -> return ()
-     Just msg -> display_info "*Auto*" msg
+     Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCaseAction cs
    Right (Right s) -> give_gen' B.refine (\_ s -> quote . show) ii rng s
 
@@ -525,17 +524,17 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
 
 cmd_context :: B.Rewrite -> GoalCommand
 cmd_context norm ii _ _ = interaction Dependent $
-  display_infoD "*Context*" =<< liftCommandM (prettyContext norm False ii)
+  display_info . Info_Context =<< liftCommandM (prettyContext norm False ii)
 
 cmd_infer :: B.Rewrite -> GoalCommand
 cmd_infer norm ii rng s = interaction Dependent $
-  display_infoD "*Inferred Type*"
+  display_info . Info_InferredType
     =<< liftCommandM (B.withInteractionId ii
           (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
 
 cmd_goal_type :: B.Rewrite -> GoalCommand
 cmd_goal_type norm ii _ _ = interaction Dependent $
-  display_infoD "*Current Goal*"
+  display_info . Info_CurrentGoal
     =<< liftCommandM (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
 
 -- | Displays the current goal, the given document, and the current
@@ -544,7 +543,7 @@ cmd_goal_type norm ii _ _ = interaction Dependent $
 cmd_goal_type_context_and doc norm ii _ _ = do
   goal <- liftCommandM $ B.withInteractionId ii $ prettyTypeOfMeta norm ii
   ctx  <- liftCommandM $ prettyContext norm True ii
-  display_infoD "*Goal type etc.*"
+  display_info $ Info_GoalType
                 (text "Goal:" <+> goal $+$
                  doc $+$
                  text (replicate 60 '\x2014') $+$
@@ -575,7 +574,7 @@ showModuleContents rng s = do
                     t <- prettyTCM t
                     return (show x, text ":" <+> t))
                  types
-  display_infoD "*Module contents*" $
+  display_info $ Info_ModuleContents $
     text "Modules" $$
     nest 2 (vcat $ map (text . show) modules) $$
     text "Names" $$
@@ -603,15 +602,6 @@ setCommandLineOptions' opts = do
     displayStatus
 
 
--- | Status information.
-
-data Status = Status
-  { sShowImplicitArguments :: Bool
-    -- ^ Are implicit arguments displayed?
-  , sChecked               :: Bool
-    -- ^ Has the module been successfully type checked?
-  }
-
 -- | Computes some status information.
 
 status :: CommandM Status
@@ -638,35 +628,20 @@ status = do
                   , sChecked               = checked
                   }
 
--- | Shows status information.
-
-showStatus :: Status -> Response
-showStatus s = Resp_Status $ intercalate "," $ catMaybes [checked, showImpl]
-  where
-  boolToMaybe b x = if b then Just x else Nothing
-
-  checked  = boolToMaybe (sChecked               s) "Checked"
-  showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
-
 -- | Displays\/updates status information.
 
 displayStatus :: CommandM ()
 displayStatus =
-  putResponse . showStatus  =<< status
+  putResponse . Resp_Status  =<< status
 
 -- | @display_info@ does what @'display_info'' False@ does, but
 -- additionally displays some status information (see 'status' and
 -- 'displayStatus').
 
-display_info :: String -> String -> CommandM ()
-display_info bufname content = do
+display_info :: DisplayInfo -> CommandM ()
+display_info info = do
   displayStatus
-  putResponse $ Resp_DisplayInfo bufname content
-
--- | Like 'display_info', but takes a 'Doc' instead of a 'String'.
-
-display_infoD :: String -> Doc -> CommandM ()
-display_infoD bufname = display_info bufname . render
+  putResponse $ Resp_DisplayInfo info
 
 takenNameStr :: TCM [String]
 takenNameStr = do
@@ -850,7 +825,7 @@ cmd_compute ignore ii rng s = interaction Dependent $ do
          let c = B.evalInCurrent e
          v <- if ignore then ignoreAbstractMode c else c
          prettyATop v
-  display_info "*Normal Form*" (show d)
+  display_info $ Info_NormalForm d
 
 -- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
@@ -859,15 +834,15 @@ cmd_compute ignore ii rng s = interaction Dependent $ do
 parseAndDoAtToplevel
   :: (SA.Expr -> TCM SA.Expr)
      -- ^ The command to perform.
-  -> String
+  -> (Doc -> DisplayInfo)
      -- ^ The name to use for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
   -> Interaction
 parseAndDoAtToplevel cmd title s = interaction Dependent $ do
   e <- liftCommandM $ liftIO $ parse exprParser s
-  display_info title =<<
-    liftCommandM (B.atTopLevel $ showA =<< cmd =<< concreteToAbstract_ e)
+  display_info . title =<<
+    liftCommandM (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
 
 -- | Parse the given expression (as if it were defined at the
 -- top-level of the current module) and infer its type.
@@ -877,7 +852,7 @@ cmd_infer_toplevel
   -> String
   -> Interaction
 cmd_infer_toplevel norm =
-  parseAndDoAtToplevel (B.typeInCurrent norm) "*Inferred Type*"
+  parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType
 
 -- | Parse and type check the given expression (as if it were defined
 -- at the top-level of the current module) and normalise it.
@@ -887,7 +862,7 @@ cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
 cmd_compute_toplevel ignore =
   parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c
                                   else inConcreteMode . c)
-                       "*Normal Form*"
+                       Info_NormalForm
   where c = B.evalInCurrent
 
 ------------------------------------------------------------------------
@@ -913,7 +888,7 @@ cmd_compute_toplevel ignore =
 cmd_write_highlighting_info :: FilePath -> Interaction
 cmd_write_highlighting_info source =
   interaction (Independent Nothing) $ do
-    resp <- liftCommandM $ liftIO . tellEmacsToUpdateHighlighting =<< do
+    resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
         False -> return Nothing
@@ -934,19 +909,13 @@ cmd_write_highlighting_info source =
                 return Nothing
     mapM_ putResponse resp
 
--- | Tell Emacs to highlight the code using the given highlighting
+-- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).
 
-tellEmacsToUpdateHighlighting
+tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, ModuleToSource) -> IO [Response]
-tellEmacsToUpdateHighlighting Nothing     = return []
-tellEmacsToUpdateHighlighting (Just info) = do
-  dir <- getTemporaryDirectory
-  f   <- E.bracket (IO.openTempFile dir "agda2-mode")
-                   (IO.hClose . snd) $ \ (f, h) -> do
-           UTF8.hPutStr h $ showHighlightingInfo info
-           return f
-  return [Resp_UpdateHighlighting f]
+tellToUpdateHighlighting Nothing     = return []
+tellToUpdateHighlighting (Just info) = return [Resp_UpdateHighlighting info]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 
@@ -985,20 +954,14 @@ toggleImplicitArgs = interaction Dependent $ do
 ------------------------------------------------------------------------
 -- Error handling
 
--- | When an error message is displayed the following title should be
--- used, if appropriate.
-
-errorTitle :: String
-errorTitle = "*Error*"
-
 
 -- | Displays an error, instructs Emacs to jump to the site of the
 -- error, and terminates the program. Because this function may switch
 -- the focus to another file the status information is also updated.
 displayErrorAndExit putResp status r s = do
-    mapM_ putResp $ [ Resp_DisplayInfo errorTitle s ]
+    mapM_ putResp $ [ Resp_DisplayInfo $ Info_Error s ]
                 ++  tellEmacsToJumpToError r
-                ++  [ showStatus status ]
+                ++  [ Resp_Status status ]
     return Nothing
 
 -- | Outermost error handler.
