@@ -127,24 +127,7 @@ initCommandState = CommandState
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
 newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, Functor)
-{-
-instance Monad CommandM where
-    return = CommandM . return
-    a >>= f = CommandM $ unCommandM a >>= unCommandM . f
-
-instance Functor CommandM where
-    fmap f = CommandM . fmap f . unCommandM
--}
-
---   Can't make a derived instance of `MonadState CommandM'
---      (even with cunning newtype deriving):
---      `MonadState' does not have arity 1
-
-instance MonadState CommandState CommandM where
-    get = CommandM get
-    put = CommandM . put
-
+    deriving (Monad, Functor, MonadState CommandState)
 
 -- | Wrapped 'runStateT' for 'CommandM'.
 
