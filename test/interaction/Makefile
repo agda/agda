@@ -44,6 +44,7 @@ $(OutFiles) : %.out : $(wildcard %.agda %.lagda) %.in
 # Comparing output
 $(Tests) : %.cmp : %.out
 	@-mkdir $(TMPDIR)
+	@$(setup_$*)
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
