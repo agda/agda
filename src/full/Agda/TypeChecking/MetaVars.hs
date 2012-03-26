@@ -542,7 +542,7 @@ assign x args v = do
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-        unless (distinct $ filter (`Set.member` fvs) ids) $ do
+        unless (distinct $ filter (`Set.member` fvs) (map fst ids)) $ do
           -- non-linear lhs: we cannot solve, but prune
           killResult <- prune x args $ Set.toList fvs
           reportSDoc "tc.meta.assign" 10 $
@@ -571,8 +571,9 @@ assign x args v = do
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
 	    tel   <- getContextTelescope
-	    gamma <- map defaultArg <$> getContextTerms
-	    let iargs = reverse $ zipWith (rename ids) [0..] $ reverse gamma
+--	    gamma <- map defaultArg <$> getContextTerms
+--	    let iargs = reverse $ zipWith (rename ids) [0..] $ reverse gamma
+	    let iargs = map (defaultArg . rename ids) $ downFrom $ size tel
 		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
@@ -601,10 +602,21 @@ assign x args v = do
     where
         -- @ids@ are the lhs variables (metavar arguments)
         -- @i@ is the variable from the context Gamma
+        rename :: [(Nat,Term)] -> Nat -> Term
+	rename ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
+{-
+        -- @ids@ are the lhs variables (metavar arguments)
+        -- @i@ is the variable from the context Gamma
         rename :: [Nat] -> Nat -> Arg Term -> Arg Term
 	rename ids i arg = case findIndex (==i) ids of
 	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
+-}
+
+-- | downFrom n = [n-1,..1,0]
+downFrom :: Nat -> [Nat]
+downFrom n | n <= 0     = []
+           | otherwise = let n' = n-1 in n' : downFrom n'
 
 type FVs = Set.VarSet
 
@@ -615,7 +627,18 @@ type FVs = Set.VarSet
 --     list of corresponding indices for each arg.
 --   Linearity has to be checked separately.
 --
---   @reverse@ is necessary because we are directly abstracting over this list @ids@.
+checkAllVars :: Args -> TCM [(Nat,Term)]
+checkAllVars args =
+  case allVarOrIrrelevant args of
+    Nothing -> do
+      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
+                                            , text "  aborting assignment" ]
+      patternViolation
+    Just is | length is /= length args -> __IMPOSSIBLE__
+            | otherwise -> return $ zipWith (\ i t -> (unArg i, t)) (reverse is) terms
+  where terms = map (\ x -> Var x []) (downFrom (size args))
+
+{-
 checkAllVars :: Args -> TCM [Nat]
 checkAllVars args =
   case allVarOrIrrelevant args of
@@ -624,9 +647,11 @@ checkAllVars args =
                                             , text "  aborting assignment" ]
       patternViolation
     Just is -> return $ map unArg is
+-}
 
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.
+--   (Because foldM is a fold-left)
 allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
 allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars arg =
