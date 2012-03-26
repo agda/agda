@@ -260,8 +260,7 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoO
                        setIncludeDirs is $
                          if ex then ProjectRoot current else CurrentDir
 
-                   command cmd  -- Andreas, 2012-02-25 SPEAK TO ME!!!
---                   command $ makeSilent cmd
+                   command cmd
 
            st <- get
            return (Right (x, st, cstate))
@@ -1039,4 +1038,3 @@ ensureFileLoaded current = do
   cf <- gets theCurrentFile
   when (Just current /= (fst <$> cf)) $
     liftCommandM $ typeError $ GenericError "Error: First load the file."
-

@@ -131,7 +131,6 @@ initState =
 	 , stPatternSyns       = Map.empty
          , stPatternSynImports = Map.empty
 	 , stPragmaOptions     = defaultInteractionOptions
---	 , stPragmaOptions     = optPragmaOptions $ defaultOptions
 	 , stStatistics	       = Map.empty
          , stExtLambdaTele     = Map.empty
 	 , stMutualBlocks      = Map.empty
