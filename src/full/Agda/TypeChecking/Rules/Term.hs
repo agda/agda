@@ -1010,7 +1010,7 @@ checkHeadApplication e t hd args = do
           , nest 2 $ prettyA clause <> text "."
           ]
 
-      escapeContext (size ctx) $ checkFunDef Delayed info c' [clause]
+      escapeContextToTopLevel $ checkFunDef Delayed info c' [clause]
 
       reportSDoc "tc.term.expr.coind" 15 $ do
         def <- theDef <$> getConstInfo c'

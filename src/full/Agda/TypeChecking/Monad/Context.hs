@@ -191,3 +191,7 @@ getVarInfo x =
 {-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
 escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
 escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
+
+{-# SPECIALIZE escapeContextToTopLevel :: TCM a -> TCM a #-}
+escapeContextToTopLevel :: MonadTCM tcm => tcm a -> tcm a
+escapeContextToTopLevel = local $ \ e -> e { envContext = [] }

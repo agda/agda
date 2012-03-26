@@ -267,9 +267,9 @@ blockTermOnProblem t v pid =
                     i lowMetaPriority (idP $ size tel)
                     (HasType () $ telePi_ tel t)
                     -- we don't instantiate blocked terms
-    escapeContext (size tel) $ addConstraint (Guarded (UnBlock x) pid)
+    escapeContextToTopLevel $ addConstraint (Guarded (UnBlock x) pid)
     reportSDoc "tc.meta.blocked" 20 $ vcat
-      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> escapeContext (size tel) (prettyTCM $ abstract tel v)
+      [ text "blocked" <+> prettyTCM x <+> text ":=" <+> escapeContextToTopLevel (prettyTCM $ abstract tel v)
       , text "     by" <+> (prettyTCM =<< getConstraintsForProblem pid) ]
     inst <- isInstantiatedMeta x
     case inst of
@@ -596,8 +596,7 @@ assign x args v = do
 
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
-	n <- size <$> getContextTelescope
-	escapeContext n $ assignTerm x $ killRange (abstract tel' v')
+	escapeContextToTopLevel $ assignTerm x $ killRange (abstract tel' v')
 	return ()
     where
         -- @ids@ are the lhs variables (metavar arguments)
