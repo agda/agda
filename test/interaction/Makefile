@@ -13,7 +13,7 @@ else
 pwd=$(shell pwd)/
 endif
 
-AgdaFiles=$(shell find . -name '*.agda' -o -name '*.lagda')
+AgdaFiles=$(shell ls *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 
