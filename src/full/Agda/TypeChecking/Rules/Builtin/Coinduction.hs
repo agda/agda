@@ -42,16 +42,16 @@ typeOfInf = hPi "a" (el primLevel) $
 typeOfSharp :: TCM Type
 typeOfSharp = hPi "a" (el primLevel) $
               hPi "A" (return . sort $ varSort 0) $
-              (El (varSort 1) <$> var 0) -->
-              (El (varSort 1) <$> primInf <#> var 1 <@> var 0)
+              (El (varSort 1) <$> varM 0) -->
+              (El (varSort 1) <$> primInf <#> varM 1 <@> varM 0)
 
 -- | The type of @&#x266d@.
 
 typeOfFlat :: TCM Type
 typeOfFlat = hPi "a" (el primLevel) $
              hPi "A" (return . sort $ varSort 0) $
-             (El (varSort 1) <$> primInf <#> var 1 <@> var 0) -->
-             (El (varSort 1) <$> var 0)
+             (El (varSort 1) <$> primInf <#> varM 1 <@> varM 0) -->
+             (El (varSort 1) <$> varM 0)
 
 -- | Binds the INFINITY builtin, but does not change the type's
 -- definition.
@@ -119,7 +119,7 @@ bindBuiltinFlat e =
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (argH (El (mkType 0) (Def (typeName kit) [])))
                                                   (Abs "a" (ExtendTel (argH $ sort $ varSort 0)
-                                                                      (Abs "A" (ExtendTel (argN (El (varSort 1) (Var 0 [])))
+                                                                      (Abs "A" (ExtendTel (argN (El (varSort 1) (var 0)))
                                                                                           (Abs "x" EmptyTel)))))
                         , clausePerm  = idP 3
                         , clausePats  = [ argH (VarP "a")
@@ -128,7 +128,7 @@ bindBuiltinFlat e =
                                         ]
                         , clauseBody  = Bind $ Abs "h0" $
                                         Bind $ Abs "h1" $
-                                        Bind $ Abs "h2" $ Body (Var 0 [])
+                                        Bind $ Abs "h2" $ Body (var 0)
                         }
     addConstant flat $
       flatDefn { theDef = Function
@@ -137,7 +137,7 @@ bindBuiltinFlat e =
                       let hid   = Arg Hidden Relevant
                           nohid = defaultArg in
                       Case 2 (Branches (Map.singleton sharp
-                                 (Done [hid "a", hid "A", nohid "x"] (Var 0 [])))
+                                 (Done [hid "a", hid "A", nohid "x"] (var 0)))
                                Map.empty
                                Nothing)
                    , funInv            = NotInjective

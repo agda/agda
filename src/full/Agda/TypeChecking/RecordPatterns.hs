@@ -60,7 +60,7 @@ translateRecordPatterns clause = do
       noNewPatternVars = size cs
 
       s'   = reverse s
-      rest = [ Var i [] | i <- [noNewPatternVars..] ]
+      rest = [ var i | i <- [noNewPatternVars..] ]
 
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
@@ -372,11 +372,11 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 permToSubst :: Permutation -> Substitution
 permToSubst (Perm n is) =
-  [ makeVar i | i <- [0..n-1] ] ++ [ Var i [] | i <- [size is..] ]
+  [ makeVar i | i <- [0..n-1] ] ++ [ var i | i <- [size is..] ]
   where
   makeVar i = case genericElemIndex i is of
     Nothing -> __IMPOSSIBLE__
-    Just k  -> Var k []
+    Just k  -> var k
 
 -- | @dropBinds n b@ drops the initial @n@ occurrences of 'Bind' from @b@.
 --

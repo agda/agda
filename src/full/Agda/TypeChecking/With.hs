@@ -24,6 +24,7 @@ import Agda.TypeChecking.Abstract
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Telescope
 
+import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
@@ -171,7 +172,8 @@ stripWithClausePatterns gamma qs perm ps = do
                    ]
 
             -- Compute the new telescope
-            let v     = Con c $ reverse [ Arg h r (Var i []) | (i, Arg h r _) <- zip [0..] $ reverse qs' ]
+            let v     = Con c [ Arg h r (var i) | (i, Arg h r _) <- zip (downFrom $ size qs') qs' ]
+--            let v     = Con c $ reverse [ Arg h r (var i) | (i, Arg h r _) <- zip [0..] $ reverse qs' ]
                 tel'' = tel' `abstract` absApp (raise (size tel') tel) v
 
             reportSDoc "tc.with.strip" 15 $ sep
@@ -210,8 +212,9 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   let top = genericLength topArgs
       vs = map (fmap DTerm) topArgs ++ (substs (sub ys wild) $ patsToTerms qs)
       dt = DWithApp (DDef f vs : map DTerm withArgs) []
-      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
-      pats = genericReplicate (n + size delta1 + size delta2 + top) (Var 0 [])
+      withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
+--      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
+      pats = genericReplicate (n + size delta1 + size delta2 + top) (var 0)
       -- Building the arguments to the with function
       (ys0, ys1) = splitAt (size delta1) (permute perm $ map Just [m - 1, m - 2..0])
       ys = reverse $ ys0 ++ genericReplicate n Nothing ++ ys1
@@ -239,7 +242,6 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
 
   return display
   where
-    var i = Var i []
     sub rho wild = map term [0..] -- m - 1]
       where
         -- thinking required.. but ignored
@@ -249,15 +251,15 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
         -- We had the wrong permutation and we used it incorrectly. Should work now.
         term i = case findIndex (Just i ==) rho of
           Nothing -> wild
-          Just j  -> Var (fromIntegral j) []
+          Just j  -> var (fromIntegral j)
 
 patsToTerms :: [Arg Pattern] -> [Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0
   where
     mapMr f xs = reverse <$> mapM f (reverse xs)
 
-    var :: State Nat Nat
-    var = do
+    nextVar :: State Nat Nat
+    nextVar = do
       i <- get
       put (i + 1)
       return i
@@ -270,7 +272,7 @@ patsToTerms ps = evalState (toTerms ps) 0
 
     toTerm :: Pattern -> State Nat DisplayTerm
     toTerm p = case p of
-      VarP _      -> var >>= \i -> return $ DTerm (Var i [])
+      VarP _      -> nextVar >>= \i -> return $ DTerm (var i)
       DotP t      -> return $ DDot t
       ConP c _ ps -> DCon c <$> toTerms ps
       LitP l      -> return $ DTerm (Lit l)

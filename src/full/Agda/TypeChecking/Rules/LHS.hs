@@ -316,7 +316,7 @@ checkLeftHandSide c ps a ret' = do
 	   ]
 	 ]
 
-  let idsub = [ Var i [] | i <- [0..] ]
+  let idsub = [ var i | i <- [0..] ]
 
   (Problem ps (perm, qs) delta, sigma, dpi, asb) <- checkLHS problem idsub [] []
   let b' = substs sigma b
@@ -372,8 +372,6 @@ checkLeftHandSide c ps a ret' = do
                 rho    = [ var i | i <- [0..size delta2 - 1] ]
                       ++ [ raise (size delta2) $ Lit lit ]
                       ++ [ var i | i <- [size delta2 ..] ]
-                  where
-                    var i = Var i []
                 sigma'   = substs rho sigma
                 dpi'     = substs rho dpi
                 asb0     = substs rho asb
@@ -489,8 +487,6 @@ checkLeftHandSide c ps a ret' = do
                 rho0 = [ var i | i <- [0..size delta2 - 1] ]
                     ++ [ raise (size delta2) $ Con c ys ]
                     ++ [ var i | i <- [size delta2 + size gamma ..] ]
-                  where
-                    var i = Var i []
                 sigma0 = substs rho0 sigma
                 dpi0   = substs rho0 dpi
                 asb0   = substs rho0 asb

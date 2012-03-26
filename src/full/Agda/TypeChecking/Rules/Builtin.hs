@@ -59,15 +59,15 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
                                      ,builtinAgdaTermUnsupported])
   , (builtinEquality           |-> BuiltinData (hPi "a" (el primLevel) $
                                                 hPi "A" (return $ sort $ varSort 0) $
-                                                (El (varSort 1) <$> var 0) -->
-                                                (El (varSort 1) <$> var 0) -->
+                                                (El (varSort 1) <$> varM 0) -->
+                                                (El (varSort 1) <$> varM 0) -->
                                                 return (sort $ varSort 1))
                                                [builtinRefl])
   , (builtinHiding             |-> BuiltinData tset [builtinHidden, builtinInstance, builtinVisible])
   , (builtinRelevance          |-> BuiltinData tset [builtinRelevant, builtinIrrelevant])
   , (builtinRefl               |-> BuiltinDataCons (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
-                                                    hPi "x" (El (varSort 1) <$> var 0) $
-                                                    El (varSort 2) <$> primEquality <#> var 2 <#> var 1 <@> var 0 <@> var 0))
+                                                    hPi "x" (El (varSort 1) <$> varM 0) $
+                                                    El (varSort 2) <$> primEquality <#> varM 2 <#> varM 1 <@> varM 0 <@> varM 0))
   , (builtinNil                |-> BuiltinDataCons (hPi "A" tset (el (list v0))))
   , (builtinCons               |-> BuiltinDataCons (hPi "A" tset (tv0 --> el (list v0) --> el (list v0))))
   , (builtinZero               |-> BuiltinDataCons tnat)
@@ -94,7 +94,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   -- postulate .irrelevant : {a : Level}{A : Set a} -> .A -> A
   , (builtinIrrAxiom           |-> BuiltinPostulate Irrelevant
                                      (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
-                                      (El (varSort 1) <$> var 0) .--> (El (varSort 1) <$> var 0)))
+                                      (El (varSort 1) <$> varM 0) .--> (El (varSort 1) <$> varM 0)))
   , (builtinAgdaSortSet        |-> BuiltinDataCons (tterm --> tsort))
   , (builtinAgdaSortLit        |-> BuiltinDataCons (tnat --> tsort))
   , (builtinAgdaSortUnsupported|-> BuiltinDataCons tsort)
@@ -127,8 +127,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   where
         (|->) = (,)
 
-        v0 = var 0
-        v1 = var 1
+        v0 = varM 0
+        v1 = varM 1
 
         tv0,tv1 :: TCM Type
         tv0 = el v0
@@ -155,8 +155,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
 
         verifyPlus plus =
             verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-                let m = Var 0 []
-                    n = Var 1 []
+                let m = var 0
+                    n = var 1
                     x + y = plus @@ x @@ y
 
                 -- We allow recursion on any argument
@@ -169,8 +169,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
 
         verifyMinus minus =
             verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-                let m = Var 0 []
-                    n = Var 1 []
+                let m = var 0
+                    n = var 1
                     x - y = minus @@ x @@ y
 
                 -- We allow recursion on any argument
@@ -182,8 +182,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         verifyTimes times = do
             plus <- primNatPlus
             verify ["n","m"] $ \(@@) zero suc (==) choice -> do
-                let m = Var 0 []
-                    n = Var 1 []
+                let m = var 0
+                    n = var 1
                     x + y = plus  @@ x @@ y
                     x * y = times @@ x @@ y
 
@@ -201,10 +201,10 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         verifyDivSucAux dsAux =
             verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
                 let aux k m n j = dsAux @@ k @@ m @@ n @@ j
-                    k           = Var 0 []
-                    m           = Var 1 []
-                    n           = Var 2 []
-                    j           = Var 3 []
+                    k           = var 0
+                    m           = var 1
+                    n           = var 2
+                    j           = var 3
 
                 aux k m zero    j       == k
                 aux k m (suc n) zero    == aux (suc k) m n m
@@ -213,10 +213,10 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
         verifyModSucAux dsAux =
             verify ["k","m","n","j"] $ \(@@) zero suc (==) choice -> do
                 let aux k m n j = dsAux @@ k @@ m @@ n @@ j
-                    k           = Var 0 []
-                    m           = Var 1 []
-                    n           = Var 2 []
-                    j           = Var 3 []
+                    k           = var 0
+                    m           = var 1
+                    n           = var 2
+                    j           = var 3
 
                 aux k m zero    j       == k
                 aux k m (suc n) zero    == aux zero m n m
@@ -227,8 +227,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
             true  <- primTrue
             false <- primFalse
             let x == y = eq @@ x @@ y
-                m      = Var 0 []
-                n      = Var 1 []
+                m      = var 0
+                n      = var 1
             (zero  == zero ) === true
             (suc n == suc m) === (n == m)
             (suc n == zero ) === false
@@ -239,8 +239,8 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
             true  <- primTrue
             false <- primFalse
             let x < y = leq @@ x @@ y
-                m     = Var 0 []
-                n     = Var 1 []
+                m     = var 0
+                n     = var 1
             (n     < zero)  === false
             (suc n < suc m) === (n < m)
             (zero  < suc m) === true

@@ -43,12 +43,12 @@ findInjection defs = do
     injFuns <- solve newNames (catMaybes funs)
     defs' <- forM defs $ \(q, def) -> case q `isIn` injFuns of
         Nothing -> return (q, def)
-        Just inj@(InjectiveFun var arity) -> case theDef def of
+        Just inj@(InjectiveFun nvar arity) -> case theDef def of
             f@(Function{})   -> do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
                 let ns = replicate (fromIntegral arity) (Arg NotHidden Relevant "")
-                return $ (,) q $ def {theDef = f { funCompiled = Done ns
-                                                                      (Var (arity - var - 1) []) } }
+                return $ (,) q $ def { theDef = f { funCompiled = Done ns $
+                                                      var $ arity - nvar - 1 } }
             _                -> __IMPOSSIBLE__
 
     lift $ reportSLn "epic.injection" 10 $ "injfuns: " ++ show injFuns
@@ -104,7 +104,7 @@ isNoBody b = case b of
 
 patternToTerm :: Nat -> Pattern -> Term
 patternToTerm n p = case p of
-    VarP v          -> Var n []
+    VarP v          -> var n
     DotP t          -> t
     ConP c typ args -> Con c $ zipWith (\ arg t -> arg {unArg = t}) args
                              $ snd
@@ -121,7 +121,7 @@ nrBinds p = case p of
     LitP l          -> 0
 
 substForDot :: [Arg Pattern] -> Substitution
-substForDot ps = map (flip Var []) (makeSubst 0 0 $ reverse $ calcDots ps)
+substForDot = map var . makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = [i + accum ..]
     makeSubst i accum (True  : ps) = makeSubst i (accum +1) ps
@@ -176,8 +176,7 @@ litCon (LitInt _ _) = True
 litCon _          = False
 
 insertAt :: (Nat,Term) -> Term -> Term
-insertAt (index, ins) = substs [if i == index then ins else Var i [] | i <- [0 .. ]]
-
+insertAt (index, ins) = substs [if i == index then ins else var i | i <- [0 .. ]]
 
 solve :: [QName] -> [((QName, InjectiveFun), [(QName,QName)])] -> Compile TCM [(QName, InjectiveFun)]
 solve newNames xs = do

@@ -287,7 +287,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   let n    = size ctx
                       m    = size delta
                       -- All the context variables
-                      us   = [ Arg h r (Var i []) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
+                      us   = [ Arg h r (var i) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
                       -- First the variables bound outside this definition
                       (us0, us1') = genericSplitAt (n - m) us
                       -- Then permute the rest and grab those needed to for the with arguments
@@ -648,7 +648,7 @@ checkLHS ps t ret = do
         computeSubst old new = map ix old
             where
                 ix x = case findIndex (==x) new of
-                        Just i  -> Var i []
+                        Just i  -> var i
                         Nothing -> __IMPOSSIBLE__
 
         -- Take a flat (but valid) context and turn it into a proper context.
@@ -658,7 +658,7 @@ checkLHS ps t ret = do
                 mkCtx []          = []
                 mkCtx ctx0@(Arg h (x,t) : ctx) = Arg h (x, substs sub t) : mkCtx ctx
                     where
-                        sub = map err ctx0 ++ [ Var i [] | i <- [0..] ]
+                        sub = map err ctx0 ++ [ var i | i <- [0..] ]
 
                         err (Arg _ (y,_)) = error $ show y ++ " occurs in the type of " ++ show x
 

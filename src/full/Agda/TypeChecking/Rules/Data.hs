@@ -6,6 +6,8 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.Trans
 
+import Data.List (genericTake)
+
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Common
@@ -29,6 +31,7 @@ import Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Interaction.Options
 
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -253,7 +256,7 @@ fitsIn t s = do
       let s' = getSort a
       s' `leqSort` s
       x <- freshName_ (argName t)
-      let v  = Arg h r $ Var 0 []
+      let v  = Arg h r $ var 0
           t' = piApply (raise 1 t) [v]
       addCtx x arg $ fitsIn t' (raise 1 s)
     _		     -> return ()
@@ -283,14 +286,16 @@ constructs nofPars t q = constrT 0 t
 
 	checkParams n vs = zipWithM_ sameVar vs ps
 	    where
-		ps = reverse [ i | (i,_) <- zip [n..] vs ]
+--		ps = reverse [ i | (i,_) <- zip [n..] vs ]
+                nvs = size vs
+		ps = genericTake nvs $ downFrom (n + nvs)
 
 		sameVar arg i
                   -- skip irrelevant parameters
                   | argRelevance arg == Irrelevant = return ()
 		  | otherwise = do
 		    t <- typeOfBV i
-		    equalTerm t (unArg arg) (Var i [])
+		    equalTerm t (unArg arg) (var i)
 
 -- | Force a type to be a specific datatype.
 forceData :: QName -> Type -> TCM Type

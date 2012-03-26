@@ -218,7 +218,9 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   unimplemented = typeError $ NotImplemented s
 
   lam x t = Lam Hidden (Abs x t)
+{- UNUSED
   var x   = Arg Hidden Relevant (Var x [])
+-}
 
 ----------------------
 

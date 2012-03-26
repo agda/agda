@@ -264,10 +264,10 @@ primTrustMe = do
   when (optSafe clo) (typeError SafeFlagPrimTrustMe)
   t    <- hPi "a" (el primLevel) $
           hPi "A" (return $ sort $ varSort 0) $
-          hPi "x" (El (varSort 1) <$> var 0) $
-          hPi "y" (El (varSort 2) <$> var 1) $
+          hPi "x" (El (varSort 1) <$> varM 0) $
+          hPi "y" (El (varSort 2) <$> varM 1) $
           El (varSort 3) <$>
-            primEquality <#> var 3 <#> var 2 <@> var 1 <@> var 0
+            primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
   Con rf [] <- primRefl
   n         <- conPars . theDef <$> getConstInfo rf
   let refl x | n == 2    = Con rf [Arg Hidden Forced x]
@@ -444,8 +444,8 @@ hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
 hPi = gpi Hidden Relevant
 nPi = gpi NotHidden Relevant
 
-var :: Integer -> TCM Term
-var n = return $ Var n []
+varM :: Integer -> TCM Term
+varM = return . var
 
 infixl 9 <@>, <#>
 

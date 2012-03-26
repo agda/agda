@@ -22,6 +22,11 @@ mhead :: [a] -> Maybe a
 mhead []    = Nothing
 mhead (x:_) = Just x
 
+-- | downFrom n = [n-1,..1,0]
+downFrom :: Integral a => a -> [a]
+downFrom n | n <= 0     = []
+           | otherwise = let n' = n-1 in n' : downFrom n'
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True

@@ -613,11 +613,6 @@ assign x args v = do
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 -}
 
--- | downFrom n = [n-1,..1,0]
-downFrom :: Nat -> [Nat]
-downFrom n | n <= 0     = []
-           | otherwise = let n' = n-1 in n' : downFrom n'
-
 type FVs = Set.VarSet
 
 -- | Check that arguments to a metavar are in pattern fragment.
@@ -628,16 +623,20 @@ type FVs = Set.VarSet
 --   Linearity has to be checked separately.
 --
 checkAllVars :: Args -> TCM [(Nat,Term)]
-checkAllVars args =
+checkAllVars args = maybe failure (return . map (\ (i, t) -> (unArg i, t))) $
+  allVarOrIrrelevant (zip args terms)
+{-
   case allVarOrIrrelevant args of
-    Nothing -> do
+    Nothing -> failure
+    Just is | length is /= length args -> __IMPOSSIBLE__
+            | otherwise -> return $ zipWith (\ i t -> (unArg i, t)) (reverse is) terms
+-}
+  where
+    terms = map var (downFrom (size args))
+    failure = do
       reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
                                             , text "  aborting assignment" ]
       patternViolation
-    Just is | length is /= length args -> __IMPOSSIBLE__
-            | otherwise -> return $ zipWith (\ i t -> (unArg i, t)) (reverse is) terms
-  where terms = map (\ x -> Var x []) (downFrom (size args))
-
 {-
 checkAllVars :: Args -> TCM [Nat]
 checkAllVars args =
@@ -652,7 +651,23 @@ checkAllVars args =
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.
 --   (Because foldM is a fold-left)
-allVarOrIrrelevant :: Args -> Maybe [Arg Nat]
+allVarOrIrrelevant :: [(Arg Term, Term)] -> Maybe [(Arg Nat, Term)]
+allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
+  isVarOrIrrelevant vars (arg, t) =
+    case arg of
+      Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
+      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
+      -- Andreas, 2011-04-27 keep irrelevant variables
+      Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
+      _                  -> Nothing
+  -- in case of non-linearity make sure not to count the irrelevant vars
+  addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
+    where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
+             | otherwise                             =  i
+  removeIrr i = map (\ a@(Arg h r j, t) ->
+    if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
+{-
+allVarOrIrrelevant :: [Arg Term] -> Maybe [Arg Nat]
 allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars arg =
     case arg of
@@ -667,7 +682,7 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
     | otherwise                          = Arg h Irrelevant i    : vars
   removeIrr i = map (\ a@(Arg h r j) ->
     if r == Irrelevant && i == j then Arg h Irrelevant (-1) else a)
-
+-}
 
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do

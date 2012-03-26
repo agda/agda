@@ -121,7 +121,7 @@ instantiateTel s tel = liftTCM $ do
     mkSubst :: [Maybe Term] -> [Term]
     mkSubst s = rho 0 s'
       where s'  = s ++ repeat Nothing
-	    rho i (Nothing : s) = Var i [] : rho (i + 1) s
+	    rho i (Nothing : s) = var i : rho (i + 1) s
 	    rho i (Just u  : s) = u : rho i s
 	    rho _ []		= __IMPOSSIBLE__
 

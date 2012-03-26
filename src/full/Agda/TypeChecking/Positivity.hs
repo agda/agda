@@ -23,6 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Impossible
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.SemiRing
 import qualified Agda.Utils.Graph as Graph
@@ -338,13 +339,15 @@ computeOccurrences q = do
             a <- defType <$> getConstInfo c
             TelV tel _ <- telView' <$> normalise a
             let tel' = telFromList $ genericDrop np $ telToList tel
-                vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
+                vars = map (Just . AnArg) $ downFrom np
+--                vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
             return $ occursAs (ConArgType c) $ occurrences vars tel'
       concatOccurs <$> mapM conOcc cs
     Record{recClause = Just c} -> occurrences [] <$> instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
-          vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
+          vars = map (Just . AnArg) $ downFrom np
+          -- vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
       occurrences vars <$> instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
@@ -368,7 +371,8 @@ etaExpandClause n c@Clause{ clausePats = ps, clauseBody = b }
     bind 0 = id
     bind n = Bind . Abs "_" . bind (n - 1)
 
-    vars = reverse [ defaultArg $ Var i [] | i <- [0..m - 1] ]
+    vars = map (defaultArg . var) $ downFrom m
+--    vars = reverse [ defaultArg $ var i | i <- [0..m - 1] ]
 
     liftBody m (Bind b)   = Bind $ fmap (liftBody m) b
     liftBody m NoBody     = bind m NoBody

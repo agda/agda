@@ -289,7 +289,7 @@ class Subst t where
     substUnder :: Nat -> Term -> t -> t
 
 idSub :: Telescope -> Substitution
-idSub tel = [ Var i [] | i <- [0..size tel - 1] ]
+idSub tel = map var [0 .. size tel - 1]
 
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
@@ -401,7 +401,7 @@ instance Subst a => Subst (Tele a) where
   substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
 
 instance Subst a => Subst (Abs a) where
-    substs us      (Abs   x t) = Abs   x $ substs (Var 0 [] : raise 1 us) t
+    substs us      (Abs   x t) = Abs   x $ substs (var 0 : raise 1 us) t
     substs us      (NoAbs x t) = NoAbs x $ substs us t
     substUnder n u (Abs   x t) = Abs   x $ substUnder (n + 1) u t
     substUnder n u (NoAbs x t) = NoAbs x $ substUnder n u t

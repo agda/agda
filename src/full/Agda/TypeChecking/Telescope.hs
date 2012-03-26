@@ -13,6 +13,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 
+import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
@@ -34,13 +35,12 @@ renaming p = gamma'
     n	   = size p
     gamma  = permute (reverseP $ invertP $ reverseP p) $ map var [0..]
     gamma' = gamma ++ map var [n..]
-    var i  = Var i []
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
 renamingR :: Permutation -> [Term]
-renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
+renamingR p@(Perm n _) = permute (reverseP p) (map var' [0..]) ++ map var' [n..]
   where
-    var i  = Var (fromIntegral i) []
+    var' = var . fromIntegral
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Arg Type]
@@ -52,7 +52,8 @@ flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 reorderTel :: [Arg Type] -> Maybe Permutation
 reorderTel tel = topoSort comesBefore tel'
   where
-    tel' = reverse $ zip [0..] $ reverse tel
+    tel' = zip (downFrom $ size tel) tel
+--    tel' = reverse $ zip [0..] $ reverse tel
     (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unArg a) -- a tiny bit unsafe
 
 reorderTel_ :: [Arg Type] -> Permutation
@@ -69,7 +70,6 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
     tel' = unflattenTel xs tel
     a'   = substs rho a
     rho  = replicate (size tel + 1) __IMPOSSIBLE_TERM__ ++ map var [0..]
-      where var i = Var i []
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
@@ -81,8 +81,9 @@ teleArgNames :: Telescope -> [Arg String]
 teleArgNames = map (fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
-teleArgs tel =
-  reverse [ Arg h r (Var i []) | (i, Arg h r _) <- zip [0..] $ reverse (telToList tel) ]
+teleArgs tel = [ Arg h r (var i) | (i, Arg h r _) <- zip (downFrom $ size l) l ]
+  where l = telToList tel
+--  reverse [ Arg h r (var i) | (i, Arg h r _) <- zip [0..] $ reverse (telToList tel) ]
 
 -- | A telescope split in two.
 data SplitTel = SplitTel

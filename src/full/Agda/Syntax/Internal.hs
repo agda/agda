@@ -45,6 +45,10 @@ data Term = Var Nat Args
           | DontCare Term  -- ^ irrelevant stuff
   deriving (Typeable, Data, Show)
 
+-- | An unapplied variable.
+var :: Nat -> Term
+var i = Var i []
+
 data Type = El Sort Term
   deriving (Typeable, Data, Show)
 

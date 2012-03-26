@@ -246,7 +246,7 @@ takeEqualities = U $ do
 occursCheck :: Nat -> Term -> Type -> Unify ()
 occursCheck i u a = do
   let fv = freeVars u
-      v  = Var i []
+      v  = var i
   case occurrence i fv of
     -- Andreas, 2011-04-14
     -- a strongly rigid recursive occurrences signals unsolvability
@@ -265,7 +265,7 @@ occursCheck i u a = do
 (|->) :: Nat -> (Term, Type) -> Unify ()
 i |-> (u, a) = do
   occursCheck i u a
-  liftTCM $ reportSDoc "tc.lhs.unify" 15 $ prettyTCM (Var i []) <+> text ":=" <+> prettyTCM u
+  liftTCM $ reportSDoc "tc.lhs.unify" 15 $ prettyTCM (var i) <+> text ":=" <+> prettyTCM u
   modSub $ Map.insert i (killRange u)
   -- Apply substitution to itself (issue 552)
   rho  <- onSub id
@@ -275,7 +275,7 @@ i |-> (u, a) = do
 makeSubstitution :: Sub -> [Term]
 makeSubstitution sub = map val [0..]
   where
-    val i = maybe (Var i []) id $ Map.lookup i sub
+    val i = maybe (var i) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
 class UReduce t where
@@ -321,7 +321,6 @@ flattenSubstitution s = foldr instantiate s is
     inst :: Nat -> Term -> Term -> Term
     inst i u v = substs us v
       where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
-	    var j = Var j []
 
 data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 

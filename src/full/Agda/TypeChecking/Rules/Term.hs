@@ -507,7 +507,7 @@ checkExpr e t =
             mkArgs tel = map arg [n - 1, n - 2..0]
               where
                 n     = size tel
-                arg i = defaultArg (Var i [])
+                arg i = defaultArg (var i)
 
             metas (MetaV m _) = [m]
             metas _           = []

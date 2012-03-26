@@ -15,6 +15,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin ( primIrrAxiom )
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
@@ -93,10 +94,13 @@ checkRecDef i name con ps contel fields =
           -- make record parameters hidden and non-stricts irrelevant
 	  htel		  = map hideAndRelParams $ telToList tel
           -- record type (name applied to parameters)
+	  rect		  = El s $ Def name $ teleArgs gamma
+{-
 	  rect		  = El s $ Def name $ reverse
-			    [ Arg h r (Var i [])
+			    [ Arg h r (var i)
 			    | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
 			    ]
+-}
 	  telh' h	  = telFromList $ htel ++ [Arg h recordRelevance ("r", rect)]
 	  tel'		  = telh' NotHidden
 	  telIFS	  = telh' Instance
@@ -155,7 +159,7 @@ checkRecDef i name con ps contel fields =
                          }
 
       -- Check that the fields fit inside the sort
-      let dummy = Var 0 []  -- We're only interested in the sort here
+      let dummy = var 0  -- We're only interested in the sort here
       telePi ftel (El s dummy) `fitsIn` s
 
       {- Andreas, 2011-04-27 WRONG because field types are checked again
