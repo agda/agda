@@ -357,6 +357,7 @@ getInterface' x includeStateChanges =
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             ipatsyns <- getPatternSynImports
+            ho       <- stHighlightingOutput <$> get
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
@@ -367,7 +368,9 @@ getInterface' x includeStateChanges =
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
-                     modify $ \s -> s { stModuleToSource = mf }
+                     modify $ \s -> s { stModuleToSource     = mf
+                                      , stHighlightingOutput = ho
+                                      }
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty ipatsyns
 

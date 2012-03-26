@@ -27,6 +27,7 @@ run_test=( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 				 | cat - $*.in | ghc --interactive -v0 \
 				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'
 
+setup_Issue591   = rm -f Issue591/M.agdai
 cleanup_Issue373 = rm -rf Issue373 MAlonzo
 
 # No recorded output
