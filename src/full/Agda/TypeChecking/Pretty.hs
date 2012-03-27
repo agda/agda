@@ -73,6 +73,7 @@ instance PrettyTCM a => PrettyTCM (Closure a) where
 instance PrettyTCM a => PrettyTCM [a] where
   prettyTCM = prettyList . map prettyTCM
 
+instance PrettyTCM Nat where prettyTCM = text . show
 instance PrettyTCM Term where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Type where prettyTCM x = prettyA =<< reify x
 instance PrettyTCM Sort where prettyTCM x = prettyA =<< reify x

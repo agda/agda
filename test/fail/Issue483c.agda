@@ -1,5 +1,7 @@
-
+-- {-# OPTIONS -v tc.meta.assign:50 #-}
 module Issue483c where
+
+import Common.Level
 
 data _≡_ {A : Set}(a : A) : A → Set where
  refl : a ≡ a

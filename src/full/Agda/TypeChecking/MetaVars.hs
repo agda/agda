@@ -36,6 +36,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion -- SOURCE NECESSARY
 
 import Agda.Utils.Fresh
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
@@ -450,6 +451,7 @@ assignV x args v = ifM (not <$> asks envAssignMetas) patternViolation $ do
 -- | @assign sort? x vs v@
 assign :: MetaId -> Args -> Term -> TCM ()
 assign x args v = do
+
         mvar <- lookupMeta x  -- information associated with meta x
 
         -- Andreas, 2011-05-20 TODO!
@@ -495,18 +497,23 @@ assign x args v = do
         -- even though the lhs is not a pattern, we can prune the y from _2
         let varsL = freeVars args
         let relVL = Set.toList $ relevantVars varsL
+        -- take away top-level DontCare constructors
+        args <- return $ map (fmap stripDontCare) args
         -- Andreas, 2011-10-06 only irrelevant vars that are direct
         -- arguments to the meta, hence, can be abstracted over, may
         -- appear on the rhs.  (test/fail/Issue483b)
-        -- let irrVL = Set.toList $ irrelevantVars varsL
-        let fromIrrVar (Arg h Irrelevant (Var i [])) = [i]
-            fromIrrVar (Arg h Irrelevant (DontCare (Var i []))) = [i]
-            fromIrrVar _ = []
-        let irrVL = concat $ map fromIrrVar args
+        -- Update 2011-03-27: Also irr. vars under record constructors.
+        let fromIrrVar (Var i [])   = return [i]
+            fromIrrVar (DontCare _) = __IMPOSSIBLE__
+            fromIrrVar (Con c vs)   =
+              ifM (isNothing <$> isRecordConstructor c) (return []) $
+                concat <$> mapM (fromIrrVar . stripDontCare . unArg) vs
+            fromIrrVar _ = return []
+        irrVL <- concat <$> mapM fromIrrVar [ v | Arg h Irrelevant v <- args]
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
-                pr (DontCare v) = pr v
+                pr (DontCare v) = __IMPOSSIBLE__
                 pr _          = text ".."
             in vcat
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
@@ -532,6 +539,8 @@ assign x args v = do
 
 	-- Check that the arguments are variables
 	ids <- checkAllVars args
+        reportSDoc "tc.meta.assign" 50 $
+          text "checkAllVars returns:" <+> sep (map prettyTCM ids)
 
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
@@ -613,6 +622,13 @@ assign x args v = do
 	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
 -}
 
+instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
+  prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
+
+stripDontCare :: Term -> Term
+stripDontCare (DontCare v) = v
+stripDontCare v            = v
+
 type FVs = Set.VarSet
 
 -- | Check that arguments to a metavar are in pattern fragment.
@@ -636,26 +652,33 @@ checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
 
     isVarOrIrrelevant vars (arg, t) =
       case arg of
-        Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
+        Arg h r (Var i []) -> return $ (Arg h r i, t) `cons` vars
 
         Arg h r (Con c vs) -> do
           isRC <- isRecordConstructor c
           case isRC of
             Just (Record{ recFields = fs }) -> do
                 let aux (Arg _ _ v) (Arg h' r' f) =
-                      (Arg (min h h') (max r r') v, Def f [defaultArg t])
+                      (Arg (min h h') (max r r') (stripDontCare v),
+                       Def f [defaultArg t])
                 res <- loop $ zipWith aux vs fs
-                return $ res ++ vars
+                return $ res `append` vars
             Just _ ->  __IMPOSSIBLE__
-            Nothing -> failure
+            Nothing | r == Irrelevant -> return $ (Arg h Irrelevant (-1), t) : vars
+                    | otherwise -> failure
 
-        -- TODO: irrelevant records!
-
+{-
         Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
         -- Andreas, 2011-04-27 keep irrelevant variables
+-}
 
         Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
         _                  -> failure
+
+    cons (Arg h Irrelevant i, t) vars = addIrrIfNotPresent h i t vars
+    cons a@(Arg h r        i, t) vars = a : removeIrr i vars
+
+    append res vars = foldr cons vars res
 
     -- in case of non-linearity make sure not to count the irrelevant vars
     addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
