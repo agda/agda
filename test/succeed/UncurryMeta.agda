@@ -1,8 +1,9 @@
-
 -- It would be nice if this worked. The constraint we can't solve is
 --   P x y = ? (x, y)
 -- Solution: extend the notion of Miller patterns to include record
 -- constructions.
+--
+-- Andreas, 2012-02-27 works now! (see issues 376 and 456)
 module UncurryMeta where
 
 data Unit : Set where

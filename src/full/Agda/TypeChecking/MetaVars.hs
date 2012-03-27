@@ -623,6 +623,70 @@ type FVs = Set.VarSet
 --   Linearity has to be checked separately.
 --
 checkAllVars :: Args -> TCM [(Nat,Term)]
+checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
+  loop (zip args terms)
+  where
+    loop  = foldM isVarOrIrrelevant []
+    terms = map var (downFrom (size args))
+    failure = do
+      reportSDoc "tc.meta.assign" 15 $ vcat
+        [ text "not all arguments are variables: " <+> prettyTCM args
+        , text "  aborting assignment" ]
+      patternViolation
+
+    isVarOrIrrelevant vars (arg, t) =
+      case arg of
+        Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
+
+        Arg h r (Con c vs) -> do
+          isRC <- isRecordConstructor c
+          case isRC of
+            Just (Record{ recFields = fs }) -> do
+                let aux (Arg _ _ v) (Arg h' r' f) =
+                      (Arg (min h h') (max r r') v, Def f [defaultArg t])
+                res <- loop $ zipWith aux vs fs
+                return $ res ++ vars
+            Just _ ->  __IMPOSSIBLE__
+            Nothing -> failure
+
+        -- TODO: irrelevant records!
+
+        Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
+        -- Andreas, 2011-04-27 keep irrelevant variables
+
+        Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
+        _                  -> failure
+
+    -- in case of non-linearity make sure not to count the irrelevant vars
+    addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
+      where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
+               | otherwise                             =  i
+    removeIrr i = map (\ a@(Arg h r j, t) ->
+      if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
+
+-- | filter out irrelevant args and check that all others are variables.
+--   Return the reversed list of variables.
+--   (Because foldM is a fold-left)
+allVarOrIrrelevant :: [(Arg Term, Term)] -> Maybe [(Arg Nat, Term)]
+allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
+  isVarOrIrrelevant vars (arg, t) =
+    case arg of
+      Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
+--      Arg h r (Con c vs) -> ifM (isRecordConstructor c) -- TODO: go monadic
+      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
+      -- Andreas, 2011-04-27 keep irrelevant variables
+      Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
+      _                  -> Nothing
+  -- in case of non-linearity make sure not to count the irrelevant vars
+  addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
+    where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
+             | otherwise                             =  i
+  removeIrr i = map (\ a@(Arg h r j, t) ->
+    if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
+
+
+{-
+checkAllVars :: Args -> TCM [(Nat,Term)]
 checkAllVars args = maybe failure (return . map (\ (i, t) -> (unArg i, t))) $
   allVarOrIrrelevant (zip args terms)
 {-
@@ -637,16 +701,6 @@ checkAllVars args = maybe failure (return . map (\ (i, t) -> (unArg i, t))) $
       reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
                                             , text "  aborting assignment" ]
       patternViolation
-{-
-checkAllVars :: Args -> TCM [Nat]
-checkAllVars args =
-  case allVarOrIrrelevant args of
-    Nothing -> do
-      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
-                                            , text "  aborting assignment" ]
-      patternViolation
-    Just is -> return $ map unArg is
--}
 
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.
@@ -656,6 +710,7 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars (arg, t) =
     case arg of
       Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
+--      Arg h r (Con c vs) -> ifM (isRecordConstructor c) -- TODO: go monadic
       Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
       -- Andreas, 2011-04-27 keep irrelevant variables
       Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
@@ -666,7 +721,18 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
              | otherwise                             =  i
   removeIrr i = map (\ a@(Arg h r j, t) ->
     if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
+-}
+
 {-
+checkAllVars :: Args -> TCM [Nat]
+checkAllVars args =
+  case allVarOrIrrelevant args of
+    Nothing -> do
+      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
+                                            , text "  aborting assignment" ]
+      patternViolation
+    Just is -> return $ map unArg is
+
 allVarOrIrrelevant :: [Arg Term] -> Maybe [Arg Nat]
 allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
   isVarOrIrrelevant vars arg =

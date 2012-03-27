@@ -22,6 +22,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -94,12 +95,13 @@ getRecordConstructor :: QName -> TCM QName
 getRecordConstructor r = killRange <$> recCon <$> getRecordDef r
 
 -- | Check if a name refers to a record.
-isRecord :: QName -> TCM Bool
+--   If yes, return record definition.
+isRecord :: QName -> TCM (Maybe Defn)
 isRecord r = do
   def <- theDef <$> getConstInfo r
   return $ case def of
-    Record{} -> True
-    _        -> False
+    Record{} -> Just def
+    _        -> Nothing
 
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
@@ -115,12 +117,13 @@ isEtaRecordType (El _ (Def d ps)) = ifM (isEtaRecord d) (return $ Just (d, ps)) 
 isEtaRecordType _ = return Nothing
 
 -- | Check if a name refers to a record constructor.
-isRecordConstructor :: QName -> TCM Bool
+--   If yes, return record definition.
+isRecordConstructor :: QName -> TCM (Maybe Defn)
 isRecordConstructor c = do
   def <- theDef <$> getConstInfo c
   case def of
     Constructor{ conData = r } -> isRecord r
-    _                          -> return False
+    _                          -> return Nothing
 
 -- | Check if a constructor name is the internally generated record constructor.
 isGeneratedRecordConstructor :: QName -> TCM Bool
@@ -227,7 +230,7 @@ isSingletonRecord' regardIrrelevance r ps =
       Blocked m _            -> return (Left m)
       NotBlocked (MetaV m _) -> return (Left m)
       NotBlocked (Def r ps)  ->
-        ifM (not <$> isRecord r) (return $ Right False) $ do
+        ifM (isNothing <$> isRecord r) (return $ Right False) $ do
           isRec <- isSingletonRecord' regardIrrelevance r ps
           case isRec of
             Left _      -> return isRec

@@ -506,7 +506,7 @@ checkLeftHandSide c ps a ret' = do
             -- all variables which will be bound by patterns.
             -- Thus, it has to be raised by 1 (the "hole" variable)
             -- plus the length of delta2 (the variables coming after the hole).
-            storedPatternType <- ifM (isRecord d)
+            storedPatternType <- ifM (isJust <$> isRecord d)
               (return $ Just $ raise (1 + size delta2) $ typeOfSplitVar)
               (return $ Nothing)
 

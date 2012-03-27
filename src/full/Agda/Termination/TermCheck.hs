@@ -651,12 +651,12 @@ addGuardedness g nrows ncols m =
 --   contrast to a data constructor.
 decreaseFromConstructor :: QName -> TCM Order
 decreaseFromConstructor c = do
-  isRC <- isRecordConstructor c
+  isRC <- Maybe.isJust <$> isRecordConstructor c
   return $ if isRC then Term.le else Term.lt
 
 increaseFromConstructor :: (?cutoff :: Int) => QName -> TCM Order
 increaseFromConstructor c = do
-  isRC <- isRecordConstructor c
+  isRC <- Maybe.isJust <$> isRecordConstructor c
   return $ if isRC then Term.le else Term.decr (-1)
 
 {-
