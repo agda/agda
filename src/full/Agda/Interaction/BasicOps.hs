@@ -237,7 +237,7 @@ instance Reify Constraint (OutputConstraint Expr Expr) where
       t' <- reify t
       cands' <- mapM (\(tm,ty) -> (,) <$> reify tm <*> reify ty) cands
       return $ FindInScopeOF m' t' cands' -- IFSTODO
-    reify (IsEmpty a) = IsEmptyType <$> reify a
+    reify (IsEmpty r a) = IsEmptyType <$> reify a
 
 showComparison :: Comparison -> String
 showComparison CmpEq  = " = "

@@ -183,7 +183,7 @@ instance PrettyTCM Constraint where
                 , sep $ flip map cands $ \(t,ty) ->
                            prettyTCM t <+> text ": " <+> prettyTCM ty
                 ]
-        IsEmpty t ->
+        IsEmpty r t ->
             sep [ text "Is empty:", nest 2 $ prettyTCM t ]
 
 instance PrettyTCM Literal where

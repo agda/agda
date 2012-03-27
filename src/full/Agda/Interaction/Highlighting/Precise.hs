@@ -78,6 +78,8 @@ data OtherAspect
   = Error
   | DottedPattern
   | UnsolvedMeta
+  | UnsolvedConstraint
+    -- ^ unsolved constraint not connected to a meta variable, e.g. emptyness
   | TerminationProblem
   | IncompletePattern
     -- ^ When this constructor is used it is probably a good idea to

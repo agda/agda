@@ -281,7 +281,8 @@ data Constraint
 --    -- ^ A delayed instantiation.  Replaces @ValueCmp@ in 'postponeTypeCheckingProblem'.
   | UnBlock MetaId
   | Guarded Constraint ProblemId
-  | IsEmpty Type
+  | IsEmpty Range Type
+    -- ^ the range is the one of the absurd pattern
   | FindInScope MetaId [(Term, Type)]
   deriving (Typeable, Show)
 
@@ -709,7 +710,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | CheckFunDef Range Name [A.Clause] (Maybe ())
 	  | CheckPragma Range A.Pragma (Maybe ())
 	  | CheckPrimitive Range Name A.Expr (Maybe ())
-          | CheckIsEmpty Type (Maybe ())
+          | CheckIsEmpty Range Type (Maybe ())
           | CheckWithFunctionType A.Expr (Maybe ())
           | CheckSectionApplication Range ModuleName A.ModuleApplication (Maybe ())
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
@@ -754,7 +755,7 @@ instance HasRange Call where
     getRange (TermFunDef i _ _ _)                  = getRange i
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _)     = r
-    getRange (CheckIsEmpty _ _)                    = noRange
+    getRange (CheckIsEmpty r _ _)                  = r
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

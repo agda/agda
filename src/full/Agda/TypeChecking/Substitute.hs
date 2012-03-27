@@ -524,7 +524,7 @@ instance Raise Constraint where
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
-    IsEmpty a                -> IsEmpty (rf a)
+    IsEmpty r a              -> IsEmpty r (rf a)
     FindInScope m cands      -> FindInScope m (map rf cands)
     UnBlock{}                -> c
     where
@@ -537,7 +537,7 @@ instance Raise Constraint where
     SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
     LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
     Guarded c cs             -> Guarded (rf c) cs
-    IsEmpty a                -> IsEmpty (rf a)
+    IsEmpty r a              -> IsEmpty r (rf a)
     FindInScope m cands      -> FindInScope m (rf cands)
     UnBlock{}                -> c
     where

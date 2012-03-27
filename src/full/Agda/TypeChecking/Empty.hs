@@ -5,6 +5,7 @@ import Control.Applicative
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Coverage
@@ -15,15 +16,18 @@ import Agda.TypeChecking.Substitute
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
+{- UNUSED
 -- | Make sure that a type is empty.
-isReallyEmptyType :: Type -> TCM ()
-isReallyEmptyType t = noConstraints $ isEmptyType t
+isReallyEmptyType :: Range -> Type -> TCM ()
+isReallyEmptyType r t = noConstraints $ isEmptyType r t
+-}
 
-isEmptyType :: Type -> TCM ()
-isEmptyType t = do
+-- | Check whether a type is empty.  Maybe postponed as emptyness constraint.
+isEmptyType :: Range -> Type -> TCM ()
+isEmptyType r t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
-      postpone = addConstraint (IsEmpty t)
+      postpone = addConstraint (IsEmpty r t)
   case unEl <$> tb of
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
     NotBlocked MetaV{} -> postpone

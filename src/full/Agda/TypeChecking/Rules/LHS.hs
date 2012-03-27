@@ -238,9 +238,9 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.VarP x      -> addCtx x a $ bindLHSVars ps (absBody tel) ret
     A.WildP _     -> bindDummy (absName tel)
     A.ImplicitP _ -> bindDummy (absName tel)
-    A.AbsurdP _   -> do
+    A.AbsurdP pi  -> do
       -- Andreas, 2012-03-15: allow postponement of emptyness check
-      isEmptyType $ unArg a
+      isEmptyType (getRange pi) $ unArg a
       -- OLD CODE: isReallyEmptyType $ unArg a
       bindDummy (absName tel)
     _             -> __IMPOSSIBLE__

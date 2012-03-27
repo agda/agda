@@ -173,7 +173,7 @@ solveConstraint_ (LevelCmp cmp a b)         = compareLevel cmp a b
 solveConstraint_ c0@(Guarded c pid)         = do
   ifM (isProblemSolved pid) (solveConstraint_ c)
                             (addConstraint c0)
-solveConstraint_ (IsEmpty t)                = isEmptyType t
+solveConstraint_ (IsEmpty r t)              = isEmptyType r t
 solveConstraint_ (UnBlock m)                =
   ifM (isFrozen m) (addConstraint $ UnBlock m) $ do
     inst <- mvInstantiation <$> lookupMeta m

@@ -151,7 +151,7 @@ instance Instantiate Constraint where
   instantiate (Guarded c pid)      = Guarded <$> instantiate c <*> pure pid
   instantiate (UnBlock m)          = return $ UnBlock m
   instantiate (FindInScope m args) = FindInScope m <$> mapM instantiate args
-  instantiate (IsEmpty t)          = IsEmpty <$> instantiate t
+  instantiate (IsEmpty r t)        = IsEmpty r <$> instantiate t
 
 instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
@@ -409,7 +409,7 @@ instance Reduce Constraint where
   reduce (Guarded c pid)       = Guarded <$> reduce c <*> pure pid
   reduce (UnBlock m)           = return $ UnBlock m
   reduce (FindInScope m cands) = FindInScope m <$> mapM reduce cands
-  reduce (IsEmpty t)           = IsEmpty <$> reduce t
+  reduce (IsEmpty r t)         = IsEmpty r <$> reduce t
 
 instance (Ord k, Reduce e) => Reduce (Map k e) where
     reduce = traverse reduce
@@ -516,7 +516,7 @@ instance Normalise Constraint where
   normalise (Guarded c pid)       = Guarded <$> normalise c <*> pure pid
   normalise (UnBlock m)           = return $ UnBlock m
   normalise (FindInScope m cands) = FindInScope m <$> mapM normalise cands
-  normalise (IsEmpty t)           = IsEmpty <$> normalise t
+  normalise (IsEmpty r t)         = IsEmpty r <$> normalise t
 
 instance Normalise Pattern where
   normalise p = case p of
@@ -648,7 +648,7 @@ instance InstantiateFull Constraint where
     Guarded c pid       -> Guarded <$> instantiateFull c <*> pure pid
     UnBlock m           -> return $ UnBlock m
     FindInScope m cands -> FindInScope m <$> mapM instantiateFull cands
-    IsEmpty t           -> IsEmpty <$> instantiateFull t
+    IsEmpty r t         -> IsEmpty r <$> instantiateFull t
 
 instance InstantiateFull Elim where
   instantiateFull (Apply v) = Apply <$> instantiateFull v

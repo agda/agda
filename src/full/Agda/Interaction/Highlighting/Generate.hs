@@ -163,6 +163,9 @@ generateSyntaxInfo file mErr top termErrs = do
     metaInfo <- case mErr of
       Nothing -> computeUnsolvedMetaWarnings
       Just _  -> return mempty
+    constraintInfo <- case mErr of
+      Nothing -> computeUnsolvedConstraints
+      Just _  -> return mempty
     errorInfo <- case mErr of
       Nothing -> return mempty
       Just e  -> let r = P.getRange e in
@@ -182,6 +185,7 @@ generateSyntaxInfo file mErr top termErrs = do
       , theRest modMap
       , nameInfo
       , metaInfo
+      , constraintInfo
       , termInfo
       , tokInfo tokens
       ]
@@ -485,6 +489,21 @@ computeUnsolvedMetaWarnings = do
   rs <- mapM getMetaRange (ms \\ is)
   return $ several (concatMap (rToR . P.continuousPerLine) rs)
          $ mempty { otherAspects = [UnsolvedMeta] }
+
+-- | Generates syntax highlighting information for unsolved constraints
+-- that are not connected to a meta variable.
+
+computeUnsolvedConstraints :: TCM File
+computeUnsolvedConstraints = do
+  cs <- getAllConstraints
+  -- get ranges of emptyness constraints
+  let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
+  return $ several (concatMap (rToR . P.continuousPerLine) rs)
+         $ mempty { otherAspects = [UnsolvedMeta] }
+-- Andreas, 2012-03-27
+-- TODO: make this work with the proper info 'UnsolvedConstraints'
+-- Needs extension of emacs and vim highlighting, I guess
+--         $ mempty { otherAspects = [UnsolvedConstraint] }
 
 -- | Generates a suitable file for a possibly ambiguous name.
 

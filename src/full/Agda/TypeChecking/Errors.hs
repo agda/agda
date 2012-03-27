@@ -677,7 +677,7 @@ instance PrettyTCM Call where
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
 	InferDef _ x _ ->
 	    fsep $ pwords "when inferring the type of" ++ [prettyTCM x]
-        CheckIsEmpty t _ ->
+        CheckIsEmpty r t _ ->
             fsep $ pwords "when checking that" ++ [prettyTCM t] ++ pwords "has no constructors"
 	ScopeCheckExpr e _ ->
 	    fsep $ pwords "when scope checking" ++ [pretty e]

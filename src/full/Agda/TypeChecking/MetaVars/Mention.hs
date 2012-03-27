@@ -96,7 +96,7 @@ instance MentionsMeta Constraint where
                                   -- problem and we don't have a handle on
                                   -- what metas it depends on
     FindInScope{}       -> True   -- this needs to be woken up for any meta
-    IsEmpty t           -> mm t
+    IsEmpty r t         -> mm t
     where
       mm v = mentionsMeta x v
 

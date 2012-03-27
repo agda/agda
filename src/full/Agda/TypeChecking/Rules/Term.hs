@@ -442,7 +442,7 @@ checkExpr e t =
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
                 | h == h' -> blockTerm t' $ do
-                  isEmptyType a
+                  isEmptyType (getRange i) a
                   -- Add helper function
                   top <- currentModule
                   let name = "absurd"
