@@ -38,9 +38,7 @@ renaming p = gamma'
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
 renamingR :: Permutation -> [Term]
-renamingR p@(Perm n _) = permute (reverseP p) (map var' [0..]) ++ map var' [n..]
-  where
-    var' = var . fromIntegral
+renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Arg Type]
