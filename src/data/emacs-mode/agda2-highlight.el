@@ -101,6 +101,9 @@ Also sets the default value of VARIABLE to GROUP."
             (agda2-highlight-unsolved-meta-face
              :foreground "black"
              :background "gold")
+            (agda2-highlight-unsolved-constraint-face
+             :foreground "black"
+             :background "gold")
             (agda2-highlight-termination-problem-face
              :foreground "black"
              :background "red")
@@ -293,6 +296,12 @@ buffers until you have restarted Emacs."
   "The face used for unsolved meta variables."
   :group 'agda2-highlight)
 
+(defface agda2-highlight-unsolved-constraint-face
+  '((t (:background "yellow"
+        :foreground "black")))
+  "The face used for unsolved constraints which are not connected to metas."
+  :group 'agda2-highlight)
+
 (defface agda2-highlight-termination-problem-face
   '((t (:background "light salmon"
         :foreground "black")))
@@ -339,6 +348,7 @@ But not yet properly highlighted."
     (operator               . agda2-highlight-operator-face)
     (error                  . agda2-highlight-error-face)
     (unsolvedmeta           . agda2-highlight-unsolved-meta-face)
+    (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
     (typechecks             . agda2-highlight-typechecks-face)
@@ -370,6 +380,8 @@ The aspects currently recognised are the following:
 `typechecks'             Code which is being type-checked.
 `typechecked'            Code which has been type-checked but not yet
                            properly highlighted.
+`unsolvedconstraint'     Unsolved constraints, not connected to meta
+                           variables.
 `unsolvedmeta'           Unsolved meta variables.
 
 The following aspect is ignored:

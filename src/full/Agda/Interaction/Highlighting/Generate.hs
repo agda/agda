@@ -499,11 +499,7 @@ computeUnsolvedConstraints = do
   -- get ranges of emptyness constraints
   let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
   return $ several (concatMap (rToR . P.continuousPerLine) rs)
-         $ mempty { otherAspects = [UnsolvedMeta] }
--- Andreas, 2012-03-27
--- TODO: make this work with the proper info 'UnsolvedConstraints'
--- Needs extension of emacs and vim highlighting, I guess
---         $ mempty { otherAspects = [UnsolvedConstraint] }
+         $ mempty { otherAspects = [UnsolvedConstraint] }
 
 -- | Generates a suitable file for a possibly ambiguous name.
 
