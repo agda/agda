@@ -9,7 +9,7 @@ module Incremental where
 
 import Control.Applicative
 import qualified Parser as Parser
-import qualified Text.ParserCombinators.Incremental as Inc
+import qualified Text.ParserCombinators.Incremental.Symmetric as Inc
 
 newtype Parser k r' tok r = I { unI :: Inc.Parser [tok] r }
   deriving (Functor, Applicative, Alternative)

@@ -34,11 +34,11 @@ import qualified AmbTrie
 import qualified AmbExTrie
 import qualified AmbExTrie2
 import qualified ContTrans
-import qualified Incremental
 import qualified StackContTrans
 import qualified SlowParser
 import qualified Standard
 import qualified Memoised
+import qualified Incremental
 import Control.Monad.Identity
 import Control.Monad.State hiding (lift)
 import Parser (Parser)
