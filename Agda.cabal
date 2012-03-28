@@ -72,7 +72,7 @@ library
     build-depends:  epic >= 0.1.13 && < 0.10
   build-depends:    mtl == 2.0.*,
                     QuickCheck >= 2.3 && < 2.5,
-                    haskell-src-exts >= 1.9.6 && < 1.12,
+                    haskell-src-exts >= 1.9.6 && < 1.14,
                     containers >= 0.1 && < 0.5,
                     pretty >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2,

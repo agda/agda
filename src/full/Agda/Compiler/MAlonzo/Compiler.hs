@@ -462,8 +462,13 @@ rteModule = ok $ parse $ unlines
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
   ]
   where
+#if MIN_VERSION_haskell_src_exts(1,12,0)
+    parse = HS.parseWithMode
+              HS.defaultParseMode{HS.extensions = [HS.ExplicitForAll]}
+#else
     parse = HS.parseWithMode
               HS.defaultParseMode{HS.extensions = [HS.ExplicitForall]}
+#endif
 
     ok (HS.ParseOk d)   = d
     ok HS.ParseFailed{} = __IMPOSSIBLE__
