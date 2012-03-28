@@ -13,4 +13,4 @@ executable mixfix-benchmarks
                     fgl == 5.4.*,
                     containers == 0.4.*,
                     ghc-prim == 0.2.*,
-                    incremental-parser == 0.2.*,
+                    incremental-parser == 0.2.*
