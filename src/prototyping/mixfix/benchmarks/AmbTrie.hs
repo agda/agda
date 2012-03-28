@@ -46,6 +46,5 @@ parse (xs :&: f) (c : s) = case Map.lookup c f of
   Nothing -> []
   Just f' -> parse f' s
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (Parser k r' tok) k r' tok where
+instance Ord tok => Parser.Parser (Parser k r' tok) k r' tok where
   sym c = [] :&: Map.singleton c (return c)

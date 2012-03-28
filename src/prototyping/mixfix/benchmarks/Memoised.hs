@@ -61,8 +61,7 @@ parse p xs =
   flip evalState Map.empty $
   unP p (zip [1 ..] xs)
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (Parser k r' tok) k r' tok where
+instance Parser.Parser (Parser k r' tok) k r' tok where
   sym c = P $ \input -> return $
     case input of
       (_, c') : cs | c == c' -> return (c', cs)

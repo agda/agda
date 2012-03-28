@@ -26,8 +26,7 @@ instance A.Alternative (ReadP k r' tok) where
 parse :: ReadP k r' tok r -> [ tok ] -> [ r ]
 parse = ReadP.parse . unR
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (ReadP k r' tok) k r' tok where
+instance Parser.Parser (ReadP k r' tok) k r' tok where
   sym                  = R . ReadP.char
 
   choice               = R . ReadP.choice . map unR

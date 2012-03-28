@@ -27,8 +27,7 @@ parse :: Parser k r' tok r -> [ tok ] -> [ r ]
 parse p xs =
   map fst . filter (null . snd) . flip runStateT xs . unP $ p
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (Parser k r' tok) k r' tok where
+instance Parser.Parser (Parser k r' tok) k r' tok where
   sym c = P $ do
     cs <- get
     case cs of

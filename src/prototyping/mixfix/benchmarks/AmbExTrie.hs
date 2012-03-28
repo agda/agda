@@ -60,6 +60,5 @@ parse p s = parse' p s id
     Just p' -> parse' p' s k
   parse' (FMap f p) xs      k = parse' p xs (k . f)
 
-instance (Ord k, Ord tok) =>
-         Parser.Parser (Parser k r' tok) k r' tok where
+instance Ord tok => Parser.Parser (Parser k r' tok) k r' tok where
   sym c = [] :&: Map.singleton c (return c)

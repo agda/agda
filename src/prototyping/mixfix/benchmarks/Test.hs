@@ -53,12 +53,11 @@ import qualified Data.List as List
 data P k r' tok = forall p. Parser p k r' tok =>
                   P (forall r. p r -> [tok] -> [r])
 
-parse :: (Ord k, Ord tok) =>
-         P k r' tok -> (forall p. Parser p k r' tok => p r) ->
+parse :: P k r' tok -> (forall p. Parser p k r' tok => p r) ->
          [tok] -> [r]
 parse (P p) g = p g
 
-parser :: (Ord k, Ord tok) => Integer -> P k r' tok
+parser :: Ord tok => Integer -> P k r' tok
 parser  0 = P ReadP.parse
 parser  1 = P AmbTrie.parse
 parser  2 = P AmbExTrie.parse

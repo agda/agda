@@ -9,15 +9,15 @@ module Parser where
 import Control.Applicative
 import Data.Foldable
 
-class (Alternative p, Ord k, Ord tok) => Parser p k r' tok
+class Alternative p => Parser p k r' tok
       | p -> tok, p -> k, p -> r' where
-  sym :: tok -> p tok
+  sym :: Eq tok => tok -> p tok
 
   -- | The user must annotate every memoised parser with a /unique/
   -- key. (Parameterised parsers need separate keys for separate
   -- inputs.)
 
-  memoise :: k -> p r' -> p r'
+  memoise :: (Ord k, Ord r') => k -> p r' -> p r'
   memoise _ p = p
 
   choice :: [p r] -> p r
@@ -45,7 +45,7 @@ chainl3 p op = (\x f y -> f x y) <$> chainl1 p op <*> op <*> p
 
 -- • `between` [x, y, z] ≈ x • y • z.
 
-between :: Parser p k r' tok => p a -> [tok] -> p [a]
+between :: (Parser p k r' tok, Eq tok) => p a -> [tok] -> p [a]
 p `between` []       = empty
 p `between` [x]      = [] <$ sym x
 p `between` (x : xs) = (:) <$> (sym x *> p) <*> (p `between` xs)
