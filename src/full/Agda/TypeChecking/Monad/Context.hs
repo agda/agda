@@ -21,6 +21,8 @@ import Agda.Utils.Fresh
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- * Modifying the context
+
 -- | Modify the 'ctxEntry' field of a 'ContextEntry'.
 modifyContextEntry :: (Arg (Name, Type) -> Arg (Name, Type)) -> ContextEntry -> ContextEntry
 modifyContextEntry f ce = ce { ctxEntry = f (ctxEntry ce) }
@@ -40,6 +42,30 @@ mkContextEntry x = do
   i <- fresh
   return $ Ctx i x
 
+-- | Change the context.
+{-# SPECIALIZE inContext :: [Arg (Name, Type)] -> TCM a -> TCM a #-}
+inContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
+inContext xs ret = do
+  ctx <- mapM mkContextEntry xs
+  modifyContext (const ctx) ret
+
+-- | Change to top (=empty) context.
+{-# SPECIALIZE inTopContext :: TCM a -> TCM a #-}
+inTopContext :: MonadTCM tcm => tcm a -> tcm a
+inTopContext = modifyContext $ const []
+
+-- | Delete the last @n@ bindings from the context.
+{-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
+escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
+escapeContext n = modifyContext $ drop n
+
+-- | Deprecated.
+{-# SPECIALIZE escapeContextToTopLevel :: TCM a -> TCM a #-}
+escapeContextToTopLevel :: MonadTCM tcm => tcm a -> tcm a
+escapeContextToTopLevel = modifyContext $ const []
+
+-- * Adding to the context
+
 -- | @addCtx x arg cont@ add a variable to the context.
 --
 --   Chooses an unused 'Name'.
@@ -49,7 +75,7 @@ addCtx x a ret = do
   ctx <- map (nameConcrete . fst . unArg) <$> getContext
   let x' = head $ filter (notTaken ctx) $ iterate nextName x
   ce <- mkContextEntry $ fmap ((,) x') a
-  flip local ret $ \e -> e { envContext = ce : envContext e }
+  modifyContext (ce :) ret
       -- let-bindings keep track of own their context
   where
     notTaken xs x = isNoName (nameConcrete x) || nameConcrete x `notElem` xs
@@ -60,19 +86,18 @@ addContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
 addContext ctx m =
   foldr (\arg -> addCtx (fst $ unArg arg) (fmap snd arg)) m ctx
 
+-- | add a bunch of variables with the same type to the context
+{-# SPECIALIZE addCtxs :: [Name] -> Arg Type -> TCM a -> TCM a #-}
+addCtxs :: MonadTCM tcm => [Name] -> Arg Type -> tcm a -> tcm a
+addCtxs []     _ k = k
+addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
+
 -- | Turns the string into a name and adds it to the context.
 {-# SPECIALIZE addCtxString :: String -> Arg Type -> TCM a -> TCM a #-}
 addCtxString :: MonadTCM tcm => String -> Arg Type -> tcm a -> tcm a
 addCtxString s a m = do
   x <- freshName_ s
   addCtx x a m
-
--- | Change the context
-{-# SPECIALIZE inContext :: [Arg (Name, Type)] -> TCM a -> TCM a #-}
-inContext :: MonadTCM tcm => [Arg (Name, Type)] -> tcm a -> tcm a
-inContext xs ret = do
-  ctx <- mapM mkContextEntry xs
-  flip local ret $ \e -> e { envContext = ctx }
 
 -- | Go under an abstraction.
 {-# SPECIALIZE underAbstraction :: Raise a => Arg Type -> Abs a -> (a -> TCM b) -> TCM b #-}
@@ -99,6 +124,18 @@ addCtxTel :: MonadTCM tcm => Telescope -> tcm a -> tcm a
 addCtxTel EmptyTel	    ret = ret
 addCtxTel (ExtendTel t tel) ret = underAbstraction t tel $ \tel -> addCtxTel tel ret
 
+
+-- | Add a let bound variable
+{-# SPECIALIZE addLetBinding :: Relevance -> Name -> Term -> Type -> TCM a -> TCM a #-}
+addLetBinding :: MonadTCM tcm => Relevance -> Name -> Term -> Type -> tcm a -> tcm a
+addLetBinding rel x v t0 ret = do
+    let t = Arg NotHidden rel t0
+    vt <- liftTCM $ makeOpen (v, t)
+    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
+
+
+-- * Querying the context
+
 -- | Get the current context.
 {-# SPECIALIZE getContext :: TCM [Arg (Name, Type)] #-}
 getContext :: MonadTCM tcm => tcm [Arg (Name, Type)]
@@ -109,7 +146,7 @@ getContext = asks $ map ctxEntry . envContext
 getContextArgs :: MonadTCM tcm => tcm Args
 getContextArgs = do
   ctx <- getContext
-  return $ reverse $ [ Arg h r $ Var i [] | (Arg h r _, i) <- zip ctx [0..] ]
+  return $ reverse $ [ Arg h r $ var i | (Arg h r _, i) <- zip ctx [0..] ]
 
 {-# SPECIALIZE getContextTerms :: TCM [Term] #-}
 getContextTerms :: MonadTCM tcm => tcm [Term]
@@ -122,24 +159,10 @@ getContextTelescope = foldr extTel EmptyTel . reverse <$> getContext
   where
     extTel (Arg h r (x, t)) = ExtendTel (Arg h r t) . Abs (show x)
 
--- | add a bunch of variables with the same type to the context
-{-# SPECIALIZE addCtxs :: [Name] -> Arg Type -> TCM a -> TCM a #-}
-addCtxs :: MonadTCM tcm => [Name] -> Arg Type -> tcm a -> tcm a
-addCtxs []     _ k = k
-addCtxs (x:xs) t k = addCtx x t $ addCtxs xs (raise 1 t) k
-
 -- | Check if we are in a compatible context, i.e. an extension of the given context.
 {-# SPECIALIZE getContextId :: TCM [CtxId] #-}
 getContextId :: MonadTCM tcm => tcm [CtxId]
 getContextId = asks $ map ctxId . envContext
-
--- | Add a let bound variable
-{-# SPECIALIZE addLetBinding :: Relevance -> Name -> Term -> Type -> TCM a -> TCM a #-}
-addLetBinding :: MonadTCM tcm => Relevance -> Name -> Term -> Type -> tcm a -> tcm a
-addLetBinding rel x v t0 ret = do
-    let t = Arg NotHidden rel t0
-    vt <- liftTCM $ makeOpen (v, t)
-    flip local ret $ \e -> e { envLetBindings = Map.insert x vt $ envLetBindings e }
 
 -- | get type of bound variable (i.e. deBruijn index)
 --
@@ -187,11 +210,3 @@ getVarInfo x =
 		case Map.lookup x def of
 		    Just vt -> liftTCM $ getOpen vt
 		    _	    -> fail $ "unbound variable " ++ show x
-
-{-# SPECIALIZE escapeContext :: Int -> TCM a -> TCM a #-}
-escapeContext :: MonadTCM tcm => Int -> tcm a -> tcm a
-escapeContext n = local $ \e -> e { envContext = drop n $ envContext e }
-
-{-# SPECIALIZE escapeContextToTopLevel :: TCM a -> TCM a #-}
-escapeContextToTopLevel :: MonadTCM tcm => tcm a -> tcm a
-escapeContextToTopLevel = local $ \ e -> e { envContext = [] }
