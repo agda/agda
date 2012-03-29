@@ -22,6 +22,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Free
@@ -373,12 +374,15 @@ allMetaKinds = [minBound .. maxBound]
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ show m) $ do
-  meta       <- lookupMeta m
+  meta           <- lookupMeta m
   let HasType _ a = mvJudgement meta
-  TelV tel b <- telViewM a
+  TelV tel b     <- telViewM a
+  let args        = teleArgs tel
+{-
   let args	 = [ Arg h r $ Var i []
 		   | (i, Arg h r _) <- reverse $ zip [0..] $ reverse $ telToList tel
 		   ]
+-}
   bb <- reduceB b  -- the target in the type @a@ of @m@
   case unEl <$> bb of
     -- if the target type of @m@ is a meta variable @x@ itself
@@ -392,12 +396,14 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     NotBlocked lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
-              u <- withMetaInfo' meta $ newRecordMetaCtx r ps tel args
-              inContext [] $ addCtxTel tel $ do
+              u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel args
+              inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
                   reportSLn "" 0 $ "eta expanding: " ++ show m ++ " --> " ++ show du
-                noConstraints $ assignV m args u  -- should never produce any constraints
+                -- Andreas, 2012-03-29: No need for occurrence check etc.
+                -- we directly assign the solution for the meta
+                noConstraints $ assignTerm m u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
          else if SingletonRecords `elem` kinds then do
