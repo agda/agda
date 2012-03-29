@@ -2,13 +2,14 @@
 -- Slightly heterogeneous finite maps
 ------------------------------------------------------------------------
 
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE GADTs, Rank2Types #-}
 
 module IndexedMap
   ( Map
   , empty
   , insert
   , lookup
+  , adjust
   , size
   ) where
 
@@ -64,6 +65,13 @@ insert k v (Map m) = Map $ Map.insert (Wrap k) (Pair k v) m
 
 lookup :: IndexedOrd k => k i -> Map k v -> Maybe (v i)
 lookup k (Map m) = cast k =<< Map.lookup (Wrap k) m
+
+-- | Updates the value at the given position in the map (if any).
+
+adjust :: IndexedOrd k =>
+          (forall i. v i -> v i) -> k i -> Map k v -> Map k v
+adjust f k (Map m) =
+  Map (Map.adjust (\(Pair k v) -> Pair k (f v)) (Wrap k) m)
 
 -- | The size of the map (number of keys).
 
