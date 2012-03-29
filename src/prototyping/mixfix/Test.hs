@@ -21,7 +21,6 @@
 
 module Main where
 
-import qualified Memoised
 import qualified ExpressionParser as Expr
 import Parser
 import PrecedenceGraph hiding (tests)
@@ -67,7 +66,7 @@ main = do
 -- Example precedence graph
 
 lift :: (s -> s) -> State s ()
-lift f = State (\x -> ((), f x))
+lift f = state (\x -> ((), f x))
 
 eq      = Name []    (Just Infix)   ["="]
 ltgt    = Name []    (Just Infix)   ["<",">"]

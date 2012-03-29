@@ -8,7 +8,6 @@
 module Parser where
 
 import Control.Applicative
-import IndexedOrd
 
 class (Eq tok, Alternative p, Monad p) => Parser p tok | p -> tok where
   symbol :: p tok

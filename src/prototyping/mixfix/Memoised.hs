@@ -9,7 +9,7 @@
 -- flexible, but less error-prone, since there is no need to guarantee
 -- that all "keys" (arguments to the memoise combinator) are unique.
 
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, RankNTypes #-}
 
 module Memoised where
 
