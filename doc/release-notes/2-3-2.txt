@@ -65,7 +65,33 @@ Language
   function to eqFin {_}. This is only done for implicit arguments, not
   instance arguments, so that the instance search stays non-recursive.
 
-* Changed: constraint solving.  [Issue 585]
+* Constraint solving: Upgraded Miller patterns to record patterns. [Issue 456]
+
+  Agda now solves meta-variables that are applied to record patterns.
+  A typical (but here, artificial) case is:
+
+    record Sigma (A : Set)(B : A -> Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B fst
+
+    test : (A : Set)(B : A -> Set) ->
+      let X : Sigma A B -> Sigma A B
+          X = _
+      in  (x : A)(y : B x) -> X (x , y) ≡ (x , y)
+    test A B x y = refl
+
+  This yields a constraint of the form
+
+    _X A B (x , y) := t[x,y]
+
+  (with t[x,y] = (x, y)) which is not a Miller pattern.
+  However, Agda now solves this as
+
+    _X A B z := t[fst z,snd z].
+
+* Changed: solving recursive constraints.  [Issue 585]
 
   Until 2.3.0, Agda sometimes inferred values that did not pass the
   termination checker later, or would even make Agda loop.  To prevent this,
