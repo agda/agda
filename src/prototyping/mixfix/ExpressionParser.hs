@@ -17,7 +17,7 @@ import IndexedOrd
 import Name
 import Token
 import Expression
-import qualified Memoised
+import qualified MemoisedCPS
 
 import Control.Applicative as A
 import Data.Foldable (asum)
@@ -54,10 +54,11 @@ toE (u, es) = Op u es
 -- | Nonterminals used by the expression grammar.
 
 data NT r where
-  ExprN :: Set Node -> NT Expr
-  OpN   :: Set Name -> NT Op
-  NodeN :: Node     -> NT Expr
-  AtomN ::             NT Expr
+  ExprN      :: Set Node -> NT Expr
+  OpN        :: Set Name -> NT Op
+  NodeN      :: Node     -> NT Expr
+  PostLeftsN :: Node     -> NT Expr
+  AtomN      ::             NT Expr
 
 -- | Non-terminal for an expression.
 
@@ -139,32 +140,55 @@ grammar g _ _ (OpN ops) = asum $ map' op ops
 
 -- Production for a graph node.
 
-grammar g _ _ (NodeN n) = asum $
-  [ flip (foldr appRight') <$> some (internal Prefix Non) <*> higher
-  , foldl appLeft'         <$> higher <*> some (internal Postfix Non)
-  , appBoth' <$> higher <*> internal Infix Non <*> higher
-  , chainl3 higher (flip appBoth' <$> internal Infix L)
-  , chainr3 higher (flip appBoth' <$> internal Infix R)
-  ]
+grammar g _ _ (NodeN n) =
+  nonAssoc <|> preRights <|> nonTerm (PostLeftsN n)
   where
-  -- Operators of higher precedence or atoms.
-  higher = nonTerm (ExprN (successors g n))
+  -- Applications of non-associative operators.
+  nonAssoc = appBoth' <$>
+    higher g n <*> internal g n Infix Non <*> higher g n
 
-  -- The internal parts of operators of the given fixity (in this
-  -- node). Includes certain sections; for instance, a left-sectioned
-  -- infix operator becomes a prefix operator.
-  internal f ass =  nonTerm (OpN (ann ! (f, ass)))
-            <|> case f of
-                  Prefix  -> appLeft  <$> placeholder Beg <*> infx
-                  Postfix -> appRight <$> infx <*> placeholder End
-                  Infix   -> A.empty
+  -- Sequences of prefix/infix right-associative operators.
+  preRights = preRight <*> (preRights <|> higher g n)
     where
-    ann  = annotation g n
-    infx = nonTerm (OpN (ann !* Infix))
+    preRight =  appRight' <$>                internal g n Prefix Non
+            <|> appBoth'  <$> higher g n <*> internal g n Infix  R
 
-  appLeft'  e o     = toE $ appLeft  (Just e) o
-  appRight' o e     = toE $ appRight o (Just e)
+  appRight'    o e2 = toE $ appRight           o (Just e2)
   appBoth'  e1 o e2 = toE $ appBoth  (Just e1) o (Just e2)
+
+-- Sequences of postfix/infix left-associative operators. (This
+-- non-terminal needs to be memoised: it is left recursive.)
+
+grammar g _ _ (PostLeftsN n) = flip ($) <$>
+  (nonTerm (PostLeftsN n) <|> higher g n) <*> postLeft
+  where
+  postLeft =  appLeft' <$> internal g n Postfix Non
+          <|> appBoth' <$> internal g n Infix   L   <*> higher g n
+
+  appLeft' o    e1 = toE $ appLeft (Just e1) o
+  appBoth' o e2 e1 = toE $ appBoth (Just e1) o (Just e2)
+
+-- | Production for the internal parts of operators of the given
+-- fixity (in this node). Includes certain sections; for instance, a
+-- left-sectioned infix operator becomes a prefix operator.
+
+internal :: NTParser p NT Token =>
+            PrecedenceGraph -> Node -> Fixity -> Assoc -> p Op
+internal g n f ass =
+      nonTerm (OpN (ann ! (f, ass)))
+  <|> case f of
+        Prefix  -> appLeft  <$> placeholder Beg <*> infx
+        Postfix -> appRight <$> infx <*> placeholder End
+        Infix   -> A.empty
+  where
+  ann  = annotation g n
+  infx = nonTerm (OpN (ann !* Infix))
+
+-- | Production for expressions of higher precedence or atoms.
+
+higher :: NTParser p NT Token =>
+          PrecedenceGraph -> Node -> p Expr
+higher g n = nonTerm (ExprN (successors g n))
 
 -- | Parses an expression.
 
@@ -180,29 +204,32 @@ parse :: PrecedenceGraph ->
          -- ^ Input tokens.
          [Expr]
 parse g lookupName closed =
-  Memoised.parse (grammar g lookupName closed) (nonTerm $ expression g)
+  MemoisedCPS.parse (grammar g lookupName closed)
+                    (nonTerm $ expression g)
 
 ------------------------------------------------------------------------
 -- Boring instances
 
 instance IndexedEq NT where
-  iEq (ExprN ns1) (ExprN ns2) = boolToEq $ ns1 == ns2
-  iEq (OpN ns1)   (OpN ns2)   = boolToEq $ ns1 == ns2
-  iEq (NodeN n1)  (NodeN n2)  = boolToEq $ n1  == n2
-  iEq AtomN       AtomN       = Just Refl
-  iEq _           _           = Nothing
+  iEq (ExprN ns1)     (ExprN ns2)     = boolToEq $ ns1 == ns2
+  iEq (OpN ns1)       (OpN ns2)       = boolToEq $ ns1 == ns2
+  iEq (NodeN n1)      (NodeN n2)      = boolToEq $ n1  == n2
+  iEq (PostLeftsN n1) (PostLeftsN n2) = boolToEq $ n1  == n2
+  iEq AtomN           AtomN           = Just Refl
+  iEq _               _               = Nothing
 
 instance IndexedOrd NT where
-  iCompare (ExprN ns1) (ExprN ns2) = compare ns1 ns2
-  iCompare (ExprN _)   _           = LT
-  iCompare (OpN _)     (ExprN _)   = GT
-  iCompare (OpN ns1)   (OpN ns2)   = compare ns1 ns2
-  iCompare (OpN _)     _           = LT
-  iCompare (NodeN n1)  (ExprN _)   = GT
-  iCompare (NodeN n1)  (OpN _)     = GT
-  iCompare (NodeN n1)  (NodeN n2)  = compare n1 n2
-  iCompare (NodeN n1)  _           = LT
-  iCompare AtomN       (ExprN _)   = GT
-  iCompare AtomN       (OpN _)     = GT
-  iCompare AtomN       (NodeN _)   = GT
-  iCompare AtomN       AtomN       = EQ
+  iCompare (ExprN ns1)     (ExprN ns2)     = compare ns1 ns2
+  iCompare (OpN ns1)       (OpN ns2)       = compare ns1 ns2
+  iCompare (NodeN n1)      (NodeN n2)      = compare n1 n2
+  iCompare (PostLeftsN n1) (PostLeftsN n2) = compare n1 n2
+  iCompare AtomN           AtomN           = EQ
+  iCompare (ExprN _)       _               = LT
+  iCompare (OpN _)         (ExprN _)       = GT
+  iCompare (OpN _)         _               = LT
+  iCompare (NodeN _)       (ExprN _)       = GT
+  iCompare (NodeN _)       (OpN _)         = GT
+  iCompare (NodeN _)       _               = LT
+  iCompare (PostLeftsN _)  AtomN           = LT
+  iCompare (PostLeftsN _)  _               = GT
+  iCompare AtomN           _               = GT

@@ -4,7 +4,7 @@
 
 {-# LANGUAGE FlexibleContexts #-}
 
--- Summary: The memoising backtracking parser seems to be fast enough.
+-- Summary: The memoising CPS parser seems to be fast enough.
 --
 -- Note that if this code is not fast enough, then we can apply
 -- another optimisation: pruning the graph, keeping only those nodes
@@ -16,7 +16,7 @@
 -- One can guarantee polynomial complexity of parsing (for
 -- context-free grammars) by, among other things, using a dense
 -- representation of ambiguous results. However, the most ambiguous
--- result in the test below has length 2, and I think that we won't
+-- result in the test below has length 3, and I think that we won't
 -- encounter very much more than that in practice.
 
 module Main where
@@ -92,6 +92,8 @@ ggll    = Name []    (Just Infix)   [">>","<<"]
 ox'     = Name []    Nothing        ["[[","]]"]
 ox'star = Name []    Nothing        ["[[","]]*"]
 ox'plus = Name []    Nothing        ["[[","]]+"]
+plusC   = Name []    (Just Infix)   ["+C"]
+mulC    = Name []    (Just Infix)   ["*C"]
 
 -- Note that this graph is not intended to be representative of how I
 -- want operator precedences to be specified for the given operators.
@@ -119,6 +121,8 @@ example = flip execState empty $ mapM lift
   , unrelated    foo2   R
   , unrelated    llgg   L
   , unrelated    ggll   Non
+  , unrelated    plusC  Non
+  , bindsBetween mulC   Non [plusC] [plusC]
   ]
 
 exampleClosed = Set.fromList [ox', ox'star, ox'plus]
@@ -147,8 +151,8 @@ lookupName names n = Set.filter p names
 ------------------------------------------------------------------------
 -- A demanding graph
 
--- stressTest n yields a graph which is the transitive closure of a
--- graph with the following shape (with edges going upwards):
+-- stressTest False n yields a graph which is the transitive closure
+-- of a graph with the following shape (with edges going upwards):
 --
 --  ⋱  ⋮  ⋰
 --   ⋱ ⋮ ⋰
@@ -171,23 +175,28 @@ lookupName names n = Set.filter p names
 --    ╲│╱
 --     n₀
 --
--- The top-most node is n_n.
+-- The top-most node is n_n. stressTest True n is the union of
+-- stressTest False n and its converse.
 
-stressTest :: Integer -> ([Name], PrecedenceGraph)
-stressTest n =
-  if n <= 0 then let n = stressTestName 0 'n'
-                 in  ([n], unrelated n Non empty)
-            else ( topName : names ++ below
-                 , flip execState g $ do
-                     mapM_ (\n -> lift $ bindsBetween n Non below []) names
-                     lift $ bindsBetween topName Non (names ++ below) [])
+stressTest :: Bool -> Integer -> ([Name], PrecedenceGraph)
+stressTest bidir i =
+  if i <= 0 then
+    let n = stressTestName 0 'n'
+    in  ([n], unrelated n Non empty)
+  else ( topName : names ++ below
+       , flip execState g $ do
+           mapM_ (\n -> lift $ bindsBetween' n Non below) names
+           lift $ bindsBetween' topName Non (names ++ below)
+       )
   where
-  (below, g) = stressTest (n - 1)
-  prev       = stressTestName (pred n) 'n'
-  names      = map (stressTestName n) ['a'..'c']
-  topName    = stressTestName n 'n'
+  (below, g) = stressTest bidir (i - 1)
+  prev       = stressTestName (i - 1) 'n'
+  names      = map (stressTestName i) ['a'..'c']
+  topName    = stressTestName i 'n'
 
-stressTestName n c = Name [] (Just Infix) [c : show n]
+  bindsBetween' o a t = bindsBetween o a t (if bidir then t else [])
+
+stressTestName i c = Name [] (Just Infix) [c : show i]
 
 stressTestNames :: Integer -> Set Name
 stressTestNames n = Set.fromList $
@@ -262,15 +271,24 @@ tests = fmap and $ sequence
   , test' "[[_]]"                               [Op ox' [p]]
   , test' "[[ [[ x ]]* ]]"                      [Op ox' [jOp ox'star [jF "x"]]]
   , test' "f [[ g [[ x ]]* ]]"                  [app (fun "f") [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
+  , test' "x +C y *C z"                         [ Op plusC [jF "x", jOp mulC [jF "y", jF "z"]]
+                                                , Op mulC [jOp plusC [jF "x", jF "y"], jF "z"] ]
+  , test' "a +C b *C c +C d"                    [ Op plusC [jF "a", jOp mulC [jF "b", jOp plusC [jF "c", jF "d"]]]
+                                                , Op mulC [jOp plusC [jF "a", jF "b"], jOp plusC [jF "c", jF "d"]]
+                                                , Op plusC [jOp mulC [jOp plusC [jF "a", jF "b"], jF "c"], jF "d"] ]
 
   , test' (nested nestingDepth)                 [nestedResult nestingDepth]
   , test' (assoc  nestingDepth)                 [assocResult  nestingDepth]
 
-  , test'' 6 2 6
-  , test'' 6 1 5
-  , test'' 10 1 8
-  , test'' 12 2 11
-  , test'' 17 1 17
+  , test'' False 6 2 6
+  , test'' False 6 1 5
+  , test'' False 10 1 8
+  , test'' False 12 2 11
+  , test'' False 17 1 17
+
+  , test'' True 6 1 6
+  , test'' True 6 6 1
+  , test'' True 17 1 17
   ]
   where
   -- Some abbreviations.
@@ -293,16 +311,25 @@ tests = fmap and $ sequence
   assoc       d = iterateN d ("x + " ++) "x"
   assocResult d = iterateN d (\x -> Op plus [Just x, jF "x"]) (fun "x")
 
-  test'' m i k | not (m >= k && k > i && i > 0) =
-                   error "test'': Precondition failed."
-               | otherwise =
+  test'' bidir m i k
+    | not (if bidir then m >= max i k && min i k > 0
+                    else m >= k && k > i && i > 0) =
+        error "test'': Precondition failed."
+    | otherwise =
     test Set.empty
          (stressTestNames m)
-         (snd $ stressTest m)
+         (snd $ stressTest bidir m)
          (unwords ["x", op i 'a', "x", op k 'b', "x"])
-         [Op (stressTestName i 'a')
+         (Op (stressTestName i 'a')
              [ jF "x"
              , Just $ Op (stressTestName k 'b') [jF "x", jF "x"]
-             ]
-         ]
+             ] :
+          if bidir then
+            [Op (stressTestName k 'b')
+                [ Just $ Op (stressTestName i 'a') [jF "x", jF "x"]
+                , jF "x"
+                ]
+            ]
+          else
+            [])
     where op i c = c : show i

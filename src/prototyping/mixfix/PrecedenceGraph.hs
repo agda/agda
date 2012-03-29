@@ -90,14 +90,14 @@ calculatedNameMap g
         map (id *** nodeNames) $
         G.labNodes g
 
--- | The graph has to be an acyclic graph (not a multi-graph), the
--- name map should be consistent, and the annotations have to be
--- consistent.
+-- | The graph has to be a graph (not a multi-graph), the name map
+-- should be consistent, and the annotations have to be consistent.
 
 graphInvariant :: PrecedenceGraph -> Bool
 graphInvariant pg@(PG g m) =
-  acyclic g && graph g &&
-  m == calculatedNameMap g && all nameInvariant (Map.keys m) &&
+  graph g &&
+  m == calculatedNameMap g &&
+  all nameInvariant (Map.keys m) &&
   all annotationInvariant (map' (annotation pg) $ nodes pg)
 
 ------------------------------------------------------------------------
@@ -217,9 +217,8 @@ prop_bindsAs pg ass =
 -- to names in @tighterThan@, and to all nodes corresponding to names
 -- in @looserThan@.
 --
--- Precondition: The resulting graph has to be acyclic, @op@ must be
--- an operator, @op@ must not exist in @pg@, and all the other names
--- in the input have to exist in @pg@.
+-- Precondition: @op@ must be an operator, @op@ must not exist in
+-- @pg@, and all the other names in the input have to exist in @pg@.
 
 bindsBetween :: Name -> Assoc -> [Name] -> [Name] ->
                 PrecedenceGraph -> PrecedenceGraph
@@ -230,9 +229,8 @@ bindsBetween op ass tighterThan looserThan pg@(PG g _)
                      , targetNodes looserThan
                      , targetNodes tighterThan
                      ) of
-      (Just f, Just allLooserThan, Just allTighterThan)
-        | acyclic g' -> PG g' (Map.insert op new (nameMap pg))
-        | otherwise  -> error "bindsBetween: Cyclic result."
+      (Just f, Just allLooserThan, Just allTighterThan) ->
+        PG g' (Map.insert op new (nameMap pg))
         where
         ctxt = ( fix allTighterThan
                , new
@@ -284,8 +282,8 @@ instance Arbitrary PrecedenceGraph where
     -- Since names is a set the generated names have to be unique.
     names <- fmap Set.fromList arbitrary
     nodeContents <- partitionsOf =<< pairUp (Set.toList names) arbitrary
-    g <- acyclicGraph (Maybe.catMaybes $ map mkNode nodeContents)
-                      arbitrary
+    g <- simpleGraph (Maybe.catMaybes $ map mkNode nodeContents)
+                     arbitrary
     return (PG g (calculatedNameMap g))
     where
     mkNode :: [(Name, Assoc)] -> Maybe Annotation

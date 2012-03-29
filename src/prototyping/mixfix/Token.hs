@@ -21,7 +21,7 @@ module Token
 import qualified Name
 import Name hiding (pretty, tests)
 import Parser
-import qualified Memoised
+import qualified MemoisedCPS
 import IndexedOrd
 
 import Test.QuickCheck
@@ -138,7 +138,7 @@ parseName = do
   fix (Just _) (Just _) = Just Infix
 
 prop_parseName_nameToTokens n =
-  Memoised.memoParse undefined parseName (nameToTokens n) == [n]
+  MemoisedCPS.parse undefined parseName (nameToTokens n) == [n]
 
 ------------------------------------------------------------------------
 -- Pretty-printing
@@ -220,7 +220,7 @@ grammar TokensNT = concat <$>
 -- | Lexer.
 
 lexer :: String -> [[Token]]
-lexer s = Memoised.memoParse grammar (nonTerm TokensNT) s
+lexer s = MemoisedCPS.parse grammar (nonTerm TokensNT) s
 
 prop_lexer =
   forAll (listOf $ elements "ab_.() ") $ \s ->
