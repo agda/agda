@@ -2,7 +2,7 @@
 -- Slightly heterogeneous finite maps
 ------------------------------------------------------------------------
 
-{-# LANGUAGE ExistentialQuantification, GADTs #-}
+{-# LANGUAGE GADTs #-}
 
 module IndexedMap
   ( Map
@@ -21,7 +21,8 @@ import IndexedOrd
 
 -- | Hides the index.
 
-data Wrapped t = forall i. Wrap (t i)
+data Wrapped t where
+  Wrap :: t i -> Wrapped t
 
 instance IndexedEq t => Eq (Wrapped t) where
   Wrap x == Wrap y = eqToBool (iEq x y)
@@ -31,7 +32,8 @@ instance IndexedOrd t => Ord (Wrapped t) where
 
 -- | A pair consisting of a key and a value.
 
-data Paired k v = forall i. Pair (k i) (v i)
+data Paired k v where
+  Pair :: k i -> v i -> Paired k v
 
 -- | Returns the value component from the pair, if the keys are equal.
 
