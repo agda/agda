@@ -180,8 +180,7 @@ parse :: PrecedenceGraph ->
          -- ^ Input tokens.
          [Expr]
 parse g lookupName closed =
-  Memoised.memoParse (grammar g lookupName closed)
-                     (nonTerm $ expression g)
+  Memoised.parse (grammar g lookupName closed) (nonTerm $ expression g)
 
 ------------------------------------------------------------------------
 -- Boring instances

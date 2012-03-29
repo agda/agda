@@ -76,9 +76,9 @@ instance Alternative (Parser nt tok) where
   empty         = P $ \_ _     -> return empty
   P p1 <|> P p2 = P $ \g input -> liftM2 (<|>) (p1 g input) (p2 g input)
 
-memoParse :: Parser.Grammar (Parser nt tok) nt
-          -> Parser nt tok r -> [tok] -> [r]
-memoParse g p toks =
+parse :: Parser.Grammar (Parser nt tok) nt ->
+         Parser nt tok r -> [tok] -> [r]
+parse g p toks =
   map fst .
   filter (null . snd) .
   flip evalState IMap.empty $
@@ -90,7 +90,7 @@ instance Ord tok => Parser.Parser (Parser nt tok) tok where
       (_, c) : cs -> return (c, cs)
       _           -> empty
 
-  parse = memoParse (const empty)
+  parse = parse (const empty)
 
 -- | Non-terminals are memoised.
 
@@ -111,4 +111,4 @@ instance (Ord tok, IndexedOrd nt) =>
     lookupTable k = fmap (IMap.lookup k) get
     modifyTable f = modify f
 
-  parseNT g x = memoParse g (Parser.nonTerm x)
+  parseNT g x = parse g (Parser.nonTerm x)
