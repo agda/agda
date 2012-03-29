@@ -66,7 +66,6 @@ annotationInvariant ann =
 data PrecedenceGraph =
   PG { precGraph :: G.Gr Annotation ()
      , nameMap   :: Map Name Node
-       -- ^ This should be a trie.
      }
      deriving Show
 
