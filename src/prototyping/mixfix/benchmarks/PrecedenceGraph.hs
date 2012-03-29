@@ -175,8 +175,9 @@ bindsAs op fix n (PG g) = case G.match n g of
 bindsBetween :: Name -> Fixity -> [Node] -> [Node] ->
                 PrecedenceGraph -> (Node, PrecedenceGraph)
 bindsBetween op fixity tighterThan looserThan (PG g)
-  | acyclic g' = (new, g')
-  | otherwise  = error "bindsBetween: Cyclic result."
+  -- The test for acyclicity is rather slow.
+  | True {- acyclic g' -} = (new, g')
+  | otherwise             = error "bindsBetween: Cyclic result."
   where
   [new]          = G.newNodes 1 g
   allLooserThan  = looserThan  : map (G.suc g) looserThan
