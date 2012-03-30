@@ -6,13 +6,14 @@
 {-# LANGUAGE ExistentialQuantification, Rank2Types #-}
 
 -- Summary: The trie parsers (which do left factorisation on the fly)
--- all seem to be reasonably efficient. The memoised backtracking
--- parser is even faster (possibly asymptotically more efficient); on
--- the other hand it makes the code constructing the parser a bit more
--- complicated. ReadP and incremental-parser are too slow for these
--- grammars. Note that applying one of the continuation transformers
--- to, say, AmbExTrie2 makes it a lot slower (in this context,
--- anyway).
+-- all seem to be reasonably efficient. The memoised backtracking and
+-- CPS parsers are even faster (possibly asymptotically more
+-- efficient); on the other hand they make the code constructing the
+-- parser a bit more complicated. However, an important point in
+-- favour of MemoisedCPS is that it supports left recursion. ReadP and
+-- incremental-parser are too slow for these grammars. Note that
+-- applying one of the continuation transformers to, say, AmbExTrie2
+-- makes it a lot slower (in this context, anyway).
 --
 -- Note that if the best parsers used here are not fast enough, then
 -- we can apply another optimisation: pruning the graph, keeping only
@@ -39,6 +40,7 @@ import qualified SlowParser
 import qualified Standard
 import qualified Memoised
 import qualified Incremental
+import qualified MemoisedCPS
 import Control.Monad.Identity
 import Control.Monad.State hiding (lift)
 import Parser (Parser)
@@ -70,6 +72,7 @@ parser  8 = P Memoised.parse
 parser  9 = P (ContTrans.parse Memoised.parse)
 parser 10 = P (StackContTrans.parse Memoised.parse)
 parser 11 = P Incremental.parse
+parser 12 = P MemoisedCPS.parse
 parser  _ = error "No more parser combinator libraries."
 
 ------------------------------------------------------------------------
