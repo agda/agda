@@ -21,6 +21,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
+import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
@@ -210,10 +211,10 @@ etaContractRecord r c args = do
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
 isSingletonRecord :: QName -> Args -> TCM (Either MetaId Bool)
-isSingletonRecord r ps = either Left (Right . isJust) <$> isSingletonRecord' False r ps
+isSingletonRecord r ps = mapRight isJust <$> isSingletonRecord' False r ps
 
 isSingletonRecordModuloRelevance :: QName -> Args -> TCM (Either MetaId Bool)
-isSingletonRecordModuloRelevance r ps = either Left (Right . isJust) <$> isSingletonRecord' True r ps
+isSingletonRecordModuloRelevance r ps = mapRight isJust <$> isSingletonRecord' True r ps
 
 -- | Return the unique (closed) inhabitant if exists.
 --   In case of counting irrelevance in, the returned inhabitant
@@ -244,6 +245,12 @@ isSingletonRecord' regardIrrelevance r ps = do
 isSingletonType :: Type -> TCM (Either MetaId (Maybe Term))
 isSingletonType = isSingletonType' False
 
+-- | Check whether a type has a unique inhabitant (irrelevant parts ignored).
+--   Can be blocked by a metavar.
+isSingletonTypeModuloRelevance :: (MonadTCM tcm) => Type -> tcm (Either MetaId Bool)
+isSingletonTypeModuloRelevance t = liftTCM $ do
+  mapRight isJust <$> isSingletonType' True t
+
 isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
@@ -256,6 +263,6 @@ isSingletonType' regardIrrelevance t = do
           emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
       _ -> return (Right Nothing)
 
+-- | Auxiliary function.
 emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
-emap f (Left c)  = Left c
-emap f (Right m) = Right $ fmap f m
+emap = mapRight . fmap
