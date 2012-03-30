@@ -97,7 +97,7 @@ parse g p toks =
     if j == n then return [x] else return []
   where n = genericLength toks
 
-instance Ord tok => Parser.Parser (Parser nt tok) tok where
+instance Parser.Parser (Parser nt tok) tok where
   symbol = P $ \_ input i k ->
     if inRange (bounds input) i then
       k (i + 1) (input ! i)
@@ -108,8 +108,7 @@ instance Ord tok => Parser.Parser (Parser nt tok) tok where
 
 -- | Non-terminals are memoised.
 
-instance (Ord tok, IndexedOrd nt) =>
-         Parser.NTParser (Parser nt tok) nt tok where
+instance Parser.NTParser (Parser nt tok) nt tok where
   nonTerm nt = P $ \grammar input i k -> do
 
     let alter j zero f m =
@@ -132,7 +131,7 @@ instance (Ord tok, IndexedOrd nt) =>
         concat . concat <$>
           mapM (\(i, rs) -> mapM (k i) rs) (IntMap.toList rs)
 
-  parseNT g nt = parse g (Parser.nonTerm nt)
+  parseWithGrammar = parse
 
 -- [Reverse ks?]
 --

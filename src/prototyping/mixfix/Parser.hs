@@ -9,7 +9,9 @@ module Parser where
 
 import Control.Applicative
 
-class (Eq tok, Alternative p, Monad p) => Parser p tok | p -> tok where
+import IndexedOrd
+
+class (Alternative p, Monad p) => Parser p tok | p -> tok where
   symbol :: p tok
 
   parse :: p r -> [ tok ] -> [ r ]
@@ -19,7 +21,7 @@ sat p = do
   c <- symbol
   if p c then return c else empty
 
-sym :: Parser p tok => tok -> p tok
+sym :: Eq tok => Parser p tok => tok -> p tok
 sym c = sat (== c)
 
 sepBy :: Parser p tok => p r -> p sep -> p [r]
@@ -51,9 +53,9 @@ p `between` (x : xs) = (:) <$> (x *> p) <*> (p `between` xs)
 
 class Parser p tok => NTParser p nt tok | p -> tok nt where
   -- | Parser for the given non-terminal.
-  nonTerm :: nt r -> p r
+  nonTerm :: IndexedOrd nt => nt r -> p r
 
-  parseNT :: Grammar p nt -> nt r -> [ tok ] -> [ r ]
+  parseWithGrammar :: Grammar p nt -> p r -> [ tok ] -> [ r ]
 
 -- | A \"grammar\": a mapping from non-terminals to right-hand sides
 -- (parsers).

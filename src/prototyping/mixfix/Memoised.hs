@@ -84,7 +84,7 @@ parse g p toks =
   flip evalState IMap.empty $
   unP p g (zip [1 ..] toks)
 
-instance Ord tok => Parser.Parser (Parser nt tok) tok where
+instance Parser.Parser (Parser nt tok) tok where
   symbol = P $ \_ input -> return $
     case input of
       (_, c) : cs -> return (c, cs)
@@ -94,8 +94,7 @@ instance Ord tok => Parser.Parser (Parser nt tok) tok where
 
 -- | Non-terminals are memoised.
 
-instance (Ord tok, IndexedOrd nt) =>
-         Parser.NTParser (Parser nt tok) nt tok where
+instance Parser.NTParser (Parser nt tok) nt tok where
   nonTerm x = P $ \grammar input -> do
     let key = Key x (case input of
                        (pos, _) : _ -> Just pos
@@ -111,4 +110,4 @@ instance (Ord tok, IndexedOrd nt) =>
     lookupTable k = fmap (IMap.lookup k) get
     modifyTable f = modify f
 
-  parseNT g x = parse g (Parser.nonTerm x)
+  parseWithGrammar = parse
