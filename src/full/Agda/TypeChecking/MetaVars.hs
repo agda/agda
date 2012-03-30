@@ -5,6 +5,7 @@ module Agda.TypeChecking.MetaVars where
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
+import Data.Function
 import Data.Generics
 import Data.List as List hiding (sort)
 import Data.Map (Map)
@@ -20,6 +21,7 @@ import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
+import Agda.TypeChecking.Monad.Exception
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -40,6 +42,7 @@ import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Permutation
 import qualified Agda.Utils.VarSet as Set
 
@@ -535,9 +538,9 @@ assign x args v = do
                 ]
 
 	-- Check that the arguments are variables
-	ids <- checkAllVars args
+	ids <- inverseSubst args
         reportSDoc "tc.meta.assign" 50 $
-          text "checkAllVars returns:" <+> sep (map prettyTCM ids)
+          text "inverseSubst returns:" <+> sep (map prettyTCM ids)
 
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
@@ -548,23 +551,19 @@ assign x args v = do
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
-        unless (distinct $ filter (`Set.member` fvs) (map fst ids)) $ do
-          -- non-linear lhs: we cannot solve, but prune
-          killResult <- prune x args $ Set.toList fvs
-          reportSDoc "tc.meta.assign" 10 $
-            text "pruning" <+> prettyTCM x <+> (text $
-              if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
-               else "failed")
-          patternViolation
+        ids <- do
+          res <- runErrorT $ checkLinearity (`Set.member` fvs) ids
+          case res of
+            Right ids -> return ids
+            Left ()   -> do
+              -- non-linear lhs: we cannot solve, but prune
+              killResult <- prune x args $ Set.toList fvs
+              reportSDoc "tc.meta.assign" 10 $
+                text "pruning" <+> prettyTCM x <+> (text $
+                  if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
+                   else "failed")
+              patternViolation
 
-{- Andreas, 2011-04-21 this does not work
-        if not (distinct $ filter (`Set.member` fvs) ids) then do
-          -- non-linear lhs: we cannot solve, but prune
-          ok <- prune x args $ Set.toList fvs
-          if ok then return [] else patternViolation
-
-        else do
--}
         -- we are linear, so we can solve!
 	reportSDoc "tc.meta.assign" 25 $
 	    text "preparing to instantiate: " <+> prettyTCM v
@@ -601,7 +600,7 @@ assign x args v = do
 
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
-	escapeContextToTopLevel $ assignTerm x $ killRange (abstract tel' v')
+	inTopContext $ assignTerm x $ killRange (abstract tel' v')
 	return ()
     where
         -- @ids@ maps lhs variables (metavar arguments) to terms
@@ -609,6 +608,8 @@ assign x args v = do
         substitute :: [(Nat,Term)] -> Nat -> Term
 	substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
 
+-- cannot move this PrettyTCM instance to Typechecking.Pretty
+-- because then it conflicts with an instance in Typechecking.Positivity
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
 
@@ -617,13 +618,39 @@ stripDontCare (DontCare v) = v
 stripDontCare v            = v
 
 type FVs = Set.VarSet
+type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
 
--- | Check that arguments to a metavar are in pattern fragment.
---   Assumes all arguments already in whnf.
+instance Error () where
+  noMsg = ()
+
+-- | Turn non-det substitution into proper substitution, if possible.
+--   The substitution can be restricted to @elemFVs@
+checkLinearity :: (Nat -> Bool) -> SubstCand -> ErrorT () TCM SubstCand
+checkLinearity elemFVs ids0 = do
+  let ids = sortBy (compare `on` fst) $ filter (elemFVs . fst) ids0
+  let grps = groupOn fst ids
+  concat <$> mapM makeLinear grps
+  where
+    -- | Non-determinism can be healed if type is singleton. [Issue 593]
+    --   (Same as for irrelevance.)
+    makeLinear :: SubstCand -> ErrorT () TCM SubstCand
+    makeLinear []            = __IMPOSSIBLE__
+    makeLinear grp@[_]       = return grp
+    makeLinear (p@(i,t) : _) =
+      ifM ((Right True ==) <$> do isSingletonTypeModuloRelevance =<< typeOfBV i)
+        (return [p])
+        (throwError ())
+
+-- | Check that arguments @args@ to a metavar are in pattern fragment.
+--   Assumes all arguments already in whnf and eta-reduced.
 --   Parameters are represented as @Var@s so @checkArgs@ really
---     checks that all args are @Var@s and returns the
---     list of corresponding indices for each arg.
---   Linearity has to be checked separately.
+--   checks that all args are @Var@s and returns the "substitution"
+--   to be applied to the rhs of the equation to solve.
+--   (If @args@ is considered a substitution, its inverse is returned.)
+--
+--   The returned list might not be ordered.
+--   Linearity, i.e., whether the substitution is deterministic,
+--   has to be checked separately.
 --
 checkAllVars :: Args -> TCM [(Nat,Term)]
 checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
@@ -639,8 +666,10 @@ checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
 
     isVarOrIrrelevant vars (arg, t) =
       case arg of
+        -- i := x
         Arg h r (Var i []) -> return $ (Arg h r i, t) `cons` vars
 
+        -- (i, j) := x  becomes  [i := fst x, j := snd x]
         Arg h r (Con c vs) -> do
           isRC <- isRecordConstructor c
           case isRC of
@@ -651,21 +680,35 @@ checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
             Just _ ->  __IMPOSSIBLE__
-            Nothing | r == Irrelevant -> return $ (Arg h Irrelevant (-1), t) : vars
+            Nothing | r == Irrelevant -> return vars
                     | otherwise -> failure
 
-{-
-        Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
-        -- Andreas, 2011-04-27 keep irrelevant variables
--}
+        -- An irrelevant argument which is not an irrefutable pattern is dropped
+        Arg h Irrelevant _ -> return vars
+        _                  -> failure
 
+    -- managing an assoc list where duplicate indizes cannot be irrelevant vars
+    append res vars = foldr cons vars res
+
+    -- adding an irrelevant entry only if not present
+    cons a@(Arg h Irrelevant i, t) vars
+      | any ((i==) . unArg . fst) vars  = vars
+      | otherwise                       = a : vars
+    -- adding a relevant entry:
+    cons a@(Arg h r          i, t) vars = a :
+      -- filter out duplicate irrelevants
+      filter (not . (\ a@(Arg h r j, t) -> r == Irrelevant && i == j)) vars
+
+{- OLD CODE
+            Nothing | r == Irrelevant -> return $ (Arg h Irrelevant (-1), t) : vars
+                    | otherwise -> failure
         Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
         _                  -> failure
 
+    append res vars = foldr cons vars res
+
     cons (Arg h Irrelevant i, t) vars = addIrrIfNotPresent h i t vars
     cons a@(Arg h r        i, t) vars = a : removeIrr i vars
-
-    append res vars = foldr cons vars res
 
     -- in case of non-linearity make sure not to count the irrelevant vars
     addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
@@ -673,7 +716,9 @@ checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
                | otherwise                             =  i
     removeIrr i = map (\ a@(Arg h r j, t) ->
       if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
+-}
 
+{- OLD CODE:
 -- | filter out irrelevant args and check that all others are variables.
 --   Return the reversed list of variables.
 --   (Because foldM is a fold-left)
@@ -693,71 +738,6 @@ allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
              | otherwise                             =  i
   removeIrr i = map (\ a@(Arg h r j, t) ->
     if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
-
-
-{-
-checkAllVars :: Args -> TCM [(Nat,Term)]
-checkAllVars args = maybe failure (return . map (\ (i, t) -> (unArg i, t))) $
-  allVarOrIrrelevant (zip args terms)
-{-
-  case allVarOrIrrelevant args of
-    Nothing -> failure
-    Just is | length is /= length args -> __IMPOSSIBLE__
-            | otherwise -> return $ zipWith (\ i t -> (unArg i, t)) (reverse is) terms
--}
-  where
-    terms = map var (downFrom (size args))
-    failure = do
-      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
-                                            , text "  aborting assignment" ]
-      patternViolation
-
--- | filter out irrelevant args and check that all others are variables.
---   Return the reversed list of variables.
---   (Because foldM is a fold-left)
-allVarOrIrrelevant :: [(Arg Term, Term)] -> Maybe [(Arg Nat, Term)]
-allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
-  isVarOrIrrelevant vars (arg, t) =
-    case arg of
-      Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
---      Arg h r (Con c vs) -> ifM (isRecordConstructor c) -- TODO: go monadic
-      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
-      -- Andreas, 2011-04-27 keep irrelevant variables
-      Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
-      _                  -> Nothing
-  -- in case of non-linearity make sure not to count the irrelevant vars
-  addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
-    where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
-             | otherwise                             =  i
-  removeIrr i = map (\ a@(Arg h r j, t) ->
-    if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
--}
-
-{-
-checkAllVars :: Args -> TCM [Nat]
-checkAllVars args =
-  case allVarOrIrrelevant args of
-    Nothing -> do
-      reportSDoc "tc.meta.assign" 15 $ vcat [ text "not all variables: " <+> prettyTCM args
-                                            , text "  aborting assignment" ]
-      patternViolation
-    Just is -> return $ map unArg is
-
-allVarOrIrrelevant :: [Arg Term] -> Maybe [Arg Nat]
-allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
-  isVarOrIrrelevant vars arg =
-    case arg of
-      Arg h r (Var i []) -> return $ Arg h r i : removeIrr i vars
-      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i vars
-      -- Andreas, 2011-04-27 keep irrelevant variables
-      Arg h Irrelevant _ -> return $ Arg h Irrelevant (-1) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
-      _                  -> Nothing
-  -- in case of non-linearity make sure not to count the irrelevant vars
-  addIrrIfNotPresent h i vars
-    | any (\ (Arg _ _ j) -> j == i) vars = Arg h Irrelevant (-1) : vars
-    | otherwise                          = Arg h Irrelevant i    : vars
-  removeIrr i = map (\ a@(Arg h r j) ->
-    if r == Irrelevant && i == j then Arg h Irrelevant (-1) else a)
 -}
 
 updateMeta :: MetaId -> Term -> TCM ()
