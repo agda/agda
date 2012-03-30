@@ -576,10 +576,8 @@ assign x args v = do
 	    --   ids = d b e
 	    -- then
 	    --   v' = (λ a b c d e. v) _ 1 _ 2 0
-	    tel   <- getContextTelescope
---	    gamma <- map defaultArg <$> getContextTerms
---	    let iargs = reverse $ zipWith (rename ids) [0..] $ reverse gamma
-	    let iargs = map (defaultArg . rename ids) $ downFrom $ size tel
+	    tel <- getContextTelescope
+	    let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
 		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
@@ -606,18 +604,10 @@ assign x args v = do
 	escapeContextToTopLevel $ assignTerm x $ killRange (abstract tel' v')
 	return ()
     where
-        -- @ids@ are the lhs variables (metavar arguments)
+        -- @ids@ maps lhs variables (metavar arguments) to terms
         -- @i@ is the variable from the context Gamma
-        rename :: [(Nat,Term)] -> Nat -> Term
-	rename ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
-{-
-        -- @ids@ are the lhs variables (metavar arguments)
-        -- @i@ is the variable from the context Gamma
-        rename :: [Nat] -> Nat -> Arg Term -> Arg Term
-	rename ids i arg = case findIndex (==i) ids of
-	    Just j  -> fmap (const $ Var (fromIntegral j) []) arg
-	    Nothing -> fmap (const __IMPOSSIBLE__) arg	-- we will end up here, but never look at the result
--}
+        substitute :: [(Nat,Term)] -> Nat -> Term
+	substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
 
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
