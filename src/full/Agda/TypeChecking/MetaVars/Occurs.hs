@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
@@ -113,7 +114,7 @@ strongly :: OccursCtx -> OccursCtx
 strongly Rigid = StronglyRigid
 strongly ctx = ctx
 
-abort :: OccursCtx -> TypeError -> TCM ()
+abort :: OccursCtx -> TypeError -> TCM a
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 abort Flex  _ = patternViolation -- throws a PatternErr, which leads to delayed constraint
 abort Rigid _ = patternViolation
@@ -198,8 +199,18 @@ instance Occurs Term where
     where
       occurs' ctx v = case v of
         Var i vs   -> do         -- abort Rigid turns this error into PatternErr
-          unless (i `allowedVar` xs) $ abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
-          Var i <$> occ (weakly ctx) vs
+          if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) vs else do
+            -- if the offending variable is of singleton type,
+            -- eta-expand it away
+            isST <- isSingletonType =<< typeOfBV i
+            case isST of
+              -- cannot decide, blocked by meta-var
+              Left mid -> patternViolation
+              -- not a singleton type
+              Right Nothing ->
+                abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
+              -- is a singleton type with unique inhabitant sv
+              Right (Just sv) -> return $ sv `apply` vs
         Lam h f	    -> Lam h <$> occ ctx f
         Level l     -> Level <$> occ ctx l
         Lit l	    -> return v
@@ -346,9 +357,9 @@ instance Occurs Sort where
 
 
 
-instance Occurs a => Occurs (Abs a) where
-  occurs red ctx m xs (Abs   s x) = Abs   s <$> occurs red ctx m (underAbs xs) x
-  occurs red ctx m xs (NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
+instance (Occurs a, Raise a) => Occurs (Abs a) where
+  occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (underAbs xs))
+  occurs red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
   metaOccurs m (Abs   s x) = metaOccurs m x
   metaOccurs m (NoAbs s x) = metaOccurs m x

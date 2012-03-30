@@ -209,31 +209,53 @@ etaContractRecord r c args = do
 --
 -- Precondition: The name should refer to a record type, and the
 -- arguments should be the parameters to the type.
-
 isSingletonRecord :: QName -> Args -> TCM (Either MetaId Bool)
-isSingletonRecord = isSingletonRecord' False
+isSingletonRecord r ps = either Left (Right . isJust) <$> isSingletonRecord' False r ps
 
 isSingletonRecordModuloRelevance :: QName -> Args -> TCM (Either MetaId Bool)
-isSingletonRecordModuloRelevance = isSingletonRecord' True
+isSingletonRecordModuloRelevance r ps = either Left (Right . isJust) <$> isSingletonRecord' True r ps
 
-isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId Bool)
-isSingletonRecord' regardIrrelevance r ps =
-  check =<< ((`apply` ps) <$> getRecordFieldTypes r)
+-- | Return the unique (closed) inhabitant if exists.
+--   In case of counting irrelevance in, the returned inhabitant
+--   contains garbage.
+isSingletonRecord' :: Bool -> QName -> Args -> TCM (Either MetaId (Maybe Term))
+isSingletonRecord' regardIrrelevance r ps = do
+  def <- getRecordDef r
+  emap (Con $ recCon def) <$> check (recTel def `apply` ps)
   where
-  check EmptyTel            = return (Right True)
+  check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
+  check EmptyTel            = return $ Right $ Just []
   check (ExtendTel arg tel) | regardIrrelevance && argRelevance arg == Irrelevant =
-    underAbstraction arg tel check
+    underAbstraction arg tel $ \ tel ->
+      emap (fmap (const garbage) arg :) <$> check tel
   check (ExtendTel arg tel) = do
-    TelV _ t <- telView $ unArg arg
+    isSing <- isSingletonType' regardIrrelevance (unArg arg)
+    case isSing of
+      Left mid       -> return $ Left mid
+      Right Nothing  -> return $ Right Nothing
+      Right (Just v) -> underAbstraction arg tel $ \ tel ->
+        emap (fmap (const v) arg :) <$> check tel
+
+  garbage :: Term
+  garbage = DontCare $ Sort Prop
+
+-- | Check whether a type has a unique inhabitant and return it.
+--   Can be blocked by a metavar.
+isSingletonType :: Type -> TCM (Either MetaId (Maybe Term))
+isSingletonType = isSingletonType' False
+
+isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
+isSingletonType' regardIrrelevance t = do
+    TelV tel t <- telView t
     t <- reduceB $ unEl t
     case t of
       Blocked m _            -> return (Left m)
       NotBlocked (MetaV m _) -> return (Left m)
       NotBlocked (Def r ps)  ->
-        ifM (isNothing <$> isRecord r) (return $ Right False) $ do
-          isRec <- isSingletonRecord' regardIrrelevance r ps
-          case isRec of
-            Left _      -> return isRec
-            Right False -> return isRec
-            Right True  -> underAbstraction arg tel $ check
-      _ -> return (Right False)
+        ifM (isNothing <$> isRecord r) (return $ Right Nothing) $ do
+          emap (abstract tel) <$> isSingletonRecord' regardIrrelevance r ps
+      _ -> return (Right Nothing)
+
+emap :: (a -> b) -> Either c (Maybe a) -> Either c (Maybe b)
+emap f (Left c)  = Left c
+emap f (Right m) = Right $ fmap f m
