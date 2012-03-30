@@ -377,13 +377,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   meta           <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b     <- telViewM a
-  let args        = teleArgs tel
-{-
-  let args	 = [ Arg h r $ Var i []
-		   | (i, Arg h r _) <- reverse $ zip [0..] $ reverse $ telToList tel
-		   ]
--}
-  bb <- reduceB b  -- the target in the type @a@ of @m@
+  bb             <- reduceB b  -- the target in the type @a@ of @m@
   case unEl <$> bb of
     -- if the target type of @m@ is a meta variable @x@ itself
     -- (@NonBlocked (MetaV{})@),
@@ -396,7 +390,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     NotBlocked lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
-              u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel args
+              u <- abstract tel <$> do withMetaInfo' meta $ newRecordMetaCtx r ps tel $ teleArgs tel
               inTopContext $ do
                 verboseS "tc.meta.eta" 15 $ do
                   du <- prettyTCM u
@@ -406,23 +400,20 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
                 noConstraints $ assignTerm m u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
-         else if SingletonRecords `elem` kinds then do
+         else when (SingletonRecords `elem` kinds) $ do
           singleton <- isSingletonRecord r ps
           case singleton of
             Left x      -> listenToMeta (EtaExpand m) x
             Right False -> return ()
             Right True  -> expand
-         else
-          return ()
-      ) $ when (Levels `elem` kinds) $ do
-        mlvl <- getBuiltin' builtinLevel
-        tt   <- typeInType
-        if tt && Just lvl == mlvl
-         then do
-          reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
-          noConstraints $ assignV m args (Level $ Max [])
-         else
-          return ()
+      ) $ whenM (andM [ return $ Levels `elem` kinds
+                      , typeInType
+                      , (Just lvl ==) <$> getBuiltin' builtinLevel
+                      ]) $ do
+        reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
+        -- Andreas, 2012-03-30: No need for occurrence check etc.
+        -- we directly assign the solution for the meta
+        noConstraints $ assignTerm m (abstract tel $ Level $ Max [])
     _ -> return ()
 
 -- | Eta expand blocking metavariables of record type, and reduce the
