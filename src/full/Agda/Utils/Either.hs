@@ -5,7 +5,8 @@
 ------------------------------------------------------------------------
 
 module Agda.Utils.Either
-  ( isLeft, isRight
+  ( mapEither, mapLeft, mapRight
+  , isLeft, isRight
   , allRight
   , tests
   ) where
@@ -16,6 +17,21 @@ import Agda.Utils.TestHelpers
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+-- | 'Either' is a bifunctor.
+
+mapEither :: (a -> c) -> (b -> d) -> Either a b -> Either c d
+mapEither f g = either (Left . f) (Right . g)
+
+-- | 'Either _ b' is a functor.
+
+mapLeft :: (a -> c) -> Either a b -> Either c b
+mapLeft f = mapEither f id
+
+-- | 'Either a' is a functor.
+
+mapRight :: (b -> d) -> Either a b -> Either a d
+mapRight = mapEither id
 
 -- | Returns 'True' iff the argument is @'Right' x@ for some @x@.
 
