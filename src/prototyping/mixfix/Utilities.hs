@@ -10,7 +10,6 @@ module Utilities
   , acyclicGraph
   , shrinkGraph
     -- * Map/set utilities
-  , map'
   , (!)
   , setToMap
     -- * List utilities
@@ -135,11 +134,6 @@ shrinkGraph' g = shrinkGraph g ++
 
 ------------------------------------------------------------------------
 -- Map/set utilities
-
--- | Converts a set to a list and maps over it.
-
-map' :: (a -> b) -> Set a -> [b]
-map' f = map f . Set.toList
 
 -- | A (safe) variant of 'Map.(!)'.
 

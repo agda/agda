@@ -126,12 +126,12 @@ grammar g lookupName closed AtomN =
 
 grammar _ _ _ (ExprN ns)
    =  app <$> nonTerm AtomN <*> many (nonTerm AtomN)
-  <|> asum (map' (nonTerm . NodeN) ns)
+  <|> asum (map (nonTerm . NodeN) $ Set.toList ns)
 
 -- Production for operators (just the internal, mixfix parts; not the
 -- "outer" arguments).
 
-grammar g _ _ (OpN ops) = asum $ map' op ops
+grammar g _ _ (OpN ops) = asum $ map op (Set.toList ops)
   where
   op n = (,) n <$>
     (Just <$> nonTerm (expression g) <|> placeholder Mid)

@@ -29,6 +29,7 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.Foldable as F
 import Control.Arrow
 import Control.Monad
 import Control.Applicative hiding (empty)
@@ -55,11 +56,12 @@ type Node = Int
 type Annotation = Map (Fixity, Assoc) (Set Name)
 
 annotationInvariant ann =
-  all (\(fa, s) -> all (== Just (fst fa)) (map' fixity s) &&
-                       fixAssocInvariant fa)
+  all (\(fa, s) -> F.all (\n -> fixity n == Just (fst fa)) s
+                     &&
+                   fixAssocInvariant fa)
       (Map.toList ann) &&
   not (Map.null ann) &&
-  not (any Set.null (Map.elems ann))
+  not (F.any Set.null ann)
 
 -- | Precedence graphs.
 
@@ -97,7 +99,7 @@ graphInvariant pg@(PG g m) =
   graph g &&
   m == calculatedNameMap g &&
   all nameInvariant (Map.keys m) &&
-  all annotationInvariant (map' (annotation pg) $ nodes pg)
+  F.all (annotationInvariant . annotation pg) (nodes pg)
 
 ------------------------------------------------------------------------
 -- Inspecting precedence graphs
@@ -157,8 +159,8 @@ nodes = Set.fromList . G.nodes . precGraph
 
 allOperators :: PrecedenceGraph -> Annotation
 allOperators pg =
-  Map.unionsWith (Set.union) $
-    map' (annotation pg) (nodes pg)
+  Map.unionsWith Set.union $
+    map (annotation pg) $ Set.toList (nodes pg)
 
 ------------------------------------------------------------------------
 -- Constructing precedence graphs
