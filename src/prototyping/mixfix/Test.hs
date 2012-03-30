@@ -132,7 +132,8 @@ exampleNames = Set.unions $
   [ exampleClosed
   , Set.fromList $
       map (Name [] Nothing . (: []))
-          ["x", "y", "z", "a", "b", "c", "d", "f", "g"]
+          ["x", "y", "z", "a", "b", "c", "d", "g"] ++
+      [Name ["M"] Nothing ["f"]]
   ]
 
 ------------------------------------------------------------------------
@@ -143,7 +144,7 @@ exampleNames = Set.unions $
 lookupName :: Set Name -> Name -> Set Name
 lookupName names n = Set.filter p names
   where
-  p n' = n' == n { moduleName = drop (length mn - length mn') mn }
+  p n' = n == n' { moduleName = drop (length mn' - length mn) mn' }
     where
     mn  = moduleName n
     mn' = moduleName n'
@@ -252,25 +253,25 @@ tests = fmap and $ sequence
   , test' "_ + _"                               [Op plus [Just w, Just w]]
   , test' "if_then a + _ else_ = d"             [Op eq [jOp ite [p, jOp plus [jF "a", Just w], p], jF "d"]]
   , test' "if__then a + _ else_ = d"            []
-  , test' "f (_+_)"                             [app (fun "f") [Op plus [p, p]]]
-  , test' "(_+_) f"                             [app (Op plus [p, p]) [fun "f"]]
-  , test' "f _+_"                               [app (fun "f") [Op plus [p, p]]]
-  , test' "f _ +_"                              [Op plus [jApp (fun "f") [w], p]]
-  , test' "(((f))) (((x))) (((y)))"             [app (fun "f") [fun "x", fun "y"]]
+  , test' "f (_+_)"                             [app funMf [Op plus [p, p]]]
+  , test' "(_+_) f"                             [app (Op plus [p, p]) [funMf]]
+  , test' "f _+_"                               [app funMf [Op plus [p, p]]]
+  , test' "f _ +_"                              [Op plus [jApp funMf [w], p]]
+  , test' "(((f))) (((x))) (((y)))"             [app funMf [fun "x", fun "y"]]
   , test' "(_)"                                 [w]
   , test' "_<[_]>"                              [Op ox [p, p]]
   , test' "_+ _+'_"                             [Op plus [p, jOp plus' [p, p]]]
   , test' "_+_ +'_"                             [Op plus' [jOp plus [p, p], p]]
-  , test' "f (x <[ y ]>) + z"                   [Op plus [jApp (fun "f") [Op ox [jF "x", jF "y"]], jF "z"]]
-  , test' "f (_+_ <[ y ]>) + z"                 [Op plus [jApp (fun "f") [Op ox [jOp plus [p, p], jF "y"]], jF "z"]]
-  , test' "f (x <[ _+_ ]>) + z"                 [Op plus [jApp (fun "f") [Op ox [jF "x", jOp plus [p, p]]], jF "z"]]
+  , test' "f (x <[ y ]>) + z"                   [Op plus [jApp funMf [Op ox [jF "x", jF "y"]], jF "z"]]
+  , test' "f (_+_ <[ y ]>) + z"                 [Op plus [jApp funMf [Op ox [jOp plus [p, p], jF "y"]], jF "z"]]
+  , test' "f (x <[ _+_ ]>) + z"                 [Op plus [jApp funMf [Op ox [jF "x", jOp plus [p, p]]], jF "z"]]
   , test' "f x <[ _+_ ]> + z"                   []
-  , test' "f x <[ _+_ ]>"                       [Op ox [jApp (fun "f") [fun "x"], jOp plus [p, p]]]
-  , test' "f if_then_else_ * z"                 [Op mul [jApp (fun "f") [Op ite [p, p, p]], jF "z"]]
-  , test' "f (if_then_else_) * z"               [Op mul [jApp (fun "f") [Op ite [p, p, p]], jF "z"]]
+  , test' "f x <[ _+_ ]>"                       [Op ox [jApp funMf [fun "x"], jOp plus [p, p]]]
+  , test' "f if_then_else_ * z"                 [Op mul [jApp funMf [Op ite [p, p, p]], jF "z"]]
+  , test' "f (if_then_else_) * z"               [Op mul [jApp funMf [Op ite [p, p, p]], jF "z"]]
   , test' "[[_]]"                               [Op ox' [p]]
   , test' "[[ [[ x ]]* ]]"                      [Op ox' [jOp ox'star [jF "x"]]]
-  , test' "f [[ g [[ x ]]* ]]"                  [app (fun "f") [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
+  , test' "f [[ g [[ x ]]* ]]"                  [app funMf [Op ox' [jApp (fun "g") [Op ox'star [jF "x"]]]]]
   , test' "x +C y *C z"                         [ Op plusC [jF "x", jOp mulC [jF "y", jF "z"]]
                                                 , Op mulC [jOp plusC [jF "x", jF "y"], jF "z"] ]
   , test' "a +C b *C c +C d"                    [ Op plusC [jF "a", jOp mulC [jF "b", jOp plusC [jF "c", jF "d"]]]
@@ -293,6 +294,7 @@ tests = fmap and $ sequence
   where
   -- Some abbreviations.
   fun s          = Fun (Name [] Nothing [s])
+  funMf          = Fun (Name ["M"] Nothing ["f"])
   w              = WildcardE
   p              = Nothing  -- Placeholder.
   jF             = Just . fun
