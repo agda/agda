@@ -87,7 +87,7 @@ tokensInvariant ts =
   inv1 _ = False
 
   inv2 m (QualifiedName ms _ : Placeholder Mid : rest) =
-    check m ms && inv2 m rest
+    check m ms && inv2 (Just ms) rest
   inv2 m (QualifiedName ms _ : rest) =
     check m ms && inv2 Nothing rest
   inv2 _ (_ : rest) = inv2 Nothing rest
