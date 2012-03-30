@@ -2,7 +2,10 @@
 
 -- | Basically a copy of the ErrorT monad transformer. It's handy to slap
 --   onto TCM and still be a MonadTCM (which isn't possible with ErrorT).
+
+-- Andreas, 2012-03-30: the following command seems to be STALE.
 --   Also, it does not require the silly Error instance for the err type.
+-- The silly Error instance is back. ;-)
 
 module Agda.TypeChecking.Monad.Exception where
 
