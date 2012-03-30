@@ -200,14 +200,14 @@ grammar TokensNT = concat <$>
                       many white)
   where
   tokensAndParens =
-    (++) <$>
-    many parens <*>
-    ((: []) <$> parens
-       <|>
-    (\ts1 ts2 ts3 -> concat ts1 ++ ts2 ++ ts3) <$>
-      many ((++) <$> other <*> some parens) <*>
-      other <*>
-      many parens)
+    some parens
+      <|>
+    (\ts1 ts2 ts3 -> ts1 ++ concat ts2 ++ ts3) <$>
+      many parens <*>
+      other `sepByKeep` some parens <*>
+      many parens
+
+  p `sepByKeep` sep = (:) <$> p <*> many ((++) <$> sep <*> p)
 
   white  = sat isSpace
   parens = asum [ LParen <$ sym '('
@@ -227,8 +227,7 @@ prop_lexer =
   let result = lexer s in
     classify (not $ null result) "syntactically correct" $
       length result <= 1 &&
-      all tokensInvariant result &&
-      all (all tokenInvariant) result
+      all tokensInvariant result
 
 -- | Lexer.
 
