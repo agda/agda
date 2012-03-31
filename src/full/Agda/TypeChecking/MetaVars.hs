@@ -652,9 +652,8 @@ checkLinearity elemFVs ids0 = do
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-checkAllVars :: Args -> TCM [(Nat,Term)]
-checkAllVars args = map (\ (i, t) -> (unArg i, t)) <$>
-  loop (zip args terms)
+inverseSubst :: Args -> TCM SubstCand
+inverseSubst args = map (unArg -*- id) <$> loop (zip args terms)
   where
     loop  = foldM isVarOrIrrelevant []
     terms = map var (downFrom (size args))
