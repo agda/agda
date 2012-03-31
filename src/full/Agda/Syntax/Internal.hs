@@ -86,6 +86,10 @@ data Blocked t = Blocked MetaId t
                | NotBlocked t
     deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
 
+-- | Removing a topmost 'DontCare' constructor.
+stripDontCare :: Term -> Term
+stripDontCare (DontCare v) = v
+stripDontCare v            = v
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x

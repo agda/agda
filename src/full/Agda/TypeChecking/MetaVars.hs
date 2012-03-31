@@ -613,10 +613,6 @@ assign x args v = do
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
   prettyTCM (a, b) = parens $ prettyTCM a <> comma <> prettyTCM b
 
-stripDontCare :: Term -> Term
-stripDontCare (DontCare v) = v
-stripDontCare v            = v
-
 type FVs = Set.VarSet
 type SubstCand = [(Nat,Term)] -- ^ a possibly non-deterministic substitution
 
