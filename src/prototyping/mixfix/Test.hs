@@ -94,6 +94,8 @@ ox'star = Name []    Nothing        ["[[","]]*"]
 ox'plus = Name []    Nothing        ["[[","]]+"]
 plusC   = Name []    (Just Infix)   ["+C"]
 mulC    = Name []    (Just Infix)   ["*C"]
+pair    = Name []    (Just Infix)   [","]
+pairR   = Name []    (Just Prefix)  [","]
 
 -- Note that this graph is not intended to be representative of how I
 -- want operator precedences to be specified for the given operators.
@@ -123,6 +125,8 @@ example = flip execState empty $ mapM lift
   , unrelated    ggll   Non
   , unrelated    plusC  Non
   , bindsBetween mulC   Non [plusC] [plusC]
+  , unrelated    pair   R
+  , bindsAs      pairR  Non pair
   ]
 
 exampleClosed = Set.fromList [ox', ox'star, ox'plus]
@@ -277,6 +281,7 @@ tests = fmap and $ sequence
   , test' "a +C b *C c +C d"                    [ Op plusC [jF "a", jOp mulC [jF "b", jOp plusC [jF "c", jF "d"]]]
                                                 , Op mulC [jOp plusC [jF "a", jF "b"], jOp plusC [jF "c", jF "d"]]
                                                 , Op plusC [jOp mulC [jOp plusC [jF "a", jF "b"], jF "c"], jF "d"] ]
+  , test' ", x , , , y"                         [Op pairR [jOp pair [jF "x", jOp pairR [jOp pairR [jF "y"]]]]]
 
   , test' (nested nestingDepth)                 [nestedResult nestingDepth]
   , test' (assoc  nestingDepth)                 [assocResult  nestingDepth]
