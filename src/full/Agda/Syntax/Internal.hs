@@ -45,24 +45,41 @@ data Term = Var Nat Args             -- ^ @x vs@ neutral
           | DontCare Term  -- ^ irrelevant stuff
   deriving (Typeable, Data, Show)
 
--- | An unapplied variable.
-var :: Nat -> Term
-var i = Var i []
+-- | Type of argument lists.
+--
+type Args = [Arg Term]
 
-data Type = El Sort Term
-  deriving (Typeable, Data, Show)
-
--- | A dummy type.
-typeDontCare :: Type
-typeDontCare = El Prop (Sort Prop)
-
+-- | Eliminations, subsuming applications and projections.
+--   Used for a view which exposes the head of a neutral term.
+--
 data Elim = Apply (Arg Term) | Proj QName -- ^ name of a record projection
   deriving (Show)
 
--- | Top sort (Set\omega).
-topSort :: Type
-topSort = El Inf (Sort Inf)
+-- | Binder.
+--   'Abs': The bound variable might appear in the body.
+--   'NoAbs' is pseudo-binder, it does not introduce a fresh variable,
+--      similar to the @const@ of Haskell.
+data Abs a = Abs   { absName :: String, unAbs :: a }
+               -- ^ The body has (at least) one free variable.
+               --   Danger: 'unAbs' doesn't shift variables properly
+           | NoAbs { absName :: String, unAbs :: a }
+  deriving (Typeable, Data, Functor, Foldable, Traversable)
 
+-- | Types are terms with a sort annotation.
+--
+data Type = El { getSort :: Sort, unEl :: Term }
+  deriving (Typeable, Data, Show)
+
+-- | Sequence of types. An argument of the first type is bound in later types
+--   and so on.
+data Tele a = EmptyTel
+	    | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
+  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+
+type Telescope = Tele (Arg Type)
+
+-- | Sorts.
+--
 data Sort = Type Level
 	  | Prop  -- ignore me
           | Inf
@@ -72,6 +89,9 @@ data Sort = Type Level
             --   it's the normal Lub
   deriving (Typeable, Data, Show)
 
+-- | A level is a maximum expression of 0..n plus expressions
+--   each of which is a number or an atom plus a number.
+--
 newtype Level = Max [PlusLevel]
   deriving (Show, Typeable, Data)
 
@@ -85,27 +105,28 @@ data LevelAtom = MetaLevel MetaId Args
                | UnreducedLevel Term
   deriving (Show, Typeable, Data)
 
+-- | A meta variable identifier is just a natural number.
+--
+newtype MetaId = MetaId Nat
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)
+
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
                | NotBlocked t
     deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
 
-{- UNUSED
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
 stripDontCare (DontCare v) = v
 stripDontCare v            = v
--}
-
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x
   showsPrec p (NotBlocked x) = showsPrec p x
 
-instance Applicative Blocked where
-  pure = notBlocked
-  Blocked x f  <*> e = Blocked x $ f (ignoreBlocking e)
-  NotBlocked f <*> e = f <$> e
+---------------------------------------------------------------------------
+-- * Sized instances.
+---------------------------------------------------------------------------
 
 instance Sized Term where
   size v = case v of
@@ -128,13 +149,24 @@ instance Sized Level where
 
 instance Sized PlusLevel where
   size (ClosedLevel _) = 1
-  size (Plus _ a) = size a
+  size (Plus _ a)      = size a
 
 instance Sized LevelAtom where
-  size (MetaLevel _ vs) = 1 + Prelude.sum (map size vs)
+  size (MetaLevel _   vs) = 1 + Prelude.sum (map size vs)
   size (BlockedLevel _ v) = size v
-  size (NeutralLevel v) = size v
+  size (NeutralLevel   v) = size v
   size (UnreducedLevel v) = size v
+
+instance Sized (Tele a) where
+  size  EmptyTel	 = 0
+  size (ExtendTel _ tel) = 1 + size tel
+
+instance Sized a => Sized (Abs a) where
+  size = size . unAbs
+
+---------------------------------------------------------------------------
+-- * KillRange instances.
+---------------------------------------------------------------------------
 
 instance KillRange Term where
   killRange v = case v of
@@ -197,7 +229,7 @@ data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))  -- ^ Abs is never NoAbs.
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
-type Telescope = Tele (Dom Type)
+type Telescope = Tele (Arg Type)
 
 instance Sized (Tele a) where
   size  EmptyTel	 = 0
