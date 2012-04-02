@@ -556,7 +556,6 @@ termTerm conf names f pats0 t0 = do
               -- Data or record type constructor.
               con occs =
                 constructor g Inductive $   -- guardedness preserving
-                -- constructor g CoInductive $ -- guarding! (Andreas, 2011-04-10) -- does not work, might lead to infinite unfolding in eq. checking (Ripley!)
                   zip args0 (map preserves occs ++ repeat False)
                 where
                 preserves Positive = True
@@ -612,7 +611,6 @@ termTerm conf names f pats0 t0 = do
          piArgumentGuarded =
            if guardingTypeConstructors conf then
              guarded   -- preserving guardedness
-             -- Term.lt      -- guarding! (Andreas, 2011-04-10)  -- SEE ABOVE
             else
              Term.unknown
 
