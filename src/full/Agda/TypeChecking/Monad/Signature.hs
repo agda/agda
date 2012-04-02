@@ -126,6 +126,9 @@ makeProjection x = inContext [] $ do
                               , defDisplay = [] }
     _ -> return ()
   where
+    -- @validProj (d,n)@ checks whether the head @d@ of the type of the
+    -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
+    validProj :: (QName, Int) -> TCM Bool
     validProj (_, 0) = return False
     validProj (d, _) = do
       defn <- theDef <$> getConstInfo d
@@ -173,13 +176,25 @@ makeProjection x = inContext [] $ do
     checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 
+    -- @candidateArgs [var 0,...,var(n-1)] t@ adds @(n,d)@ to the output,
+    -- if @t@ is a function-type with domain @t 0 .. (n-1)@
+    -- (the domain of @t@ is the type of the arg @n@).
+    --
+    -- This means that from the type of arg @n@ all previous arguments
+    -- can be computed by a simple matching.
+    -- (Provided the @d@ is data/record/postulate, checked in @validProj@).
+    --
+    -- E.g. f : {x : _}(y : _){z : _} -> D x y z -> ...
+    -- will return (D,3) as a candidate (amongst maybe others).
+    --
+    candidateArgs :: [Term] -> Term -> [(QName,Int)]
     candidateArgs vs (Pi (Arg r h (El _ (Def d us))) b)
       | vs == map unArg us = (d, length vs) : candidateRec vs b
     candidateArgs vs (Pi _ b) = candidateRec vs b
     candidateArgs _ _ = []
 
     candidateRec vs NoAbs{} = []
-    candidateRec vs b       = candidateArgs (Var (size vs) [] : vs) (unEl $ absBody b)
+    candidateRec vs b       = candidateArgs (var (size vs) : vs) (unEl $ absBody b)
 
 addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef =
