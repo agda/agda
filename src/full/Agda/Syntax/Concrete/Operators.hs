@@ -3,7 +3,7 @@
 {-| The parser doesn't know about operators and parses everything as normal
     function application. This module contains the functions that parses the
     operators properly. For a stand-alone implementation of this see
-    @src\/prototyping\/mixfix@.
+    @src\/prototyping\/mixfix\/old@.
 
     It also contains the function that puts parenthesis back given the
     precedence of the context.
