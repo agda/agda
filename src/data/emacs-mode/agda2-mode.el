@@ -1100,7 +1100,7 @@ ways."
             (save-match-data
                 (backward-char 3)
                 (looking-at
-                 "\\(.[{(]\\|.\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
+                 "\\(.[{(]\\|\\(.\\|\n\\)\\s \\)[?]\\(\\s \\|[)};]\\|$\\)"))))
        (make(p)  (agda2-make-goal p (point) (pop goals)))
        (inside-comment() (and stk (null     (car stk))))
        (inside-goal()    (and stk (integerp (car stk))))
