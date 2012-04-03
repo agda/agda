@@ -764,18 +764,24 @@ The variable `agda2-backend' determines which backend is used."
   "Update the goal OLD-G with the expression in it."
   (agda2-update old-g paren))
 
-(defun agda2-refine ()
+(defun agda2-refine (pmlambda)
   "Refine the goal at point.
 If the goal contains an expression e, and some \"suffix\" of the
 type of e unifies with the goal type, then the goal is replaced
 by e applied to a suitable number of new goals.
 
+PMLAMBDA is only used if the goal has a functional type.
+When the prefix argument is given a pattern maching lambda will
+be inserted, otherwise a standard lambda will be used.
+
 If the goal is empty, the goal type is a data type, and there is
 exactly one constructor which unifies with this type, then the
 goal is replaced by the constructor applied to a suitable number
 of new goals."
-  (interactive)
-  (agda2-goal-cmd "cmd_refine_or_intro" 'goal))
+  (interactive "P")
+  (if pmlambda
+      (agda2-goal-cmd "cmd_refine_or_intro True" 'goal)
+    (agda2-goal-cmd "cmd_refine_or_intro False" 'goal)))
 
 (defun agda2-auto ()
  "Simple proof search" (interactive)

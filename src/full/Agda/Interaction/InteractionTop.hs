@@ -453,9 +453,9 @@ give_gen' give_ref mk_newtxt ii rng s = do
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
 
-cmd_intro :: GoalCommand
-cmd_intro ii rng _ = interaction Dependent $ do
-  ss <- liftCommandM $ B.introTactic ii
+cmd_intro :: Bool -> GoalCommand
+cmd_intro pmLambda ii rng _ = interaction Dependent $ do
+  ss <- liftCommandM $ B.introTactic pmLambda ii
   liftCommandMT (B.withInteractionId ii) $ case ss of
     []    -> do
       display_infoD "*Intro*" $ text "No introduction forms found."
@@ -471,9 +471,9 @@ cmd_intro ii rng _ = interaction Dependent $ do
               in nest 2 $ fsep $ punctuate comma (mkOr ss)
             ]
 
-cmd_refine_or_intro :: GoalCommand
-cmd_refine_or_intro ii r s =
-  (if null s then cmd_intro else cmd_refine) ii r s
+cmd_refine_or_intro :: Bool -> GoalCommand
+cmd_refine_or_intro pmLambda ii r s =
+  (if null s then cmd_intro pmLambda else cmd_refine) ii r s
 
 cmd_auto :: GoalCommand
 cmd_auto ii rng s = interaction Dependent $ do

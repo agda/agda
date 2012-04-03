@@ -440,8 +440,8 @@ withMetaId m ret = do
 -- Returns the terms (as strings) that can be
 -- used to refine the goal. Uses the coverage checker
 -- to find out which constructors are possible.
-introTactic :: InteractionId -> TCM [String]
-introTactic ii = do
+introTactic :: Bool -> InteractionId -> TCM [String]
+introTactic pmLambda ii = do
   mi <- lookupInteractionId ii
   mv <- lookupMeta mi
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
@@ -477,7 +477,9 @@ introTactic ii = do
                              | (h, i) <- zip hs $ downFrom n
                              , okHiding h
                              ]
-        return [ unwords $ ["λ"] ++ vars ++ ["→", "?"] ]
+        if pmLambda
+           then return [ unwords $ ["λ", "{"] ++ vars ++ ["→", "?", "}"] ]
+           else return [ unwords $ ["λ"]      ++ vars ++ ["→", "?"] ]
       where
         n = size tel
         hs   = map domHiding $ telToList tel
