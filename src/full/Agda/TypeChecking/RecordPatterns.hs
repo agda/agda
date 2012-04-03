@@ -98,7 +98,7 @@ translateRecordPatterns clause = do
         where
         -- It is important that dummy does not mention any variable
         -- (see the definition of reorderTel).
-        dummy = defaultArg (El Prop (Sort Prop))
+        dummy = dummyDom -- defaultArg (El Prop (Sort Prop))
 
         isDotP n = case genericIndex cs n of
                      Left DotP{} -> True
@@ -194,7 +194,7 @@ data Kind = VarPat | DotPat
 -- patterns, should be removed, and a new variable, with the name @x@,
 -- inserted instead. The type of the new variable is @t@.
 
-type Changes = [Either Pattern (Kind -> Nat, String, Arg Type)]
+type Changes = [Either Pattern (Kind -> Nat, String, Dom Type)]
 
 -- | Record pattern trees.
 
@@ -239,7 +239,7 @@ removeTree tree = do
 
   return $ case tree of
     Leaf p     -> (p,   s, [Left p])
-    RecCon t _ -> (pat, s, [Right (count, "r", t)])
+    RecCon t _ -> (pat, s, [Right (count, "r", domFromArg t)])
 
 ------------------------------------------------------------------------
 -- Translation of patterns
@@ -338,10 +338,10 @@ translateTel
   :: Changes
      -- ^ Explanation of how the telescope should be changed. Types
      -- should be in the context of the old telescope.
-  -> [(String, Arg Type)]
+  -> [(String, Dom Type)]
      -- ^ Old telescope, flattened, in textual left-to-right
      -- order.
-  -> [Maybe (String, Arg Type)]
+  -> [Maybe (String, Dom Type)]
      -- ^ New telescope, flattened, in textual left-to-right order.
      -- 'Nothing' is used to indicate the locations of dot patterns.
 translateTel (Left (DotP{}) : rest)   tel = Nothing : translateTel rest tel

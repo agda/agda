@@ -566,10 +566,13 @@ termTerm conf names f pats0 t0 = do
               fun = function g args0
 
             -- Abstraction. Preserves guardedness.
-            Lam h (Abs x t) -> addCtxString x (Arg { argHiding    = h
-                                                   , argRelevance = __IMPOSSIBLE__
-                                                   , unArg        = __IMPOSSIBLE__
+{- OLD CODE:
+            Lam h (Abs x t) -> addCtxString x (Dom { domHiding    = h
+                                                   , domRelevance = __IMPOSSIBLE__
+                                                   , unDom        = __IMPOSSIBLE__
                                                    }) $
+-}
+            Lam h (Abs x t) -> addCtxString_ x $
               loop (map liftDBP pats) guarded t
             Lam h (NoAbs _ t) -> loop pats guarded t
 
@@ -578,14 +581,14 @@ termTerm conf names f pats0 t0 = do
 
             -- Dependent function space.
             Pi a (Abs x b) ->
-               do g1 <- loopType pats Term.unknown (unArg a)
+               do g1 <- loopType pats Term.unknown (unDom a)
                   g2 <- addCtxString x a $
                         loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
 
             -- Non-dependent function space.
             Pi a (NoAbs _ b) ->
-               do g1 <- loopType pats Term.unknown (unArg a)
+               do g1 <- loopType pats Term.unknown (unDom a)
                   g2 <- loopType pats piArgumentGuarded b
                   return $ g1 `Term.union` g2
 

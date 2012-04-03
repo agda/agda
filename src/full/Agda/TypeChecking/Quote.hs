@@ -68,13 +68,14 @@ quotingKit = do
       list (a : as) = cons @@ a @@ list as
       zero = con @@ quoteName z @@ nil
       suc n = con @@ quoteName s @@ list [arg @@ visible @@ relevant @@ n]
+      quoteDom q (Dom h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
       quoteArg q (Arg h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
       quote (Var n ts) = var @@ Lit (LitInt noRange n) @@ quoteArgs ts
       quote (Lam h t) = lam @@ quoteHiding h @@ quote (absBody t)
       quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
       quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
-      quote (Pi t u) = pi @@ quoteArg quoteType t
+      quote (Pi t u) = pi @@ quoteDom quoteType t
                           @@ quoteType (absBody u)
       quote (Level _) = unsupported
       quote (Lit lit) = quoteLit lit
@@ -240,7 +241,7 @@ instance Unquote Term where
           ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermLam, Lam <$> unquoteN x <*> unquoteN y)
-          ,(c `isCon` primAgdaTermPi,  Pi  <$> unquoteN x <*> unquoteN y)]
+          ,(c `isCon` primAgdaTermPi,  Pi  <$> (domFromArg <$> unquoteN x) <*> unquoteN y)]
           (unquoteFailed "Term" "arity 2 and none of Var, Con, Def, Lam, Pi" t)
 
       Con{} -> unquoteFailed "Term" "neither arity 0 nor 1 nor 2" t

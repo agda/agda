@@ -100,7 +100,7 @@ insertTele x 0 ins term (ExtendTel t to) = do
       , text "term:" <+> prettyTCM term
       , text "to:"   <+> prettyTCM (unAbs to)
       ]
-    (st, arg) <- case SI.unEl . unArg $ t' of
+    (st, arg) <- case SI.unEl . unDom $ t' of
             SI.Def st arg -> return (st, arg)
             s          -> do
               report 10 $ vcat
@@ -113,15 +113,18 @@ insertTele x 0 ins term (ExtendTel t to) = do
     -- Because: parameters occurs in the type of constructors but are not bound by it.
     pars <- dataParameters st
     report 10 $ text "apply in insertTele"
-    TelV ctele ctyp <- lift $ telView =<< maybe (return $ unArg t')
-                            (`piApplyM'` take (fromIntegral pars) arg) ins
-
+    TelV ctele ctyp <- lift $ telView =<< maybe (return $ unDom t')
+                            (`piApplyM'` genericTake pars arg) ins
+--                            (`piApplyM'` take (fromIntegral pars) arg) ins
+{- OLD CODE:
     () <- if length (take (fromIntegral pars) arg) == fromIntegral pars
         then return ()
         else __IMPOSSIBLE__
+-}
+    when (genericLength arg < pars) __IMPOSSIBLE__
     -- we deal with absBody to directly since we remove t
     return ( ctele +:+  (S.subst term $ S.raiseFrom 1 (size ctele) (unAbs to))
-           , (ctele, S.raise (size ctele) $ unArg t , ctyp)
+           , (ctele, S.raise (size ctele) $ unDom t , ctyp)
            )
   where
     -- Append the telescope, we raise since we add a new binding and all the previous

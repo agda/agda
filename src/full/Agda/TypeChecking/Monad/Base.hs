@@ -860,7 +860,7 @@ initEnv = TCEnv { envContext	         = []
 
 type Context	  = [ContextEntry]
 data ContextEntry = Ctx { ctxId	   :: CtxId
-			, ctxEntry :: Arg (Name, Type)
+			, ctxEntry :: Dom (Name, Type)
 			}
   deriving (Typeable, Data)
 
@@ -871,7 +871,7 @@ newtype CtxId	  = CtxId Nat
 -- ** Let bindings
 ---------------------------------------------------------------------------
 
-type LetBindings = Map Name (Open (Term, Arg Type))
+type LetBindings = Map Name (Open (Term, Dom Type))
 
 ---------------------------------------------------------------------------
 -- ** Abstract mode
@@ -974,7 +974,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
-        | SplitOnIrrelevant A.Pattern (Arg Type)
+        | SplitOnIrrelevant A.Pattern (Dom Type)
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
         | UnequalLevel Comparison Term Term

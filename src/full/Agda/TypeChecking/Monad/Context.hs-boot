@@ -5,5 +5,5 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
 
-getContext   :: MonadTCM tcm => tcm [Arg (Name, Type)]
+getContext   :: MonadTCM tcm => tcm [Dom (Name, Type)]
 getContextId :: MonadTCM tcm => tcm [CtxId]

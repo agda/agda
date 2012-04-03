@@ -193,7 +193,9 @@ instance GenC Hiding where
 
 instance GenC a => GenC (Arg a) where
   genC conf = (\ (h, a) -> Arg h Relevant a) <$> genC conf
---   genC conf = uncurry Arg <$> genC conf
+
+instance GenC a => GenC (Dom a) where
+  genC conf = (\ (h, a) -> Dom h Relevant a) <$> genC conf
 
 instance GenC a => GenC (Abs a) where
   genC conf = Abs "x" <$> genC (extendConf conf)
@@ -403,7 +405,10 @@ instance ShrinkC a b => ShrinkC (Abs a) (Abs b) where
 
 instance ShrinkC a b => ShrinkC (Arg a) (Arg b) where
   shrinkC conf (Arg h r x) = (\ (h,x) -> Arg h r x) <$> shrinkC conf (h, x)
---  shrinkC conf (Arg h x) = uncurry Arg <$> shrinkC conf (h, x)
+  noShrink = fmap noShrink
+
+instance ShrinkC a b => ShrinkC (Dom a) (Dom b) where
+  shrinkC conf (Dom h r x) = (\ (h,x) -> Dom h r x) <$> shrinkC conf (h, x)
   noShrink = fmap noShrink
 
 instance ShrinkC a b => ShrinkC (Blocked a) (Blocked b) where
@@ -444,7 +449,7 @@ instance ShrinkC Term Term where
     Lit l	 -> Lit <$> shrinkC conf l
     Level l      -> [] -- TODO
     Lam h b      -> killAbs b : (uncurry Lam <$> shrinkC conf (h, b))
-    Pi a b       -> unEl (unArg a) : unEl (killAbs b) :
+    Pi a b       -> unEl (unDom a) : unEl (killAbs b) :
 		    (uncurry Pi <$> shrinkC conf (a, b))
     Sort s       -> Sort <$> shrinkC conf s
     MetaV m args -> map unArg args ++ (MetaV m <$> shrinkC conf (NoType args))
@@ -489,6 +494,9 @@ instance KillVar Telescope where
   killVar i (ExtendTel a tel) = uncurry ExtendTel $ killVar i (a, tel)
 
 instance KillVar a => KillVar (Arg a) where
+  killVar i = fmap (killVar i)
+
+instance KillVar a => KillVar (Dom a) where
   killVar i = fmap (killVar i)
 
 instance KillVar a => KillVar (Abs a) where

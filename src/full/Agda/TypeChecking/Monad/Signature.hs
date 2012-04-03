@@ -72,7 +72,8 @@ addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = killRange $ case theDef d of
-	      Constructor{} -> hideTel tel
+--	      Constructor{} -> hideTel tel
+	      Constructor{} -> fmap (mapDomHiding (const Hidden)) tel
 	      _		    -> tel
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
@@ -83,8 +84,10 @@ addConstant q d = do
   where
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
 
-    hideTel  EmptyTel		      = EmptyTel
-    hideTel (ExtendTel (Arg _ r t) tel) = ExtendTel (Arg Hidden r t) $ hideTel <$> tel
+{- UNUSED
+    hideTel  EmptyTel		        = EmptyTel
+    hideTel (ExtendTel (Dom _ r t) tel) = ExtendTel (Dom Hidden r t) $ hideTel <$> tel
+-}
 
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()
@@ -188,7 +191,7 @@ makeProjection x = inContext [] $ do
     -- will return (D,3) as a candidate (amongst maybe others).
     --
     candidateArgs :: [Term] -> Term -> [(QName,Int)]
-    candidateArgs vs (Pi (Arg r h (El _ (Def d us))) b)
+    candidateArgs vs (Pi (Dom r h (El _ (Def d us))) b)
       | vs == map unArg us = (d, length vs) : candidateRec vs b
     candidateArgs vs (Pi _ b) = candidateRec vs b
     candidateArgs _ _ = []
@@ -589,7 +592,7 @@ instantiateDef d = do
     ctx <- getContext
     m   <- currentModule
     reportSLn "" 0 $ "instDef in " ++ show m ++ ": " ++ show (defName d) ++ " " ++
-			unwords (map show . take (size vs) . reverse . map (fst . unArg) $ ctx)
+			unwords (map show . take (size vs) . reverse . map (fst . unDom) $ ctx)
   return $ d `apply` vs
 
 -- | Give the abstract view of a definition.

@@ -69,40 +69,31 @@ nonStrictToIrr :: Relevance -> Relevance
 nonStrictToIrr NonStrict = Irrelevant
 nonStrictToIrr rel       = rel
 
--- * Operations on 'Arg'.
+-- * Operations on 'Dom'.
 
 -- | Prepare parts of a parameter telescope for abstraction in constructors
 --   and projections.
-hideAndRelParams :: Arg a -> Arg a
+hideAndRelParams :: Dom a -> Dom a
 hideAndRelParams a = a
-  { argRelevance = nonStrictToIrr (argRelevance a)
-  , argHiding    = Hidden
+  { domRelevance = nonStrictToIrr (domRelevance a)
+  , domHiding    = Hidden
   }
 
+{- UNUSED
 -- | @modifyArgRelevance f arg@ applies @f@ to the 'argRelevance' component of @arg@.
 modifyArgRelevance :: (Relevance -> Relevance) -> Arg a -> Arg a
 modifyArgRelevance f a = a { argRelevance = f (argRelevance a) }
+-}
 
 -- | Used to modify context when going into a @rel@ argument.
-inverseApplyRelevance :: Relevance -> Arg a -> Arg a
-inverseApplyRelevance rel = modifyArgRelevance (rel `inverseComposeRelevance`)
--- inverseApplyRelevance rel a = a { argRelevance = rel `inverseComposeRelevance` argRelevance a }
+inverseApplyRelevance :: Relevance -> Dom a -> Dom a
+inverseApplyRelevance rel = mapDomRelevance (rel `inverseComposeRelevance`)
 
 -- | Compose two relevance flags.
 --   This function is used to update the relevance information
 --   on pattern variables @a@ after a match against something @rel@.
-applyRelevance :: Relevance -> Arg a -> Arg a
-applyRelevance rel = modifyArgRelevance (rel `composeRelevance`)
--- applyRelevance rel a = a { argRelevance = rel `composeRelevance` argRelevance a }
-
-{- Andreas, 2011-04-26: the combination Irrelevant Forced does not arise
-applyRelevance Irrelevant a | argRelevance a == Relevant =
-  a { argRelevance = Irrelevant }
-applyRelevance Forced a | argRelevance a == Relevant =
-  a { argRelevance = Forced }
-applyRelevance rel a = a -- ^ do nothing if rel == Relevant or a is
-                         -- already Forced or Irrelevant
--}
+applyRelevance :: Relevance -> Dom a -> Dom a
+applyRelevance rel = mapDomRelevance (rel `composeRelevance`)
 
 -- * Operations on 'Context'.
 
@@ -122,7 +113,7 @@ doWorkOnTypes = verboseBracket "tc.irr" 20 "workOnTypes" . workOnTypes' True
 workOnTypes' :: Bool -> TCM a -> TCM a
 workOnTypes' allowed cont =
   if allowed then
-    liftTCM $ modifyContext (modifyContextEntries $ modifyArgRelevance $ irrToNonStrict) cont
+    liftTCM $ modifyContext (modifyContextEntries $ mapDomRelevance $ irrToNonStrict) cont
    else cont
 
 -- | (Conditionally) wake up irrelevant variables and make them relevant.
@@ -148,14 +139,3 @@ applyRelevanceToContext rel =
 --   may be used, so they are awoken before type checking the argument.
 wakeIrrelevantVars :: TCM a -> TCM a
 wakeIrrelevantVars = applyRelevanceToContext Irrelevant
-{-
-wakeIrrelevantVars = local $ \ e -> e
-   { envContext = map wakeVar (envContext e) -- enable local  irr. defs
-   , envIrrelevant = True                    -- enable global irr. defs
-   }
-  where wakeVar ce = ce { ctxEntry = makeRelevant (ctxEntry ce) }
-
-applyRelevanceToContext :: Relevance -> TCM a -> TCM a
-applyRelevanceToContext Irrelevant cont = wakeIrrelevantVars cont
-applyRelevanceToContext _          cont = cont
--}

@@ -48,12 +48,11 @@ etaOnce v = ignoreAbstractMode $ eta v
       imp <- shouldEtaContractImplicit
       case binAppView b of
         App u (Arg h' r v)
-          | isVar0 v && allowed imp h' && not (freeIn 0 u) ->
+          | (r == Irrelevant || isVar0 v) && allowed imp h' && not (freeIn 0 u) ->
             return $ subst __IMPOSSIBLE__ u
         _ -> return t
       where
         isVar0 (Var 0 [])               = True
-        isVar0 (DontCare{})             = True  -- Andreas, 2011-10-01 eta-contract irrelevant functions also
         isVar0 (Level (Max [Plus 0 l])) = case l of
           NeutralLevel v   -> isVar0 v
           UnreducedLevel v -> isVar0 v

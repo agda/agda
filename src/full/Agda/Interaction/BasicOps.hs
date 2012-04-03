@@ -402,7 +402,7 @@ contextOfMeta ii norm = do
 	visible _	     = __IMPOSSIBLE__
         reifyContext xs = reverse <$> zipWithM out [1..] xs
 
-        out i (Arg h _ (x, t)) = escapeContext i $ do
+        out i (Dom h _ (x, t)) = escapeContext i $ do
           t' <- reify =<< rewrite norm t
           return $ OfType x t'
 
@@ -473,20 +473,20 @@ introTactic ii = do
     introFun tel = addCtxTel tel' $ do
         imp <- showImplicitArguments
         let okHiding h = imp || h == NotHidden
-        vars <- mapM showTCM [ Arg h Relevant (I.Var i [])
-                             | (h, i) <- zip hs $ reverse [0..n - 1]
+        vars <- mapM showTCM [ Arg h Relevant (var i)
+                             | (h, i) <- zip hs $ downFrom n
                              , okHiding h
                              ]
         return [ unwords $ ["λ"] ++ vars ++ ["→", "?"] ]
       where
         n = size tel
-        hs   = map argHiding $ telToList tel
+        hs   = map domHiding $ telToList tel
         tel' = telFromList [ fmap makeName b | b <- telToList tel ]
         makeName ("_", t) = ("x", t)
         makeName (x, t)   = (x, t)
 
     introData t = do
-      let tel  = telFromList [defaultArg ("_", t)]
+      let tel  = telFromList [domFromArg $ defaultArg ("_", t)]
           perm = idP 1
           pat  = [defaultArg (I.VarP "c")]
       r <- split CoInductive tel perm pat 0

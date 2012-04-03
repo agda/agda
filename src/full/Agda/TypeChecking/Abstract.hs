@@ -14,7 +14,7 @@ import Agda.Utils.Impossible
 piAbstractTerm :: Term -> Type -> Type -> Type
 piAbstractTerm v a b = fun a (abstractTerm v b)
   where
-    fun a b = El s $ Pi (Arg NotHidden Relevant a) $ mkAbs "w" b
+    fun a b = El s $ Pi (Dom NotHidden Relevant a) $ mkAbs "w" b
       where s = (sLub `on` getSort) a b
 
 class AbstractTerm a where
@@ -63,6 +63,9 @@ instance AbstractTerm LevelAtom where
     UnreducedLevel v -> UnreducedLevel $ abstractTerm u v
 
 instance AbstractTerm a => AbstractTerm (Arg a) where
+  abstractTerm = fmap . abstractTerm
+
+instance AbstractTerm a => AbstractTerm (Dom a) where
   abstractTerm = fmap . abstractTerm
 
 instance AbstractTerm a => AbstractTerm [a] where

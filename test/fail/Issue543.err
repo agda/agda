@@ -1,5 +1,4 @@
-Issue543.agda:31,10-72
-Common.Irrelevance.irrAxiom true != true of type Bool
-when checking that the expression
-subst (λ s → unsquash (squash true) ≡ unsquash s) sqT≡sqF refl has
-type true ≡ false
+Issue543.agda:31,68-72
+.(true) != .(true) of type Bool
+when checking that the expression refl has type
+unsquash (squash true) ≡ unsquash (squash true)

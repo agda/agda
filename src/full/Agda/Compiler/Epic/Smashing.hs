@@ -104,7 +104,7 @@ inferable visited dat args = do
           , text "tele" <+> prettyTCM tel
           , text "constr:" <+> prettyTCM c
           ]
-        (AA.Con tag c <$>) <$> sequence <$> forM (notForced forc $ flattenTel tel) (inferableTerm visited' . unEl . unArg)
+        (AA.Con tag c <$>) <$> sequence <$> forM (notForced forc $ flattenTel tel) (inferableTerm visited' . unEl . unDom)
     visited' = S.insert dat visited
 
 inferableTerm visited t = case t of

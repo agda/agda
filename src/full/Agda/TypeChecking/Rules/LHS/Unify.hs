@@ -361,7 +361,7 @@ instance (PrettyTCM a) => PrettyTCM (HomHet a) where
 type TermHH    = HomHet Term
 type TypeHH    = HomHet Type
 --type FunViewHH = FunV TypeHH
-type TelHH     = Tele (Arg TypeHH)
+type TelHH     = Tele (Dom TypeHH)
 type TelViewHH = TelV TypeHH
 
 absAppHH :: SubstHH t tHH => Abs t -> TermHH -> tHH
@@ -405,6 +405,10 @@ instance SubstHH Type (HomHet Type) where
   trivialHH = Hom
 
 instance SubstHH a b => SubstHH (Arg a) (Arg b) where
+  substUnderHH n u = fmap $ substUnderHH n u
+  trivialHH = fmap trivialHH
+
+instance SubstHH a b => SubstHH (Dom a) (Dom b) where
   substUnderHH n u = fmap $ substUnderHH n u
   trivialHH = fmap trivialHH
 
@@ -504,7 +508,7 @@ unifyIndices flex a us vs = liftTCM $ do
     unifyConArgs _ [] (_ : _) = __IMPOSSIBLE__
     unifyConArgs _ []      [] = return ()
     unifyConArgs EmptyTel _ _ = __IMPOSSIBLE__
-    unifyConArgs tel0@(ExtendTel a@(Arg _ rel bHH) tel) us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
+    unifyConArgs tel0@(ExtendTel a@(Dom _ rel bHH) tel) us0@(arg@(Arg _ _ u) : us) vs0@(Arg _ _ v : vs) = do
       liftTCM $ reportSDoc "tc.lhs.unify" 15 $ sep
         [ text "unifyConArgs"
 	-- , nest 2 $ parens (prettyTCM tel0)
@@ -559,9 +563,9 @@ unifyIndices flex a us vs = liftTCM $ do
           -- unification of u and v, otherwise us or vs might be ill-typed
           let dep = dependent $ unEl a
           -- skip irrelevant parts
-	  unless (argRelevance b == Irrelevant) $
+	  unless (domRelevance b == Irrelevant) $
             (if dep then noPostponing else id) $
-              unify (unArg b) u v
+              unify (unDom b) u v
           arg <- traverse ureduce arg
 	  unifyArgs (a `piApply` [arg]) us vs
 	_	  -> __IMPOSSIBLE__
@@ -977,8 +981,8 @@ dataOrRecordTypeHH c (Het a1 a2) = do
 
 -- | Views an expression (pair) as type shape.  Fails if not same shape.
 data ShapeView a
-  = PiSh (Arg a) (Abs a)
-  | FunSh (Arg a) a
+  = PiSh (Dom a) (Abs a)
+  | FunSh (Dom a) a
   | DefSh QName   -- ^ data/record
   | VarSh Nat     -- ^ neutral type
   | LitSh Literal -- ^ built-in type
@@ -1012,13 +1016,13 @@ shapeViewHH (Het a1 a2) = do
   (a2, sh2) <- shapeView a2
   return . (Het a1 a2,) $ case (sh1, sh2) of
 
-    (PiSh (Arg h1 r1 a1) b1, PiSh (Arg h2 r2 a2) b2)
+    (PiSh (Dom h1 r1 a1) b1, PiSh (Dom h2 r2 a2) b2)
       | h1 == h2 ->
-      PiSh (Arg h1 (min r1 r2) (Het a1 a2)) (Abs (absName b1) (Het (absBody b1) (absBody b2)))
+      PiSh (Dom h1 (min r1 r2) (Het a1 a2)) (Abs (absName b1) (Het (absBody b1) (absBody b2)))
 
-    (FunSh (Arg h1 r1 a1) b1, FunSh (Arg h2 r2 a2) b2)
+    (FunSh (Dom h1 r1 a1) b1, FunSh (Dom h2 r2 a2) b2)
       | h1 == h2 ->
-      FunSh (Arg h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
+      FunSh (Dom h1 (min r1 r2) (Het a1 a2)) (Het b1 b2)
 
     (DefSh d1, DefSh d2) | d1 == d2 -> DefSh d1
     (VarSh x1, VarSh x2) | x1 == x2 -> VarSh x1

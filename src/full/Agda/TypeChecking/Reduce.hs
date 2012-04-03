@@ -120,6 +120,9 @@ instance Instantiate t => Instantiate (Abs t) where
 instance Instantiate t => Instantiate (Arg t) where
     instantiate = traverse instantiate
 
+instance Instantiate t => Instantiate (Dom t) where
+    instantiate = traverse instantiate
+
 instance Instantiate t => Instantiate [t] where
     instantiate = traverse instantiate
 
@@ -226,7 +229,13 @@ instance Reduce t => Reduce [t] where
     reduce = traverse reduce
 
 instance Reduce t => Reduce (Arg t) where
-    reduce  = traverse reduce
+    reduce a@(Arg h Irrelevant t) = return a  -- Don't reduce irr. args!?
+    reduce a                      = traverse reduce a
+
+    reduceB t = traverse id <$> traverse reduceB t
+
+instance Reduce t => Reduce (Dom t) where
+    reduce = traverse reduce
     reduceB t = traverse id <$> traverse reduceB t
 
 -- Tuples are never blocked
@@ -478,6 +487,10 @@ instance (Raise t, Normalise t) => Normalise (Abs t) where
     normalise (NoAbs x v) = NoAbs x <$> normalise v
 
 instance Normalise t => Normalise (Arg t) where
+    normalise a@(Arg h Irrelevant t) = return a -- Andreas, 2012-04-02: Do not normalize irrelevant terms!?
+    normalise a = traverse normalise a
+
+instance Normalise t => Normalise (Dom t) where
     normalise = traverse normalise
 
 instance Normalise t => Normalise [t] where
@@ -613,6 +626,9 @@ instance (Raise t, InstantiateFull t) => InstantiateFull (Abs t) where
     instantiateFull (NoAbs x a) = NoAbs x <$> instantiateFull a
 
 instance InstantiateFull t => InstantiateFull (Arg t) where
+    instantiateFull = traverse instantiateFull
+
+instance InstantiateFull t => InstantiateFull (Dom t) where
     instantiateFull = traverse instantiateFull
 
 instance InstantiateFull t => InstantiateFull [t] where

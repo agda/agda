@@ -41,27 +41,27 @@ renamingR :: Permutation -> [Term]
 renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
-flattenTel :: Telescope -> [Arg Type]
+flattenTel :: Telescope -> [Dom Type]
 flattenTel EmptyTel	     = []
 flattenTel (ExtendTel a tel) = raise (size tel + 1) a : flattenTel (absBody tel)
 
 -- | Order a flattened telescope in the correct dependeny order: Γ ->
 --   Permutation (Γ -> Γ~)
-reorderTel :: [Arg Type] -> Maybe Permutation
+reorderTel :: [Dom Type] -> Maybe Permutation
 reorderTel tel = topoSort comesBefore tel'
   where
     tel' = zip (downFrom $ size tel) tel
 --    tel' = reverse $ zip [0..] $ reverse tel
-    (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unArg a) -- a tiny bit unsafe
+    (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unDom a) -- a tiny bit unsafe
 
-reorderTel_ :: [Arg Type] -> Permutation
+reorderTel_ :: [Dom Type] -> Permutation
 reorderTel_ tel = case reorderTel tel of
   Nothing -> __IMPOSSIBLE__
   Just p  -> p
 
 -- | Unflatten: turns a flattened telescope into a proper telescope. Must be
 --   properly ordered.
-unflattenTel :: [String] -> [Arg Type] -> Telescope
+unflattenTel :: [String] -> [Dom Type] -> Telescope
 unflattenTel []	  []	        = EmptyTel
 unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
@@ -73,15 +73,14 @@ unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
 -- | Get the suggested names from a telescope
 teleNames :: Telescope -> [String]
-teleNames = map (fst . unArg) . telToList
+teleNames = map (fst . unDom) . telToList
 
 teleArgNames :: Telescope -> [Arg String]
-teleArgNames = map (fmap fst) . telToList
+teleArgNames = map (argFromDom . fmap fst) . telToList
 
 teleArgs :: Telescope -> Args
-teleArgs tel = [ Arg h r (var i) | (i, Arg h r _) <- zip (downFrom $ size l) l ]
+teleArgs tel = [ Arg h r (var i) | (i, Dom h r _) <- zip (downFrom $ size l) l ]
   where l = telToList tel
---  reverse [ Arg h r (var i) | (i, Arg h r _) <- zip [0..] $ reverse (telToList tel) ]
 
 -- | A telescope split in two.
 data SplitTel = SplitTel

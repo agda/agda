@@ -38,11 +38,14 @@ data Term = Var Nat Args
 	  | Lit Literal
 	  | Def QName Args
 	  | Con QName Args
-	  | Pi (Arg Type) (Abs Type)
+	  | Pi (Dom Type) (Abs Type)
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
-          | DontCare Term  -- ^ irrelevant stuff
+          | DontCare Term
+            -- ^ Irrelevant stuff in relevant position, but created
+            --   in an irrelevant context.  Basically, an internal
+            --   version of the irrelevance axiom @.irrAx : .A -> A@.
   deriving (Typeable, Data, Show)
 
 -- | An unapplied variable.
@@ -86,10 +89,13 @@ data Blocked t = Blocked MetaId t
                | NotBlocked t
     deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
 
+{- UNUSED
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
 stripDontCare (DontCare v) = v
 stripDontCare v            = v
+-}
+
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x
@@ -111,7 +117,7 @@ instance Sized Term where
     Lit _       -> 1
     Pi a b      -> 1 + size a + size b
     Sort s      -> 1
-    DontCare mv -> size mv
+    DontCare mv -> 1 + size mv
 
 instance Sized Type where
   size = size . unEl
@@ -190,7 +196,7 @@ data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))  -- ^ Abs is never NoAbs.
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
-type Telescope = Tele (Arg Type)
+type Telescope = Tele (Dom Type)
 
 instance Sized (Tele a) where
   size  EmptyTel	 = 0

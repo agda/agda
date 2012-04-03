@@ -315,6 +315,9 @@ instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
 instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
   occurrences vars = occurrences vars . unArg
 
+instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
+  occurrences vars = occurrences vars . unDom
+
 instance ComputeOccurrences a => ComputeOccurrences [a] where
   occurrences vars = concatOccurs . map (occurrences vars)
 

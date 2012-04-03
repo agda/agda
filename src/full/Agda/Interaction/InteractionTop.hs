@@ -670,7 +670,7 @@ display_infoD bufname = display_info bufname . render
 
 takenNameStr :: TCM [String]
 takenNameStr = do
-  xss <- sequence [ List.map (fst . unArg) <$> getContext
+  xss <- sequence [ List.map (fst . unDom) <$> getContext
                   , Map.keys <$> asks envLetBindings
                   , List.map qnameName . Map.keys . sigDefinitions <$> getSignature
 		  ]

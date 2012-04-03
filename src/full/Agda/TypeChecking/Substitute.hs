@@ -243,7 +243,7 @@ instance Abstract Clause where
 
 instance Abstract CompiledClauses where
   abstract tel Fail = Fail
-  abstract tel (Done xs t) = Done (map (fmap fst) (telToList tel) ++ xs) t
+  abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
     Case (n + fromIntegral (size tel)) (abstract tel bs)
 
@@ -251,8 +251,9 @@ instance Abstract a => Abstract (Case a) where
   abstract tel (Branches cs ls m) =
     Branches (abstract tel cs) (abstract tel ls) (abstract tel m)
 
+telVars :: Telescope -> [Arg Pattern]
 telVars EmptyTel                    = []
-telVars (ExtendTel arg tel) = fmap (const $ VarP $ absName tel) arg : telVars (unAbs tel)
+telVars (ExtendTel (Dom h r a) tel) = Arg h r (VarP $ absName tel) : telVars (unAbs tel)
 
 instance Abstract FunctionInverse where
   abstract tel NotInjective  = NotInjective
@@ -274,7 +275,7 @@ instance Abstract v => Abstract (Map k v) where
 abstractArgs :: Abstract a => Args -> a -> a
 abstractArgs args x = abstract tel x
     where
-        tel   = foldr (\(Arg h r x) -> ExtendTel (Arg h r $ sort Prop) . Abs x) EmptyTel
+        tel   = foldr (\(Arg h r x) -> ExtendTel (Dom h r $ sort Prop) . Abs x) EmptyTel
               $ zipWith (fmap . const) names args
         names = cycle $ map (:[]) ['a'..'z']
 
@@ -407,6 +408,10 @@ instance Subst a => Subst (Abs a) where
     substUnder n u (NoAbs x t) = NoAbs x $ substUnder n u t
 
 instance Subst a => Subst (Arg a) where
+    substs us      = fmap (substs us)
+    substUnder n u = fmap (substUnder n u)
+
+instance Subst a => Subst (Dom a) where
     substs us      = fmap (substs us)
     substUnder n u = fmap (substUnder n u)
 
@@ -610,6 +615,10 @@ instance Raise t => Raise (Arg t) where
     raiseFrom m k = fmap (raiseFrom m k)
     renameFrom m k = fmap (renameFrom m k)
 
+instance Raise t => Raise (Dom t) where
+    raiseFrom m k = fmap (raiseFrom m k)
+    renameFrom m k = fmap (renameFrom m k)
+
 instance Raise t => Raise (Blocked t) where
     raiseFrom m k = fmap (raiseFrom m k)
     renameFrom m k = fmap (renameFrom m k)
@@ -636,16 +645,16 @@ raise = raiseFrom 0
 rename :: Raise t => (Nat -> Nat) -> t -> t
 rename = renameFrom 0
 
-data TelV a = TelV (Tele (Arg a)) a
+data TelV a = TelV (Tele (Dom a)) a
   deriving (Typeable, Data, Show, Eq, Ord, Functor)
 
 type TelView = TelV Type
 -- data TelView = TelV Telescope Type
 
-telFromList :: [Arg (String, Type)] -> Telescope
-telFromList = foldr (\(Arg h r (x, a)) -> ExtendTel (Arg h r a) . Abs x) EmptyTel
+telFromList :: [Dom (String, Type)] -> Telescope
+telFromList = foldr (\(Dom h r (x, a)) -> ExtendTel (Dom h r a) . Abs x) EmptyTel
 
-telToList :: Telescope -> [Arg (String, Type)]
+telToList :: Telescope -> [Dom (String, Type)]
 telToList EmptyTel = []
 telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBody tel)
 
@@ -656,13 +665,19 @@ telView' t = case unEl t of
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
+-- | @mkPi dom t = telePi (telFromList [dom]) t@
+mkPi :: Dom (String, Type) -> Type -> Type
+mkPi (Dom h r (x, a)) b = el $ Pi (Dom h r a) (mkAbs x b)
+  where
+    el = El $ dLub (getSort a) (Abs x (getSort b)) -- dLub checks x freeIn
+
 telePi :: Telescope -> Type -> Type
 telePi  EmptyTel         t = t
 telePi (ExtendTel u tel) t = el $ Pi u (reAbs b)
   where
     el = El (dLub s1 s2)
     b = fmap (flip telePi t) tel
-    s1 = getSort $ unArg u
+    s1 = getSort $ unDom u
     s2 = fmap getSort b
 
 -- | Everything will be a pi.
@@ -672,12 +687,12 @@ telePi_ (ExtendTel u tel) t = el $ Pi u b
   where
     el = El (dLub s1 s2)
     b  = fmap (flip telePi_ t) tel
-    s1 = getSort $ unArg u
+    s1 = getSort $ unDom u
     s2 = fmap getSort b
 
 teleLam :: Telescope -> Term -> Term
 teleLam  EmptyTel	  t = t
-teleLam (ExtendTel u tel) t = Lam (argHiding u) $ flip teleLam t <$> tel
+teleLam (ExtendTel u tel) t = Lam (domHiding u) $ flip teleLam t <$> tel
 
 -- | Dependent least upper bound, to assign a level to expressions
 --   like @forall i -> Set i@.
@@ -687,6 +702,7 @@ dLub :: Sort -> Abs Sort -> Sort
 dLub s1 (NoAbs _ s2) = sLub s1 s2
 dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   Flexible      -> DLub s1 b
+  Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (absApp b __IMPOSSIBLE__)
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf

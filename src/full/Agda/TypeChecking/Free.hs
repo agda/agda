@@ -40,7 +40,7 @@ data FreeVars = FV
   { stronglyRigidVars :: VarSet -- ^ variables at top and under constructors
   , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables
   , flexibleVars      :: VarSet -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
-  , irrelevantVars    :: VarSet -- ^ variables under a @DontCare@, i.e., in irrelevant positions
+  , irrelevantVars    :: VarSet -- ^ variables in irrelevant arguments and under a @DontCare@, i.e., in irrelevant positions
   }
 
 rigidVars :: FreeVars -> VarSet
@@ -56,17 +56,21 @@ relevantVars fv = Set.unions [rigidVars fv, flexibleVars fv]
 
 data Occurrence
   = NoOccurrence
+  | Irrelevantly
   | StronglyRigid
   | WeaklyRigid
   | Flexible
   deriving (Eq,Show)
 
+{- NO LONGER
 -- | @occurrence x fv@ ignores irrelevant variables in @fv@
+-}
 occurrence :: Nat -> FreeVars -> Occurrence
 occurrence x fv
   | x `Set.member` stronglyRigidVars fv = StronglyRigid
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
   | x `Set.member` flexibleVars      fv = Flexible
+  | x `Set.member` irrelevantVars    fv = Irrelevantly
   | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
@@ -118,7 +122,7 @@ singleton x = FV { stronglyRigidVars = Set.singleton x
 -- * Collecting free variables.
 
 class Free a where
-  freeVars' :: FreeConf -> a -> FreeVars
+  freeVars'   :: FreeConf -> a -> FreeVars
 
 data FreeConf = FreeConf
   { fcIgnoreSorts :: Bool
@@ -182,7 +186,11 @@ instance (Free a, Free b) => Free (a,b) where
   freeVars' conf (x,y) = freeVars' conf x `union` freeVars' conf y
 
 instance Free a => Free (Arg a) where
-  freeVars' conf = freeVars' conf . unArg
+  freeVars' conf (Arg h Irrelevant a) = irrelevantly $ freeVars' conf a
+  freeVars' conf (Arg h r          a) = freeVars' conf a
+
+instance Free a => Free (Dom a) where
+  freeVars' conf (Dom h r a) = freeVars' conf a
 
 instance Free a => Free (Abs a) where
   freeVars' conf (Abs   _ b) = subtractFV 1 $ delete 0 $ freeVars' conf b

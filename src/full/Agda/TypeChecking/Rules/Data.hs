@@ -223,7 +223,7 @@ bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TBind _ xs _))) : 
 bindParameters (A.DomainFull (A.TypedBindings _ (Arg h rel (A.TNoBind _))) : bs) a ret = do
   x <- freshNoName_
   bindParameters (A.DomainFree h rel x : bs) a ret
-bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi arg@(Arg h' rel' a) b)) ret
+bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi arg@(Dom h' rel' a) b)) ret
   -- Andreas, 2011-04-07 ignore relevance information in binding?!
     | h /= h' =
 	__IMPOSSIBLE__
@@ -252,7 +252,7 @@ fitsIn t s = do
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
   case unEl t of
-    Pi arg@(Arg h r a) _ -> do
+    Pi arg@(Dom h r a) _ -> do
       let s' = getSort a
       s' `leqSort` s
       x <- freshName_ (argName t)

@@ -90,24 +90,24 @@ splitProblem (Problem ps (perm, qs) tel) = do
           -- not indexed.
 
           -- Andreas, 2010-09-07 cannot split on irrelevant args
-          when (unusableRelevance $ argRelevance a) $
+          when (unusableRelevance $ domRelevance a) $
             typeError $ SplitOnIrrelevant p a
 	  b <- lift $ litType lit
 	  ok <- lift $ do
-	      noConstraints (equalType (unArg a) b)
+	      noConstraints (equalType (unDom a) b)
 	      return True
 	    `catchError` \_ -> return False
 	  if ok
 	    then return $
 	      Split mempty
 		    xs
-		    (fmap (LitFocus lit q i) a)
+		    (argFromDom $ fmap (LitFocus lit q i) a)
 		    (fmap (Problem ps ()) tel)
 	    else keepGoing
 
         -- Case: constructor pattern
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
-	  a' <- liftTCM $ reduce $ unArg a
+	  a' <- liftTCM $ reduce $ unDom a
 	  case unEl a' of
 
             -- Type is a meta and constructor is unambiguous,
@@ -128,7 +128,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 	      def <- liftTCM $ theDef <$> getConstInfo d
               unless (defIsRecord def) $
                 -- cannot split on irrelevant or non-strict things
-                when (unusableRelevance $ argRelevance a) $ do
+                when (unusableRelevance $ domRelevance a) $ do
                   -- Andreas, 2011-10-04 unless allowed by option
                   allowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
                   unless allowed $ typeError $ SplitOnIrrelevant p a
@@ -140,7 +140,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
               case mp of
                 Nothing -> keepGoing
                 Just np ->
-		  liftTCM $ traceCall (CheckPattern p EmptyTel (unArg a)) $ do  -- TODO: wrong telescope
+		  liftTCM $ traceCall (CheckPattern p EmptyTel (unDom a)) $ do  -- TODO: wrong telescope
                   -- Check that we construct something in the right datatype
                   c <- do
                       cs' <- mapM canonicalName cs
@@ -172,7 +172,7 @@ splitProblem (Problem ps (perm, qs) tel) = do
 
 		  return $ Split mempty
 				 xs
-				 (fmap (Focus c args (getRange p) q i d pars ixs) a)
+				 (argFromDom $ fmap (Focus c args (getRange p) q i d pars ixs) a)
 				 (fmap (Problem ps ()) tel)
             -- Subcase: split type is not a Def
 	    _	-> keepGoing

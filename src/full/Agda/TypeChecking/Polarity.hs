@@ -16,6 +16,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad.Builtin
 import Agda.Interaction.Options
+import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
 import Agda.Utils.Size
@@ -68,21 +69,22 @@ sizePolarity d =
           (parTel, ixTel) = genericSplitAt np $ telToList tel
       case ixTel of
         []                 -> return []  -- No size index
-        Arg _ _ (_, a) : _ -> ifM (not <$> isSizeType a) (return []) $ do
+        Dom _ _ (_, a) : _ -> ifM (not <$> isSizeType a) (return []) $ do
           let check c = do
                 t <- defType <$> getConstInfo c
                 addCtxTel (telFromList parTel) $ do
-                  let pars = reverse [ defaultArg $ Var i [] | i <- [0..np - 1] ]
+--OLD:                  let pars = reverse [ defaultArg $ var i | i <- [0..np - 1] ]
+                  let pars = map (defaultArg . var) $ downFrom np
                   TelV conTel target <- telView =<< (t `piApplyM` pars)
                   case conTel of
                     EmptyTel  -> return False  -- no size argument
                     ExtendTel arg  tel ->
-                      ifM (not <$> isSizeType (unArg arg)) (return False) $ do -- also no size argument
+                      ifM (not <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
                         -- First constructor argument has type Size
 
                         -- check only positive occurences in tel
                         isPos <- underAbstraction arg tel $ \tel -> do
-                          pols <- zipWithM polarity [0..] $ map (snd . unArg) $ telToList tel
+                          pols <- zipWithM polarity [0..] $ map (snd . unDom) $ telToList tel
                           return $ all (== Covariant) pols
 
                         -- check that the size argument appears in the
@@ -134,6 +136,9 @@ polarity i x = do
 
 instance HasPolarity a => HasPolarity (Arg a) where
   polarities i = polarities i . unArg
+
+instance HasPolarity a => HasPolarity (Dom a) where
+  polarities i = polarities i . unDom
 
 instance HasPolarity a => HasPolarity (Abs a) where
   polarities i (Abs   _ b) = polarities (i + 1) b

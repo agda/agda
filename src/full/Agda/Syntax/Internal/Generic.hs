@@ -22,6 +22,11 @@ instance TermLike a => TermLike (Arg a) where
   traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
+instance TermLike a => TermLike (Dom a) where
+  traverseTerm  f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
+
 instance TermLike a => TermLike [a] where
   traverseTerm f = fmap (traverseTerm f)
   traverseTermM f = traverse (traverseTermM f)

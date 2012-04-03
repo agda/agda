@@ -90,14 +90,16 @@ instance Error SplitError where
 
 type CoverM = ExceptionT SplitError TCM
 
-typeOfVar :: Telescope -> Nat -> Arg Type
+{- UNUSED
+typeOfVar :: Telescope -> Nat -> Dom Type
 typeOfVar tel n
   | n >= len  = __IMPOSSIBLE__
   | otherwise = fmap snd  -- throw away name, keep Arg Type
-                  $ ts !! fromIntegral n
+                  $ ts !! (len - 1 - fromIntegral n)
   where
     len = genericLength ts
-    ts  = reverse $ telToList tel
+    ts  = telToList tel
+-}
 
 -- | Top-level function for checking pattern coverage.
 checkCoverage :: QName -> TCM ()
@@ -109,8 +111,9 @@ checkCoverage f = do
     Function{ funProjection = proj, funClauses = cs@(_:_) } -> do
       let n            = genericLength $ clausePats $ head cs
           np           = maybe 0 snd proj
-          gamma'       = telFromList $ genericTake n $ genericDrop np $ telToList gamma
-          xs           = map (fmap $ const $ VarP "_") $ telToList gamma'
+          lgamma       = genericTake n $ genericDrop np $ telToList gamma
+          gamma'       = telFromList lgamma
+          xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
       reportSDoc "tc.cover.top" 10 $ vcat
         [ text "Coverage checking"
         , nest 2 $ vcat $ map (text . show . clausePats) cs
@@ -164,10 +167,10 @@ cover cs (SClause tel perm ps _) = do
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'
 -- the data type must be inductive.
 isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
-              Induction -> Arg Type ->
+              Induction -> Dom Type ->
               tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
-  let t = unArg at
+  let t = unDom at
   t' <- liftTCM $ reduce t
   case unEl t' of
     Def d args -> do
@@ -178,7 +181,7 @@ isDatatype ind at = do
           | i == CoInductive && ind /= CoInductive ->
               throwException $ CoinductiveDatatype t
           -- Andreas, 2011-10-03 allow some splitting on data (if only one constr. matches)
-          | argRelevance at == Irrelevant && not splitOnIrrelevantDataAllowed ->
+          | domRelevance at == Irrelevant && not splitOnIrrelevantDataAllowed ->
               throwException $ IrrelevantDatatype t
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
@@ -383,8 +386,8 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
 
   -- Split the telescope at the variable
   (n, t, delta1, delta2) <- do
-    let (tel1, Arg h r (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
-    return (n, Arg h r t, telFromList tel1, telFromList tel2)
+    let (tel1, Dom h r (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
+    return (n, Dom h r t, telFromList tel1, telFromList tel2)
 
 {-
   -- Get the type of the variable
@@ -428,8 +431,8 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     -- Andreas, 2011-10-03
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
-    (_ : _ : _) | unusableRelevance (argRelevance t) ->
-      throwException $ IrrelevantDatatype (unArg t)
+    (_ : _ : _) | unusableRelevance (domRelevance t) ->
+      throwException $ IrrelevantDatatype (unDom t)
 
     _   -> return $ Right ns
 

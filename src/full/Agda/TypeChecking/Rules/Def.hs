@@ -283,11 +283,17 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                     ]
 
                   -- Create the body of the original function
+{- OLD
                   ctx <- getContextTelescope
                   let n    = size ctx
                       m    = size delta
                       -- All the context variables
                       us   = [ Arg h r (var i) | (i, Arg h r _) <- zip [n - 1,n - 2..0] $ telToList ctx ]
+-}
+                  -- All the context variables
+                  us <- getContextArgs
+                  let n    = size us
+                      m    = size delta
                       -- First the variables bound outside this definition
                       (us0, us1') = genericSplitAt (n - m) us
                       -- Then permute the rest and grab those needed to for the with arguments
@@ -299,8 +305,7 @@ checkClause t c@(A.Clause (A.LHS i x aps []) rhs0 wh) =
                   t' <- return $ renameP (reverseP perm') t'
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
-                    let var = flip Var []
-                        -- We know that as does not depend on Δ₂
+                    let -- We know that as does not depend on Δ₂
                         rho = replicate (size delta2) __IMPOSSIBLE__ ++ map var [0..]
                     return $ substs rho $ renameP (reverseP perm') (vs, as)
 
@@ -685,5 +690,5 @@ actualConstructor c = do
             Con c _ -> return c
             Lam h b -> do
                 x <- freshName_ $ absName b
-                addCtx x (Arg h Relevant $ sort Prop) $ stripLambdas (absBody b)
+                addCtx x (Dom h Relevant $ sort Prop) $ stripLambdas (absBody b)
             _       -> typeError $ GenericError $ "Not a constructor: " ++ show c

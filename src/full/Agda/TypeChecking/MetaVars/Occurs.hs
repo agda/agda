@@ -365,9 +365,16 @@ instance (Occurs a, Raise a) => Occurs (Abs a) where
   metaOccurs m (NoAbs s x) = metaOccurs m x
 
 instance Occurs a => Occurs (Arg a) where
-  occurs red ctx m xs (Arg h r x) = Arg h r <$> occurs red ctx m xs x
+  occurs red ctx m xs (Arg h r@Irrelevant{} x) = Arg h r <$>
+    occurs red Irrel m (goIrrelevant xs) x
+  occurs red ctx m xs (Arg h r              x) = Arg h r <$>
+    occurs red ctx m xs x
 
   metaOccurs m a = metaOccurs m (unArg a)
+
+instance Occurs a => Occurs (Dom a) where
+  occurs red ctx m xs (Dom h r x) = Dom h r <$> occurs red ctx m xs x
+  metaOccurs m = metaOccurs m . unDom
 
 instance (Occurs a, Occurs b) => Occurs (a,b) where
   occurs red ctx m xs (x,y) = (,) <$> occurs red ctx m xs x <*> occurs red ctx m xs y
@@ -469,18 +476,17 @@ killArgs kills m = do
         ]
 
 -- | @killedType [((x1,a1),k1)..((xn,an),kn)] b = ([k'1..k'n],t')@
---   (ignoring @Arg@).  Let @t' = (xs:as) -> b@.
+--   (ignoring @Dom@).  Let @t' = (xs:as) -> b@.
 --   Invariant: @k'i == True@ iff @ki == True@ and pruning the @i@th argument from
 --   type @b@ is possible without creating unbound variables.
 --   @t'@ is type @t@ after pruning all @k'i==True@.
-killedType :: [(Arg (String, Type), Bool)] -> Type -> ([Arg Bool], Type)
+killedType :: [(Dom (String, Type), Bool)] -> Type -> ([Arg Bool], Type)
 killedType [] b = ([], b)
-killedType ((arg, kill) : kills) b
-  | dontKill  = (killed False : args, telePi (telFromList [arg]) b')
-  | otherwise = (killed True  : args, subst __IMPOSSIBLE__ b')
+killedType ((arg@(Dom h r _), kill) : kills) b
+  | dontKill  = (Arg h r False : args, mkPi arg b') -- OLD: telePi (telFromList [arg]) b')
+  | otherwise = (Arg h r True  : args, subst __IMPOSSIBLE__ b')
   where
     (args, b') = killedType kills b
-    killed k = fmap (const k) arg
     dontKill = not kill || 0 `freeIn` b'
 
 -- The list starts with the last argument
@@ -494,13 +500,16 @@ performKill kills m a = do
                 (HasType __IMPOSSIBLE__ a)
   -- Andreas, 2010-10-15 eta expand new meta variable if necessary
   etaExpandMetaSafe m'
-  let vars = reverse [ Arg h r (Var i []) | (i, Arg h r False) <- zip [0..] kills ]
+  let vars = reverse [ Arg h r (var i) | (i, Arg h r False) <- zip [0..] kills ]
+      lam b a = Lam (argHiding a) (Abs "v" b)
+      u       = foldl lam (MetaV m' vars) kills
+{- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)
       u       = foldr lam (MetaV m' vars) hs
+-}
   dbg m' u
   assignTerm m u
-  return ()
   where
     dbg m' u = reportSDoc "tc.meta.kill" 10 $ vcat
       [ text "actual killing"

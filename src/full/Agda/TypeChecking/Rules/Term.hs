@@ -87,10 +87,10 @@ isType_ :: A.Expr -> TCM Type
 isType_ e =
   traceCall (IsType_ e) $
   case e of
-    A.Fun i a b -> do
-      a <- traverse isType_ a
+    A.Fun i (Arg h r t) b -> do
+      a <- Dom h r <$> isType_ t
       b <- isType_ b
-      return $ El (sLub (getSort $ unArg a) (getSort b)) (Pi a (NoAbs "_" b))
+      return $ El (sLub (getSort $ unDom a) (getSort b)) (Pi a (NoAbs "_" b))
     A.Pi _ tel e -> do
       checkTelescope_ tel $ \tel -> do
         t   <- instantiateFull =<< isType_ e
@@ -205,7 +205,7 @@ data LamOrPi = LamNotPi | PiNotLam deriving (Eq,Show)
 checkTypedBindings :: LamOrPi -> A.TypedBindings -> (Telescope -> TCM a) -> TCM a
 checkTypedBindings lamOrPi (A.TypedBindings i (Arg h rel b)) ret =
     checkTypedBinding lamOrPi h rel b $ \bs ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
+    ret $ foldr (\(x,t) -> ExtendTel (Dom h rel t) . Abs x) EmptyTel bs
 
 checkTypedBinding :: LamOrPi -> Hiding -> Relevance -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
 checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
@@ -214,7 +214,7 @@ checkTypedBinding lamOrPi h rel (A.TBind i xs e) ret = do
     -- 2011-10-04 if flag --experimental-irrelevance is set
     allowed <- optExperimentalIrrelevance <$> pragmaOptions
     t <- modEnv lamOrPi allowed $ isType_ e
-    addCtxs xs (Arg h (modRel lamOrPi allowed rel) t) $ ret $ mkTel xs t
+    addCtxs xs (Dom h (modRel lamOrPi allowed rel) t) $ ret $ mkTel xs t
     where
         -- if we are checking a typed lambda, we resurrect before we check the
         -- types, but do not modify the new context entries
@@ -244,7 +244,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
       verboseS "tc.term.lambda" 5 $ tick "lambda-no-target-type"
 
       -- First check that argsT is a valid type
-      argsT <- workOnTypes $ Arg h r <$> isType_ typ
+      argsT <- workOnTypes $ Dom h r <$> isType_ typ
 
       -- In order to have as much type information as possible when checking
       -- body, we first unify (xs : argsT) → ?t₁ with the target type. If this
@@ -262,17 +262,17 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
 
     useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
-        unless (argHiding    arg == h) $ typeError $ WrongHidingInLambda target
+        unless (domHiding    arg == h) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
-        let r' = argRelevance arg -- relevance of function type
+        let r' = domRelevance arg -- relevance of function type
         when (r == Irrelevant && r' /= r) $ typeError $ WrongIrrelevanceInLambda target
 --        unless (argRelevance arg == r) $ typeError $ WrongIrrelevanceInLambda target
         -- We only need to block the final term on the argument type
         -- comparison. The body will be blocked if necessary. We still want to
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
-        (pid, argT) <- newProblem $ isTypeEqualTo typ (unArg arg)
-        v <- addCtx x (Arg h r' argT) $ checkExpr body btyp
+        (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
+        v <- addCtx x (Dom h r' argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
@@ -360,7 +360,7 @@ checkExpr e t =
 
     case e of
 	-- Insert hidden lambda if appropriate
-	_   | Pi (Arg h rel _) _ <- unEl t
+	_   | Pi (Dom h rel _) _ <- unEl t
             , not (hiddenLambdaOrHole h e)
             , h /= NotHidden                          -> do
 		x <- freshName r (argName t)
@@ -437,7 +437,7 @@ checkExpr e t =
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case unEl t' of
-              Pi (Arg h' r a) _
+              Pi (Dom h' r a) _
                 | h == h' && not (null $ foldTerm metas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
                       null . foldTerm metas <$> instantiateFull a
@@ -496,27 +496,36 @@ checkExpr e t =
                                                  text "\" has type: " $$ prettyTCM t -- <+>
 --                                                 text " where clauses: " <+> text (show cs)
                  abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
+{- OLD
                  tel <- getContextTelescope
                  addExtLambdaTele qname (counthidden tel , countnothidden tel)
                  reduce $ (Def qname [] `apply` (mkArgs tel))
+-}
+                 args <- getContextArgs
+                 let (hid, notHid) = partition ((Hidden ==) . argHiding) args
+                 addExtLambdaTele qname (length hid, length notHid)
+                 reduce $ (Def qname [] `apply` args)
           where
 	    -- Concrete definitions cannot use information about abstract things.
 	    abstract ConcreteDef = inConcreteMode
 	    abstract AbstractDef = inAbstractMode
+{- DUPLICATE
             mkArgs :: Telescope -> Args
             mkArgs tel = map arg [n - 1, n - 2..0]
               where
                 n     = size tel
                 arg i = defaultArg (var i)
-
+-}
             metas (MetaV m _) = [m]
             metas _           = []
 
+{- UNUSED
             counthidden :: Telescope -> Int
             counthidden t = length $ filter (\ (Arg h r a) -> h == Hidden ) $ teleArgs t
 
             countnothidden :: Telescope -> Int
             countnothidden t = length $ filter (\ (Arg h r a) -> h == NotHidden ) $ teleArgs t
+-}
 
 
 {- Andreas, 2011-04-27 DOES NOT WORK
@@ -564,7 +573,7 @@ checkExpr e t =
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    blockTerm t $ Pi (Arg h r a') (NoAbs "_" b') <$ leqType_ (sort s) t
+	    blockTerm t $ Pi (Dom h r a') (NoAbs "_" b') <$ leqType_ (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
 	  blockTerm t $ Sort (mkType n) <$ leqType_ (sort $ mkType $ n + 1) t
@@ -658,9 +667,12 @@ checkExpr e t =
             replaceFields _ _  (Arg _         _ _) Nothing  = Nothing
             replaceFields _ _  _                   (Just e) = Just $ e
 
-	A.DontCare e -> -- can happen in the context of with functions
-          checkExpr e t
-{- Andreas, 2011-10-03 why do I get an internal error for Issue337?
+	A.DontCare e -> -- resurrect vars
+          ifM ((Irrelevant ==) <$> asks envRelevance)
+            (applyRelevanceToContext Irrelevant $ checkExpr e t)
+            (internalError "DontCare may only appear in irrelevant contexts")
+{- STALE?:
+   Andreas, 2011-10-03 why do I get an internal error for Issue337?
                         -- except that should be fixed now (issue 337)
                         __IMPOSSIBLE__
 -}
@@ -790,9 +802,9 @@ inferMeta newMeta i =
 inferHead :: A.Expr -> TCM (Args -> Term, Type)
 inferHead (A.Var x) = do -- traceCall (InferVar x) $ do
   (u, a) <- getVarInfo x
-  when (unusableRelevance $ argRelevance a) $
+  when (unusableRelevance $ domRelevance a) $
     typeError $ VariableIsIrrelevant x
-  return (apply u, unArg a)
+  return (apply u, unDom a)
 inferHead (A.Def x) = do
   proj <- isProjection x
   case proj of
@@ -993,7 +1005,7 @@ checkHeadApplication e t hd args = do
       ctx <- getContext
       let info   = A.mkDefInfo (A.nameConcrete $ A.qnameName c') defaultFixity'
                                PublicAccess ConcreteDef noRange
-          pats   = map (fmap $ \(n, _) -> Named Nothing (A.VarP n)) $
+          pats   = map (\ (Dom h r (n, _)) -> Arg h r $ Named Nothing $ A.VarP n) $
                        reverse ctx
           clause = A.Clause (A.LHS (A.LHSRange noRange) c' pats [])
                             (A.RHS $ unAppView (A.Application (A.Con (AmbQ [c])) args))
@@ -1059,12 +1071,12 @@ checkArguments exh expandIFS r [] t0 t1 =
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
 	case unEl t0' of
-	    Pi (Arg Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
+	    Pi (Dom Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta RunMetaOccursCheck a
 		let arg = Arg Hidden rel v
 		(vs, t0'') <- checkArguments exh expandIFS r [] (piApply t0' [arg]) t1'
 		return (arg : vs, t0'')
-	    Pi (Arg Instance rel a) _ | expandIFS == ExpandInstanceArguments &&
+	    Pi (Dom Instance rel a) _ | expandIFS == ExpandInstanceArguments &&
                                         (notHPi Instance $ unEl t1')  -> do
                 lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta for type " ++ show a
 		v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
@@ -1073,7 +1085,7 @@ checkArguments exh expandIFS r [] t0 t1 =
 		return (arg : vs, t0'')
 	    _ -> return ([], t0')
     where
-	notHPi h (Pi  (Arg h' _ _) _) | h == h' = False
+	notHPi h (Pi  (Dom h' _ _) _) | h == h' = False
 	notHPi _ _		        = True
 
 checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
@@ -1093,21 +1105,23 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
           case unEl t0' of
-              Pi (Arg h' rel a) _ |
+              Pi (Dom h' rel a) _ |
                 h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
                   let arg = Arg h rel u  -- save relevance info in argument
                   (us, t0'') <- checkArguments exh expandIFS (fuseRange r e) args (piApply t0' [arg]) t1
-                  return (nukeIfIrrelevant arg : us, t0'')
+                  return (arg : us, t0'')
+{- UNUSED.  2012-04-02 do not insert DontCare (is redundant anyway)
                          where nukeIfIrrelevant arg =
                                  if argRelevance arg == Irrelevant then
    -- Andreas, 2011-09-09 keep irr. args. until after termination checking
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
-              Pi (Arg Instance rel a) _ | expandIFS == ExpandInstanceArguments ->
+-}
+              Pi (Dom Instance rel a) _ | expandIFS == ExpandInstanceArguments ->
                 insertIFSUnderscore rel a
-              Pi (Arg Hidden rel a) _   -> insertUnderscore rel
-              Pi (Arg NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
+              Pi (Dom Hidden rel a) _   -> insertUnderscore rel
+              Pi (Dom NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
 	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a

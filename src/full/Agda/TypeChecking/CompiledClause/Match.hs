@@ -79,7 +79,9 @@ match' ((c, args, patch):stack) = match c args patch stack
 match' [] = typeError $ GenericError "Incomplete pattern matching"
 
 unfoldCorecursion v = case v of
+{- NO LONGER
   -- Andreas, 2011-10-03 removing DontCare here allow matching on irrelevant things
   DontCare v -> unfoldCorecursion v
+-}
   Def f args -> unfoldDefinition True unfoldCorecursion (Def f []) f args
   _          -> reduceB v

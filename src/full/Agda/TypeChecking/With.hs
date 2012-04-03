@@ -155,7 +155,7 @@ stripWithClausePatterns gamma qs perm ps = do
             unless (elem c cs') mismatch
 
             -- The type is a datatype
-            Def d us <- normalise $ unEl (unArg a)
+            Def d us <- normalise $ unEl (unDom a)
 
             -- Compute the argument telescope for the constructor
             Con c []    <- constructorForm =<< normalise (Con c [])

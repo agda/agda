@@ -83,7 +83,7 @@ instantiateTel s tel = liftTCM $ do
   p <- case reorderTel tel3 of
     Nothing -> inContext [] $ do
       xs <- mapM freshName_ names3
-      addCtxs xs (Arg NotHidden Relevant prop) $ do
+      addCtxs xs (Dom NotHidden Relevant prop) $ do
         err <- sep [ text "Recursive telescope in left hand side:"
                    , fsep [ parens (prettyTCM x <+> text ":" <+> prettyTCM t)
                           | (x, t) <- zip xs tel3 ]
@@ -111,7 +111,7 @@ instantiateTel s tel = liftTCM $ do
 
   -- remember the types of the instantiations
   -- itypes : [Type Γσ~]Γ*
-  let itypes = substs rho' $ permute psC $ map unArg tel2
+  let itypes = substs rho' $ permute psC $ map unDom tel2
 
   return (tel5, composeP p ps, substs rho' rho, itypes)
   where
@@ -133,9 +133,9 @@ nothingToSplitError (Problem ps _ tel) = splitError ps tel
     splitError (_:_)	EmptyTel    = __IMPOSSIBLE__
     splitError []	ExtendTel{} = __IMPOSSIBLE__
     splitError (p : ps) (ExtendTel a tel)
-      | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unArg a)) $ case strip p of
+      | isBad p   = traceCall (CheckPattern (strip p) EmptyTel (unDom a)) $ case strip p of
 	  A.DotP _ e -> typeError $ UninstantiatedDotPattern e
-	  p	     -> typeError $ IlltypedPattern p (unArg a)
+	  p	     -> typeError $ IlltypedPattern p (unDom a)
       | otherwise = underAbstraction a tel $ \tel -> splitError ps tel
       where
 	strip = snd . asView . namedThing . unArg

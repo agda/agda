@@ -57,7 +57,7 @@ insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
           -- Eta expand implicit patterns of record type (issue 473),
           -- but not instance arguments since then they won't be found
           -- by the instance search
-          a <- reduce (unArg arg)
+          a <- reduce (unDom arg)
           case unEl a of
             Def d _ ->
               ifM (isJust <$> isRecord d) (do
@@ -73,7 +73,7 @@ insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
   where
     dummy = defaultArg $ unnamed ()
 
-    insImp x tel = case insertImplicit x $ map (fmap fst) $ telToList tel of
+    insImp x tel = case insertImplicit x $ map (argFromDom . fmap fst) $ telToList tel of
       BadImplicits   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
       NoSuchName x   -> typeError $ WrongHidingInLHS (telePi tel $ sort Prop)
       ImpInsert n    -> return $ Just n

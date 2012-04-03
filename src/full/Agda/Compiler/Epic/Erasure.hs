@@ -137,9 +137,9 @@ initialRels ty rel =
         SI.Pi  a b -> mkRel a : initialRels (SI.unAbs b) rel
         _       -> []
   where
-    mkRel :: SC.Arg SI.Type -> Relevance
-    mkRel a | ignoreForced (SC.argRelevance a) = Irr
-    mkRel a = case SI.unEl (SC.unArg a) of
+    mkRel :: SC.Dom SI.Type -> Relevance
+    mkRel a | ignoreForced (SC.domRelevance a) = Irr
+    mkRel a = case SI.unEl (SC.unDom a) of
        SI.Sort _ -> Irr
        _         -> rel
 

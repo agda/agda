@@ -55,7 +55,11 @@ instance MentionsMeta t => MentionsMeta (Abs t) where
   mentionsMeta x = mentionsMeta x . unAbs
 
 instance MentionsMeta t => MentionsMeta (Arg t) where
-  mentionsMeta x = mentionsMeta x . unArg
+  mentionsMeta x (Arg h Irrelevant t) = False  -- we don't have to look inside irrelevant arguments when deciding to wake constraints
+  mentionsMeta x a = mentionsMeta x (unArg a)
+
+instance MentionsMeta t => MentionsMeta (Dom t) where
+  mentionsMeta x = mentionsMeta x . unDom
 
 instance MentionsMeta t => MentionsMeta [t] where
   mentionsMeta x = any (mentionsMeta x)

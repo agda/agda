@@ -107,7 +107,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
           (ftel, us) <- etaExpandRecord r vs u
           qs <- insertImplicitPatterns qs ftel
           let instTel EmptyTel _                   = []
-              instTel (ExtendTel arg tel) (u : us) = unArg arg : instTel (absApp tel u) us
+              instTel (ExtendTel arg tel) (u : us) = unDom arg : instTel (absApp tel u) us
               instTel ExtendTel{} []               = __IMPOSSIBLE__
               bs = instTel ftel (map unArg us)
           dpi (map (namedThing . unArg) qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
@@ -179,7 +179,7 @@ noShadowingOfConstructors c problem =
   traceCall (CheckPatternShadowing c) $ do
     let pat = map (snd . asView . namedThing . unArg) $
                   problemInPat problem
-        tel = map (unEl . snd . unArg) $ telToList $ problemTel problem
+        tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
     zipWithM' noShadowing pat tel
     return ()
   where
@@ -257,11 +257,11 @@ bindLHSVars (p : ps) (ExtendTel a tel) ret =
     A.ImplicitP _ -> bindDummy (absName tel)
     A.AbsurdP pi  -> do
       -- Andreas, 2012-03-15: allow postponement of emptyness check
-      isEmptyType (getRange pi) $ unArg a
+      isEmptyType (getRange pi) $ unDom a
       -- OLD CODE: isReallyEmptyType $ unArg a
       bindDummy (absName tel)
     A.ConP _ (A.AmbQ [c]) qs -> do -- eta expanded record pattern
-      Def r vs <- reduce (unEl $ unArg a)
+      Def r vs <- reduce (unEl $ unDom a)
       ftel     <- (`apply` vs) <$> getRecordFieldTypes r
       let n   = size ftel
           eta = Con c [ Var i [] <$ (namedThing <$> q) | (q, i) <- zip qs [n - 1, n - 2..0] ]
@@ -294,7 +294,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
+    ren (A.VarP x) (Dom NotHidden r (_, a)) = Dom NotHidden r (show x, a)
     ren _ a = a
     toPats = map (namedThing . unArg)
 
@@ -325,7 +325,7 @@ checkLeftHandSide c ps a ret' = do
       b        = telePi (telFromList bs) b0
 
       -- internal patterns start as all variables
-      ips      = map (fmap (VarP . fst)) as
+      ips      = map (argFromDom . fmap (VarP . fst)) as
 
       problem  = Problem ps (idP $ size ps, ips) gamma
 
@@ -336,7 +336,7 @@ checkLeftHandSide c ps a ret' = do
 	   , text "a     =" <+> (prettyTCM =<< normalise a)
 	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
 	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
-           , text "xs    =" <+> text (show $ map (fst . unArg) as)
+           , text "xs    =" <+> text (show $ map (fst . unDom) as)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
 	   , text "gamma =" <+> prettyTCM gamma
@@ -540,7 +540,7 @@ checkLeftHandSide c ps a ret' = do
               (return $ Nothing)
 
             -- Plug the hole in the out pattern with c ys
-            let ysp = map (fmap (VarP . fst)) $ telToList gamma
+            let ysp = map (argFromDom . fmap (VarP . fst)) $ telToList gamma
                 ip  = plugHole (ConP c storedPatternType ysp) iph
                 ip0 = substs rho0 ip
 

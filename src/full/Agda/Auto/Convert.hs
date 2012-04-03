@@ -98,7 +98,7 @@ tomy imi icns typs = do
        cons2 <- mapM (\con -> getConst True con TMAll) cons
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
-       let pars n (I.El _ (I.Pi it typ)) = C.Arg (C.argHiding it) (C.argRelevance it) (I.Var n []) : pars (n - 1) (I.unAbs typ)
+       let pars n (I.El _ (I.Pi it typ)) = C.Arg (C.domHiding it) (C.domRelevance it) (I.var n) : pars (n - 1) (I.unAbs typ)
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
@@ -145,7 +145,7 @@ tomy imi icns typs = do
          modify $ \s -> s {sEqs = (Map.insert (Map.size (fst $ sEqs s)) (Just (False, Meta m, sol')) (fst $ sEqs s), snd $ sEqs s)}
        let tt = MB.jMetaType $ mvJudgement mv
            minfo = getMetaInfo mv
-           localVars = map (snd . C.unArg . ctxEntry) . envContext . clEnv $ minfo
+           localVars = map (snd . C.unDom . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
         let targettype = tt `piApply` permute (takeP (fromIntegral $ length vs) $ mvPermutation mv) vs
@@ -367,7 +367,7 @@ tomyExp (I.Con name as) = do
  cc <- lift $ liftIO $ readIORef c
  let Just npar = fst $ cdorigin cc
  return $ NotM $ App Nothing (NotM OKVal) (Const c) (foldl (\x _ -> NotM $ ALConPar x) as' [1..npar])
-tomyExp (I.Pi (C.Arg hid _ x) b) = do
+tomyExp (I.Pi (C.Dom hid _ x) b) = do
  let y    = I.absBody b
      name = I.absName b
  x' <- tomyType x
@@ -410,7 +410,7 @@ fmExp m (I.Lit _) = False
 fmExp m (I.Level (I.Max as)) = any (fmLevel m) as
 fmExp m (I.Def _ as) = fmExps m as
 fmExp m (I.Con _ as) = fmExps m as
-fmExp m (I.Pi x y)  = fmType m (C.unArg x) || fmType m (I.unAbs y)
+fmExp m (I.Pi x y)  = fmType m (C.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
@@ -465,7 +465,7 @@ frommyExp (NotM e) =
   Pi _ hid _ x (Abs mid y) -> do
    x' <- frommyType x
    y' <- frommyType y
-   return $ I.Pi (C.Arg (icnvh hid) C.Relevant x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
+   return $ I.Pi (C.Dom (icnvh hid) C.Relevant x') (I.Abs (case mid of {NoId -> "x"; Id id -> id}) y')
    -- maybe have case for Pi where possdep is False which produces Fun (and has to unweaken y), return $ I.Fun (C.Arg (icnvh hid) x') y'
   Sort (Set l) ->
    return $ I.Sort (I.mkType (fromIntegral l))
@@ -562,7 +562,7 @@ frommyClause (ids, pats, mrhs) = do
       let Id id = mid
       tel <- ctel ctx
       t' <- frommyType t
-      return $ I.ExtendTel (C.Arg (icnvh hid) C.Relevant t') (I.Abs id tel)
+      return $ I.ExtendTel (C.Dom (icnvh hid) C.Relevant t') (I.Abs id tel)
  tel <- ctel $ reverse ids
  let getperms 0 [] perm nv = return (perm, nv)
      getperms n [] _ _ = __IMPOSSIBLE__
@@ -699,7 +699,7 @@ findClauseDeep m = do
       I.Level (I.Max as) -> any (fmLevel m) as
       I.Def _ as -> findMetas as
       I.Con _ as -> findMetas as
-      I.Pi it ot -> findMetat (C.unArg it) || findMetat (I.unAbs ot)
+      I.Pi it ot -> findMetat (C.unDom it) || findMetat (I.unAbs ot)
       I.Sort{} -> False
       I.MetaV m' _  -> m == m'
       I.DontCare _ -> False
@@ -743,7 +743,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
       (I.Lit lit1, I.Lit lit2) | lit1 == lit2 -> c (n + 1)
       (I.Def n1 as1, I.Def n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
       (I.Con n1 as1, I.Con n2 as2) | n1 == n2 -> fs nl (n + 1) c as1 as2
-      (I.Pi (C.Arg hid1 rel1 it1) ot1, I.Pi (C.Arg hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
+      (I.Pi (C.Dom hid1 rel1 it1) ot1, I.Pi (C.Dom hid2 rel2 it2) ot2) | hid1 == hid2 -> ft nl n (\n -> ft (nl + 1) n c (I.absBody ot1) (I.absBody ot2)) it1 it2
       (I.Sort{}, I.Sort{}) -> c n -- sloppy
       _ -> Nothing
     fs nl n c es1 es2 = case (es1, es2) of

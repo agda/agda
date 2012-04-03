@@ -66,6 +66,7 @@ matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do
 	Blocked x _            -> return (DontKnow $ Just x, Arg h r v)
 	_                      -> return (DontKnow Nothing, Arg h r v)
 
+{- Andreas, 2012-04-02 NO LONGER UP-TO-DATE
 matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
@@ -73,6 +74,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h Irrelevant v) = do
 		(m, vs) <- matchPatterns ps $
                   repeat $ Arg NotHidden Irrelevant $ DontCare __IMPOSSIBLE__
 		return (m, Arg h Irrelevant $ Con c vs)
+-}
 
 matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
     do	w <- traverse constructorForm =<< reduceB v

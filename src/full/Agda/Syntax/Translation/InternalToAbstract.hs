@@ -231,7 +231,7 @@ instance Reify Term Expr where
                         scope <- getScope
                         let as       = take (np - 1) $ telToList tel
                             whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                        return $ map (fmap $ const whocares) as
+                        return $ map (argFromDom . (fmap $ const whocares)) as
                       _ -> return []
               -- Now pad' ++ vs' = drop n (pad ++ vs)
               let pad' = genericDrop n pad
@@ -286,15 +286,6 @@ instance Reify Term Expr where
       I.Sort s     -> reify s
       I.MetaV x vs -> apps =<< reify (x,vs)
       I.DontCare v -> A.DontCare <$> reify v
-{- Andreas: I want to see irrelevant, but not implicit arguments
-        ifM showImplicitArguments
-            (reify v)
-            (return A.DontCare)
--}
-{- Andreas, 2011-09-09
-      I.DontCare Nothing  -> return A.DontCare
-      I.DontCare (Just v) -> reify v  -- leads to paradox error msg in test/fail/UnifyWithIrrelevantArgument
--}
 
 instance Reify Elim Expr where
   reify e = case e of
@@ -551,7 +542,7 @@ instance (Free i, Reify i a) => Reify (Abs i) (Name, a) where
     s <- return $ if s == "_" && 0 `freeIn` v then "z" else s
 
     x <- freshName_ s
-    e <- addCtx x (defaultArg $ sort I.Prop) -- type doesn't matter
+    e <- addCtx x dummyDom -- type doesn't matter
          $ reify v
     return (x,e)
 
@@ -565,6 +556,9 @@ instance Reify I.Telescope A.Telescope where
 
 instance Reify i a => Reify (Arg i) (Arg a) where
     reify = traverse reify
+
+instance Reify i a => Reify (Dom i) (Arg a) where
+    reify (Dom h r i) = Arg h r <$> reify i
 
 instance Reify i a => Reify [i] [a] where
     reify = traverse reify

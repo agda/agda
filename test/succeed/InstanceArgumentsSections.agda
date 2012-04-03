@@ -14,7 +14,7 @@ module Basic where
 module Parameterised (a : A) where
   record C : Set where
     field cA : A
-  
+
   open C {{...}}
 
   cA' : C → A
@@ -56,4 +56,3 @@ module AppliedRecord (a : A) where
 
   dA' : D → A
   dA' _ = cA
-

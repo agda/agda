@@ -43,9 +43,9 @@ forcedVariables t = case t of
         (forcedArgs vs)
         (return [])
   Pi a (NoAbs _ b) ->
-    (++) <$> forcedVariables (unEl $ unArg a)
+    (++) <$> forcedVariables (unEl $ unDom a)
          <*> forcedVariables (unEl b)
-  Pi a b -> (++) <$> forcedVariables (unEl $ unArg a)
+  Pi a b -> (++) <$> forcedVariables (unEl $ unDom a)
                  <*> (underBinder <$> forcedVariables (unEl $ absBody b))
   -- Sorts?
   _ -> return []
@@ -69,5 +69,5 @@ force xs t = aux 0 t
       El s (Pi  a b) -> El s $ Pi  (upd a) (fmap (aux (i + 1)) b)
       _ -> __IMPOSSIBLE__
       where
-        upd a | i `elem` xs = a { argRelevance = Forced }
+        upd a | i `elem` xs = a { domRelevance = Forced }
               | otherwise   = a

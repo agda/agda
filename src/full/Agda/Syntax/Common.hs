@@ -24,6 +24,13 @@ data Induction = Inductive | CoInductive
 data Hiding  = Hidden | Instance | NotHidden
     deriving (Typeable, Data, Show, Eq, Ord)
 
+instance KillRange Induction where killRange = id
+instance KillRange Hiding    where killRange = id
+
+---------------------------------------------------------------------------
+-- * Relevance
+---------------------------------------------------------------------------
+
 -- | A function argument can be relevant or irrelevant.
 --   See 'Agda.TypeChecking.Irrelevance'.
 data Relevance
@@ -55,8 +62,51 @@ moreRelevant r r' =
     -- remaining case
     (NonStrict,NonStrict) -> True
 
-instance KillRange Induction where killRange = id
-instance KillRange Hiding    where killRange = id
+---------------------------------------------------------------------------
+-- * Function type domain
+---------------------------------------------------------------------------
+
+-- | Similar to 'Arg', but we need to distinguish
+--   an irrelevance annotation in a function domain
+--   (the domain itself is not irrelevant!)
+--   from an irrelevant argument.
+--
+--   @Dom@ is used in 'Pi' of internal syntax, in 'Context' and 'Telescope'.
+--   'Arg' is used for actual arguments ('Var', 'Con', 'Def' etc.)
+--   and in 'Abstract' syntax and other situations.
+data Dom e = Dom
+  { domHiding    :: Hiding
+  , domRelevance :: Relevance
+  , unDom        :: e
+  } deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
+
+argFromDom :: Dom a -> Arg a
+argFromDom (Dom h r a) = Arg h r a
+
+domFromArg :: Arg a -> Dom a
+domFromArg (Arg h r a) = Dom h r a
+
+mapDomHiding :: (Hiding -> Hiding) -> Dom a -> Dom a
+mapDomHiding f dom = dom { domHiding = f (domHiding dom) }
+
+mapDomRelevance :: (Relevance -> Relevance) -> Dom a -> Dom a
+mapDomRelevance f dom = dom { domRelevance = f (domRelevance dom) }
+
+instance HasRange a => HasRange (Dom a) where
+    getRange = getRange . unDom
+
+instance KillRange a => KillRange (Dom a) where
+  killRange = fmap killRange
+
+instance Sized a => Sized (Dom a) where
+  size = size . unDom
+
+instance Show a => Show (Dom a) where
+    show = show . argFromDom
+
+---------------------------------------------------------------------------
+-- * Argument decoration
+---------------------------------------------------------------------------
 
 -- | A function argument can be hidden and/or irrelevant.
 data Arg e  = Arg
@@ -109,6 +159,10 @@ instance Show a => Show (Arg a) where
         showR Forced     s = "!" ++ s
         showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
 
+---------------------------------------------------------------------------
+-- * Named arguments
+---------------------------------------------------------------------------
+
 data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
@@ -136,6 +190,10 @@ instance Show a => Show (Named String a) where
 
 -- | Only 'Hidden' arguments can have names.
 type NamedArg a = Arg (Named String a)
+
+---------------------------------------------------------------------------
+-- * Infixity, access, abstract, etc.
+---------------------------------------------------------------------------
 
 -- | Functions can be defined in both infix and prefix style. See
 --   'Agda.Syntax.Concrete.LHS'.

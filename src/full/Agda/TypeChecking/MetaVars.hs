@@ -201,7 +201,7 @@ newValueMetaCtx' b t vs = do
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
 
-type Condition = Arg Type -> Abs Type -> Bool
+type Condition = Dom Type -> Abs Type -> Bool
 trueCondition _ _ = True
 
 newArgsMeta :: Type -> TCM Args
@@ -220,7 +220,7 @@ newArgsMetaCtx' :: Condition -> Type -> Telescope -> Args -> TCM Args
 newArgsMetaCtx' condition (El s tm) tel ctx = do
   tm <- reduce tm
   case tm of
-    Pi dom@(Arg h r a) codom | condition dom codom -> do
+    Pi dom@(Dom h r a) codom | condition dom codom -> do
       arg  <- (Arg h r) <$>
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
@@ -497,23 +497,23 @@ assign x args v = do
         -- even though the lhs is not a pattern, we can prune the y from _2
         let varsL = freeVars args
         let relVL = Set.toList $ relevantVars varsL
+{- Andreas, 2012-04-02: DontCare no longer present
         -- take away top-level DontCare constructors
         args <- return $ map (fmap stripDontCare) args
+-}
         -- Andreas, 2011-10-06 only irrelevant vars that are direct
         -- arguments to the meta, hence, can be abstracted over, may
         -- appear on the rhs.  (test/fail/Issue483b)
         -- Update 2011-03-27: Also irr. vars under record constructors.
         let fromIrrVar (Var i [])   = return [i]
-            fromIrrVar (DontCare _) = __IMPOSSIBLE__
             fromIrrVar (Con c vs)   =
               ifM (isNothing <$> isRecordConstructor c) (return []) $
-                concat <$> mapM (fromIrrVar . stripDontCare . unArg) vs
+                concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
             fromIrrVar _ = return []
         irrVL <- concat <$> mapM fromIrrVar [ v | Arg h Irrelevant v <- args]
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
-                pr (DontCare v) = __IMPOSSIBLE__
                 pr _          = text ".."
             in vcat
                  [ text "mvar args:" <+> sep (map (pr . unArg) args)
@@ -580,7 +580,7 @@ assign x args v = do
 		v'    = raise (size args) (abstract tel v) `apply` iargs
 	    return v'
 
-        -- Andreas, 2011-04-18 to work with irrelevant parameters DontCare
+        -- Andreas, 2011-04-18 to work with irrelevant parameters
         -- we need to construct tel' from the type of the meta variable
         -- (no longer from ids which may not be the complete variable list
         -- any more)
@@ -670,7 +670,7 @@ inverseSubst args = map (unArg -*- id) <$> loop (zip args terms)
           case isRC of
             Just (Record{ recFields = fs }) -> do
                 let aux (Arg _ _ v) (Arg h' r' f) =
-                      (Arg (min h h') (max r r') (stripDontCare v),
+                      (Arg (min h h') (max r r') v, -- OLD: (stripDontCare v),
                        Def f [defaultArg t])
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars

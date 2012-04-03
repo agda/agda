@@ -80,7 +80,7 @@ checkRecDef i name con ps contel fields =
           -- A record is irrelevant if all of its fields are.
           -- In this case, the associated module parameter will be irrelevant.
           -- See issue 392.
-          recordRelevance = minimum $ Irrelevant : (map argRelevance $ telToList ftel)
+          recordRelevance = minimum $ Irrelevant : (map domRelevance $ telToList ftel)
 
       -- Compute correct type of constructor
 
@@ -101,15 +101,12 @@ checkRecDef i name con ps contel fields =
 			    | (i, Arg h r _) <- zip [0..] $ reverse $ telToList gamma
 			    ]
 -}
-	  telh' h	  = telFromList $ htel ++ [Arg h recordRelevance ("r", rect)]
+	  telh' h	  = telFromList $ htel ++ [Dom h recordRelevance ("r", rect)]
 	  tel'		  = telh' NotHidden
 	  telIFS	  = telh' Instance
-          extWithRH h ret = underAbstraction (Arg h recordRelevance rect) (Abs "" ()) $ \_ -> ret
+          extWithRH h ret = underAbstraction (Dom h recordRelevance rect) (Abs "" ()) $ \_ -> ret
           extWithR        = extWithRH NotHidden
-          ext     (Arg h r (x, t)) = addCtx x (Arg h r t)
-{- UNUSED
-          extHide (Arg h r (x, t)) = addCtx x (Arg Hidden r t)
--}
+          ext     (Dom h r (x, t)) = addCtx x (Dom h r t)
 
       -- Put in @rect@ as correct target of constructor type.
       -- Andreas, 2011-05-10 use telePi_ instead of telePi to preserve
@@ -170,7 +167,7 @@ checkRecDef i name con ps contel fields =
       -}
 
       -- make record parameters hidden
-      ctx <- (reverse . map hide . take (size tel)) <$> getContext
+      ctx <- (reverse . map (mapDomHiding $ const Hidden) . take (size tel)) <$> getContext
 
       escapeContext (size tel) $ flip (foldr ext) ctx $ extWithR $ do
 	reportSDoc "tc.rec.def" 10 $ sep
@@ -239,7 +236,14 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       -- Andreas, 2011-04-27 work on rhs of ':'
       -- WRONG: t <- workOnTypes $ isType_ t
       t <- isType_ t
-
+      reportSDoc "tc.rec.proj" 25 $ nest 2 $ vcat
+        [ text "t (ok)=" <+> prettyTCM t
+        , text "tel   =" <+> prettyTCM tel
+        ]
+      reportSDoc "tc.rec.proj" 75 $ nest 2 $ vcat
+        [ text "t (ok)=" <+> text (show t)
+        , text "tel   =" <+> text (show tel)
+        ]
       -- Andreas, 2010-09-09 The following comments are misleading, TODO: update
       -- in fact, tel includes the variable of record type as last one
       -- e.g. for cartesion product it is
@@ -262,9 +266,11 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       let finalt   = telePi tel t
 	  projname = qualify m $ qnameName x
           -- the recursive call
-          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Arg h rel t)
+          recurse  = checkProjs (abstract ftel1 $ ExtendTel (Dom h rel t)
                                  $ Abs (show $ qnameName projname) EmptyTel)
                                 (absBody ftel2) fs
+
+      reportSDoc "tc.rec.proj" 25 $ nest 2 $ text "finalt=" <+> prettyTCM finalt
 
       -- Andreas, 2012-02-20 do not add irrelevant projections if
       -- disabled by --no-irrelevant-projections
@@ -287,8 +293,10 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       -- compute body modification for irrelevant projections
       bodyMod <- do
         case rel of
-          Relevant   -> return $ const $ id -- no modification
+          Relevant   -> return $ \ n x -> x -- no modification
+          Irrelevant -> return $ \ n x -> DontCare x
 
+{- 2012-04-02: DontCare instead of irrAxiom
           Irrelevant -> do
             irrAxiom <- primIrrAxiom
             let sortToLevel (Type l) = l
@@ -298,7 +306,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                                   -- ERR: Variables of t not in Scope!
                                   mkArg t = Arg Hidden Relevant $ Sort Prop
                               in  apply irrAxiom [mkArg levelOfT, mkArg (unEl t), Arg NotHidden Irrelevant x]
-
+-}
           _          -> __IMPOSSIBLE__
 
       let -- Andreas, 2010-09-09: comment for existing code
@@ -306,11 +314,14 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
           -- (rt) which should be  R ptel
           (ptel,[rt]) = splitAt (size tel - 1) $ telToList tel
 	  conp	 = defaultArg
-		 $ ConP q (Just (fmap snd rt))
+		 $ ConP q (Just (argFromDom $ fmap snd rt))
+                   [ Arg h r (VarP "x") | Dom h r _ <- telToList ftel ]
+{- OLD CODE
                    $ zipWith3 Arg
-                              (map argHiding (telToList ftel))
-                              (map argRelevance (telToList ftel))
+                              (map domHiding (telToList ftel))
+                              (map domRelevance (telToList ftel))
 			      [ VarP "x" | _ <- [1..size ftel] ]
+-}
 	  nobind 0 = id
 	  nobind n = Bind . Abs "_" . nobind (n - 1)
 	  body	 = nobind (size ftel1)
@@ -363,11 +374,6 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
         computePolarity projname
 
       recurse
-{-
-      checkProjs (abstract ftel1 $ ExtendTel (Arg h rel t)
-                                 $ Abs (show $ qnameName projname) EmptyTel
-                 ) (absBody ftel2) fs
--}
 
     checkProjs ftel1 ftel2 (d : fs) = do
       checkDecl d

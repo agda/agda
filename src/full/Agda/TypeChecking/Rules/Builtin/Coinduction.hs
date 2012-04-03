@@ -117,9 +117,9 @@ bindBuiltinFlat e =
               <$> primSharp
     kit    <- requireLevels
     let clause = Clause { clauseRange = noRange
-                        , clauseTel   = ExtendTel (argH (El (mkType 0) (Def (typeName kit) [])))
-                                                  (Abs "a" (ExtendTel (argH $ sort $ varSort 0)
-                                                                      (Abs "A" (ExtendTel (argN (El (varSort 1) (var 0)))
+                        , clauseTel   = ExtendTel (domH (El (mkType 0) (Def (typeName kit) [])))
+                                                  (Abs "a" (ExtendTel (domH $ sort $ varSort 0)
+                                                                      (Abs "A" (ExtendTel (domN (El (varSort 1) (var 0)))
                                                                                           (Abs "x" EmptyTel)))))
                         , clausePerm  = idP 3
                         , clausePats  = [ argH (VarP "a")

@@ -312,7 +312,7 @@ checkModuleArity m tel args = check tel args
 
     check eta []             = return eta
     check EmptyTel (_:_)     = bad
-    check (ExtendTel (Arg h _ _) btel) args0@(Arg h' _ (Named name _) : args) =
+    check (ExtendTel (Dom h _ _) btel) args0@(Arg h' _ (Named name _) : args) =
       let y   = absName btel
           tel = absBody btel in
       case (h, h', name) of
@@ -379,7 +379,7 @@ checkSectionApplication' i m1 (A.RecordModuleIFS x) rd rm = do
       telInst = instFinal tel
       instFinal :: Telescope -> Telescope
       instFinal (ExtendTel _ NoAbs{}) = __IMPOSSIBLE__
-      instFinal (ExtendTel (Arg h r t) (Abs n EmptyTel)) = ExtendTel (Arg Instance r t) (Abs n EmptyTel)
+      instFinal (ExtendTel (Dom h r t) (Abs n EmptyTel)) = ExtendTel (Dom Instance r t) (Abs n EmptyTel)
       instFinal (ExtendTel arg (Abs n tel)) = ExtendTel arg (Abs n (instFinal tel))
       instFinal EmptyTel = __IMPOSSIBLE__
       args = teleArgs tel

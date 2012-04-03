@@ -35,17 +35,23 @@ initialIFSCandidates = do
   cands2 <- getScopeDefs
   return $ cands1 ++ cands2
   where
+    -- get a list of variables with their type, relative to current context
     getContextVars :: TCM [(Term, Type)]
     getContextVars = do
       ctx <- getContext
+{- OLD CODE
       let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
       types <- mapM typeOfBV ids
-      let vars = [ (Var i [], t) | (Arg h r _, i, t) <- zip3 ctx [0..] types,
+      let vars = [ (var i, t) | (Dom h r _, i, t) <- zip3 ctx [0..] types,
                                    not (unusableRelevance r) ]
+-}
+      let vars = [ (var i, raise (i + 1) t)
+                 | (Dom h r (x, t), i) <- zip ctx [0..], not (unusableRelevance r)
+                 ]
       -- get let bindings
       env <- asks envLetBindings
       env <- mapM (getOpen . snd) $ Map.toList env
-      let lets = [ (v,t) | (v, Arg h r t) <- env, not (unusableRelevance r) ]
+      let lets = [ (v,t) | (v, Dom h r t) <- env, not (unusableRelevance r) ]
       return $ vars ++ lets
     getScopeDefs :: TCM [(Term, Type)]
     getScopeDefs = do

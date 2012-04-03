@@ -11,5 +11,4 @@ record Squash {a}(A : Set a) : Set a where
   constructor squash
   field
     .unsquash : A
-
 open Squash public

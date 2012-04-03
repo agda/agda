@@ -66,7 +66,7 @@ nrRel = sum . map (const 1) . filter (== NotForced)
 -- | Check if argument n is recursive
 isRec :: Int -> Type -> QName -> Bool
 isRec 0 (El _ t) dat = case t of
-    Pi  arg _ -> argIsDef (unArg arg) dat
+    Pi  arg _ -> argIsDef (unDom arg) dat
     _         -> False
 isRec n (El _ t) dat = case t of
     Pi  _ ab  -> isRec (n - 1) (unAbs ab) dat

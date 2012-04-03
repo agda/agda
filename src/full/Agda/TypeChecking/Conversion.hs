@@ -131,7 +131,8 @@ compareTerm' cmp a m n =
           a <- levelView m
           b <- levelView n
           equalLevel a b
-        Pi a _    -> equalFun (a,a') m n
+-- OLD:        Pi dom _  -> equalFun (dom, a') m n
+        a@Pi{}    -> equalFun a m n
         Lam _ _   -> __IMPOSSIBLE__
         Def r ps  -> do
           isrec <- isEtaRecord r
@@ -170,15 +171,26 @@ compareTerm' cmp a m n =
     isMeta (NotBlocked MetaV{})  = True
     isMeta _                     = False
 
-    equalFun (a,t) m n = do
+    -- equality at function type (accounts for eta)
+    equalFun :: Term -> Term -> Term -> TCM ()
+    equalFun (Pi dom@(Dom h r _) b) m n = do
+        name <- freshName_ $ absName b
+        addCtx name dom $ compareTerm cmp (absBody b) m' n'
+      where
+        (m',n') = raise 1 (m,n) `apply` [Arg h r $ var 0]
+    equalFun _ _ _ = __IMPOSSIBLE__
+{- OLD CODE
+    equalFun :: (Dom Type, Type) -> Term -> Term -> TCM ()
+    equalFun (a@(Dom h r _), t) m n = do
         name <- freshName_ (suggest $ unEl t)
         addCtx name a $ compareTerm cmp t' m' n'
       where
-        p	= fmap (const $ Var 0 []) a
+        p	= Arg h r $ var 0
         (m',n') = raise 1 (m,n) `apply` [p]
         t'	= raise 1 t `piApply` [p]
         suggest (Pi _ b) = absName b
         suggest _	 = __IMPOSSIBLE__
+-}
 
 -- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
 --   and complains that @t2 `cmp` t1@ failed if not.
@@ -190,17 +202,20 @@ compareTel t1 t2 cmp tel1 tel2 =
     (EmptyTel, EmptyTel) -> return ()
     (EmptyTel, _)        -> bad
     (_, EmptyTel)        -> bad
-    (ExtendTel arg1@(Arg h1 r1 a1) tel1, ExtendTel arg2@(Arg h2 r2 a2) tel2)
+    (ExtendTel arg1@(Dom h1 r1 a1) tel1, ExtendTel arg2@(Dom h2 r2 a2) tel2)
       | h1 /= h2 -> bad
         -- Andreas, 2011-09-11 do not test r1 == r2 because they could differ
         -- e.g. one could be Forced and the other Relevant (see fail/UncurryMeta)
       | otherwise -> do
-          let (tel1', tel2') = raise 1 (tel1, tel2)
-              arg            = Var 0 []
           name <- freshName_ (suggest (absName tel1) (absName tel2))
           let checkArg = escapeContext 1 $ compareType cmp a1 a2
-          let c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
-          let r = max r1 r2  -- take "most irrelevant"
+{- OLD
+          let (tel1', tel2') = raise 1 (tel1, tel2)
+              arg            = var 0
+              c = TelCmp t1 t2 cmp (absApp tel1' arg) (absApp tel2' arg)
+-}
+              c = TelCmp t1 t2 cmp (absBody tel1) (absBody tel2)
+              r = max r1 r2  -- take "most irrelevant"
               dependent = (r /= Irrelevant) && isBinderUsed tel2
           addCtx name arg1 $
             if dependent
@@ -352,7 +367,7 @@ compareAtom cmp t m n =
           return $ piApply a (genericTake npars args)
         conType _ _ = __IMPOSSIBLE__
 
-	equalFun t1@(Pi arg1@(Arg h1 r1 a1) _) t2@(Pi (Arg h2 r2 a2) _)
+	equalFun t1@(Pi arg1@(Dom h1 r1 a1) _) t2@(Pi (Dom h2 r2 a2) _)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
 	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
@@ -361,7 +376,7 @@ compareAtom cmp t m n =
                   [ text "t1 =" <+> prettyTCM t1
                   , text "t2 =" <+> prettyTCM t2 ]
                 let (ty1',ty2') = raise 1 (ty1,ty2)
-                    arg	    = Arg h1 r1 (Var 0 [])
+                    arg	    = Arg h1 r1 $ var 0
                 name <- freshName_ (suggest t1 t2)
                 let checkArg = escapeContext 1 $ compareType cmp a2 a1
                     c        = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
@@ -413,7 +428,7 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
   case unEl <$> ab of
     Blocked{}                     -> patternViolation
     NotBlocked MetaV{}            -> patternViolation
-    NotBlocked (Pi (Arg _ r b) _) -> do
+    NotBlocked (Pi (Dom _ r b) _) -> do
       mlvl <- mlevel
       let checkArg = applyRelevanceToContext r $ case r of
             Forced     -> return ()
@@ -421,7 +436,7 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
             _          -> compareWithPol pol (flip compareTerm b)
                             (unArg arg1) (unArg arg2)
           dependent = case unEl a of
-            Pi (Arg _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
+            Pi (Dom _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
                                           && Just lvl' /= mlvl
             _ -> False
 
@@ -455,8 +470,10 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
 --   terms we compare.
 --   (Certainly not the systematic solution, that'd be proof search...)
 compareIrrelevant :: Type -> Term -> Term -> TCM ()
+{- 2012-04-02 DontCare no longer present
 compareIrrelevant a (DontCare v) w = compareIrrelevant a v w
 compareIrrelevant a v (DontCare w) = compareIrrelevant a v w
+-}
 compareIrrelevant a v w = do
   reportSDoc "tc.conv.irr" 20 $ vcat
     [ text "compareIrrelevant"

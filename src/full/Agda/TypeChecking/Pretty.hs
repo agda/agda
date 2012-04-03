@@ -106,6 +106,9 @@ instance PrettyTCM a => PrettyTCM (Blocked a) where
 instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Arg a) where
     prettyTCM x = prettyA =<< reify x
 
+instance (Reify a e, ToConcrete e c, P.Pretty c) => PrettyTCM (Dom a) where
+    prettyTCM x = prettyA =<< reify x
+
 instance PrettyTCM Elim where
   prettyTCM (Apply v) = text "$" <+> prettyTCM v
   prettyTCM (Proj f)  = text "." <> prettyTCM f
@@ -211,7 +214,7 @@ instance PrettyTCM PrettyContext where
   prettyTCM (PrettyContext ctx) = P.fsep . reverse <$> pr (map ctxEntry ctx)
       where
           pr []		   = return []
-          pr (Arg h r (x,t) : ctx) = escapeContext 1 $ do
+          pr (Dom h r (x,t) : ctx) = escapeContext 1 $ do
               d    <- prettyTCM t
               x    <- prettyTCM x
               dctx <- pr ctx

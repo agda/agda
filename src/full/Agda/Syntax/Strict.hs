@@ -77,6 +77,9 @@ instance (Strict a, Strict b) => Strict (a,b) where
 instance Strict a => Strict (Arg a) where
     force = force . unArg
 
+instance Strict a => Strict (Dom a) where
+    force = force . unDom
+
 instance Strict a => Strict [a] where
     force = sum . map force
 

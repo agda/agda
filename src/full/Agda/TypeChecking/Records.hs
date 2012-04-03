@@ -152,28 +152,74 @@ etaExpandRecord r pars u = do
   case u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
+{- STALE
       -- irrelevant fields are expanded to DontCare
       -- this is sound because etaExpandRecord is only called during conversion
       -- WARNING: do not use etaExpandRecord to expand MetaVars!!
       let proj (Arg h Irrelevant x) = Arg h Irrelevant $ DontCare (Def x [defaultArg u])
           proj (Arg h rel x)        = Arg h rel $
             Def x [defaultArg u]
+          xs' = map proj xs
+-}
+      let xs' = map (fmap (\ x -> Def x [defaultArg u])) xs
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
         , nest 2 $ vcat
           [ text "tel' =" <+> prettyTCM tel'
-          , text "args =" <+> prettyTCM (map proj xs)
+          , text "args =" <+> prettyTCM xs'
           ]
         ]
-      return (tel', map proj xs)
+      return (tel', xs')
+{- UNUSED
   where
     hide a = a { argHiding = Hidden }
+-}
 
+-- | The fields should be eta contracted already.
+--
+--   We can eta constract if all fields @f = ...@ are irrelevant
+--   or the corresponding projection @f = f v@ of the same value @v@,
+--   but we need at least one relevant field to find the value @v@.
+etaContractRecord :: QName -> QName -> Args -> TCM Term
+etaContractRecord r c args = do
+  Record{ recPars = npars, recFields = xs } <- getRecordDef r
+  let check :: Arg Term -> Arg QName -> Maybe (Maybe Term)
+      check a ax = do
+      -- @a@ is the constructor argument, @ax@ the corr. record field name
+        -- skip irrelevant record fields by returning DontCare
+        case (argRelevance a, unArg a) of
+          (Irrelevant, v) -> Just Nothing
+          -- if @a@ is the record field name applied to a single argument
+          -- then it passes the check
+          (_, Def f [arg]) | unArg ax == f
+                         -> Just $ Just $ unArg arg
+          _              -> Nothing
+      fallBack = return (Con c args)
+  case compare (length args) (length xs) of
+    LT -> fallBack       -- Not fully applied
+    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
+    EQ -> do
+      case zipWithM check args xs of
+        Just as -> case [ a | Just a <- as ] of
+          (a:as) ->
+            if all (a ==) as
+              then do
+                reportSDoc "tc.record.eta" 15 $ vcat
+                  [ text "record" <+> prettyTCM (Con c args)
+                  , text "is eta-contracted to" <+> prettyTCM a
+                  ]
+                return a
+              else fallBack
+          _ -> fallBack -- just irrelevant terms
+        _ -> fallBack  -- a Nothing
+
+{- OLD CODE, uses DontCare
 -- | The fields should be eta contracted already.
 etaContractRecord :: QName -> QName -> Args -> TCM Term
 etaContractRecord r c args = do
   Record{ recPars = npars, recFields = xs } <- getRecordDef r
-  let check a ax = do
+  let check :: Arg Term -> Arg QName -> Maybe Term
+      check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
         case (argRelevance a, unArg a) of
@@ -204,6 +250,7 @@ etaContractRecord r c args = do
         _ -> fallBack  -- a Nothing
   where notDontCare (DontCare _) = False
         notDontCare _            = True
+-}
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.
@@ -226,19 +273,30 @@ isSingletonRecord' regardIrrelevance r ps = do
   where
   check :: Telescope -> TCM (Either MetaId (Maybe [Arg Term]))
   check EmptyTel            = return $ Right $ Just []
-  check (ExtendTel arg tel) | regardIrrelevance && argRelevance arg == Irrelevant =
+  check (ExtendTel arg@(Dom h Irrelevant _) tel) | regardIrrelevance =
     underAbstraction arg tel $ \ tel ->
-      emap (fmap (const garbage) arg :) <$> check tel
-  check (ExtendTel arg tel) = do
-    isSing <- isSingletonType' regardIrrelevance (unArg arg)
+      emap (Arg h Irrelevant garbage :) <$> check tel
+  check (ExtendTel arg@(Dom h r t) tel) = do
+    isSing <- isSingletonType' regardIrrelevance t
     case isSing of
       Left mid       -> return $ Left mid
       Right Nothing  -> return $ Right Nothing
       Right (Just v) -> underAbstraction arg tel $ \ tel ->
-        emap (fmap (const v) arg :) <$> check tel
-
+        emap (Arg h r v :) <$> check tel
+{- UNNECESSARILY UNREADABLE:
+  check (ExtendTel arg tel) | regardIrrelevance && domRelevance arg == Irrelevant =
+    underAbstraction arg tel $ \ tel ->
+      emap (argFromDom (fmap (const garbage) arg) :) <$> check tel
+  check (ExtendTel arg tel) = do
+    isSing <- isSingletonType' regardIrrelevance (unDom arg)
+    case isSing of
+      Left mid       -> return $ Left mid
+      Right Nothing  -> return $ Right Nothing
+      Right (Just v) -> underAbstraction arg tel $ \ tel ->
+        emap (argFromDom (fmap (const v) arg) :) <$> check tel
+-}
   garbage :: Term
-  garbage = DontCare $ Sort Prop
+  garbage = Sort Prop
 
 -- | Check whether a type has a unique inhabitant and return it.
 --   Can be blocked by a metavar.

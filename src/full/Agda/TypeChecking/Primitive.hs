@@ -42,8 +42,10 @@ import Agda.Utils.Impossible
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
 constructorForm v = case v of
+{- 2012-04-02 changed semantics of DontCare
 -- Andreas, 2011-10-03, the following line restores IrrelevantLevel
     DontCare v                  -> constructorForm v
+-}
     Lit (LitInt r n)            -> cons primZero primSuc (Lit . LitInt r) n
 --     Level (Max [])              -> primLevelZero
 --     Level (Max [ClosedLevel n]) -> cons primLevelZero primLevelSuc (Level . Max . (:[]) . ClosedLevel) n
@@ -422,7 +424,7 @@ infixr 4 -->
 a --> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (defaultArg a') (NoAbs "_" b')
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom NotHidden Relevant a') (NoAbs "_" b')
 
 infixr 4 .-->
 
@@ -430,15 +432,15 @@ infixr 4 .-->
 a .--> b = do
     a' <- a
     b' <- b
-    return $ El (getSort a' `sLub` getSort b') $ Pi (Arg NotHidden Irrelevant a') (NoAbs "_" b')
+    return $ El (getSort a' `sLub` getSort b') $ Pi (Dom NotHidden Irrelevant a') (NoAbs "_" b')
 
 gpi :: Hiding -> Relevance -> String -> TCM Type -> TCM Type -> TCM Type
 gpi h r name a b = do
   a <- a
   x <- freshName_ name
-  b <- addCtx x (Arg h r a) b
+  b <- addCtx x (Dom h r a) b
   return $ El (getSort a `dLub` Abs name (getSort b))
-              (Pi (Arg h r a) (Abs name b))
+              (Pi (Dom h r a) (Abs name b))
 
 hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
 hPi = gpi Hidden Relevant
@@ -474,10 +476,12 @@ tset = return $ sort (mkType 0)
 -- | Abbreviation: @argN = 'Arg' 'NotHidden' 'Relevant'@.
 
 argN = Arg NotHidden Relevant
+domN = Dom NotHidden Relevant
 
 -- | Abbreviation: @argH = 'Arg' 'Hidden' 'Relevant'@.
 
 argH = Arg Hidden Relevant
+domH = Dom Hidden Relevant
 
 ---------------------------------------------------------------------------
 -- * The actual primitive functions
