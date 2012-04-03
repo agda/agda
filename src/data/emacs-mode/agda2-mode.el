@@ -1105,13 +1105,18 @@ ways."
        (inside-comment() (and stk (null     (car stk))))
        (inside-goal()    (and stk (integerp (car stk))))
        (outside-code()   (and stk (eq (car stk) 'outside)))
-       (inside-code()    (not (outside-code))))
+       (inside-code()    (not (outside-code)))
+       ;; inside a multi-line comment ignore everything but the multi-line comment markers
+       (safe-delims()
+          (if (inside-comment)
+               (re-search-forward "{-\\|-}" nil t)
+            (delims))))
     (save-excursion
       ;; In literate mode we should start out in the "outside of code"
       ;; state.
       (if literate (push 'outside stk))
       (goto-char (point-min))
-      (while (and goals (delims))
+      (while (and goals (safe-delims))
         (labels ((c (s) (equal s (match-string 0))))
           (cond
            ((c "\\begin{code}") (when (outside-code)               (pop stk)))
