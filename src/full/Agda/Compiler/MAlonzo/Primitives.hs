@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Agda.Compiler.MAlonzo.Primitives where
 
 import Control.Monad.Reader
@@ -18,6 +19,9 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
+import Agda.Utils.Impossible
+
+#include "../../undefined.h"
 
 -- | Check that the main function has type IO a, for some a.
 checkTypeOfMain :: QName -> Type -> TCM ()
@@ -39,8 +43,18 @@ importsForPrim :: TCM [HS.ModuleName]
 importsForPrim =
   xForPrim $
   L.map (\(s, ms) -> (s, return (L.map HS.ModuleName ms))) $
-  [ "CHAR" |-> ["Data.Char"]
-  -- , "IO" |-> ["System.IO"]
+  [ "CHAR"           |-> ["Data.Char"]
+  , "primIsDigit"    |-> ["Data.Char"]
+  , "primIsLower"    |-> ["Data.Char"]
+  , "primIsDigit"    |-> ["Data.Char"]
+  , "primIsAlpha"    |-> ["Data.Char"]
+  , "primIsSpace"    |-> ["Data.Char"]
+  , "primIsAscii"    |-> ["Data.Char"]
+  , "primIsLatin1"   |-> ["Data.Char"]
+  , "primIsPrint"    |-> ["Data.Char"]
+  , "primIsHexDigit" |-> ["Data.Char"]
+  , "primToUpper"    |-> ["Data.Char"]
+  , "primToLower"    |-> ["Data.Char"]
   ]
   where (|->) = (,)
 
@@ -109,8 +123,12 @@ xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
   qs <- keys   <$> curDefs
   bs <- toList <$> gets stBuiltinThings
+  let getName (Builtin (Def q _))    = q
+      getName (Builtin (Con q _))    = q
+      getName (Builtin _)            = __IMPOSSIBLE__
+      getName (Prim (PrimFun q _ _)) = q
   concat <$> sequence [ maybe (return []) id $ L.lookup s table
-                        | (s, Builtin (Def q _)) <- bs, q `elem` qs ]
+                        | (s, def) <- bs, getName def `elem` qs ]
 
 
 -- Definition bodies for primitive functions
@@ -165,7 +183,7 @@ primBody s = maybe unimplemented (either (hsVarUQ . HS.Ident) id <$>) $
   , "primIsAscii"        |-> pred "Data.Char.isAscii"
   , "primIsLatin1"       |-> pred "Data.Char.isLatin1"
   , "primIsPrint"        |-> pred "Data.Char.isPrint"
-  , "primIsHExDigit"     |-> pred "Data.Char.isHexDigit"
+  , "primIsHexDigit"     |-> pred "Data.Char.isHexDigit"
   , "primToUpper"        |-> return "Data.Char.toUpper"
   , "primToLower"        |-> return "Data.Char.toLower"
   , "primCharToNat" |-> do toN <- bltQual' "NATURAL" mazIntToNat

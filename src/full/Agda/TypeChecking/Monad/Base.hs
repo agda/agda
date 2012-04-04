@@ -222,7 +222,7 @@ data Interface = Interface
 	, iScope	   :: Map ModuleName Scope
         , iInsideScope     :: ScopeInfo
 	, iSignature	   :: Signature
-	, iBuiltin	   :: BuiltinThings String
+	, iBuiltin	   :: BuiltinThings (String, QName)
         , iHaskellImports  :: Set String
                               -- ^ Haskell imports listed in
                               -- (transitively) imported modules are

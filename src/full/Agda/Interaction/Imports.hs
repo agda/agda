@@ -89,9 +89,9 @@ mergeInterface i = do
     modify $ \st -> st { stImportedBuiltins = stImportedBuiltins st `Map.union` prim
 		       }
     where
-	rebind x = do
+	rebind (x, q) = do
 	    PrimImpl _ pf <- lookupPrimitiveFunction x
-	    return (x, Prim pf)
+	    return (x, Prim $ pf { primFunName = q })
 
 addImportedThings ::
   Signature -> BuiltinThings PrimFun -> Set String -> A.PatternSynDefns -> TCM ()
@@ -572,7 +572,7 @@ buildInterface topLevel syntaxInfo previousHsImports pragmas = do
     ms      <- getImports
     hsImps  <- getHaskellImports
     patsyns <- getPatternSyns
-    let	builtin' = Map.mapWithKey (\x b -> fmap (const x) b) builtin
+    let	builtin' = Map.mapWithKey (\x b -> fmap (\pf -> (x, primFunName pf)) b) builtin
     reportSLn "import.iface" 7 "  instantiating all meta variables"
     i <- instantiateFull $ Interface
 			{ iImportedModules = Set.toList ms

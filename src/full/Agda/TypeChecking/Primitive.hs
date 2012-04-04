@@ -579,10 +579,10 @@ lookupPrimitiveFunction x =
 	Just p	-> liftTCM p
 	Nothing	-> typeError $ NoSuchPrimitiveFunction x
 
--- | Rebind a primitive. Assumes everything is type correct. Used when
---   importing a module with primitives.
-rebindPrimitive :: String -> TCM PrimFun
-rebindPrimitive x = do
-    PrimImpl _ pf <- lookupPrimitiveFunction x
-    bindPrimitive x pf
-    return pf
+lookupPrimitiveFunctionQ :: QName -> TCM (String, PrimitiveImpl)
+lookupPrimitiveFunctionQ q = do
+  let s = case qnameName q of
+            Name _ x _ _ -> show x
+  PrimImpl t pf <- lookupPrimitiveFunction s
+  return (s, PrimImpl t $ pf { primFunName = q })
+

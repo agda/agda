@@ -767,6 +767,9 @@ instance InstantiateFull a => InstantiateFull (Builtin a) where
     instantiateFull (Builtin t) = Builtin <$> instantiateFull t
     instantiateFull (Prim x)	= Prim <$> instantiateFull x
 
+instance InstantiateFull QName where
+  instantiateFull = return
+
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull = mapM instantiateFull
 

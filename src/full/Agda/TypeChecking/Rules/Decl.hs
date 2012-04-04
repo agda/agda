@@ -166,11 +166,11 @@ checkAxiom i rel x e = do
 checkPrimitive :: Info.DefInfo -> QName -> A.Expr -> TCM ()
 checkPrimitive i x e =
     traceCall (CheckPrimitive (getRange i) (qnameName x) e) $ do  -- TODO!! (qnameName)
-    PrimImpl t' pf <- lookupPrimitiveFunction (nameString $ qnameName x)
+    (_, PrimImpl t' pf) <- lookupPrimitiveFunctionQ x
     t <- isType_ e
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
-    bindPrimitive s $ pf { primFunName = x }
+    bindPrimitive s pf
     addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 noCompiledRep $
                 Primitive (Info.defAbstract i) s Nothing Nothing)
     where
