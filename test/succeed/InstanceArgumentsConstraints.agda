@@ -1,4 +1,3 @@
-{-# OPTIONS --verbose tc.constr.findInScope:20 #-}
 
 module InstanceArgumentsConstraints where
 

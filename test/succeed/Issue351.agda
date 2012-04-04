@@ -1,5 +1,5 @@
 -- 2010-10-15 and 2012-03-09
-{-# OPTIONS -v tc.conv.irr:50 -v tc.decl.ax:10 #-}
+-- {-# OPTIONS -v tc.conv.irr:50 -v tc.decl.ax:10 #-}
 
 module Issue351 where
 
