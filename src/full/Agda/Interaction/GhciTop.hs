@@ -41,8 +41,7 @@ import Data.List as List
 import System.Exit
 
 import Agda.TypeChecker
-import Agda.TypeChecking.Monad as TM
-  hiding (initState, setCommandLineOptions)
+import Agda.TypeChecking.Monad as TM hiding (initState, setCommandLineOptions)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
