@@ -109,7 +109,7 @@ doesFileExistCaseSensitive :: FilePath -> IO Bool
 #if mingw32_HOST_OS
 doesFileExistCaseSensitive f = do
   ex <- doesFileExist f
-  if ex then bracket (findFirstFile f) (findClose . fst) $ 
+  if ex then bracket (findFirstFile f) (findClose . fst) $
                fmap (takeFileName f ==) . getFindDataFileName . snd
         else return False
 #else
