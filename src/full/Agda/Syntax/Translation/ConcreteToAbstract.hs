@@ -794,6 +794,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
 
   -- Fields
     C.NiceField r f p a x t -> do
+      unless (p == PublicAccess) $ typeError $ GenericError "Record fields can not be private"
       t' <- toAbstractCtx TopCtx t
       y  <- freshAbstractQName f x
       irrProj <- optIrrelevantProjections <$> pragmaOptions
