@@ -105,7 +105,7 @@ findFile'' dirs m modFile =
                                   [".agda", ".lagda"]
                     ]
       existingFiles <-
-        liftIO $ filterM (doesFileExist . filePath) files
+        liftIO $ filterM (doesFileExistCaseSensitive . filePath) files
       return $ case nub existingFiles of
         []     -> (Left (NotFound files), modFile)
         [file] -> (Right file, Map.insert m file modFile)
@@ -121,7 +121,7 @@ findFile'' dirs m modFile =
 findInterfaceFile :: TopLevelModuleName -> TCM (Maybe AbsolutePath)
 findInterfaceFile m = do
   f  <- toIFile <$> findFile m
-  ex <- liftIO $ doesFileExist $ filePath f
+  ex <- liftIO $ doesFileExistCaseSensitive $ filePath f
   return $ if ex then Just f else Nothing
 
 -- | Ensures that the module name matches the file name. The file

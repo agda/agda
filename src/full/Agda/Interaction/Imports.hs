@@ -259,7 +259,7 @@ getInterface' x includeStateChanges =
     where
       isCached file = do
         let ifile = filePath $ toIFile file
-        exist <- liftIO $ doesFileExist ifile
+        exist <- liftIO $ doesFileExistCaseSensitive ifile
         if not exist
           then return False
           else do

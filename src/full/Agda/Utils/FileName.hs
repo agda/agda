@@ -7,6 +7,7 @@ module Agda.Utils.FileName
   , mkAbsolute
   , absolute
   , (===)
+  , doesFileExistCaseSensitive
   , tests
   ) where
 
@@ -20,6 +21,11 @@ import Control.Applicative
 import Control.Monad
 import System.Directory
 import System.FilePath
+
+#if mingw32_HOST_OS
+import Control.Exception (bracket)
+import System.Win32 (findFirstFile, findClose, getFindDataFileName)
+#endif
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -93,6 +99,22 @@ infix 4 ===
 
 (===) :: AbsolutePath -> AbsolutePath -> Bool
 (===) = equalFilePath `on` filePath
+
+-- | Case-sensitive doesFileExist for Windows.
+-- This is case-sensitive only on the file name part, not on the directory part.
+-- (Ideally, path components coming from module name components should be
+--  checked case-sensitively and the other path components should be checked
+--  case insenstively.)
+doesFileExistCaseSensitive :: FilePath -> IO Bool
+#if mingw32_HOST_OS
+doesFileExistCaseSensitive f = do
+  ex <- doesFileExist f
+  if ex then bracket (findFirstFile f) (findClose . fst) $ 
+               fmap (takeFileName f ==) . getFindDataFileName . snd
+        else return False
+#else
+doesFileExistCaseSensitive f = doesFileExist f
+#endif
 
 ------------------------------------------------------------------------
 -- Generators
