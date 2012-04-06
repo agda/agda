@@ -69,7 +69,7 @@ data Expr
 	| Underscore !Range (Maybe Nat)	       -- ^ ex: @_@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
-	| OpApp !Range Name [OpApp Expr]       -- ^ ex: @e + e@
+	| OpApp !Range QName [OpApp Expr]      -- ^ ex: @e + e@
         | WithApp !Range Expr [Expr]           -- ^ ex: @e | e1 | .. | en@
 	| HiddenArg !Range (Named String Expr) -- ^ ex: @{e}@ or @{x=e}@
 	| InstanceArg !Range (Named String Expr) -- ^ ex: @{{e}}@ or @{{x=e}}@
@@ -102,7 +102,7 @@ data Pattern
 	= IdentP QName                            -- ^ @c@ or @x@
 	| AppP Pattern (NamedArg Pattern)         -- ^ @p p'@ or @p {x = p'}@
 	| RawAppP !Range [Pattern]                -- ^ @p1..pn@ before parsing operators
-	| OpAppP !Range Name [Pattern]            -- ^ eg: @p => p'@ for operator @_=>_@
+	| OpAppP !Range QName [Pattern]           -- ^ eg: @p => p'@ for operator @_=>_@
 	| HiddenP !Range (Named String Pattern)   -- ^ @{p}@ or @{x = p}@
 	| InstanceP !Range (Named String Pattern) -- ^ @{{p}}@ or @{{x = p}}@
 	| ParenP !Range Pattern                   -- ^ @(p)@
@@ -330,7 +330,7 @@ patternHead p =
     AppP p p'            -> patternHead p
     RawAppP _ []         -> __IMPOSSIBLE__
     RawAppP _ (p:_)      -> patternHead p
-    OpAppP _ name ps     -> return $ name
+    OpAppP _ name ps     -> return $ unqualify name
     HiddenP _ (namedPat) -> patternHead (namedThing namedPat)
     ParenP _ p           -> patternHead p
     WildP _              -> Nothing
@@ -349,7 +349,7 @@ patternNames p =
     IdentP x             -> [unqualify x]
     AppP p p'            -> concatMap patternNames [p, namedThing $ unArg p']
     RawAppP _ ps         -> concatMap patternNames  ps
-    OpAppP _ name ps     -> name : concatMap patternNames ps
+    OpAppP _ name ps     -> unqualify name : concatMap patternNames ps
     HiddenP _ (namedPat) -> patternNames (namedThing namedPat)
     ParenP _ p           -> patternNames p
     WildP _              -> []

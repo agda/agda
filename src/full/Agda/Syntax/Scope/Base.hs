@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables, TupleSections #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, GADTs, ScopedTypeVariables, TupleSections, RankNTypes #-}
 
 {-| This module defines the notion of a scope and operations on scopes.
 -}
@@ -473,6 +473,45 @@ everythingInScope scope =
       Just s  -> scopeParents s
       Nothing -> __IMPOSSIBLE__
     current = this : parents
+
+-- | Compute a flattened scope. Only include unqualified names or names
+-- qualified by modules in the first argument.
+flattenScope :: [[C.Name]] -> ScopeInfo -> Map C.QName [AbstractName]
+flattenScope ms scope =
+  -- Map.filterKeys (\q -> elem (init $ C.qnameParts q) ([]:ms)) $
+  Map.unionWith (++)
+    (build ms allNamesInScope root)
+    imported
+  where
+    current = moduleScope $ scopeCurrent scope
+    root    = mergeScopes $ current : map moduleScope (scopeParents current)
+
+    imported = Map.unionsWith (++)
+               [ qual c (build ms' exportedNamesInScope $ moduleScope a)
+               | (c, a) <- Map.toList $ scopeImports root
+               , let m   = C.qnameParts c
+                     ms' = map (drop (length m)) $ filter (m `isPrefixOf`) ms
+               , not $ null ms' ]
+    qual c = Map.mapKeys (q c)
+      where
+        q (C.QName x)  = C.Qual x
+        q (C.Qual m x) = C.Qual m . q x
+
+    build :: [[C.Name]] -> (forall a. InScope a => Scope -> ThingsInScope a) -> Scope -> Map C.QName [AbstractName]
+    build ms getNames s =
+      Map.unionWith (++)
+        (Map.mapKeys (\x -> C.QName x) (getNames s))
+        $ Map.unionsWith (++) $
+          [ Map.mapKeys (\y -> C.Qual x y) $ build ms' exportedNamesInScope $ moduleScope m
+          | (x, mods) <- Map.toList (getNames s)
+          , let ms' = [ ms' | m':ms' <- ms, m' == x ]
+          , not $ null ms'
+          , AbsModule m <- mods ]
+
+    moduleScope :: A.ModuleName -> Scope
+    moduleScope name = case Map.lookup name (scopeModules scope) of
+      Nothing -> __IMPOSSIBLE__
+      Just s  -> s
 
 -- | Look up a name in the scope
 scopeLookup :: InScope a => C.QName -> ScopeInfo -> [a]

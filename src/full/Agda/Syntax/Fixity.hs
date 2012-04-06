@@ -22,11 +22,11 @@ data Fixity' = Fixity'
 
 data ThingWithFixity x = ThingWithFixity x Fixity' deriving (Functor,Foldable,Traversable,Typeable,Data,Show)
 -- | All the notation information related to a name.
-type NewNotation = (Name, Fixity, Notation)
+type NewNotation = (QName, Fixity, Notation)
 
 -- | If an operator has no specific notation, recover it from its name.
-oldToNewNotation :: (Name, Fixity') -> NewNotation
-oldToNewNotation (name, Fixity' f []) = (name, f, syntaxOf name)
+oldToNewNotation :: (QName, Fixity') -> NewNotation
+oldToNewNotation (name, Fixity' f []) = (name, f, syntaxOf $ unqualify name)
 oldToNewNotation (name, Fixity' f syn) = (name, f, syn)
 
 syntaxOf :: Name -> Notation

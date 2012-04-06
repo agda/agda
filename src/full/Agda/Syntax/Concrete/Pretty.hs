@@ -8,6 +8,7 @@ module Agda.Syntax.Concrete.Pretty where
 import Data.Char
 
 import Agda.Syntax.Common
+import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
 import Agda.Syntax.Literal
@@ -118,13 +119,7 @@ instance Pretty Expr where
 -- 			    , nest 2 $ fsep $ map pretty args
 -- 			    ]
 	    RawApp _ es   -> fsep $ map pretty es
-	    OpApp _ (Name _ xs) es -> fsep $ prOp xs es
-		where
-		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
-		    prOp (Hole : _)  []       = __IMPOSSIBLE__
-		    prOp (Id x : xs) es       = text x : prOp xs es
-		    prOp []	     es       = map pretty es
-	    OpApp _ (NoName _ _) _ -> __IMPOSSIBLE__
+	    OpApp _ q es -> fsep $ prettyOpApp q es
 
 	    WithApp _ e es -> fsep $
 	      pretty e : map ((text "|" <+>) . pretty) es
@@ -421,25 +416,31 @@ instance Pretty [Pattern] where
 instance Pretty Pattern where
     pretty p =
 	case p of
-	    IdentP x	       -> pretty x
-	    AppP p1 p2	       -> sep [ pretty p1, nest 2 $ pretty p2 ]
-	    RawAppP _ ps       -> fsep $ map pretty ps
-	    OpAppP _ (Name _ xs) ps -> fsep $ prOp xs ps
-		where
-		    prOp (Hole : xs) (e : es) = pretty e : prOp xs es
-		    prOp (Hole : _)  []	      = __IMPOSSIBLE__
-		    prOp (Id x : xs) es       = text x : prOp xs es
-		    prOp []	     []       = []
-		    prOp []	     es       = map pretty es
-	    OpAppP _ (NoName _ _) _ -> __IMPOSSIBLE__
-	    HiddenP _ p	       -> braces' $ pretty p
-	    InstanceP _ p      -> dbraces $ pretty p
-	    ParenP _ p	       -> parens $ pretty p
-	    WildP _	       -> underscore
-	    AsP _ x p	       -> pretty x <> text "@" <> pretty p
-	    DotP _ p	       -> text "." <> pretty p
-	    AbsurdP _	       -> text "()"
-	    LitP l	       -> pretty l
+	    IdentP x      -> pretty x
+	    AppP p1 p2    -> sep [ pretty p1, nest 2 $ pretty p2 ]
+	    RawAppP _ ps  -> fsep $ map pretty ps
+	    OpAppP _ q ps -> fsep $ prettyOpApp q ps
+	    HiddenP _ p   -> braces' $ pretty p
+	    InstanceP _ p -> dbraces $ pretty p
+	    ParenP _ p    -> parens $ pretty p
+	    WildP _       -> underscore
+	    AsP _ x p     -> pretty x <> text "@" <> pretty p
+	    DotP _ p      -> text "." <> pretty p
+	    AbsurdP _     -> text "()"
+	    LitP l        -> pretty l
+
+prettyOpApp :: Pretty a => QName -> [a] -> [Doc]
+prettyOpApp q es = prOp ms xs es
+  where
+    ms = init (qnameParts q)
+    xs = case unqualify q of
+           Name _ xs -> xs
+           NoName{}  -> __IMPOSSIBLE__
+    prOp ms (Hole : xs) (e : es) = pretty e : prOp ms xs es
+    prOp _  (Hole : _)  []       = __IMPOSSIBLE__
+    prOp ms (Id x : xs) es       = pretty (foldr Qual (QName (Name noRange $ [Id x])) ms) : prOp [] xs es
+    prOp _  []	     []          = []
+    prOp _  []	     es          = map pretty es
 
 instance Pretty ImportDirective where
     pretty i =

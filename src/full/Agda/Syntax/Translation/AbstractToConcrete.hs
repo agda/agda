@@ -755,7 +755,7 @@ instance ToConcrete A.Pattern C.Pattern where
 
 data Hd = HdVar A.Name | HdCon A.QName | HdDef A.QName
 
-cOpApp :: Range -> C.Name -> [C.Expr] -> C.Expr
+cOpApp :: Range -> C.QName -> [C.Expr] -> C.Expr
 cOpApp r n es = C.OpApp r n (map Ordinary es)
 
 tryToRecoverOpApp :: A.Expr -> AbsToCon C.Expr -> AbsToCon C.Expr
@@ -779,7 +779,7 @@ tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
 
 recoverOpApp :: (ToConcrete a c, HasRange c) =>
                 ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c) ->
-                (Range -> C.Name -> [c] -> c) -> (a -> Maybe (Hd, [NamedArg a])) -> a ->
+                (Range -> C.QName -> [c] -> c) -> (a -> Maybe (Hd, [NamedArg a])) -> a ->
                 AbsToCon c -> AbsToCon c
 recoverOpApp bracket opApp view e mdefault = case view e of
   Nothing -> mdefault
@@ -828,7 +828,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (e1,en)) cn ([e1] ++ es ++ [en])
+            $ return $ opApp (getRange (e1,en)) (C.QName cn) ([e1] ++ es ++ [en])
 
   -- prefix
   doCName fixity cn@(C.Name _ xs) as
@@ -840,7 +840,7 @@ recoverOpApp bracket opApp view e mdefault = case view e of
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (cn,en)) cn (es ++ [en])
+            $ return $ opApp (getRange (cn,en)) (C.QName cn) (es ++ [en])
 
   -- postfix
   doCName fixity cn@(C.Name _ xs) as
@@ -850,10 +850,10 @@ recoverOpApp bracket opApp view e mdefault = case view e of
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (e1,cn)) cn ([e1] ++ es)
+            $ return $ opApp (getRange (e1,cn)) (C.QName cn) ([e1] ++ es)
 
   -- roundfix
   doCName _ cn as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
-      $ return $ opApp (getRange cn) cn es
+      $ return $ opApp (getRange cn) (C.QName cn) es

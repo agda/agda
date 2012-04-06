@@ -15,11 +15,11 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 data ExprView e
-    = LocalV Name
+    = LocalV QName
     | WildV e
     | OtherV e
     | AppV e (NamedArg e)
-    | OpAppV Name [OpApp e]
+    | OpAppV QName [OpApp e]
     | HiddenArgV (Named String e)
     | InstanceArgV (Named String e)
     | LamV [LamBinding] e
@@ -63,16 +63,17 @@ chainl1' p op = p >>= rest
 -- Specific combinators
 
 -- | Parse a specific identifier as a NamePart
-partP :: IsExpr e => String -> ReadP e (Range, NamePart)
-partP s = do
+partP :: IsExpr e => [Name] -> String -> ReadP e Range
+partP ms s = do
     tok <- get
-    case isLocal s tok of
+    case isLocal tok of
       Just p  -> return p
       Nothing -> pfail
     where
-	isLocal x e = case exprView e of
-	    LocalV (Name r [Id y]) | x == y -> Just (r, Id y)
-	    _			            -> Nothing
+        str = show (foldr Qual (QName (Name noRange [Id s])) ms)
+	isLocal e = case exprView e of
+	    LocalV y | str == show y -> Just (getRange y)
+	    _			     -> Nothing
 
 binop :: IsExpr e => ReadP e (NewNotation,Range,[e]) -> ReadP e (e -> e -> ReadP a e)
 binop middleP = do
@@ -97,16 +98,16 @@ postop middleP = do
 -- place as where the holes are discarded, however that would require a dependently
 -- typed function (or duplicated code)
 opP :: IsExpr e => ReadP e e -> NewNotation -> ReadP e (NewNotation,Range,[e])
-opP p nsyn@(_,_,syn) = do
-  (range,es) <- worker $ removeExternalHoles syn
+opP p nsyn@(q,_,syn) = do
+  (range,es) <- worker (init $ qnameParts q) $ removeExternalHoles syn
   return (nsyn,range,es)
- where worker [IdPart x] = do (r, part) <- partP x; return (r,[])
-       worker (IdPart x : _ : xs) = do
-            (r1, part)    <- partP x
-	    e             <- p
-	    (r2 , es) <- worker xs
+ where worker ms [IdPart x] = do r <- partP ms x; return (r,[])
+       worker ms (IdPart x : _ : xs) = do
+            r1        <- partP ms x
+	    e         <- p
+	    (r2 , es) <- worker [] xs -- only the first part is qualified
             return (fuseRanges r1 r2, e : es)
-       worker x = __IMPOSSIBLE__ -- holes and non-holes must be alternated.
+       worker _ x = __IMPOSSIBLE__ -- holes and non-holes must be alternated.
 
        removeExternalHoles = reverse . removeLeadingHoles . reverse . removeLeadingHoles
            where removeLeadingHoles = dropWhile isAHole
@@ -131,7 +132,7 @@ rebuild (name,_,syn) r es = do
 
 rebuildBinding :: ExprView e -> ReadP a LamBinding
   -- Andreas, 2011-04-07 put just 'Relevant' here, is this correct?
-rebuildBinding (LocalV name) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
+rebuildBinding (LocalV (QName name)) = return $ DomainFree NotHidden Relevant (mkBoundName_ name)
 rebuildBinding (WildV e)     =
   return $ DomainFree NotHidden Relevant (mkBoundName_ $ Name noRange [Hole])
 rebuildBinding _ = fail "variable name expected"
@@ -201,7 +202,7 @@ appP top p = do
 	    HiddenArgV e <- exprView <$> satisfy (isHidden . exprView)
 	    return $ Arg Hidden Relevant e
 
-atomP :: IsExpr e => (Name -> Bool) -> ReadP e e
+atomP :: IsExpr e => (QName -> Bool) -> ReadP e e
 atomP p = do
     e <- get
     case exprView e of

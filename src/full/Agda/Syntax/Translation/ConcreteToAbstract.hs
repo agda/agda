@@ -99,7 +99,7 @@ lhsArgs p = case appView p of
         notHidden = Arg NotHidden Relevant . unnamed
         appView p = case p of
             AppP p arg    -> appView p ++ [arg]
-            OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
+            OpAppP _ x ps -> mkHead (IdentP x) : map notHidden ps
             ParenP _ p    -> appView p
             RawAppP _ _   -> __IMPOSSIBLE__
             _             -> [ mkHead p ]
@@ -1265,7 +1265,7 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
             info = PatSource r $ \pr -> if appBrackets pr then ParenP r p0 else p0
 
     toAbstract p0@(OpAppP r op ps) = do
-        p <- toAbstract (IdentP $ C.QName op)
+        p <- toAbstract (IdentP op)
         ps <- toAbstract ps
         case p of
           ConP        _ x as -> return $ ConP info x
@@ -1303,12 +1303,11 @@ instance ToAbstract C.Pattern (A.Pattern' C.Expr) where
 
 -- | Turn an operator application into abstract syntax. Make sure to record the
 -- right precedences for the various arguments.
-toAbstractOpApp :: C.Name -> [OpApp C.Expr] -> ScopeM A.Expr
-toAbstractOpApp op@(C.NoName _ _) es = __IMPOSSIBLE__
-toAbstractOpApp op@(C.Name _ _) es = do
-    f  <- getFixity (C.QName op)
+toAbstractOpApp :: C.QName -> [OpApp C.Expr] -> ScopeM A.Expr
+toAbstractOpApp op es = do
+    f  <- getFixity op
     let (_,_,parts) = oldToNewNotation $ (op, f)
-    op <- toAbstract (OldQName $ C.QName op)
+    op <- toAbstract (OldQName op)
     foldl app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
     where
         app e arg = A.App (ExprRange (fuseRange e arg)) e

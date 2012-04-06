@@ -56,47 +56,52 @@ import Agda.Utils.Impossible
 -- * Building the parser
 ---------------------------------------------------------------------------
 
-partsInScope :: ScopeM (Set Name)
-partsInScope = do
-    (names, ops) <- localNames
+partsInScope :: FlatScope -> ScopeM (Set QName)
+partsInScope flat = do
+    (names, ops) <- localNames flat
     let xs = concatMap parts names ++ concatMap notationNames ops
     return $ Set.fromList xs
     where
-        parts (NoName _ _)   = []
-        parts x@(Name _ [_]) = [x]
-        parts x@(Name _ xs)  = x : [ Name noRange [i] | i@(Id {}) <- xs ]
+        qual xs x = foldr Qual (QName x) xs
+        parts q = parts' (init $ qnameParts q) (unqualify q)
+        parts' ms (NoName _ _)   = []
+        parts' ms x@(Name _ [_]) = [qual ms x]
+                                   -- The first part should be qualified, but not the rest
+        parts' ms x@(Name _ xs)  = qual ms x : qual ms (Name noRange [first]) : [ QName $ Name noRange [i] | i <- iparts ]
+          where
+            first:iparts = [ i | i@(Id {}) <- xs ]
+
+type FlatScope = Map.Map QName [AbstractName]
 
 -- | Compute all unqualified defined names in scope and their fixities.
-getDefinedNames :: [KindOfName] -> ScopeM [(Name, Fixity')]
-getDefinedNames kinds = do
-  names <- nsNames . everythingInScope <$> getScope
-  reportSLn "scope.operators" 20 $ "everythingInScope: " ++ show names
-  return [ (x, A.nameFixity $ A.qnameName $ anameName d)
-         | (x, ds) <- Map.assocs names
-         , d       <- take 1 ds
-         , anameKind d `elem` kinds
-         ]
+getDefinedNames :: [KindOfName] -> FlatScope -> [(QName, Fixity')]
+getDefinedNames kinds names =
+  [ (x, A.nameFixity $ A.qnameName $ anameName d)
+  | (x, ds) <- Map.toList names
+  , d       <- take 1 ds
+  , anameKind d `elem` kinds
+  ]
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
-localNames :: ScopeM ([Name], [NewNotation])
-localNames = do
-  defs   <- getDefinedNames [DefName, ConName, PatternSynName]
+localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
+localNames flat = do
+  let defs = getDefinedNames [DefName, ConName, PatternSynName] flat
   locals <- scopeLocals <$> getScope
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
-    localOp (x, y) = (x, A.nameFixity y)
+    localOp (x, y) = (QName x, A.nameFixity y)
     split ops = ([ x | Left x <- zs], [ y | Right y <- zs ])
         where
             zs = concatMap opOrNot ops
 
-    opOrNot (x, Fixity' fx syn) = Left x
-                                :  case x of
+    opOrNot (q, Fixity' fx syn) = Left q
+                                :  case unqualify q of
                                       Name _ [_] -> []
-                                      _ -> [Right (x, fx, syntaxOf x)]
+                                      x -> [Right (q, fx, syntaxOf x)]
                                 ++ case syn of
                                     [] -> []
-                                    _ -> [Right (x, fx, syn)]
+                                    _ -> [Right (q, fx, syn)]
 
 data UseBoundNames = UseBoundNames | DontUseBoundNames
 
@@ -145,13 +150,20 @@ fixStyle syn = case (isAHole (head syn), isAHole (last syn)) of
   (False,False) -> Nonfix
 
 
-notationNames :: NewNotation -> [Name]
-notationNames (_, _, ps) = [Name noRange [Id x] | IdPart x <- ps ]
+notationNames :: NewNotation -> [QName]
+notationNames (q, _, ps) = zipWith ($) (requal : repeat QName) [Name noRange [Id x] | IdPart x <- ps ]
+  where
+    ms       = init (qnameParts q)
+    requal x = foldr Qual (QName x) ms
 
-buildParser :: forall e. IsExpr e => Range -> UseBoundNames -> ScopeM (ReadP e e)
-buildParser r use = do
-    (names, ops) <- localNames
-    cons         <- getDefinedNames [ConName, PatternSynName]
+buildParser :: forall e. IsExpr e => Range -> FlatScope -> UseBoundNames -> ScopeM (ReadP e e)
+buildParser r flat use = do
+    (names, ops) <- localNames flat
+    let cons = getDefinedNames [ConName, PatternSynName] flat
+    reportSLn "scope.operators" 50 $ unlines
+      [ "names = " ++ show names
+      , "ops   = " ++ show ops
+      , "cons  = " ++ show cons ]
     let conparts   = Set.fromList $ concatMap notationNames $ map oldToNewNotation cons
         opsparts   = Set.fromList $ concatMap notationNames $ ops
         allParts   = Set.union conparts opsparts
@@ -170,12 +182,8 @@ buildParser r use = do
         ++ map (nonfixP . opP p) non -- for things with no outer "holes"
         ++ [ const $ atomP isAtom ]
     where
-
-
         level :: NewNotation -> Nat
         level (_name, fixity, _syn) = fixityLevel fixity
-
-        on f g x y = f (g x) (g y)
 
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool
 
@@ -223,7 +231,7 @@ buildParser r use = do
 
 instance IsExpr Expr where
     exprView e = case e of
-        Ident (QName x) -> LocalV x
+        Ident x         -> LocalV x
         App _ e1 e2     -> AppV e1 e2
         OpApp r d es    -> OpAppV d es
         HiddenArg _ e   -> HiddenArgV e
@@ -233,7 +241,7 @@ instance IsExpr Expr where
         Underscore{}    -> WildV e
         _               -> OtherV e
     unExprView e = case e of
-        LocalV x      -> Ident (QName x)
+        LocalV x      -> Ident x
         AppV e1 e2    -> App (fuseRange e1 e2) e1 e2
         OpAppV d es   -> OpApp (fuseRange d es) d es
         HiddenArgV e  -> HiddenArg (getRange e) e
@@ -246,26 +254,26 @@ instance IsExpr Expr where
 
 instance IsExpr Pattern where
     exprView e = case e of
-        IdentP (QName x) -> LocalV x
-        AppP e1 e2       -> AppV e1 e2
-        OpAppP r d es    -> OpAppV d (map Ordinary es)
-        HiddenP _ e      -> HiddenArgV e
-        InstanceP _ e    -> InstanceArgV e
-        ParenP _ e       -> ParenV e
-        WildP{}          -> WildV e
-        _                -> OtherV e
+        IdentP x      -> LocalV x
+        AppP e1 e2    -> AppV e1 e2
+        OpAppP r d es -> OpAppV d (map Ordinary es)
+        HiddenP _ e   -> HiddenArgV e
+        InstanceP _ e -> InstanceArgV e
+        ParenP _ e    -> ParenV e
+        WildP{}       -> WildV e
+        _             -> OtherV e
     unExprView e = case e of
-        LocalV x         -> IdentP (QName x)
-        AppV e1 e2       -> AppP e1 e2
-        OpAppV d es      -> let ess :: [Pattern]
-                                ess = (map (fromOrdinary __IMPOSSIBLE__) es)
-                            in OpAppP (fuseRange d es) d ess
-        HiddenArgV e     -> HiddenP (getRange e) e
-        InstanceArgV e   -> InstanceP (getRange e) e
-        ParenV e         -> ParenP (getRange e) e
-        LamV _ _         -> __IMPOSSIBLE__
-        WildV e          -> e
-        OtherV e         -> e
+        LocalV x       -> IdentP x
+        AppV e1 e2     -> AppP e1 e2
+        OpAppV d es    -> let ess :: [Pattern]
+                              ess = (map (fromOrdinary __IMPOSSIBLE__) es)
+                          in OpAppP (fuseRange d es) d ess
+        HiddenArgV e   -> HiddenP (getRange e) e
+        InstanceArgV e -> InstanceP (getRange e) e
+        ParenV e       -> ParenP (getRange e) e
+        LamV _ _       -> __IMPOSSIBLE__
+        WildV e        -> e
+        OtherV e       -> e
 
 
 
@@ -303,8 +311,12 @@ parsePatternSyn = parseLhsOrPatternSyn False Nothing
 
 parseLhsOrPatternSyn :: Bool -> Maybe Name -> Pattern -> ScopeM Pattern
 parseLhsOrPatternSyn isLHS top p = do
-    patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName, PatternSynName]
+    let ms = qualifierModules $ patternQNames p
+    flat <- flattenScope ms <$> getScope
+    patP <- buildParser (getRange p) flat DontUseBoundNames
+    let cons = getNames [ConName, PatternSynName] flat
+    reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
+    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePattern patP p)
     case filter (validPattern top cons) $ parsePattern patP p of
         [p] -> return p
         []  | isLHS     -> typeError $ NoParseForLHS p
@@ -313,35 +325,50 @@ parseLhsOrPatternSyn isLHS top p = do
         ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
             | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
     where
-        getNames kinds = map fst <$> getDefinedNames kinds
+        getNames kinds flat = map fst $ getDefinedNames kinds flat
 
-        validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
+        validPattern :: Maybe Name -> [QName] -> Pattern -> Bool
         validPattern (Just top) cons p = case appView p of
             IdentP (QName x) : ps -> x == top && all (validPat cons) ps
             _                     -> False
         validPattern Nothing cons p = validPat cons p
 
-        validPat :: [Name] -> Pattern -> Bool
+        validPat :: [QName] -> Pattern -> Bool
         validPat cons p = case appView p of
-            [_]                   -> True
-            IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
-            ps                    -> all (validPat cons) ps
+            [_]           -> True
+            IdentP x : ps -> elem x cons && all (validPat cons) ps
+            ps            -> all (validPat cons) ps
 
         appView :: Pattern -> [Pattern]
         appView p = case p of
             AppP p a         -> appView p ++ [namedThing (unArg a)]
-            OpAppP _ op ps   -> IdentP (QName op) : ps
+            OpAppP _ op ps   -> IdentP op : ps
             ParenP _ p       -> appView p
             RawAppP _ _      -> __IMPOSSIBLE__
             HiddenP _ _      -> __IMPOSSIBLE__
             InstanceP _ _    -> __IMPOSSIBLE__
             _                -> [p]
 
+patternQNames :: Pattern -> [QName]
+patternQNames p = case p of
+  RawAppP _ ps     -> concatMap patternQNames ps
+  IdentP q         -> [q]
+  ParenP _ p       -> patternQNames p
+  OpAppP r d ps    -> __IMPOSSIBLE__
+  AppP{}           -> __IMPOSSIBLE__
+  _                -> []
+
+qualifierModules :: [QName] -> [[Name]]
+qualifierModules qs =
+  nub $ filter (not . null) $ map (init . qnameParts) qs
+
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es = do
     -- Build the parser
-    p <- buildParser (getRange es) UseBoundNames
+    let ms = qualifierModules [ q | Ident q <- es ]
+    flat <- flattenScope ms <$> getScope
+    p <- buildParser (getRange es) flat UseBoundNames
 
     -- Parse
     case parse p es of
@@ -349,8 +376,8 @@ parseApplication es = do
         []  -> do
           -- When the parser fails and a name is not in scope, it is more
           -- useful to say that to the user rather than just "failed".
-          inScope <- partsInScope
-          case [ QName x | Ident (QName x) <- es, not (Set.member x inScope) ] of
+          inScope <- partsInScope flat
+          case [ x | Ident x <- es, not (Set.member x inScope) ] of
                []  -> typeError $ NoParseForApplication es
                xs  -> typeError $ NotInScope xs
 
@@ -382,7 +409,7 @@ fullParen' e = case exprView e of
     where
         par = unExprView . ParenV
 
-paren :: Monad m => (Name -> m Fixity) -> Expr -> m (Precedence -> Expr)
+paren :: Monad m => (QName -> m Fixity) -> Expr -> m (Precedence -> Expr)
 paren _   e@(App _ _ _)        = return $ \p -> mparen (appBrackets p) e
 paren f   e@(OpApp _ op _)     = do fx <- f op; return $ \p -> mparen (opBrackets fx p) e
 paren _   e@(Lam _ _ _)        = return $ \p -> mparen (lamBrackets p) e

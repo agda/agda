@@ -158,6 +158,16 @@ Language
   syntax, so definitions are scope-checked but not type-checked. They
   are particularly useful for universe constructions.
 
+* Qualified mixfix operators
+
+  It is now possible to use a qualified mixfix operator by qualifying the first
+  part of the name. For instance
+
+    import Data.Nat as Nat
+    import Data.Bool as Bool
+
+    two = Bool.if true then 1 Nat.+ 1 else 0
+
 Compiler backends
 =================
 
