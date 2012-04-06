@@ -78,3 +78,5 @@
           (10.04) Avoid generating sort metas when checking isType_ of a Fun or a Pi
           (     ) Same for isType_ of Set or Set a
 
+20120406: Qualified mixfix operators
+
