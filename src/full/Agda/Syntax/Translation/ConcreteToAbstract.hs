@@ -34,6 +34,7 @@ import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
 import qualified Agda.Syntax.Concrete.Copatterns as Cop
 import Agda.Syntax.Abstract as A
+import Agda.Syntax.Abstract.Copatterns
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Info
@@ -844,8 +845,9 @@ instance ToAbstract NiceDeclaration A.Declaration where
   -- Function definitions
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
-        (x',cs') <- toAbstract (OldName x,cs)
-        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' cs' ]
+        (x',cs) <- toAbstract (OldName x,cs)
+        cs <- translateCopatternClauses cs
+        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' cs ]
 
   -- Data definitions
     C.DataDef r f a x pars cons -> withLocalVars $ do

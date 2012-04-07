@@ -149,6 +149,7 @@ library
                     Agda.Interaction.MakeCase
                     Agda.Interaction.Monad
                     Agda.Interaction.Options
+                    Agda.Syntax.Abstract.Copatterns
                     Agda.Syntax.Abstract.Name
                     Agda.Syntax.Abstract.Pretty
                     Agda.Syntax.Abstract.Views

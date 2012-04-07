@@ -1,3 +1,6 @@
-CopatternCheckingNYI.agda:15,1-17,36
-Not implemented: type checking definitions by copatterns
-when checking the definition of alternate
+
+Termination checking failed for the following functions:
+  alternate
+Problematic calls:
+  alternate
+    (at CopatternCheckingNYI.agda:17,27-36)
