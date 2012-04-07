@@ -149,8 +149,12 @@ type Telescope	= [TypedBindings]
 -- | We could throw away @where@ clauses at this point and translate them to
 --   @let@. It's not obvious how to remember that the @let@ was really a
 --   @where@ clause though, so for the time being we keep it here.
-data Clause	= Clause LHS RHS [Declaration]
-  deriving (Typeable, Data, Show)
+data Clause	= Clause
+  { clauseLHS        :: LHS
+  , clauseRHS        :: RHS
+  , clauseWhereDecls :: [Declaration]
+  } deriving (Typeable, Data, Show)
+
 data RHS	= RHS Expr
 		| AbsurdRHS
 		| WithRHS QName [Expr] [Clause] -- ^ The 'QName' is the name of the with function.
