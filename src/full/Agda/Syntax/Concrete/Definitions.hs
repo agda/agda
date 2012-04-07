@@ -7,7 +7,7 @@ module Agda.Syntax.Concrete.Definitions
     , DeclarationException(..)
     , Nice, runNice
     , niceDeclarations
-    , notSoNiceDeclarations
+    , notSoNiceDeclaration
     ) where
 
 import Control.Arrow ((***), (&&&))
@@ -762,6 +762,32 @@ fixities (d:ds) = case d of
 fixities [] = return $ Map.empty
 
 
+-- Andreas, 2012-04-07
+-- The following function is only used twice, for building a Let, and for
+-- printing an error message.
+notSoNiceDeclaration :: NiceDeclaration -> Declaration
+notSoNiceDeclaration d =
+    case d of
+      Axiom _ _ _ rel x e              -> TypeSig rel x e
+      NiceField _ _ _ _ x argt         -> Field x argt
+      PrimitiveFunction r _ _ _ x e    -> Primitive r [TypeSig Relevant x e]
+      NiceMutual r _ ds                -> Mutual r $ map notSoNiceDeclaration ds
+      NiceModule r _ _ x tel ds        -> Module r x tel ds
+      NiceModuleMacro r _ _ x ma o dir -> ModuleMacro r x ma o dir
+      NiceOpen r x dir                 -> Open r x dir
+      NiceImport r x as o dir          -> Import r x as o dir
+      NicePragma _ p                   -> Pragma p
+      NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
+      NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
+      FunSig _ _ _ rel tc x e          -> TypeSig rel x e
+      FunDef r [d] _ _ _ _ _           -> d
+      FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
+      DataDef r _ _ x bs cs            -> Data r Inductive x bs Nothing $ map notSoNiceDeclaration cs
+      RecDef r _ _ x c bs ds           -> Record r x (unThing <$> c) bs Nothing $ map notSoNiceDeclaration ds
+        where unThing (ThingWithFixity c _) = c
+      NicePatternSyn r _ n as p        -> PatternSyn r n as p
+
+{-
 -- Andreas, 2012-03-08 the following function is only used twice,
 -- both just on a single declaration.
 notSoNiceDeclarations :: [NiceDeclaration] -> [Declaration]
@@ -785,3 +811,4 @@ notSoNiceDeclarations = concatMap notNice
       RecDef r _ _ x c bs ds           -> [Record r x (unThing <$> c) bs Nothing $ concatMap notNice ds]
         where unThing (ThingWithFixity c _) = c
       NicePatternSyn r _ n as p        -> [PatternSyn r n as p]
+-}

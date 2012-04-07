@@ -702,5 +702,4 @@ instance PrettyTCM Call where
 	where
 	    hPretty a = pretty =<< abstractToConcreteCtx (hiddenArgumentCtx (argHiding a)) a
 
-	    simpleDecl d = d'
-              where [d'] = D.notSoNiceDeclarations [d]
+	    simpleDecl = D.notSoNiceDeclaration
