@@ -36,13 +36,16 @@ import Agda.Utils.Impossible
 data Term = Var Nat Args             -- ^ @x vs@ neutral
 	  | Lam Hiding (Abs Term)    -- ^ terms are beta normal
 	  | Lit Literal
-	  | Def QName Args
-	  | Con QName Args
-	  | Pi (Arg Type) (Abs Type)
+	  | Def QName Args           -- ^ @f vs@, possibly a redex
+	  | Con QName Args           -- ^ @c vs@
+	  | Pi (Dom Type) (Abs Type) -- ^ dependent or non-dependent function space
 	  | Sort Sort
           | Level Level
 	  | MetaV MetaId Args
-          | DontCare Term  -- ^ irrelevant stuff
+          | DontCare Term
+            -- ^ Irrelevant stuff in relevant position, but created
+            --   in an irrelevant context.  Basically, an internal
+            --   version of the irrelevance axiom @.irrAx : .A -> A@.
   deriving (Typeable, Data, Show)
 
 -- | Type of argument lists.
@@ -76,7 +79,7 @@ data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
   deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
 
-type Telescope = Tele (Arg Type)
+type Telescope = Tele (Dom Type)
 
 -- | Sorts.
 --
@@ -115,10 +118,153 @@ data Blocked t = Blocked MetaId t
                | NotBlocked t
     deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
 
+instance Applicative Blocked where
+  pure = notBlocked
+  Blocked x f  <*> e = Blocked x $ f (ignoreBlocking e)
+  NotBlocked f <*> e = f <$> e
+
+
+---------------------------------------------------------------------------
+-- * Definitions
+---------------------------------------------------------------------------
+
+-- | A clause is a list of patterns and the clause body should @Bind@.
+--
+--  The telescope contains the types of the pattern variables and the
+--  permutation is how to get from the order the variables occur in
+--  the patterns to the order they occur in the telescope. The body
+--  binds the variables in the order they appear in the patterns.
+--
+--  For the purpose of the permutation and the body dot patterns count
+--  as variables. TODO: Change this!
+data Clause = Clause
+    { clauseRange     :: Range
+    , clauseTel       :: Telescope
+    , clausePerm      :: Permutation
+    , clausePats      :: [Arg Pattern]
+    , clauseBody      :: ClauseBody
+    }
+  deriving (Typeable, Data, Show)
+data ClauseBody = Body Term
+		| Bind (Abs ClauseBody)
+		| NoBody    -- ^ for absurd clauses.
+  deriving (Typeable, Data, Show)
+
+instance HasRange Clause where
+  getRange = clauseRange
+
+-- | Patterns are variables, constructors, or wildcards.
+--   @QName@ is used in @ConP@ rather than @Name@ since
+--     a constructor might come from a particular namespace.
+--     This also meshes well with the fact that values (i.e.
+--     the arguments we are matching with) use @QName@.
+--
+data Pattern = VarP String  -- name suggestion
+             | DotP Term
+	     | ConP QName (Maybe (Arg Type)) [Arg Pattern]
+               -- ^ The type is @'Just' t@' iff the pattern is a
+               -- record pattern. The scope used for the type is given
+               -- by any outer scope plus the clause's telescope
+               -- ('clauseTel').
+	     | LitP Literal
+  deriving (Typeable, Data, Show)
+
+
+---------------------------------------------------------------------------
+-- * Smart constructors
+---------------------------------------------------------------------------
+
+-- | An unapplied variable.
+var :: Nat -> Term
+var i = Var i []
+
+-- | A dummy type.
+typeDontCare :: Type
+typeDontCare = El Prop (Sort Prop)
+
+-- | Top sort (Set\omega).
+topSort :: Type
+topSort = El Inf (Sort Inf)
+
+set0      = set 0
+set n     = sort $ mkType n
+prop      = sort Prop
+sort s    = El (sSuc s) $ Sort s
+varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
+
+-- | Get the next higher sort.
+sSuc :: Sort -> Sort
+sSuc Prop            = mkType 1
+sSuc Inf             = Inf
+sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
+sSuc (Type l)        = Type $ levelSuc l
+
+levelSuc (Max []) = Max [ClosedLevel 1]
+levelSuc (Max as) = Max $ map inc as
+  where inc (ClosedLevel n) = ClosedLevel (n + 1)
+        inc (Plus n l)      = Plus (n + 1) l
+
+mkType n = Type $ Max [ClosedLevel n | n > 0]
+
+impossibleTerm :: String -> Int -> Term
+impossibleTerm file line = Lit $ LitString noRange $ unlines
+  [ "An internal error has occurred. Please report this as a bug."
+  , "Location of the error: " ++ file ++ ":" ++ show line
+  ]
+
+---------------------------------------------------------------------------
+-- * Handling blocked terms.
+---------------------------------------------------------------------------
+
+blockingMeta :: Blocked t -> Maybe MetaId
+blockingMeta (Blocked m _) = Just m
+blockingMeta (NotBlocked _) = Nothing
+
+blocked :: MetaId -> a -> Blocked a
+blocked x = Blocked x
+
+notBlocked :: a -> Blocked a
+notBlocked = NotBlocked
+
+ignoreBlocking :: Blocked a -> a
+ignoreBlocking (Blocked _ x) = x
+ignoreBlocking (NotBlocked x) = x
+
+---------------------------------------------------------------------------
+-- * Simple operations on terms and types.
+---------------------------------------------------------------------------
+
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
 stripDontCare (DontCare v) = v
 stripDontCare v            = v
+
+-- | Doesn't do any reduction.
+arity :: Type -> Nat
+arity t = case unEl t of
+  Pi  _ b -> 1 + arity (unAbs b)
+  _       -> 0
+
+-- | Suggest a name for the first argument of a function of the given type.
+argName :: Type -> String
+argName = argN . unEl
+    where
+	argN (Pi _ b)  = "." ++ absName b
+	argN _	  = __IMPOSSIBLE__
+
+---------------------------------------------------------------------------
+-- * Show instances.
+---------------------------------------------------------------------------
+
+instance Show a => Show (Abs a) where
+  showsPrec p (Abs x a) = showParen (p > 0) $
+    showString "Abs " . shows x . showString " " . showsPrec 10 a
+  showsPrec p (NoAbs x a) = showParen (p > 0) $
+    showString "NoAbs " . shows x . showString " " . showsPrec 10 a
+
+instance Show MetaId where
+    show (MetaId n) = "_" ++ show n
+
 instance Show t => Show (Blocked t) where
   showsPrec p (Blocked m x) = showParen (p > 0) $
     showString "Blocked " . shows m . showString " " . showsPrec 10 x
@@ -139,7 +285,7 @@ instance Sized Term where
     Lit _       -> 1
     Pi a b      -> 1 + size a + size b
     Sort s      -> 1
-    DontCare mv -> 1 + size mv
+    DontCare mv -> size mv
 
 instance Sized Type where
   size = size . unEl
@@ -218,157 +364,3 @@ instance KillRange a => KillRange (Blocked a) where
 
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
-
--- | Type of argument lists.
---
-type Args = [Arg Term]
-
--- | Sequence of types. An argument of the first type is bound in later types
---   and so on.
-data Tele a = EmptyTel
-	    | ExtendTel a (Abs (Tele a))  -- ^ Abs is never NoAbs.
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
-
-type Telescope = Tele (Arg Type)
-
-instance Sized (Tele a) where
-  size  EmptyTel	 = 0
-  size (ExtendTel _ tel) = 1 + size tel
-
--- | The body has (at least) one free variable.
-data Abs a = Abs String a
-           | NoAbs String a
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
-
--- | Danger: doesn't shift variables properly
-unAbs :: Abs a -> a
-unAbs (Abs   _ v) = v
-unAbs (NoAbs _ v) = v
-
-absName :: Abs a -> String
-absName (Abs   x _) = x
-absName (NoAbs x _) = x
-
-instance Show a => Show (Abs a) where
-  showsPrec p (Abs x a) = showParen (p > 0) $
-    showString "Abs " . shows x . showString " " . showsPrec 10 a
-  showsPrec p (NoAbs x a) = showParen (p > 0) $
-    showString "NoAbs " . shows x . showString " " . showsPrec 10 a
-
-instance Sized a => Sized (Abs a) where
-  size = size . unAbs
-
---
--- Definitions
---
-
--- | A clause is a list of patterns and the clause body should @Bind@.
---
---  The telescope contains the types of the pattern variables and the
---  permutation is how to get from the order the variables occur in
---  the patterns to the order they occur in the telescope. The body
---  binds the variables in the order they appear in the patterns.
---
---  For the purpose of the permutation and the body dot patterns count
---  as variables. TODO: Change this!
-data Clause = Clause
-    { clauseRange     :: Range
-    , clauseTel       :: Telescope
-    , clausePerm      :: Permutation
-    , clausePats      :: [Arg Pattern]
-    , clauseBody      :: ClauseBody
-    }
-  deriving (Typeable, Data, Show)
-data ClauseBody = Body Term
-		| Bind (Abs ClauseBody)
-		| NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Data, Show)
-
-instance HasRange Clause where
-  getRange = clauseRange
-
--- | Patterns are variables, constructors, or wildcards.
---   @QName@ is used in @ConP@ rather than @Name@ since
---     a constructor might come from a particular namespace.
---     This also meshes well with the fact that values (i.e.
---     the arguments we are matching with) use @QName@.
---
-data Pattern = VarP String  -- name suggestion
-             | DotP Term
-	     | ConP QName (Maybe (Arg Type)) [Arg Pattern]
-               -- ^ The type is @'Just' t@' iff the pattern is a
-               -- record pattern. The scope used for the type is given
-               -- by any outer scope plus the clause's telescope
-               -- ('clauseTel').
-	     | LitP Literal
-  deriving (Typeable, Data, Show)
-
-newtype MetaId = MetaId Nat
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)
-
-instance Show MetaId where
-    show (MetaId n) = "_" ++ show n
-
--- | Doesn't do any reduction.
-arity :: Type -> Nat
-arity t = case unEl t of
-  Pi  _ b -> 1 + arity (unAbs b)
-  _       -> 0
-
--- | Suggest a name for the first argument of a function of the given type.
-argName :: Type -> String
-argName = argN . unEl
-    where
-	argN (Pi _ b)  = "." ++ absName b
-	argN _	  = __IMPOSSIBLE__
-
-
----------------------------------------------------------------------------
--- * Smart constructors
----------------------------------------------------------------------------
-
-blockingMeta :: Blocked t -> Maybe MetaId
-blockingMeta (Blocked m _) = Just m
-blockingMeta (NotBlocked _) = Nothing
-
-blocked :: MetaId -> a -> Blocked a
-blocked x = Blocked x
-
-notBlocked :: a -> Blocked a
-notBlocked = NotBlocked
-
-ignoreBlocking :: Blocked a -> a
-ignoreBlocking (Blocked _ x) = x
-ignoreBlocking (NotBlocked x) = x
-
-set0      = set 0
-set n     = sort $ mkType n
-prop      = sort Prop
-sort s    = El (sSuc s) $ Sort s
-varSort n = Type $ Max [Plus 0 $ NeutralLevel $ Var n []]
-
--- | Get the next higher sort.
-sSuc :: Sort -> Sort
-sSuc Prop            = mkType 1
-sSuc Inf             = Inf
-sSuc (DLub a b)      = DLub (sSuc a) (fmap sSuc b)
-sSuc (Type l)        = Type $ levelSuc l
-
-levelSuc (Max []) = Max [ClosedLevel 1]
-levelSuc (Max as) = Max $ map inc as
-  where inc (ClosedLevel n) = ClosedLevel (n + 1)
-        inc (Plus n l)      = Plus (n + 1) l
-
-mkType n = Type $ Max [ClosedLevel n | n > 0]
-
-getSort :: Type -> Sort
-getSort (El s _) = s
-
-unEl :: Type -> Term
-unEl (El _ t) = t
-
-impossibleTerm :: String -> Int -> Term
-impossibleTerm file line = Lit $ LitString noRange $ unlines
-  [ "An internal error has occurred. Please report this as a bug."
-  , "Location of the error: " ++ file ++ ":" ++ show line
-  ]
