@@ -91,20 +91,6 @@ printScope tag v s = verboseS ("scope." ++ tag) v $ do
     Helpers
  --------------------------------------------------------------------------}
 
-lhsArgs :: C.Pattern -> (C.Name, [NamedArg C.Pattern])
-lhsArgs p = case appView p of
-    Arg _ _ (Named _ (IdentP (C.QName x))) : ps -> (x, ps)
-    _                                         -> __IMPOSSIBLE__
-    where
-        mkHead    = Arg NotHidden Relevant . unnamed
-        notHidden = Arg NotHidden Relevant . unnamed
-        appView p = case p of
-            AppP p arg    -> appView p ++ [arg]
-            OpAppP _ x ps -> mkHead (IdentP $ C.QName x) : map notHidden ps
-            ParenP _ p    -> appView p
-            RawAppP _ _   -> __IMPOSSIBLE__
-            _             -> [ mkHead p ]
-
 annotateDecl :: ScopeM A.Declaration -> ScopeM A.Declaration
 annotateDecl m = annotateDecls $ (:[]) <$> m
 

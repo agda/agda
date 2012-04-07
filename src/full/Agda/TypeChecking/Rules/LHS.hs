@@ -291,15 +291,6 @@ bindAsPatterns (AsB x v a : asb) ret = do
         ]
   addLetBinding Relevant x v a $ bindAsPatterns asb ret
 
--- | Rename the variables in a telescope using the names from a given pattern
-useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
-useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
-  where
-    dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
-    ren _ a = a
-    toPats = map (namedThing . unArg)
-
 -- | Check a LHS. Main function.
 checkLeftHandSide
   :: A.Clause

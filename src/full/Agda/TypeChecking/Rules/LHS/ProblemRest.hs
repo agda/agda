@@ -36,7 +36,7 @@ useNamesFromPattern :: [NamedArg A.Pattern] -> Telescope -> Telescope
 useNamesFromPattern ps = telFromList . zipWith ren (toPats ps ++ repeat dummy) . telToList
   where
     dummy = A.WildP __IMPOSSIBLE__
-    ren (A.VarP x) (Arg NotHidden r (_, a)) = Arg NotHidden r (show x, a)
+    ren (A.VarP x) (Dom NotHidden r (_, a)) = Dom NotHidden r (show x, a)
     ren A.PatternSynP{} _ = __IMPOSSIBLE__  -- ensure there are no syns left
     ren _ a = a
     toPats = map (namedThing . unArg)
@@ -67,7 +67,7 @@ problemFromPats ps a = do
       -- patterns ps2 eliminate type b
 
       -- internal patterns start as all variables
-      ips      = map (fmap (VarP . fst)) as
+      ips      = map (argFromDom . fmap (VarP . fst)) as
 
       -- the initial problem for starting the splitting
       problem  = Problem ps1 (idP $ size ps1, ips) gamma pr
@@ -78,7 +78,7 @@ problemFromPats ps a = do
 	   , text "a     =" <+> (prettyTCM =<< normalise a)
 	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
 	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
-           , text "xs    =" <+> text (show $ map (fst . unArg) as)
+           , text "xs    =" <+> text (show $ map (fst . unDom) as)
 	   , text "tel0  =" <+> prettyTCM tel0
 	   , text "b0    =" <+> prettyTCM b0
 	   , text "gamma =" <+> prettyTCM gamma

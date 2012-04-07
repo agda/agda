@@ -23,6 +23,8 @@ module Agda.Syntax.Concrete.Operators
     , parsePat
     , getDefinedNames
     , UseBoundNames(..)
+    , qualifierModules
+    , patternQNames
     ) where
 
 import Control.Applicative
@@ -93,9 +95,9 @@ getDefinedNames kinds names =
 
 -- | Compute all names (first component) and operators (second component) in
 --   scope.
-localNames :: ScopeM ([Name], [NewNotation])
-localNames = do
-  defs   <- getDefinedNames [DefName, ConName]
+localNames :: FlatScope -> ScopeM ([QName], [NewNotation])
+localNames flat = do
+  let defs = getDefinedNames allKindsOfNames flat
   locals <- scopeLocals <$> getScope
   return $ split $ uniqBy fst $ map localOp locals ++ defs
   where
@@ -325,7 +327,7 @@ lhsArgs' p = case patternAppView p of
 patternAppView :: Pattern -> [NamedArg Pattern]
 patternAppView p = case p of
     AppP p arg    -> patternAppView p ++ [arg]
-    OpAppP _ x ps -> mkHead (IdentP $ QName x) : map notHidden ps
+    OpAppP _ x ps -> mkHead (IdentP x) : map notHidden ps
     ParenP _ p    -> patternAppView p
     RawAppP _ _   -> __IMPOSSIBLE__
     _             -> [ mkHead p ]
@@ -366,7 +368,7 @@ parseLHS top p = do
     patP <- buildParser (getRange p) flat DontUseBoundNames
     let cons = getNames [ConName, PatternSynName] flat
     reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
-    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePattern patP p)
+    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePat patP p)
     case [ res | p' <- parsePat patP p
                , res <- validPattern top cons p' ] of
         [(p,lhs)] -> return lhs
@@ -375,17 +377,24 @@ parseLHS top p = do
     where
         getNames kinds flat = map fst $ getDefinedNames kinds flat
 
-        validPattern :: Maybe Name -> [Name] -> Pattern -> Bool
+        -- validPattern returns an empty or singleton list (morally a Maybe)
+        validPattern :: Name -> [QName] -> Pattern -> [(Pattern, LHSCore)]
+        validPattern top cons p = case lhsArgs' p of
+            Just (x, args) | x == top && all (validConPattern cons . namedThing . unArg) args ->
+              [(p, LHSHead x args)]
+            _ -> []
+{-
+        validPattern :: Maybe Name -> [QName] -> Pattern -> Bool
         validPattern (Just top) cons p = case appView p of
             IdentP (QName x) : ps -> x == top && all (validPat cons) ps
             _                     -> False
         validPattern Nothing cons p = validPat cons p
 
-        validPat :: [Name] -> Pattern -> Bool
+        validPat :: [QName] -> Pattern -> Bool
         validPat cons p = case appView p of
-            [_]                   -> True
-            IdentP (QName x) : ps -> elem x cons && all (validPat cons) ps
-            ps                    -> all (validPat cons) ps
+            [_]           -> True
+            IdentP x : ps -> elem x cons && all (validPat cons) ps
+            ps            -> all (validPat cons) ps
 
         appView :: Pattern -> [Pattern]
         appView p = case p of
@@ -412,8 +421,12 @@ parsePatternSyn = parsePatternOrSyn False
 
 parsePatternOrSyn :: Bool -> Pattern -> ScopeM Pattern
 parsePatternOrSyn isLHS p = do
-    patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName, PatternSynName]
+    let ms = qualifierModules $ patternQNames p
+    flat <- flattenScope ms <$> getScope
+    patP <- buildParser (getRange p) flat DontUseBoundNames
+    let cons = getNames [ConName, PatternSynName] flat
+    reportSLn "parse.op" 10 $ "cons = " ++ show cons ++ "\np = " ++ show p
+    reportSLn "parse.op" 10 $ "parsed = " ++ show (parsePat patP p)
     case filter (validConPattern cons) $ parsePat patP p of
         [p] -> return p
         []  | isLHS     -> typeError $ NoParseForLHS p
@@ -422,20 +435,20 @@ parsePatternOrSyn isLHS p = do
         ps  | isLHS     -> typeError $ AmbiguousParseForLHS p $ map fullParen ps
             | otherwise -> typeError $ AmbiguousParseForPatternSynonym p $ map fullParen ps
     where
-        getNames kinds = map fst <$> getDefinedNames kinds
+        getNames kinds flat = map fst $ getDefinedNames kinds flat
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
-validConPattern :: [Name] -> Pattern -> Bool
+validConPattern :: [QName] -> Pattern -> Bool
 validConPattern cons p = case appView p of
-    [_]                   -> True
-    IdentP (QName x) : ps -> elem x cons && all (validConPattern cons) ps
-    ps                    -> all (validConPattern cons) ps
+    [_]           -> True
+    IdentP x : ps -> elem x cons && all (validConPattern cons) ps
+    ps            -> all (validConPattern cons) ps
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 appView :: Pattern -> [Pattern]
 appView p = case p of
     AppP p a         -> appView p ++ [namedThing (unArg a)]
-    OpAppP _ op ps   -> IdentP (QName op) : ps
+    OpAppP _ op ps   -> IdentP op : ps
     ParenP _ p       -> appView p
     RawAppP _ _      -> __IMPOSSIBLE__
     HiddenP _ _      -> __IMPOSSIBLE__

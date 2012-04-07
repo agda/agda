@@ -69,16 +69,18 @@ import Agda.Utils.Impossible
 
 parseLHS :: Name -> Pattern -> ScopeM LHSCore
 parseLHS top p = do
-    patP <- buildParser (getRange p) DontUseBoundNames
-    cons <- getNames [ConName, PatternSynName]
-    flds <- getNames [FldName]
+    let ms = qualifierModules $ patternQNames p
+    flat <- flattenScope ms <$> getScope
+    patP <- buildParser (getRange p) flat DontUseBoundNames
+    let cons = getNames [ConName, PatternSynName] flat
+    let flds = getNames [FldName] flat
     case [ res | p' <- parsePat patP p
                , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
         [(p,lhs)] -> return lhs
         []    -> typeError $ NoParseForLHS p
         rs  -> typeError $ AmbiguousParseForLHS p $ map (fullParen . fst) rs
     where
-        getNames kinds = map fst <$> getDefinedNames kinds
+        getNames kinds flat = map fst $ getDefinedNames kinds flat
 
         -- validPattern returns an empty or singleton list (morally a Maybe)
         validPattern :: PatternCheckConfig -> Pattern -> [(Pattern, LHSCore)]
@@ -103,8 +105,8 @@ parseLHS top p = do
 -- | Name sets for classifying a pattern.
 data PatternCheckConfig = PatternCheckConfig
   { topName  :: Name   -- ^ name of defined symbol
-  , conNames :: [Name] -- ^ valid constructor names
-  , fldNames :: [Name] -- ^ valid field names
+  , conNames :: [QName] -- ^ valid constructor names
+  , fldNames :: [QName] -- ^ valid field names
   }
 
 type Pattern' = Either Pattern LHSCore
@@ -119,7 +121,7 @@ classifyPattern conf p =
       if all validPat ps then Just (Right (LHSHead x ps)) else Nothing
 
     -- case @d ps@
-    Arg _ _ (Named _ (IdentP x)) : ps0 | unqualify x `elem` fldNames conf -> do
+    Arg _ _ (Named _ (IdentP x)) : ps0 | x `elem` fldNames conf -> do
       -- ps :: [NamedArg Pattern']
       ps <- mapM classPat ps0
       let (ps1, rest) = span (isLeft . namedThing . unArg) ps
