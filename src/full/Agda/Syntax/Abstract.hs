@@ -53,7 +53,7 @@ data Expr
 	| Rec  ExprInfo [(C.Name, Expr)]     -- ^ record construction
 	| RecUpdate ExprInfo Expr [(C.Name, Expr)]     -- ^ record update
 	| ScopedExpr ScopeInfo Expr	     -- ^ scope annotation
-        | QuoteGoal ExprInfo Name Expr       -- ^
+        | QuoteGoal ExprInfo Name Expr       -- ^ binds @Name@ to current type in @Expr@
         | Quote ExprInfo                     -- ^
         | QuoteTerm ExprInfo                 -- ^
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
