@@ -7,6 +7,7 @@ module Agda.Interaction.Response
   ( Response (..)
   , DisplayInfo (..)
   , Status (..)
+  , GiveResult (..)
   ) where
 
 import Agda.Interaction.Highlighting.Precise
@@ -30,7 +31,7 @@ data Response
     | Resp_Status Status
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]
-    | Resp_GiveAction InteractionId String
+    | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCaseAction [String]
     | Resp_MakeCase String [String] -- CaseContext, [Doc]
     | Resp_SolveAll [(InteractionId, Expr)]
@@ -68,4 +69,17 @@ data Status = Status
   , sChecked               :: Bool
     -- ^ Has the module been successfully type checked?
   }
+
+-- | Give action result
+--
+--   Comment derived from agda2-mode.el
+--
+--   If 'GiveResult' is 'Give_String s', then the goal is replaced by 's',
+--   and otherwise the text inside the goal is retained (parenthesised
+--   if 'GiveResult' is 'Give_Paren').
+
+data GiveResult
+    = Give_String String
+    | Give_Paren
+    | Give_NoParen
 

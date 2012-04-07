@@ -138,7 +138,12 @@ lispifyResponse (Resp_InteractionPoints is) = return $
                     , Q $ L $ List.map showNumIId is
                     ])
 lispifyResponse (Resp_GiveAction ii s)
-    = return $ L [A "agda2-give-action", showNumIId ii, A s]
+    = return $ L [A "agda2-give-action", showNumIId ii, A s']
+  where
+    s' = case s of
+        Give_String str -> quote str
+        Give_Paren      -> "'paren"
+        Give_NoParen    -> "'no-paren"
 lispifyResponse (Resp_MakeCaseAction cs) = return $
      Cons (Cons (A "last") (A "2"))
           (L [ A "agda2-make-case-action",

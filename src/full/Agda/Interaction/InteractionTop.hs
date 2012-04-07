@@ -429,12 +429,12 @@ type GoalCommand = InteractionId -> Range -> String -> Interaction
 cmd_give :: GoalCommand
 cmd_give = give_gen B.give $ \rng s ce ->
   case ce of
-    ce | rng == noRange -> quote (show ce)
-    SC.Paren _ _ -> "'paren"
-    _            -> "'no-paren"
+    ce | rng == noRange -> Give_String $ show ce
+    SC.Paren _ _ -> Give_Paren
+    _            -> Give_NoParen
 
 cmd_refine :: GoalCommand
-cmd_refine = give_gen B.refine $ \_ s -> quote . show
+cmd_refine = give_gen B.refine $ \_ s -> Give_String . show
 
 give_gen give_ref mk_newtxt ii rng s = interaction Dependent $
   give_gen' give_ref mk_newtxt ii rng s
@@ -481,7 +481,7 @@ cmd_auto ii rng s = interaction Dependent $ do
    Left xs -> do
     forM_ xs $ \(ii, s) -> do
       modify $ \st -> st { theInteractionPoints = filter (/= ii) (theInteractionPoints st) }
-      putResponse $ Resp_GiveAction ii (quote s)
+      putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
      Nothing -> command cmd_metas >> return ()
      Just msg -> display_info $ Info_Auto msg
@@ -490,7 +490,7 @@ cmd_auto ii rng s = interaction Dependent $ do
      Nothing -> return ()
      Just msg -> display_info $ Info_Auto msg
     putResponse $ Resp_MakeCaseAction cs
-   Right (Right s) -> give_gen' B.refine (\_ s -> quote . show) ii rng s
+   Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
 
 -- | Sorts interaction points based on their ranges.
 
