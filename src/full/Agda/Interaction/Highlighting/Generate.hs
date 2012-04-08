@@ -97,7 +97,7 @@ highlightAsTypeChecked typeChecked x =
     unless (null file) $
       liftTCM $ do
         st <- get
-        liftIO $ stHighlightingOutput st $ Resp_HighlightingInfo file
+        liftIO $ stInteractionOutputCallback st $ Resp_HighlightingInfo file
   where
   file = compress $
          several (rToR $ P.continuousPerLine $ P.getRange x) $

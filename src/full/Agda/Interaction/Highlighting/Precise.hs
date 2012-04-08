@@ -10,7 +10,7 @@ module Agda.Interaction.Highlighting.Precise
   , File
   , HighlightingInfo
   , InteractionOutputCallback
-  , defaultHighlightingOutput
+  , defaultInteractionOutputCallback
   , singleton
   , several
   , smallestPos
@@ -148,8 +148,8 @@ type InteractionOutputCallback = Response -> IO ()
 --   it is easier to recognize that some response is lost
 --   due to an uninitialized 'InteractionOutputCallback' function.
 
-defaultHighlightingOutput :: InteractionOutputCallback
-defaultHighlightingOutput = __IMPOSSIBLE__
+defaultInteractionOutputCallback :: InteractionOutputCallback
+defaultInteractionOutputCallback = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
 -- Creation

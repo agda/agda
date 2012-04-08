@@ -83,7 +83,7 @@ theState = unsafePerformIO $ newIORef $ emacsOutput initState
 --   suitable for the interactive emacs frontend.
 
 emacsOutput :: InteractionState -> InteractionState
-emacsOutput (InteractionState st cs) = InteractionState (st { stHighlightingOutput = emacsFormat }) cs
+emacsOutput (InteractionState st cs) = InteractionState (st { stInteractionOutputCallback = emacsFormat }) cs
 
 -- | Convert the response (to an interactive command)
 --   to elisp expressions suitable for the interactive emacs frontend

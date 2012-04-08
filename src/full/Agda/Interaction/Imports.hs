@@ -278,7 +278,7 @@ getInterface' x includeStateChanges =
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
         ifM (envEmacs <$> ask)
-            (get >>= \st -> liftIO $ stHighlightingOutput st $ Resp_RunningInfo s)
+            (get >>= \st -> liftIO $ stInteractionOutputCallback st $ Resp_RunningInfo s)
             (reportSLn "" 1 s)
 
       skip file = do
@@ -357,7 +357,7 @@ getInterface' x includeStateChanges =
             isig     <- getImportedSignature
             ibuiltin <- gets stImportedBuiltins
             ipatsyns <- getPatternSynImports
-            ho       <- stHighlightingOutput <$> get
+            ho       <- stInteractionOutputCallback <$> get
             -- Every interface is treated in isolation. Note: Changes
             -- to stDecodedModules are not preserved if an error is
             -- encountered in an imported module.
@@ -369,7 +369,7 @@ getInterface' x includeStateChanges =
                      setDecodedModules ds
                      setCommandLineOptions opts
                      modify $ \s -> s { stModuleToSource     = mf
-                                      , stHighlightingOutput = ho
+                                      , stInteractionOutputCallback = ho
                                       }
                      setVisitedModules vs
                      addImportedThings isig ibuiltin Set.empty ipatsyns

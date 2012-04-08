@@ -137,15 +137,15 @@ runCommandM = runStateT . unCommandM
 -- | lift a TCM action to CommandM.
 --
 --   'liftCommandM' is a customized form of 'lift' for 'StateT'.
---   At the end of the lifted action 'stHighlightingOutput' is set
+--   At the end of the lifted action 'stInteractionOutputCallback' is set
 --   to its original value because the value is lost during the execution
 --   of some TCM actions.
 
 liftCommandM :: TCM a -> CommandM a
 liftCommandM m = CommandM $ lift $ do
-    outf <- gets stHighlightingOutput
+    outf <- gets stInteractionOutputCallback
     a <- m
-    modify $ \st -> st { stHighlightingOutput = outf }
+    modify $ \st -> st { stInteractionOutputCallback = outf }
     return a
 
 -- | Lift a TCM action transformer to a CommandM action transformer.
@@ -157,11 +157,11 @@ liftCommandMT f m = do
     put st
     return a
 
--- | Put a response by the callback function given by 'stHighlightingOutput'.
+-- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
 putResponse :: Response -> CommandM ()
 putResponse x = liftCommandM $ do
-    outf <- gets stHighlightingOutput
+    outf <- gets stInteractionOutputCallback
     liftIO $ outf x
 
 -- | An interactive computation.
@@ -293,7 +293,7 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoO
         handErr e theTCState Nothing (tcErrString e)
 
   where
-    putResp = stHighlightingOutput theTCState
+    putResp = stInteractionOutputCallback theTCState
 
 
 -- | @cmd_load m includes@ loads the module in file @m@, using

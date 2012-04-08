@@ -148,7 +148,7 @@ data RelativeTo
 --
 -- If the include directories change (and they were previously
 -- @'Right' something@), then the state is reset (completely, except
--- for the include directories and 'stHighlightingOutput').
+-- for the include directories and 'stInteractionOutputCallback').
 --
 -- An empty list is interpreted as @["."]@.
 
@@ -187,9 +187,9 @@ setIncludeDirs incs relativeTo = do
   incs <- getIncludeDirs
   case oldIncs of
     Right incs' | incs' /= incs -> do
-      ho <- stHighlightingOutput <$> get
+      ho <- stInteractionOutputCallback <$> get
       resetAllState
-      modify $ \st -> st { stHighlightingOutput = ho }
+      modify $ \st -> st { stInteractionOutputCallback = ho }
       setIncs incs
     _                           -> return ()
 
