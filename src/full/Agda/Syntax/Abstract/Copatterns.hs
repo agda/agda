@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TupleSections, DeriveFunctor, StandaloneDeriving, ScopedTypeVariables, TypeSynonymInstances, FlexibleContexts  #-}
+{-# LANGUAGE CPP, TupleSections, DeriveFunctor, StandaloneDeriving, ScopedTypeVariables, TypeSynonymInstances, FlexibleContexts,  FlexibleInstances #-}
 -- {-# LANGUAGE DeriveFunctor, DeriveTraversable  #-}
 module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 
