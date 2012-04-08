@@ -33,7 +33,7 @@ data Response
     | Resp_InteractionPoints [InteractionId]
     | Resp_GiveAction InteractionId GiveResult
     | Resp_MakeCaseAction [String]
-    | Resp_MakeCase String [String] -- CaseContext, [Doc]
+    | Resp_MakeCase String [String]
     | Resp_SolveAll [(InteractionId, Expr)]
     | Resp_DisplayInfo DisplayInfo
     | Resp_RunningInfo String
@@ -43,21 +43,22 @@ data Response
 
 data DisplayInfo
     = Info_CompilationOk
-
-    | Info_Constraints String -- [B.OutputForm SC.Expr SC.Expr] -- unlines . map show
-    | Info_AllGoals String -- (InteractionId, String, Maybe Range)
-
+    | Info_Constraints String
+    | Info_AllGoals String
     | Info_Error String
         -- ^ When an error message is displayed this constructor should be
         -- used, if appropriate.
-    | Info_Intro Doc  -- 2 different errors
-    | Info_Auto String  -- 1 error, 1 ok (Resp_GiveAction)
-
+    | Info_Intro Doc
+        -- ^ 'Info_Intro' denotes two different types of errors
+        --   TODO: split these into separate constructors
+    | Info_Auto String
+        -- ^ 'Info_Auto' denotes either an error or a success (when 'Resp_GiveAction' is present)
+        --   TODO: split these into separate constructors
     | Info_ModuleContents Doc
-    | Info_NormalForm Doc -- show?   --  SA.Expr -- showA
+    | Info_NormalForm Doc
     | Info_GoalType Doc
     | Info_CurrentGoal Doc
-    | Info_InferredType Doc -- SA.Expr -- showA
+    | Info_InferredType Doc
     | Info_Context Doc
         deriving Show
 
