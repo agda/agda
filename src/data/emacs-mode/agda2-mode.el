@@ -407,6 +407,8 @@ Special commands:
                           (error nil))
                         (kill-buffer agda2-bufname))
                       (error nil))
+                    (set (make-local-variable 'haskell-ghci-program-name)
+                         "agdaghci")
                     (set (make-local-variable 'haskell-ghci-program-args)
                          (append agda2-ghci-options haskell-ghci-program-args))
                     (haskell-ghci-start-process nil)

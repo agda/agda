@@ -151,6 +151,7 @@ evalInMeta ii e =
 
 
 data Rewrite =  AsIs | Instantiated | HeadNormal | Normalised
+    deriving (Read)
 
 --rewrite :: Rewrite -> Term -> TCM Term
 rewrite AsIs	     t = return t

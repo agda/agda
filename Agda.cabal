@@ -99,6 +99,7 @@ library
   exposed-modules:  Agda.Main
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
+                    Agda.Interaction.GhcTop
                     Agda.Interaction.GhciTop
                     Agda.Interaction.InteractionTop
                     Agda.Compiler.CallCompiler
