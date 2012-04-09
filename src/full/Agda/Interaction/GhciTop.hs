@@ -11,9 +11,6 @@ module Agda.Interaction.GhciTop
 
   , module Agda.Syntax.Position
   , module Agda.Syntax.Parser
---  , module SC  -- trivial clash removal: remove all!
---  , module SA
---  , module SI
   , module Agda.Syntax.Scope.Base
   , module Agda.Syntax.Scope.Monad
   , module Agda.Syntax.Translation.ConcreteToAbstract
@@ -27,21 +24,15 @@ module Agda.Interaction.GhciTop
   )
   where
 
-import System.Directory
 import qualified System.IO as IO
 import System.IO.Unsafe
 import Data.IORef
 import Control.Applicative hiding (empty)
-import qualified Control.Exception as E
 
 import Agda.Utils.Pretty
-import Agda.Utils.String
 import Agda.Utils.FileName
-import qualified Agda.Utils.IO.UTF8 as UTF8
 
 import Control.Monad.State
-import Data.List as List
-import Data.Maybe
 import System.Exit
 
 import Agda.TypeChecker
@@ -63,11 +54,9 @@ import Agda.Syntax.Abstract.Name
 
 import Agda.Interaction.GhcTop
 import Agda.Interaction.InteractionTop
-import Agda.Interaction.EmacsCommand hiding (putResponse)
 import qualified Agda.Interaction.EmacsCommand as Emacs
 import Agda.Interaction.Exceptions
 import Agda.Interaction.Response
-import Agda.Interaction.Highlighting.Emacs
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
