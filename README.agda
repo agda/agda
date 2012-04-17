@@ -69,6 +69,8 @@ module README where
 --     well-founded induction).
 -- • IO
 --     Input/output-related functions.
+-- • Irrelevance
+--     Definitions related to (proscriptive) irrelevance.
 -- • Level
 --     Universe levels.
 -- • Record
