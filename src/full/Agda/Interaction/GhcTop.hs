@@ -13,6 +13,7 @@ import Control.Monad.Error
 import Control.Monad.State
 
 import System.Directory
+import System.Environment
 import qualified System.IO as IO
 import qualified Control.Exception as E
 
@@ -40,6 +41,15 @@ import Agda.Interaction.Highlighting.Emacs
 
 main :: IO ()
 main = do
+    args <- getArgs
+    case args of
+        -- in interaction tests we call agdaghci with exactly these command line arguments:
+        ["--currentfile", path] -> mainWithArgs $ Just path
+        -- in Emacs mode we drop the command arguments
+        _  -> mainWithArgs Nothing
+
+mainWithArgs :: Maybe String -> IO ()
+mainWithArgs maybeCurrentfile = do
 
 -- #if MIN_VERSION_base(4,2,0)
     -- Ensure that UTF-8 is used for communication with the Emacs mode.
@@ -48,60 +58,97 @@ main = do
 
     IO.hSetBuffering IO.stdout IO.NoBuffering
 
-    putStr "Prelude> "
+    putPrompt "Prelude> "
     _ <- getLine            -- ignore the ":mod +Prelude Agda.Interaction.GhciTop" command
     interact' initState
   where
-    prompt = "Prelude Agda.Interaction.GhciTop> "
+
+    putPrompt s = case maybeCurrentfile of
+        Nothing -> putStr s
+        -- in interactions tests we do not print the prompt
+        _   -> return ()
 
     interact' st = do
-        putStr prompt
-        r <- getLine
-        _ <- return $! length r     -- force to read the full input line
-        st <- case runIdentity . flip runStateT r . runErrorT $ parseIO of
-            (Right (current, highlighting, cmd), "") -> do
-                mst <- tcmAction st current highlighting cmd
-                return $ fromMaybe st mst
-            (Left err, rem) -> do
-                error $ "error: " ++ err ++ " expected before " ++ rem
-                return st
-            (_, rem) -> do
-                error $ "not consumed: " ++ rem
-                return st
-        interact' st
+        putPrompt "Prelude Agda.Interaction.GhciTop> "
+        b <- IO.isEOF
+        if b then return () else do
+            r <- getLine
+            _ <- return $! length r     -- force to read the full input line
+            interact' =<< case dropWhile (==' ') r of
+                ""  -> return st
+                ('-':'-':_) -> return st
+                _ -> case runIdentity . flip runStateT r . runErrorT $ parseIO maybeCurrentfile of
+                    (Right (current, highlighting, cmd), "") -> do
+                        mst <- tcmAction st current highlighting cmd
+                        return $ fromMaybe st mst
+                    (Left err, rem) -> do
+                        error $ "error: " ++ err ++ " expected before " ++ rem
+                        return st
+                    (_, rem) -> do
+                        error $ "not consumed: " ++ rem
+                        return st
 
-    parseIO = do
+    parseIO Nothing        = parseIOTCM
+    parseIO (Just current) = parseIOTCM `mplus` parseTopCommand current
+
+    parseIOTCM = do
         exact "ioTCM "
         current <- parse
         highlighting <- parse
         cmd <- parseInteraction
         return (current, highlighting, cmd)
 
+    parseTopCommand current = do
+        exact "top_command "
+        cmd <- parseInteraction
+        return (current, False, cmd)
+      `mplus` do
+        exact "goal_command "
+        i <- parse
+        cmd <- parens' $ do
+            t <- token
+            parseGoalCommand t
+        s <- parse
+        return (current, False, cmd i noRange s)
+
     parseInteraction = parens' $ do
         t <- token
         case t of
             "toggleImplicitArgs" -> return toggleImplicitArgs
             "showImplicitArgs" -> liftM showImplicitArgs parse
-            "cmd_load" -> liftM2 cmd_load parse parse
-            "cmd_compile" -> liftM3 cmd_compile parse parse parse
+            "cmd_load" -> liftM2 cmd_load (parseString maybeCurrentfile) parse
+            "cmd_compile" -> liftM3 cmd_compile parse (parseString maybeCurrentfile) parse
             "cmd_metas" -> return cmd_metas
             "cmd_constraints" -> return cmd_constraints
             "cmd_show_module_contents_toplevel" -> liftM cmd_show_module_contents_toplevel parse
             "cmd_solveAll" -> return cmd_solveAll
-            "cmd_write_highlighting_info" -> liftM cmd_write_highlighting_info parse
-            "cmd_give" -> liftM3 cmd_give parse parse parse
-            "cmd_refine_or_intro" -> liftM4 cmd_refine_or_intro parse parse parse parse
-            "cmd_auto" -> liftM3 cmd_auto parse parse parse
-            "cmd_make_case" -> liftM3 cmd_make_case parse parse parse
-            "cmd_show_module_contents" -> liftM3 cmd_show_module_contents parse parse parse
-            "cmd_compute" -> liftM4 cmd_compute parse parse parse parse
+            "cmd_write_highlighting_info" -> liftM cmd_write_highlighting_info (parseString maybeCurrentfile)
             "cmd_compute_toplevel" -> liftM2 cmd_compute_toplevel parse parse
-            "Agda.Interaction.BasicOps.cmd_goal_type" -> liftM4 cmd_goal_type parse parse parse parse
-            "Agda.Interaction.BasicOps.cmd_infer" -> liftM4 cmd_infer parse parse parse parse
+            "cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
             "Agda.Interaction.BasicOps.cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
-            "Agda.Interaction.BasicOps.cmd_goal_type_context" -> liftM4 cmd_goal_type_context parse parse parse parse
-            "Agda.Interaction.BasicOps.cmd_goal_type_context_infer" -> liftM4 cmd_goal_type_context_infer parse parse parse parse
-            "Agda.Interaction.BasicOps.cmd_context" -> liftM4 cmd_context parse parse parse parse
+            _ -> do
+                f <- parseGoalCommand t
+                liftM3 f parse parse parse
+
+    parseGoalCommand t = case t of
+            "cmd_give" -> return cmd_give
+            "cmd_refine" -> return cmd_refine
+            "cmd_intro" -> liftM cmd_intro parse
+            "cmd_refine_or_intro" -> liftM cmd_refine_or_intro parse
+            "cmd_auto" -> return cmd_auto
+            "cmd_make_case" -> return cmd_make_case
+            "cmd_show_module_contents" -> return cmd_show_module_contents
+            "cmd_compute" -> liftM cmd_compute parse
+            "cmd_goal_type" -> liftM cmd_goal_type parse
+            "Agda.Interaction.BasicOps.cmd_goal_type" -> liftM cmd_goal_type parse
+            "cmd_infer" -> liftM cmd_infer parse
+            "Agda.Interaction.BasicOps.cmd_infer" -> liftM cmd_infer parse
+            "cmd_goal_type_context" -> liftM cmd_goal_type_context parse
+            "Agda.Interaction.BasicOps.cmd_goal_type_context" -> liftM cmd_goal_type_context parse
+            "cmd_goal_type_context_infer" -> liftM cmd_goal_type_context_infer parse
+            "Agda.Interaction.BasicOps.cmd_goal_type_context_infer" -> liftM cmd_goal_type_context_infer parse
+            "cmd_context" -> liftM cmd_context parse
+            "Agda.Interaction.BasicOps.cmd_context" -> liftM cmd_context parse
             _ -> throwError "interaction command"
 
 
@@ -150,6 +197,16 @@ parens' p = do
     x <- p
     exact ")"
     return x
+  `mplus`
+    p
+
+-- | Parse a String which may be the currentFile constant.
+
+parseString :: Maybe String -> Parse String
+parseString Nothing = parse
+parseString (Just current) = parse `mplus` do
+    exact "currentFile"
+    return current
 
 -- | Parse anything.
 
@@ -190,7 +247,7 @@ instance ParseC Range where
             (exact "noRange" >> return noRange)
 
 instance ParseC Interval where
-    parse = {-parens' $-} do
+    parse = parens' $ do
         exact "Interval"
         liftM2 Interval parse parse
 
