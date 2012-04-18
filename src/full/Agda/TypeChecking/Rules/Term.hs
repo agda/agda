@@ -294,7 +294,10 @@ checkLiteral lit t = do
 
 litType :: Literal -> TCM Type
 litType l = case l of
-    LitInt _ _	  -> el <$> primNat
+    LitInt _ n	  -> do
+      _ <- primZero
+      when (n > 0) $ () <$ primSuc
+      el <$> primNat
     LitFloat _ _  -> el <$> primFloat
     LitChar _ _   -> el <$> primChar
     LitString _ _ -> el <$> primString

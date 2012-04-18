@@ -1,0 +1,4 @@
+BuiltinConstructorsNeededForLiterals.agda:17,13-14
+No binding for builtin thing ZERO, use {-# BUILTIN ZERO name #-} to
+bind it to 'name'
+when checking that the expression 0 has type Nat
