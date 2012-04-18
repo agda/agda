@@ -144,7 +144,10 @@ checkDecl d = do
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()
-checkAxiom i rel x e = do
+checkAxiom i rel0 x e = do
+  -- Andreas, 2012-04-18  if we are in irrelevant context, axioms is irrelevant
+  -- even if not declared as such (Issue 610).
+  rel <- max rel0 <$> asks envRelevance
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"

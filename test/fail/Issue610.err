@@ -1,0 +1,4 @@
+Issue610.agda:22,9-17
+Identifier R.helper is declared irrelevant, so it cannot be used
+here
+when checking that the expression R.helper x x has type Set
