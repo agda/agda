@@ -4,8 +4,6 @@
 -- IO
 ------------------------------------------------------------------------
 
-{-# OPTIONS --no-termination-check #-}
-
 module IO where
 
 open import Coinduction
@@ -38,6 +36,8 @@ data IO {a} (A : Set a) : Set (suc a) where
 -- unfolded infinitely by the type checker.
 
 abstract
+
+  {-# NO_TERMINATION_CHECK #-}
 
   run : ∀ {a} {A : Set a} → IO A → Prim.IO A
   run (lift m)   = m
