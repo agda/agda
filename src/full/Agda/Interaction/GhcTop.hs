@@ -51,10 +51,10 @@ main = do
 mainWithArgs :: Maybe String -> IO ()
 mainWithArgs maybeCurrentfile = do
 
--- #if MIN_VERSION_base(4,2,0)
+#if MIN_VERSION_base(4,2,0)
     -- Ensure that UTF-8 is used for communication with the Emacs mode.
     IO.hSetEncoding IO.stdout IO.utf8
--- #endif
+#endif
 
     IO.hSetBuffering IO.stdout IO.NoBuffering
 
