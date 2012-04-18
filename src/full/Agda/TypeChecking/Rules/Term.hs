@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards #-}
+{-# LANGUAGE CPP, PatternGuards, TupleSections #-}
 
 module Agda.TypeChecking.Rules.Term where
 
@@ -877,9 +877,9 @@ inferDef mkTerm x =
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
 checkConstructorApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication org t c args
-  | hiddenArg = fallback
-  | otherwise = do
+checkConstructorApplication org t c args =
+  let (args', paramsGiven) = checkForParams args
+  in if paramsGiven then fallback else do
     cdef  <- getConstInfo c
     let Constructor{conData = d} = theDef cdef
     case unEl t of -- Only fully applied constructors get special treatment
@@ -898,7 +898,8 @@ checkConstructorApplication org t c args
                           , text "ctype  =" <+> prettyTCM ctype ] ]
         let ctype' = ctype `piApply` ps
         reportSDoc "tc.term.con" 20 $ nest 2 $ text "ctype' =" <+> prettyTCM ctype'
-        checkArguments' ExpandLast ExpandInstanceArguments (getRange c) args ctype' t org $ \us t' -> do
+        -- check the non-parameter arguments
+        checkArguments' ExpandLast ExpandInstanceArguments (getRange c) args' ctype' t org $ \us t' -> do
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
@@ -910,9 +911,22 @@ checkConstructorApplication org t c args
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.
     -- We could work harder, but let's not for now.
+    --
+    -- Andreas, 2012-04-18: if all inital args are underscores, ignore them
+    checkForParams args =
+      let (hargs, rest) = span isHiddenArg args
+          removeScope (A.ScopedExpr _ e) = removeScope e
+          removeScope e                  = e
+          notUnderscore A.Underscore{} = False
+          notUnderscore _              = True
+      in  (rest,) $ any notUnderscore $ map (removeScope . namedThing . unArg) hargs
+{- OLD CODE
     hiddenArg = case args of
       Arg Hidden _ _ : _ -> True
       _                  -> False
+-}
+
+{- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 
     -- Split the arguments to a constructor into those corresponding
     -- to parameters and those that don't. Dummy underscores are inserted
@@ -931,6 +945,7 @@ checkConstructorApplication org t c args
         mname = nameOf (unArg arg)
 
     dummyUnderscore = Arg Hidden Relevant (unnamed $ A.Underscore $ A.MetaInfo noRange emptyScopeInfo Nothing)
+-}
 
 -- | @checkHeadApplication e t hd args@ checks that @e@ has type @t@,
 -- assuming that @e@ has the form @hd args@. The corresponding
