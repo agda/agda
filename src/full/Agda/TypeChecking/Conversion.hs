@@ -242,11 +242,20 @@ compareAtom cmp t m n =
                                     , text ":" <+> prettyTCM t ]
       let unLevel (Level l) = reallyUnLevelView l
           unLevel v = return v
-      -- constructorForm changes literal to constructors
       -- Andreas: what happens if I cut out the eta expansion here?
       -- Answer: Triggers issue 245, does not resolve 348
-      mb <- traverse unLevel =<< traverse constructorForm =<< etaExpandBlocked =<< reduceB m
-      nb <- traverse unLevel =<< traverse constructorForm =<< etaExpandBlocked =<< reduceB n
+      mb' <- etaExpandBlocked =<< reduceB m
+      nb' <- etaExpandBlocked =<< reduceB n
+
+      -- constructorForm changes literal to constructors
+      -- only needed if the other side is not a literal
+      (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
+	(Lit _, Lit _) -> return (mb', nb')
+        _ -> (,) <$> traverse constructorForm mb'
+                 <*> traverse constructorForm nb'
+
+      mb <- traverse unLevel mb''
+      nb <- traverse unLevel nb''
 
       let m = ignoreBlocking mb
           n = ignoreBlocking nb
