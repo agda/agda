@@ -1,0 +1,3 @@
+Issue610-4.agda:25,11-30
+.(⊥) !=< ⊥ of type Set
+when checking that the expression subst (λ x → x) q _ has type ⊥

@@ -669,7 +669,7 @@ checkExpr e t =
 
 	A.DontCare e -> -- resurrect vars
           ifM ((Irrelevant ==) <$> asks envRelevance)
-            (applyRelevanceToContext Irrelevant $ checkExpr e t)
+            (DontCare <$> do applyRelevanceToContext Irrelevant $ checkExpr e t)
             (internalError "DontCare may only appear in irrelevant contexts")
 {- STALE?:
    Andreas, 2011-10-03 why do I get an internal error for Issue337?
