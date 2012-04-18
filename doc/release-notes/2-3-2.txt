@@ -209,3 +209,9 @@ Emacs mode
 
   The default value of this option has also changed: the
   -ignore-dot-ghci flag has been added.
+
+* Commenting/uncommenting the rest of the buffer.
+
+  One can now comment or uncomment the rest of the buffer by typing
+  C-c C-x M-; or by selecting the menu entry "Comment/uncomment the
+  rest of the buffer".

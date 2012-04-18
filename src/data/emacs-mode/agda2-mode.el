@@ -224,30 +224,31 @@ constituents.")
 
 (defconst agda2-command-table
   `(
-    (agda2-load                              "\C-c\C-l"         (global)       "Load")
+    (agda2-load                              "\C-c\C-l"           (global)       "Load")
     (agda2-load                              "\C-c\C-x\C-l")
-    (agda2-compile                           "\C-c\C-x\C-c"     (global)       "Compile")
-    (agda2-quit                              "\C-c\C-x\C-q"     (global)       "Quit")
-    (agda2-restart                           "\C-c\C-x\C-r"     (global)       "Restart")
-    (agda2-remove-annotations                "\C-c\C-x\C-d"     (global)       "Remove goals and highlighting (\"deactivate\")")
-    (agda2-display-implicit-arguments        "\C-c\C-x\C-h"     (global)       "Toggle display of hidden arguments")
-    (agda2-show-constraints                  ,(kbd "C-c C-=")   (global)       "Show constraints")
-    (agda2-solveAll                          ,(kbd "C-c C-s")   (global)       "Solve constraints")
-    (agda2-show-goals                        ,(kbd "C-c C-?")   (global)       "Show goals")
-    (agda2-next-goal                         "\C-c\C-f"         (global)       "Next goal") ; Forward.
-    (agda2-previous-goal                     "\C-c\C-b"         (global)       "Previous goal") ; Back.
-    (agda2-give                              ,(kbd "C-c C-SPC") (local)        "Give")
-    (agda2-refine                            "\C-c\C-r"         (local)        "Refine")
-    (agda2-auto                              "\C-c\C-a"         (local)        "Auto")
-    (agda2-make-case                         "\C-c\C-c"         (local)        "Case")
-    (agda2-goal-type                         "\C-c\C-t"         (local)        "Goal type")
-    (agda2-show-context                      "\C-c\C-e"         (local)        "Context (environment)")
-    (agda2-infer-type-maybe-toplevel         "\C-c\C-d"         (local global) "Infer (deduce) type")
-    (agda2-goal-and-context                  ,(kbd "C-c C-,")   (local)        "Goal type and context")
-    (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")   (local)        "Goal type, context and inferred type")
-    (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")   (local global) "Module contents")
-    (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"         (local global) "Evaluate term to normal form")
-    (describe-char                           nil                (global)       "Information about the character at point")
+    (agda2-compile                           "\C-c\C-x\C-c"       (global)       "Compile")
+    (agda2-quit                              "\C-c\C-x\C-q"       (global)       "Quit")
+    (agda2-restart                           "\C-c\C-x\C-r"       (global)       "Restart")
+    (agda2-remove-annotations                "\C-c\C-x\C-d"       (global)       "Remove goals and highlighting (\"deactivate\")")
+    (agda2-display-implicit-arguments        "\C-c\C-x\C-h"       (global)       "Toggle display of hidden arguments")
+    (agda2-show-constraints                  ,(kbd "C-c C-=")     (global)       "Show constraints")
+    (agda2-solveAll                          ,(kbd "C-c C-s")     (global)       "Solve constraints")
+    (agda2-show-goals                        ,(kbd "C-c C-?")     (global)       "Show goals")
+    (agda2-next-goal                         "\C-c\C-f"           (global)       "Next goal") ; Forward.
+    (agda2-previous-goal                     "\C-c\C-b"           (global)       "Previous goal") ; Back.
+    (agda2-give                              ,(kbd "C-c C-SPC")   (local)        "Give")
+    (agda2-refine                            "\C-c\C-r"           (local)        "Refine")
+    (agda2-auto                              "\C-c\C-a"           (local)        "Auto")
+    (agda2-make-case                         "\C-c\C-c"           (local)        "Case")
+    (agda2-goal-type                         "\C-c\C-t"           (local)        "Goal type")
+    (agda2-show-context                      "\C-c\C-e"           (local)        "Context (environment)")
+    (agda2-infer-type-maybe-toplevel         "\C-c\C-d"           (local global) "Infer (deduce) type")
+    (agda2-goal-and-context                  ,(kbd "C-c C-,")     (local)        "Goal type and context")
+    (agda2-goal-and-context-and-inferred     ,(kbd "C-c C-.")     (local)        "Goal type, context and inferred type")
+    (agda2-module-contents-maybe-toplevel    ,(kbd "C-c C-o")     (local global) "Module contents")
+    (agda2-compute-normalised-maybe-toplevel "\C-c\C-n"           (local global) "Evaluate term to normal form")
+    (describe-char                           nil                  (global)       "Information about the character at point")
+    (agda2-comment-dwim-rest-of-buffer       ,(kbd "C-c C-x M-;") (global)       "Comment/uncomment the rest of the buffer")
     (eri-indent                  ,(kbd "TAB"))
     (eri-indent-reverse          [S-iso-lefttab])
     (eri-indent-reverse          [S-lefttab])
@@ -1367,6 +1368,19 @@ a file is loaded."
                  '(agda2-comment agda2-comment) t)
     (add-to-list (make-local-variable 'filladapt-token-conversion-table)
                  '(agda2-comment . exact))))
+
+(defun agda2-comment-dwim-rest-of-buffer ()
+  "Comment or uncomment the rest of the buffer.
+From the beginning of the current line to the end of the buffer."
+  (interactive)
+  (save-excursion
+    (forward-line 0)
+    (push-mark (point) 'no-message 'activate-mark)
+    (unwind-protect
+        (progn
+          (goto-char (point-max))
+          (comment-dwim nil))
+      (pop-mark))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Go to definition site
