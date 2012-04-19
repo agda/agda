@@ -61,6 +61,8 @@ data CommandLineOptions =
 	    , optShowHelp             :: Bool
 	    , optInteractive          :: Bool
 	    , optRunTests             :: Bool
+        , optInteractionTest      :: Maybe FilePath
+        , optGHCiInteraction      :: Bool
 	    , optCompile              :: Bool
 	    , optEpicCompile          :: Bool
 	    , optJSCompile            :: Bool
@@ -137,6 +139,8 @@ defaultOptions =
 	    , optShowHelp             = False
 	    , optInteractive          = False
 	    , optRunTests             = False
+        , optInteractionTest      = Nothing
+        , optGHCiInteraction      = False
 	    , optCompile              = False
 	    , optEpicCompile          = False
 	    , optJSCompile            = False
@@ -195,11 +199,13 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne [optInteractive, optCompile, optEpicCompile, optJSCompile]) =
+  | not (atMostOne interactive) =
+      Left "Choose at most one: interactive/GHCi interaction/interaction test mode.\n"
+  | not (atMostOne $ interactive ++ [optCompile, optEpicCompile, optJSCompile]) =
       Left "Choose at most one: compiler/interactive mode.\n"
-  | not (atMostOne [optGenerateHTML, optInteractive]) =
+  | not (atMostOne $ interactive ++ [optGenerateHTML]) =
       Left "Choose at most one: HTML generator or interactive mode.\n"
-  | not (atMostOne [isJust . optDependencyGraph, optInteractive]) =
+  | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
       Left "Choose at most one: Dependency graph generator or interactive mode.\n"
   | not (atMostOne [ optUniversePolymorphism . p
                    , not . optUniverseCheck . p
@@ -213,6 +219,8 @@ checkOpts opts
   atMostOne bs = length (filter ($ opts) bs) <= 1
 
   p = optPragmaOptions
+
+  interactive = [optInteractive, optGHCiInteraction, isJust . optInteractionTest]
 
 -- Check for unsafe pramas. Gives a list of used unsafe flags.
 
@@ -255,6 +263,8 @@ ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = Tru
 allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
 showImplicitFlag             o = return $ o { optShowImplicit              = True  }
 runTestsFlag                 o = return $ o { optRunTests                  = True  }
+interactionTestFlag        f o = return $ o { optInteractionTest           = Just f }
+ghciInteractionFlag          o = return $ o { optGHCiInteraction           = True  }
 vimFlag                      o = return $ o { optGenerateVimFile           = True  }
 noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
 dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
@@ -317,6 +327,10 @@ standardOptions =
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
+    , Option []	    ["ghci-interaction"] (NoArg ghciInteractionFlag)
+		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in the Emacs frontend)"
+    , Option []     ["interaction-test"] (ReqArg interactionTestFlag "FILE")
+		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in interaction tests)"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"

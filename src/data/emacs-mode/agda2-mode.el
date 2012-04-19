@@ -89,13 +89,8 @@ the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-ghci-options
-  (list "-ignore-dot-ghci"    ; Make sure that the user's .ghci is not
-                              ; read.
-        "-hide-all-packages"  ; To avoid problems if some conflicting
-                              ; package is exposed in one of the
-                              ; user's package databases.
-        "-package base"       ; To gain access to the Prelude.
-        (concat "-package Agda-" agda2-version))
+  (list "--ghci-interaction"  ; Run agda in ghci interaction mode
+        )
   "Command-line options given to GHCi.
 These options are prepended to `haskell-ghci-program-args'."
   :type '(repeat string)
@@ -408,7 +403,7 @@ Special commands:
                         (kill-buffer agda2-bufname))
                       (error nil))
                     (set (make-local-variable 'haskell-ghci-program-name)
-                         "agdaghci")
+                         "agda")
                     (set (make-local-variable 'haskell-ghci-program-args)
                          (append agda2-ghci-options haskell-ghci-program-args))
                     (haskell-ghci-start-process nil)

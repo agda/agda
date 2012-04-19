@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, ScopedTypeVariables, FlexibleInstances #-}
 module Agda.Interaction.GhcTop
-    ( main
+    ( mimicGHCi
     , lispifyResponse
     ) where
 
@@ -35,26 +35,18 @@ import Agda.Interaction.Highlighting.Emacs
 
 ----------------------------------
 
--- | 'main' is a fake ghci interpreter for the Emacs frontend.
---   It reads the Emacs frontend commands from stdin,
+-- | 'mimicGHCi' is a fake ghci interpreter for the Emacs frontend
+--   and for interaction tests.
+--
+--   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
+--
+--   If the first argument is 'Just f' then 'mimicGhci'
+--   use 'f' as the current file, doesn't print the prompt
+--   and interprets more expressions (useful in interaction tests).
 
-main :: IO ()
-main = do
-    args <- getArgs
-    case args of
-        -- in interaction tests we call agdaghci with exactly these command line arguments:
-        ["--currentfile", path] -> mainWithArgs $ Just path
-        -- in Emacs mode we drop the command arguments
-        _  -> mainWithArgs Nothing
-
-mainWithArgs :: Maybe String -> IO ()
-mainWithArgs maybeCurrentfile = do
-
-#if MIN_VERSION_base(4,2,0)
-    -- Ensure that UTF-8 is used for communication with the Emacs mode.
-    IO.hSetEncoding IO.stdout IO.utf8
-#endif
+mimicGHCi :: Maybe String -> IO ()
+mimicGHCi maybeCurrentfile = do
 
     IO.hSetBuffering IO.stdout IO.NoBuffering
 

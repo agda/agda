@@ -23,7 +23,7 @@ export TMPDIR=highlighting.tmp
 
 run_test=if test -f $*.in; \
     then ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps' ) \
-				 | cat - $*.in | agdaghci --currentfile "$(wildcard $*.agda $*.lagda)" \
+				 | cat - $*.in | agda --interaction-test "$(wildcard $*.agda $*.lagda)" \
 				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 					 echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
