@@ -71,8 +71,7 @@ mimicGHCi maybeCurrentfile = do
                 ('-':'-':_) -> return st
                 _ -> case runIdentity . flip runStateT r . runErrorT $ parseIO maybeCurrentfile of
                     (Right (current, highlighting, cmd), "") -> do
-                        mst <- tcmAction st current highlighting cmd
-                        return $ fromMaybe st mst
+                        tcmAction st current highlighting cmd
                     (Left err, rem) -> do
                         error $ "error: " ++ err ++ " expected before " ++ rem
                         return st
@@ -291,7 +290,7 @@ tcmAction
     -> FilePath
     -> Bool
     -> Interaction
-    -> IO (Maybe InteractionState)
+    -> IO InteractionState
 tcmAction state filepath highlighting action =
     ioTCMState filepath highlighting action (setCallback state)
   where
