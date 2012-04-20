@@ -58,23 +58,15 @@ import Agda.Utils.Size
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-apps :: Expr -> [Arg Expr] -> TCM Expr
-apps e args = do
+napps :: Expr -> [NamedArg Expr] -> TCM Expr
+napps e args = do
   dontShowImp <- not <$> showImplicitArguments
   let apply1 e arg | isHiddenArg arg && dontShowImp = e
-                   | otherwise = App exprInfo e (unnamed <$> arg)
+                   | otherwise = App exprInfo e arg
   return $ foldl apply1 e args
 
-{- OLD CODE
 apps :: Expr -> [Arg Expr] -> TCM Expr
-apps e [] = return e
-apps e (arg : args) | isHiddenArg arg =
-    do  showImp <- showImplicitArguments
-        if showImp then apps (App exprInfo e (unnamed <$> arg)) args
-                   else apps e args
-apps e (arg : args) =
-    apps (App exprInfo e (unnamed <$> arg)) args
--}
+apps e args = napps e $ map (fmap unnamed) args
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
