@@ -100,11 +100,6 @@ These options are prepended to `haskell-ghci-program-args'."
   "The name of the Agda toplevel module."
   :type 'string :group 'agda2)
 
-(defcustom agda2-mode-hook
-  '(agda2-fix-ghci-for-windows)
-  "Hooks for `agda2-mode'."
-  :type 'hook :group 'agda2)
-
 (defcustom agda2-information-window-max-height
   0.35
   "*The maximum height of the information window.
@@ -176,11 +171,6 @@ to this variable to take effect."
 
 (if (and (equal agda2-fontset-name "fontset-agda2") window-system)
     (create-fontset-from-fontset-spec agda2-fontset-spec-of-fontset-agda2 t t))
-
-(defun agda2-fix-ghci-for-windows ()
-  (if (string-match "windows" system-configuration)
-      (setq haskell-ghci-program-name "ghc"
-            haskell-ghci-program-args '("--interactive"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Global and buffer-local vars, initialization
