@@ -113,9 +113,10 @@ ifNoConstraints check ifNo ifCs = do
 ifNoConstraints_ :: TCM () -> TCM a -> (ProblemId -> TCM a) -> TCM a
 ifNoConstraints_ check ifNo ifCs = ifNoConstraints check (const ifNo) (\pid _ -> ifCs pid)
 
--- | @guardConstraint cs c@ tries to solve constraints @cs@ first.
---   If successful, it moves on to solve @c@, otherwise it returns
---   a @Guarded c cs@.
+-- | @guardConstraint c blocker@ tries to solve @blocker@ first.
+--   If successful without constraints, it moves on to solve @c@, otherwise it
+--   adds a @Guarded c cs@ constraint
+--   to the @blocker@-generated constraints @cs@.
 guardConstraint :: Constraint -> TCM () -> TCM ()
 guardConstraint c blocker =
   ifNoConstraints_ blocker (solveConstraint_ c) (addConstraint . Guarded c)
