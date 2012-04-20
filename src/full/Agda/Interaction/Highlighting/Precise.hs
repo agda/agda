@@ -144,9 +144,9 @@ type HighlightingInfo = CompressedFile
 type InteractionOutputCallback = Response -> IO ()
 
 -- | The default 'InteractionOutputCallback' function
---   is set to __IMPOSSIBLE__ because in this way
---   it is easier to recognize that some response is lost
---   due to an uninitialized 'InteractionOutputCallback' function.
+--   is set to @__@@IMPOSSIBLE__@ because in this way it is easier to
+--   recognize that some response is lost due to an uninitialized
+--   'InteractionOutputCallback' function.
 
 defaultInteractionOutputCallback :: InteractionOutputCallback
 defaultInteractionOutputCallback = __IMPOSSIBLE__
