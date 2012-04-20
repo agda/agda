@@ -376,7 +376,30 @@ compareAtom cmp t m n =
           return $ piApply a (genericTake npars args)
         conType _ _ = __IMPOSSIBLE__
 
-	equalFun t1@(Pi arg1@(Dom h1 r1 a1) _) t2@(Pi (Dom h2 r2 a2) _)
+	equalFun t1@(Pi dom1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
+	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
+            -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
+	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
+	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
+                reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
+                  [ text "t1 =" <+> prettyTCM t1
+                  , text "t2 =" <+> prettyTCM t2 ]
+                let checkDom = escapeContext 1 $ compareType cmp a2 a1
+                    conCoDom = TypeCmp cmp (absBody b1) (absBody b2)
+                -- We only need to require a1 == a2 if t2 is a dependent function type.
+                -- If it's non-dependent it doesn't matter what we add to the context.
+                name <- freshName_ (suggest b1 b2)
+                addCtx name dom1 $
+                  if isBinderUsed b2 -- dependent function type?
+                  then guardConstraint conCoDom checkDom
+                  else checkDom >> solveConstraint_ conCoDom
+	    where
+		ty1 = El __IMPOSSIBLE__ t1
+		ty2 = El __IMPOSSIBLE__ t2
+		suggest b1 b2 = head $
+                  [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
+{- OLD CODE
+	equalFun t1@(Pi arg1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
 	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
 	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
@@ -392,9 +415,7 @@ compareAtom cmp t m n =
 
                 -- We only need to require a1 == a2 if t2 is a dependent function type.
                 -- If it's non-dependent it doesn't matter what we add to the context.
-                let dependent = case t2 of
-                                    Pi _ b  -> isBinderUsed b
-                                    _       -> __IMPOSSIBLE__
+                let dependent = isBinderUsed b2
                 addCtx name arg1 $
                   if dependent
                   then guardConstraint c checkArg
@@ -408,6 +429,7 @@ compareAtom cmp t m n =
 		    where
 			name (Pi _ b) = filter (/= "_") [absName b]
 			name _        = __IMPOSSIBLE__
+-}
 	equalFun _ _ = __IMPOSSIBLE__
 
 -- | Type-directed equality on eliminator spines
