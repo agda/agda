@@ -13,7 +13,7 @@
 (defvar agda2-version "2.3.1"
   "The version of the Agda mode.
 Note that, by default, the same version of the underlying Haskell
-library is used (see `agda2-agda-executable-options').")
+library is used.")
 
 (require 'cl)
 (set (make-local-variable 'lisp-indent-function)
@@ -25,9 +25,6 @@ library is used (see `agda2-agda-executable-options').")
 (require 'agda-input)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
-(require 'haskell-ghci)
-;; due to a bug in haskell-mode-2.1
-(setq haskell-ghci-mode-map (copy-keymap comint-mode-map))
 ;; Load filladapt, if it is installed.
 (condition-case nil
     (require 'filladapt)
@@ -80,20 +77,24 @@ the root of the current project."
   :type '(repeat directory)
   :group 'agda2)
 
+(defcustom agda2-program-name "agda"
+  "*The name of the agda executable program."
+  :type 'string
+  :group 'agda2)
+
+(defcustom agda2-program-args
+  (list "--ghci-interaction"  ; Run agda in ghci interaction mode
+        )
+  "Command-line options given to agda executable."
+  :type '(repeat string)
+  :group 'agda2)
+
 (defcustom agda2-backend
   "MAlonzo"
   "The backend which is used to compile Agda programs."
   :type '(choice (const "MAlonzo")
                  (const "Epic")
                  (const "JS"))
-  :group 'agda2)
-
-(defcustom agda2-agda-executable-options
-  (list "--ghci-interaction"  ; Run agda in ghci interaction mode
-        )
-  "Command-line options given to agda executable.
-These options are prepended to `haskell-ghci-program-args'."
-  :type '(repeat string)
   :group 'agda2)
 
 (defcustom agda2-toplevel-module "Agda.Interaction.GhciTop"
@@ -380,7 +381,7 @@ Special commands:
   "Kill and restart the *ghci* buffer and load `agda2-toplevel-module'."
   (interactive)
   (save-excursion (let ((agda2-bufname "*ghci*")
-                        (ignore-dot-ghci "-ignore-dot-ghci"))
+                        )
                     (condition-case nil
                       (progn
                         ;; GHCi doesn't always die when its buffer is
@@ -392,15 +393,27 @@ Special commands:
                           (error nil))
                         (kill-buffer agda2-bufname))
                       (error nil))
-                    (set (make-local-variable 'haskell-ghci-program-name)
-                         "agda")
-                    (set (make-local-variable 'haskell-ghci-program-args)
-                         (append agda2-agda-executable-options haskell-ghci-program-args))
-                    (haskell-ghci-start-process nil)
-                    (setq agda2-process        haskell-ghci-process
-                          agda2-process-buffer haskell-ghci-process-buffer
-                          agda2-in-progress    nil
-                          mode-name "Agda GHCi")
+
+                    ;; Start the agda process in a new comint buffer.
+                    (message "Starting agda process `%s'." agda2-program-name)
+                    (setq agda2-process-buffer
+                        (apply 'make-comint "ghci" agda2-program-name nil agda2-program-args))
+
+                    ;; Select agda buffer temporarily.
+                    (set-buffer agda2-process-buffer)
+                    (comint-mode)
+
+                    ;; GHCi prompt should be of the form `ModuleName> '.
+                    (setq comint-prompt-regexp
+                    "^\\*?[[:upper:]][\\._[:alnum:]]*\\( \\*?[[:upper:]][\\._[:alnum:]]*\\)*> ")
+
+                    ;; Clear message area.
+                    (message "")
+
+                    (setq agda2-process
+                        (get-buffer-process agda2-process-buffer))
+                    (setq agda2-in-progress    nil
+                          mode-name "Agda executable")
                     (set (make-local-variable 'comint-input-sender)
                          'agda2-send)
                     ;; Avoid the "Marker does not point anywhere"
@@ -461,7 +474,13 @@ exist, then an attempt is made to restart the process."
     (goto-char (point-max))
     (insert (apply 'concat (agda2-intersperse " " args)))
     (comint-send-input)
-    (when wait (haskell-ghci-wait-for-output))))
+    (when wait      ; Wait until output arrives and go to the last input.
+      (while (progn
+	       (goto-char comint-last-input-end)
+	       (not (re-search-forward comint-prompt-regexp nil t)))
+        (accept-process-output agda2-process))
+        )))
+
 
 ;; The following variables are used by the filter process,
 ;; `agda2-ghci-filter'. Their values are only modified by the filter
