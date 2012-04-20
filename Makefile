@@ -44,7 +44,7 @@ CABAL_CMD=cabal
 CABAL_OPTIONS=
 #  -f epic
 
-install : update-cabal install-lib install-bin install-emacs-mode
+install : update-cabal install-bin install-emacs-mode
 
 prof : install-prof-bin
 
@@ -52,21 +52,14 @@ update-cabal :
 	$(CABAL_CMD) update
 
 # Installs the Emacs mode, but does not set it up.
-install-lib :
+install-bin :
 	$(CABAL_CMD) install --disable-library-profiling --disable-documentation $(CABAL_OPTIONS)
 
-install-prof-lib :
-	$(CABAL_CMD) install --enable-library-profiling --disable-documentation $(CABAL_OPTIONS)
+install-prof-bin :
+	$(CABAL_CMD) install --enable-library-profiling --enable-executable-profiling \
+                             --program-suffix=_p --disable-documentation $(CABAL_OPTIONS)
 
-install-bin : install-lib
-	cd src/main && $(CABAL_CMD) install $(CABAL_OPTIONS)
-
-install-prof-bin : install-prof-lib
-	cd src/main && $(CABAL_CMD) install \
-	  --program-suffix=_p --enable-executable-profiling \
-	  $(CABAL_OPTIONS)
-
-install-emacs-mode : install-lib
+install-emacs-mode : install-bin
 	@echo
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."

@@ -33,7 +33,7 @@ There are several ways to install Agda:
   commands:
 
     cabal update
-    cabal install Agda-executable
+    cabal install Agda
     agda-mode setup
 
   The last command tries to set up Emacs for use with Agda. As an
@@ -53,8 +53,6 @@ There are several ways to install Agda:
         cabal update
         cabal install
         agda-mode setup
-        cd src/main
-        cabal install
 
       The third command tries to set up Emacs for use with Agda. As an
       alternative you can copy the following text to your .emacs file:
@@ -145,7 +143,6 @@ cabal:
 
     cabal update
     cabal install Agda -fepic
-    cabal install Agda-executable
     agda-mode setup
 
 * When installing using a source tar ball, following the instructions
@@ -154,8 +151,6 @@ cabal:
     cabal update
     cabal install -fepic
     agda-mode setup
-    cd src/main
-    cabal install
 
 * When installing using a source tar ball, following the instructions
   in 2b) above:

@@ -25,15 +25,13 @@ description:
   similarities with other proof assistants based on dependent types,
   such as Coq, Epigram and NuPRL.
   .
-  Note that if you want to use the command-line program (agda), then
-  you should also install the Agda-executable package. The Agda
-  package includes an Emacs mode for Agda, but you need to set up the
-  Emacs mode yourself (for instance by running @agda-mode setup@; see
-  the README).
+  This package includes both a command-line program (agda) and an
+  Emacs mode. If you want to use the Emacs mode you can set it up by
+  running @agda-mode setup@ (see the README).
   .
-  Note also that this library does not follow the package versioning
-  policy, because the library is only intended to be used by the Emacs
-  mode and the Agda-executable package.
+  Note that the Agda library does not follow the package versioning
+  policy, because it is not intended to be used by third-party
+  packages.
 tested-with:        GHC == 7.2.2
 extra-source-files: src/full/Agda/undefined.h
                     README
@@ -336,6 +334,21 @@ library
   if impl(ghc >= 7.2)
     ghc-options:    -fwarn-identities
   ghc-prof-options: -auto-all
+
+executable agda
+  hs-source-dirs: src/main
+  main-is:        Main.hs
+  build-depends:  Agda == 2.3.1,
+                  -- Nothing is used from the following package, except
+                  -- for the prelude.
+                  base >= 3 && < 6
+  if impl(ghc >= 7)
+    -- If someone installs Agda with the setuid bit set, then the
+    -- presence of +RTS may be a security problem (see GHC bug #3910).
+    -- However, we sometimes recommend people to use +RTS to control
+    -- Agda's memory usage, so we want this functionality enabled by
+    -- default.
+    ghc-options:  -rtsopts
 
 executable agda-mode
   hs-source-dirs:   src/agda-mode
