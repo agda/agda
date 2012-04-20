@@ -59,6 +59,14 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 apps :: Expr -> [Arg Expr] -> TCM Expr
+apps e args = do
+  dontShowImp <- not <$> showImplicitArguments
+  let apply1 e arg | isHiddenArg arg && dontShowImp = e
+                   | otherwise = App exprInfo e (unnamed <$> arg)
+  return $ foldl apply1 e args
+
+{- OLD CODE
+apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e [] = return e
 apps e (arg : args) | isHiddenArg arg =
     do  showImp <- showImplicitArguments
@@ -66,6 +74,7 @@ apps e (arg : args) | isHiddenArg arg =
                    else apps e args
 apps e (arg : args) =
     apps (App exprInfo e (unnamed <$> arg)) args
+-}
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
