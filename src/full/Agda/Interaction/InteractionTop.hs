@@ -303,9 +303,6 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
     Left e ->
         handErr e theTCState Nothing (tcErrString e)
 
-  where
-    putResp = stInteractionOutputCallback theTCState
-
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
