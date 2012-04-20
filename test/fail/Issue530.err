@@ -1,4 +1,4 @@
 Issue530.agda:20,1-10
 k a != w of type Unit
-when checking that the type (w : Unit) → F w (p {_}) of the
-generated with function is well-formed
+when checking that the type (w : Unit) → F w p of the generated
+with function is well-formed

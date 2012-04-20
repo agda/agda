@@ -266,14 +266,27 @@ instance Reify Term Expr where
             vs <- reify $ map unArg vs
             return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
-            -- let hide a = a { argHiding = Hidden }
-            Constructor{conPars = np} <- theDef <$> getConstInfo x
+            ci <- getConstInfo x
+            let Constructor{conPars = np} = theDef ci
+            n  <- getDefFreeVars x
+            es <- reify vs
+            -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
+            -- if the first regular constructor argument is hidden
+            -- we turn it into a named argument, in order to avoid confusion
+            -- with the parameter arguments which can be supplied in abstract syntax
+            let nameFirstIfHidden (Arg Hidden r e : es) =
+                  -- get name of argument from type of constructor
+                  let TelV tel _         = telView' $ defType ci
+                      Dom _ _ (x, _) : _ = genericDrop np $ telToList tel
+                  in  Arg Hidden r (Named (Just x) e) : map (fmap unnamed) es
+                nameFirstIfHidden es = map (fmap unnamed) es
+            napps (A.Con (AmbQ [x])) . genericDrop (n - np) $ nameFirstIfHidden es
+{- OLD CODE: reify parameter arguments of constructor
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
                 us = replicate (fromIntegral np) $ Arg Hidden Relevant whocares
-            n  <- getDefFreeVars x
-            es <- reify vs
             apps (A.Con (AmbQ [x])) (genericDrop n $ us ++ es)
+-}
       I.Lam h b    -> do
         (x,e) <- reify b
         return $ A.Lam exprInfo (DomainFree h Relevant x) e
