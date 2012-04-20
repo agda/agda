@@ -39,8 +39,6 @@ followed:
     cabal install
     darcs dist --dist-name=Agda-$VERSION
 
-  Note also that cabal check may warn about -Werror.
-
 * Ensure that all the packages build properly.
 
     BASE=`pwd`
