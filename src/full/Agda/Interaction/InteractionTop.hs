@@ -264,24 +264,6 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
            return (Left (pers, s, e))
          )
 
-  -- Write out syntax highlighting info.
-  let highlight st m = when highlighting $ liftIO $ do
-                        mapM_ (putResponseIO st) =<< tellToUpdateHighlighting m
-
-  -- If an error was encountered, display an error message.
-  let handErr e theTCState s s' = do
-          highlight st $ errHighlighting e
-                      `mplus`
-                    ((\h -> (h, Map.empty)) <$>
-                         generateErrorInfo (getRange e) s)
-
-          displayErrorAndExit (InteractionState theTCState cstate) status (getRange e) s'
-        where
-          status = Status { sChecked               = False
-                          , sShowImplicitArguments =
-                                     optShowImplicit $ stPragmaOptions theTCState
-                          }
-
   case r of
     Right (Right (m, st@(InteractionState theTCState cstate))) -> do
         highlight st $ do
@@ -302,6 +284,27 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
 
     Left e ->
         handErr e theTCState Nothing (tcErrString e)
+ where
+
+    -- If an error was encountered, display an error message.
+    handErr e theTCState s s' = do
+          highlight st $ errHighlighting e
+                      `mplus`
+                    ((\h -> (h, Map.empty)) <$>
+                         generateErrorInfo (getRange e) s)
+
+          displayErrorAndExit st status (getRange e) s'
+        where
+          st = InteractionState theTCState cstate
+          status = Status { sChecked               = False
+                          , sShowImplicitArguments =
+                                     optShowImplicit $ stPragmaOptions theTCState
+                          }
+
+    -- Write out syntax highlighting info.
+    highlight st m = when highlighting $ liftIO $ do
+                        mapM_ (putResponseIO st) =<< tellToUpdateHighlighting m
+
 
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
