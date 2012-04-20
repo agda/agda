@@ -164,6 +164,13 @@ putResponse x = liftCommandM $ do
     outf <- gets stInteractionOutputCallback
     liftIO $ outf x
 
+-- | Like 'putResponse' but put a response given an 'InteractionState' in the 'IO' monad.
+
+putResponseIO :: InteractionState -> Response -> IO ()
+putResponseIO (InteractionState theTCState cstate) r
+    = stInteractionOutputCallback theTCState r
+
+
 -- | An interactive computation.
 
 data Interaction = Interaction
@@ -219,9 +226,13 @@ ioTCMState :: FilePath
          -- ^ What to do
       -> InteractionState
          -- ^ Old state
-      -> IO (Maybe InteractionState)   -- ^ New state. 'Nothing' means that an error happend.
+      -> IO InteractionState
+         -- ^ New state.
+         --   If an error happens this is the same as the old state,
+         --   but stPersistent may change (which contains successfully
+         --   loaded interfaces for example).
 
-ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoOnException putResp $ do
+ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = infoOnException st $ do
 
   current <- absolute current
 
@@ -245,8 +256,8 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoO
 
                    command cmd
 
-           st <- get
-           return (Right (x, st, cstate))
+           theTCState <- get
+           return (Right (x, InteractionState theTCState cstate))
          ) (\e -> do
            pers <- gets stPersistent
            s    <- prettyError e
@@ -254,37 +265,37 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = infoO
          )
 
   -- Write out syntax highlighting info.
-  let highlight m = when highlighting $ liftIO $ do
-                        mapM_ putResp =<< tellToUpdateHighlighting m
+  let highlight st m = when highlighting $ liftIO $ do
+                        mapM_ (putResponseIO st) =<< tellToUpdateHighlighting m
 
-  -- If an error was encountered, display an error message and return 'Nothing'.
-  let handErr e tcs s s' = do
-          highlight $ errHighlighting e
+  -- If an error was encountered, display an error message.
+  let handErr e theTCState s s' = do
+          highlight st $ errHighlighting e
                       `mplus`
                     ((\h -> (h, Map.empty)) <$>
                          generateErrorInfo (getRange e) s)
 
-          displayErrorAndExit putResp status (getRange e) s'
+          displayErrorAndExit (InteractionState theTCState cstate) status (getRange e) s'
         where
           status = Status { sChecked               = False
                           , sShowImplicitArguments =
-                                     optShowImplicit $ stPragmaOptions tcs
+                                     optShowImplicit $ stPragmaOptions theTCState
                           }
 
   case r of
-    Right (Right (m, tcs, cs)) -> do
-        highlight $ do
+    Right (Right (m, st@(InteractionState theTCState cstate))) -> do
+        highlight st $ do
           m' <- m
           mi <- Map.lookup (SA.toTopLevelModuleName m')
-                           (stVisitedModules tcs)
+                           (stVisitedModules theTCState)
           return ( iHighlighting $ miInterface mi
-                 , stModuleToSource tcs
+                 , stModuleToSource theTCState
                  )
-        case theCurrentFile cs of
+        case theCurrentFile cstate of
           Just (f, _) | f === current ->
-            liftIO $ putResp $ Resp_InteractionPoints $ theInteractionPoints cs
+            liftIO $ putResponseIO st $ Resp_InteractionPoints $ theInteractionPoints cstate
           _ -> return ()
-        return $ Just $ InteractionState tcs cs
+        return st
 
     Right (Left (pers, s, e)) ->
         handErr e (theTCState { stPersistent = pers }) (Just s) s
@@ -958,17 +969,17 @@ toggleImplicitArgs = interaction Dependent $ do
 -- | Displays an error, instructs Emacs to jump to the site of the
 -- error, and terminates the program. Because this function may switch
 -- the focus to another file the status information is also updated.
-displayErrorAndExit putResp status r s = do
-    mapM_ putResp $ [ Resp_DisplayInfo $ Info_Error s ]
+displayErrorAndExit st status r s = do
+    mapM_ (putResponseIO st) $ [ Resp_DisplayInfo $ Info_Error s ]
                 ++  tellEmacsToJumpToError r
                 ++  [ Resp_Status status ]
-    return Nothing
+    return st
 
 -- | Outermost error handler.
 
-infoOnException putResp m =
-  failOnException (displayErrorAndExit putResp s) m `catchImpossible` \e ->
-    displayErrorAndExit putResp s noRange (show e)
+infoOnException st m =
+  failOnException (displayErrorAndExit st s) m `catchImpossible` \e ->
+    displayErrorAndExit st s noRange (show e)
   where
   s = Status { sChecked               = False
              , sShowImplicitArguments = False

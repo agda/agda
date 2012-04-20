@@ -134,12 +134,15 @@ ioTCM current highlighting cmd = do
   -- Read the state.
   state <- readIORef theState
 
-  response <- ioTCMState current highlighting cmd $ emacsOutput state
+  state <- ioTCMState current highlighting cmd $ emacsOutput state
 
-  -- Write the state or halt with an error.
-  case response of
-    Just state -> writeIORef theState state
-    Nothing ->    exitWith (ExitFailure 1)
+  -- Write the state.
+  writeIORef theState state
+
+  -- In case of error halt.
+  -- This is caught by ghci saying "*** Exception: ExitFailure 1"
+  -- Not needed, the error is reported by elisp expressions.
+  -- -- when (not ok) $ exitWith (ExitFailure 1)
 
 
 -- Helpers for testing ----------------------------------------------------
