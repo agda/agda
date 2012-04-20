@@ -58,20 +58,20 @@ import Agda.Utils.Size
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-apps :: (Expr, [Arg Expr]) -> TCM Expr
-apps (e, []) = return e
-apps (e, arg : args) | isHiddenArg arg =
+apps :: Expr -> [Arg Expr] -> TCM Expr
+apps e [] = return e
+apps e (arg : args) | isHiddenArg arg =
     do  showImp <- showImplicitArguments
-        if showImp then apps (App exprInfo e (unnamed <$> arg), args)
-                   else apps (e, args)
-apps (e, arg:args)          =
-    apps (App exprInfo e (unnamed <$> arg), args)
+        if showImp then apps (App exprInfo e (unnamed <$> arg)) args
+                   else apps e args
+apps e (arg : args) =
+    apps (App exprInfo e (unnamed <$> arg)) args
 
 exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
 reifyApp :: Expr -> [Arg Term] -> TCM Expr
-reifyApp e vs = curry apps e =<< reify vs
+reifyApp e vs = apps e =<< reify vs
 
 class Reify i a | i -> a where
     reify :: i -> TCM a
@@ -95,8 +95,8 @@ instance Reify DisplayTerm Expr where
   reify d = case d of
     DTerm v -> reify v
     DDot  v -> reify v
-    DCon c vs -> curry apps (A.Con (AmbQ [c])) =<< reify vs
-    DDef f vs -> curry apps (A.Def f) =<< reify vs
+    DCon c vs -> apps (A.Con (AmbQ [c])) =<< reify vs
+    DDef f vs -> apps (A.Def f) =<< reify vs
     DWithApp us vs -> do
       us <- reify us
       let wapp [e] = e
@@ -185,11 +185,11 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         termToExpr (I.Var n [])
           | n < len = return $ A.patternToExpr $ ps !! fromIntegral n
         termToExpr (I.Con c vs) =
-          curry apps (A.Con (AmbQ [c])) =<< argsToExpr vs
+          apps (A.Con (AmbQ [c])) =<< argsToExpr vs
         termToExpr (I.Def f vs) =
-          curry apps (A.Def f) =<< argsToExpr vs
+          apps (A.Def f) =<< argsToExpr vs
         termToExpr (I.Var n vs) =
-          apps =<< (,) <$> reify (I.Var (n - len) []) <*> argsToExpr vs
+          uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
         termToExpr _ = return $ A.Underscore minfo
 
         minfo = MetaInfo noRange emptyScopeInfo Nothing
@@ -272,7 +272,7 @@ instance Reify Term Expr where
                 us = replicate (fromIntegral np) $ Arg Hidden Relevant whocares
             n  <- getDefFreeVars x
             es <- reify vs
-            apps (A.Con (AmbQ [x]), genericDrop n $ us ++ es)
+            apps (A.Con (AmbQ [x])) (genericDrop n $ us ++ es)
       I.Lam h b    -> do
         (x,e) <- reify b
         return $ A.Lam exprInfo (DomainFree h Relevant x) e
@@ -286,7 +286,7 @@ instance Reify Term Expr where
           (x, b)    <- reify b
           return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Sort s     -> reify s
-      I.MetaV x vs -> apps =<< reify (x,vs)
+      I.MetaV x vs -> uncurry apps =<< reify (x,vs)
       I.DontCare v -> A.DontCare <$> reify v
 
 instance Reify Elim Expr where
