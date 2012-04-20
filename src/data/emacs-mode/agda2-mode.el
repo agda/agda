@@ -13,7 +13,7 @@
 (defvar agda2-version "2.3.1"
   "The version of the Agda mode.
 Note that, by default, the same version of the underlying Haskell
-library is used (see `agda2-ghci-options').")
+library is used (see `agda2-agda-executable-options').")
 
 (require 'cl)
 (set (make-local-variable 'lisp-indent-function)
@@ -88,10 +88,10 @@ the root of the current project."
                  (const "JS"))
   :group 'agda2)
 
-(defcustom agda2-ghci-options
+(defcustom agda2-agda-executable-options
   (list "--ghci-interaction"  ; Run agda in ghci interaction mode
         )
-  "Command-line options given to GHCi.
+  "Command-line options given to agda executable.
 These options are prepended to `haskell-ghci-program-args'."
   :type '(repeat string)
   :group 'agda2)
@@ -395,7 +395,7 @@ Special commands:
                     (set (make-local-variable 'haskell-ghci-program-name)
                          "agda")
                     (set (make-local-variable 'haskell-ghci-program-args)
-                         (append agda2-ghci-options haskell-ghci-program-args))
+                         (append agda2-agda-executable-options haskell-ghci-program-args))
                     (haskell-ghci-start-process nil)
                     (setq agda2-process        haskell-ghci-process
                           agda2-process-buffer haskell-ghci-process-buffer
