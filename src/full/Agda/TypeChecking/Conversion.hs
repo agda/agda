@@ -537,6 +537,10 @@ compareArgs :: [Polarity] -> Type -> Term -> Args -> Args -> TCM ()
 compareArgs pol a v args1 args2 =
   compareElims pol a v (map Apply args1) (map Apply args2)
 
+---------------------------------------------------------------------------
+-- * Types
+---------------------------------------------------------------------------
+
 -- | Equality on Types
 compareType :: Comparison -> Type -> Type -> TCM ()
 compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
@@ -549,29 +553,28 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
---        let cs1 = []
 	compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
-                  TypeError _ _ -> do
-                    reportSDoc "tc.conv.type" 30 $ vcat
-                      [ text "sort comparison failed"
-                      , nest 2 $ vcat
-                        [ text "s1 =" <+> prettyTCM s1
-                        , text "s2 =" <+> prettyTCM s2
-                        ]
-                      ]
-                    -- This error will probably be more informative
-                    compareTerm cmp (sort s1) a1 a2
-                    -- Throw the original error if the above doesn't
-                    -- give an error (for instance, due to pending
-                    -- constraints).
-                    -- Or just ignore it... We run into this with irrelevant levels
-                    -- which may show up in sort constraints, causing them to fail.
-                    -- In any case it's not safe to ignore the error, for instance
-                    -- a1 might be Set and a2 a meta of type Set, in which case we
-                    -- really need the sort comparison to fail, instead of silently
-                    -- instantiating the meta.
-                    throwError err
-                  _             -> throwError err
+          TypeError _ _ -> do
+            reportSDoc "tc.conv.type" 30 $ vcat
+              [ text "sort comparison failed"
+              , nest 2 $ vcat
+                [ text "s1 =" <+> prettyTCM s1
+                , text "s2 =" <+> prettyTCM s2
+                ]
+              ]
+            -- This error will probably be more informative
+            compareTerm cmp (sort s1) a1 a2
+            -- Throw the original error if the above doesn't
+            -- give an error (for instance, due to pending
+            -- constraints).
+            -- Or just ignore it... We run into this with irrelevant levels
+            -- which may show up in sort constraints, causing them to fail.
+            -- In any case it's not safe to ignore the error, for instance
+            -- a1 might be Set and a2 a meta of type Set, in which case we
+            -- really need the sort comparison to fail, instead of silently
+            -- instantiating the meta.
+            throwError err
+          _             -> throwError err
 	compareTerm cmp (sort s1) a1 a2
 	return ()
 
