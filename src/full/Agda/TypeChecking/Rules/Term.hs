@@ -119,9 +119,9 @@ isTypeEqualTo :: A.Expr -> Type -> TCM Type
 isTypeEqualTo e t = case e of
   A.ScopedExpr _ e -> isTypeEqualTo e t
   A.Underscore i | A.metaNumber i == Nothing -> return t
-  e -> do
+  e -> workOnTypes $ do
     t' <- isType e (getSort t)
-    t' <$ leqType_ t t'
+    t' <$ leqType t t'
 
 leqType_ :: Type -> Type -> TCM ()
 leqType_ t t' = workOnTypes $ leqType t t'
