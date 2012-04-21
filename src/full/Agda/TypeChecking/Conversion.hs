@@ -10,9 +10,11 @@ import Data.Traversable hiding (mapM, sequence)
 import Data.List hiding (sort)
 import qualified Data.List as List
 
+import Agda.Syntax.Abstract.Views (isSet)
 import Agda.Syntax.Literal
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Translation.InternalToAbstract (reify)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
@@ -587,7 +589,17 @@ leqType = compareType CmpLeq
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
 coerce :: Term -> Type -> Type -> TCM Term
-coerce v t1 t2 = blockTerm t2 $ v <$ do workOnTypes $ leqType t1 t2
+coerce v t1 t2 = blockTerm t2 $ do
+  verboseS "tc.conv.coerce" 10 $ do
+    (a1,a2) <- reify (t1,t2)
+    let dbglvl = if isSet a1 && isSet a2 then 50 else 10
+    reportSDoc "tc.conv.coerce" dbglvl $
+      text "coerce" <+> vcat
+        [ text "term      v  =" <+> prettyTCM v
+        , text "from type t1 =" <+> prettyTCM a1
+        , text "to type   t2 =" <+> prettyTCM a2
+        ]
+  v <$ do workOnTypes $ leqType t1 t2
 
 ---------------------------------------------------------------------------
 -- * Sorts

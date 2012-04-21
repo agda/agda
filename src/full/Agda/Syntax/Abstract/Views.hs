@@ -26,3 +26,10 @@ appView e =
 unAppView :: AppView -> Expr
 unAppView (Application h es) =
   foldl (App (ExprRange noRange)) h es
+
+-- | Check whether we are dealing with a universe.
+isSet :: Expr -> Bool
+isSet (ScopedExpr _ e) = isSet e
+isSet (App _ e _)      = isSet e
+isSet (Set{})          = True
+isSet _                = False
