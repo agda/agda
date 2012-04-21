@@ -7,8 +7,6 @@ module Agda.Interaction.Highlighting.Range
   , rangeInvariant
   , overlapping
   , toList
-  , getRanges
-  , getRangesA
   , rToR
   , Agda.Interaction.Highlighting.Range.tests
   ) where
@@ -17,8 +15,6 @@ import Agda.Utils.QuickCheck
 import Data.List
 import Data.Generics (Typeable, Data)
 import Agda.Utils.TestHelpers
-import qualified Agda.Syntax.Abstract as A
-import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Position as P
 
 -- | Character ranges. The first character in the file has position 1.
@@ -50,22 +46,6 @@ toList r = [from r .. to r - 1]
 
 ------------------------------------------------------------------------
 -- Conversion
-
--- | Calculates a set of ranges associated with a name.
---
--- For an operator the ranges associated with the NameParts are
--- returned. Otherwise the range associated with the Name is returned.
---
--- A boolean, indicating operatorness, is also returned.
-
-getRanges :: C.Name -> ([Range], Bool)
-getRanges n = (rToR $ P.getRange n, C.isOperator n)
-
--- | Like 'getRanges', but for 'A.QName's. Note that the module part
--- of the name is thrown away; only the base part is used.
-
-getRangesA :: A.QName -> ([Range], Bool)
-getRangesA = getRanges . A.nameConcrete . A.qnameName
 
 -- | Converts a 'P.Range' to a list of 'Range's.
 

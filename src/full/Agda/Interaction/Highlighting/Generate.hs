@@ -100,8 +100,8 @@ highlightAsTypeChecked typeChecked x =
         liftIO $ stInteractionOutputCallback st $ Resp_HighlightingInfo file
   where
   file = compress $
-         several (rToR $ P.continuousPerLine $ P.getRange x) $
-         mempty { otherAspects = [aspect] }
+    singleton (P.continuousPerLine $ P.getRange x)
+              (mempty { otherAspects = [aspect] })
   aspect = if typeChecked then TypeChecked else TypeChecks
 
 -- | Generates syntax highlighting information for an error,
@@ -125,10 +125,10 @@ generateErrorInfo r s =
 
 generateErrorFile :: P.Range -> Maybe String -> File
 generateErrorFile r s =
-  several (rToR $ P.continuousPerLine r)
-          (mempty { otherAspects = [Error]
-                  , note         = s
-                  })
+  singleton (P.continuousPerLine r)
+            (mempty { otherAspects = [Error]
+                    , note         = s
+                    })
 
 -- | Generates syntax highlighting information.
 
@@ -193,7 +193,7 @@ generateSyntaxInfo file mErr top termErrs = do
     decls = CA.topLevelDecls top
 
     -- Converts an aspect and a range to a file.
-    aToF a r = several (rToR r) (mempty { aspect = Just a })
+    aToF a r = singleton r (mempty { aspect = Just a })
 
     tokInfo = Fold.foldMap tokenToFile
       where
@@ -220,9 +220,9 @@ generateSyntaxInfo file mErr top termErrs = do
     termInfo = functionDefs `mappend` callSites
       where
       m            = mempty { otherAspects = [TerminationProblem] }
-      functionDefs = Fold.foldMap (\x -> several (rToR $ bindingSite x) m) $
+      functionDefs = Fold.foldMap (\x -> singleton (bindingSite x) m) $
                      concatMap M.termErrFunctions termErrs
-      callSites    = Fold.foldMap (\r -> several (rToR r) m) $
+      callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
     -- All names mentioned in the syntax tree (not bound variables).
@@ -293,8 +293,8 @@ generateSyntaxInfo file mErr top termErrs = do
       getPattern (A.VarP x)    = bound x
       getPattern (A.AsP _ x _) = bound x
       getPattern (A.DotP pi _) =
-        several (rToR $ P.getRange pi)
-                (mempty { otherAspects = [DottedPattern] })
+        singleton (P.getRange pi)
+                  (mempty { otherAspects = [DottedPattern] })
       getPattern _             = mempty
 
       getFieldDecl :: A.Declaration -> File
@@ -487,8 +487,8 @@ computeUnsolvedMetaWarnings = do
   ms <- filterM notBlocked =<< getOpenMetas
 
   rs <- mapM getMetaRange (ms \\ is)
-  return $ several (concatMap (rToR . P.continuousPerLine) rs)
-         $ mempty { otherAspects = [UnsolvedMeta] }
+  return $ several (map P.continuousPerLine rs)
+                   (mempty { otherAspects = [UnsolvedMeta] })
 
 -- | Generates syntax highlighting information for unsolved constraints
 -- that are not connected to a meta variable.
@@ -498,8 +498,8 @@ computeUnsolvedConstraints = do
   cs <- getAllConstraints
   -- get ranges of emptyness constraints
   let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
-  return $ several (concatMap (rToR . P.continuousPerLine) rs)
-         $ mempty { otherAspects = [UnsolvedConstraint] }
+  return $ several (map P.continuousPerLine rs)
+                   (mempty { otherAspects = [UnsolvedConstraint] })
 
 -- | Generates a suitable file for a possibly ambiguous name.
 
@@ -545,13 +545,12 @@ nameToFile :: SourceToModule
 nameToFile modMap file xs x m mR =
   -- We don't care if we get any funny ranges.
   if all (== Just file) fileNames then
-    several rs' ((m isOp) { definitionSite = mFilePos })
+    several rs ((m $ C.isOperator x) { definitionSite = mFilePos })
    else
     mempty
   where
   fileNames  = catMaybes $ map (fmap P.srcFile . P.rStart . P.getRange) (x : xs)
-  (rs, isOp) = getRanges x
-  rs'        = rs ++ concatMap (fst . getRanges) xs
+  rs         = map P.getRange (x : xs)
   mFilePos   = do
     r <- mR
     P.Pn { P.srcFile = Just f, P.posPos = p } <- P.rStart r

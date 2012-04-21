@@ -125,9 +125,9 @@ type HighlightingInfo = CompressedFile
 -- | @'singleton' r m@ is a file whose positions are those in @r@, and
 -- in which every position is associated with @m@.
 
-singleton :: Range -> MetaInfo -> File
+singleton :: P.Range -> MetaInfo -> File
 singleton r m = File {
- mapping = Map.fromAscList [ (p, m) | p <- toList r ] }
+ mapping = Map.fromAscList [ (p, m) | r <- rToR r, p <- toList r ] }
 
 prop_singleton r m =
   compress (singleton r m) ==
@@ -135,7 +135,7 @@ prop_singleton r m =
 
 -- | Like 'singleton', but with several ranges instead of only one.
 
-several :: [Range] -> MetaInfo -> File
+several :: [P.Range] -> MetaInfo -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
 
 ------------------------------------------------------------------------
