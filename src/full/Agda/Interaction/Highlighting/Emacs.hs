@@ -82,7 +82,7 @@ showHighlightingInfo
      -- definition site's module.
   -> String
 showHighlightingInfo (h, modFile) = show $
-  L $ map (showMetaInfo modFile) h
+  L $ map (showMetaInfo modFile) (ranges h)
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
@@ -92,7 +92,8 @@ showHighlightingInfo (h, modFile) = show $
 
 lispifyHighlightingInfo :: HighlightingInfo -> Lisp String
 lispifyHighlightingInfo file =
-  L (A "agda2-typechecking-emacs" : map (showMetaInfo __IMPOSSIBLE__) file)
+  L (A "agda2-typechecking-emacs" :
+     map (showMetaInfo __IMPOSSIBLE__) (ranges file))
 
 ------------------------------------------------------------------------
 -- All tests

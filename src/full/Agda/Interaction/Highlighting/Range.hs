@@ -6,6 +6,7 @@ module Agda.Interaction.Highlighting.Range
   ( Range(..)
   , rangeInvariant
   , overlapping
+  , empty
   , toList
   , rToR
   , Agda.Interaction.Highlighting.Range.tests
@@ -38,6 +39,11 @@ rangeInvariant r = from r <= to r
 overlapping :: Range -> Range -> Bool
 overlapping r1 r2 = not $
   to r1 <= from r2 || to r2 <= from r1
+
+-- | 'True' iff the range is empty.
+
+empty :: Range -> Bool
+empty r = to r <= from r
 
 -- | Converts a range to a list of positions.
 

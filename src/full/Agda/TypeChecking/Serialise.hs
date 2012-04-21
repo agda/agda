@@ -1039,6 +1039,13 @@ instance EmbPrj ScopeInfo where
   value = vcase valu where valu [a, b, c, d] = valu4 ScopeInfo a b c d
                            valu _            = malformed
 
+instance EmbPrj HP.HighlightingInfo where
+  icode (HP.CompressedFile f) = icode1' f
+  value = vcase valu
+    where
+    valu [f] = valu1 HP.CompressedFile f
+    valu _   = malformed
+
 instance EmbPrj Interface where
   icode (Interface a b c d e f g h i j) = icode10' a b c d e f g h i j
   value = vcase valu

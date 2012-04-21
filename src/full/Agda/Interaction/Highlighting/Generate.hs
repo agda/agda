@@ -94,7 +94,7 @@ highlightAsTypeChecked
   -> tcm ()
 highlightAsTypeChecked typeChecked x =
   whenM (envInteractiveHighlighting <$> ask) $
-    unless (null file) $
+    unless (null $ ranges file) $
       liftTCM $ do
         st <- get
         liftIO $ stInteractionOutputCallback st $ Resp_HighlightingInfo file
