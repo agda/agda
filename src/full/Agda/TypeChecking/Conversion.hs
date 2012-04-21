@@ -377,9 +377,9 @@ compareAtom cmp t m n =
         conType _ _ = __IMPOSSIBLE__
 
 	equalFun t1@(Pi dom1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
-	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
+	    | h1 /= h2	= typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
+	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance t1 t2
 	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
@@ -394,8 +394,6 @@ compareAtom cmp t m n =
                   then guardConstraint conCoDom checkDom
                   else checkDom >> solveConstraint_ conCoDom
 	    where
-		ty1 = El __IMPOSSIBLE__ t1
-		ty2 = El __IMPOSSIBLE__ t2
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
 {- OLD CODE

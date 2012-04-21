@@ -981,9 +981,9 @@ data TypeError
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
 	| UnequalTelescopes Comparison Telescope Telescope
-	| UnequalRelevance Type Type
+	| UnequalRelevance Term Term
 	    -- ^ The two function types have different relevance.
-	| UnequalHiding Type Type
+	| UnequalHiding Term Term
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort
         | HeterogeneousEquality Term Type Term Type
