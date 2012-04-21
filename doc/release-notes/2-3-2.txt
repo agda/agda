@@ -178,6 +178,11 @@ Tools
 
   The executable is now provided as part of the Agda package.
 
+* Agda does not depend on haskell-mode any more.
+
+* The binary distributions of Agda need not depend on
+  GHC and the Haskell libraries any more.
+
 Emacs mode
 ----------
 
@@ -219,3 +224,23 @@ Emacs mode
   One can now comment or uncomment the rest of the buffer by typing
   C-c C-x M-; or by selecting the menu entry "Comment/uncomment the
   rest of the buffer".
+
+* The Emacs mode now uses the agda executable instead of ghci.
+
+  agda2-ghci-options is renamed to agda2-program-args and the default
+  value is changed to "--ghci-interaction" which option is needed
+  for proper operation.
+  From now on you can tweak the ghc runtime behaviour with
+  agda2-program-args instead of agda2-ghci-options
+  (like adding "+RTS -K40M -M1.5G -RTS").
+
+  agda2-program-name is a new configuration variable with default
+  value "agda".
+
+* The Emacs mode now does not depend on haskell-mode.
+
+  haskell-mode configuration variables are not taken into account
+  any more. This should have no effect on the behaviour
+  of Emacs mode.
+
+
