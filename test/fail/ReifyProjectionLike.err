@@ -1,0 +1,4 @@
+ReifyProjectionLike.agda:20,8-14
+just is not a constructor of the datatype Sing
+when checking that the pattern just x has type
+Sing A (fromJust _ m)

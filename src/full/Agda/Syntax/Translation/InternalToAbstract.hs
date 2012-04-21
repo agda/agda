@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
-             UndecidableInstances, TypeSynonymInstances, FlexibleInstances
+             UndecidableInstances, TypeSynonymInstances, FlexibleInstances,
+             ScopedTypeVariables
   #-}
 
 {-|
@@ -212,9 +213,9 @@ instance Reify Term Expr where
           reifyApp (A.Var x) vs
       I.Def x@(QName _ name) vs -> reifyDisplayForm x vs $ do
         mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
-        (pad, vs) <-
+        (pad, vs :: [NamedArg Term]) <-
           case mdefn of
-            Nothing -> (,) [] <$> (flip genericDrop vs <$> getDefFreeVars x)
+            Nothing -> (,) [] <$> do map (fmap unnamed) <$> (flip genericDrop vs <$> getDefFreeVars x)
             Just defn -> do
               let def = theDef defn
               -- This is tricky:
@@ -228,21 +229,26 @@ instance Reify Term Expr where
               -- We should drop this many arguments from the local context.
               n <- getDefFreeVars x
               -- These are the dropped projection arguments
-              pad <- case def of
+              (np, pad, dom) <-
+                  case def of
                       Function{ funProjection = Just (_, np) } -> do
                         TelV tel _ <- telView (defType defn)
                         scope <- getScope
-                        let as       = take (np - 1) $ telToList tel
+                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
                             whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                        return $ map (argFromDom . (fmap $ const whocares)) as
-                      _ -> return []
+                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
+                      _ -> return (0, [], __IMPOSSIBLE__)
               -- Now pad' ++ vs' = drop n (pad ++ vs)
               let pad' = genericDrop n pad
+                  vs'  :: [Arg Term]
                   vs'  = genericDrop (max 0 (n - size pad)) vs
-              -- If showImplicit then keep the padding otherwise ignore it
-              ifM showImplicitArguments
-                  (return (pad', vs'))
-                  (return ([], vs'))
+              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
+              -- Keep non-hidden arguments of the padding
+              showImp <- showImplicitArguments
+              return (filter (not . isHiddenArg) pad',
+                if not (null pad) && showImp && isHiddenArg (last pad)
+                   then nameFirstIfHidden dom vs'
+                   else map (fmap unnamed) vs')
         df <- displayFormsEnabled
         if df && isPrefixOf extendlambdaname (show name)
           then do
@@ -251,10 +257,10 @@ instance Reify Term Expr where
            cls <- mapM (reify . (NamedClause x)) $ defClauses info
            -- Karim: Currently Abs2Conc does not require a DefInfo thus we
            -- use __IMPOSSIBLE__.
-           reifyApp (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) vs
-          else
-           let apps = foldl (\e a -> A.App exprInfo e (fmap unnamed a)) in
-           reifyApp (A.Def x `apps` pad) vs
+           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
+          else do
+           let apps = foldl (\e a -> A.App exprInfo e (fmap unnamed a))
+           napps (A.Def x `apps` pad) =<< reify vs
       I.Con x vs   -> do
         isR <- isGeneratedRecordConstructor x
         case isR of
@@ -274,14 +280,11 @@ instance Reify Term Expr where
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
             -- with the parameter arguments which can be supplied in abstract syntax
-            let nameFirstIfHidden (Arg Hidden r e : es) =
-                  -- get name of argument from type of constructor
-                  let TelV tel _         = telView' $ defType ci
-                      Dom _ _ (x, _) : _ = genericDrop np $ telToList tel
-                  in  Arg Hidden r (Named (Just x) e) : map (fmap unnamed) es
-                nameFirstIfHidden es = map (fmap unnamed) es
             if (np == 0) then apps (A.Con (AmbQ [x])) $ genericDrop n es
-             else napps (A.Con (AmbQ [x])) $ genericDrop (n - np) $ nameFirstIfHidden es
+             else   -- get name of argument from type of constructor
+              let TelV tel _ = telView' (defType ci)
+                  dom : _    = genericDrop np $ telToList tel
+              in  napps (A.Con (AmbQ [x])) $ genericDrop (n - np) $ nameFirstIfHidden dom es
 {- OLD CODE: reify parameter arguments of constructor
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
@@ -303,6 +306,15 @@ instance Reify Term Expr where
       I.Sort s     -> reify s
       I.MetaV x vs -> uncurry apps =<< reify (x,vs)
       I.DontCare v -> A.DontCare <$> reify v
+
+-- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
+nameFirstIfHidden :: Dom (String, t) -> [Arg a] -> [NamedArg a]
+nameFirstIfHidden dom (Arg Hidden r e : es) =
+  Arg Hidden r (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
+nameFirstIfHidden dom es = map (fmap unnamed) es
+
+instance Reify i a => Reify (Named n i) (Named n a) where
+  reify = traverse reify
 
 instance Reify Elim Expr where
   reify e = case e of
