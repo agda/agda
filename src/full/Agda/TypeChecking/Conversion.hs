@@ -587,7 +587,7 @@ leqType = compareType CmpLeq
 --   In principle, this function can host coercive subtyping, but
 --   currently it only tries to fix problems with hidden function types.
 coerce :: Term -> Type -> Type -> TCM Term
-coerce v t1 t2 = v <$ do workOnTypes $ leqType t1 t2
+coerce v t1 t2 = blockTerm t2 $ v <$ do workOnTypes $ leqType t1 t2
 
 ---------------------------------------------------------------------------
 -- * Sorts

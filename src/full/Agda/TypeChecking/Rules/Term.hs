@@ -290,7 +290,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
 checkLiteral :: Literal -> Type -> TCM Term
 checkLiteral lit t = do
   t' <- litType lit
-  blockTerm t $ coerce (Lit lit) t' t
+  coerce (Lit lit) t' t
 
 litType :: Literal -> TCM Type
 litType l = case l of
@@ -407,7 +407,7 @@ checkExpr e t =
             reportSDoc "tc.univ.poly" 10 $
               text "checking Set " <+> prettyTCM n <+>
               text "against" <+> prettyTCM t
-            blockTerm t $ coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
+            coerce (Sort $ Type n) (sort $ sSuc $ Type n) t
 
         A.App i q (Arg NotHidden r e)
           | A.Quote _ <- unScope q -> do
@@ -418,13 +418,13 @@ checkExpr e t =
               quoted _                  = typeError $ GenericError $ "quote: not a defined name"
           x <- quoted (namedThing e)
           ty <- qNameType
-          blockTerm t $ coerce (quoteName x) ty t
+          coerce (quoteName x) ty t
 
           | A.QuoteTerm _ <- unScope q ->
              do (et, _) <- inferExpr (namedThing e)
                 q <- quoteTerm =<< normalise et
                 ty <- el primAgdaTerm
-                blockTerm t $ coerce q ty t
+                coerce q ty t
 
 	  | A.Unquote _ <- unScope q ->
 	     do e1 <- checkExpr (namedThing e) =<< el primAgdaTerm
@@ -571,19 +571,19 @@ checkExpr e t =
                    , nest 2 $ text "t   =" <+> prettyTCM t'
                    , nest 2 $ text "cxt =" <+> (prettyTCM =<< getContextTelescope)
                    ]
-	    blockTerm t $ coerce (unEl t') (sort s) t
+	    coerce (unEl t') (sort s) t
 	A.Fun _ (Arg h r a) b -> do
 	    a' <- isType_ a
 	    b' <- isType_ b
 	    s <- reduce $ getSort a' `sLub` getSort b'
-	    blockTerm t $ coerce (Pi (Dom h r a') (NoAbs "_" b')) (sort s) t
+	    coerce (Pi (Dom h r a') (NoAbs "_" b')) (sort s) t
 	A.Set _ n    -> do
           n <- ifM typeInType (return 0) (return n)
-	  blockTerm t $ coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
+	  coerce (Sort $ mkType n) (sort $ mkType $ n + 1) t
 	A.Prop _     -> do
           typeError $ GenericError "Prop is no longer supported"
           -- s <- ifM typeInType (return $ mkType 0) (return Prop)
-	  -- blockTerm t $ coerce (Sort Prop) (sort $ mkType 1) t
+	  -- coerce (Sort Prop) (sort $ mkType 1) t
 
 	A.Rec _ fs  -> do
 	  t <- reduce t
@@ -633,7 +633,10 @@ checkExpr e t =
                                  _       -> __IMPOSSIBLE__
                       inferred = El s $ Def r vs
                   v <- checkExpr e inferred
-                  blockTerm t $ coerce v t inferred
+                  coerce v inferred t
+                  -- Andreas 2012-04-21: OLD CODE, WRONG DIRECTION, I GUESS:
+                  -- blockTerm t $ v <$ leqType_ t inferred
+
                   -- If there are more than one possible record we postpone
                 _:_:_ -> do
                   reportSDoc "tc.term.expr.rec" 10 $ sep
@@ -662,7 +665,7 @@ checkExpr e t =
                 MetaV _ _ -> postponeTypeCheckingProblem_ e t
                 _         -> do
                   v <- checkExpr e inferred
-                  blockTerm t $ coerce v t inferred
+                  coerce v inferred t
             _         -> typeError $ ShouldBeRecordType t
           where
             replaceFields :: Name -> A.ExprInfo -> Arg A.QName -> Maybe A.Expr -> Maybe A.Expr
@@ -785,7 +788,7 @@ checkMeta newMeta t i = do
     Just n -> do
       let v = MetaV (MetaId n) []
       t' <- jMetaType . mvJudgement <$> lookupMeta (MetaId n)
-      blockTerm t $ v <$ leqType t' t
+      coerce v t' t
 
 inferMeta :: (Type -> TCM Term) -> A.MetaInfo -> TCM (Args -> Term, Type)
 inferMeta newMeta i =
@@ -903,7 +906,7 @@ checkConstructorApplication org t c args =
           reportSDoc "tc.term.con" 20 $ nest 2 $ vcat
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
-          blockTerm t $ coerce (Con c us) t' t
+          coerce (Con c us) t' t
       _ -> fallback
   where
     fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
@@ -1054,7 +1057,7 @@ checkHeadApplication e t hd args = do
   defaultResult = do
     (f, t0) <- inferHead hd
     checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
-      blockTerm t $ coerce (f vs) t1 t
+      coerce (f vs) t1 t
 
 data ExpandHidden = ExpandLast | DontExpandLast
 data ExpandInstances = ExpandInstanceArguments | DontExpandInstanceArguments deriving (Eq)
