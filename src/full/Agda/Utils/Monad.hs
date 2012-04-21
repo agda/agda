@@ -2,6 +2,12 @@
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
+{- Andreas 2012-04-21: I'd like to reexport Control.Monad except
+   patching when and unless, but the hiding syntax is not valid yet
+   (only a proposed language extension)
+
+    , module Control.Monad hiding (when, unless)
+-}
     , (<$>), (<*>)
     )
     where
@@ -22,18 +28,26 @@ import Agda.Utils.List
 
 -- Monads -----------------------------------------------------------------
 
+{- Andreas 2012-04-21: <.> is obsolete, it is called <=< in Control.Monad
 infixl 8 <.>
 
 (<.>) :: Monad m => (b -> m c) -> (a -> m b) -> a -> m c
 f <.> g = \x -> f =<< g x
+-}
 
-whenM :: Monad m => m Bool -> m () -> m ()
-whenM c m = do	b <- c
-		when b m
+-- | @when_@ is just @Control.Monad.when@ with a more general type.
+when_ :: Monad m => Bool -> m a -> m ()
+when_ b m = when b $ do m >> return ()
 
-unlessM :: Monad m => m Bool -> m () -> m ()
-unlessM c m = do    b <- c
-		    unless b m
+-- | @unless_@ is just @Control.Monad.unless@ with a more general type.
+unless_ :: Monad m => Bool -> m a -> m ()
+unless_ b m = unless b $ do m >> return ()
+
+whenM :: Monad m => m Bool -> m a -> m ()
+whenM c m = c >>= (`when_` m)
+
+unlessM :: Monad m => m Bool -> m a -> m ()
+unlessM c m = c >>= (`unless_` m)
 
 ifM :: Monad m => m Bool -> m a -> m a -> m a
 ifM c m m' =

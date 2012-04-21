@@ -3,6 +3,7 @@
 module Agda.Compiler.MAlonzo.Compiler where
 
 import Control.Applicative
+import Control.Monad ((<=<))
 import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char
@@ -15,7 +16,7 @@ import qualified Language.Haskell.Exts.Syntax as HS
 import System.Cmd
 import System.Directory
 import System.Time
-import System.FilePath hiding (normalise, (<.>))
+import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
 import Agda.Compiler.MAlonzo.Misc
@@ -104,7 +105,7 @@ imports = (++) <$> hsImps <*> imps where
 definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
-  M.fold (liftM2 (++) . (definition kit <.> instantiateFull))
+  M.fold (liftM2 (++) . (definition kit <=< instantiateFull))
          declsForPrim
          defs
 
