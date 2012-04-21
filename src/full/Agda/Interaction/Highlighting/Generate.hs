@@ -117,18 +117,18 @@ generateErrorInfo r s =
     Nothing                                          -> Nothing
     Just (P.Pn { P.srcFile = Nothing })              -> Nothing
     Just (P.Pn { P.srcFile = Just f, P.posPos = p }) ->
-      Just $ generateErrorFile r s
+      Just $ compress $ generateErrorFile r s
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and an optional string. The error range is
 -- completed so that there are no gaps in it.
 
-generateErrorFile :: P.Range -> Maybe String -> CompressedFile
+generateErrorFile :: P.Range -> Maybe String -> File
 generateErrorFile r s =
-  singletonC (P.continuousPerLine r)
-             (mempty { otherAspects = [Error]
-                     , note         = s
-                     })
+  singleton (P.continuousPerLine r)
+            (mempty { otherAspects = [Error]
+                    , note         = s
+                    })
 
 -- | Generates syntax highlighting information.
 
@@ -179,7 +179,7 @@ generateSyntaxInfo file mErr top termErrs = do
     -- constructors are included in both lists. Finally tokInfo is
     -- placed last since token highlighting is more crude than the
     -- others.
-    return $ mconcat
+    return $ compress $ mconcat
       [ errorInfo
       , constructorInfo
       , theRest modMap
@@ -193,11 +193,11 @@ generateSyntaxInfo file mErr top termErrs = do
     decls = CA.topLevelDecls top
 
     -- Converts an aspect and a range to a file.
-    aToF a r = singletonC r (mempty { aspect = Just a })
+    aToF a r = singleton r (mempty { aspect = Just a })
 
     tokInfo = Fold.foldMap tokenToFile
       where
-      tokenToFile :: T.Token -> CompressedFile
+      tokenToFile :: T.Token -> File
       tokenToFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
       tokenToFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
       tokenToFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
@@ -220,9 +220,9 @@ generateSyntaxInfo file mErr top termErrs = do
     termInfo = functionDefs `mappend` callSites
       where
       m            = mempty { otherAspects = [TerminationProblem] }
-      functionDefs = Fold.foldMap (\x -> singletonC (bindingSite x) m) $
+      functionDefs = Fold.foldMap (\x -> singleton (bindingSite x) m) $
                      concatMap M.termErrFunctions termErrs
-      callSites    = Fold.foldMap (\r -> singletonC r m) $
+      callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
     -- All names mentioned in the syntax tree (not bound variables).
@@ -242,7 +242,7 @@ generateSyntaxInfo file mErr top termErrs = do
     -- the "as" and "to" symbols.
     theRest modMap = everything' mappend query decls
       where
-      query :: GenericQ CompressedFile
+      query :: GenericQ File
       query = mempty         `mkQ`
               getFieldDecl   `extQ`
               getVarAndField `extQ`
@@ -271,33 +271,33 @@ generateSyntaxInfo file mErr top termErrs = do
                    (Just $ (if isTopLevelModule then P.beginningOfFile else id)
                              (A.nameBindingSite n))
 
-      getVarAndField :: A.Expr -> CompressedFile
+      getVarAndField :: A.Expr -> File
       getVarAndField (A.Var x)    = bound x
       getVarAndField (A.Rec _ fs) = mconcat $ map (field [] . fst) fs
       getVarAndField _            = mempty
 
-      getLet :: A.LetBinding -> CompressedFile
+      getLet :: A.LetBinding -> File
       getLet (A.LetBind _ _ x _ _) = bound x
       getLet A.LetApply{}          = mempty
       getLet A.LetOpen{}           = mempty
 
-      getLam :: A.LamBinding -> CompressedFile
+      getLam :: A.LamBinding -> File
       getLam (A.DomainFree _ _ x) = bound x
       getLam (A.DomainFull {})  = mempty
 
-      getTyped :: A.TypedBinding -> CompressedFile
+      getTyped :: A.TypedBinding -> File
       getTyped (A.TBind _ xs _) = mconcat $ map bound xs
       getTyped (A.TNoBind {})   = mempty
 
-      getPattern :: A.Pattern -> CompressedFile
+      getPattern :: A.Pattern -> File
       getPattern (A.VarP x)    = bound x
       getPattern (A.AsP _ x _) = bound x
       getPattern (A.DotP pi _) =
-        singletonC (P.getRange pi)
-                   (mempty { otherAspects = [DottedPattern] })
+        singleton (P.getRange pi)
+                  (mempty { otherAspects = [DottedPattern] })
       getPattern _             = mempty
 
-      getFieldDecl :: A.Declaration -> CompressedFile
+      getFieldDecl :: A.Declaration -> File
       getFieldDecl (A.RecDef _ _ _ _ _ fs) = Fold.foldMap extractField fs
         where
         extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
@@ -306,7 +306,7 @@ generateSyntaxInfo file mErr top termErrs = do
         extractField _                   = mempty
       getFieldDecl _                   = mempty
 
-      getModuleName :: A.ModuleName -> CompressedFile
+      getModuleName :: A.ModuleName -> File
       getModuleName m@(A.MName { A.mnameToList = xs }) =
         mconcat $ map (mod isTopLevelModule) xs
         where
@@ -320,7 +320,7 @@ generateSyntaxInfo file mErr top termErrs = do
                      Just (C.toTopLevelModuleName $ A.mnameToConcrete m)
             []    -> False
 
-      getModuleInfo :: SI.ModuleInfo -> CompressedFile
+      getModuleInfo :: SI.ModuleInfo -> File
       getModuleInfo (SI.ModuleInfo { SI.minfoAsTo   = asTo
                                    , SI.minfoAsName = name }) =
         aToF Symbol asTo `mappend` maybe mempty asName name
@@ -409,7 +409,7 @@ generateConstructorInfo
   -> AbsolutePath    -- ^ The module to highlight.
   -> NameKinds
   -> [A.Declaration]
-  -> TCM CompressedFile
+  -> TCM File
 generateConstructorInfo modMap file kinds decls = do
   -- Extract all defined names from the declaration list.
   let names = Fold.toList $ Fold.foldMap A.allNames decls
@@ -476,7 +476,7 @@ generateConstructorInfo modMap file kinds decls = do
 -- | Generates syntax highlighting information for unsolved meta
 -- variables.
 
-computeUnsolvedMetaWarnings :: TCM CompressedFile
+computeUnsolvedMetaWarnings :: TCM File
 computeUnsolvedMetaWarnings = do
   is <- getInteractionMetas
 
@@ -487,19 +487,19 @@ computeUnsolvedMetaWarnings = do
   ms <- filterM notBlocked =<< getOpenMetas
 
   rs <- mapM getMetaRange (ms \\ is)
-  return $ severalC (map P.continuousPerLine rs)
-                    (mempty { otherAspects = [UnsolvedMeta] })
+  return $ several (map P.continuousPerLine rs)
+                   (mempty { otherAspects = [UnsolvedMeta] })
 
 -- | Generates syntax highlighting information for unsolved constraints
 -- that are not connected to a meta variable.
 
-computeUnsolvedConstraints :: TCM CompressedFile
+computeUnsolvedConstraints :: TCM File
 computeUnsolvedConstraints = do
   cs <- getAllConstraints
   -- get ranges of emptyness constraints
   let rs = [ r | PConstr{ theConstraint = Closure{ clValue = IsEmpty r t }} <- cs ]
-  return $ severalC (map P.continuousPerLine rs)
-                    (mempty { otherAspects = [UnsolvedConstraint] })
+  return $ several (map P.continuousPerLine rs)
+                   (mempty { otherAspects = [UnsolvedConstraint] })
 
 -- | Generates a suitable file for a possibly ambiguous name.
 
@@ -509,7 +509,7 @@ generate :: SourceToModule
             -- ^ The module to highlight.
          -> NameKinds
          -> A.AmbiguousQName
-         -> CompressedFile
+         -> File
 generate modMap file kinds (A.AmbQ qs) =
   mconcat $ map (\q -> nameToFileA modMap file q include m) qs
   where
@@ -523,7 +523,7 @@ generate modMap file kinds (A.AmbQ qs) =
     m isOp  = mempty { aspect = Just $ Name kind isOp }
     include = allEqual (map bindingSite qs)
 
--- | Converts names to suitable 'CompressedFile's.
+-- | Converts names to suitable 'File's.
 
 nameToFile :: SourceToModule
               -- ^ Maps source file paths to module names.
@@ -541,11 +541,11 @@ nameToFile :: SourceToModule
               -- ^ The definition site of the name. The calculated
               -- meta information is extended with this information,
               -- if possible.
-           -> CompressedFile
+           -> File
 nameToFile modMap file xs x m mR =
   -- We don't care if we get any funny ranges.
   if all (== Just file) fileNames then
-    severalC rs ((m $ C.isOperator x) { definitionSite = mFilePos })
+    several rs ((m $ C.isOperator x) { definitionSite = mFilePos })
    else
     mempty
   where
@@ -571,7 +571,7 @@ nameToFileA :: SourceToModule
             -> (Bool -> MetaInfo)
                -- ^ Meta information to be associated with the name.
                -- ^ The argument is 'True' iff the name is an operator.
-            -> CompressedFile
+            -> File
 nameToFileA modMap file x include m =
   nameToFile modMap
              file
