@@ -2,5 +2,5 @@
 Termination checking failed for the following functions:
   f
 Problematic calls:
-  f {i} (suc {i = i ^} (lift {i ^} x))
+  f {i} (suc {i ^} (lift {i ^} x))
     (at WrongSizeAssignment.agda:25,7-8)

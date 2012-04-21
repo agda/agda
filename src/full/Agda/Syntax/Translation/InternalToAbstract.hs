@@ -280,7 +280,8 @@ instance Reify Term Expr where
                       Dom _ _ (x, _) : _ = genericDrop np $ telToList tel
                   in  Arg Hidden r (Named (Just x) e) : map (fmap unnamed) es
                 nameFirstIfHidden es = map (fmap unnamed) es
-            napps (A.Con (AmbQ [x])) . genericDrop (n - np) $ nameFirstIfHidden es
+            if (np == 0) then apps (A.Con (AmbQ [x])) $ genericDrop n es
+             else napps (A.Con (AmbQ [x])) $ genericDrop (n - np) $ nameFirstIfHidden es
 {- OLD CODE: reify parameter arguments of constructor
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
