@@ -255,6 +255,7 @@ veryclean :
 ## Debugging the Makefile #################################################
 
 info :
+	@echo "The agda binary is at:         $(AGDA_BIN)"
 	@echo "Do we have ghc 6.4?            $(HAVE_GHC_6_4)"
 	@echo "Is this the darcs repository?  $(is_darcs_repo)"
 
