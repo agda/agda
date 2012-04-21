@@ -581,6 +581,14 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
 leqType :: Type -> Type -> TCM ()
 leqType = compareType CmpLeq
 
+-- | @coerce v a b@ coerces @v : a@ to type @b@, returning a @v' : b@
+--   with maybe extra hidden applications or hidden abstractions.
+--
+--   In principle, this function can host coercive subtyping, but
+--   currently it only tries to fix problems with hidden function types.
+coerce :: Term -> Type -> Type -> TCM Term
+coerce v t1 t2 = v <$ do workOnTypes $ leqType t1 t2
+
 ---------------------------------------------------------------------------
 -- * Sorts
 ---------------------------------------------------------------------------
