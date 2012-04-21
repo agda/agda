@@ -1,13 +1,15 @@
 ------------------------------------------------------------------------
 -- | Data type for all interactive responses
 ------------------------------------------------------------------------
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances #-}
 
 module Agda.Interaction.Response
   ( Response (..)
   , DisplayInfo (..)
   , Status (..)
   , GiveResult (..)
+  , InteractionOutputCallback
+  , defaultInteractionOutputCallback
   ) where
 
 import Agda.Interaction.Highlighting.Precise
@@ -19,6 +21,8 @@ import Agda.Utils.Pretty
 
 import Data.Int
 
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- | Responses for any interactive interface
 --
@@ -84,3 +88,28 @@ data GiveResult
     | Give_Paren
     | Give_NoParen
 
+-- | Callback fuction to call when there is a response
+--   to give to the interactive frontend.
+--
+--   Note that the response is given in pieces and incrementally,
+--   so the user can have timely response even during long computations.
+--
+--   Typical 'InteractionOutputCallback' functions:
+--
+--    * Convert the response into a 'String' representation and
+--      print it on standard output
+--      (suitable for inter-process communication).
+--
+--    * Put the response into a mutable variable stored in the
+--      closure of the 'InteractionOutputCallback' function.
+--      (suitable for intra-process communication).
+
+type InteractionOutputCallback = Response -> IO ()
+
+-- | The default 'InteractionOutputCallback' function
+--   is set to @__@@IMPOSSIBLE__@ because in this way it is easier to
+--   recognize that some response is lost due to an uninitialized
+--   'InteractionOutputCallback' function.
+
+defaultInteractionOutputCallback :: InteractionOutputCallback
+defaultInteractionOutputCallback = __IMPOSSIBLE__

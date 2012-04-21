@@ -37,7 +37,9 @@ import Agda.Interaction.Exceptions
 import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo, InteractionOutputCallback, defaultInteractionOutputCallback)
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
+import {-# SOURCE #-} Agda.Interaction.Response
+  (InteractionOutputCallback, defaultInteractionOutputCallback)
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
