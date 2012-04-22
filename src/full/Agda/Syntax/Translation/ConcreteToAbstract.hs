@@ -45,7 +45,6 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
-import Agda.Syntax.Strict
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
                                      TCErr(..), TCErr'(..), extendlambdaname)

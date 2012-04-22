@@ -184,7 +184,6 @@ library
                     Agda.Syntax.Position
                     Agda.Syntax.Scope.Base
                     Agda.Syntax.Scope.Monad
-                    Agda.Syntax.Strict
                     Agda.Syntax.Translation.AbstractToConcrete
                     Agda.Syntax.Translation.ConcreteToAbstract
                     Agda.Syntax.Translation.InternalToAbstract

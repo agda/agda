@@ -24,7 +24,6 @@ import Agda.Syntax.Parser.Monad as M hiding (Parser, parseFlags)
 import qualified Agda.Syntax.Parser.Monad as M
 import qualified Agda.Syntax.Parser.Parser as P
 import Agda.Syntax.Parser.Lexer
-import Agda.Syntax.Strict
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser.Tokens
 
@@ -33,11 +32,11 @@ import Agda.Utils.FileName
 ------------------------------------------------------------------------
 -- Wrapping parse results
 
-wrap :: Strict a => ParseResult a -> a
+wrap :: ParseResult a -> a
 wrap (ParseOk _ x)	= x
 wrap (ParseFailed err)	= throw err
 
-wrapM:: (Strict a, Monad m) => m (ParseResult a) -> m a
+wrapM:: Monad m => m (ParseResult a) -> m a
 wrapM m =
     do	r <- m
 	case r of
@@ -54,25 +53,25 @@ data Parser a = Parser
   , parseFlags :: ParseFlags
   }
 
-parse :: Strict a => Parser a -> String -> IO a
+parse :: Parser a -> String -> IO a
 parse p = wrapM . return . M.parse (parseFlags p) [normal] (parser p)
 
-parseFile :: Strict a => Parser a -> AbsolutePath -> IO a
+parseFile :: Parser a -> AbsolutePath -> IO a
 parseFile p = wrapM . M.parseFile (parseFlags p) [normal] (parser p)
 
-parseLiterate :: Strict a => Parser a -> String -> IO a
+parseLiterate :: Parser a -> String -> IO a
 parseLiterate p =
   wrapM . return . M.parse (parseFlags p) [literate, code] (parser p)
 
-parseLiterateFile :: Strict a => Parser a -> AbsolutePath -> IO a
+parseLiterateFile :: Parser a -> AbsolutePath -> IO a
 parseLiterateFile p =
   wrapM . M.parseFile (parseFlags p) [literate, code] (parser p)
 
-parsePosString :: Strict a => Parser a -> Position -> String -> IO a
+parsePosString :: Parser a -> Position -> String -> IO a
 parsePosString p pos =
   wrapM . return . M.parsePosString pos (parseFlags p) [normal] (parser p)
 
-parseFile' :: Strict a => Parser a -> AbsolutePath -> IO a
+parseFile' :: Parser a -> AbsolutePath -> IO a
 parseFile' p file =
   if "lagda" `isSuffixOf` filePath file then
     Agda.Syntax.Parser.parseLiterateFile p file

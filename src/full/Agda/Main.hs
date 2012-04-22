@@ -29,7 +29,6 @@ import Agda.Syntax.Translation.ConcreteToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Abstract.Name
-import Agda.Syntax.Strict
 import Agda.Syntax.Scope.Base
 
 import Agda.Interaction.Exceptions
