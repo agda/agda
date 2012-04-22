@@ -221,9 +221,8 @@ Emacs mode
   agda).
 
   The variable agda2-ghci-options has been replaced by
-  agda2-program-args: the arguments given to the Agda executable. The
-  default value is --ghci-interaction (this argument is needed for
-  proper operation).
+  agda2-program-args: extra arguments given to the Agda executable (by
+  default none).
 
   If you want to limit Agda's memory consumption you can add some
   arguments to agda2-program-args, for instance +RTS -M1.5G -RTS.

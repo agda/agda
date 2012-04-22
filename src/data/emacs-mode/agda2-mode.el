@@ -82,10 +82,10 @@ the root of the current project."
   :type 'string
   :group 'agda2)
 
-(defcustom agda2-program-args
-  (list "--ghci-interaction"  ; Run agda in ghci interaction mode
-        )
-  "Command-line options given to agda executable."
+(defcustom agda2-program-args nil
+  "Command-line arguments given to the Agda executable.
+The flag \"--ghci-interaction\" is always included as the first
+argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
 
@@ -397,7 +397,8 @@ Special commands:
                     ;; Start the agda process in a new comint buffer.
                     (message "Starting agda process `%s'." agda2-program-name)
                     (setq agda2-process-buffer
-                        (apply 'make-comint "ghci" agda2-program-name nil agda2-program-args))
+                          (apply 'make-comint "ghci" agda2-program-name nil
+                                 (cons "--ghci-interaction" agda2-program-args)))
 
                     ;; Select agda buffer temporarily.
                     (set-buffer agda2-process-buffer)
