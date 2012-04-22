@@ -278,7 +278,6 @@ library
                     Agda.Utils.FileName
                     Agda.Utils.Fresh
                     Agda.Utils.Function
-                    Agda.Utils.Generics
                     Agda.Utils.Geniplate
                     Agda.Utils.Graph
                     Agda.Utils.Hash
