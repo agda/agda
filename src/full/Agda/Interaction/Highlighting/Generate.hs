@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, Rank2Types, RelaxedPolyRec #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 
 -- | Generates data used for precise syntax highlighting.
 
@@ -46,16 +46,14 @@ import Control.Monad.Reader
 import Control.Applicative
 import Data.Monoid
 import Data.Function
-import Agda.Utils.Generics
+import Data.Generics.Geniplate
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Monad
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
-import Data.Sequence (Seq, (><))
 import Data.List ((\\), isPrefixOf)
-import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Fold (toList, fold, foldMap)
 import System.Directory
 import System.IO
@@ -155,8 +153,7 @@ generateSyntaxInfo file mErr top termErrs = do
     modMap <- sourceToModule
     tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
     kinds  <- nameKinds mErr decls
-    let nameInfo = mconcat $ map (generate modMap file kinds)
-                                 (Fold.toList names)
+    let nameInfo = mconcat $ map (generate modMap file kinds) names
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
     constructorInfo <- case mErr of
@@ -227,34 +224,29 @@ generateSyntaxInfo file mErr top termErrs = do
       callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
-    -- All names mentioned in the syntax tree (not bound variables).
-    names = everything' (><) (Seq.empty `mkQ`  getName
-                                        `extQ` getAmbiguous)
-                        decls
+    names :: [A.AmbiguousQName]
+    names =
+      (map (A.AmbQ . (:[])) $
+       filter (not . extendedLambda) $
+       universeBi decls) ++
+      universeBi decls
       where
-      getName :: A.QName -> Seq A.AmbiguousQName
-      getName n | isPrefixOf extendlambdaname $ show $ A.qnameName n = mempty
-                | otherwise                                          = Seq.singleton (A.AmbQ [n])
-
-
-      getAmbiguous :: A.AmbiguousQName -> Seq A.AmbiguousQName
-      getAmbiguous = Seq.singleton
+      extendedLambda :: A.QName -> Bool
+      extendedLambda n = extendlambdaname `isPrefixOf` show (A.qnameName n)
 
     -- Bound variables, dotted patterns, record fields, module names,
     -- the "as" and "to" symbols.
-    theRest modMap = everything' mappend query decls
+    theRest modMap = mconcat
+      [ Fold.foldMap getFieldDecl   $ universeBi decls
+      , Fold.foldMap getVarAndField $ universeBi decls
+      , Fold.foldMap getLet         $ universeBi decls
+      , Fold.foldMap getLam         $ universeBi decls
+      , Fold.foldMap getTyped       $ universeBi decls
+      , Fold.foldMap getPattern     $ universeBi decls
+      , Fold.foldMap getModuleName  $ universeBi decls
+      , Fold.foldMap getModuleInfo  $ universeBi decls
+      ]
       where
-      query :: GenericQ File
-      query = mempty         `mkQ`
-              getFieldDecl   `extQ`
-              getVarAndField `extQ`
-              getLet         `extQ`
-              getLam         `extQ`
-              getTyped       `extQ`
-              getPattern     `extQ`
-              getModuleName  `extQ`
-              getModuleInfo
-
       bound n = nameToFile modMap file []
                            (A.nameConcrete n)
                            (\isOp -> mempty { aspect = Just $ Name (Just Bound) isOp })
@@ -344,9 +336,9 @@ nameKinds mErr decls = do
     Just _  -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-      everything' union (HMap.empty `mkQ` getDecl) decls
-  let merged = HMap.union local imported
-  return (\n -> HMap.lookup n merged)
+      everything' union (Map.empty `mkQ` getDecl) decls
+  let merged = Map.union local imported
+  return (\n -> Map.lookup n merged)
   where
   fix = HMap.map (defnToNameKind . theDef) . sigDefinitions
 
@@ -426,46 +418,47 @@ generateConstructorInfo modMap file kinds decls = do
 
   -- Find all constructors occurring in type signatures or clauses
   -- within the given declarations.
-  constrs <- everything' (liftM2 (><)) query (types, clauses)
+  constrs <- getConstrs (types, clauses)
 
   -- Return suitable syntax highlighting information.
   return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb) constrs
   where
   mkAmb q = A.AmbQ [q]
 
-  query :: GenericQ (TCM (Seq A.QName))
-  query = return mempty   `mkQ`
-          getConstructor  `extQ`
-          getConstructorP
+  getConstrs :: (UniverseBi a I.Pattern, UniverseBi a I.Term) =>
+                a -> TCM [A.QName]
+  getConstrs x = do
+    termConstrs <- concat <$> mapM getConstructor (universeBi x)
+    return (patternConstrs ++ termConstrs)
+    where
+    patternConstrs = concatMap getConstructorP (universeBi x)
 
-  getConstructor :: I.Term -> TCM (Seq A.QName)
-  getConstructor (I.Con q _) = return $ Seq.singleton q
+  getConstructorP :: I.Pattern -> [A.QName]
+  getConstructorP (I.ConP q _ _) = [q]
+  getConstructorP _              = []
+
+  getConstructor :: I.Term -> TCM [A.QName]
+  getConstructor (I.Con q _) = return [q]
   getConstructor (I.Def c _)
     | fmap P.srcFile (P.rStart (P.getRange c)) == Just (Just file)
                              = retrieveCoconstructor c
-  getConstructor _           = return Seq.empty
+  getConstructor _           = return []
 
-  getConstructorP :: I.Pattern -> TCM (Seq A.QName)
-  getConstructorP (I.ConP q _ _) = return $ Seq.singleton q
-  getConstructorP _              = return Seq.empty
-
-  retrieveCoconstructor :: A.QName -> TCM (Seq A.QName)
+  retrieveCoconstructor :: A.QName -> TCM [A.QName]
   retrieveCoconstructor c = do
     def <- getConstInfo c
     case defDelayed def of
       -- Not a coconstructor.
-      NotDelayed -> return Seq.empty
+      NotDelayed -> return []
 
       Delayed -> do
         clauses <- R.instantiateFull $ defClauses def
         case clauses of
           [I.Clause{ I.clauseBody = body }] -> case getRHS body of
-            Just (I.Con c args) -> do
-              s <- everything' (liftM2 (><)) query args
-              return $ Seq.singleton c >< s
+            Just (I.Con c args) -> (c :) <$> getConstrs args
 
             -- The meta variable could not be instantiated.
-            Just (I.MetaV {})   -> return Seq.empty
+            Just (I.MetaV {})   -> return []
 
             _                   -> __IMPOSSIBLE__
 
@@ -585,35 +578,6 @@ nameToFileA modMap file x include m =
 concreteBase      = A.nameConcrete . A.qnameName
 concreteQualifier = map A.nameConcrete . A.mnameToList . A.qnameModule
 bindingSite       = A.nameBindingSite . A.qnameName
-
--- | Like 'everything', but modified so that it does not descend into
--- everything.
-
-everything' :: (r -> r -> r) -> GenericQ r -> GenericQ r
-everything' (+) = everythingBut
-                    (+)
-                    (False `mkQ` isString
-                           `extQ` isAQName `extQ` isAName `extQ` isCName
-                           `extQ` isScope `extQ` isMap1 `extQ` isMap2
-                           `extQ` isAmbiguous)
-  where
-  isString    :: String                        -> Bool
-  isAQName    :: A.QName                       -> Bool
-  isAName     :: A.Name                        -> Bool
-  isCName     :: C.Name                        -> Bool
-  isScope     :: S.ScopeInfo                   -> Bool
-  isMap1      :: Map A.QName A.QName           -> Bool
-  isMap2      :: Map A.ModuleName A.ModuleName -> Bool
-  isAmbiguous :: A.AmbiguousQName              -> Bool
-
-  isString    = const True
-  isAQName    = const True
-  isAName     = const True
-  isCName     = const True
-  isScope     = const True
-  isMap1      = const True
-  isMap2      = const True
-  isAmbiguous = const True
 
 ------------------------------------------------------------------------
 -- All tests

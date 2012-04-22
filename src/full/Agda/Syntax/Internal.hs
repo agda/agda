@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving,
-             DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+             DeriveFunctor, DeriveFoldable, DeriveTraversable,
+             TemplateHaskell,
+             MultiParamTypeClasses, FlexibleInstances #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
@@ -19,6 +21,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
+import Agda.Utils.Geniplate
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
@@ -364,3 +367,12 @@ instance KillRange a => KillRange (Blocked a) where
 
 instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
+
+---------------------------------------------------------------------------
+-- * UniverseBi instances.
+---------------------------------------------------------------------------
+
+instanceUniverseBiT' [] [t| (([Type], [Clause]), Pattern) |]
+instanceUniverseBiT' [] [t| (Args, Pattern)               |]
+instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
+instanceUniverseBiT' [] [t| (Args, Term)                  |]

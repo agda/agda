@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable, CPP #-}
+{-# LANGUAGE DeriveDataTypeable, DeriveFunctor, DeriveFoldable,
+             DeriveTraversable, CPP, TemplateHaskell,
+             MultiParamTypeClasses, FlexibleInstances #-}
 {-| The abstract syntax. This is what you get after desugaring and scope
     analysis of the concrete syntax. The type checker works on abstract syntax,
     producing internal syntax ("Agda.Syntax.Internal").
@@ -27,6 +29,7 @@ import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Literal
 import Agda.Syntax.Scope.Base
 
+import Agda.Utils.Geniplate
 import Agda.Utils.Tuple
 
 #include "../undefined.h"
@@ -457,6 +460,17 @@ instance KillRange LetBinding where
   killRange (LetApply i a b c d     ) = killRange3 LetApply i a b c d
   killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
 
+instanceUniverseBiT' [] [t| ([Declaration], QName)          |]
+instanceUniverseBiT' [] [t| ([Declaration], AmbiguousQName) |]
+instanceUniverseBiT' [] [t| ([Declaration], Expr)           |]
+instanceUniverseBiT' [] [t| ([Declaration], LetBinding)     |]
+instanceUniverseBiT' [] [t| ([Declaration], LamBinding)     |]
+instanceUniverseBiT' [] [t| ([Declaration], TypedBinding)   |]
+instanceUniverseBiT' [] [t| ([Declaration], Pattern)        |]
+instanceUniverseBiT' [] [t| ([Declaration], Declaration)    |]
+instanceUniverseBiT' [] [t| ([Declaration], ModuleName)     |]
+instanceUniverseBiT' [] [t| ([Declaration], ModuleInfo)     |]
+
 ------------------------------------------------------------------------
 -- Queries
 ------------------------------------------------------------------------
@@ -667,4 +681,3 @@ substTypedBinding :: [(Name, Expr)] -> TypedBinding -> TypedBinding
 substTypedBinding s tb = case tb of
   TBind r ns e -> TBind r ns $ substExpr s e
   TNoBind e    -> TNoBind $ substExpr s e
-
