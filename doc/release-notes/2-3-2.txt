@@ -4,6 +4,15 @@
 
 Important changes since 2.3.0:
 
+Installation
+============
+
+* The Agda-executable package has been removed.
+
+  The executable is now provided as part of the Agda package.
+
+* The Emacs mode no longer depends on haskell-mode or GHCi.
+
 Language
 ========
 
@@ -174,15 +183,6 @@ Compiler backends
 Tools
 =====
 
-* The Agda-executable package has been removed.
-
-  The executable is now provided as part of the Agda package.
-
-* Agda does not depend on haskell-mode any more.
-
-* The binary distributions of Agda need not depend on
-  GHC and the Haskell libraries any more.
-
 Emacs mode
 ----------
 
@@ -208,39 +208,27 @@ Emacs mode
   point is displayed, including (in many cases) information about how
   to type the character.
 
-* New semantics of and default value for agda2-ghci-options.
-
-  This change should affect very few users.
-
-  Previously the options in agda2-ghci-options were activated using
-  GHCi's :set command, now they are instead used as command-line
-  arguments (prepended to haskell-ghci-program-args).
-
-  The default value of this option has also changed: the
-  -ignore-dot-ghci flag has been added.
-
 * Commenting/uncommenting the rest of the buffer.
 
   One can now comment or uncomment the rest of the buffer by typing
   C-c C-x M-; or by selecting the menu entry "Comment/uncomment the
   rest of the buffer".
 
-* The Emacs mode now uses the agda executable instead of ghci.
+* The Emacs mode now uses the Agda executable instead of GHCi.
 
-  agda2-ghci-options is renamed to agda2-program-args and the default
-  value is changed to "--ghci-interaction" which option is needed
-  for proper operation.
-  From now on you can tweak the ghc runtime behaviour with
-  agda2-program-args instead of agda2-ghci-options
-  (like adding "+RTS -K40M -M1.5G -RTS").
+  A new configuration variable has been introduced:
+  agda2-program-name, the name of the Agda executable (by default
+  agda).
 
-  agda2-program-name is a new configuration variable with default
-  value "agda".
+  The variable agda2-ghci-options has been replaced by
+  agda2-program-args: the arguments given to the Agda executable. The
+  default value is --ghci-interaction (this argument is needed for
+  proper operation).
 
-* The Emacs mode now does not depend on haskell-mode.
+  If you want to limit Agda's memory consumption you can add some
+  arguments to agda2-program-args, for instance +RTS -M1.5G -RTS.
 
-  haskell-mode configuration variables are not taken into account
-  any more. This should have no effect on the behaviour
-  of Emacs mode.
+* The Emacs mode no longer depends on haskell-mode.
 
-
+  Users who have customised certain haskell-mode variables (such as
+  haskell-ghci-program-args) may want to update their configuration.
