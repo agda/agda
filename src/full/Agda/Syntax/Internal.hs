@@ -10,7 +10,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr)
 import Control.Applicative
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.Function
@@ -49,7 +49,7 @@ data Term = Var Nat Args             -- ^ @x vs@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | Type of argument lists.
 --
@@ -69,18 +69,18 @@ data Abs a = Abs   { absName :: String, unAbs :: a }
                -- ^ The body has (at least) one free variable.
                --   Danger: 'unAbs' doesn't shift variables properly
            | NoAbs { absName :: String, unAbs :: a }
-  deriving (Typeable, Data, Functor, Foldable, Traversable)
+  deriving (Typeable, Functor, Foldable, Traversable)
 
 -- | Types are terms with a sort annotation.
 --
 data Type = El { getSort :: Sort, unEl :: Term }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | Sequence of types. An argument of the first type is bound in later types
 --   and so on.
 data Tele a = EmptyTel
 	    | ExtendTel a (Abs (Tele a))  -- ^ 'Abs' is never 'NoAbs'.
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Telescope = Tele (Dom Type)
 
@@ -93,33 +93,33 @@ data Sort = Type Level
             -- ^ if the free variable occurs in the second sort
             --   the whole thing should reduce to Inf, otherwise
             --   it's the normal Lub
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | A level is a maximum expression of 0..n plus expressions
 --   each of which is a number or an atom plus a number.
 --
 newtype Level = Max [PlusLevel]
-  deriving (Show, Typeable, Data)
+  deriving (Show, Typeable)
 
 data PlusLevel = ClosedLevel Integer
                | Plus Integer LevelAtom
-  deriving (Show, Typeable, Data)
+  deriving (Show, Typeable)
 
 data LevelAtom = MetaLevel MetaId Args
                | BlockedLevel MetaId Term
                | NeutralLevel Term
                | UnreducedLevel Term
-  deriving (Show, Typeable, Data)
+  deriving (Show, Typeable)
 
 -- | A meta variable identifier is just a natural number.
 --
 newtype MetaId = MetaId Nat
-    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable, Data)
+    deriving (Eq, Ord, Num, Real, Enum, Integral, Typeable)
 
 -- | Something where a meta variable may block reduction.
 data Blocked t = Blocked MetaId t
                | NotBlocked t
-    deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
+    deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
 instance Applicative Blocked where
   pure = notBlocked
@@ -147,11 +147,11 @@ data Clause = Clause
     , clausePats      :: [Arg Pattern]
     , clauseBody      :: ClauseBody
     }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 data ClauseBody = Body Term
 		| Bind (Abs ClauseBody)
 		| NoBody    -- ^ for absurd clauses.
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange Clause where
   getRange = clauseRange
@@ -170,7 +170,7 @@ data Pattern = VarP String  -- name suggestion
                -- by any outer scope plus the clause's telescope
                -- ('clauseTel').
 	     | LitP Literal
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 
 ---------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 module Agda.Syntax.Abstract.Name where
 
 import Control.Monad.State
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
 import Data.Hashable
@@ -32,7 +32,7 @@ data Name = Name { nameId	   :: NameId
 		 , nameBindingSite :: Range
 		 , nameFixity	   :: Fixity'
 		 }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 -- | Qualified names are non-empty lists of names. Equality on qualified names
 --   are just equality on the last name, i.e. the module part is just
@@ -43,21 +43,21 @@ data Name = Name { nameId	   :: NameId
 data QName = QName { qnameModule :: ModuleName
 		   , qnameName	 :: Name
 		   }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 -- | A module name is just a qualified name.
 --
 -- The 'SetRange' instance for module names sets all individual ranges
 -- to the given one.
 newtype ModuleName = MName { mnameToList :: [Name] }
-  deriving (Eq, Ord, Typeable, Data)
+  deriving (Eq, Ord, Typeable)
 
 -- | Ambiguous qualified names. Used for overloaded constructors.
 --
 -- Invariant: All the names in the list must have the same concrete,
 -- unqualified name.
 newtype AmbiguousQName = AmbQ { unAmbQ :: [QName] }
-  deriving (Typeable, Data, HasRange, Show)
+  deriving (Typeable, HasRange, Show)
 
 instance HasRange ModuleName where
   getRange (MName []) = noRange

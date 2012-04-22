@@ -12,7 +12,7 @@ module Agda.Syntax.Concrete.Definitions
 
 import Control.Arrow ((***), (&&&))
 import Control.Applicative
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap, mapM_, notElem, elem, all)
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -69,7 +69,7 @@ data NiceDeclaration
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
         | RecDef Range Fixity' IsAbstract Name (Maybe (ThingWithFixity Name)) [LamBinding] [NiceDeclaration]
         | NicePatternSyn Range Fixity' Name [Name] Pattern
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 -- | Termination check? (Default = True).
 type TerminationCheck = Bool
@@ -83,7 +83,7 @@ type NiceTypeSignature  = NiceDeclaration
 -- | One clause in a function definition. There is no guarantee that the 'LHS'
 --   actually declares the 'Name'. We will have to check that later.
 data Clause = Clause Name LHS RHS WhereClause [Clause]
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 -- | The exception type.
 data DeclarationException

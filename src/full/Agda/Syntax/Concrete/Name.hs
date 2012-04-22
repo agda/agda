@@ -9,7 +9,7 @@ import Control.Applicative
 
 import Data.List
 import Data.Maybe
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 
 import System.FilePath
 
@@ -33,10 +33,10 @@ import Agda.Utils.Impossible
 -}
 data Name = Name !Range [NamePart]
 	  | NoName !Range NameId
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data NamePart = Hole | Id String
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 -- | @noName_ = 'noName' 'noRange'@
 noName_ :: Name
@@ -124,7 +124,7 @@ instance Ord NamePart where
 --     lookup table for namespace names).
 data QName = Qual  Name QName
            | QName Name
-  deriving (Typeable, Data, Eq, Ord)
+  deriving (Typeable, Eq, Ord)
 
 -- | Top-level module names.
 --
@@ -132,7 +132,7 @@ data QName = Qual  Name QName
 
 newtype TopLevelModuleName
   = TopLevelModuleName { moduleNameParts :: [String] }
-  deriving (Show, Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Typeable)
 
 -- | Turns a qualified name into a 'TopLevelModuleName'. The qualified
 -- name is assumed to represent a top-level module name.

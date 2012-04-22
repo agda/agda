@@ -7,7 +7,7 @@
 
 module Agda.Syntax.Info where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Text.Show.Functions
 
 import qualified Agda.Syntax.Concrete.Name as C
@@ -32,7 +32,7 @@ data MetaInfo =
 		 , metaScope	:: ScopeInfo
 		 , metaNumber	:: Maybe Nat
 		 }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange MetaInfo where
   getRange = metaRange
@@ -51,7 +51,7 @@ data ExprInfo
 	| ExprSource Range (Precedence -> Expr)
 	    -- ^ Even if we store the original expression we have to know
 	    --	 whether to put parenthesis around it.
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange ExprInfo where
   getRange (ExprRange  r  ) = r
@@ -77,7 +77,7 @@ data ModuleInfo =
                    , minfoDirective :: Maybe ImportDirective
                      -- Retained for abstractToConcrete of ModuleMacro
 		   }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 
@@ -95,7 +95,7 @@ instance KillRange ModuleInfo where
 ---------------------------------------------------------------------------
 
 newtype LetInfo = LetRange Range
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange LetInfo where
   getRange (LetRange r)   = r
@@ -113,7 +113,7 @@ data DefInfo =
 		, defAbstract :: IsAbstract
 		, defInfo     :: DeclInfo
 		}
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 mkDefInfo :: Name -> Fixity' -> Access -> IsAbstract -> Range -> DefInfo
 mkDefInfo x f a ab r = DefInfo f a ab (DeclInfo x r)
@@ -135,7 +135,7 @@ data DeclInfo =
 	DeclInfo { declName  :: Name
 		 , declRange :: Range
 		 }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange DeclInfo where
   getRange = declRange
@@ -154,7 +154,7 @@ data MutualInfo =
      MutualInfo { mutualTermCheck :: Bool  -- ^ termination check (default=True)
 		, mutualRange     :: Range
 		}
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange MutualInfo where
   getRange = mutualRange
@@ -167,7 +167,7 @@ instance KillRange MutualInfo where
  --------------------------------------------------------------------------}
 
 newtype LHSInfo = LHSRange Range
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance HasRange LHSInfo where
   getRange (LHSRange r) = r
@@ -184,7 +184,7 @@ instance KillRange LHSInfo where
 
 data PatInfo = PatRange Range
 	     | PatSource Range (Precedence -> Pattern)
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 instance Show PatInfo where
   show (PatRange r) = "PatRange " ++ show r

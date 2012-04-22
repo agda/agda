@@ -38,7 +38,7 @@ module Agda.Syntax.Concrete
     )
     where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.Foldable hiding (concatMap)
 import Data.Traversable
 import Agda.Syntax.Position
@@ -55,7 +55,7 @@ import Agda.Utils.Impossible
 data OpApp e
         = SyntaxBindingLambda !Range [LamBinding] e -- ^ an abstraction inside a special syntax declaration (see Issue 358 why we introduce this).
         | Ordinary e
-    deriving (Typeable, Data, Functor)
+    deriving (Typeable, Functor)
 
 fromOrdinary :: e -> OpApp e -> e
 fromOrdinary d (Ordinary e) = e
@@ -94,7 +94,7 @@ data Expr
         | QuoteTerm !Range                     -- ^ ex: @quoteTerm@, should be applied to a term
         | Unquote !Range                       -- ^ ex: @unquote@, should be applied to a term of type @Term@
         | DontCare Expr                        -- ^ to print irrelevant things
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 
 -- | Concrete patterns. No literals in patterns at the moment.
@@ -111,27 +111,27 @@ data Pattern
 	| AsP !Range Name Pattern                 -- ^ @x\@p@ unused
 	| DotP !Range Expr                        -- ^ @.e@
 	| LitP Literal                            -- ^ @0@, @1@, etc.
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
 	= DomainFree Hiding Relevance BoundName -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@ or @{.x}@
 	| DomainFull TypedBindings              -- ^ . @(xs : e)@ or @{xs : e}@
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 
 -- | A sequence of typed bindings with hiding information. Appears in dependent
 --   function spaces, typed lambdas, and telescopes.
 data TypedBindings = TypedBindings !Range (Arg TypedBinding)
 	-- ^ . @(xs : e)@ or @{xs : e}@
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 
 data BoundName = BName { boundName   :: Name
                        , bnameFixity :: Fixity'
                        }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 mkBoundName_ :: Name -> BoundName
 mkBoundName_ x = BName x defaultFixity'
@@ -140,7 +140,7 @@ mkBoundName_ x = BName x defaultFixity'
 data TypedBinding
 	= TBind !Range [BoundName] Expr   -- Binding @x1,..,xn:A@
 	| TNoBind Expr		    -- No binding @A@, equivalent to @_ : A@.
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 
 -- | A telescope is a sequence of typed bindings. Bound variables are in scope
@@ -162,7 +162,7 @@ data LHS = LHS { lhsOriginalPattern :: Pattern       -- ^ @f ps@
          -- ^ original pattern, with-patterns, rewrite equations and with-expressions
          | Ellipsis Range [Pattern] [RewriteEqn] [WithExpr]
          -- ^ new with-patterns, rewrite equations and with-expressions
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 type RewriteEqn = Expr
 type WithExpr   = Expr
@@ -178,7 +178,7 @@ data LHSCore
              , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
              , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 {- TRASH
 lhsCoreToPattern :: LHSCore -> Pattern
@@ -190,10 +190,10 @@ lhsCoreToPattern (LHSProj d ps1 lhscore ps2) = OpAppP (fuseRange d ps) (unqualif
 
 data RHS = AbsurdRHS
 	 | RHS Expr
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data WhereClause = NoWhere | AnyWhere [Declaration] | SomeWhere Name [Declaration]
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 
 -- | The things you are allowed to say when you shuffle names between name
@@ -205,7 +205,7 @@ data ImportDirective
 	    , renaming		:: [Renaming]
 	    , publicOpen	:: Bool	-- ^ Only for @open@. Exports the opened names from the current module.
 	    }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 defaultImportDir :: ImportDirective
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
@@ -213,12 +213,12 @@ defaultImportDir = ImportDirective noRange (Hiding []) [] False
 data UsingOrHiding
 	= Hiding [ImportedName]
 	| Using  [ImportedName]
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 -- | An imported name can be a module or a defined name
 data ImportedName = ImportedModule  { importedName :: Name }
 		  | ImportedName    { importedName :: Name }
-    deriving (Typeable, Data, Eq, Ord)
+    deriving (Typeable, Eq, Ord)
 
 instance Show ImportedName where
     show (ImportedModule x) = "module " ++ show x
@@ -232,7 +232,7 @@ data Renaming = Renaming { renFrom    :: ImportedName
                            -- ^ The range of the \"to\" keyword. Retained
                            --   for highlighting purposes.
                          }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data AsName = AsName { asName  :: Name
                        -- ^ The \"as\" name.
@@ -240,7 +240,7 @@ data AsName = AsName { asName  :: Name
                        -- ^ The range of the \"as\" keyword. Retained
                        --   for highlighting purposes.
                      }
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 {--------------------------------------------------------------------------
     Declarations
@@ -279,14 +279,14 @@ data Declaration
 	| ModuleMacro !Range  Name ModuleApplication OpenShortHand ImportDirective
 	| Module      !Range QName [TypedBindings] [Declaration]
 	| Pragma      Pragma
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data ModuleApplication = SectionApp Range [TypedBindings] Expr
                        | RecordModuleIFS Range QName
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 data OpenShortHand = DoOpen | DontOpen
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 -- Pragmas ----------------------------------------------------------------
 
@@ -304,7 +304,7 @@ data Pragma = OptionsPragma     !Range [String]
             | ImpossiblePragma !Range
             | EtaPragma !Range QName
             | NoTerminationCheckPragma !Range
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 ---------------------------------------------------------------------------
 

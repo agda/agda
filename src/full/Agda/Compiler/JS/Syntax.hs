@@ -2,7 +2,7 @@
   #-}
 module Agda.Compiler.JS.Syntax where
 
-import Data.Generics ( Data, Typeable )
+import Data.Typeable ( Typeable )
 import Data.Map ( Map, fold )
 import Data.Set ( Set, empty, singleton, union )
 
@@ -28,29 +28,29 @@ data Exp =
   BinOp Exp String Exp |
   PreOp String Exp |
   Const String
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- Local identifiers are named by De Bruijn indices.
 -- Global identifiers are named by string lists.
 -- Object members are named by strings.
 
 newtype LocalId = LocalId Nat
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Eq, Ord, Show)
 
 newtype GlobalId = GlobalId [String]
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Eq, Ord, Show)
 
 newtype MemberId = MemberId String
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Eq, Ord, Show)
 
 -- The top-level compilation unit is a module, which names
 -- the GId of its exports, and a list of definitions
 
 data Export = Export { expName :: [MemberId], defn :: Exp }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data Module = Module { modName :: GlobalId, exports :: [Export] }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- Note that modules are allowed to be recursive, via the Self expression,
 -- which is bound to the exported module.

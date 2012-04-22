@@ -14,7 +14,7 @@ module Agda.Utils.FileName
 import Agda.Utils.TestHelpers
 import Agda.Utils.QuickCheck
 import Data.Function
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List
 import Data.Maybe
 import Control.Applicative
@@ -36,7 +36,7 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { filePath :: FilePath }
-  deriving (Show, Eq, Ord, Typeable, Data)
+  deriving (Show, Eq, Ord, Typeable)
 
 -- | The paths have to be absolute, valid and normalised, without
 -- trailing path separators.

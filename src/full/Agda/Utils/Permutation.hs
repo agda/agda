@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, CPP #-}
 module Agda.Utils.Permutation where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List
 import Agda.Utils.Size
 import Agda.Utils.Impossible
@@ -10,7 +10,7 @@ import Agda.Utils.Impossible
 
 -- | @permute [2,3,1] [x,y,z] = [y,z,x]@
 data Permutation = Perm Integer [Integer]
-  deriving (Eq, Data, Typeable)
+  deriving (Eq, Typeable)
 
 instance Show Permutation where
   show (Perm n xs) = showx [0..n - 1] ++ " -> " ++ showx xs

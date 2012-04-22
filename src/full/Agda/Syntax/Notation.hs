@@ -8,7 +8,7 @@ import Control.Monad (when)
 import Control.Monad.Error (throwError)
 import Data.List
 import Data.Maybe
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 
 import System.FilePath
 
@@ -46,7 +46,7 @@ type Notation = [GenPart]
 data GenPart = BindHole Int  -- ^ Argument is the position of the hole (with binding) where the binding should occur.
              | NormalHole Int -- ^ Argument is where the expression should go
              | IdPart String
-  deriving (Data, Typeable, Show, Eq)
+  deriving (Typeable, Show, Eq)
 
 -- | Get a flat list of identifier parts of a notation.
 stringParts :: Notation -> [String]

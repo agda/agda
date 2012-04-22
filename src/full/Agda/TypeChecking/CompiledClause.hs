@@ -4,7 +4,7 @@ module Agda.TypeChecking.CompiledClause where
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Monoid
-import Data.Generics
+import Data.Typeable (Typeable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -17,7 +17,7 @@ data Case c = Branches { conBranches    :: QName   :-> c
                        , litBranches    :: Literal :-> c
                        , catchAllBranch :: Maybe c
                        }
-  deriving (Typeable, Data, Functor)
+  deriving (Typeable, Functor)
 
 data CompiledClauses
   = Case Int (Case CompiledClauses)
@@ -30,7 +30,7 @@ data CompiledClauses
     --   still reduce.
   | Fail
     -- ^ Absurd case.
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 litCase l x = Branches Map.empty (Map.singleton l x) Nothing
 conCase c x = Branches (Map.singleton c x) Map.empty Nothing

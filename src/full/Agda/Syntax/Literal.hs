@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 module Agda.Syntax.Literal where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract.Name
 
@@ -10,7 +10,7 @@ data Literal = LitInt    Range Integer
 	     | LitString Range String
 	     | LitChar   Range Char
              | LitQName  Range QName
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 instance Eq Literal where
   LitInt _ n    == LitInt _ m    = n == m

@@ -15,7 +15,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List hiding (sort)
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.Foldable (Foldable)
 import Data.Traversable (Traversable,traverse)
 
@@ -328,7 +328,7 @@ data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKno
 data HomHet a
   = Hom a    -- ^ homogeneous
   | Het a a  -- ^ heterogeneous
-  deriving (Typeable, Data, Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Eq, Ord, Functor, Foldable, Traversable)
 
 isHom :: HomHet a -> Bool
 isHom Hom{} = True
@@ -989,7 +989,7 @@ data ShapeView a
   | SortSh
   | MetaSh        -- ^ some meta
   | ElseSh        -- ^ not a type or not definitely same shape
-  deriving (Typeable, Data, Show, Eq, Ord, Functor)
+  deriving (Typeable, Show, Eq, Ord, Functor)
 
 -- | Return the type and its shape.  Expects input in (u)reduced form.
 shapeView :: Type -> Unify (Type, ShapeView Type)
@@ -1043,4 +1043,3 @@ telViewUpToHH n t = do
     _         -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
-

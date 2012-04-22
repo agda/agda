@@ -6,7 +6,7 @@ module Agda.Syntax.Scope.Base where
 
 import Control.Arrow ((***), (&&&))
 import Control.Applicative
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -36,10 +36,10 @@ data Scope = Scope
       , scopeNameSpaces    :: [(NameSpaceId, NameSpace)]
       , scopeImports       :: Map C.QName A.ModuleName
       }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 data NameSpaceId = PrivateNS | PublicNS | ImportedNS | OnlyQualifiedNS
-  deriving (Typeable, Data, Eq, Bounded, Enum)
+  deriving (Typeable, Eq, Bounded, Enum)
 
 localNameSpace :: Access -> NameSpaceId
 localNameSpace PublicAccess  = PublicNS
@@ -61,7 +61,7 @@ data ScopeInfo = ScopeInfo
       , scopeLocals	:: LocalVars
       , scopePrecedence :: Precedence
       }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 -- | Local variables
 type LocalVars = [(C.Name, A.Name)]
@@ -73,7 +73,7 @@ data NameSpace = NameSpace
       { nsNames	  :: NamesInScope
       , nsModules :: ModulesInScope
       }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 type ThingsInScope a = Map C.Name [a]
 type NamesInScope    = ThingsInScope AbstractName
@@ -102,7 +102,7 @@ instance InScope AbstractModule where
 
 -- | We distinguish constructor names from other names.
 data KindOfName = ConName | FldName | DefName | PatternSynName
-  deriving (Eq, Show, Typeable, Data, Enum, Bounded)
+  deriving (Eq, Show, Typeable, Enum, Bounded)
 
 allKindsOfNames :: [KindOfName]
 allKindsOfNames = [minBound..maxBound]
@@ -113,13 +113,13 @@ data AbstractName = AbsName
       { anameName   :: A.QName
       , anameKind   :: KindOfName
       }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 -- | For modules we record the arity. I'm not sure that it's every used anywhere.
 data AbstractModule = AbsModule
       { amodName    :: A.ModuleName
       }
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 instance Eq AbstractName where
   (==) = (==) `on` anameName

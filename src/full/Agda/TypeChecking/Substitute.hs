@@ -6,7 +6,7 @@ import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Arrow ((***))
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List hiding (sort)
 import qualified Data.List as List
 import Data.Function
@@ -658,7 +658,7 @@ rename :: Raise t => (Nat -> Nat) -> t -> t
 rename = renameFrom 0
 
 data TelV a = TelV (Tele (Dom a)) a
-  deriving (Typeable, Data, Show, Eq, Ord, Functor)
+  deriving (Typeable, Show, Eq, Ord, Functor)
 
 type TelView = TelV Type
 -- data TelView = TelV Telescope Type

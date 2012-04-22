@@ -41,7 +41,7 @@ import Control.Monad
 import Agda.Utils.QuickCheck hiding (ranges)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Abstract.Name as A
 import qualified Agda.Syntax.Common as C
@@ -64,7 +64,7 @@ data Aspect
   | Symbol                     -- ^ Symbols like forall, =, ->, etc.
   | PrimitiveType              -- ^ Things like Set and Prop.
   | Name (Maybe NameKind) Bool -- ^ Is the name an operator part?
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 data NameKind
   = Bound                   -- ^ Bound variable.
@@ -76,7 +76,7 @@ data NameKind
   | Postulate
   | Primitive               -- ^ Primitive.
   | Record                  -- ^ Record type.
-    deriving (Eq, Show, Typeable, Data)
+    deriving (Eq, Show, Typeable)
 
 -- | Other aspects. (These can overlap with each other and with
 -- 'Aspect's.)
@@ -97,7 +97,7 @@ data OtherAspect
   | TypeChecked
     -- ^ Code which has been type-checked but not yet properly
     -- highlighted.
-    deriving (Eq, Show, Enum, Bounded, Typeable, Data)
+    deriving (Eq, Show, Enum, Bounded, Typeable)
 
 -- | Meta information which can be associated with a
 -- character\/character range.
@@ -114,14 +114,14 @@ data MetaInfo = MetaInfo
     -- ^ The definition site of the annotated thing, if applicable and
     --   known. File positions are counted from 1.
   }
-  deriving (Eq, Show, Typeable, Data)
+  deriving (Eq, Show, Typeable)
 
 -- | A 'File' is a mapping from file positions to meta information.
 --
 -- The first position in the file has number 1.
 
 newtype File = File { mapping :: Map Integer MetaInfo }
-  deriving (Eq, Show, Typeable, Data)
+  deriving (Eq, Show, Typeable)
 
 -- | Syntax highlighting information for a given source file.
 
@@ -201,7 +201,7 @@ toMap = mapping
 
 newtype CompressedFile =
   CompressedFile { ranges :: [(Range, MetaInfo)] }
-  deriving (Eq, Show, Data, Typeable)
+  deriving (Eq, Show, Typeable)
 
 -- | Invariant for compressed files.
 --

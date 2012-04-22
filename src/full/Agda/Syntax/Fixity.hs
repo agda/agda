@@ -4,7 +4,7 @@
 -}
 module Agda.Syntax.Fixity where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 
@@ -18,9 +18,9 @@ import Agda.Syntax.Notation
 data Fixity' = Fixity'
     {theFixity :: Fixity,
      theNotation :: Notation}
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Show, Eq)
 
-data ThingWithFixity x = ThingWithFixity x Fixity' deriving (Functor,Foldable,Traversable,Typeable,Data,Show)
+data ThingWithFixity x = ThingWithFixity x Fixity' deriving (Functor,Foldable,Traversable,Typeable,Show)
 -- | All the notation information related to a name.
 type NewNotation = (QName, Fixity, Notation)
 
@@ -47,7 +47,7 @@ noFixity = NonAssoc noRange (negate 666)
 data Fixity = LeftAssoc  Range Nat
 	    | RightAssoc Range Nat
 	    | NonAssoc   Range Nat
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 instance Eq Fixity where
     LeftAssoc _ n   == LeftAssoc _ m	= n == m
@@ -69,7 +69,7 @@ data Precedence = TopCtx | FunctionSpaceDomainCtx
 		| LeftOperandCtx Fixity | RightOperandCtx Fixity
 		| FunctionCtx | ArgumentCtx | InsideOperandCtx
                 | WithFunCtx | WithArgCtx | DotPatternCtx
-    deriving (Show,Typeable,Data)
+    deriving (Show,Typeable)
 
 
 -- | The precedence corresponding to a possibly hidden argument.

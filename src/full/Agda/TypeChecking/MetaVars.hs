@@ -6,7 +6,7 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Function
-import Data.Generics
+import Data.Typeable (Typeable)
 import Data.List as List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map

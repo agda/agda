@@ -42,7 +42,7 @@ module Agda.Syntax.Position
   , tests
   ) where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Data.List
 import Data.Function
 import Data.Set (Set, (\\))
@@ -79,7 +79,7 @@ data Position = Pn { srcFile :: Maybe AbsolutePath
 		   , posCol  :: !Int32
                      -- ^ Column number, counting from 1.
 		   }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 positionInvariant :: Position -> Bool
 positionInvariant p =
@@ -97,7 +97,7 @@ instance Ord Position where
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
 data Interval = Interval { iStart, iEnd :: !Position }
-    deriving (Typeable, Data, Eq, Ord)
+    deriving (Typeable, Eq, Ord)
 
 intervalInvariant :: Interval -> Bool
 intervalInvariant i =
@@ -114,7 +114,7 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
 newtype Range = Range [Interval]
-  deriving (Typeable, Data, Eq, Ord)
+  deriving (Typeable, Eq, Ord)
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True

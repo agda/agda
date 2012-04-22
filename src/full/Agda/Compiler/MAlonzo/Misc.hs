@@ -3,7 +3,6 @@
 module Agda.Compiler.MAlonzo.Misc where
 
 import Control.Monad.State
-import Data.Generics
 import Data.List as L
 import Data.Map as M
 import Data.Set as S
@@ -187,26 +186,3 @@ fakeExp = HS.Var . HS.UnQual . HS.Ident
 
 dummy :: a
 dummy = error "MAlonzo : this dummy value should not have been eval'ed."
-
-
---------------------------------------------------
--- For Debugging
---------------------------------------------------
-gshow' :: Data a => a -> String
-gshow' = ( \t ->
-           "("
-           ++ showConstr (toConstr t)
-           ++ concat (gmapQ ((++) " " . gshow') t)
-           ++ ")" )
-         `extQ` (show :: String -> String)
-         `extQ` (show :: Name -> String)
-         `extQ` (show :: QName -> String)
-         `extQ` (show :: ModuleName -> String)
-         `extQ` (gshow' . M.toList :: M.Map QName [AbstractName] -> String)
-         `extQ` (gshow' . M.toList :: M.Map QName [AbstractModule] -> String)
-         `extQ` (gshow' . M.toList :: M.Map ModuleName Section -> String)
-         `extQ` (gshow' . M.toList :: M.Map QName Definition -> String)
-         `extQ` (gshow' . M.toList :: M.Map TermHead [Pattern] -> String)
-         `extQ` (gshow' . M.toList :: M.Map TermHead [Arg Pattern] -> String)
-         `extQ` (gshow' . M.toList :: M.Map String (Builtin String) -> String)
-         `extQ` (show :: Scope -> String)

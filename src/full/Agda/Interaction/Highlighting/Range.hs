@@ -14,7 +14,7 @@ module Agda.Interaction.Highlighting.Range
 
 import Agda.Utils.QuickCheck
 import Data.List
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Agda.Utils.TestHelpers
 import qualified Agda.Syntax.Position as P
 
@@ -25,7 +25,7 @@ import qualified Agda.Syntax.Position as P
 -- Invariant: @'from' '<=' 'to'@.
 
 data Range = Range { from, to :: Integer }
-             deriving (Eq, Ord, Show, Typeable, Data)
+             deriving (Eq, Ord, Show, Typeable)
 
 -- | The 'Range' invariant.
 

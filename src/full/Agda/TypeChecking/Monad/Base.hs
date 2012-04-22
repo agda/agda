@@ -17,7 +17,7 @@ import Data.Function
 import Data.Int
 import Data.Map as Map
 import Data.Set as Set
-import Data.Generics
+import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
@@ -182,7 +182,7 @@ instance HasFresh Integer FreshThings where
 	    i = fInteger s
 
 newtype ProblemId = ProblemId Nat
-  deriving (Typeable, Data, Eq, Ord, Enum, Real, Integral, Num)
+  deriving (Typeable, Eq, Ord, Enum, Real, Integral, Num)
 
 instance Show ProblemId where
   show (ProblemId n) = show n
@@ -236,7 +236,7 @@ data Interface = Interface
                               -- ^ Pragma options set in the file.
         , iPatternSyns     :: A.PatternSynDefns
 	}
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 ---------------------------------------------------------------------------
 -- ** Closure
@@ -247,7 +247,7 @@ data Closure a = Closure { clSignature  :: Signature
 			 , clScope	:: ScopeInfo
 			 , clValue	:: a
 			 }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 instance Show a => Show (Closure a) where
   show cl = "Closure " ++ show (clValue cl)
@@ -299,7 +299,7 @@ data Comparison = CmpEq | CmpLeq
 
 -- | A thing tagged with the context it came from.
 data Open a = OpenThing [CtxId] a
-    deriving (Typeable, Data, Show, Functor)
+    deriving (Typeable, Show, Functor)
 
 ---------------------------------------------------------------------------
 -- * Judgements
@@ -310,7 +310,7 @@ data Open a = OpenThing [CtxId] a
 data Judgement t a
 	= HasType { jMetaId :: a, jMetaType :: t }
 	| IsSort  { jMetaId :: a, jMetaType :: t } -- Andreas, 2011-04-26: type needed for higher-order sort metas
-    deriving (Typeable, Data, Functor, Foldable, Traversable)
+    deriving (Typeable, Functor, Foldable, Traversable)
 
 instance (Show t, Show a) => Show (Judgement t a) where
     show (HasType a t) = show a ++ " : " ++ show t
@@ -444,7 +444,7 @@ data Signature = Sig
       { sigSections    :: Sections
       , sigDefinitions :: Definitions
       }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 type Sections	 = Map ModuleName Section
 type Definitions = HashMap QName Definition
@@ -464,7 +464,7 @@ data Section = Section
 				    --	 section to when translating from
 				    --	 abstract to internal syntax.
       }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 emptySignature :: Signature
 emptySignature = Sig Map.empty HMap.empty
@@ -478,14 +478,14 @@ data DisplayForm = Display Nat [Term] DisplayTerm
 		--     represents pattern vars. There should @n@ of them.
 		--
 		--   * Display form. @n@ free variables.
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data DisplayTerm = DWithApp [DisplayTerm] Args
                  | DCon QName [Arg DisplayTerm]
                  | DDef QName [Arg DisplayTerm]
                  | DDot Term
 		 | DTerm Term
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
@@ -499,7 +499,7 @@ data Definition = Defn
   , defCompiledRep :: CompiledRepresentation
   , theDef         :: Defn
   }
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 type HaskellCode = String
 type HaskellType = String
@@ -509,17 +509,17 @@ type JSCode      = JS.Exp
 data HaskellRepresentation
       = HsDefn HaskellType HaskellCode
       | HsType HaskellType
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data Polarity = Covariant | Contravariant | Invariant
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Show, Eq)
 
 data CompiledRepresentation = CompiledRep
   { compiledHaskell :: Maybe HaskellRepresentation
   , compiledEpic    :: Maybe EpicCode
   , compiledJS      :: Maybe JSCode
   }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = CompiledRep Nothing Nothing Nothing
@@ -527,7 +527,7 @@ noCompiledRep = CompiledRep Nothing Nothing Nothing
 -- | 'Positive' means strictly positive and 'Negative' means not strictly
 -- positive.
 data Occurrence = Positive | Negative | Unused
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Typeable, Show, Eq, Ord)
 
 instance NFData Occurrence
 
@@ -593,7 +593,7 @@ data Defn = Axiom
               -- something@ for builtin functions.
             }
             -- ^ Primitive or builtin functions.
-    deriving (Typeable, Data, Show)
+    deriving (Typeable, Show)
 
 defIsRecord :: Defn -> Bool
 defIsRecord Record{} = True
@@ -605,7 +605,7 @@ defIsDataOrRecord Datatype{} = True
 defIsDataOrRecord _          = False
 
 newtype Fields = Fields [(C.Name, Type)]
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 data Reduced no yes = NoReduction no | YesReduction yes
     deriving (Typeable, Functor)
@@ -656,7 +656,7 @@ defEpicDef = compiledEpic . defCompiledRep
 
 -- | Used to specify whether something should be delayed.
 data Delayed = Delayed | NotDelayed
-  deriving (Typeable, Data, Show, Eq)
+  deriving (Typeable, Show, Eq)
 
 -- | Are the clauses of this definition delayed?
 defDelayed :: Definition -> Delayed
@@ -678,19 +678,19 @@ defAbstract d = case theDef d of
 
 data FunctionInverse = NotInjective
                      | Inverse (Map TermHead Clause)
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data TermHead = SortHead
               | PiHead
               | ConHead QName
-  deriving (Typeable, Data, Eq, Ord, Show)
+  deriving (Typeable, Eq, Ord, Show)
 
 ---------------------------------------------------------------------------
 -- ** Mutual blocks
 ---------------------------------------------------------------------------
 
 newtype MutualId = MutId Int32
-  deriving (Typeable, Data, Eq, Ord, Show, Num)
+  deriving (Typeable, Eq, Ord, Show, Num)
 
 ---------------------------------------------------------------------------
 -- ** Statistics
@@ -732,12 +732,6 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
             -- but I was to lazy to import the stuff here --Andreas,2007-5-29
 
     deriving (Typeable)
-
--- Dummy instance
-instance Data Call where
-  dataTypeOf _  = mkDataType "Call" []
-  toConstr   x  = mkConstr (dataTypeOf x) "Dummy" [] Prefix
-  gunfold k z _ = __IMPOSSIBLE__
 
 instance HasRange Call where
     getRange (CheckClause _ c _)                   = getRange c
@@ -786,7 +780,7 @@ type BuiltinThings pf = Map String (Builtin pf)
 data Builtin pf
 	= Builtin Term
 	| Prim pf
-    deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+    deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------------------------
 -- * Type checking environment
@@ -840,7 +834,7 @@ data TCEnv =
                 --   top-level module; it depends on in which order
                 --   Agda chooses to chase dependencies.
 	  }
-    deriving (Typeable, Data)
+    deriving (Typeable)
 
 initEnv :: TCEnv
 initEnv = TCEnv { envContext	         = []
@@ -872,10 +866,10 @@ type Context	  = [ContextEntry]
 data ContextEntry = Ctx { ctxId	   :: CtxId
 			, ctxEntry :: Dom (Name, Type)
 			}
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 newtype CtxId	  = CtxId Nat
-  deriving (Typeable, Data, Eq, Ord, Show, Enum, Real, Integral, Num)
+  deriving (Typeable, Eq, Ord, Show, Enum, Real, Integral, Num)
 
 ---------------------------------------------------------------------------
 -- ** Let bindings
@@ -890,7 +884,7 @@ type LetBindings = Map Name (Open (Term, Dom Type))
 data AbstractMode = AbstractMode       -- ^ abstract things in the current module can be accessed
 		  | ConcreteMode       -- ^ no abstract things can be accessed
 		  | IgnoreAbstractMode -- ^ all abstract things can be accessed
-  deriving (Typeable, Data)
+  deriving (Typeable)
 
 ---------------------------------------------------------------------------
 -- * Type checking errors

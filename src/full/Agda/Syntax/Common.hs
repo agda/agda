@@ -5,7 +5,7 @@
 -}
 module Agda.Syntax.Common where
 
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 import Control.Applicative
 import Data.Foldable
 import Data.Traversable
@@ -20,10 +20,10 @@ import Agda.Utils.Size
 import Agda.Utils.Impossible
 
 data Induction = Inductive | CoInductive
-  deriving (Typeable, Data, Show, Eq, Ord)
+  deriving (Typeable, Show, Eq, Ord)
 
 data Hiding  = Hidden | Instance | NotHidden
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Typeable, Show, Eq, Ord)
 
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
@@ -41,7 +41,7 @@ data Relevance
                 --   It is treated relevantly during equality checking.
   | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime
   | Forced      -- ^ the argument can be skipped during equality checking
-    deriving (Typeable, Data, Show, Eq)
+    deriving (Typeable, Show, Eq)
 
 instance Ord Relevance where
   (<=) = moreRelevant
@@ -79,7 +79,7 @@ data Dom e = Dom
   { domHiding    :: Hiding
   , domRelevance :: Relevance
   , unDom        :: e
-  } deriving (Typeable, Data, Eq, Ord, Functor, Foldable, Traversable)
+  } deriving (Typeable, Eq, Ord, Functor, Foldable, Traversable)
 
 argFromDom :: Dom a -> Arg a
 argFromDom (Dom h r a) = Arg h r a
@@ -114,7 +114,7 @@ data Arg e  = Arg
   { argHiding    :: Hiding
   , argRelevance :: Relevance
   , unArg :: e
-  } deriving (Typeable, Data, Ord, Functor, Foldable, Traversable)
+  } deriving (Typeable, Ord, Functor, Foldable, Traversable)
 
 instance Eq a => Eq (Arg a) where
   Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
@@ -168,7 +168,7 @@ data Named name a =
     Named { nameOf     :: Maybe name
 	  , namedThing :: a
 	  }
-    deriving (Eq, Ord, Typeable, Data, Functor, Foldable, Traversable)
+    deriving (Eq, Ord, Typeable, Functor, Foldable, Traversable)
 
 unnamed :: a -> Named name a
 unnamed = Named Nothing
@@ -199,17 +199,17 @@ type NamedArg a = Arg (Named String a)
 -- | Functions can be defined in both infix and prefix style. See
 --   'Agda.Syntax.Concrete.LHS'.
 data IsInfix = InfixDef | PrefixDef
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Typeable, Show, Eq, Ord)
 
 -- | Access modifier.
 data Access = PrivateAccess | PublicAccess
             | OnlyQualified  -- ^ Visible from outside, but not exported when opening the module
                              --   Used for qualified constructors.
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Typeable, Show, Eq, Ord)
 
 -- | Abstract or concrete
 data IsAbstract = AbstractDef | ConcreteDef
-    deriving (Typeable, Data, Show, Eq, Ord)
+    deriving (Typeable, Show, Eq, Ord)
 
 type Nat    = Integer
 type Arity  = Nat
@@ -217,7 +217,7 @@ type Arity  = Nat
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
 data NameId = NameId Nat Integer
-    deriving (Eq, Ord, Typeable, Data)
+    deriving (Eq, Ord, Typeable)
 
 instance Enum NameId where
   succ (NameId n m)	= NameId (n + 1) m

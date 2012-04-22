@@ -17,7 +17,7 @@ import qualified Data.Sequence as Seq
 import Data.Foldable as Fold
 import Data.Traversable
 import Data.Map (Map)
-import Data.Generics (Typeable, Data)
+import Data.Typeable (Typeable)
 
 import qualified Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty ()
@@ -62,7 +62,7 @@ data Expr
         | Unquote ExprInfo                   -- ^ The splicing construct: unquote ...
         | DontCare Expr                      -- ^ for printing DontCare from Syntax.Internal
         | PatternSyn QName
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data Declaration
 	= Axiom      DefInfo Relevance QName Expr          -- ^ postulate
@@ -85,7 +85,7 @@ data Declaration
             -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
-        deriving (Typeable, Data, Show)
+        deriving (Typeable, Show)
 
 class GetDefInfo a where
   getDefInfo :: a -> Maybe DefInfo
@@ -104,7 +104,7 @@ instance GetDefInfo Declaration where
 
 data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
                        | RecordModuleIFS ModuleName
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data Pragma = OptionsPragma [String]
 	    | BuiltinPragma String Expr
@@ -115,12 +115,12 @@ data Pragma = OptionsPragma [String]
             | CompiledJSPragma QName String
             | StaticPragma QName
             | EtaPragma QName
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
                 | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
@@ -130,12 +130,12 @@ type Constructor    = TypeSignature
 data LamBinding
 	= DomainFree Hiding Relevance Name  -- ^ . @x@ or @{x}@ or @.x@ or @.{x}@
 	| DomainFull TypedBindings  -- ^ . @(xs:e)@ or @{xs:e}@
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | Typed bindings with hiding information.
 data TypedBindings = TypedBindings Range (Arg TypedBinding)
 	    -- ^ . @(xs : e)@ or @{xs : e}@
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | A typed binding. Appears in dependent function spaces, typed lambdas, and
 --   telescopes. I might be tempting to simplify this to only bind a single
@@ -145,7 +145,7 @@ data TypedBindings = TypedBindings Range (Arg TypedBinding)
 --   you have to.
 data TypedBinding = TBind Range [Name] Expr
 		  | TNoBind Expr
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 type Telescope	= [TypedBindings]
 
@@ -156,7 +156,7 @@ data Clause	= Clause
   { clauseLHS        :: LHS
   , clauseRHS        :: RHS
   , clauseWhereDecls :: [Declaration]
-  } deriving (Typeable, Data, Show)
+  } deriving (Typeable, Show)
 
 data RHS	= RHS Expr
 		| AbsurdRHS
@@ -165,7 +165,7 @@ data RHS	= RHS Expr
                     -- ^ The 'QName's are the names of the generated with functions.
                     --   One for each 'Expr'.
                     --   The RHS shouldn't be another RewriteRHS
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 {-
 data LHS	= LHS
@@ -174,7 +174,7 @@ data LHS	= LHS
   , lhsPats     :: [NamedArg Pattern]  -- ^ function parameters (patterns)
   , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
   }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 -}
 
 data LHS	= LHS
@@ -182,7 +182,7 @@ data LHS	= LHS
   , lhsCore     :: LHSCore
   , lhsWithPats :: [Pattern]           -- ^ with patterns (after |)
   }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 
 -- | Parameterised over the type of dot patterns.
 data LHSCore' e
@@ -194,7 +194,7 @@ data LHSCore' e
              , lhsFocus      :: NamedArg (LHSCore' e)    -- ^ main branch
              , lhsPatsRight  :: [NamedArg (Pattern' e)]  -- ^ side patterns
              }
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type LHSCore = LHSCore' Expr
 
@@ -227,7 +227,7 @@ data LHSCore
              , lhsFocus      :: NamedArg LHSCore    -- ^ main branch
              , lhsPatsRight  :: [NamedArg Pattern]  -- ^ side patterns
              }
-  deriving (Typeable, Data, Show)
+  deriving (Typeable, Show)
 -}
 {- UNUSED
 mapLHSHeadM :: (Monad m) => (QName -> [NamedArg Pattern] -> m LHSCore) -> LHSCore -> m LHSCore
@@ -248,7 +248,7 @@ data Pattern' e	= VarP Name
 		| LitP Literal
 		| ImplicitP PatInfo	-- ^ generated at type checking for implicit arguments
                 | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
-  deriving (Typeable, Data, Show, Functor, Foldable, Traversable)
+  deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 type Pattern = Pattern' Expr
 
