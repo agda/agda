@@ -12,8 +12,7 @@
 
 (defvar agda2-version "2.3.1"
   "The version of the Agda mode.
-Note that, by default, the same version of the underlying Haskell
-library is used.")
+Note that the same version of the Agda executable must be used.")
 
 (require 'cl)
 (set (make-local-variable 'lisp-indent-function)
@@ -345,6 +344,19 @@ The following paragraph does not apply to Emacs 23 or newer.
 
 Special commands:
 \\{agda2-mode-map}"
+
+ ;; Check that the right version of Agda is used.
+ (let* ((coding-system-for-read 'utf-8)
+        (output (with-output-to-string
+                  (call-process agda2-program-name
+                                nil standard-output nil "--version")))
+        (version (and (string-match "^Agda version \\([0-9.]+\\)$" output)
+                      (match-string 1 output))))
+   (unless (equal version agda2-version)
+     (error "The Agda mode's version (%s) does not match that of %s (%s)."
+            agda2-version
+            agda2-program-name (or version "unknown"))))
+
  (setq local-abbrev-table agda2-mode-abbrev-table
        indent-tabs-mode   nil
        mode-line-process
