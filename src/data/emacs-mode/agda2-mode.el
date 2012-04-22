@@ -77,7 +77,7 @@ the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-program-name "agda"
-  "*The name of the agda executable program."
+  "The name of the Agda executable."
   :type 'string
   :group 'agda2)
 
@@ -102,7 +102,7 @@ argument, and does not need to be listed here."
 
 (defcustom agda2-information-window-max-height
   0.35
-  "*The maximum height of the information window.
+  "The maximum height of the information window.
 A multiple of the frame height."
   :type 'number
   :group 'agda2)
