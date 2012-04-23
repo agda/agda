@@ -959,7 +959,7 @@ argument)."
 With a prefix argument the result is not explicitly normalised.")
      (interactive "P")
      (let ((,eval (if not-normalise "Instantiated" "Normalised")))
-       (agda2-goal-cmd (concat ,cmd " Agda.Interaction.BasicOps." ,eval)
+       (agda2-goal-cmd (concat ,cmd " " ,eval)
                        ,want)))))
 
 (defmacro agda2-maybe-normalised-toplevel (name comment cmd prompt)
@@ -977,7 +977,7 @@ With a prefix argument the result is not explicitly normalised.")
        (interactive ,(concat "P\nM" prompt ": "))
        (let ((,eval (if not-normalise "Instantiated" "Normalised")))
          (agda2-go t nil
-                   (concat ,cmd " Agda.Interaction.BasicOps." ,eval " "
+                   (concat ,cmd " " ,eval " "
                            (agda2-string-quote expr)))))))
 
 (agda2-maybe-normalised
