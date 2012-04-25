@@ -33,6 +33,7 @@ import Agda.TypeChecking.Reduce (Normalise, normalise, instantiate)
 import Agda.TypeChecking.EtaContract (etaContract)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Free (freeIn)
+import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Auto.NarrowingSearch
 import Agda.Auto.Syntax
@@ -677,7 +678,7 @@ findClauseDeep :: I.MetaId -> MB.TCM (Maybe (AN.QName, I.Clause, Bool))
 findClauseDeep m = do
   sig <- getImportedSignature
   let res = do
-        def <- Map.elems $ MB.sigDefinitions sig
+        def <- HMap.elems $ MB.sigDefinitions sig
         MB.Function{MB.funClauses = cs} <- [MB.theDef def]
         c <- cs
         unless (peelbinds False findMeta $ I.clauseBody c) []

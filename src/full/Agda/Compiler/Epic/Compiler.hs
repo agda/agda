@@ -31,6 +31,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Serialise
 import Agda.Utils.FileName
+import qualified Agda.Utils.HashMap as HMap
 
 import qualified Agda.TypeChecking.Pretty as P
 
@@ -121,7 +122,7 @@ compileModule i = do
                         "Compiling: " ++ show (iModuleName i)
                     resetNameSupply
                     initialAnalysis i
-                    let defns = M.toList $ sigDefinitions $ iSignature i
+                    let defns = HMap.toList $ sigDefinitions $ iSignature i
                     -- Epic cannot parse files with no definitions
                     if (not $ null defns) then do
                         code <- compileDefns defns
@@ -143,7 +144,7 @@ initialAnalysis :: Interface -> Compile TCM ()
 initialAnalysis inter = do
   Prim.initialPrims
   modify $ \s -> s {curModule = mempty}
-  let defs = M.toList $ sigDefinitions $ iSignature inter
+  let defs = HMap.toList $ sigDefinitions $ iSignature inter
   forM_ defs $ \(q, def) -> do
     addDefName q
     case theDef def of

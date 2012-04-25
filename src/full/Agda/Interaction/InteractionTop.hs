@@ -59,6 +59,7 @@ import qualified Agda.Compiler.MAlonzo.Compiler as MAlonzo
 import qualified Agda.Compiler.JS.Compiler as JS
 
 import qualified Agda.Auto.Auto as Auto
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -241,7 +242,7 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
            put theTCState
            (x, cstate)  <- (`runCommandM` cstate) $ liftCommandMT (withEnv (initEnv
                             { envEmacs                   = True
-                            , envInteractiveHighlighting = highlighting
+                            , envInteractiveHighlighting = False -- highlighting
                             })) $ do
                    case independence cmd of
                      Dependent             -> ensureFileLoaded current
@@ -658,7 +659,7 @@ takenNameStr :: TCM [String]
 takenNameStr = do
   xss <- sequence [ List.map (fst . unDom) <$> getContext
                   , Map.keys <$> asks envLetBindings
-                  , List.map qnameName . Map.keys . sigDefinitions <$> getSignature
+                  , List.map qnameName . HMap.keys . sigDefinitions <$> getSignature
 		  ]
   return $ concat [ parts $ nameConcrete x | x <- concat xss]
   where

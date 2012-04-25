@@ -25,6 +25,7 @@ import Agda.Utils.Either
 import Agda.Utils.List
 import Agda.Utils.Maybe
 import Agda.Utils.Monad
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -73,12 +74,12 @@ getRecordFieldNames r =
 -- | Find all records with at least the given fields.
 findPossibleRecords :: [C.Name] -> TCM [QName]
 findPossibleRecords fields = do
-  defs <- (Map.union `on` sigDefinitions) <$> getSignature <*> getImportedSignature
+  defs <- (HMap.union `on` sigDefinitions) <$> getSignature <*> getImportedSignature
   let possible def = case theDef def of
         Record{ recFields = fs } -> Set.isSubsetOf given inrecord
           where inrecord = Set.fromList $ map (nameConcrete . qnameName . unArg) fs
         _ -> False
-  return [ defName d | d <- Map.elems defs, possible d ]
+  return [ defName d | d <- HMap.elems defs, possible d ]
   where
     given = Set.fromList fields
 

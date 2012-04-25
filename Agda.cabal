@@ -76,6 +76,7 @@ library
                     QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.14,
                     containers >= 0.1 && < 0.5,
+                    unordered-containers == 0.2.*,
                     pretty >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2,
                     old-time >= 1.0 && < 1.2,
@@ -280,6 +281,7 @@ library
                     Agda.Utils.Generics
                     Agda.Utils.Graph
                     Agda.Utils.Hash
+                    Agda.Utils.HashMap
                     Agda.Utils.Impossible
                     Agda.Utils.IO.Binary
                     Agda.Utils.IO.Locale

@@ -20,6 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 
@@ -121,7 +122,7 @@ mazHBoolToBool   = "mazHBoolToBool"
 
 xForPrim :: [(String, TCM [a])] -> TCM [a]
 xForPrim table = do
-  qs <- keys   <$> curDefs
+  qs <- HMap.keys <$> curDefs
   bs <- toList <$> gets stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _))    = q

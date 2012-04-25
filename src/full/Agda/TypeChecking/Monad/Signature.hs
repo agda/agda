@@ -36,6 +36,7 @@ import Agda.Utils.Map as Map
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -78,7 +79,7 @@ addConstant q d = do
   let d' = abstract tel' $ d { defName = q }
   reportSLn "tc.signature" 30 $ "lambda-lifted definition = " ++ show d'
   modifySignature $ \sig -> sig
-    { sigDefinitions = Map.insertWith (+++) q d' $ sigDefinitions sig }
+    { sigDefinitions = HMap.insertWith (+++) q d' $ sigDefinitions sig }
   i <- currentOrFreshMutualBlock
   setMutualBlock i q
   where
@@ -203,7 +204,7 @@ addHaskellCode :: QName -> HaskellType -> HaskellCode -> TCM ()
 addHaskellCode q hsTy hsDef =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
-  { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
+  { sigDefinitions = HMap.adjust addHs q $ sigDefinitions sig }
   where
     addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsDefn hsTy hsDef } }
 
@@ -211,7 +212,7 @@ addHaskellType :: QName -> HaskellType -> TCM ()
 addHaskellType q hsTy =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
-  { sigDefinitions = Map.adjust addHs q $ sigDefinitions sig }
+  { sigDefinitions = HMap.adjust addHs q $ sigDefinitions sig }
   where
     addHs def = def { defCompiledRep = (defCompiledRep def) { compiledHaskell = Just $ HsType hsTy } }
 
@@ -219,7 +220,7 @@ addEpicCode :: QName -> EpicCode -> TCM ()
 addEpicCode q epDef =
   -- TODO: sanity checking
   modifySignature $ \sig -> sig
-  { sigDefinitions = Map.adjust addEp q $ sigDefinitions sig }
+  { sigDefinitions = HMap.adjust addEp q $ sigDefinitions sig }
   where
     --addEp def@Defn{theDef = con@Constructor{}} =
       --def{theDef = con{conHsCode = Just (hsTy, hsDef)}}
@@ -230,7 +231,7 @@ addJSCode q jsDef =
   case JS.parse jsDef of
     Left e ->
       modifySignature $ \sig -> sig
-      { sigDefinitions = Map.adjust (addJS (Just e)) q $ sigDefinitions sig }
+      { sigDefinitions = HMap.adjust (addJS (Just e)) q $ sigDefinitions sig }
     Right s ->
       typeError (CompilationError ("Failed to parse ECMAScript (..." ++ s ++ ") for " ++ show q))
   where
@@ -239,7 +240,7 @@ addJSCode q jsDef =
 markStatic :: QName -> TCM ()
 markStatic q =
   modifySignature $ \sig -> sig
-  { sigDefinitions = Map.adjust mark q $ sigDefinitions sig }
+  { sigDefinitions = HMap.adjust mark q $ sigDefinitions sig }
   where
     mark def@Defn{theDef = fun@Function{}} =
       def{theDef = fun{funStatic = True}}
@@ -248,7 +249,7 @@ markStatic q =
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
-    unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (Map.union b d)
+    unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (HMap.union b d)
 
 -- | Add a section to the signature.
 addSection :: ModuleName -> Nat -> TCM ()
@@ -312,7 +313,7 @@ applySection new ptel old ts rd rm = do
   sig  <- getSignature
   isig <- getImportedSignature
   let ss = getOld partOfOldM sigSections    [sig, isig]
-      ds = getOld partOfOldD sigDefinitions [sig, isig]
+      ds = getOldH partOfOldD sigDefinitions [sig, isig]
   reportSLn "tc.mod.apply" 10 $ render $ vcat
     [ text "applySection"
     , text "new  =" <+> text (show new)
@@ -331,6 +332,8 @@ applySection new ptel old ts rd rm = do
   where
     getOld partOfOld fromSig sigs =
       Map.toList $ Map.filterKeys partOfOld $ Map.unions $ map fromSig sigs
+    getOldH partOfOld fromSig sigs =
+      HMap.toList $ HMap.filterWithKey (const . partOfOld) $ HMap.unions $ map fromSig sigs
 
     partOfOldM x = x `isSubModuleOf` old
     partOfOldD x = x `isInModule`    old
@@ -420,7 +423,7 @@ addDisplayForm x df = do
   modifyImportedSignature (add d)
   modifySignature (add d)
   where
-    add df sig = sig { sigDefinitions = Map.adjust addDf x defs }
+    add df sig = sig { sigDefinitions = HMap.adjust addDf x defs }
       where
 	addDf def = def { defDisplay = df : defDisplay def }
 	defs	  = sigDefinitions sig
@@ -474,7 +477,7 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
   let defs  = sigDefinitions $ stSignature st
       idefs = sigDefinitions $ stImports st
       smash = (++) `on` maybe [] (:[])
-  in case smash (Map.lookup q defs) (Map.lookup q idefs) of
+  in case smash (HMap.lookup q defs) (HMap.lookup q idefs) of
       []  -> fail $ "Unbound name: " ++ show q ++ " " ++ showQNameId q
       [d] -> mkAbs env d
       ds  -> fail $ "Ambiguous name: " ++ show q
@@ -519,7 +522,7 @@ setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = do
   modifySignature setP
   where
-    setP sig = sig { sigDefinitions = Map.adjust setPx q defs }
+    setP sig = sig { sigDefinitions = HMap.adjust setPx q defs }
       where
 	setPx def = def { theDef = setPd $ theDef def }
         setPd d   = case d of
@@ -545,7 +548,7 @@ setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os =
   modifySignature setO
   where
-    setO sig = sig { sigDefinitions = Map.adjust setOx d defs }
+    setO sig = sig { sigDefinitions = HMap.adjust setOx d defs }
       where
 	setOx def = def { theDef = setOd $ theDef def }
         setOd d   = case d of

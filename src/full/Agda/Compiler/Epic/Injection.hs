@@ -24,6 +24,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
 import qualified Agda.Compiler.Epic.FromAgda as FA
@@ -61,8 +62,8 @@ findInjection defs = do
 replaceFunCC :: QName -> CompiledClauses -> Compile TCM ()
 replaceFunCC name cc = do
     lift $ modify $ \s ->
-        s { stSignature = (stSignature s) { sigDefinitions = M.adjust replaceDef name (sigDefinitions (stSignature s)) }
-          , stImports   = (stImports   s) { sigDefinitions = M.adjust replaceDef name (sigDefinitions (stImports   s)) }
+        s { stSignature = (stSignature s) { sigDefinitions = HM.adjust replaceDef name (sigDefinitions (stSignature s)) }
+          , stImports   = (stImports   s) { sigDefinitions = HM.adjust replaceDef name (sigDefinitions (stImports   s)) }
           }
   where
     replaceDef :: Definition -> Definition

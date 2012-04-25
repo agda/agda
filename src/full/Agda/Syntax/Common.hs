@@ -9,6 +9,7 @@ import Data.Generics (Typeable, Data)
 import Control.Applicative
 import Data.Foldable
 import Data.Traversable
+import Data.Hashable
 import Test.QuickCheck
 
 import Agda.Syntax.Position
@@ -223,6 +224,10 @@ instance Enum NameId where
   pred (NameId n m)	= NameId (n - 1) m
   toEnum n		= __IMPOSSIBLE__  -- should not be used
   fromEnum (NameId n _) = fromIntegral n
+
+instance Hashable NameId where
+  {-# INLINE hash #-}
+  hash (NameId n m) = hash (n, m)
 
 newtype Constr a = Constr a
 

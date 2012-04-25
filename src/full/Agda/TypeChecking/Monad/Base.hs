@@ -21,6 +21,7 @@ import Data.Generics
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
+import Data.Hashable
 import System.Time
 
 import Agda.Syntax.Common
@@ -30,6 +31,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Internal
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
+import Agda.Utils.HashMap as HMap
 
 import Agda.TypeChecking.CompiledClause
 
@@ -445,7 +447,13 @@ data Signature = Sig
   deriving (Typeable, Data, Show)
 
 type Sections	 = Map ModuleName Section
-type Definitions = Map QName Definition
+type Definitions = HashMap QName Definition
+
+instance (Eq k, Hashable k, Data k, Data v) => Data (HashMap k v) where
+  gfoldl k z m  = z HMap.fromList `k` HMap.toList m
+  gunfold k z _ = k (z HMap.fromList)
+  toConstr x    = mkConstr (dataTypeOf x) "fromList" [] Prefix
+  dataTypeOf x  = mkDataType "Data.HashMap.HashMap" [toConstr x]
 
 data Section = Section
       { secTelescope :: Telescope
@@ -459,7 +467,7 @@ data Section = Section
   deriving (Typeable, Data, Show)
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty Map.empty
+emptySignature = Sig Map.empty HMap.empty
 
 data DisplayForm = Display Nat [Term] DisplayTerm
 		-- ^ The three arguments are:

@@ -47,6 +47,7 @@ import Agda.Utils.Function ( iterate' )
 import Agda.Utils.Monad ( (<$>), (<*>), bracket, ifM )
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
+import qualified Agda.Utils.HashMap as HMap
 import Agda.Compiler.MAlonzo.Misc ( curDefs, curIF, curMName, setInterface )
 import Agda.Compiler.MAlonzo.Primitives ( repl )
 
@@ -199,7 +200,7 @@ curModule :: TCM Module
 curModule = do
   m <- (jsMod <$> curMName)
   is <- map jsMod <$> (iImportedModules <$> curIF)
-  es <- mapM definition =<< (toList <$> curDefs)
+  es <- mapM definition =<< (HMap.toList <$> curDefs)
   return (Module m (reorder es))
 
 definition :: (QName,Definition) -> TCM Export

@@ -45,6 +45,7 @@ import Agda.Compiler.HaskellTypes
 
 import Agda.Utils.Size
 import Agda.Utils.Monad
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -258,7 +259,7 @@ checkPragma r p =
 	A.OptionsPragma _   -> __IMPOSSIBLE__	-- not allowed here
         A.EtaPragma r -> modifySignature eta
           where
-            eta sig = sig { sigDefinitions = Map.adjust setEta r defs }
+            eta sig = sig { sigDefinitions = HMap.adjust setEta r defs }
               where
                 setEta def = def { theDef = setEtad $ theDef def }
                 setEtad d   = case d of

@@ -13,6 +13,7 @@ import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Set as Set
 import Data.Traversable
+import Data.Hashable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -34,6 +35,8 @@ import {-# SOURCE #-} Agda.TypeChecking.Patterns.Match
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Match
 
 import Agda.Utils.Monad
+import Agda.Utils.HashMap (HashMap)
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -671,6 +674,9 @@ instance InstantiateFull Elim where
   instantiateFull (Proj f)  = pure $ Proj f
 
 instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
+    instantiateFull = traverse instantiateFull
+
+instance (Eq k, Hashable k, InstantiateFull e) => InstantiateFull (HashMap k e) where
     instantiateFull = traverse instantiateFull
 
 instance InstantiateFull ModuleName where

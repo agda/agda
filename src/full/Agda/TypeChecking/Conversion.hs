@@ -398,38 +398,6 @@ compareAtom cmp t m n =
 	    where
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
-{- OLD CODE
-	equalFun t1@(Pi arg1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
-	    | h1 /= h2	= typeError $ UnequalHiding ty1 ty2
-            -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance ty1 ty2
-	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
-                reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
-                  [ text "t1 =" <+> prettyTCM t1
-                  , text "t2 =" <+> prettyTCM t2 ]
-                let (ty1',ty2') = raise 1 (ty1,ty2)
-                    arg	    = Arg h1 r1 $ var 0
-                name <- freshName_ (suggest t1 t2)
-                let checkArg = escapeContext 1 $ compareType cmp a2 a1
-                    c        = TypeCmp cmp (piApply ty1' [arg]) (piApply ty2' [arg])
-
-                -- We only need to require a1 == a2 if t2 is a dependent function type.
-                -- If it's non-dependent it doesn't matter what we add to the context.
-                let dependent = isBinderUsed b2
-                addCtx name arg1 $
-                  if dependent
-                  then guardConstraint c checkArg
-                  else checkArg >> solveConstraint_ c
-	    where
-		ty1 = El (getSort a1) t1    -- TODO: wrong (but it doesn't matter)
-		ty2 = El (getSort a2) t2
-		suggest t1 t2 = case concatMap name [t1,t2] of
-				    []	-> "_"
-				    x:_	-> x
-		    where
-			name (Pi _ b) = filter (/= "_") [absName b]
-			name _        = __IMPOSSIBLE__
--}
 	equalFun _ _ = __IMPOSSIBLE__
 
 -- | Type-directed equality on eliminator spines

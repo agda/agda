@@ -39,6 +39,7 @@ import Agda.Syntax.Scope.Monad (withCurrentModule)
 import qualified Agda.Syntax.Abstract.Name as AN
 import qualified Agda.TypeChecking.Monad.Base as MB
 import Agda.TypeChecking.EtaContract (etaContract)
+import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Auto.Convert
 import Agda.Auto.NarrowingSearch
@@ -331,7 +332,7 @@ auto ii rng argstr = liftTCM $ do
                st <- liftTCM $ join $ pureTCM $ \st _ -> return st
                let defs = sigDefinitions $ stSignature st
                    idefs = sigDefinitions $ stImports st
-                   alldefs = Map.keys defs ++ Map.keys idefs
+                   alldefs = HMap.keys defs ++ HMap.keys idefs
                liftM catMaybes $ mapM (\n ->
                  case thisdefinfo of
                   Just (def, _, _) | def == n -> return Nothing

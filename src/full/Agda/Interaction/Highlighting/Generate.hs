@@ -37,6 +37,8 @@ import qualified Agda.Syntax.Scope.Base as S
 import qualified Agda.Syntax.Translation.ConcreteToAbstract as CA
 import Agda.Utils.List
 import Agda.Utils.TestHelpers
+import Agda.Utils.HashMap (HashMap)
+import qualified Agda.Utils.HashMap as HMap
 import Control.Monad
 import Control.Monad.Trans
 import Control.Monad.State
@@ -342,21 +344,21 @@ nameKinds mErr decls = do
     Just _  -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-      everything' union (Map.empty `mkQ` getDecl) decls
-  let merged = Map.union local imported
-  return (\n -> Map.lookup n merged)
+      everything' union (HMap.empty `mkQ` getDecl) decls
+  let merged = HMap.union local imported
+  return (\n -> HMap.lookup n merged)
   where
-  fix = Map.map (defnToNameKind . theDef) . sigDefinitions
+  fix = HMap.map (defnToNameKind . theDef) . sigDefinitions
 
   -- | The 'M.Axiom' constructor is used to represent various things
   -- which are not really axioms, so when maps are merged 'Postulate's
   -- are thrown away whenever possible. The 'getDef' and 'getDecl'
   -- functions below can return several explanations for one qualified
   -- name; the 'Postulate's are bogus.
-  union = Map.unionWith dropPostulates
+  union = HMap.unionWith dropPostulates
     where
-    dropPostulates Postulate k = k
-    dropPostulates k         _ = k
+      dropPostulates Postulate k = k
+      dropPostulates k         _ = k
 
   defnToNameKind :: Defn -> NameKind
   defnToNameKind (M.Axiom {})                     = Postulate
@@ -370,32 +372,32 @@ nameKinds mErr decls = do
   getAxiomName (A.Axiom _ _ q _) = q
   getAxiomName _                 = __IMPOSSIBLE__
 
-  getDecl :: A.Declaration -> Map A.QName NameKind
-  getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate
-  getDecl (A.Field _ q _)     = Map.singleton q Function
+  getDecl :: A.Declaration -> HashMap A.QName NameKind
+  getDecl (A.Axiom _ _ q _)   = HMap.singleton q Postulate
+  getDecl (A.Field _ q _)     = HMap.singleton q Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
     -- of by "theRest" above, which does not use NameKinds.
-  getDecl (A.Primitive _ q _) = Map.singleton q Primitive
-  getDecl (A.Mutual {})       = Map.empty
-  getDecl (A.Section {})      = Map.empty
-  getDecl (A.Apply {})        = Map.empty
-  getDecl (A.Import {})       = Map.empty
-  getDecl (A.Pragma {})       = Map.empty
-  getDecl (A.ScopedDecl {})   = Map.empty
-  getDecl (A.Open {})         = Map.empty
-  getDecl (A.FunDef  _ q _)       = Map.singleton q Function
-  getDecl (A.DataSig _ q _ _)       = Map.singleton q Datatype
-  getDecl (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
-                                   (Map.unions $
-                                    map (\q -> Map.singleton q (Constructor SC.Inductive)) $
+  getDecl (A.Primitive _ q _) = HMap.singleton q Primitive
+  getDecl (A.Mutual {})       = HMap.empty
+  getDecl (A.Section {})      = HMap.empty
+  getDecl (A.Apply {})        = HMap.empty
+  getDecl (A.Import {})       = HMap.empty
+  getDecl (A.Pragma {})       = HMap.empty
+  getDecl (A.ScopedDecl {})   = HMap.empty
+  getDecl (A.Open {})         = HMap.empty
+  getDecl (A.FunDef  _ q _)       = HMap.singleton q Function
+  getDecl (A.DataSig _ q _ _)       = HMap.singleton q Datatype
+  getDecl (A.DataDef _ q _ cs)    = HMap.singleton q Datatype `union`
+                                   (HMap.unions $
+                                    map (\q -> HMap.singleton q (Constructor SC.Inductive)) $
                                     map getAxiomName cs)
-  getDecl (A.RecSig _ q _ _)      = Map.singleton q Record
-  getDecl (A.RecDef _ q c _ _ _)  = Map.singleton q Record `union`
+  getDecl (A.RecSig _ q _ _)      = HMap.singleton q Record
+  getDecl (A.RecDef _ q c _ _ _)  = HMap.singleton q Record `union`
                                    case c of
-                                     Nothing -> Map.empty
+                                     Nothing -> HMap.empty
                                      Just q ->
-                                       Map.singleton q (Constructor SC.Inductive)
+                                       HMap.singleton q (Constructor SC.Inductive)
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declarations.
@@ -416,7 +418,7 @@ generateConstructorInfo modMap file kinds decls = do
 
   -- Look up the corresponding declarations in the internal syntax.
   defMap <- M.sigDefinitions <$> M.getSignature
-  let defs = catMaybes $ map (flip Map.lookup defMap) names
+  let defs = catMaybes $ map (flip HMap.lookup defMap) names
 
   -- Instantiate meta variables.
   clauses <- R.instantiateFull $ concatMap M.defClauses defs

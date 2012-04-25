@@ -41,6 +41,7 @@ import Agda.Utils.Monad
 import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Impossible
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 
@@ -105,9 +106,8 @@ imports = (++) <$> hsImps <*> imps where
 definitions :: Definitions -> TCM [HS.Decl]
 definitions defs = do
   kit <- coinductionKit
-  M.fold (liftM2 (++) . (definition kit <=< instantiateFull))
-         declsForPrim
-         defs
+  HMap.foldr (liftM2 (++) . (definition kit <=< instantiateFull))
+             declsForPrim defs
 
 -- | Note that the INFINITY, SHARP and FLAT builtins are translated as
 -- follows (if a 'CoinductionKit' is given):

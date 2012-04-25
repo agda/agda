@@ -32,6 +32,7 @@ import Agda.Compiler.Epic.Interface
 
 import Agda.Utils.Monad
 import Agda.Utils.Size
+import qualified Agda.Utils.HashMap as HM
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -46,7 +47,7 @@ smash'em :: [Fun] -> Compile TCM [Fun]
 smash'em funs = do
     defs <- lift (gets (sigDefinitions . stImports))
     funs' <- forM funs $ \f -> case f of
-      AA.Fun{} -> case funQName f >>= flip M.lookup defs of
+      AA.Fun{} -> case funQName f >>= flip HM.lookup defs of
           Nothing -> do
               lift $ reportSDoc "epic.smashing" 10 $ vcat
                 [ (text . show) f <+> text " was not found"]
@@ -79,7 +80,7 @@ inferable visited dat args | dat `S.member` visited = return Nothing
 inferable visited dat args = do
   lift $ reportSLn "epic.smashing" 10 $ "  inferring:" ++ (show dat)
   defs <- lift (gets (sigDefinitions . stImports))
-  let def = fromMaybe __IMPOSSIBLE__ $ M.lookup dat defs
+  let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup dat defs
   case theDef def of
       d@Datatype{} -> do
           case dataCons d of
@@ -95,7 +96,7 @@ inferable visited dat args = do
   where
     inferableArgs c pars = do
         defs <- lift (gets (sigDefinitions . stImports))
-        let def = fromMaybe __IMPOSSIBLE__ $ M.lookup c defs
+        let def = fromMaybe __IMPOSSIBLE__ $ HM.lookup c defs
         forc <- getForcedArgs c
         TelV tel _ <- lift $ telView (defType def `apply` genericTake pars args)
         tag <- getConstrTag c

@@ -24,6 +24,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Monad
+import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.CompileState
 
@@ -52,7 +53,7 @@ evaluateCC ccs = case ccs of
 etaExpand :: Term -> Compile TCM Term
 etaExpand def@(Def n ts) = do
     defs <- lift (gets (sigDefinitions . stImports))
-    let f   = maybe __IMPOSSIBLE__ theDef (M.lookup n defs)
+    let f   = maybe __IMPOSSIBLE__ theDef (HM.lookup n defs)
         len = length . clausePats . head .  funClauses $ f
         toEta :: Num a => a
         toEta = fromIntegral $ len - length ts
@@ -95,7 +96,7 @@ evaluateTerm term = case term of
     isStatic :: QName -> Compile TCM Bool
     isStatic q = do
       defs <- lift (gets (sigDefinitions . stImports))
-      return $ case fmap theDef $ M.lookup q defs of
+      return $ case fmap theDef $ HM.lookup q defs of
           Nothing -> False
           Just (f@Function{}) -> funStatic f
           Just _              -> False

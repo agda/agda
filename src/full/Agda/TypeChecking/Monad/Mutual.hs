@@ -8,6 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
@@ -38,7 +39,7 @@ setMutualBlock i x = do
 				      }
 		   }
   where
-    setMutId x i = flip Map.adjust x $ \defn -> defn { defMutual = i }
+    setMutId x i = flip HMap.adjust x $ \defn -> defn { defMutual = i }
 
 -- | Get all mutual blocks
 getMutualBlocks :: TCM [Set QName]

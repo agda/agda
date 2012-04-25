@@ -8,6 +8,7 @@ import Control.Monad.State
 import Data.Generics (Typeable, Data)
 import Data.List
 import Data.Function
+import Data.Hashable
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -219,6 +220,10 @@ instance Ord Name where
 instance Show Name where
   show x = show (nameConcrete x) -- ++ "|" ++ show (nameId x)
 
+instance Hashable Name where
+  {-# INLINE hash #-}
+  hash = hash . nameId
+
 instance Show QName where
   show q = concat $ intersperse "." $ map show $ qnameToList q
 
@@ -230,6 +235,10 @@ instance Eq QName where
 
 instance Ord QName where
   compare = compare `on` qnameName
+
+instance Hashable QName where
+  {-# INLINE hash #-}
+  hash = hash . qnameName
 
 instance HasRange Name where
   getRange = getRange . nameConcrete

@@ -24,13 +24,14 @@ import Agda.Compiler.Epic.Interface
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
+import qualified Agda.Utils.HashMap as HM
 
 -- | Get a list of all the datatypes that look like nats. The [QName] is on the
 --   form [zeroConstr, sucConstr]
 getNatish :: Compile TCM [(ForcedArgs, [QName])]
 getNatish = do
   sig <- lift (gets (sigDefinitions . stImports))
-  let defs = M.toList sig
+  let defs = HM.toList sig
   fmap catMaybes $ forM defs $ \(q, def) ->
     case theDef def of
       d@(Datatype {}) -> isNatish q d
@@ -48,7 +49,7 @@ isNatish q d = do -- A datatype ...
                 case sortBy (compare `on` nrRel . snd) z of
                   [(cz,fz), (cs,fs)] -> do
                     sig <- lift (gets (sigDefinitions . stImports))
-                    let ts = defType $ sig M.! cs
+                    let ts = defType $ sig HM.! cs
                         nr = fromIntegral $ dataPars d
                     return $ do
                      guard (nrRel fz == 0) -- where one constructor has zero arguments ...

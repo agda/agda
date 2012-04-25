@@ -29,6 +29,7 @@ import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import qualified Agda.Utils.HashMap as HM
 
 import Agda.Compiler.Epic.AuxAST
 import Agda.Compiler.Epic.CompileState
@@ -48,7 +49,7 @@ dataParameters = lift . dataParametersTCM
 dataParametersTCM :: QName -> TCM Nat
 dataParametersTCM name = do
     m <- (gets (sigDefinitions . stImports))
-    return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (M.lookup name m)
+    return $ maybe __IMPOSSIBLE__ (defnPars . theDef) (HM.lookup name m)
   where
     defnPars :: Defn -> Nat
     defnPars (Datatype {dataPars = p}) = p
@@ -152,7 +153,7 @@ remForced :: [Fun] -> Compile TCM [Fun]
 remForced fs = do
     defs <- lift (gets (sigDefinitions . stImports))
     forM fs $ \f -> case f of
-        Fun{} -> case funQName f >>= flip M.lookup defs of
+        Fun{} -> case funQName f >>= flip HM.lookup defs of
             Nothing -> __IMPOSSIBLE__
             Just def -> do
                 TelV tele _ <- lift $ telView (defType def)

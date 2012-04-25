@@ -27,6 +27,7 @@ import Agda.TypeChecking.Reduce
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 import Agda.Utils.Monad
+import qualified Agda.Utils.HashMap as HM
 
 
 -- | Stuff we need in our compiler
@@ -67,7 +68,7 @@ getsEI f = gets (f . curModule)
 getType :: QName -> Compile TCM Type
 getType q = do
     map <- lift (gets (sigDefinitions . stImports))
-    return $ maybe __IMPOSSIBLE__ defType (M.lookup q map)
+    return $ maybe __IMPOSSIBLE__ defType (HM.lookup q map)
 
 -- | Create a name which can be used in Epic code from a QName.
 unqname :: QName -> Var
@@ -109,7 +110,7 @@ assignConstrTag' constr constrs = do
 getConData :: QName -> Compile TCM QName
 getConData con = do
     lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
-    case M.lookup con lmap of
+    case HM.lookup con lmap of
         Just def -> case theDef def of
             c@(TM.Constructor{}) -> return $ TM.conData c
             _                 -> __IMPOSSIBLE__
@@ -118,7 +119,7 @@ getConData con = do
 getDataCon :: QName -> Compile TCM [QName]
 getDataCon con = do
     lmap <- lift (gets (TM.sigDefinitions . TM.stImports))
-    case M.lookup con lmap of
+    case HM.lookup con lmap of
         Just def -> case theDef def of
             d@(TM.Datatype{}) -> return $ TM.dataCons d
             r@(TM.Record{})   -> return [ TM.recCon r]

@@ -32,6 +32,7 @@ import Agda.Interaction.BasicOps
 
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -52,7 +53,7 @@ findClause :: MetaId -> TCM (CaseContext, QName, Clause)
 findClause m = do
   sig <- getImportedSignature
   let res = do
-        def <- Map.elems $ sigDefinitions sig
+        def <- HMap.elems $ sigDefinitions sig
         Function{funClauses = cs} <- [theDef def]
         c <- cs
         unless (rhsIsm $ clauseBody c) []
@@ -64,7 +65,7 @@ findClause m = do
         , text "expected rhs to be meta var" <+> (text $ show m)
         , text "but could not find it in the signature"
         ]
-      reportSDoc "interaction.case" 20 $ vcat $ map (text . show) (Map.elems $ sigDefinitions sig)  -- you asked for it!
+      reportSDoc "interaction.case" 100 $ vcat $ map (text . show) (HMap.elems $ sigDefinitions sig)  -- you asked for it!
       typeError $ GenericError "Right hand side must be a single hole when making a case distinction."
     [(n,c)] | isPrefixOf extendlambdaname $ show $ A.qnameName n -> do
                                                Just (h , nh) <- Map.lookup n <$> getExtLambdaTele

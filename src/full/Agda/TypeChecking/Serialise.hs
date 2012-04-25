@@ -75,6 +75,8 @@ import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
 import Agda.Utils.Permutation
+import Agda.Utils.HashMap (HashMap)
+import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -84,7 +86,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120404 * 10 + 0
+currentInterfaceVersion = 20120425 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -591,6 +593,10 @@ instance EmbPrj Signature where
   icode (Sig a b) = icode2' a b
   value = vcase valu where valu [a, b] = valu2 Sig a b
                            valu _      = malformed
+
+instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
+  icode m = icode (HMap.toList m)
+  value m = HMap.fromList `fmap` value m
 
 instance EmbPrj Section where
   icode (Section a b) = icode2' a b
