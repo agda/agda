@@ -15,6 +15,7 @@ import qualified Agda.Utils.IO.Locale as LocIO
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import qualified Agda.Syntax.Abstract as A
@@ -741,3 +742,12 @@ updateMeta mI v = do
     withMetaInfo' mv $ do
       args <- getContextArgs
       noConstraints $ assignV mI args v
+
+-- | Returns every meta-variable occurrence in the given type, except
+-- for those in 'Sort's.
+
+allMetas :: Type -> [MetaId]
+allMetas = foldTerm metas
+  where
+  metas (MetaV m _) = [m]
+  metas _           = []

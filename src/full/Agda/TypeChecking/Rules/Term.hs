@@ -26,7 +26,6 @@ import Agda.Syntax.Translation.AbstractToConcrete
 import Agda.Syntax.Concrete.Pretty
 import Agda.Syntax.Fixity
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Views
@@ -441,9 +440,9 @@ checkExpr e t =
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case unEl t' of
               Pi (Dom h' r a) _
-                | h == h' && not (null $ foldTerm metas a) ->
+                | h == h' && not (null $ allMetas a) ->
                     postponeTypeCheckingProblem e (ignoreBlocking t) $
-                      null . foldTerm metas <$> instantiateFull a
+                      null . allMetas <$> instantiateFull a
                 | h == h' -> blockTerm t' $ do
                   isEmptyType (getRange i) a
                   -- Add helper function
@@ -483,9 +482,6 @@ checkExpr e t =
                   -- WAS: return (Def aux [])
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
-          where
-            metas (MetaV m _) = [m]
-            metas _           = []
         A.ExtendedLam i di qname cs -> do
              t <- reduceB =<< instantiateFull t
              case t of
@@ -519,8 +515,6 @@ checkExpr e t =
                 n     = size tel
                 arg i = defaultArg (var i)
 -}
-            metas (MetaV m _) = [m]
-            metas _           = []
 
 {- UNUSED
             counthidden :: Telescope -> Int
@@ -686,10 +680,7 @@ checkExpr e t =
 
         e0@(A.QuoteGoal _ x e) -> do
           t' <- etaContract =<< normalise t
-          let metas = foldTerm (\v -> case v of
-                                       MetaV m _ -> [m]
-                                       _         -> []
-                               ) t'
+          let metas = allMetas t'
           case metas of
             _:_ -> postponeTypeCheckingProblem e0 t' $ andM $ map isInstantiatedMeta metas
             []  -> do
