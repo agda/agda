@@ -4,6 +4,7 @@
 
 module Agda.Utils.Geniplate
   ( instanceUniverseBiT'
+  , instanceTransformBiMT'
   , dontDescendInto
   ) where
 
@@ -33,3 +34,10 @@ dontDescendInto =
 
 instanceUniverseBiT' ts p =
   instanceUniverseBiT (ts ++ dontDescendInto) p
+
+-- | A localised instance of 'instanceTransformBiMT'. The generated
+-- 'transformBiM' functions neither descend into the types in
+-- 'dontDescendInto', nor into the types in the list argument.
+
+instanceTransformBiMT' ts p =
+  instanceTransformBiMT (ts ++ dontDescendInto) p

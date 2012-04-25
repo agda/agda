@@ -21,6 +21,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base (TCM)
+
 import Agda.Utils.Geniplate
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -369,10 +371,20 @@ instance KillRange a => KillRange (Abs a) where
   killRange = fmap killRange
 
 ---------------------------------------------------------------------------
--- * UniverseBi instances.
+-- * UniverseBi and TransformBiM instances.
 ---------------------------------------------------------------------------
 
 instanceUniverseBiT' [] [t| (([Type], [Clause]), Pattern) |]
 instanceUniverseBiT' [] [t| (Args, Pattern)               |]
 instanceUniverseBiT' [] [t| (([Type], [Clause]), Term)    |]
 instanceUniverseBiT' [] [t| (Args, Term)                  |]
+
+-- Note that the exclusion of Sort below is not an optimisation, it
+-- changes the semantics of the generated functions.
+
+instanceUniverseBiT'   [ [t| Sort |] ] [t| (Type, Term) |]
+instanceTransformBiMT' [ [t| Sort |] ] [t| TCM |] [t| (Term, Args)   |]
+instanceTransformBiMT' [ [t| Sort |] ] [t| TCM |] [t| (Term, Term)   |]
+instanceTransformBiMT' [ [t| Sort |] ] [t| TCM |] [t| (Term, [Term]) |]
+instanceTransformBiMT' [ [t| Sort |] ] [t| TCM |] [t| (Term, Type)   |]
+instanceTransformBiMT' [ [t| Sort |] ] [t| TCM |] [t| (Term, [Type]) |]

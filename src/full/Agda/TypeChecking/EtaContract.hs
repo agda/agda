@@ -1,11 +1,12 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 
 -- | Compute eta short normal forms.
 module Agda.TypeChecking.EtaContract where
 
+import Data.Generics.Geniplate
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
-import Agda.Syntax.Internal.Generic
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Monad
@@ -37,9 +38,8 @@ binAppView t = case t of
     app f [] = noApp
     app f xs = App (f $ init xs) (last xs)
 
-etaContract :: TermLike a => a -> TCM a
-etaContract = traverseTermM etaOnce
-  where
+etaContract :: TransformBiM TCM Term a => a -> TCM a
+etaContract = transformBiM etaOnce
 
 etaOnce :: Term -> TCM Term
 etaOnce v = ignoreAbstractMode $ eta v
