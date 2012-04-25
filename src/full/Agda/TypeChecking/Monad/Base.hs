@@ -1196,14 +1196,45 @@ instance MonadTrans TCMT where
 
 -- We want a special monad implementation of fail.
 instance MonadIO m => Monad (TCMT m) where
-    return x = TCM $ \_ _ -> return x
-    TCM m >>= k = TCM $ \r e -> do
-        x <- m r e
-        let TCM m' = k x in m' r e
-    TCM m1 >> TCM m2 = TCM $ \r e -> m1 r e >> m2 r e
-    fail    = internalError
+    return = returnTCMT
+    (>>=)  = bindTCMT
+    (>>)   = thenTCMT
+    fail   = internalError
 
-    {-# SPECIALIZE instance Monad TCM #-}
+-- One goal of the definitions and pragmas below is to inline the
+-- monad operations as much as possible. This doesn't seem to have a
+-- large effect on the performance of the normal executable, but (at
+-- least on one machine/configuration) it has a massive effect on the
+-- performance of the profiling executable [1], and reduces the time
+-- attributed to bind from over 90% to about 25%.
+--
+-- [1] When compiled with -auto-all and run with -p: roughly 750%
+-- faster for one example.
+
+returnTCMT :: MonadIO m => a -> TCMT m a
+returnTCMT = \x -> TCM $ \_ _ -> return x
+{-# RULES "returnTCMT"
+      returnTCMT = \x -> TCM $ \_ _ -> return x
+  #-}
+{-# INLINE returnTCMT #-}
+{-# SPECIALIZE INLINE returnTCMT :: a -> TCM a #-}
+
+bindTCMT :: MonadIO m => TCMT m a -> (a -> TCMT m b) -> TCMT m b
+bindTCMT = \(TCM m) k -> TCM $ \r e -> m r e >>= \x -> unTCM (k x) r e
+{-# RULES "bindTCMT"
+      bindTCMT = \(TCM m) k -> TCM $ \r e ->
+                   m r e >>= \x -> unTCM (k x) r e
+  #-}
+{-# INLINE bindTCMT #-}
+{-# SPECIALIZE INLINE bindTCMT :: TCM a -> (a -> TCM b) -> TCM b #-}
+
+thenTCMT :: MonadIO m => TCMT m a -> TCMT m b -> TCMT m b
+thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
+{-# RULES "thenTCMT"
+      thenTCMT = \(TCM m1) (TCM m2) -> TCM $ \r e -> m1 r e >> m2 r e
+  #-}
+{-# INLINE thenTCMT #-}
+{-# SPECIALIZE INLINE thenTCMT :: TCM a -> TCM b -> TCM b #-}
 
 instance MonadIO m => Functor (TCMT m) where
     fmap = liftM
