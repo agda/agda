@@ -6,7 +6,6 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Function
-import Data.Generics.Geniplate
 import Data.Typeable (Typeable)
 import Data.List as List hiding (sort)
 import Data.Map (Map)
@@ -16,6 +15,7 @@ import qualified Agda.Utils.IO.Locale as LocIO
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Internal
+import Agda.Syntax.Internal.Generic
 import Agda.Syntax.Position
 import Agda.Syntax.Literal
 import qualified Agda.Syntax.Abstract as A
@@ -747,7 +747,7 @@ updateMeta mI v = do
 -- for those in 'Sort's.
 
 allMetas :: Type -> [MetaId]
-allMetas = concatMap metas . universeBi
+allMetas = foldTerm metas
   where
   metas (MetaV m _) = [m]
   metas _           = []
