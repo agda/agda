@@ -3,9 +3,11 @@
 -- | Generates data used for precise syntax highlighting.
 
 module Agda.Interaction.Highlighting.Generate
-  ( generateSyntaxInfo
+  ( generateAndPrintSyntaxInfo
+  , HighlightingLevel(..)
+  , generateTokenInfo
   , generateErrorInfo
-  , highlightInteractively
+  , printHighlightingInfo
   , highlightAsTypeChecked
   , Agda.Interaction.Highlighting.Generate.tests
   )
@@ -22,6 +24,7 @@ import Agda.TypeChecking.MetaVars (isBlockedTerm)
 import Agda.TypeChecking.Monad.Options (reportSLn)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
+import Agda.TypeChecking.Monad.Trace (traceCall)
 import qualified Agda.TypeChecking.Monad as M
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
@@ -61,48 +64,58 @@ import System.IO
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
--- | Highlights the given thing first as being type-checked, and then,
--- once the computation has finished successfully, as having been
--- type-checked. Returns the result of the computation.
---
--- (The highlighting is only performed when
--- 'envInteractiveHighlighting' is @True@.)
-
-highlightInteractively
-  :: (P.HasRange r, MonadTCM tcm)
-  => r
-     -- ^ The thing.
-  -> tcm a
-     -- ^ The computation.
-  -> tcm a
-highlightInteractively x m = do
-  highlightAsTypeChecked False x
-  result <- m
-  highlightAsTypeChecked True x
-  return result
-
--- | Highlights the given thing as being/having been type-checked.
+-- | Highlight the current computation on the second given range, while it
+-- is running. If a superset of this range what already highlighted
+-- before hand, the complement is removed, and restored afterwards.
+-- Otherwise the whole computation range is highligted, and cleared
+-- afterwards.
+-- (Invariant: `highlightAsTypeChecked' restores the highlighting.)
 --
 -- But only if 'envInteractiveHighlighting' is @True@.
-
 highlightAsTypeChecked
-  :: (P.HasRange r, MonadTCM tcm)
-  => Bool
-     -- ^ Has the code been type-checked?
-  -> r
-     -- ^ The thing.
-  -> tcm ()
-highlightAsTypeChecked typeChecked x =
-  whenM (envInteractiveHighlighting <$> ask) $
-    unless (null $ ranges file) $
-      liftTCM $ do
-        st <- get
-        liftIO $ stInteractionOutputCallback st $ Resp_HighlightingInfo file
+  :: (MonadTCM tcm)
+  => tcm a
+     -- ^ The computation.
+  -> P.Range
+     -- ^ The range of the that is currently highlighted.
+  -> P.Range
+     -- ^ The range of the computation.
+  -> tcm a
+highlightAsTypeChecked m r1 r2
+  -- The two ranges are disjoints. The range of the computation to run is
+  -- r2; and r1 has already been cleared.
+  -- Highlight r2, run the computation, and then clear r2.
+  | delta == r1' = wrap r2' highlight m clear
+  -- r2 is a subset of r1, that is currently highlighted. Clear the difference,
+  -- run the computation; and then restore the difference.
+  | otherwise    = wrap delta clear m highlight
+
   where
-  file =
-    singletonC (P.continuousPerLine $ P.getRange x)
-               (mempty { otherAspects = [aspect] })
-  aspect = if typeChecked then TypeChecked else TypeChecks
+  r1' = rToR (P.continuousPerLine r1)
+  r2' = rToR (P.continuousPerLine r2)
+  delta = minus r1' r2'
+  clear     = mempty { aspect = Nothing }
+  highlight = mempty { otherAspects = [TypeChecks] }
+  h rs x = printHighlightingInfo ( CompressedFile $ zip rs $ repeat x
+                                 , __IMPOSSIBLE__ )
+  wrap rs x m y = do
+    h rs x
+    m <- m
+    h rs y
+    return m
+
+-- | Lispify and print the given highlighting information.
+-- But only if 'envInteractiveHighlighting' is @True@.
+
+printHighlightingInfo
+  :: (MonadTCM tcm)
+  => (HighlightingInfo, ModuleToSource)
+  -> tcm ()
+printHighlightingInfo x = do
+  unless (null $ ranges $ fst x) $
+    whenM (envInteractiveHighlighting <$> ask) $ do
+      st <- get
+      liftIO $ (stInteractionOutputCallback st) (Resp_HighlightingInfo x)
 
 -- | Generates syntax highlighting information for an error,
 -- represented as a range and an optional string. The error range is
@@ -130,44 +143,68 @@ generateErrorFile r s =
                     , note         = s
                     })
 
--- | Generates syntax highlighting information.
+-- | The highlight level to produce.
+-- * `Full' represents final highlighting,
+-- * `Partial' does not disambiguate constructors,
+-- * `HlErr' is to be use to highlight termination checking problems.
 
-generateSyntaxInfo
+data HighlightingLevel =
+    Full
+  | Partial
+  | HlErr TCErr
+
+isFull :: HighlightingLevel -> Bool
+isFull Full = True
+isFull _    = False
+
+
+-- | Generate syntax highlighting information for the given declaration,
+-- and update the state with the new information. If @hlLevel@ is Full.
+--
+-- The highlighting information relative to tokens stored in the state
+-- is shorten up to the final position of @decl@. (The stortened part
+-- is merged with other highlighting information for @decl@.)
+--
+-- Finally, the highlighting information for @decl@ (and the stortened
+-- part of tokens) is printed in the *ghci* buffer.
+
+generateAndPrintSyntaxInfo
   :: AbsolutePath          -- ^ The module to highlight.
-  -> Maybe TCErr           -- ^ 'Nothing' if the module has been
-                           --   successfully type checked (perhaps
-                           --   with warnings), otherwise the
-                           --   offending error.
-                           --
+  -> A.Declaration         -- ^ The declaration (that has just been
+                           --   type-checked).
+  -> HighlightingLevel     -- ^ The highlight level to produce.
                            --   Precondition: The range of the error
                            --   must match the file name given in the
                            --   previous argument.
-  -> CA.TopLevelInfo       -- ^ The abstract syntax of the module.
   -> [M.TerminationError]  -- ^ Termination checking problems.
-  -> TCM HighlightingInfo
-generateSyntaxInfo file mErr top termErrs = do
-  reportSLn "import.iface.create" 15  $
-      "Generating syntax info for " ++ filePath file ++ ' ' : maybe "(No TCErr)" (const "(with TCErr)") mErr ++ "."
-
-  M.withScope_ (CA.insideScope top) $ M.ignoreAbstractMode $ do
+  -> TCM ()
+generateAndPrintSyntaxInfo file decl hlLevel termErrs = do
+  reportSLn "import.iface.create" 15 $
+      "Generating syntax info for " ++ filePath file ++ ' ' :
+        case hlLevel of
+            Full    -> "(final)"
+            Partial -> "(first approximation)"
+            HlErr _ -> "(with TCErr)"
+        ++ "."
+  M.ignoreAbstractMode $ do
     modMap <- sourceToModule
-    tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
-    kinds  <- nameKinds mErr decls
+    kinds  <- nameKinds hlLevel [decl]
     let nameInfo = mconcat $ map (generate modMap file kinds) names
     -- Constructors are only highlighted after type checking, since they
     -- can be overloaded.
-    constructorInfo <- case mErr of
-      Nothing -> generateConstructorInfo modMap file kinds decls
-      Just _  -> return mempty
-    metaInfo <- case mErr of
-      Nothing -> computeUnsolvedMetaWarnings
-      Just _  -> return mempty
-    constraintInfo <- case mErr of
-      Nothing -> computeUnsolvedConstraints
-      Just _  -> return mempty
-    errorInfo <- case mErr of
-      Nothing -> return mempty
-      Just e  -> let r = P.getRange e in
+    constructorInfo <- case hlLevel of
+      Full -> generateConstructorInfo modMap file kinds [decl]
+      _    -> return mempty
+    metaInfo <- case hlLevel of
+      Full -> computeUnsolvedMetaWarnings
+      _    -> return mempty
+    constraintInfo <- case hlLevel of
+      Full -> computeUnsolvedConstraints
+      _    -> return mempty
+    errorInfo <- case hlLevel of
+      Full    -> return mempty
+      Partial -> return mempty
+      HlErr e -> let r = P.getRange e in
         case P.rStart r of
           Just p | P.srcFile p == Just file ->
             generateErrorFile r . Just <$> E.prettyError e
@@ -175,46 +212,28 @@ generateSyntaxInfo file mErr top termErrs = do
     -- theRest needs to be placed before nameInfo here since record
     -- field declarations contain QNames. constructorInfo also needs
     -- to be placed before nameInfo since, when typechecking is done,
-    -- constructors are included in both lists. Finally tokInfo is
-    -- placed last since token highlighting is more crude than the
-    -- others.
-    return $ compress $ mconcat
-      [ errorInfo
-      , constructorInfo
-      , theRest modMap
-      , nameInfo
-      , metaInfo
-      , constraintInfo
-      , termInfo
-      , tokInfo tokens
-      ]
+    -- constructors are included in both lists. Finally the token
+    -- information is placed last since token highlighting is more
+    -- crude than the others.
+    modFile <- stModuleToSource <$> get
+    (curTokens, newTokens) <- splitCAt to <$> stTokens <$> get
+    let syntaxInfo = compress (mconcat [ errorInfo
+                                       , constructorInfo
+                                       , theRest modMap
+                                       , nameInfo
+                                       , metaInfo
+                                       , constraintInfo
+                                       , termInfo
+                                       ])
+                        `mappend` curTokens
+    when (isFull hlLevel) $
+        modify (\st -> st { stSyntaxInfo = stSyntaxInfo st `mappend` syntaxInfo
+                          , stTokens = newTokens })
+    printHighlightingInfo ( syntaxInfo, modFile )
   where
-    decls = CA.topLevelDecls top
-
+    to = snd $ bounds $ rToR $ P.continuous $ P.getRange decl
     -- Converts an aspect and a range to a file.
     aToF a r = singleton r (mempty { aspect = Just a })
-
-    tokInfo = Fold.foldMap tokenToFile
-      where
-      tokenToFile :: T.Token -> File
-      tokenToFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
-      tokenToFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
-      tokenToFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
-      tokenToFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)
-      tokenToFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
-      tokenToFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
-      tokenToFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
-      tokenToFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
-      tokenToFile (T.TokLiteral (L.LitString r _)) = aToF String r
-      tokenToFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
-      tokenToFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
-      tokenToFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
-      tokenToFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
-      tokenToFile (T.TokId {})                     = mempty
-      tokenToFile (T.TokQId {})                    = mempty
-      tokenToFile (T.TokString {})                 = mempty
-      tokenToFile (T.TokDummy {})                  = mempty
-      tokenToFile (T.TokEOF {})                    = mempty
 
     termInfo = functionDefs `mappend` callSites
       where
@@ -224,28 +243,17 @@ generateSyntaxInfo file mErr top termErrs = do
       callSites    = Fold.foldMap (\r -> singleton r m) $
                      concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
-    names :: [A.AmbiguousQName]
-    names =
-      (map (A.AmbQ . (:[])) $
-       filter (not . extendedLambda) $
-       universeBi decls) ++
-      universeBi decls
+    -- All names mentioned in the syntax tree (not bound variables).
+    names = everything' (><) (Seq.empty `mkQ`  getName
+                                        `extQ` getAmbiguous)
+                        decls
       where
       extendedLambda :: A.QName -> Bool
       extendedLambda n = extendlambdaname `isPrefixOf` show (A.qnameName n)
 
     -- Bound variables, dotted patterns, record fields, module names,
     -- the "as" and "to" symbols.
-    theRest modMap = mconcat
-      [ Fold.foldMap getFieldDecl   $ universeBi decls
-      , Fold.foldMap getVarAndField $ universeBi decls
-      , Fold.foldMap getLet         $ universeBi decls
-      , Fold.foldMap getLam         $ universeBi decls
-      , Fold.foldMap getTyped       $ universeBi decls
-      , Fold.foldMap getPattern     $ universeBi decls
-      , Fold.foldMap getModuleName  $ universeBi decls
-      , Fold.foldMap getModuleInfo  $ universeBi decls
-      ]
+    theRest modMap = everything' mappend query decls
       where
       bound n = nameToFile modMap file []
                            (A.nameConcrete n)
@@ -319,21 +327,54 @@ generateSyntaxInfo file mErr top termErrs = do
                                    , SI.minfoAsName = name }) =
         aToF Symbol asTo `mappend` maybe mempty asName name
 
+
+-- | Generate and return the syntax highlighting information for the
+-- tokens of the given file.
+
+generateTokenInfo
+  :: AbsolutePath          -- ^ The module to highlight.
+  -> TCM CompressedFile
+generateTokenInfo file = do
+    tokens <- liftIO $ Pa.parseFile' Pa.tokensParser file
+    return $ mconcat $ map tokenToCFile tokens
+      where
+      -- Converts an aspect and a range to a file.
+      aToF a r = singletonC r (mempty { aspect = Just a })
+
+      tokenToCFile :: T.Token -> CompressedFile
+      tokenToCFile (T.TokSetN (i, _))               = aToF PrimitiveType (P.getRange i)
+      tokenToCFile (T.TokKeyword T.KwSet  i)        = aToF PrimitiveType (P.getRange i)
+      tokenToCFile (T.TokKeyword T.KwProp i)        = aToF PrimitiveType (P.getRange i)
+      tokenToCFile (T.TokKeyword T.KwForall i)      = aToF Symbol (P.getRange i)
+      tokenToCFile (T.TokKeyword _ i)               = aToF Keyword (P.getRange i)
+      tokenToCFile (T.TokSymbol  _ i)               = aToF Symbol (P.getRange i)
+      tokenToCFile (T.TokLiteral (L.LitInt    r _)) = aToF Number r
+      tokenToCFile (T.TokLiteral (L.LitFloat  r _)) = aToF Number r
+      tokenToCFile (T.TokLiteral (L.LitString r _)) = aToF String r
+      tokenToCFile (T.TokLiteral (L.LitChar   r _)) = aToF String r
+      tokenToCFile (T.TokLiteral (L.LitQName  r _)) = aToF String r
+      tokenToCFile (T.TokComment (i, _))            = aToF Comment (P.getRange i)
+      tokenToCFile (T.TokTeX (i, _))                = aToF Comment (P.getRange i)
+      tokenToCFile (T.TokId {})                     = mempty
+      tokenToCFile (T.TokQId {})                    = mempty
+      tokenToCFile (T.TokString {})                 = mempty
+      tokenToCFile (T.TokDummy {})                  = mempty
+      tokenToCFile (T.TokEOF {})                    = mempty
+
 -- | A function mapping names to the kind of name they stand for.
 
 type NameKinds = A.QName -> Maybe NameKind
 
 -- | Builds a 'NameKinds' function.
 
-nameKinds :: Maybe TCErr  -- ^ 'Nothing' if type checking completed
-                          --   successfully.
+nameKinds :: HighlightingLevel
           -> [A.Declaration]
           -> TCM NameKinds
-nameKinds mErr decls = do
+nameKinds hlLevel decls = do
   imported <- fix . stImports <$> get
-  local    <- case mErr of
-    Nothing -> fix . stSignature <$> get
-    Just _  -> return $
+  local    <- case hlLevel of
+    Full -> fix . stSignature <$> get
+    _    -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
       everything' union (Map.empty `mkQ` getDecl) decls

@@ -12,6 +12,7 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
+import Agda.Interaction.FindFile
 import Agda.Interaction.Highlighting.Precise
 import Agda.Interaction.FindFile (ModuleToSource)
 --import Agda.Interaction.MakeCase
@@ -30,8 +31,7 @@ import Agda.Utils.Impossible
 --   so the user can have timely response even during long computations.
 
 data Response
-    = Resp_HighlightingInfo HighlightingInfo
-    | Resp_UpdateHighlighting (HighlightingInfo, ModuleToSource)
+    = Resp_HighlightingInfo (HighlightingInfo, ModuleToSource)
     | Resp_Status Status
     | Resp_JumpToError FilePath Int32
     | Resp_InteractionPoints [InteractionId]

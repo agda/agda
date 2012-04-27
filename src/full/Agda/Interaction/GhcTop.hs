@@ -61,7 +61,7 @@ mimicGHCi maybeCurrentfile = do
         _   -> return ()
 
     interact' st = do
-        putPrompt "Prelude Agda.Interaction.GhciTop> "
+        putPrompt "Agda2> "
         b <- IO.isEOF
         if b then return () else do
             r <- getLine
@@ -113,7 +113,7 @@ mimicGHCi maybeCurrentfile = do
             "cmd_constraints" -> return cmd_constraints
             "cmd_show_module_contents_toplevel" -> liftM cmd_show_module_contents_toplevel parse
             "cmd_solveAll" -> return cmd_solveAll
-            "cmd_write_highlighting_info" -> liftM cmd_write_highlighting_info (parseString maybeCurrentfile)
+            "cmd_load_highlighting_info" -> liftM cmd_load_highlighting_info (parseString maybeCurrentfile)
             "cmd_compute_toplevel" -> liftM2 cmd_compute_toplevel parse parse
             "cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
             "Agda.Interaction.BasicOps.cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
@@ -330,13 +330,6 @@ lispifyResponse (Resp_Status s)
     checked  = boolToMaybe (sChecked               s) "Checked"
     showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
 
-lispifyResponse (Resp_UpdateHighlighting info) = do
-    dir <- getTemporaryDirectory
-    f   <- E.bracket (IO.openTempFile dir "agda2-mode")
-                   (IO.hClose . snd) $ \ (f, h) -> do
-           UTF8.hPutStr h $ showHighlightingInfo info
-           return f
-    return $ L [ A "agda2-highlight-load-and-delete-action", A (quote f) ]
 lispifyResponse (Resp_JumpToError f p)
     = return $ L [ A "agda2-goto", Q $ L [A (quote f), A ".", A (show p)] ]
 lispifyResponse (Resp_InteractionPoints is) = return $

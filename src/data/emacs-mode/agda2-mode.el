@@ -25,6 +25,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda-input)
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
+(require 'agda2-queue)
 ;; Load filladapt, if it is installed.
 (condition-case nil
     (require 'filladapt)
@@ -294,6 +295,9 @@ Set in `agda2-restart'.")
   "External status of an `agda2-mode' buffer (dictated by the Haskell side).")
 (make-variable-buffer-local 'agda2-buffer-external-status)
 
+(defvar agda2-ghci-prompt "Agda2> "
+  "Prompt in the GHCI buffer.")
+
 (defconst agda2-help-address
   ""
   "Address accepting submissions of bug reports and questions.")
@@ -417,17 +421,14 @@ Special commands:
                     (set-buffer agda2-process-buffer)
                     (comint-mode)
 
-                    ;; GHCi prompt should be of the form `ModuleName> '.
-                    (setq comint-prompt-regexp
-                    "^\\*?[[:upper:]][\\._[:alnum:]]*\\( \\*?[[:upper:]][\\._[:alnum:]]*\\)*> ")
-
                     ;; Clear message area.
                     (message "")
 
                     (setq agda2-process
                         (get-buffer-process agda2-process-buffer))
                     (setq agda2-in-progress    nil
-                          mode-name "Agda executable")
+                          mode-name "Agda executable"
+                          agda2-last-responses nil)
                     (set (make-local-variable 'comint-input-sender)
                          'agda2-send)
                     ;; Avoid the "Marker does not point anywhere"
@@ -439,6 +440,7 @@ Special commands:
                     (rename-buffer agda2-bufname)
                     (set-process-query-on-exit-flag agda2-process nil)))
   (agda2-call-ghci 'wait nil ":mod +" agda2-toplevel-module)
+  (setq agda2-file-buffer (current-buffer))
   (with-current-buffer agda2-process-buffer
       (add-hook 'comint-preoutput-filter-functions
                 'agda2-ghci-filter
@@ -512,7 +514,7 @@ exist, then an attempt is made to restart the process."
   "The number of encountered response commands.")
 (make-variable-buffer-local 'agda2-responses)
 
-(defvar agda2-ghci-chunk-incomplete ""
+(defvar agda2-ghci-chunk-incomplete (agda2-queue-empty)
   "Buffer for incomplete lines.
 \(See `agda2-ghci-filter'.)")
 (make-variable-buffer-local 'agda2-ghci-chunk-incomplete)
@@ -535,15 +537,14 @@ HIGHLIGHT is non-nil, then the buffer's syntax highlighting may
 be updated."
 
   (when agda2-in-progress
-    (error "Another command is currently in progress
+      (error "Another command is currently in progress
 \(if a command has been aborted you may want to restart Agda)"))
 
   (setq agda2-in-progress           t
         agda2-highlight-in-progress highlight
         agda2-responses-expected    responses-expected
         agda2-responses             0
-        agda2-ghci-chunk-incomplete ""
-        agda2-last-responses        nil
+        agda2-ghci-chunk-incomplete (agda2-queue-empty)
         agda2-file-buffer           (current-buffer))
 
   (apply 'agda2-call-ghci
@@ -592,9 +593,8 @@ reloaded from `agda2-highlighting-file', unless
 
   (with-current-buffer agda2-file-buffer
 
-    (let (;; The input lines in the current chunk.
-          (lines (split-string chunk "\n"))
-
+    ;; The input lines in the current chunk.
+    (let ((lines (split-string chunk "\n"))
           ;; Interactive highlighting annotations found in the current
           ;; chunk (reversed).
           (highlighting-anns ())
@@ -603,88 +603,92 @@ reloaded from `agda2-highlighting-file', unless
           (non-last-commands ())
 
           ;; The text that is echoed to the *ghci* buffer.
-          (echoed-text ""))
-
+          (echoed-text (agda2-queue-empty)))
       (when (consp lines)
+        (agda2-queue-enqueue agda2-ghci-chunk-incomplete (pop lines))
+        (when (consp lines)
+          ;; The previous uncomplete chunk is now complete.
+          (push (agda2-queue-to-string agda2-ghci-chunk-incomplete)
+                lines)
 
-        (setq lines (cons (concat agda2-ghci-chunk-incomplete (car lines))
-                          (cdr lines))
+                ;; Stash away the last incomplete line, if any. (Note
+                ;; that (split-string "...\n" "\n") evaluates to (...
+                ;; "").)
+          (setq agda2-ghci-chunk-incomplete
+                (agda2-queue-from-string (car (last lines))))
 
-              ;; Stash away the last incomplete line, if any. (Note
-              ;; that (split-string "...\n" "\n") evaluates to (...
-              ;; "").)
-              agda2-ghci-chunk-incomplete (car (last lines)))
+          ;; Handle every complete line.
+          (dolist (line (butlast lines))
+            (let* (;; The command. Lines which cannot be parsed as a single
+                   ;; list, without any junk, are ignored.
+                   (cmd (condition-case nil
+                            (let ((result (read-from-string line)))
+                              (if (and (listp (car result))
+                                       (= (cdr result) (length line)))
+                                  (car result)))
+                          (error nil)))
 
-        ;; Handle every complete line.
-        (dolist (line (butlast lines))
+                   ;; Is the command an interactive highlighting command?
+                   (highlighting-cmd (equal (car-safe cmd)
+                                            'agda2-typechecking-emacs)))
+              (unless highlighting-cmd
+                (agda2-queue-enqueue echoed-text (concat line "\n")))
 
-          (let* (;; The command. Lines which cannot be parsed as a single
-                 ;; list, without any junk, are ignored.
-                 (cmd (condition-case nil
-                          (let ((result (read-from-string line)))
-                            (if (and (listp (car result))
-                                     (= (cdr result) (length line)))
-                                (car result)))
-                        (error nil)))
+              (when cmd
+                (incf agda2-responses)
 
-                 ;; Is the command an interactive highlighting command?
-                 (highlighting-cmd (equal (car-safe cmd)
-                                          'agda2-typechecking-emacs)))
+                (if highlighting-cmd
+                    ;; Store the highlighting annotations.
+                    (setq highlighting-anns
+                          (append (reverse (cdr cmd)) highlighting-anns))
 
-            (unless highlighting-cmd
-              (setq echoed-text (concat echoed-text line "\n")))
+                  ;; Store the command.
+                  (if (equal 'last (car-safe (car cmd)))
+                      (push (cons (cdr (car cmd)) (cdr cmd))
+                            agda2-last-responses)
+                    (push cmd non-last-commands))))))
 
-            (when cmd
-              (incf agda2-responses)
+          ;; Apply interactive highlighting annotations.
+          (when agda2-highlight-in-progress
+            (apply 'agda2-highlight-annotations 'keep
+                   (nreverse highlighting-anns)))
 
-              (if highlighting-cmd
-                  ;; Store the highlighting annotations.
-                  (setq highlighting-anns
-                        (append (reverse (cdr cmd)) highlighting-anns))
-
-                ;; Store the command.
-                (if (equal 'last (car-safe (car cmd)))
-                    (push (cons (cdr (car cmd)) (cdr cmd))
-                          agda2-last-responses)
-                  (push cmd non-last-commands))))))
-
-        ;; Apply interactive highlighting annotations.
-        (when agda2-highlight-in-progress
-          (apply 'agda2-highlight-load-anns 'keep
-                 (reverse highlighting-anns)))
-
-        ;; Run non-last commands.
-        (agda2-exec-responses (nreverse non-last-commands))
+          ;; Run non-last commands.
+          (mapc 'agda2-exec-response (nreverse non-last-commands)))
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
-        (when (string-match
-               (with-current-buffer agda2-process-buffer comint-prompt-regexp)
-               agda2-ghci-chunk-incomplete)
-
+        (when (agda2-queue-is-prefix-of agda2-ghci-prompt
+                                        agda2-ghci-chunk-incomplete)
           (setq agda2-in-progress nil)
+          (setq agda2-highlight-in-progress nil)
+          (setq agda2-last-responses
+                (sort (nreverse agda2-last-responses)
+                      (lambda (x y) (<= (car x) (car y)))))
 
-          (setq echoed-text (concat echoed-text agda2-ghci-chunk-incomplete)
-                agda2-ghci-chunk-incomplete "")
+          (agda2-queue-enqueue echoed-text
+            (agda2-queue-to-string agda2-ghci-chunk-incomplete))
+          (setq agda2-ghci-chunk-incomplete (agda2-queue-empty))
 
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
             (agda2-raise-ghci-error))))
 
-      echoed-text)))
+      (agda2-queue-to-string echoed-text))))
 
 (defun agda2-ghci-run-last-commands (text)
   "Execute the last commands in the right order.
 \(After the prompt has reappeared.) See `agda2-ghci-filter'. The
 TEXT argument is not used."
-  (unless agda2-in-progress
-    (with-current-buffer agda2-file-buffer
-      (let ((responses
-             (mapcar 'cdr (sort (nreverse agda2-last-responses)
-                                (lambda (x y) (<= (car x) (car y)))))))
-        (setq agda2-last-responses nil)
-        (agda2-exec-responses responses))
-      (setq agda2-highlight-in-progress nil))))
+  (with-current-buffer agda2-file-buffer
+    ;; The following loop terminates: if a responses require to run asynchronously,
+    ;; it will eventually trigger the hook and run the function again with the
+    ;; remaining responses (and possibly new ones).
+    (while (and (not agda2-in-progress) (consp agda2-last-responses))
+      (setq agda2-last-responses (sort agda2-last-responses
+                                       (lambda (x y) (<= (car x) (car y)))))
+      (let ((r (pop agda2-last-responses)))
+        (agda2-exec-response (cdr r))))))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
@@ -693,15 +697,6 @@ This function should be used in `first-change-hook'."
     (setq agda2-highlight-in-progress nil)
     (message "\"%s\" has been modified. Interrupting highlighting."
              (buffer-name (current-buffer)))))
-
-(defun agda2-highlight-load-and-delete-action (file &optional keep)
-  "Like `agda2-highlight-load', but deletes FILE when done.
-And highlighting is only updated if `agda2-highlight-in-progress'
-is non-nil."
-  (unwind-protect
-      (if agda2-highlight-in-progress
-          (agda2-highlight-load file keep))
-    (delete-file file)))
 
 (defun agda2-goal-cmd (cmd &optional want ask &rest args)
   "Reads input from goal or minibuffer and sends command to Agda.
@@ -748,12 +743,9 @@ An error is raised if no responses are received."
 ;; which can be exploited by an attacker which manages to trick
 ;; someone into type-checking compromised Agda code.
 
-(defun agda2-exec-responses (responses)
-  "Interprets responses."
-  (mapc (lambda (r)
-          (let ((inhibit-read-only t))
-            (eval r)))
-          responses))
+(defun agda2-exec-response (response)
+  "Interprets response."
+  (let ((inhibit-read-only t)) (eval response)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
@@ -1059,12 +1051,16 @@ a goal, the top-level scope."
   (agda2-go t t "cmd_solveAll"))
 
 (defun agda2-solveAll-action (iss)
+  (while iss
+    (let* ((g (pop iss)) (txt (pop iss))
+           (cmd (cons 'agda2-solve-action (cons g (cons txt nil)))))
+      (push (cons 0 cmd) agda2-last-responses))))
+
+(defun agda2-solve-action (g txt)
   (save-excursion
-    (while iss
-      (let* ((g (pop iss)) (txt (pop iss)))
-        (agda2-replace-goal g txt)
-        (agda2-goto-goal g)
-        (agda2-give)))))
+    (agda2-replace-goal g txt)
+    (agda2-goto-goal g)
+    (agda2-give)))
 
 (defun agda2-compute-normalised (&optional arg)
   "Compute the normal form of the expression in the goal at point.
@@ -1102,7 +1098,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
   "Loads precomputed syntax highlighting info for the current buffer.
 If there is any to load."
   (agda2-go nil t
-            "cmd_write_highlighting_info"
+            "cmd_load_highlighting_info"
             (agda2-string-quote (buffer-file-name))))
 
 (defun agda2-literate-p ()
@@ -1138,30 +1134,31 @@ ways."
           (if (inside-comment)
                (re-search-forward "{-\\|-}" nil t)
             (delims))))
-    (save-excursion
-      ;; In literate mode we should start out in the "outside of code"
-      ;; state.
-      (if literate (push 'outside stk))
-      (goto-char (point-min))
-      (while (and goals (safe-delims))
-        (labels ((c (s) (equal s (match-string 0))))
-          (cond
-           ((c "\\begin{code}") (when (outside-code)               (pop stk)))
-           ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
-           ((c "--")            (when (not stk)                    (end-of-line)))
-           ((c "{-")            (when (and (inside-code)
-                                           (not (inside-goal)))    (push nil           stk)))
-           ((c "-}")            (when (inside-comment)             (pop stk)))
-           ((c "{!")            (when (and (inside-code)
-                                           (not (inside-comment))) (push (- (point) 2) stk)))
-           ((c "!}")            (when (inside-goal)
-                                  (setq top (pop stk))
-                                  (unless stk (make top))))
-           ((c "?")             (progn
-                                  (when (and (not stk) (is-lone-questionmark))
-                                    (delete-char -1)
-                                    (insert "{!!}")
-                                    (make (- (point) 4)))))))))))
+    (annotation-preserve-mod-p-and-undo
+      (save-excursion
+        ;; In literate mode we should start out in the "outside of code"
+        ;; state.
+        (if literate (push 'outside stk))
+        (goto-char (point-min))
+        (while (and goals (safe-delims))
+          (labels ((c (s) (equal s (match-string 0))))
+            (cond
+             ((c "\\begin{code}") (when (outside-code)               (pop stk)))
+             ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
+             ((c "--")            (when (not stk)                    (end-of-line)))
+             ((c "{-")            (when (and (inside-code)
+                                             (not (inside-goal)))    (push nil           stk)))
+             ((c "-}")            (when (inside-comment)             (pop stk)))
+             ((c "{!")            (when (and (inside-code)
+                                             (not (inside-comment))) (push (- (point) 2) stk)))
+             ((c "!}")            (when (inside-goal)
+                                    (setq top (pop stk))
+                                    (unless stk (make top))))
+             ((c "?")             (progn
+                                    (when (and (not stk) (is-lone-questionmark))
+                                      (delete-char -1)
+                                      (insert "{!!}")
+                                      (make (- (point) 4))))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."

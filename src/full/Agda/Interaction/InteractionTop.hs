@@ -128,7 +128,11 @@ initCommandState = CommandState
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
 newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, Functor, MonadState CommandState)
+    deriving (Monad, Functor)
+
+instance MonadState CommandState CommandM where
+    get = CommandM get
+    put = CommandM . put
 
 -- | Wrapped 'runStateT' for 'CommandM'.
 
@@ -267,13 +271,6 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
 
   case r of
     Right (Right (m, st@(InteractionState theTCState cstate))) -> do
-        highlight st $ do
-          m' <- m
-          mi <- Map.lookup (SA.toTopLevelModuleName m')
-                           (stVisitedModules theTCState)
-          return ( iHighlighting $ miInterface mi
-                 , stModuleToSource theTCState
-                 )
         case theCurrentFile cstate of
           Just (f, _) | f === current ->
             liftIO $ putResponseIO st $ Resp_InteractionPoints $ theInteractionPoints cstate
@@ -289,11 +286,6 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
 
     -- If an error was encountered, display an error message.
     handErr e theTCState s s' = do
-          highlight st $ errHighlighting e
-                      `mplus`
-                    ((\h -> (h, Map.empty)) <$>
-                         generateErrorInfo (getRange e) s)
-
           displayErrorAndExit st status (getRange e) s'
         where
           st = InteractionState theTCState cstate
@@ -301,12 +293,6 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
                           , sShowImplicitArguments =
                                      optShowImplicit $ stPragmaOptions theTCState
                           }
-
-    -- Write out syntax highlighting info.
-    highlight st m = when highlighting $ liftIO $ do
-                        mapM_ (putResponseIO st) =<< tellToUpdateHighlighting m
-
-
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
@@ -880,15 +866,14 @@ cmd_compute_toplevel ignore =
 ------------------------------------------------------------------------
 -- Syntax highlighting
 
--- | @cmd_write_highlighting_info source@ writes syntax highlighting
--- information for the module in @source@ into a freshly created
--- temporary file, and asks Emacs to load highlighting info from this
--- file.
+-- | @cmd_load_highlighting_info source@ loads syntax highlighting
+-- information for the module in @source@, and asks Emacs to load
+-- highlighting info from this file.
 --
 -- If the module does not exist, or its module name is malformed or
 -- cannot be determined, or the module has not already been visited,
 -- or the cached info is out of date, then no highlighting information
--- is written.
+-- is printed.
 --
 -- This command is used to load syntax highlighting information when a
 -- new file is opened, and it would probably be annoying if jumping to
@@ -897,8 +882,8 @@ cmd_compute_toplevel ignore =
 -- command uses the current include directories, whatever they happen
 -- to be.
 
-cmd_write_highlighting_info :: FilePath -> Interaction
-cmd_write_highlighting_info source =
+cmd_load_highlighting_info :: FilePath -> Interaction
+cmd_load_highlighting_info source =
   interaction (Independent Nothing) $ do
     resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
@@ -927,7 +912,7 @@ cmd_write_highlighting_info source =
 tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, ModuleToSource) -> IO [Response]
 tellToUpdateHighlighting Nothing     = return []
-tellToUpdateHighlighting (Just info) = return [Resp_UpdateHighlighting info]
+tellToUpdateHighlighting (Just info) = return [Resp_HighlightingInfo info]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

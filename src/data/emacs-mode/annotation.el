@@ -56,11 +56,13 @@ position."
         (error "File does not exist or is unreadable: %s." file)))))
 
 (defun annotation-annotate (start end anns &optional info goto)
-  "Annotate text between START and END in the current buffer.
-ANNS are the annotations to apply. All the symbols in ANNS are
-looked up in `annotation-bindings', and the font-lock-face text
-property for the given character range is set to the resulting
-list of faces. If the string INFO is non-nil, the mouse-face
+  "Annotate text between START and END in the current buffer, unless ANNS
+is empty. ANNS are the annotations to apply. All the symbols in ANNS are
+looked up in `annotation-bindings', and the font-lock-face text property
+for the given character range is set to the resulting list of faces.
+If ANNS is nil, then the text properties between START and END is deleted.
+
+If the string INFO is non-nil, the mouse-face
 property is set to highlight, and INFO is used as the help-echo
 string. If GOTO has the form (FILENAME . POSITION), then the
 mouse-face property is set to highlight, and the given
@@ -84,36 +86,38 @@ bounds for the current (possibly narrowed) buffer, or END < START."
   (when (and (<= (point-min) start)
              (< start end)
              (<= end (point-max)))
-    (let ((faces (delq nil
-                       (mapcar (lambda (ann)
-                                 (cdr (assoc ann annotation-bindings)))
-                               anns)))
-          (props nil))
-      (when faces
-        (put-text-property start end 'font-lock-face faces)
-        (add-to-list 'props 'font-lock-face))
-      (when (consp goto)
-        (add-text-properties start end
-                             `(annotation-goto ,goto
-                               mouse-face highlight))
-        (add-to-list 'props 'annotation-goto)
-        (add-to-list 'props 'mouse-face))
-      (when info
-        (add-text-properties start end
-                             `(mouse-face highlight help-echo ,info))
-        (add-to-list 'props 'mouse-face)
-        (add-to-list 'props 'help-echo))
-      (when props
-        (let ((pos start)
-              mid)
-          (while (< pos end)
-            (setq mid (next-single-property-change pos
-                         'annotation-annotations nil end))
-            (let* ((old-props (get-text-property pos 'annotation-annotations))
-                   (all-props (union old-props props)))
-              (add-text-properties pos mid
-                 `(annotation-annotated t annotation-annotations ,all-props))
-              (setq pos mid))))))))
+    (if (null anns)
+        (annotation-remove-annotation start end)
+      (let ((faces (delq nil
+                         (mapcar (lambda (ann)
+                                   (cdr (assoc ann annotation-bindings)))
+                                 anns)))
+            (props nil))
+        (when faces
+          (put-text-property start end 'font-lock-face faces)
+          (add-to-list 'props 'font-lock-face))
+        (when (consp goto)
+          (add-text-properties start end
+                               `(annotation-goto ,goto
+                                 mouse-face highlight))
+          (add-to-list 'props 'annotation-goto)
+          (add-to-list 'props 'mouse-face))
+        (when info
+          (add-text-properties start end
+                               `(mouse-face highlight help-echo ,info))
+          (add-to-list 'props 'mouse-face)
+          (add-to-list 'props 'help-echo))
+        (when props
+          (let ((pos start)
+                mid)
+            (while (< pos end)
+              (setq mid (next-single-property-change pos
+                           'annotation-annotations nil end))
+              (let* ((old-props (get-text-property pos 'annotation-annotations))
+                     (all-props (union old-props props)))
+                (add-text-properties pos mid
+                   `(annotation-annotated t annotation-annotations ,all-props))
+                (setq pos mid)))))))))
 
 (defmacro annotation-preserve-mod-p-and-undo (&rest code)
   "Run CODE preserving both the undo data and the modification bit.
@@ -146,14 +150,27 @@ buffer."
          pos2)
      (while pos
        (setq pos2 (next-single-property-change pos 'annotation-annotated))
-       (let ((props (get-text-property pos 'annotation-annotations)))
-         (when props
-           (remove-text-properties
-            pos (or pos2 (point-max))
-            (mapcan (lambda (prop) (list prop nil))
-                    (append '(annotation-annotated annotation-annotations)
-                            props)))))
+       (annotation-remove-annotation pos (or pos2 (point-max)))
        (setq pos pos2)))))
+
+(defun annotation-remove-annotation (start end)
+  "Remove the all text properties set by `annotation-annotate' between START and END.
+(In the current buffer.) This function preserves the file
+modification stamp of the current buffer, does not modify the
+undo list, and temporarily disables all modification hooks.
+
+Note: This function may fail if there is read-only text in the
+buffer."
+
+  ;; remove-text-properties fails for read-only text.
+
+  (annotation-preserve-mod-p-and-undo
+     (let ((props (get-text-property start 'annotation-annotations)))
+         (when props
+           (remove-text-properties start end
+             (mapcan (lambda (prop) (list prop nil))
+                     (append '(annotation-annotated annotation-annotations)
+                             props)))))))
 
 (defun annotation-load (removep goto-help &rest cmds)
   "Apply highlighting annotations in CMDS in the current buffer.

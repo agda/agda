@@ -7,6 +7,7 @@ import qualified Data.List as List
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Reader
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
@@ -303,11 +304,7 @@ checkLeftHandSide
       -> Type -> Permutation -> TCM a)
      -- ^ Continuation.
   -> TCM a
-checkLeftHandSide c ps a ret' = do
-  highlightAsTypeChecked False ps
-  let ret a b c d e f g = do
-        highlightAsTypeChecked True ps
-        ret' a b c d e f g
+checkLeftHandSide c ps a ret = do
 {- code moved to ProblemRest.problemFromPats
   TelV tel0' b0 <- telView a
   ps <- insertImplicitPatterns ps tel0'

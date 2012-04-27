@@ -9,6 +9,8 @@ module Agda.Interaction.Highlighting.Range
   , empty
   , toList
   , rToR
+  , minus
+  , bounds
   , Agda.Interaction.Highlighting.Range.tests
   ) where
 
@@ -63,6 +65,40 @@ rToR (P.Range is) = map iToR is
                    }) =
     Range { from = toInteger pos1, to = toInteger pos2 }
 
+-- | @minus xs ys@ takes the difference of the lists of ranges
+-- @xs@ and @ys@.
+-- @xs@ and @ys@ have to be sorted lists of non-adjacent ranges.
+-- Linear in the length of the input ranges
+minus :: [Range] -> [Range] -> [Range]
+minus []     _      = []
+minus xs     []     = xs
+minus (x:xs) (y:ys)
+    | to x < from y = x : minus xs (y:ys)
+    | to y < from x = minus (x:xs) ys
+    | from x < from y = Range { from = from x, to = from y} :
+                            minus
+                              (Range { from = from y, to = to x} : xs)
+                              (y:ys)
+    | to y < to x = minus
+                      (Range { from = to y, to = to x} : xs)
+                      ys
+    | otherwise = minus xs (y:ys)
+
+prop_minus xs ys = f zs' == f xs' \\ f ys'
+  where
+  xs' = rToR xs
+  ys' = rToR ys
+  zs' = minus xs' ys'
+  f = concatMap toList
+
+-- | Get the inclusive bounds of a non-emtpy list of ranges.
+
+bounds :: [Range] -> (Integer,Integer)
+bounds rs = (min,max-1)
+  where
+  min = minimum $ map from rs
+  max = maximum $ map to rs
+
 ------------------------------------------------------------------------
 -- Generators
 
@@ -82,4 +118,5 @@ instance CoArbitrary Range where
 tests :: IO Bool
 tests = runTests "Agda.Interaction.Highlighting.Range"
   [ quickCheck' rangeInvariant
+  , quickCheck' prop_minus
   ]

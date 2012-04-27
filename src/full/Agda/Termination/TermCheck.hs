@@ -8,7 +8,7 @@
  -}
 
 module Agda.Termination.TermCheck
-    ( termDecls
+    ( termDecl
     , Result, DeBruijnPat
     ) where
 

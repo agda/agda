@@ -3,13 +3,19 @@
 module Agda.TypeChecking.Rules.Decl where
 
 import Control.Monad
+import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.Trans
+import Control.Monad.State (modify,get)
 import Data.Maybe
+import Data.Monoid (mappend)
 import qualified Data.Map as Map
 import Data.Map (Map)
+import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Set (Set)
+import Data.Sequence ((|>))
+import qualified Data.Sequence as Seq
 import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
@@ -47,6 +53,12 @@ import Agda.Utils.Size
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 
+import Agda.Interaction.Highlighting.Generate
+import Agda.Interaction.Highlighting.Precise (HighlightingInfo, compress)
+
+import Agda.Termination.TermCheck
+import Agda.Interaction.Options
+
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
@@ -57,9 +69,72 @@ checkDecls ds = do
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
 
--- | Type check a single declaration.
+-- | This a wrapper for @checkDecl@. If the declaration is outside any
+-- mutual block, meaning the declaration *is* a mutual block,
+-- termination checking is performed and highlighting information is
+-- updated.
+
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
+  ifM (isJust . envMutualBlock <$> ask)
+      (checkDecl' d) $
+      do fileName <- envCurrentPath <$> ask
+         termErrs <- catchError (do
+           checkDecl' d
+           ifM (optTerminationCheck <$> pragmaOptions)
+               (do termErrs <- termDecl d
+                   modify $ \st -> st { stTermErrs = foldl (|>)
+                                                       (stTermErrs st)
+                                                       termErrs }
+                   return termErrs)
+               (return [])
+          )(\e -> do
+              -- If there is an error syntax highlighting info can still be
+              -- generated.
+              case rStart $ getRange e of
+                Just (Pn { srcFile = Just f }) | f == fileName -> do
+                  generateAndPrintSyntaxInfo fileName d (HlErr e) []
+                  -- The highlighting info is included with the error.
+                  throwError e
+                _ -> throwError e
+           )
+         case d of
+          -- We don't need to check for Unsolved Metas/Constraints
+          -- for Sections and Scope Declarations, since it has already
+          -- been done while checking the inside.
+          A.Section i x tel _ ->
+           -- Each block in the section has already been highlighted.
+           -- We fake an empty module here to only highlight the
+           -- module declaration.
+           generateAndPrintSyntaxInfo fileName (A.Section i x tel [])
+                                      Full termErrs
+          A.ScopedDecl _ _    -> return ()
+          _                   -> do
+           -- Generate syntax highlighting info.
+           generateAndPrintSyntaxInfo fileName d Full termErrs
+
+           -- Check for unsolved metas
+           unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
+           unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
+
+           modify $ \st -> st { stUnsolvedMetas = Set.fromList unsolvedMetas
+                                                    `Set.union`
+                                                  stUnsolvedMetas st }
+           unless (null unsolvedMetas || unsolvedOK) $
+             typeError $ UnsolvedMetas unsolvedMetas
+
+           -- Check for unsolved constraints
+           unsolvedConstraints <- getAllConstraints
+           modify $ \st -> st { stUnsolvedConstraints = foldl (|>)
+                                                          (stUnsolvedConstraints st)
+                                                          unsolvedConstraints }
+           unless (null unsolvedConstraints || unsolvedOK) $
+             typeError $ UnsolvedConstraints unsolvedConstraints
+
+
+-- | Type check a single declaration.
+checkDecl' :: A.Declaration -> TCM ()
+checkDecl' d = do
     -- Issue 418 fix: freeze metas before checking an abstract things
     when isAbstract freezeMetas
     case d of

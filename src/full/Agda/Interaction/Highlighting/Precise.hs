@@ -24,6 +24,7 @@ module Agda.Interaction.Highlighting.Precise
     -- ** Creation
   , singletonC
   , severalC
+  , splitCAt
     -- ** Inspection
   , smallestPosC
     -- * Tests
@@ -249,6 +250,10 @@ prop_compress f =
 ------------------------------------------------------------------------
 -- Operations that work directly with compressed files
 
+-- Get the list of positions in a compressed file
+
+cToList c = concatMap (\(r, m) -> [ p | p <- toList r ]) $ ranges c
+
 -- | @'singletonC' r m@ is a file whose positions are those in @r@, and
 -- in which every position is associated with @m@.
 
@@ -301,13 +306,35 @@ instance Monoid CompressedFile where
   mempty  = CompressedFile []
   mappend = mergeC
 
+-- | @splitCAt i c@ splits the compressed file @c@ into @(c1,c2)@, where all the ranges
+-- in @c1@ are <= i, and all the ranges in @c2@ are > i.
+
+splitCAt :: Integer -> CompressedFile -> (CompressedFile, CompressedFile)
+splitCAt i c = (CompressedFile f1, CompressedFile f2)
+  where
+  (f1,f2) = split $ ranges c
+
+  split []        = ([],[])
+  split (rx@(r,x):c) | i < from r  = ([],rx:c)
+                     | to r <= i+1 = (rx:f1,f2)
+                     | otherwise   = ([ (toi i,x) ], (fromi i,x) : c)
+    where (f1,f2) = split c
+          toi   i = Range { from = from r, to = i+1 }
+          fromi i = Range { from = i+1, to = to r }
+
+prop_splitCAt i c =
+    compressedFileInvariant c1 && compressedFileInvariant c2
+     && all (\p -> p <= i) (cToList c1)
+     && all (\p -> p >  i) (cToList c2)
+  where (c1,c2) = splitCAt i c
+
 -- | Returns the smallest position, if any, in the 'CompressedFile'.
 
 smallestPosC :: CompressedFile -> Maybe Integer
 smallestPosC (CompressedFile [])           = Nothing
 smallestPosC (CompressedFile ((r, _) : _)) = Just (from r)
 
-prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
+prop_smallestPosC f = smallestPos (decompress f) == smallestPosC f
 
 ------------------------------------------------------------------------
 -- Generators
@@ -427,5 +454,6 @@ tests = runTests "Agda.Interaction.Highlighting.Precise"
   , quickCheck' prop_singleton
   , quickCheck' prop_several
   , quickCheck' prop_merge
-  , quickCheck' prop_smallestPos
+  , quickCheck' prop_splitCAt
+  , quickCheck' prop_smallestPosC
   ]

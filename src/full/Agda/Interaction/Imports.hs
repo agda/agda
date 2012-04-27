@@ -14,9 +14,11 @@ import qualified Control.Exception as E
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
+import qualified Data.Foldable as Fold (toList)
 import qualified Data.ByteString.Lazy as BS
 import Data.List
 import Data.Maybe
+import Data.Monoid (mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory
@@ -203,6 +205,9 @@ getInterface x = do
 -- | A more precise variant of 'getInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
 -- errors.
+--
+-- If an up-to-date interface exists for the current module, simply
+-- load and print its highliting information.
 
 getInterface' :: C.TopLevelModuleName
               -> Bool  -- ^ If type checking is necessary, should all
@@ -252,8 +257,9 @@ getInterface' x includeStateChanges =
     -- Interfaces are only stored if no warnings were encountered.
     case wt of
       Left  w -> return ()
-      Right t -> storeDecodedModule i t
-
+      Right t -> do storeDecodedModule i t
+                    when (includeStateChanges && not stateChangesIncluded) $
+                      highlightFromInterface i file
     return (i, wt)
 
     where
@@ -318,12 +324,12 @@ getInterface' x includeStateChanges =
                 -- liftIO close	-- Close the interface file. See above.
                 typeCheck file
               else withIncreasedModuleNestingLevel $ do
-                unless cached $ chaseMsg "Skipping" (Just ifile)
-                -- We set the pragma options of the skipped file here,
-                -- because if the top-level file is skipped we want the
-                -- pragmas to apply to interactive commands in the UI.
-                mapM_ setOptionsFromPragma (iPragmaOptions i)
-                return (False, (i, Right t))
+                     unless cached $ chaseMsg "Skipping" (Just ifile)
+                     -- We set the pragma options of the skipped file here,
+                     -- because if the top-level file is skipped we want the
+                     -- pragmas to apply to interactive commands in the UI.
+                     mapM_ setOptionsFromPragma (iPragmaOptions i)
+                     return (False, (i, Right t))
 
       typeCheck file = do
           let withMsgs m = do
@@ -400,6 +406,17 @@ getInterface' x includeStateChanges =
                     _ -> return (False, r)
 
 
+-- | Print the highlighted information loaded from the given interface
+-- for the given file.
+
+highlightFromInterface :: Interface -> AbsolutePath -> TCM ()
+highlightFromInterface i file = do
+    modFile <- stModuleToSource <$> get
+    reportSLn "import.iface" 5 $
+              "Generating syntax info for " ++ filePath file ++
+                 " (read from interface)."
+    printHighlightingInfo ( iHighlighting i, modFile )
+
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
     -- Decode the interface file
@@ -454,8 +471,12 @@ createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> TCM (Interface, Either Warnings ClockTime)
-createInterface file mname = do
-    reportSLn "import.iface.create" 5  $
+createInterface file mname = local (\e -> e {envCurrentPath = file}) $ do
+    modFile <- stModuleToSource <$> get
+    fileTokenInfo  <- generateTokenInfo file
+    modify $ \st -> st { stTokens = fileTokenInfo }
+
+    reportSLn "import.iface.create" 5 $
       "Creating interface for " ++ render (pretty mname) ++ "."
     verboseS "import.iface.create" 10 $ do
       visited <- Map.keys <$> getVisitedModules
@@ -474,44 +495,23 @@ createInterface file mname = do
     mapM_ setOptionsFromPragma options
     topLevel <- concreteToAbstract_ (TopLevel top)
 
-    termErrs <- catchError (do
-      -- Type checking.
-      checkDecls (topLevelDecls topLevel)
-      unfreezeMetas
+    let ds = topLevelDecls topLevel
+    whenM (envInteractiveHighlighting <$> ask) $
+      -- Generate approximate syntax highlighting info.
+      mapM_ (\d -> generateAndPrintSyntaxInfo file d Partial []) ds
 
-      -- Count number of metas
-      verboseS "profile.metas" 10 $ do
-        MetaId n <- fresh
-        tickN "metas" n
+    checkDecls ds
+    unfreezeMetas
 
-      -- Termination checking.
-      termErrs <- ifM (optTerminationCheck <$> pragmaOptions)
-                      (termDecls $ topLevelDecls topLevel)
-                      (return [])
-      mapM_ (\e -> reportSLn "term.warn.no" 2
-                     (show (termErrFunctions e) ++
-                      " do(es) NOT pass the termination checker."))
-            termErrs
-      return termErrs
-      ) (\e -> do
-        -- If there is an error syntax highlighting info can still be
-        -- generated.
-        case rStart $ getRange e of
-          Just (Pn { srcFile = Just f }) | f == file -> do
-            syntaxInfo <- generateSyntaxInfo file (Just e) topLevel []
-            modFile    <- stModuleToSource <$> get
-            -- The highlighting info is included with the error.
-            case errHighlighting e of
-              Just _  -> __IMPOSSIBLE__
-              Nothing ->
-                throwError $ e { errHighlighting =
-                                   Just (syntaxInfo, modFile) }
-          _ -> throwError e
-      )
+    -- Count number of metas
+    verboseS "profile.metas" 10 $ do
+      MetaId n <- fresh
+      tickN "metas" n
 
-    -- Generate syntax highlighting info.
-    syntaxInfo <- generateSyntaxInfo file Nothing topLevel termErrs
+    termErrs <- Fold.toList <$> stTermErrs <$> get
 
+    -- Generate final syntax highlighting info.
+    syntaxInfo <- stSyntaxInfo <$> get
     -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
 	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
@@ -527,14 +527,10 @@ createInterface file mname = do
 
     -- Check if there are unsolved meta-variables...
     unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
-    unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
-    unless (null unsolvedMetas || unsolvedOK) $
-      typeError $ UnsolvedMetas unsolvedMetas
+    unsolvedMetas <- Set.toList <$> stUnsolvedMetas <$> get
 
     -- ...or unsolved constraints
-    unsolvedConstraints <- getAllConstraints
-    unless (null unsolvedConstraints || unsolvedOK) $
-      typeError $ UnsolvedConstraints unsolvedConstraints
+    unsolvedConstraints <- Fold.toList <$> stUnsolvedConstraints <$> get
 
     setScope $ outsideScope topLevel
 

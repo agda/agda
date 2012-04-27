@@ -3,8 +3,7 @@
 -- | Functions which give precise syntax highlighting info to Emacs.
 
 module Agda.Interaction.Highlighting.Emacs
-  ( showHighlightingInfo
-  , lispifyHighlightingInfo
+  ( lispifyHighlightingInfo
   , Agda.Interaction.Highlighting.Emacs.tests
   ) where
 
@@ -74,26 +73,21 @@ showMetaInfo modFile (r, m) =
       Nothing -> __IMPOSSIBLE__
       Just f  -> [Cons (A $ quote $ filePath f) (A $ show p)]
 
--- | Shows syntax highlighting information in an Emacsy fashion.
-
-showHighlightingInfo
-  :: (HighlightingInfo, ModuleToSource)
-     -- ^ The 'ModuleToSource' must contain a mapping for every
-     -- definition site's module.
-  -> String
-showHighlightingInfo (h, modFile) = show $
-  L $ map (showMetaInfo modFile) (ranges h)
-
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
 --
 -- Precondition: The 'definitionSite's in the highlighting information
 -- must be @Nothing@.
 
-lispifyHighlightingInfo :: HighlightingInfo -> Lisp String
-lispifyHighlightingInfo file =
-  L (A "agda2-typechecking-emacs" :
-     map (showMetaInfo __IMPOSSIBLE__) (ranges file))
+lispifyHighlightingInfo
+  :: (HighlightingInfo, ModuleToSource)
+     -- ^ The 'ModuleToSource' must contain a mapping for every
+     -- definition site's module.
+    -> Lisp String
+lispifyHighlightingInfo (h, modFile) =
+  L ( A "agda2-typechecking-emacs" :
+      map (showMetaInfo modFile) (ranges h) )
+
 
 ------------------------------------------------------------------------
 -- All tests

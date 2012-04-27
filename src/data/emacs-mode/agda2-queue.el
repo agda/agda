@@ -9,6 +9,11 @@ the queue is empty, then the cdr contains the symbol nil, and
 otherwise it points to the queue's last cons-cell."
   (cons nil nil))
 
+(defun agda2-queue-from-string (string)
+  "Creates a new FIFO containing the characters in STRING.
+Linear in the length of STRING."
+  (agda2-queue-enqueue (agda2-queue-empty) string))
+
 (defun agda2-queue-is-prefix-of (prefix queue)
   "Returns a non-nil result iff the string PREFIX is a prefix of QUEUE.
 Linear in the length of PREFIX."
@@ -32,4 +37,9 @@ length of STRING."
       (setcdr queue (last chars))))
   queue)
 
-(provide 'queue)
+(defun agda2-queue-to-string (queue)
+  "Concatenates QUEUE.
+Linear in the length of QUEUE."
+  (concat "" (car queue)))
+
+(provide 'agda2-queue)

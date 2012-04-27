@@ -315,9 +315,8 @@ buffers until you have restarted Emacs."
   :group 'agda2-highlight)
 
 (defface agda2-highlight-typechecks-face
-  '((t (:background "gold"
-        :foreground "black"
-        :box        (:line-width 1 :color "black" :style nil))))
+  '((t (:background "violet red"
+        :foreground "black")))
   "The face used for code which is being type-checked."
   :group 'agda2-highlight)
 
@@ -398,25 +397,7 @@ table). The face `font-lock-comment-face' is used for comments.")
   "Set up the `annotation' library for use with `agda2-mode'."
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-load (file &optional keep)
-  "Load syntax highlighting information from FILE.
-
-Old syntax highlighting information is first removed, unless KEEP
-is non-nil.
-
-This function does nothing if FILE is empty."
-  (let ((coding-system-for-read 'utf-8)
-        ;; Ignore read-only status, otherwise this function may fail.
-        (inhibit-read-only t))
-    (let ((cmds (with-temp-buffer
-                  (insert-file-contents file)
-                  (if (eq (point-min) (point-max))
-                      'empty-file
-                    (goto-char (point-min))
-                    (read (current-buffer))))))
-      (apply 'agda2-highlight-load-anns keep cmds))))
-
-(defun agda2-highlight-load-anns (keep &rest cmds)
+(defun agda2-highlight-annotations (keep &rest cmds)
   "Load syntax highlighting information from the annotation list CMDS.
 
 Old syntax highlighting information is first removed, unless KEEP

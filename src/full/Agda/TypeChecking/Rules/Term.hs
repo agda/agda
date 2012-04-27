@@ -32,8 +32,6 @@ import Agda.Syntax.Abstract.Views
 import Agda.Syntax.Scope.Base (emptyScopeInfo)
 import Agda.Syntax.Translation.InternalToAbstract (reify)
 
-import Agda.Interaction.Highlighting.Generate
-
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Substitute
@@ -339,9 +337,8 @@ unScope e                      = e
 -- | Type check an expression.
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
-    verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-    traceCall (CheckExpr e t) $ localScope $
-    highlightInteractively e $ do
+  verboseBracket "tc.term.expr.top" 5 "checkExpr" $
+  traceCall (CheckExpr e t) $ localScope $ do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]

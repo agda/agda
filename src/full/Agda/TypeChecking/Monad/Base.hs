@@ -17,7 +17,7 @@ import Data.Function
 import Data.Int
 import Data.Map as Map
 import Data.Set as Set
-import Data.Typeable (Typeable)
+import Data.Generics
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
@@ -39,9 +39,11 @@ import Agda.Interaction.Exceptions
 import {-# SOURCE #-} Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import qualified Agda.Interaction.Highlighting.Range as R
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo)
 import {-# SOURCE #-} Agda.Interaction.Response
   (InteractionOutputCallback, defaultInteractionOutputCallback)
+import Agda.Interaction.Highlighting.Precise
+  (CompressedFile, HighlightingInfo)
+import Data.Monoid
 
 import qualified Agda.Compiler.JS.Syntax as JS
 
@@ -60,6 +62,11 @@ import Agda.Utils.Impossible
 
 data TCState =
     TCSt { stFreshThings       :: FreshThings
+         , stSyntaxInfo        :: CompressedFile -- ^ Highlighting annotations (except for tokens)
+         , stTokens            :: CompressedFile -- ^ Highlighting annotations relative to tokens
+         , stTermErrs          :: Seq TerminationError
+         , stUnsolvedMetas     :: Set Range
+         , stUnsolvedConstraints :: Seq ProblemConstraint
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
 	 , stAwakeConstraints    :: Constraints
@@ -121,6 +128,11 @@ initState :: TCState
 initState =
     TCSt { stFreshThings       = (Fresh 0 0 0 (NameId 0 0) 0 0 0) { fProblem = 1 }
 	 , stMetaStore	       = Map.empty
+	 , stSyntaxInfo        = mempty
+	 , stTokens            = mempty
+	 , stTermErrs          = Seq.empty
+	 , stUnsolvedMetas     = Set.empty
+         , stUnsolvedConstraints = Seq.empty
 	 , stInteractionPoints = Map.empty
 	 , stAwakeConstraints    = []
 	 , stSleepingConstraints = []
@@ -726,10 +738,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
-	  | forall a. TermFunDef Range Name [A.Clause] (Maybe a)
 	  | forall a. SetRange Range (Maybe a)	-- ^ used by 'setCurrentRange'
-            -- actually, 'a' is Agda.Termination.TermCheck.CallGraph
-            -- but I was to lazy to import the stuff here --Andreas,2007-5-29
 
     deriving (Typeable)
 
@@ -756,7 +765,6 @@ instance HasRange Call where
     getRange (ScopeCheckLHS _ p _)                 = getRange p
     getRange (CheckDotPattern e _ _)               = getRange e
     getRange (CheckPatternShadowing c _)           = getRange c
-    getRange (TermFunDef i _ _ _)                  = getRange i
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _)     = r
     getRange (CheckIsEmpty r _ _)                  = r
@@ -790,6 +798,7 @@ data TCEnv =
     TCEnv { envContext             :: Context
 	  , envLetBindings         :: LetBindings
 	  , envCurrentModule       :: ModuleName
+	  , envCurrentPath         :: AbsolutePath
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
 	  , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
@@ -840,6 +849,7 @@ initEnv :: TCEnv
 initEnv = TCEnv { envContext	         = []
 		, envLetBindings         = Map.empty
 		, envCurrentModule       = noModuleName
+	        , envCurrentPath         = __IMPOSSIBLE__
                 , envAnonymousModules    = []
 		, envImportPath          = []
 		, envMutualBlock         = Nothing
