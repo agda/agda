@@ -1369,6 +1369,7 @@ a file is loaded."
   ;; the syntax table).
   (set (make-local-variable 'font-lock-defaults)
        '(nil nil nil nil nil))
+  (font-lock-mode t)
 
   ;; Empty lines (all white space according to Emacs) delimit
   ;; paragraphs.
