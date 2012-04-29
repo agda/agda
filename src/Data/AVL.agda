@@ -25,7 +25,7 @@ open import Data.Empty
 open import Data.List as List using (List)
 open import Data.Maybe
 open import Data.Nat hiding (_<_; compare; _⊔_)
-open import Data.Product
+open import Data.Product hiding (map)
 open import Data.Unit
 open import Function
 open import Level using (_⊔_; Lift; lift)
@@ -321,6 +321,17 @@ module Indexed where
   ... | tri> _ _ p<k = joinʳ⁺ p lp (insert k v pu (p<k , k<u)) bal
   ... | tri≈ _ k≡p _ rewrite P.sym k≡p = (0# , node (k , v) lp pu bal)
 
+  -- Inserts a key into the tree, using a function to combine any existing
+  -- value with the new value.
+
+  insertWith : ∀ {l u h} → (k : Key) → Value k → (Value k -> Value k -> Value k) -> Tree l u h → l < k < u →
+           ∃ λ i → Tree l u (i ⊕ h)
+  insertWith k v f (leaf l<u)         l<k<u       = (1# , singleton k v l<k<u)
+  insertWith k v f (node (p , v') lp pu bal) (l<k , k<u) with compare k p
+  ... | tri< k<p _ _ = joinˡ⁺ (p , v') (insert k v lp (l<k , k<p)) pu bal
+  ... | tri> _ _ p<k = joinʳ⁺ (p , v') lp (insert k v pu (p<k , k<u)) bal
+  ... | tri≈ _ k≡p _ rewrite P.sym k≡p = (0# , node (k , f v v') lp pu bal)
+
   -- Deletes the key/value pair containing the given key, if any.
   -- Logarithmic in the size of the tree (assuming constant-time
   -- comparisons).
@@ -342,6 +353,12 @@ module Indexed where
   ... | tri< _ _  _ = lookup k lk′
   ... | tri> _ _  _ = lookup k k′u
   ... | tri≈ _ eq _ rewrite eq = just v
+
+  -- Maps a function over all values in the tree.
+
+  map : ({k : Key} -> Value k -> Value k) -> ∀ {l u h} -> Tree l u h -> Tree l u h
+  map f (leaf l<u) = leaf l<u
+  map f (node (k , v) t t' bal) = node (k , f v) (map f t) (map f t') bal
 
   -- Converts the tree to an ordered list. Linear in the size of the
   -- tree.
@@ -368,11 +385,17 @@ singleton k v = tree (Indexed.singleton k v _)
 insert : (k : Key) → Value k → Tree → Tree
 insert k v (tree t) = tree $ proj₂ $ Indexed.insert k v t _
 
+insertWith : (k : Key) → Value k → (Value k -> Value k -> Value k) -> Tree → Tree
+insertWith k v f (tree t) = tree $ proj₂ $ Indexed.insertWith k v f t _
+
 delete : Key → Tree → Tree
 delete k (tree t) = tree $ proj₂ $ Indexed.delete k t
 
 lookup : (k : Key) → Tree → Maybe (Value k)
 lookup k (tree t) = Indexed.lookup k t
+
+map : ({k : Key} → Value k → Value k) → Tree → Tree
+map f (tree t) = tree $ Indexed.map f t
 
 _∈?_ : Key → Tree → Bool
 k ∈? t = maybeToBool (lookup k t)
@@ -396,3 +419,15 @@ fromList = List.foldr (uncurry insert) empty
 
 toList : Tree → List KV
 toList (tree t) = DiffList.toList (Indexed.toDiffList t)
+
+union : Tree -> Tree -> Tree
+union t1 t2 = List.foldr (λ { (k , v) -> insert k v }) t2 (toList t1)
+
+unionWith : ({k : Key} -> Value k -> Value k -> Value k) -> Tree -> Tree -> Tree
+unionWith f t1 t2 = List.foldr (λ { (k , v) -> insertWith k v f }) t2 (toList t1)
+
+unions : List Tree -> Tree
+unions ts = List.foldr union empty ts
+
+unionsWith : ({k : Key} -> Value k -> Value k -> Value k) -> List Tree -> Tree
+unionsWith f ts = List.foldr (unionWith f) empty ts
