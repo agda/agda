@@ -59,6 +59,8 @@ import Agda.Utils.Size
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
+-- Composition reified applications ---------------------------------------
+
 napps :: Expr -> [NamedArg Expr] -> TCM Expr
 napps e args = do
   dontShowImp <- not <$> showImplicitArguments
@@ -69,14 +71,41 @@ napps e args = do
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e args = napps e $ map (fmap unnamed) args
 
-exprInfo :: ExprInfo
-exprInfo = ExprRange noRange
-
 reifyApp :: Expr -> [Arg Term] -> TCM Expr
 reifyApp e vs = apps e =<< reify vs
 
+-- Omitting information ---------------------------------------------------
+
+exprInfo :: ExprInfo
+exprInfo = ExprRange noRange
+
+underscore :: Expr
+underscore = A.Underscore $ MetaInfo noRange emptyScopeInfo Nothing
+
+-- Conditional reification to omitt terms that are not shown --------------
+
+-- | @ReifyWhen@ is a auxiliary type class to reify 'Arg'.
+--
+--   @reifyWhen False@ should produce an 'underscore'.
+--   This function serves to reify hidden/irrelevant things.
+class Reify i a => ReifyWhen i a where
+    reifyWhen :: Bool -> i -> TCM a
+    reifyWhen _ = reify
+
+instance Reify i Expr => ReifyWhen i Expr where
+  reifyWhen True  i = reify i
+  reifyWhen False t = return underscore
+
+instance ReifyWhen i a => ReifyWhen (Arg i) (Arg a) where
+  reifyWhen b = traverse (reifyWhen b)
+
+instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
+  reifyWhen b = traverse (reifyWhen b)
+
+-- Reification ------------------------------------------------------------
+
 class Reify i a | i -> a where
-    reify :: i -> TCM a
+    reify     ::         i -> TCM a
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) = liftTCM $ do
@@ -192,17 +221,14 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
           apps (A.Def f) =<< argsToExpr vs
         termToExpr (I.Var n vs) =
           uncurry apps =<< (,) <$> reify (I.var (n - len)) <*> argsToExpr vs
-        termToExpr _ = return $ A.Underscore minfo
-
-        minfo = MetaInfo noRange emptyScopeInfo Nothing
-
+        termToExpr _ = return underscore
 
 instance Reify Literal Expr where
   reify l@(LitInt    {}) = return (A.Lit l)
   reify l@(LitFloat  {}) = return (A.Lit l)
   reify l@(LitString {}) = return (A.Lit l)
   reify l@(LitChar   {}) = return (A.Lit l)
-  reify l@(LitQName   {}) = return (A.Lit l)
+  reify l@(LitQName  {}) = return (A.Lit l)
 
 instance Reify Term Expr where
   reify v = do
@@ -269,7 +295,7 @@ instance Reify Term Expr where
             let keep (a, v) = showImp || argHiding a == NotHidden
             r  <- getConstructorData x
             xs <- getRecordFieldNames r
-            vs <- reify $ map unArg vs
+            vs <- map unArg <$> reify vs
             return $ A.Rec exprInfo $ map (unArg *** id) $ filter keep $ zip xs vs
           False -> reifyDisplayForm x vs $ do
             ci <- getConstInfo x
@@ -315,6 +341,12 @@ nameFirstIfHidden dom es = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
+
+-- | Skip reification of implicit and irrelevant args if option is off.
+instance (ReifyWhen i a) => Reify (Arg i) (Arg a) where
+  reify (Arg h r i) = Arg h r <$> do flip reifyWhen i =<< condition
+    where condition = (return (h /= Hidden) `or2M` showImplicitArguments)
+              `and2M` (return (r /= Irrelevant) `or2M` showIrrelevantArguments)
 
 instance Reify Elim Expr where
   reify e = case e of
@@ -595,9 +627,6 @@ instance Reify I.Telescope A.Telescope where
     (x,bs)  <- reify tel
     let r = getRange e
     return $ TypedBindings r (Arg h rel (TBind r [x] e)) : bs
-
-instance Reify i a => Reify (Arg i) (Arg a) where
-    reify = traverse reify
 
 instance Reify i a => Reify (Dom i) (Arg a) where
     reify (Dom h r i) = Arg h r <$> reify i

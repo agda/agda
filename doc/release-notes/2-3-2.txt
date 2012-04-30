@@ -13,8 +13,13 @@ Installation
 
 * The Emacs mode no longer depends on haskell-mode or GHCi.
 
-Language
-========
+Pragmas and Options
+===================
+
+* Irrelevant arguments are printed as _ by default now.  To turn on
+  printing of irrelevant arguments, use option
+
+    --show-irrelevant
 
 * New: Pragma NO_TERMINATION_CHECK to switch off termination checker
   for individual function definitions and mutual blocks.
@@ -55,6 +60,65 @@ Language
        j = i
 
   The pragma cannot be used in --safe mode.
+
+Language
+========
+
+* New: Built-in irrelevance axiom.
+
+    import Level
+
+    postulate
+      .irrAxiom : ∀ {a}{A : Set a} → .A → A
+    {-# BUILTIN IRRAXIOM irrAxiom #-}
+
+* Irrelevant projections require irrelevance axiom.
+
+  Record with irrelevant fields now require the built-in IRRAXIOM
+  (unless --no-irrelevant-projections).
+
+    record Squash {a}(A : Set a) : Set a where
+      constructor squash
+      field
+        .unsquash : A
+
+  This will produce an irrelevant projection
+
+    .unsquash : ∀ {a}{A : Set a} → Squash A → A
+    unsquash (squash x) = irrAxiom x
+
+  Thus, Agda will check for the built-in irrAxiom to be defined.
+
+* Pattern synonyms
+
+  A pattern synonym is a declaration that can be used on the left hand
+  side (when pattern matching) as well as the right hand side (in
+  expressions). For example:
+
+  pattern z    = zero
+  pattern ss x = suc (suc x)
+
+  f : ℕ -> ℕ
+  f z       = z
+  f (suc z) = ss z
+  f (ss n)  = n
+
+  Pattern synonyms are implemented by substitution on the abstract
+  syntax, so definitions are scope-checked but not type-checked. They
+  are particularly useful for universe constructions.
+
+* Qualified mixfix operators
+
+  It is now possible to use a qualified mixfix operator by qualifying the first
+  part of the name. For instance
+
+    import Data.Nat as Nat
+    import Data.Bool as Bool
+
+    two = Bool.if true then 1 Nat.+ 1 else 0
+
+Type checking
+=============
 
 * Instance arguments resolution will now consider candidates which
   still need expect arguments. For example:
@@ -123,59 +187,6 @@ Language
 
   This might no longer work from now on.
   See examples test/fail/Issue585*.agda
-
-* New: Built-in irrelevance axiom.
-
-    import Level
-
-    postulate
-      .irrAxiom : ∀ {a}{A : Set a} → .A → A
-    {-# BUILTIN IRRAXIOM irrAxiom #-}
-
-* Irrelevant projections require irrelevance axiom.
-
-  Record with irrelevant fields now require the built-in IRRAXIOM
-  (unless --no-irrelevant-projections).
-
-    record Squash {a}(A : Set a) : Set a where
-      constructor squash
-      field
-        .unsquash : A
-
-  This will produce an irrelevant projection
-
-    .unsquash : ∀ {a}{A : Set a} → Squash A → A
-    unsquash (squash x) = irrAxiom x
-
-  Thus, Agda will check for the built-in irrAxiom to be defined.
-
-* Pattern synonyms
-
-  A pattern synonym is a declaration that can be used on the left hand
-  side (when pattern matching) as well as the right hand side (in
-  expressions). For example:
-
-  pattern z    = zero
-  pattern ss x = suc (suc x)
-
-  f : ℕ -> ℕ
-  f z       = z
-  f (suc z) = ss z
-  f (ss n)  = n
-
-  Pattern synonyms are implemented by substitution on the abstract
-  syntax, so definitions are scope-checked but not type-checked. They
-  are particularly useful for universe constructions.
-
-* Qualified mixfix operators
-
-  It is now possible to use a qualified mixfix operator by qualifying the first
-  part of the name. For instance
-
-    import Data.Nat as Nat
-    import Data.Bool as Bool
-
-    two = Bool.if true then 1 Nat.+ 1 else 0
 
 Compiler backends
 =================

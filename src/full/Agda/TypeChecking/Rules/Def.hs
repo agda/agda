@@ -234,7 +234,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                          underscore = A.Underscore metaInfo
 
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-
-                      disableDisplayForms $ setShowImplicitArguments True $ reify
+                      disableDisplayForms $ withShowAllArguments $ reify
                         [rewriteFrom,   rewriteTo,    rewriteType    , proof]
                      let (inner, outer) -- the where clauses should go on the inner-most with
                            | null eqs  = ([], wh)
@@ -375,7 +375,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   -- Generate the type of the with function
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
-  absAuxType <- setShowImplicitArguments True
+  absAuxType <- withShowAllArguments
                 $ disableDisplayForms
                 $ dontReifyInteractionPoints
                 $ reify candidateType

@@ -1,4 +1,4 @@
 Issue543.agda:31,68-72
 .(true) != .(true) of type Bool
 when checking that the expression refl has type
-unsquash (squash true) ≡ unsquash (squash true)
+unsquash _ ≡ unsquash _

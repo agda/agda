@@ -86,6 +86,7 @@ data CommandLineOptions =
 
 data PragmaOptions = PragmaOptions
   { optShowImplicit              :: Bool
+  , optShowIrrelevant            :: Bool
   , optVerbose                   :: Verbosity
   , optProofIrrelevance          :: Bool
   , optAllowUnsolved             :: Bool
@@ -161,6 +162,7 @@ defaultOptions =
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
   { optShowImplicit              = False
+  , optShowIrrelevant            = False
   , optVerbose                   = defaultVerbosity
   , optProofIrrelevance          = False
   , optExperimentalIrrelevance   = False
@@ -262,6 +264,7 @@ noIrrelevantProjectionsFlag  o = return $ o { optIrrelevantProjections     = Fal
 ignoreInterfacesFlag         o = return $ o { optIgnoreInterfaces          = True  }
 allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = True  }
 showImplicitFlag             o = return $ o { optShowImplicit              = True  }
+showIrrelevantFlag           o = return $ o { optShowIrrelevant            = True  }
 runTestsFlag                 o = return $ o { optRunTests                  = True  }
 interactionTestFlag        f o = return $ o { optInteractionTest           = Just f }
 ghciInteractionFlag          o = return $ o { optGHCiInteraction           = True  }
@@ -373,6 +376,8 @@ pragmaOptions :: [OptDescr (Flag PragmaOptions)]
 pragmaOptions =
     [ Option []	    ["show-implicit"] (NoArg showImplicitFlag)
 		    "show implicit arguments when printing"
+    , Option []	    ["show-irrelevant"] (NoArg showIrrelevantFlag)
+		    "show irrelevant arguments when printing"
     , Option ['v']  ["verbose"]	(ReqArg verboseFlag "N")
                     "set verbosity level to N"
     -- , Option []	    ["proof-irrelevance"] (NoArg proofIrrelevanceFlag)

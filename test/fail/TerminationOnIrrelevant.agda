@@ -1,5 +1,5 @@
 -- 2011-10-04 Andreas
-{-# OPTIONS --experimental-irrelevance #-}
+{-# OPTIONS --experimental-irrelevance --show-irrelevant #-}
 module TerminationOnIrrelevant where
 
 data ⊥ : Set where

@@ -221,6 +221,23 @@ hasUniversePolymorphism = optUniversePolymorphism <$> pragmaOptions
 showImplicitArguments :: TCM Bool
 showImplicitArguments = optShowImplicit <$> pragmaOptions
 
+showIrrelevantArguments :: TCM Bool
+showIrrelevantArguments = optShowIrrelevant <$> pragmaOptions
+
+-- | Switch on printing of implicit and irrelevant arguments.
+--   E.g. for reification in with-function generation.
+withShowAllArguments :: TCM a -> TCM a
+withShowAllArguments ret = do
+  opts <- pragmaOptions
+  let imp = optShowImplicit opts
+      irr = optShowIrrelevant opts
+  setPragmaOptions $ opts { optShowImplicit = True, optShowIrrelevant = True }
+  x <- ret
+  opts <- pragmaOptions
+  setPragmaOptions $ opts { optShowImplicit = imp, optShowIrrelevant = irr }
+  return x
+
+{- RETIRED, Andreas, 2012-04-30
 setShowImplicitArguments :: Bool -> TCM a -> TCM a
 setShowImplicitArguments showImp ret = do
   opts <- pragmaOptions
@@ -230,6 +247,7 @@ setShowImplicitArguments showImp ret = do
   opts <- pragmaOptions
   setPragmaOptions $ opts { optShowImplicit = imp }
   return x
+-}
 
 ignoreInterfaces :: TCM Bool
 ignoreInterfaces = optIgnoreInterfaces <$> commandLineOptions
