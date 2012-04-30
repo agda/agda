@@ -162,25 +162,29 @@ instance Unquote a => Unquote [a] where
 instance Unquote Hiding where
   unquote t = do
     t <- reduce t
+    let err = unquoteFailed "Hiding" "neither `hidden' nor `visible'" t
     case t of
       Con c [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
           ,(c `isCon` primInstance, return Instance)
           ,(c `isCon` primVisible, return NotHidden)]
-          (unquoteFailed "Hiding" "neither `hidden' nor `visible'" t)
-      _ -> unquoteFailed "Hiding" "arity is not 0" t
+          err
+      Con c vs -> unquoteFailed "Hiding" "the value is a constructor, but its arity is not 0" t
+      _        -> err
 
 instance Unquote Relevance where
   unquote t = do
     t <- reduce t
+    let err = unquoteFailed "Relevance" "neither `relevant' or `irrelevant'" t
     case t of
       Con c [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
           ,(c `isCon` primIrrelevant, return Irrelevant)]
-          (unquoteFailed "Relevance" "neither `relevant' or `irrelevant'" t)
-      _ -> unquoteFailed "Relevance" "arity is not 0" t
+          err
+      Con c vs -> unquoteFailed "Relevance" "the value is a constructor, but its arity is not 0" t
+      _        -> err
 
 instance Unquote QName where
   unquote t = do
