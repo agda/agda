@@ -51,7 +51,7 @@ import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
-import Agda.Utils.Monad (thread, (<$>), ifM)
+import Agda.Utils.Monad ((<$>))
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
