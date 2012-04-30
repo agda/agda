@@ -24,6 +24,7 @@ RUN_AGDA = $(AGDA_BIN) -i. -i.. --vim $(AGDA_TEST_FLAGS) -v$(V) $(shell if [ -e 
 
 cleanup_Issue296							= rm -rf MAlonzo Issue296
 cleanup_Issue326							= rm -rf MAlonzo Issue326
+cleanup_Issue561							= rm -rf MAlonzo Issue561
 cleanup_UniversePolymorphicIO = rm -rf MAlonzo UniversePolymorphicIO
 cleanup_CompilingCoinduction	= rm -rf MAlonzo CompilingCoinduction
 
