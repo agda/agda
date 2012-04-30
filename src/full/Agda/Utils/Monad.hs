@@ -26,14 +26,7 @@ import Data.Monoid
 
 import Agda.Utils.List
 
--- Monads -----------------------------------------------------------------
-
-{- Andreas 2012-04-21: <.> is obsolete, it is called <=< in Control.Monad
-infixl 8 <.>
-
-(<.>) :: Monad m => (b -> m c) -> (a -> m b) -> a -> m c
-f <.> g = \x -> f =<< g x
--}
+-- Conditionals and monads ------------------------------------------------
 
 -- | @when_@ is just @Control.Monad.when@ with a more general type.
 when_ :: Monad m => Bool -> m a -> m ()
@@ -68,23 +61,7 @@ or2M ma mb = ifM ma (return True) mb
 orM :: Monad m => [m Bool] -> m Bool
 orM = Fold.foldl or2M (return False)
 
-forgetM :: Applicative m => m a -> m ()
-forgetM m = const () <$> m
-
-concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
-concatMapM f xs = concat <$> traverse f xs
-
--- | Depending on the monad you have to look at the result for
---   the force to be effective. For the 'IO' monad you do.
-forceM :: Monad m => [a] -> m ()
-forceM xs = do () <- length xs `seq` return ()
-	       return ()
-
-commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
-commuteM = traverse id
-
-fmapM :: (Traversable f, Applicative m) => (a -> m b) -> f a -> m (f b)
-fmapM f = commuteM . fmap f
+-- Continuation monad -----------------------------------------------------
 
 type Cont r a = (a -> r) -> r
 
@@ -94,9 +71,13 @@ thread f [] ret = ret []
 thread f (x:xs) ret =
     f x $ \y -> thread f xs $ \ys -> ret (y:ys)
 
+-- Lists and monads -------------------------------------------------------
+
 -- | Requires both lists to have the same lengths.
 zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
 zipWithM' f xs ys = sequence (zipWith' f xs ys)
+
+-- Error monad ------------------------------------------------------------
 
 -- | Finally for the 'Error' class. Errors in the finally part take
 -- precedence over prior errors.
@@ -120,16 +101,6 @@ bracket acquire release compute = do
   resource <- acquire
   compute resource `finally` release resource
 
--- Maybe ------------------------------------------------------------------
-
-mapMaybeM :: Applicative m => (a -> m b) -> Maybe a -> m (Maybe b)
-mapMaybeM f = maybe (pure Nothing) (\x -> Just <$> f x)
-
--- Either -----------------------------------------------------------------
-
-liftEither :: MonadError e m => Either e a -> m a
-liftEither = either throwError return
-
 -- Read -------------------------------------------------------------------
 
 readM :: (Error e, MonadError e m, Read a) => String -> m a
@@ -137,3 +108,53 @@ readM s = case reads s of
 	    [(x,"")]	-> return x
 	    _		->
               throwError $ strMsg $ "readM: parse error string " ++ s
+
+
+
+
+-- RETIRED STUFF ----------------------------------------------------------
+
+
+{- Andreas 2012-04-21: <.> is obsolete, it is called <=< in Control.Monad
+infixl 8 <.>
+
+(<.>) :: Monad m => (b -> m c) -> (a -> m b) -> a -> m c
+f <.> g = \x -> f =<< g x
+-}
+
+{- RETIRED, Andreas, 2012-04-30.
+   For GHC >= 7, there is now Control.Monad.void.
+forgetM :: Applicative m => m a -> m ()
+forgetM m = const () <$> m
+-}
+
+{- RETIRED, Andreas, 2012-04-30. Not used.
+concatMapM :: Applicative m => (a -> m [b]) -> [a] -> m [b]
+concatMapM f xs = concat <$> traverse f xs
+
+-- | Depending on the monad you have to look at the result for
+--   the force to be effective. For the 'IO' monad you do.
+forceM :: Monad m => [a] -> m ()
+forceM xs = do () <- length xs `seq` return ()
+	       return ()
+
+commuteM :: (Traversable f, Applicative m) => f (m a) -> m (f a)
+commuteM = traverse id
+
+-- these are just instances of traverse:
+
+fmapM :: (Traversable f, Applicative m) => (a -> m b) -> f a -> m (f b)
+fmapM f = commuteM . fmap f
+
+mapMaybeM :: Applicative m => (a -> m b) -> Maybe a -> m (Maybe b)
+mapMaybeM f = maybe (pure Nothing) (\x -> Just <$> f x)
+
+-}
+
+{- UNUSED
+
+-- Either -----------------------------------------------------------------
+
+liftEither :: MonadError e m => Either e a -> m a
+liftEither = either throwError return
+-}

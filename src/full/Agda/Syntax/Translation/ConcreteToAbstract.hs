@@ -26,7 +26,7 @@ import Control.Applicative
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Data.Typeable
-import Data.Traversable (mapM)
+import Data.Traversable (mapM, traverse)
 import Data.List ((\\), nub)
 import qualified Data.Map as Map
 
@@ -557,7 +557,7 @@ instance ToAbstract C.Expr A.Expr where
 -- Irrelevant non-dependent function type
 
       C.Fun r e1 e2 -> do
-        Arg h rel (e0, dotted) <- fmapM (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
+        Arg h rel (e0, dotted) <- traverse (toAbstractDot FunctionSpaceDomainCtx) $ mkArg e1
         let e1 = Arg h (if dotted then Irrelevant else rel) e0
         e2 <- toAbstractCtx TopCtx e2
         let info = ExprRange r
