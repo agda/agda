@@ -481,12 +481,11 @@ termTerm conf names f pats0 t0 = do
 
                -- If the function is a projection, then preserve guardedness
                -- for its principal argument.
-               isProj <- isProjection g
+               isProj <- isProjectionButNotFlat g
                let unguards = repeat Term.unknown
-               let guards = maybe unguards -- not a proj. ==> unguarded
-                              (\ _ -> guarded : unguards)
-                                -- proj. => preserve g. of princ. arg. (counting starts with 1)
-                              isProj
+               let guards = if isProj then guarded : unguards
+                                           -- proj => preserve guardedness of principal argument
+                                      else unguards -- not a proj ==> unguarded
                -- collect calls in the arguments of this call
                calls <- collectCalls (uncurry (loop pats)) (zip guards args)
                -- calls <- collectCalls (loop pats Term.unknown) args
@@ -684,14 +683,24 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
     cmp p' = (Term..*.) Term.lt (compareTerm' t p')
 -}
 
+-- | For termination checking purposes flat should not be considered a
+--   projection. That is, it flat doesn't preserve either structural order
+--   or guardedness like other projections do.
+isProjectionButNotFlat :: QName -> TCM Bool
+isProjectionButNotFlat qn = do
+  flat <- fmap nameOfSharp <$> coinductionKit
+  if Just qn == flat
+    then return False
+    else Maybe.isJust <$> isProjection qn
+
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.
 stripProjections :: Term -> TCM Term
 stripProjections (DontCare t) = stripProjections t
 stripProjections t@(Def qn ts@(~(r : _))) = do
-  isProj <- isProjection qn
+  isProj <- isProjectionButNotFlat qn
   case isProj of
-    Just{} | not (null ts) -> stripProjections $ unArg r
+    True | not (null ts) -> stripProjections $ unArg r
     _ -> return t
 stripProjections t = return t
 
@@ -749,17 +758,6 @@ compareTerm' suc (Def s ts) (ConDBP s' ps)
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     return $ decr (-1) .*. infimum os
-{- Andreas 2011-07-07 Projections are now being removed in a preprocess
--- projections are size preserving
-compareTerm' suc (Def qn ts) p = do
-    isProj <- isProjection qn
-    case isProj of
-      -- strip off projection (n is the number of the record argument, counting starts with 1)
-      Just n | length ts >= n && n >= 1 ->
-        compareTerm' suc (unArg (ts !! (n - 1))) p
-      -- not a projection or underapplied:
-      _ -> return Term.unknown
--}
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     oc <- increaseFromConstructor c

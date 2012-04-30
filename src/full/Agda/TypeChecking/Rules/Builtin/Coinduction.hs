@@ -116,19 +116,20 @@ bindBuiltinFlat e =
                  _       -> __IMPOSSIBLE__)
               <$> primSharp
     kit    <- requireLevels
+    inf    <- do
+      inf <- primInf
+      case inf of
+        Def inf _ -> return inf
+        _         -> __IMPOSSIBLE__
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (domH (El (mkType 0) (Def (typeName kit) [])))
                                                   (Abs "a" (ExtendTel (domH $ sort $ varSort 0)
                                                                       (Abs "A" (ExtendTel (domN (El (varSort 1) (var 0)))
                                                                                           (Abs "x" EmptyTel)))))
-                        , clausePerm  = idP 3
-                        , clausePats  = [ argH (VarP "a")
-                                        , argH (VarP "A")
-                                        , argN (ConP sharp Nothing [argN (VarP "x")])
+                        , clausePerm  = idP 1
+                        , clausePats  = [ argN (ConP sharp Nothing [argN (VarP "x")])
                                         ]
-                        , clauseBody  = Bind $ Abs "h0" $
-                                        Bind $ Abs "h1" $
-                                        Bind $ Abs "h2" $ Body (var 0)
+                        , clauseBody  = Bind $ Abs "x" $ Body (var 0)
                         }
     addConstant flat $
       flatDefn { theDef = Function
@@ -136,19 +137,16 @@ bindBuiltinFlat e =
                    , funCompiled       =
                       let hid   = Arg Hidden Relevant
                           nohid = defaultArg in
-                      Case 2 (Branches (Map.singleton sharp
-                                 (Done [hid "a", hid "A", nohid "x"] (var 0)))
+                      Case 0 (Branches (Map.singleton sharp
+                                 (Done [nohid "x"] (var 0)))
                                Map.empty
                                Nothing)
                    , funInv            = NotInjective
-                   , funPolarity       = [Invariant, Invariant, Invariant]
-                   , funArgOccurrences = [Unused, Unused, Positive]
+                   , funPolarity       = [Invariant]
+                   , funArgOccurrences = [Positive]
                    , funAbstr          = ConcreteDef
                    , funDelayed        = NotDelayed
-                   , funProjection     = Nothing
-                     {- flat is a projection, but in the termination checker
-                        it destroys the (inductive) structural ordering.
-                        Thus, we do not register it as a projection. -}
+                   , funProjection     = Just (inf, 3)
                    , funStatic         = False
                    }
                 }
