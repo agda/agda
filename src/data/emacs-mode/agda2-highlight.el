@@ -397,8 +397,8 @@ table). The face `font-lock-comment-face' is used for comments.")
   "Set up the `annotation' library for use with `agda2-mode'."
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-annotations (keep &rest cmds)
-  "Load syntax highlighting information from the annotation list CMDS.
+(defun agda2-highlight-add-annotations (keep &rest cmds)
+  "Adds the syntax highlighting information in the annotation list CMDS.
 
 Old syntax highlighting information is first removed, unless KEEP
 is non-nil."

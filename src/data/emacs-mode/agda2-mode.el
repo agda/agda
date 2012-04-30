@@ -650,7 +650,7 @@ reloaded from `agda2-highlighting-file', unless
 
           ;; Apply interactive highlighting annotations.
           (when agda2-highlight-in-progress
-            (apply 'agda2-highlight-annotations 'keep
+            (apply 'agda2-highlight-add-annotations 'keep
                    (nreverse highlighting-anns)))
 
           ;; Run non-last commands.
