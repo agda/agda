@@ -199,12 +199,9 @@ errorString err = case err of
 
 instance PrettyTCM TCErr where
     prettyTCM err = case errError err of
-	TypeError s e -> do
-	    s0 <- get
+	TypeError s e -> localState $ do
 	    put s
-	    d <- sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
-	    put s0
-	    return d
+	    sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e
 	Exception r s   -> sayWhere r $ fwords s
 	IOException r e -> sayWhere r $ fwords $ show e
 	PatternErr _    -> sayWhere err $ panic "uncaught pattern violation"

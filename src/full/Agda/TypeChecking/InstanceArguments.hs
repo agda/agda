@@ -78,12 +78,14 @@ initialIFSCandidates = do
         _                                       -> args
 
 
+{- Andreas, 2012-04-30.  MOVED TO Utils.Monad
 localState :: MonadState s m => m a -> m a
 localState m = do
   s <- get
   x <- m
   put s
   return x
+-}
 
 initializeIFSMeta :: Type -> TCM Term
 initializeIFSMeta t = do

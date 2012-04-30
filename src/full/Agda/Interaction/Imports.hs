@@ -211,8 +211,8 @@ getInterface' :: C.TopLevelModuleName
               -> TCM (Interface, Either Warnings ClockTime)
 getInterface' x includeStateChanges =
   -- Preserve the pragma options unless includeStateChanges is True.
-  bracket (stPragmaOptions <$> get)
-          (unless includeStateChanges . setPragmaOptions) $ \_ -> do
+  bracket_ (stPragmaOptions <$> get)
+           (unless includeStateChanges . setPragmaOptions) $ do
    -- Forget the pragma options (locally).
    setCommandLineOptions . stPersistentOptions . stPersistent =<< get
 

@@ -101,6 +101,24 @@ bracket acquire release compute = do
   resource <- acquire
   compute resource `finally` release resource
 
+-- State monad ------------------------------------------------------------
+
+-- | Bracket without failure.  Typically used to preserve state.
+bracket_ :: (Monad m)
+         => m a         -- ^ Acquires resource. Run first.
+         -> (a -> m c)  -- ^ Releases resource. Run last.
+         -> m b         -- ^ Computes result. Run in-between.
+         -> m b
+bracket_ acquire release compute = do
+  resource <- acquire
+  result <- compute
+  release resource
+  return result
+
+-- | Restore state after computation.
+localState :: (MonadState s m) => m a -> m a
+localState = bracket_ get put
+
 -- Read -------------------------------------------------------------------
 
 readM :: (Error e, MonadError e m, Read a) => String -> m a

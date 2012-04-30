@@ -44,7 +44,7 @@ import Agda.TypeChecking.Monad.Options ( setCommandLineOptions, commandLineOptio
 import Agda.TypeChecking.Reduce ( instantiateFull, normalise )
 import Agda.Utils.FileName ( filePath )
 import Agda.Utils.Function ( iterate' )
-import Agda.Utils.Monad ( (<$>), (<*>), bracket, ifM )
+import Agda.Utils.Monad ( (<$>), (<*>), localState, ifM )
 import Agda.Utils.IO.UTF8 ( writeFile )
 import Agda.Utils.Impossible ( Impossible(Impossible), throwImpossible )
 import qualified Agda.Utils.HashMap as HMap
@@ -69,7 +69,7 @@ import Agda.Compiler.JS.Pretty ( pretty )
 compilerMain :: Interface -> TCM ()
 compilerMain mainI =
   -- Preserve the state (the compiler modifies the state).
-  bracket get put $ \_ -> do
+  localState $ do
 
     -- Compute the output directory.
     opts <- commandLineOptions

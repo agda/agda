@@ -48,7 +48,7 @@ import qualified Agda.Utils.HashMap as HMap
 compilerMain :: Interface -> TCM ()
 compilerMain mainI =
   -- Preserve the state (the compiler modifies the state).
-  bracket get put $ \_ -> do
+  localState $ do
 
     -- Compute the output directory.
     opts <- commandLineOptions
