@@ -13,6 +13,11 @@ Installation
 
 * The Emacs mode no longer depends on haskell-mode or GHCi.
 
+* [Temporary note.]
+
+  Agda depends on geniplate, but geniplate-0.6.0.0 doesn't build under
+  GHC 7.4.1. A patch has been sent to the upstream maintainer.
+
 Pragmas and Options
 ===================
 
