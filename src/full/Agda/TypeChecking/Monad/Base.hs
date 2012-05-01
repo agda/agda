@@ -17,7 +17,8 @@ import Data.Function
 import Data.Int
 import Data.Map as Map
 import Data.Set as Set
-import Data.Generics
+import Data.Sequence as Seq
+import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.IORef
@@ -460,12 +461,6 @@ data Signature = Sig
 
 type Sections	 = Map ModuleName Section
 type Definitions = HashMap QName Definition
-
-instance (Eq k, Hashable k, Data k, Data v) => Data (HashMap k v) where
-  gfoldl k z m  = z HMap.fromList `k` HMap.toList m
-  gunfold k z _ = k (z HMap.fromList)
-  toConstr x    = mkConstr (dataTypeOf x) "fromList" [] Prefix
-  dataTypeOf x  = mkDataType "Data.HashMap.HashMap" [toConstr x]
 
 data Section = Section
       { secTelescope :: Telescope

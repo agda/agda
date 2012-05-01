@@ -460,16 +460,17 @@ instance KillRange LetBinding where
   killRange (LetApply i a b c d     ) = killRange3 LetApply i a b c d
   killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
 
-instanceUniverseBiT' [] [t| ([Declaration], QName)          |]
-instanceUniverseBiT' [] [t| ([Declaration], AmbiguousQName) |]
-instanceUniverseBiT' [] [t| ([Declaration], Expr)           |]
-instanceUniverseBiT' [] [t| ([Declaration], LetBinding)     |]
-instanceUniverseBiT' [] [t| ([Declaration], LamBinding)     |]
-instanceUniverseBiT' [] [t| ([Declaration], TypedBinding)   |]
-instanceUniverseBiT' [] [t| ([Declaration], Pattern)        |]
+instanceUniverseBiT' [] [t| (Declaration,   QName)          |]
+instanceUniverseBiT' [] [t| (Declaration,   AmbiguousQName) |]
+instanceUniverseBiT' [] [t| (Declaration,   Expr)           |]
+instanceUniverseBiT' [] [t| (Declaration,   LetBinding)     |]
+instanceUniverseBiT' [] [t| (Declaration,   LamBinding)     |]
+instanceUniverseBiT' [] [t| (Declaration,   TypedBinding)   |]
+instanceUniverseBiT' [] [t| (Declaration,   Pattern)        |]
+instanceUniverseBiT' [] [t| (Declaration,   Declaration)    |]
 instanceUniverseBiT' [] [t| ([Declaration], Declaration)    |]
-instanceUniverseBiT' [] [t| ([Declaration], ModuleName)     |]
-instanceUniverseBiT' [] [t| ([Declaration], ModuleInfo)     |]
+instanceUniverseBiT' [] [t| (Declaration,   ModuleName)     |]
+instanceUniverseBiT' [] [t| (Declaration,   ModuleInfo)     |]
 
 ------------------------------------------------------------------------
 -- Queries

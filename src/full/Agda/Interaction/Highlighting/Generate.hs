@@ -244,16 +244,28 @@ generateAndPrintSyntaxInfo file decl hlLevel termErrs = do
                      concatMap (map M.callInfoRange . M.termErrCalls) termErrs
 
     -- All names mentioned in the syntax tree (not bound variables).
-    names = everything' (><) (Seq.empty `mkQ`  getName
-                                        `extQ` getAmbiguous)
-                        decls
+    names :: [A.AmbiguousQName]
+    names =
+      (map (A.AmbQ . (:[])) $
+       filter (not . extendedLambda) $
+       universeBi decl) ++
+      universeBi decl
       where
       extendedLambda :: A.QName -> Bool
       extendedLambda n = extendlambdaname `isPrefixOf` show (A.qnameName n)
 
     -- Bound variables, dotted patterns, record fields, module names,
     -- the "as" and "to" symbols.
-    theRest modMap = everything' mappend query decls
+    theRest modMap = mconcat
+      [ Fold.foldMap getFieldDecl   $ universeBi decl
+      , Fold.foldMap getVarAndField $ universeBi decl
+      , Fold.foldMap getLet         $ universeBi decl
+      , Fold.foldMap getLam         $ universeBi decl
+      , Fold.foldMap getTyped       $ universeBi decl
+      , Fold.foldMap getPattern     $ universeBi decl
+      , Fold.foldMap getModuleName  $ universeBi decl
+      , Fold.foldMap getModuleInfo  $ universeBi decl
+      ]
       where
       bound n = nameToFile modMap file []
                            (A.nameConcrete n)
@@ -377,21 +389,21 @@ nameKinds hlLevel decls = do
     _    -> return $
       -- Traverses the syntax tree and constructs a map from qualified
       -- names to name kinds. TODO: Handle open public.
-      everything' union (Map.empty `mkQ` getDecl) decls
-  let merged = Map.union local imported
-  return (\n -> Map.lookup n merged)
+      foldr ($) HMap.empty $ map declToKind $ universeBi decls
+  let merged = HMap.union local imported
+  return (\n -> HMap.lookup n merged)
   where
-  fix = Map.map (defnToNameKind . theDef) . sigDefinitions
+  fix = HMap.map (defnToKind . theDef) . sigDefinitions
 
   -- | The 'M.Axiom' constructor is used to represent various things
   -- which are not really axioms, so when maps are merged 'Postulate's
-  -- are thrown away whenever possible. The 'getDef' and 'getDecl'
-  -- functions below can return several explanations for one qualified
-  -- name; the 'Postulate's are bogus.
-  union = Map.unionWith dropPostulates
+  -- are thrown away whenever possible. The 'declToKind' function
+  -- below can return several explanations for one qualified name; the
+  -- 'Postulate's are bogus.
+  insert = HMap.insertWith dropPostulates
     where
-      dropPostulates Postulate k = k
-      dropPostulates k         _ = k
+    dropPostulates Postulate k = k
+    dropPostulates k         _ = k
 
   defnToKind :: Defn -> NameKind
   defnToKind (M.Axiom {})                     = Postulate
@@ -405,32 +417,33 @@ nameKinds hlLevel decls = do
   getAxiomName (A.Axiom _ _ q _) = q
   getAxiomName _                 = __IMPOSSIBLE__
 
-  getDecl :: A.Declaration -> Map A.QName NameKind
-  getDecl (A.Axiom _ _ q _)   = Map.singleton q Postulate
-  getDecl (A.Field _ q _)     = Map.singleton q Function
+  declToKind :: A.Declaration ->
+                HashMap A.QName NameKind -> HashMap A.QName NameKind
+  declToKind (A.Axiom _ _ q _)      = insert q Postulate
+  declToKind (A.Field _ q _)        = insert q Function
     -- Note that the name q can be used both as a field name and as a
     -- projection function. Highlighting of field names is taken care
     -- of by "theRest" above, which does not use NameKinds.
-  getDecl (A.Primitive _ q _) = Map.singleton q Primitive
-  getDecl (A.Mutual {})       = Map.empty
-  getDecl (A.Section {})      = Map.empty
-  getDecl (A.Apply {})        = Map.empty
-  getDecl (A.Import {})       = Map.empty
-  getDecl (A.Pragma {})       = Map.empty
-  getDecl (A.ScopedDecl {})   = Map.empty
-  getDecl (A.Open {})         = Map.empty
-  getDecl (A.FunDef  _ q _)       = Map.singleton q Function
-  getDecl (A.DataSig _ q _ _)       = Map.singleton q Datatype
-  getDecl (A.DataDef _ q _ cs)    = Map.singleton q Datatype `union`
-                                   (Map.unions $
-                                    map (\q -> Map.singleton q (Constructor SC.Inductive)) $
-                                    map getAxiomName cs)
-  getDecl (A.RecSig _ q _ _)      = Map.singleton q Record
-  getDecl (A.RecDef _ q c _ _ _)  = Map.singleton q Record `union`
-                                   case c of
-                                     Nothing -> Map.empty
-                                     Just q ->
-                                       Map.singleton q (Constructor SC.Inductive)
+  declToKind (A.Primitive _ q _)    = insert q Primitive
+  declToKind (A.Mutual {})          = id
+  declToKind (A.Section {})         = id
+  declToKind (A.Apply {})           = id
+  declToKind (A.Import {})          = id
+  declToKind (A.Pragma {})          = id
+  declToKind (A.ScopedDecl {})      = id
+  declToKind (A.Open {})            = id
+  declToKind (A.FunDef  _ q _)      = insert q Function
+  declToKind (A.DataSig _ q _ _)    = insert q Datatype
+  declToKind (A.DataDef _ q _ cs)   = \m ->
+                                      insert q Datatype $
+                                      foldr (\d -> insert (getAxiomName d)
+                                                          (Constructor SC.Inductive))
+                                            m cs
+  declToKind (A.RecSig _ q _ _)     = insert q Record
+  declToKind (A.RecDef _ q c _ _ _) = insert q Record .
+                                      case c of
+                                        Nothing -> id
+                                        Just q  -> insert q (Constructor SC.Inductive)
 
 -- | Generates syntax highlighting information for all constructors
 -- occurring in patterns and expressions in the given declarations.
