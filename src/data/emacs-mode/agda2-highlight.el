@@ -112,10 +112,7 @@ Also sets the default value of VARIABLE to GROUP."
              :background "purple")
             (agda2-highlight-typechecks-face
              :foreground "black"
-             :background "light steel blue")
-            (agda2-highlight-typechecked-face
-             :foreground "black"
-             :background "pale green")))
+             :background "light steel blue")))
 	 ((equal group 'default-faces)
           (list (cons 'agda2-highlight-keyword-face
 		      (agda2-highlight-face-attributes
@@ -320,13 +317,6 @@ buffers until you have restarted Emacs."
   "The face used for code which is being type-checked."
   :group 'agda2-highlight)
 
-(defface agda2-highlight-typechecked-face
-  '((t (:background "pale green"
-        :foreground "black")))
-  "The face used for code which has been type-checked.
-But not yet properly highlighted."
-  :group 'agda2-highlight)
-
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)
     (string                 . agda2-highlight-string-face)
@@ -350,8 +340,7 @@ But not yet properly highlighted."
     (unsolvedconstraint     . agda2-highlight-unsolved-constraint-face)
     (terminationproblem     . agda2-highlight-termination-problem-face)
     (incompletepattern      . agda2-highlight-incomplete-pattern-face)
-    (typechecks             . agda2-highlight-typechecks-face)
-    (typechecked            . agda2-highlight-typechecked-face))
+    (typechecks             . agda2-highlight-typechecks-face))
   "Alist mapping code aspects to the face used when displaying them.
 
 The aspects currently recognised are the following:
@@ -377,8 +366,6 @@ The aspects currently recognised are the following:
 `symbol'                 Symbols like forall, =, ->, etc.
 `terminationproblem'     Termination problems.
 `typechecks'             Code which is being type-checked.
-`typechecked'            Code which has been type-checked but not yet
-                           properly highlighted.
 `unsolvedconstraint'     Unsolved constraints, not connected to meta
                            variables.
 `unsolvedmeta'           Unsolved meta variables.

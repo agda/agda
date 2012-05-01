@@ -95,9 +95,6 @@ data OtherAspect
     -- include a 'note' explaining why the pattern is incomplete.
   | TypeChecks
     -- ^ Code which is being type-checked.
-  | TypeChecked
-    -- ^ Code which has been type-checked but not yet properly
-    -- highlighted.
     deriving (Eq, Show, Enum, Bounded, Typeable)
 
 -- | Meta information which can be associated with a
