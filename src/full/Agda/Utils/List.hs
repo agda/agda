@@ -72,6 +72,14 @@ holes :: [a] -> [(a, [a])]
 holes []     = []
 holes (x:xs) = (x, xs) : map (id -*- (x:)) (holes xs)
 
+-- | Check whether a list is sorted.
+--
+-- Assumes that the 'Ord' instance implements a partial order.
+
+sorted :: Ord a => [a] -> Bool
+sorted [] = True
+sorted xs = and $ zipWith (<=) (init xs) (tail xs)
+
 -- | Check whether all elements in a list are distinct from each
 -- other. Assumes that the 'Eq' instance stands for an equivalence
 -- relation.
