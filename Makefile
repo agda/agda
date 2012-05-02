@@ -1,6 +1,7 @@
 # Top-level Makefile for Agda 2
 # Authors: Ulf Norell, Nils Anders Danielsson
 
+SHELL=bash
 ## Includes ###############################################################
 
 TOP = .
