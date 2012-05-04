@@ -73,10 +73,10 @@ mimicGHCi maybeCurrentfile = do
                     (Right (current, highlighting, cmd), "") -> do
                         tcmAction st current highlighting cmd
                     (Left err, rem) -> do
-                        error $ "error: " ++ err ++ " expected before " ++ rem
+                        putStrLn $ "error: " ++ err ++ " expected before " ++ rem
                         return st
                     (_, rem) -> do
-                        error $ "not consumed: " ++ rem
+                        putStrLn $ "not consumed: " ++ rem
                         return st
 
     parseIO Nothing        = parseIOTCM Nothing
