@@ -158,8 +158,6 @@ optionError err = do
 -- | Main
 main :: IO ()
 main = do
-    -- Ensure that UTF-8 is used
-    IO.hSetEncoding IO.stdout IO.utf8
     r <- runTCM $ runAgda `catchError` \err -> do
       s <- prettyError err
       liftIO $ putStrLn s
