@@ -79,12 +79,12 @@ mimicGHCi maybeCurrentfile = do
                         error $ "not consumed: " ++ rem
                         return st
 
-    parseIO Nothing        = parseIOTCM
-    parseIO (Just current) = parseIOTCM `mplus` parseTopCommand current
+    parseIO Nothing        = parseIOTCM Nothing
+    parseIO (Just current) = parseIOTCM (Just current) `mplus` parseTopCommand current
 
-    parseIOTCM = do
+    parseIOTCM maybeCurrentfile = do
         exact "ioTCM "
-        current <- parse
+        current <- parseString maybeCurrentfile
         highlighting <- parse
         cmd <- parseInteraction
         return (current, highlighting, cmd)
@@ -92,7 +92,7 @@ mimicGHCi maybeCurrentfile = do
     parseTopCommand current = do
         exact "top_command "
         cmd <- parseInteraction
-        return (current, False, cmd)
+        return (current, None, cmd)
       `mplus` do
         exact "goal_command "
         i <- parse
@@ -100,7 +100,7 @@ mimicGHCi maybeCurrentfile = do
             t <- token
             parseGoalCommand t
         s <- parse
-        return (current, False, cmd i noRange s)
+        return (current, None, cmd i noRange s)
 
     parseInteraction = parens' $ do
         t <- token
@@ -210,6 +210,9 @@ instance ParseC [Char] where
 instance ParseC Bool where
     parse = reads' "Bool"
 
+instance ParseC HighlightingLevel where
+    parse = reads' "HighlightingLevel"
+
 instance ParseC Int32 where
     parse = reads' "Int32"
 
@@ -288,7 +291,7 @@ instance ParseC Rewrite where
 tcmAction
     :: InteractionState
     -> FilePath
-    -> Bool
+    -> HighlightingLevel
     -> Interaction
     -> IO InteractionState
 tcmAction state filepath highlighting action =
@@ -302,7 +305,8 @@ tcmAction state filepath highlighting action =
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
 lispifyResponse :: Response -> IO (Lisp String)
-lispifyResponse (Resp_HighlightingInfo info) = return $ lispifyHighlightingInfo info
+lispifyResponse (Resp_HighlightingInfo info modFile) =
+  return $ lispifyHighlightingInfo info modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk -> f "The module was successfully compiled." "*Compilation result*"
     Info_Constraints s -> f s "*Constraints*"
@@ -318,6 +322,7 @@ lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_Context s -> f (render s) "*Context*"
     Info_Intro s -> f (render s) "*Intro*"
   where f content bufname = display_info' False bufname content
+lispifyResponse Resp_ClearHighlighting = return $ L [ A "agda2-highlight-clear" ]
 lispifyResponse Resp_ClearRunningInfo = return $ clearRunningInfo
 lispifyResponse (Resp_RunningInfo s) = return $ displayRunningInfo $ s ++ "\n"
 lispifyResponse (Resp_Status s)
@@ -366,4 +371,3 @@ lispifyResponse (Resp_SolveAll ps) = return $
 
 showNumIId :: InteractionId -> Lisp String
 showNumIId = A . tail . show
-

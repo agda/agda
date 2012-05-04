@@ -120,12 +120,12 @@ runAgda = do
           unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
           result <- case mw of
-            Just (Imp.Warnings [] [] []) -> __IMPOSSIBLE__
-            Just (Imp.Warnings _ unsolved@(_:_) _)
+            Just (Warnings [] [] []) -> __IMPOSSIBLE__
+            Just (Warnings _ unsolved@(_:_) _)
               | not unsolvedOK -> typeError $ UnsolvedMetas unsolved
-            Just (Imp.Warnings _ _ unsolved@(_:_))
+            Just (Warnings _ _ unsolved@(_:_))
               | not unsolvedOK -> typeError $ UnsolvedConstraints unsolved
-            Just (Imp.Warnings termErrs@(_:_) _ _) ->
+            Just (Warnings termErrs@(_:_) _ _) ->
               typeError $ TerminationCheckFailed termErrs
             Just _  -> return Nothing
             Nothing -> return $ Just i

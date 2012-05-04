@@ -93,7 +93,7 @@ give ii mr e = liftTCM $ do
   mis <- getInteractionPoints
   r <- getInteractionRange ii
   updateMetaVarRange mi $ maybe r id mr
-  giveExpr mi e `catchError` \err -> case errError err of
+  giveExpr mi e `catchError` \err -> case err of
     PatternErr _ -> do
       err <- withInteractionId ii $ TP.text "Failed to give" TP.<+> prettyTCM e
       typeError $ GenericError $ show err

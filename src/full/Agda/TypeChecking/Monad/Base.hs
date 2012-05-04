@@ -63,11 +63,12 @@ import Agda.Utils.Impossible
 
 data TCState =
     TCSt { stFreshThings       :: FreshThings
-         , stSyntaxInfo        :: CompressedFile -- ^ Highlighting annotations (except for tokens)
-         , stTokens            :: CompressedFile -- ^ Highlighting annotations relative to tokens
+         , stSyntaxInfo        :: CompressedFile
+           -- ^ Highlighting info.
+         , stTokens            :: CompressedFile
+           -- ^ Highlighting info for tokens (but not those tokens for
+           -- which highlighting exists in 'stSyntaxInfo').
          , stTermErrs          :: Seq TerminationError
-         , stUnsolvedMetas     :: Set Range
-         , stUnsolvedConstraints :: Seq ProblemConstraint
 	 , stMetaStore	       :: MetaStore
 	 , stInteractionPoints :: InteractionPoints
 	 , stAwakeConstraints    :: Constraints
@@ -132,8 +133,6 @@ initState =
 	 , stSyntaxInfo        = mempty
 	 , stTokens            = mempty
 	 , stTermErrs          = Seq.empty
-	 , stUnsolvedMetas     = Set.empty
-         , stUnsolvedConstraints = Seq.empty
 	 , stInteractionPoints = Map.empty
 	 , stAwakeConstraints    = []
 	 , stSleepingConstraints = []
@@ -734,7 +733,6 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
 	  | forall a. SetRange Range (Maybe a)	-- ^ used by 'setCurrentRange'
-
     deriving (Typeable)
 
 instance HasRange Call where
@@ -786,6 +784,33 @@ data Builtin pf
     deriving (Typeable, Show, Functor, Foldable, Traversable)
 
 ---------------------------------------------------------------------------
+-- * Highlighting levels
+---------------------------------------------------------------------------
+
+-- | How much highlighting should be sent to the user interface?
+
+data HighlightingLevel
+  = None
+  | NonInteractive
+  | Interactive
+    -- ^ This includes both non-interactive highlighting and
+    -- interactive highlighting of the expression that is currently
+    -- being type-checked.
+    deriving (Eq, Ord, Show, Read)
+
+-- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
+-- type-checking the top-level module and the highlighting level is
+-- /at least/ @l@.
+
+ifTopLevelAndHighlightingLevelIs ::
+  MonadTCM tcm => HighlightingLevel -> tcm () -> tcm ()
+ifTopLevelAndHighlightingLevelIs l m = do
+  e <- ask
+  when (envModuleNestingLevel e == 0 &&
+        envHighlightingLevel e >= l)
+       m
+
+---------------------------------------------------------------------------
 -- * Type checking environment
 ---------------------------------------------------------------------------
 
@@ -794,6 +819,8 @@ data TCEnv =
 	  , envLetBindings         :: LetBindings
 	  , envCurrentModule       :: ModuleName
 	  , envCurrentPath         :: AbsolutePath
+            -- ^ The path to the file that is currently being
+            -- type-checked.
           , envAnonymousModules    :: [(ModuleName, Nat)] -- ^ anonymous modules and their number of free variables
 	  , envImportPath          :: [C.TopLevelModuleName] -- ^ to detect import cycles
 	  , envMutualBlock         :: Maybe MutualId -- ^ the current (if any) mutual block
@@ -825,10 +852,9 @@ data TCEnv =
                 -- ^ what we're doing at the moment
           , envEmacs :: Bool
                 -- ^ True when called from the Emacs mode.
-          , envInteractiveHighlighting :: Bool
-                -- ^ Should interactive highlighting information be
-                --   produced? This flag is set to @False@ when
-                --   imported modules are type-checked.
+          , envHighlightingLevel  :: HighlightingLevel
+                -- ^ Set to 'None' when imported modules are
+                --   type-checked.
           , envModuleNestingLevel :: Integer
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
@@ -859,8 +885,8 @@ initEnv = TCEnv { envContext	         = []
                 , envRange                  = noRange
                 , envCall                   = Nothing
                 , envEmacs                  = False
-                , envInteractiveHighlighting = False
-                , envModuleNestingLevel     = 0
+                , envHighlightingLevel      = None
+                , envModuleNestingLevel     = -1
 		}
 
 ---------------------------------------------------------------------------
@@ -1098,47 +1124,30 @@ instance Error TypeError where
 
 -- | Type-checking errors.
 
-data TCErr' = TypeError TCState (Closure TypeError)
-	    | Exception Range String
-            | IOException Range E.IOException
-	    | PatternErr  TCState -- ^ for pattern violations
-	    {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
-  deriving (Typeable)
-
--- | Type-checking errors, potentially paired with relevant syntax
--- highlighting information.
-
-data TCErr =
-  TCErr { errHighlighting :: Maybe (HighlightingInfo, ModuleToSource)
-          -- ^ The 'ModuleToSource' can be used to map the module
-          -- names in the 'HighlightingInfo' to file names.
-        , errError        :: TCErr'
-        }
+data TCErr = TypeError TCState (Closure TypeError)
+	   | Exception Range String
+           | IOException Range E.IOException
+	   | PatternErr  TCState -- ^ for pattern violations
+	   {- AbortAssign TCState -- ^ used to abort assignment to meta when there are instantiations -- UNUSED -}
   deriving (Typeable)
 
 instance Error TCErr where
     noMsg  = strMsg ""
-    strMsg = TCErr Nothing . Exception noRange . strMsg
+    strMsg = Exception noRange . strMsg
 
 instance Show TCErr where
-  show = show . errError
-
-instance Show TCErr' where
     show (TypeError _ e) = show (envRange $ clEnv e) ++ ": " ++ show (clValue e)
     show (Exception r s) = show r ++ ": " ++ s
     show (IOException r e) = show r ++ ": " ++ show e
     show (PatternErr _)  = "Pattern violation (you shouldn't see this)"
     {- show (AbortAssign _) = "Abort assignment (you shouldn't see this)" -- UNUSED -}
 
-instance HasRange TCErr' where
+instance HasRange TCErr where
     getRange (TypeError _ cl)  = envRange $ clEnv cl
     getRange (Exception r _)   = r
     getRange (IOException r _) = r
     getRange (PatternErr s)    = noRange
     {- getRange (AbortAssign s)   = noRange -- UNUSED -}
-
-instance HasRange TCErr where
-    getRange = getRange . errError
 
 instance Exception TCErr
 
@@ -1276,13 +1285,13 @@ instance MonadIO m => MonadIO (TCMT m) where
       wrap r m = failOnException handleException
                $ E.catch m (handleIOException r)
 
-      handleIOException r e = throwIO $ TCErr Nothing $ IOException r e
-      handleException   r s = throwIO $ TCErr Nothing $ Exception r s
+      handleIOException r e = throwIO $ IOException r e
+      handleException   r s = throwIO $ Exception r s
 
 patternViolation :: TCM a
 patternViolation = do
     s <- get
-    throwError $ TCErr Nothing $ PatternErr s
+    throwError $ PatternErr s
 
 internalError :: MonadTCM tcm => String -> tcm a
 internalError s = typeError $ InternalError s
@@ -1291,7 +1300,7 @@ typeError :: MonadTCM tcm => TypeError -> tcm a
 typeError err = liftTCM $ do
     cl <- buildClosure err
     s  <- get
-    throwError $ TCErr Nothing $ TypeError s cl
+    throwError $ TypeError s cl
 
 -- | Running the type checking monad
 runTCM :: TCMT IO a -> IO (Either TCErr a)

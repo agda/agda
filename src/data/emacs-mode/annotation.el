@@ -56,11 +56,18 @@ position."
         (error "File does not exist or is unreadable: %s." file)))))
 
 (defun annotation-annotate (start end anns &optional info goto)
-  "Annotate text between START and END in the current buffer, unless ANNS
-is empty. ANNS are the annotations to apply. All the symbols in ANNS are
-looked up in `annotation-bindings', and the font-lock-face text property
-for the given character range is set to the resulting list of faces.
-If ANNS is nil, then the text properties between START and END is deleted.
+  "Annotate text between START and END in the current buffer.
+
+Nothing happens if either START or END are out of bounds for the
+current (possibly narrowed) buffer, or END <= START.
+
+If ANNS is nil, then those text properties between START and END
+that have been set by this function are deleted. Otherwise the
+following happens.
+
+All the symbols in ANNS are looked up in `annotation-bindings',
+and the font-lock-face text property for the given character
+range is set to the resulting list of faces.
 
 If the string INFO is non-nil, the mouse-face
 property is set to highlight, and INFO is used as the help-echo
@@ -77,17 +84,14 @@ annotation-annotated property set to t, and
 annotation-annotations is set to a list with all the properties
 that have been set; this ensures that the text properties can
 later be removed (if the annotation-* properties are not tampered
-with).
-
-Note finally that nothing happens if either START or END are out of
-bounds for the current (possibly narrowed) buffer, or END < START."
+with)."
   (incf start annotations-offset)
   (incf end annotations-offset)
   (when (and (<= (point-min) start)
              (< start end)
              (<= end (point-max)))
     (if (null anns)
-        (annotation-remove-annotation start end)
+        (annotation-remove-annotations start end)
       (let ((faces (delq nil
                          (mapcar (lambda (ann)
                                    (cdr (assoc ann annotation-bindings)))
@@ -134,11 +138,15 @@ Modification hooks are also disabled."
          (progn ,@code)
        (restore-buffer-modified-p ,modp)))))
 
-(defun annotation-remove-annotations ()
+(defun annotation-remove-annotations (&optional start end)
   "Remove all text properties set by `annotation-annotate'.
-In the current buffer. This function preserves the file
-modification stamp of the current buffer, does not modify the
-undo list, and temporarily disables all modification hooks.
+
+In the current buffer. If START and END are given, then
+properties are only removed between these positions.
+
+This function preserves the file modification stamp of the
+current buffer, does not modify the undo list, and temporarily
+disables all modification hooks.
 
 Note: This function may fail if there is read-only text in the
 buffer."
@@ -146,31 +154,18 @@ buffer."
   ;; remove-text-properties fails for read-only text.
 
   (annotation-preserve-mod-p-and-undo
-   (let ((pos (point-min))
+   (let ((pos (or start (point-min)))
          pos2)
      (while pos
-       (setq pos2 (next-single-property-change pos 'annotation-annotated))
-       (annotation-remove-annotation pos (or pos2 (point-max)))
-       (setq pos pos2)))))
-
-(defun annotation-remove-annotation (start end)
-  "Remove the all text properties set by `annotation-annotate' between START and END.
-(In the current buffer.) This function preserves the file
-modification stamp of the current buffer, does not modify the
-undo list, and temporarily disables all modification hooks.
-
-Note: This function may fail if there is read-only text in the
-buffer."
-
-  ;; remove-text-properties fails for read-only text.
-
-  (annotation-preserve-mod-p-and-undo
-     (let ((props (get-text-property start 'annotation-annotations)))
+       (setq pos2 (next-single-property-change pos 'annotation-annotated
+                                               nil end))
+       (let ((props (get-text-property pos 'annotation-annotations)))
          (when props
-           (remove-text-properties start end
-             (mapcan (lambda (prop) (list prop nil))
-                     (append '(annotation-annotated annotation-annotations)
-                             props)))))))
+           (remove-text-properties pos (or pos2 (point-max))
+              (mapcan (lambda (prop) (list prop nil))
+                      (append '(annotation-annotated annotation-annotations)
+                              props)))))
+       (setq pos (unless (equal pos2 end) pos2))))))
 
 (defun annotation-load (removep goto-help &rest cmds)
   "Apply highlighting annotations in CMDS in the current buffer.

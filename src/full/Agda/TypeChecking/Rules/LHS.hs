@@ -7,7 +7,6 @@ import qualified Data.List as List
 
 import Control.Applicative
 import Control.Monad
-import Control.Monad.Reader
 
 import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern

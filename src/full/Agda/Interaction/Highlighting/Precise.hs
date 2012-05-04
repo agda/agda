@@ -24,7 +24,7 @@ module Agda.Interaction.Highlighting.Precise
     -- ** Creation
   , singletonC
   , severalC
-  , splitCAt
+  , splitAtC
     -- ** Inspection
   , smallestPosC
     -- * Tests
@@ -38,6 +38,7 @@ import Data.List
 import Data.Function
 import Data.Monoid
 import Control.Applicative ((<$>), (<*>))
+import Control.Arrow ((&&&))
 import Control.Monad
 import Agda.Utils.QuickCheck hiding (ranges)
 import Data.Map (Map)
@@ -128,16 +129,16 @@ type HighlightingInfo = CompressedFile
 ------------------------------------------------------------------------
 -- Creation
 
--- | @'singleton' r m@ is a file whose positions are those in @r@, and
--- in which every position is associated with @m@.
+-- | @'singleton' rs m@ is a file whose positions are those in @rs@,
+-- and in which every position is associated with @m@.
 
-singleton :: P.Range -> MetaInfo -> File
-singleton r m = File {
- mapping = Map.fromAscList [ (p, m) | r <- rToR r, p <- toList r ] }
+singleton :: Ranges -> MetaInfo -> File
+singleton rs m = File {
+ mapping = Map.fromAscList [ (p, m) | p <- rangesToPositions rs ] }
 
--- | Like 'singleton', but with several ranges instead of only one.
+-- | Like 'singleton', but with several 'Ranges' instead of only one.
 
-several :: [P.Range] -> MetaInfo -> File
+several :: [Ranges] -> MetaInfo -> File
 several rs m = mconcat $ map (\r -> singleton r m) rs
 
 ------------------------------------------------------------------------
@@ -235,7 +236,7 @@ decompress =
   File .
   Map.fromList .
   concat .
-  map (\(r, m) -> [ (p, m) | p <- toList r ]) .
+  map (\(r, m) -> [ (p, m) | p <- rangeToPositions r ]) .
   ranges
 
 prop_compress f =
@@ -247,25 +248,22 @@ prop_compress f =
 ------------------------------------------------------------------------
 -- Operations that work directly with compressed files
 
--- Get the list of positions in a compressed file
+-- | @'singletonC' rs m@ is a file whose positions are those in @rs@,
+-- and in which every position is associated with @m@.
 
-cToList c = concatMap (\(r, m) -> [ p | p <- toList r ]) $ ranges c
+singletonC :: Ranges -> MetaInfo -> CompressedFile
+singletonC (Ranges rs) m =
+  CompressedFile [(r, m) | r <- rs, not (empty r)]
 
--- | @'singletonC' r m@ is a file whose positions are those in @r@, and
--- in which every position is associated with @m@.
+prop_singleton rs m = singleton rs m == decompress (singletonC rs m)
 
-singletonC :: P.Range -> MetaInfo -> CompressedFile
-singletonC rs m = CompressedFile [(r, m) | r <- rToR rs, not (empty r)]
+-- | Like 'singletonR', but with a list of 'Ranges' instead of a
+-- single one.
 
-prop_singleton r m = singleton r m == decompress (singletonC r m)
+severalC :: [Ranges] -> MetaInfo -> CompressedFile
+severalC rss m = mconcat $ map (\rs -> singletonC rs m) rss
 
--- | Like 'singletonR', but with a list of ranges instead of a single
--- one.
-
-severalC :: [P.Range] -> MetaInfo -> CompressedFile
-severalC rs m = mconcat $ map (\r -> singletonC r m) rs
-
-prop_several rs m = several rs m == decompress (severalC rs m)
+prop_several rss m = several rss m == decompress (severalC rss m)
 
 -- | Merges compressed files.
 
@@ -303,27 +301,33 @@ instance Monoid CompressedFile where
   mempty  = CompressedFile []
   mappend = mergeC
 
--- | @splitCAt i c@ splits the compressed file @c@ into @(c1,c2)@, where all the ranges
--- in @c1@ are <= i, and all the ranges in @c2@ are > i.
+-- | @splitAtC p f@ splits the compressed file @f@ into @(f1, f2)@,
+-- where all the positions in @f1@ are @< p@, and all the positions
+-- in @f2@ are @>= p@.
 
-splitCAt :: Integer -> CompressedFile -> (CompressedFile, CompressedFile)
-splitCAt i c = (CompressedFile f1, CompressedFile f2)
+splitAtC :: Integer -> CompressedFile ->
+            (CompressedFile, CompressedFile)
+splitAtC p f = (CompressedFile f1, CompressedFile f2)
   where
-  (f1,f2) = split $ ranges c
+  (f1, f2) = split $ ranges f
 
-  split []        = ([],[])
-  split (rx@(r,x):c) | i < from r  = ([],rx:c)
-                     | to r <= i+1 = (rx:f1,f2)
-                     | otherwise   = ([ (toi i,x) ], (fromi i,x) : c)
-    where (f1,f2) = split c
-          toi   i = Range { from = from r, to = i+1 }
-          fromi i = Range { from = i+1, to = to r }
+  split [] = ([], [])
+  split (rx@(r,x) : f)
+    | p <= from r = ([], rx:f)
+    | to r <= p   = (rx:f1, f2)
+    | otherwise   = ([ (toP, x) ], (fromP, x) : f)
+    where (f1, f2) = split f
+          toP      = Range { from = from r, to = p    }
+          fromP    = Range { from = p,      to = to r }
 
-prop_splitCAt i c =
-    compressedFileInvariant c1 && compressedFileInvariant c2
-     && all (\p -> p <= i) (cToList c1)
-     && all (\p -> p >  i) (cToList c2)
-  where (c1,c2) = splitCAt i c
+prop_splitAtC p f =
+  all (<  p) (positions f1) &&
+  all (>= p) (positions f2) &&
+  decompress (mergeC f1 f2) == decompress f
+  where
+  (f1, f2) = splitAtC p f
+
+  positions = Map.keys . toMap . decompress
 
 -- | Returns the smallest position, if any, in the 'CompressedFile'.
 
@@ -331,7 +335,7 @@ smallestPosC :: CompressedFile -> Maybe Integer
 smallestPosC (CompressedFile [])           = Nothing
 smallestPosC (CompressedFile ((r, _) : _)) = Just (from r)
 
-prop_smallestPosC f = smallestPos (decompress f) == smallestPosC f
+prop_smallestPos f = smallestPos (decompress f) == smallestPosC f
 
 ------------------------------------------------------------------------
 -- Generators
@@ -447,10 +451,13 @@ tests = runTests "Agda.Interaction.Highlighting.Precise"
   , quickCheck' (\r m -> compressedFileInvariant $ singletonC r m)
   , quickCheck' (\rs m -> compressedFileInvariant $ severalC rs m)
   , quickCheck' (\f1 f2 -> compressedFileInvariant $ mergeC f1 f2)
+  , quickCheck' (\i f -> all compressedFileInvariant $
+                         (\(f1, f2) -> [f1, f2]) $
+                         splitAtC i f)
   , quickCheck' prop_compress
   , quickCheck' prop_singleton
   , quickCheck' prop_several
   , quickCheck' prop_merge
-  , quickCheck' prop_splitCAt
-  , quickCheck' prop_smallestPosC
+  , quickCheck' prop_splitAtC
+  , quickCheck' prop_smallestPos
   ]

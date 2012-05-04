@@ -44,7 +44,7 @@ import Agda.Utils.Impossible
 catchConstraint :: Constraint -> TCM () -> TCM ()
 catchConstraint c v = liftTCM $
    catchError_ v $ \err ->
-   case errError err of
+   case err of
         -- Not putting s (which should really be the what's already there) makes things go
         -- a lot slower (+20% total time on standard library). How is that possible??
         -- The problem is most likely that there are internal catchErrors which forgets the
@@ -203,4 +203,3 @@ solveConstraint_ (UnBlock m)                =
       Open -> __IMPOSSIBLE__
       OpenIFS -> __IMPOSSIBLE__
 solveConstraint_ (FindInScope m cands)      = findInScope m cands
-

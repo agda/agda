@@ -219,7 +219,7 @@ useInjectivity cmp a u v = do
                , text "which does not expose a constructor"
                ]
              patternViolation
-        `catchError` \err -> case errError err of
+        `catchError` \err -> case err of
           TypeError   {} -> throwError err
           Exception   {} -> throwError err
           IOException {} -> throwError err

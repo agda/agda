@@ -110,7 +110,7 @@ compareTerm cmp a u v = liftTCM $ do
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
-    m `orelse` h = m `catchError` \err -> case errError err of
+    m `orelse` h = m `catchError` \err -> case err of
                     PatternErr s -> put s >> h
                     _            -> h
 
@@ -303,7 +303,7 @@ compareAtom cmp t m n =
                       where l = assignV x xArgs n
                             r = assignV y yArgs m
 
-                    try m h = m `catchError_` \err -> case errError err of
+                    try m h = m `catchError_` \err -> case err of
                       PatternErr s -> put s >> h
                       _            -> throwError err
 
@@ -523,7 +523,7 @@ compareType cmp ty1@(El s1 a1) ty2@(El s2 a2) =
           ]
 -- Andreas, 2011-4-27 should not compare sorts, but currently this is needed
 -- for solving sort and level metas
-	compareSort CmpEq s1 s2 `catchError` \err -> case errError err of
+	compareSort CmpEq s1 s2 `catchError` \err -> case err of
           TypeError _ _ -> do
             reportSDoc "tc.conv.type" 30 $ vcat
               [ text "sort comparison failed"
@@ -680,7 +680,7 @@ leqLevel a b = liftTCM $ do
         postpone = patternViolation
 
         wrap m = catchError m $ \e ->
-          case errError e of
+          case e of
             TypeError{} -> notok
             _           -> throwError e
 
@@ -704,7 +704,7 @@ leqLevel a b = liftTCM $ do
 
 --     choice []     = patternViolation
 --     choice (m:ms) = noConstraints m `catchError` \_ -> choice ms
---       case errError e of
+--       case e of
 --         PatternErr{} -> choice ms
 --         _            -> throwError e
 
@@ -798,7 +798,7 @@ equalLevel a b = do
 
         -- Make sure to give a sensible error message
         wrap m = m `catchError` \err ->
-          case errError err of
+          case err of
             TypeError{} -> notok
             _           -> throwError err
 

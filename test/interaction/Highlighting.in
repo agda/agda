@@ -1,0 +1,1 @@
+ioTCM currentFile NonInteractive (cmd_load currentFile [])

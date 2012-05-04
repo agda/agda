@@ -80,14 +80,13 @@ showMetaInfo modFile (r, m) =
 -- must be @Nothing@.
 
 lispifyHighlightingInfo
-  :: (HighlightingInfo, ModuleToSource)
-     -- ^ The 'ModuleToSource' must contain a mapping for every
-     -- definition site's module.
-    -> Lisp String
-lispifyHighlightingInfo (h, modFile) =
+  :: HighlightingInfo
+  -> ModuleToSource
+     -- ^ Must contain a mapping for every definition site's module.
+  -> Lisp String
+lispifyHighlightingInfo h modFile =
   L ( A "agda2-typechecking-emacs" :
       map (showMetaInfo modFile) (ranges h) )
-
 
 ------------------------------------------------------------------------
 -- All tests

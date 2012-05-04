@@ -8,7 +8,8 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Monad
 
-import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate (highlightAsTypeChecked)
+import {-# SOURCE #-} Agda.Interaction.Highlighting.Generate
+  (highlightAsTypeChecked)
 
 ---------------------------------------------------------------------------
 -- * Trace
@@ -36,15 +37,13 @@ traceCall mkCall m = do
   let trace | interestingCall cl = local $ \e -> e { envRange = newRange
                                                    , envCall  = Just cl }
             | otherwise          = local $ \e -> e { envRange = newRange }
-  wrap <- ifM (liftM2 (&&) (envInteractiveHighlighting <$> ask)
-                           (return $ highlightCall call))
-            (return $ \x -> highlightAsTypeChecked x oldRange newRange)
-            (return $ id)
+  wrap <- ifM (do l <- envHighlightingLevel <$> ask
+                  return (l == Interactive && highlightCall call))
+              (return $ highlightAsTypeChecked oldRange newRange)
+              (return $ id)
   wrap $ trace m
-
   where
-  -- | Tells whether on the fly highlighting should be performed for the
-  -- given call.
+  -- | Should the given call trigger interactive highlighting?
   highlightCall call = case call of
     CheckClause _ _ _               -> True
     CheckPattern _ _ _ _            -> True

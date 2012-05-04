@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Error-in-imported-module (Error-in-imported-module.agda).\n" t)
+(agda2-info-action "*Type-checking*" " Checking Error-in-imported-module.M (Error-in-imported-module/M.agda).\n" t)
+(agda2-info-action "*Error*" "Error-in-imported-module/M.agda:4,7-10\nSet₁ != Set\nwhen checking that the expression Set has type Set" nil)
+(agda2-goto '("Error-in-imported-module/M.agda" . 33))
+(agda2-status-action "")

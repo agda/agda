@@ -128,11 +128,7 @@ initCommandState = CommandState
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
 newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, Functor)
-
-instance MonadState CommandState CommandM where
-    get = CommandM get
-    put = CommandM . put
+    deriving (Monad, Functor, MonadState CommandState)
 
 -- | Wrapped 'runStateT' for 'CommandM'.
 
@@ -223,10 +219,7 @@ ioTCMState :: FilePath
          -- ^ The current file. If this file does not match
          -- 'theCurrentFile, and the 'Interaction' is not
          -- \"independent\", then an error is raised.
-      -> Bool
-         -- ^ Should syntax highlighting information be produced? In
-         -- that case this function will generate an Emacs command
-         -- which interprets this information.
+      -> HighlightingLevel
       -> Interaction
          -- ^ What to do
       -> InteractionState
@@ -245,8 +238,8 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
   r <- runTCM $ catchError (do
            put theTCState
            (x, cstate)  <- (`runCommandM` cstate) $ liftCommandMT (withEnv (initEnv
-                            { envEmacs                   = True
-                            , envInteractiveHighlighting = False -- highlighting
+                            { envEmacs             = True
+                            , envHighlightingLevel = highlighting
                             })) $ do
                    case independence cmd of
                      Dependent             -> ensureFileLoaded current
@@ -310,7 +303,7 @@ cmd_load m includes =
 
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
-          -> ((Interface, Maybe Imp.Warnings) -> CommandM ())
+          -> ((Interface, Maybe Warnings) -> CommandM ())
           -> Interaction
 cmd_load' file includes unsolvedOK cmd =
   Interaction (Independent (Just includes)) $ do
@@ -344,6 +337,9 @@ cmd_load' file includes unsolvedOK cmd =
     -- Clear the info buffer to make room for information about which
     -- module is currently being type-checked.
     putResponse Resp_ClearRunningInfo
+
+    -- Remove any prior syntax highlighting.
+    putResponse Resp_ClearHighlighting
 
     ok <- liftCommandM $ Imp.typeCheck f
 
@@ -867,7 +863,7 @@ cmd_compute_toplevel ignore =
 -- Syntax highlighting
 
 -- | @cmd_load_highlighting_info source@ loads syntax highlighting
--- information for the module in @source@, and asks Emacs to load
+-- information for the module in @source@, and asks Emacs to apply
 -- highlighting info from this file.
 --
 -- If the module does not exist, or its module name is malformed or
@@ -911,8 +907,9 @@ cmd_load_highlighting_info source =
 
 tellToUpdateHighlighting
   :: Maybe (HighlightingInfo, ModuleToSource) -> IO [Response]
-tellToUpdateHighlighting Nothing     = return []
-tellToUpdateHighlighting (Just info) = return [Resp_HighlightingInfo info]
+tellToUpdateHighlighting Nothing                = return []
+tellToUpdateHighlighting (Just (info, modFile)) =
+  return [Resp_HighlightingInfo info modFile]
 
 -- | Tells the Emacs mode to go to the first error position (if any).
 

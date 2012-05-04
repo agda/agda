@@ -131,7 +131,7 @@ computeSizeConstraint cl =
           (a, n) <- sizeExpr u
           (b, m) <- sizeExpr v
           return $ Just $ Leq a (m - n) b
-        `catchError` \err -> case errError err of
+        `catchError` \err -> case err of
           PatternErr _ -> return Nothing
           _            -> throwError err
       _ -> __IMPOSSIBLE__

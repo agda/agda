@@ -3,6 +3,8 @@ module Agda.TypeChecking.Errors
     ( prettyError
     , PrettyTCM(..)
     , tcErrString
+    , Warnings(..)
+    , warningsToError
     ) where
 
 import Control.Applicative ( (<$>) )
@@ -52,6 +54,34 @@ prettyError err = liftTCM $ liftM show $
 	$$ vcat (map (text . tcErrString) [err,err',err'',err'''])
 
 ---------------------------------------------------------------------------
+-- * Warnings
+---------------------------------------------------------------------------
+
+-- | Warnings.
+--
+-- Invariant: The fields are never empty at the same time.
+
+data Warnings = Warnings
+  { terminationProblems   :: [TerminationError]
+    -- ^ Termination checking problems are not reported if
+    -- 'optTerminationCheck' is 'False'.
+  , unsolvedMetaVariables :: [Range]
+    -- ^ Meta-variable problems are reported as type errors unless
+    -- 'optAllowUnsolved' is 'True'.
+  , unsolvedConstraints   :: Constraints
+    -- ^ Same as 'unsolvedMetaVariables'.
+  }
+
+-- | Turns warnings into an error. Even if several errors are possible
+-- only one is raised.
+
+warningsToError :: Warnings -> TypeError
+warningsToError (Warnings [] [] [])    = __IMPOSSIBLE__
+warningsToError (Warnings _ w@(_:_) _) = UnsolvedMetas w
+warningsToError (Warnings _ _ w@(_:_)) = UnsolvedConstraints w
+warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
+
+---------------------------------------------------------------------------
 -- * Helpers
 ---------------------------------------------------------------------------
 
@@ -72,7 +102,7 @@ nameWithBinding q =
     r = nameBindingSite $ qnameName q
 
 tcErrString :: TCErr -> String
-tcErrString err = show (getRange err) ++ " " ++ case errError err of
+tcErrString err = show (getRange err) ++ " " ++ case err of
     TypeError _ cl  -> errorString $ clValue cl
     Exception r s   -> show r ++ " " ++ s
     IOException r e -> show r ++ " " ++ show e
@@ -198,7 +228,7 @@ errorString err = case err of
     WrongNumberOfConstructorArguments{}      -> "WrongNumberOfConstructorArguments"
 
 instance PrettyTCM TCErr where
-    prettyTCM err = case errError err of
+    prettyTCM err = case err of
 	TypeError s e -> localState $ do
 	    put s
 	    sayWhen (envRange $ clEnv e) (envCall $ clEnv e) $ prettyTCM e

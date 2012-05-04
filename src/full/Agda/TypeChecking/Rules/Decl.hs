@@ -6,16 +6,14 @@ import Control.Monad
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.Trans
-import Control.Monad.State (modify,get)
+import Control.Monad.State (modify)
 import Data.Maybe
-import Data.Monoid (mappend)
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Sequence ((|>))
-import qualified Data.Sequence as Seq
 import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
@@ -25,6 +23,7 @@ import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Mutual
@@ -54,7 +53,6 @@ import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
 
 import Agda.Interaction.Highlighting.Generate
-import Agda.Interaction.Highlighting.Precise (HighlightingInfo, compress)
 
 import Agda.Termination.TermCheck
 import Agda.Interaction.Options
@@ -69,145 +67,121 @@ checkDecls ds = do
   -- Andreas, 2011-05-30, unfreezing moved to Interaction/Imports
   -- whenM onTopLevel unfreezeMetas
 
--- | This a wrapper for @checkDecl@. If the declaration is outside any
--- mutual block, meaning the declaration *is* a mutual block,
--- termination checking is performed and highlighting information is
--- updated.
+-- | Type check a single declaration.
 
 checkDecl :: A.Declaration -> TCM ()
 checkDecl d = do
-  ifM (isJust . envMutualBlock <$> ask)
-      (checkDecl' d) $
-      do fileName <- envCurrentPath <$> ask
-         termErrs <- catchError (do
-           checkDecl' d
-           ifM (optTerminationCheck <$> pragmaOptions)
-               (do termErrs <- termDecl d
-                   modify $ \st -> st { stTermErrs = foldl (|>)
-                                                       (stTermErrs st)
-                                                       termErrs }
-                   return termErrs)
-               (return [])
-          )(\e -> do
-              -- If there is an error syntax highlighting info can still be
-              -- generated.
-              case rStart $ getRange e of
-                Just (Pn { srcFile = Just f }) | f == fileName -> do
-                  generateAndPrintSyntaxInfo fileName d (HlErr e) []
-                  -- The highlighting info is included with the error.
-                  throwError e
-                _ -> throwError e
-           )
-         case d of
-          -- We don't need to check for Unsolved Metas/Constraints
-          -- for Sections and Scope Declarations, since it has already
-          -- been done while checking the inside.
-          A.Section i x tel _ ->
-           -- Each block in the section has already been highlighted.
-           -- We fake an empty module here to only highlight the
-           -- module declaration.
-           generateAndPrintSyntaxInfo fileName (A.Section i x tel [])
-                                      Full termErrs
-          A.ScopedDecl _ _    -> return ()
-          _                   -> do
-           -- Generate syntax highlighting info.
-           generateAndPrintSyntaxInfo fileName d Full termErrs
-
-           -- Check for unsolved metas
-           unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
-           unsolvedMetas <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
-
-           modify $ \st -> st { stUnsolvedMetas = Set.fromList unsolvedMetas
-                                                    `Set.union`
-                                                  stUnsolvedMetas st }
-           unless (null unsolvedMetas || unsolvedOK) $
-             typeError $ UnsolvedMetas unsolvedMetas
-
-           -- Check for unsolved constraints
-           unsolvedConstraints <- getAllConstraints
-           modify $ \st -> st { stUnsolvedConstraints = foldl (|>)
-                                                          (stUnsolvedConstraints st)
-                                                          unsolvedConstraints }
-           unless (null unsolvedConstraints || unsolvedOK) $
-             typeError $ UnsolvedConstraints unsolvedConstraints
-
-
--- | Type check a single declaration.
-checkDecl' :: A.Declaration -> TCM ()
-checkDecl' d = do
     -- Issue 418 fix: freeze metas before checking an abstract things
     when isAbstract freezeMetas
-    case d of
-	A.Axiom{}                -> checkTypeSignature d
-        A.Field{}                -> typeError FieldOutsideRecord
-	A.Primitive i x e        -> checkPrimitive i x e
-	A.Mutual i ds            -> topLevelChecks $ checkMutual i ds
-	A.Section i x tel ds     -> checkSection i x tel ds
-	A.Apply i x modapp rd rm -> checkSectionApplication i x modapp rd rm
-	A.Import i x             -> checkImport i x
-	A.Pragma i p             -> checkPragma i p
-	A.ScopedDecl scope ds    -> setScope scope >> checkDecls ds
-        A.FunDef i x cs          -> check x i $ checkFunDef NotDelayed i x cs
-        A.DataDef i x ps cs      -> check x i $ checkDataDef i x ps cs
-        A.RecDef i x c ps tel cs -> check x i $ topLevelChecks $ do
-                                      checkRecDef i x c ps tel cs
-                                      return (Set.singleton x)
-        A.DataSig i x ps t       -> checkTypeSignature $ A.Axiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
-        A.RecSig i x ps t        -> checkTypeSignature $ A.Axiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
-        A.Open _ _               -> return ()
-    where
-        unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
-        unScope d = return d
 
-        check x i m = do
-          reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
-          r <- abstract (Info.defAbstract i) m
-          reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
-          return r
+    let -- What kind of final checks/computations should be performed
+        -- if we're not inside a mutual block?
+        none       m = m >> return Nothing
+        meta       m = m >> return (Just (return []))
+        mutual     m = m >>= return . Just . mutualChecks
+        impossible m = m >> return __IMPOSSIBLE__
+                       -- ^ We're definitely inside a mutual block.
 
-        isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
+    topLevelKind <- case d of
+      A.Axiom{}                -> meta $ checkTypeSignature d
+      A.Field{}                -> typeError FieldOutsideRecord
+      A.Primitive i x e        -> meta $ checkPrimitive i x e
+      A.Mutual i ds            -> mutual $ checkMutual i ds
+      A.Section i x tel ds     -> meta $ checkSection i x tel ds
+      A.Apply i x modapp rd rm -> meta $ checkSectionApplication i x modapp rd rm
+      A.Import i x             -> none $ checkImport i x
+      A.Pragma i p             -> none $ checkPragma i p
+      A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
+      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef NotDelayed i x cs
+      A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
+      A.RecDef i x c ps tel cs -> mutual $ check x i $ do
+                                    checkRecDef i x c ps tel cs
+                                    return (Set.singleton x)
+      A.DataSig i x ps t       -> impossible $ checkSig i x ps t
+      A.RecSig i x ps t        -> none $ checkSig i x ps t
+                                  -- A record signature is always followed by a
+                                  -- record definition. Metas should not be
+                                  -- frozen until after the definition has been
+                                  -- checked. NOTE: Metas are not frozen
+                                  -- immediately after the last field. Perhaps
+                                  -- they should be (unless we're in a mutual
+                                  -- block).
+      A.Open _ _               -> none $ return ()
+                                  -- Open is just an artifact from the concrete
+                                  -- syntax, retained for highlighting purposes.
 
-        -- Concrete definitions cannot use information about abstract things.
-        abstract ConcreteDef = inConcreteMode
-        abstract AbstractDef = inAbstractMode
-	    -- open is just an artifact from the concrete syntax
-            -- retained for highlighting purposes
+    unlessM (isJust . envMutualBlock <$> ask) $ do
+      termErrs <- case topLevelKind of
+        Nothing           -> return []
+        Just mutualChecks -> do
 
-        -- Run priorChecks, then do some final checks/computations if
-        -- we are not inside a mutual block; priorChecks should return
-        -- the names of all definitions in a mutual block (or the name
-        -- of a single non-mutual definition).
-        topLevelChecks priorChecks =
-          ifM (isJust . envMutualBlock <$> ask)
-            (priorChecks >> return ())
-            (do qs <- priorChecks
+          solveSizeConstraints
+          solveIrrelevantMetas
+          wakeupConstraints_   -- solve emptyness constraints
+          freezeMetas
 
-                checkStrictlyPositive qs
+          mutualChecks
 
-                -- Andreas, 2012-02-13: Polarity computation uses info from
-                -- positivity check, so it needs happen after positivity
-                -- check.
-                mapM_ computePolarity =<<
-                  (map fst . filter snd <$> mapM relevant (Set.toList qs))
-
-                -- Non-mutual definitions can be considered for
-                -- projection likeness
-                case Set.toList qs of
-                  [d] -> do
-                    def <- getConstInfo d
-                    case theDef def of
-                      Function{} -> makeProjection (defName def)
-                      _          -> return ()
-                  _ -> return ()
-
-                solveSizeConstraints
-                solveIrrelevantMetas
-                wakeupConstraints_   -- solve emptyness constraints
-                freezeMetas
-            )
+      -- Syntax highlighting.
+      let highlight d = generateAndPrintSyntaxInfo d (Full termErrs)
+      case d of
+        A.Axiom{}                -> highlight d
+        A.Field{}                -> __IMPOSSIBLE__
+        A.Primitive{}            -> highlight d
+        A.Mutual{}               -> highlight d
+        A.Apply{}                -> highlight d
+        A.Import{}               -> highlight d
+        A.Pragma{}               -> highlight d
+        A.ScopedDecl{}           -> return ()
+        A.FunDef{}               -> __IMPOSSIBLE__
+        A.DataDef{}              -> __IMPOSSIBLE__
+        A.DataSig{}              -> __IMPOSSIBLE__
+        A.Open{}                 -> highlight d
+        A.Section i x tel _      -> highlight (A.Section i x tel [])
+          -- Each block in the section has already been highlighted,
+          -- all that remains is the module declaration.
+        A.RecSig{}               -> highlight d
+        A.RecDef i x c ps tel cs ->
+          highlight (A.RecDef i x c [] tel (fields cs))
+          -- The telescope and all record module declarations except
+          -- for the fields have already been highlighted.
           where
-          -- | Do we need to compute polarity information for the definition
-          -- corresponding to the given name?
+          fields (A.ScopedDecl _ ds1 : ds2) = fields ds1 ++ fields ds2
+          fields (d@A.Field{}        : ds)  = d : fields ds
+          fields (_                  : ds)  = fields ds
+          fields []                         = []
+
+    where
+    unScope (A.ScopedDecl scope ds) = setScope scope >> unScope d
+    unScope d = return d
+
+    checkSig i x ps t = checkTypeSignature $
+      A.Axiom i Relevant x (A.Pi (Info.ExprRange (fuseRange ps t)) ps t)
+
+    check x i m = do
+      reportSDoc "tc.decl" 5 $ text "Checking" <+> prettyTCM x <> text "."
+      r <- abstract (Info.defAbstract i) m
+      reportSDoc "tc.decl" 5 $ text "Checked" <+> prettyTCM x <> text "."
+      return r
+
+    isAbstract = fmap Info.defAbstract (A.getDefInfo d) == Just AbstractDef
+
+    -- Concrete definitions cannot use information about abstract things.
+    abstract ConcreteDef = inConcreteMode
+    abstract AbstractDef = inAbstractMode
+
+    -- Some checks that should be run at the end of a mutual
+    -- block (or non-mutual record declaration). The set names
+    -- contains the names defined in the mutual block.
+    mutualChecks names = do
+
+      checkStrictlyPositive names
+
+      -- Andreas, 2012-02-13: Polarity computation uses info from
+      -- positivity check, so it needs happen after positivity
+      -- check.
+      let -- | Do we need to compute polarity information for the
+          -- definition corresponding to the given name?
           relevant q = do
             def <- theDef <$> getConstInfo q
             return (q, case def of
@@ -217,6 +191,34 @@ checkDecl' d = do
               Axiom{}       -> False
               Constructor{} -> False
               Primitive{}   -> False)
+      mapM_ computePolarity =<<
+        (map fst . filter snd <$> mapM relevant (Set.toList names))
+
+      -- Non-mutual definitions can be considered for
+      -- projection likeness
+      case Set.toList names of
+        [d] -> do
+          def <- getConstInfo d
+          case theDef def of
+            Function{} -> makeProjection (defName def)
+            _          -> return ()
+        _ -> return ()
+
+      -- Termination checking.
+      termErrs <-
+        ifM (optTerminationCheck <$> pragmaOptions)
+          (case d of
+             A.RecDef {} -> return []
+                            -- Record module definitions should not be
+                            -- termination-checked twice.
+             _           -> do
+               termErrs <- termDecl d
+               modify $ \st ->
+                 st { stTermErrs = foldl (|>) (stTermErrs st) termErrs }
+               return termErrs)
+          (return [])
+
+      return termErrs
 
 -- | Type check an axiom.
 checkAxiom :: Info.DefInfo -> Relevance -> QName -> A.Expr -> TCM ()

@@ -119,10 +119,7 @@ ioTCM :: FilePath
          -- ^ The current file. If this file does not match
          -- 'theCurrentFile, and the 'Interaction' is not
          -- \"independent\", then an error is raised.
-      -> Bool
-         -- ^ Should syntax highlighting information be produced? In
-         -- that case this function will generate an Emacs command
-         -- which interprets this information.
+      -> HighlightingLevel
       -> Interaction
       -> IO ()
 ioTCM current highlighting cmd = do
@@ -155,10 +152,10 @@ getCurrentFile = do
     Just (f, _) -> return (filePath f)
 
 top_command' :: FilePath -> Interaction -> IO ()
-top_command' f cmd = ioTCM f False cmd
+top_command' f cmd = ioTCM f None cmd
 
 goal_command :: InteractionId -> GoalCommand -> String -> IO ()
 goal_command i cmd s = do
   f <- getCurrentFile
   -- TODO: Test with other ranges as well.
-  ioTCM f False $ cmd i noRange s
+  ioTCM f None $ cmd i noRange s

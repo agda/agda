@@ -166,7 +166,7 @@ occursCheck m xs v = liftTCM $ do
   -- First try without normalising the term
   occurs NoUnfold  Top m xs v `catchError` \_ -> do
   initOccursCheck mv
-  occurs YesUnfold Top m xs v `catchError` \err -> case errError err of
+  occurs YesUnfold Top m xs v `catchError` \err -> case err of
                           -- Produce nicer error messages
     TypeError _ cl -> case clValue cl of
       MetaOccursInItself{} ->
@@ -234,9 +234,9 @@ instance Occurs Term where
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
               reportSDoc "tc.meta.kill" 25 $ vcat
                 [ text $ "error during flexible occurs check, we are " ++ show ctx
-                , text $ show (errError err)
+                , text $ show err
                 ]
-              case errError err of
+              case err of
                 -- On pattern violations try to remove offending
                 -- flexible occurrences (if not already in a flexible context)
                 PatternErr{} | ctx /= Flex -> do

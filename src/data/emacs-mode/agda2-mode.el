@@ -296,7 +296,7 @@ Set in `agda2-restart'.")
 (make-variable-buffer-local 'agda2-buffer-external-status)
 
 (defvar agda2-ghci-prompt "Agda2> "
-  "Prompt in the GHCI buffer.")
+  "The GHCi buffer's prompt.")
 
 (defconst agda2-help-address
   ""
@@ -537,7 +537,7 @@ HIGHLIGHT is non-nil, then the buffer's syntax highlighting may
 be updated."
 
   (when agda2-in-progress
-      (error "Another command is currently in progress
+    (error "Another command is currently in progress
 \(if a command has been aborted you may want to restart Agda)"))
 
   (setq agda2-in-progress           t
@@ -552,7 +552,7 @@ be updated."
          'restart
          "ioTCM"
          (agda2-string-quote (buffer-file-name))
-         (if highlight "True" "False")
+         (if highlight "Interactive" "None")
          "("
          (append args '(")"))))
 
@@ -593,8 +593,8 @@ reloaded from `agda2-highlighting-file', unless
 
   (with-current-buffer agda2-file-buffer
 
-    ;; The input lines in the current chunk.
-    (let ((lines (split-string chunk "\n"))
+    (let (;; The input lines in the current chunk.
+          (lines (split-string chunk "\n"))
           ;; Interactive highlighting annotations found in the current
           ;; chunk (reversed).
           (highlighting-anns ())
@@ -611,9 +611,8 @@ reloaded from `agda2-highlighting-file', unless
           (push (agda2-queue-to-string agda2-ghci-chunk-incomplete)
                 lines)
 
-                ;; Stash away the last incomplete line, if any. (Note
-                ;; that (split-string "...\n" "\n") evaluates to (...
-                ;; "").)
+          ;; Stash away the last incomplete line, if any. (Note that
+          ;; (split-string "...\n" "\n") evaluates to (... "").)
           (setq agda2-ghci-chunk-incomplete
                 (agda2-queue-from-string (car (last lines))))
 
@@ -648,13 +647,13 @@ reloaded from `agda2-highlighting-file', unless
                             agda2-last-responses)
                     (push cmd non-last-commands))))))
 
+          ;; Run non-last commands.
+          (mapc 'agda2-exec-response (nreverse non-last-commands))
+
           ;; Apply interactive highlighting annotations.
           (when agda2-highlight-in-progress
             (apply 'agda2-highlight-add-annotations 'keep
-                   (nreverse highlighting-anns)))
-
-          ;; Run non-last commands.
-          (mapc 'agda2-exec-response (nreverse non-last-commands)))
+                   (nreverse highlighting-anns))))
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
@@ -681,10 +680,9 @@ reloaded from `agda2-highlighting-file', unless
 \(After the prompt has reappeared.) See `agda2-ghci-filter'. The
 TEXT argument is not used."
   (with-current-buffer agda2-file-buffer
-    ;; The following loop terminates: if a responses require to run asynchronously,
-    ;; it will eventually trigger the hook and run the function again with the
-    ;; remaining responses (and possibly new ones).
     (while (and (not agda2-in-progress) (consp agda2-last-responses))
+      ;; The list is sorted repeatedly because this function may be
+      ;; called recursively (via `agda2-exec-response').
       (setq agda2-last-responses (sort agda2-last-responses
                                        (lambda (x y) (<= (car x) (car y)))))
       (let ((r (pop agda2-last-responses)))
@@ -1116,7 +1114,10 @@ ways."
   (agda2-let
       ((literate (agda2-literate-p))
        stk
-       top)
+       top
+       ;; Don't run modification hooks: we don't want this function to
+       ;; trigger agda2-abort-highlighting.
+       (inhibit-modification-hooks t))
       ((delims() (re-search-forward "[?]\\|[{][-!]\\|[-!][}]\\|--\\|\\\\begin{code}\\|\\\\end{code}" nil t))
        (is-lone-questionmark ()
           (save-excursion
@@ -1134,31 +1135,30 @@ ways."
           (if (inside-comment)
                (re-search-forward "{-\\|-}" nil t)
             (delims))))
-    (annotation-preserve-mod-p-and-undo
-      (save-excursion
-        ;; In literate mode we should start out in the "outside of code"
-        ;; state.
-        (if literate (push 'outside stk))
-        (goto-char (point-min))
-        (while (and goals (safe-delims))
-          (labels ((c (s) (equal s (match-string 0))))
-            (cond
-             ((c "\\begin{code}") (when (outside-code)               (pop stk)))
-             ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
-             ((c "--")            (when (not stk)                    (end-of-line)))
-             ((c "{-")            (when (and (inside-code)
-                                             (not (inside-goal)))    (push nil           stk)))
-             ((c "-}")            (when (inside-comment)             (pop stk)))
-             ((c "{!")            (when (and (inside-code)
-                                             (not (inside-comment))) (push (- (point) 2) stk)))
-             ((c "!}")            (when (inside-goal)
-                                    (setq top (pop stk))
-                                    (unless stk (make top))))
-             ((c "?")             (progn
-                                    (when (and (not stk) (is-lone-questionmark))
-                                      (delete-char -1)
-                                      (insert "{!!}")
-                                      (make (- (point) 4))))))))))))
+    (save-excursion
+      ;; In literate mode we should start out in the "outside of code"
+      ;; state.
+      (if literate (push 'outside stk))
+      (goto-char (point-min))
+      (while (and goals (safe-delims))
+        (labels ((c (s) (equal s (match-string 0))))
+          (cond
+           ((c "\\begin{code}") (when (outside-code)               (pop stk)))
+           ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
+           ((c "--")            (when (not stk)                    (end-of-line)))
+           ((c "{-")            (when (and (inside-code)
+                                           (not (inside-goal)))    (push nil           stk)))
+           ((c "-}")            (when (inside-comment)             (pop stk)))
+           ((c "{!")            (when (and (inside-code)
+                                           (not (inside-comment))) (push (- (point) 2) stk)))
+           ((c "!}")            (when (inside-goal)
+                                  (setq top (pop stk))
+                                  (unless stk (make top))))
+           ((c "?")             (progn
+                                  (when (and (not stk) (is-lone-questionmark))
+                                    (delete-char -1)
+                                    (insert "{!!}")
+                                    (make (- (point) 4)))))))))))
 
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."

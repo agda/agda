@@ -1,5 +1,6 @@
 (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking AutoMisc (AutoMisc.agda).\n" t)
 (agda2-info-action "*Type-checking*" "Finished AutoMisc.\n" t)
 (agda2-status-action "")

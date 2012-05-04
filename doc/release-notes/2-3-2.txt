@@ -210,10 +210,18 @@ Emacs mode
 
 * Interactive syntax highlighting.
 
-  The syntax highlighting is updated while a buffer is type-checked.
-  For each mutual blocks, the very piece of code that is being
-  type-checked is marked as such; When the whole mutal-block has been
-  type checked, it is properly highlighted.
+  The syntax highlighting is updated while a buffer is type-checked:
+
+  • At first the buffer is highlighted in a somewhat crude way
+    (without go-to-definition information for overloaded
+    constructors).
+
+  • The piece of code that is currently being type-checked is
+    highlighted as such.
+
+  • When a mutual block has been type-checked it is highlighted
+    properly (this highlighting includes warnings for potential
+    non-termination).
 
 * The Emacs mode now presents information about which module is
   currently being type-checked.

@@ -18,7 +18,7 @@ import qualified Data.Foldable as Fold (toList)
 import qualified Data.ByteString.Lazy as BS
 import Data.List
 import Data.Maybe
-import Data.Monoid (mappend)
+import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory
@@ -38,6 +38,7 @@ import Agda.Syntax.Internal
 
 import Agda.Termination.TermCheck
 
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
@@ -155,30 +156,6 @@ alreadyVisited x getIface = do
                 }
           return r
 
--- | Warnings.
---
--- Invariant: The fields are never empty at the same time.
-
-data Warnings = Warnings
-  { terminationProblems   :: [TerminationError]
-    -- ^ Termination checking problems are not reported if
-    -- 'optTerminationCheck' is 'False'.
-  , unsolvedMetaVariables :: [Range]
-    -- ^ Meta-variable problems are reported as type errors unless
-    -- 'optAllowUnsolved' is 'True'.
-  , unsolvedConstraints   :: Constraints
-    -- ^ Same as 'unsolvedMetaVariables'.
-  }
-
--- | Turns warnings into an error. Even if several errors are possible
--- only one is raised.
-
-warningsToError :: Warnings -> TypeError
-warningsToError (Warnings [] [] [])    = __IMPOSSIBLE__
-warningsToError (Warnings _ w@(_:_) _) = UnsolvedMetas w
-warningsToError (Warnings _ _ w@(_:_)) = UnsolvedConstraints w
-warningsToError (Warnings w@(_:_) _ _) = TerminationCheckFailed w
-
 -- | Type checks the given module (if necessary).
 
 typeCheck :: AbsolutePath -> TCM (Interface, Maybe Warnings)
@@ -205,9 +182,6 @@ getInterface x = do
 -- | A more precise variant of 'getInterface'. If warnings are
 -- encountered then they are returned instead of being turned into
 -- errors.
---
--- If an up-to-date interface exists for the current module, simply
--- load and print its highliting information.
 
 getInterface' :: C.TopLevelModuleName
               -> Bool  -- ^ If type checking is necessary, should all
@@ -215,6 +189,7 @@ getInterface' :: C.TopLevelModuleName
                        -- be preserved?
               -> TCM (Interface, Either Warnings ClockTime)
 getInterface' x includeStateChanges =
+  withIncreasedModuleNestingLevel $
   -- Preserve the pragma options unless includeStateChanges is True.
   bracket_ (stPragmaOptions <$> get)
            (unless includeStateChanges . setPragmaOptions) $ do
@@ -250,16 +225,18 @@ getInterface' x includeStateChanges =
     visited <- isVisited x
     reportSLn "import.iface" 5 $ if visited then "  We've been here. Don't merge."
                                  else "  New module. Let's check it out."
-    unless (visited || stateChangesIncluded) $ mergeInterface i
+    unless (visited || stateChangesIncluded) $ do
+      mergeInterface i
+      ifTopLevelAndHighlightingLevelIs NonInteractive $
+        highlightFromInterface i file
 
     modify (\s -> s { stCurrentModule = Just $ iModuleName i })
 
     -- Interfaces are only stored if no warnings were encountered.
     case wt of
       Left  w -> return ()
-      Right t -> do storeDecodedModule i t
-                    when (includeStateChanges && not stateChangesIncluded) $
-                      highlightFromInterface i file
+      Right t -> storeDecodedModule i t
+
     return (i, wt)
 
     where
@@ -315,21 +292,20 @@ getInterface' x includeStateChanges =
 
             reportSLn "import.iface" 5 $ "  imports: " ++ show (iImportedModules i)
 
-            ts <- withIncreasedModuleNestingLevel $
-                    map snd <$> mapM getInterface (iImportedModules i)
+            ts <- map snd <$> mapM getInterface (iImportedModules i)
 
             -- If any of the imports are newer we need to retype check
             if any (> t) ts
               then do
                 -- liftIO close	-- Close the interface file. See above.
                 typeCheck file
-              else withIncreasedModuleNestingLevel $ do
-                     unless cached $ chaseMsg "Skipping" (Just ifile)
-                     -- We set the pragma options of the skipped file here,
-                     -- because if the top-level file is skipped we want the
-                     -- pragmas to apply to interactive commands in the UI.
-                     mapM_ setOptionsFromPragma (iPragmaOptions i)
-                     return (False, (i, Right t))
+              else do
+                unless cached $ chaseMsg "Skipping" (Just ifile)
+                -- We set the pragma options of the skipped file here,
+                -- because if the top-level file is skipped we want the
+                -- pragmas to apply to interactive commands in the UI.
+                mapM_ setOptionsFromPragma (iPragmaOptions i)
+                return (False, (i, Right t))
 
       typeCheck file = do
           let withMsgs m = do
@@ -370,7 +346,7 @@ getInterface' x includeStateChanges =
             r <- liftIO $ runTCM $
                    withImportPath ms $
                    local (\e -> e { envEmacs              = emacs
-                                  , envModuleNestingLevel = nesting + 1
+                                  , envModuleNestingLevel = nesting
                                   }) $ do
                      setDecodedModules ds
                      setCommandLineOptions opts
@@ -405,17 +381,19 @@ getInterface' x includeStateChanges =
                       skip file
                     _ -> return (False, r)
 
+-- | Print the highlighting information contained in the given
+-- interface.
 
--- | Print the highlighted information loaded from the given interface
--- for the given file.
-
-highlightFromInterface :: Interface -> AbsolutePath -> TCM ()
+highlightFromInterface
+  :: Interface
+  -> AbsolutePath
+     -- ^ The corresponding file.
+  -> TCM ()
 highlightFromInterface i file = do
-    modFile <- stModuleToSource <$> get
-    reportSLn "import.iface" 5 $
-              "Generating syntax info for " ++ filePath file ++
-                 " (read from interface)."
-    printHighlightingInfo ( iHighlighting i, modFile )
+  reportSLn "import.iface" 5 $
+    "Generating syntax info for " ++ filePath file ++
+    " (read from interface)."
+  printHighlightingInfo (iHighlighting i)
 
 readInterface :: FilePath -> TCM (Maybe Interface)
 readInterface file = do
@@ -436,7 +414,7 @@ readInterface file = do
   -- Catch exceptions
   `catchError` handler
   where
-    handler e = case errError e of
+    handler e = case e of
       IOException _ e -> do
         reportSLn "" 0 $ "IO exception: " ++ show e
         return Nothing   -- Work-around for file locking bug.
@@ -471,9 +449,10 @@ createInterface
   :: AbsolutePath          -- ^ The file to type check.
   -> C.TopLevelModuleName  -- ^ The expected module name.
   -> TCM (Interface, Either Warnings ClockTime)
-createInterface file mname = local (\e -> e {envCurrentPath = file}) $ do
-    modFile <- stModuleToSource <$> get
-    fileTokenInfo  <- generateTokenInfo file
+createInterface file mname =
+  local (\e -> e { envCurrentPath = file }) $ do
+    modFile       <- stModuleToSource <$> get
+    fileTokenInfo <- generateTokenInfo file
     modify $ \st -> st { stTokens = fileTokenInfo }
 
     reportSLn "import.iface.create" 5 $
@@ -496,11 +475,16 @@ createInterface file mname = local (\e -> e {envCurrentPath = file}) $ do
     topLevel <- concreteToAbstract_ (TopLevel top)
 
     let ds = topLevelDecls topLevel
-    whenM (envInteractiveHighlighting <$> ask) $
-      -- Generate approximate syntax highlighting info.
-      mapM_ (\d -> generateAndPrintSyntaxInfo file d Partial []) ds
 
-    checkDecls ds
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      -- Generate and print approximate syntax highlighting info.
+      mapM_ (\d -> generateAndPrintSyntaxInfo d Partial) ds
+
+    catchError (checkDecls ds) $ \e -> do
+      ifTopLevelAndHighlightingLevelIs NonInteractive $
+        printErrorInfo e
+      throwError e
+
     unfreezeMetas
 
     -- Count number of metas
@@ -508,13 +492,15 @@ createInterface file mname = local (\e -> e {envCurrentPath = file}) $ do
       MetaId n <- fresh
       tickN "metas" n
 
-    termErrs <- Fold.toList <$> stTermErrs <$> get
+    -- Move any remaining token highlighting to stSyntaxInfo.
+    modify $ \st ->
+      st { stTokens     = mempty
+         , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
+         }
 
-    -- Generate final syntax highlighting info.
-    syntaxInfo <- stSyntaxInfo <$> get
-    -- Generate Vim file.
     whenM (optGenerateVimFile <$> commandLineOptions) $
-	withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
+      -- Generate Vim file.
+      withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
     -- Print stats
     stats <- Map.toList <$> getStatistics
@@ -525,18 +511,22 @@ createInterface file mname = local (\e -> e {envCurrentPath = file}) $ do
         [ "  " ++ s ++ " = " ++ show n
         | (s, n) <- sortBy (compare `on` snd) stats ]
 
-    -- Check if there are unsolved meta-variables...
-    unsolvedOK    <- optAllowUnsolved <$> pragmaOptions
-    unsolvedMetas <- Set.toList <$> stUnsolvedMetas <$> get
-
-    -- ...or unsolved constraints
-    unsolvedConstraints <- Fold.toList <$> stUnsolvedConstraints <$> get
-
     setScope $ outsideScope topLevel
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
 
+    syntaxInfo <- stSyntaxInfo <$> get
     i <- buildInterface topLevel syntaxInfo previousHsImports options
+
+    -- TODO: It would be nice if unsolved things were highlighted
+    -- after every mutual block.
+
+    termErrs            <- Fold.toList <$> stTermErrs <$> get
+    unsolvedMetas       <- List.nub <$> (mapM getMetaRange =<< getOpenMetas)
+    unsolvedConstraints <- getAllConstraints
+
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printUnsolvedInfo
 
     if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
      then do

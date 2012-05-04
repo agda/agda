@@ -21,7 +21,7 @@ import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
 import Agda.TypeChecking.Monad.Base (TypeError(..), Call(..), typeError,
-                                     TCErr(..), TCErr'(..))
+                                     TCErr(..))
 import Agda.Utils.List
 import Agda.Utils.Tuple
 
@@ -306,4 +306,3 @@ deriving instance Eq (LHSCore' e)
 
 instance Eq LHS where
   (LHS _ core wps) == (LHS _ core' wps') = core == core' && wps == wps'
-
