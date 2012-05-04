@@ -14,7 +14,6 @@ import qualified Data.List as List
 import qualified Data.Set as Set
 import Data.Set (Set)
 import Data.Sequence ((|>))
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract (AnyAbstract(..))
 import qualified Agda.Syntax.Abstract as A

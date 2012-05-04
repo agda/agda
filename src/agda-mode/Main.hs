@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 -- | A program which either tries to add setup code for Agda's Emacs
 -- mode to the users .emacs file, or provides information to Emacs
 -- about where the Emacs mode is installed.
@@ -17,9 +15,6 @@ import System.Environment
 import System.Exit
 import System.FilePath
 import System.IO
-#if !(MIN_VERSION_base(4,2,0))
-import qualified System.IO.UTF8 as UTF8
-#endif
 import System.Process
 
 import Paths_Agda (getDataDir, version)
@@ -56,12 +51,7 @@ usage = unlines
   , ""
   , "  The program tries to add setup code for Agda's Emacs mode to the"
   , "  current user's .emacs file. It is assumed that the .emacs file"
-#if MIN_VERSION_base(4,2,0)
   , "  uses the character encoding specified by the locale."
-#else
-  , "  uses ASCII or some other character encoding which ASCII is"
-  , "  compatible with (like Latin-1 or UTF-8)."
-#endif
   , ""
   , locateFlag
   , ""
@@ -86,12 +76,8 @@ printEmacsModeFile :: IO ()
 printEmacsModeFile = do
   dataDir <- getDataDir
   let path = dataDir </> "emacs-mode" </> "agda2.el"
-#if MIN_VERSION_base(4,2,0)
   hSetEncoding stdout utf8
   putStr path
-#else
-  UTF8.putStr path
-#endif
 
 ------------------------------------------------------------------------
 -- Setting up the .emacs file

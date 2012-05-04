@@ -17,7 +17,6 @@ import Data.Maybe
 import System.Environment
 import System.Exit
 import System.FilePath
-import qualified Agda.Utils.IO.Locale as LocIO
 import System.Time
 
 import Agda.Syntax.Position
@@ -98,7 +97,7 @@ runAgda = do
       compile <- optCompile     <$> liftTCM commandLineOptions
       epic    <- optEpicCompile <$> liftTCM commandLineOptions
       js      <- optJSCompile   <$> liftTCM commandLineOptions
-      when i $ liftIO $ LocIO.putStr splashScreen
+      when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
           -- options should rule out Nothing here.
@@ -142,34 +141,32 @@ runAgda = do
 printUsage :: IO ()
 printUsage = do
   progName <- getProgName
-  LocIO.putStr $ usage standardOptions_ [] progName
+  putStr $ usage standardOptions_ [] progName
 
 -- | Print version information.
 printVersion :: IO ()
 printVersion =
-  LocIO.putStrLn $ "Agda version " ++ version
+  putStrLn $ "Agda version " ++ version
 
 -- | What to do for bad options.
 optionError :: String -> IO ()
 optionError err = do
-  LocIO.putStrLn $ "Error: " ++ err
+  putStrLn $ "Error: " ++ err
   printUsage
   exitFailure
 
 -- | Main
 main :: IO ()
 main = do
-#if MIN_VERSION_base(4,2,0)
-    -- Ensure that UTF-8 is used for functions in Agda.Utils.IO.Locale
+    -- Ensure that UTF-8 is used
     IO.hSetEncoding IO.stdout IO.utf8
-#endif
     r <- runTCM $ runAgda `catchError` \err -> do
       s <- prettyError err
-      liftIO $ LocIO.putStrLn s
+      liftIO $ putStrLn s
       throwError err
     case r of
       Right _ -> exitSuccess
       Left _  -> exitFailure
   `catchImpossible` \e -> do
-    LocIO.putStr $ show e
+    putStr $ show e
     exitFailure

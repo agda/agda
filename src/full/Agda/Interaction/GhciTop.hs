@@ -123,10 +123,8 @@ ioTCM :: FilePath
       -> Interaction
       -> IO ()
 ioTCM current highlighting cmd = do
-#if MIN_VERSION_base(4,2,0)
   -- Ensure that UTF-8 is used for communication with the Emacs mode.
   IO.hSetEncoding IO.stdout IO.utf8
-#endif
 
   -- Read the state.
   state <- readIORef theState

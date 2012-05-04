@@ -9,7 +9,6 @@ import Control.Monad.Reader
 import Control.Monad.Error
 import Data.Maybe
 import Data.List hiding (sort)
-import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (traverse)

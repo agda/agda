@@ -23,7 +23,6 @@ import Data.Map (Map)
 import Data.Set (Set)
 import System.Directory
 import System.Time
-import qualified Agda.Utils.IO.Locale as LocIO
 import System.FilePath hiding (splitPath)
 
 import Agda.Syntax.Position

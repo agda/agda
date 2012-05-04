@@ -13,7 +13,6 @@ import Data.List hiding (sort)
 import Data.Traversable
 import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Common
 import Agda.Syntax.Position

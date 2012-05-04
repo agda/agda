@@ -47,12 +47,6 @@ source-repository head
   type:     darcs
   location: http://code.haskell.org/Agda/
 
-flag use-locale
-  description:
-    Try to use the character encoding specified by the locale for most
-    of the IO going to/from stdin and stdout. (Note that source files
-    must always be encoded using UTF8.)
-
 flag epic
   default: False
   manual:  True
@@ -61,18 +55,14 @@ flag epic
 
 library
   hs-source-dirs:   src/full
-  if flag(use-locale)
-    build-depends:  base >= 4.2 && < 4.6
-  else
-    build-depends:  base == 4.1.*,
-                    utf8-string == 0.3.*
   if flag(epic)
     build-depends:  epic >= 0.1.13 && < 0.10
 
   if os(windows)
     build-depends:  Win32
 
-  build-depends:    mtl == 2.0.*,
+  build-depends:    base >= 4.2 && < 4.6,
+                    mtl == 2.0.*,
                     QuickCheck >= 2.3 && < 2.5,
                     haskell-src-exts >= 1.9.6 && < 1.14,
                     containers >= 0.1 && < 0.5,
@@ -283,7 +273,6 @@ library
                     Agda.Utils.HashMap
                     Agda.Utils.Impossible
                     Agda.Utils.IO.Binary
-                    Agda.Utils.IO.Locale
                     Agda.Utils.IO.UTF8
                     Agda.Utils.List
                     Agda.Utils.Map
@@ -355,11 +344,7 @@ executable agda-mode
   hs-source-dirs:   src/agda-mode
   main-is:          Main.hs
   other-modules:    Paths_Agda
-  if flag(use-locale)
-    build-depends:  base >= 4.2 && < 4.6
-  else
-    build-depends:  base == 4.1.*,
-                    utf8-string == 0.3.*
-  build-depends:    filepath >= 1.1 && < 1.4,
+  build-depends:    base >= 4.2 && < 4.6,
+                    filepath >= 1.1 && < 1.4,
                     process >= 1.0.1.0 && < 1.2,
                     directory >= 1.0 && < 1.2

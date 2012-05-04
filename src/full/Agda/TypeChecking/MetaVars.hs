@@ -10,7 +10,6 @@ import Data.Typeable (Typeable)
 import Data.List as List hiding (sort)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Info as Info

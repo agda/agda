@@ -14,7 +14,6 @@ import System.IO
 import System.Process
 
 import Agda.TypeChecking.Monad
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Utils.Impossible
 #include "../undefined.h"
@@ -49,7 +48,7 @@ callCompiler cmd args = do
     Just out -> forkTCM $ do
       -- The handle should be in text mode.
       liftIO $ hSetBinaryMode out False
-      progressInfo <- liftIO $ LocIO.hGetContents out
+      progressInfo <- liftIO $ hGetContents out
       mapM_ (reportSLn "" 1) $ lines progressInfo
 
   errors <- liftIO $ case err of
@@ -57,7 +56,7 @@ callCompiler cmd args = do
     Just err -> do
       -- The handle should be in text mode.
       hSetBinaryMode err False
-      LocIO.hGetContents err
+      hGetContents err
 
   exitcode <- liftIO $ do
     -- Ensure that the output has been read before waiting for the

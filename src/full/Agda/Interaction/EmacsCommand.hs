@@ -13,7 +13,6 @@ module Agda.Interaction.EmacsCommand
   , displayRunningInfo
   ) where
 
-import qualified Agda.Utils.IO.Locale as LocIO
 import Agda.Utils.Pretty
 import Agda.Utils.String
 
@@ -54,7 +53,7 @@ response = (++ "\n") . map replaceNewLines . show . pretty
 -- | Writes a response command to standard output.
 
 putResponse :: Lisp String -> IO ()
-putResponse = LocIO.putStr . response
+putResponse = putStr . response
 
 -- | @display_info' append header content@ displays @content@ (with
 -- header @header@) in some suitable way. If @append@ is @True@, then
@@ -88,4 +87,3 @@ clearRunningInfo =
 displayRunningInfo :: String -> Lisp String
 displayRunningInfo s =
     display_info' True runningInfoBufferName s
-

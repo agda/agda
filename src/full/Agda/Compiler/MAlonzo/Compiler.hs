@@ -38,7 +38,6 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
-import qualified Agda.Utils.IO.Locale as LocIO
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Impossible
 import qualified Agda.Utils.HashMap as HMap

@@ -10,7 +10,6 @@ import Data.Set as Set
 import Data.Map as Map
 import Data.List as List
 import Data.Maybe
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Interaction.BasicOps as BasicOps hiding (parseExpr)
 import Agda.Interaction.Monad
@@ -69,16 +68,16 @@ interaction prompt cmds eval = loop
 			do  case matchCommand cmd cmds of
 				Right c	-> go =<< liftTCM (c args)
 				Left []	->
-				    do	liftIO $ LocIO.putStrLn $ "Unknown command '" ++ cmd ++ "'"
+				    do	liftIO $ putStrLn $ "Unknown command '" ++ cmd ++ "'"
 					loop
 				Left xs	->
-				    do	liftIO $ LocIO.putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
+				    do	liftIO $ putStrLn $ "More than one command match: " ++ concat (intersperse ", " xs)
 					loop
 		    Just _ ->
 			do  go =<< liftTCM (eval $ fromJust ms)
 	    `catchError` \e ->
 		do  s <- liftTCM $ prettyError e
-		    liftIO $ LocIO.putStrLn s
+		    liftIO $ putStrLn s
 		    loop
 
 -- | The interaction loop.
@@ -100,8 +99,8 @@ interactionLoop typeCheck =
               Nothing -> emptyScopeInfo
 	  `catchError` \e -> do
 	    s <- prettyError e
-	    liftIO $ LocIO.putStrLn s
-	    liftIO $ LocIO.putStrLn "Failed."
+	    liftIO $ putStrLn s
+	    liftIO $ putStrLn "Failed."
 
 	commands =
 	    [ "quit"	    |>  \_ -> return $ Return ()
@@ -130,13 +129,13 @@ loadFile :: TCM () -> [String] -> TCM ()
 loadFile reload [file] =
     do	setInputFile file
 	reload
-loadFile _ _ = liftIO $ LocIO.putStrLn ":load file"
+loadFile _ _ = liftIO $ putStrLn ":load file"
 
 showConstraints :: [String] -> TCM ()
 showConstraints [] =
     do	cs <- BasicOps.getConstraints
-	liftIO $ LocIO.putStrLn $ unlines (List.map show cs)
-showConstraints _ = liftIO $ LocIO.putStrLn ":constraints [cid]"
+	liftIO $ putStrLn $ unlines (List.map show cs)
+showConstraints _ = liftIO $ putStrLn ":constraints [cid]"
 
 
 showMetas :: [String] -> TCM ()
@@ -146,17 +145,17 @@ showMetas [m] =
 	  s <- typeOfMeta AsIs i
 	  r <- getInteractionRange i
 	  d <- showA s
-	  liftIO $ LocIO.putStrLn $ d ++ " " ++ show r
+	  liftIO $ putStrLn $ d ++ " " ++ show r
 showMetas [m,"normal"] =
     do	i <- InteractionId <$> readM m
 	withInteractionId i $ do
 	  s <- showA =<< typeOfMeta Normalised i
 	  r <- getInteractionRange i
-	  liftIO $ LocIO.putStrLn $ s ++ " " ++ show r
+	  liftIO $ putStrLn $ s ++ " " ++ show r
 showMetas [] =
     do  interactionMetas <- typesOfVisibleMetas AsIs
         hiddenMetas      <- typesOfHiddenMetas  AsIs
-        mapM_ (liftIO . LocIO.putStrLn) =<< mapM showII interactionMetas
+        mapM_ (liftIO . putStrLn) =<< mapM showII interactionMetas
 	mapM_ print' hiddenMetas
     where
 	showII o = withInteractionId (outputFormId $ OutputForm 0 o) $ showA o
@@ -170,21 +169,21 @@ showMetas [] =
 	print' x = do
 	    r <- getMetaRange (metaId x)
 	    d <- showM x
-	    liftIO $ LocIO.putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
-showMetas _ = liftIO $ LocIO.putStrLn $ ":meta [metaid]"
+	    liftIO $ putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
+showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"
 
 
 showScope :: TCM ()
 showScope = do
   scope <- getScope
-  liftIO $ LocIO.print scope
+  liftIO $ print scope
 
 metaParseExpr ::  InteractionId -> String -> TCM A.Expr
 metaParseExpr ii s =
     do	m <- lookupInteractionId ii
         scope <- getMetaScope <$> lookupMeta m
         r <- getRange <$> lookupMeta m
-        --liftIO $ LocIO.putStrLn $ show scope
+        --liftIO $ putStrLn $ show scope
         let pos = case rStart r of
                     Nothing  -> __IMPOSSIBLE__
                     Just pos -> pos
@@ -204,7 +203,7 @@ giveMeta :: [String] -> TCM ()
 giveMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> give ii Nothing e)
         return ()
-giveMeta _ = liftIO $ LocIO.putStrLn $ ": give" ++ " metaid expr"
+giveMeta _ = liftIO $ putStrLn $ ": give" ++ " metaid expr"
 
 
 
@@ -212,7 +211,7 @@ refineMeta :: [String] -> TCM ()
 refineMeta s | length s >= 2 =
     do  actOnMeta s (\ii -> \e  -> refine ii Nothing e)
         return ()
-refineMeta _ = liftIO $ LocIO.putStrLn $ ": refine" ++ " metaid expr"
+refineMeta _ = liftIO $ putStrLn $ ": refine" ++ " metaid expr"
 
 
 
@@ -223,8 +222,8 @@ retryConstraints = liftTCM wakeupConstraints_
 evalIn :: [String] -> TCM ()
 evalIn s | length s >= 2 =
     do	d <- actOnMeta s $ \_ e -> prettyA =<< evalInCurrent e
-        liftIO $ LocIO.print d
-evalIn _ = liftIO $ LocIO.putStrLn ":eval metaid expr"
+        liftIO $ print d
+evalIn _ = liftIO $ putStrLn ":eval metaid expr"
 
 parseExpr :: String -> TCM A.Expr
 parseExpr s = do
@@ -236,7 +235,7 @@ evalTerm s =
     do	e <- parseExpr s
         v <- evalInCurrent e
 	e <- prettyTCM v
-	liftIO $ LocIO.putStrLn $ show e
+	liftIO $ putStrLn $ show e
 	return Continue
     where
 	evalInCurrent e = do
@@ -250,15 +249,15 @@ typeOf s =
     do  e  <- parseExpr (unwords s)
         e0 <- typeInCurrent Normalised e
         e1 <- typeInCurrent AsIs e
-	liftIO . LocIO.putStrLn =<< showA e1
+	liftIO . putStrLn =<< showA e1
 
 typeIn :: [String] -> TCM ()
 typeIn s@(_:_:_) =
     actOnMeta s $ \i e ->
     do	e1 <- typeInMeta i Normalised e
         e2 <- typeInMeta i AsIs e
-	liftIO . LocIO.putStrLn =<< showA e1
-typeIn _ = liftIO $ LocIO.putStrLn ":typeIn meta expr"
+	liftIO . putStrLn =<< showA e1
+typeIn _ = liftIO $ putStrLn ":typeIn meta expr"
 
 showContext :: [String] -> TCM ()
 showContext (meta:args) = do
@@ -273,8 +272,8 @@ showContext (meta:args) = do
 		    ["normal"] -> normalise $ raise n t
 		    _	       -> return $ raise n t
 	    d <- prettyTCM t
-	    liftIO $ LocIO.print $ text x <+> text ":" <+> d
-showContext _ = liftIO $ LocIO.putStrLn ":Context meta"
+	    liftIO $ print $ text x <+> text ":" <+> d
+showContext _ = liftIO $ putStrLn ":Context meta"
 
 -- | The logo that prints when Agda is started in interactive mode.
 splashScreen :: String
@@ -294,7 +293,7 @@ splashScreen = unlines
 
 -- | The help message
 help :: [Command a] -> IO ()
-help cs = LocIO.putStr $ unlines $
+help cs = putStr $ unlines $
     [ "Command overview" ] ++ List.map explain cs ++
     [ "<exp> Infer type of expression <exp> and evaluate it." ]
     where

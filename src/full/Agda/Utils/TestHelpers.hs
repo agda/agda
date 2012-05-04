@@ -27,7 +27,6 @@ import Control.Monad
 import Data.List
 
 import Agda.Utils.QuickCheck
-import qualified Agda.Utils.IO.Locale as LocIO
 
 ------------------------------------------------------------------------
 -- Algebraic properties
@@ -147,5 +146,5 @@ runTests :: String    -- ^ A label for the tests. Used for
          -> [IO Bool]
          -> IO Bool
 runTests name tests = do
-  LocIO.putStrLn name
+  putStrLn name
   fmap and $ sequence tests

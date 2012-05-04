@@ -10,7 +10,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
 import Data.Function
-import qualified Agda.Utils.IO.Locale as LocIO
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common

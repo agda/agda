@@ -7,9 +7,9 @@ import Control.Monad.Reader
 import Control.Monad.State
 import Data.Maybe
 import Text.PrettyPrint
-import qualified Agda.Utils.IO.Locale as LocIO
 import System.Directory
 import System.FilePath
+import System.IO
 
 import Agda.Syntax.Concrete
 import {-# SOURCE #-} Agda.TypeChecking.Errors
@@ -297,7 +297,7 @@ emacsifyDebugMessage s =
 -- | Displays a debug message in a suitable way.
 displayDebugMessage :: String -> TCM ()
 displayDebugMessage s =
-  liftIO . LocIO.putStr =<< emacsifyDebugMessage s
+  liftIO . putStr =<< emacsifyDebugMessage s
 
 -- | Precondition: The level must be non-negative.
 verboseS :: VerboseKey -> Int -> TCM () -> TCM ()
@@ -309,7 +309,7 @@ reportS k n s = verboseS k n $ displayDebugMessage s
 reportSLn :: VerboseKey -> Int -> String -> TCM ()
 reportSLn k n s = verboseS k n $ do
   displayDebugMessage (s ++ "\n")
-  liftIO LocIO.stdoutFlush
+  liftIO $ hFlush stdout
 
 reportSDoc :: VerboseKey -> Int -> TCM Doc -> TCM ()
 reportSDoc k n d = verboseS k n $ do
