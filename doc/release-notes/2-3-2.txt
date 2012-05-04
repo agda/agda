@@ -223,6 +223,9 @@ Emacs mode
     properly (this highlighting includes warnings for potential
     non-termination).
 
+  The amount of highlighting can be controlled via the new
+  configuration variable agda2-highlight-level.
+
 * The Emacs mode now presents information about which module is
   currently being type-checked.
 

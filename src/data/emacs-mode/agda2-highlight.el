@@ -15,6 +15,23 @@
   "Syntax highlighting for Agda."
   :group 'agda2)
 
+(defcustom agda2-highlight-level 'interactive
+  "How much syntax highlighting should be produced?
+Interactive highlighting includes highlighting of the expression
+that is currently being type-checked."
+  :type '(choice
+          (const :tag "None"            none)
+          (const :tag "Non-interactive" non-interactive)
+          (const :tag "Interactive"     interactive))
+  :group 'agda2-highlight)
+
+(defun agda2-highlight-level nil
+  "Formats the highlighting level in a Haskelly way."
+  (cond ((equal agda2-highlight-level 'none)            "None")
+        ((equal agda2-highlight-level 'non-interactive) "NonInteractive")
+        ((equal agda2-highlight-level 'interactive)     "Interactive")
+        (t                                              "None")))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions for setting faces
 
@@ -180,34 +197,39 @@ Also sets the default value of VARIABLE to GROUP."
 
 (defcustom agda2-highlight-face-groups nil
   "Colour scheme used in Agda buffers.
-Note that changing this option does not remove the customisations
-below; you can get them back by resetting this option and
-restarting Emacs. If you are using the default-faces option and
-change your colour theme the changes may not take effect in Agda
-buffers until you have restarted Emacs."
+Changes to this variable may not take full effect until you have
+restarted Emacs. Note also that if you are using the
+default-faces option and change your colour theme, then the
+changes may not take effect in Agda buffers until you have
+restarted Emacs."
   :type '(choice
-            (const :tag "Use the settings below." nil)
-            (const :tag "Use an approximation of Conor McBride's colour scheme."
-                   conor)
-	    (const :tag "Use simplified highlighting and default font-lock faces."
-                   default-faces))
+          (const :tag "Use the settings in the \"Agda2 Highlight Faces\" subgroup." nil)
+          (const :tag "Use an approximation of Conor McBride's colour scheme."
+                 conor)
+          (const :tag "Use simplified highlighting and default font-lock faces."
+                 default-faces))
   :group 'agda2-highlight
   :set 'agda2-highlight-set-faces)
+
+(defgroup agda2-highlight-faces nil
+  "Faces used to highlight Agda code.
+If `agda2-highlight-face-groups' is nil."
+  :group 'agda2-highlight)
 
 (defface agda2-highlight-keyword-face
   '((t (:foreground "DarkOrange3")))
   "The face used for keywords."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-string-face
   '((t (:foreground "firebrick")))
   "The face used for strings."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-number-face
   '((t (:foreground "purple")))
   "The face used for numbers."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-symbol-face
   '((((background light))
@@ -215,107 +237,107 @@ buffers until you have restarted Emacs."
     (((background dark))
      (:foreground "gray75")))
   "The face used for symbols like forall, =, ->, etc."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-primitive-type-face
   '((t (:foreground "medium blue")))
   "The face used for primitive types (like Set and Prop)."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-bound-variable-face
   '((t nil))
   "The face used for bound variables."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-inductive-constructor-face
   '((t (:foreground "green4")))
   "The face used for inductive constructors."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-coinductive-constructor-face
   '((t (:foreground "gold4")))
   "The face used for coinductive constructors."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-datatype-face
   '((t (:foreground "medium blue")))
   "The face used for datatypes."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-field-face
   '((t (:foreground "DeepPink2")))
   "The face used for record fields."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-function-face
   '((t (:foreground "medium blue")))
   "The face used for functions."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-module-face
   '((t (:foreground "purple")))
   "The face used for module names."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-postulate-face
   '((t (:foreground "medium blue")))
   "The face used for postulates."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-primitive-face
   '((t (:foreground "medium blue")))
   "The face used for primitive functions."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-record-face
   '((t (:foreground "medium blue")))
   "The face used for record types."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-dotted-face
   '((t nil))
   "The face used for dotted patterns."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-operator-face
   '((t nil))
   "The face used for operators."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-error-face
   '((t (:foreground "red" :underline t)))
   "The face used for errors."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-unsolved-meta-face
   '((t (:background "yellow"
         :foreground "black")))
   "The face used for unsolved meta variables."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-unsolved-constraint-face
   '((t (:background "yellow"
         :foreground "black")))
   "The face used for unsolved constraints which are not connected to metas."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-termination-problem-face
   '((t (:background "light salmon"
         :foreground "black")))
   "The face used for termination problems."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-incomplete-pattern-face
   '((t (:background "wheat"
         :foreground "black")))
   "The face used for incomplete patterns. (Currently unused.)"
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-typechecks-face
   '((t (:background "violet red"
         :foreground "black")))
   "The face used for code which is being type-checked."
-  :group 'agda2-highlight)
+  :group 'agda2-highlight-faces)
 
 (defvar agda2-highlight-faces
   '((keyword                . agda2-highlight-keyword-face)

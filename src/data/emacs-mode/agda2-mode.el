@@ -552,7 +552,7 @@ be updated."
          'restart
          "ioTCM"
          (agda2-string-quote (buffer-file-name))
-         (if highlight "Interactive" "None")
+         (if highlight (agda2-highlight-level) "None")
          "("
          (append args '(")"))))
 
