@@ -394,7 +394,7 @@ instance Occurs a => Occurs [a] where
 --   return @True@ else @False@.
 prune :: MetaId -> Args -> [Nat] -> TCM PruneResult
 prune m' vs xs = liftTCM $ do
-  let kills = map (hasBadRigid xs) $ map unArg vs
+  kills <- mapM (hasBadRigid xs) $ map unArg vs
   reportSDoc "tc.meta.kill" 10 $ vcat
     [ text "attempting kills"
     , nest 2 $ vcat
@@ -416,12 +416,93 @@ prune m' vs xs = liftTCM $ do
 
 -- | @hasBadRigid xs v = True@ iff one of the rigid variables in @v@ is not in @xs@.
 --   Actually we can only prune if a bad variable is in the head. See issue 458.
-hasBadRigid :: [Nat] -> Term -> Bool
-hasBadRigid xs (Var v _) = notElem v xs
-hasBadRigid xs _         = False
-  -- not $ Set.isSubsetOf
-  --   (rigidVars $ freeVars v)
-  --   (Set.fromList xs)
+--   Or in a non-eliminateable position (see succeed/PruningNonMillerPattern).
+hasBadRigid :: [Nat] -> Term -> TCM Bool
+hasBadRigid xs (Var x _)    = return $ notElem x xs
+hasBadRigid xs (Lam _ v)    = hasBadRigid (0 : raise 1 xs) (absBody v)
+hasBadRigid xs (DontCare v) = hasBadRigid xs v
+-- The following types of arguments cannot be eliminated by a pattern
+-- match: data, record, Pi, levels, sorts
+-- Thus, their offending rigid variables are bad.
+hasBadRigid xs (Def f vs)   = flip (ifM $ isDataOrRecordType f) (return False) $ do
+  return $ vs `rigidVarsNotContainedIn` xs
+  -- Andreas, 2012-05-03: There is room for further improvement.
+  -- We could also consider a defined f which is not blocked by a meta.
+hasBadRigid xs (Pi a b)     = return $ (a,b) `rigidVarsNotContainedIn` xs
+hasBadRigid xs (Level v)    = return $ v `rigidVarsNotContainedIn` xs
+hasBadRigid xs (Sort s)     = return $ s `rigidVarsNotContainedIn` xs
+-- Since constructors can be eliminated by pattern-matching,
+-- offending variables under a constructor could be removed by
+-- the right instantiation of the meta variable.
+-- Thus, they are not rigid.
+hasBadRigid xs Con{}        = return $ False
+hasBadRigid xs Lit{}        = return $ False -- no variables in Lit
+hasBadRigid xs MetaV{}      = return $ False -- no rigid variables under a meta
+
+rigidVarsNotContainedIn :: Free a => a -> [Nat] -> Bool
+rigidVarsNotContainedIn v xs =
+  not $ Set.isSubsetOf
+    (rigidVars $ freeVars v)
+    (Set.fromList xs)
+
+{- TRASH:
+class Raise a => HasBadRigid a where
+  hasBadRigid :: [Nat] -> a -> TCM Bool
+
+instance HasBadRigid Term where
+  hasBadRigid xs (Var x _)    = return $ notElem x xs
+  hasBadRigid xs (Def f vs)   = flip (ifM $ isDataOrRecordType f) (return False) $ do
+    hasBadRigid xs vs
+    -- Andreas, 2012-05-03: There is room for further improvement.
+    -- We could also consider a defined f which is not blocked by a meta.
+  hasBadRigid xs (Lam _ v)    = hasBadRigid xs v
+  hasBadRigid xs (Pi a b)     = hasBadRigid xs a `or2M` hasBadRigid xs b
+  hasBadRigid xs (Level v)    = hasBadRigid xs v
+  hasBadRigid xs (Sort s)     = hasBadRigid xs s
+  hasBadRigid xs (DontCare v) = hasBadRigid xs v
+  hasBadRigid xs Con{}        = return $ False
+  hasBadRigid xs Lit{}        = return $ False
+  hasBadRigid xs MetaV{}      = return $ False
+    -- not $ Set.isSubsetOf
+    --   (rigidVars $ freeVars v)
+    --   (Set.fromList xs)
+
+instance HasBadRigid Type where
+  hasBadRigid xs (El _ t) = hasBadRigid xs t
+
+instance HasBadRigid Sort where
+  hasBadRigid xs (Type l)   = hasBadRigid xs l
+  hasBadRigid xs (DLub a b) = hasBadRigid xs a `or2M` hasBadRigid xs b
+  hasBadRigid xs (Prop)     = return False
+  hasBadRigid xs (Inf)      = return False
+
+instance HasBadRigid Level where
+  hasBadRigid xs (Max vs) = hasBadRigid xs vs
+
+instance HasBadRigid PlusLevel where
+  hasBadRigid xs (ClosedLevel _) = return False
+  hasBadRigid xs (Plus _ l)      = hasBadRigid xs l
+
+instance HasBadRigid LevelAtom where
+  hasBadRigid xs (UnreducedLevel t) = hasBadRigid xs t
+  hasBadRigid xs (NeutralLevel t)   = hasBadRigid xs t
+  hasBadRigid xs (BlockedLevel m t) = return False
+  hasBadRigid xs (MetaLevel m vs)   = return False
+
+instance HasBadRigid a => HasBadRigid (Dom a) where
+  hasBadRigid xs = hasBadRigid xs . unDom
+
+instance HasBadRigid a => HasBadRigid (Arg a) where
+  hasBadRigid xs = hasBadRigid xs . unArg
+
+instance HasBadRigid a => HasBadRigid (Abs a) where
+  hasBadRigid xs b = hasBadRigid (raise 1 xs) (absBody b)
+
+instance HasBadRigid a => HasBadRigid [a] where
+  hasBadRigid xs = orM . map (hasBadRigid xs)
+
+-}
+
 
 data PruneResult
   = NothingToPrune   -- ^ the kill list is empty or only @False@s
