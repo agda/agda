@@ -324,6 +324,37 @@ Set in `agda2-restart'.")
 ;; reference. If the agda2-*-brace definitions were inlined, then
 ;; goals would be displayed as "{{ }}n" instead of "{ }n".
 
+;; The following variables are used by the filter process,
+;; `agda2-ghci-filter'. Their values are only modified by the filter
+;; process, `agda2-go', `agda2-restart', and
+;; `agda2-abort-highlighting'.
+
+(defvar agda2-highlight-in-progress nil
+  "If nil, then highlighting annotations are not applied.")
+(make-variable-buffer-local 'agda2-highlight-in-progress)
+
+(defvar agda2-responses-expected nil
+  "Is the Agda process expected to produce at least one response?")
+(make-variable-buffer-local 'agda2-responses-expected)
+
+(defvar agda2-responses 0
+  "The number of encountered response commands.")
+(make-variable-buffer-local 'agda2-responses)
+
+(defvar agda2-ghci-chunk-incomplete (agda2-queue-empty)
+  "Buffer for incomplete lines.
+\(See `agda2-ghci-filter'.)")
+(make-variable-buffer-local 'agda2-ghci-chunk-incomplete)
+
+(defvar agda2-last-responses nil
+  "Response commands which should be run after other commands.
+The command which arrived last is stored first in the list.")
+(make-variable-buffer-local 'agda2-last-responses)
+
+(defvar agda2-file-buffer nil
+  "The Agda buffer.
+Note that this variable is not buffer-local.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; agda2-mode
 
@@ -496,37 +527,6 @@ exist, then an attempt is made to restart the process."
 	       (not (re-search-forward comint-prompt-regexp nil t)))
         (accept-process-output agda2-process))
         )))
-
-
-;; The following variables are used by the filter process,
-;; `agda2-ghci-filter'. Their values are only modified by the filter
-;; process, `agda2-go', and `agda2-abort-highlighting'.
-
-(defvar agda2-highlight-in-progress nil
-  "If nil, then highlighting annotations are not applied.")
-(make-variable-buffer-local 'agda2-highlight-in-progress)
-
-(defvar agda2-responses-expected nil
-  "Is the Agda process expected to produce at least one response?")
-(make-variable-buffer-local 'agda2-responses-expected)
-
-(defvar agda2-responses 0
-  "The number of encountered response commands.")
-(make-variable-buffer-local 'agda2-responses)
-
-(defvar agda2-ghci-chunk-incomplete (agda2-queue-empty)
-  "Buffer for incomplete lines.
-\(See `agda2-ghci-filter'.)")
-(make-variable-buffer-local 'agda2-ghci-chunk-incomplete)
-
-(defvar agda2-last-responses nil
-  "Response commands which should be run after other commands.
-The command which arrived last is stored first in the list.")
-(make-variable-buffer-local 'agda2-last-responses)
-
-(defvar agda2-file-buffer nil
-  "The Agda buffer.
-Note that this variable is not buffer-local.")
 
 (defun agda2-go (responses-expected highlight &rest args)
   "Executes commands in GHCi.
