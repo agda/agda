@@ -391,11 +391,13 @@ getInterface' x includeStateChanges =
                 Right (r, update) -> do
                   update
                   case r of
-                    (_, Right _) -> do
-                      r <- skip file
-                      return r
-                    _ ->
-                      return (False, r)
+                    (_, Right _) ->
+                      -- Optimisation: If we skip the file which has
+                      -- just been type-checked, then we get the
+                      -- benefit of the sharing introduced by the
+                      -- serialisation machinery.
+                      skip file
+                    _ -> return (False, r)
 
 
 readInterface :: FilePath -> TCM (Maybe Interface)
