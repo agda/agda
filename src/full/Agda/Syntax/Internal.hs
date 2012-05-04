@@ -1,7 +1,8 @@
 {-# LANGUAGE CPP, DeriveDataTypeable, GeneralizedNewtypeDeriving,
              DeriveFunctor, DeriveFoldable, DeriveTraversable,
              TemplateHaskell,
-             MultiParamTypeClasses, FlexibleInstances #-}
+             MultiParamTypeClasses, FlexibleInstances,
+             TypeSynonymInstances #-}
 
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
