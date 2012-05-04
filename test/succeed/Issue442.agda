@@ -1,4 +1,3 @@
-{-# OPTIONS --allow-unsolved-metas #-}
 
 module Issue442 where
 
@@ -11,4 +10,8 @@ postulate
   g : ∀ {x y z} → P y z → P x y → A
 
 a : A
-a = f _ reflP g
+a = f _ (λ {x} → reflP {x}) g
+
+-- Test case was:
+-- {-# OPTIONS --allow-unsolved-metas #-}
+-- a = f _ reflP g
