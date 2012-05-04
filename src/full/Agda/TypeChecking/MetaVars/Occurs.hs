@@ -152,18 +152,7 @@ class Occurs t where
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MetaId -> Vars -> Term -> TCM Term
 occursCheck m xs v = liftTCM $ do
-{- OLD CODE
-  let bailOnSelf v = do
-        v <- instantiate v
-        case v of
-          -- Don't fail if trying to instantiate to just itself
-          MetaV m' _ | m == m' -> patternViolation
-          Level (Max [Plus 0 (MetaLevel m' _)])
-                     | m == m' -> patternViolation
-          _ -> return v
-
-  v <- bailOnSelf v
--}
+{- Andreas, 2012-05-04: THIS CHECK IS REDUNDANT
   v <- instantiate v
   case v of
     -- Don't fail if trying to instantiate to just itself
@@ -171,7 +160,7 @@ occursCheck m xs v = liftTCM $ do
     Level (Max [Plus 0 (MetaLevel m' _)])
                | m == m' -> patternViolation
     _ -> return ()
-
+-}
   mv <- lookupMeta m
   initOccursCheck mv
   -- First try without normalising the term
