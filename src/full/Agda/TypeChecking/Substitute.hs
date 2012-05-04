@@ -444,12 +444,21 @@ instance Raise () where
   raiseFrom  _ _ _ = ()
   renameFrom _ _ _ = ()
 
+instance Raise Nat where
+    raiseFrom  m k i | i < m     = i
+                     | otherwise = i + k
+    renameFrom m k i | i < m     = i
+                     | otherwise = k (i - m) + m
+
 instance Raise Term where
     raiseFrom m k v =
         case v of
+            Var i vs        -> Var (rf i) (rf vs)
+{-
             Var i vs
                 | i < m     -> Var i $ rf vs
                 | otherwise -> Var (i + k) $ rf vs
+-}
             Lam h m         -> Lam h $ rf m
             Def c vs        -> Def c $ rf vs
             Con c vs        -> Con c $ rf vs
@@ -464,9 +473,12 @@ instance Raise Term where
 
     renameFrom m k v =
         case v of
+            Var i vs        -> Var (rf i) (rf vs)
+{-
             Var i vs
                 | i < m     -> Var i $ rf vs
                 | otherwise -> Var (k (i - m) + m) $ rf vs
+-}
             Lam h m         -> Lam h $ rf m
             Def c vs        -> Def c $ rf vs
             Con c vs        -> Con c $ rf vs
