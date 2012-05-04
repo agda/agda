@@ -118,8 +118,8 @@ definitions defs = do
 --   sharp :: a -> a
 --   sharp x = x
 --
---   flat :: forall a. () -> forall b. () -> b -> b
---   flat _ _ x = x
+--   flat :: a -> a
+--   flat x = x
 -- @
 
 definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
@@ -166,9 +166,9 @@ definition kit (Defn Relevant   q ty _ _ compiled d) = do
           x    = ihname "x" 0
       return $
         [ HS.TypeSig dummy [flat] $ fakeType $
-            "forall a. () -> forall b. () -> b -> b"
+            "forall a. a -> a"
         , HS.FunBind [HS.Match dummy flat
-                               [HS.PWildCard, HS.PWildCard, HS.PVar x]
+                               [HS.PVar x]
                                Nothing
                                (HS.UnGuardedRhs (HS.Var (HS.UnQual x)))
                                (HS.BDecls [])]
