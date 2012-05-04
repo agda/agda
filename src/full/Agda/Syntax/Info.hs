@@ -84,6 +84,9 @@ deriving instance (Show OpenShortHand, Show ImportDirective) => Show ModuleInfo
 instance HasRange ModuleInfo where
   getRange = minfoRange
 
+instance SetRange ModuleInfo where
+  setRange r i = i { minfoRange = r }
+
 instance KillRange ModuleInfo where
   killRange m = m { minfoRange = killRange $ minfoRange m }
 
@@ -118,6 +121,9 @@ mkDefInfo x f a ab r = DefInfo f a ab (DeclInfo x r)
 instance HasRange DefInfo where
   getRange = getRange . defInfo
 
+instance SetRange DefInfo where
+  setRange r i = i { defInfo = setRange r (defInfo i) }
+
 instance KillRange DefInfo where
   killRange i = i { defInfo = killRange $ defInfo i }
 
@@ -133,6 +139,9 @@ data DeclInfo =
 
 instance HasRange DeclInfo where
   getRange = declRange
+
+instance SetRange DeclInfo where
+  setRange r i = i { declRange = r }
 
 instance KillRange DeclInfo where
   killRange i = i { declRange = killRange $ declRange i }
