@@ -1,3 +1,5 @@
+{-# OPTIONS --allow-unsolved-metas #-}
+-- The option is supplied to force a real error to pass the regression test.
 module StronglyRigidOccurrence where
 
 data Nat : Set where

@@ -1,4 +1,5 @@
-
+{-# OPTIONS --allow-unsolved-metas #-}
+-- The option is supplied to force a real error to pass the regression test.
 module MetaOccursInItself where
 
 data List (A : Set) : Set where

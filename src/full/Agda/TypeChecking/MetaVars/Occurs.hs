@@ -91,6 +91,7 @@ data OccursCtx
   = Flex          -- ^ we are in arguments of a meta
   | Rigid         -- ^ we are not in arguments of a meta but a bound var
   | StronglyRigid -- ^ we are at the start or in the arguments of a constructor
+  | Top           -- ^ we are at the term root (this turns into @StronglyRigid@)
   | Irrel         -- ^ we are in an irrelevant argument
   deriving (Eq, Show)
 
@@ -105,8 +106,14 @@ unfold :: UnfoldStrategy -> Term -> TCM (Blocked Term)
 unfold NoUnfold  v = NotBlocked <$> instantiate v
 unfold YesUnfold v = reduceB v
 
+-- | Leave the top position.
+leaveTop :: OccursCtx -> OccursCtx
+leaveTop Top = StronglyRigid
+leaveTop ctx = ctx
+
 -- | Leave the strongly rigid position.
 weakly :: OccursCtx -> OccursCtx
+weakly Top           = Rigid
 weakly StronglyRigid = Rigid
 weakly ctx = ctx
 
@@ -115,6 +122,7 @@ strongly Rigid = StronglyRigid
 strongly ctx = ctx
 
 abort :: OccursCtx -> TypeError -> TCM a
+abort Top           err = typeError err
 abort StronglyRigid err = typeError err -- here, throw an uncatchable error (unsolvable constraint)
 abort Flex  _ = patternViolation -- throws a PatternErr, which leads to delayed constraint
 abort Rigid _ = patternViolation
@@ -144,6 +152,7 @@ class Occurs t where
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MetaId -> Vars -> Term -> TCM Term
 occursCheck m xs v = liftTCM $ do
+{- OLD CODE
   let bailOnSelf v = do
         v <- instantiate v
         case v of
@@ -154,22 +163,28 @@ occursCheck m xs v = liftTCM $ do
           _ -> return v
 
   v <- bailOnSelf v
-  -- STALE: We only need to check referenced defs once.  No need for reinitialization.
+-}
+  v <- instantiate v
+  case v of
+    -- Don't fail if trying to instantiate to just itself
+    MetaV m' _ | m == m' -> patternViolation
+    Level (Max [Plus 0 (MetaLevel m' _)])
+               | m == m' -> patternViolation
+    _ -> return ()
+
   mv <- lookupMeta m
   initOccursCheck mv
   -- First try without normalising the term
-  occurs NoUnfold  StronglyRigid m xs v `catchError` \_ -> do
+  occurs NoUnfold  Top m xs v `catchError` \_ -> do
   initOccursCheck mv
-  occurs YesUnfold StronglyRigid m xs v `catchError` \err -> case errError err of
+  occurs YesUnfold Top m xs v `catchError` \err -> case errError err of
                           -- Produce nicer error messages
     TypeError _ cl -> case clValue cl of
-{- UNUSED
       MetaOccursInItself{} ->
         typeError . GenericError . show =<<
           fsep [ text ("Refuse to construct infinite term by instantiating " ++ show m ++ " to")
                , prettyTCM =<< instantiateFull v
                ]
- -}
       MetaCannotDependOn _ _ i ->
         ifM ((&&) <$> isSortMeta m <*> (not <$> hasUniversePolymorphism))
         ( typeError . GenericError . show =<<
@@ -198,7 +213,7 @@ instance Occurs Term where
       NotBlocked v -> occurs' ctx v
     where
       occurs' ctx v = case v of
-        Var i vs   -> do         -- abort Rigid turns this error into PatternErr
+        Var i vs   -> do
           if (i `allowedVar` xs) then Var i <$> occ (weakly ctx) vs else do
             -- if the offending variable is of singleton type,
             -- eta-expand it away
@@ -207,23 +222,24 @@ instance Occurs Term where
               -- cannot decide, blocked by meta-var
               Left mid -> patternViolation
               -- not a singleton type
-              Right Nothing ->
+              Right Nothing -> -- abort Rigid turns this error into PatternErr
                 abort (strongly ctx) $ MetaCannotDependOn m (takeRelevant xs) i
               -- is a singleton type with unique inhabitant sv
               Right (Just sv) -> return $ sv `apply` vs
-        Lam h f	    -> Lam h <$> occ ctx f
-        Level l     -> Level <$> occ ctx l
+        Lam h f	    -> Lam h <$> occ (leaveTop ctx) f
+        Level l     -> Level <$> occ ctx l  -- stay in Top
         Lit l	    -> return v
         DontCare v  -> DontCare <$> occurs red Irrel m (goIrrelevant xs) v
-        Def d vs    -> Def d <$> occDef d ctx vs
-        Con c vs    -> Con c <$> occ ctx vs  -- if strongly rigid, remain so
-        Pi a b	    -> uncurry Pi <$> occ ctx (a,b)
-        Sort s	    -> Sort <$> occ ctx s
+        Def d vs    -> Def d <$> occDef d (leaveTop ctx) vs
+        Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
+        Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
+        Sort s	    -> Sort <$> occ (leaveTop ctx) s
         MetaV m' vs -> do
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
             --   after some killing (Issue 442)
-            when (m == m') $ patternViolation
+            when (m == m') $ if ctx == Top then patternViolation else
+              abort ctx $ MetaOccursInItself m'
 
             -- The arguments of a meta are in a flexible position
             (MetaV m' <$> occurs red Flex m xs vs) `catchError` \err -> do
@@ -304,8 +320,9 @@ instance Occurs Level where
 
 instance Occurs PlusLevel where
   occurs red ctx m xs l@ClosedLevel{} = return l
-  occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx m xs l
-
+  occurs red ctx m xs (Plus n l) = Plus n <$> occurs red ctx' m xs l
+    where ctx' | n == 0    = ctx
+               | otherwise = leaveTop ctx  -- we leave Top only if we encounter at least one successor
   metaOccurs m ClosedLevel{} = return ()
   metaOccurs m (Plus n l)    = metaOccurs m l
 
@@ -439,69 +456,13 @@ hasBadRigid xs Con{}        = return $ False
 hasBadRigid xs Lit{}        = return $ False -- no variables in Lit
 hasBadRigid xs MetaV{}      = return $ False -- no rigid variables under a meta
 
+-- This could be optimized, by not computing the whole variable set
+-- at once, but allow early failure
 rigidVarsNotContainedIn :: Free a => a -> [Nat] -> Bool
 rigidVarsNotContainedIn v xs =
   not $ Set.isSubsetOf
     (rigidVars $ freeVars v)
     (Set.fromList xs)
-
-{- TRASH:
-class Raise a => HasBadRigid a where
-  hasBadRigid :: [Nat] -> a -> TCM Bool
-
-instance HasBadRigid Term where
-  hasBadRigid xs (Var x _)    = return $ notElem x xs
-  hasBadRigid xs (Def f vs)   = flip (ifM $ isDataOrRecordType f) (return False) $ do
-    hasBadRigid xs vs
-    -- Andreas, 2012-05-03: There is room for further improvement.
-    -- We could also consider a defined f which is not blocked by a meta.
-  hasBadRigid xs (Lam _ v)    = hasBadRigid xs v
-  hasBadRigid xs (Pi a b)     = hasBadRigid xs a `or2M` hasBadRigid xs b
-  hasBadRigid xs (Level v)    = hasBadRigid xs v
-  hasBadRigid xs (Sort s)     = hasBadRigid xs s
-  hasBadRigid xs (DontCare v) = hasBadRigid xs v
-  hasBadRigid xs Con{}        = return $ False
-  hasBadRigid xs Lit{}        = return $ False
-  hasBadRigid xs MetaV{}      = return $ False
-    -- not $ Set.isSubsetOf
-    --   (rigidVars $ freeVars v)
-    --   (Set.fromList xs)
-
-instance HasBadRigid Type where
-  hasBadRigid xs (El _ t) = hasBadRigid xs t
-
-instance HasBadRigid Sort where
-  hasBadRigid xs (Type l)   = hasBadRigid xs l
-  hasBadRigid xs (DLub a b) = hasBadRigid xs a `or2M` hasBadRigid xs b
-  hasBadRigid xs (Prop)     = return False
-  hasBadRigid xs (Inf)      = return False
-
-instance HasBadRigid Level where
-  hasBadRigid xs (Max vs) = hasBadRigid xs vs
-
-instance HasBadRigid PlusLevel where
-  hasBadRigid xs (ClosedLevel _) = return False
-  hasBadRigid xs (Plus _ l)      = hasBadRigid xs l
-
-instance HasBadRigid LevelAtom where
-  hasBadRigid xs (UnreducedLevel t) = hasBadRigid xs t
-  hasBadRigid xs (NeutralLevel t)   = hasBadRigid xs t
-  hasBadRigid xs (BlockedLevel m t) = return False
-  hasBadRigid xs (MetaLevel m vs)   = return False
-
-instance HasBadRigid a => HasBadRigid (Dom a) where
-  hasBadRigid xs = hasBadRigid xs . unDom
-
-instance HasBadRigid a => HasBadRigid (Arg a) where
-  hasBadRigid xs = hasBadRigid xs . unArg
-
-instance HasBadRigid a => HasBadRigid (Abs a) where
-  hasBadRigid xs b = hasBadRigid (raise 1 xs) (absBody b)
-
-instance HasBadRigid a => HasBadRigid [a] where
-  hasBadRigid xs = orM . map (hasBadRigid xs)
-
--}
 
 
 data PruneResult
