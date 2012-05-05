@@ -75,9 +75,6 @@ showMetaInfo modFile (r, m) =
 
 -- | Turns syntax highlighting information into a list of
 -- S-expressions.
---
--- Precondition: The 'definitionSite's in the highlighting information
--- must be @Nothing@.
 
 lispifyHighlightingInfo
   :: HighlightingInfo
