@@ -122,7 +122,7 @@ data MetaInfo = MetaInfo
 newtype File = File { mapping :: Map Integer MetaInfo }
   deriving (Eq, Show, Typeable)
 
--- | Syntax highlighting information for a given source file.
+-- | Syntax highlighting information.
 
 type HighlightingInfo = CompressedFile
 
