@@ -20,6 +20,7 @@ Note that the same version of the Agda executable must be used.")
 (require 'comint)
 (require 'compile)
 (require 'pp)
+(require 'time-date)
 (require 'eri)
 (require 'annotation)
 (require 'agda-input)
@@ -324,6 +325,12 @@ Set in `agda2-restart'.")
 ;; reference. If the agda2-*-brace definitions were inlined, then
 ;; goals would be displayed as "{{ }}n" instead of "{ }n".
 
+(defvar agda2-measure-data nil
+  "Used by `agda2-measure-load-time'.
+This value is either nil or a pair containing a continuation (or
+nil) and the time at which the measurement was started.")
+(make-variable-buffer-local 'agda2-measure-data)
+
 ;; The following variables are used by the filter process,
 ;; `agda2-ghci-filter'. Their values are only modified by the filter
 ;; process, `agda2-go', `agda2-restart', and
@@ -528,6 +535,12 @@ exist, then an attempt is made to restart the process."
         (accept-process-output agda2-process))
         )))
 
+(defun agda2-abort-if-in-progress ()
+  "Raise an error if the Agda process is (thought to be) busy."
+  (when agda2-in-progress
+    (error "Another command is currently in progress
+\(if a command has been aborted you may want to restart Agda)")))
+
 (defun agda2-go (responses-expected highlight &rest args)
   "Executes commands in GHCi.
 Sends the list of strings ARGS to GHCi, waits for output and
@@ -536,9 +549,7 @@ RESPONSES-EXPECTED is non-nil, then an error is raised. If
 HIGHLIGHT is non-nil, then the buffer's syntax highlighting may
 be updated."
 
-  (when agda2-in-progress
-    (error "Another command is currently in progress
-\(if a command has been aborted you may want to restart Agda)"))
+  (agda2-abort-if-in-progress)
 
   (setq agda2-in-progress           t
         agda2-highlight-in-progress highlight
@@ -671,7 +682,18 @@ reloaded from `agda2-highlighting-file', unless
 
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
-            (agda2-raise-ghci-error))))
+            (agda2-raise-ghci-error))
+
+          (when agda2-measure-data
+            (let ((elapsed
+                   (format "%.2fs"
+                           (float-time (time-since
+                                        (cdr agda2-measure-data)))))
+                  (continuation (car agda2-measure-data)))
+              (setq agda2-measure-data nil)
+              (message "Load time: %s." elapsed)
+              (when continuation
+                (funcall continuation elapsed))))))
 
       (agda2-queue-to-string echoed-text))))
 
@@ -755,6 +777,28 @@ An error is raised if no responses are received."
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))
+
+(defun agda2-measure-load-time
+  (&optional highlighting-level dont-touch continuation)
+  "Load the current buffer and print how much time it takes.
+\(Wall-clock time.)
+
+The given HIGHLIGHTING-LEVEL is used (if non-nil).
+
+The file is first saved and \"touched\", unless DONT-TOUCH is
+non-nil.
+
+If CONTINUATION is non-nil, then CONTINUATION is applied to the
+resulting time (represented as a string)."
+  (interactive)
+  (agda2-abort-if-in-progress)
+  (unless dont-touch
+    (save-buffer)
+    (shell-command (concat "touch \"" (buffer-file-name) "\"")))
+  (let* ((agda2-highlight-level
+          (or highlighting-level agda2-highlight-level)))
+    (setq agda2-measure-data (cons continuation (current-time)))
+    (agda2-load)))
 
 (defun agda2-compile ()
   "Compile the current module.

@@ -1,0 +1,60 @@
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    cat<<EOF
+Usage: $0 <module> <output file>
+
+Runs various benchmarks for the Agda file <module>.
+EOF
+    exit 1
+else
+    MODULE="$1"
+    OUTPUT="$2"
+fi
+
+printf "Benchmarks for $MODULE\n\n" > "$OUTPUT"
+
+printf "Configuration:\n"               >> "$OUTPUT"
+uname -io                               >> "$OUTPUT"
+agda --version                          >> "$OUTPUT"
+ghc --version                           >> "$OUTPUT"
+emacs --version | head -1               >> "$OUTPUT"
+printf "Byte-compiled files:\n"         >> "$OUTPUT"
+ELDIR=$(dirname `agda-mode locate`)
+for FILE in "$ELDIR"/*.el; do
+    ELCFILE=$(basename "$FILE" .el).elc
+    if [ -r "$ELDIR"/"$ELCFILE" ]; then
+        printf "  %s\n" "$ELCFILE"      >> "$OUTPUT"
+    fi
+done
+printf "\n"                             >> "$OUTPUT"
+
+printf "Batch-mode:\n" >> "$OUTPUT"
+rm -f "$MODULE"i
+'time' -p agda -v0 "$MODULE" 2>>"$OUTPUT"
+
+for MODE in None NonInteractive Interactive; do
+  printf "\nHaskell only, %s:\n" $MODE >> "$OUTPUT"
+  rm -f "$MODULE"i
+  printf '\nioTCM "%s" %s (cmd_load "%s" [])\n' "$MODULE" $MODE "$MODULE" | \
+    time -p agda --ghci-interaction > /dev/null 2>>"$OUTPUT"
+done
+
+for MODE in none non-interactive interactive; do
+  printf "\nIn Emacs, %s: " $MODE >> "$OUTPUT"
+  emacs -Q \
+    --eval "(load-file (let ((coding-system-for-read 'utf-8))
+                             (shell-command-to-string \"agda-mode locate\")))" \
+    "$MODULE" \
+    --eval "(progn
+               (defun test nil
+                  (agda2-measure-load-time '$MODE nil
+                     (lambda (time)
+                        (with-temp-buffer
+                           (insert time)
+                           (append-to-file (point-min) (point-max) \"$OUTPUT\"))
+                        (kill-emacs))))
+               (run-with-idle-timer 1 nil 'test))" \
+    2>/dev/null
+  printf "\n" >> "$OUTPUT"
+done
