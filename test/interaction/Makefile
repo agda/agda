@@ -19,17 +19,15 @@ Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
 
 default : $(Tests)
 
-export TMPDIR=highlighting.tmp
-
 run_test=if test -f $*.in; \
     then ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps' ) \
 				 | cat - $*.in | agda --interaction-test "$(wildcard $*.agda $*.lagda)" \
-				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+				 | sed -e 's"$(pwd)""g'; \
     else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
 					 echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
 					 echo "let top_command = top_command' currentFile" ) \
 				 | cat - $*.in_ghci | ghc --interactive -v0 \
-				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+				 | sed -e 's"$(pwd)""g'; \
     fi
 
 setup_Issue591     = rm -f Issue591/M.agdai
@@ -38,18 +36,15 @@ cleanup_Issue373   = rm -rf Issue373 MAlonzo
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
-	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.out=.agdai)"
 	@echo "=== Output for $* ==="
 	@$(run_test) > $@
 	@cat $@
 	@echo "=== End of output ==="
-	@rm -rf $(TMPDIR)
 
 # Comparing output
 $(Tests) : %.cmp : %.out
-	@-mkdir $(TMPDIR)
 	@$(setup_$*)
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
@@ -69,7 +64,6 @@ $(Tests) : %.cmp : %.out
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
 			  then echo "Keeping old output"; \
 			       rm -f $*.tmp; \
-                               rm -rf $(TMPDIR); \
 			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
 			       false; \
 			  else echo "Replacing output, continuing..."; \
@@ -78,4 +72,3 @@ $(Tests) : %.cmp : %.out
 			fi; \
 	 fi
 	@$(cleanup_$*)
-	@rm -rf $(TMPDIR)
