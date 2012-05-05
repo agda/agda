@@ -334,7 +334,7 @@ If `agda2-highlight-face-groups' is nil."
   :group 'agda2-highlight-faces)
 
 (defface agda2-highlight-typechecks-face
-  '((t (:background "violet red"
+  '((t (:background "light blue"
         :foreground "black")))
   "The face used for code which is being type-checked."
   :group 'agda2-highlight-faces)

@@ -26,7 +26,7 @@
 .TerminationProblem { color: black; background: #FFA07A        }
 .IncompletePattern  { color: black; background: #F5DEB3        }
 .Error              { color: red;   text-decoration: underline }
-.TypeChecks         { color: black; background: #D02090 }
+.TypeChecks         { color: black; background: #ADD8E6        }
 
 /* Standard attributes. */
 a { text-decoration: none }
