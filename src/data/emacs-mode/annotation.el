@@ -167,14 +167,8 @@ buffer."
                               props)))))
        (setq pos (unless (equal pos2 end) pos2))))))
 
-(defun annotation-load (removep goto-help &rest cmds)
+(defun annotation-load (goto-help &rest cmds)
   "Apply highlighting annotations in CMDS in the current buffer.
-
-If (`funcall' REMOVEP anns) is non-nil, then all existing text
-properties set by `annotation-annotate' in the current buffer are
-first removed. Here anns is a list containing all the
-annotations (third argument to `annotation-annotate') to be
-applied (in some order, with duplicates removed).
 
 The argument CMDS should be a list of lists (start end anns
 &optional info goto). Text between start and end will be
@@ -195,16 +189,12 @@ Note: This function may fail if there is read-only text in the
 buffer."
   (annotation-preserve-mod-p-and-undo
     (when (listp cmds)
-      (let ((anns (delete-dups
-                    (apply 'append (mapcar (lambda (x) (nth 2 x)) cmds)))))
-        (if (funcall removep anns)
-            (annotation-remove-annotations))
-        (dolist (cmd cmds)
-          (destructuring-bind (start end anns &optional info goto) cmd
-            (let ((info (if (and (not info) (consp goto))
-                            goto-help
-                          info)))
-                  (annotation-annotate start end anns info goto))))))))
+      (dolist (cmd cmds)
+        (destructuring-bind (start end anns &optional info goto) cmd
+          (let ((info (if (and (not info) (consp goto))
+                          goto-help
+                        info)))
+            (annotation-annotate start end anns info goto)))))))
 
 (provide 'annotation)
 ;;; annotation.el ends here

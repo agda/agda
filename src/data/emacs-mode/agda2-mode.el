@@ -584,17 +584,10 @@ executed first.
 
 Non-last commands should not call the Agda process.
 
-Commands of the form \"(agda2-typechecking-emacs ARGS)\" are
-interpreted by this filter function; the highlighting
-instructions in ARGS are applied to the Agda buffer, unless
-`agda2-highlighting-in-progress' is nil.
-
 All commands are echoed to the *ghci* buffer, with the exception
-of the agda2-typechecking-emacs ones.
+of commands of the form \"(agda2-highlight-... ...)\".
 
-The non-last commands are run in the order in which they appear,
-with the exception of the agda2-typechecking-emacs ones, which
-are run before the other non-last commands.
+The non-last commands are run in the order in which they appear.
 
 When the prompt has been reached an error is raised if
 `agda2-responses-expected' is non-nil and no commands have
@@ -638,33 +631,28 @@ reloaded from `agda2-highlighting-file', unless
                                   (car result)))
                           (error nil)))
 
-                   ;; Is the command an interactive highlighting command?
-                   (highlighting-cmd (equal (car-safe cmd)
-                                            'agda2-typechecking-emacs)))
+                   ;; Is the command a highlighting command?
+                   (highlighting-cmd
+                    (and (consp cmd)
+                         (symbolp (car cmd))
+                         (let ((case-fold-search nil))
+                           (string-match "^agda2-highlight-"
+                                         (symbol-name (car cmd)))))))
+
               (unless highlighting-cmd
                 (agda2-queue-enqueue echoed-text (concat line "\n")))
 
               (when cmd
                 (incf agda2-responses)
 
-                (if highlighting-cmd
-                    ;; Store the highlighting annotations.
-                    (setq highlighting-anns
-                          (append (reverse (cdr cmd)) highlighting-anns))
-
-                  ;; Store the command.
-                  (if (equal 'last (car-safe (car cmd)))
-                      (push (cons (cdr (car cmd)) (cdr cmd))
-                            agda2-last-responses)
-                    (push cmd non-last-commands))))))
+                ;; Store the command.
+                (if (equal 'last (car-safe (car cmd)))
+                    (push (cons (cdr (car cmd)) (cdr cmd))
+                          agda2-last-responses)
+                  (push cmd non-last-commands)))))
 
           ;; Run non-last commands.
-          (mapc 'agda2-exec-response (nreverse non-last-commands))
-
-          ;; Apply interactive highlighting annotations.
-          (when agda2-highlight-in-progress
-            (apply 'agda2-highlight-add-annotations 'keep
-                   (nreverse highlighting-anns))))
+          (mapc 'agda2-exec-response (nreverse non-last-commands)))
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
@@ -939,6 +927,15 @@ is inserted, and point is placed before this text."
       (if append
           (goto-char (point-max))
         (goto-char (point-min))))))
+
+(defun agda2-highlight-load-and-delete-action (file)
+  "Like `agda2-highlight-load', but deletes FILE when done.
+And highlighting is only updated if `agda2-highlight-in-progress'
+is non-nil."
+  (unwind-protect
+      (if agda2-highlight-in-progress
+          (agda2-highlight-load file))
+    (delete-file file)))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)

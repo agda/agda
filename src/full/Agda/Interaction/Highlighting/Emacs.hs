@@ -17,17 +17,22 @@ import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
 import Agda.TypeChecking.Errors (prettyError)
 import Agda.Utils.FileName
+import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
 import Agda.Utils.TestHelpers
 
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
+import qualified Control.Exception as E
 import Control.Monad.Trans
+import Data.Char
 import Data.List
 import qualified Data.Map as Map
-import Data.Char
 import Data.Maybe
+import Data.Monoid
+import qualified System.Directory as D
+import qualified System.IO as IO
 
 ------------------------------------------------------------------------
 -- Read/show functions
@@ -80,10 +85,26 @@ lispifyHighlightingInfo
   :: HighlightingInfo
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
-  -> Lisp String
-lispifyHighlightingInfo h modFile =
-  L ( A "agda2-typechecking-emacs" :
-      map (showMetaInfo modFile) (ranges h) )
+  -> IO (Lisp String)
+lispifyHighlightingInfo h modFile = case ranges h of
+  ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
+                  mi == mempty                       -> direct
+  _                                                  -> indirect
+  where
+  info     = map (showMetaInfo modFile) (ranges h)
+
+  direct   = return $ L (A "agda2-highlight-add-annotations" :
+                         map Q info)
+
+  indirect = do
+    dir <- D.getTemporaryDirectory
+    f   <- E.bracket (IO.openTempFile dir "agda2-mode")
+                     (IO.hClose . snd) $ \ (f, h) -> do
+             UTF8.hPutStr h (show $ L info)
+             return f
+    return $ L [ A "agda2-highlight-load-and-delete-action"
+               , A (quote f)
+               ]
 
 ------------------------------------------------------------------------
 -- All tests

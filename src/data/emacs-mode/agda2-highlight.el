@@ -406,18 +406,26 @@ table). The face `font-lock-comment-face' is used for comments.")
   "Set up the `annotation' library for use with `agda2-mode'."
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-add-annotations (keep &rest cmds)
+(defun agda2-highlight-add-annotations (&rest cmds)
   "Adds the syntax highlighting information in the annotation list CMDS.
 
-Old syntax highlighting information is first removed, unless KEEP
-is non-nil."
-  (let ((coding-system-for-read 'utf-8)
-        ;; Ignore read-only status, otherwise this function may fail.
+Old syntax highlighting information is not removed."
+  (let (;; Ignore read-only status, otherwise this function may fail.
         (inhibit-read-only t))
     (apply 'annotation-load
-           (lambda (anns) (not keep))
            "Click mouse-2 to jump to definition"
            cmds)))
+
+(defun agda2-highlight-load (file)
+  "Load syntax highlighting information from FILE.
+
+Old syntax highlighting information is not removed."
+  (let* ((coding-system-for-read 'utf-8)
+         (cmds (with-temp-buffer
+                 (insert-file-contents file)
+                 (goto-char (point-min))
+                 (read (current-buffer)))))
+      (apply 'agda2-highlight-add-annotations cmds)))
 
 (defun agda2-highlight-clear nil
   "Remove all syntax highlighting added by `agda2-highlight-reload'."

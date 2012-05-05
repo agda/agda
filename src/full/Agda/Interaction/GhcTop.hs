@@ -306,7 +306,7 @@ tcmAction state filepath highlighting action =
 
 lispifyResponse :: Response -> IO (Lisp String)
 lispifyResponse (Resp_HighlightingInfo info modFile) =
-  return $ lispifyHighlightingInfo info modFile
+  lispifyHighlightingInfo info modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of
     Info_CompilationOk -> f "The module was successfully compiled." "*Compilation result*"
     Info_Constraints s -> f s "*Constraints*"
