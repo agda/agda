@@ -216,15 +216,16 @@ Emacs mode
     (without go-to-definition information for overloaded
     constructors).
 
-  • The piece of code that is currently being type-checked is
-    highlighted as such.
+  • If the highlighting level is "interactive", then the piece of code
+    that is currently being type-checked is highlighted as such. (The
+    default is "non-interactive".)
 
   • When a mutual block has been type-checked it is highlighted
     properly (this highlighting includes warnings for potential
     non-termination).
 
-  The amount of highlighting can be controlled via the new
-  configuration variable agda2-highlight-level.
+  The highlighting level can be controlled via the new configuration
+  variable agda2-highlight-level.
 
 * The Emacs mode now presents information about which module is
   currently being type-checked.

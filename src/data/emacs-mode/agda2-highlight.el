@@ -15,7 +15,7 @@
   "Syntax highlighting for Agda."
   :group 'agda2)
 
-(defcustom agda2-highlight-level 'interactive
+(defcustom agda2-highlight-level 'non-interactive
   "How much syntax highlighting should be produced?
 Interactive highlighting includes highlighting of the expression
 that is currently being type-checked."
