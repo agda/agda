@@ -15,7 +15,11 @@ fi
 printf "Benchmarks for $MODULE\n\n" > "$OUTPUT"
 
 printf "Configuration:\n"               >> "$OUTPUT"
-uname -io                               >> "$OUTPUT"
+if [[ `uname` == 'Darwin' ]]; then
+   uname -ms                               >> "$OUTPUT"
+else
+   uname -io                               >> "$OUTPUT"
+fi
 agda --version                          >> "$OUTPUT"
 ghc --version                           >> "$OUTPUT"
 emacs --version | head -1               >> "$OUTPUT"
