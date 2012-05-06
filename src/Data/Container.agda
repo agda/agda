@@ -37,14 +37,14 @@ open Container public
 -- The semantics ("extension") of a container.
 
 ⟦_⟧ : ∀ {ℓ} → Container ℓ → Set ℓ → Set ℓ
-⟦ C ⟧ X = Σ[ s ∶ Shape C ] (Position C s → X)
+⟦ C ⟧ X = Σ[ s ∈ Shape C ] (Position C s → X)
 
 -- Equality, parametrised on an underlying relation.
 
 Eq : ∀ {c ℓ} {C : Container c} {X Y : Set c} →
      (X → Y → Set ℓ) → ⟦ C ⟧ X → ⟦ C ⟧ Y → Set (c ⊔ ℓ)
 Eq {C = C} _≈_ (s , f) (s′ , f′) =
-  Σ[ eq ∶ s ≡ s′ ] (∀ p → f p ≈ f′ (P.subst (Position C) eq p))
+  Σ[ eq ∈ s ≡ s′ ] (∀ p → f p ≈ f′ (P.subst (Position C) eq p))
 
 private
 
