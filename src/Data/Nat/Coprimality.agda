@@ -136,3 +136,45 @@ gcd′-gcd (gcd-* q₁ q₂ c) = GCD.is (∣-* q₁ , ∣-* q₂) (coprime-facto
 
 gcd′ : ∀ m n → ∃ λ d → GCD′ m n d
 gcd′ m n = Prod.map id gcd-gcd′ (gcd m n)
+
+-- Primality implies coprimality
+private
+  open import Data.Nat.Primality
+  open import Data.Nat.Properties
+  open import Data.Empty
+  open import Data.Fin using (Fin; toℕ; fromℕ≤; #_)
+  open import Data.Fin.Props
+  open PropEq.≡-Reasoning
+
+prime⇒coprime : ∀ n → Prime n → ∀ x → (suc x) < n → Coprime n (suc x)
+prime⇒coprime 0 () _ _ _
+prime⇒coprime 1 () _ _ _
+prime⇒coprime (suc (suc n)) p _ _ {0} (divides q eq , _) = ⊥-elim (i+1+j≢i 0 contradiction)
+  where
+  contradiction : suc (suc n) ≡ 0
+  contradiction =
+    begin
+      suc (suc n)
+    ≡⟨ eq ⟩
+      q * 0
+    ≡⟨ proj₂ CS.zero q ⟩
+      0
+    ∎
+prime⇒coprime (suc (suc n)) p _ _ {1} _ = refl
+prime⇒coprime (suc (suc n)) p x x+1<n+2 {suc (suc i)} (i+2∣n+2 , i+2∣x+1) = ⊥-elim (p (proj₁ fin) (proj₂ fin))
+  where
+  i+2≤x+1 : suc (suc i) ≤ suc x
+  i+2≤x+1 = ∣⇒≤ i+2∣x+1
+
+  i+2<n+2 : suc (suc i) < suc (suc n)
+  i+2<n+2 = s≤s i+2≤x+1 ⟨ trans ⟩ x+1<n+2
+    where
+    open DecTotalOrder Data.Nat.decTotalOrder using (trans)
+
+  i<n : i < n
+  i<n = (≤-pred ∘ ≤-pred) i+2<n+2
+
+  fin : ∃ λ (k : Fin n) → suc (suc (toℕ k)) ∣ suc (suc n)
+  fin = fromℕ≤ i<n , PropEq.subst (λ ξ → ξ ∣ suc (suc n)) (PropEq.sym (PropEq.cong (suc ∘ suc) (toℕ-fromℕ≤ i<n))) i+2∣n+2
+
+
