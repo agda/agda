@@ -337,11 +337,8 @@ lispifyResponse (Resp_Status s)
 
 lispifyResponse (Resp_JumpToError f p)
     = return $ L [ A "agda2-goto", Q $ L [A (quote f), A ".", A (show p)] ]
-lispifyResponse (Resp_InteractionPoints is) = return $
-            Cons (Cons (A "last") (A "1"))
-                 (L [ A "agda2-goals-action"
-                    , Q $ L $ List.map showNumIId is
-                    ])
+lispifyResponse (Resp_InteractionPoints is) = return $ lastTag 1 $
+  L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
 lispifyResponse (Resp_GiveAction ii s)
     = return $ L [A "agda2-give-action", showNumIId ii, A s']
   where
@@ -349,23 +346,19 @@ lispifyResponse (Resp_GiveAction ii s)
         Give_String str -> quote str
         Give_Paren      -> "'paren"
         Give_NoParen    -> "'no-paren"
-lispifyResponse (Resp_MakeCaseAction cs) = return $
-     Cons (Cons (A "last") (A "2"))
-          (L [ A "agda2-make-case-action",
-               Q $ L $ List.map (A . quote) cs
-             ])
-lispifyResponse (Resp_MakeCase cmd pcs) = return $
-      Cons (Cons (A "last") (A "2"))
-           (L [ A cmd
-              , Q $ L $ List.map (A . quote) pcs
-              ])
-lispifyResponse (Resp_SolveAll ps) = return $
-    Cons (Cons (A "last") (A "2"))
-         (L [ A "agda2-solveAll-action"
-            , Q . L $ concatMap prn ps
-            ])
+lispifyResponse (Resp_MakeCaseAction cs) = return $ lastTag 2 $
+  L [A "agda2-make-case-action", Q $ L $ List.map (A . quote) cs]
+lispifyResponse (Resp_MakeCase cmd pcs) = return $ lastTag 2 $
+  L [A cmd, Q $ L $ List.map (A . quote) pcs]
+lispifyResponse (Resp_SolveAll ps) = return $ lastTag 2 $
+  L [A "agda2-solveAll-action", Q . L $ concatMap prn ps]
   where
     prn (ii,e)= [showNumIId ii, A $ quote $ show e]
+
+-- | Adds a \"last\" tag to a response.
+
+lastTag :: Integer -> Lisp String -> Lisp String
+lastTag n r = Cons (Cons (A "last") (A $ show n)) r
 
 -- | Show an iteraction point identifier as an elisp expression.
 
