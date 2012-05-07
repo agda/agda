@@ -30,8 +30,9 @@ open Data.AVL (Vec String)
 
 -- Some values.
 
-v₁ = "cepa" ∷ []
-v₂ = "apa" ∷ "bepa" ∷ []
+v₁  = "cepa" ∷ []
+v₁′ = "depa" ∷ []
+v₂  = "apa" ∷ "bepa" ∷ []
 
 -- Empty and singleton trees.
 
@@ -44,6 +45,11 @@ t₁ = singleton 2 v₂
 -- Insertion of a key-value pair into a tree.
 
 t₂ = insert 1 v₁ t₁
+
+-- If you insert a key-value pair and the key already exists in the
+-- tree, then the old value is thrown away.
+
+t₂′ = insert 1 v₁′ t₂
 
 -- Deletion of the mapping for a certain key.
 
@@ -87,6 +93,9 @@ q₄ = refl
 
 q₅ : toList t₂ ≡ (1 , v₁) ∷ (2 , v₂) ∷ []
 q₅ = refl
+
+q₅′ : toList t₂′ ≡ (1 , v₁′) ∷ (2 , v₂) ∷ []
+q₅′ = refl
 
 ------------------------------------------------------------------------
 -- Views

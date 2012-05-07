@@ -309,28 +309,28 @@ module Indexed where
   singleton : ∀ {l u} (k : Key) → Value k → l < k < u → Tree l u 1
   singleton k v (l<k , k<u) = node (k , v) (leaf l<k) (leaf k<u) ∼0
 
+  -- Inserts a key into the tree, using a function to combine any
+  -- existing value with the new value. Logarithmic in the size of the
+  -- tree (assuming constant-time comparisons and a constant-time
+  -- combining function).
+
+  insertWith : ∀ {l u h} → (k : Key) → Value k →
+               (Value k → Value k → Value k) →  -- New → old → result.
+               Tree l u h → l < k < u →
+               ∃ λ i → Tree l u (i ⊕ h)
+  insertWith k v f (leaf l<u) l<k<u = (1# , singleton k v l<k<u)
+  insertWith k v f (node (k′ , v′) lp pu bal) (l<k , k<u) with compare k k′
+  ... | tri< k<k′ _ _ = joinˡ⁺ (k′ , v′) (insertWith k v f lp (l<k , k<k′)) pu bal
+  ... | tri> _ _ k′<k = joinʳ⁺ (k′ , v′) lp (insertWith k v f pu (k′<k , k<u)) bal
+  ... | tri≈ _ k≡k′ _ rewrite P.sym k≡k′ = (0# , node (k , f v v′) lp pu bal)
+
   -- Inserts a key into the tree. If the key already exists, then it
   -- is replaced. Logarithmic in the size of the tree (assuming
   -- constant-time comparisons).
 
   insert : ∀ {l u h} → (k : Key) → Value k → Tree l u h → l < k < u →
            ∃ λ i → Tree l u (i ⊕ h)
-  insert k v (leaf l<u)         l<k<u       = (1# , singleton k v l<k<u)
-  insert k v (node p lp pu bal) (l<k , k<u) with compare k (proj₁ p)
-  ... | tri< k<p _ _ = joinˡ⁺ p (insert k v lp (l<k , k<p)) pu bal
-  ... | tri> _ _ p<k = joinʳ⁺ p lp (insert k v pu (p<k , k<u)) bal
-  ... | tri≈ _ k≡p _ rewrite P.sym k≡p = (0# , node (k , v) lp pu bal)
-
-  -- Inserts a key into the tree, using a function to combine any existing
-  -- value with the new value.
-
-  insertWith : ∀ {l u h} → (k : Key) → Value k → (Value k -> Value k -> Value k) -> Tree l u h → l < k < u →
-           ∃ λ i → Tree l u (i ⊕ h)
-  insertWith k v f (leaf l<u)         l<k<u       = (1# , singleton k v l<k<u)
-  insertWith k v f (node (p , v') lp pu bal) (l<k , k<u) with compare k p
-  ... | tri< k<p _ _ = joinˡ⁺ (p , v') (insert k v lp (l<k , k<p)) pu bal
-  ... | tri> _ _ p<k = joinʳ⁺ (p , v') lp (insert k v pu (p<k , k<u)) bal
-  ... | tri≈ _ k≡p _ rewrite P.sym k≡p = (0# , node (k , f v v') lp pu bal)
+  insert k v = insertWith k v const
 
   -- Deletes the key/value pair containing the given key, if any.
   -- Logarithmic in the size of the tree (assuming constant-time
@@ -356,9 +356,10 @@ module Indexed where
 
   -- Maps a function over all values in the tree.
 
-  map : ({k : Key} -> Value k -> Value k) -> ∀ {l u h} -> Tree l u h -> Tree l u h
-  map f (leaf l<u) = leaf l<u
-  map f (node (k , v) t t' bal) = node (k , f v) (map f t) (map f t') bal
+  map : (∀ {k} → Value k → Value k) →
+        ∀ {l u h} → Tree l u h → Tree l u h
+  map f (leaf l<u)             = leaf l<u
+  map f (node (k , v) l r bal) = node (k , f v) (map f l) (map f r) bal
 
   -- Converts the tree to an ordered list. Linear in the size of the
   -- tree.
@@ -385,7 +386,8 @@ singleton k v = tree (Indexed.singleton k v _)
 insert : (k : Key) → Value k → Tree → Tree
 insert k v (tree t) = tree $ proj₂ $ Indexed.insert k v t _
 
-insertWith : (k : Key) → Value k → (Value k -> Value k -> Value k) -> Tree → Tree
+insertWith : (k : Key) → Value k → (Value k → Value k → Value k) →
+             Tree → Tree
 insertWith k v f (tree t) = tree $ proj₂ $ Indexed.insertWith k v f t _
 
 delete : Key → Tree → Tree
@@ -420,14 +422,23 @@ fromList = List.foldr (uncurry insert) empty
 toList : Tree → List KV
 toList (tree t) = DiffList.toList (Indexed.toDiffList t)
 
-union : Tree -> Tree -> Tree
-union t1 t2 = List.foldr (λ { (k , v) -> insert k v }) t2 (toList t1)
+-- Naive implementations of union.
 
-unionWith : ({k : Key} -> Value k -> Value k -> Value k) -> Tree -> Tree -> Tree
-unionWith f t1 t2 = List.foldr (λ { (k , v) -> insertWith k v f }) t2 (toList t1)
+unionWith : (∀ {k} → Value k → Value k → Value k) →
+            -- Left → right → result.
+            Tree → Tree → Tree
+unionWith f t₁ t₂ =
+  List.foldr (λ { (k , v) → insertWith k v f }) t₂ (toList t₁)
 
-unions : List Tree -> Tree
-unions ts = List.foldr union empty ts
+-- Left-biased.
 
-unionsWith : ({k : Key} -> Value k -> Value k -> Value k) -> List Tree -> Tree
+union : Tree → Tree → Tree
+union = unionWith const
+
+unionsWith : (∀ {k} → Value k → Value k → Value k) → List Tree → Tree
 unionsWith f ts = List.foldr (unionWith f) empty ts
+
+-- Left-biased.
+
+unions : List Tree → Tree
+unions = unionsWith const
