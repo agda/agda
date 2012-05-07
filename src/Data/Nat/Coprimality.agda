@@ -6,7 +6,11 @@
 
 module Data.Nat.Coprimality where
 
+open import Data.Empty
+open import Data.Fin using (toℕ; fromℕ≤)
+open import Data.Fin.Props as FinProp
 open import Data.Nat
+open import Data.Nat.Primality
 import Data.Nat.Properties as NatProp
 open import Data.Nat.Divisibility as Div
 open import Data.Nat.GCD
@@ -137,44 +141,33 @@ gcd′-gcd (gcd-* q₁ q₂ c) = GCD.is (∣-* q₁ , ∣-* q₂) (coprime-facto
 gcd′ : ∀ m n → ∃ λ d → GCD′ m n d
 gcd′ m n = Prod.map id gcd-gcd′ (gcd m n)
 
--- Primality implies coprimality
-private
-  open import Data.Nat.Primality
-  open import Data.Nat.Properties
-  open import Data.Empty
-  open import Data.Fin using (Fin; toℕ; fromℕ≤; #_)
-  open import Data.Fin.Props
-  open PropEq.≡-Reasoning
+-- Primality implies coprimality.
 
-prime⇒coprime : ∀ n → Prime n → ∀ x → (suc x) < n → Coprime n (suc x)
-prime⇒coprime 0 () _ _ _
-prime⇒coprime 1 () _ _ _
-prime⇒coprime (suc (suc n)) p _ _ {0} (divides q eq , _) = ⊥-elim (i+1+j≢i 0 contradiction)
+prime⇒coprime : ∀ m → Prime m →
+                ∀ n → 0 < n → n < m → Coprime m n
+prime⇒coprime 0             () _ _  _     _
+prime⇒coprime 1             () _ _  _     _
+prime⇒coprime (suc (suc m)) _  0 () _     _
+prime⇒coprime (suc (suc m)) _  _ _  _ {1} _                       = refl
+prime⇒coprime (suc (suc m)) p  _ _  _ {0} (divides q 2+m≡q*0 , _) =
+  ⊥-elim $ NatProp.i+1+j≢i 0 (begin
+    2 + m  ≡⟨ 2+m≡q*0 ⟩
+    q * 0  ≡⟨ proj₂ CS.zero q ⟩
+    0      ∎)
+  where open PropEq.≡-Reasoning
+prime⇒coprime (suc (suc m)) p (suc n) _ 1+n<2+m {suc (suc i)}
+              (2+i∣2+m , 2+i∣1+n) =
+  ⊥-elim (p _ 2+i′∣2+m)
   where
-  contradiction : suc (suc n) ≡ 0
-  contradiction =
-    begin
-      suc (suc n)
-    ≡⟨ eq ⟩
-      q * 0
-    ≡⟨ proj₂ CS.zero q ⟩
-      0
-    ∎
-prime⇒coprime (suc (suc n)) p _ _ {1} _ = refl
-prime⇒coprime (suc (suc n)) p x x+1<n+2 {suc (suc i)} (i+2∣n+2 , i+2∣x+1) = ⊥-elim (p (proj₁ fin) (proj₂ fin))
-  where
-  i+2≤x+1 : suc (suc i) ≤ suc x
-  i+2≤x+1 = ∣⇒≤ i+2∣x+1
+  i<m : i < m
+  i<m = ≤-pred $ ≤-pred (begin
+    3 + i  ≤⟨ s≤s (∣⇒≤ 2+i∣1+n) ⟩
+    2 + n  ≤⟨ 1+n<2+m ⟩
+    2 + m  ∎)
+    where open ≤-Reasoning
 
-  i+2<n+2 : suc (suc i) < suc (suc n)
-  i+2<n+2 = s≤s i+2≤x+1 ⟨ trans ⟩ x+1<n+2
-    where
-    open DecTotalOrder Data.Nat.decTotalOrder using (trans)
-
-  i<n : i < n
-  i<n = (≤-pred ∘ ≤-pred) i+2<n+2
-
-  fin : ∃ λ (k : Fin n) → suc (suc (toℕ k)) ∣ suc (suc n)
-  fin = fromℕ≤ i<n , PropEq.subst (λ ξ → ξ ∣ suc (suc n)) (PropEq.sym (PropEq.cong (suc ∘ suc) (toℕ-fromℕ≤ i<n))) i+2∣n+2
-
-
+  2+i′∣2+m : 2 + toℕ (fromℕ≤ i<m) ∣ 2 + m
+  2+i′∣2+m = PropEq.subst
+    (λ j → j ∣ 2 + m)
+    (PropEq.sym (PropEq.cong (_+_ 2) (FinProp.toℕ-fromℕ≤ i<m)))
+    2+i∣2+m
