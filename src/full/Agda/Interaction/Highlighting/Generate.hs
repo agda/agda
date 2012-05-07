@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts, RelaxedPolyRec #-}
 
 -- | Generates data used for precise syntax highlighting.
 
