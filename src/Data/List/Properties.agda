@@ -339,6 +339,18 @@ reverse-++-commute (x ∷ xs) ys = begin
   reverse ys ++ reverse (x ∷ xs)       ∎
   where open P.≡-Reasoning
 
+reverse-map-commute :
+  ∀ {a b} {A : Set a} {B : Set b} (f : A → B) → (xs : List A) →
+  map f (reverse xs) ≡ reverse (map f xs)
+reverse-map-commute f [] = refl
+reverse-map-commute f (x ∷ xs) = begin
+  map f (reverse (x ∷ xs))   ≡⟨ P.cong (map f) $ unfold-reverse x xs ⟩
+  map f (reverse xs ∷ʳ x)    ≡⟨ map-++-commute f (reverse xs) ([ x ]) ⟩
+  map f (reverse xs) ∷ʳ f x  ≡⟨ P.cong (λ y → y ∷ʳ f x) $ reverse-map-commute f xs ⟩
+  reverse (map f xs) ∷ʳ f x  ≡⟨ P.sym $ unfold-reverse (f x) (map f xs) ⟩
+  reverse (map f (x ∷ xs))   ∎
+  where open P.≡-Reasoning
+
 -- The list monad.
 
 module Monad where
