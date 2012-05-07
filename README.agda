@@ -5,10 +5,10 @@ module README where
 --
 -- Author: Nils Anders Danielsson, with contributions from Andreas
 -- Abel, Thorsten Altenkirch, Jean-Philippe Bernardy, Peter Berry,
--- Samuel Bronson, Daniel Brown, James Chapman, Liang-Ting Chen,
--- Dominique Devriese, Dan Doel, Simon Foster, Patrik Jansson, Alan
--- Jeffrey, Eric Mertens, Darin Morrison, Shin-Cheng Mu, Ulf Norell,
--- Nicolas Pouillard and Andrés Sicard-Ramírez
+-- Joachim Breitner, Samuel Bronson, Daniel Brown, James Chapman,
+-- Liang-Ting Chen, Dominique Devriese, Dan Doel, Simon Foster, Patrik
+-- Jansson, Alan Jeffrey, Eric Mertens, Darin Morrison, Shin-Cheng Mu,
+-- Ulf Norell, Nicolas Pouillard and Andrés Sicard-Ramírez
 ------------------------------------------------------------------------
 
 -- Note that the development version of the library often requires the
