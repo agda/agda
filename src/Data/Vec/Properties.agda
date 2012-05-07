@@ -119,7 +119,7 @@ lookup-++-+′ []       ys       zero    = refl
 lookup-++-+′ []       (y ∷ xs) (suc i) = lookup-++-+′ [] xs i
 lookup-++-+′ (x ∷ xs) ys       i       = lookup-++-+′ xs ys i
 
--- lookup and _[_]≔_ behave as expected.
+-- Properties relating lookup and _[_]≔_.
 
 lookup∘update : ∀ {a} {A : Set a} {n}
                 (i : Fin n) (xs : Vec A n) x →
@@ -131,9 +131,10 @@ lookup∘update′ : ∀ {a} {A : Set a} {n} {i j : Fin n} →
                  i ≢ j → ∀ (xs : Vec A n) y →
                  lookup i (xs [ j ]≔ y) ≡ lookup i xs
 lookup∘update′ {i = zero}  {zero}  i≢j      xs  y = ⊥-elim (i≢j refl)
-lookup∘update′ {i = zero}  {suc i} i≢j (x ∷ xs) y = refl
+lookup∘update′ {i = zero}  {suc j} i≢j (x ∷ xs) y = refl
 lookup∘update′ {i = suc i} {zero}  i≢j (x ∷ xs) y = refl
-lookup∘update′ {i = suc i} {suc j} i≢j (x ∷ xs) y = lookup∘update′ (i≢j ∘ P.cong suc) xs y
+lookup∘update′ {i = suc i} {suc j} i≢j (x ∷ xs) y =
+  lookup∘update′ (i≢j ∘ P.cong suc) xs y
 
 -- map is a congruence.
 
