@@ -19,7 +19,7 @@ open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Product as Prod hiding (map)
 open import Function
-import Algebra.FunctionProperties as FunProp
+import Algebra.FunctionProperties
 import Relation.Binary.EqReasoning as EqR
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≢_; _≗_; refl)
@@ -28,6 +28,8 @@ open import Relation.Nullary.Decidable using (⌊_⌋)
 open import Relation.Unary using (Decidable)
 
 private
+  open module FP {a} {A : Set a} =
+    Algebra.FunctionProperties (_≡_ {A = A})
   open module LMP {ℓ} = RawMonadPlus (List.monadPlus {ℓ = ℓ})
   module LM {a} {A : Set a} = Monoid (List.monoid A)
 
@@ -343,7 +345,7 @@ reverse-++-commute (x ∷ xs) ys = begin
 reverse-map-commute :
   ∀ {a b} {A : Set a} {B : Set b} (f : A → B) → (xs : List A) →
   map f (reverse xs) ≡ reverse (map f xs)
-reverse-map-commute f [] = refl
+reverse-map-commute f []       = refl
 reverse-map-commute f (x ∷ xs) = begin
   map f (reverse (x ∷ xs))   ≡⟨ P.cong (map f) $ unfold-reverse x xs ⟩
   map f (reverse xs ∷ʳ x)    ≡⟨ map-++-commute f (reverse xs) ([ x ]) ⟩
@@ -352,7 +354,7 @@ reverse-map-commute f (x ∷ xs) = begin
   reverse (map f (x ∷ xs))   ∎
   where open P.≡-Reasoning
 
-reverse-involutive : ∀{a} {A : Set a} → FunProp.Involutive {a} {a} {List A} _≡_ reverse
+reverse-involutive : ∀ {a} {A : Set a} → Involutive (reverse {A = A})
 reverse-involutive [] = refl
 reverse-involutive (x ∷ xs) = begin
   reverse (reverse (x ∷ xs))   ≡⟨ P.cong reverse $ unfold-reverse x xs ⟩
