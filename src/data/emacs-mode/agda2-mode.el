@@ -482,9 +482,6 @@ Special commands:
   (with-current-buffer agda2-process-buffer
       (add-hook 'comint-preoutput-filter-functions
                 'agda2-ghci-filter
-                nil 'local)
-      (add-hook 'comint-output-filter-functions
-                'agda2-ghci-run-last-commands
                 nil 'local))
   (agda2-remove-annotations))
 
@@ -659,10 +656,7 @@ reloaded from `agda2-highlighting-file', unless
         (when (agda2-queue-is-prefix-of agda2-ghci-prompt
                                         agda2-ghci-chunk-incomplete)
           (setq agda2-in-progress nil)
-          (setq agda2-highlight-in-progress nil)
-          (setq agda2-last-responses
-                (sort (nreverse agda2-last-responses)
-                      (lambda (x y) (<= (car x) (car y)))))
+          (setq agda2-last-responses (nreverse agda2-last-responses))
 
           (agda2-queue-enqueue echoed-text
             (agda2-queue-to-string agda2-ghci-chunk-incomplete))
@@ -671,6 +665,8 @@ reloaded from `agda2-highlighting-file', unless
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
             (agda2-raise-ghci-error))
+
+          (agda2-ghci-run-last-commands)
 
           (when agda2-measure-data
             (let ((elapsed
@@ -685,18 +681,24 @@ reloaded from `agda2-highlighting-file', unless
 
       (agda2-queue-to-string echoed-text))))
 
-(defun agda2-ghci-run-last-commands (text)
+(defun agda2-ghci-run-last-commands nil
   "Execute the last commands in the right order.
-\(After the prompt has reappeared.) See `agda2-ghci-filter'. The
-TEXT argument is not used."
-  (with-current-buffer agda2-file-buffer
-    (while (and (not agda2-in-progress) (consp agda2-last-responses))
+\(After the prompt has reappeared.) See `agda2-ghci-filter'."
+
+  ;; with-current-buffer is used repeatedly below, because some last
+  ;; commands may switch the focus to another buffer.
+
+  (while (with-current-buffer agda2-file-buffer
+           (and (not agda2-in-progress) (consp agda2-last-responses)))
+    (with-current-buffer agda2-file-buffer
       ;; The list is sorted repeatedly because this function may be
       ;; called recursively (via `agda2-exec-response').
       (setq agda2-last-responses (sort agda2-last-responses
                                        (lambda (x y) (<= (car x) (car y)))))
       (let ((r (pop agda2-last-responses)))
-        (agda2-exec-response (cdr r))))))
+        (agda2-exec-response (cdr r)))))
+  (with-current-buffer agda2-file-buffer
+    (setq agda2-highlight-in-progress nil)))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.

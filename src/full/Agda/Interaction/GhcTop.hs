@@ -335,8 +335,8 @@ lispifyResponse (Resp_Status s)
     checked  = boolToMaybe (sChecked               s) "Checked"
     showImpl = boolToMaybe (sShowImplicitArguments s) "ShowImplicit"
 
-lispifyResponse (Resp_JumpToError f p)
-    = return $ L [ A "agda2-goto", Q $ L [A (quote f), A ".", A (show p)] ]
+lispifyResponse (Resp_JumpToError f p) = return $ lastTag 3 $
+  L [ A "agda2-goto", Q $ L [A (quote f), A ".", A (show p)] ]
 lispifyResponse (Resp_InteractionPoints is) = return $ lastTag 1 $
   L [A "agda2-goals-action", Q $ L $ List.map showNumIId is]
 lispifyResponse (Resp_GiveAction ii s)
