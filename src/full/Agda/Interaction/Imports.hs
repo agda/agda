@@ -475,8 +475,9 @@ createInterface file mname =
 
     let ds = topLevelDecls topLevel
 
-    ifTopLevelAndHighlightingLevelIs NonInteractive $
+    ifTopLevelAndHighlightingLevelIs NonInteractive $ do
       -- Generate and print approximate syntax highlighting info.
+      printHighlightingInfo fileTokenInfo
       mapM_ (\d -> generateAndPrintSyntaxInfo d Partial) ds
 
     catchError (checkDecls ds) $ \e -> do
@@ -492,6 +493,8 @@ createInterface file mname =
       tickN "metas" n
 
     -- Move any remaining token highlighting to stSyntaxInfo.
+    ifTopLevelAndHighlightingLevelIs NonInteractive $
+      printHighlightingInfo . stTokens =<< get
     modify $ \st ->
       st { stTokens     = mempty
          , stSyntaxInfo = stSyntaxInfo st `mappend` stTokens st
