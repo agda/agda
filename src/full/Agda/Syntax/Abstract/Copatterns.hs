@@ -1,15 +1,16 @@
-{-# LANGUAGE CPP, TupleSections, DeriveFunctor, StandaloneDeriving, ScopedTypeVariables, TypeSynonymInstances, FlexibleContexts,  FlexibleInstances #-}
--- {-# LANGUAGE DeriveFunctor, DeriveTraversable  #-}
+{-# LANGUAGE CPP, TupleSections, PatternGuards, DeriveFunctor, StandaloneDeriving, ScopedTypeVariables, TypeSynonymInstances, FlexibleContexts,  FlexibleInstances #-}
 module Agda.Syntax.Abstract.Copatterns (translateCopatternClauses) where
 
+import Prelude hiding (mapM)
+
 import Control.Applicative
-import Control.Monad
-import Control.Monad.Writer
+import Control.Monad hiding (mapM)
+import Control.Monad.Writer hiding (mapM)
 
 import Data.Function
 import Data.List
 
--- import Data.Traversable
+import Data.Traversable as T
 
 import Agda.Syntax.Abstract
 import Agda.Syntax.Abstract.Name as A
@@ -35,7 +36,7 @@ import Agda.Utils.Impossible
 This is a preliminary solution until we have proper copattern type
 checking and evaluation.
 
-Example:
+Example 1:
 
   record Stream (A : Set) : Set where
     field
@@ -48,6 +49,12 @@ Example:
   (head (tail alternate)) = suc zero
   (tail (tail alternate)) = alternate
 
+with pathes
+
+  Path [head]      zero
+  Path [tail,head] (suc zero)
+  Path [tail,tail] alternate
+
 is translated into
 
   alternate = record
@@ -55,6 +62,64 @@ is translated into
     ; tail = record
       { head = suc zero
       ; tail = alternate
+      }
+    }
+
+Example 2:
+
+  record State (S A : Set) : Set where
+    constructor state
+    field
+      runState : S → A × S
+  open State
+
+  record Monad (M : Set → Set) : Set1 where
+    constructor monad
+    field
+      return : {A : Set}   → A → M A
+      _>>=_  : {A B : Set} → M A → (A → M B) → M B
+  open Monad
+
+  stateMonad : {S : Set} → Monad (State S)
+  runState (return stateMonad a  ) s  = a , s
+  runState (_>>=_  stateMonad m k) s₀ =
+    let as₁ = runState m s₀
+    in  runState (k (proj₁ as₁)) (proj₂ as₁)
+
+with pathes
+
+  Path [(return,[a]  ), (runstate,[s ])] (a,s)
+  Path [(_>>=_, [m,k]), (runstate,[s₀])] (let...)
+
+is translated to
+
+  stateMonad = record
+    { return = λ a → record { runState = λ s → a , s }
+    ; _>>=_  = λ m k → record { runState = λ s₀ →
+        let as₁ = runState m s₀
+        in  runState (k (proj₁ as₁)) (proj₂ as₁)
+    }
+
+Example 3:
+
+  swap3 : {A B C X : Set} → (X → A) × ((X → B) × C) → (X → C) × (X → (B × A))
+  fst (swap3 t) x       = snd (snd t)
+  fst (snd (swap3 t) y) = fst (snd t) y
+  snd (snd (swap3 t) z) = fst t z
+
+with pathes
+
+  Path [(fst,[x])]            (snd (snd t))
+  Path [(snd,[y]), (fst,[])]  (fst (snd t) y)
+  Path [(snd,[z]), (snd,[])]  (fst t z)
+
+ist translated to
+
+  swap3 t = record
+    { fst = λ x → snd (snd t)
+    ; snd = λ y → record
+      { fst = fst (snd t) y
+      ; snd = (fst t z){z := y}
       }
     }
 
@@ -86,7 +151,16 @@ data Path a b = Path
   { thePath    :: [a] -- ^ the list of choices
   , theContent :: b
   } deriving (Functor)  -- NB: this means @Path a@ is a functor for any @a@
-type ProjPath = Path QName
+
+data ProjEntry = ProjEntry
+  { projPE :: QName
+  , patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
+  } deriving (Eq, Ord)
+
+type ProjPath = Path ProjEntry
+
+instance HasRange ProjEntry where
+  getRange (ProjEntry p ps) = getRange (p,ps)
 
 groupClauses :: [ProjPath Clause] -> [(Clause, [ProjPath Expr])]
 groupClauses [] = []
@@ -109,11 +183,15 @@ clauseToPath (Clause (LHS i lhs wps) (RHS e) []) =
 clauseToPath (Clause lhs (RHS e) (_:_)) = typeError $ NotImplemented $ "copattern clauses with where declarations"
 clauseToPath (Clause lhs _ wheredecls) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
-lhsToPath :: [QName] -> LHSCore -> ScopeM (ProjPath LHSCore)
+lhsToPath :: [ProjEntry] -> LHSCore -> ScopeM (ProjPath LHSCore)
 lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
-lhsToPath acc (LHSProj f [] lhs []) = lhsToPath (f:acc) $ namedThing $ unArg lhs
+lhsToPath acc (LHSProj f [] lhs ps) | Just xs <- mapM (T.mapM (T.mapM fromVarP)) ps =
+    lhsToPath (ProjEntry f xs : acc) $ namedThing $ unArg lhs
+  where fromVarP :: Pattern -> Maybe Name
+        fromVarP (VarP n) = Just n
+        fromVarP _        = Nothing
 lhsToPath acc (LHSProj f _ lhs _)   = typeError $ NotImplemented $
-  "copatterns which are not simple sequences of projections"
+  "copatterns with patterns before the principal argument"
 
 -- | Expects a sorted list.
 pathToRecord :: [ProjPath Expr] -> ScopeM Expr
@@ -123,11 +201,28 @@ pathToRecord pps =
   case pathHeads pps of
     Nothing  -> typeError $ GenericError $ "overlapping copattern clauses"
     Just pps -> do
-      let l :: [(QName, [ProjPath Expr])]
-          l =  map ((fst . head) /\ map snd) $ groupOn fst pps
+      let l :: [(ProjEntry, [ProjPath Expr])]
+          l =  map ((fst . head) /\ map snd) $ groupOn (projPE . fst) pps
+           -- TODO: alpha renaming, checking arity!!
       pes <- mapM (mapSndM pathToRecord) l
       let ei = ExprRange $ getRange $ map fst pes
-      return $ Rec ei $ map ((C.unqualify . qnameToConcrete) -*- id) pes
+      Rec ei <$> mapM abstractions pes
+        where
+          abstractions :: (ProjEntry, Expr) -> ScopeM (C.Name, Expr)
+          abstractions (ProjEntry p xs, e) = (C.unqualify $ qnameToConcrete p,) <$>
+            foldr abstract (return e) xs
+          abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
+          abstract (Arg h r (Named Nothing x)) me =
+            Lam (ExprRange noRange) (DomainFree h r x) <$> me
+          abstract (Arg _ _ (Named Just{} _)) me = typeError $ NotImplemented $
+            "named arguments in projection patterns"
+{-
+          abstract (ProjEntry p xs@[], e) = do
+            -- binds <- mapM lamBind xs
+            return (C.unqualify $ qnameToConcrete p, e)
+          abstract _ = typeError $ NotImplemented $
+            "copatterns which are not simple sequences of projections"
+-}
 
 pathSplit :: Path a b -> Maybe (a, Path a b)
 pathSplit (Path []     b) = Nothing

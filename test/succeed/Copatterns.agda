@@ -1,7 +1,10 @@
 {-# OPTIONS --copatterns #-}
 module Copatterns where
 
+open import Common.Equality
+
 record _×_ (A B : Set) : Set where
+  constructor _,_
   field
     fst : A
     snd : B
@@ -25,3 +28,42 @@ fst (swap4 t)             = snd (snd (snd t))
 fst (snd (swap4 t))       = fst (snd (snd t))
 fst (snd (snd (swap4 t))) = fst (snd t)
 snd (snd (snd (swap4 t))) = fst t
+
+-- State monad example
+
+record State (S A : Set) : Set where
+  constructor state
+  field
+    runState : S → A × S
+open State
+
+record Monad (M : Set → Set) : Set1 where
+  constructor monad
+  field
+    return : {A : Set}   → A → M A
+    _>>=_  : {A B : Set} → M A → (A → M B) → M B
+open Monad {{...}}
+
+stateMonad : {S : Set} → Monad (State S)
+runState (return {{stateMonad}} a  ) s  = a , s
+runState (_>>=_  {{stateMonad}} m k) s₀ =
+  let as₁ = runState m s₀
+  in  runState (k (fst as₁)) (snd as₁)
+
+leftId : {A B S : Set}(a : A)(k : A → State S B) → (return a >>= k) ≡ k a
+leftId a k = refl
+
+rightId : {A B S : Set}(m : State S A) → (m >>= return) ≡ m
+rightId m = refl
+
+assoc : {A B C S : Set}(m : State S A)(k : A → State S B)(l : B → State S C) →
+   ((m >>= k) >>= l) ≡ (m >>= λ a → k a >>= l)
+assoc m k l = refl
+
+{- TODO: multiple clauses with abstractions
+
+fswap3 : {A B C X : Set} → (X → A) × ((X → B) × C) → (X → C) × (X → (B × A))
+fst (fswap3 t) x       = snd (snd t)
+fst (snd (fswap3 t) y) = fst (snd t) y
+snd (snd (fswap3 t) z) = fst t z
+-}
