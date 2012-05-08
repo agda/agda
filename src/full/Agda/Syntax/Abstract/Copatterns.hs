@@ -105,17 +105,15 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
 
 clauseToPath :: Clause -> ScopeM (ProjPath Clause)
 clauseToPath (Clause (LHS i lhs wps) (RHS e) []) =
-  fmap (\ lhs -> Clause (LHS i lhs wps) (RHS e) []) <$> lhsToPath lhs
+  fmap (\ lhs -> Clause (LHS i lhs wps) (RHS e) []) <$> lhsToPath [] lhs
 clauseToPath (Clause lhs (RHS e) (_:_)) = typeError $ NotImplemented $ "copattern clauses with where declarations"
 clauseToPath (Clause lhs _ wheredecls) = typeError $ NotImplemented $ "copattern clauses with absurd, with or rewrite right hand side"
 
--- TODO: use accumulator
-lhsToPath :: LHSCore -> ScopeM (ProjPath LHSCore)
-lhsToPath lhs@LHSHead{} = return $ Path [] lhs
-lhsToPath (LHSProj f [] lhs []) = do
-  Path p lhs <- lhsToPath $ namedThing $ unArg lhs
-  return $ Path (p ++ [f]) lhs
-lhsToPath (LHSProj f _ lhs _) = typeError $ NotImplemented $ "copatterns which are not simple sequences of projections"
+lhsToPath :: [QName] -> LHSCore -> ScopeM (ProjPath LHSCore)
+lhsToPath acc lhs@LHSHead{}         = return $ Path acc lhs
+lhsToPath acc (LHSProj f [] lhs []) = lhsToPath (f:acc) $ namedThing $ unArg lhs
+lhsToPath acc (LHSProj f _ lhs _)   = typeError $ NotImplemented $
+  "copatterns which are not simple sequences of projections"
 
 -- | Expects a sorted list.
 pathToRecord :: [ProjPath Expr] -> ScopeM Expr
