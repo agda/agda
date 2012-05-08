@@ -798,83 +798,96 @@ tryToRecoverOpAppP p def = recoverOpApp bracketP_ C.OpAppP view p def
       DefP _ f            ps -> Just (HdDef f, ps)
       _                      -> Nothing
 
-recoverOpApp :: (ToConcrete a c, HasRange c) =>
-                ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c) ->
-                (Range -> C.QName -> [c] -> c) -> (a -> Maybe (Hd, [NamedArg a])) -> a ->
-                AbsToCon c -> AbsToCon c
-recoverOpApp bracket opApp view e mdefault = case view e of
-  Nothing -> mdefault
+recoverOpApp :: (ToConcrete a c, HasRange c)
+  => ((Precedence -> Bool) -> AbsToCon c -> AbsToCon c)
+  -> (Range -> C.QName -> [c] -> c)
+  -> (a -> Maybe (Hd, [NamedArg a]))
+  ->  a
+  -> AbsToCon c
+  -> AbsToCon c
+recoverOpApp bracket opApp view e mDefault = case view e of
+  Nothing -> mDefault
   Just (hd, args)
     | all notHidden args  -> do
       let  args' = map (namedThing . unArg) args
       case hd of
-        HdVar n | isNoName n -> mdefault
-                | otherwise  -> do
-          x <- toConcrete n
-          doCName (theFixity $ nameFixity n) x args'
-        HdDef qn -> doQName qn args'
-        HdCon qn -> doQName qn args'
-    | otherwise -> mdefault
+        HdVar  n
+          | isNoName n    -> mDefault
+          | otherwise     -> doQNameHelper id        C.QName  n args'
+        HdDef qn          -> doQNameHelper qnameName id      qn args'
+        HdCon qn          -> doQNameHelper qnameName id      qn args'
+    | otherwise           -> mDefault
   where
 
-  isNoName x = C.isNoName $ A.nameConcrete x
+  isNoName :: A.Name -> Bool
+  isNoName  x = C.isNoName $ A.nameConcrete x
 
+  notHidden :: NamedArg a -> Bool
   notHidden a = argHiding a == NotHidden
 
-  -- qualified names can't use mixfix syntax
-  doQName qn as = do
-    x <- toConcrete qn
-    case x of
-      C.QName x -> doCName (theFixity $ nameFixity $ qnameName qn) x as
-      _         -> mdefault
+  doQNameHelper fixityHelper conHelper n as = do
+    x <- toConcrete n
+    doQName (theFixity $ nameFixity $ fixityHelper n) (conHelper x) as
 
   -- fall-back (wrong number of arguments or no holes)
-  doCName _ cn@(C.Name _ xs) es
-    | length xs == 1        = mdefault
-    | length es /= numHoles = mdefault
-    | List.null es          = mdefault
-    where numHoles = length [ () | Hole <- xs ]
-          msg = "doCName " ++ showList xs "" ++ " on " ++ show (length es) ++ " args"
+  doQName _ n es
+    | length xs == 1        = mDefault
+    | length es /= numHoles = mDefault
+    | List.null es          = mDefault
+    where
+      xs       = C.nameParts $ C.unqualify n
+      numHoles = length (filter (== Hole) xs)
+      msg      = concat [ "doQName "
+                        , showList xs ""
+                        , " on "
+                        , show (length es)
+                        , " args" ]
 
   -- binary case
-  doCName fixity cn@(C.Name _ xs) as
+  doQName fixity n as
     | Hole <- head xs
     , Hole <- last xs = do
-        let a1     = head as
-            an     = last as
-            as'    = case as of
-                       as@(_:_:_) -> init $ tail as
-                       _          -> __IMPOSSIBLE__
+        let a1  = head as
+            an  = last as
+            as' = case as of
+                    as@(_ : _ : _) -> init $ tail as
+                    _              -> __IMPOSSIBLE__
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (e1,en)) (C.QName cn) ([e1] ++ es ++ [en])
+          $ return $ opApp (getRange (e1, en)) n ([e1] ++ es ++ [en])
+    where
+      xs = C.nameParts $ C.unqualify n
 
   -- prefix
-  doCName fixity cn@(C.Name _ xs) as
+  doQName fixity n as
     | Hole <- last xs = do
         let an  = last as
             as' = case as of
-                    as@(_:_) -> init as
-                    _        -> __IMPOSSIBLE__
+                    as@(_ : _) -> init as
+                    _          -> __IMPOSSIBLE__
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         en <- toConcreteCtx (RightOperandCtx fixity) an
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (cn,en)) (C.QName cn) (es ++ [en])
+          $ return $ opApp (getRange (n, en)) n (es ++ [en])
+    where
+      xs = C.nameParts $ C.unqualify n
 
   -- postfix
-  doCName fixity cn@(C.Name _ xs) as
+  doQName fixity n as
     | Hole <- head xs = do
-        let a1     = head as
-            as'    = tail as
+        let a1  = head as
+            as' = tail as
         e1 <- toConcreteCtx (LeftOperandCtx fixity) a1
         es <- mapM (toConcreteCtx InsideOperandCtx) as'
         bracket (opBrackets fixity)
-            $ return $ opApp (getRange (e1,cn)) (C.QName cn) ([e1] ++ es)
+          $ return $ opApp (getRange (e1, n)) n ([e1] ++ es)
+    where
+      xs = C.nameParts $ C.unqualify n
 
   -- roundfix
-  doCName _ cn as = do
+  doQName _ n as = do
     es <- mapM (toConcreteCtx InsideOperandCtx) as
     bracket roundFixBrackets
-      $ return $ opApp (getRange cn) (C.QName cn) es
+      $ return $ opApp (getRange n) n es
