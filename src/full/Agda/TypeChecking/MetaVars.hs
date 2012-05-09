@@ -32,6 +32,7 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Eliminators
 
 import Agda.TypeChecking.MetaVars.Occurs
 
@@ -551,11 +552,15 @@ assign x args v = do
           res <- runErrorT $ inverseSubst args
           case res of
             -- all args are variables
-            Right ids -> do
+            Right (Just ids) -> do
               reportSDoc "tc.meta.assign" 50 $
                 text "inverseSubst returns:" <+> sep (map prettyTCM ids)
               return ids
-            Left ()   -> attemptPruning x args fvs
+            -- we have non-variables, but these are not eliminateable
+            Right Nothing    -> attemptPruning x args fvs
+            -- we have proper values as arguments which could be cased on
+            -- here, we cannot prune, since offending vars could be eliminated
+            Left ()          -> patternViolation
 
         ids <- do
           res <- runErrorT $ checkLinearity (`Set.member` fvs) ids
@@ -646,6 +651,9 @@ checkLinearity elemFVs ids0 = do
         (return [p])
         (throwError ())
 
+-- Intermediate result in the following function
+type Res = Maybe [(Arg Nat, Term)]
+
 -- | Check that arguments @args@ to a metavar are in pattern fragment.
 --   Assumes all arguments already in whnf and eta-reduced.
 --   Parameters are represented as @Var@s so @checkArgs@ really
@@ -657,10 +665,10 @@ checkLinearity elemFVs ids0 = do
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst :: Args -> ErrorT () TCM SubstCand
-inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
+inverseSubst :: Args -> ErrorT () TCM (Maybe SubstCand)
+inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
   where
-    loop  = foldM isVarOrIrrelevant []
+    loop  = foldM isVarOrIrrelevant (Just [])
     terms = map var (downFrom (size args))
     failure = do
       lift $ reportSDoc "tc.meta.assign" 15 $ vcat
@@ -668,7 +676,7 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
         , text "  aborting assignment" ]
       throwError ()
 
-    isVarOrIrrelevant :: [(Arg Nat, Term)] -> (Arg Term, Term) -> ErrorT () TCM [(Arg Nat, Term)]
+    isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ErrorT () TCM Res
     isVarOrIrrelevant vars (arg, t) =
       case arg of
         -- i := x
@@ -690,17 +698,36 @@ inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
         Arg h Irrelevant _ -> return vars
-        _                  -> failure
+
+        -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
+        -- from those that can only put somewhere as a whole ==> return Nothing
+        Arg _ _ Var{}      -> return $ Nothing -- neutral
+        Arg _ _ v@(Def{})  -> do
+          elV <- lift $ elimView v
+          case elV of
+            VarElim{}      -> return $ Nothing -- neutral
+            _              -> failure
+        Arg _ _ Lam{}      -> failure
+        Arg _ _ Lit{}      -> failure
+        Arg _ _ MetaV{}    -> failure
+        Arg _ _ Pi{}       -> return $ Nothing
+        Arg _ _ Sort{}     -> return $ Nothing
+        Arg _ _ Level{}    -> return $ Nothing
+        Arg _ _ DontCare{} -> __IMPOSSIBLE__
 
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
-    append res vars = foldr cons vars res
+    append :: Res -> Res -> Res
+    append Nothing    _    = Nothing
+    append (Just res) vars = foldr cons vars res
 
     -- adding an irrelevant entry only if not present
-    cons a@(Arg h Irrelevant i, t) vars
-      | any ((i==) . unArg . fst) vars  = vars
-      | otherwise                       = a : vars
+    cons :: (Arg Nat, Term) -> Res -> Res
+    cons a Nothing = Nothing
+    cons a@(Arg h Irrelevant i, t) (Just vars)
+      | any ((i==) . unArg . fst) vars  = Just vars
+      | otherwise                       = Just $ a : vars
     -- adding a relevant entry:
-    cons a@(Arg h r          i, t) vars = a :
+    cons a@(Arg h r          i, t) (Just vars) = Just $ a :
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg h r j, t) -> r == Irrelevant && i == j)) vars
 
