@@ -30,6 +30,13 @@ followed:
 
     cabal configure && cabal haddock
 
+* Ensure that the Emacs mode can be compiled without errors or
+  warnings (except for the "cl package required at runtime" warning):
+
+    (cd src/data/emacs-mode && \
+      emacs --batch -L . -f batch-byte-compile *.el; \
+      rm -f *.elc)
+
 * Tag and build source distributions. (Do not forget to record the
   changes above first.)
 
