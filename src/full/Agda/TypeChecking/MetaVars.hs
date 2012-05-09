@@ -537,11 +537,6 @@ assign x args v = do
                 , nest 2 $ text "term" <+> prettyTCM v
                 ]
 
-	-- Check that the arguments are variables
-	ids <- inverseSubst args
-        reportSDoc "tc.meta.assign" 50 $
-          text "inverseSubst returns:" <+> sep (map prettyTCM ids)
-
         -- Check linearity of @ids@
         -- Andreas, 2010-09-24: Herein, ignore the variables which are not
         -- free in v
@@ -551,18 +546,22 @@ assign x args v = do
         reportSDoc "tc.meta.assign" 20 $
           text "fvars rhs:" <+> sep (map (text . show) $ Set.toList fvs)
 
+	-- Check that the arguments are variables
+	ids <- do
+          res <- runErrorT $ inverseSubst args
+          case res of
+            -- all args are variables
+            Right ids -> do
+              reportSDoc "tc.meta.assign" 50 $
+                text "inverseSubst returns:" <+> sep (map prettyTCM ids)
+              return ids
+            Left ()   -> attemptPruning x args fvs
+
         ids <- do
           res <- runErrorT $ checkLinearity (`Set.member` fvs) ids
           case res of
             Right ids -> return ids
-            Left ()   -> do
-              -- non-linear lhs: we cannot solve, but prune
-              killResult <- prune x args $ Set.toList fvs
-              reportSDoc "tc.meta.assign" 10 $
-                text "pruning" <+> prettyTCM x <+> (text $
-                  if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
-                   else "failed")
-              patternViolation
+            Left ()   -> attemptPruning x args fvs
 
         -- we are linear, so we can solve!
 	reportSDoc "tc.meta.assign" 25 $
@@ -608,6 +607,16 @@ assign x args v = do
         substitute :: [(Nat,Term)] -> Nat -> Term
 	substitute ids i = maybe __IMPOSSIBLE__ id $ lookup i ids
 
+        attemptPruning x args fvs = do
+          -- non-linear lhs: we cannot solve, but prune
+          killResult <- prune x args $ Set.toList fvs
+          reportSDoc "tc.meta.assign" 10 $
+            text "pruning" <+> prettyTCM x <+> (text $
+              if killResult `elem` [PrunedSomething,PrunedEverything] then "succeeded"
+               else "failed")
+          patternViolation
+
+
 -- cannot move this PrettyTCM instance to Typechecking.Pretty
 -- because then it conflicts with an instance in Typechecking.Positivity
 instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (a,b) where
@@ -648,17 +657,18 @@ checkLinearity elemFVs ids0 = do
 --   Linearity, i.e., whether the substitution is deterministic,
 --   has to be checked separately.
 --
-inverseSubst :: Args -> TCM SubstCand
-inverseSubst args = map (unArg -*- id) <$> loop (zip args terms)
+inverseSubst :: Args -> ErrorT () TCM SubstCand
+inverseSubst args = map (mapFst unArg) <$> loop (zip args terms)
   where
     loop  = foldM isVarOrIrrelevant []
     terms = map var (downFrom (size args))
     failure = do
-      reportSDoc "tc.meta.assign" 15 $ vcat
+      lift $ reportSDoc "tc.meta.assign" 15 $ vcat
         [ text "not all arguments are variables: " <+> prettyTCM args
         , text "  aborting assignment" ]
-      patternViolation
+      throwError ()
 
+    isVarOrIrrelevant :: [(Arg Nat, Term)] -> (Arg Term, Term) -> ErrorT () TCM [(Arg Nat, Term)]
     isVarOrIrrelevant vars (arg, t) =
       case arg of
         -- i := x
@@ -666,7 +676,7 @@ inverseSubst args = map (unArg -*- id) <$> loop (zip args terms)
 
         -- (i, j) := x  becomes  [i := fst x, j := snd x]
         Arg h r (Con c vs) -> do
-          isRC <- isRecordConstructor c
+          isRC <- lift $ isRecordConstructor c
           case isRC of
             Just (Record{ recFields = fs }) -> do
                 let aux (Arg _ _ v) (Arg h' r' f) =

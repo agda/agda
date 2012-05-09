@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract
+import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Datatypes (isDataOrRecordType)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
@@ -430,8 +431,12 @@ hasBadRigid xs (DontCare v) = hasBadRigid xs v
 -- The following types of arguments cannot be eliminated by a pattern
 -- match: data, record, Pi, levels, sorts
 -- Thus, their offending rigid variables are bad.
-hasBadRigid xs (Def f vs)   = flip (ifM $ isDataOrRecordType f) (return False) $ do
-  return $ vs `rigidVarsNotContainedIn` xs
+hasBadRigid xs v@(Def f vs) =
+  ifM (isDataOrRecordType f) (return $ vs `rigidVarsNotContainedIn` xs) $ do
+    elV <- elimView v
+    case elV of
+      VarElim x els -> return $ notElem x xs
+      _             -> return $ False
   -- Andreas, 2012-05-03: There is room for further improvement.
   -- We could also consider a defined f which is not blocked by a meta.
 hasBadRigid xs (Pi a b)     = return $ (a,b) `rigidVarsNotContainedIn` xs
