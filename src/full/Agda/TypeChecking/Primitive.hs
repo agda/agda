@@ -511,7 +511,7 @@ primitiveFunctions = Map.fromList
     , "primNatPlus"	    |-> mkPrimFun2 ((+)			    :: Op Nat)
     , "primNatMinus"	    |-> mkPrimFun2 ((\x y -> max 0 (x - y)) :: Op Nat)
     , "primNatTimes"	    |-> mkPrimFun2 ((*)			    :: Op Nat)
-    , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
+    , "primNatDivSucAux"    |-> mkPrimFun4 ((\k m n j -> k + div (max 0 $ n + m - j) (m + 1)) :: Nat -> Nat -> Nat -> Nat -> Nat)
     , "primNatModSucAux"    |->
         let aux :: Nat -> Nat -> Nat -> Nat -> Nat
             aux k m n j | n > j     = mod (n - j - 1) (m + 1)
