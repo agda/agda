@@ -29,7 +29,7 @@ import Agda.Utils.Tuple
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-{- Andreas 2012-04-07
+{- Andreas 2012-04-07, 2012-05-08
 
    Translating copatterns into record expressions
 
@@ -152,6 +152,9 @@ data Path a b = Path
   , theContent :: b
   } deriving (Functor)  -- NB: this means @Path a@ is a functor for any @a@
 
+mapContent :: (b -> c) -> Path a b -> Path a c
+mapContent f (Path p c) = Path p (f c)
+
 data ProjEntry = ProjEntry
   { projPE :: QName
   , patsPE :: [NamedArg Name] -- ^ currently we only support variable patterns
@@ -167,12 +170,13 @@ groupClauses [] = []
 groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses rest
   where
     (grp, rest) = collect pcs
-    collect l = case l of
-      [] -> ([], [])
-      (Path p' c' : pcs) -> case alpha (clauseLHS c') (clauseLHS c) of
-         Nothing  -> ([], l)
-         Just rho -> let (grp, rest) = collect pcs
-                     in  (Path p' (rename (flip lookup rho) (rhs c')) : grp, rest)
+    -- Collect l splits l into pc's group and the remainder
+    -- If the lhs of the next clause is alpha-equivalent to the current lhs
+    -- then add the next clause to this group, performing the alpha-conversion
+    collect (Path p' c' : pcs) | Just rho <- alpha (clauseLHS c') (clauseLHS c) =
+      mapFst (Path p' (rename' rho (rhs c')) :) $ collect pcs
+    collect l = ([], l) -- otherwise, close the group
+
     rhs             = rhsExpr . clauseRHS
     rhsExpr (RHS e) = e
     rhsExpr _       = __IMPOSSIBLE__
@@ -201,35 +205,43 @@ pathToRecord pps =
   case pathHeads pps of
     Nothing  -> typeError $ GenericError $ "overlapping copattern clauses"
     Just pps -> do
-      let l :: [(ProjEntry, [ProjPath Expr])]
-          l =  map ((fst . head) /\ map snd) $ groupOn (projPE . fst) pps
-           -- TODO: alpha renaming, checking arity!!
-      pes <- mapM (mapSndM pathToRecord) l
+      pes <- mapM (mapSndM pathToRecord) $ groupPathes pps
       let ei = ExprRange $ getRange $ map fst pes
       Rec ei <$> mapM abstractions pes
+
         where
           abstractions :: (ProjEntry, Expr) -> ScopeM (C.Name, Expr)
           abstractions (ProjEntry p xs, e) = (C.unqualify $ qnameToConcrete p,) <$>
             foldr abstract (return e) xs
+
           abstract :: NamedArg Name -> ScopeM Expr -> ScopeM Expr
           abstract (Arg h r (Named Nothing x)) me =
             Lam (ExprRange noRange) (DomainFree h r x) <$> me
           abstract (Arg _ _ (Named Just{} _)) me = typeError $ NotImplemented $
             "named arguments in projection patterns"
-{-
-          abstract (ProjEntry p xs@[], e) = do
-            -- binds <- mapM lamBind xs
-            return (C.unqualify $ qnameToConcrete p, e)
-          abstract _ = typeError $ NotImplemented $
-            "copatterns which are not simple sequences of projections"
--}
+
+-- | Similar to 'groupClauses'.
+groupPathes :: [(ProjEntry, ProjPath Expr)] -> [(ProjEntry, [ProjPath Expr])]
+groupPathes [] = []
+groupPathes ((pe@(ProjEntry p xs), path) : pps) = (pe, path : grp) : groupPathes rest
+  -- Now group all following pps that have the same projection p
+  -- We expect that they have alpha-equivalent xs
+  where
+    (grp, rest) = collect pps
+    collect l@((ProjEntry p' xs', path) : pps) | p == p', Just rho <- alpha xs' xs =
+      -- add the alpha-converted path to the group
+      -- NOTE: because the path contains only projections and pattern vars
+      -- we only alpha-convert the content (rhs Expr)
+      -- When the path will contain dot patterns, we have to rename in them
+      mapFst (mapContent (rename' rho) path :) $ collect pps
+    collect l = ([], l) -- null or different projection: close group
+
+pathHeads :: [Path a b] -> Maybe [(a, Path a b)]
+pathHeads = mapM pathSplit
 
 pathSplit :: Path a b -> Maybe (a, Path a b)
 pathSplit (Path []     b) = Nothing
 pathSplit (Path (a:as) b) = Just (a, Path as b)
-
-pathHeads :: [Path a b] -> Maybe [(a, Path a b)]
-pathHeads = mapM pathSplit
 
 
 -- * Alpha conversion
@@ -238,6 +250,8 @@ type NameMap = [(Name,Name)]
 
 class Rename e where
   rename :: (Name -> Maybe Name) -> e -> e
+  rename' :: NameMap -> e -> e
+  rename' rho = rename (flip lookup rho)
 
 instance Rename Expr where
   rename rho e =
@@ -337,6 +351,9 @@ class Alpha t where
 
   alpha' :: t -> t -> WriterT NameMap Maybe ()
   alpha' t t' = WriterT $ fmap ((),) $ alpha t t'
+
+instance Alpha Name where
+  alpha' x x' = tell1 (x, x')
 
 instance Alpha (Pattern' e) where
   alpha' p p' =
