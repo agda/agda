@@ -82,7 +82,7 @@ isType e s =
 isType_ :: A.Expr -> TCM Type
 isType_ e =
   traceCall (IsType_ e) $
-  case e of
+  case unScope e of
     A.Fun i (Arg h r t) b -> do
       a <- Dom h r <$> isType_ t
       b <- isType_ b
