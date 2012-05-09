@@ -59,7 +59,7 @@ library
     build-depends:  epic >= 0.1.13 && < 0.10
 
   if os(windows)
-    build-depends:  Win32
+    build-depends:  Win32 == 2.2.*
 
   build-depends:    base >= 4.2 && < 4.6,
                     mtl == 2.0.*,
