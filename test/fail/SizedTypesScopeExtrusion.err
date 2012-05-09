@@ -1,4 +1,4 @@
 SizedTypesScopeExtrusion.agda:28,1-42
 Cannot solve size constraints
-_28 =< i : Size
+_15 =< i : Size
 when checking the definition of bla

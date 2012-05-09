@@ -18,5 +18,5 @@
 (agda2-highlight-load-and-delete-action "
 (agda2-info-action "*Type-checking*" "Finished Highlighting.\n" t)
 (agda2-status-action "")
-(agda2-info-action "*All Goals*" "Sort _27  [ at Highlighting.agda:19,15-16 ]\n_28 : Set _27  [ at Highlighting.agda:19,15-16 ]\n" nil)
+(agda2-info-action "*All Goals*" "Sort _5  [ at Highlighting.agda:19,15-16 ]\n_6 : Set _5  [ at Highlighting.agda:19,15-16 ]\n" nil)
 ((last . 1) . (agda2-goals-action '()))

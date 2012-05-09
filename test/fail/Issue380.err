@@ -1,5 +1,5 @@
 Issue380.agda:19,16-27
-Sigma (_45 y z == _45 y z) (_43 y z) !=<
-fst (fst z , _41 y z) == fst y → snd (fst z , _41 y z) == snd z
+Sigma (_31 y z == _31 y z) (_29 y z) !=<
+fst (fst z , _27 y z) == fst y → snd (fst z , _27 y z) == snd z
 when checking that the expression refl , refl has type
-fst (fst z , _41 y z) == fst y → snd (fst z , _41 y z) == snd z
+fst (fst z , _27 y z) == fst y → snd (fst z , _27 y z) == snd z

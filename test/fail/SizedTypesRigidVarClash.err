@@ -1,5 +1,5 @@
 SizedTypesRigidVarClash.agda:19,1-14
 Cannot solve size constraints
-_21 x =< .j : Size
-.i =< (_21 x) : Size
+_12 x =< .j : Size
+.i =< (_12 x) : Size
 when checking the definition of inc

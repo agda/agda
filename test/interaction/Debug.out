@@ -2,8 +2,6 @@
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Debug (Debug.agda).\n" t)
-(agda2-verbose "{ checkExpr\n")
-(agda2-verbose "}\n")
 (agda2-verbose "Building interface...\n")
 (agda2-verbose "Writing interface file Debug.agdai.\n")
 (agda2-verbose "Wrote interface file.\n")
