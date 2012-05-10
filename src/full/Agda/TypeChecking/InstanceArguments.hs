@@ -158,7 +158,7 @@ checkCandidates m t cands = localState $ do
           case ca of
             Left _ -> return False
             Right (args, t'') -> do
-              leqType t'' t
+              noConstraints $ leqType t'' t
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
               assign m ctxArgs (term `apply` args)
