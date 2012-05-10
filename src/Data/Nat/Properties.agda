@@ -23,6 +23,7 @@ open import Relation.Binary.PropositionalEquality as PropEq
 open PropEq.≡-Reasoning
 import Algebra.FunctionProperties as P; open P (_≡_ {A = ℕ})
 open import Data.Product
+open import Data.Sum
 
 ------------------------------------------------------------------------
 -- (ℕ, +, *, 0, 1) is a commutative semiring
@@ -554,6 +555,11 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
     ≡⟨ i+j≡0 ⟩
   0
     ∎
+
+i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
+i*j≡0⇒i≡0∨j≡0 zero {j} eq = inj₁ refl
+i*j≡0⇒i≡0∨j≡0 (suc n) {zero} eq = inj₂ refl
+i*j≡0⇒i≡0∨j≡0 (suc n) {suc n'} ()
 
 i*j≡1⇒i≡1 : ∀ i j → i * j ≡ 1 → i ≡ 1
 i*j≡1⇒i≡1 (suc zero)    j             _  = refl
