@@ -505,6 +505,17 @@ m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 [i+j]∸[i+k]≡j∸k zero    j k = refl
 [i+j]∸[i+k]≡j∸k (suc i) j k = [i+j]∸[i+k]≡j∸k i j k
 
+i+[j∸m]≡i+j∸m : ∀ i j m → m ≤ j → i + (j ∸ m) ≡ i + j ∸ m
+i+[j∸m]≡i+j∸m i zero zero lt = refl
+i+[j∸m]≡i+j∸m i zero (suc m) ()
+i+[j∸m]≡i+j∸m i (suc j) zero lt = refl
+i+[j∸m]≡i+j∸m i (suc j) (suc m) (s≤s m≤j) = begin
+  i + (j ∸ m)         ≡⟨ i+[j∸m]≡i+j∸m i j m m≤j ⟩
+  suc (i + j) ∸ suc m ≡⟨ cong (λ y → y ∸ suc m) $ solve 2 (λ i' j' → con 1 :+ (i' :+ j') := i' :+ (con 1 :+ j')) refl i j ⟩
+  (i + suc j) ∸ suc m ∎
+  where open SemiringSolver
+
+
 -- TODO: Can this proof be simplified? An automatic solver which can
 -- handle ∸ would be nice...
 
