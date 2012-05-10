@@ -72,6 +72,13 @@ to-from : ∀ n → toℕ (fromℕ n) ≡ n
 to-from zero    = refl
 to-from (suc n) = cong suc (to-from n)
 
+toℕ-injective : ∀ {n} → {i j : Fin n} → toℕ i ≡ toℕ j → i ≡ j
+toℕ-injective {zero} {} {} _
+toℕ-injective {suc n} {zero} {zero} eq = refl
+toℕ-injective {suc n} {zero} {suc i} ()
+toℕ-injective {suc n} {suc i} {zero} ()
+toℕ-injective {suc n} {suc i} {suc i'} eq = cong suc (toℕ-injective (cong N.pred eq))
+
 bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
 bounded (suc i) = s≤s (bounded i)
