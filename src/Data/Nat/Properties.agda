@@ -657,3 +657,15 @@ s≤s m₁≤m₂ +-mono n₁≤n₂ = s≤s (m₁≤m₂ +-mono n₁≤n₂)
 _*-mono_ : _*_ Preserves₂ _≤_ ⟶ _≤_ ⟶ _≤_
 z≤n       *-mono n₁≤n₂ = z≤n
 s≤s m₁≤m₂ *-mono n₁≤n₂ = n₁≤n₂ +-mono (m₁≤m₂ *-mono n₁≤n₂)
+
+∸-mono₁ : ∀ i j k → i ≤ j →  i ∸ k ≤ j ∸ k
+∸-mono₁ i j zero i≤j = i≤j
+∸-mono₁ zero j (suc k) i≤j = z≤n
+∸-mono₁ (suc i) zero (suc k) ()
+∸-mono₁ (suc i) (suc j) (suc k) (s≤s i≤j) = ∸-mono₁ i j k i≤j
+
+∸-mono₂ : ∀ i j k → j ≤ k → i ∸ j ≥ i ∸ k
+∸-mono₂ i zero k j≤k = n∸m≤n k i
+∸-mono₂ i (suc j) zero ()
+∸-mono₂ zero (suc j) (suc k) j≤k = z≤n
+∸-mono₂ (suc n) (suc j) (suc k) (s≤s j≤k) = ∸-mono₂ n j k j≤k
