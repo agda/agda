@@ -128,8 +128,8 @@ How to translate:
 
 -}
 
-translateCopatternClauses :: [Clause] -> ScopeM [Clause]
-translateCopatternClauses cs = if all noCopats cs then return cs else do
+translateCopatternClauses :: [Clause] -> ScopeM (Delayed, [Clause])
+translateCopatternClauses cs = if all noCopats cs then return (NotDelayed, cs) else (Delayed,) <$> do
   pcs :: [ProjPath Clause] <- mapM clauseToPath cs
   let cps :: [(Clause, [ProjPath Expr])]
       cps = groupClauses pcs

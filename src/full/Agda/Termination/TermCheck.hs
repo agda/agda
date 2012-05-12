@@ -196,7 +196,7 @@ termMutual i ds = if names == [] then return [] else do
                      (show (names) ++ " does termination check")
          return []
   where
-  getName (A.FunDef i x cs)       = [x]
+  getName (A.FunDef i x delayed cs) = [x]
   getName (A.RecDef _ _ _ _ _ ds) = concatMap getName ds
   getName (A.Mutual _ ds)       = concatMap getName ds
   getName (A.Section _ _ _ ds)  = concatMap getName ds

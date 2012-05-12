@@ -73,7 +73,7 @@ checkFunDef delayed i name cs = do
         rel  <- relOfConst name
         checkFunDef' t rel delayed i name cs
 
--- | Type check a definition by pattern matching. The first argument
+-- | Type check a definition by pattern matching. The third argument
 -- specifies whether the clauses are delayed or not.
 checkFunDef' :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> [A.Clause] -> TCM ()
 checkFunDef' t rel delayed i name cs =

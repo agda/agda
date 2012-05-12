@@ -91,7 +91,7 @@ checkDecl d = do
       A.Import i x             -> none $ checkImport i x
       A.Pragma i p             -> none $ checkPragma i p
       A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
-      A.FunDef i x cs          -> impossible $ check x i $ checkFunDef NotDelayed i x cs
+      A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
       A.RecDef i x c ps tel cs -> mutual $ check x i $ do
                                     checkRecDef i x c ps tel cs

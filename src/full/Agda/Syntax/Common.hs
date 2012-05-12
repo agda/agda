@@ -19,12 +19,17 @@ import Agda.Utils.Size
 #include "../undefined.h"
 import Agda.Utils.Impossible
 
+-- | Used to specify whether something should be delayed.
+data Delayed = Delayed | NotDelayed
+  deriving (Typeable, Show, Eq, Ord)
+
 data Induction = Inductive | CoInductive
   deriving (Typeable, Show, Eq, Ord)
 
 data Hiding  = Hidden | Instance | NotHidden
     deriving (Typeable, Show, Eq, Ord)
 
+instance KillRange Delayed   where killRange = id
 instance KillRange Induction where killRange = id
 instance KillRange Hiding    where killRange = id
 

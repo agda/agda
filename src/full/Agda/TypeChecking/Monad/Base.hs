@@ -660,10 +660,6 @@ defJSDef = compiledJS . defCompiledRep
 defEpicDef :: Definition -> Maybe EpicCode
 defEpicDef = compiledEpic . defCompiledRep
 
--- | Used to specify whether something should be delayed.
-data Delayed = Delayed | NotDelayed
-  deriving (Typeable, Show, Eq)
-
 -- | Are the clauses of this definition delayed?
 defDelayed :: Definition -> Delayed
 defDelayed Defn{theDef = Function{funDelayed = d}} = d

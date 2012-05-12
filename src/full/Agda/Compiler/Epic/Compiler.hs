@@ -25,6 +25,7 @@ import Agda.Compiler.MAlonzo.Primitives (checkTypeOfMain)
 import Agda.Interaction.FindFile
 import Agda.Interaction.Options
 import Agda.Interaction.Imports
+import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal hiding (Term(..))
 import Agda.TypeChecking.Monad

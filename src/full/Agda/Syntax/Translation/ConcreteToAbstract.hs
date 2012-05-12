@@ -540,7 +540,7 @@ instance ToAbstract C.Expr A.Expr where
                                (map (\(lhs,rhs,wh) -> -- wh = NoWhere, see parser for more info
                                       C.Clause cname (insertHead lhs) rhs wh []) cs))
         case scdef of
-          (A.ScopedDecl si [A.FunDef di qname' cs]) -> do
+          (A.ScopedDecl si [A.FunDef di qname' NotDelayed cs]) -> do
             setScope si
             return $ A.ExtendedLam (ExprRange r) di qname' cs
           _ -> __IMPOSSIBLE__
@@ -845,8 +845,8 @@ instance ToAbstract NiceDeclaration A.Declaration where
     C.FunDef r ds f a tc x cs -> do
         printLocals 10 $ "checking def " ++ show x
         (x',cs) <- toAbstract (OldName x,cs)
-        cs <- translateCopatternClauses cs
-        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' cs ]
+        (delayed, cs) <- translateCopatternClauses cs
+        return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
 
   -- Data definitions
     C.DataDef r f a x pars cons -> withLocalVars $ do

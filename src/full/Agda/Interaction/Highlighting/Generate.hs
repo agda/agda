@@ -27,6 +27,7 @@ import Agda.TypeChecking.Monad
 import qualified Agda.TypeChecking.Monad as M
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
+import Agda.Syntax.Common (Delayed(..))
 import qualified Agda.Syntax.Common as SC
 import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Info as SI
@@ -398,7 +399,7 @@ nameKinds hlLevel decl = do
   declToKind (A.Pragma {})          = id
   declToKind (A.ScopedDecl {})      = id
   declToKind (A.Open {})            = id
-  declToKind (A.FunDef  _ q _)      = insert q Function
+  declToKind (A.FunDef  _ q _ _)    = insert q Function
   declToKind (A.DataSig _ q _ _)    = insert q Datatype
   declToKind (A.DataDef _ q _ cs)   = \m ->
                                       insert q Datatype $
@@ -465,6 +466,20 @@ generateConstructorInfo modMap file kinds decl = do
   getConstructor _           = return []
 
   retrieveCoconstructor :: A.QName -> TCM [A.QName]
+  retrieveCoconstructor c = return []
+
+{- Andreas, 2012-05-13  THIS CODE LOOPS
+   If relies on the fact that only \sharp generates Delayed defs
+   which is no longer true in the presence of copatterns.
+
+   I do not know where the loop is, and it is hard to tell
+   since generated code (universeBi) is involved.
+
+   Someone knowledgeable fix this please.
+
+   A comment:  A use of instantiateFull seems expensive, is this really necessary??
+
+  retrieveCoconstructor :: A.QName -> TCM [A.QName]
   retrieveCoconstructor c = do
     def <- getConstInfo c
     case defDelayed def of
@@ -487,6 +502,7 @@ generateConstructorInfo modMap file kinds decl = do
       getRHS (I.Body v)   = Just v
       getRHS I.NoBody     = Nothing
       getRHS (I.Bind b)   = getRHS (I.unAbs b)
+-}
 
 -- | Prints syntax highlighting info for an error.
 
