@@ -479,6 +479,11 @@ generateConstructorInfo modMap file kinds decl = do
 
    A comment:  A use of instantiateFull seems expensive, is this really necessary??
 
+  -- If the name points to a delayed definition, then the definition
+  -- must (before Andreas' changes) contain a single clause that
+  -- (after metas have been instantiated) starts with a delay
+  -- constructor or an unsolved meta-variable. The name of the delay
+  -- constructor, if any, is returned.
   retrieveCoconstructor :: A.QName -> TCM [A.QName]
   retrieveCoconstructor c = do
     def <- getConstInfo c
