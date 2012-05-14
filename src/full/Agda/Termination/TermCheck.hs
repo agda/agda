@@ -688,7 +688,7 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 --   or guardedness like other projections do.
 isProjectionButNotFlat :: QName -> TCM Bool
 isProjectionButNotFlat qn = do
-  flat <- fmap nameOfSharp <$> coinductionKit
+  flat <- fmap nameOfFlat <$> coinductionKit
   if Just qn == flat
     then return False
     else Maybe.isJust <$> isProjection qn
