@@ -19,7 +19,7 @@ open import Function.Injection
   using (Injection; module Injection)
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality as PropEq
+open import Relation.Binary.PropositionalEquality as P
   using (_≡_; refl; cong; subst)
 open import Category.Functor
 open import Category.Applicative
@@ -33,10 +33,10 @@ private
   drop-suc refl = refl
 
 preorder : ℕ → Preorder _ _ _
-preorder n = PropEq.preorder (Fin n)
+preorder n = P.preorder (Fin n)
 
 setoid : ℕ → Setoid _ _
-setoid n = PropEq.setoid (Fin n)
+setoid n = P.setoid (Fin n)
 
 strictTotalOrder : ℕ → StrictTotalOrder _ _ _
 strictTotalOrder n = record
@@ -44,10 +44,10 @@ strictTotalOrder n = record
   ; _≈_                = _≡_
   ; _<_                = _<_
   ; isStrictTotalOrder = record
-    { isEquivalence = PropEq.isEquivalence
+    { isEquivalence = P.isEquivalence
     ; trans         = N.<-trans
     ; compare       = cmp
-    ; <-resp-≈      = PropEq.resp₂ _<_
+    ; <-resp-≈      = P.resp₂ _<_
     }
   }
   where
@@ -72,12 +72,13 @@ to-from : ∀ n → toℕ (fromℕ n) ≡ n
 to-from zero    = refl
 to-from (suc n) = cong suc (to-from n)
 
-toℕ-injective : ∀ {n} → {i j : Fin n} → toℕ i ≡ toℕ j → i ≡ j
-toℕ-injective {zero} {} {} _
-toℕ-injective {suc n} {zero} {zero} eq = refl
-toℕ-injective {suc n} {zero} {suc i} ()
-toℕ-injective {suc n} {suc i} {zero} ()
-toℕ-injective {suc n} {suc i} {suc i'} eq = cong suc (toℕ-injective (cong N.pred eq))
+toℕ-injective : ∀ {n} {i j : Fin n} → toℕ i ≡ toℕ j → i ≡ j
+toℕ-injective {zero}  {}      {}      _
+toℕ-injective {suc n} {zero}  {zero}  eq = refl
+toℕ-injective {suc n} {zero}  {suc j} ()
+toℕ-injective {suc n} {suc i} {zero}  ()
+toℕ-injective {suc n} {suc i} {suc j} eq =
+  cong suc (toℕ-injective (cong N.pred eq))
 
 bounded : ∀ {n} (i : Fin n) → toℕ i ℕ< n
 bounded zero    = s≤s z≤n
@@ -156,7 +157,7 @@ reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
 -- of the set can be decided.
 
 eq? : ∀ {s₁ s₂ n} {S : Setoid s₁ s₂} →
-      Injection S (PropEq.setoid (Fin n)) → Decidable (Setoid._≈_ S)
+      Injection S (P.setoid (Fin n)) → Decidable (Setoid._≈_ S)
 eq? inj x y with to ⟨$⟩ x ≟ to ⟨$⟩ y where open Injection inj
 ... | yes tox≡toy = yes (Injection.injective inj tox≡toy)
 ... | no  tox≢toy = no  (tox≢toy ∘ FunS.cong (Injection.to inj))
