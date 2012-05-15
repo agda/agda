@@ -134,11 +134,6 @@ ioTCM current highlighting cmd = do
   -- Write the state.
   writeIORef theState state
 
-  -- In case of error halt.
-  -- This is caught by ghci saying "*** Exception: ExitFailure 1"
-  -- Not needed, the error is reported by elisp expressions.
-  -- -- when (not ok) $ exitWith (ExitFailure 1)
-
 
 -- Helpers for testing ----------------------------------------------------
 

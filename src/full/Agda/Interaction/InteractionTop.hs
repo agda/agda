@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, Rank2Types, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
+             MultiParamTypeClasses, Rank2Types,
+             GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop
@@ -7,6 +9,7 @@ module Agda.Interaction.InteractionTop
   where
 
 import System.Directory
+import System.Exit
 import qualified System.IO as IO
 import Data.Maybe
 import Data.Function
@@ -277,15 +280,15 @@ ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = in
         handErr e theTCState Nothing (tcErrString e)
  where
 
-    -- If an error was encountered, display an error message.
-    handErr e theTCState s s' = do
-          displayErrorAndExit st status (getRange e) s'
-        where
-          st = InteractionState theTCState cstate
-          status = Status { sChecked               = False
-                          , sShowImplicitArguments =
-                                     optShowImplicit $ stPragmaOptions theTCState
-                          }
+ -- If an error was encountered, display an error message.
+ handErr e theTCState s s' =
+   displayError st status (getRange e) s'
+   where
+   st     = InteractionState theTCState cstate
+   status = Status { sChecked               = False
+                   , sShowImplicitArguments =
+                       optShowImplicit $ stPragmaOptions theTCState
+                   }
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
@@ -949,20 +952,23 @@ toggleImplicitArgs = interaction Dependent $ do
 -- Error handling
 
 
--- | Displays an error, instructs Emacs to jump to the site of the
--- error, and terminates the program. Because this function may switch
--- the focus to another file the status information is also updated.
-displayErrorAndExit st status r s = do
-    mapM_ (putResponseIO st) $ [ Resp_DisplayInfo $ Info_Error s ]
-                ++  tellEmacsToJumpToError r
-                ++  [ Resp_Status status ]
-    return st
+-- | Displays an error and instructs Emacs to jump to the site of the
+-- error. Because this function may switch the focus to another file
+-- the status information is also updated.
+displayError st status r s = do
+  mapM_ (putResponseIO st) $
+    [ Resp_DisplayInfo $ Info_Error s ] ++
+    tellEmacsToJumpToError r ++
+    [ Resp_Status status ]
+  return st
 
 -- | Outermost error handler.
 
 infoOnException st m =
-  failOnException (displayErrorAndExit st s) m `catchImpossible` \e ->
-    displayErrorAndExit st s noRange (show e)
+  failOnException (displayError st s) m
+    `E.catch` \(e :: E.SomeException) -> do
+      displayError st s noRange (show e)
+      exitWith (ExitFailure 1)
   where
   s = Status { sChecked               = False
              , sShowImplicitArguments = False

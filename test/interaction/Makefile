@@ -23,18 +23,20 @@ export TMPDIR=highlighting-tmp
 
 run_test=if test -f $*.in; \
     then ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps' ) \
-				 | cat - $*.in | agda --interaction-test "$(wildcard $*.agda $*.lagda)" \
-				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           | cat - $*.in \
+           | agda --interaction-test "$(wildcard $*.agda $*.lagda)" $(RTS_$*) \
+           | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-					 echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
-					 echo "let top_command = top_command' currentFile" ) \
-				 | cat - $*.in_ghci | ghc --interactive -v0 \
-				 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
+           echo "let top_command = top_command' currentFile" ) \
+           | cat - $*.in_ghci | ghc --interactive -v0 $(RTS_$*) \
+           | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
+RTS_Issue637       = +RTS -K4 -RTS
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
