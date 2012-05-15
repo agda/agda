@@ -400,13 +400,20 @@ Comments are handled by Font Lock mode (which uses the syntax
 table). The face `font-lock-comment-face' is used for comments.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Variables
+
+(defvar agda2-highlight-in-progress nil
+  "If nil, then highlighting annotations are not applied.")
+(make-variable-buffer-local 'agda2-highlight-in-progress)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Functions
 
 (defun agda2-highlight-setup nil
   "Set up the `annotation' library for use with `agda2-mode'."
   (setq annotation-bindings agda2-highlight-faces))
 
-(defun agda2-highlight-add-annotations (&rest cmds)
+(defun agda2-highlight-apply (&rest cmds)
   "Adds the syntax highlighting information in the annotation list CMDS.
 
 Old syntax highlighting information is not removed."
@@ -415,6 +422,12 @@ Old syntax highlighting information is not removed."
     (apply 'annotation-load
            "Click mouse-2 to jump to definition"
            cmds)))
+
+(defun agda2-highlight-add-annotations (&rest cmds)
+  "Like `agda2-highlight-apply'.
+But only if `agda2-highlight-in-progress' is non-nil."
+  (if agda2-highlight-in-progress
+      (apply 'agda2-highlight-apply cmds)))
 
 (defun agda2-highlight-load (file)
   "Load syntax highlighting information from FILE.
@@ -425,7 +438,16 @@ Old syntax highlighting information is not removed."
                  (insert-file-contents file)
                  (goto-char (point-min))
                  (read (current-buffer)))))
-      (apply 'agda2-highlight-add-annotations cmds)))
+      (apply 'agda2-highlight-apply cmds)))
+
+(defun agda2-highlight-load-and-delete-action (file)
+  "Like `agda2-highlight-load', but deletes FILE when done.
+And highlighting is only updated if `agda2-highlight-in-progress'
+is non-nil."
+  (unwind-protect
+      (if agda2-highlight-in-progress
+          (agda2-highlight-load file))
+    (delete-file file)))
 
 (defun agda2-highlight-clear nil
   "Remove all syntax highlighting added by `agda2-highlight-reload'."

@@ -336,10 +336,6 @@ nil) and the time at which the measurement was started.")
 ;; process, `agda2-go', `agda2-restart', and
 ;; `agda2-abort-highlighting'.
 
-(defvar agda2-highlight-in-progress nil
-  "If nil, then highlighting annotations are not applied.")
-(make-variable-buffer-local 'agda2-highlight-in-progress)
-
 (defvar agda2-responses-expected nil
   "Is the Agda process expected to produce at least one response?")
 (make-variable-buffer-local 'agda2-responses-expected)
@@ -755,7 +751,8 @@ An error is raised if no responses are received."
 
 (defun agda2-exec-response (response)
   "Interprets response."
-  (let ((inhibit-read-only t)) (eval response)))
+  (let ((inhibit-read-only t))
+    (eval response)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; User commands and response processing
@@ -929,15 +926,6 @@ is inserted, and point is placed before this text."
       (if append
           (goto-char (point-max))
         (goto-char (point-min))))))
-
-(defun agda2-highlight-load-and-delete-action (file)
-  "Like `agda2-highlight-load', but deletes FILE when done.
-And highlighting is only updated if `agda2-highlight-in-progress'
-is non-nil."
-  (unwind-protect
-      (if agda2-highlight-in-progress
-          (agda2-highlight-load file))
-    (delete-file file)))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
