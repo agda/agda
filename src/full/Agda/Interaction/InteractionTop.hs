@@ -9,7 +9,6 @@ module Agda.Interaction.InteractionTop
   where
 
 import System.Directory
-import System.Exit
 import qualified System.IO as IO
 import Data.Maybe
 import Data.Function
@@ -968,7 +967,7 @@ infoOnException st m =
   failOnException (displayError st s) m
     `E.catch` \(e :: E.SomeException) -> do
       displayError st s noRange (show e)
-      exitWith (ExitFailure 1)
+      E.throw e
   where
   s = Status { sChecked               = False
              , sShowImplicitArguments = False
