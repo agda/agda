@@ -472,6 +472,10 @@ strictTotalOrder = record
 0∸n≡0 zero    = refl
 0∸n≡0 (suc _) = refl
 
+n∸n≡0 : ∀ n → n ∸ n ≡ 0
+n∸n≡0 zero    = refl
+n∸n≡0 (suc n) = n∸n≡0 n
+
 ∸-+-assoc : ∀ m n o → (m ∸ n) ∸ o ≡ m ∸ (n + o)
 ∸-+-assoc m       n       zero    = cong (_∸_ m) (sym $ proj₂ +-identity n)
 ∸-+-assoc zero    zero    (suc o) = refl
@@ -479,16 +483,27 @@ strictTotalOrder = record
 ∸-+-assoc (suc m) zero    (suc o) = refl
 ∸-+-assoc (suc m) (suc n) (suc o) = ∸-+-assoc m n (suc o)
 
++-∸-assoc : ∀ m {n o} → o ≤ n → (m + n) ∸ o ≡ m + (n ∸ o)
++-∸-assoc m (z≤n {n = n})             = begin m + n ∎
++-∸-assoc m (s≤s {m = o} {n = n} o≤n) = begin
+  (m + suc n) ∸ suc o  ≡⟨ cong (λ n → n ∸ suc o) (m+1+n≡1+m+n m n) ⟩
+  suc (m + n) ∸ suc o  ≡⟨ refl ⟩
+  (m + n) ∸ o          ≡⟨ +-∸-assoc m o≤n ⟩
+  m + (n ∸ o)          ∎
+
 m+n∸n≡m : ∀ m n → (m + n) ∸ n ≡ m
-m+n∸n≡m m       zero    = proj₂ +-identity m
-m+n∸n≡m zero    (suc n) = m+n∸n≡m zero n
-m+n∸n≡m (suc m) (suc n) = begin
-  m + suc n ∸ n
-                 ≡⟨ cong (λ x → x ∸ n) (m+1+n≡1+m+n m n) ⟩
-  suc m + n ∸ n
-                 ≡⟨ m+n∸n≡m (suc m) n ⟩
-  suc m
-                 ∎
+m+n∸n≡m m n = begin
+  (m + n) ∸ n  ≡⟨ +-∸-assoc m (≤-refl {x = n}) ⟩
+  m + (n ∸ n)  ≡⟨ cong (_+_ m) (n∸n≡0 n) ⟩
+  m + 0        ≡⟨ proj₂ +-identity m ⟩
+  m            ∎
+
+m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
+m+n∸m≡n {m} {n} m≤n = begin
+  m + (n ∸ m)  ≡⟨ sym $ +-∸-assoc m m≤n ⟩
+  (m + n) ∸ m  ≡⟨ cong (λ n → n ∸ m) (+-comm m n) ⟩
+  (n + m) ∸ m  ≡⟨ m+n∸n≡m n m ⟩
+  n            ∎
 
 m⊓n+n∸m≡n : ∀ m n → (m ⊓ n) + (n ∸ m) ≡ n
 m⊓n+n∸m≡n zero    n       = refl
@@ -504,17 +519,6 @@ m⊓n+n∸m≡n (suc m) (suc n) = cong suc $ m⊓n+n∸m≡n m n
 [i+j]∸[i+k]≡j∸k : ∀ i j k → (i + j) ∸ (i + k) ≡ j ∸ k
 [i+j]∸[i+k]≡j∸k zero    j k = refl
 [i+j]∸[i+k]≡j∸k (suc i) j k = [i+j]∸[i+k]≡j∸k i j k
-
-i+[j∸m]≡i+j∸m : ∀ i j m → m ≤ j → i + (j ∸ m) ≡ i + j ∸ m
-i+[j∸m]≡i+j∸m i zero zero lt = refl
-i+[j∸m]≡i+j∸m i zero (suc m) ()
-i+[j∸m]≡i+j∸m i (suc j) zero lt = refl
-i+[j∸m]≡i+j∸m i (suc j) (suc m) (s≤s m≤j) = begin
-  i + (j ∸ m)         ≡⟨ i+[j∸m]≡i+j∸m i j m m≤j ⟩
-  suc (i + j) ∸ suc m ≡⟨ cong (λ y → y ∸ suc m) $ solve 2 (λ i' j' → con 1 :+ (i' :+ j') := i' :+ (con 1 :+ j')) refl i j ⟩
-  (i + suc j) ∸ suc m ∎
-  where open SemiringSolver
-
 
 -- TODO: Can this proof be simplified? An automatic solver which can
 -- handle ∸ would be nice...
@@ -550,10 +554,6 @@ i∸k∸j+j∸k≡i+j∸k (suc i) (suc j) (suc k) = begin
   i + suc j ∸ k
                              ∎
 
-m+n∸m≡n : ∀ {m n} → m ≤ n → m + (n ∸ m) ≡ n
-m+n∸m≡n z≤n       = refl
-m+n∸m≡n (s≤s m≤n) = cong suc $ m+n∸m≡n m≤n
-
 i+j≡0⇒i≡0 : ∀ i {j} → i + j ≡ 0 → i ≡ 0
 i+j≡0⇒i≡0 zero    eq = refl
 i+j≡0⇒i≡0 (suc i) ()
@@ -568,9 +568,9 @@ i+j≡0⇒j≡0 i {j} i+j≡0 = i+j≡0⇒i≡0 j $ begin
     ∎
 
 i*j≡0⇒i≡0∨j≡0 : ∀ i {j} → i * j ≡ 0 → i ≡ 0 ⊎ j ≡ 0
-i*j≡0⇒i≡0∨j≡0 zero {j} eq = inj₁ refl
-i*j≡0⇒i≡0∨j≡0 (suc n) {zero} eq = inj₂ refl
-i*j≡0⇒i≡0∨j≡0 (suc n) {suc n'} ()
+i*j≡0⇒i≡0∨j≡0 zero    {j}     eq = inj₁ refl
+i*j≡0⇒i≡0∨j≡0 (suc i) {zero}  eq = inj₂ refl
+i*j≡0⇒i≡0∨j≡0 (suc i) {suc j} ()
 
 i*j≡1⇒i≡1 : ∀ i j → i * j ≡ 1 → i ≡ 1
 i*j≡1⇒i≡1 (suc zero)    j             _  = refl
