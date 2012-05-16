@@ -72,7 +72,6 @@ addConstant q d = do
   reportSLn "tc.signature" 20 $ "adding constant " ++ show q ++ " to signature"
   tel <- getContextTelescope
   let tel' = killRange $ case theDef d of
---	      Constructor{} -> hideTel tel
 	      Constructor{} -> fmap (mapDomHiding (const Hidden)) tel
 	      _		    -> tel
   let d' = abstract tel' $ d { defName = q }
@@ -83,11 +82,6 @@ addConstant q d = do
   setMutualBlock i q
   where
     new +++ old = new { defDisplay = defDisplay new ++ defDisplay old }
-
-{- UNUSED
-    hideTel  EmptyTel		        = EmptyTel
-    hideTel (ExtendTel (Dom _ r t) tel) = ExtendTel (Dom Hidden r t) $ hideTel <$> tel
--}
 
 -- | Turn a definition into a projection if it looks like a projection.
 makeProjection :: QName -> TCM ()
@@ -269,19 +263,22 @@ lookupSection m = do
 addDisplayForms :: QName -> TCM ()
 addDisplayForms x = do
   args <- getContextArgs
-  add args x x []
+  n    <- do
+    proj <- isProjection x
+    return $ case proj of
+      Just (_, n) -> n
+      Nothing     -> 0
+  add (drop (n - 1) args) x x []
   where
     add args top x vs0 = do
       def <- getConstInfo x
       let cs = defClauses def
-          n  = case theDef def of
-                 Function{ funProjection = Just (_, n) } -> n
-                 _ -> 0
       case cs of
-	[ Clause{ clauseBody = b } ]
-	  | Just (m, Def y vs) <- strip (b `apply` vs0) -> do
+	[ Clause{ clausePats = pats, clauseBody = b } ]
+	  | all (isVar . unArg) pats
+          , Just (m, Def y vs) <- strip (b `apply` vs0) -> do
 	      let ps = raise 1 (map unArg vs)
-                  df = Display 0 ps $ DTerm $ Def top (drop (n - 1) args)
+                  df = Display 0 ps $ DTerm $ Def top args
 	      reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
 	      addDisplayForm y df
@@ -304,6 +301,9 @@ addDisplayForms x = do
     strip (Bind b)   = do
       (n, v) <- strip $ absBody b
       return (n + 1, v)
+
+    isVar VarP{} = True
+    isVar _      = False
 
 applySection ::
   ModuleName -> Telescope -> ModuleName -> Args ->
