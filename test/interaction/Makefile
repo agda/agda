@@ -3,7 +3,7 @@ TOP = ../..
 include $(TOP)/mk/paths.mk
 include $(TOP)/mk/config.mk
 
-# Enable read -n and |&.
+# Enable read -n and 2>&1 |.
 SHELL=bash
 
 uname:=$(shell uname)
@@ -25,12 +25,12 @@ run_test=if test -f $*.in; \
     then ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps' ) \
            | cat - $*.in \
            | agda --interaction-test "$(wildcard $*.agda $*.lagda)" $(RTS_$*) \
-           |& sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
            echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
            echo "let top_command = top_command' currentFile" ) \
            | cat - $*.in_ghci | ghc --interactive -v0 $(RTS_$*) \
-           |& sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
 setup_Issue591     = rm -f Issue591/M.agdai
