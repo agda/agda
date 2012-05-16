@@ -8,9 +8,13 @@ data Void : Set where
 foo : Bool -> Bool -> Bool -> Bool
 foo = λ { x → λ { y z → {!!} } }
 
-data Bar : (Bool -> Bool) -> Set where
-  baz : (t : Void) -> Bar λ { x → {!!} }
+module parameterised {A : Set}(B : A -> Set) where
 
--- with hidden argument
-data Bar' : (Bool -> Bool) -> Set where
-  baz' : {t : Void} -> Bar' λ { x' → {!!} }
+  data Bar : (Bool -> Bool) -> Set where
+    baz : (t : Void) -> Bar λ { x → {!!} }
+
+  -- with hidden argument
+  data Bar' : (Bool -> Bool) -> Set where
+    baz' : {t : Void} -> Bar' λ { x' → {!!} }
+
+

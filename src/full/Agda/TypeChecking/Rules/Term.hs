@@ -497,7 +497,10 @@ checkExpr e t =
                  reduce $ (Def qname [] `apply` (mkArgs tel))
 -}
                  args <- getContextArgs
-                 let (hid, notHid) = partition ((Hidden ==) . argHiding) args
+                 top <- currentModule
+                 freevars <- getSecFreeVars top
+                 let argsNoParam = genericDrop freevars args -- don't count module parameters
+                 let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
                  addExtLambdaTele qname (length hid, length notHid)
                  reduce $ (Def qname [] `apply` args)
           where
