@@ -31,18 +31,18 @@ tail : ∀ {a b ℓ} {A : Set a} {B : Set b} {_∼_ : REL A B ℓ} {x y xs ys} �
 tail (x∼y ∷ xs∼ys) = xs∼ys
 
 rec : ∀ {a b c ℓ} {A : Set a} {B : Set b} {_∼_ : REL A B ℓ}
-        (C : ∀ {xs ys} → Rel _∼_ xs ys → Set c) →
-        (∀ {x y xs ys}{xs∼ys : Rel _∼_ xs ys} →
-            (x∼y : x ∼ y) → C xs∼ys → C (x∼y ∷ xs∼ys)) →
-        C [] →
-      ∀ {xs ys} (xs∼ys : Rel _∼_ xs ys) → C xs∼ys
-rec C c n []            = n
-rec C c n (x∼y ∷ xs∼ys) = c x∼y (rec C c n xs∼ys)
+      (P : ∀ {xs ys} → Rel _∼_ xs ys → Set c) →
+      (∀ {x y xs ys} {xs∼ys : Rel _∼_ xs ys} →
+         (x∼y : x ∼ y) → P xs∼ys → P (x∼y ∷ xs∼ys)) →
+      P [] →
+      ∀ {xs ys} (xs∼ys : Rel _∼_ xs ys) → P xs∼ys
+rec P c n []            = n
+rec P c n (x∼y ∷ xs∼ys) = c x∼y (rec P c n xs∼ys)
 
 map : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b}
         {_≈_ : REL A B ℓ₁} {_∼_ : REL A B ℓ₂} →
       _≈_ ⇒ _∼_ → Rel _≈_ ⇒ Rel _∼_
-map ≈⇒∼ []             = []
+map ≈⇒∼ []            = []
 map ≈⇒∼ (x≈y ∷ xs≈ys) = ≈⇒∼ x≈y ∷ map ≈⇒∼ xs≈ys
 
 reflexive : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b}
@@ -62,9 +62,10 @@ symmetric : ∀ {a b ℓ₁ ℓ₂} {A : Set a} {B : Set b}
 symmetric sym []            = []
 symmetric sym (x∼y ∷ xs∼ys) = sym x∼y ∷ symmetric sym xs∼ys
 
-transitive : ∀ {a b c ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} {C : Set c}
-               {_≋_ : REL A B ℓ₁} {_≈_ : REL B C ℓ₂} {_∼_ : REL A C ℓ₃} →
-             Trans _≋_ _≈_ _∼_ → Trans (Rel _≋_) (Rel _≈_) (Rel _∼_)
+transitive :
+  ∀ {a b c ℓ₁ ℓ₂ ℓ₃} {A : Set a} {B : Set b} {C : Set c}
+    {_≋_ : REL A B ℓ₁} {_≈_ : REL B C ℓ₂} {_∼_ : REL A C ℓ₃} →
+  Trans _≋_ _≈_ _∼_ → Trans (Rel _≋_) (Rel _≈_) (Rel _∼_)
 transitive trans []            []            = []
 transitive trans (x∼y ∷ xs∼ys) (y∼z ∷ ys∼zs) =
   trans x∼y y∼z ∷ transitive trans xs∼ys ys∼zs
