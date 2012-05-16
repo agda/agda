@@ -271,7 +271,7 @@ addDisplayForms x = do
   args <- getContextArgs
   add args x x []
   where
-    add args top x ps = do
+    add args top x vs0 = do
       def <- getConstInfo x
       let cs = defClauses def
           n  = case theDef def of
@@ -279,13 +279,13 @@ addDisplayForms x = do
                  _ -> 0
       case cs of
 	[ Clause{ clauseBody = b } ]
-	  | Just (m, Def y vs) <- strip b -> do
-	      let ps' = raise 1 (map unArg vs) ++ ps
-                  df  = Display 0 ps' $ DTerm $ Def top (drop (n - 1) args)
+	  | Just (m, Def y vs) <- strip (b `apply` vs0) -> do
+	      let ps = raise 1 (map unArg vs)
+                  df = Display 0 ps $ DTerm $ Def top (drop (n - 1) args)
 	      reportSLn "tc.display.section" 20 $ "adding display form " ++ show y ++ " --> " ++ show top
                                                 ++ "\n  " ++ show df
 	      addDisplayForm y df
-	      add args top y ps'
+	      add args top y vs
 	_ -> do
 	      let reason = case cs of
 		    []    -> "no clauses"

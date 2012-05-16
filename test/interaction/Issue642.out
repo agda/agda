@@ -1,0 +1,8 @@
+(agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue642 (Issue642.agda).\n" t)
+(agda2-info-action "*Type-checking*" "Finished Issue642.\n" t)
+(agda2-status-action "")
+(agda2-info-action "*All Goals*" "?0 : F x\n" nil)
+((last . 1) . (agda2-goals-action '(0)))

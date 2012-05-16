@@ -36,7 +36,8 @@ displayForm c vs = do
     -- Not safe when printing non-terminating terms.
     -- (nfdfs, us) <- normalise (dfs, vs)
     unless (null odfs) $ reportSLn "tc.display.top" 100 $ unlines
-      [ "displayForms: " ++ show dfs
+      [ "name        : " ++ show c
+      , "displayForms: " ++ show dfs
       , "arguments   : " ++ show vs
       , "matches     : " ++ show ms
       , "result      : " ++ show (foldr (const . Just) Nothing ms)

@@ -138,7 +138,7 @@ instance Apply ClauseBody where
     apply  b                 []       = b
     apply (Bind (Abs   _ b)) (a:args) = subst (unArg a) b `apply` args
     apply (Bind (NoAbs _ b)) (_:args) = b `apply` args
-    apply (Body _)           (_:_)    = __IMPOSSIBLE__
+    apply (Body v)           args     = Body $ v `apply` args
     apply  NoBody             _       = NoBody
 
 instance Apply DisplayTerm where
