@@ -40,6 +40,10 @@ fromWitness : ∀ {p} {P : Set p} {Q : Dec P} → P → True Q
 fromWitness {Q = yes p} = const _
 fromWitness {Q = no ¬p} = ¬p
 
+fromWitnessFalse : ∀ {p} {P : Set p} {Q : Dec P} → ¬ P → False Q
+fromWitnessFalse {Q = yes p} = flip _$_ p
+fromWitnessFalse {Q = no ¬p} = const _
+
 map : ∀ {p q} {P : Set p} {Q : Set q} → P ⇔ Q → Dec P → Dec Q
 map P⇔Q (yes p) = yes (Equivalence.to P⇔Q ⟨$⟩ p)
 map P⇔Q (no ¬p) = no (¬p ∘ _⟨$⟩_ (Equivalence.from P⇔Q))
