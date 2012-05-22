@@ -142,7 +142,16 @@ instance (HasRange a, HasRange b, HasRange c) => HasRange (a,b,c) where
     getRange (x,y,z) = getRange (x,(y,z))
 
 instance (HasRange a, HasRange b, HasRange c, HasRange d) => HasRange (a,b,c,d) where
-    getRange (x,y,z,w) = getRange (x,(y,(z, w)))
+    getRange (x,y,z,w) = getRange (x,(y,(z,w)))
+
+instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e) => HasRange (a,b,c,d,e) where
+    getRange (x,y,z,w,v) = getRange (x,(y,(z,(w,v))))
+
+instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f) => HasRange (a,b,c,d,e,f) where
+    getRange (x,y,z,w,v,u) = getRange (x,(y,(z,(w,(v,u)))))
+
+instance (HasRange a, HasRange b, HasRange c, HasRange d, HasRange e, HasRange f, HasRange g) => HasRange (a,b,c,d,e,f,g) where
+    getRange (x,y,z,w,v,u,t) = getRange (x,(y,(z,(w,(v,(u,t))))))
 
 instance HasRange a => HasRange (Maybe a) where
     getRange Nothing  = noRange

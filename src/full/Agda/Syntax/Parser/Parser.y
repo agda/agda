@@ -319,7 +319,7 @@ DoubleCloseBrace
 	 posPos (fromJust (rStart (getRange $1))) > 2
       then parseErrorAt (fromJust (rStart (getRange $2)))
 	 "Expecting '}}', found separated '}'s."
-      else return $ fuseRange (getRange $1) (getRange ($2))
+      else return $ getRange ($1, $2)
     }
 
 {- UNUSED
@@ -490,7 +490,9 @@ Expr :: { Expr }
 Expr
   : TeleArrow Expr                      { Pi $1 $2 }
   | 'forall' ForallBindings Expr        { forallPi $2 $3 }
-  | Application3 '->' Expr              { Fun (fuseRange $1 $3) (RawApp (getRange $1) $1) $3 }
+  | Application3 '->' Expr              { Fun (getRange ($1,$2,$3))
+                                              (RawApp (getRange $1) $1)
+                                              $3 }
   | Expr1 %prec LOWEST                  { $1 }
 
 -- Level 1: Application
@@ -513,8 +515,8 @@ Application
 
 -- Level 2: Lambdas and lets
 Expr2
-    : '\\' LamBindings Expr	   { Lam (fuseRange $1 $3) $2 $3 }
-    | '\\'  '{' LamClauses '}'     { ExtendedLam (fuseRange $1 (fuseRange $2 $4)) (reverse $3) }
+    : '\\' LamBindings Expr	   { Lam (getRange ($1,$2,$3)) $2 $3 }
+    | '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
     | '\\' AbsurdLamBindings       {% case $2 of
                                        Left (bs, h) -> if null bs then return $ AbsurdLam r h else
                                                        return $ Lam r bs (AbsurdLam r h)
@@ -524,9 +526,9 @@ Expr2
                                                      return $ ExtendedLam (fuseRange $1 es)
                                                                      [(p [] [], AbsurdRHS, NoWhere)]
                                    }
-    | 'let' Declarations 'in' Expr { Let (fuseRange $1 $4) $2 $4 }
+    | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
     | Expr3			   { $1 }
-    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$4)) $2 $4}
+    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
 
 Application3 :: { [Expr] }
 Application3
@@ -535,8 +537,9 @@ Application3
 
 -- Level 3: Atoms
 Expr3Curly
-    : '{' Expr '}'			{ HiddenArg (fuseRange $1 $3) (unnamed $2) }
-    | '{' Id '=' Expr '}'		{ HiddenArg (fuseRange $1 $5) (named (show $2) $4) }
+    : '{' Expr '}'			{ HiddenArg (getRange ($1,$2,$3)) (unnamed $2) }
+    | '{' Id '=' Expr '}'		{ HiddenArg (getRange ($1,$2,$3,$4,$5))
+                                            (named (show $2) $4) }
     | '{' '}'				{ let r = fuseRange $1 $2 in HiddenArg r $ unnamed $ Absurd r }
 
 Expr3NoCurly
@@ -550,15 +553,17 @@ Expr3NoCurly
     | 'quoteTerm'                       { QuoteTerm (getRange $1) }
     | 'unquote'                         { Unquote (getRange $1) }
     | setN				{ SetN (getRange (fst $1)) (snd $1) }
-    | '{{' Expr DoubleCloseBrace			{ InstanceArg (fuseRange $1 $3) (unnamed $2) }
-    | '{{' Id '=' Expr DoubleCloseBrace		{ InstanceArg (fuseRange $1 $5) (named (show $2) $4) }
-    | '(' Expr ')'			{ Paren (fuseRange $1 $3) $2 }
+    | '{{' Expr DoubleCloseBrace			{ InstanceArg (getRange ($1,$2,$3))
+                                                          (unnamed $2) }
+    | '{{' Id '=' Expr DoubleCloseBrace		{ InstanceArg (getRange ($1,$2,$3,$4,$5))
+                                                          (named (show $2) $4) }
+    | '(' Expr ')'			{ Paren (getRange ($1,$2,$3)) $2 }
     | '(' ')'				{ Absurd (fuseRange $1 $2) }
     | '{{' DoubleCloseBrace             { let r = fuseRange $1 $2 in InstanceArg r $ unnamed $ Absurd r }
-    | Id '@' Expr3			{ As (fuseRange $1 $3) $1 $3 }
+    | Id '@' Expr3			{ As (getRange ($1,$2,$3)) $1 $3 }
     | '.' Expr3				{ Dot (fuseRange $1 $2) $2 }
-    | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$4)) $3 }
-    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$5)) $2 $4 }
+    | 'record' '{' FieldAssignments '}' { Rec (getRange ($1,$2,$3,$4)) $3 }
+    | 'record' Expr3NoCurly '{' FieldAssignments '}' { RecUpdate (getRange ($1,$2,$3,$4,$5)) $2 $4 }
 
 Expr3
     : Expr3Curly			{ $1 }
@@ -599,20 +604,21 @@ TypedBindingss
 -- Andreas, 2011-04-27: or ..(x1 .. xn : A) or ..{y1 .. ym : B}
 TypedBindings :: { TypedBindings }
 TypedBindings
-    : '.' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         Irrelevant $3) }
-    | '.' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            Irrelevant $3) }
-    | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (fuseRange $1 $3) (Arg Instance Irrelevant $3) }
-    | '..' '(' TBind ')'    { TypedBindings (fuseRange $2 $4) (Arg NotHidden         NonStrict $3) }
-    | '..' '{' TBind '}'    { TypedBindings (fuseRange $2 $4) (Arg Hidden            NonStrict $3) }
-    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (fuseRange $1 $3) (Arg Instance NonStrict $3) }
-    | '(' TBind ')'        { TypedBindings (fuseRange $1 $3) (Arg NotHidden         Relevant $2) }
-    | '{{' TBind DoubleCloseBrace      { TypedBindings (fuseRange $1 $3) (Arg Instance Relevant $2) }
-    | '{' TBind '}'        { TypedBindings (fuseRange $1 $3) (Arg Hidden            Relevant $2) }
+    : '.' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4)) (Arg NotHidden         Irrelevant $3) }
+    | '.' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4)) (Arg Hidden            Irrelevant $3) }
+    | '.' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4))
+                                         (Arg Instance Irrelevant $3) }
+    | '..' '(' TBind ')'    { TypedBindings (getRange ($2,$3,$4)) (Arg NotHidden         NonStrict $3) }
+    | '..' '{' TBind '}'    { TypedBindings (getRange ($2,$3,$4)) (Arg Hidden            NonStrict $3) }
+    | '..' '{{' TBind DoubleCloseBrace  { TypedBindings (getRange ($2,$3,$4)) (Arg Instance NonStrict $3) }
+    | '(' TBind ')'        { TypedBindings (getRange ($1,$2,$3)) (Arg NotHidden         Relevant $2) }
+    | '{{' TBind DoubleCloseBrace      { TypedBindings (getRange ($1,$2,$3)) (Arg Instance Relevant $2) }
+    | '{' TBind '}'        { TypedBindings (getRange ($1,$2,$3)) (Arg Hidden            Relevant $2) }
 
 
 -- x1 .. xn:A
 TBind :: { TypedBinding }
-TBind : CommaBIds ':' Expr  { TBind (fuseRange $1 $3) (map mkBoundName_ $1) $3 }
+TBind : CommaBIds ':' Expr  { TBind (getRange ($1,$2,$3)) (map mkBoundName_ $1) $3 }
 
 
 -- A non-empty sequence of lambda bindings.
@@ -776,13 +782,13 @@ ImportDirective2
 
 UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
-    : 'using' '(' CommaImportNames ')'   { (Using $3 , fuseRange $1 $4) }
+    : 'using' '(' CommaImportNames ')'   { (Using $3 , getRange ($1,$2,$3,$4)) }
 	-- only using can have an empty list
-    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , fuseRange $1 $4) }
+    | 'hiding' '(' CommaImportNames1 ')' { (Hiding $3 , getRange ($1,$2,$3,$4)) }
 
 RenamingDir :: { ([Renaming] , Range) }
 RenamingDir
-    : 'renaming' '(' Renamings ')'	{ ($3 , fuseRange $1 $4) }
+    : 'renaming' '(' Renamings ')'	{ ($3 , getRange ($1,$2,$3,$4)) }
 
 -- Renamings of the form 'x to y'
 Renamings :: { [Renaming] }
@@ -825,7 +831,7 @@ LHS :: { LHS }
 LHS : Expr1 RewriteEquations WithExpressions
         {% exprToLHS $1 >>= \p -> return (p $2 $3) }
     | '...' WithPats RewriteEquations WithExpressions
-        { Ellipsis (fuseRange $1 $3) $2 $3 $4 }
+        { Ellipsis (getRange ($1,$2,$3,$4)) $2 $3 $4 }
 
 WithPats :: { [Pattern] }
 WithPats : {- empty -}	{ [] }
@@ -919,20 +925,20 @@ RHS : '=' Expr	    { RHS $2 }
 -- Data declaration. Can be local.
 Data :: { Declaration }
 Data : 'data' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors	{ Data (getRange ($1, $6, $7)) Inductive $2 $3 (Just $5) $7 }
+            Constructors	{ Data (getRange ($1,$2,$3,$4,$5,$6,$7)) Inductive $2 $3 (Just $5) $7 }
      | 'codata' Id TypedUntypedBindings ':' Expr 'where'
-            Constructors	{ Data (getRange ($1, $6, $7)) CoInductive $2 $3 (Just $5) $7 }
+            Constructors	{ Data (getRange ($1,$2,$3,$4,$5,$6,$7)) CoInductive $2 $3 (Just $5) $7 }
 
   -- New cases when we already had a DataSig.  Then one can omit the sort.
      | 'data' Id TypedUntypedBindings 'where'
-	    Constructors	{ Data (getRange ($1, $4, $5)) Inductive $2 $3 Nothing $5 }
+	    Constructors	{ Data (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 Nothing $5 }
      | 'codata' Id TypedUntypedBindings 'where'
-	    Constructors	{ Data (getRange ($1, $4, $5)) CoInductive $2 $3 Nothing $5 }
+	    Constructors	{ Data (getRange ($1,$2,$3,$4,$5)) CoInductive $2 $3 Nothing $5 }
 
 -- Data type signature. Found in mutual blocks.
 DataSig :: { Declaration }
 DataSig : 'data' Id TypedUntypedBindings ':' Expr
-  { DataSig (fuseRange $1 $5) Inductive $2 $3 $5 }
+  { DataSig (getRange ($1,$2,$3,$4,$5)) Inductive $2 $3 $5 }
 
 -- Andreas, 2012-03-16:  The Expr3NoCurly instead of Id in everything
 -- following 'record' is to remove the (harmless) shift/reduce conflict
@@ -942,15 +948,15 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1, $6, $7)) n (fst $7) $3 (Just $5) (snd $7) }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n (fst $7) $3 (Just $5) (snd $7) }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
 	    RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1, $4, $5)) n (fst $5) $3 Nothing (snd $5) }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5)) n (fst $5) $3 Nothing (snd $5) }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
 RecordSig : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr
-  {% exprToName $2 >>= \ n -> return $ RecordSig (fuseRange $1 $5) n $3 $5 }
+  {% exprToName $2 >>= \ n -> return $ RecordSig (getRange ($1,$2,$3,$4,$5)) n $3 $5 }
 
 -- Declaration of record constructor name.
 RecordConstructorName :: { Name }
@@ -958,9 +964,9 @@ RecordConstructorName : 'constructor' Id { $2 }
 
 -- Fixity declarations.
 Infix :: { Declaration }
-Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (fuseRange $1 $3) $2) $3 }
-      | 'infixl' Int SpaceBIds  { Infix (LeftAssoc (fuseRange $1 $3) $2) $3 }
-      | 'infixr' Int SpaceBIds  { Infix (RightAssoc (fuseRange $1 $3) $2) $3 }
+Infix : 'infix'  Int SpaceBIds  { Infix (NonAssoc (getRange ($1,$3)) $2) $3 }
+      | 'infixl' Int SpaceBIds  { Infix (LeftAssoc (getRange ($1,$3)) $2) $3 }
+      | 'infixr' Int SpaceBIds  { Infix (RightAssoc (getRange ($1,$3)) $2) $3 }
 
 -- Field declarations.
 Fields :: { [Declaration] }
@@ -1005,7 +1011,7 @@ Syntax : 'syntax' Id HoleNames '=' SimpleIds  {%
 PatternSyn :: { Declaration }
 PatternSyn : 'pattern' SpaceIds '=' Expr {% do
   p <- exprToPattern $4
-  return (PatternSyn (getRange ($1 , $4)) (head $2) (tail $2) p)
+  return (PatternSyn (getRange ($1,$2,$3,$4)) (head $2) (tail $2) p)
   }
 
 SimpleIds :: { [String] }
@@ -1056,7 +1062,7 @@ OpenArgs : {- empty -}    { [] }
 
 ModuleApplication :: { [TypedBindings] -> Parser ModuleApplication }
 ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
-		    if null ts then return $ RecordModuleIFS (getRange ($1, $4)) $1
+		    if null ts then return $ RecordModuleIFS (getRange ($1,$2,$3,$4)) $1
 		    else parseError "No bindings allowed for record module with non-canonical implicits" )
 		    }
 		  | ModuleName OpenArgs {
@@ -1066,21 +1072,21 @@ ModuleApplication : ModuleName '{{' '...' DoubleCloseBrace { (\ts ->
 -- Module instantiation
 ModuleMacro :: { Declaration }
 ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
-		    {% do {ma <- $5 (map addType $3); return $ ModuleMacro (getRange ($1, ma, $6)) $2 ma DontOpen $6 } }
+		    {% do {ma <- $5 (map addType $3); return $ ModuleMacro (getRange ($1, $2, ma, $6)) $2 ma DontOpen $6 } }
 	    | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
-		    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, ma, $7)) $3 ma DoOpen $7 } }
+		    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, $2, $3, ma, $7)) $3 ma DoOpen $7 } }
 
 -- Import
 Import :: { Declaration }
 Import : 'import' ModuleName ImportImportDirective
 	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) DontOpen (snd $3) }
        | 'open' 'import' ModuleName ImportImportDirective
-	    { Import (getRange ($1,$3,snd $4)) $3 (fst $4) DoOpen (snd $4) }
+	    { Import (getRange ($1,$2,$3,snd $4)) $3 (fst $4) DoOpen (snd $4) }
 
 -- Module
 Module :: { Declaration }
 Module : 'module' Id TypedUntypedBindings 'where' Declarations0
-		    { Module (getRange ($1,$4,$5)) (QName $2) (map addType $3) $5 }
+		    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
@@ -1091,7 +1097,7 @@ TopLevel : TopModule       { [$1] }
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
 TopModule : 'module' ModuleName TypedUntypedBindings 'where' Declarations0
-		    { Module (getRange ($1,$4,$5)) $2 (map addType $3) $5 }
+		    { Module (getRange ($1,$2,$3,$4,$5)) $2 (map addType $3) $5 }
 
 Pragma :: { Declaration }
 Pragma : DeclarationPragma  { Pragma $1 }
@@ -1115,64 +1121,64 @@ DeclarationPragma
   | NoTerminationCheckPragma { $1 }
 
 OptionsPragma :: { Pragma }
-OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (fuseRange $1 $4) $3 }
+OptionsPragma : '{-#' 'OPTIONS' PragmaStrings '#-}' { OptionsPragma (getRange ($1,$2,$4)) $3 }
 
 BuiltinPragma :: { Pragma }
 BuiltinPragma
     : '{-#' 'BUILTIN' string PragmaName '#-}'
-      { BuiltinPragma (fuseRange $1 $5) (snd $3) (Ident $4) }
+      { BuiltinPragma (getRange ($1,$2,fst $3,$4,$5)) (snd $3) (Ident $4) }
 
 CompiledPragma :: { Pragma }
 CompiledPragma
   : '{-#' 'COMPILED' PragmaName PragmaStrings '#-}'
-    { CompiledPragma (fuseRange $1 $5) $3 (unwords $4) }
+    { CompiledPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledTypePragma :: { Pragma }
 CompiledTypePragma
   : '{-#' 'COMPILED_TYPE' PragmaName PragmaStrings '#-}'
-    { CompiledTypePragma (fuseRange $1 $5) $3 (unwords $4) }
+    { CompiledTypePragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledDataPragma :: { Pragma }
 CompiledDataPragma
   : '{-#' 'COMPILED_DATA' PragmaName string PragmaStrings '#-}'
-    { CompiledDataPragma (fuseRange $1 $6) $3 (snd $4) $5 }
+    { CompiledDataPragma (getRange ($1,$2,$3,fst $4,$6)) $3 (snd $4) $5 }
 
 CompiledEpicPragma :: { Pragma }
 CompiledEpicPragma
   : '{-#' 'COMPILED_EPIC' PragmaName PragmaStrings '#-}'
-    { CompiledEpicPragma (fuseRange $1 $5) $3 (unwords $4) }
+    { CompiledEpicPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 CompiledJSPragma :: { Pragma }
 CompiledJSPragma
   : '{-#' 'COMPILED_JS' PragmaName PragmaStrings '#-}'
-    { CompiledJSPragma (fuseRange $1 $5) $3 (unwords $4) }
+    { CompiledJSPragma (getRange ($1,$2,$3,$5)) $3 (unwords $4) }
 
 StaticPragma :: { Pragma }
 StaticPragma
   : '{-#' 'STATIC' PragmaName '#-}'
-    { StaticPragma (fuseRange $1 $4) $3 }
+    { StaticPragma (getRange ($1,$2,$3,$4)) $3 }
 
 RecordEtaPragma :: { Pragma }
 RecordEtaPragma
   : '{-#' 'ETA' PragmaName '#-}'
-    { EtaPragma (fuseRange $1 $4) $3 }
+    { EtaPragma (getRange ($1,$2,$3,$4)) $3 }
 
 NoTerminationCheckPragma :: { Pragma }
 NoTerminationCheckPragma
   : '{-#' 'NO_TERMINATION_CHECK' '#-}'
-    { NoTerminationCheckPragma (fuseRange $1 $3) }
+    { NoTerminationCheckPragma (getRange ($1,$2,$3)) }
 
 ImportPragma :: { Pragma }
 ImportPragma
   : '{-#' 'IMPORT' string '#-}'
     {% let s = snd $3 in
        if validHaskellModuleName s
-       then return $ ImportPragma (fuseRange $1 $4) s
+       then return $ ImportPragma (getRange ($1,$2,fst $3,$4)) s
        else parseError $ "Malformed module name: " ++ s ++ "."
     }
 
 ImpossiblePragma :: { Pragma }
-  : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (fuseRange $1 $3) }
+  : '{-#' 'IMPOSSIBLE' '#-}'  { ImpossiblePragma (getRange ($1,$2,$3)) }
 
 {--------------------------------------------------------------------------
     Sequences of declarations

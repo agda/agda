@@ -515,17 +515,17 @@ printErrorInfo :: TCErr -> TCM ()
 printErrorInfo e = do
   file <- envCurrentPath <$> ask
   case P.rStart r of
-    Just p | P.srcFile p == Just file -> do
+    Just x | P.srcFile x == Just file -> do
 
       s <- E.prettyError e
-      printHighlightingInfo $
-        singletonC (rToR $ P.continuousPerLine r)
-                   (mempty { otherAspects = [Error]
-                           , note         = Just s
-                           })
-
+      p (P.continuousPerLine r) mempty
+      p r $ mempty { otherAspects = [Error]
+                   , note         = Just s
+                   }
     _ -> __IMPOSSIBLE__
-  where r = P.getRange e
+  where
+    r = P.getRange e
+    p r x = printHighlightingInfo $ singletonC (rToR r) x
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.
