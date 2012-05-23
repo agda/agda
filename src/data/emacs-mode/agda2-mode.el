@@ -1083,7 +1083,13 @@ a goal, the top-level scope."
   (while iss
     (let* ((g (pop iss)) (txt (pop iss))
            (cmd (cons 'agda2-solve-action (cons g (cons txt nil)))))
-      (push (cons 0 cmd) agda2-last-responses))))
+      (if (null agda2-last-responses)
+          (push (cons 1 cmd) agda2-last-responses)
+        (nconc agda2-last-responses
+               (cons
+                 (cons (1+ (car (car (last agda2-last-responses))))
+                       cmd)
+                 nil))))))
 
 (defun agda2-solve-action (g txt)
   (save-excursion
