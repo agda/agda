@@ -964,17 +964,20 @@ displayError st status r s = do
 -- | Outermost error handler.
 
 infoOnException st m =
-  failOnException (displayError st s) m
+  (failOnException displayErr m
+    `catchImpossible` \e ->
+      displayErr noRange (show e))
     `E.catch` \(e :: E.SomeException) -> do
-      displayError st s noRange (show e)
+      displayErr noRange (show e)
       E.throw e
   where
-  s = Status { sChecked               = False
-             , sShowImplicitArguments = False
-               -- Educated guess... This field is not important, so it
-               -- does not really matter if it is displayed
-               -- incorrectly when an unexpected error has occurred.
-             }
+  displayErr = displayError st (Status
+    { sChecked               = False
+    , sShowImplicitArguments = False
+      -- Educated guess... This field is not important, so it does not
+      -- really matter if it is displayed incorrectly when an
+      -- unexpected error has occurred.
+    })
 
 -- | Raises an error if the given file is not the one currently
 -- loaded.
