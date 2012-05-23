@@ -21,10 +21,11 @@ import Agda.Interaction.Highlighting.Range   hiding (tests)
 import Agda.Interaction.EmacsCommand
 import qualified Agda.TypeChecking.Errors as E
 import Agda.TypeChecking.MetaVars (isBlockedTerm)
-import Agda.TypeChecking.Monad.Options (reportSLn)
+import Agda.TypeChecking.Monad.Options (reportSLn, reportSDoc)
 import Agda.TypeChecking.Monad
   hiding (MetaInfo, Primitive, Constructor, Record, Function, Datatype)
 import qualified Agda.TypeChecking.Monad as M
+import Agda.TypeChecking.Pretty
 import qualified Agda.TypeChecking.Reduce as R
 import qualified Agda.Syntax.Abstract as A
 import Agda.Syntax.Common (Delayed(..))
@@ -54,6 +55,8 @@ import Data.Generics.Geniplate
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.Monad
+import Data.HashSet (HashSet)
+import qualified Data.HashSet as HSet
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe
@@ -437,77 +440,83 @@ generateConstructorInfo modMap file kinds decl = do
   clauses <- R.instantiateFull $ concatMap M.defClauses defs
   types   <- R.instantiateFull $ map defType defs
 
-  -- Find all constructors occurring in type signatures or clauses
-  -- within the given declarations.
-  constrs <- getConstrs (types, clauses)
+  let -- Find all patterns and terms.
+      patterns = universeBi (types, clauses)
+      terms    = universeBi (types, clauses)
+
+      -- Find all constructors in the patterns and terms.
+      constrs = concatMap getConstructorP patterns ++
+                concatMap getConstructor  terms
+
+  -- Find all constructors in right-hand sides of delayed definitions.
+  delayed <- evalStateT (getDelayed terms) HSet.empty
 
   -- Return suitable syntax highlighting information.
-  return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb) constrs
+  return $ Fold.fold $ fmap (generate modMap file kinds . mkAmb)
+                            (delayed ++ constrs)
   where
   mkAmb q = A.AmbQ [q]
 
-  getConstrs :: (UniverseBi a I.Pattern, UniverseBi a I.Term) =>
-                a -> TCM [A.QName]
-  getConstrs x = do
-    termConstrs <- concat <$> mapM getConstructor (universeBi x)
-    return (patternConstrs ++ termConstrs)
+  -- Finds names corresponding to delayed definitions occurring at the
+  -- top of the given terms, as well as in the found definition's
+  -- right-hand sides. Only definitions from the current file are
+  -- considered.
+  --
+  -- Constructors occurring in the delayed definitions' right-hand
+  -- sides are returned.
+  --
+  -- The set is used to avoid inspecting the same definition multiple
+  -- times.
+
+  getDelayed :: [I.Term] -> StateT (HashSet A.QName) TCM [A.QName]
+  getDelayed ts = concat <$> mapM getT ts
     where
-    patternConstrs = concatMap getConstructorP (universeBi x)
+    getT t = do
+      lift $ reportSDoc "highlighting.delayed" 50 $
+        text "Inspecting sub-term:" <+> prettyTCM t
+
+      seen <- get
+      case t of
+        I.Def q _ | not (q `HSet.member` seen)
+                      &&
+                    fmap P.srcFile (P.rStart (P.getRange q)) ==
+                      Just (Just file)
+                  -> getQ q
+        _         -> return []
+
+    getQ q = do
+      lift $ reportSDoc "highlighting.delayed" 30 $
+        text "Inspecting name:" <+> prettyTCM q
+
+      def <- lift $ getConstInfo q
+      case defDelayed def of
+        NotDelayed -> return []
+        Delayed    -> do
+          lift $ reportSDoc "highlighting.delayed" 10 $
+            text "Found delayed definition:" <+> prettyTCM q
+
+          -- Mark the definition as seen.
+          modify (HSet.insert q)
+
+          -- All sub-terms in the delayed definition's right-hand
+          -- sides.
+          terms <- universeBi . concat . map (getRHS . I.clauseBody) <$>
+                     lift (R.instantiateFull $ defClauses def)
+
+          -- Find the constructors and continue the search.
+          (concatMap getConstructor terms ++) <$> getDelayed terms
+
+    getRHS (I.Body v)   = [v]
+    getRHS I.NoBody     = []
+    getRHS (I.Bind b)   = getRHS (I.unAbs b)
 
   getConstructorP :: I.Pattern -> [A.QName]
   getConstructorP (I.ConP q _ _) = [q]
   getConstructorP _              = []
 
-  getConstructor :: I.Term -> TCM [A.QName]
-  getConstructor (I.Con q _) = return [q]
-  getConstructor (I.Def c _)
-    | fmap P.srcFile (P.rStart (P.getRange c)) == Just (Just file)
-                             = retrieveCoconstructor c
-  getConstructor _           = return []
-
-  retrieveCoconstructor :: A.QName -> TCM [A.QName]
-  retrieveCoconstructor c = return []
-
-{- Andreas, 2012-05-13  THIS CODE LOOPS
-   If relies on the fact that only \sharp generates Delayed defs
-   which is no longer true in the presence of copatterns.
-
-   I do not know where the loop is, and it is hard to tell
-   since generated code (universeBi) is involved.
-
-   Someone knowledgeable fix this please.
-
-   A comment:  A use of instantiateFull seems expensive, is this really necessary??
-
-  -- If the name points to a delayed definition, then the definition
-  -- must (before Andreas' changes) contain a single clause that
-  -- (after metas have been instantiated) starts with a delay
-  -- constructor or an unsolved meta-variable. The name of the delay
-  -- constructor, if any, is returned.
-  retrieveCoconstructor :: A.QName -> TCM [A.QName]
-  retrieveCoconstructor c = do
-    def <- getConstInfo c
-    case defDelayed def of
-      -- Not a coconstructor.
-      NotDelayed -> return []
-
-      Delayed -> do
-        clauses <- R.instantiateFull $ defClauses def
-        case clauses of
-          [I.Clause{ I.clauseBody = body }] -> case getRHS body of
-            Just (I.Con c args) -> (c :) <$> getConstrs args
-
-            -- The meta variable could not be instantiated.
-            Just (I.MetaV {})   -> return []
-
-            _                   -> __IMPOSSIBLE__
-
-          _ -> __IMPOSSIBLE__
-    where
-      getRHS (I.Body v)   = Just v
-      getRHS I.NoBody     = Nothing
-      getRHS (I.Bind b)   = getRHS (I.unAbs b)
--}
+  getConstructor :: I.Term -> [A.QName]
+  getConstructor (I.Con q _) = [q]
+  getConstructor _           = []
 
 -- | Prints syntax highlighting info for an error.
 

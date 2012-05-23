@@ -3,4 +3,5 @@ Termination checking failed for the following functions:
   D
 Problematic calls:
   .TypeConstructorsWhichPreserveGuardedness4.♯-0
+    (at TypeConstructorsWhichPreserveGuardedness4.agda:11,10-11)
   D (at TypeConstructorsWhichPreserveGuardedness4.agda:11,13-14)

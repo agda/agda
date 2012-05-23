@@ -2,12 +2,15 @@
 Termination checking failed for the following functions:
   expr, term, factor
 Problematic calls:
-  .Productivity.♯-10
-  .Productivity.♯-12
-  .Productivity.♯-9
   term
     (at Productivity.agda:36,14-18)
   factor
     (at Productivity.agda:37,14-20)
+  .Productivity.♯-9
+    (at Productivity.agda:38,25-26)
+  .Productivity.♯-10
+    (at Productivity.agda:38,28-29)
+  .Productivity.♯-12
+    (at Productivity.agda:38,45-46)
   expr
     (at Productivity.agda:38,47-51)
