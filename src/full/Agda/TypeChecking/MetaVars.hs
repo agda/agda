@@ -96,9 +96,15 @@ isEtaExpandable x = do
 --   Further, the meta variable may not be 'Frozen'.
 assignTerm :: MetaId -> Term -> TCM ()
 assignTerm x t = do
-    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
      -- verify (new) invariants
     whenM (isFrozen x) __IMPOSSIBLE__
+    assignTerm' x t
+
+-- | Skip frozen check.  Used for eta expanding frozen metas.
+assignTerm' :: MetaId -> Term -> TCM ()
+assignTerm' x t = do
+    reportSLn "tc.meta.assign" 70 $ show x ++ " := " ++ show t
+     -- verify (new) invariants
     whenM (not <$> asks envAssignMetas) __IMPOSSIBLE__
     let i = metaInstance (killRange t)
     verboseS "profile.metas" 10 $ liftTCM $ tickMax "max-open-metas" . size =<< getOpenMetas
@@ -366,7 +372,7 @@ data MetaKind =
     -- ^ Meta variables of \"hereditarily singleton\" record type.
   | Levels
     -- ^ Meta variables of level type, if type-in-type is activated.
-  deriving (Eq, Enum, Bounded)
+  deriving (Eq, Enum, Bounded, Show)
 
 -- | All possible metavariable kinds.
 
@@ -378,6 +384,16 @@ allMetaKinds = [minBound .. maxBound]
 etaExpandMeta :: [MetaKind] -> MetaId -> TCM ()
 etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   verboseBracket "tc.meta.eta" 20 ("etaExpandMeta " ++ show m) $ do
+  let waitFor x = do
+        reportSDoc "tc.meta.eta" 20 $ do
+          text "postponing eta-expansion of meta variable" <+>
+            prettyTCM m <+>
+            text "which is blocked by" <+> prettyTCM x
+        listenToMeta (EtaExpand m) x
+      dontExpand = do
+        reportSDoc "tc.meta.eta" 20 $ do
+          text "we do not expand meta variable" <+> prettyTCM m <+>
+            text ("(requested was expansion of " ++ show kinds ++ ")")
   meta           <- lookupMeta m
   let HasType _ a = mvJudgement meta
   TelV tel b     <- telViewM a
@@ -389,8 +405,8 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
     -- eta expand now, we have to postpone this.  Once @x@ is
     -- instantiated, we can continue eta-expanding m.  This is realized
     -- by adding @m@ to the listeners of @x@.
-    Blocked x _               -> listenToMeta (EtaExpand m) x
-    NotBlocked (MetaV x _)    -> listenToMeta (EtaExpand m) x
+    Blocked x _               -> waitFor x
+    NotBlocked (MetaV x _)    -> waitFor x
     NotBlocked lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
@@ -401,24 +417,27 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
                   reportSLn "" 0 $ "eta expanding: " ++ show m ++ " --> " ++ show du
                 -- Andreas, 2012-03-29: No need for occurrence check etc.
                 -- we directly assign the solution for the meta
-                noConstraints $ assignTerm m u  -- should never produce any constraints
+                -- 2012-05-23: We also bypass the check for frozen.
+                noConstraints $ assignTerm' m u  -- should never produce any constraints
         if Records `elem` kinds then
           expand
-         else when (SingletonRecords `elem` kinds) $ do
-          singleton <- isSingletonRecord r ps
-          case singleton of
-            Left x      -> listenToMeta (EtaExpand m) x
-            Right False -> return ()
-            Right True  -> expand
-      ) $ whenM (andM [ return $ Levels `elem` kinds
+         else if (SingletonRecords `elem` kinds) then do
+           singleton <- isSingletonRecord r ps
+           case singleton of
+             Left x      -> waitFor x
+             Right False -> dontExpand
+             Right True  -> expand
+          else dontExpand
+      ) $ ifM (andM [ return $ Levels `elem` kinds
                       , typeInType
                       , (Just lvl ==) <$> getBuiltin' builtinLevel
-                      ]) $ do
+                      ]) (do
         reportSLn "tc.meta.eta" 20 $ "Expanding level meta to 0 (type-in-type)"
         -- Andreas, 2012-03-30: No need for occurrence check etc.
         -- we directly assign the solution for the meta
         noConstraints $ assignTerm m (abstract tel $ Level $ Max [])
-    _ -> return ()
+     ) $ dontExpand
+    _ -> dontExpand
 
 -- | Eta expand blocking metavariables of record type, and reduce the
 -- blocked thing.
