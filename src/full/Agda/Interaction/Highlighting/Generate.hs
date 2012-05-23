@@ -514,18 +514,21 @@ generateConstructorInfo modMap file kinds decl = do
 printErrorInfo :: TCErr -> TCM ()
 printErrorInfo e = do
   file <- envCurrentPath <$> ask
+  let r = P.getRange e
   case P.rStart r of
     Just x | P.srcFile x == Just file -> do
-
       s <- E.prettyError e
+
+      -- Erase previous highlighting.
       p (P.continuousPerLine r) mempty
+
+      -- Print new highlighting.
       p r $ mempty { otherAspects = [Error]
                    , note         = Just s
                    }
     _ -> __IMPOSSIBLE__
   where
-    r = P.getRange e
-    p r x = printHighlightingInfo $ singletonC (rToR r) x
+  p r x = printHighlightingInfo $ singletonC (rToR r) x
 
 -- | Generates and prints syntax highlighting information for unsolved
 -- meta-variables and certain unsolved constraints.
