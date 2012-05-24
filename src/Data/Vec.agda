@@ -84,6 +84,12 @@ zip : ∀ {a b n} {A : Set a} {B : Set b} →
       Vec A n → Vec B n → Vec (A × B) n
 zip = zipWith _,_
 
+unzip : ∀ {a b n} {A : Set a} {B : Set b} →
+        Vec (A × B) n → Vec A n × Vec B n
+unzip [] = [] , []
+unzip ((x , y) ∷ xys) with unzip xys
+... | (xs , ys) = x ∷ xs , y ∷ ys
+
 foldr : ∀ {a b} {A : Set a} (B : ℕ → Set b) {m} →
         (∀ {n} → A → B n → B (suc n)) →
         B zero →
