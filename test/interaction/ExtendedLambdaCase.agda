@@ -18,3 +18,5 @@ module parameterised {A : Set}(B : A -> Set) where
     baz' : {t : Void} -> Bar' λ { x' → {!!} }
 
 
+baz : Bool -> {w : Bool} -> Bool
+baz = λ { z {w} → {!!} }

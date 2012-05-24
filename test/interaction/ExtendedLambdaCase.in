@@ -1,5 +1,11 @@
 top_command (cmd_load currentFile [])
 
+-- Case splitting for function with implicit argument
+top_command (showImplicitArgs True)
+goal_command 3 cmd_make_case "z"
+goal_command 3 cmd_make_case "w"
+top_command (showImplicitArgs False)
+
 -- Case splitting with lambda lifted definition, hidden arguments
 goal_command 2 cmd_make_case "x'"
 top_command (cmd_load currentFile [])
