@@ -71,6 +71,7 @@ import Agda.Interaction.FindFile
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Pretty
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -178,11 +179,11 @@ decode s = do
   -- input is malformed. The decoder is (intended to be) strict enough
   -- to ensure that all such errors can be caught by the handler here.
 
-  (mf, x) <- liftIO $ E.handle (\(E.ErrorCall {}) -> noResult) $ do
+  (mf, r) <- liftIO $ E.handle (\(E.ErrorCall s) -> noResult s) $ do
 
     (ver, s, _) <- return $ B.runGetState B.get s 0
     if ver /= currentInterfaceVersion
-     then noResult
+     then noResult "Wrong interface version."
      else do
 
       ((r, nL, sL, iL, dL), s, _) <-
@@ -190,27 +191,31 @@ decode s = do
       if s /= L.empty
          -- G.decompress seems to throw away garbage at the end, so
          -- the then branch is possibly dead code.
-       then noResult
+       then noResult "Garbage at end."
        else do
 
         st <- St (ar nL) (ar sL) (ar iL) (ar dL)
                 <$> liftIO H.new
                 <*> return mf <*> return incs
         (r, st) <- runStateT (runErrorT (value r)) st
-        return (Just (modFile st), case r of
-          Left  _ -> Nothing
-          Right x -> Just x)
+        return (Just (modFile st), r)
 
   case mf of
     Nothing -> return ()
     Just mf -> modify $ \s -> s { stModuleToSource = mf }
 
-  return x
+  case r of
+    Right x   -> return (Just x)
+    Left  err -> do
+      reportSDoc "import.iface" 5 $
+        text "Error when decoding interface file:" $+$
+        nest 2 (prettyTCM err)
+      return Nothing
 
   where
   ar l = listArray (0, List.genericLength l - 1) l
 
-  noResult = return (Nothing, Nothing)
+  noResult s = return (Nothing, Left $ GenericError s)
 
 -- | Encodes something. To ensure relocatability file paths in
 -- positions are replaced with module names.
