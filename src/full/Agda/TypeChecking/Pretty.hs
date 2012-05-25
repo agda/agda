@@ -43,8 +43,9 @@ sep ds	   = P.sep <$> sequence ds
 fsep ds    = P.fsep <$> sequence ds
 hsep ds    = P.hsep <$> sequence ds
 vcat ds    = P.vcat <$> sequence ds
-($$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
+($$), ($+$), (<>), (<+>) :: TCM Doc -> TCM Doc -> TCM Doc
 d1 $$ d2   = (P.$$) <$> d1 <*> d2
+d1 $+$ d2  = (P.$+$) <$> d1 <*> d2
 d1 <> d2   = (P.<>) <$> d1 <*> d2
 d1 <+> d2  = (P.<+>) <$> d1 <*> d2
 nest n d   = P.nest n <$> d
