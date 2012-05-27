@@ -9,14 +9,14 @@ module Data.Fin.Props where
 
 open import Data.Fin
 open import Data.Nat as N
-  using (ℕ; zero; suc; s≤s; z≤n)
+  using (ℕ; zero; suc; s≤s; z≤n; _∸_)
   renaming (_≤_ to _ℕ≤_; _<_ to _ℕ<_; _+_ to _ℕ+_)
-open N.≤-Reasoning
 import Data.Nat.Properties as N
 open import Function
 open import Function.Equality as FunS using (_⟨$⟩_)
 open import Function.Injection
   using (Injection; module Injection)
+open import Algebra.FunctionProperties
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
@@ -90,11 +90,13 @@ prop-toℕ-≤ (suc {n = suc n} i)  = s≤s (prop-toℕ-≤ i)
 
 nℕ-ℕi≤n : ∀ n i → n ℕ-ℕ i ℕ≤ n
 nℕ-ℕi≤n n       zero     = begin n ∎
+  where open N.≤-Reasoning
 nℕ-ℕi≤n zero    (suc ())
 nℕ-ℕi≤n (suc n) (suc i)  = begin
   n ℕ-ℕ i ≤⟨ nℕ-ℕi≤n n i ⟩
   n       ≤⟨ N.n≤1+n n ⟩
   suc n   ∎
+  where open N.≤-Reasoning
 
 inject-lemma : ∀ {n} {i : Fin n} (j : Fin′ i) →
                toℕ (inject j) ≡ toℕ j
@@ -151,6 +153,50 @@ i +′ j = inject≤ (i + j) (N._+-mono_ (prop-toℕ-≤ i) ≤-refl)
 reverse : ∀ {n} → Fin n → Fin n
 reverse {zero}  ()
 reverse {suc n} i  = inject≤ (n ℕ- i) (N.n∸m≤n (toℕ i) (suc n))
+
+reverse-prop : ∀ {n} → (i : Fin n) → toℕ (reverse i) ≡ n ∸ suc (toℕ i)
+reverse-prop {zero} ()
+reverse-prop {suc n} i = inject≤-lemma _ _ ⟨ P.trans ⟩ toℕ‿ℕ- n i
+  where
+  toℕ‿ℕ- : ∀ n i → toℕ (n ℕ- i) ≡ n ∸ toℕ i
+  toℕ‿ℕ- n zero = to-from n
+  toℕ‿ℕ- zero (suc ())
+  toℕ‿ℕ- (suc n) (suc i) = toℕ‿ℕ- n i
+
+reverse-involutive : ∀ {n} → Involutive _≡_ reverse
+reverse-involutive {n} i = toℕ-injective (reverse-prop _ ⟨ P.trans ⟩ eq)
+  where
+  open P.≡-Reasoning
+  open import Algebra
+  open CommutativeSemiring N.commutativeSemiring using (+-comm)
+
+  lem₁ : ∀ m n → (m ℕ+ n) ∸ (m ℕ+ n ∸ m) ≡ m
+  lem₁ m n = begin
+    m ℕ+ n ∸ (m ℕ+ n ∸ m) ≡⟨ cong (λ ξ → m ℕ+ n ∸ (ξ ∸ m)) (+-comm m n) ⟩
+    m ℕ+ n ∸ (n ℕ+ m ∸ m) ≡⟨ cong (λ ξ → m ℕ+ n ∸ ξ) (N.m+n∸n≡m n m) ⟩
+    m ℕ+ n ∸ n            ≡⟨ N.m+n∸n≡m m n ⟩
+    m                     ∎
+
+  lem₂ : ∀ n → (i : Fin n) → n ∸ suc (n ∸ suc (toℕ i)) ≡ toℕ i
+  lem₂ zero ()
+  lem₂ (suc n) i = begin
+    n ∸ (n ∸ toℕ i)                     ≡⟨ cong (λ ξ → ξ ∸ (ξ ∸ toℕ i)) i+j≡k ⟩
+    (toℕ i ℕ+ j) ∸ (toℕ i ℕ+ j ∸ toℕ i) ≡⟨ lem₁ (toℕ i) j ⟩
+    toℕ i                               ∎
+    where
+    open import Data.Product
+
+    decompose-n : ∃ λ j → n ≡ toℕ i ℕ+ j
+    decompose-n = n ∸ toℕ i , P.sym (N.m+n∸m≡n (prop-toℕ-≤ i))
+
+    j = proj₁ decompose-n
+    i+j≡k = proj₂ decompose-n
+
+  eq : n ∸ suc (toℕ (reverse i)) ≡ toℕ i
+  eq = begin
+    n ∸ suc (toℕ (reverse i)) ≡⟨ cong (λ ξ → n ∸ suc ξ) (reverse-prop i) ⟩
+    n ∸ suc (n ∸ suc (toℕ i)) ≡⟨ lem₂ n i ⟩
+    toℕ i                     ∎
 
 -- If there is an injection from a set to a finite set, then equality
 -- of the set can be decided.
