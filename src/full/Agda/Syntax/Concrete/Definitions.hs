@@ -186,6 +186,7 @@ instance Show DeclarationException where
       decl (NiceImport{})        = "Import statements"
       decl (NicePragma{})        = "Pragmas"
       decl (PrimitiveFunction{}) = "Primitive declarations"
+      decl (NicePatternSyn{})    = "Pattern synonyms"
       decl _ = __IMPOSSIBLE__
   show (Codata _) =
     "The codata construction has been removed. " ++
