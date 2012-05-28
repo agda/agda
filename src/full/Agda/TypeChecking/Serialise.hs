@@ -449,7 +449,7 @@ instance EmbPrj A.QName where
                            valu _      = malformed
 
 instance EmbPrj A.AmbiguousQName where
-  icode (A.AmbQ a) = icode1' a
+  icode (A.AmbQ a) = icode a
   value n = A.AmbQ `fmap` value n
 
 instance EmbPrj A.ModuleName where
