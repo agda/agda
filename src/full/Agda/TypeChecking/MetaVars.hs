@@ -489,7 +489,7 @@ assign x args v = do
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
 
         case (v, mvJudgement mvar) of
-            (Sort Inf, HasType{}) -> typeError $ GenericError "Setω is not a valid type."
+            (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
             _                     -> return ()
 
         -- We don't instantiate frozen mvars

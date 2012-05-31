@@ -1005,6 +1005,7 @@ data TypeError
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
 	| NotAProperTerm
+        | SetOmegaNotValidType
         | SplitOnIrrelevant A.Pattern (Dom Type)
         | DefinitionIsIrrelevant QName
         | VariableIsIrrelevant Name
@@ -1017,6 +1018,7 @@ data TypeError
 	| UnequalHiding Term Term
 	    -- ^ The two function types have different hiding.
 	| UnequalSorts Sort Sort
+        | UnequalBecauseOfUniverseConflict Comparison Term Term
         | HeterogeneousEquality Term Type Term Type
             -- ^ We ended up with an equality constraint where the terms
             --   have different types.  This is not supported.

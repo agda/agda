@@ -1,4 +1,4 @@
 SetOmega.agda:9,17-36
-Setω is not a valid type.
+Setω !=< Set _3 because this would result in an invalid use of Setω
 when checking that the expression (a : Level) → Set a has type
 Set _3

@@ -172,6 +172,7 @@ errorString err = case err of
     NoSuchPrimitiveFunction{}                -> "NoSuchPrimitiveFunction"
     NotAModuleExpr{}                         -> "NotAModuleExpr"
     NotAProperTerm                           -> "NotAProperTerm"
+    SetOmegaNotValidType                     -> "SetOmegaNotValidType"
     NotAValidLetBinding{}                    -> "NotAValidLetBinding"
     NotAnExpression{}                        -> "NotAnExpression"
     NotImplemented{}                         -> "NotImplemented"
@@ -205,6 +206,7 @@ errorString err = case err of
     SplitOnIrrelevant{}                      -> "SplitOnIrrelevant"
     DefinitionIsIrrelevant{}                 -> "DefinitionIsIrrelevant"
     VariableIsIrrelevant{}                   -> "VariableIsIrrelevant"
+    UnequalBecauseOfUniverseConflict{}       -> "UnequalBecauseOfUniverseConflict"
     UnequalRelevance{}                       -> "UnequalRelevance"
     UnequalHiding{}                          -> "UnequalHiding"
     UnequalLevel{}                           -> "UnequalLevel"
@@ -345,6 +347,8 @@ instance PrettyTCM TypeError where
 		[prettyTCM t] ++ pwords "should be a function type, but it isn't"
 	    NotAProperTerm ->
 		fwords "Found a malformed term"
+	    SetOmegaNotValidType ->
+		fwords "Setω is not a valid type"
             SplitOnIrrelevant p t -> fsep $
                 pwords "Cannot pattern match" ++ [prettyA p] ++
                 pwords "against irrelevant type" ++ [prettyTCM t]
@@ -352,6 +356,11 @@ instance PrettyTCM TypeError where
                 text "Identifier" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
             VariableIsIrrelevant x -> fsep $
                 text "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
+	    UnequalBecauseOfUniverseConflict cmp s t -> fsep $
+		[prettyTCM s, f cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
+                where
+                  f CmpEq  = text "!="
+                  f CmpLeq = text "!=<"
  	    UnequalTerms cmp s t a -> fsep $
 		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
                 where
