@@ -42,6 +42,15 @@ isDataOrRecordType d = do
     Record{}   -> return True
     _          -> return False
 
+getNumberOfParameters :: QName -> TCM (Maybe Nat)
+getNumberOfParameters d = do
+  def <- getConstInfo d
+  case theDef def of
+    Datatype{ dataPars = n} -> return $ Just n
+    Record{ recPars = n}    -> return $ Just n
+    _                       -> return Nothing
+
+{- UNUSED
 data DatatypeInfo = DataInfo
   { datatypeName   :: QName
   , datatypeParTel :: Telescope
@@ -80,3 +89,4 @@ getDatatypeInfo t = do
                           , datatypeIxs    = is
                           }
     _ -> return Nothing
+-}

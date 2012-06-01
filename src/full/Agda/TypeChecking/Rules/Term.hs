@@ -11,7 +11,7 @@ import Data.Maybe
 import Data.List hiding (sort)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Traversable (traverse)
+import Data.Traversable (traverse,sequenceA)
 
 import Agda.Interaction.Options
 
@@ -870,20 +870,42 @@ inferDef mkTerm x =
 --   a general application since the implicit arguments can be inserted
 --   without looking at the arguments to the constructor.
 checkConstructorApplication :: A.Expr -> Type -> QName -> [NamedArg A.Expr] -> TCM Term
-checkConstructorApplication org t c args =
+checkConstructorApplication org t c args = do
+  reportSDoc "tc.term.con" 50 $ vcat
+    [ text "entering checkConstructorApplication"
+    , nest 2 $ vcat
+      [ text "org  =" <+> prettyTCM org
+      , text "t    =" <+> prettyTCM t
+      , text "c    =" <+> prettyTCM c
+      , text "args =" <+> prettyTCM args
+    ] ]
   let (args', paramsGiven) = checkForParams args
-  in if paramsGiven then fallback else do
+  if paramsGiven then fallback else do
+    reportSDoc "tc.term.con" 50 $ text "checkConstructorApplication: no parameters explicitly supplied, continuing..."
     cdef  <- getConstInfo c
     let Constructor{conData = d} = theDef cdef
-    case unEl t of -- Only fully applied constructors get special treatment
-      Def d' vs | d' == d -> do
-        def <- theDef <$> getConstInfo d
-        let npars = case def of
-                      Datatype{ dataPars = n } -> Just n
-                      Record{ recPars = n }    -> Just n
-                      _                        -> Nothing
-        flip (maybe fallback) npars $ \n -> do
-        let ps    = genericTake n vs
+    reportSDoc "tc.term.con" 50 $ nest 2 $ text "d    =" <+> prettyTCM d
+    -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
+    -- as well and then check wether we deal with the same datatype
+    t0 <- reduce (Def d [])
+    case (t0, unEl t) of -- Only fully applied constructors get special treatment
+      (Def d0 _, Def d' vs) -> do
+       reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
+       reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
+       reportSDoc "tc.term.con" 50 $ nest 2 $ text "vs   =" <+> prettyTCM vs
+       if d' /= d0 then fallback else do
+        -- Issue 661: d' may take more parameters than d, in particular
+        -- these additional parameters could be a module parameter telescope.
+        -- Since we get the constructor type ctype from d but the parameters
+        -- from t = Def d' vs, we drop the additional parameters.
+        npars  <- getNumberOfParameters d
+        npars' <- getNumberOfParameters d'
+        flip (maybe fallback) (sequenceA $ List2 (npars, npars')) $ \(List2 (n,n')) -> do
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n    = " ++ show n
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text $ "n'   = " ++ show n'
+        -- when (n > n') __IMPOSSIBLE__ -- NOT IN SCOPE `__IMPOSSIBLE__' WHY???
+        when (n > n') bla
+        let ps    = genericTake n $ genericDrop (n' - n) vs
             ctype = defType cdef
         reportSDoc "tc.term.con" 20 $ vcat
           [ text "special checking of constructor application of" <+> prettyTCM c
@@ -897,9 +919,12 @@ checkConstructorApplication org t c args =
             [ text "us     =" <+> prettyTCM us
             , text "t'     =" <+> prettyTCM t' ]
           coerce (Con c us) t' t
-      _ -> fallback
+      _ -> do
+        reportSDoc "tc.term.con" 50 $ nest 2 $ text "we are not at a datatype, falling back"
+        fallback
   where
     fallback = checkHeadApplication org t (A.Con (AmbQ [c])) args
+    bla = __IMPOSSIBLE__
 
     -- Check if there are explicitly given hidden arguments,
     -- in which case we fall back to default type checking.
@@ -913,11 +938,6 @@ checkConstructorApplication org t c args =
           notUnderscore A.Underscore{} = False
           notUnderscore _              = True
       in  (rest,) $ any notUnderscore $ map (removeScope . namedThing . unArg) hargs
-{- OLD CODE
-    hiddenArg = case args of
-      Arg Hidden _ _ : _ -> True
-      _                  -> False
--}
 
 {- UNUSED CODE, BUT DON'T REMOVE (2012-04-18)
 

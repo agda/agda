@@ -1,8 +1,11 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, GeneralizedNewtypeDeriving, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Agda.Utils.Tuple where
 
 import Control.Applicative
+
+import Data.Foldable
+import Data.Traversable
 
 infix 2 -*-
 infix 3 /\ -- backslashes at EOL interacts badly with CPP...
@@ -37,3 +40,6 @@ mapFstM f (a,b) = (,b) <$> f a
 -- | Monadic 'mapSnd'.
 mapSndM :: (Applicative m) => (b -> m d) -> (a,b) -> m (a,d)
 mapSndM f (a,b) = (a,) <$> f b
+
+newtype List2 a = List2 { list2 :: (a,a) }
+  deriving (Eq, Functor, Foldable, Traversable)
