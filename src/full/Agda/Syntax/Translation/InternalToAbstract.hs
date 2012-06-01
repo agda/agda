@@ -107,6 +107,9 @@ instance ReifyWhen i a => ReifyWhen (Named n i) (Named n a) where
 class Reify i a | i -> a where
     reify     ::         i -> TCM a
 
+instance Reify Expr Expr where
+    reify = return
+
 instance Reify MetaId Expr where
     reify x@(MetaId n) = liftTCM $ do
       mi  <- getMetaInfo <$> lookupMeta x
