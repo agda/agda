@@ -848,6 +848,12 @@ instance ToAbstract NiceDeclaration A.Declaration where
         (delayed, cs) <- translateCopatternClauses cs
         return [ A.FunDef (mkDefInfo x f PublicAccess a r) x' delayed cs ]
 
+  -- Uncategorized function clauses
+    C.NiceFunClause r acc abs termCheck (C.FunClause lhs rhs wcls) ->
+      typeError $ GenericError $
+        "Missing type signature for left hand side " ++ show lhs
+    C.NiceFunClause{} -> __IMPOSSIBLE__
+
   -- Data definitions
     C.DataDef r f a x pars cons -> withLocalVars $ do
         printScope "scope.data.def" 20 ("checking DataDef for " ++ show x)

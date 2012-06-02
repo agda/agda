@@ -1,2 +1,4 @@
-NoTerminationCheck3.agda:10,1-8
+NoTerminationCheck3.agda:10,1-16
 Missing type signature for left hand side f false
+when scope checking the declaration
+  f false = false

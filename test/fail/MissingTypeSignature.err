@@ -1,2 +1,4 @@
-MissingTypeSignature.agda:8,1-10
+MissingTypeSignature.agda:8,1-20
 Missing type signature for left hand side pred zero
+when scope checking the declaration
+  pred zero = zero

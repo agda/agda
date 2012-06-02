@@ -64,6 +64,9 @@ data NiceDeclaration
         | NicePragma Range Pragma
         | NiceRecSig Range Fixity' Access Name [LamBinding] Expr
         | NiceDataSig Range Fixity' Access Name [LamBinding] Expr
+        | NiceFunClause Range Access IsAbstract TerminationCheck Declaration
+          -- ^ a uncategorized function clause, could be a function clause
+          --   without type signature or a pattern lhs (e.g. for irrefutable let)x
         | FunSig Range Fixity' Access Relevance TerminationCheck Name Expr
         | FunDef  Range [Declaration] Fixity' IsAbstract TerminationCheck Name [Clause] -- ^ block of function clauses (we have seen the type signature before)
         | DataDef Range Fixity' IsAbstract Name [LamBinding] [NiceConstructor]
@@ -90,7 +93,7 @@ data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
         | MissingDefinition Name
         | MissingWithClauses Name
-        | MissingTypeSignature LHS
+        | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while
         | MissingDataSignature Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name
@@ -138,6 +141,7 @@ instance HasRange NiceDeclaration where
   getRange (NiceRecSig r _ _ _ _ _)        = r
   getRange (NiceDataSig r _ _ _ _ _)       = r
   getRange (NicePatternSyn r _ _ _ _)      = r
+  getRange (NiceFunClause r _ _ _ _)       = r
 
 instance Error DeclarationException where
   noMsg  = strMsg ""
@@ -456,16 +460,29 @@ niceDeclarations ds = do
           -- for each type signature 'x' waiting for clauses, we try
           -- if we have some clauses for 'x'
           fixs <- gets fixs
+{- OLD CODE, a bit dense
           case filter (\ (x,(fits,rest)) -> not $ null fits) $
                   map (\ x -> (x, span (couldBeFunClauseOf (Map.lookup x fixs) x) $ d : ds)) xs of
+-}
+          case [ (x, (fits, rest))
+               | x <- xs
+               , let (fits, rest) =
+                      span (couldBeFunClauseOf (Map.lookup x fixs) x) (d : ds)
+               , not (null fits)
+               ] of
             -- case: clauses match none of the sigs
+            -- then the lhs can only be a single identifier
             -- treat it as a function clause without a type signature
             [] -> case lhs of
               LHS p [] _ _ | IdentP (QName x) <- removeSingletonRawAppP p -> do
                 ds <- nice ds
                 d  <- mkFunDef Relevant termCheck x Nothing [d] -- fun def without type signature is relevant
                 return $ d ++ ds
-              _ -> throwError $ MissingTypeSignature lhs
+              _ -> do
+                ds <- nice ds
+                return $ NiceFunClause (getRange d) PublicAccess ConcreteDef termCheck d : ds
+-- OLD:             _ -> throwError $ MissingTypeSignature lhs
+-- error now raised in ConcreteToAbstract
             -- case: clauses match exactly one of the sigs
             [(x,(fits,rest))] -> do
                removeLoneSig x
@@ -622,7 +639,7 @@ niceDeclarations ds = do
     isFunClauseOf x (FunClause (LHS p _ _ _) _ _) =
      -- p is the whole left hand side, excluding "with" patterns and clauses
       case removeSingletonRawAppP p of
-        IdentP (QName q)    -> x == q
+        IdentP (QName q)    -> x == q  -- lhs is just an identifier
         _                   -> True
             -- more complicated lhss must come with type signatures, so we just assume
             -- it's part of the current definition
@@ -687,6 +704,7 @@ niceDeclarations ds = do
             FunDef r ds f _ tc x cs             -> FunDef r ds f AbstractDef tc x (map mkAbstractClause cs)
             DataDef r f _ x ps cs            -> DataDef r f AbstractDef x ps $ map mkAbstract cs
             RecDef r f _ x c ps cs           -> RecDef r f AbstractDef x c ps $ map mkAbstract cs
+            NiceFunClause r a _ termCheck d  -> NiceFunClause r a AbstractDef termCheck d
             NiceModule{}                     -> d
             Axiom{}                          -> d
             NicePragma{}                     -> d
@@ -695,7 +713,7 @@ niceDeclarations ds = do
             FunSig{}                         -> d
             NiceRecSig{}                     -> d
             NiceDataSig{}                    -> d
-            NicePatternSyn _ _ _ _ _         -> d
+            NicePatternSyn{}                 -> d
 
     mkAbstractClause (Clause x lhs rhs wh with) =
         Clause x lhs rhs (mkAbstractWhere wh) (map mkAbstractClause with)
@@ -713,9 +731,10 @@ niceDeclarations ds = do
             NiceMutual r termCheck ds        -> NiceMutual r termCheck (map mkPrivate ds)
             NiceModule r _ a x tel ds        -> NiceModule r PrivateAccess a x tel ds
             NiceModuleMacro r _ a x ma op is -> NiceModuleMacro r PrivateAccess a x ma op is
-            FunSig r f _ rel tc x e           -> FunSig r f PrivateAccess rel tc x e
-            NiceRecSig r f _ x ls t        -> NiceRecSig r f PrivateAccess x ls t
-            NiceDataSig r f _ x ls t       -> NiceDataSig r f PrivateAccess x ls t
+            FunSig r f _ rel tc x e          -> FunSig r f PrivateAccess rel tc x e
+            NiceRecSig r f _ x ls t          -> NiceRecSig r f PrivateAccess x ls t
+            NiceDataSig r f _ x ls t         -> NiceDataSig r f PrivateAccess x ls t
+            NiceFunClause r _ a termCheck d  -> NiceFunClause r PrivateAccess a termCheck d
             NicePragma _ _                   -> d
             NiceOpen _ _ _                   -> d
             NiceImport _ _ _ _ _             -> d
@@ -782,6 +801,7 @@ notSoNiceDeclaration d =
       NicePragma _ p                   -> Pragma p
       NiceRecSig r _ _ x bs e          -> RecordSig r x bs e
       NiceDataSig r _ _ x bs e         -> DataSig r Inductive x bs e
+      NiceFunClause _ _ _ _ d          -> d
       FunSig _ _ _ rel tc x e          -> TypeSig rel x e
       FunDef r [d] _ _ _ _ _           -> d
       FunDef r ds _ _ _ _ _            -> Mutual r ds -- Andreas, 2012-04-07 Hack!
