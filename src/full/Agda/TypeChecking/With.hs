@@ -138,7 +138,7 @@ stripWithClausePatterns gamma qs perm ps = do
             d <- prettyA p
             typeError $ GenericError $
                 "Inaccessible (dotted) patterns from the parent clause must " ++
-                "also be inaccesible in the with clause, when checking the " ++
+                "also be inaccessible in the with clause, when checking the " ++
                 "pattern " ++ show d ++ ","
           where
             ok = do
