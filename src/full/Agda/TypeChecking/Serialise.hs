@@ -579,13 +579,15 @@ instance EmbPrj A.TypedBinding where
 
 instance EmbPrj A.LetBinding where
   icode (A.LetBind _ a b c d)  = icode4 0 a b c d
-  icode (A.LetApply _ _ _ _ _) = icode0 1
-  icode (A.LetOpen _ _)        = icode0 1
+  icode (A.LetPatBind _ a b )  = icode2 1 a b
+  icode (A.LetApply _ _ _ _ _) = icode0 2
+  icode (A.LetOpen _ _)        = icode0 2
 
   value = vcase valu
     where
       valu [0, a, b, c, d] = valu4 (A.LetBind (LetRange noRange)) a b c d
-      valu [1]             = throwError $ NotSupported
+      valu [1, a, b]       = valu2 (A.LetPatBind (LetRange noRange)) a b
+      valu [2]             = throwError $ NotSupported
                                  "importing pattern synonym containing let module"
       valu _               = malformed
 

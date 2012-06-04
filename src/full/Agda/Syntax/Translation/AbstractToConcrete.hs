@@ -468,6 +468,11 @@ instance ToConcrete LetBinding [C.Declaration] where
                 , C.FunClause (C.LHS (C.IdentP $ C.QName x) [] [] [])
                               e C.NoWhere
                 ]
+    -- TODO: bind variables
+    bindToConcrete (LetPatBind i p e) ret = do
+        p <- toConcrete p
+        e <- toConcrete e
+        ret [ C.FunClause (C.LHS p [] [] []) (C.RHS e) NoWhere ]
     bindToConcrete (LetApply i x modapp _ _) ret = do
       x' <- unqualify <$> toConcrete x
       modapp <- toConcrete modapp

@@ -119,6 +119,7 @@ data Pragma = OptionsPragma [String]
   deriving (Typeable, Show)
 
 data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info rel name type defn
+                | LetPatBind LetInfo Pattern Expr -- ^ irrefutable pattern binding
                 | LetApply ModuleInfo ModuleName ModuleApplication (Map QName QName) (Map ModuleName ModuleName)
                 | LetOpen ModuleInfo ModuleName     -- ^ only for highlighting and abstractToConcrete
   deriving (Typeable, Show)
@@ -343,6 +344,7 @@ instance HasRange RHS where
 
 instance HasRange LetBinding where
     getRange (LetBind  i _ _ _ _     ) = getRange i
+    getRange (LetPatBind  i _ _      ) = getRange i
     getRange (LetApply i _ _ _ _     ) = getRange i
     getRange (LetOpen  i _           ) = getRange i
 
@@ -458,6 +460,7 @@ instance KillRange RHS where
 
 instance KillRange LetBinding where
   killRange (LetBind  i rel a b c   ) = killRange5 LetBind  i rel a b c
+  killRange (LetPatBind i a b       ) = killRange3 LetPatBind i a b
   killRange (LetApply i a b c d     ) = killRange3 LetApply i a b c d
   killRange (LetOpen  i x           ) = killRange2 LetOpen  i x
 
@@ -545,6 +548,7 @@ allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
 
   allNamesLet :: LetBinding -> Seq QName
   allNamesLet (LetBind _ _ _ e1 e2)  = Fold.foldMap allNamesE [e1, e2]
+  allNamesLet (LetPatBind _ _ e)     = allNamesE e
   allNamesLet (LetApply _ _ app _ _) = allNamesApp app
   allNamesLet LetOpen {}             = Seq.empty
 
@@ -672,6 +676,7 @@ substExpr s e = case e of
 substLetBinding :: [(Name, Expr)] -> LetBinding -> LetBinding
 substLetBinding s lb = case lb of
   LetBind i r n e e' -> LetBind i r n (substExpr s e) (substExpr s e')
+  LetPatBind i p e   -> LetPatBind i p (substExpr s e) -- Andreas, 2012-06-04: what about the pattern p
   _                  -> lb
 
 substTypedBindings :: [(Name, Expr)] -> TypedBindings -> TypedBindings

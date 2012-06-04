@@ -287,6 +287,7 @@ instance Rename LetBinding where
   rename rho e =
       case e of
         LetBind i r n e e' -> LetBind i r n (rename rho e) (rename rho e')
+        LetPatBind i p e   -> LetPatBind i (rename rho p) (rename rho e)
         LetApply{}         -> e
         LetOpen{}          -> e
 

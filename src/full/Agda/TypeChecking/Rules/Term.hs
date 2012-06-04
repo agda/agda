@@ -1217,6 +1217,9 @@ checkLetBinding b@(A.LetBind i rel x t e) ret =
     t <- isType_ t
     v <- applyRelevanceToContext rel $ checkExpr e t
     addLetBinding rel x v t ret
+checkLetBinding b@(A.LetPatBind i p e) ret =
+  traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
+    typeError $ NotImplemented "checking let pattern bindings"
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.

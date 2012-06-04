@@ -728,6 +728,15 @@ instance ToAbstract LetDef [A.LetBinding] where
                     x <- toAbstract (NewName $ C.BName x fx)
                     return [ A.LetBind (LetRange $ getRange d) rel x t e ]
 
+            -- irrefutable let binding, like  (x , y) = rhs
+            NiceFunClause r PublicAccess ConcreteDef termCheck d@(C.FunClause (C.LHS p [] [] []) (C.RHS rhs) NoWhere) -> do
+              p   <- parsePattern p
+              p   <- toAbstract p
+              checkPatternLinearity [p]
+              p   <- toAbstract p
+              rhs <- toAbstract rhs
+              return [ A.LetPatBind (LetRange r) p rhs ]
+
             -- You can't open public in a let
             NiceOpen r x dirs | not (C.publicOpen dirs) -> do
               m       <- toAbstract (OldModuleName x)
