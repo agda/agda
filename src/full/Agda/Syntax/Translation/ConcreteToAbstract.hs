@@ -32,7 +32,7 @@ import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
 import Agda.Syntax.Concrete.Operators
-import qualified Agda.Syntax.Concrete.Copatterns as Cop
+-- import qualified Agda.Syntax.Concrete.Copatterns as Cop -- merged into Operators
 import Agda.Syntax.Abstract as A
 import Agda.Syntax.Abstract.Copatterns
 import Agda.Syntax.Position
@@ -1201,7 +1201,7 @@ data LeftHandSide = LeftHandSide C.Name C.Pattern [C.Pattern]
 instance ToAbstract LeftHandSide A.LHS where
     toAbstract (LeftHandSide top lhs wps) =
       traceCall (ScopeCheckLHS top lhs) $ do
-        lhscore <- Cop.parseLHS top lhs
+        lhscore <- parseLHS top lhs
         reportSLn "scope.lhs" 5 $ "parsed lhs: " ++ show lhscore
         printLocals 10 "before lhs:"
         -- error if copattern parsed but no --copatterns option

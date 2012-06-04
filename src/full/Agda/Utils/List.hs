@@ -22,6 +22,11 @@ mhead :: [a] -> Maybe a
 mhead []    = Nothing
 mhead (x:_) = Just x
 
+-- | Opposite of cons @(:)@, safe.
+uncons :: [a] -> Maybe (a, [a])
+uncons []     = Nothing
+uncons (x:xs) = Just (x,xs)
+
 -- | downFrom n = [n-1,..1,0]
 downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []

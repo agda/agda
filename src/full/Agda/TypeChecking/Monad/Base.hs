@@ -1097,10 +1097,12 @@ data TypeError
     -- Operator errors
 	| NoParseForApplication [C.Expr]
 	| AmbiguousParseForApplication [C.Expr] [C.Expr]
-	| NoParseForLHS C.Pattern
-	| AmbiguousParseForLHS C.Pattern [C.Pattern]
+	| NoParseForLHS LHSOrPatSyn C.Pattern
+	| AmbiguousParseForLHS LHSOrPatSyn C.Pattern [C.Pattern]
+{- UNUSED
 	| NoParseForPatternSynonym C.Pattern
 	| AmbiguousParseForPatternSynonym C.Pattern [C.Pattern]
+-}
     -- Usage errors
     -- Implicit From Scope errors
         | IFSNoCandidateInScope Type
@@ -1112,6 +1114,9 @@ data TypeError
     -- Language option errors
         | NeedOptionCopatterns
           deriving (Typeable, Show)
+
+-- | Distinguish error message when parsing lhs or pattern synonym, resp.
+data LHSOrPatSyn = IsLHS | IsPatSyn deriving (Eq, Show)
 
 -- instance Show TypeError where
 --   show _ = "<TypeError>" -- TODO: more info?

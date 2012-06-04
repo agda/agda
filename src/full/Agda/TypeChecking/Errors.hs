@@ -115,7 +115,7 @@ errorString err = case err of
     AmbiguousName{}                          -> "AmbiguousName"
     AmbiguousParseForApplication{}           -> "AmbiguousParseForApplication"
     AmbiguousParseForLHS{}                   -> "AmbiguousParseForLHS"
-    AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
+--    AmbiguousParseForPatternSynonym{}        -> "AmbiguousParseForPatternSynonym"
     AmbiguousTopLevelModuleName {}           -> "AmbiguousTopLevelModuleName"
     BothWithAndRHS                           -> "BothWithAndRHS"
     BuiltinInParameterisedModule{}           -> "BuiltinInParameterisedModule"
@@ -163,7 +163,7 @@ errorString err = case err of
     NoBindingForBuiltin{}                    -> "NoBindingForBuiltin"
     NoParseForApplication{}                  -> "NoParseForApplication"
     NoParseForLHS{}                          -> "NoParseForLHS"
-    NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
+--    NoParseForPatternSynonym{}               -> "NoParseForPatternSynonym"
     NoRHSRequiresAbsurdPattern{}             -> "NoRHSRequiresAbsurdPattern"
     NotInductive {}                          -> "NotInductive"
     AbsurdPatternRequiresNoRHS{}             -> "AbsurdPatternRequiresNoRHS"
@@ -563,18 +563,24 @@ instance PrettyTCM TypeError where
                 pwords "Unused variable in pattern synonym."
             PatternSynonymArityMismatch x -> fsep $
                 pwords "Arity mismatch when using pattern synonym" ++ [prettyTCM x]
-	    NoParseForLHS p -> fsep $
+	    NoParseForLHS IsLHS p -> fsep $
 		pwords "Could not parse the left-hand side" ++ [pretty p]
+	    NoParseForLHS IsPatSyn p -> fsep $
+		pwords "Could not parse the pattern synonym" ++ [pretty p]
+{- UNUSED
 	    NoParseForPatternSynonym p -> fsep $
 		pwords "Could not parse the pattern synonym" ++ [pretty p]
-	    AmbiguousParseForLHS p ps -> fsep (
+-}
+	    AmbiguousParseForLHS lhsOrPatSyn p ps -> fsep (
 		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty ps)
+{- UNUSED
 	    AmbiguousParseForPatternSynonym p ps -> fsep (
 		    pwords "Don't know how to parse" ++ [pretty p <> text "."] ++
 		    pwords "Could mean any one of:"
 		) $$ nest 2 (vcat $ map pretty ps)
+-}
 	    IncompletePatternMatching v args -> fsep $
 		pwords "Incomplete pattern matching for" ++ [prettyTCM v <> text "."] ++
 		pwords "No match for" ++ map prettyTCM args

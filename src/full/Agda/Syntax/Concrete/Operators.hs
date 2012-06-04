@@ -28,9 +28,11 @@ module Agda.Syntax.Concrete.Operators
     ) where
 
 import Control.Applicative
+import Control.Monad
 import Control.Monad.Trans
 import Data.Typeable
 import Data.Traversable (traverse)
+import qualified Data.Traversable as Trav
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Set (Set)
@@ -48,11 +50,12 @@ import Agda.Syntax.Notation
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Scope.Monad
 
-import Agda.TypeChecking.Monad.Base (typeError, TypeError(..))
+import Agda.TypeChecking.Monad.Base (typeError, TypeError(..), LHSOrPatSyn(..))
 import Agda.TypeChecking.Monad.State (getScope)
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Statistics
 
+import Agda.Utils.Either
 import Agda.Utils.ReadP
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -298,27 +301,22 @@ instance IsExpr LHSCore where
             (f, ps) = lhsArgs p
 -}
 
+---------------------------------------------------------------------------
+-- * Helpers for pattern and lhs parsing
+---------------------------------------------------------------------------
+
 -- Andreas, 2011-11-24 moved here from ConcreteToAbstract
 lhsArgs :: Pattern -> (Name, [NamedArg Pattern])
 lhsArgs p = case lhsArgs' p of
               Just (x, args) -> (x, args)
               Nothing        -> __IMPOSSIBLE__
 
+-- | @lhsArgs' p@ splits a lhs @f ps@, given as a pattern @p@,
+--   into @(f, ps)@.
 lhsArgs' :: Pattern -> Maybe (Name, [NamedArg Pattern])
 lhsArgs' p = case patternAppView p of
     Arg _ _ (Named _ (IdentP (QName x))) : ps -> Just (x, ps)
     _                                         -> Nothing
-{-
-    where
-        mkHead    = Arg NotHidden Relevant . unnamed
-        notHidden = Arg NotHidden Relevant . unnamed
-        appView p = case p of
-            AppP p arg    -> appView p ++ [arg]
-            OpAppP _ x ps -> mkHead (IdentP $ QName x) : map notHidden ps
-            ParenP _ p    -> appView p
-            RawAppP _ _   -> __IMPOSSIBLE__
-            _             -> [ mkHead p ]
--}
 
 -- | View a pattern @p@ as a list @p0 .. pn@ where @p0@ is the identifier
 --   (in most cases a constructor).
@@ -355,6 +353,145 @@ parsePat prs p = case p of
     LitP _           -> return p
     IdentP _         -> return p
 
+
+{- Implement parsing of copattern left hand sides, e.g.
+
+  record Tree (A : Set) : Set where
+    field
+      label : A
+      child : Bool -> Tree A
+
+  -- corecursive function defined by copattern matching
+  alternate : {A : Set}(a b : A) -> Tree A
+  -- shallow copatterns
+               child True  (alternate a b) = alternate b a
+               label       (alternate a b) = a
+  -- deep copatterns:
+  label       (child False (alternate a b)) = b
+  child True  (child False (alternate a b)) = alternate a b
+  child False (child False (alternate a b)) = alternate a b
+
+  Delivers an infinite tree
+
+                   a
+              b        b
+            a   a    a   a
+           b b b b  b b b b
+                 ...
+
+  Each lhs is a pattern tree with a distinct path of destructors
+  ("child", "label") from the root to the defined symbol ("alternate").
+  All branches besides this distinct path are patterns.
+
+  Syntax.Concrete.LHSCore represents a lhs
+   - the destructor path
+   - the side patterns
+   - the defined function symbol
+   - the applied patterns
+-}
+
+type ParseLHS = Either Pattern (Name, LHSCore)
+
+parseLHS' :: LHSOrPatSyn -> Maybe Name -> Pattern -> ScopeM ParseLHS
+parseLHS' lhsOrPatSyn top p = do
+    let ms = qualifierModules $ patternQNames p
+    flat <- flattenScope ms <$> getScope
+    patP <- buildParser (getRange p) flat DontUseBoundNames
+    let cons = getNames [ConName, PatternSynName] flat
+    let flds = getNames [FldName] flat
+    case [ res | p' <- parsePat patP p
+               , res <- validPattern (PatternCheckConfig top cons flds) p' ] of
+        [(p,lhs)] -> return lhs
+        []        -> typeError $ NoParseForLHS lhsOrPatSyn p
+        rs        -> typeError $ AmbiguousParseForLHS lhsOrPatSyn p $
+                       map (fullParen . fst) rs
+    where
+        getNames kinds flat = map fst $ getDefinedNames kinds flat
+
+        -- validPattern returns an empty or singleton list (morally a Maybe)
+        validPattern :: PatternCheckConfig -> Pattern -> [(Pattern, ParseLHS)]
+        validPattern conf p = case (classifyPattern conf p, top) of
+            (Just r@(Left _), Nothing) -> [(p, r)] -- expect pattern
+            (Just r@(Right _), Just{}) -> [(p, r)] -- expect lhs
+            _ -> []
+
+-- | Name sets for classifying a pattern.
+data PatternCheckConfig = PatternCheckConfig
+  { topName  :: Maybe Name  -- ^ name of defined symbol
+  , conNames :: [QName]     -- ^ valid constructor names
+  , fldNames :: [QName]     -- ^ valid field names
+  }
+
+-- | Returns zero or one classified patterns.
+classifyPattern :: PatternCheckConfig -> Pattern -> Maybe ParseLHS
+classifyPattern conf p =
+  case patternAppView p of
+
+    -- case @f ps@
+    Arg _ _ (Named _ (IdentP x@(QName f))) : ps | Just f == topName conf -> do
+      guard $ all validPat ps
+      return $ Right (f, LHSHead f ps)
+
+    -- case @d ps@
+    Arg _ _ (Named _ (IdentP x)) : ps | x `elem` fldNames conf -> do
+      -- ps0 :: [NamedArg ParseLHS]
+      ps0 <- mapM classPat ps
+      let (ps1, rest) = span (isLeft . namedThing . unArg) ps0
+      (p2, ps3) <- uncons rest -- when (null rest): no field pattern or def pattern found
+      guard $ all (isLeft . namedThing . unArg) ps3
+      let (f, lhs)      = fromR p2
+          (ps', _:ps'') = splitAt (length ps1) ps
+      return $ Right (f, LHSProj x ps' lhs ps'')
+
+    -- case: ordinary pattern
+    _ -> do
+      guard $ validConPattern (conNames conf) p
+      return $ Left p
+
+  where -- allNames = conNames conf ++ fldNames conf
+        validPat = validConPattern (conNames conf) . namedThing . unArg
+        classPat :: NamedArg Pattern -> Maybe (NamedArg ParseLHS)
+        classPat = Trav.mapM (Trav.mapM (classifyPattern conf))
+        fromR :: NamedArg (Either a (b, c)) -> (b, NamedArg c)
+        fromR (Arg h r (Named n (Right (b, c)))) = (b, Arg h r (Named n c))
+        fromR (Arg h r (Named n (Left  a     ))) = __IMPOSSIBLE__
+
+
+
+-- | Parses a left-hand side, and makes sure that it defined the expected name.
+--   TODO: check the arities of constructors. There is a possible ambiguity with
+--   postfix constructors:
+--      Assume _ * is a constructor. Then 'true *' can be parsed as either the
+--      intended _* applied to true, or as true applied to a variable *. If we
+--      check arities this problem won't appear.
+parseLHS :: Name -> Pattern -> ScopeM LHSCore
+parseLHS top p = do
+  res <- parseLHS' IsLHS (Just top) p
+  case res of
+    Right (f, lhs) -> return lhs
+    _ -> typeError $ NoParseForLHS IsLHS p
+
+-- | Parses a pattern.
+--   TODO: check the arities of constructors. There is a possible ambiguity with
+--   postfix constructors:
+--      Assume _ * is a constructor. Then 'true *' can be parsed as either the
+--      intended _* applied to true, or as true applied to a variable *. If we
+--      check arities this problem won't appear.
+parsePattern :: Pattern -> ScopeM Pattern
+parsePattern = parsePatternOrSyn IsLHS
+
+parsePatternSyn :: Pattern -> ScopeM Pattern
+parsePatternSyn = parsePatternOrSyn IsPatSyn
+
+parsePatternOrSyn :: LHSOrPatSyn -> Pattern -> ScopeM Pattern
+parsePatternOrSyn lhsOrPatSyn p = do
+  res <- parseLHS' lhsOrPatSyn Nothing p
+  case res of
+    Left p -> return p
+    _      -> typeError $ NoParseForLHS lhsOrPatSyn p
+
+{- TRASH
+
 -- | Parses a left-hand side, and makes sure that it defined the expected name.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
 --   postfix constructors:
@@ -383,29 +520,6 @@ parseLHS top p = do
             Just (x, args) | x == top && all (validConPattern cons . namedThing . unArg) args ->
               [(p, LHSHead x args)]
             _ -> []
-{-
-        validPattern :: Maybe Name -> [QName] -> Pattern -> Bool
-        validPattern (Just top) cons p = case appView p of
-            IdentP (QName x) : ps -> x == top && all (validPat cons) ps
-            _                     -> False
-        validPattern Nothing cons p = validPat cons p
-
-        validPat :: [QName] -> Pattern -> Bool
-        validPat cons p = case appView p of
-            [_]           -> True
-            IdentP x : ps -> elem x cons && all (validPat cons) ps
-            ps            -> all (validPat cons) ps
-
-        appView :: Pattern -> [Pattern]
-        appView p = case p of
-            AppP p a         -> appView p ++ [namedThing (unArg a)]
-            OpAppP _ op ps   -> IdentP op : ps
-            ParenP _ p       -> appView p
-            RawAppP _ _      -> __IMPOSSIBLE__
-            HiddenP _ _      -> __IMPOSSIBLE__
-            InstanceP _ _    -> __IMPOSSIBLE__
-            _                -> [p]
--}
 
 -- | Parses a pattern.
 --   TODO: check the arities of constructors. There is a possible ambiguity with
@@ -437,12 +551,18 @@ parsePatternOrSyn isLHS p = do
     where
         getNames kinds flat = map fst $ getDefinedNames kinds flat
 
+-}
+
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 validConPattern :: [QName] -> Pattern -> Bool
 validConPattern cons p = case appView p of
     [_]           -> True
     IdentP x : ps -> elem x cons && all (validConPattern cons) ps
-    ps            -> all (validConPattern cons) ps
+    _             -> False
+-- Andreas, 2012-06-04: I do not know why the following line was
+-- the catch-all case.  It seems that the new catch-all works also
+-- and is more logical.
+--    ps            -> all (validConPattern cons) ps
 
 -- | Helper function for 'parseLHS' and 'parsePattern'.
 appView :: Pattern -> [Pattern]
@@ -455,8 +575,7 @@ appView p = case p of
     InstanceP _ _    -> __IMPOSSIBLE__
     _                -> [p]
 
-
-
+-- | Collect all names in a pattern into a list of qualified names.
 patternQNames :: Pattern -> [QName]
 patternQNames p = case p of
   RawAppP _ ps     -> concatMap patternQNames ps
@@ -466,10 +585,14 @@ patternQNames p = case p of
   AppP{}           -> __IMPOSSIBLE__
   _                -> []
 
+-- | Return all qualifiers occuring in a list of 'QName's.
+--   Each qualifier is returned as a list of names, e.g.
+--   for @Data.Nat._+_@ we return the list @[Data,Nat]@.
 qualifierModules :: [QName] -> [[Name]]
 qualifierModules qs =
   nub $ filter (not . null) $ map (init . qnameParts) qs
 
+-- | Parse a list of expressions into an application.
 parseApplication :: [Expr] -> ScopeM Expr
 parseApplication [e] = return e
 parseApplication es = do
@@ -491,7 +614,9 @@ parseApplication es = do
 
         es' -> typeError $ AmbiguousParseForApplication es $ map fullParen es'
 
--- Inserting parenthesis --------------------------------------------------
+---------------------------------------------------------------------------
+-- * Inserting parenthesis
+---------------------------------------------------------------------------
 
 fullParen :: IsExpr e => e -> e
 fullParen e = case exprView $ fullParen' e of
