@@ -20,6 +20,7 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
+import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
@@ -35,26 +36,27 @@ import Agda.Utils.Impossible
 -- * Record pattern translation for let bindings
 ---------------------------------------------------------------------------
 
+-- | Take a record pattern @p@ and yield a list of projections
+--   corresponding to the pattern variables, from left to right.
+--
+--   E.g. for @(x , (y , z))@ we return @[ fst, fst . snd, snd . snd ]@.
+--
+--   If it is not a record pattern, error 'ShouldBeRecordPattern' is raised.
 recordPatternToProjections :: Pattern -> TCM [Term -> Term]
 recordPatternToProjections p =
   case p of
     VarP{}             -> return [ \ x -> x ]
-    LitP{}             -> return []
-    DotP{}             -> return []
+    LitP{}             -> typeError $ ShouldBeRecordPattern p
+    DotP{}             -> typeError $ ShouldBeRecordPattern p
     ConP c Nothing  ps -> typeError $ ShouldBeRecordPattern p
     ConP c (Just t) ps -> do
       t <- reduce t
-      case unEl $ unArg t of
-        Def r _ -> do
-          rDef <- theDef <$> getConstInfo r
-          case rDef of
-            Record { recFields = fields } -> do
-              let proj p = \t -> Def (unArg p) [defaultArg t]
-                  comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
-                  comb prj p = map (prj .) <$> recordPatternToProjections p
-              concat <$> zipWithM comb (map proj fields) (map unArg ps)
-            _ -> __IMPOSSIBLE__
-        _ -> __IMPOSSIBLE__
+      fields <- getRecordTypeFields (unArg t)
+      concat <$> zipWithM comb (map proj fields) (map unArg ps)
+  where
+    proj p = \ x -> Def (unArg p) [defaultArg x]
+    comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
+    comb prj p = map (prj .) <$> recordPatternToProjections p
 
 ---------------------------------------------------------------------------
 -- * Record pattern translation for function definitions
@@ -347,15 +349,9 @@ recordTree (ConP c (Just t) ps) = do
                 concat ss, concat cs)
     Right ts -> liftTCM $ do
       t <- reduce t
-      case t of
-        Arg { unArg = El _ (Def r _) } -> do
-          rDef <- theDef <$> getConstInfo r
-          case rDef of
-            Record { recFields = fields } -> do
-              let proj p = \t -> Def (unArg p) [defaultArg t]
-              return $ Right $ RecCon t $ zip (map proj fields) ts
-            _ -> __IMPOSSIBLE__
-        _ -> __IMPOSSIBLE__
+      fields <- getRecordTypeFields (unArg t)
+      let proj p = \x -> Def (unArg p) [defaultArg x]
+      return $ Right $ RecCon t $ zip (map proj fields) ts
 recordTree p@VarP{} = return (Right (Leaf p))
 recordTree p@DotP{} = return (Right (Leaf p))
 recordTree p@LitP{} = return $ Left $ translatePattern p

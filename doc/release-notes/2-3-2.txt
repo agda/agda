@@ -64,30 +64,32 @@ Pragmas and Options
 Language
 ========
 
-* New: Built-in irrelevance axiom.
+* Let binding record patterns
 
-    import Level
-
-    postulate
-      .irrAxiom : ∀ {a}{A : Set a} → .A → A
-    {-# BUILTIN IRRAXIOM irrAxiom #-}
-
-* Irrelevant projections require irrelevance axiom.
-
-  Record with irrelevant fields now require the built-in IRRAXIOM
-  (unless --no-irrelevant-projections).
-
-    record Squash {a}(A : Set a) : Set a where
-      constructor squash
+    record _×_ (A B : Set) : Set where
+      constructor _,_
       field
-        .unsquash : A
+        fst : A
+        snd : B
+    open _×_
 
-  This will produce an irrelevant projection
+    let (x , (y , z)) = t
+    in  u
 
-    .unsquash : ∀ {a}{A : Set a} → Squash A → A
-    unsquash (squash x) = irrAxiom x
+  will now be interpreted as
 
-  Thus, Agda will check for the built-in irrAxiom to be defined.
+    let x = fst t
+        y = fst (snd t)
+        z = snd (snd t)
+    in  u
+
+  Note that the type of t needs to be inferable.  If you need to provide
+  a type signature, you can write the following:
+
+    let a : ...
+        a = t
+        (x , (y , z)) = a
+    in  u
 
 * Pattern synonyms
 

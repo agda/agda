@@ -87,6 +87,18 @@ findPossibleRecords fields = do
 getRecordFieldTypes :: QName -> TCM Telescope
 getRecordFieldTypes r = recTel <$> getRecordDef r
 
+-- | Get the field names belonging to a record type.
+getRecordTypeFields :: Type -> TCM [Arg QName]
+getRecordTypeFields t =
+  case unEl t of
+    Def r _ -> do
+      rDef <- theDef <$> getConstInfo r
+      case rDef of
+        Record { recFields = fields } -> return fields
+        _ -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
+
 -- | Get the type of the record constructor.
 getRecordConstructorType :: QName -> TCM Type
 getRecordConstructorType r = recConType <$> getRecordDef r

@@ -290,21 +290,8 @@ checkLiteral lit t = do
   t' <- litType lit
   coerce (Lit lit) t' t
 
-{- moved to TypeChecking.Monad.Builtin
-
-litType :: Literal -> TCM Type
-litType l = case l of
-    LitInt _ n	  -> do
-      primZero
-      when_ (n > 0) $ primSuc
-      el <$> primNat
-    LitFloat _ _  -> el <$> primFloat
-    LitChar _ _   -> el <$> primChar
-    LitString _ _ -> el <$> primString
-    LitQName _ _  -> el <$> primQName
-  where
-    el t = El (mkType 0) t
--}
+-- moved to TypeChecking.Monad.Builtin to avoid import cycles:
+-- litType :: Literal -> TCM Type
 
 ---------------------------------------------------------------------------
 -- * Terms
@@ -1227,7 +1214,8 @@ checkLetBinding b@(A.LetBind i rel x t e) ret =
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     (v, t) <- inferExpr e
-    let t0 = El (getSort t) $ Pi (Dom NotHidden Relevant t) (NoAbs "_" typeDontCare)
+    let -- construct a type  t -> dummy  for use in checkLeftHandSide
+        t0 = El (getSort t) $ Pi (Dom NotHidden Relevant t) (NoAbs "_" typeDontCare)
         p0 = Arg NotHidden Relevant (Named Nothing p)
     reportSDoc "tc.term.let.pattern" 10 $ vcat
       [ text "let-binding pattern p at type t"
@@ -1237,15 +1225,15 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         ]
       ]
     checkLeftHandSide (CheckPattern p EmptyTel t) [p0] t0 $ \ gamma delta sub xs ps t' perm -> do
-      -- a single pattern in internal syntax is returned
+      -- A single pattern in internal syntax is returned.
       let p = case ps of [p] -> unArg p; _ -> __IMPOSSIBLE__
       reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
         [ text "p (I) =" <+> text (show p)
         , text "delta =" <+> text (show delta)
         ]
-      -- we translate it into a list of projections
+      -- We translate it into a list of projections.
       fs <- recordPatternToProjections p
-      -- we remove the bindings for the pattern variables from the context
+      -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
       let (binds, cxt) = splitAt (size delta) cxt0
       inContext cxt $ do
@@ -1254,30 +1242,32 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
           , text "binds =" <+> text (show binds) -- prettyTCM binds
           ]
 {- WE CANNOT USE THIS BINDING
-       -- we add a first let-binding for the value of e
+       -- We add a first let-binding for the value of e.
        x <- freshNoName (getRange e)
        addLetBinding Relevant x v t $ do
  -}
-        -- we create a substitution for the let-bound variables
-        -- unfortunately, we cannot refer to x in internal syntax
-        -- so we have to copy v
+        -- We create a substitution for the let-bound variables
+        -- (unfortunately, we cannot refer to x in internal syntax
+        -- so we have to copy v).
         let sigma = zipWith ($) fs (repeat v)
-        -- we apply the types of the let bound-variables to this substitution
-        -- the 0th variable in a context is the last one, so we reverse
+        -- We apply the types of the let bound-variables to this substitution.
+        -- The 0th variable in a context is the last one, so we reverse.
+        -- Further, we need to lower all other de Bruijn indices by
+        -- the size of delta, so we append the identity substitution.
+        let sub    = reverse sigma ++ map var [0..]
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "fdelta =" <+> text (show fdelta)
           ]
-        let tsl  = substs (reverse sigma ++ map var [0..]) fdelta
-        -- we get a list of types
+        let tsl  = substs sub fdelta
+        -- We get a list of types
         let ts   = map unDom tsl
-        -- and relevances
+        -- and relevances.
         let rels = map domRelevance tsl
-        -- we get list of names of the let-bound vars from the context
+        -- We get list of names of the let-bound vars from the context.
         let xs   = map (fst . unDom) (reverse binds)
-        -- we add all the bindings to the context
+        -- We add all the bindings to the context.
         foldr (uncurry4 addLetBinding) ret $ zip4 rels xs sigma ts
-        -- typeError $ NotImplemented "checking let pattern bindings"
 
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
