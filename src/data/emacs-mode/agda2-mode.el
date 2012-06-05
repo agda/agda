@@ -923,13 +923,17 @@ is inserted, and point is placed before this text."
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
     (save-selected-window
-      (pop-to-buffer (current-buffer) nil 'norecord)
-      (fit-window-to-buffer
-       nil (truncate
-            (* (frame-height) agda2-information-window-max-height)))
-      (if append
-          (goto-char (point-max))
-        (goto-char (point-min))))))
+      (let (;; If there is only one window, then the info window
+            ;; should be created above or below the code window, not
+            ;; to the left or right.
+            (split-width-threshold nil))
+        (pop-to-buffer (current-buffer) nil 'norecord)
+        (fit-window-to-buffer
+         nil (truncate
+              (* (frame-height) agda2-information-window-max-height)))
+        (if append
+            (goto-char (point-max))
+          (goto-char (point-min)))))))
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
