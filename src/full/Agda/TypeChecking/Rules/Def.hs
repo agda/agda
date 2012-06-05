@@ -186,7 +186,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
   typeError $ NotImplemented "type checking definitions by copatterns"
 checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     traceCall (CheckClause t c) $
-    checkLeftHandSide c aps t $ \gamma delta sub xs ps t' perm -> do
+    checkLeftHandSide (CheckPatternShadowing c) aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
       (body, with) <- checkWhere (size delta) wh $ let
           handleRHS rhs =

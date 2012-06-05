@@ -29,7 +29,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Empty
 -- Duplicate import??
 -- import Agda.TypeChecking.Telescope (renamingR, teleArgs)
 
-import Agda.TypeChecking.Rules.Term (checkExpr)
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr)
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Unify
@@ -173,12 +173,19 @@ isSolvedProblem = all (isVar . snd . asView . namedThing . unArg) . problemInPat
 --
 -- Precondition: The problem has to be solved.
 
+{-
 noShadowingOfConstructors
   :: A.Clause
      -- ^ The entire clause (used for error reporting).
   -> Problem -> TCM ()
 noShadowingOfConstructors c problem =
   traceCall (CheckPatternShadowing c) $ do
+-}
+noShadowingOfConstructors
+  :: (Maybe r -> Call) -- ^ Trace, e.g., @CheckPatternShadowing clause@
+  -> Problem -> TCM ()
+noShadowingOfConstructors mkCall problem =
+  traceCall mkCall $ do
     let pat = map (snd . asView . namedThing . unArg) $
                   problemInPat problem
         tel = map (unEl . snd . unDom) $ telToList $ problemTel problem
@@ -292,9 +299,14 @@ bindAsPatterns (AsB x v a : asb) ret = do
   addLetBinding Relevant x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
+{-
 checkLeftHandSide
   :: A.Clause
      -- ^ The entire clause.
+-}
+checkLeftHandSide
+  :: (Maybe r -> Call)
+     -- ^ Trace, e.g. @CheckPatternShadowing clause@
   -> [NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type

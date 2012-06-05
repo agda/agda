@@ -255,7 +255,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
 
     getLet :: A.LetBinding -> File
     getLet (A.LetBind _ _ x _ _) = bound x
-    getLet (A.LetPatBind _ p _)  = __IMPOSSIBLE__ -- don't know what to put here, would be getPattern p if that was ordinary recursion
+    getLet (A.LetPatBind _ p _)  = mempty -- don't know what to put here, would be getPattern p if that was ordinary recursion
     getLet A.LetApply{}          = mempty
     getLet A.LetOpen{}           = mempty
 

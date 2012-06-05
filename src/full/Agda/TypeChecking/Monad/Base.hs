@@ -1004,6 +1004,7 @@ data TypeError
 	| ShouldBePi Type
 	    -- ^ The given type should have been a pi.
 	| ShouldBeRecordType Type
+	| ShouldBeRecordPattern Pattern
 	| NotAProperTerm
         | SetOmegaNotValidType
         | SplitOnIrrelevant A.Pattern (Dom Type)

@@ -8,6 +8,8 @@ import Agda.Syntax.Position
 import Agda.TypeChecking.Monad.Base
 import Control.Monad.Error (ErrorT)
 
+isType_ :: A.Expr -> TCM Type
+
 checkExpr :: A.Expr -> Type -> TCM Term
 
 data ExpandHidden = ExpandLast | DontExpandLast

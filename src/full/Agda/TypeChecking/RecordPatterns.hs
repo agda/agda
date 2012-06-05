@@ -5,6 +5,7 @@
 
 module Agda.TypeChecking.RecordPatterns
   ( translateRecordPatterns
+  , recordPatternToProjections
   ) where
 
 import Control.Applicative
@@ -16,6 +17,7 @@ import Data.List
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -28,6 +30,35 @@ import Agda.Utils.Size
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+
+---------------------------------------------------------------------------
+-- * Record pattern translation for let bindings
+---------------------------------------------------------------------------
+
+recordPatternToProjections :: Pattern -> TCM [Term -> Term]
+recordPatternToProjections p =
+  case p of
+    VarP{}             -> return [ \ x -> x ]
+    LitP{}             -> return []
+    DotP{}             -> return []
+    ConP c Nothing  ps -> typeError $ ShouldBeRecordPattern p
+    ConP c (Just t) ps -> do
+      t <- reduce t
+      case unEl $ unArg t of
+        Def r _ -> do
+          rDef <- theDef <$> getConstInfo r
+          case rDef of
+            Record { recFields = fields } -> do
+              let proj p = \t -> Def (unArg p) [defaultArg t]
+                  comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
+                  comb prj p = map (prj .) <$> recordPatternToProjections p
+              concat <$> zipWithM comb (map proj fields) (map unArg ps)
+            _ -> __IMPOSSIBLE__
+        _ -> __IMPOSSIBLE__
+
+---------------------------------------------------------------------------
+-- * Record pattern translation for function definitions
+---------------------------------------------------------------------------
 
 -- | Replaces pattern matching on record constructors with uses of
 -- projection functions. Does not remove record constructor patterns

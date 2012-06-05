@@ -47,8 +47,8 @@ open Monad {{...}}
 stateMonad : {S : Set} → Monad (State S)
 runState (return {{stateMonad}} a  ) s  = a , s
 runState (_>>=_  {{stateMonad}} m k) s₀ =
-  let as₁ = runState m s₀
-  in  runState (k (fst as₁)) (snd as₁)
+  let a , s₁ = runState m s₀
+  in  runState (k a) s₁
 
 leftId : {A B S : Set}(a : A)(k : A → State S B) → (return a >>= k) ≡ k a
 leftId a k = refl

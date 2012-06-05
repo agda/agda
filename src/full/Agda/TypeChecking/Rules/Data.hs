@@ -27,7 +27,7 @@ import Agda.TypeChecking.Forcing
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Telescope
 
-import Agda.TypeChecking.Rules.Term ( isType_ )
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term ( isType_ )
 
 import Agda.Interaction.Options
 

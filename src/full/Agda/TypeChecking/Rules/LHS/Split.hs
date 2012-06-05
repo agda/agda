@@ -26,7 +26,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.ProblemRest
-import Agda.TypeChecking.Rules.Term
+-- import Agda.TypeChecking.Rules.Term
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Irrelevance

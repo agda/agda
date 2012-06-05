@@ -29,6 +29,9 @@ mapSnd g (x,y) = (x, g y)
 uncurry3 :: (a -> b -> c -> d) -> (a,b,c) -> d
 uncurry3 f (x,y,z) = f x y z
 
+uncurry4 :: (a -> b -> c -> d -> e) -> (a,b,c,d) -> e
+uncurry4 f (w,x,y,z) = f w x y z
+
 -- | Monadic version of '-*-'.
 mapPairM :: (Applicative m) => (a -> m c) -> (b -> m d) -> (a,b) -> m (c,d)
 mapPairM f g (a,b) = (,) <$> f a <*> g b

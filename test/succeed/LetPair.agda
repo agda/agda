@@ -7,12 +7,21 @@
 module LetPair where
 
 import Common.Level
--- open import Common.Equality
+open import Common.Equality
 
-data _×_ (A B : Set) : Set where
-  _,_ : (fst : A)(snd : B) → A × B
+record _×_ (A B : Set) : Set where
+  constructor _,_
+  field
+    fst : A
+    snd : B
+open _×_
 
 swap : {A B : Set} → A × B → B × A
 swap p =
-  let (a , b) = p  -- works only for record patterns
+  let (a , b) = p
   in  (b , a)
+
+prop_swap : {A B : Set}{p : A × B} →
+  (fst (swap p) ≡ snd p) ×
+  (snd (swap p) ≡ fst p)
+prop_swap = refl , refl

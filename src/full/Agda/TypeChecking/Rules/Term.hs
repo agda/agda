@@ -38,6 +38,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
+import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
@@ -51,6 +52,7 @@ import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
+import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
 
 import Agda.Utils.Fresh
 import Agda.Utils.Tuple
@@ -288,6 +290,8 @@ checkLiteral lit t = do
   t' <- litType lit
   coerce (Lit lit) t' t
 
+{- moved to TypeChecking.Monad.Builtin
+
 litType :: Literal -> TCM Type
 litType l = case l of
     LitInt _ n	  -> do
@@ -300,6 +304,7 @@ litType l = case l of
     LitQName _ _  -> el <$> primQName
   where
     el t = El (mkType 0) t
+-}
 
 ---------------------------------------------------------------------------
 -- * Terms
@@ -1212,14 +1217,68 @@ checkLetBindings :: [A.LetBinding] -> TCM a -> TCM a
 checkLetBindings = foldr (.) id . map checkLetBinding
 
 checkLetBinding :: A.LetBinding -> TCM a -> TCM a
+
 checkLetBinding b@(A.LetBind i rel x t e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
     t <- isType_ t
     v <- applyRelevanceToContext rel $ checkExpr e t
     addLetBinding rel x v t ret
+
 checkLetBinding b@(A.LetPatBind i p e) ret =
   traceCallCPS_ (CheckLetBinding b) ret $ \ret -> do
-    typeError $ NotImplemented "checking let pattern bindings"
+    (v, t) <- inferExpr e
+    let t0 = El (getSort t) $ Pi (Dom NotHidden Relevant t) (NoAbs "_" typeDontCare)
+        p0 = Arg NotHidden Relevant (Named Nothing p)
+    reportSDoc "tc.term.let.pattern" 10 $ vcat
+      [ text "let-binding pattern p at type t"
+      , nest 2 $ vcat
+        [ text "p (A) =" <+> text (show p) -- prettyTCM p
+        , text "t     =" <+> prettyTCM t
+        ]
+      ]
+    checkLeftHandSide (CheckPattern p EmptyTel t) [p0] t0 $ \ gamma delta sub xs ps t' perm -> do
+      -- a single pattern in internal syntax is returned
+      let p = case ps of [p] -> unArg p; _ -> __IMPOSSIBLE__
+      reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
+        [ text "p (I) =" <+> text (show p)
+        , text "delta =" <+> text (show delta)
+        ]
+      -- we translate it into a list of projections
+      fs <- recordPatternToProjections p
+      -- we remove the bindings for the pattern variables from the context
+      cxt0 <- getContext
+      let (binds, cxt) = splitAt (size delta) cxt0
+      inContext cxt $ do
+        reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
+          [ text "delta =" <+> prettyTCM delta
+          , text "binds =" <+> text (show binds) -- prettyTCM binds
+          ]
+{- WE CANNOT USE THIS BINDING
+       -- we add a first let-binding for the value of e
+       x <- freshNoName (getRange e)
+       addLetBinding Relevant x v t $ do
+ -}
+        -- we create a substitution for the let-bound variables
+        -- unfortunately, we cannot refer to x in internal syntax
+        -- so we have to copy v
+        let sigma = zipWith ($) fs (repeat v)
+        -- we apply the types of the let bound-variables to this substitution
+        -- the 0th variable in a context is the last one, so we reverse
+        let fdelta = flattenTel delta
+        reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
+          [ text "fdelta =" <+> text (show fdelta)
+          ]
+        let tsl  = substs (reverse sigma ++ map var [0..]) fdelta
+        -- we get a list of types
+        let ts   = map unDom tsl
+        -- and relevances
+        let rels = map domRelevance tsl
+        -- we get list of names of the let-bound vars from the context
+        let xs   = map (fst . unDom) (reverse binds)
+        -- we add all the bindings to the context
+        foldr (uncurry4 addLetBinding) ret $ zip4 rels xs sigma ts
+        -- typeError $ NotImplemented "checking let pattern bindings"
+
 checkLetBinding (A.LetApply i x modapp rd rm) ret = do
   -- Any variables in the context that doesn't belong to the current
   -- module should go with the new module.

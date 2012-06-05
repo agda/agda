@@ -6,8 +6,24 @@ import Control.Monad.State
 import qualified Data.Map as Map
 
 import Agda.Syntax.Position
+import Agda.Syntax.Literal
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad.Base
+
+import Agda.Utils.Monad (when_)
+
+litType :: Literal -> TCM Type
+litType l = case l of
+    LitInt _ n	  -> do
+      primZero
+      when_ (n > 0) $ primSuc
+      el <$> primNat
+    LitFloat _ _  -> el <$> primFloat
+    LitChar _ _   -> el <$> primChar
+    LitString _ _ -> el <$> primString
+    LitQName _ _  -> el <$> primQName
+  where
+    el t = El (mkType 0) t
 
 getBuiltinThing :: String -> TCM (Maybe (Builtin PrimFun))
 getBuiltinThing b = liftM2 mplus (Map.lookup b <$> gets stLocalBuiltins)

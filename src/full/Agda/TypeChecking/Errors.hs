@@ -198,6 +198,7 @@ errorString err = case err of
     ShouldBeEmpty{}                          -> "ShouldBeEmpty"
     ShouldBePi{}                             -> "ShouldBePi"
     ShouldBeRecordType{}                     -> "ShouldBeRecordType"
+    ShouldBeRecordPattern{}                  -> "ShouldBeRecordPattern"
     ShouldEndInApplicationOfTheDatatype{}    -> "ShouldEndInApplicationOfTheDatatype"
     TerminationCheckFailed{}                 -> "TerminationCheckFailed"
     TooFewFields{}                           -> "TooFewFields"
@@ -279,6 +280,8 @@ instance PrettyTCM TypeError where
 		pwords "which is not the right datatype"
 	    ShouldBeRecordType t -> fsep $
 		pwords "Expected record type, found " ++ [prettyTCM t]
+	    ShouldBeRecordPattern p -> fsep $
+		pwords "Expected record pattern" -- ", found " ++ [prettyTCM p]
 	    DifferentArities ->
 		fwords "The number of arguments in the defining equations differ"
 	    WrongHidingInLHS t -> do
