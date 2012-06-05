@@ -258,7 +258,7 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
       -- Block on the type comparison
       blockTermOnProblem target (teleLam tel v) pid
 
-    useTargetType tel@(ExtendTel arg (Abs _ EmptyTel)) btyp = do
+    useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
         unless (domHiding    arg == h) $ typeError $ WrongHidingInLambda target
         -- Andreas, 2011-10-01 ignore relevance in lambda if not explicitly given
@@ -270,10 +270,12 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
         -- compare the argument types first, so we spawn a new problem for that
         -- check.
         (pid, argT) <- newProblem $ isTypeEqualTo typ (unDom arg)
-        v <- addCtx x (Dom h r' argT) $ checkExpr body btyp
+        v <- add x y (Dom h r' argT) $ checkExpr body btyp
         blockTermOnProblem target (Lam h $ Abs (show $ nameConcrete x) v) pid
       where
         [x] = xs
+        add x y | C.isNoName (nameConcrete x) = addCtxString y
+                | otherwise                   = addCtx x
     useTargetType _ _ = __IMPOSSIBLE__
 
 
