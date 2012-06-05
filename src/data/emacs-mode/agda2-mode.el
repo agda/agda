@@ -923,7 +923,7 @@ is inserted, and point is placed before this text."
     (put-text-property 0 (length name) 'face '(:weight bold) name)
     (setq mode-line-buffer-identification name)
     (save-selected-window
-      (pop-to-buffer (current-buffer) 'not-this-window 'norecord)
+      (pop-to-buffer (current-buffer) nil 'norecord)
       (fit-window-to-buffer
        nil (truncate
             (* (frame-height) agda2-information-window-max-height)))
