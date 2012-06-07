@@ -1,4 +1,4 @@
 NotApplyingInDontCareTriggersInternalError.agda:49,60-73
 Variable leftRefl is declared irrelevant, so it cannot be used here
 when checking that the expression leftRefl a≼a' has type
-_100 _ _ _ TF f12 f23 _
+_92 _ _ _ TF f12 f23 _
