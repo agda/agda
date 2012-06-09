@@ -3,4 +3,4 @@ Termination checking failed for the following functions:
   alternate
 Problematic calls:
   alternate
-    (at CopatternCheckingNYI.agda:17,27-36)
+    (at CopatternCheckingNYI.agda:17,32-41)

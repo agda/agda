@@ -12,7 +12,8 @@ data Nat : Set where
   suc  : Nat -> Nat
 
 alternate : Stream Nat
-(      head alternate ) = zero
+(     (head alternate)) = zero
 (head (tail alternate)) = suc zero
-(tail (tail alternate)) = alternate
--- should parse, but type checking is not yet implemented
+(tail (tail alternate)) = tail alternate
+
+-- does not yet termination-check

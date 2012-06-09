@@ -35,7 +35,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records (isRecordConstructor)
+import Agda.TypeChecking.Records (isRecordConstructor, isEtaRecord)
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
@@ -233,8 +233,8 @@ termDef use names name = do
 	      , nest 2 $ text ":" <+> (prettyTCM $ defType def)
 	      ]
         case (theDef def) of
-          Function{ funClauses = cls } ->
-            collectCalls (termClause use names name) cls
+          Function{ funClauses = cls, funDelayed = delayed } ->
+            collectCalls (termClause use names name delayed) cls
           _ -> return Term.empty
 
 
@@ -374,11 +374,12 @@ stripBinds use i (p:ps) b = do
     Nothing -> return Nothing
 
 -- | Extract recursive calls from one clause.
-termClause :: DBPConf -> MutualNames -> QName -> Clause -> TCM Calls
-termClause use names name (Clause { clauseTel  = tel
-                                  , clausePerm = perm
-                                  , clausePats = argPats'
-                                  , clauseBody = body }) =
+termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
+termClause use names name delayed
+    (Clause { clauseTel  = tel
+            , clausePerm = perm
+            , clausePats = argPats'
+            , clauseBody = body }) =
   addCtxTel tel $ do
     argPats' <- normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
@@ -388,7 +389,7 @@ termClause use names name (Clause { clauseTel  = tel
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
           dbpats <- mapM (stripCoConstructors use) dbpats
-          termTerm use names name dbpats t
+          termTerm use names name delayed dbpats t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -399,17 +400,24 @@ termClause use names name (Clause { clauseTel  = tel
     boundVars (Body _)   = 0
 
 -- | Extract recursive calls from a term.
-termTerm :: DBPConf -> MutualNames -> QName -> [DeBruijnPat] -> Term -> TCM Calls
-termTerm conf names f pats0 t0 = do
+termTerm :: DBPConf -> MutualNames -> QName -> Delayed -> [DeBruijnPat] -> Term -> TCM Calls
+termTerm conf names f delayed pats0 t0 = do
  cutoff <- optTerminationDepth <$> pragmaOptions
  let ?cutoff = cutoff
  do
   reportSDoc "term.check.clause" 6
-    (sep [ text "termination checking clause of" <+> prettyTCM f
+    (sep [ text ("termination checking " ++
+             (if delayed == Delayed then "delayed " else "") ++ "clause of")
+           <+> prettyTCM f
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
-  loop pats0 Term.le t0
+  -- if we are checking a delayed definition, we treat it as if there were
+  -- a guarding coconstructor (sharp)
+  let guarded = case delayed of
+        Delayed    -> Term.lt
+        NotDelayed -> Term.le
+  loop pats0 guarded t0
   where
        Just fInd = toInteger <$> List.elemIndex f names
 
@@ -569,12 +577,6 @@ termTerm conf names f pats0 t0 = do
               fun = function g args0
 
             -- Abstraction. Preserves guardedness.
-{- OLD CODE:
-            Lam h (Abs x t) -> addCtxString x (Dom { domHiding    = h
-                                                   , domRelevance = __IMPOSSIBLE__
-                                                   , unDom        = __IMPOSSIBLE__
-                                                   }) $
--}
             Lam h (Abs x t) -> addCtxString_ x $
               loop (map liftDBP pats) guarded t
             Lam h (NoAbs _ t) -> loop pats guarded t
@@ -690,12 +692,18 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 -- | For termination checking purposes flat should not be considered a
 --   projection. That is, it flat doesn't preserve either structural order
 --   or guardedness like other projections do.
+--   Andreas, 2012-06-09: the same applies to projections of unguarded
+--   records (not eta records).
 isProjectionButNotFlat :: QName -> TCM Bool
 isProjectionButNotFlat qn = do
   flat <- fmap nameOfFlat <$> coinductionKit
   if Just qn == flat
     then return False
-    else Maybe.isJust <$> isProjection qn
+    else do
+      mp <- isProjection qn
+      case mp of
+        Nothing -> return False
+        Just (r, _) -> isEtaRecord r
 
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.
