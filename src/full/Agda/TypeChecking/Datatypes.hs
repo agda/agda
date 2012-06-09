@@ -33,14 +33,17 @@ isDatatype d = do
     Record{recNamedCon = namedC} -> return namedC
     _                            -> return False
 
+data DataOrRecord = IsData | IsRecord
+  deriving (Eq, Ord, Show)
+
 -- | Check if a name refers to a datatype or a record.
-isDataOrRecordType :: QName -> TCM Bool
+isDataOrRecordType :: QName -> TCM (Maybe DataOrRecord)
 isDataOrRecordType d = do
   def <- getConstInfo d
   case theDef def of
-    Datatype{} -> return True
-    Record{}   -> return True
-    _          -> return False
+    Datatype{} -> return $ Just IsData
+    Record{}   -> return $ Just IsRecord
+    _          -> return $ Nothing
 
 getNumberOfParameters :: QName -> TCM (Maybe Nat)
 getNumberOfParameters d = do

@@ -8,6 +8,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set
 import Data.Traversable (traverse)
@@ -22,7 +23,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Eliminators
 import Agda.TypeChecking.Records
-import Agda.TypeChecking.Datatypes (isDataOrRecordType)
+import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 
 import Agda.Utils.Monad
@@ -432,7 +433,7 @@ hasBadRigid xs (DontCare v) = hasBadRigid xs v
 -- match: data, record, Pi, levels, sorts
 -- Thus, their offending rigid variables are bad.
 hasBadRigid xs v@(Def f vs) =
-  ifM (isDataOrRecordType f) (return $ vs `rigidVarsNotContainedIn` xs) $ do
+  ifM (isJust <$> isDataOrRecordType f) (return $ vs `rigidVarsNotContainedIn` xs) $ do
     elV <- elimView v
     case elV of
       VarElim x els -> return $ notElem x xs
