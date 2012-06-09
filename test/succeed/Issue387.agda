@@ -2,7 +2,7 @@
 -- {-# OPTIONS --show-implicit -v tc.rec:100 -v tc.meta.assign:15 #-}
 module Issue387 where
 
-import Level
+import Common.Level
 
 mutual
 
