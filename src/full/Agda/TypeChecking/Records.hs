@@ -151,6 +151,16 @@ isGeneratedRecordConstructor c = do
         _                             -> return False
     _ -> return False
 
+-- | Mark record type as unguarded.
+--   No eta-expansion.  Projections do not preserve guardedness.
+unguardedRecord :: QName -> TCM ()
+unguardedRecord q = modifySignature $ \ sig ->
+  sig { sigDefinitions =
+    HMap.adjust (\ def ->
+      def { theDef = updateRecord (theDef def) }) q (sigDefinitions sig) }
+  where updateRecord r@Record{} = r { recEtaEquality = False }
+        updateRecord _          = __IMPOSSIBLE__
+
 {-| Compute the eta expansion of a record. The first argument should be
     the name of a record type. Given
 

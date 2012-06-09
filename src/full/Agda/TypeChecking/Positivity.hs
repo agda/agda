@@ -17,6 +17,8 @@ import Data.List as List
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
+import Agda.TypeChecking.Records (unguardedRecord)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
@@ -59,28 +61,47 @@ checkStrictlyPositive qs = do
     mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
   where
-    checkPos g q = whenM (isDatatype q) $ do
+    checkPos g q = do
+      -- we check positivity only for data or record definitions
+      whenJustM (isDatatype q) $ \ dr -> do
       reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
-      case Graph.findPath isNegative (DefNode q) (DefNode q) g of
-        Nothing                  -> return ()
-        Just (Edge Unused _)     -> __IMPOSSIBLE__
-        Just (Edge GuardPos _)   -> __IMPOSSIBLE__
-        Just (Edge Positive _)   -> __IMPOSSIBLE__
-        Just (Edge Negative how) -> do
+      -- get all pathes from q to q that exhibit a negative occurrence
+      -- or, in case of records, an ungarded occurrence
+      let critical IsData   = \ (Edge o _) -> o == Negative
+          critical IsRecord = \ (Edge o _) -> o <= Positive
+          loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
+
+      -- if we have a negative loop, raise error
+      forM_ [ how | Edge Negative how <- loops ] $ \ how -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
+      -- if we find an unguarded record, mark it as such
+      forM_ (take 1 [ how | Edge Positive how <- loops ]) $ \ how -> do
+          reportSDoc "tc.pos.record" 5 $
+            prettyTCM q <+> text "is not guarded, because it occurs"
+              <+> prettyTCM how
+          unguardedRecord q
+
+{-
+      -- if we have an unguarded loop in a record definition, raise error
+      forM_ [ how | Edge Positive how <- loops ] $ \ how -> do
+          err <- fsep $
+            [prettyTCM q] ++ pwords "is not guarded, because it occurs" ++
+            [prettyTCM how]
+          setCurrentRange (getRange q) $ typeError $ GenericError (show err)
+-}
+
     occ (Edge o _) = o
-    isNegative (Edge o _) = o == Negative
 
     isDatatype q = do
       def <- theDef <$> getConstInfo q
       return $ case def of
-        Datatype{dataClause = Nothing} -> True
-        Record  {recClause  = Nothing} -> True
-        _ -> False
+        Datatype{dataClause = Nothing} -> Just IsData
+        Record  {recClause  = Nothing} -> Just IsRecord
+        _ -> Nothing
 
     -- Set the polarity of the arguments to a definition
     setArgs g q = do
@@ -310,10 +331,13 @@ instance ComputeOccurrences Term where
       return $ maybe Map.empty here (index vars $ fromIntegral i)
                >+< occursAs VarArg occs
     Def d args   -> do
+      inf <- asks inf
+      let occsAs = if Just d /= inf then occursAs . DefArg d else \ n ->
+            -- the principal argument of builtin INF (∞) is the second (n==1)
+            -- the first is a level argument (n==0, counting from 0!)
+            if n == 1 then occursAs UnderInf else occursAs (DefArg d n)
       occs <- mapM occurrences args
-      return $
-        here (ADef d) >+<
-        concatOccurs (zipWith (occursAs . DefArg d) [0..] $ occs)
+      return $ here (ADef d) >+< concatOccurs (zipWith occsAs [0..] occs)
     Con c args   -> occurrences args
     MetaV _ args -> occursAs MetaArg <$> occurrences args
     Pi a b       -> do
@@ -505,17 +529,28 @@ computeEdge muts o = do
       VarArg o       -> negative o
       MetaArg o      -> negative o
       LeftOfArrow o  -> negative o
+      DefArg d i o   -> do
+        isDR <- isDataOrRecordType d
+        let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
+                 | otherwise           = Positive
+        if Set.member d muts then mkEdge (ArgNode d i) pol' o
+         else addPol o =<< otimes pol' <$> getArgOccurrence d i
+{-
       DefArg d i o
         | Set.member d muts -> inArg d i o
         | otherwise         -> addPol o =<< getArgOccurrence d i
-      UnderInf o     -> guarded o
+-}
+      UnderInf o     -> addPol o GuardPos -- Andreas, 2012-06-09: ∞ is guarding
       ConArgType _ o -> keepGoing o
       InClause _ o   -> keepGoing o
-      InDefOf d o    -> mkEdge (DefNode d) Positive o
+      InDefOf d o    -> do
+        isDR <- isDataOrRecordType d
+        let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
+                 | otherwise           = Positive
+        mkEdge (DefNode d) pol' o
       where
         keepGoing     = mkEdge to pol
         negative      = mkEdge to Negative
-        guarded       = mkEdge to GuardPos
         addPol o pol' = mkEdge to (otimes pol pol') o
 
         -- Reset polarity when changing the target node
