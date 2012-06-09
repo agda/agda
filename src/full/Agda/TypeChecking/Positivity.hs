@@ -6,6 +6,8 @@ module Agda.TypeChecking.Positivity where
 
 import Control.Applicative hiding (empty)
 import Control.DeepSeq
+import Control.Monad.Reader
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -16,6 +18,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -240,19 +243,36 @@ occursAs f = Map.map (map f)
 here :: Item -> Occurrences
 here i = Map.singleton i [Here]
 
+-- | Context for computing occurrences.
+data OccEnv = OccEnv
+  { vars :: [Maybe Item] -- ^ Items corresponding to the free variables.
+  , inf  :: Maybe QName  -- ^ Name for ∞ builtin.
+  }
+
+-- | Monad for computing occurrences.
+type OccM = Reader OccEnv
+
+withExtendedOccEnv :: Maybe Item -> OccM a -> OccM a
+withExtendedOccEnv i = local $ \ e -> e { vars = i : vars e }
+
+-- | Running the monad
+getOccurrences :: ComputeOccurrences a => [Maybe Item] -> a -> TCM Occurrences
+getOccurrences vars a = do
+  kit <- coinductionKit
+  return $ runReader (occurrences a) $ OccEnv vars $ fmap nameOfInf kit
+
 class ComputeOccurrences a where
-  -- | The first argument is the items corresponding to the free variables.
-  occurrences :: [Maybe Item] -> a -> Occurrences
+  occurrences :: a -> OccM Occurrences
 
 instance ComputeOccurrences Clause where
-  occurrences vars (Clause{ clausePats = ps, clauseBody = body }) =
-    walk vars (patItems ps) body
+  occurrences (Clause{ clausePats = ps, clauseBody = body }) =
+    walk (patItems ps) body
     where
-      walk _    _         NoBody     = Map.empty
-      walk vars []        (Body v)   = occurrences vars v
-      walk vars (i : pis) (Bind b)   = walk (i : vars) pis $ absBody b
-      walk _    []        Bind{}     = __IMPOSSIBLE__
-      walk _    (_ : _)   Body{}     = __IMPOSSIBLE__
+      walk _         NoBody     = return $ Map.empty
+      walk []        (Body v)   = occurrences v
+      walk (i : pis) (Bind b)   = withExtendedOccEnv i $ walk pis $ absBody b
+      walk []        Bind{}     = __IMPOSSIBLE__
+      walk (_ : _)   Body{}     = __IMPOSSIBLE__
 
       patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
       patItem i p = replicate (nVars p) (Just (AnArg i))
@@ -264,22 +284,28 @@ instance ComputeOccurrences Clause where
         LitP{}      -> 0
 
 instance ComputeOccurrences Term where
-  occurrences vars v = case v of
-    Var i args ->
-      maybe Map.empty here (index vars $ fromIntegral i)
-      >+< occursAs VarArg (occurrences vars args)
-    Def d args   ->
-      here (ADef d) >+<
-      concatOccurs (zipWith (occursAs . DefArg d) [0..] $ map (occurrences vars) args)
-    Con c args   -> occurrences vars args
-    MetaV _ args -> occursAs MetaArg $ occurrences vars args
-    Pi a b       -> occursAs LeftOfArrow (occurrences vars a) >+<
-                    occurrences vars b
-    Lam _ b      -> occurrences vars b
-    Level l      -> occurrences vars l
-    Lit{}        -> Map.empty
-    Sort{}       -> Map.empty
-    DontCare _   -> Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
+  occurrences v = case v of
+    Var i args -> do
+      vars <- asks vars
+      occs <- occurrences args
+      return $ maybe Map.empty here (index vars $ fromIntegral i)
+               >+< occursAs VarArg occs
+    Def d args   -> do
+      occs <- mapM occurrences args
+      return $
+        here (ADef d) >+<
+        concatOccurs (zipWith (occursAs . DefArg d) [0..] $ occs)
+    Con c args   -> occurrences args
+    MetaV _ args -> occursAs MetaArg <$> occurrences args
+    Pi a b       -> do
+      oa <- occurrences a
+      ob <- occurrences b
+      return $ occursAs LeftOfArrow oa >+< ob
+    Lam _ b      -> occurrences b
+    Level l      -> occurrences l
+    Lit{}        -> return $ Map.empty
+    Sort{}       -> return $ Map.empty
+    DontCare _   -> return $ Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
     where
       -- Apparently some development version of GHC chokes if the
       -- following line is replaced by vs ! i.
@@ -288,41 +314,44 @@ instance ComputeOccurrences Term where
         | otherwise     = __IMPOSSIBLE__
 
 instance ComputeOccurrences Level where
-  occurrences vars (Max as) = occurrences vars as
+  occurrences (Max as) = occurrences as
 
 instance ComputeOccurrences PlusLevel where
-  occurrences vars ClosedLevel{} = Map.empty
-  occurrences vars (Plus _ l) = occurrences vars l
+  occurrences ClosedLevel{} = return $ Map.empty
+  occurrences (Plus _ l)    = occurrences l
 
 instance ComputeOccurrences LevelAtom where
-  occurrences vars l = case l of
-    MetaLevel _ vs   -> occursAs MetaArg $ occurrences vars vs
-    BlockedLevel _ v -> occurrences vars v
-    NeutralLevel v   -> occurrences vars v
-    UnreducedLevel v -> occurrences vars v
+  occurrences l = case l of
+    MetaLevel _ vs   -> occursAs MetaArg <$> occurrences vs
+    BlockedLevel _ v -> occurrences v
+    NeutralLevel v   -> occurrences v
+    UnreducedLevel v -> occurrences v
 
 instance ComputeOccurrences Type where
-  occurrences vars (El _ v) = occurrences vars v
+  occurrences (El _ v) = occurrences v
 
 instance ComputeOccurrences a => ComputeOccurrences (Tele a) where
-  occurrences vars EmptyTel        = Map.empty
-  occurrences vars (ExtendTel a b) = occurrences vars (a, b)
+  occurrences EmptyTel        = return $ Map.empty
+  occurrences (ExtendTel a b) = occurrences (a, b)
 
 instance ComputeOccurrences a => ComputeOccurrences (Abs a) where
-  occurrences vars (Abs   _ b) = occurrences (Nothing : vars) b
-  occurrences vars (NoAbs _ b) = occurrences vars b
+  occurrences (Abs   _ b) = withExtendedOccEnv Nothing $ occurrences b
+  occurrences (NoAbs _ b) = occurrences b
 
 instance ComputeOccurrences a => ComputeOccurrences (Arg a) where
-  occurrences vars = occurrences vars . unArg
+  occurrences = occurrences . unArg
 
 instance ComputeOccurrences a => ComputeOccurrences (Dom a) where
-  occurrences vars = occurrences vars . unDom
+  occurrences = occurrences . unDom
 
 instance ComputeOccurrences a => ComputeOccurrences [a] where
-  occurrences vars = concatOccurs . map (occurrences vars)
+  occurrences vs = concatOccurs <$> mapM occurrences vs
 
 instance (ComputeOccurrences a, ComputeOccurrences b) => ComputeOccurrences (a, b) where
-  occurrences vars (x, y) = occurrences vars x >+< occurrences vars y
+  occurrences (x, y) = do
+    ox <- occurrences x
+    oy <- occurrences y
+    return $ ox >+< oy
 
 -- | Compute the occurrences in a given definition.
 computeOccurrences :: QName -> TCM Occurrences
@@ -332,26 +361,22 @@ computeOccurrences q = do
     Function{funClauses = cs} -> do
       n  <- getDefArity def
       cs <- map (etaExpandClause n) <$> instantiateFull cs
-      return
-        $ concatOccurs
-        $ zipWith (occursAs . InClause) [0..]
-        $ map (occurrences []) cs
-    Datatype{dataClause = Just c} -> occurrences [] <$> instantiateFull c
+      concatOccurs . zipWith (occursAs . InClause) [0..] <$>
+        mapM (getOccurrences []) cs
+    Datatype{dataClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Datatype{dataPars = np, dataCons = cs}       -> do
       let conOcc c = do
             a <- defType <$> getConstInfo c
             TelV tel _ <- telView' <$> normalise a
             let tel' = telFromList $ genericDrop np $ telToList tel
                 vars = map (Just . AnArg) $ downFrom np
---                vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
-            return $ occursAs (ConArgType c) $ occurrences vars tel'
+            occursAs (ConArgType c) <$> getOccurrences vars tel'
       concatOccurs <$> mapM conOcc cs
-    Record{recClause = Just c} -> occurrences [] <$> instantiateFull c
+    Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
       let tel' = telFromList $ genericDrop np $ telToList tel
           vars = map (Just . AnArg) $ downFrom np
-          -- vars = reverse [ Just (AnArg i) | i <- [0..np - 1] ]
-      occurrences vars <$> instantiateFull tel'
+      getOccurrences vars =<< instantiateFull tel'
 
     -- Arguments to other kinds of definitions are hard-wired.
     Constructor{} -> return Map.empty
