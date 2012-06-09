@@ -530,9 +530,14 @@ data CompiledRepresentation = CompiledRep
 noCompiledRep :: CompiledRepresentation
 noCompiledRep = CompiledRep Nothing Nothing Nothing
 
--- | 'Positive' means strictly positive and 'Negative' means not strictly
--- positive.
-data Occurrence = Positive | Negative | Unused
+-- | Subterm occurrences for positivity checking.
+--   The constructors are listed in increasing information they provide:
+--   @Negative <= Positive <= GuardPos <= Unused@
+data Occurrence
+  = Negative -- ^ Arbitrary occurrence (not strictly positive).
+  | Positive -- ^ Strictly positive occurrence.
+  | GuardPos -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
+  | Unused  --  ^ No occurrence.
   deriving (Typeable, Show, Eq, Ord)
 
 instance NFData Occurrence

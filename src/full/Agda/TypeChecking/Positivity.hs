@@ -63,8 +63,9 @@ checkStrictlyPositive qs = do
       reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
       case Graph.findPath isNegative (DefNode q) (DefNode q) g of
         Nothing                  -> return ()
-        Just (Edge Positive _)   -> __IMPOSSIBLE__
         Just (Edge Unused _)     -> __IMPOSSIBLE__
+        Just (Edge GuardPos _)   -> __IMPOSSIBLE__
+        Just (Edge Positive _)   -> __IMPOSSIBLE__
         Just (Edge Negative how) -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
@@ -92,6 +93,7 @@ checkStrictlyPositive qs = do
               Nothing -> Unused
               Just Negative -> Negative
               Just Positive -> Positive
+              Just GuardPos -> GuardPos
               Just Unused   -> Unused
           args = map findOcc [0..nArgs - 1]
       reportSDoc "tc.pos.args" 10 $ sep
@@ -113,27 +115,37 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
--- | These operations form a commutative semiring with 'Unused' as
--- zero and 'Positive' as one. Furthermore both operations are
--- idempotent.
+-- | 'Occurrence' is a complete lattice with least element 'Negative'
+--   and greatest element 'Unused'.
+--
+--   It forms a commutative semiring where 'oplus' is meet (glb)
+--   and 'otimes' is composition. Both operations are idempotent.
+--
+--   For 'oplus', 'Unused' is neutral (zero) and 'Negative' is dominant.
+--   For 'otimes', 'Positive' is neutral (one) and 'Unused' is dominant.
 
 instance SemiRing Occurrence where
-  oplus Negative _        = Negative
+  oplus Negative _        = Negative -- dominant
   oplus _ Negative        = Negative
-  oplus Unused o          = o
+  oplus Unused o          = o        -- neutral
   oplus o Unused          = o
-  oplus Positive Positive = Positive
+  oplus Positive _        = Positive -- _ `elem` [Positive, GuardPos]
+  oplus _ Positive        = Positive
+  oplus GuardPos GuardPos = GuardPos
 
-  otimes Unused _          = Unused
+  otimes Unused _          = Unused    -- dominant
   otimes _ Unused          = Unused
-  otimes Negative _        = Negative
+  otimes Negative _        = Negative  -- second-rank dominance
   otimes _ Negative        = Negative
-  otimes Positive Positive = Positive
+  otimes GuardPos _        = GuardPos   -- _ `elem` [Positive, GuardPos]
+  otimes _ GuardPos        = GuardPos
+  otimes Positive Positive = Positive  -- neutral
 
 -- | Description of an occurrence.
 data OccursWhere
   = LeftOfArrow OccursWhere
   | DefArg QName Nat OccursWhere -- ^ in the nth argument of a define constant
+  | UnderInf OccursWhere         -- ^ in the principal argument of built-in ∞
   | VarArg OccursWhere           -- ^ as an argument to a bound variable
   | MetaArg OccursWhere          -- ^ as an argument of a metavariable
   | ConArgType QName OccursWhere -- ^ in the type of a constructor
@@ -148,6 +160,7 @@ Here            >*< o  = o
 Unknown         >*< o  = Unknown
 LeftOfArrow o1  >*< o2 = LeftOfArrow (o1 >*< o2)
 DefArg d i o1   >*< o2 = DefArg d i (o1 >*< o2)
+UnderInf o1     >*< o2 = UnderInf (o1 >*< o2)
 VarArg o1       >*< o2 = VarArg (o1 >*< o2)
 MetaArg o1      >*< o2 = MetaArg (o1 >*< o2)
 ConArgType c o1 >*< o2 = ConArgType c (o1 >*< o2)
@@ -177,6 +190,9 @@ instance PrettyTCM OccursWhere where
         LeftOfArrow o  -> explain o $ pwords "to the left of an arrow"
         DefArg q i o   -> explain o $ pwords "in the" ++ nth i ++ pwords "argument to" ++
                                       [prettyTCM q]
+        UnderInf o     -> do
+          Def inf _ <- primInf  -- this cannot fail if an 'UnderInf' has been generated
+          explain o $ pwords "under" ++ [prettyTCM inf]
         VarArg o       -> explain o $ pwords "in an argument to a bound variable"
         MetaArg o      -> explain o $ pwords "in an argument to a metavariable"
         ConArgType c o -> explain o $ pwords "in the type of the constructor" ++ [prettyTCM c]
@@ -190,6 +206,7 @@ instance PrettyTCM OccursWhere where
         Here           -> Here
         Unknown        -> Unknown
         DefArg q i o   -> DefArg q i   $ maxOneLeftOfArrow o
+        UnderInf o     -> UnderInf     $ maxOneLeftOfArrow o
         InDefOf d o    -> InDefOf d    $ maxOneLeftOfArrow o
         VarArg o       -> VarArg       $ maxOneLeftOfArrow o
         MetaArg o      -> MetaArg      $ maxOneLeftOfArrow o
@@ -201,6 +218,7 @@ instance PrettyTCM OccursWhere where
         Here           -> Here
         Unknown        -> Unknown
         DefArg q i o   -> DefArg q i   $ purgeArrows o
+        UnderInf o     -> UnderInf     $ purgeArrows o
         InDefOf d o    -> InDefOf d    $ purgeArrows o
         VarArg o       -> VarArg       $ purgeArrows o
         MetaArg o      -> MetaArg      $ purgeArrows o
@@ -213,6 +231,7 @@ instance PrettyTCM OccursWhere where
         InDefOf d o    -> sp (InDefOf d) o
         LeftOfArrow o  -> sp LeftOfArrow o
         DefArg q i o   -> sp (DefArg q i) o
+        UnderInf o     -> sp UnderInf o
         VarArg o       -> sp VarArg o
         MetaArg o      -> sp MetaArg o
         ConArgType c o -> sp (ConArgType c) o
@@ -421,6 +440,7 @@ instance PrettyTCM Node where
   prettyTCM (ArgNode q i) = prettyTCM q <> text ("." ++ show i)
 
 instance PrettyTCM Occurrence where
+  prettyTCM GuardPos  = text "-[g+]->"
   prettyTCM Positive = text "-[+]->"
   prettyTCM Negative = text "-[-]->"
   prettyTCM Unused   = text "-[ ]->"
@@ -447,11 +467,13 @@ data Edge = Edge Occurrence OccursWhere
 -- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
-  oplus _                   e@(Edge Negative _) = e
+  oplus _                   e@(Edge Negative _) = e -- dominant
   oplus e@(Edge Negative _) _                   = e
-  oplus (Edge Unused _)     e                   = e
+  oplus (Edge Unused _)     e                   = e -- neutral
   oplus e                   (Edge Unused _)     = e
-  oplus (Edge Positive _)   e@(Edge Positive _) = e
+  oplus _                   e@(Edge Positive _) = e -- dominates 'GuardPos'
+  oplus e@(Edge Positive _) _                   = e
+  oplus (Edge GuardPos _)   e@(Edge GuardPos _) = e
 
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 >*< w2)
 
@@ -486,12 +508,14 @@ computeEdge muts o = do
       DefArg d i o
         | Set.member d muts -> inArg d i o
         | otherwise         -> addPol o =<< getArgOccurrence d i
+      UnderInf o     -> guarded o
       ConArgType _ o -> keepGoing o
       InClause _ o   -> keepGoing o
       InDefOf d o    -> mkEdge (DefNode d) Positive o
       where
         keepGoing     = mkEdge to pol
         negative      = mkEdge to Negative
+        guarded       = mkEdge to GuardPos
         addPol o pol' = mkEdge to (otimes pol pol') o
 
         -- Reset polarity when changing the target node

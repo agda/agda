@@ -557,9 +557,13 @@ termTerm conf names f pats0 t0 = do
                 constructor g Inductive $   -- guardedness preserving
                   zip args0 (map preserves occs ++ repeat False)
                 where
+                preserves = (Positive <=)   -- everything which is at least strictly positive
+{- SPELLED OUT, this means:
+                preserves Unused   = True
+                preserves GuardPos = True
                 preserves Positive = True
                 preserves Negative = False
-                preserves Unused   = True
+-}
 
               -- Call to defined function.
               fun = function g args0

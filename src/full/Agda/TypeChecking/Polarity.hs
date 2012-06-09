@@ -54,6 +54,7 @@ computePolarity x = do
     getPol i = do
         o <- getArgOccurrence x i
         case o of
+          GuardPos -> return Covariant
           Positive -> return Covariant
           Negative -> return Invariant  -- Negative isn't the same as contravariant
           Unused   -> return Invariant  -- add NonVariant?
