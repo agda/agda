@@ -1,8 +1,10 @@
 
 module Agda.TypeChecking.Monad.Builtin where
 
-import Data.Functor
+import Control.Monad.Error
 import Control.Monad.State
+
+import Data.Functor
 import qualified Data.Map as Map
 
 import Agda.Syntax.Position
@@ -230,3 +232,25 @@ builtinAgdaDefinitionDataConstructor = "AGDADEFINITIONDATACONSTRUCTOR"
 builtinAgdaDefinitionPostulate       = "AGDADEFINITIONPOSTULATE"
 builtinAgdaDefinitionPrimitive       = "AGDADEFINITIONPRIMITIVE"
 builtinAgdaDefinition                = "AGDADEFINITION"
+
+-- | The coinductive primitives.
+
+data CoinductionKit = CoinductionKit
+  { nameOfInf   :: QName
+  , nameOfSharp :: QName
+  , nameOfFlat  :: QName
+  }
+
+-- | Tries to build a 'CoinductionKit'.
+
+coinductionKit :: TCM (Maybe CoinductionKit)
+coinductionKit = (do
+  Def inf   _ <- primInf
+  Def sharp _ <- primSharp
+  Def flat  _ <- primFlat
+  return $ Just $ CoinductionKit
+    { nameOfInf   = inf
+    , nameOfSharp = sharp
+    , nameOfFlat  = flat
+    })
+    `catchError` \_ -> return Nothing

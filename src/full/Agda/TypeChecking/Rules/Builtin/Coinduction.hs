@@ -7,7 +7,6 @@
 module Agda.TypeChecking.Rules.Builtin.Coinduction where
 
 import Control.Applicative
-import Control.Monad.Error
 
 import qualified Data.Map as Map
 
@@ -152,24 +151,5 @@ bindBuiltinFlat e =
                 }
     return flatE
 
--- | The coinductive primitives.
-
-data CoinductionKit = CoinductionKit
-  { nameOfInf   :: QName
-  , nameOfSharp :: QName
-  , nameOfFlat  :: QName
-  }
-
--- | Tries to build a 'CoinductionKit'.
-
-coinductionKit :: TCM (Maybe CoinductionKit)
-coinductionKit = (do
-  Def inf   _ <- primInf
-  Def sharp _ <- primSharp
-  Def flat  _ <- primFlat
-  return $ Just $ CoinductionKit
-    { nameOfInf   = inf
-    , nameOfSharp = sharp
-    , nameOfFlat  = flat
-    })
-    `catchError` \_ -> return Nothing
+-- * The coinductive primitives.
+-- moved to TypeChecking.Monad.Builtin

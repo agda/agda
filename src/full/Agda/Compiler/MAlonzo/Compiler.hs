@@ -30,9 +30,10 @@ import qualified Agda.Syntax.Concrete.Name as CN
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rules.Builtin.Coinduction
+-- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Level (reallyUnLevelView)

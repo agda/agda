@@ -12,9 +12,10 @@ import Data.Char
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.Rules.Builtin.Coinduction
+-- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Free
 import Agda.Utils.Monad

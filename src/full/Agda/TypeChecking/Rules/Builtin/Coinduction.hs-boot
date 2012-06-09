@@ -7,9 +7,11 @@ bindBuiltinInf   :: Expr -> TCM ()
 bindBuiltinSharp :: Expr -> TCM ()
 bindBuiltinFlat  :: Expr -> TCM ()
 
+{- MOVED to TypeChecking.Monad.Builtin
 data CoinductionKit
 nameOfInf   :: CoinductionKit -> QName
 nameOfSharp :: CoinductionKit -> QName
 nameOfFlat  :: CoinductionKit -> QName
 
 coinductionKit :: TCM (Maybe CoinductionKit)
+-}
