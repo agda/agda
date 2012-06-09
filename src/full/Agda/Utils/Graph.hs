@@ -216,6 +216,10 @@ findPath good a b g = case filter good $ allPaths good a b g of
   []    -> Nothing
   w : _ -> Just w
 
+-- | @allPaths classify a b g@ returns a list of pathes (accumulated edge weights)
+--   from node @a@ to node @b@ in @g@.
+--   Alternative intermediate pathes are only considered if they
+--   are distinguished by the @classify@ function.
 allPaths :: (SemiRing e, Ord n, Ord c) => (e -> c) -> n -> n -> Graph n e -> [e]
 allPaths classify a b g = paths Set.empty a
   where
