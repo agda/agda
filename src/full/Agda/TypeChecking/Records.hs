@@ -170,7 +170,8 @@ unguardedRecord q = modifySignature $ \ sig ->
 -}
 etaExpandRecord :: QName -> Args -> Term -> TCM (Telescope, Args)
 etaExpandRecord r pars u = do
-  Record{ recFields = xs, recTel = tel } <- getRecordDef r
+  Record{ recFields = xs, recTel = tel, recEtaEquality = eta } <- getRecordDef r
+  unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
   let tel' = apply tel pars
   case u of
     Con _ args -> return (tel', args)  -- Already expanded.
@@ -193,10 +194,6 @@ etaExpandRecord r pars u = do
           ]
         ]
       return (tel', xs')
-{- UNUSED
-  where
-    hide a = a { argHiding = Hidden }
--}
 
 -- | The fields should be eta contracted already.
 --

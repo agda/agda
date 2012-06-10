@@ -60,7 +60,9 @@ insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
           a <- reduce (unDom arg)
           case unEl a of
             Def d _ ->
-              ifM (isJust <$> isRecord d) (do
+              -- Andreas, 2012-06-10: only expand guarded records,
+              -- otherwise we might run into an infinite loop
+              ifM (isEtaRecord d) (do
                 c  <- getRecordConstructor d
                 fs <- getRecordFieldNames d
                 let qs = map (implicitP <$) fs
