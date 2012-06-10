@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120501 * 10 + 0
+currentInterfaceVersion = 20120610 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -859,17 +859,17 @@ instance EmbPrj CompiledRepresentation where
                            valu _         = malformed
 
 instance EmbPrj Defn where
-  icode Axiom                               = icode0 0
-  icode (Function    a b c d e f g h i)     = icode9 1 a b c d e f g h i
-  icode (Datatype    a b c d e f g h i)     = icode9 2 a b c d e f g h i
-  icode (Record      a b c d e f g h i j k) = icode11 3 a b c d e f g h i j k
-  icode (Constructor a b c d e)             = icode5 4 a b c d e
-  icode (Primitive   a b c d)               = icode4 5 a b c d
+  icode Axiom                                 = icode0 0
+  icode (Function    a b c d e f g h i)       = icode9 1 a b c d e f g h i
+  icode (Datatype    a b c d e f g h i)       = icode9 2 a b c d e f g h i
+  icode (Record      a b c d e f g h i j k l) = icode12 3 a b c d e f g h i j k l
+  icode (Constructor a b c d e)               = icode5 4 a b c d e
+  icode (Primitive   a b c d)                 = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                  = valu0 Axiom
     valu [1, a, b, c, d, e, f, g, h, i]       = valu9 Function    a b c d e f g h i
     valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype    a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k] = valu11 Record     a b c d e f g h i j k
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
     valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
     valu _                                    = malformed

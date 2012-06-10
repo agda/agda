@@ -66,6 +66,14 @@ withSignature sig m =
 	setSignature sig0
         return r
 
+-- * modifiers for parts of the signature
+
+updateDefinition :: QName -> (Definition -> Definition) -> Signature -> Signature
+updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinitions sig) }
+
+updateTheDef :: (Defn -> Defn) -> (Definition -> Definition)
+updateTheDef f def = def { theDef = f (theDef def) }
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do

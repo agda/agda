@@ -124,6 +124,8 @@ checkRecDef i name con ps contel fields =
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = True
+                                -- determined by positivity checker:
+                                , recRecursive      = False
                                 , recPolarity       = []
                                 , recArgOccurrences = []
                                 }

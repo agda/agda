@@ -35,7 +35,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records (isRecordConstructor, isEtaRecord)
+import Agda.TypeChecking.Records (isRecordConstructor, isRecord, isEtaRecord)
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
@@ -692,8 +692,7 @@ compareTerm t p = Term.supremum $ compareTerm' t p : map cmp (subPatterns p)
 -- | For termination checking purposes flat should not be considered a
 --   projection. That is, it flat doesn't preserve either structural order
 --   or guardedness like other projections do.
---   Andreas, 2012-06-09: the same applies to projections of unguarded
---   records (not eta records).
+--   Andreas, 2012-06-09: the same applies to projections of recursive records.
 isProjectionButNotFlat :: QName -> TCM Bool
 isProjectionButNotFlat qn = do
   flat <- fmap nameOfFlat <$> coinductionKit
@@ -703,7 +702,7 @@ isProjectionButNotFlat qn = do
       mp <- isProjection qn
       case mp of
         Nothing -> return False
-        Just (r, _) -> isEtaRecord r
+        Just (r, _) -> maybe False (not . recRecursive) <$> isRecord r
 
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.

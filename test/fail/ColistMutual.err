@@ -1,0 +1,8 @@
+
+Termination checking failed for the following functions:
+  shape, shapes
+Problematic calls:
+  shapes (out l)
+    (at ColistMutual.agda:45,26-32)
+  shape t
+    (at ColistMutual.agda:49,20-25)

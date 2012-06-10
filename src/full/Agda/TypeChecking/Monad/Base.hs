@@ -574,7 +574,7 @@ data Defn = Axiom
             , dataAbstr          :: IsAbstract
             }
 	  | Record
-            { recPars           :: Nat
+            { recPars           :: Nat                  -- ^ Number of parameters.
             , recClause         :: Maybe Clause
             , recCon            :: QName                -- ^ Constructor name.
             , recNamedCon       :: Bool
@@ -583,7 +583,8 @@ data Defn = Axiom
             , recTel            :: Telescope            -- ^ The record field telescope
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
-            , recEtaEquality    :: Bool
+            , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
+            , recRecursive      :: Bool                 -- ^ Recursive record.  Implies @recEtaEquality = False@.  Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }
 	  | Constructor

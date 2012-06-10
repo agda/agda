@@ -18,7 +18,7 @@ import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Datatypes (isDataOrRecordType, DataOrRecord(..))
-import Agda.TypeChecking.Records (unguardedRecord)
+import Agda.TypeChecking.Records (unguardedRecord, recursiveRecord)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin (primInf, CoinductionKit(..), coinductionKit)
 import Agda.TypeChecking.Reduce
@@ -66,9 +66,9 @@ checkStrictlyPositive qs = do
       whenJustM (isDatatype q) $ \ dr -> do
       reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
       -- get all pathes from q to q that exhibit a negative occurrence
-      -- or, in case of records, an ungarded occurrence
+      -- or, in case of records, any recursive occurrence
       let critical IsData   = \ (Edge o _) -> o == Negative
-          critical IsRecord = \ (Edge o _) -> o <= Positive
+          critical IsRecord = \ (Edge o _) -> o /= Unused
           loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
 
       -- if we have a negative loop, raise error
@@ -79,12 +79,20 @@ checkStrictlyPositive qs = do
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
       -- if we find an unguarded record, mark it as such
-      forM_ (take 1 [ how | Edge Positive how <- loops ]) $ \ how -> do
-          reportSDoc "tc.pos.record" 5 $
-            prettyTCM q <+> text "is not guarded, because it occurs"
-              <+> prettyTCM how
-          unguardedRecord q
-
+      (\ just noth -> maybe noth just (mhead [ how | Edge Positive how <- loops ]))
+        (\ how -> do
+          reportSDoc "tc.pos.record" 5 $ sep
+            [ prettyTCM q <+> text "is not guarded, because it occurs"
+            , prettyTCM how
+            ]
+          unguardedRecord q) $
+        -- otherwise, if the record is recursive, mark it as well
+        forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
+          reportSDoc "tc.pos.record" 5 $ sep
+            [ prettyTCM q <+> text "is not guarded, because it occurs"
+            , prettyTCM how
+            ]
+          recursiveRecord q
 {-
       -- if we have an unguarded loop in a record definition, raise error
       forM_ [ how | Edge Positive how <- loops ] $ \ how -> do
