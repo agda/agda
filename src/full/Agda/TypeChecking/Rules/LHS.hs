@@ -85,7 +85,7 @@ flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse
     flexible (A.ImplicitP _) = return True
     flexible (A.ConP _ (A.AmbQ [c]) qs) =
       ifM (isJust <$> isRecordConstructor c)
-          (and <$> mapM (flexible . namedThing . unArg) qs)
+          (andM $ map (flexible . namedThing . unArg) qs)
           (return False)
     flexible _               = return False
 
