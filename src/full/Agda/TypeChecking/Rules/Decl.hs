@@ -82,7 +82,7 @@ checkDecl d = do
         meta       m = m >> return (Just (return []))
         mutual     m = m >>= return . Just . mutualChecks
         impossible m = m >> return __IMPOSSIBLE__
-                       -- ^ We're definitely inside a mutual block.
+                       -- We're definitely inside a mutual block.
 
     topLevelKind <- case d of
       A.Axiom{}                -> meta $ checkTypeSignature d
