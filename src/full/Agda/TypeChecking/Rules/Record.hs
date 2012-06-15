@@ -52,8 +52,8 @@ import Agda.Utils.Impossible
 --
 --     [@fields@]  List of field signatures.
 --
-checkRecDef :: Info.DefInfo -> QName -> Maybe A.QName -> --Maybe A.Constructor ->
-               [A.LamBinding] -> A.Expr -> [A.Constructor] -> TCM ()
+checkRecDef :: Info.DefInfo -> QName -> Maybe A.QName ->
+               [A.LamBinding] -> A.Expr -> [A.Field] -> TCM ()
 checkRecDef i name con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat

@@ -127,6 +127,7 @@ data LetBinding = LetBind LetInfo Relevance Name Expr Expr    -- ^ LetBind info 
 -- | Only 'Axiom's.
 type TypeSignature  = Declaration
 type Constructor    = TypeSignature
+type Field          = TypeSignature
 
 -- | A lambda binding is either domain free or typed.
 data LamBinding
