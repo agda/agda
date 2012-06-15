@@ -24,7 +24,14 @@ data Delayed = Delayed | NotDelayed
   deriving (Typeable, Show, Eq, Ord)
 
 data Induction = Inductive | CoInductive
-  deriving (Typeable, Show, Eq, Ord)
+  deriving (Typeable, Eq, Ord)
+
+instance Show Induction where
+  show Inductive   = "inductive"
+  show CoInductive = "coinductive"
+
+instance HasRange Induction where
+  getRange _ = noRange
 
 data Hiding  = Hidden | Instance | NotHidden
     deriving (Typeable, Show, Eq, Ord)
