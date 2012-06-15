@@ -22,7 +22,6 @@ module Agda.Syntax.Concrete
     , ModuleApplication(..)
     , TypeSignature
     , Constructor
-    , Field
     , ImportDirective(..), UsingOrHiding(..), ImportedName(..)
     , Renaming(..), AsName(..)
     , defaultImportDir
@@ -249,9 +248,8 @@ data AsName = AsName { asName  :: Name
 -- | Just type signatures.
 type TypeSignature   = Declaration
 
--- | A constructor or field declaration is just a type signature.
+-- | A data constructor declaration is just a type signature.
 type Constructor = TypeSignature
-type Field	 = TypeSignature
 
 {-| The representation type of a declaration. The comments indicate
     which type in the intended family the constructor targets.
