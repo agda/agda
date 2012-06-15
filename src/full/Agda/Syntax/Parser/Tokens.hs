@@ -16,6 +16,7 @@ data Keyword
 	| KwOpen | KwImport | KwModule | KwPrimitive
 	| KwInfix | KwInfixL | KwInfixR | KwWith | KwRewrite
 	| KwSet | KwProp | KwForall | KwRecord | KwConstructor | KwField
+        | KwInductive | KwCoInductive
 	| KwHiding | KwUsing | KwRenaming | KwTo | KwPublic
 	| KwOPTIONS | KwBUILTIN | KwLINE
 	| KwCOMPILED_DATA | KwCOMPILED_TYPE | KwCOMPILED | KwCOMPILED_EPIC | KwCOMPILED_JS

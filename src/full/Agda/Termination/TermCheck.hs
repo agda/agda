@@ -35,7 +35,7 @@ import qualified Agda.Termination.Termination  as Term
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull)
-import Agda.TypeChecking.Records (isRecordConstructor, isRecord, isEtaRecord)
+import Agda.TypeChecking.Records (isRecordConstructor, isRecord, isInductiveRecord)
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
 import Agda.TypeChecking.Substitute (abstract,raise,substs)
@@ -77,7 +77,7 @@ termDecl d = case d of
     A.Field {}            -> return []
     A.Primitive {}        -> return []
     A.Mutual _ ds
-      | [A.RecSig{}, A.RecDef _ r _ _ _ rds] <- unscopeDefs ds
+      | [A.RecSig{}, A.RecDef _ r _ _ _ _ rds] <- unscopeDefs ds
                           -> checkRecDef ds r rds
     A.Mutual i ds         -> termMutual i ds
     A.Section _ x _ ds    -> termSection x ds
@@ -89,7 +89,7 @@ termDecl d = case d of
     A.ScopedDecl{}        -> __IMPOSSIBLE__
         -- taken care of above
     A.RecSig{}            -> return []
-    A.RecDef _ r _ _ _ ds -> checkRecDef [] r ds
+    A.RecDef _ r _ _ _ _ ds -> checkRecDef [] r ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}  -> __IMPOSSIBLE__
     A.DataSig{} -> __IMPOSSIBLE__
@@ -197,7 +197,7 @@ termMutual i ds = if names == [] then return [] else do
          return []
   where
   getName (A.FunDef i x delayed cs) = [x]
-  getName (A.RecDef _ _ _ _ _ ds) = concatMap getName ds
+  getName (A.RecDef _ _ _ _ _ _ ds) = concatMap getName ds
   getName (A.Mutual _ ds)       = concatMap getName ds
   getName (A.Section _ _ _ ds)  = concatMap getName ds
   getName (A.ScopedDecl _ ds)   = concatMap getName ds
@@ -701,8 +701,9 @@ isProjectionButNotFlat qn = do
     else do
       mp <- isProjection qn
       case mp of
-        Nothing -> return False
-        Just (r, _) -> maybe False (not . recRecursive) <$> isRecord r
+        Nothing     -> return False
+        Just (r, _) -> isInductiveRecord r
+
 
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.

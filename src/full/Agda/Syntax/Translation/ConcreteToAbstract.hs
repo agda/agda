@@ -892,7 +892,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         conName _ = __IMPOSSIBLE__
 
   -- Record definitions (mucho interesting)
-    C.RecDef r f a x cm pars fields ->
+    C.RecDef r f a x ind cm pars fields ->
       withLocalVars $ do
         -- Check that the generated module doesn't clash with a previously
         -- defined module
@@ -912,7 +912,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         bindModule p x m
         cm' <- mapM (\(ThingWithFixity c f) -> bindConstructorName m c f a p YesRec) cm
         printScope "rec" 15 "record complete"
-        return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' cm' pars contel afields ]
+        return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' ind cm' pars contel afields ]
 
     NiceModule r p a (C.QName name) tel ds ->
       traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do

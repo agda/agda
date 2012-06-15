@@ -93,8 +93,8 @@ checkDecl d = do
       A.ScopedDecl scope ds    -> none $ setScope scope >> checkDecls ds
       A.FunDef i x delayed cs  -> impossible $ check x i $ checkFunDef delayed i x cs
       A.DataDef i x ps cs      -> impossible $ check x i $ checkDataDef i x ps cs
-      A.RecDef i x c ps tel cs -> mutual $ check x i $ do
-                                    checkRecDef i x c ps tel cs
+      A.RecDef i x ind c ps tel cs -> mutual $ check x i $ do
+                                    checkRecDef i x ind c ps tel cs
                                     return (Set.singleton x)
       A.DataSig i x ps t       -> impossible $ checkSig i x ps t
       A.RecSig i x ps t        -> none $ checkSig i x ps t
@@ -140,8 +140,8 @@ checkDecl d = do
           -- Each block in the section has already been highlighted,
           -- all that remains is the module declaration.
         A.RecSig{}               -> highlight d
-        A.RecDef i x c ps tel cs ->
-          highlight (A.RecDef i x c [] tel (fields cs))
+        A.RecDef i x ind c ps tel cs ->
+          highlight (A.RecDef i x ind c [] tel (fields cs))
           -- The telescope and all record module declarations except
           -- for the fields have already been highlighted.
           where

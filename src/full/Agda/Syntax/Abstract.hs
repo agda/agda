@@ -82,7 +82,7 @@ data Declaration
         | DataDef    DefInfo QName [LamBinding] [Constructor]
             -- ^ the 'LamBinding's are 'DomainFree' and binds the parameters of the datatype.
         | RecSig     DefInfo QName Telescope Expr -- ^ lone record signature
-        | RecDef     DefInfo QName (Maybe QName) [LamBinding] Expr [Declaration]
+        | RecDef     DefInfo QName (Maybe Induction) (Maybe QName) [LamBinding] Expr [Declaration]
             -- ^ The 'Expr' gives the constructor type telescope, @(x1 : A1)..(xn : An) -> Prop@,
             --   and the optional name is the constructor's name.
 	| ScopedDecl ScopeInfo [Declaration]  -- ^ scope annotation
@@ -100,7 +100,7 @@ instance GetDefInfo Declaration where
   getDefInfo (DataSig i _ _ _) = Just i
   getDefInfo (DataDef i _ _ _) = Just i
   getDefInfo (RecSig i _ _ _) = Just i
-  getDefInfo (RecDef i _ _ _ _ _) = Just i
+  getDefInfo (RecDef i _ _ _ _ _ _) = Just i
   getDefInfo _ = Nothing
 
 data ModuleApplication = SectionApp [TypedBindings] ModuleName [NamedArg Expr]
@@ -313,7 +313,7 @@ instance HasRange Declaration where
     getRange (DataSig    i _ _ _    ) = getRange i
     getRange (DataDef    i _ _ _    ) = getRange i
     getRange (RecSig     i _ _ _    ) = getRange i
-    getRange (RecDef     i _ _ _ _ _) = getRange i
+    getRange (RecDef   i _ _ _ _ _ _) = getRange i
 
 instance HasRange (Pattern' e) where
     getRange (VarP x)	         = getRange x
@@ -418,11 +418,11 @@ instance KillRange Declaration where
   killRange (Pragma     i a           ) = Pragma (killRange i) a
   killRange (Open       i x           ) = killRange2 Open       i x
   killRange (ScopedDecl a d           ) = killRange1 (ScopedDecl a) d
-  killRange (FunDef  i a b c     ) = killRange4 FunDef  i a b c
-  killRange (DataSig i a b c     ) = killRange4 DataSig i a b c
-  killRange (DataDef i a b c     ) = killRange4 DataDef i a b c
-  killRange (RecSig  i a b c     ) = killRange4 RecSig  i a b c
-  killRange (RecDef  i a b c d e ) = killRange6 RecDef  i a b c d e
+  killRange (FunDef  i a b c          ) = killRange4 FunDef  i a b c
+  killRange (DataSig i a b c          ) = killRange4 DataSig i a b c
+  killRange (DataDef i a b c          ) = killRange4 DataDef i a b c
+  killRange (RecSig  i a b c          ) = killRange4 RecSig  i a b c
+  killRange (RecDef  i a b c d e f    ) = killRange7 RecDef  i a b c d e f
 
 instance KillRange ModuleApplication where
   killRange (SectionApp a b c  ) = killRange3 SectionApp a b c
@@ -493,7 +493,7 @@ allNames (Mutual     _ defs)      = Fold.foldMap allNames defs
 allNames (DataSig _ q _ _)        = Seq.singleton q
 allNames (DataDef _ q _ decls)    = q <| Fold.foldMap allNames decls
 allNames (RecSig _ q _ _)         = Seq.singleton q
-allNames (RecDef _ q c _ _ decls) =
+allNames (RecDef _ q _ c _ _ decls) =
   q <| foldMap Seq.singleton c >< Fold.foldMap allNames decls
 allNames (FunDef _ q _ cls)       = q <| Fold.foldMap allNamesC cls
   where
@@ -583,17 +583,17 @@ instance AnyAbstract a => AnyAbstract [a] where
   anyAbstract = Fold.any anyAbstract
 
 instance AnyAbstract Declaration where
-  anyAbstract (Axiom i _ _ _)     = defAbstract i == AbstractDef
-  anyAbstract (Field i _ _)       = defAbstract i == AbstractDef
-  anyAbstract (Mutual     _ ds)   = anyAbstract ds
-  anyAbstract (ScopedDecl _ ds)   = anyAbstract ds
-  anyAbstract (Section _ _ _ ds)  = anyAbstract ds
-  anyAbstract (FunDef i _ _ _)     = defAbstract i == AbstractDef
-  anyAbstract (DataDef i _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecDef i _ _ _ _ _) = defAbstract i == AbstractDef
-  anyAbstract (DataSig i _ _ _)    = defAbstract i == AbstractDef
-  anyAbstract (RecSig i _ _ _)     = defAbstract i == AbstractDef
-  anyAbstract _                    = __IMPOSSIBLE__
+  anyAbstract (Axiom i _ _ _)        = defAbstract i == AbstractDef
+  anyAbstract (Field i _ _)          = defAbstract i == AbstractDef
+  anyAbstract (Mutual     _ ds)      = anyAbstract ds
+  anyAbstract (ScopedDecl _ ds)      = anyAbstract ds
+  anyAbstract (Section _ _ _ ds)     = anyAbstract ds
+  anyAbstract (FunDef i _ _ _)       = defAbstract i == AbstractDef
+  anyAbstract (DataDef i _ _ _)      = defAbstract i == AbstractDef
+  anyAbstract (RecDef i _ _ _ _ _ _) = defAbstract i == AbstractDef
+  anyAbstract (DataSig i _ _ _)      = defAbstract i == AbstractDef
+  anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
+  anyAbstract _                      = __IMPOSSIBLE__
 
 
 minfo = MetaInfo noRange emptyScopeInfo Nothing

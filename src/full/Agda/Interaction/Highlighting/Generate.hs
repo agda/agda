@@ -276,7 +276,7 @@ generateAndPrintSyntaxInfo decl hlLevel = do
     getPattern _             = mempty
 
     getFieldDecl :: A.Declaration -> File
-    getFieldDecl (A.RecDef _ _ _ _ _ fs) = Fold.foldMap extractField fs
+    getFieldDecl (A.RecDef _ _ _ _ _ _ fs) = Fold.foldMap extractField fs
       where
       extractField (A.ScopedDecl _ ds) = Fold.foldMap extractField ds
       extractField (A.Field _ x _)     = field (concreteQualifier x)
@@ -411,7 +411,7 @@ nameKinds hlLevel decl = do
                                                           (Constructor SC.Inductive))
                                             m cs
   declToKind (A.RecSig _ q _ _)     = insert q Record
-  declToKind (A.RecDef _ q c _ _ _) = insert q Record .
+  declToKind (A.RecDef _ q _ c _ _ _) = insert q Record .
                                       case c of
                                         Nothing -> id
                                         Just q  -> insert q (Constructor SC.Inductive)

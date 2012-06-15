@@ -456,7 +456,8 @@ whatInduction c = do
   def <- theDef <$> getConstInfo c
   case def of
     Datatype{ dataInduction = i } -> return i
-    Record{}                      -> return Inductive
+    Record{ recRecursive = False} -> return Inductive
+    Record{ recInduction = i    } -> return i
     Constructor{ conInd = i }     -> return i
     _                             -> __IMPOSSIBLE__
 

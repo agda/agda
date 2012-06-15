@@ -262,7 +262,7 @@ data Declaration
 	| DataSig     !Range Induction Name [LamBinding] Expr -- ^ lone data signature in mutual block
 	| Data        !Range Induction Name [LamBinding] (Maybe Expr) [Constructor]
 	| RecordSig   !Range Name [LamBinding] Expr -- ^ lone record signature in mutual block
-	| Record      !Range Name (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
+	| Record      !Range Name (Maybe Induction) (Maybe Name) [LamBinding] (Maybe Expr) [Declaration]
           -- ^ The optional name is a name for the record constructor.
 	| Infix Fixity [Name]
         | Syntax      Name Notation -- ^ notation declaration for a name
@@ -456,7 +456,7 @@ instance HasRange Declaration where
     getRange (DataSig r _ _ _ _)       = r
     getRange (Data r _ _ _ _ _)	       = r
     getRange (RecordSig r _ _ _)       = r
-    getRange (Record r _ _ _ _ _)      = r
+    getRange (Record r _ _ _ _ _ _)    = r
     getRange (Mutual r _)	       = r
     getRange (Abstract r _)	       = r
     getRange (Open r _ _)	       = r
@@ -541,7 +541,7 @@ instance KillRange Declaration where
   killRange (DataSig _ i n l e)     = killRange4 (DataSig noRange) i n l e
   killRange (Data _ i n l e c)      = killRange4 (Data noRange i) n l e c
   killRange (RecordSig _ n l e)     = killRange3 (RecordSig noRange) n l e
-  killRange (Record _ n mn k e d)   = killRange5 (Record noRange) n mn k e d
+  killRange (Record _ n mi mn k e d)= killRange6 (Record noRange) n mi mn k e d
   killRange (Infix f n)             = killRange2 Infix f n
   killRange (Syntax n no)           = killRange1 (\n -> Syntax n no) n
   killRange (PatternSyn _ n ns p)   = killRange3 (PatternSyn noRange) n ns p

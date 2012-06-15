@@ -52,9 +52,9 @@ import Agda.Utils.Impossible
 --
 --     [@fields@]  List of field signatures.
 --
-checkRecDef :: Info.DefInfo -> QName -> Maybe A.QName ->
+checkRecDef :: Info.DefInfo -> QName -> Maybe Induction -> Maybe A.QName ->
                [A.LamBinding] -> A.Expr -> [A.Field] -> TCM ()
-checkRecDef i name con ps contel fields =
+checkRecDef i name ind con ps contel fields =
   traceCall (CheckRecDef (getRange i) (qnameName name) ps fields) $ do
     reportSDoc "tc.rec" 10 $ vcat
       [ text "checking record def" <+> prettyTCM name
@@ -114,6 +114,8 @@ checkRecDef i name con ps contel fields =
 	  getName (A.ScopedDecl _ [f]) = getName f
 	  getName _		       = []
 
+          indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
+
       addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
@@ -124,6 +126,7 @@ checkRecDef i name con ps contel fields =
                                 , recTel            = ftel
 				, recAbstr          = Info.defAbstract i
                                 , recEtaEquality    = True
+                                , recInduction      = indCo
                                 -- determined by positivity checker:
                                 , recRecursive      = False
                                 , recPolarity       = []
@@ -139,7 +142,7 @@ checkRecDef i name con ps contel fields =
                          , conSrcCon = conName
                          , conData   = name
                          , conAbstr  = Info.defAbstract conInfo
-                         , conInd    = Inductive
+                         , conInd    = indCo
                          }
 
       -- Check that the fields fit inside the sort

@@ -119,11 +119,17 @@ isRecord r = do
 
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
+isEtaRecord r = maybe False recEtaEquality <$> isRecord r
+{-
 isEtaRecord r = do
   def <- theDef <$> getConstInfo r
   return $ case def of
     Record{recEtaEquality = eta} -> eta
     _                            -> False
+-}
+-- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
+isInductiveRecord :: QName -> TCM Bool
+isInductiveRecord r = maybe False (\ d -> recInduction d == Inductive || not (recRecursive d)) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: Type -> TCM (Maybe (QName, Args))

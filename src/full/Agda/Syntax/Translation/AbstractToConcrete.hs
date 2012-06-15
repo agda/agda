@@ -501,8 +501,8 @@ instance ToConcrete AsWhereDecls WhereClause where
     ret . AnyWhere =<< declsToConcrete ds
 
 mergeSigAndDef :: [C.Declaration] -> [C.Declaration]
-mergeSigAndDef (C.RecordSig _ x bs e : C.Record r y c _ Nothing fs : ds)
-  | x == y = C.Record r y c bs (Just e) fs : mergeSigAndDef ds
+mergeSigAndDef (C.RecordSig _ x bs e : C.Record r y ind c _ Nothing fs : ds)
+  | x == y = C.Record r y ind c bs (Just e) fs : mergeSigAndDef ds
 mergeSigAndDef (C.DataSig _ _ x bs e : C.Data r i y _ Nothing cs : ds)
   | x == y = C.Data r i y bs (Just e) cs : mergeSigAndDef ds
 mergeSigAndDef (d : ds) = d : mergeSigAndDef ds
@@ -641,11 +641,11 @@ instance ToConcrete A.Declaration [C.Declaration] where
       t' <- toConcreteCtx TopCtx t
       return [ C.RecordSig (getRange i) x' (map C.DomainFull tel') t' ]
 
-  toConcrete (A.RecDef  i x c bs t cs) =
+  toConcrete (A.RecDef  i x ind c bs t cs) =
     withAbstractPrivate i $
     bindToConcrete (map makeDomainFree bs) $ \tel' -> do
       (x',cs') <- (unsafeQNameToName -*- id) <$> toConcrete (x, map Constr cs)
-      return [ C.Record (getRange i) x' Nothing tel' Nothing cs' ]
+      return [ C.Record (getRange i) x' ind Nothing tel' Nothing cs' ]
 
   toConcrete (A.Mutual i ds) = declsToConcrete ds
 

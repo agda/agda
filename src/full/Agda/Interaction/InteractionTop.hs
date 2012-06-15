@@ -774,7 +774,7 @@ instance LowerMeta SC.Declaration where
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       SC.RecordSig r n tel e1       -> SC.RecordSig r n
                                          (lowerMeta tel) (lowerMeta e1)
-      SC.Record r n c tel e1 cs     -> SC.Record r n c
+      SC.Record r n ind c tel e1 cs  -> SC.Record r n ind c
                                          (lowerMeta tel) (lowerMeta e1) (lowerMeta cs)
       Infix _ _                     -> d
       Syntax _ _                    -> d

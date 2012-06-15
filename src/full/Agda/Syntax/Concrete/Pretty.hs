@@ -310,19 +310,25 @@ instance Pretty Declaration where
 			    , pretty e
 			    ]
 		    ]
-	    Record _ x con tel (Just e) cs ->
+	    Record _ x ind con tel me cs ->
 		sep [ hsep  [ text "record"
 			    , pretty x
 			    , fcat (map pretty tel)
 			    ]
-		    , nest 2 $ hsep
+		    , nest 2 $ pType me
+		    ] $$ nest 2 (vcat $ pInd ++
+                                        pCon ++
+                                        map pretty cs)
+              where pType (Just e) = hsep
 			    [ text ":"
 			    , pretty e
 			    , text "where"
 			    ]
-		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
-                                              con ++
-                                        map pretty cs)
+                    pType Nothing  =
+                              text "where"
+                    pInd = maybe [] (\i -> [text $ show i]) ind
+                    pCon = maybe [] (\c -> [text "constructor" <+> pretty c]) con
+{- ELIMINATED CUT-AND-PASTE CODE
 	    Record _ x con tel Nothing cs ->
 		sep [ hsep  [ text "record"
 			    , pretty x
@@ -332,7 +338,7 @@ instance Pretty Declaration where
 		    ] $$ nest 2 (vcat $ maybe [] (\c -> [text "constructor" <+> pretty c])
                                               con ++
                                         map pretty cs)
-
+-}
             Infix f xs	->
 		pretty f <+> (fsep $ punctuate comma $ map pretty xs)
             Syntax n xs -> text "syntax" <+> pretty n <+> text "..."

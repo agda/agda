@@ -34,6 +34,7 @@ import Agda.Syntax.Literal
 import Agda.Utils.Monad
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
+import Agda.Utils.Tuple
 }
 
 %name tokensParser Tokens
@@ -69,6 +70,8 @@ import Agda.Utils.TestHelpers
     'codata'        { TokKeyword KwCoData $$ }
     'record'        { TokKeyword KwRecord $$ }
     'constructor'   { TokKeyword KwConstructor $$ }
+    'inductive'     { TokKeyword KwInductive $$ }
+    'coinductive'   { TokKeyword KwCoInductive $$ }
     'field'         { TokKeyword KwField $$ }
     'infix'         { TokKeyword KwInfix $$ }
     'infixl'        { TokKeyword KwInfixL $$ }
@@ -170,6 +173,8 @@ Token
     | 'codata'	    { TokKeyword KwCoData $1 }
     | 'record'	    { TokKeyword KwRecord $1 }
     | 'constructor' { TokKeyword KwConstructor $1 }
+    | 'inductive'   { TokKeyword KwInductive $1 }
+    | 'coinductive' { TokKeyword KwCoInductive $1 }
     | 'field'       { TokKeyword KwField $1 }
     | 'infix'	    { TokKeyword KwInfix $1 }
     | 'infixl'	    { TokKeyword KwInfixL $1 }
@@ -948,10 +953,10 @@ DataSig : 'data' Id TypedUntypedBindings ':' Expr
 Record :: { Declaration }
 Record : 'record' Expr3NoCurly TypedUntypedBindings ':' Expr 'where'
 	    RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n (fst $7) $3 (Just $5) (snd $7) }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5,$6,$7)) n (fst3 $7) (snd3 $7) $3 (Just $5) (thd3 $7) }
        | 'record' Expr3NoCurly TypedUntypedBindings 'where'
 	    RecordDeclarations
-         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5)) n (fst $5) $3 Nothing (snd $5) }
+         {% exprToName $2 >>= \ n -> return $ Record (getRange ($1,$2,$3,$4,$5)) n (fst3 $5) (snd3 $5) $3 Nothing (thd3 $5) }
 
 -- Record type signature. In mutual blocks.
 RecordSig :: { Declaration }
@@ -1226,12 +1231,22 @@ Constructors
     | TypeSignatures { $1 }
 
 -- Record declarations, including an optional record constructor name.
-RecordDeclarations :: { (Maybe Name, [Declaration]) }
+RecordDeclarations :: { (Maybe Induction, Maybe Name, [Declaration]) }
 RecordDeclarations
-    : vopen                                          close { (Nothing, []) }
-    | vopen RecordConstructorName                    close { (Just $2, []) }
-    | vopen RecordConstructorName semi Declarations1 close { (Just $2, reverse $4) }
-    | vopen                            Declarations1 close { (Nothing, reverse $2) }
+    : vopen                                          close { (Nothing, Nothing, []) }
+    | vopen RecordConstructorName                    close { (Nothing, Just $2, []) }
+    | vopen RecordConstructorName semi Declarations1 close { (Nothing, Just $2, reverse $4) }
+    | vopen                            Declarations1 close { (Nothing, Nothing, reverse $2) }
+    | vopen RecordInduction                                               close { (Just $2, Nothing, []) }
+    | vopen RecordInduction semi RecordConstructorName                    close { (Just $2, Just $4, []) }
+    | vopen RecordInduction semi RecordConstructorName semi Declarations1 close { (Just $2, Just $4, reverse $6) }
+    | vopen RecordInduction semi                            Declarations1 close { (Just $2, Nothing, reverse $4) }
+
+-- Declaration of record as 'inductive' or 'coinductive'.
+RecordInduction :: { Induction }
+RecordInduction
+   : 'inductive'   { Inductive }
+   | 'coinductive' { CoInductive }
 
 -- Arbitrary declarations
 Declarations :: { [Declaration] }

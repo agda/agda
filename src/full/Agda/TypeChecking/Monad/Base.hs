@@ -584,6 +584,7 @@ data Defn = Axiom
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
+            , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.
             , recRecursive      :: Bool                 -- ^ Recursive record.  Implies @recEtaEquality = False@.  Projections are not size-preserving.
             , recAbstr          :: IsAbstract
             }

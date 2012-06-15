@@ -3,6 +3,6 @@ Termination checking failed for the following functions:
   illdefined
 Problematic calls:
   illdefined
-    (at CopatternNonterminating.agda:16,28-38)
-  illdefined
     (at CopatternNonterminating.agda:17,28-38)
+  illdefined
+    (at CopatternNonterminating.agda:18,28-38)

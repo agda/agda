@@ -8,6 +8,7 @@ mutual
     _∷_ : (x : A)(xs : ∞CoList A) → CoList A
 
   record ∞CoList (A : Set) : Set where
+    coinductive
     field out : CoList A
 
 open ∞CoList

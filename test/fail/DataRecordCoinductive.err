@@ -1,6 +1,6 @@
 
 Termination checking failed for the following functions:
-  alternate
+  consume
 Problematic calls:
-  alternate
-    (at CopatternCheckingNYI.agda:18,32-41)
+  consume xs
+    (at DataRecordCoinductive.agda:35,29-36)

@@ -859,20 +859,20 @@ instance EmbPrj CompiledRepresentation where
                            valu _         = malformed
 
 instance EmbPrj Defn where
-  icode Axiom                                 = icode0 0
-  icode (Function    a b c d e f g h i)       = icode9 1 a b c d e f g h i
-  icode (Datatype    a b c d e f g h i)       = icode9 2 a b c d e f g h i
-  icode (Record      a b c d e f g h i j k l) = icode12 3 a b c d e f g h i j k l
-  icode (Constructor a b c d e)               = icode5 4 a b c d e
-  icode (Primitive   a b c d)                 = icode4 5 a b c d
+  icode Axiom                                   = icode0 0
+  icode (Function    a b c d e f g h i)         = icode9 1 a b c d e f g h i
+  icode (Datatype    a b c d e f g h i)         = icode9 2 a b c d e f g h i
+  icode (Record      a b c d e f g h i j k l m) = icode13 3 a b c d e f g h i j k l m
+  icode (Constructor a b c d e)                 = icode5 4 a b c d e
+  icode (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
-    valu [0]                                  = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i]       = valu9 Function    a b c d e f g h i
-    valu [2, a, b, c, d, e, f, g, h, i]       = valu9 Datatype    a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l] = valu12 Record  a b c d e f g h i j k l
-    valu [4, a, b, c, d, e]                   = valu5 Constructor a b c d e
-    valu [5, a, b, c, d]                      = valu4 Primitive   a b c d
-    valu _                                    = malformed
+    valu [0]                                    = valu0 Axiom
+    valu [1, a, b, c, d, e, f, g, h, i]         = valu9 Function    a b c d e f g h i
+    valu [2, a, b, c, d, e, f, g, h, i]         = valu9 Datatype    a b c d e f g h i
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m] = valu13 Record  a b c d e f g h i j k l m
+    valu [4, a, b, c, d, e]                     = valu5 Constructor a b c d e
+    valu [5, a, b, c, d]                        = valu4 Primitive   a b c d
+    valu _                                      = malformed
 
 instance EmbPrj a => EmbPrj (Case a) where
   icode (Branches a b c) = icode3' a b c
@@ -1151,6 +1151,7 @@ icode9  tag a b c d e f g h i     = icodeN . (tag :) =<< sequence [icode a, icod
 icode10 tag a b c d e f g h i j   = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
+icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 
 icode0'                        = icodeN []
 icode1'  a                     = icodeN =<< sequence [icode a]
@@ -1165,20 +1166,22 @@ icode9'  a b c d e f g h i     = icodeN =<< sequence [icode a, icode b, icode c,
 icode10' a b c d e f g h i j   = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j]
 icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
+icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
 
-valu0  z                         = return z
-valu1  z a                       = valu0 z                        `ap` value a
-valu2  z a b                     = valu1 z a                      `ap` value b
-valu3  z a b c                   = valu2 z a b                    `ap` value c
-valu4  z a b c d                 = valu3 z a b c                  `ap` value d
-valu5  z a b c d e               = valu4 z a b c d                `ap` value e
-valu6  z a b c d e f             = valu5 z a b c d e              `ap` value f
-valu7  z a b c d e f g           = valu6 z a b c d e f            `ap` value g
-valu8  z a b c d e f g h         = valu7 z a b c d e f g          `ap` value h
-valu9  z a b c d e f g h i       = valu8 z a b c d e f g h        `ap` value i
-valu10 z a b c d e f g h i j     = valu9 z a b c d e f g h i      `ap` value j
-valu11 z a b c d e f g h i j k   = valu10 z a b c d e f g h i j   `ap` value k
-valu12 z a b c d e f g h i j k l = valu11 z a b c d e f g h i j k `ap` value l
+valu0  z                           = return z
+valu1  z a                         = valu0 z                        `ap` value a
+valu2  z a b                       = valu1 z a                      `ap` value b
+valu3  z a b c                     = valu2 z a b                    `ap` value c
+valu4  z a b c d                   = valu3 z a b c                  `ap` value d
+valu5  z a b c d e                 = valu4 z a b c d                `ap` value e
+valu6  z a b c d e f               = valu5 z a b c d e              `ap` value f
+valu7  z a b c d e f g             = valu6 z a b c d e f            `ap` value g
+valu8  z a b c d e f g h           = valu7 z a b c d e f g          `ap` value h
+valu9  z a b c d e f g h i         = valu8 z a b c d e f g h        `ap` value i
+valu10 z a b c d e f g h i j       = valu9 z a b c d e f g h i      `ap` value j
+valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
+valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
+valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
 
 -- | Creates an empty dictionary.
 
