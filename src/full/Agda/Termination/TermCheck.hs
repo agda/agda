@@ -51,7 +51,7 @@ import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
-import Agda.Utils.Monad ((<$>))
+import Agda.Utils.Monad ((<$>), mapM', forM')
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -108,12 +108,6 @@ termDecl d = case d of
       setScopeFromDefs ds
       termSection (mnameFromList $ qnameToList r) rds
 
-collectCalls :: (a -> TCM Calls) -> [a] -> TCM Calls
-collectCalls f [] = return Term.empty
-collectCalls f (a : as) = do c1 <- f a
-                             c2 <- collectCalls f as
-                             return (c1 `Term.union` c2)
-
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
 termMutual i ds = if names == [] then return [] else do
@@ -134,7 +128,7 @@ termMutual i ds = if names == [] then return [] else do
      let allNames = Set.elems mutualBlock
 
      -- collect all recursive calls in the block
-     let collect use = collectCalls (termDef use allNames) allNames
+     let collect use = mapM' (termDef use allNames) allNames
 
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
@@ -234,7 +228,7 @@ termDef use names name = do
 	      ]
         case (theDef def) of
           Function{ funClauses = cls, funDelayed = delayed } ->
-            collectCalls (termClause use names name delayed) cls
+            mapM' (termClause use names name delayed) cls
           _ -> return Term.empty
 
 
@@ -466,7 +460,7 @@ termTerm conf names f delayed pats0 t0 = do
                   --   argument should be viewed as preserving
                   --   guardedness.
                -> TCM Calls
-             constructor c ind args = collectCalls loopArg args
+             constructor c ind args = mapM' loopArg args
                where
                loopArg (arg , preserves) = do
                  loop pats g' (unArg arg)
@@ -495,8 +489,8 @@ termTerm conf names f delayed pats0 t0 = do
                                            -- proj => preserve guardedness of principal argument
                                       else unguards -- not a proj ==> unguarded
                -- collect calls in the arguments of this call
-               calls <- collectCalls (uncurry (loop pats)) (zip guards args)
-               -- calls <- collectCalls (loop pats Term.unknown) args
+               calls <- mapM' (uncurry (loop pats)) (zip guards args)
+               -- calls <- mapM' (loop pats Term.unknown) args
 
 
                reportSDoc "term.found.call" 20
@@ -582,7 +576,7 @@ termTerm conf names f delayed pats0 t0 = do
             Lam h (NoAbs _ t) -> loop pats guarded t
 
             -- Neutral term. Destroys guardedness.
-            Var i args -> collectCalls (loop pats Term.unknown) (map unArg args)
+            Var i args -> mapM' (loop pats Term.unknown) (map unArg args)
 
             -- Dependent function space.
             Pi a (Abs x b) ->

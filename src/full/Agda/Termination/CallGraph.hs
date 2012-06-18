@@ -436,6 +436,12 @@ union :: Monoid meta
       => CallGraph meta -> CallGraph meta -> CallGraph meta
 union cs1 cs2 = CallGraph $ (Map.unionWith mappend `on` cg) cs1 cs2
 
+-- | 'CallGraph' is a monoid under 'union'.
+
+instance Monoid meta => Monoid (CallGraph meta) where
+  mempty  = empty
+  mappend = union
+
 -- | Inserts a call into a call graph.
 
 insert :: Monoid meta

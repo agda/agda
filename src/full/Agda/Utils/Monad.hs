@@ -67,6 +67,16 @@ or2M ma mb = ifM ma (return True) mb
 orM :: Monad m => [m Bool] -> m Bool
 orM = Fold.foldl or2M (return False)
 
+-- Loops gathering results in a Monoid ------------------------------------
+
+-- | Generalized version of @mapM_ :: Monad m => (a -> m ()) -> [a] -> m ()@
+mapM' :: (Foldable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
+mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
+
+-- | Generalized version of @forM_ :: Monad m => [a] -> (a -> m ()) -> m ()@
+forM' :: (Foldable t, Monad m, Monoid b) => t a-> (a -> m b) -> m b
+forM' = flip mapM'
+
 -- Continuation monad -----------------------------------------------------
 
 type Cont r a = (a -> r) -> r
