@@ -131,6 +131,7 @@ checkRecDef i name ind con ps contel fields =
                                 , recRecursive      = False
                                 , recPolarity       = []
                                 , recArgOccurrences = []
+                                , recMutual         = []
                                 }
 
       -- Add record constructor to signature
@@ -352,6 +353,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
                      , funArgOccurrences = [Positive]
+                     , funMutual         = []
                      , funProjection     = Just (r, size ptel + 1)
                        -- name of the record type and
                        -- index of the record argument (in the type), start counting with 1

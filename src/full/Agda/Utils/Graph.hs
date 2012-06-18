@@ -6,6 +6,7 @@ module Agda.Utils.Graph
   , edges
   , edgesFrom
   , nodes
+  , filterEdges
   , fromNodes
   , fromList
   , empty
@@ -113,6 +114,12 @@ removeNode n (Graph g) =
 removeEdge :: Ord n => n -> n -> Graph n e -> Graph n e
 removeEdge n1 n2 (Graph g) =
   Graph $ Map.adjust (Map.delete n2) n1 g
+
+filterEdges :: Ord n => (e -> Bool) -> Graph n e -> Graph n e
+filterEdges f (Graph g) = Graph $ Map.mapMaybe filt g
+  where filt m =
+         let m' = Map.filter f m
+         in  if Map.null m' then Nothing else Just m'
 
 union :: (SemiRing e, Ord n) => Graph n e -> Graph n e -> Graph n e
 union (Graph g1) (Graph g2) =

@@ -103,8 +103,10 @@ checkDataDef i name ps cs =
                                    , dataCons           = []     -- Constructors are added later
 				   , dataSort           = s
                                    , dataAbstr          = Info.defAbstract i
+                                   -- determined by the positivity checker:
                                    , dataPolarity       = []
                                    , dataArgOccurrences = []
+                                   , dataMutual         = []
                                    }
 
 	    escapeContext (size tel) $ do

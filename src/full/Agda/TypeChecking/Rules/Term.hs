@@ -462,6 +462,7 @@ checkExpr e t =
                                     , funAbstr          = ConcreteDef
                                     , funPolarity       = [Covariant]
                                     , funArgOccurrences = [Unused]
+                                    , funMutual         = []
                                     , funProjection     = Nothing
                                     , funStatic         = False
                                     }

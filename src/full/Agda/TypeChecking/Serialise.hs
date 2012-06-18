@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120610 * 10 + 0
+currentInterfaceVersion = 20120618 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -860,16 +860,16 @@ instance EmbPrj CompiledRepresentation where
 
 instance EmbPrj Defn where
   icode Axiom                                   = icode0 0
-  icode (Function    a b c d e f g h i)         = icode9 1 a b c d e f g h i
-  icode (Datatype    a b c d e f g h i)         = icode9 2 a b c d e f g h i
-  icode (Record      a b c d e f g h i j k l m) = icode13 3 a b c d e f g h i j k l m
+  icode (Function    a b c d e f g h i j)       = icode10 1 a b c d e f g h i j
+  icode (Datatype    a b c d e f g h i j)       = icode10 2 a b c d e f g h i j
+  icode (Record      a b c d e f g h i j k l m o) = icode14 3 a b c d e f g h i j k l m o
   icode (Constructor a b c d e)                 = icode5 4 a b c d e
   icode (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                    = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i]         = valu9 Function    a b c d e f g h i
-    valu [2, a, b, c, d, e, f, g, h, i]         = valu9 Datatype    a b c d e f g h i
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m] = valu13 Record  a b c d e f g h i j k l m
+    valu [1, a, b, c, d, e, f, g, h, i, j]      = valu10 Function    a b c d e f g h i j
+    valu [2, a, b, c, d, e, f, g, h, i, j]      = valu10 Datatype   a b c d e f g h i j
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m, n] = valu14 Record  a b c d e f g h i j k l m n
     valu [4, a, b, c, d, e]                     = valu5 Constructor a b c d e
     valu [5, a, b, c, d]                        = valu4 Primitive   a b c d
     valu _                                      = malformed
@@ -1152,6 +1152,7 @@ icode10 tag a b c d e f g h i j   = icodeN . (tag :) =<< sequence [icode a, icod
 icode11 tag a b c d e f g h i j k = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12 tag a b c d e f g h i j k l = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13 tag a b c d e f g h i j k l m = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
+icode14 tag a b c d e f g h i j k l m n = icodeN . (tag :) =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
 
 icode0'                        = icodeN []
 icode1'  a                     = icodeN =<< sequence [icode a]
@@ -1167,6 +1168,7 @@ icode10' a b c d e f g h i j   = icodeN =<< sequence [icode a, icode b, icode c,
 icode11' a b c d e f g h i j k = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k]
 icode12' a b c d e f g h i j k l = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l]
 icode13' a b c d e f g h i j k l m = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m]
+icode14' a b c d e f g h i j k l m n = icodeN =<< sequence [icode a, icode b, icode c, icode d, icode e, icode f, icode g, icode h, icode i, icode j, icode k, icode l, icode m, icode n]
 
 valu0  z                           = return z
 valu1  z a                         = valu0 z                        `ap` value a
@@ -1182,6 +1184,7 @@ valu10 z a b c d e f g h i j       = valu9 z a b c d e f g h i      `ap` value j
 valu11 z a b c d e f g h i j k     = valu10 z a b c d e f g h i j   `ap` value k
 valu12 z a b c d e f g h i j k l   = valu11 z a b c d e f g h i j k `ap` value l
 valu13 z a b c d e f g h i j k l m = valu12 z a b c d e f g h i j k l `ap` value m
+valu14 z a b c d e f g h i j k l m n = valu13 z a b c d e f g h i j k l m `ap` value n
 
 -- | Creates an empty dictionary.
 

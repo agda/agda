@@ -41,7 +41,7 @@ import Agda.Utils.Graph (Graph)
 checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = do
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
-  g <- buildOccurrenceGraph qs
+  g <- Graph.filterEdges (\ (Edge o _) -> o /= Unused) <$> buildOccurrenceGraph qs
   let gstar = Graph.transitiveClosure $ fmap occ g
   reportSDoc "tc.pos.tick" 100 $ text "constructed graph"
   reportSLn "tc.pos.graph" 5 $ "Positivity graph: N=" ++ show (size $ Graph.nodes g) ++
@@ -57,6 +57,9 @@ checkStrictlyPositive qs = do
     ]
   mapM_ (setArgs gstar) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "set args"
+  let sccs = Graph.sccs gstar
+  reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
+  forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
   whenM positivityCheckEnabled $
     mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
@@ -110,6 +113,11 @@ checkStrictlyPositive qs = do
         Datatype{dataClause = Nothing} -> Just IsData
         Record  {recClause  = Nothing} -> Just IsRecord
         _ -> Nothing
+
+    -- Set the mutually recursive identifiers for a SCC.
+    setMut []  = return ()  -- nothing to do
+    setMut [q] = return ()  -- no mutual recursion
+    setMut qs  = forM_ qs $ \ q -> setMutual q (delete q qs)
 
     -- Set the polarity of the arguments to a definition
     setArgs g q = do

@@ -134,6 +134,7 @@ checkFunDef' t rel delayed i name cs =
                             , funAbstr          = Info.defAbstract i
                             , funPolarity       = []
                             , funArgOccurrences = []
+                            , funMutual         = []
                             , funProjection     = Nothing
                             , funStatic         = False
                             }

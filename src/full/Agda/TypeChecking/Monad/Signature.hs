@@ -391,6 +391,7 @@ applySection new ptel old ts rd rm = do
                         , funInv            = NotInjective
                         , funPolarity       = []
                         , funArgOccurrences = drop (length ts') oldOcc
+                        , funMutual         = mutual
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
                         , funStatic         = False
@@ -398,6 +399,9 @@ applySection new ptel old ts rd rm = do
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef
                   where
+                    mutual = case oldDef of
+                      Function{funMutual = m} -> m
+                      _ -> []
                     proj = case oldDef of
                       Function{funProjection = Just (r, n)}
                         | size ts < n -> Just (r, n - size ts)
@@ -566,6 +570,24 @@ setArgOccurrences d os =
           _          -> d
 	defs	  = sigDefinitions sig
 
+-- | Get the mutually recursive identifiers.
+getMutual :: QName -> TCM [QName]
+getMutual d = do
+  def <- theDef <$> getConstInfo d
+  return $ case def of
+    Function {  funMutual = m } -> m
+    Datatype { dataMutual = m } -> m
+    Record   {  recMutual = m } -> m
+    _ -> []
+
+-- | Set the mutually recursive identifiers.
+setMutual :: QName -> [QName] -> TCM ()
+setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
+  case def of
+    Function{} -> def { funMutual = m }
+    Datatype{} -> def {dataMutual = m }
+    Record{}   -> def { recMutual = m }
+    _          -> __IMPOSSIBLE__
 
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.

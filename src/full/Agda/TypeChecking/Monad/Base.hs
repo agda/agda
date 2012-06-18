@@ -549,6 +549,8 @@ data Defn = Axiom
             , funInv            :: FunctionInverse
             , funPolarity       :: [Polarity]
             , funArgOccurrences :: [Occurrence]
+            , funMutual         :: [QName]
+              -- ^ Mutually recursive functions, @data@s and @record@s.
             , funAbstr          :: IsAbstract
             , funDelayed        :: Delayed
               -- ^ Are the clauses of this definition delayed?
@@ -571,6 +573,7 @@ data Defn = Axiom
             , dataSort           :: Sort
             , dataPolarity       :: [Polarity]
             , dataArgOccurrences :: [Occurrence]
+            , dataMutual         :: [QName]        -- ^ Mutually recursive functions, @data@s and @record@s.
             , dataAbstr          :: IsAbstract
             }
 	  | Record
@@ -583,6 +586,7 @@ data Defn = Axiom
             , recTel            :: Telescope            -- ^ The record field telescope
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
+            , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
             , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.
             , recRecursive      :: Bool                 -- ^ Recursive record.  Implies @recEtaEquality = False@.  Projections are not size-preserving.

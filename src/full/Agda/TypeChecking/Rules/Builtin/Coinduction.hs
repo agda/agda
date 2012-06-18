@@ -85,6 +85,7 @@ bindBuiltinSharp e =
                   , dataSort           = varSort 1
                   , dataPolarity       = [Invariant, Invariant]
                   , dataArgOccurrences = [Unused, Positive]
+                  , dataMutual         = []
                   , dataAbstr          = ConcreteDef
                   }
               }
@@ -143,6 +144,7 @@ bindBuiltinFlat e =
                    , funInv            = NotInjective
                    , funPolarity       = [Invariant]
                    , funArgOccurrences = [Positive]
+                   , funMutual         = []
                    , funAbstr          = ConcreteDef
                    , funDelayed        = NotDelayed
                    , funProjection     = Just (inf, 3)
