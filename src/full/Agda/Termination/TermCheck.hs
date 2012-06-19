@@ -120,15 +120,12 @@ termMutual i ds = if names == [] then return [] else do
      -- during type-checking
 
      cutoff <- optTerminationDepth <$> pragmaOptions
-     let ?cutoff = cutoff
+     let ?cutoff = cutoff -- needed for Term.terminates
 
      reportSLn "term.top" 10 $ "Termination checking " ++ show names ++
        " with cutoff=" ++ show cutoff ++ "..."
      mutualBlock <- findMutualBlock (head names)
      let allNames = Set.elems mutualBlock
-
-     -- collect all recursive calls in the block
-     let collect use = mapM' (termDef use allNames) allNames
 
      -- Get the name of size suc (if sized types are enabled)
      suc <- sizeSuc
@@ -139,56 +136,15 @@ termMutual i ds = if names == [] then return [] else do
      guardingTypeConstructors <-
        optGuardingTypeConstructors <$> pragmaOptions
 
-     -- first try to termination check ignoring the dot patterns
      let conf = DBPConf
            { useDotPatterns           = False
            , guardingTypeConstructors = guardingTypeConstructors
            , withSizeSuc              = suc
            , sharp                    = sharp
            }
-     calls1 <- collect conf{ useDotPatterns = False }
-     reportS "term.lex" 20 $ unlines
-       [ "Calls (no dot patterns): " ++ show calls1
-       ]
-     reportSDoc "term.behaviours" 20 $ vcat
-       [ text "Recursion behaviours (no dot patterns):"
-       , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls1)
-       ]
-     reportSDoc "term.matrices" 30 $ vcat
-       [ text "Call matrices (no dot patterns):"
-       , nest 2 $ pretty $ Term.complete calls1
-       ]
-     r <- do let r = Term.terminates calls1
-             case r of
-               Right _ -> return r
-               Left _  -> do
-                 -- Try again, but include the dot patterns this time.
-                 calls2 <- collect conf{ useDotPatterns = True }
-                 reportS "term.lex" 20 $ unlines
-                   [ "Calls (dot patterns): " ++ show calls2
-                   ]
-                 reportSDoc "term.behaviours" 20 $ vcat
-                   [ text "Recursion behaviours (dot patterns):"
-                   , nest 2 $ return $
-                       Term.prettyBehaviour (Term.complete calls2)
-                   ]
-                 reportSDoc "term.matrices" 30 $ vcat
-                   [ text "Call matrices (dot patterns):"
-                   , nest 2 $ pretty $ Term.complete calls2
-                   ]
-                 return $ Term.terminates calls2
-     case r of
-       Left calls -> do
-         return [TerminationError
-                   { termErrFunctions = names
-                     -- TODO: This could be changed to allNames.
-                   , termErrCalls     = Set.toList calls
-                   }
-                ]
-       Right _ -> do
-         reportSLn "term.warn.yes" 2
-                     (show (names) ++ " does termination check")
-         return []
+
+     termMutual' conf names allNames
+
   where
   getName (A.FunDef i x delayed cs) = [x]
   getName (A.RecDef _ _ _ _ _ _ ds) = concatMap getName ds
@@ -200,8 +156,57 @@ termMutual i ds = if names == [] then return [] else do
   -- the mutual names mentioned in the abstract syntax
   names = concatMap getName ds
 
-  concat' :: Ord a => [Set a] -> [a]
-  concat' = Set.toList . Set.unions
+-- | @termMutual' conf names allNames@ checks @allNames@ for termination.
+--
+--   @names@ is taken from the 'Abstract' syntax, so it contains only
+--   the names the user has declared.  This is for error reporting.
+--
+--   @allNames@ is taken from 'Internal' syntax, it contains also
+--   the definitions created by the type checker (e.g., with-functions).
+--
+termMutual' :: (?cutoff :: Int) => DBPConf -> [QName] -> MutualNames -> TCM Result
+termMutual' conf names allNames = do
+
+     -- collect all recursive calls in the block
+     let collect conf = mapM' (termDef conf allNames) allNames
+
+     -- first try to termination check ignoring the dot patterns
+     calls1 <- collect conf{ useDotPatterns = False }
+     reportCalls "no " calls1
+
+     r <- case Term.terminates calls1 of
+            r@Right{} -> return r
+            Left{}    -> do
+              -- Try again, but include the dot patterns this time.
+              calls2 <- collect conf{ useDotPatterns = True }
+              reportCalls "" calls2
+              return $ Term.terminates calls2
+     case r of
+       Left calls -> do
+         return [TerminationError
+                   { termErrFunctions = names
+                   , termErrCalls     = Set.toList calls
+                   }
+                ]
+       Right _ -> do
+         reportSLn "term.warn.yes" 2
+                     (show (names) ++ " does termination check")
+         return []
+  where
+
+  reportCalls no calls = do
+     reportS "term.lex" 20 $ unlines
+       [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
+       ]
+     reportSDoc "term.behaviours" 20 $ vcat
+       [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
+       , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls)
+       ]
+     reportSDoc "term.matrices" 30 $ vcat
+       [ text $ "Call matrices (" ++ no ++ "dot patterns):"
+       , nest 2 $ pretty $ Term.complete calls
+       ]
+
 
 -- | Termination check a module.
 termSection :: ModuleName -> [A.Declaration] -> TCM Result
@@ -659,12 +664,6 @@ increaseFromConstructor c = do
   isRC <- Maybe.isJust <$> isRecordConstructor c
   return $ if isRC then Term.le else Term.decr (-1)
 
-{-
-increaseFromConstructor c = negateOrder <$> decreaseFromConstructor c
-  where negateOrder (Decr k) = Decr (- k)
-        negateOrder _ = __IMPOSSIBLE__
--}
-
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
 subPatterns p = case p of
@@ -727,17 +726,6 @@ instance StripAllProjections Term where
       Con c ts -> Con c <$> stripAllProjections ts
       Def d ts -> Def d <$> stripAllProjections ts
       _ -> return t
-
-{-
--- | Remove all projections from an algebraic term (not going under binders).
-stripAllProjections :: Term -> TCM Term
-stripAllProjections t = do
-  t <- stripProjections t
-  case t of
-    Con c ts -> Con c <$> mapM stripAllProjections ts
-    Def d ts -> Def d <$> mapM stripAllProjections ts
-    _ -> return t
--}
 
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
