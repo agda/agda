@@ -450,7 +450,6 @@ termTerm conf names f delayed pats0 t0 = do
          -> TCM Calls
        loop pats guarded t = do
          t <- instantiate t          -- instantiate top-level MetaVar
-         suc <- sizeSuc
 
              -- Handles constructor applications.
          let constructor
@@ -512,7 +511,7 @@ termTerm conf names f delayed pats0 t0 = do
                   -- call is to one of the mutally recursive functions
                   Just gInd' -> do
 
-                     matrix <- compareArgs suc pats args
+                     matrix <- compareArgs (withSizeSuc conf) pats args
                      let (nrows, ncols, matrix') = addGuardedness guarded
                             (genericLength args) -- number of rows
                             (genericLength pats) -- number of cols
