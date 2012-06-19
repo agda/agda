@@ -54,7 +54,7 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Size
 import Agda.Utils.Monad ((<$>), mapM', forM')
-import Agda.Utils.NubList
+-- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 
 #include "../undefined.h"
@@ -64,8 +64,11 @@ type Calls = Term.CallGraph (Set CallInfo)
 type MutualNames = [QName]
 
 -- | The result of termination checking a module.
---   Must be a 'Monoid'.
-type Result = NubList TerminationError
+--   Must be 'Pointed' and a 'Monoid'.
+type Result = [TerminationError]
+
+-- use of a NubList did not achieve the desired effect, now unnecessary
+-- type Result = NubList TerminationError
 
 -- | Termination check a sequence of declarations.
 termDecls :: [A.Declaration] -> TCM Result

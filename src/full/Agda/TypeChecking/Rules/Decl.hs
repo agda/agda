@@ -52,7 +52,7 @@ import Agda.Compiler.HaskellTypes
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
-import Agda.Utils.NubList
+-- import Agda.Utils.NubList -- reverted
 
 import Agda.Interaction.Highlighting.Generate
 
@@ -214,7 +214,7 @@ checkDecl d = do
                             -- Record module definitions should not be
                             -- termination-checked twice.
              _           -> do
-               termErrs <- nubList <$> termDecl d
+               termErrs <- {- nubList <$> -} termDecl d
                modify $ \st ->
                  st { stTermErrs = Fold.foldl (|>) (stTermErrs st) termErrs }
                return termErrs)
