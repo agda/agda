@@ -513,6 +513,10 @@ termTerm conf names f delayed pats0 t0 = do
   let guarded = Term.le -- not initially guarded
   loop pats0 guarded t0
   where
+       -- only a delayed definition can be guarded
+       ifDelayed o | Term.decreasing o && delayed == NotDelayed = Term.le
+                   | otherwise                                  = o
+
        Just fInd = toInteger <$> List.elemIndex f names
 
        -- sorts can contain arb. terms of type Nat,
@@ -607,7 +611,8 @@ termTerm conf names f delayed pats0 t0 = do
                   Just gInd' -> do
 
                      matrix <- compareArgs (withSizeSuc conf) pats args
-                     let (nrows, ncols, matrix') = addGuardedness guarded
+                     let (nrows, ncols, matrix') = addGuardedness
+                            (ifDelayed guarded)  -- only delayed defs can be guarded
                             (genericLength args) -- number of rows
                             (genericLength pats) -- number of cols
                             matrix
