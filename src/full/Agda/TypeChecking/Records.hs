@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 
 module Agda.TypeChecking.Records where
 
@@ -138,11 +138,11 @@ isEtaRecordType _ = return Nothing
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
-isRecordConstructor :: QName -> TCM (Maybe Defn)
+isRecordConstructor :: QName -> TCM (Maybe (QName, Defn))
 isRecordConstructor c = do
   def <- theDef <$> getConstInfo c
   case def of
-    Constructor{ conData = r } -> isRecord r
+    Constructor{ conData = r } -> fmap (r,) <$> isRecord r
     _                          -> return Nothing
 
 -- | Check if a constructor name is the internally generated record constructor.

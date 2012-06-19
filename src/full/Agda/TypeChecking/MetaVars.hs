@@ -705,7 +705,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         Arg h r (Con c vs) -> do
           isRC <- lift $ isRecordConstructor c
           case isRC of
-            Just (Record{ recFields = fs }) -> do
+            Just (_, Record{ recFields = fs }) -> do
                 let aux (Arg _ _ v) (Arg h' r' f) =
                       (Arg (min h h') (max r r') v, -- OLD: (stripDontCare v),
                        Def f [defaultArg t])
