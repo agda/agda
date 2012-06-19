@@ -9,6 +9,7 @@
 
 module Agda.Termination.Termination
   ( terminates
+  , terminatesFilter
   , Agda.Termination.Termination.tests
   ) where
 
@@ -56,6 +57,11 @@ terminates :: (Ord meta, Monoid meta, ?cutoff :: Int) => CallGraph meta -> Eithe
 terminates cs = let ccs = complete cs
                 in
                   checkIdems $ toList ccs
+
+terminatesFilter :: (Ord meta, Monoid meta, ?cutoff :: Int) =>
+  (Index -> Bool) -> CallGraph meta -> Either meta ()
+terminatesFilter f cs = checkIdems $ filter f' $ toList $ complete cs
+  where f' (c,m) = f (source c) && f (target c)
 
 checkIdems :: (Ord meta, Monoid meta, ?cutoff :: Int) => [(Call,meta)] -> Either meta ()
 checkIdems [] = Right ()
