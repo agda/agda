@@ -1,36 +1,10 @@
 -- 2010-10-14
 
-{-# OPTIONS --universe-polymorphism #-}
-
+-- {-# OPTIONS -v term:20 #-}
 module FakeProjectionsDoNotPreserveGuardedness where
 
--- Coinduction is only available with universe polymorphism
-
-postulate
-  Level : Set
-  zero : Level
-  suc  : (i : Level) → Level
-  _⊔_ : Level → Level → Level
-
-{-# BUILTIN LEVEL     Level #-}
-{-# BUILTIN LEVELZERO zero  #-}
-{-# BUILTIN LEVELSUC  suc   #-}
-{-# BUILTIN LEVELMAX  _⊔_   #-}
-
-infixl 6 _⊔_
-
--- Coinduction
-
-infix 1000 ♯_
-
-postulate
-  ∞  : ∀ {a} (A : Set a) → Set a
-  ♯_ : ∀ {a} {A : Set a} → A → ∞ A
-  ♭  : ∀ {a} {A : Set a} → ∞ A → A
-
-{-# BUILTIN INFINITY ∞  #-}
-{-# BUILTIN SHARP    ♯_ #-}
-{-# BUILTIN FLAT     ♭  #-}
+import Common.Level
+open import Common.Coinduction
 
 -- Products
 
