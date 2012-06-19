@@ -7,6 +7,7 @@ module LinearTemporalLogic where
 import Common.Level
 
 record Stream (A : Set) : Set where
+  coinductive
   field head : A
         tail : Stream A
 
@@ -23,6 +24,7 @@ Now P s = P (Stream.head s)
 
 -- Forever
 record ▢ {A : Set} (P : Proposition A) (s : Stream A) : Set where
+  coinductive
   field head : P s
         tail : ◌ (▢ P) s
 

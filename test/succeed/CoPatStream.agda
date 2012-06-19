@@ -8,12 +8,14 @@ module CoPatStream where
 open import Common.Equality
 
 record Stream (A : Set) : Set where
+  coinductive
   field
     head : A
     tail : Stream A
 module S = Stream
 
 record _≈_ {A : Set}(s t : Stream A) : Set where
+  coinductive
   field
     head : S.head s ≡ S.head t
     tail : S.tail s ≈ S.tail t

@@ -14,10 +14,12 @@ module Agda.Termination.TermCheck
 
 import Control.Applicative
 import Control.Monad.Error
+
 import Data.List as List
 import qualified Data.Map as Map
 import Data.Map (Map)
 import qualified Data.Maybe as Maybe
+import Data.Monoid
 import qualified Data.Set as Set
 import Data.Set (Set)
 
@@ -42,7 +44,7 @@ import Agda.TypeChecking.Substitute (abstract,raise,substs)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin
-import Agda.TypeChecking.Monad.Signature (isProjection)
+import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
@@ -52,6 +54,8 @@ import Agda.Interaction.Options
 
 import Agda.Utils.Size
 import Agda.Utils.Monad ((<$>), mapM', forM')
+import Agda.Utils.NubList
+import Agda.Utils.Pointed
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -60,12 +64,12 @@ type Calls = Term.CallGraph (Set CallInfo)
 type MutualNames = [QName]
 
 -- | The result of termination checking a module.
-
-type Result = [TerminationError]
+--   Must be a 'Monoid'.
+type Result = NubList TerminationError
 
 -- | Termination check a sequence of declarations.
 termDecls :: [A.Declaration] -> TCM Result
-termDecls ds = fmap concat $ mapM termDecl ds
+termDecls ds = mapM' termDecl ds
 
 -- | Termination check a single declaration.
 termDecl :: A.Declaration -> TCM Result
@@ -73,22 +77,22 @@ termDecl (A.ScopedDecl scope ds) = do
   setScope scope
   termDecls ds
 termDecl d = case d of
-    A.Axiom {}            -> return []
-    A.Field {}            -> return []
-    A.Primitive {}        -> return []
+    A.Axiom {}            -> return mempty
+    A.Field {}            -> return mempty
+    A.Primitive {}        -> return mempty
     A.Mutual _ ds
       | [A.RecSig{}, A.RecDef _ r _ _ _ _ rds] <- unscopeDefs ds
                           -> checkRecDef ds r rds
     A.Mutual i ds         -> termMutual i ds
     A.Section _ x _ ds    -> termSection x ds
-    A.Apply {}            -> return []
-    A.Import {}           -> return []
-    A.Pragma {}           -> return []
-    A.Open {}             -> return []
+    A.Apply {}            -> return mempty
+    A.Import {}           -> return mempty
+    A.Pragma {}           -> return mempty
+    A.Open {}             -> return mempty
         -- open is just an artifact from the concrete syntax
     A.ScopedDecl{}        -> __IMPOSSIBLE__
         -- taken care of above
-    A.RecSig{}            -> return []
+    A.RecSig{}            -> return mempty
     A.RecDef _ r _ _ _ _ ds -> checkRecDef [] r ds
     -- These should all be wrapped in mutual blocks
     A.FunDef{}  -> __IMPOSSIBLE__
@@ -110,10 +114,10 @@ termDecl d = case d of
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
-termMutual i ds = if names == [] then return [] else do
+termMutual i ds = if names == [] then return mempty else do
   if not (Info.mutualTermCheck i) then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
-      return []
+      return mempty
    else do
      -- get list of sets of mutually defined names from the TCM
      -- this includes local and auxiliary functions introduced
@@ -141,9 +145,11 @@ termMutual i ds = if names == [] then return [] else do
            , guardingTypeConstructors = guardingTypeConstructors
            , withSizeSuc              = suc
            , sharp                    = sharp
+           , currentTarget            = Nothing
            }
 
-     termMutual' conf names allNames
+     -- termMutual' conf names allNames -- old check, all at once
+     forM' allNames $ termFunction conf names allNames -- new check one after another
 
   where
   getName (A.FunDef i x delayed cs) = [x]
@@ -183,30 +189,84 @@ termMutual' conf names allNames = do
               return $ Term.terminates calls2
      case r of
        Left calls -> do
-         return [TerminationError
+         return $ point $ TerminationError
                    { termErrFunctions = names
                    , termErrCalls     = Set.toList calls
                    }
-                ]
        Right _ -> do
          reportSLn "term.warn.yes" 2
                      (show (names) ++ " does termination check")
-         return []
+         return mempty
   where
 
-  reportCalls no calls = do
-     reportS "term.lex" 20 $ unlines
-       [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
-       ]
-     reportSDoc "term.behaviours" 20 $ vcat
-       [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
-       , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls)
-       ]
-     reportSDoc "term.matrices" 30 $ vcat
-       [ text $ "Call matrices (" ++ no ++ "dot patterns):"
-       , nest 2 $ pretty $ Term.complete calls
-       ]
+reportCalls no calls = do
+   reportS "term.lex" 20 $ unlines
+     [ "Calls (" ++ no ++ "dot patterns): " ++ show calls
+     ]
+   reportSDoc "term.behaviours" 20 $ vcat
+     [ text $ "Recursion behaviours (" ++ no ++ "dot patterns):"
+     , nest 2 $ return $ Term.prettyBehaviour (Term.complete calls)
+     ]
+   reportSDoc "term.matrices" 30 $ vcat
+     [ text $ "Call matrices (" ++ no ++ "dot patterns):"
+     , nest 2 $ pretty $ Term.complete calls
+     ]
 
+-- | @termFunction conf names allNames name@ checks @name@ for termination.
+--
+--   @names@ is taken from the 'Abstract' syntax, so it contains only
+--   the names the user has declared.  This is for error reporting.
+--
+--   @allNames@ is taken from 'Internal' syntax, it contains also
+--   the definitions created by the type checker (e.g., with-functions).
+--
+termFunction :: (?cutoff :: Int) => DBPConf -> [QName] -> MutualNames -> QName -> TCM Result
+termFunction conf0 names allNames name = do
+
+     let index = toInteger $ maybe __IMPOSSIBLE__ id $
+           List.elemIndex name allNames
+
+     conf <- do
+       r <- typeEndsInDef =<< typeOfConst name
+       reportTarget r
+       return $ conf0 { currentTarget = r }
+
+     -- collect all recursive calls in the block
+     let collect conf = mapM' (termDef conf allNames) allNames
+
+     -- first try to termination check ignoring the dot patterns
+     calls1 <- collect conf{ useDotPatterns = False }
+     reportCalls "no " calls1
+
+     r <- case Term.terminatesFilter (== index) calls1 of
+            r@Right{} -> return r
+            Left{}    -> do
+              -- Try again, but include the dot patterns this time.
+              calls2 <- collect conf{ useDotPatterns = True }
+              reportCalls "" calls2
+              return $ Term.terminatesFilter (== index) calls2
+     case r of
+       Left calls -> do
+         return $ point $ TerminationError
+                   { termErrFunctions = if name `elem` names then [name] else []
+                   , termErrCalls     = Set.toList calls
+                   }
+       Right _ -> do
+         reportSLn "term.warn.yes" 2
+                     (show (name) ++ " does termination check")
+         return mempty
+  where
+    reportTarget r = reportSLn "term.target" 20 $ maybe
+      ("  target type not recognized")
+      (\ q -> "  target type ends in " ++ show q)
+      r
+
+typeEndsInDef :: Type -> TCM (Maybe QName)
+typeEndsInDef t = do
+  TelV _ core <- telView t
+  case unEl core of
+    Def d vs -> return $ Just d
+    _        -> return Nothing
 
 -- | Termination check a module.
 termSection :: ModuleName -> [A.Declaration] -> TCM Result
@@ -290,15 +350,44 @@ liftDBP = adjIndexDBP (1+)
 
 {- | Configuration parameters to termination checker.
 -}
-data DBPConf = DBPConf { useDotPatterns           :: Bool
-                       , guardingTypeConstructors :: Bool
-                         -- ^ Do we assume that record and data type
-                         --   constructors preserve guardedness?
-                       , withSizeSuc              :: Maybe QName
-                       , sharp                    :: Maybe QName
-                         -- ^ The name of the sharp constructor, if
-                         --   any.
-                       }
+data DBPConf = DBPConf
+  { useDotPatterns           :: Bool
+  , guardingTypeConstructors :: Bool
+    -- ^ Do we assume that record and data type constructors preserve guardedness?
+  , withSizeSuc              :: Maybe QName
+  , sharp                    :: Maybe QName
+    -- ^ The name of the sharp constructor, if any.
+  , currentTarget            :: Maybe Target
+    -- ^ Target type of the function we are currently termination checking.
+    --   Only the constructors of 'Target' are considered guarding.
+  }
+
+type Target = QName
+
+targetElem :: DBPConf -> [Target] -> Bool
+targetElem conf ds = maybe False (`elem` ds) (currentTarget conf)
+
+{-
+-- | Check wether a 'Target" corresponds to the current one.
+matchingTarget :: DBPConf -> Target -> TCM Bool
+matchingTarget conf d = maybe (return True) (mutuallyRecursive d) (currentTarget conf)
+-}
+
+{-
+-- | The target type of the considered recursive definition.
+data Target
+  = Set        -- ^ Constructing a Set (only meaningful with 'guardingTypeConstructors').
+  | Data QName -- ^ Constructing a coinductive or mixed type (could be data or record).
+  deriving (Eq, Show)
+
+-- | Check wether a 'Target" corresponds to the current one.
+matchingTarget :: DBPConf -> Target -> TCM Bool
+matchingTarget conf t = maybe (return True) (match t) (currentTarget conf)
+  where
+    match Set      Set       = return True
+    match (Data d) (Data d') = mutuallyRecursive d d'
+    match _ _                = return False
+-}
 
 {- | Convert a term (from a dot pattern) to a DeBruijn pattern.
 -}
@@ -411,11 +500,14 @@ termTerm conf names f delayed pats0 t0 = do
          , nest 2 $ text "lhs:" <+> hsep (map prettyTCM pats0)
          , nest 2 $ text "rhs:" <+> prettyTCM t0
          ])
+  {-
   -- if we are checking a delayed definition, we treat it as if there were
   -- a guarding coconstructor (sharp)
   let guarded = case delayed of
         Delayed    -> Term.lt
         NotDelayed -> Term.le
+  -}
+  let guarded = Term.le -- not initially guarded
   loop pats0 guarded t0
   where
        Just fInd = toInteger <$> List.elemIndex f names
@@ -429,7 +521,7 @@ termTerm conf names f delayed pats0 t0 = do
          case s of
            Type (Max [])              -> return Term.empty
            Type (Max [ClosedLevel _]) -> return Term.empty
-           Type t -> loop pats Term.unknown (Level t)
+           Type t -> loop pats Term.unknown (Level t) -- no guarded levels
            Prop   -> return Term.empty
            Inf    -> return Term.empty
            DLub s1 (NoAbs x s2) -> Term.union <$> loopSort pats s1 <*> loopSort pats s2
@@ -546,8 +638,20 @@ termTerm conf names f delayed pats0 t0 = do
             Con c args
               | Just c == sharp conf ->
                 constructor c CoInductive $ zip args (repeat True)
-              | otherwise ->
-                constructor c Inductive $ zip args (repeat True)
+              | otherwise -> do
+                -- If we encounter a coinductive record constructor
+                -- in a type mutual with the current target
+                -- then we count it as guarding.
+                ind <- do
+                  r <- isRecordConstructor c
+                  case r of
+                    Nothing       -> return Inductive
+                    Just (q, def) -> return . (\ b -> if b then CoInductive else Inductive) $
+                      and [ recRecursive def
+                          , recInduction def == CoInductive
+                          , targetElem conf (q : recMutual def)
+                          ]
+                constructor c ind $ zip args (repeat True)
 
             Def g args0
               | guardingTypeConstructors conf -> do

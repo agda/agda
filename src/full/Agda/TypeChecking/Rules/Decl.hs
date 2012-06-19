@@ -7,6 +7,8 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.Trans
 import Control.Monad.State (modify)
+
+import qualified Data.Foldable as Fold
 import Data.Maybe
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -50,6 +52,7 @@ import Agda.Compiler.HaskellTypes
 import Agda.Utils.Size
 import Agda.Utils.Monad
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.NubList
 
 import Agda.Interaction.Highlighting.Generate
 
@@ -211,9 +214,9 @@ checkDecl d = do
                             -- Record module definitions should not be
                             -- termination-checked twice.
              _           -> do
-               termErrs <- termDecl d
+               termErrs <- nubList <$> termDecl d
                modify $ \st ->
-                 st { stTermErrs = foldl (|>) (stTermErrs st) termErrs }
+                 st { stTermErrs = Fold.foldl (|>) (stTermErrs st) termErrs }
                return termErrs)
           (return [])
 

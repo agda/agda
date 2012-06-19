@@ -963,7 +963,14 @@ data TerminationError = TerminationError
     -- automatically generated functions.)
   , termErrCalls :: [CallInfo]
     -- ^ The problematic call sites.
-  } deriving (Typeable, Show)
+  } deriving (Typeable, Show, Eq)
+
+{-
+-- | We consider two 'TerminationError's equal if they report the same
+--   invalid calls.
+instance Eq TerminationError where
+  (==) = (==) `on` termErrCalls
+-}
 
 data TypeError
 	= InternalError String

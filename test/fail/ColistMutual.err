@@ -1,8 +1,8 @@
 
 Termination checking failed for the following functions:
-  shape, shapes
+  bad
 Problematic calls:
-  shapes (out l)
-    (at ColistMutual.agda:46,26-32)
-  shape t
-    (at ColistMutual.agda:50,20-25)
+  bads
+    (at ColistMutual.agda:32,25-29)
+  bad
+    (at ColistMutual.agda:35,14-17)

@@ -10,7 +10,10 @@ module Agda.TypeChecking.Errors
 import Control.Applicative ( (<$>) )
 import Control.Monad.State
 import Control.Monad.Error
+
+import Data.List (nub)
 import qualified Data.Map as Map (empty)
+
 import System.FilePath
 
 import Agda.Syntax.Common
@@ -260,7 +263,7 @@ instance PrettyTCM TypeError where
                                case show (callInfoRange c) of
                                  "" -> call
                                  r  -> call $$ nest 2 (text "(at" <+> text r <> text ")"))
-                        (concatMap termErrCalls because))
+                        (nub $ concatMap termErrCalls because))
 	    PropMustBeSingleton -> fwords
 		"Datatypes in Prop must have at most one constructor when proof irrelevance is enabled"
 	    DataMustEndInSort t -> fsep $

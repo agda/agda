@@ -33,9 +33,9 @@ mutual
 
   bads : ∞CoList Tree
   out bads = bad ∷ bads
-  -- should not termination check, but currently it is...
-  -- known bug
+  -- should not termination check
 
+{-
 data Bool : Set where
   true false : Bool
 
@@ -50,3 +50,4 @@ mutual
   shapes (t ∷ _) = shape t
 
 -- shape/shapes may not termination check
+-}

@@ -589,6 +589,10 @@ setMutual d m = modifySignature $ updateDefinition d $ updateTheDef $ \ def ->
     Record{}   -> def { recMutual = m }
     _          -> __IMPOSSIBLE__
 
+-- | Check whether two definitions are mutually recursive.
+mutuallyRecursive :: QName -> QName -> TCM Bool
+mutuallyRecursive d d' = (d `elem`) <$> getMutual d'
+
 -- | Look up the number of free variables of a section. This is equal to the
 --   number of parameters if we're currently inside the section and 0 otherwise.
 getSecFreeVars :: ModuleName -> TCM Nat
