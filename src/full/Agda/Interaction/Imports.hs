@@ -11,6 +11,8 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 import qualified Control.Exception as E
+
+import Data.Function (on)
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set

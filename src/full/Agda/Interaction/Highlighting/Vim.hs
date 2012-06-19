@@ -4,6 +4,7 @@ module Agda.Interaction.Highlighting.Vim where
 
 import Control.Monad.Trans
 import Data.Char
+import Data.Function ( on )
 import Data.Set ( Set )
 import Data.Map ( Map )
 import System.FilePath
@@ -23,7 +24,8 @@ import Agda.Utils.Tuple
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-on f g x y = f (g x) (g y)
+-- defined in Data.Function
+-- on f g x y = f (g x) (g y)
 
 vimFile :: FilePath -> FilePath
 vimFile file =
