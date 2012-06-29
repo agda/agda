@@ -138,7 +138,7 @@ translateCopatternClauses cs = if all noCopats cs then return (NotDelayed, cs) e
               groupBy ((==) `on` clauseLHS . theContent) pcs
 -}
   ces <- mapM (mapSndM pathToRecord) $
-    map (id -*- sortBy (compare `on` thePath)) cps
+    map (mapSnd $ sortBy (compare `on` thePath)) cps
   return $ map (\ (c, e) -> c { clauseRHS = RHS e }) ces
   where
     noCopats Clause{ clauseLHS = LHS _ LHSHead{} _ } = True
@@ -165,6 +165,7 @@ type ProjPath = Path ProjEntry
 instance HasRange ProjEntry where
   getRange (ProjEntry p ps) = getRange (p,ps)
 
+-- | This is a n^2 grouping algorithm which uses only alpha-equality
 groupClauses :: [ProjPath Clause] -> [(Clause, [ProjPath Expr])]
 groupClauses [] = []
 groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses rest
@@ -175,7 +176,9 @@ groupClauses (pc@(Path p c) : pcs) = (c, Path p (rhs c) : grp) : groupClauses re
     -- then add the next clause to this group, performing the alpha-conversion
     collect (Path p' c' : pcs) | Just rho <- alpha (clauseLHS c') (clauseLHS c) =
       mapFst (Path p' (rename' rho (rhs c')) :) $ collect pcs
-    collect l = ([], l) -- otherwise, close the group
+    -- we go through all the clauses, since they could be in random order...
+    collect (pc : pcs) = mapSnd (pc :) $ collect pcs
+    collect []         = ([], [])
 
     rhs             = rhsExpr . clauseRHS
     rhsExpr (RHS e) = e

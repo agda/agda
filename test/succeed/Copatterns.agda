@@ -23,11 +23,12 @@ fst (swap3 t)       = snd (snd t)
 fst (snd (swap3 t)) = fst (snd t)
 snd (snd (swap3 t)) = fst t
 
+-- should also work if we shuffle the clauses
 swap4 : {A B C D : Set} → A × (B × (C × D)) → D × (C × (B × A))
-fst (swap4 t)             = snd (snd (snd t))
 fst (snd (swap4 t))       = fst (snd (snd t))
-fst (snd (snd (swap4 t))) = fst (snd t)
 snd (snd (snd (swap4 t))) = fst t
+fst (swap4 t)             = snd (snd (snd t))
+fst (snd (snd (swap4 t))) = fst (snd t)
 
 -- State monad example
 
