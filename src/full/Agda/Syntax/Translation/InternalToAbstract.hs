@@ -276,7 +276,7 @@ instance Reify Term Expr where
               showImp <- showImplicitArguments
               return (filter (not . isHiddenArg) pad',
                 if not (null pad) && showImp && isHiddenArg (last pad)
-                   then nameFirstIfHidden dom vs'
+                   then nameFirstIfHidden [dom] vs'
                    else map (fmap unnamed) vs')
         df <- displayFormsEnabled
         if df && isPrefixOf extendlambdaname (show name)
@@ -304,16 +304,18 @@ instance Reify Term Expr where
             ci <- getConstInfo x
             let Constructor{conPars = np} = theDef ci
             n  <- getDefFreeVars x
+            let h = A.Con (AmbQ [x])
+            if null vs then return h else do
             es <- reify vs
             -- Andreas, 2012-04-20: do not reify parameter arguments of constructor
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
             -- with the parameter arguments which can be supplied in abstract syntax
-            if (np == 0) then apps (A.Con (AmbQ [x])) $ genericDrop n es
+            if (np == 0) then apps h $ genericDrop n es
              else   -- get name of argument from type of constructor
               let TelV tel _ = telView' (defType ci)
-                  dom : _    = genericDrop np $ telToList tel
-              in  napps (A.Con (AmbQ [x])) $ genericDrop (n - np) $ nameFirstIfHidden dom es
+                  doms       = genericDrop np $ telToList tel
+              in  napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 {- OLD CODE: reify parameter arguments of constructor
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
@@ -337,10 +339,12 @@ instance Reify Term Expr where
       I.DontCare v -> A.DontCare <$> reify v
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
-nameFirstIfHidden :: Dom (String, t) -> [Arg a] -> [NamedArg a]
-nameFirstIfHidden dom (Arg Hidden r e : es) =
+nameFirstIfHidden :: [Dom (String, t)] -> [Arg a] -> [NamedArg a]
+nameFirstIfHidden _         []                    = []
+nameFirstIfHidden []        (_ : _)               = __IMPOSSIBLE__
+nameFirstIfHidden (dom : _) (Arg Hidden r e : es) =
   Arg Hidden r (Named (Just $ fst $ unDom dom) e) : map (fmap unnamed) es
-nameFirstIfHidden dom es = map (fmap unnamed) es
+nameFirstIfHidden _         es                    = map (fmap unnamed) es
 
 instance Reify i a => Reify (Named n i) (Named n a) where
   reify = traverse reify
