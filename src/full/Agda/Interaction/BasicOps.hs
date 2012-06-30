@@ -82,7 +82,8 @@ giveExpr mi e =
 		    let t' = t `piApply` ctx
 		    v	<- checkExpr e t'
 		    case mvInstantiation mv of
-			InstV v' -> equalTerm t' v (v' `apply` ctx)
+			InstV v' -> whenM ((Irrelevant /=) <$> asks envRelevance) $
+                                      equalTerm t' v (v' `apply` ctx)
 			_	 -> updateMeta mi v
 		    reify v
 		 IsSort{} -> __IMPOSSIBLE__
