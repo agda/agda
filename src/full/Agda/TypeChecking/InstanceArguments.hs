@@ -110,24 +110,34 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
     case cands of
-      [] -> do reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 5: not a single candidate found..."
-               typeError $ IFSNoCandidateInScope t
 
-      [(term, t')] -> do reportSDoc "tc.constr.findInScope" 15 $ text (
-                           "findInScope 5: one candidate found for type '") <+>
-                           prettyTCM t <+> text "': '" <+> prettyTCM term <+>
-                           text "', of type '" <+> prettyTCM t' <+> text "'."
-                         ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
-                         case ca of Left _ -> __IMPOSSIBLE__
-                                    Right (args, t'') -> do
-                                      leqType t'' t
-                                      ctxArgs <- getContextArgs
-                                      assignV m ctxArgs (term `apply` args)
-                                      return Nothing
-      cs -> do reportSDoc "tc.constr.findInScope" 15 $
-                 text ("findInScope 5: more than one candidate found: ") <+>
-                 prettyTCM (List.map fst cs)
-               return (Just cs)
+      [] -> do
+        reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 5: not a single candidate found..."
+        typeError $ IFSNoCandidateInScope t
+
+      [(term, t')] -> do
+        reportSDoc "tc.constr.findInScope" 15 $ text (
+          "findInScope 5: one candidate found for type '") <+>
+          prettyTCM t <+> text "': '" <+> prettyTCM term <+>
+          text "', of type '" <+> prettyTCM t' <+> text "'."
+        ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
+        case ca of
+          Left _ -> __IMPOSSIBLE__
+          Right (args, t'') -> do
+            leqType t'' t
+            ctxArgs <- getContextArgs
+            v <- (`applyDroppingParameters` args) =<< reduce term
+            assignV m ctxArgs v
+            reportSDoc "tc.constr.findInScope" 10 $
+              text "solved by instance search:" <+> prettyTCM m
+              <+> text ":=" <+> prettyTCM v
+            return Nothing
+
+      cs -> do
+        reportSDoc "tc.constr.findInScope" 15 $
+          text ("findInScope 5: more than one candidate found: ") <+>
+          prettyTCM (List.map fst cs)
+        return (Just cs)
 
 -- return the meta's type, applied to the current context
 getMetaTypeInContext :: MetaId -> TCM Type
@@ -161,7 +171,12 @@ checkCandidates m t cands = localState $ do
               noConstraints $ leqType t'' t
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
-              assign m ctxArgs (term `apply` args)
+              v <- (`applyDroppingParameters` args) =<< reduce term
+              reportSDoc "tc.constr.findInScope" 10 $
+                text "instance search: attempting" <+> prettyTCM m
+                <+> text ":=" <+> prettyTCM v
+              assign m ctxArgs v
+--              assign m ctxArgs (term `apply` args)
               -- make a pass over constraints, to detect cases where some are made
               -- unsolvable by the assignment, but don't do this for FindInScope's
               -- to prevent loops. We currently also ignore UnBlock constraints
@@ -171,6 +186,21 @@ checkCandidates m t cands = localState $ do
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
     isIFSConstraint _             = False
+
+-- | To preserve the invariant that a constructor is not applied to its
+--   parameter arguments, we explicitly check whether function term
+--   we are applying to arguments is a unapplied constructor.
+--   In this case we drop the first 'conPars' arguments.
+--   See Issue670a.
+applyDroppingParameters :: Term -> Args -> TCM Term
+applyDroppingParameters t vs =
+  case t of
+    Con c [] -> do
+      def <- theDef <$> getConstInfo c
+      case def of
+        Constructor {conPars = n} -> return $ Con c (genericDrop n vs)
+        _ -> __IMPOSSIBLE__
+    _ -> return $ t `apply` vs
 
 -- | Attempt to solve irrelevant metas by instance search.
 solveIrrelevantMetas :: TCM ()
