@@ -4,6 +4,7 @@ module Agda.TypeChecking.Conversion where
 
 import Control.Applicative
 import Control.Monad
+import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Error
 import Data.Traversable hiding (mapM, sequence)
@@ -74,6 +75,18 @@ equalAtom = compareAtom CmpEq
 
 equalType :: Type -> Type -> TCM ()
 equalType = compareType CmpEq
+
+{- Comparing in irrelevant context always succeeds.
+
+   However, we might want to dig for solutions of irrelevant metas.
+
+   To this end, we can just ignore errors during conversion checking.
+ -}
+
+-- convError ::  MonadTCM tcm => TypeError -> tcm a
+-- | Ignore errors in irrelevant context.
+convError :: TypeError -> TCM ()
+convError err = ifM ((==) Irrelevant <$> asks envRelevance) (return ()) $ typeError err
 
 -- | Type directed equality on values.
 --
@@ -412,8 +425,8 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
   reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
     [ text "a    =" <+> prettyTCM a
     , text "v    =" <+> prettyTCM v
-    , text "els1 =" <+> prettyTCM els01
-    , text "els2 =" <+> prettyTCM els02
+    , text "els01=" <+> prettyTCM els01
+    , text "els02=" <+> prettyTCM els02
     ]
   reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
     [ text "v    =" <+> text (show v)
