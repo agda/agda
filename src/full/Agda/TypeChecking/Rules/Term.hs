@@ -1239,7 +1239,7 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
       -- We remove the bindings for the pattern variables from the context.
       cxt0 <- getContext
       let (binds, cxt) = splitAt (size delta) cxt0
-      inContext cxt $ do
+      escapeContext (length binds) $ do
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "delta =" <+> prettyTCM delta
           , text "binds =" <+> text (show binds) -- prettyTCM binds
