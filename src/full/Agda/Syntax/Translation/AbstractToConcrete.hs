@@ -350,7 +350,8 @@ instance ToConcrete A.Expr C.Expr where
                     (bs@(A.DomainFull _ : _), e)   -> (b:bs, e)
                     _                              -> ([b], e)
             lamView e = ([], e)
-    toConcrete (A.ExtendedLam i di qname cs) = do
+    toConcrete (A.ExtendedLam i di qname cs) =
+        bracket lamBrackets $ do
           decls <- toConcrete cs
           let removeApp (C.RawAppP r (lam:es)) = C.RawAppP r es
               removeApp (C.AppP p np) = namedThing $ unArg np

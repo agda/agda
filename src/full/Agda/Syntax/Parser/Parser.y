@@ -521,7 +521,14 @@ Application
 -- Level 2: Lambdas and lets
 Expr2
     : '\\' LamBindings Expr	   { Lam (getRange ($1,$2,$3)) $2 $3 }
-    | '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
+    | ExtendedOrAbsurdLam          { $1 }
+    | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
+    | Expr3			   { $1 }
+    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
+
+ExtendedOrAbsurdLam :: { Expr }
+ExtendedOrAbsurdLam
+    : '\\'  '{' LamClauses '}'     { ExtendedLam (getRange ($1,$2,$3,$4)) (reverse $3) }
     | '\\' AbsurdLamBindings       {% case $2 of
                                        Left (bs, h) -> if null bs then return $ AbsurdLam r h else
                                                        return $ Lam r bs (AbsurdLam r h)
@@ -531,9 +538,6 @@ Expr2
                                                      return $ ExtendedLam (fuseRange $1 es)
                                                                      [(p [] [], AbsurdRHS, NoWhere)]
                                    }
-    | 'let' Declarations 'in' Expr { Let (getRange ($1,$2,$3,$4)) $2 $4 }
-    | Expr3			   { $1 }
-    | 'quoteGoal' Id 'in' Expr     { QuoteGoal (getRange ($1,$2,$3,$4)) $2 $4 }
 
 Application3 :: { [Expr] }
 Application3
