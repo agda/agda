@@ -63,7 +63,7 @@ library
 
   build-depends:    base >= 4.2 && < 4.6,
                     mtl >= 2.0 && < 2.2,
-                    QuickCheck >= 2.3 && < 2.5,
+                    QuickCheck >= 2.3 && < 2.6,
                     haskell-src-exts >= 1.9.6 && < 1.14,
                     containers >= 0.1 && < 0.6,
                     unordered-containers == 0.2.*,

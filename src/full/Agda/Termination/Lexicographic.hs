@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 -- | Lexicographic order search, more or less as defined in
 --      \"A Predicative Analysis of Structural Recursion\" by
 --      Andreas Abel and Thorsten Altenkirch.
@@ -230,7 +231,11 @@ tests = runTests "Agda.Termination.Lexicographic"
   , quickCheck' prop_fromDiagonals
   , quickCheck' prop_newBehaviour
   , quickCheckWith' stdArgs{ maxSuccess = 50
+#if MIN_VERSION_QuickCheck(2,5,0)
+                           , maxDiscardRatio = 4
+#else
                            , maxDiscard = 200
+#endif
                            , maxSize    = 20
                            }
                     prop_lexOrder
