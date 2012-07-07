@@ -333,8 +333,9 @@ appView (App r e1 e2) = vApp (appView e1) e2
 	vApp (AppView e es) arg = AppView e (es ++ [arg])
 appView (RawApp _ (e:es)) = AppView e $ map arg es
     where
-	arg (HiddenArg _ e) = Arg Hidden    Relevant e
-	arg e		    = Arg NotHidden Relevant (unnamed e)
+	arg (HiddenArg   _ e) = Arg Hidden    Relevant e
+	arg (InstanceArg _ e) = Arg Instance  Relevant e
+	arg e		      = Arg NotHidden Relevant (unnamed e)
 appView e = AppView e []
 
 {--------------------------------------------------------------------------

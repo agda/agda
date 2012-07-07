@@ -85,7 +85,7 @@ printLocals v s = verboseS "scope.top" v $ do
 printScope :: String -> Int -> String -> ScopeM ()
 printScope tag v s = verboseS ("scope." ++ tag) v $ do
   scope <- getScope
-  reportSLn "" 0 $ s ++ " " ++ show scope
+  reportSDoc "" 0 $ return $ vcat [ text s, text $ show scope ]
 
 {--------------------------------------------------------------------------
     Helpers
