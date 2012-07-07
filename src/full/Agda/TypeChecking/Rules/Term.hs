@@ -1152,11 +1152,13 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
               Pi (Dom NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
-	insertIFSUnderscore rel a = do v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
-                                       lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
-                                       let arg = Arg Instance rel v
-                                       (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
-                                       return (arg : vs, t0'')
+	insertIFSUnderscore rel a = do
+          lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
+          v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
+          let arg = Arg Instance rel v
+          (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
+          return (arg : vs, t0'')
+
 	insertUnderscore rel = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo

@@ -159,14 +159,16 @@ newIFSMeta t cands = do
 -- | Create a new value meta with specific dependencies.
 newIFSMetaCtx :: Type -> Args -> [(Term, Type)] -> TCM Term
 newIFSMetaCtx t vs cands = do
+  reportSDoc "tc.meta.new" 50 $ fsep
+    [ text "new ifs meta:"
+    , nest 2 $ prettyTCM vs <+> text "|-"
+    ]
   i <- createMetaInfo
   let TelV tel _ = telView' t
       perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
-    [ text "new ifs meta:"
-    , nest 2 $ prettyTCM vs <+> text "|-"
-    , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
+    [ nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
   solveConstraint_ $ FindInScope x cands
   return (MetaV x vs)

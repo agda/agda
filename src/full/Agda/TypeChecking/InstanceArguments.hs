@@ -39,12 +39,6 @@ initialIFSCandidates = do
     getContextVars :: TCM [(Term, Type)]
     getContextVars = do
       ctx <- getContext
-{- OLD CODE
-      let ids = [0.. fromIntegral (length ctx) - 1] :: [Nat]
-      types <- mapM typeOfBV ids
-      let vars = [ (var i, t) | (Dom h r _, i, t) <- zip3 ctx [0..] types,
-                                   not (unusableRelevance r) ]
--}
       let vars = [ (var i, raise (i + 1) t)
                  | (Dom h r (x, t), i) <- zip ctx [0..], not (unusableRelevance r)
                  ]
@@ -53,6 +47,42 @@ initialIFSCandidates = do
       env <- mapM (getOpen . snd) $ Map.toList env
       let lets = [ (v,t) | (v, Dom h r t) <- env, not (unusableRelevance r) ]
       return $ vars ++ lets
+
+    getScopeDefs :: TCM [(Term, Type)]
+    getScopeDefs = do
+      scopeInfo <- gets stScope
+      let ns = everythingInScope scopeInfo
+      let nsList = Map.toList $ nsNames ns
+      -- all abstract names in scope are candidates
+      -- (even ones that you can't refer to unambiguously)
+      let qs = List.map anameName $ snd =<< nsList
+      rel   <- asks envRelevance
+      cands <- mapM (candidate rel) qs
+      return $ concat cands
+
+    candidate :: Relevance -> QName -> TCM [(Term, Type)]
+    candidate rel q =
+      -- Andreas, 2012-07-07:
+      -- we try to get the info for q
+      -- while opening a module, q may be in scope but not in the signature
+      -- in this case, we just ignore q (issue 674)
+      flip catchError handle $ do
+        def <- getConstInfo q
+        let r = defRelevance def
+        if not (r `moreRelevant` rel) then return [] else do
+          t   <- defType <$> instantiateDef def
+          args <- freeVarsToApply q
+          let vs = case theDef def of
+               -- drop parameters if it's a projection function...
+               Function{ funProjection = Just (_,i) } -> genericDrop (i - 1) args
+               _                                      -> args
+          return [(Def q vs, t)]
+      where
+        -- unbound constant throws an internal error
+        handle (TypeError _ (Closure {clValue = InternalError _})) = return []
+        handle err                                                 = throwError err
+
+{- OLD CODE
     getScopeDefs :: TCM [(Term, Type)]
     getScopeDefs = do
       scopeInfo <- gets stScope
@@ -76,16 +106,8 @@ initialIFSCandidates = do
         -- drop parameters if it's a projection function...
         Function{ funProjection = Just (rn,i) } -> genericDrop (i - 1) args
         _                                       -> args
-
-
-{- Andreas, 2012-04-30.  MOVED TO Utils.Monad
-localState :: MonadState s m => m a -> m a
-localState m = do
-  s <- get
-  x <- m
-  put s
-  return x
 -}
+
 
 initializeIFSMeta :: Type -> TCM Term
 initializeIFSMeta t = do
