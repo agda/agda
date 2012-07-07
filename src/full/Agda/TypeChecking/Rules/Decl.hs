@@ -216,7 +216,7 @@ checkDecl d = do
              _           -> do
                termErrs <- {- nubList <$> -} termDecl d
                modify $ \st ->
-                 st { stTermErrs = Fold.foldl (|>) (stTermErrs st) termErrs }
+                 st { stTermErrs = Fold.foldl' (|>) (stTermErrs st) termErrs }
                return termErrs)
           (return [])
 

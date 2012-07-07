@@ -66,7 +66,7 @@ napps e args = do
   dontShowImp <- not <$> showImplicitArguments
   let apply1 e arg | isHiddenArg arg && dontShowImp = e
                    | otherwise = App exprInfo e arg
-  return $ foldl apply1 e args
+  return $ foldl' apply1 e args
 
 apps :: Expr -> [Arg Expr] -> TCM Expr
 apps e args = napps e $ map (fmap unnamed) args
@@ -288,7 +288,7 @@ instance Reify Term Expr where
            -- use __IMPOSSIBLE__.
            napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
           else do
-           let apps = foldl (\e a -> A.App exprInfo e (fmap unnamed a))
+           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
            napps (A.Def x `apps` pad) =<< reify vs
       I.Con x vs   -> do
         isR <- isGeneratedRecordConstructor x

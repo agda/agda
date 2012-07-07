@@ -27,7 +27,7 @@ import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Data.Typeable
 import Data.Traversable (mapM, traverse)
-import Data.List ((\\), nub)
+import Data.List ((\\), nub, foldl')
 import qualified Data.Map as Map
 
 import Agda.Syntax.Concrete as C hiding (topLevelModuleName)
@@ -1387,7 +1387,7 @@ toAbstractOpApp op es = do
     f  <- getFixity op
     let (_,_,parts) = oldToNewNotation $ (op, f)
     op <- toAbstract (OldQName op)
-    foldl app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
+    foldl' app op <$> left (theFixity f) [p | p <- parts, not (isBindingHole p)] es
     where
         app e arg = A.App (ExprRange (fuseRange e arg)) e
                   $ Arg NotHidden Relevant $ unnamed arg

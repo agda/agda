@@ -334,7 +334,7 @@ mul :: (Enum i, Num i, Ix i, Eq a)
     => Semiring a -> Matrix i a -> Matrix i a -> Matrix i a
 mul semiring m1 m2 = M (Size { rows = rows (size m1), cols = cols (size m2) }) $
   filter (\ (i,b) -> b /= Semiring.zero semiring) $
-  [ (MIx i j, foldl (Semiring.add semiring) (Semiring.zero semiring) $
+  [ (MIx i j, List.foldl' (Semiring.add semiring) (Semiring.zero semiring) $
                 map snd $ interAssocWith (Semiring.mul semiring) v w)
     | (i,v) <- toSparseRows m1
     , (j,w) <- toSparseRows $ transpose m2 ]

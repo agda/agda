@@ -8,6 +8,7 @@ import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
 
+import Data.List
 import Data.Maybe
 import Data.Set (Set)
 import qualified Data.Set
@@ -539,7 +540,7 @@ performKill kills m a = do
   etaExpandMetaSafe m'
   let vars = reverse [ Arg h r (var i) | (i, Arg h r False) <- zip [0..] kills ]
       lam b a = Lam (argHiding a) (Abs "v" b)
-      u       = foldl lam (MetaV m' vars) kills
+      u       = foldl' lam (MetaV m' vars) kills
 {- OLD CODE
       hs   = reverse [ argHiding a | a <- kills ]
       lam h b = Lam h (Abs "v" b)

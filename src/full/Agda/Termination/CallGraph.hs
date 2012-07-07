@@ -233,7 +233,7 @@ maxO o1 o2 = case (o1,o2) of
 -- | The infimum of a (non empty) list of 'Order's.
 
 infimum :: (?cutoff :: Int) => [Order] -> Order
-infimum (o:l) = foldl minO o l
+infimum (o:l) = foldl' minO o l
 infimum [] = __IMPOSSIBLE__
 
 minO :: (?cutoff :: Int) => Order -> Order -> Order
