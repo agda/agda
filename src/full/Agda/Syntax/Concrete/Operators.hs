@@ -581,9 +581,15 @@ patternQNames p = case p of
   RawAppP _ ps     -> concatMap patternQNames ps
   IdentP q         -> [q]
   ParenP _ p       -> patternQNames p
+  HiddenP _ p      -> patternQNames (namedThing p)
+  InstanceP _ p    -> patternQNames (namedThing p)
   OpAppP r d ps    -> __IMPOSSIBLE__
   AppP{}           -> __IMPOSSIBLE__
-  _                -> []
+  AsP{}            -> __IMPOSSIBLE__
+  AbsurdP{}        -> []
+  WildP{}          -> []
+  DotP{}           -> []
+  LitP{}           -> []
 
 -- | Return all qualifiers occuring in a list of 'QName's.
 --   Each qualifier is returned as a list of names, e.g.
