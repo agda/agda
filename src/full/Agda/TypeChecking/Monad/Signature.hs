@@ -129,7 +129,13 @@ makeProjection x = inContext [] $ do
                        }
           addConstant x $ defn{ theDef     = newDef
                               , defDisplay = [] }
-    _ -> return ()
+    Function{funInv = Inverse{}} ->
+      reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
+    Function{funAbstr = AbstractDef} ->
+      reportSLn "tc.proj.like" 30 $ "  abstract functions can't be projections"
+    Function{funProjection = Just{}} ->
+      reportSLn "tc.proj.like" 30 $ "  already projection like"
+    _ -> reportSLn "tc.proj.like" 30 $ "  not a function"
   where
     -- @validProj (d,n)@ checks whether the head @d@ of the type of the
     -- @n@th argument is injective in all args (i.d. being name of data/record/axiom).
@@ -177,7 +183,7 @@ makeProjection x = inContext [] $ do
         noMatch DotP{} = True
 
     checkBody 0 _          = True
-    checkBody _ NoBody     = True
+    checkBody _ NoBody     = False    -- absurd clauses are not permitted
     checkBody n (Bind b)   = not (isBinderUsed b) && checkBody (n - 1) (unAbs b)
     checkBody _ Body{}     = __IMPOSSIBLE__
 

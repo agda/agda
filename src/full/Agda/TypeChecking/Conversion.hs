@@ -353,6 +353,11 @@ compareAtom cmp t m n =
                   cmpElim (conType x t) (Con x []) els1 els2
                   -- Andreas 2012-01-17 careful!  In the presence of
                   -- projection eliminations, t is NOT the datatype x belongs to
+                  -- Ulf 2012-07-12: actually projection likeness is carefully
+                  -- set up so that there can't be any projections from
+                  -- constructor applications at this point, so t really is the
+                  -- datatype of x. See issue 676 for an example where it
+                  -- failed.
                 (DefElim x els1, DefElim y els2) | x == y ->
                   cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
