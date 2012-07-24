@@ -374,10 +374,14 @@ instance ToConcrete A.Expr C.Expr where
         bracket piBrackets
         $ do a' <- toConcreteCtx (if irr then DotPatternCtx else FunctionSpaceDomainCtx) a
              b' <- toConcreteCtx TopCtx b
-             return $ C.Fun (getRange i) (addDot a' $ mkArg a') b'
+             return $ C.Fun (getRange i) (addRel a' $ mkArg a') b'
         where
-            irr        = argRelevance a == Irrelevant
-            addDot a e = if irr then Dot (getRange a) e else e
+            irr        = argRelevance a `elem` [Irrelevant, NonStrict]
+            addRel a e = case argRelevance a of
+                           Irrelevant -> addDot a e
+                           NonStrict  -> addDot a (addDot a e)
+                           _          -> e
+            addDot a e = Dot (getRange a) e
             mkArg (Arg Hidden    r e) = HiddenArg (getRange e) (unnamed e)
             mkArg (Arg Instance  r e) = InstanceArg (getRange e) (unnamed e)
             mkArg (Arg NotHidden r e) = e
