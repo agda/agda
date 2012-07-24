@@ -255,8 +255,6 @@ compareAtom cmp t m n =
 	text "compareAtom" <+> fsep [ prettyTCM m <+> prettyTCM cmp
                                     , prettyTCM n
                                     , text ":" <+> prettyTCM t ]
-      let unLevel (Level l) = reallyUnLevelView l
-          unLevel v = return v
       -- Andreas: what happens if I cut out the eta expansion here?
       -- Answer: Triggers issue 245, does not resolve 348
       mb' <- etaExpandBlocked =<< reduceB m

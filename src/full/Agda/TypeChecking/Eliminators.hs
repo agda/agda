@@ -11,6 +11,7 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Impossible
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Level
 
 #include "../undefined.h"
 
@@ -28,6 +29,11 @@ elimView v = do
   -- since reducing a stuck application doesn't necessarily reduces all
   -- the arguments.
   v <- reduce v
+  -- domi 2012-7-24: Add unLevel to handle neutral levels. The problem is that reduce turns
+  -- suc (neutral) into Level (Max [Plus 1 (NeutralLevel neutral)]) which the below pattern
+  -- match does not handle.
+  v <- unLevel v
+  reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
   case v of
     Def f vs -> do
       proj <- isProjection f

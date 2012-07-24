@@ -61,6 +61,10 @@ requireLevels = do
     Nothing -> sequence_ [primLevel, primLevelZero, primLevelSuc, primLevelMax] >> __IMPOSSIBLE__
     Just k  -> return k
 
+unLevel :: Term -> TCM Term
+unLevel (Level l) = reallyUnLevelView l
+unLevel v = return v
+
 reallyUnLevelView :: Level -> TCM Term
 reallyUnLevelView nv =
   case nv of
