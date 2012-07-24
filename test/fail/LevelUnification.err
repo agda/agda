@@ -1,3 +1,3 @@
 LevelUnification.agda:13,20-24
-suc a != suc b of type Level
+a != b of type Level
 when checking that the pattern refl has type x ≡ y
