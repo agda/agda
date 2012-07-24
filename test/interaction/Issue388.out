@@ -6,6 +6,6 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : Set\n" nil)
 ((last . 1) . (agda2-goals-action '(0)))
-(agda2-info-action "*Error*" "Issue388.agda:11,11-16\nThe index A is free in the following parameters:\n  D A\nwhen checking that the expression ? has type Set" nil)
+(agda2-info-action "*Error*" "Issue388.agda:11,11-16\nThe index A₁ is free in the following parameters:\n  D A₁\nwhen checking that the expression ? has type Set" nil)
 ((last . 3) . (agda2-goto '("Issue388.agda" . 191)))
 (agda2-status-action "")

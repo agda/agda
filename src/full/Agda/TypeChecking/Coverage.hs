@@ -15,6 +15,7 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 
 import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.Options
@@ -54,26 +55,30 @@ data SplitClause = SClause
 
 type Covering = [SplitClause]
 
-data SplitError = NotADatatype Type         -- ^ neither data type nor record
-                | IrrelevantDatatype Type   -- ^ data type, but in irrelevant position
-                | CoinductiveDatatype Type  -- ^ coinductive data type
+data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
+                | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
+                | CoinductiveDatatype (Closure Type)  -- ^ coinductive data type
+{- UNUSED
                 | NoRecordConstructor Type  -- ^ record type, but no constructor
+ -}
                 | CantSplit QName Telescope Args Args [Term]
                 | GenericSplitError String
   deriving (Show)
 
 instance PrettyTCM SplitError where
   prettyTCM err = case err of
-    NotADatatype t -> fsep $
+    NotADatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on non-datatype" ++ [prettyTCM t]
-    IrrelevantDatatype t -> fsep $
+    IrrelevantDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on datatype" ++ [prettyTCM t] ++
       pwords "since it is declared irrelevant"
-    CoinductiveDatatype t -> fsep $
+    CoinductiveDatatype t -> enterClosure t $ \ t -> fsep $
       pwords "Cannot pattern match on the coinductive type" ++ [prettyTCM t]
+{- UNUSED
     NoRecordConstructor t -> fsep $
       pwords "Cannot pattern match on record" ++ [prettyTCM t] ++
       pwords "because it has no constructor"
+ -}
     CantSplit c tel cIxs gIxs flex -> addCtxTel tel $ vcat
       [ fsep $ pwords "Cannot decide whether there should be a case for the constructor" ++ [prettyTCM c <> text ","] ++
                pwords "since the unification gets stuck on unifying the inferred indices"
@@ -95,7 +100,7 @@ typeOfVar :: Telescope -> Nat -> Dom Type
 typeOfVar tel n
   | n >= len  = __IMPOSSIBLE__
   | otherwise = fmap snd  -- throw away name, keep Arg Type
-                  $ ts !! (len - 1 - fromIntegral n)
+                  $ ts !! fromIntegral (len - 1 - n)
   where
     len = genericLength ts
     ts  = telToList tel
@@ -156,10 +161,12 @@ cover cs (SClause tel perm ps _) = do
       case r of
         Left err  -> case err of
           CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
-          NotADatatype a          -> typeError $ CoverageCantSplitType a
-          IrrelevantDatatype a    -> typeError $ CoverageCantSplitIrrelevantType a
-          CoinductiveDatatype a   -> typeError $ CoverageCantSplitType a
+          NotADatatype a          -> enterClosure a $ typeError . CoverageCantSplitType
+          IrrelevantDatatype a    -> enterClosure a $ typeError . CoverageCantSplitIrrelevantType
+          CoinductiveDatatype a   -> enterClosure a $ typeError . CoverageCantSplitType
+{- UNUSED
           NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
+ -}
           GenericSplitError s     -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
 
@@ -170,7 +177,8 @@ isDatatype :: (MonadTCM tcm, MonadException SplitError tcm) =>
               Induction -> Dom Type ->
               tcm (QName, [Arg Term], [Arg Term], [QName])
 isDatatype ind at = do
-  let t = unDom at
+  let t       = unDom at
+      throw f = throwException . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
   case unEl t' of
     Def d args -> do
@@ -179,17 +187,17 @@ isDatatype ind at = do
       case def of
         Datatype{dataPars = np, dataCons = cs, dataInduction = i}
           | i == CoInductive && ind /= CoInductive ->
-              throwException $ CoinductiveDatatype t
-          -- Andreas, 2011-10-03 allow some splitting on data (if only one constr. matches)
+              throw CoinductiveDatatype
+          -- Andreas, 2011-10-03 allow some splitting on irrelevant data (if only one constr. matches)
           | domRelevance at == Irrelevant && not splitOnIrrelevantDataAllowed ->
-              throwException $ IrrelevantDatatype t
+              throw IrrelevantDatatype
           | otherwise -> do
               let (ps, is) = genericSplitAt np args
               return (d, ps, is, cs)
         Record{recPars = np, recCon = c} ->
           return (d, args, [], [c])
-        _ -> throwException $ NotADatatype t
-    _ -> throwException $ NotADatatype t
+        _ -> throw NotADatatype
+    _ -> throw NotADatatype
 
 -- | @computeNeighbourhood delta1 delta2 perm d pars ixs hix hps con@
 --
@@ -393,6 +401,10 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   -- Get the type of the variable
   let t = typeOfVar tel x  -- Δ₁ ⊢ t
 -}
+{-
+  let inContextOfT = addCtxTel delta1
+      inContextOfDelta2 = addCtx n t . addCtxTel delta1
+-}
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -432,19 +444,22 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     -- if more than one constructor matches, we cannot be irrelevant
     -- (this piece of code is unreachable if --experimental-irrelevance is off)
     (_ : _ : _) | unusableRelevance (domRelevance t) ->
-      throwException $ IrrelevantDatatype (unDom t)
+      throwException . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
 
     _   -> return $ Right ns
 
   where
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
-    inContextOfT = escapeContext (fromIntegral x + 1)
+    inContextOfT = addCtxTel tel . escapeContext (fromIntegral x + 1)
+
+    inContextOfDelta2 :: MonadTCM tcm => tcm a -> tcm a
+    inContextOfDelta2 = addCtxTel tel . escapeContext (fromIntegral x)
 
     -- Debug printing
     debugInit tel perm x ps =
       liftTCM $ reportSDoc "tc.cover.top" 10 $ vcat
-        [ text "TypeChecking.Rules.LHS.Coverage.split': split"
+        [ text "TypeChecking.Coverage.split': split"
         , nest 2 $ vcat
           [ text "tel     =" <+> prettyTCM tel
           , text "perm    =" <+> text (show perm)
@@ -458,6 +473,6 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
         [ text "p      =" <+> text s
         , text "hps    =" <+> text (show hps)
         , text "delta1 =" <+> prettyTCM delta1
-        , text "delta2 =" <+> prettyTCM delta2
+        , text "delta2 =" <+> inContextOfDelta2 (prettyTCM delta2)
         , text "t      =" <+> inContextOfT (prettyTCM t)
         ]
