@@ -16,6 +16,23 @@ Installation
 Pragmas and Options
 ===================
 
+* The --without-K check now reconstructs constructor parameters.
+
+  New specification of --without-K:
+
+  If the flag is activated, then Agda only accepts certain
+  case-splits. If the type of the variable to be split is D pars ixs,
+  where D is a data (or record) type, pars stands for the parameters,
+  and ixs the indices, then the following requirements must be
+  satisfied:
+
+  * The indices ixs must be applications of constructors (or literals)
+    to distinct variables. Constructors are usually not applied to
+    parameters, but for the purposes of this check constructor
+    parameters are treated as other arguments.
+
+  * These distinct variables must not be free in pars.
+
 * Irrelevant arguments are printed as _ by default now.  To turn on
   printing of irrelevant arguments, use option
 

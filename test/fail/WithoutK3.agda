@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K #-}
+{-# OPTIONS --without-K --show-implicit #-}
 
 module WithoutK3 where
 

@@ -996,8 +996,11 @@ data TypeError
 	    -- ^ Expected a type to be an application of a particular datatype.
 	| ConstructorPatternInWrongDatatype QName QName -- ^ constructor, datatype
         | IndicesNotConstructorApplications [Arg Term] -- ^ Indices.
-        | IndexVariablesNotDistinct [Arg Term] -- ^ Indices.
-        | IndexFreeInParameter Nat [Arg Term] -- ^ Index (a variable), parameters.
+        | IndexVariablesNotDistinct [Nat] [Arg Term] -- ^ Variables, indices.
+        | IndicesFreeInParameters [Nat] [Arg Term] [Arg Term]
+          -- ^ Indices (variables), index expressions (with
+          -- constructors applied to reconstructed parameters),
+          -- parameters.
         | DoesNotConstructAnElementOf QName Term -- ^ constructor, type
 	| DifferentArities
 	    -- ^ Varying number of arguments for a function.

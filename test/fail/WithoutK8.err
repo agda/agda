@@ -1,6 +1,6 @@
-WithoutK4.agda:10,16-20
+WithoutK8.agda:20,1-7
 The indices
-  f y
+  M.d
 are not constructors (or literals) applied to variables (note that
 parameters count as constructor arguments)
-when checking that the pattern refl has type x ≡ f y
+when checking that the clause Foo () has type P d → Set

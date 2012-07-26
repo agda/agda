@@ -428,7 +428,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   (d, pars, ixs, cons) <- inContextOfT $ isDatatype ind t
 
   liftTCM $ whenM (optWithoutK <$> pragmaOptions) $
-    inContextOfT $ Split.wellFormedIndices pars ixs
+    inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> mapM (computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps) cons

@@ -1,11 +1,10 @@
-WithoutK3.agda:25,9-13
+WithoutK7.agda:14,1-9
 The variables
-  A
+  x₁
 which are used (perhaps as constructor parameters) in the index
 expressions
-  {A}
-  y
+  d
 are free in the parameters
-  {A}
-  x
-when checking that the pattern refl has type _≅_ {A} x {A} y
+  x₁
+when checking that the clause Foo x () has type
+(x : I) → P x d → Set

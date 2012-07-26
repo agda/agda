@@ -150,8 +150,8 @@ errorString err = case err of
     IFSNoCandidateInScope{}                  -> "IFSNoCandidateInScope"
     IlltypedPattern{}                        -> "IlltypedPattern"
     IncompletePatternMatching{}              -> "IncompletePatternMatching"
-    IndexFreeInParameter{}                   -> "IndexFreeInParameter"
     IndexVariablesNotDistinct{}              -> "IndexVariablesNotDistinct"
+    IndicesFreeInParameters{}                -> "IndicesFreeInParameters"
     IndicesNotConstructorApplications{}      -> "IndicesNotConstructorApplications"
     InternalError{}                          -> "InternalError"
     InvalidPattern{}                         -> "InvalidPattern"
@@ -312,15 +312,22 @@ instance PrettyTCM TypeError where
             ConstructorPatternInWrongDatatype c d -> fsep $
               [prettyTCM c] ++ pwords "is not a constructor of the datatype" ++ [prettyTCM d]
             IndicesNotConstructorApplications is ->
-              fsep (pwords "The following indices are not constructors" ++
-                    pwords "(or literals) applied to variables:")
+              fwords "The indices"
               $$ nest 2 (vcat $ map prettyTCM is)
-            IndexVariablesNotDistinct is ->
-              fsep (pwords "The variables in the following indices are not distinct:")
+              $$ fsep (pwords "are not constructors (or literals) applied to variables" ++
+                       pwords "(note that parameters count as constructor arguments)")
+            IndexVariablesNotDistinct vs is ->
+              fwords "The variables"
+              $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
+              $$ fwords "in the indices"
               $$ nest 2 (vcat $ map prettyTCM is)
-            IndexFreeInParameter i pars ->
-              fsep (pwords "The index" ++ [prettyTCM (I.Var i [])] ++
-                    pwords "is free in the following parameters:")
+              $$ fwords "are not distinct (note that parameters count as constructor arguments)"
+            IndicesFreeInParameters vs indices pars ->
+              fwords "The variables"
+              $$ nest 2 (vcat $ map (\v -> prettyTCM (I.Var v [])) vs)
+              $$ fwords "which are used (perhaps as constructor parameters) in the index expressions"
+              $$ nest 2 (vcat $ map prettyTCM indices)
+              $$ fwords "are free in the parameters"
               $$ nest 2 (vcat $ map prettyTCM pars)
             ShadowedModule [] -> __IMPOSSIBLE__
             ShadowedModule ms@(m : _) -> fsep $

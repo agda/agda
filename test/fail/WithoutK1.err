@@ -1,5 +1,10 @@
 WithoutK1.agda:13,7-11
-The index x is free in the following parameters:
+The variables
+  x
+which are used (perhaps as constructor parameters) in the index
+expressions
+  x
+are free in the parameters
   {_}
   x
 when checking that the pattern refl has type x ≡ x

@@ -4,7 +4,7 @@ module Agda.TypeChecking.Rules.LHS.Split where
 
 import Control.Applicative
 import Control.Monad.Error
-import Data.Monoid
+import Data.Monoid (mempty, mappend)
 import Data.List
 import Data.Traversable hiding (mapM, sequence)
 
@@ -169,7 +169,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 			 ]
 
                   whenM (optWithoutK <$> pragmaOptions) $
-                    wellFormedIndices pars ixs
+                    wellFormedIndices a'
 
 		  return $ Split mempty
 				 xs
@@ -185,34 +185,101 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	  Split p1 xs foc p2 <- underAbstraction a tel $ \tel -> splitP ps qs tel
 	  return $ Split (mappend p0 p1) xs foc p2
 
--- | Checks that the indices are constructors (or literals) applied to
--- distinct variables which do not occur free in the parameters.
+-- | Takes a type, which must be a data or record type application,
+-- and checks that the indices are constructors (or literals) applied
+-- to distinct variables which do not occur free in the parameters.
+-- For the purposes of this check parameters count as constructor
+-- arguments; parameters are reconstructed from the given type.
+--
+-- Precondition: The type must be a data or record type application.
 
-wellFormedIndices
-  :: [Arg Term] -- ^ Parameters.
-  -> [Arg Term] -- ^ Indices.
-  -> TCM ()
-wellFormedIndices pars ixs = do
-  pars <- normalise pars
-  ixs  <- normalise ixs
-  vs   <- case constructorApplications ixs of
-            Nothing -> typeError $ IndicesNotConstructorApplications ixs
-            Just vs -> return vs
+wellFormedIndices :: Type -> TCM ()
+wellFormedIndices t = do
+  t <- reduce t
+
+  reportSDoc "tc.lhs.split.well-formed" 10 $
+    fsep [ text "Checking if indices are well-formed:"
+         , nest 2 $ prettyTCM t
+         ]
+
+  (pars, ixs) <- normalise =<< case t of
+    El _ (Def d args) -> do
+      def       <- getConstInfo d
+      typedArgs <- args `withTypesFrom` defType def
+
+      let noPars = case theDef def of
+            Datatype { dataPars = n } -> n
+            Record   { recPars  = n } -> n
+            _                         -> __IMPOSSIBLE__
+          (pars, ixs) = genericSplitAt noPars typedArgs
+      return (map fst pars, ixs)
+
+    _ -> __IMPOSSIBLE__
+
+  mvs <- constructorApplications ixs
+  vs  <- case mvs of
+           Nothing -> typeError $
+                        IndicesNotConstructorApplications (map fst ixs)
+           Just vs -> return vs
+
   unless (fastDistinct vs) $
-    typeError $ IndexVariablesNotDistinct ixs
-  case filter snd $ zip vs (map (`freeIn` pars) vs) of
-    []          -> return ()
-    (v , _) : _ -> typeError $ IndexFreeInParameter v pars
+    typeError $ IndexVariablesNotDistinct vs (map fst ixs)
+
+  case map fst $ filter snd $ zip vs (map (`freeIn` pars) vs) of
+    [] -> return ()
+    vs ->
+      typeError $ IndicesFreeInParameters vs (map fst ixs) pars
+
   where
   -- | If the term consists solely of constructors (or literals)
-  -- applied to variables, then the variables are returned, and
-  -- otherwise nothing.
-  constructorApplication :: Term -> Maybe [Nat]
-  constructorApplication (Var x [])   = Just [x]
-  constructorApplication (Con c args) = constructorApplications args
-  constructorApplication (Lit {})     = Just []
-  constructorApplication _            = Nothing
+  -- applied to variables (after parameter reconstruction), then the
+  -- variables are returned, and otherwise nothing.
+  constructorApplication :: Term
+                         -> Type  -- ^ The term's type.
+                         -> TCM (Maybe [Nat])
+  constructorApplication (Var x [])      _ = return (Just [x])
+  constructorApplication (Lit {})        _ = return (Just [])
+  constructorApplication (Con c conArgs) (El _ (Def d dataArgs)) = do
+    conDef  <- getConstInfo c
+    dataDef <- getConstInfo d
 
-  constructorApplications :: [Arg Term] -> Maybe [Nat]
-  constructorApplications args =
-    concat <$> mapM (constructorApplication . unArg) args
+    let noPars = case theDef dataDef of
+          Datatype { dataPars = n } -> n
+          Record   { recPars  = n } -> n
+          _                         -> __IMPOSSIBLE__
+        pars    = genericTake noPars dataArgs
+        allArgs = pars ++ conArgs
+
+    reportSDoc "tc.lhs.split.well-formed" 20 $
+      fsep [ text "Reconstructed parameters:"
+           , nest 2 $
+               prettyTCM (Con c []) <+>
+               text "(:" <+> prettyTCM (defType conDef) <> text ")" <+>
+               text "<<" <+> prettyTCM pars <+> text ">>" <+>
+               prettyTCM conArgs
+           ]
+
+    constructorApplications =<< allArgs `withTypesFrom` defType conDef
+
+  constructorApplication _ _ = return Nothing
+
+  constructorApplications :: [(Arg Term, Dom Type)] -> TCM (Maybe [Nat])
+  constructorApplications args = do
+    xs <- mapM (\(e, t) -> constructorApplication (unArg e) (unDom t))
+               args
+    return (concat <$> sequence xs)
+
+-- | @args \`withTypesFrom\` t@ returns the arguments @args@ paired up
+-- with their types, taken from @t@, which is assumed to be a @length
+-- args@-ary pi.
+--
+-- Precondition: @t@ has to start with @length args@ pis.
+
+withTypesFrom :: Args -> Type -> TCM [(Arg Term, Dom Type)]
+[]           `withTypesFrom` _ = return []
+(arg : args) `withTypesFrom` t = do
+  t <- reduce t
+  case t of
+    El _ (Pi a b) -> ((arg, a) :) <$>
+                       args `withTypesFrom` absApp b (unArg arg)
+    _             -> __IMPOSSIBLE__
