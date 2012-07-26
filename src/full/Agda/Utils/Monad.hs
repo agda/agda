@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts #-}
 
 module Agda.Utils.Monad
     ( module Agda.Utils.Monad
@@ -25,6 +25,9 @@ import Data.Foldable as Fold
 import Data.Monoid
 
 import Agda.Utils.List
+
+#include "../undefined.h"
+import Agda.Utils.Impossible
 
 -- Conditionals and monads ------------------------------------------------
 
@@ -66,6 +69,12 @@ or2M ma mb = ifM ma (return True) mb
 
 orM :: Monad m => [m Bool] -> m Bool
 orM = Fold.foldl or2M (return False)
+
+-- | Lazy monadic disjunction with @Either@  truth values.
+altM1 :: Monad m => (a -> m (Either err b)) -> [a] -> m (Either err b)
+altM1 f []       = __IMPOSSIBLE__
+altM1 f [a]      = f a
+altM1 f (a : as) = either (const $ altM1 f as) (return . Right) =<< f a
 
 -- Loops gathering results in a Monoid ------------------------------------
 

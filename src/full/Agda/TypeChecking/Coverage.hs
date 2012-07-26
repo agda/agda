@@ -152,12 +152,15 @@ cover cs (SClause tel perm ps _) = do
     Yes i          -> do
       reportSLn "tc.cover.cover" 10 $ "pattern covered by clause " ++ show i
       -- Check if any earlier clauses could match with appropriate literals
-      let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
+      let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps perm ]
+      -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (Set.fromList (i : is), [])
-    No      -> return (Set.empty, [ps])
-    Block x -> do
-      r <- split Inductive tel perm ps x
+    No       -> return (Set.empty, [ps])
+    Block xs -> do
+      -- xs is a non-empty lists of blocking variables
+      -- try splitting on one of them
+      r <- altM1 (split Inductive tel perm ps) xs
       case r of
         Left err  -> case err of
           CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
@@ -169,6 +172,7 @@ cover cs (SClause tel perm ps _) = do
  -}
           GenericSplitError s     -> fail $ "failed to split: " ++ s
         Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
+
 
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'

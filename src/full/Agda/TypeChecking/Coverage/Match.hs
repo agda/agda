@@ -39,9 +39,13 @@ buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
     buildT (Var i [])     = return (VarMP i)
     buildT _              = return WildMP
 
+
 -- | If matching is inconclusive (@Block@) we want to know which
---   variable is blocking the match.
-data Match a = Yes a | No | Block Nat
+--   variables are blocking the match.
+data Match a
+  = Yes a
+  | No
+  | Block [Nat]       -- ^ non-empty list of blocking variables
   deriving (Functor)
 
 instance Monoid a => Monoid (Match a) where
@@ -50,8 +54,12 @@ instance Monoid a => Monoid (Match a) where
   Yes _   `mappend` No      = No
   Yes _   `mappend` Block x = Block x
   No      `mappend` _       = No
-  Block x `mappend` _       = Block x
+  Block x `mappend` Yes b   = Block x
+  Block x `mappend` No      = No
+  Block x `mappend` Block y = Block $ mappend x y
 
+-- | @choice@ is for skipping clauses that definitely do not match.
+--   It is left-strict, to be used with @foldr@.
 choice :: Match a -> Match a -> Match a
 choice (Yes a) _   = Yes a
 choice (Block x) _ = Block x
@@ -104,10 +112,29 @@ matchPat :: MatchLit -> Pattern -> MPat -> Match ()
 matchPat _    (VarP _) _ = Yes ()
 matchPat _    (DotP _) _ = Yes ()
 matchPat mlit (LitP l) q = mlit l q
+-- matchPat mlit (ConP c (Just _) ps) q | recordPattern ps = Yes ()  -- Andreas, 2012-07-25 record patterns always match!
 matchPat mlit (ConP c _ ps) q = case q of
-  VarMP x -> Block x
+  VarMP x -> Block [x]
   WildMP  -> Yes ()
   ConMP c' qs
     | c == c'   -> matchPats mlit ps qs
     | otherwise -> No
   LitMP _ -> __IMPOSSIBLE__
+
+{- UNUSED
+class RecordPattern a where
+  recordPattern :: a -> Bool
+
+instance RecordPattern Pattern where
+  recordPattern VarP{} = True
+  recordPattern DotP{} = False
+  recordPattern LitP{} = False
+  recordPattern (ConP _ Nothing _) = False
+  recordPattern (ConP _ (Just _) ps) = recordPattern ps
+
+instance RecordPattern a => RecordPattern [a] where
+  recordPattern = all recordPattern
+
+instance RecordPattern a => RecordPattern (Arg a) where
+  recordPattern = recordPattern . unArg
+-}
