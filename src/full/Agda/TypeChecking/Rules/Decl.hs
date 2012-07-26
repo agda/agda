@@ -241,7 +241,8 @@ checkAxiom i rel0 x e = do
   -- when postulate $
   maybe solveIrrelevantMetas (const $ return ()) =<< asks envMutualBlock
 
-  solveSizeConstraints
+  traceCall (IsType_ e) $ solveSizeConstraints  -- need Range for error message
+
   -- Andreas, 2011-05-31, that freezing below is probably wrong:
   -- when (Info.defAbstract i == AbstractDef) $ freezeMetas
 

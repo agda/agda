@@ -536,7 +536,7 @@ printErrorInfo e = do
       p r $ mempty { otherAspects = [Error]
                    , note         = Just s
                    }
-    _ -> __IMPOSSIBLE__
+    _ -> internalError . ("invalid range when printing error: " ++) =<< E.prettyError e
   where
   p r x = printHighlightingInfo $ singletonC (rToR r) x
 
