@@ -352,7 +352,7 @@ beginningOfFile r = case rStart r of
   Just (Pn { srcFile = f }) -> posToRange p p
     where p = startPos f
 
--- | @x `withRangeOf` y@ sets the range of @x@ to the range of @y@.
+-- | @x \`withRangeOf\` y@ sets the range of @x@ to the range of @y@.
 withRangeOf :: (SetRange t, HasRange u) => t -> u -> t
 x `withRangeOf` y = setRange (getRange y) x
 

@@ -38,9 +38,9 @@ composeRelevance r r' =
 
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
 --   such that forall @x@, @y@ we have
---   @x `moreRelevant` (r `composeRelevance` y)@
+--   @x \`moreRelevant\` (r \`composeRelevance\` y)@
 --   iff
---   @(r `inverseComposeRelevance` x) `moreRelevant` y@ (Galois connection).
+--   @(r \`inverseComposeRelevance\` x) \`moreRelevant\` y@ (Galois connection).
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of

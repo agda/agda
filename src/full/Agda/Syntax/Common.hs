@@ -59,7 +59,7 @@ instance Ord Relevance where
   (<=) = moreRelevant
 
 -- | Information ordering.
--- @Relevant `moreRelevant` Forced `moreRelevant` NonStrict `moreRelevant` Irrelevant@
+-- @Relevant \`moreRelevant\` Forced \`moreRelevant\` NonStrict \`moreRelevant\` Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant r r' =
   case (r, r') of
@@ -143,7 +143,7 @@ defaultArg = Arg NotHidden Relevant
 isHiddenArg :: Arg a -> Bool
 isHiddenArg arg = argHiding arg /= NotHidden
 
--- | @xs `withArgsFrom` args@ translates @xs@ into a list of 'Arg's,
+-- | @xs \`withArgsFrom\` args@ translates @xs@ into a list of 'Arg's,
 -- using the elements in @args@ to fill in the non-'unArg' fields.
 --
 -- Precondition: The two lists should have equal length.

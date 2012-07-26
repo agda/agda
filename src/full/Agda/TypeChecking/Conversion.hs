@@ -207,8 +207,9 @@ compareTerm' cmp a m n =
         suggest _	 = __IMPOSSIBLE__
 -}
 
--- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise @tel1 `cmp` tel2@
---   and complains that @t2 `cmp` t1@ failed if not.
+-- | @compareTel t1 t2 cmp tel1 tel1@ checks whether pointwise
+--   @tel1 \`cmp\` tel2@ and complains that @t2 \`cmp\` t1@ failed if
+--   not.
 compareTel :: Type -> Type ->
   Comparison -> Telescope -> Telescope -> TCM ()
 compareTel t1 t2 cmp tel1 tel2 =

@@ -105,7 +105,7 @@ instance Error SplitError where
   strMsg = SplitPanic
 
 -- | 'ProblemRest' is a right dominant monoid.
---   @pr1 `mappend` pr2 = pr2@ unless @pr2 = mempty@, then it is @pr1@.
+--   @pr1 \`mappend\` pr2 = pr2@ unless @pr2 = mempty@, then it is @pr1@.
 --   Basically, this means that the left 'ProblemRest' is discarded, so
 --   use it wisely!
 instance Monoid ProblemRest where

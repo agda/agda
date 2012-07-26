@@ -68,7 +68,7 @@ instance HasRange ModuleName where
 -- names are fewer than the number of module name name parts, then the
 -- initial name parts get the range 'noRange'.
 --
--- @C.D.E `withRangesOf` [A, B]@ returns @C.D.E@ but with ranges set
+-- @C.D.E \`withRangesOf\` [A, B]@ returns @C.D.E@ but with ranges set
 -- as follows:
 --
 -- * @C@: 'noRange'.
