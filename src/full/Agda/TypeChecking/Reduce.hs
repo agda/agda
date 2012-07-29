@@ -163,9 +163,25 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
     instantiate = traverse instantiate
 
 
---
--- Reduction to weak head normal form.
---
+---------------------------------------------------------------------------
+-- * Reduction to weak head normal form.
+---------------------------------------------------------------------------
+
+ifBlocked :: Term -> (MetaId -> Term -> TCM a) -> (Term -> TCM a) -> TCM a
+ifBlocked t blocked unblocked = do
+  t <- reduceB t
+  case t of
+    Blocked m t              -> blocked m t
+    NotBlocked t@(MetaV m _) -> blocked m t
+    NotBlocked t             -> unblocked t
+
+ifBlockedType :: Type -> (MetaId -> Type -> TCM a) -> (Type -> TCM a) -> TCM a
+ifBlockedType t blocked unblocked = do
+  t <- reduceB t
+  case t of
+    Blocked m t                     -> blocked m t
+    NotBlocked t@(El _ (MetaV m _)) -> blocked m t
+    NotBlocked t                    -> unblocked t
 
 class Reduce t where
     reduce  :: t -> TCM t
@@ -778,6 +794,7 @@ instance InstantiateFull QName where
 
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull = mapM instantiateFull
+
 
 {- DUPLICATE of Telescope.telView
 

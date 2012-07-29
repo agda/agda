@@ -423,15 +423,21 @@ checkExpr e t =
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
+{- OLD CODE
         A.AbsurdLam i h -> do
           t <- reduceB =<< instantiateFull t
           case t of
             Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
             NotBlocked t' -> case unEl t' of
+-}
+        A.AbsurdLam i h -> do
+          t <- instantiateFull t
+          ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
+            case unEl t' of
               Pi (Dom h' r a) _
                 | h == h' && not (null $ allMetas a) ->
-                    postponeTypeCheckingProblem e (ignoreBlocking t) $
+                    postponeTypeCheckingProblem e t' $
                       null . allMetas <$> instantiateFull a
                 | h == h' -> blockTerm t' $ do
                   isEmptyType (getRange i) a
@@ -473,12 +479,18 @@ checkExpr e t =
                   -- WAS: return (Def aux [])
                 | otherwise -> typeError $ WrongHidingInLambda t'
               _ -> typeError $ ShouldBePi t'
+
+{- OLD
         A.ExtendedLam i di qname cs -> do
              t <- reduceB =<< instantiateFull t
              case t of
                Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
                NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
                NotBlocked t -> do
+-}
+        A.ExtendedLam i di qname cs -> do
+           t <- instantiateFull t
+           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
                  j   <- currentOrFreshMutualBlock
                  rel <- asks envRelevance
                  addConstant qname (Defn rel qname t (defaultDisplayForm qname) j noCompiledRep Axiom)
@@ -486,13 +498,8 @@ checkExpr e t =
                                                  text "\" has type: " $$ prettyTCM t -- <+>
 --                                                 text " where clauses: " <+> text (show cs)
                  abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
-{- OLD
-                 tel <- getContextTelescope
-                 addExtLambdaTele qname (counthidden tel , countnothidden tel)
-                 reduce $ (Def qname [] `apply` (mkArgs tel))
--}
-                 args <- getContextArgs
-                 top <- currentModule
+                 args     <- getContextArgs
+                 top      <- currentModule
                  freevars <- getSecFreeVars top
                  let argsNoParam = genericDrop freevars args -- don't count module parameters
                  let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
@@ -502,21 +509,6 @@ checkExpr e t =
 	    -- Concrete definitions cannot use information about abstract things.
 	    abstract ConcreteDef = inConcreteMode
 	    abstract AbstractDef = inAbstractMode
-{- DUPLICATE
-            mkArgs :: Telescope -> Args
-            mkArgs tel = map arg [n - 1, n - 2..0]
-              where
-                n     = size tel
-                arg i = defaultArg (var i)
--}
-
-{- UNUSED
-            counthidden :: Telescope -> Int
-            counthidden t = length $ filter (\ (Arg h r a) -> h == Hidden ) $ teleArgs t
-
-            countnothidden :: Telescope -> Int
-            countnothidden t = length $ filter (\ (Arg h r a) -> h == NotHidden ) $ teleArgs t
--}
 
 
 {- Andreas, 2011-04-27 DOES NOT WORK
@@ -707,7 +699,7 @@ checkExpr e t =
                 -- Type error
                 let badCon t = typeError $ DoesNotConstructAnElementOf
                                             (fst $ head cs) t
-
+{- OLD CODE
                 -- Lets look at the target type at this point
                 let getCon = do
                       TelV _ t1 <- telView t
@@ -732,7 +724,23 @@ checkExpr e t =
                         NotBlocked (MetaV _ _)  -> return Nothing
                         Blocked{} -> return Nothing
                         _ -> badCon (ignoreBlocking t1)
-                let unblock = isJust <$> getCon
+-}
+                -- Lets look at the target type at this point
+                let getCon = do
+                     TelV _ t1 <- telView t
+                     reportSDoc "tc.check.term.con" 40 $ nest 2 $
+                       text "target type: " <+> prettyTCM t1
+                     ifBlocked (unEl t1) (\ m t -> return Nothing) $ \ t' ->
+                       (isDataOrRecord t' >>=) $ maybe (badCon t') $ \ d ->
+                           case [ c | (d', c) <- dcs, d == d' ] of
+                                [c] -> do
+                                  reportSLn "tc.check.term" 40 $ "  decided on: " ++ show c
+                                  return (Just c)
+                                []  -> badCon (Def d [])
+                                cs  -> typeError $ GenericError $
+                                        "Can't resolve overloaded constructors targeting the same datatype (" ++ show d ++
+                                        "): " ++ unwords (map show cs)
+                let unblock = isJust <$> getCon -- to unblock, call getCon later again
                 mc <- getCon
                 case mc of
                   Just c  -> checkConstructorApplication e t c args

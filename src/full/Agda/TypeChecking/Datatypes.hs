@@ -2,6 +2,7 @@
 
 module Agda.TypeChecking.Datatypes where
 
+import Control.Applicative ((<$>))
 import Data.List
 
 import Agda.Syntax.Common
@@ -44,6 +45,10 @@ isDataOrRecordType d = do
     Datatype{} -> return $ Just IsData
     Record{}   -> return $ Just IsRecord
     _          -> return $ Nothing
+
+isDataOrRecord :: Term -> TCM (Maybe QName)
+isDataOrRecord (Def d _) = fmap (const d) <$> isDataOrRecordType d
+isDataOrRecord _         = return Nothing
 
 getNumberOfParameters :: QName -> TCM (Maybe Nat)
 getNumberOfParameters d = do
