@@ -779,6 +779,8 @@ instance InstantiateFull QName where
 instance InstantiateFull a => InstantiateFull (Maybe a) where
   instantiateFull = mapM instantiateFull
 
+{- DUPLICATE of Telescope.telView
+
 -- | @telViewM t@ is like @telView' t@, but it reduces @t@ to expose
 --   function type constructors.
 telViewM :: Type -> TCM TelView
@@ -789,3 +791,4 @@ telViewM t = do
     _      -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
+-}

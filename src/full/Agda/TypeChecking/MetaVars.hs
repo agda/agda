@@ -398,7 +398,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
             text ("(requested was expansion of " ++ show kinds ++ ")")
   meta           <- lookupMeta m
   let HasType _ a = mvJudgement meta
-  TelV tel b     <- telViewM a
+  TelV tel b     <- telView a
   bb             <- reduceB b  -- the target in the type @a@ of @m@
   case unEl <$> bb of
     -- if the target type of @m@ is a meta variable @x@ itself
@@ -613,7 +613,7 @@ assign x args v = do
 	reportSDoc "tc.meta.assign" 15 $ text "type of meta =" <+> prettyTCM t
 --	reportSDoc "tc.meta.assign" 30 $ text "type of meta =" <+> text (show t)
 
-        TelV tel0 core0 <- telViewM t
+        TelV tel0 core0 <- telView t
         let n = length args
 	reportSDoc "tc.meta.assign" 30 $ text "tel0  =" <+> prettyTCM tel0
 	reportSDoc "tc.meta.assign" 30 $ text "#args =" <+> text (show n)

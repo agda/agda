@@ -36,6 +36,7 @@ import Agda.TypeChecking.Reduce
 -- import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.Utils.FileName
 import Agda.Utils.Monad
@@ -240,7 +241,7 @@ checkCover q ty n cs = do
 conArityAndPars :: QName -> TCM (Nat, Nat)
 conArityAndPars q = do
   def <- getConstInfo q
-  TelV tel _ <- telViewM $ defType def
+  TelV tel _ <- telView $ defType def
   let Constructor{ conPars = np } = theDef def
       n = genericLength (telToList tel)
   return (n - np, np)
