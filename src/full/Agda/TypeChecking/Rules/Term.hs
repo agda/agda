@@ -40,6 +40,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Conversion
+import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
@@ -1102,6 +1103,18 @@ traceCallE call m = do
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type)
 checkArguments DontExpandLast _ _ [] t0 t1 = return ([], t0)
+checkArguments exh    expandIFS r [] t0 t1 =
+    traceCallE (CheckArguments r [] t0 t1) $ lift $ do
+      t1' <- unEl <$> reduce t1
+      implicitArgs (-1) (expand t1') t0
+    where
+      expand (Pi  (Dom h   _ _) _) Hidden = h /= Hidden
+      expand _                     Hidden = True
+      expand (Pi  (Dom h _ _) _) Instance = h /= Instance && expandIFS == ExpandInstanceArguments
+      expand _                   Instance = expandIFS == ExpandInstanceArguments
+      expand _                  NotHidden = False
+
+{- OLD CODE
 checkArguments exh expandIFS r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
@@ -1123,6 +1136,7 @@ checkArguments exh expandIFS r [] t0 t1 =
     where
 	notHPi h (Pi  (Dom h' _ _) _) | h == h' = False
 	notHPi _ _		        = True
+-}
 
 checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
     traceCallE (CheckArguments r args0 t0 t1) $ do
