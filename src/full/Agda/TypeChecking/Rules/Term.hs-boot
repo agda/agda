@@ -12,9 +12,6 @@ isType_ :: A.Expr -> TCM Type
 
 checkExpr :: A.Expr -> Type -> TCM Term
 
-data ExpandHidden = ExpandLast | DontExpandLast
-data ExpandInstances = ExpandInstanceArguments | DontExpandInstanceArguments
-
 checkArguments :: ExpandHidden -> ExpandInstances -> Range -> [NamedArg A.Expr] -> Type -> Type ->
                   ErrorT Type TCM (Args, Type)
 

@@ -20,7 +20,7 @@ import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
 
 import {-# SOURCE #-} Agda.TypeChecking.Constraints
-import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments, ExpandHidden(..), ExpandInstances(..))
+import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkArguments)
 import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 

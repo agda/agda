@@ -925,6 +925,19 @@ data AbstractMode = AbstractMode       -- ^ abstract things in the current modul
   deriving (Typeable)
 
 ---------------------------------------------------------------------------
+-- ** Insertion of implicit arguments
+---------------------------------------------------------------------------
+
+data ExpandHidden
+  = ExpandLast      -- ^ Add implicit arguments in the end until type is no longer hidden 'Pi'.
+  | DontExpandLast  -- ^ Do not append implicit arguments.
+
+data ExpandInstances
+  = ExpandInstanceArguments
+  | DontExpandInstanceArguments
+    deriving (Eq)
+
+---------------------------------------------------------------------------
 -- * Type checking errors
 ---------------------------------------------------------------------------
 

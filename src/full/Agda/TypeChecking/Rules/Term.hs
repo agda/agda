@@ -1075,9 +1075,6 @@ checkHeadApplication e t hd args = do
     checkArguments' ExpandLast ExpandInstanceArguments (getRange hd) args t0 t e $ \vs t1 ->
       coerce (f vs) t1 t
 
-data ExpandHidden = ExpandLast | DontExpandLast
-data ExpandInstances = ExpandInstanceArguments | DontExpandInstanceArguments deriving (Eq)
-
 instance Error Type where
   strMsg _ = __IMPOSSIBLE__
   noMsg = __IMPOSSIBLE__
