@@ -251,13 +251,18 @@ checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
       -- fresh problem for the check.
       t1 <- addCtxs xs argsT $ workOnTypes newTypeMeta_
       let tel = telFromList $ mkTel xs argsT
-      pid <- newProblem_ $ leqType (telePi tel t1) target
-
-      -- Now check body : ?t₁
-      v <- addCtxs xs argsT $ checkExpr body t1
-
-      -- Block on the type comparison
-      blockTermOnProblem target (teleLam tel v) pid
+      -- Do not coerce hidden lambdas
+      if (h /= NotHidden) then do
+        pid <- newProblem_ $ leqType (telePi tel t1) target
+        -- Now check body : ?t₁
+        v <- addCtxs xs argsT $ checkExpr body t1
+        -- Block on the type comparison
+        blockTermOnProblem target (teleLam tel v) pid
+       else do
+        -- Now check body : ?t₁
+        v <- addCtxs xs argsT $ checkExpr body t1
+        -- Block on the type comparison
+        coerce (teleLam tel v) (telePi tel t1) target
 
     useTargetType tel@(ExtendTel arg (Abs y EmptyTel)) btyp = do
         verboseS "tc.term.lambda" 5 $ tick "lambda-with-target-type"
