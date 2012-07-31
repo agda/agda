@@ -125,14 +125,20 @@ telView :: Type -> TCM TelView
 telView = telViewUpTo (-1)
 
 -- | @telViewUpTo n t@ takes off the first @n@ function types of @t@.
--- Takes off all if $n < 0$.
+-- Takes off all if @n < 0@.
 telViewUpTo :: Int -> Type -> TCM TelView
-telViewUpTo 0 t = return $ TelV EmptyTel t
-telViewUpTo n t = do
+telViewUpTo n t = telViewUpTo' n (const True) t
+
+-- | @telViewUpTo' n p t@ takes off $t$
+--   the first @n@ (or arbitrary many if @n < 0@) function domains
+--   as long as they satify @p@.
+telViewUpTo' :: Int -> (Dom Type -> Bool) -> Type -> TCM TelView
+telViewUpTo' 0 p t = return $ TelV EmptyTel t
+telViewUpTo' n p t = do
   t <- reduce t
   case unEl t of
-    Pi a b -> absV a (absName b) <$> telViewUpTo (n - 1) (absBody b)
-    _      -> return $ TelV EmptyTel t
+    Pi a b | p a -> absV a (absName b) <$> telViewUpTo' (n - 1) p (absBody b)
+    _            -> return $ TelV EmptyTel t
   where
     absV a x (TelV tel t) = TelV (ExtendTel a (Abs x tel)) t
 
