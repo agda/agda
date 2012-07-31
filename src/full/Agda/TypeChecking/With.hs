@@ -93,7 +93,7 @@ buildWithFunction aux gamma qs perm n1 n cs = mapM buildWithClause cs
 -}
 stripWithClausePatterns :: Telescope -> [Arg Pattern] -> Permutation -> [NamedArg A.Pattern] -> TCM [NamedArg A.Pattern]
 stripWithClausePatterns gamma qs perm ps = do
-  psi <- insertImplicitPatterns ps gamma
+  psi <- insertImplicitPatterns ExpandLast ps gamma
   unless (size psi == size gamma) $ fail $ "wrong number of arguments in with clause: given " ++ show (size psi) ++ ", expected " ++ show (size gamma)
   reportSDoc "tc.with.strip" 10 $ vcat
     [ text "stripping patterns"
@@ -185,11 +185,11 @@ stripWithClausePatterns gamma qs perm ps = do
               ]
 
             -- Insert implicit patterns (just for the constructor arguments)
-            psi' <- insertImplicitPatterns ps' tel'
+            psi' <- insertImplicitPatterns ExpandLast ps' tel'
             unless (size psi' == size tel') $ typeError $ WrongNumberOfConstructorArguments c (size tel') (size psi')
 
             -- Do it again for everything (is this necessary?)
-            psi' <- insertImplicitPatterns (psi' ++ ps) tel''
+            psi' <- insertImplicitPatterns ExpandLast (psi' ++ ps) tel''
 
             -- Keep going
             strip tel'' psi' (qs' ++ qs)

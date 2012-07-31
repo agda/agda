@@ -9,6 +9,8 @@ import Control.Monad.State hiding (mapM)
 import Control.Monad.Reader hiding (mapM)
 import Control.Monad.Error hiding (mapM)
 import Control.Monad hiding (mapM)
+
+import Data.Function
 import Data.List hiding (sort)
 import Data.Traversable
 import Data.Set (Set)
@@ -42,11 +44,13 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
+import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, checkTelescope_, isType_ )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkTelescope_, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
+import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
 import Agda.TypeChecking.Rules.Data                ( isCoinductive )
 
@@ -84,6 +88,10 @@ checkFunDef' t rel delayed i name cs =
               , nest 2 $ text ":" <+> prettyTCM t
               , nest 2 $ text "full type:" <+> (prettyTCM . defType =<< getConstInfo name)
               ]
+
+        -- Ensure that all clauses have the same number of trailing hidden patterns
+        -- This is necessary since trailing implicits are no longer eagerly inserted.
+        cs <- trailingImplicits t cs
 
         -- Check the clauses
         let check c = do
@@ -155,6 +163,116 @@ checkFunDef' t rel delayed i name cs =
     where
         npats = size . clausePats
 
+{- | Ensure that all clauses have the same number of trailing implicits.
+Example:
+@
+
+  test : Bool -> {A B : Set} → Set
+  test true  {A}     = A
+  test false {B = B} = B
+
+@
+@trailingImplicits@ patches these clauses to
+@
+
+  test : Bool -> {A B : Set} → Set
+  test true  {A} {_}     = A
+  test false {_} {B = B} = B
+
+@
+such that the arity of the clauses of @test@ is uniform.
+-}
+trailingImplicits :: Type -> [A.Clause] -> TCM [A.Clause]
+trailingImplicits t []       = __IMPOSSIBLE__
+trailingImplicits t cs@(c:_) = do
+  pps@((ps,ips):_) <- mapM splitTrailingImplicits cs
+  -- compute the trailing implicits from type t
+  TelV tel t0 <- telView t
+  let -- number of non-hidden patterns
+      nh  = genericLength $ filter ((NotHidden ==) . argHiding) ps
+      -- drop nh non-hidden domains from t
+      l   = dropNonHidden nh $ telToList tel
+      -- take the hidden domains immediately after the dropped stuff
+      is   = takeWhile ((NotHidden /=) . domHiding) l
+      itel = telFromList is
+      -- get the trailing implicit patterns
+      ipss = map snd pps
+  -- complete the implicit pattern lists
+  ipss <- mapM (\ ps -> insertImplicitPatterns DontExpandLast ps itel) ipss
+  let longest = head $ sortBy (compare `on` ((0-) . length)) ipss
+      pps' = zip (map fst pps) ipss
+  return $ zipWith (patchUpTrailingImplicits longest) pps' cs
+
+-- | @dropNonHidden n tel@ drops @n@ non-hidden domains from @tel@,
+--   including all hidden domains that come before the @n@th non-hidden one.
+dropNonHidden :: Nat -> [Dom (String, Type)] -> [Dom (String, Type)]
+dropNonHidden 0 l = l
+dropNonHidden n l = case dropWhile ((NotHidden /=) . domHiding) l of
+  []    -> [] -- or raise a type checking error "too many arguments in lhs"
+  (_:l) -> dropNonHidden (n-1) l
+
+-- | @splitTrailingImplicits c@ returns the patterns of clause @c@
+--   as pair @(ps, ips)@ where @ips@ are the trailing implicit patterns
+--   and @ps@ is the rest.
+splitTrailingImplicits :: A.Clause -> TCM (A.Patterns, A.Patterns)
+splitTrailingImplicits (A.Clause (A.LHS _ A.LHSProj{} []) _ _) =
+  typeError $ NotImplemented "type checking definitions by copatterns"
+splitTrailingImplicits (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) =
+  typeError $ UnexpectedWithPatterns ps
+splitTrailingImplicits (A.Clause (A.LHS _ (A.LHSHead _ aps) []) _ _) = do
+  let (ips, ps) = span ((Hidden==) . argHiding) $ reverse aps
+  return (reverse ps, reverse ips)
+
+{- UNUSED
+-- | Compute the difference between two list of hidden patterns.
+--   The first pattern list must be longer.
+--   Both pattern lists must be complete, i.e., not skip any hidden patterns.
+patternDiff :: A.Patterns -> A.Patterns -> A.Patterns
+patternDiff ps1 ps2 = drop (length ps2) ps1
+-}
+
+-- | @patchUpTrailingImplicits should (ps, is) c@ takes a clause @c@ whose
+--   patterns are split into @(ps, is)@ where @is@ are the trailing
+--   implicit patterns and @ps@ the rest.  @is@ has already been patched
+--   with omitted implicit patterns (which can occur if named implicit patterns
+--   are there originally).  @should@ is an extension of @is@.
+--   The returned clause contains an extension of @is@ by new wildcards
+--   to match @should@.
+patchUpTrailingImplicits :: A.Patterns -> (A.Patterns, A.Patterns) -> A.Clause -> A.Clause
+patchUpTrailingImplicits should (ps, is) c | length is >= length should = c
+patchUpTrailingImplicits should (ps, is) (A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
+  let imp  = Arg Hidden Relevant $ Named Nothing $ A.ImplicitP $
+               Info.PatRange noRange
+      imps = replicate (length should - length is) imp
+  in  A.Clause (A.LHS i (A.LHSHead x (ps ++ is ++ imps)) []) rhs0 wh
+patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
+
+{- OLD
+-- | Ensure that all clauses have the same number of trailing implicits.
+trailingImplicits :: [A.Clause] -> TCM [A.Clause]
+trailingImplicits [] = __IMPOSSIBLE__
+trailingImplicits cs = do
+  ns <- mapM numberOfTrailingImplicits cs
+  let n = maximum ns
+  return $ zipWith (patchUpTrailingImplicits n) ns cs
+
+numberOfTrailingImplicits :: A.Clause -> TCM Int
+numberOfTrailingImplicits (A.Clause (A.LHS _ A.LHSProj{} []) _ _) =
+  typeError $ NotImplemented "type checking definitions by copatterns"
+numberOfTrailingImplicits (A.Clause (A.LHS _ _ ps@(_ : _)) _ _) =
+  typeError $ UnexpectedWithPatterns ps
+numberOfTrailingImplicits (A.Clause (A.LHS _ (A.LHSHead _ aps) []) _ _) =
+  return $ length $ takeWhile ((Hidden==) . argHiding) $ reverse aps
+
+patchUpTrailingImplicits :: Int -> Int -> A.Clause -> A.Clause
+patchUpTrailingImplicits should is c | is >= should = c
+patchUpTrailingImplicits should is (A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
+  let imp  = Arg Hidden Relevant $ Named Nothing $ A.ImplicitP $
+               Info.PatRange noRange
+      imps = replicate (should - is) imp
+  in  A.Clause (A.LHS i (A.LHSHead x (aps ++ imps)) []) rhs0 wh
+patchUpTrailingImplicits _ _ _ = __IMPOSSIBLE__
+-}
 
 -- | Insert some patterns in the in with-clauses LHS of the given RHS
 insertPatterns :: [A.Pattern] -> A.RHS -> A.RHS
@@ -189,7 +307,11 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide (CheckPatternShadowing c) aps t $ \gamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
-      (body, with) <- checkWhere (size delta) wh $ let
+      -- introduce trailing implicits for checking the where decls
+      TelV htel t0 <- telViewUpTo' (-1) ((Hidden==) . domHiding) t'
+      let n = size htel
+      (body, with) <- addCtxTel htel $ checkWhere (size delta + n) wh $ escapeContext (size htel) $ let
+          -- for the body, we remove the implicits again
           handleRHS rhs =
               case rhs of
                 A.RHS e
@@ -259,7 +381,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                   reportSDoc "tc.with.top" 30 $
                     prettyA c
                   -- Infer the types of the with expressions
-                  vas <- mapM inferExpr es
+                  vas <- mapM inferExprForWith es
                   (vs0, as) <- instantiateFull (unzip vas)
                   (vs, as)  <- normalise (vs0, as)
 

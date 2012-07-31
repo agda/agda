@@ -1,4 +1,4 @@
-NoPanic.agda:24,3-16
-Setω !=< Level of type Setω
-when checking that the type I (_16 {A}) (_12 {A}) → Set₁ of the
-generated with function is well-formed
+
+Unsolved metas at the following locations:
+  NoPanic.agda:23,15-16
+  NoPanic.agda:23,15-18

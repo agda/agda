@@ -107,7 +107,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
         A.ConP _ (A.AmbQ [c]) qs -> do
           Def r vs   <- reduce (unEl a)
           (ftel, us) <- etaExpandRecord r vs u
-          qs <- insertImplicitPatterns qs ftel
+          qs <- insertImplicitPatterns ExpandLast qs ftel
           let instTel EmptyTel _                   = []
               instTel (ExtendTel arg tel) (u : us) = unDom arg : instTel (absApp tel u) us
               instTel ExtendTel{} []               = __IMPOSSIBLE__
@@ -460,7 +460,7 @@ checkLeftHandSide c ps a ret = do
               ]
 -}
             -- Insert implicit patterns
-            qs' <- insertImplicitPatterns qs gamma'
+            qs' <- insertImplicitPatterns ExpandLast qs gamma'
 
             unless (size qs' == size gamma') $
               typeError $ WrongNumberOfConstructorArguments c (size gamma') (size qs')

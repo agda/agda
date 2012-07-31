@@ -33,13 +33,14 @@ insertImplicitProblem (Problem ps qs tel pr) = do
 	, nest 2 $ brackets $ fsep $ punctuate comma $ map prettyA ps
 	, nest 2 $ prettyTCM tel
 	]
-  ps' <- insertImplicitPatterns ps tel
+  ps' <- insertImplicitPatterns ExpandLast ps tel
   return $ Problem ps' qs tel pr
 
 -- | Insert implicit patterns in a list of patterns.
-insertImplicitPatterns :: [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]
-insertImplicitPatterns ps EmptyTel = return ps
-insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
+insertImplicitPatterns :: ExpandHidden -> [NamedArg A.Pattern] -> Telescope -> TCM [NamedArg A.Pattern]
+insertImplicitPatterns exh            ps EmptyTel = return ps
+insertImplicitPatterns DontExpandLast [] tel      = return []
+insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
   [] -> do
     i <- insImp dummy tel
     case i of
@@ -50,7 +51,7 @@ insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
     i <- insImp p tel
     case i of
       Just []	-> __IMPOSSIBLE__
-      Just hs	-> insertImplicitPatterns (implicitPs hs ++ p : ps) tel
+      Just hs	-> insertImplicitPatterns exh (implicitPs hs ++ p : ps) tel
       Nothing
         | A.ImplicitP{} <- namedThing $ unArg p,
           argHiding p /= Instance -> do
@@ -71,7 +72,7 @@ insertImplicitPatterns ps tel@(ExtendTel arg tel') = case ps of
             _ -> continue p
         | otherwise -> continue p
         where
-          continue p = (p :) <$> insertImplicitPatterns ps (absBody tel')
+          continue p = (p :) <$> insertImplicitPatterns exh ps (absBody tel')
   where
     dummy = defaultArg $ unnamed ()
 

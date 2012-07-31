@@ -55,7 +55,10 @@ problemFromPats :: [NamedArg A.Pattern] -- ^ The user patterns.
   -> TCM Problem     -- ^ The initial problem constructed from the user patterns.
 problemFromPats ps a = do
   TelV tel0' b0 <- telView a
-  ps <- insertImplicitPatterns ps tel0'
+  -- For the initial problem, do not insert trailing implicits.
+  -- This has the effect of not including trailing hidden domains in the problem telescope.
+  -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
+  ps <- insertImplicitPatterns DontExpandLast ps tel0'
   -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
   let tel0      = useNamesFromPattern ps tel0'
       (as, bs)  = splitAt (size ps) $ telToList tel0
@@ -99,7 +102,7 @@ updateProblemRest p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
   case tel' of
     EmptyTel -> return p  -- no progress
     ExtendTel{} -> do     -- a did reduce to a pi-type
-      ps <- insertImplicitPatterns ps tel'
+      ps <- insertImplicitPatterns DontExpandLast ps tel'
       let tel       = useNamesFromPattern ps tel'
           (as, bs)  = splitAt (size ps) $ telToList tel
           (ps1,ps2) = splitAt (size as) ps

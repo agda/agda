@@ -1213,13 +1213,43 @@ checkArguments_ exh r args tel = do
 
 
 -- | Infer the type of an expression. Implemented by checking against a meta
---   variable.
+--   variable.  Except for neutrals, for them a polymorphic type is inferred.
 inferExpr :: A.Expr -> TCM (Term, Type)
-inferExpr e = do
-    -- Andreas, 2011-04-27
-    t <- workOnTypes $ newTypeMeta_
-    v <- checkExpr e t
-    return (v,t)
+inferExpr e = case e of
+  _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
+    (f, t0) <- inferHead hd
+    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) args t0 (sort Prop)
+    case res of
+      Right (vs, t1) -> return (f vs, t1)
+      Left t1 -> fallback -- blocked on type t1
+  _ -> fallback
+  where
+    fallback = do
+      t <- workOnTypes $ newTypeMeta_
+      v <- checkExpr e t
+      return (v,t)
+
+    defOrVar :: A.Expr -> Bool
+    defOrVar A.Var{} = True
+    defOrVar A.Def{} = True
+    defOrVar _     = False
+
+-- | Infer the type of an expression, and if it is of the form
+--   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
+--   arguments.  Otherwise, leave the type polymorphic.
+inferExprForWith :: A.Expr -> TCM (Term, Type)
+inferExprForWith e = do
+  (v, t) <- inferExpr e
+  TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . domHiding) t
+  case unEl t0 of
+    Def d vs -> do
+      res <- isDataOrRecordType d
+      case res of
+        Nothing -> return (v, t)
+        Just{}  -> do
+          (args, t1) <- implicitArgs (-1) (NotHidden /=) t
+          return (v `apply` args, t1)
+    _ -> return (v, t)
 
 checkTerm :: Term -> Type -> TCM Term
 checkTerm tm ty = do atm <- reify tm
