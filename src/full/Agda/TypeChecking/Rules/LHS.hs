@@ -316,37 +316,6 @@ checkLeftHandSide
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c ps a ret = do
-{- code moved to ProblemRest.problemFromPats
-  TelV tel0' b0 <- telView a
-  ps <- insertImplicitPatterns ps tel0'
-  unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
-  let tel0     = useNamesFromPattern ps tel0'
-      (as, bs) = splitAt (size ps) $ telToList tel0
-      gamma    = telFromList as
-      b        = telePi (telFromList bs) b0
-      -- now (gamma -> b) = a and |gamma| = |ps|
-
-      -- internal patterns start as all variables
-      ips      = map (argFromDom . fmap (VarP . fst)) as
-
-      -- the initial problem for starting the splitting
-      problem  = Problem ps (idP $ size ps, ips) gamma
-
-  reportSDoc "tc.lhs.top" 10 $
-    vcat [ text "checking lhs:"
-	 , nest 2 $ vcat
-	   [ text "ps    =" <+> fsep (map prettyA ps)
-	   , text "a     =" <+> (prettyTCM =<< normalise a)
-	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
-	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
-           , text "xs    =" <+> text (show $ map (fst . unDom) as)
-	   , text "tel0  =" <+> prettyTCM tel0
-	   , text "b0    =" <+> prettyTCM b0
-	   , text "gamma =" <+> prettyTCM gamma
-	   , text "b     =" <+> addCtxTel gamma (prettyTCM b)
-	   ]
-	 ]
--}
   problem <- problemFromPats ps a
   unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS (size ps) a
   -- let b = typeFromProblem problem
