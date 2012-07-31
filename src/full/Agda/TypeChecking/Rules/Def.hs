@@ -430,8 +430,7 @@ checkWhere n [A.Section _ m tel ds]  ret = do
       dtel' <- prettyTCM =<< lookupSection m
       reportSLn "" 0 $ "checking where section " ++ show dx ++ " " ++ show dtel
       reportSLn "" 0 $ "        actual tele: " ++ show dtel'
-    x <- withCurrentModule m $ checkDecls ds >> ret
-    return x
+    withCurrentModule m $ checkDecls ds >> ret
 checkWhere _ _ _ = __IMPOSSIBLE__
 
 -- | Check if a pattern contains an absurd pattern. For instance, @suc ()@
