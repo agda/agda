@@ -474,11 +474,17 @@ introTactic pmLambda ii = do
 
     introFun tel = addCtxTel tel' $ do
         imp <- showImplicitArguments
-        let okHiding h = imp || h == NotHidden
-        vars <- mapM showTCM [ Arg h Relevant (var i)
-                             | (h, i) <- zip hs $ downFrom n
-                             , okHiding h
-                             ]
+        let okHiding0 h = imp || h == NotHidden
+            -- if none of the vars were displayed, we would get a parse error
+            -- thus, we switch to displaying all
+            allHidden   = null (filter okHiding0 hs)
+            okHiding    = if allHidden then const True else okHiding0
+        vars <- -- setShowImplicitArguments (imp || allHidden) $
+                (if allHidden then withShowAllArguments else id) $
+                  mapM showTCM [ Arg h Relevant (var i)
+                               | (h, i) <- zip hs $ downFrom n
+                               , okHiding h
+                               ]
         if pmLambda
            then return [ unwords $ ["λ", "{"] ++ vars ++ ["→", "?", "}"] ]
            else return [ unwords $ ["λ"]      ++ vars ++ ["→", "?"] ]
