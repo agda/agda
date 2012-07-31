@@ -19,8 +19,9 @@ import Agda.Syntax.Translation.InternalToAbstract (reify)
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.MetaVars.Occurs (killArgs,PruneResult(..))
-import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
+import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Primitive (constructorForm)
@@ -31,11 +32,13 @@ import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
+import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Eliminators
 -- import Agda.TypeChecking.UniversePolymorphism
 
+import Agda.Utils.Size
 import Agda.Utils.Monad
 
 import Agda.TypeChecking.Monad.Debug
@@ -588,7 +591,22 @@ coerce v t1 t2 = blockTerm t2 $ do
         , text "from type t1 =" <+> prettyTCM a1
         , text "to type   t2 =" <+> prettyTCM a2
         ]
-  v <$ do workOnTypes $ leqType t1 t2
+  -- v <$ do workOnTypes $ leqType t1 t2
+  -- take off hidden/instance domains from t1 and t2
+  TelV tel1 b1 <- telViewUpTo' (-1) ((NotHidden /=) . domHiding) t1
+  TelV tel2 b2 <- telViewUpTo' (-1) ((NotHidden /=) . domHiding) t2
+  let n = size tel1 - size tel2
+  -- the crude solution would be
+  --   v' = λ {tel2} → v {tel1}
+  -- however, that may introduce unneccessary many function types
+  -- If n  > 0 and b2 is not blocked, it is safe to
+  -- insert n many hidden args
+  if n <= 0 then fallback else do
+    ifBlockedType b2 (\ _ _ -> fallback) $ \ _ -> do
+      (args, t1') <- implicitArgs n (NotHidden /=) t1
+      v `apply` args <$ do workOnTypes $ leqType t1' t2
+  where
+    fallback = v <$ do workOnTypes $ leqType t1 t2
 
 ---------------------------------------------------------------------------
 -- * Sorts
