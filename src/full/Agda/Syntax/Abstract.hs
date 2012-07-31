@@ -253,7 +253,8 @@ data Pattern' e	= VarP Name
                 | PatternSynP PatInfo QName [NamedArg (Pattern' e)]
   deriving (Typeable, Show, Functor, Foldable, Traversable)
 
-type Pattern = Pattern' Expr
+type Pattern  = Pattern' Expr
+type Patterns = [NamedArg Pattern]
 
 {--------------------------------------------------------------------------
     Instances
