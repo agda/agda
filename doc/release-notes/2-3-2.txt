@@ -207,6 +207,65 @@ Type checking
   This might no longer work from now on.
   See examples test/fail/Issue585*.agda
 
+* Less eager introduction of implicit parameters.  [Issue 679]
+
+  Until Agda 2.3.0, trailing hidden parameters were introduced eagerly
+  on the left hand side of a definition.  For instance, one could not
+  write
+
+    test : {A : Set} -> Set
+    test = \ {A} -> A
+
+  because internally, the hidden argument {A : Set} was added to the
+  left-hand side, yielding
+
+    test {_} = \ {A} -> A
+
+  which raised a type error.  Now, Agda only introduces the trailing
+  implicit parameters it has to, in order to maintain uniform function
+  arity.  For instance, in
+
+    test : Bool -> {A B C : Set} -> Set
+    test true {A}      = A
+    test false {B = B} = B
+
+  Agda will introduce parameters A and B in all clauses, but not C,
+  resulting in
+
+    test : Bool -> {A B C : Set} -> Set
+    test true  {A} {_}     = A
+    test false {_} {B = B} = B
+
+  Note that for checking where-clauses, still all hidden trailing
+  parameters are in scope.  For instance:
+
+    id : {i : Level}{A : Set i} -> A -> A
+    id = myId
+      where myId : forall {A} -> A -> A
+            myId x = x
+
+  To be able to fill in the metavariable _1 in
+
+    myId : {A : Set _1} -> A -> A
+
+  the hidden parameter {i : Level} needs to be in scope.
+
+  As a result of this more lazy introduction of implicit parameters,
+  the following code now passes.
+
+    data Unit : Set where
+      unit : Unit
+
+    T : Unit → Set
+    T unit = {u : Unit} → Unit
+
+    test : (u : Unit) → T u
+    test unit with unit
+    ... | _ = λ {v} → v
+
+  Before, Agda would eagerly introduce the hidden parameter {v} as
+  unnamed left-hand side parameter, leaving no way to refer to it.
+
 Compiler backends
 =================
 
