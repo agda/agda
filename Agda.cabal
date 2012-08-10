@@ -76,7 +76,7 @@ library
                     zlib >= 0.4.0.1 && < 0.6,
                     filepath >= 1.1 && < 1.4,
                     process >= 1.0.1.0 && < 1.2,
-                    haskeline >= 0.6.3.2 && < 0.7,
+                    haskeline >= 0.6.3.2 && < 0.8,
                     xhtml == 3000.2.*,
                     hashable >= 1.1.2.3 && < 1.2,
                     hashtables == 1.0.*,
