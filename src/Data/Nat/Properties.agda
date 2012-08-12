@@ -165,7 +165,7 @@ commutativeSemiring = record
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 module SemiringSolver =
-  Solver (ACR.fromCommutativeSemiring commutativeSemiring)
+  Solver (ACR.fromCommutativeSemiring commutativeSemiring) (DecTotalOrder._≟_ decTotalOrder)
 
 ------------------------------------------------------------------------
 -- (ℕ, ⊔, ⊓, 0) is a commutative semiring without one

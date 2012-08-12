@@ -313,7 +313,7 @@ commutativeRing = record
 import Algebra.RingSolver.Simple as Solver
 import Algebra.RingSolver.AlmostCommutativeRing as ACR
 module RingSolver =
-  Solver (ACR.fromCommutativeRing commutativeRing)
+  Solver (ACR.fromCommutativeRing commutativeRing) (DecTotalOrder._≟_ decTotalOrder)
 
 ------------------------------------------------------------------------
 -- More properties

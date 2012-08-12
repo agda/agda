@@ -5,7 +5,6 @@
 ------------------------------------------------------------------------
 
 -- Note that these proofs use all "almost commutative ring" properties
--- except for zero and -‿cong.
 
 open import Algebra
 open import Algebra.RingSolver.AlmostCommutativeRing
@@ -26,29 +25,22 @@ import Relation.Binary.EqReasoning as EqR; open EqR setoid
 open import Function
 open import Data.Product
 
-lemma₀ : ∀ x → x + ⟦ C.0# ⟧ ≈ x
-lemma₀ x = begin
-  x + ⟦ C.0# ⟧  ≈⟨ refl ⟨ +-cong ⟩ 0-homo ⟩
-  x + 0#        ≈⟨ proj₂ +-identity _ ⟩
-  x             ∎
+lemma₀ : ∀ a b c x →
+         (a + b) * x + c ≈ a * x + (b * x + c)
+lemma₀ a b c x = begin
+  (a + b) * x + c      ≈⟨ proj₂ distrib _ _ _ ⟨ +-cong ⟩ refl ⟩
+  (a * x + b * x) + c  ≈⟨ +-assoc _ _ _ ⟩
+  a * x + (b * x + c)  ∎
 
 lemma₁ : ∀ a b c d x →
          (a + b) * x + (c + d) ≈ (a * x + c) + (b * x + d)
 lemma₁ a b c d x = begin
-  (a + b) * x + (c + d)      ≈⟨ proj₂ distrib _ _ _ ⟨ +-cong ⟩ refl ⟩
-  (a * x + b * x) + (c + d)  ≈⟨ +-assoc _ _ _ ⟩
+  (a + b) * x + (c + d)      ≈⟨ lemma₀ _ _ _ _ ⟩
   a * x + (b * x + (c + d))  ≈⟨ refl ⟨ +-cong ⟩ sym (+-assoc _ _ _) ⟩
   a * x + ((b * x + c) + d)  ≈⟨ refl ⟨ +-cong ⟩ (+-comm _ _ ⟨ +-cong ⟩ refl) ⟩
   a * x + ((c + b * x) + d)  ≈⟨ refl ⟨ +-cong ⟩ +-assoc _ _ _ ⟩
   a * x + (c + (b * x + d))  ≈⟨ sym $ +-assoc _ _ _ ⟩
   (a * x + c) + (b * x + d)  ∎
-
-lemma₂ : ∀ x y z → x + (y + z) ≈ y + (x + z)
-lemma₂ x y z = begin
-  x + (y + z)  ≈⟨ sym $ +-assoc _ _ _ ⟩
-  (x + y) + z  ≈⟨ +-comm _ _ ⟨ +-cong ⟩ refl ⟩
-  (y + x) + z  ≈⟨ +-assoc _ _ _ ⟩
-  y + (x + z)  ∎
 
 lemma₃ : ∀ a b c x → a * c * x + b * c ≈ (a * x + b) * c
 lemma₃ a b c x = begin
@@ -105,15 +97,33 @@ lemma₅ a b c d x = begin
     a * (x * d) + b * (c * x)  ≈⟨ sym $ *-assoc _ _ _ ⟨ +-cong ⟩ refl ⟩
     a * x * d + b * (c * x)    ∎
 
-lemma₆ : ∀ a b x → - a * x + - b ≈ - (a * x + b)
-lemma₆ a b x = begin
-  - a * x + - b    ≈⟨ -‿*-distribˡ _ _ ⟨ +-cong ⟩ refl ⟩
-  - (a * x) + - b  ≈⟨ -‿+-comm _ _ ⟩
-  - (a * x + b)    ∎
+lemma₅′ : ∀ a b c d x →
+         (a * c * x + (a * d + b * c)) * x + b * d ≈
+         (a * x + b) * (c * x + d)
+lemma₅′ a b c d x = begin
+    (a * c * x + (a * d + b * c)) * x + b * d      ≈⟨ proj₂ distrib _ _ _ ⟨ +-cong ⟩ refl ⟩
+    (a * c * x * x + (a * d + b * c) * x) + b * d  ≈⟨ refl ⟨ +-cong ⟩ ((refl ⟨ +-cong ⟩ refl) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
+    (a * c * x * x + (a * d + b * c) * x) + b * d  ≈⟨ +-assoc _ _ _  ⟩
+    a * c * x * x + ((a * d + b * c) * x + b * d)  ≈⟨ lemma₅ _ _ _ _ _ ⟩
+    (a * x + b) * (c * x + d)                      ∎
 
-lemma₇ : ∀ x → ⟦ C.1# ⟧ * x + ⟦ C.0# ⟧ ≈ x
+lemma₇ : ∀ x → (0# * x + 1#) * x + 0# ≈ x
 lemma₇ x = begin
-  ⟦ C.1# ⟧ * x + ⟦ C.0# ⟧  ≈⟨ (1-homo ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ 0-homo ⟩
+  (0# * x + 1#) * x + 0#   ≈⟨ ((zeroˡ _ ⟨ +-cong ⟩ refl) ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
+  (0# + 1#) * x + 0#       ≈⟨ (proj₁ +-identity _ ⟨ *-cong ⟩ refl) ⟨ +-cong ⟩ refl ⟩
   1# * x + 0#              ≈⟨ proj₂ +-identity _ ⟩
   1# * x                   ≈⟨ proj₁ *-identity _ ⟩
   x                        ∎
+
+lemma₈ : ∀ a x → 0# * x + a ≈ a
+lemma₈ a x = begin
+  0# * x + a    ≈⟨ zeroˡ _ ⟨ +-cong ⟩ refl ⟩
+  0# + a        ≈⟨ proj₁ +-identity _ ⟩
+  a             ∎
+
+lemma₉ : ∀ x → - 1# * x ≈ - x
+lemma₉ x = begin
+  - 1# * x      ≈⟨ -‿*-distribˡ _ _ ⟩
+  - (1# * x)    ≈⟨ -‿cong (proj₁ *-identity _) ⟩
+  - x           ∎
+
