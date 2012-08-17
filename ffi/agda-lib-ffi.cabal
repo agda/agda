@@ -5,6 +5,6 @@ build-type:      Simple
 description:     Auxiliary Haskell code used by Agda's standard library.
 
 library
-  build-depends:    base >= 3.0.3.1 && < 4.6
+  build-depends:    base >= 3.0.3.1 && < 4.7
   exposed-modules:  Data.FFI
                     IO.FFI
