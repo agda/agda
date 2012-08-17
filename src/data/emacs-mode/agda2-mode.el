@@ -43,13 +43,16 @@ properties to add to the result."
     str)))
 (unless (fboundp 'run-mode-hooks)
   (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
+(unless (fboundp 'cl-labels)
+  (fset 'cl-labels 'labels))  ; For Emacs versions < 24.2.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
 
 (defmacro agda2-let (varbind funcbind &rest body)
-  "Expands to (let* VARBIND (labels FUNCBIND BODY...))."
-  `(let* ,varbind (labels ,funcbind ,@body)))
+  "Expands to (let* VARBIND (cl-labels FUNCBIND BODY...)).
+Or possibly (let* VARBIND (labels FUNCBIND BODY...))."
+  `(let* ,varbind (cl-labels ,funcbind ,@body)))
 (put 'agda2-let 'lisp-indent-function 2)
 
 (defun agda2-chunkify (n xs)
@@ -632,7 +635,7 @@ reloaded from `agda2-highlighting-file', unless
                            (string-match "^agda2-highlight-"
                                          (symbol-name (car cmd)))))))
 
-              (unless highlighting-cmd
+              (unless nil ; highlighting-cmd
                 (agda2-queue-enqueue echoed-text (concat line "\n")))
 
               (when cmd
@@ -1182,7 +1185,7 @@ ways."
       (if literate (push 'outside stk))
       (goto-char (point-min))
       (while (and goals (safe-delims))
-        (labels ((c (s) (equal s (match-string 0))))
+        (cl-labels ((c (s) (equal s (match-string 0))))
           (cond
            ((c "\\begin{code}") (when (outside-code)               (pop stk)))
            ((c "\\end{code}")   (when (not stk)                    (push 'outside stk)))
