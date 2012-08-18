@@ -127,7 +127,8 @@ findInScope' :: MetaId -> [(Term, Type)] -> TCM (Maybe [(Term, Type)])
 findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
     t <- getMetaTypeInContext m
-    reportSLn "tc.constr.findInScope" 15 $ "findInScope 3: t: " ++ show t
+    reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
+    reportSLn "tc.constr.findInScope" 50 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
@@ -181,7 +182,7 @@ checkCandidates m t cands = localState $ do
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
-      liftTCM $ flip catchError (\err -> return False) $ do
+      liftTCM $ flip catchError handle $ do
         reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
         localState $ do
            -- domi: we assume that nothing below performs direct IO (except
@@ -205,6 +206,10 @@ checkCandidates m t cands = localState $ do
               -- to be on the safe side.
               solveAwakeConstraints' True
               return True
+      where
+        handle err = do
+          reportSDoc "tc.constr.findInScope" 50 $ text "assignment failed:" <+> prettyTCM err
+          return False
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
     isIFSConstraint _             = False
