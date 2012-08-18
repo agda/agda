@@ -53,7 +53,7 @@ import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
 import Agda.Utils.Size
-import Agda.Utils.Monad ((<$>), mapM', forM')
+import Agda.Utils.Monad ((<$>), mapM', forM', ifM)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
 
@@ -151,8 +151,11 @@ termMutual i ds = if names == [] then return mempty else do
            , currentTarget            = Nothing
            }
 
-     -- termMutual' conf names allNames -- old check, all at once
-     forM' allNames $ termFunction conf names allNames -- new check one after another
+     -- new check currently only makes a difference for copatterns
+     -- since it is slow, only invoke it if --copatterns
+     ifM (optCopatterns <$> pragmaOptions)
+       (forM' allNames $ termFunction conf names allNames) -- new check one after another
+       (termMutual' conf names allNames) -- old check, all at once
 
   where
   getName (A.FunDef i x delayed cs) = [x]
