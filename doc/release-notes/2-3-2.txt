@@ -269,6 +269,21 @@ Type checking
 Compiler backends
 =================
 
+* -Werror is now overridable.
+
+  To enable compilation of Haskell modules containing warnings, the
+  -Werror flag for the MAlonzo backend has been made overridable. If,
+  for example, --ghc-flag=-Wwarn is passed when compiling, one can get
+  away with things like:
+
+    data PartialBool : Set where
+      true : PartialBool
+
+    {-# COMPILED_DATA PartialBool Bool True #-}
+
+  The default behaviour remains as it used to be and rejects the above
+  program.
+
 Tools
 =====
 

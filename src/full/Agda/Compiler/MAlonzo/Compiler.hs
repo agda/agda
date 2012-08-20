@@ -515,6 +515,7 @@ callGHC i = do
   let overridableArgs =
         [ "-O"
         , "-o", mdir </> show outputName
+        , "-Werror"
         ]
       otherArgs       =
         [ "-i" ++ mdir
@@ -523,7 +524,6 @@ callGHC i = do
         , "--make"
         , "-fwarn-incomplete-patterns"
         , "-fno-warn-overlapping-patterns"
-        , "-Werror"
         ]
       args     = overridableArgs ++ opts ++ otherArgs
       compiler = "ghc"
