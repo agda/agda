@@ -17,6 +17,8 @@ open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as P
   using (_≡_; _≗_; refl)
 open import Relation.Unary using (_⊆_)
+open import Data.W
+open import Data.M
 
 ------------------------------------------------------------------------
 -- Containers
@@ -38,6 +40,14 @@ open Container public
 
 ⟦_⟧ : ∀ {ℓ} → Container ℓ → Set ℓ → Set ℓ
 ⟦ C ⟧ X = Σ[ s ∈ Shape C ] (Position C s → X)
+
+-- The least and greatest fixpoint of a container.
+
+μ : ∀ {ℓ} → Container ℓ → Set ℓ
+μ C = W (Shape C) (Position C)
+
+ν : ∀ {ℓ} → Container ℓ → Set ℓ
+ν C = M (Shape C) (Position C)
 
 -- Equality, parametrised on an underlying relation.
 
