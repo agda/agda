@@ -45,6 +45,8 @@ properties to add to the result."
   (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
 (unless (fboundp 'cl-labels)
   (fset 'cl-labels 'labels))  ; For Emacs versions < 24.2.
+(unless (fboundp 'cl-flet)
+  (fset 'cl-flet 'flet))  ; For Emacs versions < 24.2.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
@@ -1207,7 +1209,7 @@ ways."
 (defun agda2-make-goal (p q n)
   "Make a goal with number N at <P>{!...!}<Q>.  Assume the region is clean."
   (annotation-preserve-mod-p-and-undo
-   (flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
+   (cl-flet ((atp (x ps) (add-text-properties x (1+ x) ps)))
      (atp p       '(category agda2-delim1))
      (atp (1+ p)  '(category agda2-delim2))
      (atp (- q 2) '(category agda2-delim3))
