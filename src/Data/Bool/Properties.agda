@@ -108,7 +108,7 @@ commutativeSemiring-∨-∧ = record
   }
 
 module RingSolver =
-  Solver (ACR.fromCommutativeSemiring commutativeSemiring-∨-∧)
+  Solver (ACR.fromCommutativeSemiring commutativeSemiring-∨-∧) _≟_
 
 ------------------------------------------------------------------------
 -- (Bool, ∧, ∨, true, false) forms a commutative semiring
@@ -248,7 +248,7 @@ commutativeRing-xor-∧ = commutativeRing
   open XorRing _xor_ xor-is-ok
 
 module XorRingSolver =
-  Solver (ACR.fromCommutativeRing commutativeRing-xor-∧)
+  Solver (ACR.fromCommutativeRing commutativeRing-xor-∧) _≟_
 
 ------------------------------------------------------------------------
 -- Miscellaneous other properties
