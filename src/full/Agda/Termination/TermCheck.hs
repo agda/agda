@@ -117,7 +117,9 @@ termDecl d = case d of
 
 -- | Termination check a bunch of mutually inductive recursive definitions.
 termMutual :: Info.MutualInfo -> [A.Declaration] -> TCM Result
-termMutual i ds = if names == [] then return mempty else do
+termMutual i ds = if names == [] then return mempty else
+  -- we set the range to avoid panics when printing error messages
+  traceCall (SetRange (Info.mutualRange i)) $ do
   if not (Info.mutualTermCheck i) then do
       reportSLn "term.warn.yes" 2 $ "Skipping termination check for " ++ show names
       return mempty
@@ -528,6 +530,10 @@ termTerm conf names f delayed pats0 t0 = do
        -- a subgrammar of Term, then we would not need this boilerplate.
        loopSort :: (?cutoff :: Int) => [DeBruijnPat] -> Sort -> TCM Calls
        loopSort pats s = do
+         reportSDoc "term.sort" 20 $ text "extracting calls from sort" <+> prettyTCM s
+         reportSDoc "term.sort" 50 $ text ("s = " ++ show s)
+         s <- instantiateFull s
+         reportSDoc "term.sort" 50 $ text ("s = " ++ show s)
          case s of
            Type (Max [])              -> return Term.empty
            Type (Max [ClosedLevel _]) -> return Term.empty
