@@ -233,8 +233,9 @@ checkTypedBinding lamOrPi h rel (A.TNoBind e) ret = do
 checkLambda :: Arg A.TypedBinding -> A.Expr -> Type -> TCM Term
 checkLambda (Arg _ _ A.TNoBind{}) _ _ = __IMPOSSIBLE__
 checkLambda (Arg h r (A.TBind _ xs typ)) body target = do
-  TelV tel btyp <- telViewUpTo (length xs) target
-  if size tel < size xs || length xs /= 1
+  let numbinds = length xs
+  TelV tel btyp <- telViewUpTo numbinds target
+  if size tel < size xs || numbinds /= 1
     then dontUseTargetType
     else useTargetType tel btyp
   where
