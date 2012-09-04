@@ -46,9 +46,10 @@ import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Implicit
 import Agda.TypeChecking.SizedTypes
+import Agda.TypeChecking.CompiledClause (CompiledClauses(..))
 import Agda.TypeChecking.CompiledClause.Compile
 
-import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, checkTelescope_, isType_ )
+import Agda.TypeChecking.Rules.Term                ( checkExpr, inferExpr, inferExprForWith, inferOrCheck, checkTelescope_, isType_ )
 import Agda.TypeChecking.Rules.LHS                 ( checkLeftHandSide )
 import Agda.TypeChecking.Rules.LHS.Implicit        ( insertImplicitPatterns )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Decl ( checkDecls )
@@ -75,7 +76,52 @@ checkFunDef delayed i name cs = do
         -- Get the type and relevance of the function
         t    <- typeOfConst name
         rel  <- relOfConst name
-        checkFunDef' t rel delayed i name cs
+        case trivialClause cs of
+          -- if we have just one clause without pattern matching and
+          -- without a type signature, then infer, to allow
+          -- "aliases" for things starting with hidden abstractions
+          Just e | isMeta (unEl t) ->
+            traceCall (CheckFunDef (getRange i) (qnameName name) cs) $
+              checkAlias t rel delayed i name e
+          _ -> checkFunDef' t rel delayed i name cs
+  where
+    isMeta MetaV{} = True
+    isMeta _       = False
+    trivialClause [A.Clause (A.LHS i (A.LHSHead f []) []) (A.RHS e) []] = Just e
+    trivialClause _ = Nothing
+
+-- | Check a trivial definition of the form @f = e@
+checkAlias :: Type -> Relevance -> Delayed -> Info.DefInfo -> QName -> A.Expr -> TCM ()
+checkAlias t' rel delayed i name e = do
+  reportSDoc "tc.def.alias" 10 $ text "checkAlias" <+> vcat
+    [ text (show name) <+> colon  <+> prettyTCM t'
+    , text (show name) <+> equals <+> prettyTCM e
+    ]
+  -- Infer the type of the rhs
+  (v, t) <- applyRelevanceToContext rel $ inferOrCheck e (Just t')
+  -- v <- coerce v t t'
+  reportSDoc "tc.def.alias" 20 $ text "checkAlias: finished checking"
+
+  solveSizeConstraints
+
+  v <- instantiateFull v  -- if we omit this, we loop (stdlib: Relation.Binary.Sum)
+
+  -- Add the definition
+  addConstant name $ Defn rel name t (defaultDisplayForm name) 0 noCompiledRep
+                   $ Function
+                      { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
+                      , funCompiled       = Done [] v
+                      , funDelayed        = delayed
+                      , funInv            = NotInjective
+                      , funAbstr          = Info.defAbstract i
+                      , funPolarity       = []
+                      , funArgOccurrences = []
+                      , funMutual         = []
+                      , funProjection     = Nothing
+                      , funStatic         = False
+                      }
+  reportSDoc "tc.def.alias" 20 $ text "checkAlias: leaving"
+
 
 -- | Type check a definition by pattern matching. The third argument
 -- specifies whether the clauses are delayed or not.

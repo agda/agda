@@ -266,6 +266,18 @@ Type checking
   Before, Agda would eagerly introduce the hidden parameter {v} as
   unnamed left-hand side parameter, leaving no way to refer to it.
 
+  The related issue 655 has also been adressed.  It is now possible
+  to make `synonymn' definitions
+
+    name = expression
+
+  even when the type of expression begins with a hidden quantifier.
+  Simple example:
+
+    id2 = id
+
+  That resulted in unsolved metas until 2.3.0.
+
 Compiler backends
 =================
 

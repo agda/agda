@@ -1216,7 +1216,9 @@ checkArguments_ exh r args tel = do
 -- | Infer the type of an expression. Implemented by checking against a meta
 --   variable.  Except for neutrals, for them a polymorphic type is inferred.
 inferExpr :: A.Expr -> TCM (Term, Type)
-inferExpr e = case e of
+inferExpr e = inferOrCheck e Nothing
+{-
+case e of
   _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
     (f, t0) <- inferHead hd
     res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) args t0 (sort Prop)
@@ -1229,11 +1231,29 @@ inferExpr e = case e of
       t <- workOnTypes $ newTypeMeta_
       v <- checkExpr e t
       return (v,t)
+-}
 
-    defOrVar :: A.Expr -> Bool
-    defOrVar A.Var{} = True
-    defOrVar A.Def{} = True
-    defOrVar _     = False
+defOrVar :: A.Expr -> Bool
+defOrVar A.Var{} = True
+defOrVar A.Def{} = True
+defOrVar _     = False
+
+inferOrCheck :: A.Expr -> Maybe Type -> TCM (Term, Type)
+inferOrCheck e mt = case e of
+  _ | Application hd args <- appView e, defOrVar hd -> traceCall (InferExpr e) $ do
+    (f, t0) <- inferHead hd
+    res <- runErrorT $ checkArguments DontExpandLast ExpandInstanceArguments (getRange hd) args t0 $ maybe (sort Prop) id mt
+    case res of
+      Right (vs, t1) -> maybe (return (f vs, t1))
+                              (\ t -> (,t) <$> coerce (f vs) t1 t)
+                              mt
+      Left t1        -> fallback -- blocked on type t1
+  _ -> fallback
+  where
+    fallback = do
+      t <- maybe (workOnTypes $ newTypeMeta_) return mt
+      v <- checkExpr e t
+      return (v,t)
 
 -- | Infer the type of an expression, and if it is of the form
 --   @{tel} -> D vs@ for some datatype @D@ then insert the hidden
