@@ -532,8 +532,12 @@ termTerm conf names f delayed pats0 t0 = do
        loopSort pats s = do
          reportSDoc "term.sort" 20 $ text "extracting calls from sort" <+> prettyTCM s
          reportSDoc "term.sort" 50 $ text ("s = " ++ show s)
-         s <- instantiateFull s
-         reportSDoc "term.sort" 50 $ text ("s = " ++ show s)
+         -- s <- instantiateFull s -- Andreas, 2012-09-05 NOT NECESSARY
+         -- instantiateFull resolves problems with reallyUnLevelView
+         -- in the absense of level built-ins.
+         -- However, the termination checker should only receive terms
+         -- that are already fully instantiated.
+
          case s of
            Type (Max [])              -> return Term.empty
            Type (Max [ClosedLevel _]) -> return Term.empty
@@ -730,7 +734,11 @@ termTerm conf names f delayed pats0 t0 = do
             DontCare t -> loop pats guarded t
 
             -- Level.
-            Level l -> loop pats guarded =<< reallyUnLevelView l
+            Level l -> do
+              l <- catchError (reallyUnLevelView l) $ const $ internalError $
+                "Termination checker: cannot view level expression, " ++
+                "probably due to missing level built-ins."
+              loop pats guarded l
 
          where
          -- Should function and Π type constructors be treated as

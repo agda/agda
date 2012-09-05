@@ -105,6 +105,9 @@ checkAlias t' rel delayed i name e = do
   solveSizeConstraints
 
   v <- instantiateFull v  -- if we omit this, we loop (stdlib: Relation.Binary.Sum)
+    -- or the termination checker might stumble over levels in sorts
+    -- that cannot be converted to expressions without the level built-ins
+    -- (test/succeed/Issue655.agda)
 
   -- Add the definition
   addConstant name $ Defn rel name t (defaultDisplayForm name) 0 noCompiledRep
