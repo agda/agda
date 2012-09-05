@@ -81,7 +81,7 @@ module DecidableEquality {d₁ d₂} (D : DecSetoid d₁ d₂) where
 
 module PropositionalEquality {a} {A : Set a} where
 
-  open Equality (P.setoid A)
+  open Equality (P.setoid A) public
 
   to-≡ : ∀ {n} {xs ys : Vec A n} → xs ≈ ys → xs ≡ ys
   to-≡ []-cong                 = P.refl
