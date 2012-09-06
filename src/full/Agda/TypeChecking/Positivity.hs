@@ -40,6 +40,8 @@ import Agda.Utils.Graph (Graph)
 -- declarations are strictly positive.
 checkStrictlyPositive :: Set QName -> TCM ()
 checkStrictlyPositive qs = do
+
+  -- compute the occurrence graph for qs
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   g <- Graph.filterEdges (\ (Edge o _) -> o /= Unused) <$> buildOccurrenceGraph qs
   let gstar = Graph.transitiveClosure $ fmap occ g
@@ -55,14 +57,19 @@ checkStrictlyPositive qs = do
       prettyTCM (Set.toList qs)
     , nest 2 $ prettyTCM gstar
     ]
+
+  -- remember argument occurrences for qs in the signature
   mapM_ (setArgs gstar) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "set args"
+
+  -- check positivity for all strongly connected components of the graph for qs
   let sccs = Graph.sccs gstar
   reportSDoc "tc.pos.graph.sccs" 15 $ text $ "  sccs = " ++ show sccs
   forM_ sccs $ \ scc -> setMut [ q | DefNode q <- scc ]
   whenM positivityCheckEnabled $
     mapM_ (checkPos g) $ Set.toList qs
   reportSDoc "tc.pos.tick" 100 $ text "checked positivity"
+
   where
     checkPos g q = do
       -- we check positivity only for data or record definitions
@@ -186,6 +193,7 @@ data OccursWhere
   | VarArg OccursWhere           -- ^ as an argument to a bound variable
   | MetaArg OccursWhere          -- ^ as an argument of a metavariable
   | ConArgType QName OccursWhere -- ^ in the type of a constructor
+  | IndArgType QName OccursWhere -- ^ in a datatype index of a constructor
   | InClause Nat OccursWhere     -- ^ in the nth clause of a defined function
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
@@ -201,6 +209,7 @@ UnderInf o1     >*< o2 = UnderInf (o1 >*< o2)
 VarArg o1       >*< o2 = VarArg (o1 >*< o2)
 MetaArg o1      >*< o2 = MetaArg (o1 >*< o2)
 ConArgType c o1 >*< o2 = ConArgType c (o1 >*< o2)
+IndArgType c o1 >*< o2 = IndArgType c (o1 >*< o2)
 InClause i o1   >*< o2 = InClause i (o1 >*< o2)
 InDefOf d o1    >*< o2 = InDefOf d (o1 >*< o2)
 
@@ -233,6 +242,7 @@ instance PrettyTCM OccursWhere where
         VarArg o       -> explain o $ pwords "in an argument to a bound variable"
         MetaArg o      -> explain o $ pwords "in an argument to a metavariable"
         ConArgType c o -> explain o $ pwords "in the type of the constructor" ++ [prettyTCM c]
+        IndArgType c o -> explain o $ pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
         InClause i o   -> explain o $ pwords "in the" ++ nth i ++ pwords "clause"
         InDefOf d o    -> explain o $ pwords "in the definition of" ++ [prettyTCM d]
 
@@ -248,6 +258,7 @@ instance PrettyTCM OccursWhere where
         VarArg o       -> VarArg       $ maxOneLeftOfArrow o
         MetaArg o      -> MetaArg      $ maxOneLeftOfArrow o
         ConArgType c o -> ConArgType c $ maxOneLeftOfArrow o
+        IndArgType c o -> IndArgType c $ maxOneLeftOfArrow o
         InClause i o   -> InClause i   $ maxOneLeftOfArrow o
 
       purgeArrows o = case o of
@@ -260,6 +271,7 @@ instance PrettyTCM OccursWhere where
         VarArg o       -> VarArg       $ purgeArrows o
         MetaArg o      -> MetaArg      $ purgeArrows o
         ConArgType c o -> ConArgType c $ purgeArrows o
+        IndArgType c o -> IndArgType c $ purgeArrows o
         InClause i o   -> InClause i   $ purgeArrows o
 
       splitOnDef o = case o of
@@ -272,6 +284,7 @@ instance PrettyTCM OccursWhere where
         VarArg o       -> sp VarArg o
         MetaArg o      -> sp MetaArg o
         ConArgType c o -> sp (ConArgType c) o
+        IndArgType c o -> sp (IndArgType c) o
         InClause i o   -> sp (InClause i) o
         where
           sp f o = case splitOnDef o of
@@ -426,10 +439,14 @@ computeOccurrences q = do
     Datatype{dataPars = np, dataCons = cs}       -> do
       let conOcc c = do
             a <- defType <$> getConstInfo c
-            TelV tel _ <- telView' <$> normalise a
-            let tel' = telFromList $ genericDrop np $ telToList tel
-                vars = map (Just . AnArg) $ downFrom np
-            occursAs (ConArgType c) <$> getOccurrences vars tel'
+            TelV tel t <- telView' <$> normalise a
+            let indices = case unEl t of
+                            Def _ vs -> genericDrop np vs
+                            _        -> __IMPOSSIBLE__
+            let tel'    = telFromList $ genericDrop np $ telToList tel
+                vars np = map (Just . AnArg) $ downFrom np
+            (>+<) <$> (occursAs (ConArgType c) <$> getOccurrences (vars np) tel')
+                  <*> (occursAs (IndArgType c) <$> getOccurrences (vars $ size tel) indices)
       concatOccurs <$> mapM conOcc cs
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
@@ -558,6 +575,7 @@ computeEdge muts o = do
 -}
       UnderInf o     -> addPol o GuardPos -- Andreas, 2012-06-09: ∞ is guarding
       ConArgType _ o -> keepGoing o
+      IndArgType _ o -> negative o
       InClause _ o   -> keepGoing o
       InDefOf d o    -> do
         isDR <- isDataOrRecordType d
