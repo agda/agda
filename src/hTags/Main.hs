@@ -81,7 +81,11 @@ goFile file = do
   case parse st pMod of
     POk _ m         -> return $ removeDuplicates $ tags $ unLoc m
     PFailed loc err -> liftIO $ do
+#if MIN_VERSION_ghc(7,6,0)
+      print (mkPlainErrMsg dflags loc err)
+#else
       printError loc err
+#endif
       exitWith $ ExitFailure 1
 
 runCmd :: String -> IO String

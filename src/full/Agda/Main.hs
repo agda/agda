@@ -17,7 +17,6 @@ import Data.Maybe
 import System.Environment
 import System.Exit
 import System.FilePath
-import System.Time
 
 import Agda.Syntax.Position
 import Agda.Syntax.Parser

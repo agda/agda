@@ -11,12 +11,11 @@ import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set
 
-import System.Time
-
 import Agda.Syntax.Abstract.Name
 import qualified Agda.Syntax.Concrete.Name as C
 import Agda.TypeChecking.Monad.Base
 import Agda.Utils.Monad
+import Agda.Utils.Time
 
 addImport :: ModuleName -> TCM ()
 addImport m =

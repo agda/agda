@@ -26,7 +26,6 @@ import Data.List
 import Data.Map (Map)
 import qualified Data.Map as Map
 import System.FilePath
-import System.Directory
 
 import Agda.Syntax.Concrete
 import Agda.Syntax.Parser

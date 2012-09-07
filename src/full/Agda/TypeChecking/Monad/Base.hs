@@ -23,7 +23,6 @@ import Data.Foldable
 import Data.Traversable
 import Data.IORef
 import Data.Hashable
-import System.Time
 
 import Agda.Syntax.Common
 import qualified Agda.Syntax.Concrete as C
@@ -53,6 +52,7 @@ import Agda.Utils.Fresh
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
+import Agda.Utils.Time
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible

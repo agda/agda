@@ -3,8 +3,8 @@
 -}
 module Agda.Interaction.Exceptions where
 
-import Prelude hiding (catch)
-import Control.Exception
+import Prelude
+import Control.Exception as E
 import Control.Monad.Trans
 import System.Exit
 
@@ -17,6 +17,6 @@ handleParseException crash e = crash e
 -- | Note that 'failOnException' only catches 'ParseError's.
 
 failOnException :: (Range -> String -> IO a) -> IO a -> IO a
-failOnException h m = m `catch` handleParseException handler
+failOnException h m = m `E.catch` handleParseException handler
     where
 	handler x = h (getRange x) (show x)

@@ -13,7 +13,9 @@ import qualified Data.Set as S
 import Data.Maybe
 import Data.Monoid
 import qualified Language.Haskell.Exts.Syntax as Haskell
-import System.Directory
+import System.Directory ( canonicalizePath, createDirectoryIfMissing
+                        , getCurrentDirectory, setCurrentDirectory
+                        )
 import System.Exit
 import System.FilePath hiding (normalise)
 import System.Process hiding (env)

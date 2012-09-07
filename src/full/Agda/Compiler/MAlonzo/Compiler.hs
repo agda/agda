@@ -14,8 +14,7 @@ import qualified Language.Haskell.Exts.Extension as HS
 import qualified Language.Haskell.Exts.Parser as HS
 import qualified Language.Haskell.Exts.Syntax as HS
 import System.Cmd
-import System.Directory
-import System.Time
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath hiding (normalise)
 
 import Agda.Compiler.CallCompiler
@@ -443,6 +442,7 @@ writeModule (HS.Module l m ps w ex imp ds) = do
         , "ExistentialQuantification"
         , "ScopedTypeVariables"
         , "NoMonomorphismRestriction"
+        , "Rank2Types"
         ]
 
 rteModule :: HS.Module

@@ -193,7 +193,12 @@ instance TagName name => HasTags (HsDecl name) where
 instance TagName name => HasTags (TyClDecl name) where
   tags d = tagsLN (tcdLName d) ++
     case d of
-      TyData { tcdCons = cons } -> tags cons
+#if MIN_VERSION_ghc(7,6,0)
+      TyDecl { tcdTyDefn = TyData { td_cons = cons } }
+#else
+      TyData { tcdCons = cons }
+#endif
+        -> tags cons
       ClassDecl { tcdSigs = meths
                 , tcdATs  = ats
                 } -> tags (meths, ats)

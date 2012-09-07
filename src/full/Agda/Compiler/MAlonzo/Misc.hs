@@ -10,7 +10,6 @@ import Data.Maybe
 import Data.Function
 import qualified Language.Haskell.Exts.Syntax as HS
 import System.IO
-import System.Time
 
 import Agda.Interaction.Imports
 import Agda.Syntax.Common

@@ -1102,8 +1102,6 @@ instance EmbPrj Epic.Tag where
     valu [1, a] = valu1 Epic.PrimTag a
     valu _      = malformed
 
-{-# SPECIALIZE icodeX :: (Dict -> HashTable [Int32] Int32) ->
-                         (Dict -> IORef Int32) -> [Int32] -> S Int32 #-}
 icodeX :: (Eq k, Hashable k) =>
           (Dict -> HashTable k Int32) -> (Dict -> IORef Int32) ->
           k -> S Int32

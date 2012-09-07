@@ -672,6 +672,7 @@ instance PrettyTCM TypeError where
               | n > 0 && not (null args) = parens
               | otherwise                = id
 
+            showArg :: Arg I.Pattern -> TCM Doc
             showArg (Arg Hidden r x)    = braces $ showPat 0 x
             showArg (Arg Instance r x)  = dbraces $ showPat 0 x
             showArg (Arg NotHidden r x) = showPat 1 x

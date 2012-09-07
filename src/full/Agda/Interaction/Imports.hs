@@ -4,7 +4,7 @@
 -}
 module Agda.Interaction.Imports where
 
-import Prelude hiding (catch)
+import Prelude
 
 import Control.Arrow
 import Control.Monad.Error
@@ -23,8 +23,7 @@ import Data.Maybe
 import Data.Monoid (mempty, mappend)
 import Data.Map (Map)
 import Data.Set (Set)
-import System.Directory
-import System.Time
+import System.Directory (doesFileExist, getModificationTime, removeFile)
 import System.FilePath hiding (splitPath)
 
 import Agda.Syntax.Position
@@ -61,6 +60,7 @@ import Agda.Utils.Monad
 import Agda.Utils.IO.Binary
 import Agda.Utils.Pretty
 import Agda.Utils.Fresh
+import Agda.Utils.Time
 
 import Agda.Utils.Impossible
 #include "../undefined.h"

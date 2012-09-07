@@ -27,7 +27,6 @@ import Control.Monad.State
 import Data.List as List
 import qualified Data.Map as Map
 import qualified System.Mem as System
-import System.Time
 
 import Agda.TypeChecking.Monad as TM
   hiding (initState, setCommandLineOptions)
@@ -62,6 +61,7 @@ import qualified Agda.Compiler.JS.Compiler as JS
 
 import qualified Agda.Auto.Auto as Auto
 import qualified Agda.Utils.HashMap as HMap
+import Agda.Utils.Time
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
