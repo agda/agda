@@ -9,7 +9,7 @@ module Agda.TypeChecking.Free
     , relevantVars
     , rigidVars
     , freeIn, isBinderUsed
-    , freeInIgnoringSorts
+    , freeInIgnoringSorts, freeInIgnoringSortAnn
     , relevantIn
     , Occurrence(..)
     , occurrence
@@ -124,15 +124,21 @@ singleton x = FV { stronglyRigidVars = Set.singleton x
 class Free a where
   freeVars'   :: FreeConf -> a -> FreeVars
 
+-- | Where should we skip sorts in free variable analysis?
+data IgnoreSorts
+  = IgnoreNot            -- ^ Do not skip.
+  | IgnoreInAnnotations  -- ^ Skip when annotation to a type.
+  | IgnoreAll            -- ^ Skip unconditionally.
+  deriving (Eq, Show)
+
 data FreeConf = FreeConf
-  { fcIgnoreSorts :: Bool
-    -- ^ Ignore free variables in sorts.
+  { fcIgnoreSorts   :: IgnoreSorts -- ^ Ignore free variables in sorts.
   }
 
 -- | Doesn't go inside solved metas, but collects the variables from a
 -- metavariable application @X ts@ as @flexibleVars@.
 freeVars :: Free a => a -> FreeVars
-freeVars = freeVars' FreeConf{ fcIgnoreSorts = False }
+freeVars = freeVars' FreeConf{ fcIgnoreSorts = IgnoreNot }
 
 instance Free Term where
   freeVars' conf t = case t of
@@ -151,12 +157,14 @@ instance Free Term where
     DontCare mt -> irrelevantly $ freeVars' conf mt
 
 instance Free Type where
-  freeVars' conf (El s t) = freeVars' conf (s, t)
+  freeVars' conf (El s t)
+    | fcIgnoreSorts conf == IgnoreNot = freeVars' conf (s, t)
+    | otherwise                       = freeVars' conf t
 
 instance Free Sort where
   freeVars' conf s
-    | fcIgnoreSorts conf = empty
-    | otherwise          = case s of
+    | fcIgnoreSorts conf == IgnoreAll = empty
+    | otherwise                       = case s of
       Type a     -> freeVars' conf a
       Prop       -> empty
       Inf        -> empty
@@ -210,10 +218,14 @@ freeIn v t = v `Set.member` allVars (freeVars t)
 
 freeInIgnoringSorts :: Free a => Nat -> a -> Bool
 freeInIgnoringSorts v t =
-  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
+  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreAll } t)
+
+freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
+freeInIgnoringSortAnn v t =
+  v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } t)
 
 relevantIn :: Free a => Nat -> a -> Bool
-relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = True } t)
+relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreAll } t)
 
 -- | Is the variable bound by the abstraction actually used?
 isBinderUsed :: Free a => Abs a -> Bool
