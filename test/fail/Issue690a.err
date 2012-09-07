@@ -1,0 +1,3 @@
+Issue690a.agda:5,6-7
+T is not strictly positive, because it occurs in an index of the
+target type of the constructor c in the definition of T.
