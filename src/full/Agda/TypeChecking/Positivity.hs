@@ -13,6 +13,7 @@ import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List as List
+import Data.Maybe (mapMaybe)
 
 import Agda.Syntax.Position
 import Agda.Syntax.Common
@@ -195,6 +196,7 @@ data OccursWhere
   | ConArgType QName OccursWhere -- ^ in the type of a constructor
   | IndArgType QName OccursWhere -- ^ in a datatype index of a constructor
   | InClause Nat OccursWhere     -- ^ in the nth clause of a defined function
+  | Matched OccursWhere          -- ^ matched against in a clause of a defined function
   | InDefOf QName OccursWhere    -- ^ in the definition of a constant
   | Here
   | Unknown                      -- ^ an unknown position (treated as negative)
@@ -211,6 +213,7 @@ MetaArg o1      >*< o2 = MetaArg (o1 >*< o2)
 ConArgType c o1 >*< o2 = ConArgType c (o1 >*< o2)
 IndArgType c o1 >*< o2 = IndArgType c (o1 >*< o2)
 InClause i o1   >*< o2 = InClause i (o1 >*< o2)
+Matched o1      >*< o2 = Matched (o1 >*< o2)
 InDefOf d o1    >*< o2 = InDefOf d (o1 >*< o2)
 
 instance PrettyTCM OccursWhere where
@@ -244,6 +247,7 @@ instance PrettyTCM OccursWhere where
         ConArgType c o -> explain o $ pwords "in the type of the constructor" ++ [prettyTCM c]
         IndArgType c o -> explain o $ pwords "in an index of the target type of the constructor" ++ [prettyTCM c]
         InClause i o   -> explain o $ pwords "in the" ++ nth i ++ pwords "clause"
+        Matched o      -> explain o $ pwords "as matched against"
         InDefOf d o    -> explain o $ pwords "in the definition of" ++ [prettyTCM d]
 
       explain o ds = prettyO o $$ fsep ds
@@ -260,6 +264,7 @@ instance PrettyTCM OccursWhere where
         ConArgType c o -> ConArgType c $ maxOneLeftOfArrow o
         IndArgType c o -> IndArgType c $ maxOneLeftOfArrow o
         InClause i o   -> InClause i   $ maxOneLeftOfArrow o
+        Matched o      -> Matched      $ maxOneLeftOfArrow o
 
       purgeArrows o = case o of
         LeftOfArrow o -> purgeArrows o
@@ -273,6 +278,7 @@ instance PrettyTCM OccursWhere where
         ConArgType c o -> ConArgType c $ purgeArrows o
         IndArgType c o -> IndArgType c $ purgeArrows o
         InClause i o   -> InClause i   $ purgeArrows o
+        Matched o      -> Matched      $ purgeArrows o
 
       splitOnDef o = case o of
         Here           -> [Here]
@@ -286,6 +292,7 @@ instance PrettyTCM OccursWhere where
         ConArgType c o -> sp (ConArgType c) o
         IndArgType c o -> sp (IndArgType c) o
         InClause i o   -> sp (InClause i) o
+        Matched o      -> sp Matched o
         where
           sp f o = case splitOnDef o of
             os@(InDefOf _ _:_) -> f Here : os
@@ -334,18 +341,31 @@ class ComputeOccurrences a where
   occurrences :: a -> OccM Occurrences
 
 instance ComputeOccurrences Clause where
-  occurrences (Clause{ clausePats = ps, clauseBody = body }) =
-    walk (patItems ps) body
+  occurrences (Clause{ clausePats = ps0, clauseBody = body }) = do
+    let ps = map unArg ps0
+    (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
+      walk (patItems ps) body
     where
+      matching (i, VarP{}) = Nothing
+      matching (i, DotP{}) = Nothing
+      matching (i, _     ) = Just (occursAs Matched $ here (AnArg i))
+
       walk _         NoBody     = return $ Map.empty
       walk []        (Body v)   = occurrences v
       walk (i : pis) (Bind b)   = withExtendedOccEnv i $ walk pis $ absBody b
       walk []        Bind{}     = __IMPOSSIBLE__
       walk (_ : _)   Body{}     = __IMPOSSIBLE__
 
-      patItems ps = concat $ zipWith patItem [0..] $ map unArg ps
+      -- @patItems ps@ creates a map from the pattern variables of @ps@
+      -- to the index of the argument they are bound in.
+      -- This map is given as a list.
+      patItems ps = concat $ zipWith patItem [0..] ps
+
+      -- @patItem i p@ replicates index @i@ as often as there are
+      -- pattern variables in @p@
       patItem i p = replicate (nVars p) (Just (AnArg i))
 
+      -- @nVars p@ computes the number of variables bound by pattern @p@
       nVars p = case p of
         VarP{}      -> 1
         DotP{}      -> 1
@@ -577,6 +597,7 @@ computeEdge muts o = do
       ConArgType _ o -> keepGoing o
       IndArgType _ o -> negative o
       InClause _ o   -> keepGoing o
+      Matched o      -> negative o -- consider arguments matched against as used
       InDefOf d o    -> do
         isDR <- isDataOrRecordType d
         let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
