@@ -550,6 +550,17 @@ setPolarity q pol = do
           _          -> d
 	defs	  = sigDefinitions sig
 
+-- | Return a finite list of argument occurrences.
+getArgOccurrences :: QName -> TCM [Occurrence]
+getArgOccurrences d = do
+  def <- theDef <$> getConstInfo d
+  return $ case def of
+    Function { funArgOccurrences  = os } -> os
+    Datatype { dataArgOccurrences = os } -> os
+    Record   { recArgOccurrences  = os } -> os
+    Constructor{}                        -> [] -- repeat Positive
+    _                                    -> [] -- repeat Negative
+
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- theDef <$> getConstInfo d
