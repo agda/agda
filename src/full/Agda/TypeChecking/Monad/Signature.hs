@@ -531,9 +531,11 @@ getPolarity q = do
     Record{ recPolarity    = p } -> return p
     _                            -> return []
 
+-- | Look up polarity of a definition and compose with polarity
+--   represented by 'Comparison'.
 getPolarity' :: Comparison -> QName -> TCM [Polarity]
-getPolarity' CmpEq _  = return []
-getPolarity' CmpLeq q = getPolarity q
+getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
+getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
