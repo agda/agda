@@ -29,6 +29,7 @@ import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Injectivity
+import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Level
@@ -48,9 +49,6 @@ import Agda.Utils.Impossible
 
 mlevel :: TCM (Maybe Term)
 mlevel = liftTCM $ (Just <$> primLevel) `catchError` \_ -> return Nothing
-
-nextPolarity []       = (Invariant, [])
-nextPolarity (p : ps) = (p, ps)
 
 -- | Check if to lists of arguments are the same (and all variables).
 --   Precondition: the lists have the same length.
@@ -478,13 +476,14 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
     case unEl a of
       Def r us -> do
         let (pol, _) = nextPolarity pols
-        ft <- defType <$> getConstInfo f
+        ft <- defType <$> getConstInfo f  -- get type of projection function
         let arg = Arg NotHidden Relevant v  -- TODO: not necessarily relevant?
         let c = piApply ft (us ++ [arg])
         (cmp, els1, els2) <- return $ case pol of
               Invariant     -> (CmpEq, els1, els2)
               Covariant     -> (CmpLeq, els1, els2)
-              Contravariant -> (CmpLeq, els2, els2)
+              Contravariant -> (CmpLeq, els2, els1)
+              Nonvariant    -> __IMPOSSIBLE__ -- the polarity should be Invariant
         pols' <- getPolarity' cmp f
         compareElims pols' c (Def f [arg]) els1 els2
       _ -> __IMPOSSIBLE__
@@ -525,10 +524,11 @@ compareIrrelevant a v w = do
     try v w fallback = fallback
 
 
-compareWithPol :: Polarity -> (Comparison -> a -> a -> b) -> a -> a -> b
+compareWithPol :: Polarity -> (Comparison -> a -> a -> TCM ()) -> a -> a -> TCM ()
 compareWithPol Invariant     cmp x y = cmp CmpEq x y
 compareWithPol Covariant     cmp x y = cmp CmpLeq x y
 compareWithPol Contravariant cmp x y = cmp CmpLeq y x
+compareWithPol Nonvariant    cmp x y = return ()
 
 -- | Type-directed equality on argument lists
 --

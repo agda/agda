@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120712 * 10 + 0
+currentInterfaceVersion = 20120906 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -833,11 +833,13 @@ instance EmbPrj Polarity where
   icode Covariant     = icode0'
   icode Contravariant = icode0 1
   icode Invariant     = icode0 2
+  icode Nonvariant    = icode0 3
 
   value = vcase valu where
     valu []  = valu0 Covariant
     valu [1] = valu0 Contravariant
     valu [2] = valu0 Invariant
+    valu [3] = valu0 Nonvariant
     valu _   = malformed
 
 instance EmbPrj Occurrence where

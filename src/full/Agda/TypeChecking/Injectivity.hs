@@ -25,6 +25,7 @@ import Agda.TypeChecking.MetaVars
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Constraints
+import Agda.TypeChecking.Polarity
 import Agda.Utils.List
 import Agda.Utils.Monad
 import Agda.Utils.Permutation
@@ -194,7 +195,10 @@ useInjectivity cmp a u v = do
               , text "type =" <+> prettyTCM ftype
               ]
             ]
-          pol <- getPolarity' cmp f
+          -- Since we do not care for the value of non-variant metas here,
+          -- we can treat 'Nonvariant' as 'Invariant'.
+          -- That ensures these metas do not remain unsolved.
+          pol <- purgeNonvariant <$> getPolarity' cmp f
           -- The clause might not give as many patterns as there
           -- are arguments (point-free style definitions).
           let args' = take (length margs) args

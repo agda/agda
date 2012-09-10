@@ -521,7 +521,12 @@ data HaskellRepresentation
       | HsType HaskellType
   deriving (Typeable, Show)
 
-data Polarity = Covariant | Contravariant | Invariant
+-- | Polarity for equality and subtype checking.
+data Polarity
+  = Covariant      -- ^ monotone
+  | Contravariant  -- ^ antitone
+  | Invariant      -- ^ no information (mixed variance)
+  | Nonvariant     -- ^ constant
   deriving (Typeable, Show, Eq)
 
 data CompiledRepresentation = CompiledRep
