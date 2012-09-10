@@ -125,9 +125,13 @@ composePol Invariant _     = Invariant
 composePol Covariant x     = x
 composePol Contravariant x = neg x
 
+-- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
+--   in syntactic entity @a@.
 class HasPolarity a where
   polarities :: Nat -> a -> TCM [Polarity]
 
+-- | @polarity i a@ computes the polarity of de Bruijn index @i@
+--   in syntactic entity @a@ by taking the infimum of all 'polarities'.
 polarity :: HasPolarity a => Nat -> a -> TCM Polarity
 polarity i x = do
   ps <- polarities i x
@@ -156,8 +160,10 @@ instance HasPolarity Type where
 
 instance HasPolarity Term where
   polarities i v = case v of
-    Var n ts  | n == i -> (Covariant :) <$> polarities i ts
-              | otherwise -> polarities i ts
+    -- Andreas, 2012-09-06: taking the polarities of the arguments
+    -- without taking the variance of the function into account seems wrong.
+    Var n ts  | n == i -> (Covariant :) . map (const Invariant) <$> polarities i ts
+              | otherwise -> map (const Invariant) <$> polarities i ts
     Lam _ t    -> polarities i t
     Lit _      -> return []
     Level l    -> polarities i l
@@ -165,11 +171,11 @@ instance HasPolarity Term where
       pols <- getPolarity x
       let compose p ps = map (composePol p) ps
       concat . zipWith compose (pols ++ repeat Invariant) <$> mapM (polarities i) ts
-    Con _ ts   -> polarities i ts
+    Con _ ts   -> polarities i ts -- constructors can be seen as monotone in all args.
     Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
-    Sort _     -> return []
+    Sort s     -> return [] -- polarities i s -- return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
-    DontCare _ -> return []
+    DontCare t -> polarities i t -- return []
 
 instance HasPolarity Level where
   polarities i (Max as) = polarities i as
@@ -180,7 +186,7 @@ instance HasPolarity PlusLevel where
 
 instance HasPolarity LevelAtom where
   polarities i l = case l of
-    MetaLevel _ vs   -> map (const Invariant) <$> polarities i l
+    MetaLevel _ vs   -> map (const Invariant) <$> polarities i vs
     BlockedLevel _ v -> polarities i v
     NeutralLevel v   -> polarities i v
     UnreducedLevel v -> polarities i v
