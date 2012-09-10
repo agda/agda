@@ -51,7 +51,6 @@ reorderTel :: [Dom Type] -> Maybe Permutation
 reorderTel tel = topoSort comesBefore tel'
   where
     tel' = zip (downFrom $ size tel) tel
---    tel' = reverse $ zip [0..] $ reverse tel
     (i, _) `comesBefore` (_, a) = i `freeIn` unEl (unDom a) -- a tiny bit unsafe
 
 reorderTel_ :: [Dom Type] -> Permutation
