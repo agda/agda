@@ -74,6 +74,9 @@ updateDefinition q f sig = sig { sigDefinitions = HMap.adjust f q (sigDefinition
 updateTheDef :: (Defn -> Defn) -> (Definition -> Definition)
 updateTheDef f def = def { theDef = f (theDef def) }
 
+updateDefType :: (Type -> Type) -> (Definition -> Definition)
+updateDefType f def = def { defType = f (defType def) }
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
@@ -556,12 +559,16 @@ setPolarity q pol = do
 getArgOccurrences :: QName -> TCM [Occurrence]
 getArgOccurrences d = do
   def <- theDef <$> getConstInfo d
-  return $ case def of
+  return $ getArgOccurrences_ def
+
+getArgOccurrences_ :: Defn -> [Occurrence]
+getArgOccurrences_ def = case def of
     Function { funArgOccurrences  = os } -> os
     Datatype { dataArgOccurrences = os } -> os
     Record   { recArgOccurrences  = os } -> os
     Constructor{}                        -> [] -- repeat Positive
     _                                    -> [] -- repeat Negative
+
 
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
