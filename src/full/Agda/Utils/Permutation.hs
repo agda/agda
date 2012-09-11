@@ -8,7 +8,11 @@ import Agda.Utils.Impossible
 
 #include "../undefined.h"
 
--- | @permute [2,3,1] [x,y,z] = [y,z,x]@
+-- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
+--
+--   Agda typing would be:
+--   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
+--   @m@ is the 'size' of the permutation.
 data Permutation = Perm Integer [Integer]
   deriving (Eq, Typeable)
 
@@ -23,10 +27,13 @@ instance Show Permutation where
 instance Sized Permutation where
   size (Perm _ xs) = size xs
 
--- | @permute [2,3,1] [x1,x2,x3] = [x2,x3,x1]@
+-- | @permute [1,2,0] [x0,x1,x2] = [x1,x2,x0]@
 --   More precisely, @permute indices list = sublist@, generates @sublist@
 --   from @list@ by picking the elements of list as indicated by @indices@.
---   @permute [2,4,1] [x1,x2,x3,x4] = [x2,x4,x1]@
+--   @permute [1,3,0] [x0,x1,x2,x3] = [x1,x3,x0]@
+--
+--   Agda typing:
+--   @permute (Perm {m} n is) : Vec A m -> Vec A n@
 permute :: Permutation -> [a] -> [a]
 permute (Perm _ is) xs = map (xs !!!) is
   where
@@ -71,6 +78,19 @@ compactP (Perm n xs) = Perm m $ map adjust xs
     holesBelow k = genericLength $ filter (< k) missing
     adjust k = k - holesBelow k
 
+-- | @permute (reverseP p) xs ==
+--    reverse $ permute p $ reverse xs@
+--
+--   Example:
+--   @
+--        permute (reverseP (Perm 4 [1,3,0])) [x0,x1,x2,x3]
+--     == permute (Perm 4 $ map (3-) [0,3,1]) [x0,x1,x2,x3]
+--     == permute (Perm 4 [3,0,2]) [x0,x1,x2,x3]
+--     == [x3,x0,x2]
+--     == reverse [x2,x0,x3]
+--     == reverse $ permute (Perm 4 [1,3,0]) [x3,x2,x1,x0]
+--     == reverse $ permute (Perm 4 [1,3,0]) $ reverse [x0,x1,x2,x3]
+--   @
 reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
 
