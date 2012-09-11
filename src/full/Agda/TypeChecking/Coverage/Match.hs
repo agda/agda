@@ -15,6 +15,7 @@ import Agda.Syntax.Literal
 
 import Agda.Utils.Permutation
 import Agda.Utils.Size
+import Agda.Utils.List
 
 #include "../../undefined.h"
 import Agda.Utils.Impossible
@@ -27,7 +28,7 @@ data MPat = VarMP Nat | ConMP QName [Arg MPat] | LitMP Literal | WildMP
 buildMPatterns :: Permutation -> [Arg Pattern] -> [Arg MPat]
 buildMPatterns perm ps = evalState (mapM (traverse build) ps) xs
   where
-    xs   = permute (invertP perm) $ reverse [0 .. size perm - 1]
+    xs   = permute (invertP perm) $ downFrom (size perm)  -- reverse [0 .. size perm - 1]
     tick = do x : xs <- get; put xs; return x
 
     build (VarP _)        = VarMP <$> tick
