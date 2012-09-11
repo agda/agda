@@ -550,7 +550,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
                 $ disableDisplayForms
                 $ dontReifyInteractionPoints
                 $ reify candidateType
-  reportSDoc "tc.with.top" 15 $
+  reportSDoc "tc.with.type" 15 $
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType
          ]
