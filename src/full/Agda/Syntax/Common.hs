@@ -131,6 +131,12 @@ data Arg e  = Arg
 instance Eq a => Eq (Arg a) where
   Arg h1 _ x1 == Arg h2 _ x2 = (h1, x1) == (h2, x2)
 
+mapArgHiding :: (Hiding -> Hiding) -> Arg a -> Arg a
+mapArgHiding f arg = arg { argHiding = f (argHiding arg) }
+
+mapArgRelevance :: (Relevance -> Relevance) -> Arg a -> Arg a
+mapArgRelevance f arg = arg { argRelevance = f (argRelevance arg) }
+
 makeInstance :: Arg a -> Arg a
 makeInstance a = a { argHiding = Instance }
 
