@@ -139,6 +139,8 @@ instance Applicative Blocked where
 --  the patterns to the order they occur in the telescope. The body
 --  binds the variables in the order they appear in the patterns.
 --
+--  @clauseTel ~ permute clausePerm (patternVars clausPats)@
+--
 --  For the purpose of the permutation and the body dot patterns count
 --  as variables. TODO: Change this!
 data Clause = Clause
@@ -173,6 +175,13 @@ data Pattern = VarP String  -- name suggestion
 	     | LitP Literal
   deriving (Typeable, Show)
 
+-- | Extract pattern variables in left-to-right order.
+--   A 'DotP' is also treated as variable (see docu for 'Clause').
+patternVars :: Arg Pattern -> [Arg (Either String Term)]
+patternVars (Arg h r (VarP x)     ) = [Arg h r $ Left x]
+patternVars (Arg h r (DotP t)     ) = [Arg h r $ Right t]
+patternVars (Arg h r (ConP _ _ ps)) = List.concat $ map patternVars ps
+patternVars (Arg h r (LitP l)     ) = []
 
 ---------------------------------------------------------------------------
 -- * Smart constructors
