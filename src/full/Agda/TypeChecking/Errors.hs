@@ -370,30 +370,15 @@ instance PrettyTCM TypeError where
             VariableIsIrrelevant x -> fsep $
                 text "Variable" : prettyTCM x : pwords "is declared irrelevant, so it cannot be used here"
 	    UnequalBecauseOfUniverseConflict cmp s t -> fsep $
-		[prettyTCM s, f cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
-                where
-                  f CmpEq  = text "!="
-                  f CmpLeq = text "!=<"
+		[prettyTCM s, notCmp cmp, prettyTCM t, text "because this would result in an invalid use of Setω" ]
  	    UnequalTerms cmp s t a -> fsep $
-		[prettyTCM s, f cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
-                where
-                  f CmpEq  = text "!="
-                  f CmpLeq = text "!=<"
+		[prettyTCM s, notCmp cmp, prettyTCM t] ++ pwords "of type" ++ [prettyTCM a]
 	    UnequalLevel cmp s t -> fsep $
-		[prettyTCM s, f cmp, prettyTCM t]
-                where
-                  f CmpEq  = text "!="
-                  f CmpLeq = text "!=<"
+		[prettyTCM s, notCmp cmp, prettyTCM t]
 	    UnequalTelescopes cmp a b -> fsep $
-		[prettyTCM a, f cmp, prettyTCM b]
-                where
-                  f CmpEq  = text "!="
-                  f CmpLeq = text "!=<"
+		[prettyTCM a, notCmp cmp, prettyTCM b]
 	    UnequalTypes cmp a b -> fsep $
-		[prettyTCM a, f cmp, prettyTCM b]
-                where
-                  f CmpEq  = text "!="
-                  f CmpLeq = text "!=<"
+		[prettyTCM a, notCmp cmp, prettyTCM b]
 	    HeterogeneousEquality u a v b -> fsep $
                 pwords "Refuse to solve heterogeneous constraint" ++
                 [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
@@ -404,10 +389,10 @@ instance PrettyTCM TypeError where
 --		[text $ show a] ++ pwords "!=" ++ [text $ show b] ++
 		pwords "because one is a relevant function type and the other is an irrelevant function type"
 	    UnequalHiding a b -> fsep $
-		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
+		[prettyTCM a, text "!=", prettyTCM b] ++
 		pwords "because one is an implicit function type and the other is an explicit function type"
 	    UnequalSorts s1 s2 -> fsep $
-		[prettyTCM s1] ++ pwords "!=" ++ [prettyTCM s2]
+		[prettyTCM s1, text "!=", prettyTCM s2]
 	    NotLeqSort s1 s2 -> fsep $
 		pwords "The type of the constructor does not fit in the sort of the datatype, since"
 		++ [prettyTCM s1] ++ pwords "is not less or equal than" ++ [prettyTCM s2]
@@ -682,6 +667,8 @@ instance PrettyTCM TypeError where
             showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
             showPat _ (I.LitP l)        = text (show l)
 
+notCmp :: Comparison -> TCM Doc
+notCmp cmp = text $ "!" ++ show cmp
 
 
 instance PrettyTCM Call where

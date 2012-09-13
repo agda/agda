@@ -303,7 +303,11 @@ data Constraint
   deriving (Typeable, Show)
 
 data Comparison = CmpEq | CmpLeq
-  deriving (Eq, Typeable, Show)
+  deriving (Eq, Typeable)
+
+instance Show Comparison where
+  show CmpEq  = "="
+  show CmpLeq = "=<"
 
 ---------------------------------------------------------------------------
 -- * Open things
