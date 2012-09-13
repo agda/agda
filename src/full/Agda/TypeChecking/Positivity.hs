@@ -319,6 +319,12 @@ occursAs f = Map.map (map f)
 here :: Item -> Occurrences
 here i = Map.singleton i [Here]
 
+-- | @onlyVarsUpTo n occs@ discards occurrences of de Bruijn index @>= n@.
+onlyVarsUpTo :: Nat -> Occurrences -> Occurrences
+onlyVarsUpTo n = Map.filterWithKey p
+  where p (AnArg i) v = i < n
+        p (ADef q)  v = True
+
 -- | Context for computing occurrences.
 data OccEnv = OccEnv
   { vars :: [Maybe Item] -- ^ Items corresponding to the free variables.
@@ -466,7 +472,7 @@ computeOccurrences q = do
             let tel'    = telFromList $ genericDrop np $ telToList tel
                 vars np = map (Just . AnArg) $ downFrom np
             (>+<) <$> (occursAs (ConArgType c) <$> getOccurrences (vars np) tel')
-                  <*> (occursAs (IndArgType c) <$> getOccurrences (vars $ size tel) indices)
+                  <*> (occursAs (IndArgType c) . onlyVarsUpTo np <$> getOccurrences (vars $ size tel) indices)
       concatOccurs <$> mapM conOcc cs
     Record{recClause = Just c} -> getOccurrences [] =<< instantiateFull c
     Record{recPars = np, recTel = tel} -> do
