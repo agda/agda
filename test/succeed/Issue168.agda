@@ -1,4 +1,5 @@
-
+{-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v tc.polarity:10 -v tc.inj:40 -v tc.conv.irr:20 #-}  -- -v tc.mod.apply:100 #-}
 module Issue168 where
 
 postulate X : Set

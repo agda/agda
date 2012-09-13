@@ -230,7 +230,8 @@ newArgsMetaCtx' condition (El s tm) tel ctx = do
   tm <- reduce tm
   case tm of
     Pi dom@(Dom h r a) codom | condition dom codom -> do
-      arg  <- (Arg h r) <$>
+      arg  <- (Arg h r) <$> do
+              applyRelevanceToContext r $
                {-
                  -- Andreas, 2010-09-24 skip irrelevant record fields when eta-expanding a meta var
                  -- Andreas, 2010-10-11 this is WRONG, see Issue 347
