@@ -512,6 +512,10 @@ compareIrrelevant a v w = do
                    InstV{} -> True
                    InstS{} -> True
                    _       -> False
+      reportSDoc "tc.conv.irr" 20 $ vcat
+        [ nest 2 $ text $ "rel  = " ++ show rel
+        , nest 2 $ text $ "inst = " ++ show inst
+        ]
       if rel /= Irrelevant || inst then fallback else assignV x vs w
     try v w fallback = fallback
 
