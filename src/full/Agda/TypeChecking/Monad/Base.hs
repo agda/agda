@@ -1052,7 +1052,7 @@ data TypeError
 	| UnequalTerms Comparison Term Term Type
 	| UnequalTypes Comparison Type Type
 	| UnequalTelescopes Comparison Telescope Telescope
-	| UnequalRelevance Term Term
+	| UnequalRelevance Comparison Term Term
 	    -- ^ The two function types have different relevance.
 	| UnequalHiding Term Term
 	    -- ^ The two function types have different hiding.

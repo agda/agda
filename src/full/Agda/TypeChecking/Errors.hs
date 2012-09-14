@@ -383,10 +383,10 @@ instance PrettyTCM TypeError where
                 pwords "Refuse to solve heterogeneous constraint" ++
                 [prettyTCM u] ++ pwords ":" ++ [prettyTCM a] ++ pwords "=?=" ++
                 [prettyTCM v] ++ pwords ":" ++ [prettyTCM b]
-	    UnequalRelevance a b -> fsep $
-		[prettyTCM a] ++ pwords "!=" ++ [prettyTCM b] ++
+	    UnequalRelevance cmp a b -> fsep $
+		[prettyTCM a, notCmp cmp, prettyTCM b] ++
 -- Andreas 2010-09-21 to reveal Forced annotations, print also uglily
---		[text $ show a] ++ pwords "!=" ++ [text $ show b] ++
+--		[text $ show a, notCmp cmp, text $ show b] ++
 		pwords "because one is a relevant function type and the other is an irrelevant function type"
 	    UnequalHiding a b -> fsep $
 		[prettyTCM a, text "!=", prettyTCM b] ++

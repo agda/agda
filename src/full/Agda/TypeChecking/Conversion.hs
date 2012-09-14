@@ -401,7 +401,8 @@ compareAtom cmp t m n =
 	equalFun t1@(Pi dom1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
 	    | h1 /= h2	= typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance t1 t2
+	    | not (compareRelevance cmp (ignoreForced r2) (ignoreForced r1)) = typeError $ UnequalRelevance cmp t1 t2
+--	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance t1 t2
 	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
@@ -419,6 +420,10 @@ compareAtom cmp t m n =
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
 	equalFun _ _ = __IMPOSSIBLE__
+
+compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
+compareRelevance CmpEq  = (==)
+compareRelevance CmpLeq = (<=)
 
 -- | Type-directed equality on eliminator spines
 compareElims :: [Polarity] -> Type -> Term -> [Elim] -> [Elim] -> TCM ()
