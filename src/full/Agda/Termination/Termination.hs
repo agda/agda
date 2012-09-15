@@ -16,18 +16,20 @@ module Agda.Termination.Termination
 import Agda.Termination.Lexicographic
 import Agda.Termination.CallGraph
 import Agda.Termination.SparseMatrix
+
 import Agda.Utils.Either
 import Agda.Utils.TestHelpers
-import Control.Arrow
 import Agda.Utils.QuickCheck
-import qualified Data.Set as Set
+
+import Control.Arrow
+
+import Data.Array (Array)
 import qualified Data.Array as Array
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid
-import Data.Array (Array)
 
 -- | TODO: This comment seems to be partly out of date.
 --
