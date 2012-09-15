@@ -1,5 +1,6 @@
 -- 2012-02-13 Andreas: testing correct polarity of data types
 -- sized types are the only source of subtyping, I think...
+{-# OPTIONS -v tc.polarity.set:10 #-}
 
 {-# OPTIONS --sized-types #-}
 module DataPolarity where
