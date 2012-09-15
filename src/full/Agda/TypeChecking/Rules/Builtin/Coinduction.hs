@@ -143,7 +143,7 @@ bindBuiltinFlat e =
                                Nothing)
                    , funInv            = NotInjective
                    , funPolarity       = [Invariant]
-                   , funArgOccurrences = [Positive]
+                   , funArgOccurrences = [Positive] -- changing that to [Negative] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
                    , funMutual         = []
                    , funAbstr          = ConcreteDef
                    , funDelayed        = NotDelayed
