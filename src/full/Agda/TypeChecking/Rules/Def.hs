@@ -546,6 +546,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   -- Generate the type of the with function
   candidateType <- withFunctionType delta1 vs as delta2 b
   reportSDoc "tc.with.type" 10 $ sep [ text "candidate type:", nest 2 $ prettyTCM candidateType ]
+  reportSDoc "tc.with.type" 50 $ sep [ text "candidate type:", nest 2 $ text $ show candidateType ]
   absAuxType <- withShowAllArguments
                 $ disableDisplayForms
                 $ dontReifyInteractionPoints
@@ -553,6 +554,10 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
   reportSDoc "tc.with.type" 15 $
     vcat [ text "type of with function:"
          , nest 2 $ prettyTCM absAuxType
+         ]
+  reportSDoc "tc.with.type" 50 $
+    vcat [ text "type of with function:"
+         , nest 2 $ text $ show absAuxType
          ]
   -- The ranges in the generated type are completely bogus, so we kill them.
   auxType <- setCurrentRange (getRange cs) (isType_ $ killRange absAuxType)
