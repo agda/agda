@@ -15,6 +15,7 @@ import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
 import Data.Function
+import Data.Maybe
 import qualified Data.List as List
 
 import Agda.Syntax.Position
@@ -182,6 +183,14 @@ patternVars (Arg h r (VarP x)     ) = [Arg h r $ Left x]
 patternVars (Arg h r (DotP t)     ) = [Arg h r $ Right t]
 patternVars (Arg h r (ConP _ _ ps)) = List.concat $ map patternVars ps
 patternVars (Arg h r (LitP l)     ) = []
+
+-- | Does the pattern perform a match that could fail?
+properlyMatching :: Pattern -> Bool
+properlyMatching VarP{} = False
+properlyMatching DotP{} = False
+properlyMatching LitP{} = True
+properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
+  : map (properlyMatching . unArg) ps  -- or one of subpatterns is a proper m
 
 ---------------------------------------------------------------------------
 -- * Smart constructors

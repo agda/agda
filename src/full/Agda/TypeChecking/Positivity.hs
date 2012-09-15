@@ -352,9 +352,15 @@ instance ComputeOccurrences Clause where
     (concatOccurs (mapMaybe matching (zip [0..] ps)) >+<) <$>
       walk (patItems ps) body
     where
+      matching (i, p)
+        | properlyMatching p = Just $ occursAs Matched $ here $ AnArg i
+        | otherwise          = Nothing
+{-
       matching (i, VarP{}) = Nothing
       matching (i, DotP{}) = Nothing
+      matching (i, ConP _ Just{} _) = Nothing -- record patterns are not matches
       matching (i, _     ) = Just (occursAs Matched $ here (AnArg i))
+-}
 
       walk _         NoBody     = return $ Map.empty
       walk []        (Body v)   = occurrences v
