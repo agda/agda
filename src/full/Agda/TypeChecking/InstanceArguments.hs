@@ -128,7 +128,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
     reportSDoc "tc.constr.findInScope" 15 $ text ("findInScope 2: constraint: " ++ show m ++ "; candidates left: " ++ show (length cands))
     t <- getMetaTypeInContext m
     reportSDoc "tc.constr.findInScope" 15 $ text "findInScope 3: t =" <+> prettyTCM t
-    reportSLn "tc.constr.findInScope" 50 $ "findInScope 3: t: " ++ show t
+    reportSLn "tc.constr.findInScope" 70 $ "findInScope 3: t: " ++ show t
     mv <- lookupMeta m
     cands <- checkCandidates m t cands
     reportSLn "tc.constr.findInScope" 15 $ "findInScope 4: cands left: " ++ show (length cands)
@@ -183,7 +183,13 @@ checkCandidates m t cands = localState $ do
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
       liftTCM $ flip catchError handle $ do
-        reportSLn "tc.constr.findInScope" 20 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+        reportSLn "tc.constr.findInScope" 70 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+        reportSDoc "tc.constr.findInScope" 20 $ vcat
+          [ text "checkCandidateForMeta"
+          , text "t    =" <+> prettyTCM t
+          , text "t'   =" <+> prettyTCM t'
+          , text "term =" <+> prettyTCM term
+          ]
         localState $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
@@ -191,7 +197,11 @@ checkCandidates m t cands = localState $ do
           case ca of
             Left _ -> return False
             Right (args, t'') -> do
-              noConstraints $ leqType t'' t
+              reportSDoc "tc.constr.findInScope" 20 $
+                text "instance search: checking" <+> prettyTCM t''
+                <+> text "<=" <+> prettyTCM t
+              -- if constraints remain, we abort, but keep the candidate
+              flip (ifNoConstraints_ $ leqType t'' t) (const $ return True) $ do
               --tel <- getContextTelescope
               ctxArgs <- getContextArgs
               v <- (`applyDroppingParameters` args) =<< reduce term
