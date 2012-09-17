@@ -444,11 +444,15 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                       SplitTel delta1 delta2 perm' = splitTelescope fv delta
                       finalPerm = composeP perm' perm
 
-                  reportSDoc "tc.with.top" 25 $ vcat
+                  -- Andreas, 2012-09-17: for printing delta,
+                  -- we should remove it from the context first
+                  reportSDoc "tc.with.top" 25 $ escapeContext (size delta) $ vcat
                     [ text "delta  =" <+> prettyTCM delta
                     , text "delta1 =" <+> prettyTCM delta1
                     , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
-                    , text "vs     =" <+> prettyTCM vs
+                    ]
+                  reportSDoc "tc.with.top" 25 $ vcat
+                    [ text "vs     =" <+> prettyTCM vs
                     , text "as     =" <+> prettyTCM as
                     , text "perm'  =" <+> text (show perm')
                     , text "perm   =" <+> text (show perm)
@@ -483,11 +487,11 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                     return $ substs rho $ renameP (reverseP perm') (vs, as)
 
                   reportSDoc "tc.with.top" 20 $ vcat
-                    [ text "    with arguments" <+> prettyList (map prettyTCM vs)
-                    , text "             types" <+> prettyList (map prettyTCM as)
+                    [ text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)
+                    , text "             types" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM as)
                     , text "with function call" <+> prettyTCM v
                     , text "           context" <+> (prettyTCM =<< getContextTelescope)
-                    , text "             delta" <+> prettyTCM delta
+                    , text "             delta" <+> do escapeContext (size delta) $ prettyTCM delta
                     , text "                fv" <+> text (show fv)
                     , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
                     ]
@@ -525,11 +529,11 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
     [ text "checkWithFunction"
     , nest 2 $ vcat
       [ text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> prettyTCM delta2
+      , text "delta2 =" <+> addCtxTel delta1 (prettyTCM delta2)
       , text "gamma  =" <+> prettyTCM gamma
       , text "as     =" <+> addCtxTel delta1 (prettyTCM as)
       , text "vs     =" <+> addCtxTel delta1 (prettyTCM vs)
-      , text "b      =" <+> prettyTCM b
+      , text "b      =" <+> do addCtxTel delta1 $ addCtxTel delta2 $ prettyTCM b
       , text "qs     =" <+> text (show qs)
       , text "perm'  =" <+> text (show perm')
       , text "perm   =" <+> text (show perm)

@@ -205,6 +205,8 @@ stripWithClausePatterns gamma qs perm ps = do
 -- | Construct the display form for a with function. It will display
 --   applications of the with function as applications to the original function.
 --   For instance, @aux a b c@ as @f (suc a) (suc b) | c@
+--
+--   @n@ is the number of with arguments.
 withDisplayForm :: QName -> QName -> Telescope -> Telescope -> Nat -> [Arg Pattern] -> Permutation -> TCM DisplayForm
 withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   topArgs <- raise (n + size delta1 + size delta2) <$> getContextArgs
@@ -222,6 +224,10 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
       ys = reverse $ ys0 ++ genericReplicate n Nothing ++ ys1
 
   let display = Display (n + size delta1 + size delta2 + top) pats dt
+      addFullCtx = addCtxTel delta1
+                 . flip (foldr addCtxString_) (map ("w" ++) $ map show [1..n])
+                 . addCtxTel delta2
+          -- Andreas 2012-09-17: this seems to be the right order of contexts
 
   reportSDoc "tc.with.display" 20 $ vcat
     [ text "withDisplayForm"
@@ -229,15 +235,15 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
       [ text "f      =" <+> text (show f)
       , text "aux    =" <+> text (show aux)
       , text "delta1 =" <+> prettyTCM delta1
-      , text "delta2 =" <+> prettyTCM delta2
+      , text "delta2 =" <+> do addCtxTel delta1 $ prettyTCM delta2
       , text "n      =" <+> text (show n)
       , text "perm   =" <+> text (show perm)
-      , text "top    =" <+> prettyTCM topArgs
+      , text "top    =" <+> do addFullCtx $ prettyTCM topArgs
       , text "qs     =" <+> text (show qs)
-      , text "dt     =" <+> prettyTCM dt
+      , text "dt     =" <+> do addFullCtx $ prettyTCM dt
       , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
-      , text "qsToTm =" <+> prettyTCM (patsToTerms qs)
+      , text "qsToTm =" <+> prettyTCM (patsToTerms qs) -- ctx would be permuted form of delta1 ++ delta2
       , text "sub qs =" <+> prettyTCM (substs (sub ys wild) $ patsToTerms qs)
       ]
     ]
