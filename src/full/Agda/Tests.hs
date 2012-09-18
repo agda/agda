@@ -18,6 +18,7 @@ import Agda.Termination.Lexicographic         as TermLex    (tests)
 import Agda.Termination.Matrix                as TermMatrix (tests)
 import Agda.Termination.Semiring	      as TermRing   (tests)
 import Agda.Termination.SparseMatrix          as TermSparse (tests)
+import Agda.TypeChecking.Irrelevance          as Irrel      (tests)
 import Agda.TypeChecking.Tests                as TypeChck   (tests)
 import Agda.Utils.Either	              as UtilEith   (tests)
 import Agda.Utils.FileName                    as UtilFile   (tests)
@@ -27,7 +28,8 @@ import Agda.Utils.Warshall                    as UtilWarsh  (tests)
 
 testSuite :: IO Bool
 testSuite = runTests "QuickCheck test suite:"
-  [ CompEnco.tests
+  [ Irrel.tests
+  , CompEnco.tests
   , InteEmac.tests
   , InteGene.tests
   , IntePrec.tests

@@ -139,3 +139,18 @@ applyRelevanceToContext rel =
 --   may be used, so they are awoken before type checking the argument.
 wakeIrrelevantVars :: TCM a -> TCM a
 wakeIrrelevantVars = applyRelevanceToContext Irrelevant
+
+
+------------------------------------------------------------------------
+-- * Tests
+------------------------------------------------------------------------
+
+prop_galois :: Relevance -> Relevance -> Relevance -> Bool
+prop_galois r x y =
+  x `moreRelevant` (r `composeRelevance` y) ==
+  (r `inverseComposeRelevance` x) `moreRelevant` y
+
+tests :: IO Bool
+tests = runTests "Agda.TypeChecking.Irrelevance"
+  [ quickCheck' prop_galois
+  ]
