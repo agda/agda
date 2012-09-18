@@ -1,5 +1,4 @@
 {-# OPTIONS --universe-polymorphism #-}
--- {-# OPTIONS -v tc.polarity:10 #-}
 module Reflection where
 
 open import Common.Prelude renaming (Nat to ℕ)
@@ -37,29 +36,16 @@ el₁ = el (lit 1)
 set₀ : Type
 set₀ = el₁ (sort (lit 0))
 
--- uncheck (quote (Check t)) = t
 unCheck : Term → Term
 unCheck (def x (_ ∷ _ ∷ arg _ _ t ∷ [])) = t
 unCheck t = unknown
 
 mutual
-{- Check has three phantom arguments.  With the new polarity analysis
-   Check is recognized as constant in its three arguments, which is
-   not serving its intended purpose.  We turn its third argument into
-   an index to prohibit Agda to recognize it as phantom.
-   -- Andreas, 2012-09-07 (fix for issue 691)
-
   data Check {a}{A : Set a}(x : A) : Set where
     _is_of_ : (t t′ : Term) →
               Id (primTrustMe {x = unCheck t} {t′}
                  )
                  (t′ ≡ t′) refl → Check x
--}
-  data Check {a}{A : Set a} : (x : A) → Set a where
-    _is_of_ : {x : A}
-      → (t t′ : Term)
-      → Id (primTrustMe {x = unCheck t} {t′}) (t′ ≡ t′) refl
-      → Check x
 
   `Check : QName
   `Check = quote Check

@@ -1,5 +1,4 @@
--- {-# OPTIONS -v tc.polarity:10 #-}
--- Andreas, 2012-09-07 removed phantom types
+
 module Issue480 where
 
 module Simple where
@@ -34,16 +33,16 @@ module Example where
     []   : List
     _∷_  : Set → List → List
 
-  data Tree : List → Set₁ where
-    tip  : Tree []
-    node : ∀ {T Ts} → (cs : T → Tree Ts) → Tree (T ∷ Ts)
+  data Tree (L : Set) : List → Set₁ where
+    tip  : Tree L []
+    node : ∀ {T Ts} → (cs : T → Tree L Ts) → Tree L (T ∷ Ts)
 
 
-  data Q : (n : ℕ) → Set where
-    a : {n : ℕ} → Q n
-    b : {n : ℕ} → Q n
+  data Q (n : ℕ) : Set where
+    a : Q n
+    b : Q n
 
-  test₁ : Q zero → Tree (Q zero ∷ [])
+  test₁ : Q zero → Tree ℕ (Q zero ∷ [])
   test₁ = λ
     { a → node λ { a → tip ; b → tip }
     ; b → node λ { a → tip ; b → tip }
@@ -51,7 +50,7 @@ module Example where
 
   test₂ = node test₁
 
-  test₃ : Tree (Q zero ∷ Q zero ∷ [])
+  test₃ : Tree ℕ (Q zero ∷ Q zero ∷ [])
   test₃ = node λ
     { a → node λ { a → tip ; b → tip }
     ; b → node λ { a → tip ; b → tip }

@@ -9,9 +9,6 @@ data ℕ : Set where
   zero : ℕ
   suc  : ℕ → ℕ
 
-{- Andreas, 2012-09-07: we cannot make use phantom parameters in record types
-   any more (see issue 691).
-
 record T (n : ℕ) : Set where
   field
     nextPrime : ℕ
@@ -21,16 +18,6 @@ T₁ = record { nextPrime = suc (suc zero) }
 
 T₂ : T (suc (suc zero))
 T₂ = record { nextPrime = suc (suc (suc zero)) }
--}
-
-data T : ℕ → Set where
-  mkT : {n : ℕ} → ℕ → T n
-
-T₁ : T (suc zero)
-T₁ = mkT (suc (suc zero))
-
-T₂ : T (suc (suc zero))
-T₂ = mkT (suc (suc (suc zero)))
 
 data Param : ℕ → Set where
   param : ∀ n → Param (suc n)
