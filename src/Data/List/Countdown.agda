@@ -125,8 +125,8 @@ private
   thick-injective {suc n} (suc i)  zero    zero    _ = refl
   thick-injective {suc n} (suc i)  zero    (suc k) ()
   thick-injective {suc n} (suc i)  (suc j) zero    ()
-  thick-injective {suc n} (suc i)  (suc j) (suc k) eq =
-    cong suc $ thick-injective i j k (drop-suc eq)
+  thick-injective {suc n} (suc i)  (suc j) (suc k) {i≢j} {i≢k} eq =
+    cong suc $ thick-injective i j k {i≢j ∘ cong suc} {i≢k ∘ cong suc} (drop-suc eq)
 
 ------------------------------------------------------------------------
 -- The countdown data structure
