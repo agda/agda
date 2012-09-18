@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.polarity:15 -v tc.pos:0 #-}
 module Issue148 where
 
 data I : Set where

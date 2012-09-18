@@ -1,11 +1,11 @@
 -- 2010-11-16
 -- compactification of Data.Set.Decoration.gmapAll
 --
--- This test case fails if we remove instantiateFull 
+-- This test case fails if we remove instantiateFull
 -- (and with it eta-contraction) from definition bodies in Def.hs
 -- see Issue 361
 
--- {-# OPTIONS -v tc.lhs.unify:25 #-}
+-- {-# OPTIONS -v tc.polarity:15 -v tc.pos:25 #-}
 
 module EtaContractionDefBody where
 

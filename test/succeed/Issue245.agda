@@ -33,3 +33,4 @@ foo = R₃.f {_}
 
 -- No unsolved metas at the following locations:
 --   /home/nad/research/dtp/lib/Bug.agda:32,13-14
+

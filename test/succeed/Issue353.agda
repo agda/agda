@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.polarity:10 #-}
 module Issue353 where
 
 data Func : Set₁ where
