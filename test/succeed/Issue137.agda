@@ -9,9 +9,13 @@ record Bar : Set1 where
   field
     bar : Foo
 
+postulate
+  UseBar : Bar -> Set
+
 record Baz (P : Bar) : Set1 where
   field
-    baz : Set
+    useP : UseBar P  -- Andreas, 2012-09-07 use phantom P (see Issue 691)
+    baz  : Set
 
 postulate
   P : Bar

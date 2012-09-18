@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.polarity:10 -v tc.pos.args:10 #-}
 module DefinitionalEquality where
 
 data _==_ {A : Set}(x : A) : A -> Set where
