@@ -14,7 +14,11 @@
         - meta parameters
         - shadowing
 -}
-module Agda.Syntax.Translation.InternalToAbstract where
+module Agda.Syntax.Translation.InternalToAbstract
+  ( Reify(..)
+  , ReifyWhen(..)
+  , NamedClause(..)
+  ) where
 
 import Prelude hiding (mapM_, mapM)
 import Control.Applicative
@@ -303,7 +307,12 @@ instance Reify Term Expr where
           False -> reifyDisplayForm x vs $ do
             ci <- getConstInfo x
             let Constructor{conPars = np} = theDef ci
+            -- if we are the the module that defines constructor x
+            -- then we have to drop at least the n module parameters
             n  <- getDefFreeVars x
+            -- the number of parameters is greater (if the data decl has
+            -- extra parameters) or equal (if not) to n
+            when (n > np) __IMPOSSIBLE__
             let h = A.Con (AmbQ [x])
             if null vs then return h else do
             es <- reify vs
@@ -311,11 +320,37 @@ instance Reify Term Expr where
             -- if the first regular constructor argument is hidden
             -- we turn it into a named argument, in order to avoid confusion
             -- with the parameter arguments which can be supplied in abstract syntax
-            if (np == 0) then apps h $ genericDrop n es
-             else   -- get name of argument from type of constructor
-              let TelV tel _ = telView' (defType ci)
+            --
+            -- Andreas, 2012-09-17: this does not remove all sources of confusion,
+            -- since parameters could have the same name as regular arguments
+            -- (see for example the parameter {i} to Data.Star.Star, which is also
+            -- the first argument to the cons).
+            -- @data Star {i}{I : Set i} ... where cons : {i :  I} ...@
+            if (np == 0) then apps h es  -- if np==0 then n==0
+            -- WAS: if (np == 0) then apps h $ genericDrop n es
+             else do   -- get name of argument from type of constructor
+              TelV tel _ <- telView (defType ci) -- need reducing version of telView because target of constructor could be a definition expanding into a function type
+              let -- TelV tel _ = telView' (defType ci) -- WRONG, see test/suceed/NameFirstIfHidden
                   doms       = genericDrop np $ telToList tel
-              in  napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
+              case doms of
+                -- Andreas, 2012-09-18
+                -- If the first regular constructor argument is hidden,
+                -- we keep the parameters to avoid confusion.
+                (Dom Hidden _ _ : _) -> do
+                  let us = genericReplicate (np - n) $ Arg Hidden Relevant underscore
+                  apps h $ us ++ es
+                -- otherwise, we drop all parameters
+                _ -> apps h es
+{- CODE FROM 2012-04-xx
+              reportSLn "syntax.reify.con" 30 $ unlines
+                [ "calling nameFirstIfHidden"
+                , "doms = " ++ show doms
+                , "es   = " ++ show es
+                , "n    = " ++ show n
+                , "np   = " ++ show np
+                ]
+              napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
+-}
 {- OLD CODE: reify parameter arguments of constructor
             scope <- getScope
             let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
