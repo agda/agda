@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v tc.polarity:10 -v tc.with:0 -v tc.with.top:15 -v tc.with.strip:0 #-}
+
 module InductiveAndCoinductiveConstructors where
 
 open import Common.Coinduction
@@ -54,9 +56,23 @@ lemma : ∀ xs lss → ⟦ fst (lab xs lss) ⟧ ≈ ⟦ xs ⟧
 lemma xs lss with whnf xs | whnf lss
 ... | _ ≺ xs′ | (x ≺ ls) ≺ lss′ = cons (♯ lemma xs′ lss′)
 
+{- Andreas, 2012-09-07 WAS:
 label : Prog (stream unit) → Stream ⊤ →
         Prog (stream unit ⊗ stream (stream unit))
 label xs ls = lab xs (↓ (♯ (ls ≺ snd (label xs ls))))
 
 shape-preserved : ∀ xs ls → ⟦ fst (label xs ls) ⟧ ≈ ⟦ xs ⟧
 shape-preserved xs ls = lemma xs _
+-- however, the solution for _ is not unique (see Issue 691)
+-}
+
+mutual
+  label : Prog (stream unit) → Stream ⊤ →
+          Prog (stream unit ⊗ stream (stream unit))
+  label xs ls = lab xs (lss xs ls)
+
+  lss   : Prog (stream unit) → Stream ⊤ → _
+  lss   xs ls = (↓ (♯ (ls ≺ snd (label xs ls))))
+
+shape-preserved : ∀ xs ls → ⟦ fst (label xs ls) ⟧ ≈ ⟦ xs ⟧
+shape-preserved xs ls = lemma xs (lss xs ls)

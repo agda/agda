@@ -546,7 +546,8 @@ assign x args v = do
               ifM (isNothing <$> isRecordConstructor c) (return []) $
                 concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
             fromIrrVar _ = return []
-        irrVL <- concat <$> mapM fromIrrVar [ v | Arg h Irrelevant v <- args]
+        irrVL <- concat <$> mapM fromIrrVar
+                   [ v | Arg h r v <- args, irrelevantOrUnused r ]
         reportSDoc "tc.meta.assign" 20 $
             let pr (Var n []) = text (show n)
                 pr (Def c []) = prettyTCM c
@@ -728,11 +729,11 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
                 res <- loop $ zipWith aux vs fs
                 return $ res `append` vars
             Just _ ->  __IMPOSSIBLE__
-            Nothing | r == Irrelevant -> return vars
+            Nothing | irrelevantOrUnused r -> return vars
                     | otherwise -> failure
 
         -- An irrelevant argument which is not an irrefutable pattern is dropped
-        Arg h Irrelevant _ -> return vars
+        Arg h r _ | irrelevantOrUnused r -> return vars
 
         -- Distinguish args that can be eliminated (Con,Lit,Lam,unsure) ==> failure
         -- from those that can only put somewhere as a whole ==> return Nothing
@@ -758,7 +759,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
     -- adding an irrelevant entry only if not present
     cons :: (Arg Nat, Term) -> Res -> Res
     cons a Nothing = Nothing
-    cons a@(Arg h Irrelevant i, t) (Just vars)
+    cons a@(Arg h Irrelevant i, t) (Just vars)    -- TODO? UnusedArg?!
       | any ((i==) . unArg . fst) vars  = Just vars
       | otherwise                       = Just $ a : vars
     -- adding a relevant entry:

@@ -1,3 +1,4 @@
+-- {-# OPTIONS -v tc.polarity:15 -v tc.pos:50 #-}
 module Issue268 where
 
 module Example₁ where
@@ -20,6 +21,11 @@ module Example₁ where
 
   id : Stream → Stream
   id (cons xs) = cons (♯ id (♭ xs))
+  -- Andreas, 2012-09-14
+  -- with polarity Nonvariant, Agda recognizes id as a constant function
+  -- since there is no proper match on the argument (Stream is a unit type)
+  -- (if Data is opened, then there is a match on `cons')
+
 
   postulate
     P  : Stream → Set
@@ -28,7 +34,7 @@ module Example₁ where
     p  : P (id xs)
 
   Foo : Set
-  Foo = f _ p
+  Foo = f xs p -- f _ p  -- Andreas: _ is not solved for since id is constant
 
   -- The code type checks when Data is opened, but not when Record is
   -- opened:

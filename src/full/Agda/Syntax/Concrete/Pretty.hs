@@ -47,7 +47,12 @@ pHidden Instance    = dbraces . pretty
 pHidden NotHidden   = pretty
 
 pRelevance :: Pretty a => Relevance -> a -> Doc
+pRelevance rel a =
+  let d = pretty a
+  in  if render d == "_" then d else pretty rel <> d
+{-
 pRelevance Forced     a = pretty a
+pRelevance UnusedArg  a = pretty a
 pRelevance Relevant   a = pretty a
 pRelevance Irrelevant a =
   let d = pretty a
@@ -55,11 +60,6 @@ pRelevance Irrelevant a =
 pRelevance NonStrict a =
   let d = pretty a
   in  if render d == "_" then d else text ".." <> d
-
-{- UNUSED
--- | Use for printing non-dependent function types
-prettyWithRelevance :: Pretty a => Arg a -> Doc
-prettyWithRelevance a = pRelevance (argRelevance a) a
 -}
 
 instance Pretty (ThingWithFixity Name) where
@@ -92,6 +92,7 @@ showChar' c
 
 instance Pretty Relevance where
   pretty Forced     = empty
+  pretty UnusedArg  = empty
   pretty Relevant   = empty
   pretty Irrelevant = text "."
   pretty NonStrict  = text ".."

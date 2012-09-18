@@ -278,6 +278,91 @@ Type checking
 
   That resulted in unsolved metas until 2.3.0.
 
+* Agda detects unused arguments and ignores them during equality
+  checking. [Issue 691, solves also issue 44.]
+
+  Agda's polarity checker now assigns 'Nonvariant' to arguments
+  that are not actually used (except for absurd matches).  If
+  f's first argument is Nonvariant, then f x is definitionally equal
+  to f y regardless of x and y.  It is similar to irrelevance, but
+  does not require user annotation.
+
+  For instance, unused module parameters do no longer get in the way:
+
+    module M (x : Bool) where
+
+      not : Bool → Bool
+      not true  = false
+      not false = true
+
+    open M true
+    open M false renaming (not to not′)
+
+    test : (y : Bool) → not y ≡ not′ y
+    test y = refl
+
+  Matching against record or absurd patterns does not count as `use',
+  so we get some form of proof irrelevance:
+
+    data ⊥ : Set where
+    record ⊤ : Set where
+      constructor trivial
+
+    data Bool : Set where
+      true false : Bool
+
+    True : Bool → Set
+    True true  = ⊤
+    True false = ⊥
+
+    fun : (b : Bool) → True b → Bool
+    fun true  trivial = true
+    fun false ()
+
+    test : (b : Bool) → (x y : True b) → fun b x ≡ fun b y
+    test b x y = refl
+
+  More examples in test/succeed/NonvariantPolarity.agda.
+
+  Phantom arguments:  Parameters of record and data types are considered
+  `used' even if they are not actually used.  Consider:
+
+    False : Nat → Set
+    False zero    = ⊥
+    False (suc n) = False n
+
+    module Invariant where
+      record Bla (n : Nat)(p : False n) : Set where
+
+    module Nonvariant where
+      Bla : (n : Nat) → False n → Set
+      Bla n p = ⊤
+
+  Even though record `Bla' does not use its parameters n and p, they
+  are considered as used, allowing "phantom type" techniques.
+
+  In contrast, the arguments of function `Bla' are recognized as unused.
+  The following code type-checks if we open Invariant but leaves unsolved
+  metas if we open Nonvariant.
+
+    drop-suc : {n : Nat}{p : False n} → Bla (suc n) p → Bla n p
+    drop-suc _ = _
+
+    bla : (n : Nat) → {p : False n} → Bla n p → ⊥
+    bla zero {()} b
+    bla (suc n) b = bla n (drop-suc b)
+
+  If `Bla' is considered invariant, the hidden argument in the recursive
+  call can be inferred to be `p'.  If it is considered non-variant, then
+  `Bla n X = Bla n p' does not entail `X = p' and the hidden argument
+  remains unsolved.  Since `bla' does not actually use its hidden argument,
+  its value is not important and it could be searched for.
+  Unfortunately, polarity analysis of `bla' happens only after type
+  checking, thus, the information that `bla' is non-variant in `p' is
+  not available yet when meta-variables are solved.
+  (See test/fail/BrokenInferenceDueToNonvariantPolarity.agda)
+
+
 Compiler backends
 =================
 

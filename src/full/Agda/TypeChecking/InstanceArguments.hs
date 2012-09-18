@@ -246,7 +246,7 @@ solveIrrelevantMetas = mapM_ solveMetaIfIrrelevant =<< getOpenMetas
 solveMetaIfIrrelevant :: MetaId -> TCM ()
 solveMetaIfIrrelevant x = do
   m <- lookupMeta x
-  when (getMetaRelevance m == Irrelevant) $ do
+  when (irrelevantOrUnused (getMetaRelevance m)) $ do
     reportSDoc "tc.conv.irr" 20 $ sep
       [ text "instance search for solution of irrelevant meta"
       , prettyTCM x, colon, prettyTCM $ jMetaType $ mvJudgement m

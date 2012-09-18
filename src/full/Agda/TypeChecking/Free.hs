@@ -10,7 +10,7 @@ module Agda.TypeChecking.Free
     , rigidVars
     , freeIn, isBinderUsed
     , freeInIgnoringSorts, freeInIgnoringSortAnn
-    , relevantIn
+    , relevantIn, relevantInIgnoringSortAnn
     , Occurrence(..)
     , occurrence
     ) where
@@ -41,6 +41,7 @@ data FreeVars = FV
   , weaklyRigidVars   :: VarSet -- ^ ord. rigid variables, e.g., in arguments of variables
   , flexibleVars      :: VarSet -- ^ variables occuring in arguments of metas. These are potentially free, depending how the meta variable is instantiated.
   , irrelevantVars    :: VarSet -- ^ variables in irrelevant arguments and under a @DontCare@, i.e., in irrelevant positions
+  , unusedVars        :: VarSet -- ^ variables in 'UnusedArg'uments
   }
 
 rigidVars :: FreeVars -> VarSet
@@ -48,7 +49,7 @@ rigidVars fv = Set.union (stronglyRigidVars fv) (weaklyRigidVars fv)
 
 -- | @allVars fv@ includes irrelevant variables.
 allVars :: FreeVars -> VarSet
-allVars fv = Set.unions [rigidVars fv, flexibleVars fv, irrelevantVars fv]
+allVars fv = Set.unions [rigidVars fv, flexibleVars fv, irrelevantVars fv, unusedVars fv]
 
 -- | All but the irrelevant variables.
 relevantVars :: FreeVars -> VarSet
@@ -60,6 +61,7 @@ data Occurrence
   | StronglyRigid
   | WeaklyRigid
   | Flexible
+  | Unused
   deriving (Eq,Show)
 
 {- NO LONGER
@@ -71,6 +73,7 @@ occurrence x fv
   | x `Set.member` weaklyRigidVars   fv = WeaklyRigid
   | x `Set.member` flexibleVars      fv = Flexible
   | x `Set.member` irrelevantVars    fv = Irrelevantly
+  | x `Set.member` unusedVars        fv = Unused
   | otherwise                           = NoOccurrence
 
 -- | Mark variables as flexible.  Useful when traversing arguments of metas.
@@ -92,32 +95,35 @@ weakly fv = fv
 irrelevantly :: FreeVars -> FreeVars
 irrelevantly fv = empty { irrelevantVars = allVars fv }
 
+-- | Mark all free variables as unused, except for irrelevant vars.
+unused :: FreeVars -> FreeVars
+unused fv = empty
+  { irrelevantVars = irrelevantVars fv
+  , unusedVars     = Set.unions [ rigidVars fv, flexibleVars fv, unusedVars fv ]
+  }
+
 -- | Pointwise union.
 union :: FreeVars -> FreeVars -> FreeVars
-union (FV sv1 rv1 fv1 iv1) (FV sv2 rv2 fv2 iv2) =
-  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2)
+union (FV sv1 rv1 fv1 iv1 uv1) (FV sv2 rv2 fv2 iv2 uv2) =
+  FV (Set.union sv1 sv2) (Set.union rv1 rv2) (Set.union fv1 fv2) (Set.union iv1 iv2) (Set.union uv1 uv2)
 
 unions :: [FreeVars] -> FreeVars
 unions = foldr union empty
 
 empty :: FreeVars
-empty = FV Set.empty Set.empty Set.empty Set.empty
+empty = FV Set.empty Set.empty Set.empty Set.empty Set.empty
 
 -- | @delete x fv@ deletes variable @x@ from variable set @fv@.
 delete :: Nat -> FreeVars -> FreeVars
-delete n (FV sv rv fv iv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv)
+delete n (FV sv rv fv iv uv) = FV (Set.delete n sv) (Set.delete n rv) (Set.delete n fv) (Set.delete n iv) (Set.delete n uv)
 
 -- | @subtractFV n fv@ subtracts $n$ from each free variable in @fv@.
 subtractFV :: Nat -> FreeVars -> FreeVars
-subtractFV n (FV sv rv fv iv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv)
+subtractFV n (FV sv rv fv iv uv) = FV (Set.subtract n sv) (Set.subtract n rv) (Set.subtract n fv) (Set.subtract n iv) (Set.subtract n uv)
 
 -- | A single (strongly) rigid variable.
 singleton :: Nat -> FreeVars
-singleton x = FV { stronglyRigidVars = Set.singleton x
-		 , weaklyRigidVars   = Set.empty -- WAS: Set.singleton x
-		 , flexibleVars      = Set.empty
-                 , irrelevantVars    = Set.empty
-		 }
+singleton x = empty { stronglyRigidVars = Set.singleton x }
 
 -- * Collecting free variables.
 
@@ -195,6 +201,7 @@ instance (Free a, Free b) => Free (a,b) where
 
 instance Free a => Free (Arg a) where
   freeVars' conf (Arg h Irrelevant a) = irrelevantly $ freeVars' conf a
+  freeVars' conf (Arg h UnusedArg  a) = unused $ freeVars' conf a
   freeVars' conf (Arg h r          a) = freeVars' conf a
 
 instance Free a => Free (Dom a) where
@@ -223,6 +230,10 @@ freeInIgnoringSorts v t =
 freeInIgnoringSortAnn :: Free a => Nat -> a -> Bool
 freeInIgnoringSortAnn v t =
   v `Set.member` allVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } t)
+
+relevantInIgnoringSortAnn :: Free a => Nat -> a -> Bool
+relevantInIgnoringSortAnn v t =
+  v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreInAnnotations } t)
 
 relevantIn :: Free a => Nat -> a -> Bool
 relevantIn v t = v `Set.member` relevantVars (freeVars' FreeConf{ fcIgnoreSorts = IgnoreAll } t)

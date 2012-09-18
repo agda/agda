@@ -51,6 +51,7 @@ quotingKit = do
       quoteRelevance Irrelevant = irrelevant
       quoteRelevance NonStrict  = relevant
       quoteRelevance Forced     = relevant
+      quoteRelevance UnusedArg  = relevant
       quoteLit (LitInt   _ n)   = iterate suc zero !! fromIntegral n
       quoteLit _                = unsupported
       -- We keep no ranges in the quoted term, so the equality on terms

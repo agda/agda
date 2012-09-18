@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 
 module Agda.TypeChecking.Rules.Decl where
 
@@ -39,6 +39,7 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.SizedTypes
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Forcing
+import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.InstanceArguments (solveIrrelevantMetas)
 
 import Agda.TypeChecking.Rules.Term
@@ -186,15 +187,28 @@ checkDecl d = do
           -- definition corresponding to the given name?
           relevant q = do
             def <- theDef <$> getConstInfo q
-            return (q, case def of
-              Function{}    -> True
-              Datatype{}    -> True
-              Record{}      -> True
-              Axiom{}       -> False
-              Constructor{} -> False
-              Primitive{}   -> False)
+            return $ case def of
+              Function{}    -> Just q
+              Datatype{}    -> Just q
+              Record{}      -> Just q
+              Axiom{}       -> Nothing
+              Constructor{} -> Nothing
+              Primitive{}   -> Nothing
       mapM_ computePolarity =<<
-        (map fst . filter snd <$> mapM relevant (Set.toList names))
+        (catMaybes <$> mapM relevant (Set.toList names))
+
+      -- Andreas, 2012-09-11:  Injectivity check stores clauses
+      -- whose 'Relevance' is affected by polarity computation,
+      -- so do it here.
+
+      let checkInj (q, def@Defn{ theDef = d@Function{ funClauses = cs }}) = do
+            inv <- checkInjectivity q cs
+            modifySignature $ updateDefinition q $ const $
+              def { theDef = d { funInv = inv }}
+          checkInj _ = return ()
+
+      namesDefs <- mapM (\ q -> (q,) <$> getConstInfo q) $ Set.toList names
+      mapM_ checkInj namesDefs
 
       -- Non-mutual definitions can be considered for
       -- projection likeness

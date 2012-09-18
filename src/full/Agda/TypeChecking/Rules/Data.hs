@@ -299,6 +299,7 @@ constructs nofPars t q = constrT 0 t
 		    t <- typeOfBV i
 		    equalTerm t (unArg arg) (var i)
 
+{- UNUSED, Andreas 2012-09-13
 -- | Force a type to be a specific datatype.
 forceData :: QName -> Type -> TCM Type
 forceData d (El s0 t) = liftTCM $ do
@@ -314,6 +315,7 @@ forceData d (El s0 t) = liftTCM $ do
 	    noConstraints $ leqType (El s0 t') (El s (Def d ps)) -- TODO: need equalType?
 	    reduce $ El s0 t'
 	_ -> typeError $ ShouldBeApplicationOf (El s0 t) d
+-}
 
 -- | Is the type coinductive? Returns 'Nothing' if the answer cannot
 -- be determined.

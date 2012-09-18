@@ -47,19 +47,31 @@ instance KillRange Hiding    where killRange = id
 -- | A function argument can be relevant or irrelevant.
 --   See 'Agda.TypeChecking.Irrelevance'.
 data Relevance
-  = Relevant    -- ^ the argument is (possibly) relevant at compile-time
-  | NonStrict   -- ^ the argument may never flow into evaluation position.
+  = Relevant    -- ^ The argument is (possibly) relevant at compile-time.
+  | NonStrict   -- ^ The argument may never flow into evaluation position.
                 --   Therefore, it is irrelevant at run-time.
                 --   It is treated relevantly during equality checking.
-  | Irrelevant  -- ^ the argument is irrelevant at compile- and runtime
-  | Forced      -- ^ the argument can be skipped during equality checking
-    deriving (Typeable, Show, Eq)
+  | Irrelevant  -- ^ The argument is irrelevant at compile- and runtime.
+  | Forced      -- ^ The argument can be skipped during equality checking
+                --   because its value is already determined by the type.
+  | UnusedArg   -- ^ The polarity checker has determined that this argument
+                --   is unused in the definition.  It can be skipped during
+                --   equality checking but should be mined for solutions
+                --   of meta-variables with relevance 'UnusedArg'
+    deriving (Typeable, Show, Eq, Enum, Bounded)
+
+instance Arbitrary Relevance where
+  arbitrary = elements [minBound..maxBound]
 
 instance Ord Relevance where
   (<=) = moreRelevant
 
 -- | Information ordering.
--- @Relevant \`moreRelevant\` Forced \`moreRelevant\` NonStrict \`moreRelevant\` Irrelevant@
+-- @Relevant  \`moreRelevant\`
+--  UnusedArg \`moreRelevant\`
+--  Forced    \`moreRelevant\`
+--  NonStrict \`moreRelevant\`
+--  Irrelevant@
 moreRelevant :: Relevance -> Relevance -> Bool
 moreRelevant r r' =
   case (r, r') of
@@ -70,6 +82,9 @@ moreRelevant r r' =
     (Relevant, _)   -> True
     (_, Relevant)   -> False
     -- second bottom
+    (UnusedArg, _)  -> True
+    (_, UnusedArg)  -> False
+    -- third bottom
     (Forced, _)     -> True
     (_, Forced)     -> False
     -- remaining case
@@ -176,6 +191,7 @@ instance Show a => Show (Arg a) where
         showR Irrelevant s = "." ++ s
         showR NonStrict  s = "?" ++ s
         showR Forced     s = "!" ++ s
+        showR UnusedArg  s = "k" ++ s -- constant
         showR Relevant   s = "r" ++ s -- Andreas: I want to see it explicitly
 
 ---------------------------------------------------------------------------

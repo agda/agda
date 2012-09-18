@@ -44,7 +44,7 @@ import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.InstanceArguments
 import Agda.TypeChecking.Primitive
 import Agda.TypeChecking.Constraints
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free hiding (Occurrence(..))
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Irrelevance
@@ -473,7 +473,7 @@ checkExpr e t =
                                     , funDelayed        = NotDelayed
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef
-                                    , funPolarity       = [Covariant]
+                                    , funPolarity       = [Nonvariant] -- WAS: [Covariant]
                                     , funArgOccurrences = [Unused]
                                     , funMutual         = []
                                     , funProjection     = Nothing

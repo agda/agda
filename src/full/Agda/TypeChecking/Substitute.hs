@@ -18,7 +18,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
 import Agda.TypeChecking.Monad.Base
-import Agda.TypeChecking.Free
+import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
 import Agda.Utils.Monad
@@ -716,6 +716,7 @@ dLub s1 b@(Abs _ s2) = case occurrence 0 $ freeVars s2 of
   Flexible      -> DLub s1 b
   Irrelevantly  -> DLub s1 b
   NoOccurrence  -> sLub s1 (absApp b __IMPOSSIBLE__)
+  Free.Unused   -> sLub s1 (absApp b __IMPOSSIBLE__)
   StronglyRigid -> Inf
   WeaklyRigid   -> Inf
 

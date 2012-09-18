@@ -454,7 +454,8 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
       mlvl <- mlevel
       let checkArg = applyRelevanceToContext r $ case r of
             Forced     -> return ()
-            Irrelevant -> compareIrrelevant b (unArg arg1) (unArg arg2)
+            r | irrelevantOrUnused r ->
+                          compareIrrelevant b (unArg arg1) (unArg arg2)
             _          -> compareWithPol pol (flip compareTerm b)
                             (unArg arg1) (unArg arg2)
           dependent = case unEl a of
@@ -520,9 +521,9 @@ compareIrrelevant a v w = do
         [ nest 2 $ text $ "rel  = " ++ show rel
         , nest 2 $ text $ "inst = " ++ show inst
         ]
-      if rel /= Irrelevant || inst then fallback else assignV x vs w
+      if not (irrelevantOrUnused rel) || inst then fallback else assignV x vs w
+        -- the value of irrelevant or unused meta does not matter
     try v w fallback = fallback
-
 
 compareWithPol :: Polarity -> (Comparison -> a -> a -> TCM ()) -> a -> a -> TCM ()
 compareWithPol Invariant     cmp x y = cmp CmpEq x y

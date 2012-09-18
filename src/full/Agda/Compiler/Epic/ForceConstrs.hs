@@ -27,6 +27,7 @@ makeForcedArgs (T.El _ term) = case term of
     isRel arg = case S.domRelevance arg of
       S.Relevant   -> NotForced
       S.Irrelevant -> Forced
+      S.UnusedArg  -> Forced
       S.NonStrict  -> Forced -- can never be executed
       S.Forced     -> Forced -- It can be inferred
 

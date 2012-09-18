@@ -9,7 +9,7 @@ import Control.Monad.Reader
 
 import qualified Data.Map as Map
 
-import Agda.Interaction.Options
+import Agda.Interaction.Options hiding (tests)
 
 import Agda.Syntax.Common
 
@@ -17,14 +17,25 @@ import Agda.TypeChecking.Monad
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
+import Agda.Utils.QuickCheck
+import Agda.Utils.TestHelpers
 
 -- | data 'Relevance'
 --   see 'Agda.Syntax.Common'
+
+irrelevantOrUnused :: Relevance -> Bool
+irrelevantOrUnused Irrelevant = True
+irrelevantOrUnused UnusedArg  = True
+irrelevantOrUnused NonStrict  = False
+irrelevantOrUnused Relevant   = False
+irrelevantOrUnused Forced     = False
 
 -- | @unusableRelevance rel == True@ iff we cannot use a variable of @rel@.
 unusableRelevance :: Relevance -> Bool
 unusableRelevance rel = NonStrict `moreRelevant` rel
 
+-- | 'Relevance' composition.
+--   'Irrelevant' is dominant, 'Relevant' is neutral.
 composeRelevance :: Relevance -> Relevance -> Relevance
 composeRelevance r r' =
   case (r, r') of
@@ -34,6 +45,8 @@ composeRelevance r r' =
     (_, NonStrict)  -> NonStrict
     (Forced, _)     -> Forced
     (_, Forced)     -> Forced
+    (UnusedArg, _)  -> UnusedArg
+    (_, UnusedArg)  -> UnusedArg
     (Relevant, Relevant) -> Relevant
 
 -- | @inverseComposeRelevance r x@ returns the most irrelevant @y@
@@ -44,17 +57,19 @@ composeRelevance r r' =
 inverseComposeRelevance :: Relevance -> Relevance -> Relevance
 inverseComposeRelevance r x =
   case (r, x) of
-    (_, Forced)          -> Forced     -- preserve @Forced@
     (Relevant, x)        -> x          -- going to relevant arg.: nothing changes
-    (Forced, Relevant)   -> Forced     -- going forced: relevants become forced
+    _ | r == x           -> Relevant   -- because Relevant is comp.-neutral
+    (UnusedArg, x)       -> x
+    (Forced, UnusedArg)  -> Relevant
     (Forced, x)          -> x
-    (Irrelevant, _)      -> Relevant   -- going irrelevant: every thing usable
+    (Irrelevant, x)      -> Relevant   -- going irrelevant: every thing usable
     (_, Irrelevant)      -> Irrelevant -- otherwise: irrelevant things remain unusable
     (NonStrict, _)       -> Relevant   -- but @NonStrict@s become usable
 
--- | For comparing @Relevance@ ignoring @Forced@.
+-- | For comparing @Relevance@ ignoring @Forced@ and @UnusedArg@.
 ignoreForced :: Relevance -> Relevance
 ignoreForced Forced     = Relevant
+ignoreForced UnusedArg  = Relevant
 ignoreForced Relevant   = Relevant
 ignoreForced NonStrict  = NonStrict
 ignoreForced Irrelevant = Irrelevant
@@ -131,7 +146,8 @@ applyRelevanceToContext rel =
           (fmap $ \ (t, a) -> (t, inverseApplyRelevance rel a))
           (envLetBindings e)
                                                   -- enable local  irr. defs
-      , envRelevance = rel                        -- enable global irr. defs
+      , envRelevance = composeRelevance rel (envRelevance e)
+                                                  -- enable global irr. defs
       }
 
 -- | Wake up irrelevant variables and make them relevant.  For instance,
