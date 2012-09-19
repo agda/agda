@@ -430,19 +430,11 @@ checkExpr e t =
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
 
-{- OLD CODE
-        A.AbsurdLam i h -> do
-          t <- reduceB =<< instantiateFull t
-          case t of
-            Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-            NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-            NotBlocked t' -> case unEl t' of
--}
         A.AbsurdLam i h -> do
           t <- instantiateFull t
           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
             case unEl t' of
-              Pi (Dom h' r a) _
+              Pi dom@(Dom h' r a) _
                 | h == h' && not (null $ allMetas a) ->
                     postponeTypeCheckingProblem e t' $
                       null . allMetas <$> instantiateFull a
@@ -459,28 +451,30 @@ checkExpr e t =
                     [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
-                  addConstant aux $ Defn rel aux t' [Nonvariant] [Unused] (defaultDisplayForm aux) 0 noCompiledRep
-                                  $ Function
-                                    { funClauses        =
-                                        [Clause { clauseRange = getRange e
-                                                , clauseTel   = EmptyTel
-                                                , clausePerm  = Perm 0 []
-                                                , clausePats  = [Arg h r $ VarP "()"]
-                                                , clauseBody  = NoBody
-                                                }
-                                        ]
-                                    , funCompiled       = Fail
-                                    , funDelayed        = NotDelayed
-                                    , funInv            = NotInjective
-                                    , funAbstr          = ConcreteDef
+                  addConstant aux
+                    $ Defn rel aux t' [Nonvariant] [Unused] (defaultDisplayForm aux) 0 noCompiledRep
+                    $ Function
+                      { funClauses        =
+                          [Clause
+                            { clauseRange = getRange e
+                            , clauseTel   = EmptyTel   -- telFromList [fmap ("()",) dom]
+                            , clausePerm  = Perm 1 []  -- Perm 1 [0]
+                            , clausePats  = [Arg h r $ VarP "()"]
+                            , clauseBody  = Bind $ NoAbs "()" NoBody
+                            }
+                          ]
+                      , funCompiled       = Fail
+                      , funDelayed        = NotDelayed
+                      , funInv            = NotInjective
+                      , funAbstr          = ConcreteDef
 {-
-                                    , funPolarity       = [Nonvariant] -- WAS: [Covariant]
-                                    , funArgOccurrences = [Unused]
+                      , funPolarity       = [Nonvariant] -- WAS: [Covariant]
+                      , funArgOccurrences = [Unused]
 -}
-                                    , funMutual         = []
-                                    , funProjection     = Nothing
-                                    , funStatic         = False
-                                    }
+                      , funMutual         = []
+                      , funProjection     = Nothing
+                      , funStatic         = False
+                      }
                   -- Andreas 2012-01-30: since aux is lifted to toplevel
                   -- it needs to be applied to the current telescope (issue 557)
                   tel <- getContextTelescope
