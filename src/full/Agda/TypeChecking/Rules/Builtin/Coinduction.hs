@@ -76,15 +76,19 @@ bindBuiltinSharp e =
       Def inf _ -> getConstInfo inf
       _         -> __IMPOSSIBLE__
     addConstant (defName infDefn) $
-      infDefn { theDef = Datatype
+      infDefn { defPolarity       = [] -- not monotone
+              , defArgOccurrences = [Unused, Positive]
+              , theDef = Datatype
                   { dataPars           = 2
                   , dataIxs            = 0
                   , dataInduction      = CoInductive
                   , dataClause         = Nothing
                   , dataCons           = [sharp]
                   , dataSort           = varSort 1
+{-
                   , dataPolarity       = [Invariant, Invariant]
                   , dataArgOccurrences = [Unused, Positive]
+-}
                   , dataMutual         = []
                   , dataAbstr          = ConcreteDef
                   }
@@ -132,7 +136,9 @@ bindBuiltinFlat e =
                         , clauseBody  = Bind $ Abs "x" $ Body (var 0)
                         }
     addConstant flat $
-      flatDefn { theDef = Function
+      flatDefn { defPolarity = []
+               , defArgOccurrences = [Positive]
+               , theDef = Function
                    { funClauses        = [clause]
                    , funCompiled       =
                       let hid   = Arg Hidden Relevant
@@ -142,8 +148,10 @@ bindBuiltinFlat e =
                                Map.empty
                                Nothing)
                    , funInv            = NotInjective
+{-
                    , funPolarity       = [Invariant]
                    , funArgOccurrences = [Positive] -- changing that to [Negative] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+-}
                    , funMutual         = []
                    , funAbstr          = ConcreteDef
                    , funDelayed        = NotDelayed

@@ -87,7 +87,7 @@ import Agda.Utils.Impossible
 -- 32-bit machines). Word64 does not have these problems.
 
 currentInterfaceVersion :: Word64
-currentInterfaceVersion = 20120913 * 10 + 0
+currentInterfaceVersion = 20120919 * 10 + 0
 
 -- | Constructor tag (maybe omitted) and argument indices.
 
@@ -771,9 +771,9 @@ instance EmbPrj MutualId where
   value n = MutId `fmap` value n
 
 instance EmbPrj Definition where
-  icode (Defn rel a b c d e f) = icode7' rel a b c d e f
-  value = vcase valu where valu [rel, a, b, c, d, e, f] = valu7 Defn rel a b c d e f
-                           valu _                       = malformed
+  icode (Defn rel a b c d e f g h) = icode9' rel a b c d e f g h
+  value = vcase valu where valu [rel, a, b, c, d, e, f, g, h] = valu9 Defn rel a b c d e f g h
+                           valu _                             = malformed
 
 instance EmbPrj HaskellRepresentation where
   icode (HsType a)   = icode1' a
@@ -864,16 +864,16 @@ instance EmbPrj CompiledRepresentation where
 
 instance EmbPrj Defn where
   icode Axiom                                   = icode0 0
-  icode (Function    a b c d e f g h i j)       = icode10 1 a b c d e f g h i j
-  icode (Datatype    a b c d e f g h i j)       = icode10 2 a b c d e f g h i j
-  icode (Record      a b c d e f g h i j k l m o) = icode14 3 a b c d e f g h i j k l m o
+  icode (Function    a b c d e f g h)           = icode8 1 a b c d e f g h
+  icode (Datatype    a b c d e f g h)           = icode8 2 a b c d e f g h
+  icode (Record      a b c d e f g h i j k l)   = icode12 3 a b c d e f g h i j k l
   icode (Constructor a b c d e)                 = icode5 4 a b c d e
   icode (Primitive   a b c d)                   = icode4 5 a b c d
   value = vcase valu where
     valu [0]                                    = valu0 Axiom
-    valu [1, a, b, c, d, e, f, g, h, i, j]      = valu10 Function    a b c d e f g h i j
-    valu [2, a, b, c, d, e, f, g, h, i, j]      = valu10 Datatype   a b c d e f g h i j
-    valu [3, a, b, c, d, e, f, g, h, i, j, k, l, m, n] = valu14 Record  a b c d e f g h i j k l m n
+    valu [1, a, b, c, d, e, f, g, h]            = valu8 Function a b c d e f g h
+    valu [2, a, b, c, d, e, f, g, h]            = valu8 Datatype a b c d e f g h
+    valu [3, a, b, c, d, e, f, g, h, i, j, k, l]= valu12 Record  a b c d e f g h i j k l
     valu [4, a, b, c, d, e]                     = valu5 Constructor a b c d e
     valu [5, a, b, c, d]                        = valu4 Primitive   a b c d
     valu _                                      = malformed

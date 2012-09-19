@@ -77,6 +77,12 @@ updateTheDef f def = def { theDef = f (theDef def) }
 updateDefType :: (Type -> Type) -> (Definition -> Definition)
 updateDefType f def = def { defType = f (defType def) }
 
+updateDefArgOccurrences :: ([Occurrence] -> [Occurrence]) -> (Definition -> Definition)
+updateDefArgOccurrences f def = def { defArgOccurrences = f (defArgOccurrences def) }
+
+updateDefPolarity :: ([Polarity] -> [Polarity]) -> (Definition -> Definition)
+updateDefPolarity f def = def { defPolarity = f (defPolarity def) }
+
 -- | Add a constant to the signature. Lifts the definition to top level.
 addConstant :: QName -> Definition -> TCM ()
 addConstant q d = do
@@ -127,11 +133,16 @@ makeProjection x = inContext [] $ do
                        , funClauses        = cls'
                        , funCompiled       = cc
                        , funInv            = mapInv (Map.map $ rewriteClause n) $ funInv def
+{-
                        , funArgOccurrences = drop n $ funArgOccurrences def
                        , funPolarity       = drop n $ funPolarity def
+-}
                        }
-          addConstant x $ defn{ theDef     = newDef
-                              , defDisplay = [] }
+          addConstant x $ defn { defPolarity       = drop n $ defPolarity defn
+                               , defArgOccurrences = drop n $ defArgOccurrences defn
+                               , defDisplay        = []
+                               , theDef            = newDef
+                               }
     Function{funInv = Inverse{}} ->
       reportSLn "tc.proj.like" 30 $ "  injective functions can't be projections"
     Function{funAbstr = AbstractDef} ->
@@ -367,29 +378,33 @@ applySection new ptel old ts rd rm = do
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y
       where
-	t  = defType d `apply` ts
+	t   = defType d `apply` ts
+        pol = defPolarity d `apply` ts
+        occ = defArgOccurrences d `apply` ts
 	-- the name is set by the addConstant function
-	nd y = Defn (defRelevance d) y t [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
+	nd y = Defn (defRelevance d) y t pol occ [] (-1) noCompiledRep <$> def  -- TODO: mutual block?
         oldDef = theDef d
 	isCon = case oldDef of
 	  Constructor{} -> True
 	  _		-> False
+{- OLD
         getOcc d = case d of
           Function { funArgOccurrences  = os } -> os
           Datatype { dataArgOccurrences = os } -> os
           Record   { recArgOccurrences  = os } -> os
           _ -> []
         oldOcc = getOcc oldDef
+-}
 	def  = case oldDef of
                 Constructor{ conPars = np, conData = d } -> return $
                   oldDef { conPars = np - size ts, conData = copyName d }
                 Datatype{ dataPars = np, dataCons = cs } -> return $
                   oldDef { dataPars = np - size ts, dataClause = Just cl, dataCons = map copyName cs
-                         , dataArgOccurrences = drop (length ts) oldOcc }
+                         {- , dataArgOccurrences = drop (length ts) oldOcc -} }
                 Record{ recPars = np, recConType = t, recTel = tel } -> return $
                   oldDef { recPars = np - size ts, recClause = Just cl
                          , recConType = apply t ts, recTel = apply tel ts
-                         , recArgOccurrences = drop (length ts) oldOcc
+                         {- , recArgOccurrences = drop (length ts) oldOcc -}
                          }
 		_ -> do
                   cc <- compileClauses True [cl]
@@ -398,8 +413,10 @@ applySection new ptel old ts rd rm = do
                         , funCompiled       = cc
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective
+{-
                         , funPolarity       = []
                         , funArgOccurrences = drop (length ts') oldOcc
+-}
                         , funMutual         = mutual
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
@@ -526,6 +543,11 @@ getConstInfo q = liftTCM $ join $ pureTCM $ \st env ->
 
 -- | Look up the polarity of a definition.
 getPolarity :: QName -> TCM [Polarity]
+getPolarity q = defPolarity <$> getConstInfo q
+
+{- OLD
+-- | Look up the polarity of a definition.
+getPolarity :: QName -> TCM [Polarity]
 getPolarity q = do
   defn <- theDef <$> getConstInfo q
   case defn of
@@ -533,6 +555,7 @@ getPolarity q = do
     Datatype{ dataPolarity = p } -> return p
     Record{ recPolarity    = p } -> return p
     _                            -> return []
+-}
 
 -- | Look up polarity of a definition and compose with polarity
 --   represented by 'Comparison'.
@@ -540,6 +563,11 @@ getPolarity' :: Comparison -> QName -> TCM [Polarity]
 getPolarity' CmpEq  q = map (composePol Invariant) <$> getPolarity q -- return []
 getPolarity' CmpLeq q = getPolarity q -- composition with Covariant is identity
 
+-- | Set the polarity of a definition.
+setPolarity :: QName -> [Polarity] -> TCM ()
+setPolarity q pol = modifySignature $ updateDefinition q $ updateDefPolarity $ const pol
+
+{- OLD
 -- | Set the polarity of a definition.
 setPolarity :: QName -> [Polarity] -> TCM ()
 setPolarity q pol = do
@@ -554,7 +582,13 @@ setPolarity q pol = do
           Record{}   -> d { recPolarity  = pol }
           _          -> d
 	defs	  = sigDefinitions sig
+-}
 
+-- | Return a finite list of argument occurrences.
+getArgOccurrences :: QName -> TCM [Occurrence]
+getArgOccurrences d = defArgOccurrences <$> getConstInfo d
+
+{- OLD
 -- | Return a finite list of argument occurrences.
 getArgOccurrences :: QName -> TCM [Occurrence]
 getArgOccurrences d = do
@@ -568,8 +602,20 @@ getArgOccurrences_ def = case def of
     Record   { recArgOccurrences  = os } -> os
     Constructor{}                        -> [] -- repeat Positive
     _                                    -> [] -- repeat Negative
+-}
 
+getArgOccurrence :: QName -> Nat -> TCM Occurrence
+getArgOccurrence d i = do
+  def <- getConstInfo d
+  return $ case theDef def of
+    Constructor{} -> Positive
+    _             -> (defArgOccurrences def ++ repeat Negative) !! fromIntegral i
 
+setArgOccurrences :: QName -> [Occurrence] -> TCM ()
+setArgOccurrences d os =
+  modifySignature $ updateDefinition d $ updateDefArgOccurrences $ const os
+
+{- OLD
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- theDef <$> getConstInfo d
@@ -595,6 +641,7 @@ setArgOccurrences d os =
           Record{}   -> d { recArgOccurrences  = os }
           _          -> d
 	defs	  = sigDefinitions sig
+-}
 
 -- | Get the mutually recursive identifiers.
 getMutual :: QName -> TCM [QName]

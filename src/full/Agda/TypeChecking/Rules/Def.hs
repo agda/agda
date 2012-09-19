@@ -110,15 +110,17 @@ checkAlias t' rel delayed i name e = do
     -- (test/succeed/Issue655.agda)
 
   -- Add the definition
-  addConstant name $ Defn rel name t (defaultDisplayForm name) 0 noCompiledRep
+  addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
                       { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
                       , funCompiled       = Done [] v
                       , funDelayed        = delayed
                       , funInv            = NotInjective
                       , funAbstr          = Info.defAbstract i
+{-
                       , funPolarity       = []
                       , funArgOccurrences = []
+-}
                       , funMutual         = []
                       , funProjection     = Nothing
                       , funStatic         = False
@@ -182,15 +184,17 @@ checkFunDef' t rel delayed i name cs =
               ]
 
         -- Add the definition
-        addConstant name $ Defn rel name t (defaultDisplayForm name) 0 noCompiledRep
+        addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                          $ Function
                             { funClauses        = cs
                             , funCompiled       = cc
                             , funDelayed        = delayed
                             , funInv            = inv
                             , funAbstr          = Info.defAbstract i
+{-
                             , funPolarity       = []
                             , funArgOccurrences = []
+-}
                             , funMutual         = []
                             , funProjection     = Nothing
                             , funStatic         = False
@@ -575,7 +579,7 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
       , prettyList $ map prettyTCM ts
       , prettyTCM dt
       ]
-  addConstant aux (Defn Relevant aux auxType [df] 0 noCompiledRep Axiom)
+  addConstant aux (Defn Relevant aux auxType [] [] [df] 0 noCompiledRep Axiom)
   solveSizeConstraints
 
   reportSDoc "tc.with.top" 10 $ sep

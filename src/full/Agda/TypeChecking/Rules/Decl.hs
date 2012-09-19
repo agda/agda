@@ -249,7 +249,7 @@ checkAxiom i rel0 x e = do
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
-  addConstant x (Defn rel x t (defaultDisplayForm x) 0 noCompiledRep Axiom)
+  addConstant x (Defn rel x t [] [] (defaultDisplayForm x) 0 noCompiledRep Axiom)
 
   -- for top-level axioms (postulates) try to solve irrelevant metas
   -- when postulate $
@@ -269,7 +269,7 @@ checkPrimitive i x e =
     noConstraints $ equalType t t'
     let s  = show $ nameConcrete $ qnameName x
     bindPrimitive s pf
-    addConstant x (Defn Relevant x t (defaultDisplayForm x) 0 noCompiledRep $
+    addConstant x (Defn Relevant x t [] [] (defaultDisplayForm x) 0 noCompiledRep $
                 Primitive (Info.defAbstract i) s Nothing Nothing)
     where
 	nameString (Name _ x _ _) = show x

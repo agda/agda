@@ -116,7 +116,7 @@ checkRecDef i name ind con ps contel fields =
 
           indCo = maybe Inductive id ind -- default is 'Inductive' for backwards compatibility but should maybe be 'Coinductive'
 
-      addConstant name $ Defn Relevant name t0 (defaultDisplayForm name) 0 noCompiledRep
+      addConstant name $ Defn Relevant name t0 [] [] (defaultDisplayForm name) 0 noCompiledRep
 		       $ Record { recPars           = 0
                                 , recClause         = Nothing
                                 , recCon            = conName
@@ -129,8 +129,10 @@ checkRecDef i name ind con ps contel fields =
                                 , recInduction      = indCo
                                 -- determined by positivity checker:
                                 , recRecursive      = False
+{-
                                 , recPolarity       = []
                                 , recArgOccurrences = []
+-}
                                 , recMutual         = []
                                 }
 
@@ -138,7 +140,7 @@ checkRecDef i name ind con ps contel fields =
       -- Andreas, 2011-05-19 moved this here, it was below the record module
       --   creation
       addConstant conName $
-        Defn Relevant conName contype (defaultDisplayForm conName) 0 noCompiledRep $
+        Defn Relevant conName contype [] [] (defaultDisplayForm conName) 0 noCompiledRep $
              Constructor { conPars   = 0
                          , conSrcCon = conName
                          , conData   = name
@@ -345,14 +347,16 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $ Defn rel projname (killRange finalt) (defaultDisplayForm projname) 0 noCompiledRep
+	addConstant projname $ Defn rel projname (killRange finalt) [] [Positive] (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause]
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
+{-
                      , funPolarity       = []
                      , funArgOccurrences = [Positive]
+-}
                      , funMutual         = []
                      , funProjection     = Just (r, size ptel + 1)
                        -- name of the record type and

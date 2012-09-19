@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
+{-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances, OverlappingInstances,
     DeriveDataTypeable, DeriveFunctor, StandaloneDeriving #-}
 module Agda.TypeChecking.Substitute where
 
@@ -17,7 +17,7 @@ import qualified Data.Set as Set
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 
-import Agda.TypeChecking.Monad.Base
+import Agda.TypeChecking.Monad.Base as Base
 import Agda.TypeChecking.Free as Free
 import Agda.TypeChecking.CompiledClause
 
@@ -62,41 +62,47 @@ instance Subst a => Apply (Tele a) where
   apply (ExtendTel _ tel) (t : ts) = absApp tel (unArg t) `apply` ts
 
 instance Apply Definition where
-    apply (Defn rel x t df m c d) args = Defn rel x (piApply t args) df m c (apply d args)
+  apply (Defn rel x t pol occ df m c d) args = Defn rel x (piApply t args) (apply pol args) (apply occ args) df m c (apply d args)
+
+instance Apply [Base.Occurrence] where
+  apply occ args = drop (length args) occ
+
+instance Apply [Polarity] where
+  apply pol args = drop (length args) pol
 
 instance Apply Defn where
   apply d [] = d
   apply d args = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Nothing, funArgOccurrences = occ } ->
+            , funProjection = Nothing {-, funArgOccurrences = occ -} } ->
       d { funClauses    = apply cs args
         , funCompiled   = apply cc args
         , funInv        = apply inv args
-        , funArgOccurrences = drop (length args) occ
+--        , funArgOccurrences = drop (length args) occ
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just (r, n), funArgOccurrences = occ }
+            , funProjection = Just (r, n) {-, funArgOccurrences = occ -} }
       | m < n  -> d { funProjection = Just (r, n - m) }
       | otherwise ->
         d { funClauses        = apply cs args'
           , funCompiled       = apply cc args'
           , funInv            = apply inv args'
           , funProjection     = Just (r, 0)
-          , funArgOccurrences = drop 1 occ
+--          , funArgOccurrences = drop 1 occ
           }
       where args' = [last args]
             m = size args
     Datatype{ dataPars = np, dataClause = cl
-            , dataArgOccurrences = occ } ->
+            {-, dataArgOccurrences = occ-} } ->
       d { dataPars = np - size args, dataClause = apply cl args
-        , dataArgOccurrences = drop (length args) occ
+--        , dataArgOccurrences = drop (length args) occ
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel
-          , recArgOccurrences = occ } ->
+          {-, recArgOccurrences = occ-} } ->
       d { recPars = np - size args, recConType = apply t args
         , recClause = apply cl args, recTel = apply tel args
-        , recArgOccurrences = drop (length args) occ
+--        , recArgOccurrences = drop (length args) occ
         }
     Constructor{ conPars = np } ->
       d { conPars = np - size args }
@@ -203,29 +209,38 @@ instance Abstract Telescope where
   abstract (ExtendTel arg tel') tel = ExtendTel arg $ fmap (`abstract` tel) tel'
 
 instance Abstract Definition where
-    abstract tel (Defn rel x t df m c d) = Defn rel x (abstract tel t) df m c (abstract tel d)
+  abstract tel (Defn rel x t pol occ df m c d) =
+    Defn rel x (abstract tel t) (abstract tel pol) (abstract tel occ) df m c (abstract tel d)
+
+instance Abstract [Base.Occurrence] where
+  abstract tel []  = []
+  abstract tel occ = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+
+instance Abstract [Polarity] where
+  abstract tel []  = []
+  abstract tel pol = replicate (size tel) Invariant ++ pol -- TODO: check polarity
 
 instance Abstract Defn where
   abstract tel d = case d of
     Axiom{} -> d
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Nothing, funArgOccurrences = occ } ->
+            , funProjection = Nothing {-, funArgOccurrences = occ-} } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
         , funInv = abstract tel inv
-        , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
-            , funProjection = Just (r, n), funArgOccurrences = occ } ->
+            , funProjection = Just (r, n) {-, funArgOccurrences = occ-} } ->
       d { funProjection = Just (r, n + size tel) }
-    Datatype{ dataPars = np, dataClause = cl, dataArgOccurrences = occ } ->
+    Datatype{ dataPars = np, dataClause = cl {-, dataArgOccurrences = occ-} } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl
-        , dataArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , dataArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel'
-          , recArgOccurrences = occ } ->
+          {-, recArgOccurrences = occ-} } ->
       d { recPars = np + size tel, recConType = abstract tel t
         , recClause = abstract tel cl, recTel = abstract tel tel'
-        , recArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , recArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
         }
     Constructor{ conPars = np } ->
       d { conPars = np + size tel }

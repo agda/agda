@@ -103,14 +103,16 @@ checkDataDef i name ps cs =
                                    , dataCons           = []     -- Constructors are added later
 				   , dataSort           = s
                                    , dataAbstr          = Info.defAbstract i
+{-
                                    -- determined by the positivity checker:
                                    , dataPolarity       = []
                                    , dataArgOccurrences = []
+-}
                                    , dataMutual         = []
                                    }
 
 	    escapeContext (size tel) $ do
-	      addConstant name ( Defn Relevant name t (defaultDisplayForm name) 0 noCompiledRep dataDef )
+	      addConstant name ( Defn Relevant name t [] [] (defaultDisplayForm name) 0 noCompiledRep dataDef )
 
 	    -- Check the types of the constructors
 	    mapM_ (checkConstructor name tel' nofIxs s) cs
@@ -134,7 +136,7 @@ checkDataDef i name ps cs =
 
 	-- Add the datatype to the signature with its constructors. It was previously
 	-- added without them.
-	addConstant name (Defn Relevant name t (defaultDisplayForm name) 0 noCompiledRep $
+	addConstant name (Defn Relevant name t [] [] (defaultDisplayForm name) 0 noCompiledRep $
                             dataDef { dataCons = map cname cs }
 			 )
         -- Andreas 2012-02-13: postpone polarity computation until after positivity check
@@ -190,7 +192,7 @@ checkConstructor d tel nofIxs s con@(A.Axiom i _ c e) =
         -- add parameters to constructor type and put into signature
         escapeContext (size tel)
 	    $ addConstant c
-	    $ Defn Relevant c (telePi tel t') (defaultDisplayForm c) 0 noCompiledRep
+	    $ Defn Relevant c (telePi tel t') [] [] (defaultDisplayForm c) 0 noCompiledRep
 	    $ Constructor (size tel) c d (Info.defAbstract i) Inductive
   where
     debugEnter c e =

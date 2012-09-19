@@ -459,7 +459,7 @@ checkExpr e t =
                     [ text "Adding absurd function" <+> prettyTCM rel <> prettyTCM aux
                     , nest 2 $ text "of type" <+> prettyTCM t'
                     ]
-                  addConstant aux $ Defn rel aux t' (defaultDisplayForm aux) 0 noCompiledRep
+                  addConstant aux $ Defn rel aux t' [Nonvariant] [Unused] (defaultDisplayForm aux) 0 noCompiledRep
                                   $ Function
                                     { funClauses        =
                                         [Clause { clauseRange = getRange e
@@ -473,8 +473,10 @@ checkExpr e t =
                                     , funDelayed        = NotDelayed
                                     , funInv            = NotInjective
                                     , funAbstr          = ConcreteDef
+{-
                                     , funPolarity       = [Nonvariant] -- WAS: [Covariant]
                                     , funArgOccurrences = [Unused]
+-}
                                     , funMutual         = []
                                     , funProjection     = Nothing
                                     , funStatic         = False
@@ -500,7 +502,7 @@ checkExpr e t =
            ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
                  j   <- currentOrFreshMutualBlock
                  rel <- asks envRelevance
-                 addConstant qname (Defn rel qname t (defaultDisplayForm qname) j noCompiledRep Axiom)
+                 addConstant qname (Defn rel qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom)
                  reportSDoc "tc.term.exlam" 50 $ text "extended lambda's implementation \"" <> prettyTCM qname <>
                                                  text "\" has type: " $$ prettyTCM t -- <+>
 --                                                 text " where clauses: " <+> text (show cs)
@@ -1042,7 +1044,7 @@ checkHeadApplication e t hd args = do
       -- If we are in irrelevant position, add definition irrelevantly.
       -- TODO: is this sufficient?
       rel <- asks envRelevance
-      addConstant c' (Defn rel c' t (defaultDisplayForm c') i noCompiledRep $ Axiom)
+      addConstant c' (Defn rel c' t [] [] (defaultDisplayForm c') i noCompiledRep $ Axiom)
 
       -- Define and type check the fresh function.
       ctx <- getContext

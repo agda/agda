@@ -137,7 +137,7 @@ termMutual i ds = if names == [] then return mempty else
      let allNames = Set.elems mutualBlock
 
      -- Get the name of size suc (if sized types are enabled)
-     suc <- sizeSuc
+     suc <- sizeSucName
 
      -- The name of sharp (if available).
      sharp <- fmap nameOfSharp <$> coinductionKit
@@ -676,11 +676,16 @@ termTerm conf names f delayed pats0 t0 = do
 
             Def g args0
               | guardingTypeConstructors conf -> do
-                gDef <- theDef <$> getConstInfo g
-                case gDef of
+                def <- getConstInfo g
+                let occs = defArgOccurrences def
+                case theDef def of
+{-
                   Datatype {dataArgOccurrences = occs} -> con occs
                   Record   {recArgOccurrences  = occs} -> con occs
-                  _                                    -> fun
+-}
+                  Datatype{} -> con occs
+                  Record{}   -> con occs
+                  _          -> fun
               | otherwise -> fun
               where
               -- Data or record type constructor.

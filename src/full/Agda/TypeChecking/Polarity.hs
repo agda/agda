@@ -88,7 +88,8 @@ computePolarity x = do
 
   -- get basic polarity from positivity analysis
   def      <- getConstInfo x
-  let pol0 = map polFromOcc $ getArgOccurrences_ $ theDef def
+  let pol0 = map polFromOcc $ defArgOccurrences def
+--  let pol0 = map polFromOcc $ getArgOccurrences_ $ theDef def
   reportSLn "tc.polarity.set" 15 $ "Polarity of " ++ show x ++ " from positivity: " ++ show pol0
 
 {-

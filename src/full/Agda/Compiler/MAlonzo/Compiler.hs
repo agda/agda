@@ -124,11 +124,11 @@ definitions defs = do
 
 definition :: Maybe CoinductionKit -> Definition -> TCM [HS.Decl]
 -- ignore irrelevant definitions
-definition kit (Defn Forced     _ _  _ _ _ _) = __IMPOSSIBLE__
-definition kit (Defn UnusedArg  _ _  _ _ _ _) = __IMPOSSIBLE__
-definition kit (Defn NonStrict  _ _  _ _ _ _) = __IMPOSSIBLE__
-definition kit (Defn Irrelevant _ _  _ _ _ _) = return []
-definition kit (Defn Relevant   q ty _ _ compiled d) = do
+definition kit (Defn Forced     _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn UnusedArg  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn NonStrict  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
+definition kit (Defn Irrelevant _ _  _ _ _ _ _ _) = return []
+definition kit (Defn Relevant   q ty _ _ _ _ compiled d) = do
   checkTypeOfMain q ty
   (infodecl q :) <$> case d of
 

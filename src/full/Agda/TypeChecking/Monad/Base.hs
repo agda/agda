@@ -501,13 +501,15 @@ defaultDisplayForm :: QName -> [Open DisplayForm]
 defaultDisplayForm c = []
 
 data Definition = Defn
-  { defRelevance   :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
-  , defName        :: QName
-  , defType        :: Type	      -- ^ Type of the lifted definition.
-  , defDisplay     :: [Open DisplayForm]
-  , defMutual      :: MutualId
-  , defCompiledRep :: CompiledRepresentation
-  , theDef         :: Defn
+  { defRelevance      :: Relevance -- ^ Some defs can be irrelevant (but not hidden).
+  , defName           :: QName
+  , defType           :: Type	      -- ^ Type of the lifted definition.
+  , defPolarity       :: [Polarity]
+  , defArgOccurrences :: [Occurrence]
+  , defDisplay        :: [Open DisplayForm]
+  , defMutual         :: MutualId
+  , defCompiledRep    :: CompiledRepresentation
+  , theDef            :: Defn
   }
     deriving (Typeable, Show)
 
@@ -556,8 +558,10 @@ data Defn = Axiom
             { funClauses        :: [Clause]
             , funCompiled       :: CompiledClauses
             , funInv            :: FunctionInverse
+{- MOVED to Definition
             , funPolarity       :: [Polarity]
             , funArgOccurrences :: [Occurrence]
+-}
             , funMutual         :: [QName]
               -- ^ Mutually recursive functions, @data@s and @record@s.
             , funAbstr          :: IsAbstract
@@ -580,8 +584,10 @@ data Defn = Axiom
             , dataClause         :: (Maybe Clause) -- this might be in an instantiated module
             , dataCons           :: [QName]        -- constructor names
             , dataSort           :: Sort
+{- MOVED
             , dataPolarity       :: [Polarity]
             , dataArgOccurrences :: [Occurrence]
+-}
             , dataMutual         :: [QName]        -- ^ Mutually recursive functions, @data@s and @record@s.
             , dataAbstr          :: IsAbstract
             }
@@ -593,8 +599,10 @@ data Defn = Axiom
             , recConType        :: Type                 -- ^ The record constructor's type.
             , recFields         :: [Arg A.QName]
             , recTel            :: Telescope            -- ^ The record field telescope
+{- MOVED
             , recPolarity       :: [Polarity]
             , recArgOccurrences :: [Occurrence]
+-}
             , recMutual         :: [QName]              -- ^ Mutually recursive functions, @data@s and @record@s.
             , recEtaEquality    :: Bool                 -- ^ Eta-expand at this record type.  @False@ for unguarded recursive records.
             , recInduction      :: Induction            -- ^ 'Inductive' or 'Coinductive'?  Matters only for recursive records.
