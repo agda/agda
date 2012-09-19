@@ -13,7 +13,7 @@ import Agda.Utils.Impossible
 --   Agda typing would be:
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
-data Permutation = Perm Integer [Integer]
+data Permutation = Perm { permRange :: Integer, permPicks :: [Integer] }
   deriving (Eq, Typeable)
 
 instance Show Permutation where
