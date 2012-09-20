@@ -26,7 +26,7 @@ import Agda.Utils.Impossible
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
 --   Monadic only for debugging purposes.
-instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, [Term], [Type])
+instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, [Term], [Dom Type])
 instantiateTel s tel = liftTCM $ do
 
   tel <- normalise tel
@@ -112,7 +112,7 @@ instantiateTel s tel = liftTCM $ do
 
   -- remember the types of the instantiations
   -- itypes : [Type Γσ~]Γ*
-  let itypes = substs rho' $ permute psC $ map unDom tel2
+  let itypes = substs rho' $ permute psC tel2
 
   return (tel5, composeP p ps, substs rho' rho, itypes)
   where

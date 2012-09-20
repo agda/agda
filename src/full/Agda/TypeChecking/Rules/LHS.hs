@@ -47,7 +47,7 @@ import Agda.Utils.Monad
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-data DotPatternInst = DPI A.Expr Term Type
+data DotPatternInst = DPI A.Expr Term (Dom Type)
 data AsBinding      = AsB Name Term Type
 
 instance Subst DotPatternInst where
@@ -55,10 +55,11 @@ instance Subst DotPatternInst where
   substUnder n u (DPI e v a) = uncurry (DPI e) $ substUnder n u (v,a)
 
 instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI e v a) = sep [ prettyA e <+> text "="
-                              , nest 2 $ prettyTCM v <+> text ":"
-                              , nest 2 $ prettyTCM a
-                              ]
+  prettyTCM (DPI e v a) = sep
+    [ prettyA e <+> text "="
+    , nest 2 $ prettyTCM v <+> text ":"
+    , nest 2 $ prettyTCM a
+    ]
 
 instance Subst AsBinding where
   substs us      (AsB x v a) = uncurry (AsB x) $ substs us (v, a)
@@ -90,7 +91,7 @@ flexiblePatterns nps = map fst <$> filterM (flexible . snd) (zip [0..] $ reverse
     flexible _               = return False
 
 -- | Compute the dot pattern instantiations.
-dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Type] -> TCM [DotPatternInst]
+dotPatternInsts :: [NamedArg A.Pattern] -> Substitution -> [Dom Type] -> TCM [DotPatternInst]
 dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
   where
     dpi (_ : _)  []            _       = __IMPOSSIBLE__
@@ -105,13 +106,15 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
         A.ImplicitP _ -> dpi ps s as
         -- record pattern
         A.ConP _ (A.AmbQ [c]) qs -> do
-          Def r vs   <- reduce (unEl a)
+          Def r vs   <- reduce (unEl (unDom a))
           (ftel, us) <- etaExpandRecord r vs u
           qs <- insertImplicitPatterns ExpandLast qs ftel
           let instTel EmptyTel _                   = []
-              instTel (ExtendTel arg tel) (u : us) = unDom arg : instTel (absApp tel u) us
+              instTel (ExtendTel arg tel) (u : us) = arg : instTel (absApp tel u) us
               instTel ExtendTel{} []               = __IMPOSSIBLE__
-              bs = instTel ftel (map unArg us)
+              bs0 = instTel ftel (map unArg us)
+              -- Andreas, 2012-09-19 propagate relevance info to dot patterns
+              bs  = map (mapDomRelevance (composeRelevance (domRelevance a))) bs0
           dpi (map (namedThing . unArg) qs ++ ps) (map (Just . unArg) us ++ s) (bs ++ as)
 
         _           -> __IMPOSSIBLE__
@@ -238,7 +241,7 @@ noShadowingOfConstructors mkCall problem =
 
 -- | Check that a dot pattern matches it's instantiation.
 checkDotPattern :: DotPatternInst -> TCM ()
-checkDotPattern (DPI e v a) =
+checkDotPattern (DPI e v (Dom h r a)) =
   traceCall (CheckDotPattern e v) $ do
   reportSDoc "tc.lhs.dot" 15 $
     sep [ text "checking dot pattern"
@@ -246,9 +249,10 @@ checkDotPattern (DPI e v a) =
         , nest 2 $ text "=" <+> prettyTCM v
         , nest 2 $ text ":" <+> prettyTCM a
         ]
-  u <- checkExpr e a
-  -- Should be ok to do noConstraints here
-  noConstraints $ equalTerm a u v
+  applyRelevanceToContext r $ do
+    u <- checkExpr e a
+    -- Should be ok to do noConstraints here
+    noConstraints $ equalTerm a u v
 
 -- | Bind the variables in a left hand side. Precondition: the patterns should
 --   all be 'A.VarP', 'A.WildP', or 'A.ImplicitP' and the telescope should have
