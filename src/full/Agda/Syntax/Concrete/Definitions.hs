@@ -93,7 +93,7 @@ data DeclarationException
         = MultipleFixityDecls [(Name, [Fixity'])]
         | MissingDefinition Name
         | MissingWithClauses Name
-        | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while
+        | MissingTypeSignature LHS -- Andreas 2012-06-02: currently unused, remove after a while -- Fredrik 2012-09-20: now used, can we keep it?
         | MissingDataSignature Name
         | WrongDefinition Name DataRecOrFun DataRecOrFun
         | WrongParameters Name
@@ -657,6 +657,7 @@ niceDeclarations ds = do
         -- Check that there are no declarations that aren't allowed in old style mutual blocks
         case [ d | (d, OtherDecl) <- zip ds $ map declKind ds ] of
           []  -> return ()
+          (NiceFunClause _ _ _ _ (FunClause lhs _ _)):_ -> throwError $ MissingTypeSignature lhs
           d:_ -> throwError $ NotAllowedInMutual d
         return $ NiceMutual r True $ sigs ++ other  -- termCheck is adjusted later
       where
