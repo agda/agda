@@ -1,4 +1,4 @@
 WrongPolarity.agda:25,23-36
-i != ↑ i of type Size
+↑ i !=< i of type Size
 when checking that the expression dumpNat {i} n has type
 Sink (Nat {↑ i})

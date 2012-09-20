@@ -543,9 +543,12 @@ noCompiledRep = CompiledRep Nothing Nothing Nothing
 
 -- | Subterm occurrences for positivity checking.
 --   The constructors are listed in increasing information they provide:
---   @Mixed <= StictPos <= GuardPos <= Unused@
+--   @Mixed <= JustPos <= StrictPos <= GuardPos <= Unused@
+--   @Mixed <= JustNeg <= Unused@.
 data Occurrence
-  = Mixed     -- ^ Arbitrary occurrence (not strictly positive).
+  = Mixed     -- ^ Arbitrary occurrence (positive and negative).
+  | JustNeg   -- ^ Negative occurrence.
+  | JustPos   -- ^ Positive occurrence, but not strictly positive.
   | StrictPos -- ^ Strictly positive occurrence.
   | GuardPos  -- ^ Guarded strictly positive occurrence (i.e., under ∞).  For checking recursive records.
   | Unused    --  ^ No occurrence.

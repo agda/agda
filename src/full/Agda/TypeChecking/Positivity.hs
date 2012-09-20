@@ -76,21 +76,21 @@ checkStrictlyPositive qs = do
       -- we check positivity only for data or record definitions
       whenJustM (isDatatype q) $ \ dr -> do
       reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
-      -- get all pathes from q to q that exhibit a negative occurrence
+      -- get all pathes from q to q that exhibit a non-strictly occurrence
       -- or, in case of records, any recursive occurrence
-      let critical IsData   = \ (Edge o _) -> o == Mixed
+      let critical IsData   = \ (Edge o _) -> o <= JustPos
           critical IsRecord = \ (Edge o _) -> o /= Unused
           loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
 
       -- if we have a negative loop, raise error
-      forM_ [ how | Edge Mixed how <- loops ] $ \ how -> do
+      forM_ [ how | Edge o how <- loops, o <= JustPos ] $ \ how -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
       -- if we find an unguarded record, mark it as such
-      (\ just noth -> maybe noth just (mhead [ how | Edge StrictPos how <- loops ]))
+      (\ just noth -> maybe noth just (mhead [ how | Edge o how <- loops, o <= StrictPos ]))
         (\ how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"
@@ -100,18 +100,10 @@ checkStrictlyPositive qs = do
         -- otherwise, if the record is recursive, mark it as well
         forM_ (take 1 [ how | Edge GuardPos how <- loops ]) $ \ how -> do
           reportSDoc "tc.pos.record" 5 $ sep
-            [ prettyTCM q <+> text "is not guarded, because it occurs"
+            [ prettyTCM q <+> text "is recursive, because it occurs"
             , prettyTCM how
             ]
           recursiveRecord q
-{-
-      -- if we have an unguarded loop in a record definition, raise error
-      forM_ [ how | Edge StrictPos how <- loops ] $ \ how -> do
-          err <- fsep $
-            [prettyTCM q] ++ pwords "is not guarded, because it occurs" ++
-            [prettyTCM how]
-          setCurrentRange (getRange q) $ typeError $ GenericError (show err)
--}
 
     occ (Edge o _) = o
 
@@ -134,12 +126,7 @@ checkStrictlyPositive qs = do
       let nArgs = maximum $ n :
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
-          findOcc i = case Graph.lookup (ArgNode q i) (DefNode q) g of
-              Nothing        -> Unused
-              Just Mixed     -> Mixed
-              Just StrictPos -> StrictPos
-              Just GuardPos  -> GuardPos
-              Just Unused    -> Unused
+          findOcc i = maybe Unused id $ Graph.lookup (ArgNode q i) (DefNode q) g
           args = map findOcc [0..nArgs - 1]
       reportSDoc "tc.pos.args" 10 $ sep
         [ text "args of" <+> prettyTCM q <+> text "="
@@ -170,18 +157,28 @@ getDefArity def = case theDef def of
 --   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
 
 instance SemiRing Occurrence where
-  oplus Mixed _           = Mixed -- dominant
+  oplus Mixed _           = Mixed     -- dominant
   oplus _ Mixed           = Mixed
-  oplus Unused o          = o        -- neutral
+  oplus Unused o          = o         -- neutral
   oplus o Unused          = o
-  oplus StrictPos _       = StrictPos -- _ `elem` [StrictPos, GuardPos]
-  oplus _ StrictPos       = StrictPos
-  oplus GuardPos GuardPos = GuardPos
+  oplus JustNeg  JustNeg  = JustNeg
+  oplus JustNeg  o        = Mixed     -- negative and any form of positve
+  oplus o        JustNeg  = Mixed
+  oplus GuardPos o        = o         -- second-rank neutral
+  oplus o GuardPos        = o
+  oplus StrictPos o       = o         -- third-rank neutral
+  oplus o StrictPos       = o
+  oplus JustPos JustPos   = JustPos
 
-  otimes Unused _            = Unused    -- dominant
+  otimes Unused _            = Unused     -- dominant
   otimes _ Unused            = Unused
-  otimes Mixed _             = Mixed  -- second-rank dominance
+  otimes Mixed _             = Mixed      -- second-rank dominance
   otimes _ Mixed             = Mixed
+  otimes JustNeg JustNeg     = JustPos
+  otimes JustNeg _           = JustNeg    -- third-rank dominance
+  otimes _ JustNeg           = JustNeg
+  otimes JustPos _           = JustPos    -- fourth-rank dominance
+  otimes _ JustPos           = JustPos
   otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
   otimes _ GuardPos          = GuardPos
   otimes StrictPos StrictPos = StrictPos  -- neutral
@@ -530,8 +527,10 @@ instance PrettyTCM Node where
 
 instance PrettyTCM Occurrence where
   prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM StrictPos = text "-[+]->"
-  prettyTCM Mixed     = text "-[-]->"
+  prettyTCM StrictPos = text "-[++]->"
+  prettyTCM JustPos   = text "-[+]->"
+  prettyTCM JustNeg   = text "-[-]->"
+  prettyTCM Mixed     = text "-[*]->"
   prettyTCM Unused    = text "-[ ]->"
 
 instance PrettyTCM n => PrettyTCM (n, Edge) where
@@ -560,6 +559,11 @@ instance SemiRing Edge where
   oplus e@(Edge Mixed _) _                        = e
   oplus (Edge Unused _)      e                    = e -- neutral
   oplus e                    (Edge Unused _)      = e
+  oplus (Edge JustNeg _)     e@(Edge JustNeg _)   = e
+  oplus _                    e@(Edge JustNeg w)   = Edge Mixed w
+  oplus e@(Edge JustNeg w)   _                    = Edge Mixed w
+  oplus _                    e@(Edge JustPos _)   = e -- dominates strict pos.
+  oplus e@(Edge JustPos _)   _                    = e
   oplus _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
   oplus e@(Edge StrictPos _) _                    = e
   oplus (Edge GuardPos _)    e@(Edge GuardPos _)  = e
@@ -591,8 +595,8 @@ computeEdge muts o = do
     mkEdge to pol o = case o of
       Here           -> return (to, pol)
       Unknown        -> return (to, Mixed)
-      VarArg o       -> negative o
-      MetaArg o      -> negative o
+      VarArg o       -> mixed o
+      MetaArg o      -> mixed o
       LeftOfArrow o  -> negative o
       DefArg d i o   -> do
         isDR <- isDataOrRecordType d
@@ -607,9 +611,9 @@ computeEdge muts o = do
 -}
       UnderInf o     -> addPol o GuardPos -- Andreas, 2012-06-09: ∞ is guarding
       ConArgType _ o -> keepGoing o
-      IndArgType _ o -> negative o
+      IndArgType _ o -> mixed o
       InClause _ o   -> keepGoing o
-      Matched o      -> negative o -- consider arguments matched against as used
+      Matched o      -> mixed o -- consider arguments matched against as used
       InDefOf d o    -> do
         isDR <- isDataOrRecordType d
         let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
@@ -617,7 +621,8 @@ computeEdge muts o = do
         mkEdge (DefNode d) pol' o
       where
         keepGoing     = mkEdge to pol
-        negative      = mkEdge to Mixed
+        mixed         = mkEdge to Mixed
+        negative o    = mkEdge to (otimes pol JustNeg) o
         addPol o pol' = mkEdge to (otimes pol pol') o
 
         -- Reset polarity when changing the target node
