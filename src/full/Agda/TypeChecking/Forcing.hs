@@ -6,6 +6,7 @@ import Control.Applicative
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.Monad
+import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
@@ -69,5 +70,5 @@ force xs t = aux 0 t
       El s (Pi  a b) -> El s $ Pi  (upd a) (fmap (aux (i + 1)) b)
       _ -> __IMPOSSIBLE__
       where
-        upd a | i `elem` xs = a { domRelevance = Forced }
+        upd a | i `elem` xs = a { domRelevance = composeRelevance Forced (domRelevance a) }
               | otherwise   = a
