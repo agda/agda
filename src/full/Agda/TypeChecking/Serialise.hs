@@ -845,14 +845,14 @@ instance EmbPrj Polarity where
     valu _   = malformed
 
 instance EmbPrj Occurrence where
-  icode Positive = icode0'
-  icode Negative = icode0 1
+  icode StrictPos = icode0'
+  icode Mixed = icode0 1
   icode Unused   = icode0 2
   icode GuardPos = icode0 3
 
   value = vcase valu where
-    valu []  = valu0 Positive
-    valu [1] = valu0 Negative
+    valu []  = valu0 StrictPos
+    valu [1] = valu0 Mixed
     valu [2] = valu0 Unused
     valu [3] = valu0 GuardPos
     valu _   = malformed

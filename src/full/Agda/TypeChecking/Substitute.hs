@@ -214,7 +214,7 @@ instance Abstract Definition where
 
 instance Abstract [Base.Occurrence] where
   abstract tel []  = []
-  abstract tel occ = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+  abstract tel occ = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
 
 instance Abstract [Polarity] where
   abstract tel []  = []
@@ -227,20 +227,20 @@ instance Abstract Defn where
             , funProjection = Nothing {-, funArgOccurrences = occ-} } ->
       d { funClauses = abstract tel cs, funCompiled = abstract tel cc
         , funInv = abstract tel inv
---        , funArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , funArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
         }
     Function{ funClauses = cs, funCompiled = cc, funInv = inv
             , funProjection = Just (r, n) {-, funArgOccurrences = occ-} } ->
       d { funProjection = Just (r, n + size tel) }
     Datatype{ dataPars = np, dataClause = cl {-, dataArgOccurrences = occ-} } ->
       d { dataPars = np + size tel, dataClause = abstract tel cl
---        , dataArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , dataArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
         }
     Record{ recPars = np, recConType = t, recClause = cl, recTel = tel'
           {-, recArgOccurrences = occ-} } ->
       d { recPars = np + size tel, recConType = abstract tel t
         , recClause = abstract tel cl, recTel = abstract tel tel'
---        , recArgOccurrences = replicate (size tel) Negative ++ occ -- TODO: check occurrence
+--        , recArgOccurrences = replicate (size tel) Mixed ++ occ -- TODO: check occurrence
         }
     Constructor{ conPars = np } ->
       d { conPars = np + size tel }

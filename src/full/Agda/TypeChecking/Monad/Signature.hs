@@ -600,16 +600,16 @@ getArgOccurrences_ def = case def of
     Function { funArgOccurrences  = os } -> os
     Datatype { dataArgOccurrences = os } -> os
     Record   { recArgOccurrences  = os } -> os
-    Constructor{}                        -> [] -- repeat Positive
-    _                                    -> [] -- repeat Negative
+    Constructor{}                        -> [] -- repeat StrictPos
+    _                                    -> [] -- repeat Mixed
 -}
 
 getArgOccurrence :: QName -> Nat -> TCM Occurrence
 getArgOccurrence d i = do
   def <- getConstInfo d
   return $ case theDef def of
-    Constructor{} -> Positive
-    _             -> (defArgOccurrences def ++ repeat Negative) !! fromIntegral i
+    Constructor{} -> StrictPos
+    _             -> (defArgOccurrences def ++ repeat Mixed) !! fromIntegral i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os =
@@ -623,10 +623,10 @@ getArgOccurrence d i = do
     Function { funArgOccurrences  = os } -> look i os
     Datatype { dataArgOccurrences = os } -> look i os
     Record   { recArgOccurrences  = os } -> look i os
-    Constructor{}                        -> Positive
-    _                                    -> Negative
+    Constructor{}                        -> StrictPos
+    _                                    -> Mixed
   where
-    look i os = (os ++ repeat Negative) !! fromIntegral i
+    look i os = (os ++ repeat Mixed) !! fromIntegral i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os =

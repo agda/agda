@@ -693,12 +693,12 @@ termTerm conf names f delayed pats0 t0 = do
                 constructor g Inductive $   -- guardedness preserving
                   zip args0 (map preserves occs ++ repeat False)
                 where
-                preserves = (Positive <=)   -- everything which is at least strictly positive
+                preserves = (StrictPos <=)   -- everything which is at least strictly positive
 {- SPELLED OUT, this means:
                 preserves Unused   = True
                 preserves GuardPos = True
-                preserves Positive = True
-                preserves Negative = False
+                preserves StrictPos = True
+                preserves Mixed = False
 -}
 
               -- Call to defined function.

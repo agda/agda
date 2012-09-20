@@ -77,7 +77,7 @@ bindBuiltinSharp e =
       _         -> __IMPOSSIBLE__
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
-              , defArgOccurrences = [Unused, Positive]
+              , defArgOccurrences = [Unused, StrictPos]
               , theDef = Datatype
                   { dataPars           = 2
                   , dataIxs            = 0
@@ -87,7 +87,7 @@ bindBuiltinSharp e =
                   , dataSort           = varSort 1
 {-
                   , dataPolarity       = [Invariant, Invariant]
-                  , dataArgOccurrences = [Unused, Positive]
+                  , dataArgOccurrences = [Unused, StrictPos]
 -}
                   , dataMutual         = []
                   , dataAbstr          = ConcreteDef
@@ -137,7 +137,7 @@ bindBuiltinFlat e =
                         }
     addConstant flat $
       flatDefn { defPolarity = []
-               , defArgOccurrences = [Positive]
+               , defArgOccurrences = [StrictPos]
                , theDef = Function
                    { funClauses        = [clause]
                    , funCompiled       =
@@ -150,7 +150,7 @@ bindBuiltinFlat e =
                    , funInv            = NotInjective
 {-
                    , funPolarity       = [Invariant]
-                   , funArgOccurrences = [Positive] -- changing that to [Negative] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
+                   , funArgOccurrences = [StrictPos] -- changing that to [Mixed] destroys monotonicity of 'Rec' in test/succeed/GuardednessPreservingTypeConstructors
 -}
                    , funMutual         = []
                    , funAbstr          = ConcreteDef

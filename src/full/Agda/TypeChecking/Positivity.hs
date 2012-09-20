@@ -78,19 +78,19 @@ checkStrictlyPositive qs = do
       reportSDoc "tc.pos.check" 10 $ text "Checking positivity of" <+> prettyTCM q
       -- get all pathes from q to q that exhibit a negative occurrence
       -- or, in case of records, any recursive occurrence
-      let critical IsData   = \ (Edge o _) -> o == Negative
+      let critical IsData   = \ (Edge o _) -> o == Mixed
           critical IsRecord = \ (Edge o _) -> o /= Unused
           loops      = filter (critical dr) $ Graph.allPaths (critical dr) (DefNode q) (DefNode q) g
 
       -- if we have a negative loop, raise error
-      forM_ [ how | Edge Negative how <- loops ] $ \ how -> do
+      forM_ [ how | Edge Mixed how <- loops ] $ \ how -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not strictly positive, because it occurs" ++
             [prettyTCM how]
           setCurrentRange (getRange q) $ typeError $ GenericError (show err)
 
       -- if we find an unguarded record, mark it as such
-      (\ just noth -> maybe noth just (mhead [ how | Edge Positive how <- loops ]))
+      (\ just noth -> maybe noth just (mhead [ how | Edge StrictPos how <- loops ]))
         (\ how -> do
           reportSDoc "tc.pos.record" 5 $ sep
             [ prettyTCM q <+> text "is not guarded, because it occurs"
@@ -106,7 +106,7 @@ checkStrictlyPositive qs = do
           recursiveRecord q
 {-
       -- if we have an unguarded loop in a record definition, raise error
-      forM_ [ how | Edge Positive how <- loops ] $ \ how -> do
+      forM_ [ how | Edge StrictPos how <- loops ] $ \ how -> do
           err <- fsep $
             [prettyTCM q] ++ pwords "is not guarded, because it occurs" ++
             [prettyTCM how]
@@ -135,11 +135,11 @@ checkStrictlyPositive qs = do
                     [ i + 1 | (ArgNode q1 i) <- Set.toList $ Graph.nodes g
                     , q1 == q ]
           findOcc i = case Graph.lookup (ArgNode q i) (DefNode q) g of
-              Nothing -> Unused
-              Just Negative -> Negative
-              Just Positive -> Positive
-              Just GuardPos -> GuardPos
-              Just Unused   -> Unused
+              Nothing        -> Unused
+              Just Mixed     -> Mixed
+              Just StrictPos -> StrictPos
+              Just GuardPos  -> GuardPos
+              Just Unused    -> Unused
           args = map findOcc [0..nArgs - 1]
       reportSDoc "tc.pos.args" 10 $ sep
         [ text "args of" <+> prettyTCM q <+> text "="
@@ -160,31 +160,31 @@ getDefArity def = case theDef def of
 
 -- Specification of occurrences -------------------------------------------
 
--- | 'Occurrence' is a complete lattice with least element 'Negative'
+-- | 'Occurrence' is a complete lattice with least element 'Mixed'
 --   and greatest element 'Unused'.
 --
 --   It forms a commutative semiring where 'oplus' is meet (glb)
 --   and 'otimes' is composition. Both operations are idempotent.
 --
---   For 'oplus', 'Unused' is neutral (zero) and 'Negative' is dominant.
---   For 'otimes', 'Positive' is neutral (one) and 'Unused' is dominant.
+--   For 'oplus', 'Unused' is neutral (zero) and 'Mixed' is dominant.
+--   For 'otimes', 'StrictPos' is neutral (one) and 'Unused' is dominant.
 
 instance SemiRing Occurrence where
-  oplus Negative _        = Negative -- dominant
-  oplus _ Negative        = Negative
+  oplus Mixed _           = Mixed -- dominant
+  oplus _ Mixed           = Mixed
   oplus Unused o          = o        -- neutral
   oplus o Unused          = o
-  oplus Positive _        = Positive -- _ `elem` [Positive, GuardPos]
-  oplus _ Positive        = Positive
+  oplus StrictPos _       = StrictPos -- _ `elem` [StrictPos, GuardPos]
+  oplus _ StrictPos       = StrictPos
   oplus GuardPos GuardPos = GuardPos
 
-  otimes Unused _          = Unused    -- dominant
-  otimes _ Unused          = Unused
-  otimes Negative _        = Negative  -- second-rank dominance
-  otimes _ Negative        = Negative
-  otimes GuardPos _        = GuardPos   -- _ `elem` [Positive, GuardPos]
-  otimes _ GuardPos        = GuardPos
-  otimes Positive Positive = Positive  -- neutral
+  otimes Unused _            = Unused    -- dominant
+  otimes _ Unused            = Unused
+  otimes Mixed _             = Mixed  -- second-rank dominance
+  otimes _ Mixed             = Mixed
+  otimes GuardPos _          = GuardPos   -- _ `elem` [StrictPos, GuardPos]
+  otimes _ GuardPos          = GuardPos
+  otimes StrictPos StrictPos = StrictPos  -- neutral
 
 -- | Description of an occurrence.
 data OccursWhere
@@ -530,9 +530,9 @@ instance PrettyTCM Node where
 
 instance PrettyTCM Occurrence where
   prettyTCM GuardPos  = text "-[g+]->"
-  prettyTCM Positive = text "-[+]->"
-  prettyTCM Negative = text "-[-]->"
-  prettyTCM Unused   = text "-[ ]->"
+  prettyTCM StrictPos = text "-[+]->"
+  prettyTCM Mixed     = text "-[-]->"
+  prettyTCM Unused    = text "-[ ]->"
 
 instance PrettyTCM n => PrettyTCM (n, Edge) where
   prettyTCM (n, Edge o w) =
@@ -556,13 +556,13 @@ data Edge = Edge Occurrence OccursWhere
 -- \"the 'Occurrence' components are equal\".
 
 instance SemiRing Edge where
-  oplus _                   e@(Edge Negative _) = e -- dominant
-  oplus e@(Edge Negative _) _                   = e
-  oplus (Edge Unused _)     e                   = e -- neutral
-  oplus e                   (Edge Unused _)     = e
-  oplus _                   e@(Edge Positive _) = e -- dominates 'GuardPos'
-  oplus e@(Edge Positive _) _                   = e
-  oplus (Edge GuardPos _)   e@(Edge GuardPos _) = e
+  oplus _                    e@(Edge Mixed _)     = e -- dominant
+  oplus e@(Edge Mixed _) _                        = e
+  oplus (Edge Unused _)      e                    = e -- neutral
+  oplus e                    (Edge Unused _)      = e
+  oplus _                    e@(Edge StrictPos _) = e -- dominates 'GuardPos'
+  oplus e@(Edge StrictPos _) _                    = e
+  oplus (Edge GuardPos _)    e@(Edge GuardPos _)  = e
 
   otimes (Edge o1 w1) (Edge o2 w2) = Edge (otimes o1 o2) (w1 >*< w2)
 
@@ -585,19 +585,19 @@ buildOccurrenceGraph qs = Graph.unions <$> mapM defGraph (Set.toList qs)
 --   argument is the set of names in the current mutual block.
 computeEdge :: Set QName -> OccursWhere -> TCM (Node, Edge)
 computeEdge muts o = do
-  (to, occ) <- mkEdge __IMPOSSIBLE__ Positive o
+  (to, occ) <- mkEdge __IMPOSSIBLE__ StrictPos o
   return (to, Edge occ o)
   where
     mkEdge to pol o = case o of
       Here           -> return (to, pol)
-      Unknown        -> return (to, Negative)
+      Unknown        -> return (to, Mixed)
       VarArg o       -> negative o
       MetaArg o      -> negative o
       LeftOfArrow o  -> negative o
       DefArg d i o   -> do
         isDR <- isDataOrRecordType d
         let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
-                 | otherwise           = Positive
+                 | otherwise           = StrictPos
         if Set.member d muts then mkEdge (ArgNode d i) pol' o
          else addPol o =<< otimes pol' <$> getArgOccurrence d i
 {-
@@ -613,14 +613,14 @@ computeEdge muts o = do
       InDefOf d o    -> do
         isDR <- isDataOrRecordType d
         let pol' | isDR == Just IsData = GuardPos  -- a datatype is guarding
-                 | otherwise           = Positive
+                 | otherwise           = StrictPos
         mkEdge (DefNode d) pol' o
       where
         keepGoing     = mkEdge to pol
-        negative      = mkEdge to Negative
+        negative      = mkEdge to Mixed
         addPol o pol' = mkEdge to (otimes pol pol') o
 
         -- Reset polarity when changing the target node
         -- D: (A B -> C) generates a positive edge B --> A.1
         -- even though the context is negative.
-        inArg d i = mkEdge (ArgNode d i) Positive
+        inArg d i = mkEdge (ArgNode d i) StrictPos

@@ -60,8 +60,8 @@ composePol Contravariant x = neg x
 polFromOcc :: Occurrence -> Polarity
 polFromOcc o = case o of
   GuardPos -> Covariant
-  Positive -> Covariant
-  Negative -> Invariant  -- Negative is not the same as Contravariant
+  StrictPos -> Covariant
+  Mixed -> Invariant  -- Negative is not the same as Contravariant
   Unused   -> Nonvariant
 
 ------------------------------------------------------------------------

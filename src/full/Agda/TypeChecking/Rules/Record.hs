@@ -347,7 +347,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
             ]
 
       escapeContext (size tel) $ do
-	addConstant projname $ Defn rel projname (killRange finalt) [] [Positive] (defaultDisplayForm projname) 0 noCompiledRep
+	addConstant projname $ Defn rel projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause]
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed
@@ -355,7 +355,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funAbstr          = ConcreteDef
 {-
                      , funPolarity       = []
-                     , funArgOccurrences = [Positive]
+                     , funArgOccurrences = [StrictPos]
 -}
                      , funMutual         = []
                      , funProjection     = Just (r, size ptel + 1)
@@ -544,7 +544,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
                      , funInv            = NotInjective
                      , funAbstr          = ConcreteDef
                      , funPolarity       = []
-                     , funArgOccurrences = [Positive]
+                     , funArgOccurrences = [StrictPos]
                      , funProjection     = Just (r, size ptel + 1)
                        -- name of the record type and
                        -- index of the record argument (in the type), start counting with 1
