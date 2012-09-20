@@ -27,6 +27,37 @@ import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
 
+-- | Compute the deep size view of a term.
+--   Precondition: sized types are enabled.
+deepSizeView :: Term -> TCM DeepSizeView
+deepSizeView v = do
+  Def inf [] <- primSizeInf
+  Def suc [] <- primSizeSuc
+  let loop v = do
+      v <- reduce v
+      case v of
+        Def x []  | x == inf -> return $ DSizeInf
+        Def x [u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
+        Var i []             -> return $ DSizeVar i 0
+        MetaV x us           -> return $ DSizeMeta x us 0
+        _                    -> return $ DOtherSize v
+  loop v
+
+-- | Account for subtyping @Size< i =< Size@
+--   Preconditions:
+--   @m = x els1@, @n = y els2@, @m@ and @n@ are not equal.
+trySizeUniv :: Comparison -> Type -> Term -> Term
+  -> QName -> [Elim] -> QName -> [Elim] -> TCM ()
+trySizeUniv cmp t m n x els1 y els2 = do
+  let failure = typeError $ UnequalTerms cmp m n t
+  (size, sizelt) <- flip catchError (const failure) $ do
+     Def size   _ <- primSize
+     Def sizelt _ <- primSizeLt
+     return (size, sizelt)
+  case (cmp, els1, els2) of
+     (CmpLeq, [_], []) | x == sizelt && y == size -> return ()
+     _                                            -> failure
+
 -- | Compare two sizes. Only with --sized-types.
 compareSizes :: Comparison -> Term -> Term -> TCM ()
 compareSizes cmp u v = do
@@ -42,6 +73,39 @@ compareSizes cmp u v = do
       nest 2 $ sep [ text (show u) <+> prettyTCM cmp
                    , text (show v)
                    ]
+  s1'  <- deepSizeView u
+  s2'  <- deepSizeView v
+  size <- sizeType
+  let failure = typeError $ UnequalTerms cmp u v size
+      (s1, s2) = removeSucs (s1', s2')
+      continue cmp = do
+        u <- unDeepSizeView s1
+        v <- unDeepSizeView s2
+        compareAtom cmp size u v
+  case (cmp, s1, s2) of
+    (CmpLeq, _,            DSizeInf)   -> return ()
+    (CmpEq,  DSizeInf,     DSizeInf)   -> return ()
+    (CmpEq,  DSizeVar{},   DSizeInf)   -> failure
+    (_    ,  DSizeInf,     DSizeVar{}) -> failure
+    (_    ,  DSizeInf,     _         ) -> continue CmpEq
+    (CmpLeq, DSizeVar i n, DSizeVar j m) | i == j -> unless (n <= m) failure
+    (CmpLeq, DSizeVar i n, DSizeVar j m) | i /= j -> do
+       res <- isBounded i
+       case res of
+         NotBounded -> failure
+         BoundedLt u' ->
+            -- now we have i < u', in the worst case i+1 = u'
+            -- and we want to check i+n <= v
+            if n > 0 then do
+              u'' <- sizeSuc (n - 1) u'
+              compareSizes cmp u'' v
+             else compareSizes cmp u' =<< sizeSuc 1 v
+    (CmpLeq, s1,        s2)         -> do
+      u <- unDeepSizeView s1
+      v <- unDeepSizeView s2
+      unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
+    (CmpEq, s1, s2) -> continue cmp
+{-
   s1   <- sizeView u
   s2   <- sizeView v
   size <- sizeType
@@ -52,9 +116,24 @@ compareSizes cmp u v = do
     (_,      SizeInf,   SizeSuc v) -> compareSizes CmpEq u v
     (_,      SizeSuc u, SizeSuc v) -> compareSizes cmp u v
     (CmpLeq, _,         _)         ->
-      ifM (trivial u v) (return ()) $
-        addConstraint $ ValueCmp CmpLeq size u v
+      unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
     _ -> compareAtom cmp size u v
+-}
+
+-- | Result of querying whether size variable @i@ is bounded by another
+--   size.
+data BoundedVar
+  =  BoundedLt Term -- ^ yes @i : Size< t@
+  |  NotBounded
+
+isBounded :: Nat -> TCM BoundedVar
+isBounded i = do
+  t <- reduce =<< typeOfBV i
+  case unEl t of
+    Def x [u] -> do
+      sizelt <- getBuiltin' builtinSizeLt
+      return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else NotBounded
+    _ -> return NotBounded
 
 trivial :: Term -> Term -> TCM Bool
 trivial u v = do
@@ -218,15 +297,14 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
   reportSLn "tc.size.solve" 15 $ "Metas: " ++ show metas0 ++ ", " ++ show metas1
 
-  verboseS "tc.size.solve" 20 $ do
-    let meta (m, _) = do
-          j <- mvJudgement <$> lookupMeta m
-          reportSDoc "" 0 $ prettyTCM j
-    mapM_ meta metas
+  verboseS "tc.size.solve" 20 $
+      -- debug print the type of all size metas
+      forM_ metas $ \ (m, _) ->
+          reportSDoc "" 0 $ prettyTCM =<< mvJudgement <$> lookupMeta m
 
+  -- run the Warshall solver
   case W.solve $ map mkFlex metas ++ map mkConstr cs of
     Nothing  -> cannotSolve
-      -- typeError $ GenericError $ "Unsolvable size constraints: " ++ show cs
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
       inf <- primSizeInf
@@ -244,7 +322,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
                 term (W.SizeConst (W.Finite _)) = __IMPOSSIBLE__
                 term (W.SizeConst W.Infinite) = primSizeInf
                 term (W.SizeVar j n) = case findIndex (==fromIntegral j) $ reverse args of
-                  Just x -> return $ plus (Var (fromIntegral x) []) n
+                  Just x -> return $ plus (var (fromIntegral x)) n
                   Nothing -> __IMPOSSIBLE__
 
                 lam _ v = Lam NotHidden $ Abs "s" v
@@ -261,11 +339,11 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
       mapM_ inst $ Map.toList sol
 
--- type Solution = Map Int SizeExpr
--- data SizeExpr = SizeVar Int Int   -- e.g. x + 5
---               | SizeConst Weight  -- a number or infinity
--- data Weight = Finite Int | Infinite
--- data Node = Rigid Rigid
---           | Flex  FlexId
--- data Rigid = RConst Weight
---            | RVar RigidId
+      -- Andreas, 2012-09-19
+      -- The returned solution might not be consistent with
+      -- the hypotheses on rigid vars (j : Size< i).
+      -- Thus, we double check that all size constraints
+      -- have been solved correctly.
+      flip catchError (const cannotSolve) $
+        noConstraints $
+          forM_ cs0 $ \ cl -> enterClosure cl solveConstraint

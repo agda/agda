@@ -79,7 +79,8 @@ getPrimitive x = do
 primInteger, primFloat, primChar, primString, primBool, primTrue, primFalse,
     primList, primNil, primCons, primIO, primNat, primSuc, primZero,
     primNatPlus, primNatMinus, primNatTimes, primNatDivSucAux, primNatModSucAux,
-    primNatEquality, primNatLess, primSize, primSizeSuc, primSizeInf,
+    primNatEquality, primNatLess,
+    primSize, primSizeLt, primSizeSuc, primSizeInf,
     primInf, primSharp, primFlat,
     primEquality, primRefl,
     primLevel, primLevelZero, primLevelSuc, primLevelMax,
@@ -118,6 +119,7 @@ primNatModSucAux = getBuiltin builtinNatModSucAux
 primNatEquality  = getBuiltin builtinNatEquals
 primNatLess      = getBuiltin builtinNatLess
 primSize         = getBuiltin builtinSize
+primSizeLt       = getBuiltin builtinSizeLt
 primSizeSuc      = getBuiltin builtinSizeSuc
 primSizeInf      = getBuiltin builtinSizeInf
 primInf          = getBuiltin builtinInf
@@ -186,6 +188,7 @@ builtinNil          = "NIL"
 builtinCons         = "CONS"
 builtinIO           = "IO"
 builtinSize         = "SIZE"
+builtinSizeLt       = "SIZELT"
 builtinSizeSuc      = "SIZESUC"
 builtinSizeInf      = "SIZEINF"
 builtinInf          = "INFINITY"

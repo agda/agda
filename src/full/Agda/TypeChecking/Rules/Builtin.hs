@@ -89,6 +89,7 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinRelevant           |-> BuiltinDataCons trelevance)
   , (builtinIrrelevant         |-> BuiltinDataCons trelevance)
   , (builtinSize               |-> builtinPostulate tset)
+  , (builtinSizeLt             |-> builtinPostulate (tsize --> tset))
   , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
   , (builtinSizeInf            |-> builtinPostulate tsize)
   -- postulate .irrelevant : {a : Level}{A : Set a} -> .A -> A
@@ -372,7 +373,11 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
           A.Def q -> do
             def <- ignoreAbstractMode $ getConstInfo q
             case theDef def of
-              Axiom {} -> bindBuiltinName s e'
+              Axiom {} -> do
+                when (s == builtinSizeLt) $ do
+                  setPolarity q [Covariant]
+                  setArgOccurrences q [StrictPos]
+                bindBuiltinName s e'
               _        -> err
           _ -> err
 

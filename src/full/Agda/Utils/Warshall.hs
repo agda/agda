@@ -280,9 +280,11 @@ a solution CANNOT exist if
 
   v < v  for a rigid variable v
 
+{- Andreas, 2012-09-19 OUTDATED
   v <= v' for rigid variables v,v'
 
   x < v   for a flexible variable x and a rigid variable v
+-}
 
 thus, for each flexible x, only one of the following cases is possible
 
@@ -339,7 +341,13 @@ solve cs = -- trace (show cs) $
          -- d   = [ m!(i,i) | i <- [0 .. (n-1)] ]  -- diagonal
 -- a rigid variable might not be less than it self, so no -.. on the
 -- rigid part of the diagonal
-         solvable = all (\ x -> x >= Finite 0) [ m!(i,i) | i <- rInds ] &&
+         solvable = all (\ x -> x >= Finite 0) [ m!(i,i) | i <- rInds ] && True
+
+{-  Andreas, 2012-09-19
+    We now can have constraints between rigid variables, like i < j.
+    Thus we skip the following two test.  However, a solution must be
+    checked for consistency with the constraints on rigid vars.
+
 -- a rigid variable might not be bounded below by infinity or
 -- bounded above by a constant
 -- it might not be related to another rigid variable
@@ -357,7 +365,7 @@ solve cs = -- trace (show cs) $
                     edge = m!(row,col)
                 in  edge >= Finite 0)
              [ (x,v) | x <- flexs, (RVar v) <- rigids ]
-
+-}
 
          inScope :: FlexId -> Rigid -> Bool
          inScope x (RConst _) = True

@@ -51,6 +51,7 @@ import Agda.TypeChecking.Monad.Signature (isProjection, mutuallyRecursive)
 import Agda.TypeChecking.Primitive (constructorForm)
 import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.SizedTypes
 
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
@@ -913,7 +914,7 @@ instance StripAllProjections Term where
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
 compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
-compareTerm' _ (Var i _)      p = compareVar i p
+compareTerm' suc (Var i _)    p = compareVar suc i p
 compareTerm' suc (DontCare t) p = compareTerm' suc t p
 compareTerm' _ (Lit l)    (LitDBP l')
   | l == l'   = return Term.le
@@ -978,11 +979,22 @@ compareConArgs suc ts ps =
        -- allows examples like (x, y) < (Succ x, y)
 -}
 
-compareVar :: (?cutoff :: Int) => Nat -> DeBruijnPat -> TCM Term.Order
-compareVar i (VarDBP j)    = return $ if i == j then Term.le else Term.unknown
-compareVar i (LitDBP _)    = return $ Term.unknown
-compareVar i (ConDBP c ps) = do
-  os <- mapM (compareVar i) ps
+compareVar :: (?cutoff :: Int) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
+-- compareVar suc i (VarDBP j)    = return $ if i == j then Term.le else Term.unknown
+compareVar suc i (VarDBP j)    = compareVarVar suc i j
+compareVar suc i (LitDBP _)    = return $ Term.unknown
+compareVar suc i (ConDBP c ps) = do
+  os <- mapM (compareVar suc i) ps
   let o = Term.supremum os
   oc <- decreaseFromConstructor c
   return $ (Term..*.) oc o
+
+-- | Compare two variables
+compareVarVar :: (?cutoff :: Int) => Maybe QName -> Nat -> Nat -> TCM Term.Order
+compareVarVar suc i j
+  | i == j    = return Term.le
+  | otherwise = do
+      res <- isBounded i
+      case res of
+        NotBounded  -> return Term.unknown
+        BoundedLt v -> (Term..*.) Term.lt <$> compareTerm' suc v (VarDBP j)

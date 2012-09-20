@@ -1,5 +1,3 @@
-SizedTypesRigidVarClash.agda:19,1-14
-Cannot solve size constraints
-_12 x =< .j : Size
-.i =< (_12 x) : Size
-when checking the definition of inc
+SizedTypesRigidVarClash.agda:19,9-14
+.i !=< .j of type Size
+when checking that the expression suc x has type Nat

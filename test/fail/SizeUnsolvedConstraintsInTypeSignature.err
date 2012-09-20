@@ -1,5 +1,3 @@
-SizeUnsolvedConstraintsInTypeSignature.agda:21,11-39
-Cannot solve size constraints
-(↑ i) =< i : Size
-when checking that the expression (i : Size) → one1 i ≡ one2 i is a
-type
+SizeUnsolvedConstraintsInTypeSignature.agda:21,33-39
+(↑ (↑ (↑ i))) !=< (↑ (↑ i)) of type Size
+when checking that the expression one2 i has type Nat (↑ (↑ i))

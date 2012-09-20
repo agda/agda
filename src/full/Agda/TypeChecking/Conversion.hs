@@ -360,6 +360,8 @@ compareAtom cmp t m n =
                   -- failed.
                 (DefElim x els1, DefElim y els2) | x == y ->
                   cmpElim (defType <$> getConstInfo x) (Def x []) els1 els2
+                (DefElim x els1, DefElim y els2) ->
+                  trySizeUniv cmp t m n x els1 y els2
                 (MetaElim{}, _) -> __IMPOSSIBLE__   -- projections from metas should have been eta expanded
                 (_, MetaElim{}) -> __IMPOSSIBLE__
                 _ -> typeError $ UnequalTerms cmp m n t
