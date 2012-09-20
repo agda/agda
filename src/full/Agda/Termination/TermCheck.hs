@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, ImplicitParams #-}
+{-# LANGUAGE CPP, PatternGuards, ImplicitParams, TupleSections #-}
 
 {- Checking for Structural recursion
    Authors: Andreas Abel, Nils Anders Danielsson, Ulf Norell,
@@ -14,6 +14,7 @@ module Agda.Termination.TermCheck
 
 import Control.Applicative
 import Control.Monad.Error
+import Control.Monad.State
 
 import Data.List as List
 import qualified Data.Map as Map
@@ -24,11 +25,13 @@ import qualified Data.Set as Set
 import Data.Set (Set)
 
 import qualified Agda.Syntax.Abstract as A
+-- import Agda.Syntax.Abstract.Pretty (prettyA)
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Info as Info
 import Agda.Syntax.Position
 import Agda.Syntax.Common
 import Agda.Syntax.Literal (Literal(LitString))
+import Agda.Syntax.Translation.InternalToAbstract
 
 import Agda.Termination.CallGraph   as Term
 import qualified Agda.Termination.SparseMatrix as Term
@@ -52,10 +55,12 @@ import Agda.TypeChecking.Substitute
 import qualified Agda.Interaction.Highlighting.Range as R
 import Agda.Interaction.Options
 
+import Agda.Utils.List
 import Agda.Utils.Size
 import Agda.Utils.Monad ((<$>), mapM', forM', ifM)
 -- import Agda.Utils.NubList
 import Agda.Utils.Pointed
+import Agda.Utils.Permutation
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -427,6 +432,7 @@ stripCoConstructors conf p = case p of
       Inductive   -> ConDBP c <$> mapM (stripCoConstructors conf) args
       CoInductive -> return unusedVar
 
+{- Andreas, 2012-09-19 BAD CODE, RETIRED
 {- | stripBind i p b = Just (i', dbp, b')
 
   converts a pattern into a de Bruijn pattern
@@ -468,24 +474,67 @@ stripBinds use i (p:ps) b = do
         Just (i2, dbps, b2) -> return $ Just (i2, dbp:dbps, b2)
         Nothing -> return Nothing
     Nothing -> return Nothing
+-}
+
+-- | cf. 'TypeChecking.Coverage.Match.buildMPatterns'
+openClause :: DBPConf -> Permutation -> [Pattern] -> ClauseBody -> TCM ([DeBruijnPat], Maybe Term)
+openClause conf perm ps body = do
+  -- invariant: xs has enough variables for the body
+  unless (permRange perm == genericLength xs) __IMPOSSIBLE__
+  dbps <- evalStateT (mapM build ps) xs
+  return . (dbps,) $ case body `apply` map (defaultArg . var) xs of
+    NoBody -> Nothing
+    Body v -> Just v
+    _      -> __IMPOSSIBLE__
+  where
+    -- length of the telescope
+    n    = size perm
+    -- the variables as a map from the body variables to the clause telescope
+    xs   = permute (invertP perm) $ downFrom (size perm)
+
+    tick = do x : xs <- get; put xs; return x
+
+    build :: Pattern -> StateT [Nat] TCM DeBruijnPat
+    build (VarP _)        = VarDBP <$> tick
+    build (ConP con _ ps) = ConDBP con <$> mapM (build . unArg) ps
+    build (DotP t)        = tick *> do lift $ termToDBP conf t
+    build (LitP l)        = return $ LitDBP l
+
 
 -- | Extract recursive calls from one clause.
 termClause :: DBPConf -> MutualNames -> QName -> Delayed -> Clause -> TCM Calls
-termClause use names name delayed
+termClause conf names name delayed
     (Clause { clauseTel  = tel
             , clausePerm = perm
             , clausePats = argPats'
-            , clauseBody = body }) =
+            , clauseBody = body }) = do
+  reportSDoc "term.check.clause" 25 $ vcat
+    [ text "termClause"
+    , nest 2 $ text "tel      =" <+> prettyTCM tel
+    , nest 2 $ text ("perm     = " ++ show perm)
+    -- how to get the following right?
+    -- , nest 2 $ text "argPats' =" <+> do prettyA =<< reifyPatterns tel perm argPats'
+    ]
+  addCtxTel tel $ do
+    ps <- normalise $ map unArg argPats'
+    (dbpats, res) <- openClause conf perm ps body
+    case res of
+       Nothing -> return Term.empty
+       Just t -> do
+          dbpats <- mapM (stripCoConstructors conf) dbpats
+          termTerm conf names name delayed dbpats t
+
+{-
   addCtxTel tel $ do
     argPats' <- normalise argPats'
     -- The termination checker doesn't know about reordered telescopes
     let argPats = substs (renamingR perm) argPats'
-    dbs <- stripBinds use (nVars - 1) (map unArg argPats) body
+    dbs <- stripBinds conf (nVars - 1) (map unArg argPats) body
     case dbs of
        Nothing -> return Term.empty
        Just (-1, dbpats, Body t) -> do
-          dbpats <- mapM (stripCoConstructors use) dbpats
-          termTerm use names name delayed dbpats t
+          dbpats <- mapM (stripCoConstructors conf) dbpats
+          termTerm conf names name delayed dbpats t
           -- note: convert dB levels into dB indices
        Just (n, dbpats, Body t) -> internalError $ "termClause: misscalculated number of vars: guess=" ++ show nVars ++ ", real=" ++ show (nVars - 1 - n)
        Just (n, dbpats, b)  -> internalError $ "termClause: not a Body" -- ++ show b
@@ -494,6 +543,7 @@ termClause use names name delayed
     boundVars (Bind b)   = 1 + boundVars (absBody b)
     boundVars NoBody     = 0
     boundVars (Body _)   = 0
+-}
 
 -- | Extract recursive calls from a term.
 termTerm :: DBPConf -> MutualNames -> QName -> Delayed -> [DeBruijnPat] -> Term -> TCM Calls

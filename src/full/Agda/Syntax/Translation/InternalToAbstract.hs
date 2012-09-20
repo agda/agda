@@ -18,6 +18,7 @@ module Agda.Syntax.Translation.InternalToAbstract
   ( Reify(..)
   , ReifyWhen(..)
   , NamedClause(..)
+  , reifyPatterns
   ) where
 
 import Prelude hiding (mapM_, mapM)

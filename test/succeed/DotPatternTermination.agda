@@ -1,3 +1,5 @@
+{-# OPTIONS --show-implicit #-}
+-- {-# OPTIONS -v term.check.clause:25 #-}
 module DotPatternTermination where
 
 data Nat : Set where
@@ -16,7 +18,7 @@ module Test1 where
   f : forall {n} -> D n -> Nat
   f cz     = zero
   f (c1 d) = f (c2 d)
-  f (c2 d) = f d
+  f {n} (c2 .{n} d) = f {n} d
 
 -- There was a bug with dot patterns having the wrong context which manifested
 -- itself in the following example.
@@ -42,4 +44,3 @@ module Test3 where
   parse₀ .(suc d) (alt d _ p)    = parse₀ d p
   parse₀ ._       (! d)          = parse₀ d (pp d)
   parse₀ ._       (pp d)         = zero
-
