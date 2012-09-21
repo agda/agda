@@ -1,0 +1,3 @@
+IrrelevantIndexNotInconsistent.agda:23,15-16
+.b₁ != .b of type Bool
+when checking that the expression p has type True .b
