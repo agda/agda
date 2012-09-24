@@ -920,6 +920,7 @@ initEnv = TCEnv { envContext	         = []
 -- ** Context
 ---------------------------------------------------------------------------
 
+-- | The @Context@ is a stack of 'ContextEntry's.
 type Context	  = [ContextEntry]
 data ContextEntry = Ctx { ctxId	   :: CtxId
 			, ctxEntry :: Dom (Name, Type)
