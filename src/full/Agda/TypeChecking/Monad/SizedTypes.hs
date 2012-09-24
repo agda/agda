@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 module Agda.TypeChecking.Monad.SizedTypes where
 
 import Control.Applicative
@@ -20,32 +20,40 @@ import Agda.Utils.Impossible
 #include "../../undefined.h"
 
 ------------------------------------------------------------------------
--- * Handling of size builtins
+-- * Testing for type 'Size'
 ------------------------------------------------------------------------
 
--- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
+-- | Result of querying whether size variable @i@ is bounded by another
+--   size.
+data BoundedSize
+  =  BoundedLt Term -- ^ yes @i : Size< t@
+  |  BoundedNo
+     deriving (Eq, Show)
 
-isSizeType :: Type -> TCM Bool
+-- | Check if a type is the 'primSize' type. The argument should be 'reduce'd.
+isSizeType :: Type -> TCM (Maybe BoundedSize)
 isSizeType v = isSizeTypeTest <*> pure v
 
-{- ORIGINAL CODE
-isSizeType :: Type -> TCM Bool
-isSizeType (El _ v) = liftTCM $
-  ifM (not . optSizedTypes <$> pragmaOptions) (return False) $
-  case v of
-    Def x [] -> do
-      Def size [] <- primSize
-      return $ x == size
-    _ -> return False
-  `catchError` \_ -> return False
+isSizeTypeTest :: TCM (Type -> Maybe BoundedSize)
+isSizeTypeTest =
+  flip (ifM (optSizedTypes <$> pragmaOptions)) (return $ const Nothing) $ do
+    (size, sizelt) <- getBuiltinSize
+    let testType (Def d [])  | Just d == size   = Just BoundedNo
+        testType (Def d [v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
+        testType _                              = Nothing
+    return $ testType . unEl
 
-isSizeNameTest :: TCM (QName -> Bool)
-isSizeNameTest = liftTCM $
-  ifM (not . optSizedTypes <$> pragmaOptions) (return $ const False) $ do
-    Def size [] <- primSize
-    return (size ==)
-  `catchError` \_ -> return $ const False
--}
+getBuiltinDefName :: String -> TCM (Maybe QName)
+getBuiltinDefName s = fromDef <$> getBuiltin' s
+  where
+    fromDef (Just (Def d [])) = Just d
+    fromDef _                 = Nothing
+
+getBuiltinSize :: TCM (Maybe QName, Maybe QName)
+getBuiltinSize = do
+  size   <- getBuiltinDefName builtinSize
+  sizelt <- getBuiltinDefName builtinSizeLt
+  return (size, sizelt)
 
 isSizeNameTest :: TCM (QName -> Bool)
 isSizeNameTest = ifM (optSizedTypes <$> pragmaOptions)
@@ -53,19 +61,13 @@ isSizeNameTest = ifM (optSizedTypes <$> pragmaOptions)
   (return $ const False)
 
 isSizeNameTestRaw :: TCM (QName -> Bool)
-isSizeNameTestRaw = liftTCM $
-  do
-    Def size [] <- primSize
-    return (size ==)
-  `catchError` \_ -> return $ const False
+isSizeNameTestRaw = do
+  (size, sizelt) <- getBuiltinSize
+  return $ (`elem` [size, sizelt]) . Just
 
-isSizeTypeTest :: TCM (Type -> Bool)
-isSizeTypeTest =
-  ifM (not . optSizedTypes <$> pragmaOptions) (return $ const False) $ do
-    testName <- isSizeNameTestRaw
-    let testType (El _ (Def d [])) = testName d
-        testType _                 = False
-    return testType
+------------------------------------------------------------------------
+-- * Constructors
+------------------------------------------------------------------------
 
 sizeType :: TCM Type
 sizeType = El (mkType 0) <$> primSize
@@ -76,6 +78,14 @@ sizeSucName = liftTCM $
     Def x [] <- primSizeSuc
     return $ Just x
   `catchError` \_ -> return Nothing
+
+sizeSuc :: Nat -> Term -> TCM Term
+sizeSuc n v = do
+  Def suc [] <- primSizeSuc
+  return $ iterate (sizeSuc_ suc) v !! fromIntegral n
+
+sizeSuc_ :: QName -> Term -> Term
+sizeSuc_ suc v = Def suc [defaultArg v]
 
 ------------------------------------------------------------------------
 -- * Viewing and unviewing sizes
@@ -147,11 +157,3 @@ unDeepSizeView v = case v of
   DSizeVar i     n -> sizeSuc n $ var i
   DSizeMeta x us n -> sizeSuc n $ MetaV x us
   DOtherSize u     -> return u
-
-sizeSuc :: Nat -> Term -> TCM Term
-sizeSuc n v = do
-  Def suc [] <- primSizeSuc
-  return $ iterate (sizeSuc_ suc) v !! fromIntegral n
-
-sizeSuc_ :: QName -> Term -> Term
-sizeSuc_ suc v = Def suc [defaultArg v]

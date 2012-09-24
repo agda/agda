@@ -41,6 +41,7 @@ import Agda.TypeChecking.Eliminators
 
 import Agda.Utils.Size
 import Agda.Utils.Monad
+import Agda.Utils.Maybe
 
 import Agda.TypeChecking.Monad.Debug
 
@@ -103,7 +104,7 @@ compareTerm cmp a u v = liftTCM $ do
       unlessSubtyping cont =
           if cmp == CmpEq then cont else do
             -- do not short circuit size comparison!
-            isSize <- isSizeTypeTest <*> reduce a
+            isSize <- isJust <$> do isSizeTypeTest <*> reduce a
             if isSize then fallback else cont
   case (u, v) of
     (u@(MetaV x us), v@(MetaV y vs))
@@ -136,7 +137,7 @@ compareTerm' cmp a m n =
     reportSDoc "tc.conv.term" 30 $ fsep
       [ text "compareTerm", prettyTCM m, prettyTCM cmp, prettyTCM n, text ":", prettyTCM a' ]
     proofIrr <- proofIrrelevance
-    isSize   <- isSizeType a'
+    isSize   <- isJust <$> isSizeType a'
     s        <- reduce $ getSort a'
     mlvl     <- mlevel
     case s of

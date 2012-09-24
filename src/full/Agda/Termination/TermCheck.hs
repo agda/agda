@@ -996,5 +996,5 @@ compareVarVar suc i j
   | otherwise = do
       res <- isBounded i
       case res of
-        NotBounded  -> return Term.unknown
+        BoundedNo  -> return Term.unknown
         BoundedLt v -> (Term..*.) Term.lt <$> compareTerm' suc v (VarDBP j)

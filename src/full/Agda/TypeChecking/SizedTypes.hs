@@ -20,6 +20,7 @@ import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
 import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
 import Agda.Utils.Size
@@ -92,7 +93,7 @@ compareSizes cmp u v = do
     (CmpLeq, DSizeVar i n, DSizeVar j m) | i /= j -> do
        res <- isBounded i
        case res of
-         NotBounded -> failure
+         BoundedNo -> failure
          BoundedLt u' ->
             -- now we have i < u', in the worst case i+1 = u'
             -- and we want to check i+n <= v
@@ -120,20 +121,14 @@ compareSizes cmp u v = do
     _ -> compareAtom cmp size u v
 -}
 
--- | Result of querying whether size variable @i@ is bounded by another
---   size.
-data BoundedVar
-  =  BoundedLt Term -- ^ yes @i : Size< t@
-  |  NotBounded
-
-isBounded :: Nat -> TCM BoundedVar
+isBounded :: Nat -> TCM BoundedSize
 isBounded i = do
   t <- reduce =<< typeOfBV i
   case unEl t of
     Def x [u] -> do
       sizelt <- getBuiltin' builtinSizeLt
-      return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else NotBounded
-    _ -> return NotBounded
+      return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
+    _ -> return BoundedNo
 
 trivial :: Term -> Term -> TCM Bool
 trivial u v = do
@@ -173,17 +168,48 @@ computeSizeConstraints cs =  do
 getSizeMetas :: TCM [(MetaId, Int)]
 getSizeMetas = do
   ms <- getOpenMetas
-  sz <- sizeType
+  test <- isSizeTypeTest
   let sizeCon m = do
+        let nothing  = return []
         mi <- lookupMeta m
         case mvJudgement mi of
           HasType _ a -> do
             TelV tel b <- telView =<< instantiateFull a
-            if b /= sz
-              then return []
-              else return [(m, size tel)]
-          _ -> return []
+            case test b of
+              Nothing -> nothing
+              Just _  -> return [(m, size tel)]
+          _ -> nothing
   concat <$> mapM sizeCon ms
+
+{- ROLLED BACK
+getSizeMetas :: TCM ([(MetaId, Int)], [SizeConstraint])
+getSizeMetas = do
+  ms <- getOpenMetas
+  test <- isSizeTypeTest
+  let sizeCon m = do
+        let nothing  = return ([], [])
+        mi <- lookupMeta m
+        case mvJudgement mi of
+          HasType _ a -> do
+            TelV tel b <- telView =<< instantiateFull a
+            let noConstr = return ([(m, size tel)], [])
+            case test b of
+              Nothing            -> nothing
+              Just BoundedNo     -> noConstr
+              Just (BoundedLt u) -> noConstr
+{- WORKS NOT
+              Just (BoundedLt u) -> flip catchError (const $ noConstr) $ do
+                -- we assume the metavariable is used in an
+                -- extension of its creation context
+                ctxIds <- getContextId
+                let a = SizeMeta m $ take (size tel) $ reverse ctxIds
+                (b, n) <- sizeExpr u
+                return ([(m, size tel)], [Leq a (n-1) b])
+-}
+          _ -> nothing
+  (mss, css) <- unzip <$> mapM sizeCon ms
+  return (concat mss, concat css)
+-}
 
 data SizeExpr = SizeMeta MetaId [CtxId]
               | Rigid CtxId
@@ -260,6 +286,12 @@ solveSizeConstraints = whenM haveSizedTypes $ do
   cs0 <- getSizeConstraints
   cs <- computeSizeConstraints cs0
   ms <- getSizeMetas
+{- ROLLED BACK
+  cs0 <- getSizeConstraints
+  cs1 <- computeSizeConstraints cs0
+  (ms,cs2) <- getSizeMetas
+  let cs = cs2 ++ cs1
+-}
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
 

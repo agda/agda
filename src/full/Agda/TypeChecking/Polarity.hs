@@ -251,7 +251,7 @@ sizePolarity d pol0 = do
           (parTel, ixTel) = genericSplitAt np $ telToList tel
       case ixTel of
         []                 -> exit  -- No size index
-        Dom _ _ (_, a) : _ -> ifM (not <$> isSizeType a) exit $ do
+        Dom _ _ (_, a) : _ -> ifM ((/= Just BoundedNo) <$> isSizeType a) exit $ do
           -- we assume the size index to be 'Covariant' ...
           let pol   = genericTake np pol0
               polCo = pol ++ [Covariant]
@@ -267,7 +267,7 @@ sizePolarity d pol0 = do
                   case conTel of
                     EmptyTel  -> return False  -- no size argument
                     ExtendTel arg  tel ->
-                      ifM (not <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
+                      ifM ((/= Just BoundedNo) <$> isSizeType (unDom arg)) (return False) $ do -- also no size argument
                         -- First constructor argument has type Size
 
                         -- check that only positive occurences in tel
