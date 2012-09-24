@@ -33,6 +33,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Eliminators
+import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook)
 
 import Agda.TypeChecking.MetaVars.Occurs
 
@@ -196,7 +197,7 @@ newValueMeta' b t = do
 newValueMetaCtx' :: RunMetaOccursCheck -> Type -> Args -> TCM Term
 newValueMetaCtx' b t vs = do
   i <- createMetaInfo' b
-  let TelV tel _ = telView' t
+  let TelV tel a = telView' t
       perm = idP (size tel)
   x <- newMeta i normalMetaPriority perm (HasType () t)
   reportSDoc "tc.meta.new" 50 $ fsep
@@ -204,6 +205,8 @@ newValueMetaCtx' b t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
+  -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
+  boundedSizeMetaHook x tel a
   etaExpandMetaSafe x
   return $ MetaV x vs
 

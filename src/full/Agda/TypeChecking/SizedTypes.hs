@@ -3,21 +3,25 @@ module Agda.TypeChecking.SizedTypes where
 
 import Control.Monad.Error
 import Control.Monad
+
 import Data.List
 import qualified Data.Map as Map
 
 import Agda.Interaction.Options
+
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
-import Agda.TypeChecking.MetaVars
+import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
+
 import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
 import Agda.Utils.Maybe
@@ -149,6 +153,18 @@ trivial u v = do
                    ]
     return triv
   `catchError` \_ -> return False
+
+-- | Whenever we create a bounded size meta, add a constraint
+--   expressing the bound.
+boundedSizeMetaHook :: MetaId -> Telescope -> Type -> TCM ()
+boundedSizeMetaHook x tel a = do
+  res <- isSizeType a
+  case res of
+    Just (BoundedLt u) -> do
+      size <- sizeType
+      v <- sizeSuc 1 $ MetaV x $ teleArgs tel
+      addConstraint $ ValueCmp CmpLeq size v u
+    _ -> return ()
 
 -- | Find the size constraints.
 getSizeConstraints :: TCM [Closure Constraint]

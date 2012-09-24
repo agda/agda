@@ -1,0 +1,24 @@
+Solving size constraints []
+Metas: [], [(_9,[])]
+_9 : Size
+Solved constraints: fromList [(9,.)]
+_9 := ∞
+Solving size constraints []
+Metas: [], [(_10,[])]
+_10 : Size< ∞
+Solved constraints: fromList [(10,.)]
+_10 := ∞
+Solving size constraints []
+Metas: [], [(_12,[])]
+_12 : Size
+Solved constraints: fromList [(12,.)]
+_12 := ∞
+Solving size constraints [X17 =< X16,X16 + 1 =< c67]
+Metas: [(_16,[CtxId 67,CtxId 68,CtxId 69]),(_17,[CtxId 67,CtxId 68,CtxId 69])], []
+_16 : {.i : Size} {.j : Size< ∞} (n : Nat) → Size< .i
+_17 : {.i : Size} {.j : Size< ∞} (n : Nat) → Size
+CheckSizeMetaBounds.agda:27,1-28,30
+Cannot solve size constraints
+_17 n =< _16 n : Size
+↑ _16 n =< .i : Size
+when checking the definition of magic
