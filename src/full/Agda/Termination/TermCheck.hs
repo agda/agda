@@ -766,6 +766,7 @@ termTerm conf names f delayed pats0 t0 = do
             -- Dependent function space.
             Pi a (Abs x b) ->
                do g1 <- loopType pats Term.unknown (unDom a)
+                  a  <- maskSizeLt a
                   g2 <- addCtxString x a $
                         loopType (map liftDBP pats) piArgumentGuarded b
                   return $ g1 `Term.union` g2
@@ -804,6 +805,20 @@ termTerm conf names f delayed pats0 t0 = do
              guarded   -- preserving guardedness
             else
              Term.unknown
+
+-- | Rewrite type @tel -> Size< u@ to @tel -> Size@.
+maskSizeLt :: Dom Type -> TCM (Dom Type)
+maskSizeLt dom@(Dom h r a) = do
+  (msize, msizelt) <- getBuiltinSize
+  case (msize, msizelt) of
+    (_ , Nothing) -> return dom
+    (Nothing, _)  -> __IMPOSSIBLE__
+    (Just size, Just sizelt) -> do
+      TelV tel c <- telView a
+      case a of
+        El s (Def d [v]) | d == sizelt -> return $ Dom h r $
+          abstract tel $ El s $ Def size []
+        _ -> return dom
 
 {- | compareArgs suc pats ts
 

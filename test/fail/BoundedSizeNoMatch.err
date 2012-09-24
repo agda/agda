@@ -1,0 +1,6 @@
+
+Termination checking failed for the following functions:
+  T
+Problematic calls:
+  T j
+    (at BoundedSizeNoMatch.agda:12,23-24)
