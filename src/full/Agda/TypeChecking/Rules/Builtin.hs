@@ -374,7 +374,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             def <- ignoreAbstractMode $ getConstInfo q
             case theDef def of
               Axiom {} -> do
-                when (s == builtinSizeLt) $ do
+                when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
                   setPolarity q [Covariant]
                   setArgOccurrences q [StrictPos]
                 bindBuiltinName s e'
