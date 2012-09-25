@@ -1,5 +1,5 @@
 {-# OPTIONS --sized-types #-}
-{-# OPTIONS -v tc.size.solve:100 #-}
+-- {-# OPTIONS -v tc.size.solve:100 #-}
 module CheckSizeMetaBounds where
 
 open import Common.Size
