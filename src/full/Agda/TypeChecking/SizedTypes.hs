@@ -362,10 +362,15 @@ solveSizeConstraints = whenM haveSizedTypes $ do
           plus v n = suc $ plus v (n - 1)
 
           inst (i, e) = do
-            let m = fromIntegral i
+
+            let m = fromIntegral i  -- meta variable identifier
+
                 args = case lookup m metas of
                   Just xs -> xs
                   Nothing -> __IMPOSSIBLE__
+
+                isInf (W.SizeConst W.Infinite) = True
+                isInf _                        = False
 
                 term (W.SizeConst (W.Finite _)) = __IMPOSSIBLE__
                 term (W.SizeConst W.Infinite) = primSizeInf
@@ -383,7 +388,9 @@ solveSizeConstraints = whenM haveSizedTypes $ do
               , nest 2 $ prettyTCM v
               ]
 
-            assignTerm m v
+            -- Andreas, 2012-09-25: do not assign interaction metas to \infty
+            unlessM (isInteractionMeta m `and2M` return (isInf e)) $
+              assignTerm m v
 
       mapM_ inst $ Map.toList sol
 
