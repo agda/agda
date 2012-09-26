@@ -245,6 +245,7 @@ library
                     Agda.TypeChecking.Positivity
                     Agda.TypeChecking.Pretty
                     Agda.TypeChecking.Primitive
+                    Agda.TypeChecking.ProjectionLike
                     Agda.TypeChecking.Quote
                     Agda.TypeChecking.Rebind
                     Agda.TypeChecking.RecordPatterns

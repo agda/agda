@@ -33,6 +33,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Positivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Primitive hiding (Nat)
+import Agda.TypeChecking.ProjectionLike
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Reduce
