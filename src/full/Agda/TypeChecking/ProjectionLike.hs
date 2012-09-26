@@ -1,14 +1,11 @@
 {-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.ProjectionLike where
 
-import Control.Monad.State
-import Control.Monad.Reader
-import Data.Set (Set)
-import qualified Data.Set as Set
+import Control.Monad
+
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
-import Data.Function
 
 import Agda.Syntax.Abstract.Name
 import Agda.Syntax.Common
@@ -19,16 +16,12 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Positivity
-import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
-import {-# SOURCE #-} Agda.TypeChecking.Polarity
-import {-# SOURCE #-} Agda.TypeChecking.ProjectionLike
+import Agda.TypeChecking.CompiledClause.Compile
 
 import Agda.Utils.Monad
-import Agda.Utils.Map as Map
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pretty
-import qualified Agda.Utils.HashMap as HMap
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
