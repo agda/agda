@@ -332,7 +332,9 @@ instance HasPolarity Type where
   polarities i (El _ v) = polarities i v
 
 instance HasPolarity Term where
-  polarities i v = case v of
+  polarities i v = do
+   v <- instantiate v
+   case v of
     -- Andreas, 2012-09-06: taking the polarities of the arguments
     -- without taking the variance of the function into account seems wrong.
     Var n ts  | n == i -> (Covariant :) . map (const Invariant) <$> polarities i ts
