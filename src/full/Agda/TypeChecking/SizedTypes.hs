@@ -255,6 +255,10 @@ computeSizeConstraint cl =
   enterClosure cl $ \c ->
     case c of
       ValueCmp CmpLeq _ u v -> do
+          reportSDoc "tc.size.solve" 50 $ sep
+            [ text "converting size constraint"
+            , prettyTCM c
+            ]
           (a, n) <- sizeExpr u
           (b, m) <- sizeExpr v
           return $ Just $ Leq a (m - n) b
@@ -268,6 +272,7 @@ sizeExpr :: Term -> TCM (SizeExpr, Int)
 sizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
                 -- This is necessary to surface the solutions of metavariables.
+  reportSDoc "tc.conv.size" 60 $ text "sizeExpr:" <+> prettyTCM u
   s <- sizeView u
   case s of
     SizeSuc u -> do
@@ -277,15 +282,20 @@ sizeExpr u = do
     OtherSize u -> case u of
       Var i []  -> do
         cxt <- getContextId
-        return (Rigid (cxt !! fromIntegral i), 0)
+        return (Rigid (cxt !!! i), 0)
       MetaV m args
         | all isVar args && distinct args -> do
           cxt <- getContextId
-          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ _ (Var i []) <- args ], 0)
+          return (SizeMeta m [ cxt !!! i | Arg _ _ (Var i []) <- args ], 0)
       _ -> patternViolation
   where
     isVar (Arg _ _ (Var _ [])) = True
     isVar _ = False
+
+    (!!!) :: [a] -> Nat -> a
+    cxt !!! i
+      | i < genericLength cxt = cxt !! fromIntegral i
+      | otherwise             = __IMPOSSIBLE__
 
 -- | Compute list of size metavariables with their arguments
 --   appearing in a constraint.
@@ -305,6 +315,7 @@ haveSizedTypes = do
 
 solveSizeConstraints :: TCM ()
 solveSizeConstraints = whenM haveSizedTypes $ do
+  reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
   cs0 <- getSizeConstraints
   cs <- computeSizeConstraints cs0
   ms <- getSizeMetas
