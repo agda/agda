@@ -1,5 +1,5 @@
 {-# OPTIONS --sized-types #-}
--- {-# OPTIONS -v tc.size.solve:100 #-}
+-- {-# OPTIONS -v tc.size.solve:100 -v tc.meta.new:50 #-}
 module CheckSizeMetaBounds where
 
 open import Common.Size
@@ -38,3 +38,4 @@ loop (suc {j} n) p = loop {j} (magic one) (lem one _)
 
 bot : ⊥
 bot = loop one _
+

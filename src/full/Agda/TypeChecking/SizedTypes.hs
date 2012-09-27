@@ -156,14 +156,20 @@ trivial u v = do
 
 -- | Whenever we create a bounded size meta, add a constraint
 --   expressing the bound.
-boundedSizeMetaHook :: MetaId -> Telescope -> Type -> TCM ()
-boundedSizeMetaHook x tel a = do
+--   In @boundedSizeMetaHook v tel a@, @tel@ includes the current context.
+boundedSizeMetaHook :: Term -> Telescope -> Type -> TCM ()
+boundedSizeMetaHook v tel0 a = do
   res <- isSizeType a
   case res of
     Just (BoundedLt u) -> do
-      size <- sizeType
-      v <- sizeSuc 1 $ MetaV x $ teleArgs tel
-      addConstraint $ ValueCmp CmpLeq size v u
+      n <- getContextSize
+      let tel | n > 0     = telFromList $ genericDrop n $ telToList tel0
+              | otherwise = tel0
+      addCtxTel tel $ do
+        v <- sizeSuc 1 $ raise (size tel) v `apply` teleArgs tel
+        -- compareSizes CmpLeq v u
+        size <- sizeType
+        addConstraint $ ValueCmp CmpLeq size v u
     _ -> return ()
 
 -- | Find the size constraints.

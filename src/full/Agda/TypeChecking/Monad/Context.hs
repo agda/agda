@@ -150,6 +150,11 @@ addLetBinding rel x v t0 ret = do
 getContext :: MonadTCM tcm => tcm [Dom (Name, Type)]
 getContext = asks $ map ctxEntry . envContext
 
+-- | Get the size of the current context.
+{-# SPECIALIZE getContextSize :: TCM Nat #-}
+getContextSize :: MonadTCM tcm => tcm Nat
+getContextSize = genericLength <$> asks envContext
+
 -- | Generate [Var n - 1, .., Var 0] for all declarations in the context.
 {-# SPECIALIZE getContextArgs :: TCM Args #-}
 getContextArgs :: MonadTCM tcm => tcm Args

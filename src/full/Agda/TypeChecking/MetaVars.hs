@@ -205,10 +205,11 @@ newValueMetaCtx' b t vs = do
     , nest 2 $ prettyTCM vs <+> text "|-"
     , nest 2 $ text (show x) <+> text ":" <+> prettyTCM t
     ]
-  -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  boundedSizeMetaHook x tel a
   etaExpandMetaSafe x
-  return $ MetaV x vs
+  -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
+  let u = MetaV x vs
+  boundedSizeMetaHook u tel a
+  return u
 
 newTelMeta :: Telescope -> TCM Args
 newTelMeta tel = newArgsMeta (abstract tel $ El Prop $ Sort Prop)
