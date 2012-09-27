@@ -39,10 +39,12 @@ makeProjection x = inContext [] $ do
     -- Nor can abstract definitions be projection-like since they won't reduce
     -- outside the abstract block.
     def@Function{funProjection = Nothing, funClauses = cls, funInv = NotInjective,
+                 funMutual = [], -- Andreas, 2012-09-28: only consider non-mutual funs (or those whose recursion status has not yet been determined)
                  funAbstr = ConcreteDef} -> do
       ps0 <- filterM validProj (candidateArgs [] (unEl $ defType defn))
       reportSLn "tc.proj.like" 30 $ if null ps0 then "  no candidates found"
                                                 else "  candidates: " ++ show ps0
+      unless (null ps0) $ do
       -- Andreas 2012-09-26: only consider non-recursive functions for proj.like.
       -- Issue 700: problems with recursive funs. in term.checker and reduction
       ifM recursive (reportSLn "tc.proj.like" 30 $ "recursive functions are not considered for projection-likeness") $ do
