@@ -20,7 +20,7 @@ import {-# SOURCE #-} Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
 import {-# SOURCE #-} Agda.TypeChecking.Conversion
-import Agda.TypeChecking.Constraints
+import {-# SOURCE #-} Agda.TypeChecking.Constraints
 
 import qualified Agda.Utils.Warshall as W
 import Agda.Utils.List
@@ -171,6 +171,15 @@ boundedSizeMetaHook v tel0 a = do
         size <- sizeType
         addConstraint $ ValueCmp CmpLeq size v u
     _ -> return ()
+
+-- | Test whether a problem consists only of size constraints.
+isSizeProblem :: ProblemId -> TCM Bool
+isSizeProblem pid = andM . map (isSizeConstraint . theConstraint) =<< getConstraintsForProblem pid
+
+-- | Test is a constraint speaks about sizes.
+isSizeConstraint :: Closure Constraint -> TCM Bool
+isSizeConstraint (Closure{ clValue = ValueCmp _ s _ _ }) = isJust <$> isSizeType s
+isSizeConstraint _ = return False
 
 -- | Find the size constraints.
 getSizeConstraints :: TCM [Closure Constraint]

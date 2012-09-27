@@ -52,8 +52,8 @@ solvingProblem pid m = verboseBracket "tc.constr.solve" 50 ("working on problem 
 
 isProblemSolved :: ProblemId -> TCM Bool
 isProblemSolved pid =
-  (&&) <$> (notElem pid <$> asks envActiveProblems)
-       <*> (all ((/= pid) . constraintProblem) <$> getAllConstraints)
+  and2M (notElem pid <$> asks envActiveProblems)
+        (all ((/= pid) . constraintProblem) <$> getAllConstraints)
 
 getConstraintsForProblem :: ProblemId -> TCM Constraints
 getConstraintsForProblem pid = List.filter ((== pid) . constraintProblem) <$> getAllConstraints

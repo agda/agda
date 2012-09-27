@@ -24,6 +24,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.LevelConstraints
+-- import Agda.TypeChecking.SizedTypes (solveSizeConstraints)
 import Agda.TypeChecking.MetaVars.Mention
 
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Term (checkExpr, checkArguments)
@@ -145,7 +146,9 @@ solveAwakeConstraints = solveAwakeConstraints' False
 solveAwakeConstraints' :: Bool -> TCM ()
 solveAwakeConstraints' force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
-    unlessM ((not force &&) <$> isSolvingConstraints) $ nowSolvingConstraints solve
+    unlessM ((not force &&) <$> isSolvingConstraints) $ nowSolvingConstraints $ do
+     -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
+     solve
   where
     solve = do
       reportSDoc "tc.constr.solve" 10 $ hsep [ text "Solving awake constraints."

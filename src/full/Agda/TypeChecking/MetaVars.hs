@@ -33,7 +33,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Eliminators
-import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook)
+import Agda.TypeChecking.SizedTypes (boundedSizeMetaHook, isSizeProblem)
 
 import Agda.TypeChecking.MetaVars.Occurs
 
@@ -278,7 +278,8 @@ blockTerm t blocker = do
 
 blockTermOnProblem :: Type -> Term -> ProblemId -> TCM Term
 blockTermOnProblem t v pid =
-  ifM (isProblemSolved pid) (return v) $ do
+  -- Andreas, 2012-09-27 do not block on unsolved size constraints
+  ifM (isProblemSolved pid `or2M` isSizeProblem pid) (return v) $ do
     i   <- createMetaInfo
     vs  <- getContextArgs
     tel <- getContextTelescope
