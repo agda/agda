@@ -701,6 +701,9 @@ leqLevel a b = liftTCM $ do
                         [n] -> Just n
                         _   -> Nothing
 
+        -- Andreas, 2012-10-02 raise error on unsolvable constraint
+        ([ClosedLevel n], [ClosedLevel m]) -> if n <= m then ok else notok
+
         -- closed ≤ bs
         ([ClosedLevel n], bs)
           | n <= maximum (map constant bs) -> ok

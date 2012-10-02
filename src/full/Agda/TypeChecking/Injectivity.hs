@@ -131,6 +131,10 @@ data InvView = Inv QName Args (Map TermHead Clause)
 
 useInjectivity :: Comparison -> Type -> Term -> Term -> TCM ()
 useInjectivity cmp a u v = do
+  reportSDoc "tc.inj.use" 30 $ fsep $
+    pwords "useInjectivity on" ++
+    [ prettyTCM u, prettyTCM cmp, prettyTCM v, text ":", prettyTCM a
+    ]
   uinv <- functionInverse u
   vinv <- functionInverse v
   case (uinv, vinv) of

@@ -1,0 +1,4 @@
+Issue689.agda:8,3-17
+The type of the constructor does not fit in the sort of the
+datatype, since Set₂ is not less or equal than Set₁
+when checking the constructor c in the declaration of Bad
