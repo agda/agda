@@ -70,11 +70,9 @@ bindBuiltinInf e = bindPostulatedName builtinInf e $ \inf _ ->
 bindBuiltinSharp :: A.Expr -> TCM ()
 bindBuiltinSharp e =
   bindPostulatedName builtinSharp e $ \sharp sharpDefn -> do
-    sharpE  <- instantiateFull =<< checkExpr (A.Def sharp) =<< typeOfSharp
-    inf     <- primInf
-    infDefn <- case inf of
-      Def inf _ -> getConstInfo inf
-      _         -> __IMPOSSIBLE__
+    sharpE    <- instantiateFull =<< checkExpr (A.Def sharp) =<< typeOfSharp
+    Def inf _ <- ignoreSharing <$> primInf
+    infDefn   <- getConstInfo inf
     addConstant (defName infDefn) $
       infDefn { defPolarity       = [] -- not monotone
               , defArgOccurrences = [Unused, StrictPos]
@@ -114,17 +112,10 @@ bindBuiltinSharp e =
 bindBuiltinFlat :: A.Expr -> TCM ()
 bindBuiltinFlat e =
   bindPostulatedName builtinFlat e $ \flat flatDefn -> do
-    flatE  <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
-    sharp  <- (\t -> case t of
-                 Def q _ -> q
-                 _       -> __IMPOSSIBLE__)
-              <$> primSharp
-    kit    <- requireLevels
-    inf    <- do
-      inf <- primInf
-      case inf of
-        Def inf _ -> return inf
-        _         -> __IMPOSSIBLE__
+    flatE       <- instantiateFull =<< checkExpr (A.Def flat) =<< typeOfFlat
+    Def sharp _ <- ignoreSharing <$> primSharp
+    kit         <- requireLevels
+    Def inf _   <- ignoreSharing <$> primInf
     let clause = Clause { clauseRange = noRange
                         , clauseTel   = ExtendTel (domH (El (mkType 0) (Def (typeName kit) [])))
                                                   (Abs "a" (ExtendTel (domH $ sort $ varSort 0)

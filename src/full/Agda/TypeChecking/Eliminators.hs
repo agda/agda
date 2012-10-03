@@ -34,7 +34,7 @@ elimView v = do
   -- match does not handle.
   v <- unLevel v
   reportSLn "tc.conv.elim" 50 $ "v = " ++ show v
-  case v of
+  case ignoreSharing v of
     Def f vs -> do
       proj <- isProjection f
       case proj of
@@ -54,6 +54,7 @@ elimView v = do
     Sort{}     -> noElim
     Pi{}       -> noElim
     DontCare{} -> noElim
+    Shared p   -> __IMPOSSIBLE__
     where
       noElim = return $ NoElim v
       app f vs = return $ f $ map Apply vs

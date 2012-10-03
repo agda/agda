@@ -37,7 +37,7 @@ compile cs = case nextSplit cs of
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
-    Just t : _  -> Done (map (fmap name) $ fst $ head cs) t
+    Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
     Nothing : _ -> Fail
     []          -> __IMPOSSIBLE__
   where

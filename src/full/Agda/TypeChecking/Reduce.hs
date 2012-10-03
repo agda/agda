@@ -74,6 +74,7 @@ instance Instantiate Term where
       InstS _                        -> __IMPOSSIBLE__
   instantiate (Level l) = levelTm <$> instantiate l
   instantiate (Sort s) = sortTm <$> instantiate s
+  instantiate v@Shared{} = updateSharedTerm instantiate v
   instantiate t = return t
 
 instance Instantiate Level where
@@ -87,7 +88,7 @@ instance Instantiate LevelAtom where
   instantiate l = case l of
     MetaLevel m vs -> do
       v <- instantiate (MetaV m vs)
-      case v of
+      case ignoreSharing v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     UnreducedLevel l -> UnreducedLevel <$> instantiate l
@@ -170,18 +171,18 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 ifBlocked :: Term -> (MetaId -> Term -> TCM a) -> (Term -> TCM a) -> TCM a
 ifBlocked t blocked unblocked = do
   t <- reduceB t
-  case t of
-    Blocked m t              -> blocked m t
-    NotBlocked t@(MetaV m _) -> blocked m t
-    NotBlocked t             -> unblocked t
+  case ignoreSharing <$> t of
+    Blocked m _            -> blocked m (ignoreBlocking t)
+    NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
+    NotBlocked _           -> unblocked (ignoreBlocking t)
 
 ifBlockedType :: Type -> (MetaId -> Type -> TCM a) -> (Type -> TCM a) -> TCM a
 ifBlockedType t blocked unblocked = do
   t <- reduceB t
-  case t of
-    Blocked m t                     -> blocked m t
-    NotBlocked t@(El _ (MetaV m _)) -> blocked m t
-    NotBlocked t                    -> unblocked t
+  case ignoreSharing . unEl <$> t of
+    Blocked m _            -> blocked m (ignoreBlocking t)
+    NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
+    NotBlocked _           -> unblocked (ignoreBlocking t)
 
 class Reduce t where
     reduce  :: t -> TCM t
@@ -233,10 +234,11 @@ instance Reduce LevelAtom where
     where
       fromTm v = do
         bv <- reduceB v
-        case bv of
-          Blocked m v             -> return $ Blocked m  $ BlockedLevel m v
+        let v = ignoreBlocking bv
+        case ignoreSharing <$> bv of
           NotBlocked (MetaV m vs) -> return $ NotBlocked $ MetaLevel m vs
-          NotBlocked v            -> return $ NotBlocked $ NeutralLevel v
+          Blocked m _             -> return $ Blocked m  $ BlockedLevel m v
+          NotBlocked _            -> return $ NotBlocked $ NeutralLevel v
 
 
 instance (Raise t, Reduce t) => Reduce (Abs t) where
@@ -282,20 +284,22 @@ instance Reduce Term where
       Var _ _  -> return $ notBlocked v
       Lam _ _  -> return $ notBlocked v
       DontCare _ -> return $ notBlocked v
+      Shared{}   -> updateSharedTermF reduceB v
     where
       -- NOTE: reduceNat can traverse the entire term.
+      reduceNat v@Shared{} = updateSharedTerm reduceNat v
       reduceNat v@(Con c []) = do
         mz  <- getBuiltin' builtinZero
         case v of
           _ | Just v == mz  -> return $ Lit $ LitInt (getRange c) 0
           _		    -> return v
       reduceNat v@(Con c [Arg NotHidden Relevant w]) = do
-        ms  <- getBuiltin' builtinSuc
+        ms  <- fmap ignoreSharing <$> getBuiltin' builtinSuc
         case v of
           _ | Just (Con c []) == ms -> inc <$> reduce w
           _	                    -> return v
           where
-            inc w = case w of
+            inc w = case ignoreSharing w of
               Lit (LitInt r n) -> Lit (LitInt (fuseRange c r) $ n + 1)
               _                -> Con c [Arg NotHidden Relevant w]
       reduceNat v = return v
@@ -341,7 +345,7 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
             mredToBlocked (MaybeRed NotReduced  x) = notBlocked x
             mredToBlocked (MaybeRed (Reduced b) x) = x <$ b
 
-    -- reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
+    reduceNormal :: Term -> QName -> [MaybeReduced (Arg Term)] -> Delayed -> [Clause] -> Maybe CompiledClauses -> TCM (Blocked Term)
     reduceNormal v0 f args delayed def mcc = {-# SCC "reduceNormal" #-} do
         case def of
           _ | Delayed <- delayed,
@@ -361,7 +365,8 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                 reportSDoc "tc.reduce" 90 $ vcat
                   [ text "*** reduced definition: " <+> prettyTCM f
                   ]
-                reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v
+                reportSDoc "tc.reduce" 100 $ text "    result" <+> prettyTCM v $$
+                                             text "    raw   " <+> text (show v)
                 keepGoing v
       where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
@@ -474,6 +479,7 @@ instance Normalise Term where
 		Lam h b	    -> Lam h <$> normalise b
 		Sort s	    -> sortTm <$> normalise s
 		Pi a b	    -> uncurry Pi <$> normalise (a,b)
+                Shared{}    -> updateSharedTerm normalise v
                 DontCare _  -> return v
 
 instance Normalise Elim where
@@ -606,6 +612,7 @@ instance InstantiateFull Term where
           Lam h b     -> Lam h <$> instantiateFull b
           Sort s      -> sortTm <$> instantiateFull s
           Pi a b      -> uncurry Pi <$> instantiateFull (a,b)
+          Shared{}    -> updateSharedTerm instantiateFull v
           DontCare v  -> DontCare <$> instantiateFull v
 
 instance InstantiateFull Level where
@@ -619,7 +626,7 @@ instance InstantiateFull LevelAtom where
   instantiateFull l = case l of
     MetaLevel m vs -> do
       v <- instantiateFull (MetaV m vs)
-      case v of
+      case ignoreSharing v of
         MetaV m vs -> return $ MetaLevel m vs
         _          -> return $ UnreducedLevel v
     NeutralLevel v -> NeutralLevel <$> instantiateFull v
@@ -803,7 +810,7 @@ instance InstantiateFull a => InstantiateFull (Maybe a) where
 telViewM :: Type -> TCM TelView
 telViewM t = do
   t <- reduce t -- also instantiates meta if in head position
-  case unEl t of
+  case ignoreSharing $ unEl t of
     Pi a b -> absV a (absName b) <$> telViewM (absBody b)
     _      -> return $ TelV EmptyTel t
   where

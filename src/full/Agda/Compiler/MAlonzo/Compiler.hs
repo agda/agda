@@ -320,7 +320,7 @@ clausebody b0 = runReaderT (go b0) 0 where
 --   Types are extracted as @()@.
 --   @DontCare@ outside of irrelevant arguments is extracted as @error@.
 term :: Term -> ReaderT Nat TCM HS.Exp
-term tm0 = case tm0 of
+term tm0 = case ignoreSharing tm0 of
   Var   i as -> do n <- ask; apps (hsVarUQ $ ihname "v" (n - i - 1)) as
   Lam   _ at -> do n <- ask; HS.Lambda dummy [HS.PVar $ ihname "v" n] <$>
                               local (1+) (term $ absBody at)
@@ -336,6 +336,7 @@ term tm0 = case tm0 of
   Sort  _    -> return HS.unit_con
   MetaV _ _  -> mazerror "hit MetaV"
   DontCare _ -> return $ rtmError $ "hit DontCare"
+  Shared{}   -> __IMPOSSIBLE__
   where apps =  foldM (\h a -> HS.App h <$> term' a)
 
 -- | Irrelevant arguments are replaced by Haskells' ().

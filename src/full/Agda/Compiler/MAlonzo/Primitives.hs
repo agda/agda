@@ -29,9 +29,9 @@ checkTypeOfMain :: QName -> Type -> TCM ()
 checkTypeOfMain q ty
   | show (qnameName q) /= "main" = return ()
   | otherwise = do
-    Def io _ <- primIO
+    Def io _ <- ignoreSharing <$> primIO
     ty <- normalise ty
-    case unEl ty of
+    case ignoreSharing $ unEl ty of
       Def d _ | d == io -> return ()
       _                 -> do
         err <- fsep $
@@ -126,6 +126,7 @@ xForPrim table = do
   bs <- toList <$> gets stBuiltinThings
   let getName (Builtin (Def q _))    = q
       getName (Builtin (Con q _))    = q
+      getName (Builtin (Shared p))   = getName (Builtin $ derefPtr p)
       getName (Builtin _)            = __IMPOSSIBLE__
       getName (Prim (PrimFun q _ _)) = q
   concat <$> sequence [ maybe (return []) id $ L.lookup s table

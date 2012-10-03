@@ -106,7 +106,7 @@ dotPatternInsts ps s as = dpi (map (namedThing . unArg) ps) (reverse s) as
         A.ImplicitP _ -> dpi ps s as
         -- record pattern
         A.ConP _ (A.AmbQ [c]) qs -> do
-          Def r vs   <- reduce (unEl (unDom a))
+          Def r vs   <- ignoreSharing <$> reduce (unEl $ unDom a)
           (ftel, us) <- etaExpandRecord r vs u
           qs <- insertImplicitPatterns ExpandLast qs ftel
           let instTel EmptyTel _                   = []
@@ -227,6 +227,7 @@ noShadowingOfConstructors mkCall problem =
       Var   {} -> return ()
       Pi    {} -> return ()
       Sort  {} -> return ()
+      Shared p -> noShadowing (A.VarP x) $ derefPtr p
       MetaV {} -> return ()
       -- TODO: If the type is a meta-variable, should the test be
       -- postponed? If there is a problem, then it will be caught when
@@ -366,7 +367,7 @@ checkLeftHandSide c ps a ret = do
           return (problem, sigma, dpi, asb)
         else do
         sp <- splitProblem problem
-        reportSDoc "tc.lhs.top" 20 $ text "splitting completed"
+        reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
         case sp of
           Left NothingToSplit   -> nothingToSplitError problem
           Left (SplitPanic err) -> __IMPOSSIBLE__
@@ -416,7 +417,7 @@ checkLeftHandSide c ps a ret = do
             let delta1 = problemTel p0
             let typeOfSplitVar = Arg h rel a
 
-            reportSDoc "tc.lhs.top" 10 $ sep
+            reportSDoc "tc.lhs.split" 10 $ sep
               [ text "checking lhs"
               , nest 2 $ text "tel =" <+> prettyTCM (problemTel problem)
               , nest 2 $ text "rel =" <+> (text $ show rel)
@@ -432,11 +433,11 @@ checkLeftHandSide c ps a ret = do
                 ]
               ]
 
-            Con c' [] <- constructorForm =<< normalise (Con c [])
+            Con c' [] <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
             c  <- return $ c' `withRangeOf` c
             ca <- defType <$> getConstInfo c
 
-            reportSDoc "tc.lhs.top" 20 $ nest 2 $ vcat
+            reportSDoc "tc.lhs.split" 20 $ nest 2 $ vcat
               [ text "ca =" <+> prettyTCM ca
               , text "vs =" <+> prettyList (map prettyTCM vs)
               ]
@@ -445,7 +446,10 @@ checkLeftHandSide c ps a ret = do
             let a = ca `piApply` vs
 
             -- It will end in an application of the datatype
-            TelV gamma' ca@(El _ (Def d' us)) <- telView a
+            (gamma', ca, d', us) <- do
+              TelV gamma' ca@(El _ def) <- telView a
+              let Def d' us = ignoreSharing def
+              return (gamma', ca, d', us)
 
             -- This should be the same datatype as we split on
             unless (d == d') $ typeError $ ShouldBeApplicationOf ca d'

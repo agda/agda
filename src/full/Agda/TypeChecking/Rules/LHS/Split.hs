@@ -57,8 +57,8 @@ expandLitPattern p = traverse (traverse expand) p
                         ++ "the literal to the corresponding constructor pattern, so "
                         ++ "you probably don't want to do it this way."
         | otherwise -> do
-          Con z _ <- primZero
-          Con s _ <- primSuc
+          Con z _ <- ignoreSharing <$> primZero
+          Con s _ <- ignoreSharing <$> primSuc
           let zero  = A.ConP info (A.AmbQ [setRange r z]) []
               suc p = A.ConP info (A.AmbQ [setRange r s]) [defaultArg $ unnamed p]
               info  = A.PatRange r
@@ -109,16 +109,16 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
         -- Case: constructor pattern
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
 	  a' <- liftTCM $ reduce $ unDom a
-	  case unEl a' of
+	  case ignoreSharing $ unEl a' of
 
             -- Type is a meta and constructor is unambiguous,
             -- in this case try to instantiate the meta.
             MetaV{} | [c] <- cs -> do
               ok <- lift $ do
                 Constructor{ conData = d } <- theDef <$> getConstInfo c
-                dt            <- defType <$> getConstInfo d
-                vs            <- newArgsMeta dt
-                El _ (Sort s) <- reduce $ apply dt vs
+                dt     <- defType <$> getConstInfo d
+                vs     <- newArgsMeta dt
+                Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
                 (True <$ noConstraints (equalType a' (El s $ Def d vs)))
                   `catchError` \_ -> return False
               if not ok then keepGoing else
@@ -202,8 +202,8 @@ wellFormedIndices t = do
          , nest 2 $ prettyTCM t
          ]
 
-  (pars, ixs) <- normalise =<< case t of
-    El _ (Def d args) -> do
+  (pars, ixs) <- normalise =<< case ignoreSharing $ unEl t of
+    Def d args -> do
       def       <- getConstInfo d
       typedArgs <- args `withTypesFrom` defType def
 
@@ -239,6 +239,7 @@ wellFormedIndices t = do
                          -> TCM (Maybe [Nat])
   constructorApplication (Var x [])      _ = return (Just [x])
   constructorApplication (Lit {})        _ = return (Just [])
+  constructorApplication (Shared p)      t  = constructorApplication (derefPtr p) t
   constructorApplication (Con c conArgs) (El _ (Def d dataArgs)) = do
     conDef  <- getConstInfo c
     dataDef <- getConstInfo d

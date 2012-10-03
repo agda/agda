@@ -40,8 +40,7 @@ import Agda.Utils.Graph (Graph)
 -- | Check that the datatypes in the mutual block containing the given
 -- declarations are strictly positive.
 checkStrictlyPositive :: Set QName -> TCM ()
-checkStrictlyPositive qs = do
-
+checkStrictlyPositive qs = disableDestructiveUpdate $ do
   -- compute the occurrence graph for qs
   reportSDoc "tc.pos.tick" 100 $ text "positivity of" <+> prettyTCM (Set.toList qs)
   g <- Graph.filterEdges (\ (Edge o _) -> o /= Unused) <$> buildOccurrenceGraph qs
@@ -237,7 +236,7 @@ instance PrettyTCM OccursWhere where
         DefArg q i o   -> explain o $ pwords "in the" ++ nth i ++ pwords "argument to" ++
                                       [prettyTCM q]
         UnderInf o     -> do
-          Def inf _ <- primInf  -- this cannot fail if an 'UnderInf' has been generated
+          Def inf _ <- ignoreSharing <$> primInf  -- this cannot fail if an 'UnderInf' has been generated
           explain o $ pwords "under" ++ [prettyTCM inf]
         VarArg o       -> explain o $ pwords "in an argument to a bound variable"
         MetaArg o      -> explain o $ pwords "in an argument to a metavariable"
@@ -407,6 +406,7 @@ instance ComputeOccurrences Term where
     Lit{}        -> return $ Map.empty
     Sort{}       -> return $ Map.empty
     DontCare _   -> return $ Map.empty -- Andreas, 2011-09-09: do we need to check for negative occurrences in irrelevant positions?
+    Shared p     -> occurrences $ derefPtr p
     where
       -- Apparently some development version of GHC chokes if the
       -- following line is replaced by vs ! i.

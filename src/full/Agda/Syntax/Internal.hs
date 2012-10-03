@@ -7,6 +7,7 @@
 module Agda.Syntax.Internal
     ( module Agda.Syntax.Internal
     , module Agda.Syntax.Abstract.Name
+    , module Agda.Utils.Pointer
     ) where
 
 import Prelude hiding (foldr)
@@ -27,6 +28,7 @@ import Agda.Utils.Geniplate
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
+import Agda.Utils.Pointer
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -51,6 +53,8 @@ data Term = Var Nat Args             -- ^ @x vs@ neutral
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal
             --   version of the irrelevance axiom @.irrAx : .A -> A@.
+          | Shared !(Ptr Term)
+            -- ^ Explicit sharing
   deriving (Typeable, Show)
 
 -- | Type of argument lists.
@@ -196,6 +200,49 @@ properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
 -- * Smart constructors
 ---------------------------------------------------------------------------
 
+ignoreSharing :: Term -> Term
+ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
+ignoreSharing v          = v
+
+ignoreSharingType :: Type -> Type
+ignoreSharingType (El s v) = El s (ignoreSharing v)
+
+shared :: Term -> Term
+shared v@Shared{} = v
+shared v@Var{}    = v
+shared v          = v -- Shared (newPtr v)
+
+sharedType :: Type -> Type
+sharedType (El s v) = El s (shared v)
+
+-- | Typically m would be TCM and f would be Blocked.
+updateSharedFM :: (Monad m, Applicative m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
+updateSharedFM f v0@(Shared p) = do
+  fv <- f (derefPtr p)
+  flip traverse fv $ \v ->
+    case derefPtr (setPtr v p) of
+      Var{}    -> return v
+      Shared{} -> return v
+      _        -> return v0
+updateSharedFM f v = f v
+
+updateSharedM :: Monad m => (Term -> m Term) -> Term -> m Term
+updateSharedM f v0@(Shared p) = do
+  v <- f (derefPtr p)
+  case derefPtr (setPtr v p) of
+    Var{}    -> return v
+    Shared{} -> return v
+    _        -> return v0
+updateSharedM f v = f v
+
+updateShared :: (Term -> Term) -> Term -> Term
+updateShared f v0@(Shared p) =
+  case derefPtr (setPtr (f $ derefPtr p) p) of
+    v@Var{}    -> v
+    v@Shared{} -> v
+    _          -> v0
+updateShared f v = f v
+
 -- | An unapplied variable.
 var :: Nat -> Term
 var i = Var i []
@@ -258,18 +305,19 @@ ignoreBlocking (NotBlocked x) = x
 
 -- | Removing a topmost 'DontCare' constructor.
 stripDontCare :: Term -> Term
-stripDontCare (DontCare v) = v
-stripDontCare v            = v
+stripDontCare v = case ignoreSharing v of
+  DontCare v -> v
+  _          -> v
 
 -- | Doesn't do any reduction.
 arity :: Type -> Nat
-arity t = case unEl t of
+arity t = case ignoreSharing $ unEl t of
   Pi  _ b -> 1 + arity (unAbs b)
   _       -> 0
 
 -- | Suggest a name for the first argument of a function of the given type.
 argName :: Type -> String
-argName = argN . unEl
+argName = argN . ignoreSharing . unEl
     where
 	argN (Pi _ b)  = "." ++ absName b
 	argN _	  = __IMPOSSIBLE__
@@ -308,6 +356,7 @@ instance Sized Term where
     Pi a b      -> 1 + size a + size b
     Sort s      -> 1
     DontCare mv -> size mv
+    Shared p    -> size (derefPtr p)
 
 instance Sized Type where
   size = size . unEl
@@ -348,6 +397,7 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
+    Shared p    -> Shared $ killRange <$> p   -- killRange breaks sharing
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as

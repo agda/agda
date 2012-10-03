@@ -106,10 +106,12 @@ data Dict = Dict{ nodeD     :: !(HashTable Node    Int32)
                 , stringD   :: !(HashTable String  Int32)
                 , integerD  :: !(HashTable Integer Int32)
                 , doubleD   :: !(HashTable Double  Int32)
+                , termD     :: !(HashTable (Ptr Term) Int32)
                 , nodeC     :: !(IORef Int32)  -- counters for fresh indexes
                 , stringC   :: !(IORef Int32)
                 , integerC  :: !(IORef Int32)
                 , doubleC   :: !(IORef Int32)
+                , sharingStats :: !(IORef (Int32, Int32))
                 , fileMod   :: !SourceToModule
                 }
 
@@ -156,12 +158,17 @@ class Typeable a => EmbPrj a where
 encode :: EmbPrj a => a -> TCM ByteString
 encode a = do
     fileMod <- sourceToModule
-    liftIO $ do
-      newD@(Dict nD sD iD dD _ _ _ _ _) <- emptyDict fileMod
+    (x, shared, total) <- liftIO $ do
+      newD@(Dict nD sD iD dD _ _ _ _ _ stats _) <- emptyDict fileMod
       root <- runReaderT (icode a) newD
       nL <- l nD; sL <- l sD; iL <- l iD; dL <- l dD
-      return $ B.encode currentInterfaceVersion `L.append`
-               G.compress (B.encode (root, nL, sL, iL, dL))
+      (shared, total) <- readIORef stats
+      return (B.encode currentInterfaceVersion `L.append`
+              G.compress (B.encode (root, nL, sL, iL, dL)), shared, total)
+    verboseS "profile.sharing" 10 $ do
+      tickN "pointers (reused)" $ fromIntegral shared
+      tickN "pointers" $ fromIntegral total
+    return x
   where
   l h = List.map fst . List.sortBy (compare `on` snd) <$> H.toList h
 
@@ -684,16 +691,30 @@ instance EmbPrj I.Term where
   icode (MetaV    a b) = __IMPOSSIBLE__
   icode (DontCare a  ) = icode1 8 a
   icode (Level    a  ) = icode1 9 a
-  value = vcase valu where valu [0, a, b] = valu2 Var   a b
-                           valu [1, a, b] = valu2 Lam   a b
-                           valu [2, a]    = valu1 Lit   a
-                           valu [3, a, b] = valu2 Def   a b
-                           valu [4, a, b] = valu2 Con   a b
-                           valu [5, a, b] = valu2 Pi    a b
-                           valu [7, a]    = valu1 Sort  a
-                           valu [8, a]    = valu1 DontCare a
-                           valu [9, a]    = valu1 Level a
-                           valu _         = malformed
+  icode (Shared p)     = do
+    h  <- asks termD
+    mi <- liftIO $ H.lookup h p
+    st <- asks sharingStats
+    case mi of
+      Just i  -> liftIO $ modifyIORef st (\(a, b) -> ((,) $! a + 1) b) >> return i
+      Nothing -> do
+        liftIO $ modifyIORef st (\(a, b) -> (,) a $! b + 1)
+        n <- icode (derefPtr p)
+        liftIO $ H.insert h p n
+        return n
+
+  value r = shared <$> vcase valu r
+    where
+      valu [0, a, b] = valu2 Var   a b
+      valu [1, a, b] = valu2 Lam   a b
+      valu [2, a]    = valu1 Lit   a
+      valu [3, a, b] = valu2 Def   a b
+      valu [4, a, b] = valu2 Con   a b
+      valu [5, a, b] = valu2 Pi    a b
+      valu [7, a]    = valu1 Sort  a
+      valu [8, a]    = valu1 DontCare a
+      valu [9, a]    = valu1 Level a
+      valu _         = malformed
 
 instance EmbPrj Level where
   icode (Max a) = icode1' a
@@ -1204,8 +1225,10 @@ emptyDict fileMod = Dict
   <*> H.new
   <*> H.new
   <*> H.new
+  <*> H.new
   <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0
   <*> newIORef 0
+  <*> newIORef (0, 0)
   <*> return fileMod

@@ -42,6 +42,7 @@ instance Apply Term where
             Con c args'   -> Con c (args' ++ args)
             Lam _ u       -> absApp u (unArg a) `apply` args0
             MetaV x args' -> MetaV x (args' ++ args)
+            Shared p      -> Shared $ apply p args
             Lit{}         -> __IMPOSSIBLE__
             Level{}       -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
@@ -55,6 +56,9 @@ instance Apply Type where
 instance Apply Sort where
   apply s [] = s
   apply s _  = __IMPOSSIBLE__
+
+instance Apply a => Apply (Ptr a) where
+  apply p xs = fmap (`apply` xs) p
 
 instance Subst a => Apply (Tele a) where
   apply tel               []       = tel
@@ -188,6 +192,7 @@ instance Abstract Permutation where
 piApply :: Type -> Args -> Type
 piApply t []                      = t
 piApply (El _ (Pi  _ b)) (a:args) = absApp b (unArg a) `piApply` args
+piApply (El s (Shared p)) args    = piApply (El s $ derefPtr p) args
 piApply _ _                       = __IMPOSSIBLE__
 
 -- | @(abstract args v) args --> v[args]@.
@@ -308,9 +313,10 @@ idSub :: Telescope -> Substitution
 idSub tel = map var [0 .. size tel - 1]
 
 subst :: Subst t => Term -> t -> t
-subst u t = substUnder 0 u t
+subst u t = substUnder 0 (shared u) t
 
 instance Subst Term where
+    substs [] t = t
     substs us t =
         case t of
             Var i vs    -> (us !!! i) `apply` substs us vs
@@ -322,6 +328,7 @@ instance Subst Term where
             Level l     -> levelTm $ substs us l
             Pi a b      -> uncurry Pi $ substs us (a,b)
             Sort s      -> sortTm $ substs us s
+            Shared p    -> Shared $ substs us p
             DontCare mv -> DontCare $ substs us mv
         where
             []     !!! n = __IMPOSSIBLE__
@@ -341,7 +348,12 @@ instance Subst Term where
             Lit l      -> Lit l
             Pi a b     -> uncurry Pi $ substUnder n u (a,b)
             Sort s     -> sortTm $ substUnder n u s
+            Shared p    -> Shared $ substUnder n u p
             DontCare mv -> DontCare $ substUnder n u mv
+
+instance Subst a => Subst (Ptr a) where
+  substs us      = fmap (substs us)
+  substUnder n u = fmap (substUnder n u)
 
 instance Subst Type where
     substs us (El s t) = substs us s `El` substs us t
@@ -465,6 +477,10 @@ instance Raise Nat where
     renameFrom m k i | i < m     = i
                      | otherwise = k (i - m) + m
 
+instance Raise a => Raise (Ptr a) where
+  raiseFrom m k  = fmap (raiseFrom m k)
+  renameFrom m k = fmap (renameFrom m k)
+
 instance Raise Term where
     raiseFrom m k v =
         case v of
@@ -482,6 +498,7 @@ instance Raise Term where
             Lit l           -> Lit l
             Pi a b          -> uncurry Pi $ rf (a,b)
             Sort s          -> Sort $ rf s
+            Shared p        -> Shared $ rf p
             DontCare mv     -> DontCare $ rf mv
         where
             rf x = raiseFrom m k x
@@ -502,6 +519,7 @@ instance Raise Term where
             Lit l           -> Lit l
             Pi a b          -> uncurry Pi $ rf (a,b)
             Sort s          -> Sort $ rf s
+            Shared p        -> Shared $ rf p
             DontCare mv     -> DontCare $ rf mv
         where
             rf x = renameFrom m k x
@@ -686,7 +704,7 @@ telToList EmptyTel = []
 telToList (ExtendTel arg tel) = fmap ((,) $ absName tel) arg : telToList (absBody tel)
 
 telView' :: Type -> TelView
-telView' t = case unEl t of
+telView' t = case ignoreSharing $ unEl t of
   Pi a b  -> absV a (absName b) $ telView' (absBody b)
   _       -> TelV EmptyTel t
   where
@@ -762,7 +780,6 @@ deriving instance Eq Sort
 deriving instance Ord Sort
 deriving instance Eq Type
 deriving instance Ord Type
-deriving instance Ord Term
 deriving instance Eq Level
 deriving instance Ord Level
 deriving instance Eq PlusLevel
@@ -794,7 +811,43 @@ instance Eq Term where
   Level l    == Level l'     = l == l'
   MetaV m vs == MetaV m' vs' = m == m' && vs == vs'
   DontCare _ == DontCare _   = True
+  Shared p   == Shared q     = p == q || derefPtr p == derefPtr q
+  Shared p   == b            = derefPtr p == b
+  a          == Shared q     = a == derefPtr q
   _          == _            = False
+
+instance Ord Term where
+  Shared a   `compare` Shared x | a == x = EQ
+  Shared a   `compare` x          = compare (derefPtr a) x
+  a          `compare` Shared x   = compare a (derefPtr x)
+  Var a b    `compare` Var x y    = compare (a, b) (x, y)
+  Var{}      `compare` _          = LT
+  _          `compare` Var{}      = GT
+  Def a b    `compare` Def x y    = compare (a, b) (x, y)
+  Def{}      `compare` _          = LT
+  _          `compare` Def{}      = GT
+  Con a b    `compare` Con x y    = compare (a, b) (x, y)
+  Con{}      `compare` _          = LT
+  _          `compare` Con{}      = GT
+  Lit a      `compare` Lit x      = compare a x
+  Lit{}      `compare` _          = LT
+  _          `compare` Lit{}      = GT
+  Lam a b    `compare` Lam x y    = compare (a, b) (x, y)
+  Lam{}      `compare` _          = LT
+  _          `compare` Lam{}      = GT
+  Pi a b     `compare` Pi x y     = compare (a, b) (x, y)
+  Pi{}       `compare` _          = LT
+  _          `compare` Pi{}       = GT
+  Sort a     `compare` Sort x     = compare a x
+  Sort{}     `compare` _          = LT
+  _          `compare` Sort{}     = GT
+  Level a    `compare` Level x    = compare a x
+  Level{}    `compare` _          = LT
+  _          `compare` Level{}    = GT
+  MetaV a b  `compare` MetaV x y  = compare (a, b) (x, y)
+  MetaV{}    `compare` _          = LT
+  _          `compare` MetaV{}    = GT
+  DontCare{} `compare` DontCare{} = EQ
 
 instance (Raise a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b
@@ -818,9 +871,10 @@ sLub (DLub a b) c = DLub (sLub a c) b
 sLub a (DLub b c) = DLub (sLub a b) c
 
 lvlView :: Term -> Level
-lvlView (Level l)       = l
-lvlView (Sort (Type l)) = l
-lvlView v               = Max [Plus 0 $ UnreducedLevel v]
+lvlView v = case ignoreSharing v of
+  Level l       -> l
+  Sort (Type l) -> l
+  _             -> Max [Plus 0 $ UnreducedLevel v]
 
 levelMax :: [PlusLevel] -> Level
 levelMax as0 = Max $ ns ++ List.sort bs
@@ -839,13 +893,16 @@ levelMax as0 = Max $ ns ++ List.sort bs
     expand0 [] = [ClosedLevel 0]
     expand0 as = as
 
-    expandAtom (BlockedLevel _ (Level (Max as)))       = as
-    expandAtom (NeutralLevel   (Level (Max as)))       = as
-    expandAtom (UnreducedLevel (Level (Max as)))       = as
-    expandAtom (BlockedLevel _ (Sort (Type (Max as)))) = as
-    expandAtom (NeutralLevel   (Sort (Type (Max as)))) = as
-    expandAtom (UnreducedLevel (Sort (Type (Max as)))) = as
-    expandAtom l                                       = [Plus 0 l]
+    expandAtom l = case l of
+      BlockedLevel _ v -> expandTm v
+      NeutralLevel v   -> expandTm v
+      UnreducedLevel v -> expandTm v
+      MetaLevel{}      -> [Plus 0 l]
+      where
+        expandTm v = case ignoreSharing v of
+          Level (Max as)       -> as
+          Sort (Type (Max as)) -> as
+          _                    -> [Plus 0 l]
 
     plus n (ClosedLevel m) = ClosedLevel (n + m)
     plus n (Plus m l)      = Plus (n + m) l
@@ -873,9 +930,10 @@ levelSort (Max as)
     infAtom MetaLevel{}        = False
     infAtom BlockedLevel{}     = False
     infTm (Sort Inf)           = True
+    infTm (Shared p)           = infTm $ derefPtr p
     infTm _                    = False
 levelSort l =
-  case levelTm l of
+  case ignoreSharing $ levelTm l of
     Sort s -> s
     _      -> Type l
 

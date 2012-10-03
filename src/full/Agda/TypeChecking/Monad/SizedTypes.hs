@@ -44,7 +44,7 @@ isSizeTypeTest =
     return $ testType . unEl
 
 getBuiltinDefName :: String -> TCM (Maybe QName)
-getBuiltinDefName s = fromDef <$> getBuiltin' s
+getBuiltinDefName s = fromDef . fmap ignoreSharing <$> getBuiltin' s
   where
     fromDef (Just (Def d [])) = Just d
     fromDef _                 = Nothing
@@ -75,7 +75,7 @@ sizeType = El (mkType 0) <$> primSize
 sizeSucName :: TCM (Maybe QName)
 sizeSucName = liftTCM $
   ifM (not . optSizedTypes <$> pragmaOptions) (return Nothing) $ do
-    Def x [] <- primSizeSuc
+    Def x [] <- ignoreSharing <$> primSizeSuc
     return $ Just x
   `catchError` \_ -> return Nothing
 
@@ -96,9 +96,9 @@ data SizeView = SizeInf | SizeSuc Term | OtherSize Term
 
 sizeView :: Term -> TCM SizeView
 sizeView v = do
-  Def inf [] <- primSizeInf
-  Def suc [] <- primSizeSuc
-  case v of
+  Def inf [] <- ignoreSharing <$> primSizeInf
+  Def suc [] <- ignoreSharing <$> primSizeSuc
+  case ignoreSharing v of
     Def x []  | x == inf -> return SizeInf
     Def x [u] | x == suc -> return $ SizeSuc (unArg u)
     _                    -> return $ OtherSize v

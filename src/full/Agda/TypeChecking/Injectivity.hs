@@ -39,7 +39,7 @@ reduceHead v = ignoreAbstractMode $ do
   -- first, possibly rewrite literal v to constructor form
   v <- constructorForm v
   reportSDoc "tc.inj.reduce" 30 $ text "reduceHead" <+> prettyTCM v
-  case v of
+  case ignoreSharing v of
     Def f args -> do
       def <- theDef <$> getConstInfo f
       case def of
@@ -52,7 +52,7 @@ reduceHead v = ignoreAbstractMode $ do
 headSymbol :: Term -> TCM (Maybe TermHead)
 headSymbol v = ignoreAbstractMode $ do
   v <- ignoreBlocking <$> reduceHead v
-  case v of
+  case ignoreSharing v of
     Def f _ -> do
       def <- theDef <$> getConstInfo f
       case def of
@@ -116,7 +116,7 @@ checkInjectivity f cs = do
 
 -- | Argument should be on weak head normal form.
 functionInverse :: Term -> TCM InvView
-functionInverse v = case v of
+functionInverse v = case ignoreSharing v of
   Def f args -> do
     d <- theDef <$> getConstInfo f
     case d of

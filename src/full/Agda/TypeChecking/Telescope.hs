@@ -135,7 +135,7 @@ telViewUpTo' :: Int -> (Dom Type -> Bool) -> Type -> TCM TelView
 telViewUpTo' 0 p t = return $ TelV EmptyTel t
 telViewUpTo' n p t = do
   t <- reduce t
-  case unEl t of
+  case ignoreSharing $ unEl t of
     Pi a b | p a -> absV a (absName b) <$> telViewUpTo' (n - 1) p (absBody b)
     _            -> return $ TelV EmptyTel t
   where
@@ -147,6 +147,6 @@ piApplyM :: Type -> Args -> TCM Type
 piApplyM t []           = return t
 piApplyM t (arg : args) = do
   t <- reduce t
-  case (t, arg) of
-    (El _ (Pi  _ b), arg) -> absApp b (unArg arg) `piApplyM` args
-    _                     -> __IMPOSSIBLE__
+  case ignoreSharing $ unEl t of
+    Pi  _ b -> absApp b (unArg arg) `piApplyM` args
+    _       -> __IMPOSSIBLE__

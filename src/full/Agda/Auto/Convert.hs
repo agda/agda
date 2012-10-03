@@ -100,6 +100,7 @@ tomy imi icns typs = do
        return (Datatype cons2 [], [])
       MB.Record {MB.recFields = fields, MB.recTel = tel} -> do -- the value of recPars seems unreliable or don't know what it signifies
        let pars n (I.El _ (I.Pi it typ)) = C.Arg (C.domHiding it) (C.domRelevance it) (I.var n) : pars (n - 1) (I.unAbs typ)
+           pars n (I.El s (I.Shared p))  = pars n (I.El s (I.derefPtr p))
            pars _ (I.El _ _) = []
            contyp npar I.EmptyTel = I.El (I.mkType 0 {- arbitrary -}) (I.Def cn (pars (npar - 1) typ))
            contyp npar (I.ExtendTel it (I.Abs v tel)) = I.El (I.mkType 0 {- arbitrary -}) (I.Pi it (I.Abs v (contyp (npar + 1) tel)))
@@ -389,6 +390,7 @@ tomyExp t@I.MetaV{} = do
    return $ Meta m
   _ -> tomyExp t
 tomyExp (I.DontCare _) = return $ NotM $ dontCare
+tomyExp (I.Shared p) = tomyExp $ I.derefPtr p
 
 tomyExps [] = return $ NotM ALNil
 tomyExps (C.Arg hid _ a : as) = do
@@ -415,6 +417,7 @@ fmExp m (I.Pi x y)  = fmType m (C.unDom x) || fmType m (I.unAbs y)
 fmExp m (I.Sort _) = False
 fmExp m (I.MetaV mid _) = mid == m
 fmExp m (I.DontCare _) = False
+fmExp m (I.Shared p) = fmExp m $ I.derefPtr p
 
 fmExps m [] = False
 fmExps m (a : as) = fmExp m (C.unArg a) || fmExps m as
@@ -507,6 +510,7 @@ frommyExps ndrop (NotM as) trm =
   addend x (I.Var h xs) = I.Var h (xs ++ [x])
   addend x (I.Con h xs) = I.Con h (xs ++ [x])
   addend x (I.Def h xs) = I.Def h (xs ++ [x])
+  addend x (I.Shared p) = addend x (I.derefPtr p)
   addend _ _ = __IMPOSSIBLE__
 
 -- --------------------------------
@@ -693,7 +697,7 @@ findClauseDeep m = do
                   I.NoBody -> d
                   I.Body e -> f e
     findMeta e =
-     case e of
+     case I.ignoreSharing e of
       I.Var _ as -> findMetas as
       I.Lam _ b -> findMeta (I.absBody b)
       I.Lit{} -> False
@@ -704,10 +708,11 @@ findClauseDeep m = do
       I.Sort{} -> False
       I.MetaV m' _  -> m == m'
       I.DontCare _ -> False
+      I.Shared{} -> __IMPOSSIBLE__
     findMetas = any (findMeta . C.unArg)
     findMetat (I.El _ e) = findMeta e
     toplevel e =
-     case e of
+     case I.ignoreSharing e of
       I.MetaV{} -> True
       _ -> False
 
@@ -717,19 +722,19 @@ matchType :: Integer -> Integer -> I.Type -> I.Type -> Maybe (Nat, Nat) -- Nat i
 matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
  where
   trmodps 0 ctyp = tr 0 0 ctyp
-  trmodps n ctyp = case ctyp of
-   I.El _ (I.Pi _ ot) -> trmodps (n - 1) (I.absBody ot)
+  trmodps n ctyp = case I.ignoreSharing $ I.unEl ctyp of
+   I.Pi _ ot -> trmodps (n - 1) (I.absBody ot)
    _ -> __IMPOSSIBLE__
   tr narg na ctyp =
    case ft 0 0 Just ctyp ttyp of
     Just n -> Just (n, narg)
-    Nothing -> case ctyp of
-     I.El _ (I.Pi _ (I.Abs _ ot)) -> tr (narg + 1) (na + 1) ot
-     I.El _ (I.Pi _ (I.NoAbs _ ot)) -> tr (narg + 1) na ot
+    Nothing -> case I.ignoreSharing $ I.unEl ctyp of
+     I.Pi _ (I.Abs _ ot) -> tr (narg + 1) (na + 1) ot
+     I.Pi _ (I.NoAbs _ ot) -> tr (narg + 1) na ot
      _ -> Nothing
    where
     ft nl n c (I.El _ e1) (I.El _ e2) = f nl n c e1 e2
-    f nl n c e1 e2 = case e1 of
+    f nl n c e1 e2 = case I.ignoreSharing e1 of
      I.Var v1 as1 | v1 < nl -> case e2 of
       I.Var v2 as2 | v1 == v2 -> fs nl (n + 1) c as1 as2
       _ -> Nothing
@@ -737,7 +742,7 @@ matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
      I.Var v1 as1 -> case e2 of
       I.Var v2 as2 | cdfv + na + nl - v1 == tctx + nl - v2 -> fs nl (n + 1) c as1 as2
       _ -> Nothing
-     _ -> case (e1, e2) of
+     _ -> case (I.ignoreSharing e1, I.ignoreSharing e2) of
       (I.MetaV{}, _) -> c n
       (_, I.MetaV{}) -> c n
       (I.Lam hid1 b1, I.Lam hid2 b2) | hid1 == hid2 -> f (nl + 1) n c (I.absBody b1) (I.absBody b2)

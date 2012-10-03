@@ -51,6 +51,7 @@ displayForm c vs = do
 --       Nothing -> __IMPOSSIBLE__ -- TODO: currently all display forms have heads
     hd (DTerm (Def x _))    = Just x
     hd (DTerm (Con x _))    = Just x
+    hd (DTerm (Shared p))   = hd (DTerm $ derefPtr p)
     hd (DWithApp (d : _) _) = hd d
     hd _		    = Nothing
 
@@ -75,7 +76,7 @@ instance Match a => Match (Arg a) where
   match n p v = match n (unArg p) (unArg v)
 
 instance Match Term where
-  match n p v = case (p, v) of
+  match n p v = case (ignoreSharing p, ignoreSharing v) of
     (Var 0 [], v)                  -> return $ Just [subst __IMPOSSIBLE__ v]
     (Var i ps, Var j vs) | i == j  -> match n ps vs
     (Def c ps, Def d vs) | c == d  -> match n ps vs

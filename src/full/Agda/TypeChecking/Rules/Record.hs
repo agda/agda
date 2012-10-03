@@ -86,7 +86,7 @@ checkRecDef i name ind con ps contel fields =
 
       -- t = tel -> t0 where t0 must be a sort s
       t0' <- normalise t0
-      s <- case unEl t0' of
+      s <- case ignoreSharing $ unEl t0' of
 	Sort s	-> return s
 	_	-> typeError $ ShouldBeASort t0
       gamma <- getContextTelescope

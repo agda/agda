@@ -19,6 +19,7 @@ import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Builtin
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Sharing
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
@@ -87,6 +88,7 @@ evaluateTerm term = case term of
     MetaV i args -> return $ MetaV i args
     Level l      -> return $ Level l
     DontCare i   -> return $ DontCare i
+    Shared{}     -> updateSharedTermT evaluateTerm term
   where
     evaluateTerms :: Args -> Compile TCM Args
     evaluateTerms as = forM as $ \x -> do

@@ -150,12 +150,13 @@ checkDataDef i name ps cs =
 	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
 
         splitType :: Type -> TCM (Integer, Sort)
-	splitType (El _ (Pi a b))  = ((+ 1) -*- id) <$> do addCtxString (absName b) a $ splitType (absBody b)
-	splitType (El _ (Sort s))  = return (0, s)
-	splitType a                = do
-          s <- newSortMeta
-          equalType a (sort s)
-          return (0, s)
+        splitType t = case ignoreSharing $ unEl t of
+          Pi a b -> ((+ 1) -*- id) <$> do addCtxString (absName b) a $ splitType (absBody b)
+          Sort s -> return (0, s)
+	  _      -> do
+            s <- newSortMeta
+            equalType t (sort s)
+            return (0, s)
 
 -- | Type check a constructor declaration. Checks that the constructor targets
 --   the datatype and that it fits inside the declared sort.
@@ -233,6 +234,7 @@ bindParameters ps0@(A.DomainFree h rel x : ps) (El _ (Pi arg@(Dom h' rel' a) b))
 	__IMPOSSIBLE__
     | otherwise = addCtx x arg $ bindParameters ps (absBody b) $ \tel s ->
 		    ret (ExtendTel arg $ Abs (show x) tel) s
+bindParameters bs (El s (Shared p)) ret = bindParameters bs (El s $ derefPtr p) ret
 bindParameters (b : bs) t _ = __IMPOSSIBLE__
 {- Andreas, 2012-01-17 Concrete.Definitions ensures number and hiding of parameters to be correct
 -- Andreas, 2012-01-13 due to separation of data declaration/definition, the user
@@ -255,7 +257,7 @@ fitsIn t s = do
   -- The line below would be simpler, but doesn't allow datatypes
   -- to be indexed by the universe level.
 --   noConstraints $ s' `leqSort` s
-  case unEl t of
+  case ignoreSharing $ unEl t of
     Pi arg@(Dom h r a) _ -> do
       let s' = getSort a
       s' `leqSort` s
@@ -277,7 +279,7 @@ constructs nofPars t q = constrT 0 t
         constr :: Nat -> Sort -> Term -> TCM ()
 	constr n s v = do
 	    v <- reduce v
-	    case v of
+	    case ignoreSharing v of
 		Pi _ (NoAbs _ b) -> constrT n b
 		Pi a b	-> underAbstraction a b $ \t ->
 			   constrT (n + 1) t
@@ -307,7 +309,7 @@ forceData :: QName -> Type -> TCM Type
 forceData d (El s0 t) = liftTCM $ do
     t' <- reduce t
     d  <- canonicalName d
-    case t' of
+    case ignoreSharing t' of
 	Def d' _
 	    | d == d'   -> return $ El s0 t'
 	    | otherwise	-> fail $ "wrong datatype " ++ show d ++ " != " ++ show d'
@@ -324,8 +326,8 @@ forceData d (El s0 t) = liftTCM $ do
 
 isCoinductive :: Type -> TCM (Maybe Bool)
 isCoinductive t = do
-  El _ t <- normalise t
-  case t of
+  El s t <- normalise t
+  case ignoreSharing t of
     Def q _ -> do
       def <- getConstInfo q
       case theDef def of
@@ -344,4 +346,5 @@ isCoinductive t = do
     Pi    {} -> return (Just False)
     Sort  {} -> return (Just False)
     MetaV {} -> return Nothing
+    Shared{} -> __IMPOSSIBLE__
     DontCare{} -> __IMPOSSIBLE__

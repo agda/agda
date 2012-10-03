@@ -184,7 +184,7 @@ isDatatype ind at = do
   let t       = unDom at
       throw f = throwException . f =<< do liftTCM $ buildClosure t
   t' <- liftTCM $ reduce t
-  case unEl t' of
+  case ignoreSharing $ unEl t' of
     Def d args -> do
       def <- liftTCM $ theDef <$> getConstInfo d
       splitOnIrrelevantDataAllowed <- liftTCM $ optExperimentalIrrelevance <$> pragmaOptions
@@ -224,18 +224,22 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
   dtype <- liftTCM $ (`piApply` pars) . defType <$> getConstInfo d
 
   -- Get the real constructor name
-  Con con [] <- liftTCM $ constructorForm =<< normalise (Con con [])
+  Con con [] <- liftTCM $ ignoreSharing <$> (constructorForm =<< normalise (Con con []))
 
   -- Get the type of the constructor
   ctype <- liftTCM $ defType <$> getConstInfo con
 
   -- Lookup the type of the constructor at the given parameters
-  TelV gamma0 (El _ (Def _ cixs)) <- liftTCM $ telView (ctype `piApply` pars)
+  (gamma0, cixs) <- do
+    TelV gamma0 (El _ d) <- liftTCM $ telView (ctype `piApply` pars)
+    let Def _ cixs = ignoreSharing d
+    return (gamma0, cixs)
 
   -- Andreas, 2012-02-25 preserve name suggestion for recursive arguments
   -- of constructor
 
   let preserve (x, t@(El _ (Def d' _))) | d == d' = (n, t)
+      preserve (x, (El s (Shared p))) = preserve (x, El s $ derefPtr p)
       preserve p = p
       gamma = telFromList . map (fmap preserve) . telToList $ gamma0
 

@@ -224,7 +224,7 @@ checkDecl d = do
       -- Termination checking.
       termErrs <-
         ifM (optTerminationCheck <$> pragmaOptions)
-          (case d of
+          (disableDestructiveUpdate $ case d of
              A.RecDef {} -> return []
                             -- Record module definitions should not be
                             -- termination-checked twice.

@@ -36,7 +36,7 @@ match (Done xs t) args _ _
     n              = length xs
     m              = length args
     toTm           = map (unArg . ignoreReduced)
-    (args0, args1) = splitAt n args
+    (args0, args1) = splitAt n $ map (fmap $ fmap shared) args
     lam x t        = Lam (argHiding x) (Abs (unArg x) t)
 match (Case n bs) args patch stack =
   case genericSplitAt n args of
@@ -56,14 +56,14 @@ match (Case n bs) args patch stack =
           patchCon c m args = patch (args0 ++ [Arg h r $ Con c vs] ++ args1)
             where (args0, args1') = splitAt n args
                   (vs, args1)     = splitAt m args1'
-      case w of
+      case ignoreSharing <$> w of
         Blocked x _            -> return $ NoReduction $ Blocked x (patch $ map ignoreReduced args')
         NotBlocked (MetaV x _) -> return $ NoReduction $ Blocked x (patch $ map ignoreReduced args')
         NotBlocked (Lit l) -> case Map.lookup l (litBranches bs) of
           Nothing -> match' stack''
           Just cc -> match cc (args0 ++ args1) patchLit stack''
           where
-            stack'' = (++ stack') $ case cv of
+            stack'' = (++ stack') $ case ignoreSharing cv of
               Con c vs -> case Map.lookup c (conBranches bs) of
                 Nothing -> []
                 Just cc -> [(cc, args0 ++ map (MaybeRed red) vs ++ args1, patchCon c (length vs))]
@@ -79,9 +79,6 @@ match' ((c, args, patch):stack) = match c args patch stack
 match' [] = typeError $ GenericError "Incomplete pattern matching"
 
 unfoldCorecursion v = case v of
-{- NO LONGER
-  -- Andreas, 2011-10-03 removing DontCare here allow matching on irrelevant things
-  DontCare v -> unfoldCorecursion v
--}
   Def f args -> unfoldDefinition True unfoldCorecursion (Def f []) f args
+  Shared{}   -> fmap shared <$> unfoldCorecursion (ignoreSharing v) -- don't update when unfolding corecursion!
   _          -> reduceB v

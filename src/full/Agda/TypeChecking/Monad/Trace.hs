@@ -23,6 +23,9 @@ interestingCall cl = case clValue cl of
     SetRange _ _	      -> False
     _			      -> True
 
+traceCallM :: MonadTCM tcm => tcm (Maybe r -> Call) -> tcm a -> tcm a
+traceCallM mkCall m = flip traceCall m =<< mkCall
+
 -- | Record a function call in the trace.
 {-# SPECIALIZE traceCall :: (Maybe r -> Call) -> TCM a -> TCM a #-}
 traceCall :: MonadTCM tcm => (Maybe r -> Call) -> tcm a -> tcm a

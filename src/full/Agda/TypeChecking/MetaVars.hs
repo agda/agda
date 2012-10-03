@@ -182,9 +182,8 @@ newValueMeta b t = do
   newValueMetaCtx b (telePi_ tel t) vs
 
 newValueMetaCtx :: RunMetaOccursCheck -> Type -> Args -> TCM Term
-newValueMetaCtx b t ctx = do
-  m@(MetaV i _) <- newValueMetaCtx' b t ctx
-  instantiateFull m
+newValueMetaCtx b t ctx =
+  instantiateFull =<< newValueMetaCtx' b t ctx
 
 -- | Create a new value meta without η-expanding.
 newValueMeta' :: RunMetaOccursCheck -> Type -> TCM Term
@@ -207,7 +206,7 @@ newValueMetaCtx' b t vs = do
     ]
   etaExpandMetaSafe x
   -- Andreas, 2012-09-24: for Metas X : Size< u add constraint X+1 <= u
-  let u = MetaV x vs
+  let u = shared $ MetaV x vs
   boundedSizeMetaHook u tel a
   return u
 
@@ -232,7 +231,7 @@ newArgsMetaCtx = newArgsMetaCtx' trueCondition
 newArgsMetaCtx' :: Condition -> Type -> Telescope -> Args -> TCM Args
 newArgsMetaCtx' condition (El s tm) tel ctx = do
   tm <- reduce tm
-  case tm of
+  case ignoreSharing tm of
     Pi dom@(Dom h r a) codom | condition dom codom -> do
       arg  <- (Arg h r) <$> do
               applyRelevanceToContext r $
@@ -265,8 +264,9 @@ newQuestionMark :: Type -> TCM Term
 newQuestionMark t = do
   -- Do not run check for recursive occurrence of meta in definitions,
   -- because we want to give the recursive solution interactively (Issue 589)
-  m@(MetaV x _) <- newValueMeta' DontRunMetaOccursCheck t
-  ii		<- fresh
+  m  <- newValueMeta' DontRunMetaOccursCheck t
+  let MetaV x _ = ignoreSharing m
+  ii <- fresh
   addInteractionPoint ii x
   return m
 
@@ -314,7 +314,7 @@ unblockedTester t = ifBlocked (unEl t) (\ m t -> return False) (\ t -> return Tr
 {- OLD CODE
 unblockedTester t = do
   t <- reduceB $ unEl t
-  case t of
+  case ignoreSharing <$> t of
     Blocked{}          -> return False
     NotBlocked MetaV{} -> return False
     _                  -> return True
@@ -410,7 +410,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   TelV tel b     <- telView a
 {- OLD CODE
   bb             <- reduceB b  -- the target in the type @a@ of @m@
-  case unEl <$> bb of
+  case ignoreSharing . unEl <$> bb of
     -- if the target type of @m@ is a meta variable @x@ itself
     -- (@NonBlocked (MetaV{})@),
     -- or it is blocked by a meta-variable @x@ (@Blocked@), we cannot
@@ -427,7 +427,7 @@ etaExpandMeta kinds m = whenM (isEtaExpandable m) $ do
   -- eta expand now, we have to postpone this.  Once @x@ is
   -- instantiated, we can continue eta-expanding m.  This is realized
   -- by adding @m@ to the listeners of @x@.
-  ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case t of
+  ifBlocked (unEl b) (\ x _ -> waitFor x) $ \ t -> case ignoreSharing t of
     lvl@(Def r ps) ->
       ifM (isEtaRecord r) (do
 	let expand = do
@@ -509,7 +509,7 @@ assign x args v = do
         v <- instantiate v
         reportSLn "tc.meta.assign" 50 $ "MetaVars.assign: assigning to " ++ show v
 
-        case (v, mvJudgement mvar) of
+        case (ignoreSharing v, mvJudgement mvar) of
             (Sort Inf, HasType{}) -> typeError SetOmegaNotValidType
             _                     -> return ()
 
@@ -550,6 +550,7 @@ assign x args v = do
             fromIrrVar (Con c vs)   =
               ifM (isNothing <$> isRecordConstructor c) (return []) $
                 concat <$> mapM (fromIrrVar . {- stripDontCare .-} unArg) vs
+            fromIrrVar (Shared p)   = fromIrrVar (derefPtr p)
             fromIrrVar _ = return []
         irrVL <- concat <$> mapM fromIrrVar
                    [ v | Arg h r v <- args, irrelevantOrUnused r ]
@@ -645,7 +646,7 @@ assign x args v = do
 
 	-- Perform the assignment (and wake constraints). Metas
 	-- are top-level so we do the assignment at top-level.
-	inTopContext $ assignTerm x $ killRange (abstract tel' v')
+	inTopContext $ assignTerm x (killRange $ abstract tel' v')
 	return ()
     where
         -- @ids@ maps lhs variables (metavar arguments) to terms
@@ -719,7 +720,7 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
 
     isVarOrIrrelevant :: Res -> (Arg Term, Term) -> ErrorT () TCM Res
     isVarOrIrrelevant vars (arg, t) =
-      case arg of
+      case ignoreSharing <$> arg of
         -- i := x
         Arg h r (Var i []) -> return $ (Arg h r i, t) `cons` vars
 
@@ -756,6 +757,8 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
         Arg _ _ Level{}    -> return $ Nothing
         Arg _ _ DontCare{} -> __IMPOSSIBLE__
 
+        Arg h r (Shared p) -> isVarOrIrrelevant vars (Arg h r $ derefPtr p, t)
+
     -- managing an assoc list where duplicate indizes cannot be irrelevant vars
     append :: Res -> Res -> Res
     append Nothing    _    = Nothing
@@ -771,47 +774,6 @@ inverseSubst args = fmap (map (mapFst unArg)) <$> loop (zip args terms)
     cons a@(Arg h r          i, t) (Just vars) = Just $ a :
       -- filter out duplicate irrelevants
       filter (not . (\ a@(Arg h r j, t) -> r == Irrelevant && i == j)) vars
-
-{- OLD CODE
-            Nothing | r == Irrelevant -> return $ (Arg h Irrelevant (-1), t) : vars
-                    | otherwise -> failure
-        Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
-        _                  -> failure
-
-    append res vars = foldr cons vars res
-
-    cons (Arg h Irrelevant i, t) vars = addIrrIfNotPresent h i t vars
-    cons a@(Arg h r        i, t) vars = a : removeIrr i vars
-
-    -- in case of non-linearity make sure not to count the irrelevant vars
-    addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
-      where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
-               | otherwise                             =  i
-    removeIrr i = map (\ a@(Arg h r j, t) ->
-      if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
--}
-
-{- OLD CODE:
--- | filter out irrelevant args and check that all others are variables.
---   Return the reversed list of variables.
---   (Because foldM is a fold-left)
-allVarOrIrrelevant :: [(Arg Term, Term)] -> Maybe [(Arg Nat, Term)]
-allVarOrIrrelevant args = foldM isVarOrIrrelevant [] args where
-  isVarOrIrrelevant vars (arg, t) =
-    case arg of
-      Arg h r (Var i []) -> return $ (Arg h r i, t) : removeIrr i vars
---      Arg h r (Con c vs) -> ifM (isRecordConstructor c) -- TODO: go monadic
-      Arg h Irrelevant (DontCare (Var i [])) -> return $ addIrrIfNotPresent h i t vars
-      -- Andreas, 2011-04-27 keep irrelevant variables
-      Arg h Irrelevant _ -> return $ (Arg h Irrelevant (-1), t) : vars -- any impossible deBruijn index will do (see Jason Reed, LFMTP 09 "_" or Nipkow "minus infinity")
-      _                  -> Nothing
-  -- in case of non-linearity make sure not to count the irrelevant vars
-  addIrrIfNotPresent h i t vars = (Arg h Irrelevant i', t) : vars
-    where i' | any (\ (Arg _ _ j, _) -> j == i) vars = -1
-             | otherwise                             =  i
-  removeIrr i = map (\ a@(Arg h r j, t) ->
-    if r == Irrelevant && i == j then (Arg h Irrelevant (-1), t) else a)
--}
 
 updateMeta :: MetaId -> Term -> TCM ()
 updateMeta mI v = do

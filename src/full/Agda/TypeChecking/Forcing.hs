@@ -66,7 +66,7 @@ force xs t = aux 0 t
   where
     m = maximum (-1:xs)
     aux i t | i > m = t
-    aux i t = case t of
+    aux i t = case ignoreSharingType t of
       El s (Pi  a b) -> El s $ Pi  (upd a) (fmap (aux (i + 1)) b)
       _ -> __IMPOSSIBLE__
       where

@@ -47,6 +47,11 @@ instance TermLike a => TermLike (Abs a) where
   traverseTermM f = traverse (traverseTermM f)
   foldTerm f = foldMap (foldTerm f)
 
+instance TermLike a => TermLike (Ptr a) where
+  traverseTerm f = fmap (traverseTerm f)
+  traverseTermM f = traverse (traverseTermM f)
+  foldTerm f = foldMap (foldTerm f)
+
 instance TermLike Term where
   traverseTerm f t = case t of
     Var i xs    -> f $ Var i $ traverseTerm f xs
@@ -59,6 +64,7 @@ instance TermLike Term where
     Lit _       -> f t
     Sort _      -> f t
     DontCare mv -> f $ DontCare $ traverseTerm f mv
+    Shared p    -> f $ Shared $ traverseTerm f p
 
   traverseTermM f t = case t of
     Var i xs    -> f =<< Var i <$> traverseTermM f xs
@@ -71,6 +77,7 @@ instance TermLike Term where
     Lit _       -> f t
     Sort _      -> f t
     DontCare mv -> f =<< DontCare <$> traverseTermM f mv
+    Shared p    -> f =<< Shared <$> traverseTermM f p
 
   foldTerm f t = f t `mappend` case t of
     Var i xs    -> foldTerm f xs
@@ -83,6 +90,7 @@ instance TermLike Term where
     Lit _       -> mempty
     Sort _      -> mempty
     DontCare mv -> foldTerm f mv
+    Shared p    -> foldTerm f p
 
 instance TermLike Level where
   traverseTerm f  (Max as) = Max $ traverseTerm f as
@@ -120,3 +128,8 @@ instance TermLike Type where
   traverseTerm f (El s t) = El s $ traverseTerm f t
   traverseTermM f (El s t) = El s <$> traverseTermM f t
   foldTerm f (El s t) = foldTerm f t
+
+-- | Put it in a monad to make it possible to do strictly.
+copyTerm :: (TermLike a, Applicative m, Monad m) => a -> m a
+copyTerm = traverseTermM return
+

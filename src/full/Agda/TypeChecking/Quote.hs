@@ -40,8 +40,8 @@ quotingKit = do
   sucLevel <- primLevelSuc
   lub <- primLevelMax
   el <- primAgdaTypeEl
-  Con z _ <- primZero
-  Con s _ <- primSuc
+  Con z _ <- ignoreSharing <$> primZero
+  Con s _ <- ignoreSharing <$> primSuc
   unsupported <- primAgdaTermUnsupported
   let t @@ u = apply t [defaultArg u]
       quoteHiding Hidden    = hidden
@@ -81,6 +81,7 @@ quotingKit = do
       quote (Level _) = unsupported
       quote (Lit lit) = quoteLit lit
       quote (Sort s)  = sort @@ quoteSort s
+      quote (Shared p) = quote $ derefPtr p
       quote MetaV{}   = unsupported
       quote DontCare{} = unsupported -- could be exposed at some point but we have to take care
   return (quote, quoteType)
@@ -102,7 +103,7 @@ qNameType = El (mkType 0) <$> primQName
 
 isCon :: QName -> TCM Term -> TCM Bool
 isCon con tm = do t <- tm
-                  case t of
+                  case ignoreSharing t of
                     Con con' _ -> return (con == con')
                     _ -> return False
 
@@ -132,7 +133,7 @@ choice ((mb, mx) : mxs) dflt = do b <- mb
 instance Unquote a => Unquote (Arg a) where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Con c [hid,rel,x] -> do
         choice
           [(c `isCon` primArgArg, Arg <$> unquoteN hid <*> unquoteN rel <*> unquoteN x)]
@@ -142,14 +143,14 @@ instance Unquote a => Unquote (Arg a) where
 instance Unquote Integer where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Lit (LitInt _ n) -> return n
       _ -> unquoteFailed "Integer" "not a literal integer" t
 
 instance Unquote a => Unquote [a] where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Con c [x,xs] -> do
         choice
           [(c `isCon` primCons, (:) <$> unquoteN x <*> unquoteN xs)]
@@ -164,7 +165,7 @@ instance Unquote Hiding where
   unquote t = do
     t <- reduce t
     let err = unquoteFailed "Hiding" "neither `hidden' nor `visible'" t
-    case t of
+    case ignoreSharing t of
       Con c [] -> do
         choice
           [(c `isCon` primHidden,  return Hidden)
@@ -178,7 +179,7 @@ instance Unquote Relevance where
   unquote t = do
     t <- reduce t
     let err = unquoteFailed "Relevance" "neither `relevant' or `irrelevant'" t
-    case t of
+    case ignoreSharing t of
       Con c [] -> do
         choice
           [(c `isCon` primRelevant,   return Relevant)
@@ -190,7 +191,7 @@ instance Unquote Relevance where
 instance Unquote QName where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Lit (LitQName _ x) -> return x
       _                  -> unquoteFailed "QName" "not a literal qname value" t
 
@@ -201,7 +202,7 @@ instance Unquote a => Unquote (Abs a) where
 instance Unquote Sort where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Con c [] -> do
         choice
           [(c `isCon` primAgdaSortUnsupported, unquoteFailed "Sort" "unsupported sort" t)]
@@ -219,7 +220,7 @@ instance Unquote Level where
 instance Unquote Type where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Con c [s, u] -> do
         choice
           [(c `isCon` primAgdaTypeEl, El <$> unquoteN s <*> unquoteN u)]
@@ -229,7 +230,7 @@ instance Unquote Type where
 instance Unquote Term where
   unquote t = do
     t <- reduce t
-    case t of
+    case ignoreSharing t of
       Con c [] ->
         choice
           [(c `isCon` primAgdaTermUnsupported, unquoteFailed "Term" "unsupported term" t)]

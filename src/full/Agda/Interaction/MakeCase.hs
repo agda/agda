@@ -75,7 +75,7 @@ findClause m = do
   where
     rhsIsm (Bind b)   = rhsIsm $ unAbs b
     rhsIsm NoBody     = False
-    rhsIsm (Body e)   = case e of
+    rhsIsm (Body e)   = case ignoreSharing e of
       MetaV m' _  -> m == m'
       _           -> False
 
@@ -132,7 +132,7 @@ deBruijnIndex e = do
 --            Context.wakeIrrelevantVars $
             applyRelevanceToContext Irrelevant $
               inferExpr e
-  case v of
+  case ignoreSharing v of
     Var n _ -> return n
     _       -> typeError . GenericError . show =<< (fsep $
                 pwords "The scrutinee of a case distinction must be a variable,"

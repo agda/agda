@@ -1231,32 +1231,6 @@ instance ToAbstract LeftHandSide A.LHS where
         wps     <- toAbstract wps
         printLocals 10 "checked dots:"
         return $ A.LHS (LHSRange $ getRange (lhs, wps)) lhscore wps
-{-
-{-
-        p <- parseLHS top lhs
-        printLocals 10 "before lhs:"
-        let (x, ps) = lhsArgs p
--}
-        res <- Cop.parseLHS top lhs
-        (x, ps) <-
-          case res of
-            C.LHSHead x ps -> return (x, ps)
-            C.LHSProj{} -> do
-              haveCoPats <- optCopatterns <$> pragmaOptions
-              if haveCoPats then
-                typeError $ GenericError $ "dont know what to do with copattern"
-               else typeError $ NeedOptionCopatterns
-        printLocals 10 "before lhs:"
-        x    <- withLocalVars $ setLocalVars [] >> toAbstract (OldName x)
-        args <- toAbstract ps
-        wps  <- toAbstract =<< mapM parsePattern wps
-        checkPatternLinearity (map (namedThing . unArg) args ++ wps)
-        printLocals 10 "checked pattern:"
-        args <- toAbstract args -- take care of dot patterns
-        wps  <- toAbstract wps
-        printLocals 10 "checked dots:"
-        return $ A.LHS (LHSRange $ getRange (lhs, wps)) (A.LHSHead x args) wps
--}
 
 -- does not check pattern linearity
 instance ToAbstract C.LHSCore (A.LHSCore' C.Expr) where

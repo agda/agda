@@ -73,6 +73,7 @@ data TCState =
 	 , stInteractionPoints :: InteractionPoints
 	 , stAwakeConstraints    :: Constraints
 	 , stSleepingConstraints :: Constraints
+         , stDirty               :: Bool
          , stOccursCheckDefs   :: Set QName
            -- ^ Definitions to be considered during occurs check.
            --   Initialized to the current mutual block before the check.
@@ -136,6 +137,7 @@ initState =
 	 , stInteractionPoints = Map.empty
 	 , stAwakeConstraints    = []
 	 , stSleepingConstraints = []
+         , stDirty               = False
          , stOccursCheckDefs   = Set.empty
 	 , stSignature	       = emptySignature
 	 , stImports	       = emptySignature
@@ -660,7 +662,7 @@ notReduced :: a -> MaybeReduced a
 notReduced x = MaybeRed NotReduced x
 
 reduced :: Blocked (Arg Term) -> MaybeReduced (Arg Term)
-reduced b = case b of
+reduced b = case fmap ignoreSharing <$> b of
   NotBlocked (Arg _ _ (MetaV x _)) -> MaybeRed (Reduced $ Blocked x ()) v
   _                                -> MaybeRed (Reduced $ () <$ b)      v
   where
@@ -890,6 +892,12 @@ data TCEnv =
                 --   dependency graph, of the shortest path from the
                 --   top-level module; it depends on in which order
                 --   Agda chooses to chase dependencies.
+          , envAllowDestructiveUpdate :: Bool
+                -- ^ When True, allows destructively shared updating terms
+                --   during evaluation or unification. This is disabled when
+                --   doing speculative checking, like solve instance metas, or
+                --   when updating might break abstraction, as is the case when
+                --   checking abstract definitions.
 	  }
     deriving (Typeable)
 
@@ -914,6 +922,7 @@ initEnv = TCEnv { envContext	         = []
                 , envEmacs                  = False
                 , envHighlightingLevel      = None
                 , envModuleNestingLevel     = -1
+                , envAllowDestructiveUpdate = True
 		}
 
 ---------------------------------------------------------------------------

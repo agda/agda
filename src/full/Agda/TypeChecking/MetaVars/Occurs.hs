@@ -155,15 +155,6 @@ class Occurs t where
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MetaId -> Vars -> Term -> TCM Term
 occursCheck m xs v = liftTCM $ do
-{- Andreas, 2012-05-04: THIS CHECK IS REDUNDANT
-  v <- instantiate v
-  case v of
-    -- Don't fail if trying to instantiate to just itself
-    MetaV m' _ | m == m' -> patternViolation
-    Level (Max [Plus 0 (MetaLevel m' _)])
-               | m == m' -> patternViolation
-    _ -> return ()
--}
   mv <- lookupMeta m
   initOccursCheck mv
   -- First try without normalising the term
@@ -226,6 +217,7 @@ instance Occurs Term where
         Con c vs    -> Con c <$> occ (leaveTop ctx) vs  -- if strongly rigid, remain so
         Pi a b	    -> uncurry Pi <$> occ (leaveTop ctx) (a,b)
         Sort s	    -> Sort <$> occ (leaveTop ctx) s
+        v@Shared{}  -> updateSharedTerm (occ ctx) v
         MetaV m' vs -> do
             -- Check for loop
             --   don't fail hard on this, since we might still be on the top-level
@@ -274,6 +266,7 @@ instance Occurs Term where
       Con c vs   -> metaOccurs m vs
       Pi a b     -> metaOccurs m (a,b)
       Sort s     -> metaOccurs m s
+      Shared p   -> metaOccurs m $ derefPtr p
       MetaV m' vs | m == m' -> patternViolation
                   | otherwise -> metaOccurs m vs
 
@@ -325,7 +318,7 @@ instance Occurs LevelAtom where
            NoUnfold  -> instantiate l
     case l of
       MetaLevel m' args -> do
-        MetaV m' args <- occurs red ctx m xs (MetaV m' args)
+        MetaV m' args <- ignoreSharing <$> occurs red ctx m xs (MetaV m' args)
         return $ MetaLevel m' args
       NeutralLevel v   -> NeutralLevel   <$> occurs red ctx m xs v
       BlockedLevel m v -> BlockedLevel m <$> occurs red Flex m xs v
@@ -451,6 +444,7 @@ hasBadRigid xs (Sort s)     = return $ s `rigidVarsNotContainedIn` xs
 hasBadRigid xs Con{}        = return $ False
 hasBadRigid xs Lit{}        = return $ False -- no variables in Lit
 hasBadRigid xs MetaV{}      = return $ False -- no rigid variables under a meta
+hasBadRigid xs (Shared p)   = hasBadRigid xs (derefPtr p)
 
 -- This could be optimized, by not computing the whole variable set
 -- at once, but allow early failure

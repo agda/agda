@@ -242,6 +242,7 @@ substTerm env term = case term of
     T.Con q args -> do
         let con = unqname q
         apps con <$> mapM (substTerm env . unArg) args
+    T.Shared p -> substTerm env $ derefPtr p
     T.Pi _ _ -> return UNIT
     T.Sort _  -> return UNIT
     T.MetaV _ _ -> return UNIT

@@ -41,7 +41,7 @@ import Agda.Utils.Impossible
 
 -- | Rewrite a literal to constructor form if possible.
 constructorForm :: Term -> TCM Term
-constructorForm v = case v of
+constructorForm v = case ignoreSharing v of
 {- 2012-04-02 changed semantics of DontCare
 -- Andreas, 2011-10-03, the following line restores IrrelevantLevel
     DontCare v                  -> constructorForm v
@@ -211,9 +211,10 @@ instance (ToTerm a, FromTerm a) => FromTerm [a] where
     fromA <- toTerm
     return $ mkList nil cons toA fromA
     where
-      isCon (Lam _ b) = isCon $ absBody b
-      isCon (Con c _) = return c
-      isCon v	    = do
+      isCon (Lam _ b)  = isCon $ absBody b
+      isCon (Con c _)  = return c
+      isCon (Shared p) = isCon (derefPtr p)
+      isCon v          = do
         d <- prettyTCM v
         typeError $ GenericError $ "expected constructor in built-in binding to " ++ show d
                         -- TODO: check this when binding the things
@@ -250,7 +251,7 @@ redReturn = return . YesReduction
 fromReducedTerm :: (Term -> Maybe a) -> TCM (FromTermFunction a)
 fromReducedTerm f = return $ \t -> do
     b <- reduceB t
-    case f $ unArg (ignoreBlocking b) of
+    case f $ ignoreSharing $ unArg (ignoreBlocking b) of
 	Just x	-> return $ YesReduction x
 	Nothing	-> return $ NoReduction (reduced b)
 
@@ -270,7 +271,7 @@ primTrustMe = do
           hPi "y" (El (varSort 2) <$> varM 1) $
           El (varSort 3) <$>
             primEquality <#> varM 3 <#> varM 2 <@> varM 1 <@> varM 0
-  Con rf [] <- primRefl
+  Con rf [] <- ignoreSharing <$> primRefl
   n         <- conPars . theDef <$> getConstInfo rf
   let refl x | n == 2    = Con rf [Arg Hidden Forced x]
              | n == 3    = Con rf []

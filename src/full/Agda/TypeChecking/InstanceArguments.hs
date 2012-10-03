@@ -190,7 +190,7 @@ checkCandidates m t cands = localState $ do
           , text "t'   =" <+> prettyTCM t'
           , text "term =" <+> prettyTCM term
           ]
-        localState $ do
+        localState $ disableDestructiveUpdate $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
           ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t
@@ -231,7 +231,7 @@ checkCandidates m t cands = localState $ do
 --   See Issue670a.
 applyDroppingParameters :: Term -> Args -> TCM Term
 applyDroppingParameters t vs =
-  case t of
+  case ignoreSharing t of
     Con c [] -> do
       def <- theDef <$> getConstInfo c
       case def of

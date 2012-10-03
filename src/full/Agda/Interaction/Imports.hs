@@ -506,15 +506,6 @@ createInterface file mname =
       -- Generate Vim file.
       withScope_ (insideScope topLevel) $ generateVimFile $ filePath file
 
-    -- Print stats
-    stats <- Map.toList <$> getStatistics
-    case stats of
-      []      -> return ()
-      _       -> reportS "profile" 1 $ unlines $
-        [ "Ticks for " ++ show (pretty mname) ] ++
-        [ "  " ++ s ++ " = " ++ show n
-        | (s, n) <- sortBy (compare `on` snd) stats ]
-
     setScope $ outsideScope topLevel
 
     reportSLn "scope.top" 50 $ "SCOPE " ++ show (insideScope topLevel)
@@ -532,7 +523,7 @@ createInterface file mname =
     ifTopLevelAndHighlightingLevelIs NonInteractive $
       printUnsolvedInfo
 
-    if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
+    r <- if and [ null termErrs, null unsolvedMetas, null unsolvedConstraints ]
      then do
       -- The file was successfully type-checked (and no warnings were
       -- encountered), so the interface should be written out.
@@ -541,6 +532,17 @@ createInterface file mname =
       return (i, Right t)
      else
       return (i, Left $ Warnings termErrs unsolvedMetas unsolvedConstraints)
+
+    -- Print stats
+    stats <- Map.toList <$> getStatistics
+    case stats of
+      []      -> return ()
+      _       -> reportS "profile" 1 $ unlines $
+        [ "Ticks for " ++ show (pretty mname) ] ++
+        [ "  " ++ s ++ " = " ++ show n
+        | (s, n) <- sortBy (compare `on` snd) stats ]
+
+    return r
 
 -- | Builds an interface for the current module, which should already
 -- have been successfully type checked.

@@ -32,6 +32,7 @@ binAppView t = case t of
   Sort _     -> noApp
   MetaV _ _  -> noApp
   DontCare _ -> noApp
+  Shared p   -> binAppView (derefPtr p)  -- destroys sharing
   where
     noApp = NoApp t
     app f [] = noApp
@@ -39,11 +40,11 @@ binAppView t = case t of
 
 etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
-  where
 
 etaOnce :: Term -> TCM Term
 etaOnce v = ignoreAbstractMode $ eta v
   where
+    eta v@Shared{} = updateSharedTerm eta v
     eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
       imp <- shouldEtaContractImplicit
       case binAppView b of
@@ -52,6 +53,7 @@ etaOnce v = ignoreAbstractMode $ eta v
             return $ subst __IMPOSSIBLE__ u
         _ -> return t
       where
+        isVar0 (Shared p)               = isVar0 (derefPtr p)
         isVar0 (Var 0 [])               = True
         isVar0 (Level (Max [Plus 0 l])) = case l of
           NeutralLevel v   -> isVar0 v

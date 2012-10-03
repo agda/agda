@@ -28,7 +28,7 @@ isEmptyType r t = do
   tb <- reduceB t
   let t = ignoreBlocking tb
       postpone = addConstraint (IsEmpty r t)
-  case unEl <$> tb of
+  case ignoreSharing . unEl <$> tb of
     -- if t is blocked or a meta, we cannot decide emptyness now. postpone
     NotBlocked MetaV{} -> postpone
     Blocked{}          -> postpone

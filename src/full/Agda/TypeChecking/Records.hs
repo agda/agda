@@ -90,7 +90,7 @@ getRecordFieldTypes r = recTel <$> getRecordDef r
 -- | Get the field names belonging to a record type.
 getRecordTypeFields :: Type -> TCM [Arg QName]
 getRecordTypeFields t =
-  case unEl t of
+  case ignoreSharing $ unEl t of
     Def r _ -> do
       rDef <- theDef <$> getConstInfo r
       case rDef of
@@ -120,21 +120,16 @@ isRecord r = do
 -- | Check if a name refers to an eta expandable record.
 isEtaRecord :: QName -> TCM Bool
 isEtaRecord r = maybe False recEtaEquality <$> isRecord r
-{-
-isEtaRecord r = do
-  def <- theDef <$> getConstInfo r
-  return $ case def of
-    Record{recEtaEquality = eta} -> eta
-    _                            -> False
--}
+
 -- | Check if a name refers to a record which is not coinductive.  (Projections are then size-preserving)
 isInductiveRecord :: QName -> TCM Bool
 isInductiveRecord r = maybe False (\ d -> recInduction d == Inductive || not (recRecursive d)) <$> isRecord r
 
 -- | Check if a type is an eta expandable record and return the record identifier and the parameters.
 isEtaRecordType :: Type -> TCM (Maybe (QName, Args))
-isEtaRecordType (El _ (Def d ps)) = ifM (isEtaRecord d) (return $ Just (d, ps)) (return Nothing)
-isEtaRecordType _ = return Nothing
+isEtaRecordType a = case ignoreSharing $ unEl a of
+  Def d ps -> ifM (isEtaRecord d) (return $ Just (d, ps)) (return Nothing)
+  _        -> return Nothing
 
 -- | Check if a name refers to a record constructor.
 --   If yes, return record definition.
@@ -183,18 +178,9 @@ etaExpandRecord r pars u = do
   Record{ recFields = xs, recTel = tel, recEtaEquality = eta } <- getRecordDef r
   unless eta __IMPOSSIBLE__ -- make sure we do not expand non-eta records
   let tel' = apply tel pars
-  case u of
+  case ignoreSharing u of
     Con _ args -> return (tel', args)  -- Already expanded.
     _          -> do
-{- STALE
-      -- irrelevant fields are expanded to DontCare
-      -- this is sound because etaExpandRecord is only called during conversion
-      -- WARNING: do not use etaExpandRecord to expand MetaVars!!
-      let proj (Arg h Irrelevant x) = Arg h Irrelevant $ DontCare (Def x [defaultArg u])
-          proj (Arg h rel x)        = Arg h rel $
-            Def x [defaultArg u]
-          xs' = map proj xs
--}
       let xs' = map (fmap (\ x -> Def x [defaultArg u])) xs
       reportSDoc "tc.record.eta" 20 $ vcat
         [ text "eta expanding" <+> prettyTCM u <+> text ":" <+> prettyTCM r
@@ -217,8 +203,8 @@ etaContractRecord r c args = do
       check a ax = do
       -- @a@ is the constructor argument, @ax@ the corr. record field name
         -- skip irrelevant record fields by returning DontCare
-        case (argRelevance a, unArg a) of
-          (Irrelevant, v) -> Just Nothing
+        case (argRelevance a, ignoreSharing $ unArg a) of
+          (Irrelevant, _) -> Just Nothing
           -- if @a@ is the record field name applied to a single argument
           -- then it passes the check
           (_, Def f [arg]) | unArg ax == f
@@ -242,45 +228,6 @@ etaContractRecord r c args = do
               else fallBack
           _ -> fallBack -- just irrelevant terms
         _ -> fallBack  -- a Nothing
-
-{- OLD CODE, uses DontCare
--- | The fields should be eta contracted already.
-etaContractRecord :: QName -> QName -> Args -> TCM Term
-etaContractRecord r c args = do
-  Record{ recPars = npars, recFields = xs } <- getRecordDef r
-  let check :: Arg Term -> Arg QName -> Maybe Term
-      check a ax = do
-      -- @a@ is the constructor argument, @ax@ the corr. record field name
-        -- skip irrelevant record fields by returning DontCare
-        case (argRelevance a, unArg a) of
-          (Irrelevant, v) -> return $ Just $ DontCare __IMPOSSIBLE__ -- thrown out later
-          -- if @a@ is the record field name applied to a single argument
-          -- then it passes the check
-          (_, Def y [arg]) | unArg ax == y
-                         -> return (Just $ unArg arg)
-          _              -> return Nothing
-      fallBack = return (Con c args)
-  case compare (length args) (length xs) of
-    LT -> fallBack       -- Not fully applied
-    GT -> __IMPOSSIBLE__ -- Too many arguments. Impossible.
-    EQ -> do
-      as <- zipWithM check args xs
-      case sequence as of
-        Just as -> case filter notDontCare as of
-          (a:as) ->
-            if all (a ==) as
-              then do
-                reportSDoc "tc.record.eta" 15 $ vcat
-                  [ text "record" <+> prettyTCM (Con c args)
-                  , text "is eta-contracted to" <+> prettyTCM a
-                  ]
-                return a
-              else fallBack
-          _ -> fallBack -- just DontCares
-        _ -> fallBack  -- a Nothing
-  where notDontCare (DontCare _) = False
-        notDontCare _            = True
--}
 
 -- | Is the type a hereditarily singleton record type? May return a
 -- blocking metavariable.
@@ -313,18 +260,6 @@ isSingletonRecord' regardIrrelevance r ps = do
       Right Nothing  -> return $ Right Nothing
       Right (Just v) -> underAbstraction arg tel $ \ tel ->
         emap (Arg h r v :) <$> check tel
-{- UNNECESSARILY UNREADABLE:
-  check (ExtendTel arg tel) | regardIrrelevance && domRelevance arg == Irrelevant =
-    underAbstraction arg tel $ \ tel ->
-      emap (argFromDom (fmap (const garbage) arg) :) <$> check tel
-  check (ExtendTel arg tel) = do
-    isSing <- isSingletonType' regardIrrelevance (unDom arg)
-    case isSing of
-      Left mid       -> return $ Left mid
-      Right Nothing  -> return $ Right Nothing
-      Right (Just v) -> underAbstraction arg tel $ \ tel ->
-        emap (argFromDom (fmap (const v) arg) :) <$> check tel
--}
   garbage :: Term
   garbage = Sort Prop
 
@@ -343,7 +278,7 @@ isSingletonType' :: Bool -> Type -> TCM (Either MetaId (Maybe Term))
 isSingletonType' regardIrrelevance t = do
     TelV tel t <- telView t
     t <- reduceB $ unEl t
-    case t of
+    case ignoreSharing <$> t of
       Blocked m _            -> return (Left m)
       NotBlocked (MetaV m _) -> return (Left m)
       NotBlocked (Def r ps)  ->

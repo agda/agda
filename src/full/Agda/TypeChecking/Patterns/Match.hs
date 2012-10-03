@@ -58,7 +58,7 @@ matchPattern (Arg _  _  (DotP _)) arg@(Arg _ _ v) = return (Yes [v], arg)
 matchPattern (Arg h' r' (LitP l)) arg@(Arg h r v) = do
     w <- reduceB v
     let v = ignoreBlocking w
-    case w of
+    case ignoreSharing <$> w of
 	NotBlocked (Lit l')
 	    | l == l'          -> return (Yes [], Arg h r v)
 	    | otherwise        -> return (No, Arg h r v)
@@ -84,7 +84,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
         -- 2) whatInduction c sometimes crashes because c may point to
         --    an axiom at this stage (if we are checking the
         --    projection functions for a record type).
-        w <- case w of
+        w <- case ignoreSharing <$> w of
                NotBlocked (Def f args) ->
                  unfoldDefinition True reduceB (Def f []) f args
                    -- reduceB is used here because some constructors
@@ -92,7 +92,7 @@ matchPattern (Arg h' r' (ConP c _ ps))     (Arg h r v) =
                    -- unfolded (due to open public).
                _ -> return w
         let v = ignoreBlocking w
-	case w of
+	case ignoreSharing <$> w of
           -- Andreas, 2010-09-07 matching a record constructor against
           -- something irrelevant will just continue matching against
           -- irrelevant stuff

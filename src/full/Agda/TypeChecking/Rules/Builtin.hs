@@ -270,7 +270,7 @@ inductiveCheck :: String -> Int -> Term -> TCM ()
 inductiveCheck b n t = do
     t <- etaContract =<< normalise t
     let err = typeError (NotInductive t)
-    case t of
+    case ignoreSharing t of
       Def t _ -> do
         t <- theDef <$> getConstInfo t
         case t of
@@ -322,8 +322,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
                              level <- getBuiltin' builtinLevel
                              case (nat, level) of
                                (Just nat, Just level) -> do
-                                  Def nat   _ <- normalise nat
-                                  Def level _ <- normalise level
+                                  Def nat   _ <- ignoreSharing <$> normalise nat
+                                  Def level _ <- ignoreSharing <$> normalise level
                                   when (nat == level) $ typeError $ GenericError $
                                     builtinNat ++ " and " ++ builtinLevel ++
                                     " have to be different types."
@@ -332,9 +332,10 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 
       BuiltinDataCons t -> do
 
-        let name (Lam h b) = name (absBody b)
-            name (Con c _) = Con c []
-            name _         = __IMPOSSIBLE__
+        let name (Lam h b)  = name (absBody b)
+            name (Con c _)  = Con c []
+            name (Shared p) = name $ ignoreSharing (derefPtr p)
+            name _          = __IMPOSSIBLE__
 
         e' <- checkExpr e =<< t
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.Polarity where
 
 import Control.Applicative
@@ -288,15 +288,18 @@ sizePolarity d pol0 = do
     _ -> exit
 
 checkSizeIndex :: Nat -> Nat -> Type -> TCM Bool
-checkSizeIndex np i (El _ (Def _ args)) = do
-  let excl = not $ freeIn i (pars ++ ixs)
-  s <- sizeView ix
-  case s of
-    SizeSuc (Var j []) -> return $ and [ excl, i == j ]
-    _                  -> return False
-  where
-    (pars, Arg _ _ ix : ixs) = genericSplitAt np args
-checkSizeIndex _ _ _ = __IMPOSSIBLE__
+checkSizeIndex np i a =
+  case ignoreSharing $ unEl a of
+    Def _ args -> do
+      let excl = not $ freeIn i (pars ++ ixs)
+      s <- sizeView ix
+      case s of
+        SizeSuc v | Var j [] <- ignoreSharing v
+          -> return $ and [ excl, i == j ]
+        _ -> return False
+      where
+        (pars, Arg _ _ ix : ixs) = genericSplitAt np args
+    _ -> __IMPOSSIBLE__
 
 -- | @polarities i a@ computes the list of polarities of de Bruijn index @i@
 --   in syntactic entity @a@.
@@ -350,6 +353,7 @@ instance HasPolarity Term where
     Pi a b     -> (++) <$> (map neg <$> polarities i a) <*> polarities i b
     Sort s     -> return [] -- polarities i s -- return []
     MetaV _ ts -> map (const Invariant) <$> polarities i ts
+    Shared p   -> polarities i $ derefPtr p
     DontCare t -> polarities i t -- return []
 
 instance HasPolarity Level where

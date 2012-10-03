@@ -95,8 +95,13 @@ convError err = ifM ((==) Irrelevant <$> asks envRelevance) (return ()) $ typeEr
 compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
-compareTerm cmp a u v = liftTCM $ do
+compareTerm cmp a u v = do
   (u, v) <- instantiate (u, v)
+  let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
+        verboseS "profile.sharing" 10 $ tick "pointer equality"
+        return ()
+      checkPointerEquality def = def
+  checkPointerEquality $ do
   reportSDoc "tc.conv.term" 10 $ sep [ text "compareTerm"
                                      , nest 2 $ prettyTCM u <+> prettyTCM cmp <+> prettyTCM v
                                      , nest 2 $ text ":" <+> prettyTCM a ]
@@ -106,16 +111,16 @@ compareTerm cmp a u v = liftTCM $ do
             -- do not short circuit size comparison!
             isSize <- isJust <$> do isSizeTypeTest <*> reduce a
             if isSize then fallback else cont
-  case (u, v) of
-    (u@(MetaV x us), v@(MetaV y vs))
+  case (ignoreSharing u, ignoreSharing v) of
+    (MetaV x us, MetaV y vs)
       | x /= y    -> unlessSubtyping $ solve1 `orelse` solve2 `orelse` compareTerm' cmp a u v
       | otherwise -> fallback
       where
         (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
                          | otherwise = (assign y vs u, assign x us v)
-    (u@(MetaV x us), v) -> unlessSubtyping $ assign x us v `orelse` fallback
-    (u, v@(MetaV y vs)) -> unlessSubtyping $ assign y vs u `orelse` fallback
-    _                   -> fallback
+    (MetaV x us, v) -> unlessSubtyping $ assign x us v `orelse` fallback
+    (u, MetaV y vs) -> unlessSubtyping $ assign y vs u `orelse` fallback
+    _               -> fallback
   where
     assign x us v = do
       reportSDoc "tc.conv.term.shortcut" 20 $ sep
@@ -123,11 +128,25 @@ compareTerm cmp a u v = liftTCM $ do
         , nest 2 $ prettyTCM (MetaV x us) <+> text ":=" <+> prettyTCM v
         ]
       ifM (isInstantiatedMeta x) patternViolation (assignV x us v)
+      instantiate u
+      -- () <- seq u' $ return ()
+      reportSLn "tc.conv.term.shortcut" 50 $
+        "shortcut successful\n  result: " ++ show u
     -- Should be ok with catchError_ but catchError is much safer since we don't
     -- rethrow errors.
     m `orelse` h = m `catchError` \err -> case err of
                     PatternErr s -> put s >> h
                     _            -> h
+
+unifyPointers cmp _ _ action | cmp /= CmpEq = action
+unifyPointers _ u v action = do
+  old <- gets stDirty
+  modify $ \s -> s { stDirty = False }
+  action
+  (u, v) <- instantiate (u, v)
+  dirty <- gets stDirty
+  modify $ \s -> s { stDirty = old }
+  when (not dirty) $ forceEqualTerms u v
 
 compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
@@ -143,7 +162,7 @@ compareTerm' cmp a m n =
     case s of
       Prop | proofIrr -> return ()
       _    | isSize   -> compareSizes cmp m n
-      _               -> case unEl a' of
+      _               -> case ignoreSharing $ unEl a' of
         a | Just a == mlvl -> do
           a <- levelView m
           b <- levelView n
@@ -155,8 +174,8 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
-              m <- reduceB m
-              n <- reduceB n
+              m <- reduceB =<< normalise m
+              n <- reduceB =<< normalise n
               case (m, n) of
                 _ | isMeta m || isMeta n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
@@ -183,18 +202,23 @@ compareTerm' cmp a m n =
 -- Andreas, 2010-10-11: allowing neutrals to be blocked things does not seem
 -- to change Agda's behavior
 --    isNeutral Blocked{}          = False
-    isNeutral (NotBlocked Con{}) = False
-    isNeutral _                  = True
-    isMeta (NotBlocked MetaV{})  = True
-    isMeta _                     = False
+    isNeutral = isNeutral' . fmap ignoreSharing
+    isMeta    = isMeta'    . fmap ignoreSharing
+    isNeutral' (NotBlocked Con{}) = False
+    isNeutral' _                  = True
+    isMeta' (NotBlocked MetaV{})  = True
+    isMeta' _                     = False
 
     -- equality at function type (accounts for eta)
     equalFun :: Term -> Term -> Term -> TCM ()
+    equalFun (Shared p) m n = equalFun (derefPtr p) m n
     equalFun (Pi dom@(Dom h r _) b) m n = do
-        name <- freshName_ $ absName b
+        name <- freshName_ $ properName $ absName b
         addCtx name dom $ compareTerm cmp (absBody b) m' n'
       where
         (m',n') = raise 1 (m,n) `apply` [Arg h r $ var 0]
+        properName "_" = "x"
+        properName  x  =  x
     equalFun _ _ _ = __IMPOSSIBLE__
 {- OLD CODE
     equalFun :: (Dom Type, Type) -> Term -> Term -> TCM ()
@@ -265,7 +289,7 @@ compareAtom cmp t m n =
 
       -- constructorForm changes literal to constructors
       -- only needed if the other side is not a literal
-      (mb'', nb'') <- case (ignoreBlocking mb', ignoreBlocking nb') of
+      (mb'', nb'') <- case (ignoreSharing $ ignoreBlocking mb', ignoreSharing $ ignoreBlocking nb') of
 	(Lit _, Lit _) -> return (mb', nb')
         _ -> (,) <$> traverse constructorForm mb'
                  <*> traverse constructorForm nb'
@@ -285,11 +309,13 @@ compareAtom cmp t m n =
                 then return ()	-- Check syntactic equality for blocked terms
                 else postpone
 
+      unifyPointers cmp m n $ do    -- this needs to go after eta expansion to avoid creating infinite terms
+
       reportSDoc "tc.conv.atom" 30 $
 	text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp
                                     , prettyTCM nb
                                     , text ":" <+> prettyTCM t ]
-      case (mb, nb) of
+      case (ignoreSharing <$> mb, ignoreSharing <$> nb) of
         -- equate two metas x and y.  if y is the younger meta,
         -- try first y := x and then x := y
         (NotBlocked (MetaV x xArgs), NotBlocked (MetaV y yArgs))
@@ -332,7 +358,7 @@ compareAtom cmp t m n =
         (Blocked{}, Blocked{})	-> checkSyntacticEquality
         (Blocked{}, _)    -> useInjectivity cmp t m n
         (_,Blocked{})     -> useInjectivity cmp t m n
-        _ -> case (m, n) of
+        _ -> case (ignoreSharing m, ignoreSharing n) of
 	    (Pi{}, Pi{}) -> equalFun m n
 
 	    (Sort s1, Sort s2) -> compareSort CmpEq s1 s2
@@ -389,22 +415,23 @@ compareAtom cmp t m n =
                     compareArgs [] a' (Con x []) xArgs yArgs
             _ -> typeError $ UnequalTerms cmp m n t
     where
-        conType c (El _ (Def d args)) = do
-          npars <- do
-            def <- theDef <$> getConstInfo d
-            return $ case def of Datatype{dataPars = n} -> n
-                                 Record{recPars = n}    -> n
-                                 _                      -> __IMPOSSIBLE__
-          a <- defType <$> getConstInfo c
-          return $ piApply a (genericTake npars args)
-        conType _ _ = __IMPOSSIBLE__
+        conType c (El _ v) = case ignoreSharing v of
+          Def d args -> do
+            npars <- do
+              def <- theDef <$> getConstInfo d
+              return $ case def of Datatype{dataPars = n} -> n
+                                   Record{recPars = n}    -> n
+                                   _                      -> __IMPOSSIBLE__
+            a <- defType <$> getConstInfo c
+            return $ piApply a (genericTake npars args)
+          _ -> __IMPOSSIBLE__
 
-	equalFun t1@(Pi dom1@(Dom h1 r1 a1) b1) t2@(Pi (Dom h2 r2 a2) b2)
-	    | h1 /= h2	= typeError $ UnequalHiding t1 t2
+        equalFun t1 t2 = case (ignoreSharing t1, ignoreSharing t2) of
+	  (Pi dom1@(Dom h1 r1 a1) b1, Pi (Dom h2 r2 a2) b2)
+	    | h1 /= h2	-> typeError $ UnequalHiding t1 t2
             -- Andreas 2010-09-21 compare r1 and r2, but ignore forcing annotations!
-	    | not (compareRelevance cmp (ignoreForced r2) (ignoreForced r1)) = typeError $ UnequalRelevance cmp t1 t2
---	    | ignoreForced r1 /= ignoreForced r2 = typeError $ UnequalRelevance t1 t2
-	    | otherwise = verboseBracket "tc.conv.fun" 15 "compare function types" $ do
+	    | not (compareRelevance cmp (ignoreForced r2) (ignoreForced r1)) -> typeError $ UnequalRelevance cmp t1 t2
+	    | otherwise -> verboseBracket "tc.conv.fun" 15 "compare function types" $ do
                 reportSDoc "tc.conv.fun" 20 $ nest 2 $ vcat
                   [ text "t1 =" <+> prettyTCM t1
                   , text "t2 =" <+> prettyTCM t2 ]
@@ -420,7 +447,7 @@ compareAtom cmp t m n =
 	    where
 		suggest b1 b2 = head $
                   [ x | x <- map absName [b1,b2], x /= "_"] ++ ["_"]
-	equalFun _ _ = __IMPOSSIBLE__
+	  _ -> __IMPOSSIBLE__
 
 compareRelevance :: Comparison -> Relevance -> Relevance -> Bool
 compareRelevance CmpEq  = (==)
@@ -438,8 +465,8 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
   reportSDoc "tc.conv.elim" 25 $ nest 2 $ vcat
     [ text "a    =" <+> prettyTCM a
     , text "v    =" <+> prettyTCM v
-    , text "els01=" <+> prettyTCM els01
-    , text "els02=" <+> prettyTCM els02
+    , text "arg1 =" <+> prettyTCM arg1
+    , text "arg2 =" <+> prettyTCM arg2
     ]
   reportSDoc "tc.conv.elim" 50 $ nest 2 $ vcat
     [ text "v    =" <+> text (show v)
@@ -450,7 +477,7 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
   ab <- reduceB a
   let a = ignoreBlocking ab
   catchConstraint (ElimCmp pols0 a v els01 els02) $ do
-  case unEl <$> ab of
+  case ignoreSharing . unEl <$> ab of
     Blocked{}                     -> patternViolation
     NotBlocked MetaV{}            -> patternViolation
     NotBlocked (Pi (Dom _ r b) _) -> do
@@ -461,7 +488,7 @@ compareElims pols0 a v els01@(Apply arg1 : els1) els02@(Apply arg2 : els2) =
                           compareIrrelevant b (unArg arg1) (unArg arg2)
             _          -> compareWithPol pol (flip compareTerm b)
                             (unArg arg1) (unArg arg2)
-          dependent = case unEl a of
+          dependent = case ignoreSharing $ unEl a of
             Pi (Dom _ _ (El _ lvl')) c -> 0 `freeInIgnoringSorts` absBody c
                                           && Just lvl' /= mlvl
             _ -> False
@@ -477,7 +504,7 @@ compareElims pols a v els01@(Proj f : els1) els02@(Proj f' : els2)
   | f /= f'   = typeError . GenericError . show =<< prettyTCM f <+> text "/=" <+> prettyTCM f'
   | otherwise = do
     a <- reduce a
-    case unEl a of
+    case ignoreSharing $ unEl a of
       Def r us -> do
         let (pol, _) = nextPolarity pols
         ft <- defType <$> getConstInfo f  -- get type of projection function
@@ -513,6 +540,7 @@ compareIrrelevant a v w = do
     ]
   try v w $ try w v $ return ()
   where
+    try (Shared p) w fallback = try (derefPtr p) w fallback
     try (MetaV x vs) w fallback = do
       mv <- lookupMeta x
       let rel  = getMetaRelevance mv
@@ -640,7 +668,7 @@ leqSort s1 s2 =
               , nest 2 $ fsep [ prettyTCM s1 <+> text "=<"
                               , prettyTCM s2 ]
               ]
-	case (s1,s2) of
+	case (s1, s2) of
 
             (Type a, Type b) -> leqLevel a b
 
@@ -899,7 +927,7 @@ equalSort s1 s2 =
                                      , text (show s2) ]
                      ]
               ]
-	case (s1,s2) of
+	case (s1, s2) of
 
             (Type a  , Type b  ) -> equalLevel a b
 
@@ -927,5 +955,6 @@ equalSort s1 s2 =
         isInf notok ClosedLevel{} = notok
         isInf notok (Plus _ l) = case l of
           MetaLevel x vs          -> assignV x vs (Sort Inf)
+          NeutralLevel (Shared p) -> isInf notok (Plus 0 $ NeutralLevel $ derefPtr p)
           NeutralLevel (Sort Inf) -> return ()
           _                       -> notok

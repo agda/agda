@@ -148,19 +148,20 @@ stripWithClausePatterns gamma qs perm ps = do
         ConP c _ qs' -> case namedThing $ unArg p of
           A.ConP _ (A.AmbQ cs') ps' -> do
 
-            Con c' [] <- constructorForm =<< reduce (Con c [])
+            Con c' [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
             c <- return $ c' `withRangeOf` c
             let getCon (Con c []) = c
+                getCon (Shared p) = getCon (derefPtr p)
                 getCon _ = __IMPOSSIBLE__
             cs' <- map getCon <$> (mapM constructorForm =<< mapM (\c' -> reduce $ Con c' []) cs')
 
             unless (elem c cs') mismatch
 
             -- The type is a datatype
-            Def d us <- normalise $ unEl (unDom a)
+            Def d us <- ignoreSharing <$> normalise (unEl $ unDom a)
 
             -- Compute the argument telescope for the constructor
-            Con c []    <- constructorForm =<< normalise (Con c [])
+            Con c []    <- ignoreSharing <$> (constructorForm =<< normalise (Con c []))
             Defn {defType = ct, theDef = Constructor{conPars = np}}  <- getConstInfo c
             let ct' = ct `apply` genericTake np us
             TelV tel' _ <- telView ct'

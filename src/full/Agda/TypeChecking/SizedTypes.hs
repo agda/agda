@@ -288,18 +288,19 @@ sizeExpr u = do
       (e, n) <- sizeExpr u
       return (e, n + 1)
     SizeInf -> patternViolation
-    OtherSize u -> case u of
+    OtherSize u -> case ignoreSharing u of
       Var i []  -> do
         cxt <- getContextId
         return (Rigid (cxt !!! i), 0)
       MetaV m args
         | all isVar args && distinct args -> do
           cxt <- getContextId
-          return (SizeMeta m [ cxt !!! i | Arg _ _ (Var i []) <- args ], 0)
+          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ _ (Var i []) <- map (fmap ignoreSharing) args ], 0)
       _ -> patternViolation
   where
-    isVar (Arg _ _ (Var _ [])) = True
-    isVar _ = False
+    isVar v = case ignoreSharing $ unArg v of
+      Var _ [] -> True
+      _        -> False
 
     (!!!) :: [a] -> Nat -> a
     cxt !!! i
@@ -316,9 +317,9 @@ flexibleVariables (Leq a _ b) = flex a ++ flex b
 
 haveSizedTypes :: TCM Bool
 haveSizedTypes = do
-    Def _ [] <- primSize
-    Def _ [] <- primSizeInf
-    Def _ [] <- primSizeSuc
+    Def _ [] <- ignoreSharing <$> primSize
+    Def _ [] <- ignoreSharing <$> primSizeInf
+    Def _ [] <- ignoreSharing <$> primSizeSuc
     optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
 

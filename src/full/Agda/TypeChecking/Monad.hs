@@ -10,6 +10,7 @@ module Agda.TypeChecking.Monad
     , module Agda.TypeChecking.Monad.Mutual
     , module Agda.TypeChecking.Monad.Open
     , module Agda.TypeChecking.Monad.Options
+    , module Agda.TypeChecking.Monad.Sharing
     , module Agda.TypeChecking.Monad.Signature
     , module Agda.TypeChecking.Monad.SizedTypes
     , module Agda.TypeChecking.Monad.State
@@ -28,6 +29,7 @@ import Agda.TypeChecking.Monad.MetaVars
 import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Options
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Sharing
 import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Monad.SizedTypes
 import Agda.TypeChecking.Monad.State

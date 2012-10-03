@@ -86,12 +86,6 @@ instance Monoid Unifiable where
 reportPostponing :: Unify ()
 reportPostponing = tell Possibly
 
-{-
--- | Check whether unification proceeded without postponement.
-listenResult :: Unify () -> Unify UnifyOutput
-listenResult m = snd <$> listen m
--}
-
 -- | Check whether unification proceeded without postponement.
 ifClean :: Unify () -> Unify a -> Unify a -> Unify a
 ifClean m t e = do
@@ -99,16 +93,6 @@ ifClean m t e = do
   case ok of
     Definitely -> t
     Possibly ->   e
-
-{-
--- | Check whether unification proceeded without postponement.
-ifClean :: Unify a -> (a -> Unify b) -> (a -> Unify b) -> Unify b
-ifClean m t e = do
-  (ok, a) <- listen m
-  case ok of
-    Definitely -> t a
-    Possibly ->   e a
--}
 
 data Equality = Equal TypeHH Term Term
 type Sub = Map Nat Term
@@ -134,16 +118,6 @@ constructorMismatch a u v = throwException $ ConstructorMismatch a u v
 constructorMismatchHH :: TypeHH -> Term -> Term -> Unify a
 constructorMismatchHH aHH = constructorMismatch (leftHH aHH)
   -- do not report heterogenity
-{-
-constructorMismatchHH (Hom a) u v = constructorMismatch a u v
-constructorMismatchHH (Het a1 a2) u v = constructorMismatch a1 u v
--}
-
-{-
-instance MonadReader TCEnv Unify where
-  ask           = U . lift  $ ask
-  local k (U m) = U . lift . lift . lift $ local k m
--}
 
 instance MonadState TCState Unify where
   get = U . lift . lift . lift . lift $ get
@@ -155,11 +129,6 @@ instance MonadTCM Unify where
 instance Subst Equality where
   substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
   substUnder n u (Equal a s t) = Equal (substUnder n u a) (substUnder n u s) (substUnder n u t)
-
-{- UNUSED
-getSub :: Unify Sub
-getSub = U $ gets uniSub
--}
 
 onSub :: (Sub -> a) -> Unify a
 onSub f = U $ gets $ f . uniSub
@@ -187,19 +156,6 @@ checkEqualityHH (Hom a) u v = do
     if ok then return () else addEquality a u v
 checkEqualityHH aHH@(Het a1 a2) u v = -- reportPostponing -- enter "dirty" mode
     addEqualityHH aHH u v -- postpone, enter "dirty" mode
-{-
-checkEqualityHH (Het a1 a2) u v = noConstraints $ do
-  equalType a1 a2
-  equalTerm a1 u v
--}
-{-
-checkEqualityHH :: MonadTCM tcm => TypeHH -> Term -> Term -> tcm ()
-checkEqualityHH aHH u v = do
-  a  <- forceHom aHH
-  cs <- equalTerm a u v
-  if null cs then return () else addEquality a u v
--}
-
 
 -- | Check whether heterogeneous situation is really homogeneous.
 --   If not, give up.
@@ -216,24 +172,6 @@ addEqualityHH :: TypeHH -> Term -> Term -> Unify ()
 addEqualityHH aHH u v = do
   reportPostponing
   U $ modify $ \s -> s { uniConstr = Equal aHH u v : uniConstr s }
-
-{-
-addEquality :: Type -> Term -> Term -> Unify ()
-addEquality a u v = do
-  reportPostponing
-  U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
--}
-
-{-
-addEquality :: Type -> Term -> Term -> Unify ()
-addEquality a u v = do
-   p <- askPostpone
-   case p of
-     MayPostpone ->  do
-       reportPostponing
-       U $ modify $ \s -> s { uniConstr = Equal a u v : uniConstr s }
-     MayNotPostpone -> checkEquality a u v
--}
 
 takeEqualities :: Unify [Equality]
 takeEqualities = U $ do
@@ -467,6 +405,7 @@ unifyIndices flex a us vs = liftTCM $ do
     flexible i = i `elem` flex
 
     flexibleTerm (Var i []) = flexible i
+    flexibleTerm (Shared p) = flexibleTerm (derefPtr p)
     flexibleTerm _          = False
 
     {- Andreas, 2011-09-12
@@ -538,11 +477,6 @@ unifyIndices flex a us vs = liftTCM $ do
       unifyConArgs (tel `absAppHH` uHH) us vs
 
 
-{-
-    unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
-    unifyArgs a = unifyArgsHH (Hom a)
--}
-
     -- | Used for arguments of a 'Def', not 'Con'.
     unifyArgs :: Type -> [Arg Term] -> [Arg Term] -> Unify ()
     unifyArgs _ (_ : _) [] = __IMPOSSIBLE__
@@ -556,7 +490,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	, nest 2 $ prettyList $ map prettyTCM vs0
         ]
       a <- ureduce a  -- Q: reduce sufficient?
-      case unEl a of
+      case ignoreSharing $ unEl a of
 	Pi b _  -> do
           -- Andreas, Ulf, 2011-09-08 (AIM XVI)
           -- in case of dependent function type, we cannot postpone
@@ -571,6 +505,7 @@ unifyIndices flex a us vs = liftTCM $ do
 	_	  -> __IMPOSSIBLE__
       where dependent (Pi _ NoAbs{}) = False
             dependent (Pi b c)       = 0 `relevantIn` absBody c
+            dependent (Shared p)     = dependent (derefPtr p)
             dependent _              = False
 
     -- | Check using conversion check.
@@ -649,18 +584,18 @@ unifyIndices flex a us vs = liftTCM $ do
 	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
 	    , nest 2 $ text ":" <+> prettyTCM aHH
 	    ]
-      case (u, v) of
+      case (ignoreSharing u, ignoreSharing v) of
         -- Ulf, 2011-06-19
         -- We don't want to worry about levels here.
-        (Level l, v) -> do
+        (Level l, _) -> do
             u <- liftTCM $ reallyUnLevelView l
             unifyAtomHH aHH u v
-        (u, Level l) -> do
+        (_, Level l) -> do
             v <- liftTCM $ reallyUnLevelView l
             unifyAtomHH aHH u v
 	(Var i us, Var j vs) | i == j  -> checkEqualityHH aHH u v
-	(Var i [], v) | homogeneous && flexible i -> i |->> (v, a)
-	(u, Var j []) | homogeneous && flexible j -> j |->> (u, a)
+	(Var i [], _) | homogeneous && flexible i -> i |->> (v, a)
+	(_, Var j []) | homogeneous && flexible j -> j |->> (u, a)
 	(Con c us, Con c' vs)
           | c == c' -> do
               r <- ureduce =<< liftTCM (dataOrRecordTypeHH c aHH)
@@ -692,7 +627,7 @@ unifyIndices flex a us vs = liftTCM $ do
 
         -- We can instantiate metas if the other term is inert (constructor application)
         -- Andreas, 2011-09-13: test/succeed/IndexInference needs this feature.
-        (MetaV m us, v) | homogeneous -> do
+        (MetaV m us, _) | homogeneous -> do
             ok <- liftTCM $ instMeta a m us v
             liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
@@ -700,7 +635,7 @@ unifyIndices flex a us vs = liftTCM $ do
                    ]
             if ok then unify a u v
                   else addEquality a u v
-        (u, MetaV m vs) | homogeneous -> do
+        (_, MetaV m vs) | homogeneous -> do
             ok <- liftTCM $ instMeta a m vs u
             liftTCM $ reportSDoc "tc.lhs.unify" 40 $
               vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
@@ -736,104 +671,10 @@ unifyIndices flex a us vs = liftTCM $ do
 
     unify :: Type -> Term -> Term -> Unify ()
     unify a = unifyHH (Hom a)
-{-
-    unify :: Type -> Term -> Term -> Unify ()
-    unify a u v = do
-      u <- constructorForm =<< ureduce u
-      v <- constructorForm =<< ureduce v
-      reportSDoc "tc.lhs.unify" 15 $
-	sep [ text "unify"
-	    , nest 2 $ parens $ prettyTCM u
-	    , nest 2 $ parens $ prettyTCM v
-	    , nest 2 $ text ":" <+> prettyTCM a
-	    ]
-      isSize <- isSizeType a
-      if isSize then unifySizes u v
-                else unifyAtom a u v
--}
 
     unifyAtom :: Type -> Term -> Term -> Unify ()
     unifyAtom a = unifyAtomHH (Hom a)
 
-{-
-    unifyAtom :: Type -> Term -> Term -> Unify ()
-    unifyAtom a u v = do
-      reportSDoc "tc.lhs.unify" 15 $
-	sep [ text "unifyAtom"
-	    , nest 2 $ prettyTCM u <> if flexibleTerm u then text " (flexible)" else empty
-            , nest 2 $ text "=?="
-	    , nest 2 $ prettyTCM v <> if flexibleTerm v then text " (flexible)" else empty
-	    , nest 2 $ text ":" <+> prettyTCM a
-	    ]
-      case (u, v) of
-        -- Ulf, 2011-06-19
-        -- We don't want to worry about levels here.
-        (Level l, v) -> do
-            u <- liftTCM $ reallyUnLevelView l
-            unifyAtom a u v
-        (u, Level l) -> do
-            v <- liftTCM $ reallyUnLevelView l
-            unifyAtom a u v
-        -- Andreas, 2011-05-30
-        -- Force equality now rather than postponing it with addEquality
-	(Var i us, Var j vs) | i == j  -> checkEquality a u v
-	(Var i [], v) | flexible i -> i |->> (v, a)
-	(u, Var j []) | flexible j -> j |->> (u, a)
-	(Con c us, Con c' vs)
-          | c == c' -> do
-              a' <- dataOrRecordType c a
-              unifyArgs a' us vs
-          | otherwise -> constructorMismatch a u v
-        -- Definitions are ok as long as they can't reduce (i.e. datatypes/axioms)
-	(Def d us, Def d' vs)
-          | d == d' -> do
-              -- d must be a data, record or axiom
-              def <- getConstInfo d
-              let ok = case theDef def of
-                    Datatype{} -> True
-                    Record{}   -> True
-                    Axiom{}    -> True
-                    _          -> False
-              inj <- optInjectiveTypeConstructors <$> pragmaOptions
-              if inj && ok
-                then unifyArgs (defType def) us vs
-                else addEquality a u v
-{- Andreas: checkEquality breaks Data.Vec.Equality
-   we need an injectivity test for data types, Vec A n is injective!
-                else checkEquality a u v
-                -- Andreas: force equality now instead of postponing
-                -- We do not want to end up in a heterogeneous situation,
-                -- where u and v have different types
--}
-          -- Andreas, 2011-05-30: if heads disagree, abort
-          -- but do not raise "mismatch" because otherwise type constructors
-          -- would be distinct
-          | otherwise -> typeError $ UnequalTerms CmpEq u v a
-        (Lit l1, Lit l2)
-          | l1 == l2  -> return ()
-          | otherwise -> constructorMismatch a u v
-
-        -- We can instantiate metas if the other term is inert (constructor application)
-        (MetaV m us, v) -> do
-            ok <- liftTCM $ instMeta a m us v
-            reportSDoc "tc.lhs.unify" 40 $
-              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
-                   , nest 2 $ sep [ prettyTCM u, text ":=", prettyTCM =<< normalise u ]
-                   ]
-            if ok then unify a u v
-                  else addEquality a u v
-        (u, MetaV m vs) -> do
-            ok <- liftTCM $ instMeta a m vs u
-            reportSDoc "tc.lhs.unify" 40 $
-              vcat [ fsep [ text "inst meta", text $ if ok then "(ok)" else "(not ok)" ]
-                   , nest 2 $ sep [ prettyTCM v, text ":=", prettyTCM =<< normalise v ]
-                   ]
-            if ok then unify a u v
-                  else addEquality a u v
-        -- Andreas, 2011-05-30: If I put checkEquality below, then Issue81 fails
-        -- because there are definitions blocked by flexibles that need postponement
-	_  -> addEquality a u v
--}
     -- The contexts are transient when unifying, so we should just instantiate to
     -- constructor heads and generate fresh metas for the arguments. Beware of
     -- constructors that aren't fully applied.
@@ -866,13 +707,8 @@ unifyIndices flex a us vs = liftTCM $ do
 
     inertApplication :: Type -> Term -> TCM (Maybe (Term, Type, Args))
     inertApplication a v =
-      case v of
+      case ignoreSharing v of
         Con c vs -> fmap (\ b -> (Con c [], b, vs)) <$> dataOrRecordType c a
-{-
-        Con c vs -> do
-          b <- dataOrRecordType c a
-          return $ Just (Con c [], b, vs)
--}
         Def d vs -> do
           def <- getConstInfo d
           let ans = Just (Def d [], defType def, vs)
@@ -904,7 +740,10 @@ dataOrRecordType' ::
            --   data/record parameters
 dataOrRecordType' c a = do
   -- The telescope ends with a datatype or a record.
-  TelV _ (El _ (Def d args)) <- telView a
+  (d, args) <- do
+    TelV _ (El _ def) <- telView a
+    let Def d args = ignoreSharing def
+    return (d, args)
   def <- theDef <$> getConstInfo d
   r <- case def of
     Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConstInfo c
@@ -942,43 +781,6 @@ isEtaRecordTypeHH (Het a1 a2) = do
     _ -> return Nothing
 
 
-{-
-dataOrRecordType :: MonadTCM tcm
-  => QName -- ^ Constructor name.
-  -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> tcm (Maybe Type) -- ^ Type of constructor, applied to pars.
-dataOrRecordType c a = fmap snd <$> dataOrRecordType' c a
-
-dataOrRecordType' :: MonadTCM tcm
-  => QName -- ^ Constructor name.
-  -> Type  -- ^ Type of constructor application (must end in data/record).
-  -> tcm (Maybe (QName, -- ^ Name of data/record type.
-                 Type))  -- ^ Type of constructor, applied to pars.
-dataOrRecordType' c a = do
-  -- The telescope ends with a datatype or a record.
-  TelV _ (El _ (Def d args)) <- telView a
-  def <- theDef <$> getConstInfo d
-  r <- case def of
-    Datatype{dataPars = n} -> Just . ((,) n) . defType <$> getConstInfo c
-    Record  {recPars  = n} -> Just . ((,) n) <$> getRecordConstructorType d
-    _		           -> return Nothing
-  return $ fmap (\ (n, a') -> (d, a' `apply` genericTake n args)) r
-
--- | Heterogeneous situation.
---   @a1@ and @a2@ need to end in same datatype/record.
-dataOrRecordTypeHH :: MonadTCM tcm
-  => QName      -- ^ Constructor name.
-  -> TypeHH     -- ^ Type(s) of constructor application (must end in same data/record).
-  -> tcm (Maybe TypeHH) -- ^ Type of constructor, instantiated possibly heterogeneously to parameters.
-dataOrRecordTypeHH c (Hom a) = fmap Hom <$> dataOrRecordType c a
-dataOrRecordTypeHH c (Het a1 a2) = do
-  r1 <- dataOrRecordType' c a1
-  r2 <- dataOrRecordType' c a2  -- b2 may have different parameters than b1!
-  return $ case (r1, r2) of
-    (Just (d1, b1), Just (d2, b2)) | d1 == d2 -> Just $ Het b1 b2
-    _ -> Nothing
--}
-
 -- | Views an expression (pair) as type shape.  Fails if not same shape.
 data ShapeView a
   = PiSh (Dom a) (Abs a)
@@ -994,9 +796,7 @@ data ShapeView a
 -- | Return the type and its shape.  Expects input in (u)reduced form.
 shapeView :: Type -> Unify (Type, ShapeView Type)
 shapeView t = do
---  t <- liftTCM $ reduce t  -- DO NOT REDUCE!
--- --  t <- ureduce t  -- BUG!! substitutes bound variables in telescope!
-  return . (t,) $ case unEl t of
+  return . (t,) $ case ignoreSharing $ unEl t of
     Pi a (NoAbs _ b) -> FunSh a b
     Pi a (Abs x b) -> PiSh a (Abs x b)
     Def d vs       -> DefSh d

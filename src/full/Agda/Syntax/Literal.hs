@@ -10,7 +10,18 @@ data Literal = LitInt    Range Integer
 	     | LitString Range String
 	     | LitChar   Range Char
              | LitQName  Range QName
-  deriving (Typeable, Show)
+  deriving (Typeable)
+
+instance Show Literal where
+  showsPrec p l = showParen (p > 9) $ case l of
+    LitInt _ n    -> sh "LitInt" n
+    LitFloat _ x  -> sh "LitFloat" x
+    LitString _ s -> sh "LitString" s
+    LitChar _ c   -> sh "LitChar" c
+    LitQName _ q  -> sh "LitQName" q
+    where
+      sh :: Show a => String -> a -> ShowS
+      sh c x = showString (c ++ " ") . shows x
 
 instance Eq Literal where
   LitInt _ n    == LitInt _ m    = n == m

@@ -352,12 +352,6 @@ instance Reify Term Expr where
                 ]
               napps h $ genericDrop (n - np) $ nameFirstIfHidden doms es
 -}
-{- OLD CODE: reify parameter arguments of constructor
-            scope <- getScope
-            let whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
-                us = replicate (fromIntegral np) $ Arg Hidden Relevant whocares
-            apps (A.Con (AmbQ [x])) (genericDrop n $ us ++ es)
--}
       I.Lam h b    -> do
         (x,e) <- reify b
         return $ A.Lam exprInfo (DomainFree h Relevant x) e
@@ -373,6 +367,7 @@ instance Reify Term Expr where
       I.Sort s     -> reify s
       I.MetaV x vs -> uncurry apps =<< reify (x,vs)
       I.DontCare v -> A.DontCare <$> reify v
+      I.Shared p   -> reify $ derefPtr p
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [Dom (String, t)] -> [Arg a] -> [NamedArg a]

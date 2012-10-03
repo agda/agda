@@ -129,5 +129,6 @@ haskellType = liftTCM . fromType
         Level{}    -> return hsUnit
         Lit{}      -> return hsUnit
         Sort{}     -> return hsUnit
+        Shared p   -> fromTerm $ derefPtr p
         MetaV{}    -> err
         DontCare{} -> err

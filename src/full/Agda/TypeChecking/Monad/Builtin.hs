@@ -248,9 +248,9 @@ data CoinductionKit = CoinductionKit
 
 coinductionKit :: TCM (Maybe CoinductionKit)
 coinductionKit = (do
-  Def inf   _ <- primInf
-  Def sharp _ <- primSharp
-  Def flat  _ <- primFlat
+  Def inf   _ <- ignoreSharing <$> primInf
+  Def sharp _ <- ignoreSharing <$> primSharp
+  Def flat  _ <- ignoreSharing <$> primFlat
   return $ Just $ CoinductionKit
     { nameOfInf   = inf
     , nameOfSharp = sharp

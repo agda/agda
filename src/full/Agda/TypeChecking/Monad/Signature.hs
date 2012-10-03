@@ -208,7 +208,7 @@ addDisplayForms x = do
     strip  NoBody    = Nothing
     strip (Bind b)   = do
       (n, v) <- strip $ absBody b
-      return (n + 1, v)
+      return (n + 1, ignoreSharing v)
 
     isVar VarP{} = True
     isVar _      = False
@@ -356,6 +356,7 @@ canonicalName x = do
   where
     extract NoBody           = __IMPOSSIBLE__
     extract (Body (Def x _)) = x
+    extract (Body (Shared p)) = extract (Body $ derefPtr p)
     extract (Body _)         = __IMPOSSIBLE__
     extract (Bind b)         = extract (unAbs b)
 
@@ -597,7 +598,10 @@ makeAbstract d = do def <- makeAbs $ theDef d
 
 -- | Enter abstract mode. Abstract definition in the current module are transparent.
 inAbstractMode :: TCM a -> TCM a
-inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode }
+inAbstractMode = local $ \e -> e { envAbstractMode = AbstractMode,
+                                   envAllowDestructiveUpdate = False }
+                                    -- Allowing destructive updates when seeing through
+                                    -- abstract may break the abstraction.
 
 -- | Not in abstract mode. All abstract definitions are opaque.
 inConcreteMode :: TCM a -> TCM a
@@ -605,7 +609,10 @@ inConcreteMode = local $ \e -> e { envAbstractMode = ConcreteMode }
 
 -- | Ignore abstract mode. All abstract definitions are transparent.
 ignoreAbstractMode :: TCM a -> TCM a
-ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode }
+ignoreAbstractMode = local $ \e -> e { envAbstractMode = IgnoreAbstractMode,
+                                       envAllowDestructiveUpdate = False }
+                                       -- Allowing destructive updates when ignoring
+                                       -- abstract may break the abstraction.
 
 -- | Check whether a name might have to be treated abstractly (either if we're
 --   'inAbstractMode' or it's not a local name). Returns true for things not

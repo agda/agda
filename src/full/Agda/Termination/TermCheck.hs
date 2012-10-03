@@ -278,7 +278,7 @@ termFunction conf0 names allNames name = do
 typeEndsInDef :: Type -> TCM (Maybe QName)
 typeEndsInDef t = do
   TelV _ core <- telView t
-  case unEl core of
+  case ignoreSharing $ unEl core of
     Def d vs -> return $ Just d
     _        -> return Nothing
 
@@ -411,7 +411,7 @@ termToDBP conf t
   | not $ useDotPatterns conf = return $ unusedVar
   | otherwise                 = do
     t <- stripProjections =<< constructorForm t
-    case t of
+    case ignoreSharing t of
       Var i []    -> return $ VarDBP i
       Con c args  -> ConDBP c <$> mapM (termToDBP conf . unArg) args
       Def s [arg]
@@ -643,8 +643,9 @@ termTerm conf names f delayed pats0 t0 = do
                args2 <- mapM instantiateFull args1
 
                -- We have to reduce constructors in case they're reexported.
-               let reduceCon (Con c vs) = (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
-                   reduceCon t          = return t
+               let reduceCon t = case ignoreSharing t of
+                      Con c vs -> (`apply` vs) <$> reduce (Con c [])  -- make sure we don't reduce the arguments
+                      _        -> return t
                args2 <- mapM reduceCon args2
                args  <- mapM etaContract args2
 
@@ -704,7 +705,7 @@ termTerm conf names f delayed pats0 t0 = do
                          calls)
 
 
-         case t of
+         case ignoreSharing t of
 
             -- Constructed value.
             Con c args
@@ -796,6 +797,8 @@ termTerm conf names f delayed pats0 t0 = do
                 "Termination checker: cannot view level expression, " ++
                 "probably due to missing level built-ins."
               loop pats guarded l
+
+            Shared{} -> __IMPOSSIBLE__
 
          where
          -- Should function and Π type constructors be treated as
@@ -900,13 +903,14 @@ isProjectionButNotFlat qn = do
 -- | Remove projections until a term is no longer a projection.
 --   Also, remove 'DontCare's.
 stripProjections :: Term -> TCM Term
-stripProjections (DontCare t) = stripProjections t
-stripProjections t@(Def qn ts@(~(r : _))) = do
-  isProj <- isProjectionButNotFlat qn
-  case isProj of
-    True | not (null ts) -> stripProjections $ unArg r
-    _ -> return t
-stripProjections t = return t
+stripProjections t = case ignoreSharing t of
+  DontCare t -> stripProjections t
+  Def qn ts@(~(r : _)) -> do
+    isProj <- isProjectionButNotFlat qn
+    case isProj of
+      True | not (null ts) -> stripProjections $ unArg r
+      _ -> return t
+  _ -> return t
 
 -- | Remove all projections from an algebraic term (not going under binders).
 class StripAllProjections a where
@@ -921,7 +925,7 @@ instance StripAllProjections a => StripAllProjections [a] where
 instance StripAllProjections Term where
   stripAllProjections t = do
     t <- stripProjections t
-    case t of
+    case ignoreSharing t of
       Con c ts -> Con c <$> stripAllProjections ts
       Def d ts -> Def d <$> stripAllProjections ts
       _ -> return t
@@ -929,6 +933,7 @@ instance StripAllProjections Term where
 -- | compareTerm t dbpat
 --   Precondition: top meta variable resolved
 compareTerm' :: (?cutoff :: Int) => Maybe QName -> Term -> DeBruijnPat -> TCM Term.Order
+compareTerm' suc (Shared x)   p = compareTerm' suc (derefPtr x) p
 compareTerm' suc (Var i _)    p = compareVar suc i p
 compareTerm' suc (DontCare t) p = compareTerm' suc t p
 compareTerm' _ (Lit l)    (LitDBP l')
@@ -936,7 +941,7 @@ compareTerm' _ (Lit l)    (LitDBP l')
   | otherwise = return Term.unknown
 compareTerm' suc (Lit l) p = do
   t <- constructorForm (Lit l)
-  case t of
+  case ignoreSharing t of
     Lit _ -> return Term.unknown
     _     -> compareTerm' suc t p
 -- Andreas, 2011-04-19 give subterm priority over matrix order
@@ -962,6 +967,7 @@ compareTerm' _ _ _ = return Term.unknown
 isSubTerm :: Term -> DeBruijnPat -> Bool
 isSubTerm t p = equal t p || properSubTerm t p
   where
+    equal (Shared p) dbp = equal (derefPtr p) dbp
     equal (Con c ts) (ConDBP c' ps) =
       and $ (c == c')
           : (length ts == length ps)

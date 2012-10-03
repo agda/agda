@@ -120,7 +120,7 @@ buildConstraint c = flip buildProblemConstraint c =<< currentProblem
 addConstraint' :: Constraint -> TCM ()
 addConstraint' c = do
     pc <- build
-    modify $ \s -> s { stSleepingConstraints = pc : stSleepingConstraints s }
+    modify $ \s -> s { stDirty = True, stSleepingConstraints = pc : stSleepingConstraints s }
   where
     build | isBlocking c = buildConstraint c
           | otherwise    = buildProblemConstraint 0 c

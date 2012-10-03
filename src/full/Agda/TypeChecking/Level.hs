@@ -35,10 +35,10 @@ levelSucFunction = do
 
 builtinLevelKit :: TCM (Maybe LevelKit)
 builtinLevelKit = liftTCM $ do
-    level@(Def l []) <- primLevel
-    zero@(Def z []) <- primLevelZero
-    suc@(Def s []) <- primLevelSuc
-    max@(Def m []) <- primLevelMax
+    level@(Def l []) <- ignoreSharing <$> primLevel
+    zero@(Def z [])  <- ignoreSharing <$> primLevelZero
+    suc@(Def s [])   <- ignoreSharing <$> primLevelSuc
+    max@(Def m [])   <- ignoreSharing <$> primLevelMax
     let a @@ b = a `apply` [defaultArg b]
     return $ Just $ LevelKit
       { lvlType  = level
@@ -104,7 +104,7 @@ levelView a = do
   mmax <- maybePrimDef primLevelMax
   let view a = do
         a <- reduce a
-        case a of
+        case ignoreSharing a of
           Level l -> return l
           Con s [arg]
             | Just s == msuc -> inc <$> view (unArg arg)
@@ -119,10 +119,10 @@ levelView a = do
   where
     mkAtom a = do
       b <- reduceB a
-      return $ case b of
+      return $ case ignoreSharing <$> b of
         NotBlocked (MetaV m as) -> atom $ MetaLevel m as
-        NotBlocked a            -> atom $ NeutralLevel a
-        Blocked m a             -> atom $ BlockedLevel m a
+        NotBlocked _            -> atom $ NeutralLevel (ignoreBlocking b)
+        Blocked m _             -> atom $ BlockedLevel m (ignoreBlocking b)
 
     atom a = Max [Plus 0 a]
 

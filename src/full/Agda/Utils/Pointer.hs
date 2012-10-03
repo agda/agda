@@ -1,24 +1,77 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+module Agda.Utils.Pointer
+  ( Ptr, newPtr, derefPtr, setPtr
+  , updatePtr, updatePtrM
+  ) where
 
--- | Wrappers for 'IORef's.
-module Agda.Utils.Pointer where
-
-import Control.Monad.Trans
+import Control.Applicative
+import Control.DeepSeq
+import Control.Concurrent.MVar
+import Data.Foldable
+import Data.Function
+import Data.Hashable
 import Data.IORef
+import Data.Traversable
+import System.IO.Unsafe
+import Data.HashTable.IO
+import Data.Typeable
 
-type Ptr a = IORef a
+data Ptr a = Ptr { ptrTag :: !Integer
+                 , ptrRef :: !(IORef a) }
+  deriving (Typeable)
 
-deref :: MonadIO io => Ptr a -> io a
-deref p = liftIO $ readIORef p
+{-# NOINLINE freshVar #-}
+freshVar :: MVar Integer
+freshVar = unsafePerformIO $ newMVar 0
 
-store :: MonadIO io => Ptr a -> a -> io ()
-store p x = liftIO $ writeIORef p x
+fresh :: IO Integer
+fresh = do
+    x <- takeMVar freshVar
+    putMVar freshVar $! x + 1
+    return x
 
-alloc :: MonadIO io => a -> io (Ptr a)
-alloc x = liftIO $ newIORef x
+{-# NOINLINE newPtr #-}
+newPtr :: a -> Ptr a
+newPtr x = unsafePerformIO $ do
+  i <- fresh
+  Ptr i <$> newIORef x
 
-updatePtr :: MonadIO io => Ptr a -> (a -> io a) -> io a
-updatePtr p f = do
-    x <- deref p
-    y <- f x
-    store p y
-    return y
+derefPtr :: Ptr a -> a
+derefPtr p = unsafePerformIO $ readIORef $ ptrRef p
+
+{-# NOINLINE updatePtr #-}
+updatePtr :: (a -> a) -> Ptr a -> Ptr a
+updatePtr f p = unsafePerformIO $ p <$ modifyIORef (ptrRef p) f
+
+setPtr :: a -> Ptr a -> Ptr a
+setPtr x = updatePtr (const x)
+
+-- | If @f a@ contains many copies of @a@ they will all be the same pointer in
+--   the result. If the function is well-behaved (i.e. preserves the implicit
+--   equivalence, this shouldn't matter).
+updatePtrM :: Functor f => (a -> f a) -> Ptr a -> f (Ptr a)
+updatePtrM f p = flip setPtr p <$> f (derefPtr p)
+
+instance Show a => Show (Ptr a) where
+  show p = "#" ++ show (ptrTag p) ++ "{" ++ show (derefPtr p) ++ "}"
+
+instance Functor Ptr where
+  fmap f = newPtr . f . derefPtr
+
+instance Foldable Ptr where
+  foldMap f = f . derefPtr
+
+instance Traversable Ptr where
+  traverse f p = newPtr <$> f (derefPtr p)
+
+instance Eq (Ptr a) where
+  (==) = (==) `on` ptrTag
+
+instance Ord (Ptr a) where
+  compare = compare `on` ptrTag
+
+instance Hashable (Ptr a) where
+  hash = hash . ptrTag
+
+instance NFData (Ptr a) where
+

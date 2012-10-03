@@ -164,7 +164,7 @@ translateRecordPatterns clause = do
             , clauseBody = translateBody cs rhsSubst $ clauseBody clause
             }
 
-  reportSDoc "tc.lhs.top" 10 $
+  reportSDoc "tc.lhs.recpat" 10 $
     escapeContext (size $ clauseTel clause) $ vcat
       [ text "Translated clause:"
       , nest 2 $ vcat

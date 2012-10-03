@@ -25,7 +25,8 @@ import Agda.Syntax.Internal
   ( Name, Args, Type,
     Clause(Clause), Pattern(VarP,DotP,LitP,ConP), Abs(Abs),
     ClauseBody(Body,NoBody,Bind),
-    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare),
+    Term(Var,Lam,Lit,Level,Def,Con,Pi,Sort,MetaV,DontCare,Shared),
+    derefPtr,
     toTopLevelModuleName, clausePats, clauseBody, arity, unEl, unAbs )
 import Agda.TypeChecking.Substitute ( absBody )
 import Agda.Syntax.Literal ( Literal(LitInt,LitFloat,LitString,LitChar,LitQName) )
@@ -348,6 +349,7 @@ term (Var   i as)         = do
 term (Lam   _ at)         = Lambda 1 <$> term (absBody at)
 term (Lit   l)            = return (literal l)
 term (Level l)            = term =<< reallyUnLevelView l
+term (Shared p)           = term $ derefPtr p
 term (Def q as) = do
   d <- getConstInfo q
   case theDef d of

@@ -59,7 +59,7 @@ insertImplicitPatterns exh ps tel@(ExtendTel arg tel') = case ps of
           -- but not instance arguments since then they won't be found
           -- by the instance search
           a <- reduce (unDom arg)
-          case unEl a of
+          case ignoreSharing $ unEl a of
             Def d _ ->
               -- Andreas, 2012-06-10: only expand guarded records,
               -- otherwise we might run into an infinite loop

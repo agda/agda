@@ -24,6 +24,7 @@ instance MentionsMeta Term where
     Level l      -> mm l
     DontCare v   -> False   -- we don't have to look inside don't cares when deciding to wake constraints
     MetaV y args -> x == y || mm args   -- TODO: we really only have to look one level deep at meta args
+    Shared p     -> mm $ derefPtr p
     where
       mm v = mentionsMeta x v
 

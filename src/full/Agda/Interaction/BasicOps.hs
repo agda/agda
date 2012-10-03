@@ -449,7 +449,7 @@ introTactic pmLambda ii = do
   withMetaInfo (getMetaInfo mv) $ case mvJudgement mv of
     HasType _ t -> do
         t <- reduce =<< piApply t <$> getContextArgs
-        case unEl t of
+        case ignoreSharing $ unEl t of
           I.Def d _ -> do
             def <- getConstInfo d
             case theDef def of

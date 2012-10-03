@@ -155,8 +155,10 @@ makeProjection x = inContext [] $ do
     -- will return (D,3) as a candidate (amongst maybe others).
     --
     candidateArgs :: [Term] -> Term -> [(QName,Int)]
-    candidateArgs vs (Pi (Dom r h (El _ (Def d us))) b)
-      | vs == map unArg us = (d, length vs) : candidateRec vs b
+    candidateArgs vs (Shared p) = candidateArgs vs $ derefPtr p
+    candidateArgs vs (Pi (Dom r h (El _ def)) b)
+      | Def d us <- ignoreSharing def,
+        vs == map unArg us = (d, length vs) : candidateRec vs b
     candidateArgs vs (Pi _ b) = candidateRec vs b
     candidateArgs _ _ = []
 

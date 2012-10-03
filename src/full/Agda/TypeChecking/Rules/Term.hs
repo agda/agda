@@ -84,7 +84,7 @@ isType e s =
 -- | Check that an expression is a type without knowing the sort.
 isType_ :: A.Expr -> TCM Type
 isType_ e =
-  traceCall (IsType_ e) $
+  traceCall (IsType_ e) $ sharedType <$>
   case unScope e of
     A.Fun i (Arg h r t) b -> do
       a <- Dom h r <$> isType_ t
@@ -152,34 +152,6 @@ forcePi h name (El s t) =
 ---------------------------------------------------------------------------
 -- * Telescopes
 ---------------------------------------------------------------------------
-
-{- UNUSED
--- | Type check a telescope. Binds the variables defined by the telescope.
-checkTelescope :: A.Telescope -> Sort -> (Telescope -> TCM a) -> TCM a
-checkTelescope [] s ret = ret EmptyTel
-checkTelescope (b : tel) s ret =
-    checkTypedBindings b s $ \tel1 ->
-    checkTelescope tel s   $ \tel2 ->
-	ret $ abstract tel1 tel2
-
--- | Check a typed binding and extends the context with the bound variables.
---   The telescope passed to the continuation is valid in the original context.
-checkTypedBindings :: A.TypedBindings -> Sort -> (Telescope -> TCM a) -> TCM a
-checkTypedBindings (A.TypedBindings i (Arg h rel b)) s ret =
-    checkTypedBinding h rel s b $ \bs ->
-    ret $ foldr (\(x,t) -> ExtendTel (Arg h rel t) . Abs x) EmptyTel bs
-
-checkTypedBinding :: Hiding -> Relevance -> Sort -> A.TypedBinding -> ([(String,Type)] -> TCM a) -> TCM a
-checkTypedBinding h rel s (A.TBind i xs e) ret = do
-    t <- isType e s
-    addCtxs xs (Arg h rel t) $ ret $ mkTel xs t
-    where
-	mkTel [] t     = []
-	mkTel (x:xs) t = (show $ nameConcrete x,t) : mkTel xs (raise 1 t)
-checkTypedBinding h rel s (A.TNoBind e) ret = do
-    t <- isType e s
-    ret [("_",t)]
--}
 
 -- | Type check a telescope. Binds the variables defined by the telescope.
 checkTelescope_ :: A.Telescope -> (Telescope -> TCM a) -> TCM a
@@ -309,7 +281,7 @@ checkLiteral lit t = do
 -- TODO: move somewhere suitable
 reduceCon :: QName -> TCM QName
 reduceCon c = do
-  Con c [] <- constructorForm =<< reduce (Con c [])
+  Con c [] <- ignoreSharing <$> (constructorForm =<< reduce (Con c []))
   return c
 
 -- | @checkArguments' exph r args t0 t e k@ tries @checkArguments exph args t0 t@.
@@ -338,7 +310,7 @@ unScope e                      = e
 checkExpr :: A.Expr -> Type -> TCM Term
 checkExpr e t =
   verboseBracket "tc.term.expr.top" 5 "checkExpr" $
-  traceCall (CheckExpr e t) $ localScope $ do
+  traceCall (CheckExpr e t) $ localScope $ shared <$> do
     reportSDoc "tc.term.expr.top" 15 $
         text "Checking" <+> sep
 	  [ fsep [ prettyTCM e, text ":", prettyTCM t ]
@@ -359,7 +331,7 @@ checkExpr e t =
 
     case e of
 	-- Insert hidden lambda if appropriate
-	_   | Pi (Dom h rel _) _ <- unEl t
+	_   | Pi (Dom h rel _) _ <- ignoreSharing $ unEl t
             , not (hiddenLambdaOrHole h e)
             , h /= NotHidden                          -> do
 		x <- freshName r (argName t)
@@ -429,11 +401,10 @@ checkExpr e t =
         A.Quote _ -> typeError $ GenericError "quote must be applied to a defined name"
         A.QuoteTerm _ -> typeError $ GenericError "quoteTerm must be applied to a term"
         A.Unquote _ -> typeError $ GenericError "unquote must be applied to a term"
-
         A.AbsurdLam i h -> do
           t <- instantiateFull t
           ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t' -> do
-            case unEl t' of
+            case ignoreSharing $ unEl t' of
               Pi dom@(Dom h' r a) _
                 | h == h' && not (null $ allMetas a) ->
                     postponeTypeCheckingProblem e t' $
@@ -486,9 +457,10 @@ checkExpr e t =
 {- OLD
         A.ExtendedLam i di qname cs -> do
              t <- reduceB =<< instantiateFull t
+             let isMeta t = case ignoreSharing $ unEl t of { MetaV{} -> True; _ -> False }
              case t of
                Blocked{}                 -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
-               NotBlocked (El _ MetaV{}) -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
+               NotBlocked t' | isMeta t' -> postponeTypeCheckingProblem_ e $ ignoreBlocking t
                NotBlocked t -> do
 -}
         A.ExtendedLam i di qname cs -> do
@@ -513,31 +485,7 @@ checkExpr e t =
 	    abstract ConcreteDef = inConcreteMode
 	    abstract AbstractDef = inAbstractMode
 
-
-{- Andreas, 2011-04-27 DOES NOT WORK
-   -- a telescope is not for type checking abstract syn
-
-	A.Lam i (A.DomainFull b) e -> do
-            -- check the types, get the telescope with unchanged relevance
-	    (tel, t1, cs) <- workOnTypes $ checkTypedBindings_ b $ \tel -> do
-	       t1 <- newTypeMeta_
-               cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
-               return (tel, t1, cs)
-            -- check the body under the unchanged telescope
-            v <- addCtxTel tel $ do teleLam tel <$> checkExpr e t1
-	    blockTerm t v (return cs)
--}
 	A.Lam i (A.DomainFull (A.TypedBindings _ b)) e -> checkLambda b e t
-
-        -- 	A.Lam i (A.DomainFull b) e -> do
-        -- 	    (v, cs) <- checkTypedBindings LamNotPi b $ \tel -> do
-        --         (t1, cs) <- workOnTypes $ do
-        -- 	          t1 <- newTypeMeta_
-        --           cs <- escapeContext (size tel) $ leqType (telePi tel t1) t
-        --           return (t1, cs)
-        --         v <- checkExpr e t1
-        --         return (teleLam tel v, cs)
-        -- 	    blockTerm t v (return cs)
 
 	A.Lam i (A.DomainFree h rel x) e0 -> checkExpr (A.Lam i (domainFree h rel x) e0) t
 
@@ -570,7 +518,7 @@ checkExpr e t =
 
 	A.Rec _ fs  -> do
 	  t <- reduce t
-	  case unEl t of
+	  case ignoreSharing $ unEl t of
 	    Def r vs  -> do
 	      axs    <- getRecordFieldNames r
               let xs = map unArg axs
@@ -610,7 +558,7 @@ checkExpr e t =
                   def <- getConstInfo r
                   vs  <- newArgsMeta (defType def)
                   let target = piApply (defType def) vs
-                      s      = case unEl target of
+                      s      = case ignoreSharing $ unEl target of
                                  Level l -> Type l
                                  Sort s  -> s
                                  _       -> __IMPOSSIBLE__
@@ -630,7 +578,7 @@ checkExpr e t =
 	    _         -> typeError $ ShouldBeRecordType t
 
         A.RecUpdate ei recexpr fs -> do
-          case unEl t of
+          case ignoreSharing $ unEl t of
             Def r vs  -> do
               rec <- checkExpr recexpr t
               name <- freshNoName (getRange recexpr)
@@ -644,7 +592,7 @@ checkExpr e t =
                 checkExpr (A.Rec ei [ (x, e) | (x, Just e) <- zip xs es' ]) t
             MetaV _ _ -> do
               inferred <- inferExpr recexpr >>= reduce . snd
-              case unEl inferred of
+              case ignoreSharing $ unEl inferred of
                 MetaV _ _ -> postponeTypeCheckingProblem_ e t
                 _         -> do
                   v <- checkExpr e inferred
@@ -709,7 +657,7 @@ checkExpr e t =
                       t1 <- reduceB $ unEl t1
                       reportSDoc "tc.check.term.con" 40 $ nest 2 $
                         text "target type: " <+> prettyTCM t1
-                      case t1 of
+                      case ignoreSharing <$> t1 of
                         NotBlocked (Def d _) -> do
                           let dataOrRec = case [ c | (d', c) <- dcs, d == d' ] of
                                 [c] -> do
@@ -894,7 +842,7 @@ checkConstructorApplication org t c args = do
     -- Issue 661: t maybe an evaluated form of d .., so we evaluate d
     -- as well and then check wether we deal with the same datatype
     t0 <- reduce (Def d [])
-    case (t0, unEl t) of -- Only fully applied constructors get special treatment
+    case (ignoreSharing t0, ignoreSharing $ unEl t) of -- Only fully applied constructors get special treatment
       (Def d0 _, Def d' vs) -> do
        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d0   =" <+> prettyTCM d0
        reportSDoc "tc.term.con" 50 $ nest 2 $ text "d'   =" <+> prettyTCM d'
@@ -1118,7 +1066,7 @@ checkArguments exh expandIFS r [] t0 t1 =
     traceCallE (CheckArguments r [] t0 t1) $ do
 	t0' <- lift $ reduce t0
 	t1' <- lift $ reduce t1
-	case unEl t0' of
+	case ignoreSharing $ unEl t0' of
 	    Pi (Dom Hidden rel a) _ | notHPi Hidden $ unEl t1'  -> do
 		v  <- lift $ applyRelevanceToContext rel $ newValueMeta RunMetaOccursCheck a
 		let arg = Arg Hidden rel v
@@ -1134,6 +1082,7 @@ checkArguments exh expandIFS r [] t0 t1 =
 	    _ -> return ([], t0')
     where
 	notHPi h (Pi  (Dom h' _ _) _) | h == h' = False
+        notHPi h (Shared p) = notHPi h $ derefPtr p
 	notHPi _ _		        = True
 -}
 
@@ -1142,18 +1091,21 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
       lift $ reportSDoc "tc.term.args" 30 $ sep
         [ text "checkArguments"
 --        , text "  args0 =" <+> prettyA args0
-        , text "  e     =" <+> prettyA e
-        , text "  t0    =" <+> prettyTCM t0
-        , text "  t1    =" <+> prettyTCM t1
+        , nest 2 $ vcat
+          [ text "e     =" <+> prettyA e
+          , text "t0    =" <+> prettyTCM t0
+          , text "t1    =" <+> prettyTCM t1
+          ]
         ]
       t0b <- lift $ reduceB t0
+      let isMeta t = case ignoreSharing $ unEl t of { MetaV{} -> True; _ -> False }
       case t0b of
-        Blocked{}                 -> throwError $ ignoreBlocking t0b
-        NotBlocked (El _ MetaV{}) -> throwError $ ignoreBlocking t0b
+        Blocked{}                   -> throwError $ ignoreBlocking t0b
+        NotBlocked t0' | isMeta t0' -> throwError $ ignoreBlocking t0b
         NotBlocked t0' -> do
           -- (t0', cs) <- forcePi h (name e) t0
           e' <- return $ namedThing e
-          case unEl t0' of
+          case ignoreSharing $ unEl t0' of
               Pi (Dom h' rel a) _ |
                 h == h' && (h == NotHidden || sameName (nameOf e) (nameInPi $ unEl t0')) -> do
                   u  <- lift $ applyRelevanceToContext rel $ checkExpr e' a
@@ -1196,8 +1148,9 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
 	sameName Nothing _  = True
 	sameName n1	 n2 = n1 == n2
 
-	nameInPi (Pi _ b)  = Just $ absName b
-	nameInPi _	   = __IMPOSSIBLE__
+	nameInPi (Pi _ b)   = Just $ absName b
+        nameInPi (Shared p) = nameInPi (derefPtr p)
+	nameInPi _          = __IMPOSSIBLE__
 
 
 -- | Check that a list of arguments fits a telescope.

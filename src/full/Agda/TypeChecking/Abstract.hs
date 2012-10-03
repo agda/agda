@@ -34,8 +34,12 @@ instance AbstractTerm Term where
     Sort s      -> Sort $ absT s
     MetaV m vs  -> MetaV m $ absT vs
     DontCare mv -> DontCare $ absT mv
+    Shared p    -> Shared $ absT p
     where
       absT x = abstractTerm u x
+
+instance AbstractTerm a => AbstractTerm (Ptr a) where
+  abstractTerm u = fmap (abstractTerm u)
 
 instance AbstractTerm Type where
   abstractTerm u (El s v) = El (abstractTerm u s) (abstractTerm u v)
