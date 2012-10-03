@@ -172,7 +172,6 @@ Proj (_,_≔_ Sig ℓ′ {A = A} a) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | yes _ = A
 ... | no  _ = Proj Sig ℓ {ℓ∈}
 
-
 -- Record restriction and projection.
 
 infixl 5 _∣_
@@ -187,7 +186,6 @@ _∣_ {Sig = Sig , ℓ′ ≔ a} (rec r) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | yes _ = Manifest-Σ.proj₁ r
 ... | no  _ = _∣_ (Manifest-Σ.proj₁ r) ℓ {ℓ∈}
 
-
 infixl 5 _·_
 
 _·_ : ∀ {s} {Sig : Signature s} (r : Record Sig)
@@ -199,7 +197,7 @@ _·_ {Sig = Sig , ℓ′ ∶ A} (rec r) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | no  _ = _·_ (Σ.proj₁ r) ℓ  {ℓ∈}
 _·_ {Sig = Sig , ℓ′ ≔ a} (rec r) ℓ {ℓ∈} with ℓ ≟ ℓ′
 ... | yes _ = Manifest-Σ.proj₂ r
-... | no  _ = _·_ (Manifest-Σ.proj₁ r) ℓ  {ℓ∈}
+... | no  _ = _·_ (Manifest-Σ.proj₁ r) ℓ {ℓ∈}
 
 ------------------------------------------------------------------------
 -- With
@@ -214,10 +212,10 @@ mutual
              ((r : Restricted Sig ℓ ℓ∈) → Proj Sig ℓ r) → Signature s
   _With_≔_ ∅ ℓ {} a
   _With_≔_ (Sig , ℓ′ ∶ A)   ℓ {ℓ∈} a with ℓ ≟ ℓ′
-  ... | yes _ = Sig            , ℓ′ ≔ a
+  ... | yes _ = Sig                   , ℓ′ ≔ a
   ... | no  _ = _With_≔_ Sig ℓ {ℓ∈} a , ℓ′ ∶ A ∘ drop-With
   _With_≔_  (Sig , ℓ′ ≔ a′) ℓ {ℓ∈} a with ℓ ≟ ℓ′
-  ... | yes _ = Sig            , ℓ′ ≔ a
+  ... | yes _ = Sig                   , ℓ′ ≔ a
   ... | no  _ = _With_≔_ Sig ℓ {ℓ∈} a , ℓ′ ≔ a′ ∘ drop-With
 
   drop-With : ∀ {s} {Sig : Signature s} {ℓ : Label} {ℓ∈ : ℓ ∈ Sig}
