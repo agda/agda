@@ -1,3 +1,4 @@
-UnsolvableLevelConstraintsInDataDef.agda:6,6-7
-D is not strictly positive, because it occurs in the third argument
-to _≡_ in the type of the constructor abs in the definition of D.
+UnsolvableLevelConstraintsInDataDef.agda:7,3-34
+The type of the constructor does not fit in the sort of the
+datatype, since Set₂ is not less or equal than Set₁
+when checking the constructor abs in the declaration of D
