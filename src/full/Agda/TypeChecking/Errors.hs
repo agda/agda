@@ -662,6 +662,7 @@ instance PrettyTCM TypeError where
             showArg (Arg Instance r x)  = dbraces $ showPat 0 x
             showArg (Arg NotHidden r x) = showPat 1 x
 
+            showPat :: Integer -> I.Pattern -> TCM Doc
             showPat _ (I.VarP _)        = text "_"
             showPat _ (I.DotP _)        = text "._"
             showPat n (I.ConP c _ args) = mpar n args $ prettyTCM c <+> fsep (map showArg args)
