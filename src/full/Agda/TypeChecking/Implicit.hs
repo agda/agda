@@ -32,7 +32,7 @@ implicitArgs :: Int -> (Hiding -> Bool) -> Type -> TCM (Args, Type)
 implicitArgs 0 expand t0 = return ([], t0)
 implicitArgs n expand t0 = do
     t0' <- reduce t0
-    case unEl t0' of
+    case ignoreSharing $ unEl t0' of
       Pi (Dom h rel a) b | expand h -> do
           when (h == Instance) $ reportSLn "tc.term.args.ifs" 15 $
             "inserting implicit meta for type " ++ show a

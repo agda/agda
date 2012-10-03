@@ -36,11 +36,11 @@ import Agda.Utils.Pretty (render)
 --   Precondition: sized types are enabled.
 deepSizeView :: Term -> TCM DeepSizeView
 deepSizeView v = do
-  Def inf [] <- primSizeInf
-  Def suc [] <- primSizeSuc
+  Def inf [] <- ignoreSharing <$> primSizeInf
+  Def suc [] <- ignoreSharing <$> primSizeSuc
   let loop v = do
       v <- reduce v
-      case v of
+      case ignoreSharing v of
         Def x []  | x == inf -> return $ DSizeInf
         Def x [u] | x == suc -> sizeViewSuc_ suc <$> loop (unArg u)
         Var i []             -> return $ DSizeVar i 0
@@ -56,8 +56,8 @@ trySizeUniv :: Comparison -> Type -> Term -> Term
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
   (size, sizelt) <- flip catchError (const failure) $ do
-     Def size   _ <- primSize
-     Def sizelt _ <- primSizeLt
+     Def size   _ <- ignoreSharing <$> primSize
+     Def sizelt _ <- ignoreSharing <$> primSizeLt
      return (size, sizelt)
   case (cmp, els1, els2) of
      (CmpLeq, [_], []) | x == sizelt && y == size -> return ()
@@ -128,7 +128,7 @@ compareSizes cmp u v = do
 isBounded :: Nat -> TCM BoundedSize
 isBounded i = do
   t <- reduce =<< typeOfBV i
-  case unEl t of
+  case ignoreSharing $ unEl t of
     Def x [u] -> do
       sizelt <- getBuiltin' builtinSizeLt
       return $ if (Just (Def x []) == sizelt) then BoundedLt $ unArg u else BoundedNo
@@ -382,7 +382,6 @@ solveSizeConstraints = whenM haveSizedTypes $ do
     Nothing  -> cannotSolve
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
-      inf <- primSizeInf
       s <- primSizeSuc
       let suc v = s `apply` [defaultArg v]
           plus v 0 = v

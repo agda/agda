@@ -163,7 +163,7 @@ dependentPolarity :: Type -> [Polarity] -> TCM [Polarity]
 dependentPolarity t []          = return []  -- all remaining are 'Invariant'
 dependentPolarity t pols@(p:ps) = do
   t <- reduce $ unEl t
-  case t of
+  case ignoreSharing t of
     Pi a b -> do
       let c = absBody b
       ps <- dependentPolarity c ps
@@ -182,7 +182,7 @@ relevantInIgnoringNonvariant :: Nat -> Type -> [Polarity] -> TCM Bool
 relevantInIgnoringNonvariant i t []     = return $ i `relevantInIgnoringSortAnn` t
 relevantInIgnoringNonvariant i t (p:ps) = do
   t <- reduce $ unEl t
-  case t of
+  case ignoreSharing t of
     Pi a b -> if p /= Nonvariant && i `relevantInIgnoringSortAnn` a then return True
               else relevantInIgnoringNonvariant (i + 1) (absBody b) ps
     _ -> return $ i `relevantInIgnoringSortAnn` t
@@ -200,7 +200,7 @@ nonvariantToUnusedArg :: [Polarity] -> Type -> TCM Type
 nonvariantToUnusedArg []     t = return t
 nonvariantToUnusedArg (p:ps) t = do
   t <- reduce t
-  case t of
+  case ignoreSharingType t of
     El s (Pi a b) -> do
       let a' = if p == Nonvariant then mapDomRelevance mkUnused a else a
       El s . Pi a' <$> traverse (nonvariantToUnusedArg ps) b

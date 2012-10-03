@@ -47,8 +47,9 @@ isDataOrRecordType d = do
     _          -> return $ Nothing
 
 isDataOrRecord :: Term -> TCM (Maybe QName)
-isDataOrRecord (Def d _) = fmap (const d) <$> isDataOrRecordType d
-isDataOrRecord _         = return Nothing
+isDataOrRecord (Def d _)  = fmap (const d) <$> isDataOrRecordType d
+isDataOrRecord (Shared p) = isDataOrRecord (derefPtr p)
+isDataOrRecord _          = return Nothing
 
 getNumberOfParameters :: QName -> TCM (Maybe Nat)
 getNumberOfParameters d = do

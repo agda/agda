@@ -80,7 +80,7 @@ checkFunDef delayed i name cs = do
           -- if we have just one clause without pattern matching and
           -- without a type signature, then infer, to allow
           -- "aliases" for things starting with hidden abstractions
-          Just e | isMeta (unEl t) ->
+          Just e | isMeta (ignoreSharing $ unEl t) ->
             traceCall (CheckFunDef (getRange i) (qnameName name) cs) $
               checkAlias t rel delayed i name e
           _ -> checkFunDef' t rel delayed i name cs

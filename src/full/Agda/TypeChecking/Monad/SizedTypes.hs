@@ -41,7 +41,7 @@ isSizeTypeTest =
     let testType (Def d [])  | Just d == size   = Just BoundedNo
         testType (Def d [v]) | Just d == sizelt = Just $ BoundedLt $ unArg v
         testType _                              = Nothing
-    return $ testType . unEl
+    return $ testType . ignoreSharing . unEl
 
 getBuiltinDefName :: String -> TCM (Maybe QName)
 getBuiltinDefName s = fromDef . fmap ignoreSharing <$> getBuiltin' s
@@ -81,7 +81,7 @@ sizeSucName = liftTCM $
 
 sizeSuc :: Nat -> Term -> TCM Term
 sizeSuc n v = do
-  Def suc [] <- primSizeSuc
+  Def suc [] <- ignoreSharing <$> primSizeSuc
   return $ iterate (sizeSuc_ suc) v !! fromIntegral n
 
 sizeSuc_ :: QName -> Term -> Term
