@@ -53,11 +53,6 @@ flag epic
   description:
     Install the Epic compiler.
 
-flag old-time
-  default: False
-  description:
-    Depend on old-time rather than time.
-
 library
   hs-source-dirs:   src/full
   if flag(epic)
@@ -86,12 +81,12 @@ library
                     geniplate == 0.6.*,
                     deepseq == 1.3.*
 
-  if flag(old-time)
+  if impl(ghc < 7.6)
     build-depends:  old-time >= 1.0 && < 1.2,
                     directory >= 1.0 && < 1.2
-  if !flag(old-time)
-    build-depends:  time == 1.4.*,
-                    directory == 1.2.*
+  else
+      build-depends:  time == 1.4.*,
+                      directory == 1.2.*
 
   build-tools:      happy >= 1.15 && < 2,
                     alex >= 2.3.1 && < 3.1
