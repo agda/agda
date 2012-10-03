@@ -152,5 +152,5 @@ bindBuiltinFlat e =
                 }
     return flatE
 
--- * The coinductive primitives.
+-- The coinductive primitives.
 -- moved to TypeChecking.Monad.Builtin
