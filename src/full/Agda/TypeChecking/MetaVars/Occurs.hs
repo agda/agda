@@ -154,7 +154,7 @@ class Occurs t where
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MetaId -> Vars -> Term -> TCM Term
-occursCheck m xs v = liftTCM $ do
+occursCheck m xs v = liftTCM $ disableDestructiveUpdate $ do  -- can we allow updates somehow?
   mv <- lookupMeta m
   initOccursCheck mv
   -- First try without normalising the term
