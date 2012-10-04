@@ -114,7 +114,11 @@ checkCoverage f = do
   let defn = theDef d
   case defn of
     Function{ funProjection = proj, funClauses = cs@(_:_) } -> do
-      let n            = genericLength $ clausePats $ head cs
+      let -- n             = arity (does not include np)
+          -- np            = number of dropped arguments due to projection-likeness
+          -- lgamma/gamma' = telescope of non-dropped arguments
+          -- xs            = variable patterns fitting lgamma
+          n            = genericLength $ clausePats $ head cs
           np           = maybe 0 snd proj
           lgamma       = genericTake n $ genericDrop np $ telToList gamma
           gamma'       = telFromList lgamma
@@ -123,16 +127,18 @@ checkCoverage f = do
         [ text "Coverage checking"
         , nest 2 $ vcat $ map (text . show . clausePats) cs
         ]
+      -- used = actually used clauses for cover
+      -- pss  = uncovered cases
       (used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
       whenM (optCompletenessCheck <$> pragmaOptions) $
-        case pss of
-          []  -> return ()
-          _   ->
+        -- report an error if there are uncovered cases
+        unless (null pss) $
             setCurrentRange (getRange cs) $
               typeError $ CoverageFailure f pss
-      case Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used of
-        []  -> return ()
-        is  -> do
+      -- is = indices of unreachable clauses
+      let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
+      -- report an error if there are unreachable clauses
+      unless (null is) $ do
           let unreached = map ((cs !!) . fromIntegral) is
           setCurrentRange (getRange unreached) $
             typeError $ UnreachableClauses f (map clausePats unreached)
