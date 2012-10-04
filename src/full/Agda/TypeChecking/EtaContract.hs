@@ -42,7 +42,7 @@ etaContract :: TermLike a => a -> TCM a
 etaContract = traverseTermM etaOnce
 
 etaOnce :: Term -> TCM Term
-etaOnce v = ignoreAbstractMode $ eta v
+etaOnce v = eta v
   where
     eta v@Shared{} = updateSharedTerm eta v
     eta t@(Lam h (Abs _ b)) = do  -- NoAbs can't be eta'd
