@@ -1,17 +1,9 @@
-{-# OPTIONS --show-implicit #-} 
-{-# OPTIONS --sized-types #-} 
+{-# OPTIONS --show-implicit #-}
+{-# OPTIONS --sized-types #-}
 
 module Issue298 where
 
-
-postulate
-  Size : Set
-  ↑_   : Size → Size
-  ∞    : Size
-
-{-# BUILTIN SIZE    Size #-}
-{-# BUILTIN SIZESUC ↑_   #-}
-{-# BUILTIN SIZEINF ∞    #-}
+open import Common.Size
 
 data BTree : {i : Size} → Set where
   leaf : ∀ {i} → BTree {↑ i}
