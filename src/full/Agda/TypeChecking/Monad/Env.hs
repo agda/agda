@@ -32,7 +32,7 @@ withAnonymousModule m n =
 
 -- | Set the current environment to the given
 withEnv :: TCEnv -> TCM a -> TCM a
-withEnv env m = local (const env) m
+withEnv env m = local (\env0 -> env { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0 }) m
 
 -- | Get the current environmnet
 getEnv :: TCM TCEnv
