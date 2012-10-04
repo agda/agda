@@ -114,12 +114,19 @@ initializeIFSMeta t = do
   cands <- initialIFSCandidates
   newIFSMeta t cands
 
+-- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
+--   of the candidate terms @v@s to the type @t@ of the metavariable @m@.
+--   If successful, meta @m@ is solved with the instantiation of @v@.
+--   If unsuccessful, the constraint is regenerated, with possibly reduced
+--   candidate set.
 findInScope :: MetaId -> [(Term, Type)] -> TCM ()
-findInScope m cands =
+findInScope m cands = whenJustM (findInScope' m cands) $ addConstraint . FindInScope m
+{- SAME CODE, POINTFULL
   do fisres <- findInScope' m cands
      case fisres of
        Nothing -> return ()
        Just cs -> addConstraint $ FindInScope m cs
+-}
 
 -- Result says whether we need to add constraint, and if so, the set of
 -- remaining candidates
@@ -143,6 +150,7 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
           "findInScope 5: one candidate found for type '") <+>
           prettyTCM t <+> text "': '" <+> prettyTCM term <+>
           text "', of type '" <+> prettyTCM t' <+> text "'."
+
         ca <- liftTCM $ runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments (getRange mv) [] t' t
         case ca of
           Left _ -> __IMPOSSIBLE__
