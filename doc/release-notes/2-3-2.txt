@@ -412,6 +412,42 @@ Emacs mode
   The highlighting level can be controlled via the new configuration
   variable agda2-highlight-level.
 
+* Multiple case-splits can now be performed in one go.
+
+  Consider the following example:
+
+    _==_ : Bool → Bool → Bool
+    b₁ == b₂ = {!!}
+
+  If you split on "b₁ b₂", then you get the following code:
+
+    _==_ : Bool → Bool → Bool
+    true == true = {!!}
+    true == false = {!!}
+    false == true = {!!}
+    false == false = {!!}
+
+  The order of the variables matters. Consider the following code:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup xs i = {!!}
+
+  If you split on "xs i", then you get the following code:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup [] ()
+    lookup (x ∷ xs) zero = {!!}
+    lookup (x ∷ xs) (suc i) = {!!}
+
+  However, if you split on "i xs", then you get the following code
+  instead:
+
+    lookup : ∀ {a n} {A : Set a} → Vec A n → Fin n → A
+    lookup (x ∷ xs) zero = ?
+    lookup (x ∷ xs) (suc i) = ?
+
+  This code is, at the time of writing, rejected by Agda.
+
 * The Emacs mode now presents information about which module is
   currently being type-checked.
 

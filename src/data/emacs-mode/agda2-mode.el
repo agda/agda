@@ -697,9 +697,9 @@ reloaded from `agda2-highlighting-file', unless
       (setq agda2-last-responses (sort agda2-last-responses
                                        (lambda (x y) (<= (car x) (car y)))))
       (let ((r (pop agda2-last-responses)))
-        (agda2-exec-response (cdr r)))))
-  (with-current-buffer agda2-file-buffer
-    (setq agda2-highlight-in-progress nil)))
+        (agda2-exec-response (cdr r))))))
+  ;; (with-current-buffer agda2-file-buffer
+  ;;   (setq agda2-highlight-in-progress nil)))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
@@ -835,10 +835,10 @@ of new goals."
  (agda2-goal-cmd "cmd_auto" 'goal))
 
 (defun agda2-make-case ()
-  "Refine the pattern var given in the goal.
-Assumes that <clause> = {!<var>!} is on one line."
+  "Refine the pattern variables given in the goal.
+Assumes that <clause> = {!<variables>!} is on one line."
   (interactive)
-  (agda2-goal-cmd "cmd_make_case" "pattern var to case"))
+  (agda2-goal-cmd "cmd_make_case" "pattern variables to case"))
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."

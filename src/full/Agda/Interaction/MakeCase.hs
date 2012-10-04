@@ -6,6 +6,7 @@ import Prelude hiding (mapM, mapM_)
 import Control.Applicative
 import Control.Monad hiding (mapM, mapM_)
 import Control.Monad.State hiding (mapM, mapM_)
+import Data.Maybe
 import qualified Data.Map as Map
 import Data.Traversable
 import Data.List
@@ -93,12 +94,50 @@ makeCase hole rng s = withInteractionId hole $ do
       , text "ps      =" <+> text (show ps)
       ]
     ]
-  var         <- deBruijnIndex =<< parseExprIn hole rng s
-  z           <- splitClauseWithAbs clause var
-  (case z of
-    Left err        -> typeError . GenericError . show =<< prettyTCM err
-    Right (Left cl) -> ((:[]) <$> makeAbsurdClause f cl)
-    Right (Right c) -> (mapM (makeAbstractClause f) c)) >>= (\ x -> return (casectxt , x))
+  vars <- mapM (\s -> deBruijnIndex =<< parseExprIn hole rng s) $ words s
+  (,) casectxt <$> split f vars clause
+  where
+  split :: QName -> [Nat] -> Clause -> TCM [A.Clause]
+  split f [] clause =
+    (:[]) <$> makeAbstractClause f (clauseToSplitClause clause)
+  split f (var : vars) clause = do
+    z <- splitClauseWithAbs clause var
+    case z of
+      Left err          -> typeError . GenericError . show =<<
+                             prettyTCM err
+      Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
+      Right (Right cls)
+        | null vars -> mapM (makeAbstractClause f) cls
+        | otherwise -> concat <$>
+            mapM (\cl -> split f (mapMaybe (newVar cl) vars)
+                                 (splitClauseToClause cl))
+                 cls
+    where
+    -- Note that the body of the created clause is the body of the
+    -- argument to split.
+    splitClauseToClause :: SplitClause -> Clause
+    splitClauseToClause c = Clause
+      { clauseRange = noRange
+      , clauseTel   = scTel c
+      , clausePerm  = scPerm c
+      , clausePats  = scPats c
+      , clauseBody  = clauseBody clause
+      }
+
+  -- Finds the new variable corresponding to an old one, if any.
+  newVar :: SplitClause -> Nat -> Maybe Nat
+  newVar c x = case ignoreSharing $ substs (scSubst c) (Var x []) of
+    Var x [] -> Just x
+    _        -> Nothing
+
+  -- Note that the scSubst field is not defined.
+  clauseToSplitClause :: Clause -> SplitClause
+  clauseToSplitClause cl = SClause
+    { scTel   = clauseTel  cl
+    , scPerm  = clausePerm cl
+    , scPats  = clausePats cl
+    , scSubst = __IMPOSSIBLE__
+    }
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _) = do
