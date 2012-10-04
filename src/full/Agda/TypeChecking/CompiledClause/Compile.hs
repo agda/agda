@@ -50,6 +50,8 @@ compile cs = case nextSplit cs of
     body (Body t)   = Just t
     body NoBody     = Nothing
 
+-- | Get the index of the next argument we need to split on.
+--   This the number of the first pattern that does a match in the first clause.
 nextSplit :: Cls -> Maybe Int
 nextSplit [] = __IMPOSSIBLE__
 nextSplit ((ps, _):_) = mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
