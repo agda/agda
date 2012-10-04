@@ -182,7 +182,7 @@ getMetaTypeInContext m = do
 -- returns a refined list of valid candidates and the (normalised) type of the
 -- meta, applied to the context (for convenience)
 checkCandidates :: MetaId -> Type -> [(Term, Type)] -> TCM [(Term, Type)]
-checkCandidates m t cands = localState $ do
+checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
   -- for candidate checking, we don't take into account other IFS
   -- constrains
   dropConstraints (isIFSConstraint . clValue . theConstraint)
@@ -190,15 +190,16 @@ checkCandidates m t cands = localState $ do
   where
     checkCandidateForMeta :: MetaId -> Type -> Term -> Type -> TCM Bool
     checkCandidateForMeta m t term t' =
+      verboseBracket "tc.constr.findInScope" 20 ("checkCandidateForMeta " ++ show m) $ do
       liftTCM $ flip catchError handle $ do
-        reportSLn "tc.constr.findInScope" 70 $ "checkCandidateForMeta\n  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
+        reportSLn "tc.constr.findInScope" 70 $ "  t: " ++ show t ++ "\n  t':" ++ show t' ++ "\n  term: " ++ show term ++ "."
         reportSDoc "tc.constr.findInScope" 20 $ vcat
           [ text "checkCandidateForMeta"
           , text "t    =" <+> prettyTCM t
           , text "t'   =" <+> prettyTCM t'
           , text "term =" <+> prettyTCM term
           ]
-        localState $ disableDestructiveUpdate $ do
+        localState $ do
            -- domi: we assume that nothing below performs direct IO (except
            -- for logging and such, I guess)
           ca <- runErrorT $ checkArguments ExpandLast DontExpandInstanceArguments  noRange [] t' t
