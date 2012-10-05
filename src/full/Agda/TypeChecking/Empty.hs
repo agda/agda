@@ -2,6 +2,7 @@
 module Agda.TypeChecking.Empty where
 
 import Control.Applicative
+import Control.Monad
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -49,5 +50,7 @@ isEmptyType r t = do
           -- Andreas, 2012-03-15: allow postponement of emptyness check
           -- OLD CODE: traceCall (CheckIsEmpty t) $ typeError $ CoverageCantSplitOn c tel us vs
           _                       -> typeError $ ShouldBeEmpty t []
-        Right []  -> return ()
-        Right cs  -> typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) cs
+        Right cov -> do
+          let cs = splitClauses cov
+          unless (null cs) $
+            typeError $ ShouldBeEmpty t $ map (unArg . last . scPats) $ cs

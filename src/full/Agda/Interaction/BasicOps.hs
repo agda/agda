@@ -514,7 +514,7 @@ introTactic pmLambda ii = do
       r <- split CoInductive tel perm pat 0
       case r of
         Left err -> return []
-        Right cs -> mapM showTCM $ concatMap (conName . scPats) cs
+        Right cov -> mapM showTCM $ concatMap (conName . scPats) $ splitClauses cov
 
     introRec d = do
       hfs <- getRecordFieldNames d

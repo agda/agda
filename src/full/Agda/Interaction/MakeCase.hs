@@ -106,12 +106,12 @@ makeCase hole rng s = withInteractionId hole $ do
       Left err          -> typeError . GenericError . show =<<
                              prettyTCM err
       Right (Left cl)   -> (:[]) <$> makeAbsurdClause f cl
-      Right (Right cls)
-        | null vars -> mapM (makeAbstractClause f) cls
-        | otherwise -> concat <$>
+      Right (Right cov)
+        | null vars -> mapM (makeAbstractClause f) $ splitClauses cov
+        | otherwise -> concat <$> do
             mapM (\cl -> split f (mapMaybe (newVar cl) vars)
                                  (splitClauseToClause cl))
-                 cls
+                 $ splitClauses cov
     where
     -- Note that the body of the created clause is the body of the
     -- argument to split.

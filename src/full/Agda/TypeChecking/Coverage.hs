@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts #-}
+{-# LANGUAGE CPP, FlexibleContexts, TupleSections #-}
 
 module Agda.TypeChecking.Coverage where
 
@@ -28,6 +28,7 @@ import Agda.TypeChecking.Rules.LHS
 import qualified Agda.TypeChecking.Rules.LHS.Split as Split
 
 import Agda.TypeChecking.Coverage.Match
+import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute
@@ -53,7 +54,18 @@ data SplitClause = SClause
       , scSubst :: [Term]         -- ^ substitution from scTel to old context
       }
 
-type Covering = [SplitClause]
+-- type Covering = [SplitClause]
+
+-- | A @Covering@ is the result of splitting a 'SplitClause'.
+data Covering = Covering
+  { covSplitArg     :: Nat  -- ^ De Bruijn level of argument we split on.
+  , covSplitClauses :: [(QName, SplitClause)]
+      -- ^ Covering clauses, indexed by constructor these clauses share.
+  }
+
+-- | Project the split clauses out of a covering.
+splitClauses :: Covering -> [SplitClause]
+splitClauses (Covering _ qcs) = map snd qcs
 
 data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
                 | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
@@ -113,6 +125,7 @@ checkCoverage f = do
   TelV gamma _ <- telView $ defType d
   let defn = theDef d
   case defn of
+    Function{ funProjection = Just _ } -> __IMPOSSIBLE__
     Function{ funProjection = proj, funClauses = cs@(_:_) } -> do
       let -- n             = arity (does not include np)
           -- np            = number of dropped arguments due to projection-likeness
@@ -129,7 +142,11 @@ checkCoverage f = do
         ]
       -- used = actually used clauses for cover
       -- pss  = uncovered cases
-      (used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+      (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+      reportSDoc "tc.cover.splittree" 10 $ vcat
+        [ text "generated split tree for" <+> prettyTCM f
+        , text $ show splitTree
+        ]
       whenM (optCompletenessCheck <$> pragmaOptions) $
         -- report an error if there are uncovered cases
         unless (null pss) $
@@ -144,9 +161,10 @@ checkCoverage f = do
             typeError $ UnreachableClauses f (map clausePats unreached)
     _             -> __IMPOSSIBLE__
 
--- | Check that the list of clauses covers the given split clause.
---   Returns the missing cases.
-cover :: [Clause] -> SplitClause -> TCM (Set Nat, [[Arg Pattern]])
+-- | @cover cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
+--   checks that the list of clauses @cs@ covers the given split clause.
+--   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
+cover :: [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[Arg Pattern]])
 cover cs (SClause tel perm ps _) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
@@ -161,8 +179,8 @@ cover cs (SClause tel perm ps _) = do
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps perm ]
       -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
-      return (Set.fromList (i : is), [])
-    No       -> return (Set.empty, [ps])
+      return (SplittingDone, Set.fromList (i : is), [])
+    No       -> return (SplittingDone, Set.empty, [ps])
     Block xs -> do
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
@@ -177,8 +195,10 @@ cover cs (SClause tel perm ps _) = do
           NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
  -}
           GenericSplitError s     -> fail $ "failed to split: " ++ s
-        Right scs -> (Set.unions -*- concat) . unzip <$> mapM (cover cs) scs
-
+        Right (Covering n scs) -> do
+          (trees, useds, psss) <- unzip3 <$> mapM (cover cs) (map snd scs)
+          let tree = SplitAt n $ zipWith (\ (q,_) t -> (q,t)) scs trees
+          return (tree, Set.unions useds, concat psss)
 
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'
@@ -394,8 +414,14 @@ split ind tel perm ps x = do
   r <- split' ind tel perm ps x
   return $ case r of
     Left err        -> Left err
-    Right (Left _)  -> Right []
+    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel x) []
     Right (Right c) -> Right c
+
+-- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
+--   The result should be the argument (counted from left, starting with 0)
+--   to split at.
+dbIndexToLevel tel x = if n < 0 then __IMPOSSIBLE__ else n
+  where n = size tel - x - 1 -- Andreas: do we need to permute?
 
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
@@ -407,18 +433,10 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   debugInit tel perm x ps
 
   -- Split the telescope at the variable
+  -- t = type of the variable,  Δ₁ ⊢ t
   (n, t, delta1, delta2) <- do
     let (tel1, Dom h r (n, t) : tel2) = genericSplitAt (size tel - x - 1) $ telToList tel
     return (n, Dom h r t, telFromList tel1, telFromList tel2)
-
-{-
-  -- Get the type of the variable
-  let t = typeOfVar tel x  -- Δ₁ ⊢ t
--}
-{-
-  let inContextOfT = addCtxTel delta1
-      inContextOfDelta2 = addCtx n t . addCtxTel delta1
--}
 
   -- Compute the one hole context of the patterns at the variable
   (hps, hix) <- do
@@ -441,7 +459,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
-  ns <- concat <$> mapM (computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps) cons
+  ns <- concat <$> mapM (\ con -> map (con,) <$> computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con) cons
   case ns of
     []  -> do
       let absurd = VarP "()"
@@ -460,9 +478,10 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     (_ : _ : _) | unusableRelevance (domRelevance t) ->
       throwException . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
 
-    _   -> return $ Right ns
+    _   -> return $ Right $ Covering xDBLevel ns
 
   where
+    xDBLevel = dbIndexToLevel tel x
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)
