@@ -818,7 +818,7 @@ maskSizeLt dom@(Dom h r a) = do
     (Nothing, _)  -> __IMPOSSIBLE__
     (Just size, Just sizelt) -> do
       TelV tel c <- telView a
-      case a of
+      case ignoreSharingType a of
         El s (Def d [v]) | d == sizelt -> return $ Dom h r $
           abstract tel $ El s $ Def size []
         _ -> return dom

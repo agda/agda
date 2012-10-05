@@ -1219,7 +1219,7 @@ inferExprForWith :: A.Expr -> TCM (Term, Type)
 inferExprForWith e = do
   (v, t) <- inferExpr e
   TelV tel t0 <- telViewUpTo' (-1) ((NotHidden /=) . domHiding) t
-  case unEl t0 of
+  case ignoreSharing $ unEl t0 of
     Def d vs -> do
       res <- isDataOrRecordType d
       case res of

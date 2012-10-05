@@ -266,7 +266,7 @@ wellFormedIndices t = do
 
   constructorApplications :: [(Arg Term, Dom Type)] -> TCM (Maybe [Nat])
   constructorApplications args = do
-    xs <- mapM (\(e, t) -> constructorApplication (unArg e) (unDom t))
+    xs <- mapM (\(e, t) -> constructorApplication (unArg e) (ignoreSharingType $ unDom t))
                args
     return (concat <$> sequence xs)
 
@@ -280,7 +280,7 @@ withTypesFrom :: Args -> Type -> TCM [(Arg Term, Dom Type)]
 []           `withTypesFrom` _ = return []
 (arg : args) `withTypesFrom` t = do
   t <- reduce t
-  case t of
-    El _ (Pi a b) -> ((arg, a) :) <$>
-                       args `withTypesFrom` absApp b (unArg arg)
-    _             -> __IMPOSSIBLE__
+  case ignoreSharing $ unEl t of
+    Pi a b -> ((arg, a) :) <$>
+              args `withTypesFrom` absApp b (unArg arg)
+    _      -> __IMPOSSIBLE__

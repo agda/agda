@@ -46,6 +46,7 @@ forceEqualTerms u v =
     (Shared{}, _)                -> update u v
     _ -> return ()
   where
+    -- TODO: compress pointer chain
     update u@(Shared{}) v = report u v >> (setPtr v p `seq` return ())
       where p = last $ pointerChain u
     update _ _ = __IMPOSSIBLE__

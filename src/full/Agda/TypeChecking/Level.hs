@@ -62,7 +62,8 @@ requireLevels = do
     Just k  -> return k
 
 unLevel :: Term -> TCM Term
-unLevel (Level l) = reallyUnLevelView l
+unLevel (Level l)  = reallyUnLevelView l
+unLevel (Shared p) = unLevel (derefPtr p)
 unLevel v = return v
 
 reallyUnLevelView :: Level -> TCM Term

@@ -312,7 +312,7 @@ compareAtom cmp t m n =
                 then return ()	-- Check syntactic equality for blocked terms
                 else postpone
 
-      unifyPointers cmp m n $ do    -- this needs to go after eta expansion to avoid creating infinite terms
+      unifyPointers cmp (ignoreBlocking mb') (ignoreBlocking nb') $ do    -- this needs to go after eta expansion to avoid creating infinite terms
 
       reportSDoc "tc.conv.atom" 30 $
 	text "compareAtom" <+> fsep [ prettyTCM mb <+> prettyTCM cmp

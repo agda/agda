@@ -703,8 +703,9 @@ instance EmbPrj I.Term where
         liftIO $ H.insert h p n
         return n
 
-  value r = shared <$> vcase valu r
+  value r = vcase valu' r
     where
+      valu' xs = shared <$> valu xs
       valu [0, a, b] = valu2 Var   a b
       valu [1, a, b] = valu2 Lam   a b
       valu [2, a]    = valu1 Lit   a
