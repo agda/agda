@@ -174,8 +174,8 @@ compareTerm' cmp a m n =
           isrec <- isEtaRecord r
           if isrec
             then do
-              m <- reduceB =<< normalise m
-              n <- reduceB =<< normalise n
+              m <- reduceB m
+              n <- reduceB n
               case (m, n) of
                 _ | isMeta m || isMeta n ->
                     compareAtom cmp a' (ignoreBlocking m) (ignoreBlocking n)
