@@ -397,7 +397,7 @@ instance KillRange Term where
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
-    Shared p    -> Shared $ killRange <$> p   -- killRange breaks sharing
+    Shared p    -> Shared $ updatePtr killRange p
 
 instance KillRange Level where
   killRange (Max as) = killRange1 Max as
