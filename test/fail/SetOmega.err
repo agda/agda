@@ -1,4 +1,5 @@
 SetOmega.agda:9,17-36
-Setω !=< Set _3 because this would result in an invalid use of Setω
+Setω !=< Set _a_3
+because this would result in an invalid use of Setω
 when checking that the expression (a : Level) → Set a has type
-Set _3
+Set _a_3

@@ -150,21 +150,23 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 -- that it has a sort.  The sort comes from the solution.
 -- newTypeMeta_  = newTypeMeta Inf
 
--- | Create a new "implicit from scope" metavariable
-newIFSMeta :: Type -> [(Term, Type)] -> TCM Term
-newIFSMeta t cands = do
+-- | @newIFSMeta s t cands@ creates a new "implicit from scope" metavariable
+--   of type @t@ with name suggestion @s@ and initial solution candidates @cands@.
+newIFSMeta :: String -> Type -> [(Term, Type)] -> TCM Term
+newIFSMeta s t cands = do
   vs  <- getContextArgs
   tel <- getContextTelescope
-  newIFSMetaCtx (telePi_ tel t) vs cands
+  newIFSMetaCtx s (telePi_ tel t) vs cands
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: Type -> Args -> [(Term, Type)] -> TCM Term
-newIFSMetaCtx t vs cands = do
+newIFSMetaCtx :: String -> Type -> Args -> [(Term, Type)] -> TCM Term
+newIFSMetaCtx s t vs cands = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
     ]
-  i <- createMetaInfo
+  i0 <- createMetaInfo
+  let i = i0 { miNameSuggestion = Just s }
   let TelV tel _ = telView' t
       perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
@@ -173,6 +175,13 @@ newIFSMetaCtx t vs cands = do
     ]
   solveConstraint_ $ FindInScope x cands
   return (MetaV x vs)
+
+
+newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM Term
+newNamedValueMeta b s t = do
+  v <- newValueMeta b t
+  setValueMetaName v s
+  return v
 
 -- | Create a new metavariable, possibly η-expanding in the process.
 newValueMeta :: RunMetaOccursCheck -> Type -> TCM Term

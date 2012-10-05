@@ -19,6 +19,8 @@ import Agda.TypeChecking.Monad.State
 import Agda.TypeChecking.Monad.Trace
 import Agda.TypeChecking.Monad.Closure
 import Agda.TypeChecking.Monad.Open
+import Agda.TypeChecking.Monad.Options (reportSLn)
+import Agda.TypeChecking.Monad.Sharing
 import Agda.TypeChecking.Substitute
 -- import Agda.TypeChecking.Pretty -- LEADS TO import cycle
 
@@ -90,12 +92,30 @@ createMetaInfo' :: RunMetaOccursCheck -> TCM MetaInfo
 createMetaInfo' b = do
   r   <- getCurrentRange
   cl  <- buildClosure r
---  rel <- asks envRelevance -- CONTAINED in closure
   return MetaInfo
     { miClosRange       = cl
---    , miRelevance       = rel
     , miMetaOccursCheck = b
+    , miNameSuggestion  = Nothing
     }
+
+setValueMetaName :: Term -> String -> TCM ()
+setValueMetaName v s = do
+  case ignoreSharing v of
+    MetaV mi _ -> setMetaNameSuggestion mi s
+    u          -> do
+      reportSLn "tc.meta.name" 70 $
+        "cannot set meta name; newMeta returns " ++ show u
+      return ()
+
+getMetaNameSuggestion :: MetaId -> TCM MetaNameSuggestion
+getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
+
+setMetaNameSuggestion :: MetaId -> String -> TCM ()
+setMetaNameSuggestion mi s = do
+  reportSLn "tc.meta.name" 20 $
+    "setting name of meta " ++ show mi ++ " to " ++ s
+  updateMetaVar mi $ \ mvar ->
+    mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = Just s }}
 
 updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)

@@ -99,7 +99,9 @@ instance (PrettyTCM a, PrettyTCM b) => PrettyTCM (Judgement a b) where
   prettyTCM (IsSort  a t) = text "Sort" <+> prettyTCM a <+> text ":" <+> prettyTCM t
 
 instance PrettyTCM MetaId where
-  prettyTCM = text . show
+  prettyTCM x = do
+   mn <- getMetaNameSuggestion x
+   text $ show (NamedMeta mn x)
 
 instance PrettyTCM a => PrettyTCM (Blocked a) where
   prettyTCM (Blocked x a) = text "[" <+> prettyTCM a <+> text "]" <> text (show x)

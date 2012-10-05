@@ -65,7 +65,7 @@ data Expr
 	= Ident QName			       -- ^ ex: @x@
 	| Lit Literal			       -- ^ ex: @1@ or @\"foo\"@
 	| QuestionMark !Range (Maybe Nat)      -- ^ ex: @?@ or @{! ... !}@
-	| Underscore !Range (Maybe Nat)	       -- ^ ex: @_@
+	| Underscore !Range (Maybe String)     -- ^ ex: @_@ or @_A_5@
 	| RawApp !Range [Expr]		       -- ^ before parsing operators
 	| App !Range Expr (NamedArg Expr)      -- ^ ex: @e e@, @e {e}@, or @e {x = e}@
 	| OpApp !Range QName [OpApp Expr]      -- ^ ex: @e + e@

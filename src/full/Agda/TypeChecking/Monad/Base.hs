@@ -403,10 +403,22 @@ data RunMetaOccursCheck
 
 -- | @MetaInfo@ is cloned from one meta to the next during pruning.
 data MetaInfo = MetaInfo
-  { miClosRange       :: Closure Range -- TODO: Not so nice.
+  { miClosRange       :: Closure Range -- TODO: Not so nice. But we want both to have the environment of the meta (Closure) and its range.
 --  , miRelevance       :: Relevance          -- ^ Created in irrelevant position?
   , miMetaOccursCheck :: RunMetaOccursCheck -- ^ Run the extended occurs check that goes in definitions?
+  , miNameSuggestion  :: MetaNameSuggestion
+    -- ^ Used for printing.
+    --   @Just x@ if meta-variable comes from omitted argument with name @x@.
   }
+
+type MetaNameSuggestion = Maybe String
+
+data NamedMeta = NamedMeta { nmSuggestion :: MetaNameSuggestion, nmid :: MetaId }
+
+instance Show NamedMeta where
+  show (NamedMeta Nothing   x) = show x
+  show (NamedMeta (Just "") x) = show x
+  show (NamedMeta (Just n)  x) = "_" ++ n ++ show x
 
 type MetaStore = Map MetaId MetaVariable
 

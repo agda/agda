@@ -12,5 +12,6 @@ assignTerm        :: MetaId -> Term -> TCM ()
 etaExpandMetaSafe :: MetaId -> TCM ()
 assignV           :: MetaId -> Args -> Term -> TCM ()
 assign 		  :: MetaId -> Args -> Term -> TCM ()
-newIFSMeta 	  :: Type -> [(Term, Type)] -> TCM Term
+newIFSMeta 	  :: String -> Type -> [(Term, Type)] -> TCM Term
 newValueMeta      :: RunMetaOccursCheck -> Type -> TCM Term
+newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM Term

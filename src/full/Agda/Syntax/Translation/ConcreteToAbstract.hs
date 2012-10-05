@@ -476,13 +476,15 @@ instance ToAbstract C.Expr A.Expr where
                     { metaRange  = r
                     , metaScope  = scope
                     , metaNumber = n
+                    , metaNameSuggestion = ""
                     }
       C.Underscore r n -> do
         scope <- getScope
         return $ A.Underscore $ MetaInfo
                     { metaRange  = r
                     , metaScope  = scope
-                    , metaNumber = n
+                    , metaNumber = maybe Nothing __IMPOSSIBLE__ n
+                    , metaNameSuggestion = maybe "" id n
                     }
 
   -- Raw application

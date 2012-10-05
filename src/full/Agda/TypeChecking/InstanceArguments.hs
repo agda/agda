@@ -108,11 +108,12 @@ initialIFSCandidates = do
         _                                       -> args
 -}
 
-
-initializeIFSMeta :: Type -> TCM Term
-initializeIFSMeta t = do
+-- | @initializeIFSMeta s t@ generates an instance meta of type @t@
+--   with suggested name @s@.
+initializeIFSMeta :: String -> Type -> TCM Term
+initializeIFSMeta s t = do
   cands <- initialIFSCandidates
-  newIFSMeta t cands
+  newIFSMeta s t cands
 
 -- | @findInScope m (v,a)s@ tries to instantiate on of the types @a@s
 --   of the candidate terms @v@s to the type @t@ of the metavariable @m@.

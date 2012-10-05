@@ -111,7 +111,8 @@ instance Pretty Expr where
 	    Ident x	     -> pretty x
 	    Lit l	     -> pretty l
 	    QuestionMark _ n -> text "?" <> maybe empty (text . show) n
-	    Underscore _ n   -> underscore <> maybe empty (text . show) n
+	    Underscore _ n   -> maybe underscore text n
+--	    Underscore _ n   -> underscore <> maybe empty (text . show) n
 	    App _ _ _	     ->
 		case appView e of
 		    AppView e1 args	->

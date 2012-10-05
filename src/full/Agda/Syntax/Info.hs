@@ -15,7 +15,7 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Concrete
 import Agda.Syntax.Fixity
-import Agda.Syntax.Scope.Base (ScopeInfo)
+import Agda.Syntax.Scope.Base (ScopeInfo, emptyScopeInfo)
 
 {--------------------------------------------------------------------------
     No information
@@ -31,8 +31,17 @@ data MetaInfo =
 	MetaInfo { metaRange	:: Range
 		 , metaScope	:: ScopeInfo
 		 , metaNumber	:: Maybe Nat
+                 , metaNameSuggestion :: String
 		 }
   deriving (Typeable, Show)
+
+emptyMetaInfo :: MetaInfo
+emptyMetaInfo = MetaInfo
+  { metaRange          = noRange
+  , metaScope          = emptyScopeInfo
+  , metaNumber         = Nothing
+  , metaNameSuggestion = ""
+  }
 
 instance HasRange MetaInfo where
   getRange = metaRange

@@ -596,8 +596,6 @@ instance AnyAbstract Declaration where
   anyAbstract (RecSig i _ _ _)       = defAbstract i == AbstractDef
   anyAbstract _                      = __IMPOSSIBLE__
 
-
-minfo = MetaInfo noRange emptyScopeInfo Nothing
 app   = foldl (App (ExprRange noRange))
 
 patternToExpr :: Pattern -> Expr
@@ -606,12 +604,12 @@ patternToExpr (ConP _ c ps)       =
           Con c `app` map (fmap (fmap patternToExpr)) ps
 patternToExpr (DefP _ f ps)       =
           Def f `app` map (fmap (fmap patternToExpr)) ps
-patternToExpr (WildP _)           = Underscore minfo
+patternToExpr (WildP _)           = Underscore emptyMetaInfo
 patternToExpr (AsP _ _ p)         = patternToExpr p
 patternToExpr (DotP _ e)          = e
-patternToExpr (AbsurdP _)         = Underscore minfo  -- TODO: could this happen?
+patternToExpr (AbsurdP _)         = Underscore emptyMetaInfo  -- TODO: could this happen?
 patternToExpr (LitP l)            = Lit l
-patternToExpr (ImplicitP _)       = Underscore minfo
+patternToExpr (ImplicitP _)       = Underscore emptyMetaInfo
 patternToExpr (PatternSynP _ _ _) = __IMPOSSIBLE__
 
 type PatternSynDefn = ([Name], Pattern)

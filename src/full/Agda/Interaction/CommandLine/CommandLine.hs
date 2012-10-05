@@ -159,7 +159,7 @@ showMetas [] =
 	mapM_ print' hiddenMetas
     where
 	showII o = withInteractionId (outputFormId $ OutputForm 0 o) $ showA o
-	showM  o = withMetaId (outputFormId $ OutputForm 0 o) $ showA o
+	showM  o = withMetaId (nmid $ outputFormId $ OutputForm 0 o) $ showA o
 
 	metaId (OfType i _) = i
 	metaId (JustType i) = i
@@ -167,7 +167,7 @@ showMetas [] =
 	metaId (Assign i e) = i
 	metaId _ = __IMPOSSIBLE__
 	print' x = do
-	    r <- getMetaRange (metaId x)
+	    r <- getMetaRange $ nmid $ metaId x
 	    d <- showM x
 	    liftIO $ putStrLn $ d ++ "  [ at " ++ show r ++ " ]"
 showMetas _ = liftIO $ putStrLn $ ":meta [metaid]"

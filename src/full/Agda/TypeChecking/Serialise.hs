@@ -507,8 +507,8 @@ instance EmbPrj A.Expr where
       valu [1, a]     = valu1 A.Def a
       valu [2, a]     = valu1 A.Con a
       valu [3, a]     = valu1 A.Lit a
-      valu [4]        = valu0 (A.QuestionMark A.minfo)
-      valu [5]        = valu0 (A.Underscore A.minfo)
+      valu [4]        = valu0 (A.QuestionMark emptyMetaInfo)
+      valu [5]        = valu0 (A.Underscore emptyMetaInfo)
       valu [6, a, b]  = valu2 (A.App i) a b
       valu [7, a, b]  = valu2 (A.WithApp i) a b
       valu [8, a, b]  = valu2 (A.Lam i) a b

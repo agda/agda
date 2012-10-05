@@ -161,9 +161,7 @@ makeAbstractClause f cl = do
   return $ mkClause lhs
   where
     mkClause :: A.LHS -> A.Clause
-    mkClause lhs = A.Clause lhs (A.RHS $ A.QuestionMark info) []
-      where
-        info = A.MetaInfo noRange emptyScopeInfo Nothing
+    mkClause lhs = A.Clause lhs (A.RHS $ A.QuestionMark A.emptyMetaInfo) []
 
 deBruijnIndex :: A.Expr -> TCM Nat
 deBruijnIndex e = do

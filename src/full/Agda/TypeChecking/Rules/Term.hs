@@ -529,8 +529,8 @@ checkExpr e t =
                     case [ a | a <- axs, unArg a == x ] of
                       [a] -> unnamed e <$ a
                       _   -> defaultArg $ unnamed e -- we only end up here if the field names are bad
-              let meta = A.Underscore $ A.MetaInfo (getRange e) scope Nothing
-                  missingExplicits = [ (unArg a, [unnamed meta <$ a])
+              let meta x = A.Underscore $ A.MetaInfo (getRange e) scope Nothing (show x)
+                  missingExplicits = [ (unArg a, [unnamed . meta <$> a])
                                      | a <- axs, argHiding a == NotHidden
                                      , notElem (unArg a) (map fst fs) ]
               -- In es omitted explicit fields are replaced by underscores
@@ -720,14 +720,21 @@ domainFree h rel x =
   A.DomainFull $ A.TypedBindings r $ Arg h rel $ A.TBind r [x] $ A.Underscore info
   where
     r = getRange x
-    info = A.MetaInfo{ A.metaRange = r, A.metaScope = emptyScopeInfo, A.metaNumber = Nothing }
+    info = A.MetaInfo
+      { A.metaRange          = r
+      , A.metaScope          = emptyScopeInfo
+      , A.metaNumber         = Nothing
+      , A.metaNameSuggestion = show x
+      }
 
 checkMeta :: (Type -> TCM Term) -> Type -> A.MetaInfo -> TCM Term
 checkMeta newMeta t i = do
   case A.metaNumber i of
     Nothing -> do
       setScope (A.metaScope i)
-      newMeta t
+      v <- newMeta t
+      setValueMetaName v (A.metaNameSuggestion i)
+      return v
     -- Rechecking an existing metavariable
     Just n -> do
       let v = MetaV (MetaId n) []
@@ -1119,25 +1126,26 @@ checkArguments exh expandIFS r args0@(Arg h _ e : args) t0 t1 =
                                    arg { unArg = DontCare $ unArg arg }
                                   else arg
 -}
-              Pi (Dom Instance rel a) _ | expandIFS == ExpandInstanceArguments ->
-                insertIFSUnderscore rel a
-              Pi (Dom Hidden rel a) _   -> insertUnderscore rel
+              Pi (Dom Instance rel a) b | expandIFS == ExpandInstanceArguments ->
+                insertIFSUnderscore rel (absName b) a
+              Pi (Dom Hidden rel a) b   -> insertUnderscore rel (absName b)
               Pi (Dom NotHidden _ _) _  -> lift $ typeError $ WrongHidingInApplication t0'
               _ -> lift $ typeError $ ShouldBePi t0'
     where
-	insertIFSUnderscore rel a = do
+	insertIFSUnderscore rel x a = do
           lift $ reportSLn "tc.term.args.ifs" 15 $ "inserting implicit meta (2) for type " ++ show a
-          v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta a
+          v <- lift $ applyRelevanceToContext rel $ initializeIFSMeta x a
           let arg = Arg Instance rel v
           (vs, t0'') <- checkArguments exh expandIFS r args0 (piApply t0 [arg]) t1
           return (arg : vs, t0'')
 
-	insertUnderscore rel = do
+	insertUnderscore rel x = do
 	  scope <- lift $ getScope
 	  let m = A.Underscore $ A.MetaInfo
 		  { A.metaRange  = r
 		  , A.metaScope  = scope
 		  , A.metaNumber = Nothing
+                  , A.metaNameSuggestion = x
 		  }
 	  checkArguments exh expandIFS r (Arg Hidden rel (unnamed m) : args0) t0 t1
 

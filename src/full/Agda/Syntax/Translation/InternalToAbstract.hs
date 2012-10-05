@@ -85,7 +85,7 @@ exprInfo :: ExprInfo
 exprInfo = ExprRange noRange
 
 underscore :: Expr
-underscore = A.Underscore $ MetaInfo noRange emptyScopeInfo Nothing
+underscore = A.Underscore $ Info.emptyMetaInfo
 
 -- Conditional reification to omitt terms that are not shown --------------
 
@@ -117,10 +117,13 @@ instance Reify Expr Expr where
 
 instance Reify MetaId Expr where
     reify x@(MetaId n) = liftTCM $ do
-      mi  <- getMetaInfo <$> lookupMeta x
-      let mi' = Info.MetaInfo (getRange mi)
-                              (M.clScope mi)
-                              (Just n)
+      mi  <- mvInfo <$> lookupMeta x
+      let mi' = Info.MetaInfo
+                 { metaRange          = getRange $ miClosRange mi
+                 , metaScope          = M.clScope $ miClosRange mi
+                 , metaNumber         = Just n
+                 , metaNameSuggestion = maybe "" id (miNameSuggestion mi)
+                 }
       ifM shouldReifyInteractionPoints
           (do iis <- map (snd /\ fst) . Map.assocs
                       <$> gets stInteractionPoints
@@ -269,7 +272,7 @@ instance Reify Term Expr where
                         TelV tel _ <- telView (defType defn)
                         scope <- getScope
                         let (as, dom:_) = splitAt (np - 1) $ telToList tel
-                            whocares = A.Underscore (Info.MetaInfo noRange scope Nothing)
+                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
                         return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
                       _ -> return (0, [], __IMPOSSIBLE__)
               -- Now pad' ++ vs' = drop n (pad ++ vs)
@@ -585,13 +588,12 @@ reifyPatterns tel perm ps = evalStateT (reifyArgs ps) 0
         let vars = Set.map show (dotVars t)
         tick
         if Set.member "()" vars
-          then return $ A.DotP i $ A.Underscore mi
+          then return $ A.DotP i $ underscore
           else return $ A.DotP i t
       I.LitP l             -> return (A.LitP l)
       I.ConP c _ ps -> A.ConP i (AmbQ [c]) <$> reifyArgs ps
       where
         i = PatRange noRange
-        mi = MetaInfo noRange emptyScopeInfo Nothing
 
 instance Reify NamedClause A.Clause where
   reify (NamedClause f (I.Clause _ tel perm ps body)) = addCtxTel tel $ do

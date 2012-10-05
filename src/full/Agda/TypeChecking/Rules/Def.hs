@@ -406,7 +406,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                           typeError $ GenericError $ show err
 
                      let info = PatRange noRange
-                         metaInfo = Info.MetaInfo noRange emptyScopeInfo Nothing
+                         metaInfo = Info.emptyMetaInfo
                          underscore = A.Underscore metaInfo
 
                      [rewriteFromExpr,rewriteToExpr,rewriteTypeExpr, proofExpr] <-

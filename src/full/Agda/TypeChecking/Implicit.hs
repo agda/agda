@@ -36,12 +36,12 @@ implicitArgs n expand t0 = do
       Pi (Dom h rel a) b | expand h -> do
           when (h == Instance) $ reportSLn "tc.term.args.ifs" 15 $
             "inserting implicit meta for type " ++ show a
-          v  <- applyRelevanceToContext rel $ newMeta h a
+          v  <- applyRelevanceToContext rel $ newMeta h (absName b) a
           let arg = Arg h rel v
           mapFst (arg:) <$> implicitArgs (n-1) expand (absApp b v)
       _ -> return ([], t0')
   where
-    newMeta Hidden   = newValueMeta RunMetaOccursCheck
+    newMeta Hidden   = newNamedValueMeta RunMetaOccursCheck
     newMeta Instance = initializeIFSMeta
     newMeta _        = __IMPOSSIBLE__
 

@@ -35,6 +35,7 @@ import qualified Data.Traversable as Trav
 import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Info
+import Agda.Syntax.Internal (MetaId(..))
 import Agda.Syntax.Fixity
 import Agda.Syntax.Concrete as C
 import Agda.Syntax.Concrete.Pretty
@@ -43,7 +44,7 @@ import Agda.Syntax.Abstract.Views as AV
 import Agda.Syntax.Scope.Base
 
 import Agda.TypeChecking.Monad.State (getScope)
-import Agda.TypeChecking.Monad.Base  (TCM)
+import Agda.TypeChecking.Monad.Base  (TCM, NamedMeta(..))
 
 import Agda.Utils.Maybe
 import Agda.Utils.Monad hiding (bracket)
@@ -311,9 +312,11 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.QuestionMark i)   = return $ C.QuestionMark
                                                 (getRange i)
                                                 (metaNumber i)
-    toConcrete (A.Underscore i)     = return $ C.Underscore
-                                                (getRange i)
-                                                (metaNumber i)
+    toConcrete (A.Underscore i)     = return $
+      C.Underscore (getRange i) $
+       fmap (show . NamedMeta (aux (metaNameSuggestion i)) . MetaId) (metaNumber i)
+      where aux "" = Nothing
+            aux s  = Just s
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e

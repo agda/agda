@@ -17,7 +17,7 @@ import qualified Agda.Syntax.Concrete as C -- ToDo: Remove with instance of ToCo
 import Agda.Syntax.Position
 import Agda.Syntax.Abstract as A hiding (Open)
 import Agda.Syntax.Common
-import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..))
+import Agda.Syntax.Info(ExprInfo(..),MetaInfo(..),emptyMetaInfo)
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
@@ -130,6 +130,7 @@ refine ii mr e =
 				    { Agda.Syntax.Info.metaRange = r
                                     , Agda.Syntax.Info.metaScope = scope { scopePrecedence = ArgumentCtx }
 				    , metaNumber = Nothing
+                                    , metaNameSuggestion = ""
 				    }
                       in App (ExprRange $ r) e (defaultArg $ unnamed metaVar)
                  --ToDo: The position of metaVar is not correct
@@ -307,8 +308,14 @@ instance (ToConcrete a c, ToConcrete b d) =>
 --ToDo: Move somewhere else
 instance ToConcrete InteractionId C.Expr where
     toConcrete (InteractionId i) = return $ C.QuestionMark noRange (Just i)
+{- UNUSED
 instance ToConcrete MetaId C.Expr where
-    toConcrete (MetaId i) = return $ C.Underscore noRange (Just i)
+    toConcrete x@(MetaId i) = do
+      return $ C.Underscore noRange (Just $ "_" ++ show i)
+-}
+instance ToConcrete NamedMeta C.Expr where
+    toConcrete i = do
+      return $ C.Underscore noRange (Just $ show i)
 
 judgToOutputForm :: Judgement a c -> OutputConstraint a c
 judgToOutputForm (HasType e t) = OfType e t
@@ -326,7 +333,7 @@ getConstraints = liftTCM $ do
     toOutputForm (ii, mi, e) = do
       mv <- getMetaInfo <$> lookupMeta mi
       withMetaInfo mv $ do
-        let m = QuestionMark $ MetaInfo noRange emptyScopeInfo (Just $ fromIntegral ii)
+        let m = QuestionMark $ emptyMetaInfo { metaNumber = Just $ fromIntegral ii }
         abstractToConcrete_ $ OutputForm 0 $ Assign m e
 
 getSolvedInteractionPoints :: TCM [(InteractionId, MetaId, Expr)]
@@ -350,25 +357,30 @@ getSolvedInteractionPoints = do
           BlockedConst{}                 -> unsol
           PostponedTypeCheckingProblem{} -> unsol
 
-typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr MetaId)
+typeOfMetaMI :: Rewrite -> MetaId -> TCM (OutputConstraint Expr NamedMeta)
 typeOfMetaMI norm mi =
      do mv <- lookupMeta mi
 	withMetaInfo (getMetaInfo mv) $
 	  rewriteJudg mv (mvJudgement mv)
    where
     rewriteJudg mv (HasType i t) = do
+      ms <- getMetaNameSuggestion i
       t <- rewrite norm t
       vs <- getContextArgs
+      let x = NamedMeta ms i
       reportSDoc "interactive.meta" 10 $ TP.vcat
         [ TP.text $ unwords ["permuting", show i, "with", show $ mvPermutation mv]
         , TP.nest 2 $ TP.vcat
           [ TP.text "len  =" TP.<+> TP.text (show $ length vs)
           , TP.text "args =" TP.<+> prettyTCM vs
           , TP.text "t    =" TP.<+> prettyTCM t
+          , TP.text "x    =" TP.<+> TP.text (show x)
           ]
         ]
-      OfType i <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
-    rewriteJudg mv (IsSort i t) = return $ JustSort i
+      OfType x <$> reify (t `piApply` permute (takeP (size vs) $ mvPermutation mv) vs)
+    rewriteJudg mv (IsSort i t) = do
+      ms <- getMetaNameSuggestion i
+      return $ JustSort $ NamedMeta ms i
 
 
 typeOfMeta :: Rewrite -> InteractionId -> TCM (OutputConstraint Expr InteractionId)
@@ -381,7 +393,7 @@ typesOfVisibleMetas :: Rewrite -> TCM [OutputConstraint Expr InteractionId]
 typesOfVisibleMetas norm =
   liftTCM $ mapM (typeOfMeta norm) =<< getInteractionPoints
 
-typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr MetaId]
+typesOfHiddenMetas :: Rewrite -> TCM [OutputConstraint Expr NamedMeta]
 typesOfHiddenMetas norm = liftTCM $ do
   is    <- getInteractionMetas
   store <- Map.filterWithKey (openAndImplicit is) <$> getMetaStore

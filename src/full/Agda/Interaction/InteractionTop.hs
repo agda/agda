@@ -412,9 +412,11 @@ cmd_metas = interaction Dependent $ do -- CL.showMetas []
     metaId (B.JustSort i) = i
     metaId (B.Assign i e) = i
     metaId _ = __IMPOSSIBLE__
+    showA' :: B.OutputConstraint SA.Expr NamedMeta -> TCM String
     showA' m = do
-      r <- getMetaRange (metaId m)
-      d <- B.withMetaId (B.outputFormId $ B.OutputForm 0 m) (showATop m)
+      let i = nmid $ metaId m
+      r <- getMetaRange i
+      d <- B.withMetaId i (showATop m)
       return $ d ++ "  [ at " ++ show r ++ " ]"
 
 -- | If the range is 'noRange', then the string comes from the
