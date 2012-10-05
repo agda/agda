@@ -375,10 +375,11 @@ getInterface' x includeStateChanges =
                   update
                   case r of
                     (_, Right _) ->
-                      -- Optimisation: If we skip the file which has
-                      -- just been type-checked, then we get the
-                      -- benefit of the sharing introduced by the
-                      -- serialisation machinery.
+                      -- We skip the file which has just been type-checked to
+                      -- be able to forget some of the local state from
+                      -- checking the module.
+                      -- Note that this doesn't actually read the interface
+                      -- file, only the cached interface.
                       skip file
                     _ -> return (False, r)
 
