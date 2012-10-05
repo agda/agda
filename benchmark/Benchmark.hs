@@ -9,10 +9,6 @@ import Text.PrettyPrint hiding (char)
 import Text.Printf
 import Data.Monoid
 
-instance Applicative ReadP where
-  pure = return
-  (<*>) = ap
-
 type Bytes = Integer
 type MegaBytes = Integer
 type Seconds = Float
