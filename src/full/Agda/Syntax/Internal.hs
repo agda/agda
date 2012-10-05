@@ -12,6 +12,7 @@ module Agda.Syntax.Internal
 
 import Prelude hiding (foldr)
 import Control.Applicative
+import Control.Parallel
 import Data.Typeable (Typeable)
 import Data.Foldable
 import Data.Traversable
@@ -221,27 +222,40 @@ updateSharedFM f v0@(Shared p) = do
   fv <- f (derefPtr p)
   flip traverse fv $ \v ->
     case derefPtr (setPtr v p) of
-      Var{}    -> return v
-      Shared{} -> return v
-      _        -> return v0
+      Var _ [] -> return v
+      _        -> compressPointerChain v0 `pseq` return v0
 updateSharedFM f v = f v
 
 updateSharedM :: Monad m => (Term -> m Term) -> Term -> m Term
 updateSharedM f v0@(Shared p) = do
   v <- f (derefPtr p)
   case derefPtr (setPtr v p) of
-    Var{}    -> return v
-    Shared{} -> return v
-    _        -> return v0
+    Var _ [] -> return v
+    _        -> compressPointerChain v0 `pseq` return v0
 updateSharedM f v = f v
 
 updateShared :: (Term -> Term) -> Term -> Term
 updateShared f v0@(Shared p) =
   case derefPtr (setPtr (f $ derefPtr p) p) of
-    v@Var{}    -> v
-    v@Shared{} -> v
-    _          -> v0
+    v@(Var _ []) -> v
+    _            -> compressPointerChain v0 `pseq` v0
 updateShared f v = f v
+
+pointerChain :: Term -> [Ptr Term]
+pointerChain (Shared p) = p : pointerChain (derefPtr p)
+pointerChain _          = []
+
+-- Redirect all top-level pointers to point to the last pointer. So, after
+-- compression there are at most two top-level indirections.
+compressPointerChain :: Term -> Term
+compressPointerChain v =
+  case reverse $ pointerChain v of
+    p:_:ps@(_:_) -> setPointers (Shared p) ps
+    _            -> v
+  where
+    setPointers _ [] = v
+    setPointers u (p : ps) =
+      setPtr u p `seq` setPointers u ps
 
 -- | An unapplied variable.
 var :: Nat -> Term

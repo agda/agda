@@ -32,10 +32,6 @@ updateSharedTermT f v =
       (updateSharedM f v)
       (f $ ignoreSharing v)
 
-pointerChain :: Term -> [Ptr Term]
-pointerChain (Shared p) = p : pointerChain (derefPtr p)
-pointerChain _          = []
-
 forceEqualTerms :: Term -> Term -> TCM ()
 forceEqualTerms u v =
   whenM (asks envAllowDestructiveUpdate) $
@@ -47,7 +43,9 @@ forceEqualTerms u v =
     _ -> return ()
   where
     -- TODO: compress pointer chain
-    update u@(Shared{}) v = report u v >> (setPtr v p `seq` return ())
+    update u@(Shared{}) v = do
+        report u v
+        setPtr v p `seq` compressPointerChain u `seq` return ()
       where p = last $ pointerChain u
     update _ _ = __IMPOSSIBLE__
     report x y = reportSLn "tc.ptr" 50 $ "setting " ++ show x ++ "\n     to " ++ show y
