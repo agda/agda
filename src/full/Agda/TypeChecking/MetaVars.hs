@@ -152,21 +152,21 @@ newTypeMeta_  = newTypeMeta =<< (workOnTypes $ newSortMeta)
 
 -- | @newIFSMeta s t cands@ creates a new "implicit from scope" metavariable
 --   of type @t@ with name suggestion @s@ and initial solution candidates @cands@.
-newIFSMeta :: String -> Type -> [(Term, Type)] -> TCM Term
+newIFSMeta :: MetaNameSuggestion -> Type -> [(Term, Type)] -> TCM Term
 newIFSMeta s t cands = do
   vs  <- getContextArgs
   tel <- getContextTelescope
   newIFSMetaCtx s (telePi_ tel t) vs cands
 
 -- | Create a new value meta with specific dependencies.
-newIFSMetaCtx :: String -> Type -> Args -> [(Term, Type)] -> TCM Term
+newIFSMetaCtx :: MetaNameSuggestion -> Type -> Args -> [(Term, Type)] -> TCM Term
 newIFSMetaCtx s t vs cands = do
   reportSDoc "tc.meta.new" 50 $ fsep
     [ text "new ifs meta:"
     , nest 2 $ prettyTCM vs <+> text "|-"
     ]
   i0 <- createMetaInfo
-  let i = i0 { miNameSuggestion = Just s }
+  let i = i0 { miNameSuggestion = s }
   let TelV tel _ = telView' t
       perm = idP (size tel)
   x <- newMeta' OpenIFS i normalMetaPriority perm (HasType () t)
@@ -177,7 +177,7 @@ newIFSMetaCtx s t vs cands = do
   return (MetaV x vs)
 
 
-newNamedValueMeta :: RunMetaOccursCheck -> String -> Type -> TCM Term
+newNamedValueMeta :: RunMetaOccursCheck -> MetaNameSuggestion -> Type -> TCM Term
 newNamedValueMeta b s t = do
   v <- newValueMeta b t
   setValueMetaName v s

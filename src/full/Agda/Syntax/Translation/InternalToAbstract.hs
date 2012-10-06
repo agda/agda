@@ -122,7 +122,7 @@ instance Reify MetaId Expr where
                  { metaRange          = getRange $ miClosRange mi
                  , metaScope          = M.clScope $ miClosRange mi
                  , metaNumber         = Just n
-                 , metaNameSuggestion = maybe "" id (miNameSuggestion mi)
+                 , metaNameSuggestion = miNameSuggestion mi
                  }
       ifM shouldReifyInteractionPoints
           (do iis <- map (snd /\ fst) . Map.assocs

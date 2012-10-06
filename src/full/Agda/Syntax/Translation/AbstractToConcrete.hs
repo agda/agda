@@ -314,9 +314,7 @@ instance ToConcrete A.Expr C.Expr where
                                                 (metaNumber i)
     toConcrete (A.Underscore i)     = return $
       C.Underscore (getRange i) $
-       fmap (show . NamedMeta (aux (metaNameSuggestion i)) . MetaId) (metaNumber i)
-      where aux "" = Nothing
-            aux s  = Just s
+       fmap (show . NamedMeta (metaNameSuggestion i) . MetaId) (metaNumber i)
 
     toConcrete e@(A.App i e1 e2)    =
         tryToRecoverOpApp e

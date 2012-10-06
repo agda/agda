@@ -411,14 +411,18 @@ data MetaInfo = MetaInfo
     --   @Just x@ if meta-variable comes from omitted argument with name @x@.
   }
 
-type MetaNameSuggestion = Maybe String
+-- | Name suggestion for meta variable.  Empty string means no suggestion.
+type MetaNameSuggestion = String
 
-data NamedMeta = NamedMeta { nmSuggestion :: MetaNameSuggestion, nmid :: MetaId }
+-- | For printing, we couple a meta with its name suggestion.
+data NamedMeta = NamedMeta
+  { nmSuggestion :: MetaNameSuggestion
+  , nmid         :: MetaId
+  }
 
 instance Show NamedMeta where
-  show (NamedMeta Nothing   x) = show x
-  show (NamedMeta (Just "") x) = show x
-  show (NamedMeta (Just n)  x) = "_" ++ n ++ show x
+  show (NamedMeta "" x) = show x
+  show (NamedMeta s  x) = "_" ++ s ++ show x
 
 type MetaStore = Map MetaId MetaVariable
 

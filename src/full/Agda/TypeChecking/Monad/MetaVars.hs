@@ -95,10 +95,10 @@ createMetaInfo' b = do
   return MetaInfo
     { miClosRange       = cl
     , miMetaOccursCheck = b
-    , miNameSuggestion  = Nothing
+    , miNameSuggestion  = ""
     }
 
-setValueMetaName :: Term -> String -> TCM ()
+setValueMetaName :: Term -> MetaNameSuggestion -> TCM ()
 setValueMetaName v s = do
   case ignoreSharing v of
     MetaV mi _ -> setMetaNameSuggestion mi s
@@ -110,12 +110,12 @@ setValueMetaName v s = do
 getMetaNameSuggestion :: MetaId -> TCM MetaNameSuggestion
 getMetaNameSuggestion mi = miNameSuggestion . mvInfo <$> lookupMeta mi
 
-setMetaNameSuggestion :: MetaId -> String -> TCM ()
+setMetaNameSuggestion :: MetaId -> MetaNameSuggestion -> TCM ()
 setMetaNameSuggestion mi s = do
   reportSLn "tc.meta.name" 20 $
     "setting name of meta " ++ show mi ++ " to " ++ s
   updateMetaVar mi $ \ mvar ->
-    mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = Just s }}
+    mvar { mvInfo = (mvInfo mvar) { miNameSuggestion = s }}
 
 updateMetaVarRange :: MetaId -> Range -> TCM ()
 updateMetaVarRange mi r = updateMetaVar mi (setRange r)
