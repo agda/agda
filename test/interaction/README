@@ -4,7 +4,8 @@ Test framework for interactions
 - 'make interaction' runs the interaction tests (also part of 'make test')
 - Each test consists of an agda file SomeTest.agda and a interaction
   script SomeTest.in. The interaction script contains interactions (as
-  commands to ghci) that should be performed on the Agda file.
+  commands to the Agda2 interpreter) that should be performed on the Agda
+  file.
 - A simple example:
     top_command    (cmd_load currentFile [])
     goal_command 0 (cmd_goal_type_context Normalised) ""
@@ -15,8 +16,5 @@ Test framework for interactions
   convenience:
     top_command' :: FilePath -> Interaction -> IO ()
     goal_command :: InteractionId -> GoalCommand -> String -> IO ()
-- The default scope for the script is
-  Agda.Interaction.GhciTop and Agda.Interaction.BasicOps, but more modules
-  can be added with ':mod +Agda.Some.Other.Module'.
-- The ghci output from each test is recorded in SomeTest.out and compared
+- The output from each test is recorded in SomeTest.out and compared
   against for each run of the test.

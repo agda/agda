@@ -17,7 +17,6 @@ Note that the same version of the Agda executable must be used.")
 (require 'cl)
 (set (make-local-variable 'lisp-indent-function)
      'common-lisp-indent-function)
-(require 'comint)
 (require 'compile)
 (require 'pp)
 (require 'time-date)
@@ -302,8 +301,8 @@ Set in `agda2-restart'.")
   "External status of an `agda2-mode' buffer (dictated by the Haskell side).")
 (make-variable-buffer-local 'agda2-buffer-external-status)
 
-(defvar agda2-ghci-prompt "Agda2> "
-  "The GHCi buffer's prompt.")
+(defvar agda2-output-prompt "Agda2> "
+  "The Agda2 buffer's prompt.")
 
 (defconst agda2-help-address
   ""
@@ -338,7 +337,7 @@ nil) and the time at which the measurement was started.")
 (make-variable-buffer-local 'agda2-measure-data)
 
 ;; The following variables are used by the filter process,
-;; `agda2-ghci-filter'. Their values are only modified by the filter
+;; `agda2-output-filter'. Their values are only modified by the filter
 ;; process, `agda2-go', `agda2-restart', and
 ;; `agda2-abort-highlighting'.
 
@@ -350,10 +349,10 @@ nil) and the time at which the measurement was started.")
   "The number of encountered response commands.")
 (make-variable-buffer-local 'agda2-responses)
 
-(defvar agda2-ghci-chunk-incomplete (agda2-queue-empty)
+(defvar agda2-output-chunk-incomplete (agda2-queue-empty)
   "Buffer for incomplete lines.
-\(See `agda2-ghci-filter'.)")
-(make-variable-buffer-local 'agda2-ghci-chunk-incomplete)
+\(See `agda2-output-filter'.)")
+(make-variable-buffer-local 'agda2-output-chunk-incomplete)
 
 (defvar agda2-last-responses nil
   "Response commands which should be run after other commands.
@@ -417,7 +416,7 @@ Special commands:
  ;; Deactivate highlighting if the buffer is edited before
  ;; typechecking is complete.
  (add-hook 'first-change-hook 'agda2-abort-highlighting nil 'local)
- ;; If GHCi is not running syntax highlighting does not work properly.
+ ;; If Agda is not running syntax highlighting does not work properly.
  (unless (eq 'run (agda2-process-status))
    (agda2-restart))
  (agda2-highlight-setup)
@@ -435,104 +434,70 @@ Special commands:
  (add-hook 'change-major-mode-hook 'agda2-quit nil 'local)))
 
 (defun agda2-restart ()
-  "Kill and restart the *ghci* buffer and load `agda2-toplevel-module'."
+  "Kill and restart the *agda2* buffer and load `agda2-toplevel-module'."
   (interactive)
-  (save-excursion (let ((agda2-bufname "*ghci*")
-                        )
+  (save-excursion (let ((agda2-bufname "*agda2*"))
                     (condition-case nil
-                      (progn
-                        ;; GHCi doesn't always die when its buffer is
-                        ;; killed, so GHCi is killed before the buffer
-                        ;; is.
-                        (set-buffer agda2-bufname)
-                        (condition-case nil
-                            (comint-kill-subjob)
-                          (error nil))
-                        (kill-buffer agda2-bufname))
+                      (agda2-kill)
                       (error nil))
 
-                    ;; Start the agda process in a new comint buffer.
+                    ;; Start the Agda2 process in a new buffer.
                     (message "Starting agda process `%s'." agda2-program-name)
-                    (setq agda2-process-buffer
-                          (apply 'make-comint "ghci" agda2-program-name nil
-                                 (cons "--ghci-interaction" agda2-program-args)))
+                    (let ((process-connection-type nil)) ; pipes are faster than PTYs
+                      (apply 'start-process "Agda2" agda2-bufname
+                             agda2-program-name
+                             (cons "--ghci-interaction" agda2-program-args)))
 
                     ;; Select agda buffer temporarily.
-                    (set-buffer agda2-process-buffer)
-                    (comint-mode)
+                    (with-current-buffer agda2-bufname
+                      (setq process-adaptive-read-buffering t)
 
-                    ;; Clear message area.
-                    (message "")
+                      ;; Clear message area.
+                      (message "")
 
-                    (setq agda2-process
-                        (get-buffer-process agda2-process-buffer))
-                    (setq agda2-in-progress    nil
-                          mode-name "Agda executable"
-                          agda2-last-responses nil)
-                    (set (make-local-variable 'comint-input-sender)
-                         'agda2-send)
-                    ;; Avoid the "Marker does not point anywhere"
-                    ;; message.
-                    (set (make-local-variable 'ansi-color-for-comint-mode)
-                         nil)
-                    (set-buffer-file-coding-system 'utf-8)
-                    (set-buffer-process-coding-system 'utf-8 'utf-8)
-                    (rename-buffer agda2-bufname)
-                    (set-process-query-on-exit-flag agda2-process nil)))
-  (agda2-call-ghci 'wait nil ":mod +" agda2-toplevel-module)
+                      (setq agda2-process        (get-buffer-process agda2-bufname)
+                            agda2-process-buffer (process-buffer agda2-process)
+                            agda2-in-progress    nil
+                            mode-name            "Agda executable"
+                            agda2-last-responses nil)
+                      (set-buffer-file-coding-system 'utf-8)
+                      (set-buffer-process-coding-system 'utf-8 'utf-8)
+                      (set-process-query-on-exit-flag agda2-process nil))))
   (setq agda2-file-buffer (current-buffer))
-  (with-current-buffer agda2-process-buffer
-      (add-hook 'comint-preoutput-filter-functions
-                'agda2-ghci-filter
-                nil 'local))
+  (set-process-filter agda2-process 'agda2-output-filter)
   (agda2-remove-annotations))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Communicating with Agda
 
-(defun agda2-raise-ghci-error ()
+(defun agda2-raise-error ()
   "Raises an error.
-The error message directs the user to the *ghci* buffer."
-  (error "Problem encountered. The *ghci* buffer can perhaps explain why."))
+The error message directs the user to the *agda2* buffer."
+  (error "Problem encountered. The *agda2* buffer can perhaps explain why."))
 
-(defun agda2-send (proc s)
-  "Sends the string S to PROC.
-Splits up S into small chunks and sends them one after the other,
-because when GHCi is used in shell buffers it chokes on overly
-long strings (some versions of GHCi, on some systems)."
-  (let* ((chunk-size 200))
-    (dolist (chunk (agda2-chunkify chunk-size s))
-      (comint-send-string proc chunk)))
-  (comint-send-string proc "\n"))
-
-(defun agda2-ghci-running nil
-  "Does the GHCi buffer exist and is the GHCi process running?"
+(defun agda2-running-p nil
+  "Does the *agda2* buffer exist, and is the Agda2 process running?"
   (and (buffer-live-p agda2-process-buffer)
        (eq (agda2-process-status) 'run)))
 
-(defun agda2-call-ghci (wait restart &rest args)
-  "Executes commands in GHCi.
-Saves the buffer and sends the list of strings ARGS to GHCi.
-Waits for output if WAIT is non-nil. If RESTART is non-nil and
-the GHCi process is not running, or the GHCi buffer does not
+(defun agda2-send-command (restart &rest args)
+  "Send a command to the Agda2 asyncronous process.  Saves the buffer
+and sends the list of strings ARGS to Agda2.  If RESTART is non-nil
+and the Agda2 process is not running, or the *agda2* buffer does not
 exist, then an attempt is made to restart the process."
   (save-buffer)
-  (when (and restart (not (agda2-ghci-running)))
+  (when (and restart (not (agda2-running-p)))
     ;; Try restarting automatically, but only once, in case there is
     ;; some major problem.
     (agda2-restart)
-    (unless (agda2-ghci-running)
-      (agda2-raise-ghci-error)))
-  (with-current-buffer agda2-process-buffer
-    (goto-char (point-max))
-    (insert (apply 'concat (agda2-intersperse " " args)))
-    (comint-send-input)
-    (when wait      ; Wait until output arrives and go to the last input.
-      (while (progn
-	       (goto-char comint-last-input-end)
-	       (not (re-search-forward comint-prompt-regexp nil t)))
-        (accept-process-output agda2-process))
-        )))
+    (unless (agda2-running-p)
+      (agda2-raise-error)))
+  (let ((command (apply 'concat (agda2-intersperse " " args))))
+    (with-current-buffer agda2-process-buffer
+      (goto-char (point-max))
+      (insert command)
+      (insert "\n")
+      (process-send-string agda2-process (concat command "\n")))))
 
 (defun agda2-abort-if-in-progress ()
   "Raise an error if the Agda process is (thought to be) busy."
@@ -541,24 +506,23 @@ exist, then an attempt is made to restart the process."
 \(if a command has been aborted you may want to restart Agda)")))
 
 (defun agda2-go (responses-expected highlight &rest args)
-  "Executes commands in GHCi.
-Sends the list of strings ARGS to GHCi, waits for output and
-executes the responses, if any. If no responses are received, and
-RESPONSES-EXPECTED is non-nil, then an error is raised. If
-HIGHLIGHT is non-nil, then the buffer's syntax highlighting may
-be updated."
+  "Executes commands in the Agda2 interpreter.
+Sends the list of strings ARGS to the Agda2 interpreter, waits for
+output and executes the responses, if any. If no responses are
+received, and RESPONSES-EXPECTED is non-nil, then an error is
+raised. If HIGHLIGHT is non-nil, then the buffer's syntax
+highlighting may be updated."
 
   (agda2-abort-if-in-progress)
 
-  (setq agda2-in-progress           t
-        agda2-highlight-in-progress highlight
-        agda2-responses-expected    responses-expected
-        agda2-responses             0
-        agda2-ghci-chunk-incomplete (agda2-queue-empty)
-        agda2-file-buffer           (current-buffer))
+  (setq agda2-in-progress             t
+        agda2-highlight-in-progress   highlight
+        agda2-responses-expected      responses-expected
+        agda2-responses               0
+        agda2-output-chunk-incomplete (agda2-queue-empty)
+        agda2-file-buffer             (current-buffer))
 
-  (apply 'agda2-call-ghci
-         nil
+  (apply 'agda2-send-command
          'restart
          "ioTCM"
          (agda2-string-quote (buffer-file-name))
@@ -566,16 +530,17 @@ be updated."
          "("
          (append args '(")"))))
 
-(defun agda2-ghci-filter (chunk)
+
+(defun agda2-output-filter (proc chunk)
   "Evaluate the Agda process's commands.
 This filter function assumes that every line contains either some
 kind of error message (which cannot be parsed as a list), or
 exactly one command. Incomplete lines are stored in a
-buffer (`agda2-ghci-chunk-incomplete').
+buffer (`agda2-output-chunk-incomplete').
 
 Every command is run by this function, unless it has the form
 \"(('last . priority) . cmd)\", in which case it is run by
-`agda2-ghci-run-last-commands' at the end, after the GHCi prompt
+`agda2-run-last-commands' at the end, after the Agda2 prompt
 has reappeared, after all non-last commands, and after all
 interactive highlighting is complete. The last commands can have
 different integer priorities; those with the lowest priority are
@@ -583,7 +548,7 @@ executed first.
 
 Non-last commands should not call the Agda process.
 
-All commands are echoed to the *ghci* buffer, with the exception
+All commands are echoed to the *agda2* buffer, with the exception
 of commands of the form \"(agda2-highlight-... ...)\".
 
 The non-last commands are run in the order in which they appear.
@@ -594,30 +559,28 @@ arrived. Otherwise highlighting annotations are
 reloaded from `agda2-highlighting-file', unless
 `agda2-highlighting-in-progress' is nil."
 
-  (with-current-buffer agda2-file-buffer
 
-    (let (;; The input lines in the current chunk.
-          (lines (split-string chunk "\n"))
-          ;; Interactive highlighting annotations found in the current
-          ;; chunk (reversed).
-          (highlighting-anns ())
+  (let (;; The input lines in the current chunk.
+        (lines (split-string chunk "\n"))
 
-          ;; Non-last commands found in the current chunk (reversed).
-          (non-last-commands ())
+        ;; Non-last commands found in the current chunk (reversed).
+        (non-last-commands ())
 
-          ;; The text that is echoed to the *ghci* buffer.
-          (echoed-text (agda2-queue-empty)))
+        ;; Last incomplete line, if any.
+        (output-chunk-incomplete ""))
+    (with-current-buffer agda2-file-buffer
       (when (consp lines)
-        (agda2-queue-enqueue agda2-ghci-chunk-incomplete (pop lines))
+        (agda2-queue-enqueue agda2-output-chunk-incomplete (pop lines))
         (when (consp lines)
           ;; The previous uncomplete chunk is now complete.
-          (push (agda2-queue-to-string agda2-ghci-chunk-incomplete)
+          (push (agda2-queue-to-string agda2-output-chunk-incomplete)
                 lines)
 
           ;; Stash away the last incomplete line, if any. (Note that
           ;; (split-string "...\n" "\n") evaluates to (... "").)
-          (setq agda2-ghci-chunk-incomplete
-                (agda2-queue-from-string (car (last lines))))
+          (setq output-chunk-incomplete (car (last lines))
+                agda2-output-chunk-incomplete
+                (agda2-queue-from-string output-chunk-incomplete))
 
           ;; Handle every complete line.
           (dolist (line (butlast lines))
@@ -628,23 +591,18 @@ reloaded from `agda2-highlighting-file', unless
                               (if (and (listp (car result))
                                        (= (cdr result) (length line)))
                                   (car result)))
-                          (error nil)))
-
-                   ;; Is the command a highlighting command?
-                   (highlighting-cmd
-                    (and (consp cmd)
-                         (symbolp (car cmd))
-                         (let ((case-fold-search nil))
-                           (string-match "^agda2-highlight-"
-                                         (symbol-name (car cmd)))))))
-
-              (unless nil ; highlighting-cmd
-                (agda2-queue-enqueue echoed-text (concat line "\n")))
+                          (error nil))))
 
               (when cmd
-                (incf agda2-responses)
-
-                ;; Store the command.
+                (unless (and (symbolp (car cmd))
+                             (let ((case-fold-search nil))
+                             (string-match "^agda2-highlight-"
+                                           (symbol-name (car cmd)))))
+                    ;; Do not echo highlighting commands.
+                  (with-current-buffer agda2-process-buffer
+                    (insert line)
+                    (insert "\n"))
+                  (incf agda2-responses))
                 (if (equal 'last (car-safe (car cmd)))
                     (push (cons (cdr (car cmd)) (cdr cmd))
                           agda2-last-responses)
@@ -655,20 +613,19 @@ reloaded from `agda2-highlighting-file', unless
 
         ;; Check if the prompt has been reached. This function assumes
         ;; that the prompt does not include any newline characters.
-        (when (agda2-queue-is-prefix-of agda2-ghci-prompt
-                                        agda2-ghci-chunk-incomplete)
+        (when (agda2-queue-is-prefix-of agda2-output-prompt
+                                        agda2-output-chunk-incomplete)
+          (with-current-buffer agda2-process-buffer
+            (insert output-chunk-incomplete))
+          (setq agda2-output-chunk-incomplete (agda2-queue-empty))
           (setq agda2-in-progress nil)
           (setq agda2-last-responses (nreverse agda2-last-responses))
 
-          (agda2-queue-enqueue echoed-text
-            (agda2-queue-to-string agda2-ghci-chunk-incomplete))
-          (setq agda2-ghci-chunk-incomplete (agda2-queue-empty))
-
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
-            (agda2-raise-ghci-error))
+            (agda2-raise-error))
 
-          (agda2-ghci-run-last-commands)
+          (agda2-run-last-commands)
 
           (when agda2-measure-data
             (let ((elapsed
@@ -679,13 +636,11 @@ reloaded from `agda2-highlighting-file', unless
               (setq agda2-measure-data nil)
               (message "Load time: %s." elapsed)
               (when continuation
-                (funcall continuation elapsed))))))
+                (funcall continuation elapsed)))))))))
 
-      (agda2-queue-to-string echoed-text))))
-
-(defun agda2-ghci-run-last-commands nil
+(defun agda2-run-last-commands nil
   "Execute the last commands in the right order.
-\(After the prompt has reappeared.) See `agda2-ghci-filter'."
+\(After the prompt has reappeared.) See `agda2-output-filter'."
 
   ;; with-current-buffer is used repeatedly below, because some last
   ;; commands may switch the focus to another buffer.
@@ -975,9 +930,13 @@ is inserted, and point is placed before this text."
   (interactive)
   (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
   (agda2-remove-annotations)
+  (agda2-kill))
+
+(defun agda2-term ()
+  "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
+  (set-buffer agda2-process-buffer)
   (condition-case nil
-      (with-current-buffer agda2-process-buffer
-        (comint-kill-subjob))
+      (signal-process agda2-process 'SIGTERM)
     (error nil))
   (kill-buffer agda2-process-buffer))
 
