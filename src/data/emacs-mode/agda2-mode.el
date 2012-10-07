@@ -27,26 +27,27 @@ Note that the same version of the Agda executable must be used.")
 (require 'agda2-highlight)
 (require 'agda2-abbrevs)
 (require 'agda2-queue)
-;; Load filladapt, if it is installed.
-(condition-case nil
-    (require 'filladapt)
-  (error nil))
-(unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
-(unless (fboundp 'propertize)                    ; for Xemacs 21.4
- (defun propertize (string &rest properties)
-  "Return a copy of STRING with text properties added.
+(eval-and-compile
+  ;; Load filladapt, if it is installed.
+  (condition-case nil
+      (require 'filladapt)
+    (error nil))
+  (unless (fboundp 'overlays-in) (load "overlay")) ; for Xemacs
+  (unless (fboundp 'propertize)                    ; for Xemacs 21.4
+    (defun propertize (string &rest properties)
+      "Return a copy of STRING with text properties added.
 First argument is the string to copy.
 Remaining arguments form a sequence of PROPERTY VALUE pairs for text
 properties to add to the result."
-  (let ((str (copy-sequence string)))
-    (add-text-properties 0 (length str) properties str)
-    str)))
-(unless (fboundp 'run-mode-hooks)
-  (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
-(unless (fboundp 'cl-labels)
-  (fset 'cl-labels 'labels))  ; For Emacs versions < 24.2.
-(unless (fboundp 'cl-flet)
-  (fset 'cl-flet 'flet))  ; For Emacs versions < 24.2.
+      (let ((str (copy-sequence string)))
+        (add-text-properties 0 (length str) properties str)
+        str)))
+  (unless (fboundp 'run-mode-hooks)
+    (fset 'run-mode-hooks 'run-hooks))  ; For Emacs versions < 21.
+  (unless (fboundp 'cl-labels)
+    (fset 'cl-labels 'labels))  ; For Emacs versions < 24.2.
+  (unless (fboundp 'cl-flet)
+    (fset 'cl-flet 'flet)))  ; For Emacs versions < 24.2.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Utilities
