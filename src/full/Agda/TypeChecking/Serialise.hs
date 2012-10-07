@@ -72,7 +72,6 @@ import Agda.Interaction.FindFile
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Pretty
-import Agda.TypeChecking.Errors ()
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -605,8 +604,8 @@ instance EmbPrj NameId where
                            valu _      = malformed
 
 instance EmbPrj Signature where
-  icode (Sig a b c) = icode3' a b c
-  value = vcase valu where valu [a, b, c] = valu3 Sig a b c
+  icode (Sig a b) = icode2' a b
+  value = vcase valu where valu [a, b] = valu2 Sig a b
                            valu _      = malformed
 
 instance (Eq k, Hashable k, EmbPrj k, EmbPrj v) => EmbPrj (HashMap k v) where
