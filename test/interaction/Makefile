@@ -36,7 +36,7 @@ run_test=if test -f $*.in; \
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
-RTS_Issue637       = +RTS -K4 -RTS
+RTS_Issue637       = +RTS -K8 -RTS
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
