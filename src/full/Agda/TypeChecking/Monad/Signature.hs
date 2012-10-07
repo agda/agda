@@ -150,7 +150,11 @@ markStatic q =
 unionSignatures :: [Signature] -> Signature
 unionSignatures ss = foldr unionSignature emptySignature ss
   where
-    unionSignature (Sig a b) (Sig c d) = Sig (Map.union a c) (HMap.union b d)
+    unionSignature (Sig a b c) (Sig d e f) = Sig (Map.union a d) (HMap.union b e) (Set.union c f) 
+
+addDatatypeModule :: ModuleName -> TCM ()
+addDatatypeModule m =
+  modifySignature $ \sig -> sig { sigDatatypeModules = Set.insert m $ sigDatatypeModules sig }
 
 -- | Add a section to the signature.
 addSection :: ModuleName -> Nat -> TCM ()
@@ -166,6 +170,11 @@ lookupSection m = do
   sig  <- sigSections <$> getSignature
   isig <- sigSections <$> getImportedSignature
   return $ maybe EmptyTel secTelescope $ Map.lookup m sig `mplus` Map.lookup m isig
+
+isDatatypeModule :: ModuleName -> TCM Bool
+isDatatypeModule m  = do
+  sig  <- getSignature
+  return $ Set.member m (sigDatatypeModules sig)
 
 -- Add display forms to all names @xn@ such that @x = x1 es1@, ... @xn-1 = xn esn@.
 addDisplayForms :: QName -> TCM ()

@@ -475,8 +475,9 @@ instance Show InteractionId where
 ---------------------------------------------------------------------------
 
 data Signature = Sig
-      { sigSections    :: Sections
-      , sigDefinitions :: Definitions
+      { sigSections        :: Sections
+      , sigDefinitions     :: Definitions
+      , sigDatatypeModules :: Set ModuleName
       }
   deriving (Typeable, Show)
 
@@ -495,7 +496,7 @@ data Section = Section
   deriving (Typeable, Show)
 
 emptySignature :: Signature
-emptySignature = Sig Map.empty HMap.empty
+emptySignature = Sig Map.empty HMap.empty Set.empty
 
 data DisplayForm = Display Nat [Term] DisplayTerm
 		-- ^ The three arguments are:

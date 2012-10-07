@@ -56,6 +56,7 @@ checkDataDef i name ps cs =
 
         -- Add the datatype module
         addSection (qnameToMName name) 0
+        addDatatypeModule (qnameToMName name)
 
 	-- Look up the type of the datatype.
 	t <- instantiateFull =<< typeOfConst name

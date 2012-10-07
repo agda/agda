@@ -702,6 +702,11 @@ instance (Ord k, InstantiateFull e) => InstantiateFull (Map k e) where
 instance (Eq k, Hashable k, InstantiateFull e) => InstantiateFull (HashMap k e) where
     instantiateFull = traverse instantiateFull
 
+instance (Ord e, InstantiateFull e) =>  InstantiateFull (Set.Set e) where
+   instantiateFull x = do
+     y <- traverse instantiateFull (Set.toList x)
+     return (Set.fromList y)
+
 instance InstantiateFull ModuleName where
     instantiateFull = return
 
@@ -709,7 +714,7 @@ instance InstantiateFull Scope where
     instantiateFull = return
 
 instance InstantiateFull Signature where
-  instantiateFull (Sig a b) = uncurry Sig <$> instantiateFull (a, b)
+  instantiateFull (Sig a b c) = (uncurry . uncurry) Sig <$> instantiateFull ((a, b), c)
 
 instance InstantiateFull Section where
   instantiateFull (Section tel n) = flip Section n <$> instantiateFull tel

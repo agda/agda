@@ -33,8 +33,8 @@ import Agda.Syntax.Scope.Base (ScopeInfo(..))
 import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Monad.Context
 import Agda.TypeChecking.Monad.Options
+import Agda.TypeChecking.Monad.Signature
 import Agda.TypeChecking.Pretty
-
 import Agda.Utils.FileName
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -508,8 +508,13 @@ instance PrettyTCM TypeError where
 	    AmbiguousModule x ys -> vcat
 	      [ fsep $ pwords "Ambiguous module name" ++ [pretty x <> text "."] ++
 		       pwords "It could refer to any one of"
-	      , nest 2 $ vcat $ map prettyTCM ys
+	      , nest 2 $ vcat $ map help ys
 	      ]
+              where
+                help :: ModuleName -> TCM Doc
+                help y = do
+                  b <- isDatatypeModule y
+                  if b then vcat [prettyTCM y,text " (datatype module)"] else prettyTCM y
 	    UninstantiatedModule x -> fsep (
 		    pwords "Cannot access the contents of the parameterised module" ++ [pretty x <> text "."] ++
 		    pwords "To do this the module first has to be instantiated. For instance:"
