@@ -4,6 +4,7 @@
 
 module Main (main) where
 
+import Control.Applicative
 import Control.Exception
 import Control.Monad
 import Data.Char
@@ -32,7 +33,6 @@ main = do
              setupDotEmacs (Files { thisProgram = prog
                                   , dotEmacs    = dotEmacs
                                   })
-             compileElispFiles
           | arg == compileFlag ->
              compileElispFiles
     _  -> do inform usage
@@ -40,8 +40,8 @@ main = do
 
 -- Command line options.
 
-setupFlag  = "setup"
-locateFlag = "locate"
+setupFlag   = "setup"
+locateFlag  = "locate"
 compileFlag = "compile"
 
 -- | Usage information.
@@ -65,9 +65,10 @@ usage = unlines
   , ""
   , compileFlag
   , ""
-  , "  Compile the Elisp files for Agda's Emacs mode, if possible."
-  , " (This is automatically done by the '" ++ setupFlag ++ "' flag.)"
+  , "  The program tries to compile Agda's Emacs mode's source files."
   , ""
+  , "  WARNING: If you reinstall the Agda mode without recompiling the Emacs"
+  , "  Lisp files, then Emacs may continue using the old, compiled files."
   ]
 
 -- | The current version of Agda.
@@ -148,20 +149,6 @@ setupString files = unlines
                         ++ identifier files ++ "\")))"
   ]
 
-
--- | Compile Elisp files, if possible.
-
-compileElispFiles :: IO ()
-compileElispFiles = compileELC [ "agda2-abbrevs.el"
-                               , "annotation.el"
-                               , "agda2-queue.el"
-                               , "eri.el"
-                               , "agda2.el"
-                               , "agda-input.el"
-                               , "agda2-highlight.el"
-                    --           , "agda2-mode.el"
-                               ]
-
 ------------------------------------------------------------------------
 -- Querying Emacs
 
@@ -202,20 +189,39 @@ escape s = "\"" ++ concatMap esc s ++ "\""
         | isAscii c && isPrint c = [c]
         | otherwise              = "\\x" ++ showHex (fromEnum c) "\\ "
 
-compileELC :: [String] -> IO ()
-compileELC filenames = do
-  dataDir <- getDataDir
-  putStrLn dataDir
-  let files = map (\f -> dataDir </> "emacs-mode" </> f) filenames
+------------------------------------------------------------------------
+-- Compiling Emacs Lisp files
+
+-- | The Agda mode's Emacs Lisp files, given in the order in which
+-- they should be compiled.
+
+emacsLispFiles :: [FilePath]
+emacsLispFiles =
+  [ "agda2-abbrevs.el"
+  , "annotation.el"
+  , "agda2-queue.el"
+  , "eri.el"
+  , "agda2.el"
+  , "agda-input.el"
+  , "agda2-highlight.el"
+  , "agda2-mode.el"
+  ]
+
+-- | Tries to compile the Agda mode's Emacs Lisp files.
+
+compileElispFiles :: IO ()
+compileElispFiles = do
+  dataDir <- (</> "emacs-mode") <$> getDataDir
+  let elFiles = map (dataDir </>) emacsLispFiles
+  elFiles <- filterM doesFileExist elFiles
   exit <- rawSystem "emacs" $
-                    [ "-Q"
-                    , "-L", dataDir </> "emacs-mode"
-                    , "-batch"
-                    , "-f"
-                    , "batch-byte-compile"
-                    ] ++ files
+                    [ "--no-init-file", "--no-site-file"
+                    , "--directory", dataDir
+                    , "--batch"
+                    , "--funcall", "batch-byte-compile"
+                    ] ++ elFiles
   unless (exit == ExitSuccess) $ do
-    informLn "Unable to compile Elisp files."
+    informLn "Unable to compile Emacs Lisp files."
     exitFailure
 
 ------------------------------------------------------------------------

@@ -102,6 +102,16 @@ displayed. This only works if the right fonts are available, though.
 If you want to turn off this feature, then you should customise the
 agda2-fontset-name variable.
 
+It is also possible (but not necessary) to compile the Emacs mode's
+files:
+
+  agda-mode compile
+
+This can, in some cases, give a noticeable speedup.
+
+WARNING: If you reinstall the Agda mode without recompiling the Emacs
+Lisp files, then Emacs may continue using the old, compiled files.
+
 ------------------------------------------------------------------------
 Prerequisites
 ------------------------------------------------------------------------
