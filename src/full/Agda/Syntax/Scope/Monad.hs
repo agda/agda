@@ -46,6 +46,11 @@ type ScopeM = TCM
 notInScope :: C.QName -> ScopeM a
 notInScope x = typeError $ NotInScope [x]
 
+isDatatypeModule :: A.ModuleName -> ScopeM Bool
+isDatatypeModule m = do
+   sc <- getScope
+   return $ maybe __IMPOSSIBLE__ scopeDatatypeModule (Map.lookup m (scopeModules sc))
+
 -- * General operations
 
 getCurrentModule :: ScopeM A.ModuleName
@@ -82,12 +87,14 @@ getNamedScope m = do
 getCurrentScope :: ScopeM Scope
 getCurrentScope = getNamedScope =<< getCurrentModule
 
--- | Create a new module with an empty scope
-createModule :: A.ModuleName -> ScopeM ()
-createModule m = do
+-- | Create a new module with an empty scope (Bool is True if it is a datatype module)
+createModule :: Bool -> A.ModuleName -> ScopeM ()
+createModule b m = do
   s <- getCurrentScope
   let parents = scopeName s : scopeParents s
-  modifyScopes $ Map.insert m emptyScope { scopeName = m, scopeParents = parents }
+  modifyScopes $ Map.insert m emptyScope { scopeName           = m
+                                         , scopeParents        = parents
+                                         , scopeDatatypeModule = b }
 
 -- | Apply a function to the scope info.
 modifyScopeInfo :: (ScopeInfo -> ScopeInfo) -> ScopeM ()
@@ -364,7 +371,7 @@ copyScope new s = runStateT (copy new s) (Map.empty, Map.empty)
           addMod x y
 
           -- We need to copy the contents of included modules recursively
-          s0 <- lift $ createModule y >> getNamedScope x
+          s0 <- lift $ createModule False y >> getNamedScope x
           s  <- withCurrentModule' y $ copy y s0
           lift $ modifyNamedScope y (const s)
           return y

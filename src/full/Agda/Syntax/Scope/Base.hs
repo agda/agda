@@ -31,10 +31,11 @@ import Agda.Utils.Impossible
 -- | A scope is a named collection of names partitioned into public and private
 --   names.
 data Scope = Scope
-      { scopeName          :: A.ModuleName
-      , scopeParents       :: [A.ModuleName]
-      , scopeNameSpaces    :: [(NameSpaceId, NameSpace)]
-      , scopeImports       :: Map C.QName A.ModuleName
+      { scopeName           :: A.ModuleName
+      , scopeParents        :: [A.ModuleName]
+      , scopeNameSpaces     :: [(NameSpaceId, NameSpace)]
+      , scopeImports        :: Map C.QName A.ModuleName
+      , scopeDatatypeModule :: Bool
       }
   deriving (Typeable)
 
@@ -237,11 +238,12 @@ mapNameSpaceM fd fm ns = do
 
 -- | The empty scope.
 emptyScope :: Scope
-emptyScope = Scope { scopeName	     = noModuleName
-                   , scopeParents    = []
-		   , scopeNameSpaces = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
-                   , scopeImports    = Map.empty
-		   }
+emptyScope = Scope { scopeName	         = noModuleName
+                   , scopeParents        = []
+		   , scopeNameSpaces     = [ (nsid, emptyNameSpace) | nsid <- [minBound..maxBound] ]
+                   , scopeImports        = Map.empty
+		   , scopeDatatypeModule = False
+                   }
 
 -- | The empty scope info.
 emptyScopeInfo :: ScopeInfo

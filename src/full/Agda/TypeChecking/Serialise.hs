@@ -379,8 +379,8 @@ instance EmbPrj C.QName where
                            valu _      = malformed
 
 instance EmbPrj Scope where
-  icode (Scope a b c d) = icode4' a b c d
-  value = vcase valu where valu [a, b, c, d] = valu4 Scope a b c d
+  icode (Scope a b c d e) = icode5' a b c d e
+  value = vcase valu where valu [a, b, c, d, e] = valu5 Scope a b c d e
                            valu _            = malformed
 
 instance EmbPrj NameSpaceId where

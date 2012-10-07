@@ -384,7 +384,7 @@ instance ToAbstract NewModuleName A.ModuleName where
     checkForModuleClash x
     m <- getCurrentModule
     y <- freshQModule m x
-    createModule y
+    createModule False y
     return y
 
 instance ToAbstract NewModuleQName A.ModuleName where
@@ -392,7 +392,7 @@ instance ToAbstract NewModuleQName A.ModuleName where
     where
       toAbs m (C.QName x)  = do
         y <- freshQModule m x
-        createModule y
+        createModule False y
         return y
       toAbs m (C.Qual x q) = do
         m' <- freshQModule m x
@@ -882,7 +882,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         -- Create the module for the qualified constructors
         checkForModuleClash x -- disallow shadowing previously defined modules
         let m = mnameFromList $ qnameToList x'
-        createModule m
+        createModule True m
         bindModule p x m  -- make it a proper module
         cons <- toAbstract (map (ConstrDecl NoRec m a p) cons)
         -- Open the module
@@ -906,7 +906,7 @@ instance ToAbstract NiceDeclaration A.Declaration where
         m0     <- getCurrentModule
         let m = A.qualifyM m0 $ mnameFromList $ (:[]) $ last $ qnameToList x'
         printScope "rec" 15 "before record"
-        createModule m
+        createModule False m
         afields <- withCurrentModule m $ do
           afields <- toAbstract fields
           printScope "rec" 15 "checked fields"
