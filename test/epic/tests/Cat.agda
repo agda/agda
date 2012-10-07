@@ -123,11 +123,11 @@ postulate
   fwrite : EpicFile -> String -> IO Unit 
 
 {-# COMPILED_EPIC while (add : Any, body : Any, u : Unit) -> Any = %while (add(u), body(u)) #-}
-{-# COMPILED_EPIC fopen (fp : Any, mode : Any, u : Unit) -> Ptr = foreign Ptr "fopen" (mkString(fp) : String, mkString(mode) : String) #-}
+{-# COMPILED_EPIC fopen (fp : Any, mode : Any, u : Unit) -> Ptr = foreign Ptr "fopen" (fp : String, mode : String) #-}
 {-# COMPILED_EPIC fclose (file : Ptr, u : Unit) -> Unit = foreign Int "fclose" (file : Ptr); unit #-}
-{-# COMPILED_EPIC fread (file : Ptr, u : Unit) -> Any = frString(foreign String "freadStrChunk" (file : Ptr)) #-}
+{-# COMPILED_EPIC fread (file : Ptr, u : Unit) -> Any = foreign String "freadStrChunk" (file : Ptr) #-}
 {-# COMPILED_EPIC feof (file : Ptr, u : Unit) -> Bool = foreign Int "feof" (file : Ptr) #-}
-{-# COMPILED_EPIC fwrite (file : Ptr, str : Any, u : Unit) -> Unit =  foreign Unit "fputs" (mkString(str) : String, file : Ptr) #-}
+{-# COMPILED_EPIC fwrite (file : Ptr, str : Any, u : Unit) -> Unit =  foreign Unit "fputs" (str : String, file : Ptr) #-}
 
 fmap : {A B : Set} -> (A -> B) -> IO A -> IO B
 fmap f io = 

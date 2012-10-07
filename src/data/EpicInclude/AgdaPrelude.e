@@ -29,59 +29,38 @@ iobind (x : Any, f : Any, u : Unit) -> Any = %effect (let v : Any = %effect (x(u
 
 -- data String = Con 0 | Con 1 (Char*) String
 
-freadStr (stream : Ptr) -> Data =
+freadStr (stream : Ptr) -> String =
     let isEof : Bool = foreign Int "feof" (stream : Ptr)
      in if isEof then Con 0 ()
                  else let str : String = %effect(foreign String "freadStrChunk" (stream : Ptr))
-                       in Con 1 ( str , freadStr (stream))
+                       in primStringAppend( str , freadStr (stream))
 
-readStr (u : Unit) -> Data =
+readStr (u : Unit) -> String =
     let isEof : Bool = foreign Int "eofstdin" ()
      in if isEof then Con 0 ()
                  else let str : String = %effect(foreign String "readStrChunk" ())
-                       in Con 1 ( str , readStr (u))
+                       in primStringAppend ( str , readStr (u))
 
-primStringAppend (xs : Data, ys : Data) -> Data = case xs of
-  { Con 0 ()                        -> ys
-  | Con 1 (x : String, rest : Data) -> Con 1 (x, primStringAppend (rest, ys))
-  }
+primStringAppend (xs : String, ys : String) -> String = 
+    foreign String "append" (xs : String, ys : String)
 
-length (xs : Data) -> Int = case xs of
-  { Con 0 () -> 0
-  | Con 1 (x : String, rest : Data) -> strlen(x) + length(rest)
-  }
 
-charAt (xs : Data, i : Int) -> Int = case xs of
-  { Con 0 () -> error "index: out of bounds!"
-  | Con 1 (x : String, rest : Data) -> 
-    let len : Int = strlen(x)
-     in (if i < len then foreign Int "strIndex" (x : String, i : Int)
-                    else charAt (rest, i - len))
-  }
+%inline length (xs : String) -> Int = strlen (xs)
 
-mkString (xs : Data) -> String = case xs of
-  { Con 0 () -> ""
-  | Con 1 (s : String , rest : Data) -> 
-    let rs : String = mkString (rest) in
-    {-let rsLen : Int = strlen (rs) in
-    if rsLen == 0 then s else-} foreign String "append" (s : String, rs : String)
-  }
+charAt (xs : String, i : Int) -> Int = 
+    foreign Int "strIndex" (xs : String , i : Int)
 
-frString( xs : String) -> Data = Con 1 (xs , Con 0 ())
+primStringEquality (xs : String, ys : String) -> Bool =
+    foreign Int "eqString" (xs : String, ys : String)
 
-primStringEquality (xs : Data, ys : Data) -> Bool =
-    foreign Int "eqString" (mkString(xs) : String, mkString(ys) : String)
-
-charToString (c : Int) -> Data = 
-    Con 1 (charToStr(c), Con 0 ())
-charToStr (c : Int) -> String = 
+charToString (c : Int) -> String  =
     foreign String "charToStr" (c : Int)
 
 strlen (s : String) -> Int = foreign Int "strlen" (s : String)
 
 -- TODO: toList/fromList could be made slightly more efficient.
 
-primStringToListS (xs : String) -> Data = %effect(
+primStringToList (xs : String) -> Data = %effect(
     let result : Data = primNil ()     in
     let i      : Int  = strlen (xs) - 1 in
     %while (i >= 0,
@@ -90,18 +69,17 @@ primStringToListS (xs : String) -> Data = %effect(
        unit) ;
     result)
 
-primStringToList (xs : Data) -> Data = case xs of
-  { Con 0 () -> primNil ()
-  | Con 1 (str : String, rest : Data) -> primListAppend(primStringToListS(str), primStringToList(rest))
-  }
 
 map (f : Any, l : Any) -> Any = case l of
   { Con 0 () -> Con 0 ()
   | Con 1 (x : Any, xs : Any) -> Con 1 (f (x), map (f, xs))
   }
 
-primStringFromList (l : Data) -> String = map (charToStr, l)
-
+primStringFromList (l : Data) -> String = 
+   case l of {
+      Con 0 () -> ""
+    | Con 1 (c : Char, cs : Data) -> strCons (c , primStringFromList(cs))
+   }
 
 strCons(i : Int , s : String) -> String =
    foreign String "strCons" (i : Int, s : String)
@@ -135,10 +113,10 @@ geBig (x:BigInt, y:BigInt) -> Bool =
 printBig (x:BigInt) -> Unit =
    foreign Unit "printBig" (x:BigInt)
 
-bigToStr (x:BigInt) -> Data =
-    frString(foreign String "bigToStr" (x:BigInt))
+bigToStr (x:BigInt) -> String =
+    foreign String "bigToStr" (x:BigInt)
 
-strToBig (x : Data) -> Any = foreign BigInt "strToBig" (mkString(x) : String)
+strToBig (x : String) -> Any = foreign BigInt "strToBig" (x : String)
 
 -- strToBig (x:String) -> Any =
 --    foreign Any "strToBig" (x:String)

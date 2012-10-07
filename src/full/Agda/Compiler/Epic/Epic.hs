@@ -103,7 +103,7 @@ prettyEpicLit :: Lit -> String
 prettyEpicLit l = case l of
     LInt n    -> show n ++ "L"
     LChar c   -> show (ord c)
-    LString s -> "Con 1" <+> many [show s, "Con 0 ()"]
+    LString s -> show s
     LFloat f  -> show f
 
 typVar :: Var -> String

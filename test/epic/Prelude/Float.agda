@@ -8,5 +8,5 @@ postulate
   stringToFloat : String -> Float
 
 {-# BUILTIN FLOAT Float #-}
-{-# COMPILED_EPIC floatToString (f : Float) -> String = frString(floatToStr(f)) #-}
-{-# COMPILED_EPIC stringToFloat (s : Any) -> Float = strToFloat(mkString(s)) #-}
+{-# COMPILED_EPIC floatToString (f : Float) -> String = floatToStr(f) #-}
+{-# COMPILED_EPIC stringToFloat (s : Any) -> Float = strToFloat(s) #-}

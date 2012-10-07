@@ -57,7 +57,7 @@ printBool false = putStr "false"
 {-# COMPILED_EPIC natToString (n : Any) -> String = bigToStr(n) #-}
 {-# COMPILED_EPIC readNat (u : Unit) -> Any = strToBig(readStr(u)) #-}
 
-{-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (mkString(a) : String); primUnit #-}
+{-# COMPILED_EPIC putStr (a : String, u : Unit) -> Unit = foreign Int "wputStr" (a : String); primUnit #-}
 -- {-# COMPILED_EPIC putStrLn (a : String, u : Unit) -> Unit = putStrLn (a) #-}
 {-# COMPILED_EPIC readStr (u : Unit) -> Data = readStr(u) #-}
 {-# COMPILED_EPIC printChar (c : Int, u : Unit) -> Unit = printChar(c) #-}
