@@ -32,6 +32,9 @@ main = do
              setupDotEmacs (Files { thisProgram = prog
                                   , dotEmacs    = dotEmacs
                                   })
+             compileElispFiles
+          | arg == compileFlag ->
+             compileElispFiles
     _  -> do inform usage
              exitFailure
 
@@ -39,13 +42,14 @@ main = do
 
 setupFlag  = "setup"
 locateFlag = "locate"
+compileFlag = "compile"
 
 -- | Usage information.
 
 usage :: String
 usage = unlines
   [ "This program, which is part of Agda version " ++ ver ++ ", can be run"
-  , "in two modes, depending on which option it is invoked with:"
+  , "in three modes, depending on which option it is invoked with:"
   , ""
   , setupFlag
   , ""
@@ -58,6 +62,12 @@ usage = unlines
   , "  The path to the Emacs mode's main file is printed on standard"
   , "  output (using the UTF-8 character encoding and no trailing"
   , "  newline)."
+  , ""
+  , compileFlag
+  , ""
+  , "  Compile the Elisp files for Agda's Emacs mode, if possible."
+  , " (This is automatically done by the '" ++ setupFlag ++ "' flag.)"
+  , ""
   ]
 
 -- | The current version of Agda.
@@ -138,6 +148,20 @@ setupString files = unlines
                         ++ identifier files ++ "\")))"
   ]
 
+
+-- | Compile Elisp files, if possible.
+
+compileElispFiles :: IO ()
+compileElispFiles = compileELC [ "agda2-abbrevs.el"
+                               , "annotation.el"
+                               , "agda2-queue.el"
+                               , "eri.el"
+                               , "agda2.el"
+                               , "agda-input.el"
+                               , "agda2-highlight.el"
+                    --           , "agda2-mode.el"
+                               ]
+
 ------------------------------------------------------------------------
 -- Querying Emacs
 
@@ -177,6 +201,22 @@ escape s = "\"" ++ concatMap esc s ++ "\""
   esc c | c `elem` ['\\', '"']   = '\\' : [c]
         | isAscii c && isPrint c = [c]
         | otherwise              = "\\x" ++ showHex (fromEnum c) "\\ "
+
+compileELC :: [String] -> IO ()
+compileELC filenames = do
+  dataDir <- getDataDir
+  putStrLn dataDir
+  let files = map (\f -> dataDir </> "emacs-mode" </> f) filenames
+  exit <- rawSystem "emacs" $
+                    [ "-Q"
+                    , "-L", dataDir </> "emacs-mode"
+                    , "-batch"
+                    , "-f"
+                    , "batch-byte-compile"
+                    ] ++ files
+  unless (exit == ExitSuccess) $ do
+    informLn "Unable to compile Elisp files."
+    exitFailure
 
 ------------------------------------------------------------------------
 -- Helper functions
