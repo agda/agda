@@ -140,8 +140,8 @@ primNatTimes (x:Any, y:Any) -> Any =
 
 
 
-primZero() -> Any = foreign BigInt "bigZero" ()
-primOne() -> Any  = foreign BigInt "bigOne" ()
+primZero() -> Any = 0L -- foreign BigInt "bigZero" ()
+primOne() -> Any  = 1L -- foreign BigInt "bigOne" ()
 
 primSuc (n : Any) -> Any = primNatPlus(n, primOne())
 
