@@ -21,6 +21,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.CompiledClause.Compile
+import Agda.TypeChecking.Coverage.SplitTree
 
 import Agda.TypeChecking.Rules.Data ( bindParameters, fitsIn )
 import Agda.TypeChecking.Rules.Term ( isType_ )
@@ -349,6 +350,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
       escapeContext (size tel) $ do
 	addConstant projname $ Defn rel projname (killRange finalt) [] [StrictPos] (defaultDisplayForm projname) 0 noCompiledRep
           $ Function { funClauses        = [clause]
+                     , funSplitTree      = Just (SplittingDone 1)
                      , funCompiled       = cc
                      , funDelayed        = NotDelayed
                      , funInv            = NotInjective

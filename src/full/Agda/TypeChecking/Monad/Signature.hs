@@ -26,6 +26,7 @@ import Agda.TypeChecking.Monad.Mutual
 import Agda.TypeChecking.Monad.Open
 import Agda.TypeChecking.Free (isBinderUsed)
 import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Coverage.SplitTree
 -- import Agda.TypeChecking.Pretty -- leads to cyclicity
 import {-# SOURCE #-} Agda.TypeChecking.CompiledClause.Compile
 import {-# SOURCE #-} Agda.TypeChecking.Polarity
@@ -290,6 +291,7 @@ applySection new ptel old ts rd rm = do
                   cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef = Function
                         { funClauses        = [cl]
+                        , funSplitTree      = Just (SplittingDone 0)
                         , funCompiled       = cc
                         , funDelayed        = NotDelayed
                         , funInv            = NotInjective

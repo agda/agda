@@ -51,6 +51,7 @@ import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Quote
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Level
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.LHS (checkLeftHandSide)
@@ -434,6 +435,7 @@ checkExpr e t =
                             , clauseBody  = Bind $ NoAbs "()" NoBody
                             }
                           ]
+                      , funSplitTree      = Just (SplittingDone 1)
                       , funCompiled       = Fail
                       , funDelayed        = NotDelayed
                       , funInv            = NotInjective
