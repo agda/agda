@@ -295,7 +295,7 @@ sizeExpr u = do
       MetaV m args
         | all isVar args && distinct args -> do
           cxt <- getContextId
-          return (SizeMeta m [ cxt !! fromIntegral i | Arg _ _ (Var i []) <- map (fmap ignoreSharing) args ], 0)
+          return (SizeMeta m [ cxt !!! i | Arg _ _ (Var i []) <- map (fmap ignoreSharing) args ], 0)
       _ -> patternViolation
   where
     isVar v = case ignoreSharing $ unArg v of
@@ -304,8 +304,8 @@ sizeExpr u = do
 
     (!!!) :: [a] -> Nat -> a
     cxt !!! i
-      | i < genericLength cxt = cxt !! fromIntegral i
-      | otherwise             = __IMPOSSIBLE__
+      | i < length cxt = cxt !! i
+      | otherwise      = __IMPOSSIBLE__
 
 -- | Compute list of size metavariables with their arguments
 --   appearing in a constraint.
@@ -401,7 +401,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
                 term (W.SizeConst (W.Finite _)) = __IMPOSSIBLE__
                 term (W.SizeConst W.Infinite) = primSizeInf
                 term (W.SizeVar j n) = case findIndex (==fromIntegral j) $ reverse args of
-                  Just x -> return $ plus (var (fromIntegral x)) n
+                  Just x -> return $ plus (var x) n
                   Nothing -> __IMPOSSIBLE__
 
                 lam _ v = Lam NotHidden $ Abs "s" v

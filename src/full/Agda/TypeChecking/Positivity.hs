@@ -138,7 +138,7 @@ checkStrictlyPositive qs = disableDestructiveUpdate $ do
 
 getDefArity def = case theDef def of
   Function{ funClauses = cs, funProjection = proj } -> do
-    let dropped = maybe 0 (fromIntegral . subtract 1 . snd) proj
+    let dropped = maybe 0 (subtract 1 . snd) proj
     subtract dropped . arity <$> instantiateFull (defType def)
   Datatype{ dataPars = n } -> return n
   Record{ recPars = n }    -> return n
@@ -385,7 +385,7 @@ instance ComputeOccurrences Term where
     Var i args -> do
       vars <- asks vars
       occs <- occurrences args
-      return $ maybe Map.empty here (index vars $ fromIntegral i)
+      return $ maybe Map.empty here (index vars i)
                >+< occursAs VarArg occs
     Def d args   -> do
       inf <- asks inf

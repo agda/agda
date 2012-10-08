@@ -212,7 +212,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         len = genericLength ps
 
         termToPat :: DisplayTerm -> TCM A.Pattern
-        termToPat (DTerm (I.Var n [])) = return $ ps !! fromIntegral n
+        termToPat (DTerm (I.Var n [])) = return $ ps !! n
         termToPat (DCon c vs) = A.ConP info (AmbQ [c]) <$> mapM argToPat vs
         termToPat (DDot v) = A.DotP info <$> termToExpr v
         termToPat (DDef _ []) = return $ A.WildP info
@@ -225,7 +225,7 @@ reifyDisplayFormP lhs@(A.LHS i (A.LHSHead x ps) wps) =
         -- TODO: restructure this to avoid having to repeat the code for reify
         termToExpr :: Term -> TCM A.Expr
         termToExpr (I.Var n [])
-          | n < len = return $ A.patternToExpr $ ps !! fromIntegral n
+          | n < len = return $ A.patternToExpr $ ps !! n
         termToExpr (I.Con c vs) =
           apps (A.Con (AmbQ [c])) =<< argsToExpr vs
         termToExpr (I.Def f vs) =

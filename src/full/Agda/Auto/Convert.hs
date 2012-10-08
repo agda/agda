@@ -150,7 +150,7 @@ tomy imi icns typs = do
            localVars = map (snd . C.unDom . ctxEntry) . envContext . clEnv $ minfo
        (targettype, localVars) <- lift $ withMetaInfo minfo $ do
         vs <- getContextArgs
-        let targettype = tt `piApply` permute (takeP (fromIntegral $ length vs) $ mvPermutation mv) vs
+        let targettype = tt `piApply` permute (takeP (length vs) $ mvPermutation mv) vs
         targettype <- norm targettype
         localVars <- mapM norm localVars
         return (targettype, localVars)
@@ -206,9 +206,9 @@ getConst iscon name mode = do
     Nothing -> do
      mainm <- gets sMainMeta
      dfv <- lift $ getdfv mainm name
-     let nomi = fromIntegral $ I.arity (MB.defType def)
-     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = show name ++ ".CONS", cdorigin = (Just nomi, conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - fromIntegral dfv), cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
-     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon] [], cddeffreevars = fromIntegral dfv}) -- ?? correct value of deffreevars for records?
+     let nomi = I.arity (MB.defType def)
+     ccon <- lift $ liftIO $ newIORef (ConstDef {cdname = show name ++ ".CONS", cdorigin = (Just nomi, conname), cdtype = __IMPOSSIBLE__, cdcont = Constructor (nomi - dfv), cddeffreevars = dfv}) -- ?? correct value of deffreevars for records?
+     c <- lift $ liftIO $ newIORef (ConstDef {cdname = show name, cdorigin = (Nothing, name), cdtype = __IMPOSSIBLE__, cdcont = Datatype [ccon] [], cddeffreevars = dfv}) -- ?? correct value of deffreevars for records?
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return $ if iscon then ccon else c
   _ -> do
@@ -219,12 +219,12 @@ getConst iscon name mode = do
     Nothing -> do
      (miscon, sname) <- if iscon then do
        let MB.Constructor {MB.conPars = npar, MB.conData = dname} = MB.theDef def
-       return (Just (fromIntegral npar), show dname ++ "." ++ show (I.qnameName name))
+       return (Just npar, show dname ++ "." ++ show (I.qnameName name))
       else
        return (Nothing, show name)
      mainm <- gets sMainMeta
      dfv <- lift $ getdfv mainm name
-     c <- lift $ liftIO $ newIORef (ConstDef {cdname = sname, cdorigin = (miscon, name), cdtype = __IMPOSSIBLE__, cdcont = __IMPOSSIBLE__, cddeffreevars = fromIntegral dfv})
+     c <- lift $ liftIO $ newIORef (ConstDef {cdname = sname, cdorigin = (miscon, name), cdtype = __IMPOSSIBLE__, cdcont = __IMPOSSIBLE__, cddeffreevars = dfv})
      modify (\s -> s {sConsts = (Map.insert name (mode, c) cmap, name : snd (sConsts s))})
      return c
 
@@ -348,7 +348,7 @@ tomyType (I.El _ t) = tomyExp t -- sort info is thrown away
 tomyExp :: I.Term -> TOM (MExp O)
 tomyExp (I.Var v as) = do
  as' <- tomyExps as
- return $ NotM $ App Nothing (NotM OKVal) (Var $ fromIntegral v) as'
+ return $ NotM $ App Nothing (NotM OKVal) (Var v) as'
 tomyExp (I.Lam hid b) = do
  b' <- tomyExp (I.absBody b)
  return $ NotM $ Lam (cnvh hid) (Abs (Id $ I.absName b) b')
@@ -457,7 +457,7 @@ frommyExp (Meta m) = do
 frommyExp (NotM e) =
  case e of
   App _ _ (Var v) as ->
-   frommyExps 0 as (I.Var (fromIntegral v) [])
+   frommyExps 0 as (I.Var v [])
   App _ _ (Const c) as -> do
    cdef <- lift $ readIORef c
    let (iscon, name) = cdorigin cdef
@@ -718,7 +718,7 @@ findClauseDeep m = do
 
 -- ---------------------------------------
 
-matchType :: Integer -> Integer -> I.Type -> I.Type -> Maybe (Nat, Nat) -- Nat is deffreevars of const, Nat is ctx length of target type, left arg is const type, right is target type
+matchType :: Int -> Int -> I.Type -> I.Type -> Maybe (Nat, Nat) -- Nat is deffreevars of const, Nat is ctx length of target type, left arg is const type, right is target type
 matchType cdfv tctx ctyp ttyp = trmodps cdfv ctyp
  where
   trmodps 0 ctyp = tr 0 0 ctyp

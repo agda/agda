@@ -13,7 +13,7 @@ import Agda.Utils.Impossible
 --   Agda typing would be:
 --   @Perm : {m : Nat}(n : Nat) -> Vec (Fin n) m -> Permutation@
 --   @m@ is the 'size' of the permutation.
-data Permutation = Perm { permRange :: Integer, permPicks :: [Integer] }
+data Permutation = Perm { permRange :: Int, permPicks :: [Int] }
   deriving (Eq, Typeable)
 
 instance Show Permutation where
@@ -41,10 +41,10 @@ permute (Perm _ is) xs = map (xs !!!) is
     (x:xs) !!! 0 = x
     (x:xs) !!! n = xs !!! (n - 1)
 
-idP :: Integer -> Permutation
+idP :: Int -> Permutation
 idP n = Perm n [0..n - 1]
 
-takeP :: Integer -> Permutation -> Permutation
+takeP :: Int -> Permutation -> Permutation
 takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
@@ -95,7 +95,7 @@ reverseP :: Permutation -> Permutation
 reverseP (Perm n xs) = Perm n $ map ((n - 1) -) $ reverse xs
 
 -- | @expandP i n π@ in the domain of @π@ replace the /i/th element by /n/ elements.
-expandP :: Integer -> Integer -> Permutation -> Permutation
+expandP :: Int -> Int -> Permutation -> Permutation
 expandP i n (Perm m xs) = Perm (m + n - 1) $ concatMap expand xs
   where
     expand j

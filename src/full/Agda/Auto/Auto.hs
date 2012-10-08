@@ -164,7 +164,7 @@ auto ii rng argstr = liftTCM $ do
                   [] -> case Map.elems tccons of
                    (m, mytype, mylocalVars, _) : [] -> do
                        defdfv <- case thisdefinfo of
-                                  Just (def, _, _) -> fromIntegral `liftM` getdfv mi def
+                                  Just (def, _, _) -> getdfv mi def
                                   Nothing -> return 0
                        ee <- liftIO $ newIORef $ ConstDef {cdname = "T", cdorigin = __IMPOSSIBLE__, cdtype = NotM $ Sort (Set 0), cdcont = Postulate, cddeffreevars = 0}
                        let modargs = drop (length mylocalVars - defdfv) mylocalVars
@@ -197,9 +197,9 @@ auto ii rng argstr = liftTCM $ do
                    Just (def, clause, _) -> do
                     let [rectyp'] = mymrectyp
                     defdfv <- getdfv mi def
-                    myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = fromIntegral defdfv}
+                    myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = defdfv}
                     (_, pats) <- constructPats cmap mi clause
-                    defdfv <- fromIntegral `liftM` getdfv mi def
+                    defdfv <- getdfv mi def
                     return $ if contains_constructor pats then
                       (Just (pats, myrecdef), defdfv)
                      else
@@ -286,7 +286,7 @@ auto ii rng argstr = liftTCM $ do
                  ticks <- liftIO $ newIORef 0
                  let [rectyp'] = mymrectyp
                  defdfv <- getdfv mi def
-                 myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = fromIntegral defdfv}
+                 myrecdef <- liftIO $ newIORef $ ConstDef {cdname = "", cdorigin = (Nothing, def), cdtype = rectyp', cdcont = Postulate, cddeffreevars = defdfv}
                  sols <- liftIO $ System.Timeout.timeout (timeout * 1000000) (
                     let r d = do
                          sols <- liftIO $ caseSplitSearch ticks __IMPOSSIBLE__ myhints meqr __IMPOSSIBLE__ d myrecdef ctx mytype pats
@@ -324,7 +324,7 @@ auto ii rng argstr = liftTCM $ do
                  minfo = getMetaInfo mv
              targettyp <- withMetaInfo minfo $ do
               vs <- getContextArgs
-              let targettype = tt `piApply` permute (takeP (fromIntegral $ length vs) $ mvPermutation mv) vs
+              let targettype = tt `piApply` permute (takeP (length vs) $ mvPermutation mv) vs
               normalise targettype
              let tctx = length $ envContext $ clEnv minfo
 
@@ -344,7 +344,7 @@ auto ii rng argstr = liftTCM $ do
                      c <- getConstInfo n
                      ctyp <- normalise $ defType c
                      cdfv <- withMetaInfo minfo $ getDefFreeVars n
-                     return $ case matchType cdfv (fromIntegral tctx) ctyp targettyp of
+                     return $ case matchType cdfv tctx ctyp targettyp of
                       Nothing -> Nothing
                       Just score -> Just (show cn, score)
                 ) alldefs
@@ -360,7 +360,7 @@ auto ii rng argstr = liftTCM $ do
                  c <- getConstInfo n
                  ctyp <- normalise $ defType c
                  cdfv <- withMetaInfo minfo $ getDefFreeVars n
-                 return $ case matchType cdfv (fromIntegral tctx) ctyp targettyp of
+                 return $ case matchType cdfv tctx ctyp targettyp of
                   Nothing -> Nothing
                   Just score -> Just (show cn, score)
                 ) modnames

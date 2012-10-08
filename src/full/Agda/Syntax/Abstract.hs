@@ -50,7 +50,7 @@ data Expr
         | ExtendedLam ExprInfo DefInfo QName [Clause]
         | Pi   ExprInfo Telescope Expr	     -- ^
 	| Fun  ExprInfo (Arg Expr) Expr	     -- ^ independent function space
-        | Set  ExprInfo Nat		     -- ^ Set, Set1, Set2, ...
+        | Set  ExprInfo Integer              -- ^ Set, Set1, Set2, ...
         | Prop ExprInfo			     -- ^
         | Let  ExprInfo [LetBinding] Expr    -- ^
         | ETel Telescope                     -- ^ only used when printing telescopes

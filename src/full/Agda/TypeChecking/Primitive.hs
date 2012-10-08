@@ -447,7 +447,7 @@ hPi, nPi :: String -> TCM Type -> TCM Type -> TCM Type
 hPi = gpi Hidden Relevant
 nPi = gpi NotHidden Relevant
 
-varM :: Integer -> TCM Term
+varM :: Int -> TCM Term
 varM = return . var
 
 infixl 9 <@>, <#>

@@ -40,7 +40,7 @@ import Agda.Utils.Impossible
 --     every constant, even if the definition is an empty
 --     list of clauses.
 --
-data Term = Var Nat Args             -- ^ @x vs@ neutral
+data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
 	  | Lam Hiding (Abs Term)    -- ^ terms are beta normal
 	  | Lit Literal
 	  | Def QName Args           -- ^ @f vs@, possibly a redex
@@ -48,7 +48,7 @@ data Term = Var Nat Args             -- ^ @x vs@ neutral
 	  | Pi (Dom Type) (Abs Type) -- ^ dependent or non-dependent function space
 	  | Sort Sort
           | Level Level
-	  | MetaV MetaId Args
+	  | MetaV {-# UNPACK #-} !MetaId Args
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
             --   in an irrelevant context.  Basically, an internal

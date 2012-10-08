@@ -159,7 +159,7 @@ initialAnalysis inter = do
                 putConstrTag suc (PrimTag "primSuc")
             _ -> return ()
       Constructor {conPars = np} -> do
-        putForcedArgs q . drop (fromIntegral np) . ForceC.makeForcedArgs $ defType def
+        putForcedArgs q . drop np . ForceC.makeForcedArgs $ defType def
         putConArity q =<< lift (constructorArity q)
       f@(Function{}) -> do
         when ("main" == show (qnameName q)) $ do

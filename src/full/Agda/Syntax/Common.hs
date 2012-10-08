@@ -245,12 +245,12 @@ data Access = PrivateAccess | PublicAccess
 data IsAbstract = AbstractDef | ConcreteDef
     deriving (Typeable, Show, Eq, Ord)
 
-type Nat    = Integer
+type Nat    = Int
 type Arity  = Nat
 
 -- | The unique identifier of a name. Second argument is the top-level module
 --   identifier.
-data NameId = NameId Nat Integer
+data NameId = NameId Integer Integer
     deriving (Eq, Ord, Typeable)
 
 instance Enum NameId where

@@ -82,7 +82,7 @@ sizeSucName = liftTCM $
 sizeSuc :: Nat -> Term -> TCM Term
 sizeSuc n v = do
   Def suc [] <- ignoreSharing <$> primSizeSuc
-  return $ iterate (sizeSuc_ suc) v !! fromIntegral n
+  return $ iterate (sizeSuc_ suc) v !! n
 
 sizeSuc_ :: QName -> Term -> Term
 sizeSuc_ suc v = Def suc [defaultArg v]

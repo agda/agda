@@ -44,9 +44,9 @@ defaultFixity' = Fixity' defaultFixity defaultNotation
 noFixity = NonAssoc noRange (negate 666)
 
 -- | Fixity of operators.
-data Fixity = LeftAssoc  Range Nat
-	    | RightAssoc Range Nat
-	    | NonAssoc   Range Nat
+data Fixity = LeftAssoc  Range Integer
+	    | RightAssoc Range Integer
+	    | NonAssoc   Range Integer
     deriving (Typeable, Show)
 
 instance Eq Fixity where
@@ -55,7 +55,7 @@ instance Eq Fixity where
     NonAssoc _ n    == NonAssoc _ m	= n == m
     _		    == _		= False
 
-fixityLevel :: Fixity -> Nat
+fixityLevel :: Fixity -> Integer
 fixityLevel (LeftAssoc	_ n) = n
 fixityLevel (RightAssoc _ n) = n
 fixityLevel (NonAssoc	_ n) = n

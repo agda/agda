@@ -377,7 +377,7 @@ checkLeftHandSide c ps a ret = do
 
             -- plug the hole with a lit pattern
             let ip    = plugHole (LitP lit) iph
-                iperm = expandP (fromIntegral hix) 0 $ fst (problemOutPat problem)
+                iperm = expandP hix 0 $ fst (problemOutPat problem)
 
             -- substitute the literal in p1 and sigma and dpi and asb
             let delta1 = problemTel p0
@@ -598,7 +598,7 @@ checkLeftHandSide c ps a ret = do
            -- Compute the new permutation of the out patterns. This is the composition of
             -- the new permutation with the expansion of the old permutation to
             -- reflect the split.
-            let perm'  = expandP (fromIntegral hix) (size gamma) $ fst (problemOutPat problem)
+            let perm'  = expandP hix (size gamma) $ fst (problemOutPat problem)
                 iperm' = perm `composeP` perm'
 
             -- Instantiate the out patterns

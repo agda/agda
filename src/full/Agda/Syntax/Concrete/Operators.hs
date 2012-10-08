@@ -196,7 +196,7 @@ buildParser r flat use = do
         ++ map (nonfixP . opP p) non -- for things with no outer "holes"
         ++ [ const $ atomP isAtom ]
     where
-        level :: NewNotation -> Nat
+        level :: NewNotation -> Integer
         level (_name, fixity, _syn) = fixityLevel fixity
 
         isinfixl, isinfixr, isinfix, nonfix, isprefix, ispostfix :: NewNotation -> Bool

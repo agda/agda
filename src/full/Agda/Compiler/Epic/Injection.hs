@@ -47,7 +47,7 @@ findInjection defs = do
         Just inj@(InjectiveFun nvar arity) -> case theDef def of
             f@(Function{})   -> do
                 modifyEI $ \s -> s { injectiveFuns = M.insert q inj (injectiveFuns s) }
-                let ns = replicate (fromIntegral arity) (Arg NotHidden Relevant "")
+                let ns = replicate arity (Arg NotHidden Relevant "")
                 return $ (,) q $ def { theDef = f { funCompiled = Done ns $
                                                       var $ arity - nvar - 1 } }
             _                -> __IMPOSSIBLE__
@@ -88,7 +88,7 @@ isInjective nam cls@(cl : _) = do
         cli <- forM cls $ \ cl -> isInjectiveHere nam i  cl
         let cli' = catMaybes cli
         return $ if length cli == length cli'
-             then Just ((nam, InjectiveFun (fromIntegral i) (fromIntegral total)), concat cli')
+             then Just ((nam, InjectiveFun i total), concat cli')
              else Nothing
 
 remAbs :: ClauseBody -> Term
@@ -147,8 +147,8 @@ isInjectiveHere nam idx clause = do
         body = remAbs $ clauseBody clause
     body' <- lift $ reduce body
     injFs <- gets (injectiveFuns . importedModules)
-    res <- (t' <: body') (M.insert nam (InjectiveFun (fromIntegral idx)
-                                                     (genericLength (clausePats clause))) injFs)
+    res <- (t' <: body') (M.insert nam (InjectiveFun idx
+                                                     (length (clausePats clause))) injFs)
     lift $ reportSDoc "epic.injection" 20 $ vcat
       [ text "isInjective:" <+> text (show nam)
       , text "at Index   :" <+> text (show idx)
@@ -248,7 +248,7 @@ unionConstraints (Just c : cs) = do
     if genericLength args2 /= arit
         then return Nothing
         else do
-            arg <- lift $ reduce $ unArg $ args2 !! fromIntegral argn
+            arg <- lift $ reduce $ unArg $ args2 !! argn
             (t1 <: arg) injs
 -- (Var n1 []    <: Var n2 [])    nam idx = return $ if n1 == n2 then emptyC else Nothing
 (Var n1 args1 <: Var n2 args2) injs | n1 == n2 && length args1 == length args2 = do

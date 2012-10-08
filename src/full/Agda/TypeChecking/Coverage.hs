@@ -139,7 +139,7 @@ checkCoverage f = do
       let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
       -- report an error if there are unreachable clauses
       unless (null is) $ do
-          let unreached = map ((cs !!) . fromIntegral) is
+          let unreached = map (cs !!) is
           setCurrentRange (getRange unreached) $
             typeError $ UnreachableClauses f (map clausePats unreached)
     _             -> __IMPOSSIBLE__
@@ -427,7 +427,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
       fail "split: bad holes or tel"
 
     -- There is always a variable at the given hole.
-    let (hix, (VarP s, hps)) = holes !! fromIntegral x
+    let (hix, (VarP s, hps)) = holes !! x
     debugHoleAndType delta1 delta2 s hps t
 
     return (hps, hix)
@@ -465,10 +465,10 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
   where
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
-    inContextOfT = addCtxTel tel . escapeContext (fromIntegral x + 1)
+    inContextOfT = addCtxTel tel . escapeContext (x + 1)
 
     inContextOfDelta2 :: MonadTCM tcm => tcm a -> tcm a
-    inContextOfDelta2 = addCtxTel tel . escapeContext (fromIntegral x)
+    inContextOfDelta2 = addCtxTel tel . escapeContext x
 
     -- Debug printing
     debugInit tel perm x ps =

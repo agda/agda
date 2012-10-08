@@ -205,14 +205,14 @@ forcedExpr vars tele expr = case expr of
                     -- unify the telescope type with the return type of the constructor
                     unif <- case (unEl ntyp, unEl ctyp) of
                         (SI.Def st a1, SI.Def st' a2) | st == st' -> do
-                            typPars <- fromIntegral <$> dataParameters st
+                            typPars <- dataParameters st
                             setType <- getType st
                             report 10 $ vcat
                               [ text "ntyp:" <+> prettyTCM ntyp
                               , text "ctyp:" <+> prettyTCM ctyp
                               ]
                             unifyI (takeTele (n + length as) tele'')
-                                   (map fromIntegral $ [0 .. n + length as])
+                                   [0 .. n + length as]
                                    (setType `apply` take typPars a1)
                                    (drop typPars a1)
                                    (drop typPars a2)
@@ -255,7 +255,7 @@ replaceForced :: ([Var],[Var]) -> Telescope -> [Var] -> [Maybe SI.Term] -> Expr 
 replaceForced (vars,_) tele [] _ e = forcedExpr vars tele e
 replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
     let n = fromMaybe __IMPOSSIBLE__ $ elemIndex fvar uvars
-    mpos <- findPosition (fromIntegral n) unif
+    mpos <- findPosition n unif
     case mpos of
         Nothing -> case unif !! n of
             Nothing | fvar `notElem` fv e ->
@@ -275,7 +275,7 @@ replaceForced (vars,uvars) tele (fvar : fvars) unif e = do
                 subst fvar v <$> replaceForced (vars, uvars)
                                                tele fvars unif (Let v te e)
         Just (pos , term) -> do
-            (build, v) <- buildTerm (uvars !! fromInteger pos) (fromIntegral n) term
+            (build, v) <- buildTerm (uvars !! pos) n term
             build . subst fvar v <$> replaceForced (vars, uvars) tele fvars unif
                                      e
   where
@@ -288,7 +288,7 @@ buildTerm var idx (SI.Var i _) | idx == i = return (id, var)
 buildTerm var idx (SI.Con c args) = do
     vs <- replicateM (length args) newName
     (pos , arg) <- fromMaybe __IMPOSSIBLE__ <$> findPosition idx (map (Just . unArg) args)
-    (fun' , v) <- buildTerm (vs !! fromInteger pos) idx arg
+    (fun' , v) <- buildTerm (vs !! pos) idx arg
     tag <- getConstrTag c
     let fun e = casee (Var var) [Branch tag c vs e]
     return (fun . fun' , v)

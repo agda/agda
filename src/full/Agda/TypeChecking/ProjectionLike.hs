@@ -96,7 +96,7 @@ makeProjection x = inContext [] $ do
         _          -> False
 
     rewriteClause n cl@Clause{clausePerm = Perm m p} =
-      cl{ clausePerm = Perm (m - fromIntegral n) $ map (subtract $ fromIntegral n) $ drop n p
+      cl{ clausePerm = Perm (m - n) $ map (subtract n) $ drop n p
         , clauseTel  = telFromList $ drop n $ telToList $ clauseTel cl
           -- Andreas, 2012-09-25: just dropping the front of telescope
           -- makes it ill-formed (unbound indices)
@@ -120,7 +120,7 @@ makeProjection x = inContext [] $ do
     checkOccurs cls n = all (nonOccur n) cls
 
     nonOccur n Clause{clausePerm = Perm _ p, clausePats = ps, clauseBody = b} =
-      and [ take n p == [0..fromIntegral n - 1]
+      and [ take n p == [0..n - 1]
           , onlyMatch n ps  -- projection-like functions are only allowed to match on the eliminatee
                             -- otherwise we may end up projecting from constructor applications, in
                             -- which case we can't reconstruct the dropped parameters

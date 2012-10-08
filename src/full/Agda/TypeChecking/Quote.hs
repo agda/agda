@@ -72,7 +72,7 @@ quotingKit = do
       quoteDom q (Dom h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
       quoteArg q (Arg h r t) = arg @@ quoteHiding h @@ quoteRelevance r @@ q t
       quoteArgs ts = list (map (quoteArg quote) ts)
-      quote (Var n ts) = var @@ Lit (LitInt noRange n) @@ quoteArgs ts
+      quote (Var n ts) = var @@ Lit (LitInt noRange $ fromIntegral n) @@ quoteArgs ts
       quote (Lam h t) = lam @@ quoteHiding h @@ quote (absBody t)
       quote (Def x ts) = def @@ quoteName x @@ quoteArgs ts
       quote (Con x ts) = con @@ quoteName x @@ quoteArgs ts
@@ -243,7 +243,7 @@ instance Unquote Term where
 
       Con c [x,y] ->
         choice
-          [(c `isCon` primAgdaTermVar, Var <$> unquoteN x <*> unquoteN y)
+          [(c `isCon` primAgdaTermVar, Var <$> (fromInteger <$> unquoteN x) <*> unquoteN y)
           ,(c `isCon` primAgdaTermCon, Con <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermDef, Def <$> unquoteN x <*> unquoteN y)
           ,(c `isCon` primAgdaTermLam, Lam <$> unquoteN x <*> unquoteN y)

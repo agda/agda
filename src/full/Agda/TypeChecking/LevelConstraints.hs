@@ -8,7 +8,7 @@ import Agda.TypeChecking.Monad.Base
 import Agda.TypeChecking.Substitute
 import Agda.Utils.Size
 
-simplifyLevelConstraint :: Integer -> Constraint -> Constraints -> Constraint
+simplifyLevelConstraint :: Int -> Constraint -> Constraints -> Constraint
 simplifyLevelConstraint n new old =
   case inequalities new of
     [a :=< b] | elem (b' :=< a') leqs -> LevelCmp CmpEq (Max [a]) (Max [b])

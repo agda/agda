@@ -43,13 +43,13 @@ translateDefn msharp (n, defini) =
       epDef = compiledEpic $ defCompiledRep defini
   in case theDef defini of
     d@(Datatype {}) -> do -- become functions returning unit
-        vars <- replicateM (fromIntegral $ dataPars d + dataIxs d) newName
+        vars <- replicateM (dataPars d + dataIxs d) newName
         return . return $ Fun True n' (Just n) ("datatype: " ++ show n) vars UNIT
     f@(Function{}) -> do
         let projArgs = maybe 0 (pred . snd) (funProjection f)
         ccs  <- reverseCCBody projArgs <$> normaliseStatic (funCompiled f)
         let len   = (+ projArgs) . length . clausePats . head .  funClauses $ f
-            toEta = fromIntegral (arity (defType defini)) - len
+            toEta = arity (defType defini) - len
         -- forcing <- lift $ gets (optForcing . stPersistentOptions)
         lift $ reportSDoc "epic.fromagda" 5 $ text "compiling fun:" <+> prettyTCM n
         lift $ reportSDoc "epic.fromagda" 5 $ text "len:" <+> (text . show) len
@@ -71,7 +71,7 @@ translateDefn msharp (n, defini) =
           Just (T.Def sharp []) | sharp == n -> return <$> mkFun n n' "primSharp" 3
           _    -> return <$> mkCon n tag arit
     r@(Record{}) -> do
-        vars <- replicateM (fromIntegral $ recPars r) newName
+        vars <- replicateM (recPars r) newName
         return . return $ Fun True n' (Just n) ("record: " ++ show n) vars UNIT
     a@(Axiom{}) -> do -- Axioms get their code from COMPILED_EPIC pragmas
         case epDef of
@@ -80,7 +80,7 @@ translateDefn msharp (n, defini) =
             Just x  -> return . return $ EpicFun n' (Just n) ("COMPILED_EPIC: " ++ show n) x
     p@(Primitive{}) -> do -- Primitives use primitive functions from AgdaPrelude.e of the same name.
                           -- Hopefully they are defined!
-      let ar = fromIntegral $ arity $ defType defini
+      let ar = arity $ defType defini
       return <$> mkFun n n' (primName p) ar
   where
     mkFun q = mkFunGen q apps ("primitive: " ++)
@@ -133,7 +133,7 @@ reverseCCBody c cc = case cc of
           (M.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
     CC.Done i t -> CC.Done i (S.substs (map (flip T.Var [])
-                               (reverse $ take (length i) [fromIntegral c..])) t)
+                               (reverse $ take (length i) [c..])) t)
     CC.Fail     -> CC.Fail
 
 -- | Translate from Agda's desugared pattern matching (CompiledClauses) to our AuxAST.
@@ -217,9 +217,9 @@ compileClauses name nargs c = do
 --   names in the position.
 substTerm :: [Var] -> T.Term -> Compile TCM Expr
 substTerm env term = case term of
-    T.Var ind args -> case length env <= fromIntegral ind of
+    T.Var ind args -> case length env <= ind of
         True  -> __IMPOSSIBLE__
-        False -> apps (env !! fromIntegral ind) <$> mapM (substTerm env . unArg) args
+        False -> apps (env !! ind) <$> mapM (substTerm env . unArg) args
     T.Lam _ (Abs _ te) -> do
        name <- newName
        Lam name <$> substTerm (name : env) te

@@ -122,7 +122,7 @@ data FreshThings =
 	      , fName	     :: NameId
 	      , fCtx	     :: CtxId
               , fProblem     :: ProblemId
-              , fInteger     :: Integer
+              , fInt         :: Int
                 -- ^ Can be used for various things.
 	      }
     deriving (Show)
@@ -190,10 +190,10 @@ instance HasFresh CtxId FreshThings where
 	where
 	    i = fCtx s
 
-instance HasFresh Integer FreshThings where
-    nextFresh s = (i, s { fInteger = succ i })
+instance HasFresh Int FreshThings where
+    nextFresh s = (i, s { fInt = succ i })
 	where
-	    i = fInteger s
+	    i = fInt s
 
 newtype ProblemId = ProblemId Nat
   deriving (Typeable, Eq, Ord, Enum, Real, Integral, Num)

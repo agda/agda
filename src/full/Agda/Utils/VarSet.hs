@@ -7,12 +7,12 @@ module Agda.Utils.VarSet
   )
   where
 
-import Data.Set as Set
+import Data.IntSet as Set
 
-type VarSet = Set Integer
+type VarSet = Set.IntSet
 
-subtract :: Integer -> VarSet -> VarSet
-subtract n s = Set.mapMonotonic (Prelude.subtract n) s
+subtract :: Int -> VarSet -> VarSet
+subtract n s = Set.map (Prelude.subtract n) s
 
 {-
 import Data.Bits

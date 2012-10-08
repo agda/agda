@@ -216,10 +216,9 @@ getVarInfo x =
     do	ctx <- getContext
 	def <- asks envLetBindings
 	case findIndex ((==x) . fst . unDom) ctx of
-	    Just n0 ->
-		do  let n = fromIntegral n0
-                    t <- typeOfBV' n
-		    return (Var n [], t)
+	    Just n -> do
+                t <- typeOfBV' n
+                return (Var n [], t)
 	    _	    ->
 		case Map.lookup x def of
 		    Just vt -> liftTCM $ getOpen vt

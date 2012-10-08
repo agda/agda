@@ -309,7 +309,7 @@ blockTermOnProblem t v pid =
         -- blocked terms can be instantiated before they are unblocked, thus making
         -- constraint solving a bit more robust against instantiation order.
         v   <- newValueMeta DontRunMetaOccursCheck t
-        i   <- liftTCM (fresh :: TCM Integer)
+        i   <- liftTCM fresh
         -- This constraint is woken up when unblocking, so it doesn't need a problem id.
         cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV x vs))
         listenToMeta (CheckConstraint i cmp) x
@@ -358,7 +358,7 @@ postponeTypeCheckingProblem e t unblock = do
   vs  <- getContextArgs
   v   <- newValueMeta DontRunMetaOccursCheck t
   cmp <- buildProblemConstraint 0 (ValueCmp CmpEq t v (MetaV m vs))
-  i   <- liftTCM (fresh :: TCM Integer)
+  i   <- liftTCM fresh
   listenToMeta (CheckConstraint i cmp) m
   addConstraint (UnBlock m)
   return v

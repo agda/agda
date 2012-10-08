@@ -490,7 +490,7 @@ getArgOccurrence d i = do
   def <- getConstInfo d
   return $ case theDef def of
     Constructor{} -> StrictPos
-    _             -> (defArgOccurrences def ++ repeat Mixed) !! fromIntegral i
+    _             -> (defArgOccurrences def ++ repeat Mixed) !! i
 
 setArgOccurrences :: QName -> [Occurrence] -> TCM ()
 setArgOccurrences d os =

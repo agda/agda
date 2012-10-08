@@ -149,7 +149,7 @@ checkDataDef i name ps cs =
 	hideTel  EmptyTel		  = EmptyTel
 	hideTel (ExtendTel a tel) = ExtendTel (hideAndRelParams a) $ hideTel <$> tel
 
-        splitType :: Type -> TCM (Integer, Sort)
+        splitType :: Type -> TCM (Int, Sort)
         splitType t = case ignoreSharing $ unEl t of
           Pi a b -> ((+ 1) -*- id) <$> do addCtxString (absName b) a $ splitType (absBody b)
           Sort s -> return (0, s)

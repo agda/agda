@@ -101,7 +101,7 @@ expandCatchAlls n cs = case cs of
       case q of
         ConP c _ qs' -> (ps0 ++ [defaultArg $ ConP c Nothing (genericReplicate m $ defaultArg $ VarP "_")] ++ ps1,
                          substBody n' m (Con c (map var [m - 1, m - 2..0])) b)
-          where m = fromIntegral $ length qs'
+          where m = length qs'
         LitP l -> (ps0 ++ [defaultArg $ LitP l] ++ ps1, substBody n' 0 (Lit l) b)
         _ -> __IMPOSSIBLE__
       where
@@ -116,10 +116,10 @@ expandCatchAlls n cs = case cs of
 
         var x = defaultArg $ Var x []
 
-substBody :: Int -> Integer -> Term -> ClauseBody -> ClauseBody
+substBody :: Int -> Int -> Term -> ClauseBody -> ClauseBody
 substBody _ _ _ NoBody = NoBody
 substBody 0 m v b = case b of
-  Bind   b -> foldr (.) id (genericReplicate m (Bind . Abs "_")) $ subst v (absBody $ raise m b)
+  Bind   b -> foldr (.) id (replicate m (Bind . Abs "_")) $ subst v (absBody $ raise m b)
   _        -> __IMPOSSIBLE__
 substBody n m v b = case b of
   Bind b   -> Bind $ fmap (substBody (n - 1) m v) b

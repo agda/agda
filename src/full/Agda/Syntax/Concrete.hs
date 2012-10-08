@@ -79,7 +79,7 @@ data Expr
 	| Pi Telescope Expr		       -- ^ ex: @(xs:e) -> e@ or @{xs:e} -> e@
 	| Set !Range			       -- ^ ex: @Set@
 	| Prop !Range			       -- ^ ex: @Prop@
-	| SetN !Range Nat		       -- ^ ex: @Set0, Set1, ..@
+	| SetN !Range Integer                  -- ^ ex: @Set0, Set1, ..@
 	| Rec !Range [(Name, Expr)]	       -- ^ ex: @record {x = a; y = b}@
 	| RecUpdate !Range Expr [(Name, Expr)] -- ^ ex: @record e {x = a; y = b}@
 	| Let !Range [Declaration] Expr	       -- ^ ex: @let Ds in e@

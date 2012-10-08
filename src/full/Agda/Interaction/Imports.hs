@@ -493,7 +493,7 @@ createInterface file mname =
     -- Count number of metas
     verboseS "profile.metas" 10 $ do
       MetaId n <- fresh
-      tickN "metas" n
+      tickN "metas" (fromIntegral n)
 
     -- Move any remaining token highlighting to stSyntaxInfo.
     ifTopLevelAndHighlightingLevelIs NonInteractive $

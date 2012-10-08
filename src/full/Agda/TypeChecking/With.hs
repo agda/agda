@@ -258,9 +258,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
         -- Andreas, 2010-09-09: I DISAGREE.
         -- Ulf, 2011-09-02: Thinking done. Neither was correct.
         -- We had the wrong permutation and we used it incorrectly. Should work now.
-        term i = case findIndex (Just i ==) rho of
-          Nothing -> wild
-          Just j  -> var (fromIntegral j)
+        term i = maybe wild var $ findIndex (Just i ==) rho
 
 patsToTerms :: [Arg Pattern] -> [Arg DisplayTerm]
 patsToTerms ps = evalState (toTerms ps) 0

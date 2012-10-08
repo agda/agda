@@ -254,7 +254,7 @@ flattenSubstitution s = foldr instantiate s is
     instantiate :: Nat -> Substitution -> Substitution
     instantiate i s = map (fmap $ inst i u) s
       where
-	Just u = s !! fromIntegral i
+	Just u = s !! i
 
     inst :: Nat -> Term -> Term -> Term
     inst i u v = substs us v

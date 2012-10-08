@@ -126,7 +126,7 @@ instance Apply CompiledClauses where
     Fail     -> Fail
     Done hs t
       | length hs >= len -> Done (drop len hs)
-                                 (substs ([ Var (fromIntegral i) []
+                                 (substs ([ Var i []
                                           | i <- [0..length hs - len - 1]] ++
                                           map unArg args) t)
       | otherwise -> __IMPOSSIBLE__

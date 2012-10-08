@@ -976,7 +976,7 @@ checkHeadApplication e t hd args = do
           "coinductive constructor in the scope of a let-bound variable"
 
       -- The name of the fresh function.
-      i <- fresh :: TCM Integer
+      i <- fresh :: TCM Int
       let name = filter (/= '_') (show $ A.qnameName c) ++ "-" ++ show i
       c' <- setRange (getRange c) <$>
               liftM2 qualify (killRange <$> currentModule)
