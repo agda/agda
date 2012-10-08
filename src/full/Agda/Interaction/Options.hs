@@ -329,10 +329,10 @@ standardOptions =
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
-    , Option []	    ["ghci-interaction"] (NoArg ghciInteractionFlag)
-		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in the Emacs frontend)"
+    , Option []	    ["interaction"] (NoArg ghciInteractionFlag)
+		    "for use with the Emacs mode"
     , Option []     ["interaction-test"] (ReqArg interactionTestFlag "FILE")
-		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in interaction tests)"
+		    "for testing the Emacs mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"

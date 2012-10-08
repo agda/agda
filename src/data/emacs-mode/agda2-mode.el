@@ -91,7 +91,7 @@ the root of the current project."
 
 (defcustom agda2-program-args nil
   "Command-line arguments given to the Agda executable.
-The flag \"--ghci-interaction\" is always included as the first
+The flag \"--interaction\" is always included as the first
 argument, and does not need to be listed here."
   :type '(repeat string)
   :group 'agda2)
@@ -446,7 +446,7 @@ Special commands:
                     (let ((process-connection-type nil)) ; pipes are faster than PTYs
                       (apply 'start-process "Agda2" agda2-bufname
                              agda2-program-name
-                             (cons "--ghci-interaction" agda2-program-args)))
+                             (cons "--interaction" agda2-program-args)))
 
                     ;; Select agda buffer temporarily.
                     (with-current-buffer agda2-bufname
