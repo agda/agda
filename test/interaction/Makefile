@@ -22,9 +22,11 @@ default : $(Tests)
 export TMPDIR=highlighting-tmp
 
 run_test=if test -f $*.in; \
-    then ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps' ) \
-           | cat - $*.in \
-           | agda --interaction-test "$(wildcard $*.agda $*.lagda)" $(RTS_$*) \
+    then cat $*.in \
+         | sed "s/goal_command/ioTCMgoal currentFile None/g" \
+         | sed "s/top_command/ioTCM currentFile None/g" \
+         | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | agda --interaction "$(wildcard $*.agda $*.lagda)" $(RTS_$*) \
            2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
            echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \

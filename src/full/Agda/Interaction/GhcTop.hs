@@ -46,8 +46,6 @@ mimicGHCi = do
 
     IO.hSetBuffering IO.stdout IO.NoBuffering
 
-    putPrompt "Prelude> "
-    _ <- getLine            -- ignore the ":mod +Prelude Agda.Interaction.GhciTop" command
     interact' initState
   where
 
