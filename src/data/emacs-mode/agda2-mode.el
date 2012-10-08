@@ -654,8 +654,6 @@ reloaded from `agda2-highlighting-file', unless
                                        (lambda (x y) (<= (car x) (car y)))))
       (let ((r (pop agda2-last-responses)))
         (agda2-exec-response (cdr r))))))
-  ;; (with-current-buffer agda2-file-buffer
-  ;;   (setq agda2-highlight-in-progress nil)))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
