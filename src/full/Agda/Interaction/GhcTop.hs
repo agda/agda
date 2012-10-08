@@ -40,13 +40,6 @@ import Agda.Interaction.Highlighting.Emacs
 --
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
---
---   If the first argument is 'Just f' then
---   'mimicGhci' interprets
---          goal_command <i> <goalcommand> <s>
---        as
---          ioTCM currentFile None <goalcommand> <i> noRange <s>
-
 
 mimicGHCi :: Maybe String -> IO ()
 mimicGHCi maybeCurrentfile = do
