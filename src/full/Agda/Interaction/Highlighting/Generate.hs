@@ -71,9 +71,10 @@ import Agda.Utils.Impossible
 -- | @highlightAsTypeChecked rPre r m@ runs @m@ and returns its
 -- result. Some code may additionally be highlighted:
 --
--- * If @rPre@ and @r@ are disjoint: @r@ is highlighted as being
---   type-checked while @m@ is running (this highlighting is removed
---   if @m@ completes /successfully/).
+-- * If @r@ is non-empty and not a sub-range of @rPre@ (after
+--   'P.continuousPerLine' has been applied to both): @r@ is
+--   highlighted as being type-checked while @m@ is running (this
+--   highlighting is removed if @m@ completes /successfully/).
 --
 -- * Otherwise: Highlighting is removed for @rPre - r@ before @m@
 --   runs, and if @m@ completes successfully, then @rPre - r@ is
@@ -86,8 +87,8 @@ highlightAsTypeChecked
   -> tcm a
   -> tcm a
 highlightAsTypeChecked rPre r m
-  | delta == rPre' = wrap r'    highlight clear
-  | otherwise      = wrap delta clear     highlight
+  | r /= P.noRange && delta == rPre' = wrap r'    highlight clear
+  | otherwise                        = wrap delta clear     highlight
   where
   rPre'     = rToR (P.continuousPerLine rPre)
   r'        = rToR (P.continuousPerLine r)

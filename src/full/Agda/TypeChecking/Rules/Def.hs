@@ -149,7 +149,7 @@ checkFunDef' t rel delayed i name cs =
               c <- applyRelevanceToContext rel $ checkClause t c
               solveSizeConstraints
               return c
-        cs <- mapM check cs
+        cs <- traceCall NoHighlighting $ mapM check cs
 
         -- Check that all clauses have the same number of arguments
         unless (allEqual $ map npats cs) $ typeError DifferentArities

@@ -780,6 +780,7 @@ data Call = CheckClause Type A.Clause (Maybe Clause)
 	  | ScopeCheckExpr C.Expr (Maybe A.Expr)
 	  | ScopeCheckDeclaration D.NiceDeclaration (Maybe [A.Declaration])
 	  | ScopeCheckLHS C.Name C.Pattern (Maybe A.LHS)
+          | forall a. NoHighlighting (Maybe a)
 	  | forall a. SetRange Range (Maybe a)	-- ^ used by 'setCurrentRange'
     deriving (Typeable)
 
@@ -809,6 +810,7 @@ instance HasRange Call where
     getRange (SetRange r _)                        = r
     getRange (CheckSectionApplication r _ _ _)     = r
     getRange (CheckIsEmpty r _ _)                  = r
+    getRange (NoHighlighting _)                    = noRange
 
 ---------------------------------------------------------------------------
 -- ** Builtin things

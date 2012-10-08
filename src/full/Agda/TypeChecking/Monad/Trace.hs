@@ -21,6 +21,7 @@ interestingCall cl = case clValue cl of
     InferDef _ _ _	      -> False
     CheckArguments _ [] _ _ _ -> False
     SetRange _ _	      -> False
+    NoHighlighting {}         -> False
     _			      -> True
 
 traceCallM :: MonadTCM tcm => tcm (Maybe r -> Call) -> tcm a -> tcm a
@@ -31,8 +32,9 @@ traceCallM mkCall m = flip traceCall m =<< mkCall
 traceCall :: MonadTCM tcm => (Maybe r -> Call) -> tcm a -> tcm a
 traceCall mkCall m = do
   let call = mkCall Nothing
-      r | getRange call /= noRange = const $ getRange call
-        | otherwise                = id
+      r | isNoHighlighting call || getRange call /= noRange =
+            const $ getRange call
+        | otherwise = id
   -- Ranges associated with the previous and current calls.
   cl <- liftTCM $ buildClosure call
   oldRange <- envRange <$> ask
@@ -72,7 +74,11 @@ traceCall mkCall m = do
     ScopeCheckExpr _ _              -> False
     ScopeCheckDeclaration _ _       -> False
     ScopeCheckLHS _ _ _             -> False
+    NoHighlighting _                -> True
     SetRange _ _                    -> False
+
+  isNoHighlighting (NoHighlighting {}) = True
+  isNoHighlighting _                   = False
 
 {-# SPECIALIZE traceCall_ :: (Maybe () -> Call) -> TCM r -> TCM r #-}
 traceCall_ :: MonadTCM tcm => (Maybe () -> Call) -> tcm r -> tcm r

@@ -743,6 +743,7 @@ instance PrettyTCM Call where
 	ScopeCheckLHS x p _ ->
 	    fsep $ pwords "when scope checking the left-hand side" ++ [pretty p] ++
 		   pwords "in the definition of" ++ [pretty x]
+        NoHighlighting _ -> empty
 	SetRange r _ ->
 	    fsep $ pwords "when doing something at" ++ [text $ show r]
         CheckSectionApplication _ m1 modapp _ -> fsep $
