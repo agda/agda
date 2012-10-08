@@ -339,7 +339,7 @@ checkRecordProjections m r q tel ftel fs = checkProjs EmptyTel ftel fs
             -- projection functions are defined. Record pattern
             -- translation is defined in terms of projection
             -- functions.
-      cc <- compileClauses False [clause]
+      cc <- compileClauses Nothing [clause]
 
       reportSDoc "tc.cc" 10 $ do
         sep [ text "compiled clauses of " <+> prettyTCM projname

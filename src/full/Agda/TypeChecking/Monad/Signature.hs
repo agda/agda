@@ -287,7 +287,7 @@ applySection new ptel old ts rd rm = do
                          {- , recArgOccurrences = drop (length ts) oldOcc -}
                          }
 		_ -> do
-                  cc <- compileClauses True [cl]
+                  cc <- compileClauses Nothing [cl] -- Andreas, 2012-10-07 non need for record pattern translation
                   let newDef = Function
                         { funClauses        = [cl]
                         , funCompiled       = cc

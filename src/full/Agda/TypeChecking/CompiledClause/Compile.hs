@@ -9,6 +9,8 @@ import Data.Function
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage
+import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
@@ -18,22 +20,30 @@ import Agda.Utils.List
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
+-- | Process function clauses into case tree.
+--   This involves:
+--   1. Coverage checking, generating a split tree.
+--   2. Translation of lhs record patterns into rhs uses of projection.
+--      Update the split tree.
+--   3. Generating a case tree from the split tree.
+--   Phases 1. and 2. are skipped if @Nothing@.
 compileClauses ::
-  Bool -- ^ Translate record patterns?
+  Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
-compileClauses translate cs = do
-  cs <- if translate then
-          mapM translateRecordPatterns cs
-         else
-          return cs
-  return $ compile [(clausePats c, clauseBody c) | c <- cs]
+compileClauses mt cs = case mt of
+  Nothing -> return $ compile Nothing [(clausePats c, clauseBody c) | c <- cs]
+  Just (q, t)  -> do
+    splitTree <- coverageCheck q t cs
+    cs        <- mapM translateRecordPatterns cs
+    -- TODO: translate splitTree
+    return $ compile (Just splitTree) [(clausePats c, clauseBody c) | c <- cs]
 
 type Cl  = ([Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
-compile :: Cls -> CompiledClauses
-compile cs = case nextSplit cs of
-  Just n  -> Case n $ fmap compile $ splitOn n cs
+compile :: Maybe SplitTree -> Cls -> CompiledClauses
+compile mt cs = case nextSplit cs of
+  Just n  -> Case n $ fmap (compile mt) $ splitOn n cs
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.

@@ -118,48 +118,54 @@ typeOfVar tel n
     ts  = telToList tel
 -}
 
--- | Top-level function for checking pattern coverage.
+-- | Old top-level function for checking pattern coverage.
+--   DEPRECATED
 checkCoverage :: QName -> TCM ()
 checkCoverage f = do
   d <- getConstInfo f
-  TelV gamma _ <- telView $ defType d
-  let defn = theDef d
-  case defn of
+  case theDef d of
+    Function{ funProjection = Nothing, funClauses = cs@(_:_) } -> do
+      coverageCheck f (defType d) cs
+      return ()
     Function{ funProjection = Just _ } -> __IMPOSSIBLE__
-    Function{ funProjection = proj, funClauses = cs@(_:_) } -> do
-      let -- n             = arity (does not include np)
-          -- np            = number of dropped arguments due to projection-likeness
-          -- lgamma/gamma' = telescope of non-dropped arguments
-          -- xs            = variable patterns fitting lgamma
-          n            = genericLength $ clausePats $ head cs
-          np           = maybe 0 snd proj
-          lgamma       = genericTake n $ genericDrop np $ telToList gamma
-          gamma'       = telFromList lgamma
-          xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
-      reportSDoc "tc.cover.top" 10 $ vcat
-        [ text "Coverage checking"
-        , nest 2 $ vcat $ map (text . show . clausePats) cs
-        ]
-      -- used = actually used clauses for cover
-      -- pss  = uncovered cases
-      (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
-      reportSDoc "tc.cover.splittree" 10 $ vcat
-        [ text "generated split tree for" <+> prettyTCM f
-        , text $ show splitTree
-        ]
-      whenM (optCompletenessCheck <$> pragmaOptions) $
-        -- report an error if there are uncovered cases
-        unless (null pss) $
-            setCurrentRange (getRange cs) $
-              typeError $ CoverageFailure f pss
-      -- is = indices of unreachable clauses
-      let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
-      -- report an error if there are unreachable clauses
-      unless (null is) $ do
-          let unreached = map (cs !!) is
-          setCurrentRange (getRange unreached) $
-            typeError $ UnreachableClauses f (map clausePats unreached)
-    _             -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
+-- | Top-level function for checking pattern coverage.
+coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
+coverageCheck f t cs = do
+  TelV gamma _ <- telView t
+  let -- n             = arity
+      -- lgamma/gamma' = telescope of non-dropped arguments
+      -- xs            = variable patterns fitting lgamma
+      n            = genericLength $ clausePats $ head cs
+      lgamma       = genericTake n $ telToList gamma
+      gamma'       = telFromList lgamma
+      xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+  reportSDoc "tc.cover.top" 10 $ vcat
+    [ text "Coverage checking"
+    , nest 2 $ vcat $ map (text . show . clausePats) cs
+    ]
+  -- used = actually used clauses for cover
+  -- pss  = uncovered cases
+  (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+  reportSDoc "tc.cover.splittree" 10 $ vcat
+    [ text "generated split tree for" <+> prettyTCM f
+    , text $ show splitTree
+    ]
+  whenM (optCompletenessCheck <$> pragmaOptions) $
+    -- report an error if there are uncovered cases
+    unless (null pss) $
+        setCurrentRange (getRange cs) $
+          typeError $ CoverageFailure f pss
+  -- is = indices of unreachable clauses
+  let is = Set.toList $ Set.difference (Set.fromList [0..genericLength cs - 1]) used
+  -- report an error if there are unreachable clauses
+  unless (null is) $ do
+      let unreached = map (cs !!) is
+      setCurrentRange (getRange unreached) $
+        typeError $ UnreachableClauses f (map clausePats unreached)
+  return splitTree
+
 
 -- | @cover cs (SClause _ _ ps _) = return (splitTree, used, pss)@.
 --   checks that the list of clauses @cs@ covers the given split clause.
@@ -179,8 +185,8 @@ cover cs (SClause tel perm ps _) = do
       let is = [ j | (j, c) <- zip [0..i-1] cs, matchLits c ps perm ]
       -- OLD: let is = [ j | (j, c) <- zip [0..] (genericTake i cs), matchLits c ps perm ]
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
-      return (SplittingDone, Set.fromList (i : is), [])
-    No       -> return (SplittingDone, Set.empty, [ps])
+      return (SplittingDone (size tel), Set.fromList (i : is), [])
+    No       -> return (SplittingDone (size tel), Set.empty, [ps])
     Block xs -> do
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them

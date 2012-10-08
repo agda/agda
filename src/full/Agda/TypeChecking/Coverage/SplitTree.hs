@@ -28,9 +28,12 @@ type SplitTrees = SplitTrees' QName
 
 -- | Abstract case tree shape.
 data SplitTree' a
-  = SplittingDone -- ^ No more splits coming.  We are at a single, all-variable clause.
-  | SplitAt       -- ^ A split is necessary.
-    { splitArg   :: Nat          -- ^ Arg. no to split at.
+  = SplittingDone
+            -- ^ No more splits coming.  We are at a single, all-variable clause.
+    { splitBindings :: Int       -- ^  The number of variables bound in the clause
+    }
+  | SplitAt -- ^ A split is necessary.
+    { splitArg   :: Int           -- ^ Arg. no to split at.
     , splitTrees :: SplitTrees' a -- ^ Sub split trees.
     }
     deriving (Eq)
@@ -45,19 +48,21 @@ type SplitTrees' a = [(a, SplitTree' a)]
 
 data SplitTreeLabel a = SplitTreeLabel
   { lblConstructorName :: Maybe a   -- ^ 'Nothing' for root of split tree
-  , lblSplitArg        :: Maybe Nat
+  , lblSplitArg        :: Maybe Int
+  , lblBindings        :: Maybe Int
   }
 instance Show a => Show (SplitTreeLabel a) where
-  show (SplitTreeLabel Nothing Nothing)   = "done"
-  show (SplitTreeLabel Nothing (Just n))  = "split at " ++ show n
-  show (SplitTreeLabel (Just q) Nothing)  = show q
-  show (SplitTreeLabel (Just q) (Just n)) = show q ++ " -> split at " ++ show n
+  show (SplitTreeLabel Nothing Nothing (Just n))  = "done, " ++ show n ++ " bindings"
+  show (SplitTreeLabel Nothing (Just n) Nothing)  = "split at " ++ show n
+  show (SplitTreeLabel (Just q) Nothing (Just n)) = show q ++ "-> done, " ++ show n ++ " bindings"
+  show (SplitTreeLabel (Just q) (Just n) Nothing) = show q ++ " -> split at " ++ show n
+  show _ = __IMPOSSIBLE__
 
 -- | Convert a split tree into a 'Data.Tree' (for printing).
 toTree :: SplitTree' a -> Tree (SplitTreeLabel a)
 toTree t = case t of
-  SplittingDone -> Node (SplitTreeLabel Nothing Nothing) []
-  SplitAt n ts  -> Node (SplitTreeLabel Nothing (Just n)) $ toTrees ts
+  SplittingDone n -> Node (SplitTreeLabel Nothing Nothing (Just n)) []
+  SplitAt n ts    -> Node (SplitTreeLabel Nothing (Just n) Nothing) $ toTrees ts
 
 toTrees :: SplitTrees' a -> Forest (SplitTreeLabel a)
 toTrees = map (\ (c,t) -> setCons c $ toTree t)
@@ -72,7 +77,7 @@ instance Show a => Show (SplitTree' a) where
 
 instance Arbitrary a => Arbitrary (SplitTree' a) where
   arbitrary = frequency
-    [ (5, return SplittingDone)
+    [ (5, return $ SplittingDone 0)
     , (3, SplitAt <$> choose (1,5) <*> (take 3 <$> listOf1 arbitrary))
     ]
 

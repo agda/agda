@@ -4,4 +4,4 @@ import Agda.Syntax.Internal
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Monad.Base
 
-compileClauses :: Bool -> [Clause] -> TCM CompiledClauses
+compileClauses :: Maybe (QName, Type) -> [Clause] -> TCM CompiledClauses

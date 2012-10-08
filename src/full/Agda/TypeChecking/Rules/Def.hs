@@ -175,8 +175,8 @@ checkFunDef' t rel delayed i name cs =
               , nest 2 $ prettyTCM (map (NamedClause name) cs)
               ]
 
-        -- Compile the clauses
-        cc <- compileClauses True cs
+        -- Coverage check and compile the clauses
+        cc <- compileClauses (Just (name, t)) cs
 
         reportSDoc "tc.cc" 10 $ do
           sep [ text "compiled clauses of" <+> prettyTCM name
@@ -207,12 +207,6 @@ checkFunDef' t rel delayed i name cs =
           sep [ text "added " <+> prettyTCM name <+> text ":"
               , nest 2 $ prettyTCM . defType =<< getConstInfo name
               ]
-
-        -- Check pattern coverage
-        checkCoverage name
-
-        reportSLn "tc.def.fun.compile" 10 $
-          "compiled clauses for " ++ show name ++ ":\n" ++ show cc
     where
         npats = size . clausePats
 

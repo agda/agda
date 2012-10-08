@@ -1,10 +1,12 @@
-{-# LANGUAGE TypeOperators, CPP, DeriveDataTypeable, DeriveFunctor #-}
+{-# LANGUAGE TypeOperators, CPP, DeriveDataTypeable, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Agda.TypeChecking.CompiledClause where
 
 import qualified Data.Map as Map
 import Data.Map (Map)
 import Data.Monoid
 import Data.Typeable (Typeable)
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
@@ -17,7 +19,7 @@ data Case c = Branches { conBranches    :: QName   :-> c
                        , litBranches    :: Literal :-> c
                        , catchAllBranch :: Maybe c
                        }
-  deriving (Typeable, Functor)
+  deriving (Typeable, Functor, Foldable, Traversable)
 
 data CompiledClauses
   = Case Int (Case CompiledClauses)
