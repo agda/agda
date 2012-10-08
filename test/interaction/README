@@ -12,9 +12,14 @@ Test framework for interactions
     goal_command 0 cmd_give "s z"
     goal_command 0 cmd_give "Nothing"
   The variable currentFile is bound to the current file name.
-- Some new functions have been added to Agda.Interaction.GhciTop for
-  convenience:
-    top_command' :: FilePath -> Interaction -> IO ()
-    goal_command :: InteractionId -> GoalCommand -> String -> IO ()
+- Two macros are available for convenience: currentFile, top_command and goal_command.
+  "currentFile" is replaced by the current file path by sed in the Makefile.
+          top_command <command>
+  is replaced by
+          ioTCM currentFile None <command>
+  and
+          goal_command <i> <goalcommand> <s>
+  is the same as
+          ioTCM currentFile None <goalcommand> <i> noRange <s>
 - The output from each test is recorded in SomeTest.out and compared
   against for each run of the test.
