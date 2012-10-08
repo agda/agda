@@ -41,8 +41,8 @@ import Agda.Interaction.Highlighting.Emacs
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 
-mimicGHCi :: Maybe String -> IO ()
-mimicGHCi maybeCurrentfile = do
+mimicGHCi :: IO ()
+mimicGHCi = do
 
     IO.hSetBuffering IO.stdout IO.NoBuffering
 

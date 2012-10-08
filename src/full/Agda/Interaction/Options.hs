@@ -60,7 +60,6 @@ data CommandLineOptions =
 	    , optShowHelp             :: Bool
 	    , optInteractive          :: Bool
 	    , optRunTests             :: Bool
-        , optInteractionTest      :: Maybe FilePath
         , optGHCiInteraction      :: Bool
 	    , optCompile              :: Bool
 	    , optEpicCompile          :: Bool
@@ -139,7 +138,6 @@ defaultOptions =
 	    , optShowHelp             = False
 	    , optInteractive          = False
 	    , optRunTests             = False
-        , optInteractionTest      = Nothing
         , optGHCiInteraction      = False
 	    , optCompile              = False
 	    , optEpicCompile          = False
@@ -221,7 +219,7 @@ checkOpts opts
 
   p = optPragmaOptions
 
-  interactive = [optInteractive, optGHCiInteraction, isJust . optInteractionTest]
+  interactive = [optInteractive, optGHCiInteraction]
 
 -- Check for unsafe pramas. Gives a list of used unsafe flags.
 
@@ -265,7 +263,6 @@ allowUnsolvedFlag            o = return $ o { optAllowUnsolved             = Tru
 showImplicitFlag             o = return $ o { optShowImplicit              = True  }
 showIrrelevantFlag           o = return $ o { optShowIrrelevant            = True  }
 runTestsFlag                 o = return $ o { optRunTests                  = True  }
-interactionTestFlag        f o = return $ o { optInteractionTest           = Just f }
 ghciInteractionFlag          o = return $ o { optGHCiInteraction           = True  }
 vimFlag                      o = return $ o { optGenerateVimFile           = True  }
 noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
@@ -329,10 +326,10 @@ standardOptions =
     , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
 		    "start in interactive mode"
-    , Option []	    ["interaction"] (NoArg ghciInteractionFlag)
-		    "for use with the Emacs mode"
+    , Option []	    ["ghci-interaction"] (NoArg ghciInteractionFlag)
+		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in the Emacs frontend)"
     , Option []     ["interaction-test"] (ReqArg interactionTestFlag "FILE")
-		    "for testing the Emacs mode"
+		    "mimic ghci behaviour with :mod +Agda.Interaction.GhciTop (used in interaction tests)"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"

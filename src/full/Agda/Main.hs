@@ -79,10 +79,8 @@ runAgda = do
       | optRunTests opts    -> liftIO $ do
           ok <- testSuite
           unless ok exitFailure
-      | Just currentfile <- optInteractionTest opts
-                            -> liftIO $ mimicGHCi $ Just currentfile
       | optGHCiInteraction opts
-                            -> liftIO $ mimicGHCi Nothing
+                            -> liftIO mimicGHCi
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
                             -> liftIO printUsage
