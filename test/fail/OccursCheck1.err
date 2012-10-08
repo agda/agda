@@ -1,0 +1,3 @@
+OccursCheck1.agda:18,8-12
+Refuse to construct infinite term by instantiating _9 to suc _9
+when checking that the expression refl has type _9 == suc _9
