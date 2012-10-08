@@ -1,4 +1,4 @@
-(agda2-status-action "")
+Prelude> Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Highlighting (Highlighting.agda).\n" t)
@@ -20,3 +20,4 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "Sort _4  [ at Highlighting.agda:19,15-16 ]\n_5 : Set _4  [ at Highlighting.agda:19,15-16 ]\n" nil)
 ((last . 1) . (agda2-goals-action '()))
+Agda2> 

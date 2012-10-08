@@ -1,5 +1,5 @@
-(agda2-status-action "")
-(agda2-status-action "")
+Prelude> Agda2> (agda2-status-action "")
+Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue606 (Issue606.agda).\n" t)
@@ -7,7 +7,8 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : A\n?1 : B × C\n" nil)
 ((last . 1) . (agda2-goals-action '(0 1)))
-(agda2-give-action 1 "? , ?")
+Agda2> (agda2-give-action 1 "? , ?")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : A\n?2 : B\n?3 : C\n" nil)
 ((last . 1) . (agda2-goals-action '(0 2 3)))
+Agda2> 

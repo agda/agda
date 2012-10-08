@@ -1,4 +1,4 @@
-(agda2-status-action "")
+Prelude> Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking GiveInSpiteOfUnsolvedIrr (GiveInSpiteOfUnsolvedIrr.agda).\n" t)
@@ -9,7 +9,8 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : M\n?1 : (λ x → x) ≡ .op ?0\n?2 : {M : Set} {op : M → M → M} → MC M op → MC M op → MC M op\n" nil)
 ((last . 1) . (agda2-goals-action '(0 1 2)))
-(agda2-give-action 1 "funExt ?")
+Agda2> (agda2-give-action 1 "funExt ?")
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : M\n?2 : {M : Set} {op : M → M → M} → MC M op → MC M op → MC M op\n?3 : (x : M) → x ≡ .op ?0 x\n" nil)
 ((last . 1) . (agda2-goals-action '(0 3 2)))
+Agda2> 

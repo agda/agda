@@ -1,4 +1,4 @@
-(agda2-status-action "")
+Prelude> Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue630 (Issue630.agda).\n" t)
@@ -6,3 +6,4 @@
 (agda2-status-action "")
 (agda2-info-action "*All Goals*" "?0 : A\n" nil)
 ((last . 1) . (agda2-goals-action '(0)))
+Agda2> 

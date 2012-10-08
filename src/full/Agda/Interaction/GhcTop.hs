@@ -43,19 +43,17 @@ import Agda.Interaction.Highlighting.Emacs
 --
 --   If the first argument is 'Just f' then
 --
---   I) 'mimicGhci' doesn't print the prompt
---
---   II) 'mimicGhci' interprets
+--   I) 'mimicGhci' interprets
 --          currentFile
 --        as
 --          <f>
 --
---   III) 'mimicGhci' interprets
+--   II) 'mimicGhci' interprets
 --          top_command <command>
 --        as
 --          ioTCM currentFile None <command>
 --
---   IV) 'mimicGhci' interprets
+--   III) 'mimicGhci' interprets
 --          goal_command <i> <goalcommand> <s>
 --        as
 --          ioTCM currentFile None <goalcommand> <i> noRange <s>
@@ -71,10 +69,7 @@ mimicGHCi maybeCurrentfile = do
     interact' initState
   where
 
-    putPrompt s = case maybeCurrentfile of
-        Nothing -> putStr s
-        -- in interactions tests we do not print the prompt
-        _   -> return ()
+    putPrompt = putStr
 
     interact' st = do
         putPrompt "Agda2> "
