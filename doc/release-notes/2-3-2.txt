@@ -465,6 +465,8 @@ Emacs mode
 
 * The Emacs mode now uses the Agda executable instead of GHCi.
 
+  The *ghci* buffer has been renamed to *agda2*.
+
   A new configuration variable has been introduced:
   agda2-program-name, the name of the Agda executable (by default
   agda).
