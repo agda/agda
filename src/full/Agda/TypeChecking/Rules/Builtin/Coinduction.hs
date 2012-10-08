@@ -16,7 +16,6 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Literal
 import Agda.Syntax.Position
 
-import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Level
 import Agda.TypeChecking.Monad
@@ -132,7 +131,6 @@ bindBuiltinFlat e =
                , defArgOccurrences = [StrictPos]
                , theDef = Function
                    { funClauses        = [clause]
-                   , funSplitTree      = Just (SplittingDone 1)
                    , funCompiled       =
                       let hid   = Arg Hidden Relevant
                           nohid = defaultArg in

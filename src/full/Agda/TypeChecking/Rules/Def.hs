@@ -41,7 +41,6 @@ import Agda.TypeChecking.Primitive hiding (Nat)
 import Agda.TypeChecking.With
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Coverage
-import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Injectivity
 import Agda.TypeChecking.Polarity
 import Agda.TypeChecking.Irrelevance
@@ -114,7 +113,6 @@ checkAlias t' rel delayed i name e = do
   addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                    $ Function
                       { funClauses        = [Clause (getRange i) EmptyTel (idP 0) [] $ Body v] -- trivial clause @name = v@
-                      , funSplitTree      = Just (SplittingDone 0)
                       , funCompiled       = Done [] v
                       , funDelayed        = delayed
                       , funInv            = NotInjective
@@ -189,7 +187,6 @@ checkFunDef' t rel delayed i name cs =
         addConstant name $ Defn rel name t [] [] (defaultDisplayForm name) 0 noCompiledRep
                          $ Function
                             { funClauses        = cs
-                            , funSplitTree      = Nothing
                             , funCompiled       = cc
                             , funDelayed        = delayed
                             , funInv            = inv
