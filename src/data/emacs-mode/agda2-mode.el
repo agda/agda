@@ -438,7 +438,7 @@ Special commands:
   (interactive)
   (save-excursion (let ((agda2-bufname "*agda2*"))
                     (condition-case nil
-                      (agda2-kill)
+                      (agda2-term)
                       (error nil))
 
                     ;; Start the Agda2 process in a new buffer.
@@ -928,7 +928,7 @@ is inserted, and point is placed before this text."
   (interactive)
   (remove-hook 'first-change-hook 'agda2-abort-highlighting 'local)
   (agda2-remove-annotations)
-  (agda2-kill))
+  (agda2-term))
 
 (defun agda2-term ()
   "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
