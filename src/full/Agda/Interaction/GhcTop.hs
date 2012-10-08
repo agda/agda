@@ -42,13 +42,7 @@ import Agda.Interaction.Highlighting.Emacs
 --   interprets them and print the result into stdout.
 --
 --   If the first argument is 'Just f' then
---
---   I) 'mimicGhci' interprets
---          top_command <command>
---        as
---          ioTCM currentFile None <command>
---
---   II) 'mimicGhci' interprets
+--   'mimicGhci' interprets
 --          goal_command <i> <goalcommand> <s>
 --        as
 --          ioTCM currentFile None <goalcommand> <i> noRange <s>
@@ -96,10 +90,6 @@ mimicGHCi maybeCurrentfile = do
         return (current, highlighting, cmd)
 
     parseTopCommand current = do
-        exact "top_command "
-        cmd <- parseInteraction
-        return (current, None, cmd)
-      `mplus` do
         exact "goal_command "
         i <- parse
         cmd <- parens' $ do
