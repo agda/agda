@@ -727,9 +727,12 @@ defAbstract d = case theDef d of
 -- ** Injectivity
 ---------------------------------------------------------------------------
 
-data FunctionInverse = NotInjective
-                     | Inverse (Map TermHead Clause)
-  deriving (Typeable, Show)
+type FunctionInverse = FunctionInverse' Clause
+
+data FunctionInverse' c
+  = NotInjective
+  | Inverse (Map TermHead c)
+  deriving (Typeable, Show, Functor)
 
 data TermHead = SortHead
               | PiHead
