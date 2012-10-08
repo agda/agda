@@ -1,5 +1,5 @@
 Issue260a.agda:5,6-7
-Duplicate definition of module D. Previous definition at
-Issue260a.agda:4,8-9
+Duplicate definition of module D. Previous definition of module D
+at Issue260a.agda:4,8-9
 when scope checking the declaration
   data D where

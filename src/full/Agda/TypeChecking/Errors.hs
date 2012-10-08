@@ -332,8 +332,13 @@ instance PrettyTCM TypeError where
             ShadowedModule [] -> __IMPOSSIBLE__
             ShadowedModule ms@(m : _) -> fsep $
               pwords "Duplicate definition of module" ++ [prettyTCM m <> text "."] ++
-              pwords "Previous definition at" ++ [text $ show r]
+              pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM m] ++
+              pwords "at" ++ [text $ show r]
               where
+                help m = do
+                  b <- isDatatypeModule m
+                  if b then text "datatype" else empty
+
                 r = case [ r | r <- map (defSiteOfLast . mnameToList) ms
                              , r /= noRange ] of
                       []    -> noRange

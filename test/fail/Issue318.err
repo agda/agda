@@ -1,0 +1,5 @@
+Issue318.agda:10,6-9
+Duplicate definition of module _≤_. Previous definition of datatype
+module _≤_ at Issue318.agda:6,8-11
+when scope checking the declaration
+  data _≤_ where
