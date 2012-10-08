@@ -44,16 +44,11 @@ import Agda.Interaction.Highlighting.Emacs
 --   If the first argument is 'Just f' then
 --
 --   I) 'mimicGhci' interprets
---          currentFile
---        as
---          <f>
---
---   II) 'mimicGhci' interprets
 --          top_command <command>
 --        as
 --          ioTCM currentFile None <command>
 --
---   III) 'mimicGhci' interprets
+--   II) 'mimicGhci' interprets
 --          goal_command <i> <goalcommand> <s>
 --        as
 --          ioTCM currentFile None <goalcommand> <i> noRange <s>
@@ -95,7 +90,7 @@ mimicGHCi maybeCurrentfile = do
 
     parseIOTCM maybeCurrentfile = do
         exact "ioTCM "
-        current <- parseString maybeCurrentfile
+        current <- parse
         highlighting <- parse
         cmd <- parseInteraction
         return (current, highlighting, cmd)
@@ -118,13 +113,13 @@ mimicGHCi maybeCurrentfile = do
         case t of
             "toggleImplicitArgs" -> return toggleImplicitArgs
             "showImplicitArgs" -> liftM showImplicitArgs parse
-            "cmd_load" -> liftM2 cmd_load (parseString maybeCurrentfile) parse
-            "cmd_compile" -> liftM3 cmd_compile parse (parseString maybeCurrentfile) parse
+            "cmd_load" -> liftM2 cmd_load parse parse
+            "cmd_compile" -> liftM3 cmd_compile parse parse parse
             "cmd_metas" -> return cmd_metas
             "cmd_constraints" -> return cmd_constraints
             "cmd_show_module_contents_toplevel" -> liftM cmd_show_module_contents_toplevel parse
             "cmd_solveAll" -> return cmd_solveAll
-            "cmd_load_highlighting_info" -> liftM cmd_load_highlighting_info (parseString maybeCurrentfile)
+            "cmd_load_highlighting_info" -> liftM cmd_load_highlighting_info parse
             "cmd_compute_toplevel" -> liftM2 cmd_compute_toplevel parse parse
             "cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
             "Agda.Interaction.BasicOps.cmd_infer_toplevel" -> liftM2 cmd_infer_toplevel parse parse
@@ -201,14 +196,6 @@ parens' p = do
     return x
   `mplus`
     p
-
--- | Parse a String which may be the currentFile constant.
-
-parseString :: Maybe String -> Parse String
-parseString Nothing = parse
-parseString (Just current) = parse `mplus` do
-    exact "currentFile"
-    return current
 
 -- | Parse anything.
 
