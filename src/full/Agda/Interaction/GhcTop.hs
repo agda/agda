@@ -69,7 +69,7 @@ mimicGHCi maybeCurrentfile = do
             interact' =<< case dropWhile (==' ') r of
                 ""  -> return st
                 ('-':'-':_) -> return st
-                _ -> case runIdentity . flip runStateT r . runErrorT $ parseIO maybeCurrentfile of
+                _ -> case runIdentity . flip runStateT r . runErrorT $ parseIOTCM `mplus` parseGoalCommand' of
                     (Right (current, highlighting, cmd), "") -> do
                         tcmAction st current highlighting cmd
                     (Left err, rem) -> do
@@ -79,24 +79,23 @@ mimicGHCi maybeCurrentfile = do
                         putStrLn $ "not consumed: " ++ rem
                         return st
 
-    parseIO Nothing        = parseIOTCM Nothing
-    parseIO (Just current) = parseIOTCM (Just current) `mplus` parseTopCommand current
-
-    parseIOTCM maybeCurrentfile = do
+    parseIOTCM = do
         exact "ioTCM "
         current <- parse
         highlighting <- parse
         cmd <- parseInteraction
         return (current, highlighting, cmd)
 
-    parseTopCommand current = do
-        exact "goal_command "
+    parseGoalCommand' = do
+        exact "ioTCMgoal "
+        current <- parse
+        highlighting <- parse
         i <- parse
         cmd <- parens' $ do
             t <- token
             parseGoalCommand t
         s <- parse
-        return (current, None, cmd i noRange s)
+        return (current, highlighting, cmd i noRange s)
 
     parseInteraction = parens' $ do
         t <- token
