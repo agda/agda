@@ -20,7 +20,6 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- isRecord
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute hiding (Substitution)
-import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -321,11 +320,9 @@ checkLeftHandSide c ps a ret = do
   -- let b = typeFromProblem problem
   let (Problem _ _ gamma (ProblemRest _ b)) = problem
 
-  let idsub = [ var i | i <- [0..] ]
-
   -- doing the splits:
-  (Problem ps (perm, qs) delta _, sigma, dpi, asb) <- checkLHS problem idsub [] []
-  let b' = substs sigma b
+  (Problem ps (perm, qs) delta _, sigma, dpi, asb) <- checkLHS problem idS [] []
+  let b' = applySubst sigma b
 
   noPatternMatchingOnCodata qs
 
@@ -352,8 +349,8 @@ checkLeftHandSide c ps a ret = do
     ret gamma delta rho xs qs b' perm
   where
     -- the loop: split at a variable in the problem until problem is solved
-    checkLHS :: Problem -> [Term] -> [DotPatternInst] -> [AsBinding] ->
-                TCM (Problem, [Term], [DotPatternInst], [AsBinding])
+    checkLHS :: Problem -> S.Substitution -> [DotPatternInst] -> [AsBinding] ->
+                TCM (Problem, S.Substitution, [DotPatternInst], [AsBinding])
     checkLHS problem sigma dpi asb = do
       problem <- insertImplicitProblem problem  -- inserting implicits no longer preserve solvedness
       if isSolvedProblem problem                -- since we might insert eta expanded record patterns
@@ -377,13 +374,14 @@ checkLeftHandSide c ps a ret = do
             -- substitute the literal in p1 and sigma and dpi and asb
             let delta1 = problemTel p0
                 delta2 = absApp (fmap problemTel p1) (Lit lit)
-                rho    = [ var i | i <- [0..size delta2 - 1] ]
-                      ++ [ raise (size delta2) $ Lit lit ]
-                      ++ [ var i | i <- [size delta2 ..] ]
-                sigma'   = substs rho sigma
-                dpi'     = substs rho dpi
-                asb0     = substs rho asb
-                ip'      = substs rho ip
+                rho    = liftS (size delta2) $ Lit lit :# idS
+                -- rho    = [ var i | i <- [0..size delta2 - 1] ]
+                --       ++ [ raise (size delta2) $ Lit lit ]
+                --       ++ [ var i | i <- [size delta2 ..] ]
+                sigma'   = applySubst rho sigma
+                dpi'     = applySubst rho dpi
+                asb0     = applySubst rho asb
+                ip'      = applySubst rho ip
 
             -- Compute the new problem
             let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
@@ -495,12 +493,13 @@ checkLeftHandSide c ps a ret = do
             -- We should substitute c ys for x in Δ₂ and sigma
             let ys     = teleArgs gamma
                 delta2 = absApp (raise (size gamma) $ fmap problemTel p1) (Con c ys)
-                rho0 = [ var i | i <- [0..size delta2 - 1] ]
-                    ++ [ raise (size delta2) $ Con c ys ]
-                    ++ [ var i | i <- [size delta2 + size gamma ..] ]
-                sigma0 = substs rho0 sigma
-                dpi0   = substs rho0 dpi
-                asb0   = substs rho0 asb
+                rho0   = liftS (size delta2) $ Con c ys :# raiseS (size gamma)
+                -- rho0 = [ var i | i <- [0..size delta2 - 1] ]
+                --     ++ [ raise (size delta2) $ Con c ys ]
+                --     ++ [ var i | i <- [size delta2 + size gamma ..] ]
+                sigma0 = applySubst rho0 sigma
+                dpi0   = applySubst rho0 dpi
+                asb0   = applySubst rho0 asb
 
             reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
               [ text "delta2 =" <+> prettyTCM delta2
@@ -524,7 +523,7 @@ checkLeftHandSide c ps a ret = do
             -- Plug the hole in the out pattern with c ys
             let ysp = map (argFromDom . fmap (VarP . fst)) $ telToList gamma
                 ip  = plugHole (ConP c storedPatternType ysp) iph
-                ip0 = substs rho0 ip
+                ip0 = applySubst rho0 ip
 
             -- Δ₁Γ ⊢ sub0, we need something in Δ₁ΓΔ₂
             -- Also needs to be padded with Nothing's to have the right length.
@@ -540,8 +539,8 @@ checkLeftHandSide c ps a ret = do
               , text "ip0  =" <+> text (show ip0)
               ]
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "rho0 =" <+> text (show $ take (size delta1 + size gamma + size delta2) rho0)
-              ]  -- Andreas, this is showing some inital segment of rho0, not necessarily the most meaningful one
+              [ text "rho0 =" <+> text (show rho0)
+              ]
 
             -- Instantiate the new telescope with the given substitution
             (delta', perm, rho, instTypes) <- instantiateTel sub newTel
@@ -566,15 +565,15 @@ checkLeftHandSide c ps a ret = do
             let ps0'   = problemInPat p0 ++ qs' ++ problemInPat (absBody p1)
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
-              [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (substs rho sub))
+              [ text "subst rho sub =" <+> brackets (fsep $ punctuate comma $ map (maybe (text "_") prettyTCM) (applySubst rho sub))
               , text "ps0'  =" <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
               ]
 
-            newDpi <- dotPatternInsts ps0' (substs rho sub) instTypes
+            newDpi <- dotPatternInsts ps0' (applySubst rho sub) instTypes
 
             -- The final dpis and asbs are the new ones plus the old ones substituted by ρ
-            let dpi' = substs rho dpi0 ++ newDpi
-                asb' = substs rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
+            let dpi' = applySubst rho dpi0 ++ newDpi
+                asb' = applySubst rho $ asb0 ++ raise (size delta2) (map (\x -> AsB x (Con c ys) ca) xs)
 
             reportSDoc "tc.lhs.top" 15 $ nest 2 $ vcat
               [ text "dpi' = " <+> brackets (fsep $ punctuate comma $ map prettyTCM dpi')
@@ -582,7 +581,7 @@ checkLeftHandSide c ps a ret = do
               ]
 
             -- Apply the substitution to the type
-            let sigma'   = substs rho sigma0
+            let sigma'   = applySubst rho sigma0
 
             reportSDoc "tc.lhs.inst" 15 $
               nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
@@ -598,7 +597,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Instantiate the out patterns
             let ip'    = instantiatePattern sub perm' ip0
-                newip  = substs rho ip'
+                newip  = applySubst rho ip'
 
             -- Construct the new problem
             let problem' = Problem ps' (iperm', newip) delta' todoProblemRest

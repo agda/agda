@@ -188,8 +188,7 @@ useInjectivity cmp a u v = do
             ]
           -- and this is the order the variables occur in the patterns
           let ms' = permute (invertP $ compactP perm) ms
-          cxt <- getContextTelescope
-          let sub = (reverse ms ++ idSub cxt)
+          let sub = foldr (:#) idS (reverse ms)
           margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
           reportSDoc "tc.inj.invert" 20 $ vcat
             [ text "inversion"
@@ -239,10 +238,10 @@ useInjectivity cmp a u v = do
       put ms
       return m
 
-    dotP :: Monad m => Term -> StateT [Term] (ReaderT [Term] m) Term
+    dotP :: Monad m => Term -> StateT [Term] (ReaderT Substitution m) Term
     dotP v = do
       sub <- ask
-      return $ substs sub v
+      return $ applySubst sub v
 
     metaArgs args = mapM metaArg args
     metaArg arg = traverse metaPat arg

@@ -126,7 +126,7 @@ makeCase hole rng s = withInteractionId hole $ do
 
   -- Finds the new variable corresponding to an old one, if any.
   newVar :: SplitClause -> Nat -> Maybe Nat
-  newVar c x = case ignoreSharing $ substs (scSubst c) (Var x []) of
+  newVar c x = case ignoreSharing $ applySubst (scSubst c) (Var x []) of
     Var x [] -> Just x
     _        -> Nothing
 

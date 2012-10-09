@@ -51,7 +51,7 @@ data SplitClause = SClause
       { scTel   :: Telescope      -- ^ type of variables in scPats
       , scPerm  :: Permutation    -- ^ how to get from the variables in the patterns to the telescope
       , scPats  :: [Arg Pattern]
-      , scSubst :: [Term]         -- ^ substitution from scTel to old context
+      , scSubst :: Substitution   -- ^ substitution from scTel to old context
       }
 
 -- type Covering = [SplitClause]
@@ -147,7 +147,7 @@ coverageCheck f t cs = do
     ]
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs (idSub gamma')
+  (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs idS
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
@@ -307,16 +307,17 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
           delta2' = subst conv $ raiseFrom 1 (size gamma) delta2
       debugTel "delta2'" delta2'
 
-      -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂
-      let rho = [ Var i [] | i <- [0..size delta2' - 1] ]
-             ++ [ raise (size delta2') conv ]
-             ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
+      -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂'
+      let rho = liftS (size delta2') $ conv :# raiseS (size gamma)
+             --    [ Var i [] | i <- [0..size delta2' - 1] ]
+             -- ++ [ raise (size delta2') conv ]
+             -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]
 
       -- Plug the hole with the constructor and apply ρ
       -- TODO: Is it really correct to use Nothing here?
       let conp = ConP con Nothing $ map (fmap VarP) $ teleArgNames gamma
           ps   = plugHole conp hps
-          ps'  = substs rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
+          ps'  = applySubst rho ps      -- Δ₁ΓΔ₂' ⊢ ps'
       debugPlugged ps ps'
 
       -- Δ₁Γ ⊢ sub, we need something in Δ₁ΓΔ₂'
@@ -345,10 +346,10 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       -- Compute the final patterns
       let ps'' = instantiatePattern sub' perm' ps'
-          rps  = substs rho' ps''
+          rps  = applySubst rho' ps''
 
       -- Compute the final substitution
-      let rsub  = substs rho' rho
+      let rsub  = applySubst rho' rho
 
       debugFinal theta' rperm rps
 
@@ -479,7 +480,7 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
                                         telToList delta2
                , scPerm = perm
                , scPats = plugHole absurd hps
-               , scSubst = [] -- not used anyway
+               , scSubst = idS -- not used anyway
                }
 
     -- Andreas, 2011-10-03

@@ -8,6 +8,7 @@ import qualified Agda.Syntax.Abstract as A
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S (Substitution)
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Reduce
@@ -26,7 +27,7 @@ import Agda.Utils.Impossible
 -- | Instantiate a telescope with a substitution. Might reorder the telescope.
 --   @instantiateTel (Γ : Tel)(σ : Γ --> Γ) = Γσ~@
 --   Monadic only for debugging purposes.
-instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, [Term], [Dom Type])
+instantiateTel :: Substitution -> Telescope -> TCM (Telescope, Permutation, S.Substitution, [Dom Type])
 instantiateTel s tel = liftTCM $ do
 
   tel <- normalise tel
@@ -58,6 +59,9 @@ instantiateTel s tel = liftTCM $ do
   -- rho : [Tm Γσ]Γ
   let rho = mkSubst s'
 
+  reportSDoc "tc.lhs.inst" 15 $ nest 2 $
+    text "rho = " <+> text (show rho)
+
   -- tel1 : [Type Γ]Γ
   let tel1   = flattenTel tel
       names1 = teleNames tel
@@ -68,7 +72,7 @@ instantiateTel s tel = liftTCM $ do
     ]
 
   -- tel2 : [Type Γσ]Γ
-  let tel2 = substs rho tel1
+  let tel2 = applySubst rho tel1
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
     text "tel2 =" <+> brackets (fsep $ punctuate comma $ map prettyTCM tel2)
@@ -119,12 +123,12 @@ instantiateTel s tel = liftTCM $ do
 
     -- Turn a Substitution ([Maybe Term]) into a substitution ([Term])
     -- (The result is an infinite list)
-    mkSubst :: [Maybe Term] -> [Term]
+    mkSubst :: [Maybe Term] -> S.Substitution
     mkSubst s = rho 0 s'
-      where s'  = s ++ repeat Nothing
-	    rho i (Nothing : s) = var i : rho (i + 1) s
-	    rho i (Just u  : s) = u : rho i s
-	    rho _ []		= __IMPOSSIBLE__
+      where s'  = s
+	    rho i (Nothing : s) = var i :# rho (i + 1) s
+	    rho i (Just u  : s) = u :# rho i s
+	    rho i []		= raiseS i
 
 -- | Produce a nice error message when splitting failed
 nothingToSplitError :: Problem -> TCM a

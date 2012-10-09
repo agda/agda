@@ -43,7 +43,7 @@ import Agda.TypeChecking.Reduce (reduce, normalise, instantiate, instantiateFull
 import Agda.TypeChecking.Records (isRecordConstructor, isRecord, isInductiveRecord)
 import Agda.TypeChecking.Rules.Builtin.Coinduction
 import Agda.TypeChecking.Rules.Term (isType_)
-import Agda.TypeChecking.Substitute (abstract,raise,substs)
+import Agda.TypeChecking.Substitute (abstract,raise)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.EtaContract
 import Agda.TypeChecking.Monad.Builtin

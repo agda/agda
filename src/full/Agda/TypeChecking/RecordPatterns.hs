@@ -288,19 +288,19 @@ translateRecordPatterns clause = do
       noNewPatternVars = size cs
 
       s'   = reverse s
-      rest = [ var i | i <- [noNewPatternVars..] ]
+      mkSub s = foldr (:#) (raiseS noNewPatternVars) s
 
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
-      rhsSubst = s' ++ rest
+      rhsSubst = mkSub s'
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new RHS's context.
-      rhsSubst' = permute (reverseP $ clausePerm clause) s' ++ rest
+      rhsSubst' = mkSub $ permute (reverseP $ clausePerm clause) s'
       -- TODO: Is it OK to replace the definition above with the
       -- following one?
       --
-      --   rhsSubst' = permute (clausePerm clause) s ++ rest
+      --   rhsSubst' = mkSub $ permute (clausePerm clause) s
 
       -- The old telescope, flattened and in textual left-to-right
       -- order (i.e. the type signature for the variable which occurs
@@ -315,7 +315,7 @@ translateRecordPatterns clause = do
       -- of the new RHS, in textual left-to-right order, and with
       -- Nothing in place of dot patterns.
       newTel' =
-        map (fmap (id *** substs rhsSubst')) $
+        map (fmap (id *** applySubst rhsSubst')) $
         translateTel cs $
         flattenedOldTel
 
@@ -341,21 +341,21 @@ translateRecordPatterns clause = do
 
       -- Substitution used to convert terms in the old telescope's
       -- context to terms in the new telescope's context.
-      lhsSubst = map (substs lhsSubst') rhsSubst'
+      lhsSubst = applySubst lhsSubst' rhsSubst'
 
       -- The new telescope.
       newTel =
         uncurry unflattenTel . unzip $
         map (maybe __IMPOSSIBLE__ id) $
         permute newPerm $
-        map (fmap (id *** substs lhsSubst')) $
+        map (fmap (id *** applySubst lhsSubst')) $
         newTel'
 
       -- New clause.
       c = clause
             { clauseTel  = newTel
             , clausePerm = newPerm
-            , clausePats = substs lhsSubst ps
+            , clausePats = applySubst lhsSubst ps
             , clauseBody = translateBody cs rhsSubst $ clauseBody clause
             }
 
@@ -578,13 +578,13 @@ translateTel []              (_ : _)      = __IMPOSSIBLE__
 -- | Translates the clause body. The substitution should take things
 -- in the context of the old RHS to the new RHS's context.
 
-translateBody :: Changes -> [Term] -> ClauseBody -> ClauseBody
+translateBody :: Changes -> Substitution -> ClauseBody -> ClauseBody
 translateBody _                        s NoBody = NoBody
 translateBody (Right (n, x, _) : rest) s b      =
   Bind $ Abs x $ translateBody rest s $ dropBinds n' b
   where n' = sum $ map n [VarPat, DotPat]
 translateBody (Left _ : rest) s (Bind b)   = Bind $ fmap (translateBody rest s) b
-translateBody []              s (Body t)   = Body $ substs s t
+translateBody []              s (Body t)   = Body $ applySubst s t
 translateBody _               _ _          = __IMPOSSIBLE__
 
 ------------------------------------------------------------------------
@@ -592,9 +592,9 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 -- | Turns a permutation into a substitution.
 
-permToSubst :: Permutation -> [Term]
+permToSubst :: Permutation -> Substitution
 permToSubst (Perm n is) =
-  [ makeVar i | i <- [0..n-1] ] ++ [ var i | i <- [size is..] ]
+  foldr (:#) (raiseS (size is)) [ makeVar i | i <- [0..n - 1] ]
   where
   makeVar i = case genericElemIndex i is of
     Nothing -> __IMPOSSIBLE__

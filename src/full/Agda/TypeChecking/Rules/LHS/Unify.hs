@@ -32,7 +32,6 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute hiding (Substitution)
-import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
@@ -211,12 +210,9 @@ i |-> (u, a) = do
   rho' <- traverse ureduce rho
   modSub $ const rho'
 
-makeSubstitution :: Sub -> S.Substitution
-makeSubstitution sub
-  | Map.null sub = idS
-  | otherwise    = map val [0 .. highestIndex] ++# Wk (highestIndex + 1)
+makeSubstitution :: Sub -> [Term]
+makeSubstitution sub = map val [0..]
   where
-    highestIndex = fst $ Map.findMax sub
     val i = maybe (var i) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
@@ -233,7 +229,7 @@ instance UReduce Term where
 -- l.h.s. terms only).
 -- A systematic solution would make unification type-directed and
 -- eta-insensitive...
---   liftTCM $ etaContract =<< reduce (substs rho u)
+--   liftTCM $ etaContract =<< reduce (applySubst rho u)
 
 instance UReduce Type where
   ureduce (El s t) = El s <$> ureduce t
@@ -248,7 +244,7 @@ instance UReduce t => UReduce (Maybe t) where
 
 -- | Take a substitution σ and ensure that no variables from the domain appear
 --   in the targets. The context of the targets is not changed.
---   TODO: can this be expressed using makeSubstitution and substs?
+--   TODO: can this be expressed using makeSubstitution and applySubst?
 flattenSubstitution :: Substitution -> Substitution
 flattenSubstitution s = foldr instantiate s is
   where
@@ -261,8 +257,8 @@ flattenSubstitution s = foldr instantiate s is
 	Just u = s !! i
 
     inst :: Nat -> Term -> Term -> Term
-    inst i u v = applySubst us v
-      where us = [var j | j <- [0..i - 1] ] ++# u :# Wk (i + 1)
+    inst i u v = substs us v
+      where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
 
 data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 

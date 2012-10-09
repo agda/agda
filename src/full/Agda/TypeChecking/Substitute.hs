@@ -306,6 +306,8 @@ data Substitution
 
   = IdS                     -- Γ ⊢ IdS : Γ
 
+  | EmptyS                  -- Γ ⊢ EmptyS : ()
+
                             --      Γ ⊢ ρ : Δ
   | Wk !Int Substitution    -- -------------------
                             -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
@@ -317,39 +319,37 @@ data Substitution
                             --        Γ ⊢ ρ : Δ
   | Lift !Int Substitution  -- -------------------------
                             -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+  deriving (Show)
 
 idS :: Substitution
 idS = IdS
 
-wkS :: Int -> Substitution
-wkS 0 = IdS
-wkS n = Wk n IdS
+wkS :: Int -> Substitution -> Substitution
+wkS 0 rho        = rho
+wkS n (Wk m rho) = Wk (n + m) rho
+wkS n EmptyS     = EmptyS
+wkS n rho        = Wk n rho
+
+raiseS :: Int -> Substitution
+raiseS n = wkS n idS
 
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
+liftS k IdS          = IdS
 liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
-
-infixr 4 ++#
-
-(++#) :: [Term] -> Substitution -> Substitution
-[] ++# rho = rho
-us ++# rho = foldr (:#) rho us
-
-parallelS :: [Term] -> Substitution
-parallelS us = us ++# idS
 
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
   IdS                    -> var i
-  Wk n IdS      -- | i + n < 0 -> __IMPOSSIBLE__ -- TODO: this actually happens
-             | otherwise -> var (i + n)
-  Wk n rho               -> applySubst (wkS n) (lookupS rho i)
+  Wk n IdS               -> var (i + n)
+  Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Lift n rho | i < n     -> var i
-             | otherwise -> applySubst (wkS n) $ lookupS rho (i - n)
+             | otherwise -> raise n $ lookupS rho (i - n)
+  EmptyS                 -> __IMPOSSIBLE__
 
 -- | Apply a substitution.
 
@@ -367,7 +367,7 @@ idSub :: Telescope -> [Term]
 idSub tel = map var [0 .. size tel - 1]
 
 raiseFrom :: Subst t => Nat -> Nat -> t -> t
-raiseFrom n k = applySubst (liftS n $ wkS k)
+raiseFrom n k = applySubst (liftS n $ raiseS k)
 
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
@@ -377,6 +377,9 @@ substUnder n u = applySubst (liftS n (parallelS [u]))
 
 substs :: Subst t => [Term] -> t -> t
 substs us = applySubst (parallelS us)
+
+instance Subst Substitution where
+  applySubst rho sgm = composeS rho sgm
 
 instance Subst Term where
   applySubst IdS t = t
