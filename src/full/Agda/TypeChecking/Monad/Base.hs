@@ -898,6 +898,9 @@ data TCEnv =
                 --   not going to reify and retypecheck (like when doing with
                 --   abstraction)
           , envRange :: Range
+          , envHighlightingRange :: Range
+                -- ^ Interactive highlighting uses this range rather
+                --   than 'envRange'.
           , envCall  :: Maybe (Closure Call)
                 -- ^ what we're doing at the moment
           , envEmacs :: Bool
@@ -939,6 +942,7 @@ initEnv = TCEnv { envContext	         = []
                 , envReifyInteractionPoints = True
                 , envEtaContractImplicit    = True
                 , envRange                  = noRange
+                , envHighlightingRange      = noRange
                 , envCall                   = Nothing
                 , envEmacs                  = False
                 , envHighlightingLevel      = None

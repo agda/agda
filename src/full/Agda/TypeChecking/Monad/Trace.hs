@@ -31,21 +31,29 @@ traceCallM mkCall m = flip traceCall m =<< mkCall
 {-# SPECIALIZE traceCall :: (Maybe r -> Call) -> TCM a -> TCM a #-}
 traceCall :: MonadTCM tcm => (Maybe r -> Call) -> tcm a -> tcm a
 traceCall mkCall m = do
-  let call = mkCall Nothing
-      r | isNoHighlighting call || getRange call /= noRange =
-            const $ getRange call
-        | otherwise = id
-  -- Ranges associated with the previous and current calls.
+  let call      = mkCall Nothing
+      callRange = getRange call
   cl <- liftTCM $ buildClosure call
-  oldRange <- envRange <$> ask
-  let newRange = r oldRange
-  let trace | interestingCall cl = local $ \e -> e { envRange = newRange
-                                                   , envCall  = Just cl }
-            | otherwise          = local $ \e -> e { envRange = newRange }
+  let trace = local $
+        (if interestingCall cl then
+           \e -> e { envCall = Just cl }
+         else
+           id) .
+        (if callRange /= noRange || isNoHighlighting call then
+           \e -> e { envHighlightingRange = callRange
+                   }
+         else
+           id) .
+        (if callRange /= noRange then
+           \e -> e { envRange = callRange
+                   }
+         else
+           id)
   wrap <- ifM (do l <- envHighlightingLevel <$> ask
                   return (l == Interactive && highlightCall call))
-              (return $ highlightAsTypeChecked oldRange newRange)
-              (return $ id)
+              (do oldRange <- envHighlightingRange <$> ask
+                  return $ highlightAsTypeChecked oldRange callRange)
+              (return id)
   wrap $ trace m
   where
   -- | Should the given call trigger interactive highlighting?
