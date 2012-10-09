@@ -98,7 +98,7 @@ compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm cmp a u v = do
   -- Check syntactic equality first. This actually saves us quite a bit of work.
   (u, v) <- instantiateFull (u, v)
-  if u == v then verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  if u == v then unifyPointers cmp u v $ verboseS "profile.sharing" 20 $ tick "equal terms" else do
   verboseS "profile.sharing" 20 $ tick "unequal terms"
   let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
         verboseS "profile.sharing" 10 $ tick "pointer equality"
@@ -121,8 +121,8 @@ compareTerm cmp a u v = do
       where
         (solve1, solve2) | x > y     = (assign x us v, assign y vs u)
                          | otherwise = (assign y vs u, assign x us v)
-    (MetaV x us, v) -> unlessSubtyping $ assign x us v `orelse` fallback
-    (u, MetaV y vs) -> unlessSubtyping $ assign y vs u `orelse` fallback
+    (MetaV x us, _) -> unlessSubtyping $ assign x us v `orelse` fallback
+    (_, MetaV y vs) -> unlessSubtyping $ assign y vs u `orelse` fallback
     _               -> fallback
   where
     assign x us v = do
