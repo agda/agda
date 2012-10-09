@@ -322,6 +322,15 @@ liftS 0 rho          = rho
 liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
+infixr 4 ++#
+
+(++#) :: [Term] -> Substitution -> Substitution
+[] ++# rho = rho
+us ++# rho = foldr (:#) rho us
+
+parallelS :: [Term] -> Substitution
+parallelS us = us ++# idS
+
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
   Wk n       -- | i + n < 0 -> __IMPOSSIBLE__ -- TODO: this actually happens
@@ -347,10 +356,10 @@ subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
 
 substUnder :: Subst t => Nat -> Term -> t -> t
-substUnder n u = applySubst (liftS n (u :# idS))
+substUnder n u = applySubst (liftS n (parallelS [u]))
 
 substs :: Subst t => [Term] -> t -> t
-substs us = applySubst (foldr (:#) idS us)
+substs us = applySubst (parallelS us)
 
 instance Subst Term where
   applySubst (Wk 0) t = t
