@@ -361,7 +361,7 @@ instance Occurs Sort where
 
 
 
-instance (Occurs a, Raise a) => Occurs (Abs a) where
+instance (Occurs a, Subst a) => Occurs (Abs a) where
   occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (underAbs xs))
   occurs red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
@@ -423,7 +423,7 @@ prune m' vs xs = liftTCM $ do
 --   Or in a non-eliminateable position (see succeed/PruningNonMillerPattern).
 hasBadRigid :: [Nat] -> Term -> TCM Bool
 hasBadRigid xs (Var x _)    = return $ notElem x xs
-hasBadRigid xs (Lam _ v)    = hasBadRigid (0 : raise 1 xs) (absBody v)
+hasBadRigid xs (Lam _ v)    = hasBadRigid (0 : map (+1) xs) (absBody v)
 hasBadRigid xs (DontCare v) = hasBadRigid xs v
 -- The following types of arguments cannot be eliminated by a pattern
 -- match: data, record, Pi, levels, sorts

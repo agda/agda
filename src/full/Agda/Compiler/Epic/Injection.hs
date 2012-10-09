@@ -121,7 +121,7 @@ nrBinds p = case p of
     ConP c typ args -> sum $ map (nrBinds . unArg) args
     LitP l          -> 0
 
-substForDot :: [Arg Pattern] -> Substitution
+substForDot :: [Arg Pattern] -> [Term]
 substForDot = map var . makeSubst 0 0 . reverse . calcDots
   where
     makeSubst i accum [] = [i + accum ..]

@@ -457,7 +457,7 @@ projections (RecCon _ args) =
 -- | Converts a record tree to a single pattern along with information
 -- about the deleted pattern variables.
 
-removeTree :: RecordTree -> RecPatM (Pattern, Substitution, Changes)
+removeTree :: RecordTree -> RecPatM (Pattern, [Term], Changes)
 removeTree tree = do
   (pat, x) <- nextVar
   let ps = projections tree
@@ -495,7 +495,7 @@ removeTree tree = do
 --
 -- This function assumes that literals are never of record type.
 
-translatePattern :: Pattern -> RecPatM (Pattern, Substitution, Changes)
+translatePattern :: Pattern -> RecPatM (Pattern, [Term], Changes)
 translatePattern (ConP c Nothing ps) = do
   (ps, s, cs) <- translatePatterns ps
   return (ConP c Nothing ps, s, cs)
@@ -511,7 +511,7 @@ translatePattern p@LitP{} = return (p, [], [])
 -- | 'translatePattern' lifted to lists of arguments.
 
 translatePatterns ::
-  [Arg Pattern] -> RecPatM ([Arg Pattern], Substitution, Changes)
+  [Arg Pattern] -> RecPatM ([Arg Pattern], [Term], Changes)
 translatePatterns ps = do
   (ps', ss, cs) <- unzip3 <$> mapM (translatePattern . unArg) ps
   return (ps' `withArgsFrom` ps, concat ss, concat cs)
@@ -532,7 +532,7 @@ translatePatterns ps = do
 
 recordTree ::
   Pattern ->
-  RecPatM (Either (RecPatM (Pattern, Substitution, Changes)) RecordTree)
+  RecPatM (Either (RecPatM (Pattern, [Term], Changes)) RecordTree)
 recordTree p@(ConP _ Nothing _) = return $ Left $ translatePattern p
 recordTree (ConP c (Just t) ps) = do
   rs <- mapM (recordTree . unArg) ps
@@ -578,7 +578,7 @@ translateTel []              (_ : _)      = __IMPOSSIBLE__
 -- | Translates the clause body. The substitution should take things
 -- in the context of the old RHS to the new RHS's context.
 
-translateBody :: Changes -> Substitution -> ClauseBody -> ClauseBody
+translateBody :: Changes -> [Term] -> ClauseBody -> ClauseBody
 translateBody _                        s NoBody = NoBody
 translateBody (Right (n, x, _) : rest) s b      =
   Bind $ Abs x $ translateBody rest s $ dropBinds n' b
@@ -592,7 +592,7 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 -- | Turns a permutation into a substitution.
 
-permToSubst :: Permutation -> Substitution
+permToSubst :: Permutation -> [Term]
 permToSubst (Perm n is) =
   [ makeVar i | i <- [0..n-1] ] ++ [ var i | i <- [size is..] ]
   where

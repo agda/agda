@@ -239,7 +239,7 @@ useInjectivity cmp a u v = do
       put ms
       return m
 
-    dotP :: Monad m => Term -> StateT [Term] (ReaderT Substitution m) Term
+    dotP :: Monad m => Term -> StateT [Term] (ReaderT [Term] m) Term
     dotP v = do
       sub <- ask
       return $ substs sub v

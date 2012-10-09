@@ -241,7 +241,7 @@ instance Reduce LevelAtom where
           NotBlocked _            -> return $ NotBlocked $ NeutralLevel v
 
 
-instance (Raise t, Reduce t) => Reduce (Abs t) where
+instance (Subst t, Reduce t) => Reduce (Abs t) where
   reduce b@(Abs x _) = Abs x <$> underAbstraction_ b reduce
   reduce (NoAbs x v) = NoAbs x <$> reduce v
 
@@ -507,7 +507,7 @@ instance Normalise ClauseBody where
     normalise (Bind   b) = Bind   <$> normalise b
     normalise  NoBody	 = return NoBody
 
-instance (Raise t, Normalise t) => Normalise (Abs t) where
+instance (Subst t, Normalise t) => Normalise (Abs t) where
     normalise a@(Abs x _) = Abs x <$> underAbstraction_ a normalise
     normalise (NoAbs x v) = NoAbs x <$> normalise v
 
@@ -534,7 +534,7 @@ instance Normalise a => Normalise (Closure a) where
 	x <- enterClosure cl normalise
 	return $ cl { clValue = x }
 
-instance (Raise a, Normalise a) => Normalise (Tele a) where
+instance (Subst a, Normalise a) => Normalise (Tele a) where
   normalise EmptyTel        = return EmptyTel
   normalise (ExtendTel a b) = uncurry ExtendTel <$> normalise (a, b)
 
@@ -647,7 +647,7 @@ instance InstantiateFull ClauseBody where
     instantiateFull (Bind   b) = Bind   <$> instantiateFull b
     instantiateFull  NoBody    = return NoBody
 
-instance (Raise t, InstantiateFull t) => InstantiateFull (Abs t) where
+instance (Subst t, InstantiateFull t) => InstantiateFull (Abs t) where
     instantiateFull a@(Abs x _) = Abs x <$> underAbstraction_ a instantiateFull
     instantiateFull (NoAbs x a) = NoAbs x <$> instantiateFull a
 
@@ -714,7 +714,7 @@ instance InstantiateFull Signature where
 instance InstantiateFull Section where
   instantiateFull (Section tel n) = flip Section n <$> instantiateFull tel
 
-instance (Raise a, InstantiateFull a) => InstantiateFull (Tele a) where
+instance (Subst a, InstantiateFull a) => InstantiateFull (Tele a) where
   instantiateFull EmptyTel = return EmptyTel
   instantiateFull (ExtendTel a b) = uncurry ExtendTel <$> instantiateFull (a, b)
 

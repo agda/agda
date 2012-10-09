@@ -127,8 +127,8 @@ instance MonadTCM Unify where
   liftTCM = U . lift . lift . lift . lift
 
 instance Subst Equality where
-  substs us	 (Equal a s t) = Equal (substs us a)	  (substs us s)	     (substs us t)
-  substUnder n u (Equal a s t) = Equal (substUnder n u a) (substUnder n u s) (substUnder n u t)
+  applySubst rho (Equal a s t) =
+    Equal (applySubst rho a) (applySubst rho s) (applySubst rho t)
 
 onSub :: (Sub -> a) -> Unify a
 onSub f = U $ gets $ f . uniSub
@@ -284,13 +284,8 @@ rightHH :: HomHet a -> a
 rightHH (Hom a) = a
 rightHH (Het a1 a2) = a2
 
-instance (Raise a) => Raise (HomHet a) where
-  raiseFrom n m  = fmap (raiseFrom n m)
-  renameFrom n f = fmap (renameFrom n f)
-
 instance (Subst a) => Subst (HomHet a) where
-  substUnder n u = fmap (substUnder n u)
-  substs us      = fmap (substs us)
+  applySubst rho u = fmap (applySubst rho) u
 
 instance (PrettyTCM a) => PrettyTCM (HomHet a) where
   prettyTCM (Hom a) = prettyTCM a

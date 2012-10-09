@@ -301,285 +301,127 @@ abstractArgs args x = abstract tel x
 
 -- | Substitutions.
 
-type Substitution = [Term]
+infixr 4 :#
+data Substitution
+
+  = Wk !Int                 -- Γ, Δ ⊢ Wk |Δ| : Γ
+
+                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
+  | Term :# Substitution    -- ---------------------
+                            --   Γ ⊢ u :# ρ : Δ, A
+
+                            --        Γ ⊢ ρ : Δ
+  | Lift !Int Substitution  -- -------------------------
+                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+
+idS :: Substitution
+idS = Wk 0
+
+liftS :: Int -> Substitution -> Substitution
+liftS 0 rho          = rho
+liftS k (Lift n rho) = Lift (n + k) rho
+liftS k rho          = Lift k rho
+
+lookupS :: Substitution -> Nat -> Term
+lookupS rho i = case rho of
+  Wk n       -- | i + n < 0 -> __IMPOSSIBLE__ -- TODO: this actually happens
+             | otherwise -> var (i + n)
+  u :# rho   | i == 0    -> u
+             | i < 0     -> __IMPOSSIBLE__
+             | otherwise -> lookupS rho (i - 1)
+  Lift n rho | i < n     -> var i
+             | otherwise -> applySubst (Wk n) $ lookupS rho (i - n)
 
 -- | Substitute a term for the nth free variable.
 --
 class Subst t where
-    substs     :: Substitution -> t -> t
-    substUnder :: Nat -> Term -> t -> t
+  applySubst :: Substitution -> t -> t
 
-idSub :: Telescope -> Substitution
+idSub :: Telescope -> [Term]
 idSub tel = map var [0 .. size tel - 1]
 
+raiseFrom :: Subst t => Nat -> Nat -> t -> t
+raiseFrom n k = applySubst (liftS n $ Wk k)
+
 subst :: Subst t => Term -> t -> t
-subst u t = substUnder 0 (shared u) t
+subst u t = substUnder 0 u t
+
+substUnder :: Subst t => Nat -> Term -> t -> t
+substUnder n u = applySubst (liftS n (u :# idS))
+
+substs :: Subst t => [Term] -> t -> t
+substs us = applySubst (foldr (:#) idS us)
 
 instance Subst Term where
-    substs [] t = t
-    substs us t =
-        case t of
-            Var i vs    -> (us !!! i) `apply` substs us vs
-            Lam h m     -> Lam h $ substs us m
-            Def c vs    -> Def c $ substs us vs
-            Con c vs    -> Con c $ substs us vs
-            MetaV x vs  -> MetaV x $ substs us vs
-            Lit l       -> Lit l
-            Level l     -> levelTm $ substs us l
-            Pi a b      -> uncurry Pi $ substs us (a,b)
-            Sort s      -> sortTm $ substs us s
-            Shared p    -> Shared $ substs us p
-            DontCare mv -> DontCare $ substs us mv
-        where
-            []     !!! n = __IMPOSSIBLE__
-            (x:xs) !!! 0 = x
-            (_:xs) !!! n = xs !!! (n - 1)
-    substUnder n u t =
-        case t of
-            Var i vs
-              | i == n    -> raise n u `apply` substUnder n u vs
-              | i < n     -> Var i $ substUnder n u vs
-              | otherwise -> Var (i - 1) $ substUnder n u vs
-            Lam h m    -> Lam h $ substUnder n u m
-            Def c vs   -> Def c $ substUnder n u vs
-            Con c vs   -> Con c $ substUnder n u vs
-            MetaV x vs -> MetaV x $ substUnder n u vs
-            Level l    -> levelTm $ substUnder n u l
-            Lit l      -> Lit l
-            Pi a b     -> uncurry Pi $ substUnder n u (a,b)
-            Sort s     -> sortTm $ substUnder n u s
-            Shared p    -> Shared $ substUnder n u p
-            DontCare mv -> DontCare $ substUnder n u mv
+  applySubst (Wk 0) t = t
+  applySubst rho t    = case t of
+    Var i vs    -> lookupS rho i `apply` applySubst rho vs
+    Lam h m     -> Lam h $ applySubst rho m
+    Def c vs    -> Def c $ applySubst rho vs
+    Con c vs    -> Con c $ applySubst rho vs
+    MetaV x vs  -> MetaV x $ applySubst rho vs
+    Lit l       -> Lit l
+    Level l     -> levelTm $ applySubst rho l
+    Pi a b      -> uncurry Pi $ applySubst rho (a,b)
+    Sort s      -> sortTm $ applySubst rho s
+    Shared p    -> Shared $ applySubst rho p
+    DontCare mv -> DontCare $ applySubst rho mv
 
 instance Subst a => Subst (Ptr a) where
-  substs us      = fmap (substs us)
-  substUnder n u = fmap (substUnder n u)
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst Type where
-    substs us (El s t) = substs us s `El` substs us t
-    substUnder n u (El s t) = substUnder n u s `El` substUnder n u t
+  applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
 instance Subst Sort where
-    substs us s = case s of
-      Type n     -> levelSort $ sub n
-      Prop       -> Prop
-      Inf        -> Inf
-      DLub s1 s2 -> DLub (sub s1) (sub s2)
-      where sub x = substs us x
-
-    substUnder n u s = case s of
-      Type n     -> levelSort $ sub n
-      Prop       -> Prop
-      Inf        -> Inf
-      DLub s1 s2 -> DLub (sub s1) (sub s2)
-      where sub x = substUnder n u x
+  applySubst rho s = case s of
+    Type n     -> levelSort $ sub n
+    Prop       -> Prop
+    Inf        -> Inf
+    DLub s1 s2 -> DLub (sub s1) (sub s2)
+    where sub x = applySubst rho x
 
 instance Subst Level where
-  substs us (Max as) = Max $ substs us as
-  substUnder n u (Max as) = Max $ substUnder n u as
+  applySubst rho (Max as) = Max $ applySubst rho as
 
 instance Subst PlusLevel where
-  substs us l@ClosedLevel{} = l
-  substs us (Plus n l) = Plus n $ substs us l
-  substUnder n u l@ClosedLevel{} = l
-  substUnder n u (Plus m l) = Plus m $ substUnder n u l
+  applySubst rho l@ClosedLevel{} = l
+  applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
 instance Subst LevelAtom where
-  substs us      (MetaLevel m vs)   = MetaLevel m    $ substs us vs
-  substs us      (BlockedLevel m v) = BlockedLevel m $ substs us v
-  substs us      (NeutralLevel v)   = UnreducedLevel $ substs us v
-  substs us      (UnreducedLevel v) = UnreducedLevel $ substs us v
-  substUnder n u (MetaLevel m vs)   = MetaLevel m    $ substUnder n u vs
-  substUnder n u (BlockedLevel m v) = BlockedLevel m $ substUnder n u v
-  substUnder n u (NeutralLevel v)   = UnreducedLevel $ substUnder n u v
-  substUnder n u (UnreducedLevel v) = UnreducedLevel $ substUnder n u v
+  applySubst rho      (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
+  applySubst rho      (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
+  applySubst rho      (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
+  applySubst rho      (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
 instance Subst Pattern where
-  substs us p = case p of
+  applySubst rho p = case p of
     VarP s       -> VarP s
     LitP l       -> LitP l
-    ConP c mt ps -> ConP c (substs us mt) $ substs us ps
-    DotP t       -> DotP $ substs us t
-  substUnder n u p = case p of
-    VarP s       -> VarP s
-    LitP l       -> LitP l
-    ConP c mt ps -> ConP c (substUnder n u mt) $ substUnder n u ps
-    DotP t       -> DotP $ substUnder n u t
+    ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
+    DotP t       -> DotP $ applySubst rho t
 
 instance Subst t => Subst (Blocked t) where
-    substs us b      = fmap (substs us) b
-    substUnder n u b = fmap (substUnder n u) b
+  applySubst rho b      = fmap (applySubst rho) b
+
+instance Subst DisplayForm where
+  applySubst rho (Display n ps v) =
+    Display n (applySubst (liftS 1 rho) ps)
+              (applySubst (liftS n rho) v)
 
 instance Subst DisplayTerm where
-  substs us      (DTerm v)        = DTerm $ substs us v
-  substs us      (DDot v)         = DDot  $ substs us v
-  substs us      (DCon c vs)      = DCon c $ substs us vs
-  substs us      (DDef c vs)      = DDef c $ substs us vs
-  substs us      (DWithApp vs ws) = uncurry DWithApp $ substs us (vs, ws)
-  substUnder n u (DTerm v)        = DTerm $ substUnder n u v
-  substUnder n u (DDot  v)        = DDot  $ substUnder n u v
-  substUnder n u (DCon c vs)      = DCon c $ substUnder n u vs
-  substUnder n u (DDef c vs)      = DDef c $ substUnder n u vs
-  substUnder n u (DWithApp vs ws) = uncurry DWithApp $ substUnder n u (vs, ws)
+  applySubst rho      (DTerm v)        = DTerm $ applySubst rho v
+  applySubst rho      (DDot v)         = DDot  $ applySubst rho v
+  applySubst rho      (DCon c vs)      = DCon c $ applySubst rho vs
+  applySubst rho      (DDef c vs)      = DDef c $ applySubst rho vs
+  applySubst rho      (DWithApp vs ws) = uncurry DWithApp $ applySubst rho (vs, ws)
 
 instance Subst a => Subst (Tele a) where
-  substs us  EmptyTel              = EmptyTel
-  substs us (ExtendTel t tel)      = uncurry ExtendTel $ substs us (t, tel)
-  substUnder n u  EmptyTel         = EmptyTel
-  substUnder n u (ExtendTel t tel) = uncurry ExtendTel $ substUnder n u (t, tel)
+  applySubst rho  EmptyTel              = EmptyTel
+  applySubst rho (ExtendTel t tel)      = uncurry ExtendTel $ applySubst rho (t, tel)
 
-instance Subst a => Subst (Abs a) where
-    substs us      (Abs   x t) = Abs   x $ substs (var 0 : raise 1 us) t
-    substs us      (NoAbs x t) = NoAbs x $ substs us t
-    substUnder n u (Abs   x t) = Abs   x $ substUnder (n + 1) u t
-    substUnder n u (NoAbs x t) = NoAbs x $ substUnder n u t
-
-instance Subst a => Subst (Arg a) where
-    substs us      = fmap (substs us)
-    substUnder n u = fmap (substUnder n u)
-
-instance Subst a => Subst (Dom a) where
-    substs us      = fmap (substs us)
-    substUnder n u = fmap (substUnder n u)
-
-instance Subst a => Subst (Maybe a) where
-  substs us      = fmap (substs us)
-  substUnder n u = fmap (substUnder n u)
-
-instance Subst a => Subst [a] where
-    substs us      = map (substs us)
-    substUnder n u = map (substUnder n u)
-
-instance (Subst a, Subst b) => Subst (a,b) where
-    substs us (x,y)      = (substs us x, substs us y)
-    substUnder n u (x,y) = (substUnder n u x, substUnder n u y)
-
-instance Subst ClauseBody where
-    substs us (Body t)        = Body $ substs us t
-    substs us (Bind b)        = Bind $ substs us b
-    substs _   NoBody         = NoBody
-    substUnder n u (Body t)   = Body $ substUnder n u t
-    substUnder n u (Bind b)   = Bind $ substUnder n u b
-    substUnder _ _   NoBody   = NoBody
-
--- | Add @k@ to index of each open variable in @x@.
-class Raise t where
-    raiseFrom :: Nat -> Nat -> t -> t
-    renameFrom :: Nat -> (Nat -> Nat) -> t -> t
-
-instance Raise () where
-  raiseFrom  _ _ _ = ()
-  renameFrom _ _ _ = ()
-
-instance Raise Nat where
-    raiseFrom  m k i | i < m     = i
-                     | otherwise = i + k
-    renameFrom m k i | i < m     = i
-                     | otherwise = k (i - m) + m
-
-instance Raise a => Raise (Ptr a) where
-  raiseFrom m k  = fmap (raiseFrom m k)
-  renameFrom m k = fmap (renameFrom m k)
-
-instance Raise Term where
-    raiseFrom m k v =
-        case v of
-            Var i vs        -> Var (rf i) (rf vs)
-{-
-            Var i vs
-                | i < m     -> Var i $ rf vs
-                | otherwise -> Var (i + k) $ rf vs
--}
-            Lam h m         -> Lam h $ rf m
-            Def c vs        -> Def c $ rf vs
-            Con c vs        -> Con c $ rf vs
-            MetaV x vs      -> MetaV x $ rf vs
-            Level l         -> Level $ rf l
-            Lit l           -> Lit l
-            Pi a b          -> uncurry Pi $ rf (a,b)
-            Sort s          -> Sort $ rf s
-            Shared p        -> Shared $ rf p
-            DontCare mv     -> DontCare $ rf mv
-        where
-            rf x = raiseFrom m k x
-
-    renameFrom m k v =
-        case v of
-            Var i vs        -> Var (rf i) (rf vs)
-{-
-            Var i vs
-                | i < m     -> Var i $ rf vs
-                | otherwise -> Var (k (i - m) + m) $ rf vs
--}
-            Lam h m         -> Lam h $ rf m
-            Def c vs        -> Def c $ rf vs
-            Con c vs        -> Con c $ rf vs
-            MetaV x vs      -> MetaV x $ rf vs
-            Level l         -> Level $ rf l
-            Lit l           -> Lit l
-            Pi a b          -> uncurry Pi $ rf (a,b)
-            Sort s          -> Sort $ rf s
-            Shared p        -> Shared $ rf p
-            DontCare mv     -> DontCare $ rf mv
-        where
-            rf x = renameFrom m k x
-
-instance Raise Type where
-    raiseFrom m k (El s t) = raiseFrom m k s `El` raiseFrom m k t
-    renameFrom m k (El s t) = renameFrom m k s `El` renameFrom m k t
-
-instance Raise Sort where
-    raiseFrom m k s = case s of
-      Type n     -> Type $ rf n
-      Prop       -> Prop
-      Inf        -> Inf
-      DLub s1 s2 -> DLub (rf s1) (rf s2)
-      where rf x = raiseFrom m k x
-
-    renameFrom m k s = case s of
-      Type n     -> Type $ rf n
-      Prop       -> Prop
-      Inf        -> Inf
-      DLub s1 s2 -> DLub (rf s1) (rf s2)
-      where rf x = renameFrom m k x
-
-instance Raise Level where
-  raiseFrom m k (Max as) = Max $ raiseFrom m k as
-  renameFrom m k (Max as) = Max $ renameFrom m k as
-
-instance Raise PlusLevel where
-  raiseFrom m k l@ClosedLevel{} = l
-  raiseFrom m k (Plus n l) = Plus n $ raiseFrom m k l
-  renameFrom m k l@ClosedLevel{} = l
-  renameFrom m k (Plus n l) = Plus n $ renameFrom m k l
-
-instance Raise LevelAtom where
-  raiseFrom m k l = case l of
-    MetaLevel n vs   -> MetaLevel n $ raiseFrom m k vs
-    NeutralLevel v   -> NeutralLevel $ raiseFrom m k v
-    BlockedLevel n v -> BlockedLevel n $ raiseFrom m k v
-    UnreducedLevel v -> UnreducedLevel $ raiseFrom m k v
-  renameFrom m k l = case l of
-    MetaLevel n vs   -> MetaLevel n $ renameFrom m k vs
-    NeutralLevel v   -> NeutralLevel $ renameFrom m k v
-    BlockedLevel n v -> BlockedLevel n $ renameFrom m k v
-    UnreducedLevel v -> UnreducedLevel $ renameFrom m k v
-
-instance Raise Constraint where
-  raiseFrom m k c = case c of
-    ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
-    ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
-    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
-    TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
-    SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
-    LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
-    Guarded c cs             -> Guarded (rf c) cs
-    IsEmpty r a              -> IsEmpty r (rf a)
-    FindInScope m cands      -> FindInScope m (map rf cands)
-    UnBlock{}                -> c
-    where
-      rf x = raiseFrom m k x
-  renameFrom m k c = case c of
+instance Subst Constraint where
+  applySubst rho c = case c of
     ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
     ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
     TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
@@ -591,104 +433,42 @@ instance Raise Constraint where
     FindInScope m cands      -> FindInScope m (rf cands)
     UnBlock{}                -> c
     where
-      rf x = renameFrom m k x
+      rf x = applySubst rho x
 
-instance Raise Elim where
-  raiseFrom m k e = case e of
-    Apply v -> Apply (raiseFrom m k v)
-    Proj{}  -> e
-  renameFrom m k e = case e of
-    Apply v -> Apply (renameFrom m k v)
+instance Subst Elim where
+  applySubst rho e = case e of
+    Apply v -> Apply (applySubst rho v)
     Proj{}  -> e
 
-instance Raise ClauseBody where
-  raiseFrom m k b = case b of
-    Body v   -> Body $ rf v
-    NoBody   -> NoBody
-    Bind b   -> Bind $ rf b
-    where rf x = raiseFrom m k x
-  renameFrom m k b = case b of
-    Body v   -> Body $ rf v
-    NoBody   -> NoBody
-    Bind b   -> Bind $ rf b
-    where rf x = renameFrom m k x
+instance Subst a => Subst (Abs a) where
+  applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
+  applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
--- Andreas, 2010-09-09 raise dot patterns and type info embedded in a pattern
-instance Raise Pattern where
-    raiseFrom m k p = case p of
-      DotP t -> DotP $ raiseFrom m k t
-      ConP c mt ps -> ConP c (raiseFrom m k mt) (raiseFrom m k ps)
-      VarP x -> p
-      LitP l -> p
-    renameFrom m k p = case p of
-      DotP t -> DotP $ renameFrom m k t
-      ConP c mt ps -> ConP c (renameFrom m k mt) (renameFrom m k ps)
-      VarP x -> p
-      LitP l -> p
+instance Subst a => Subst (Arg a) where
+  applySubst rho = fmap (applySubst rho)
 
-instance Raise a => Raise (Tele a) where
-    raiseFrom m k EmptyTel          = EmptyTel
-    raiseFrom m k (ExtendTel a tel) = uncurry ExtendTel $ raiseFrom m k (a, tel)
-    renameFrom m k EmptyTel          = EmptyTel
-    renameFrom m k (ExtendTel a tel) = uncurry ExtendTel $ renameFrom m k (a, tel)
+instance Subst a => Subst (Dom a) where
+  applySubst rho = fmap (applySubst rho)
 
-instance Raise DisplayForm where
-  raiseFrom m k (Display n ps v) = Display n (raiseFrom (m + 1) k ps)
-                                             (raiseFrom (m + n) k v)
-  renameFrom m k (Display n ps v) = Display n (renameFrom (m + 1) k ps)
-                                             (renameFrom (m + n) k v)
+instance Subst a => Subst (Maybe a) where
+  applySubst rho = fmap (applySubst rho)
 
-instance Raise DisplayTerm where
-  raiseFrom m k (DWithApp xs ys) = uncurry DWithApp $ raiseFrom m k (xs, ys)
-  raiseFrom m k (DTerm v)        = DTerm $ raiseFrom m k v
-  raiseFrom m k (DDot  v)        = DDot  $ raiseFrom m k v
-  raiseFrom m k (DCon c vs)      = DCon c $ raiseFrom m k vs
-  raiseFrom m k (DDef c vs)      = DDef c $ raiseFrom m k vs
-  renameFrom m k (DWithApp xs ys) = uncurry DWithApp $ renameFrom m k (xs, ys)
-  renameFrom m k (DTerm v)        = DTerm $ renameFrom m k v
-  renameFrom m k (DDot  v)        = DDot  $ renameFrom m k v
-  renameFrom m k (DCon c vs)      = DCon c $ renameFrom m k vs
-  renameFrom m k (DDef c vs)      = DDef c $ renameFrom m k vs
+instance Subst a => Subst [a] where
+  applySubst rho = map (applySubst rho)
 
-instance Raise t => Raise (Abs t) where
-    raiseFrom m k (Abs x v)   = Abs x $ raiseFrom (m + 1) k v
-    raiseFrom m k (NoAbs x v) = NoAbs x $ raiseFrom m k v
-    renameFrom m k (Abs x v)   = Abs x $ renameFrom (m + 1) k v
-    renameFrom m k (NoAbs x v) = NoAbs x $ renameFrom m k v
+instance Subst () where
+  applySubst _ _ = ()
 
-instance Raise t => Raise (Arg t) where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
+instance (Subst a, Subst b) => Subst (a,b) where
+  applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
-instance Raise t => Raise (Dom t) where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
+instance Subst ClauseBody where
+  applySubst rho (Body t) = Body $ applySubst rho t
+  applySubst rho (Bind b) = Bind $ applySubst rho b
+  applySubst _   NoBody   = NoBody
 
-instance Raise t => Raise (Blocked t) where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
-
-instance Raise t => Raise [t] where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
-
-instance Raise t => Raise (Maybe t) where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
-
-instance Raise v => Raise (Map k v) where
-    raiseFrom m k = fmap (raiseFrom m k)
-    renameFrom m k = fmap (renameFrom m k)
-
-instance (Raise a, Raise b) => Raise (a,b) where
-    raiseFrom m k (x,y) = (raiseFrom m k x, raiseFrom m k y)
-    renameFrom m k (x,y) = (renameFrom m k x, renameFrom m k y)
-
-raise :: Raise t => Nat -> t -> t
+raise :: Subst t => Nat -> t -> t
 raise = raiseFrom 0
-
-rename :: Raise t => (Nat -> Nat) -> t -> t
-rename = renameFrom 0
 
 data TelV a = TelV (Tele (Dom a)) a
   deriving (Typeable, Show, Eq, Ord, Functor)
@@ -761,20 +541,20 @@ absApp :: Subst t => Abs t -> Term -> t
 absApp (Abs   _ v) u = subst u v
 absApp (NoAbs _ v) _ = v
 
-absBody :: Raise t => Abs t -> t
+absBody :: Subst t => Abs t -> t
 absBody (Abs   _ v) = v
 absBody (NoAbs _ v) = raise 1 v
 
-mkAbs :: (Raise a, Free a) => String -> a -> Abs a
+mkAbs :: (Subst a, Free a) => String -> a -> Abs a
 mkAbs x v | 0 `freeIn` v = Abs x v
           | otherwise    = NoAbs x (raise (-1) v)
 
-reAbs :: (Raise a, Free a) => Abs a -> Abs a
+reAbs :: (Subst a, Free a) => Abs a -> Abs a
 reAbs (NoAbs x v) = NoAbs x v
 reAbs (Abs x v)   = mkAbs x v
 
-deriving instance (Raise a, Eq a) => Eq (Tele a)
-deriving instance (Raise a, Ord a) => Ord (Tele a)
+deriving instance (Subst a, Eq a) => Eq (Tele a)
+deriving instance (Subst a, Ord a) => Ord (Tele a)
 
 deriving instance Eq Sort
 deriving instance Ord Sort
@@ -849,12 +629,12 @@ instance Ord Term where
   _          `compare` MetaV{}    = GT
   DontCare{} `compare` DontCare{} = EQ
 
-instance (Raise a, Eq a) => Eq (Abs a) where
+instance (Subst a, Eq a) => Eq (Abs a) where
   NoAbs _ a == NoAbs _ b = a == b
   Abs   _ a == Abs   _ b = a == b
   a         == b         = absBody a == absBody b
 
-instance (Raise a, Ord a) => Ord (Abs a) where
+instance (Subst a, Ord a) => Ord (Abs a) where
   NoAbs _ a `compare` NoAbs _ b = a `compare` b
   Abs   _ a `compare` Abs   _ b = a `compare` b
   a         `compare` b         = absBody a `compare` absBody b

@@ -86,15 +86,12 @@ data SplitError	    = NothingToSplit
 
 type ProblemPart = Problem' ()
 
-instance Raise ProblemRest where
-  raiseFrom  m k p = p { restType = raiseFrom  m k $ restType p }
-  renameFrom m k p = p { restType = renameFrom m k $ restType p }
+instance Subst ProblemRest where
+  applySubst rho p = p { restType = applySubst rho $ restType p }
 
-instance Raise (Problem' p) where
-  raiseFrom  m k p = p { problemTel  = raiseFrom  m k $ problemTel p
-                       , problemRest = raiseFrom  m k $ problemRest p }
-  renameFrom m k p = p { problemTel  = renameFrom m k $ problemTel p
-                       , problemRest = renameFrom m k $ problemRest p }
+instance Subst (Problem' p) where
+  applySubst rho p = p { problemTel  = applySubst rho $ problemTel p
+                       , problemRest = applySubst rho $ problemRest p }
 
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.

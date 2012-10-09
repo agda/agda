@@ -109,8 +109,8 @@ dummyDom :: Dom Type
 dummyDom = Dom NotHidden Relevant $ El Prop $ Sort Prop
 
 -- | Go under an abstraction.
-{-# SPECIALIZE underAbstraction :: Raise a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction :: (Raise a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction :: Subst a => Dom Type -> Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction :: (Subst a, MonadTCM tcm) => Dom Type -> Abs a -> (a -> tcm b) -> tcm b
 underAbstraction _ (NoAbs _ v) k = k v
 underAbstraction t a k = do
     xs <- map (nameConcrete . fst . unDom) <$> getContext
@@ -123,8 +123,8 @@ underAbstraction t a k = do
     realName s   = s
 
 -- | Go under an abstract without worrying about the type to add to the context.
-{-# SPECIALIZE underAbstraction_ :: Raise a => Abs a -> (a -> TCM b) -> TCM b #-}
-underAbstraction_ :: (Raise a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
+{-# SPECIALIZE underAbstraction_ :: Subst a => Abs a -> (a -> TCM b) -> TCM b #-}
+underAbstraction_ :: (Subst a, MonadTCM tcm) => Abs a -> (a -> tcm b) -> tcm b
 underAbstraction_ = underAbstraction dummyDom
 
 -- | Add a telescope to the context.
