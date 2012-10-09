@@ -526,9 +526,4 @@ prop_stable n' =
     g =~= g' = sort (edges g) == sort (edges g')
 
 tests :: IO Bool
-tests = runTests "Agda.Utils.Warshall"
-  [ quickCheck' prop_smaller
-  , quickCheck' prop_path
-  , quickCheck' prop_disjoint
-  , quickCheck' prop_stable
-  ]
+tests = runTests "Agda.Utils.Warshall" []
