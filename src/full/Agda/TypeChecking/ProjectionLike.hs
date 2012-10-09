@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, PatternGuards, TypeSynonymInstances #-}
+{-# LANGUAGE CPP, PatternGuards, TypeSynonymInstances, FlexibleInstances #-}
 module Agda.TypeChecking.ProjectionLike where
 
 import Control.Monad
