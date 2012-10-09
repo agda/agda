@@ -30,7 +30,7 @@ endif
 ## Default target #########################################################
 
 ifeq ($(is_configured),Yes)
-default : install-bin
+default : compile-emacs-mode
 # tags
 else
 default : make_configure
@@ -45,7 +45,7 @@ CABAL_CMD=cabal
 CABAL_OPTIONS=
 #  -f epic
 
-install : update-cabal install-bin install-emacs-mode
+install : update-cabal install-bin compile-emacs-mode setup-emacs-mode
 
 prof : install-prof-bin
 
@@ -60,7 +60,10 @@ install-prof-bin :
 	$(CABAL_CMD) install --enable-library-profiling --enable-executable-profiling \
                              --program-suffix=_p --disable-documentation $(CABAL_OPTIONS)
 
-install-emacs-mode : install-bin
+compile-emacs-mode : install-bin
+	agda-mode compile
+
+setup-emacs-mode : install-bin
 	@echo
 	@echo "If the agda-mode command is not found, make sure that the directory"
 	@echo "in which it was installed is located on your shell's search path."

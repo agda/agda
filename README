@@ -42,6 +42,16 @@ There are several ways to install Agda:
     (load-file (let ((coding-system-for-read 'utf-8))
                     (shell-command-to-string "agda-mode locate")))
 
+  It is also possible (but not necessary) to compile the Emacs mode's
+  files:
+
+    agda-mode compile
+
+  This can, in some cases, give a noticeable speedup.
+
+  WARNING: If you reinstall the Agda mode without recompiling the Emacs
+  Lisp files, then Emacs may continue using the old, compiled files.
+
 * Using the source tar balls available from the Agda Wiki, or the
   development version of the code available from our darcs repository.
 
@@ -54,7 +64,7 @@ There are several ways to install Agda:
         cabal install
         agda-mode setup
 
-      The third command tries to set up Emacs for use with Agda. As an
+      The last command tries to set up Emacs for use with Agda. As an
       alternative you can copy the following text to your .emacs file:
 
         (load-file (let ((coding-system-for-read 'utf-8))
@@ -64,9 +74,19 @@ There are several ways to install Agda:
       then you can give various flags to cabal install, see
       cabal install --help.
 
-  2b) Instead of following 2a you can try to install Agda (including
-      batch-mode tool and Emacs mode) by running the following
-      command:
+      It is also possible (but not necessary) to compile the Emacs
+      mode's files:
+
+        agda-mode compile
+
+      This can, in some cases, give a noticeable speedup.
+
+      WARNING: If you reinstall the Agda mode without recompiling the
+      Emacs Lisp files, then Emacs may continue using the old,
+      compiled files.
+
+  2b) Instead of following 2a you can try to install Agda (including a
+      compiled Emacs mode) by running the following command:
 
         make install
 
@@ -101,16 +121,6 @@ the current frame in order to enable many Unicode symbols to be
 displayed. This only works if the right fonts are available, though.
 If you want to turn off this feature, then you should customise the
 agda2-fontset-name variable.
-
-It is also possible (but not necessary) to compile the Emacs mode's
-files:
-
-  agda-mode compile
-
-This can, in some cases, give a noticeable speedup.
-
-WARNING: If you reinstall the Agda mode without recompiling the Emacs
-Lisp files, then Emacs may continue using the old, compiled files.
 
 ------------------------------------------------------------------------
 Prerequisites
