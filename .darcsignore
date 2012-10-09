@@ -57,8 +57,9 @@ examples/simple-lib/.*\.hs
 ^std-lib$
 examples/MAlonzo/MAlonzo$
 examples/MAlonzo/main$
-test/fail/MAlonzo$
+test/fail/(Epic|MAlonzo)$
 test/epic/(RunTests|Epic)$
+test/epic/tests/bin/.*
 test/compiler/(Main|MAlonzo)$
 ^src/agda-pkg/dist$
 src/prototyping/terms/(dist|term)$
