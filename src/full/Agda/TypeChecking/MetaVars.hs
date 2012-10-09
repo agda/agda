@@ -624,7 +624,7 @@ assign x args v = do
 	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
-	v' <- do
+	v' <- instantiateFull =<< do
 	    -- Basically, if
 	    --   Γ   = a b c d e
 	    --   ids = d b e

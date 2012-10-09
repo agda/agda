@@ -11,7 +11,6 @@ import Agda.Syntax.Position
 import Agda.Syntax.Info
 import Agda.Syntax.Internal
 import qualified Agda.Syntax.Abstract as A
-import Agda.Syntax.Internal.Generic (copyTerm)
 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -79,7 +78,7 @@ problemFromPats ps a = do
     vcat [ text "checking lhs -- generated an initial split problem:"
 	 , nest 2 $ vcat
 	   [ text "ps    =" <+> fsep (map prettyA ps)
-	   , text "a     =" <+> (prettyTCM =<< normalise =<< copyTerm a)
+	   , text "a     =" <+> prettyTCM a
 	   , text "a'    =" <+> prettyTCM (telePi tel0  b0)
 	   , text "a''   =" <+> prettyTCM (telePi tel0' b0)
            , text "xs    =" <+> text (show $ map (fst . unDom) as)

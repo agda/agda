@@ -154,13 +154,15 @@ class Occurs t where
 -- | When assigning @m xs := v@, check that @m@ does not occur in @v@
 --   and that the free variables of @v@ are contained in @xs@.
 occursCheck :: MetaId -> Vars -> Term -> TCM Term
-occursCheck m xs v = liftTCM $ disableDestructiveUpdate $ do  -- can we allow updates somehow?
+occursCheck m xs v = liftTCM $ do
   mv <- lookupMeta m
   initOccursCheck mv
+      -- TODO: Can we do this in a better way?
+  let redo m = disableDestructiveUpdate m >> m
   -- First try without normalising the term
-  occurs NoUnfold  Top m xs v `catchError` \_ -> do
+  redo (occurs NoUnfold  Top m xs v) `catchError` \_ -> do
   initOccursCheck mv
-  occurs YesUnfold Top m xs v `catchError` \err -> case err of
+  redo (occurs YesUnfold Top m xs v) `catchError` \err -> case err of
                           -- Produce nicer error messages
     TypeError _ cl -> case clValue cl of
       MetaOccursInItself{} ->

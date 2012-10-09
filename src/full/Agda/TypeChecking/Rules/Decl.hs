@@ -247,7 +247,7 @@ checkAxiom i rel0 x e = do
   t <- isType_ e
   reportSDoc "tc.decl.ax" 10 $ sep
     [ text $ "checked type signature"
-    , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> (prettyTCM =<< instantiateFull t)
+    , nest 2 $ prettyTCM rel <> prettyTCM x <+> text ":" <+> prettyTCM t
     ]
   -- Not safe. See Issue 330
   -- t <- addForcingAnnotations t
