@@ -341,8 +341,15 @@ lookupS rho i = case rho of
   Lift n rho | i < n     -> var i
              | otherwise -> applySubst (Wk n) $ lookupS rho (i - n)
 
--- | Substitute a term for the nth free variable.
+-- | Apply a substitution.
+
+-- For terms:
 --
+--  Γ ⊢ ρ : Δ
+--  Δ ⊢ t : σ
+-- -----------
+-- Γ ⊢ tρ : σρ
+
 class Subst t where
   applySubst :: Substitution -> t -> t
 
