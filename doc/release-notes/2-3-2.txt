@@ -136,6 +136,13 @@ Language
 
     two = Bool.if true then 1 Nat.+ 1 else 0
 
+* Multiple type signatures sharing a same type can now be written as a single
+  type signature.
+
+    one two : ℕ
+    one = suc zero
+    two = suc one
+
 Type checking
 =============
 

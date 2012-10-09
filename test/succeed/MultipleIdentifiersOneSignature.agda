@@ -3,6 +3,10 @@ module MultipleIdentifiersOneSignature where
 data Bool : Set where
   false true : Bool
 
+not : Bool → Bool
+not true = false
+not false = true
+
 data Suit : Set where
   ♥ ♢ ♠ ♣ : Suit
 
@@ -21,3 +25,16 @@ postulate
 
 primitive
   primIsDigit primIsSpace : Char → Bool
+
+.b : Bool
+b = true
+
+f g h : Bool
+f = true
+g = false
+h = true
+
+.i j .k : Bool
+i = not b
+j = true
+k = not (not b)
