@@ -624,7 +624,7 @@ assign x args v = do
 	    text "preparing to instantiate: " <+> prettyTCM v
 
 	-- Rename the variables in v to make it suitable for abstraction over ids.
-	v' <- instantiateFull =<< do
+	v' <- do
 	    -- Basically, if
 	    --   Γ   = a b c d e
 	    --   ids = d b e
@@ -633,7 +633,8 @@ assign x args v = do
 	    tel <- getContextTelescope
 	    let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
 		v'    = raise (size args) (abstract tel v) `apply` iargs
-	    return v'
+	    instantiateFull v'
+            -- return v'
 
         -- Andreas, 2011-04-18 to work with irrelevant parameters
         -- we need to construct tel' from the type of the meta variable

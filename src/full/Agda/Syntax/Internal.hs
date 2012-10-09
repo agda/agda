@@ -203,18 +203,21 @@ properlyMatching (ConP _ mt ps) = List.or $ isNothing mt -- not a record cons
 
 ignoreSharing :: Term -> Term
 ignoreSharing (Shared p) = ignoreSharing $ derefPtr p
-ignoreSharing v          = v
+-- ignoreSharing v          = v
 
 ignoreSharingType :: Type -> Type
 ignoreSharingType (El s v) = El s (ignoreSharing v)
+-- ignoreSharingType v = v
 
 shared :: Term -> Term
-shared v@Shared{} = v
-shared v@Var{}    = v
-shared v          = v -- Shared (newPtr v)
+shared v@Shared{}   = v
+shared v@(Var _ []) = v
+shared v            = Shared (newPtr v)
+-- shared v = v
 
 sharedType :: Type -> Type
 sharedType (El s v) = El s (shared v)
+-- sharedType v = v
 
 -- | Typically m would be TCM and f would be Blocked.
 updateSharedFM :: (Monad m, Applicative m, Traversable f) => (Term -> m (f Term)) -> Term -> m (f Term)
