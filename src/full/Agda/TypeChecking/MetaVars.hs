@@ -633,8 +633,8 @@ assign x args v = do
 	    tel <- getContextTelescope
 	    let iargs = map (defaultArg . substitute ids) $ downFrom $ size tel
 		v'    = raise (size args) (abstract tel v) `apply` iargs
-	    instantiateFull v'
-            -- return v'
+	    -- instantiateFull v'
+            return v'
 
         -- Andreas, 2011-04-18 to work with irrelevant parameters
         -- we need to construct tel' from the type of the meta variable

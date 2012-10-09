@@ -158,7 +158,7 @@ occursCheck m xs v = liftTCM $ do
   mv <- lookupMeta m
   initOccursCheck mv
       -- TODO: Can we do this in a better way?
-  let redo m = disableDestructiveUpdate m >> m
+  let redo m = m -- disableDestructiveUpdate m >> m
   -- First try without normalising the term
   redo (occurs NoUnfold  Top m xs v) `catchError` \_ -> do
   initOccursCheck mv

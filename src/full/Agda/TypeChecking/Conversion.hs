@@ -141,16 +141,16 @@ compareTerm cmp a u v = do
                     PatternErr s -> put s >> h
                     _            -> h
 
--- unifyPointers _ _ _ action = action
-unifyPointers cmp _ _ action | cmp /= CmpEq = action
-unifyPointers _ u v action = do
-  old <- gets stDirty
-  modify $ \s -> s { stDirty = False }
-  action
-  (u, v) <- instantiate (u, v)
-  dirty <- gets stDirty
-  modify $ \s -> s { stDirty = old }
-  when (not dirty) $ forceEqualTerms u v
+unifyPointers _ _ _ action = action
+-- unifyPointers cmp _ _ action | cmp /= CmpEq = action
+-- unifyPointers _ u v action = do
+--   old <- gets stDirty
+--   modify $ \s -> s { stDirty = False }
+--   action
+--   (u, v) <- instantiate (u, v)
+--   dirty <- gets stDirty
+--   modify $ \s -> s { stDirty = old }
+--   when (not dirty) $ forceEqualTerms u v
 
 compareTerm' :: Comparison -> Type -> Term -> Term -> TCM ()
 compareTerm' cmp a m n =
