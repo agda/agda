@@ -96,7 +96,10 @@ compareTerm :: Comparison -> Type -> Term -> Term -> TCM ()
   -- If one term is a meta, try to instantiate right away. This avoids unnecessary unfolding.
   -- Andreas, 2012-02-14: This is UNSOUND for subtyping!
 compareTerm cmp a u v = do
-  (u, v) <- instantiate (u, v)
+  -- Check syntactic equality first. This actually saves us quite a bit of work.
+  (u, v) <- instantiateFull (u, v)
+  if u == v then verboseS "profile.sharing" 20 $ tick "equal terms" else do
+  verboseS "profile.sharing" 20 $ tick "unequal terms"
   let checkPointerEquality def | not $ null $ List.intersect (pointerChain u) (pointerChain v) = do
         verboseS "profile.sharing" 10 $ tick "pointer equality"
         return ()
