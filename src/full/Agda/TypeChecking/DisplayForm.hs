@@ -60,10 +60,8 @@ matchDisplayForm (Display n ps v) vs
   | length ps > length vs = return Nothing
   | otherwise             = do
     mus <- match n ps $ raise 1 (map unArg vs0)
-    return $ fmap (\us -> substs (reverse us ++ ctx) v `apply` vs1) mus
+    return $ fmap (\us -> applySubst (parallelS (reverse us)) v `apply` vs1) mus
   where
-    -- TODO: figure out the length of the context
-    ctx = [ Var i [] | i <- [0..] ]
     (vs0, vs1) = splitAt (length ps) vs
 
 class Match a where
@@ -99,4 +97,3 @@ instance Match Level where
     p <- reallyUnLevelView p
     v <- reallyUnLevelView v
     match n p v
-

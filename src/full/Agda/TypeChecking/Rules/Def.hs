@@ -353,7 +353,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
 checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     traceCall (CheckClause t c) $
     checkLeftHandSide (CheckPatternShadowing c) aps t $ \gamma delta sub xs ps t' perm -> do
-      let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ substs sub v) xs
+      let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) ((Hidden==) . domHiding) t'
       let n = size htel
@@ -482,8 +482,8 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                   -- and Δ₁ ⊢ vs : as
                   (vs, as) <- do
                     let -- We know that as does not depend on Δ₂
-                        rho = replicate (size delta2) __IMPOSSIBLE__ ++ map var [0..]
-                    return $ substs rho $ renameP (reverseP perm') (vs, as)
+                        rho = replicate (size delta2) __IMPOSSIBLE__ ++# idS
+                    return $ applySubst rho $ renameP (reverseP perm') (vs, as)
 
                   reportSDoc "tc.with.top" 20 $ vcat
                     [ text "    with arguments" <+> do escapeContext (size delta2) $ prettyList (map prettyTCM vs)

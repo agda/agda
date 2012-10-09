@@ -98,7 +98,7 @@ instantiateTel s tel = liftTCM $ do
   let rho' = renaming (reverseP p)
 
   -- tel4 : [Type Γσ~]Γσ~
-  let tel4   = substs rho' (permute p tel3)
+  let tel4   = applySubst rho' (permute p tel3)
       names4 = permute p names3
 
   reportSDoc "tc.lhs.inst" 15 $ nest 2 $
@@ -112,9 +112,9 @@ instantiateTel s tel = liftTCM $ do
 
   -- remember the types of the instantiations
   -- itypes : [Type Γσ~]Γ*
-  let itypes = substs rho' $ permute psC tel2
+  let itypes = applySubst rho' $ permute psC tel2
 
-  return (tel5, composeP p ps, substs rho' rho, itypes)
+  return (tel5, composeP p ps, applySubst rho' rho, itypes)
   where
 
     -- Turn a Substitution ([Maybe Term]) into a substitution ([Term])

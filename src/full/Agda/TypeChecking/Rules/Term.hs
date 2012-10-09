@@ -1291,12 +1291,12 @@ checkLetBinding b@(A.LetPatBind i p e) ret =
         -- The 0th variable in a context is the last one, so we reverse.
         -- Further, we need to lower all other de Bruijn indices by
         -- the size of delta, so we append the identity substitution.
-        let sub    = reverse sigma ++ map var [0..]
+        let sub    = reverse sigma ++# idS
         let fdelta = flattenTel delta
         reportSDoc "tc.term.let.pattern" 20 $ nest 2 $ vcat
           [ text "fdelta =" <+> text (show fdelta)
           ]
-        let tsl  = substs sub fdelta
+        let tsl  = applySubst sub fdelta
         -- We get a list of types
         let ts   = map unDom tsl
         -- and relevances.

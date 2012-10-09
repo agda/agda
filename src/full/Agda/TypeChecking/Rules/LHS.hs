@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- isRecord
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints
@@ -310,7 +311,7 @@ checkLeftHandSide
      -- ^ The patterns.
   -> Type
      -- ^ The expected type.
-  -> (Telescope -> Telescope -> [Term] -> [String] -> [Arg Pattern]
+  -> (Telescope -> Telescope -> S.Substitution -> [String] -> [Arg Pattern]
       -> Type -> Permutation -> TCM a)
      -- ^ Continuation.
   -> TCM a

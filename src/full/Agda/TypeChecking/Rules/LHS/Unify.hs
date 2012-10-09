@@ -32,6 +32,7 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
@@ -210,9 +211,12 @@ i |-> (u, a) = do
   rho' <- traverse ureduce rho
   modSub $ const rho'
 
-makeSubstitution :: Sub -> [Term]
-makeSubstitution sub = map val [0..]
+makeSubstitution :: Sub -> S.Substitution
+makeSubstitution sub
+  | Map.null sub = idS
+  | otherwise    = map val [0 .. highestIndex] ++# Wk (highestIndex + 1)
   where
+    highestIndex = fst $ Map.findMax sub
     val i = maybe (var i) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
@@ -222,7 +226,7 @@ class UReduce t where
 instance UReduce Term where
   ureduce u = doEtaContractImplicit $ do
     rho <- onSub makeSubstitution
-    liftTCM $ etaContract =<< normalise (substs rho u)
+    liftTCM $ etaContract =<< normalise (applySubst rho u)
 -- Andreas, 2011-06-22, fix related to issue 423
 -- To make eta contraction work better, I switched reduce to normalise.
 -- I hope the performance penalty is not big (since we are dealing with
@@ -257,8 +261,8 @@ flattenSubstitution s = foldr instantiate s is
 	Just u = s !! i
 
     inst :: Nat -> Term -> Term -> Term
-    inst i u v = substs us v
-      where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
+    inst i u v = applySubst us v
+      where us = [var j | j <- [0..i - 1] ] ++# u :# Wk (i + 1)
 
 data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 
@@ -392,7 +396,7 @@ unifyIndices flex a us vs = liftTCM $ do
       Left (StronglyRigidOccurrence a u v)  -> return $ NoUnify a u v
       Left (GenericUnifyException     err)  -> fail err
       Right _                               -> do
-        checkEqualities $ substs (makeSubstitution s) eqs
+        checkEqualities $ applySubst (makeSubstitution s) eqs
         let n = maximum $ (-1) : flex
         return $ Unifies $ flattenSubstitution [ Map.lookup i s | i <- [0..n] ]
   `catchError` \err -> return $ DontKnow err
