@@ -58,7 +58,7 @@ $(Tests) : %.cmp : %.out
 	@rm -f "$(@:.cmp=.agdai)"
 	@echo $*
 	@$(run_test) > $*.tmp
-	@if cmp $*.out $*.tmp; \
+	@if diff -b $*.out $*.tmp; \
 		then rm -f $*.tmp; true; \
 		else \
 			echo "=== Old output ==="; \
@@ -66,7 +66,7 @@ $(Tests) : %.cmp : %.out
 			echo "=== New output ==="; \
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
-			diff $*.out $*.tmp; \
+			diff -b $*.out $*.tmp; \
 			/bin/echo -n "Accept new error [y/N]? "; \
 			read -n 1; \
 			echo ""; \
