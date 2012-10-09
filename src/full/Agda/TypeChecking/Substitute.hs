@@ -304,7 +304,11 @@ abstractArgs args x = abstract tel x
 infixr 4 :#
 data Substitution
 
-  = Wk !Int                 -- Γ, Δ ⊢ Wk |Δ| : Γ
+  = IdS                     -- Γ ⊢ IdS : Γ
+
+                            --      Γ ⊢ ρ : Δ
+  | Wk !Int Substitution    -- -------------------
+                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
 
                             -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
   | Term :# Substitution    -- ---------------------
@@ -315,7 +319,11 @@ data Substitution
                             -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
 
 idS :: Substitution
-idS = Wk 0
+idS = IdS
+
+wkS :: Int -> Substitution
+wkS 0 = IdS
+wkS n = Wk n IdS
 
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
@@ -333,13 +341,15 @@ parallelS us = us ++# idS
 
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
-  Wk n       -- | i + n < 0 -> __IMPOSSIBLE__ -- TODO: this actually happens
+  IdS                    -> var i
+  Wk n IdS      -- | i + n < 0 -> __IMPOSSIBLE__ -- TODO: this actually happens
              | otherwise -> var (i + n)
+  Wk n rho               -> applySubst (wkS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
              | otherwise -> lookupS rho (i - 1)
   Lift n rho | i < n     -> var i
-             | otherwise -> applySubst (Wk n) $ lookupS rho (i - n)
+             | otherwise -> applySubst (wkS n) $ lookupS rho (i - n)
 
 -- | Apply a substitution.
 
@@ -357,7 +367,7 @@ idSub :: Telescope -> [Term]
 idSub tel = map var [0 .. size tel - 1]
 
 raiseFrom :: Subst t => Nat -> Nat -> t -> t
-raiseFrom n k = applySubst (liftS n $ Wk k)
+raiseFrom n k = applySubst (liftS n $ wkS k)
 
 subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
@@ -369,7 +379,7 @@ substs :: Subst t => [Term] -> t -> t
 substs us = applySubst (parallelS us)
 
 instance Subst Term where
-  applySubst (Wk 0) t = t
+  applySubst IdS t = t
   applySubst rho t    = case t of
     Var i vs    -> lookupS rho i `apply` applySubst rho vs
     Lam h m     -> Lam h $ applySubst rho m
