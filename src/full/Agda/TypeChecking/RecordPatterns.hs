@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleInstances, GeneralizedNewtypeDeriving #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.
 
 module Agda.TypeChecking.RecordPatterns
   ( translateRecordPatterns
+  , translateSplitTree
   , recordPatternToProjections
   ) where
 
@@ -13,10 +14,17 @@ import Control.Arrow ((***))
 import Control.Monad.Fix
 import Control.Monad.Reader
 import Control.Monad.State
+
 import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
+import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.TypeChecking.CompiledClause
+import Agda.TypeChecking.Coverage.SplitTree
+import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Errors
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -57,6 +65,193 @@ recordPatternToProjections p =
     proj p = \ x -> Def (unArg p) [defaultArg x]
     comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
     comb prj p = map (prj .) <$> recordPatternToProjections p
+
+{-
+---------------------------------------------------------------------------
+-- * Record pattern translation for compiled clauses
+---------------------------------------------------------------------------
+
+translateCompiledRecordPatterns :: CompiledClauses -> TCM CompiledClauses
+translateCompiledRecordPatterns cc = loop 0 [] cc
+  where
+    loop n vs cc = case cc of
+      Case i cs -> do
+        isRC <- isRecordCase cs
+        case isRC of
+          Nothing ->
+
+-- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
+--   (counted from left) by projections @projs_1 i .. projs_n i@.
+--
+--   If @n==0@, we matched on a zero-field record, which means that
+--   we are actually introduce a new variable, increasing split
+--   positions greater or equal to @i@ by one.
+--   Otherwise, we have to lower
+--
+replaceByProjections :: Int -> [QName] -> CompiledClauses -> TCM CompiledClauses
+replaceByProjections i projs cc = do
+  let n = length projs
+      loop i cc = case cc of
+        Case j cs
+
+        -- if j < i, we leave j untouched, but we increase i by the number
+        -- of variables replacing j in the branches
+          | j < i -> Case j
+
+        -- if j >= i then we shrink j by (n-1)
+          | j >= i -> Case (j - (n-1)) <$> Trav.mapM (loop i) cs
+
+        Done xs v ->
+        -- we have to delete (n-1) variables from xs
+        -- and instantiate v suitably with the projections
+
+        Fail -> return Fail
+
+  loop i cc
+
+-- | Check if a split is on a record constructor, and return the projections
+--   if yes.
+isRecordCase :: Case c -> TCM (Maybe ([QName], c))
+isRecordCase (Branches { conBranches = conMap
+                       , litBranches = litMap
+                       , catchAllBranch = Nothing })
+  | Map.null litBranches
+  , [(con,br)] <- Map.toList conMap = do
+    isRC <- isRecordConstructor con
+    case isRC of
+      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
+      Just (r, _) -> __IMPOSSIBLE__
+      Nothing -> return Nothing
+isRecordCase _ = return Nothing
+-}
+
+---------------------------------------------------------------------------
+-- * Record pattern translation for split trees
+---------------------------------------------------------------------------
+
+-- | Split tree annotation.
+data RecordSplitNode = RecordSplitNode
+  { splitCon           :: QName  -- ^ Constructor name for this branch.
+  , splitArity         :: Int    -- ^ Arity of the constructor.
+  , splitRecordPattern :: Bool   -- ^ Should we translate this split away?
+  }
+
+-- | Split tree annotated for record pattern translation.
+type RecordSplitTree  = SplitTree' RecordSplitNode
+type RecordSplitTrees = SplitTrees' RecordSplitNode
+
+
+
+-- | Bottom-up procedure to annotate split tree.
+recordSplitTree :: SplitTree -> TCM RecordSplitTree
+recordSplitTree t = snd <$> loop t
+  where
+
+    loop :: SplitTree -> TCM ([Bool], RecordSplitTree)
+    loop t = case t of
+      SplittingDone n -> return (replicate n True, SplittingDone n)
+      SplitAt i ts    -> do
+        (xs, ts) <- loops i ts
+        return (xs, SplitAt i ts)
+
+    loops :: Int -> SplitTrees -> TCM ([Bool], RecordSplitTrees)
+    loops i ts = do
+      (xss, ts) <- unzip <$> do
+        forM ts $ \ (c, t) -> do
+          (xs, t) <- loop t
+          (isRC, n) <- getConstructorArity c
+          let (xs0, rest) = genericSplitAt i xs
+              (xs1, xs2)  = genericSplitAt n rest
+              x           = isRC && and xs1
+              xs'         = xs0 ++ x : xs2
+          return (xs, (RecordSplitNode c n x, t))
+      return (foldl1 (zipWith (&&)) xss, ts)
+
+-- | Bottom-up procedure to record-pattern-translate split tree.
+translateSplitTree :: SplitTree -> TCM SplitTree
+translateSplitTree t = snd <$> loop t
+  where
+
+    loop :: SplitTree -> TCM ([Bool], SplitTree)
+    loop t = case t of
+      SplittingDone n ->
+        -- start with n virgin variables
+        return (replicate n True, SplittingDone n)
+      SplitAt i ts    -> do
+        (x, xs, ts) <- loops i ts
+        -- if we case on record constructor, drop case
+        let t' = if x then
+                   case ts of
+                     [(c,t)] -> t
+                     _       -> __IMPOSSIBLE__
+                  -- else retain case
+                  else SplitAt i ts
+        return (xs, t')
+
+    loops :: Int -> SplitTrees -> TCM (Bool, [Bool], SplitTrees)
+    loops i ts = do
+      -- note: ts not empty
+      (rs, xss, ts) <- unzip3 <$> do
+        forM ts $ \ (c, t) -> do
+          (xs, t) <- loop t
+          (isRC, n) <- getConstructorArity c
+          -- now drop variables from i to i+n-1
+          let (xs0, rest) = genericSplitAt i xs
+              (xs1, xs2)  = genericSplitAt n rest
+              -- if all dropped variables are virgins and we are record cons.
+              -- then new variable x is also virgin
+              -- and we can translate away the split
+              x           = isRC && and xs1
+              -- xs' = updated variables
+              xs'         = xs0 ++ x : xs2
+              -- delete splits from t if record match
+              t'          = if x then dropFrom i (n - 1) t else t
+          return (x, xs', (c, t'))
+      -- x = did we split on a record constructor?
+      let x = and rs
+      -- invariant: if record constructor, then exactly one constructor
+      if x then unless (rs == [True]) __IMPOSSIBLE__
+      -- else no record constructor
+       else unless (or rs == False) __IMPOSSIBLE__
+      return (x, foldl1 (zipWith (&&)) xss, ts)
+
+-- | @dropFrom i n@ drops arguments @j@  with @j < i + n@ and @j >= i@.
+--   NOTE: @n@ can be negative, in which case arguments are inserted.
+class DropFrom a where
+  dropFrom :: Int -> Int -> a -> a
+
+instance DropFrom (SplitTree' c) where
+  dropFrom i n t = case t of
+    SplittingDone m -> SplittingDone (m - n)
+    SplitAt j ts
+      | j >= i + n -> SplitAt (j - n) $ dropFrom i n ts
+      | j < i      -> SplitAt j $ dropFrom i n ts
+      | otherwise  -> __IMPOSSIBLE__
+
+instance DropFrom (c, SplitTree' c) where
+  dropFrom i n (c, t) = (c, dropFrom i n t)
+
+instance DropFrom a => DropFrom [a] where
+  dropFrom i n ts = map (dropFrom i n) ts
+
+{-
+-- | Check if a split is on a record constructor, and return the projections
+--   if yes.
+isRecordSplit :: SplitTrees -> TCM (Maybe ([QName], c))
+isRecordSplit (Branches { conBranches = conMap
+                       , litBranches = litMap
+                       , catchAllBranch = Nothing })
+  | Map.null litBranches
+  , [(con,br)] <- Map.toList conMap = do
+    isRC <- isRecordConstructor con
+    case isRC of
+      Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
+      Just (r, _) -> __IMPOSSIBLE__
+      Nothing -> return Nothing
+isRecordSplit _ = return Nothing
+
+-}
+
 
 ---------------------------------------------------------------------------
 -- * Record pattern translation for function definitions

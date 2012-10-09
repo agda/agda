@@ -12,8 +12,8 @@ import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Substitute
 
+import Agda.Utils.Size
 import Agda.Utils.Impossible
-
 #include "../undefined.h"
 
 -- | Get the name of the datatype constructed by a given constructor.
@@ -24,6 +24,27 @@ getConstructorData c = do
   case theDef def of
     Constructor{conData = d} -> return d
     _                        -> __IMPOSSIBLE__
+
+
+-- | Return the number of non-parameter arguments to a constructor,
+--   and a flag whether it is a record constructor
+getConstructorArity :: QName -> TCM (Bool, Nat)
+getConstructorArity c = do
+  Defn{ defType = t, theDef = def } <- getConstInfo c
+  case def of
+    Constructor{ conData = d, conPars = n } -> do
+      def <- theDef <$> getConstInfo d
+      case def of
+        Record{ recFields = fs } ->
+           return (True, size fs)
+        Datatype{} -> do
+          -- TODO: I do not want to take the type of constructor apart
+          -- to see its arity!
+          TelV tel _ <- telView t
+          return (False, size tel - n)
+        _ -> __IMPOSSIBLE__
+    _ -> __IMPOSSIBLE__
+
 
 -- | Check if a name refers to a datatype or a record with a named constructor.
 isDatatype :: QName -> TCM Bool

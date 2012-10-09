@@ -33,9 +33,12 @@ compileClauses ::
 compileClauses mt cs = case mt of
   Nothing -> return $ compile Nothing [(clausePats c, clauseBody c) | c <- cs]
   Just (q, t)  -> do
-    splitTree <- coverageCheck q t cs
+    splitTree <- translateSplitTree =<< coverageCheck q t cs
+    reportSDoc "tc.cc.splittree" 10 $ vcat
+      [ text "translated split tree for" <+> prettyTCM q
+      , text $ show splitTree
+      ]
     cs        <- mapM translateRecordPatterns cs
-    -- TODO: translate splitTree
     return $ compile (Just splitTree) [(clausePats c, clauseBody c) | c <- cs]
 
 type Cl  = ([Arg Pattern], ClauseBody)

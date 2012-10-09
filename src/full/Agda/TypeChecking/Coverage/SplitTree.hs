@@ -54,7 +54,7 @@ data SplitTreeLabel a = SplitTreeLabel
 instance Show a => Show (SplitTreeLabel a) where
   show (SplitTreeLabel Nothing Nothing (Just n))  = "done, " ++ show n ++ " bindings"
   show (SplitTreeLabel Nothing (Just n) Nothing)  = "split at " ++ show n
-  show (SplitTreeLabel (Just q) Nothing (Just n)) = show q ++ "-> done, " ++ show n ++ " bindings"
+  show (SplitTreeLabel (Just q) Nothing (Just n)) = show q ++ " -> done, " ++ show n ++ " bindings"
   show (SplitTreeLabel (Just q) (Just n) Nothing) = show q ++ " -> split at " ++ show n
   show _ = __IMPOSSIBLE__
 

@@ -201,6 +201,10 @@ cover cs (SClause tel perm ps _) = do
           NoRecordConstructor a   -> typeError $ CoverageCantSplitType a
  -}
           GenericSplitError s     -> fail $ "failed to split: " ++ s
+        -- If we get the empty covering, we have reached an impossible case
+        -- and are done.
+        Right (Covering n []) ->
+          return (SplittingDone (size tel), Set.empty, [])
         Right (Covering n scs) -> do
           (trees, useds, psss) <- unzip3 <$> mapM (cover cs) (map snd scs)
           let tree = SplitAt n $ zipWith (\ (q,_) t -> (q,t)) scs trees
