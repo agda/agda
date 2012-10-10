@@ -306,21 +306,21 @@ abstractArgs args x = abstract tel x
 infixr 4 :#
 data Substitution
 
-  = IdS                      -- Γ ⊢ IdS : Γ
+  = IdS                     -- Γ ⊢ IdS : Γ
 
-  | EmptyS                   -- Γ ⊢ EmptyS : ()
+  | EmptyS                  -- Γ ⊢ EmptyS : ()
 
-                             --      Γ ⊢ ρ : Δ
-  | Wk !Int !Substitution    -- -------------------
-                             -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
+                            --      Γ ⊢ ρ : Δ
+  | Wk !Int Substitution    -- -------------------
+                            -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
 
-                             -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# !Substitution    -- ---------------------
-                             --   Γ ⊢ u :# ρ : Δ, A
+                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
+  | Term :# Substitution    -- ---------------------
+                            --   Γ ⊢ u :# ρ : Δ, A
 
-                             --        Γ ⊢ ρ : Δ
-  | Lift !Int !Substitution  -- -------------------------
-                             -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
+                            --        Γ ⊢ ρ : Δ
+  | Lift !Int Substitution  -- -------------------------
+                            -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
   deriving (Show)
 
 idS :: Substitution
