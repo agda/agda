@@ -5,8 +5,6 @@ module Agda.TypeChecking.Substitute where
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Control.Arrow ((***))
-import Data.Sequence (Seq, (><))
-import qualified Data.Sequence as S
 
 import Data.Typeable (Typeable)
 import Data.List hiding (sort)
@@ -305,6 +303,7 @@ abstractArgs args x = abstract tel x
 
 -- | Substitutions.
 
+infixr 4 :#
 data Substitution
 
   = IdS                     -- Γ ⊢ IdS : Γ
@@ -315,18 +314,9 @@ data Substitution
   | Wk !Int Substitution    -- -------------------
                             -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
 
-    -- Γ ⊢ ρ : Δ
-    --
-    -- Γ ⊢ u_(|us|-1) : Ψ_0 ρ
-    -- Γ ⊢ u_(|us|-2) : Ψ_1 (Prepend 1 [u_(|us|-1)] ρ)
-    -- Γ ⊢ u_(|us|-3) : Ψ_2 (Prepend 2 [u_(|us|-2), u_(|us|-1)] ρ)
-    --   ⋮
-    -- Γ ⊢ u_0        : Ψ_(|us|-1) (Prepend (|us|-1) (tail us) ρ)
-    --
-    -- -----------------------------------------------------------
-    --              Γ ⊢ Prepend |us| us ρ : Δ, Ψ
-
-  | Prepend (Seq Term) Substitution
+                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
+  | Term :# Substitution    -- ---------------------
+                            --   Γ ⊢ u :# ρ : Δ, A
 
                             --        Γ ⊢ ρ : Δ
   | Lift !Int Substitution  -- -------------------------
@@ -345,21 +335,8 @@ wkS n rho        = Wk n rho
 raiseS :: Int -> Substitution
 raiseS n = wkS n idS
 
-prependS :: Seq Term -> Substitution -> Substitution
-prependS us rho | S.null us  = rho
-prependS us (Prepend ts rho) = Prepend (us >< ts) rho
-prependS us rho              = Prepend us rho
-
-infixr 4 ++#, #:
-
-(++#) :: [Term] -> Substitution -> Substitution
-us ++# rho = prependS (S.fromList us) rho
-
-(#:) :: Term -> Substitution -> Substitution
-u #: rho = [u] ++# rho
-
 singletonS :: Term -> Substitution
-singletonS u = u #: idS
+singletonS u = u :# idS
 
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
@@ -368,15 +345,13 @@ liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
 dropS :: Int -> Substitution -> Substitution
-dropS 0 rho              = rho
-dropS n IdS              = raiseS n
-dropS n (Wk m rho)       = wkS m (dropS n rho)
-dropS n (Prepend us rho)
-  | n < S.length us      = prependS (S.drop n us) rho
-  | otherwise            = dropS (n - S.length us) rho
-dropS n (Lift 0 rho)     = __IMPOSSIBLE__
-dropS n (Lift m rho)     = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
-dropS n EmptyS           = __IMPOSSIBLE__
+dropS 0 rho          = rho
+dropS n IdS          = raiseS n
+dropS n (Wk m rho)   = wkS m (dropS n rho)
+dropS n (u :# rho)   = dropS (n - 1) rho
+dropS n (Lift 0 rho) = __IMPOSSIBLE__
+dropS n (Lift m rho) = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+dropS n EmptyS       = __IMPOSSIBLE__
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: Substitution -> Substitution -> Substitution
@@ -384,45 +359,43 @@ composeS rho IdS = rho
 composeS IdS sgm = sgm
 composeS rho EmptyS = EmptyS
 composeS rho (Wk n sgm) = composeS (dropS n rho) sgm
-composeS rho (Prepend us sgm) = prependS (applySubst rho us) (composeS rho sgm)
+composeS rho (u :# sgm) = applySubst rho u :# composeS rho sgm
 composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
-composeS (Prepend us rho) (Lift n sgm)
-  | S.length us <= n = prependS us (composeS rho (liftS (n - S.length us) sgm))
-  | otherwise        = prependS us1 (composeS (prependS us2 rho) sgm)
-    where (us1, us2) = S.splitAt n us
-composeS rho (Lift n sgm) = lookupS rho 0 #: composeS rho (wkS 1 (liftS (n - 1) sgm))
+composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
+composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
 
 -- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θ
 splitS :: Int -> Substitution -> (Substitution, Substitution)
-splitS 0 rho              = (rho, EmptyS)
-splitS n (Prepend us rho)
-  | n < S.length us       = (prependS us2 rho, prependS us1 EmptyS)
-  | otherwise             = id *** prependS us $ splitS (n - S.length us) rho
-                            where (us1, us2) = S.splitAt n us
-splitS n (Lift 0 _)       = __IMPOSSIBLE__
-splitS n (Wk m rho)       = wkS m *** wkS m $ splitS n rho
-splitS n IdS              = (raiseS n, liftS n EmptyS)
-splitS n (Lift m rho)     = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
-splitS n EmptyS           = __IMPOSSIBLE__
+splitS 0 rho          = (rho, EmptyS)
+splitS n (u :# rho)   = id *** (u :#) $ splitS (n - 1) rho
+splitS n (Lift 0 _)   = __IMPOSSIBLE__
+splitS n (Wk m rho)   = wkS m *** wkS m $ splitS n rho
+splitS n IdS          = (raiseS n, liftS n EmptyS)
+splitS n (Lift m rho) = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
+splitS n EmptyS       = __IMPOSSIBLE__
+
+infixr 4 ++#
+
+(++#) :: [Term] -> Substitution -> Substitution
+us ++# rho = foldr (:#) rho us
 
 parallelS :: [Term] -> Substitution
 parallelS us = us ++# idS
 
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
-  IdS                          -> var i
-  Wk n IdS                     -> let j = i + n in
+  IdS                    -> var i
+  Wk n IdS               -> let j = i + n in
                             if  j < 0 then __IMPOSSIBLE__ else var j
-  Wk n rho                     -> applySubst (raiseS n) (lookupS rho i)
-  Prepend us rho
-             | i < 0           -> __IMPOSSIBLE__
-             | i < S.length us -> S.index us i
-             | otherwise       -> lookupS rho (i - S.length us)
-  Lift n rho | i < n           -> var i
-             | otherwise       -> raise n $ lookupS rho (i - n)
-  EmptyS                       -> __IMPOSSIBLE__
+  Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
+  u :# rho   | i == 0    -> u
+             | i < 0     -> __IMPOSSIBLE__
+             | otherwise -> lookupS rho (i - 1)
+  Lift n rho | i < n     -> var i
+             | otherwise -> raise n $ lookupS rho (i - n)
+  EmptyS                 -> __IMPOSSIBLE__
 
 -- | Apply a substitution.
 
@@ -554,9 +527,6 @@ instance Subst a => Subst (Maybe a) where
 
 instance Subst a => Subst [a] where
   applySubst rho = map (applySubst rho)
-
-instance Subst a => Subst (Seq a) where
-  applySubst rho = fmap (applySubst rho)
 
 instance Subst () where
   applySubst _ _ = ()
