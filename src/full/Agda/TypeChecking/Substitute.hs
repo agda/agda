@@ -339,6 +339,47 @@ liftS k IdS          = IdS
 liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
+dropS :: Int -> Substitution -> Substitution
+dropS 0 rho          = rho
+dropS n IdS          = raiseS n
+dropS n (Wk m rho)   = wkS m (dropS n rho)
+dropS n (u :# rho)   = dropS (n - 1) rho
+dropS n (Lift 0 rho) = __IMPOSSIBLE__
+dropS n (Lift m rho) = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+dropS n EmptyS       = __IMPOSSIBLE__
+
+-- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
+composeS :: Substitution -> Substitution -> Substitution
+composeS rho IdS = rho
+composeS IdS sgm = sgm
+composeS rho EmptyS = EmptyS
+composeS rho (Wk n sgm) = composeS (dropS n rho) sgm
+composeS rho (u :# sgm) = applySubst rho u :# composeS rho sgm
+composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
+composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
+composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
+
+-- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
+--   Γ ⊢ σ : Δ
+--   Γ ⊢ δ : Θ
+splitS :: Int -> Substitution -> (Substitution, Substitution)
+splitS 0 rho          = (rho, EmptyS)
+splitS n (u :# rho)   = id *** (u :#) $ splitS (n - 1) rho
+splitS n (Lift 0 _)   = __IMPOSSIBLE__
+splitS n (Wk m rho)   = wkS m *** wkS m $ splitS n rho
+splitS n IdS          = (raiseS n, liftS n EmptyS)
+splitS n (Lift m rho) = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
+splitS n EmptyS       = __IMPOSSIBLE__
+
+infixr 4 ++#
+
+(++#) :: [Term] -> Substitution -> Substitution
+[] ++# rho = rho
+us ++# rho = foldr (:#) rho us
+
+parallelS :: [Term] -> Substitution
+parallelS us = us ++# idS
+
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
   IdS                    -> var i
