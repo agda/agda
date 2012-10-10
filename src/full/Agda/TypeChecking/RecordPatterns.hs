@@ -288,7 +288,7 @@ translateRecordPatterns clause = do
       noNewPatternVars = size cs
 
       s'   = reverse s
-      mkSub s = foldr (:#) (raiseS noNewPatternVars) s
+      mkSub s = s ++# raiseS noNewPatternVars
 
       -- Substitution used to convert terms in the old RHS's
       -- context to terms in the new RHS's context.
@@ -594,7 +594,7 @@ translateBody _               _ _          = __IMPOSSIBLE__
 
 permToSubst :: Permutation -> Substitution
 permToSubst (Perm n is) =
-  foldr (:#) (raiseS (size is)) [ makeVar i | i <- [0..n - 1] ]
+  [ makeVar i | i <- [0..n - 1] ] ++# raiseS (size is)
   where
   makeVar i = case genericElemIndex i is of
     Nothing -> __IMPOSSIBLE__

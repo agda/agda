@@ -65,7 +65,7 @@ unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
     a'   = applySubst rho a
-    rho  = replicate (size tel + 1) __IMPOSSIBLE_TERM__ ++# idS
+    rho  = parallelS (replicate (size tel + 1) __IMPOSSIBLE_TERM__)
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 

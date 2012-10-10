@@ -188,7 +188,7 @@ useInjectivity cmp a u v = do
             ]
           -- and this is the order the variables occur in the patterns
           let ms' = permute (invertP $ compactP perm) ms
-          let sub = foldr (:#) idS (reverse ms)
+          let sub = parallelS (reverse ms)
           margs <- runReaderT (evalStateT (metaArgs ps) ms') sub
           reportSDoc "tc.inj.invert" 20 $ vcat
             [ text "inversion"
