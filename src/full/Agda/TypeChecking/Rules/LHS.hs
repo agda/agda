@@ -20,6 +20,7 @@ import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Records -- isRecord
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S (Substitution)
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Conversion
 import Agda.TypeChecking.Constraints

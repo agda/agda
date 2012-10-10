@@ -32,6 +32,7 @@ import Agda.TypeChecking.Level (reallyUnLevelView)
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Substitute hiding (Substitution)
+import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Telescope
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Records
@@ -210,9 +211,12 @@ i |-> (u, a) = do
   rho' <- traverse ureduce rho
   modSub $ const rho'
 
-makeSubstitution :: Sub -> [Term]
-makeSubstitution sub = map val [0..]
+makeSubstitution :: Sub -> S.Substitution
+makeSubstitution sub
+  | Map.null sub = idS
+  | otherwise    = map val [0 .. highestIndex] ++# raiseS (highestIndex + 1)
   where
+    highestIndex = fst $ Map.findMax sub
     val i = maybe (var i) id $ Map.lookup i sub
 
 -- | Apply the current substitution on a term and reduce to weak head normal form.
@@ -257,8 +261,8 @@ flattenSubstitution s = foldr instantiate s is
 	Just u = s !! i
 
     inst :: Nat -> Term -> Term -> Term
-    inst i u v = substs us v
-      where us = [var j | j <- [0..i - 1] ] ++ [u] ++ [var j | j <- [i + 1..] ]
+    inst i u v = applySubst us v
+      where us = [var j | j <- [0..i - 1] ] ++# u :# raiseS (i + 1)
 
 data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 

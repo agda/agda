@@ -60,7 +60,7 @@ matchDisplayForm (Display n ps v) vs
   | length ps > length vs = return Nothing
   | otherwise             = do
     mus <- match n ps $ raise 1 (map unArg vs0)
-    return $ fmap (\us -> substs (reverse us ++ ctx) v `apply` vs1) mus
+    return $ fmap (\us -> applySubst (parallelS (reverse us)) v `apply` vs1) mus
   where
     (vs0, vs1) = splitAt (length ps) vs
 

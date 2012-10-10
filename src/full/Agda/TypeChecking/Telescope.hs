@@ -27,17 +27,17 @@ import Agda.Utils.Impossible
 renameP :: Subst t => Permutation -> t -> t
 renameP p = applySubst (renaming p)
 
--- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renaming π) : Term Γ -> Term Δ@
-renaming :: Permutation -> [Term]
+-- | If @permute π : [a]Γ -> [a]Δ@, then @applySubst (renaming π) : Term Γ -> Term Δ@
+renaming :: Permutation -> Substitution
 renaming p = gamma'
   where
     n	   = size p
     gamma  = permute (reverseP $ invertP $ reverseP p) $ map var [0..]
-    gamma' = gamma ++ map var [n..]
+    gamma' = gamma ++# raiseS n
 
 -- | If @permute π : [a]Γ -> [a]Δ@, then @substs (renamingR π) : Term Δ -> Term Γ@
-renamingR :: Permutation -> [Term]
-renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++ map var [n..]
+renamingR :: Permutation -> Substitution
+renamingR p@(Perm n _) = permute (reverseP p) (map var [0..]) ++# raiseS n
 
 -- | Flatten telescope: (Γ : Tel) -> [Type Γ]
 flattenTel :: Telescope -> [Dom Type]
@@ -64,8 +64,8 @@ unflattenTel []	  []	        = EmptyTel
 unflattenTel (x : xs) (a : tel) = ExtendTel a' (Abs x tel')
   where
     tel' = unflattenTel xs tel
-    a'   = substs rho a
-    rho  = replicate (size tel + 1) __IMPOSSIBLE_TERM__ ++ map var [0..]
+    a'   = applySubst rho a
+    rho  = replicate (size tel + 1) __IMPOSSIBLE_TERM__ ++# idS
 unflattenTel [] (_ : _) = __IMPOSSIBLE__
 unflattenTel (_ : _) [] = __IMPOSSIBLE__
 
