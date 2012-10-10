@@ -125,8 +125,8 @@ instantiateTel s tel = liftTCM $ do
     mkSubst :: [Maybe Term] -> S.Substitution
     mkSubst s = rho 0 s'
       where s'  = s
-	    rho i (Nothing : s) = var i :# rho (i + 1) s
-	    rho i (Just u  : s) = u :# rho i s
+	    rho i (Nothing : s) = var i #: rho (i + 1) s
+	    rho i (Just u  : s) = u #: rho i s
 	    rho i []		= raiseS i
 
 -- | Produce a nice error message when splitting failed

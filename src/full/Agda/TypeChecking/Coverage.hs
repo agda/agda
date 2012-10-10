@@ -317,7 +317,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
       debugTel "delta2'" delta2'
 
       -- Compute a substitution ρ : Δ₁ΓΔ₂' → Δ₁(x:D)Δ₂'
-      let rho = liftS (size delta2') $ conv :# raiseS (size gamma)
+      let rho = liftS (size delta2') $ conv #: raiseS (size gamma)
              --    [ Var i [] | i <- [0..size delta2' - 1] ]
              -- ++ [ raise (size delta2') conv ]
              -- ++ [ Var i [] | i <- [size delta2' + size gamma ..] ]

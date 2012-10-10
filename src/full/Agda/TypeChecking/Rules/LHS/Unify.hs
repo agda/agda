@@ -262,7 +262,7 @@ flattenSubstitution s = foldr instantiate s is
 
     inst :: Nat -> Term -> Term -> Term
     inst i u v = applySubst us v
-      where us = [var j | j <- [0..i - 1] ] ++# u :# raiseS (i + 1)
+      where us = [var j | j <- [0..i - 1] ] ++# u #: raiseS (i + 1)
 
 data UnificationResult = Unifies Substitution | NoUnify Type Term Term | DontKnow TCErr
 

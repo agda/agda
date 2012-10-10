@@ -83,7 +83,7 @@ instance (Subst a, AbstractTerm a) => AbstractTerm (Abs a) where
   abstractTerm u (Abs   x v) = Abs x $ applySubst swap $ abstractTerm (raise 1 u) v
     where
       -- This swaps var 0 and var 1 (we hope)
-      swap = var 1 :# liftS 1 (raiseS 1)
+      swap = var 1 #: liftS 1 (raiseS 1)
 
 instance (AbstractTerm a, AbstractTerm b) => AbstractTerm (a, b) where
   abstractTerm u (x, y) = (abstractTerm u x, abstractTerm u y)

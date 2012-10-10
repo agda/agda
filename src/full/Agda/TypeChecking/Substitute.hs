@@ -303,7 +303,6 @@ abstractArgs args x = abstract tel x
 
 -- | Substitutions.
 
-infixr 4 :#
 data Substitution
 
   = IdS                     -- Γ ⊢ IdS : Γ
@@ -314,9 +313,18 @@ data Substitution
   | Wk !Int Substitution    -- -------------------
                             -- Γ, Ψ ⊢ Wk |Ψ| ρ : Δ
 
-                            -- Γ ⊢ u : Aρ  Γ ⊢ ρ : Δ
-  | Term :# Substitution    -- ---------------------
-                            --   Γ ⊢ u :# ρ : Δ, A
+    -- Γ ⊢ ρ : Δ
+    --
+    -- Γ ⊢ u_(|us|-1) : Ψ_0 ρ
+    -- Γ ⊢ u_(|us|-2) : Ψ_1 (Prepend 1 [u_(|us|-1)] ρ)
+    -- Γ ⊢ u_(|us|-3) : Ψ_2 (Prepend 2 [u_(|us|-2), u_(|us|-1)] ρ)
+    --   ⋮
+    -- Γ ⊢ u_0        : Ψ_(|us|-1) (Prepend (|us|-1) (tail us) ρ)
+    --
+    -- -----------------------------------------------------------
+    --              Γ ⊢ Prepend |us| us ρ : Δ, Ψ
+
+  | Prepend !Int [Term] Substitution
 
                             --        Γ ⊢ ρ : Δ
   | Lift !Int Substitution  -- -------------------------
@@ -335,8 +343,21 @@ wkS n rho        = Wk n rho
 raiseS :: Int -> Substitution
 raiseS n = wkS n idS
 
+prependS :: Int -> [Term] -> Substitution -> Substitution
+prependS m [] rho                = rho
+prependS m us (Prepend n ts rho) = Prepend (m + n) (us ++ ts) rho
+prependS m us rho                = Prepend m us rho
+
+infixr 4 ++#, #:
+
+(++#) :: [Term] -> Substitution -> Substitution
+us ++# rho = prependS (length us) us rho
+
+(#:) :: Term -> Substitution -> Substitution
+u #: rho = [u] ++# rho
+
 singletonS :: Term -> Substitution
-singletonS u = u :# idS
+singletonS u = u #: idS
 
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
@@ -345,13 +366,15 @@ liftS k (Lift n rho) = Lift (n + k) rho
 liftS k rho          = Lift k rho
 
 dropS :: Int -> Substitution -> Substitution
-dropS 0 rho          = rho
-dropS n IdS          = raiseS n
-dropS n (Wk m rho)   = wkS m (dropS n rho)
-dropS n (u :# rho)   = dropS (n - 1) rho
-dropS n (Lift 0 rho) = __IMPOSSIBLE__
-dropS n (Lift m rho) = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
-dropS n EmptyS       = __IMPOSSIBLE__
+dropS 0 rho                = rho
+dropS n IdS                = raiseS n
+dropS n (Wk m rho)         = wkS m (dropS n rho)
+dropS n (Prepend m us rho)
+  | n < m                  = prependS (m - n) (drop n us) rho
+  | otherwise              = dropS (n - m) rho
+dropS n (Lift 0 rho)       = __IMPOSSIBLE__
+dropS n (Lift m rho)       = wkS 1 $ dropS (n - 1) $ liftS (m - 1) rho
+dropS n EmptyS             = __IMPOSSIBLE__
 
 -- | @applySubst (ρ `composeS` σ) v == applySubst ρ (applySubst σ v)@
 composeS :: Substitution -> Substitution -> Substitution
@@ -359,27 +382,28 @@ composeS rho IdS = rho
 composeS IdS sgm = sgm
 composeS rho EmptyS = EmptyS
 composeS rho (Wk n sgm) = composeS (dropS n rho) sgm
-composeS rho (u :# sgm) = applySubst rho u :# composeS rho sgm
+composeS rho (Prepend n us sgm) = prependS n (applySubst rho us) (composeS rho sgm)
 composeS rho (Lift 0 sgm) = __IMPOSSIBLE__
-composeS (u :# rho) (Lift n sgm) = u :# composeS rho (liftS (n - 1) sgm)
-composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) sgm))
+composeS (Prepend m us rho) (Lift n sgm)
+  | m <= n    = prependS m us (composeS rho (liftS (n - m) sgm))
+  | otherwise = prependS n us1 (composeS (prependS (m - n) us2 rho) sgm)
+    where (us1, us2) = splitAt n us
+composeS rho (Lift n sgm) = lookupS rho 0 #: composeS rho (wkS 1 (liftS (n - 1) sgm))
 
 -- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
 --   Γ ⊢ σ : Δ
 --   Γ ⊢ δ : Θ
 splitS :: Int -> Substitution -> (Substitution, Substitution)
-splitS 0 rho          = (rho, EmptyS)
-splitS n (u :# rho)   = id *** (u :#) $ splitS (n - 1) rho
-splitS n (Lift 0 _)   = __IMPOSSIBLE__
-splitS n (Wk m rho)   = wkS m *** wkS m $ splitS n rho
-splitS n IdS          = (raiseS n, liftS n EmptyS)
-splitS n (Lift m rho) = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
-splitS n EmptyS       = __IMPOSSIBLE__
-
-infixr 4 ++#
-
-(++#) :: [Term] -> Substitution -> Substitution
-us ++# rho = foldr (:#) rho us
+splitS 0 rho                = (rho, EmptyS)
+splitS n (Prepend m us rho)
+  | n < m                   = (prependS (m - n) us2 rho, prependS n us1 EmptyS)
+  | otherwise               = id *** prependS m us $ splitS (n - m) rho
+                              where (us1, us2) = splitAt n us
+splitS n (Lift 0 _)         = __IMPOSSIBLE__
+splitS n (Wk m rho)         = wkS m *** wkS m $ splitS n rho
+splitS n IdS                = (raiseS n, liftS n EmptyS)
+splitS n (Lift m rho)       = wkS 1 *** liftS 1 $ splitS (n - 1) (liftS (m - 1) rho)
+splitS n EmptyS             = __IMPOSSIBLE__
 
 parallelS :: [Term] -> Substitution
 parallelS us = us ++# idS
@@ -390,9 +414,10 @@ lookupS rho i = case rho of
   Wk n IdS               -> let j = i + n in
                             if  j < 0 then __IMPOSSIBLE__ else var j
   Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
-  u :# rho   | i == 0    -> u
+  Prepend n us rho
              | i < 0     -> __IMPOSSIBLE__
-             | otherwise -> lookupS rho (i - 1)
+             | i < n     -> us !! i
+             | otherwise -> lookupS rho (i - n)
   Lift n rho | i < n     -> var i
              | otherwise -> raise n $ lookupS rho (i - n)
   EmptyS                 -> __IMPOSSIBLE__
