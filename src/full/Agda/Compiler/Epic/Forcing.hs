@@ -219,18 +219,11 @@ forcedExpr vars tele expr = case expr of
                         _ -> __IMPOSSIBLE__
                     let
                         lower = map (raise (-1)) . drop 1
-                        isOk t = case t of
-                          SI.Var n xs | n >= 0 -> all (isOk . unArg) xs
-                          SI.Con _ xs -> all (isOk . unArg) xs
-                          SI.Def f xs -> all (isOk . unArg) xs
-                          _ -> error $ show t
                         subT 0 tel = let ss = [fromMaybe (SI.Var n []) t
                                               | (n , t) <- zip [0..] (unif ++ repeat Nothing)]
                                       in (S.substs ss tel, lower ss)
                         subT n (ExtendTel a t) = let
                                (tb' , ss) = subT (n - 1) (unAbs t)
-                               a' | all isOk (take 100 ss) = S.substs ss a
-                                  | True    = __IMPOSSIBLE__
                             in (ExtendTel a $ Abs (absName t) tb', lower ss)
                         subT _ _ = __IMPOSSIBLE__
                         (tele'''', _) = subT (n + length as) tele''
