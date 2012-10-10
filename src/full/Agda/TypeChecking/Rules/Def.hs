@@ -212,21 +212,21 @@ checkFunDef' t rel delayed i name cs =
 
 {- | Ensure that all clauses have the same number of trailing implicits.
 Example:
-@
 
-  test : Bool -> {A B : Set} → Set
+@
+  test : Bool → {A B : Set} → Set
   test true  {A}     = A
   test false {B = B} = B
-
 @
+
 @trailingImplicits@ patches these clauses to
-@
 
-  test : Bool -> {A B : Set} → Set
+@
+  test : Bool → {A B : Set} → Set
   test true  {A} {_}     = A
   test false {_} {B = B} = B
-
 @
+
 such that the arity of the clauses of @test@ is uniform.
 -}
 trailingImplicits :: Type -> [A.Clause] -> TCM [A.Clause]

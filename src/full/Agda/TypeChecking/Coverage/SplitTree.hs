@@ -28,11 +28,13 @@ type SplitTrees = SplitTrees' QName
 
 -- | Abstract case tree shape.
 data SplitTree' a
-  = SplittingDone
-            -- ^ No more splits coming.  We are at a single, all-variable clause.
+  = -- | No more splits coming. We are at a single, all-variable
+    -- clause.
+    SplittingDone
     { splitBindings :: Int       -- ^  The number of variables bound in the clause
     }
-  | SplitAt -- ^ A split is necessary.
+  | -- | A split is necessary.
+    SplitAt
     { splitArg   :: Int           -- ^ Arg. no to split at.
     , splitTrees :: SplitTrees' a -- ^ Sub split trees.
     }
