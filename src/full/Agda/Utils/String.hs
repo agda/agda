@@ -16,7 +16,7 @@ import Numeric
 -- \> 'putStrLn' $ 'show' \"\\x2200\"
 -- \"\\8704\"
 -- \> 'putStrLn' $ 'quote' \"\\x2200\"
--- \"&#x2200;\"
+-- \"∀\"
 -- @
 --
 -- (The code examples above have been tested using version 4.2.0.0 of

@@ -30,13 +30,13 @@ import Agda.Utils.Permutation
 
 #include "../../../undefined.h"
 
--- | The type of @&#x221e@.
+-- | The type of @∞@.
 
 typeOfInf :: TCM Type
 typeOfInf = hPi "a" (el primLevel) $
             (return . sort $ varSort 0) --> (return . sort $ varSort 0)
 
--- | The type of @&#x266f_@.
+-- | The type of @♯_@.
 
 typeOfSharp :: TCM Type
 typeOfSharp = hPi "a" (el primLevel) $
@@ -44,7 +44,7 @@ typeOfSharp = hPi "a" (el primLevel) $
               (El (varSort 1) <$> varM 0) -->
               (El (varSort 1) <$> primInf <#> varM 1 <@> varM 0)
 
--- | The type of @&#x266d@.
+-- | The type of @♭@.
 
 typeOfFlat :: TCM Type
 typeOfFlat = hPi "a" (el primLevel) $
@@ -64,8 +64,8 @@ bindBuiltinInf e = bindPostulatedName builtinInf e $ \inf _ ->
 
 -- The following (no longer supported) definition is used:
 --
--- codata &#x221e {a} (A : Set a) : Set a where
---   &#x266f_ : (x : A) → &#x221e A
+-- codata ∞ {a} (A : Set a) : Set a where
+--   ♯_ : (x : A) → ∞ A
 
 bindBuiltinSharp :: A.Expr -> TCM ()
 bindBuiltinSharp e =
@@ -106,8 +106,8 @@ bindBuiltinSharp e =
 
 -- The following (no longer supported) definition is used:
 --
---   &#x266d : ∀ {a} {A : Set a} → &#x221e A → A
---   &#x266d (&#x266f x) = x
+--   ♭ : ∀ {a} {A : Set a} → ∞ A → A
+--   ♭ (♯ x) = x
 
 bindBuiltinFlat :: A.Expr -> TCM ()
 bindBuiltinFlat e =
