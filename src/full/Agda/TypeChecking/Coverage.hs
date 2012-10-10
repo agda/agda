@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts, TupleSections #-}
+{-# LANGUAGE CPP, PatternGuards, FlexibleContexts, TupleSections #-}
 
 module Agda.TypeChecking.Coverage where
 
@@ -42,6 +42,7 @@ import Agda.Interaction.Options
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
+import Agda.Utils.List
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -187,9 +188,11 @@ cover cs (SClause tel perm ps _) = do
       reportSLn "tc.cover.cover"  10 $ "literal matches: " ++ show is
       return (SplittingDone (size tel), Set.fromList (i : is), [])
     No       -> return (SplittingDone (size tel), Set.empty, [ps])
-    Block xs -> do
+    Block bs -> do
+      reportSLn "tc.cover.strategy" 20 $ "blocking vars = " ++ show bs
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
+      xs <- splitStrategy bs tel
       r <- altM1 (split Inductive tel perm ps) xs
       case r of
         Left err  -> case err of
@@ -209,6 +212,12 @@ cover cs (SClause tel perm ps _) = do
           (trees, useds, psss) <- unzip3 <$> mapM (cover cs) (map snd scs)
           let tree = SplitAt n $ zipWith (\ (q,_) t -> (q,t)) scs trees
           return (tree, Set.unions useds, concat psss)
+
+splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
+splitStrategy bs tel = return $ updateLast (mapSnd (const Nothing)) bs
+  -- Make sure we do not insists on precomputed coverage when
+  -- we make our last try to split.
+  -- Otherwise, we will not get a nice error message.
 
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'
@@ -410,22 +419,22 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 -- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
 splitClause c x =
-  split Inductive (clauseTel c) (clausePerm c) (clausePats c) x
+  split Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
 
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbs c x =
-  split' Inductive (clauseTel c) (clausePerm c) (clausePats c) x
+  split' Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
 
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
-      -> Telescope -> Permutation -> [Arg Pattern] -> Nat
+      -> Telescope -> Permutation -> [Arg Pattern] -> BlockingVar
       -> TCM (Either SplitError Covering)
 split ind tel perm ps x = do
   r <- split' ind tel perm ps x
   return $ case r of
     Left err        -> Left err
-    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel x) []
+    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel $ fst x) []
     Right (Right c) -> Right c
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
@@ -437,9 +446,9 @@ dbIndexToLevel tel x = if n < 0 then __IMPOSSIBLE__ else n
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
-       -> Telescope -> Permutation -> [Arg Pattern] -> Nat
+       -> Telescope -> Permutation -> [Arg Pattern] -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind tel perm ps x = liftTCM $ runExceptionT $ do
+split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -489,7 +498,20 @@ split' ind tel perm ps x = liftTCM $ runExceptionT $ do
     (_ : _ : _) | unusableRelevance (domRelevance t) ->
       throwException . IrrelevantDatatype =<< do liftTCM $ buildClosure (unDom t)
 
-    _   -> return $ Right $ Covering xDBLevel ns
+  -- Andreas, 2012-10-10 fail if precomputed constructor set does not cover
+  -- all the data type constructors
+
+    _ | Just pcons <- mcons,
+        let cons = (map fst ns),
+        let diff = Set.fromList cons Set.\\ Set.fromList pcons,
+        not (Set.null diff) -> do
+          liftTCM $ reportSDoc "tc.cover.precomputed" 10 $ vcat
+            [ hsep $ text "pcons =" : map prettyTCM pcons
+            , hsep $ text "cons  =" : map prettyTCM cons
+            ]
+          throwException (GenericSplitError "precomputed set of constructors does not cover all cases")
+
+      | otherwise  -> return $ Right $ Covering xDBLevel ns
 
   where
     xDBLevel = dbIndexToLevel tel x

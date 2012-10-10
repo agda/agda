@@ -32,6 +32,12 @@ downFrom :: Integral a => a -> [a]
 downFrom n | n <= 0     = []
            | otherwise = let n' = n-1 in n' : downFrom n'
 
+-- | Update the last element of a list, if it exists
+updateLast :: (a -> a) -> [a] -> [a]
+updateLast f [] = []
+updateLast f [a] = [f a]
+updateLast f (a : as@(_ : _)) = a : updateLast f as
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True
