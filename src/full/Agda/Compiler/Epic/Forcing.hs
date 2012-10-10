@@ -20,7 +20,8 @@ import Agda.Syntax.Internal(Tele(..), Telescope, Term, Abs(..), unAbs, absName, 
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Rules.LHS.Unify
 import Agda.TypeChecking.Rules.LHS.Instantiate
-import Agda.TypeChecking.Substitute (raiseFrom, raise, substs, apply, TelV(..))
+import Agda.TypeChecking.Substitute
+  (raiseFrom, raise, applySubst, apply, wkS, raiseS, dropS, (++#), TelV(..))
 import qualified Agda.TypeChecking.Substitute as S
 import Agda.TypeChecking.Pretty as P
 import Agda.TypeChecking.Reduce
@@ -218,10 +219,11 @@ forcedExpr vars tele expr = case expr of
                                    (drop typPars a2)
                         _ -> __IMPOSSIBLE__
                     let
-                        lower = map (raise (-1)) . drop 1
+                        lower = wkS (-1) . dropS 1
                         subT 0 tel = let ss = [fromMaybe (SI.Var n []) t
-                                              | (n , t) <- zip [0..] (unif ++ repeat Nothing)]
-                                      in (S.substs ss tel, lower ss)
+                                                | (n , t) <- zip [0..] unif] ++#
+                                              raiseS (length unif)
+                                      in (applySubst ss tel, lower ss)
                         subT n (ExtendTel a t) = let
                                (tb' , ss) = subT (n - 1) (unAbs t)
                             in (ExtendTel a $ Abs (absName t) tb', lower ss)

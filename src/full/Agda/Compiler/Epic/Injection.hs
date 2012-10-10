@@ -121,12 +121,12 @@ nrBinds p = case p of
     ConP c typ args -> sum $ map (nrBinds . unArg) args
     LitP l          -> 0
 
-substForDot :: [Arg Pattern] -> [Term]
-substForDot = map var . makeSubst 0 0 . reverse . calcDots
+substForDot :: [Arg Pattern] -> Substitution
+substForDot = makeSubst 0 0 . reverse . calcDots
   where
-    makeSubst i accum [] = [i + accum ..]
+    makeSubst i accum [] = raiseS (i + accum)
     makeSubst i accum (True  : ps) = makeSubst i (accum +1) ps
-    makeSubst i accum (False : ps) = i + accum : makeSubst (i+1) accum ps
+    makeSubst i accum (False : ps) = var (i + accum) :# makeSubst (i+1) accum ps
 
     calcDots = concatMap calcDots' . map unArg
     calcDots' p = case p of
@@ -142,7 +142,7 @@ isInjectiveHere :: QName  -- ^ Name of the function being tested
 isInjectiveHere nam idx Clause {clauseBody = body} | isNoBody body = return emptyC
 isInjectiveHere nam idx clause = do
     let t    = patternToTerm idxR $ unArg $ clausePats clause !! idx
-        t'   = substs (substForDot $ clausePats clause) t
+        t'   = applySubst (substForDot $ clausePats clause) t
         idxR = sum . map (nrBinds . unArg) . genericDrop (idx + 1) $ clausePats clause
         body = remAbs $ clauseBody clause
     body' <- lift $ reduce body
@@ -177,7 +177,8 @@ litCon (LitInt _ _) = True
 litCon _          = False
 
 insertAt :: (Nat,Term) -> Term -> Term
-insertAt (index, ins) = substs [if i == index then ins else var i | i <- [0 .. ]]
+insertAt (index, ins) =
+  applySubst ([var i | i <- [0 .. index - 1]] ++# ins :# raiseS (index + 1))
 
 solve :: [QName] -> [((QName, InjectiveFun), [(QName,QName)])] -> Compile TCM [(QName, InjectiveFun)]
 solve newNames xs = do

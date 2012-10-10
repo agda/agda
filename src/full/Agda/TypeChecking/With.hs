@@ -215,7 +215,7 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
   let wild = Def (qualify (mnameFromList []) x) []
 
   let top = genericLength topArgs
-      vs = map (fmap DTerm) topArgs ++ (substs (sub ys wild) $ patsToTerms qs)
+      vs = map (fmap DTerm) topArgs ++ (applySubst (sub ys wild) $ patsToTerms qs)
       dt = DWithApp (DDef f vs : map DTerm withArgs) []
       withArgs = map var $ genericTake n $ downFrom $ size delta2 + n
 --      withArgs = reverse $ map var [size delta2..size delta2 + n - 1]
@@ -245,13 +245,15 @@ withDisplayForm f aux delta1 delta2 n qs perm@(Perm m _) = do
       , text "ys     =" <+> text (show ys)
       , text "raw    =" <+> text (show display)
       , text "qsToTm =" <+> prettyTCM (patsToTerms qs) -- ctx would be permuted form of delta1 ++ delta2
-      , text "sub qs =" <+> prettyTCM (substs (sub ys wild) $ patsToTerms qs)
+      , text "sub qs =" <+> prettyTCM (applySubst (sub ys wild) $ patsToTerms qs)
       ]
     ]
 
   return display
   where
-    sub rho wild = map term [0..] -- m - 1]
+    -- Note: The upper bound (m - 1) was previously commented out. I
+    -- restored it in order to make the substitution finite.
+    sub rho wild = parallelS $ map term [0 .. m - 1]
       where
         -- thinking required.. but ignored
         -- dropping the reverse seems to work better

@@ -126,9 +126,11 @@ instance Apply CompiledClauses where
     Fail     -> Fail
     Done hs t
       | length hs >= len -> Done (drop len hs)
-                                 (substs ([ Var i []
-                                          | i <- [0..length hs - len - 1]] ++
-                                          map unArg args) t)
+                                 (applySubst
+                                    (parallelS $
+                                       [ var i | i <- [0..length hs - len - 1]] ++
+                                       map unArg args)
+                                    t)
       | otherwise -> __IMPOSSIBLE__
     Case n bs
       | n >= len  -> Case (n - len) (apply bs args)
@@ -404,8 +406,8 @@ lookupS rho i = case rho of
 class Subst t where
   applySubst :: Substitution -> t -> t
 
-idSub :: Telescope -> [Term]
-idSub tel = map var [0 .. size tel - 1]
+raise :: Subst t => Nat -> t -> t
+raise = raiseFrom 0
 
 raiseFrom :: Subst t => Nat -> Nat -> t -> t
 raiseFrom n k = applySubst (liftS n $ raiseS k)
@@ -415,9 +417,6 @@ subst u t = substUnder 0 u t
 
 substUnder :: Subst t => Nat -> Term -> t -> t
 substUnder n u = applySubst (liftS n (parallelS [u]))
-
-substs :: Subst t => [Term] -> t -> t
-substs us = applySubst (parallelS us)
 
 instance Subst Substitution where
   applySubst rho sgm = composeS rho sgm
@@ -536,9 +535,6 @@ instance Subst ClauseBody where
   applySubst rho (Body t) = Body $ applySubst rho t
   applySubst rho (Bind b) = Bind $ applySubst rho b
   applySubst _   NoBody   = NoBody
-
-raise :: Subst t => Nat -> t -> t
-raise = raiseFrom 0
 
 data TelV a = TelV (Tele (Dom a)) a
   deriving (Typeable, Show, Eq, Ord, Functor)

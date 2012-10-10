@@ -121,8 +121,7 @@ instantiateTel s tel = liftTCM $ do
   return (tel5, composeP p ps, applySubst rho' rho, itypes)
   where
 
-    -- Turn a Substitution ([Maybe Term]) into a substitution ([Term])
-    -- (The result is an infinite list)
+    -- Turn a Substitution ([Maybe Term]) into a substitution (S.Substitution)
     mkSubst :: [Maybe Term] -> S.Substitution
     mkSubst s = rho 0 s'
       where s'  = s

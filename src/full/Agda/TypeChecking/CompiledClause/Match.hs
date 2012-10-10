@@ -29,9 +29,10 @@ type Stack = [(CompiledClauses, MaybeReducedArgs, Args -> Args)]
 match :: CompiledClauses -> MaybeReducedArgs -> (Args -> Args) -> Stack -> TCM (Reduced (Blocked Args) Term)
 match Fail args patch stack = return $ NoReduction $ NotBlocked (patch $ map ignoreReduced args)
 match (Done xs t) args _ _
-  | m < n     = return $ YesReduction $ substs (reverse $ toTm args)
+  | m < n     = return $ YesReduction $ applySubst (parallelS $ reverse $ toTm args)
                                       $ foldr lam t (drop m xs)
-  | otherwise = return $ YesReduction $ substs (reverse $ toTm args0) t `apply` map ignoreReduced args1
+  | otherwise = return $ YesReduction $
+                  applySubst (parallelS $ reverse $ toTm args0) t `apply` map ignoreReduced args1
   where
     n              = length xs
     m              = length args
