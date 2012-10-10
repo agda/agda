@@ -383,7 +383,8 @@ parallelS us = us ++# idS
 lookupS :: Substitution -> Nat -> Term
 lookupS rho i = case rho of
   IdS                    -> var i
-  Wk n IdS               -> var (i + n)
+  Wk n IdS               -> let j = i + n in
+                            if  j < 0 then __IMPOSSIBLE__ else var j
   Wk n rho               -> applySubst (raiseS n) (lookupS rho i)
   u :# rho   | i == 0    -> u
              | i < 0     -> __IMPOSSIBLE__
