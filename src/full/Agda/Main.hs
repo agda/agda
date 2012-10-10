@@ -79,10 +79,9 @@ runAgda = do
       | optRunTests opts    -> liftIO $ do
           ok <- testSuite
           unless ok exitFailure
-      | optGHCiInteraction opts
-                            -> liftIO mimicGHCi
       | isNothing (optInputFile opts)
           && not (optInteractive opts)
+          && not (optGHCiInteraction opts)
                             -> liftIO printUsage
       | otherwise           -> do
           setCommandLineOptions opts
@@ -90,10 +89,11 @@ runAgda = do
   where
     checkFile :: TCM ()
     checkFile = do
-      i       <- optInteractive <$> liftTCM commandLineOptions
-      compile <- optCompile     <$> liftTCM commandLineOptions
-      epic    <- optEpicCompile <$> liftTCM commandLineOptions
-      js      <- optJSCompile   <$> liftTCM commandLineOptions
+      i       <- optInteractive     <$> liftTCM commandLineOptions
+      ghci    <- optGHCiInteraction <$> liftTCM commandLineOptions
+      compile <- optCompile         <$> liftTCM commandLineOptions
+      epic    <- optEpicCompile     <$> liftTCM commandLineOptions
+      js      <- optJSCompile       <$> liftTCM commandLineOptions
       when i $ liftIO $ putStr splashScreen
       let failIfNoInt (Just i) = return i
           -- The allowed combinations of command-line
@@ -102,6 +102,7 @@ runAgda = do
 
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i         = runIM . interactionLoop
+                      | ghci      = \_ -> liftIO mimicGHCi
                       | compile   = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
                       | epic      = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js        = (JS.compilerMain      =<<) . (failIfNoInt =<<)
@@ -113,7 +114,7 @@ runAgda = do
           file    <- getInputFile
           (i, mw) <- Imp.typeCheck file
 
-          unsolvedOK <- optAllowUnsolved <$> pragmaOptions
+          unsolvedOK <- (ghci ||) <$> (optAllowUnsolved <$> pragmaOptions)
 
           result <- case mw of
             Just (Warnings [] [] []) -> __IMPOSSIBLE__
