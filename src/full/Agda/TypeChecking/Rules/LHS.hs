@@ -375,7 +375,7 @@ checkLeftHandSide c ps a ret = do
             -- substitute the literal in p1 and sigma and dpi and asb
             let delta1 = problemTel p0
                 delta2 = absApp (fmap problemTel p1) (Lit lit)
-                rho    = liftS (size delta2) $ Lit lit :# idS
+                rho    = liftS (size delta2) $ singletonS (Lit lit)
                 -- rho    = [ var i | i <- [0..size delta2 - 1] ]
                 --       ++ [ raise (size delta2) $ Lit lit ]
                 --       ++ [ var i | i <- [size delta2 ..] ]

@@ -335,6 +335,9 @@ wkS n rho        = Wk n rho
 raiseS :: Int -> Substitution
 raiseS n = wkS n idS
 
+singletonS :: Term -> Substitution
+singletonS u = u :# idS
+
 liftS :: Int -> Substitution -> Substitution
 liftS 0 rho          = rho
 liftS k IdS          = IdS
@@ -416,7 +419,7 @@ subst :: Subst t => Term -> t -> t
 subst u t = substUnder 0 u t
 
 substUnder :: Subst t => Nat -> Term -> t -> t
-substUnder n u = applySubst (liftS n (parallelS [u]))
+substUnder n u = applySubst (liftS n (singletonS u))
 
 instance Subst Substitution where
   applySubst rho sgm = composeS rho sgm
