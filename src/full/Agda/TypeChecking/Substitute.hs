@@ -366,7 +366,7 @@ composeS rho (Lift n sgm) = lookupS rho 0 :# composeS rho (wkS 1 (liftS (n - 1) 
 
 -- If Γ ⊢ ρ : Δ, Θ then splitS |Θ| ρ = (σ, δ), with
 --   Γ ⊢ σ : Δ
---   Γ ⊢ δ : Θ
+--   Γ ⊢ δ : Θσ
 splitS :: Int -> Substitution -> (Substitution, Substitution)
 splitS 0 rho          = (rho, EmptyS)
 splitS n (u :# rho)   = id *** (u :#) $ splitS (n - 1) rho
