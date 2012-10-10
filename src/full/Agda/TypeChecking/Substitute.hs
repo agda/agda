@@ -374,7 +374,6 @@ splitS n EmptyS       = __IMPOSSIBLE__
 infixr 4 ++#
 
 (++#) :: [Term] -> Substitution -> Substitution
-[] ++# rho = rho
 us ++# rho = foldr (:#) rho us
 
 parallelS :: [Term] -> Substitution
