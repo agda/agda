@@ -117,7 +117,7 @@ runAgda = do
           file    <- getInputFile
           (i, mw) <- Imp.typeCheck file
 
-          unsolvedOK <- (ghci ||) <$> (optAllowUnsolved <$> pragmaOptions)
+          unsolvedOK <- optAllowUnsolved <$> pragmaOptions
 
           result <- case mw of
             Just (Warnings [] [] []) -> __IMPOSSIBLE__
