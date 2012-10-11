@@ -456,7 +456,7 @@ usage options pluginInfos progName =
     where
 	header progName = unlines [ "Agda"
 				  , ""
-				  , "Usage: " ++ progName ++ " [OPTIONS...] FILE"
+				  , "Usage: " ++ progName ++ " [OPTIONS...] [FILE]"
 				  ]
 
         pluginMsg (name, help, inherited, opts)
