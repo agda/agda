@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+import Agda.Syntax.Position
 
 import Agda.TypeChecking.Monad.Base as Base
 import Agda.TypeChecking.Free as Free
@@ -321,7 +322,7 @@ data Substitution
                             --        Γ ⊢ ρ : Δ
   | Lift !Int Substitution  -- -------------------------
                             -- Γ, Ψρ ⊢ Lift |Ψ| ρ : Δ, Ψ
-  deriving (Show)
+  deriving (Eq, Ord, Show)
 
 idS :: Substitution
 idS = IdS
@@ -796,3 +797,19 @@ unLevelAtom (MetaLevel x vs)   = MetaV x vs
 unLevelAtom (NeutralLevel v)   = v
 unLevelAtom (UnreducedLevel v) = v
 unLevelAtom (BlockedLevel _ v) = v
+
+-- Boring instances ----------------------------------------------------
+
+instance Sized Substitution where
+  size IdS          = 1
+  size EmptyS       = 1
+  size (Wk _ rho)   = 1 + size rho
+  size (t :# rho)   = 1 + size t + size rho
+  size (Lift _ rho) = 1 + size rho
+
+instance KillRange Substitution where
+  killRange IdS          = IdS
+  killRange EmptyS       = EmptyS
+  killRange (Wk n rho)   = killRange1 (Wk n) rho
+  killRange (t :# rho)   = killRange2 (:#) t rho
+  killRange (Lift n rho) = killRange1 (Lift n) rho
