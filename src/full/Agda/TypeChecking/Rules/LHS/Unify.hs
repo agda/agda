@@ -46,7 +46,6 @@ import Agda.TypeChecking.Rules.LHS.Problem
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
 import Agda.Utils.Size
-import Agda.Utils.Update
 
 newtype Unify a = U { unUnify :: ReaderT UnifyEnv (WriterT UnifyOutput (ExceptionT UnifyException (StateT UnifyState TCM))) a }
   deriving (Monad, MonadIO, Functor, Applicative, MonadException UnifyException, MonadWriter UnifyOutput)
@@ -129,7 +128,8 @@ instance MonadTCM Unify where
   liftTCM = U . lift . lift . lift . lift
 
 instance Subst Equality where
-  subster rho (Equal a s t) = liftM3 Equal (substs rho a) (substs rho s) (substs rho t)
+  applySubst rho (Equal a s t) =
+    Equal (applySubst rho a) (applySubst rho s) (applySubst rho t)
 
 onSub :: (Sub -> a) -> Unify a
 onSub f = U $ gets $ f . uniSub
@@ -288,10 +288,8 @@ rightHH :: HomHet a -> a
 rightHH (Hom a) = a
 rightHH (Het a1 a2) = a2
 
-instance Updater1 HomHet where
-
 instance (Subst a) => Subst (HomHet a) where
-  subster rho u = updater1 (subster rho) u
+  applySubst rho u = fmap (applySubst rho) u
 
 instance (PrettyTCM a) => PrettyTCM (HomHet a) where
   prettyTCM (Hom a) = prettyTCM a

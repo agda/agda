@@ -303,7 +303,6 @@ library
                     Agda.Utils.Trie
                     Agda.Utils.Tuple
                     Agda.Utils.Unicode
-                    Agda.Utils.Update
                     Agda.Utils.Warshall
                     Agda.Version
                     Agda.Auto.Auto

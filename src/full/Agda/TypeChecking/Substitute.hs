@@ -25,7 +25,6 @@ import Agda.TypeChecking.CompiledClause
 import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
-import Agda.Utils.Update
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -410,12 +409,6 @@ lookupS rho i = case rho of
 
 class Subst t where
   applySubst :: Substitution -> t -> t
-  applySubst rho = runUpdater $ subster rho
-
-  subster    :: Substitution -> Updater t
-
-  substs     :: Substitution -> Updater t
-  substs rho = sharing $ subster rho
 
 raise :: Subst t => Nat -> t -> t
 raise = raiseFrom 0
@@ -431,137 +424,121 @@ substUnder n u = applySubst (liftS n (singletonS u))
 
 instance Subst Substitution where
   applySubst rho sgm = composeS rho sgm
-  subster    rho sgm = dirty $ applySubst rho sgm
-
--- | Look up a variable and apply the result to arguments
-substerVar :: Substitution -> Nat -> [Arg Term] -> Change Term
-substerVar rho i vs =
-  case lookupS rho i of
-    Var j [] -> do
-      when (i /= j) tellDirty
-      return $ Var j vs
-    v        -> do
-      -- if we have to call apply, we are have changed something
-      tellDirty
-      return $ v `apply` vs
 
 instance Subst Term where
-  applySubst IdS = \ t -> t
-  applySubst rho = runUpdater $ subster rho
-
-  subster rho t  = case t of
-    Var i vs    -> substerVar rho i =<< subster rho vs
-    Lam h m     -> Lam h <$> subster rho m
-    Def c vs    -> Def c <$> subster rho vs
-    Con c vs    -> Con c <$> subster rho vs
-    MetaV x vs  -> MetaV x <$> subster rho vs
-    Lit l       -> return $ Lit l
-    Level l     -> ifDirty (subster rho l) (return . levelTm) (return . Level)
-    Pi a b      -> uncurry Pi <$> subster rho (a,b)
-    Sort s      -> ifDirty (subster rho s) (return . sortTm) (return . Sort)
-    Shared p    -> Shared <$> subster rho p
-    DontCare mv -> DontCare <$> subster rho mv
+  applySubst IdS t = t
+  applySubst rho t    = case t of
+    Var i vs    -> lookupS rho i `apply` applySubst rho vs
+    Lam h m     -> Lam h $ applySubst rho m
+    Def c vs    -> Def c $ applySubst rho vs
+    Con c vs    -> Con c $ applySubst rho vs
+    MetaV x vs  -> MetaV x $ applySubst rho vs
+    Lit l       -> Lit l
+    Level l     -> levelTm $ applySubst rho l
+    Pi a b      -> uncurry Pi $ applySubst rho (a,b)
+    Sort s      -> sortTm $ applySubst rho s
+    Shared p    -> Shared $ applySubst rho p
+    DontCare mv -> DontCare $ applySubst rho mv
 
 instance Subst a => Subst (Ptr a) where
-  subster rho = updater1 (subster rho)
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst Type where
-  subster rho (El s t) = uncurry El <$> subster rho (s,t)
+  applySubst rho (El s t) = applySubst rho s `El` applySubst rho t
 
 instance Subst Sort where
-  subster rho s = case s of
-    Type n     -> ifDirty (subster rho n) (return . levelSort) (return . Type)
-    Prop       -> return Prop
-    Inf        -> return Inf
-    DLub s1 s2 -> uncurry DLub <$> subster rho (s1,s2)
+  applySubst rho s = case s of
+    Type n     -> levelSort $ sub n
+    Prop       -> Prop
+    Inf        -> Inf
+    DLub s1 s2 -> DLub (sub s1) (sub s2)
+    where sub x = applySubst rho x
 
 instance Subst Level where
-  subster rho (Max as) = Max <$> subster rho as
+  applySubst rho (Max as) = Max $ applySubst rho as
 
 instance Subst PlusLevel where
-  subster rho l@ClosedLevel{} = return $ l
-  subster rho (Plus n l) = Plus n <$> subster rho l
+  applySubst rho l@ClosedLevel{} = l
+  applySubst rho (Plus n l) = Plus n $ applySubst rho l
 
 instance Subst LevelAtom where
-  subster rho (MetaLevel m vs)   = MetaLevel m    <$> subster rho vs
-  subster rho (BlockedLevel m v) = BlockedLevel m <$> subster rho v
-  subster rho (NeutralLevel v)   = UnreducedLevel <$> subster rho v
-  subster rho (UnreducedLevel v) = UnreducedLevel <$> subster rho v
+  applySubst rho      (MetaLevel m vs)   = MetaLevel m    $ applySubst rho vs
+  applySubst rho      (BlockedLevel m v) = BlockedLevel m $ applySubst rho v
+  applySubst rho      (NeutralLevel v)   = UnreducedLevel $ applySubst rho v
+  applySubst rho      (UnreducedLevel v) = UnreducedLevel $ applySubst rho v
 
 instance Subst Pattern where
-  subster rho p = case p of
-    VarP s       -> return $ VarP s
-    LitP l       -> return $ LitP l
-    ConP c mt ps -> uncurry (ConP c) <$> subster rho (mt, ps)
-    DotP t       -> DotP <$> subster rho t
+  applySubst rho p = case p of
+    VarP s       -> VarP s
+    LitP l       -> LitP l
+    ConP c mt ps -> ConP c (applySubst rho mt) $ applySubst rho ps
+    DotP t       -> DotP $ applySubst rho t
 
 instance Subst t => Subst (Blocked t) where
-  subster rho b = updater1 (subster rho) b
+  applySubst rho b      = fmap (applySubst rho) b
 
 instance Subst DisplayForm where
-  subster rho (Display n ps v) =
-    Display n <$> (substs (liftS 1 rho) ps) <*> (substs (liftS n rho) v)
+  applySubst rho (Display n ps v) =
+    Display n (applySubst (liftS 1 rho) ps)
+              (applySubst (liftS n rho) v)
 
 instance Subst DisplayTerm where
-  subster rho (DTerm v)        = DTerm  <$> subster rho v
-  subster rho (DDot v)         = DDot   <$> subster rho v
-  subster rho (DCon c vs)      = DCon c <$> subster rho vs
-  subster rho (DDef c vs)      = DDef c <$> subster rho vs
-  subster rho (DWithApp vs ws) = uncurry DWithApp <$> subster rho (vs, ws)
+  applySubst rho      (DTerm v)        = DTerm $ applySubst rho v
+  applySubst rho      (DDot v)         = DDot  $ applySubst rho v
+  applySubst rho      (DCon c vs)      = DCon c $ applySubst rho vs
+  applySubst rho      (DDef c vs)      = DDef c $ applySubst rho vs
+  applySubst rho      (DWithApp vs ws) = uncurry DWithApp $ applySubst rho (vs, ws)
 
 instance Subst a => Subst (Tele a) where
-  subster rho  EmptyTel         = return $ EmptyTel
-  subster rho (ExtendTel t tel) = uncurry ExtendTel <$> subster rho (t, tel)
+  applySubst rho  EmptyTel              = EmptyTel
+  applySubst rho (ExtendTel t tel)      = uncurry ExtendTel $ applySubst rho (t, tel)
 
 instance Subst Constraint where
-  subster rho c = case c of
-    ValueCmp cmp a u v       -> liftM3 (ValueCmp cmp) (rf a) (rf u) (rf v)
-    ElimCmp ps a v e1 e2     -> liftM4 (ElimCmp ps) (rf a) (rf v) (rf e1) (rf e2)
-    TypeCmp cmp a b          -> liftM2 (TypeCmp cmp) (rf a) (rf b)
-    TelCmp a b cmp tel1 tel2 -> liftM5 TelCmp (rf a) (rf b) (return cmp) (rf tel1) (rf tel2)
-    SortCmp cmp s1 s2        -> liftM2 (SortCmp cmp) (rf s1) (rf s2)
-    LevelCmp cmp l1 l2       -> liftM2 (LevelCmp cmp) (rf l1) (rf l2)
-    Guarded c cs             -> flip Guarded cs <$> subster rho c
-    IsEmpty r a              -> IsEmpty r <$> subster rho a
-    FindInScope m cands      -> FindInScope m <$> subster rho cands
-    UnBlock{}                -> return c
+  applySubst rho c = case c of
+    ValueCmp cmp a u v       -> ValueCmp cmp (rf a) (rf u) (rf v)
+    ElimCmp ps a v e1 e2     -> ElimCmp ps (rf a) (rf v) (rf e1) (rf e2)
+    TypeCmp cmp a b          -> TypeCmp cmp (rf a) (rf b)
+    TelCmp a b cmp tel1 tel2 -> TelCmp (rf a) (rf b) cmp (rf tel1) (rf tel2)
+    SortCmp cmp s1 s2        -> SortCmp cmp (rf s1) (rf s2)
+    LevelCmp cmp l1 l2       -> LevelCmp cmp (rf l1) (rf l2)
+    Guarded c cs             -> Guarded (rf c) cs
+    IsEmpty r a              -> IsEmpty r (rf a)
+    FindInScope m cands      -> FindInScope m (rf cands)
+    UnBlock{}                -> c
     where
-      rf x = substs rho x
+      rf x = applySubst rho x
 
 instance Subst Elim where
-  subster rho e = case e of
-    Apply v -> Apply <$> subster rho v
-    Proj{}  -> return e
+  applySubst rho e = case e of
+    Apply v -> Apply (applySubst rho v)
+    Proj{}  -> e
 
 instance Subst a => Subst (Abs a) where
-  subster rho (Abs x a)   = Abs x   <$> subster (liftS 1 rho) a
-  subster rho (NoAbs x a) = NoAbs x <$> subster rho a
+  applySubst rho (Abs x a)   = Abs x $ applySubst (liftS 1 rho) a
+  applySubst rho (NoAbs x a) = NoAbs x $ applySubst rho a
 
 instance Subst a => Subst (Arg a) where
-  subster rho = updater1 (subster rho)
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst a => Subst (Dom a) where
-  subster rho = updater1 (subster rho)
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst a => Subst (Maybe a) where
-  subster rho = updater1 (subster rho)
+  applySubst rho = fmap (applySubst rho)
 
 instance Subst a => Subst [a] where
-  subster rho = updater1 (subster rho)
+  applySubst rho = map (applySubst rho)
 
 instance Subst () where
   applySubst _ _ = ()
-  subster    _ _ = return ()
 
 instance (Subst a, Subst b) => Subst (a,b) where
-  subster rho = updater2 (subster rho) (subster rho)
+  applySubst rho (x,y) = (applySubst rho x, applySubst rho y)
 
 instance Subst ClauseBody where
-  subster rho (Body t) = Body <$> subster rho t
-  subster rho (Bind b) = Bind <$> subster rho b
-  subster _   NoBody   = return $ NoBody
-
--- * Telescopes
+  applySubst rho (Body t) = Body $ applySubst rho t
+  applySubst rho (Bind b) = Bind $ applySubst rho b
+  applySubst _   NoBody   = NoBody
 
 data TelV a = TelV (Tele (Dom a)) a
   deriving (Typeable, Show, Eq, Ord, Functor)
