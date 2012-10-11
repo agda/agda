@@ -25,8 +25,6 @@ import Agda.Syntax.Common
 import Agda.Syntax.Literal
 import Agda.Syntax.Abstract.Name
 
-import {-# SOURCE #-} Agda.TypeChecking.Substitute
-
 import Agda.Utils.Geniplate
 import Agda.Utils.Monad
 import Agda.Utils.Size
@@ -51,7 +49,6 @@ data Term = Var {-# UNPACK #-} !Int Args             -- ^ @x vs@ neutral
 	  | Pi (Dom Type) (Abs Type) -- ^ dependent or non-dependent function space
 	  | Sort Sort
           | Level Level
-          | App Substitution Term    -- ^ Application of substitution to term.
 	  | MetaV {-# UNPACK #-} !MetaId Args
           | DontCare Term
             -- ^ Irrelevant stuff in relevant position, but created
@@ -371,7 +368,6 @@ instance Sized Term where
     Con _ vs    -> 1 + Prelude.sum (map size vs)
     MetaV _ vs  -> 1 + Prelude.sum (map size vs)
     Level l     -> size l
-    App rho t   -> 1 + size rho + size t
     Lam _ f     -> 1 + size f
     Lit _       -> 1
     Pi a b      -> 1 + size a + size b
@@ -415,7 +411,6 @@ instance KillRange Term where
     Lam h f     -> killRange2 Lam h f
     Lit l       -> killRange1 Lit l
     Level l     -> killRange1 Level l
-    App rho t   -> killRange2 App rho t
     Pi a b      -> killRange2 Pi a b
     Sort s      -> killRange1 Sort s
     DontCare mv -> killRange1 DontCare mv
