@@ -198,14 +198,12 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
-  | not (atMostOne interactive) =
-      Left "Choose at most one: interactive/GHCi interaction/interaction test mode.\n"
   | not (atMostOne $ interactive ++ [optCompile, optEpicCompile, optJSCompile]) =
-      Left "Choose at most one: compiler/interactive mode.\n"
+      Left "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =
-      Left "Choose at most one: HTML generator or interactive mode.\n"
+      Left "Choose at most one: --html/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [isJust . optDependencyGraph]) =
-      Left "Choose at most one: Dependency graph generator or interactive mode.\n"
+      Left "Choose at most one: --dependency-graph/--interactive/--interaction.\n"
   | not (atMostOne [ optUniversePolymorphism . p
                    , not . optUniverseCheck . p
                    ]) =
