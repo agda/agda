@@ -37,7 +37,7 @@ class Apply t where
 instance Apply Term where
     apply m [] = m
     apply m args@(a:args0) =
-        case m of
+        case forceSubsts m of
             Var i args'   -> Var i (args' ++ args)
             Def c args'   -> Def c (args' ++ args)
             Con c args'   -> Con c (args' ++ args)
@@ -46,6 +46,7 @@ instance Apply Term where
             Shared p      -> Shared $ apply p args
             Lit{}         -> __IMPOSSIBLE__
             Level{}       -> __IMPOSSIBLE__
+            App{}         -> __IMPOSSIBLE__
             Pi _ _        -> __IMPOSSIBLE__
             Sort _        -> __IMPOSSIBLE__
             DontCare mv   -> DontCare $ mv `apply` args  -- Andreas, 2011-10-02
@@ -427,18 +428,36 @@ instance Subst Substitution where
 
 instance Subst Term where
   applySubst IdS t = t
-  applySubst rho t    = case t of
-    Var i vs    -> lookupS rho i `apply` applySubst rho vs
-    Lam h m     -> Lam h $ applySubst rho m
-    Def c vs    -> Def c $ applySubst rho vs
-    Con c vs    -> Con c $ applySubst rho vs
-    MetaV x vs  -> MetaV x $ applySubst rho vs
-    Lit l       -> Lit l
-    Level l     -> levelTm $ applySubst rho l
-    Pi a b      -> uncurry Pi $ applySubst rho (a,b)
-    Sort s      -> sortTm $ applySubst rho s
-    Shared p    -> Shared $ applySubst rho p
-    DontCare mv -> DontCare $ applySubst rho mv
+  applySubst rho t = App rho t
+
+-- | Forces (at most) one top-level explicit substitution application.
+
+forceSubst :: Term -> Term
+forceSubst t@Shared{}  = updateShared forceSubst t
+forceSubst (App rho t) = case t of
+  Var i vs    -> lookupS rho i `apply` applySubst rho vs
+  Lam h m     -> Lam h $ applySubst rho m
+  Def c vs    -> Def c $ applySubst rho vs
+  Con c vs    -> Con c $ applySubst rho vs
+  MetaV x vs  -> MetaV x $ applySubst rho vs
+  Lit l       -> Lit l
+  Level l     -> levelTm $ applySubst rho l
+  App sgm t   -> App (composeS rho sgm) t
+  Pi a b      -> uncurry Pi $ applySubst rho (a,b)
+  Sort s      -> sortTm $ applySubst rho s
+  Shared p    -> Shared $ applySubst rho p
+  DontCare mv -> DontCare $ applySubst rho mv
+forceSubst t = t
+
+-- | Forces all top-level explicit substitution applications.
+--
+-- Post-condition: @'ignoreSharing' (forceSubsts t)@ does not start
+-- with 'App'.
+
+forceSubsts :: Term -> Term
+forceSubsts t@Shared{} = updateShared forceSubsts t
+forceSubsts t@App{}    = forceSubsts (forceSubst t)
+forceSubsts t          = t
 
 instance Subst a => Subst (Ptr a) where
   applySubst rho = fmap (applySubst rho)
