@@ -50,28 +50,28 @@ type Verbosity = Trie String Int
 
 data CommandLineOptions =
     Options { optProgramName          :: String
-	    , optInputFile            :: Maybe FilePath
-	    , optIncludeDirs          :: Either [FilePath] [AbsolutePath]
+            , optInputFile            :: Maybe FilePath
+            , optIncludeDirs          :: Either [FilePath] [AbsolutePath]
               -- ^ 'Left' is used temporarily, before the paths have
               -- been made absolute. An empty 'Left' list is
               -- interpreted as @["."]@ (see
               -- 'Agda.TypeChecking.Monad.Options.makeIncludeDirsAbsolute').
-	    , optShowVersion          :: Bool
-	    , optShowHelp             :: Bool
-	    , optInteractive          :: Bool
-	    , optRunTests             :: Bool
-        , optGHCiInteraction      :: Bool
-	    , optCompile              :: Bool
-	    , optEpicCompile          :: Bool
-	    , optJSCompile            :: Bool
+            , optShowVersion          :: Bool
+            , optShowHelp             :: Bool
+            , optInteractive          :: Bool
+            , optRunTests             :: Bool
+            , optGHCiInteraction      :: Bool
+            , optCompile              :: Bool
+            , optEpicCompile          :: Bool
+            , optJSCompile            :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
-	    , optGenerateVimFile      :: Bool
-	    , optGenerateHTML         :: Bool
-	    , optDependencyGraph      :: Maybe FilePath
-	    , optHTMLDir              :: FilePath
-	    , optCSSFile              :: Maybe FilePath
-	    , optIgnoreInterfaces     :: Bool
+            , optGenerateVimFile      :: Bool
+            , optGenerateHTML         :: Bool
+            , optDependencyGraph      :: Maybe FilePath
+            , optHTMLDir              :: FilePath
+            , optCSSFile              :: Maybe FilePath
+            , optIgnoreInterfaces     :: Bool
             , optForcing              :: Bool
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
@@ -132,29 +132,29 @@ defaultInteractionOptions = defaultPragmaOptions
 defaultOptions :: CommandLineOptions
 defaultOptions =
     Options { optProgramName          = "agda"
-	    , optInputFile            = Nothing
-	    , optIncludeDirs          = Left []
-	    , optShowVersion          = False
-	    , optShowHelp             = False
-	    , optInteractive          = False
-	    , optRunTests             = False
-        , optGHCiInteraction      = False
-	    , optCompile              = False
-	    , optEpicCompile          = False
-	    , optJSCompile            = False
+            , optInputFile            = Nothing
+            , optIncludeDirs          = Left []
+            , optShowVersion          = False
+            , optShowHelp             = False
+            , optInteractive          = False
+            , optRunTests             = False
+            , optGHCiInteraction      = False
+            , optCompile              = False
+            , optEpicCompile          = False
+            , optJSCompile            = False
             , optCompileDir           = Nothing
-	    , optGenerateVimFile      = False
-	    , optGenerateHTML         = False
-	    , optDependencyGraph      = Nothing
-	    , optHTMLDir              = defaultHTMLDir
-	    , optCSSFile              = Nothing
-	    , optIgnoreInterfaces     = False
+            , optGenerateVimFile      = False
+            , optGenerateHTML         = False
+            , optDependencyGraph      = Nothing
+            , optHTMLDir              = defaultHTMLDir
+            , optCSSFile              = Nothing
+            , optIgnoreInterfaces     = False
             , optForcing              = True
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
             , optEpicFlags            = []
             , optSafe                 = False
-	    }
+            }
 
 defaultPragmaOptions :: PragmaOptions
 defaultPragmaOptions = PragmaOptions
@@ -249,8 +249,8 @@ defaultPragmaOptionsSafe
 inputFlag :: FilePath -> Flag CommandLineOptions
 inputFlag f o =
     case optInputFile o of
-	Nothing  -> return $ o { optInputFile = Just f }
-	Just _	 -> throwError "only one input file allowed"
+        Nothing  -> return $ o { optInputFile = Just f }
+        Just _   -> throwError "only one input file allowed"
 
 versionFlag                  o = return $ o { optShowVersion               = True  }
 helpFlag                     o = return $ o { optShowHelp                  = True  }
@@ -282,7 +282,7 @@ copatternsFlag               o = return $ o { optCopatterns                = Tru
 interactiveFlag  o = return $ o { optInteractive    = True
                                 , optPragmaOptions  = (optPragmaOptions o)
                                                         { optAllowUnsolved = True }
-		                }
+                                }
 compileFlag      o = return $ o { optCompile    = True }
 compileEpicFlag  o = return $ o { optEpicCompile = True}
 compileJSFlag    o = return $ o { optJSCompile = True}
@@ -299,8 +299,8 @@ includeFlag d o = return $ o { optIncludeDirs = Left (d : ds) }
   where ds = either id (const []) $ optIncludeDirs o
 
 verboseFlag s o =
-    do	(k,n) <- parseVerbose s
-	return $ o { optVerbose = Trie.insert k n $ optVerbose o }
+    do  (k,n) <- parseVerbose s
+        return $ o { optVerbose = Trie.insert k n $ optVerbose o }
   where
     parseVerbose s = case wordsBy (`elem` ":.") s of
       []  -> usage
@@ -318,16 +318,16 @@ terminationDepthFlag s o =
 integerArgument :: String -> String -> Either String Int
 integerArgument flag s =
     readM s `catchError` \_ ->
-	throwError $ "option '" ++ flag ++ "' requires an integer argument"
+        throwError $ "option '" ++ flag ++ "' requires an integer argument"
 
 standardOptions :: [OptDescr (Flag CommandLineOptions)]
 standardOptions =
-    [ Option ['V']  ["version"]	(NoArg versionFlag) "show version number"
-    , Option ['?']  ["help"]	(NoArg helpFlag)    "show this help"
+    [ Option ['V']  ["version"] (NoArg versionFlag) "show version number"
+    , Option ['?']  ["help"]    (NoArg helpFlag)    "show this help"
     , Option ['I']  ["interactive"] (NoArg interactiveFlag)
-		    "start in interactive mode"
-    , Option []	    ["interaction"] (NoArg ghciInteractionFlag)
-		    "for use with the Emacs mode"
+                    "start in interactive mode"
+    , Option []     ["interaction"] (NoArg ghciInteractionFlag)
+                    "for use with the Emacs mode"
     , Option ['c']  ["compile"] (NoArg compileFlag)
                     "compile program using the MAlonzo backend (experimental)"
     , Option []     ["epic"] (NoArg compileEpicFlag) "compile program using the Epic backend"
