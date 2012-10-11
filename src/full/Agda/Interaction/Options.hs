@@ -198,6 +198,8 @@ checkOpts :: Flag CommandLineOptions
 checkOpts opts
   | not (atMostOne [optAllowUnsolved . p, optCompile]) = Left
       "Unsolved meta variables are not allowed when compiling.\n"
+  | not (atMostOne [optGHCiInteraction, isJust . optInputFile]) =
+      Left "Choose at most one: input file or --interaction.\n"
   | not (atMostOne $ interactive ++ [optCompile, optEpicCompile, optJSCompile]) =
       Left "Choose at most one: compilers/--interactive/--interaction.\n"
   | not (atMostOne $ interactive ++ [optGenerateHTML]) =

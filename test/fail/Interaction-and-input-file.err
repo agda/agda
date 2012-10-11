@@ -1,0 +1,46 @@
+Error: Choose at most one: input file or --interaction.
+
+Agda
+
+Usage: agda [OPTIONS...] [FILE]
+
+  -V      --version                                   show version number
+  -?      --help                                      show this help
+  -I      --interactive                               start in interactive mode
+          --interaction                               for use with the Emacs mode
+  -c      --compile                                   compile program using the MAlonzo backend (experimental)
+          --epic                                      compile program using the Epic backend
+          --js                                        compile program using the JS backend
+          --compile-dir=DIR                           directory for compiler output (default: the project root)
+          --ghc-flag=GHC-FLAG                         give the flag GHC-FLAG to GHC when compiling using MAlonzo
+          --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic
+          --test                                      run internal test suite
+          --vim                                       generate Vim highlighting files
+          --html                                      generate HTML files with highlighted source code
+          --dependency-graph=FILE                     generate a Dot file with a module dependency graph
+          --html-dir=DIR                              directory in which HTML files are placed (default: html)
+          --css=URL                                   the CSS file used by the HTML files (can be relative)
+          --ignore-interfaces                         ignore interface files (re-type check everything)
+  -i DIR  --include-path=DIR                          look for imports in DIR
+          --no-forcing                                disable the forcing optimisation
+          --safe                                      disable postulates, unsafe OPTION pragmas and primTrustMe
+          --show-implicit                             show implicit arguments when printing
+          --show-irrelevant                           show irrelevant arguments when printing
+  -v N    --verbose=N                                 set verbosity level to N
+          --allow-unsolved-metas                      allow unsolved meta variables (only needed in batch mode)
+          --no-positivity-check                       do not warn about not strictly positive data types
+          --no-termination-check                      do not warn about possibly nonterminating code
+          --termination-depth=N                       allow termination checker to count decrease/increase upto N (default N=1)
+          --no-coverage-check                         do not warn about possibly incomplete pattern matches
+          --type-in-type                              ignore universe levels (this makes Agda inconsistent)
+          --sized-types                               use sized types (inconsistent with coinduction)
+          --injective-type-constructors               enable injective type constructors (makes Agda anti-classical and possibly inconsistent)
+          --guardedness-preserving-type-constructors  treat type constructors as inductive constructors when checking productivity
+          --no-universe-polymorphism                  disable universe polymorphism
+          --universe-polymorphism                     enable universe polymorphism (default)
+          --no-irrelevant-projections                 disable projection of irrelevant record fields
+          --experimental-irrelevance                  enable potentially unsound irrelevance features (irrelevant levels, irrelevant data matching)
+          --without-K                                 disable the K rule (maybe)
+          --copatterns                                enable definitions by copattern matching
+
+Plugins:
