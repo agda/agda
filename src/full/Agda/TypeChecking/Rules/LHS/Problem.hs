@@ -14,6 +14,7 @@ import qualified Agda.Syntax.Abstract as A
 import Agda.TypeChecking.Substitute
 
 import Agda.Utils.Permutation
+import Agda.Utils.Update
 
 {- UNUSED
 #include "../../../undefined.h"
@@ -86,16 +87,28 @@ data SplitError	    = NothingToSplit
 
 type ProblemPart = Problem' ()
 
-instance Subst ProblemRest where
-  applySubst rho p = p { restType = applySubst rho $ restType p }
-
-instance Subst (Problem' p) where
-  applySubst rho p = p { problemTel  = applySubst rho $ problemTel p
-                       , problemRest = applySubst rho $ problemRest p }
-
 -- | The permutation should permute @allHoles@ of the patterns to correspond to
 --   the abstract patterns in the problem.
 type Problem	 = Problem' (Permutation, [Arg Pattern])
+
+-- * Instances
+
+updaterRestType :: Updater Type -> Updater ProblemRest
+updaterRestType f p = do
+  t <- f (restType p)
+  return $ p { restType = t }
+
+updaterProblemTelRest :: Updater Telescope -> Updater ProblemRest -> Updater (Problem' p)
+updaterProblemTelRest f1 f2 p = do
+  tel  <- sharing f1 (problemTel p)
+  rest <- sharing f2 (problemRest p)
+  return $ p { problemTel = tel, problemRest = rest }
+
+instance Subst ProblemRest where
+  subster rho = updaterRestType (subster rho)
+
+instance Subst (Problem' p) where
+  subster rho = updaterProblemTelRest (subster rho) (subster rho)
 
 instance Error SplitError where
   noMsg  = NothingToSplit

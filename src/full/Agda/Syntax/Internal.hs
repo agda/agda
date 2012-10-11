@@ -30,6 +30,7 @@ import Agda.Utils.Monad
 import Agda.Utils.Size
 import Agda.Utils.Permutation
 import Agda.Utils.Pointer
+import Agda.Utils.Update
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -133,6 +134,11 @@ instance Applicative Blocked where
   Blocked x f  <*> e = Blocked x $ f (ignoreBlocking e)
   NotBlocked f <*> e = f <$> e
 
+instance Updater1 Blocked where
+  -- default definition suffices
+
+instance Updater1 Arg where -- move to Common.hs
+instance Updater1 Dom where -- move to Common.hs
 
 ---------------------------------------------------------------------------
 -- * Definitions

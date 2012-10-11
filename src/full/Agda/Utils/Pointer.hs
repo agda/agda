@@ -16,6 +16,8 @@ import System.IO.Unsafe
 import Data.HashTable.IO
 import Data.Typeable
 
+import Agda.Utils.Update
+
 data Ptr a = Ptr { ptrTag :: !Integer
                  , ptrRef :: !(IORef a) }
   deriving (Typeable)
@@ -75,3 +77,4 @@ instance Hashable (Ptr a) where
 
 instance NFData (Ptr a) where
 
+instance Updater1 Ptr where
