@@ -100,9 +100,12 @@ runAgda = do
           -- options should rule out Nothing here.
           failIfNoInt Nothing  = __IMPOSSIBLE__
 
+          failIfInt x Nothing  = x
+          failIfInt _ (Just _) = __IMPOSSIBLE__
+
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i         = runIM . interactionLoop
-                      | ghci      = \_ -> liftIO mimicGHCi
+                      | ghci      = (failIfInt (liftIO mimicGHCi) =<<)
                       | compile   = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
                       | epic      = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js        = (JS.compilerMain      =<<) . (failIfNoInt =<<)
