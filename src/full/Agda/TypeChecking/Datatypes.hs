@@ -26,9 +26,12 @@ getConstructorData c = do
     _                        -> __IMPOSSIBLE__
 
 
--- | Return the number of non-parameter arguments to a constructor,
---   and a flag whether it is a record constructor
-getConstructorArity :: QName -> TCM (Bool, Nat)
+-- | Return the number of non-parameter arguments to a data constructor,
+--   or the field names of a record constructor.
+--
+--   For getting just the arity of constructor @c@,
+--   use @either id size <$> getConstructorArity c@.
+getConstructorArity :: QName -> TCM (Either Nat [Arg QName])
 getConstructorArity c = do
   Defn{ defType = t, theDef = def } <- getConstInfo c
   case def of
@@ -36,12 +39,12 @@ getConstructorArity c = do
       def <- theDef <$> getConstInfo d
       case def of
         Record{ recFields = fs } ->
-           return (True, size fs)
+           return $ Right fs
         Datatype{} -> do
           -- TODO: I do not want to take the type of constructor apart
           -- to see its arity!
           TelV tel _ <- telView t
-          return (False, size tel - n)
+          return $ Left $ size tel - n
         _ -> __IMPOSSIBLE__
     _ -> __IMPOSSIBLE__
 

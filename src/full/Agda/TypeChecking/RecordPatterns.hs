@@ -159,7 +159,7 @@ recordSplitTree t = snd <$> loop t
       (xss, ts) <- unzip <$> do
         forM ts $ \ (c, t) -> do
           (xs, t) <- loop t
-          (isRC, n) <- getConstructorArity c
+          (isRC, n) <- either (False,) ((True,) . size) <$> getConstructorArity c
           let (xs0, rest) = genericSplitAt i xs
               (xs1, xs2)  = genericSplitAt n rest
               x           = isRC && and xs1
@@ -172,6 +172,10 @@ translateSplitTree :: SplitTree -> TCM SplitTree
 translateSplitTree t = snd <$> loop t
   where
 
+    -- @loop t = return (xs, t')@ returns the translated split tree @t'@
+    -- plus the status @xs@ of the clause variables
+    --   True  = variable will never be split on in @t'@ (virgin variable)
+    --   False = variable will be spilt on in @t'@
     loop :: SplitTree -> TCM ([Bool], SplitTree)
     loop t = case t of
       SplittingDone n ->
@@ -188,6 +192,9 @@ translateSplitTree t = snd <$> loop t
                   else SplitAt i ts
         return (xs, t')
 
+    -- @loops i ts = return (x, xs, ts')@ cf. @loop@
+    -- @x@ says wether at arg @i@ we have a record pattern split
+    -- that can be removed
     loops :: Int -> SplitTrees -> TCM (Bool, [Bool], SplitTrees)
     loops i ts = do
       -- note: ts not empty
