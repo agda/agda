@@ -30,69 +30,71 @@ import Agda.Utils.Impossible
 compileClauses ::
   Maybe (QName, Type) -- ^ Translate record patterns and coverage check with given type?
   -> [Clause] -> TCM CompiledClauses
-compileClauses mt cs = case mt of
-  Nothing -> return $ compile Nothing [(clausePats c, clauseBody c) | c <- cs]
-  Just (q, t)  -> do
-    splitTree <- translateSplitTree =<< coverageCheck q t cs
-    reportSDoc "tc.cc.splittree" 10 $ vcat
-      [ text "translated split tree for" <+> prettyTCM q
-      , text $ show splitTree
-      ]
-    -- cs <- mapM translateRecordPatterns cs
-    let cc = compile (Just splitTree) [(clausePats c, clauseBody c) | c <- cs]
-    reportSDoc "tc.cc" 12 $ sep
-      [ text "compiled clauses (with record splits)"
-      , nest 2 $ text (show cc)
-      ]
-    cc <- translateCompiledClauses cc
-    return cc
+compileClauses mt cs = do
+  let cls = [(clausePats c, clauseBody c) | c <- cs]
+  case mt of
+    Nothing -> return $ compile cls
+    Just (q, t)  -> do
+      splitTree <- coverageCheck q t cs
+  {-
+      splitTree <- translateSplitTree splitTree
+      reportSDoc "tc.cc.splittree" 10 $ vcat
+        [ text "translated split tree for" <+> prettyTCM q
+        , text $ show splitTree
+        ]
+  -}
+      -- cs <- mapM translateRecordPatterns cs
+      reportSDoc "tc.cc" 50 $ do
+        sep [ text "clauses before compilation"
+            , (nest 2 . text . show) cs
+            ] -- ++ map (nest 2 . text . show) cs
+      let cc = compileWithSplitTree splitTree cls
+      reportSDoc "tc.cc" 12 $ sep
+        [ text "compiled clauses (still containing record splits)"
+        , nest 2 $ text (show cc)
+        ]
+      cc <- translateCompiledClauses cc
+      return cc
 
 type Cl  = ([Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
-{- TODO
-compile :: SplitTree -> Cls -> CompiledClauses
-compile t cs = case t of
-  SplitAt n ts -> Case n $ fmap (compile mt) $ splitOn n cs
-  SplittingDone n -> case map getBody cs of
-    -- It's possible to get more than one clause here due to
-    -- catch-all expansion.
-    Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
-    Nothing : _ -> Fail
-    []          -> __IMPOSSIBLE__
+compileWithSplitTree :: SplitTree -> Cls -> CompiledClauses
+compileWithSplitTree t cs = case t of
+  SplitAt i ts ->
+    -- the coverage checker does not count dot patterns as variables
+    -- in case trees however, they count as variable patterns
+    let n = i -- countInDotPatterns i cs
+    in  Case n $ compiles ts $ splitOn n cs
+  SplittingDone n -> compile cs
+    -- after end of split tree, continue with left-to-right strategy
+
   where
 
     compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
-    compiles ts Branches{ conBranches = cons
-                        , litBranches = lits
-                        , catchAllBranch = Nothing } =
-      Branches{ conBranches = updCons cons
-              , litBranches = updLits lits
-              , catchAllBranch = Nothing
-              }
+    compiles ts br@Branches{ conBranches = cons
+                           , litBranches = lits
+                           , catchAllBranch = Nothing }
+      | Map.null lits = emptyBranches { conBranches = updCons cons }
       where
         updCons = Map.mapWithKey $ \ c cl -> case lookup c ts of
                     Nothing -> __IMPOSSIBLE__
-                    Just t  -> compile t cl
-        updLits = Map.mapWithKey $ \ l cl -> case lookup l ts of
-                    Nothing -> __IMPOSSIBLE__
-                    Just t  -> compile t cl
-                    -- TODO
+                    Just t  -> fmap (compileWithSplitTree t) cl
+    compiles ts br    = fmap compile br
+
+    -- increase split index by number of dot patterns we have skipped
+    countInDotPatterns :: Int -> [Cl] -> Int
+    countInDotPatterns i [] = __IMPOSSIBLE__
+    countInDotPatterns i ((ps, _) : _) = i + loop i (map unArg ps) where
+      loop 0 ps            = 0
+      loop i []            = __IMPOSSIBLE__
+      loop i (DotP{} : ps) = 1 + loop i ps
+      loop i (_      : ps) = loop (i - 1) ps
 
 
-    name (VarP x) = x
-    name (DotP _) = "_"
-    name ConP{} = __IMPOSSIBLE__
-    name LitP{} = __IMPOSSIBLE__
-    getBody (_, b) = body b
-    body (Bind b)   = body (absBody b)
-    body (Body t)   = Just t
-    body NoBody     = Nothing
--}
-
-compile :: Maybe SplitTree -> Cls -> CompiledClauses
-compile spt cs = case nextSplit cs of
-  Just n  -> Case n $ fmap (compile spt) $ splitOn n cs
+compile :: Cls -> CompiledClauses
+compile cs = case nextSplit cs of
+  Just n  -> Case n $ fmap compile $ splitOn n cs
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.

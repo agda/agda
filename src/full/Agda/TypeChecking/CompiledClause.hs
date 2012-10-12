@@ -41,6 +41,7 @@ data CompiledClauses
     -- ^ Absurd case.
   deriving (Typeable)
 
+emptyBranches = Branches Map.empty Map.empty Nothing
 litCase l x = Branches Map.empty (Map.singleton l x) Nothing
 conCase c x = Branches (Map.singleton c x) Map.empty Nothing
 catchAll x  = Branches Map.empty Map.empty (Just x)
