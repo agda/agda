@@ -550,7 +550,6 @@ data TelV a = TelV (Tele (Dom a)) a
   deriving (Typeable, Show, Eq, Ord, Functor)
 
 type TelView = TelV Type
--- data TelView = TelV Telescope Type
 
 telFromList :: [Dom (String, Type)] -> Telescope
 telFromList = foldr (\(Dom h r (x, a)) -> ExtendTel (Dom h r a) . Abs x) EmptyTel
@@ -628,6 +627,28 @@ mkAbs x v | 0 `freeIn` v = Abs x v
 reAbs :: (Subst a, Free a) => Abs a -> Abs a
 reAbs (NoAbs x v) = NoAbs x v
 reAbs (Abs x v)   = mkAbs x v
+
+-- | @underAbs k a b@ applies @k@ to @a@ and the content of
+--   abstraction @b@ and puts the abstraction back.
+--   @a@ is raised if abstraction was proper such that
+--   at point of application of @k@ and the content of @b@
+--   are at the same context.
+--   Precondition: @a@ and @b@ are at the same context at call time.
+underAbs :: Subst a => (a -> b -> b) -> a -> Abs b -> Abs b
+underAbs cont a b = case b of
+  Abs   x t -> Abs   x $ cont (raise 1 a) t
+  NoAbs x t -> NoAbs x $ cont a t
+
+-- | @underLambdas n k a b@ drops @n@ initial 'Lam's from @b@,
+--   performs operation @k@ on @a@ and the body of @b@,
+--   and puts the 'Lam's back.  @a@ is raised correctly
+--   according to the number of abstractions.
+underLambdas :: Subst a => Int -> (a -> Term -> Term) -> a -> Term -> Term
+underLambdas n cont a v = loop n a v where
+  loop 0 a v = cont a v
+  loop n a v = case ignoreSharing v of
+    Lam h b -> Lam h $ underAbs (loop $ n-1) a b
+    _       -> __IMPOSSIBLE__
 
 deriving instance (Subst a, Eq a) => Eq (Tele a)
 deriving instance (Subst a, Ord a) => Ord (Tele a)

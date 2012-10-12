@@ -143,8 +143,8 @@ allowedVar i (relVs, irrVs) = i `elem` relVs
 takeRelevant :: Vars -> [Nat]
 takeRelevant = fst
 
-underAbs :: Vars -> Vars
-underAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
+liftUnderAbs :: Vars -> Vars
+liftUnderAbs (relVs, irrVs) = (0 : map (1+) relVs, map (1+) irrVs)
 
 -- | Extended occurs check.
 class Occurs t where
@@ -362,7 +362,7 @@ instance Occurs Sort where
 
 
 instance (Occurs a, Subst a) => Occurs (Abs a) where
-  occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (underAbs xs))
+  occurs red ctx m xs b@(Abs   s x) = Abs   s <$> underAbstraction_ b (occurs red ctx m (liftUnderAbs xs))
   occurs red ctx m xs b@(NoAbs s x) = NoAbs s <$> occurs red ctx m xs x
 
   metaOccurs m (Abs   s x) = metaOccurs m x
