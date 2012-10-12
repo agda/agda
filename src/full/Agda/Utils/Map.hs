@@ -4,9 +4,11 @@ module Agda.Utils.Map where
 
 import Prelude hiding (map, lookup, mapM)
 import Control.Applicative
-import Data.Map
+import Data.Map as Map
 import Data.Traversable
+
 import Agda.Utils.Monad
+import Agda.Utils.Tuple
 
 #include "../undefined.h"
 import Agda.Utils.Impossible
@@ -37,3 +39,10 @@ insertWithKeyM clash k x m =
 -- | Filter a map based on the keys.
 filterKeys :: Ord k => (k -> Bool) -> Map k a -> Map k a
 filterKeys p = filterWithKey (const . p)
+
+-- | Unzip a map.
+unzip :: Map k (a, b) -> (Map k a, Map k b)
+unzip m = (Map.map fst m, Map.map snd m)
+
+unzip3 :: Map k (a, b, c) -> (Map k a, Map k b, Map k c)
+unzip3 m = (Map.map fst3 m, Map.map snd3 m, Map.map thd3 m)
