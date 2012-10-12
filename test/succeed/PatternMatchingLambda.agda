@@ -19,7 +19,7 @@ or x y = not (and (not x) (not y))
 
 iff : Bool -> Bool -> Bool -> Bool
 iff = λ { true  x -> λ { true → true ; false → false } ;
-          false x -> λ { true -> false ; false -> true } 
+          false x -> λ { true -> false ; false -> true }
         }
 
 pattern-matching-lambdas-compute : (x : Bool) -> or true x ≡ true
@@ -46,7 +46,7 @@ data indexed-by-xor : (Bool -> Bool -> Bool) -> Set where
                                        false false -> false ;
                                        _     _     -> true  }
 
--- won't work if the underscore is replaced with the actual value at the moment   
+-- won't work if the underscore is replaced with the actual value at the moment
 f : (r : Bool -> Bool -> Bool) -> indexed-by-xor r -> Bool
 f ._ (c b) = b
 
