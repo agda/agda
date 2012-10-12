@@ -434,14 +434,14 @@ split ind tel perm ps x = do
   r <- split' ind tel perm ps x
   return $ case r of
     Left err        -> Left err
-    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel $ fst x) []
+    Right (Left _)  -> Right $ Covering (dbIndexToLevel tel perm $ fst x) []
     Right (Right c) -> Right c
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
---   to split at.
-dbIndexToLevel tel x = if n < 0 then __IMPOSSIBLE__ else n
-  where n = size tel - x - 1 -- Andreas: do we need to permute?
+--   to split at (dot patterns included!).
+dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
+  where n = permute perm [0..] !! (size tel - x - 1)
 
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
@@ -514,7 +514,7 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
       | otherwise  -> return $ Right $ Covering xDBLevel ns
 
   where
-    xDBLevel = dbIndexToLevel tel x
+    xDBLevel = dbIndexToLevel tel perm x
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)
