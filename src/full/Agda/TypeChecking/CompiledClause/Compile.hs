@@ -3,7 +3,7 @@ module Agda.TypeChecking.CompiledClause.Compile where
 
 import Data.Monoid
 import qualified Data.Map as Map
-import Data.List (genericReplicate, nubBy)
+import Data.List (genericReplicate, nubBy, findIndex)
 import Data.Function
 
 import Agda.Syntax.Common
@@ -112,8 +112,9 @@ compile spt cs = case nextSplit cs of
 -- | Get the index of the next argument we need to split on.
 --   This the number of the first pattern that does a match in the first clause.
 nextSplit :: Cls -> Maybe Int
-nextSplit [] = __IMPOSSIBLE__
-nextSplit ((ps, _):_) = mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
+nextSplit []          = __IMPOSSIBLE__
+nextSplit ((ps, _):_) = findIndex isPat $ map unArg ps
+  -- OLD, IDENTICAL: mhead [ n | (a, n) <- zip ps [0..], isPat (unArg a) ]
   where
     isPat VarP{} = False
     isPat DotP{} = False
