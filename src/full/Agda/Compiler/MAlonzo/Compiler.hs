@@ -468,17 +468,20 @@ rteModule = ok $ parse $ unlines
   , "mazIncompleteMatch s = error (\"MAlonzo Runtime Error: incomplete pattern matching: \" ++ s)"
   ]
   where
-#if MIN_VERSION_haskell_src_exts(1,12,0)
     parse = HS.parseWithMode
-              HS.defaultParseMode{HS.extensions = [HS.ExplicitForAll]}
-#else
-    parse = HS.parseWithMode
-              HS.defaultParseMode{HS.extensions = [HS.ExplicitForall]}
-#endif
-
+              HS.defaultParseMode{HS.extensions = [explicitForAll]}
     ok (HS.ParseOk d)   = d
     ok HS.ParseFailed{} = __IMPOSSIBLE__
 
+explicitForAll :: HS.Extension
+explicitForAll =
+-- GHC 7.0.1 cannot parse the following CPP conditional
+-- error: missing binary operator before token "("
+#if MIN_VERSION_haskell_src_exts(1,12,0)
+  HS.ExplicitForAll
+#else
+  HS.ExplicitForall
+#endif
 
 compileDir :: TCM FilePath
 compileDir = do
