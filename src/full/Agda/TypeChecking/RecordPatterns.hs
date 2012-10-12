@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP, PatternGuards, FlexibleInstances, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE CPP, PatternGuards, TupleSections, FlexibleInstances, GeneralizedNewtypeDeriving #-}
 
 -- | Code which replaces pattern matching on record constructors with
 -- uses of projection functions.
 
 module Agda.TypeChecking.RecordPatterns
   ( translateRecordPatterns
+  , translateCompiledClauses
   , translateSplitTree
   , recordPatternToProjections
   ) where
@@ -22,6 +23,7 @@ import qualified Data.Traversable as Trav
 
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
+
 import Agda.TypeChecking.CompiledClause
 import Agda.TypeChecking.Coverage.SplitTree
 import Agda.TypeChecking.Datatypes
@@ -32,8 +34,11 @@ import Agda.TypeChecking.Records
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+
 import Agda.Utils.Either
 import Agda.Utils.List
+import qualified Agda.Utils.Map as Map
+import Agda.Utils.Maybe
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
@@ -66,19 +71,104 @@ recordPatternToProjections p =
     comb :: (Term -> Term) -> Pattern -> TCM [Term -> Term]
     comb prj p = map (prj .) <$> recordPatternToProjections p
 
-{-
+
 ---------------------------------------------------------------------------
 -- * Record pattern translation for compiled clauses
 ---------------------------------------------------------------------------
 
-translateCompiledRecordPatterns :: CompiledClauses -> TCM CompiledClauses
-translateCompiledRecordPatterns cc = loop 0 [] cc
+-- | Take a matrix of booleans (at least one row!) and summarize the columns
+--   using conjunction.
+conjColumns :: [[Bool]] -> [Bool]
+conjColumns =  foldl1 (zipWith (&&))
+
+-- | @insertColumn i a m@ inserts a column before the @i@th column in
+--   matrix @m@ and fills it with value @a@.
+insertColumn :: Int -> a -> [[a]] -> [[a]]
+insertColumn i a rows = map ins rows where
+  ins row = let (init, last) = splitAt i row in init ++ a : last
+
+{- UNUSED
+-- | @cutColumn i m@ removes the @i@th column from matrix @m@.
+cutColumn :: Int -> [[a]] -> [[a]]
+cutColumn i rows = map cut rows where
+  cut row = let (init, _:last) = splitAt i row in init ++ last
+
+-- | @cutColumns i n xss = (yss, xss')@ cuts out a submatrix @yss@
+--   of width @n@ from @xss@, starting at column @i@.
+cutColumns :: Int -> Int -> [[a]] -> ([[a]], [[a]])
+cutColumns i n rows = unzip (map (cutSublist i n) rows)
+-}
+
+-- | @cutSublist i n xs = (xs', ys, xs'')@ cuts out a sublist @ys@
+--   of width @n@ from @xs@, starting at column @i@.
+cutSublist :: Int -> Int -> [a] -> ([a], [a], [a])
+cutSublist i n row =
+  let (init, rest) = splitAt i row
+      (mid , last) = splitAt n rest
+  in  (init, mid, last)
+
+
+translateCompiledClauses :: CompiledClauses -> TCM CompiledClauses
+translateCompiledClauses cc = snd <$> loop cc
   where
-    loop n vs cc = case cc of
-      Case i cs -> do
-        isRC <- isRecordCase cs
-        case isRC of
-          Nothing ->
+
+    loop :: CompiledClauses -> TCM ([Bool], CompiledClauses)
+    loop cc = case cc of
+      Fail      -> return (repeat True, cc)
+      Done xs t -> return (map (const True) xs, cc)
+      Case i cs -> loops i cs
+
+    loops :: Int                  -- split variable
+          -> Case CompiledClauses -- original split tree
+          -> TCM ([Bool], CompiledClauses)
+    loops i cs@(Branches { conBranches = conMap
+                         , litBranches = litMap
+                         , catchAllBranch = catchAll }) = do
+
+      -- recurse on and compute variable status of catch-all clause
+      (xssa, catchAll) <- unzipMaybe <$> Trav.mapM loop catchAll
+      let xsa = maybe (repeat True) id xssa
+
+      -- recurse on compute variable status of literal clauses
+      (xssl, litMap)   <- Map.unzip <$> Trav.mapM loop litMap
+      let xsl = conjColumns (xsa : insertColumn i False (Map.elems xssl))
+
+      -- recurse on constructor clauses
+      (ccs, xssc, conMap)    <- Map.unzip3 <$> do
+        Trav.forM (Map.mapWithKey (,) conMap) $ \ (c, WithArity ar cc) -> do
+          (xs, cc)     <- loop cc
+          dataOrRecCon <- getConstructorArity c
+          let (isRC, n)   = either (False,) ((True,) . size) dataOrRecCon
+              (xs0, rest) = genericSplitAt i xs
+              (xs1, xs2 ) = genericSplitAt n rest
+              -- if all dropped variables are virgins and we are record cons.
+              -- then new variable x is also virgin
+              -- and we can translate away the split
+              x           = isRC && and xs1
+              -- xs' = updated variables
+              xs'         = xs0 ++ x : xs2
+              -- get the record fields
+              fs          = either __IMPOSSIBLE__ id dataOrRecCon
+              -- if x we can translate
+              mcc = if x then [replaceByProjections i (map unArg fs) cc] else []
+
+          when (n /= ar) __IMPOSSIBLE__
+          return (mcc, xs', WithArity ar cc)
+
+      -- compute result
+      let xs = conjColumns (xsl : Map.elems xssc)
+      case concat $ Map.elems ccs of
+        -- case: no record pattern was translated
+        []   -> return (xs, Case i $ Branches
+                  { conBranches = conMap
+                  , litBranches = litMap
+                  , catchAllBranch = catchAll })
+
+        -- case: translated away one record pattern
+        [cc] -> return (xs, cc)
+
+        -- case: more than one record patterns (impossible)
+        _    -> __IMPOSSIBLE__
 
 -- | @replaceByProjections i projs cc@ replaces variables @i..i+n-1@
 --   (counted from left) by projections @projs_1 i .. projs_n i@.
@@ -88,26 +178,47 @@ translateCompiledRecordPatterns cc = loop 0 [] cc
 --   positions greater or equal to @i@ by one.
 --   Otherwise, we have to lower
 --
-replaceByProjections :: Int -> [QName] -> CompiledClauses -> TCM CompiledClauses
-replaceByProjections i projs cc = do
+replaceByProjections :: Int -> [QName] -> CompiledClauses -> CompiledClauses
+replaceByProjections i projs cc =
   let n = length projs
+
+      loop :: Int -> CompiledClauses -> CompiledClauses
       loop i cc = case cc of
         Case j cs
 
         -- if j < i, we leave j untouched, but we increase i by the number
         -- of variables replacing j in the branches
-          | j < i -> Case j
+          | j < i     -> Case j $ loops i cs
 
         -- if j >= i then we shrink j by (n-1)
-          | j >= i -> Case (j - (n-1)) <$> Trav.mapM (loop i) cs
+          | otherwise -> Case (j - (n-1)) $ fmap (loop i) cs
 
         Done xs v ->
         -- we have to delete (n-1) variables from xs
         -- and instantiate v suitably with the projections
+          let (xs0,xs1,xs2)     = cutSublist i n xs
+              names | null xs1  = ["r"]
+                    | otherwise = map unArg xs1
+              x                 = defaultArg $ foldr1 (++) names
+              xs'               = xs0 ++ x : xs2
+              us                = map (\ p -> Def p [defaultArg $ var 0]) (reverse projs)
+              -- go from level (i + n - 1) to index (subtract from |xs|-1)
+              index             = length xs - (i + n)
+          in  Done xs' $ applySubst (liftS (length xs2) $ us ++# raiseS 1) v
+          -- The body is NOT guarded by lambdas!
+          -- WRONG: underLambdas i (flip apply) (map defaultArg us) v
 
-        Fail -> return Fail
+        Fail -> Fail
 
-  loop i cc
+      loops :: Int -> Case CompiledClauses -> Case CompiledClauses
+      loops i Branches{ conBranches    = conMap
+                      , litBranches    = litMap
+                      , catchAllBranch = catchAll } =
+        Branches{ conBranches    = fmap (\ (WithArity n c) -> WithArity n $ loop (i + n - 1) c) conMap
+                , litBranches    = fmap (loop (i - 1)) litMap
+                , catchAllBranch = fmap (loop i) catchAll
+                }
+  in  loop i cc
 
 -- | Check if a split is on a record constructor, and return the projections
 --   if yes.
@@ -115,15 +226,14 @@ isRecordCase :: Case c -> TCM (Maybe ([QName], c))
 isRecordCase (Branches { conBranches = conMap
                        , litBranches = litMap
                        , catchAllBranch = Nothing })
-  | Map.null litBranches
-  , [(con,br)] <- Map.toList conMap = do
+  | Map.null litMap
+  , [(con, WithArity _ br)] <- Map.toList conMap = do
     isRC <- isRecordConstructor con
     case isRC of
       Just (r, Record { recFields = fs }) -> return $ Just (map unArg fs, br)
       Just (r, _) -> __IMPOSSIBLE__
       Nothing -> return Nothing
 isRecordCase _ = return Nothing
--}
 
 ---------------------------------------------------------------------------
 -- * Record pattern translation for split trees
@@ -201,7 +311,7 @@ translateSplitTree t = snd <$> loop t
       (rs, xss, ts) <- unzip3 <$> do
         forM ts $ \ (c, t) -> do
           (xs, t) <- loop t
-          (isRC, n) <- getConstructorArity c
+          (isRC, n) <- either (False,) ((True,) . size) <$> getConstructorArity c
           -- now drop variables from i to i+n-1
           let (xs0, rest) = genericSplitAt i xs
               (xs1, xs2)  = genericSplitAt n rest
@@ -220,7 +330,7 @@ translateSplitTree t = snd <$> loop t
       if x then unless (rs == [True]) __IMPOSSIBLE__
       -- else no record constructor
        else unless (or rs == False) __IMPOSSIBLE__
-      return (x, foldl1 (zipWith (&&)) xss, ts)
+      return (x, conjColumns xss, ts)
 
 -- | @dropFrom i n@ drops arguments @j@  with @j < i + n@ and @j >= i@.
 --   NOTE: @n@ can be negative, in which case arguments are inserted.

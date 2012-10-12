@@ -15,8 +15,8 @@ import Agda.TypeChecking.Monad
 import Agda.TypeChecking.RecordPatterns
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Pretty
-import Agda.Utils.List
 
+import Agda.Utils.List
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
@@ -38,15 +38,61 @@ compileClauses mt cs = case mt of
       [ text "translated split tree for" <+> prettyTCM q
       , text $ show splitTree
       ]
-    cs        <- mapM translateRecordPatterns cs
-    return $ compile (Just splitTree) [(clausePats c, clauseBody c) | c <- cs]
+    -- cs <- mapM translateRecordPatterns cs
+    let cc = compile (Just splitTree) [(clausePats c, clauseBody c) | c <- cs]
+    reportSDoc "tc.cc" 12 $ sep
+      [ text "compiled clauses (with record splits)"
+      , nest 2 $ text (show cc)
+      ]
+    cc <- translateCompiledClauses cc
+    return cc
 
 type Cl  = ([Arg Pattern], ClauseBody)
 type Cls = [Cl]
 
+{- TODO
+compile :: SplitTree -> Cls -> CompiledClauses
+compile t cs = case t of
+  SplitAt n ts -> Case n $ fmap (compile mt) $ splitOn n cs
+  SplittingDone n -> case map getBody cs of
+    -- It's possible to get more than one clause here due to
+    -- catch-all expansion.
+    Just t : _  -> Done (map (fmap name) $ fst $ head cs) (shared t)
+    Nothing : _ -> Fail
+    []          -> __IMPOSSIBLE__
+  where
+
+    compiles :: SplitTrees -> Case Cls -> Case CompiledClauses
+    compiles ts Branches{ conBranches = cons
+                        , litBranches = lits
+                        , catchAllBranch = Nothing } =
+      Branches{ conBranches = updCons cons
+              , litBranches = updLits lits
+              , catchAllBranch = Nothing
+              }
+      where
+        updCons = Map.mapWithKey $ \ c cl -> case lookup c ts of
+                    Nothing -> __IMPOSSIBLE__
+                    Just t  -> compile t cl
+        updLits = Map.mapWithKey $ \ l cl -> case lookup l ts of
+                    Nothing -> __IMPOSSIBLE__
+                    Just t  -> compile t cl
+                    -- TODO
+
+
+    name (VarP x) = x
+    name (DotP _) = "_"
+    name ConP{} = __IMPOSSIBLE__
+    name LitP{} = __IMPOSSIBLE__
+    getBody (_, b) = body b
+    body (Bind b)   = body (absBody b)
+    body (Body t)   = Just t
+    body NoBody     = Nothing
+-}
+
 compile :: Maybe SplitTree -> Cls -> CompiledClauses
-compile mt cs = case nextSplit cs of
-  Just n  -> Case n $ fmap (compile mt) $ splitOn n cs
+compile spt cs = case nextSplit cs of
+  Just n  -> Case n $ fmap (compile spt) $ splitOn n cs
   Nothing -> case map getBody cs of
     -- It's possible to get more than one clause here due to
     -- catch-all expansion.
