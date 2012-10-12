@@ -67,12 +67,14 @@ match (Case n bs) args patch stack =
             stack'' = (++ stack') $ case ignoreSharing cv of
               Con c vs -> case Map.lookup c (conBranches bs) of
                 Nothing -> []
-                Just cc -> [(cc, args0 ++ map (MaybeRed red) vs ++ args1, patchCon c (length vs))]
+                Just cc -> [(content cc, args0 ++ map (MaybeRed red) vs ++ args1, patchCon c (length vs))]
               _        -> []
         NotBlocked (Con c vs) -> case Map.lookup c (conBranches bs) of
           Nothing -> match' stack'
-          Just cc -> match cc (args0 ++ map (MaybeRed red) vs ++ args1)
-                              (patchCon c (length vs)) stack'
+          Just cc -> match (content cc)
+                           (args0 ++ map (MaybeRed red) vs ++ args1)
+                           (patchCon c (length vs))
+                           stack'
         NotBlocked _ -> return $ NoReduction $ NotBlocked (patch $ map ignoreReduced args')
 
 match' :: Stack -> TCM (Reduced (Blocked Args) Term)

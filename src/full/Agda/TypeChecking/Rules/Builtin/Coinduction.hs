@@ -135,7 +135,7 @@ bindBuiltinFlat e =
                       let hid   = Arg Hidden Relevant
                           nohid = defaultArg in
                       Case 0 (Branches (Map.singleton sharp
-                                 (Done [nohid "x"] (var 0)))
+                                 (WithArity 1 (Done [nohid "x"] (var 0))))
                                Map.empty
                                Nothing)
                    , funInv            = NotInjective

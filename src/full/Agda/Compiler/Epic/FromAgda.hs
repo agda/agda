@@ -129,7 +129,7 @@ translateDefn msharp (n, defini) =
 reverseCCBody :: Int -> CC.CompiledClauses -> CC.CompiledClauses
 reverseCCBody c cc = case cc of
     CC.Case n (CC.Branches cbr lbr cabr) -> CC.Case (c+n)
-        $ CC.Branches (M.map (reverseCCBody c) cbr)
+        $ CC.Branches (M.map (fmap $ reverseCCBody c) cbr)
           (M.map (reverseCCBody c) lbr)
           (fmap  (reverseCCBody c) cabr)
     CC.Done i t -> CC.Done i (S.applySubst
@@ -202,8 +202,8 @@ compileClauses name nargs c = do
                    -- TODO: Handle other literals
                    _ -> epicError $ "case on literal not supported: " ++ show l
            -- Con branch
-           else forM (M.toList (CC.conBranches nc)) $ \(b, cc) -> do
-               arit  <- getConArity b
+           else forM (M.toList (CC.conBranches nc)) $ \(b, CC.WithArity ar cc) -> do
+               arit  <- getConArity b -- Andreas, 2012-10-12: is the constructor arity @ar@ from Agda the same as the one from the Epic backen?
                tag  <- getConstrTag b
                vars <- replicateM arit newName
                cc'  <- compileClauses' (replaceAt casedvar env vars) omniDefault cc

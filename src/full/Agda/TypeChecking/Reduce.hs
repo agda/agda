@@ -763,6 +763,9 @@ instance InstantiateFull FunctionInverse where
   instantiateFull NotInjective = return NotInjective
   instantiateFull (Inverse inv) = Inverse <$> instantiateFull inv
 
+instance InstantiateFull a => InstantiateFull (WithArity a) where
+  instantiateFull (WithArity n a) = WithArity n <$> instantiateFull a
+
 instance InstantiateFull a => InstantiateFull (Case a) where
   instantiateFull (Branches cs ls m) =
     Branches <$> instantiateFull cs

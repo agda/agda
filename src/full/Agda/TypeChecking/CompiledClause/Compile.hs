@@ -79,7 +79,7 @@ splitOn n cs = mconcat $ map (fmap (:[]) . splitC n) $ expandCatchAlls n cs
 
 splitC :: Int -> Cl -> Case Cl
 splitC n (ps, b) = case unArg p of
-  ConP c _ qs -> conCase c (ps0 ++ qs ++ ps1, b)
+  ConP c _ qs -> conCase c $ WithArity (length qs) (ps0 ++ qs ++ ps1, b)
   LitP l      -> litCase l (ps0 ++ ps1, b)
   _           -> catchAll (ps, b)
   where

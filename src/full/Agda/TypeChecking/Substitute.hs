@@ -139,6 +139,9 @@ instance Apply CompiledClauses where
     where
       len = length args
 
+instance Apply a => Apply (WithArity a) where
+  apply (WithArity n a) args = WithArity n $ apply a args
+
 instance Apply a => Apply (Case a) where
   apply (Branches cs ls m) args =
     Branches (apply cs args) (apply ls args) (apply m args)
@@ -269,6 +272,9 @@ instance Abstract CompiledClauses where
   abstract tel (Done xs t) = Done (map (argFromDom . fmap fst) (telToList tel) ++ xs) t
   abstract tel (Case n bs) =
     Case (n + fromIntegral (size tel)) (abstract tel bs)
+
+instance Abstract a => Abstract (WithArity a) where
+  abstract tel (WithArity n a) = WithArity n $ abstract tel a
 
 instance Abstract a => Abstract (Case a) where
   abstract tel (Branches cs ls m) =

@@ -11,14 +11,21 @@ import Data.Traversable (Traversable)
 import Agda.Syntax.Common
 import Agda.Syntax.Internal
 import Agda.Syntax.Literal
+
 import Agda.Utils.Pretty
+import Agda.Utils.Impossible
+#include "../undefined.h"
 
 type key :-> value = Map key value
 
-data Case c = Branches { conBranches    :: QName   :-> c
-                       , litBranches    :: Literal :-> c
-                       , catchAllBranch :: Maybe c
-                       }
+data WithArity c = WithArity { arity :: Int, content :: c }
+  deriving (Typeable, Functor, Foldable, Traversable)
+
+data Case c = Branches
+  { conBranches    :: QName :-> WithArity c -- ^ Map from constructor names to their arity and the case subtree
+  , litBranches    :: Literal :-> c         -- ^ Map from literal to case subtree
+  , catchAllBranch :: Maybe c               -- ^ (Possibly additional) catch-all clause
+  }
   deriving (Typeable, Functor, Foldable, Traversable)
 
 data CompiledClauses
@@ -38,6 +45,12 @@ litCase l x = Branches Map.empty (Map.singleton l x) Nothing
 conCase c x = Branches (Map.singleton c x) Map.empty Nothing
 catchAll x  = Branches Map.empty Map.empty (Just x)
 
+instance Monoid c => Monoid (WithArity c) where
+ mempty = WithArity __IMPOSSIBLE__ mempty
+ mappend (WithArity n1 c1) (WithArity n2 c2)
+  | n1 == n2  = WithArity n1 $ mappend c1 c2
+  | otherwise = __IMPOSSIBLE__   -- arity must match!
+
 instance Monoid m => Monoid (Case m) where
   mempty = Branches Map.empty Map.empty Nothing
   mappend (Branches cs  ls  m)
@@ -51,6 +64,9 @@ instance Pretty a => Show (Case a) where
 instance Show CompiledClauses where
   show = show . pretty
 
+instance Pretty a => Pretty (WithArity a) where
+  pretty = pretty . content
+
 instance Pretty a => Pretty (Case a) where
   prettyPrec p (Branches cs ls m) =
     mparens (p > 0) $ vcat $
@@ -63,7 +79,7 @@ instance Pretty a => Pretty (Case a) where
              | (x, v) <- Map.toList m ]
 
 instance Pretty CompiledClauses where
-  pretty (Done hs t)  = text ("done" ++ show hs) <+> text (show t)
+  pretty (Done hs t) = text ("done" ++ show hs) <+> text (show t)
   pretty Fail        = text "fail"
   pretty (Case n bs) =
     sep [ text ("case " ++ show n ++ " of")

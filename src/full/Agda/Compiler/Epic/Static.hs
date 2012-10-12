@@ -38,7 +38,7 @@ normaliseStatic = evaluateCC
 evaluateCC :: CompiledClauses -> Compile TCM CompiledClauses
 evaluateCC ccs = case ccs of
     Case n brs -> do
-        cbrs <- forM (M.toList $ conBranches brs) $ \(c, cc) -> (,) c <$> evaluateCC cc
+        cbrs <- forM (M.toList $ conBranches brs) $ \(c, WithArity n cc) -> (,) c <$> (WithArity n <$> evaluateCC cc)
         lbrs <- forM (M.toList $ litBranches brs) $ \(l, cc) -> (,) l <$> evaluateCC cc
         cab <- case catchAllBranch brs of
             Nothing -> return Nothing
