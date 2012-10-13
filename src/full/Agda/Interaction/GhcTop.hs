@@ -48,7 +48,8 @@ mimicGHCi = do
 
     modify $ \st -> st { stInteractionOutputCallback = putStrLn . show <=< lispifyResponse }
 
-    _ <- interact' `runCommandM` initCommandState
+    opts <- commandLineOptions
+    _ <- interact' `runCommandM` initCommandState { optionsOnReload = opts }
     return ()
   where
 

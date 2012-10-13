@@ -97,6 +97,8 @@ data CommandState = CommandState
     -- module was successfully type checked (potentially with
     -- warnings). The 'ClockTime' is the modification time stamp of
     -- the file when it was last loaded.
+  , optionsOnReload :: CommandLineOptions
+    -- ^ Reset the options on each reload to these.
   }
 
 -- | Can the command run even if the relevant file has not been loaded
@@ -115,6 +117,7 @@ initCommandState :: CommandState
 initCommandState = CommandState
   { theInteractionPoints = []
   , theCurrentFile       = Nothing
+  , optionsOnReload      = defaultOptions
   }
 
 
@@ -363,6 +366,7 @@ cmd_load' file includes unsolvedOK cmd =
     -- display implicit arguments. (At this point the include
     -- directories have already been set, so they are preserved.)
     opts <- liftCommandM $ commandLineOptions
+    defaultOptions <- gets optionsOnReload
     setCommandLineOptions' $
       defaultOptions { optIncludeDirs   = optIncludeDirs opts
                      , optPragmaOptions =

@@ -4,7 +4,7 @@ Compilation error:
 customised/MAlonzo/Code/FFI.hs:8:61:
     Not in scope: `nothing'
 
-customised/MAlonzo/Code/FFI.hs:12:6:
+customised/MAlonzo/Code/FFI.hs:12:61:
     Not in scope: `nothing'
 
 customised/MAlonzo/Code/FFI.hs:28:10:
