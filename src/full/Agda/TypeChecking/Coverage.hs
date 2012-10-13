@@ -43,6 +43,7 @@ import Agda.Utils.Permutation
 import Agda.Utils.Size
 import Agda.Utils.Tuple
 import Agda.Utils.List
+import Agda.Utils.Maybe
 import Agda.Utils.Monad
 
 #include "../undefined.h"
@@ -214,10 +215,21 @@ cover cs (SClause tel perm ps _) = do
           return (tree, Set.unions useds, concat psss)
 
 splitStrategy :: BlockingVars -> Telescope -> TCM BlockingVars
-splitStrategy bs tel = return $ updateLast (mapSnd (const Nothing)) bs
+splitStrategy bs tel = return $ updateLast (mapSnd (const Nothing)) xs
   -- Make sure we do not insists on precomputed coverage when
   -- we make our last try to split.
   -- Otherwise, we will not get a nice error message.
+  where
+    xs       = bs
+{-
+--  Andreas, 2012-10-13
+--  The following split strategy which prefers all-constructor columns
+--  fails on test/fail/CoverStrategy
+    xs       = ys ++ zs
+    (ys, zs) = partition allConstructors bs
+    allConstructors :: BlockingVar -> Bool
+    allConstructors = isJust . snd
+-}
 
 -- | Check that a type is a non-irrelevant datatype or a record with
 -- named constructor. Unless the 'Induction' argument is 'CoInductive'
@@ -307,7 +319,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
     DontKnow _    -> do
       debugCantSplit
       throwException $ CantSplit con (delta1 `abstract` gamma) conIxs givenIxs
-                                 [ Var i [] | i <- flex ]
+                                 [ var i | i <- flex ]
     Unifies sub   -> do
       debugSubst "sub" sub
 
@@ -511,7 +523,7 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
             ]
           throwException (GenericSplitError "precomputed set of constructors does not cover all cases")
 
-      | otherwise  -> return $ Right $ Covering xDBLevel ns
+    _  -> return $ Right $ Covering xDBLevel ns
 
   where
     xDBLevel = dbIndexToLevel tel perm x
