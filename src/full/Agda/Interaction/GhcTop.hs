@@ -41,34 +41,35 @@ import Agda.Interaction.Highlighting.Emacs
 --   'mimicGHCi' reads the Emacs frontend commands from stdin,
 --   interprets them and print the result into stdout.
 
-mimicGHCi :: IO ()
+mimicGHCi :: TCM ()
 mimicGHCi = do
 
-    IO.hSetBuffering IO.stdout IO.NoBuffering
+    liftIO $ IO.hSetBuffering IO.stdout IO.NoBuffering
 
-    interact' initState
+    modify $ \st -> st { stInteractionOutputCallback = putStrLn . show <=< lispifyResponse }
+
+    _ <- interact' `runCommandM` initCommandState
+    return ()
   where
 
-    putPrompt = putStr
-
-    interact' st = do
-        putPrompt "Agda2> "
-        b <- IO.isEOF
+    interact' :: CommandM ()
+    interact' = do
+        liftIO $ putStr "Agda2> "
+        b <- liftIO IO.isEOF
         if b then return () else do
-            r <- getLine
+            r <- liftIO getLine
             _ <- return $! length r     -- force to read the full input line
-            interact' =<< case dropWhile (==' ') r of
-                ""  -> return st
-                ('-':'-':_) -> return st
+            case dropWhile (==' ') r of
+                ""  -> return ()
+                ('-':'-':_) -> return ()
                 _ -> case runIdentity . flip runStateT r . runErrorT $ parseIOTCM `mplus` parseGoalCommand' of
                     (Right (current, highlighting, cmd), "") -> do
-                        tcmAction st current highlighting cmd
+                        runInteraction current highlighting cmd
                     (Left err, rem) -> do
-                        putStrLn $ "error: " ++ err ++ " expected before " ++ rem
-                        return st
+                        liftIO $ putStrLn $ "error: " ++ err ++ " expected before " ++ rem
                     (_, rem) -> do
-                        putStrLn $ "not consumed: " ++ rem
-                        return st
+                        liftIO $ putStrLn $ "not consumed: " ++ rem
+            interact'
 
     parseIOTCM = do
         exact "ioTCM "
@@ -261,23 +262,6 @@ parseList p = do
 
 instance ParseC Rewrite where
     parse = reads' "Rewrite"
-
-
--- | 'tcmAction' is wrap around 'ioTCMState'
---   which redirects the responses to stdout
-
-tcmAction
-    :: InteractionState
-    -> FilePath
-    -> HighlightingLevel
-    -> Interaction
-    -> IO InteractionState
-tcmAction state filepath highlighting action =
-    ioTCMState filepath highlighting action (setCallback state)
-  where
-    setCallback = modTCState $
-        \st -> st { stInteractionOutputCallback = putStrLn . show <=< lispifyResponse }
-    modTCState f st = st { theTCState = f $ theTCState st }
 
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.

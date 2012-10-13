@@ -105,7 +105,7 @@ runAgda = do
 
           interaction :: TCM (Maybe Interface) -> TCM ()
           interaction | i         = runIM . interactionLoop
-                      | ghci      = (failIfInt (liftIO mimicGHCi) =<<)
+                      | ghci      = (failIfInt mimicGHCi =<<)
                       | compile   = (MAlonzo.compilerMain =<<) . (failIfNoInt =<<)
                       | epic      = (Epic.compilerMain    =<<) . (failIfNoInt =<<)
                       | js        = (JS.compilerMain      =<<) . (failIfNoInt =<<)

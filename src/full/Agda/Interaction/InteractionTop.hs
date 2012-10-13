@@ -130,7 +130,7 @@ initCommandState = CommandState
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
 newtype CommandM a = CommandM { unCommandM :: StateT CommandState TCM a }
-    deriving (Monad, Functor, MonadState CommandState)
+    deriving (Monad, MonadIO, Functor, MonadState CommandState, MonadError TCErr)
 
 -- | Wrapped 'runStateT' for 'CommandM'.
 
@@ -232,62 +232,103 @@ ioTCMState :: FilePath
          --   but stPersistent may change (which contains successfully
          --   loaded interfaces for example).
 
-ioTCMState current highlighting cmd st@(InteractionState theTCState cstate) = infoOnException st $ do
+ioTCMState current highlighting cmd (InteractionState theTCState cstate) = do
 
-  current <- absolute current
+    x <- runTCM $ do
+        put theTCState
+        ((), cstate)  <- (`runCommandM` cstate) $ runInteraction current highlighting cmd
+        theTCState <- get
+        return $ InteractionState theTCState cstate
+    case x of
+        Right x -> return x
+        Left _  -> __IMPOSSIBLE__  -- not possible, 'runInteraction' these kind of errors
 
-  -- Run the computation.
-  r <- runTCM $ catchError (do
-           put theTCState
-           (x, cstate)  <- (`runCommandM` cstate) $ liftCommandMT (withEnv (initEnv
-                            { envEmacs             = True
-                            , envHighlightingLevel = highlighting
-                            })) $ do
-                   case independence cmd of
-                     Dependent             -> ensureFileLoaded current
-                     Independent Nothing   ->
-                       -- Make sure that the include directories have
-                       -- been set.
-                       setCommandLineOptions' =<< liftCommandM commandLineOptions
-                     Independent (Just is) -> liftCommandM $ do
-                       ex <- liftIO $ doesFileExist $ filePath current
-                       setIncludeDirs is $
-                         if ex then ProjectRoot current else CurrentDir
 
-                   command cmd
+-- | Run an 'Interaction' value, catch the exceptions, emit output
 
-           theTCState <- get
-           return (Right (x, InteractionState theTCState cstate))
-         ) (\e -> do
-           pers <- gets stPersistent
-           s    <- prettyError e
-           return (Left (pers, s, e))
-         )
+runInteraction :: FilePath
+         -- ^ The current file. If this file does not match
+         -- 'theCurrentFile, and the 'Interaction' is not
+         -- \"independent\", then an error is raised.
+      -> HighlightingLevel
+      -> Interaction
+         -- ^ What to do
+      -> CommandM ()
+         -- ^ If an error happens this is the same as the old state,
+         --   but stPersistent may change (which contains successfully
+         --   loaded interfaces for example).
 
-  case r of
-    Right (Right (m, st@(InteractionState theTCState cstate))) -> do
-        case theCurrentFile cstate of
-          Just (f, _) | f === current ->
-            liftIO $ putResponseIO st $ Resp_InteractionPoints $ theInteractionPoints cstate
-          _ -> return ()
-        return st
+runInteraction current highlighting cmd
+    = handleNastyErrors $ liftCommandMT (withEnv (initEnv
+            { envEmacs             = True
+            , envHighlightingLevel = highlighting
+            })) $ do
+        current <- liftIO $ absolute current
 
-    Right (Left (pers, s, e)) ->
-        handErr e (theTCState { stPersistent = pers }) (Just s) s
+        theTCState <- liftCommandM get
+        cstate <- get
 
-    Left e ->
-        handErr e theTCState Nothing (tcErrString e)
- where
+        let putResponseIO = stInteractionOutputCallback theTCState
 
- -- If an error was encountered, display an error message.
- handErr e theTCState s s' =
-   displayError st status (getRange e) s'
-   where
-   st     = InteractionState theTCState cstate
-   status = Status { sChecked               = False
-                   , sShowImplicitArguments =
-                       optShowImplicit $ stPragmaOptions theTCState
-                   }
+        r <- catchError (do
+               case independence cmd of
+                 Dependent             -> ensureFileLoaded current
+                 Independent Nothing   ->
+                   -- Make sure that the include directories have
+                   -- been set.
+                   setCommandLineOptions' =<< liftCommandM commandLineOptions
+                 Independent (Just is) -> do
+                   ex <- liftIO $ doesFileExist $ filePath current
+                   liftCommandM $ setIncludeDirs is $
+                     if ex then ProjectRoot current else CurrentDir
+
+               command cmd
+
+               return (Right ())
+             ) (return . Left)
+
+        case r of
+            Right () -> do
+                cstate <- get
+                case theCurrentFile cstate of
+                  Just (f, _) | f === current -> do
+                    liftIO $ putResponseIO $ Resp_InteractionPoints $ theInteractionPoints cstate
+                  _ -> return ()
+
+            Left e -> do
+                s <- liftCommandM $ do
+                   pers <- gets stPersistent
+                   put $ theTCState { stPersistent = pers }
+                   prettyError e
+                put cstate
+                x <- liftCommandM $ gets $ optShowImplicit . stPragmaOptions
+                let
+                 status = Status { sChecked               = False
+                                 , sShowImplicitArguments = x
+                                 }
+                mapM_ (liftIO . putResponseIO) $ displayError status (getRange e) s
+
+
+-- | Handle nasty errors like stack space overflow (issue 637)
+-- We assume that the input action handles other kind of errors.
+
+handleNastyErrors :: CommandM () -> CommandM ()
+handleNastyErrors m = do
+    theTCState <- liftCommandM get
+    cstate <- get
+    let st = InteractionState theTCState cstate
+    (InteractionState theTCState cstate) <- liftIO $ infoOnException st $ do
+        x <- runTCM $ do
+            put theTCState
+            ((), cstate)  <- m `runCommandM` cstate
+            theTCState <- get
+            return $ InteractionState theTCState cstate
+        case x of
+            Right x -> return x
+            Left _  -> __IMPOSSIBLE__   -- should be handled by 'm' already
+    liftCommandM $ put theTCState
+    put cstate
+
 
 -- | @cmd_load m includes@ loads the module in file @m@, using
 -- @includes@ as the include directories.
@@ -956,12 +997,10 @@ toggleImplicitArgs = interaction Dependent $ do
 -- | Displays an error and instructs Emacs to jump to the site of the
 -- error. Because this function may switch the focus to another file
 -- the status information is also updated.
-displayError st status r s = do
-  mapM_ (putResponseIO st) $
+displayError status r s =
     [ Resp_DisplayInfo $ Info_Error s ] ++
     tellEmacsToJumpToError r ++
     [ Resp_Status status ]
-  return st
 
 -- | Outermost error handler.
 
@@ -971,15 +1010,16 @@ infoOnException st m =
       displayErr noRange (show e))
     `E.catch` \(e :: E.SomeException) -> do
       displayErr noRange (show e)
-      E.throw e
   where
-  displayErr = displayError st (Status
-    { sChecked               = False
-    , sShowImplicitArguments = False
-      -- Educated guess... This field is not important, so it does not
-      -- really matter if it is displayed incorrectly when an
-      -- unexpected error has occurred.
-    })
+  displayErr r s = do
+    mapM_ (putResponseIO st) $ displayError (Status
+        { sChecked               = False
+        , sShowImplicitArguments = False
+          -- Educated guess... This field is not important, so it does not
+          -- really matter if it is displayed incorrectly when an
+          -- unexpected error has occurred.
+        }) r s
+    return st
 
 -- | Raises an error if the given file is not the one currently
 -- loaded.

@@ -3,5 +3,4 @@ Agda2> (agda2-status-action "")
 (agda2-highlight-clear)
 (agda2-info-action "*Error*" "stack overflow" nil)
 (agda2-status-action "")
-Stack space overflow: current size 8 bytes.
-Use `+RTS -Ksize -RTS' to increase it.
+Agda2> 
