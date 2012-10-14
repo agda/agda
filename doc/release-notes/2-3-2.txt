@@ -146,6 +146,39 @@ Language
 Type checking
 =============
 
+* Improved coverage checker.  The coverage checker splits on
+  arguments that have constructor or literal pattern, committing
+  to the left-most split that makes progress.
+  Consider the lookup function for vectors:
+
+    data Fin : Nat → Set where
+      zero : {n : Nat} → Fin (suc n)
+      suc  : {n : Nat} → Fin n → Fin (suc n)
+
+    data Vec (A : Set) : Nat → Set where
+      []  : Vec A zero
+      _∷_ : {n : Nat} → A → Vec A n → Vec A (suc n)
+
+    _!!_ : {A : Set}{n : Nat} → Vec A n → Fin n → A
+    (x ∷ xs) !! zero  = x
+    (x ∷ xs) !! suc i = xs !! i
+
+  In Agda up to 2.3.0, this definition is rejected unless we add
+  an absurd clause
+
+    [] !! ()
+
+  This is because the coverage checker committed on splitting
+  on the vector argument, even though this inevitably lead to
+  failed coverage, because a case for the empty vector [] is missing.
+
+  The improvement to the coverage checker consists on committing
+  only on splits that have a chance of covering, since all possible
+  constructor patterns are present.  Thus, Agda will now split
+  first on the Fin argument, since cases for both zero and suc are
+  present.  Then, it can split on the Vec argument, since the
+  empty vector is already ruled out by instantiating n to a suc _.
+
 * Instance arguments resolution will now consider candidates which
   still need expect arguments. For example:
 
@@ -453,7 +486,8 @@ Emacs mode
     lookup (x ∷ xs) zero = ?
     lookup (x ∷ xs) (suc i) = ?
 
-  This code is, at the time of writing, rejected by Agda.
+  This code is rejected by Agda 2.3.0, but accepted by 2.3.2 thanks
+  to improved coverage checking (see above).
 
 * The Emacs mode now presents information about which module is
   currently being type-checked.
