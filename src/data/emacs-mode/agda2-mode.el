@@ -823,11 +823,12 @@ Assumes that <clause> = {!<variables>!} is on one line."
 	(if (equal (preceding-char) ?}) (incf bracketCount))
 	(if (equal (preceding-char) ?{) (decf bracketCount)))
     (let ((p (point)))
-      (delete-region (1+ (point)) pmax)
+      (delete-region (point) pmax)
       (insert " ")
       (while (setq cl (pop newcls))
 	(insert cl)
 	(if newcls (insert " ; ")))
+      (insert " ")
       (goto-char p)))
   (agda2-load))
 
