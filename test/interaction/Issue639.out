@@ -1,0 +1,8 @@
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Type-checking*" "Checking Issue639 (Issue639.agda).\n" t)
+(agda2-info-action "*Error*" "Issue639.agda:3,11-18\nCannot postulate A with safe flag\nwhen scope checking the declaration\n  A : Set" nil)
+((last . 3) . (agda2-goto '("Issue639.agda" . 34)))
+(agda2-status-action "")
+Agda2> 

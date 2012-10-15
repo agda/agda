@@ -39,6 +39,7 @@ setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
 RTS_Issue637       = +RTS -K8 -RTS
+RTS_Issue639       = --safe
 
 # No recorded output
 $(OutFiles) : %.out : $(wildcard %.agda %.lagda) $(wildcard %.in %.in_ghci)
