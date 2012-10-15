@@ -13,6 +13,15 @@ Installation
 
 * The Emacs mode no longer depends on haskell-mode or GHCi.
 
+* Compilation of Emacs mode Lisp files.
+
+  You can now compile the Emacs mode Lisp files by running "agda-mode
+  compile". This command is run by "make install".
+
+  WARNING: If you reinstall the Agda mode without recompiling the
+  Emacs Lisp files, then Emacs may continue using the old, compiled
+  files.
+
 Pragmas and Options
 ===================
 
