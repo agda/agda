@@ -78,7 +78,7 @@ library
                     xhtml == 3000.2.*,
                     hashable >= 1.1.2.3 && < 1.2,
                     hashtables == 1.0.*,
-                    geniplate >= 0.6.0.3,
+                    geniplate >= 0.6.0.3 && < 0.7,
                     parallel < 3.3,
                     deepseq == 1.3.*
 
