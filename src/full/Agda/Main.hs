@@ -37,6 +37,7 @@ import Agda.Interaction.GhcTop (mimicGHCi)
 import Agda.Interaction.GhciTop ()      -- to make sure it compiles
 import qualified Agda.Interaction.Imports as Imp
 import qualified Agda.Interaction.Highlighting.Dot as Dot
+import qualified Agda.Interaction.Highlighting.LaTeX as LaTeX
 import Agda.Interaction.Highlighting.HTML
 
 import Agda.TypeChecker
@@ -135,6 +136,9 @@ runAgda = do
 
           whenM (isJust . optDependencyGraph <$> commandLineOptions) $
             Dot.generateDot $ i
+
+          whenM (optGenerateLaTeX <$> commandLineOptions) $
+            LaTeX.generateLaTeX (iModuleName i) (iHighlighting i)
 
           return result
 

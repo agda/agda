@@ -42,6 +42,7 @@ data-files:         Agda.css
                     EpicInclude/AgdaPrelude.e
                     EpicInclude/stdagda.c
                     EpicInclude/stdagda.h
+                    agda.sty
 
 source-repository head
   type:     darcs
@@ -80,7 +81,8 @@ library
                     hashtables == 1.0.*,
                     geniplate >= 0.6.0.3 && < 0.7,
                     parallel < 3.3,
-                    deepseq == 1.3.*
+                    deepseq == 1.3.*,
+                    text == 0.11.*
 
   if impl(ghc < 7.6)
     build-depends:  old-time >= 1.0 && < 1.2,
@@ -141,6 +143,7 @@ library
                     Agda.Interaction.Highlighting.Precise
                     Agda.Interaction.Highlighting.Range
                     Agda.Interaction.Highlighting.Vim
+                    Agda.Interaction.Highlighting.LaTeX
                     Agda.Interaction.Imports
                     Agda.Interaction.Response
                     Agda.Interaction.MakeCase

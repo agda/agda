@@ -34,6 +34,20 @@ callCompiler
      -- ^ Command-line arguments.
   -> TCM ()
 callCompiler cmd args = do
+  merrors <- callCompiler' cmd args
+  case merrors of
+    Nothing     -> return ()
+    Just errors -> typeError (CompilationError errors)
+
+-- | Generalisation of @callCompiler@ where the raised exception is
+-- returned.
+callCompiler'
+  :: FilePath
+     -- ^ The path to the compiler
+  -> [String]
+     -- ^ Command-line arguments.
+  -> TCM (Maybe String)
+callCompiler' cmd args = do
   reportSLn "" 1 $ "Calling: " ++ intercalate " " (cmd : args)
   (_, out, err, p) <-
     liftIO $ createProcess
@@ -63,6 +77,7 @@ callCompiler cmd args = do
     -- process.
     E.evaluate (length errors)
     waitForProcess p
+
   case exitcode of
-    ExitFailure _ -> typeError (CompilationError errors)
-    _             -> return ()
+    ExitFailure _ -> return $ Just errors
+    _             -> return Nothing

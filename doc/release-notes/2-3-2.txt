@@ -541,3 +541,85 @@ Emacs mode
   WARNING: If you reinstall the Agda mode without recompiling the
   Emacs Lisp files, then Emacs may continue using the old, compiled
   files.
+
+LaTeX-backend
+-------------
+
+An experimental LaTeX-backend which does precise highlighting a la the
+HTML-backend and code alignment a la lhs2TeX has been added.
+
+Here is a sample input literate Agda file:
+
+  \documentclass{article}
+
+  \usepackage{agda}
+
+  \begin{document}
+
+  The following module declaration will be hidden in the output.
+
+  \AgdaHide{
+  \begin{code}
+  module M where
+  \end{code}
+  }
+
+  Two or more spaces can be used to make the backend align stuff.
+
+  \begin{code}
+  data ℕ : Set where
+    zero  : ℕ
+    suc   : ℕ → ℕ
+
+  _+_ : ℕ → ℕ → ℕ
+  zero   + n = n
+  suc m  + n = suc (m + n)
+  \end{code}
+
+  \end{document}
+
+To produce an output PDF issue the following commands:
+
+  agda --latex -i . <file>.lagda
+  pdflatex latex/<file>.tex
+
+Only the top-most module is processed, like with lhs2tex and unlike with
+the HTML-backend. If you want to process imported modules you have to
+call agda --latex manually on each of those modules.
+
+There are still issues related to formatting, see the bug tracker for
+more information:
+
+  https://code.google.com/p/agda/issues/detail?id=697
+
+The default agda.sty might therefore change in backwards-incompatible
+ways, as work proceeds in trying to resolve those problems.
+
+
+Implemented features:
+
+  * Two or more spaces can be used to force alignment of things, like
+    with lhs2tex. See example above.
+
+  * The highlighting information produced by the typechecker is used to
+    generate the output. For example, the data declaration in the example
+    above, produces:
+
+      \AgdaKeyword{data} \AgdaDatatype{ℕ} \AgdaSymbol{:}
+          \AgdaPrimitiveType{Set} \AgdaKeyword{where}
+
+    These latex commands are defined in agda.sty (which is imported by
+    \usepackage{agda}) and cause the highlighting.
+
+  * The latex-backend checks if agda.sty is found by the latex
+    environment, if it isn't a default agda.sty is copied from Agda's
+    data-dir into the working directory (and thus made available to the
+    latex environment).
+
+    If the default agda.sty isn't satisfactory (colours, fonts, spacing,
+    etc) then the user can modify it and make put it somewhere where the
+    latex environment can find it. Hopefully most aspects should be
+    modifiable via agda.sty rather than having to tweak the
+    implementation.
+
+  * --latex-dir can be used to change the default output directory.

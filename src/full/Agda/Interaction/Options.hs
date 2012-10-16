@@ -66,12 +66,14 @@ data CommandLineOptions =
             , optJSCompile            :: Bool
             , optCompileDir           :: Maybe FilePath
               -- ^ In the absence of a path the project root is used.
-            , optGenerateVimFile      :: Bool
-            , optGenerateHTML         :: Bool
-            , optDependencyGraph      :: Maybe FilePath
-            , optHTMLDir              :: FilePath
-            , optCSSFile              :: Maybe FilePath
-            , optIgnoreInterfaces     :: Bool
+	    , optGenerateVimFile      :: Bool
+            , optGenerateLaTeX        :: Bool
+	    , optGenerateHTML         :: Bool
+	    , optDependencyGraph      :: Maybe FilePath
+	    , optLaTeXDir             :: FilePath
+	    , optHTMLDir              :: FilePath
+	    , optCSSFile              :: Maybe FilePath
+	    , optIgnoreInterfaces     :: Bool
             , optForcing              :: Bool
             , optGhcFlags             :: [String]
             , optPragmaOptions        :: PragmaOptions
@@ -143,12 +145,14 @@ defaultOptions =
             , optEpicCompile          = False
             , optJSCompile            = False
             , optCompileDir           = Nothing
-            , optGenerateVimFile      = False
-            , optGenerateHTML         = False
-            , optDependencyGraph      = Nothing
-            , optHTMLDir              = defaultHTMLDir
-            , optCSSFile              = Nothing
-            , optIgnoreInterfaces     = False
+	    , optGenerateVimFile      = False
+            , optGenerateLaTeX        = False
+	    , optGenerateHTML         = False
+	    , optDependencyGraph      = Nothing
+	    , optLaTeXDir             = defaultLaTeXDir
+	    , optHTMLDir              = defaultHTMLDir
+	    , optCSSFile              = Nothing
+	    , optIgnoreInterfaces     = False
             , optForcing              = True
             , optGhcFlags             = []
             , optPragmaOptions        = defaultPragmaOptions
@@ -177,6 +181,10 @@ defaultPragmaOptions = PragmaOptions
   , optWithoutK                  = False
   , optCopatterns                = False
   }
+
+-- | The default output directory for LaTeX.
+
+defaultLaTeXDir = "latex"
 
 -- | The default output directory for HTML.
 
@@ -210,6 +218,8 @@ checkOpts opts
                    , not . optUniverseCheck . p
                    ]) =
       Left "Cannot have both universe polymorphism and type in type.\n"
+  | not (atMostOne $ interactive ++ [optGenerateLaTeX]) =
+      Left "Choose at most one: --latex/--interactive/--interaction.\n"
   | (not . null . optEpicFlags $ opts)
       && not (optEpicCompile opts) =
       Left "Cannot set Epic flags without using the Epic backend.\n"
@@ -265,6 +275,8 @@ showIrrelevantFlag           o = return $ o { optShowIrrelevant            = Tru
 runTestsFlag                 o = return $ o { optRunTests                  = True  }
 ghciInteractionFlag          o = return $ o { optGHCiInteraction           = True  }
 vimFlag                      o = return $ o { optGenerateVimFile           = True  }
+latexFlag                    o = return $ o { optGenerateLaTeX             = True  }
+latexDirFlag               d o = return $ o { optLaTeXDir                  = d     }
 noPositivityFlag             o = return $ o { optDisablePositivity         = True  }
 dontTerminationCheckFlag     o = return $ o { optTerminationCheck          = False }
 dontCompletenessCheckFlag    o = return $ o { optCompletenessCheck         = False }
@@ -342,6 +354,11 @@ standardOptions =
 		    "run internal test suite"
     , Option []	    ["vim"] (NoArg vimFlag)
 		    "generate Vim highlighting files"
+    , Option []	    ["latex"] (NoArg latexFlag)
+                    "generate LaTeX with highlighted source code"
+    , Option []	    ["latex-dir"] (ReqArg latexDirFlag "DIR")
+                    ("directory in which LaTeX files are placed (default: " ++
+                     defaultLaTeXDir ++ ")")
     , Option []	    ["html"] (NoArg htmlFlag)
 		    "generate HTML files with highlighted source code"
     , Option []	    ["dependency-graph"] (ReqArg dependencyGraphFlag "FILE")
