@@ -37,6 +37,7 @@ import System.Exit
 
 import Agda.TypeChecker
 import Agda.TypeChecking.Monad as TM hiding (initState, setCommandLineOptions)
+import qualified Agda.TypeChecking.Monad as TM (initState)
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
@@ -62,6 +63,21 @@ import Agda.Interaction.Response
 import Agda.Utils.Impossible
 
 ------------------------------------------
+
+-- | Main state of an interactive computation.
+
+data InteractionState = InteractionState
+    { theTCState      :: TCState
+    , theCommandState :: CommandState
+    }
+
+-- | Initial interaction state
+
+initState :: InteractionState
+initState = InteractionState
+    { theTCState      = TM.initState
+    , theCommandState = initCommandState
+    }
 
 -- | The global state is needed only for the GHCi backend.
 

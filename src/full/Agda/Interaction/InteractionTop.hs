@@ -68,21 +68,6 @@ import Agda.Utils.Impossible
 
 ------------------------------------------
 
--- | Main state of an interactive computation.
-
-data InteractionState = InteractionState
-    { theTCState      :: TCState
-    , theCommandState :: CommandState
-    }
-
--- | Initial interaction state
-
-initState :: InteractionState
-initState = InteractionState
-    { theTCState      = TM.initState
-    , theCommandState = initCommandState
-    }
-
 -- | Auxiliary state of an interactive computation.
 
 data CommandState = CommandState
