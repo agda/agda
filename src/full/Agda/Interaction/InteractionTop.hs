@@ -169,13 +169,6 @@ data Interaction = Interaction
 interaction :: Independence -> CommandM a -> Interaction
 interaction dep a = Interaction dep $ a >> return Nothing
 
--- | Is the command independent?
-
-isIndependent :: Interaction -> Bool
-isIndependent i = case independence i of
-  Independent {} -> True
-  Dependent   {} -> False
-
 {- UNUSED
 
 -- | Changes the 'Interaction' so that its first action is to turn off
