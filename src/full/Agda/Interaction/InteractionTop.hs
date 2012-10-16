@@ -123,12 +123,9 @@ initCommandState = CommandState
 
 -- | Monad for computing answers to interactive commands.
 --
---   'CommandM' is a state monad with state 'InteractionState'.
+--   'CommandM' is 'TCM' extended with state 'CommandState'.
 --
---   The actual implementation of 'CommandM' adds the two componets of 'InteractionState',
---   'TCState' and 'CommandState' separately ('TCM' contains the 'TCState' part).
---
---   The 'StateT' monad is in a newtype wrapper we would like to prevent
+--   'StateT' is in a newtype wrapper because we would like to prevent
 --   the accidental use of 'lift'.
 --   Instead of 'lift' one can use 'liftCommandM', see below.
 
