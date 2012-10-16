@@ -167,13 +167,6 @@ putResponse x = liftCommandM $ do
     outf <- gets stInteractionOutputCallback
     liftIO $ outf x
 
--- | Like 'putResponse' but put a response given an 'InteractionState' in the 'IO' monad.
-
-putResponseIO :: InteractionState -> Response -> IO ()
-putResponseIO (InteractionState theTCState cstate) r
-    = stInteractionOutputCallback theTCState r
-
-
 -- | An interactive computation.
 
 data Interaction = Interaction
@@ -280,16 +273,32 @@ handleNastyErrors :: CommandM () -> CommandM ()
 handleNastyErrors m = do
     theTCState <- liftCommandM get
     cstate <- get
-    let st = InteractionState theTCState cstate
-    (InteractionState theTCState cstate) <- liftIO $ infoOnException st $ do
-        x <- runTCM $ do
-            put theTCState
-            ((), cstate)  <- m `runCommandM` cstate
-            theTCState <- get
-            return $ InteractionState theTCState cstate
-        case x of
-            Right x -> return x
-            Left _  -> __IMPOSSIBLE__   -- should be handled by 'm' already
+
+    let io = do
+            x <- runTCM $ do
+                put theTCState
+                ((), cstate)  <- m `runCommandM` cstate
+                theTCState <- get
+                return (theTCState, cstate)
+            case x of
+                Right x -> return x
+                Left _  -> __IMPOSSIBLE__   -- should be handled by 'm' already
+
+    let displayErr r s = do
+          mapM_ (stInteractionOutputCallback theTCState) $ displayError (Status
+            { sChecked               = False
+            , sShowImplicitArguments = False
+              -- Educated guess... This field is not important, so it does not
+              -- really matter if it is displayed incorrectly when an
+              -- unexpected error has occurred.
+            }) r s
+          return (theTCState, cstate)
+
+    (theTCState, cstate) <- liftIO $
+      (failOnException displayErr io
+        `catchImpossible` \e -> displayErr noRange (show e))
+        `E.catch` \(e :: E.SomeException) -> displayErr noRange (show e)
+
     liftCommandM $ put theTCState
     put cstate
 
@@ -966,25 +975,6 @@ displayError status r s =
     [ Resp_DisplayInfo $ Info_Error s ] ++
     tellEmacsToJumpToError r ++
     [ Resp_Status status ]
-
--- | Outermost error handler.
-
-infoOnException st m =
-  (failOnException displayErr m
-    `catchImpossible` \e ->
-      displayErr noRange (show e))
-    `E.catch` \(e :: E.SomeException) -> do
-      displayErr noRange (show e)
-  where
-  displayErr r s = do
-    mapM_ (putResponseIO st) $ displayError (Status
-        { sChecked               = False
-        , sShowImplicitArguments = False
-          -- Educated guess... This field is not important, so it does not
-          -- really matter if it is displayed incorrectly when an
-          -- unexpected error has occurred.
-        }) r s
-    return st
 
 -- | Raises an error if the given file is not the one currently
 -- loaded.
