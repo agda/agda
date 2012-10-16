@@ -361,7 +361,7 @@ data SizeExpr
 
 instance Show SizeExpr where
   show (SizeMeta m _) = "X" ++ show (fromIntegral m :: Int)
-  show (Rigid i)      = "c" ++ show (fromIntegral i :: Int)
+  show (Rigid i)      = "c" ++ show i
 
 -- | Size constraints we can solve.
 data SizeConstraint
@@ -525,7 +525,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i < ar
 
       mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
-      mkNode (Rigid i)      = W.Rigid $ W.RVar $ fromIntegral i
+      mkNode (Rigid i)      = W.Rigid $ W.RVar i
       mkNode (SizeMeta m _) = W.Flex $ fromIntegral m
 
       found (m, _) = elem m $ map fst metas0
