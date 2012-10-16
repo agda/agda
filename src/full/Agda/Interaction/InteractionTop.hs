@@ -285,7 +285,7 @@ cmd_load' :: FilePath -> [FilePath]
           -> Interaction
 cmd_load' file includes unsolvedOK cmd =
   interaction Independent $ do
-    f <- liftCommandM $ liftIO $ absolute file
+    f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
     liftCommandM $ setIncludeDirs includes $
       if ex then ProjectRoot f else CurrentDir
@@ -295,7 +295,7 @@ cmd_load' file includes unsolvedOK cmd =
                        , theCurrentFile       = Nothing
                        }
 
-    t <- liftCommandM $ liftIO $ getModificationTime file
+    t <- liftIO $ getModificationTime file
 
     -- All options (except for the verbosity setting) are reset when a
     -- file is reloaded, including the choice of whether or not to
@@ -329,7 +329,7 @@ cmd_load' file includes unsolvedOK cmd =
     -- The module type checked. If the file was not changed while the
     -- type checker was running then the interaction points and the
     -- "current file" are stored.
-    t' <- liftCommandM $ liftIO $ getModificationTime file
+    t' <- liftIO $ getModificationTime file
     when (t == t') $ do
       is <- liftCommandM $ sortInteractionPoints =<< getInteractionPoints
       modify $ \st -> st { theInteractionPoints = is
@@ -338,7 +338,7 @@ cmd_load' file includes unsolvedOK cmd =
 
     cmd ok
 
-    liftCommandM $ liftIO System.performGC
+    liftIO System.performGC
 
 -- | Available backends.
 
@@ -815,7 +815,7 @@ parseAndDoAtToplevel
      -- ^ The expression to parse.
   -> Interaction
 parseAndDoAtToplevel cmd title s = interaction Dependent $ do
-  e <- liftCommandM $ liftIO $ parse exprParser s
+  e <- liftIO $ parse exprParser s
   display_info . title =<<
     liftCommandM (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
 
