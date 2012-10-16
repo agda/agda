@@ -16,6 +16,8 @@ Usage: agda [OPTIONS...] [FILE]
           --epic-flag=EPIC-FLAG                       give the flag EPIC-FLAG to Epic when compiling using Epic
           --test                                      run internal test suite
           --vim                                       generate Vim highlighting files
+          --latex                                     generate LaTeX with highlighted source code
+          --latex-dir=DIR                             directory in which LaTeX files are placed (default: latex)
           --html                                      generate HTML files with highlighted source code
           --dependency-graph=FILE                     generate a Dot file with a module dependency graph
           --html-dir=DIR                              directory in which HTML files are placed (default: html)
