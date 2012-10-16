@@ -78,13 +78,13 @@ theState = unsafePerformIO $ newIORef $ InteractionState
     { theTCState      = initState { stInteractionOutputCallback = emacsFormat }
     , theCommandState = initCommandState
     }
+  where
+    -- | Convert the response (to an interactive command)
+    --   to elisp expressions suitable for the interactive emacs frontend
+    --   and print it to stdout.
 
--- | Convert the response (to an interactive command)
---   to elisp expressions suitable for the interactive emacs frontend
---   and print it to stdout.
-
-emacsFormat :: Response -> IO ()
-emacsFormat = Emacs.putResponse <=< lispifyResponse
+    emacsFormat :: Response -> IO ()
+    emacsFormat = Emacs.putResponse <=< lispifyResponse
 
 
 -- | Run a TCM computation in the current state. Should only
