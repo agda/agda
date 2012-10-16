@@ -90,7 +90,10 @@ the root of the current project."
   :group 'agda2)
 
 (defcustom agda2-program-args nil
-  "Command-line arguments given to the Agda executable.
+  "Command-line arguments given to the Agda executable (one per string).
+
+Note: Do not give several arguments in the same string.
+
 The flag \"--interaction\" is always included as the first
 argument, and does not need to be listed here."
   :type '(repeat string)
