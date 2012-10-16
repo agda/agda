@@ -90,11 +90,8 @@ data CommandState = CommandState
 --   into the state?
 
 data Independence
-  = Independent (Maybe [FilePath])
-    -- ^ Yes. If the argument is @'Just' is@, then @is@ is used as the
-    -- command's include directories.
-  | Dependent
-    -- No.
+  = Independent -- ^ Yes.
+  | Dependent   -- ^ No.
 
 -- | Initial auxiliary interaction state
 
@@ -208,15 +205,8 @@ runInteraction current highlighting cmd
 
         r <- catchError (do
                case independence cmd of
-                 Dependent             -> ensureFileLoaded current
-                 Independent Nothing   ->
-                   -- Make sure that the include directories have
-                   -- been set.
-                   setCommandLineOptions' =<< liftCommandM commandLineOptions
-                 Independent (Just is) -> do
-                   ex <- liftIO $ doesFileExist $ filePath current
-                   liftCommandM $ setIncludeDirs is $
-                     if ex then ProjectRoot current else CurrentDir
+                 Dependent    -> ensureFileLoaded current
+                 Independent  -> return ()
 
                command cmd
 
@@ -297,13 +287,17 @@ cmd_load' :: FilePath -> [FilePath]
           -> ((Interface, Maybe Warnings) -> CommandM ())
           -> Interaction
 cmd_load' file includes unsolvedOK cmd =
-  Interaction (Independent (Just includes)) $ do
+  interaction Independent $ do
+    f <- liftCommandM $ liftIO $ absolute file
+    ex <- liftIO $ doesFileExist $ filePath f
+    liftCommandM $ setIncludeDirs includes $
+      if ex then ProjectRoot f else CurrentDir
+
     -- Forget the previous "current file" and interaction points.
     modify $ \st -> st { theInteractionPoints = []
                        , theCurrentFile       = Nothing
                        }
 
-    f <- liftCommandM $ liftIO $ absolute file
     t <- liftCommandM $ liftIO $ getModificationTime file
 
     -- All options (except for the verbosity setting) are reset when a
@@ -870,7 +864,11 @@ cmd_compute_toplevel ignore =
 
 cmd_load_highlighting_info :: FilePath -> Interaction
 cmd_load_highlighting_info source =
-  interaction (Independent Nothing) $ do
+  interaction Independent $ do
+    -- Make sure that the include directories have
+    -- been set.
+    setCommandLineOptions' =<< liftCommandM commandLineOptions
+
     resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
       ex <- liftIO $ doesFileExist source
       case ex of
