@@ -244,7 +244,7 @@ ioTCMState current highlighting cmd (InteractionState theTCState cstate) = do
         return $ InteractionState theTCState cstate
     case x of
         Right x -> return x
-        Left _  -> __IMPOSSIBLE__  -- not possible, 'runInteraction' these kind of errors
+        Left _  -> __IMPOSSIBLE__  -- not possible, 'runInteraction' handles these kind of errors
 
 
 -- | Run an 'Interaction' value, catch the exceptions, emit output
@@ -257,7 +257,7 @@ runInteraction :: FilePath
       -> Interaction
          -- ^ What to do
       -> CommandM ()
-         -- ^ If an error happens this is the same as the old state,
+         -- ^ If an error happens the state of 'CommandM' does not change,
          --   but stPersistent may change (which contains successfully
          --   loaded interfaces for example).
 
