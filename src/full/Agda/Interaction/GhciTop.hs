@@ -36,8 +36,7 @@ import Control.Monad.State
 import System.Exit
 
 import Agda.TypeChecker
-import Agda.TypeChecking.Monad as TM hiding (initState, setCommandLineOptions)
-import qualified Agda.TypeChecking.Monad as TM (initState)
+import Agda.TypeChecking.Monad
 import Agda.TypeChecking.MetaVars
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Errors
@@ -71,19 +70,14 @@ data InteractionState = InteractionState
     , theCommandState :: CommandState
     }
 
--- | Initial interaction state
-
-initState :: InteractionState
-initState = InteractionState
-    { theTCState      = TM.initState { stInteractionOutputCallback = emacsFormat }
-    , theCommandState = initCommandState
-    }
-
 -- | The global state is needed only for the GHCi backend.
 
 {-# NOINLINE theState #-}
 theState :: IORef InteractionState
-theState = unsafePerformIO $ newIORef initState
+theState = unsafePerformIO $ newIORef $ InteractionState
+    { theTCState      = initState { stInteractionOutputCallback = emacsFormat }
+    , theCommandState = initCommandState
+    }
 
 -- | Convert the response (to an interactive command)
 --   to elisp expressions suitable for the interactive emacs frontend
