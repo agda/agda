@@ -135,6 +135,37 @@ ioTCM current highlighting cmd = do
   writeIORef theState state
 
 
+-- | Similar to 'ioTCM' but with explicit state
+
+ioTCMState :: FilePath
+         -- ^ The current file. If this file does not match
+         -- 'theCurrentFile, and the 'Interaction' is not
+         -- \"independent\", then an error is raised.
+      -> HighlightingLevel
+      -> Interaction
+         -- ^ What to do
+      -> InteractionState
+         -- ^ Old state
+      -> IO InteractionState
+         -- ^ New state.
+         --   If an error happens this is the same as the old state,
+         --   but stPersistent may change (which contains successfully
+         --   loaded interfaces for example).
+
+ioTCMState current highlighting cmd (InteractionState theTCState cstate) = do
+
+    x <- runTCM $ do
+        put theTCState
+        ((), cstate)  <- (`runCommandM` cstate) $ runInteraction current highlighting cmd
+        theTCState <- get
+        return $ InteractionState theTCState cstate
+    case x of
+        Right x -> return x
+        Left _  -> __IMPOSSIBLE__  -- not possible, 'runInteraction' handles these kind of errors
+
+
+
+
 -- Helpers for testing ----------------------------------------------------
 
 getCurrentFile :: IO FilePath
