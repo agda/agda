@@ -1,9 +1,10 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, PatternGuards #-}
 module Agda.TypeChecking.SizedTypes where
 
 import Control.Monad.Error
 import Control.Monad
 
+import Data.Function
 import Data.List
 import qualified Data.Map as Map
 
@@ -28,6 +29,7 @@ import Agda.Utils.Maybe
 import Agda.Utils.Monad
 import Agda.Utils.Impossible
 import Agda.Utils.Size
+import Agda.Utils.Tuple
 import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
@@ -299,16 +301,11 @@ isSizeConstraint _ = return False
 getSizeConstraints :: TCM [Closure Constraint]
 getSizeConstraints = do
   cs   <- getAllConstraints
-  size <- sizeType
-  let sizeConstraints cl@(Closure{ clValue = ValueCmp CmpLeq s _ _ })
-        | s == size = [cl]
-      sizeConstraints _ = []
-  return $ concatMap (sizeConstraints . theConstraint) cs
-
-computeSizeConstraints :: [Closure Constraint] -> TCM [SizeConstraint]
-computeSizeConstraints cs =  do
-  scs <- mapM computeSizeConstraint cs
-  return [ c | Just c <- scs ]
+  test <- isSizeTypeTest
+  let sizeConstraint cl@Closure{ clValue = ValueCmp CmpLeq s _ _ }
+              | isJust (test s) = Just cl
+      sizeConstraint _ = Nothing
+  return $ mapMaybe (sizeConstraint . theConstraint) cs
 
 getSizeMetas :: TCM [(MetaId, Int)]
 getSizeMetas = do
@@ -356,16 +353,20 @@ getSizeMetas = do
   return (concat mss, concat css)
 -}
 
-data SizeExpr = SizeMeta MetaId [CtxId]
-              | Rigid CtxId
+-- | Atomic size expressions.
+data SizeExpr
+  = SizeMeta MetaId [Int] -- ^ A size meta applied to de Bruijn levels.
+  | Rigid Int             -- ^ A de Bruijn level.
   deriving (Eq)
-
--- Leq a n b = (a =< b + n)
-data SizeConstraint = Leq SizeExpr Int SizeExpr
 
 instance Show SizeExpr where
   show (SizeMeta m _) = "X" ++ show (fromIntegral m :: Int)
-  show (Rigid i) = "c" ++ show (fromIntegral i :: Int)
+  show (Rigid i)      = "c" ++ show (fromIntegral i :: Int)
+
+-- | Size constraints we can solve.
+data SizeConstraint
+  = Leq SizeExpr Int SizeExpr -- ^ @Leq a +n b@ represents @a =< b + n@.
+                              --   @Leq a -n b@ represents @a + n =< b@.
 
 instance Show SizeConstraint where
   show (Leq a n b)
@@ -373,10 +374,30 @@ instance Show SizeConstraint where
     | n > 0     = show a ++ " =< " ++ show b ++ " + " ++ show n
     | otherwise = show a ++ " + " ++ show (-n) ++ " =< " ++ show b
 
-computeSizeConstraint :: Closure Constraint -> TCM (Maybe SizeConstraint)
-computeSizeConstraint cl =
-  enterClosure cl $ \c ->
-    case c of
+-- | Compute a set of size constraints that all live in the same context
+--   from constraints over terms of type size that may live in different
+--   contexts.
+--
+--   cf. 'Agda.TypeChecking.LevelConstraints.simplifyLevelConstraint'
+computeSizeConstraints :: [Closure Constraint] -> TCM [SizeConstraint]
+computeSizeConstraints [] = return [] -- special case to avoid maximum []
+computeSizeConstraints cs = do
+  scs <- mapM computeSizeConstraint leqs
+  return [ c | Just c <- scs ]
+  where
+    -- get the constraints plus contexts they are defined in
+    unClosure cl = (envContext $ clEnv cl, clValue cl)
+    (gammas, ls) = unzip $ map unClosure cs
+    -- compute the longest context (common water level)
+    gamma        = maximumBy (compare `on` size) gammas
+    waterLevel   = size gamma
+    -- convert deBruijn indices to deBruijn levels to
+    -- enable comparing constraints under different contexts
+    leqs = zipWith raise (map ((waterLevel -) . size) gammas) ls
+
+-- | Turn a constraint over de Bruijn levels into a size constraint.
+computeSizeConstraint :: Constraint -> TCM (Maybe SizeConstraint)
+computeSizeConstraint c = case c of
       ValueCmp CmpLeq _ u v -> do
           reportSDoc "tc.size.solve" 50 $ sep
             [ text "converting size constraint"
@@ -390,7 +411,9 @@ computeSizeConstraint cl =
           _            -> throwError err
       _ -> __IMPOSSIBLE__
 
--- | Throws a 'patternViolation' if the term isn't a proper size expression.
+-- | Turn a term with de Bruijn levels into a size expression with offset.
+--
+--   Throws a 'patternViolation' if the term isn't a proper size expression.
 sizeExpr :: Term -> TCM (SizeExpr, Int)
 sizeExpr u = do
   u <- reduce u -- Andreas, 2009-02-09.
@@ -398,32 +421,21 @@ sizeExpr u = do
   reportSDoc "tc.conv.size" 60 $ text "sizeExpr:" <+> prettyTCM u
   s <- sizeView u
   case s of
-    SizeSuc u -> do
-      (e, n) <- sizeExpr u
-      return (e, n + 1)
-    SizeInf -> patternViolation
+    SizeInf     -> patternViolation
+    SizeSuc u   -> mapSnd (+1) <$> sizeExpr u
     OtherSize u -> case ignoreSharing u of
-      Var i []  -> do
-        cxt <- getContextId
-        return (Rigid (cxt !!! i), 0)
-      MetaV m args
-        | all isVar args && distinct args -> do
-          cxt <- getContextId
-          return (SizeMeta m [ cxt !!! i | Arg _ _ (Var i []) <- map (fmap ignoreSharing) args ], 0)
+      Var i []  -> return (Rigid i, 0)  -- i is already a de Bruijn level.
+      MetaV m args | Just xs <- mapM isVar args, fastDistinct xs
+                -> return (SizeMeta m xs, 0)
       _ -> patternViolation
   where
     isVar v = case ignoreSharing $ unArg v of
-      Var _ [] -> True
-      _        -> False
-
-    (!!!) :: [a] -> Nat -> a
-    cxt !!! i
-      | i < length cxt = cxt !! i
-      | otherwise      = __IMPOSSIBLE__
+      Var i [] -> Just i
+      _        -> Nothing
 
 -- | Compute list of size metavariables with their arguments
 --   appearing in a constraint.
-flexibleVariables :: SizeConstraint -> [(MetaId, [CtxId])]
+flexibleVariables :: SizeConstraint -> [(MetaId, [Int])]
 flexibleVariables (Leq a _ b) = flex a ++ flex b
   where
     flex (Rigid _)       = []
@@ -458,7 +470,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
       -- Ensure that each occurrence of a meta is applied to the same
       -- arguments ("flexible variables").
-      mkMeta :: [(MetaId, [CtxId])] -> TCM (MetaId, [CtxId])
+      mkMeta :: [(MetaId, [Int])] -> TCM (MetaId, [Int])
       mkMeta ms@((m, xs) : _)
         | allEqual (map snd ms) = return (m, xs)
         | otherwise             = do
