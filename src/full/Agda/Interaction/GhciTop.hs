@@ -75,7 +75,7 @@ data InteractionState = InteractionState
 
 initState :: InteractionState
 initState = InteractionState
-    { theTCState      = TM.initState
+    { theTCState      = TM.initState { stInteractionOutputCallback = emacsFormat }
     , theCommandState = initCommandState
     }
 
@@ -83,13 +83,7 @@ initState = InteractionState
 
 {-# NOINLINE theState #-}
 theState :: IORef InteractionState
-theState = unsafePerformIO $ newIORef $ emacsOutput initState
-
--- | Redirect the output to stdout in elisp format
---   suitable for the interactive emacs frontend.
-
-emacsOutput :: InteractionState -> InteractionState
-emacsOutput (InteractionState st cs) = InteractionState (st { stInteractionOutputCallback = emacsFormat }) cs
+theState = unsafePerformIO $ newIORef initState
 
 -- | Convert the response (to an interactive command)
 --   to elisp expressions suitable for the interactive emacs frontend
@@ -145,7 +139,7 @@ ioTCM current highlighting cmd = do
   -- Read the state.
   state <- readIORef theState
 
-  let (InteractionState theTCState cstate) = emacsOutput state
+  let (InteractionState theTCState cstate) = state
   r <- runTCM $ do
       put theTCState
       ((), cstate)  <- (`runCommandM` cstate) $ runInteraction current highlighting cmd
