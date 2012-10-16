@@ -1,4 +1,3 @@
-SizedTypesScopeExtrusion.agda:28,1-42
-Cannot solve size constraints
-_size_15 =< i : Size
-when checking the definition of bla
+SizedTypesScopeExtrusion.agda:28,41-42
+∞ !=< i of type Size
+when checking that the expression x has type Nat

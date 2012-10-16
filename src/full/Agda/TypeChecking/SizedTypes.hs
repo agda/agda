@@ -449,6 +449,34 @@ haveSizedTypes = do
     optSizedTypes <$> pragmaOptions
   `catchError` \_ -> return False
 
+-- | Convert size constraint into form where each meta is applied
+--   to levels @0,1,..,n-1@ where @n@ is the arity of that meta.
+--
+--   @X[σ] <= t@ beomes @X[id] <= t[σ^-1]@
+--
+--   @X[σ] ≤ Y[τ]@ becomes @X[id] ≤ Y[τ[σ^-1]]@ or @X[σ[τ^1]] ≤ Y[id]@
+--   whichever is defined.  If none is defined, we give up.
+--
+canonicalizeSizeConstraint :: SizeConstraint -> Maybe SizeConstraint
+canonicalizeSizeConstraint c@(Leq a n b) =
+  case (a,b) of
+    (Rigid{}, Rigid{})       -> return c
+    (SizeMeta m xs, Rigid i) -> do
+      j <- findIndex (==i) xs
+      return $ Leq (SizeMeta m [0..size xs-1]) n (Rigid j)
+    (Rigid i, SizeMeta m xs) -> do
+      j <- findIndex (==i) xs
+      return $ Leq (Rigid j) n (SizeMeta m [0..size xs-1])
+    (SizeMeta m xs, SizeMeta l ys)
+         -- try to invert xs on ys
+       | Just ys' <- mapM (\ y -> findIndex (==y) xs) ys ->
+           return $ Leq (SizeMeta m [0..size xs-1]) n (SizeMeta l ys')
+         -- try to invert ys on xs
+       | Just xs' <- mapM (\ x -> findIndex (==x) ys) xs ->
+           return $ Leq (SizeMeta m xs') n (SizeMeta l [0..size ys-1])
+         -- give up
+       | otherwise -> Nothing
+
 solveSizeConstraints :: TCM ()
 solveSizeConstraints = whenM haveSizedTypes $ do
   reportSLn "tc.size.solve" 70 $ "Considering to solve size constraints"
@@ -463,6 +491,8 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 -}
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
+  cs <- return $ mapMaybe canonicalizeSizeConstraint cs
+  reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
 
   let -- Error for giving up
       cannotSolve = typeError . GenericDocError =<<
