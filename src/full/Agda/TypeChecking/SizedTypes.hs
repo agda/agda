@@ -491,6 +491,7 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 -}
   when (not (null cs) || not (null ms)) $ do
   reportSLn "tc.size.solve" 10 $ "Solving size constraints " ++ show cs
+
   cs <- return $ mapMaybe canonicalizeSizeConstraint cs
   reportSLn "tc.size.solve" 10 $ "Canonicalized constraints: " ++ show cs
 
@@ -498,8 +499,11 @@ solveSizeConstraints = whenM haveSizedTypes $ do
       cannotSolve = typeError . GenericDocError =<<
         vcat (text "Cannot solve size constraints" : map prettyTCM cs0)
 
+{- OLD, before canonicalize
+
       -- Ensure that each occurrence of a meta is applied to the same
       -- arguments ("flexible variables").
+      -- Andreas, 2012-10-16 this is now redundant
       mkMeta :: [(MetaId, [Int])] -> TCM (MetaId, [Int])
       mkMeta ms@((m, xs) : _)
         | allEqual (map snd ms) = return (m, xs)
@@ -513,6 +517,12 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
 
   let mkFlex (m, xs) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i `elem` xs
+-}
+
+  let metas0 :: [(MetaId, Int)]  -- meta id + arity
+      metas0 = nub $ map (mapSnd length) $ concatMap flexibleVariables cs
+
+      mkFlex (m, ar) = W.NewFlex (fromIntegral m) $ \i -> fromIntegral i < ar
 
       mkConstr (Leq a n b)  = W.Arc (mkNode a) n (mkNode b)
       mkNode (Rigid i)      = W.Rigid $ W.RVar $ fromIntegral i
@@ -520,9 +530,14 @@ solveSizeConstraints = whenM haveSizedTypes $ do
 
       found (m, _) = elem m $ map fst metas0
 
+      -- Compute unconstrained metas
+      metas1 = filter (not . found) ms
+
+{- OLD, before canonicalize
   -- Compute unconstrained metas
   let metas1 = map mkMeta' $ filter (not . found) ms
       mkMeta' (m, n) = (m, [0..fromIntegral n - 1])
+-}
 
   let metas = metas0 ++ metas1
 
@@ -538,7 +553,8 @@ solveSizeConstraints = whenM haveSizedTypes $ do
     Nothing  -> cannotSolve
     Just sol -> do
       reportSLn "tc.size.solve" 10 $ "Solved constraints: " ++ show sol
-      s <- primSizeSuc
+      s     <- primSizeSuc
+      infty <- primSizeInf
       let suc v = s `apply` [defaultArg v]
           plus v 0 = v
           plus v n = suc $ plus v (n - 1)
@@ -546,24 +562,28 @@ solveSizeConstraints = whenM haveSizedTypes $ do
           inst (i, e) = do
 
             let m = fromIntegral i  -- meta variable identifier
+                ar = maybe __IMPOSSIBLE__ id $ lookup m metas  -- meta var arity
 
+{- OLD
                 args = case lookup m metas of
                   Just xs -> xs
                   Nothing -> __IMPOSSIBLE__
+-}
 
-                isInf (W.SizeConst W.Infinite) = True
-                isInf _                        = False
+                term (W.SizeConst W.Infinite) = infty
+                term (W.SizeVar j n) | j < ar = plus (var $ ar - j - 1) n
+                term _                        = __IMPOSSIBLE__
 
+{- OLD
                 term (W.SizeConst (W.Finite _)) = __IMPOSSIBLE__
-                term (W.SizeConst W.Infinite) = primSizeInf
                 term (W.SizeVar j n) = case findIndex (==fromIntegral j) $ reverse args of
                   Just x -> return $ plus (var x) n
                   Nothing -> __IMPOSSIBLE__
+-}
+                lam _ v = Lam NotHidden $ Abs "s" v -- hiding does not matter
 
-                lam _ v = Lam NotHidden $ Abs "s" v
-
-            b <- term e
-            let v = foldr lam b args -- TODO: correct hiding
+                -- convert size expression to term and abstract
+                v = flip (foldr lam) [0..ar-1] $ term e
 
             reportSDoc "tc.size.solve" 20 $ sep
               [ text (show m) <+> text ":="
@@ -571,6 +591,8 @@ solveSizeConstraints = whenM haveSizedTypes $ do
               ]
 
             -- Andreas, 2012-09-25: do not assign interaction metas to \infty
+            let isInf (W.SizeConst W.Infinite) = True
+                isInf _                        = False
             unlessM (isInteractionMeta m `and2M` return (isInf e)) $
               assignTerm m v
 
