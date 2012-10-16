@@ -86,13 +86,6 @@ data CommandState = CommandState
     -- ^ Reset the options on each reload to these.
   }
 
--- | Can the command run even if the relevant file has not been loaded
---   into the state?
-
-data Independence
-  = Independent -- ^ Yes.
-  | Dependent   -- ^ No.
-
 -- | Initial auxiliary interaction state
 
 initCommandState :: CommandState
@@ -149,6 +142,13 @@ putResponse x = liftCommandM $ do
     outf <- gets stInteractionOutputCallback
     liftIO $ outf x
 
+-- | Can the command run even if the relevant file has not been loaded
+--   into the state?
+
+data Independence
+  = Independent -- ^ Yes.
+  | Dependent   -- ^ No.
+
 -- | An interactive computation.
 
 data Interaction = Interaction
@@ -156,9 +156,6 @@ data Interaction = Interaction
     -- ^ Is the command independent?
   , command :: CommandM ()
   }
-
--- | 'interaction' is similar to the 'Interaction' constructor
---   but it drops the output of the interactive action.
 
 interaction :: Independence -> CommandM () -> Interaction
 interaction = Interaction
