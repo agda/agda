@@ -157,17 +157,14 @@ putResponse x = liftCommandM $ do
 data Interaction = Interaction
   { independence :: Independence
     -- ^ Is the command independent?
-  , command :: CommandM (Maybe ModuleName)
-    -- ^ If a module name is returned, then 'ioTCM' in 'CommandM' will write out
-    -- syntax highlighting information for the given module (unless
-    -- 'ioTCM''s highlighting argument is @False@).
+  , command :: CommandM ()
   }
 
 -- | 'interaction' is similar to the 'Interaction' constructor
 --   but it drops the output of the interactive action.
 
-interaction :: Independence -> CommandM a -> Interaction
-interaction dep a = Interaction dep $ a >> return Nothing
+interaction :: Independence -> CommandM () -> Interaction
+interaction = Interaction
 
 {- UNUSED
 
@@ -286,7 +283,7 @@ handleNastyErrors m = do
 
 cmd_load :: FilePath -> [FilePath] -> Interaction
 cmd_load m includes =
-  cmd_load' m includes True $ \_ -> command cmd_metas >> return ()
+  cmd_load' m includes True $ \_ -> command cmd_metas
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.
@@ -352,8 +349,6 @@ cmd_load' file includes unsolvedOK cmd =
 
     liftCommandM $ liftIO System.performGC
 
-    return $ Just $ iModuleName (fst ok)
-
 -- | Available backends.
 
 data Backend = MAlonzo | Epic | JS
@@ -398,7 +393,7 @@ cmd_metas = interaction Dependent $ do -- CL.showMetas []
       cs <- liftCommandM B.getConstraints
       if null cs
         then display_info $ Info_AllGoals ""
-        else command cmd_constraints >> return ()
+        else command cmd_constraints
   where
     metaId (B.OfType i _) = i
     metaId (B.JustType i) = i
@@ -438,7 +433,6 @@ give_gen' give_ref mk_newtxt ii rng s = do
                            replace ii iis (theInteractionPoints st) }
   putResponse $ Resp_GiveAction ii $ mk_newtxt rng s $ abstractToConcrete (makeEnv scope) ae
   command cmd_metas
-  return ()
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
@@ -451,7 +445,6 @@ cmd_intro pmLambda ii rng _ = interaction Dependent $ do
       display_info $ Info_Intro $ text "No introduction forms found."
     [s]   -> do
       command $ cmd_refine ii rng s
-      return ()
     _:_:_ -> do
       display_info $ Info_Intro $
         sep [ text "Don't know which constructor to introduce of"
@@ -474,7 +467,7 @@ cmd_auto ii rng s = interaction Dependent $ do
       modify $ \st -> st { theInteractionPoints = filter (/= ii) (theInteractionPoints st) }
       putResponse $ Resp_GiveAction ii $ Give_String s
     case msg of
-     Nothing -> command cmd_metas >> return ()
+     Nothing -> command cmd_metas
      Just msg -> display_info $ Info_Auto msg
    Right (Left cs) -> do
     case msg of
