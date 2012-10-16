@@ -268,10 +268,7 @@ runInteraction current highlighting cmd
             })) $ do
         current <- liftIO $ absolute current
 
-        theTCState <- liftCommandM get
-        cstate <- get
-
-        let putResponseIO = stInteractionOutputCallback theTCState
+        putResponseIO <- liftCommandM $ gets stInteractionOutputCallback
 
         r <- catchError (do
                case independence cmd of
@@ -299,11 +296,7 @@ runInteraction current highlighting cmd
                   _ -> return ()
 
             Left e -> do
-                s <- liftCommandM $ do
-                   pers <- gets stPersistent
-                   put $ theTCState { stPersistent = pers }
-                   prettyError e
-                put cstate
+                s <- liftCommandM $ prettyError e
                 x <- liftCommandM $ gets $ optShowImplicit . stPragmaOptions
                 let
                  status = Status { sChecked               = False
