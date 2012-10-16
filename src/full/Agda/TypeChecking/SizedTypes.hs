@@ -32,6 +32,23 @@ import Agda.Utils.Pretty (render)
 
 #include "../undefined.h"
 
+builtinSizeHook :: String -> QName -> Term -> Type -> TCM ()
+builtinSizeHook s q e' t = do
+  when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant])
+      . updateDefArgOccurrences (const [StrictPos])
+  when (s == builtinSizeMax) $ do
+    modifySignature $ updateDefinition q
+      $ updateDefPolarity       (const [Covariant, Covariant])
+      . updateDefArgOccurrences (const [StrictPos, StrictPos])
+{-
+      . updateDefType           (const tmax)
+  where
+    -- TODO: max : (i j : Size) -> Size< (suc (max i j))
+    tmax =
+-}
+
 -- | Compute the deep size view of a term.
 --   Precondition: sized types are enabled.
 deepSizeView :: Term -> TCM DeepSizeView
@@ -48,6 +65,22 @@ deepSizeView v = do
         _                    -> return $ DOtherSize v
   loop v
 
+sizeMaxView :: Term -> TCM SizeMaxView
+sizeMaxView v = do
+  inf <- getBuiltinDefName builtinSizeInf
+  suc <- getBuiltinDefName builtinSizeSuc
+  max <- getBuiltinDefName builtinSizeMax
+  let loop v = do
+      v <- reduce v
+      case v of
+        Def x []      | Just x == inf -> return $ [DSizeInf]
+        Def x [u]     | Just x == suc -> maxViewSuc_ (fromJust suc) <$> loop (unArg u)
+        Def x [u1,u2] | Just x == max -> maxViewMax <$> loop (unArg u1) <*> loop (unArg u2)
+        Var i []                      -> return $ [DSizeVar i 0]
+        MetaV x us                    -> return $ [DSizeMeta x us 0]
+        _                             -> return $ [DOtherSize v]
+  loop v
+
 -- | Account for subtyping @Size< i =< Size@
 --   Preconditions:
 --   @m = x els1@, @n = y els2@, @m@ and @n@ are not equal.
@@ -55,14 +88,94 @@ trySizeUniv :: Comparison -> Type -> Term -> Term
   -> QName -> [Elim] -> QName -> [Elim] -> TCM ()
 trySizeUniv cmp t m n x els1 y els2 = do
   let failure = typeError $ UnequalTerms cmp m n t
+      forceInfty u = compareSizes CmpEq (unArg u) =<< primSizeInf
   (size, sizelt) <- flip catchError (const failure) $ do
      Def size   _ <- ignoreSharing <$> primSize
      Def sizelt _ <- ignoreSharing <$> primSizeLt
      return (size, sizelt)
   case (cmp, els1, els2) of
-     (CmpLeq, [_], []) | x == sizelt && y == size -> return ()
-     _                                            -> failure
+     (CmpLeq, [_], [])  | x == sizelt && y == size -> return ()
+     (_, [Apply u], []) | x == sizelt && y == size -> forceInfty u
+     (_, [], [Apply u]) | x == size && y == sizelt -> forceInfty u
+     _                                             -> failure
 
+-- | Compare two sizes. Only with --sized-types.
+compareSizes :: Comparison -> Term -> Term -> TCM ()
+compareSizes cmp u v = do
+  reportSDoc "tc.conv.size" 10 $ vcat
+    [ text "Comparing sizes"
+    , nest 2 $ sep [ prettyTCM u <+> prettyTCM cmp
+                   , prettyTCM v
+                   ]
+    ]
+{-
+  u <- reduce u
+  v <- reduce v
+  reportSDoc "tc.conv.size" 15 $
+      nest 2 $ sep [ text (show u) <+> prettyTCM cmp
+                   , text (show v)
+                   ]
+-}
+  us <- sizeMaxView u
+  vs <- sizeMaxView v
+  compareMaxViews cmp us vs
+
+compareMaxViews :: Comparison -> SizeMaxView -> SizeMaxView -> TCM ()
+compareMaxViews cmp us vs = case (cmp, us, vs) of
+  (CmpLeq, _, (DSizeInf : _)) -> return ()
+  (cmp,   [u], [v]) -> compareSizeViews cmp u v
+  (CmpLeq, us, [v]) -> forM_ us $ \ u -> compareSizeViews cmp u v
+  (CmpLeq, us, vs)  -> forM_ us $ \ u -> compareBelowMax u vs
+  (CmpEq,  us, vs)  -> compareMaxViews CmpLeq us vs >> compareMaxViews CmpLeq vs us
+--  _ -> typeError $ NotImplemented "compareMaxViews"
+
+-- | @compareBelowMax u vs@ checks @u <= max vs@.  Precondition: @size vs >= 2@
+compareBelowMax :: DeepSizeView -> SizeMaxView -> TCM ()
+compareBelowMax u vs =
+  alt (dontAssignMetas $ alts $ map (compareSizeViews CmpLeq u) vs) $ do
+    u <- unDeepSizeView u
+    v <- unMaxView vs
+    size <- sizeType
+    addConstraint $ ValueCmp CmpLeq size u v
+  where alt  c1 c2 = c1 `catchError` const c2
+        alts []     = __IMPOSSIBLE__
+        alts [c]    = c
+        alts (c:cs) = c `alt` alts cs
+
+compareSizeViews :: Comparison -> DeepSizeView -> DeepSizeView -> TCM ()
+compareSizeViews cmp s1' s2' = do
+  size <- sizeType
+  let (s1, s2) = removeSucs (s1', s2')
+      withUnView cont = do
+        u <- unDeepSizeView s1
+        v <- unDeepSizeView s2
+        cont u v
+      failure = withUnView $ \ u v -> typeError $ UnequalTerms cmp u v size
+      continue cmp = withUnView $ compareAtom cmp size
+  case (cmp, s1, s2) of
+    (CmpLeq, _,            DSizeInf)   -> return ()
+    (CmpEq,  DSizeInf,     DSizeInf)   -> return ()
+    (CmpEq,  DSizeVar{},   DSizeInf)   -> failure
+    (_    ,  DSizeInf,     DSizeVar{}) -> failure
+    (_    ,  DSizeInf,     _         ) -> continue CmpEq
+    (CmpLeq, DSizeVar i n, DSizeVar j m) | i == j -> unless (n <= m) failure
+    (CmpLeq, DSizeVar i n, DSizeVar j m) | i /= j -> do
+       res <- isBounded i
+       case res of
+         BoundedNo -> failure
+         BoundedLt u' -> do
+            -- now we have i < u', in the worst case i+1 = u'
+            -- and we want to check i+n <= v
+            v <- unDeepSizeView s2
+            if n > 0 then do
+              u'' <- sizeSuc (n - 1) u'
+              compareSizes cmp u'' v
+             else compareSizes cmp u' =<< sizeSuc 1 v
+    (CmpLeq, s1,        s2)         -> withUnView $ \ u v -> do
+      unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
+    (CmpEq, s1, s2) -> continue cmp
+
+{-
 -- | Compare two sizes. Only with --sized-types.
 compareSizes :: Comparison -> Term -> Term -> TCM ()
 compareSizes cmp u v = do
@@ -110,6 +223,7 @@ compareSizes cmp u v = do
       v <- unDeepSizeView s2
       unlessM (trivial u v) $ addConstraint $ ValueCmp CmpLeq size u v
     (CmpEq, s1, s2) -> continue cmp
+-}
 {-
   s1   <- sizeView u
   s2   <- sizeView v

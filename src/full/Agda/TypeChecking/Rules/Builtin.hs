@@ -21,7 +21,7 @@ import Agda.TypeChecking.Constraints
 import Agda.TypeChecking.Reduce
 import Agda.TypeChecking.Pretty
 import Agda.TypeChecking.Irrelevance
-
+import Agda.TypeChecking.SizedTypes ( builtinSizeHook )
 import Agda.TypeChecking.Rules.Term ( checkExpr , inferExpr )
 import {-# SOURCE #-} Agda.TypeChecking.Rules.Builtin.Coinduction
 
@@ -92,6 +92,9 @@ coreBuiltins = map (\(x,z) -> BuiltinInfo x z)
   , (builtinSizeLt             |-> builtinPostulate (tsize --> tset))
   , (builtinSizeSuc            |-> builtinPostulate (tsize --> tsize))
   , (builtinSizeInf            |-> builtinPostulate tsize)
+  -- postulate max : {i : Size} -> Size< i -> Size< i -> Size< i
+  , (builtinSizeMax            |-> builtinPostulate (tsize --> tsize --> tsize))
+     -- (hPi "i" tsize $ let a = el $ primSizeLt <@> v0 in (a --> a --> a)))
   -- postulate .irrelevant : {a : Level}{A : Set a} -> .A -> A
   , (builtinIrrAxiom           |-> BuiltinPostulate Irrelevant
                                      (hPi "a" (el primLevel) $ hPi "A" (return $ sort $ varSort 0) $
@@ -367,7 +370,8 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
 	  _ -> typeError $ GenericError $ "Builtin " ++ s ++ " must be bound to a function"
 
       BuiltinPostulate rel t -> do
-        e' <- applyRelevanceToContext rel $ checkExpr e =<< t
+        t' <- t
+        e' <- applyRelevanceToContext rel $ checkExpr e t'
         let err = typeError $ GenericError $
                     "The argument to BUILTIN " ++ s ++ " must be a postulated name"
         case e of
@@ -375,9 +379,7 @@ bindBuiltinInfo (BuiltinInfo s d) e = do
             def <- ignoreAbstractMode $ getConstInfo q
             case theDef def of
               Axiom {} -> do
-                when (s `elem` [builtinSizeLt, builtinSizeSuc]) $ do
-                  setPolarity q [Covariant]
-                  setArgOccurrences q [StrictPos]
+                builtinSizeHook s q e' t'
                 bindBuiltinName s e'
               _        -> err
           _ -> err
