@@ -206,6 +206,7 @@ library
                     Agda.TypeChecking.Coverage.SplitTree
                     Agda.TypeChecking.Datatypes
                     Agda.TypeChecking.DisplayForm
+                    Agda.TypeChecking.DropArgs
                     Agda.TypeChecking.Eliminators
                     Agda.TypeChecking.Empty
                     Agda.TypeChecking.EtaContract

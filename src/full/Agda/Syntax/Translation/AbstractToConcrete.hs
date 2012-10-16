@@ -354,8 +354,11 @@ instance ToConcrete A.Expr C.Expr where
     toConcrete (A.ExtendedLam i di qname cs) =
         bracket lamBrackets $ do
           decls <- toConcrete cs
-          let removeApp (C.RawAppP r (lam:es)) = C.RawAppP r es
-              removeApp (C.AppP p np) = namedThing $ unArg np
+              -- we know all lhs are of the form `.extlam p1 p2 ... pn`,
+              -- with the name .extlam leftmost. It is our mission to remove it.
+          let removeApp (C.RawAppP r (_:es)) = C.RawAppP r es
+              removeApp (C.AppP (C.IdentP _) np) = namedThing $ unArg np
+              removeApp (C.AppP p np) = (C.AppP (removeApp p) np)
               removeApp _ = __IMPOSSIBLE__
           let decl2clause (C.FunClause lhs rhs wh) = (lhs {lhsOriginalPattern = removeApp $ lhsOriginalPattern lhs},rhs,wh)
               decl2clause _ = __IMPOSSIBLE__

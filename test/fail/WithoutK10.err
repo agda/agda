@@ -6,6 +6,6 @@ expressions
   x
 are free in the parameters
   {A}
-  (λ {unit → x₁}) {A} {x}
+  (λ {unit → x}) {A} {x}
 when checking that the pattern d has type
-D {A} ((λ {unit → x₁}) {A} {x}) x
+D {A} ((λ {unit → x}) {A} {x}) x

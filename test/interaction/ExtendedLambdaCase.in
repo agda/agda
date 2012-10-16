@@ -1,5 +1,11 @@
 top_command (cmd_load currentFile [])
 
+-- Normalise and display a lambda lifted  extended lambda
+top_command (cmd_compute_toplevel False "f")
+
+-- Refine for extended lambdas (issue 713)
+goal_command 4 cmd_refine "λ { a {x} b → a }"
+
 -- Case splitting for function with implicit argument
 top_command (showImplicitArgs True)
 goal_command 3 cmd_make_case "z"

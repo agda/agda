@@ -55,6 +55,7 @@ import Agda.TypeChecking.Datatypes
 import Agda.TypeChecking.Free
 import Agda.TypeChecking.Substitute
 import Agda.TypeChecking.Telescope
+import Agda.TypeChecking.DropArgs
 
 import Agda.Utils.Monad
 import Agda.Utils.Tuple
@@ -291,7 +292,10 @@ instance Reify Term Expr where
           then do
            reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
            info <- getConstInfo x
-           cls <- mapM (reify . (NamedClause x)) $ defClauses info
+           --drop lambda lifted arguments
+           Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
+           let n = h + nh
+           cls <- mapM (reify . (NamedClause x) . (dropArgs n)) $ defClauses info
            -- Karim: Currently Abs2Conc does not require a DefInfo thus we
            -- use __IMPOSSIBLE__.
            napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
