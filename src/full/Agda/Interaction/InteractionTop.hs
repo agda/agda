@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP, TypeSynonymInstances, FlexibleInstances,
              MultiParamTypeClasses, Rank2Types,
-             GeneralizedNewtypeDeriving, ScopedTypeVariables #-}
+             GeneralizedNewtypeDeriving, ScopedTypeVariables,
+             GADTs #-}
 {-# OPTIONS -fno-cse #-}
 
 module Agda.Interaction.InteractionTop
@@ -142,23 +143,6 @@ putResponse x = liftCommandM $ do
     outf <- gets stInteractionOutputCallback
     liftIO $ outf x
 
--- | Can the command run even if the relevant file has not been loaded
---   into the state?
-
-data Independence
-  = Independent -- ^ Yes.
-  | Dependent   -- ^ No.
-
--- | An interactive computation.
-
-data Interaction = Interaction
-  { independence :: Independence
-    -- ^ Is the command independent?
-  , command :: CommandM ()
-  }
-
-interaction :: Independence -> CommandM () -> Interaction
-interaction = Interaction
 
 {- UNUSED
 
@@ -201,11 +185,11 @@ runInteraction current highlighting cmd
         putResponseIO <- liftCommandM $ gets stInteractionOutputCallback
 
         r <- catchError (do
-               case independence cmd of
-                 Dependent    -> ensureFileLoaded current
-                 Independent  -> return ()
+               if independent cmd
+                 then return ()
+                 else ensureFileLoaded current
 
-               command cmd
+               interpret cmd
 
                return (Right ())
              ) (return . Left)
@@ -264,13 +248,367 @@ handleNastyErrors m = do
     liftCommandM $ put theTCState
     put cstate
 
+----------------------------------------------------------------------------
+-- | An interactive computation.
 
--- | @cmd_load m includes@ loads the module in file @m@, using
--- @includes@ as the include directories.
+data Interaction where
+    -- | @cmd_load m includes@ loads the module in file @m@, using
+    -- @includes@ as the include directories.
+    Cmd_load            :: FilePath -> [FilePath] -> Interaction
 
-cmd_load :: FilePath -> [FilePath] -> Interaction
-cmd_load m includes =
-  cmd_load' m includes True $ \_ -> command cmd_metas
+    -- | @cmd_compile b m includes@ compiles the module in file @m@ using
+    -- the backend @b@, using @includes@ as the include directories.
+    Cmd_compile         :: Backend -> FilePath -> [FilePath] -> Interaction
+
+    Cmd_constraints     :: Interaction
+
+    -- Show unsolved metas. If there are no unsolved metas but unsolved constraints
+    -- show those instead.
+    Cmd_metas           :: Interaction
+
+    -- | Shows all the top-level names in the given module, along with
+    -- their types. Uses the top-level scope.
+    Cmd_show_module_contents_toplevel
+                        :: String -> Interaction
+
+    Cmd_solveAll        :: Interaction
+
+    -- | Parse the given expression (as if it were defined at the
+    -- top-level of the current module) and infer its type.
+    Cmd_infer_toplevel  :: B.Rewrite  -- ^ Normalise the type?
+                        -> String
+                        -> Interaction
+
+    -- | Parse and type check the given expression (as if it were defined
+    -- at the top-level of the current module) and normalise it.
+    Cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
+                         -> String -> Interaction
+
+    ------------------------------------------------------------------------
+    -- Syntax highlighting
+
+    -- | @cmd_load_highlighting_info source@ loads syntax highlighting
+    -- information for the module in @source@, and asks Emacs to apply
+    -- highlighting info from this file.
+    --
+    -- If the module does not exist, or its module name is malformed or
+    -- cannot be determined, or the module has not already been visited,
+    -- or the cached info is out of date, then no highlighting information
+    -- is printed.
+    --
+    -- This command is used to load syntax highlighting information when a
+    -- new file is opened, and it would probably be annoying if jumping to
+    -- the definition of an identifier reset the proof state, so this
+    -- command tries not to do that. One result of this is that the
+    -- command uses the current include directories, whatever they happen
+    -- to be.
+    Cmd_load_highlighting_info
+                        :: FilePath -> Interaction
+
+    ------------------------------------------------------------------------
+    -- Implicit arguments
+
+    -- | Tells Agda whether or not to show implicit arguments.
+    ShowImplicitArgs    :: Bool -- ^ Show them?
+                        -> Interaction
+
+    -- | Toggle display of implicit arguments.
+    ToggleImplicitArgs  :: Interaction
+
+    ------------------------------------------------------------------------
+    -- | Goal commands
+    --
+    -- If the range is 'noRange', then the string comes from the
+    -- minibuffer rather than the goal.
+
+    Cmd_give            :: InteractionId -> Range -> String -> Interaction
+
+    Cmd_refine          :: InteractionId -> Range -> String -> Interaction
+
+    Cmd_intro           :: Bool -> InteractionId -> Range -> String -> Interaction
+
+    -- Cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
+
+    Cmd_auto            :: InteractionId -> Range -> String -> Interaction
+
+    Cmd_context         :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+
+    Cmd_infer           :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+
+    Cmd_goal_type       :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+
+    -- | Displays the current goal and context.
+    Cmd_goal_type_context :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+
+    -- | Displays the current goal and context /and/ infers the type of an
+    -- expression.
+    Cmd_goal_type_context_infer
+                        :: B.Rewrite -> InteractionId -> Range -> String -> Interaction
+
+    -- | Shows all the top-level names in the given module, along with
+    -- their types. Uses the scope of the given goal.
+    Cmd_show_module_contents
+                        :: InteractionId -> Range -> String -> Interaction
+
+    Cmd_make_case       :: InteractionId -> Range -> String -> Interaction
+
+    Cmd_compute         :: Bool -- ^ Ignore abstract?
+                        -> InteractionId -> Range -> String -> Interaction
+
+
+-- dummy wrappers (will be removed)
+
+cmd_load            = Cmd_load
+cmd_compile         = Cmd_compile
+cmd_constraints     = Cmd_constraints
+cmd_metas           = Cmd_metas
+cmd_show_module_contents_toplevel = Cmd_show_module_contents_toplevel
+cmd_solveAll        = Cmd_solveAll
+cmd_infer_toplevel  = Cmd_infer_toplevel
+cmd_compute_toplevel = Cmd_compute_toplevel
+cmd_load_highlighting_info = Cmd_load_highlighting_info
+showImplicitArgs    = ShowImplicitArgs
+toggleImplicitArgs  = ToggleImplicitArgs
+cmd_give            = Cmd_give
+cmd_refine          = Cmd_refine
+cmd_intro           = Cmd_intro
+cmd_auto            = Cmd_auto
+cmd_context         = Cmd_context
+cmd_infer           = Cmd_infer
+cmd_goal_type       = Cmd_goal_type
+cmd_goal_type_context = Cmd_goal_type_context
+cmd_goal_type_context_infer = Cmd_goal_type_context_infer
+cmd_show_module_contents = Cmd_show_module_contents
+cmd_make_case       = Cmd_make_case
+cmd_compute         = Cmd_compute
+
+
+
+-- | Can the command run even if the relevant file has not been loaded
+--   into the state?
+
+independent :: Interaction -> Bool
+independent (Cmd_load {})    = True
+independent (Cmd_compile {}) = True
+independent (Cmd_load_highlighting_info {}) = True
+independent _                = False
+
+-- | Interpret an interaction
+
+interpret :: Interaction -> CommandM ()
+
+interpret (Cmd_load m includes) =
+  cmd_load' m includes True $ \_ -> interpret Cmd_metas
+
+interpret (Cmd_compile b file includes) =
+  cmd_load' file includes False $ \(i, mw) -> do
+    case mw of
+      Nothing -> do
+        liftCommandM $ case b of
+          MAlonzo -> MAlonzo.compilerMain i
+          Epic    -> Epic.compilerMain i
+          JS      -> JS.compilerMain i
+        display_info $ Info_CompilationOk
+      Just w ->
+        display_info $ Info_Error $ unlines
+          [ "You can only compile modules without unsolved metavariables"
+          , "or termination checking problems."
+          ]
+
+interpret Cmd_constraints = do
+    cs <- map show <$> liftCommandM B.getConstraints
+    display_info $ Info_Constraints (unlines cs)
+
+interpret Cmd_metas = do -- CL.showMetas []
+  ims <- liftCommandM $ B.typesOfVisibleMetas B.AsIs
+  -- Show unsolved implicit arguments normalised.
+  hms <- liftCommandM $ B.typesOfHiddenMetas B.Normalised
+  if not $ null ims && null hms
+    then do
+      di <- liftCommandM $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)
+      dh <- liftCommandM $ mapM showA' hms
+      display_info $ Info_AllGoals $ unlines $ di ++ dh
+    else do
+      cs <- liftCommandM B.getConstraints
+      if null cs
+        then display_info $ Info_AllGoals ""
+        else interpret Cmd_constraints
+  where
+    metaId (B.OfType i _) = i
+    metaId (B.JustType i) = i
+    metaId (B.JustSort i) = i
+    metaId (B.Assign i e) = i
+    metaId _ = __IMPOSSIBLE__
+    showA' :: B.OutputConstraint SA.Expr NamedMeta -> TCM String
+    showA' m = do
+      let i = nmid $ metaId m
+      r <- getMetaRange i
+      d <- B.withMetaId i (showATop m)
+      return $ d ++ "  [ at " ++ show r ++ " ]"
+
+interpret (Cmd_show_module_contents_toplevel s) =
+  liftCommandMT B.atTopLevel $ showModuleContents noRange s
+
+interpret Cmd_solveAll = do
+  out <- liftCommandM $ mapM lowr =<< B.getSolvedInteractionPoints
+  putResponse $ Resp_SolveAll out
+  where
+      lowr (i, m, e) = do
+        mi <- getMetaInfo <$> lookupMeta m
+        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcreteCtx TopCtx e
+        return (i, e)
+
+interpret (Cmd_infer_toplevel norm s) =
+  parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType s
+
+interpret (Cmd_compute_toplevel ignore s) =
+  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c
+                                  else inConcreteMode . c)
+                       Info_NormalForm
+                       s
+  where c = B.evalInCurrent
+
+interpret (ShowImplicitArgs showImpl) = do
+  opts <- liftCommandM commandLineOptions
+  setCommandLineOptions' $
+    opts { optPragmaOptions =
+             (optPragmaOptions opts) { optShowImplicit = showImpl } }
+
+interpret ToggleImplicitArgs = do
+  opts <- liftCommandM commandLineOptions
+  let ps = optPragmaOptions opts
+  setCommandLineOptions' $
+    opts { optPragmaOptions =
+             ps { optShowImplicit = not $ optShowImplicit ps } }
+
+interpret (Cmd_load_highlighting_info source) = do
+    -- Make sure that the include directories have
+    -- been set.
+    setCommandLineOptions' =<< liftCommandM commandLineOptions
+
+    resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
+      ex <- liftIO $ doesFileExist source
+      case ex of
+        False -> return Nothing
+        True  -> do
+          mmi <- (getVisitedModule =<<
+                    moduleName =<< liftIO (absolute source))
+                   `catchError`
+                 \_ -> return Nothing
+          case mmi of
+            Nothing -> return Nothing
+            Just mi -> do
+              sourceT <- liftIO $ getModificationTime source
+              if sourceT <= miTimeStamp mi
+               then do
+                modFile <- gets stModuleToSource
+                return $ Just (iHighlighting $ miInterface mi, modFile)
+               else
+                return Nothing
+    mapM_ putResponse resp
+
+interpret (Cmd_give ii rng s) = give_gen ii rng s B.give $ \rng s ce ->
+  case ce of
+    ce | rng == noRange -> Give_String $ show ce
+    SC.Paren _ _ -> Give_Paren
+    _            -> Give_NoParen
+
+interpret (Cmd_refine ii rng s) = give_gen ii rng s B.refine $ \_ s -> Give_String . show
+
+interpret (Cmd_intro pmLambda ii rng _) = do
+  ss <- liftCommandM $ B.introTactic pmLambda ii
+  liftCommandMT (B.withInteractionId ii) $ case ss of
+    []    -> do
+      display_info $ Info_Intro $ text "No introduction forms found."
+    [s]   -> do
+      interpret $ Cmd_refine ii rng s
+    _:_:_ -> do
+      display_info $ Info_Intro $
+        sep [ text "Don't know which constructor to introduce of"
+            , let mkOr []     = []
+                  mkOr [x, y] = [text x <+> text "or" <+> text y]
+                  mkOr (x:xs) = text x : mkOr xs
+              in nest 2 $ fsep $ punctuate comma (mkOr ss)
+            ]
+
+interpret (Cmd_auto ii rng s) = do
+  (res, msg) <- liftCommandM $ Auto.auto ii rng s
+  case res of
+   Left xs -> do
+    forM_ xs $ \(ii, s) -> do
+      modify $ \st -> st { theInteractionPoints = filter (/= ii) (theInteractionPoints st) }
+      putResponse $ Resp_GiveAction ii $ Give_String s
+    case msg of
+     Nothing -> interpret Cmd_metas
+     Just msg -> display_info $ Info_Auto msg
+   Right (Left cs) -> do
+    case msg of
+     Nothing -> return ()
+     Just msg -> display_info $ Info_Auto msg
+    putResponse $ Resp_MakeCaseAction cs
+   Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
+
+interpret (Cmd_context norm ii _ _) =
+  display_info . Info_Context =<< liftCommandM (prettyContext norm False ii)
+
+interpret (Cmd_infer norm ii rng s) =
+  display_info . Info_InferredType
+    =<< liftCommandM (B.withInteractionId ii
+          (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
+
+interpret (Cmd_goal_type norm ii _ _) =
+  display_info . Info_CurrentGoal
+    =<< liftCommandM (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
+
+interpret (Cmd_goal_type_context norm ii rng s) =
+  cmd_goal_type_context_and empty norm ii rng s
+
+interpret (Cmd_goal_type_context_infer norm ii rng s) = do
+  typ <- liftCommandM $ B.withInteractionId ii $
+           prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
+  cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
+
+interpret (Cmd_show_module_contents ii rng s) =
+  liftCommandMT (B.withInteractionId ii) $ showModuleContents rng s
+
+interpret (Cmd_make_case ii rng s) = do
+  (casectxt , cs) <- liftCommandM $ makeCase ii rng s
+  liftCommandMT (B.withInteractionId ii) $ do
+    hidden <- liftCommandM $ showImplicitArguments
+    pcs <- liftCommandM $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
+    putResponse $ Resp_MakeCase (emacscmd casectxt) (List.map (extlam_dropName casectxt . render) pcs)
+  where
+    render = renderStyle (style { mode = OneLineMode })
+
+    emacscmd :: CaseContext -> String
+    emacscmd FunctionDef = "agda2-make-case-action"
+    emacscmd (ExtendedLambda _ _) = "agda2-make-case-action-extendlam"
+
+    -- very dirty hack, string manipulation by dropping the function name
+    -- and replacing " = " with " -> "
+    extlam_dropName :: CaseContext -> String -> String
+    extlam_dropName FunctionDef x = x
+    extlam_dropName (ExtendedLambda _ _) x
+        = unwords $ map (\ y -> if y == "=" then "→" else y) $ drop 1 $ words x
+
+    -- Drops pattern added to extended lambda functions when lambda lifting them
+    extlam_dropLLifted :: CaseContext -> Bool -> SA.Clause -> SA.Clause
+    extlam_dropLLifted FunctionDef _ x = x
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSProj{}) ps) rhs decl) = __IMPOSSIBLE__
+    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSHead name nps) ps) rhs decl)
+      = let n = if hidden then h + nh else nh
+        in
+         (SA.Clause (SA.LHS info (SA.LHSHead name (drop n nps)) ps) rhs decl)
+
+interpret (Cmd_compute ignore ii rng s) = do
+  e <- liftCommandM $ B.parseExprIn ii rng s
+  d <- liftCommandM $ B.withInteractionId ii $ do
+         let c = B.evalInCurrent e
+         v <- if ignore then ignoreAbstractMode c else c
+         prettyATop v
+  display_info $ Info_NormalForm d
+
+type GoalCommand = InteractionId -> Range -> String -> Interaction
 
 -- | @cmd_load' m includes cmd cmd2@ loads the module in file @m@,
 -- using @includes@ as the include directories.
@@ -282,9 +620,8 @@ cmd_load m includes =
 cmd_load' :: FilePath -> [FilePath]
           -> Bool -- ^ Allow unsolved meta-variables?
           -> ((Interface, Maybe Warnings) -> CommandM ())
-          -> Interaction
-cmd_load' file includes unsolvedOK cmd =
-  interaction Independent $ do
+          -> CommandM ()
+cmd_load' file includes unsolvedOK cmd = do
     f <- liftIO $ absolute file
     ex <- liftIO $ doesFileExist $ filePath f
     liftCommandM $ setIncludeDirs includes $
@@ -344,76 +681,8 @@ cmd_load' file includes unsolvedOK cmd =
 
 data Backend = MAlonzo | Epic | JS
 
--- | @cmd_compile b m includes@ compiles the module in file @m@ using
--- the backend @b@, using @includes@ as the include directories.
 
-cmd_compile :: Backend -> FilePath -> [FilePath] -> Interaction
-cmd_compile b file includes =
-  cmd_load' file includes False $ \(i, mw) -> do
-    case mw of
-      Nothing -> do
-        liftCommandM $ case b of
-          MAlonzo -> MAlonzo.compilerMain i
-          Epic    -> Epic.compilerMain i
-          JS      -> JS.compilerMain i
-        display_info $ Info_CompilationOk
-      Just w ->
-        display_info $ Info_Error $ unlines
-          [ "You can only compile modules without unsolved metavariables"
-          , "or termination checking problems."
-          ]
-
-cmd_constraints :: Interaction
-cmd_constraints = interaction Dependent $ do
-    cs <- map show <$> liftCommandM B.getConstraints
-    display_info $ Info_Constraints (unlines cs)
-
--- Show unsolved metas. If there are no unsolved metas but unsolved constraints
--- show those instead.
-cmd_metas :: Interaction
-cmd_metas = interaction Dependent $ do -- CL.showMetas []
-  ims <- liftCommandM $ B.typesOfVisibleMetas B.AsIs
-  -- Show unsolved implicit arguments normalised.
-  hms <- liftCommandM $ B.typesOfHiddenMetas B.Normalised
-  if not $ null ims && null hms
-    then do
-      di <- liftCommandM $ forM ims $ \i -> B.withInteractionId (B.outputFormId $ B.OutputForm 0 i) (showATop i)
-      dh <- liftCommandM $ mapM showA' hms
-      display_info $ Info_AllGoals $ unlines $ di ++ dh
-    else do
-      cs <- liftCommandM B.getConstraints
-      if null cs
-        then display_info $ Info_AllGoals ""
-        else command cmd_constraints
-  where
-    metaId (B.OfType i _) = i
-    metaId (B.JustType i) = i
-    metaId (B.JustSort i) = i
-    metaId (B.Assign i e) = i
-    metaId _ = __IMPOSSIBLE__
-    showA' :: B.OutputConstraint SA.Expr NamedMeta -> TCM String
-    showA' m = do
-      let i = nmid $ metaId m
-      r <- getMetaRange i
-      d <- B.withMetaId i (showATop m)
-      return $ d ++ "  [ at " ++ show r ++ " ]"
-
--- | If the range is 'noRange', then the string comes from the
--- minibuffer rather than the goal.
-
-type GoalCommand = InteractionId -> Range -> String -> Interaction
-
-cmd_give :: GoalCommand
-cmd_give = give_gen B.give $ \rng s ce ->
-  case ce of
-    ce | rng == noRange -> Give_String $ show ce
-    SC.Paren _ _ -> Give_Paren
-    _            -> Give_NoParen
-
-cmd_refine :: GoalCommand
-cmd_refine = give_gen B.refine $ \_ s -> Give_String . show
-
-give_gen give_ref mk_newtxt ii rng s = interaction Dependent $
+give_gen ii rng s give_ref mk_newtxt =
   give_gen' give_ref mk_newtxt ii rng s
 
 give_gen' give_ref mk_newtxt ii rng s = do
@@ -423,49 +692,14 @@ give_gen' give_ref mk_newtxt ii rng s = do
   modify $ \st -> st { theInteractionPoints =
                            replace ii iis (theInteractionPoints st) }
   putResponse $ Resp_GiveAction ii $ mk_newtxt rng s $ abstractToConcrete (makeEnv scope) ae
-  command cmd_metas
+  interpret Cmd_metas
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
 
-cmd_intro :: Bool -> GoalCommand
-cmd_intro pmLambda ii rng _ = interaction Dependent $ do
-  ss <- liftCommandM $ B.introTactic pmLambda ii
-  liftCommandMT (B.withInteractionId ii) $ case ss of
-    []    -> do
-      display_info $ Info_Intro $ text "No introduction forms found."
-    [s]   -> do
-      command $ cmd_refine ii rng s
-    _:_:_ -> do
-      display_info $ Info_Intro $
-        sep [ text "Don't know which constructor to introduce of"
-            , let mkOr []     = []
-                  mkOr [x, y] = [text x <+> text "or" <+> text y]
-                  mkOr (x:xs) = text x : mkOr xs
-              in nest 2 $ fsep $ punctuate comma (mkOr ss)
-            ]
-
-cmd_refine_or_intro :: Bool -> GoalCommand
+cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
 cmd_refine_or_intro pmLambda ii r s =
   (if null s then cmd_intro pmLambda else cmd_refine) ii r s
-
-cmd_auto :: GoalCommand
-cmd_auto ii rng s = interaction Dependent $ do
-  (res, msg) <- liftCommandM $ Auto.auto ii rng s
-  case res of
-   Left xs -> do
-    forM_ xs $ \(ii, s) -> do
-      modify $ \st -> st { theInteractionPoints = filter (/= ii) (theInteractionPoints st) }
-      putResponse $ Resp_GiveAction ii $ Give_String s
-    case msg of
-     Nothing -> command cmd_metas
-     Just msg -> display_info $ Info_Auto msg
-   Right (Left cs) -> do
-    case msg of
-     Nothing -> return ()
-     Just msg -> display_info $ Info_Auto msg
-    putResponse $ Resp_MakeCaseAction cs
-   Right (Right s) -> give_gen' B.refine (\_ s -> Give_String . show) ii rng s
 
 -- | Sorts interaction points based on their ranges.
 
@@ -497,21 +731,6 @@ prettyContext norm rev ii = B.withInteractionId ii $ do
   let shuffle = if rev then reverse else id
   return $ align 10 $ filter (not . null. fst) $ shuffle $ zip ns (map (text ":" <+>) es)
 
-cmd_context :: B.Rewrite -> GoalCommand
-cmd_context norm ii _ _ = interaction Dependent $
-  display_info . Info_Context =<< liftCommandM (prettyContext norm False ii)
-
-cmd_infer :: B.Rewrite -> GoalCommand
-cmd_infer norm ii rng s = interaction Dependent $
-  display_info . Info_InferredType
-    =<< liftCommandM (B.withInteractionId ii
-          (prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s))
-
-cmd_goal_type :: B.Rewrite -> GoalCommand
-cmd_goal_type norm ii _ _ = interaction Dependent $
-  display_info . Info_CurrentGoal
-    =<< liftCommandM (B.withInteractionId ii $ prettyTypeOfMeta norm ii)
-
 -- | Displays the current goal, the given document, and the current
 -- context.
 
@@ -523,21 +742,6 @@ cmd_goal_type_context_and doc norm ii _ _ = do
                  doc $+$
                  text (replicate 60 '\x2014') $+$
                  ctx)
-
--- | Displays the current goal and context.
-
-cmd_goal_type_context :: B.Rewrite -> GoalCommand
-cmd_goal_type_context norm ii rng s = interaction Dependent $
-  cmd_goal_type_context_and empty norm ii rng s
-
--- | Displays the current goal and context /and/ infers the type of an
--- expression.
-
-cmd_goal_type_context_infer :: B.Rewrite -> GoalCommand
-cmd_goal_type_context_infer norm ii rng s = interaction Dependent $ do
-  typ <- liftCommandM $ B.withInteractionId ii $
-           prettyATop =<< B.typeInMeta ii norm =<< B.parseExprIn ii rng s
-  cmd_goal_type_context_and (text "Have:" <+> typ) norm ii rng s
 
 -- | Shows all the top-level names in the given module, along with
 -- their types.
@@ -554,20 +758,6 @@ showModuleContents rng s = do
     nest 2 (vcat $ map (text . show) modules) $$
     text "Names" $$
     nest 2 (align 10 types')
-
--- | Shows all the top-level names in the given module, along with
--- their types. Uses the scope of the given goal.
-
-cmd_show_module_contents :: GoalCommand
-cmd_show_module_contents ii rng s = interaction Dependent $
-  liftCommandMT (B.withInteractionId ii) $ showModuleContents rng s
-
--- | Shows all the top-level names in the given module, along with
--- their types. Uses the top-level scope.
-
-cmd_show_module_contents_toplevel :: String -> Interaction
-cmd_show_module_contents_toplevel s = interaction Dependent $
-  liftCommandMT B.atTopLevel $ showModuleContents noRange s
 
 -- | Sets the command line options and updates the status information.
 
@@ -636,46 +826,6 @@ refreshStr taken s = go nameModifiers where
 
 nameModifiers = "" : "'" : "''" : [show i | i <-[3..]]
 
-cmd_make_case :: GoalCommand
-cmd_make_case ii rng s = interaction Dependent $ do
-  (casectxt , cs) <- liftCommandM $ makeCase ii rng s
-  liftCommandMT (B.withInteractionId ii) $ do
-    hidden <- liftCommandM $ showImplicitArguments
-    pcs <- liftCommandM $ mapM prettyA $ List.map (extlam_dropLLifted casectxt hidden) cs
-    putResponse $ Resp_MakeCase (emacscmd casectxt) (List.map (extlam_dropName casectxt . render) pcs)
-  where
-    render = renderStyle (style { mode = OneLineMode })
-
-    emacscmd :: CaseContext -> String
-    emacscmd FunctionDef = "agda2-make-case-action"
-    emacscmd (ExtendedLambda _ _) = "agda2-make-case-action-extendlam"
-
-    -- very dirty hack, string manipulation by dropping the function name
-    -- and replacing " = " with " -> "
-    extlam_dropName :: CaseContext -> String -> String
-    extlam_dropName FunctionDef x = x
-    extlam_dropName (ExtendedLambda _ _) x
-        = unwords $ map (\ y -> if y == "=" then "→" else y) $ drop 1 $ words x
-
-    -- Drops pattern added to extended lambda functions when lambda lifting them
-    extlam_dropLLifted :: CaseContext -> Bool -> SA.Clause -> SA.Clause
-    extlam_dropLLifted FunctionDef _ x = x
-    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSProj{}) ps) rhs decl) = __IMPOSSIBLE__
-    extlam_dropLLifted (ExtendedLambda h nh) hidden (SA.Clause (SA.LHS info (SA.LHSHead name nps) ps) rhs decl)
-      = let n = if hidden then h + nh else nh
-        in
-         (SA.Clause (SA.LHS info (SA.LHSHead name (drop n nps)) ps) rhs decl)
-
-
-cmd_solveAll :: Interaction
-cmd_solveAll = interaction Dependent $ do
-  out <- liftCommandM $ mapM lowr =<< B.getSolvedInteractionPoints
-  putResponse $ Resp_SolveAll out
-  where
-      lowr (i, m, e) = do
-        mi <- getMetaInfo <$> lookupMeta m
-        e <- withMetaInfo mi $ lowerMeta <$> abstractToConcreteCtx TopCtx e
-        return (i, e)
 
 class LowerMeta a where lowerMeta :: a -> a
 instance LowerMeta SC.Expr where
@@ -792,16 +942,6 @@ instance LowerMeta a => LowerMeta (Named name a) where
 preMeta   = SC.QuestionMark noRange Nothing
 preUscore = SC.Underscore   noRange Nothing
 
-cmd_compute :: Bool -- ^ Ignore abstract?
-               -> GoalCommand
-cmd_compute ignore ii rng s = interaction Dependent $ do
-  e <- liftCommandM $ B.parseExprIn ii rng s
-  d <- liftCommandM $ B.withInteractionId ii $ do
-         let c = B.evalInCurrent e
-         v <- if ignore then ignoreAbstractMode c else c
-         prettyATop v
-  display_info $ Info_NormalForm d
-
 -- | Parses and scope checks an expression (using the \"inside scope\"
 -- as the scope), performs the given command with the expression as
 -- input, and displays the result.
@@ -813,79 +953,11 @@ parseAndDoAtToplevel
      -- ^ The name to use for the buffer displaying the output.
   -> String
      -- ^ The expression to parse.
-  -> Interaction
-parseAndDoAtToplevel cmd title s = interaction Dependent $ do
+  -> CommandM ()
+parseAndDoAtToplevel cmd title s = do
   e <- liftIO $ parse exprParser s
   display_info . title =<<
     liftCommandM (B.atTopLevel $ prettyA =<< cmd =<< concreteToAbstract_ e)
-
--- | Parse the given expression (as if it were defined at the
--- top-level of the current module) and infer its type.
-
-cmd_infer_toplevel
-  :: B.Rewrite  -- ^ Normalise the type?
-  -> String
-  -> Interaction
-cmd_infer_toplevel norm =
-  parseAndDoAtToplevel (B.typeInCurrent norm) Info_InferredType
-
--- | Parse and type check the given expression (as if it were defined
--- at the top-level of the current module) and normalise it.
-
-cmd_compute_toplevel :: Bool -- ^ Ignore abstract?
-                     -> String -> Interaction
-cmd_compute_toplevel ignore =
-  parseAndDoAtToplevel (if ignore then ignoreAbstractMode . c
-                                  else inConcreteMode . c)
-                       Info_NormalForm
-  where c = B.evalInCurrent
-
-------------------------------------------------------------------------
--- Syntax highlighting
-
--- | @cmd_load_highlighting_info source@ loads syntax highlighting
--- information for the module in @source@, and asks Emacs to apply
--- highlighting info from this file.
---
--- If the module does not exist, or its module name is malformed or
--- cannot be determined, or the module has not already been visited,
--- or the cached info is out of date, then no highlighting information
--- is printed.
---
--- This command is used to load syntax highlighting information when a
--- new file is opened, and it would probably be annoying if jumping to
--- the definition of an identifier reset the proof state, so this
--- command tries not to do that. One result of this is that the
--- command uses the current include directories, whatever they happen
--- to be.
-
-cmd_load_highlighting_info :: FilePath -> Interaction
-cmd_load_highlighting_info source =
-  interaction Independent $ do
-    -- Make sure that the include directories have
-    -- been set.
-    setCommandLineOptions' =<< liftCommandM commandLineOptions
-
-    resp <- liftCommandM $ liftIO . tellToUpdateHighlighting =<< do
-      ex <- liftIO $ doesFileExist source
-      case ex of
-        False -> return Nothing
-        True  -> do
-          mmi <- (getVisitedModule =<<
-                    moduleName =<< liftIO (absolute source))
-                   `catchError`
-                 \_ -> return Nothing
-          case mmi of
-            Nothing -> return Nothing
-            Just mi -> do
-              sourceT <- liftIO $ getModificationTime source
-              if sourceT <= miTimeStamp mi
-               then do
-                modFile <- gets stModuleToSource
-                return $ Just (iHighlighting $ miInterface mi, modFile)
-               else
-                return Nothing
-    mapM_ putResponse resp
 
 -- | Tell to highlight the code using the given highlighting
 -- info (unless it is @Nothing@).
@@ -906,29 +978,6 @@ tellEmacsToJumpToError r =
     Just (Pn { srcFile = Just f, posPos = p }) ->
        [ Resp_JumpToError (filePath f) p ]
 
-
-------------------------------------------------------------------------
--- Implicit arguments
-
--- | Tells Agda whether or not to show implicit arguments.
-
-showImplicitArgs :: Bool -- ^ Show them?
-                 -> Interaction
-showImplicitArgs showImpl = interaction Dependent $ do
-  opts <- liftCommandM commandLineOptions
-  setCommandLineOptions' $
-    opts { optPragmaOptions =
-             (optPragmaOptions opts) { optShowImplicit = showImpl } }
-
--- | Toggle display of implicit arguments.
-
-toggleImplicitArgs :: Interaction
-toggleImplicitArgs = interaction Dependent $ do
-  opts <- liftCommandM commandLineOptions
-  let ps = optPragmaOptions opts
-  setCommandLineOptions' $
-    opts { optPragmaOptions =
-             ps { optShowImplicit = not $ optShowImplicit ps } }
 
 ------------------------------------------------------------------------
 -- Error handling
