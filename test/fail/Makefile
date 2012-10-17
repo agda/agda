@@ -132,7 +132,7 @@ customised/FFI.err : %.err : %.agda
 	@if ($(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda) > $*.tmp; \
 		then echo "Unexpected success"; rm -f $*.tmp; false; \
     else if [ -s $*.tmp ]; \
-		then sed -e "s/[^ (]*test.fail.//g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
+		then sed -e "s/[^ (]*test.fail.//g;s/[0-9][0-9]*://g;s/scope/Skopje/g" $*.tmp > $@; cat $@; rm -f $*.tmp; true; \
 		else rm -f $@ $*.tmp; false; \
 		fi; \
 	fi
@@ -142,7 +142,7 @@ customised/FFI : % : %.err
 	@echo $*.agda
 	-@rm -rf customised/MAlonzo
 	-@$(AGDA_BIN) --compile -v0 --ignore-interfaces -icustomised $*.agda \
-	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g' \
+	    | sed -e 's/[^ (]*test.fail.//g;s/\\/\//g;s/[0-9][0-9]*://g;s/scope/Skopje/g' \
 	    > $*.err.tmp
 	@echo `cat $*.err.tmp` | sed -e 's/\\/\//g' > $*.err.tmp.2
 	@echo `cat $*.err` > $*.err.tmp.3
