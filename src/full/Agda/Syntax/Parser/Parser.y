@@ -888,7 +888,7 @@ Declaration
     | Private	    { [$1] }
     | Postulate	    { [$1] }
     | Primitive	    { [$1] }
-    | Open	    { [$1] }
+    | Open	    {  $1  }
     | Import	    { [$1] }
     | ModuleMacro   { [$1] }
     | Module	    { [$1] }
@@ -1037,28 +1037,75 @@ SimpleId : id  { snd $1 }
 
 
 -- Open
-Open :: { Declaration }
-Open : 'open' ModuleName OpenArgs ImportDirective {
+Open :: { [Declaration] }
+{-
+Open : 'open' MaybeImport ModuleName OpenArgs ImportDirective {
+    let
+    { imp = $2
+    ; m   = $3
+    ; es  = $4
+    ; dir = $5
+    ; r   = getRange ($1, m, es, dir)
+    ; nodir    = ImportDirective noRange (Hiding []) [] False
+    ; impStm r = Import (getRange (r,m)) m Nothing DontOpen nodir
+    } in
+    (maybe id (\ r ds -> impStm r : ds) imp)
+    [ case es of
+      { []  -> Open r m dir
+      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
+			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+			     DoOpen dir
+                         ]
+      }
+    ]
+  }
+-}
+Open : 'open' 'import' ModuleName OpenArgs ImportDirective {
+    let
+    { m   = $3
+    ; es  = $4
+    ; dir = $5
+    ; r   = getRange ($1, m, es, dir)
+    ; nodir  = ImportDirective noRange (Hiding []) [] False
+    ; impStm = Import (getRange ($2,m)) m Nothing DontOpen nodir
+    } in
+    [ impStm
+    , case es of
+      { []  -> Open r m dir
+      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
+			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+			     DoOpen dir
+                         ]
+      }
+    ]
+  }
+  |'open' ModuleName OpenArgs ImportDirective {
     let
     { m   = $2
     ; es  = $3
     ; dir = $4
     ; r   = getRange ($1, m, es, dir)
     } in
-    case es of
-    { []  -> Open r m dir
-	; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
+    [ case es of
+      { []  -> Open r m dir
+      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
 			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
 			     DoOpen dir
-                       ]
-    }
+                         ]
+      }
+    ]
   }
   | 'open' ModuleName '{{' '...' DoubleCloseBrace ImportDirective {
     let r = getRange ($1, $2, $3, $4) in
-    Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
+    [ Private r [ ModuleMacro r (noName $ beginningOf $ getRange $2)
     	      	(RecordModuleIFS r $2) DoOpen $6
-        ]
+                ]
+    ]
   }
+
+MaybeImport :: { Maybe Range }
+MaybeImport : {- empty -} { Nothing }
+            | 'import'    { Just (getRange $1) }
 
 OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }
@@ -1084,8 +1131,10 @@ ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirec
 Import :: { Declaration }
 Import : 'import' ModuleName ImportImportDirective
 	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) DontOpen (snd $3) }
+{-
        | 'open' 'import' ModuleName ImportImportDirective
 	    { Import (getRange ($1,$2,$3,snd $4)) $3 (fst $4) DoOpen (snd $4) }
+-}
 
 -- Module
 Module :: { Declaration }
@@ -1096,7 +1145,7 @@ Module : 'module' Id TypedUntypedBindings 'where' Declarations0
 TopLevel :: { [Declaration] }
 TopLevel : TopModule       { [$1] }
 	 | Import TopLevel { $1 : $2 }
-	 | Open   TopLevel { $1 : $2 }
+	 | Open   TopLevel { $1 ++ $2 }
 
 -- The top-level module can have a qualified name.
 TopModule :: { Declaration }
