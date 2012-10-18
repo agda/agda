@@ -54,12 +54,9 @@ mimicGHCi = do
                 ""  -> return ()
                 ('-':'-':_) -> return ()
                 _ -> case listToMaybe $ reads r of
-                    Just (IOTCM current highlighting cmd, "") ->
-                        runInteraction current highlighting cmd
-                    Just (_, rem) ->
-                        liftIO $ putStrLn $ "not consumed: " ++ rem
-                    _ ->
-                        liftIO $ putStrLn $ "cannot read: " ++ r
+                    Just (x, "")  -> runInteraction x
+                    Just (_, rem) -> liftIO $ putStrLn $ "not consumed: " ++ rem
+                    _ ->             liftIO $ putStrLn $ "cannot read: " ++ r
             interact'
 
 

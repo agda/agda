@@ -162,21 +162,15 @@ makeSilent i = i { command = do
 -}
 
 
--- | Run an 'Interaction' value, catch the exceptions, emit output
+-- | Run an 'IOTCM' value, catch the exceptions, emit output
+--
+--   If an error happens the state of 'CommandM' does not change,
+--   but stPersistent may change (which contains successfully
+--   loaded interfaces for example).
 
-runInteraction :: FilePath
-         -- ^ The current file. If this file does not match
-         -- 'theCurrentFile, and the 'Interaction' is not
-         -- \"independent\", then an error is raised.
-      -> HighlightingLevel
-      -> Interaction
-         -- ^ What to do
-      -> CommandM ()
-         -- ^ If an error happens the state of 'CommandM' does not change,
-         --   but stPersistent may change (which contains successfully
-         --   loaded interfaces for example).
+runInteraction :: IOTCM -> CommandM ()
 
-runInteraction current highlighting cmd
+runInteraction (IOTCM current highlighting cmd)
     = handleNastyErrors $ liftCommandMT (withEnv (initEnv
             { envEmacs             = True
             , envHighlightingLevel = highlighting
@@ -358,8 +352,15 @@ data Interaction where
         deriving Read
 
 data IOTCM
-    = IOTCM FilePath HighlightingLevel Interaction
-        deriving Read
+    = IOTCM
+        FilePath
+         -- ^ The current file. If this file does not match
+         -- 'theCurrentFile, and the 'Interaction' is not
+         -- \"independent\", then an error is raised.
+        HighlightingLevel
+        Interaction
+         -- ^ What to do
+            deriving Read
 
 ---------------------------------------------------------
 -- Read instances
