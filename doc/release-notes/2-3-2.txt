@@ -149,6 +149,9 @@ Language
 
     open import Path.Module args [using/hiding/renaming (...)]
 
+  This only brings the imported identifiers from Path.Module into scope,
+  not the module itself!
+
   Note that if your args are 'as' followed by a name,
   then this is parsed as 'as' clause.
 
