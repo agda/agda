@@ -158,6 +158,10 @@ Language
 
     open import Path.Module args as M ...
 
+* Implicit module parameters can be given by name.
+
+  This feature was (accidentally?) introduced in Agda 2.3.0.
+
 * Multiple type signatures sharing a same type can now be written as a single
   type signature.
 
