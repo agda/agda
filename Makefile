@@ -24,7 +24,7 @@ endif
 
 .PHONY : default all clean install full prof core \
 		 debug doc dist make_configure clean_test examples \
-		 test succeed fail benchmark up-to-date-std-lib \
+		 test tests succeed fail interaction benchmark up-to-date-std-lib \
 		 update-cabal install-lib install-bin install-emacs-mode
 
 ## Default target #########################################################
