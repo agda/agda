@@ -1,7 +1,6 @@
 {-# LANGUAGE CPP, ScopedTypeVariables, FlexibleInstances #-}
 module Agda.Interaction.GhcTop
     ( mimicGHCi
-    , lispifyResponse
     ) where
 
 import Data.List
