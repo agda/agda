@@ -329,10 +329,10 @@ instance PrettyTCM TypeError where
               $$ nest 2 (vcat $ map prettyTCM indices)
               $$ fwords "are free in the parameters"
               $$ nest 2 (vcat $ map prettyTCM pars)
-            ShadowedModule [] -> __IMPOSSIBLE__
-            ShadowedModule ms@(m : _) -> fsep $
-              pwords "Duplicate definition of module" ++ [prettyTCM m <> text "."] ++
-              pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM m] ++
+            ShadowedModule x [] -> __IMPOSSIBLE__
+            ShadowedModule x ms@(m : _) -> fsep $
+              pwords "Duplicate definition of module" ++ [prettyTCM x <> text "."] ++
+              pwords "Previous definition of" ++ [help m] ++ pwords "module" ++ [prettyTCM x] ++
               pwords "at" ++ [text $ show r]
               where
                 help m = do

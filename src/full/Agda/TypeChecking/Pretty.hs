@@ -10,6 +10,7 @@ import Agda.Syntax.Literal
 import Agda.Syntax.Translation.InternalToAbstract
 import Agda.Syntax.Translation.AbstractToConcrete
 import qualified Agda.Syntax.Abstract as A
+import qualified Agda.Syntax.Concrete as C
 import qualified Agda.Syntax.Abstract.Pretty as P
 import qualified Agda.Syntax.Concrete.Pretty as P
 
@@ -122,6 +123,9 @@ instance PrettyTCM Elim where
 
 instance PrettyTCM A.Expr where
     prettyTCM = prettyA
+
+instance PrettyTCM C.Name where
+  prettyTCM = text . show
 
 instance PrettyTCM Relevance where
   prettyTCM Irrelevant = text "."

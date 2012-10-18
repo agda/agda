@@ -1,0 +1,6 @@
+ShadowModule2.agda:8,21-33
+Duplicate definition of module YesDuplicate. Previous definition of
+module YesDuplicate at
+/Users/abel/cover/alfa/Agda2-clean/test/Common/Size.agda:7,15-19
+when scope checking the declaration
+  open module YesDuplicate = NotDuplicate

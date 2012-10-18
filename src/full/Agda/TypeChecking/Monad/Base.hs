@@ -1124,7 +1124,7 @@ data TypeError
 	| DuplicateBuiltinBinding String Term Term
 	| NoBindingForBuiltin String
 	| NoSuchPrimitiveFunction String
-        | ShadowedModule [A.ModuleName]
+        | ShadowedModule C.Name [A.ModuleName]
 	| BuiltinInParameterisedModule String
 	| NoRHSRequiresAbsurdPattern [NamedArg A.Pattern]
 	| AbsurdPatternRequiresNoRHS [NamedArg A.Pattern]
