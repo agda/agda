@@ -28,11 +28,11 @@ run_test=if test -f $*.in; \
          | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
            2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
-    else source ./$*.script \
+    else source ./$*.sh \
 	 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
-# Note that RTS_... variables are ignored when .script files are used.
+# Note that RTS_... variables are ignored when .sh files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai

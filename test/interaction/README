@@ -25,5 +25,5 @@ Test framework for interactions
   against for each run of the test.
 
 - If the framework above is too limited, then one can use script-files
-  named SomeTest.script instead of SomeTest.in. These files can
-  contain arbitrary Bash code.
+  named SomeTest.sh instead of SomeTest.in. These files can contain
+  arbitrary Bash code.
