@@ -23,16 +23,19 @@ export TMPDIR=highlighting-tmp
 
 run_test=if test -f $*.in; \
     then cat $*.in \
-         | sed "s/goal_command/ioTCMgoal currentFile None/g" \
-         | sed "s/top_command/ioTCM currentFile None/g" \
+         | sed "s/ioTCM/IOTCM/g" \
+         | sed "s/cmd_/Cmd_/g" \
+         | sed "s/showImplicitArgs/ShowImplicitArgs/g" \
+         | sed "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
+         | sed "s/top_command/IOTCM currentFile None/g" \
+         | sed "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None (\\2 \\1 noRange \\3)/g" \
+         | sed "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None (\\2 \\1 noRange \\3)/g" \
          | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
            2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else source ./$*.sh \
-	 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+        | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
-
-# Note that RTS_... variables are ignored when .sh files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai

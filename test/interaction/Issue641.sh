@@ -4,7 +4,7 @@
 BASE=Issue641
 FAIL="module $BASE where\nFoo : Set\nFoo = Set\n"
 SUCCEED="{-# OPTIONS --type-in-type #-}\n$FAIL"
-LOAD="ioTCM \"$BASE.agda\" None (cmd_load \"$BASE.agda\" [])\n"
+LOAD="IOTCM \"$BASE.agda\" None (Cmd_load \"$BASE.agda\" [])\n"
 
 rm -f $BASE.pipe
 mkfifo $BASE.pipe

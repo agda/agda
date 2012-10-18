@@ -527,7 +527,7 @@ highlighting may be updated."
 
   (apply 'agda2-send-command
          'restart
-         "ioTCM"
+         "IOTCM"
          (agda2-string-quote (buffer-file-name))
          (if highlight (agda2-highlight-level) "None")
          "("
@@ -722,7 +722,7 @@ An error is raised if no responses are received."
 (defun agda2-load ()
   "Load current buffer."
   (interactive)
-  (agda2-go t t "cmd_load"
+  (agda2-go t t "Cmd_load"
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
             ))
@@ -754,7 +754,7 @@ resulting time (represented as a string)."
 
 The variable `agda2-backend' determines which backend is used."
   (interactive)
-  (agda2-go t t "cmd_compile"
+  (agda2-go t t "Cmd_compile"
             agda2-backend
             (agda2-string-quote (buffer-file-name))
             (agda2-list-quote agda2-include-dirs)
@@ -762,7 +762,7 @@ The variable `agda2-backend' determines which backend is used."
 
 (defun agda2-give()
   "Give to the goal at point the expression in it" (interactive)
-  (agda2-goal-cmd "cmd_give" "expression to give"))
+  (agda2-goal-cmd "Cmd_give" "expression to give"))
 
 (defun agda2-give-action (old-g paren)
   "Update the goal OLD-G with the expression in it."
@@ -784,18 +784,18 @@ goal is replaced by the constructor applied to a suitable number
 of new goals."
   (interactive "P")
   (if pmlambda
-      (agda2-goal-cmd "cmd_refine_or_intro True" 'goal)
-    (agda2-goal-cmd "cmd_refine_or_intro False" 'goal)))
+      (agda2-goal-cmd "Cmd_refine_or_intro True" 'goal)
+    (agda2-goal-cmd "Cmd_refine_or_intro False" 'goal)))
 
 (defun agda2-auto ()
  "Simple proof search" (interactive)
- (agda2-goal-cmd "cmd_auto" 'goal))
+ (agda2-goal-cmd "Cmd_auto" 'goal))
 
 (defun agda2-make-case ()
   "Refine the pattern variables given in the goal.
 Assumes that <clause> = {!<variables>!} is on one line."
   (interactive)
-  (agda2-goal-cmd "cmd_make_case" "pattern variables to case"))
+  (agda2-goal-cmd "Cmd_make_case" "pattern variables to case"))
 
 (defun agda2-make-case-action (newcls)
   "Replace the line at point with new clauses NEWCLS and reload."
@@ -900,11 +900,11 @@ is inserted, and point is placed before this text."
 
 (defun agda2-show-goals()
   "Show all goals." (interactive)
-  (agda2-go t t "cmd_metas"))
+  (agda2-go t t "Cmd_metas"))
 
 (defun agda2-show-constraints()
   "Show constraints." (interactive)
-  (agda2-go t t "cmd_constraints"))
+  (agda2-go t t "Cmd_constraints"))
 
 (defun agda2-remove-annotations ()
   "Removes buffer annotations (overlays and text properties)."
@@ -980,13 +980,13 @@ With a prefix argument the result is not explicitly normalised.")
 (agda2-maybe-normalised
  agda2-goal-type
  "Show the type of the goal at point"
- "cmd_goal_type"
+ "Cmd_goal_type"
  nil)
 
 (agda2-maybe-normalised
  agda2-infer-type
  "Infer the type of the goal at point"
- "cmd_infer"
+ "Cmd_infer"
  "expression to type")
 
 (agda2-maybe-normalised-toplevel
@@ -994,7 +994,7 @@ With a prefix argument the result is not explicitly normalised.")
    "Infers the type of the given expression. The scope used for
 the expression is that of the last point inside the current
 top-level module"
-   "cmd_infer_toplevel"
+   "Cmd_infer_toplevel"
    "Expression")
 
 (defun agda2-infer-type-maybe-toplevel ()
@@ -1009,33 +1009,33 @@ top-level scope."
 (agda2-maybe-normalised
  agda2-goal-and-context
  "Shows the type of the goal at point and the currect context"
- "cmd_goal_type_context"
+ "Cmd_goal_type_context"
  nil)
 
 (agda2-maybe-normalised
  agda2-goal-and-context-and-inferred
  "Shows the context, the goal and the given expression's inferred type"
- "cmd_goal_type_context_infer"
+ "Cmd_goal_type_context_infer"
  "expression to type")
 
 (agda2-maybe-normalised
  agda2-show-context
  "Show the context of the goal at point"
- "cmd_context"
+ "Cmd_context"
  nil)
 
 (defun agda2-module-contents ()
   "Shows all the top-level names in the given module.
 Along with their types."
   (interactive)
-  (agda2-goal-cmd "cmd_show_module_contents" "Module name"))
+  (agda2-goal-cmd "Cmd_show_module_contents" "Module name"))
 
 (defun agda2-module-contents-toplevel (module)
   "Shows all the top-level names in the given module.
 Along with their types."
   (interactive "MModule name: ")
   (agda2-go t nil
-            "cmd_show_module_contents_toplevel"
+            "Cmd_show_module_contents_toplevel"
             (agda2-string-quote module)))
 
 (defun agda2-module-contents-maybe-toplevel ()
@@ -1052,7 +1052,7 @@ a goal, the top-level scope."
 (defun agda2-solveAll ()
   "Solves all goals that are already instantiated internally."
   (interactive)
-  (agda2-go t t "cmd_solveAll"))
+  (agda2-go t t "Cmd_solveAll"))
 
 (defun agda2-solveAll-action (iss)
   (while iss
@@ -1072,7 +1072,7 @@ a goal, the top-level scope."
   "Compute the normal form of the expression in the goal at point.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "P")
-  (let ((cmd (concat "cmd_compute"
+  (let ((cmd (concat "Cmd_compute"
                      (if arg " True" " False"))))
     (agda2-goal-cmd cmd "expression to normalise")))
 
@@ -1082,7 +1082,7 @@ The scope used for the expression is that of the last point inside the current
 top-level module.
 With a prefix argument \"abstract\" is ignored during the computation."
   (interactive "MExpression: \nP")
-  (let ((cmd (concat "cmd_compute_toplevel"
+  (let ((cmd (concat "Cmd_compute_toplevel"
                      (if arg " True" " False")
                      " ")))
     (agda2-go t nil (concat cmd (agda2-string-quote expr)))))
@@ -1104,7 +1104,7 @@ With a prefix argument \"abstract\" is ignored during the computation."
   "Loads precomputed syntax highlighting info for the current buffer.
 If there is any to load."
   (agda2-go nil t
-            "cmd_load_highlighting_info"
+            "Cmd_load_highlighting_info"
             (agda2-string-quote (buffer-file-name))))
 
 (defun agda2-literate-p ()
@@ -1452,10 +1452,10 @@ invoked."
 With prefix argument, turn on display of implicit arguments if
 the argument is a positive number, otherwise turn it off."
   (interactive "P")
-  (cond ((eq arg nil)       (agda2-go t t "toggleImplicitArgs"))
+  (cond ((eq arg nil)       (agda2-go t t "ToggleImplicitArgs"))
         ((and (numberp arg)
-              (> arg 0))    (agda2-go t t "showImplicitArgs" "True"))
-        (t                  (agda2-go t t "showImplicitArgs" "False"))))
+              (> arg 0))    (agda2-go t t "ShowImplicitArgs" "True"))
+        (t                  (agda2-go t t "ShowImplicitArgs" "False"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;

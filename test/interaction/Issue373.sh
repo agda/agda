@@ -4,7 +4,7 @@ if [ -e "$OBJECT_FILE" ]; then
     rm "$OBJECT_FILE"
 fi
 
-echo 'ioTCM "Issue373.agda" None (cmd_compile MAlonzo "Issue373.agda" [])' | \
+echo 'IOTCM "Issue373.agda" None (Cmd_compile MAlonzo "Issue373.agda" [])' | \
   agda --interaction 2>&1
 
 ./Issue373

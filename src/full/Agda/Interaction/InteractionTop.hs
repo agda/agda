@@ -22,6 +22,7 @@ import Agda.Utils.FileName
 import Agda.Utils.Tuple
 import qualified Agda.Utils.IO.UTF8 as UTF8
 
+import Control.Monad.Identity
 import Control.Monad.Error
 import Control.Monad.Reader
 import Control.Monad.State
@@ -327,7 +328,7 @@ data Interaction where
 
     Cmd_intro           :: Bool -> InteractionId -> Range -> String -> Interaction
 
-    -- Cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
+    Cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
 
     Cmd_auto            :: InteractionId -> Range -> String -> Interaction
 
@@ -354,35 +355,84 @@ data Interaction where
 
     Cmd_compute         :: Bool -- ^ Ignore abstract?
                         -> InteractionId -> Range -> String -> Interaction
+        deriving Read
+
+data IOTCM
+    = IOTCM FilePath HighlightingLevel Interaction
+        deriving Read
+
+---------------------------------------------------------
+-- Read instances
 
 
--- dummy wrappers (will be removed)
+-- | The 'Parse' monad.
+--   'StateT' state holds the remaining input.
 
-cmd_load            = Cmd_load
-cmd_compile         = Cmd_compile
-cmd_constraints     = Cmd_constraints
-cmd_metas           = Cmd_metas
-cmd_show_module_contents_toplevel = Cmd_show_module_contents_toplevel
-cmd_solveAll        = Cmd_solveAll
-cmd_infer_toplevel  = Cmd_infer_toplevel
-cmd_compute_toplevel = Cmd_compute_toplevel
-cmd_load_highlighting_info = Cmd_load_highlighting_info
-showImplicitArgs    = ShowImplicitArgs
-toggleImplicitArgs  = ToggleImplicitArgs
-cmd_give            = Cmd_give
-cmd_refine          = Cmd_refine
-cmd_intro           = Cmd_intro
-cmd_auto            = Cmd_auto
-cmd_context         = Cmd_context
-cmd_infer           = Cmd_infer
-cmd_goal_type       = Cmd_goal_type
-cmd_goal_type_context = Cmd_goal_type_context
-cmd_goal_type_context_infer = Cmd_goal_type_context_infer
-cmd_show_module_contents = Cmd_show_module_contents
-cmd_make_case       = Cmd_make_case
-cmd_compute         = Cmd_compute
+type Parse a = ErrorT String (StateT String Identity) a
 
+-- | Converter from the type of 'reads' to 'Parse'
+--   The first paramter is part of the error message
+--   in case the parse fails.
 
+readsToParse :: String -> (String -> Maybe (a, String)) -> Parse a
+readsToParse s f = do
+    st <- lift get
+    case f st of
+        Nothing -> throwError s
+        Just (a, st) -> do
+            lift $ put st
+            return a
+
+parseToReadsPrec :: Parse a -> Int -> String -> [(a, String)]
+parseToReadsPrec p i s = case runIdentity . flip runStateT s . runErrorT $ parens' p of
+    (Right a, s) -> [(a,s)]
+    _ -> []
+
+-- | Demand an exact string.
+
+exact :: String -> Parse ()
+exact s = readsToParse (show s) $ fmap (\x -> ((),x)) . stripPrefix s . dropWhile (==' ')
+
+readParse :: Read a => Parse a
+readParse = readsToParse "read failed" $ listToMaybe . reads
+
+parens' :: Parse a -> Parse a
+parens' p = do
+    exact "("
+    x <- p
+    exact ")"
+    return x
+  `mplus`
+    p
+
+instance Read InteractionId where
+    readsPrec = parseToReadsPrec $
+        fmap InteractionId readParse
+
+instance Read Range where
+    readsPrec = parseToReadsPrec $ do
+                exact "Range"
+                fmap Range readParse
+          `mplus` do
+                exact "noRange"
+                return noRange
+
+instance Read Interval where
+    readsPrec = parseToReadsPrec $ do
+        exact "Interval"
+        liftM2 Interval readParse readParse
+
+instance Read AbsolutePath where
+    readsPrec = parseToReadsPrec $ do
+        exact "mkAbsolute"
+        fmap mkAbsolute readParse
+
+instance Read Position where
+    readsPrec = parseToReadsPrec $ do
+        exact "Pn"
+        liftM4 Pn readParse readParse readParse readParse
+
+---------------------------------------------------------
 
 -- | Can the command run even if the relevant file has not been loaded
 --   into the state?
@@ -530,6 +580,9 @@ interpret (Cmd_intro pmLambda ii rng _) = do
                   mkOr (x:xs) = text x : mkOr xs
               in nest 2 $ fsep $ punctuate comma (mkOr ss)
             ]
+
+interpret (Cmd_refine_or_intro pmLambda ii r s) = interpret $
+  (if null s then Cmd_intro pmLambda else Cmd_refine) ii r s
 
 interpret (Cmd_auto ii rng s) = do
   (res, msg) <- liftCommandM $ Auto.auto ii rng s
@@ -680,6 +733,7 @@ cmd_load' file includes unsolvedOK cmd = do
 -- | Available backends.
 
 data Backend = MAlonzo | Epic | JS
+    deriving (Show, Read)
 
 
 give_gen ii rng s give_ref mk_newtxt =
@@ -696,10 +750,6 @@ give_gen' give_ref mk_newtxt ii rng s = do
   where
   -- Substitutes xs for x in ys.
   replace x xs ys = concatMap (\y -> if y == x then xs else [y]) ys
-
-cmd_refine_or_intro :: Bool -> InteractionId -> Range -> String -> Interaction
-cmd_refine_or_intro pmLambda ii r s =
-  (if null s then cmd_intro pmLambda else cmd_refine) ii r s
 
 -- | Sorts interaction points based on their ranges.
 
