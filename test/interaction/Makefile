@@ -28,12 +28,11 @@ run_test=if test -f $*.in; \
          | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
            2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
-    else ( echo ':mod + Agda.Interaction.GhciTop Agda.Interaction.BasicOps'; \
-           echo 'let currentFile = "$(wildcard $*.agda $*.lagda)"'; \
-           echo "let top_command = top_command' currentFile" ) \
-           | cat - $*.in_ghci | ghc --interactive -v0 $(RTS_$*) \
-           2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+    else source ./$*.script \
+	 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
+
+# Note that RTS_... variables are ignored when .script files are used.
 
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai

@@ -2,7 +2,7 @@ Test framework for interactions
 -------------------------------
 
 - 'make interaction' runs the interaction tests (also part of 'make test')
-- Each test consists of an agda file SomeTest.agda and a interaction
+- Most tests consist of an agda file SomeTest.agda and an interaction
   script SomeTest.in. The interaction script contains interactions (as
   commands to the Agda2 interpreter) that should be performed on the Agda
   file.
@@ -23,3 +23,7 @@ Test framework for interactions
           ioTCM currentFile None <goalcommand> <i> noRange <s>
 - The output from each test is recorded in SomeTest.out and compared
   against for each run of the test.
+
+- If the framework above is too limited, then one can use script-files
+  named SomeTest.script instead of SomeTest.in. These files can
+  contain arbitrary Bash code.

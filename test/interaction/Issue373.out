@@ -1,4 +1,4 @@
-(agda2-status-action "")
+Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Issue373 (Issue373.agda).\n" t)
@@ -6,4 +6,4 @@
 (agda2-status-action "Checked")
 (agda2-info-action "*Compilation result*" "The module was successfully compiled." nil)
 ((last . 1) . (agda2-goals-action '()))
-ok
+Agda2> ok

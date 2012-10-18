@@ -98,7 +98,6 @@ library
                     Agda.ImpossibleTest
                     Agda.Interaction.BasicOps
                     Agda.Interaction.GhcTop
-                    Agda.Interaction.GhciTop
                     Agda.Interaction.InteractionTop
                     Agda.Compiler.CallCompiler
                     Agda.Compiler.HaskellTypes
