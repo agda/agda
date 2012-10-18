@@ -1038,29 +1038,7 @@ SimpleId : id  { snd $1 }
 
 -- Open
 Open :: { [Declaration] }
-{-
-Open : 'open' MaybeImport ModuleName OpenArgs ImportDirective {
-    let
-    { imp = $2
-    ; m   = $3
-    ; es  = $4
-    ; dir = $5
-    ; r   = getRange ($1, m, es, dir)
-    ; nodir    = ImportDirective noRange (Hiding []) [] False
-    ; impStm r = Import (getRange (r,m)) m Nothing DontOpen nodir
-    } in
-    (maybe id (\ r ds -> impStm r : ds) imp)
-    [ case es of
-      { []  -> Open r m dir
-      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
-			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
-			     DoOpen dir
-                         ]
-      }
-    ]
-  }
--}
-Open : 'open' 'import' ModuleName OpenArgs ImportDirective {
+Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
     let
     { m   = $3
     ; es  = $4
@@ -1068,16 +1046,41 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {
     ; r   = getRange ($1, m, es, dir)
     ; nodir  = ImportDirective noRange (Hiding []) [] False
     ; impStm = Import (getRange ($2,m)) m Nothing DontOpen nodir
+    ; (initArgs, last2Args) = splitAt (length es - 2) es
+    ; parseAsClause = case last2Args of
+      { [ Ident (QName (Name asR [Id x]))
+        , Ident (QName m')
+        ] | x == "as" -> Just (asR, m')
+      ; _ -> Nothing
+      }
     } in
-    [ impStm
-    , case es of
-      { []  -> Open r m dir
-      ; _   -> Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
+    case es of
+      { []                                 -> return [ impStm, Open r m dir]
+        -- we do not support a mix of module arguments and "as M"
+{- DOES NOT GIVE GOOD ERROR MESSAGE for mix of arguments and as
+      ; [ Ident (QName (Name asR [Id x]))
+        , Ident (QName m')
+        ] | x == "as" -> [
+               Import (getRange ($1, $2, m, es, dir)) m (Just (AsName m' asR)) DoOpen dir ]
+-}
+{- FAILS ON examples/order/MinMax
+      ; _ | Just (es, m') <- parseAsClause -> [
+               ModuleMacro r m'
+			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+			     DoOpen dir
+-}
+      ; _ | Just (asR, m') <- parseAsClause -> do
+             { unless (null initArgs) $ parseErrorAt (fromJust $ rStart $ getRange es) "You cannot supply both module instantiation and 'as' clause in an 'open import' statement."
+             ; return [ Import (getRange ($1, $2, m, es, dir)) m (Just (AsName m' asR)) DoOpen dir ]
+             }
+          | otherwise                      -> return [ impStm,
+--      ; _                                  -> return [ impStm,
+               Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
 			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
 			     DoOpen dir
                          ]
+             ]
       }
-    ]
   }
   |'open' ModuleName OpenArgs ImportDirective {
     let
@@ -1102,10 +1105,6 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {
                 ]
     ]
   }
-
-MaybeImport :: { Maybe Range }
-MaybeImport : {- empty -} { Nothing }
-            | 'import'    { Just (getRange $1) }
 
 OpenArgs :: { [Expr] }
 OpenArgs : {- empty -}    { [] }

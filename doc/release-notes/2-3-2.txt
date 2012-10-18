@@ -145,6 +145,19 @@ Language
 
     two = Bool.if true then 1 Nat.+ 1 else 0
 
+* Instantiating a module in an open import statement [Issue 481].  Now accepted:
+
+    open import Path.Module args [using/hiding/renaming (...)]
+
+  Note that if your args are 'as' followed by a name,
+  then this is parsed as 'as' clause.
+
+    open import Path.Module as Mod
+
+  Not supported is both 'as' clause and module arguments.  Rejected:
+
+    open import Path.Module args as M ...
+
 * Multiple type signatures sharing a same type can now be written as a single
   type signature.
 
