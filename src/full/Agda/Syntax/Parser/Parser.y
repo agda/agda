@@ -1044,8 +1044,11 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
     ; es  = $4
     ; dir = $5
     ; r   = getRange ($1, m, es, dir)
+    ; mr  = getRange m
+    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show mr] -- turn range into unique id
+    ; m'    = QName fresh
     ; nodir  = ImportDirective noRange (Hiding []) [] False
-    ; impStm = Import (getRange ($2,m)) m Nothing DontOpen nodir
+    ; impStm = Import (getRange ($2,m)) m (Just (AsName fresh noRange)) DontOpen nodir
     ; (initArgs, last2Args) = splitAt (length es - 2) es
     ; parseAsClause = case last2Args of
       { [ Ident (QName (Name asR [Id x]))
@@ -1055,7 +1058,9 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
       }
     } in
     case es of
-      { []                                 -> return [ impStm, Open r m dir]
+      { [] -> return [Import (getRange ($1,$2,m,dir)) m Nothing DoOpen dir]
+        -- [] -> return [ impStm, Open r m dir]
+
         -- we do not support a mix of module arguments and "as M"
 {- DOES NOT GIVE GOOD ERROR MESSAGE for mix of arguments and as
       ; [ Ident (QName (Name asR [Id x]))
@@ -1076,7 +1081,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
           | otherwise                      -> return [ impStm,
 --      ; _                                  -> return [ impStm,
                Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
-			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
+			     (SectionApp (getRange (fresh , es)) [] (RawApp (fuseRange fresh es) (Ident (QName fresh) : es)))
 			     DoOpen dir
                          ]
              ]

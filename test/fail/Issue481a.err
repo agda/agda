@@ -1,0 +1,4 @@
+Issue481a.agda:7,1-46
+No such module Common.Issue481ParametrizedModule
+when scope checking the declaration
+  module PM = Common.Issue481ParametrizedModule

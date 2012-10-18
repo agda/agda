@@ -3,7 +3,9 @@ module Issue481 where
 
 -- Use case:
 
-open import Common.Issue481ParametrizedModule Set using (id)
+open import Common.Issue481ParametrizedModule Set using () renaming (id to idSet)
+open import Common.Issue481ParametrizedModule (Set → Set) using () renaming (id to idSetToSet)
+
 
 {- NOT SUPPORTED, because in conflict with "Test case" below.
 

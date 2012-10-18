@@ -1,0 +1,4 @@
+Issue481.agda:8,47-47
+Issue481.agda:8,47:
+You cannot supply both module instantiation and 'as' clause in an
+'open import' statement. <EOF><ERROR> ...
