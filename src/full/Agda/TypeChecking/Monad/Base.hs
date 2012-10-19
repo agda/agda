@@ -848,6 +848,15 @@ data HighlightingLevel
     -- being type-checked.
     deriving (Eq, Ord, Show, Read)
 
+-- | How should highlighting be sent to the user interface?
+
+data HighlightingMethod
+  = Direct
+    -- ^ Via stdout.
+  | Indirect
+    -- ^ Both via files and via stdout.
+    deriving (Eq, Show, Read)
+
 -- | @ifTopLevelAndHighlightingLevelIs l m@ runs @m@ when we're
 -- type-checking the top-level module and the highlighting level is
 -- /at least/ @l@.
@@ -908,6 +917,7 @@ data TCEnv =
           , envHighlightingLevel  :: HighlightingLevel
                 -- ^ Set to 'None' when imported modules are
                 --   type-checked.
+          , envHighlightingMethod :: HighlightingMethod
           , envModuleNestingLevel :: Integer
                 -- ^ This number indicates how far away from the
                 --   top-level module Agda has come when chasing
@@ -946,6 +956,7 @@ initEnv = TCEnv { envContext	         = []
                 , envCall                   = Nothing
                 , envEmacs                  = False
                 , envHighlightingLevel      = None
+                , envHighlightingMethod     = Indirect
                 , envModuleNestingLevel     = -1
                 , envAllowDestructiveUpdate = True
 		}

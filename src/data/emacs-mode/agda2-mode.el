@@ -530,6 +530,7 @@ highlighting may be updated."
          "IOTCM"
          (agda2-string-quote (buffer-file-name))
          (if highlight (agda2-highlight-level) "None")
+         "Indirect"
          "("
          (append args '(")"))))
 

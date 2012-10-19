@@ -16,7 +16,8 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
 import Agda.TypeChecking.Errors (prettyError)
-import Agda.TypeChecking.Monad (TCM)
+import Agda.TypeChecking.Monad
+  (TCM, envHighlightingMethod, HighlightingMethod(..))
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
@@ -25,7 +26,9 @@ import Agda.Utils.TestHelpers
 import Agda.Utils.Impossible
 #include "../../undefined.h"
 
+import Control.Applicative
 import qualified Control.Exception as E
+import Control.Monad.Reader
 import Control.Monad.Trans
 import Data.Char
 import Data.List
@@ -87,10 +90,13 @@ lispifyHighlightingInfo
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
   -> TCM (Lisp String)
-lispifyHighlightingInfo h modFile = liftIO $ case ranges h of
-  ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
-                  mi == mempty                       -> direct
-  _                                                  -> indirect
+lispifyHighlightingInfo h modFile = do
+  method <- envHighlightingMethod <$> ask
+  liftIO $ case ranges h of
+    _             | method == Direct                   -> direct
+    ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
+                    mi == mempty                       -> direct
+    _                                                  -> indirect
   where
   info     = map (showMetaInfo modFile) (ranges h)
 

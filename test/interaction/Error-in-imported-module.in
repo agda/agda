@@ -1,1 +1,1 @@
-ioTCM currentFile NonInteractive (cmd_load currentFile [])
+ioTCM currentFile NonInteractive Indirect (cmd_load currentFile [])

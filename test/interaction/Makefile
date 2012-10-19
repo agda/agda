@@ -27,9 +27,9 @@ run_test=if test -f $*.in; \
          | sed "s/cmd_/Cmd_/g" \
          | sed "s/showImplicitArgs/ShowImplicitArgs/g" \
          | sed "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
-         | sed "s/top_command/IOTCM currentFile None/g" \
-         | sed "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None (\\2 \\1 noRange \\3)/g" \
-         | sed "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None (\\2 \\1 noRange \\3)/g" \
+         | sed "s/top_command/IOTCM currentFile None Indirect/g" \
+         | sed "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | sed "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
          | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
            2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \

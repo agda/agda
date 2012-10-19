@@ -196,7 +196,7 @@ makeSilent i = i { command = do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-runInteraction (IOTCM current highlighting cmd)
+runInteraction (IOTCM current highlighting highlightingMethod cmd)
     = handleNastyErrors
     $ inEmacs
     $ do
@@ -221,8 +221,9 @@ runInteraction (IOTCM current highlighting cmd)
 
   where
     inEmacs = liftCommandMT $ withEnv $ initEnv
-            { envEmacs             = True
-            , envHighlightingLevel = highlighting
+            { envEmacs              = True
+            , envHighlightingLevel  = highlighting
+            , envHighlightingMethod = highlightingMethod
             }
 
     -- | Handle nasty errors like stack space overflow (issue 637)
@@ -361,6 +362,7 @@ data IOTCM
          -- 'theCurrentFile, and the 'Interaction' is not
          -- \"independent\", then an error is raised.
         HighlightingLevel
+        HighlightingMethod
         Interaction
          -- ^ What to do
             deriving Read
@@ -1030,4 +1032,3 @@ tellEmacsToJumpToError r =
     Just (Pn { srcFile = Nothing })            -> []
     Just (Pn { srcFile = Just f, posPos = p }) ->
        [ Resp_JumpToError (filePath f) p ]
-
