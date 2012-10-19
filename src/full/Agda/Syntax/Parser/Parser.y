@@ -1046,7 +1046,9 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange ($1, m, es, dir)
     ; mr  = getRange m
-    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show (hash (show r))] -- turn range into unique id
+    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show (hash (show r))]
+              -- turn range into unique id
+              -- TODO: Don't use (insecure) hashes in this way.
     ; nodir  = ImportDirective noRange (Hiding []) [] False
     ; impStm = Import (getRange ($2,m)) m (Just (AsName fresh noRange)) DontOpen nodir
     ; appStm m' es = Private r
