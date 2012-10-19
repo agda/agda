@@ -1,1 +1,1 @@
-top_command (cmd_load currentFile [])
+IOTCM currentFile Interactive Direct (cmd_load currentFile [])

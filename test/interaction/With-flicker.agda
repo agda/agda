@@ -25,6 +25,3 @@ postulate
 Foo : P (fib (thirteen + n)) → Set₁
 Foo p with zero
 Foo p | _ = Set
-
--- TODO: Make sure that interactive highlighting output is included in
--- With-flicker.out.
