@@ -564,7 +564,9 @@ checkWithFunction (WithFunction f aux gamma delta1 delta2 vs as b qs perm' perm 
          , nest 2 $ text $ show absAuxType
          ]
   -- The ranges in the generated type are completely bogus, so we kill them.
-  auxType <- setCurrentRange (getRange cs) (isType_ $ killRange absAuxType)
+  auxType <- setCurrentRange (getRange cs)
+               (traceCall NoHighlighting $  -- To avoid flicker.
+                  isType_ $ killRange absAuxType)
     `catchError` \err -> case err of
       TypeError s e -> put s >> enterClosure e (traceCall (CheckWithFunctionType absAuxType) . typeError)
       _             -> throwError err
