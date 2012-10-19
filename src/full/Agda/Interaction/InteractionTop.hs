@@ -145,7 +145,7 @@ revLift run lift f = do
 --   Use only if main errors are already catched.
 
 commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
-commandMToIO ci_i = revLift runCommandM liftCommandM $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct) 
+commandMToIO ci_i = revLift runCommandM liftCommandM $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct)
 
 -- | 'runSafeTCM' runs a safe 'TMC' action (a 'TCM' action which cannot fail)
 
@@ -237,7 +237,7 @@ runInteraction (IOTCM current highlighting cmd)
         s <- liftCommandM $ prettyError e
         x <- liftCommandM . gets $ optShowImplicit . stPragmaOptions
         let
-        mapM_ putResponse $ 
+        mapM_ putResponse $
             [ Resp_DisplayInfo $ Info_Error s ] ++
             tellEmacsToJumpToError (getRange e) ++
             [ Resp_Status $ Status { sChecked = False
