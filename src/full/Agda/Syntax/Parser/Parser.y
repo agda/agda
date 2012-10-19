@@ -31,6 +31,7 @@ import Agda.Syntax.Fixity
 import Agda.Syntax.Notation
 import Agda.Syntax.Literal
 
+import Agda.Utils.Hash
 import Agda.Utils.Monad
 import Agda.Utils.QuickCheck
 import Agda.Utils.TestHelpers
@@ -1045,10 +1046,15 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange ($1, m, es, dir)
     ; mr  = getRange m
-    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show mr] -- turn range into unique id
-    ; m'    = QName fresh
+    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show (hash (show r))] -- turn range into unique id
     ; nodir  = ImportDirective noRange (Hiding []) [] False
     ; impStm = Import (getRange ($2,m)) m (Just (AsName fresh noRange)) DontOpen nodir
+    ; appStm m' es = Private r
+        [ ModuleMacro r m'
+           (SectionApp (getRange (fresh , es)) []
+             (RawApp (fuseRange fresh es) (Ident (QName fresh) : es)))
+           DoOpen dir
+        ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
     ; parseAsClause = case last2Args of
       { [ Ident (QName (Name asR [Id x]))
@@ -1074,17 +1080,22 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
 			     (SectionApp (getRange (m , es)) [] (RawApp (fuseRange m es) (Ident m : es)))
 			     DoOpen dir
 -}
-      ; _ | Just (asR, m') <- parseAsClause -> do
+      ; _ | Just (asR, m') <- parseAsClause ->
+              if null initArgs then return
+                 [ Import (getRange ($1, $2, m, es, dir)) m
+                     (Just (AsName m' asR)) DoOpen dir
+                 ]
+              else return [ impStm , appStm m' initArgs ]
+{-
+do
              { unless (null initArgs) $ parseErrorAt (fromJust $ rStart $ getRange es) "You cannot supply both module instantiation and 'as' clause in an 'open import' statement."
              ; return [ Import (getRange ($1, $2, m, es, dir)) m (Just (AsName m' asR)) DoOpen dir ]
              }
-          | otherwise                      -> return [ impStm,
---      ; _                                  -> return [ impStm,
-               Private r [ ModuleMacro r (noName $ beginningOf $ getRange m)
-			     (SectionApp (getRange (fresh , es)) [] (RawApp (fuseRange fresh es) (Ident (QName fresh) : es)))
-			     DoOpen dir
-                         ]
-             ]
+-}
+          | otherwise -> return
+              [ impStm
+              , appStm (noName $ beginningOf $ getRange m) es
+              ]
       }
   }
   |'open' ModuleName OpenArgs ImportDirective {

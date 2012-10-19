@@ -152,14 +152,14 @@ Language
   This only brings the imported identifiers from Path.Module into scope,
   not the module itself!
 
-  Note that if your args are 'as' followed by a name,
-  then this is parsed as 'as' clause.
+  You can give a private name M to the instantiated module via
 
-    open import Path.Module as Mod
+    open import Path.Module args as M [using/hiding/renaming (...)]
 
-  Not supported is both 'as' clause and module arguments.  Rejected:
+  Try to avoid 'as' as part of the arguments.  'as' is not a keyword;
+  the following can be legal, although slightly obfuscated Agda code:
 
-    open import Path.Module args as M ...
+    open import as as as as as as
 
 * Implicit module parameters can be given by name.
 
