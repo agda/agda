@@ -35,7 +35,8 @@ mimicGHCi = do
 
     liftIO $ hSetBuffering stdout NoBuffering
 
-    modify $ \st -> st { stInteractionOutputCallback = putStrLn . show <=< lispifyResponse }
+    modify $ \st -> st { stInteractionOutputCallback =
+                           liftIO . putStrLn . show <=< lispifyResponse }
 
     opts <- commandLineOptions
     _ <- interact' `runCommandM` initCommandState { optionsOnReload = opts }
@@ -61,7 +62,7 @@ mimicGHCi = do
 
 -- | Convert Response to an elisp value for the interactive emacs frontend.
 
-lispifyResponse :: Response -> IO (Lisp String)
+lispifyResponse :: Response -> TCM (Lisp String)
 lispifyResponse (Resp_HighlightingInfo info modFile) =
   lispifyHighlightingInfo info modFile
 lispifyResponse (Resp_DisplayInfo info) = return $ case info of

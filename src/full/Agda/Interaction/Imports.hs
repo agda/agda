@@ -262,7 +262,7 @@ getInterface' x includeStateChanges =
                   Nothing -> "."
                   Just f  -> " (" ++ f ++ ")."
         ifM (envEmacs <$> ask)
-            (get >>= \st -> liftIO $ stInteractionOutputCallback st $ Resp_RunningInfo s)
+            (get >>= \st -> stInteractionOutputCallback st $ Resp_RunningInfo s)
             (reportSLn "" 1 s)
 
       skip file = do

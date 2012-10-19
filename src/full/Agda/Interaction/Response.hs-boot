@@ -3,7 +3,9 @@ module Agda.Interaction.Response
   , defaultInteractionOutputCallback
   ) where
 
+import {-# SOURCE #-} Agda.TypeChecking.Monad.Base
+
 data Response
 
-type InteractionOutputCallback = Response -> IO ()
+type InteractionOutputCallback = Response -> TCM ()
 defaultInteractionOutputCallback :: InteractionOutputCallback

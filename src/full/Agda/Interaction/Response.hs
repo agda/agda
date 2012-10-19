@@ -104,7 +104,7 @@ data GiveResult
 --      closure of the 'InteractionOutputCallback' function.
 --      (suitable for intra-process communication).
 
-type InteractionOutputCallback = Response -> IO ()
+type InteractionOutputCallback = Response -> TCM ()
 
 -- | The default 'InteractionOutputCallback' function
 --   is set to @__@@IMPOSSIBLE__@ because in this way it is easier to

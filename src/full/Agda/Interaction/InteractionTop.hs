@@ -168,8 +168,9 @@ liftCommandMT f m = revLift runCommandM liftCommandM $ f . ($ m)
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
 putResponse :: Response -> CommandM ()
-putResponse x =
-    liftIO . ($ x) =<< (liftCommandM . gets) stInteractionOutputCallback
+putResponse x = liftCommandM $ do
+  callback <- stInteractionOutputCallback <$> get
+  callback x
 
 {- UNUSED
 

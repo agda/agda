@@ -16,6 +16,7 @@ import Agda.Syntax.Common
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Translation.ConcreteToAbstract (TopLevelInfo)
 import Agda.TypeChecking.Errors (prettyError)
+import Agda.TypeChecking.Monad (TCM)
 import Agda.Utils.FileName
 import qualified Agda.Utils.IO.UTF8 as UTF8
 import Agda.Utils.String
@@ -85,8 +86,8 @@ lispifyHighlightingInfo
   :: HighlightingInfo
   -> ModuleToSource
      -- ^ Must contain a mapping for every definition site's module.
-  -> IO (Lisp String)
-lispifyHighlightingInfo h modFile = case ranges h of
+  -> TCM (Lisp String)
+lispifyHighlightingInfo h modFile = liftIO $ case ranges h of
   ((_, mi) : _) | otherAspects mi == [TypeChecks] ||
                   mi == mempty                       -> direct
   _                                                  -> indirect
