@@ -1,5 +1,5 @@
 {-# OPTIONS --sized-types #-}
-{-# OPTIONS --termination-depth=2 #-}
+-- {-# OPTIONS --termination-depth=2 #-} -- not necessary!
 -- {-# OPTIONS -v tc.size.solve:20 #-}
 -- {-# OPTIONS -v term:5 #-}
 module Issue709 where

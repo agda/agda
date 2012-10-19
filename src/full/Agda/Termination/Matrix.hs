@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | Naive implementation of simple matrix library.
 
 -- Originally copied from Agda1 sources.
@@ -96,7 +97,7 @@ prop_Arbitrary_MIx = mIxInvariant
 -- | Type of matrices, parameterised on the type of values.
 
 newtype Matrix i b = M { unM :: Array (MIx i) b }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Functor)
 
 matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
 matrixInvariant m =

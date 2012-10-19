@@ -955,7 +955,9 @@ compareTerm' suc (Def s ts) (ConDBP s' ps)
 -- register also increase
 compareTerm' suc (Def s ts) p | Just s == suc = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    return $ decr (-1) .*. infimum os
+    -- Andreas, 2012-10-19 do not cut off here
+    return $ increase 1 $ infimum os
+--    return $ decr (-1) .*. infimum os
 compareTerm' suc (Con c ts) p = do
     os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
     oc <- increaseFromConstructor c

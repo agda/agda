@@ -9,6 +9,7 @@
 module Agda.Termination.CallGraph
   ( -- * Structural orderings
     Order(Mat), decr
+  , increase
   , (.*.)
   , supremum, infimum
   , decreasing, le, lt, unknown, orderMat
@@ -88,6 +89,13 @@ instance Show Order where
 
 instance HasZero Order where
   zeroElement = Unknown
+
+-- | Raw increase which does not cut off.
+increase :: Int -> Order -> Order
+increase i o = case o of
+  Unknown -> Unknown
+  Decr k  -> Decr $ k - i
+  Mat m   -> Mat $ fmap (increase i) m
 
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --

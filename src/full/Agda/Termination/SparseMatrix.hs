@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, DeriveFunctor #-}
 
 {- | Sparse matrices.
 
@@ -108,7 +108,7 @@ prop_Arbitrary_MIx = mIxInvariant
 -- | Type of matrices, parameterised on the type of values.
 
 data Matrix i b = M { size :: Size i, unM :: [(MIx i, b)] }
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Functor)
 
 matrixInvariant :: (Num i, Ix i) => Matrix i b -> Bool
 matrixInvariant m = all (\ (MIx i j, b) -> 1 <= i && i <= rows sz
