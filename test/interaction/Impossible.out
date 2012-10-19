@@ -2,6 +2,6 @@ Agda2> (agda2-status-action "")
 (agda2-info-action "*Type-checking*" "" nil)
 (agda2-highlight-clear)
 (agda2-info-action "*Type-checking*" "Checking Impossible (Impossible.agda).\n" t)
-(agda2-info-action "*Error*" "An internal error has occurred. Please report this as a bug.\nLocation of the error: src/full/Agda/ImpossibleTest.hs:8\n" nil)
+(agda2-info-action "*Error*" "\nAn internal error has occurred. Please report this as a bug.\nLocation of the error: src/full/Agda/ImpossibleTest.hs:8" nil)
 (agda2-status-action "")
 Agda2> 

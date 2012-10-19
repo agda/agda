@@ -128,22 +128,48 @@ liftCommandM m = CommandM $ lift $ do
     modify $ \st -> st { stInteractionOutputCallback = outf }
     return a
 
+-- | Build an opposite action to 'lift' for state monads.
+
+revLift
+    :: MonadState st m
+    => (forall c . m c -> st -> k (c, st))      -- ^ run
+    -> (forall b . k b -> m b)                  -- ^ lift
+    -> (forall x . (m a -> k x) -> k x) -> m a  -- ^ reverse lift in double negative position
+revLift run lift f = do
+    st <- get
+    (a, st) <- lift $ f (`run` st)
+    put st
+    return a
+
+-- | Opposite of 'liftIO' for 'CommandM'.
+--   Use only if main errors are already catched.
+
+commandMToIO :: (forall x . (CommandM a -> IO x) -> IO x) -> CommandM a
+commandMToIO ci_i = revLift runCommandM liftCommandM $ \ct -> revLift runSafeTCM liftIO $ ci_i . (. ct) 
+
+-- | 'runSafeTCM' runs a safe 'TMC' action (a 'TCM' action which cannot fail)
+
+runSafeTCM :: TCM a -> TCState -> IO (a, TCState)
+runSafeTCM m st = do
+    x <- runTCM $ do
+        put st
+        a <- m
+        st <- get
+        return (a, st)
+    case x of
+        Right x -> return x
+        Left _  -> __IMPOSSIBLE__   -- cannot happen if 'm' is safe
+
 -- | Lift a TCM action transformer to a CommandM action transformer.
 
 liftCommandMT :: (forall a . TCM a -> TCM a) -> CommandM a -> CommandM a
-liftCommandMT f m = do
-    st <- get
-    (a, st) <- liftCommandM $ f $ runCommandM m st
-    put st
-    return a
+liftCommandMT f m = revLift runCommandM liftCommandM $ f . ($ m)
 
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
 putResponse :: Response -> CommandM ()
-putResponse x = liftCommandM $ do
-    outf <- gets stInteractionOutputCallback
-    liftIO $ outf x
-
+putResponse x = liftCommandM $
+    liftIO =<< gets (($ x) . stInteractionOutputCallback)
 
 {- UNUSED
 
@@ -169,79 +195,55 @@ makeSilent i = i { command = do
 --   loaded interfaces for example).
 
 runInteraction :: IOTCM -> CommandM ()
-
 runInteraction (IOTCM current highlighting cmd)
-    = handleNastyErrors $ liftCommandMT (withEnv (initEnv
-            { envEmacs             = True
-            , envHighlightingLevel = highlighting
-            })) $ do
+    = handleNastyErrors
+    $ inEmacs
+    $ do
         current <- liftIO $ absolute current
 
-        putResponseIO <- liftCommandM $ gets stInteractionOutputCallback
+        res <- (`catchError` (return . Just)) $ do
 
-        r <- catchError (do
-               if independent cmd
-                 then return ()
-                 else ensureFileLoaded current
+            -- | Raises an error if the given file is not the one currently
+            -- loaded.
+            cf <- gets theCurrentFile
+            when (not (independent cmd) && Just current /= (fst <$> cf)) $
+                liftCommandM $ typeError $ GenericError "Error: First load the file."
 
-               interpret cmd
+            interpret cmd
 
-               return (Right ())
-             ) (return . Left)
+            cf <- gets theCurrentFile
+            when (Just current == (fst <$> cf)) $
+                putResponse =<< gets (Resp_InteractionPoints . theInteractionPoints)
+            return Nothing
 
-        case r of
-            Right () -> do
-                cstate <- get
-                case theCurrentFile cstate of
-                  Just (f, _) | f === current -> do
-                    liftIO $ putResponseIO $ Resp_InteractionPoints $ theInteractionPoints cstate
-                  _ -> return ()
+        maybe (return ()) handleErr res
 
-            Left e -> do
-                s <- liftCommandM $ prettyError e
-                x <- liftCommandM $ gets $ optShowImplicit . stPragmaOptions
-                let
-                 status = Status { sChecked               = False
-                                 , sShowImplicitArguments = x
-                                 }
-                mapM_ (liftIO . putResponseIO) $ displayError status (getRange e) s
+  where
+    inEmacs = liftCommandMT $ withEnv $ initEnv
+            { envEmacs             = True
+            , envHighlightingLevel = highlighting
+            }
 
+    -- | Handle nasty errors like stack space overflow (issue 637)
+    -- We assume that the input action handles other kind of errors.
+    handleNastyErrors :: CommandM () -> CommandM ()
+    handleNastyErrors m = commandMToIO $ \toIO ->
+        toIO m `E.catch` (toIO . handleErr . Exception noRange . (show :: E.SomeException -> String))
 
--- | Handle nasty errors like stack space overflow (issue 637)
--- We assume that the input action handles other kind of errors.
+    -- | Displays an error and instructs Emacs to jump to the site of the
+    -- error. Because this function may switch the focus to another file
+    -- the status information is also updated.
+    handleErr e = do
+        s <- liftCommandM $ prettyError e
+        x <- liftCommandM $ gets $ optShowImplicit . stPragmaOptions
+        let
+        mapM_ putResponse $ 
+            [ Resp_DisplayInfo $ Info_Error s ] ++
+            tellEmacsToJumpToError (getRange e) ++
+            [ Resp_Status $ Status { sChecked = False
+                                   , sShowImplicitArguments = x
+                                   } ]
 
-handleNastyErrors :: CommandM () -> CommandM ()
-handleNastyErrors m = do
-    theTCState <- liftCommandM get
-    cstate <- get
-
-    let io = do
-            x <- runTCM $ do
-                put theTCState
-                ((), cstate)  <- m `runCommandM` cstate
-                theTCState <- get
-                return (theTCState, cstate)
-            case x of
-                Right x -> return x
-                Left _  -> __IMPOSSIBLE__   -- should be handled by 'm' already
-
-    let displayErr r s = do
-          mapM_ (stInteractionOutputCallback theTCState) $ displayError (Status
-            { sChecked               = False
-            , sShowImplicitArguments = False
-              -- Educated guess... This field is not important, so it does not
-              -- really matter if it is displayed incorrectly when an
-              -- unexpected error has occurred.
-            }) r s
-          return (theTCState, cstate)
-
-    (theTCState, cstate) <- liftIO $
-      (failOnException displayErr io
-        `catchImpossible` \e -> displayErr noRange (show e))
-        `E.catch` \(e :: E.SomeException) -> displayErr noRange (show e)
-
-    liftCommandM $ put theTCState
-    put cstate
 
 ----------------------------------------------------------------------------
 -- | An interactive computation.
@@ -1029,24 +1031,3 @@ tellEmacsToJumpToError r =
     Just (Pn { srcFile = Just f, posPos = p }) ->
        [ Resp_JumpToError (filePath f) p ]
 
-
-------------------------------------------------------------------------
--- Error handling
-
-
--- | Displays an error and instructs Emacs to jump to the site of the
--- error. Because this function may switch the focus to another file
--- the status information is also updated.
-displayError status r s =
-    [ Resp_DisplayInfo $ Info_Error s ] ++
-    tellEmacsToJumpToError r ++
-    [ Resp_Status status ]
-
--- | Raises an error if the given file is not the one currently
--- loaded.
-
-ensureFileLoaded :: AbsolutePath -> CommandM ()
-ensureFileLoaded current = do
-  cf <- gets theCurrentFile
-  when (Just current /= (fst <$> cf)) $
-    liftCommandM $ typeError $ GenericError "Error: First load the file."

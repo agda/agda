@@ -1,3 +1,6 @@
-Agda2> (agda2-info-action "*Error*" "stack overflow" nil)
+Agda2> (agda2-status-action "")
+(agda2-info-action "*Type-checking*" "" nil)
+(agda2-highlight-clear)
+(agda2-info-action "*Error*" "\nstack overflow" nil)
 (agda2-status-action "")
 Agda2> 
