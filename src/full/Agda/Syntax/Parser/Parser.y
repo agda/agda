@@ -1050,7 +1050,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
               -- turn range into unique id
               -- TODO: Don't use (insecure) hashes in this way.
     ; nodir  = ImportDirective noRange (Hiding []) [] False
-    ; impStm = Import (getRange ($2,m)) m (Just (AsName fresh noRange)) DontOpen nodir
+    ; impStm asR = Import (getRange ($2,m)) m (Just (AsName fresh asR)) DontOpen nodir
     ; appStm m' es = Private r
         [ ModuleMacro r m'
            (SectionApp (getRange (fresh , es)) []
@@ -1087,7 +1087,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
                  [ Import (getRange ($1, $2, m, es, dir)) m
                      (Just (AsName m' asR)) DoOpen dir
                  ]
-              else return [ impStm , appStm m' initArgs ]
+              else return [ impStm asR , appStm m' initArgs ]
 {-
 do
              { unless (null initArgs) $ parseErrorAt (fromJust $ rStart $ getRange es) "You cannot supply both module instantiation and 'as' clause in an 'open import' statement."
@@ -1095,7 +1095,7 @@ do
              }
 -}
           | otherwise -> return
-              [ impStm
+              [ impStm noRange
               , appStm (noName $ beginningOf $ getRange m) es
               ]
       }
