@@ -58,7 +58,7 @@ import Agda.Syntax.Abstract.Name as A
 import Agda.Syntax.Info
 import Agda.Syntax.Internal as I
 import Agda.Syntax.Scope.Base
-import Agda.Syntax.Position (Position(..), Range, noRange)
+import Agda.Syntax.Position (Position, Range, noRange)
 import qualified Agda.Syntax.Position as P
 import Agda.Syntax.Common
 import Agda.Syntax.Fixity

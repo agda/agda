@@ -36,7 +36,10 @@ import Agda.Utils.Impossible
 -- paths point to the same files or directories.
 
 newtype AbsolutePath = AbsolutePath { filePath :: FilePath }
-  deriving (Show, Eq, Ord, Typeable)
+  deriving (Eq, Ord, Typeable)
+
+instance Show AbsolutePath where
+  show = filePath
 
 -- | The paths have to be absolute, valid and normalised, without
 -- trailing path separators.

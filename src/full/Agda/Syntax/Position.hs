@@ -1,11 +1,12 @@
-{-# LANGUAGE CPP, DeriveDataTypeable #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, FlexibleInstances, ScopedTypeVariables #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
 
 module Agda.Syntax.Position
   ( -- * Positions
-    Position(..)
+    Position
+  , Position'(..)
   , positionInvariant
   , startPos
   , movePos
@@ -13,13 +14,15 @@ module Agda.Syntax.Position
   , backupPos
 
     -- * Intervals
-  , Interval(..)
+  , Interval
+  , Interval'(..)
   , intervalInvariant
   , takeI
   , dropI
 
     -- * Ranges
-  , Range(..)
+  , Range
+  , Range'(..)
   , rangeInvariant
   , noRange
   , posToRange
@@ -70,16 +73,20 @@ import Agda.Utils.Impossible
 -- messages for the user.
 --
 -- Note the invariant which positions have to satisfy: 'positionInvariant'.
-data Position = Pn { srcFile :: Maybe AbsolutePath
-                     -- ^ File.
-                   , posPos  :: !Int32
-                     -- ^ Position.
-		   , posLine :: !Int32
-                     -- ^ Line number, counting from 1.
-		   , posCol  :: !Int32
-                     -- ^ Column number, counting from 1.
-		   }
-    deriving (Typeable)
+data Position' a = Pn
+  { srcFile :: a
+    -- ^ File.
+  , posPos  :: !Int32
+    -- ^ Position.
+  , posLine :: !Int32
+    -- ^ Line number, counting from 1.
+  , posCol  :: !Int32
+    -- ^ Column number, counting from 1.
+  }
+    deriving (Typeable, Functor)
+
+type SrcFile  = Maybe AbsolutePath
+type Position = Position' SrcFile
 
 positionInvariant :: Position -> Bool
 positionInvariant p =
@@ -87,17 +94,19 @@ positionInvariant p =
 
 importantPart p = (srcFile p, posPos p)
 
-instance Eq Position where
+instance Eq a => Eq (Position' a) where
   (==) = (==) `on` importantPart
 
-instance Ord Position where
+instance Ord a => Ord (Position' a) where
   compare = compare `on` importantPart
 
 -- | An interval. The @iEnd@ position is not included in the interval.
 --
 -- Note the invariant which intervals have to satisfy: 'intervalInvariant'.
-data Interval = Interval { iStart, iEnd :: !Position }
-    deriving (Typeable, Eq, Ord)
+data Interval' a = Interval { iStart, iEnd :: !(Position' a) }
+    deriving (Typeable, Eq, Ord, Functor)
+
+type Interval = Interval' SrcFile
 
 intervalInvariant :: Interval -> Bool
 intervalInvariant i =
@@ -113,8 +122,10 @@ iLength i = posPos (iEnd i) - posPos (iStart i)
 -- consecutive and separated.
 --
 -- Note the invariant which ranges have to satisfy: 'rangeInvariant'.
-newtype Range = Range [Interval]
-  deriving (Typeable, Eq, Ord)
+newtype Range' a = Range [Interval' a]
+  deriving (Typeable, Eq, Ord, Functor)
+
+type Range = Range' SrcFile
 
 rangeInvariant :: Range -> Bool
 rangeInvariant (Range []) = True
@@ -202,11 +213,11 @@ instance (KillRange a, KillRange b) => KillRange (Either a b) where
     Pretty printing
  --------------------------------------------------------------------------}
 
-instance Show Position where
+instance Show a => Show (Position' (Maybe a)) where
     show (Pn Nothing  _ l c) = show l ++ "," ++ show c
-    show (Pn (Just f) _ l c) = filePath f ++ ":" ++ show l ++ "," ++ show c
+    show (Pn (Just f) _ l c) = show f ++ ":" ++ show l ++ "," ++ show c
 
-instance Show Interval where
+instance Show a => Show (Interval' (Maybe a)) where
     show (Interval s e) = file ++ start ++ "-" ++ end
 	where
 	    f	= srcFile s
@@ -216,13 +227,13 @@ instance Show Interval where
 	    ec	= posCol e
 	    file = case f of
                      Nothing -> ""
-                     Just f  -> filePath f ++ ":"
+                     Just f  -> show f ++ ":"
 	    start = show sl ++ "," ++ show sc
 	    end
 		| sl == el  = show ec
 		| otherwise = show el ++ "," ++ show ec
 
-instance Show Range where
+instance Show a => Show (Range' (Maybe a)) where
   show r = case rangeToInterval r of
     Nothing -> ""
     Just i  -> show i
@@ -282,7 +293,7 @@ posToRange p1 p2 | p1 < p2   = Range [Interval p1 p2]
                  | otherwise = Range [Interval p2 p1]
 
 -- | Converts a range to an interval, if possible.
-rangeToInterval :: Range -> Maybe Interval
+rangeToInterval :: Range' a -> Maybe (Interval' a)
 rangeToInterval (Range [])   = Nothing
 rangeToInterval (Range is)   = Just $ Interval { iStart = iStart (head is)
                                                , iEnd   = iEnd   (last is)
@@ -422,7 +433,7 @@ prop_beginningOf r = rangeInvariant (beginningOf r)
 
 prop_beginningOfFile r = rangeInvariant (beginningOfFile r)
 
-instance Arbitrary Position where
+instance Arbitrary a => Arbitrary (Position' a) where
   arbitrary = do
     srcFile                    <- arbitrary
     NonZero (NonNegative pos') <- arbitrary
@@ -434,7 +445,7 @@ instance Arbitrary Position where
 
 -- | Sets the 'srcFile' components of the interval.
 
-setFile :: Maybe AbsolutePath -> Interval -> Interval
+setFile :: SrcFile -> Interval -> Interval
 setFile f (Interval p1 p2) =
   Interval (p1 { srcFile = f }) (p2 { srcFile = f })
 
@@ -448,9 +459,9 @@ prop_intervalInSameFileAs i =
     intervalInvariant i' &&
     srcFile (iStart i) == srcFile (iStart i')
 
-instance Arbitrary Interval where
+instance (Arbitrary a, Ord a) => Arbitrary (Interval' a) where
   arbitrary = do
-    (p1, p2) <- liftM2 (,) arbitrary arbitrary
+    (p1, p2 :: Position' a) <- liftM2 (,) arbitrary arbitrary
     let [p1', p2'] = sort [p1, p2 { srcFile = srcFile p1 }]
     return (Interval p1' p2')
 
