@@ -1,6 +1,6 @@
 Issue481.agda:7,53-55
 Duplicate definition of module as. Previous definition of module as
 at
-/Users/abel/cover/alfa/Agda2-clean/test/Common/Issue481ParametrizedModule.agda:1,15-41
+Issue481ParametrizedModule.agda:1,15-41
 when scope checking the declaration
-  open module as = .#Common.Issue481ParametrizedModule-214536669 as
+  open module as = .#Common.Issue481ParametrizedModule-94488503 as

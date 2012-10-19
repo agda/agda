@@ -1046,9 +1046,12 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
     ; dir = $5
     ; r   = getRange ($1, m, es, dir)
     ; mr  = getRange m
-    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show (hash (show r))]
-              -- turn range into unique id
-              -- TODO: Don't use (insecure) hashes in this way.
+    ; unique = hash $ show $ fmap (const (Nothing :: Maybe ())) r
+         -- turn range into unique id, but delete file path
+         -- which is absolute and messes up suite of failing tests
+         -- (different hashs on different installations)
+         -- TODO: Don't use (insecure) hashes in this way.
+    ; fresh = Name mr [Id $ ".#" ++ show m ++ "-" ++ show unique ]
     ; nodir  = ImportDirective noRange (Hiding []) [] False
     ; impStm asR = Import (getRange ($2,m)) m (Just (AsName fresh asR)) DontOpen nodir
     ; appStm m' es = Private r
