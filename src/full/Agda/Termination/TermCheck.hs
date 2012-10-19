@@ -856,15 +856,9 @@ addGuardedness g nrows ncols m =
 
 -- | Stripping off a record constructor is not counted as decrease, in
 --   contrast to a data constructor.
-decreaseFromConstructor :: QName -> TCM Order
-decreaseFromConstructor c = do
-  isRC <- Maybe.isJust <$> isRecordConstructor c
-  return $ if isRC then Term.le else Term.lt
-
-increaseFromConstructor :: (?cutoff :: Int) => QName -> TCM Order
-increaseFromConstructor c = do
-  isRC <- Maybe.isJust <$> isRecordConstructor c
-  return $ if isRC then Term.le else Term.decr (-1)
+--   A record constructor increases/decreases by 0, a data constructor by 1.
+offsetFromConstructor :: QName -> TCM Int
+offsetFromConstructor c = maybe 1 (const 0) <$> isRecordConstructor c
 
 -- | Compute the sub patterns of a 'DeBruijnPat'.
 subPatterns :: DeBruijnPat -> [DeBruijnPat]
@@ -946,22 +940,20 @@ compareTerm' suc (Lit l) p = do
     _     -> compareTerm' suc t p
 -- Andreas, 2011-04-19 give subterm priority over matrix order
 compareTerm' _ t@Con{} (ConDBP c ps)
-  | any (isSubTerm t) ps = decreaseFromConstructor c
+  | any (isSubTerm t) ps = decrease <$> offsetFromConstructor c <*> return Term.le
 compareTerm' suc (Con c ts) (ConDBP c' ps)
   | c == c' = compareConArgs suc ts ps
 compareTerm' suc (Def s ts) (ConDBP s' ps)
   | s == s' && Just s == suc = compareConArgs suc ts ps
 -- new cases for counting constructors / projections
 -- register also increase
-compareTerm' suc (Def s ts) p | Just s == suc = do
-    os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
+compareTerm' suc (Def s [t]) p | Just s == suc = do
     -- Andreas, 2012-10-19 do not cut off here
-    return $ increase 1 $ infimum os
---    return $ decr (-1) .*. infimum os
+    increase 1 <$> compareTerm' suc (unArg t) p
+compareTerm' suc (Con c []) p = return Term.le
 compareTerm' suc (Con c ts) p = do
-    os <- mapM (\ t -> compareTerm' suc (unArg t) p) ts
-    oc <- increaseFromConstructor c
-    return $ if (null os) then Term.unknown else oc .*. infimum os
+    increase <$> offsetFromConstructor c
+             <*> (infimum <$> mapM (\ t -> compareTerm' suc (unArg t) p) ts)
 compareTerm' suc t p | isSubTerm t p = return Term.le
 compareTerm' _ _ _ = return Term.unknown
 
@@ -1003,14 +995,11 @@ compareConArgs suc ts ps =
 -}
 
 compareVar :: (?cutoff :: Int) => Maybe QName -> Nat -> DeBruijnPat -> TCM Term.Order
--- compareVar suc i (VarDBP j)    = return $ if i == j then Term.le else Term.unknown
 compareVar suc i (VarDBP j)    = compareVarVar suc i j
 compareVar suc i (LitDBP _)    = return $ Term.unknown
 compareVar suc i (ConDBP c ps) = do
-  os <- mapM (compareVar suc i) ps
-  let o = Term.supremum os
-  oc <- decreaseFromConstructor c
-  return $ (Term..*.) oc o
+  decrease <$> offsetFromConstructor c
+           <*> (Term.supremum <$> mapM (compareVar suc i) ps)
 
 -- | Compare two variables
 compareVarVar :: (?cutoff :: Int) => Maybe QName -> Nat -> Nat -> TCM Term.Order
@@ -1020,4 +1009,4 @@ compareVarVar suc i j
       res <- isBounded i
       case res of
         BoundedNo  -> return Term.unknown
-        BoundedLt v -> (Term..*.) Term.lt <$> compareTerm' suc v (VarDBP j)
+        BoundedLt v -> decrease 1 <$> compareTerm' suc v (VarDBP j)

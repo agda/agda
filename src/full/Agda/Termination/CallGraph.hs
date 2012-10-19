@@ -9,7 +9,7 @@
 module Agda.Termination.CallGraph
   ( -- * Structural orderings
     Order(Mat), decr
-  , increase
+  , increase, decrease
   , (.*.)
   , supremum, infimum
   , decreasing, le, lt, unknown, orderMat
@@ -96,6 +96,10 @@ increase i o = case o of
   Unknown -> Unknown
   Decr k  -> Decr $ k - i
   Mat m   -> Mat $ fmap (increase i) m
+
+-- | Raw decrease which does not cut off.
+decrease :: Int -> Order -> Order
+decrease i o = increase (-i) o
 
 -- | Smart constructor for @Decr k :: Order@ which cuts off too big values.
 --
@@ -222,9 +226,13 @@ okM :: Matrix Integer Order -> Matrix Integer Order -> Bool
 okM m1 m2 = (rows $ size m2) == (cols $ size m1)
 
 -- | The supremum of a (possibly empty) list of 'Order's.
-
+--   More information (i.e., more decrease) is bigger.
+--   'Unknown' is no information, thus, smallest.
 supremum :: (?cutoff :: Int) => [Order] -> Order
 supremum = foldr maxO Unknown
+
+-- | @('Order', 'maxO', '.*.')@ forms a semiring, with 'Unknown' as
+-- zero and 'Le' as one.
 
 maxO :: (?cutoff :: Int) => Order -> Order -> Order
 maxO o1 o2 = case (o1,o2) of
@@ -235,14 +243,11 @@ maxO o1 o2 = case (o1,o2) of
                (Mat m,_) -> maxO (collapse m) o2
                (_,Mat m) ->  maxO o1 (collapse m)
 
--- | @('Order', 'max', '.*.')@ forms a semiring, with 'Unknown' as
--- zero and 'Le' as one.
-
 -- | The infimum of a (non empty) list of 'Order's.
-
+--  'Unknown' is the least element, thus, dominant.
 infimum :: (?cutoff :: Int) => [Order] -> Order
 infimum (o:l) = foldl' minO o l
-infimum [] = __IMPOSSIBLE__
+infimum []    = __IMPOSSIBLE__
 
 minO :: (?cutoff :: Int) => Order -> Order -> Order
 minO o1 o2 = case (o1,o2) of
