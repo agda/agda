@@ -37,6 +37,8 @@ run_test=if test -f $*.in; \
         | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
+# Note that RTS_... variables are ignored when .sh files are used.
+
 setup_Issue591     = rm -f Issue591/M.agdai
 setup_Highlighting = rm -f Highlighting/M.agdai
 cleanup_Issue373   = rm -rf Issue373 MAlonzo
