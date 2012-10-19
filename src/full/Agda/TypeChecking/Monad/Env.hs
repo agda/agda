@@ -34,7 +34,7 @@ withAnonymousModule m n =
 withEnv :: TCEnv -> TCM a -> TCM a
 withEnv env m = local (\env0 -> env { envAllowDestructiveUpdate = envAllowDestructiveUpdate env0 }) m
 
--- | Get the current environmnet
+-- | Get the current environment
 getEnv :: TCM TCEnv
 getEnv = ask
 
