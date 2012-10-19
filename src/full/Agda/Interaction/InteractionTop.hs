@@ -168,8 +168,8 @@ liftCommandMT f m = revLift runCommandM liftCommandM $ f . ($ m)
 -- | Put a response by the callback function given by 'stInteractionOutputCallback'.
 
 putResponse :: Response -> CommandM ()
-putResponse x = liftCommandM $
-    liftIO =<< gets (($ x) . stInteractionOutputCallback)
+putResponse x =
+    liftIO . ($ x) =<< (liftCommandM . gets) stInteractionOutputCallback
 
 {- UNUSED
 
@@ -213,7 +213,7 @@ runInteraction (IOTCM current highlighting cmd)
 
             cf <- gets theCurrentFile
             when (Just current == (fst <$> cf)) $
-                putResponse =<< gets (Resp_InteractionPoints . theInteractionPoints)
+                putResponse . Resp_InteractionPoints =<< gets theInteractionPoints
             return Nothing
 
         maybe (return ()) handleErr res
@@ -235,7 +235,7 @@ runInteraction (IOTCM current highlighting cmd)
     -- the status information is also updated.
     handleErr e = do
         s <- liftCommandM $ prettyError e
-        x <- liftCommandM $ gets $ optShowImplicit . stPragmaOptions
+        x <- liftCommandM . gets $ optShowImplicit . stPragmaOptions
         let
         mapM_ putResponse $ 
             [ Resp_DisplayInfo $ Info_Error s ] ++
@@ -468,9 +468,8 @@ interpret (Cmd_compile b file includes) =
           , "or termination checking problems."
           ]
 
-interpret Cmd_constraints = do
-    cs <- map show <$> liftCommandM B.getConstraints
-    display_info $ Info_Constraints (unlines cs)
+interpret Cmd_constraints =
+    display_info . Info_Constraints . unlines . map show =<< liftCommandM B.getConstraints
 
 interpret Cmd_metas = do -- CL.showMetas []
   ims <- liftCommandM $ B.typesOfVisibleMetas B.AsIs
