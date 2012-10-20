@@ -41,7 +41,7 @@ syntaxOf (Name _ xs)  = mkSyn 0 xs
 
 defaultFixity' = Fixity' defaultFixity defaultNotation
 
-noFixity = NonAssoc noRange (negate 666)
+noFixity = NonAssoc noRange (negate 666) -- ts,ts,ts, why the number of the beast?  Revelation 13, 18
 
 -- | Fixity of operators.
 data Fixity = LeftAssoc  Range Integer
