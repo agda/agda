@@ -255,6 +255,10 @@ applySection new ptel old ts rd rm = do
 	  addConstant y =<< nd y
           makeProjection y
 	  -- Set display form for the old name if it's not a constructor.
+{- BREAKS fail/Issue478
+          -- Andreas, 2012-10-20 and if we are not an anonymous module
+	  -- unless (isAnonymousModuleName new || isCon || size ptel > 0) $ do
+-}
 	  unless (isCon || size ptel > 0) $ do
 	    addDisplayForms y
       where

@@ -136,7 +136,7 @@ instance Reify MetaId Expr where
 
 instance Reify DisplayTerm Expr where
   reify d = case d of
-    DTerm v -> reify v
+    DTerm v -> reifyTerm False v
     DDot  v -> reify v
     DCon c vs -> apps (A.Con (AmbQ [c])) =<< reify vs
     DDef f vs -> apps (A.Def f) =<< reify vs
@@ -243,65 +243,16 @@ instance Reify Literal Expr where
   reify l@(LitQName  {}) = return (A.Lit l)
 
 instance Reify Term Expr where
-  reify v = do
+  reify v = reifyTerm True v
+
+reifyTerm :: Bool -> Term -> TCM Expr
+reifyTerm expandAnonDefs v = do
     v <- instantiate v
     case v of
       I.Var n vs   -> do
           x  <- liftTCM $ nameOfBV n `catchError` \_ -> freshName_ ("@" ++ show n)
           reifyApp (A.Var x) vs
-      I.Def x@(QName _ name) vs -> reifyDisplayForm x vs $ do
-        mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
-        (pad, vs :: [NamedArg Term]) <-
-          case mdefn of
-            Nothing -> (,) [] <$> do map (fmap unnamed) <$> (flip genericDrop vs <$> getDefFreeVars x)
-            Just defn -> do
-              let def = theDef defn
-              -- This is tricky:
-              --  * getDefFreeVars x tells us how many arguments
-              --    are part of the local context
-              --  * some of those arguments might have been dropped
-              --    due to projection likeness
-              --  * when showImplicits is on we'd like to see the dropped
-              --    projection arguments
-
-              -- We should drop this many arguments from the local context.
-              n <- getDefFreeVars x
-              -- These are the dropped projection arguments
-              (np, pad, dom) <-
-                  case def of
-                      Function{ funProjection = Just (_, np) } -> do
-                        TelV tel _ <- telView (defType defn)
-                        scope <- getScope
-                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
-                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
-                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
-                      _ -> return (0, [], __IMPOSSIBLE__)
-              -- Now pad' ++ vs' = drop n (pad ++ vs)
-              let pad' = genericDrop n pad
-                  vs'  :: [Arg Term]
-                  vs'  = genericDrop (max 0 (n - size pad)) vs
-              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
-              -- Keep non-hidden arguments of the padding
-              showImp <- showImplicitArguments
-              return (filter (not . isHiddenArg) pad',
-                if not (null pad) && showImp && isHiddenArg (last pad)
-                   then nameFirstIfHidden [dom] vs'
-                   else map (fmap unnamed) vs')
-        df <- displayFormsEnabled
-        if df && isPrefixOf extendlambdaname (show name)
-          then do
-           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
-           info <- getConstInfo x
-           --drop lambda lifted arguments
-           Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
-           let n = h + nh
-           cls <- mapM (reify . (NamedClause x) . (dropArgs n)) $ defClauses info
-           -- Karim: Currently Abs2Conc does not require a DefInfo thus we
-           -- use __IMPOSSIBLE__.
-           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
-          else do
-           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
-           napps (A.Def x `apps` pad) =<< reify vs
+      I.Def x vs   -> reifyDisplayForm x vs $ reifyDef expandAnonDefs x vs
       I.Con x vs   -> do
         isR <- isGeneratedRecordConstructor x
         case isR of
@@ -373,8 +324,86 @@ instance Reify Term Expr where
           return $ A.Pi exprInfo [TypedBindings noRange $ Arg h r (TBind noRange [x] a)] b
       I.Sort s     -> reify s
       I.MetaV x vs -> uncurry apps =<< reify (x,vs)
-      I.DontCare v -> A.DontCare <$> reify v
-      I.Shared p   -> reify $ derefPtr p
+      I.DontCare v -> A.DontCare <$> reifyTerm expandAnonDefs v
+      I.Shared p   -> reifyTerm expandAnonDefs $ derefPtr p
+
+    where
+      -- Andreas, 2012-10-20  expand a copy in an anonymous module
+      -- to improve error messages.
+      -- Don't do this if we have just expanded into a display form,
+      -- otherwise we loop!
+      reifyDef True x@(QName m name) vs | A.isAnonymousModuleName m = do
+        r <- reduceDefCopy x vs
+        case r of
+          YesReduction v -> do
+            reportSLn "reify.anon" 20 $ unlines
+              [ "reduction on defined ident. in anonymous module"
+              , "x = " ++ show x
+              , "v = " ++ show v
+              ]
+            reify v
+          NoReduction () -> do
+            reportSLn "reify.anon" 20 $ unlines
+              [ "no reduction on defined ident. in anonymous module"
+              , "x  = " ++ show x
+              , "vs = " ++ show vs
+              ]
+            reifyDef' x vs
+      reifyDef _ x vs = reifyDef' x vs
+
+      reifyDef' x@(QName _ name) vs = do
+        mdefn <- liftTCM $ (Just <$> getConstInfo x) `catchError` \_ -> return Nothing
+        (pad, vs :: [NamedArg Term]) <-
+          case mdefn of
+            Nothing -> (,) [] <$> do map (fmap unnamed) <$> (flip genericDrop vs <$> getDefFreeVars x)
+            Just defn -> do
+              let def = theDef defn
+              -- This is tricky:
+              --  * getDefFreeVars x tells us how many arguments
+              --    are part of the local context
+              --  * some of those arguments might have been dropped
+              --    due to projection likeness
+              --  * when showImplicits is on we'd like to see the dropped
+              --    projection arguments
+
+              -- We should drop this many arguments from the local context.
+              n <- getDefFreeVars x
+              -- These are the dropped projection arguments
+              (np, pad, dom) <-
+                  case def of
+                      Function{ funProjection = Just (_, np) } -> do
+                        TelV tel _ <- telView (defType defn)
+                        scope <- getScope
+                        let (as, dom:_) = splitAt (np - 1) $ telToList tel
+                            whocares = A.Underscore $ Info.emptyMetaInfo { metaScope = scope }
+                        return (np, map (argFromDom . (fmap $ const whocares)) as, dom)
+                      _ -> return (0, [], __IMPOSSIBLE__)
+              -- Now pad' ++ vs' = drop n (pad ++ vs)
+              let pad' = genericDrop n pad
+                  vs'  :: [Arg Term]
+                  vs'  = genericDrop (max 0 (n - size pad)) vs
+              -- Andreas, 2012-04-21: get rid of hidden underscores {_}
+              -- Keep non-hidden arguments of the padding
+              showImp <- showImplicitArguments
+              return (filter (not . isHiddenArg) pad',
+                if not (null pad) && showImp && isHiddenArg (last pad)
+                   then nameFirstIfHidden [dom] vs'
+                   else map (fmap unnamed) vs')
+        df <- displayFormsEnabled
+        if df && isPrefixOf extendlambdaname (show name)
+          then do
+           reportSLn "int2abs.reifyterm.def" 10 $ "reifying extended lambda with definition: " ++ show x
+           info <- getConstInfo x
+           --drop lambda lifted arguments
+           Just (h , nh) <- Map.lookup x <$> getExtLambdaTele
+           let n = h + nh
+           cls <- mapM (reify . (NamedClause x) . (dropArgs n)) $ defClauses info
+           -- Karim: Currently Abs2Conc does not require a DefInfo thus we
+           -- use __IMPOSSIBLE__.
+           napps (A.ExtendedLam exprInfo __IMPOSSIBLE__ x cls) =<< reify vs
+          else do
+           let apps = foldl' (\e a -> A.App exprInfo e (fmap unnamed a))
+           napps (A.Def x `apps` pad) =<< reify vs
 
 -- | @nameFirstIfHidden n (a1->...an->{x:a}->b) ({e} es) = {x = e} es@
 nameFirstIfHidden :: [Dom (String, t)] -> [Arg a] -> [NamedArg a]

@@ -1,4 +1,4 @@
-
+-- {-# OPTIONS -v tc.display:100 #-}
 module Issue478 where
 
 record Ko (Q : Set) : Set₁ where
@@ -11,7 +11,7 @@ module Bo (P : Set) (ko : Ko P) where
   err : T
   err = Set
 
-{- The error message was: 
+{- The error message was:
   Set₁ !=< T P ko of type Set₂
   when checking that the expression Set has type T P ko
 

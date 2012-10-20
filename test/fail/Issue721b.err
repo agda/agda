@@ -1,0 +1,3 @@
+Issue721b.agda:15,12-13
+Bool !=< _*_ x ≡ (λ x₁ → x₁) of type Set
+when checking that the expression x has type _*_ x ≡ (λ x₁ → x₁)

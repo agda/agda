@@ -1,0 +1,4 @@
+Issue721a.agda:15,12-13
+Bool !=< (F Foo.* x) ≡ (λ x₁ → x₁) of type Set
+when checking that the expression x has type
+(F Foo.* x) ≡ (λ x → x)
