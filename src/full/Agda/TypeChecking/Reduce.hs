@@ -370,55 +370,83 @@ unfoldDefinition unfoldDelayed keepGoing v0 f args =
                 keepGoing v
       where defaultResult = return $ notBlocked $ v0 `apply` (map ignoreReduced args)
 
-    -- Apply a defined function to it's arguments.
-    --   The original term is the first argument applied to the third.
-    appDef :: Term -> CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-    appDef v cc args = liftTCM $ do
-      r <- matchCompiled cc args
-      case r of
+-- | Reduce a non-primitive definition if it is a copy linking to another def.
+reduceDefCopy :: QName -> Args -> TCM (Reduced () Term)
+reduceDefCopy f vs = do
+  info <- getConstInfo f
+  if (defCopy info) then reduceDef_ info f vs else return $ NoReduction ()
+
+-- | Reduce a non-primitive definition once unless it is delayed.
+reduceDef :: QName -> Args -> TCM (Reduced () Term)
+reduceDef f vs = do
+  info <- getConstInfo f
+  reduceDef_ info f vs
+
+reduceDef_ :: Definition -> QName -> Args -> TCM (Reduced () Term)
+reduceDef_ info f vs = do
+  let v0   = Def f []
+      args = map notReduced vs
+      cls  = (defClauses info)
+      mcc  = (defCompiled info)
+      delayed = (defDelayed info)
+  case delayed of
+    Delayed -> return $ NoReduction ()
+    NotDelayed -> do
+      ev <- maybe (appDef' v0 cls args)
+                  (\cc -> appDef v0 cc args) mcc
+      case ev of
         YesReduction t    -> return $ YesReduction t
-        NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
+        NoReduction args' -> return $ NoReduction ()
 
-    appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
-    appDef' _ [] _ = {- ' -} __IMPOSSIBLE__
-    appDef' v cls@(Clause {clausePats = ps} : _) args
-      | m < n     = return $ NoReduction $ notBlocked $ v `apply` map ignoreReduced args
-      | otherwise = do
-        let (args0, args1) = splitAt n args
-        r <- goCls cls (map ignoreReduced args0)
-        case r of
-          YesReduction u -> return $ YesReduction $ u `apply` map ignoreReduced args1
-          NoReduction v  -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
-      where
+-- Apply a defined function to it's arguments.
+--   The original term is the first argument applied to the third.
+appDef :: Term -> CompiledClauses -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
+appDef v cc args = liftTCM $ do
+  r <- matchCompiled cc args
+  case r of
+    YesReduction t    -> return $ YesReduction t
+    NoReduction args' -> return $ NoReduction $ fmap (apply v) args'
 
-        n = genericLength ps
-        m = genericLength args
+appDef' :: Term -> [Clause] -> MaybeReducedArgs -> TCM (Reduced (Blocked Term) Term)
+appDef' _ [] _ = {- ' -} __IMPOSSIBLE__
+appDef' v cls@(Clause {clausePats = ps} : _) args
+  | m < n     = return $ NoReduction $ notBlocked $ v `apply` map ignoreReduced args
+  | otherwise = do
+    let (args0, args1) = splitAt n args
+    r <- goCls cls (map ignoreReduced args0)
+    case r of
+      YesReduction u -> return $ YesReduction $ u `apply` map ignoreReduced args1
+      NoReduction v  -> return $ NoReduction $ (`apply` map ignoreReduced args1) <$> v
+  where
 
-        goCls :: [Clause] -> Args -> TCM (Reduced (Blocked Term) Term)
-        goCls [] args = typeError $ IncompletePatternMatching v args
-        goCls (cl@(Clause { clausePats = pats
-                          , clauseBody = body }) : cls) args = do
-            (m, args) <- matchPatterns pats args
-            case m of
-                No		  -> goCls cls args
-                DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
-                DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
-                Yes args'
-                  | hasBody body  -> return $ YesReduction (
-                      -- TODO: let matchPatterns also return the reduced forms
-                      -- of the original arguments!
-                      app args' body)
-                  | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
+    n = genericLength ps
+    m = genericLength args
 
-        hasBody (Body _) = True
-        hasBody NoBody   = False
-        hasBody (Bind b) = hasBody (unAbs b)
+    goCls :: [Clause] -> Args -> TCM (Reduced (Blocked Term) Term)
+    goCls [] args = typeError $ IncompletePatternMatching v args
+    goCls (cl@(Clause { clausePats = pats
+                      , clauseBody = body }) : cls) args = do
+        (m, args) <- matchPatterns pats args
+        case m of
+            No		  -> goCls cls args
+            DontKnow Nothing  -> return $ NoReduction $ notBlocked $ v `apply` args
+            DontKnow (Just m) -> return $ NoReduction $ blocked m $ v `apply` args
+            Yes args'
+              | hasBody body  -> return $ YesReduction (
+                  -- TODO: let matchPatterns also return the reduced forms
+                  -- of the original arguments!
+                  app args' body)
+              | otherwise	  -> return $ NoReduction $ notBlocked $ v `apply` args
 
-        app []		 (Body v') = v'
-        app (arg : args) (Bind b)  = app args $ absApp b arg -- CBN
-        app  _		  NoBody   = __IMPOSSIBLE__
-        app (_ : _)	 (Body _)  = __IMPOSSIBLE__
-        app []		 (Bind _)  = __IMPOSSIBLE__
+    hasBody (Body _) = True
+    hasBody NoBody   = False
+    hasBody (Bind b) = hasBody (unAbs b)
+
+    app []		 (Body v') = v'
+    app (arg : args) (Bind b)  = app args $ absApp b arg -- CBN
+    app  _		  NoBody   = __IMPOSSIBLE__
+    app (_ : _)	 (Body _)  = __IMPOSSIBLE__
+    app []		 (Bind _)  = __IMPOSSIBLE__
 
 
 instance Reduce a => Reduce (Closure a) where
