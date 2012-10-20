@@ -1,0 +1,3 @@
+Issue644.agda:28,13-14
+R !=< ((x : A) → P x) of type Set₁
+when checking that the expression r has type (x : A) → P x
