@@ -77,11 +77,11 @@ $(allstems) : % : %.err
 			 cat $*.err; \
 			 echo "== New error ==="; \
 			 cat $*.tmp; \
-			 /bin/echo -n "Accept new error [y/N]? "; \
+			 /bin/echo -n "Accept new error [y/N/q]? "; \
 			 read -n 1; \
 			 echo ""; \
 			 if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
-			   then echo "Keeping old error"; false; \
+			   then echo "Keeping old error"; [ "X$$REPLY" != "Xq" ]; \
 			   else echo "Replacing error, continuing..."; \
 			     mv $*.tmp $*.err; \
 			     rm -f $*.tmp.2 $*.tmp.3; true; \

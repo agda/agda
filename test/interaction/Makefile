@@ -72,7 +72,7 @@ $(Tests) : %.cmp : %.out
 			cat $*.tmp; \
 			echo "=== Diff ==="; \
 			diff -b $*.out $*.tmp; \
-			/bin/echo -n "Accept new error [y/N]? "; \
+			/bin/echo -n "Accept new error [y/N/q]? "; \
 			read -n 1; \
 			echo ""; \
 			if [ "fckShPrg$$REPLY" != "fckShPrgy"  ]; \
@@ -80,7 +80,7 @@ $(Tests) : %.cmp : %.out
 			       rm -f $*.tmp; \
                                rm -rf $(TMPDIR); \
 			       if [ "$(cleanup_$*)" != "" ]; then $(cleanup_$*)"" ; fi ; \
-			       false; \
+			       [ "X$$REPLY" != "Xq" ]; \
 			  else echo "Replacing output, continuing..."; \
 			    mv $*.tmp $*.out; \
 			    true; \
