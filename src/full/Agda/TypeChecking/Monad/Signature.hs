@@ -301,6 +301,7 @@ applySection new ptel old ts rd rm = do
                         , funAbstr          = ConcreteDef
                         , funProjection     = proj
                         , funStatic         = False
+                        , funCopy           = True
                         }
                   reportSLn "tc.mod.apply" 80 $ "new def for " ++ show x ++ "\n  " ++ show newDef
                   return newDef

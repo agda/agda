@@ -597,6 +597,8 @@ data Defn = Axiom
               --   checker.
             , funStatic         :: Bool
               -- ^ Should calls to this function be normalised at compile-time?
+            , funCopy           :: Bool
+              -- ^ Has this function been created by a module instantiation?
             }
 	  | Datatype
             { dataPars           :: Nat           -- nof parameters
@@ -713,6 +715,11 @@ defEpicDef = compiledEpic . defCompiledRep
 defDelayed :: Definition -> Delayed
 defDelayed Defn{theDef = Function{funDelayed = d}} = d
 defDelayed _                                       = NotDelayed
+
+-- | Is the definition just a copy created by a module instantiation?
+defCopy :: Definition -> Bool
+defCopy Defn{theDef = Function{funCopy = b}} = b
+defCopy _                                    = False
 
 defAbstract :: Definition -> IsAbstract
 defAbstract d = case theDef d of

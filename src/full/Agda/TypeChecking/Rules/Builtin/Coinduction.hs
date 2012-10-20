@@ -148,6 +148,7 @@ bindBuiltinFlat e =
                    , funDelayed        = NotDelayed
                    , funProjection     = Just (inf, 3)
                    , funStatic         = False
+                   , funCopy           = False
                    }
                 }
     return flatE
