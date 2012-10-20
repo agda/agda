@@ -178,6 +178,18 @@ Language
     one = suc zero
     two = suc one
 
+Goal and error display
+======================
+
+* Meta-variables that were introduced by hidden argument `arg' are now
+  printed as _arg_number instead of just _number.  [Issue 526]
+
+* Agda expands identifiers in anonymous modules when printing.
+  Should make some goals nicer to read. [Issue 721]
+
+* When a module identifier is ambiguous, Agda tells you if one
+  of them is a data type module.  [Issues 318, 705]
+
 Type checking
 =============
 
