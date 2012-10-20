@@ -1,0 +1,9 @@
+Issue481NonExistentModule.agda:4,6-30
+Failed to find source of module NonExistentModule in any of the
+following locations:
+  ../NonExistentModule.agda
+  ../NonExistentModule.lagda
+  NonExistentModule.agda
+  NonExistentModule.lagda
+when scope checking the declaration
+  import NonExistentModule as .#NonExistentModule-153997218

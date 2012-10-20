@@ -150,10 +150,14 @@ Language
     open import Path.Module args [using/hiding/renaming (...)]
 
   This only brings the imported identifiers from Path.Module into scope,
-  not the module itself!
+  not the module itself!  Consequently, the following is pointless, and raises
+  an error:
+
+    import Path.Module args [using/hiding/renaming (...)]
 
   You can give a private name M to the instantiated module via
 
+    import Path.Module args as M [using/hiding/renaming (...)]
     open import Path.Module args as M [using/hiding/renaming (...)]
 
   Try to avoid 'as' as part of the arguments.  'as' is not a keyword;
@@ -161,7 +165,9 @@ Language
 
     open import as as as as as as
 
-* Implicit module parameters can be given by name.
+* Implicit module parameters can be given by name. E.g.
+
+    open M {namedArg = bla}
 
   This feature was (accidentally?) introduced in Agda 2.3.0.
 

@@ -890,7 +890,7 @@ Declaration
     | Postulate	    { [$1] }
     | Primitive	    { [$1] }
     | Open	    {  $1  }
-    | Import	    { [$1] }
+--    | Import	    { [$1] }
     | ModuleMacro   { [$1] }
     | Module	    { [$1] }
     | Pragma	    { [$1] }
@@ -1036,12 +1036,16 @@ HoleName : SimpleId { ExprHole $1}
 SimpleId :: { String }
 SimpleId : id  { snd $1 }
 
+MaybeOpen :: { Maybe Range }
+MaybeOpen : 'open'      { Just (getRange $1) }
+          | {- empty -} { Nothing }
 
 -- Open
 Open :: { [Declaration] }
-Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
+Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
     let
-    { m   = $3
+    { doOpen = maybe DontOpen (const DoOpen) $1
+    ; m   = $3
     ; es  = $4
     ; dir = $5
     ; r   = getRange ($1, m, es, dir)
@@ -1058,7 +1062,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
         [ ModuleMacro r m'
            (SectionApp (getRange (fresh , es)) []
              (RawApp (fuseRange fresh es) (Ident (QName fresh) : es)))
-           DoOpen dir
+           doOpen dir
         ]
     ; (initArgs, last2Args) = splitAt (length es - 2) es
     ; parseAsClause = case last2Args of
@@ -1069,7 +1073,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
       }
     } in
     case es of
-      { [] -> return [Import (getRange ($1,$2,m,dir)) m Nothing DoOpen dir]
+      { [] -> return [Import (getRange ($1,$2,m,dir)) m Nothing doOpen dir]
         -- [] -> return [ impStm, Open r m dir]
 
         -- we do not support a mix of module arguments and "as M"
@@ -1088,7 +1092,7 @@ Open : 'open' 'import' ModuleName OpenArgs ImportDirective {%
       ; _ | Just (asR, m') <- parseAsClause ->
               if null initArgs then return
                  [ Import (getRange ($1, $2, m, es, dir)) m
-                     (Just (AsName m' asR)) DoOpen dir
+                     (Just (AsName m' asR)) doOpen dir
                  ]
               else return [ impStm asR , appStm m' initArgs ]
 {-
@@ -1097,6 +1101,7 @@ do
              ; return [ Import (getRange ($1, $2, m, es, dir)) m (Just (AsName m' asR)) DoOpen dir ]
              }
 -}
+          | DontOpen <- doOpen -> parseErrorAt (fromJust $ rStart $ getRange $2) "An import statement with module instantiation does not actually import the module.  This statement achieves nothing.  Either add the `open' keyword or bind the instantiated module with an `as' clause."
           | otherwise -> return
               [ impStm noRange
               , appStm (noName $ beginningOf $ getRange m) es
@@ -1147,11 +1152,11 @@ ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirec
 	    | 'open' 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirective
 		    {% do {ma <- $6 (map addType $4); return $ ModuleMacro (getRange ($1, $2, $3, ma, $7)) $3 ma DoOpen $7 } }
 
+{-
 -- Import
 Import :: { Declaration }
 Import : 'import' ModuleName ImportImportDirective
 	    { Import (getRange ($1,$2,snd $3)) $2 (fst $3) DontOpen (snd $3) }
-{-
        | 'open' 'import' ModuleName ImportImportDirective
 	    { Import (getRange ($1,$2,$3,snd $4)) $3 (fst $4) DoOpen (snd $4) }
 -}
@@ -1164,7 +1169,7 @@ Module : 'module' Id TypedUntypedBindings 'where' Declarations0
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }
 TopLevel : TopModule       { [$1] }
-	 | Import TopLevel { $1 : $2 }
+--	 | Import TopLevel { $1 : $2 }
 	 | Open   TopLevel { $1 ++ $2 }
 
 -- The top-level module can have a qualified name.

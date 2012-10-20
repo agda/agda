@@ -1,0 +1,6 @@
+Issue481InstantiatedImportOnly.agda:3,1-1
+Issue481InstantiatedImportOnly.agda:3,1:
+An import statement with module instantiation does not actually
+import the module. This statement achieves nothing. Either add the
+`open' keyword or bind the instantiated module with an `as' clause.
+<EOF><ERROR> ...
