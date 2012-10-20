@@ -13,6 +13,8 @@ import Agda.Syntax.Common
 import Agda.Syntax.Position
 import Agda.Syntax.Scope.Base
 import Agda.Syntax.Internal
+
+import Agda.TypeChecking.Implicit (implicitArgs)
 import Agda.TypeChecking.Irrelevance
 import Agda.TypeChecking.Monad
 import Agda.TypeChecking.Pretty
@@ -156,6 +158,10 @@ findInScope' m cands = ifM (isFrozen m) (return (Just cands)) $ do
         case ca of
           Left _ -> __IMPOSSIBLE__
           Right (args, t'') -> do
+{- TODO
+        (args, t'') <- implicitArgs (...) t'
+        do
+-}
             leqType t'' t
             ctxArgs <- getContextArgs
             v <- (`applyDroppingParameters` args) =<< reduce term
@@ -232,6 +238,7 @@ checkCandidates m t cands = localState $ disableDestructiveUpdate $ do
           return False
     isIFSConstraint :: Constraint -> Bool
     isIFSConstraint FindInScope{} = True
+    isIFSConstraint UnBlock{}     = True -- otherwise test/fail/Issue723 loops
     isIFSConstraint _             = False
 
 -- | To preserve the invariant that a constructor is not applied to its
