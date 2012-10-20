@@ -146,7 +146,7 @@ solveAwakeConstraints = solveAwakeConstraints' False
 solveAwakeConstraints' :: Bool -> TCM ()
 solveAwakeConstraints' force = do
     verboseS "profile.constraints" 10 $ liftTCM $ tickMax "max-open-constraints" . genericLength =<< getAllConstraints
-    unlessM ((not force &&) <$> isSolvingConstraints) $ nowSolvingConstraints $ do
+    whenM ((force ||) . not <$> isSolvingConstraints) $ nowSolvingConstraints $ do
      -- solveSizeConstraints -- Andreas, 2012-09-27 attacks size constrs too early
      solve
   where
