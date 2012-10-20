@@ -63,6 +63,11 @@ instance HasRange ModuleName where
   getRange (MName []) = noRange
   getRange (MName xs) = getRange xs
 
+-- | A module is anonymous if the qualification path ends in an underscore.
+isAnonymousModuleName :: ModuleName -> Bool
+isAnonymousModuleName (MName []) = False
+isAnonymousModuleName (MName ms) = C.isNoName $ nameConcrete $ last ms
+
 -- | Sets the ranges of the individual names in the module name to
 -- match those of the corresponding concrete names. If the concrete
 -- names are fewer than the number of module name name parts, then the
