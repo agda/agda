@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE CPP, DeriveDataTypeable, DeriveFunctor, TypeSynonymInstances, FlexibleInstances, ScopedTypeVariables #-}
 
 {-| Position information for syntax. Crucial for giving good error messages.
 -}
