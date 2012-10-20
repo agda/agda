@@ -200,9 +200,9 @@ addDisplayForms x = do
 		      Just (m, Def y vs)
 			| m < length args -> "too few args"
 			| m > length args -> "too many args"
-			| otherwise	      -> "args=" ++ show args ++ " vs=" ++ show vs
+			| otherwise	  -> "args=" ++ show args ++ " vs=" ++ show vs
 		      Just (m, v) -> "not a def body"
-	      reportSLn "tc.display.section" 30 $ "no display form from" ++ show x ++ " because " ++ reason
+	      reportSLn "tc.display.section" 30 $ "no display form from " ++ show x ++ " because " ++ reason
 	      return ()
     strip (Body v)   = return (0, v)
     strip  NoBody    = Nothing
