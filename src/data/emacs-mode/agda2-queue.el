@@ -1,7 +1,5 @@
 ;;; agda2-queue.el --- Simple FIFO character queues.
 
-(require 'cl)
-
 (defun agda2-queue-empty ()
   "Creates a new empty FIFO character queue.
 Queues are represented as pairs. The car contains the queue. If
