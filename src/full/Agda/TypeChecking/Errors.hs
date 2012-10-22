@@ -301,7 +301,7 @@ instance PrettyTCM TypeError where
               pwords "Failed to infer the value of dotted pattern"
             IlltypedPattern p a -> fsep $
               pwords "Type mismatch"
-            TooManyArgumentsInLHS n a -> fsep $
+            TooManyArgumentsInLHS a -> fsep $
               pwords "Left hand side gives too many arguments to a function of type" ++ [prettyTCM a]
             WrongNumberOfConstructorArguments c expect given -> fsep $
               pwords "The constructor" ++ [prettyTCM c] ++ pwords "expects" ++

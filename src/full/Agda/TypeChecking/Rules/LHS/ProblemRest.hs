@@ -59,7 +59,7 @@ problemFromPats ps a = do
   -- This has the effect of not including trailing hidden domains in the problem telescope.
   -- In all later call to insertImplicitPatterns, we can then use ExpandLast.
   ps <- insertImplicitPatterns DontExpandLast ps tel0'
-  -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS (size ps) a
+  -- unless (size tel0' >= size ps) $ typeError $ TooManyArgumentsInLHS a
   let tel0      = useNamesFromPattern ps tel0'
       (as, bs)  = splitAt (size ps) $ telToList tel0
       (ps1,ps2) = splitAt (size as) ps

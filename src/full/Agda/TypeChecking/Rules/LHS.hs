@@ -317,8 +317,7 @@ checkLeftHandSide
   -> TCM a
 checkLeftHandSide c ps a ret = do
   problem <- problemFromPats ps a
-  unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS (size ps) a
-  -- let b = typeFromProblem problem
+  unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
   let (Problem _ _ gamma (ProblemRest _ b)) = problem
 
   -- doing the splits:
