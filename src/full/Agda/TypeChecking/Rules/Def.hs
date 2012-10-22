@@ -355,7 +355,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSProj{}) []) rhs0 wh) =
   typeError $ NotImplemented "type checking definitions by copatterns"
 checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
     traceCall (CheckClause t c) $
-    checkLeftHandSide (CheckPatternShadowing c) aps t $ \gamma delta sub xs ps t' perm -> do
+    checkLeftHandSide (CheckPatternShadowing c) aps t $ \ mgamma delta sub xs ps t' perm -> do
       let mkBody v = foldr (\x t -> Bind $ Abs x t) (Body $ applySubst sub v) xs
       -- introduce trailing implicits for checking the where decls
       TelV htel t0 <- telViewUpTo' (-1) ((Hidden==) . domHiding) t'
@@ -497,7 +497,7 @@ checkClause t c@(A.Clause (A.LHS i (A.LHSHead x aps) []) rhs0 wh) =
                     , text "                fv" <+> text (show fv)
                     , text "              body" <+> (addCtxTel delta $ prettyTCM $ mkBody v)
                     ]
-
+                  gamma <- maybe (typeError $ NotImplemented "with clauses for functions with unfolding arity") return mgamma
                   return (mkBody v, WithFunction x aux gamma delta1 delta2 vs as t' ps perm' finalPerm cs)
           in handleRHS rhs0
       escapeContext (size delta) $ checkWithFunction with

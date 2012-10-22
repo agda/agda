@@ -306,14 +306,14 @@ checkLeftHandSide
      -- ^ The patterns.
   -> Type
      -- ^ The expected type @a = Γ → b@.
-  -> (Telescope         -- Γ : The types of the patterns.
+  -> (Maybe Telescope   -- Γ : The types of the patterns.
                         -- 'Nothing' if more patterns than domain types in @a@.
                         -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
       -> Telescope      -- Δ : The types of the pattern variables.
       -> S.Substitution -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
       -> [String]       -- Names for the variables in Δ, for binding the body.
       -> [Arg Pattern]  -- The patterns in internal syntax.
-      -> Type           -- The type of the body. Is @bσ@.
+      -> Type           -- The type of the body. Is @bσ@ if @Γ@ is defined.
       -> Permutation    -- The permutation from pattern vars to @Δ@.
       -> TCM a)
      -- ^ Continuation.
@@ -322,6 +322,7 @@ checkLeftHandSide c ps a ret = do
   problem <- problemFromPats ps a
   unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
   let (Problem _ _ gamma (ProblemRest _ b)) = problem
+      mgamma = if noProblemRest problem then Just gamma else Nothing
 
   -- doing the splits:
   (Problem ps (perm, qs) delta _, sigma, dpi, asb) <- checkLHS problem idS [] []
@@ -349,7 +350,7 @@ checkLeftHandSide c ps a ret = do
     let rho = renamingR perm -- I'm not certain about this...
         Perm n _ = perm
         xs  = [ "h" ++ show n | n <- [0..n - 1] ]
-    ret gamma delta rho xs qs b' perm
+    ret mgamma delta rho xs qs b' perm
   where
     -- the loop: split at a variable in the problem until problem is solved
     checkLHS :: Problem -> S.Substitution -> [DotPatternInst] -> [AsBinding] ->
