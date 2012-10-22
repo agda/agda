@@ -299,20 +299,23 @@ bindAsPatterns (AsB x v a : asb) ret = do
   addLetBinding Relevant x v a $ bindAsPatterns asb ret
 
 -- | Check a LHS. Main function.
-{-
-checkLeftHandSide
-  :: A.Clause
-     -- ^ The entire clause.
--}
 checkLeftHandSide
   :: (Maybe r -> Call)
      -- ^ Trace, e.g. @CheckPatternShadowing clause@
   -> [NamedArg A.Pattern]
      -- ^ The patterns.
   -> Type
-     -- ^ The expected type.
-  -> (Telescope -> Telescope -> S.Substitution -> [String] -> [Arg Pattern]
-      -> Type -> Permutation -> TCM a)
+     -- ^ The expected type @a = Γ → b@.
+  -> (Telescope         -- Γ : The types of the patterns.
+                        -- 'Nothing' if more patterns than domain types in @a@.
+                        -- Used only to construct a @with@ function; see 'stripwithClausePatterns'.
+      -> Telescope      -- Δ : The types of the pattern variables.
+      -> S.Substitution -- σ : The patterns in form of a substitution Δ ⊢ σ : Γ
+      -> [String]       -- Names for the variables in Δ, for binding the body.
+      -> [Arg Pattern]  -- The patterns in internal syntax.
+      -> Type           -- The type of the body. Is @bσ@.
+      -> Permutation    -- The permutation from pattern vars to @Δ@.
+      -> TCM a)
      -- ^ Continuation.
   -> TCM a
 checkLeftHandSide c ps a ret = do
