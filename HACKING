@@ -33,3 +33,16 @@ Some Agda Hacking Lore
 
   Calls to error can make Agda fail with an error message in the *ghci*
   buffer.
+
+Emacs mode
+
+* Load times (wall-clock time) can be measured using
+  agda2-measure-load-time.
+
+* If you fix a bug related to syntax highlighting, please add a test
+  case under test/interaction. Example .in file command:
+
+    IOTCM "Foo.agda" NonInteractive Direct (Cmd_load "Foo.agda" [])
+
+  If you want to include interactive highlighting directives, replace
+  NonInteractive with Interactive.
