@@ -325,8 +325,11 @@ checkLeftHandSide c ps a ret = do
       mgamma = if noProblemRest problem then Just gamma else Nothing
 
   -- doing the splits:
-  (Problem ps (perm, qs) delta _, sigma, dpi, asb) <- checkLHS problem idS [] []
-  let b' = applySubst sigma b
+  (Problem ps (perm, qs) delta rest, sigma, dpi, asb) <- checkLHS problem idS [] []
+  unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
+
+  -- let b' = applySubst sigma b
+  let b' = restType rest
 
   noPatternMatchingOnCodata qs
 
@@ -386,11 +389,12 @@ checkLeftHandSide c ps a ret = do
                 dpi'     = applySubst rho dpi
                 asb0     = applySubst rho asb
                 ip'      = applySubst rho ip
+                rest'    = applySubst rho (problemRest problem)
 
             -- Compute the new problem
             let ps'      = problemInPat p0 ++ problemInPat (absBody p1)
                 delta'   = abstract delta1 delta2
-                problem' = Problem ps' (iperm, ip') delta' todoProblemRest
+                problem' = Problem ps' (iperm, ip') delta' rest'
                 asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
             checkLHS problem' sigma' dpi' asb'
 
@@ -504,6 +508,7 @@ checkLeftHandSide c ps a ret = do
                 sigma0 = applySubst rho0 sigma
                 dpi0   = applySubst rho0 dpi
                 asb0   = applySubst rho0 asb
+                rest0  = applySubst rho0 (problemRest problem)
 
             reportSDoc "tc.lhs.top" 15 $ addCtxTel (delta1 `abstract` gamma) $ nest 2 $ vcat
               [ text "delta2 =" <+> prettyTCM delta2
@@ -586,6 +591,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Apply the substitution to the type
             let sigma'   = applySubst rho sigma0
+                rest'    = applySubst rho rest0
 
             reportSDoc "tc.lhs.inst" 15 $
               nest 2 $ text "ps0 = " <+> brackets (fsep $ punctuate comma $ map prettyA ps0')
@@ -604,7 +610,7 @@ checkLeftHandSide c ps a ret = do
                 newip  = applySubst rho ip'
 
             -- Construct the new problem
-            let problem' = Problem ps' (iperm', newip) delta' todoProblemRest
+            let problem' = Problem ps' (iperm', newip) delta' rest'
 
             reportSDoc "tc.lhs.top" 12 $ sep
               [ text "new problem"
