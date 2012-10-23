@@ -24,7 +24,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 import Agda.TypeChecking.Rules.LHS.Implicit
 
 import Agda.Utils.Size
-import Agda.Utils.Permutation (idP)
+import Agda.Utils.Permutation
 
 #include "../../../undefined.h"
 import Agda.Utils.Impossible
@@ -93,11 +93,11 @@ problemFromPats ps a = do
 todoProblemRest :: ProblemRest
 todoProblemRest = mempty
 
-{-
--- | Try to move
+-- | Try to move patterns from the problem rest into the problem.
+--   Possible if type of problem rest has been updated to a function type.
 updateProblemRest :: Problem -> TCM Problem
 updateProblemRest p@(Problem _ _ _ (ProblemRest [] _)) = return p
-updateProblemRest p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
+updateProblemRest p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
   TelV tel' b0 <- telView a
   case tel' of
     EmptyTel -> return p  -- no progress
@@ -106,8 +106,11 @@ updateProblemRest p@(Problem ps0 qs0 tel0 (ProblemRest ps a)) = do
       let tel       = useNamesFromPattern ps tel'
           (as, bs)  = splitAt (size ps) $ telToList tel
           (ps1,ps2) = splitAt (size as) ps
-          tel1      = telFromList as
+          tel1      = telFromList $ telToList tel0 ++ as
           b         = telePi (telFromList bs) b0
           pr        = ProblemRest ps2 b
-      return $ Problem (ps0 ++ ps1) (qs0 ++ qs1) (tel0 `mappend` tel1) pr
--}
+          qs1       = map (argFromDom . fmap (VarP . fst)) as
+          n         = size as
+          perm1     = liftP n perm0
+      return $ Problem (ps0 ++ ps1) (perm1, qs0 ++ qs1) tel1 pr
+

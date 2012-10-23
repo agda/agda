@@ -78,6 +78,7 @@ data Focus	    = Focus   { focusCon      :: QName
                               , focusType     :: Type -- type of variable we are splitting, kept for record patterns (Andreas, 2010-09-09)
 			      }
 		    | LitFocus Literal OneHolePatterns Int Type
+
 data SplitProblem   = Split ProblemPart [Name] (Arg Focus) (Abs ProblemPart)
                       -- ^ the [Name]s give the as-bindings for the focus
 

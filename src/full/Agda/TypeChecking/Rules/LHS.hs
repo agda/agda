@@ -396,6 +396,7 @@ checkLeftHandSide c ps a ret = do
                 delta'   = abstract delta1 delta2
                 problem' = Problem ps' (iperm, ip') delta' rest'
                 asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
+            problem' <- updateProblemRest problem'
             checkLHS problem' sigma' dpi' asb'
 
           -- Split on constructor pattern
@@ -611,6 +612,7 @@ checkLeftHandSide c ps a ret = do
 
             -- Construct the new problem
             let problem' = Problem ps' (iperm', newip) delta' rest'
+            problem' <- updateProblemRest problem' -- TODO? raise sigma' etc?
 
             reportSDoc "tc.lhs.top" 12 $ sep
               [ text "new problem"
