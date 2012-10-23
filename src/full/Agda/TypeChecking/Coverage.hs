@@ -54,7 +54,7 @@ data SplitClause = SClause
       , scPerm   :: Permutation    -- ^ How to get from the variables in the patterns to the telescope.
       , scPats   :: [Arg Pattern]  -- ^ The patterns leading to the currently considered branch of the split tree.
       , scSubst  :: Substitution   -- ^ Substitution from @scTel@ to old context.
-      , scTarget :: Type           -- ^ The type of the rhs.
+      , scTarget :: Maybe Type     -- ^ The type of the rhs.
       }
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
@@ -71,11 +71,11 @@ splitClauses (Covering _ qcs) = map snd qcs
 -- | Create a split clause from a clause in internal syntax.
 clauseToSplitClause :: Clause -> SplitClause
 clauseToSplitClause cl = SClause
-  { scTel   = clauseTel  cl
-  , scPerm  = clausePerm cl
-  , scPats  = clausePats cl
-  , scSubst = __IMPOSSIBLE__
-  , scTarget= __IMPOSSIBLE__
+  { scTel    = clauseTel  cl
+  , scPerm   = clausePerm cl
+  , scPats   = clausePats cl
+  , scSubst  = __IMPOSSIBLE__
+  , scTarget = Nothing
   }
 
 data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
@@ -148,13 +148,23 @@ coverageCheck f t cs = do
   let -- n             = arity
       -- lgamma/gamma' = telescope of non-dropped arguments
       -- xs            = variable patterns fitting lgamma
+      n            = size gamma
+      lgamma       = telToList gamma
+      xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+      -- construct the initial split clause
+      sc           = SClause gamma (idP n) xs idS $ Just a
+{- OLD
+  let -- n             = arity
+      -- lgamma/gamma' = telescope of non-dropped arguments
+      -- xs            = variable patterns fitting lgamma
       n            = genericLength $ clausePats $ head cs
       (lgamma, rgamma) = genericSplitAt n $ telToList gamma
       gamma'       = telFromList lgamma
       xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
       -- construct the initial split clause
       b            = telePi (telFromList rgamma) a
-      sc           = SClause gamma' (idP n) xs idS b
+      sc           = SClause gamma' (idP n) xs idS $ Just b
+-}
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text "Coverage checking"
     , nest 2 $ vcat $ map (text . show . clausePats) cs
@@ -386,8 +396,7 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       debugFinal theta' rperm rps
 
-      return [SClause theta' rperm rps rsub
-                __IMPOSSIBLE__] -- TODO: target type
+      return [SClause theta' rperm rps rsub Nothing] -- target fixed later
 
   where
     debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix =
@@ -449,7 +458,7 @@ splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (x, Nothing)
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 splitLast :: Induction -> Telescope -> [Arg Pattern] -> TCM (Either SplitError Covering)
 splitLast ind tel ps = split ind sc (0, Nothing)
-  where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ __IMPOSSIBLE__
+  where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ Nothing
 
 -- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
 split :: Induction
@@ -521,8 +530,9 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> do
     forM cons $ \ con ->
-      map ((con,) . fixTarget) <$>
-        computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
+      map (con,) <$> do
+        mapM fixTarget =<<
+          computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
   case ns of
     []  -> do
       let absurd = VarP "()"
@@ -533,7 +543,7 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
                , scPerm = perm
                , scPats = plugHole absurd hps
                , scSubst = idS -- not used anyway
-               , scTarget = __IMPOSSIBLE__ -- not used
+               , scTarget = Nothing -- not used
                }
 
     -- Andreas, 2011-10-03
@@ -560,7 +570,23 @@ split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runException
   where
     xDBLevel = dbIndexToLevel tel perm x
 
-    fixTarget sc@SClause{ scSubst = sigma } = sc { scTarget = applySubst sigma target }
+    -- update the target type, add more patterns to split clause
+    -- if target becomes a function type.
+    fixTarget :: SplitClause -> CoverM SplitClause
+    fixTarget sc@SClause{ scSubst = sigma } =
+      flip (maybe $ return sc) target $ \ a -> do
+        TelV tel b <- lift $ telView $ applySubst sigma a
+        let n      = size tel
+            lgamma = telToList tel
+            xs     = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+        if (n == 0) then return sc { scTarget = Just b }
+         else return $ SClause
+          { scTel    = telFromList $ telToList (scTel sc) ++ lgamma
+          , scPerm   = liftP n $ scPerm sc
+          , scPats   = scPats sc ++ xs
+          , scSubst  = liftS n $ sigma
+          , scTarget = Just b
+          }
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)
