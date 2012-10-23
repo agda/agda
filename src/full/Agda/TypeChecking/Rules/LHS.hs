@@ -48,28 +48,6 @@ import Agda.Utils.Monad
 #include "../../undefined.h"
 import Agda.Utils.Impossible
 
-data DotPatternInst = DPI A.Expr Term (Dom Type)
-data AsBinding      = AsB Name Term Type
-
-instance Subst DotPatternInst where
-  applySubst rho (DPI e v a) = uncurry (DPI e) $ applySubst rho (v,a)
-
-instance PrettyTCM DotPatternInst where
-  prettyTCM (DPI e v a) = sep
-    [ prettyA e <+> text "="
-    , nest 2 $ prettyTCM v <+> text ":"
-    , nest 2 $ prettyTCM a
-    ]
-
-instance Subst AsBinding where
-  applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
-
-instance PrettyTCM AsBinding where
-  prettyTCM (AsB x v a) =
-    sep [ prettyTCM x <> text "@" <> parens (prettyTCM v)
-        , nest 2 $ text ":" <+> prettyTCM a
-        ]
-
 -- | Compute the set of flexible patterns in a list of patterns. The result is
 --   the deBruijn indices of the flexible patterns. A pattern is flexible if it
 --   is dotted or implicit.
@@ -323,9 +301,10 @@ checkLeftHandSide c ps a ret = do
   unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
   let (Problem _ _ gamma (ProblemRest _ b)) = problem
       mgamma = if noProblemRest problem then Just gamma else Nothing
+      st     = LHSState problem idS [] []
 
   -- doing the splits:
-  (Problem ps (perm, qs) delta rest, sigma, dpi, asb) <- checkLHS problem idS [] []
+  LHSState (Problem ps (perm, qs) delta rest) sigma dpi asb <- checkLHS st
   unless (null $ restPats rest) $ typeError $ TooManyArgumentsInLHS a
 
   -- let b' = applySubst sigma b
@@ -356,14 +335,13 @@ checkLeftHandSide c ps a ret = do
     ret mgamma delta rho xs qs b' perm
   where
     -- the loop: split at a variable in the problem until problem is solved
-    checkLHS :: Problem -> S.Substitution -> [DotPatternInst] -> [AsBinding] ->
-                TCM (Problem, S.Substitution, [DotPatternInst], [AsBinding])
-    checkLHS problem sigma dpi asb = do
+    checkLHS :: LHSState -> TCM LHSState
+    checkLHS st@(LHSState problem sigma dpi asb) = do
       problem <- insertImplicitProblem problem  -- inserting implicits no longer preserve solvedness
       if isSolvedProblem problem                -- since we might insert eta expanded record patterns
         then do
           noShadowingOfConstructors c problem
-          return (problem, sigma, dpi, asb)
+          return $ st { lhsProblem = problem }
         else do
         sp <- splitProblem problem
         reportSDoc "tc.lhs.split" 20 $ text "splitting completed"
@@ -396,8 +374,8 @@ checkLeftHandSide c ps a ret = do
                 delta'   = abstract delta1 delta2
                 problem' = Problem ps' (iperm, ip') delta' rest'
                 asb'     = raise (size delta2) (map (\x -> AsB x (Lit lit) a) xs) ++ asb0
-            problem' <- updateProblemRest problem'
-            checkLHS problem' sigma' dpi' asb'
+            st' <- updateProblemRest (LHSState problem' sigma' dpi' asb')
+            checkLHS st'
 
           -- Split on constructor pattern
           Right (Split p0 xs (Arg h rel
@@ -612,7 +590,6 @@ checkLeftHandSide c ps a ret = do
 
             -- Construct the new problem
             let problem' = Problem ps' (iperm', newip) delta' rest'
-            problem' <- updateProblemRest problem' -- TODO? raise sigma' etc?
 
             reportSDoc "tc.lhs.top" 12 $ sep
               [ text "new problem"
@@ -631,8 +608,23 @@ checkLeftHandSide c ps a ret = do
               , text "newip  =" <+> text (show newip)
               ]
 
+            -- if rest type reduces,
+            -- extend the split problem by previously not considered patterns
+            st'@(LHSState problem'@(Problem ps' (iperm', ip') delta' rest')
+                          sigma' dpi' asb')
+              <- updateProblemRest $ LHSState problem' sigma' dpi' asb'
+
+            reportSDoc "tc.lhs.top" 12 $ sep
+              [ text "new problem from rest"
+              , nest 2 $ vcat
+                [ text "ps'    = " <+> fsep (map prettyA ps')
+                , text "delta' = " <+> prettyTCM delta'
+                , text "ip'    =" <+> text (show ip')
+                , text "iperm' =" <+> text (show iperm')
+                ]
+              ]
             -- Continue splitting
-            checkLHS problem' sigma' dpi' asb'
+            checkLHS st'
 
 -- Ensures that we are not performing pattern matching on codata.
 

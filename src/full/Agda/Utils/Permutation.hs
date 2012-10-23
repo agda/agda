@@ -48,9 +48,11 @@ takeP :: Int -> Permutation -> Permutation
 takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
 -- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
---   Analogous to 'Agda.TypeChecking.Substitution.liftS'.
+--   Analogous to 'Agda.TypeChecking.Substitution.liftS',
+--   but Permutations operate on de Bruijn LEVELS, not indices.
 liftP :: Int -> Permutation -> Permutation
-liftP n (Perm m xs) = Perm (n + m) $ [0..n-1] ++ map (n+) xs
+liftP n (Perm m xs) = Perm (n + m) $ xs ++ [m..m+n-1]
+-- liftP n (Perm m xs) = Perm (n + m) $ [0..n-1] ++ map (n+) xs -- WRONG, works for indices, but not for levels
 
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
 composeP :: Permutation -> Permutation -> Permutation

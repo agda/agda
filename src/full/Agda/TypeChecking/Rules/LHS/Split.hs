@@ -103,7 +103,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 	      Split mempty
 		    xs
 		    (argFromDom $ fmap (LitFocus lit q i) a)
-		    (fmap (\ tel -> Problem ps () tel todoProblemRest) tel)
+		    (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
 	    else keepGoing
 
         -- Case: constructor pattern
@@ -174,7 +174,7 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 		  return $ Split mempty
 				 xs
 				 (argFromDom $ fmap (Focus c args (getRange p) q i d pars ixs) a)
-				 (fmap (\ tel -> Problem ps () tel todoProblemRest) tel)
+				 (fmap (\ tel -> Problem ps () tel __IMPOSSIBLE__) tel)
             -- Subcase: split type is not a Def
 	    _	-> keepGoing
         -- Case: neither literal nor constructor pattern

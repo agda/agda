@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, TupleSections #-}
 
 module Agda.TypeChecking.Rules.LHS.ProblemRest where
 
@@ -90,17 +90,19 @@ problemFromPats ps a = do
 	 ]
   return problem
 
+{-
 todoProblemRest :: ProblemRest
 todoProblemRest = mempty
+-}
 
 -- | Try to move patterns from the problem rest into the problem.
 --   Possible if type of problem rest has been updated to a function type.
-updateProblemRest :: Problem -> TCM Problem
-updateProblemRest p@(Problem _ _ _ (ProblemRest [] _)) = return p
-updateProblemRest p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
+updateProblemRest_ :: Problem -> TCM (Nat, Problem)
+updateProblemRest_ p@(Problem _ _ _ (ProblemRest [] _)) = return (0, p)
+updateProblemRest_ p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps a)) = do
   TelV tel' b0 <- telView a
   case tel' of
-    EmptyTel -> return p  -- no progress
+    EmptyTel -> return (0, p)  -- no progress
     ExtendTel{} -> do     -- a did reduce to a pi-type
       ps <- insertImplicitPatterns DontExpandLast ps tel'
       let tel       = useNamesFromPattern ps tel'
@@ -111,6 +113,17 @@ updateProblemRest p@(Problem ps0 (perm0@(Perm n0 is0), qs0) tel0 (ProblemRest ps
           pr        = ProblemRest ps2 b
           qs1       = map (argFromDom . fmap (VarP . fst)) as
           n         = size as
-          perm1     = liftP n perm0
-      return $ Problem (ps0 ++ ps1) (perm1, qs0 ++ qs1) tel1 pr
+          perm1     = liftP n perm0 -- IS: Perm (n0 + n) $ is0 ++ [n0..n0+n-1]
+      return $ (n,) $ Problem (ps0 ++ ps1) (perm1, raise n qs0 ++ qs1) tel1 pr
 
+updateProblemRest :: LHSState -> TCM LHSState
+updateProblemRest st@LHSState { lhsProblem = p } = do
+  (n, p') <- updateProblemRest_ p
+  if (n == 0) then return st else do
+    let tau = raiseS n
+    return $ LHSState
+      { lhsProblem = p'
+      , lhsSubst   = applySubst tau (lhsSubst st)
+      , lhsDPI     = applySubst tau (lhsDPI st)
+      , lhsAsB     = applySubst tau (lhsAsB st)
+      }

@@ -11,7 +11,8 @@ import Agda.Syntax.Internal
 import Agda.Syntax.Internal.Pattern
 import qualified Agda.Syntax.Abstract as A
 
-import Agda.TypeChecking.Substitute
+import Agda.TypeChecking.Substitute as S
+import Agda.TypeChecking.Pretty
 
 import Agda.Utils.Permutation
 
@@ -58,24 +59,15 @@ data ProblemRest    = ProblemRest
   , restType :: Type                  -- ^ type eliminated by 'restPats'
   }
 
-{- TRASH
-  | NoProblemRest                     -- ^ no outstanding user patterns
-
--- | Smart constructor.  Creates a 'NoProblemRest' when list of patterns is empty.
-mkProblemRest :: [NamedArg A.Pattern] -> Type -> ProblemRest
-mkProblemRest [] a = NoProblemRest
-mkProblemRest ps a = ProblemRest ps a
--}
-
 data Focus	    = Focus   { focusCon      :: QName
 			      , focusConArgs  :: [NamedArg A.Pattern]
 			      , focusRange    :: Range
 			      , focusOutPat   :: OneHolePatterns
-			      , focusHoleIx   :: Int  -- ^ index of focused variable in the out patterns
+			      , focusHoleIx   :: Int  -- ^ Index of focused variable in the out patterns.
 			      , focusDatatype :: QName
 			      , focusParams   :: [Arg Term]
 			      , focusIndices  :: [Arg Term]
-                              , focusType     :: Type -- type of variable we are splitting, kept for record patterns (Andreas, 2010-09-09)
+                              , focusType     :: Type -- ^ Type of variable we are splitting, kept for record patterns.
 			      }
 		    | LitFocus Literal OneHolePatterns Int Type
 
@@ -85,7 +77,21 @@ data SplitProblem   = Split ProblemPart [Name] (Arg Focus) (Abs ProblemPart)
 data SplitError	    = NothingToSplit
 		    | SplitPanic String
 
+-- | The permutation should permute @allHoles@ of the patterns to correspond to
+--   the abstract patterns in the problem.
+type Problem	 = Problem' (Permutation, [Arg Pattern])
 type ProblemPart = Problem' ()
+
+data DotPatternInst = DPI A.Expr Term (Dom Type)
+data AsBinding      = AsB Name Term Type
+
+-- | State worked on during the main loop of checking a lhs.
+data LHSState = LHSState
+  { lhsProblem :: Problem
+  , lhsSubst   :: S.Substitution
+  , lhsDPI     :: [DotPatternInst]
+  , lhsAsB     :: [AsBinding]
+  }
 
 instance Subst ProblemRest where
   applySubst rho p = p { restType = applySubst rho $ restType p }
@@ -94,9 +100,24 @@ instance Subst (Problem' p) where
   applySubst rho p = p { problemTel  = applySubst rho $ problemTel p
                        , problemRest = applySubst rho $ problemRest p }
 
--- | The permutation should permute @allHoles@ of the patterns to correspond to
---   the abstract patterns in the problem.
-type Problem	 = Problem' (Permutation, [Arg Pattern])
+instance Subst DotPatternInst where
+  applySubst rho (DPI e v a) = uncurry (DPI e) $ applySubst rho (v,a)
+
+instance Subst AsBinding where
+  applySubst rho (AsB x v a) = uncurry (AsB x) $ applySubst rho (v, a)
+
+instance PrettyTCM DotPatternInst where
+  prettyTCM (DPI e v a) = sep
+    [ prettyA e <+> text "="
+    , nest 2 $ prettyTCM v <+> text ":"
+    , nest 2 $ prettyTCM a
+    ]
+
+instance PrettyTCM AsBinding where
+  prettyTCM (AsB x v a) =
+    sep [ prettyTCM x <> text "@" <> parens (prettyTCM v)
+        , nest 2 $ text ":" <+> prettyTCM a
+        ]
 
 instance Error SplitError where
   noMsg  = NothingToSplit
@@ -110,20 +131,6 @@ instance Monoid ProblemRest where
   mempty = ProblemRest [] typeDontCare
   mappend pr (ProblemRest [] _) = pr
   mappend _  pr                 = pr
-
-{- TRASH
-instance Monoid ProblemRest where
-  mempty = NoProblemRest
-  mappend pr NoProblemRest = pr
-
--- | 'ProblemRest' is not really a monoid.
---   We can only compose the empty 'ProblemRest' with some other 'ProblemRest'
---   (left unit law).
-instance Monoid ProblemRest where
-  mempty = ProblemRest [] typeDontCare
-  mappend (ProblemRest [] _) pr = pr
-  mappend (ProblemRest (_ : _) _) pr = __IMPOSSIBLE__
--}
 
 instance Monoid p => Monoid (Problem' p) where
   mempty = Problem [] mempty EmptyTel mempty
