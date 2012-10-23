@@ -137,10 +137,11 @@ makeCase hole rng s = withInteractionId hole $ do
     , scPerm  = clausePerm cl
     , scPats  = clausePats cl
     , scSubst = __IMPOSSIBLE__
+    , scTarget= __IMPOSSIBLE__
     }
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
-makeAbsurdClause f (SClause tel perm ps _) = do
+makeAbsurdClause f (SClause tel perm ps _ _) = do
   reportSDoc "interaction.case" 10 $ vcat
     [ text "Interaction.MakeCase.makeCase: split clause:"
     , nest 2 $ vcat
@@ -155,6 +156,7 @@ makeAbsurdClause f (SClause tel perm ps _) = do
     ps <- addCtxTel tel $ normalise ps
     inContext [] $ reify $ NamedClause f $ Clause noRange tel perm ps NoBody
 
+-- | Make a clause with a question mark as rhs.
 makeAbstractClause :: QName -> SplitClause -> TCM A.Clause
 makeAbstractClause f cl = do
   A.Clause lhs _ _ <- makeAbsurdClause f cl

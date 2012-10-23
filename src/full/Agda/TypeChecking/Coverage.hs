@@ -50,13 +50,12 @@ import Agda.Utils.Monad
 import Agda.Utils.Impossible
 
 data SplitClause = SClause
-      { scTel   :: Telescope      -- ^ type of variables in scPats
-      , scPerm  :: Permutation    -- ^ how to get from the variables in the patterns to the telescope
-      , scPats  :: [Arg Pattern]
-      , scSubst :: Substitution   -- ^ substitution from scTel to old context
+      { scTel    :: Telescope      -- ^ Type of variables in @scPats@.
+      , scPerm   :: Permutation    -- ^ How to get from the variables in the patterns to the telescope.
+      , scPats   :: [Arg Pattern]  -- ^ The patterns leading to the currently considered branch of the split tree.
+      , scSubst  :: Substitution   -- ^ Substitution from @scTel@ to old context.
+      , scTarget :: Type           -- ^ The type of the rhs.
       }
-
--- type Covering = [SplitClause]
 
 -- | A @Covering@ is the result of splitting a 'SplitClause'.
 data Covering = Covering
@@ -135,21 +134,24 @@ checkCoverage f = do
 -- | Top-level function for checking pattern coverage.
 coverageCheck :: QName -> Type -> [Clause] -> TCM SplitTree
 coverageCheck f t cs = do
-  TelV gamma _ <- telView t
+  TelV gamma a <- telView t
   let -- n             = arity
       -- lgamma/gamma' = telescope of non-dropped arguments
       -- xs            = variable patterns fitting lgamma
       n            = genericLength $ clausePats $ head cs
-      lgamma       = genericTake n $ telToList gamma
+      (lgamma, rgamma) = genericSplitAt n $ telToList gamma
       gamma'       = telFromList lgamma
       xs           = map (argFromDom . fmap (const $ VarP "_")) $ lgamma
+      -- construct the initial split clause
+      b            = telePi (telFromList rgamma) a
+      sc           = SClause gamma' (idP n) xs idS b
   reportSDoc "tc.cover.top" 10 $ vcat
     [ text "Coverage checking"
     , nest 2 $ vcat $ map (text . show . clausePats) cs
     ]
   -- used = actually used clauses for cover
   -- pss  = uncovered cases
-  (splitTree, used, pss) <- cover cs $ SClause gamma' (idP n) xs idS
+  (splitTree, used, pss) <- cover cs sc
   reportSDoc "tc.cover.splittree" 10 $ vcat
     [ text "generated split tree for" <+> prettyTCM f
     , text $ show splitTree
@@ -173,7 +175,7 @@ coverageCheck f t cs = do
 --   checks that the list of clauses @cs@ covers the given split clause.
 --   Returns the @splitTree@, the @used@ clauses, and missing cases @pss@.
 cover :: [Clause] -> SplitClause -> TCM (SplitTree, Set Nat, [[Arg Pattern]])
-cover cs (SClause tel perm ps _) = do
+cover cs sc@(SClause tel perm ps _ target) = do
   reportSDoc "tc.cover.cover" 10 $ vcat
     [ text "checking coverage of pattern:"
     , nest 2 $ text "tel  =" <+> prettyTCM tel
@@ -194,7 +196,7 @@ cover cs (SClause tel perm ps _) = do
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
       xs <- splitStrategy bs tel
-      r <- altM1 (split Inductive tel perm ps) xs
+      r <- altM1 (splitTheClause sc) xs
       case r of
         Left err  -> case err of
           CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
@@ -374,7 +376,8 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
 
       debugFinal theta' rperm rps
 
-      return [SClause theta' rperm rps rsub]
+      return [SClause theta' rperm rps rsub
+                __IMPOSSIBLE__] -- TODO: target type
 
   where
     debugInit con ctype pars ixs cixs delta1 delta2 gamma hps hix =
@@ -428,15 +431,22 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
         , text "rps    =" <+> text (show ps)
         ]
 
--- | split Δ x ps. Δ ⊢ ps, x ∈ Δ (deBruijn index)
+{- UNUSED
 splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
 splitClause c x =
   split Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
+-}
 
+-- | Entry point from @Interaction.MakeCase@.
+--   @Abs@ is for absurd clause.
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbs c x =
   split' Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
 
+splitTheClause :: SplitClause -> BlockingVar -> TCM (Either SplitError Covering)
+splitTheClause (SClause tel perm ps _ target) = split Inductive tel perm ps
+
+-- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
@@ -505,6 +515,7 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
                , scPerm = perm
                , scPats = plugHole absurd hps
                , scSubst = idS -- not used anyway
+               , scTarget = __IMPOSSIBLE__ -- not used
                }
 
     -- Andreas, 2011-10-03
