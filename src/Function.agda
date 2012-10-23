@@ -13,7 +13,7 @@ infixl 8 _ˢ_
 infixl 1 _on_
 infixl 1 _⟨_⟩_
 infixr 0 _-[_]-_ _$_
-infix  0 type-signature
+infixr 0 type-signature
 
 ------------------------------------------------------------------------
 -- Types
