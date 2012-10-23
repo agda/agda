@@ -47,6 +47,11 @@ idP n = Perm n [0..n - 1]
 takeP :: Int -> Permutation -> Permutation
 takeP n (Perm m xs) = Perm n $ filter (< n) xs
 
+-- | @liftP k@ takes a @Perm {m} n@ to a @Perm {m+k} (n+k)@.
+--   Analogous to 'Agda.TypeChecking.Substitution.liftS'.
+liftP :: Int -> Permutation -> Permutation
+liftP n (Perm m xs) = Perm (n + m) $ [0..n-1] ++ map (n+) xs
+
 -- | @permute (compose p1 p2) == permute p1 . permute p2@
 composeP :: Permutation -> Permutation -> Permutation
 composeP p1 (Perm n xs) = Perm n $ permute p1 xs
