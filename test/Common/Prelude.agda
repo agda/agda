@@ -1,9 +1,15 @@
 
 module Common.Prelude where
 
+postulate Char : Set
+
+{-# BUILTIN CHAR Char #-}
+{-# COMPILED_TYPE Char Char #-}
+
 postulate String : Set
 
 {-# BUILTIN STRING String #-}
+{-# COMPILED_TYPE String String #-}
 
 data Nat : Set where
   zero : Nat
@@ -12,6 +18,8 @@ data Nat : Set where
 {-# BUILTIN NATURAL Nat  #-}
 {-# BUILTIN SUC     suc  #-}
 {-# BUILTIN ZERO    zero #-}
+
+{-# COMPILED_DATA Nat Common.FFI.Nat Common.FFI.Zero Common.FFI.Suc #-}
 
 {-# COMPILED_JS     Nat function (x,v) { return (x < 1? v.zero(): v.suc(x-1)); } #-}
 {-# COMPILED_JS     zero 0 #-}
@@ -40,6 +48,8 @@ infixr 40 _∷_
 {-# BUILTIN NIL []    #-}
 {-# BUILTIN CONS _∷_  #-}
 
+{-# COMPILED_DATA List [] [] (:) #-}
+
 data Bool : Set where
   true false : Bool
 
@@ -52,3 +62,14 @@ data Bool : Set where
 {-# COMPILED_JS Bool function (x,v) { return (x? v["true"](): v["false"]()); } #-}
 {-# COMPILED_JS true true #-}
 {-# COMPILED_JS false false #-}
+
+data Unit : Set where
+  unit : Unit
+
+{-# COMPILED_DATA Unit () () #-}
+
+postulate
+  IO : Set → Set
+
+{-# COMPILED_TYPE IO IO #-}
+{-# BUILTIN IO IO #-}

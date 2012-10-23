@@ -1,7 +1,7 @@
 {-# OPTIONS --universe-polymorphism #-}
 module Reflection where
 
-open import Common.Prelude renaming (Nat to ℕ)
+open import Common.Prelude hiding (Unit; module Unit) renaming (Nat to ℕ)
 open import Common.Reflect
 
 data _≡_ {a}{A : Set a}(x : A) : A → Set a where
