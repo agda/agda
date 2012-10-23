@@ -68,6 +68,16 @@ data Covering = Covering
 splitClauses :: Covering -> [SplitClause]
 splitClauses (Covering _ qcs) = map snd qcs
 
+-- | Create a split clause from a clause in internal syntax.
+clauseToSplitClause :: Clause -> SplitClause
+clauseToSplitClause cl = SClause
+  { scTel   = clauseTel  cl
+  , scPerm  = clausePerm cl
+  , scPats  = clausePats cl
+  , scSubst = __IMPOSSIBLE__
+  , scTarget= __IMPOSSIBLE__
+  }
+
 data SplitError = NotADatatype (Closure Type) -- ^ neither data type nor record
                 | IrrelevantDatatype (Closure Type)   -- ^ data type, but in irrelevant position
                 | CoinductiveDatatype (Closure Type)  -- ^ coinductive data type
@@ -196,7 +206,7 @@ cover cs sc@(SClause tel perm ps _ target) = do
       -- xs is a non-empty lists of blocking variables
       -- try splitting on one of them
       xs <- splitStrategy bs tel
-      r <- altM1 (splitTheClause sc) xs
+      r <- altM1 (split Inductive sc) xs
       case r of
         Left err  -> case err of
           CantSplit c tel us vs _ -> typeError $ CoverageCantSplitOn c tel us vs
@@ -431,40 +441,40 @@ computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con = do
         , text "rps    =" <+> text (show ps)
         ]
 
-{- UNUSED
-splitClause :: Clause -> Nat -> TCM (Either SplitError Covering)
-splitClause c x =
-  split Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
--}
-
 -- | Entry point from @Interaction.MakeCase@.
 --   @Abs@ is for absurd clause.
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
-splitClauseWithAbs c x =
-  split' Inductive (clauseTel c) (clausePerm c) (clausePats c)
-    __IMPOSSIBLE__ (x, Nothing)
+splitClauseWithAbs c x = split' Inductive (clauseToSplitClause c) (x, Nothing)
 
 -- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
 splitLast :: Induction -> Telescope -> [Arg Pattern] -> TCM (Either SplitError Covering)
-splitLast ind tel ps = split ind tel (idP $ size tel) ps __IMPOSSIBLE__ (0, Nothing)
-
-
-splitTheClause :: SplitClause -> BlockingVar -> TCM (Either SplitError Covering)
-splitTheClause (SClause tel perm ps _ target) = split Inductive tel perm ps target
+splitLast ind tel ps = split ind sc (0, Nothing)
+  where sc = SClause tel (idP $ size tel) ps __IMPOSSIBLE__ __IMPOSSIBLE__
 
 -- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
-      -> Telescope -> Permutation -> [Arg Pattern] -> Type
+      -> SplitClause
       -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind tel perm ps target x = do
-  r <- split' ind tel perm ps target x
+split ind sc x = fmap (blendInAbsurdClause (splitDbIndexToLevel sc x)) <$>
+   split' ind sc x
+{- OLD
+split ind sc@SClause{ scTel = tel, scPerm = perm, scPats = ps } x =
+  r <- split' ind sc x
   return $ case r of
     Left err        -> Left err
     Right (Left _)  -> Right $ Covering (dbIndexToLevel tel perm $ fst x) []
     Right (Right c) -> Right c
+-}
+
+blendInAbsurdClause :: Nat -> Either SplitClause Covering -> Covering
+blendInAbsurdClause n = either (const $ Covering n []) id
+
+splitDbIndexToLevel :: SplitClause -> BlockingVar -> Nat
+splitDbIndexToLevel sc@SClause{ scTel = tel, scPerm = perm } x =
+  dbIndexToLevel tel perm $ fst x
 
 -- | Convert a de Bruijn index relative to a telescope to a de Buijn level.
 --   The result should be the argument (counted from left, starting with 0)
@@ -475,10 +485,10 @@ dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
-       -> Telescope -> Permutation -> [Arg Pattern] -> Type
+       -> SplitClause
        -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind tel perm ps target (x, mcons) = liftTCM $ runExceptionT $ do
+split' ind sc@(SClause tel perm ps _ target) (x, mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 

@@ -130,15 +130,7 @@ makeCase hole rng s = withInteractionId hole $ do
     Var x [] -> Just x
     _        -> Nothing
 
-  -- Note that the scSubst field is not defined.
-  clauseToSplitClause :: Clause -> SplitClause
-  clauseToSplitClause cl = SClause
-    { scTel   = clauseTel  cl
-    , scPerm  = clausePerm cl
-    , scPats  = clausePats cl
-    , scSubst = __IMPOSSIBLE__
-    , scTarget= __IMPOSSIBLE__
-    }
+  -- NOTE: clauseToSplitClause moved to Coverage.hs
 
 makeAbsurdClause :: QName -> SplitClause -> TCM A.Clause
 makeAbsurdClause f (SClause tel perm ps _ _) = do
