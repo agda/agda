@@ -509,9 +509,8 @@ introTactic pmLambda ii = do
 
     introData t = do
       let tel  = telFromList [domFromArg $ defaultArg ("_", t)]
-          perm = idP 1
           pat  = [defaultArg (I.VarP "c")]
-      r <- split CoInductive tel perm pat (0, Nothing)
+      r <- splitLast CoInductive tel pat
       case r of
         Left err -> return []
         Right cov -> mapM showTCM $ concatMap (conName . scPats) $ splitClauses cov

@@ -271,7 +271,7 @@ isDatatype ind at = do
 --      d        Name of datatype to split at
 --      pars     Data type parameters
 --      ixs      Data type indices
---      hix      ??
+--      hix      Index of split variable
 --      hps      Patterns with hole at split point
 --      con      Constructor to fit into hole
 --   @
@@ -441,19 +441,26 @@ splitClause c x =
 --   @Abs@ is for absurd clause.
 splitClauseWithAbs :: Clause -> Nat -> TCM (Either SplitError (Either SplitClause Covering))
 splitClauseWithAbs c x =
-  split' Inductive (clauseTel c) (clausePerm c) (clausePats c) (x, Nothing)
+  split' Inductive (clauseTel c) (clausePerm c) (clausePats c)
+    __IMPOSSIBLE__ (x, Nothing)
+
+-- | Entry point from @TypeChecking.Empty@ and @Interaction.BasicOps@.
+splitLast :: Induction -> Telescope -> [Arg Pattern] -> TCM (Either SplitError Covering)
+splitLast ind tel ps = split ind tel (idP $ size tel) ps __IMPOSSIBLE__ (0, Nothing)
+
 
 splitTheClause :: SplitClause -> BlockingVar -> TCM (Either SplitError Covering)
-splitTheClause (SClause tel perm ps _ target) = split Inductive tel perm ps
+splitTheClause (SClause tel perm ps _ target) = split Inductive tel perm ps target
 
 -- | @split _ Δ π ps x@. FIXME: Δ ⊢ ps, x ∈ Δ (deBruijn index)
 split :: Induction
          -- ^ Coinductive constructors are allowed if this argument is
          -- 'CoInductive'.
-      -> Telescope -> Permutation -> [Arg Pattern] -> BlockingVar
+      -> Telescope -> Permutation -> [Arg Pattern] -> Type
+      -> BlockingVar
       -> TCM (Either SplitError Covering)
-split ind tel perm ps x = do
-  r <- split' ind tel perm ps x
+split ind tel perm ps target x = do
+  r <- split' ind tel perm ps target x
   return $ case r of
     Left err        -> Left err
     Right (Left _)  -> Right $ Covering (dbIndexToLevel tel perm $ fst x) []
@@ -468,9 +475,10 @@ dbIndexToLevel tel perm x = if n < 0 then __IMPOSSIBLE__ else n
 split' :: Induction
           -- ^ Coinductive constructors are allowed if this argument is
           -- 'CoInductive'.
-       -> Telescope -> Permutation -> [Arg Pattern] -> BlockingVar
+       -> Telescope -> Permutation -> [Arg Pattern] -> Type
+       -> BlockingVar
        -> TCM (Either SplitError (Either SplitClause Covering))
-split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
+split' ind tel perm ps target (x, mcons) = liftTCM $ runExceptionT $ do
 
   debugInit tel perm x ps
 
@@ -503,7 +511,7 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
   -- Compute the neighbourhoods for the constructors
   ns <- concat <$> do
     forM cons $ \ con ->
-      map (con,) <$>
+      map ((con,) . fixTarget) <$>
         computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
   case ns of
     []  -> do
@@ -541,6 +549,8 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
 
   where
     xDBLevel = dbIndexToLevel tel perm x
+
+    fixTarget sc@SClause{ scSubst = sigma } = sc { scTarget = applySubst sigma target }
 
     inContextOfT :: MonadTCM tcm => tcm a -> tcm a
     inContextOfT = addCtxTel tel . escapeContext (x + 1)

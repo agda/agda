@@ -42,7 +42,7 @@ isEmptyType r t = do
           tel   = telFromList gamma
 
       dontAssignMetas $ do
-      r <- split Inductive tel (idP $ size tel) ps (0, Nothing)
+      r <- splitLast Inductive tel ps
 
       case r of
         Left err  -> case err of
