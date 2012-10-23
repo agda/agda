@@ -298,7 +298,7 @@ checkLeftHandSide
   -> TCM a
 checkLeftHandSide c ps a ret = do
   problem <- problemFromPats ps a
-  unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
+  -- unless (noProblemRest problem) $ typeError $ TooManyArgumentsInLHS a
   let (Problem _ _ gamma (ProblemRest _ b)) = problem
       mgamma = if noProblemRest problem then Just gamma else Nothing
       st     = LHSState problem idS [] []
