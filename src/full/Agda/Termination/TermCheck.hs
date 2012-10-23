@@ -78,7 +78,7 @@ type Result = [TerminationError]
 
 -- | Termination check a sequence of declarations.
 termDecls :: [A.Declaration] -> TCM Result
-termDecls ds = mapM' termDecl ds
+termDecls ds = concat <$> mapM termDecl ds
 
 -- | Termination check a single declaration.
 termDecl :: A.Declaration -> TCM Result

@@ -491,7 +491,10 @@ split' ind tel perm ps (x, mcons) = liftTCM $ runExceptionT $ do
     inContextOfT $ Split.wellFormedIndices (unDom t)
 
   -- Compute the neighbourhoods for the constructors
-  ns <- concat <$> mapM (\ con -> map (con,) <$> computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con) cons
+  ns <- concat <$> do
+    forM cons $ \ con ->
+      map (con,) <$>
+        computeNeighbourhood delta1 n delta2 perm d pars ixs hix hps con
   case ns of
     []  -> do
       let absurd = VarP "()"

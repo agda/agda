@@ -20,9 +20,10 @@ import Control.Monad.State
 import qualified Control.Monad.State.Strict as SS
 import Control.Monad.Writer
 import Control.Applicative
-import Data.Traversable hiding (sequence)
+import Data.Traversable as Trav hiding (sequence)
 import Data.Foldable as Fold
 import Data.Monoid
+import Data.Maybe
 
 import Agda.Utils.List
 
@@ -79,11 +80,20 @@ altM1 f (a : as) = either (const $ altM1 f as) (return . Right) =<< f a
 -- Loops gathering results in a Monoid ------------------------------------
 
 -- | Generalized version of @mapM_ :: Monad m => (a -> m ()) -> [a] -> m ()@
+--   Executes effects and collects results in left-to-right order.
+--   Works best with left-associative monoids.
+--
+--   Note that there is an alternative
+--
+--     @mapM' f t = foldr mappend mempty <$> mapM f t@
+--
+--   that collects results in right-to-left order (effects still right-to-left).
+--   It might be preferable for right associative monoids.
 mapM' :: (Foldable t, Monad m, Monoid b) => (a -> m b) -> t a -> m b
 mapM' f = Fold.foldl (\ mb a -> liftM2 mappend mb (f a)) (return mempty)
 
 -- | Generalized version of @forM_ :: Monad m => [a] -> (a -> m ()) -> m ()@
-forM' :: (Foldable t, Monad m, Monoid b) => t a-> (a -> m b) -> m b
+forM' :: (Foldable t, Monad m, Monoid b) => t a -> (a -> m b) -> m b
 forM' = flip mapM'
 
 -- Continuation monad -----------------------------------------------------
@@ -101,6 +111,10 @@ thread f (x:xs) ret =
 -- | Requires both lists to have the same lengths.
 zipWithM' :: Monad m => (a -> b -> m c) -> [a] -> [b] -> m [c]
 zipWithM' f xs ys = sequence (zipWith' f xs ys)
+
+-- | A monadic version of @mapMaybe :: (a -> Maybe b) -> [a] -> [b]@.
+mapMaybeM :: (Monad m, Functor m) => (a -> m (Maybe b)) -> [a] -> m [b]
+mapMaybeM f xs = catMaybes <$> Trav.mapM f xs
 
 -- Error monad ------------------------------------------------------------
 
