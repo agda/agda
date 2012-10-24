@@ -154,7 +154,7 @@ checkFunDef' t rel delayed i name cs =
                 mapM check cs
 
         -- Check that all clauses have the same number of arguments
-        -- unless (allEqual $ map npats cs) $ typeError DifferentArities
+        unless (allEqual $ map npats cs) $ typeError DifferentArities
 
         reportSDoc "tc.cc" 15 $ do
           sep [ text "clauses before rebindClause"
