@@ -2,7 +2,7 @@
 module Agda.TypeChecking.Rules.LHS.Problem where
 
 import Control.Monad.Error
-import Data.Monoid
+import Data.Monoid ( Monoid(mappend,mempty) )
 
 import Agda.Syntax.Common
 import Agda.Syntax.Literal
