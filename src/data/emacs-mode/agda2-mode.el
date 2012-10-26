@@ -938,11 +938,11 @@ is inserted, and point is placed before this text."
 (defun agda2-term ()
   "Send a SIGTERM signal to the Agda2 process, then kill its buffer."
   (interactive)
-  (set-buffer agda2-process-buffer)
-  (condition-case nil
-      (signal-process agda2-process 'SIGTERM)
-    (error nil))
-  (kill-buffer agda2-process-buffer))
+  (with-current-buffer agda2-process-buffer
+    (condition-case nil
+        (signal-process agda2-process 'SIGTERM)
+      (error nil))
+    (kill-buffer)))
 
 (defmacro agda2-maybe-normalised (name comment cmd want)
   "This macro constructs a function NAME which runs CMD.
