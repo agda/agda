@@ -108,21 +108,21 @@ splitProblem (Problem ps (perm, qs) tel pr) = do
 
         -- Case: constructor pattern
 	(xs, p@(A.ConP _ (A.AmbQ cs) args)) -> do
-	  a' <- liftTCM $ reduce $ unDom a
+          let tryInstantiate a'
+                | [c] <- cs = do
+                    -- Type is blocked by a meta and constructor is unambiguous,
+                    -- in this case try to instantiate the meta.
+                  ok <- lift $ do
+                    Constructor{ conData = d } <- theDef <$> getConstInfo c
+                    dt     <- defType <$> getConstInfo d
+                    vs     <- newArgsMeta dt
+                    Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
+                    (True <$ noConstraints (equalType a' (El s $ Def d vs)))
+                      `catchError` \_ -> return False
+                  if ok then tryAgain else keepGoing
+                | otherwise = keepGoing
+          ifBlockedType (unDom a) (const tryInstantiate) $ \ a' -> do
 	  case ignoreSharing $ unEl a' of
-
-            -- Type is a meta and constructor is unambiguous,
-            -- in this case try to instantiate the meta.
-            MetaV{} | [c] <- cs -> do
-              ok <- lift $ do
-                Constructor{ conData = d } <- theDef <$> getConstInfo c
-                dt     <- defType <$> getConstInfo d
-                vs     <- newArgsMeta dt
-                Sort s <- ignoreSharing . unEl <$> reduce (apply dt vs)
-                (True <$ noConstraints (equalType a' (El s $ Def d vs)))
-                  `catchError` \_ -> return False
-              if not ok then keepGoing else
-                tryAgain
 
             -- Subcase: split type is a Def
 	    Def d vs	-> do

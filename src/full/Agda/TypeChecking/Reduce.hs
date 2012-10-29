@@ -168,17 +168,17 @@ instance (Ord k, Instantiate e) => Instantiate (Map k e) where
 -- * Reduction to weak head normal form.
 ---------------------------------------------------------------------------
 
-ifBlocked :: Term -> (MetaId -> Term -> TCM a) -> (Term -> TCM a) -> TCM a
+ifBlocked :: MonadTCM tcm =>  Term -> (MetaId -> Term -> tcm a) -> (Term -> tcm a) -> tcm a
 ifBlocked t blocked unblocked = do
-  t <- reduceB t
+  t <- liftTCM $ reduceB t
   case ignoreSharing <$> t of
     Blocked m _            -> blocked m (ignoreBlocking t)
     NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
     NotBlocked _           -> unblocked (ignoreBlocking t)
 
-ifBlockedType :: Type -> (MetaId -> Type -> TCM a) -> (Type -> TCM a) -> TCM a
+ifBlockedType :: MonadTCM tcm => Type -> (MetaId -> Type -> tcm a) -> (Type -> tcm a) -> tcm a
 ifBlockedType t blocked unblocked = do
-  t <- reduceB t
+  t <- liftTCM $ reduceB t
   case ignoreSharing . unEl <$> t of
     Blocked m _            -> blocked m (ignoreBlocking t)
     NotBlocked (MetaV m _) -> blocked m (ignoreBlocking t)
