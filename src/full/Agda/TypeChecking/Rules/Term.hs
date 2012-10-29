@@ -467,20 +467,22 @@ checkExpr e t =
         A.ExtendedLam i di qname cs -> do
            t <- instantiateFull t
            ifBlockedType t (\ m t' -> postponeTypeCheckingProblem_ e t') $ \ t -> do
-                 j   <- currentOrFreshMutualBlock
-                 rel <- asks envRelevance
-                 addConstant qname (Defn rel qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom)
-                 reportSDoc "tc.term.exlam" 50 $ text "extended lambda's implementation \"" <> prettyTCM qname <>
-                                                 text "\" has type: " $$ prettyTCM t -- <+>
---                                                 text " where clauses: " <+> text (show cs)
-                 abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
-                 args     <- getContextArgs
-                 top      <- currentModule
-                 freevars <- getSecFreeVars top
-                 let argsNoParam = genericDrop freevars args -- don't count module parameters
-                 let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
-                 addExtLambdaTele qname (length hid, length notHid)
-                 reduce $ (Def qname [] `apply` args)
+             j   <- currentOrFreshMutualBlock
+             rel <- asks envRelevance
+             addConstant qname $
+               Defn rel qname t [] [] (defaultDisplayForm qname) j noCompiledRep Axiom
+             reportSDoc "tc.term.exlam" 50 $
+               text "extended lambda's implementation \"" <> prettyTCM qname <>
+               text "\" has type: " $$ prettyTCM t -- <+>
+--               text " where clauses: " <+> text (show cs)
+             abstract (A.defAbstract di) $ checkFunDef' t rel NotDelayed di qname cs
+             args     <- getContextArgs
+             top      <- currentModule
+             freevars <- getSecFreeVars top
+             let argsNoParam = genericDrop freevars args -- don't count module parameters
+             let (hid, notHid) = partition ((Hidden ==) . argHiding) argsNoParam
+             addExtLambdaTele qname (length hid, length notHid)
+             reduce $ (Def qname [] `apply` args)
           where
 	    -- Concrete definitions cannot use information about abstract things.
 	    abstract ConcreteDef = inConcreteMode
