@@ -38,6 +38,17 @@ updateLast f [] = []
 updateLast f [a] = [f a]
 updateLast f (a : as@(_ : _)) = a : updateLast f as
 
+-- | A generalized version of @partition@.
+--   (Cf. @mapMaybe@ vs. @filter@).
+mapEither :: (a -> Either b c) -> [a] -> ([b],[c])
+{-# INLINE mapEither #-}
+mapEither f xs = foldr (deal f) ([],[]) xs
+
+deal :: (a -> Either b c) -> a -> ([b],[c]) -> ([b],[c])
+deal f a ~(bs,cs) = case f a of
+  Left  b -> (b:bs, cs)
+  Right c -> (bs, c:cs)
+
 -- | Sublist relation.
 isSublistOf :: Eq a => [a] -> [a] -> Bool
 isSublistOf []       ys = True

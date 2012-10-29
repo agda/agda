@@ -18,6 +18,7 @@ import Agda.TypeChecking.Rules.LHS.Problem
 -- import Agda.TypeChecking.Rules.LHS.ProblemRest
 import Agda.TypeChecking.Rules.LHS.Split ( asView )
 
+import Agda.Utils.List
 import Agda.Utils.Permutation
 import Agda.Utils.Size
 
@@ -40,9 +41,18 @@ instantiateTel s tel = liftTCM $ do
     ]
 
   -- Shrinking permutation (removing Justs) (and its complement, and reverse)
-  let ps  = Perm (size s) [ i | (i, Nothing) <- zip [0..] $ reverse s ]
+  let n   = size s
+      {- OLD CODE, leave as documentation
+      ps  = Perm n [ i | (i, Nothing) <- zip [0..] $ reverse s ]
       psR = reverseP ps
-      psC = Perm (size s) [ i | (i, Just _)  <- zip [0..] $ reverse s ]
+      psC = Perm n [ i | (i, Just _)  <- zip [0..] $ reverse s ]
+      -}
+      deal (i, Nothing) = Left i
+      deal (i, Just _ ) = Right i
+      (is, isC) = mapEither deal $ zip [0..] $ reverse s
+      ps  = Perm n is
+      psR = reverseP ps
+      psC = Perm n isC
 
   reportSDoc "tc.lhs.inst" 10 $ vcat
     [ nest 2 $ text $ "ps   = " ++ show ps
