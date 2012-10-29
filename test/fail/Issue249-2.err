@@ -1,4 +1,4 @@
-Issue249-2.agda:13,1-35
+Issue249-2.agda:13,6-35
 Ambiguous imports from module A for X
 when scope checking the declaration
   open A using (X) renaming (Y to X)

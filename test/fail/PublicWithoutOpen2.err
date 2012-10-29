@@ -1,4 +1,4 @@
-PublicWithoutOpen2.agda:3,1-17
+PublicWithoutOpen2.agda:3,8-17
 The public keyword must only be used together with the open keyword
 when scope checking the declaration
   import Imports.A public

@@ -1,4 +1,4 @@
-Issue154.agda:9,3-9
+Issue154.agda:9,8-9
 Multiple definitions of X. Previous definition at
 Issue154.agda:8,13-14
 when scope checking the declaration

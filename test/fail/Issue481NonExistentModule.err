@@ -1,4 +1,4 @@
-Issue481NonExistentModule.agda:4,6-30
+Issue481NonExistentModule.agda:4,13-30
 Failed to find source of module NonExistentModule in any of the
 following locations:
   ../NonExistentModule.agda

@@ -1,2 +1,2 @@
-ImportInMutual.agda:7,3-21
+ImportInMutual.agda:7,10-21
 Import statements are not allowed in mutual blocks

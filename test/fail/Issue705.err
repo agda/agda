@@ -1,4 +1,4 @@
-Issue705.agda:8,1-7
+Issue705.agda:8,6-7
 Ambiguous module name A. It could refer to any one of
   A.A (datatype module)
   Issue705.A

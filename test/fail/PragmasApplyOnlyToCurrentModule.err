@@ -1,4 +1,4 @@
-PragmasApplyOnlyToCurrentModule.agda:5,1-30
+PragmasApplyOnlyToCurrentModule.agda:5,8-30
 Termination checking failed for the following functions:
   Foo
 Problematic calls:

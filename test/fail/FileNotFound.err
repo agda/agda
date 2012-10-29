@@ -1,4 +1,4 @@
-FileNotFound.agda:3,1-21
+FileNotFound.agda:3,8-21
 Failed to find source of module A.B.WildGoose in any of the
 following locations:
   ../A/B/WildGoose.agda

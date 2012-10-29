@@ -1,4 +1,4 @@
-NoSuchModule.agda:3,1-7
+NoSuchModule.agda:3,6-7
 No such module X
 when scope checking the declaration
   open X

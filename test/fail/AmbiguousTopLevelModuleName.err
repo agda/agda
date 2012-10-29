@@ -1,4 +1,4 @@
-AmbiguousTopLevelModuleName.agda:3,1-25
+AmbiguousTopLevelModuleName.agda:3,8-25
 Ambiguous module name. The module name Imports.Ambiguous could
 refer to any of the following files:
   Imports/Ambiguous.agda

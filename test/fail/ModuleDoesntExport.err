@@ -1,4 +1,4 @@
-ModuleDoesntExport.agda:6,1-45
+ModuleDoesntExport.agda:6,6-45
 The module A doesn't export the following: D, B, module P
 when scope checking the declaration
   open A using (B; module P) renaming (D to C)
