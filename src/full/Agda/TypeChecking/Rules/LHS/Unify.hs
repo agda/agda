@@ -458,7 +458,7 @@ unifyIndices flex a us vs = liftTCM $ do
         (text $ "tel0 = " ++ show tel0)
 
 
-      -- Andreas, Ulf, 2011-09-08 (AIM XVI)
+      -- Andreas, Ulf, 2011-09-08 (AIM XIV)
       -- in case of dependent function type, we cannot postpone
       -- unification of u and v, otherwise us or vs might be ill-typed
       -- skip irrelevant parts
