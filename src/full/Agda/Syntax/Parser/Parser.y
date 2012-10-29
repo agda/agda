@@ -7,11 +7,11 @@
  - Ideally, ranges should be as precise as possible, to get messages that
  - emphasize precisely the faulting term(s) upon error.
  -
- - However, although inal highlighting in only applied at the end of each
+ - However, interactive highlighting is only applied at the end of each
  - mutual block, keywords are only highlighted once (see
  - `TypeChecking.Rules.Decl'). So if the ranges of two declarations
- - interleave, one need to ensure that keyword ranges are not included in
- - the intersection. (Otherwise the uncolored by the interactive
+ - interleave, one must ensure that keyword ranges are not included in
+ - the intersection. (Otherwise they are uncolored by the interactive
  - highlighting.)
  -
  -}

@@ -6,4 +6,4 @@ following locations:
   NonExistentModule.agda
   NonExistentModule.lagda
 when scope checking the declaration
-  import NonExistentModule as .#NonExistentModule-153997218
+  import NonExistentModule as .#NonExistentModule-267088020

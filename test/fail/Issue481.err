@@ -3,4 +3,4 @@ Duplicate definition of module as. Previous definition of module as
 at
 Issue481ParametrizedModule.agda:1,15-41
 when scope checking the declaration
-  open module as = .#Common.Issue481ParametrizedModule-94488503 as
+  open module as = .#Common.Issue481ParametrizedModule-15647319 as
