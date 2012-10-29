@@ -9,7 +9,7 @@ postulate
 
 {-# COMPILED putStrLn putStrLn #-}
 
-mainDefault = putStrLn (♯ "This is a dummy main routine.")
+main = putStrLn (♯ "This is a dummy main routine.")
 
 mainPrint : String → _
 mainPrint s = putStrLn (♯ s)

@@ -24,6 +24,7 @@ import qualified Agda.Utils.HashMap as HMap
 
 #include "../../undefined.h"
 
+{- OLD
 -- | Check that the main function has type IO a, for some a.
 checkTypeOfMain :: QName -> Type -> TCM ()
 checkTypeOfMain q ty
@@ -38,6 +39,26 @@ checkTypeOfMain q ty
           pwords "The type of main should be" ++
           [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
         typeError $ GenericError $ show err
+-}
+
+-- | Check that the main function has type IO a, for some a.
+checkTypeOfMain :: QName -> Type -> TCM [HS.Decl] -> TCM [HS.Decl]
+checkTypeOfMain q ty ret
+  | show (qnameName q) /= "main" = ret
+  | otherwise = do
+    Def io _ <- ignoreSharing <$> primIO
+    ty <- normalise ty
+    case ignoreSharing $ unEl ty of
+      Def d _ | d == io -> (mainAlias :) <$> ret
+      _                 -> do
+        err <- fsep $
+          pwords "The type of main should be" ++
+          [prettyTCM io] ++ pwords " A, for some A. The given type is" ++ [prettyTCM ty]
+        typeError $ GenericError $ show err
+  where
+    mainAlias = HS.FunBind [HS.Match dummy mainLHS [] Nothing mainRHS $ HS.BDecls [] ]
+    mainLHS   = HS.Ident "main"
+    mainRHS   = HS.UnGuardedRhs $ HS.Var $ HS.UnQual $ unqhname "d" q
 
 -- Haskell modules to be imported for BUILT-INs
 importsForPrim :: TCM [HS.ModuleName]

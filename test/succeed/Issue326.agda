@@ -2,7 +2,7 @@
 module Issue326 where
 
 open import Common.Prelude
-open import Common.MAlonzo -- see issue 561
+open import Common.MAlonzo using () -- see issue 561
 
 postulate
   QName : Set

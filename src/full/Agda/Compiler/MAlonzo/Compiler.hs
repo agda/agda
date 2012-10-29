@@ -131,7 +131,7 @@ definition kit (Defn NonStrict  _ _  _ _ _ _ _ _) = __IMPOSSIBLE__
 -}
 definition kit (Defn Irrelevant _ _  _ _ _ _ _ _) = return []
 definition kit (Defn _          q ty _ _ _ _ compiled d) = do
-  checkTypeOfMain q ty
+  checkTypeOfMain q ty $ do
   (infodecl q :) <$> case d of
 
     _ | Just (HsDefn ty hs) <- compiledHaskell compiled ->

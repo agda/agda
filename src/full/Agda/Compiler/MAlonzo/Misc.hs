@@ -83,9 +83,12 @@ ihname :: String -> Nat -> HS.Name
 ihname s i = HS.Ident $ s ++ show i
 
 unqhname :: String -> QName -> HS.Name
+{- NOT A GOOD IDEA, see Issue 728
 unqhname s q | ("d", "main") == (s, show(qnameName q)) = HS.Ident "main"
              | otherwise = ihname s (idnum $ nameId $ qnameName $ q)
-  where idnum (NameId x _) = fromIntegral x
+-}
+unqhname s q = ihname s (idnum $ nameId $ qnameName $ q)
+   where idnum (NameId x _) = fromIntegral x
 
 -- the toplevel module containing the given one
 tlmodOf :: ModuleName -> TCM HS.ModuleName
