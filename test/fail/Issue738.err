@@ -1,0 +1,8 @@
+Issue738.agda:41,3-14
+Cannot decide whether there should be a case for the constructor
+mkb, since the unification gets stuck on unifying the inferred
+indices
+  [λ x → b]
+with the expected indices
+  [λ x → a]
+when checking the definition of foo
