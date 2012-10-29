@@ -621,9 +621,10 @@ reloaded from `agda2-highlighting-file', unless
                                         agda2-output-chunk-incomplete)
           (with-current-buffer agda2-process-buffer
             (insert output-chunk-incomplete))
-          (setq agda2-output-chunk-incomplete (agda2-queue-empty))
-          (setq agda2-in-progress nil)
-          (setq agda2-last-responses (nreverse agda2-last-responses))
+          (setq agda2-output-chunk-incomplete (agda2-queue-empty)
+                agda2-in-progress nil
+                agda2-highlight-in-progress nil
+                agda2-last-responses (nreverse agda2-last-responses))
 
           (when (and agda2-responses-expected
                      (equal agda2-responses 0))
