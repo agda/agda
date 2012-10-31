@@ -1148,6 +1148,11 @@ ModuleMacro : 'module' Id TypedUntypedBindings '=' ModuleApplication ImportDirec
 Module :: { Declaration }
 Module : 'module' Id TypedUntypedBindings 'where' Declarations0
 		    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
+       | 'module' Underscore TypedUntypedBindings 'where' Declarations0
+		    { Module (getRange ($1,$2,$3,$4,$5)) (QName $2) (map addType $3) $5 }
+
+Underscore :: { Name }
+Underscore : '_' { noName (getRange $1) }
 
 -- The top-level consist of a bunch of import and open followed by a top-level module.
 TopLevel :: { [Declaration] }

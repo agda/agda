@@ -917,12 +917,22 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' ind cm' pars contel afields ]
 
+    -- Andreas, 2012-10-30 anonymous modules are just sections
+    NiceModule r p a (C.QName name) tel ds | C.isNoName name ->
+      traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
+      withLocalVars $ do
+        tel <- toAbstract tel
+        (:[]) . A.Section info A.noModuleName tel <$> toAbstract ds
+      where
+        info = ModuleInfo r noRange Nothing Nothing Nothing
+
+
     NiceModule r p a (C.QName name) tel ds ->
       traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
       aname <- toAbstract (NewModuleName name)
-      x <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
+      ds <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
       bindModule p name aname
-      return x
+      return ds
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
 

@@ -145,6 +145,37 @@ Language
 
     two = Bool.if true then 1 Nat.+ 1 else 0
 
+* Sections [Issue 735].  Agda now parses anonymous modules as sections:
+
+    module _ {a} (A : Set a) where
+
+      data List : Set a where
+        []  : List
+        _∷_ : (x : A) (xs : List) → List
+
+    module _ {a} {A : Set a} where
+
+      _++_ : List → List → List
+      []       ++ ys = ys
+      (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
+
+    test : List Nat
+    test = (5 ∷ []) ++ (3 ∷ [])
+
+  In general, now the syntax
+
+    module _ parameters where
+      declarations
+
+  is accepted and has the same effect as
+
+    private
+      module M parameters where
+        declarations
+    open M public
+
+  for a fresh name M.
+
 * Instantiating a module in an open import statement [Issue 481].  Now accepted:
 
     open import Path.Module args [using/hiding/renaming (...)]
