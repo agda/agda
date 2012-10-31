@@ -58,10 +58,15 @@ module _ {a} (A : Set a) where
 
 module _ {a} {A : Set a} where
 
-  _++_ : List → List → List
+  _++_ : List A → List A → List A
   []       ++ ys = ys
   (x ∷ xs) ++ ys = x ∷ (xs ++ ys)
 
+  module _ (default : A) where
+
+    head : List A → A
+    head  []     = default
+    head (x ∷ _) = x
 
 test : List Nat
-test = (2 ∷ []) ++ (3 ∷ [])
+test = head 1 [] ∷ ((2 ∷ []) ++ (3 ∷ []))

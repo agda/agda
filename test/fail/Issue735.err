@@ -1,0 +1,4 @@
+Issue735.agda:16,12-16
+((A₁ : Set _8) → Set _8) !=< Set _8 of type
+Set (Common.Level.lsuc _8)
+when checking that the expression List has type Set _8

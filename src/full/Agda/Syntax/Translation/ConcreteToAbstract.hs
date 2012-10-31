@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP, MultiParamTypeClasses, FunctionalDependencies,
-             FlexibleInstances, UndecidableInstances, OverlappingInstances
+             FlexibleInstances, UndecidableInstances, OverlappingInstances,
+             ScopedTypeVariables
   #-}
 
 {-| Translation from "Agda.Syntax.Concrete" to "Agda.Syntax.Abstract". Involves scope analysis,
@@ -917,21 +918,21 @@ instance ToAbstract NiceDeclaration A.Declaration where
         printScope "rec" 15 "record complete"
         return [ A.RecDef (mkDefInfo x f PublicAccess a r) x' ind cm' pars contel afields ]
 
-    -- Andreas, 2012-10-30 anonymous modules are just sections
-    NiceModule r p a (C.QName name) tel ds | C.isNoName name ->
-      traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
-      withLocalVars $ do
-        tel <- toAbstract tel
-        (:[]) . A.Section info A.noModuleName tel <$> toAbstract ds
-      where
-        info = ModuleInfo r noRange Nothing Nothing Nothing
-
-
+    -- Andreas, 2012-10-30 anonymous modules are like Coq sections
     NiceModule r p a (C.QName name) tel ds ->
       traceCall (ScopeCheckDeclaration $ NiceModule r p a (C.QName name) tel []) $ do
+      (name, p, isSection) <- if not (C.isNoName name)
+        then return (name, p, False)
+        else do
+          (i :: NameId) <- fresh
+          return (C.NoName (getRange name) i, PrivateAccess, True)
       aname <- toAbstract (NewModuleName name)
       ds <- snd <$> scopeCheckModule r (C.QName name) aname tel ds
       bindModule p name aname
+      -- if the module was anonymous open it public
+      when isSection $
+        openModule_ (C.QName name) $
+          defaultImportDir { publicOpen = True }
       return ds
 
     NiceModule _ _ _ C.Qual{} _ _ -> __IMPOSSIBLE__
