@@ -623,7 +623,6 @@ reloaded from `agda2-highlighting-file', unless
             (insert output-chunk-incomplete))
           (setq agda2-output-chunk-incomplete (agda2-queue-empty)
                 agda2-in-progress nil
-                agda2-highlight-in-progress nil
                 agda2-last-responses (nreverse agda2-last-responses))
 
           (when (and agda2-responses-expected
@@ -658,7 +657,12 @@ reloaded from `agda2-highlighting-file', unless
       (setq agda2-last-responses (sort agda2-last-responses
                                        (lambda (x y) (<= (car x) (car y)))))
       (let ((r (pop agda2-last-responses)))
-        (agda2-exec-response (cdr r))))))
+        (agda2-exec-response (cdr r)))))
+
+  ;; Unset agda2-highlight-in-progress when all the asynchronous
+  ;; commands have terminated.
+  (unless agda2-in-progress
+      (setq agda2-highlight-in-progress nil)))
 
 (defun agda2-abort-highlighting nil
   "Abort any interactive highlighting.
