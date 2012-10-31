@@ -13,6 +13,13 @@ else
 pwd=$(shell pwd)/
 endif
 
+# use gsed on Mac OS instead of sed
+ifeq (Darwin,$(findstring Darwin,$(uname)))
+sed=gsed
+else
+sed=sed
+endif
+
 AgdaFiles=$(shell ls *agda)
 OutFiles=$(patsubst %.lagda,%.out,$(patsubst %.agda,%.out,$(AgdaFiles)))
 Tests=$(patsubst %.lagda,%.cmp,$(patsubst %.agda,%.cmp,$(AgdaFiles)))
@@ -23,18 +30,18 @@ export TMPDIR=highlighting-tmp
 
 run_test=if test -f $*.in; \
     then cat $*.in \
-         | sed "s/ioTCM/IOTCM/g" \
-         | sed "s/cmd_/Cmd_/g" \
-         | sed "s/showImplicitArgs/ShowImplicitArgs/g" \
-         | sed "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
-         | sed "s/top_command/IOTCM currentFile None Indirect/g" \
-         | sed "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | sed "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
-         | sed "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
+         | $(sed) "s/ioTCM/IOTCM/g" \
+         | $(sed) "s/cmd_/Cmd_/g" \
+         | $(sed) "s/showImplicitArgs/ShowImplicitArgs/g" \
+         | $(sed) "s/toggleImplicitArgs/ToggleImplicitArgs/g" \
+         | $(sed) "s/top_command/IOTCM currentFile None Indirect/g" \
+         | $(sed) "s/goal_command \\([0-9]\+\\) (\\([^)]\+\\)) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(sed) "s/goal_command \\([0-9]\+\\) \\([^ ]\+\\) \\(\"[^\"]*\"\\)/IOTCM currentFile None Indirect (\\2 \\1 noRange \\3)/g" \
+         | $(sed) "s/currentFile/\"$(wildcard $*.agda $*.lagda)\"/g" \
          | agda --interaction $(RTS_$*) \
-           2>&1 | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+           2>&1 | $(sed) -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     else source ./$*.sh \
-        | sed -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
+        | $(sed) -e 's"$(pwd)""g' -e 's"$(TMPDIR).*$$""'; \
     fi
 
 # Note that RTS_... variables are ignored when .sh files are used.
