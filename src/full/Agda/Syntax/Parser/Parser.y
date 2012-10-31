@@ -778,11 +778,11 @@ DomainFreeBindingAbsurd
  --------------------------------------------------------------------------}
 
 -- You can rename imports
-ImportImportDirective :: { (Maybe AsName, ImportDirective) }
-ImportImportDirective
-    : ImportDirective	    { (Nothing, $1) }
-    | id Id ImportDirective {% isName "as" $1 >>
-                               return (Just (AsName $2 (getRange (fst $1))), $3) }
+-- ImportImportDirective :: { (Maybe AsName, ImportDirective) }
+-- ImportImportDirective
+--     : ImportDirective	    { (Nothing, $1) }
+--     | id Id ImportDirective {% isName "as" $1 >>
+--                                return (Just (AsName $2 (getRange (fst $1))), $3) }
 
 -- Import directives
 ImportDirective :: { ImportDirective }
