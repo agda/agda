@@ -65,6 +65,7 @@ elimView v = do
       elim es2 (ConElim  x es1) = ConElim  x (es1 ++ es2)
       elim es2 (MetaElim x es1) = MetaElim x (es1 ++ es2)
 
+{- UNUSED
 -- | Only used when producing error messages.
 unElimView :: ElimView -> Term
 unElimView v = case v of
@@ -78,3 +79,4 @@ unElim :: Term -> [Elim] -> Term
 unElim v [] = v
 unElim v (Apply u : es) = unElim (v `apply` [u]) es
 unElim v (Proj f : es)  = unElim (Def f [Arg NotHidden Relevant v]) es
+-}

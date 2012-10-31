@@ -39,7 +39,7 @@ import Agda.TypeChecking.Coverage
 import Agda.TypeChecking.Records
 import Agda.TypeChecking.Irrelevance (wakeIrrelevantVars)
 import Agda.TypeChecking.Pretty (prettyTCM)
-import Agda.TypeChecking.Eliminators (unElim)
+-- UNUSED: import Agda.TypeChecking.Eliminators (unElim)
 import qualified Agda.TypeChecking.Pretty as TP
 
 import Agda.Utils.List
