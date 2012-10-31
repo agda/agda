@@ -206,6 +206,7 @@ data ImportDirective
 	    }
     deriving (Typeable)
 
+-- | Default is directive is @private@ (use everything, but do not export).
 defaultImportDir :: ImportDirective
 defaultImportDir = ImportDirective noRange (Hiding []) [] False
 

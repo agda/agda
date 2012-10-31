@@ -799,7 +799,7 @@ ImportDirective2
     : UsingOrHiding RenamingDir	{ ImportDirective (fuseRange (snd $1) (snd $2)) (fst $1) (fst $2) False }
     | RenamingDir		{ ImportDirective (getRange (snd $1)) (Hiding []) (fst $1) False }
     | UsingOrHiding		{ ImportDirective (getRange (snd $1)) (fst $1) [] False }
-    | {- empty -}		{ ImportDirective noRange (Hiding []) [] False }
+    | {- empty -}		{ defaultImportDir }
 
 UsingOrHiding :: { (UsingOrHiding , Range) }
 UsingOrHiding
@@ -1067,8 +1067,7 @@ Open : MaybeOpen 'import' ModuleName OpenArgs ImportDirective {%
          -- (different hashs on different installations)
          -- TODO: Don't use (insecure) hashes in this way.
     ; fresh = Name mr [ Id $ ".#" ++ show m ++ "-" ++ show unique ]
-    ; nodir  = ImportDirective noRange (Hiding []) [] False
-    ; impStm asR = Import mr m (Just (AsName fresh asR)) DontOpen nodir
+    ; impStm asR = Import mr m (Just (AsName fresh asR)) DontOpen defaultImportDir
     ; appStm m' es =
         let r = getRange (m, es) in
         Private r
